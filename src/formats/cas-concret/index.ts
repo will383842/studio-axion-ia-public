@@ -53,12 +53,13 @@ export type ReseauCas = "facebook" | "instagram" | "tiktok" | "linkedin";
 /**
  * Cadeau annoncé par une offre : identifiant de la table `TABLE_FINS_DIAGNOSTIC` (`src/briques/fins/table-diagnostic.ts`).
  * Un seul cadeau « intégration » : la phrase validée « toute la structure de cette automatisation » pour un cas dont la
- * nature est une automatisation, « le schéma de cette intégration » (non validée) sinon. Le coaching n'a pas de cadeau.
+ * nature est une automatisation, « le schéma de cette intégration » (non validée) sinon. Le coaching a le sien : « Déroulé de l'accompagnement ».
  */
 export function cadeauDeLOffre(offre: Offre, nature?: NatureCas): string | undefined {
   if (offre === "integration") return nature === "automatisation" ? "fin-if-cadeau-automatisation" : "fin-if-cadeau-integration";
   if (offre === "formation") return "fin-if-cadeau-formation";
   if (offre === "audit") return "fin-if-cadeau-audit";
+  if (offre === "coaching") return "fin-if-cadeau-coaching";
   return undefined;
 }
 
@@ -80,7 +81,7 @@ export const FIN_AU_MOT_INSTAGRAM: readonly string[] = Object.freeze(["fin-ig-mo
 /**
  * Suite de fins par réseau (plan § 4-d, puis X6), en identifiants de `TABLE_FINS_DIAGNOSTIC`. `motSur` : les réseaux où
  * le mot est dit (Will a coché « Avec le mot » ET le mot est branché sur ce compte). Là : la fin au mot, sauf pour une
- * offre sans cadeau (coaching). Partout ailleurs, et toujours sur TikTok et LinkedIn : la fin « diagnostic ».
+ * offre sans cadeau (aucune aujourd'hui : le coaching a désormais son cadeau). Partout ailleurs, et toujours sur TikTok et LinkedIn : la fin « diagnostic ».
  */
 export function finsParReseau(offre: Offre, motSur: readonly ReseauCas[], nature?: NatureCas): Record<ReseauCas, string[]> {
   const auMot = (r: "facebook" | "instagram") => motSur.includes(r) && !!cadeauDeLOffre(offre, nature);

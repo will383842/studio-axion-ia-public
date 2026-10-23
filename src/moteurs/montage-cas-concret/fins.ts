@@ -151,7 +151,7 @@ export function planDesFins(demande: DemandePlanDesFins): PlanDesFins {
   const { reseaux, offre, nature, mot, motDit, avecMot, table } = demande;
   const motSur = avecMot ? (demande.motSur ?? []).filter(estBranchable) : [];
   const suites = finsParReseau(offre, motSur, nature);
-  // Une offre sans cadeau (coaching) : le mot n'est jamais dit, la fin le dit avec sa raison.
+  // Une offre sans cadeau : le mot n'est jamais dit, la fin le dit avec sa raison (aucune offre aujourd'hui).
   const sansCadeau = !cadeauDeLOffre(offre, nature);
   const options = { mot, ...(motDit ? { motDit } : {}) };
   const groupes = new Map<string, { reseaux: ReseauCas[]; ids: string[]; raison?: string }>();

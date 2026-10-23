@@ -28,7 +28,7 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
   const [liste, voix, mots, etendu, ecranFourni, porteB, stockMetiers, traites] = await Promise.all([listerCas(), etatVoixCasConcret(), etatMotsCasConcret(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.ecranFourni), reglageAllume(REGLAGES_CAS_CONCRET.porteB), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers), lireCasTraites()]);
   // Portage phase 2 : les cas ajoutés ne sont montrés que si `casConcret.catalogueEtendu` est allumé (éteint par défaut).
   // Un cas TRAITÉ (vidéo allée au bout) n'est plus proposé : ni dans la liste, ni estimé, ni piochable (les 22 cas d'origine aussi).
-  // Il reste visible, avec son bouton « Remettre en stock », dans la section « Déjà traités » du stock.
+  // Il reste visible, avec son bouton « Remettre en stock », sur la page « Déjà faits » (/cas-concret/deja-faits).
   const valides = casVisibles(liste.valides, { catalogueEtendu: etendu, stockMetiers }).filter((c) => !traites.has(c.cas.id));
   const aValider = casVisibles(liste.aValider, { catalogueEtendu: etendu, stockMetiers }).filter((c) => !traites.has(c.cas.id));
   // K3 : le réglage des scripts est lu UNE fois pour tous les cas ; les cas d'avant le stock sont tous estimés (comme avant K3) ;

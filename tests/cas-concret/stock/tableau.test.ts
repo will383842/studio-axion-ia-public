@@ -39,7 +39,7 @@ describe("tableau de bord du stock", () => {
     const h = rendre({ filtres: {}, page: 1 });
     expect(h).toContain(chiffre(45, "Cas au total"));
     expect(h).toContain(chiffre(35, "Restants"));
-    expect(h).toContain(chiffre(10, "Déjà traités"));
+    expect(h).toContain(chiffre(10, "Déjà faits"));
     expect(h).toContain(chiffre(0, "À valider"));
     expect(h).toContain(chiffre(45, "Validés"));
   });
