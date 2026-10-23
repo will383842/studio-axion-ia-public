@@ -1,0 +1,128 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "tiktok",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« vos erreurs Excel, personne ne les voit » : générique, n'importe quel concurrent le dirait."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Vous gérez des chiffres : vos erreurs Excel » : sujet et concerné clairs."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Aucune croyance du public ni niveau de conscience établi ; « personne ne les voit » asserté sans preuve."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "oui",
+      "motif": "Phrases courtes autonomes : « Un copier-coller peut en cacher une. »"
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "non",
+      "motif": "« …en cacher une. Et personne ne vérifie. » : enchaînement correct mais boucle faible, « Et » collé."
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "« La vidéo donne un premier geste » : formule générique, promesse floue de tic écrit."
+     }
+    ]
+   },
+   {
+    "id": "instagram",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« votre tableur ne vérifie rien » : n'importe quel concurrent peut le dire."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME, votre tableur ne vérifie rien » : cible et sujet immédiats."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Pas de croyance ni de limite du public ; « que personne ne voit » non étayé."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "oui",
+      "motif": "Chaque phrase se tient seule, coupe possible après « personne ne voit. »"
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "oui",
+      "motif": "« …que personne ne voit. Et ça coûte plus cher qu'on croit. » naturel à l'oral."
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "« Le coût n'est sur aucune facture » affirmé sans preuve ; ton écrit générique."
+     }
+    ]
+   },
+   {
+    "id": "linkedin",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« les erreurs Excel se cachent dans chaque copier-coller » : dicible par tout concurrent."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME, les erreurs Excel » : sujet et cible clairs."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Affirmation « chaque copier-coller » sans croyance du public ni preuve, ancrage manquant."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "oui",
+      "motif": "Phrases courtes indépendantes : « Chaque copier-coller est une occasion d'erreur. »"
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "sans-objet",
+      "motif": "Boucle : (aucune)."
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "Le post répète la phrase finale « où des données sont recopiées » deux fois."
+     }
+    ]
+   }
+  ]
+ }
+}

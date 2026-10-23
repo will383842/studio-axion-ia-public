@@ -1,0 +1,417 @@
+{
+ "base": 1,
+ "fichier": "1-cibles.md",
+ "tables": {
+  "secteur": {
+   "colonnes": [
+    "code",
+    "nom",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "comptabilite_finance",
+     "nom": "Comptabilité et finance",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "batiment",
+     "nom": "Bâtiment",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "immobilier",
+     "nom": "Immobilier",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "generaliste",
+     "nom": "Généraliste, tous métiers",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "metier": {
+   "colonnes": [
+    "code",
+    "numero",
+    "secteur",
+    "nature",
+    "nom",
+    "se_nomment",
+    "mots",
+    "veut_vraiment",
+    "ne_jamais_dire",
+    "tailles_typiques",
+    "actif",
+    "profondeur",
+    "calcule",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "compta.expert-comptable",
+     "numero": "1.01",
+     "secteur": "comptabilite_finance",
+     "nature": "metier",
+     "nom": "Expert-comptable",
+     "se_nomment": "expert-comptable, « j'ai un cabinet »",
+     "mots": "rapprochement bancaire ; lettrage ; pièces justificatives ; relances clients ; clôture mensuelle",
+     "veut_vraiment": "Moins de ressaisie et plus de temps pour conseiller leurs clients.",
+     "ne_jamais_dire": "Un outil qui remplace le cabinet.",
+     "tailles_typiques": "TPE ; PME",
+     "actif": "oui",
+     "profondeur": "complet",
+     "calcule": "",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "artisan.plombier",
+     "numero": "2.01",
+     "secteur": "batiment",
+     "nature": "metier",
+     "nom": "Plombier",
+     "se_nomment": "plombier, « j'ai mon entreprise »",
+     "mots": "devis ; chantier ; intervention ; facture ; relance",
+     "veut_vraiment": "Des devis partis le jour même et moins de paperasse le soir.",
+     "ne_jamais_dire": "Un outil qui fait le chantier.",
+     "tailles_typiques": "TPE",
+     "actif": "oui",
+     "profondeur": "complet",
+     "calcule": "",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "immo.agent-immobilier",
+     "numero": "3.01",
+     "secteur": "immobilier",
+     "nature": "metier",
+     "nom": "Agent immobilier",
+     "se_nomment": "agent immobilier, « mon agence »",
+     "mots": "mandat ; visite ; annonce ; dossier ; compromis",
+     "veut_vraiment": "Des annonces rédigées vite et des dossiers rangés.",
+     "ne_jamais_dire": "Un outil qui signe à sa place.",
+     "tailles_typiques": "TPE ; PME",
+     "actif": "oui",
+     "profondeur": "complet",
+     "calcule": "",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "exemple.ancien-metier",
+     "numero": "9.99",
+     "secteur": "generaliste",
+     "nature": "metier",
+     "nom": "Ancien métier d'exemple",
+     "se_nomment": "exemple retiré",
+     "mots": "exemple",
+     "veut_vraiment": "Exemple retiré, gardé pour tester le filtre d'état.",
+     "ne_jamais_dire": "Rien.",
+     "tailles_typiques": "TPE",
+     "actif": "oui",
+     "profondeur": "complet",
+     "calcule": "",
+     "etat": "retire",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "public": {
+   "colonnes": [
+    "code",
+    "nom",
+    "se_nomment",
+    "mots",
+    "veut_vraiment",
+    "ne_jamais_dire",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "public.clients",
+     "nom": "clients",
+     "se_nomment": "dirigeants de petites entreprises",
+     "mots": "vos soirées ; vos devis",
+     "veut_vraiment": "Gagner du temps sans complexité.",
+     "ne_jamais_dire": "",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "public.apporteurs",
+     "nom": "apporteurs",
+     "se_nomment": "personnes en relation avec des dirigeants",
+     "mots": "présenter ; mettre en relation",
+     "veut_vraiment": "Savoir comment présenter l'offre simplement.",
+     "ne_jamais_dire": "",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "public.candidats",
+     "nom": "candidats",
+     "se_nomment": "personnes qui souhaitent rejoindre l'équipe",
+     "mots": "poste ; équipe",
+     "veut_vraiment": "Comprendre le poste.",
+     "ne_jamais_dire": "",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "douleur": {
+   "colonnes": [
+    "code",
+    "cible",
+    "dite",
+    "scene_avant",
+    "cout",
+    "services",
+    "tailles",
+    "type_contenu",
+    "calcule",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "compta.expert-comptable.d1",
+     "cible": "compta.expert-comptable",
+     "dite": "Les relances de pièces manquantes se répètent chaque mois.",
+     "scene_avant": "Un dossier attend une facture depuis des semaines.",
+     "cout": "",
+     "services": "integration",
+     "tailles": "",
+     "type_contenu": "",
+     "calcule": "services",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "compta.expert-comptable.d2",
+     "cible": "compta.expert-comptable",
+     "dite": "La saisie des mêmes informations revient à chaque clôture.",
+     "scene_avant": "",
+     "cout": "",
+     "services": "integration",
+     "tailles": "",
+     "type_contenu": "",
+     "calcule": "services",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "artisan.plombier.d1",
+     "cible": "artisan.plombier",
+     "dite": "Les devis s'écrivent le soir, après la journée de chantier.",
+     "scene_avant": "La camionnette est rangée et l'ordinateur s'ouvre.",
+     "cout": "",
+     "services": "integration",
+     "tailles": "",
+     "type_contenu": "",
+     "calcule": "services",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "immo.agent-immobilier.d1",
+     "cible": "immo.agent-immobilier",
+     "dite": "Chaque annonce se réécrit presque à l'identique.",
+     "scene_avant": "",
+     "cout": "",
+     "services": "integration",
+     "tailles": "",
+     "type_contenu": "",
+     "calcule": "services",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "public.clients.d1",
+     "cible": "public.clients",
+     "dite": "Les messages s'empilent pendant la journée.",
+     "scene_avant": "",
+     "cout": "",
+     "services": "integration",
+     "tailles": "",
+     "type_contenu": "",
+     "calcule": "services",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "exemple.ancien-metier.d1",
+     "cible": "exemple.ancien-metier",
+     "dite": "Une douleur d'exemple.",
+     "scene_avant": "",
+     "cout": "",
+     "services": "integration",
+     "tailles": "",
+     "type_contenu": "",
+     "calcule": "services",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "objection": {
+   "colonnes": [
+    "code",
+    "cible",
+    "objection",
+    "reponse",
+    "service",
+    "ou_l_utiliser",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "compta.expert-comptable.o1",
+     "cible": "compta.expert-comptable",
+     "objection": "« Je n'ai pas le temps de m'y mettre. »",
+     "reponse": "On commence par une seule tâche, celle qui pèse le plus.",
+     "service": "",
+     "ou_l_utiliser": "video ; reponse_publique",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "compta.expert-comptable.o2",
+     "cible": "compta.expert-comptable",
+     "objection": "« Mes clients tiennent à leurs habitudes. »",
+     "reponse": "Rien ne change pour eux, seule votre préparation change.",
+     "service": "",
+     "ou_l_utiliser": "video ; reponse_publique",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "artisan.plombier.o1",
+     "cible": "artisan.plombier",
+     "objection": "« Ce n'est pas fait pour un petit métier comme le mien. »",
+     "reponse": "Une seule tâche suffit pour commencer.",
+     "service": "",
+     "ou_l_utiliser": "video ; reponse_publique",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "souci_releve": {
+   "colonnes": [
+    "code",
+    "numero",
+    "cible",
+    "souci",
+    "source",
+    "force",
+    "lu_le",
+    "etat",
+    "version",
+    "origine",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "compta.expert-comptable.s01",
+     "numero": "S1",
+     "cible": "compta.expert-comptable",
+     "souci": "Exemple inventé : les relances se font à la main.",
+     "source": "exemple inventé",
+     "force": "faible",
+     "lu_le": "2026-01-01",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "valide_le": ""
+    }
+   ]
+  }
+ }
+}

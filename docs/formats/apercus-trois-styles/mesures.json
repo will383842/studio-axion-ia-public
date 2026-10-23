@@ -1,0 +1,18 @@
+{
+ "regle": "Remotion renderMedia, 1080 × 1920, concurrence 1 (une page du navigateur), Chromium sans affichage, rendu logiciel (swangle)",
+ "tableau-blanc": {
+  "images": 175,
+  "msParImage": 388,
+  "secondes": 67.9
+ },
+ "ardoise": {
+  "images": 175,
+  "msParImage": 377,
+  "secondes": 66
+ },
+ "paperboard": {
+  "images": 175,
+  "msParImage": 515,
+  "secondes": 90.2
+ }
+}

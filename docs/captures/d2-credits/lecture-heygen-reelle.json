@@ -1,0 +1,16 @@
+{
+  "_source": "Lecture réelle par le lecteur du studio (src/fournisseurs/credits/heygen.ts). Gratuit, aucun appel payant.",
+  "point": "GET https://api.heygen.com/v3/users/me",
+  "luLe": "2026-10-02T13:10:41.534Z",
+  "dureeMs": 783,
+  "soldeCentimesUsd": 2983,
+  "soldeAffiche": "29,83 $",
+  "testerConnexion": {
+    "ok": true,
+    "finCle": "…29Z0",
+    "message": "Clé acceptée",
+    "testeLe": "2026-10-02T13:10:42.087Z"
+  },
+  "voixPriveesListees": 1,
+  "coutDesAppels": "0 $ (lectures gratuites)"
+}

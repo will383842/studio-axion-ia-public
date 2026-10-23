@@ -1,0 +1,520 @@
+{
+ "version": "fiche-scenes/1",
+ "formatId": "tableau-anime",
+ "videoId": "v-formation-v3",
+ "versionId": "r1",
+ "habillage": "reference/3",
+ "stylo": "crayon/1",
+ "ratio": "9:16",
+ "structure": "demonstration",
+ "serie": {
+  "code": "formation",
+  "nom": "Formation"
+ },
+ "douleur": "Un salarié colle un contrat client dans ChatGPT, sans vous le dire.",
+ "gesteMinute": "Une règle en trois couleurs : vert on colle, orange on retire les noms, rouge jamais.",
+ "appelId": null,
+ "scenes": [
+  {
+   "id": "s01",
+   "role": "accroche",
+   "page": 1,
+   "texteDit": "Un salarié colle un contrat client dans ChatGPT, sans vous le dire.",
+   "gabarit": {
+    "role": "accroche"
+   },
+   "elements": [
+    {
+     "id": "e01",
+     "type": "ligne",
+     "texte": "Un salarié colle un contrat client dans ChatGPT.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0,
+     "marque": "entoure",
+     "importants": [
+      "contrat",
+      "client",
+      "ChatGPT"
+     ]
+    },
+    {
+     "id": "e02",
+     "type": "ligne",
+     "texte": "Sans vous le dire.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "detail",
+     "ancre": 8
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "role": "douleur",
+   "page": 2,
+   "texteDit": "Le nom du client et ses conditions sortent de l'entreprise. Selon les réglages, ils peuvent servir à entraîner l'outil.",
+   "gabarit": {
+    "role": "douleur"
+   },
+   "elements": [
+    {
+     "id": "e03",
+     "type": "ligne",
+     "texte": "Nom et conditions",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 0
+    },
+    {
+     "id": "e04",
+     "type": "ligne",
+     "texte": "Le nom du client et ses conditions sortent de l'entreprise.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e05",
+     "type": "dessin",
+     "dessinId": "dossier",
+     "cote": "droite",
+     "ancre": 7
+    },
+    {
+     "id": "e06",
+     "type": "ligne",
+     "texte": "Selon les réglages, ils peuvent servir à entraîner l'outil.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "detail",
+     "ancre": 10
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "role": "douleur",
+   "page": 3,
+   "texteDit": "Si le client l'apprend, c'est votre parole qui est en jeu.",
+   "gabarit": {
+    "role": "douleur"
+   },
+   "elements": [
+    {
+     "id": "e07",
+     "type": "ligne",
+     "texte": "Votre parole",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 0
+    },
+    {
+     "id": "e08",
+     "type": "ligne",
+     "texte": "Si le client l'apprend, c'est votre parole qui est en jeu.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "role": "etape",
+   "page": 4,
+   "texteDit": "Voici quoi apprendre à votre équipe : une règle en trois couleurs.",
+   "gabarit": {
+    "role": "solution"
+   },
+   "elements": [
+    {
+     "id": "e09",
+     "type": "ligne",
+     "texte": "Trois couleurs",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 0
+    },
+    {
+     "id": "e10",
+     "type": "ligne",
+     "texte": "Voici quoi apprendre à votre équipe : une règle en trois couleurs.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e11",
+     "type": "dessin",
+     "dessinId": "ampoule",
+     "cote": "droite",
+     "ancre": 7
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "role": "etape",
+   "page": 5,
+   "texteDit": "Un. Mettez en vert les textes sans client ni salarié. Une annonce d'emploi, une fiche produit, un brouillon de publication. Ceux-là se collent tels quels.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 1,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e12",
+     "type": "ligne",
+     "texte": "Vert",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e13",
+     "type": "ligne",
+     "texte": "Mettez en vert les textes sans client ni salarié.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e14",
+     "type": "ligne",
+     "texte": "Annonce, fiche produit, publication",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 11,
+     "code": "vert"
+    },
+    {
+     "id": "e15",
+     "type": "ligne",
+     "texte": "Collés tels quels",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 20,
+     "code": "vert"
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "role": "etape",
+   "page": 6,
+   "texteDit": "Deux. Mettez en orange les textes qui citent quelqu'un. On retire avant de coller : noms, adresses, téléphones, e-mails, numéros de compte, et tout détail qui reconnaît quelqu'un. L'outil travaille sur le fond, sans savoir de qui il parle.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 2,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e16",
+     "type": "ligne",
+     "texte": "Orange",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e17",
+     "type": "ligne",
+     "texte": "Mettez en orange les textes qui citent quelqu'un.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e18",
+     "type": "ligne",
+     "texte": "On retire : noms, adresses, numéros",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 9,
+     "code": "orange"
+    },
+    {
+     "id": "e19",
+     "type": "ligne",
+     "texte": "Le fond, sans les noms",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 27,
+     "code": "vert"
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "role": "etape",
+   "page": 7,
+   "texteDit": "Trois. Mettez en rouge ce qui n'entre jamais dans l'outil. Santé, fiches de paie, mots de passe, contrats confidentiels : sensibles même sans les noms. Chacun sait où s'arrêter.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 3,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e20",
+     "type": "ligne",
+     "texte": "Rouge",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e21",
+     "type": "ligne",
+     "texte": "Mettez en rouge ce qui n'entre jamais dans l'outil.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e22",
+     "type": "dessin",
+     "dessinId": "cadenas",
+     "cote": "droite",
+     "ancre": 7
+    },
+    {
+     "id": "e23",
+     "type": "ligne",
+     "texte": "Santé, paie, mots de passe",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 10,
+     "code": "rouge"
+    },
+    {
+     "id": "e24",
+     "type": "ligne",
+     "texte": "Chacun sait où s'arrêter",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 24,
+     "code": "vert"
+    }
+   ]
+  },
+  {
+   "id": "s08",
+   "role": "etape",
+   "page": 8,
+   "texteDit": "Quatre. Affichez la règle, puis coupez l'entraînement dans les paramètres. Dans ChatGPT, chacun décoche « Améliorer le modèle pour tout le monde ». Vos textes ne servent plus à entraîner l'outil.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 4,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e25",
+     "type": "ligne",
+     "texte": "Affichez, coupez",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e26",
+     "type": "ligne",
+     "texte": "Affichez la règle, puis coupez l'entraînement.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e27",
+     "type": "ligne",
+     "texte": "Décochez « Améliorer le modèle »",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 13
+    },
+    {
+     "id": "e28",
+     "type": "ligne",
+     "texte": "Plus d'entraînement",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 21
+    }
+   ]
+  },
+  {
+   "id": "s09",
+   "role": "exemple",
+   "page": 9,
+   "texteDit": "Prenons une agence immobilière et un compromis de vente. Avant, l'assistante collait le compromis entier.",
+   "gabarit": {
+    "role": "exemple"
+   },
+   "elements": [
+    {
+     "id": "e29",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e30",
+     "type": "ligne",
+     "texte": "Une agence immobilière et un compromis de vente.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e31",
+     "type": "ligne",
+     "texte": "L'assistante collait le compromis entier.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "avant",
+     "ancre": 9
+    }
+   ]
+  },
+  {
+   "id": "s10",
+   "role": "preuve",
+   "page": 9,
+   "texteDit": "Maintenant, elle écrit Vendeur A, Acheteur B, et retire aussi les références du cadastre. Ces références suffisent à retrouver le bien, donc son adresse.",
+   "gabarit": {
+    "role": "exemple"
+   },
+   "elements": [
+    {
+     "id": "e32",
+     "type": "ligne",
+     "texte": "Elle écrit Vendeur A, Acheteur B.",
+     "niveau": "texte",
+     "role": "resultat",
+     "bloc": "apres",
+     "ancre": 0
+    },
+    {
+     "id": "e33",
+     "type": "preuve",
+     "preuveId": "mat-cadastre-demo",
+     "lignes": [
+      "Le cadastre trahit l'adresse."
+     ],
+     "ancre": 14
+    }
+   ]
+  },
+  {
+   "id": "s11",
+   "role": "resultat",
+   "page": 10,
+   "texteDit": "Ce qui permet de reconnaître quelqu'un reste dans l'entreprise.",
+   "gabarit": {
+    "role": "retenir"
+   },
+   "elements": [
+    {
+     "id": "e34",
+     "type": "ligne",
+     "texte": "Vert : collé tel quel",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "liste",
+     "ancre": 0
+    },
+    {
+     "id": "e35",
+     "type": "ligne",
+     "texte": "Orange : on retire les noms",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "liste",
+     "ancre": 2
+    },
+    {
+     "id": "e36",
+     "type": "ligne",
+     "texte": "Rouge : jamais collé",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "liste",
+     "ancre": 4
+    },
+    {
+     "id": "e37",
+     "type": "ligne",
+     "texte": "Ce qui reconnaît quelqu'un reste dedans.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "detail",
+     "ancre": 6
+    }
+   ]
+  },
+  {
+   "id": "s12",
+   "role": "fin",
+   "page": 11,
+   "texteDit": "Axion-IA forme les équipes à l'IA sur leurs vraies tâches. Réservez un appel de diagnostic.",
+   "gabarit": {
+    "role": "appel"
+   },
+   "elements": [
+    {
+     "id": "e38",
+     "type": "ligne",
+     "texte": "Axion-IA forme les équipes à l'IA sur leurs vraies tâches.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "detail",
+     "ancre": 0
+    },
+    {
+     "id": "e39",
+     "type": "ligne",
+     "texte": "Réservez un appel de diagnostic",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "appel",
+     "ancre": 10
+    }
+   ]
+  }
+ ]
+}

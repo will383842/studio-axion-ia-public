@@ -1,0 +1,69 @@
+{
+ "role": "plan",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "partie": "accroche",
+    "fonction": [
+     "boucle-ouverte",
+     "cout",
+     "ancrage",
+     "mot-cle"
+    ],
+    "nature": "fait",
+    "resume": "Dirigeant de PME, Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "ouvre": {
+     "id": "q1",
+     "question": "Où se cache le vrai coût d'un tableur, s'il n'est sur aucune facture ?"
+    },
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "ancrage",
+     "relance"
+    ],
+    "nature": "fait",
+    "resume": "La raison, posée telle quelle : un tableur ne vérifie rien tout seul.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "citeMatiereId": "test-35h-cause",
+    "ouvre": {
+     "id": "q2",
+     "question": "Qu'est-ce que ça change, concrètement, qu'il ne vérifie rien ?"
+    }
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "boucle-fermee",
+     "cout"
+    ],
+    "nature": "fait",
+    "resume": "Une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "citeMatiereId": "test-35h-obs2",
+    "lien": "consequence",
+    "situation": "neutre"
+   }
+  ],
+  "exceptionIndex": -1,
+  "ancrageIndex": [
+   0
+  ],
+  "appuiPrincipalIndex": 0,
+  "livraisonIndex": 0
+ }
+}

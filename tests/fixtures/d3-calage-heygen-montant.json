@@ -1,0 +1,62 @@
+{
+ "mots": [
+  {
+   "mot": "Cette",
+   "debutSec": 0.26,
+   "finSec": 0.472
+  },
+  {
+   "mot": "amende",
+   "debutSec": 0.472,
+   "finSec": 0.813
+  },
+  {
+   "mot": "de",
+   "debutSec": 0.813,
+   "finSec": 0.994
+  },
+  {
+   "mot": "135",
+   "debutSec": 0.994,
+   "finSec": 1.777
+  },
+  {
+   "mot": "€",
+   "debutSec": 1.777,
+   "finSec": 2.098
+  },
+  {
+   "mot": "peut",
+   "debutSec": 2.098,
+   "finSec": 2.299
+  },
+  {
+   "mot": "être",
+   "debutSec": 2.299,
+   "finSec": 2.48
+  },
+  {
+   "mot": "contestée",
+   "debutSec": 2.48,
+   "finSec": 3.042
+  },
+  {
+   "mot": "sous",
+   "debutSec": 3.042,
+   "finSec": 3.283
+  },
+  {
+   "mot": "45",
+   "debutSec": 3.283,
+   "finSec": 3.905
+  },
+  {
+   "mot": "jours.",
+   "debutSec": 3.905,
+   "finSec": 4.316
+  }
+ ],
+ "motsNonAlignes": 0,
+ "modele": "wav2vec2:VOXPOPULI_ASR_BASE_10K_FR",
+ "dureeCalculSec": 12.58
+}

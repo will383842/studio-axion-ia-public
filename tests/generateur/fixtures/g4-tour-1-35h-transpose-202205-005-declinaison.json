@@ -1,0 +1,31 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Dirigeant de PME, votre tableur ne vérifie rien. Chaque copier-coller peut cacher des erreurs Excel que personne ne voit.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Demandez-lui où les données sont recopiées à la main d'un tableur à l'autre dans vos fichiers."
+  },
+  "boucle": "Et ce coût-là, qui le paie ?",
+  "encadre": "Erreurs Excel : le coût caché",
+  "couverture": "Les erreurs Excel cachées",
+  "segmentFacultatifRetenu": true,
+  "publication": {
+   "premiereLigne": "Erreurs Excel : que coûte vraiment un copier-coller que personne ne vérifie ?",
+   "texte": "Erreurs Excel : que coûte vraiment un copier-coller que personne ne vérifie ? Un tableur ne vérifie rien tout seul. Le coût ne figure sur aucune facture. Envoyez cette vidéo à votre DAF.",
+   "motsDiese": [],
+   "justifications": [
+    {
+     "texte": "Mot-clé exact « erreurs Excel » placé dans les 125 premiers caractères de la légende.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Aucun mot-dièse : le nombre reste dans la fourchette de 0 à 3.",
+     "regleId": "ig-hashtags-5"
+    }
+   ]
+  }
+ }
+}

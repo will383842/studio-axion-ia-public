@@ -1,0 +1,138 @@
+{
+  "source": "Voix de synthèse Windows « Hortense » (fr-FR), 48 kHz mono",
+  "texteValide": "Vous recevez un PV de 135 € ? Surtout, ne le payez pas tout de suite. Je vous explique pourquoi, en trois points.",
+  "texteEnvoye": "Vous recevez un pé vé de cent trente-cinq euros ? Surtout, ne le payez pas tout de suite. Je vous explique pourquoi, en trois points.",
+  "prononciations": [
+    {
+      "mot": "PV",
+      "prononciation": "pé vé"
+    },
+    {
+      "mot": "135 €",
+      "prononciation": "cent trente-cinq euros"
+    }
+  ],
+  "dureeSec": 10.921,
+  "mots": [
+    {
+      "mot": "Vous",
+      "debutSec": 0.47,
+      "finSec": 0.65
+    },
+    {
+      "mot": "recevez",
+      "debutSec": 0.652,
+      "finSec": 1.012
+    },
+    {
+      "mot": "un",
+      "debutSec": 1.015,
+      "finSec": 1.115
+    },
+    {
+      "mot": "pé",
+      "debutSec": 1.12,
+      "finSec": 1.31
+    },
+    {
+      "mot": "vé",
+      "debutSec": 1.313,
+      "finSec": 1.453
+    },
+    {
+      "mot": "de",
+      "debutSec": 1.456,
+      "finSec": 1.556
+    },
+    {
+      "mot": "cent",
+      "debutSec": 1.559,
+      "finSec": 1.809
+    },
+    {
+      "mot": "trente-cinq",
+      "debutSec": 1.815,
+      "finSec": 2.345
+    },
+    {
+      "mot": "euros ?",
+      "debutSec": 2.396,
+      "finSec": 2.726
+    },
+    {
+      "mot": "Surtout,",
+      "debutSec": 4.126,
+      "finSec": 4.766
+    },
+    {
+      "mot": "ne",
+      "debutSec": 4.88,
+      "finSec": 5.01
+    },
+    {
+      "mot": "le",
+      "debutSec": 5.018,
+      "finSec": 5.128
+    },
+    {
+      "mot": "payez",
+      "debutSec": 5.13,
+      "finSec": 5.43
+    },
+    {
+      "mot": "pas",
+      "debutSec": 5.431,
+      "finSec": 5.581
+    },
+    {
+      "mot": "tout",
+      "debutSec": 5.588,
+      "finSec": 5.758
+    },
+    {
+      "mot": "de",
+      "debutSec": 5.759,
+      "finSec": 5.859
+    },
+    {
+      "mot": "suite.",
+      "debutSec": 5.866,
+      "finSec": 6.346
+    },
+    {
+      "mot": "Je",
+      "debutSec": 7.62,
+      "finSec": 7.8
+    },
+    {
+      "mot": "vous",
+      "debutSec": 7.802,
+      "finSec": 7.922
+    },
+    {
+      "mot": "explique",
+      "debutSec": 7.925,
+      "finSec": 8.405
+    },
+    {
+      "mot": "pourquoi,",
+      "debutSec": 8.462,
+      "finSec": 9.052
+    },
+    {
+      "mot": "en",
+      "debutSec": 9.176,
+      "finSec": 9.266
+    },
+    {
+      "mot": "trois",
+      "debutSec": 9.276,
+      "finSec": 9.506
+    },
+    {
+      "mot": "points.",
+      "debutSec": 9.51,
+      "finSec": 9.86
+    }
+  ]
+}

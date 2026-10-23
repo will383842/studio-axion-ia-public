@@ -1,0 +1,148 @@
+{
+  "luLe": "2026-10-02T22:22:42.105Z",
+  "visites": {
+    "results": [],
+    "meta": {},
+    "query": {
+      "site_id": "axion-ia.com",
+      "metrics": [
+        "visitors"
+      ],
+      "date_range": [
+        "2026-07-05T00:00:00+02:00",
+        "2026-10-02T23:59:59+02:00"
+      ],
+      "filters": [
+        [
+          "is",
+          "visit:utm_medium",
+          [
+            "video"
+          ]
+        ]
+      ],
+      "dimensions": [
+        "visit:utm_campaign",
+        "visit:utm_source"
+      ],
+      "order_by": [
+        [
+          "visitors",
+          "desc"
+        ]
+      ],
+      "include": {},
+      "pagination": {
+        "offset": 0,
+        "limit": 10000
+      }
+    }
+  },
+  "rendezVous": {
+    "results": [],
+    "meta": {},
+    "query": {
+      "site_id": "axion-ia.com",
+      "metrics": [
+        "visitors"
+      ],
+      "date_range": [
+        "2026-07-05T00:00:00+02:00",
+        "2026-10-02T23:59:59+02:00"
+      ],
+      "filters": [
+        [
+          "is",
+          "visit:utm_medium",
+          [
+            "video"
+          ]
+        ],
+        [
+          "is",
+          "event:goal",
+          [
+            "Outbound Link: Click"
+          ]
+        ],
+        [
+          "contains",
+          "event:props:url",
+          [
+            "calendly.com"
+          ]
+        ]
+      ],
+      "dimensions": [
+        "visit:utm_campaign",
+        "visit:utm_source"
+      ],
+      "order_by": [
+        [
+          "visitors",
+          "desc"
+        ]
+      ],
+      "include": {},
+      "pagination": {
+        "offset": 0,
+        "limit": 10000
+      }
+    }
+  },
+  "temoinRendezVousSansFiltreVideo": {
+    "results": [
+      {
+        "metrics": [
+          18
+        ],
+        "dimensions": [
+          "(not set)",
+          "(not set)"
+        ]
+      }
+    ],
+    "meta": {},
+    "query": {
+      "site_id": "axion-ia.com",
+      "metrics": [
+        "visitors"
+      ],
+      "date_range": [
+        "2026-07-05T00:00:00+02:00",
+        "2026-10-02T23:59:59+02:00"
+      ],
+      "filters": [
+        [
+          "is",
+          "event:goal",
+          [
+            "Outbound Link: Click"
+          ]
+        ],
+        [
+          "contains",
+          "event:props:url",
+          [
+            "calendly.com"
+          ]
+        ]
+      ],
+      "dimensions": [
+        "visit:utm_campaign",
+        "visit:utm_source"
+      ],
+      "order_by": [
+        [
+          "visitors",
+          "desc"
+        ]
+      ],
+      "include": {},
+      "pagination": {
+        "offset": 0,
+        "limit": 10000
+      }
+    }
+  }
+}

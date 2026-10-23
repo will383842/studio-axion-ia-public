@@ -1,0 +1,353 @@
+{
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "videoId": "v-temoin-phrases",
+  "versionId": "b1",
+  "habillage": "reference/1",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "structure": "demonstration",
+  "serie": {
+    "code": "automatisations",
+    "nom": "Automatisations"
+  },
+  "douleur": "Les rendez-vous que vos clients oublient : comment les rappeler sans y penser",
+  "gesteMinute": "Activer les rappels par texto la veille, avec un bouton pour confirmer",
+  "appelId": "fin-if-mot-envoi",
+  "scenes": [
+    {
+      "id": "s01",
+      "page": 1,
+      "role": "accroche",
+      "texteDit": "Vos clients oublient leurs rendez-vous. Vous attendez seul devant une chaise vide. Une heure perdue, et personne ne vous prévient.",
+      "elements": [
+        {
+          "id": "e01",
+          "type": "ligne",
+          "ancre": 0,
+          "texte": "Vos clients oublient leurs rendez-vous",
+          "niveau": "titre",
+          "role": "titre",
+          "marque": "entoure"
+        },
+        {
+          "id": "e02",
+          "type": "dessin",
+          "ancre": 3,
+          "dessinId": "calendrier",
+          "cote": "droite"
+        },
+        {
+          "id": "e03",
+          "type": "ligne",
+          "ancre": 5,
+          "texte": "Vous attendez seul devant une chaise vide",
+          "niveau": "texte",
+          "role": "alerte"
+        },
+        {
+          "id": "e04",
+          "type": "dessin",
+          "ancre": 10,
+          "dessinId": "sablier",
+          "cote": "gauche"
+        },
+        {
+          "id": "e05",
+          "type": "ligne",
+          "ancre": 13,
+          "texte": "Une heure perdue, et personne ne vous prévient",
+          "niveau": "texte",
+          "role": "alerte",
+          "marque": "souligne"
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "page": 2,
+      "role": "idee-recue",
+      "texteDit": "Le problème n'est pas leur mémoire. Personne ne leur rappelle le rendez-vous la veille. Un message automatique peut le faire à votre place, sans que vous y pensiez.",
+      "elements": [
+        {
+          "id": "e06",
+          "type": "ligne",
+          "ancre": 0,
+          "texte": "Le problème n'est pas leur mémoire",
+          "niveau": "titre",
+          "role": "alerte",
+          "marque": "barre"
+        },
+        {
+          "id": "e07",
+          "type": "ligne",
+          "ancre": 6,
+          "texte": "Personne ne leur rappelle le rendez-vous la veille",
+          "niveau": "texte",
+          "role": "regle"
+        },
+        {
+          "id": "e08",
+          "type": "dessin",
+          "ancre": 9,
+          "dessinId": "telephone",
+          "cote": "droite"
+        },
+        {
+          "id": "e09",
+          "type": "ligne",
+          "ancre": 14,
+          "texte": "Un message automatique le fait à votre place",
+          "niveau": "texte",
+          "role": "avantage",
+          "marque": "souligne"
+        },
+        {
+          "id": "e10",
+          "type": "dessin",
+          "ancre": 20,
+          "dessinId": "fleche-boucle",
+          "cote": "gauche"
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "page": 3,
+      "role": "etape",
+      "texteDit": "Un. Ouvrez votre agenda en ligne et activez les rappels par texto. Google Agenda, Calendly et Doctolib le proposent déjà.",
+      "elements": [
+        {
+          "id": "e11",
+          "type": "ligne",
+          "ancre": 1,
+          "texte": "Activez les rappels par texto dans votre agenda",
+          "niveau": "titre",
+          "role": "regle"
+        },
+        {
+          "id": "e12",
+          "type": "dessin",
+          "ancre": 4,
+          "dessinId": "ordinateur-portable",
+          "cote": "gauche"
+        },
+        {
+          "id": "e13",
+          "type": "ligne",
+          "ancre": 12,
+          "texte": "Google Agenda, Calendly et Doctolib le proposent déjà",
+          "niveau": "texte",
+          "role": "condition"
+        },
+        {
+          "id": "e14",
+          "type": "dessin",
+          "ancre": 17,
+          "dessinId": "cle",
+          "cote": "droite"
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "page": 3,
+      "role": "etape",
+      "texteDit": "Deux. Réglez le rappel la veille, en fin de journée. C'est le moment où vos clients lisent leurs messages.",
+      "elements": [
+        {
+          "id": "e15",
+          "type": "ligne",
+          "ancre": 1,
+          "texte": "Réglez le rappel la veille, en fin de journée",
+          "niveau": "titre",
+          "role": "regle"
+        },
+        {
+          "id": "e16",
+          "type": "dessin",
+          "ancre": 5,
+          "dessinId": "horloge",
+          "cote": "gauche"
+        },
+        {
+          "id": "e17",
+          "type": "ligne",
+          "ancre": 10,
+          "texte": "Le moment où vos clients lisent leurs messages",
+          "niveau": "texte",
+          "role": "condition"
+        },
+        {
+          "id": "e18",
+          "type": "geste",
+          "ancre": 15,
+          "geste": "souligner",
+          "cibleId": "e17"
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "page": 4,
+      "role": "etape",
+      "texteDit": "Trois. Ajoutez un bouton pour confirmer ou déplacer le rendez-vous. Un clic suffit, et le créneau libéré se remplit. Vous n'avez plus rien à surveiller.",
+      "elements": [
+        {
+          "id": "e19",
+          "type": "ligne",
+          "ancre": 1,
+          "texte": "Ajoutez un bouton pour confirmer ou déplacer le rendez-vous",
+          "niveau": "titre",
+          "role": "regle"
+        },
+        {
+          "id": "e20",
+          "type": "dessin",
+          "ancre": 5,
+          "dessinId": "maillons",
+          "cote": "droite"
+        },
+        {
+          "id": "e21",
+          "type": "ligne",
+          "ancre": 11,
+          "texte": "Un clic suffit, et le créneau libéré se remplit",
+          "niveau": "texte",
+          "role": "avantage"
+        },
+        {
+          "id": "e22",
+          "type": "dessin",
+          "ancre": 17,
+          "dessinId": "coche-cercle",
+          "cote": "gauche"
+        },
+        {
+          "id": "e23",
+          "type": "ligne",
+          "ancre": 21,
+          "texte": "Vous n'avez plus rien à surveiller",
+          "niveau": "texte",
+          "role": "resultat"
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "page": 5,
+      "role": "preuve",
+      "texteDit": "Prenons une kinésithérapeute. Avant, elle avait des absences chaque semaine. Elle active le rappel la veille, avec un bouton. Un mois plus tard, ses patients confirment presque tous, et elle remplit les créneaux libérés.",
+      "elements": [
+        {
+          "id": "e24",
+          "type": "mention",
+          "texte": "Exemple illustratif"
+        },
+        {
+          "id": "e25",
+          "type": "ligne",
+          "ancre": 0,
+          "texte": "Une kinésithérapeute active le rappel la veille",
+          "niveau": "texte",
+          "role": "condition"
+        },
+        {
+          "id": "e26",
+          "type": "preuve",
+          "ancre": 3,
+          "lignes": [
+            "Avant : des absences chaque semaine",
+            "Après : ses patients confirment presque tous"
+          ],
+          "preuveId": "mat-demo-rappels"
+        },
+        {
+          "id": "e27",
+          "type": "dessin",
+          "ancre": 14,
+          "dessinId": "calendrier",
+          "cote": "droite"
+        },
+        {
+          "id": "e28",
+          "type": "ligne",
+          "ancre": 30,
+          "texte": "Elle remplit enfin les créneaux libérés",
+          "niveau": "texte",
+          "role": "resultat"
+        },
+        {
+          "id": "e29",
+          "type": "geste",
+          "ancre": 33,
+          "geste": "entourer",
+          "cibleId": "e28"
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "page": 6,
+      "role": "resultat",
+      "texteDit": "Des rappels envoyés la veille, avec un bouton pour confirmer. Plus de chaise vide à attendre.",
+      "elements": [
+        {
+          "id": "e30",
+          "type": "ligne",
+          "ancre": 0,
+          "texte": "Des rappels envoyés la veille, avec un bouton pour confirmer",
+          "niveau": "texte",
+          "role": "resultat"
+        },
+        {
+          "id": "e31",
+          "type": "ligne",
+          "ancre": 10,
+          "texte": "Plus de chaise vide à attendre",
+          "niveau": "texte",
+          "role": "resultat"
+        },
+        {
+          "id": "e32",
+          "type": "dessin",
+          "ancre": 12,
+          "dessinId": "coche-cercle",
+          "cote": "droite"
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "page": 6,
+      "role": "fin",
+      "texteDit": "Les réglages exacts tiennent sur une page. Écrivez RAPPEL en commentaire, je vous les envoie.",
+      "elements": [
+        {
+          "id": "e33",
+          "type": "ligne",
+          "ancre": 0,
+          "texte": "Les réglages exacts tiennent sur une page",
+          "niveau": "texte",
+          "role": "avantage"
+        },
+        {
+          "id": "e34",
+          "type": "ligne",
+          "ancre": 7,
+          "texte": "Écrivez RAPPEL en commentaire",
+          "niveau": "titre",
+          "role": "regle",
+          "marque": "entoure"
+        },
+        {
+          "id": "e35",
+          "type": "dessin",
+          "ancre": 11,
+          "dessinId": "bulle",
+          "cote": "gauche"
+        }
+      ]
+    }
+  ]
+}

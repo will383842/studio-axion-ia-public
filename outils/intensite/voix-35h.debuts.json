@@ -1,0 +1,442 @@
+﻿[
+    {
+        "mot":  "Une",
+        "debutSec":  0.074
+    },
+    {
+        "mot":  "personne",
+        "debutSec":  0.24
+    },
+    {
+        "mot":  "à",
+        "debutSec":  0.644
+    },
+    {
+        "mot":  "temps",
+        "debutSec":  0.7
+    },
+    {
+        "mot":  "plein",
+        "debutSec":  0.899
+    },
+    {
+        "mot":  "Trente-cinq",
+        "debutSec":  2.036
+    },
+    {
+        "mot":  "heures",
+        "debutSec":  2.646
+    },
+    {
+        "mot":  "par",
+        "debutSec":  2.83
+    },
+    {
+        "mot":  "semaine",
+        "debutSec":  2.989
+    },
+    {
+        "mot":  "Juste",
+        "debutSec":  4.313
+    },
+    {
+        "mot":  "pour",
+        "debutSec":  4.687
+    },
+    {
+        "mot":  "remplir",
+        "debutSec":  4.858
+    },
+    {
+        "mot":  "des",
+        "debutSec":  5.258
+    },
+    {
+        "mot":  "tableaux",
+        "debutSec":  5.357
+    },
+    {
+        "mot":  "Excel",
+        "debutSec":  5.693
+    },
+    {
+        "mot":  "Je",
+        "debutSec":  7.188
+    },
+    {
+        "mot":  "vais",
+        "debutSec":  7.349
+    },
+    {
+        "mot":  "vous",
+        "debutSec":  7.487
+    },
+    {
+        "mot":  "raconter",
+        "debutSec":  7.596
+    },
+    {
+        "mot":  "comment",
+        "debutSec":  8.013
+    },
+    {
+        "mot":  "un",
+        "debutSec":  8.338
+    },
+    {
+        "mot":  "de",
+        "debutSec":  8.45
+    },
+    {
+        "mot":  "nos",
+        "debutSec":  8.546
+    },
+    {
+        "mot":  "clients",
+        "debutSec":  8.647
+    },
+    {
+        "mot":  "est",
+        "debutSec":  9.012
+    },
+    {
+        "mot":  "passé",
+        "debutSec":  9.125
+    },
+    {
+        "mot":  "de",
+        "debutSec":  9.443
+    },
+    {
+        "mot":  "trente-cinq",
+        "debutSec":  9.539
+    },
+    {
+        "mot":  "heures",
+        "debutSec":  10.078
+    },
+    {
+        "mot":  "à",
+        "debutSec":  10.243
+    },
+    {
+        "mot":  "zéro",
+        "debutSec":  10.299
+    },
+    {
+        "mot":  "En",
+        "debutSec":  11.523
+    },
+    {
+        "mot":  "moins",
+        "debutSec":  11.616
+    },
+    {
+        "mot":  "d\u0027un",
+        "debutSec":  11.801
+    },
+    {
+        "mot":  "mois",
+        "debutSec":  11.931
+    },
+    {
+        "mot":  "Chaque",
+        "debutSec":  13.18
+    },
+    {
+        "mot":  "jour",
+        "debutSec":  13.426
+    },
+    {
+        "mot":  "la",
+        "debutSec":  13.92
+    },
+    {
+        "mot":  "même",
+        "debutSec":  14.038
+    },
+    {
+        "mot":  "routine",
+        "debutSec":  14.23
+    },
+    {
+        "mot":  "exporter",
+        "debutSec":  14.86
+    },
+    {
+        "mot":  "copier",
+        "debutSec":  15.63
+    },
+    {
+        "mot":  "coller",
+        "debutSec":  16.248
+    },
+    {
+        "mot":  "vérifier",
+        "debutSec":  16.723
+    },
+    {
+        "mot":  "et",
+        "debutSec":  17.47
+    },
+    {
+        "mot":  "recommencer",
+        "debutSec":  17.55
+    },
+    {
+        "mot":  "Une",
+        "debutSec":  19.077
+    },
+    {
+        "mot":  "seule",
+        "debutSec":  19.246
+    },
+    {
+        "mot":  "erreur",
+        "debutSec":  19.46
+    },
+    {
+        "mot":  "de",
+        "debutSec":  19.726
+    },
+    {
+        "mot":  "formule",
+        "debutSec":  19.819
+    },
+    {
+        "mot":  "et",
+        "debutSec":  20.488
+    },
+    {
+        "mot":  "tous",
+        "debutSec":  20.548
+    },
+    {
+        "mot":  "les",
+        "debutSec":  20.686
+    },
+    {
+        "mot":  "chiffres",
+        "debutSec":  20.777
+    },
+    {
+        "mot":  "sont",
+        "debutSec":  21.149
+    },
+    {
+        "mot":  "faux",
+        "debutSec":  21.317
+    },
+    {
+        "mot":  "Sauf",
+        "debutSec":  22.53
+    },
+    {
+        "mot":  "qu\u0027on",
+        "debutSec":  22.822
+    },
+    {
+        "mot":  "ne",
+        "debutSec":  23.013
+    },
+    {
+        "mot":  "s\u0027est",
+        "debutSec":  23.11
+    },
+    {
+        "mot":  "pas",
+        "debutSec":  23.259
+    },
+    {
+        "mot":  "arrêtés",
+        "debutSec":  23.388
+    },
+    {
+        "mot":  "là",
+        "debutSec":  23.763
+    },
+    {
+        "mot":  "On",
+        "debutSec":  24.91
+    },
+    {
+        "mot":  "lui",
+        "debutSec":  25.008
+    },
+    {
+        "mot":  "a",
+        "debutSec":  25.174
+    },
+    {
+        "mot":  "livré",
+        "debutSec":  25.243
+    },
+    {
+        "mot":  "une",
+        "debutSec":  25.558
+    },
+    {
+        "mot":  "console",
+        "debutSec":  25.683
+    },
+    {
+        "mot":  "complète",
+        "debutSec":  26.06
+    },
+    {
+        "mot":  "avec",
+        "debutSec":  26.762
+    },
+    {
+        "mot":  "un",
+        "debutSec":  26.993
+    },
+    {
+        "mot":  "tableau",
+        "debutSec":  27.086
+    },
+    {
+        "mot":  "de",
+        "debutSec":  27.377
+    },
+    {
+        "mot":  "bord",
+        "debutSec":  27.474
+    },
+    {
+        "mot":  "de",
+        "debutSec":  27.704
+    },
+    {
+        "mot":  "toutes",
+        "debutSec":  27.8
+    },
+    {
+        "mot":  "ses",
+        "debutSec":  27.991
+    },
+    {
+        "mot":  "données",
+        "debutSec":  28.122
+    },
+    {
+        "mot":  "Et",
+        "debutSec":  29.308
+    },
+    {
+        "mot":  "s\u0027il",
+        "debutSec":  29.409
+    },
+    {
+        "mot":  "y",
+        "debutSec":  29.615
+    },
+    {
+        "mot":  "a",
+        "debutSec":  29.692
+    },
+    {
+        "mot":  "un",
+        "debutSec":  29.773
+    },
+    {
+        "mot":  "problème",
+        "debutSec":  29.898
+    },
+    {
+        "mot":  "Une",
+        "debutSec":  31.238
+    },
+    {
+        "mot":  "alerte",
+        "debutSec":  31.387
+    },
+    {
+        "mot":  "arrive",
+        "debutSec":  31.759
+    },
+    {
+        "mot":  "directement",
+        "debutSec":  32.016
+    },
+    {
+        "mot":  "sur",
+        "debutSec":  32.561
+    },
+    {
+        "mot":  "son",
+        "debutSec":  32.734
+    },
+    {
+        "mot":  "téléphone",
+        "debutSec":  32.887
+    },
+    {
+        "mot":  "Avant",
+        "debutSec":  34.457
+    },
+    {
+        "mot":  "trente-cinq",
+        "debutSec":  34.92
+    },
+    {
+        "mot":  "heures",
+        "debutSec":  35.487
+    },
+    {
+        "mot":  "par",
+        "debutSec":  35.673
+    },
+    {
+        "mot":  "semaine",
+        "debutSec":  35.836
+    },
+    {
+        "mot":  "Aujourd\u0027hui",
+        "debutSec":  37.154
+    },
+    {
+        "mot":  "zéro",
+        "debutSec":  37.855
+    },
+    {
+        "mot":  "heure",
+        "debutSec":  38.204
+    },
+    {
+        "mot":  "Et",
+        "debutSec":  39.373
+    },
+    {
+        "mot":  "cent",
+        "debutSec":  39.47
+    },
+    {
+        "mot":  "pour",
+        "debutSec":  39.669
+    },
+    {
+        "mot":  "cent",
+        "debutSec":  39.844
+    },
+    {
+        "mot":  "des",
+        "debutSec":  40.038
+    },
+    {
+        "mot":  "données",
+        "debutSec":  40.138
+    },
+    {
+        "mot":  "en",
+        "debutSec":  40.614
+    },
+    {
+        "mot":  "temps",
+        "debutSec":  40.707
+    },
+    {
+        "mot":  "réel",
+        "debutSec":  40.832
+    }
+]

@@ -1,0 +1,181 @@
+{
+ "role": "accroches",
+ "version": 1,
+ "sortie": {
+  "accroches": [
+   {
+    "famille": "dementi",
+    "objectif": "fin-de-visionnage",
+    "dit": "Dirigeants de PME, Excel paraît gratuit. Mais chaque copier-coller à la main est une occasion d'erreur.",
+    "ecrit": "Gratuit sur la facture",
+    "vu": "Une facture logicielle avec une ligne vide, puis un raccourci copier-coller qui s'enchaîne entre deux onglets de tableur",
+    "anomalie": "Un outil réputé gratuit qui produit des erreurs à chaque copier-coller fait à la main",
+    "boucleOuverte": "Où se cache ce coût dans vos propres fichiers, s'il n'apparaît sur aucune facture",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "dementi",
+    "objectif": "fin-de-visionnage",
+    "dit": "Excel paraît gratuit. Mais pour un dirigeant de PME, il se paie en copier-coller que rien ne vérifie.",
+    "ecrit": "Le coût invisible",
+    "vu": "Une cellule copiée qui clignote, collée dans un autre fichier, sans aucun contrôle affiché",
+    "anomalie": "Le prix se paie en gestes manuels que l'outil ne contrôle jamais",
+    "boucleOuverte": "Ce que ces copier-coller non vérifiés font aux chiffres sur lesquels vous décidez",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "situation-spectateur",
+    "objectif": "fin-de-visionnage",
+    "dit": "Dirigeant de PME, vos chiffres passent d'un tableur à l'autre par copier-coller. Le tableur ne vérifie rien.",
+    "ecrit": "Zéro contrôle",
+    "vu": "Une colonne de chiffres collée d'un fichier à un autre, aucune alerte ne s'affiche",
+    "anomalie": "Des chiffres de pilotage déplacés à la main sans aucune vérification",
+    "boucleOuverte": "Quels endroits de vos fichiers laissent passer une erreur sans que personne la voie",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "situation-spectateur",
+    "objectif": "fin-de-visionnage",
+    "dit": "Quelqu'un dans votre PME exporte, copie, colle d'un fichier à l'autre. Le tableur, lui, ne vérifie rien.",
+    "ecrit": "Exporter, copier, coller",
+    "vu": "Un export qui s'ouvre, une sélection copiée, collée dans un autre tableur, en boucle",
+    "anomalie": "Une routine manuelle répétée de fichier en fichier, sans aucun contrôle",
+    "boucleOuverte": "À quel moment de cette routine l'erreur entre, et comment la repérer",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs",
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "contre-intuitif",
+    "objectif": "sauvegarde",
+    "dit": "Dirigeants de PME : ne décidez jamais sur un chiffre recopié à la main. Le tableur ne l'a pas vérifié.",
+    "ecrit": "Recopié = non vérifié",
+    "vu": "Un total en bas de tableau, puis la même valeur retapée à la main dans un autre fichier",
+    "anomalie": "Une décision prise sur un chiffre que rien n'a contrôlé",
+    "boucleOuverte": "Comment savoir quels chiffres de vos tableaux ont été recopiés à la main",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "cible-nommee",
+    "objectif": "fin-de-visionnage",
+    "dit": "Dirigeants de PME : une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux.",
+    "ecrit": "Une formule, tout faux",
+    "vu": "Une formule modifiée dans une cellule, puis toute une colonne de résultats qui change d'un coup",
+    "anomalie": "Une seule cellule fausse contamine tous les chiffres qui en dépendent",
+    "boucleOuverte": "Où cette formule fausse peut se trouver dans vos propres tableaux",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "question-client",
+    "objectif": "commentaire",
+    "dit": "On nous a demandé : est-ce qu'on peut se passer de nos Excel sans tout casser ?",
+    "ecrit": "Quitter Excel sans casse",
+    "vu": "Un dossier rempli de fichiers tableur, un curseur qui hésite au-dessus de la touche supprimer",
+    "anomalie": "Des fichiers dont on dépend tant qu'on a peur de les toucher",
+    "boucleOuverte": "Quand il vaut mieux garder le tableur, et quand il faut le quitter",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-question",
+     "test-35h-limite"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "mise-en-garde-destinataire",
+    "objectif": "envoi",
+    "dit": "Si votre DAF recopie encore vos chiffres d'un tableur à l'autre, chaque copier-coller est une erreur possible.",
+    "ecrit": "À montrer à votre DAF",
+    "vu": "Deux fenêtres de tableur côte à côte, une valeur copiée de l'une, collée dans l'autre",
+    "anomalie": "Encore du recopiage à la main sur des chiffres financiers",
+    "boucleOuverte": "Les endroits précis où regarder pour trouver ces erreurs possibles",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "mise-en-garde-destinataire",
+    "objectif": "envoi",
+    "dit": "Si vos chiffres de pilotage passent encore par des copier-coller, votre DAF décide peut-être sur une erreur.",
+    "ecrit": "Décider sur du faux",
+    "vu": "Un tableau de bord dont un chiffre passe du noir au rouge après un collage",
+    "anomalie": "Le pilotage de l'entreprise repose encore sur des gestes manuels non vérifiés",
+    "boucleOuverte": "Comment repérer quels chiffres de pilotage ont été recopiés à la main",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "question",
+    "objectif": "commentaire",
+    "dit": "Dirigeant de PME, combien de vos chiffres ont été recopiés à la main sans que personne ne vérifie ?",
+    "ecrit": "Vérifiés par qui ?",
+    "vu": "Un tableau avec des cellules qui se surlignent une à une, celles qui ont été collées",
+    "anomalie": "Des chiffres recopiés à la main que personne ne contrôle",
+    "boucleOuverte": "La méthode pour les retrouver dans vos propres fichiers",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "erreur-commune",
+    "objectif": "fin-de-visionnage",
+    "dit": "L'erreur courante des dirigeants de PME : croire qu'Excel est gratuit. Son coût est dans chaque copier-coller.",
+    "ecrit": "Gratuit ? Pas vraiment.",
+    "vu": "Une étiquette de prix à zéro posée sur une grille de tableur, puis une série de copier-coller",
+    "anomalie": "Un coût réel caché dans un outil qu'on croit sans coût",
+    "boucleOuverte": "Où chercher ce coût dans vos fichiers, puisqu'il n'est sur aucune facture",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "promesse",
+    "objectif": "sauvegarde",
+    "dit": "Dirigeant de PME : voici où vos tableurs laissent passer des erreurs que personne ne voit.",
+    "ecrit": "Les points à vérifier",
+    "vu": "Une flèche qui relie deux tableurs à l'endroit exact où une donnée est recopiée",
+    "anomalie": "Des erreurs présentes dans les fichiers mais invisibles pour tous",
+    "boucleOuverte": "Le premier endroit à vérifier dans vos propres fichiers",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   }
+  ]
+ }
+}

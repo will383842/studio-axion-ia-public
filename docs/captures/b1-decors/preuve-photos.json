@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-02T09:33:02.582Z",
+  "phrase": "un bureau en bois avec une bibliothèque",
+  "pointAcces": "https://queue.fal.run/fal-ai/nano-banana",
+  "dureeSec": 11,
+  "totalUsd": 0.117,
+  "photos": [
+    {
+      "ambiance": "Lumière dorée",
+      "requete": "Interior photograph of office desk, wood, bookshelves. warm golden raking light from the side, wood tones, chiaroscuro. Realistic photo, vertical 9:16, camera at seated eye level, shallow depth of field with a softly blurred background, uncluttered, open space in the center foreground, empty room, no people, no hands, no faces, no text, no logo, no uniform",
+      "modele": "fal-ai/nano-banana",
+      "coutUsdCentimes": 3.9,
+      "fichier": "docs/captures/b1-decors/bureau-doree.jpg"
+    },
+    {
+      "ambiance": "Lumière du jour",
+      "requete": "Interior photograph of office desk, wood, bookshelves. soft daylight from a window, calm, bright and natural. Realistic photo, vertical 9:16, camera at seated eye level, shallow depth of field with a softly blurred background, uncluttered, open space in the center foreground, empty room, no people, no hands, no faces, no text, no logo, no uniform",
+      "modele": "fal-ai/nano-banana",
+      "coutUsdCentimes": 3.9,
+      "fichier": "docs/captures/b1-decors/bureau-jour.jpg"
+    },
+    {
+      "ambiance": "Ambiance du soir",
+      "requete": "Interior photograph of office desk, wood, bookshelves. evening ambience, warm practical lamps, deep soft shadows. Realistic photo, vertical 9:16, camera at seated eye level, shallow depth of field with a softly blurred background, uncluttered, open space in the center foreground, empty room, no people, no hands, no faces, no text, no logo, no uniform",
+      "modele": "fal-ai/nano-banana",
+      "coutUsdCentimes": 3.9,
+      "fichier": "docs/captures/b1-decors/bureau-soir.jpg"
+    }
+  ]
+}

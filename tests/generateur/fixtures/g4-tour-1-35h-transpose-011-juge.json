@@ -1,0 +1,128 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "tiktok",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« votre tableur ne vérifie rien » : générique, n'importe quel concurrent le dirait tel quel."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME, vos erreurs Excel » : sujet et cible immédiats."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "« Chaque copier-coller peut cacher une erreur » : affirmation générique, ne pose aucune situation concrète."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "non",
+      "motif": "« Dirigeant de PME, vos erreurs Excel : votre tableur… » : accroche mal articulée, phrase hachée."
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "non",
+      "motif": "« …que personne ne voit. Cela vous concerne, » : boucle incomplète, virgule finale, enchaînement artificiel."
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "« Erreurs Excel. Recopier à la main cache des erreurs. Premier geste pour les repérer. » : style télégraphique, tic."
+     }
+    ]
+   },
+   {
+    "id": "instagram",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« Excel paraît gratuit. Mais chaque copier-coller… » : formule générique reprenable par n'importe quel concurrent."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME, Excel paraît gratuit. Mais » : sujet et cible clairs."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "« occasion d'erreur que personne ne voit » : affirmation vague, sans situation concrète du dirigeant."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "oui",
+      "motif": "Phrases courtes autonomes : « Excel paraît gratuit. » « Un coût que personne ne voit. »"
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "non",
+      "motif": "« …personne ne voit. Un coût que personne ne voit. » : répétition lourde, redondante."
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "« Premier geste : repérez… » : étiquette didactique, redondante avec l'appel et la question."
+     }
+    ]
+   },
+   {
+    "id": "linkedin",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« vos tableurs ne sont sur aucune facture » : slogan générique, un concurrent le dirait."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "« Leur coût est dans chaque copier-coller » : sujet Excel absent, flou à 3 secondes."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "« tableurs ne sont sur aucune facture » : formule abstraite, sans problème concret reconnu."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "oui",
+      "motif": "Deux phrases courtes autonomes, coupables après chaque point sans perte de sens."
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "sans-objet",
+      "motif": "Boucle : « (aucune) »."
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "« Une seule erreur de formule, et tous les chiffres… sont faux » : affirmation absolue non prouvée."
+     }
+    ]
+   }
+  ]
+ }
+}

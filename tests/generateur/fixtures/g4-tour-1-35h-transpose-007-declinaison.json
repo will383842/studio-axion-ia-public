@@ -1,0 +1,33 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Dirigeant de PME, votre tableur ne vérifie rien. Chaque copier-coller peut cacher une erreur que personne ne voit.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Demandez-lui où des données sont recopiées à la main d'un tableur à l'autre."
+  },
+  "boucle": "Chiffres faux, décisions faussées.",
+  "encadre": "Erreurs Excel : repérez les recopies",
+  "couverture": "Erreurs Excel invisibles",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Comment repérer les erreurs Excel dans vos copier-coller ?",
+   "texte": "Comment repérer les erreurs Excel dans vos copier-coller ? Un tableur ne vérifie rien tout seul. Premier geste : repérez les endroits où des données sont recopiées à la main d'un tableur à l'autre. Envoyez cette vidéo à votre DAF.",
+   "motsDiese": [
+    "#erreursExcel"
+   ],
+   "justifications": [
+    {
+     "texte": "Le mot-clé exact « erreurs Excel » figure dans la première ligne, donc dans les 125 premiers caractères.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Un seul mot-dièse, dans la limite de 0 à 3.",
+     "regleId": "ig-hashtags-5"
+    }
+   ]
+  }
+ }
+}

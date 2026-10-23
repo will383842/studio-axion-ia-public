@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-02",
+  "objet": "Lot D3 (calage des sous-titres) : la démonstration M4 (outils/demo-m4/rendre-demo.mts) est identique par construction.",
+  "methode": "Graphe complet des imports (statiques et dynamiques, chemins @/ résolus) de outils/demo-m4/rendre-demo.mts : 61 fichiers. Intersection avec les fichiers créés ou modifiés par D3 : vide. La démonstration n'exécute pas le moteur avocat complet (montage-avocat/index.ts, où vit la phase de calage) : elle appelle directement découpage, report, scène et composition. Et dans le moteur, le calage est de toute façon SAUTÉ quand l'aligneur est la simulation (cas sans STUDIO_ALIGNEUR_URL).",
+  "pourquoiPasDeNouveauRendu": "Arbre de travail partagé avec D1 (intensité, bruitages), qui peut changer la démonstration volontairement : un nouveau rendu mesurerait D1, pas D3.",
+  "fichiersD3": [
+    "studio-aligneur/**",
+    "deploiement/studio-aligneur/**",
+    "deploiement/docker-compose.yml",
+    "deploiement/mettre-a-jour.sh",
+    "outils/alignement/**",
+    "src/fournisseurs/aligneur/client.ts",
+    "src/fournisseurs/aligneur/inscription.ts",
+    "src/moteurs/montage-avocat/alignement.ts",
+    "tests/d3-calage.test.ts",
+    "tests/fixtures/d3-calage-*.json"
+  ],
+  "communsAvecLaDemonstration": [],
+  "resultat": "identique (aucun fichier commun)"
+}

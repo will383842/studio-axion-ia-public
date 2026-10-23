@@ -1,0 +1,44 @@
+{
+ "role": "prose",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "planIndex": 1,
+    "bloc": "coeur",
+    "texte": "Un tableur ne vérifie rien tout seul. Alors regardez où vos données sont recopiées à la main d'un fichier à l'autre : c'est là que l'erreur passe inaperçue.",
+    "nature": "fait",
+    "marqueurs": [
+     "ancrage",
+     "relance",
+     "solution"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "citeMatiereId": "test-35h-cause",
+    "emphase": [],
+    "intentionIllustration": "Des colonnes de chiffres copiées d'un tableur vers un autre, une cellule décalée sans aucun signal",
+    "facultatif": false
+   },
+   {
+    "planIndex": 2,
+    "bloc": "coeur",
+    "texte": "Ça se propage. Une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux.",
+    "nature": "fait",
+    "marqueurs": [
+     "boucle-fermee",
+     "cout"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "citeMatiereId": "test-35h-obs2",
+    "emphase": [],
+    "facultatif": false
+   }
+  ]
+ }
+}

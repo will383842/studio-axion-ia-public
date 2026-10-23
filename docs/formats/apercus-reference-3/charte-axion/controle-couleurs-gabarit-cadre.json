@@ -1,0 +1,247 @@
+{
+ "regle": "pixel coloré (saturation ≥ 12 %) hors des teintes 355°-60° = vert, bleu ou violet",
+ "teintesAutorisees": {
+  "#E8A27F": "mot dit des sous-titres « Pastille Axion » (orange brûlé #B44F29 éclairci, lisible sur l'encre)"
+ },
+ "total": 0,
+ "images": [
+  {
+   "fichier": "vertical · vertical-000000.png",
+   "colores": 17319,
+   "horsFamille": 0,
+   "teinteMin": 25.399999618530273,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-002500.png",
+   "colores": 47993,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-005000.png",
+   "colores": 68588,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-007500.png",
+   "colores": 85867,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-010000.png",
+   "colores": 66976,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 39.20000076293945
+  },
+  {
+   "fichier": "vertical · vertical-012500.png",
+   "colores": 64731,
+   "horsFamille": 0,
+   "teinteMin": 15.399999618530273,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-015000.png",
+   "colores": 86708,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-017500.png",
+   "colores": 49160,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-020000.png",
+   "colores": 79851,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-022500.png",
+   "colores": 47336,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 38
+  },
+  {
+   "fichier": "vertical · vertical-025000.png",
+   "colores": 55258,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 38
+  },
+  {
+   "fichier": "vertical · vertical-027500.png",
+   "colores": 64689,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 39.20000076293945
+  },
+  {
+   "fichier": "vertical · vertical-030000.png",
+   "colores": 66130,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 39.20000076293945
+  },
+  {
+   "fichier": "vertical · vertical-032500.png",
+   "colores": 62827,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 39.20000076293945
+  },
+  {
+   "fichier": "vertical · vertical-035000.png",
+   "colores": 50726,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-037500.png",
+   "colores": 48400,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 38.5
+  },
+  {
+   "fichier": "vertical · vertical-040000.png",
+   "colores": 49202,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-042500.png",
+   "colores": 47857,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-045000.png",
+   "colores": 40596,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 38.5
+  },
+  {
+   "fichier": "vertical · vertical-047500.png",
+   "colores": 35384,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-050000.png",
+   "colores": 52257,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-052500.png",
+   "colores": 62888,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-055000.png",
+   "colores": 39129,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-057500.png",
+   "colores": 47223,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-060000.png",
+   "colores": 47129,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-062500.png",
+   "colores": 55696,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-065000.png",
+   "colores": 49601,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-067500.png",
+   "colores": 57898,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-070000.png",
+   "colores": 38968,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-072500.png",
+   "colores": 37735,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-075000.png",
+   "colores": 44200,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 38
+  },
+  {
+   "fichier": "vertical · vertical-077500.png",
+   "colores": 53554,
+   "horsFamille": 0,
+   "teinteMin": 0,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-080000.png",
+   "colores": 45679,
+   "horsFamille": 0,
+   "teinteMin": 15.199999809265137,
+   "teinteMax": 37.5
+  },
+  {
+   "fichier": "vertical · vertical-080260.png",
+   "colores": 45683,
+   "horsFamille": 0,
+   "teinteMin": 15.199999809265137,
+   "teinteMax": 37.5
+  }
+ ]
+}

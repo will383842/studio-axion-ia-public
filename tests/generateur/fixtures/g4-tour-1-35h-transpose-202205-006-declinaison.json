@@ -1,0 +1,43 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-1",
+  "accroche": "Dirigeant de PME, Excel paraît gratuit. Mais les erreurs Excel, personne ne les voit.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Demandez-lui où des données sont recopiées à la main d'un tableur à l'autre."
+  },
+  "boucle": "",
+  "encadre": "Erreurs Excel : coût invisible",
+  "couverture": "Vos erreurs Excel invisibles",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Un tableur ne vérifie rien tout seul.",
+   "texte": "Un tableur ne vérifie rien tout seul. Chaque copier-coller est donc une occasion d'erreur que personne ne voit.\n\nLes erreurs Excel ne figurent sur aucune facture. Pourtant, une seule erreur de formule fausse tous les chiffres qui en dépendent. Ce sont peut-être ceux sur lesquels vous décidez.\n\nPremier geste : repérez dans vos fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre. Par contre, si vos tableaux changent de forme chaque mois, gardez le tableur.\n\nEnvoyez cette vidéo à votre DAF. Demandez-lui où ces erreurs de tableur peuvent se cacher.",
+   "motsDiese": [
+    "#Excel",
+    "#PME"
+   ],
+   "post": {
+    "texte": "Un tableur ne vérifie rien tout seul. Chaque copier-coller est donc une occasion d'erreur que personne ne voit.\n\nLes erreurs Excel ne figurent sur aucune facture. Pourtant, une seule erreur de formule fausse tous les chiffres qui en dépendent. Ce sont peut-être ceux sur lesquels vous décidez.\n\nPremier geste : repérez dans vos fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre. Par contre, si vos tableaux changent de forme chaque mois, gardez le tableur.\n\nEnvoyez cette vidéo à votre DAF. Demandez-lui où ces erreurs de tableur peuvent se cacher.",
+    "detailAncrage": "Un tableur ne vérifie rien tout seul, donc chaque copier-coller est une occasion d'erreur que personne ne voit."
+   },
+   "motCleVariante": "erreurs de tableur",
+   "justifications": [
+    {
+     "texte": "Post rédigé avec la vidéo, le détail vrai du sujet (le tableur ne vérifie rien) en première ligne, sans tic d'écriture générée.",
+     "regleId": "li-ai-slop-2026"
+    },
+    {
+     "texte": "Les deux premières lignes se lisent seules, sans le mot-clé obligatoire, et il y a 2 mots-dièse sur 3 permis, sans « Sources : » ni lien.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "La fin du post reprend l'appel d'envoi de la vidéo, sans second appel ni lien.",
+     "regleId": "li-lien-commentaire"
+    }
+   ]
+  }
+ }
+}

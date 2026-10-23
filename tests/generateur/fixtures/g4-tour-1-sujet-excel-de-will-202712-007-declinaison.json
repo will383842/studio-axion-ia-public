@@ -1,0 +1,59 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-3",
+  "accroche": "Dirigeants : tout ce travail sur vos fichiers Excel, chaque jour, pour ne voir qu'une petite partie de vos données.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoie cette vidéo à ton DAF."
+  },
+  "boucle": "Voilà ce que ça change.",
+  "encadre": "Fichiers Excel : un tableau de bord",
+  "couverture": "Vos fichiers Excel, remplacés ?",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Fichiers Excel : remplacer les tableurs par un tableau de bord. Voici ce que la vidéo répond.",
+   "texte": "Fichiers Excel : remplacer les tableurs par un tableau de bord. Voici ce que la vidéo répond.",
+   "motsDiese": [
+    "#fichiersexcel",
+    "#ia",
+    "#daf",
+    "#pilotage"
+   ],
+   "commentaireEpingle": "Source : avis de Will, Axion-IA, sur les fichiers Excel d'une entreprise.",
+   "titres": [],
+   "motsClesDeclares": [
+    "fichiers Excel",
+    "tableur",
+    "tableau de bord",
+    "automatiser",
+    "données"
+   ],
+   "motsClesBloques": [
+    "garanti",
+    "gratuit",
+    "miracle"
+   ],
+   "motCleVariante": "tableurs",
+   "justifications": [
+    {
+     "texte": "Mot-clé exact en tête de la première ligne, avec la variante parlée et ce que la vidéo répond, en 100 caractères au plus.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mots-clés déclarés et bloqués saisis à la main, 5 de chaque.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Commentaire épinglé = la source des faits, pas une question, car l'appel est un envoi.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "4 mots-dièse, dans la plage 3-4.",
+     "regleId": "hyp-ecriture-reseau"
+    }
+   ]
+  }
+ }
+}

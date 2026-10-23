@@ -1,0 +1,1217 @@
+{
+ "dureeSec": 51.459,
+ "finDeLaVoixSec": 50.659,
+ "phrases": [
+  {
+   "texte": "Vous avez essayé l'IA trois fois.",
+   "debutSec": 0.032,
+   "finSec": 2.31,
+   "mots": [
+    {
+     "mot": "Vous",
+     "debutSec": 0.032,
+     "finSec": 0.162
+    },
+    {
+     "mot": "avez",
+     "debutSec": 0.236,
+     "finSec": 0.458
+    },
+    {
+     "mot": "essayé",
+     "debutSec": 0.616,
+     "finSec": 1.171
+    },
+    {
+     "mot": "l'IA",
+     "debutSec": 1.329,
+     "finSec": 1.681
+    },
+    {
+     "mot": "trois",
+     "debutSec": 1.736,
+     "finSec": 1.94
+    },
+    {
+     "mot": "fois.",
+     "debutSec": 2.014,
+     "finSec": 2.31
+    }
+   ]
+  },
+  {
+   "texte": "Et vous avez laissé tomber.",
+   "debutSec": 2.56,
+   "finSec": 3.856,
+   "mots": [
+    {
+     "mot": "Et",
+     "debutSec": 2.56,
+     "finSec": 2.653
+    },
+    {
+     "mot": "vous",
+     "debutSec": 2.69,
+     "finSec": 2.819
+    },
+    {
+     "mot": "avez",
+     "debutSec": 2.894,
+     "finSec": 3.023
+    },
+    {
+     "mot": "laissé",
+     "debutSec": 3.079,
+     "finSec": 3.375
+    },
+    {
+     "mot": "tomber.",
+     "debutSec": 3.431,
+     "finSec": 3.856
+    }
+   ]
+  },
+  {
+   "texte": "Des réponses plates.",
+   "debutSec": 4.106,
+   "finSec": 4.94,
+   "mots": [
+    {
+     "mot": "Des",
+     "debutSec": 4.106,
+     "finSec": 4.181
+    },
+    {
+     "mot": "réponses",
+     "debutSec": 4.218,
+     "finSec": 4.588
+    },
+    {
+     "mot": "plates.",
+     "debutSec": 4.625,
+     "finSec": 4.94
+    }
+   ]
+  },
+  {
+   "texte": "Du texte qu'il faut tout réécrire.",
+   "debutSec": 5.19,
+   "finSec": 6.264,
+   "mots": [
+    {
+     "mot": "Du",
+     "debutSec": 5.19,
+     "finSec": 5.282
+    },
+    {
+     "mot": "texte",
+     "debutSec": 5.338,
+     "finSec": 5.523
+    },
+    {
+     "mot": "qu'il",
+     "debutSec": 5.542,
+     "finSec": 5.634
+    },
+    {
+     "mot": "faut",
+     "debutSec": 5.671,
+     "finSec": 5.782
+    },
+    {
+     "mot": "tout",
+     "debutSec": 5.819,
+     "finSec": 5.894
+    },
+    {
+     "mot": "réécrire.",
+     "debutSec": 5.931,
+     "finSec": 6.264
+    }
+   ]
+  },
+  {
+   "texte": "Vous vous êtes dit : ce n'est pas pour moi.",
+   "debutSec": 6.301,
+   "finSec": 7.505,
+   "mots": [
+    {
+     "mot": "Vous",
+     "debutSec": 6.301,
+     "finSec": 6.356
+    },
+    {
+     "mot": "vous",
+     "debutSec": 6.375,
+     "finSec": 6.468
+    },
+    {
+     "mot": "êtes",
+     "debutSec": 6.523,
+     "finSec": 6.616
+    },
+    {
+     "mot": "dit",
+     "debutSec": 6.653,
+     "finSec": 6.745
+    },
+    {
+     "mot": "ce",
+     "debutSec": 6.782,
+     "finSec": 6.801
+    },
+    {
+     "mot": "n'est",
+     "debutSec": 6.819,
+     "finSec": 6.894
+    },
+    {
+     "mot": "pas",
+     "debutSec": 6.931,
+     "finSec": 7.042
+    },
+    {
+     "mot": "pour",
+     "debutSec": 7.079,
+     "finSec": 7.208
+    },
+    {
+     "mot": "moi.",
+     "debutSec": 7.245,
+     "finSec": 7.505
+    }
+   ]
+  },
+  {
+   "texte": "Le problème n'est pas l'outil.",
+   "debutSec": 7.755,
+   "finSec": 8.81,
+   "mots": [
+    {
+     "mot": "Le",
+     "debutSec": 7.755,
+     "finSec": 7.847
+    },
+    {
+     "mot": "problème",
+     "debutSec": 7.884,
+     "finSec": 8.218
+    },
+    {
+     "mot": "n'est",
+     "debutSec": 8.255,
+     "finSec": 8.366
+    },
+    {
+     "mot": "pas",
+     "debutSec": 8.403,
+     "finSec": 8.495
+    },
+    {
+     "mot": "l'outil.",
+     "debutSec": 8.514,
+     "finSec": 8.81
+    }
+   ]
+  },
+  {
+   "texte": "Vous l'avez essayé comme un moteur de recherche.",
+   "debutSec": 9.06,
+   "finSec": 10.708,
+   "mots": [
+    {
+     "mot": "Vous",
+     "debutSec": 9.06,
+     "finSec": 9.116
+    },
+    {
+     "mot": "l'avez",
+     "debutSec": 9.134,
+     "finSec": 9.301
+    },
+    {
+     "mot": "essayé",
+     "debutSec": 9.319,
+     "finSec": 9.634
+    },
+    {
+     "mot": "comme",
+     "debutSec": 9.69,
+     "finSec": 9.801
+    },
+    {
+     "mot": "un",
+     "debutSec": 9.838,
+     "finSec": 9.894
+    },
+    {
+     "mot": "moteur",
+     "debutSec": 9.931,
+     "finSec": 10.19
+    },
+    {
+     "mot": "de",
+     "debutSec": 10.208,
+     "finSec": 10.282
+    },
+    {
+     "mot": "recherche.",
+     "debutSec": 10.319,
+     "finSec": 10.708
+    }
+   ]
+  },
+  {
+   "texte": "Ça s'apprend comme un geste : en répétant.",
+   "debutSec": 10.958,
+   "finSec": 12.662,
+   "mots": [
+    {
+     "mot": "Ça",
+     "debutSec": 10.958,
+     "finSec": 11.051
+    },
+    {
+     "mot": "s'apprend",
+     "debutSec": 11.088,
+     "finSec": 11.403
+    },
+    {
+     "mot": "comme",
+     "debutSec": 11.44,
+     "finSec": 11.551
+    },
+    {
+     "mot": "un",
+     "debutSec": 11.588,
+     "finSec": 11.662
+    },
+    {
+     "mot": "geste",
+     "debutSec": 11.699,
+     "finSec": 11.958
+    },
+    {
+     "mot": "en",
+     "debutSec": 12.144,
+     "finSec": 12.199
+    },
+    {
+     "mot": "répétant.",
+     "debutSec": 12.236,
+     "finSec": 12.662
+    }
+   ]
+  },
+  {
+   "texte": "Voici comment, en cinq jours.",
+   "debutSec": 12.912,
+   "finSec": 14.19,
+   "mots": [
+    {
+     "mot": "Voici",
+     "debutSec": 12.912,
+     "finSec": 13.171
+    },
+    {
+     "mot": "comment,",
+     "debutSec": 13.227,
+     "finSec": 13.449
+    },
+    {
+     "mot": "en",
+     "debutSec": 13.634,
+     "finSec": 13.708
+    },
+    {
+     "mot": "cinq",
+     "debutSec": 13.764,
+     "finSec": 13.912
+    },
+    {
+     "mot": "jours.",
+     "debutSec": 13.968,
+     "finSec": 14.19
+    }
+   ]
+  },
+  {
+   "texte": "Un.",
+   "debutSec": 14.44,
+   "finSec": 14.569,
+   "mots": [
+    {
+     "mot": "Un.",
+     "debutSec": 14.44,
+     "finSec": 14.569
+    }
+   ]
+  },
+  {
+   "texte": "Choisissez une seule tâche que vous refaites chaque semaine.",
+   "debutSec": 14.819,
+   "finSec": 16.838,
+   "mots": [
+    {
+     "mot": "Choisissez",
+     "debutSec": 14.819,
+     "finSec": 15.338
+    },
+    {
+     "mot": "une",
+     "debutSec": 15.412,
+     "finSec": 15.505
+    },
+    {
+     "mot": "seule",
+     "debutSec": 15.56,
+     "finSec": 15.69
+    },
+    {
+     "mot": "tâche",
+     "debutSec": 15.727,
+     "finSec": 15.894
+    },
+    {
+     "mot": "que",
+     "debutSec": 15.912,
+     "finSec": 15.986
+    },
+    {
+     "mot": "vous",
+     "debutSec": 16.005,
+     "finSec": 16.06
+    },
+    {
+     "mot": "refaites",
+     "debutSec": 16.097,
+     "finSec": 16.338
+    },
+    {
+     "mot": "chaque",
+     "debutSec": 16.356,
+     "finSec": 16.486
+    },
+    {
+     "mot": "semaine.",
+     "debutSec": 16.542,
+     "finSec": 16.838
+    }
+   ]
+  },
+  {
+   "texte": "Un devis.",
+   "debutSec": 17.005,
+   "finSec": 17.449,
+   "mots": [
+    {
+     "mot": "Un",
+     "debutSec": 17.005,
+     "finSec": 17.079
+    },
+    {
+     "mot": "devis.",
+     "debutSec": 17.116,
+     "finSec": 17.449
+    }
+   ]
+  },
+  {
+   "texte": "Une relance.",
+   "debutSec": 17.699,
+   "finSec": 18.199,
+   "mots": [
+    {
+     "mot": "Une",
+     "debutSec": 17.699,
+     "finSec": 17.792
+    },
+    {
+     "mot": "relance.",
+     "debutSec": 17.829,
+     "finSec": 18.199
+    }
+   ]
+  },
+  {
+   "texte": "Un compte rendu.",
+   "debutSec": 18.236,
+   "finSec": 18.829,
+   "mots": [
+    {
+     "mot": "Un",
+     "debutSec": 18.236,
+     "finSec": 18.31
+    },
+    {
+     "mot": "compte",
+     "debutSec": 18.347,
+     "finSec": 18.477
+    },
+    {
+     "mot": "rendu.",
+     "debutSec": 18.495,
+     "finSec": 18.829
+    }
+   ]
+  },
+  {
+   "texte": "Deux.",
+   "debutSec": 19.079,
+   "finSec": 19.301,
+   "mots": [
+    {
+     "mot": "Deux.",
+     "debutSec": 19.079,
+     "finSec": 19.301
+    }
+   ]
+  },
+  {
+   "texte": "Faites-la avec l'IA cinq jours de suite.",
+   "debutSec": 19.551,
+   "finSec": 21.069,
+   "mots": [
+    {
+     "mot": "Faites-la",
+     "debutSec": 19.551,
+     "finSec": 19.866
+    },
+    {
+     "mot": "avec",
+     "debutSec": 19.94,
+     "finSec": 20.125
+    },
+    {
+     "mot": "l'IA",
+     "debutSec": 20.162,
+     "finSec": 20.366
+    },
+    {
+     "mot": "cinq",
+     "debutSec": 20.421,
+     "finSec": 20.551
+    },
+    {
+     "mot": "jours",
+     "debutSec": 20.588,
+     "finSec": 20.699
+    },
+    {
+     "mot": "de",
+     "debutSec": 20.718,
+     "finSec": 20.81
+    },
+    {
+     "mot": "suite.",
+     "debutSec": 20.866,
+     "finSec": 21.069
+    }
+   ]
+  },
+  {
+   "texte": "La même tâche.",
+   "debutSec": 21.319,
+   "finSec": 21.819,
+   "mots": [
+    {
+     "mot": "La",
+     "debutSec": 21.319,
+     "finSec": 21.394
+    },
+    {
+     "mot": "même",
+     "debutSec": 21.431,
+     "finSec": 21.579
+    },
+    {
+     "mot": "tâche.",
+     "debutSec": 21.616,
+     "finSec": 21.819
+    }
+   ]
+  },
+  {
+   "texte": "Pas une autre.",
+   "debutSec": 22.069,
+   "finSec": 22.569,
+   "mots": [
+    {
+     "mot": "Pas",
+     "debutSec": 22.069,
+     "finSec": 22.199
+    },
+    {
+     "mot": "une",
+     "debutSec": 22.236,
+     "finSec": 22.31
+    },
+    {
+     "mot": "autre.",
+     "debutSec": 22.366,
+     "finSec": 22.569
+    }
+   ]
+  },
+  {
+   "texte": "Trois.",
+   "debutSec": 22.819,
+   "finSec": 23.116,
+   "mots": [
+    {
+     "mot": "Trois.",
+     "debutSec": 22.819,
+     "finSec": 23.116
+    }
+   ]
+  },
+  {
+   "texte": "Chaque jour, changez une seule chose dans votre demande.",
+   "debutSec": 23.366,
+   "finSec": 25.421,
+   "mots": [
+    {
+     "mot": "Chaque",
+     "debutSec": 23.366,
+     "finSec": 23.532
+    },
+    {
+     "mot": "jour,",
+     "debutSec": 23.588,
+     "finSec": 23.792
+    },
+    {
+     "mot": "changez",
+     "debutSec": 23.866,
+     "finSec": 24.218
+    },
+    {
+     "mot": "une",
+     "debutSec": 24.273,
+     "finSec": 24.366
+    },
+    {
+     "mot": "seule",
+     "debutSec": 24.403,
+     "finSec": 24.551
+    },
+    {
+     "mot": "chose",
+     "debutSec": 24.588,
+     "finSec": 24.755
+    },
+    {
+     "mot": "dans",
+     "debutSec": 24.792,
+     "finSec": 24.866
+    },
+    {
+     "mot": "votre",
+     "debutSec": 24.884,
+     "finSec": 25.069
+    },
+    {
+     "mot": "demande.",
+     "debutSec": 25.106,
+     "finSec": 25.421
+    }
+   ]
+  },
+  {
+   "texte": "Lundi : dites pour qui c'est.",
+   "debutSec": 25.671,
+   "finSec": 26.782,
+   "mots": [
+    {
+     "mot": "Lundi",
+     "debutSec": 25.671,
+     "finSec": 26.079
+    },
+    {
+     "mot": "dites",
+     "debutSec": 26.133,
+     "finSec": 26.282
+    },
+    {
+     "mot": "pour",
+     "debutSec": 26.3,
+     "finSec": 26.412
+    },
+    {
+     "mot": "qui",
+     "debutSec": 26.449,
+     "finSec": 26.542
+    },
+    {
+     "mot": "c'est.",
+     "debutSec": 26.596,
+     "finSec": 26.782
+    }
+   ]
+  },
+  {
+   "texte": "Mardi : donnez un exemple que vous aimez.",
+   "debutSec": 27.032,
+   "finSec": 28.625,
+   "mots": [
+    {
+     "mot": "Mardi",
+     "debutSec": 27.032,
+     "finSec": 27.329
+    },
+    {
+     "mot": "donnez",
+     "debutSec": 27.514,
+     "finSec": 27.681
+    },
+    {
+     "mot": "un",
+     "debutSec": 27.718,
+     "finSec": 27.773
+    },
+    {
+     "mot": "exemple",
+     "debutSec": 27.829,
+     "finSec": 28.144
+    },
+    {
+     "mot": "que",
+     "debutSec": 28.162,
+     "finSec": 28.255
+    },
+    {
+     "mot": "vous",
+     "debutSec": 28.273,
+     "finSec": 28.384
+    },
+    {
+     "mot": "aimez.",
+     "debutSec": 28.44,
+     "finSec": 28.625
+    }
+   ]
+  },
+  {
+   "texte": "Mercredi : dites ce que vous ne voulez pas.",
+   "debutSec": 28.875,
+   "finSec": 30.375,
+   "mots": [
+    {
+     "mot": "Mercredi",
+     "debutSec": 28.875,
+     "finSec": 29.282
+    },
+    {
+     "mot": "dites",
+     "debutSec": 29.468,
+     "finSec": 29.597
+    },
+    {
+     "mot": "ce",
+     "debutSec": 29.616,
+     "finSec": 29.708
+    },
+    {
+     "mot": "que",
+     "debutSec": 29.727,
+     "finSec": 29.801
+    },
+    {
+     "mot": "vous",
+     "debutSec": 29.819,
+     "finSec": 29.894
+    },
+    {
+     "mot": "ne",
+     "debutSec": 29.912,
+     "finSec": 29.949
+    },
+    {
+     "mot": "voulez",
+     "debutSec": 29.986,
+     "finSec": 30.153
+    },
+    {
+     "mot": "pas.",
+     "debutSec": 30.208,
+     "finSec": 30.375
+    }
+   ]
+  },
+  {
+   "texte": "Jeudi : imposez la longueur.",
+   "debutSec": 30.625,
+   "finSec": 31.921,
+   "mots": [
+    {
+     "mot": "Jeudi",
+     "debutSec": 30.625,
+     "finSec": 30.94
+    },
+    {
+     "mot": "imposez",
+     "debutSec": 31.014,
+     "finSec": 31.366
+    },
+    {
+     "mot": "la",
+     "debutSec": 31.403,
+     "finSec": 31.458
+    },
+    {
+     "mot": "longueur.",
+     "debutSec": 31.495,
+     "finSec": 31.921
+    }
+   ]
+  },
+  {
+   "texte": "Quatre.",
+   "debutSec": 32.032,
+   "finSec": 32.329,
+   "mots": [
+    {
+     "mot": "Quatre.",
+     "debutSec": 32.032,
+     "finSec": 32.329
+    }
+   ]
+  },
+  {
+   "texte": "Vendredi, gardez la demande qui marche.",
+   "debutSec": 32.579,
+   "finSec": 34.19,
+   "mots": [
+    {
+     "mot": "Vendredi,",
+     "debutSec": 32.579,
+     "finSec": 32.949
+    },
+    {
+     "mot": "gardez",
+     "debutSec": 33.023,
+     "finSec": 33.245
+    },
+    {
+     "mot": "la",
+     "debutSec": 33.282,
+     "finSec": 33.356
+    },
+    {
+     "mot": "demande",
+     "debutSec": 33.394,
+     "finSec": 33.671
+    },
+    {
+     "mot": "qui",
+     "debutSec": 33.708,
+     "finSec": 33.782
+    },
+    {
+     "mot": "marche.",
+     "debutSec": 33.838,
+     "finSec": 34.19
+    }
+   ]
+  },
+  {
+   "texte": "Vous ne la retaperez plus jamais.",
+   "debutSec": 34.44,
+   "finSec": 35.662,
+   "mots": [
+    {
+     "mot": "Vous",
+     "debutSec": 34.44,
+     "finSec": 34.514
+    },
+    {
+     "mot": "ne",
+     "debutSec": 34.551,
+     "finSec": 34.625
+    },
+    {
+     "mot": "la",
+     "debutSec": 34.681,
+     "finSec": 34.755
+    },
+    {
+     "mot": "retaperez",
+     "debutSec": 34.792,
+     "finSec": 35.199
+    },
+    {
+     "mot": "plus",
+     "debutSec": 35.236,
+     "finSec": 35.329
+    },
+    {
+     "mot": "jamais.",
+     "debutSec": 35.384,
+     "finSec": 35.662
+    }
+   ]
+  },
+  {
+   "texte": "Prenons un artisan et ses relances de devis.",
+   "debutSec": 35.912,
+   "finSec": 37.616,
+   "mots": [
+    {
+     "mot": "Prenons",
+     "debutSec": 35.912,
+     "finSec": 36.153
+    },
+    {
+     "mot": "un",
+     "debutSec": 36.19,
+     "finSec": 36.245
+    },
+    {
+     "mot": "artisan",
+     "debutSec": 36.301,
+     "finSec": 36.653
+    },
+    {
+     "mot": "et",
+     "debutSec": 36.69,
+     "finSec": 36.745
+    },
+    {
+     "mot": "ses",
+     "debutSec": 36.801,
+     "finSec": 36.875
+    },
+    {
+     "mot": "relances",
+     "debutSec": 36.912,
+     "finSec": 37.153
+    },
+    {
+     "mot": "de",
+     "debutSec": 37.171,
+     "finSec": 37.245
+    },
+    {
+     "mot": "devis.",
+     "debutSec": 37.282,
+     "finSec": 37.616
+    }
+   ]
+  },
+  {
+   "texte": "Lundi, le message est froid.",
+   "debutSec": 37.866,
+   "finSec": 38.977,
+   "mots": [
+    {
+     "mot": "Lundi,",
+     "debutSec": 37.866,
+     "finSec": 38.106
+    },
+    {
+     "mot": "le",
+     "debutSec": 38.162,
+     "finSec": 38.218
+    },
+    {
+     "mot": "message",
+     "debutSec": 38.255,
+     "finSec": 38.551
+    },
+    {
+     "mot": "est",
+     "debutSec": 38.569,
+     "finSec": 38.644
+    },
+    {
+     "mot": "froid.",
+     "debutSec": 38.699,
+     "finSec": 38.977
+    }
+   ]
+  },
+  {
+   "texte": "Jeudi, il sonne comme lui.",
+   "debutSec": 39.227,
+   "finSec": 40.264,
+   "mots": [
+    {
+     "mot": "Jeudi,",
+     "debutSec": 39.227,
+     "finSec": 39.56
+    },
+    {
+     "mot": "il",
+     "debutSec": 39.597,
+     "finSec": 39.671
+    },
+    {
+     "mot": "sonne",
+     "debutSec": 39.727,
+     "finSec": 39.856
+    },
+    {
+     "mot": "comme",
+     "debutSec": 39.894,
+     "finSec": 40.023
+    },
+    {
+     "mot": "lui.",
+     "debutSec": 40.06,
+     "finSec": 40.264
+    }
+   ]
+  },
+  {
+   "texte": "Vendredi, il a son modèle : il change un nom, et c'est parti.",
+   "debutSec": 40.514,
+   "finSec": 42.94,
+   "mots": [
+    {
+     "mot": "Vendredi,",
+     "debutSec": 40.514,
+     "finSec": 40.884
+    },
+    {
+     "mot": "il",
+     "debutSec": 40.921,
+     "finSec": 40.977
+    },
+    {
+     "mot": "a",
+     "debutSec": 41.014,
+     "finSec": 41.051
+    },
+    {
+     "mot": "son",
+     "debutSec": 41.106,
+     "finSec": 41.181
+    },
+    {
+     "mot": "modèle",
+     "debutSec": 41.218,
+     "finSec": 41.495
+    },
+    {
+     "mot": "il",
+     "debutSec": 41.681,
+     "finSec": 41.736
+    },
+    {
+     "mot": "change",
+     "debutSec": 41.773,
+     "finSec": 41.958
+    },
+    {
+     "mot": "un",
+     "debutSec": 41.995,
+     "finSec": 42.032
+    },
+    {
+     "mot": "nom,",
+     "debutSec": 42.088,
+     "finSec": 42.199
+    },
+    {
+     "mot": "et",
+     "debutSec": 42.384,
+     "finSec": 42.44
+    },
+    {
+     "mot": "c'est",
+     "debutSec": 42.495,
+     "finSec": 42.588
+    },
+    {
+     "mot": "parti.",
+     "debutSec": 42.625,
+     "finSec": 42.94
+    }
+   ]
+  },
+  {
+   "texte": "Une tâche.",
+   "debutSec": 43.19,
+   "finSec": 43.579,
+   "mots": [
+    {
+     "mot": "Une",
+     "debutSec": 43.19,
+     "finSec": 43.301
+    },
+    {
+     "mot": "tâche.",
+     "debutSec": 43.338,
+     "finSec": 43.579
+    }
+   ]
+  },
+  {
+   "texte": "Cinq jours.",
+   "debutSec": 43.829,
+   "finSec": 44.292,
+   "mots": [
+    {
+     "mot": "Cinq",
+     "debutSec": 43.829,
+     "finSec": 43.995
+    },
+    {
+     "mot": "jours.",
+     "debutSec": 44.051,
+     "finSec": 44.292
+    }
+   ]
+  },
+  {
+   "texte": "Un changement par jour.",
+   "debutSec": 44.542,
+   "finSec": 45.338,
+   "mots": [
+    {
+     "mot": "Un",
+     "debutSec": 44.542,
+     "finSec": 44.616
+    },
+    {
+     "mot": "changement",
+     "debutSec": 44.653,
+     "finSec": 44.949
+    },
+    {
+     "mot": "par",
+     "debutSec": 44.986,
+     "finSec": 45.097
+    },
+    {
+     "mot": "jour.",
+     "debutSec": 45.153,
+     "finSec": 45.338
+    }
+   ]
+  },
+  {
+   "texte": "Un modèle gardé.",
+   "debutSec": 45.588,
+   "finSec": 46.218,
+   "mots": [
+    {
+     "mot": "Un",
+     "debutSec": 45.588,
+     "finSec": 45.644
+    },
+    {
+     "mot": "modèle",
+     "debutSec": 45.681,
+     "finSec": 45.903
+    },
+    {
+     "mot": "gardé.",
+     "debutSec": 45.94,
+     "finSec": 46.218
+    }
+   ]
+  },
+  {
+   "texte": "Le détail des cinq jours tient sur une page.",
+   "debutSec": 46.468,
+   "finSec": 48.19,
+   "mots": [
+    {
+     "mot": "Le",
+     "debutSec": 46.468,
+     "finSec": 46.542
+    },
+    {
+     "mot": "détail",
+     "debutSec": 46.579,
+     "finSec": 46.838
+    },
+    {
+     "mot": "des",
+     "debutSec": 46.856,
+     "finSec": 46.949
+    },
+    {
+     "mot": "cinq",
+     "debutSec": 47.005,
+     "finSec": 47.153
+    },
+    {
+     "mot": "jours",
+     "debutSec": 47.208,
+     "finSec": 47.375
+    },
+    {
+     "mot": "tient",
+     "debutSec": 47.431,
+     "finSec": 47.579
+    },
+    {
+     "mot": "sur",
+     "debutSec": 47.616,
+     "finSec": 47.727
+    },
+    {
+     "mot": "une",
+     "debutSec": 47.764,
+     "finSec": 47.875
+    },
+    {
+     "mot": "page.",
+     "debutSec": 47.931,
+     "finSec": 48.19
+    }
+   ]
+  },
+  {
+   "texte": "Écrivez cinq en commentaire.",
+   "debutSec": 48.44,
+   "finSec": 49.829,
+   "mots": [
+    {
+     "mot": "Écrivez",
+     "debutSec": 48.44,
+     "finSec": 48.829
+    },
+    {
+     "mot": "cinq",
+     "debutSec": 48.903,
+     "finSec": 49.088
+    },
+    {
+     "mot": "en",
+     "debutSec": 49.125,
+     "finSec": 49.199
+    },
+    {
+     "mot": "commentaire.",
+     "debutSec": 49.236,
+     "finSec": 49.829
+    }
+   ]
+  },
+  {
+   "texte": "Je vous l'envoie.",
+   "debutSec": 49.884,
+   "finSec": 50.514,
+   "mots": [
+    {
+     "mot": "Je",
+     "debutSec": 49.884,
+     "finSec": 49.977
+    },
+    {
+     "mot": "vous",
+     "debutSec": 50.014,
+     "finSec": 50.088
+    },
+    {
+     "mot": "l'envoie.",
+     "debutSec": 50.125,
+     "finSec": 50.514
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,146 @@
+{
+  "le": "2026-10-02T19:19:49.486Z",
+  "cle": "…ZQAA",
+  "tarifs": {
+    "claude-opus-5-5": {
+      "entree": 4,
+      "sortie": 20,
+      "cacheLu": 0.2,
+      "cacheEcrit": 5
+    },
+    "claude-sonnet-5-5": {
+      "entree": 2,
+      "sortie": 10,
+      "cacheLu": 0.2,
+      "cacheEcrit": 2.5
+    },
+    "claude-opus-5": {
+      "entree": 5,
+      "sortie": 25,
+      "cacheLu": 0.5,
+      "cacheEcrit": 6.25
+    },
+    "claude-opus-4-8": {
+      "entree": 5,
+      "sortie": 25,
+      "cacheLu": 0.5,
+      "cacheEcrit": 6.25
+    },
+    "claude-sonnet-5": {
+      "entree": 2,
+      "sortie": 10,
+      "cacheLu": 0.2,
+      "cacheEcrit": 2.5
+    },
+    "claude-haiku-4-5": {
+      "entree": 1,
+      "sortie": 5,
+      "cacheLu": 0.1,
+      "cacheEcrit": 1.25
+    }
+  },
+  "pireCasUsd": 0.04062,
+  "totalUsd": 0.016314,
+  "budgetTenu": true,
+  "cache": {
+    "ecritAuPremier": 1588,
+    "luAuSecond": 1588,
+    "verifie": true
+  },
+  "modeleIntrouvable": {
+    "code": "modele-introuvable",
+    "statut": 404,
+    "message": "Claude : model: claude-modele-inexistant-g0"
+  },
+  "varianceSonnet": {
+    "tirages": [
+      "{\"accrocheConcrete\":true,\"coutDitTot\":false,\"issueDonnee\":false}",
+      "{\"accrocheConcrete\":true,\"coutDitTot\":false,\"issueDonnee\":false}",
+      "{\"accrocheConcrete\":true,\"coutDitTot\":false,\"issueDonnee\":false}"
+    ],
+    "identiques": true
+  },
+  "facturation": "non provoquée : forme relevée au premier vrai refus (journal du studio, `en-attente-credit`)",
+  "appels": [
+    {
+      "nom": "sonde-1",
+      "modeleDemande": "claude-opus-5-5",
+      "modele": "claude-opus-5-5",
+      "replis": [],
+      "stopReason": "end_turn",
+      "jetons": {
+        "entree": 306,
+        "cacheLu": 0,
+        "cacheEcrit": 1588,
+        "sortie": 44
+      },
+      "coutUsd": 0.010044,
+      "dureeMs": 3937,
+      "texte": "{\"phrase\":\"Les PV de stationnement des véhicules de société : branchement du studio Axion-IA vérifié.\"}"
+    },
+    {
+      "nom": "sonde-2-cache",
+      "modeleDemande": "claude-opus-5-5",
+      "modele": "claude-opus-5-5",
+      "replis": [],
+      "stopReason": "end_turn",
+      "jetons": {
+        "entree": 306,
+        "cacheLu": 1588,
+        "cacheEcrit": 0,
+        "sortie": 57
+      },
+      "coutUsd": 0.002682,
+      "dureeMs": 3010,
+      "texte": "{\"phrase\":\"Branchement vérifié : le studio Axion-IA reçoit bien le sujet « Les PV de stationnement des véhicules de société ».\"}"
+    },
+    {
+      "nom": "juge-sonnet-1",
+      "modeleDemande": "claude-sonnet-5-5",
+      "modele": "claude-sonnet-5-5",
+      "replis": [],
+      "stopReason": "end_turn",
+      "jetons": {
+        "entree": 423,
+        "cacheLu": 0,
+        "cacheEcrit": 0,
+        "sortie": 35
+      },
+      "coutUsd": 0.001196,
+      "dureeMs": 2333,
+      "texte": "{\"accrocheConcrete\":true,\"coutDitTot\":false,\"issueDonnee\":false}"
+    },
+    {
+      "nom": "juge-sonnet-2",
+      "modeleDemande": "claude-sonnet-5-5",
+      "modele": "claude-sonnet-5-5",
+      "replis": [],
+      "stopReason": "end_turn",
+      "jetons": {
+        "entree": 423,
+        "cacheLu": 0,
+        "cacheEcrit": 0,
+        "sortie": 35
+      },
+      "coutUsd": 0.001196,
+      "dureeMs": 1220,
+      "texte": "{\"accrocheConcrete\":true,\"coutDitTot\":false,\"issueDonnee\":false}"
+    },
+    {
+      "nom": "juge-sonnet-3",
+      "modeleDemande": "claude-sonnet-5-5",
+      "modele": "claude-sonnet-5-5",
+      "replis": [],
+      "stopReason": "end_turn",
+      "jetons": {
+        "entree": 423,
+        "cacheLu": 0,
+        "cacheEcrit": 0,
+        "sortie": 35
+      },
+      "coutUsd": 0.001196,
+      "dureeMs": 1070,
+      "texte": "{\"accrocheConcrete\":true,\"coutDitTot\":false,\"issueDonnee\":false}"
+    }
+  ]
+}

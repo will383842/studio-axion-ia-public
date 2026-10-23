@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-02",
+  "but": "Lot M4b — temps de fabrication du 9:16 (15,57 s de vidéo) selon le nombre de fils logiques, pour estimer le serveur. Poste : Intel i7-9750H (6 cœurs / 12 fils). Le rendu est limité par `start /affinity` à N fils (un vCPU de serveur ≈ un fil logique).",
+  "avant_M4b": {
+    "fils": 12,
+    "concurrence": 2,
+    "tempsSec": 210.4,
+    "source": "v1/mesures.json",
+    "pour45SecMin": 10.1
+  },
+  "mesures": [
+    {
+      "fils": 12,
+      "concurrence": 4,
+      "tempsSec": 52.5,
+      "image": 33.8,
+      "texte": 9.7,
+      "export": 15.6,
+      "pour45SecMin": 2.5
+    },
+    {
+      "fils": 6,
+      "concurrence": 3,
+      "tempsSec": 61.7,
+      "image": 39.8,
+      "texte": 9.3,
+      "export": 19.1,
+      "pour45SecMin": 3.0
+    },
+    {
+      "fils": 4,
+      "concurrence": 2,
+      "tempsSec": 72.8,
+      "image": 45.6,
+      "texte": 9.5,
+      "export": 24.3,
+      "pour45SecMin": 3.5
+    },
+    {
+      "fils": 2,
+      "concurrence": 1,
+      "tempsSec": 120.7,
+      "image": 71.4,
+      "texte": 16.8,
+      "export": 45.8,
+      "pour45SecMin": 5.8
+    }
+  ],
+  "memoire": {
+    "fils": 6,
+    "calquesImageEtCouleursMo": 854,
+    "exportMo": 1101,
+    "note": "FFmpeg seul (`-benchmark`, maxrss) ; le navigateur du texte tourne en même temps que la passe image (≈ 0,5-0,9 Go)."
+  }
+}

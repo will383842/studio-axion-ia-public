@@ -1,0 +1,222 @@
+{
+  "outil": "outils/bruitages/fabriquer.mts",
+  "licence": "CC0 1.0 — création originale du studio par synthèse, usage commercial permis, aucune attribution",
+  "sons": [
+    {
+      "fichier": "chiffre-1.wav",
+      "declencheur": "chiffre",
+      "nom": "Tic 1",
+      "variante": 1,
+      "dureeSec": 0.09,
+      "niveauActifDb": -20,
+      "creteDb": -8.7
+    },
+    {
+      "fichier": "chiffre-2.wav",
+      "declencheur": "chiffre",
+      "nom": "Tic 2",
+      "variante": 2,
+      "dureeSec": 0.09,
+      "niveauActifDb": -20,
+      "creteDb": -9.15
+    },
+    {
+      "fichier": "chiffre-3.wav",
+      "declencheur": "chiffre",
+      "nom": "Tic 3",
+      "variante": 3,
+      "dureeSec": 0.09,
+      "niveauActifDb": -20,
+      "creteDb": -9.23
+    },
+    {
+      "fichier": "chiffre-4.wav",
+      "declencheur": "chiffre",
+      "nom": "Tic 4",
+      "variante": 4,
+      "dureeSec": 0.09,
+      "niveauActifDb": -20,
+      "creteDb": -8.86
+    },
+    {
+      "fichier": "document-1.wav",
+      "declencheur": "document",
+      "nom": "Papier 1",
+      "variante": 1,
+      "dureeSec": 0.3,
+      "niveauActifDb": -20,
+      "creteDb": -5.72
+    },
+    {
+      "fichier": "document-2.wav",
+      "declencheur": "document",
+      "nom": "Papier 2",
+      "variante": 2,
+      "dureeSec": 0.33,
+      "niveauActifDb": -20,
+      "creteDb": -4.39
+    },
+    {
+      "fichier": "document-3.wav",
+      "declencheur": "document",
+      "nom": "Papier 3",
+      "variante": 3,
+      "dureeSec": 0.28,
+      "niveauActifDb": -20,
+      "creteDb": -5.71
+    },
+    {
+      "fichier": "document-4.wav",
+      "declencheur": "document",
+      "nom": "Papier 4",
+      "variante": 4,
+      "dureeSec": 0.35,
+      "niveauActifDb": -20,
+      "creteDb": -4.27
+    },
+    {
+      "fichier": "telephone-1.wav",
+      "declencheur": "telephone",
+      "nom": "Vibration 1",
+      "variante": 1,
+      "dureeSec": 0.31,
+      "niveauActifDb": -20,
+      "creteDb": -13.82
+    },
+    {
+      "fichier": "telephone-2.wav",
+      "declencheur": "telephone",
+      "nom": "Vibration 2",
+      "variante": 2,
+      "dureeSec": 0.3,
+      "niveauActifDb": -20,
+      "creteDb": -13.72
+    },
+    {
+      "fichier": "telephone-3.wav",
+      "declencheur": "telephone",
+      "nom": "Vibration 3",
+      "variante": 3,
+      "dureeSec": 0.32,
+      "niveauActifDb": -20,
+      "creteDb": -13.9
+    },
+    {
+      "fichier": "telephone-4.wav",
+      "declencheur": "telephone",
+      "nom": "Vibration 4",
+      "variante": 4,
+      "dureeSec": 0.29,
+      "niveauActifDb": -20,
+      "creteDb": -13.63
+    },
+    {
+      "fichier": "illustration-forte-1.wav",
+      "declencheur": "illustration-forte",
+      "nom": "Souffle court 1",
+      "variante": 1,
+      "dureeSec": 0.24,
+      "niveauActifDb": -20,
+      "creteDb": -5.77
+    },
+    {
+      "fichier": "illustration-forte-2.wav",
+      "declencheur": "illustration-forte",
+      "nom": "Souffle court 2",
+      "variante": 2,
+      "dureeSec": 0.26,
+      "niveauActifDb": -20.52,
+      "creteDb": -3
+    },
+    {
+      "fichier": "illustration-forte-3.wav",
+      "declencheur": "illustration-forte",
+      "nom": "Souffle court 3",
+      "variante": 3,
+      "dureeSec": 0.22,
+      "niveauActifDb": -20,
+      "creteDb": -6.06
+    },
+    {
+      "fichier": "illustration-forte-4.wav",
+      "declencheur": "illustration-forte",
+      "nom": "Souffle court 4",
+      "variante": 4,
+      "dureeSec": 0.28,
+      "niveauActifDb": -20,
+      "creteDb": -6.61
+    },
+    {
+      "fichier": "impact-1.wav",
+      "declencheur": "impact",
+      "nom": "Pop grave 1",
+      "variante": 1,
+      "dureeSec": 0.16,
+      "niveauActifDb": -20,
+      "creteDb": -8.97
+    },
+    {
+      "fichier": "impact-2.wav",
+      "declencheur": "impact",
+      "nom": "Pop grave 2",
+      "variante": 2,
+      "dureeSec": 0.17,
+      "niveauActifDb": -20,
+      "creteDb": -9.06
+    },
+    {
+      "fichier": "impact-3.wav",
+      "declencheur": "impact",
+      "nom": "Pop grave 3",
+      "variante": 3,
+      "dureeSec": 0.15,
+      "niveauActifDb": -20,
+      "creteDb": -9.18
+    },
+    {
+      "fichier": "impact-4.wav",
+      "declencheur": "impact",
+      "nom": "Pop grave 4",
+      "variante": 4,
+      "dureeSec": 0.18,
+      "niveauActifDb": -20,
+      "creteDb": -8.75
+    },
+    {
+      "fichier": "verre-1.wav",
+      "declencheur": "verre",
+      "nom": "Verre brisé 1",
+      "variante": 1,
+      "dureeSec": 0.4,
+      "niveauActifDb": -20.33,
+      "creteDb": -3
+    },
+    {
+      "fichier": "tableau-trait.wav",
+      "declencheur": "tableau-trait",
+      "nom": "Trait de crayon (tableau) 1",
+      "variante": 1,
+      "dureeSec": 0.2,
+      "niveauActifDb": -21.94,
+      "creteDb": -7.57
+    },
+    {
+      "fichier": "tableau-toc.wav",
+      "declencheur": "tableau-toc",
+      "nom": "Toc (tableau) 1",
+      "variante": 1,
+      "dureeSec": 0.12,
+      "niveauActifDb": -18.66,
+      "creteDb": -5.84
+    },
+    {
+      "fichier": "tableau-validation.wav",
+      "declencheur": "tableau-validation",
+      "nom": "Validation (tableau) 1",
+      "variante": 1,
+      "dureeSec": 0.36,
+      "niveauActifDb": -15.92,
+      "creteDb": -6.6
+    }
+  ]
+}

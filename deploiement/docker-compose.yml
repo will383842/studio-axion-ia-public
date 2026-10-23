@@ -1,0 +1,286 @@
+# Studio vidéo Axion-IA — installation sur le serveur axionia-web, À CÔTÉ du site, séparée de lui.
+# - aucune base, aucun volume, aucun réseau partagé avec axion-ia.com ;
+# - quatre services : la base, le studio, `studio-rendu` (rendu sans état, réseau interne, lot M1b) et
+#   `studio-aligneur` (calage des sous-titres, sans état, réseau interne, lot « calage ») ;
+# - le seul lien est le proxy commun (Traefik de Coolify) qui oriente studio.axion-ia.com ;
+# - les secrets viennent de /opt/studio-axion-ia/.env (jamais dans le dépôt).
+# Mise à jour : deploiement/mettre-a-jour.sh (sur le serveur).
+name: studio-axion-ia
+
+# Audit D : journaux de Docker BORNÉS (avant : aucune rotation, le disque pouvait se remplir). 5 fichiers de 20 Mo au
+# plus par service. Repris par les 4 services (`logging: *journaux`).
+x-journaux: &journaux
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  base:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: studio
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?manquant}
+    volumes:
+      - donnees:/var/lib/postgresql/data
+    networks: [interne]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studio -d studio"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    logging: *journaux
+    # Arrêt propre de Postgres (point de reprise écrit) avant le SIGKILL.
+    stop_grace_period: 60s
+
+  studio:
+    build:
+      context: ..
+      # Identifiants d'actions stables d'une mise en ligne à l'autre (constat du 10/10) : clé fixe du .env. Vide = clé
+      # aléatoire à chaque construction (comportement d'avant).
+      args:
+        NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}
+        # Version en ligne (commit court), posée par mettre-a-jour.sh ; lue par /api/sante. Vide = « inconnu ».
+        STUDIO_COMMIT: ${STUDIO_COMMIT:-}
+    image: studio-axion-ia:local
+    restart: unless-stopped
+    # Audit D : UN SEUL réplica. Les données sont recopiées en mémoire et les verrous vivent dans le processus : deux
+    # studios en même temps s'écraseraient. Ne jamais lancer `--scale studio=2`. Garde-fou dans le code : la boucle de
+    # fond (et la boucle d'écriture, la veille) ne tournent que dans l'instance qui tient le verrou Postgres
+    # (`pg_try_advisory_lock`) ; une seconde instance ne les lance pas et `/api/sante` y répond 503 au bout de 3 min.
+    deploy:
+      replicas: 1
+    logging: *journaux
+    # Laisse finir les écritures en cours (réponses des fournisseurs déjà payées) avant le SIGKILL.
+    stop_grace_period: 30s
+    depends_on:
+      base: { condition: service_healthy }
+    environment:
+      # Tas V8 plafonné AVANT la limite du conteneur (2 Go) : sans cela Node laisse le tas gonfler jusqu'à ~1,5 Go de déchets
+      # (copies des dépôts) puis le noyau tue le processus (OOM du 17/10). Le GC passe désormais avant la limite.
+      NODE_OPTIONS: --max-old-space-size=1280
+      DATABASE_URL: postgresql://studio:${POSTGRES_PASSWORD}@base:5432/studio
+      STUDIO_PASSWORD_HASH_B64: ${STUDIO_PASSWORD_HASH_B64:?manquant}
+      SESSION_SECRET: ${SESSION_SECRET:?manquant}
+      # Le studio n'est joignable que derrière Cloudflare : l'adresse réelle du visiteur est dans cet en-tête.
+      STUDIO_ENTETE_IP: cf-connecting-ip
+      # --- Lots M0b et M1b : chaque outil réel ne s'active QUE si sa variable existe (sinon : simulation). ---
+      # Le compose ne transmet que les variables listées ici (pas d'env_file) : modèle dans deploiement/env.exemple.
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+      HEYGEN_WEBHOOK_SECRET: ${HEYGEN_WEBHOOK_SECRET:-}
+      # Lot R7 : taille maximale d'une vidéo HeyGen téléchargée (Mo ; vide = 2048).
+      HEYGEN_VIDEO_MAX_MO: ${HEYGEN_VIDEO_MAX_MO:-}
+      FOURNISSEUR_VOIX: ${FOURNISSEUR_VOIX:-}
+      FOURNISSEUR_STOCKAGE: ${FOURNISSEUR_STOCKAGE:-}
+      # Lot M4 : « studio-rendu » quand le montage réel est relié (sinon la simulation reste).
+      FOURNISSEUR_MONTAGE: ${FOURNISSEUR_MONTAGE:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_HOST: ${R2_PUBLIC_HOST:-}
+      # Lot R3 : « web-push-email » relie les notifications (téléphone + e-mail) ; vide = simulation (rien ne part).
+      # Le réglage de Réglages > Connexions, s'il est posé, l'emporte.
+      FOURNISSEUR_NOTIFICATION: ${FOURNISSEUR_NOTIFICATION:-}
+      VAPID_PUBLIQUE: ${VAPID_PUBLIQUE:-}
+      VAPID_PRIVEE: ${VAPID_PRIVEE:-}
+      VAPID_SUJET: ${VAPID_SUJET:-}
+      EMAIL_SECOURS_CLE: ${EMAIL_SECOURS_CLE:-}
+      EMAIL_SECOURS_EXPEDITEUR: ${EMAIL_SECOURS_EXPEDITEUR:-}
+      EMAIL_SECOURS_DESTINATAIRE: ${EMAIL_SECOURS_DESTINATAIRE:-}
+      # Vide : rendu simulé. Réel : http://studio-rendu:4100 (une fois R2 relié).
+      STUDIO_RENDU_URL: ${STUDIO_RENDU_URL:-}
+      STUDIO_RENDU_CLE: ${STUDIO_RENDU_CLE:-}
+      USINE_URL: ${USINE_URL:-}
+      USINE_PORTE_SECRET: ${USINE_PORTE_SECRET:-}
+      # Vidéos sur le site (lots S3-S4) : vides = le site factice. Le vrai client n'est jamais choisi par défaut.
+      SITE_VIDEOS_URL: ${SITE_VIDEOS_URL:-}
+      SITE_VIDEOS_SECRET: ${SITE_VIDEOS_SECRET:-}
+      # --- Lots A et B (02/10, docs/BRANCHEMENTS-EXECUTION.md) : posées par l'architecte, une fois pour toutes. ---
+      # Lot A2 (M5) : illustrations réelles. Banques gratuites, puis fabrication payante à l'usage (fal.ai).
+      FOURNISSEUR_ILLUSTRATION: ${FOURNISSEUR_ILLUSTRATION:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      PIXABAY_API_KEY: ${PIXABAY_API_KEY:-}
+      FAL_KEY: ${FAL_KEY:-}
+      # Lot B1 : décors réalistes (Looks HeyGen). Vide = simulés (repli sur le décor du format, alerte).
+      FOURNISSEUR_VISAGE: ${FOURNISSEUR_VISAGE:-}
+      # Lot B2 : veille des outils. Vide = la veille lit les sources publiques sans jeton (limites de GitHub plus basses).
+      STUDIO_VEILLE: ${STUDIO_VEILLE:-}
+      GITHUB_TOKEN_VEILLE: ${GITHUB_TOKEN_VEILLE:-}
+      # Claude (générateur de scripts, lot G0 → G6b) : la clé est posée en production. Elle ne dépense RIEN tant que Claude
+      # n'est pas choisi : réglage « fournisseur.script » (Réglages > Connexions) ou FOURNISSEUR_SCRIPT=claude. Vide = essai.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Comptes Claude 2 et 3 (passage automatique d'un compte à l'autre quand l'un est épuisé) et API payante (4e source :
+      # JAMAIS utilisée automatiquement, seulement par le choix manuel de Will dans Réglages). Vides = non utilisés.
+      ANTHROPIC_API_KEY_2: ${ANTHROPIC_API_KEY_2:-}
+      ANTHROPIC_API_KEY_3: ${ANTHROPIC_API_KEY_3:-}
+      ANTHROPIC_API_KEY_PAYANTE: ${ANTHROPIC_API_KEY_PAYANTE:-}
+      FOURNISSEUR_SCRIPT: ${FOURNISSEUR_SCRIPT:-}
+      # Boucle d'écriture du générateur (toutes les 4 s). Vide = active ; « 0 » = COUPURE DE SECOURS (plus aucun appel Claude
+      # ne part, les écritures restent où elles sont et reprennent quand on retire le 0).
+      STUDIO_BOUCLE_GENERATION: ${STUDIO_BOUCLE_GENERATION:-}
+      # Boucle de fond des fabrications (toutes les 5 s). Vide = active ; « 0 » = coupure de secours.
+      STUDIO_BOUCLE: ${STUDIO_BOUCLE:-}
+      # Délais de garde en minutes (vides = ceux du code) : rendu sans nouvelle, et garde globale d'un montage tableau.
+      STUDIO_RENDU_SANS_NOUVELLE_MIN: ${STUDIO_RENDU_SANS_NOUVELLE_MIN:-}
+      STUDIO_TABLEAU_GARDE_MIN: ${STUDIO_TABLEAU_GARDE_MIN:-}
+      # Plafond de dépense fal.ai du processus, en dollars (facultatif ; vide = pas de plafond propre, le budget du studio reste).
+      FAL_PLAFOND_USD: ${FAL_PLAFOND_USD:-}
+      # --- Mesures (lot G7, « Mettre à jour les mesures ») : LECTURE SEULE. Vide = mode essai, rien n'est lu. ---
+      # Plausible : clé de LECTURE des statistiques (visites par lien suivi). Adresse et site : défauts du code si vides
+      # (https://plausible.axion-ia.com, axion-ia.com).
+      PLAUSIBLE_KEY: ${PLAUSIBLE_KEY:-}
+      PLAUSIBLE_URL: ${PLAUSIBLE_URL:-}
+      PLAUSIBLE_SITE: ${PLAUSIBLE_SITE:-}
+      # Buffer : lecture des statistiques des publications (jamais de publication). Vide = saisie à la main.
+      BUFFER_API_KEY: ${BUFFER_API_KEY:-}
+      # Adresse publique du studio dans les e-mails de secours (vide = https://studio.axion-ia.com).
+      STUDIO_ADRESSE: ${STUDIO_ADRESSE:-}
+      # Point d'envoi ZeptoMail des e-mails de secours (vide = https://api.zeptomail.eu/v1.1/email).
+      EMAIL_SECOURS_ADRESSE: ${EMAIL_SECOURS_ADRESSE:-}
+      # Remotion Lambda (lot M4b) reste ÉTEINT : ses variables ne vont qu'à studio-rendu. Le jour où Will ouvre AWS, ajouter ici
+      # aussi REMOTION_LAMBDA_ACTIVE/REGION/FONCTION/SITE et les clés AWS (le studio ne l'inscrit qu'avec toutes).
+      # NE PAS transmettre (développement seulement, sans effet en production) : STUDIO_APERCU_MESURES, CREDITS_ESSAI,
+      # STUDIO_SIMULATION_LENTEUR_MS, GOOGLE_DRIVE_ESSAI — voir deploiement/env.exemple.
+      # --- Lot « intensité · crédits · calage » (02/10, docs/LOT-INTENSITE-CREDITS-EXECUTION.md) : posées par l'architecte. ---
+      # Calage des sous-titres (D3) : vide = simulation (horodatage de la voix gardé). Réel : http://studio-aligneur:4200
+      # (même clé partagée que studio-rendu : STUDIO_RENDU_CLE), puis FOURNISSEUR_ALIGNEMENT=studio-aligneur.
+      STUDIO_ALIGNEUR_URL: ${STUDIO_ALIGNEUR_URL:-}
+      FOURNISSEUR_ALIGNEMENT: ${FOURNISSEUR_ALIGNEMENT:-}
+      # Crédits (D2) : solde réel d'ElevenLabs (voix de secours), lu seulement si la clé existe.
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      # Lot E2 (import Google Drive, lecture seule) : vide = double de simulation. Réel : FOURNISSEUR_GOOGLE_DRIVE=google
+      # + les deux clés OAuth. Voir docs/facecam/JOURNAL-E2.md.
+      FOURNISSEUR_GOOGLE_DRIVE: ${FOURNISSEUR_GOOGLE_DRIVE:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECTION: ${GOOGLE_REDIRECTION:-}
+      GOOGLE_DRIVE_COMPTE: ${GOOGLE_DRIVE_COMPTE:-}
+      GOOGLE_DRIVE_CLE: ${GOOGLE_DRIVE_CLE:-}
+      # Lot E1 (Décor IA, Higgsfield) : vides = double de simulation (aucun appel, aucun crédit). Le réel exige les DEUX
+      # ET le réglage caché `facecam.decorIa.reel` ; l'option reste coupée par défaut. Voir docs/facecam/JOURNAL-E1.md.
+      HIGGSFIELD_API_KEY: ${HIGGSFIELD_API_KEY:-}
+      HIGGSFIELD_API_URL: ${HIGGSFIELD_API_URL:-}
+    networks: [interne, coolify]
+    # 3 Go (Will, 17/10) : secours en attendant le correctif de la mémoire native (malloc), cf. docs/memoire-native.
+    mem_limit: 3g
+    cpus: 2
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.studio-http.entrypoints=http
+      - traefik.http.routers.studio-http.rule=Host(`studio.axion-ia.com`)
+      - traefik.http.routers.studio-http.middlewares=studio-https
+      - traefik.http.middlewares.studio-https.redirectscheme.scheme=https
+      - traefik.http.routers.studio.entrypoints=https
+      - traefik.http.routers.studio.rule=Host(`studio.axion-ia.com`)
+      - traefik.http.routers.studio.tls=true
+      - traefik.http.routers.studio.tls.certresolver=letsencrypt
+      - traefik.http.services.studio.loadbalancer.server.port=3000
+
+  # Conteneur SANS ÉTAT de rendu (lot M1b, B.9 ter) : FFmpeg, ffprobe, Remotion. Aucune base, aucun volume.
+  # Réseau interne seulement ; priorité basse ; une file courte prioritaire et un seul montage à la fois.
+  studio-rendu:
+    build:
+      context: ..
+      dockerfile: deploiement/studio-rendu/Dockerfile
+    image: studio-rendu:local
+    restart: unless-stopped
+    logging: *journaux
+    stop_grace_period: 30s
+    # Audit D : fichiers temporaires d'un rendu tué (manque de mémoire, SIGKILL). PAS de tmpfs ici : il compterait dans
+    # la mémoire du conteneur (3 Go) alors qu'une entrée peut peser 4 Go. Les dossiers orphelins sont effacés au
+    # DÉMARRAGE du service (`studio-rendu/src/nettoyage.ts`), avant tout rendu.
+    environment:
+      PORT: "4100"
+      # Relecture sécurité R45 : clé OBLIGATOIRE (sans elle, refus de démarrer) ; seules les adresses du stockage R2 du
+      # compte sont lues et écrites (hôte calculé comme le studio : R2_PUBLIC_HOST, sinon {R2_ACCOUNT_ID}.r2.cloudflarestorage.com).
+      STUDIO_RENDU_CLE: ${STUDIO_RENDU_CLE:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_PUBLIC_HOST: ${R2_PUBLIC_HOST:-}
+      STUDIO_RENDU_HOTES: ${STUDIO_RENDU_HOTES:-}
+      # Pages du navigateur en parallèle : vide = automatique (la moitié des cœurs donnés ci-dessous, de 1 à 4, lot M4b).
+      STUDIO_RENDU_CONCURRENCE: ${STUDIO_RENDU_CONCURRENCE:-}
+      # Note VMAF de l'export (09/10, docs/JOURNAL-FFMPEG8-QUALITE.md) : seuil caché (vide = 93) ; « non » coupe la note.
+      STUDIO_RENDU_VMAF_MIN: ${STUDIO_RENDU_VMAF_MIN:-}
+      STUDIO_RENDU_VMAF: ${STUDIO_RENDU_VMAF:-}
+      # Remotion Lambda (lot M4b) : ÉCRIT, ÉTEINT. Rien ne part chez AWS tant que REMOTION_LAMBDA_ACTIVE n'est pas « true ».
+      REMOTION_LAMBDA_ACTIVE: ${REMOTION_LAMBDA_ACTIVE:-}
+      REMOTION_LAMBDA_REGION: ${REMOTION_LAMBDA_REGION:-}
+      REMOTION_LAMBDA_FONCTION: ${REMOTION_LAMBDA_FONCTION:-}
+      REMOTION_LAMBDA_SITE: ${REMOTION_LAMBDA_SITE:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    networks: [interne]
+    mem_limit: 3g
+    # Vérif V5 : sans état et repris par le studio (même identifiant) : si la MACHINE manque de mémoire, le noyau tue ce
+    # conteneur avant la base, le studio et le site axion-ia.com (0 par défaut).
+    oom_score_adj: 500
+    # Lot M4b : 6 cœurs au plus (45 s de vidéo ≈ 3 min par format, mesuré sur 6 fils ; ≈ 6,5 min avec 2). Le site
+    # garde la main : poids processeur 4 fois plus faible que lui (`cpu_shares`) et `nice` dans l'image ; le rendu ne
+    # prend donc que les cœurs laissés libres. Sur une machine plus petite, mettre-a-jour.sh règle STUDIO_RENDU_CPUS sur
+    # le nombre de cœurs (sinon Docker refuserait de démarrer).
+    cpus: ${STUDIO_RENDU_CPUS:-6}
+    # Priorité basse face au studio (en plus de `nice` dans l'image) ; mémoire partagée du navigateur.
+    cpu_shares: 256
+    shm_size: 1g
+
+  # Calage des sous-titres au mot près (lot « calage », D3, plan B.5) : WhisperX (modèle wav2vec2 français) sur le
+  # processeur, SANS ÉTAT. Réseau interne seulement ; une demande à la fois ; priorité basse. Le studio l'appelle par
+  # STUDIO_ALIGNEUR_URL=http://studio-aligneur:4200 puis FOURNISSEUR_ALIGNEMENT=studio-aligneur (vide : calage sauté,
+  # horodatage de la voix gardé). Même clé partagée que studio-rendu. Lot R6 : il cale les PRISES FILMÉES (« je lis ») ;
+  # la voix de synthèse garde son horodatage (plus juste, mesure D3), sauf réglage « alignement.voixSynthese ».
+  # Image estimée ≈ 2 Go (Python 3.11 + FFmpeg + PyTorch processeur + modèle 360 Mo) ; prévoir ≥ 6 Go de disque libre.
+  # Profil « calage » : NI construit NI démarré tant qu'il n'est pas activé (le modèle chargé garde ≈ 1 Go de mémoire
+  # au repos). mettre-a-jour.sh l'active de lui-même quand STUDIO_ALIGNEUR_URL est renseignée dans le .env.
+  studio-aligneur:
+    profiles: [calage]
+    build:
+      context: ..
+      dockerfile: deploiement/studio-aligneur/Dockerfile
+    image: studio-aligneur:local
+    restart: unless-stopped
+    logging: *journaux
+    stop_grace_period: 30s
+    environment:
+      PORT: "4200"
+      # Lot R6 : clé obligatoire — le serveur refuse de démarrer sans elle (aligneur/__main__.py).
+      STUDIO_RENDU_CLE: ${STUDIO_RENDU_CLE:-}
+      STUDIO_ALIGNEUR_FILS: "2"
+      # Audit D : délai maximal d'un calcul (secondes ; vide = 900). Au-delà : échec typé, file libérée, /sante en 503
+      # tant que le calcul figé occupe le processus.
+      STUDIO_ALIGNEUR_DELAI_SEC: ${STUDIO_ALIGNEUR_DELAI_SEC:-}
+      # Vérif V5 : travaux face caméra (état JSON + tranches de 30 s) dans un VOLUME : une recréation du conteneur
+      # (mise à jour, retour arrière) les reprend où ils en étaient au lieu de tout recalculer. Les travaux finis sont
+      # oubliés au bout de 24 h, les fichiers lourds d'un travail fini ou raté sont effacés tout de suite.
+      STUDIO_ALIGNEUR_TRAVAUX: /app/travaux
+    volumes:
+      - travaux-aligneur:/app/travaux
+    networks: [interne]
+    # Mesuré : ≈ 1,7 Go au plus pour le calage (modèle chargé ≈ 0,95 Go + un morceau de 25 s de son). Plan facecam v4
+    # n° 6 : 3,5 Go (Whisper small int8 + passe image par tranches de 30 s ; un seul travail lourd à la fois). 09/10 :
+    # 4,5 Go — mesuré en production, pic de 3,23 Go sur 3,42 Go utilisables pendant la passe image d'une vidéo de 2 min
+    # (marge trop mince) ; le serveur a 15 Go. 10/10 (vérif V5) : 6000m — 4,40 Go atteints pour 4,395 pendant la passe
+    # « formats » (bande élargie au 4:5 depuis la source 4K, relevé à chaud à 6 Go en production). Un seul calcul lourd à
+    # la fois dans le conteneur (calage OU travail face caméra, verrou commun). Le code borne désormais les fils de
+    # FFmpeg / x264 à STUDIO_ALIGNEUR_FILS (banc 4K pleine largeur : pic 5,1 Go → 3,6 Go, docs/facecam/
+    # JOURNAL-FICHE-CARTES-FORMATS.md). Pic connu = 73 % de 6000m ; surveiller.sh alerte à 85 %.
+    # BUDGET DU SERVEUR (15 Go, partagé avec le site) : base 0,5 + studio 1 + studio-rendu 3 + studio-aligneur 5,86
+    # = 10,4 Go au plus pour le studio ; ≥ 4,6 Go restent au site axion-ia.com, à Coolify/Traefik et au système.
+    mem_limit: 6000m
+    oom_score_adj: 500
+    cpus: 2
+    cpu_shares: 256
+
+volumes:
+  donnees:
+  # Travaux face caméra de studio-aligneur (fichiers de travail, jamais des données : rien d'irremplaçable).
+  travaux-aligneur:
+
+networks:
+  interne:
+  coolify:
+    external: true

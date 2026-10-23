@@ -1,0 +1,56 @@
+{
+  "texte": "Un bon PV, puis un pépin : voilà comment tout commence.",
+  "mots": [
+    {
+      "mot": "Un",
+      "debutSec": 0.86,
+      "finSec": 0.92
+    },
+    {
+      "mot": "bon",
+      "debutSec": 0.98,
+      "finSec": 1.1
+    },
+    {
+      "mot": "PV,",
+      "debutSec": 1.18,
+      "finSec": 1.54
+    },
+    {
+      "mot": "puis",
+      "debutSec": 2.02,
+      "finSec": 2.14
+    },
+    {
+      "mot": "un",
+      "debutSec": 2.18,
+      "finSec": 2.26
+    },
+    {
+      "mot": "pépin",
+      "debutSec": 2.3,
+      "finSec": 2.68
+    },
+    {
+      "mot": "voilà",
+      "debutSec": 3.58,
+      "finSec": 3.8
+    },
+    {
+      "mot": "comment",
+      "debutSec": 3.88,
+      "finSec": 4.12
+    },
+    {
+      "mot": "tout",
+      "debutSec": 4.16,
+      "finSec": 4.26
+    },
+    {
+      "mot": "commence.",
+      "debutSec": 4.3,
+      "finSec": 4.68
+    }
+  ],
+  "dureeSec": 5.016
+}

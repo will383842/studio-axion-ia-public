@@ -1,0 +1,111 @@
+{
+  "echelle": 1,
+  "qualite": 88,
+  "pages": 9,
+  "dureeRenduSec": 15.1,
+  "picMemoireMo": 1056,
+  "pdfMo": 1.06,
+  "jpegMoTotal": 1.05,
+  "debordementsTotal": 0,
+  "parPage": [
+    {
+      "page": 1,
+      "secondes": 3.8,
+      "debordements": 0,
+      "taillePoliceMin": 30,
+      "textes": 19,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 71209
+    },
+    {
+      "page": 2,
+      "secondes": 1.5,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 69,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 129373
+    },
+    {
+      "page": 3,
+      "secondes": 1.4,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 70,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 125007
+    },
+    {
+      "page": 4,
+      "secondes": 1.4,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 71,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 136419
+    },
+    {
+      "page": 5,
+      "secondes": 1.4,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 70,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 136705
+    },
+    {
+      "page": 6,
+      "secondes": 1.5,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 70,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 129338
+    },
+    {
+      "page": 7,
+      "secondes": 1.5,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 72,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 128480
+    },
+    {
+      "page": 8,
+      "secondes": 1.5,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 70,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 129525
+    },
+    {
+      "page": 9,
+      "secondes": 1.1,
+      "debordements": 0,
+      "taillePoliceMin": 28,
+      "textes": 71,
+      "largeur": 1080,
+      "hauteur": 1350,
+      "scale": 1,
+      "octets": 116134
+    }
+  ]
+}

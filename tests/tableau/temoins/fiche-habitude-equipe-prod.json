@@ -1,0 +1,726 @@
+{
+ "ratio": "9:16",
+ "serie": {
+  "nom": "Formation",
+  "code": "formation"
+ },
+ "stylo": "crayon/1",
+ "scenes": [
+  {
+   "id": "s01",
+   "page": 1,
+   "role": "accroche",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 0,
+       "texte": "Formée à l'IA"
+      },
+      {
+       "ancre": 7,
+       "texte": "Un mois après"
+      },
+      {
+       "ancre": 14,
+       "texte": "Vieux réflexes"
+      }
+     ],
+     "moment": "accroche",
+     "gabarit": "accroche-cases",
+     "motsForts": [
+      "l'ouvre"
+     ]
+    },
+    {
+     "ancre": 24,
+     "moment": "douleur",
+     "gabarit": "constat",
+     "etiquette": "Le constat",
+     "motsForts": [
+      "prend"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e01",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Formée à l'IA",
+     "marque": "entoure",
+     "niveau": "titre"
+    },
+    {
+     "id": "e02",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 7,
+     "texte": "Un mois après : plus personne ne l'ouvre",
+     "marque": "barre",
+     "niveau": "texte"
+    },
+    {
+     "id": "e03",
+     "type": "geste",
+     "ancre": 4,
+     "geste": "entourer",
+     "cibleId": "e01"
+    },
+    {
+     "id": "e04",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 14,
+     "texte": "Retour aux vieux réflexes",
+     "niveau": "texte"
+    },
+    {
+     "id": "e05",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 20,
+     "dessinId": "croix"
+    },
+    {
+     "id": "e06",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 24,
+     "texte": "« Ça ne prend pas chez nous »",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Votre équipe a été formée à l'IA. Un mois après, plus personne ne l'ouvre. Chacun est revenu à ses vieux réflexes, sans rien dire. Et vous vous dites : ça ne prend pas chez nous."
+  },
+  {
+   "id": "s02",
+   "page": 2,
+   "role": "idee-recue",
+   "ecrans": [
+    {
+     "moment": "retournement",
+     "gabarit": "idee-recue",
+     "etiquette": "Le vrai problème",
+     "motsForts": [
+      "savoirs",
+      "réflexes"
+     ]
+    },
+    {
+     "ancre": 24,
+     "moment": "promesse",
+     "gabarit": "semaine",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "Ancrer"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e07",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Le problème : la formation",
+     "marque": "barre",
+     "niveau": "texte"
+    },
+    {
+     "id": "e08",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 6,
+     "texte": "Des savoirs, pas des réflexes",
+     "marque": "souligne",
+     "niveau": "texte"
+    },
+    {
+     "id": "e09",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 14,
+     "texte": "Réflexe = geste répété, même moment",
+     "marque": "surligne",
+     "niveau": "texte"
+    },
+    {
+     "id": "e10",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 18,
+     "dessinId": "fleche-boucle"
+    },
+    {
+     "id": "e11",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 24,
+     "texte": "Ancrer un seul réflexe",
+     "niveau": "titre"
+    },
+    {
+     "id": "e12",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 32,
+     "dessinId": "calendrier"
+    }
+   ],
+   "texteDit": "Le problème n'est pas la formation. Une formation apporte des savoirs, pas des réflexes. Un réflexe naît d'un geste répété, toujours au même moment. Voici quatre étapes pour en ancrer un seul, en trente jours."
+  },
+  {
+   "id": "s03",
+   "page": 3,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 1,
+      "nom": "Tâche",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 0,
+       "texte": "Une seule tâche"
+      },
+      {
+       "ancre": 5,
+       "texte": "Pour toute l'équipe"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "seule",
+      "tâche"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e13",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Une seule tâche",
+     "niveau": "titre"
+    },
+    {
+     "id": "e14",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 1,
+     "dessinId": "cible"
+    },
+    {
+     "id": "e15",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 5,
+     "texte": "La même pour toute l'équipe",
+     "niveau": "texte"
+    },
+    {
+     "id": "e16",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 10,
+     "texte": "Pas une liste d'usages",
+     "marque": "barre",
+     "niveau": "texte"
+    },
+    {
+     "id": "e17",
+     "type": "geste",
+     "ancre": 15,
+     "geste": "souligner",
+     "cibleId": "e13"
+    },
+    {
+     "id": "e18",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 22,
+     "dessinId": "liste-cochee"
+    }
+   ],
+   "texteDit": "Un. Choisissez une seule tâche, la même pour toute l'équipe. Pas dix usages possibles : un seul, que tout le monde fait chaque semaine."
+  },
+  {
+   "id": "s04",
+   "page": 3,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 2,
+      "nom": "Moment",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 4,
+       "texte": "Un moment fixe"
+      },
+      {
+       "ancre": 16,
+       "texte": "Après chaque réunion"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "réunion"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e19",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 4,
+     "texte": "Un moment fixe",
+     "niveau": "titre"
+    },
+    {
+     "id": "e20",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 4,
+     "dessinId": "horloge"
+    },
+    {
+     "id": "e21",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 14,
+     "texte": "Après chaque réunion : dicter des notes",
+     "niveau": "texte"
+    },
+    {
+     "id": "e22",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 26,
+     "texte": "Déclencheur = la réunion",
+     "marque": "souligne",
+     "niveau": "texte"
+    },
+    {
+     "id": "e23",
+     "type": "geste",
+     "ancre": 29,
+     "geste": "entourer",
+     "cibleId": "e22"
+    }
+   ],
+   "texteDit": "Deux. Accrochez-la à un moment fixe qui existe déjà. Par exemple : en sortant de chaque réunion, dictez trois notes à l'IA pour le compte rendu. Le déclencheur, c'est la réunion. Pas la bonne volonté."
+  },
+  {
+   "id": "s05",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 3,
+      "nom": "Demande",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 0,
+       "texte": "Une demande commune"
+      },
+      {
+       "ancre": 9,
+       "texte": "Au même endroit"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "demande",
+      "commune"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e24",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Une demande commune",
+     "niveau": "titre"
+    },
+    {
+     "id": "e25",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 3,
+     "dessinId": "document"
+    },
+    {
+     "id": "e26",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 9,
+     "texte": "Rangée au même endroit",
+     "niveau": "texte"
+    },
+    {
+     "id": "e27",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 12,
+     "dessinId": "dossier"
+    },
+    {
+     "id": "e28",
+     "role": "avantage",
+     "type": "ligne",
+     "ancre": 15,
+     "texte": "Jamais de page blanche",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Trois. Écrivez une demande commune, une fois, pour tous. Rangez-la au même endroit pour chacun. Personne ne repart d'une page blanche."
+  },
+  {
+   "id": "s06",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 4,
+      "nom": "Point",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 0,
+       "texte": "Un point le vendredi"
+      },
+      {
+       "ancre": 10,
+       "texte": "Qu'est-ce qui coince ?"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "vendredi"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e29",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Un point le vendredi",
+     "niveau": "titre"
+    },
+    {
+     "id": "e30",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 6,
+     "dessinId": "chronometre"
+    },
+    {
+     "id": "e31",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 10,
+     "texte": "Qui l'a fait ? Qu'est-ce qui coince ?",
+     "niveau": "texte"
+    },
+    {
+     "id": "e32",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 16,
+     "texte": "Corriger la demande, pas les gens",
+     "marque": "souligne",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Quatre. Faites un point chaque vendredi, cinq minutes, pas plus. Qui l'a fait, qu'est-ce qui coince. Vous corrigez la demande, pas les gens."
+  },
+  {
+   "id": "s07",
+   "page": 5,
+   "role": "exemple",
+   "ecrans": [
+    {
+     "moment": "exemple",
+     "gabarit": "exemple",
+     "etiquette": "Exemple",
+     "motsForts": [
+      "Avant",
+      "Après"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e33",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e34",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 2,
+     "texte": "Une agence immobilière",
+     "niveau": "titre"
+    },
+    {
+     "id": "e35",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 12,
+     "texte": "Avant : comptes rendus tapés le soir",
+     "marque": "barre",
+     "niveau": "texte"
+    },
+    {
+     "id": "e36",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 22,
+     "texte": "Après : dicté en sortant de visite",
+     "niveau": "texte"
+    },
+    {
+     "id": "e37",
+     "type": "geste",
+     "ancre": 32,
+     "geste": "souligner",
+     "cibleId": "e36"
+    },
+    {
+     "id": "e38",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 40,
+     "dessinId": "telephone"
+    }
+   ],
+   "texteDit": "Prenons une agence immobilière de six personnes. Avant : chacun tape ses comptes rendus de visite le soir, quand il y pense. Leur seule tâche : le compte rendu, dicté à l'IA en sortant de chaque visite. Une demande commune, rangée dans le téléphone de chacun."
+  },
+  {
+   "id": "s08",
+   "page": 5,
+   "role": "preuve",
+   "ecrans": [
+    {
+     "moment": "exemple",
+     "gabarit": "exemple",
+     "etiquette": "Exemple",
+     "motsForts": [
+      "raccourcie"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e39",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e40",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 0,
+     "dessinId": "calendrier"
+    },
+    {
+     "id": "e41",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 7,
+     "texte": "Demande trop longue : raccourcie ensemble",
+     "niveau": "texte"
+    },
+    {
+     "id": "e42",
+     "type": "preuve",
+     "ancre": 18,
+     "lignes": [
+      "Fin du mois : toute l'agence",
+      "Compte rendu parti avant la voiture"
+     ],
+     "preuveId": "mat-import-demo-04"
+    },
+    {
+     "id": "e43",
+     "type": "geste",
+     "ancre": 24,
+     "geste": "entourer",
+     "cibleId": "e42"
+    },
+    {
+     "id": "e44",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 28,
+     "dessinId": "coche-cercle"
+    }
+   ],
+   "texteDit": "Premier vendredi : deux personnes s'y tiennent. Les autres trouvent la demande trop longue. Ils la raccourcissent ensemble. Fin du mois : toute l'agence. Le compte rendu part avant de remonter en voiture."
+  },
+  {
+   "id": "s09",
+   "page": 6,
+   "role": "resultat",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 0,
+       "texte": "Une seule tâche"
+      },
+      {
+       "ancre": 3,
+       "texte": "Un moment fixe"
+      },
+      {
+       "ancre": 6,
+       "texte": "Une demande commune"
+      },
+      {
+       "ancre": 9,
+       "texte": "Un point le vendredi"
+      }
+     ],
+     "moment": "recapitulatif",
+     "gabarit": "recapitulatif",
+     "etiquette": "En résumé",
+     "motsForts": [
+      "seule",
+      "fixe",
+      "commune"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e45",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Une seule tâche",
+     "niveau": "texte"
+    },
+    {
+     "id": "e46",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 3,
+     "texte": "Un moment fixe",
+     "niveau": "texte"
+    },
+    {
+     "id": "e47",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 6,
+     "texte": "Une demande commune",
+     "niveau": "texte"
+    },
+    {
+     "id": "e48",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 9,
+     "texte": "Un point le vendredi",
+     "niveau": "texte"
+    },
+    {
+     "id": "e49",
+     "type": "geste",
+     "ancre": 12,
+     "geste": "cocher",
+     "cibleId": "e48"
+    },
+    {
+     "id": "e50",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 13,
+     "dessinId": "liste-cochee"
+    }
+   ],
+   "texteDit": "Une seule tâche. Un moment fixe. Une demande commune. Un point chaque vendredi. La fiche des trente jours tient sur une page."
+  },
+  {
+   "id": "s10",
+   "page": 6,
+   "role": "fin",
+   "ecrans": [
+    {
+     "moment": "appel",
+     "gabarit": "appel-commentaire",
+     "etiquette": "À vous",
+     "motsForts": [
+      "HABITUDE"
+     ],
+     "motCommentaire": "HABITUDE"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e51",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Écrivez HABITUDE en commentaire",
+     "marque": "entoure",
+     "niveau": "titre"
+    },
+    {
+     "id": "e52",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 2,
+     "dessinId": "bulle"
+    },
+    {
+     "id": "e53",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 7,
+     "texte": "Une seule habitude suffit",
+     "marque": "souligne",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Écrivez HABITUDE en commentaire, je vous l'envoie. Une seule habitude suffit."
+  }
+ ],
+ "appelId": "fin-if-mot-envoi",
+ "douleur": "Votre équipe a été formée à l'IA. Un mois après, plus personne ne l'ouvre. Chacun est revenu à ses vieux réflexes, sans rien dire.",
+ "version": "fiche-scenes/1",
+ "videoId": "v-ede9c6436843",
+ "formatId": "tableau-anime",
+ "habillage": "blocs/2",
+ "structure": "demonstration",
+ "versionId": "b1",
+ "gesteMinute": "Vos équipes ont été formées à l'IA et n'utilisent plus rien un mois après : comment ancrer une seule habitude"
+}

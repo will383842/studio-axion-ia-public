@@ -1,0 +1,19 @@
+{
+  "_note": "TEST : réponses de même forme que tests/fixtures/g7b-plausible-reel.json (lecture réelle du 03/10/2026), chiffres de test.",
+  "visites": {
+    "results": [
+      { "metrics": [41], "dimensions": ["0101-AV-TT", "tiktok"] },
+      { "metrics": [3], "dimensions": ["0101-AV-TT", "ig"] },
+      { "metrics": [12], "dimensions": ["0102-AV-LI", "linkedin"] },
+      { "metrics": [7], "dimensions": ["(not set)", "tiktok"] }
+    ],
+    "meta": {}
+  },
+  "rendezVous": {
+    "results": [
+      { "metrics": [2], "dimensions": ["0101-AV-TT", "tiktok"] },
+      { "metrics": [1], "dimensions": ["0102-AV-LI", "linkedin"] }
+    ],
+    "meta": {}
+  }
+}

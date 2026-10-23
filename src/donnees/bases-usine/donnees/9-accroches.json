@@ -1,0 +1,66 @@
+{
+ "base": 9,
+ "fichier": "9-accroches.md",
+ "tables": {
+  "accroche": {
+   "colonnes": [
+    "code",
+    "famille",
+    "modele",
+    "exemple",
+    "ne_pas_faire",
+    "reseaux",
+    "types_contenu",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "accroche.exemple-1",
+     "famille": "scene",
+     "modele": "Une scène vécue du métier",
+     "exemple": "Il est vingt heures et le devis n'est pas parti.",
+     "ne_pas_faire": "Exemple inventé.",
+     "reseaux": "tous",
+     "types_contenu": "video ; carrousel",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "accroche.exemple-2",
+     "famille": "question",
+     "modele": "Une question concrète",
+     "exemple": "Quelle tâche reprend chaque semaine ?",
+     "ne_pas_faire": "Exemple inventé.",
+     "reseaux": "tous",
+     "types_contenu": "video ; carrousel",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "accroche.exemple-3",
+     "famille": "constat",
+     "modele": "Un constat simple",
+     "exemple": "La même relance se réécrit chaque mois.",
+     "ne_pas_faire": "Exemple inventé.",
+     "reseaux": "tous",
+     "types_contenu": "video ; carrousel",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  }
+ }
+}

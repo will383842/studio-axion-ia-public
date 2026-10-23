@@ -1,0 +1,72 @@
+{
+  "description": "EXEMPLE pour le banc d'écriture (tests/banc-ecriture/banc-ecriture.ts). Cinq sujets tirés des idées de démonstration du studio et des piliers d'Axion-IA. Les matières sont des observations générales, des idées reçues, des questions types et des limites : aucun cas client, aucun chiffre, aucun lieu. À remplacer par les matières réelles de Will avant un banc réel.",
+  "sujets": [
+    {
+      "code": "relances-devis",
+      "titre": "Relances clients : ce qu'un assistant peut faire seul",
+      "idee": "Les relances de devis faites à la main, et ce qu'un assistant peut relancer seul",
+      "pilier": { "id": "automatiser-ventes", "nom": "Automatiser : ventes et prospection" },
+      "reseau": "linkedin",
+      "matieres": [
+        { "id": "ex-relances-obs", "type": "observation", "texte": "Quand les relances de devis se font à la main, elles passent après tout le reste.", "motsCles": ["relance", "relances", "devis"] },
+        { "id": "ex-relances-oubli", "type": "observation", "texte": "Un devis qu'on oublie de relancer reste sans réponse, donc le client peut signer ailleurs sans qu'on le sache.", "motsCles": ["devis", "relance", "client"] },
+        { "id": "ex-relances-idee", "type": "idee-recue", "texte": "Relancer un client, ça fait insistant.", "motsCles": ["relance", "client"], "croyanceAttribuee": true },
+        { "id": "ex-relances-question", "type": "question-recue", "texte": "Est-ce qu'un assistant peut relancer nos devis sans paraître robotique ?", "motsCles": ["relance", "devis", "assistant"] },
+        { "id": "ex-relances-limite", "type": "limite", "texte": "Si chaque devis se négocie au téléphone, gardez la relance à la main.", "motsCles": ["devis", "relance"] }
+      ]
+    },
+    {
+      "code": "factures-ressaisies",
+      "titre": "Factures ressaisies à la main : que faire ?",
+      "idee": "Les factures fournisseurs ressaisies à la main, et ce que ça coûte vraiment",
+      "pilier": { "id": "automatiser-administratif", "nom": "Automatiser : administratif et back-office" },
+      "reseau": "instagram",
+      "matieres": [
+        { "id": "ex-factures-obs", "type": "observation", "texte": "Une facture ressaisie à la main, c'est une faute de frappe possible à chaque ligne, donc des relances et des litiges.", "motsCles": ["factures", "saisie", "ressaisie"] },
+        { "id": "ex-factures-idee", "type": "idee-recue", "texte": "La saisie des factures, ça ne prend que quelques minutes.", "motsCles": ["factures", "saisie"], "croyanceAttribuee": true },
+        { "id": "ex-factures-question", "type": "question-recue", "texte": "On saisit encore toutes nos factures fournisseurs à la main, c'est normal ?", "motsCles": ["factures", "saisie"] },
+        { "id": "ex-factures-limite", "type": "limite", "texte": "Si vos factures arrivent encore sur papier, il faut d'abord les numériser.", "motsCles": ["factures", "papier", "saisie"] }
+      ]
+    },
+    {
+      "code": "tableau-de-bord-lundi",
+      "titre": "Tableau de bord : les chiffres à suivre le lundi",
+      "idee": "Le tableau de bord du lundi matin, rassemblé à la main dans des tableurs",
+      "pilier": { "id": "automatiser-donnees-pilotage", "nom": "Automatiser : données et pilotage" },
+      "reseau": "linkedin",
+      "matieres": [
+        { "id": "ex-pilotage-obs", "type": "observation", "texte": "Le lundi matin, tant que les chiffres ne sont pas rassemblés à la main, le dirigeant ne peut rien décider.", "motsCles": ["tableau de bord", "chiffres", "pilotage"] },
+        { "id": "ex-pilotage-erreur", "type": "observation", "texte": "Une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux, donc la décision du lundi part sur une base fausse.", "motsCles": ["tableur", "formule", "chiffres"] },
+        { "id": "ex-pilotage-idee", "type": "idee-recue", "texte": "Un tableau de bord, c'est pour les grandes entreprises.", "motsCles": ["tableau de bord", "pilotage"], "croyanceAttribuee": true },
+        { "id": "ex-pilotage-limite", "type": "limite", "texte": "Si la définition de vos chiffres change chaque mois, fixez-la avant d'automatiser quoi que ce soit.", "motsCles": ["chiffres", "tableau de bord"] }
+      ]
+    },
+    {
+      "code": "ia-ne-decide-pas",
+      "titre": "Ce que l'IA ne fera jamais à votre place",
+      "idee": "Ce que l'IA ne fera jamais à la place du dirigeant : décider",
+      "pilier": { "id": "former-equipes-ia", "nom": "Former vos équipes à l'IA" },
+      "reseau": "tiktok",
+      "matieres": [
+        { "id": "ex-decider-obs", "type": "observation", "texte": "Une réponse de ChatGPT peut être fausse et parfaitement bien écrite.", "motsCles": ["chatgpt", "ia", "erreur"] },
+        { "id": "ex-decider-relire", "type": "observation", "texte": "Une réponse fausse de l'IA a l'air aussi sûre qu'une réponse juste, donc une équipe qui ne sait pas relire recopie ses erreurs.", "motsCles": ["equipe", "ia", "formation"] },
+        { "id": "ex-decider-idee", "type": "idee-recue", "texte": "L'IA va bientôt décider à notre place.", "motsCles": ["ia", "decision"], "croyanceAttribuee": true },
+        { "id": "ex-decider-question", "type": "question-recue", "texte": "Est-ce qu'on peut faire confiance à ChatGPT pour nos décisions ?", "motsCles": ["chatgpt", "decision"] },
+        { "id": "ex-decider-limite", "type": "limite", "texte": "Pour une décision qui engage l'entreprise, relisez toujours ce que l'IA propose.", "motsCles": ["ia", "decision"] }
+      ]
+    },
+    {
+      "code": "tri-des-mails",
+      "titre": "Le tri des mails du matin",
+      "idee": "Le tri des mails clients du matin, fait un par un, et ce qu'un assistant peut trier seul",
+      "pilier": { "id": "automatiser-service-client", "nom": "Automatiser : service et relation client" },
+      "reseau": "facebook",
+      "matieres": [
+        { "id": "ex-mails-obs", "type": "observation", "texte": "Chaque matin, quelqu'un ouvre les mails clients un par un pour savoir lesquels sont urgents.", "motsCles": ["tri des mails", "mails", "service client"] },
+        { "id": "ex-mails-cause", "type": "observation", "texte": "Un mail urgent noyé au milieu des autres attend son tour, donc le client attend sans que personne le sache.", "motsCles": ["mails", "client", "urgent"] },
+        { "id": "ex-mails-idee", "type": "idee-recue", "texte": "Un client préfère toujours qu'un humain lise son mail.", "motsCles": ["mails", "client"], "croyanceAttribuee": true },
+        { "id": "ex-mails-limite", "type": "limite", "texte": "Si un mail engage un litige ou un contrat, il reste lu par un humain.", "motsCles": ["mails", "litige"] }
+      ]
+    }
+  ]
+}

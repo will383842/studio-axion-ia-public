@@ -1,0 +1,454 @@
+{
+ "texteScript": "Le soir, vous rattrapez les e-mails reçus en rendez-vous. Devis, questions, relances : tout s'empile. Vous ouvrez, cherchez la pièce, répondez un par un. Et vous rentrez chez vous trop tard. Trois étapes pour finir par une relecture, pas par l'écriture. La troisième évite l'envoi que vous regretteriez. Un. Créez trois dossiers : urgent, à répondre, pour info. Une règle de votre messagerie y range chaque e-mail, selon l'expéditeur ou des mots comme « devis ». Deux. Branchez un assistant d'IA sur le dossier « à répondre ». Il prépare une réponse en brouillon, à partir de vos réponses types : délais, disponibilités, documents. Trois. Interdisez l'envoi automatique : brouillons seulement. Une date inventée, un nom erroné, et votre client reçoit l'erreur. Vous relisez, vous corrigez, vous envoyez. Un paysagiste passe ses journées dans les jardins de ses clients. Avant, il répondait à ses e-mails jusqu'à vingt-deux heures. Maintenant, il relit ses brouillons en vingt minutes, puis il les envoie. Le tri et les brouillons tournent seuls, l'envoi reste à vous. Axion-IA met en place ce tri et ces brouillons chez vous. Écrivez AUTO en commentaire.",
+ "motsDouleur": [
+  "soir",
+  "e-mails",
+  "rendez-vous"
+ ],
+ "parties": null,
+ "reponse": {
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "videoId": "v-693abee466e1",
+  "versionId": "b1",
+  "habillage": "reference/3",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "structure": "demonstration",
+  "serie": {
+   "code": "automatisations",
+   "nom": "Automatisations"
+  },
+  "douleur": "Le soir, vous rattrapez les e-mails reçus en rendez-vous. Devis, questions, relances : tout s'empile.",
+  "gesteMinute": "Les e-mails restés sans réponse pendant vos rendez-vous : comment les faire trier et préparer seuls",
+  "appelId": null,
+  "scenes": [
+   {
+    "id": "s01",
+    "role": "accroche",
+    "page": 1,
+    "texteDit": "Le soir, vous rattrapez les e-mails reçus en rendez-vous.",
+    "gabarit": {
+     "role": "accroche",
+     "visuel": {
+      "id": "email-envoye"
+     }
+    },
+    "elements": [
+     {
+      "id": "e01",
+      "type": "ligne",
+      "texte": "Le soir, vous rattrapez les e-mails reçus en rendez-vous.",
+      "niveau": "texte",
+      "role": "alerte",
+      "bloc": "phrase-cle",
+      "marque": "entoure",
+      "importants": [
+       "soir",
+       "e-mails",
+       "rendez-vous"
+      ],
+      "ancre": 0
+     }
+    ]
+   },
+   {
+    "id": "s02",
+    "role": "douleur",
+    "page": 2,
+    "texteDit": "Devis, questions, relances : tout s'empile. Vous ouvrez, cherchez la pièce, répondez un par un. Et vous rentrez chez vous trop tard.",
+    "gabarit": {
+     "role": "douleur"
+    },
+    "elements": [
+     {
+      "id": "e02",
+      "type": "ligne",
+      "texte": "Tout s'empile",
+      "niveau": "titre",
+      "role": "alerte",
+      "bloc": "titre",
+      "ancre": 0
+     },
+     {
+      "id": "e03",
+      "type": "ligne",
+      "texte": "Devis, questions, relances : tout s'empile.",
+      "niveau": "texte",
+      "role": "alerte",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     },
+     {
+      "id": "e04",
+      "type": "ligne",
+      "texte": "Vous répondez un par un, et rentrez trop tard.",
+      "niveau": "texte",
+      "role": "alerte",
+      "bloc": "detail",
+      "ancre": 5
+     },
+     {
+      "id": "e05",
+      "type": "dessin",
+      "dessinId": "trombone",
+      "cote": "droite",
+      "ancre": 9
+     },
+     {
+      "id": "e06",
+      "type": "geste",
+      "geste": "souligner",
+      "cibleId": "e04",
+      "ancre": 16
+     }
+    ]
+   },
+   {
+    "id": "s03",
+    "role": "etape",
+    "page": 3,
+    "texteDit": "Trois étapes pour finir par une relecture, pas par l'écriture. La troisième évite l'envoi que vous regretteriez.",
+    "gabarit": {
+     "role": "solution",
+     "visuel": {
+      "id": "liste-cochee"
+     }
+    },
+    "elements": [
+     {
+      "id": "e07",
+      "type": "ligne",
+      "texte": "Trois étapes pour finir par une relecture, pas par l'écriture.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     },
+     {
+      "id": "e08",
+      "type": "ligne",
+      "texte": "La troisième évite l'envoi que vous regretteriez.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "detail",
+      "ancre": 10
+     }
+    ]
+   },
+   {
+    "id": "s04",
+    "role": "etape",
+    "page": 4,
+    "texteDit": "Un. Créez trois dossiers : urgent, à répondre, pour info. Une règle de votre messagerie y range chaque e-mail, selon l'expéditeur ou des mots comme « devis ».",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 1,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e09",
+      "type": "ligne",
+      "texte": "Créez",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "titre",
+      "ancre": 1
+     },
+     {
+      "id": "e10",
+      "type": "ligne",
+      "texte": "Créez trois dossiers.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 1
+     },
+     {
+      "id": "e11",
+      "type": "ligne",
+      "texte": "Urgent",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 4
+     },
+     {
+      "id": "e12",
+      "type": "ligne",
+      "texte": "À répondre",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 5
+     },
+     {
+      "id": "e13",
+      "type": "ligne",
+      "texte": "Pour info",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 7
+     },
+     {
+      "id": "e14",
+      "type": "dessin",
+      "dessinId": "enveloppe",
+      "cote": "droite",
+      "ancre": 17
+     }
+    ]
+   },
+   {
+    "id": "s05",
+    "role": "etape",
+    "page": 5,
+    "texteDit": "Deux. Branchez un assistant d'IA sur le dossier « à répondre ». Il prépare une réponse en brouillon, à partir de vos réponses types : délais, disponibilités, documents.",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 2,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e15",
+      "type": "ligne",
+      "texte": "Branchez",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "titre",
+      "ancre": 1
+     },
+     {
+      "id": "e16",
+      "type": "ligne",
+      "texte": "Branchez un assistant d'IA sur le dossier « à répondre ».",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 1
+     },
+     {
+      "id": "e17",
+      "type": "ligne",
+      "texte": "Il prépare une réponse en brouillon.",
+      "niveau": "texte",
+      "role": "avantage",
+      "bloc": "detail",
+      "ancre": 10
+     },
+     {
+      "id": "e18",
+      "type": "dessin",
+      "dessinId": "crayon",
+      "cote": "droite",
+      "ancre": 15
+     },
+     {
+      "id": "e19",
+      "type": "geste",
+      "geste": "souligner",
+      "cibleId": "e17",
+      "ancre": 22
+     }
+    ]
+   },
+   {
+    "id": "s06",
+    "role": "etape",
+    "page": 6,
+    "texteDit": "Trois. Interdisez l'envoi automatique : brouillons seulement. Une date inventée, un nom erroné, et votre client reçoit l'erreur. Vous relisez, vous corrigez, vous envoyez.",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 3,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e20",
+      "type": "ligne",
+      "texte": "Interdisez",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "titre",
+      "ancre": 1
+     },
+     {
+      "id": "e21",
+      "type": "ligne",
+      "texte": "Interdisez l'envoi automatique : brouillons seulement.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 1
+     },
+     {
+      "id": "e22",
+      "type": "dessin",
+      "dessinId": "croix",
+      "cote": "droite",
+      "ancre": 7
+     },
+     {
+      "id": "e23",
+      "type": "ligne",
+      "texte": "Relisez",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 18
+     },
+     {
+      "id": "e24",
+      "type": "ligne",
+      "texte": "Corrigez",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 20
+     },
+     {
+      "id": "e25",
+      "type": "ligne",
+      "texte": "Envoyez",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 22
+     }
+    ]
+   },
+   {
+    "id": "s07",
+    "role": "exemple",
+    "page": 7,
+    "texteDit": "Un paysagiste passe ses journées dans les jardins de ses clients.",
+    "gabarit": {
+     "role": "exemple"
+    },
+    "elements": [
+     {
+      "id": "e26",
+      "type": "mention",
+      "texte": "Exemple illustratif"
+     },
+     {
+      "id": "e27",
+      "type": "ligne",
+      "texte": "Un paysagiste passe ses journées dans les jardins de ses clients.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     }
+    ]
+   },
+   {
+    "id": "s08",
+    "role": "preuve",
+    "page": 7,
+    "texteDit": "Avant, il répondait à ses e-mails jusqu'à vingt-deux heures. Maintenant, il relit ses brouillons en vingt minutes, puis il les envoie.",
+    "gabarit": {
+     "role": "exemple"
+    },
+    "elements": [
+     {
+      "id": "e28",
+      "type": "ligne",
+      "texte": "Il répondait à ses e-mails jusqu'à 22 h.",
+      "niveau": "texte",
+      "role": "alerte",
+      "bloc": "avant",
+      "ancre": 0
+     },
+     {
+      "id": "e29",
+      "type": "ligne",
+      "texte": "Il relit ses brouillons en 20 min.",
+      "niveau": "texte",
+      "role": "resultat",
+      "bloc": "apres",
+      "ancre": 9
+     },
+     {
+      "id": "e30",
+      "type": "dessin",
+      "dessinId": "horloge",
+      "cote": "droite",
+      "ancre": 14
+     },
+     {
+      "id": "e31",
+      "type": "preuve",
+      "preuveId": "mat-import-demo-01",
+      "lignes": [
+       "Puis il les envoie."
+      ],
+      "ancre": 17
+     }
+    ]
+   },
+   {
+    "id": "s09",
+    "role": "resultat",
+    "page": 8,
+    "texteDit": "Le tri et les brouillons tournent seuls, l'envoi reste à vous.",
+    "gabarit": {
+     "role": "retenir",
+     "bloc": {
+      "texte": "L'envoi reste à vous",
+      "ancre": 7
+     }
+    },
+    "elements": [
+     {
+      "id": "e32",
+      "type": "ligne",
+      "texte": "Le tri et les brouillons tournent seuls, l'envoi reste à vous.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     }
+    ]
+   },
+   {
+    "id": "s10",
+    "role": "fin",
+    "page": 9,
+    "texteDit": "Axion-IA met en place ce tri et ces brouillons chez vous. Écrivez AUTO en commentaire.",
+    "gabarit": {
+     "role": "appel"
+    },
+    "elements": [
+     {
+      "id": "e33",
+      "type": "ligne",
+      "texte": "Axion-IA met en place ce tri et ces brouillons chez vous.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "detail",
+      "ancre": 0
+     },
+     {
+      "id": "e34",
+      "type": "ligne",
+      "texte": "Écrivez AUTO en commentaire",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "appel",
+      "ancre": 11
+     }
+    ]
+   }
+  ]
+ }
+}

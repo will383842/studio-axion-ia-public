@@ -1,0 +1,489 @@
+{
+ "source": "v8-a.html + voix7-a.js",
+ "tempo": 1.08,
+ "duree": 51.24,
+ "manquants": [],
+ "plans": [
+  {
+   "id": "s1",
+   "debut": 0,
+   "fin": 1.638,
+   "duree": 1.638
+  },
+  {
+   "id": "s2",
+   "debut": 1.638,
+   "fin": 3.395,
+   "duree": 1.758
+  },
+  {
+   "id": "s4",
+   "debut": 3.395,
+   "fin": 12.636,
+   "duree": 9.241
+  },
+  {
+   "id": "s6",
+   "debut": 12.636,
+   "fin": 13.842,
+   "duree": 1.206
+  },
+  {
+   "id": "s7",
+   "debut": 13.842,
+   "fin": 15.162,
+   "duree": 1.32
+  },
+  {
+   "id": "s8",
+   "debut": 15.162,
+   "fin": 16.856,
+   "duree": 1.694
+  },
+  {
+   "id": "s9",
+   "debut": 16.856,
+   "fin": 18.736,
+   "duree": 1.88
+  },
+  {
+   "id": "s10",
+   "debut": 18.736,
+   "fin": 20.423,
+   "duree": 1.687
+  },
+  {
+   "id": "s11",
+   "debut": 20.423,
+   "fin": 22.59,
+   "duree": 2.167
+  },
+  {
+   "id": "s12",
+   "debut": 22.59,
+   "fin": 24.869,
+   "duree": 2.279
+  },
+  {
+   "id": "s13",
+   "debut": 24.869,
+   "fin": 25.969,
+   "duree": 1.1
+  },
+  {
+   "id": "s14",
+   "debut": 25.969,
+   "fin": 29.438,
+   "duree": 3.468
+  },
+  {
+   "id": "s16",
+   "debut": 29.438,
+   "fin": 30.422,
+   "duree": 0.984
+  },
+  {
+   "id": "s16b",
+   "debut": 30.422,
+   "fin": 34.94,
+   "duree": 4.518
+  },
+  {
+   "id": "s17",
+   "debut": 34.94,
+   "fin": 37.221,
+   "duree": 2.281
+  },
+  {
+   "id": "s18",
+   "debut": 37.221,
+   "fin": 40.392,
+   "duree": 3.171
+  },
+  {
+   "id": "s19",
+   "debut": 40.392,
+   "fin": 42.009,
+   "duree": 1.618
+  },
+  {
+   "id": "s20",
+   "debut": 42.009,
+   "fin": 45.322,
+   "duree": 3.312
+  },
+  {
+   "id": "s21",
+   "debut": 45.322,
+   "fin": 51.236,
+   "duree": 5.914
+  }
+ ],
+ "sons": [
+  [
+   1.608,
+   "illustration-forte-1.wav",
+   0.22
+  ],
+  [
+   3.365,
+   "illustration-forte-2.wav",
+   0.22
+  ],
+  [
+   12.606,
+   "illustration-forte-3.wav",
+   0.22
+  ],
+  [
+   13.812,
+   "illustration-forte-4.wav",
+   0.22
+  ],
+  [
+   15.132,
+   "illustration-forte-1.wav",
+   0.22
+  ],
+  [
+   16.826,
+   "illustration-forte-2.wav",
+   0.22
+  ],
+  [
+   18.706,
+   "illustration-forte-3.wav",
+   0.22
+  ],
+  [
+   20.393,
+   "illustration-forte-4.wav",
+   0.22
+  ],
+  [
+   22.56,
+   "illustration-forte-1.wav",
+   0.22
+  ],
+  [
+   24.839,
+   "illustration-forte-2.wav",
+   0.22
+  ],
+  [
+   25.939,
+   "illustration-forte-3.wav",
+   0.22
+  ],
+  [
+   29.408,
+   "illustration-forte-4.wav",
+   0.22
+  ],
+  [
+   30.392,
+   "illustration-forte-1.wav",
+   0.22
+  ],
+  [
+   34.91,
+   "illustration-forte-2.wav",
+   0.22
+  ],
+  [
+   37.191,
+   "illustration-forte-3.wav",
+   0.22
+  ],
+  [
+   40.362,
+   "illustration-forte-4.wav",
+   0.22
+  ],
+  [
+   41.979,
+   "illustration-forte-1.wav",
+   0.22
+  ],
+  [
+   45.292,
+   "illustration-forte-2.wav",
+   0.22
+  ],
+  [
+   1.718,
+   "impact-3.wav",
+   0.55
+  ],
+  [
+   11.105,
+   "impact-4.wav",
+   0.55
+  ],
+  [
+   13.181,
+   "impact-1.wav",
+   0.55
+  ],
+  [
+   25.431,
+   "impact-2.wav",
+   0.55
+  ],
+  [
+   30.014,
+   "impact-3.wav",
+   0.55
+  ],
+  [
+   31.49,
+   "impact-4.wav",
+   0.55
+  ],
+  [
+   35.762,
+   "impact-1.wav",
+   0.55
+  ],
+  [
+   37.753,
+   "impact-2.wav",
+   0.55
+  ],
+  [
+   42.979,
+   "impact-3.wav",
+   0.55
+  ],
+  [
+   46.386,
+   "impact-4.wav",
+   0.55
+  ],
+  [
+   49.706,
+   "impact-1.wav",
+   0.55
+  ],
+  [
+   4.532,
+   "document-2.wav",
+   0.3
+  ],
+  [
+   5.829,
+   "document-3.wav",
+   0.3
+  ],
+  [
+   6.884,
+   "document-4.wav",
+   0.3
+  ],
+  [
+   7.644,
+   "document-1.wav",
+   0.3
+  ],
+  [
+   8.644,
+   "document-2.wav",
+   0.3
+  ],
+  [
+   9.588,
+   "document-3.wav",
+   0.3
+  ],
+  [
+   17.106,
+   "telephone-4.wav",
+   0.5
+  ],
+  [
+   17.792,
+   "telephone-1.wav",
+   0.5
+  ],
+  [
+   21.458,
+   "telephone-2.wav",
+   0.5
+  ],
+  [
+   19.338,
+   "chiffre-3.wav",
+   0.5
+  ],
+  [
+   19.801,
+   "chiffre-4.wav",
+   0.5
+  ],
+  [
+   16.227,
+   "chiffre-1.wav",
+   0.5
+  ],
+  [
+   27.088,
+   "chiffre-2.wav",
+   0.5
+  ],
+  [
+   28.745,
+   "chiffre-3.wav",
+   0.5
+  ],
+  [
+   40.899,
+   "chiffre-4.wav",
+   0.5
+  ],
+  [
+   47.636,
+   "chiffre-1.wav",
+   0.5
+  ],
+  [
+   15.312,
+   "chiffre-2.wav",
+   0.16
+  ],
+  [
+   15.372,
+   "chiffre-3.wav",
+   0.16
+  ],
+  [
+   15.432,
+   "chiffre-4.wav",
+   0.16
+  ],
+  [
+   15.492,
+   "chiffre-1.wav",
+   0.16
+  ],
+  [
+   15.552,
+   "chiffre-2.wav",
+   0.16
+  ],
+  [
+   15.612,
+   "chiffre-3.wav",
+   0.16
+  ],
+  [
+   15.672,
+   "chiffre-4.wav",
+   0.16
+  ],
+  [
+   15.732,
+   "chiffre-1.wav",
+   0.16
+  ],
+  [
+   15.792,
+   "chiffre-2.wav",
+   0.16
+  ],
+  [
+   15.852,
+   "chiffre-3.wav",
+   0.16
+  ],
+  [
+   15.912,
+   "chiffre-4.wav",
+   0.16
+  ],
+  [
+   15.972,
+   "chiffre-1.wav",
+   0.16
+  ],
+  [
+   16.032,
+   "chiffre-2.wav",
+   0.16
+  ],
+  [
+   16.092,
+   "chiffre-3.wav",
+   0.16
+  ],
+  [
+   16.152,
+   "chiffre-4.wav",
+   0.16
+  ],
+  [
+   16.212,
+   "chiffre-1.wav",
+   0.16
+  ],
+  [
+   24.088,
+   "chiffre-2.wav",
+   0.22
+  ],
+  [
+   24.123,
+   "chiffre-3.wav",
+   0.22
+  ],
+  [
+   24.158,
+   "chiffre-4.wav",
+   0.22
+  ],
+  [
+   24.193,
+   "chiffre-1.wav",
+   0.22
+  ],
+  [
+   24.228,
+   "chiffre-2.wav",
+   0.22
+  ],
+  [
+   24.263,
+   "chiffre-3.wav",
+   0.22
+  ],
+  [
+   24.298,
+   "chiffre-4.wav",
+   0.22
+  ],
+  [
+   24.333,
+   "chiffre-1.wav",
+   0.22
+  ],
+  [
+   24.368,
+   "chiffre-2.wav",
+   0.22
+  ],
+  [
+   24.403,
+   "chiffre-3.wav",
+   0.22
+  ],
+  [
+   24.438,
+   "chiffre-4.wav",
+   0.22
+  ],
+  [
+   24.473,
+   "chiffre-1.wav",
+   0.22
+  ]
+ ]
+}

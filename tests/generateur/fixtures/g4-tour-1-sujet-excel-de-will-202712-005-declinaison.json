@@ -1,0 +1,63 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-4",
+  "accroche": "Si votre DAF exporte, copie, colle et vérifie des fichiers Excel chaque jour, cette vidéo est pour lui.",
+  "promesse": "Presque tous ces fichiers peuvent être remplacés par une IA : un tableau de bord, des données qui arrivent seules, une alerte.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Si vous connaissez un DAF qui passe ses journées dans ces fichiers, envoyez-lui cette vidéo. On en parle ensuite avec lui, à Axion-IA."
+  },
+  "boucle": "Il perd ses journées sur Excel.",
+  "encadre": "Fichiers Excel : un tableau de bord",
+  "couverture": "Vos fichiers Excel, remplacés",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Fichiers Excel : remplacés par l'IA ? Voici ce que la vidéo répond au DAF.",
+   "texte": "Fichiers Excel : remplacés par l'IA ? Tableurs, exports, copier-coller : presque tous peuvent laisser place à un tableau de bord. Envoyez la vidéo à votre DAF.",
+   "motsDiese": [
+    "#excel",
+    "#ia",
+    "#daf",
+    "#pilotage"
+   ],
+   "commentaireEpingle": "Source : avis de Will, Axion-IA. Presque tous ces fichiers Excel peuvent être remplacés par une IA.",
+   "titres": [],
+   "motsClesDeclares": [
+    "fichiers Excel",
+    "tableaux Excel",
+    "tableau de bord",
+    "automatiser Excel"
+   ],
+   "motsClesBloques": [
+    "gratuit",
+    "miracle",
+    "garanti"
+   ],
+   "post": {
+    "texte": "",
+    "detailAncrage": ""
+   },
+   "motCleVariante": "tableurs Excel",
+   "justifications": [
+    {
+     "texte": "Première ligne : mot-clé exact en tête, puis phrases descriptives, 100 caractères au plus.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mots-clés déclarés et bloqués, 3 à 5 chacun, à saisir à la main sur l'application.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Commentaire épinglé = la source des faits, sans question puisque l'appel est un envoi.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "4 mots-dièse, dans la fourchette de 3 à 4.",
+     "regleId": "hyp-ecriture-reseau"
+    }
+   ]
+  }
+ }
+}

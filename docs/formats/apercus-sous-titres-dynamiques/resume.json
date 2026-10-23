@@ -1,0 +1,515 @@
+[
+ {
+  "quoi": "accroche",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": 2,
+  "souligne": null,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": -2,
+  "souligne": null,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "bandeau",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "bandeau-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "base",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "base-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": 2,
+  "souligne": null,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": -2,
+  "souligne": null,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "bandeau",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "bandeau-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "base",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "base-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": 2,
+  "souligne": null,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": -2,
+  "souligne": null,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "bandeau",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "bandeau-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "base",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "base-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": 1,
+  "souligne": null,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": -1,
+  "souligne": null,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "bandeau",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "bandeau-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "base",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "base-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": 1,
+  "souligne": null,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": -1,
+  "souligne": null,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "bandeau",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "bandeau-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "base",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "base-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": 1,
+  "souligne": null,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-paperboard-portrait.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "inclinaison": -1,
+  "souligne": null,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-paperboard-portrait.jpg"
+ },
+ {
+  "quoi": "bandeau",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "bandeau-paperboard-portrait.jpg"
+ },
+ {
+  "quoi": "base",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "inclinaison": 0,
+  "souligne": null,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "pixelsHorsCharteBande": 0,
+  "image": "base-paperboard-portrait.jpg"
+ },
+ {
+  "video": "video-test-ardoise-vertical.mp4",
+  "de": 36.5,
+  "a": 46.5,
+  "groupes": [
+   {
+    "groupe": "L'outil peut",
+    "style": "base",
+    "importance": 1,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "mal placer",
+    "style": "base",
+    "importance": 0,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "un nom ou ajouter",
+    "style": "base",
+    "importance": 1,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "une date.",
+    "style": "base",
+    "importance": 0,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "Un nom faux,",
+    "style": "bandeau",
+    "importance": 2,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "et la tâche",
+    "style": "base",
+    "importance": 0,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "repart en réunion.",
+    "style": "base",
+    "importance": 1,
+    "inclinaison": 0,
+    "souligne": 2
+   },
+   {
+    "groupe": "Un chef",
+    "style": "base",
+    "importance": 0,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "d'atelier sort",
+    "style": "base",
+    "importance": 1,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "de sa réunion.",
+    "style": "base",
+    "importance": 1,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "Avant, ses notes",
+    "style": "base",
+    "importance": 0,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "partaient trois",
+    "style": "impact",
+    "importance": 3,
+    "inclinaison": -2,
+    "souligne": null
+   },
+   {
+    "groupe": "jours après.",
+    "style": "base",
+    "importance": 3,
+    "inclinaison": 0,
+    "souligne": null
+   },
+   {
+    "groupe": "Maintenant,",
+    "style": "base",
+    "importance": 1,
+    "inclinaison": 0,
+    "souligne": 0
+   }
+  ]
+ }
+]

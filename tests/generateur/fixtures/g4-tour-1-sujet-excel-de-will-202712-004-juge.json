@@ -1,0 +1,113 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "corps-1",
+    "reponses": [
+     {
+      "id": "SCR-01",
+      "reponse": "oui",
+      "motif": "Aucun fait Axion-IA ni client : « des dizaines de fichiers Excel » dit par tout concurrent."
+     },
+     {
+      "id": "ANC-01",
+      "reponse": "non",
+      "motif": "Aucune preuve ni cas fourni ; rien d'ancré, seulement affirmations générales sur Excel."
+     },
+     {
+      "id": "CRED-01",
+      "reponse": "oui",
+      "motif": "« des données qui arrivent toutes seules, vérifiées toutes seules » sans preuve ni limite."
+     },
+     {
+      "id": "CRED-02",
+      "reponse": "oui",
+      "motif": "« le dirigeant ne voit qu'une petite partie » généralisé sans preuve, à tous les dirigeants."
+     },
+     {
+      "id": "CRED-03",
+      "reponse": "non",
+      "motif": "Aucune limite : l'exception « certains fichiers resteront » est absente du texte."
+     },
+     {
+      "id": "CRED-05",
+      "reponse": "sans-objet",
+      "motif": "Aucune preuve citée dans le texte."
+     },
+     {
+      "id": "CRED-06",
+      "reponse": "sans-objet",
+      "motif": "Pas d'idée reçue réfutée ; « Mais » relie seulement deux constats."
+     },
+     {
+      "id": "VOIX-02",
+      "reponse": "oui",
+      "motif": "« À la place des fichiers : un tableau de bord... » sonne catalogue, liste de bénéfices."
+     },
+     {
+      "id": "RET-01",
+      "reponse": "non",
+      "motif": "« Des dizaines de fichiers... exporter, copier, coller » répète l'accroche ; rien de neuf."
+     },
+     {
+      "id": "ENV-01",
+      "reponse": "non",
+      "motif": "Texte sans phrase d'envoi ni action concrète proposée au destinataire."
+     },
+     {
+      "id": "ENV-02",
+      "reponse": "non",
+      "motif": "Pas de règle claire à retenir, seulement un constat et un tableau de bord."
+     },
+     {
+      "id": "ENV-03",
+      "reponse": "non",
+      "motif": "Le texte interpelle « Dirigeant » ; aucun DAF n'est nommé ni mis en cause."
+     },
+     {
+      "id": "FIN-01",
+      "reponse": "oui",
+      "motif": "Finit sur « un tableau de bord... une alerte au moindre problème » : bénéfices vendus."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "non",
+      "motif": "« Mais malgré tout ce travail » et « Et vous n'en voyez... » dépendent du contexte."
+     },
+     {
+      "id": "CTA-01",
+      "reponse": "sans-objet",
+      "motif": "Aucun appel à l'action dans le texte."
+     },
+     {
+      "id": "PROM-01",
+      "reponse": "non",
+      "motif": "Promet « ce qui change » ; livre seulement une liste, sans comment ni limite."
+     },
+     {
+      "id": "PROB-01",
+      "reponse": "oui",
+      "motif": "Dès la première phrase : « on exporte, on copie, on colle... vous n'en voyez qu'une petite partie »."
+     },
+     {
+      "id": "REC-01",
+      "reponse": "non",
+      "motif": "Aucun client ni cas réel ; seulement « le dirigeant » en général."
+     },
+     {
+      "id": "BRF-01",
+      "reponse": "oui",
+      "motif": "« 99 % » n'apparaît pas et « presque tous » non plus."
+     },
+     {
+      "id": "BRF-02",
+      "reponse": "oui",
+      "motif": "Aucun chiffre : seulement « des dizaines de fichiers » et « chaque jour »."
+     }
+    ]
+   }
+  ]
+ }
+}

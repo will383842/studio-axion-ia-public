@@ -1,0 +1,198 @@
+{
+  "version": "carte-image/1",
+  "image": {
+    "cle": "essais/image-video/D.png",
+    "empreinte": "essai-d",
+    "largeur": 1080,
+    "hauteur": 1350,
+    "orientation": "portrait"
+  },
+  "types": [
+    "entonnoir"
+  ],
+  "offre": "integration",
+  "automatisation": true,
+  "titre": "Tri des e-mails",
+  "phraseChoc": "Vous lisez ce qui compte. L'IA gère le reste.",
+  "formulesAbsolues": [
+    {
+      "texte": "0 question sans réponse",
+      "ou": "bandeau.2",
+      "proposition": "presque aucune question sans réponse"
+    }
+  ],
+  "noeuds": [
+    {
+      "id": "n01",
+      "libelle": "20 e-mails entrants",
+      "detail": "Questions récurrentes",
+      "role": "declencheur",
+      "icone": "enveloppe",
+      "couleur": "noir",
+      "acteur": "humain",
+      "ordre": 1,
+      "quantite": 20
+    },
+    {
+      "id": "n02",
+      "libelle": "IA classe et répond",
+      "role": "moteur",
+      "icone": "ia",
+      "couleur": "orange",
+      "acteur": "auto",
+      "ordre": 2
+    },
+    {
+      "id": "n03",
+      "libelle": "80 % répondus automatiquement",
+      "detail": "Réponse en 2 minutes",
+      "role": "sortie",
+      "icone": "coche",
+      "couleur": "vert",
+      "acteur": "auto",
+      "groupe": "g-auto",
+      "ordre": 3,
+      "quantite": 16
+    },
+    {
+      "id": "n04",
+      "libelle": "20 % pour vous",
+      "detail": "Ceux qui comptent vraiment",
+      "role": "sortie",
+      "icone": "enveloppe",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-vous",
+      "ordre": 4,
+      "quantite": 4
+    }
+  ],
+  "liens": [
+    {
+      "id": "l01",
+      "de": "n01",
+      "vers": "n02",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l02",
+      "de": "n02",
+      "vers": "n03",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l03",
+      "de": "n02",
+      "vers": "n04",
+      "couleur": "noir",
+      "style": "plein"
+    }
+  ],
+  "groupes": [
+    {
+      "id": "g-auto",
+      "sorte": "sorties",
+      "titre": "Répondus automatiquement",
+      "noeuds": [
+        "n03"
+      ],
+      "majoritaire": true
+    },
+    {
+      "id": "g-vous",
+      "sorte": "sorties",
+      "titre": "Pour vous",
+      "noeuds": [
+        "n04"
+      ]
+    }
+  ],
+  "bandeau": [
+    "80 % traités auto",
+    "2h récupérées/jour",
+    "0 question sans réponse"
+  ],
+  "bandeauChiffres": [
+    "c05",
+    "c06",
+    "c07"
+  ],
+  "chiffres": [
+    {
+      "id": "c01",
+      "brut": "20 e-mails",
+      "valeur": 20,
+      "unite": "nombre",
+      "dansNoeud": "n01",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c02",
+      "brut": "80 %",
+      "valeur": 80,
+      "unite": "%",
+      "dansNoeud": "n03",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c03",
+      "brut": "2 minutes",
+      "valeur": 2,
+      "unite": "min",
+      "dansNoeud": "n03",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c04",
+      "brut": "20 %",
+      "valeur": 20,
+      "unite": "%",
+      "dansNoeud": "n04",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c05",
+      "brut": "80 %",
+      "valeur": 80,
+      "unite": "%",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c06",
+      "brut": "2h",
+      "valeur": 2,
+      "unite": "h",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c07",
+      "brut": "0 question",
+      "valeur": 0,
+      "unite": "nombre",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    }
+  ],
+  "pied": [],
+  "coherence": [
+    {
+      "calcul": "16 + 4 = 20",
+      "ok": true
+    }
+  ],
+  "lecture": {
+    "ecarts": [],
+    "alertes": []
+  }
+}

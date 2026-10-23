@@ -1,0 +1,47 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-4",
+  "accroche": "Si votre DAF exporte, copie, colle et vérifie des fichiers Excel chaque jour, cette vidéo est pour lui.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Il verra vite combien de ses fichiers Excel un tableau de bord pourrait remplacer."
+  },
+  "boucle": "",
+  "encadre": "Fichiers Excel : presque tous remplaçables",
+  "couverture": "Vos fichiers Excel, remplacés",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Exporter, copier, coller, vérifier. Puis recommencer, chaque jour.",
+   "texte": "Exporter, copier, coller, vérifier. Puis recommencer, chaque jour.\nC'est la routine autour des fichiers Excel.\nMalgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.\nÀ la place : un tableau de bord, des données qui arrivent toutes seules, vérifiées toutes seules, et une alerte au moindre problème.\nPresque tous ces fichiers peuvent être remplacés par une IA.\nEnvoyez cette vidéo à votre DAF.",
+   "motsDiese": [
+    "#Excel",
+    "#IA"
+   ],
+   "post": {
+    "texte": "Exporter, copier, coller, vérifier. Puis recommencer, chaque jour.\nC'est la routine autour des fichiers Excel.\nMalgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.\nÀ la place : un tableau de bord, des données qui arrivent toutes seules, vérifiées toutes seules, et une alerte au moindre problème.\nPresque tous ces fichiers peuvent être remplacés par une IA.\nEnvoyez cette vidéo à votre DAF.",
+    "detailAncrage": "La routine exporter, copier, coller, vérifier, répétée chaque jour sur les fichiers Excel, pour une vue partielle des données du dirigeant."
+   },
+   "motCleVariante": "tableurs Excel",
+   "justifications": [
+    {
+     "texte": "Post rédigé avec la vidéo, détail vrai du sujet dès la 1re ligne, sans tic d'écriture générée.",
+     "regleId": "li-ai-slop-2026"
+    },
+    {
+     "texte": "2 mots-dièse, dans la zone de 0 à 3.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Aucun lien dans le post, un seul appel repris de la vidéo.",
+     "regleId": "li-lien-commentaire"
+    },
+    {
+     "texte": "Format vertical 9:16 en vidéo native.",
+     "regleId": "li-video-2026"
+    }
+   ]
+  }
+ }
+}

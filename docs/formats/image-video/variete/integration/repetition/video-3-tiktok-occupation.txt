@@ -1,0 +1,19 @@
+image          occupation  trou max  équilibre  appoint  verdict
+video-3-tiktok-0_5        40 %       18 %       1.00     76 %  NON
+video-3-tiktok-1_5        72 %       11 %       1.07     90 %  OK
+video-3-tiktok-3        11 %       83 %       0.15      0 %  NON
+video-3-tiktok-6        55 %       23 %       0.80      0 %  NON
+video-3-tiktok-9        95 %        3 %       1.09     92 %  OK
+video-3-tiktok-12        82 %        6 %       1.21     88 %  OK
+video-3-tiktok-15        39 %       29 %       2.14     88 %  NON
+video-3-tiktok-18        97 %        3 %       1.23    100 %  OK
+video-3-tiktok-21        85 %        5 %       1.33     92 %  OK
+video-3-tiktok-24        90 %        4 %       1.43     93 %  OK
+video-3-tiktok-27        20 %       80 %       0.00      0 %  NON
+video-3-tiktok-30        78 %        8 %       1.49     97 %  OK
+video-3-tiktok-33        54 %       38 %       0.89     97 %  NON
+video-3-tiktok-36        80 %        7 %       1.05     92 %  OK
+video-3-tiktok-39        43 %       18 %       1.35     88 %  NON
+video-3-tiktok-42         7 %       43 %       0.25      0 %  NON
+video-3-tiktok-45         6 %       59 %       0.00      0 %  NON
+video-3-tiktok-48         5 %       60 %       0.00      0 %  NON

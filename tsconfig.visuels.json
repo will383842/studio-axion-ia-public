@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["next-env.d.ts", "src/visuels/**/*.ts", "src/briques/visuels/**/*.ts", "src/domaine/visuels/**/*.ts", "src/domaine/controles-visuel/**/*.ts", "tests/visuels/**/*.ts", "src/polices-ttf.d.ts"],
+  "exclude": ["node_modules"]
+}

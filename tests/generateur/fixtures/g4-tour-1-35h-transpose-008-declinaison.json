@@ -1,0 +1,65 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Dirigeant de PME, vos erreurs Excel : votre tableur ne vérifie rien. Chaque copier-coller peut cacher une erreur que personne ne voit.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Il saura vite repérer où des données sont recopiées à la main dans vos fichiers."
+  },
+  "boucle": "Cela vous concerne,",
+  "encadre": "Erreurs Excel : recopie manuelle",
+  "couverture": "Vos erreurs Excel invisibles",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Erreurs Excel. Recopier à la main cache des erreurs. Premier geste pour les repérer.",
+   "texte": "Erreurs Excel. Recopier à la main cache des erreurs. Premier geste pour les repérer. Un tableur ne vérifie rien tout seul : la vidéo dit où regarder dans vos fichiers. Envoyez-la à votre DAF.",
+   "motsDiese": [
+    "#erreursexcel",
+    "#tableur",
+    "#PME",
+    "#donnees"
+   ],
+   "commentaireEpingle": "Source : observation d'Axion-IA, un tableur ne vérifie rien tout seul, donc chaque copier-coller est une occasion d'erreur que personne ne voit.",
+   "titres": [],
+   "motsClesDeclares": [
+    "erreurs Excel",
+    "tableur",
+    "copier-coller",
+    "recopier des données"
+   ],
+   "motsClesBloques": [
+    "garanti",
+    "gratuit",
+    "miracle"
+   ],
+   "justifications": [
+    {
+     "texte": "Première ligne en mot-clé exact, 100 caractères au plus, suivi de phrases descriptives.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mot-clé « erreurs Excel » dit dès l'accroche, avant 5 s.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mots-clés déclarés et bloqués, saisis à la main sur l'application.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Commentaire épinglé = la source des faits, pas une question, car l'appel est un envoi.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "4 mots-dièse, dans la plage de 3 à 4.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Boucle courte qui prolonge l'accroche en une seule phrase.",
+     "regleId": "hyp-ecriture-reseau"
+    }
+   ]
+  }
+ }
+}

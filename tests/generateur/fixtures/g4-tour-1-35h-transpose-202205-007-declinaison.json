@@ -1,0 +1,58 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Dirigeant de PME, vos erreurs Excel ne se voient pas. Chaque copier-coller peut en cacher une.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Il saura vite où vos données sont recopiées à la main d'un tableur à l'autre."
+  },
+  "boucle": "Sinon,",
+  "encadre": "Erreurs Excel : le coût caché",
+  "couverture": "Le coût caché d'Excel",
+  "segmentFacultatifRetenu": true,
+  "publication": {
+   "premiereLigne": "Erreurs Excel : copier-coller, données recopiées à la main, ce que ça coûte.",
+   "texte": "Erreurs Excel : copier-coller, données recopiées à la main, ce que ça coûte. Les erreurs de tableur ne figurent sur aucune facture. Cette vidéo montre où elles se cachent et le premier geste pour les repérer.",
+   "motsDiese": [
+    "#erreursExcel",
+    "#tableur",
+    "#PME",
+    "#automatisation"
+   ],
+   "commentaireEpingle": "Source : observation d'Axion-IA. Un tableur ne vérifie rien tout seul, donc chaque copier-coller est une occasion d'erreur que personne ne voit.",
+   "motsClesDeclares": [
+    "erreurs Excel",
+    "erreurs de tableur",
+    "copier-coller",
+    "données recopiées à la main"
+   ],
+   "motsClesBloques": [
+    "gratuit",
+    "astuce",
+    "formation",
+    "hack"
+   ],
+   "motCleVariante": "erreurs de tableur",
+   "justifications": [
+    {
+     "texte": "Première ligne : mot-clé exact en tête, variante parlée, ce que la vidéo répond, moins de 100 caractères.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mots-clés déclarés et bloqués, saisis à la main, de 3 à 5 chacun.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Commentaire épinglé = la source des faits, pas une question, car l'appel est un envoi.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "4 mots-dièse, dans la fourchette de 3 à 4 prévue.",
+     "regleId": "hyp-ecriture-reseau"
+    }
+   ]
+  }
+ }
+}

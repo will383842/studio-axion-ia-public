@@ -1,0 +1,47 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Dirigeant de PME, les erreurs Excel se cachent dans chaque copier-coller.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Demandez-lui où des données sont recopiées à la main d'un tableur à l'autre."
+  },
+  "boucle": "",
+  "encadre": "Erreurs Excel : coût invisible",
+  "couverture": "Le coût caché d'Excel",
+  "segmentFacultatifRetenu": true,
+  "publication": {
+   "premiereLigne": "Un tableur ne vérifie rien tout seul.",
+   "texte": "Un tableur ne vérifie rien tout seul. Chaque copier-coller est une occasion d'erreur que personne ne voit. Le coût des erreurs de tableur n'apparaît sur aucune facture. Il est dans les données recopiées à la main, d'un fichier à l'autre. Envoyez cette vidéo à votre DAF. Demandez-lui où des données sont recopiées à la main d'un tableur à l'autre.",
+   "motsDiese": [
+    "#Excel",
+    "#PME"
+   ],
+   "post": {
+    "texte": "Un tableur ne vérifie rien tout seul. Chaque copier-coller est une occasion d'erreur que personne ne voit. Le coût des erreurs de tableur n'apparaît sur aucune facture. Il est dans les données recopiées à la main, d'un fichier à l'autre. Envoyez cette vidéo à votre DAF. Demandez-lui où des données sont recopiées à la main d'un tableur à l'autre.",
+    "detailAncrage": "Un tableur ne vérifie rien tout seul, donc chaque copier-coller est une occasion d'erreur que personne ne voit."
+   },
+   "motCleVariante": "erreurs de tableur",
+   "justifications": [
+    {
+     "texte": "Post rédigé avec la vidéo, dont la 1re ligne reprend le détail vrai du sujet tiré de l'ancrage, sans tic d'écriture générée.",
+     "regleId": "li-ai-slop-2026"
+    },
+    {
+     "texte": "La fin du post reprend l'appel d'envoi de la vidéo, sans second appel et sans lien.",
+     "regleId": "li-lien-commentaire"
+    },
+    {
+     "texte": "Deux mots-dièse, dans la limite de 0 à 3, et première ligne lisible seule sans le mot-clé.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Publication en vidéo native, au format vertical par défaut.",
+     "regleId": "li-video-2026"
+    }
+   ]
+  }
+ }
+}

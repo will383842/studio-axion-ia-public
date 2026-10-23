@@ -1,0 +1,120 @@
+{
+ "role": "prose",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "planIndex": 1,
+    "bloc": "coeur",
+    "texte": "Des dizaines de fichiers Excel. Chaque jour, la même routine : exporter, copier, coller, vérifier… et recommencer.",
+    "nature": "fait",
+    "marqueurs": [
+     "ancrage",
+     "relance"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ],
+    "citeMatiereId": "will-excel-routine",
+    "emphase": [],
+    "intentionIllustration": "Un écran couvert d'onglets de tableur ouverts les uns sur les autres",
+    "facultatif": false
+   },
+   {
+    "planIndex": 2,
+    "bloc": "coeur",
+    "texte": "Mais malgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.",
+    "nature": "fait",
+    "marqueurs": [
+     "relance",
+     "emotion"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-partie"
+    ],
+    "citeMatiereId": "will-excel-partie",
+    "emphase": [
+     "petite partie"
+    ],
+    "facultatif": false
+   },
+   {
+    "planIndex": 3,
+    "bloc": "coeur",
+    "texte": "Personne n'a le temps de tout relire, donc une erreur de formule passe et fausse les chiffres du mois.",
+    "nature": "fait",
+    "marqueurs": [
+     "relance"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-cause"
+    ],
+    "citeMatiereId": "will-excel-cause",
+    "emphase": [],
+    "intentionIllustration": "Une cellule de formule surlignée en rouge au milieu d'une feuille de calcul",
+    "facultatif": false
+   },
+   {
+    "planIndex": 4,
+    "bloc": "coeur",
+    "texte": "À la place : un tableau de bord, alimenté et vérifié tout seul.",
+    "nature": "opinion",
+    "marqueurs": [
+     "solution",
+     "methode"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution"
+    ],
+    "emphase": [],
+    "incrustation": {
+     "type": "objet",
+     "texte": "Tableau de bord"
+    },
+    "facultatif": false
+   },
+   {
+    "planIndex": 5,
+    "bloc": "coeur",
+    "texte": "Ce travail-là, il le fait à votre place. Chaque jour.",
+    "nature": "opinion",
+    "marqueurs": [
+     "livraison",
+     "solution",
+     "boucle-fermee"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie",
+     "will-excel-solution"
+    ],
+    "emphase": [],
+    "facultatif": false
+   },
+   {
+    "planIndex": 6,
+    "bloc": "coeur",
+    "texte": "Au moindre problème, une alerte. Au lieu d'une erreur qui fausse le mois.",
+    "nature": "fait",
+    "marqueurs": [
+     "resultat"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution",
+     "will-excel-cause"
+    ],
+    "emphase": [
+     "alerte"
+    ],
+    "intentionIllustration": "Une notification d'alerte qui s'allume sur un écran sombre",
+    "facultatif": false
+   }
+  ]
+ }
+}

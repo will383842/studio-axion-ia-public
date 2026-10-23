@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-02",
+  "objet": "Lot D1 (intensité + bruitages) : la démonstration M4 refaite APRÈS le lot par outils/demo-m4/rendre-demo.mts inchangé (tant qu'aucun son n'est validé par Will, rien n'est posé).",
+  "methode": "Empreinte MD5 (12 premiers caractères) des lignes ffmpeg -f framemd5, images puis son, même méthode que docs/captures/b1-decors/demo-m4-inchangee.json ; captures et vidéo 9:16 comparées octet à octet avec la version d'avant ; mesures.json comparé hors dates et temps.",
+  "videos": {
+    "9:16": { "images": 389, "empreinteImages": "0302e1a08c99", "empreinteSon": "1a829a7c2541", "attendu": "0302e1a08c99 / 1a829a7c2541", "fichierIdentiqueOctetAOctet": true },
+    "4:5": { "images": 389, "empreinteImages": "4cfe49eac70c", "empreinteSon": "1a829a7c2541", "attendu": "4cfe49eac70c / 1a829a7c2541" },
+    "1:1": { "images": 389, "empreinteImages": "c6b1aa0e3fe5", "empreinteSon": "1a829a7c2541", "attendu": "c6b1aa0e3fe5 / 1a829a7c2541" }
+  },
+  "captures": "les 10 captures identiques octet à octet",
+  "mesures": "identiques hors date et temps de calcul (mesures.json du dépôt laissé tel quel)",
+  "resultat": "identique : aucune nouvelle démonstration de remplacement, docs/captures/m4-demo/v2/ non créé. La démonstration « avec intensité et sons » (sons traités comme validés) est À PART, dans demo-m4-v3/."
+}
