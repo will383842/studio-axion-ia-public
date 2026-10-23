@@ -10,6 +10,12 @@ import { T08 } from "./pages/T08";
 import { T10 } from "./pages/T10";
 import { T20 } from "./pages/T20";
 import { T21 } from "./pages/T21";
+import { T22 } from "./pages/T22";
+import { T23 } from "./pages/T23";
+import { T24 } from "./pages/T24";
+import { T26 } from "./pages/T26";
+import { T27 } from "./pages/T27";
+import { T28 } from "./pages/T28";
 
 function dessiner(page: PageSpec, index: number, total: number): ReactElement {
   switch (page.type) {
@@ -31,6 +37,18 @@ function dessiner(page: PageSpec, index: number, total: number): ReactElement {
       return <T20 titre={page.titre} etapes={page.etapes} index={index} total={total} />;
     case "T21":
       return <T21 index={index} total={total} />;
+    case "T22":
+      return <T22 titre={page.titre} mythe={page.mythe} realite={page.realite} index={index} total={total} />;
+    case "T23":
+      return <T23 titre={page.titre} questions={page.questions} annotation={page.annotation} index={index} total={total} />;
+    case "T24":
+      return <T24 titre={page.titre} lignes={page.lignes} index={index} total={total} />;
+    case "T26":
+      return <T26 titre={page.titre} avant={page.avant} avec={page.avec} outils={page.outils} vous={page.vous} index={index} total={total} />;
+    case "T27":
+      return <T27 titre={page.titre} lignes={page.lignes} index={index} total={total} />;
+    case "T28":
+      return <T28 titre={page.titre} noeuds={page.noeuds} index={index} total={total} />;
   }
 }
 

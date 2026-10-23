@@ -4,17 +4,19 @@
  *
  * Usage (depuis `studio-rendu/`) : npx tsx scripts/controle-cartes.ts <cartes.json> <dossier> [instants s, ex. 0.1,0.5,1]
  */
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { bundle } from "@remotion/bundler";
-import { renderStill, selectComposition } from "@remotion/renderer";
+import { ensureBrowser, renderStill, selectComposition } from "@remotion/renderer";
 
 const [fichier, dossier, liste] = process.argv.slice(2);
 const cartes = JSON.parse(readFileSync(fichier, "utf-8")) as { composition: string; proprietes: Record<string, unknown> }[];
 const instants = (liste ?? "0.1,0.5,1,2").split(",").map(Number);
 mkdirSync(dossier, { recursive: true });
 const racine = resolve(import.meta.dirname, "..");
-const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR ?? ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell"].find((c) => existsSync(c));
+const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR;
+// Sans navigateur imposé : Remotion obtient le sien (ensureBrowser) ou échoue avec son message ; aucun chemin en dur.
+if (!navigateur) await ensureBrowser();
 const serveUrl = await bundle({ entryPoint: resolve(racine, "compositions/index.ts") });
 const reglages = { browserExecutable: navigateur ?? null, chromiumOptions: { gl: "swangle" as const } };
 for (const [k, c] of cartes.entries()) {

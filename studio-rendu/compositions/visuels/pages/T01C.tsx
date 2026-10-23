@@ -1,8 +1,9 @@
 import { AbsoluteFill } from "remotion";
 import { Annotation } from "../commun/Annotation";
 import { Badge } from "../commun/Badge";
-import { COULEURS, MARGE, PAGE, TITRE } from "../commun/constantes";
+import { COULEURS, MARGE, PAGE, TITRE, TITRE_MIN_COUVERTURE } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
+import { largeurTexteMax } from "../commun/zones";
 import { Swipe } from "../commun/Swipe";
 import { Titre } from "../commun/Titre";
 import { COMPOSANTS_DECOR } from "../decor/formes";
@@ -19,6 +20,8 @@ interface Proprietes {
 const RAYON = 44;
 const REMPLISSAGE = 44;
 const LARGEUR_CADRE = 984 - 2 * 4 - 2 * REMPLISSAGE;
+/** Largeur du texte : il part à x = MARGE + bordure + REMPLISSAGE et s'arrête à `BORD_DROIT_TEXTE` (flèche de la plateforme à droite). */
+const LARGEUR_TEXTE_BORNEE = Math.min(LARGEUR_CADRE, largeurTexteMax(MARGE + 4 + REMPLISSAGE));
 
 /**
  * T01C — couverture, variante C : grand cadre orange, titre et sous-titre en encre (encre sur orange : 5,4:1), grand décor clair en bas
@@ -30,9 +33,9 @@ export function T01C({ titre, sousTitre, deco = "E02", index, total }: Propriete
     <AbsoluteFill style={{ background: COULEURS.creme, padding: MARGE, boxSizing: "border-box" }}>
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", borderRadius: RAYON, background: COULEURS.orange, border: `4px solid ${COULEURS.encre}`, marginBottom: PAGE.ecart }}>
         <Zone libelle="T01C : texte" style={{ flex: "none", maxHeight: 720, padding: REMPLISSAGE, display: "flex", flexDirection: "column", gap: 30 }}>
-          <Titre texte={titre} maxLignes={3} hauteurMax={380} largeur={LARGEUR_CADRE - TITRE.tolerance} />
+          <Titre texte={titre} maxLignes={3} hauteurMax={380} largeur={LARGEUR_TEXTE_BORNEE - TITRE.tolerance} min={TITRE_MIN_COUVERTURE} />
           <Annotation largeur={LARGEUR_CADRE / 2} couleur={COULEURS.encre} />
-          {sousTitre && <Badge texte={sousTitre} />}
+          {sousTitre && <Badge texte={sousTitre} largeurMax={LARGEUR_TEXTE_BORNEE} />}
         </Zone>
         <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
           <div style={{ position: "absolute", right: REMPLISSAGE, bottom: REMPLISSAGE, height: "80%", maxHeight: 560, aspectRatio: "1" }}>

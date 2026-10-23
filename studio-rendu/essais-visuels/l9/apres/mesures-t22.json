@@ -1,0 +1,62 @@
+{
+  "t22-moyen": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 56,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.127,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 143792
+  },
+  "t22-minimal": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 55,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.089,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 126194
+  },
+  "t22-maximal-v1": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 56,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.112,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 155022
+  },
+  "t22-frontiere-court": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 56,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.057,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 141240
+  },
+  "t22-frontiere-moyen": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 56,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.081,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 148488
+  }
+}

@@ -1,13 +1,14 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
-import { chargerPoliceArchivoBlack, chargerPoliceJetBrainsMono, policeArchivoBlackPrete, policeJetBrainsMonoPrete } from "../polices";
+import { chargerPoliceArchivoBlack, chargerPoliceInter, policeArchivoBlackPrete, policeInterPrete, policeKalamPrete } from "../polices";
 import { avecDelai, DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, DELAI_TITRES_MS, etatPolices } from "./attente-police";
 import { messageDebordement } from "./debordement";
+import { ATTRIBUT_ZONE_CORPS } from "./zones";
 
-/** Attend que les deux polices soient réellement chargées : jamais de mesure avec une police de secours. */
+/** Attend que les polices (Archivo Black, Inter et, si la page l'emploie, Kalam) soient réellement chargées : jamais de mesure avec une police de secours. */
 export function attendrePolices(): Promise<void> {
   return avecDelai(
-    Promise.all([policeArchivoBlackPrete(), policeJetBrainsMonoPrete()]).then(() => undefined),
+    Promise.all([policeArchivoBlackPrete(), policeInterPrete(), policeKalamPrete()]).then(() => undefined),
     DELAI_POLICE_MS,
     () => `Polices de la page non chargées après ${DELAI_POLICE_MS / 1000} s : texte non mesurable (${etatPolices()})`,
   );
@@ -25,7 +26,7 @@ async function attendreTitres(boite: HTMLElement): Promise<void> {
  */
 export function useControleDebordement(cadre: RefObject<HTMLElement | null>, libelle: string, objet: string, dependances: readonly unknown[]): void {
   chargerPoliceArchivoBlack();
-  chargerPoliceJetBrainsMono();
+  chargerPoliceInter();
   useEffect(() => {
     const attente = delayRender(`Contrôle du débordement de ${objet} « ${libelle.slice(0, 24)} »`, { timeoutInMilliseconds: DELAI_DELAYRENDER_MS });
     attendrePolices()
@@ -45,17 +46,22 @@ interface ProprietesZone {
   libelle: string;
   style?: CSSProperties;
   children: ReactNode;
+  /** Corps de page : marqué `ATTRIBUT_ZONE_CORPS`, la mesure du vide y rapporte la place occupée. */
+  corps?: boolean;
 }
 
 /** Marge basse (px) d'une zone : le dessin d'une lettre (jambages) peut dépasser de quelques pixels la boîte de sa ligne, sans être coupé. */
 export const JAMBAGE = 8;
 
+/** Marge haute (px) du titre en capitales : l'accent d'une capitale (É, À, È) dépasse de la boîte de la première ligne, la zone qui coupe ce qui dépasse le raboterait (dépassement mesuré : 6 px à 120 px de corps, soit 0,05 em, 9 px au corps maximal de 170 px). */
+export const JAMBAGE_HAUT = 14;
+
 /** Zone de page à cadre fixe : coupe ce qui dépasse, et le rendu échoue plutôt que de couper un texte en silence. */
-export function Zone({ libelle, style, children }: ProprietesZone) {
+export function Zone({ libelle, style, children, corps = false }: ProprietesZone) {
   const cadre = useRef<HTMLDivElement>(null);
   useControleDebordement(cadre, libelle, "la zone", [libelle]);
   return (
-    <div ref={cadre} style={{ boxSizing: "border-box", overflow: "hidden", paddingBottom: JAMBAGE, ...style }}>
+    <div ref={cadre} {...(corps ? { [ATTRIBUT_ZONE_CORPS]: "" } : {})} style={{ boxSizing: "border-box", overflow: "hidden", paddingBottom: JAMBAGE, ...style }}>
       {children}
     </div>
   );

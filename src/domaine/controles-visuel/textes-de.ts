@@ -9,7 +9,7 @@ export interface TexteDuSpec {
 }
 
 /** Champs qui désignent un identifiant et non un texte lu : jamais contrôlés ni corrigés. */
-const CLES_TECHNIQUES = new Set(["type", "version", "mini", "deco"]);
+const CLES_TECHNIQUES = new Set(["type", "version", "mini", "deco", "icone"]);
 
 function pageDuChemin(chemin: string): number | undefined {
   const m = /^pages\.(\d+)(?:\.|$)/.exec(chemin);

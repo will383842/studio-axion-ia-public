@@ -12,6 +12,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BRUITAGES_V4_IV } from "@/moteurs/montage-image-video/fabrication";
+import { planEnsemble } from "@/briques/schema-motion/plan-objets";
+import { TEMPS_APPARITION, traceFeutre } from "../../studio-rendu/compositions/image-video/variete/apparition/apparition";
+import { disposer } from "@/briques/ecrans-motion";
+import { BANDE_SOUS_TITRES_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
+import { proprietesEcranIV916 } from "@/moteurs/montage-image-video/ecrans-v4";
+import { proprietesPleineImage } from "@/moteurs/montage-image-video/emprunts";
+import { miseEnPageAuxInstantsIV } from "@/moteurs/montage-image-video/emprise-ligne";
+import { instantsClesIV } from "@/moteurs/montage-image-video/relecture-finale";
 import { mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV, type ResultatMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { recettePourVersion } from "@/moteurs/montage-image-video/variete/tirage";
 
@@ -115,5 +123,65 @@ describe("cause C : « Envoyé équipe concernée » (n10, écran e11) vient AVA
     const { evenements } = resultatDe(v).ligne;
     const t = (ref: string) => Math.min(...evenements.filter((x) => x.ref === ref && x.visible).map((x) => x.instantSec));
     expect(t("n10")).toBeLessThan(t("n11"));
+  });
+});
+
+describe("cause F : contrôle « Mise en page » (Q21) aux instants clés, remplissage vertical d'un dossier seul (38,1 s)", () => {
+  it.each(VERSIONS)("%s : aucun défaut de mise en page aux instants clés", (v) => {
+    const { ligne } = resultatDe(v);
+    const instants = instantsClesIV(ligne, F.carte as never).map((i) => i.instantSec);
+    expect(instants.length).toBeGreaterThan(0);
+    expect(miseEnPageAuxInstantsIV(ligne, instants).flatMap((x) => x.defauts)).toEqual([]);
+  });
+});
+
+describe("cause G : les écrans v4 en 9:16 restent au-dessus de la bande des sous-titres (le « % » de e06 à 18,6 s)", () => {
+  const HAUTEUR = 1920;
+  const basDesTextes = (p: Parameters<typeof disposer>[0]) => Math.max(...disposer(p).textes.filter((t) => t.nom !== "marque").map((t) => t.boite.y + t.boite.hauteur));
+  const ecransDe = (v: string) => resultatDe(v).ligne.blocs.filter((b): b is Extract<BlocRenduIV, { sorte: "ecran" }> => b.sorte === "ecran");
+  const avecFin = (b: Extract<BlocRenduIV, { sorte: "ecran" }>) => ({ ...b.ecran, finMs: b.ecran.debutMs + Math.round((b.fin - b.debut) * 1000) });
+
+  it.each(VERSIONS)("%s : aucun texte d'écran ne descend dans la bande des sous-titres ni sous la zone utile", (v) => {
+    const ecrans = ecransDe(v);
+    expect(ecrans.length).toBeGreaterThan(0);
+    for (const b of ecrans) {
+      const bas = basDesTextes(proprietesEcranIV916(avecFin(b)));
+      expect(bas, `écran ${b.ecran.id}`).toBeLessThanOrEqual(BANDE_SOUS_TITRES_IV.haut * HAUTEUR);
+      expect(bas, `écran ${b.ecran.id}`).toBeLessThanOrEqual(ZONE_UTILE_IV.bas * HAUTEUR + 1);
+    }
+  });
+
+  it.each(VERSIONS)("%s : témoin — l'ancienne zone « pleine image » du cas concret faisait descendre l'écran e06 dans la bande", (v) => {
+    const e06 = ecransDe(v).find((b) => b.ecran.id === "e06")!;
+    expect(basDesTextes(proprietesPleineImage({ ecrans: [avecFin(e06)], captures: {} })[0])).toBeGreaterThan(BANDE_SOUS_TITRES_IV.haut * HAUTEUR);
+  });
+});
+
+describe("cause H : à 22,4 s la carte n05 « Envoyée en 4 sec » a fini son tracé au feutre (APP-B posé en 0,3 s)", () => {
+  it("le tracé est entièrement posé 0,30 s après le début de l'apparition (plancher de la relecture des images)", () => {
+    expect(traceFeutre(0.3)).toEqual({ contour: 1, blanc: 1, texte: 1, feutre: 0 });
+    expect(traceFeutre(0.15).contour).toBeGreaterThan(0.5);
+  });
+  it("le calendrier garde l'ordre : contour, puis blanc, puis texte, puis le feutre s'en va", () => {
+    const F = TEMPS_APPARITION.feutre;
+    expect(F.blancDebut).toBeLessThan(F.texteDebut);
+    expect(F.blancDebut + F.blanc).toBeLessThanOrEqual(F.texteDebut + F.texte + 1e-9);
+    expect(F.sortieDebut + F.sortie).toBeLessThanOrEqual(0.3 + 1e-9);
+    expect(F.texteDebut + F.texte).toBeLessThanOrEqual(0.3 + 1e-9);
+  });
+});
+
+describe("cause I : vue d'ensemble — « Message client » (n01) n'est pas posé à côté de « Chatbot IA » (n02)", () => {
+  it.each(VERSIONS)("%s : n02 strictement sous n01 dans chaque vue d'ensemble de la vidéo", (v) => {
+    const toiles = resultatDe(v).ligne.blocs.filter((b) => b.sorte === "toile");
+    expect(toiles.length).toBeGreaterThan(0);
+    for (const b of toiles) {
+      const schema = (b as unknown as { proprietes: { schema: Parameters<typeof planEnsemble>[0] } }).proprietes.schema;
+      const plan = planEnsemble(schema);
+      const n01 = plan.blocs.find((x) => x.id === "n01");
+      const n02 = plan.blocs.find((x) => x.id === "n02");
+      if (!n01 || !n02) continue;
+      expect(n02.y).toBeGreaterThanOrEqual(n01.y + n01.hauteur - 1);
+    }
   });
 });

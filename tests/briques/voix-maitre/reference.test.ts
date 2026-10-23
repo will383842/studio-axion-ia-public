@@ -4,7 +4,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { choisirMeilleurePrise, CLES_MESURE_VOIX, comparerAReference, lecturesVoixMax, lireReglageRessemblance, mesureVoixDesMesures, REFERENCE_V4, type MesureVoix } from "@/briques/voix-maitre/reference";
+import { choisirMeilleurePrise, CLES_MESURE_VOIX, comparerAReference, lecturesVoixMax, lireReglageRessemblance, mesureVoixDesMesures, REFERENCE_ANCIENNE_VOIX_V4, REFERENCE_V4, type MesureVoix } from "@/briques/voix-maitre/reference";
 import { FREQUENCE_MESURE_VOIX, mesurerVoix, mesurerVoixFichier, mesuresVoixAPlat } from "../../../studio-rendu/src/audio/voix";
 import { nettoyerFichier } from "../../../studio-rendu/src/operations/nettoyage-audio";
 
@@ -33,10 +33,16 @@ describe("mesure d'une voix (studio-rendu)", () => {
   });
 
   // Skippé : média retiré de la version publique (voix de référence).
-  it.skip("le WAV de référence redonne les constantes de la référence à ± 3 %", async () => {
+  it.skip("le WAV de référence (extrait de l'ANCIENNE voix) redonne les constantes archivées à ± 3 %", async () => {
     const m = await mesurerVoixFichier(REF);
-    for (const k of CLES_MESURE_VOIX) expect(Math.abs(m[k] - REFERENCE_V4[k]) / REFERENCE_V4[k], k).toBeLessThanOrEqual(0.03);
-    expect(comparerAReference(m).ressemblante).toBe(true);
+    for (const k of CLES_MESURE_VOIX) expect(Math.abs(m[k] - REFERENCE_ANCIENNE_VOIX_V4[k]) / REFERENCE_ANCIENNE_VOIX_V4[k], k).toBeLessThanOrEqual(0.03);
+    expect(comparerAReference(m, REFERENCE_ANCIENNE_VOIX_V4).ressemblante).toBe(true);
+  });
+
+  it("la référence courante est la nouvelle voix (23/10/2026), l'ancienne est archivée ; tolérances inchangées", () => {
+    expect(REFERENCE_V4).toEqual({ hauteurHz: 188.23529, variationHz: 41.20256, energie: 0.09306, dynamique: 0.59929, rythmePicsParSec: 4.77686, partieParole: 0.61973 });
+    expect(REFERENCE_ANCIENNE_VOIX_V4).toEqual({ hauteurHz: 152.4, variationHz: 31.2, energie: 0.141, dynamique: 0.528, rythmePicsParSec: 5.0, partieParole: 0.77 });
+    expect(Object.isFrozen(REFERENCE_V4) && Object.isFrozen(REFERENCE_ANCIENNE_VOIX_V4)).toBe(true);
   });
 
   it.skip("opération nettoyage-audio, mode « mesure-voix » : les six mesures à plat, relues par le studio", async () => {
@@ -45,7 +51,7 @@ describe("mesure d'une voix (studio-rendu)", () => {
     expect(r.mesures.dureeSec).toBeCloseTo(5, 1);
     const m = mesureVoixDesMesures(r.mesures);
     expect(m).not.toBeNull();
-    expect(comparerAReference(m!).ressemblante).toBe(true);
+    expect(comparerAReference(m!, REFERENCE_ANCIENNE_VOIX_V4).ressemblante).toBe(true);
   });
 });
 

@@ -1,7 +1,8 @@
-import { COULEURS, POLICE_CORPS, TAILLES } from "../commun/constantes";
+import { BORDURE_CARTE, COULEURS, MARGE, OMBRE_DECALAGE, POLICE_CORPS, TAILLES } from "../commun/constantes";
 import { PageBase } from "../commun/PageBase";
+import { largeurTexteMax } from "../commun/zones";
 import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
-import { chargerPoliceJetBrainsMono } from "../polices";
+import { chargerPoliceInter } from "../polices";
 
 interface Proprietes {
   titre: string;
@@ -33,6 +34,10 @@ function Pictogramme({ range }: { range: boolean }) {
   );
 }
 
+const REMPLISSAGE = 36;
+/** Abscisse du début du texte d'un panneau : marge, bordure, remplissage. */
+const X_TEXTE = MARGE + BORDURE_CARTE + REMPLISSAGE;
+
 function Panneau({ etiquette, texte, fond, range }: { etiquette: string; texte: string; fond: string; range: boolean }) {
   return (
     <div
@@ -43,15 +48,15 @@ function Panneau({ etiquette, texte, fond, range }: { etiquette: string; texte: 
         alignItems: "center",
         justifyContent: "space-between",
         gap: 28,
-        padding: "20px 36px 60px",
+        padding: `20px ${REMPLISSAGE}px 60px`,
         borderRadius: 32,
         background: fond,
-        border: `4px solid ${COULEURS.encre}`,
+        border: `${BORDURE_CARTE}px solid ${COULEURS.encre}`,
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, maxWidth: largeurTexteMax(X_TEXTE) }}>
         <div style={{ padding: "10px 28px", borderRadius: 999, background: COULEURS.encre, color: COULEURS.creme, fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: TAILLES.badge, lineHeight: 1.25 }}>{etiquette}</div>
-        <div style={{ fontFamily: POLICE_CORPS, fontWeight: 500, fontSize: TAILLES.panneau, lineHeight: 1.3, color: COULEURS.encre }}>{texte}</div>
+        <div style={{ fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLES.panneau, lineHeight: 1.3, color: COULEURS.encre }}>{texte}</div>
       </div>
       <div style={{ flexShrink: 0, alignSelf: "center" }}>
         <Pictogramme range={range} />
@@ -62,16 +67,19 @@ function Panneau({ etiquette, texte, fond, range }: { etiquette: string; texte: 
 
 /** T08 — avant / après : deux panneaux (avant sur fond pâle, après sur l'orange) reliés par une flèche vers le bas. Étiquettes génériques posées par le code. */
 export function T08({ titre, avant, apres, index, total }: Proprietes) {
-  chargerPoliceJetBrainsMono();
+  chargerPoliceInter();
   return (
-    <PageBase titre={titre} index={index} total={total} libelle="T08">
-      <Panneau etiquette={TEXTES_FIXES.t08Avant} texte={avant} fond={COULEURS.pale} range={false} />
-      <div style={{ flex: "none", height: 84, display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <svg width={64} height={64} viewBox="0 0 64 64" role="img" aria-hidden>
-          <path d="M32 6 V54 M12 36 L32 56 L52 36" fill="none" stroke={COULEURS.encre} strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+    <PageBase titre={titre} index={index} total={total} type="T08">
+      {/* Même bord droit que les cartes des autres pages (elles réservent la marge de leur ombre). */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", paddingRight: OMBRE_DECALAGE }}>
+        <Panneau etiquette={TEXTES_FIXES.t08Avant} texte={avant} fond={COULEURS.pale} range={false} />
+        <div style={{ flex: "none", height: 84, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <svg width={64} height={64} viewBox="0 0 64 64" role="img" aria-hidden>
+            <path d="M32 6 V54 M12 36 L32 56 L52 36" fill="none" stroke={COULEURS.encre} strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <Panneau etiquette={TEXTES_FIXES.t08Apres} texte={apres} fond={COULEURS.orange} range />
       </div>
-      <Panneau etiquette={TEXTES_FIXES.t08Apres} texte={apres} fond={COULEURS.orange} range />
     </PageBase>
   );
 }

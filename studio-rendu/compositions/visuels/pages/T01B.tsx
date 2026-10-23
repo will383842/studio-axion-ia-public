@@ -1,8 +1,9 @@
 import { AbsoluteFill } from "remotion";
 import { Annotation } from "../commun/Annotation";
 import { Badge } from "../commun/Badge";
-import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE, MARGE, PAGE } from "../commun/constantes";
+import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BAS, MARGE, PAGE, TITRE_MIN_COUVERTURE } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
+import { BORD_DROIT_TEXTE_BAS } from "../commun/zones";
 import { Swipe } from "../commun/Swipe";
 import { Titre } from "../commun/Titre";
 import { COMPOSANTS_DECOR } from "../decor/formes";
@@ -28,9 +29,9 @@ export function T01B({ titre, sousTitre, deco = "E01", index, total }: Propriete
         </div>
       </div>
       <Zone libelle="T01B : texte" style={{ flex: "none", maxHeight: 760, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", gap: 34, margin: `34px 0 ${PAGE.ecart}px` }}>
-        <Titre texte={titre} maxLignes={3} hauteurMax={470} largeur={LARGEUR_TITRE} accent />
+        <Titre texte={titre} maxLignes={3} hauteurMax={470} largeur={LARGEUR_TITRE_BAS} min={TITRE_MIN_COUVERTURE} accent />
         <Annotation largeur={LARGEUR_TEXTE / 2} />
-        {sousTitre && <Badge texte={sousTitre} />}
+        {sousTitre && <Badge texte={sousTitre} largeurMax={BORD_DROIT_TEXTE_BAS - MARGE} />}
       </Zone>
       <div style={{ height: PAGE.hauteurPied }}>
         <Swipe index={index} total={total} />

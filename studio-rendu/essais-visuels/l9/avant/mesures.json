@@ -1,0 +1,74 @@
+{
+  "t22-avant": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 44,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.193,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 109899
+  },
+  "t23-avant": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 41,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.518,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 134640
+  },
+  "t24-avant": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 44,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.195,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 108117
+  },
+  "t26-avant": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 44,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.14,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 104749
+  },
+  "t27-avant": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 47,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.45,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 135415
+  },
+  "t28-avant": {
+    "debordements": 0,
+    "taillePoliceMin": 26,
+    "textes": 58,
+    "textesEnZone": 0,
+    "chevauchements": 0,
+    "vide": 0.216,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "scale": 1,
+    "octets": 115153
+  }
+}

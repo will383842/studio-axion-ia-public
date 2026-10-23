@@ -51,3 +51,11 @@ describe("charte-carrousel/1 : contrastes WCAG", () => {
     expect(texteLisible(orange, encre, 30)).toBe(true); // et même en petit : 5,4:1
   });
 });
+
+describe("charte-carrousel/1 : blanc des cartes (L1)", () => {
+  it("l'encre est lisible en petit sur le blanc chaud des cartes impaires", () => {
+    const { encre, blanc } = CHARTE_CARROUSEL.couleurs;
+    expect(texteLisible(encre, blanc, 26)).toBe(true);
+    expect(contrasteWcag(encre, blanc)).toBeGreaterThan(17.4);
+  });
+});

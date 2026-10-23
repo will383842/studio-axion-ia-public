@@ -29,7 +29,7 @@ describe("consigne de session", () => {
 
   it("écrit les budgets par élément du registre (cartes, points, panneaux, citation, étapes)", () => {
     const budgets = (t: string) => consigne.split("\n").find((l) => l.startsWith(`| ${t} |`))?.split("|")[3]?.trim() ?? "";
-    // budgets réels (titre / corps) : « 2 cartes 48 / 240, 3 cartes 48 / 80 … 5 ou 6 cartes 17 / 36 »
+    // budgets réels (titre / corps) : « 2 cartes 48 / 130, 3 cartes 44 / 64 … 5 ou 6 cartes 12 / 20 »
     const attenduCartes = [2, 3, 4, 5].map((n) => {
       const c = capaciteCarte(n);
       return `${n === 5 ? "5 ou 6" : n} cartes ${c.titre} / ${c.corps}`;

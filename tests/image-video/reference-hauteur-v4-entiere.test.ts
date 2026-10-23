@@ -1,7 +1,7 @@
 /**
  * IMAGE → VIDÉO : référence de la voix. 20/10/2026 : hauteur 158,4 Hz (la v4 entière). 23/10/2026 (Will : « cette voix me
  * convient ») : recalibrée sur la nouvelle voix HeyGen (188,2 Hz, voir reference-nouvelle-voix.test.ts). Tolérance (8 %)
- * inchangée. Avocat, tableau et cas concret gardent 152,4 Hz (`REFERENCE_V4`). Doubles seulement : aucun appel payant.
+ * inchangée. Avocat, tableau et cas concret utilisent `REFERENCE_V4` (nouvelle voix, 188,2 Hz, depuis le 23/10/2026). Doubles seulement : aucun appel payant.
  */
 import { describe, expect, it } from "vitest";
 import { REGLES_NETTOYAGE_PAR_DEFAUT } from "@/briques/voix-maitre";
@@ -16,7 +16,7 @@ import type { PriseVoix } from "@/moteurs/montage-image-video/emprunts";
 
 const MOTS: MotHorodate[] = [{ mot: "Bonjour", debutSec: 0.1, finSec: 0.6 }];
 const aPlat = (m: MesureVoix) => Object.fromEntries(Object.entries(m).map(([k, v]) => [`voix.${k}`, v]));
-/** Mesure dont seule la hauteur diffère de la v4 : `rel` = écart relatif CONTRE 152,4 Hz. */
+/** Mesure dont seule la hauteur diffère de la v4 : `rel` = écart relatif CONTRE REFERENCE_V4. */
 const aHauteur = (rel: number): MesureVoix => ({ ...REFERENCE_V4, hauteurHz: REFERENCE_V4.hauteurHz * (1 + rel) });
 /** Mesure dont seule la hauteur diffère de la référence Image → vidéo : `rel` = écart relatif CONTRE REFERENCE_V4_IV. */
 const aHauteurIV = (rel: number): MesureVoix => ({ ...REFERENCE_V4_IV, hauteurHz: REFERENCE_V4_IV.hauteurHz * (1 + rel) });
@@ -76,13 +76,13 @@ async function verdict(mesure: MesureVoix, reference?: Readonly<MesureVoix>) {
 }
 
 describe("référence Image → vidéo : nouvelle voix (188,2 Hz)", () => {
-  it("la constante : la v4 par défaut reste à 152,4, Image → vidéo est recalibrée", () => {
-    expect(REFERENCE_V4.hauteurHz).toBe(152.4);
+  it("la constante : la référence par défaut est la nouvelle voix (23/10/2026), Image → vidéo a la sienne", () => {
+    expect(REFERENCE_V4.hauteurHz).toBe(188.23529);
     expect(REFERENCE_V4_IV.hauteurHz).toBe(188.2);
     expect(TOLERANCES_VOIX.hauteurHz).toBe(0.08);
   });
 
-  it("(a) par défaut (avocat, tableau, cas concret) : jugé contre 152,4 comme avant", async () => {
+  it("(a) par défaut (avocat, tableau, cas concret) : jugé contre REFERENCE_V4 (nouvelle voix, mêmes tolérances)", async () => {
     const a = await verdict(aHauteur(0.082));
     expect(a.ressemblante).toBe(false);
     expect(a.ecarts[0]).toMatch(/^hauteur \+8 %/);

@@ -1,15 +1,15 @@
-import { CAPACITE_CITATION, CAPACITE_PANNEAU, capaciteCarte, capaciteMotCarte, capaciteEtape, capaciteListe, PAGES, type TypePage } from "../../src/briques/visuels/registre-pages.js";
+import { CAPACITE_ANNOTATION, CAPACITE_CAS, CAPACITE_CHECKLIST, CAPACITE_CITATION, CAPACITE_COMPARAISON, CAPACITE_MYTHE, CAPACITE_NOEUD, CAPACITE_PANNEAU, capaciteCarte, capaciteMotCarte, capaciteEtape, capaciteListe, capaciteQuestion, PAGES, type TypePage } from "../../src/briques/visuels/registre-pages.js";
 import { LIMITES } from "../../src/briques/visuels/limites.js";
 
 /**
  * Contenu FIGÉ et INVENTÉ de l'essai VisuelPage (M1-04) : thème neutre, aucun chiffre, aucune marque, aucun fait réel.
- * Page 0 : couverture T01 (variante A) ; page 1 : page dense T02 (six cartes).
+ * Page 0 : couverture T01 (variante A) ; page 1 : page dense T02 (quatre cartes).
  */
 export const CONTENU_ESSAI = {
   version: "carrousel/1",
-  alt: "Carrousel d'essai : six tâches du quotidien d'un bureau, une couverture puis une page de six cartes",
+  alt: "Carrousel d'essai : quatre tâches du quotidien d'un bureau, une couverture puis une page de quatre cartes",
   pages: [
-    { type: "T01", titre: "Six tâches qui rythment un bureau", sousTitre: "Le quotidien, sans fard" },
+    { type: "T01", titre: "Quatre tâches qui rythment un bureau", sousTitre: "Le quotidien, sans fard" },
     {
       type: "T02",
       titre: "Le quotidien d'un bureau",
@@ -18,15 +18,13 @@ export const CONTENU_ESSAI = {
         { titre: "Tenir l'agenda", corps: "Un rendez-vous en déplace trois.", mini: "W02" },
         { titre: "Rédiger un bilan", corps: "Écrit tant que c'est frais.", mini: "W03" },
         { titre: "Ranger dossiers", corps: "Plus rien ne se perd.", mini: "W06" },
-        { titre: "Prendre appels", corps: "Décrocher, noter, rappeler.", mini: "W07" },
-        { titre: "Passer commande", corps: "Les stylos manquent le lundi.", mini: "W25" },
       ],
     },
   ],
 } as const;
 
 /**
- * Contenu FIGÉ et INVENTÉ du PDF d'essai (M2-02/M2-04) : 9 pages (une couverture T01, huit pages denses T02 de six cartes).
+ * Contenu FIGÉ et INVENTÉ du PDF d'essai (M2-02/M2-04) : 9 pages (une couverture T01, huit pages denses T02 de quatre cartes (la page de six cartes ne porte que 12 / 20 signes : elle n'est plus le cas d'essai)).
  * Même thème neutre que ci-dessus : aucun chiffre, aucune marque, aucune adresse, aucun visage.
  */
 const THEMES_PDF = [
@@ -42,13 +40,13 @@ const THEMES_PDF = [
 
 export const CONTENU_ESSAI_PDF = {
   version: "carrousel/1",
-  alt: "Carrousel d'essai : une journée de bureau racontée en huit pages de six cartes, après une couverture",
+  alt: "Carrousel d'essai : une journée de bureau racontée en huit pages de quatre cartes, après une couverture",
   pages: [
-    { type: "T01", titre: "Une journée de bureau, sans fard", sousTitre: "Huit moments, six gestes chacun" },
+    { type: "T01", titre: "Une journée de bureau, sans fard", sousTitre: "Huit moments, quatre gestes chacun" },
     ...THEMES_PDF.map(([titre, cartes]) => ({
       type: "T02" as const,
       titre,
-      cartes: cartes.map(([t, corps, mini]) => ({ titre: t, corps, mini })),
+      cartes: cartes.slice(0, 4).map(([t, corps, mini]) => ({ titre: t, corps, mini })),
     })),
   ],
 };
@@ -236,8 +234,29 @@ export function casMax(type: TypePage, texte: FabriqueTexte = texteInvente): Cas
       });
     case "T21":
       return [{ nom: "page sans champ", page: { type } }];
+    case "T22":
+      return [{ nom: "mythe et réalité au maximum", page: { type, titre, mythe: texte(CAPACITE_MYTHE.mythe), realite: texte(CAPACITE_MYTHE.realite, 4) } }];
+    case "T23":
+      return nombres(min, max).map((n) => {
+        const c = capaciteQuestion(n);
+        return { nom: `${n} questions au maximum`, page: { type, titre, questions: Array.from({ length: n }, (_, i) => ({ question: texte(c.question, i), aide: texte(c.aide, i + 3), icone: ICONES_ESSAI[i] })), annotation: texte(CAPACITE_ANNOTATION, 2) } };
+      });
+    case "T24":
+      return nombres(min, max).map((n) => ({ nom: `${n} lignes au maximum`, page: { type, titre, lignes: Array.from({ length: n }, (_, i) => ({ sans: texte(CAPACITE_COMPARAISON.case, i), avec: texte(CAPACITE_COMPARAISON.case, i + 4) })) } }));
+    case "T26":
+      return [
+        { nom: "cas au maximum, avec outils", page: { type, titre, avant: [texte(CAPACITE_CAS.ligne), texte(CAPACITE_CAS.ligne, 2)], avec: [texte(CAPACITE_CAS.ligne, 4), texte(CAPACITE_CAS.ligne, 6)], outils: Array.from({ length: CAPACITE_CAS.outilsMax }, (_, i) => texte(CAPACITE_CAS.outil, i, 12)), vous: texte(CAPACITE_CAS.vous, 1) } },
+        { nom: "cas au maximum, sans outil", page: { type, titre, avant: [texte(CAPACITE_CAS.ligne), texte(CAPACITE_CAS.ligne, 2)], avec: [texte(CAPACITE_CAS.ligne, 4), texte(CAPACITE_CAS.ligne, 6)], vous: texte(CAPACITE_CAS.vous, 1) } },
+      ];
+    case "T27":
+      return nombres(min, max).map((n) => ({ nom: `${n} lignes au maximum`, page: { type, titre, lignes: Array.from({ length: n }, (_, i) => ({ texte: texte(CAPACITE_CHECKLIST.ligne, i) })) } }));
+    case "T28":
+      return nombres(min, max).map((n) => ({ nom: `${n} nœuds au maximum`, page: { type, titre, noeuds: Array.from({ length: n }, (_, i) => ({ texte: texte(CAPACITE_NOEUD.texte, i), icone: ICONES_ESSAI[i] })) } }));
   }
 }
+
+/** Icônes de la banque employées par les essais (T23, T28). */
+export const ICONES_ESSAI = ["horloge", "dossier", "bulle", "cible", "engrenage"] as const;
 
 /** Contenus MINIMAUX du schéma pour ce type : le plus petit nombre d'éléments, textes de `MIN_TITRE` / `MIN_TEXTE` signes, éléments facultatifs absents. */
 export function casMin(type: TypePage): CasPage[] {
@@ -260,6 +279,18 @@ export function casMin(type: TypePage): CasPage[] {
       return [{ nom: `${n} étapes courtes`, page: { type, titre, etapes: Array.from({ length: n }, (_, i) => ({ titre: texteInvente(MIN_TITRE, i), corps: texteInvente(MIN_TEXTE, i + 3) })) } }];
     case "T21":
       return [{ nom: "page sans champ", page: { type } }];
+    case "T22":
+      return [{ nom: "mythe et réalité courts", page: { type, titre, mythe: texteInvente(MIN_TEXTE), realite: texteInvente(MIN_TEXTE, 4) } }];
+    case "T23":
+      return [{ nom: `${n} questions courtes`, page: { type, titre, questions: Array.from({ length: n }, (_, i) => ({ question: texteInvente(MIN_TEXTE, i), aide: texteInvente(MIN_TEXTE, i + 3) })), annotation: texteInvente(MIN_TITRE) } }];
+    case "T24":
+      return [{ nom: `${n} lignes courtes`, page: { type, titre, lignes: Array.from({ length: n }, (_, i) => ({ sans: texteInvente(MIN_TITRE, i), avec: texteInvente(MIN_TITRE, i + 4) })) } }];
+    case "T26":
+      return [{ nom: "cas court, sans outil", page: { type, titre, avant: [texteInvente(MIN_TITRE), texteInvente(MIN_TITRE, 2)], avec: [texteInvente(MIN_TITRE, 4), texteInvente(MIN_TITRE, 6)], vous: texteInvente(MIN_TITRE, 1) } }];
+    case "T27":
+      return [{ nom: `${n} lignes courtes`, page: { type, titre, lignes: Array.from({ length: n }, (_, i) => ({ texte: texteInvente(MIN_TEXTE, i) })) } }];
+    case "T28":
+      return [{ nom: `${n} nœuds courts`, page: { type, titre, noeuds: Array.from({ length: n }, (_, i) => ({ texte: texteInvente(MIN_TITRE - 4, i) })) } }];
   }
 }
 

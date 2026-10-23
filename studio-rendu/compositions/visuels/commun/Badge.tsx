@@ -1,15 +1,15 @@
-import { chargerPoliceJetBrainsMono } from "../polices";
+import { chargerPoliceInter } from "../polices";
 import { COULEURS, POLICE_CORPS, TAILLES } from "./constantes";
 
 /** Pastille de texte (encre sur crème) : le texte vient du spec. */
-export function Badge({ texte }: { texte: string }) {
-  chargerPoliceJetBrainsMono();
+export function Badge({ texte, largeurMax }: { texte: string; largeurMax?: number }) {
+  chargerPoliceInter();
   return (
     <div
       style={{
         display: "inline-block",
         alignSelf: "flex-start",
-        maxWidth: "100%",
+        maxWidth: largeurMax ?? "100%",
         padding: "14px 30px",
         borderRadius: 999,
         background: COULEURS.encre,

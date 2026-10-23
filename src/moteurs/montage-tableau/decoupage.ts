@@ -65,11 +65,11 @@ import { styleTableauDe } from "@/briques/tableau-scene/trois-styles/styles";
 import { reparerFormes } from "./formes";
 import { BORNES_BLOC_3, BORNES_GABARIT_3, CONSEIL_GABARIT_3 } from "./gabarit-3";
 import { IDS_VISUELS_3 } from "@/briques/tableau-scene/reference/visuels-3";
-import { numerosDits, type RolePage } from "./gabarit";
-import { reparerDensite } from "./densite";
+import { estPageEcriteCrayon, numerosDits, type RolePage } from "./gabarit";
+import { diagnosticPageDePlus, pageTropChargee, reparerDensite, type OptionsDensite, type RetraitAllegement } from "./densite";
 import { ECART_VISE_MS, reparerRythme, type ReglagesRythme } from "./rythme";
 import { CARACTERES_DITS_MAX_TABLEAU, caracteresEn } from "@/domaine/duree-tableau";
-import { cleSimple, ACCROCHE_MOTS_MAX, CARACTERES_PAR_SECONDE, DUREE_MAX_MS, ECART_EVENEMENT_MAX_MS, PAGE_LIGNES_MAX, PAGE_MOTS_MAX, type ContexteTableau } from "./regles";
+import { cleSimple, REGLES_TABLEAU, ACCROCHE_MOTS_MAX, CARACTERES_PAR_SECONDE, DUREE_MAX_MS, ECART_EVENEMENT_MAX_MS, PAGE_LIGNES_MAX, PAGE_MOTS_MAX, type ContexteTableau } from "./regles";
 
 /* ------------------------------------------------------------------ */
 /* Réglages                                                              */
@@ -230,7 +230,8 @@ export interface OutilsDecoupage {
 export type MotifEchec = "refusee" | "tronquee" | "illisible" | "budget" | "appel" | "simulation";
 
 export type ResultatDecoupage =
-  | { ok: true; fiche: FicheTableau; appels: number; relance: boolean }
+  /** `retraits` : ce que l'allègement de dernier recours a retiré de la fiche (page trop chargée), s'il y en a eu. */
+  | { ok: true; fiche: FicheTableau; appels: number; relance: boolean; retraits?: RetraitAllegement[] }
   /** `aCorriger` : la dernière fiche LISIBLE refusée par les règles (champs fixes remis à leur valeur), à garder. */
   | { ok: false; motif: MotifEchec; message: string; refus: string[]; appels: number; aCorriger?: FicheTableau };
 
@@ -320,6 +321,7 @@ GABARIT PAR PARTIES (habillage "${STYLE_REFERENCE_3}", le style des NOUVELLES fi
 - LE SCRIPT SUIT SIX PASSAGES (gabarit cadré du 15/10 : une idée, un gain, une preuve). TU CLASSES CHAQUE PHRASE dans sa partie (si <parties> est donné, suis-le ; sinon classe toi-même) : « accroche » (page 1 SEULE : la situation, dite dès le premier mot), « douleur » (la scène vécue et son coût), « solution » (la promesse et sa boucle ouverte, puis UNE page par constat « ce qui change » : 2 à 3 constats, autant que le script en dit), « exemple » (la promesse tenue : avant / maintenant), « retenir » (l'IDÉE, en UNE phrase : 2 à 4 secondes), « appel » (la DERNIÈRE page : la phrase sur l'entreprise et la demande) ;
 - ACCROCHE : la phrase de la douleur en « bloc » « phrase-cle », au mot 0, ${BORNES_GABARIT_3.accrocheMots} mots au plus, « marque » « entoure » et « importants » : les 2 à 4 mots de la douleur (<mots_douleur>) tels qu'écrits dans la ligne — elle est écrite EN TRÈS GRAND DÈS LA PREMIÈRE IMAGE (elle sert de miniature) et ces mots sont entourés quand la voix les dit ; la phrase suivante en « detail » ;
 - 3 BLOCS AU PLUS PAR PAGE, dans l'ordre de lecture : TITRE (« bloc » « titre », 1 à ${BORNES_GABARIT_3.titreMots} mots ; obligatoire sur une étape : 1 à 3 mots-clés du constat (« Trois lignes »)), PHRASE CLÉ (« phrase-cle », ${BORNES_GABARIT_3.phraseMots} mots au plus, reprise du texte dit), puis UN détail (« detail », ${CONSEIL_GABARIT_3.detailMots} mots conseillés, ${BORNES_GABARIT_3.detailMots} au plus) OU UN VISUEL. Le DÉTAIL écrit des MOTS-CLÉS repris du texte dit (2 à 5 mots par ligne), jamais la phrase dite recopiée : le sous-titre la montre déjà ; il garde les chiffres dits (« Trois lignes », jamais « Lignes ») ; seules la PHRASE CLÉ, l'accroche et « À retenir » restent des phrases. Une liste compte pour UN bloc. Plus de 3 blocs : la scène suivante va sur une page de plus ;
+- PLACE : la page est dessinée dans le style donné par <style_tableau> et s'arrête au-dessus de la bande des sous-titres. Aux styles « tableau-blanc » (titres en capitales au feutre) et « paperboard » (écriture plus grande) : une scène dit 3 phrases au plus (une page qui en dit plus est faite de deux scènes ou plus ; la dernière peut alors passer seule à une page de plus), et une page porte UN détail OU UN VISUEL, jamais les deux (le dessin à côté de l'étiquette n'est pas un visuel), avec un détail de 5 mots au plus (sauf l'accroche et la page d'appel). Au style « ardoise », rien de tout cela ne change ;
 - MONTRE LA SOLUTION, ne l'écris pas seulement. Visuels (un par page) : liste à pastilles de couleur = des lignes « bloc » « code » avec « code » « vert » / « orange » / « rouge » (2 à ${BORNES_GABARIT_3.listeMax} éléments, ${CONSEIL_GABARIT_3.itemMots} mots conseillés : « Vert : on colle. ») ; liste cochée = des lignes « bloc » « coche » (chaque élément ancré au mot où il est dit, il se coche au fil de la voix : « Devis », « Contrats ») ; transformation = une ligne « bloc » « transformation » écrite « avant → après » (1 ou 2 par page, ${BORNES_GABARIT_3.coteMots} mots au plus de chaque côté : « M. Dupont → Client A », « Le montant → X »), ancrée au mot où la voix commence à la dire ; exemple = « avant » et « apres » (${CONSEIL_GABARIT_3.comparaisonMots} mots conseillés) ;
 - BARRER : seulement une IDÉE REÇUE, en « bloc » « idee-recue » (page « douleur », ${BORNES_GABARIT_3.ideeMots} mots au plus) : elle est étiquetée « Idée reçue » et barrée quand la voix a fini de la dire. Aucune autre ligne barrée (ni « marque » « barre », ni geste « barrer ») ;
 - « À RETENIR » : L'IDÉE en UNE phrase clé (« bloc » « phrase-cle », ${BORNES_GABARIT_3.phraseMots} mots au plus, reprise du texte dit), écrite en grand ; pas de liste des étapes, pas de titre ;
@@ -331,12 +333,13 @@ GABARIT PAR PARTIES (habillage "${STYLE_REFERENCE_3}", le style des NOUVELLES fi
 - le texte écrit raccourcit le texte dit, JAMAIS ne le contredit (aucun nombre écrit qui ne soit dit) ; 12 pages au plus ;
 - VISUELS DESSINÉS (facultatif, un par page AU PLUS, aucune page obligée) : « gabarit » { …, "visuel": { "id", "chiffre"?, "libelle"?, "gauche"?, "droite"?, "ancre"? } } sur la scène dont l'idée se dessine, pris dans la banque fermée : ${liste(IDS_VISUELS_3)}. Choisis-le selon l'IDÉE de la page : un chiffre qui frappe → « chiffre-entoure » (avec « chiffre ») ; un gain mesuré → « barres-avant-apres » ; du temps gagné, un délai → « chrono » ; une date, « chaque lundi » → « calendrier » ; un e-mail, une relance, un message automatique → « email-envoye » ; des données retirées, ce qu'on ne colle pas → « document-barre » ; des étapes, une check-list → « liste-cochee » ; une transformation (nom → lettre, avant → après) → « schema-a-b » (« gauche » : « personne » ou un mot court, « droite » : le mot d'après) ; trier → « entonnoir » ; comparer deux options → « balance » ; un objectif, le bon client → « cible » ; un client qui écrit, une alerte → « telephone-notification » ; la sécurité, des données protégées → « bouclier-coche » ; une croissance → « graphique-monte » ; ChatGPT, une consigne, une question → « fenetre-discussion » ; l'équipe à former → « equipe ». « chiffre » et « libelle » : des mots DITS, courts ; pas de visuel sur la page d'appel ; le visuel remplace le dessin de la page (pas de « dessin » en plus) ; « ancre » : le mot où il se dessine (absent : après les lignes de la scène) ;
 - BLOC ORANGE (facultatif, UN par page au plus, jamais sur la page d'appel) : « gabarit » { …, "bloc": { "texte", "compteur"?: { "de", "a" }, "ancre"? } } — le mot-clé de la page en ${BORNES_BLOC_3.motsMax} mots au plus, repris du texte dit, mis dans un bloc orange plein ; « compteur » : un chiffre qui défile (de 0 à 3 quand la voix dit « trois données de trop ») ; il compte pour un des 3 blocs de la page ; « ancre » : le mot où il apparaît. Un chiffre écrit (compteur, « chiffre » d'un visuel) suit la règle des chiffres : la voix le dit, et un élément « chiffre » de la scène le source (il est montré par le visuel ou le bloc, pas écrit deux fois) ;
-EXEMPLE (forme exacte attendue, extraits du témoin v5 (18/10), 10 pages : l'accroche, une page « douleur », la promesse, deux constats « ce qui change », « À retenir », l'appel) →
+EXEMPLE (forme exacte attendue, d'après le témoin v5 (18/10), 10 pages : l'accroche, une page « douleur », la promesse, deux constats « ce qui change », « À retenir », l'appel) →
 {"id":"s01","role":"accroche","page":1,"texteDit":"Le seul qui connaît ce dossier client est en congé.","gabarit":{"role":"accroche"},"elements":[{"id":"e01","type":"ligne","texte":"Le seul qui connaît ce dossier client est en congé.","niveau":"texte","role":"regle","bloc":"phrase-cle","ancre":0,"marque":"entoure","importants":["dossier client","en congé"]}]}
-{"id":"s02","role":"douleur","page":2,"texteDit":"Un client appelle. On fouille la boîte mail du collègue. Puis on l'appelle en congé. Le client s'en aperçoit. Chez vous, qui reprendrait ce dossier ?","gabarit":{"role":"douleur"},"elements":[{"id":"e03","type":"ligne","texte":"Un client appelle","niveau":"titre","role":"regle","bloc":"titre","ancre":0},{"id":"e04","type":"ligne","texte":"On fouille la boîte mail du collègue.","niveau":"texte","role":"alerte","bloc":"phrase-cle","ancre":3},{"id":"e05","type":"ligne","texte":"On appelle le collègue en congé","niveau":"texte","role":"alerte","bloc":"detail","ancre":10},{"id":"e06","type":"dessin","dessinId":"dossier","cote":"droite","ancre":7}]}
-{"id":"s04","role":"etape","page":4,"texteDit":"Un dossier peut se reprendre en lisant trois lignes. Reste à savoir qui les écrit.","gabarit":{"role":"solution","visuel":{"id":"liste-cochee"}},"elements":[{"id":"e12","type":"ligne","texte":"Un dossier se reprend en lisant trois lignes.","niveau":"texte","role":"regle","bloc":"phrase-cle","ancre":0},{"id":"e14","type":"ligne","texte":"Qui les écrit ?","niveau":"texte","role":"regle","bloc":"detail","ancre":9}]}
+{"id":"s02","role":"douleur","page":2,"texteDit":"Un client appelle. On fouille la boîte mail du collègue.","gabarit":{"role":"douleur"},"elements":[{"id":"e03","type":"ligne","texte":"Un client appelle","niveau":"titre","role":"regle","bloc":"titre","ancre":0},{"id":"e04","type":"ligne","texte":"On fouille la boîte mail du collègue.","niveau":"texte","role":"alerte","bloc":"phrase-cle","ancre":3},{"id":"e06","type":"dessin","dessinId":"dossier","cote":"droite","ancre":7}]}
+{"id":"s03","role":"douleur","page":2,"texteDit":"Puis on l'appelle en congé. Le client s'en aperçoit. Chez vous, qui reprendrait ce dossier ?","gabarit":{"role":"douleur"},"elements":[{"id":"e05","type":"ligne","texte":"On appelle le collègue","niveau":"texte","role":"alerte","bloc":"detail","ancre":0}]}
+{"id":"s04","role":"etape","page":4,"texteDit":"Un dossier peut se reprendre en lisant trois lignes. Reste à savoir qui les écrit.","gabarit":{"role":"solution","visuel":{"id":"liste-cochee"}},"elements":[{"id":"e12","type":"ligne","texte":"Un dossier se reprend en lisant trois lignes.","niveau":"texte","role":"regle","bloc":"phrase-cle","ancre":0}]}
 {"id":"s05","role":"etape","page":5,"texteDit":"Une automatisation écrit trois lignes dans la fiche. Elles disent où en est le dossier, et la suite.","gabarit":{"role":"solution"},"elements":[{"id":"e15","type":"ligne","texte":"Trois lignes","niveau":"titre","role":"regle","bloc":"titre","ancre":0},{"id":"e16","type":"ligne","texte":"Une automatisation écrit trois lignes dans la fiche.","niveau":"texte","role":"regle","bloc":"phrase-cle","ancre":0},{"id":"e17","type":"ligne","texte":"Où en est le dossier","niveau":"texte","role":"regle","bloc":"coche","ancre":10},{"id":"e18","type":"ligne","texte":"La suite","niveau":"texte","role":"regle","bloc":"coche","ancre":16}]}
-{"id":"s06","role":"etape","page":6,"texteDit":"Le collègue n'est plus dérangé en congé. On ne fouille plus l'historique de ses mails.","gabarit":{"role":"solution"},"elements":[{"id":"e21","type":"ligne","texte":"Plus dérangé","niveau":"titre","role":"regle","bloc":"titre","ancre":0},{"id":"e22","type":"ligne","texte":"Le collègue n'est plus dérangé en congé.","niveau":"texte","role":"regle","bloc":"phrase-cle","ancre":0},{"id":"e23","type":"ligne","texte":"Plus de fouille dans ses mails","niveau":"texte","role":"regle","bloc":"detail","ancre":9}]}
+{"id":"s06","role":"etape","page":6,"texteDit":"Le collègue n'est plus dérangé en congé. On ne fouille plus l'historique de ses mails.","gabarit":{"role":"solution"},"elements":[{"id":"e21","type":"ligne","texte":"Plus dérangé","niveau":"titre","role":"regle","bloc":"titre","ancre":0},{"id":"e22","type":"ligne","texte":"Le collègue n'est plus dérangé en congé.","niveau":"texte","role":"regle","bloc":"phrase-cle","ancre":0},{"id":"e23","type":"ligne","texte":"Fouille dans ses mails","niveau":"texte","role":"regle","bloc":"detail","ancre":9}]}
 {"id":"s10","role":"resultat","page":9,"texteDit":"Une fiche tenue à jour remplace l'appel au collègue absent.","gabarit":{"role":"retenir"},"elements":[{"id":"e42","type":"ligne","texte":"Une fiche tenue à jour remplace l'appel au collègue absent.","niveau":"texte","role":"regle","bloc":"phrase-cle","ancre":0}]}
 {"id":"s11","role":"fin","page":10,"texteDit":"Axion-IA met cette fiche en place pour vous. Réservez un appel de diagnostic.","gabarit":{"role":"appel"},"elements":[{"id":"e43","type":"ligne","texte":"Axion-IA met cette fiche en place pour vous.","niveau":"texte","role":"regle","bloc":"detail","ancre":0},{"id":"e44","type":"ligne","texte":"Réservez un appel de diagnostic","niveau":"titre","role":"regle","bloc":"appel","ancre":8}]}
 À ne pas faire : une étiquette ou un titre « Le problème » ; une page de 4 blocs ; une solution écrite en phrases noires sans visuel quand elle se montre (liste cochée, avant → après) ; une ligne barrée qui n'est pas une idée reçue ; « À retenir » en liste de verbes ; un texte écrit ajouté pour remplir une page ; un appel écrit petit au bas d'une page ; deux visuels ou deux blocs orange sur une page ; un visuel hors de la banque ; un chiffre écrit dans un visuel ou un bloc sans être dit ni sourcé.`;
@@ -395,7 +398,9 @@ export const roleDecoupageTableau = {
   //   l'exemple de la consigne est un constat à l'indicatif (« À chaque message, une réponse type se prépare. »), plus un
   //   tutoriel numéroté à l'impératif (« Un. Relisez… »).
   // 20 (19/10) : relecture Opus B2a, exemple du gabarit par parties réécrit d'après le témoin v5.
-  version: 20,
+  // 21 (23/10) : style du tableau de la série donné ; scènes de 3 phrases au plus ; détail OU visuel aux styles tableau-blanc et
+  //   paperboard (refus page lisible du 23/10, série Automatisations).
+  version: 21,
   consigne: CONSIGNE_DECOUPAGE,
   modele: MODELE_ECRITURE,
   effort: "medium",
@@ -414,6 +419,7 @@ export function variableDecoupage(e: EntreeDecoupage): string {
     `<fiche_fixe>\n${JSON.stringify({ videoId: e.videoId, versionId: e.versionId, habillage: habillageDe(e), stylo: e.stylo, ratio: e.ratio })}\n</fiche_fixe>`,
     `<structure>\n${e.structure} · ${d.nom} · déroulé : ${d.deroule.join(" → ")} · rôles attendus : ${d.roles.join(", ")} · preuve à l'écran : ${d.preuveEcran}\n</structure>`,
     `<serie>\n${JSON.stringify(e.serie)}\n</serie>`,
+    ...(habillageDe(e) === STYLE_REFERENCE_3 ? [`<style_tableau>\n${styleTableauDe({ serie: e.serie })}\n</style_tableau>`] : []),
     `<douleur>\n${e.douleur}\n</douleur>`,
     ...(e.controle.motsDouleur?.length ? [`<mots_douleur>\n${e.controle.motsDouleur.join(", ")}\n</mots_douleur>`] : []),
     ...(e.controle.motsInterdits?.length ? [`<mots_interdits>\n${e.controle.motsInterdits.join(", ")}\n</mots_interdits>`] : []),
@@ -429,7 +435,7 @@ export function variableDecoupage(e: EntreeDecoupage): string {
 
 /** Variable de la relance : la même, plus la réponse précédente et ses refus exacts. */
 export function variableRelance(variable: string, reponsePrecedente: string, refus: readonly string[]): string {
-  return `${variable}\n<reponse_precedente>\n${reponsePrecedente}\n</reponse_precedente>\n<refus_fiche_precedente>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus_fiche_precedente>\nTa fiche précédente a été refusée pour ces raisons. Rends la fiche COMPLÈTE corrigée, en JSON seul. Le texte dit reste le script validé mot pour mot : ne le change jamais pour corriger un autre refus.`;
+  return `${variable}\n<reponse_precedente>\n${reponsePrecedente}\n</reponse_precedente>\n<refus_fiche_precedente>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus_fiche_precedente>\nTa fiche précédente a été refusée pour ces raisons. Rends la fiche COMPLÈTE corrigée, en JSON seul. Le texte dit reste le script validé mot pour mot : ne le change jamais pour corriger un autre refus. Les numéros de scènes et de pages des refus sont ceux de ta fiche APRÈS la réparation automatique (scènes coupées, pages décalées) : retrouve chaque scène par son texte dit (premiers mots ou lignes citées).`;
 }
 
 /** Coût PIRE d'un appel (entrée estimée au pire + sortie maximale), en dollars. */
@@ -564,8 +570,8 @@ export function normaliserEcrans(brute: unknown): unknown {
  * rythme (qui répartit les ancres bornées). Lue au découpage et à l'enregistrement d'une
  * correction à la main. Pure ; ne lève jamais ; une fiche qui n'a rien à réparer garde son contenu.
  */
-export function remettreEnForme<T>(brute: T, reglages: ReglagesRythme = {}): T {
-  return reparerRythme(reparerDensite(reparerFormes(normaliserEcrans(brute))), reglages) as T;
+export function remettreEnForme<T>(brute: T, reglages: ReglagesRythme = {}, densite: OptionsDensite = {}): T {
+  return reparerRythme(reparerDensite(reparerFormes(normaliserEcrans(brute)), densite), reglages) as T;
 }
 
 /** Contrôles propres au découpage, en plus de la validation : champs fixes recopiés, dessins et preuves FOURNIS. */
@@ -624,14 +630,14 @@ export function ficheLisible(brute: unknown): brute is FicheTableau {
 
 /** La fiche lisible refusée, gardée « à corriger » : les champs FIXES remis à leur valeur, le reste tel que rendu. */
 export function ficheACorriger(rendue: FicheTableau, e: EntreeDecoupage): FicheTableau {
-  return avecStyleTableau({ ...(remettreEnForme(appliquerParties(rendue, e.parties), { debit: e.controle.caracteresParSeconde, motsDouleur: e.controle.motsDouleur }) as FicheTableau), version: "fiche-scenes/1", formatId: FORMAT_TABLEAU, videoId: e.videoId, versionId: e.versionId, habillage: habillageDe(e), stylo: e.stylo, ratio: e.ratio, structure: e.structure, serie: { ...e.serie }, douleur: e.douleur, gesteMinute: e.gesteMinute, appelId: null } as FicheTableau);
+  return avecStyleTableau({ ...(remettreEnForme(avecStyleDeLaSerie(appliquerParties(rendue, e.parties), e), { debit: e.controle.caracteresParSeconde, motsDouleur: e.controle.motsDouleur }) as FicheTableau), version: "fiche-scenes/1", formatId: FORMAT_TABLEAU, videoId: e.videoId, versionId: e.versionId, habillage: habillageDe(e), stylo: e.stylo, ratio: e.ratio, structure: e.structure, serie: { ...e.serie }, douleur: e.douleur, gesteMinute: e.gesteMinute, appelId: null } as FicheTableau);
 }
 
 /**
  * « reference/3 » : le style du tableau de la série est posé pour la VALIDATION (la page « tient-elle ? »), comme à la
  * fabrication (`pagesDuStyle`) : la page est jugée dans le style où elle sera dessinée, pas dans la page « ivoire » que la
- * vidéo n'utilise jamais (brouillon v-365dd2ae67ee, 18/10/2026). Les remises en forme restent celles d'avant (les pages ne
- * changent pas). Un style déjà posé est gardé.
+ * vidéo n'utilise jamais (brouillon v-365dd2ae67ee, 18/10/2026). Il est posé AVANT les remises en forme : la page de plus
+ * (densité) est faite dans ce style, comme `pagesDuStyle` (refus du 23/10/2026, série Automatisations). Un style déjà posé est gardé.
  */
 export function avecStyleDeLaSerie<T>(brute: T, e: Pick<EntreeDecoupage, "habillage" | "serie">): T {
   if (!estObjet(brute) || habillageDe(e) !== STYLE_REFERENCE_3 || brute.styleTableau !== undefined) return brute;
@@ -639,20 +645,62 @@ export function avecStyleDeLaSerie<T>(brute: T, e: Pick<EntreeDecoupage, "habill
 }
 
 /** Juge une réponse lue : contrôles du découpage, puis validation complète de la fiche. */
-export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau } | { ok: false; refus: string[] } {
+export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; retraits: RetraitAllegement[] } | { ok: false; refus: string[] } {
   // Remises en forme déterministes : mots forts et importants, formes (ancres bornées…), puis rythme.
   // Les parties du script (quand le générateur les rend) fixent la partie de chaque page et les numéros d'étape.
-  const brute = remettreEnForme(appliquerParties(rendue, e.parties), { debit: e.controle.caracteresParSeconde, motsDouleur: e.controle.motsDouleur });
+  const lue = appliquerParties(rendue, e.parties);
+  const jugee = avecStyleDeLaSerie(lue, e); // le style de la série est posé AVANT les réparations (page de plus)
+  // Allègement de dernier recours : AU DÉCOUPAGE seulement, et noté (`retraits`). `verifier` : les problèmes de validation hors règle de page.
+  const retraits: RetraitAllegement[] = [];
+  const verifier = (f: FicheTableau) => {
+    const r = validerFicheTableau(f, { ...e.controle, texteScript: e.texteScript });
+    return r.ok ? 0 : r.problemes.filter((p) => p.regle !== REGLE_PAGE_LISIBLE).length;
+  };
+  const brute = remettreEnForme(jugee, { debit: e.controle.caracteresParSeconde, motsDouleur: e.controle.motsDouleur }, { alleger: true, retraits, verifier });
   const propres = controlesDecoupage(brute, e);
-  const jugee = avecStyleDeLaSerie(brute, e);
-  const v = validerFicheTableau(jugee, { ...e.controle, texteScript: e.texteScript });
-  const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message + conseilDe(p.regle)))];
+  const v = validerFicheTableau(brute, { ...e.controle, texteScript: e.texteScript });
+  const dejaTraitees = new Set<number>();
+  const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message + conseilDe(p.regle) + raisonPageDePlus(p, brute, dejaTraitees)))];
   if (refus.length || !v.ok) return { ok: false, refus };
   // Le style n'a servi qu'à juger : la fiche rendue reste celle d'avant (la fabrication le pose à son tour).
-  if (jugee === brute) return { ok: true, fiche: v.fiche };
+  if (jugee === lue) return { ok: true, fiche: v.fiche, retraits };
   const fiche = { ...v.fiche };
   delete fiche.styleTableau;
-  return { ok: true, fiche };
+  return { ok: true, fiche, retraits };
+}
+
+const REGLE_PAGE_LISIBLE = REGLES_TABLEAU.find((r) => r.numero === 4)!.nom;
+
+/**
+ * Refus de la règle 4 (page lisible) : POURQUOI la page de plus automatique n'a pas pu passer, et quoi faire. Seulement
+ * sur le chemin du refus, et seulement quand la réparation a été tentée (page écrite au crayon) ; ne lève jamais.
+ */
+function raisonPageDePlus(p: { regle: string; message: string }, brute: unknown, dejaTraitees: Set<number>): string {
+  if (p.regle !== REGLE_PAGE_LISIBLE) return "";
+  try {
+    const fiche = brute as FicheTableau;
+    const page = Number(/page (\d+)/i.exec(p.message)?.[1]);
+    if (!Number.isInteger(page) || !Array.isArray(fiche?.scenes) || !estPageEcriteCrayon(fiche)) return "";
+    // Seulement si une page de plus corrigerait ce refus (un mot trop long, un mot important hors ligne : autre message).
+    if (pageTropChargee(fiche) !== page || dejaTraitees.has(page)) return "";
+    const diag = diagnosticPageDePlus(fiche, page);
+    if (!diag) return "";
+    dejaTraitees.add(page); // un seul complément par page, même si la page a deux refus
+    const scenes = fiche.scenes.filter((s) => s.page === page);
+    const derniere = scenes.at(-1);
+    if (!derniere) return "";
+    const debut = derniere.texteDit.split(/\s+/).filter(Boolean).slice(0, 8).join(" ");
+    const garder = "gardez sur cette page UN détail OU le visuel";
+    let quoi: string;
+    if (diag.type === "une-phrase" || diag.type === "coupe-impossible") quoi = `${garder}, ou raccourcissez une ligne écrite`;
+    else if (diag.type === "scenes-max") quoi = `réunissez deux scènes voisines d'une autre page, ou ${garder}`;
+    else if (diag.type === "pages-max") quoi = `réunissez deux pages courtes, ou ${garder}`;
+    else if (scenes.length >= 2) quoi = `mettez la scène ${derniere.id} « ${debut} » seule sur une page NEUVE juste après (même partie, pages suivantes décalées de un)${diag.type === "regle-page" ? ", en respectant la règle citée" : ""}`;
+    else quoi = `coupez la scène ${derniere.id} « ${debut} » en deux scènes à une fin de phrase (la seconde sur la page suivante, même partie, avec sa propre ligne écrite)${diag.type === "regle-page" ? ", en respectant la règle citée" : ""}, ou ${garder}`;
+    return ` La page de plus automatique a échoué : ${diag.texte}. ${quoi.charAt(0).toUpperCase()}${quoi.slice(1)}.`;
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -703,7 +751,11 @@ export async function decouperEnScenes(entree: EntreeDecoupage, outils: OutilsDe
 
     const lecture = lireReponse(reponse.donnees);
     const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus] };
-    if (jugement.ok) return { ok: true, fiche: jugement.fiche, appels, relance: essai > 1 };
+    if (jugement.ok) {
+      // Un allègement de dernier recours a retiré du contenu écrit : jamais en silence (trace serveur + résultat).
+      if (jugement.retraits.length) console.warn(`[tableau] découpage ${entree.videoId} : page allégée, retraits ${jugement.retraits.map((r) => `${r.sceneId}/${r.elementId} (${r.type}, page ${r.page})`).join(", ")}`);
+      return { ok: true, fiche: jugement.fiche, appels, relance: essai > 1, ...(jugement.retraits.length ? { retraits: jugement.retraits } : {}) };
+    }
 
     illisible = !lecture.ok;
     if (lecture.ok && ficheLisible(lecture.brute)) aCorriger = ficheACorriger(lecture.brute, entree);

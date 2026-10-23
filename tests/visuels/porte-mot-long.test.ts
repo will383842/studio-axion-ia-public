@@ -14,17 +14,17 @@ const spec = (page: object) => ({
 const motsTropLongs = (page: object) => controlerCarrousel(spec(page), ctx).rapport.controles.filter((c) => c.code === "MOT_TROP_LONG");
 
 describe("MOT_TROP_LONG : mot le plus long d'un titre de carte T02 (mesuré au rendu réel)", () => {
-  it("budgets du registre : 12 signes pour 4 à 6 cartes, 15 pour 2 et 3", () => {
-    expect([2, 3, 4, 5, 6].map(capaciteMotCarte)).toEqual([15, 15, 12, 12, 12]);
+  it("budgets du registre : 10 signes pour 4 à 6 cartes, 15 pour 2 et 3", () => {
+    expect([2, 3, 4, 5, 6].map(capaciteMotCarte)).toEqual([15, 15, 10, 10, 10]);
   });
-  it.each([4, 5, 6])("%i cartes : un mot de 13 signes ou plus est rouge, 12 passe", (n) => {
+  it.each([4, 5, 6])("%i cartes : un mot de 11 signes ou plus est rouge, 10 passe", (n) => {
     const titres = (mot: string) => Array.from({ length: n }, (_, i) => (i === 1 ? mot : "Planifier"));
-    const rouges = motsTropLongs(dense(titres("accompagnement")));
+    const rouges = motsTropLongs(dense(titres("communicatio")));
     expect(rouges).toHaveLength(1);
     expect(rouges[0]).toMatchObject({ niveau: "rouge", page: 2, chemin: "pages.1.cartes.1.titre" });
-    expect(rouges[0].phrase).toMatch(/accompagnement/);
-    expect(motsTropLongs(dense(titres("communicatio")))).toEqual([]);
-    expect(motsTropLongs(dense(titres("communicatios")))).toHaveLength(1);
+    expect(rouges[0].phrase).toMatch(/communicatio/);
+    expect(motsTropLongs(dense(titres("communicat")))).toEqual([]);
+    expect(motsTropLongs(dense(titres("communicati")))).toHaveLength(1);
   });
   it("2 cartes : 15 passe, 16 est rouge", () => {
     expect(motsTropLongs(dense(["automatiquement", "Ranger"]))).toEqual([]);

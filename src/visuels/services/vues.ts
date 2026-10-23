@@ -52,11 +52,16 @@ export async function listerCarrousels(vue: VueListe, deps: DependancesVues): Pr
 
 export async function ficheCarrousel(id: string, deps: DependancesVues): Promise<VueCarrouselFiche> {
   const v = await lireVisuel(id, deps);
-  const pagesRendues = new Map((v.rendu?.pages ?? []).map((p) => [p.index, p.x1Cle]));
+  const pagesRendues = new Map((v.rendu?.pages ?? []).map((p) => [p.index, p]));
   const pages = await Promise.all(
     (v.spec?.pages ?? []).map(async (p, index) => {
-      const cle = pagesRendues.get(index);
-      return { index, type: p.type, ...(cle ? { urlX1: await deps.urlLecture(cle) } : {}) };
+      const rendue = pagesRendues.get(index);
+      return {
+        index,
+        type: p.type,
+        ...(rendue ? { urlX1: await deps.urlLecture(rendue.x1Cle) } : {}),
+        ...(rendue?.x2Cle ? { urlX2: await deps.urlLecture(rendue.x2Cle) } : {}),
+      };
     }),
   );
   return {
