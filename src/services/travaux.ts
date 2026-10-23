@@ -792,7 +792,7 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   const versionAvant = avant.versionId ? await depots().versions.obtenir(avant.versionId) : null;
   // Cas concret déjà traité par une AUTRE vidéo : la panne de celle-ci ne se relance pas (jamais deux vidéos identiques).
   const videoAvant = versionAvant?.commande.formatId === "cas-concret" ? await depots().videos.obtenir(avant.cibleId) : null;
-  if (videoAvant && !videoAvant.estDemo && !videoAvant.sourceVideoId && !videoAvant.typeDerive && !TRAVAUX_SUR_VIDEO_FINIE.includes(avant.type)) {
+  if (videoAvant && versionAvant && !videoAvant.estDemo && !videoAvant.sourceVideoId && !videoAvant.typeDerive && !TRAVAUX_SUR_VIDEO_FINIE.includes(avant.type)) {
     const { refusCasDejaTraite } = await import("./cas-concret-traites");
     const phrase = await refusCasDejaTraite(versionAvant.commande.entrees, avant.cibleId);
     if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
