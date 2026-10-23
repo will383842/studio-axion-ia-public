@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion design — les 6 modèles</title>
+<style>
+  :root { --fond: #16120F; --surface: #211A15; --orange: #C65A2E; --creme: #F6EEE0; --attenue: #A79E92; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--creme); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 32px 16px 64px; }
+  header { max-width: 1200px; margin: 0 auto 28px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 b { color: var(--orange); }
+  header p { color: var(--attenue); margin: 0; max-width: 720px; }
+  header a { color: var(--orange); }
+  main { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
+  figure { margin: 0; background: var(--surface); border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 1px #3A322B; }
+  .paire { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #0C0A08; }
+  .paire div { position: relative; }
+  .paire span { position: absolute; top: 8px; left: 8px; z-index: 1; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(12, 10, 8, 0.75); padding: 2px 8px; border-radius: 99px; }
+  .paire div:last-child span { color: var(--orange); }
+  video { display: block; width: 100%; aspect-ratio: 9 / 16; background: #0C0A08; }
+  figcaption { padding: 14px 16px 16px; display: grid; gap: 4px; }
+  figcaption strong { font-size: 17px; }
+  figcaption span { color: var(--attenue); font-size: 14px; }
+  figcaption em { color: var(--orange); font-style: normal; font-size: 13px; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Motion design — <b>les 6 modèles</b></h1>
+  <p>Style « Sobre » (validé), corrigé : plein écran recentré et agrandi, textes des listes plus grands, exemples Axion. Chaque carte dure 5 s en 1080 × 1920 (25 i/s). Dans vos vidéos, chaque élément arrive au mot près, quand vous le dites. <a href="../planche-motion-spectaculaire/index.html">Voir le style Spectaculaire →</a></p>
+</header>
+<main>
+    <figure><video src="liste.mp4" autoplay muted loop playsinline controls></video><figcaption><strong>Liste</strong><span>Un titre puis 2 à 5 points qui arrivent au mot près, le point dit est mis en avant.</span><em>Choisi tout seul d'après le texte</em></figcaption></figure>
+    <figure><video src="chiffre.mp4" autoplay muted loop playsinline controls></video><figcaption><strong>Chiffre qui compte</strong><span>Un grand chiffre qui compte jusqu'à sa valeur, son unité en orange et ce qu'il veut dire.</span><em>Choisi tout seul d'après le texte</em></figcaption></figure>
+    <figure><video src="avant-apres.mp4" autoplay muted loop playsinline controls></video><figcaption><strong>Avant / après</strong><span>Deux barres : la situation d'avant, puis celle d'après qui se réduit (ou grandit), avec l'écart.</span><em>Choisi tout seul d'après le texte</em></figcaption></figure>
+    <figure><video src="ligne-de-temps.mp4" autoplay muted loop playsinline controls></video><figcaption><strong>Ligne de temps</strong><span>Une ligne qui avance avec la parole d'étape en étape (processus) ou de jalon en jalon (feuille de route).</span><em>Choisi tout seul d'après le texte</em></figcaption></figure>
+    <figure><video src="deux-colonnes.mp4" autoplay muted loop playsinline controls></video><figcaption><strong>Comparaison</strong><span>Deux cercles qui se croisent : chacun ses points, et la zone commune au centre.</span><em>Choisi tout seul d'après le texte</em></figcaption></figure>
+    <figure><video src="titre.mp4" autoplay muted loop playsinline controls></video><figcaption><strong>Titre ou générique</strong><span>Un titre plein écran qui se construit lettre à lettre, ou une carte de fin.</span><em>Seulement à la demande</em></figcaption></figure>
+</main>
+</body>
+</html>

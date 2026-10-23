@@ -1,0 +1,278 @@
+{
+  "version": "carte-image/1",
+  "image": {
+    "cle": "essais/image-video/E.png",
+    "empreinte": "essai-e",
+    "largeur": 1080,
+    "hauteur": 1350,
+    "orientation": "portrait"
+  },
+  "types": [
+    "avant-apres",
+    "convergence"
+  ],
+  "offre": "integration",
+  "automatisation": true,
+  "titre": "Classement des documents",
+  "phraseChoc": "Vous cherchez. Vous trouvez. En 3 secondes.",
+  "formulesAbsolues": [],
+  "noeuds": [
+    {
+      "id": "n01",
+      "libelle": "Email",
+      "role": "source",
+      "icone": "enveloppe",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 1
+    },
+    {
+      "id": "n02",
+      "libelle": "Scan",
+      "role": "source",
+      "icone": "scan",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 2
+    },
+    {
+      "id": "n03",
+      "libelle": "Drive",
+      "role": "source",
+      "icone": "dossier",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 3
+    },
+    {
+      "id": "n04",
+      "libelle": "WhatsApp",
+      "role": "source",
+      "icone": "message",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 4
+    },
+    {
+      "id": "n05",
+      "libelle": "USB",
+      "role": "source",
+      "icone": "usb",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 5
+    },
+    {
+      "id": "n06",
+      "libelle": "Documents en vrac",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 6,
+      "sousElements": [
+        "PDF",
+        "Word",
+        "Excel",
+        "Images"
+      ]
+    },
+    {
+      "id": "n07",
+      "libelle": "Recherche : 23 min",
+      "role": "resultat",
+      "icone": "loupe",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 7
+    },
+    {
+      "id": "n08",
+      "libelle": "IA",
+      "detail": "classe · renomme · archive · indexe",
+      "role": "moteur",
+      "icone": "ia",
+      "couleur": "orange",
+      "acteur": "auto",
+      "ordre": 8
+    },
+    {
+      "id": "n09",
+      "libelle": "Dossiers rangés",
+      "role": "sortie",
+      "icone": "dossier",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 9,
+      "sousElements": [
+        "Clients",
+        "Fournisseurs",
+        "Contrats",
+        "Factures"
+      ]
+    },
+    {
+      "id": "n10",
+      "libelle": "bon de commande Martin",
+      "role": "etape",
+      "icone": "recherche",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 10,
+      "exemple": true
+    },
+    {
+      "id": "n11",
+      "libelle": "Trouvé — 3 secondes",
+      "role": "resultat",
+      "icone": "coche",
+      "couleur": "vert",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 11
+    }
+  ],
+  "liens": [
+    {
+      "id": "l01",
+      "de": "n01",
+      "vers": "n06",
+      "couleur": "noir",
+      "style": "pointille"
+    },
+    {
+      "id": "l02",
+      "de": "n02",
+      "vers": "n06",
+      "couleur": "noir",
+      "style": "pointille"
+    },
+    {
+      "id": "l03",
+      "de": "n03",
+      "vers": "n06",
+      "couleur": "noir",
+      "style": "pointille"
+    },
+    {
+      "id": "l04",
+      "de": "n04",
+      "vers": "n06",
+      "couleur": "noir",
+      "style": "pointille"
+    },
+    {
+      "id": "l05",
+      "de": "n05",
+      "vers": "n06",
+      "couleur": "noir",
+      "style": "pointille"
+    },
+    {
+      "id": "l06",
+      "de": "n06",
+      "vers": "n07",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l07",
+      "de": "n06",
+      "vers": "n08",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l08",
+      "de": "n08",
+      "vers": "n09",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l09",
+      "de": "n09",
+      "vers": "n10",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l10",
+      "de": "n10",
+      "vers": "n11",
+      "couleur": "orange",
+      "style": "plein"
+    }
+  ],
+  "groupes": [
+    {
+      "id": "g-avant",
+      "sorte": "avant",
+      "titre": "Avant",
+      "noeuds": [
+        "n01",
+        "n02",
+        "n03",
+        "n04",
+        "n05",
+        "n06",
+        "n07"
+      ]
+    },
+    {
+      "id": "g-apres",
+      "sorte": "apres",
+      "titre": "Après",
+      "noeuds": [
+        "n09",
+        "n10",
+        "n11"
+      ]
+    }
+  ],
+  "bandeau": [],
+  "bandeauChiffres": [],
+  "chiffres": [
+    {
+      "id": "c01",
+      "brut": "23 min",
+      "valeur": 23,
+      "unite": "min",
+      "dansNoeud": "n07",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c02",
+      "brut": "3 secondes",
+      "valeur": 3,
+      "unite": "sec",
+      "dansNoeud": "n11",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c03",
+      "brut": "3 secondes",
+      "valeur": 3,
+      "unite": "sec",
+      "aDire": true,
+      "lu": "les-deux"
+    }
+  ],
+  "pied": [],
+  "coherence": [],
+  "lecture": {
+    "ecarts": [],
+    "alertes": []
+  }
+}

@@ -1,0 +1,55 @@
+{
+ "role": "fond",
+ "version": 1,
+ "sortie": {
+  "theme": "Fichiers Excel, visibilité",
+  "motCle": "fichiers Excel",
+  "motCleVariante": "remplacer Excel par un tableau de bord",
+  "idees": [
+   {
+    "affirmation": "Dans l'entreprise, il y a des dizaines de fichiers Excel. Chaque jour, c'est la même routine : exporter, copier, coller, vérifier, et recommencer.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ]
+   },
+   {
+    "affirmation": "Malgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-partie"
+    ]
+   },
+   {
+    "affirmation": "À la place des fichiers : un tableau de bord, des données qui arrivent toutes seules, vérifiées toutes seules, et une alerte au moindre problème.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution"
+    ]
+   }
+  ],
+  "appuiPrincipal": {
+   "matiereId": "will-excel-routine"
+  },
+  "issue": "Remplacer la routine des fichiers par un tableau de bord : des données qui arrivent toutes seules, vérifiées toutes seules, et une alerte au moindre problème.",
+  "livraison": "Exporter, copier, coller, vérifier tous les jours, pour ne voir qu'une petite partie de vos données. Un tableau de bord qui se remplit et se vérifie tout seul, avec une alerte au moindre problème, fait ce travail à votre place.",
+  "exception": {
+   "source": "proposition-machine",
+   "texte": "Alors oui, certains fichiers resteront : presque tous peuvent être remplacés, pas forcément tous.",
+   "place": "apres-livraison"
+  },
+  "envoi": {
+   "destinataireRole": "DAF",
+   "phrase": "Si votre DAF passe ses journées à copier-coller entre des fichiers Excel, envoyez-lui cette vidéo."
+  },
+  "niveauConscience": "connait-le-probleme",
+  "criteresPropres": [
+   {
+    "texte": "Le chiffre « 99 % » n'est jamais dit : on dit seulement « presque tous » si on parle de la part des fichiers remplaçables."
+   },
+   {
+    "texte": "Aucun temps gagné ni aucun nombre de fichiers précis n'est chiffré : on reste sur « des dizaines » et « chaque jour »."
+   }
+  ]
+ }
+}

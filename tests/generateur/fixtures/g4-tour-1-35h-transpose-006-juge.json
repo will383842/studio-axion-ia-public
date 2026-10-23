@@ -1,0 +1,368 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "acc-1",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur » : pivot et formulation propres à l'angle, pas générique."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME, Excel paraît gratuit » : sujet et cible posés d'emblée."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Le dirigeant croit Excel gratuit ; le démenti « Mais… » parle à ce niveau."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "oui",
+      "motif": "Contre-pied sur « gratuit » et coût dans le copier-coller : angle porté."
+     }
+    ]
+   },
+   {
+    "id": "acc-2",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« Son vrai coût est dans chaque copier-coller fait à la main » : tournure spécifique à l'angle."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME : Excel paraît gratuit » : cible et sujet immédiats."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Part de la croyance « gratuit » pour la contredire : niveau cohérent."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "oui",
+      "motif": "Gratuit apparent vs coût dans les copier-coller : angle porté."
+     }
+    ]
+   },
+   {
+    "id": "acc-3",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« chiffres recopiés à la main, chaque copie une erreur possible » : constat banal que tout concurrent de l'automatisation dirait."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Vous dirigez une PME et vos chiffres sont recopiés à la main » : clair et concernant."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Le dirigeant n'a pas conscience du problème ; l'accroche part du problème sans la croyance « gratuit »."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Le terme pivot « gratuit » et le contre-pied sont absents."
+     }
+    ]
+   },
+   {
+    "id": "acc-4",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« quelqu'un recopie vos données d'un tableur à l'autre » : formulation générique, reprenable par tout concurrent."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "Situation concrète : données recopiées d'un tableur à l'autre dans une PME."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Aucun appui sur la croyance du dirigeant ; pas de rupture avec ce qu'il pense."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Pas de « gratuit », donc pas de contre-pied."
+     }
+    ]
+   },
+   {
+    "id": "acc-5",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« votre tableur ne vérifie rien » avec l'erreur que personne ne voit : angle propre."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME, votre tableur ne vérifie rien » : clair et concernant."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Contredit l'idée que le tableur est fiable, au niveau du dirigeant."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Manque le contre-pied « gratuit » et le coût invisible ; porte seulement l'absence de contrôle."
+     }
+    ]
+   },
+   {
+    "id": "acc-7",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« une seule erreur de formule, et tous les chiffres sont faux » : lieu commun que tout concurrent dirait."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "« une seule » n'est pas une donnée chiffrée décrivant une anomalie."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "Cible nommée et enjeu clair : chiffres faux."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Pas de croyance visée ; message d'alerte générique."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Parle d'erreur de formule, pas de copier-coller ni de gratuit."
+     }
+    ]
+   },
+   {
+    "id": "acc-8",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« vos tableurs ne sont sur aucune facture » : formulation propre à l'angle."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeants de PME : vos tableurs… » : cible et sujet immédiats."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Rejoint la croyance que le tableur ne coûte rien, en la déplaçant sur le coût caché."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "oui",
+      "motif": "Coût hors facture et copier-coller : reprend la promesse de l'angle."
+     }
+    ]
+   },
+   {
+    "id": "acc-9",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« est-ce qu'on peut se passer de nos Excel sans tout casser ? » : question de vente générique, sans fait dans les données."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "Cible et sujet (se passer d'Excel) posés."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Suppose un client déjà décidé à quitter Excel ; « on nous a demandé » est un fait absent des données."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Ni contre-pied « gratuit » ni copier-coller."
+     }
+    ]
+   },
+   {
+    "id": "acc-10",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« Si votre DAF recopie encore… chaque collage peut cacher une erreur » : générique."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "Situation concrète du DAF qui recopie, concernant le dirigeant."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Suppose le problème connu ; aucune croyance « gratuit » mobilisée."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Le contre-pied sur « gratuit » est absent."
+     }
+    ]
+   },
+   {
+    "id": "acc-11",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« une seule erreur de formule fausse tout ce qui en dépend » : banal, dit par tout concurrent."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Pas de chiffre décrivant une anomalie."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "Enjeu clair pour le dirigeant via son DAF."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Pas de croyance visée ; avertissement générique."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Erreur de formule, pas copier-coller ni gratuit."
+     }
+    ]
+   },
+   {
+    "id": "acc-12",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« combien de copier-coller séparent vos chiffres de vos décisions ? » : image propre à l'angle."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre énoncé."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "Cible nommée, enjeu : chiffres de décision."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Le dirigeant n'y pense pas ; la question ne s'appuie pas sur sa croyance « gratuit »."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Porte le copier-coller mais sans le contre-pied sur « gratuit »."
+     }
+    ]
+   },
+   {
+    "id": "acc-13",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« où chercher… les erreurs que personne ne voit » : promesse générique."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "On ne sait pas de quelles erreurs ni pourquoi : pas de copier-coller ni de coût."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Suppose que le dirigeant sait déjà avoir des erreurs cachées."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Ne porte que l'issue, sans contre-pied ni coût."
+     }
+    ]
+   }
+  ]
+ }
+}

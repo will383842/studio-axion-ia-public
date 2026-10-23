@@ -1,0 +1,58 @@
+{
+ "role": "aveugle-juge-sonnet-ordre-2",
+ "version": 1,
+ "sortie": {
+  "notes": [
+   {
+    "id": "A",
+    "total": 52,
+    "accroche": 11,
+    "defauts": [
+     "Accroche conditionnelle générique « cette vidéo est pour lui », qui s'adresse au DAF et non au dirigeant",
+     "Aucune preuve ni cas chiffré : « des dizaines de fichiers » reste vague",
+     "Répétition de « exporter, copier, coller » et promesse finale floue"
+    ]
+   },
+   {
+    "id": "B",
+    "total": 55,
+    "accroche": 13,
+    "defauts": [
+     "Reformulations lourdes et redondantes (suppression d'infraction expliquée trois fois)",
+     "Aucune preuve ni cas client : « depuis plus de dix ans » est une simple affirmation",
+     "Syntaxe orale approximative (« vous serez recrédité ») et pas d'appel clair en fin"
+    ]
+   },
+   {
+    "id": "C",
+    "total": 66,
+    "accroche": 13,
+    "defauts": [
+     "Accroche descriptive qui annonce un sujet sans tension ni chiffre",
+     "Aucune preuve concrète : l'erreur de formule reste théorique, sans exemple vécu",
+     "Répétition de « recopiées à la main » et double appel final redondant"
+    ]
+   },
+   {
+    "id": "D",
+    "total": 47,
+    "accroche": 12,
+    "defauts": [
+     "Conseil « surtout ne paye pas » présenté sans nuance ni preuve, affirmation risquée",
+     "Syntaxe orale relâchée, répétitions de « si on t'a pas arrêté »",
+     "Aucun cas concret, et l'appel à l'application arrive abruptement"
+    ]
+   },
+   {
+    "id": "E",
+    "total": 71,
+    "accroche": 16,
+    "defauts": [
+     "Chiffres de l'accroche (3000 / 50 000) non étayés par un détail du calcul ni de la procédure",
+     "Accumulation de blessures et de chefs de préjudice, avec des maladresses orales (« indémisables »)",
+     "Fin générique « Ne vous défendez pas seul », sans geste précis à faire"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-03",
+  "objet": "Lots G6 et G6b (fabrication par réseau, « je lis ») : la démonstration M4 refaite APRÈS les lots par outils/demo-m4/rendre-demo.mts inchangé. Toute la logique G6 ne s'active que par les champs de la commande (reseaux, partiesDeclinaison, texteDitParSegment, variante, prises) que la démonstration ne porte pas.",
+  "methode": "Empreinte MD5 (12 premiers caractères) des lignes ffmpeg -f framemd5, images puis son, même méthode que docs/captures/d1-bruitages/demo-m4-inchangee.json ; vidéo 9:16 et captures comparées octet à octet avec la version du dépôt (git) ; mesures.json comparé hors temps de calcul.",
+  "videos": {
+    "9:16": { "images": 389, "empreinteImages": "0302e1a08c99", "empreinteSon": "1a829a7c2541", "attendu": "0302e1a08c99 / 1a829a7c2541", "fichierIdentiqueOctetAOctet": true },
+    "4:5": { "images": 389, "empreinteImages": "4cfe49eac70c", "empreinteSon": "1a829a7c2541", "attendu": "4cfe49eac70c / 1a829a7c2541" },
+    "1:1": { "images": 389, "empreinteImages": "c6b1aa0e3fe5", "empreinteSon": "1a829a7c2541", "attendu": "c6b1aa0e3fe5 / 1a829a7c2541" }
+  },
+  "captures": "les 10 captures identiques octet à octet (git ne voit aucun changement)",
+  "mesures": "identiques hors temps de calcul (mesures.json du dépôt laissé tel quel)",
+  "resultat": "identique : aucun écart."
+}

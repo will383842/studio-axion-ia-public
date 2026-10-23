@@ -1,0 +1,112 @@
+{
+ "role": "prose",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "planIndex": 1,
+    "bloc": "coeur",
+    "texte": "Un tableur ne vérifie rien tout seul. Aucun contrôle.",
+    "nature": "fait",
+    "marqueurs": [
+     "ancrage",
+     "boucle-ouverte"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "emphase": [],
+    "facultatif": false
+   },
+   {
+    "planIndex": 2,
+    "bloc": "coeur",
+    "texte": "Alors c'est quelqu'un qui le fait à sa place. Il exporte, copie, colle et vérifie les données à la main, d'un fichier à l'autre.",
+    "nature": "fait",
+    "marqueurs": [
+     "boucle-fermee",
+     "relance"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs"
+    ],
+    "emphase": [],
+    "intentionIllustration": "Plusieurs feuilles de tableur ouvertes côte à côte, des cellules recopiées de l'une à l'autre",
+    "facultatif": false
+   },
+   {
+    "planIndex": 3,
+    "bloc": "coeur",
+    "texte": "Et ça va plus loin. Une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux.",
+    "nature": "fait",
+    "marqueurs": [
+     "boucle-ouverte",
+     "mot-cle"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "citeMatiereId": "test-35h-obs2",
+    "emphase": [
+     "faux"
+    ],
+    "facultatif": false
+   },
+   {
+    "planIndex": 4,
+    "bloc": "coeur",
+    "texte": "Ces chiffres-là, ce sont peut-être ceux sur lesquels vous décidez. Sans le savoir.",
+    "nature": "opinion",
+    "marqueurs": [
+     "emotion",
+     "boucle-fermee"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "emphase": [],
+    "intentionIllustration": "Une colonne de cellules dont une seule formule est surlignée, les cellules en dessous qui en dépendent",
+    "facultatif": false
+   },
+   {
+    "planIndex": 5,
+    "bloc": "coeur",
+    "texte": "Donc le coût d'Excel n'est sur aucune facture. Il est dans chaque copier-coller que personne ne vérifie. Premier geste : repérez dans vos fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre.",
+    "nature": "opinion",
+    "marqueurs": [
+     "livraison",
+     "boucle-fermee",
+     "solution"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "emphase": [
+     "aucune facture"
+    ],
+    "facultatif": false
+   },
+   {
+    "planIndex": 7,
+    "bloc": "coeur",
+    "texte": "Par contre, si vos tableaux changent de forme chaque mois, gardez le tableur.",
+    "nature": "opinion",
+    "marqueurs": [
+     "exception"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-limite"
+    ],
+    "emphase": [],
+    "facultatif": false
+   }
+  ]
+ }
+}

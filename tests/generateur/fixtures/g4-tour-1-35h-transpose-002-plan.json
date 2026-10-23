@@ -1,0 +1,51 @@
+{
+ "role": "plan",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "partie": "accroche",
+    "fonction": [
+     "cout",
+     "ancrage",
+     "mot-cle",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Accroche acc-1 : on s'adresse au dirigeant de PME. Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "ouvre": {
+     "id": "q1",
+     "question": "Où se cache le vrai coût d'Excel ?"
+    },
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "relance",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Raison du retournement : un tableur ne vérifie rien tout seul, donc l'erreur recopiée reste invisible.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "citeMatiereId": "test-35h-cause",
+    "lien": "cause",
+    "situation": "neutre"
+   }
+  ],
+  "exceptionIndex": -1,
+  "ancrageIndex": [
+   0
+  ],
+  "appuiPrincipalIndex": 0,
+  "livraisonIndex": -1
+ }
+}

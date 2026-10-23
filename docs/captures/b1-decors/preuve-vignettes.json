@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-02T09:36:18.188Z",
+  "coutUsd": 0,
+  "operation": "image-fixe (studio-rendu, local)",
+  "composition": "CompositionImage",
+  "double": "silhouette simulée",
+  "dureeSec": 138,
+  "vignettes": [
+    {
+      "decor": "N1 Halo orange",
+      "sortie": "/public/demo/decors/sur-double/fond-1-halo-orange.jpg",
+      "flouPx": 0,
+      "liseré": {
+        "couleur": "#C65A2E",
+        "cote": "gauche"
+      }
+    },
+    {
+      "decor": "N5 Crème chaud",
+      "sortie": "/public/demo/decors/sur-double/fond-5-creme-chaud.jpg",
+      "flouPx": 0,
+      "liseré": {
+        "couleur": "#FFCCA8",
+        "cote": "gauche"
+      }
+    },
+    {
+      "decor": "N3 Lumière dorée",
+      "sortie": "/public/demo/decors/sur-double/fond-3-bois-dore.jpg",
+      "flouPx": 0,
+      "liseré": {
+        "couleur": "#D69650",
+        "cote": "gauche"
+      }
+    },
+    {
+      "decor": "N2 Tube LED orange",
+      "sortie": "/public/demo/decors/sur-double/fond-2-tube-led-orange.jpg",
+      "flouPx": 0,
+      "liseré": {
+        "couleur": "#FF9E5C",
+        "cote": "gauche"
+      }
+    },
+    {
+      "decor": "N4 Noir uni",
+      "sortie": "/public/demo/decors/sur-double/fond-4-noir-uni.jpg",
+      "flouPx": 0,
+      "liseré": {
+        "couleur": "#C65A2E",
+        "cote": "gauche"
+      }
+    },
+    {
+      "decor": "N6 Mur crème et lumière",
+      "sortie": "/public/demo/decors/sur-double/fond-6-mur-creme-lumiere.jpg",
+      "flouPx": 0,
+      "liseré": {
+        "couleur": "#E6B464",
+        "cote": "gauche"
+      }
+    },
+    {
+      "decor": "Proposition bureau-doree",
+      "sortie": "/public/demo/decors/propositions/sur-double/bureau-doree.jpg",
+      "flouPx": 14,
+      "liseré": {
+        "couleur": "#D69650",
+        "cote": "gauche"
+      }
+    },
+    {
+      "decor": "Proposition bureau-jour",
+      "sortie": "/public/demo/decors/propositions/sur-double/bureau-jour.jpg",
+      "flouPx": 14,
+      "liseré": {
+        "couleur": "#F2D6A8",
+        "cote": "droite"
+      }
+    },
+    {
+      "decor": "Proposition bureau-soir",
+      "sortie": "/public/demo/decors/propositions/sur-double/bureau-soir.jpg",
+      "flouPx": 14,
+      "liseré": {
+        "couleur": "#D69650",
+        "cote": "gauche"
+      }
+    }
+  ]
+}

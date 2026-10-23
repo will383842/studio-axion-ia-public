@@ -1,0 +1,295 @@
+{
+ "schema": {
+  "noeuds": [
+   {
+    "id": "n01",
+    "libelle": "Message client entrant — 23h14",
+    "role": "declencheur",
+    "couleur": "neutre",
+    "ordre": 1,
+    "icone": "message"
+   },
+   {
+    "id": "n02",
+    "libelle": "Chatbot IA",
+    "detail": "analyse la demande",
+    "role": "decision",
+    "couleur": "neutre",
+    "ordre": 2,
+    "icone": "etincelles"
+   },
+   {
+    "id": "n03",
+    "libelle": "80% — Réponse connue",
+    "role": "etape",
+    "couleur": "orange",
+    "ordre": 3,
+    "groupe": "g-branche-a",
+    "icone": "coche"
+   },
+   {
+    "id": "n04",
+    "libelle": "Réponse générée",
+    "role": "etape",
+    "couleur": "neutre",
+    "ordre": 4,
+    "groupe": "g-branche-a",
+    "icone": "message"
+   },
+   {
+    "id": "n05",
+    "libelle": "Envoyée en 4 sec",
+    "role": "etape",
+    "couleur": "neutre",
+    "ordre": 5,
+    "groupe": "g-branche-a"
+   },
+   {
+    "id": "n06",
+    "libelle": "Ticket clôturé auto",
+    "role": "etape",
+    "couleur": "neutre",
+    "ordre": 6,
+    "groupe": "g-branche-a",
+    "icone": "coche"
+   },
+   {
+    "id": "n07",
+    "libelle": "Résolu sans intervention humaine",
+    "role": "resultat",
+    "couleur": "orange",
+    "ordre": 7,
+    "groupe": "g-branche-a"
+   },
+   {
+    "id": "n08",
+    "libelle": "20% — Limite atteinte",
+    "role": "etape",
+    "couleur": "noir",
+    "ordre": 8,
+    "groupe": "g-branche-b",
+    "icone": "cloche"
+   },
+   {
+    "id": "n09",
+    "libelle": "Email structuré auto:",
+    "detail": "Objet / Contexte / Demande / Urgence",
+    "role": "etape",
+    "couleur": "neutre",
+    "ordre": 9,
+    "groupe": "g-branche-b",
+    "icone": "mail"
+   },
+   {
+    "id": "n10",
+    "libelle": "Envoyé équipe concernée",
+    "role": "etape",
+    "couleur": "neutre",
+    "ordre": 10,
+    "groupe": "g-branche-b",
+    "icone": "utilisateurs"
+   },
+   {
+    "id": "n11",
+    "libelle": "Alerte Telegram:",
+    "detail": "“🔔 Intervention requise”",
+    "role": "etape",
+    "couleur": "neutre",
+    "ordre": 11,
+    "groupe": "g-branche-b"
+   },
+   {
+    "id": "n12",
+    "libelle": "Client informé:",
+    "detail": "“Réponse sous 2h”",
+    "role": "resultat",
+    "couleur": "neutre",
+    "ordre": 12,
+    "groupe": "g-branche-b"
+   }
+  ],
+  "liens": [
+   {
+    "id": "l01",
+    "de": "n01",
+    "vers": "n02",
+    "couleur": "orange",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l02",
+    "de": "n02",
+    "vers": "n03",
+    "couleur": "orange",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l03",
+    "de": "n03",
+    "vers": "n04",
+    "couleur": "orange",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l04",
+    "de": "n04",
+    "vers": "n05",
+    "couleur": "orange",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l05",
+    "de": "n05",
+    "vers": "n06",
+    "couleur": "orange",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l06",
+    "de": "n06",
+    "vers": "n07",
+    "couleur": "orange",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l07",
+    "de": "n02",
+    "vers": "n08",
+    "couleur": "noir",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l08",
+    "de": "n08",
+    "vers": "n09",
+    "couleur": "noir",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l09",
+    "de": "n09",
+    "vers": "n10",
+    "couleur": "noir",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l10",
+    "de": "n10",
+    "vers": "n11",
+    "couleur": "noir",
+    "style": "plein",
+    "part": 0
+   },
+   {
+    "id": "l11",
+    "de": "n11",
+    "vers": "n12",
+    "couleur": "noir",
+    "style": "plein",
+    "part": 0
+   }
+  ],
+  "groupes": [
+   {
+    "id": "g-branche-a",
+    "sorte": "branche",
+    "noeuds": [
+     "n03",
+     "n04",
+     "n05",
+     "n06",
+     "n07"
+    ],
+    "titre": "80% — Réponse connue",
+    "majoritaire": true
+   },
+   {
+    "id": "g-branche-b",
+    "sorte": "branche",
+    "noeuds": [
+     "n08",
+     "n09",
+     "n10",
+     "n11",
+     "n12"
+    ],
+    "titre": "20% — Limite atteinte"
+   }
+  ],
+  "chiffres": [
+   {
+    "brut": "23h14",
+    "aDire": true,
+    "dansNoeud": "n01"
+   },
+   {
+    "brut": "80%",
+    "aDire": true,
+    "dansNoeud": "n03"
+   },
+   {
+    "brut": "4 sec",
+    "aDire": true,
+    "dansNoeud": "n05"
+   },
+   {
+    "brut": "20%",
+    "aDire": true,
+    "dansNoeud": "n08"
+   },
+   {
+    "brut": "2h",
+    "aDire": true,
+    "dansNoeud": "n12"
+   },
+   {
+    "brut": "80%",
+    "aDire": true
+   },
+   {
+    "brut": "0 demande",
+    "aDire": true
+   },
+   {
+    "brut": "24h/24",
+    "aDire": true
+   },
+   {
+    "brut": "3h",
+    "aDire": true
+   }
+  ]
+ },
+ "ensembles": [
+  {
+   "debut": 0.944,
+   "fin": 2.144,
+   "allumes": [
+    "n01"
+   ]
+  },
+  {
+   "debut": 2.772,
+   "fin": 3.972,
+   "allumes": [
+    "n01"
+   ]
+  },
+  {
+   "debut": 4.916,
+   "fin": 6.116,
+   "allumes": [
+    "n01"
+   ]
+  }
+ ]
+}

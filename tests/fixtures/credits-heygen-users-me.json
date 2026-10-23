@@ -1,0 +1,10 @@
+{
+  "_source": "Réponse réelle de GET https://api.heygen.com/v3/users/me relevée le 02/10/2026 (lecture gratuite). Identité masquée.",
+  "data": {
+    "billing_type": "wallet",
+    "email": "masque@exemple.fr",
+    "first_name": "Masqué",
+    "username": "masque",
+    "wallet": { "auto_reload": { "enabled": false }, "currency": "usd", "remaining_balance": 29.83 }
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "_note": "Réponses RÉELLES de https://api.buffer.com (queries de lecture seule) enregistrées le 2026-10-03, ANONYMISÉES : identifiants, noms, adresses, textes et liens remplacés par des valeurs d'exemple. Forme et énumérations conservées.",
+  "compte": {
+    "data": {
+      "account": {
+        "id": "e00001000000000000000000",
+        "timezone": "Europe/Paris",
+        "organizations": [
+          {
+            "id": "e00002000000000000000000",
+            "name": "Exemple name",
+            "channelCount": 5
+          }
+        ]
+      }
+    }
+  },
+  "canaux": {
+    "data": {
+      "channels": [
+        {
+          "id": "e00003000000000000000000",
+          "name": "Exemple name",
+          "displayName": "Exemple displayName",
+          "service": "instagram",
+          "type": "business",
+          "avatar": "https://exemple.invalid/fichier",
+          "isDisconnected": false,
+          "isLocked": false,
+          "isQueuePaused": false,
+          "timezone": "Europe/Paris"
+        },
+        {
+          "id": "e00004000000000000000000",
+          "name": "Exemple name",
+          "displayName": "Exemple displayName",
+          "service": "facebook",
+          "type": "page",
+          "avatar": "https://exemple.invalid/fichier",
+          "isDisconnected": false,
+          "isLocked": false,
+          "isQueuePaused": false,
+          "timezone": "Europe/Paris"
+        },
+        {
+          "id": "e00005000000000000000000",
+          "name": "Exemple name",
+          "displayName": "Exemple displayName",
+          "service": "facebook",
+          "type": "page",
+          "avatar": "https://exemple.invalid/fichier",
+          "isDisconnected": false,
+          "isLocked": false,
+          "isQueuePaused": false,
+          "timezone": "Europe/Paris"
+        },
+        {
+          "id": "e00006000000000000000000",
+          "name": "Exemple name",
+          "displayName": "Exemple displayName",
+          "service": "linkedin",
+          "type": "profile",
+          "avatar": "https://exemple.invalid/fichier",
+          "isDisconnected": false,
+          "isLocked": false,
+          "isQueuePaused": false,
+          "timezone": "Europe/Paris"
+        },
+        {
+          "id": "e00007000000000000000000",
+          "name": "Exemple name",
+          "displayName": "Exemple displayName",
+          "service": "linkedin",
+          "type": "page",
+          "avatar": "https://exemple.invalid/fichier",
+          "isDisconnected": false,
+          "isLocked": false,
+          "isQueuePaused": false,
+          "timezone": "Europe/Paris"
+        }
+      ]
+    }
+  },
+  "posts": {
+    "data": {
+      "posts": {
+        "edges": [
+          {
+            "node": {
+              "id": "e00008000000000000000000",
+              "channelId": "e00003000000000000000000",
+              "status": "sent",
+              "dueAt": "2026-09-29T10:45:00.000Z",
+              "sentAt": "2026-09-29T10:45:14.939Z",
+              "createdAt": "2026-09-29T06:37:37.205Z",
+              "text": "Texte d'exemple (430 caractères à l'origine).",
+              "externalLink": "https://exemple.invalid/fichier"
+            }
+          },
+          {
+            "node": {
+              "id": "e00009000000000000000000",
+              "channelId": "e00003000000000000000000",
+              "status": "scheduled",
+              "dueAt": "2026-10-04T17:15:00.000Z",
+              "sentAt": null,
+              "createdAt": "2026-09-29T06:29:13.487Z",
+              "text": "Texte d'exemple (433 caractères à l'origine).",
+              "externalLink": null
+            }
+          },
+          {
+            "node": {
+              "id": "e00010000000000000000000",
+              "channelId": "e00006000000000000000000",
+              "status": "sent",
+              "dueAt": "2026-09-29T06:30:00.000Z",
+              "sentAt": "2026-09-29T06:30:32.598Z",
+              "createdAt": "2026-09-27T16:38:21.822Z",
+              "text": "Texte d'exemple (1168 caractères à l'origine).",
+              "externalLink": "https://exemple.invalid/fichier"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "etat": {
+    "data": {
+      "post": {
+        "id": "e00009000000000000000000",
+        "channelId": "e00003000000000000000000",
+        "status": "scheduled",
+        "dueAt": "2026-10-04T17:15:00.000Z",
+        "sentAt": null,
+        "externalLink": null,
+        "error": null
+      }
+    }
+  },
+  "stats": {
+    "data": {
+      "post": {
+        "id": "e00008000000000000000000",
+        "status": "sent",
+        "sentAt": "2026-09-29T10:45:14.939Z",
+        "metricsUpdatedAt": "2026-10-03T00:32:01.329Z",
+        "metrics": [
+          {
+            "type": "reactions",
+            "value": 55
+          },
+          {
+            "type": "comments",
+            "value": 2
+          },
+          {
+            "type": "engagementRate",
+            "value": 183.87
+          },
+          {
+            "type": "views",
+            "value": 201
+          },
+          {
+            "type": "shares",
+            "value": 0
+          },
+          {
+            "type": "saves",
+            "value": 0
+          },
+          {
+            "type": "follows",
+            "value": 0
+          },
+          {
+            "type": "reach",
+            "value": 31
+          }
+        ]
+      }
+    }
+  },
+  "introuvable": {
+    "errors": [
+      {
+        "message": "Post not found for id: 000000000000000000000000",
+        "path": [
+          "post"
+        ],
+        "extensions": {
+          "code": "NOT_FOUND"
+        }
+      }
+    ],
+    "data": null
+  }
+}

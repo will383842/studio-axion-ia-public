@@ -1,0 +1,73 @@
+{
+ "role": "plan",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "partie": "accroche",
+    "fonction": [
+     "mot-cle",
+     "cout",
+     "boucle-ouverte",
+     "emotion"
+    ],
+    "nature": "fait",
+    "resume": "Dirigeant : chaque jour, on exporte, on copie, on colle vos fichiers Excel, et vous n'en voyez qu'une petite partie.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "ouvre": {
+     "id": "acc-1",
+     "question": "Pourquoi tout ce travail ne donne-t-il qu'une petite partie de la vue, et que mettre à la place ?"
+    },
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "ancrage",
+     "relance",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Le contexte dit tel quel : des dizaines de fichiers Excel, chaque jour la même routine, exporter, copier, coller, vérifier, et recommencer.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ],
+    "citeMatiereId": "will-excel-routine",
+    "ouvre": {
+     "id": "q-routine",
+     "question": "À quoi mène cette routine quotidienne ?"
+    }
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "boucle-fermee",
+     "boucle-ouverte",
+     "cout"
+    ],
+    "nature": "fait",
+    "resume": "Pivot « Mais » : malgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-partie"
+    ],
+    "citeMatiereId": "will-excel-partie",
+    "ferme": "q-routine",
+    "lien": "opposition",
+    "promesseId": "",
+    "situation": "neutre"
+   }
+  ],
+  "exceptionIndex": -1,
+  "ancrageIndex": [
+   1
+  ],
+  "appuiPrincipalIndex": 1,
+  "livraisonIndex": 5
+ }
+}

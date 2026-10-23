@@ -1,0 +1,155 @@
+{
+ "base": 5,
+ "fichier": "5-formats.md",
+ "tables": {
+  "format_video": {
+   "colonnes": [
+    "code",
+    "code_classement",
+    "nom",
+    "statut",
+    "tournage",
+    "duree",
+    "reseaux_conseilles",
+    "squelette",
+    "en_lot",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "facecam",
+     "code_classement": "FC",
+     "nom": "Face caméra",
+     "statut": "actif",
+     "tournage": "oui",
+     "duree": "45-120 s",
+     "reseaux_conseilles": "tiktok ; instagram ; youtube-shorts ; linkedin",
+     "squelette": "Accroche dite à la caméra · une seule idée avec un exemple · fin tirée de la base 7",
+     "en_lot": "non",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "facecam-animee",
+     "code_classement": "FA",
+     "nom": "Face caméra animée",
+     "statut": "actif",
+     "tournage": "oui",
+     "duree": "30-75 s",
+     "reseaux_conseilles": "linkedin ; instagram ; tiktok ; facebook",
+     "squelette": "Accroche avec la douleur dans les 3 premières secondes · une idée · voici ce qu'on met en place pour vous · fin tirée de la base 7",
+     "en_lot": "non",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "tableau-anime",
+     "code_classement": "TB",
+     "nom": "Tableau animé",
+     "statut": "actif",
+     "tournage": "non",
+     "duree": "30-60 s",
+     "reseaux_conseilles": "tiktok ; instagram ; youtube-shorts ; linkedin",
+     "squelette": "Accroche · tableau en étapes · fin tirée de la base 7",
+     "en_lot": "non",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "avocat",
+     "code_classement": "AV",
+     "nom": "Vidéo type avocat",
+     "statut": "actif",
+     "tournage": "oui",
+     "duree": "30-90 s",
+     "reseaux_conseilles": "tiktok ; instagram ; youtube-shorts",
+     "squelette": "Accroche · explication · fin tirée de la base 7",
+     "en_lot": "non",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "cas-concret",
+     "code_classement": "CC",
+     "nom": "Cas concret",
+     "statut": "masque",
+     "tournage": "non",
+     "duree": "30-60 s",
+     "reseaux_conseilles": "linkedin ; instagram",
+     "squelette": "Exemple illustratif · étapes · fin tirée de la base 7",
+     "en_lot": "non",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "format_autre": {
+   "colonnes": [
+    "code",
+    "proprietaire",
+    "squelette",
+    "longueur_min",
+    "longueur_max",
+    "contient_appel",
+    "validation",
+    "etat_service",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "legende",
+     "proprietaire": "studio (kit)",
+     "squelette": "Une accroche courte · quelques lignes · l'appel, tiré de la base 7",
+     "longueur_min": "[selon le réseau, base 6]",
+     "longueur_max": "[selon le réseau, base 6]",
+     "contient_appel": "oui",
+     "validation": "chaque_texte",
+     "etat_service": "en_service",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "post_texte_linkedin",
+     "proprietaire": "studio (kit)",
+     "squelette": "Une accroche · un exemple · un appel",
+     "longueur_min": "400",
+     "longueur_max": "1300",
+     "contient_appel": "oui",
+     "validation": "chaque_texte",
+     "etat_service": "en_service",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  }
+ }
+}

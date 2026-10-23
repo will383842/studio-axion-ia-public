@@ -1,0 +1,213 @@
+{
+  "date": "2026-10-02T08:26:00.593Z",
+  "clesPresentes": {
+    "PEXELS_API_KEY": true,
+    "PIXABAY_API_KEY": true
+  },
+  "cout": "0 € (banques gratuites)",
+  "rapport": [
+    {
+      "phrase": "Vous recevez un PV de 135 € ?",
+      "requeteEn": "parking ticket",
+      "pexels": {
+        "statut": 200,
+        "ms": 460,
+        "total": 8000,
+        "verticaux": 12,
+        "acceptes": 2,
+        "premier": {
+          "id": "8553598",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 10,
+          "description": "a woman buying a train ticket at a ticket machine",
+          "page": "https://www.pexels.com/video/a-woman-buying-a-train-ticket-at-a-ticket-machine-8553598/",
+          "licence": "Pexels"
+        }
+      },
+      "pixabay": {
+        "statut": 200,
+        "ms": 294,
+        "total": 500,
+        "verticaux": 5,
+        "acceptes": 5,
+        "premier": {
+          "id": "266987",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 30,
+          "description": "vehicle, nature, drone, aerial, road, travel, forest, landscape, park, above, spring, bloom, flora, blossom, transport",
+          "page": "https://pixabay.com/videos/id-266987/",
+          "licence": "Pixabay"
+        }
+      }
+    },
+    {
+      "phrase": "Vous avez quarante-cinq jours pour le contester, et une seule erreur sur l'avis suffit.",
+      "intention": "un avis de contravention sur une table",
+      "requeteEn": "parking ticket table",
+      "pexels": {
+        "statut": 200,
+        "ms": 608,
+        "total": 8000,
+        "verticaux": 12,
+        "acceptes": 2,
+        "premier": {
+          "id": "5882124",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 10,
+          "description": "a young woman talking while sitting at the park",
+          "page": "https://www.pexels.com/video/a-young-woman-talking-while-sitting-at-the-park-5882124/",
+          "licence": "Pexels"
+        }
+      },
+      "pixabay": {
+        "statut": 200,
+        "ms": 237,
+        "total": 500,
+        "verticaux": 3,
+        "acceptes": 3,
+        "premier": {
+          "id": "238823",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 17,
+          "description": "coffee, bread, fruit, breakfast, food, healthy, cup, table, delicious, biscuits",
+          "page": "https://pixabay.com/videos/id-238823/",
+          "licence": "Pixabay"
+        }
+      }
+    },
+    {
+      "phrase": "Un client a économisé 2 500 € comme ça.",
+      "requeteEn": "handshake",
+      "pexels": {
+        "statut": 200,
+        "ms": 370,
+        "total": 2046,
+        "verticaux": 12,
+        "acceptes": 10,
+        "premier": {
+          "id": "6931109",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 5,
+          "description": "handshake of business partners",
+          "page": "https://www.pexels.com/video/handshake-of-business-partners-6931109/",
+          "licence": "Pexels"
+        }
+      },
+      "pixabay": {
+        "statut": 200,
+        "ms": 154,
+        "total": 4,
+        "verticaux": 0,
+        "acceptes": 0,
+        "premier": null
+      }
+    },
+    {
+      "phrase": "Gardez cette vidéo pour le prochain PV.",
+      "requeteEn": "parking ticket",
+      "pexels": {
+        "statut": 200,
+        "ms": 477,
+        "total": 8000,
+        "verticaux": 12,
+        "acceptes": 2,
+        "premier": {
+          "id": "8553598",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 10,
+          "description": "a woman buying a train ticket at a ticket machine",
+          "page": "https://www.pexels.com/video/a-woman-buying-a-train-ticket-at-a-ticket-machine-8553598/",
+          "licence": "Pexels"
+        }
+      },
+      "pixabay": {
+        "statut": 200,
+        "ms": 34,
+        "total": 500,
+        "verticaux": 5,
+        "acceptes": 5,
+        "premier": {
+          "id": "266987",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 30,
+          "description": "vehicle, nature, drone, aerial, road, travel, forest, landscape, park, above, spring, bloom, flora, blossom, transport",
+          "page": "https://pixabay.com/videos/id-266987/",
+          "licence": "Pixabay"
+        }
+      }
+    },
+    {
+      "phrase": "Relisez chaque ligne avant de signer.",
+      "intention": "signature d'un contrat",
+      "requeteEn": "signing document contract",
+      "pexels": {
+        "statut": 200,
+        "ms": 347,
+        "total": 6236,
+        "verticaux": 12,
+        "acceptes": 9,
+        "premier": {
+          "id": "8814707",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 7,
+          "description": "a person signing documents",
+          "page": "https://www.pexels.com/video/a-person-signing-documents-8814707/",
+          "licence": "Pexels"
+        }
+      },
+      "pixabay": {
+        "statut": 200,
+        "ms": 334,
+        "total": 175,
+        "verticaux": 5,
+        "acceptes": 0,
+        "premier": null
+      }
+    },
+    {
+      "phrase": "Ce sont des euros que vous gardez.",
+      "intention": "billets d'euros sur une table",
+      "requeteEn": "banknotes euro table",
+      "pexels": {
+        "statut": 200,
+        "ms": 456,
+        "total": 8000,
+        "verticaux": 12,
+        "acceptes": 11,
+        "premier": {
+          "id": "34812223",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 17,
+          "description": "counting cash and planning finance with banknotes",
+          "page": "https://www.pexels.com/video/counting-cash-and-planning-finance-with-banknotes-34812223/",
+          "licence": "Pexels"
+        }
+      },
+      "pixabay": {
+        "statut": 200,
+        "ms": 234,
+        "total": 412,
+        "verticaux": 3,
+        "acceptes": 3,
+        "premier": {
+          "id": "238823",
+          "largeur": 1080,
+          "hauteur": 1920,
+          "dureeSec": 17,
+          "description": "coffee, bread, fruit, breakfast, food, healthy, cup, table, delicious, biscuits",
+          "page": "https://pixabay.com/videos/id-238823/",
+          "licence": "Pixabay"
+        }
+      }
+    }
+  ]
+}

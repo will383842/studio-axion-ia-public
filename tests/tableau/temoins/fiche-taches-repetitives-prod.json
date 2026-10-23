@@ -1,0 +1,710 @@
+{
+ "ratio": "9:16",
+ "serie": {
+  "nom": "Audit",
+  "code": "audit"
+ },
+ "stylo": "crayon/1",
+ "scenes": [
+  {
+   "id": "s01",
+   "page": 1,
+   "role": "accroche",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 16,
+       "texte": "Adresses"
+      },
+      {
+       "ancre": 19,
+       "texte": "Factures"
+      },
+      {
+       "ancre": 26,
+       "texte": "Même question"
+      }
+     ],
+     "moment": "accroche",
+     "gabarit": "accroche-cases",
+     "etiquette": "Le constat",
+     "motsForts": [
+      "journée"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e01",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Où est passée la journée ?",
+     "marque": "entoure",
+     "niveau": "titre"
+    },
+    {
+     "id": "e02",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 4,
+     "dessinId": "horloge"
+    },
+    {
+     "id": "e03",
+     "type": "geste",
+     "ancre": 7,
+     "geste": "entourer",
+     "cibleId": "e01"
+    },
+    {
+     "id": "e04",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 16,
+     "texte": "Adresses, factures, même question",
+     "niveau": "texte"
+    },
+    {
+     "id": "e05",
+     "type": "geste",
+     "ancre": 26,
+     "geste": "souligner",
+     "cibleId": "e04"
+    },
+    {
+     "id": "e06",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 35,
+     "texte": "Rien de ce que j'avais prévu",
+     "marque": "barre",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Vous finissez à dix-neuf heures sans savoir où est passée la journée. Vous avez recopié des adresses, relancé des factures, répondu trois fois à la même question. Et le soir, vous vous dites : je n'ai rien fait de ce que j'avais prévu."
+  },
+  {
+   "id": "s02",
+   "page": 2,
+   "role": "idee-recue",
+   "ecrans": [
+    {
+     "moment": "retournement",
+     "gabarit": "idee-recue",
+     "etiquette": "Le vrai problème",
+     "motsForts": [
+      "organisation",
+      "répétées"
+     ]
+    },
+    {
+     "ancre": 20,
+     "moment": "promesse",
+     "gabarit": "semaine",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "semaine",
+      "feuille"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e07",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 4,
+     "texte": "Votre organisation ?",
+     "marque": "barre",
+     "niveau": "titre"
+    },
+    {
+     "id": "e08",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 10,
+     "texte": "Petites tâches répétées",
+     "marque": "souligne",
+     "niveau": "texte"
+    },
+    {
+     "id": "e09",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 13,
+     "dessinId": "fleche-boucle"
+    },
+    {
+     "id": "e10",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 20,
+     "texte": "En une semaine, avec une feuille",
+     "niveau": "texte"
+    },
+    {
+     "id": "e11",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 22,
+     "dessinId": "calendrier"
+    },
+    {
+     "id": "e12",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 28,
+     "texte": "Les tâches qui coûtent le plus",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Le problème n'est pas votre organisation. Le temps part dans des petites tâches répétées, trop courtes pour qu'on les remarque. En une semaine, avec une feuille, vous trouverez les trois qui vous coûtent le plus."
+  },
+  {
+   "id": "s03",
+   "page": 3,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 1,
+      "nom": "Feuille",
+      "total": 5
+     },
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Feuille"
+      },
+      {
+       "ancre": 10,
+       "texte": "Tâche notée"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "Feuille",
+      "clavier"
+     ]
+    },
+    {
+     "ancre": 22,
+     "etape": {
+      "n": 2,
+      "nom": "Bâtons",
+      "total": 5
+     },
+     "liste": [
+      {
+       "ancre": 27,
+       "texte": "Bâton"
+      },
+      {
+       "ancre": 32,
+       "texte": "Sans chronomètre"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "Bâton"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e13",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Feuille près du clavier",
+     "niveau": "texte"
+    },
+    {
+     "id": "e14",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 3,
+     "dessinId": "document"
+    },
+    {
+     "id": "e15",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 10,
+     "texte": "Noter chaque tâche répétée",
+     "niveau": "texte"
+    },
+    {
+     "id": "e16",
+     "type": "geste",
+     "ancre": 19,
+     "geste": "souligner",
+     "cibleId": "e15"
+    },
+    {
+     "id": "e17",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 27,
+     "texte": "Bâton à chaque retour",
+     "niveau": "texte"
+    },
+    {
+     "id": "e18",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 32,
+     "texte": "Pas de chronomètre",
+     "marque": "barre",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Un. Gardez une feuille près du clavier toute la semaine. Notez chaque tâche que vous faites plus d'une fois, en trois mots. Deux. Chaque fois qu'elle revient, tracez un bâton à côté. Pas de chronomètre. Juste des bâtons."
+  },
+  {
+   "id": "s04",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 3,
+      "nom": "Minutes",
+      "total": 5
+     },
+     "liste": [
+      {
+       "ancre": 6,
+       "texte": "Minutes",
+       "detail": "Estimation suffit"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "Minutes"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e19",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 6,
+     "texte": "Minutes par tâche",
+     "niveau": "texte"
+    },
+    {
+     "id": "e20",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 9,
+     "dessinId": "sablier"
+    },
+    {
+     "id": "e21",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 13,
+     "texte": "Estimation suffit",
+     "niveau": "texte"
+    },
+    {
+     "id": "e22",
+     "type": "geste",
+     "ancre": 16,
+     "geste": "cocher",
+     "cibleId": "e21"
+    }
+   ],
+   "texteDit": "Trois. À côté de chaque tâche, écrivez combien de minutes elle vous prend. Une estimation suffit, une seule fois par tâche."
+  },
+  {
+   "id": "s05",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 4,
+      "nom": "Totaux",
+      "total": 5
+     },
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Bâtons fois minutes"
+      },
+      {
+       "ancre": 8,
+       "texte": "Gros totaux"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "Vendredi",
+      "totaux"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e23",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Vendredi : bâtons fois minutes",
+     "niveau": "texte"
+    },
+    {
+     "id": "e24",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 2,
+     "dessinId": "calculatrice"
+    },
+    {
+     "id": "e25",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 8,
+     "texte": "Les plus gros totaux",
+     "marque": "entoure",
+     "niveau": "texte"
+    },
+    {
+     "id": "e26",
+     "type": "geste",
+     "ancre": 9,
+     "geste": "entourer",
+     "cibleId": "e25"
+    }
+   ],
+   "texteDit": "Quatre. Vendredi, multipliez les bâtons par les minutes. Entourez les trois plus gros totaux."
+  },
+  {
+   "id": "s06",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 5,
+      "nom": "Entrée, sortie",
+      "total": 5
+     },
+     "liste": [
+      {
+       "ancre": 6,
+       "texte": "Entrée"
+      },
+      {
+       "ancre": 10,
+       "texte": "Sortie"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "entre",
+      "sort"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e27",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 3,
+     "texte": "Ce qui entre, ce qui sort",
+     "niveau": "texte"
+    },
+    {
+     "id": "e28",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 6,
+     "dessinId": "fleche-droite"
+    },
+    {
+     "id": "e29",
+     "role": "avantage",
+     "type": "ligne",
+     "ancre": 11,
+     "texte": "Votre consigne pour l'IA",
+     "niveau": "texte"
+    },
+    {
+     "id": "e30",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 16,
+     "dessinId": "ampoule"
+    }
+   ],
+   "texteDit": "Cinq. Pour chacune, écrivez ce qui entre et ce qui sort. C'est exactement ce que vous direz à une IA."
+  },
+  {
+   "id": "s07",
+   "page": 5,
+   "role": "exemple",
+   "ecrans": [
+    {
+     "moment": "exemple",
+     "gabarit": "exemple",
+     "etiquette": "Exemple",
+     "motsForts": [
+      "Recopier",
+      "mails"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e31",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e32",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 7,
+     "texte": "Le téléphone ?",
+     "marque": "barre",
+     "niveau": "titre"
+    },
+    {
+     "id": "e33",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 9,
+     "dessinId": "telephone"
+    },
+    {
+     "id": "e34",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 15,
+     "texte": "Recopier les mails vers les devis",
+     "niveau": "texte"
+    },
+    {
+     "id": "e35",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 19,
+     "dessinId": "enveloppe"
+    },
+    {
+     "id": "e36",
+     "type": "geste",
+     "ancre": 28,
+     "geste": "entourer",
+     "cibleId": "e34"
+    }
+   ],
+   "texteDit": "Prenons un plombier persuadé de perdre son temps au téléphone. Sa grille montre autre chose : recopier les coordonnées des mails vers ses devis. Quinze bâtons, quatre minutes à chaque fois : une heure par semaine."
+  },
+  {
+   "id": "s08",
+   "page": 5,
+   "role": "preuve",
+   "ecrans": [
+    {
+     "moment": "exemple",
+     "gabarit": "exemple",
+     "etiquette": "Exemple",
+     "motsForts": [
+      "confier"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e37",
+     "type": "preuve",
+     "ancre": 0,
+     "lignes": [
+      "Entre : le mail",
+      "Sort : l'en-tête du devis"
+     ],
+     "preuveId": "mat-import-demo-02"
+    },
+    {
+     "id": "e38",
+     "type": "geste",
+     "ancre": 8,
+     "geste": "entourer",
+     "cibleId": "e37"
+    },
+    {
+     "id": "e39",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 11,
+     "dessinId": "coche-cercle"
+    },
+    {
+     "id": "e40",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 13,
+     "texte": "À confier en premier",
+     "marque": "souligne",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Ce qui entre : le mail. Ce qui sort : l'en-tête du devis. Il sait enfin quoi confier en premier."
+  },
+  {
+   "id": "s09",
+   "page": 6,
+   "role": "resultat",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Feuille"
+      },
+      {
+       "ancre": 3,
+       "texte": "Bâtons"
+      },
+      {
+       "ancre": 5,
+       "texte": "Minutes"
+      },
+      {
+       "ancre": 7,
+       "texte": "Totaux entourés"
+      },
+      {
+       "ancre": 9,
+       "texte": "Entrée, sortie"
+      }
+     ],
+     "moment": "recapitulatif",
+     "gabarit": "recapitulatif",
+     "etiquette": "En résumé",
+     "motsForts": [
+      "Totaux"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e41",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 0,
+     "dessinId": "liste-cochee"
+    },
+    {
+     "id": "e42",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Feuille, bâtons, minutes",
+     "niveau": "texte"
+    },
+    {
+     "id": "e43",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 7,
+     "texte": "Totaux entourés",
+     "marque": "entoure",
+     "niveau": "texte"
+    },
+    {
+     "id": "e44",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 9,
+     "texte": "Entrée, sortie",
+     "niveau": "texte"
+    },
+    {
+     "id": "e45",
+     "type": "geste",
+     "ancre": 12,
+     "geste": "cocher",
+     "cibleId": "e44"
+    }
+   ],
+   "texteDit": "Une feuille. Des bâtons. Des minutes. Trois totaux entourés. Ce qui entre, ce qui sort."
+  },
+  {
+   "id": "s10",
+   "page": 6,
+   "role": "fin",
+   "ecrans": [
+    {
+     "moment": "appel",
+     "gabarit": "appel-commentaire",
+     "etiquette": "À vous",
+     "motsForts": [
+      "GRILLE"
+     ],
+     "motCommentaire": "grille"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e46",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 1,
+     "dessinId": "tableau-colonnes"
+    },
+    {
+     "id": "e47",
+     "role": "avantage",
+     "type": "ligne",
+     "ancre": 4,
+     "texte": "La grille est prête",
+     "niveau": "texte"
+    },
+    {
+     "id": "e48",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 8,
+     "texte": "Écrivez GRILLE en commentaire",
+     "niveau": "titre"
+    },
+    {
+     "id": "e49",
+     "type": "geste",
+     "ancre": 9,
+     "geste": "entourer",
+     "cibleId": "e48"
+    }
+   ],
+   "texteDit": "La grille d'une page est prête, colonnes tracées. Écrivez GRILLE en commentaire. Je vous l'envoie."
+  }
+ ],
+ "appelId": "fin-if-mot-envoi",
+ "douleur": "Vous finissez à dix-neuf heures sans savoir où est passée la journée.",
+ "version": "fiche-scenes/1",
+ "videoId": "v-98c2f9aba005",
+ "formatId": "tableau-anime",
+ "habillage": "blocs/2",
+ "structure": "demonstration",
+ "versionId": "b1",
+ "gesteMinute": "Avant de parler d'IA : repérer en une semaine les tâches répétitives qui vous coûtent le plus de temps"
+}

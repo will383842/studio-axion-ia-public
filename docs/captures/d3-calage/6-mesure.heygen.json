@@ -1,0 +1,126 @@
+{
+  "texte": "Bonjour. Mardi, votre dossier est arrivé. Le juge a lu vos lettres ; la décision viendra lundi. Avec nous, vous avancez. Merci, et à bientôt.",
+  "mots": [
+    {
+      "mot": "Bonjour.",
+      "debutSec": 0.24,
+      "finSec": 0.68
+    },
+    {
+      "mot": "Mardi,",
+      "debutSec": 0.78,
+      "finSec": 1.06
+    },
+    {
+      "mot": "votre",
+      "debutSec": 1.14,
+      "finSec": 1.38
+    },
+    {
+      "mot": "dossier",
+      "debutSec": 1.42,
+      "finSec": 1.76
+    },
+    {
+      "mot": "est",
+      "debutSec": 1.78,
+      "finSec": 1.9
+    },
+    {
+      "mot": "arrivé.",
+      "debutSec": 1.96,
+      "finSec": 2.28
+    },
+    {
+      "mot": "Le",
+      "debutSec": 2.34,
+      "finSec": 2.42
+    },
+    {
+      "mot": "juge",
+      "debutSec": 2.52,
+      "finSec": 2.7
+    },
+    {
+      "mot": "a",
+      "debutSec": 2.78,
+      "finSec": 2.82
+    },
+    {
+      "mot": "lu",
+      "debutSec": 2.86,
+      "finSec": 2.98
+    },
+    {
+      "mot": "vos",
+      "debutSec": 3.02,
+      "finSec": 3.14
+    },
+    {
+      "mot": "lettres",
+      "debutSec": 3.18,
+      "finSec": 3.42
+    },
+    {
+      "mot": "la",
+      "debutSec": 3.48,
+      "finSec": 3.56
+    },
+    {
+      "mot": "décision",
+      "debutSec": 3.6,
+      "finSec": 4.04
+    },
+    {
+      "mot": "viendra",
+      "debutSec": 4.08,
+      "finSec": 4.34
+    },
+    {
+      "mot": "lundi.",
+      "debutSec": 4.4,
+      "finSec": 4.72
+    },
+    {
+      "mot": "Avec",
+      "debutSec": 5.32,
+      "finSec": 5.56
+    },
+    {
+      "mot": "nous,",
+      "debutSec": 5.6,
+      "finSec": 5.76
+    },
+    {
+      "mot": "vous",
+      "debutSec": 6.04,
+      "finSec": 6.18
+    },
+    {
+      "mot": "avancez.",
+      "debutSec": 6.26,
+      "finSec": 6.66
+    },
+    {
+      "mot": "Merci,",
+      "debutSec": 7.2,
+      "finSec": 7.58
+    },
+    {
+      "mot": "et",
+      "debutSec": 7.76,
+      "finSec": 7.8
+    },
+    {
+      "mot": "à",
+      "debutSec": 7.84,
+      "finSec": 7.88
+    },
+    {
+      "mot": "bientôt.",
+      "debutSec": 7.92,
+      "finSec": 8.26
+    }
+  ],
+  "dureeSec": 8.594
+}

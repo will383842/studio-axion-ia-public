@@ -1,0 +1,18 @@
+# Tâches planifiées du Studio vidéo Axion-IA (audit D, B8) — fichier VERSIONNÉ, au format /etc/cron.d (avec l'utilisateur).
+# Installation sur le serveur (voir deploiement/README.md) :
+#   sudo install -m 0644 /opt/studio-axion-ia/source/deploiement/crontab /etc/cron.d/studio-axion-ia
+# Les heures sont celles du serveur (`timedatectl` pour les voir).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Sauvegarde quotidienne de la base : vérifiée, copiée hors site dans R2 (studio/sauvegardes/), rotation locale 14 jours.
+# Échec : ligne « ÉCHEC » dans /opt/studio-axion-ia/sauvegardes/sauvegardes.log, fichier DERNIER-ECHEC, e-mail d'alerte.
+30 3 * * * root /bin/bash /opt/studio-axion-ia/source/deploiement/sauvegarder.sh >>/opt/studio-axion-ia/sauvegardes/cron.log 2>&1
+
+# Vérif V5 : surveillance mémoire (chaque conteneur du studio à 85 % de sa limite) et disque (85 %), alerte e-mail au plus
+# une fois par heure et par cause. Journal : /opt/studio-axion-ia/surveillance/surveillance.log.
+*/5 * * * * root mkdir -p /opt/studio-axion-ia/surveillance && /bin/bash /opt/studio-axion-ia/source/deploiement/surveiller.sh >/dev/null 2>>/opt/studio-axion-ia/surveillance/cron.log
+
+# Vérif V5 : nettoyage sûr du disque (images sans nom, vieux cache de construction, dossiers temporaires de plus de
+# 24 h dans studio-rendu et studio-aligneur). Jamais les volumes, la base ni les sauvegardes.
+15 4 * * * root mkdir -p /opt/studio-axion-ia/surveillance && /bin/bash /opt/studio-axion-ia/source/deploiement/nettoyer-disque.sh >/dev/null 2>>/opt/studio-axion-ia/surveillance/cron.log

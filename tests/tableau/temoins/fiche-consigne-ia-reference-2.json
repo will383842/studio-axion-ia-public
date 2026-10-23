@@ -1,0 +1,502 @@
+{
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "habillage": "reference/2",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "appelId": null,
+  "videoId": "v-9d15cce3c6e3",
+  "versionId": "b1",
+  "structure": "demonstration",
+  "serie": {
+    "nom": "Coaching 1 to 1",
+    "code": "coaching"
+  },
+  "douleur": "Vous déléguez à l'IA, puis vous réécrivez tout. Vous corrigez chaque phrase, une par une.",
+  "gesteMinute": "Vous déléguez une tâche à l'IA et vous repassez derrière à chaque fois : comment lui donner une consigne qui tient",
+  "scenes": [
+    {
+      "id": "s01",
+      "role": "accroche",
+      "page": 1,
+      "texteDit": "Vous déléguez à l'IA, puis vous réécrivez tout. Vous corrigez chaque phrase, une par une. Et vous vous dites : j'aurais été plus rapide seul.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Tout réécrire",
+          "niveau": "titre",
+          "role": "alerte",
+          "bloc": "titre",
+          "id": "e01",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Vous déléguez à l'IA, puis vous réécrivez tout.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "phrase-cle",
+          "marque": "entoure",
+          "id": "e02",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "gomme",
+          "cote": "droite",
+          "id": "e03",
+          "ancre": 6
+        },
+        {
+          "type": "ligne",
+          "texte": "Vous corrigez chaque phrase, une par une.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e04",
+          "ancre": 8
+        },
+        {
+          "type": "ligne",
+          "texte": "« J'aurais été plus rapide seul. »",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e05",
+          "ancre": 19
+        }
+      ],
+      "gabarit": {
+        "role": "probleme"
+      }
+    },
+    {
+      "id": "s02",
+      "role": "idee-recue",
+      "page": 2,
+      "texteDit": "Le problème n'est pas l'IA. Vous n'avez pas tranché ce que vous vouliez. Alors elle a décidé à votre place. Voici quatre décisions à prendre avant, en quatre lignes.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Pas l'IA",
+          "niveau": "titre",
+          "role": "alerte",
+          "bloc": "titre",
+          "id": "e06",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Vous n'avez pas tranché ce que vous vouliez.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e07",
+          "ancre": 5
+        },
+        {
+          "type": "dessin",
+          "dessinId": "point-interrogation",
+          "cote": "droite",
+          "id": "e08",
+          "ancre": 12
+        },
+        {
+          "type": "ligne",
+          "texte": "Alors elle a décidé à votre place.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e09",
+          "ancre": 13
+        },
+        {
+          "type": "ligne",
+          "texte": "Quatre décisions à prendre avant, en quatre lignes.",
+          "niveau": "texte",
+          "role": "avantage",
+          "bloc": "detail",
+          "id": "e10",
+          "ancre": 20
+        }
+      ],
+      "gabarit": {
+        "role": "probleme"
+      }
+    },
+    {
+      "id": "s03",
+      "role": "etape",
+      "page": 3,
+      "texteDit": "Un. Tranchez le livrable : ce que vous voulez recevoir, exactement. Un mail de cinq lignes, pas « un texte sur le sujet ».",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Le livrable",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e11",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Tranchez ce que vous voulez recevoir, exactement.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e12",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "document",
+          "cote": "droite",
+          "id": "e13",
+          "ancre": 8
+        },
+        {
+          "type": "ligne",
+          "texte": "Un mail de cinq lignes, pas « un texte sur le sujet ».",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e14",
+          "ancre": 10
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 1,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s04",
+      "role": "etape",
+      "page": 4,
+      "texteDit": "Deux. Tranchez le lecteur : qui va lire, et ce qu'il sait déjà. Un client pressé ne connaît pas le dossier comme votre associé.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Le lecteur",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e15",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Tranchez qui va lire, et ce qu'il sait déjà.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e16",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "bulle",
+          "cote": "droite",
+          "id": "e17",
+          "ancre": 4
+        },
+        {
+          "type": "ligne",
+          "texte": "Un client pressé ne connaît pas le dossier.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e18",
+          "ancre": 12
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 2,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s05",
+      "role": "etape",
+      "page": 5,
+      "texteDit": "Trois. Tranchez le critère : une phrase qui dit quand c'est réussi. Réussi si le client peut répondre oui ou non.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Le critère",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e19",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Une phrase qui dit quand c'est réussi.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e20",
+          "ancre": 4
+        },
+        {
+          "type": "dessin",
+          "dessinId": "cible",
+          "cote": "droite",
+          "id": "e21",
+          "ancre": 10
+        },
+        {
+          "type": "ligne",
+          "texte": "Réussi si le client peut répondre oui ou non.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e22",
+          "ancre": 11
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 3,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s06",
+      "role": "etape",
+      "page": 6,
+      "texteDit": "Quatre. Tranchez l'interdit : listez ce que vous corrigez à chaque fois. Vos corrections répétées, c'est la ligne qui manquait.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "L'interdit",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e23",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Listez ce que vous corrigez à chaque fois.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e24",
+          "ancre": 3
+        },
+        {
+          "type": "dessin",
+          "dessinId": "croix",
+          "cote": "droite",
+          "id": "e25",
+          "ancre": 7
+        },
+        {
+          "type": "ligne",
+          "texte": "Vos corrections répétées : la ligne qui manquait.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e26",
+          "ancre": 11
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 4,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s07",
+      "role": "exemple",
+      "page": 7,
+      "texteDit": "Prenons une consultante qui relance un prospect silencieux. Avant : « Rédigez une relance. » Trois paragraphes polis, à réécrire.",
+      "elements": [
+        {
+          "type": "mention",
+          "texte": "Exemple illustratif",
+          "id": "e27"
+        },
+        {
+          "type": "ligne",
+          "texte": "Une consultante",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e28",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Elle relance un prospect silencieux.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e29",
+          "ancre": 4
+        },
+        {
+          "type": "dessin",
+          "dessinId": "enveloppe",
+          "cote": "droite",
+          "id": "e30",
+          "ancre": 6
+        },
+        {
+          "type": "ligne",
+          "texte": "« Rédigez une relance. » Trois paragraphes polis, à réécrire.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "avant",
+          "id": "e31",
+          "ancre": 8
+        }
+      ],
+      "gabarit": {
+        "role": "exemple"
+      }
+    },
+    {
+      "id": "s08",
+      "role": "preuve",
+      "page": 7,
+      "texteDit": "Après : un mail de cinq lignes, pour un dirigeant pressé. Réussi s'il répond oui ou non. Interdit : « je me permets ». Elle change le prénom et elle envoie.",
+      "elements": [
+        {
+          "type": "preuve",
+          "preuveId": "mat-import-demo-02",
+          "lignes": [
+            "Après : un mail de cinq lignes, envoyé tel quel."
+          ],
+          "id": "e32",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Interdit : « je me permets ».",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "detail",
+          "id": "e33",
+          "ancre": 16
+        },
+        {
+          "type": "dessin",
+          "dessinId": "coche-cercle",
+          "cote": "droite",
+          "id": "e34",
+          "ancre": 26
+        }
+      ],
+      "gabarit": {
+        "role": "exemple"
+      }
+    },
+    {
+      "id": "s09",
+      "role": "resultat",
+      "page": 8,
+      "texteDit": "Le livrable. Le lecteur. Le critère. L'interdit. Le modèle tient en quatre lignes.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "À retenir",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e35",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Le livrable.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e36",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Le lecteur.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e37",
+          "ancre": 2
+        },
+        {
+          "type": "ligne",
+          "texte": "Le critère.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e38",
+          "ancre": 4
+        },
+        {
+          "type": "ligne",
+          "texte": "L'interdit.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e39",
+          "ancre": 6
+        },
+        {
+          "type": "ligne",
+          "texte": "Le modèle tient en quatre lignes.",
+          "niveau": "texte",
+          "role": "avantage",
+          "bloc": "detail",
+          "id": "e40",
+          "ancre": 7
+        }
+      ],
+      "gabarit": {
+        "role": "retenir"
+      }
+    },
+    {
+      "id": "s10",
+      "role": "fin",
+      "page": 8,
+      "texteDit": "Écrivez CONSIGNE en commentaire. Je vous l'envoie.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Écrivez CONSIGNE en commentaire",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "appel",
+          "id": "e41",
+          "ancre": 0
+        },
+        {
+          "type": "dessin",
+          "dessinId": "bulle",
+          "cote": "droite",
+          "id": "e42",
+          "ancre": 4
+        }
+      ],
+      "gabarit": {
+        "role": "retenir"
+      }
+    }
+  ]
+}

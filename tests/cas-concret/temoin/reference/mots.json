@@ -1,0 +1,841 @@
+{
+ "variante": "commentaire",
+ "duree": 53.364042,
+ "mots": [
+  {
+   "word": "On",
+   "start": 0.035,
+   "end": 0.115
+  },
+  {
+   "word": "recrute",
+   "start": 0.155,
+   "end": 0.555
+  },
+  {
+   "word": "nos",
+   "start": 0.595,
+   "end": 0.695
+  },
+  {
+   "word": "collaborateurs",
+   "start": 0.735,
+   "end": 1.515
+  },
+  {
+   "word": "en",
+   "start": 1.595,
+   "end": 1.815
+  },
+  {
+   "word": "quinze",
+   "start": 1.855,
+   "end": 2.075
+  },
+  {
+   "word": "minutes.",
+   "start": 2.135,
+   "end": 2.495
+  },
+  {
+   "word": "Oui,",
+   "start": 2.765,
+   "end": 2.885
+  },
+  {
+   "word": "quinze",
+   "start": 2.965,
+   "end": 3.145
+  },
+  {
+   "word": "minutes.",
+   "start": 3.165,
+   "end": 3.505
+  },
+  {
+   "word": "Avant,",
+   "start": 3.775,
+   "end": 4.035
+  },
+  {
+   "word": "c'était",
+   "start": 4.235,
+   "end": 4.515
+  },
+  {
+   "word": "ça",
+   "start": 4.575,
+   "end": 4.695
+  },
+  {
+   "word": ":",
+   "start": 4.695,
+   "end": 4.695
+  },
+  {
+   "word": "trier",
+   "start": 4.895,
+   "end": 5.115
+  },
+  {
+   "word": "les",
+   "start": 5.155,
+   "end": 5.235
+  },
+  {
+   "word": "candidatures,",
+   "start": 5.275,
+   "end": 6.095
+  },
+  {
+   "word": "répondre",
+   "start": 6.295,
+   "end": 6.655
+  },
+  {
+   "word": "à",
+   "start": 6.715,
+   "end": 6.735
+  },
+  {
+   "word": "chacun,",
+   "start": 6.775,
+   "end": 7.235
+  },
+  {
+   "word": "relancer,",
+   "start": 7.435,
+   "end": 8.055
+  },
+  {
+   "word": "caler",
+   "start": 8.255,
+   "end": 8.435
+  },
+  {
+   "word": "un",
+   "start": 8.455,
+   "end": 8.495
+  },
+  {
+   "word": "rendez-vous,",
+   "start": 8.535,
+   "end": 9.135
+  },
+  {
+   "word": "envoyer",
+   "start": 9.335,
+   "end": 9.615
+  },
+  {
+   "word": "le",
+   "start": 9.655,
+   "end": 9.695
+  },
+  {
+   "word": "contrat,",
+   "start": 9.755,
+   "end": 10.155
+  },
+  {
+   "word": "courir",
+   "start": 10.355,
+   "end": 10.615
+  },
+  {
+   "word": "après",
+   "start": 10.675,
+   "end": 10.855
+  },
+  {
+   "word": "la",
+   "start": 10.895,
+   "end": 10.975
+  },
+  {
+   "word": "signature.",
+   "start": 11.015,
+   "end": 11.615
+  },
+  {
+   "word": "Plus",
+   "start": 11.885,
+   "end": 12.065
+  },
+  {
+   "word": "d'une",
+   "start": 12.085,
+   "end": 12.225
+  },
+  {
+   "word": "heure,",
+   "start": 12.285,
+   "end": 12.485
+  },
+  {
+   "word": "pour",
+   "start": 12.685,
+   "end": 12.785
+  },
+  {
+   "word": "chaque",
+   "start": 12.845,
+   "end": 13.025
+  },
+  {
+   "word": "personne.",
+   "start": 13.065,
+   "end": 13.485
+  },
+  {
+   "word": "Alors",
+   "start": 13.755,
+   "end": 13.835
+  },
+  {
+   "word": "on",
+   "start": 13.855,
+   "end": 13.915
+  },
+  {
+   "word": "a",
+   "start": 13.955,
+   "end": 14.015
+  },
+  {
+   "word": "tout",
+   "start": 14.055,
+   "end": 14.195
+  },
+  {
+   "word": "automatisé.",
+   "start": 14.235,
+   "end": 14.975
+  },
+  {
+   "word": "La",
+   "start": 15.035,
+   "end": 15.095
+  },
+  {
+   "word": "personne",
+   "start": 15.135,
+   "end": 15.395
+  },
+  {
+   "word": "voit",
+   "start": 15.435,
+   "end": 15.535
+  },
+  {
+   "word": "notre",
+   "start": 15.595,
+   "end": 15.755
+  },
+  {
+   "word": "annonce.",
+   "start": 15.795,
+   "end": 16.215
+  },
+  {
+   "word": "Elle",
+   "start": 16.485,
+   "end": 16.585
+  },
+  {
+   "word": "s'inscrit",
+   "start": 16.645,
+   "end": 16.965
+  },
+  {
+   "word": "toute",
+   "start": 17.005,
+   "end": 17.145
+  },
+  {
+   "word": "seule,",
+   "start": 17.205,
+   "end": 17.385
+  },
+  {
+   "word": "en",
+   "start": 17.425,
+   "end": 17.485
+  },
+  {
+   "word": "vingt",
+   "start": 17.525,
+   "end": 17.645
+  },
+  {
+   "word": "secondes.",
+   "start": 17.665,
+   "end": 18.045
+  },
+  {
+   "word": "Elle",
+   "start": 18.315,
+   "end": 18.435
+  },
+  {
+   "word": "reçoit",
+   "start": 18.475,
+   "end": 18.935
+  },
+  {
+   "word": "ses",
+   "start": 19.015,
+   "end": 19.175
+  },
+  {
+   "word": "e-mails",
+   "start": 19.215,
+   "end": 19.555
+  },
+  {
+   "word": "toute",
+   "start": 19.615,
+   "end": 19.755
+  },
+  {
+   "word": "seule.",
+   "start": 19.815,
+   "end": 20.075
+  },
+  {
+   "word": "Elle",
+   "start": 20.345,
+   "end": 20.465
+  },
+  {
+   "word": "choisit",
+   "start": 20.505,
+   "end": 20.845
+  },
+  {
+   "word": "elle-même",
+   "start": 20.885,
+   "end": 21.185
+  },
+  {
+   "word": "son",
+   "start": 21.225,
+   "end": 21.345
+  },
+  {
+   "word": "rendez-vous.",
+   "start": 21.385,
+   "end": 21.865
+  },
+  {
+   "word": "Et",
+   "start": 22.135,
+   "end": 22.235
+  },
+  {
+   "word": "si",
+   "start": 22.295,
+   "end": 22.415
+  },
+  {
+   "word": "elle",
+   "start": 22.455,
+   "end": 22.535
+  },
+  {
+   "word": "oublie,",
+   "start": 22.575,
+   "end": 22.855
+  },
+  {
+   "word": "le",
+   "start": 23.055,
+   "end": 23.115
+  },
+  {
+   "word": "rappel",
+   "start": 23.175,
+   "end": 23.475
+  },
+  {
+   "word": "part",
+   "start": 23.535,
+   "end": 23.655
+  },
+  {
+   "word": "tout",
+   "start": 23.695,
+   "end": 23.815
+  },
+  {
+   "word": "seul.",
+   "start": 23.895,
+   "end": 24.235
+  },
+  {
+   "word": "Nous,",
+   "start": 24.505,
+   "end": 24.625
+  },
+  {
+   "word": "on",
+   "start": 24.665,
+   "end": 24.765
+  },
+  {
+   "word": "arrive",
+   "start": 24.845,
+   "end": 25.065
+  },
+  {
+   "word": "pour",
+   "start": 25.105,
+   "end": 25.205
+  },
+  {
+   "word": "la",
+   "start": 25.245,
+   "end": 25.345
+  },
+  {
+   "word": "visio.",
+   "start": 25.385,
+   "end": 25.745
+  },
+  {
+   "word": "Quinze",
+   "start": 26.015,
+   "end": 26.275
+  },
+  {
+   "word": "minutes.",
+   "start": 26.315,
+   "end": 26.675
+  },
+  {
+   "word": "C'est",
+   "start": 26.945,
+   "end": 27.045
+  },
+  {
+   "word": "notre",
+   "start": 27.065,
+   "end": 27.225
+  },
+  {
+   "word": "seul",
+   "start": 27.265,
+   "end": 27.425
+  },
+  {
+   "word": "travail.",
+   "start": 27.465,
+   "end": 27.885
+  },
+  {
+   "word": "Derrière,",
+   "start": 28.155,
+   "end": 28.635
+  },
+  {
+   "word": "le",
+   "start": 28.835,
+   "end": 28.935
+  },
+  {
+   "word": "contrat",
+   "start": 28.975,
+   "end": 29.235
+  },
+  {
+   "word": "part",
+   "start": 29.255,
+   "end": 29.375
+  },
+  {
+   "word": "tout",
+   "start": 29.395,
+   "end": 29.495
+  },
+  {
+   "word": "seul.",
+   "start": 29.535,
+   "end": 29.855
+  },
+  {
+   "word": "Elle",
+   "start": 30.125,
+   "end": 30.245
+  },
+  {
+   "word": "signe",
+   "start": 30.305,
+   "end": 30.685
+  },
+  {
+   "word": "sur",
+   "start": 30.745,
+   "end": 30.865
+  },
+  {
+   "word": "son",
+   "start": 30.905,
+   "end": 31.005
+  },
+  {
+   "word": "téléphone.",
+   "start": 31.045,
+   "end": 31.625
+  },
+  {
+   "word": "Et",
+   "start": 31.895,
+   "end": 31.935
+  },
+  {
+   "word": "le",
+   "start": 31.975,
+   "end": 32.055
+  },
+  {
+   "word": "dossier",
+   "start": 32.095,
+   "end": 32.315
+  },
+  {
+   "word": "est",
+   "start": 32.335,
+   "end": 32.375
+  },
+  {
+   "word": "classé.",
+   "start": 32.415,
+   "end": 32.775
+  },
+  {
+   "word": "Et",
+   "start": 32.969,
+   "end": 33.029
+  },
+  {
+   "word": "tout",
+   "start": 33.069,
+   "end": 33.169
+  },
+  {
+   "word": "est",
+   "start": 33.189,
+   "end": 33.289
+  },
+  {
+   "word": "conforme",
+   "start": 33.309,
+   "end": 33.689
+  },
+  {
+   "word": "au",
+   "start": 33.729,
+   "end": 33.829
+  },
+  {
+   "word": "R.G.P.D.",
+   "start": 34.009,
+   "end": 34.909
+  },
+  {
+   "word": ":",
+   "start": 34.909,
+   "end": 34.909
+  },
+  {
+   "word": "cent",
+   "start": 35.029,
+   "end": 35.149
+  },
+  {
+   "word": "pour",
+   "start": 35.189,
+   "end": 35.269
+  },
+  {
+   "word": "cent",
+   "start": 35.329,
+   "end": 35.409
+  },
+  {
+   "word": "automatique,",
+   "start": 35.449,
+   "end": 35.909
+  },
+  {
+   "word": "sans",
+   "start": 35.969,
+   "end": 36.069
+  },
+  {
+   "word": "aucune",
+   "start": 36.109,
+   "end": 36.309
+  },
+  {
+   "word": "intervention",
+   "start": 36.349,
+   "end": 36.809
+  },
+  {
+   "word": "manuelle.",
+   "start": 36.849,
+   "end": 37.189
+  },
+  {
+   "word": "Résultat",
+   "start": 37.843,
+   "end": 38.283
+  },
+  {
+   "word": ":",
+   "start": 38.283,
+   "end": 38.283
+  },
+  {
+   "word": "des",
+   "start": 38.483,
+   "end": 38.603
+  },
+  {
+   "word": "heures",
+   "start": 38.623,
+   "end": 38.743
+  },
+  {
+   "word": "gagnées,",
+   "start": 38.763,
+   "end": 39.183
+  },
+  {
+   "word": "à",
+   "start": 39.263,
+   "end": 39.283
+  },
+  {
+   "word": "chaque",
+   "start": 39.323,
+   "end": 39.483
+  },
+  {
+   "word": "recrutement.",
+   "start": 39.503,
+   "end": 40.003
+  },
+  {
+   "word": "Et",
+   "start": 40.273,
+   "end": 40.333
+  },
+  {
+   "word": "dans",
+   "start": 40.393,
+   "end": 40.493
+  },
+  {
+   "word": "votre",
+   "start": 40.533,
+   "end": 40.713
+  },
+  {
+   "word": "entreprise,",
+   "start": 40.773,
+   "end": 41.313
+  },
+  {
+   "word": "quelle",
+   "start": 41.513,
+   "end": 41.733
+  },
+  {
+   "word": "tâche",
+   "start": 41.793,
+   "end": 42.073
+  },
+  {
+   "word": "pourrait",
+   "start": 42.133,
+   "end": 42.413
+  },
+  {
+   "word": "tourner",
+   "start": 42.453,
+   "end": 42.733
+  },
+  {
+   "word": "toute",
+   "start": 42.903,
+   "end": 43.063
+  },
+  {
+   "word": "seule",
+   "start": 43.123,
+   "end": 43.323
+  },
+  {
+   "word": "?",
+   "start": 43.323,
+   "end": 43.323
+  },
+  {
+   "word": "Écrivez",
+   "start": 43.731,
+   "end": 44.111
+  },
+  {
+   "word": "I.A.",
+   "start": 44.171,
+   "end": 44.471
+  },
+  {
+   "word": "en",
+   "start": 44.611,
+   "end": 44.691
+  },
+  {
+   "word": "commentaire",
+   "start": 44.731,
+   "end": 45.171
+  },
+  {
+   "word": "on",
+   "start": 45.478,
+   "end": 45.537
+  },
+  {
+   "word": "vous",
+   "start": 45.557,
+   "end": 45.657
+  },
+  {
+   "word": "envoie",
+   "start": 45.697,
+   "end": 45.877
+  },
+  {
+   "word": "toute",
+   "start": 46.057,
+   "end": 46.217
+  },
+  {
+   "word": "la",
+   "start": 46.257,
+   "end": 46.337
+  },
+  {
+   "word": "structure",
+   "start": 46.417,
+   "end": 46.777
+  },
+  {
+   "word": "de",
+   "start": 46.837,
+   "end": 46.937
+  },
+  {
+   "word": "cette",
+   "start": 46.977,
+   "end": 47.117
+  },
+  {
+   "word": "automatisation,",
+   "start": 47.157,
+   "end": 47.817
+  },
+  {
+   "word": "à",
+   "start": 47.857,
+   "end": 47.897
+  },
+  {
+   "word": "mettre",
+   "start": 47.937,
+   "end": 48.097
+  },
+  {
+   "word": "en",
+   "start": 48.117,
+   "end": 48.197
+  },
+  {
+   "word": "place",
+   "start": 48.217,
+   "end": 48.397
+  },
+  {
+   "word": "chez",
+   "start": 48.417,
+   "end": 48.557
+  },
+  {
+   "word": "vous.",
+   "start": 48.597,
+   "end": 48.757
+  },
+  {
+   "word": "Ou",
+   "start": 49.077,
+   "end": 49.177
+  },
+  {
+   "word": "réservez",
+   "start": 49.237,
+   "end": 49.737
+  },
+  {
+   "word": "votre",
+   "start": 49.797,
+   "end": 50.057
+  },
+  {
+   "word": "diagnostic",
+   "start": 50.097,
+   "end": 50.577
+  },
+  {
+   "word": "gratuit.",
+   "start": 50.637,
+   "end": 51.017
+  },
+  {
+   "word": "Le",
+   "start": 51.307,
+   "end": 51.407
+  },
+  {
+   "word": "lien",
+   "start": 51.447,
+   "end": 51.707
+  },
+  {
+   "word": "vous",
+   "start": 51.747,
+   "end": 51.867
+  },
+  {
+   "word": "attend",
+   "start": 51.927,
+   "end": 52.127
+  },
+  {
+   "word": "en",
+   "start": 52.167,
+   "end": 52.247
+  },
+  {
+   "word": "premier",
+   "start": 52.267,
+   "end": 52.507
+  },
+  {
+   "word": "commentaire.",
+   "start": 52.567,
+   "end": 53.067
+  }
+ ]
+}

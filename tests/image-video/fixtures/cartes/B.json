@@ -1,0 +1,82 @@
+{
+  "version": "carte-image/1",
+  "image": {
+    "cle": "essais/image-video/B.png",
+    "empreinte": "essai-b",
+    "largeur": 1600,
+    "hauteur": 900,
+    "orientation": "paysage"
+  },
+  "types": [
+    "benefices"
+  ],
+  "offre": "formation",
+  "automatisation": false,
+  "titre": "Vous gagnez. Concrètement.",
+  "sousTitre": "Nos formations et interventions vous apportent des résultats visibles et durables.",
+  "phraseChoc": "Comprendre. Former. Transformer.",
+  "formulesAbsolues": [],
+  "noeuds": [
+    {
+      "id": "n01",
+      "libelle": "Gagnez du temps",
+      "detail": "Automatisez les tâches chronophages",
+      "role": "benefice",
+      "icone": "horloge",
+      "couleur": "orange",
+      "acteur": "humain",
+      "ordre": 1
+    },
+    {
+      "id": "n02",
+      "libelle": "Prenez de meilleures décisions",
+      "detail": "IA + données : décidez plus vite et plus juste",
+      "role": "benefice",
+      "icone": "boussole",
+      "couleur": "orange",
+      "acteur": "humain",
+      "ordre": 2
+    },
+    {
+      "id": "n03",
+      "libelle": "Dépassez vos concurrents",
+      "detail": "Innovez, optimisez, gardez une longueur d'avance",
+      "role": "benefice",
+      "icone": "eclair",
+      "couleur": "orange",
+      "acteur": "humain",
+      "ordre": 3
+    },
+    {
+      "id": "n04",
+      "libelle": "Développez vos compétences",
+      "detail": "Expertise, confiance",
+      "role": "benefice",
+      "icone": "formation",
+      "couleur": "orange",
+      "acteur": "humain",
+      "ordre": 4
+    },
+    {
+      "id": "n05",
+      "libelle": "Boostez votre performance",
+      "detail": "Résultats et rentabilité durables",
+      "role": "benefice",
+      "icone": "croissance",
+      "couleur": "orange",
+      "acteur": "humain",
+      "ordre": 5
+    }
+  ],
+  "liens": [],
+  "groupes": [],
+  "bandeau": [],
+  "bandeauChiffres": [],
+  "chiffres": [],
+  "pied": [],
+  "coherence": [],
+  "lecture": {
+    "ecarts": [],
+    "alertes": []
+  }
+}

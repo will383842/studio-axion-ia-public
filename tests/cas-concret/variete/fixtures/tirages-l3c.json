@@ -1,0 +1,3746 @@
+[
+ {
+  "videoId": "v-l3c-0",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 4239301177,
+   "sel": 0,
+   "ouverture": "phrase-deux-temps",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "glissement",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "plein-cadre",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "plein-cadre",
+    "etape": "v4-centree",
+    "objet": "gauche",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "douce",
+    "part": 0.5
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 4,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "vif",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 3,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-1",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 4222523558,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "probleme-solution",
+   "jeuAnimation": "glissement",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "v4-centree",
+    "question": "gauche",
+    "chiffre": "plein-cadre",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.3
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 5,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-2",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 4205745939,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "une-journee",
+   "jeuAnimation": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "plein-cadre",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "plein-cadre",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "eclair"
+    },
+    {
+     "moment": "fin",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.58
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 4,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-3",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 4188968320,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "probleme-solution",
+   "jeuAnimation": "volet",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "v4-centree",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "v4-centree",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.51
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 2,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "calme",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-4",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 11444357,
+   "sel": 0,
+   "ouverture": "titre-geant-gauche",
+   "structure": "une-journee",
+   "jeuAnimation": "v4",
+   "sortie": "flou",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "plein-cadre",
+    "etape": "plein-cadre",
+    "objet": "gauche",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.47
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 1,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-5",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 4289634034,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "rideau",
+   "sortie": "poussee",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "plein-cadre",
+    "resultat": "v4-centree",
+    "etape": "gauche",
+    "objet": "gauche",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "fin",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.52
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 3,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-6",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 4272856415,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "gauche",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "fin",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.32
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 0,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-7",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 4256078796,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "volet",
+   "sortie": "flou",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "gauche",
+    "resultat": "gauche",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.57
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 3,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-8",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 78554833,
+   "sel": 0,
+   "ouverture": "chiffre-choc",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "volet",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "plein-cadre",
+    "chiffre": "plein-cadre",
+    "resultat": "plein-cadre",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.48
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 1,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-9",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 61777214,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "plein-cadre",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "douce",
+    "part": 0.37
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 3,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-10",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3386520610,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "volet",
+   "sortie": "poussee",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "revelation",
+    "part": 0.36
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 4,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-11",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3403298229,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "une-journee",
+   "jeuAnimation": "volet",
+   "sortie": "poussee",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "gauche",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.36
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-12",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3352965372,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "v4",
+   "sortie": "poussee",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "v4-centree",
+    "question": "v4-centree",
+    "chiffre": "plein-cadre",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "plein-cadre",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.37
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 0,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "calme",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 3,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-13",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3369742991,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "v4-centree",
+    "question": "gauche",
+    "chiffre": "plein-cadre",
+    "resultat": "gauche",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 1,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 3,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-14",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3319410134,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "probleme-solution",
+   "jeuAnimation": "v4",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.37
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 3,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-15",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3336187753,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "glissement",
+   "sortie": "flou",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "plein-cadre",
+    "objet": "plein-cadre",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    },
+    {
+     "moment": "fin",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.55
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 5,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-16",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3285854896,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "une-journee",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "gauche",
+    "resultat": "v4-centree",
+    "etape": "plein-cadre",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.33
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 0,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 3,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-17",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3302632515,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "glissement",
+   "sortie": "aucune-v4",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "gauche",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.3
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 3,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-18",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3520741562,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "probleme-solution",
+   "jeuAnimation": "glissement",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "v4-centree",
+    "chiffre": "gauche",
+    "resultat": "gauche",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 1,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-19",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3537519181,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "rideau",
+   "sortie": "poussee",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "v4-centree",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "gauche",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "eclair"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "fin",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.47
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 2,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "vif",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-20",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3285707801,
+   "sel": 0,
+   "ouverture": "titre-geant-gauche",
+   "structure": "une-journee",
+   "jeuAnimation": "zoom",
+   "sortie": "flou",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-21",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3268930182,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "v4",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "plein-cadre",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "plein-cadre",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.45
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-22",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3252152563,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "une-journee",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "gauche",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "gauche",
+    "liste-avant": "gauche",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 5,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-23",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3235374944,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "une-journee",
+   "jeuAnimation": "volet",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "gauche",
+    "resultat": "v4-centree",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.46
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 5,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-24",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3352818277,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "plein-cadre",
+    "resultat": "gauche",
+    "etape": "gauche",
+    "objet": "gauche",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.42
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 5,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 3,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-25",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3336040658,
+   "sel": 0,
+   "ouverture": "chiffre-choc",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "volet",
+   "sortie": "poussee",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "poussee"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.46
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 2,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-26",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3319263039,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "glissement",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "gauche",
+    "objet": "gauche",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-27",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3302485420,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "plein-cadre",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-28",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3419928753,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "volet",
+   "sortie": "aucune-v4",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.35
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 1,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-29",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3403151134,
+   "sel": 0,
+   "ouverture": "phrase-deux-temps",
+   "structure": "une-journee",
+   "jeuAnimation": "glissement",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "v4-centree",
+    "chiffre": "gauche",
+    "resultat": "gauche",
+    "etape": "gauche",
+    "objet": "gauche",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.48
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 5,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-30",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3184894992,
+   "sel": 0,
+   "ouverture": "phrase-deux-temps",
+   "structure": "probleme-solution",
+   "jeuAnimation": "volet",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "plein-cadre",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.44
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 1,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-31",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3201672611,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "volet",
+   "sortie": "flou",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "plein-cadre",
+    "objet": "gauche",
+    "liste-avant": "plein-cadre",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "poussee"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.59
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 4,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-32",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3218450230,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "volet",
+   "sortie": "aucune-v4",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "v4-centree",
+    "question": "v4-centree",
+    "chiffre": "gauche",
+    "resultat": "v4-centree",
+    "etape": "plein-cadre",
+    "objet": "plein-cadre",
+    "liste-avant": "gauche",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "eclair"
+    },
+    {
+     "moment": "fin",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.48
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 1,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-33",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3235227849,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "zoom",
+   "sortie": "poussee",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "v4-centree",
+    "question": "gauche",
+    "chiffre": "plein-cadre",
+    "resultat": "v4-centree",
+    "etape": "plein-cadre",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.54
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 4,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-34",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3252005468,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "probleme-solution",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 5,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-35",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3268783087,
+   "sel": 0,
+   "ouverture": "chiffre-choc",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "glissement",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.46
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 4,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-36",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3285560706,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "probleme-solution",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "v4-centree",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "douce",
+    "part": 0.4
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 3,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-37",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3302338325,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "une-journee",
+   "jeuAnimation": "rideau",
+   "sortie": "poussee",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "gauche",
+    "liste-avant": "plein-cadre",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    },
+    {
+     "moment": "fin",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.36
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 4,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-38",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3319115944,
+   "sel": 0,
+   "ouverture": "chiffre-choc",
+   "structure": "probleme-solution",
+   "jeuAnimation": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "gauche",
+    "question": "v4-centree",
+    "chiffre": "plein-cadre",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "fin",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.48
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 1,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-39",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3335893563,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "zoom",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.3
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-40",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3353804015,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "gauche",
+    "liste-avant": "gauche",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "eclair"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.43
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 4,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-41",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3337026396,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "zoom",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "plein-cadre",
+    "objet": "plein-cadre",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.5
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 4,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-42",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3387359253,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "zoom",
+   "sortie": "flou",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "plein-cadre",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "eclair"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "poussee"
+    },
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.45
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 1,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-43",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3370581634,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "v4",
+   "sortie": "flou",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "v4-centree",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.59
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 5,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-44",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3286693539,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "glissement",
+   "sortie": "poussee",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "poussee"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "poussee"
+    },
+    {
+     "moment": "resultat",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.5
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 3
+   },
+   "fin": {
+    "phrase": 3,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-45",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3269915920,
+   "sel": 0,
+   "ouverture": "question-plein-cadre",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "v4",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "plein-cadre",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "plein-cadre",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "poussee"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.56
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 2,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "vif",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-46",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3320248777,
+   "sel": 0,
+   "ouverture": "chiffre-choc",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "glissement",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "poussee"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.4
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 4,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-47",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3303471158,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "volet",
+   "sortie": "flou",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.43
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 5,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-48",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3488024967,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "v4",
+   "sortie": "flou",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "gauche",
+    "question": "v4-centree",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "poussee"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.43
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 5,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 3,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-49",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 3471247348,
+   "sel": 0,
+   "ouverture": "phrase-deux-temps",
+   "structure": "probleme-solution",
+   "jeuAnimation": "glissement",
+   "sortie": "flou",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "gauche",
+    "resultat": "v4-centree",
+    "etape": "gauche",
+    "objet": "gauche",
+    "liste-avant": "v4-centree",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "eclair"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 0,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-50",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1105455974,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "glissement",
+   "sortie": "poussee",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "gauche"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "revelation",
+    "part": 0.39
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 5,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-51",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1122233593,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "v4-avant-etapes-resultat",
+   "jeuAnimation": "v4",
+   "sortie": "poussee",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "gauche",
+    "etape": "plein-cadre",
+    "objet": "gauche",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "poussee"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 0,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-52",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1071900736,
+   "sel": 0,
+   "ouverture": "objet-zoom-arriere",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "plein-cadre",
+    "question": "plein-cadre",
+    "chiffre": "v4-centree",
+    "resultat": "v4-centree",
+    "etape": "v4-centree",
+    "objet": "plein-cadre",
+    "liste-avant": "plein-cadre",
+    "preuve": "v4-centree"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "douce",
+    "part": 0.33
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 2,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 3
+   },
+   "fin": {
+    "phrase": 2,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-53",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1088678355,
+   "sel": 0,
+   "ouverture": "titre-geant-gauche",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "v4",
+   "sortie": "aucune-v4",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "plein-cadre",
+    "chiffre": "gauche",
+    "resultat": "gauche",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "gauche",
+    "preuve": "v4-centree"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "douce",
+    "part": 0.38
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 3,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 5
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-54",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1172566450,
+   "sel": 0,
+   "ouverture": "avant-apres-eclair",
+   "structure": "resultat-d-abord",
+   "jeuAnimation": "zoom",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "v4-centree",
+    "question": "gauche",
+    "chiffre": "plein-cadre",
+    "resultat": "v4-centree",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "revelation",
+    "part": 0.52
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 3,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 2
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-55",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1189344069,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "une-journee",
+   "jeuAnimation": "glissement",
+   "sortie": "aucune-v4",
+   "motParMot": "cascade",
+   "miseEnPage": {
+    "accroche": "plein-cadre",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "v4-centree",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "plein-cadre",
+    "liste-avant": "gauche",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "resultat",
+     "type": "eclair"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 0,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "vif",
+    "accent": "v4",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-56",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1139011212,
+   "sel": 0,
+   "ouverture": "phrase-deux-temps",
+   "structure": "probleme-solution",
+   "jeuAnimation": "rideau",
+   "sortie": "poussee",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "gauche",
+    "question": "gauche",
+    "chiffre": "plein-cadre",
+    "resultat": "plein-cadre",
+    "etape": "v4-centree",
+    "objet": "gauche",
+    "liste-avant": "gauche",
+    "preuve": "gauche"
+   },
+   "transitions": [
+    {
+     "moment": "bascule",
+     "type": "volet-terracotta"
+    },
+    {
+     "moment": "premiere-etape",
+     "type": "poussee"
+    },
+    {
+     "moment": "resultat",
+     "type": "volet-terracotta"
+    }
+   ],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.44
+   },
+   "fondFort": 0,
+   "particules": {
+    "groupe": 5,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "calme",
+    "accent": "v4",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 3
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-57",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1155788831,
+   "sel": 0,
+   "ouverture": "compteur-emballe",
+   "structure": "une-journee",
+   "jeuAnimation": "v4",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "v4-centree",
+    "titre": "plein-cadre",
+    "question": "gauche",
+    "chiffre": "gauche",
+    "resultat": "v4-centree",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [
+    {
+     "moment": "premiere-etape",
+     "type": "raccord-objet"
+    },
+    {
+     "moment": "resultat",
+     "type": "poussee"
+    },
+    {
+     "moment": "fin",
+     "type": "raccord-objet"
+    }
+   ],
+   "camera": {
+    "style": "aucune-v4",
+    "part": 0
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 3,
+    "densite": "v4"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 0
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 0,
+    "animation": 1
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-58",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "facebook"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1239676926,
+   "sel": 0,
+   "ouverture": "titre-geant-gauche",
+   "structure": "une-journee",
+   "jeuAnimation": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "v4-centree",
+    "question": "v4-centree",
+    "chiffre": "v4-centree",
+    "resultat": "plein-cadre",
+    "etape": "plein-cadre",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "rythmee",
+    "part": 0.53
+   },
+   "fondFort": 2,
+   "particules": {
+    "groupe": 3,
+    "densite": "legere"
+   },
+   "sousTitres": {
+    "inclinaison": "inverse",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "v4"
+   },
+   "bruitages": {
+    "depart": 4
+   },
+   "fin": {
+    "phrase": 1,
+    "composition": 1,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ },
+ {
+  "videoId": "v-l3c-59",
+  "le": "2026-10-15T12:00:00.000Z",
+  "canaux": [
+   "instagram",
+   "tiktok"
+  ],
+  "tirage": {
+   "version": "variete/1",
+   "graine": 1256454545,
+   "sel": 0,
+   "ouverture": "affiche-v4",
+   "structure": "probleme-solution",
+   "jeuAnimation": "volet",
+   "sortie": "aucune-v4",
+   "motParMot": "souffle",
+   "miseEnPage": {
+    "accroche": "gauche",
+    "titre": "gauche",
+    "question": "v4-centree",
+    "chiffre": "gauche",
+    "resultat": "plein-cadre",
+    "etape": "gauche",
+    "objet": "v4-centree",
+    "liste-avant": "v4-centree",
+    "preuve": "plein-cadre"
+   },
+   "transitions": [],
+   "camera": {
+    "style": "revelation",
+    "part": 0.47
+   },
+   "fondFort": 1,
+   "particules": {
+    "groupe": 5,
+    "densite": "dense"
+   },
+   "sousTitres": {
+    "inclinaison": "v4",
+    "intensite": "v4",
+    "accent": "surlignage",
+    "hauteur": "haute"
+   },
+   "bruitages": {
+    "depart": 1
+   },
+   "fin": {
+    "phrase": 0,
+    "composition": 0,
+    "animation": 0
+   },
+   "relache": 0
+  }
+ }
+]

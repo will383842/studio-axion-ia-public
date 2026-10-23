@@ -1,0 +1,2417 @@
+{
+ "version": "plan-facecam-animee/1",
+ "charte": "interface-claire/1",
+ "duree": 82.667,
+ "fps": 30,
+ "largeur": 1080,
+ "hauteur": 1920,
+ "prise": {
+  "src": "prise-montee.mp4",
+  "finSec": 82.667,
+  "yeux": 0.31,
+  "centreX": 0.52,
+  "largeurVisage": 0.38
+ },
+ "groupes": [
+  {
+   "mots": [
+    {
+     "w": "Si",
+     "a": 0.12
+    },
+    {
+     "w": "votre",
+     "a": 0.36
+    },
+    {
+     "w": "entreprise",
+     "a": 0.52,
+     "fort": true
+    }
+   ],
+   "fin": 0.92
+  },
+  {
+   "mots": [
+    {
+     "w": "avance",
+     "a": 0.92
+    },
+    {
+     "w": "mais",
+     "a": 1.24
+    },
+    {
+     "w": "que",
+     "a": 1.4
+    }
+   ],
+   "fin": 1.5
+  },
+  {
+   "mots": [
+    {
+     "w": "vos",
+     "a": 1.5
+    },
+    {
+     "w": "journées",
+     "a": 1.6,
+     "fort": true
+    }
+   ],
+   "fin": 2.02
+  },
+  {
+   "mots": [
+    {
+     "w": "elles",
+     "a": 2.02
+    },
+    {
+     "w": "n'en",
+     "a": 2.26
+    },
+    {
+     "w": "finissent",
+     "a": 2.4
+    }
+   ],
+   "fin": 2.64
+  },
+  {
+   "mots": [
+    {
+     "w": "plus",
+     "a": 2.64
+    },
+    {
+     "w": "vous",
+     "a": 3.047
+    },
+    {
+     "w": "n'avez",
+     "a": 3.147
+    },
+    {
+     "w": "pas",
+     "a": 3.347
+    }
+   ],
+   "fin": 3.527
+  },
+  {
+   "mots": [
+    {
+     "w": "un",
+     "a": 3.527
+    },
+    {
+     "w": "problème",
+     "a": 3.667,
+     "fort": true
+    }
+   ],
+   "fin": 3.847
+  },
+  {
+   "mots": [
+    {
+     "w": "de",
+     "a": 3.847
+    },
+    {
+     "w": "travail",
+     "a": 4.007,
+     "fort": true
+    }
+   ],
+   "fin": 4.413
+  },
+  {
+   "mots": [
+    {
+     "w": "vous",
+     "a": 4.413
+    },
+    {
+     "w": "avez",
+     "a": 4.553
+    },
+    {
+     "w": "une",
+     "a": 4.793
+    },
+    {
+     "w": "fuite",
+     "a": 5.093,
+     "fort": true
+    }
+   ],
+   "fin": 5.713
+  },
+  {
+   "mots": [
+    {
+     "w": "Et",
+     "a": 5.713
+    },
+    {
+     "w": "ce",
+     "a": 5.873
+    },
+    {
+     "w": "qui",
+     "a": 6.033
+    }
+   ],
+   "fin": 6.213
+  },
+  {
+   "mots": [
+    {
+     "w": "suit",
+     "a": 6.213
+    },
+    {
+     "w": "est",
+     "a": 6.473
+    },
+    {
+     "w": "pour",
+     "a": 6.873
+    },
+    {
+     "w": "vous",
+     "a": 7.013
+    }
+   ],
+   "fin": 7.377
+  },
+  {
+   "mots": [
+    {
+     "w": "Les",
+     "a": 7.377
+    },
+    {
+     "w": "soirées",
+     "a": 7.457,
+     "fort": true
+    }
+   ],
+   "fin": 7.717
+  },
+  {
+   "mots": [
+    {
+     "w": "sur",
+     "a": 7.717
+    },
+    {
+     "w": "les",
+     "a": 7.917
+    },
+    {
+     "w": "devis",
+     "a": 8.017,
+     "fort": true
+    }
+   ],
+   "fin": 8.517
+  },
+  {
+   "mots": [
+    {
+     "w": "les",
+     "a": 8.517
+    },
+    {
+     "w": "relances",
+     "a": 8.617,
+     "fort": true
+    }
+   ],
+   "fin": 8.937
+  },
+  {
+   "mots": [
+    {
+     "w": "à",
+     "a": 8.937
+    },
+    {
+     "w": "la",
+     "a": 9.077
+    },
+    {
+     "w": "main",
+     "a": 9.137
+    }
+   ],
+   "fin": 9.577
+  },
+  {
+   "mots": [
+    {
+     "w": "les",
+     "a": 9.577
+    },
+    {
+     "w": "chiffres",
+     "a": 9.637,
+     "fort": true
+    }
+   ],
+   "fin": 9.917
+  },
+  {
+   "mots": [
+    {
+     "w": "qui",
+     "a": 9.917
+    },
+    {
+     "w": "arrivent",
+     "a": 10.037
+    },
+    {
+     "w": "trop",
+     "a": 10.277
+    }
+   ],
+   "fin": 10.457
+  },
+  {
+   "mots": [
+    {
+     "w": "tard",
+     "a": 10.457
+    }
+   ],
+   "fin": 10.87
+  },
+  {
+   "mots": [
+    {
+     "w": "ce",
+     "a": 10.87
+    },
+    {
+     "w": "n'est",
+     "a": 10.89
+    },
+    {
+     "w": "pas",
+     "a": 11.01
+    }
+   ],
+   "fin": 11.19
+  },
+  {
+   "mots": [
+    {
+     "w": "la",
+     "a": 11.19
+    },
+    {
+     "w": "charge",
+     "a": 11.33
+    },
+    {
+     "w": "normale",
+     "a": 11.79
+    }
+   ],
+   "fin": 12.05
+  },
+  {
+   "mots": [
+    {
+     "w": "d'un",
+     "a": 12.05
+    },
+    {
+     "w": "dirigeant",
+     "a": 12.31,
+     "fort": true
+    }
+   ],
+   "fin": 12.89
+  },
+  {
+   "mots": [
+    {
+     "w": "C'est",
+     "a": 12.89
+    },
+    {
+     "w": "du",
+     "a": 13.15
+    },
+    {
+     "w": "temps",
+     "a": 13.31,
+     "fort": true
+    }
+   ],
+   "fin": 13.47
+  },
+  {
+   "mots": [
+    {
+     "w": "qui",
+     "a": 13.47
+    },
+    {
+     "w": "s'échappe",
+     "a": 13.63
+    }
+   ],
+   "fin": 14.31
+  },
+  {
+   "mots": [
+    {
+     "w": "chaque",
+     "a": 14.31
+    },
+    {
+     "w": "jour",
+     "a": 14.53
+    }
+   ],
+   "fin": 15.05
+  },
+  {
+   "mots": [
+    {
+     "w": "sans",
+     "a": 15.05
+    },
+    {
+     "w": "bruit",
+     "a": 15.31,
+     "fort": true
+    }
+   ],
+   "fin": 15.757
+  },
+  {
+   "mots": [
+    {
+     "w": "Chez",
+     "a": 15.757
+    },
+    {
+     "w": "Axion-IA",
+     "a": 15.897
+    }
+   ],
+   "fin": 16.483
+  },
+  {
+   "mots": [
+    {
+     "w": "on",
+     "a": 16.483
+    },
+    {
+     "w": "forme",
+     "a": 16.523,
+     "fort": true
+    }
+   ],
+   "fin": 16.843
+  },
+  {
+   "mots": [
+    {
+     "w": "les",
+     "a": 16.843
+    },
+    {
+     "w": "équipes",
+     "a": 17.003,
+     "fort": true
+    }
+   ],
+   "fin": 17.343
+  },
+  {
+   "mots": [
+    {
+     "w": "à",
+     "a": 17.343
+    },
+    {
+     "w": "l'IA",
+     "a": 17.483,
+     "fort": true
+    }
+   ],
+   "fin": 17.783
+  },
+  {
+   "mots": [
+    {
+     "w": "on",
+     "a": 17.783
+    },
+    {
+     "w": "accompagne",
+     "a": 17.903,
+     "fort": true
+    }
+   ],
+   "fin": 18.463
+  },
+  {
+   "mots": [
+    {
+     "w": "les",
+     "a": 18.463
+    },
+    {
+     "w": "dirigeants",
+     "a": 18.603,
+     "fort": true
+    }
+   ],
+   "fin": 18.983
+  },
+  {
+   "mots": [
+    {
+     "w": "en",
+     "a": 18.983
+    },
+    {
+     "w": "one-to-one",
+     "a": 19.163,
+     "fort": true
+    }
+   ],
+   "fin": 19.983
+  },
+  {
+   "mots": [
+    {
+     "w": "on",
+     "a": 19.983
+    },
+    {
+     "w": "audite",
+     "a": 20.043,
+     "fort": true
+    }
+   ],
+   "fin": 20.336
+  },
+  {
+   "mots": [
+    {
+     "w": "les",
+     "a": 20.336
+    },
+    {
+     "w": "entreprises",
+     "a": 20.483,
+     "fort": true
+    }
+   ],
+   "fin": 20.883
+  },
+  {
+   "mots": [
+    {
+     "w": "et",
+     "a": 20.883
+    },
+    {
+     "w": "on",
+     "a": 21.283
+    },
+    {
+     "w": "automatise",
+     "a": 21.403,
+     "fort": true
+    }
+   ],
+   "fin": 22.003
+  },
+  {
+   "mots": [
+    {
+     "w": "tout",
+     "a": 22.003
+    },
+    {
+     "w": "ce",
+     "a": 22.423
+    },
+    {
+     "w": "qui",
+     "a": 22.543
+    }
+   ],
+   "fin": 22.603
+  },
+  {
+   "mots": [
+    {
+     "w": "leur",
+     "a": 22.603
+    },
+    {
+     "w": "coûte",
+     "a": 22.743
+    }
+   ],
+   "fin": 22.923
+  },
+  {
+   "mots": [
+    {
+     "w": "du",
+     "a": 22.923
+    },
+    {
+     "w": "temps",
+     "a": 23.043,
+     "fort": true
+    }
+   ],
+   "fin": 23.443
+  },
+  {
+   "mots": [
+    {
+     "w": "Petite",
+     "a": 23.443
+    },
+    {
+     "w": "structure",
+     "a": 23.683
+    }
+   ],
+   "fin": 24.237
+  },
+  {
+   "mots": [
+    {
+     "w": "entreprise",
+     "a": 24.237,
+     "fort": true
+    }
+   ],
+   "fin": 24.617
+  },
+  {
+   "mots": [
+    {
+     "w": "en",
+     "a": 24.617
+    },
+    {
+     "w": "croissance",
+     "a": 24.737
+    }
+   ],
+   "fin": 25.227
+  },
+  {
+   "mots": [
+    {
+     "w": "ou",
+     "a": 25.227
+    },
+    {
+     "w": "groupe",
+     "a": 25.377
+    }
+   ],
+   "fin": 25.737
+  },
+  {
+   "mots": [
+    {
+     "w": "partout",
+     "a": 25.737
+    }
+   ],
+   "fin": 26.217
+  },
+  {
+   "mots": [
+    {
+     "w": "je",
+     "a": 26.217
+    },
+    {
+     "w": "vois",
+     "a": 26.277
+    }
+   ],
+   "fin": 26.417
+  },
+  {
+   "mots": [
+    {
+     "w": "le",
+     "a": 26.417
+    },
+    {
+     "w": "même",
+     "a": 26.517
+    },
+    {
+     "w": "réflexe",
+     "a": 26.657
+    }
+   ],
+   "fin": 27.197
+  },
+  {
+   "mots": [
+    {
+     "w": "On",
+     "a": 27.197
+    },
+    {
+     "w": "veut",
+     "a": 27.757
+    },
+    {
+     "w": "colmater",
+     "a": 27.897,
+     "fort": true
+    }
+   ],
+   "fin": 28.437
+  },
+  {
+   "mots": [
+    {
+     "w": "en",
+     "a": 28.437
+    },
+    {
+     "w": "ajoutant",
+     "a": 28.757
+    }
+   ],
+   "fin": 29.337
+  },
+  {
+   "mots": [
+    {
+     "w": "un",
+     "a": 29.337
+    },
+    {
+     "w": "outil",
+     "a": 29.737,
+     "fort": true
+    },
+    {
+     "w": "de",
+     "a": 29.997
+    },
+    {
+     "w": "plus",
+     "a": 30.097
+    }
+   ],
+   "fin": 30.483
+  },
+  {
+   "mots": [
+    {
+     "w": "une",
+     "a": 30.483
+    },
+    {
+     "w": "embauche",
+     "a": 30.643,
+     "fort": true
+    },
+    {
+     "w": "de",
+     "a": 30.923
+    },
+    {
+     "w": "plus",
+     "a": 31.043
+    }
+   ],
+   "fin": 31.483
+  },
+  {
+   "mots": [
+    {
+     "w": "alors",
+     "a": 31.483
+    },
+    {
+     "w": "que",
+     "a": 31.723
+    },
+    {
+     "w": "la",
+     "a": 31.943
+    }
+   ],
+   "fin": 32.083
+  },
+  {
+   "mots": [
+    {
+     "w": "vraie",
+     "a": 32.083
+    },
+    {
+     "w": "première",
+     "a": 32.283,
+     "fort": true
+    }
+   ],
+   "fin": 32.563
+  },
+  {
+   "mots": [
+    {
+     "w": "étape",
+     "a": 32.563
+    }
+   ],
+   "fin": 33.063
+  },
+  {
+   "mots": [
+    {
+     "w": "c'est",
+     "a": 33.063
+    },
+    {
+     "w": "de",
+     "a": 33.303
+    },
+    {
+     "w": "trouver",
+     "a": 33.423
+    }
+   ],
+   "fin": 33.763
+  },
+  {
+   "mots": [
+    {
+     "w": "la",
+     "a": 33.763
+    },
+    {
+     "w": "fuite",
+     "a": 34.263,
+     "fort": true
+    }
+   ],
+   "fin": 34.777
+  },
+  {
+   "mots": [
+    {
+     "w": "Prenez",
+     "a": 34.777
+    },
+    {
+     "w": "un",
+     "a": 34.997
+    },
+    {
+     "w": "dirigeant",
+     "a": 35.097,
+     "fort": true
+    }
+   ],
+   "fin": 35.557
+  },
+  {
+   "mots": [
+    {
+     "w": "qui",
+     "a": 35.557
+    },
+    {
+     "w": "voulait",
+     "a": 35.977
+    },
+    {
+     "w": "recruter",
+     "a": 36.197,
+     "fort": true
+    }
+   ],
+   "fin": 36.657
+  },
+  {
+   "mots": [
+    {
+     "w": "pour",
+     "a": 36.657
+    },
+    {
+     "w": "absorber",
+     "a": 36.977
+    }
+   ],
+   "fin": 37.377
+  },
+  {
+   "mots": [
+    {
+     "w": "l'administratif",
+     "a": 37.377
+    }
+   ],
+   "fin": 38.323
+  },
+  {
+   "mots": [
+    {
+     "w": "On",
+     "a": 38.323
+    },
+    {
+     "w": "a",
+     "a": 38.423
+    },
+    {
+     "w": "d'abord",
+     "a": 38.583
+    }
+   ],
+   "fin": 38.823
+  },
+  {
+   "mots": [
+    {
+     "w": "regardé",
+     "a": 38.823
+    },
+    {
+     "w": "où",
+     "a": 39.443
+    },
+    {
+     "w": "partait",
+     "a": 39.663
+    }
+   ],
+   "fin": 39.943
+  },
+  {
+   "mots": [
+    {
+     "w": "le",
+     "a": 39.943
+    },
+    {
+     "w": "temps",
+     "a": 40.083,
+     "fort": true
+    }
+   ],
+   "fin": 40.477
+  },
+  {
+   "mots": [
+    {
+     "w": "Pas",
+     "a": 40.477
+    },
+    {
+     "w": "de",
+     "a": 40.577
+    },
+    {
+     "w": "recrutement",
+     "a": 40.677,
+     "fort": true
+    }
+   ],
+   "fin": 41.217
+  },
+  {
+   "mots": [
+    {
+     "w": "ses",
+     "a": 41.217
+    },
+    {
+     "w": "équipes",
+     "a": 41.397,
+     "fort": true
+    }
+   ],
+   "fin": 41.777
+  },
+  {
+   "mots": [
+    {
+     "w": "ont",
+     "a": 41.777
+    },
+    {
+     "w": "retrouvé",
+     "a": 41.897
+    }
+   ],
+   "fin": 42.337
+  },
+  {
+   "mots": [
+    {
+     "w": "leurs",
+     "a": 42.337
+    },
+    {
+     "w": "après-midi",
+     "a": 42.537,
+     "fort": true
+    }
+   ],
+   "fin": 43.037
+  },
+  {
+   "mots": [
+    {
+     "w": "et",
+     "a": 43.037
+    },
+    {
+     "w": "lui",
+     "a": 43.357
+    },
+    {
+     "w": "ses",
+     "a": 43.817
+    },
+    {
+     "w": "week-ends",
+     "a": 43.837,
+     "fort": true
+    }
+   ],
+   "fin": 44.267
+  },
+  {
+   "mots": [
+    {
+     "w": "Alors",
+     "a": 44.267
+    },
+    {
+     "w": "on",
+     "a": 44.447
+    },
+    {
+     "w": "vous",
+     "a": 44.707
+    },
+    {
+     "w": "propose",
+     "a": 44.827
+    }
+   ],
+   "fin": 45.167
+  },
+  {
+   "mots": [
+    {
+     "w": "de",
+     "a": 45.167
+    },
+    {
+     "w": "commencer",
+     "a": 45.327
+    },
+    {
+     "w": "par",
+     "a": 45.607
+    },
+    {
+     "w": "là",
+     "a": 45.927
+    }
+   ],
+   "fin": 46.247
+  },
+  {
+   "mots": [
+    {
+     "w": "Le",
+     "a": 46.247
+    },
+    {
+     "w": "diagnostic",
+     "a": 46.327,
+     "fort": true
+    }
+   ],
+   "fin": 46.787
+  },
+  {
+   "mots": [
+    {
+     "w": "fuite",
+     "a": 46.787,
+     "fort": true
+    }
+   ],
+   "fin": 47.533
+  },
+  {
+   "mots": [
+    {
+     "w": "Un",
+     "a": 47.533
+    },
+    {
+     "w": "premier",
+     "a": 47.733,
+     "fort": true
+    }
+   ],
+   "fin": 48.013
+  },
+  {
+   "mots": [
+    {
+     "w": "diagnostic",
+     "a": 48.013,
+     "fort": true
+    }
+   ],
+   "fin": 48.473
+  },
+  {
+   "mots": [
+    {
+     "w": "gratuit",
+     "a": 48.473,
+     "fort": true
+    }
+   ],
+   "fin": 48.953
+  },
+  {
+   "mots": [
+    {
+     "w": "de",
+     "a": 48.953
+    },
+    {
+     "w": "45 minutes",
+     "a": 49.173,
+     "fort": true
+    }
+   ],
+   "fin": 49.953
+  },
+  {
+   "mots": [
+    {
+     "w": "en",
+     "a": 49.953
+    },
+    {
+     "w": "visio",
+     "a": 50.253,
+     "fort": true
+    }
+   ],
+   "fin": 50.593
+  },
+  {
+   "mots": [
+    {
+     "w": "avec",
+     "a": 50.593
+    },
+    {
+     "w": "notre",
+     "a": 50.873
+    },
+    {
+     "w": "équipe",
+     "a": 51.073,
+     "fort": true
+    }
+   ],
+   "fin": 51.553
+  },
+  {
+   "mots": [
+    {
+     "w": "Un",
+     "a": 51.553
+    },
+    {
+     "w": "où",
+     "a": 52.413
+    },
+    {
+     "w": "part",
+     "a": 52.453
+    }
+   ],
+   "fin": 52.653
+  },
+  {
+   "mots": [
+    {
+     "w": "votre",
+     "a": 52.653
+    },
+    {
+     "w": "temps",
+     "a": 52.833,
+     "fort": true
+    }
+   ],
+   "fin": 53.613
+  },
+  {
+   "mots": [
+    {
+     "w": "Deux",
+     "a": 54.147,
+     "fort": true
+    },
+    {
+     "w": "qu'est-ce",
+     "a": 54.147
+    }
+   ],
+   "fin": 54.367
+  },
+  {
+   "mots": [
+    {
+     "w": "qui",
+     "a": 54.367
+    },
+    {
+     "w": "peut",
+     "a": 54.467
+    },
+    {
+     "w": "changer",
+     "a": 54.667
+    }
+   ],
+   "fin": 54.907
+  },
+  {
+   "mots": [
+    {
+     "w": "en",
+     "a": 54.907
+    },
+    {
+     "w": "premier",
+     "a": 55.207,
+     "fort": true
+    }
+   ],
+   "fin": 55.987
+  },
+  {
+   "mots": [
+    {
+     "w": "Trois",
+     "a": 56.51,
+     "fort": true
+    },
+    {
+     "w": "de",
+     "a": 56.51
+    },
+    {
+     "w": "quoi",
+     "a": 56.59
+    }
+   ],
+   "fin": 56.75
+  },
+  {
+   "mots": [
+    {
+     "w": "avez-vous",
+     "a": 56.75
+    },
+    {
+     "w": "besoin",
+     "a": 57.07
+    }
+   ],
+   "fin": 57.41
+  },
+  {
+   "mots": [
+    {
+     "w": "pour",
+     "a": 57.41
+    },
+    {
+     "w": "avancer",
+     "a": 57.61
+    }
+   ],
+   "fin": 58.45
+  },
+  {
+   "mots": [
+    {
+     "w": "Une",
+     "a": 58.71
+    },
+    {
+     "w": "formation",
+     "a": 58.89,
+     "fort": true
+    }
+   ],
+   "fin": 59.51
+  },
+  {
+   "mots": [
+    {
+     "w": "pour",
+     "a": 59.51
+    },
+    {
+     "w": "vos",
+     "a": 59.71
+    },
+    {
+     "w": "équipes",
+     "a": 59.91,
+     "fort": true
+    }
+   ],
+   "fin": 60.35
+  },
+  {
+   "mots": [
+    {
+     "w": "avec",
+     "a": 60.35
+    },
+    {
+     "w": "des",
+     "a": 60.37
+    },
+    {
+     "w": "aides",
+     "a": 60.57
+    }
+   ],
+   "fin": 60.77
+  },
+  {
+   "mots": [
+    {
+     "w": "OPCO",
+     "a": 60.77,
+     "fort": true
+    }
+   ],
+   "fin": 61.01
+  },
+  {
+   "mots": [
+    {
+     "w": "possibles",
+     "a": 61.01
+    },
+    {
+     "w": "grâce",
+     "a": 61.51
+    },
+    {
+     "w": "à",
+     "a": 61.635
+    }
+   ],
+   "fin": 62.2
+  },
+  {
+   "mots": [
+    {
+     "w": "en",
+     "a": 62.217
+    },
+    {
+     "w": "vous",
+     "a": 62.317
+    },
+    {
+     "w": "orientant",
+     "a": 62.437
+    }
+   ],
+   "fin": 62.797
+  },
+  {
+   "mots": [
+    {
+     "w": "vers",
+     "a": 62.797
+    },
+    {
+     "w": "les",
+     "a": 62.937
+    },
+    {
+     "w": "bonnes",
+     "a": 63.097
+    }
+   ],
+   "fin": 63.497
+  },
+  {
+   "mots": [
+    {
+     "w": "Ou",
+     "a": 63.497
+    },
+    {
+     "w": "peut-être",
+     "a": 63.597
+    },
+    {
+     "w": "un",
+     "a": 63.897
+    }
+   ],
+   "fin": 64.017
+  },
+  {
+   "mots": [
+    {
+     "w": "accompagnement",
+     "a": 64.017,
+     "fort": true
+    }
+   ],
+   "fin": 64.597
+  },
+  {
+   "mots": [
+    {
+     "w": "one-to-one",
+     "a": 64.597,
+     "fort": true
+    }
+   ],
+   "fin": 65.397
+  },
+  {
+   "mots": [
+    {
+     "w": "un",
+     "a": 65.397
+    },
+    {
+     "w": "audit",
+     "a": 65.517,
+     "fort": true
+    }
+   ],
+   "fin": 65.677
+  },
+  {
+   "mots": [
+    {
+     "w": "complet",
+     "a": 65.677
+    }
+   ],
+   "fin": 66.097
+  },
+  {
+   "mots": [
+    {
+     "w": "de",
+     "a": 66.097
+    },
+    {
+     "w": "l'automatisation",
+     "a": 66.317,
+     "fort": true
+    }
+   ],
+   "fin": 67.323
+  },
+  {
+   "mots": [
+    {
+     "w": "En",
+     "a": 67.323
+    },
+    {
+     "w": "45 minutes",
+     "a": 67.543,
+     "fort": true
+    }
+   ],
+   "fin": 68.383
+  },
+  {
+   "mots": [
+    {
+     "w": "on",
+     "a": 68.383
+    },
+    {
+     "w": "ne",
+     "a": 68.463
+    },
+    {
+     "w": "fait",
+     "a": 68.543
+    }
+   ],
+   "fin": 68.623
+  },
+  {
+   "mots": [
+    {
+     "w": "pas",
+     "a": 68.623
+    },
+    {
+     "w": "de",
+     "a": 68.783
+    },
+    {
+     "w": "miracle",
+     "a": 68.843,
+     "fort": true
+    }
+   ],
+   "fin": 69.283
+  },
+  {
+   "mots": [
+    {
+     "w": "mais",
+     "a": 69.283
+    },
+    {
+     "w": "vous",
+     "a": 69.363
+    },
+    {
+     "w": "repartez",
+     "a": 69.503
+    }
+   ],
+   "fin": 69.903
+  },
+  {
+   "mots": [
+    {
+     "w": "avec",
+     "a": 69.903
+    },
+    {
+     "w": "vos",
+     "a": 70.023
+    },
+    {
+     "w": "priorités",
+     "a": 70.223,
+     "fort": true
+    }
+   ],
+   "fin": 70.743
+  },
+  {
+   "mots": [
+    {
+     "w": "claires",
+     "a": 70.743
+    },
+    {
+     "w": "et",
+     "a": 70.983
+    },
+    {
+     "w": "classées",
+     "a": 71.123
+    }
+   ],
+   "fin": 71.677
+  },
+  {
+   "mots": [
+    {
+     "w": "Et",
+     "a": 71.677
+    },
+    {
+     "w": "vous",
+     "a": 71.797
+    },
+    {
+     "w": "comprendrez",
+     "a": 71.917
+    }
+   ],
+   "fin": 72.377
+  },
+  {
+   "mots": [
+    {
+     "w": "une",
+     "a": 72.377
+    },
+    {
+     "w": "chose",
+     "a": 72.457
+    }
+   ],
+   "fin": 72.923
+  },
+  {
+   "mots": [
+    {
+     "w": "L'IA",
+     "a": 72.923,
+     "fort": true
+    }
+   ],
+   "fin": 73.183
+  },
+  {
+   "mots": [
+    {
+     "w": "ne",
+     "a": 73.183
+    },
+    {
+     "w": "rapporte",
+     "a": 73.363
+    }
+   ],
+   "fin": 73.703
+  },
+  {
+   "mots": [
+    {
+     "w": "qu'à",
+     "a": 73.703
+    },
+    {
+     "w": "partir",
+     "a": 73.903
+    }
+   ],
+   "fin": 74.123
+  },
+  {
+   "mots": [
+    {
+     "w": "du",
+     "a": 74.123
+    },
+    {
+     "w": "moment",
+     "a": 74.343
+    }
+   ],
+   "fin": 74.583
+  },
+  {
+   "mots": [
+    {
+     "w": "où",
+     "a": 74.583
+    },
+    {
+     "w": "elle",
+     "a": 74.803
+    },
+    {
+     "w": "s'attaque",
+     "a": 74.923
+    }
+   ],
+   "fin": 75.343
+  },
+  {
+   "mots": [
+    {
+     "w": "à",
+     "a": 75.343
+    },
+    {
+     "w": "la",
+     "a": 75.423
+    },
+    {
+     "w": "bonne",
+     "a": 75.543
+    }
+   ],
+   "fin": 75.703
+  },
+  {
+   "mots": [
+    {
+     "w": "fuite",
+     "a": 75.703,
+     "fort": true
+    }
+   ],
+   "fin": 76.311
+  },
+  {
+   "mots": [
+    {
+     "w": "Quelle",
+     "a": 76.311
+    },
+    {
+     "w": "que",
+     "a": 76.554
+    },
+    {
+     "w": "soit",
+     "a": 76.749
+    }
+   ],
+   "fin": 76.991
+  },
+  {
+   "mots": [
+    {
+     "w": "votre",
+     "a": 76.991
+    },
+    {
+     "w": "taille",
+     "a": 77.28
+    }
+   ],
+   "fin": 77.616
+  },
+  {
+   "mots": [
+    {
+     "w": "si",
+     "a": 77.616
+    },
+    {
+     "w": "vous",
+     "a": 77.765
+    },
+    {
+     "w": "sentez",
+     "a": 78.007
+    }
+   ],
+   "fin": 78.342
+  },
+  {
+   "mots": [
+    {
+     "w": "que",
+     "a": 78.342
+    },
+    {
+     "w": "du",
+     "a": 78.538
+    },
+    {
+     "w": "temps",
+     "a": 78.687,
+     "fort": true
+    }
+   ],
+   "fin": 78.976
+  },
+  {
+   "mots": [
+    {
+     "w": "vous",
+     "a": 78.976
+    },
+    {
+     "w": "échappe",
+     "a": 79.218
+    }
+   ],
+   "fin": 79.747
+  },
+  {
+   "mots": [
+    {
+     "w": "réservez",
+     "a": 79.747,
+     "fort": true
+    }
+   ],
+   "fin": 80.307
+  },
+  {
+   "mots": [
+    {
+     "w": "votre",
+     "a": 80.307
+    },
+    {
+     "w": "appel",
+     "a": 80.707,
+     "fort": true
+    }
+   ],
+   "fin": 81.047
+  },
+  {
+   "mots": [
+    {
+     "w": "diagnostic",
+     "a": 81.047,
+     "fort": true
+    }
+   ],
+   "fin": 81.827
+  },
+  {
+   "mots": [
+    {
+     "w": "gratuit",
+     "a": 81.827,
+     "fort": true
+    }
+   ],
+   "fin": 82.867
+  }
+ ],
+ "cartes": [],
+ "fenetres": [],
+ "calques": [],
+ "zooms": [],
+ "elementsV4": [
+  {
+   "id": "EtiquetteTete",
+   "debut": 0,
+   "fin": 1.4,
+   "mots": [
+    "VOTRE ENTREPRISE"
+   ],
+   "illustre": "Si votre entreprise avance"
+  },
+  {
+   "id": "CarteCalendrier",
+   "debut": 1.4,
+   "fin": 3.4,
+   "mots": [
+    "VOS JOURNÉES"
+   ],
+   "instants": [
+    1.6,
+    2.4
+   ],
+   "illustre": "vos journées, elles, n'en finissent plus"
+  },
+  {
+   "id": "element-barre",
+   "debut": 3.4,
+   "fin": 5.3,
+   "mots": [
+    "UN PROBLÈME"
+   ],
+   "lignes": [
+    {
+     "texte": "UNE FUITE",
+     "a": 5.09
+    }
+   ],
+   "instants": [
+    4.31
+   ],
+   "illustre": "vous n'avez pas un problème de travail, vous avez une fuite"
+  },
+  {
+   "id": "PileNotifications",
+   "debut": 5.3,
+   "fin": 7.4,
+   "lignes": [
+    {
+     "texte": "CE QUI SUIT",
+     "a": 6.21
+    },
+    {
+     "texte": "POUR VOUS",
+     "a": 6.87
+    }
+   ],
+   "illustre": "Et ce qui suit est pour vous"
+  },
+  {
+   "id": "Interjection",
+   "debut": 7.4,
+   "fin": 8.2,
+   "mots": [
+    "SOIRÉES."
+   ],
+   "illustre": "Les soirées sur les devis"
+  },
+  {
+   "id": "MosaiqueVideos",
+   "debut": 8.2,
+   "fin": 10.5,
+   "mots": [
+    "À LA MAIN"
+   ],
+   "instants": [
+    9.14
+   ],
+   "recherches": [
+    "signature d'un devis",
+    "écriture à la main sur papier",
+    "saisie des chiffres au clavier",
+    "devis signé à la main"
+   ],
+   "medias": [
+    "broll/broll-devis-signature-1080.mp4",
+    "broll/broll-ecriture-papier-1080.mp4",
+    "broll/broll-clavier-frappe-1080.mp4",
+    "broll/lotE-devis.mp4"
+   ],
+   "illustre": "les devis, les relances à la main, les chiffres"
+  },
+  {
+   "id": "BadgeProfil",
+   "debut": 10.5,
+   "fin": 12.8,
+   "mots": [
+    "LA CHARGE NORMALE"
+   ],
+   "lignes": [
+    {
+     "texte": "UN DIRIGEANT",
+     "a": 12.31
+    }
+   ],
+   "illustre": "ce n'est pas la charge normale d'un dirigeant"
+  },
+  {
+   "id": "CarteCalendrier",
+   "debut": 12.8,
+   "fin": 14.9,
+   "mots": [
+    "CHAQUE JOUR"
+   ],
+   "instants": [
+    13.31,
+    14.53
+   ],
+   "illustre": "du temps qui s'échappe, chaque jour"
+  },
+  {
+   "id": "PileNotifications",
+   "debut": 14.9,
+   "fin": 16.9,
+   "lignes": [
+    {
+     "texte": "SANS BRUIT",
+     "a": 15.05
+    }
+   ],
+   "illustre": "sans bruit"
+  },
+  {
+   "id": "CarteStatuts",
+   "debut": 16.9,
+   "fin": 20.9,
+   "mots": [
+    "FORME",
+    "ACCOMPAGNE",
+    "AUDITE",
+    "AXION-IA",
+    "ONE-TO-ONE"
+   ],
+   "lignes": [
+    {
+     "texte": "LES ÉQUIPES",
+     "a": 17
+    },
+    {
+     "texte": "LES DIRIGEANTS",
+     "a": 18.6
+    },
+    {
+     "texte": "LES ENTREPRISES",
+     "a": 20.48
+    }
+   ],
+   "instants": [
+    20.7
+   ],
+   "illustre": "on forme les équipes, on accompagne les dirigeants"
+  },
+  {
+   "id": "MotSaute",
+   "debut": 20.9,
+   "fin": 22.4,
+   "mots": [
+    "AUTOMATISE",
+    "TOUT"
+   ],
+   "illustre": "on automatise tout ce qui leur coûte du temps"
+  },
+  {
+   "id": "PileNotifications",
+   "debut": 22.4,
+   "fin": 25,
+   "lignes": [
+    {
+     "texte": "COÛTE DU TEMPS",
+     "a": 22.74
+    },
+    {
+     "texte": "PETITE STRUCTURE",
+     "a": 23.44
+    },
+    {
+     "texte": "EN CROISSANCE",
+     "a": 24.76
+    }
+   ],
+   "illustre": "tout ce qui leur coûte du temps. Petite structure"
+  },
+  {
+   "id": "EtiquetteTete",
+   "debut": 25,
+   "fin": 26,
+   "mots": [
+    "PARTOUT"
+   ],
+   "illustre": "groupe, partout"
+  },
+  {
+   "id": "FenetreTelephone",
+   "debut": 26,
+   "fin": 28,
+   "mots": [
+    "PARTOUT",
+    "JE VOIS",
+    "RÉFLEXE"
+   ],
+   "instants": [
+    26.28
+   ],
+   "illustre": "partout, je vois le même réflexe"
+  },
+  {
+   "id": "GraphiqueBarres",
+   "debut": 28,
+   "fin": 29.5,
+   "mots": [
+    "AJOUTANT"
+   ],
+   "instants": [
+    28.1,
+    28.76,
+    29.34
+   ],
+   "illustre": "On veut colmater en ajoutant un outil"
+  },
+  {
+   "id": "duel-video",
+   "debut": 29.5,
+   "fin": 31.4,
+   "mots": [
+    "OUTIL",
+    "EMBAUCHE"
+   ],
+   "instants": [
+    30.64
+   ],
+   "recherches": [
+    "un outil : l'ordinateur",
+    "une embauche : l'équipe"
+   ],
+   "medias": [
+    "broll/broll-bureau-ordinateur.mp4",
+    "broll/broll-reunion-equipe.mp4"
+   ],
+   "illustre": "un outil de plus, une embauche de plus"
+  },
+  {
+   "id": "CarteChecklist",
+   "debut": 31.4,
+   "fin": 34.5,
+   "mots": [
+    "LA VRAIE"
+   ],
+   "lignes": [
+    {
+     "texte": "PREMIÈRE ÉTAPE",
+     "a": 32.28
+    },
+    {
+     "texte": "TROUVER",
+     "a": 33.42
+    },
+    {
+     "texte": "LA FUITE",
+     "a": 34.06
+    }
+   ],
+   "illustre": "la vraie première étape, c'est de trouver la fuite"
+  },
+  {
+   "id": "BadgeProfil",
+   "debut": 34.5,
+   "fin": 36.3,
+   "mots": [
+    "VOULAIT RECRUTER"
+   ],
+   "lignes": [
+    {
+     "texte": "UN DIRIGEANT",
+     "a": 35.1
+    }
+   ],
+   "illustre": "Prenez un dirigeant qui voulait recruter"
+  },
+  {
+   "id": "CarrouselFeuillete",
+   "debut": 36.3,
+   "fin": 38.8,
+   "mots": [
+    "RECRUTER",
+    "ABSORBER",
+    "L'ADMINISTRATIF"
+   ],
+   "instants": [
+    36.4,
+    36.98,
+    37.38
+   ],
+   "illustre": "pour absorber l'administratif"
+  },
+  {
+   "id": "EtiquetteTete",
+   "debut": 38.8,
+   "fin": 40.3,
+   "mots": [
+    "OÙ PARTAIT LE TEMPS"
+   ],
+   "illustre": "On a d'abord regardé où partait le temps"
+  },
+  {
+   "id": "CarteChecklist",
+   "debut": 40.3,
+   "fin": 44.3,
+   "mots": [
+    "RETROUVÉ"
+   ],
+   "lignes": [
+    {
+     "texte": "PAS DE RECRUTEMENT",
+     "a": 40.58
+    },
+    {
+     "texte": "SES ÉQUIPES",
+     "a": 41.5
+    },
+    {
+     "texte": "LEURS APRÈS-MIDI",
+     "a": 42.54
+    },
+    {
+     "texte": "SES WEEK-ENDS",
+     "a": 43.84
+    }
+   ],
+   "illustre": "ses équipes ont retrouvé leurs après-midi, ses week-ends"
+  },
+  {
+   "id": "MotSaute",
+   "debut": 44.3,
+   "fin": 46.1,
+   "mots": [
+    "COMMENCER",
+    "ON VOUS"
+   ],
+   "illustre": "on vous propose de commencer par là"
+  },
+  {
+   "id": "FenetreTelephone",
+   "debut": 46.1,
+   "fin": 49.2,
+   "mots": [
+    "LE DIAGNOSTIC FUITE",
+    "GRATUIT",
+    "45 MINUTES"
+   ],
+   "illustre": "Un premier diagnostic gratuit de 45 minutes"
+  },
+  {
+   "id": "MosaiqueVideos",
+   "debut": 49.2,
+   "fin": 51.5,
+   "mots": [
+    "NOTRE ÉQUIPE"
+   ],
+   "instants": [
+    51.07
+   ],
+   "recherches": [
+    "notre équipe en réunion",
+    "visio sur ordinateur portable",
+    "équipe devant l'ordinateur",
+    "visio avec l'équipe au téléphone"
+   ],
+   "medias": [
+    "broll/broll-reunion-equipe.mp4",
+    "broll/broll-bureau-ordinateur.mp4",
+    "broll/lotE-bureau.mp4",
+    "broll/broll-telephone-main-defile.mp4"
+   ],
+   "illustre": "en visio avec notre équipe"
+  },
+  {
+   "id": "BadgeCompteur",
+   "debut": 51.5,
+   "fin": 54,
+   "mots": [
+    "VOTRE TEMPS"
+   ],
+   "nombre": 1,
+   "instants": [
+    51.55
+   ],
+   "illustre": "Un, où part votre temps ?"
+  },
+  {
+   "id": "CarteChecklist",
+   "debut": 54,
+   "fin": 58.3,
+   "mots": [
+    "DEUX"
+   ],
+   "lignes": [
+    {
+     "texte": "PEUT CHANGER",
+     "a": 54.67
+    },
+    {
+     "texte": "EN PREMIER",
+     "a": 55.21
+    },
+    {
+     "texte": "BESOIN",
+     "a": 57.07
+    }
+   ],
+   "illustre": "qu'est-ce qui peut changer en premier ? de quoi avez-vous"
+  },
+  {
+   "id": "MotSaute",
+   "debut": 58.3,
+   "fin": 60,
+   "mots": [
+    "FORMATION",
+    "UNE"
+   ],
+   "illustre": "Une formation pour vos équipes"
+  },
+  {
+   "id": "CarrouselFeuillete",
+   "debut": 60,
+   "fin": 62.5,
+   "mots": [
+    "AIDES",
+    "OPCO",
+    "POSSIBLES"
+   ],
+   "instants": [
+    60.57,
+    60.77,
+    61.01
+   ],
+   "illustre": "des aides OPCO possibles"
+  },
+  {
+   "id": "Interjection",
+   "debut": 62.5,
+   "fin": 63.5,
+   "mots": [
+    "ORIENTANT."
+   ],
+   "illustre": "en vous orientant vers les bonnes"
+  },
+  {
+   "id": "CarteStatuts",
+   "debut": 63.5,
+   "fin": 67.4,
+   "mots": [
+    "ONE-TO-ONE",
+    "COMPLET",
+    "AUTOMATISATION",
+    "OU PEUT-ÊTRE"
+   ],
+   "lignes": [
+    {
+     "texte": "ACCOMPAGNEMENT",
+     "a": 64.02
+    },
+    {
+     "texte": "AUDIT",
+     "a": 65.52
+    },
+    {
+     "texte": "L'AUTOMATISATION",
+     "a": 66.32
+    }
+   ],
+   "instants": [
+    66.92
+   ],
+   "illustre": "un accompagnement one-to-one, un audit complet"
+  },
+  {
+   "id": "EclatChiffre",
+   "debut": 67.4,
+   "fin": 68.9,
+   "mots": [
+    "MINUTES"
+   ],
+   "nombre": 45,
+   "instants": [
+    67.92
+   ],
+   "illustre": "En 45 minutes"
+  },
+  {
+   "id": "element-barre",
+   "debut": 68.9,
+   "fin": 70.8,
+   "mots": [
+    "MIRACLE"
+   ],
+   "lignes": [
+    {
+     "texte": "PRIORITÉS",
+     "a": 70.22
+    }
+   ],
+   "instants": [
+    69.19
+   ],
+   "illustre": "pas de miracle, mais vous repartez avec vos priorités"
+  },
+  {
+   "id": "GraphiqueBarres",
+   "debut": 70.8,
+   "fin": 74.3,
+   "mots": [
+    "L'IA"
+   ],
+   "instants": [
+    71.92,
+    73.36
+   ],
+   "illustre": "L'IA ne rapporte qu'à partir du moment où elle s'attaque"
+  },
+  {
+   "id": "Interjection",
+   "debut": 74.3,
+   "fin": 75.4,
+   "mots": [
+    "S'ATTAQUE."
+   ],
+   "illustre": "elle s'attaque"
+  },
+  {
+   "id": "dalle-claquee",
+   "debut": 75.4,
+   "fin": 76.4,
+   "mots": [
+    "FUITE"
+   ],
+   "illustre": "à la bonne fuite"
+  },
+  {
+   "id": "BadgeProfil",
+   "debut": 76.4,
+   "fin": 78,
+   "mots": [
+    "QUELLE QUE SOIT"
+   ],
+   "lignes": [
+    {
+     "texte": "VOTRE TAILLE",
+     "a": 77.28
+    }
+   ],
+   "illustre": "Quelle que soit votre taille"
+  },
+  {
+   "id": "CarteStatuts",
+   "debut": 78,
+   "fin": 80.6,
+   "mots": [
+    "VOUS SENTEZ",
+    "DU TEMPS",
+    "RÉSERVEZ",
+    "QUE DU TEMPS",
+    "VOUS ÉCHAPPE"
+   ],
+   "lignes": [
+    {
+     "texte": "VOUS SENTEZ",
+     "a": 78.01
+    },
+    {
+     "texte": "DU TEMPS",
+     "a": 78.69
+    },
+    {
+     "texte": "RÉSERVEZ",
+     "a": 79.75
+    }
+   ],
+   "illustre": "si vous sentez que du temps vous échappe, réservez"
+  },
+  {
+   "id": "FenetreTelephone",
+   "debut": 80.6,
+   "fin": 82.667,
+   "mots": [
+    "RÉSERVEZ VOTRE APPEL",
+    "DIAGNOSTIC GRATUIT",
+    "RÉSERVEZ"
+   ],
+   "illustre": "réservez votre appel diagnostic gratuit"
+  }
+ ],
+ "fin": {
+  "debut": 82.667,
+  "marque": "Axion-IA",
+  "adresse": "axion-ia.com",
+  "motCle": "DIAGNOSTIC",
+  "tuiles": []
+ },
+ "sons": [],
+ "pastilles": false
+}

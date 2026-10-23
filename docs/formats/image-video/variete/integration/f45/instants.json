@@ -1,0 +1,349 @@
+{
+  "carte": "C",
+  "bilans": {
+    "4:5": {
+      "ok": true,
+      "phrases": [],
+      "largeur": 1080,
+      "hauteur": 1350,
+      "dureeSec": 53.4
+    },
+    "9:16": {
+      "ok": true,
+      "phrases": [],
+      "largeur": 1080,
+      "hauteur": 1920,
+      "dureeSec": 61.72
+    }
+  },
+  "images": [
+    {
+      "format": "4:5",
+      "t": 0.5,
+      "bloc": "b01",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "4x5-00.5.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 1.5,
+      "bloc": "b01",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "4x5-01.5.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 3,
+      "bloc": "b02",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "4x5-03.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 6,
+      "bloc": "b03",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "4x5-06.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 9,
+      "bloc": "b04",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "4x5-09.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 12,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-12.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 15,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-15.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 18,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-18.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 21,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-21.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 24,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-24.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 27,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-27.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 30,
+      "bloc": "b06",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "4x5-30.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 33,
+      "bloc": "b06",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "4x5-33.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 36,
+      "bloc": "b06",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "4x5-36.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 39,
+      "bloc": "b08",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-39.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 42,
+      "bloc": "b08",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "4x5-42.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 45,
+      "bloc": "b09",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "4x5-45.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 48,
+      "bloc": "b10",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "4x5-48.0.jpg"
+    },
+    {
+      "format": "4:5",
+      "t": 51,
+      "bloc": "b10",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "4x5-51.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 0.5,
+      "bloc": "b01",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-00.5.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 1.5,
+      "bloc": "b01",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-01.5.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 3,
+      "bloc": "b02",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-03.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 6,
+      "bloc": "b03",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-06.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 9,
+      "bloc": "b04",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-09.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 12,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-12.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 15,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-15.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 18,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-18.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 21,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-21.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 24,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-24.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 27,
+      "bloc": "b05",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-27.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 30,
+      "bloc": "b06",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "9x16-30.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 33,
+      "bloc": "b06",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "9x16-33.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 36,
+      "bloc": "b06",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "9x16-36.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 39,
+      "bloc": "b08",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-39.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 42,
+      "bloc": "b08",
+      "sorte": "toile",
+      "composition": "ImageVideoScene",
+      "fichier": "9x16-42.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 45,
+      "bloc": "b09",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "9x16-45.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 48,
+      "bloc": "b10",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "9x16-48.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 51,
+      "bloc": "b10",
+      "sorte": "moments",
+      "composition": "ImageVideoMoments",
+      "fichier": "9x16-51.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 54,
+      "bloc": "b11",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-54.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 57,
+      "bloc": "b13",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-57.0.jpg"
+    },
+    {
+      "format": "9:16",
+      "t": 60,
+      "bloc": "b14",
+      "sorte": "ecran",
+      "composition": "CasConcretEcran",
+      "fichier": "9x16-60.0.jpg"
+    }
+  ]
+}

@@ -1,0 +1,381 @@
+{
+  "version": "carte-image/1",
+  "image": {
+    "cle": "essais/image-video/FAUX16.png",
+    "empreinte": "essai-faux16",
+    "largeur": 1080,
+    "hauteur": 1920,
+    "orientation": "portrait"
+  },
+  "types": [
+    "embranchement"
+  ],
+  "offre": "integration",
+  "automatisation": true,
+  "titre": "Faux schéma à seize blocs",
+  "phraseChoc": "Chaque demande trouve son chemin.",
+  "formulesAbsolues": [],
+  "noeuds": [
+    {
+      "id": "n01",
+      "libelle": "Demande reçue",
+      "role": "declencheur",
+      "icone": "message",
+      "couleur": "noir",
+      "acteur": "humain",
+      "ordre": 1
+    },
+    {
+      "id": "n02",
+      "libelle": "IA trie la demande",
+      "role": "decision",
+      "icone": "ia",
+      "couleur": "orange",
+      "acteur": "auto",
+      "ordre": 2
+    },
+    {
+      "id": "n03",
+      "libelle": "Devis : lecture",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 3
+    },
+    {
+      "id": "n04",
+      "libelle": "Devis : vérification",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 4
+    },
+    {
+      "id": "n05",
+      "libelle": "Devis : réponse",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 5
+    },
+    {
+      "id": "n06",
+      "libelle": "Devis : classement",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 6
+    },
+    {
+      "id": "n07",
+      "libelle": "Support : lecture",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 7
+    },
+    {
+      "id": "n08",
+      "libelle": "Support : vérification",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 8
+    },
+    {
+      "id": "n09",
+      "libelle": "Support : réponse",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 9
+    },
+    {
+      "id": "n10",
+      "libelle": "Support : classement",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 10
+    },
+    {
+      "id": "n11",
+      "libelle": "Réclamation : lecture",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "neutre",
+      "acteur": "auto",
+      "groupe": "g-branche-c",
+      "ordre": 11
+    },
+    {
+      "id": "n12",
+      "libelle": "Réclamation : vérification",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "neutre",
+      "acteur": "auto",
+      "groupe": "g-branche-c",
+      "ordre": 12
+    },
+    {
+      "id": "n13",
+      "libelle": "Réclamation : réponse",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "neutre",
+      "acteur": "auto",
+      "groupe": "g-branche-c",
+      "ordre": 13
+    },
+    {
+      "id": "n14",
+      "libelle": "Réclamation : classement",
+      "role": "etape",
+      "icone": "document",
+      "couleur": "neutre",
+      "acteur": "auto",
+      "groupe": "g-branche-c",
+      "ordre": 14
+    },
+    {
+      "id": "n15",
+      "libelle": "Tableau de suivi mis à jour",
+      "role": "resultat",
+      "icone": "calendrier",
+      "couleur": "vert",
+      "acteur": "auto",
+      "ordre": 15
+    },
+    {
+      "id": "n16",
+      "libelle": "Rapport chaque lundi",
+      "role": "resultat",
+      "icone": "document",
+      "couleur": "vert",
+      "acteur": "auto",
+      "ordre": 16
+    }
+  ],
+  "liens": [
+    {
+      "id": "l01",
+      "de": "n01",
+      "vers": "n02",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l02",
+      "de": "n02",
+      "vers": "n03",
+      "etiquette": "60 % — Devis",
+      "part": 60,
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l03",
+      "de": "n03",
+      "vers": "n04",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l04",
+      "de": "n04",
+      "vers": "n05",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l05",
+      "de": "n05",
+      "vers": "n06",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l06",
+      "de": "n06",
+      "vers": "n15",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l07",
+      "de": "n02",
+      "vers": "n07",
+      "etiquette": "30 % — Support",
+      "part": 30,
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l08",
+      "de": "n07",
+      "vers": "n08",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l09",
+      "de": "n08",
+      "vers": "n09",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l10",
+      "de": "n09",
+      "vers": "n10",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l11",
+      "de": "n10",
+      "vers": "n15",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l12",
+      "de": "n02",
+      "vers": "n11",
+      "etiquette": "10 % — Réclamation",
+      "part": 10,
+      "couleur": "neutre",
+      "style": "plein"
+    },
+    {
+      "id": "l13",
+      "de": "n11",
+      "vers": "n12",
+      "couleur": "neutre",
+      "style": "plein"
+    },
+    {
+      "id": "l14",
+      "de": "n12",
+      "vers": "n13",
+      "couleur": "neutre",
+      "style": "plein"
+    },
+    {
+      "id": "l15",
+      "de": "n13",
+      "vers": "n14",
+      "couleur": "neutre",
+      "style": "plein"
+    },
+    {
+      "id": "l16",
+      "de": "n14",
+      "vers": "n15",
+      "couleur": "neutre",
+      "style": "plein"
+    },
+    {
+      "id": "l17",
+      "de": "n15",
+      "vers": "n16",
+      "couleur": "orange",
+      "style": "plein"
+    }
+  ],
+  "groupes": [
+    {
+      "id": "g-branche-a",
+      "sorte": "branche",
+      "titre": "Devis",
+      "noeuds": [
+        "n03",
+        "n04",
+        "n05",
+        "n06"
+      ],
+      "majoritaire": true
+    },
+    {
+      "id": "g-branche-b",
+      "sorte": "branche",
+      "titre": "Support",
+      "noeuds": [
+        "n07",
+        "n08",
+        "n09",
+        "n10"
+      ]
+    },
+    {
+      "id": "g-branche-c",
+      "sorte": "branche",
+      "titre": "Réclamation",
+      "noeuds": [
+        "n11",
+        "n12",
+        "n13",
+        "n14"
+      ]
+    }
+  ],
+  "bandeau": [],
+  "bandeauChiffres": [],
+  "chiffres": [
+    {
+      "id": "c01",
+      "brut": "60 %",
+      "valeur": 60,
+      "unite": "%",
+      "dansLien": "l02",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c02",
+      "brut": "30 %",
+      "valeur": 30,
+      "unite": "%",
+      "dansLien": "l07",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c03",
+      "brut": "10 %",
+      "valeur": 10,
+      "unite": "%",
+      "dansLien": "l12",
+      "aDire": true,
+      "lu": "les-deux"
+    }
+  ],
+  "pied": [],
+  "coherence": [
+    {
+      "calcul": "60 % + 30 % + 10 % = 100 %",
+      "ok": true
+    }
+  ],
+  "lecture": {
+    "ecarts": [],
+    "alertes": []
+  }
+}

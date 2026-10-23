@@ -1,0 +1,116 @@
+{
+  "texte": "Lundi, nous avons lu le contrat. Mais voilà : la clause est nulle. Alors, gardez votre calme. Nous allons agir. Bonne nouvelle, non ?",
+  "mots": [
+    {
+      "mot": "Lundi,",
+      "debutSec": 0.24,
+      "finSec": 0.54
+    },
+    {
+      "mot": "nous",
+      "debutSec": 0.66,
+      "finSec": 0.78
+    },
+    {
+      "mot": "avons",
+      "debutSec": 0.84,
+      "finSec": 1.02
+    },
+    {
+      "mot": "lu",
+      "debutSec": 1.08,
+      "finSec": 1.18
+    },
+    {
+      "mot": "le",
+      "debutSec": 1.22,
+      "finSec": 1.32
+    },
+    {
+      "mot": "contrat.",
+      "debutSec": 1.36,
+      "finSec": 1.76
+    },
+    {
+      "mot": "Mais",
+      "debutSec": 2.4,
+      "finSec": 2.76
+    },
+    {
+      "mot": "voilà",
+      "debutSec": 2.8,
+      "finSec": 3.04
+    },
+    {
+      "mot": "la",
+      "debutSec": 3.92,
+      "finSec": 3.98
+    },
+    {
+      "mot": "clause",
+      "debutSec": 4.04,
+      "finSec": 4.22
+    },
+    {
+      "mot": "est",
+      "debutSec": 4.24,
+      "finSec": 4.3
+    },
+    {
+      "mot": "nulle.",
+      "debutSec": 4.34,
+      "finSec": 4.64
+    },
+    {
+      "mot": "Alors,",
+      "debutSec": 5.1,
+      "finSec": 5.26
+    },
+    {
+      "mot": "gardez",
+      "debutSec": 5.34,
+      "finSec": 5.58
+    },
+    {
+      "mot": "votre",
+      "debutSec": 5.62,
+      "finSec": 5.78
+    },
+    {
+      "mot": "calme.",
+      "debutSec": 5.82,
+      "finSec": 6.14
+    },
+    {
+      "mot": "Nous",
+      "debutSec": 6.32,
+      "finSec": 6.44
+    },
+    {
+      "mot": "allons",
+      "debutSec": 6.5,
+      "finSec": 6.66
+    },
+    {
+      "mot": "agir.",
+      "debutSec": 6.72,
+      "finSec": 7.04
+    },
+    {
+      "mot": "Bonne",
+      "debutSec": 7.24,
+      "finSec": 7.36
+    },
+    {
+      "mot": "nouvelle,",
+      "debutSec": 7.4,
+      "finSec": 7.68
+    },
+    {
+      "mot": "non",
+      "debutSec": 7.76,
+      "finSec": 7.9
+    }
+  ],
+  "dureeSec": 8.307
+}

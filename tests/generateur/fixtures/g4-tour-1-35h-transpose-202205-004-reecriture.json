@@ -1,0 +1,27 @@
+{
+ "role": "reecriture",
+ "version": 1,
+ "sortie": {
+  "corrections": [
+   {
+    "segmentIndex": 0,
+    "texte": "Un tableur ne vérifie rien tout seul.",
+    "marqueurs": [
+     "ancrage",
+     "boucle-ouverte"
+    ],
+    "motif": "Suppression de l'absolu « Aucun contrôle », absent de la matière ; l'idée reste portée par la phrase sourcée."
+   },
+   {
+    "segmentIndex": 4,
+    "texte": "Donc le coût d'Excel, vous ne le voyez pas sur une facture. Il est dans chaque copier-coller que personne ne vérifie. Premier geste : repérez dans vos fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre.",
+    "marqueurs": [
+     "livraison",
+     "boucle-fermee",
+     "solution"
+    ],
+    "motif": "Remplacement de l'absolu « aucune facture » par une formulation non absolue, sans changer le sens."
+   }
+  ]
+ }
+}

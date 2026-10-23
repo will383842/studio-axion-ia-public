@@ -1,0 +1,135 @@
+{
+ "role": "plan",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "partie": "accroche",
+    "fonction": [
+     "cout",
+     "mot-cle",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Dirigeant, chaque jour on exporte, on copie, on colle vos fichiers Excel. Et vous n'en voyez qu'une petite partie.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "ouvre": {
+     "id": "q-partie",
+     "question": "Pourquoi tout ce travail sur les fichiers Excel ne montre qu'une petite partie des données, et que mettre à la place ?"
+    },
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "ancrage",
+     "relance"
+    ],
+    "nature": "fait",
+    "resume": "Citation de Will : des dizaines de fichiers Excel, chaque jour la même routine, exporter, copier, coller, vérifier, et recommencer.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ],
+    "citeMatiereId": "will-excel-routine"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "relance",
+     "emotion"
+    ],
+    "nature": "fait",
+    "resume": "Pivot « Mais » : malgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-partie"
+    ],
+    "citeMatiereId": "will-excel-partie",
+    "lien": "opposition"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "relance"
+    ],
+    "nature": "fait",
+    "resume": "La raison : personne n'a le temps de tout relire, donc une erreur de formule passe et fausse les chiffres du mois.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-cause"
+    ],
+    "citeMatiereId": "will-excel-cause",
+    "lien": "cause"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "solution",
+     "methode"
+    ],
+    "nature": "opinion",
+    "resume": "À la place des fichiers : un tableau de bord, avec des données qui arrivent toutes seules et sont vérifiées toutes seules.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution"
+    ],
+    "lien": "consequence"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "livraison",
+     "solution",
+     "boucle-fermee"
+    ],
+    "nature": "opinion",
+    "resume": "Exporter, copier, coller, vérifier tous les jours pour ne voir qu'une petite partie : ce tableau de bord qui se remplit et se vérifie tout seul fait ce travail à votre place.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie",
+     "will-excel-solution"
+    ],
+    "ferme": "q-partie",
+    "lien": "consequence",
+    "promesseId": "acc-1"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "resultat"
+    ],
+    "nature": "fait",
+    "resume": "Et au moindre problème, une alerte arrive, au lieu d'une erreur qui passe dans les chiffres du mois.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution",
+     "will-excel-cause"
+    ],
+    "lien": "consequence"
+   },
+   {
+    "partie": "appel",
+    "fonction": [
+     "envoi",
+     "cta"
+    ],
+    "nature": "fait",
+    "resume": "Si votre DAF passe ses journées à copier-coller entre des fichiers Excel, envoyez-lui cette vidéo.",
+    "preuveIds": [],
+    "matiereIds": []
+   }
+  ],
+  "exceptionIndex": -1,
+  "ancrageIndex": [
+   1
+  ],
+  "appuiPrincipalIndex": 1,
+  "livraisonIndex": 5
+ }
+}

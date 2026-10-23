@@ -1,0 +1,14 @@
+t_s,vmrss_mo,heap_glibc_mo,heapUsed_mo,heapTotal_mo,external_mo,arrayBuffers_mo,requetes_ok,requetes_erreurs
+2,258,0,122,151,18,14,0,0
+12,1235,0,201,230,5,1,2,0
+24,1378,0,142,194,4,0,4,0
+35,1443,0,251,279,4,0,7,0
+45,1665,0,213,245,4,1,10,0
+56,1697,0,178,240,4,0,12,0
+66,1663,0,145,207,4,1,15,0
+76,1670,0,250,279,4,1,18,0
+88,1531,0,141,214,4,0,20,0
+98,1242,0,183,244,4,1,23,0
+108,1714,0,250,277,4,1,26,0
+118,1672,0,209,243,4,1,28,0
+# fin (après GC forcé) : VmRSS 1287 Mo, [heap] 0 Mo, heapUsed 123 Mo, heapTotal 172 Mo, external 4 Mo, arrayBuffers 0 Mo ; requêtes 31 ok / 0 erreurs, 5 Mo reçus

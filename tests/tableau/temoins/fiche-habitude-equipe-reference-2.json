@@ -1,0 +1,561 @@
+{
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "habillage": "reference/2",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "appelId": null,
+  "videoId": "v-ede9c6436843",
+  "versionId": "b1",
+  "structure": "demonstration",
+  "serie": {
+    "nom": "Formation",
+    "code": "formation"
+  },
+  "douleur": "Votre équipe a été formée à l'IA. Un mois après, plus personne ne l'ouvre. Chacun est revenu à ses vieux réflexes, sans rien dire.",
+  "gesteMinute": "Vos équipes ont été formées à l'IA et n'utilisent plus rien un mois après : comment ancrer une seule habitude",
+  "scenes": [
+    {
+      "id": "s01",
+      "role": "accroche",
+      "page": 1,
+      "texteDit": "Votre équipe a été formée à l'IA. Un mois après, plus personne ne l'ouvre. Chacun est revenu à ses vieux réflexes, sans rien dire. Et vous vous dites : ça ne prend pas chez nous.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "L'IA oubliée",
+          "niveau": "titre",
+          "role": "alerte",
+          "bloc": "titre",
+          "id": "e01",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Un mois après, plus personne ne l'ouvre.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "phrase-cle",
+          "marque": "entoure",
+          "id": "e02",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "croix",
+          "cote": "droite",
+          "id": "e03",
+          "ancre": 11
+        },
+        {
+          "type": "ligne",
+          "texte": "Chacun est revenu à ses vieux réflexes.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e04",
+          "ancre": 14
+        },
+        {
+          "type": "ligne",
+          "texte": "« Ça ne prend pas chez nous. »",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e05",
+          "ancre": 28
+        }
+      ],
+      "gabarit": {
+        "role": "probleme"
+      }
+    },
+    {
+      "id": "s02",
+      "role": "idee-recue",
+      "page": 2,
+      "texteDit": "Le problème n'est pas la formation. Une formation apporte des savoirs, pas des réflexes. Un réflexe naît d'un geste répété, toujours au même moment. Voici quatre étapes pour en ancrer un seul, en trente jours.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Pas la formation",
+          "niveau": "titre",
+          "role": "alerte",
+          "bloc": "titre",
+          "id": "e06",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Une formation apporte des savoirs, pas des réflexes.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e07",
+          "ancre": 6
+        },
+        {
+          "type": "dessin",
+          "dessinId": "fleche-boucle",
+          "cote": "droite",
+          "id": "e08",
+          "ancre": 15
+        },
+        {
+          "type": "ligne",
+          "texte": "Un réflexe naît d'un geste répété, au même moment.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e09",
+          "ancre": 14
+        },
+        {
+          "type": "ligne",
+          "texte": "Quatre étapes pour en ancrer un seul, en trente jours.",
+          "niveau": "texte",
+          "role": "avantage",
+          "bloc": "detail",
+          "id": "e10",
+          "ancre": 24
+        }
+      ],
+      "gabarit": {
+        "role": "probleme"
+      }
+    },
+    {
+      "id": "s03",
+      "role": "etape",
+      "page": 3,
+      "texteDit": "Un. Choisissez une seule tâche, la même pour toute l'équipe. Pas dix usages possibles : un seul, que tout le monde fait chaque semaine.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Une seule tâche",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e11",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Choisissez une seule tâche, la même pour toute l'équipe.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e12",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "cible",
+          "cote": "droite",
+          "id": "e13",
+          "ancre": 9
+        },
+        {
+          "type": "ligne",
+          "texte": "Pas dix usages : un seul, fait chaque semaine.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e14",
+          "ancre": 10
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 1,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s04",
+      "role": "etape",
+      "page": 4,
+      "texteDit": "Deux. Accrochez-la à un moment fixe qui existe déjà. Par exemple : en sortant de chaque réunion, dictez trois notes à l'IA pour le compte rendu. Le déclencheur, c'est la réunion. Pas la bonne volonté.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Un moment fixe",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e15",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Accrochez-la à un moment fixe qui existe déjà.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e16",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "horloge",
+          "cote": "droite",
+          "id": "e17",
+          "ancre": 5
+        },
+        {
+          "type": "ligne",
+          "texte": "En sortant de réunion, dictez trois notes à l'IA.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e18",
+          "ancre": 9
+        },
+        {
+          "type": "ligne",
+          "texte": "Le déclencheur, c'est la réunion. Pas la bonne volonté.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e19",
+          "ancre": 25
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 2,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s05",
+      "role": "etape",
+      "page": 5,
+      "texteDit": "Trois. Écrivez une demande commune, une fois, pour tous. Rangez-la au même endroit pour chacun. Personne ne repart d'une page blanche.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Une demande",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e20",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Écrivez une demande commune, une fois, pour tous.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e21",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "document",
+          "cote": "droite",
+          "id": "e22",
+          "ancre": 4
+        },
+        {
+          "type": "ligne",
+          "texte": "Rangez-la au même endroit pour chacun.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e23",
+          "ancre": 9
+        },
+        {
+          "type": "ligne",
+          "texte": "Personne ne repart d'une page blanche.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e24",
+          "ancre": 15
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 3,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s06",
+      "role": "etape",
+      "page": 6,
+      "texteDit": "Quatre. Faites un point chaque vendredi, cinq minutes, pas plus. Qui l'a fait, qu'est-ce qui coince. Vous corrigez la demande, pas les gens.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Un point",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e25",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Faites un point chaque vendredi, cinq minutes.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e26",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "chronometre",
+          "cote": "droite",
+          "id": "e27",
+          "ancre": 5
+        },
+        {
+          "type": "ligne",
+          "texte": "Qui l'a fait ? Qu'est-ce qui coince ?",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e28",
+          "ancre": 10
+        },
+        {
+          "type": "ligne",
+          "texte": "Vous corrigez la demande, pas les gens.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e29",
+          "ancre": 16
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 4,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s07",
+      "role": "exemple",
+      "page": 7,
+      "texteDit": "Prenons une agence immobilière de six personnes. Avant : chacun tape ses comptes rendus de visite le soir, quand il y pense.",
+      "elements": [
+        {
+          "type": "mention",
+          "texte": "Exemple illustratif",
+          "id": "e30"
+        },
+        {
+          "type": "ligne",
+          "texte": "Une agence",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e31",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Une agence immobilière de six personnes.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e32",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Chacun tape ses comptes rendus le soir.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "avant",
+          "id": "e33",
+          "ancre": 7
+        },
+        {
+          "type": "geste",
+          "geste": "souligner",
+          "cibleId": "e33",
+          "id": "e34",
+          "ancre": 16
+        }
+      ],
+      "gabarit": {
+        "role": "exemple"
+      }
+    },
+    {
+      "id": "s08",
+      "role": "exemple",
+      "page": 7,
+      "texteDit": "Leur seule tâche : le compte rendu, dicté à l'IA en sortant de chaque visite. Une demande commune, rangée dans le téléphone de chacun.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Le compte rendu, dicté à l'IA en sortant de visite.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e35",
+          "ancre": 0
+        },
+        {
+          "type": "dessin",
+          "dessinId": "telephone",
+          "cote": "droite",
+          "id": "e36",
+          "ancre": 14
+        },
+        {
+          "type": "geste",
+          "geste": "souligner",
+          "cibleId": "e35",
+          "id": "e37",
+          "ancre": 20
+        }
+      ],
+      "gabarit": {
+        "role": "exemple"
+      }
+    },
+    {
+      "id": "s09",
+      "role": "preuve",
+      "page": 7,
+      "texteDit": "Premier vendredi : deux personnes s'y tiennent. Les autres trouvent la demande trop longue. Ils la raccourcissent ensemble. Fin du mois : toute l'agence. Le compte rendu part avant de remonter en voiture.",
+      "elements": [
+        {
+          "type": "dessin",
+          "dessinId": "calendrier",
+          "cote": "droite",
+          "id": "e38",
+          "ancre": 6
+        },
+        {
+          "type": "preuve",
+          "preuveId": "mat-import-demo-04",
+          "lignes": [
+            "Après : fin du mois, toute l'agence s'y tient."
+          ],
+          "id": "e39",
+          "ancre": 17
+        },
+        {
+          "type": "geste",
+          "geste": "entourer",
+          "cibleId": "e39",
+          "id": "e40",
+          "ancre": 22
+        }
+      ],
+      "gabarit": {
+        "role": "exemple"
+      }
+    },
+    {
+      "id": "s10",
+      "role": "resultat",
+      "page": 8,
+      "texteDit": "Une seule tâche. Un moment fixe. Une demande commune. Un point chaque vendredi. La fiche des trente jours tient sur une page.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "À retenir",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e41",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Une seule tâche.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e42",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Un moment fixe.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e43",
+          "ancre": 3
+        },
+        {
+          "type": "ligne",
+          "texte": "Une demande commune.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e44",
+          "ancre": 6
+        },
+        {
+          "type": "ligne",
+          "texte": "Un point chaque vendredi.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e45",
+          "ancre": 9
+        },
+        {
+          "type": "ligne",
+          "texte": "La fiche des trente jours tient sur une page.",
+          "niveau": "texte",
+          "role": "avantage",
+          "bloc": "detail",
+          "id": "e46",
+          "ancre": 13
+        }
+      ],
+      "gabarit": {
+        "role": "retenir"
+      }
+    },
+    {
+      "id": "s11",
+      "role": "fin",
+      "page": 8,
+      "texteDit": "Écrivez HABITUDE en commentaire, je vous l'envoie. Une seule habitude suffit.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Écrivez HABITUDE en commentaire",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "appel",
+          "id": "e47",
+          "ancre": 0
+        },
+        {
+          "type": "dessin",
+          "dessinId": "bulle",
+          "cote": "droite",
+          "id": "e48",
+          "ancre": 7
+        }
+      ],
+      "gabarit": {
+        "role": "retenir"
+      }
+    }
+  ]
+}

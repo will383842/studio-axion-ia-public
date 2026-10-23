@@ -1,0 +1,509 @@
+{
+ "ratio": "9:16",
+ "serie": {
+  "nom": "Automatisations",
+  "code": "automatisations"
+ },
+ "stylo": "crayon/1",
+ "scenes": [
+  {
+   "id": "s01",
+   "page": 1,
+   "role": "accroche",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 0,
+       "texte": "Devis envoyé"
+      },
+      {
+       "ancre": 10,
+       "texte": "Relance vendredi"
+      },
+      {
+       "ancre": 18,
+       "texte": "Signé ailleurs ?"
+      }
+     ],
+     "moment": "accroche",
+     "gabarit": "accroche-cases",
+     "etiquette": "Le constat",
+     "motsForts": [
+      "plus",
+      "rien"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e01",
+     "role": "titre",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Devis envoyé. Puis plus rien.",
+     "marque": "entoure",
+     "niveau": "titre"
+    },
+    {
+     "id": "e02",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 4,
+     "dessinId": "enveloppe"
+    },
+    {
+     "id": "e03",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 10,
+     "texte": "Relance prévue vendredi",
+     "niveau": "texte"
+    },
+    {
+     "id": "e04",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 15,
+     "dessinId": "sablier"
+    },
+    {
+     "id": "e05",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 18,
+     "texte": "Signé ailleurs ?",
+     "marque": "souligne",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Vous avez envoyé le devis. Puis plus rien. Vous pensez relancer vendredi. Un chantier déborde. Trois semaines passent. Il a sûrement signé ailleurs."
+  },
+  {
+   "id": "s02",
+   "page": 2,
+   "role": "idee-recue",
+   "ecrans": [
+    {
+     "moment": "retournement",
+     "gabarit": "idee-recue",
+     "etiquette": "Le vrai problème",
+     "motsForts": [
+      "mémoire"
+     ]
+    },
+    {
+     "ancre": 13,
+     "moment": "promesse",
+     "gabarit": "semaine",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "partent",
+      "seules"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e06",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Votre mémoire",
+     "marque": "barre",
+     "niveau": "titre"
+    },
+    {
+     "id": "e07",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 6,
+     "dessinId": "ampoule"
+    },
+    {
+     "id": "e08",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 6,
+     "texte": "La relance vous attend",
+     "niveau": "texte"
+    },
+    {
+     "id": "e09",
+     "role": "avantage",
+     "type": "ligne",
+     "ancre": 13,
+     "texte": "Des relances qui partent seules",
+     "marque": "souligne",
+     "niveau": "texte"
+    },
+    {
+     "id": "e10",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 16,
+     "dessinId": "fleche-boucle"
+    }
+   ],
+   "texteDit": "Le problème n'est pas votre mémoire. La relance attend que vous y pensiez. Voici trois relances qui partent toutes seules."
+  },
+  {
+   "id": "s03",
+   "page": 3,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 1,
+      "nom": "Écrire",
+      "total": 3
+     },
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "une",
+      "fois"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e11",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Écrivez vos relances une fois",
+     "niveau": "titre"
+    },
+    {
+     "id": "e12",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 1,
+     "dessinId": "crayon"
+    },
+    {
+     "id": "e13",
+     "type": "geste",
+     "ancre": 4,
+     "geste": "souligner",
+     "cibleId": "e11"
+    },
+    {
+     "id": "e14",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 7,
+     "texte": "Échéances espacées",
+     "niveau": "texte"
+    },
+    {
+     "id": "e15",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 7,
+     "dessinId": "calendrier"
+    }
+   ],
+   "texteDit": "Un. Écrivez trois relances une seule fois. À trois, sept et quatorze jours."
+  },
+  {
+   "id": "s04",
+   "page": 3,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 2,
+      "nom": "Programmer",
+      "total": 3
+     },
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "envoi",
+      "date"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e16",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Programmez-les avec le devis",
+     "niveau": "titre"
+    },
+    {
+     "id": "e17",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 5,
+     "dessinId": "enveloppe"
+    },
+    {
+     "id": "e18",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 8,
+     "texte": "Gmail et Outlook : envoi à date",
+     "marque": "surligne",
+     "niveau": "texte"
+    },
+    {
+     "id": "e19",
+     "type": "geste",
+     "ancre": 11,
+     "geste": "pointer",
+     "cibleId": "e18"
+    },
+    {
+     "id": "e20",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 13,
+     "dessinId": "horloge"
+    }
+   ],
+   "texteDit": "Deux. Programmez les trois en envoyant le devis. Gmail et Outlook programment un envoi à date."
+  },
+  {
+   "id": "s05",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 3,
+      "nom": "Supprimer",
+      "total": 3
+     },
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "supprimez"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e21",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Client répond : supprimez le reste",
+     "niveau": "titre"
+    },
+    {
+     "id": "e22",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 3,
+     "dessinId": "bulle"
+    },
+    {
+     "id": "e23",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 5,
+     "dessinId": "gomme"
+    },
+    {
+     "id": "e24",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 9,
+     "texte": "Messages programmés",
+     "niveau": "texte"
+    },
+    {
+     "id": "e25",
+     "type": "geste",
+     "ancre": 12,
+     "geste": "cocher",
+     "cibleId": "e24"
+    }
+   ],
+   "texteDit": "Trois. Si le client répond, supprimez les envois restants. Un clic dans les messages programmés."
+  },
+  {
+   "id": "s06",
+   "page": 5,
+   "role": "preuve",
+   "ecrans": [
+    {
+     "moment": "exemple",
+     "gabarit": "exemple",
+     "etiquette": "Exemple",
+     "motsForts": [
+      "répond"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e26",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e27",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 3,
+     "texte": "Lundi : devis envoyé",
+     "niveau": "texte"
+    },
+    {
+     "id": "e28",
+     "type": "preuve",
+     "ancre": 6,
+     "lignes": [
+      "Avant : il comptait sur sa mémoire",
+      "Après : la relance part seule"
+     ],
+     "preuveId": "mat-import-demo-02"
+    },
+    {
+     "id": "e29",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 14,
+     "dessinId": "enveloppe"
+    },
+    {
+     "id": "e30",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 19,
+     "texte": "Vendredi : le client répond",
+     "niveau": "texte"
+    },
+    {
+     "id": "e31",
+     "type": "geste",
+     "ancre": 23,
+     "geste": "entourer",
+     "cibleId": "e30"
+    }
+   ],
+   "texteDit": "Prenons un plombier. Devis envoyé lundi. Avant, il comptait sur sa mémoire. Jeudi, la relance part pendant son chantier. Le client répond vendredi. Il supprime les deux autres."
+  },
+  {
+   "id": "s07",
+   "page": 6,
+   "role": "resultat",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 0,
+       "texte": "Écrites une fois"
+      },
+      {
+       "ancre": 3,
+       "texte": "Programmées"
+      },
+      {
+       "ancre": 4,
+       "texte": "Supprimées dès la réponse"
+      }
+     ],
+     "moment": "recapitulatif",
+     "gabarit": "recapitulatif",
+     "etiquette": "En résumé"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e32",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Écrites une fois",
+     "niveau": "texte"
+    },
+    {
+     "id": "e33",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 3,
+     "texte": "Programmées",
+     "niveau": "texte"
+    },
+    {
+     "id": "e34",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 4,
+     "texte": "Supprimées dès la réponse",
+     "niveau": "texte"
+    },
+    {
+     "id": "e35",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 6,
+     "dessinId": "coche-cercle"
+    }
+   ],
+   "texteDit": "Écrites une fois. Programmées. Supprimées dès la réponse."
+  },
+  {
+   "id": "s08",
+   "page": 6,
+   "role": "fin",
+   "ecrans": [
+    {
+     "moment": "appel",
+     "gabarit": "appel-commentaire",
+     "etiquette": "À vous",
+     "motsForts": [
+      "RELANCE"
+     ],
+     "motCommentaire": "RELANCE"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e36",
+     "role": "avantage",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Messages prêts",
+     "niveau": "texte"
+    },
+    {
+     "id": "e37",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 5,
+     "texte": "Écrivez RELANCE en commentaire",
+     "marque": "entoure",
+     "niveau": "titre"
+    },
+    {
+     "id": "e38",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 9,
+     "dessinId": "bulle"
+    }
+   ],
+   "texteDit": "Les trois messages sont prêts. Écrivez RELANCE en commentaire. Je vous les envoie."
+  }
+ ],
+ "appelId": "fin-if-mot-envoi",
+ "douleur": "Les relances de devis qu'on oublie d'envoyer : comment les faire partir toutes seules",
+ "version": "fiche-scenes/1",
+ "videoId": "v-ab6eb972eb39",
+ "formatId": "tableau-anime",
+ "habillage": "blocs/2",
+ "structure": "demonstration",
+ "versionId": "b1",
+ "gesteMinute": "Les relances de devis qu'on oublie d'envoyer : comment les faire partir toutes seules"
+}

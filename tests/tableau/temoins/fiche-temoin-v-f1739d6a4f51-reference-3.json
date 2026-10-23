@@ -1,0 +1,573 @@
+{
+ "version": "fiche-scenes/1",
+ "formatId": "tableau-anime",
+ "videoId": "v-f1739d6a4f51",
+ "versionId": "r3",
+ "habillage": "reference/3",
+ "stylo": "crayon/1",
+ "ratio": "9:16",
+ "structure": "demonstration",
+ "serie": {
+  "code": "formation",
+  "nom": "Formation"
+ },
+ "douleur": "Un salarié a collé un contrat client dans ChatGPT, et vous ne le savez pas.",
+ "gesteMinute": "Classer les documents en trois couleurs : vert on colle, orange on retire les noms, rouge jamais.",
+ "appelId": null,
+ "scenes": [
+  {
+   "id": "s01",
+   "role": "accroche",
+   "page": 1,
+   "texteDit": "Un salarié a collé un contrat client dans ChatGPT. Vous ne le savez pas.",
+   "gabarit": {
+    "role": "accroche"
+   },
+   "elements": [
+    {
+     "id": "e01",
+     "type": "ligne",
+     "texte": "Un salarié a collé un contrat client dans ChatGPT.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0,
+     "marque": "entoure",
+     "importants": [
+      "collé",
+      "contrat",
+      "client",
+      "ChatGPT"
+     ]
+    },
+    {
+     "id": "e02",
+     "type": "ligne",
+     "texte": "Vous ne le savez pas.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "detail",
+     "ancre": 9
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "role": "douleur",
+   "page": 2,
+   "texteDit": "Vous l'apprenez par hasard, des semaines plus tard. Et vous vous demandez : qu'ont-ils collé d'autre ?",
+   "gabarit": {
+    "role": "douleur"
+   },
+   "elements": [
+    {
+     "id": "e03",
+     "type": "ligne",
+     "texte": "Par hasard",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 0
+    },
+    {
+     "id": "e04",
+     "type": "ligne",
+     "texte": "Vous l'apprenez des semaines plus tard.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e05",
+     "type": "dessin",
+     "dessinId": "sablier",
+     "cote": "droite",
+     "ancre": 5
+    },
+    {
+     "id": "e06",
+     "type": "ligne",
+     "texte": "Qu'ont-ils collé d'autre ?",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "detail",
+     "ancre": 12
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "role": "idee-recue",
+   "page": 3,
+   "texteDit": "Interdire ne sert à rien : ils continueront en cachette. Le vrai problème : personne ne leur a montré quoi coller.",
+   "gabarit": {
+    "role": "douleur"
+   },
+   "elements": [
+    {
+     "id": "e07",
+     "type": "ligne",
+     "texte": "Interdire ne sert à rien.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "idee-recue",
+     "ancre": 0
+    },
+    {
+     "id": "e08",
+     "type": "dessin",
+     "dessinId": "cadenas",
+     "cote": "droite",
+     "ancre": 8
+    },
+    {
+     "id": "e09",
+     "type": "ligne",
+     "texte": "Ils continueront en cachette.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "detail",
+     "ancre": 5
+    },
+    {
+     "id": "e10",
+     "type": "ligne",
+     "texte": "Personne ne leur a montré quoi coller.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "phrase-cle",
+     "ancre": 12
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "role": "etape",
+   "page": 4,
+   "texteDit": "Voici une règle en trois couleurs, installée en quatre étapes.",
+   "gabarit": {
+    "role": "solution"
+   },
+   "elements": [
+    {
+     "id": "e11",
+     "type": "ligne",
+     "texte": "Trois couleurs",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 0
+    },
+    {
+     "id": "e12",
+     "type": "ligne",
+     "texte": "Une règle en trois couleurs, installée en quatre étapes.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e13",
+     "type": "dessin",
+     "dessinId": "ampoule",
+     "cote": "droite",
+     "ancre": 2
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "role": "etape",
+   "page": 5,
+   "texteDit": "Un. Listez les documents que votre équipe touche chaque semaine. Devis, contrats, fiches de paie, e-mails.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 1,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e14",
+     "type": "ligne",
+     "texte": "Listez",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e15",
+     "type": "ligne",
+     "texte": "Listez les documents que votre équipe touche chaque semaine.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e16",
+     "type": "dessin",
+     "dessinId": "dossier",
+     "cote": "droite",
+     "ancre": 3
+    },
+    {
+     "id": "e17",
+     "type": "ligne",
+     "texte": "Devis",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 10
+    },
+    {
+     "id": "e18",
+     "type": "ligne",
+     "texte": "Contrats",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 11
+    },
+    {
+     "id": "e19",
+     "type": "ligne",
+     "texte": "Fiches de paie",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 12
+    },
+    {
+     "id": "e20",
+     "type": "ligne",
+     "texte": "E-mails",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 15
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "role": "etape",
+   "page": 6,
+   "texteDit": "Deux. Classez-les en trois couleurs. Vert, on colle. Orange, on retire les noms. Rouge, jamais.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 2,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e21",
+     "type": "ligne",
+     "texte": "Classez",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e22",
+     "type": "ligne",
+     "texte": "Classez-les en trois couleurs.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e23",
+     "type": "ligne",
+     "texte": "Vert : on colle.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 5,
+     "code": "vert"
+    },
+    {
+     "id": "e24",
+     "type": "ligne",
+     "texte": "Orange : on retire les noms.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 8,
+     "code": "orange"
+    },
+    {
+     "id": "e25",
+     "type": "ligne",
+     "texte": "Rouge : jamais.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "code",
+     "ancre": 13,
+     "code": "rouge"
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "role": "etape",
+   "page": 7,
+   "texteDit": "Trois. Montrez le geste orange sur un vrai document. Le nom du client devient Client A. Le montant devient X.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 3,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e26",
+     "type": "ligne",
+     "texte": "Montrez",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e27",
+     "type": "ligne",
+     "texte": "Montrez le geste orange sur un vrai document.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e28",
+     "type": "dessin",
+     "dessinId": "gomme",
+     "cote": "droite",
+     "ancre": 8
+    },
+    {
+     "id": "e29",
+     "type": "ligne",
+     "texte": "M. Dupont → Client A",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "transformation",
+     "ancre": 10
+    },
+    {
+     "id": "e30",
+     "type": "ligne",
+     "texte": "Le montant → X",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "transformation",
+     "ancre": 17
+    }
+   ]
+  },
+  {
+   "id": "s08",
+   "role": "etape",
+   "page": 8,
+   "texteDit": "Quatre. Faites refaire ce geste à chacun, devant vous. On retient ce qu'on a fait, pas ce qu'on a lu.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 4,
+     "ancre": 0
+    }
+   },
+   "elements": [
+    {
+     "id": "e31",
+     "type": "ligne",
+     "texte": "Faites refaire",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e32",
+     "type": "ligne",
+     "texte": "Faites refaire ce geste à chacun, devant vous.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e33",
+     "type": "dessin",
+     "dessinId": "fleche-boucle",
+     "cote": "droite",
+     "ancre": 6
+    },
+    {
+     "id": "e34",
+     "type": "ligne",
+     "texte": "On retient ce qu'on a fait, pas ce qu'on a lu.",
+     "niveau": "texte",
+     "role": "resultat",
+     "bloc": "detail",
+     "ancre": 9
+    }
+   ]
+  },
+  {
+   "id": "s09",
+   "role": "exemple",
+   "page": 9,
+   "texteDit": "Prenons une agence immobilière et ses compromis de vente. Avant, l'assistante collait le compromis entier pour le résumer.",
+   "gabarit": {
+    "role": "exemple"
+   },
+   "elements": [
+    {
+     "id": "e35",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e36",
+     "type": "ligne",
+     "texte": "Une agence immobilière",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 0
+    },
+    {
+     "id": "e37",
+     "type": "dessin",
+     "dessinId": "batiment",
+     "cote": "droite",
+     "ancre": 2
+    },
+    {
+     "id": "e38",
+     "type": "ligne",
+     "texte": "Elle collait le compromis entier.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "avant",
+     "ancre": 9
+    }
+   ]
+  },
+  {
+   "id": "s10",
+   "role": "preuve",
+   "page": 9,
+   "texteDit": "Maintenant, elle remplace les noms et l'adresse, puis colle. Rien de privé n'est sorti. Et le résumé est aussi bon.",
+   "gabarit": {
+    "role": "exemple"
+   },
+   "elements": [
+    {
+     "id": "e39",
+     "type": "ligne",
+     "texte": "Elle remplace les noms, puis colle.",
+     "niveau": "texte",
+     "role": "resultat",
+     "bloc": "apres",
+     "ancre": 0
+    },
+    {
+     "id": "e40",
+     "type": "preuve",
+     "preuveId": "mat-compromis-demo",
+     "lignes": [
+      "Rien de privé n'est sorti."
+     ],
+     "ancre": 9
+    }
+   ]
+  },
+  {
+   "id": "s11",
+   "role": "resultat",
+   "page": 10,
+   "texteDit": "Listez. Classez. Montrez. Faites refaire.",
+   "gabarit": {
+    "role": "retenir"
+   },
+   "elements": [
+    {
+     "id": "e41",
+     "type": "ligne",
+     "texte": "Listez",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "liste",
+     "ancre": 0
+    },
+    {
+     "id": "e42",
+     "type": "ligne",
+     "texte": "Classez",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "liste",
+     "ancre": 1
+    },
+    {
+     "id": "e43",
+     "type": "ligne",
+     "texte": "Montrez",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "liste",
+     "ancre": 2
+    },
+    {
+     "id": "e44",
+     "type": "ligne",
+     "texte": "Faites refaire",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "liste",
+     "ancre": 3
+    }
+   ]
+  },
+  {
+   "id": "s12",
+   "role": "fin",
+   "page": 11,
+   "texteDit": "Axion-IA aide les équipes à apprendre sur leurs vraies tâches. Pour savoir quoi apprendre à votre équipe, réservez un appel de diagnostic. Le geste avant l'erreur.",
+   "gabarit": {
+    "role": "appel"
+   },
+   "elements": [
+    {
+     "id": "e45",
+     "type": "ligne",
+     "texte": "Axion-IA aide les équipes à apprendre sur leurs vraies tâches.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "detail",
+     "ancre": 0
+    },
+    {
+     "id": "e46",
+     "type": "ligne",
+     "texte": "Réservez un appel de diagnostic",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "appel",
+     "ancre": 17
+    }
+   ]
+  }
+ ]
+}

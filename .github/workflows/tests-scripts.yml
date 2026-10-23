@@ -1,0 +1,73 @@
+# TESTS CIBLÉS « ÉCRITURE DES SCRIPTS » : informatif, NON BLOQUANT (ne jamais l'ajouter aux contrôles exigés de la protection de `main`).
+# Même esprit que tests-cibles.yml (cas concret) : une liste de dossiers, pas la suite complète ; pas de tsc ni d'eslint complets.
+# Lot B2b : tests/tableau (rythme, formes, banc, fins) et tests/cas-concret/x4 (recette partagée gelée) y sont désormais, la CI ne les voyait pas.
+# Sans cette étape, une PR qui ne touche que l'écriture des scripts n'aurait AUCUN test en CI. Aucun secret.
+name: tests-scripts
+
+on:
+  pull_request:
+    paths:
+      - "src/domaine/positionnement.ts"
+      - "src/domaine/debit-voix.ts"
+      - "src/domaine/controles-script/**"
+      - "src/domaine/qualite-script/**"
+      - "src/domaine/scripts-tableau*.ts"
+      - "src/donnees/generateur/**"
+      - "src/generateur/**"
+      - "src/services/tableau-scripts/**"
+      - "src/services/chaine-ecriture.ts"
+      - "src/services/generation-claude.ts"
+      - "src/services/tableau-creation.ts"
+      - "src/services/tableau-taches.ts"
+      - "src/components/reglages/**"
+      - "tests/domaine/**"
+      - "tests/donnees/**"
+      - "tests/debit-voix/**"
+      - "tests/tableau-scripts/**"
+      - "tests/generateur/**"
+      - "tests/qualite-script/**"
+      - "tests/reglages-chaine-ecriture.test.ts"
+      - "tests/tableau/**"
+      - "tests/cas-concret/x4/**"
+      - "src/moteurs/montage-tableau/**"
+      - "src/domaine/duree-tableau.ts"
+      - "tests/chaine-courte-production/**"
+      - "tests/verif-finale/**"
+      - ".github/workflows/tests-scripts.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-scripts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests-scripts:
+    name: tests ciblés écriture des scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Informatif : un rouge s'affiche sur la PR sans empêcher de fusionner.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Tests ciblés (dossiers)
+        run: |
+          pnpm exec vitest run --testTimeout=60000 \
+            tests/domaine \
+            tests/donnees \
+            tests/debit-voix \
+            tests/tableau-scripts \
+            tests/generateur \
+            tests/qualite-script \
+            tests/reglages-chaine-ecriture.test.ts \
+            tests/tableau \
+            tests/cas-concret/x4 \
+            tests/chaine-courte-production/boucle.test.ts \
+            tests/verif-finale

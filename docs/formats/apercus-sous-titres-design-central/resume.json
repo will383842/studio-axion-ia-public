@@ -1,0 +1,2325 @@
+[
+ {
+  "quoi": "accroche",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   211,
+   1427,
+   872,
+   1514
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    211,
+    1427,
+    872,
+    1514
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    1427,
+    1513
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   212,
+   1425,
+   871,
+   1520
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    212,
+    1425,
+    871,
+    1520
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    1425,
+    1519
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   284,
+   1420,
+   796,
+   1520
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    284,
+    1420,
+    796,
+    1520
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    1420,
+    1519
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "phrase-cle-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   242,
+   1435,
+   835,
+   1524
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    242,
+    1435,
+    835,
+    1524
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    1435,
+    1523
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "texte-courant-tableau-blanc-vertical.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   211,
+   1418,
+   872,
+   1505
+  ],
+  "contraste": 5.70098115181249,
+  "mesure": {
+   "cadre_reel": [
+    211,
+    1418,
+    872,
+    1505
+   ],
+   "derriere_plus_clair": 0.007544133812189102,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.70098115181249,
+   "lignes_texte": [
+    1418,
+    1504
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   212,
+   1416,
+   871,
+   1511
+  ],
+  "contraste": 5.70098115181249,
+  "mesure": {
+   "cadre_reel": [
+    212,
+    1416,
+    871,
+    1511
+   ],
+   "derriere_plus_clair": 0.007544133812189102,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.70098115181249,
+   "lignes_texte": [
+    1416,
+    1510
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   284,
+   1411,
+   796,
+   1511
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    284,
+    1411,
+    796,
+    1511
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    1411,
+    1510
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "phrase-cle-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "ardoise",
+  "format": "vertical",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   242,
+   1426,
+   835,
+   1515
+  ],
+  "contraste": 5.70098115181249,
+  "mesure": {
+   "cadre_reel": [
+    242,
+    1426,
+    835,
+    1515
+   ],
+   "derriere_plus_clair": 0.007544133812189102,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.70098115181249,
+   "lignes_texte": [
+    1426,
+    1514
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "texte-courant-ardoise-vertical.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   211,
+   1427,
+   872,
+   1514
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    211,
+    1427,
+    872,
+    1514
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    1427,
+    1513
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   212,
+   1425,
+   871,
+   1520
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    212,
+    1425,
+    871,
+    1520
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    1425,
+    1519
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   284,
+   1420,
+   796,
+   1520
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    284,
+    1420,
+    796,
+    1520
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    1420,
+    1519
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "phrase-cle-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "paperboard",
+  "format": "vertical",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "cadre": [
+   242,
+   1435,
+   835,
+   1524
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    242,
+    1435,
+    835,
+    1524
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    1435,
+    1523
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "texte-courant-paperboard-vertical.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   76,
+   1079,
+   1007,
+   1177
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    76,
+    1079,
+    1007,
+    1177
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    1079,
+    1176
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   143,
+   1084,
+   941,
+   1172
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    143,
+    1084,
+    941,
+    1172
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    1084,
+    1171
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   287,
+   1076,
+   793,
+   1176
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    287,
+    1076,
+    793,
+    1176
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    1076,
+    1175
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "phrase-cle-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   245,
+   1090,
+   832,
+   1179
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    245,
+    1090,
+    832,
+    1179
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    1090,
+    1178
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "texte-courant-tableau-blanc-portrait.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   75,
+   1065,
+   1008,
+   1176
+  ],
+  "contraste": 5.543697272712974,
+  "mesure": {
+   "cadre_reel": [
+    75,
+    1065,
+    1008,
+    1176
+   ],
+   "derriere_plus_clair": 0.009176756255328655,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.543697272712974,
+   "lignes_texte": [
+    1065,
+    1175
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   79,
+   1071,
+   1006,
+   1170
+  ],
+  "contraste": 5.6495950405993565,
+  "mesure": {
+   "cadre_reel": [
+    79,
+    1071,
+    1006,
+    1170
+   ],
+   "derriere_plus_clair": 0.00806752871721983,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.6495950405993565,
+   "lignes_texte": [
+    1071,
+    1169
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   284,
+   1068,
+   796,
+   1168
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    284,
+    1068,
+    796,
+    1168
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    1068,
+    1167
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "phrase-cle-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "ardoise",
+  "format": "portrait",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   242,
+   1083,
+   835,
+   1172
+  ],
+  "contraste": 5.573270607672522,
+  "mesure": {
+   "cadre_reel": [
+    242,
+    1083,
+    835,
+    1172
+   ],
+   "derriere_plus_clair": 0.008862747810781002,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.573270607672522,
+   "lignes_texte": [
+    1083,
+    1171
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "texte-courant-ardoise-portrait.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   76,
+   1079,
+   1007,
+   1177
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    76,
+    1079,
+    1007,
+    1177
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    1079,
+    1176
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "accroche-paperboard-portrait.jpg"
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   143,
+   1084,
+   941,
+   1172
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    143,
+    1084,
+    941,
+    1172
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    1084,
+    1171
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "chiffre-paperboard-portrait.jpg"
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   287,
+   1076,
+   793,
+   1176
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    287,
+    1076,
+    793,
+    1176
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    1076,
+    1175
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "phrase-cle-paperboard-portrait.jpg"
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "paperboard",
+  "format": "portrait",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "cadre": [
+   245,
+   1090,
+   832,
+   1179
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    245,
+    1090,
+    832,
+    1179
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    1090,
+    1178
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": "texte-courant-paperboard-portrait.jpg"
+ },
+ {
+  "quoi": "accroche",
+  "fond": "tableau-blanc",
+  "format": "carre",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   72,
+   858,
+   1012,
+   941
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    72,
+    858,
+    1012,
+    941
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    858,
+    940
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "tableau-blanc",
+  "format": "carre",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   200,
+   863,
+   883,
+   940
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    200,
+    863,
+    883,
+    940
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    863,
+    939
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "tableau-blanc",
+  "format": "carre",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   323,
+   854,
+   757,
+   939
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    323,
+    854,
+    757,
+    939
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    854,
+    938
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "tableau-blanc",
+  "format": "carre",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   286,
+   866,
+   791,
+   943
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    286,
+    866,
+    791,
+    943
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    866,
+    942
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "accroche",
+  "fond": "ardoise",
+  "format": "carre",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   76,
+   843,
+   1007,
+   941
+  ],
+  "contraste": 5.205615813474696,
+  "mesure": {
+   "cadre_reel": [
+    76,
+    843,
+    1007,
+    941
+   ],
+   "derriere_plus_clair": 0.013020021840929985,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.205615813474696,
+   "lignes_texte": [
+    843,
+    940
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "ardoise",
+  "format": "carre",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   154,
+   850,
+   930,
+   936
+  ],
+  "contraste": 5.263708151360507,
+  "mesure": {
+   "cadre_reel": [
+    154,
+    850,
+    930,
+    936
+   ],
+   "derriere_plus_clair": 0.012324508279561996,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.263708151360507,
+   "lignes_texte": [
+    850,
+    935
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "ardoise",
+  "format": "carre",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   293,
+   842,
+   787,
+   939
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    293,
+    842,
+    787,
+    939
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    842,
+    938
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "ardoise",
+  "format": "carre",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   253,
+   855,
+   824,
+   941
+  ],
+  "contraste": 5.205615813474696,
+  "mesure": {
+   "cadre_reel": [
+    253,
+    855,
+    824,
+    941
+   ],
+   "derriere_plus_clair": 0.013020021840929985,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.205615813474696,
+   "lignes_texte": [
+    855,
+    940
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "accroche",
+  "fond": "paperboard",
+  "format": "carre",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 3,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   72,
+   858,
+   1012,
+   941
+  ],
+  "contraste": 4.880285845044859,
+  "mesure": {
+   "cadre_reel": [
+    72,
+    858,
+    1012,
+    941
+   ],
+   "derriere_plus_clair": 0.01722106710076332,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.880285845044859,
+   "lignes_texte": [
+    858,
+    940
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "paperboard",
+  "format": "carre",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   200,
+   863,
+   883,
+   940
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    200,
+    863,
+    883,
+    940
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    863,
+    939
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "paperboard",
+  "format": "carre",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   323,
+   854,
+   757,
+   939
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    323,
+    854,
+    757,
+    939
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    854,
+    938
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "paperboard",
+  "format": "carre",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   286,
+   866,
+   791,
+   943
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    286,
+    866,
+    791,
+    943
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    866,
+    942
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "accroche",
+  "fond": "tableau-blanc",
+  "format": "horizontal",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   518,
+   860,
+   1405,
+   940
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    518,
+    860,
+    1405,
+    940
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    860,
+    939
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "tableau-blanc",
+  "format": "horizontal",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   620,
+   863,
+   1303,
+   940
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    620,
+    863,
+    1303,
+    940
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    863,
+    939
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "tableau-blanc",
+  "format": "horizontal",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   743,
+   854,
+   1177,
+   939
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    743,
+    854,
+    1177,
+    939
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    854,
+    938
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "tableau-blanc",
+  "format": "horizontal",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   706,
+   866,
+   1211,
+   943
+  ],
+  "contraste": 4.794084859669982,
+  "mesure": {
+   "cadre_reel": [
+    706,
+    866,
+    1211,
+    943
+   ],
+   "derriere_plus_clair": 0.018429748713970184,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.794084859669982,
+   "lignes_texte": [
+    866,
+    942
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "accroche",
+  "fond": "ardoise",
+  "format": "horizontal",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   459,
+   847,
+   1465,
+   936
+  ],
+  "contraste": 5.146975845155607,
+  "mesure": {
+   "cadre_reel": [
+    459,
+    847,
+    1465,
+    936
+   ],
+   "derriere_plus_clair": 0.013738014735281467,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.146975845155607,
+   "lignes_texte": [
+    847,
+    935
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "ardoise",
+  "format": "horizontal",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   574,
+   850,
+   1350,
+   936
+  ],
+  "contraste": 5.146975845155607,
+  "mesure": {
+   "cadre_reel": [
+    574,
+    850,
+    1350,
+    936
+   ],
+   "derriere_plus_clair": 0.013738014735281467,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.146975845155607,
+   "lignes_texte": [
+    850,
+    935
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "ardoise",
+  "format": "horizontal",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   713,
+   842,
+   1207,
+   939
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    713,
+    842,
+    1207,
+    939
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    842,
+    938
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "ardoise",
+  "format": "horizontal",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   673,
+   855,
+   1244,
+   941
+  ],
+  "contraste": 5.146975845155607,
+  "mesure": {
+   "cadre_reel": [
+    673,
+    855,
+    1244,
+    941
+   ],
+   "derriere_plus_clair": 0.013738014735281467,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 5.146975845155607,
+   "lignes_texte": [
+    855,
+    940
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "accroche",
+  "fond": "paperboard",
+  "format": "horizontal",
+  "groupe": "depuis trois jours,",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 1.517,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   518,
+   860,
+   1405,
+   940
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    518,
+    860,
+    1405,
+    940
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    860,
+    939
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "chiffre",
+  "fond": "paperboard",
+  "format": "horizontal",
+  "groupe": "en dix minutes.",
+  "style": "impact",
+  "importance": 2,
+  "instantSec": 13.599,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   620,
+   863,
+   1303,
+   940
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    620,
+    863,
+    1303,
+    940
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    863,
+    939
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "phrase-cle",
+  "fond": "paperboard",
+  "format": "horizontal",
+  "groupe": "Un nom faux,",
+  "style": "bandeau",
+  "importance": 2,
+  "instantSec": 39.464,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   743,
+   854,
+   1177,
+   939
+  ],
+  "contraste": 16.00384782538807,
+  "mesure": {
+   "cadre_reel": [
+    743,
+    854,
+    1177,
+    939
+   ],
+   "fond": [
+    243,
+    237,
+    228
+   ],
+   "texte": [
+    22,
+    18,
+    15
+   ],
+   "contraste": 16.00384782538807,
+   "lignes_texte": [
+    854,
+    938
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "quoi": "texte-courant",
+  "fond": "paperboard",
+  "format": "horizontal",
+  "groupe": "qui s'en charge,",
+  "style": "base",
+  "importance": 0,
+  "instantSec": 20.941,
+  "bande": {
+   "y0": 830,
+   "y1": 950
+  },
+  "cadre": [
+   706,
+   866,
+   1211,
+   943
+  ],
+  "contraste": 4.854750573657793,
+  "mesure": {
+   "cadre_reel": [
+    706,
+    866,
+    1211,
+    943
+   ],
+   "derriere_plus_clair": 0.01757463999092579,
+   "creme": [
+    243,
+    237,
+    228
+   ],
+   "orange": [
+    224,
+    112,
+    64
+   ],
+   "contraste": 4.854750573657793,
+   "lignes_texte": [
+    866,
+    942
+   ],
+   "hors_bande": 0
+  },
+  "horsBande": 0,
+  "pixelsHorsCharteBande": 0,
+  "image": null
+ },
+ {
+  "reference": "avocat",
+  "decor": "decor-n1-halo-orange",
+  "couleursAvocat": {
+   "texte": "#F3EDE4",
+   "accent": "#E07040",
+   "contour": "#16120F"
+  },
+  "couleursTableau": {
+   "texte": "#F3EDE4",
+   "accent": "#E07040",
+   "contour": "#16120F"
+  },
+  "identiques": true
+ },
+ {
+  "video": "video-test-ardoise-puis-tableau-blanc-vertical.mp4",
+  "morceaux": [
+   {
+    "fond": "ardoise",
+    "de": 36.5,
+    "a": 41.5
+   },
+   {
+    "fond": "tableau-blanc",
+    "de": 41.5,
+    "a": 46.5
+   }
+  ],
+  "images": 120
+ }
+]

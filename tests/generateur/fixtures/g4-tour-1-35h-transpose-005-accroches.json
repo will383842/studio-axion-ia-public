@@ -1,0 +1,194 @@
+{
+ "role": "accroches",
+ "version": 1,
+ "sortie": {
+  "accroches": [
+   {
+    "famille": "dementi",
+    "objectif": "commentaire",
+    "dit": "Dirigeant de PME, Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "ecrit": "Gratuit ? Pas vraiment.",
+    "vu": "Gros plan d'un curseur qui colle une colonne de chiffres d'un fichier à un autre",
+    "anomalie": "Un outil jugé gratuit produit un coût invisible à chaque copier-coller",
+    "boucleOuverte": "Où se cache ce coût dans vos propres fichiers",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "dementi",
+    "objectif": "envoi",
+    "dit": "Dirigeant de PME : Excel paraît gratuit. Son vrai coût est dans chaque copier-coller fait à la main.",
+    "ecrit": "Coût absent des factures",
+    "vu": "Une facture logicielle vierge à côté d'un tableur couvert de cellules surlignées",
+    "anomalie": "Le coût n'est sur aucune facture mais dans un geste manuel répété",
+    "boucleOuverte": "Comment repérer ces copier-coller avant qu'ils faussent une décision",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "situation-spectateur",
+    "objectif": "fin-de-visionnage",
+    "dit": "Vous dirigez une PME et vos chiffres sont recopiés à la main. Chaque copie, une erreur possible.",
+    "ecrit": "Recopié = non vérifié",
+    "vu": "Deux tableurs côte à côte, une même valeur recopiée de l'un vers l'autre",
+    "anomalie": "Des chiffres de pilotage encore recopiés à la main",
+    "boucleOuverte": "Quel premier endroit vérifier dans vos fichiers",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "situation-spectateur",
+    "objectif": "sauvegarde",
+    "dit": "Vous dirigez une PME et quelqu'un recopie vos données d'un tableur à l'autre. Chaque collage peut cacher une erreur.",
+    "ecrit": "D'un fichier à l'autre",
+    "vu": "Une flèche qui suit une donnée copiée à travers plusieurs onglets de tableur",
+    "anomalie": "Des données qui passent de fichier en fichier sans aucun contrôle",
+    "boucleOuverte": "Où l'erreur passe inaperçue dans cette chaîne",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "contre-intuitif",
+    "objectif": "commentaire",
+    "dit": "Dirigeant de PME, votre tableur ne vérifie rien. Chaque copier-coller peut cacher une erreur que personne ne voit.",
+    "ecrit": "Aucun contrôle automatique",
+    "vu": "Une cellule erronée noyée dans une colonne de chiffres sans aucune alerte",
+    "anomalie": "On croit que l'outil contrôle, il ne contrôle rien tout seul",
+    "boucleOuverte": "Comment savoir si vos chiffres ont déjà été faussés",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "contre-intuitif",
+    "objectif": "sauvegarde",
+    "dit": "Dirigeant de PME : il ne faut jamais décider sur un chiffre recopié à la main. Le tableur ne vérifie rien.",
+    "ecrit": "D'où vient ce chiffre ?",
+    "vu": "Un total en bas de tableau, puis un zoom arrière sur les copier-coller qui l'alimentent",
+    "anomalie": "Une décision prise sur un chiffre que rien n'a contrôlé",
+    "boucleOuverte": "Comment retrouver d'où viennent les chiffres sur lesquels vous décidez",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "cible-nommee",
+    "objectif": "envoi",
+    "dit": "Dirigeants de PME : une seule erreur de formule, et tous les chiffres qui en dépendent sont faux.",
+    "ecrit": "Une formule, tout faux",
+    "vu": "Une formule modifiée dans une cellule, puis toutes les cellules liées qui changent en cascade",
+    "anomalie": "Une erreur minuscule contamine tout un tableau",
+    "boucleOuverte": "Où regarder pour éviter que cela arrive dans vos fichiers",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "cible-nommee",
+    "objectif": "fin-de-visionnage",
+    "dit": "Dirigeants de PME : vos tableurs ne sont sur aucune facture. Leur coût est dans chaque copier-coller.",
+    "ecrit": "Le coût invisible",
+    "vu": "Un relevé de dépenses sans ligne tableur, puis un écran rempli de copier-coller",
+    "anomalie": "Un coût réel absent de toute comptabilité",
+    "boucleOuverte": "Comment mesurer ce coût dans votre propre entreprise",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "question-client",
+    "objectif": "commentaire",
+    "dit": "Dirigeants de PME, on nous a demandé : est-ce qu'on peut se passer de nos Excel sans tout casser ?",
+    "ecrit": "Sortir d'Excel sans casse",
+    "vu": "Un dossier de dizaines de fichiers tableur ouvert à l'écran",
+    "anomalie": "La peur de tout casser retient des fichiers qui ne vérifient rien",
+    "boucleOuverte": "Dans quel cas il vaut mieux garder le tableur",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-question",
+     "test-35h-limite"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "mise-en-garde-destinataire",
+    "objectif": "envoi",
+    "dit": "Si votre DAF recopie encore les chiffres d'un tableur à l'autre, chaque collage peut cacher une erreur.",
+    "ecrit": "À montrer à votre DAF",
+    "vu": "Une colonne copiée puis collée dans un second tableur, la sélection encore visible",
+    "anomalie": "Des chiffres financiers encore transférés à la main",
+    "boucleOuverte": "Les endroits précis où l'erreur passe inaperçue",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "mise-en-garde-destinataire",
+    "objectif": "envoi",
+    "dit": "Si votre DAF bâtit vos chiffres sur un tableur, une seule erreur de formule fausse tout ce qui en dépend.",
+    "ecrit": "Effet domino",
+    "vu": "Une cellule rouge dont les dépendances s'allument une à une dans le tableau",
+    "anomalie": "Tout un pilotage suspendu à une seule formule",
+    "boucleOuverte": "Comment repérer ces formules à risque",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "question",
+    "objectif": "commentaire",
+    "dit": "Dirigeant de PME, combien de copier-coller séparent vos chiffres de vos décisions ? Chacun, une erreur possible.",
+    "ecrit": "Comptez les copier-coller",
+    "vu": "Un compteur qui s'incrémente à chaque copier-coller entre deux fichiers",
+    "anomalie": "Des décisions qui reposent sur une chaîne de gestes manuels",
+    "boucleOuverte": "Comment faire ce compte dans vos propres fichiers",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "promesse",
+    "objectif": "sauvegarde",
+    "dit": "Dirigeant de PME : où chercher, dans vos propres tableurs, les erreurs que personne ne voit.",
+    "ecrit": "Le premier endroit à vérifier",
+    "vu": "Une loupe qui glisse sur les liens entre plusieurs onglets de tableur",
+    "anomalie": "Des erreurs présentes mais que personne ne voit",
+    "boucleOuverte": "Le premier geste pour les trouver",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "porteAngle": true
+   }
+  ]
+ }
+}

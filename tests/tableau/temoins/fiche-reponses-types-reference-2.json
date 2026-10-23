@@ -1,0 +1,468 @@
+{
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "habillage": "reference/2",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "appelId": null,
+  "videoId": "v-reponses-types",
+  "versionId": "r2",
+  "structure": "demonstration",
+  "serie": {
+    "code": "automatisations",
+    "nom": "Automatisations"
+  },
+  "douleur": "Vous retapez la même réponse dix fois par jour.",
+  "gesteMinute": "Écrire une réponse type pour la question qui revient le plus.",
+  "scenes": [
+    {
+      "id": "s01",
+      "role": "accroche",
+      "page": 1,
+      "texteDit": "Vous retapez la même réponse dix fois par jour. Vos délais, vos horaires, votre zone d'intervention. Cette réponse n'existe que dans votre tête.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Le problème",
+          "niveau": "titre",
+          "role": "alerte",
+          "bloc": "titre",
+          "id": "e01",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Vous retapez la même réponse dix fois par jour.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "phrase-cle",
+          "marque": "entoure",
+          "id": "e02",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "bulle",
+          "cote": "droite",
+          "id": "e03",
+          "ancre": 5
+        },
+        {
+          "type": "ligne",
+          "texte": "Vos délais, vos horaires, votre zone d'intervention.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e04",
+          "ancre": 9
+        },
+        {
+          "type": "ligne",
+          "texte": "La cause : cette réponse n'existe que dans votre tête.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e05",
+          "ancre": 16
+        }
+      ],
+      "gabarit": {
+        "role": "probleme"
+      }
+    },
+    {
+      "id": "s02",
+      "role": "etape",
+      "page": 2,
+      "texteDit": "Un. Relisez vos messages envoyés de la semaine. Notez chaque question qui revient au moins deux fois.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Relisez",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e06",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Relisez vos messages envoyés de la semaine.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e07",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "loupe",
+          "cote": "droite",
+          "id": "e08",
+          "ancre": 4
+        },
+        {
+          "type": "ligne",
+          "texte": "Notez chaque question qui revient au moins deux fois.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e09",
+          "ancre": 8
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 1,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s03",
+      "role": "etape",
+      "page": 3,
+      "texteDit": "Deux. Écrivez une réponse type pour chaque question. Faites-le une seule fois, au calme. Gardez vos mots et vos vrais délais.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Écrivez une fois",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e10",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Écrivez une réponse type pour chaque question.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e11",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "crayon",
+          "cote": "droite",
+          "id": "e12",
+          "ancre": 4
+        },
+        {
+          "type": "ligne",
+          "texte": "Faites-le une seule fois, au calme.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e13",
+          "ancre": 8
+        },
+        {
+          "type": "ligne",
+          "texte": "Gardez vos mots et vos vrais délais.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e14",
+          "ancre": 14
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 2,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s04",
+      "role": "etape",
+      "page": 4,
+      "texteDit": "Trois. Rangez-les dans les réponses enregistrées. Dans Gmail, ce sont les modèles. Dans WhatsApp Business, les réponses rapides.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Rangez",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e15",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Rangez-les dans les réponses enregistrées.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e16",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "dossier",
+          "cote": "droite",
+          "id": "e17",
+          "ancre": 5
+        },
+        {
+          "type": "ligne",
+          "texte": "Dans Gmail, ce sont les « Modèles ».",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e18",
+          "ancre": 6
+        },
+        {
+          "type": "ligne",
+          "texte": "Dans WhatsApp Business, les « Réponses rapides ».",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e19",
+          "ancre": 12
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 3,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s05",
+      "role": "etape",
+      "page": 5,
+      "texteDit": "Quatre. Automatisez la question la plus fréquente. Mettez sa réponse dans le message d'accueil automatique. Il part dès le premier message du client.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Automatisez",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e20",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Automatisez la question la plus fréquente.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e21",
+          "ancre": 1
+        },
+        {
+          "type": "dessin",
+          "dessinId": "eclair",
+          "cote": "droite",
+          "id": "e22",
+          "ancre": 6
+        },
+        {
+          "type": "ligne",
+          "texte": "Mettez sa réponse dans le message d'accueil automatique.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e23",
+          "ancre": 7
+        },
+        {
+          "type": "ligne",
+          "texte": "Il part dès le premier message du client.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "id": "e24",
+          "ancre": 15
+        }
+      ],
+      "gabarit": {
+        "role": "etape",
+        "numero": {
+          "n": 4,
+          "ancre": 0
+        }
+      }
+    },
+    {
+      "id": "s06",
+      "role": "exemple",
+      "page": 6,
+      "texteDit": "Prenons un plombier. Son message d'accueil répond à sa place.",
+      "elements": [
+        {
+          "type": "mention",
+          "texte": "Exemple illustratif",
+          "id": "e25"
+        },
+        {
+          "type": "ligne",
+          "texte": "Un plombier",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e26",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Son message d'accueil répond à sa place.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "id": "e27",
+          "ancre": 3
+        },
+        {
+          "type": "dessin",
+          "dessinId": "horloge",
+          "cote": "droite",
+          "id": "e28",
+          "ancre": 6
+        }
+      ],
+      "gabarit": {
+        "role": "exemple"
+      }
+    },
+    {
+      "id": "s07",
+      "role": "preuve",
+      "page": 6,
+      "texteDit": "Avant, il retapait ses délais six fois par jour, sur le chantier. Maintenant, son accueil annonce ses délais et ses horaires. Lui tape seulement le créneau.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Il retape ses délais six fois par jour, sur le chantier.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "avant",
+          "id": "e29",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Son accueil annonce ses délais et ses horaires.",
+          "niveau": "texte",
+          "role": "resultat",
+          "bloc": "apres",
+          "id": "e30",
+          "ancre": 12
+        },
+        {
+          "type": "preuve",
+          "preuveId": "mat-reponses-demo",
+          "lignes": [
+            "Lui tape seulement le créneau."
+          ],
+          "id": "e31",
+          "ancre": 21
+        }
+      ],
+      "gabarit": {
+        "role": "exemple"
+      }
+    },
+    {
+      "id": "s08",
+      "role": "resultat",
+      "page": 7,
+      "texteDit": "Relisez. Écrivez une fois. Rangez. Automatisez la plus fréquente.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "À retenir",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "id": "e32",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Relisez.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e33",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Écrivez une fois.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e34",
+          "ancre": 1
+        },
+        {
+          "type": "ligne",
+          "texte": "Rangez.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e35",
+          "ancre": 4
+        },
+        {
+          "type": "ligne",
+          "texte": "Automatisez la plus fréquente.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "liste",
+          "id": "e36",
+          "ancre": 5
+        },
+        {
+          "type": "dessin",
+          "dessinId": "liste-cochee",
+          "cote": "droite",
+          "id": "e37",
+          "ancre": 4
+        }
+      ],
+      "gabarit": {
+        "role": "retenir"
+      }
+    },
+    {
+      "id": "s09",
+      "role": "fin",
+      "page": 7,
+      "texteDit": "Les dix réponses types tiennent sur une page. Écrivez REPONSES en commentaire. Je vous l'envoie.",
+      "elements": [
+        {
+          "type": "ligne",
+          "texte": "Les dix réponses types tiennent sur une page.",
+          "niveau": "texte",
+          "role": "avantage",
+          "bloc": "detail",
+          "id": "e38",
+          "ancre": 0
+        },
+        {
+          "type": "ligne",
+          "texte": "Écrivez REPONSES en commentaire",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "appel",
+          "id": "e39",
+          "ancre": 8
+        }
+      ],
+      "gabarit": {
+        "role": "retenir"
+      }
+    }
+  ]
+}

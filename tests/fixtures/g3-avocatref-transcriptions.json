@@ -1,0 +1,50 @@
+{
+ "_source": "Fixture synthétique inventée pour la version publique : 3 vidéos fictives de 2 phrases, même forme que l'ancien corpus (retiré).",
+ "videos": [
+  {
+   "code": "D01",
+   "segments": [
+    {
+     "debut": 0.0,
+     "fin": 2.89,
+     "texte": "Tu reçois une lettre de ton propriétaire, ne signe rien tout de suite."
+    },
+    {
+     "debut": 3.03,
+     "fin": 6.36,
+     "texte": "Tu as le droit de lire le document chez toi, et de poser tes questions."
+    }
+   ]
+  },
+  {
+   "code": "D02",
+   "segments": [
+    {
+     "debut": 0.0,
+     "fin": 2.44,
+     "texte": "Ton voisin construit un mur sans te prévenir, tu peux agir."
+    },
+    {
+     "debut": 2.58,
+     "fin": 4.58,
+     "texte": "Écris-lui d'abord un courrier simple, garde une copie datée."
+    }
+   ]
+  },
+  {
+   "code": "D03",
+   "segments": [
+    {
+     "debut": 0.0,
+     "fin": 2.0,
+     "texte": "Un colis n'arrive jamais, le vendeur ne répond plus."
+    },
+    {
+     "debut": 2.14,
+     "fin": 4.58,
+     "texte": "Tu peux demander le remboursement par écrit, avec un délai clair."
+    }
+   ]
+  }
+ ]
+}

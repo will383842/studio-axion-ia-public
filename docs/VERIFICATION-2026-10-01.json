@@ -1,0 +1,436 @@
+{
+  "summary": "Vérification complète du plan de la console Studio vidéo : 3 experts en parallèle cherchent ce qui manque",
+  "agentCount": 3,
+  "logs": [],
+  "result": [
+    {
+      "lentille": "production-video",
+      "verdict": "J'ai lu le plan en entier. Le squelette est bon : registres des formats, bibliothèque d'étapes de l'assistant et fournisseurs interchangeables. Les LUT et les images d'illustration (b-roll) sont déjà prévues, mais seulement comme des éléments qu'on choisit dans la bibliothèque. Le plan ne dit pas comment elles s'appliquent ni selon quelles règles.\n\nRéponse à la question de Will : il faut les deux niveaux.\n- **LUT** : une LUT par défaut pour chaque format, que Will peut changer pour une vidéo. Il faut ajouter une intensité, ce sur quoi elle s'applique (le double, les illustrations, les rushs tournés) et une correction de base qui harmonise les sources IA et réelles avant la LUT créative.\n- **B-roll** : la règle vient du format (combien de temps les illustrations couvrent la vidéo, durée d'un plan, sources autorisées). Le choix précis se fait plan par plan, selon le script de chaque vidéo, par le moteur. Will le remplace à l'Aperçu.\n\nCe qui manque surtout, vu de la post-production :\n1. **Le texte à l'écran et les zones protégées des réseaux.** Le titre en haut est la signature du format « type avocat », et rien n'empêche aujourd'hui les boutons de TikTok ou de Reels de le recouvrir.\n2. **Le son.** Rien n'est prévu pour le niveau sonore réseau, la musique qui baisse sous la voix ou le placement des bruitages.\n3. **Des sous-titres corrigeables et exportables.** Fichier .srt, et pas seulement un style.\n4. **Un registre des réseaux.** Durée maximale, ratio, réglages d'export, nombre de caractères du texte de publication, étiquette IA.\n5. **La conservation des éléments intermédiaires.** La voix générée, les plans du double et le projet de montage doivent être gardés, pour que « refais ce plan » ne repaie pas toute la fabrication.\n6. **Les rushs réellement tournés**, mêlés aux plans IA.\n7. **La maquette rapide** à valider avant la fabrication coûteuse du visage.\n8. **Les droits des musiques et des images.**\n\nPresque tout se règle en ajoutant des champs aux registres et au modèle de données, plus quelques réglages simulés dans l'Aperçu et la fiche vidéo. La construction n'en est pas allongée de façon notable.",
+      "manques": [
+        {
+          "titre": "Texte à l'écran, accroche visuelle et zones protégées des réseaux",
+          "gravite": "essentiel",
+          "quand": "console-maintenant",
+          "pourquoi": "Le format avocat repose sur un grand titre en haut, des mots mis en valeur et des relances visuelles. Le plan ne distingue pas ce texte à l'écran des sous-titres. Il ne connaît pas non plus les zones que masquent les boutons de TikTok, Reels et Shorts : sur une vidéo 9:16, le titre ou les sous-titres finissent sous les boutons « J'aime » ou la légende. Les futurs moteurs de montage ont besoin de cette information dans les données, plan par plan.",
+          "modification": "B.7, entité `Plan` : ajouter `texteEcran` {texte, position: haut|centre|bas, style}, `motsEnValeur[]` et `bruitageId`. B.6.1, `DefinitionFormat` : ajouter `accrocheVisuelle: { titreFixe: boolean; position: \"haut\"|\"centre\"; dureeSec?: number }`. B.8 écran 4, étape `apercu` : ajouter un bouton « Afficher les zones des réseaux » qui superpose en transparence l'interface TikTok, Reels et Shorts sur l'image, et un témoin orange si un texte déborde. Les gabarits de zones viennent du registre des réseaux (voir le manque sur ce registre). Il faut aussi ajouter un composant `CalqueZonesReseaux` à la liste de B.5."
+        },
+        {
+          "titre": "Registre des réseaux : contraintes d'export et de publication",
+          "gravite": "essentiel",
+          "quand": "structure-seulement",
+          "pourquoi": "Chaque réseau a ses limites : durée maximale, ratio préféré, résolution, débit, images par seconde, poids du fichier, nombre de caractères de la légende, nombre de mots-dièse, format de la miniature, case « contenu généré par IA ». Si ces données sont codées en dur dans les écrans, le kit de publication et les moteurs d'export seront à refaire. Cela contredit le principe B.1-5.",
+          "modification": "B.6 : ajouter « 6. Registre des réseaux (`src/reseaux/<id>.ts`) » avec `DefinitionReseau` { id, nom, ratiosAcceptes, ratioPrefere, dureeMaxSec, export: {resolution, fps, codec, debitMbps, poidsMaxMo}, sonCibleLufs, zonesProtegees par ratio (marges en %), legende: {caracteresMax, motsDieseMax}, miniature: {ratio, taille}, etiquetteIA: {disponible, libelle} }. Il faut y déclarer LinkedIn, Instagram, Facebook, TikTok, YouTube et YouTube Shorts. B.8 écran 8, kit de publication : afficher un avertissement si la vidéo dépasse la durée ou le ratio d'un réseau (par exemple « Trop longue pour Shorts ») et un compteur de caractères par texte. B.9 : ajouter un test qui vérifie que le registre des réseaux est complet."
+        },
+        {
+          "titre": "Son : sound design, mixage et normalisation",
+          "gravite": "essentiel",
+          "quand": "structure-seulement",
+          "pourquoi": "Dans une vidéo courte haut de gamme, la qualité perçue tient d'abord au son : voix nette, musique qui baisse sous la voix, bruitages sur les coupes et les textes, niveau constant d'une vidéo à l'autre (autour de -14 LUFS sur les réseaux, -16 en podcast). Le plan a des musiques et des bruitages en bibliothèque, mais aucun réglage de mixage ni fournisseur pour le faire. Le moteur de montage n'aurait donc aucun endroit où lire ces choix.",
+          "modification": "B.6.1, `stylesParDefaut` : ajouter `profilSon?: string`. B.7, `ElementBibliotheque` : ajouter le type `profil-son` avec la valeur JSON {volumeMusique, baisseSousVoix (oui ou non, en dB), traitementVoix: aucun|nettoyage|radio, densiteBruitages: aucune|legere|marquee, niveauCibleLufs}. B.6.5 : ajouter `FournisseurSon` (mixage et normalisation, réel prévu : ffmpeg loudnorm ou Remotion). B.8 écran 15 : ajouter l'onglet « Son » avec 2 ou 3 préréglages (« Voix claire », « Rythmé avec bruitages », « Podcast »). Données de démonstration : 3 profils de son."
+        },
+        {
+          "titre": "Sous-titres modifiables et fichier de sous-titres",
+          "gravite": "essentiel",
+          "quand": "console-maintenant",
+          "pourquoi": "Les vidéos sont regardées en majorité sans le son. Une faute dans les sous-titres, ou un nom propre mal transcrit, suffit à décrédibiliser Axion-IA. Le plan prévoit un style de sous-titres, mais pas l'endroit où Will corrige un mot ni l'export .srt et .vtt dont YouTube et LinkedIn ont besoin pour l'accessibilité et le référencement.",
+          "modification": "B.7 : ajouter l'entité `SousTitres` { videoId, version, langue, segments [{debutSec, finSec, texte, motsEnValeur[]}], incrustes: boolean, fichierSrt, fichierVtt }. B.8 écran 8, fiche vidéo : ajouter un onglet « Sous-titres » qui liste les phrases et permet de toucher un mot pour le corriger (simulé), puis un bouton « Télécharger le fichier de sous-titres » dans le kit de publication. Il faut aussi relier la liste `Prononciation` aux sous-titres, pour que la graphie correcte « Axion-IA » soit imposée."
+        },
+        {
+          "titre": "LUT : intensité, ce sur quoi elle s'applique, correction de base",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "C'est la question de Will. Avec une LUT appliquée en bloc, un double IA, des images de banque et un rush filmé au téléphone ne se ressemblent pas : chaque source a sa colorimétrie. Un studio fait d'abord une correction qui harmonise les sources, puis applique une LUT créative avec un dosage. Il ne l'applique pas forcément aux captures d'écran ni aux logos.",
+          "modification": "B.7, `ElementBibliotheque` de type `lut` : la valeur JSON contient {intensiteParDefaut: 0-100, espaceEntree: \"rec709\"|\"log\", appliquerA: [\"personnage\",\"illustrations\",\"rushs\"]}. B.6.1, `stylesParDefaut` : ajouter `etalonnage?: { lut: string; intensite: number; harmoniserSources: boolean }`, à la place du seul `lut`. B.6.5 : préciser que `FournisseurEtalonnage` fait deux passes, d'abord l'harmonisation des sources puis la LUT créative dosée. B.8 écran 15, onglet LUT : ajouter un curseur d'intensité sur l'aperçu avant/après (simulé avec les vignettes générées par ffmpeg). B.8 écran 4, étape `reglages` : choix de la LUT et de l'intensité, prérempli par le format."
+        },
+        {
+          "titre": "B-roll : règles par format et choix plan par plan",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le plan dit seulement `illustrations: auto|manuel|aucune`. Or le rythme du b-roll fait le style d'un format : le format avocat en met très peu, l'écran partagé en a en permanence, le motion design n'a que ça. Sans règles dans le registre, chaque futur moteur inventera les siennes. Il faut aussi tracer d'où vient chaque image (banque, générée par IA, rush) à cause des licences et de la mention IA.",
+          "modification": "B.6.1, `DefinitionFormat` : remplacer `illustrations` par `illustrations: { mode: \"auto\"|\"manuel\"|\"aucune\"; couvertureCible: number /* % du temps */; dureePlanSec: [number, number]; sourcesAutorisees: (\"bibliotheque\"|\"banque-externe\"|\"generee-ia\"|\"capture-ecran\"|\"rush\")[]; affichage: \"plein-ecran\"|\"incrustation\"|\"ecran-partage\" }`. B.7, `Plan` : ajouter `illustrationRequete` (les mots-clés tirés du script par le moteur), `illustrationSource` et `illustrationAffichage`. B.8 écran 4, Aperçu : sur chaque plan, afficher la source (pastille « IA » si l'image est générée) et un bouton « Remplacer » qui ouvre la bibliothèque filtrée par les mots-clés du plan."
+        },
+        {
+          "titre": "Rushs réellement tournés mêlés aux plans IA",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Les formats selfie et UGC, et souvent le podcast, demanderont tôt ou tard de vraies prises de Will filmées au téléphone, en remplacement ou en complément du double. Le plan suppose que tout visage vient du `FournisseurVisage`. Les entrées et le `Plan` ne prévoient pas qu'un plan soit un rush réel, à dérusher et synchroniser.",
+          "modification": "B.6.1, `EntreeFormat` : ajouter `\"rushs-tournes\"`. B.7, `Plan` : ajouter `sourceImage: \"double-ia\"|\"rush\"|\"illustration\"|\"motion\"` et `rushId`. B.7 : ajouter l'entité `Rush` { id, personnageId, fichier, dureeSec, ratioOrigine, transcription, debutUtileSec, finUtileSec }. B.8 écran 4, étape `medias` : zone de dépôt « Mes prises filmées » (simulée). Rien d'autre à construire maintenant."
+        },
+        {
+          "titre": "Conserver les éléments intermédiaires et le projet de montage",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le plan promet « refais ce plan sans tout refaire ». Cela n'est possible et économique que si l'on garde la voix générée, chaque plan du double, les illustrations retenues et le projet de montage (la timeline). Sinon chaque retouche relance la voix et le visage, qui sont les postes les plus chers. Un master en haute qualité permet aussi de réexporter dans un nouveau ratio ou pour un nouveau réseau sans tout refabriquer.",
+          "modification": "B.7 : ajouter l'entité `Piste` { id, videoId, version, type: \"voix\"|\"plan-double\"|\"illustration\"|\"musique\"|\"mixage\"|\"master\", planId?, fichier, fournisseur, cout, creeLe }. Ajouter à `Video` le champ `projetMontage` (JSON, la timeline que lit le moteur de montage, par exemple les props Remotion). B.6.3, `MoteurVideo` : ajouter `retoucher(videoId, planIds, consigne): Promise<IdTravail>`, qui ne régénère que les pistes touchées, et `reexporter(videoId, ratio|reseau)`. B.8 écran 8, Retouches : afficher « Coût de la retouche : x € » estimé, pour que Will voie qu'il ne repaie qu'un plan."
+        },
+        {
+          "titre": "Maquette rapide avant la fabrication coûteuse",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Dans un studio, on valide toujours une première version de travail (voix et images, sans le rendu final) avant de payer le tournage ou le rendu. Ici, le double IA et le rendu sont les étapes chères et lentes. Une maquette voix + illustrations + texte à l'écran, avec une silhouette à la place du visage, permet à Will de valider le rythme et le texte en une minute et pour quelques centimes.",
+          "modification": "B.6.3, `MoteurVideo` : ajouter `maquette(commande): Promise<IdTravail>`. B.8 écran 4, étape `apercu` : bouton secondaire « Voir une maquette rapide », qui lit une vidéo de démonstration simulée avec la mention « maquette », avant le bouton principal « Fabriquer ». B.7, `Video.statut` : ajouter `maquette`. Le parcours Playwright de B.9 n'a pas besoin de changer."
+        },
+        {
+          "titre": "Mention IA : où et comment elle apparaît, pour chaque réseau",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Le plan réduit la mention IA à un booléen `mentionIA`. Pour un double réaliste de personne réelle, la règle européenne de transparence sur les contenus truqués impose une mention claire. Il y a en pratique trois endroits : une incrustation dans l'image, une phrase dans la légende et la case « contenu IA » de TikTok, YouTube et Meta. Si le kit de publication ne la prépare pas, Will publiera sans elle.",
+          "modification": "B.7, `Video` : remplacer `mentionIA` par `mentionIA: { incrustee: boolean; position: \"haut-gauche\"|\"bas\"; dureeSec: number|\"toute\"; texte: string; dansLegende: boolean }`. B.6 registre des réseaux : `etiquetteIA`. B.8 écran 8, kit de publication : pour chaque réseau, ajouter automatiquement la phrase « Vidéo réalisée avec l'IA » à la fin du texte, plus le rappel « Cochez “Contenu généré par l'IA” au moment de publier » (ou le passage automatique à Buffer si l'option existe). B.8 écran 17, Réglages > Mention IA : texte et position par défaut."
+        },
+        {
+          "titre": "Droits et licences des musiques, images et polices",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le champ `licence` libre ne suffit pas. Une musique de banque sans licence pour le commercial ou les réseaux déclenche un blocage Content ID sur YouTube ou une coupure du son sur Instagram. Une image générée ou de banque peut avoir une date d'expiration ou exiger un crédit. Si rien n'alerte, le problème n'apparaît qu'une fois la vidéo publiée.",
+          "modification": "B.7, `ElementBibliotheque` : remplacer `licence` par `licence: { type: \"maison\"|\"banque\"|\"generee-ia\"|\"libre\"|\"a-verifier\"; usageCommercial: boolean; reseauxAutorises: string[]; creditObligatoire?: string; expireLe?: date; preuve?: fichier }`. B.8 écran 8, kit de publication : afficher un témoin bloquant ambre « Musique : licence à vérifier » si un élément utilisé a `a-verifier` ou une licence expirée. Ajouter les crédits obligatoires à la légende. B.8 écran 15 : afficher une pastille de licence sur chaque carte."
+        },
+        {
+          "titre": "Composition propre à chaque ratio (pas un simple recadrage)",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le plan dit que le moteur sort « une sortie par ratio ». Mais un 16:9 recadré en 9:16 coupe les textes, et le titre en haut ne tombe pas au même endroit. Un écran partagé haut/bas en vertical devient côte à côte en horizontal. Il faut qu'un format déclare sa mise en page et son point de cadrage pour chaque ratio, sinon le moteur de montage devra deviner.",
+          "modification": "B.6.1, `DefinitionFormat` : `miseEnPage` devient `miseEnPageParRatio: Partial<Record<Ratio, MiseEnPage>>`, et le format déclare un `ratioMaitre`. B.7, `Plan` : ajouter `cadrage?: { pointInteret: {x, y}; zoom }`. B.8 écran 4, Aperçu : sélecteur de pastilles de ratio pour voir le même plan en 9:16, 1:1 et 16:9 (simulé par recadrage CSS de la vignette), avec le calque des zones protégées."
+        },
+        {
+          "titre": "Validation avant publication et contrôle qualité",
+          "gravite": "utile",
+          "quand": "console-maintenant",
+          "pourquoi": "Une vidéo « prête » n'est pas une vidéo validée. Un studio vérifie la synchronisation des lèvres, les noms propres prononcés, l'orthographe des sous-titres, la mention IA, les licences et les zones protégées. Une liste de contrôle courte, cochée en un geste, évite de publier une erreur. Les futurs moteurs pourront la préremplir avec un rapport automatique (transcription comparée au script, niveau sonore, artefacts).",
+          "modification": "B.7, `Video.statut` : ajouter `a_valider` et `validee`, entre `prete` et la publication. B.7, `Sortie` : ajouter `rapportQualite` JSON {niveauLufs, ecartScriptTranscription, alertes[]}. B.8 écran 8 : carte « Avant de publier » avec 5 cases à grosses icônes (Image, Son, Sous-titres, Mention IA, Droits), dont certaines sont précochées par le rapport simulé. Le bouton Publier s'active une fois les cases cochées. Pour la vitesse, l'ensemble tient en un seul composant."
+        },
+        {
+          "titre": "Miniatures par réseau et par ratio",
+          "gravite": "utile",
+          "quand": "structure-seulement",
+          "pourquoi": "La miniature YouTube est en 16:9 (1280×720). La couverture d'un Reel est en 9:16 mais recadrée en 1:1 ou 4:5 dans la grille du profil. LinkedIn affiche encore un autre recadrage. Une seule miniature par vidéo produira des têtes ou des titres coupés.",
+          "modification": "B.7, `Miniature` : ajouter `ratio` et `reseau?`. B.8 écran 8, Miniature : afficher le choix dans un aperçu « grille Instagram » (recadrage 4:5) et « YouTube » (16:9). Le simulé suffit : il réutilise la même image avec deux recadrages CSS."
+        },
+        {
+          "titre": "Marque et charte rattachées à la vidéo",
+          "gravite": "utile",
+          "quand": "structure-seulement",
+          "pourquoi": "Aujourd'hui une seule marque (Axion) est implicite dans la bibliothèque. Si Will produit un jour pour un client ou une autre activité, couleurs, logo, habillage, LUT et polices devront basculer d'un bloc. Un `marqueId` posé dès maintenant coûte une colonne et évite de refaire le modèle de données plus tard.",
+          "modification": "B.7 : ajouter l'entité `Marque` { id, nom, elementsBibliothequeIds[] } et le champ `marqueId` sur `Video`, `Modele` et `ElementBibliotheque`. Données de démonstration : une seule marque « Axion ». Aucun écran supplémentaire maintenant : un simple sélecteur masqué tant qu'il n'existe qu'une marque."
+        }
+      ]
+    },
+    {
+      "lentille": "architecture-moteurs",
+      "verdict": "Le plan sépare bien les écrans et la logique : registres, interfaces de fournisseurs et assistant généré depuis le format. En revanche, la frontière entre la console et les moteurs n'est pas définie. La `commande` passée au moteur n'a pas de type. Il manque aussi : les versions de vidéo, les fichiers (aucune entité, pas de dépôt direct vers R2 pour les rushs lourds), une file de travaux capable de reprendre une étape ratée, les webhooks, le détail des coûts et les identifiants chez chaque fournisseur. Le script ne porte que du texte, alors que le montage aura besoin d'indications (angle, titre à l'écran, b-roll). Sans ces ajouts, brancher HeyGen, ElevenLabs ou Remotion obligera à refaire le modèle de données et les fiches vidéo. La plupart des corrections sont des types et des tables à poser maintenant, sans écran supplémentaire. Le coût de construction reste faible (environ 1 h de plus pour l'architecte). Sur la question de Will : la LUT et le b-roll se règlent à deux niveaux. La bibliothèque et le format donnent les valeurs par défaut. Le moteur choisit ensuite plan par plan selon le script. Ce que Will remplace à la main doit être verrouillé pour qu'une nouvelle fabrication ne l'écrase pas.",
+      "manques": [
+        {
+          "titre": "Contrat de fabrication figé : `CommandeFabrication` typée, résolue et versionnée",
+          "gravite": "essentiel",
+          "quand": "console-maintenant",
+          "pourquoi": "B.6.3 écrit `estimer(commande)` et `lancer(commande)` sans définir la commande. Chaque futur moteur irait donc lire lui-même les tables de la console (Script, Personnage, Bibliothèque), ce qui recouple tout. Autre problème : si Will modifie une LUT ou un script après coup, une vidéo déjà faite ne peut plus être refabriquée à l'identique.",
+          "modification": "B.6.3 : ajouter `interface CommandeFabrication { versionContrat: 1; formatId; versionFormat; videoId; versionVideoId; dureeCibleSec; ratios[]; script: {id, version, blocs résolus}; distribution: [{role, personnageId, visageId, voixId, ressourcesFournisseur}]; styles: {lut:{elementId, version, fichierId, intensite}, sousTitres, habillage, styleMontage, musique...}; entrees: {cle: fichierId[]}; reglages (validés par le Zod du format); plans?: Plan[]; mentionIA; budgetMaxCentimes }`. Elle est construite par un service unique `construireCommande(videoId)` et enregistrée telle quelle (JSON) sur la VersionVideo. Règle à écrire : un moteur ne lit QUE la commande, jamais les dépôts. En V1, le moteur simulé la consomme déjà, ce qui prouve le contrat."
+        },
+        {
+          "titre": "Entité `VersionVideo` : sorties, plans et retouches rattachés à une version",
+          "gravite": "essentiel",
+          "quand": "console-maintenant",
+          "pourquoi": "`Plan.version` et `Retouche.versionProduite` existent, mais `Sortie` pointe vers videoId et aucune entité ne porte la version. « Refaire ce plan », comparer deux versions ou revenir en arrière deviendrait impossible sans migration une fois le vrai montage branché.",
+          "modification": "B.7 : ajouter `VersionVideo { id, videoId, numero, parentVersionId?, commande JSON (contrat figé), statut, travailId, coutReel, creeLe, choisie (bool) }`. `Sortie.videoId` devient `Sortie.versionId` ; `Plan.videoId+version` devient `Plan.versionId` ; `Retouche` reçoit `versionSourceId` et `versionProduiteId`. `Video` garde `versionCouranteId`. B.8 #8 : le sélecteur de versions lit cette table."
+        },
+        {
+          "titre": "Entité `Fichier` unique et dépôt direct vers R2 (rushs lourds)",
+          "gravite": "essentiel",
+          "quand": "console-maintenant",
+          "pourquoi": "Le champ « fichier » est une simple chaîne, répétée dans une dizaine d'entités. Or les rushs de tournage pour le visage, les enregistrements de voix et les vidéos d'illustration pèsent des centaines de Mo, parfois des Go. Les faire passer par Next ne tiendra pas. Les fournisseurs (HeyGen, ElevenLabs) ont aussi besoin d'URL signées, et les moteurs de durée, fps et résolution.",
+          "modification": "B.7 : ajouter `Fichier { id, cleStockage, mime, tailleOctets, sha256, dureeSec?, largeur?, hauteur?, fps?, origine ('depot'|'genere'|'fournisseur'|'demo'), statut ('en_depot'|'pret'|'analyse_echec'), creeLe }`. Partout, remplacer `fichier`/`fichiers[]` par `fichierId`/`fichierIds[]`. B.6.5 : ajouter l'interface `StockageFichiers { preparerDepot(mime, taille) → {url signée PUT/multipart, fichierId}; confirmerDepot(id); urlLecture(id, expireSec); }`. V1 = `public/demo` plus dépôt en mémoire ; ensuite R2 en multipart direct depuis le navigateur. Le composant `ZoneDepot` (B.5) passe toujours par cette interface. Convention de clés à écrire : `studio/{env}/{type}/{entiteId}/{fichierId}.{ext}`. Les rushs passent ensuite par une analyse ffprobe (durée, fps, résolution)."
+        },
+        {
+          "titre": "File de travaux avec étapes dépendantes, reprise ciblée et erreurs typées",
+          "gravite": "essentiel",
+          "quand": "structure-seulement",
+          "pourquoi": "Aujourd'hui `Travail` = étapes JSON + une seule erreur. Une vraie fabrication enchaîne voix, visage (par plan), montage par ratio, puis sous-titres. Chaque étape appelle un fournisseur payant et peut échouer à 80 %. Sans reprise depuis l'étape ratée, on repaie tout (un clone HeyGen coûte des crédits). Sans clé d'idempotence, une relance double la facture.",
+          "modification": "B.7 : préciser `Travail { id, type, cibleId, versionVideoId?, statut, tentatives, prochainEssaiLe?, cleIdempotence, fournisseurUtilise, idExterne?, erreur: {code, reessayable, messagePourWill, detailTechnique} }` et `EtapeTravail { id, travailId, cle, dependDe[], statut ('attente'|'en_cours'|'ok'|'echec'|'ignoree'), progression, sortieFichierIds[], idExterne?, coutReelCentimes, debut, fin }`. B.6.3 : `MoteurVideo` déclare `etapes(commande): EtapePlan[]` (graphe) au lieu de les coder dans `lancer`. Règle : « Réessayer » relance seulement les étapes en échec et réutilise les sorties `ok`. B.8 #8 et Accueil : bouton « Réessayer » sur un échec. Le moteur simulé sait déjà faire échouer UNE étape et la reprendre (test Vitest à ajouter en B.9)."
+        },
+        {
+          "titre": "Webhooks fournisseurs : route, signature, dédoublonnage, repli par interrogation",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "HeyGen (préparation du double, rendu), ElevenLabs et Buffer répondent en différé, par webhook. B.4.3 protège TOUT sauf trois chemins : un webhook serait rejeté par le proxy. Sans table d'événements, un même webhook reçu deux fois ferait avancer deux fois le travail.",
+          "modification": "B.4.3 : ajouter `/api/crochets/[fournisseur]` aux exceptions du proxy. La signature y est vérifiée par le fournisseur concerné (secret par fournisseur en variable d'environnement), à la place de la session. B.6.5 : chaque fournisseur asynchrone implémente `soumettre(entree) → idExterne`, `consulter(idExterne)` et `traiterCrochet(requete) → MiseAJourEtape`. B.7 : `EvenementFournisseur { id, fournisseur, idEvenementExterne (unique), idExterne, charge JSON, recuLe, traiteLe }`. Ajouter aussi une règle de repli : une boucle interroge `consulter` toutes les N minutes pour les étapes `en_cours` depuis plus de X min, au cas où un webhook se perdrait. En V1 : la route existe et répond 501 pour `simulation`."
+        },
+        {
+          "titre": "Coûts détaillés par étape et barrière budget avant lancement",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "`Montant`, `coutEstime` et `coutReel` ne sont pas définis. Les fournisseurs facturent dans des unités différentes : caractères (ElevenLabs), crédits ou minutes (HeyGen), jetons (Claude), secondes de rendu. La jauge budget de l'Accueil et « Budget et coûts » des Réglages n'ont rien de réel à lire. Une erreur de moteur pourrait aussi vider le budget sans que rien ne l'arrête.",
+          "modification": "B.7 : ajouter `LigneCout { id, travailId, etapeId?, fournisseur, unite ('caracteres'|'secondes'|'credits'|'jetons'|'minutes'), quantite, prixUnitaireCentimes, devise, nature ('estime'|'reel'), date }`. `Montant = { centimes: number; devise: 'EUR'|'USD' }`. B.6.5 : chaque fournisseur expose `tarif(): GrilleTarif` et `estimer(entree): LigneCout[]`. B.6.3 : `estimer` additionne ces lignes. Règle : `lancer` refuse si l'estimation dépasse le budget restant du mois (Parametre `budgetMensuel`), avec un message clair pour Will. Les Réglages affichent le coût par fournisseur et par mois à partir de ces lignes (démo : 3 mois)."
+        },
+        {
+          "titre": "Identifiants chez les fournisseurs : `RessourceFournisseur`",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "`Visage.fournisseur` et `versionFournisseur` ne suffisent pas. Un même double peut exister chez HeyGen puis chez un concurrent, la même voix chez ElevenLabs en deux modèles. Il faut aussi retrouver l'avatar_id ou le voice_id pour chaque fabrication. Le plan prévoit justement de changer de fournisseur (« HeyGen ou mieux à ce moment-là »).",
+          "modification": "B.7 : ajouter `RessourceFournisseur { id, entite ('visage'|'voix'|'personnage'), entiteId, fournisseur, idExterne, versionModele, statut, fichiersSourceIds[], accordId?, creeLe, retireLe? }`. Visage et Voix ne gardent que leur statut côté console. `CommandeFabrication.distribution` reçoit le bon `idExterne` lors de la construction. L'accord (B.4.6) est lié à chaque ressource : certains fournisseurs exigent leur propre vidéo de consentement, qui doit alors être un `Fichier` attaché."
+        },
+        {
+          "titre": "Script structuré pour le montage : annotations par segment, pas seulement du texte",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Le montage « type avocat » a besoin de savoir, pour chaque phrase : le titre affiché en haut, le changement d'angle, les mots à souligner, le zoom, l'intention de b-roll et les pauses. Si `Script.blocs` ne contient que du texte, le générateur de scripts et le moteur de montage devront inventer ce format plus tard, et l'éditeur de la console devra être refait.",
+          "modification": "B.6.4 : `blocs[].segments[]: { texte; angle?; titreEcran?; emphase?: string[]; brollIntention?: string; zoom?: 'aucun'|'leger'|'fort'; pauseApresMs?; personnageRole? }`. `RecetteScript` reçoit `annotations: ('titreEcran'|'angle'|'broll'|'emphase'|'zoom')[]` : chaque format déclare celles qu'il utilise. L'éditeur (B.8 #12) les montre en pastilles discrètes sous chaque phrase, sans texte. B.7 : `Plan` est dérivé des segments (`segmentIds[]`). Le générateur simulé en remplit déjà quelques-unes."
+        },
+        {
+          "titre": "B-roll et LUT : qui décide, à quel niveau, et verrouillage des choix de Will",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "C'est la question de Will. Le plan dit « le moteur choisit automatiquement, vous remplacez à l'Aperçu », sans dire comment le choix de Will survit à une nouvelle fabrication ou à une retouche. Côté LUT, il confond deux choses. La correction : rendre neutres des rushs ou des sorties HeyGen qui ne sortent pas tous avec la même colorimétrie. Le look : le style du format.",
+          "modification": "B.6.1 : ajouter un paragraphe « Règle de décision ». Bibliothèque, puis valeurs par défaut du format, puis modèle choisi, puis réglages de la vidéo, puis choix par plan. Le moteur ne remplit que les cases vides ou laissées en `auto`. B.7 `Plan` : remplacer `illustrationId` par `illustration { source: 'auto'|'manuel'|'aucune'; elementId?; fichierId?; requete (mots-clés ou intention venant du script); verrouille: bool; candidats?: elementId[] }`. Un choix de Will = `verrouille: true`, jamais écrasé par le moteur. LUT à deux niveaux : `Visage.lutCorrectionId?` / `Fichier` de rush (correction de la source) et `styles.lut` + `intensite` 0–100 (look du format, déjà présent). `ElementBibliotheque` de type `lut` : valider le `.cube` à l'import (taille 17/33/65)."
+        },
+        {
+          "titre": "Rushs réels déposés comme source de plan, pas seulement pour entraîner un double",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le plan ne parle de vidéos déposées que pour créer un double ou comme illustrations. Or les formats selfie, UGC et podcast, ou un plan d'avocat filmé pour de vrai, utiliseront parfois les vraies images de Will à la place du double. Sans cette option, il faudra modifier la distribution, le moteur et l'assistant plus tard.",
+          "modification": "B.6.1 `EntreeFormat` : ajouter `\"rushs\"` (rushs réels avec leur son). B.7 : `ElementBibliotheque.type` += `rush` (avec `personnageId?`, `fichierId`, transcription horodatée optionnelle). Dans `Plan` ajouter `sourceImage: 'double'|'rush'|'illustration'|'motion'` + `rushId?` + `rushDebutSec`/`rushFinSec`. B.6.2 étape `distribution` : choix « mon double / mes images filmées » si le format l'autorise (`DefinitionFormat.sourcesImage: ('double'|'rush')[]`)."
+        },
+        {
+          "titre": "Capacités déclarées par moteur et fournisseur, et choix du fournisseur sans redémarrage",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Les fournisseurs ont des limites : durée maximale par rendu HeyGen, langues, ratios, réglages de voix, retouche d'un seul plan possible ou non. Sans déclaration de capacités, la console proposera des options impossibles (30 min de podcast en un rendu, « refaire ce plan » sur un moteur qui ne sait pas). La variable d'environnement globale `FOURNISSEUR_VOIX=` empêche aussi d'essayer un nouveau fournisseur sur un seul format sans redémarrer.",
+          "modification": "B.6.3/B.6.5 : chaque fournisseur et chaque moteur exporte `capacites: { dureeMaxSec?, ratios?, langues?, retouchePlan: bool, asynchrone: bool, exigeAccord: bool, reglages?: ZodSchema }`. L'assistant et la fiche vidéo grisent ou masquent selon ces capacités. Pour une vidéo plus longue que `dureeMaxSec`, le moteur découpe en étapes. Résolution : `resoudreFournisseur(type, {formatId})` lit d'abord un `Parametre` en base (modifiable dans Réglages > Connexions), puis la variable d'environnement, puis `simulation`. Le fournisseur réellement utilisé est enregistré sur l'étape du travail. Le test de complétude du registre (B.6.1) vérifie qu'un format actif ne demande rien que son moteur ne sait pas faire."
+        },
+        {
+          "titre": "Version du format enregistrée sur chaque vidéo (réglages, recette)",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Le schéma Zod des réglages et la recette d'un format évolueront à chaque amélioration du moteur. Les vidéos, brouillons et modèles anciens auront alors des `reglages JSON` invalides, et leur fiche ou leur « Utiliser ce modèle » cassera.",
+          "modification": "B.6.1 : `DefinitionFormat.version: number` + `migrerReglages?(ancienneVersion, reglages) → reglages`. B.7 : `Video`, `Modele` et `Script` stockent `versionFormat`. Règle : la console valide avec le schéma de la version enregistrée ou migre à l'ouverture. Elle n'échoue jamais en silence et affiche « réglages mis à jour »."
+        },
+        {
+          "titre": "Processus de fabrication séparé du serveur web, et emplacement du rendu Remotion",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "B.2 prévoit une file en mémoire puis « boucle en base, BullMQ si besoin ». Un rendu Remotion de 30 min, ou un montage multi-ratios, ne peut pas tourner dans le processus Next : chaque redéploiement le tuerait. Il saturerait aussi le serveur qui fait déjà tourner axion-ia.com (B.1-7 promet que le site n'est jamais touché, et la Partie A dit « rien de plus »).",
+          "modification": "B.3 : ajouter un conteneur `studio-worker` (même image, commande différente) qui exécute la file. Next ne fait qu'enfiler et lire l'état. B.12 : nouveau risque « Rendu lourd sur le serveur du site », avec comme parade un rendu délégué (Remotion Lambda ou machine dédiée) choisi au chantier montage, plus une limite de CPU sur le worker. Partie A « Ce que ça coûte » : préciser que c'est vrai pour la console seulement, et que les moteurs auront leur coût de calcul."
+        },
+        {
+          "titre": "Horodatage des mots (alignement voix ↔ sous-titres ↔ plans)",
+          "gravite": "utile",
+          "quand": "structure-seulement",
+          "pourquoi": "Les sous-titres animés, les coupes rythmées et les titres d'écran du format avocat se calent tous sur le moment exact où chaque mot est prononcé. ElevenLabs fournit cet alignement. S'il n'a pas d'emplacement, le moteur de montage devra le recalculer, ou la voix devra être refaite.",
+          "modification": "B.7 : l'étape voix produit un `Fichier` audio + `alignement JSON { mots: [{texte, debutMs, finMs, segmentId}] }` enregistré sur la VersionVideo. `Plan.debutSec/finSec` en sont dérivés. `Sortie` reçoit `annexes: { srtFichierId?, audioSeulFichierId?, miniatureFichierId? }` : un .srt est utile pour YouTube et LinkedIn, à proposer dans le kit de publication."
+        },
+        {
+          "titre": "Tests de contrat communs aux fournisseurs simulés et réels",
+          "gravite": "utile",
+          "quand": "console-maintenant",
+          "pourquoi": "Le seul garde-fou qui prouve qu'un vrai moteur se branchera sans toucher la console : chaque implémentation, simulée ou réelle, passe la même suite. Ce sont quelques fichiers Vitest à écrire une fois.",
+          "modification": "B.9 point 2 : ajouter « Vitest : suite de contrat partagée `testerFournisseurVoix(impl)`, `testerMoteurVideo(impl)`… exécutée sur `simulation`. Chaque futur fournisseur réel devra la passer : forme des sorties, erreurs typées `reessayable`, idempotence de `soumettre`, `estimer` qui renvoie des LigneCout »."
+        },
+        {
+          "titre": "Publication : lien avec la sortie, identifiant externe et retour d'état",
+          "gravite": "utile",
+          "quand": "console-maintenant",
+          "pourquoi": "`Publication` ne dit pas quel ratio ou quelle version a été envoyé, ni l'identifiant du post chez Buffer. Le futur branchement Buffer ne pourra donc pas mettre à jour l'état programmé → publié, ni rapporter les résultats. Le plan compte pourtant sur ces résultats pour le générateur de scripts.",
+          "modification": "B.7 `Publication` : ajouter `sortieId`, `texte` (copie envoyée), `idExterne?`, `urlPubliee?`, `erreur?`, `statistiques JSON?` (vues, réactions, relevées plus tard). Le statut reçoit `echec`. La boucle « résultats des vidéos publiées » de B.6.4 lit ce champ."
+        }
+      ]
+    },
+    {
+      "lentille": "usage-parcours",
+      "verdict": "Le plan est solide sur un point : les registres (formats, étapes, moteurs, fournisseurs) permettront de brancher les moteurs plus tard sans refaire la console. Côté produit, il est encore pensé comme une liste d'écrans, pas comme le parcours quotidien de Will au téléphone. Trois défauts sont bloquants. (1) Le menu à 390 px ne tient pas : 10 entrées, des doublons (Formats et Mes vidéos), et ce qui sert tous les jours (Scripts, Idées) est caché dans « Plus ». (2) Le parcours idée → script → vidéo → publication n'a pas de fin visible : pas de statut « à relire / validée / programmée / publiée », pas de calendrier, aucune action « publier » simulée clairement signalée. (3) Le découpage est trop optimiste : 20 écrans riches, 11 onglets de bibliothèque, une enregistreuse de voix, des retouches avec versions, une PWA et 2×20 captures, en « une demi-journée à une journée ». En plus, le développeur B est surchargé, et le plan contredit la règle de Will « valider une direction sur 1-2 écrans avant la série ». Sans ces corrections, le risque est double : une console complète sur le papier mais inégale à l'écran, et un Will qui ne pourra pas l'essayer sur son téléphone, puisque le « lien local » ne s'ouvre pas sur un mobile. Sur les LUT et les images d'illustration, la structure prévoit une LUT par format et des images choisies automatiquement par le moteur. Il manque les règles qui encadrent ce choix (par format, par personnage, par plan), ainsi que la langue, les extraits et les statistiques, dont le futur générateur aura besoin.",
+      "manques": [
+        {
+          "titre": "Le menu ne tient pas à 390 px et mélange des entrées qui font doublon",
+          "gravite": "essentiel",
+          "quand": "console-maintenant",
+          "pourquoi": "Il y a 10 entrées pour 5 onglets en bas. « Formats » et « Mes vidéos » montrent tous les deux les vidéos par format. Scripts et Idées, que Will utilisera chaque jour, sont relégués dans « Plus ». Personnages se règle une fois puis sert rarement, et occupe pourtant un onglet. Format, modèle, style de montage et habillage sont quatre notions qui se chevauchent pour un non-technicien.",
+          "modification": "B.5 Gabarit, remplacer les onglets mobiles par « Accueil · Vidéos · ➕ · Écrire · Plus ». « Écrire » réunit Idées et Scripts en onglets (Idées · Mes scripts · Références · Ma façon de parler). « Plus » s'ouvre en feuille du bas sous forme de grille de tuiles : Personnages, Bibliothèque, Mes modèles, Calendrier, Réglages. Partie A, menu : supprimer l'entrée « Formats ». La page /formats/[id] reste accessible depuis /nouvelle et depuis l'en-tête de chaque onglet de /videos, et /formats renvoie vers /videos. B.8 écran 3 : placer en tête de /nouvelle une rangée « Recommencer comme… » qui affiche les modèles, puis la grille des formats. B.8 écran 15 : sur mobile, la Bibliothèque s'ouvre sur une grille de tuiles par type, pas sur 11 onglets qui défilent."
+        },
+        {
+          "titre": "Découpage et durées irréalistes, sans niveaux de finition : risque de dérive",
+          "gravite": "essentiel",
+          "quand": "structure-seulement",
+          "pourquoi": "Le lot 2 doit livrer en 2 à 3 h, avec 3 agents, environ 20 écrans riches : retouches avec versions comparées, 3 miniatures, kit pour 5 réseaux, 11 onglets de bibliothèque avec aperçu en direct, enregistrement de la voix dans le navigateur, notifications, PWA. Le développeur B porte à lui seul Personnages, la Bibliothèque entière, l'Atelier de scripts, Idées et Modèles. Le développeur A a l'assistant, plus simple. Avec une seule passe qualité, tout ce qui n'est pas fini arrive à moitié fait chez Will. La durée annoncée à Will (une demi-journée à une journée) sera dépassée.",
+          "modification": "B.11, ajouter une colonne « Finition ». Niveau 1 (parfait) : Connexion, Accueil, /nouvelle, Assistant avocat, Mes vidéos, Fiche vidéo et kit de publication, Personnages. Niveau 2 (complet mais générique) : les onglets de la Bibliothèque passent par UN composant ListeElements commun, fourni par l'architecte ; seuls les onglets LUT et Illustrations sont spécifiques. Niveau 3 (fonctionnel minimal) : Retouches (une liste de plans et une consigne, comparaison des versions reportée), Miniature (choix parmi 3), Calendrier, Styleguide. B.10, rééquilibrer : A prend Idées, Scripts et Modèles ; B garde Personnages et Bibliothèque. Le lot 1 livre en plus les composants partagés (ListeElements, ListeAvecFiltres, FeuilleBas, BarreActionCollee) avant le lancement des développeurs. Partie A, « Durée » : remplacer par « une à deux journées de travail des agents »."
+        },
+        {
+          "titre": "Aucune validation de la direction visuelle avant la série d'écrans",
+          "gravite": "essentiel",
+          "quand": "structure-seulement",
+          "pourquoi": "Ordre permanent de Will (30/09) : maquettes jugées « catastrophiques », il faut valider une direction sur 1 ou 2 écrans avant de produire la série. Le plan ne montre les captures qu'à la toute fin. Si la direction ne convient pas, tout le lot 2 est à refaire.",
+          "modification": "B.11, insérer un « Lot 1b, point de direction » entre l'architecte et les écrans : capturer l'Accueil et la Fiche vidéo à 390 px avec les vraies données de démonstration, puis les envoyer à Will. Ce point ne bloque pas (feu vert permanent) : les développeurs démarrent sur les écrans qui ne dépendent pas du style (logique, données) et appliquent les remarques dès qu'elles arrivent. Ajouter au tableau des risques B.12 : « Direction refusée tard → point de direction au lot 1b »."
+        },
+        {
+          "titre": "Will ne peut pas essayer la console sur son téléphone avant la mise en ligne",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le lot 4 prévoit de remettre « captures + lien local » à Will, puis ses remarques, et seulement ensuite la mise en ligne au lot 5. Un lien local ne s'ouvre pas sur un téléphone en 4G. Or l'outil est pensé d'abord pour le mobile : Will ne pourrait juger que des images.",
+          "modification": "B.11 : faire passer la mise en ligne (lot 5) AVANT la remise à Will, ou au minimum mettre studio.axion-ia.com en ligne protégé par mot de passe dès la fin du lot 3. Les corrections suivantes partent ensuite par le pipeline normal. Partie A, « Durée et vérification » : « À la fin, je vous envoie le lien studio.axion-ia.com à ouvrir sur votre téléphone, avec les photos des écrans. »"
+        },
+        {
+          "titre": "Le parcours s'arrête à « vidéo prête » : pas de statut éditorial ni de calendrier",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Le quotidien de Will, c'est relire, valider, programmer, puis vérifier ce qui part cette semaine (il a déjà 137 publications programmées sur Buffer). Video.statut s'arrête à « prête ». Publication porte une date, mais aucun écran ne l'exploite. L'Accueil ne répond pas à la question « qu'est-ce que je dois faire aujourd'hui ? ».",
+          "modification": "B.7 Video : ajouter `etapeEditoriale` (`a_relire`, `validee`, `programmee`, `publiee`), indépendante du statut technique. Script : ajouter `statut` (`brouillon`, `valide`). B.8 : nouvel écran « 7b /calendrier », avec une liste par jour sur mobile et une semaine sur ordinateur : les publications programmées ou publiées par réseau, et les vidéos validées mais pas encore programmées en bas (« À programmer »). B.8 écran 2 : remplacer « dernières vidéos » par un bloc « Aujourd'hui » (à relire, à programmer, publications du jour), puis les dernières vidéos. B.8 écran 7 : ajouter un filtre par étape éditoriale."
+        },
+        {
+          "titre": "Les actions simulées (Buffer, publication) peuvent faire croire que c'est parti",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Will utilisera la console au téléphone et vite. Un toast « Envoyé vers Buffer » alors que rien n'est parti ferait croire qu'une publication est programmée. Règle de la maison : ne jamais prétendre avoir publié. Le mot « fictif » est interdit à l'écran, mais le plan ne dit pas comment signaler une simulation.",
+          "modification": "B.1 point 4, ajouter : « Toute action qu'un fournisseur en simulation n'a pas vraiment effectuée l'affiche en clair. Le bouton porte une pastille ambre \"Essai\", et le toast dit \"Essai : rien n'a été envoyé à Buffer\". La publication est enregistrée avec `via: 'simulation'` et n'apparaît jamais comme \"programmée\" dans le Calendrier. » B.7 Publication.via : ajouter la valeur `simulation`."
+        },
+        {
+          "titre": "« Une vidéo en 6 touches maximum » est impossible avec un assistant de 7 étapes",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Pour le format avocat, l'enchaînement sujet → script → distribution → médias → réglages → aperçu → fabrication demande déjà au moins 7 appuis sur « Suivant », sans compter les choix. L'objectif de B.1 n'est pas tenu, et l'usage fréquent au téléphone en souffrira.",
+          "modification": "B.6.2, ajouter une règle : « Une étape dont toutes les valeurs ont une valeur par défaut (personnage principal, styles du format, modèle choisi) s'affiche repliée en une ligne résumée, avec \"Modifier\". » B.8 écran 4 : à partir de l'étape Script, un bouton secondaire « Fabriquer avec les réglages habituels » mène directement à l'aperçu. B.8 écrans 12 et 16 : « Créer la vidéo » ouvre l'assistant prérempli à l'étape Aperçu. B.9 Playwright : compter les touches dans le parcours avocat."
+        },
+        {
+          "titre": "Le coût n'est pas confirmé avant fabrication et le budget ne bloque rien",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "Les vrais moteurs (visage, voix, illustrations générées) coûtent à chaque vidéo, et un podcast de 20 min peut coûter cher. La jauge de budget ne fait qu'informer. Si le garde-fou n'existe pas dans la console dès maintenant, il sera oublié au moment de brancher les moteurs.",
+          "modification": "B.7 Parametre : ajouter `budgetMensuel` et `seuilConfirmation`. B.6.3 : la commande passe par `estimer()` avant `lancer()`, et le service refuse le lancement si le budget du mois serait dépassé, sauf si Will force le passage avec une confirmation explicite. B.8 écran 4, étape Aperçu : afficher le coût estimé en gros chiffre. Au-dessus du seuil, une feuille de confirmation s'ouvre (« Cette vidéo coûtera environ 4,20 €, confirmer »). B.9 Vitest : ajouter le test du blocage budgétaire."
+        },
+        {
+          "titre": "Pas de notification hors de l'application pour les fabrications longues",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Un podcast ou un double qui se prépare prendra plusieurs minutes, voire plusieurs heures. Will aura fermé son téléphone entre-temps. La cloche, interrogée toutes les 2 secondes, ne sert que si l'application est ouverte. Le plan cite pourtant « notification à la fin » comme réponse aux vidéos longues (B.12).",
+          "modification": "B.6.5 : ajouter `FournisseurNotification` (simulation | web-push | e-mail via ZeptoMail). B.7 : ajouter l'entité `Notification` (id, type, cibleId, lue, envoyeeVia). B.8 écran 17 : ajouter « Notifications » dans Réglages (sur ce téléphone / par e-mail, avec un bouton « Activer »). En V1, seule la cloche et le réglage sont actifs. Le Web Push arrive avec la mise en ligne, où la PWA est déjà prévue."
+        },
+        {
+          "titre": "Rien pour organiser la production en séries ou campagnes, ni pour fabriquer plusieurs vidéos d'un coup",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Will produit par séries (61 publications LinkedIn planifiées, campagnes salons, recrutement). Avec plusieurs vidéos par semaine, devoir passer par l'assistant vidéo par vidéo deviendra le principal frein dès que les moteurs seront branchés.",
+          "modification": "B.7 : ajouter l'entité `Serie` (id, nom, couleur, formatIdParDefaut, modeleIdParDefaut) et le champ `serieId` sur Video, Script et Idee. Ajouter `lotId` sur Travail. B.8 écran 7 : filtre « Série ». B.8 écran 11 : la sélection multiple de scripts propose « Créer les vidéos avec un modèle » (marqué « bientôt » en V1, emplacement visible). Le service Fabrication accepte une liste de commandes dès V1."
+        },
+        {
+          "titre": "Il manque les variantes : extraits, autres durées, langue",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le podcast annonce « + extraits courts », mais aucune donnée ne relie un extrait à sa source. Décliner une vidéo de 60 s en 15 s, ou en anglais pour la réouverture EN, sera fréquent. Sans lien parent-enfant, les futurs moteurs de montage devront refaire le modèle de données.",
+          "modification": "B.7 Video : ajouter `sourceVideoId`, `typeDerive` (`extrait`, `version-courte`, `traduction`) et `langue` (défaut `fr`). B.8 écran 8 : action « Décliner » (extraits, autre durée, autre langue), marquée « bientôt » en V1, avec la liste des vidéos dérivées sur la fiche. DefinitionFormat : ajouter `derives?: { extraits: { dureesSec: number[] } }`."
+        },
+        {
+          "titre": "Pas de place pour les résultats des publications, dont le générateur de scripts aura besoin",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "Le plan (B.6.4) dit que le générateur s'appuiera « en dernier » sur les résultats des vidéos publiées, mais aucune entité ni aucun écran ne les reçoit. Will veut aussi savoir quel format marche le mieux.",
+          "modification": "B.7 Publication : ajouter `stats { vues, likes, commentaires, partages, releveLe }` et `urlPublication`. B.6.5 FournisseurPublication : ajouter `releverStats(publicationId)`, sans effet en simulation. B.8 écran 8 : onglet « Résultats » (des chiffres de démonstration en V1). B.8 écran 6 : sur l'en-tête d'un format, afficher les vues moyennes du format."
+        },
+        {
+          "titre": "LUT et images d'illustration : manque le cadre qui gouverne le choix automatique",
+          "gravite": "important",
+          "quand": "structure-seulement",
+          "pourquoi": "C'est la question de Will. Le plan prévoit une LUT par défaut par format et des images choisies automatiquement par le moteur selon le script. Il manque trois choses. (1) Une LUT adaptée à chaque visage ou décor : la carnation et l'éclairage diffèrent d'un double à l'autre, et un même format avec deux personnages ne doit pas les étalonner pareil. (2) Les règles d'illustration de chaque format : à quelle fréquence, combien de temps, quelles sources autorisées (banque Axion, images générées payantes, captures), ce qu'il faut exclure. (3) Le fait qu'un plan peut contenir plusieurs illustrations calées dans le temps. Sans ce cadre, chaque moteur réinventera ses règles.",
+          "modification": "DefinitionFormat (B.6.1) : ajouter `regleIllustration { toutesLesSec: number; dureeMaxSec: number; sources: ('bibliotheque'|'banque-axion'|'generee')[]; generationAutorisee: boolean }`. Visage (B.7) : ajouter `lutConseillee?`. Ordre de priorité de la LUT, à écrire dans B.6 : plan > vidéo > visage > format. Plan (B.7) : remplacer `illustrationId` par `illustrations: { elementId, debutSec, finSec, source }[]`, et ajouter `lutId?`. Partie A, « Les images d'illustration » : une phrase pour Will, « Chaque format a ses règles d'illustration, chaque moteur les respecte, et vous pouvez toujours remplacer à l'aperçu »."
+        },
+        {
+          "titre": "Les données de démonstration se mélangeront aux vraies vidéos",
+          "gravite": "important",
+          "quand": "console-maintenant",
+          "pourquoi": "14 vidéos, des personnages et des publications de démonstration resteront en base quand les vrais moteurs arriveront. Comme rien ne doit jamais être purgé, il faut pouvoir les masquer. Il faut aussi que Will voie ce qui lui manque pour une vraie première vidéo (un vrai visage, une vraie voix).",
+          "modification": "B.7 : ajouter le champ `estDemo` (bool) sur toutes les entités semées. Ajouter dans Réglages l'interrupteur « Afficher les exemples » (masque sans supprimer). B.8 écran 2 : une carte « Prêt pour une vraie vidéo ? » avec la liste visage / voix / LUT / logo et l'état de chacun, qui disparaît une fois tout coché. B.8 écran 19 : prévoir un état vide propre pour chaque liste quand les exemples sont masqués."
+        },
+        {
+          "titre": "Capture d'idées trop lente depuis le téléphone",
+          "gravite": "utile",
+          "quand": "console-maintenant",
+          "pourquoi": "Les idées arrivent quand Will lit un post ou sort d'un rendez-vous. Ouvrir la console, aller dans Plus puis Idées le fera renoncer. Le carnet d'idées n'est utile que si la saisie prend moins de 5 secondes.",
+          "modification": "B.2 Installable : ajouter `share_target` au manifeste PWA, pour que « Partager vers Studio » depuis LinkedIn ou un navigateur crée une Idée avec le lien. B.8 écran 2 : un champ « Une idée ? » en une ligne sur l'Accueil. B.8 écran 16 : un bouton micro de dictée (reconnaissance vocale du navigateur, masqué si elle n'est pas disponible)."
+        },
+        {
+          "titre": "Recherche limitée à Mes vidéos",
+          "gravite": "utile",
+          "quand": "console-maintenant",
+          "pourquoi": "Avec des dizaines de scripts, d'idées et d'illustrations, Will cherchera un sujet (« prud'hommes ») sans savoir s'il est en idée, en script ou en vidéo.",
+          "modification": "B.8 Transverses : ajouter une recherche globale (une loupe dans l'en-tête, une feuille plein écran sur mobile) avec des résultats groupés en Vidéos · Scripts · Idées · Bibliothèque. Elle passe par une interface `ServiceRecherche` (en mémoire en V1, Postgres plein texte ensuite)."
+        },
+        {
+          "titre": "Un seul brouillon repris et pas de file des fabrications",
+          "gravite": "utile",
+          "quand": "console-maintenant",
+          "pourquoi": "L'Accueil affiche « Reprendre le brouillon » au singulier. Au téléphone, Will commencera plusieurs vidéos et en lancera plusieurs à la suite. Il doit voir tous ses brouillons et tous les travaux en cours ou en échec, avec « Réessayer ».",
+          "modification": "B.8 écran 2 : « Brouillons (n) » en carrousel horizontal, et « En cours » listant tous les Travaux avec leur progression, l'échec affiché en rouge brique avec « Réessayer ». B.8 écran 7 : onglet « Brouillons » à côté de « Toutes »."
+        }
+      ]
+    }
+  ],
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Verification"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "production-video",
+      "phaseIndex": 1,
+      "phaseTitle": "Verification",
+      "agentId": "a5d3732ddbc2c9b7f",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1790852913840,
+      "queuedAt": 1790852913770,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "J'ai lu le plan en entier. Le squelette est bon : registres…",
+      "promptPreview": "Lis EN ENTIER le plan : <dossier utilisateur>\\Documents\\Projets\\Axion-IA\\<dossier-de-plan-prive>\\PLAN-IMPLEMENTATION.md.\nContexte : Will (dirigeant d'Axion-IA, non technicien) veut un studio vidéo en ligne (studio.axion-ia.com, mobile d'abord) qui fabriquera, plus tard, des vidéos ultra réalistes et professionnelles à partir d'un script : son double (visage + voix clonés) ou d'autres personnages, d…",
+      "promptFramed": true,
+      "lastProgressAt": 1790853020091,
+      "tokens": 73442,
+      "toolCalls": 2,
+      "durationMs": 106242,
+      "resultPreview": "{\"verdict\":\"J'ai lu le plan en entier. Le squelette est bon : registres des formats, bibliothèque d'étapes de l'assistant et fournisseurs interchangeables. Les LUT et les images d'illustration (b-roll) sont déjà prévues, mais seulement comme des éléments qu'on choisit dans la bibliothèque. Le plan ne dit pas comment elles s'appliquent ni selon quelles règles.\\n\\nRéponse à la question de Will : il …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "architecture-moteurs",
+      "phaseIndex": 1,
+      "phaseTitle": "Verification",
+      "agentId": "aa4833abe7f5f1369",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1790852913844,
+      "queuedAt": 1790852913771,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Le plan sépare bien les écrans et la logique : registres, i…",
+      "promptPreview": "Lis EN ENTIER le plan : <dossier utilisateur>\\Documents\\Projets\\Axion-IA\\<dossier-de-plan-prive>\\PLAN-IMPLEMENTATION.md.\nContexte : Will (dirigeant d'Axion-IA, non technicien) veut un studio vidéo en ligne (studio.axion-ia.com, mobile d'abord) qui fabriquera, plus tard, des vidéos ultra réalistes et professionnelles à partir d'un script : son double (visage + voix clonés) ou d'autres personnages, d…",
+      "promptFramed": true,
+      "lastProgressAt": 1790853026673,
+      "tokens": 73791,
+      "toolCalls": 3,
+      "durationMs": 111654,
+      "resultPreview": "{\"verdict\":\"Le plan sépare bien les écrans et la logique : registres, interfaces de fournisseurs et assistant généré depuis le format. En revanche, la frontière entre la console et les moteurs n'est pas définie. La `commande` passée au moteur n'a pas de type. Il manque aussi : les versions de vidéo, les fichiers (aucune entité, pas de dépôt direct vers R2 pour les rushs lourds), une file de travau…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "usage-parcours",
+      "phaseIndex": 1,
+      "phaseTitle": "Verification",
+      "agentId": "a41c3d0ed31efa0ea",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1790852913846,
+      "queuedAt": 1790852913771,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Le plan est solide sur un point : les registres (formats, é…",
+      "promptPreview": "Lis EN ENTIER le plan : <dossier utilisateur>\\Documents\\Projets\\Axion-IA\\<dossier-de-plan-prive>\\PLAN-IMPLEMENTATION.md.\nContexte : Will (dirigeant d'Axion-IA, non technicien) veut un studio vidéo en ligne (studio.axion-ia.com, mobile d'abord) qui fabriquera, plus tard, des vidéos ultra réalistes et professionnelles à partir d'un script : son double (visage + voix clonés) ou d'autres personnages, d…",
+      "promptFramed": true,
+      "lastProgressAt": 1790853031807,
+      "tokens": 73406,
+      "toolCalls": 2,
+      "durationMs": 116786,
+      "resultPreview": "{\"verdict\":\"Le plan est solide sur un point : les registres (formats, étapes, moteurs, fournisseurs) permettront de brancher les moteurs plus tard sans refaire la console. Côté produit, il est encore pensé comme une liste d'écrans, pas comme le parcours quotidien de Will au téléphone. Trois défauts sont bloquants. (1) Le menu à 390 px ne tient pas : 10 entrées, des doublons (Formats et Mes vidéos)…"
+    }
+  ],
+  "totalTokens": 220639,
+  "totalToolCalls": 7
+}

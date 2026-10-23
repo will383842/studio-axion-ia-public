@@ -1,0 +1,8 @@
+{
+ "total": 7,
+ "parLieu": {
+  "/app/.next/server/chunks/ssr/src_0fz-rtl._.js:1:15542 < c (/app/.next/server/chunks/ssr/src_0fz-rtl._.js:1:15463) < /app/.next/server/chunks/ssr/src_0fz-rtl._.js:1:15525": 5,
+  "/app/.next/server/chunks/src_10iwhq1._.js:1:11511 < t (/app/.next/server/chunks/src_10iwhq1._.js:1:11432) < /app/.next/server/chunks/src_10iwhq1._.js:1:11494": 1,
+  "/app/.next/server/chunks/src_1jdymee._.js:7:1042 < r (/app/.next/server/chunks/src_1jdymee._.js:7:963) < /app/.next/server/chunks/src_1jdymee._.js:7:1025": 1
+ }
+}

@@ -1,0 +1,127 @@
+{
+ "mots": [
+  {
+   "mot": "Vous",
+   "debutSec": 0.49,
+   "finSec": 0.671
+  },
+  {
+   "mot": "recevez",
+   "debutSec": 0.671,
+   "finSec": 1.012
+  },
+  {
+   "mot": "un",
+   "debutSec": 1.012,
+   "finSec": 1.112
+  },
+  {
+   "mot": "pé",
+   "debutSec": 1.112,
+   "finSec": 1.293
+  },
+  {
+   "mot": "vé",
+   "debutSec": 1.293,
+   "finSec": 1.473
+  },
+  {
+   "mot": "de",
+   "debutSec": 1.473,
+   "finSec": 1.593
+  },
+  {
+   "mot": "cent",
+   "debutSec": 1.593,
+   "finSec": 1.813
+  },
+  {
+   "mot": "trente-cinq",
+   "debutSec": 1.813,
+   "finSec": 2.355
+  },
+  {
+   "mot": "euros",
+   "debutSec": 2.355,
+   "finSec": 2.74
+  },
+  {
+   "mot": "Surtout,",
+   "debutSec": 4.165,
+   "finSec": 4.77
+  },
+  {
+   "mot": "ne",
+   "debutSec": 4.9,
+   "finSec": 5.02
+  },
+  {
+   "mot": "le",
+   "debutSec": 5.02,
+   "finSec": 5.14
+  },
+  {
+   "mot": "payez",
+   "debutSec": 5.14,
+   "finSec": 5.46
+  },
+  {
+   "mot": "pas",
+   "debutSec": 5.46,
+   "finSec": 5.581
+  },
+  {
+   "mot": "tout",
+   "debutSec": 5.581,
+   "finSec": 5.801
+  },
+  {
+   "mot": "de",
+   "debutSec": 5.801,
+   "finSec": 5.921
+  },
+  {
+   "mot": "suite.",
+   "debutSec": 5.921,
+   "finSec": 6.365
+  },
+  {
+   "mot": "Je",
+   "debutSec": 7.635,
+   "finSec": 7.785
+  },
+  {
+   "mot": "vous",
+   "debutSec": 7.785,
+   "finSec": 7.965
+  },
+  {
+   "mot": "explique",
+   "debutSec": 7.965,
+   "finSec": 8.466
+  },
+  {
+   "mot": "pourquoi,",
+   "debutSec": 8.466,
+   "finSec": 9.06
+  },
+  {
+   "mot": "en",
+   "debutSec": 9.19,
+   "finSec": 9.328
+  },
+  {
+   "mot": "trois",
+   "debutSec": 9.328,
+   "finSec": 9.548
+  },
+  {
+   "mot": "points.",
+   "debutSec": 9.548,
+   "finSec": 9.87
+  }
+ ],
+ "motsNonAlignes": 0,
+ "modele": "wav2vec2:VOXPOPULI_ASR_BASE_10K_FR",
+ "dureeCalculSec": 21.218
+}

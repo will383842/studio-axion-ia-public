@@ -1,0 +1,539 @@
+{
+ "texteScript": "Votre collaboratrice s'absente lundi, et ses dossiers s'arrêtent avec elle. Vous fouillez ses mails. Vous rappelez le client. Vous refaites ce qu'elle avait peut-être déjà fait. Et la matinée y passe. Trois gestes pour qu'un dossier se reprenne en quelques minutes. Le troisième tient en trois lignes. Un. Listez les dossiers de chaque collaborateur. Une colonne par personne, un client par ligne. Partez de la liste des clients de votre logiciel, pas de mémoire. Deux. Cochez les dossiers sans remplaçant. Pour chaque client, demandez : qui d'autre sait où en est sa TVA ? Si aucun autre nom ne vient, cochez la ligne. Trois. Écrivez trois lignes en tête de chaque dossier coché. L'état du dossier, ce qui manque, la prochaine échéance. Mises à jour le vendredi, elles disent par où reprendre. Une collaboratrice comptable prépare la TVA d'un client de sa collègue absente. Avant, elle fouillait ses mails toute une matinée. Maintenant, elle lit trois lignes et reprend le dossier en cinq minutes. Un dossier connu d'une seule personne s'arrête avec elle. Axion-IA repère ces dossiers avec vous. Réservez un appel de diagnostic.",
+ "motsDouleur": [
+  "s'absente lundi",
+  "dossiers s'arrêtent",
+  "collaboratrice"
+ ],
+ "parties": [
+  {
+   "ecran": [
+    "Absente lundi : dossiers à l'arrêt"
+   ],
+   "texte": "Votre collaboratrice s'absente lundi, et ses dossiers s'arrêtent avec elle.",
+   "partie": "accroche",
+   "libelle": "Accroche"
+  },
+  {
+   "ecran": [
+    "Fouiller ses mails",
+    "Rappeler le client",
+    "Refaire, peut-être, deux fois",
+    "Une matinée perdue"
+   ],
+   "texte": "Vous fouillez ses mails. Vous rappelez le client. Vous refaites ce qu'elle avait peut-être déjà fait. Et la matinée y passe.",
+   "partie": "douleur",
+   "libelle": "Douleur"
+  },
+  {
+   "ecran": [
+    "3 gestes : quelques minutes",
+    "Le 3e : trois lignes"
+   ],
+   "texte": "Trois gestes pour qu'un dossier se reprenne en quelques minutes. Le troisième tient en trois lignes.",
+   "partie": "solution",
+   "libelle": "Solution"
+  },
+  {
+   "ecran": [
+    "Lister les dossiers",
+    "Colonne = personne, ligne = client",
+    "Depuis le logiciel"
+   ],
+   "etape": {
+    "action": "Un. Listez les dossiers de chaque collaborateur.",
+    "comment": "Une colonne par personne, un client par ligne. Partez de la liste des clients de votre logiciel, pas de mémoire.",
+    "resultat": ""
+   },
+   "texte": "Un. Listez les dossiers de chaque collaborateur. Une colonne par personne, un client par ligne. Partez de la liste des clients de votre logiciel, pas de mémoire.",
+   "numero": 1,
+   "partie": "etape",
+   "libelle": "Étape 1"
+  },
+  {
+   "ecran": [
+    "Cocher sans remplaçant",
+    "Qui d'autre suit sa TVA ?",
+    "Aucun autre nom : coché"
+   ],
+   "etape": {
+    "action": "Deux. Cochez les dossiers sans remplaçant.",
+    "comment": "Pour chaque client, demandez : qui d'autre sait où en est sa TVA ? Si aucun autre nom ne vient, cochez la ligne.",
+    "resultat": ""
+   },
+   "texte": "Deux. Cochez les dossiers sans remplaçant. Pour chaque client, demandez : qui d'autre sait où en est sa TVA ? Si aucun autre nom ne vient, cochez la ligne.",
+   "numero": 2,
+   "partie": "etape",
+   "libelle": "Étape 2"
+  },
+  {
+   "ecran": [
+    "Écrire trois lignes",
+    "État, manque, échéance",
+    "Mises à jour le vendredi"
+   ],
+   "etape": {
+    "action": "Trois. Écrivez trois lignes en tête de chaque dossier coché.",
+    "comment": "L'état du dossier, ce qui manque, la prochaine échéance. Mises à jour le vendredi, elles disent par où reprendre.",
+    "resultat": ""
+   },
+   "texte": "Trois. Écrivez trois lignes en tête de chaque dossier coché. L'état du dossier, ce qui manque, la prochaine échéance. Mises à jour le vendredi, elles disent par où reprendre.",
+   "numero": 3,
+   "partie": "etape",
+   "libelle": "Étape 3"
+  },
+  {
+   "ecran": [
+    "TVA d'une collègue absente",
+    "Avant : une matinée",
+    "Maintenant : cinq minutes"
+   ],
+   "texte": "Une collaboratrice comptable prépare la TVA d'un client de sa collègue absente. Avant, elle fouillait ses mails toute une matinée. Maintenant, elle lit trois lignes et reprend le dossier en cinq minutes.",
+   "partie": "exemple",
+   "libelle": "Exemple",
+   "mention": "Exemple illustratif"
+  },
+  {
+   "ecran": [
+    "Une seule personne = arrêt"
+   ],
+   "texte": "Un dossier connu d'une seule personne s'arrête avec elle.",
+   "partie": "a-retenir",
+   "libelle": "À retenir"
+  },
+  {
+   "ecran": [
+    "Repérer ces dossiers",
+    "Appel de diagnostic"
+   ],
+   "texte": "Axion-IA repère ces dossiers avec vous. Réservez un appel de diagnostic.",
+   "partie": "appel",
+   "libelle": "Appel"
+  }
+ ],
+ "reponse": {
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "videoId": "v-365dd2ae67ee",
+  "versionId": "b1",
+  "habillage": "reference/3",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "structure": "demonstration",
+  "serie": {
+   "code": "audit",
+   "nom": "Audit"
+  },
+  "douleur": "Votre collaboratrice s'absente lundi, et ses dossiers s'arrêtent avec elle. Vous fouillez ses mails. Vous rappelez le client.",
+  "gesteMinute": "Quand un collaborateur s'absente, personne ne sait où il en était sur ses dossiers",
+  "appelId": null,
+  "scenes": [
+   {
+    "id": "s01",
+    "role": "accroche",
+    "page": 1,
+    "texteDit": "Votre collaboratrice s'absente lundi, et ses dossiers s'arrêtent avec elle.",
+    "gabarit": {
+     "role": "accroche",
+     "visuel": {
+      "id": "calendrier",
+      "ancre": 3
+     }
+    },
+    "elements": [
+     {
+      "id": "e01",
+      "type": "ligne",
+      "texte": "Votre collaboratrice s'absente lundi, et ses dossiers s'arrêtent avec elle.",
+      "niveau": "texte",
+      "role": "alerte",
+      "bloc": "phrase-cle",
+      "marque": "entoure",
+      "importants": [
+       "collaboratrice",
+       "s'absente lundi",
+       "dossiers s'arrêtent"
+      ],
+      "ancre": 0
+     }
+    ]
+   },
+   {
+    "id": "s02",
+    "role": "douleur",
+    "page": 2,
+    "texteDit": "Vous fouillez ses mails. Vous rappelez le client. Vous refaites ce qu'elle avait peut-être déjà fait. Et la matinée y passe.",
+    "gabarit": {
+     "role": "douleur"
+    },
+    "elements": [
+     {
+      "id": "e02",
+      "type": "ligne",
+      "texte": "La matinée",
+      "niveau": "titre",
+      "role": "alerte",
+      "bloc": "titre",
+      "ancre": 0
+     },
+     {
+      "id": "e03",
+      "type": "ligne",
+      "texte": "Vous fouillez ses mails.",
+      "niveau": "texte",
+      "role": "alerte",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     },
+     {
+      "id": "e04",
+      "type": "dessin",
+      "dessinId": "enveloppe",
+      "cote": "droite",
+      "ancre": 2
+     },
+     {
+      "id": "e05",
+      "type": "ligne",
+      "texte": "Vous refaites ce qu'elle avait peut-être déjà fait.",
+      "niveau": "texte",
+      "role": "alerte",
+      "bloc": "detail",
+      "ancre": 8
+     },
+     {
+      "id": "e06",
+      "type": "geste",
+      "geste": "souligner",
+      "cibleId": "e05",
+      "ancre": 16
+     }
+    ]
+   },
+   {
+    "id": "s03",
+    "role": "etape",
+    "page": 3,
+    "texteDit": "Trois gestes pour qu'un dossier se reprenne en quelques minutes. Le troisième tient en trois lignes.",
+    "gabarit": {
+     "role": "solution",
+     "visuel": {
+      "id": "liste-cochee"
+     }
+    },
+    "elements": [
+     {
+      "id": "e07",
+      "type": "ligne",
+      "texte": "Trois gestes pour qu'un dossier se reprenne en quelques minutes.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     },
+     {
+      "id": "e08",
+      "type": "ligne",
+      "texte": "Le troisième tient en trois lignes.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "detail",
+      "ancre": 10
+     }
+    ]
+   },
+   {
+    "id": "s04",
+    "role": "etape",
+    "page": 4,
+    "texteDit": "Un. Listez les dossiers de chaque collaborateur. Une colonne par personne, un client par ligne. Partez de la liste des clients de votre logiciel, pas de mémoire.",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 1,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e09",
+      "type": "ligne",
+      "texte": "Listez",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "titre",
+      "ancre": 1
+     },
+     {
+      "id": "e10",
+      "type": "ligne",
+      "texte": "Listez les dossiers de chaque collaborateur.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 1
+     },
+     {
+      "id": "e11",
+      "type": "ligne",
+      "texte": "Une colonne par personne, un client par ligne.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "detail",
+      "ancre": 7
+     },
+     {
+      "id": "e12",
+      "type": "dessin",
+      "dessinId": "tableau-colonnes",
+      "cote": "droite",
+      "ancre": 9
+     },
+     {
+      "id": "e13",
+      "type": "geste",
+      "geste": "pointer",
+      "cibleId": "e11",
+      "ancre": 18
+     }
+    ]
+   },
+   {
+    "id": "s05",
+    "role": "etape",
+    "page": 5,
+    "texteDit": "Deux. Cochez les dossiers sans remplaçant. Pour chaque client, demandez : qui d'autre sait où en est sa TVA ? Si aucun autre nom ne vient, cochez la ligne.",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 2,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e14",
+      "type": "ligne",
+      "texte": "Cochez",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "titre",
+      "ancre": 1
+     },
+     {
+      "id": "e15",
+      "type": "ligne",
+      "texte": "Cochez les dossiers sans remplaçant.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 1
+     },
+     {
+      "id": "e16",
+      "type": "ligne",
+      "texte": "Qui d'autre sait où en est sa TVA ?",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "detail",
+      "ancre": 11
+     },
+     {
+      "id": "e17",
+      "type": "dessin",
+      "dessinId": "point-interrogation",
+      "cote": "droite",
+      "ancre": 14
+     },
+     {
+      "id": "e18",
+      "type": "geste",
+      "geste": "cocher",
+      "cibleId": "e15",
+      "ancre": 26
+     }
+    ]
+   },
+   {
+    "id": "s06",
+    "role": "etape",
+    "page": 6,
+    "texteDit": "Trois. Écrivez trois lignes en tête de chaque dossier coché. L'état du dossier, ce qui manque, la prochaine échéance. Mises à jour le vendredi, elles disent par où reprendre.",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 3,
+      "ancre": 0
+     },
+     "visuel": {
+      "id": "calendrier",
+      "ancre": 23
+     }
+    },
+    "elements": [
+     {
+      "id": "e19",
+      "type": "ligne",
+      "texte": "Écrivez",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "titre",
+      "ancre": 1
+     },
+     {
+      "id": "e20",
+      "type": "ligne",
+      "texte": "Écrivez trois lignes en tête de chaque dossier coché.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 1
+     },
+     {
+      "id": "e21",
+      "type": "ligne",
+      "texte": "L'état du dossier",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 10
+     },
+     {
+      "id": "e22",
+      "type": "ligne",
+      "texte": "Ce qui manque",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 13
+     },
+     {
+      "id": "e23",
+      "type": "ligne",
+      "texte": "La prochaine échéance",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "coche",
+      "ancre": 16
+     }
+    ]
+   },
+   {
+    "id": "s07",
+    "role": "exemple",
+    "page": 7,
+    "texteDit": "Une collaboratrice comptable prépare la TVA d'un client de sa collègue absente.",
+    "gabarit": {
+     "role": "exemple"
+    },
+    "elements": [
+     {
+      "id": "e24",
+      "type": "mention",
+      "texte": "Exemple illustratif"
+     },
+     {
+      "id": "e25",
+      "type": "ligne",
+      "texte": "Une collaboratrice comptable prépare la TVA d'un client de sa collègue absente.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     },
+     {
+      "id": "e26",
+      "type": "dessin",
+      "dessinId": "calculatrice",
+      "cote": "droite",
+      "ancre": 6
+     }
+    ]
+   },
+   {
+    "id": "s08",
+    "role": "preuve",
+    "page": 7,
+    "texteDit": "Avant, elle fouillait ses mails toute une matinée. Maintenant, elle lit trois lignes et reprend le dossier en cinq minutes.",
+    "gabarit": {
+     "role": "exemple"
+    },
+    "elements": [
+     {
+      "id": "e27",
+      "type": "preuve",
+      "preuveId": "mat-import-demo-11",
+      "lignes": [
+       "Avant : une matinée dans ses mails.",
+       "Après : trois lignes, 5 min."
+      ],
+      "ancre": 0
+     },
+     {
+      "id": "e28",
+      "type": "geste",
+      "geste": "pointer",
+      "cibleId": "e27",
+      "ancre": 8
+     },
+     {
+      "id": "e29",
+      "type": "geste",
+      "geste": "entourer",
+      "cibleId": "e27",
+      "ancre": 18
+     }
+    ]
+   },
+   {
+    "id": "s09",
+    "role": "resultat",
+    "page": 8,
+    "texteDit": "Un dossier connu d'une seule personne s'arrête avec elle.",
+    "gabarit": {
+     "role": "retenir"
+    },
+    "elements": [
+     {
+      "id": "e30",
+      "type": "ligne",
+      "texte": "Un dossier connu d'une seule personne s'arrête avec elle.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "phrase-cle",
+      "ancre": 0
+     }
+    ]
+   },
+   {
+    "id": "s10",
+    "role": "fin",
+    "page": 9,
+    "texteDit": "Axion-IA repère ces dossiers avec vous. Réservez un appel de diagnostic.",
+    "gabarit": {
+     "role": "appel"
+    },
+    "elements": [
+     {
+      "id": "e31",
+      "type": "ligne",
+      "texte": "Axion-IA repère ces dossiers avec vous.",
+      "niveau": "texte",
+      "role": "regle",
+      "bloc": "detail",
+      "ancre": 0
+     },
+     {
+      "id": "e32",
+      "type": "ligne",
+      "texte": "Réservez un appel de diagnostic",
+      "niveau": "titre",
+      "role": "regle",
+      "bloc": "appel",
+      "ancre": 6
+     }
+    ]
+   }
+  ]
+ }
+}

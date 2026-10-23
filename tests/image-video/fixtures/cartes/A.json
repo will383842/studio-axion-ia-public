@@ -1,0 +1,150 @@
+{
+  "version": "carte-image/1",
+  "image": {
+    "cle": "essais/image-video/A.png",
+    "empreinte": "essai-a",
+    "largeur": 1080,
+    "hauteur": 1080,
+    "orientation": "carre"
+  },
+  "types": [
+    "benefices"
+  ],
+  "offre": "formation",
+  "automatisation": false,
+  "titre": "FORMATION AXION-IA",
+  "sousTitre": "Des bénéfices concrets, dès le premier jour.",
+  "phraseChoc": "Formez-vous aujourd'hui, transformez vos résultats dès demain.",
+  "formulesAbsolues": [
+    {
+      "texte": "dès le premier jour",
+      "ou": "sousTitre",
+      "proposition": "Des bénéfices concrets, dès les premiers jours."
+    },
+    {
+      "texte": "dès le 1er jour",
+      "ou": "noeuds.n06.detail",
+      "proposition": "Actions applicables tout de suite, impact mesurable dès les premiers jours"
+    }
+  ],
+  "noeuds": [
+    {
+      "id": "n01",
+      "libelle": "L'IA au service de vos résultats",
+      "detail": "Objectifs → Actions IA → Résultats",
+      "role": "source",
+      "couleur": "neutre",
+      "acteur": "humain",
+      "ordre": 1,
+      "sousElements": [
+        "Objectifs",
+        "Actions IA",
+        "Résultats"
+      ],
+      "photoPersonnes": true
+    },
+    {
+      "id": "n02",
+      "libelle": "Gain de temps immédiat",
+      "detail": "Automatisez vos tâches répétitives, libérez jusqu'à plusieurs heures dès aujourd'hui",
+      "role": "benefice",
+      "icone": "horloge",
+      "couleur": "orange",
+      "acteur": "humain",
+      "groupe": "g-gains",
+      "ordre": 2
+    },
+    {
+      "id": "n03",
+      "libelle": "Plus de clarté",
+      "detail": "Structurez idées, données, actions avec des outils IA simples",
+      "role": "benefice",
+      "icone": "coche",
+      "couleur": "orange",
+      "acteur": "humain",
+      "groupe": "g-gains",
+      "ordre": 3
+    },
+    {
+      "id": "n04",
+      "libelle": "Meilleure productivité",
+      "detail": "Processus optimisés, décisions plus rapides",
+      "role": "benefice",
+      "icone": "courbe",
+      "couleur": "orange",
+      "acteur": "humain",
+      "groupe": "g-gains",
+      "ordre": 4
+    },
+    {
+      "id": "n05",
+      "libelle": "Réduction des coûts",
+      "detail": "Moins d'erreurs, moins de pertes de temps",
+      "role": "benefice",
+      "icone": "euro",
+      "couleur": "orange",
+      "acteur": "humain",
+      "groupe": "g-gains",
+      "ordre": 5
+    },
+    {
+      "id": "n06",
+      "libelle": "Résultats concrets",
+      "detail": "Actions applicables tout de suite, impact mesurable dès le 1er jour",
+      "role": "benefice",
+      "icone": "cible",
+      "couleur": "orange",
+      "acteur": "humain",
+      "groupe": "g-gains",
+      "ordre": 6
+    },
+    {
+      "id": "n07",
+      "libelle": "Une approche pratique, orientée résultats",
+      "detail": "Des outils, des cas concrets et un accompagnement sur-mesure.",
+      "role": "source",
+      "couleur": "noir",
+      "acteur": "humain",
+      "ordre": 7
+    }
+  ],
+  "liens": [],
+  "groupes": [
+    {
+      "id": "g-gains",
+      "sorte": "colonne",
+      "titre": "CE QUE VOUS GAGNEZ DÈS AUJOURD'HUI",
+      "noeuds": [
+        "n02",
+        "n03",
+        "n04",
+        "n05",
+        "n06"
+      ]
+    }
+  ],
+  "bandeau": [],
+  "bandeauChiffres": [],
+  "chiffres": [
+    {
+      "id": "c01",
+      "brut": "1er jour",
+      "valeur": 1,
+      "unite": "jour",
+      "dansNoeud": "n06",
+      "aDire": true,
+      "lu": "les-deux"
+    }
+  ],
+  "pied": [
+    "Cas concrets",
+    "Ateliers pratiques",
+    "Outils prêts à l'emploi",
+    "Accompagnement personnalisé"
+  ],
+  "coherence": [],
+  "lecture": {
+    "ecarts": [],
+    "alertes": []
+  }
+}

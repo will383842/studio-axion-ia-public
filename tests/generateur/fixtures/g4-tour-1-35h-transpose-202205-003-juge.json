@@ -1,0 +1,113 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "corps-1",
+    "reponses": [
+     {
+      "id": "SCR-01",
+      "reponse": "oui",
+      "motif": "Aucun fait Axion-IA : « Excel paraît gratuit… chaque copier-coller » reste générique, signable par tout concurrent."
+     },
+     {
+      "id": "ANC-01",
+      "reponse": "oui",
+      "motif": "Copier-coller sans contrôle relié au coût du tableur, thème même du sujet."
+     },
+     {
+      "id": "CRED-01",
+      "reponse": "non",
+      "motif": "Conclusion prudente : « peut-être ceux sur lesquels vous décidez », aucune promesse de résultat."
+     },
+     {
+      "id": "CRED-02",
+      "reponse": "oui",
+      "motif": "« tous les chiffres qui en dépendent sont faux » : généralisation absolue, matière plus limitée."
+     },
+     {
+      "id": "CRED-03",
+      "reponse": "oui",
+      "motif": "« si vos tableaux changent de forme chaque mois, gardez le tableur »."
+     },
+     {
+      "id": "CRED-05",
+      "reponse": "sans-objet",
+      "motif": "Aucune preuve citée dans le texte, seulement des observations générales."
+     },
+     {
+      "id": "CRED-06",
+      "reponse": "oui",
+      "motif": "Idée reçue « paraît gratuit » réfutée par le coût du copier-coller : même sujet."
+     },
+     {
+      "id": "VOIX-02",
+      "reponse": "non",
+      "motif": "Phrases courtes, oral, « Aucun contrôle. » ; aucun ton publicitaire."
+     },
+     {
+      "id": "RET-01",
+      "reponse": "non",
+      "motif": "« Aucun contrôle. Alors c'est quelqu'un qui le fait » répète l'idée du copier-coller."
+     },
+     {
+      "id": "ENV-01",
+      "reponse": "oui",
+      "motif": "« repérez dans vos fichiers les endroits où des données sont recopiées »."
+     },
+     {
+      "id": "ENV-02",
+      "reponse": "oui",
+      "motif": "Règle simple : chercher où les données sont recopiées à la main."
+     },
+     {
+      "id": "ENV-03",
+      "reponse": "non",
+      "motif": "Le DAF n'est pas nommé dans le texte ; il s'adresse à « Dirigeant de PME »."
+     },
+     {
+      "id": "FIN-01",
+      "reponse": "non",
+      "motif": "Dernière phrase : « gardez le tableur », une limite, rien à vendre."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "non",
+      "motif": "« Donc le coût… » et « Ces chiffres-là » dépendent de la phrase précédente."
+     },
+     {
+      "id": "CTA-01",
+      "reponse": "sans-objet",
+      "motif": "Aucun appel à contacter Axion-IA dans le texte."
+     },
+     {
+      "id": "PROM-01",
+      "reponse": "oui",
+      "motif": "Promet où chercher le coût : « repérez… recopiées à la main » tenu."
+     },
+     {
+      "id": "PROB-01",
+      "reponse": "oui",
+      "motif": "Dès l'ouverture : « Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur »."
+     },
+     {
+      "id": "REC-01",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME » interpellé, chiffres sur lesquels il décide."
+     },
+     {
+      "id": "BRF-01",
+      "reponse": "oui",
+      "motif": "Aucune heure chiffrée ; « exporte, copie, colle et vérifie » en image concrète."
+     },
+     {
+      "id": "BRF-02",
+      "reponse": "oui",
+      "motif": "Aucun client ni résultat attribué à Axion-IA ; observation générale seulement."
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts",
+    ".next-b2/types/**/*.ts",
+    ".next-b2/dev/types/**/*.ts",
+    ".next-b1/types/**/*.ts",
+    ".next-b1/dev/types/**/*.ts",
+    ".next-a2/types/**/*.ts",
+    ".next-a2/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "studio-rendu",
+    "outils",
+    "scripts/banc-aveugle.ts"
+  ]
+}

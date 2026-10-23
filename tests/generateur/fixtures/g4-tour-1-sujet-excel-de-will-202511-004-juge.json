@@ -1,0 +1,278 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "acc-1",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« on exporte, on copie, on colle vos fichiers » : Axion se place dans le geste, spécifique."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeant » nomme la cible, « petite partie » pose l'enjeu en 3 s."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Le dirigeant sait déjà qu'il a des fichiers Excel ; problème connu."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "oui",
+      "motif": "Porte le paradoxe : travail quotidien, « qu'une petite partie » vue."
+     }
+    ]
+   },
+   {
+    "id": "acc-2",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "Constat générique sur Excel, un concurrent le dirait tel quel."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "non",
+      "motif": "« Des dizaines de fichiers » : pas décrit comme anomalie pour le dirigeant."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "Excel, dirigeant et données partielles : clair dès la première phrase."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Constat posé, sans présupposer de solution connue du public."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Aucun geste « exporter, copier, coller » ; le travail quotidien n'apparaît pas."
+     }
+    ]
+   },
+   {
+    "id": "acc-3",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "Formule générique, tout prestataire BI pourrait la dire telle quelle."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« Dirigeants : tout ce travail sur Excel » cible et enjeu immédiats."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Problème connu du dirigeant, aucune solution présupposée."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "oui",
+      "motif": "« tout ce travail… pour ne voir qu'une petite partie » reprend l'angle."
+     }
+    ]
+   },
+   {
+    "id": "acc-4",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« exporte, copie, colle et vérifie » : geste précis, signature du cas."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« votre DAF exporte, copie, colle » : situation et destinataire clairs."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Le dirigeant reconnaît la routine de son DAF, problème conscient."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "La cible est le DAF ; la « petite partie » vue manque."
+     }
+    ]
+   },
+   {
+    "id": "acc-5",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "Question générique « Combien de fichiers Excel remplissez-vous » : tout concurrent la poserait."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "Le « vous » ne nomme pas le dirigeant ; enjeu en fin de phrase."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Question sur un problème déjà conscient, sans solution présupposée."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "oui",
+      "motif": "« pour ne voir qu'une petite partie de vos données » porte l'angle."
+     }
+    ]
+   },
+   {
+    "id": "acc-6",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "Promesse générique « sans copier-coller », tout prestataire d'automatisation la dirait."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "Aucune cible nommée ; « comment avoir vos chiffres » reste vague."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Promet la solution d'emblée, avant d'avoir posé le problème."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Pas de paradoxe, « petite partie » absente ; seulement la solution."
+     }
+    ]
+   },
+   {
+    "id": "acc-8",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« Une seule erreur de formule » : constat banal, tout concurrent le dit."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "« Une seule erreur » n'est pas un chiffre d'anomalie."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "Aucune cible nommée, le dirigeant n'est pas interpellé."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Risque Excel connu, sans solution présupposée."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Parle d'erreur de formule, pas de visibilité partielle malgré le travail."
+     }
+    ]
+   },
+   {
+    "id": "acc-9",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« piloter avec des fichiers Excel que personne n'a le temps de relire » : générique."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "Pas de cible nommée ; « L'erreur » reste abstraite à 3 s."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Suppose que personne ne relit : cela n'est pas dans la matière."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "non",
+      "motif": "Angle sur la relecture, pas sur « une petite partie » visible."
+     }
+    ]
+   },
+   {
+    "id": "acc-10",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "non",
+      "motif": "« Exporter, copier, coller, vérifier, recommencer » : routine précise issue du problème."
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "Aucune cible nommée ; on ignore pour qui avant la fin."
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "oui",
+      "motif": "Routine reconnue, problème conscient, aucune solution présupposée."
+     },
+     {
+      "id": "ACC-05",
+      "reponse": "oui",
+      "motif": "Routine puis « Pour une petite partie de vos données » : paradoxe."
+     }
+    ]
+   }
+  ]
+ }
+}

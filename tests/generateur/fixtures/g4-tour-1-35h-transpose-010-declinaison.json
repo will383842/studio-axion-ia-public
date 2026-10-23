@@ -1,0 +1,33 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-1",
+  "accroche": "Dirigeant de PME, Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur que personne ne voit.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF, pour repérer ensemble les endroits où des données sont recopiées à la main d'un tableur à l'autre."
+  },
+  "boucle": "Un coût que personne ne voit.",
+  "encadre": "Erreurs Excel : le premier geste",
+  "couverture": "Vos tableurs cachent des erreurs",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Comment repérer les erreurs Excel quand des données sont recopiées à la main ?",
+   "texte": "Comment repérer les erreurs Excel quand des données sont recopiées à la main ?\nPremier geste : repérez, dans vos fichiers, les endroits où l'on recopie d'un tableur à l'autre. Envoyez cette vidéo à votre DAF pour le faire ensemble.",
+   "motsDiese": [
+    "#erreursExcel"
+   ],
+   "justifications": [
+    {
+     "texte": "Mot-clé exact « erreurs Excel » placé dans les 125 premiers caractères de la première ligne, formulée comme la question du prospect.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Un seul mot-dièse, dans la limite de 0 à 3.",
+     "regleId": "ig-hashtags-5"
+    }
+   ]
+  }
+ }
+}

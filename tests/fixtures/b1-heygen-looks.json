@@ -1,0 +1,30 @@
+{
+  "enregistreLe": "2026-10-02",
+  "source": "GET /v3/avatars/looks/{id} (lecture seule, gratuit) sur un look PUBLIC ; adresses remplacées",
+  "reponse": {
+    "data": {
+      "avatar_type": "photo_avatar",
+      "default_voice_id": "6c5a16cb1ce6469a85b80798be89d95c",
+      "gender": "male",
+      "group_id": "ac9b5d2334c44d219e6ccf4dc07edcc1",
+      "id": "ee25a2363ef941a1b5b0f7b1172e57d1",
+      "image_height": 1080,
+      "image_width": 1920,
+      "name": "Dante Office 2",
+      "preferred_orientation": "landscape",
+      "preview_image_url": "https://files2.heygen.ai/enregistre/preview_image_url.webp",
+      "preview_video_url": "https://files2.heygen.ai/enregistre/preview_video_url.mp4",
+      "status": "completed",
+      "supported_api_engines": [
+        "avatar_v",
+        "avatar_iv",
+        "avatar_iii"
+      ],
+      "tags": []
+    }
+  },
+  "listePrivee": {
+    "data": [],
+    "has_more": false
+  }
+}

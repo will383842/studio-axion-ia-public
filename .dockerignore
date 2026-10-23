@@ -1,0 +1,15 @@
+node_modules
+.next
+.next-*
+.git
+.env*
+docs/captures
+test-results
+playwright-report
+tests/tmp-verif
+**/node_modules
+studio-rendu/.essai-local
+studio-rendu/.remotion
+# Intégration finale : les tests n'entrent pas dans l'image. Plusieurs importent studio-rendu, dont les dépendances
+# (Remotion) ne sont pas installées ici : `next build` les vérifiait et échouait.
+tests

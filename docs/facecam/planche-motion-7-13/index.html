@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion design — modèles 7 à 13</title>
+<style>
+  :root { --fond: #16120F; --surface: #211A15; --orange: #C65A2E; --creme: #F6EEE0; --attenue: #A79E92; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--creme); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 32px 16px 64px; }
+  header { max-width: 1200px; margin: 0 auto 28px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 b { color: var(--orange); }
+  header p { color: var(--attenue); margin: 0; max-width: 720px; }
+  header a { color: var(--orange); }
+  main { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr)); gap: 22px; }
+  figure { margin: 0; background: var(--surface); border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 1px #3A322B; }
+  .paire { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #0C0A08; }
+  .paire div { position: relative; }
+  .paire span { position: absolute; top: 8px; left: 8px; z-index: 1; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(12, 10, 8, 0.75); padding: 2px 8px; border-radius: 99px; }
+  .paire div:last-child span { color: var(--orange); }
+  video { display: block; width: 100%; aspect-ratio: 9 / 16; background: #0C0A08; }
+  figcaption { padding: 14px 16px 16px; display: grid; gap: 4px; }
+  figcaption strong { font-size: 17px; }
+  figcaption span { color: var(--attenue); font-size: 14px; }
+  figcaption em { color: var(--orange); font-style: normal; font-size: 13px; font-weight: 600; }
+  figcaption q { color: var(--creme); font-size: 13px; quotes: none; opacity: 0.85; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Motion design — <b>les modèles 7 à 13</b></h1>
+  <p>Sept nouveaux modèles de la brique commune, au même niveau que les six premiers, chacun en style « Sobre » (à gauche) et « Spectaculaire » (à droite) : mêmes données, même charte. Le graphique est montré en barres, en courbe et en camembert. Chaque carte dure 5 s en 1080 × 1920 (25 i/s) ; dans vos vidéos, chaque élément arrive au mot près. La phrase entre guillemets est l'exemple proposé par « Que puis-je demander ? ». <a href="../planche-motion/index.html">← Les 6 premiers modèles</a></p>
+</header>
+<main>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/graphique-barres.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/graphique-barres.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>7. Graphique — barres</strong><span>Des barres, une courbe ou un camembert qui se construisent au mot près, les valeurs comptent, la plus forte s'allume en orange.</span><em>Choisi tout seul d'après le texte</em><q>« Fais un graphique en barres du temps perdu par tâche »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/graphique-courbe.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/graphique-courbe.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>7. Graphique — courbe</strong><span>Des barres, une courbe ou un camembert qui se construisent au mot près, les valeurs comptent, la plus forte s'allume en orange.</span><em>Choisi tout seul d'après le texte</em><q>« Fais un graphique en barres du temps perdu par tâche »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/graphique-camembert.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/graphique-camembert.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>7. Graphique — camembert</strong><span>Des barres, une courbe ou un camembert qui se construisent au mot près, les valeurs comptent, la plus forte s'allume en orange.</span><em>Choisi tout seul d'après le texte</em><q>« Fais un graphique en barres du temps perdu par tâche »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/icone-mot.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/icone-mot.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>8. Icône + mot</strong><span>Une icône qui se dessine trait par trait, puis un mot géant qui s'impose, avec ce qu'il veut dire dessous.</span><em>Choisi tout seul d'après le texte</em><q>« Mets le mot « Déléguer » en grand avec une icône »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/probleme-solution.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/probleme-solution.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>9. Problème → solution</strong><span>Le problème s'affiche puis se barre ; au mot de la solution, la carte bascule et la solution apparaît en orange.</span><em>Choisi tout seul d'après le texte</em><q>« Montre le problème puis la solution quand je dis « la solution » »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/check-list.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/check-list.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>10. Check-list</strong><span>Des cases qui se cochent au rythme de la parole, un compteur qui avance, la dernière case fête la liste complète.</span><em>Choisi tout seul d'après le texte</em><q>« Fais une check-list qui se coche pendant que je parle »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/capture-annotee.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/capture-annotee.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>11. Capture annotée</strong><span>Une capture d'écran ou une image (de Mes images ou du B-roll) avec cercles, flèches et surlignage qui se dessinent au mot près.</span><em>Choisi tout seul d'après le texte</em><q>« Montre ma capture du tableau de bord et entoure le chiffre »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/titre-plein-ecran.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/titre-plein-ecran.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>12. Titre plein écran</strong><span>Un titre géant qui remplit l'image, mot par mot, avec son numéro de chapitre en filigrane.</span><em>Seulement à la demande</em><q>« Mets un titre plein écran « Reprendre la main sur son temps » »</q></figcaption></figure>
+    <figure><div class="paire"><div><span>Sobre</span><video src="sobre/documentaire.mp4" autoplay muted loop playsinline controls></video></div><div><span>Spectaculaire</span><video src="spectaculaire/documentaire.mp4" autoplay muted loop playsinline controls></video></div></div><figcaption><strong>13. Documentaire</strong><span>Une carte sobre de reportage : lieu, date et chiffre clé qui s'écrivent, sans nom de personne ni bandeau.</span><em>Choisi tout seul d'après le texte</em><q>« Mets une carte documentaire : Lyon, mars 2026, 14 salariés »</q></figcaption></figure>
+</main>
+</body>
+</html>
