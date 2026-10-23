@@ -1,7 +1,7 @@
-import { COULEURS, LARGEUR_TITRE } from "../commun/constantes";
+import { COULEURS, LARGEUR_TITRE_BORNE, TITRE_MIN_MESSAGE } from "../commun/constantes";
 import { Badge } from "../commun/Badge";
 import { PageBase } from "../commun/PageBase";
-import { JAMBAGE, Zone } from "../commun/controle-debordement";
+import { Zone } from "../commun/controle-debordement";
 import { Titre } from "../commun/Titre";
 import { COMPOSANTS_DECOR } from "../decor/formes";
 import type { TypeDecor } from "../../../../src/briques/visuels/registre-decor";
@@ -14,7 +14,8 @@ interface Proprietes {
   total: number;
 }
 
-const HAUTEUR_BANDEAU_MIN = 400;
+/** Bandeau de hauteur fixe : un message court se centre dans la place restante au lieu de laisser un grand aplat orange vide. */
+const HAUTEUR_BANDEAU = 400;
 const HAUTEUR_MESSAGE = 460;
 
 /** Guillemets : deux virgules géométriques orange (grand élément, sans texte). */
@@ -32,21 +33,21 @@ function Guillemets() {
 export function T10({ message, legende, deco = "E13", index, total }: Proprietes) {
   const Deco = COMPOSANTS_DECOR[deco];
   return (
-    <PageBase index={index} total={total} libelle="T10">
+    <PageBase index={index} total={total} type="T10">
       <div style={{ flex: "none", paddingTop: 8, display: "flex", alignItems: "center", gap: 36 }}>
         <Guillemets />
         <div style={{ flex: 1, height: 14, borderRadius: 7, background: COULEURS.orange }} />
       </div>
-      <Zone libelle="T10 : message" style={{ flex: "none", maxHeight: HAUTEUR_MESSAGE + JAMBAGE, margin: "30px 0" }}>
-        <Titre texte={message} maxLignes={6} hauteurMax={HAUTEUR_MESSAGE} largeur={LARGEUR_TITRE} />
+      <Zone libelle="T10 : message" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center", margin: "30px 0" }}>
+        <Titre texte={message} maxLignes={6} hauteurMax={HAUTEUR_MESSAGE} largeur={LARGEUR_TITRE_BORNE} min={TITRE_MIN_MESSAGE} />
       </Zone>
       <div
         style={{
-          flex: 1,
-          minHeight: HAUTEUR_BANDEAU_MIN,
+          flex: "none",
+          height: HAUTEUR_BANDEAU,
           boxSizing: "border-box",
           display: "flex",
-          alignItems: "flex-end",
+          alignItems: "center",
           justifyContent: "space-between",
           padding: 36,
           borderRadius: 40,

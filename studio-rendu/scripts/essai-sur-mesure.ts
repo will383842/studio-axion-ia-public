@@ -3,10 +3,10 @@
  * contrôlée par les garde-fous puis rendue en images fixes (et en vidéo avec `--video`), mode contrôle compris.
  * Usage (depuis `studio-rendu/`) : `npx tsx scripts/essai-sur-mesure.ts [--video] [--controle]`.
  */
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { ensureBrowser, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { miseEnPage, parametresCarteSurMesure } from "../../src/briques/motion/demande";
 import { verifierSurMesure, type CodeSurMesure } from "../../src/briques/motion/sur-mesure";
 
@@ -46,7 +46,9 @@ const controle = process.argv.includes("--controle");
 const verdict = verifierSurMesure(EXEMPLE_ESCALIER, 5);
 console.log("garde-fous :", JSON.stringify(verdict));
 if (!verdict.ok) process.exit(1);
-const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR ?? ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell"].find((c) => existsSync(c));
+const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR;
+// Sans navigateur imposé : Remotion obtient le sien (ensureBrowser) ou échoue avec son message ; aucun chemin en dur.
+if (!navigateur) await ensureBrowser();
 const reglages = { browserExecutable: navigateur ?? null, chromiumOptions: { gl: "swangle" as const } };
 const p = parametresCarteSurMesure(EXEMPLE_ESCALIER, miseEnPage("9:16", "plein-ecran", 5));
 const proprietes = { ...p.proprietes, ...(controle ? { controle: true } : {}) } as unknown as Record<string, unknown>;

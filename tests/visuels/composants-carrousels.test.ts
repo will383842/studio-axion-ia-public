@@ -136,13 +136,13 @@ describe("RangeePages", () => {
     expect(html).not.toContain("Page 0");
     expect(html.match(/<img /g)).toHaveLength(3);
     expect(html).toContain('alt="Page 2 : Mon carrousel"');
-    expect(html).toContain("w-[270px]");
     expect(html).toContain("aspect-[4/5]");
-    expect(html).toContain("overflow-x-auto");
+    expect(html).toContain("grid-cols-2");
+    expect(html).not.toContain("overflow-x-auto");
   });
   it("la légende « Page N » est masquée aux lecteurs d'écran", () => {
     const html = renderToStaticMarkup(createElement(RangeePages, { titre: "T", pages: [{ index: 0, type: "couverture", urlX1: "/p/0.png" }] }));
-    expect(html).toMatch(/<p aria-hidden="true"[^>]*>Page 1<\/p>/);
+    expect(html).toMatch(/<span aria-hidden="true"[^>]*>Page 1<\/span>/);
   });
   it("une adresse de page douteuse n'est pas affichée", () => {
     const html = renderToStaticMarkup(createElement(RangeePages, { titre: "T", pages: [{ index: 0, type: "couverture", urlX1: "javascript:alert(1)" }] }));

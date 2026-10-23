@@ -130,6 +130,6 @@ describe("consigne du découpage (version 20, relecture Opus B2a) : l'exemple du
     expect(exemple).not.toContain("Le nom du client. L'adresse du chantier");
     expect(exemple).toContain('"texteDit":"Le seul qui connaît ce dossier client est en congé."');
     expect(exemple).toContain('"importants":["dossier client","en congé"]');
-    expect(exemple).toContain("extraits du témoin v5 (18/10)");
+    expect(exemple).toContain("d'après le témoin v5 (18/10)");
   });
 });

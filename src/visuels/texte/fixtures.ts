@@ -1,7 +1,7 @@
 import type { CarrouselSpecType } from "../../domaine/visuels/types";
 
 /**
- * Carrousels INVENTÉS du fournisseur de simulation : thèmes neutres de bureau et d'atelier, aucun chiffre, aucun nom
+ * Carrousels INVENTÉS du fournisseur de simulation : thèmes du studio puis thèmes neutres de bureau et d'atelier, aucun chiffre, aucun nom
  * réel, aucune marque, aucun domaine. Budgets de `registre-pages.ts` respectés. Une phrase de « pourquoi » par page.
  */
 export interface FixtureCarrousel {
@@ -10,7 +10,177 @@ export interface FixtureCarrousel {
   spec: CarrouselSpecType;
 }
 
-export const FIXTURES: readonly FixtureCarrousel[] = [
+/**
+ * Modèles sur le thème du studio (formation à l'IA pour les entreprises) : structure frein / idée reçue / questions / cas concret /
+ * ce qu'on fait. Aucun chiffre ni mot-nombre, aucune promesse de résultat, aucun nom de client, aucun lieu précis. La simulation
+ * ne choisit que parmi ces modèles.
+ */
+export const FIXTURES_AXION: readonly FixtureCarrousel[] = [
+  {
+    id: "axion-freins-au-demarrage",
+    pourquoi: [
+      "La couverture pose le sujet : se lancer sans fausse route.",
+      "La liste nomme les freins que l'on entend souvent.",
+      "Idée reçue contre réalité : le blocage se défait simplement.",
+      "Les cartes disent ce que le studio fait, étape par étape.",
+      "Le schéma montre le circuit d'une demande une fois l'outil en place.",
+      "Le message clé rassure : un cas simple suffit pour commencer.",
+      "La dernière page invite à écrire en message privé.",
+    ],
+    spec: {
+      version: "carrousel/1",
+      alt: "Carrousel sur les freins au démarrage de l'IA en entreprise, avec idée reçue, réalité et démarche",
+      pages: [
+        { type: "T01", titre: "Se lancer dans l'IA sans fausse route", sousTitre: "Ce qui freine, et ce qu'il en est vraiment" },
+        {
+          type: "T06",
+          titre: "Ce qui freine souvent",
+          points: [
+            { texte: "On pense que c'est réservé aux grandes entreprises" },
+            { texte: "On ne sait pas par où commencer" },
+            { texte: "On redoute de tout changer d'un coup" },
+            { texte: "On manque de temps pour s'y former" },
+          ],
+        },
+        { type: "T22", titre: "Idée reçue, réalité", mythe: "L'IA, c'est trop technique pour nous.", realite: "Des outils simples, expliqués pas à pas, sur vos propres tâches." },
+        {
+          type: "T02",
+          titre: "Ce qu'on fait pour vous",
+          cartes: [
+            { titre: "Un état des lieux", corps: "On regarde vos tâches du quotidien.", mini: "W01" },
+            { titre: "Un choix adapté", corps: "On retient ce qui sert vraiment.", mini: "W02" },
+            { titre: "Une mise en place", corps: "Les outils s'installent chez vous.", mini: "W03" },
+            { titre: "Une formation", corps: "Vos équipes apprennent sur leurs cas.", mini: "W06" },
+          ],
+        },
+        {
+          type: "T28",
+          titre: "Le trajet d'une demande",
+          noeuds: [
+            { texte: "La demande arrive", icone: "courrier" },
+            { texte: "Elle est triée", icone: "dossier" },
+            { texte: "Un brouillon est prêt", icone: "crayon" },
+            { texte: "Vous validez", icone: "coche-cercle" },
+          ],
+        },
+        { type: "T10", message: "Un cas simple suffit pour commencer", legende: "On avance à votre rythme", deco: "E01" },
+        { type: "T21" },
+      ],
+    },
+  },
+  {
+    id: "axion-avant-de-commencer",
+    pourquoi: [
+      "La couverture annonce les bonnes questions à se poser.",
+      "Les questions utiles avant de choisir un outil, chacune avec une piste de réponse.",
+      "Avant et après : partir du besoin plutôt que de l'outil.",
+      "La checklist aide chacun à situer son équipe.",
+      "Les étapes déroulent la méthode du studio du début à la fin.",
+      "Le message clé retient le besoin d'abord, l'outil ensuite.",
+      "La dernière page invite à écrire en message privé.",
+    ],
+    spec: {
+      version: "carrousel/1",
+      alt: "Carrousel sur les questions à se poser avant de se former à l'IA, puis la méthode du studio",
+      pages: [
+        { type: "T01B", titre: "Les bonnes questions avant de commencer", sousTitre: "Pour avancer sans vous disperser", deco: "E03" },
+        {
+          type: "T23",
+          titre: "Les questions à se poser",
+          questions: [
+            { question: "Quelle tâche vous prend du temps ?", aide: "Celle qui revient sans rien apporter.", icone: "horloge" },
+            { question: "Qui aurait envie d'essayer ?", aide: "Une personne curieuse suffit.", icone: "utilisateurs" },
+            { question: "Quelles données restent chez vous ?", aide: "Celles qui ne sortent jamais.", icone: "cadenas" },
+          ],
+          annotation: "Le besoin d'abord, l'outil ensuite.",
+        },
+        { type: "T08", titre: "Le bon réflexe", avant: "On achète un outil, puis on cherche son usage.", apres: "On cherche l'usage, puis on choisit l'outil." },
+        {
+          type: "T27",
+          titre: "Votre équipe est-elle prête ?",
+          lignes: [
+            { texte: "Une même tâche revient souvent dans la semaine" },
+            { texte: "Les informations sont dispersées entre plusieurs outils" },
+            { texte: "Quelqu'un dans l'équipe a envie d'essayer" },
+            { texte: "Vous savez dire ce qui vous fait perdre du temps" },
+          ],
+        },
+        {
+          type: "T20",
+          titre: "Comment on avance",
+          etapes: [
+            { titre: "On audite", corps: "On regarde vos usages actuels." },
+            { titre: "On choisit", corps: "On retient les bons outils." },
+            { titre: "On installe", corps: "On met en place chez vous." },
+            { titre: "On forme", corps: "Vos équipes apprennent en pratique." },
+            { titre: "On suit", corps: "On répond à vos questions ensuite." },
+          ],
+        },
+        { type: "T10", message: "Le besoin d'abord, l'outil ensuite", legende: "Le studio forme les équipes sur place", deco: "E04" },
+        { type: "T21" },
+      ],
+    },
+  },
+  {
+    id: "axion-cas-concret",
+    pourquoi: [
+      "La couverture annonce un cas concret, raconté simplement.",
+      "Le scénario type montre un usage du quotidien rendu plus fluide.",
+      "Les étapes montrent comment le studio intervient.",
+      "Les cartes rappellent les principes qui guident la démarche.",
+      "Sans et avec : la différence au quotidien, point par point.",
+      "Le message clé encourage à commencer petit.",
+      "La dernière page invite à écrire en message privé.",
+    ],
+    spec: {
+      version: "carrousel/1",
+      alt: "Carrousel présentant un cas concret simple d'accompagnement à l'IA dans une petite équipe",
+      pages: [
+        { type: "T01C", titre: "Un cas concret, pas à pas", sousTitre: "Comment une petite équipe se lance", deco: "E05" },
+        {
+          type: "T26",
+          titre: "Une petite équipe d'accueil",
+          avant: ["Des demandes un peu partout", "Les mêmes réponses tapées à la main"],
+          avec: ["Une seule file, triée par sujet", "Des brouillons de réponse prêts"],
+          outils: ["Boîte partagée", "Assistant"],
+          vous: "des réponses plus rapides, relues par vous",
+        },
+        {
+          type: "T20",
+          titre: "Le déroulé du cas",
+          etapes: [
+            { titre: "On observe", corps: "On regarde comment l'équipe traite ces demandes aujourd'hui." },
+            { titre: "On installe", corps: "L'outil est mis en place chez vous, avec vos règles." },
+            { titre: "On forme", corps: "L'équipe apprend à s'en servir sur ses propres demandes." },
+          ],
+        },
+        {
+          type: "T02",
+          titre: "Ce qui compte",
+          cartes: [
+            { titre: "Rester simple", corps: "Un seul sujet à la fois, pour apprendre sans pression.", mini: "W01" },
+            { titre: "Garder la main", corps: "Chaque réponse est relue par une personne.", mini: "W02" },
+            { titre: "Former les équipes", corps: "Vos équipes comprennent ce qu'elles utilisent.", mini: "W03" },
+          ],
+        },
+        {
+          type: "T24",
+          titre: "La différence au quotidien",
+          lignes: [
+            { sans: "Demandes éparpillées", avec: "Une seule file" },
+            { sans: "Réponses à la main", avec: "Brouillons prêts" },
+            { sans: "Relances oubliées", avec: "Rappel au bon moment" },
+          ],
+        },
+        { type: "T10", message: "Un usage bien choisi suffit pour démarrer", legende: "Un seul usage, bien choisi", deco: "E02" },
+        { type: "T21" },
+      ],
+    },
+  },
+];
+
+/** Anciens modèles neutres (bureau, atelier, pause de midi) : conservés pour les tests, plus choisis par la simulation. */
+export const FIXTURES_NEUTRES: readonly FixtureCarrousel[] = [
   {
     id: "bureau-qui-respire",
     pourquoi: [
@@ -82,8 +252,6 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
             { titre: "La scie", corps: "La lame reste propre.", mini: "W02" },
             { titre: "Le tournevis", corps: "La pointe reste nette.", mini: "W03" },
             { titre: "Le mètre", corps: "Il se range enroulé.", mini: "W06" },
-            { titre: "Le niveau", corps: "Il craint les chocs.", mini: "W07" },
-            { titre: "L'étau", corps: "Il se graisse parfois.", mini: "W25" },
           ],
         },
         {
@@ -249,8 +417,6 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
             { titre: "Un index", corps: "Une page qui liste tout.", mini: "W03" },
             { titre: "Un code couleur", corps: "Un thème, une teinte.", mini: "W25" },
             { titre: "Un rangement fixe", corps: "Toujours au même endroit.", mini: "W02" },
-            { titre: "Une revue", corps: "Un coup d'œil de temps en temps.", mini: "W07" },
-            { titre: "Un voisin", corps: "Les liés restent proches.", mini: "W06" },
           ],
         },
         { type: "T21" },
@@ -258,3 +424,5 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
     },
   },
 ];
+
+export const FIXTURES: readonly FixtureCarrousel[] = [...FIXTURES_AXION, ...FIXTURES_NEUTRES];

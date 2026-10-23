@@ -25,7 +25,7 @@ import {
 } from "./index";
 import type { NomMicroObjet } from "./micro-objets";
 import { c01, doux, progres, rebond, va } from "./courbes";
-import { centrer, MARGE_IV, MARGE_LATERALE_MIN_IV, zoneUtile, type ZoneIV } from "./mise-en-page";
+import { centrer, MARGE_IV, MARGE_LATERALE_MIN_IV, REMPLISSAGE_MIN_IV, zoneUtile, type ZoneIV } from "./mise-en-page";
 import { largeurAnton } from "./chasse-anton";
 import { couleurTrait, TEMPS_IV } from "./temps";
 
@@ -1225,7 +1225,9 @@ export function planDossiers(p: { dossiers: readonly DossierIV[]; debut: number 
   const noms = p.dossiers.map((d) => ajusterTexte(d.nom, { largeur: largeurCase - 20, tailleMax: 0.036 * H, signe: SIGNES.inter, lignesMax: 2 }));
   const hauteurNom = Math.max(0, ...noms.map(hauteurTexte));
   // Le dossier est 0,78 fois plus haut que large ; sous lui, son nom (22 px d'écart), 30 px de marge entre les rangs.
-  const cote = Math.max(0, Math.min(largeurCase - 60, (hauteurCase - hauteurNom - 22 - 30) / 0.78, 400));
+  // Plafond de 400 px, sauf s'il empêcherait d'atteindre le remplissage exigé (un dossier seul : 68 % < 70 %, v-6e4a06b9c718, 23/10).
+  const coteRemplissage = (((REMPLISSAGE_MIN_IV + 0.05) * zone.hauteur + 30) / Math.max(1, rangs) - 30 - 22 - hauteurNom) / 0.78;
+  const cote = Math.max(0, Math.min(largeurCase - 60, (hauteurCase - hauteurNom - 22 - 30) / 0.78, Math.max(400, coteRemplissage)));
   const hauteurDossier = cote * 0.78 + 22 + hauteurNom;
   const pasRang = hauteurDossier + 30;
   const haut = centrer(rangs * pasRang - 30, zone);
@@ -1587,7 +1589,9 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     c = construire(tailleMax);
     while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
   }
-  if (tropHaut() && (avant.length > 1 || apres.length > 1)) {
+  // 23/10/2026 (v-6e4a06b9c718, Instagram « faux ») : jamais de paires dans le tronc qui PRÉCÈDE les branches (« Message client » et
+  // « Chatbot IA » côte à côte laissaient croire que la branche part du message) : les paires ne sont tentées que s'il y a plusieurs blocs APRÈS les branches ; sinon vue réduite (n01 au-dessus de n02).
+  if (tropHaut() && (avant.length > 2 || apres.length > 1)) {
     paires = true;
     avecIcones = iconesTiennent();
     tailleMax = 0.036 * H;

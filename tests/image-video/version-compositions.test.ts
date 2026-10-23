@@ -17,4 +17,9 @@ describe("version des compositions de rendu", () => {
     const code = readFileSync(join(__dirname, "../../src/moteurs/montage-image-video/fabrication.ts"), "utf8");
     expect(code).toMatch(/iv-rendu-\$\{empreinteDe\(\[v\.id, empreinteDe\(ligne\), mixage\.id, VERSION_COMPOSITIONS_IV\]\)\}/);
   });
+
+  it("entre aussi dans la clé de chaque scène de toile (sinon l'ancienne scène, dessinée avant la correction, est réutilisée)", () => {
+    const code = readFileSync(join(__dirname, "../../src/services/image-video-rendu.ts"), "utf8");
+    expect(code).toMatch(/empreinte\(\["scene-iv\/2", VERSION_COMPOSITIONS_IV, parametres\]\)/);
+  });
 });

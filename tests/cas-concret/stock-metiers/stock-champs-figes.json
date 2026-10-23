@@ -1,0 +1,6206 @@
+{
+ "AS-01": {
+  "id": "garage-rendez-vous-rappeles",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CRENEAUX",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-01",
+   "secteur": "AS",
+   "metier": "artisanat.garagiste-carrossier",
+   "metierNom": "Garagiste, carrossier",
+   "taille": "TPE",
+   "socle": "S14",
+   "inventaire": [
+    "A2",
+    "A4"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "planning-urgences",
+   "casUsage": null,
+   "voisinCatalogue": "rappels-rendez-vous",
+   "angle": "Le rendez-vous est un passage à l'atelier, avec des créneaux pris à la main et un créneau libéré à remplir, pas un appel de découverte."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "AS-02": {
+  "id": "garage-vehicule-pret-prevenu",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CLES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-02",
+   "secteur": "AS",
+   "metier": "artisanat.garagiste-carrossier",
+   "metierNom": "Garagiste, carrossier",
+   "taille": "TPE",
+   "socle": "S06",
+   "inventaire": [
+    "A9",
+    "C18",
+    "B3.4"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "client-qui-appelle",
+   "casUsage": "artisanat.garagiste-carrossier.integration.c02",
+   "voisinCatalogue": "alerte-courte",
+   "angle": "Le message part au client du garage quand son véhicule change d'état, il ne s'adresse pas à une équipe."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "AS-03": {
+  "id": "garage-devis-reparation-relu",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "RELECTURE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-03",
+   "secteur": "AS",
+   "metier": "artisanat.garagiste-carrossier",
+   "metierNom": "Garagiste, carrossier",
+   "taille": "PME",
+   "socle": "S07",
+   "inventaire": [
+    "A10",
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "facturation",
+   "casUsage": "artisanat.garagiste-carrossier.integration.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "AS-04": {
+  "id": "garage-expliquer-reparation",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "EXPLIQUER",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "AS-04",
+   "secteur": "AS",
+   "metier": "artisanat.garagiste-carrossier",
+   "metierNom": "Garagiste, carrossier",
+   "taille": "TPE",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "client-qui-appelle",
+   "casUsage": "artisanat.garagiste-carrossier.formation.c02",
+   "voisinCatalogue": "email-difficile",
+   "angle": "Le message explique une réparation à un client inquiet, il ne répond pas à un courrier tendu ; il décrit un véhicule réparé, pas un ouvrage de chantier comme dans la fiche du bâtiment sur le même thème."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "AS-05": {
+  "id": "depannage-demandes-classees",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ASTREINTE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-05",
+   "secteur": "AS",
+   "metier": "artisanat.societe-depannage-intervention",
+   "metierNom": "Société de dépannage et d'intervention",
+   "taille": "PME",
+   "socle": "S02",
+   "inventaire": [
+    "A7",
+    "A3"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "demandes-entrantes",
+   "casUsage": "artisanat.societe-depannage-intervention.integration.c01",
+   "voisinCatalogue": "contact-vers-crm",
+   "angle": "Ici on relève la nuit les messages laissés pour le régulateur d'astreinte, pas la fiche client dans un CRM ni le tri des demandes de la journée."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "AS-06": {
+  "id": "depannage-bon-dicte-sur-place",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "BONDICTE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-06",
+   "secteur": "AS",
+   "metier": "artisanat.societe-depannage-intervention",
+   "metierNom": "Société de dépannage et d'intervention",
+   "taille": "PME",
+   "socle": "S12",
+   "inventaire": [
+    "C2"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "compte-rendu",
+   "casUsage": "artisanat.societe-depannage-intervention.integration.c03",
+   "voisinCatalogue": "compte-rendu-visio",
+   "angle": "Le document est un bon d'intervention dicté sur place par le technicien puis signé par le client, sans visio ni rendez-vous : plus proche d'un compte rendu dicté que d'une visio, et c'est un bon à faire signer, non un rapport technique comme dans l'industrie."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "contrat-signature"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "AS-07": {
+  "id": "depannage-facture-lendemain",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "FACTURER",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-07",
+   "secteur": "AS",
+   "metier": "artisanat.societe-depannage-intervention",
+   "metierNom": "Société de dépannage et d'intervention",
+   "taille": "PME",
+   "socle": "S10",
+   "inventaire": [
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "facturation",
+   "casUsage": "artisanat.societe-depannage-intervention.integration.c03",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "AS-08": {
+  "id": "nettoyage-point-du-matin",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "PASSAGE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-08",
+   "secteur": "AS",
+   "metier": "artisanat.entreprise-nettoyage",
+   "metierNom": "Entreprise de nettoyage",
+   "taille": "PME",
+   "socle": "S05",
+   "inventaire": [
+    "A38",
+    "C17"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "planning-urgences",
+   "casUsage": "artisanat.entreprise-nettoyage.integration.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "AS-09": {
+  "id": "nettoyage-demande-prestation",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "PRESTATION",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "AS-09",
+   "secteur": "AS",
+   "metier": "artisanat.entreprise-nettoyage",
+   "metierNom": "Entreprise de nettoyage",
+   "taille": "PME",
+   "socle": "S02",
+   "inventaire": [
+    "A7",
+    "A3"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "demandes-entrantes",
+   "casUsage": null,
+   "voisinCatalogue": "contact-vers-crm",
+   "angle": "L'enjeu est de compléter et trier une demande de prestation avant la visite des locaux, pas la fiche client dans un CRM."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "AS-10": {
+  "id": "nettoyage-chefs-equipe-sites",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "CHEFS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "AS-10",
+   "secteur": "AS",
+   "metier": "artisanat.entreprise-nettoyage",
+   "metierNom": "Entreprise de nettoyage",
+   "taille": "PME",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "pile-notifications"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "BT-01": {
+  "id": "electricien-visite-dictee",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "VISITE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-01",
+   "secteur": "BT",
+   "metier": "btp.electricien",
+   "metierNom": "Électricien",
+   "taille": "TPE",
+   "socle": "S12",
+   "inventaire": [
+    "C2"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "compte-rendu",
+   "casUsage": "btp.electricien.integration.c01",
+   "voisinCatalogue": "compte-rendu-visio",
+   "angle": "Ici la dictée donne des lignes de devis, pas un compte rendu : ni celui d'une visio, ni la dictée d'un rendez-vous (compte-rendu-dicte)."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "BT-02": {
+  "id": "plombier-urgences-triees",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "FUITE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-02",
+   "secteur": "BT",
+   "metier": "btp.plombier",
+   "metierNom": "Plombier",
+   "taille": "TPE",
+   "socle": "S02",
+   "inventaire": [
+    "A7",
+    "A3"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "demandes-entrantes",
+   "casUsage": "btp.plombier.integration.c04",
+   "voisinCatalogue": "contact-vers-crm",
+   "angle": "Ici on montre le tri entre urgence et simple devis pour un plombier qui ne peut pas décrocher, pas la création d'une fiche dans un CRM."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "BT-03": {
+  "id": "chauffagiste-entretien-prevenu",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ENTRETIEN",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-03",
+   "secteur": "BT",
+   "metier": "btp.chauffagiste-climatisation-pompes-chaleur",
+   "metierNom": "Chauffagiste",
+   "taille": "TPE",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "echeances-papiers",
+   "casUsage": "btp.chauffagiste-climatisation-pompes-chaleur.integration.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "BT-04": {
+  "id": "electricien-devis-clair",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "NOTES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "BT-04",
+   "secteur": "BT",
+   "metier": "btp.electricien",
+   "metierNom": "Électricien",
+   "taille": "TPE",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "btp.electricien.formation.c01",
+   "voisinCatalogue": "email-difficile",
+   "angle": "Ici on apprend à écrire un devis clair à partir de notes de visite, pas à écrire un e-mail qu'on repousse."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "BT-05": {
+  "id": "plombier-devis-du-dimanche",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "DIMANCHE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "BT-05",
+   "secteur": "BT",
+   "metier": "btp.plombier",
+   "metierNom": "Plombier",
+   "taille": "TPE",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "BT-06": {
+  "id": "chauffagiste-facture-contrat",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "FACTURE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-06",
+   "secteur": "BT",
+   "metier": "btp.chauffagiste-climatisation-pompes-chaleur",
+   "metierNom": "Chauffagiste",
+   "taille": "TPE",
+   "socle": "S10",
+   "inventaire": [
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "facturation",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "BT-07": {
+  "id": "chantier-compte-rendu-prepare",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CHANTIER",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-07",
+   "secteur": "BT",
+   "metier": "btp.entreprise-generale-batiment",
+   "metierNom": "Entreprise générale du bâtiment",
+   "taille": "PME",
+   "socle": "S12",
+   "inventaire": [
+    "C2"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "compte-rendu",
+   "casUsage": "btp.entreprise-generale-batiment.integration.c01",
+   "voisinCatalogue": "compte-rendu-visio",
+   "angle": "Ici le document est le compte rendu d'une réunion de chantier, rangé par lot avec ses réserves et ses actions, pas celui d'une visio."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "BT-08": {
+  "id": "chantier-attestations-sous-traitants",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ATTESTATION",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-08",
+   "secteur": "BT",
+   "metier": "btp.entreprise-generale-batiment",
+   "metierNom": "Entreprise générale du bâtiment",
+   "taille": "PME",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "echeances-papiers",
+   "casUsage": "btp.entreprise-generale-batiment.audit.c03",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "BT-09": {
+  "id": "renovation-reserve-bon-conducteur",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "RESERVE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-09",
+   "secteur": "BT",
+   "metier": "btp.entreprise-renovation",
+   "metierNom": "Entreprise de rénovation",
+   "taille": "PME",
+   "socle": "S06",
+   "inventaire": [
+    "A9",
+    "C18",
+    "B3.4"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "prevenir-le-bon",
+   "casUsage": "btp.entreprise-renovation.audit.c03",
+   "voisinCatalogue": "alerte-courte",
+   "angle": "Ici l'alerte est une réserve de chantier envoyée au conducteur de travaux concerné, pas une alerte générique."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "BT-10": {
+  "id": "chantier-du-devis-au-planning",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "PLANNING",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "BT-10",
+   "secteur": "BT",
+   "metier": "btp.entreprise-generale-batiment",
+   "metierNom": "Entreprise générale du bâtiment",
+   "taille": "PME",
+   "socle": "AU",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "planning-urgences",
+   "casUsage": null,
+   "voisinCatalogue": "audit-departement",
+   "angle": "Ici l'audit suit un seul chemin, du devis signé au planning des équipes, pas un département entier."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "contrat-signature"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "BT-11": {
+  "id": "chantier-reponse-appel-offres",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "TRAME",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "BT-11",
+   "secteur": "BT",
+   "metier": "btp.entreprise-generale-batiment",
+   "metierNom": "Entreprise générale du bâtiment",
+   "taille": "PME",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "demandes-entrantes",
+   "casUsage": "btp.entreprise-generale-batiment.formation.c02",
+   "voisinCatalogue": "programme-par-ia",
+   "angle": "Ici la trame construite sert à répondre à un appel d'offres, pas à écrire un programme de formation."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "BT-12": {
+  "id": "menuisier-cotes-recues",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "COTES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-12",
+   "secteur": "BT",
+   "metier": "btp.menuisier",
+   "metierNom": "Menuisier",
+   "taille": "TPE",
+   "socle": "S01",
+   "inventaire": [
+    "A28"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": "btp.menuisier.integration.c03",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "outils-relies"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "BT-13": {
+  "id": "metallier-commande-en-retard",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "FOURNITURE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "BT-13",
+   "secteur": "BT",
+   "metier": "btp.serrurier-metallier",
+   "metierNom": "Serrurier, métallier",
+   "taille": "PME",
+   "socle": "S06",
+   "inventaire": [
+    "A9",
+    "C18",
+    "B3.4"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "fournisseurs",
+   "casUsage": null,
+   "voisinCatalogue": "alerte-courte",
+   "angle": "Ici l'alerte est un retard de commande fournisseur signalé avant la pose au responsable concerné, pas une alerte générique."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "BT-14": {
+  "id": "menuisier-ouvrage-sans-jargon",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "JARGON",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "BT-14",
+   "secteur": "BT",
+   "metier": "btp.menuisier",
+   "metierNom": "Menuisier",
+   "taille": "TPE",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "client-qui-appelle",
+   "casUsage": "btp.menuisier.formation.c01",
+   "voisinCatalogue": "email-difficile",
+   "angle": "Ici on apprend à décrire un ouvrage au client avant la fabrication, pas à écrire un e-mail qu'on repousse."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "DG-01": {
+  "id": "dg-emails-relus-avant-envoi",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ENGAGEMENT",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "DG-01",
+   "secteur": "DG",
+   "metier": "generaliste.generaliste-dirigeant-entreprise-tous-metiers",
+   "metierNom": "Dirigeant tous métiers",
+   "taille": "TPE",
+   "socle": "S07",
+   "inventaire": [
+    "A10",
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "client-qui-appelle",
+   "casUsage": "generaliste.generaliste-dirigeant-entreprise-tous-metiers.integration.c03",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "DG-02": {
+  "id": "dg-sauvegardes-essai-restauration",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "SAUVEGARDE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "DG-02",
+   "secteur": "DG",
+   "metier": "generaliste.generaliste-dirigeant-entreprise-tous-metiers",
+   "metierNom": "Dirigeant tous métiers",
+   "taille": "PME",
+   "socle": "S15",
+   "inventaire": [
+    "C9",
+    "A62"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "savoir-retrouver",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "DG-03": {
+  "id": "dg-point-du-matin-reste-a-faire",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "AFAIRE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "DG-03",
+   "secteur": "DG",
+   "metier": "generaliste.generaliste-dirigeant-entreprise-tous-metiers",
+   "metierNom": "Dirigeant tous métiers",
+   "taille": "TPE",
+   "socle": "S05",
+   "inventaire": [
+    "A38",
+    "C17"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "organisation-dirigeant",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "DG-04": {
+  "id": "dg-tableau-du-lundi-monte-seul",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "TABLEAU",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "DG-04",
+   "secteur": "DG",
+   "metier": "generaliste.generaliste-dirigeant-entreprise-tous-metiers",
+   "metierNom": "Dirigeant tous métiers",
+   "taille": "PME",
+   "socle": "S13",
+   "inventaire": [
+    "C16",
+    "A27"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "tableau-de-bord",
+   "casUsage": "generaliste.generaliste-dirigeant-entreprise-tous-metiers.integration.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "outils-relies"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "barres-avant-apres"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "DG-05": {
+  "id": "dg-par-quoi-commencer-tout-urgent",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "PRIORITE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 2,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "DG-05",
+   "secteur": "DG",
+   "metier": "generaliste.generaliste-dirigeant-entreprise-tous-metiers",
+   "metierNom": "Dirigeant tous métiers",
+   "taille": "PME",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "generaliste.generaliste-dirigeant-entreprise-tous-metiers.coaching.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "DG-06": {
+  "id": "dg-fiche-prospect-depuis-numero",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "PROSPECT",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "DG-06",
+   "secteur": "DG",
+   "metier": "artisanat.societe-services-aux-entreprises",
+   "metierNom": "Société de services aux entreprises",
+   "taille": "PME",
+   "socle": "S11",
+   "inventaire": [
+    "B1.1"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "demandes-entrantes",
+   "casUsage": null,
+   "voisinCatalogue": "crm-qui-note",
+   "angle": "Ici on référence un prospect de la société de services, rencontré sur un salon, avec une fiche complétée à partir de son numéro : on ne note pas l'affaire, et on n'ouvre ni compte client ni fiche fournisseur."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "outils-relies"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "DG-07": {
+  "id": "dg-contrats-signes-jamais-renvoyes",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "EXEMPLAIRE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "DG-07",
+   "secteur": "DG",
+   "metier": "artisanat.societe-services-aux-entreprises",
+   "metierNom": "Société de services aux entreprises",
+   "taille": "PME",
+   "socle": "S09",
+   "inventaire": [
+    "A41",
+    "A8"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "facturation",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "contrat-signature"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "DG-08": {
+  "id": "dg-resumer-un-cahier-des-charges",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "SYNTHESE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "DG-08",
+   "secteur": "DG",
+   "metier": "artisanat.societe-services-aux-entreprises",
+   "metierNom": "Société de services aux entreprises",
+   "taille": "PME",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "savoir-retrouver",
+   "casUsage": "artisanat.societe-services-aux-entreprises.formation.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-01": {
+  "id": "usinage-demandes-de-prix",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CHIFFRAGE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-01",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "TPE",
+   "socle": "S02",
+   "inventaire": [
+    "A7",
+    "A3"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "demandes-entrantes",
+   "casUsage": "industrie.mecanique-metallurgie.integration.c03",
+   "voisinCatalogue": "contact-vers-crm",
+   "angle": "Ici on trie la demande de prix avant le chiffrage, on ne tient pas un fichier de contacts."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-02": {
+  "id": "usinage-ancien-devis",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "MEMOIRE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-02",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "PME",
+   "socle": "S08",
+   "inventaire": [
+    "A65",
+    "A15"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.mecanique-metallurgie.integration.c04",
+   "voisinCatalogue": "outils-branches",
+   "angle": "Proche par le thème seulement : ici la base contient d'anciens devis de pièces, on n'y branche pas des outils."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-03": {
+  "id": "usinage-certificats-matiere",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CERTIFICAT",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-03",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "PME",
+   "socle": "S01",
+   "inventaire": [
+    "A28"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": "industrie.mecanique-metallurgie.integration.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-04": {
+  "id": "usinage-devis-depuis-plan",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "BROUILLON",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-04",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "PME",
+   "socle": "OC",
+   "inventaire": [],
+   "niveauPreuve": "offre-a-construire",
+   "douleur": "demandes-entrantes",
+   "casUsage": "industrie.mecanique-metallurgie.integration.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-05": {
+  "id": "usinage-methode-chiffrage",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "METHODE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-05",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "TPE",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.mecanique-metallurgie.formation.c01",
+   "voisinCatalogue": "programme-par-ia",
+   "angle": "Ici on met par écrit une méthode de chiffrage, on n'écrit pas un programme de formation."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-06": {
+  "id": "usinage-audit-plan-devis",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "ATTENTE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "IN-06",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "PME",
+   "socle": "AU",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "demandes-entrantes",
+   "casUsage": "industrie.mecanique-metallurgie.audit.c01",
+   "voisinCatalogue": "audit-departement",
+   "angle": "Ici l'audit suit une seule demande, du plan au devis, dans un atelier ; il ne passe pas un département en revue."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-07": {
+  "id": "usinage-savoir-faire",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "TRANSMETTRE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "IN-07",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "TPE",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "industrie.mecanique-metallurgie.coaching.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-08": {
+  "id": "usinage-audit-sauvegardes",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "RESTAURER",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "IN-08",
+   "secteur": "IN",
+   "metier": "industrie.mecanique-metallurgie",
+   "metierNom": "Atelier d'usinage",
+   "taille": "PME",
+   "socle": "S15",
+   "inventaire": [
+    "C9",
+    "A62"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "savoir-retrouver",
+   "casUsage": null,
+   "voisinCatalogue": "audit-une-journee",
+   "angle": "Ici l'audit ne porte que sur les plans, programmes et fichiers de l'atelier : sont-ils récupérables ? Ce n'est pas un audit d'une journée sur l'ensemble."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-09": {
+  "id": "soustraitant-appels-livraison",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "LIVRAISON",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-09",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "PME",
+   "socle": "S01",
+   "inventaire": [
+    "A28"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": "industrie.sous-traitant-industriel.integration.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "outils-relies"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-10": {
+  "id": "soustraitant-changement-cadence",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CADENCE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-10",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "PME",
+   "socle": "S06",
+   "inventaire": [
+    "A9",
+    "C18"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "prevenir-le-bon",
+   "casUsage": "industrie.sous-traitant-industriel.integration.c03",
+   "voisinCatalogue": "alerte-courte",
+   "angle": "Ici l'alerte courte prévient l'atelier et les achats d'un changement de cadence du donneur d'ordre."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "pile-notifications"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-11": {
+  "id": "soustraitant-facture-bloquee",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "BLOQUEE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-11",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "PME",
+   "socle": "S03",
+   "inventaire": [
+    "A44",
+    "A45"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "relances-paiements",
+   "casUsage": "industrie.sous-traitant-industriel.integration.c04",
+   "voisinCatalogue": "devis-relances",
+   "angle": "Ici ce sont les factures échues d'un grand compte, pas des devis non signés."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-12": {
+  "id": "soustraitant-questionnaires",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "REPONSES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-12",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "PME",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.sous-traitant-industriel.formation.c02",
+   "voisinCatalogue": "programme-par-ia",
+   "angle": "Ici on apprend à réutiliser ses réponses aux questionnaires des donneurs d'ordre, on n'écrit pas un programme de formation."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-13": {
+  "id": "soustraitant-attestations",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ECHEANCE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-13",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "PME",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "echeances-papiers",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-14": {
+  "id": "soustraitant-premier-message",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "ACCROCHE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-14",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "TPE",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "industrie.sous-traitant-industriel.formation.c03",
+   "voisinCatalogue": "email-difficile",
+   "angle": "Ici le message s'adresse à un nouveau donneur d'ordre, à qui l'on écrit pour la première fois."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-15": {
+  "id": "soustraitant-client-dominant",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "DEPENDRE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "IN-15",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "PME",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "industrie.sous-traitant-industriel.coaching.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-16": {
+  "id": "soustraitant-audit-circuit",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "CIRCUIT",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "IN-16",
+   "secteur": "IN",
+   "metier": "industrie.sous-traitant-industriel",
+   "metierNom": "Sous-traitant industriel",
+   "taille": "ETI",
+   "socle": "AU",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "prevenir-le-bon",
+   "casUsage": "industrie.sous-traitant-industriel.audit.c02",
+   "voisinCatalogue": "audit-departement",
+   "angle": "Ici l'audit suit un seul message, du donneur d'ordre jusqu'à l'atelier, sur plusieurs sites."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-17": {
+  "id": "plasturgie-commandes-clients",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "COMMANDES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-17",
+   "secteur": "IN",
+   "metier": "industrie.plasturgie",
+   "metierNom": "Atelier de plasturgie",
+   "taille": "PME",
+   "socle": "S01",
+   "inventaire": [
+    "A28"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "outils-relies"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-18": {
+  "id": "plasturgie-fiches-fournisseurs",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "FICHEMATIERE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-18",
+   "secteur": "IN",
+   "metier": "industrie.plasturgie",
+   "metierNom": "Atelier de plasturgie",
+   "taille": "PME",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "fournisseurs",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-19": {
+  "id": "plasturgie-releve-equipe",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CONSIGNES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-19",
+   "secteur": "IN",
+   "metier": "industrie.plasturgie",
+   "metierNom": "Atelier de plasturgie",
+   "taille": "PME",
+   "socle": "S12",
+   "inventaire": [
+    "C2"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "compte-rendu",
+   "casUsage": null,
+   "voisinCatalogue": "compte-rendu-visio",
+   "angle": "Ici le document est la relève d'équipe dictée au poste pour l'équipe suivante, pas le compte rendu d'une visio ni un compte rendu dicté après coup."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-20": {
+  "id": "plasturgie-mode-operatoire",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "REFERENCE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-20",
+   "secteur": "IN",
+   "metier": "industrie.plasturgie",
+   "metierNom": "Atelier de plasturgie",
+   "taille": "PME",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.plasturgie.formation.c01",
+   "voisinCatalogue": "programme-par-ia",
+   "angle": "Ici on apprend à écrire un mode opératoire de poste, on n'écrit pas un programme de formation."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-21": {
+  "id": "plasturgie-audit-relais",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "RELAIS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "IN-21",
+   "secteur": "IN",
+   "metier": "industrie.plasturgie",
+   "metierNom": "Atelier de plasturgie",
+   "taille": "ETI",
+   "socle": "AU",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "compte-rendu",
+   "casUsage": null,
+   "voisinCatalogue": "audit-departement",
+   "angle": "Ici l'audit porte sur le passage de relais entre l'équipe de jour et l'équipe de nuit, sur plusieurs sites."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-22": {
+  "id": "agro-exigence-cahier-des-charges",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "EXIGENCE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-22",
+   "secteur": "IN",
+   "metier": "industrie.agroalimentaire",
+   "metierNom": "Agroalimentaire",
+   "taille": "PME",
+   "socle": "S08",
+   "inventaire": [
+    "A65",
+    "A15"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.agroalimentaire.integration.c03",
+   "voisinCatalogue": "outils-branches",
+   "angle": "Ici le thème est la recherche d'une exigence dans un cahier des charges client, pas le branchement de l'IA sur des outils."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-23": {
+  "id": "agro-attestations-emballages",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "EMBALLAGES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-23",
+   "secteur": "IN",
+   "metier": "industrie.agroalimentaire",
+   "metierNom": "Agroalimentaire",
+   "taille": "PME",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "fournisseurs",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-24": {
+  "id": "agro-fiche-technique-client",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "FICHEPRODUIT",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-24",
+   "secteur": "IN",
+   "metier": "industrie.agroalimentaire",
+   "metierNom": "Agroalimentaire",
+   "taille": "PME",
+   "socle": "S07",
+   "inventaire": [
+    "A10",
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": "industrie.agroalimentaire.integration.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-25": {
+  "id": "agro-changements-commande-lignes",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "LIGNES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-25",
+   "secteur": "IN",
+   "metier": "industrie.agroalimentaire",
+   "metierNom": "Agroalimentaire",
+   "taille": "PME",
+   "socle": "S06",
+   "inventaire": [
+    "A9",
+    "C18"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "planning-urgences",
+   "casUsage": "industrie.agroalimentaire.integration.c01",
+   "voisinCatalogue": "alerte-courte",
+   "angle": "Ici les changements de commande sont réunis dans une liste avant le planning des lignes, sans alerte isolée sur le téléphone."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-26": {
+  "id": "agro-reponse-client-probleme",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "LOTS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-26",
+   "secteur": "IN",
+   "metier": "industrie.agroalimentaire",
+   "metierNom": "Agroalimentaire",
+   "taille": "PME",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "client-qui-appelle",
+   "casUsage": "industrie.agroalimentaire.formation.c01",
+   "voisinCatalogue": "email-difficile",
+   "angle": "Ici l'e-mail difficile est une réponse à un client qui signale un problème, avec des lots et des dates à vérifier."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-27": {
+  "id": "agro-qualite-pompier",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "POMPIER",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "IN-27",
+   "secteur": "IN",
+   "metier": "industrie.agroalimentaire",
+   "metierNom": "Agroalimentaire",
+   "taille": "ETI",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "industrie.agroalimentaire.coaching.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-28": {
+  "id": "agro-accueil-nouvel-arrivant",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "ACCUEIL",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-28",
+   "secteur": "IN",
+   "metier": "industrie.agroalimentaire",
+   "metierNom": "Agroalimentaire",
+   "taille": "TPE",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "savoir-retrouver",
+   "casUsage": null,
+   "voisinCatalogue": "programme-par-ia",
+   "angle": "Ici le programme est un parcours d'accueil au poste pour un nouvel arrivant, pas un programme de formation à vendre."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-29": {
+  "id": "sav-rapport-intervention-dicte",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "SURPLACE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-29",
+   "secteur": "IN",
+   "metier": "industrie.service-apres-vente-maintenance",
+   "metierNom": "Maintenance industrielle, SAV",
+   "taille": "PME",
+   "socle": "S12",
+   "inventaire": [
+    "C2"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "compte-rendu",
+   "casUsage": "industrie.service-apres-vente-maintenance.integration.c02",
+   "voisinCatalogue": "compte-rendu-visio",
+   "angle": "Ici le document est un rapport d'intervention dicté sur place, avec photos, et non le compte rendu d'une visio ni un compte rendu dicté au bureau."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-30": {
+  "id": "sav-pannes-deja-rencontrees",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "HISTORIQUE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-30",
+   "secteur": "IN",
+   "metier": "industrie.service-apres-vente-maintenance",
+   "metierNom": "Maintenance industrielle, SAV",
+   "taille": "PME",
+   "socle": "S08",
+   "inventaire": [
+    "A65",
+    "A15"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.service-apres-vente-maintenance.integration.c01",
+   "voisinCatalogue": "outils-branches",
+   "angle": "Ici le thème est la recherche dans l'historique d'un équipement, pas le branchement de l'IA sur des outils."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-31": {
+  "id": "sav-demandes-intervention-triees",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "RAPPELER",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-31",
+   "secteur": "IN",
+   "metier": "industrie.service-apres-vente-maintenance",
+   "metierNom": "Maintenance industrielle, SAV",
+   "taille": "PME",
+   "socle": "S02",
+   "inventaire": [
+    "A7",
+    "A3"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "demandes-entrantes",
+   "casUsage": "industrie.service-apres-vente-maintenance.integration.c03",
+   "voisinCatalogue": "contact-vers-crm",
+   "angle": "Ici le sujet est le tri d'une demande d'intervention avant de rappeler, pas la création d'une fiche dans un CRM."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-32": {
+  "id": "sav-preventifs-repousses",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "PREVENTIFS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-32",
+   "secteur": "IN",
+   "metier": "industrie.service-apres-vente-maintenance",
+   "metierNom": "Maintenance industrielle, SAV",
+   "taille": "PME",
+   "socle": "S05",
+   "inventaire": [
+    "A38",
+    "C17"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "planning-urgences",
+   "casUsage": "industrie.service-apres-vente-maintenance.integration.c04",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-33": {
+  "id": "sav-facture-intervention-lendemain",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "LENDEMAIN",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-33",
+   "secteur": "IN",
+   "metier": "industrie.service-apres-vente-maintenance",
+   "metierNom": "Maintenance industrielle, SAV",
+   "taille": "PME",
+   "socle": "S10",
+   "inventaire": [
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "facturation",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-34": {
+  "id": "sav-recherche-notices-questions",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "NOTICES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-34",
+   "secteur": "IN",
+   "metier": "industrie.service-apres-vente-maintenance",
+   "metierNom": "Maintenance industrielle, SAV",
+   "taille": "PME",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.service-apres-vente-maintenance.formation.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-35": {
+  "id": "sav-savoir-des-anciens",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "ANCIENS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 2,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "IN-35",
+   "secteur": "IN",
+   "metier": "industrie.service-apres-vente-maintenance",
+   "metierNom": "Maintenance industrielle, SAV",
+   "taille": "ETI",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "industrie.service-apres-vente-maintenance.coaching.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-36": {
+  "id": "site-bons-de-commande-brouillon",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CONFIRMATION",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-36",
+   "secteur": "IN",
+   "metier": "industrie.industriel-site-production",
+   "metierNom": "Site de production",
+   "taille": "PME",
+   "socle": "S01",
+   "inventaire": [
+    "A28"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": "industrie.industriel-site-production.integration.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-37": {
+  "id": "site-tableau-directeur-lundi",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "LUNDIMATIN",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-37",
+   "secteur": "IN",
+   "metier": "industrie.industriel-site-production",
+   "metierNom": "Site de production",
+   "taille": "ETI",
+   "socle": "S13",
+   "inventaire": [
+    "C16",
+    "A27"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "tableau-de-bord",
+   "casUsage": "industrie.industriel-site-production.integration.c04",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-38": {
+  "id": "site-nouveau-fournisseur-numero",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "REFERENCER",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-38",
+   "secteur": "IN",
+   "metier": "industrie.industriel-site-production",
+   "metierNom": "Site de production",
+   "taille": "PME",
+   "socle": "S11",
+   "inventaire": [
+    "B1.1"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "fournisseurs",
+   "casUsage": null,
+   "voisinCatalogue": "crm-qui-note",
+   "angle": "Ici la fiche sert à référencer un fournisseur à partir de son numéro, pas à noter une affaire commerciale."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-39": {
+  "id": "site-habilitations-verifications",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "HABILITATION",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-39",
+   "secteur": "IN",
+   "metier": "industrie.industriel-site-production",
+   "metierNom": "Site de production",
+   "taille": "PME",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "echeances-papiers",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-40": {
+  "id": "site-stock-tableur-rayonnage",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "RAYONNAGE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 5,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "IN-40",
+   "secteur": "IN",
+   "metier": "industrie.industriel-site-production",
+   "metierNom": "Site de production",
+   "taille": "ETI",
+   "socle": "AU",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "fournisseurs",
+   "casUsage": "industrie.industriel-site-production.audit.c03",
+   "voisinCatalogue": "audit-une-journee",
+   "angle": "Ici l'audit porte sur un seul point, l'écart entre tableur et rayonnage, pas sur une journée complète de l'entreprise."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "barres-avant-apres"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "IN-41": {
+  "id": "site-stock-suivi-reappro",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "REAPPRO",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-41",
+   "secteur": "IN",
+   "metier": "industrie.industriel-site-production",
+   "metierNom": "Site de production",
+   "taille": "PME",
+   "socle": "OC",
+   "inventaire": [],
+   "niveauPreuve": "offre-a-construire",
+   "douleur": "fournisseurs",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "outils-relies"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-42": {
+  "id": "site-ecart-taux-de-service",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "TAUXSERVICE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "IN-42",
+   "secteur": "IN",
+   "metier": "industrie.industriel-site-production",
+   "metierNom": "Site de production",
+   "taille": "ETI",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "tableau-de-bord",
+   "casUsage": "industrie.industriel-site-production.formation.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-43": {
+  "id": "bureau-decisions-projet-echanges",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "DECISIONS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-43",
+   "secteur": "IN",
+   "metier": "btp.bureau-etudes",
+   "metierNom": "Bureau d'études",
+   "taille": "PME",
+   "socle": "S08",
+   "inventaire": [
+    "A65",
+    "A15"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "savoir-retrouver",
+   "casUsage": "btp.bureau-etudes.integration.c03",
+   "voisinCatalogue": "outils-branches",
+   "angle": "Ici le thème est la recherche d'une décision de projet dans les échanges, pas le branchement de l'IA sur des outils."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "IN-44": {
+  "id": "bureau-compte-rendu-reunion",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "REUNION",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "IN-44",
+   "secteur": "IN",
+   "metier": "btp.bureau-etudes",
+   "metierNom": "Bureau d'études",
+   "taille": "TPE",
+   "socle": "S12",
+   "inventaire": [
+    "C2"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "compte-rendu",
+   "casUsage": "btp.bureau-etudes.integration.c04",
+   "voisinCatalogue": "compte-rendu-visio",
+   "angle": "Ici le document est le compte rendu d'une réunion de projet, avec les observations des intervenants par plan, et non celui d'une visio."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "LT-01": {
+  "id": "transporteur-bons-signes-factures",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "SIGNES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "LT-01",
+   "secteur": "LT",
+   "metier": "industrie.transporteur",
+   "metierNom": "Transporteur",
+   "taille": "TPE",
+   "socle": "S09",
+   "inventaire": [
+    "A41",
+    "A8"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "facturation",
+   "casUsage": "industrie.transporteur.integration.c03",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "LT-02": {
+  "id": "transporteur-demandes-de-cotation",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "COTATION",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "LT-02",
+   "secteur": "LT",
+   "metier": "industrie.transporteur",
+   "metierNom": "Transporteur",
+   "taille": "PME",
+   "socle": "S02",
+   "inventaire": [
+    "A7",
+    "A3"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "demandes-entrantes",
+   "casUsage": "industrie.transporteur.integration.c02",
+   "voisinCatalogue": "contact-vers-crm",
+   "angle": "Ici on trie des demandes de cotation incomplètes pour pouvoir chiffrer, on ne remplit pas une fiche de CRM."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "pile-notifications"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "LT-03": {
+  "id": "transporteur-retard-annonce-client",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "RETARD",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "LT-03",
+   "secteur": "LT",
+   "metier": "industrie.transporteur",
+   "metierNom": "Transporteur",
+   "taille": "PME",
+   "socle": "S06",
+   "inventaire": [
+    "A9",
+    "C18",
+    "B3.4"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "client-qui-appelle",
+   "casUsage": null,
+   "voisinCatalogue": "alerte-courte",
+   "angle": "Ici l'alerte reste interne à l'exploitation ; le message au destinataire est un brouillon relu avant envoi, pas une alerte envoyée au client."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "pile-notifications"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "LT-04": {
+  "id": "transporteur-controles-vehicules",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "CONTROLES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "LT-04",
+   "secteur": "LT",
+   "metier": "industrie.transporteur",
+   "metierNom": "Transporteur",
+   "taille": "PME",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "echeances-papiers",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "LT-05": {
+  "id": "transporteur-reponse-litige",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "LITIGE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "LT-05",
+   "secteur": "LT",
+   "metier": "industrie.transporteur",
+   "metierNom": "Transporteur",
+   "taille": "TPE",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "client-qui-appelle",
+   "casUsage": "industrie.transporteur.formation.c03",
+   "voisinCatalogue": "email-difficile",
+   "angle": "Ici la réponse repose sur un dossier de preuves de livraison, ce n'est pas un e-mail difficile en général."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "LT-06": {
+  "id": "transporteur-bon-vers-facture",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "PAPIERS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "LT-06",
+   "secteur": "LT",
+   "metier": "industrie.transporteur",
+   "metierNom": "Transporteur",
+   "taille": "PME",
+   "socle": "AU",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "facturation",
+   "casUsage": "industrie.transporteur.integration.c03",
+   "voisinCatalogue": "audit-une-journee",
+   "angle": "Ici l'audit suit un seul circuit, du bon papier à la facture, et non une journée entière de l'entreprise."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "LT-07": {
+  "id": "entrepot-annonces-expedition",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ANNONCE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "LT-07",
+   "secteur": "LT",
+   "metier": "industrie.logisticien-entrepot",
+   "metierNom": "Logisticien, entrepôt",
+   "taille": "PME",
+   "socle": "S01",
+   "inventaire": [
+    "A28"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": "industrie.logisticien-entrepot.integration.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "LT-08": {
+  "id": "entrepot-ecart-reception-client",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ECART",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "LT-08",
+   "secteur": "LT",
+   "metier": "industrie.logisticien-entrepot",
+   "metierNom": "Logisticien, entrepôt",
+   "taille": "PME",
+   "socle": "S07",
+   "inventaire": [
+    "A10",
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "client-qui-appelle",
+   "casUsage": "industrie.logisticien-entrepot.integration.c03",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-capture"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "LT-09": {
+  "id": "entrepot-etat-stock-client",
+  "offre": "integration",
+  "nature": "outils-relies",
+  "posture": "offre",
+  "mot": "STOCK",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Schéma de l'intégration",
+   "finCadeauId": "fin-if-cadeau-integration"
+  },
+  "rangement": {
+   "fiche": "LT-09",
+   "secteur": "LT",
+   "metier": "industrie.logisticien-entrepot",
+   "metierNom": "Logisticien, entrepôt",
+   "taille": "PME",
+   "socle": "S13",
+   "inventaire": [
+    "C16",
+    "A27"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "tableau-de-bord",
+   "casUsage": "industrie.logisticien-entrepot.integration.c04",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "outils-relies"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "LT-10": {
+  "id": "entrepot-creneaux-quai",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "QUAI",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "LT-10",
+   "secteur": "LT",
+   "metier": "industrie.logisticien-entrepot",
+   "metierNom": "Logisticien, entrepôt",
+   "taille": "PME",
+   "socle": "S14",
+   "inventaire": [
+    "A2",
+    "A4"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "planning-urgences",
+   "casUsage": "industrie.logisticien-entrepot.audit.c03",
+   "voisinCatalogue": "rappels-rendez-vous",
+   "angle": "Ici les créneaux sont des créneaux de quai pour des camions, pas des rendez-vous d'appel commercial."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "LT-11": {
+  "id": "entrepot-consignes-preparation",
+  "offre": "formation",
+  "nature": null,
+  "posture": "offre",
+  "mot": "PREPARATEUR",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Programme de la formation",
+   "finCadeauId": "fin-if-cadeau-formation"
+  },
+  "rangement": {
+   "fiche": "LT-11",
+   "secteur": "LT",
+   "metier": "industrie.logisticien-entrepot",
+   "metierNom": "Logisticien, entrepôt",
+   "taille": "PME",
+   "socle": "F",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "savoir-retrouver",
+   "casUsage": "industrie.logisticien-entrepot.formation.c01",
+   "voisinCatalogue": "programme-par-ia",
+   "angle": "Ici l'IA aide à rédiger des consignes de poste à partir de ce que disent les anciens, pas à construire un programme de formation."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "LT-12": {
+  "id": "entrepot-confiance-quai",
+  "offre": "coaching",
+  "nature": null,
+  "posture": "offre",
+  "mot": "CONFIANCE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Déroulé de l'accompagnement",
+   "finCadeauId": "fin-if-cadeau-coaching"
+  },
+  "rangement": {
+   "fiche": "LT-12",
+   "secteur": "LT",
+   "metier": "industrie.logisticien-entrepot",
+   "metierNom": "Logisticien, entrepôt",
+   "taille": "ETI",
+   "socle": "CO",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "organisation-dirigeant",
+   "casUsage": "industrie.logisticien-entrepot.coaching.c02",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "contrat-signature"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "NB-01": {
+  "id": "negoce-commandes-recues",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "RESSAISIE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "NB-01",
+   "secteur": "NB",
+   "metier": "commerce.grossiste-negoce",
+   "metierNom": "Grossiste, négoce",
+   "taille": "PME",
+   "socle": "S01",
+   "inventaire": [
+    "A28"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "commandes-documents-recus",
+   "casUsage": "commerce.grossiste-negoce.integration.c01",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "NB-02": {
+  "id": "negoce-compte-client-ouvert",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "OUVERTURE",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "NB-02",
+   "secteur": "NB",
+   "metier": "commerce.grossiste-negoce",
+   "metierNom": "Grossiste, négoce",
+   "taille": "PME",
+   "socle": "S11",
+   "inventaire": [
+    "B1.1"
+   ],
+   "niveauPreuve": "a-confirmer",
+   "douleur": "demandes-entrantes",
+   "casUsage": null,
+   "voisinCatalogue": "crm-qui-note",
+   "angle": "Ici on référence un client, pas un fournisseur ni un prospect, pour lui ouvrir un compte de commande ; on ne note pas des affaires."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "NB-03": {
+  "id": "negoce-factures-echues",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "ECHUES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 2,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "NB-03",
+   "secteur": "NB",
+   "metier": "commerce.grossiste-negoce",
+   "metierNom": "Grossiste, négoce",
+   "taille": "PME",
+   "socle": "S03",
+   "inventaire": [
+    "A44"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "relances-paiements",
+   "casUsage": "commerce.grossiste-negoce.integration.c03",
+   "voisinCatalogue": "devis-relances",
+   "angle": "Ici ce sont des factures échues relancées par paliers après pointage, pas des devis non signés."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "e-mail"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "NB-04": {
+  "id": "negoce-reponse-fiches",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "FICHES",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "NB-04",
+   "secteur": "NB",
+   "metier": "commerce.grossiste-negoce",
+   "metierNom": "Grossiste, négoce",
+   "taille": "PME",
+   "socle": "S08",
+   "inventaire": [
+    "A65"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "savoir-retrouver",
+   "casUsage": null,
+   "voisinCatalogue": "outils-branches",
+   "angle": "Ici on retrouve une réponse dans des fiches fournisseurs, on ne branche pas des outils entre eux."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "champ-commentaire"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bulle-lien"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "NB-05": {
+  "id": "negoce-audit-tarifs",
+  "offre": "audit",
+  "nature": null,
+  "posture": "offre",
+  "mot": "TARIFS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Exemple de plan d'audit",
+   "finCadeauId": "fin-if-cadeau-audit"
+  },
+  "rangement": {
+   "fiche": "NB-05",
+   "secteur": "NB",
+   "metier": "commerce.grossiste-negoce",
+   "metierNom": "Grossiste, négoce",
+   "taille": "PME",
+   "socle": "AU",
+   "inventaire": [],
+   "niveauPreuve": "sans-automatisation",
+   "douleur": "fournisseurs",
+   "casUsage": "commerce.grossiste-negoce.audit.c01",
+   "voisinCatalogue": "audit-departement",
+   "angle": "Ici l'audit porte sur un seul circuit, celui des tarifs des fournisseurs, et non sur un département entier ni sur une journée."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "pile-notifications"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "carte-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "programme"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "NB-06": {
+  "id": "location-fin-rappelee",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "RETOURS",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "NB-06",
+   "secteur": "NB",
+   "metier": "btp.loueur-materiel-chantier",
+   "metierNom": "Loueur de matériel de chantier",
+   "taille": "TPE",
+   "socle": "S14",
+   "inventaire": [
+    "A2",
+    "A4"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "planning-urgences",
+   "casUsage": "btp.loueur-materiel-chantier.integration.c03",
+   "voisinCatalogue": "rappels-rendez-vous",
+   "angle": "Ici le rappel annonce la fin d'une location et le retour du matériel, ce n'est pas un rendez-vous."
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "chrono"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ },
+ "NB-07": {
+  "id": "location-verifications-parc",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "PARC",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 3,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "NB-07",
+   "secteur": "NB",
+   "metier": "btp.loueur-materiel-chantier",
+   "metierNom": "Loueur de matériel de chantier",
+   "taille": "PME",
+   "socle": "S04",
+   "inventaire": [
+    "A51",
+    "A38"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "echeances-papiers",
+   "casUsage": null,
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "dossier-classe"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "telephone-notification"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   }
+  ]
+ },
+ "NB-08": {
+  "id": "location-facture-retour",
+  "offre": "integration",
+  "nature": "automatisation",
+  "posture": "offre",
+  "mot": "PROLONGATION",
+  "motDit": null,
+  "faits": [],
+  "resteHumainApresEtape": 4,
+  "documentPromis": {
+   "nom": "Structure de l'automatisation",
+   "finCadeauId": "fin-if-cadeau-automatisation"
+  },
+  "rangement": {
+   "fiche": "NB-08",
+   "secteur": "NB",
+   "metier": "btp.loueur-materiel-chantier",
+   "metierNom": "Loueur de matériel de chantier",
+   "taille": "PME",
+   "socle": "S10",
+   "inventaire": [
+    "A43"
+   ],
+   "niveauPreuve": "lu-dans-le-code",
+   "douleur": "facturation",
+   "casUsage": "btp.loueur-materiel-chantier.integration.c04",
+   "voisinCatalogue": null,
+   "angle": null
+  },
+  "etapes": [
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "contrat-signature"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "calendrier"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "rapport"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "liste-taches"
+    },
+    "humaine": false
+   },
+   {
+    "visuel": {
+     "sorte": "objet",
+     "objet": "bouclier-coche"
+    },
+    "humaine": true
+   }
+  ]
+ }
+}

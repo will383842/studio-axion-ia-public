@@ -1,6 +1,6 @@
 /**
  * ESSAI RÉEL de la composition VisuelPage (M1-04) : rend 2 JPEG 1080 × 1350 avec le vrai Remotion (renderStill), sans Docker,
- * sans réseau extérieur, sans appel payant : une couverture T01 (variante A) et une page dense T02 (six cartes).
+ * sans réseau extérieur, sans appel payant : une couverture T01 (variante A) et une page dense T02 (quatre cartes).
  * Le contenu est figé et inventé (`contenu-essai-visuel.ts`) et passe par le schéma Zod avant le rendu.
  * Usage (depuis `studio-rendu/`) : `npx tsx --tsconfig ../tsconfig.json scripts/essai-visuel.ts`
  * Sortie : `essais-visuels/*.jpg`. Navigateur : `STUDIO_RENDU_NAVIGATEUR` (chemin d'un Chromium local) si celui de Remotion

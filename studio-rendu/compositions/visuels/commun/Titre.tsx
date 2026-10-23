@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
 import { chargerPoliceArchivoBlack, FAMILLE_ARCHIVO_BLACK, policeArchivoBlackPrete } from "../polices";
 import { avecDelai, DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, etatPolices } from "./attente-police";
-import { choisirMiseEnLignes, type MiseEnLignes } from "./ajustement";
+import { JAMBAGE_HAUT } from "./controle-debordement";
+import type { MiseEnLignes } from "./ajustement";
+import { enCapitales, mettreEnLignesCapitales } from "./capitales";
 import { COULEURS, LARGEUR_TEXTE, POLICE_TITRE, TITRE } from "./constantes";
 
 interface Proprietes {
@@ -31,11 +33,13 @@ function mesurerLignes(contexte: CanvasRenderingContext2D, lignes: string[], tai
   return Math.max(...lignes.map((l) => contexte.measureText(l).width));
 }
 
-/** Titre de page : corps ajusté par dichotomie (90–170 px) sous `delayRender`, ligne la plus large à 984 ± 4 px ou bornée. */
+/** Titre de page EN CAPITALES : corps ajusté par dichotomie (90–170 px) sous `delayRender`, ligne la plus large à 984 ± 4 px ou bornée. */
 export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = COULEURS.encre, largeur = LARGEUR_TEXTE, min }: Proprietes) {
   chargerPoliceArchivoBlack();
   const [attente] = useState(() => delayRender(`Ajustement du titre « ${texte.slice(0, 24)} »`, { timeoutInMilliseconds: DELAI_DELAYRENDER_MS }));
   const [mise, setMise] = useState<MiseEnLignes | null>(null);
+  // Capitales : le texte est passé en capitales AVANT la mesure (elles sont plus larges que les minuscules), jamais seulement au dessin.
+  const capitales = enCapitales(texte);
 
   useEffect(() => {
     let vivant = true;
@@ -43,7 +47,7 @@ export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = 
       .then(() => {
         const contexte = document.createElement("canvas").getContext("2d");
         if (!contexte) throw new Error("Canvas 2D indisponible : titre non mesurable");
-        const choix = choisirMiseEnLignes(texte, (lignes, taille) => mesurerLignes(contexte, lignes, taille), { maxLignes, hauteurMax, cible: largeur, ...(min ? { min } : {}) });
+        const choix = mettreEnLignesCapitales(capitales, (lignes, taille) => mesurerLignes(contexte, lignes, taille), { maxLignes, hauteurMax: hauteurMax - JAMBAGE_HAUT, cible: largeur, ...(min ? { min } : {}) });
         if (vivant) setMise(choix);
         continueRender(attente);
       })
@@ -54,11 +58,11 @@ export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = 
     return () => {
       vivant = false;
     };
-  }, [texte, maxLignes, hauteurMax, attente, largeur, min]);
+  }, [capitales, maxLignes, hauteurMax, attente, largeur, min]);
 
   if (!mise) return <div data-titre-attente="" style={{ width: largeur, height: hauteurMax }} />;
   return (
-    <div data-titre-taille={mise.taille} style={{ width: largeur, fontFamily: POLICE_TITRE, fontSize: mise.taille, lineHeight: TITRE.interligne, color: couleur }}>
+    <div data-titre-taille={mise.taille} style={{ width: largeur, paddingTop: JAMBAGE_HAUT, fontFamily: POLICE_TITRE, fontSize: mise.taille, lineHeight: TITRE.interligne, color: couleur }}>
       {mise.lignes.map((ligne, i) => (
         <div key={i} style={{ whiteSpace: "nowrap", color: accent && i === mise.lignes.length - 1 ? COULEURS.orange : couleur }}>
           {ligne}

@@ -6,7 +6,9 @@ const SOURCE = new URL("../../studio-rendu/compositions/visuels/polices.ts", imp
 
 const POLICES = [
   { fichier: "ArchivoBlack-Regular.ttf", licence: "OFL-ArchivoBlack.txt", famille: "Axion Archivo Black", chargeur: "chargerPoliceArchivoBlack" },
-  { fichier: "JetBrainsMono-Variable.ttf", licence: "OFL-JetBrainsMono.txt", famille: "Axion JetBrains Mono", chargeur: "chargerPoliceJetBrainsMono" },
+  { fichier: "Inter-Medium.ttf", licence: "OFL-Inter.txt", famille: "Axion Inter", chargeur: "chargerPoliceInter" },
+  { fichier: "Inter-SemiBold.ttf", licence: "OFL-Inter.txt", famille: "Axion Inter", chargeur: "chargerPoliceInter" },
+  { fichier: "Inter-Bold.ttf", licence: "OFL-Inter.txt", famille: "Axion Inter", chargeur: "chargerPoliceInter" },
 ] as const;
 
 /** Points de code présents dans la table cmap (formats 4 et 12) d'un fichier TrueType. */
@@ -51,14 +53,17 @@ describe("polices des carrousels (M1-02)", () => {
     expect(texte).toMatch(/^Copyright /);
   });
 
-  it("le chargeur déclare les deux familles, sans chargement au niveau du module", () => {
+  it("le chargeur déclare les deux familles (Archivo Black et Inter en trois graisses), sans chargement au niveau du module", () => {
     const src = readFileSync(SOURCE, "utf8");
     for (const { famille, chargeur, fichier } of POLICES) {
       expect(src).toContain(`"${famille}"`);
       expect(src).toMatch(new RegExp(`export function ${chargeur}\\(\\): void`));
       expect(src).toContain(fichier);
     }
-    expect(src.match(/new FontFace\(/g)).toHaveLength(2);
+    // Archivo Black (1 fichier) + Inter (une FontFace par graisse : 500, 600, 700) + Kalam (annotations manuscrites, L9) ; plus aucune JetBrains Mono dans les visuels.
+    expect(src.match(/new FontFace\(/g)).toHaveLength(3);
+    for (const poids of ["500", "600", "700"]) expect(src).toContain(`poids: "${poids}"`);
+    expect(src).not.toMatch(/JetBrains/i);
     expect(src).toContain("delayRender");
     expect(src).toContain("continueRender");
   });
@@ -71,7 +76,7 @@ describe("polices des carrousels (M1-02)", () => {
   it("l'attente est exposée, une erreur de chargement fait échouer le rendu, et les bornes de 5 s ont disparu", () => {
     const src = readFileSync(SOURCE, "utf8");
     expect(src).toContain("export function policeArchivoBlackPrete");
-    expect(src).toContain("export function policeJetBrainsMonoPrete");
+    expect(src).toContain("export function policeInterPrete");
     expect(src).toContain("cancelRender");
     for (const f of ["commun/Titre.tsx", "commun/controle-debordement.tsx"]) {
       const s = readFileSync(new URL(`../../studio-rendu/compositions/visuels/${f}`, import.meta.url), "utf8");

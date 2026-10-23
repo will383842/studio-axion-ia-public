@@ -35,8 +35,8 @@ export interface RapportPorte {
 
 export interface ContextePorte {
   interditsDans: (texte: string) => string[];
-  /** Littéral : tant que la liste de faits n'est pas validée, tout chiffre est rouge. */
-  faitsDisponibles: false;
+  /** Faux tant que la liste de faits n'est pas validée : tout chiffre est alors rouge. */
+  faitsDisponibles: boolean;
 }
 
 export type Porte = (spec: unknown, ctx: ContextePorte) => { rapport: RapportPorte; specCorrige?: CarrouselSpecType };
@@ -59,7 +59,7 @@ export interface VueCarrouselFiche extends VueCarrouselCarte {
   modeTexte: ModeTexte;
   pourquoi: string[];
   rapport?: RapportPorte;
-  pages: { index: number; type: string; urlX1?: string }[];
+  pages: { index: number; type: string; urlX1?: string; urlX2?: string }[];
   pdfUrl?: string;
   erreur?: string;
   actionsPermises: ActionCarrousel[];

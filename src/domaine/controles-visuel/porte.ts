@@ -2,7 +2,7 @@
 import { CarrouselSpec } from "../visuels/schema";
 import type { ControlePorte, NiveauControle, Porte, RapportPorte } from "../visuels/contrats";
 import { controlesStructure } from "./rythme";
-import { contientJAide, MOTS_MIN_ANGLAIS, partAnglais, premierChiffre, SEUIL_ANGLAIS, sortantsDans, tutoiementDans } from "./texte";
+import { contientJAide, expressionsBannieDans, MOTS_MIN_ANGLAIS, partAnglais, premierChiffre, SEUIL_ANGLAIS, sortantsDans, tutoiementDans } from "./texte";
 import { textesDe } from "./textes-de";
 import { corrigerTypographie } from "./typographie";
 
@@ -71,6 +71,8 @@ export const controlerCarrousel: Porte = (spec, ctx) => {
     const tu = tutoiementDans(texte);
     if (tu !== undefined) ajouter("TUTOIEMENT", `${lieu(chemin, page)} : le texte tutoie ("${tu}") ; le studio vouvoie.`);
     if (contientJAide(texte)) ajouter("J_AIDE", `${lieu(chemin, page)} : la formule « J'aide » est à bannir ; parlez du travail, pas de vous.`);
+    const bannies = expressionsBannieDans(texte);
+    if (bannies.length > 0) ajouter("EXPRESSION_BANNIE", `${lieu(chemin, page)} : expression à bannir (${bannies.map((x) => `« ${x} »`).join(", ")}).`);
     const sortants = sortantsDans(texte);
     if (sortants.length > 0) ajouter("SORTANT", `${lieu(chemin, page)} : le texte renvoie vers l'extérieur (${sortants.map((s) => `${s.genre} "${s.extrait}"`).join(", ")}) ; seule la dernière page invite à écrire.`);
     const anglais = partAnglais(texte);
