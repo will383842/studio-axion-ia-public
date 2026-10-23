@@ -1,11 +1,15 @@
 /** Affichage du stock des cas : phrase de synthèse, pastilles, prix seulement s'il existe, idées vides. Rendu serveur, rien d'autre. */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { jourMois, StockDesCas } from "@/components/formats/cas-concret/stock/StockDesCas";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
+import { CATALOGUE_TS } from "@/formats/cas-concret/catalogue/base";
 import { construireStockCas } from "@/services/cas-concret-stock";
 import type { Video } from "@/domaine/types";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }) }));
+vi.mock("@/app/(studio)/cas-concret/actions", () => ({ remettreEnStockAction: vi.fn() }));
 
 const rendu = (montants?: Record<string, number>, videos: Video[] = []) =>
   renderToStaticMarkup(createElement(StockDesCas, { lignes: construireStockCas({ scripts: {}, videos, montants }), idees: [] }));
@@ -13,10 +17,10 @@ const rendu = (montants?: Record<string, number>, videos: Video[] = []) =>
 describe("StockDesCas", () => {
   it("montre la synthèse, une carte par cas et les pastilles de statut", () => {
     const html = rendu();
-    expect(html).toContain(`${CATALOGUE.length} cas · `);
+    expect(html).toContain(`${CATALOGUE_TS.length} cas · `);
     expect(html).toContain("Script validé");
     expect(html).toContain("Script à valider");
-    expect(html.match(/<li /g)?.length).toBe(CATALOGUE.length);
+    expect(html.match(/<li /g)?.length).toBe(CATALOGUE_TS.length);
     expect(html).toContain("0 vidéo faite");
   });
 
@@ -45,5 +49,29 @@ describe("StockDesCas", () => {
 
   it("n'écrit ni « Villeexemple » ni « Aucun gain garanti »", () => {
     expect(rendu()).not.toMatch(/Villeexemple|Aucun gain garanti/);
+  });
+
+  it("« Déjà traités » : titre, lien vers la vidéo ou « vidéo supprimée », bouton « Remettre en stock » ; section vide sinon", () => {
+    const [a, b] = CATALOGUE;
+    const lignes = construireStockCas({
+      scripts: {},
+      videos: [],
+      traites: new Map([
+        [a!.id, { videoId: "v-fini", titre: "Fini", le: "2026-10-09T08:00:00.000Z" }],
+        [b!.id, { titre: "Supprimée", le: "2026-10-08T08:00:00.000Z" }],
+      ]),
+    });
+    const html = renderToStaticMarkup(createElement(StockDesCas, { lignes, idees: [] }));
+    expect(html).toContain("Déjà traités (2)");
+    expect(html).toContain('href="/videos/v-fini"');
+    expect(html).toContain("Vidéo supprimée");
+    expect(html).toContain("2 cas déjà traités (voir plus bas, dans Stock des cas)");
+    expect(html).toContain('href="?stock=1#deja-traites"');
+    expect(renderToStaticMarkup(createElement(StockDesCas, { lignes, idees: [], ouvert: true }))).toMatch(/<details[^>]* open/);
+    expect(html).toContain('aria-label="Voir la vidéo : ');
+    expect(html.match(/Remettre en stock/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain("min-h-11");
+    expect(rendu()).toContain("Déjà traités (0)");
+    expect(rendu()).not.toContain("Remettre en stock");
   });
 });

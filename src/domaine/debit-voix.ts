@@ -1,6 +1,6 @@
 /**
- * DÉBIT DE LA VOIX (lot A4). PUR : un module de mesure et de verdict. Branché depuis le lot B2a sur le seul tableau
- * animé (`domaine/duree-tableau.ts`, recette de qualité `tableau`). Cible 165 mots/min (2,75 mots/s) pour les scripts de la chaîne courte et du tableau.
+ * DÉBIT DE LA VOIX (lot A4). PUR : un module de mesure et de verdict. Lu par `domaine/duree-tableau.ts` (tableau animé), par `donnees/generateur/recette-script.ts` (plafond de débit) et
+ * par `briques/declinaison` (mesure `motsParSecondeMesures`) ; `MESURES_VOIX`, `motsMaxPour` et `verdictDebit` n'ont pas d'appelant en production. Cible 165 mots/min (2,75 mots/s) pour les scripts de la chaîne courte et du tableau.
  *
  * Image→vidéo et l'avocat gardent leur PROPRE constante de débit (`domaine/image-video/complexite.ts`, recette avocat) :
  * ce module ne les concerne pas et ne doit être importé nulle part de ce côté (sessions 5f et avocat).

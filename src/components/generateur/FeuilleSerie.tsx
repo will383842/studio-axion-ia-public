@@ -136,6 +136,16 @@ export function FeuilleSerie({
           )}
         </div>
 
+        {plan && plan.partiront >= plan.demandees && plan.limite && (
+          <div className="flex items-start gap-3 rounded-carte border border-ambre/40 bg-ambre-doux p-3">
+            <Icone nom="attention" size={18} className="mt-0.5 shrink-0 text-ambre" />
+            <p className="text-sm font-semibold leading-snug text-texte">
+              {plan.limite === "claude" ? "Le repère d'écriture du mois est dépassé" : "Le budget indicatif du mois est dépassé"} : tout part quand même.{" "}
+              <span className="font-normal text-texte-doux">Rien n&apos;est bloqué, l&apos;arrêt de sécurité reste à 5 fois le prix annoncé d&apos;un sujet.</span>
+            </p>
+          </div>
+        )}
+
         {plan && plan.partiront < plan.demandees && (
           <div className="flex items-start gap-3 rounded-carte border border-ambre/40 bg-ambre-doux p-3">
             <Icone nom="attention" size={18} className="mt-0.5 shrink-0 text-ambre" />

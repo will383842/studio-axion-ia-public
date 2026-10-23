@@ -161,9 +161,9 @@ describe("l'écran", () => {
     expect(html).toContain("par défaut");
     expect(html).not.toContain("hors des bornes");
   });
-  it("dit que le plafond ne s'applique qu'aux chaînes « courte » et « équipe » et montre la chaîne active", () => {
+  it("dit que le plafond s'applique à la chaîne « courte » (équipe et grande verrouillées) et montre la chaîne active", () => {
     const rendu = (chaine: "courte" | "equipe" | null) => renderToStaticMarkup(createElement(PlafondSujet, { usd: 1.5, centimes: 150, reglee: false, horsBornes: false, chaine }));
-    expect(rendu(null)).toContain("ne s&#x27;applique qu&#x27;aux chaînes « courte » et « équipe »");
+    expect(rendu(null)).toContain("s&#x27;applique à la chaîne « courte »");
     expect(rendu("courte")).toContain("Chaîne active : courte");
     expect(rendu("equipe")).toContain("Chaîne active : équipe");
     expect(rendu(null)).toContain("Chaîne active : grande");

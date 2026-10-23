@@ -40,7 +40,7 @@ beforeEach(async () => {
   bg.suspendreBoucleGeneration(true);
   await auth.seConnecter(MDP, false);
   // Lot A5 : réglage absent = chaîne courte ; ce test éprouve la GRANDE chaîne, il la demande donc expressément.
-  await ecrireParametre("generateur.chaine", "complete");
+  (await import("@/services/generation-claude")).forcerChainePourEssai("grande");
   credits.injecterLecteursPourEssai([creerLecteurAnthropic({ ANTHROPIC_API_KEY: CLE_ESSAI_CLAUDE }, fetchInterdit)], ["anthropic"]);
   await credits.declarerRecharge("anthropic", 100_000);
   gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fetchInterdit, attenteMs: () => 0 });

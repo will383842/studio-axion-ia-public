@@ -17,6 +17,8 @@ import type { Id } from "@/domaine/types";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant } from "./_commun";
 import { decalerMois, engagementDuTravail, jourParis, moisParis, resumeBudget } from "./couts";
 import { creerNotification } from "./notifications";
+import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, messageAuDelaDuBudgetIndicatif } from "./mode-budget";
+import { centimesDuPlafond } from "@/lib/montants";
 
 /** Plafond du mois par défaut (150 €, garde-fou du plan maître C2), tant que Will n'en a pas réglé d'autre. */
 export const PLAFOND_MENSUEL_PAR_DEFAUT_CENTIMES = 15000;
@@ -126,10 +128,44 @@ const ALERTES: Record<MotifRefus, { titre: string; message: string }> = {
 
 /** Alerte à Will (cloche + file d'envoi), une fois par jour et par motif. Une panne de l'alerte ne change jamais le refus. */
 async function alerterRefus(motif: MotifRefus): Promise<void> {
+  await alerterUneFoisParJour(motif, ALERTES[motif]);
+}
+
+/**
+ * MODE INDICATIF : un seuil dépassé ne refuse plus, il PRÉVIENT. Journal à chaque dépassement ; cloche une seule fois par
+ * jour et par motif, ou par vidéo/sujet si `sujet` est donné (clé `budget.refus.<jour>.<motif>[-<sujet>]`). Une panne de l'alerte ne change jamais la suite : la fabrication continue.
+ */
+export async function signalerDepassementIndicatif(motif: string, titre: string, message: string, sujet?: string): Promise<void> {
+  try {
+    await journaliser("budget", `Budget indicatif dépassé (${motif}) : ${message}`);
+  } catch {
+    /* le journal ne bloque jamais */
+  }
+  // Une cloche par vidéo (ou sujet) et par jour : la clé porte l'identifiant ; sans identifiant, une par jour et par motif.
+  await alerterUneFoisParJour(sujet ? `indicatif-${motif}-${sujet}` : `indicatif-${motif}`, { titre, message });
+}
+
+/**
+ * Jugement d'un plafond PAR VIDÉO ou par sujet (centimes du pire cas : déjà engagé + cet appel). PUR côté décision :
+ *  - sous le plafond : "ok" ;
+ *  - mode bloquant, plafond dépassé : "bloque" (refus comme avant) ;
+ *  - mode indicatif, jusqu'à 5 × le plafond : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif) ;
+ *  - mode indicatif, au-delà de 5 × le plafond : "arret-securite" (jamais payé).
+ */
+export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque" | "arret-securite"> {
+  const plafond = centimesDuPlafond(plafondUsd);
+  if (totalCentimes <= plafond) return "ok";
+  if (!indicatif) return "bloque";
+  if (totalCentimes > plafond * FACTEUR_SECURITE_BUDGET) return "arret-securite";
+  await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", `${quoi} : ${messageAuDelaDuBudgetIndicatif(affichage.sansPrix || affichage.tauxUsdEur === undefined ? undefined : formaterMontant(centimes(centimesDuPlafond(plafondUsd * affichage.tauxUsdEur))))}`, sujet);
+  return "ok";
+}
+
+async function alerterUneFoisParJour(motif: string, texte: { titre: string; message: string }): Promise<void> {
   try {
     const cle = `budget.refus.${jourParis()}.${motif}`;
     if (await lireParametre<boolean>(cle, false)) return;
-    await creerNotification({ type: "budget", ...ALERTES[motif], lien: "/reglages#budget" });
+    await creerNotification({ type: "budget", ...texte, lien: "/reglages#budget" });
     // L3-0 : la marque « déjà alerté » n'est posée qu'APRÈS l'envoi réussi ; une panne d'envoi laisse l'alerte repartir au refus suivant.
     await ecrireParametre(cle, true);
   } catch {
@@ -143,12 +179,27 @@ async function alerterRefus(motif: MotifRefus): Promise<void> {
  * Codes : `BUDGET_ILLISIBLE`, `BUDGET_DEPASSE` (plafond du studio), `BUDGET_USINE_ABSENT`, `BUDGET_MENSUEL_ATTEINT`.
  */
 export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id } = {}): Promise<void> {
-  const plafond = await plafondStudioCentimes();
-  const besoin = Number.isFinite(besoinCentimes) ? Math.max(0, Math.ceil(besoinCentimes)) : Number.POSITIVE_INFINITY;
+  // Mode indicatif (commande de Will seulement) : le plafond du mois est un repère, jamais un refus. L'Usine reste bloquante.
+  const indicatif = await budgetIndicatifPour(options.origine);
+  let plafond: number;
+  try {
+    plafond = await plafondStudioCentimes();
+  } catch (e) {
+    if (!indicatif) throw e;
+    await signalerDepassementIndicatif("plafond-illisible", "Budget du mois illisible (la fabrication continue)", "Le plafond du mois est illisible : rien n'est bloqué, mais réglez-le dans Réglages > Budget.");
+    return;
+  }
+  // Estimation illisible : refus dans les DEUX modes (jamais un total NaN engagé).
+  if (!Number.isFinite(besoinCentimes)) throw new ErreurStudio("BUDGET_ILLISIBLE", "Le prix de cette fabrication est illisible : rien ne part.");
+  const besoin = Math.max(0, Math.ceil(besoinCentimes));
   const vue = await resumeBudget();
   const propre = options.travailId ? await engagementDuTravail(options.travailId) : 0;
   const utilise = vue.depense.centimes + vue.engage.centimes - propre;
   if (utilise + besoin > plafond) {
+    if (indicatif) {
+      await signalerDepassementIndicatif("mois", "Budget indicatif du mois dépassé", "Rien n'est arrêté : la fabrication continue. Réglages > Budget pour ajuster le repère du mois.");
+      return;
+    }
     await alerterRefus("plafond");
     throw new ErreurStudio("BUDGET_DEPASSE", "Le budget du mois serait dépassé. Augmentez-le dans Réglages.");
   }

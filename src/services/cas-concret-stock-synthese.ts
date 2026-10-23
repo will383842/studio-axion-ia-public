@@ -3,8 +3,8 @@
  * `construireStockCas`.
  *
  * Quatre ÉTATS, qui se recoupent (un cas est à la fois « restant » ou « traité », et « à valider » ou « validé ») :
- *   - restant : aucune vidéo qui compte (MÊME règle que l'anti-doublon, `videoCompte` : une vidéo à la corbeille compte encore) ;
- *   - traite : au moins une vidéo qui compte ;
+ *   - restant : aucune vidéo qui compte (MÊME règle que l'anti-doublon, `videoCompte` : une vidéo à la corbeille compte encore) et cas pas traité ;
+ *   - traite : au moins une vidéo qui compte, OU cas allé au bout (`LigneStock.traite`, règle `casTraites`) ;
  *   - a-valider : le script du cas n'est pas validé ;
  *   - valide : le script du cas est validé.
  * Secteur et taille viennent du rangement (cas du stock par métier) : un cas sans rangement n'est compté dans aucun des deux.
@@ -24,7 +24,8 @@ export interface CompteursStock {
 
 /** Les états d'un cas (deux au plus : un du couple restant/traité, un du couple a-valider/valide). */
 export function etatsDuCas(l: LigneStock): EtatStock[] {
-  return [l.videos.comptees > 0 ? "traite" : "restant", l.script.valide ? "valide" : "a-valider"];
+  // « Traité » : une vidéo qui compte (anti-doublon, y compris en cours : le cas garde son étiquette) OU un cas allé au bout (`casTraites`, même vidéo supprimée).
+  return [l.videos.comptees > 0 || l.traite ? "traite" : "restant", l.script.valide ? "valide" : "a-valider"];
 }
 
 const ajouter = (m: Record<string, number>, cle: string | undefined): void => {

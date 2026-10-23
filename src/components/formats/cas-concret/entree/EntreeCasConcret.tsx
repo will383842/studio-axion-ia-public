@@ -24,6 +24,9 @@ import { CasAValider } from "./CasAValider";
 import { CaseDuCas } from "./CaseDuCas";
 import { FeuilleVotreVideo, type ChoixVideo, type EtatVoix } from "./FeuilleVotreVideo";
 import { PastillesOffres } from "./PastillesOffres";
+import { FiltresStock } from "@/components/formats/cas-concret/stock/FiltresStock";
+import type { FiltresStock as Filtres } from "@/services/cas-concret-stock-synthese";
+import { filtrerCas, groupesDepuisCas, piocherCas, PHRASE_AUCUN_RESTANT } from "./piocher";
 import { RelireAvantLancement } from "./RelireAvantLancement";
 import { casCourant, enregistrerScriptRelu, PHRASE_SCRIPT_GARDE_AUTRE } from "./relire";
 import { boutonPorteBVisible, classerCas, type FiltreOffre, type VueCas } from "./vue";
@@ -40,10 +43,28 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
   const [offre, setOffre] = useState<FiltreOffre>("tous");
   const [ouvert, setOuvert] = useState<{ cas: VueCas; essai: boolean; montant?: number; refus?: string | null } | null>(null);
   const [relecture, setRelecture] = useState<{ cas: VueCas; essai: boolean; choix: ChoixVideo; montant: number } | null>(null);
+  const [filtresStock, setFiltresStock] = useState<Filtres>({});
+  const [aucunRestant, setAucunRestant] = useState(false);
   const [porteB, setPorteB] = useState<EtatCase | null>(null);
   const [occupeB, demarrerB] = useTransition();
 
-  const cartes = useMemo(() => classerCas(phrase, valides.filter((c) => offre === "tous" || c.offre === offre)), [phrase, offre, valides]);
+  // Lots K4-K5 : filtres du stock, seulement si le serveur a joint le rang du stock aux cas (réglage `casConcret.stockMetiers` allumé).
+  const avecStock = useMemo(() => [...valides, ...aValider].some((c) => c.stock), [valides, aValider]);
+  const groupesStock = useMemo(() => (avecStock ? groupesDepuisCas([...valides, ...aValider]) : []), [avecStock, valides, aValider]);
+  const validesFiltres = useMemo(() => (avecStock ? filtrerCas(valides, filtresStock) : valides), [avecStock, valides, filtresStock]);
+  const aValiderFiltres = useMemo(() => (avecStock ? filtrerCas(aValider, filtresStock) : aValider), [avecStock, aValider, filtresStock]);
+  const cartes = useMemo(() => classerCas(phrase, validesFiltres.filter((c) => offre === "tous" || c.offre === offre)), [phrase, offre, validesFiltres]);
+
+  /** « Proposez-moi un cas restant » : OUVRE seulement la feuille « Votre vidéo » (aucune fabrication, aucun prix confirmé). */
+  function proposerUnCas() {
+    const choix = piocherCas(valides, aValider, { ...filtresStock, ...(offre !== "tous" ? { offre } : {}) });
+    setAucunRestant(!choix);
+    if (choix) setOuvert({ cas: choix.cas, essai: choix.essai });
+  }
+  function changerFiltresStock(f: Filtres) {
+    setFiltresStock(f);
+    setAucunRestant(false);
+  }
 
   const estimer = useCallback(
     async (choix: ChoixVideo) => {
@@ -201,6 +222,15 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
       <CaseDuCas valeur={phrase} porteB={porteBAllumee} onChange={changerPhrase} onEntree={() => cartes[0] && setOuvert({ cas: cartes[0], essai: false })} />
       {caseLibre}
       <PastillesOffres valeur={offre} onChange={setOffre} cas={valides} />
+      {avecStock && (
+        <div className="space-y-3 rounded-carte border border-trait bg-surface-1 p-4">
+          <FiltresStock groupes={groupesStock} actuels={filtresStock} onChange={changerFiltresStock} />
+          <Bouton variante="secondaire" icone="baguette" onClick={proposerUnCas}>
+            Proposez-moi un cas restant
+          </Bouton>
+          {aucunRestant && <p role="status" className="text-[15px] text-texte-doux">{PHRASE_AUCUN_RESTANT}</p>}
+        </div>
+      )}
       {!valides.length ? (
         <EtatVide compact icone="baguette" titre="Validez un premier cas." />
       ) : cartes.length ? (
@@ -210,9 +240,9 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
           ))}
         </ul>
       ) : (
-        <p className="py-6 text-center text-[15px] text-texte-doux">Aucun cas ne correspond. Essayez un autre mot.</p>
+        <p className="py-6 text-center text-[15px] text-texte-doux">{avecStock && Object.values(filtresStock).some(Boolean) ? "Aucun cas pour ces filtres." : "Aucun cas ne correspond. Essayez un autre mot."}</p>
       )}
-      <CasAValider cas={aValider} occupe={occupe} onValider={valider} onEssai={(c) => setOuvert({ cas: c, essai: true })} />
+      <CasAValider cas={aValiderFiltres} occupe={occupe} onValider={valider} onEssai={(c) => setOuvert({ cas: c, essai: true })} />
       {ouvert && (
         <FeuilleVotreVideo
           key={`${ouvert.cas.id}-${ouvert.essai}-${ouvert.cas.empreinte}-${ouvert.cas.porteB?.aConfirmer.length ?? 0}`}

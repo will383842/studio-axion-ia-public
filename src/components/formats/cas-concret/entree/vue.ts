@@ -62,6 +62,11 @@ export interface VueCas {
   script?: EcranApercu[];
   /** P2C : numéros (à partir de 1) des étapes dont l'écran est derrière une connexion : « Fournir cet écran ». Absent : réglage éteint. */
   ecransAFournir?: number[];
+  /**
+   * Lots K4-K5 : où en est le cas dans le stock. Présent SEULEMENT quand le réglage `casConcret.stockMetiers` est allumé et que
+   * le stock a des cas rangés (absent : l'écran est celui d'avant). `fiche`, `secteur` et `taille` : cas du stock par métier seulement.
+   */
+  stock?: { traite: boolean; fiche?: string; secteur?: string; taille?: string };
   /** P2S · cas né de la porte B : son brouillon et les faits à confirmer (absent : cas du catalogue). */
   porteB?: { videoId: string; aConfirmer: { id: string; enonce: string }[] };
 }

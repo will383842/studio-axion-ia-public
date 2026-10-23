@@ -84,3 +84,29 @@ describe("synthèse du stock (K2)", () => {
     expect(filtrerStock(lignes, { secteur: "ZZ" })).toEqual([]);
   });
 });
+
+describe("cas traité (vidéo allée au bout, même supprimée)", () => {
+  it("compte « traité » sans vidéo qui compte, grâce à l'inscription ; sinon « restant »", () => {
+    const { catalogue, rangement } = jeu(3);
+    const lignes = construireStockCas({
+      scripts: {},
+      videos: [],
+      catalogue,
+      rangement,
+      traites: new Map([["cas-fab-0", { titre: "Supprimée", le: "2026-10-09T08:00:00.000Z" }]]),
+    });
+    expect(lignes[0]!.traite).toEqual({ titre: "Supprimée", le: "2026-10-09T08:00:00.000Z" });
+    expect(lignes[1]!.traite).toBeUndefined();
+    const s = syntheseStock(lignes);
+    expect(s.parEtat.traite).toBe(1);
+    expect(s.parEtat.restant).toBe(2);
+    expect(filtrerStock(lignes, { etat: "traite" }).map((l) => l.casId)).toEqual(["cas-fab-0"]);
+  });
+
+  it("un cas en cours garde son étiquette « traité » (vidéo qui compte), sans être « allé au bout »", () => {
+    const { catalogue, rangement } = jeu(2);
+    const lignes = construireStockCas({ scripts: {}, videos: [video("cas-fab-1", { statut: "en_fabrication" })], catalogue, rangement, traites: new Map() });
+    expect(lignes[1]!.traite).toBeUndefined();
+    expect(syntheseStock(lignes).parEtat.traite).toBe(1);
+  });
+});

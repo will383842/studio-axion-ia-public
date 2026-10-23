@@ -647,7 +647,7 @@ function appelStudio(videoId: Id, depuis?: string, pireUsd?: number): OutilsDeco
     // Plafond PROPRE du découpage pour cette vidéo, à part des textes : par défaut 0,60 $, ou le prix CONFIRMÉ de ce
     // découpage (ses deux appels au pire, marge de réservation comprise) s'il est plus haut ; un réglage explicite gagne.
     const defautUsd = Math.max(PLAFOND_DECOUPAGE_TABLEAU.defautUsd, (pireUsd ?? 0) * (1 + MARGE_CREDITS));
-    const r = await executerRolePourVideo(videoId, role, entree, { etape: ETAPE_DECOUPAGE, plafondPropre: { ...PLAFOND_DECOUPAGE_TABLEAU, defautUsd, ...(depuis ? { depuis } : {}) } });
+    const r = await executerRolePourVideo(videoId, role, entree, { etape: ETAPE_DECOUPAGE, plafondPropre: { ...PLAFOND_DECOUPAGE_TABLEAU, defautUsd, ...(depuis ? { depuis } : {}) }, parWill: true });
     return reponseDecoupageDepuis(r);
   };
 }

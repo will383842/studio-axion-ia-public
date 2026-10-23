@@ -5,7 +5,7 @@ import React from "react";
  * chiffre suivant arrive, il rapetisse vers le haut et les autres se rangent dessous (`corps.tsx`).
  */
 import type { DonneesEcranChiffresRendu } from "./donnees";
-import { a, ANTON, Appoint, C, c01, chasseAnton, doux, INTER, progres, pt, type CadreChiffres } from "./outils";
+import { a, ANTON, Appoint, C, c01, chasseAnton, contreEchelle, doux, INTER, progres, pt, type CadreChiffres } from "./outils";
 
 /** Chasse d'une ligne du géant : « % » y est dessiné à 0,62 de la taille. */
 const chasseLigne = (l: string) => chasseAnton(l.replace("%", "")) + (l.includes("%") ? 0.75 * 0.62 : 0);
@@ -47,7 +47,7 @@ export function planGeant(d: DonneesEcranChiffresRendu, cadre: CadreChiffres) {
   return { lignes, legende, taille, pas, haut, filet: haut + pas + 24, legendeAnton };
 }
 
-export function Geant({ d, t, t0, cadre, discret = 0 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; discret?: number }) {
+export function Geant({ d, t, t0, cadre, discret = 0, echelle = 1 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; discret?: number; echelle?: number }) {
   const g = planGeant(d, cadre);
   const trace = doux(progres(t, t0 + 0.35, 1.2));
   const entreeLegende = doux(progres(t, t0 + 0.2, 0.3));
@@ -76,7 +76,7 @@ export function Geant({ d, t, t0, cadre, discret = 0 }: { d: DonneesEcranChiffre
           ))}
         </div>
       ) : g.legende ? (
-        <div style={{ position: "absolute", left: 72, top: g.filet + 40, ...INTER, fontSize: 72, color: C.ivoire, opacity: entreeLegende * (1 - discret), whiteSpace: "nowrap" }}>{g.legende}</div>
+        <div style={{ position: "absolute", left: 72, width: 936, top: g.filet + 40, ...INTER, fontSize: 72, color: C.ivoire, opacity: entreeLegende, ...contreEchelle(echelle, "50% 0%") }}>{g.legende}</div>
       ) : null}
     </>
   );

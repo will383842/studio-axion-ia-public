@@ -26,7 +26,7 @@ avocat 4,5 (`DEBIT_AVATAR_MESURE_AVOCATREF`), cas concret 3,4 en estimation (`fo
 
 **Mémoire anti-copie.** Branchée pour le central (`ecriture.memoireCentrale`), le tableau (`ecriture.memoireTableau`) et le cas concret
 (`ecriture.memoireCasConcret`), mais les réglages sont **coupés** par défaut : tant que Will ne les allume pas, rien n'est lu ni écrit.
-**Face caméra** (chaîne courte) : elle LIT bien la recette commune. **Face caméra animée** : `tests/generateur/facecam-animee-recette.test.ts` ne prouve que la recette ; sa mémoire n'est pas branchée (exception « aucun importeur à ce jour », `contrat-format.ts`).
+**Face caméra** (chaîne courte) : elle LIT bien la recette commune. **Face caméra animée** : écrite par la chaîne courte du générateur central (`parametresFacecamAnimee`, `parametres-generateur.ts`) ; elle reçoit donc recette, mémoire et contrôles (`memoireDuFormat` n'exclut que l'avocat). `tests/generateur/facecam-animee-recette.test.ts` ne prouve que la recette ; l'exception de `contrat-format.ts` n'est pas encore levée (contrat non déclaré).
 
 **Recette en 8 éléments** : écrite telle quelle dans `RECETTE_SCRIPT` : hook, douleur, question, promesse, une idée, preuve, rupture (n° 7), appel.
 La chaîne courte la cite dans la consigne du rôle « script ». Les fonctions minimales du socle (accroche, tension, valeur, preuve, promesse, gain tôt,
@@ -65,7 +65,7 @@ Chaque générateur hérite des points 3-14 via sa recette (`recettes/*.ts`) : u
 | Redite | ✅ | ✅ (socle) | ✅ (socle) | ✅ (socle) | ✅ (socle) |
 | Script de Will à l'identique | ✅ banc | 🟡 | 🟡 | ✅ scripts validés | 🟡 |
 | Voyant rouge | ✅ | ✅ | ✅ | ✅ | ✅ (tous via `voyantDe`) |
-| Mémoire anti-copie | ✅ branchée, réglage COUPÉ (`ecriture.memoireCentrale`) | face caméra ✅ via la chaîne courte, réglage COUPÉ ; animée ❌ aucun importeur | ✅ branchée, réglage COUPÉ (`ecriture.memoireTableau`) | ✅ branchée, réglage COUPÉ (`ecriture.memoireCasConcret`) | ❌ (C2-C4) |
+| Mémoire anti-copie | ✅ branchée, réglage COUPÉ (`ecriture.memoireCentrale`) | face caméra ✅ via la chaîne courte, réglage COUPÉ ; animée ✅ via la chaîne courte (contrat non déclaré) | ✅ branchée, réglage COUPÉ (`ecriture.memoireTableau`) | ✅ branchée, réglage COUPÉ (`ecriture.memoireCasConcret`) | ❌ (C2-C4) |
 | Adaptation réseau | ✅ `appelImposeCourt` | 🟡 | 🟡 | 🟡 | ✅ question sauf LinkedIn (`socle.test.ts` adaptateurs) |
 | Sans Villeexemple / gain garanti | ✅ | ✅ `tests/facecam-animee/mots-interdits-ecran.test.ts` | ✅ | ✅ | ✅ |
 
@@ -79,13 +79,13 @@ Restent en `it.todo` : le cas concret et l'équipe (recette commune non branché
 ### Exceptions assumées en fin de chantier
 
 - **Cas concret** : garde ses règles R01+ et son propre écrivain ; la recette commune n'y est pas branchée (exception datée, `contrat-format.ts`).
-- **Face caméra animée** : sans mémoire commune (aucun importeur à ce jour) ; seule la recette est prouvée.
+- **Face caméra animée** : mémoire et contrôles reçus via la chaîne courte (réglage coupé comme les autres) ; seule la recette est prouvée par un test dédié, et son contrat n'est pas déclaré.
 - **Grande chaîne et équipe (face caméra)** : sans recette commune. Décision D10 : leur suppression est à demander à Will.
 - **Image → vidéo** : gelé.
 - **Avocat** : hors recette, hors contrat (décision de Will).
 - **Débit mesuré** non relevé (`debitMesure: false`) : les exceptions correspondantes expirent le 31/12/2026 (`contrat-format.ts` ~l.96).
 - **Contrôles C96-C99** : encore en alerte (`src/domaine/controles-script/niveaux.ts` ~l.138-141) ; D4 non soldé.
-- **LinkedIn** : encore produit en 4:5 (`src/reseaux/index.ts:92`, `src/reseaux/sorties.ts:118-140`, `src/briques/declinaison/index.ts:63`), contre la décision 9:16 en attente.
+- **LinkedIn** : les vidéos sont en 9:16 depuis #580 (`ratioPrefere: "9:16"`, `src/reseaux/index.ts:92`, décision de Will du 19/10) ; ce point est soldé. Le 4:5 reste un ratio permis du registre (et celui du tableau animé), plus le défaut des vidéos LinkedIn.
 
 ## 4. Décisions de Will (tranchées par le lot A)
 

@@ -25,7 +25,7 @@ import type { PisteVoixSeuleIV } from "./assemblage";
 import { CRETE_IV_DBTP, LOUDNESS_IV_LUFS } from "./assemblage";
 import { clesDeLaCarte, controlerToutMontre, type LigneControleSceneIV } from "./controles-scene";
 import { miseEnPageAuxInstantsIV } from "./emprise-ligne";
-import { formesComparables, type ConstatControle, type EcouteVersionIV } from "./ecoute";
+import { formeDite, formesComparables, type ConstatControle, type EcouteVersionIV } from "./ecoute";
 import { FIGE_IV } from "./commandes-ffmpeg";
 import type { FinIV } from "./fins";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV, type ResultatMiseEnSceneIV } from "./mise-en-scene";
@@ -183,7 +183,7 @@ export function scriptDeLaVersion(v: Pick<VersionAControlerIV, "fiche" | "fin">)
 function entendue(phrase: string, entendu: string): boolean {
   const formes = formesComparables(phrase);
   if (!formes.length) return false;
-  const dits = jetonsDits(entendu.split(/\s+/).filter(Boolean).map((mot) => ({ mot, debutSec: 0, finSec: 0 })), () => true).flatMap((j) => formesComparables(j.forme).map((forme) => ({ forme, mot: j.mot })));
+  const dits = jetonsDits(entendu.split(/\s+/).filter(Boolean).map((mot) => ({ mot: formeDite(mot), debutSec: 0, finSec: 0 })), () => true).flatMap((j) => formesComparables(j.forme).map((forme) => ({ forme, mot: j.mot })));
   return occurrences(formes, dits).some((o) => o.complete);
 }
 

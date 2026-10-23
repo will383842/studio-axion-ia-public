@@ -468,6 +468,9 @@ export async function executerSuppression(video: Video): Promise<void> {
 /** Le plan calculé puis appliqué (à appeler sous le verrou du studio) ; rend les clés à effacer du stockage. */
 export async function appliquerSuppression(video: Video): Promise<string[]> {
   const plan = await planifierSuppression(video);
+  // Un cas concret fini reste « traité » après sa suppression (manuelle ou purge de la corbeille) : inscrit AVANT d'effacer.
+  // Ne bloque jamais la suppression.
+  await (await import("./cas-concret-traites")).noterAvantSuppression(video);
   await appliquerLot(plan.lot);
   try {
     await oublierBailExpire(`lanceur-image-video:${video.id}`);

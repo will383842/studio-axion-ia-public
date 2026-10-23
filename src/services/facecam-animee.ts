@@ -52,6 +52,8 @@ const STUDIO_NON_RELIE_FA = "Le studio n'est pas relié (stockage ou serveur de 
 
 export interface DependancesOutilsFA {
   videoId: Id;
+  /** Origine de la commande (« usine » : les plafonds restent bloquants). */
+  origine?: CommandeFabrication["origine"];
   travailId: Id;
   /** Production : un fournisseur simulé y est refusé (défaut : `NODE_ENV`). */
   production?: boolean;
@@ -188,7 +190,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
     },
     async plafondClaudeAtteint() {
       const { plafondClaudeDuMoisAtteint } = await import("./plafond-claude");
-      return plafondClaudeDuMoisAtteint();
+      return plafondClaudeDuMoisAtteint(dep.origine ?? (await (await import("./mode-budget")).origineDeLaVideo(dep.videoId)));
     },
     async appelerRealisateur(requete: RequeteRealisateur): Promise<ReponseRealisateur> {
       const { roleRealisateurV4, entreeRoleRealisateurV4 } = await import("@/moteurs/montage-facecam-animee/realisateur/role-v4");
@@ -197,7 +199,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
       const { executerRolePourVideo } = await import("./depense-claude-video");
       const plafondPropre = { id: "faclaude", parametre: PARAM_PLAFOND_CLAUDE_FA, defautUsd: PLAFOND_CLAUDE_FA_USD, prefixeEtape: PREFIXE_ETAPE_FA };
       // Le plafond propre a la forme de ceux du tableau ; son identifiant n'est pas dans leur liste (même chemin que « Image → vidéo »).
-      const r = await executerRolePourVideo(dep.videoId, roleRealisateurV4(), entreeRoleRealisateurV4(requete), { etape, plafondPropre } as unknown as Parameters<typeof executerRolePourVideo>[3]);
+      const r = await executerRolePourVideo(dep.videoId, roleRealisateurV4(), entreeRoleRealisateurV4(requete), { etape, plafondPropre, ...(dep.origine ? { origine: dep.origine } : {}) } as unknown as Parameters<typeof executerRolePourVideo>[3]);
       return reponseRealisateurDe(r);
     },
     async historique() {
@@ -246,7 +248,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           const { executerRolePourVideo } = await import("./depense-claude-video");
           const octets = await readFile(image);
           // Plafond propre « favid » : l'enveloppe commence au début de CETTE version (le travail), pas à la création de la vidéo.
-          const r = await executerRolePourVideo(dep.videoId, roleControleVideoV4(), { contexte: {}, variable: consigne, images: [{ type: "image/jpeg", base64: octets.toString("base64"), legende: "Planche de trois images du passage retenu" }] }, { etape: `${PREFIXE_ETAPE_VIDEOS_FA} contrôle`, plafondPropre: plafondVideosFa(await debutVersion()) });
+          const r = await executerRolePourVideo(dep.videoId, roleControleVideoV4(), { contexte: {}, variable: consigne, images: [{ type: "image/jpeg", base64: octets.toString("base64"), legende: "Planche de trois images du passage retenu" }] }, { etape: `${PREFIXE_ETAPE_VIDEOS_FA} contrôle`, plafondPropre: plafondVideosFa(await debutVersion()), ...(dep.origine ? { origine: dep.origine } : {}) });
           if (!r.ok) return { ok: false, message: r.message };
           // Claude non relié (simulation) ou réponse vide : refus, jamais une vidéo acceptée sans contrôle.
           if (r.simule || !r.texte) return { ok: false, message: "Claude n'est pas relié au studio." };
@@ -279,7 +281,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
 }
 
 // Raccord du moteur : la boucle de fond charge ce fichier pour son effet.
-brancherServicesFacecamAnimee({ outils: async (commande: CommandeFabrication, travailId: string) => outilsFacecamAnimee({ videoId: commande.videoId, travailId }) });
+brancherServicesFacecamAnimee({ outils: async (commande: CommandeFabrication, travailId: string) => outilsFacecamAnimee({ videoId: commande.videoId, travailId, ...(commande.origine ? { origine: commande.origine } : {}) }) });
 
 /* ------------------------------------------------------------------ */
 /* 2. Écran de dépôt (Will seul : page joignable par son adresse)        */

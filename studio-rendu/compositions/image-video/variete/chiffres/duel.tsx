@@ -6,7 +6,7 @@ import React from "react";
  * fabrique un duel que pour elle). Appoint : le message, puis la réponse cochée.
  */
 import type { DonneesEcranChiffresRendu } from "./donnees";
-import { a, ANTON, Appoint, Bulle, C, c01, chasseAnton, Coche, doux, encre, INTER, Points, progres, tailleAnton, type CadreChiffres } from "./outils";
+import { a, ANTON, Appoint, Bulle, C, c01, chasseAnton, Coche, contreEchelle, doux, encre, INTER, Points, progres, tailleAnton, type CadreChiffres } from "./outils";
 
 function Coins({ x, y, l, h, couleur, longueur = 54, ep = 8, hauteur }: { x: number; y: number; l: number; h: number; couleur: string; longueur?: number; ep?: number; hauteur: number }) {
   const coins: [number, number, number, number][] = [
@@ -68,7 +68,7 @@ function Pave({ texte, y, hauteur, couleur, ombre }: { texte: string; y: number;
  * remplit l'écran ; quand la nouvelle est dite, l'ancienne remonte en petit et se barre, la nouvelle prend sa place en
  * orange, sur une carte blanche cadrée de coins.
  */
-function DuelAvantApres({ d, t, t0, cadre }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres }) {
+function DuelAvantApres({ d, t, t0, cadre, echelle = 1 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; echelle?: number }) {
   const ancien = d.duel!.ancien;
   const focal = d.chiffres[d.focal];
   const h = cadre.bas - cadre.haut;
@@ -89,7 +89,7 @@ function DuelAvantApres({ d, t, t0, cadre }: { d: DonneesEcranChiffresRendu; t: 
     <>
       <div style={{ opacity: apparait * (1 - k) }}>
         <Pave texte={ancien.texte} y={cadre.haut} hauteur={hPave} couleur={encreF} />
-        {legendeA ? <div style={{ position: "absolute", left: 60, width: 960, top: cadre.haut + hPave + 24, textAlign: "center", ...INTER, fontSize: 62, color: encreF }}>{ancien.legende}</div> : null}
+        {legendeA ? <div style={{ position: "absolute", left: 60, width: 960, top: cadre.haut + hPave + 24, textAlign: "center", ...INTER, fontSize: 62, color: encreF, ...contreEchelle(echelle, "50% 0%") }}>{ancien.legende}</div> : null}
       </div>
       <div style={{ opacity: k }}>
         <div style={{ position: "absolute", left: 96, top: cadre.haut + 10, ...ANTON, fontSize: tailleHaut, lineHeight: 1, color: encreF, whiteSpace: "nowrap" }}>{ancien.texte}</div>
@@ -104,13 +104,13 @@ function DuelAvantApres({ d, t, t0, cadre }: { d: DonneesEcranChiffresRendu; t: 
         </div>
       ) : null}
       <Coins x={66} y={yN - 40} l={948} h={cadre.bas - yN + 64} couleur={a(C.orange, doux(progres(t, t0 + 0.2, 0.3)))} longueur={80} hauteur={cadre.hauteur} />
-      {focal.legende ? <div style={{ position: "absolute", left: 60, width: 960, top: cadre.bas - 96, textAlign: "center", ...INTER, fontSize: 62, color: encreF, opacity: doux(progres(t, t0 + 0.15, 0.3)) }}>{focal.legende}</div> : null}
+      {focal.legende ? <div style={{ position: "absolute", left: 60, width: 960, top: cadre.bas - 96, textAlign: "center", ...INTER, fontSize: 62, color: encreF, opacity: doux(progres(t, t0 + 0.15, 0.3)), ...contreEchelle(echelle, "50% 0%") }}>{focal.legende}</div> : null}
     </>
   );
 }
 
 export function Duel({ d, t, t0, cadre, discret = 0, echelle = 1 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; discret?: number; echelle?: number }) {
-  if (d.duel?.ancien.t !== undefined) return <DuelAvantApres d={d} t={t} t0={t0} cadre={cadre} />;
+  if (d.duel?.ancien.t !== undefined) return <DuelAvantApres d={d} t={t} t0={t0} cadre={cadre} echelle={echelle} />;
   const autre = d.duel?.ancien;
   const focal = d.chiffres[d.focal];
   const dy = cadre.haut - 300;
@@ -141,7 +141,7 @@ export function Duel({ d, t, t0, cadre, discret = 0, echelle = 1 }: { d: Donnees
         <div style={{ ...ANTON, fontSize: taille, color: C.orange, whiteSpace: "nowrap", textShadow: `0 ${taille / 40}px ${taille / 12}px ${a(C.encre, 0.1)}` }}>{focal.texte}</div>
       </div>
       <Coins x={x0 - 34} y={yFocal - 16} l={lFocal + 68} h={finale + 32} couleur={a(C.orange, doux(progres(t, t0 + 0.3, 0.3)))} longueur={80} hauteur={cadre.hauteur} />
-      {avecLegende ? <div style={{ position: "absolute", left: 60, width: 960, top: zoneBas + 24, textAlign: "center", ...INTER, fontSize: 62, color: encre(d.fond), opacity: doux(progres(t, t0 + 0.15, 0.3)) * (1 - discret) }}>{focal.legende}</div> : null}
+      {avecLegende ? <div style={{ position: "absolute", left: 60, width: 960, top: zoneBas + 24, textAlign: "center", ...INTER, fontSize: 62, color: encre(d.fond), opacity: doux(progres(t, t0 + 0.15, 0.3)), ...contreEchelle(echelle, "50% 0%") }}>{focal.legende}</div> : null}
     </>
   );
 }

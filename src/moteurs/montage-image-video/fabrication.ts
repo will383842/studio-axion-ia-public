@@ -59,7 +59,7 @@ import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
-import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, rapportVoixIV, repriseVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
+import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, repriseVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
 /* ------------------------------------------------------------------ */
 /* Étapes                                                                */
@@ -404,7 +404,15 @@ export interface OutilsFabricationIV {
   /** Porte unique : tout sauf la réservation et les identifiants d'appel, posés par la machine. */
   controles: Omit<OutilsPorteIV, "budget" | "idAppel">;
   /** Budget réel du studio (pré-vol ou réservation), appelé APRÈS le contrôle du plafond par la caisse. */
-  budget: { reserver: (d: DemandeDepenseIV) => Promise<{ ok: true } | { ok: false; message: string }> };
+  budget: {
+    reserver: (d: DemandeDepenseIV) => Promise<{ ok: true } | { ok: false; message: string }>;
+    /**
+     * MODE INDICATIF (`budget.mode`, posé par le service) : le plafond de la vidéo n'est qu'un repère. Au-dessus, la caisse
+     * appelle `signaler` (journal + cloche) et laisse passer ; l'arrêt de sécurité vient à `facteurSecurite` × le plafond.
+     * Absent : mode bloquant, comportement d'avant.
+     */
+    indicatif?: { facteurSecurite: number; signaler: (message: string) => Promise<void> };
+  };
   /** Sons validés (défaut : ceux de la v4, `BRUITAGES_V4_IV`). */
   bruitagesValides?: readonly BruitageValideIV[];
   /** Nombre de cartes déjà validées par Will (compteur du studio). */
@@ -588,7 +596,16 @@ class Caisse {
     if (this.etat.caisse.reservations.some((r) => r.cle === cle)) return { ok: true };
     const engage = engageCentimes(this.etat);
     const centimes = Math.max(0, Math.ceil(d.centimes));
-    if (engage + centimes > this.etat.caisse.plafondCentimes) {
+    const ind = this.outils.budget.indicatif;
+    const plafond = this.etat.caisse.plafondCentimes;
+    if (ind && engage + centimes > plafond && engage + centimes <= plafond * ind.facteurSecurite) {
+      // Repère dépassé, arrêt de sécurité pas atteint : Will est prévenu, la fabrication continue (la réservation reste posée).
+      await ind.signaler(`Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`).catch(() => undefined);
+    } else if (engage + centimes > plafond) {
+      if (ind) {
+        this.arretPlafond = `Arrêt de sécurité : cette vidéo a déjà coûté ${ind.facteurSecurite} fois son prix annoncé (${euros(plafond)}, déjà engagé ${euros(engage)}, il faudrait ${euros(centimes)} de plus) : rien n'a été payé pour cette étape.`;
+        return { ok: false, message: this.arretPlafond };
+      }
       this.arretPlafond = `Plafond de cette vidéo atteint (${euros(this.etat.caisse.plafondCentimes)}, déjà engagé ${euros(engage)}, il faudrait ${euros(centimes)} de plus) : rien n'a été payé pour cette étape.`;
       return { ok: false, message: this.arretPlafond };
     }
@@ -821,9 +838,17 @@ const RELECTURE_USD_PAR_VERSION = { habituel: 0.25, auPlus: 0.5 };
 /** Lectures payées au plus par texte (relectures neuves, puis une relance de ressemblance chacune). */
 const LECTURES_VOIX_AU_PLUS = { corps: 3 * 2, fin: 2 * 2 };
 
+/**
+ * 20/10 : la voix est lue d'UN trait (corps, partie commune des fins, phrase propre à chaque réseau) pour une vidéo neuve ;
+ * une voix déjà payée en segments séparés (« voix-iv/1 ») garde ses segments, JAMAIS relue : sans cette garde, la reprise
+ * relirait en payant le corps de toute vidéo reprise.
+ */
+// Un état déjà payé suit SA version, jamais le drapeau (le remettre à `false` ne doit pas relire les voix « voix-iv/2 »).
+const lectureUniqueDe = (voix: Pick<EtatVoixIV, "version"> | undefined) => (voix ? voix.version === "voix-iv/2" : LECTURE_UNIQUE_IV);
+
 /** Prix de la suite après la validation du script : voix (au caractère), écoute et relecture de chaque version. */
-export function prixSuiteIV(etat: Pick<EtatFabricationIV, "demande" | "caisse">, fiche: FicheImage, plan: PlanDesFinsIV, tarifVoixCentimesParCaractere: number): PrixIV {
-  const segments = segmentsVoixIV(fiche, plan);
+export function prixSuiteIV(etat: Pick<EtatFabricationIV, "demande" | "caisse" | "voix">, fiche: FicheImage, plan: PlanDesFinsIV, tarifVoixCentimesParCaractere: number): PrixIV {
+  const segments = segmentsVoixIV(fiche, plan, { lectureUnique: lectureUniqueDe(etat.voix) });
   const taux = etat.demande.tauxUsdEur;
   const voix = (n: number, k: number) => Math.ceil(n * k * tarifVoixCentimesParCaractere - 1e-9);
   const caracteresFins = segments.fins.reduce((s, f) => s + f.texte.length, 0);
@@ -1100,7 +1125,7 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
     e.journal.push(`Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
     passerA(e, "script-a-valider");
     // Lot : aucune porte n'attend Will ; contrôle automatique avant de payer la voix.
-    return e.demande.lot ? controleAutomatiqueScriptIV(e) : e;
+    return e.demande.lot ? controleAutomatiqueScriptIV(e, o.budget.indicatif?.facteurSecurite) : e;
   }
   if (r.motif === "budget") return refuser(e, "ecriture", plafond(), r.message);
   return refuser(e, "ecriture", "IV_ECRITURE", r.message, { phrases: r.refus, reessayable: r.motif !== "reglage" });
@@ -1110,11 +1135,12 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
  * Lot, porte « script » (plan § d.2). PUR. `null` : le script est sans doute (rien à trancher, prix connu et dans le prix
  * accordé). Les formules absolues passent avant « à trancher » : B7, rien n'est changé sans Will.
  */
-export function miseDeCoteScriptIV(p: PropositionScriptIV): { motif: string; phrases: string[] } | null {
+export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: number): { motif: string; phrases: string[] } | null {
   if (p.formules.length) return { motif: `Une formule trop affirmative est dans le script : ${p.formules.map((f) => `« ${f.texte} »`).join(", ")}.`, phrases: p.aTrancher.map((m) => m.message) };
   if (p.aTrancher.length) return { motif: "Le script a une phrase à trancher.", phrases: p.aTrancher.map((m) => m.message) };
   if (p.prix.auPlusCentimes <= 0) return { motif: "Le prix de la voix n'a pas pu être calculé.", phrases: [] };
-  if (p.prix.engageCentimes + p.prix.auPlusCentimes > p.prix.plafondCentimes) {
+  // Mode indicatif (`facteurSecurite` donné) : le prix accordé est un repère ; seul l'arrêt de sécurité (n × ce prix) met le script de côté.
+  if (p.prix.engageCentimes + p.prix.auPlusCentimes > p.prix.plafondCentimes * (facteurSecurite ?? 1)) {
     return { motif: `La voix dépasserait le prix accordé pour cette vidéo (${(p.prix.plafondCentimes / 100).toFixed(2).replace(".", ",")} €).`, phrases: [] };
   }
   return null;
@@ -1124,9 +1150,9 @@ export function miseDeCoteScriptIV(p: PropositionScriptIV): { motif: string; phr
  * Lot : le script est contrôlé et, s'il est sans doute, validé comme Will le ferait (`validerScriptIV`, script tel que
  * proposé) ; sinon la vidéo reste à la porte, mise de côté, sans payer la voix. PUR.
  */
-export function controleAutomatiqueScriptIV(etat: EtatFabricationIV): EtatFabricationIV {
+export function controleAutomatiqueScriptIV(etat: EtatFabricationIV, facteurSecurite?: number): EtatFabricationIV {
   const p = etat.propositionScript!;
-  const mise = miseDeCoteScriptIV(p);
+  const mise = miseDeCoteScriptIV(p, facteurSecurite);
   if (mise) return mettreDeCote(etat, "script", mise.motif, mise.phrases);
   try {
     const valide = validerScriptIV(etat, { proposition: p.empreinte, choixFormules: {}, ajoutsWill: [] });
@@ -1151,13 +1177,19 @@ async function pasScript(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<
 
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { script, plan } = e;
-  const segments = segmentsVoixIV(script!.fiche, plan!);
+  const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: lectureUniqueDe(e.voix) });
   const voixOutils: OutilsVoixIV = {
     ...o.voix,
     avantLecture: async (l) => {
-      // Une lecture payée de plus pour cette prise : identifiant stable tant qu'elle n'est pas payée.
-      const deja = e.voix?.voix.payees.filter((p) => p.prise === l.prise).length ?? 0;
-      const r = await caisse.reserver({ appelId: `iv-voix-${l.prise}-${deja + 1}`, etape: "voix", fournisseur: "heygen", centimes: l.coutMaxCentimes, caracteres: l.caracteres });
+      // Le numéro de la lecture se compte sur la CAISSE, jamais sur les lectures payées de l'état : une reprise neuve (texte
+      // modifié puis remis comme avant : A → B → A) a `payees` vide, et la clé `…-1` du texte A existe déjà dans la caisse, qui
+      // répondrait « ok » sans rien réserver. L'empreinte du texte lu est dans toute clé (voix-iv/1 comme voix-iv/2).
+      // Revers accepté : après une panne entre la réservation et la lecture, on réserve une fois de plus (sans risque).
+      const marque = createHash("sha256").update(l.texte).digest("hex").slice(0, 10);
+      const prefixe = `iv-voix-${l.prise}-${marque}-`;
+      const cle = `voix#${e.tentatives.voix ?? 1}:${prefixe}`;
+      const deja = e.caisse.reservations.filter((x) => x.cle.startsWith(cle)).length;
+      const r = await caisse.reserver({ appelId: `${prefixe}${deja + 1}`, etape: "voix", fournisseur: "heygen", centimes: l.coutMaxCentimes, caracteres: l.caracteres });
       if (!r.ok) throw new Error(r.message);
     },
   };
@@ -1259,13 +1291,20 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   return passerA(e, "rendu");
 }
 
+/**
+ * Version des compositions de rendu (studio-rendu/compositions/image-video). À CHANGER à chaque correction de ces compositions :
+ * sans elle, une correction qui ne touche que l'affichage ne change ni la ligne de temps ni l'identifiant de rendu, et « Refaire
+ * cette partie » reprend les anciens rendus (même refus, à 0 €). 23/10/2026 : bulle du récit, légende du chiffre, phrase de la fin.
+ */
+export const VERSION_COMPOSITIONS_IV = "compositions-iv/2";
+
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   e.rendus ??= {};
   for (const v of versionsDe(e)) {
     const ligne = mettreEnSceneIV(sceneDe(e, v, bruitages)).ligne;
     const mixage = planMixageIV(v.piste, ligne.bruitages, ligne.dureeSec);
-    const id = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id])}`;
+    const id = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id, VERSION_COMPOSITIONS_IV])}`;
     if (e.rendus[v.id]?.demande === id) continue;
     const r = await o.rendre({ id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 });
     e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };

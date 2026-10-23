@@ -19,15 +19,15 @@ import { OuvertureE } from "./ouv-e";
 export function DessinOuverture({ d, t, format, boucle }: { d: DonneesOuverture; t: number; format: FormatIV; boucle?: BoucleC }) {
   switch (d.code) {
     case "OUV-A":
-      return <OuvertureA d={d} t={t} format={format} boucle={!!boucle} />;
+      return <OuvertureA d={d} t={t} format={format} boucle={!!boucle} phrase={boucle?.phrase} />;
     case "OUV-B":
-      return <OuvertureB d={d} t={t} format={format} boucle={!!boucle} />;
+      return <OuvertureB d={d} t={t} format={format} boucle={!!boucle} phrase={boucle?.phrase} />;
     case "OUV-C":
       return <OuvertureC d={d} t={t} format={format} boucle={boucle} />;
     case "OUV-D":
-      return <OuvertureD d={d} t={t} format={format} boucle={!!boucle} />;
+      return <OuvertureD d={d} t={t} format={format} boucle={!!boucle} phrase={boucle?.phrase} />;
     case "OUV-E":
-      return <OuvertureE d={d} t={t} format={format} boucle={!!boucle} />;
+      return <OuvertureE d={d} t={t} format={format} boucle={!!boucle} phrase={boucle?.phrase} />;
   }
 }
 

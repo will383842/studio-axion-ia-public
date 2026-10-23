@@ -52,7 +52,7 @@ beforeEach(async () => {
   // Lot A5 : réglage absent = chaîne courte ; ce test éprouve la GRANDE chaîne, il la demande donc expressément.
   // Lot L5 : ces tests écrivent plusieurs fois le même sujet de banc ; le contrôle « déjà traité » n'est pas leur objet.
   await ecrireParametre("sujets.garde", "eteint");
-  await ecrireParametre("generateur.chaine", "complete");
+  (await import("@/services/generation-claude")).forcerChainePourEssai("grande");
   for (const m of SUJETS_BANC.flatMap((s) => s.matieres)) await depots().matieres.enregistrer(m);
   for (const p of SUJETS_BANC.flatMap((s) => s.preuves)) await depots().preuves.enregistrer(p);
 });

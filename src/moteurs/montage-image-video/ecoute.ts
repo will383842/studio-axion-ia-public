@@ -73,6 +73,12 @@ const SUITE_PARASITE_MAX = 6;
 /** Mot transcrit ramené à sa forme dite (« 80% » → « 80 pour cent », « 23h14 » → « 23 heures 14 »). */
 export function formeDite(mot: string): string {
   return mot
+    // « email » écrit d'un bloc par Whisper (v-6e4a06b9c718) : on remet le trait d'union, que la comparaison coupe de toute façon
+    // (« e-mail », « email » et « e » « mail » donnent les mêmes jetons ; « week » « end » aussi).
+    .replace(/(?<![\p{L}])(e)(mails?)(?![\p{L}])/giu, "$1-$2")
+    .replace(/(?<![\p{L}])(week)(ends?)(?![\p{L}])/giu, "$1-$2")
+    .replace(/(?<![\p{L}])(start)(ups?)(?![\p{L}])/giu, "$1-$2")
+    .replace(/(?<![\p{L}])(check)(lists?)(?![\p{L}])/giu, "$1-$2")
     .replace(/(\d)[\s  ](?=\d{3}(?!\d))/g, "$1")
     .replace(/(\d+),(\d+)/g, "$1 virgule $2")
     .replace(/(\d+)\s?%/g, "$1 pour cent")
@@ -97,6 +103,13 @@ export interface TranscriptionUtile {
   hesitations: number;
 }
 
+/** « 4-20 » (« quatre-vingts ») → « 80 », « 4-20-5 » → « 85 », « 60-10 » → « 70 ». */
+export function nombreComposeWhisper(mot: string): string {
+  return mot
+    .replace(/^4-20(?:-(1?\d))?(?!\d)/, (_x: string, n?: string) => String(80 + Number(n ?? 0)))
+    .replace(/^60-(1\d)(?!\d)/, (_x: string, n: string) => String(60 + Number(n)));
+}
+
 /**
  * Whisper découpe parfois un mot en plusieurs « mots » (première vraie transcription, 18/10 : « Vingt » « -trois »,
  * « 80 » « % », « l » « 'analyse »). On les recolle avant toute comparaison : un fragment qui commence par un trait
@@ -105,13 +118,18 @@ export interface TranscriptionUtile {
  */
 export function recollerMotsWhisper(mots: readonly MotHorodate[]): MotHorodate[] {
   const res: MotHorodate[] = [];
+  const recolles = new Set<number>(); // indices des mots composés recollés : eux seuls sont convertis (« 60-12 » d'un bloc ne change pas)
   for (const m of mots) {
     const precedent = res[res.length - 1];
-    const fragment = /^[-'’]\p{L}/u.test(m.mot) || (/^[%€]$/.test(m.mot) && !!precedent && /\d$/.test(precedent.mot));
+    // « quatre-vingts » écrit « 4 » « -20 » (v-6e4a06b9c718) : « 4 » « -20 » → « 4-20 », « 4-20 » « -5 » → « 4-20-5 », « 60 » « -10 » → « 60-10 ».
+    const fin = "(?:%|[.,!?…]?$)";
+    const compose = !!precedent && ((precedent.mot === "4" && new RegExp(`^-20${fin}`).test(m.mot)) || (precedent.mot === "4-20" && new RegExp(`^-1?\\d${fin}`).test(m.mot)) || (precedent.mot === "60" && new RegExp(`^-1\\d${fin}`).test(m.mot)));
+    if (compose) recolles.add(res.length - 1);
+    const fragment = compose || /^[-'’]\p{L}/u.test(m.mot) || (/^[%€]$/.test(m.mot) && !!precedent && /\d$/.test(precedent.mot));
     if (precedent && fragment) res[res.length - 1] = { ...precedent, mot: precedent.mot + m.mot, finSec: m.finSec };
     else res.push({ ...m });
   }
-  return res;
+  return res.map((x, i) => (recolles.has(i) ? { ...x, mot: nombreComposeWhisper(x.mot) } : x));
 }
 
 /**

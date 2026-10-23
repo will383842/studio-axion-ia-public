@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { empreinteCas, OFFRES, verifierCas } from "../../../src/formats/cas-concret/cas";
-import { CATALOGUE, trouverCas } from "../../../src/formats/cas-concret/catalogue";
+import { CATALOGUE, estCasStock, trouverCas } from "../../../src/formats/cas-concret/catalogue";
+import { CATALOGUE_TS } from "../../../src/formats/cas-concret/catalogue/base";
+import { CAS_STOCK } from "../../../src/formats/cas-concret/stock-metiers";
 import { nombresDe, sansPointsDeSigle } from "../../../src/moteurs/montage-cas-concret/regles";
 
 const IDS_MASTER = ["recrutement-apporteurs", "rappels-rendez-vous", "email-difficile", "compte-rendu-dicte", "audit-une-journee", "contact-vers-crm", "devis-signe-alerte", "articles-blog"];
@@ -22,7 +24,10 @@ const norme = (t: string): string => t.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu
 
 describe("catalogue", () => {
   it("vingt-deux cas (les huit de master, puis quatorze de la phase 2), dans l'ordre, retrouvés par identifiant", () => {
-    expect(CATALOGUE.map((c) => c.id)).toEqual(IDS);
+    expect(CATALOGUE_TS.map((c) => c.id)).toEqual(IDS);
+    expect(CATALOGUE.slice(0, 22)).toEqual([...CATALOGUE_TS]);
+    expect(CATALOGUE.filter((c) => !estCasStock(c.id)).map((c) => c.id)).toEqual(IDS);
+    expect(CATALOGUE).toHaveLength(22 + CAS_STOCK.length);
     for (const c of CATALOGUE) expect(trouverCas(c.id)).toBe(c);
   });
 
@@ -37,7 +42,8 @@ describe("catalogue", () => {
     expect(new Set(CATALOGUE.map((c) => c.id)).size).toBe(CATALOGUE.length);
     expect(new Set(CATALOGUE.map((c) => c.mot.toUpperCase())).size).toBe(CATALOGUE.length);
     expect(new Set(CATALOGUE.map(empreinteCas)).size).toBe(CATALOGUE.length);
-    expect(new Set(CATALOGUE.map((c) => c.offre))).toEqual(new Set(OFFRES.filter((o) => o !== "coaching")));
+    // Les offres sont vérifiées sur les 22 cas d'avant le stock ; le stock, lui, ne casse que l'unicité (ci-dessus).
+    expect(new Set(CATALOGUE_TS.map((c) => c.offre))).toEqual(new Set(OFFRES.filter((o) => o !== "coaching")));
   });
 
   it("aucun mot interdit, aucun prix, aucun pourcentage", () => {
@@ -179,10 +185,20 @@ describe("catalogue · réglage `casConcret.catalogueEtendu` (portage P2)", () =
     expect(IDS_MASTER.some(estCasPhase2)).toBe(false);
   });
 
-  it("la page `/cas-concret` filtre avec le réglage (éteint par défaut), et CATALOGUE garde les vingt-deux", () => {
+  it("la page `/cas-concret` filtre avec le réglage (éteint par défaut), et CATALOGUE garde les vingt-deux d'avant le stock, suivis du stock", () => {
     const page = readFileSync(join(process.cwd(), "src/app/(studio)/cas-concret/page.tsx"), "utf8");
     expect(page).toContain("casVisibles(");
     expect(page).toContain("REGLAGES_CAS_CONCRET.catalogueEtendu");
-    expect(CATALOGUE).toHaveLength(22);
+    expect(CATALOGUE_TS).toHaveLength(22);
+    expect(CATALOGUE).toHaveLength(22 + CAS_STOCK.length);
+    expect(CATALOGUE.slice(0, 22)).toEqual([...CATALOGUE_TS]);
+  });
+
+  it("réglage `stockMetiers` éteint (défaut) : aucun cas du stock n'est visible, allumé : tous", async () => {
+    const { casVisibles } = await import("../../../src/formats/cas-concret/catalogue");
+    const liste = CATALOGUE.map((cas) => ({ cas }));
+    expect(casVisibles(liste, { catalogueEtendu: true }).map((x) => x.cas.id)).toEqual(IDS);
+    expect(casVisibles(liste, { catalogueEtendu: true, stockMetiers: false }).some((x) => estCasStock(x.cas.id))).toBe(false);
+    expect(casVisibles(liste, { catalogueEtendu: true, stockMetiers: true })).toHaveLength(CATALOGUE.length);
   });
 });

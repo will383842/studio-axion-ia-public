@@ -5,19 +5,23 @@ import React from "react";
  * la sortie, où les bulles arrivent (aucun mot).
  */
 import type { DonneesEcranChiffresRendu } from "./donnees";
-import { a, Appoint, Bulle, C, CartePleine, ChiffreAnton, Coche, doux, Points, progres, type CadreChiffres } from "./outils";
+import { a, Appoint, Bulle, C, CartePleine, ChiffreAnton, Coche, contreEchelle, doux, INTER, Points, progres, surplusLegende, type CadreChiffres } from "./outils";
 
 /** Taille du chiffre compté (point focal : reste ≥ 230 px une fois la variante rangée). */
 export const TAILLE_OBJETS = 350;
 
-export function Objets({ d, t, t0, cadre, discret = 0 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; discret?: number }) {
+export function Objets({ d, t, t0, cadre, discret = 0, echelle = 1 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; discret?: number; echelle?: number }) {
   const o = d.objets ?? { total: 10, part: 8 };
   const focal = d.chiffres[d.focal];
   const dy = cadre.haut - 300;
   const reste = o.reste;
   const cols = o.part <= 8 ? 4 : 5;
   const rangs = Math.ceil(o.part / cols);
-  const hautGrille = 624 + dy;
+  // La légende du chiffre (62 px, comme l'anneau) se pose SOUS lui ; la grille descend d'autant. Une fois la variante
+  // rapetissée, la légende est contre-agrandie (elle reste à 62 px à l'écran) : la grille lui laisse la place.
+  const legende = focal.legende;
+  const decal = legende ? 52 + surplusLegende(71, echelle) : 0;
+  const hautGrille = 624 + dy + decal;
   const basGrille = reste ? 900 + dy : cadre.bas;
   const pasY = Math.min(150, (basGrille - hautGrille) / rangs);
   const pasX = 936 / cols;
@@ -29,6 +33,9 @@ export function Objets({ d, t, t0, cadre, discret = 0 }: { d: DonneesEcranChiffr
       <div style={{ position: "absolute", left: 72, top: 280 + dy, opacity: doux(progres(t, t0 - 0.1, 0.25)) }}>
         <ChiffreAnton texte={focal.texte} taille={TAILLE_OBJETS} couleur={C.orange} />
       </div>
+      {legende ? (
+        <div style={{ position: "absolute", left: 72, top: 280 + dy + Math.round(TAILLE_OBJETS * 0.9), width: 936, ...INTER, fontSize: 62, color: C.encre, opacity: doux(progres(t, t0 + 0.2, 0.4)), ...contreEchelle(echelle, "50% 0%") }}>{legende}</div>
+      ) : null}
       {Array.from({ length: o.part }, (_, i) => {
         const x = 74 + (i % cols) * pasX;
         const y = hautGrille + Math.floor(i / cols) * pasY;

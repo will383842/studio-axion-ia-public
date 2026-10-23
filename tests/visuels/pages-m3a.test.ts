@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { controlerCarrousel } from "@/domaine/controles-visuel/porte";
 import { CarrouselSpec } from "@/domaine/visuels/schema";
 import { TYPES_DECOR } from "@/briques/visuels/registre-decor";
-import { CAPACITE_CITATION, CAPACITE_PANNEAU, capaciteEtape, capaciteListe, PAGES, TYPES_PAGE, type TypePage } from "@/briques/visuels/registre-pages";
+import { CAPACITE_CITATION, CAPACITE_PANNEAU, capaciteCarte, capaciteMotCarte, capaciteEtape, capaciteListe, PAGES, TYPES_PAGE, type TypePage } from "@/briques/visuels/registre-pages";
 import { TEXTES_FIXES } from "@/briques/visuels/textes-fixes";
-import { casMax, casMin, CONTENU_ESSAI_M3A, CONTENU_ESSAI_M3A_C, FICHIER_COUVERTURE_C_M3A, FICHIER_T08_MAX_M3A, FICHIERS_ESSAI_M3A, specUnePage } from "../../studio-rendu/scripts/contenu-essai-visuel";
+import { casMax, casMin, CONTENU_ESSAI_M3A, CONTENU_ESSAI_M3A_C, FICHIER_COUVERTURE_C_M3A, FICHIER_T08_MAX_M3A, FICHIERS_ESSAI_M3A, specUnePage, texteAdversaire, texteInvente, texteMotsLongs } from "../../studio-rendu/scripts/contenu-essai-visuel";
 
 const valide = (page: object) => CarrouselSpec.safeParse(specUnePage(page as Record<string, unknown>)).success;
 const spec = (pages: object[]) => ({ version: "carrousel/1", alt: "Carrousel d'exemple", pages });
@@ -28,19 +29,38 @@ describe("registre des pages : rôles documentés", () => {
     expect(PAGES.T21.role).toMatch(/dernière/i);
     expect(PAGES.T21.role).toMatch(/sombre/i);
   });
-  it("3 à 5 éléments pour la liste et le processus", () => {
-    expect(PAGES.T06.elements).toEqual({ min: 3, max: 5 });
+  it("3 à 4 points pour la liste, 3 à 5 étapes pour le processus", () => {
+    expect(PAGES.T06.elements).toEqual({ min: 3, max: 4 });
     expect(PAGES.T20.elements).toEqual({ min: 3, max: 5 });
   });
 });
 
 describe("contenu MAXIMAL et MINIMAL de chaque type passent le schéma", () => {
   it.each(TYPES_PAGE)("%s", (type) => {
-    for (const cas of [...casMax(type), ...casMin(type)]) expect(valide(cas.page), `${type} ${cas.nom}`).toBe(true);
+    for (const cas of [...casMax(type), ...casMin(type), ...casMax(type, texteMotsLongs), ...casMax(type, texteAdversaire)]) expect(valide(cas.page), `${type} ${cas.nom}`).toBe(true);
   });
   it.each(TYPES_PAGE.filter((t: TypePage) => PAGES[t].titreMax > 0))("%s : un signe de plus au titre est refusé", (type) => {
     const page = casMax(type)[0].page;
     expect(valide({ ...page, titre: `${page.titre as string}x` })).toBe(false);
+  });
+});
+
+describe("textes d'essai à mots longs : longueur EXACTE, sans plafond", () => {
+  it.each([1, 2, 5, 30, 36, 44, 57, 66, 72, 120, 201, 240, 400])("%i signes", (n) => {
+    for (const f of [texteMotsLongs, texteAdversaire]) {
+      for (const graine of [0, 5]) {
+        const t = f(n, graine);
+        expect(t.length).toBe(n);
+        expect(t).not.toMatch(/\s{2}|^\s|\s$/u);
+      }
+    }
+  });
+  it("mots longs : mots entiers de 12 à 15 lettres, au-delà de la liste (240 signes)", () => {
+    const mots = texteMotsLongs(240).split(" ");
+    expect(mots.filter((m) => m.length >= 12).length).toBeGreaterThan(14);
+  });
+  it("adversaire : alterne un mot court et un mot de 15 lettres", () => {
+    expect(texteAdversaire(60).split(" ").slice(0, 4).map((m) => m.length)).toEqual([2, 15, 2, 15]);
   });
 });
 
@@ -58,10 +78,11 @@ describe("T01B et T01C : même schéma que T01, avec un élément décoratif fac
 
 describe("T06 liste numérotée", () => {
   const p = (n: number, texte = "Un point") => ({ type: "T06", titre: "Une liste", points: Array.from({ length: n }, () => ({ texte })) });
-  it("3 à 5 points", () => {
-    expect([2, 3, 4, 5, 6].map((n) => valide(p(n)))).toEqual([false, true, true, true, false]);
+  it("3 à 4 points (5 points sont impossibles au rendu réel : 848 px de contenu pour 806 px de hauteur)", () => {
+    expect(PAGES.T06.elements).toEqual({ min: 3, max: 4 });
+    expect([2, 3, 4, 5, 6].map((n) => valide(p(n)))).toEqual([false, true, true, false, false]);
   });
-  it.each([3, 4, 5])("%i points : le budget passe, un signe de plus est refusé", (n) => {
+  it.each([3, 4])("%i points : le budget passe, un signe de plus est refusé", (n) => {
     const { texte } = capaciteListe(n);
     expect(valide(p(n, "a".repeat(texte)))).toBe(true);
     expect(valide(p(n, "a".repeat(texte + 1)))).toBe(false);
@@ -147,6 +168,33 @@ describe("contenu d'essai M3a", () => {
     for (const f of [...FICHIERS_ESSAI_M3A, FICHIER_COUVERTURE_C_M3A, FICHIER_T08_MAX_M3A, "e01-e15-decors.jpg"]) {
       const octets = readFileSync(new URL(`../../studio-rendu/essais-visuels/m3a/${f}`, import.meta.url));
       expect([...octets.subarray(0, 3)], f).toEqual([0xff, 0xd8, 0xff]);
+    }
+  });
+});
+
+describe("T02 : aucun mot d'un titre de carte ne dépasse capaciteMotCarte (mots coupés comme rythme.ts)", () => {
+  const plusLong = (t: string) => Math.max(...t.split(/[ \t\n\r\f\-\u2010]+/u).map((m) => m.length));
+  const fabriques = [texteInvente, texteMotsLongs, texteAdversaire];
+  it.each(fabriques.map((f) => [f.name, f] as const))("casMax T02 avec %s : mot le plus long <= plafond, aucun MOT_TROP_LONG", (_nom, f) => {
+    for (const cas of casMax("T02", f)) {
+      const cartes = (cas.page as { cartes: { titre: string }[] }).cartes;
+      for (const c of cartes) expect(plusLong(c.titre), `${cas.nom} « ${c.titre} »`).toBeLessThanOrEqual(capaciteMotCarte(cartes.length));
+      const spec = { version: "carrousel/1", alt: "Carrousel d'essai", pages: [{ type: "T01", titre: "Une couverture" }, cas.page, { type: "T06", titre: "Une liste", points: [{ texte: "Un" }, { texte: "Deux" }, { texte: "Trois" }] }, { type: "T21" }] };
+      const rouges = controlerCarrousel(spec as never, { interditsDans: () => [], faitsDisponibles: false }).rapport.controles.filter((c) => c.code === "MOT_TROP_LONG");
+      expect(rouges, cas.nom).toEqual([]);
+    }
+  });
+  it.each([0, 1, 5])("graine %i : toutes les longueurs de titre de carte, tous nombres de cartes", (graine) => {
+    for (const n of [2, 3, 4, 5, 6]) {
+      const plafond = capaciteMotCarte(n);
+      const longueur = capaciteCarte(n).titre;
+      for (const f of [texteMotsLongs, texteAdversaire]) {
+        for (let l = 1; l <= longueur; l++) {
+          const t = f(l, graine, plafond);
+          expect(t.length).toBe(l);
+          expect(plusLong(t), `${f.name} n=${n} l=${l} « ${t} »`).toBeLessThanOrEqual(plafond);
+        }
+      }
     }
   });
 });

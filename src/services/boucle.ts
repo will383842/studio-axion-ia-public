@@ -304,6 +304,8 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   void lancerAnnexe("tâches du tableau animé", async () => (await import("./tableau-creation")).travaillerTachesTableau(), 0);
   // Comité éditorial des idées (éteint par défaut, réglage `idees.comite`) : lot groupé à moitié prix, HORS du tour.
   void lancerAnnexe("comité éditorial", async () => (await import("./comite-editorial")).travaillerComite(), 0);
+  // Cas concrets déjà finis avant l'inscription des cas traités : inscrits une seule fois par processus (ajouts seulement).
+  void lancerAnnexe("cas traités", async () => (await import("./cas-concret-traites")).inscrireLesCasDejaTraites(), 0);
   // Corbeille (18/10) : supprime les vidéos à la corbeille depuis 30 jours ou plus (au plus une fois par heure, sans session).
   void lancerAnnexe("corbeille", async () => (await import("./corbeille")).purgerCorbeille(), 0);
   // Image → vidéo, lot d'images (réglage éteint par défaut : sans lot en cours, ce tour ne fait rien) : le séquenceur lance

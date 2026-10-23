@@ -5,17 +5,20 @@
  */
 import { describe, expect, it } from "vitest";
 import { refusReessayableIV } from "@/components/formats/image-video/vue";
-import { REFERENCE_V4, VERSION_MESURE_VOIX, type MesureVoix } from "@/briques/voix-maitre/reference";
+import { VERSION_MESURE_VOIX, type MesureVoix } from "@/briques/voix-maitre/reference";
+import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { ecartFinHorsReference, ecartHorsReference, finsHorsReferenceIV, voixAcceptableParLaRegleDesFinsIV } from "@/moteurs/montage-image-video/secours";
 import { verdictVoixFaite, type EtatVoixIV } from "@/moteurs/montage-image-video/voix";
 import type { PriseVoix } from "@/moteurs/montage-image-video/emprunts";
 
 /** Mesure de la fin TikTok de prod (seule la hauteur sort de la tolérance contre la v4). */
-const mesureFin = (hauteurHz: number, sur: Partial<MesureVoix> = {}): MesureVoix => ({ hauteurHz, variationHz: 34.4, energie: 0.14, dynamique: 0.577, rythmePicsParSec: 4.93, partieParole: 0.784, ...sur });
+/** 23/10 : la référence Image → vidéo est passée de 158,4 Hz à 188,2 Hz (nouvelle voix) ; les hauteurs de prod ci-dessous restent écrites à l'ancienne échelle et sont ramenées à la nouvelle par K (mêmes écarts relatifs). */
+const K = REFERENCE_V4_IV.hauteurHz / 158.4;
+const mesureFin = (hauteurHz: number, sur: Partial<MesureVoix> = {}): MesureVoix => ({ ...REFERENCE_V4_IV, hauteurHz: hauteurHz * K, ...sur });
 
 /** Prise faite, mesurée à la version courante ; ressemblante ou non contre la v4 (ce que dit la voix maître). */
 function prise(mesure: MesureVoix, ressemblante: boolean, controle: unknown = { ok: true }): PriseVoix {
-  const ecarts = ressemblante ? [] : [`hauteur +${Math.round((mesure.hauteurHz / REFERENCE_V4.hauteurHz - 1) * 100)} % (toléré 8 %)`];
+  const ecarts = ressemblante ? [] : [`hauteur +${Math.round((mesure.hauteurHz / REFERENCE_V4_IV.hauteurHz - 1) * 100)} % (toléré 8 %)`];
   return {
     texte: "t",
     empreinte: "e",
@@ -24,7 +27,7 @@ function prise(mesure: MesureVoix, ressemblante: boolean, controle: unknown = { 
   } as unknown as PriseVoix;
 }
 
-const CORPS = () => prise({ ...REFERENCE_V4, hauteurHz: 158.42 }, true);
+const CORPS = () => prise({ ...REFERENCE_V4_IV, hauteurHz: 158.42 * K }, true);
 
 function etatVoix(corps: PriseVoix, fin: PriseVoix): EtatVoixIV {
   return {
@@ -55,7 +58,7 @@ describe("fin : hauteur jugée par rapport au corps (18/10)", () => {
   });
 
   it("les cas Facebook de la prod (corps à la référence, fin +17 %) restent refusés", () => {
-    const corps = prise({ ...REFERENCE_V4 }, true);
+    const corps = prise({ ...REFERENCE_V4_IV }, true);
     expect(ecartFinHorsReference(prise(mesureFin(178.3), false), corps)).toContain("par rapport au corps");
   });
 
@@ -73,7 +76,7 @@ describe("fin : hauteur jugée par rapport au corps (18/10)", () => {
 
   it("verdict de la voix finie : la voix de prod est « faite » ; un corps hors v4 reste refusé", () => {
     expect(verdictVoixFaite(etatVoix(CORPS(), prise(mesureFin(170.21), false)))).toEqual({ statut: "faite" });
-    const corpsHaut = prise({ ...REFERENCE_V4, hauteurHz: 175 }, false);
+    const corpsHaut = prise({ ...REFERENCE_V4_IV, hauteurHz: 175 * K }, false);
     expect(verdictVoixFaite(etatVoix(corpsHaut, prise(mesureFin(175), false)))).toMatchObject({ statut: "refus", controle: "Q16" });
     expect(verdictVoixFaite(etatVoix(CORPS(), prise(mesureFin(172.5), false)))).toMatchObject({ statut: "refus", controle: "Q16", message: expect.stringContaining("par rapport au corps") });
   });
@@ -89,7 +92,7 @@ describe("fin : hauteur jugée par rapport au corps (18/10)", () => {
     expect(voixAcceptableParLaRegleDesFinsIV(etatVoix(CORPS(), prise(mesureFin(170.21), false)))).toBe(true);
     expect(refusReessayableIV(arret(prise(mesureFin(170.21), false)))).toBe(true);
     expect(refusReessayableIV(arret(prise(mesureFin(172.5), false)))).toBe(false);
-    expect(refusReessayableIV(arret(prise(mesureFin(170.21), false), prise({ ...REFERENCE_V4, hauteurHz: 175 }, false)))).toBe(false);
+    expect(refusReessayableIV(arret(prise(mesureFin(170.21), false), prise({ ...REFERENCE_V4_IV, hauteurHz: 175 * K }, false)))).toBe(false);
     // Fin de secours refusée avant la règle (« ne ressemble pas NON PLUS ») : « Refaire » reste proposé.
     const ancienSecours = { refus: { ...refus, message: "La voix de la fin de secours pour facebook ne ressemble pas non plus à la voix de référence (hauteur +12 % (toléré 8 %))." }, voix: etatVoix(CORPS(), prise(mesureFin(170.21), false)) } as unknown as Parameters<typeof refusReessayableIV>[0];
     expect(refusReessayableIV(ancienSecours)).toBe(true);

@@ -481,6 +481,41 @@ describe("Comité · travail de fond (lot groupé simulé)", () => {
     expect(await reservationsIdees()).toEqual([]);
   });
 
+  const postsLots = () => faux.appels.filter((a) => a.url === lots.URL_LOTS && a.methode === "POST").length;
+
+  // Un lot engage ≈ 26 cents de dollar (pire cas avec marge) : un repère de 0,15 $ est dépassé 1,7 fois, un repère de 0,02 $ plus de 5 fois.
+  it("budget INDICATIF : plafond des idées dépassé (sous 5 ×) → le lot PART avec une alerte ; l'Usine reste bloquée", async () => {
+    await allumer();
+    await ecrireParametre("budget.mode", "indicatif");
+    await ecrireParametre(comite.PARAM_PLAFOND_IDEES, 0.15);
+    const usine = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z"), origine: "usine" });
+    expect(usine.etat === "arrete" ? usine.message : "").toMatch(/Plafond des idées du mois/);
+    expect(postsLots()).toBe(0);
+    const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-18T08:00:00Z") });
+    expect(issue.etat).not.toBe("arrete");
+    expect(postsLots()).toBe(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "budget" && /Repère des idées/.test(x.titre))).toHaveLength(1);
+  });
+
+  it("budget INDICATIF : au-delà de 5 × le plafond des idées, arrêt de sécurité (rien n'est envoyé)", async () => {
+    await allumer();
+    await ecrireParametre("budget.mode", "indicatif");
+    await ecrireParametre(comite.PARAM_PLAFOND_IDEES, 0.02);
+    const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") });
+    expect(issue.etat === "arrete" ? issue.message : "").toMatch(/Arrêt de sécurité/);
+    expect(postsLots()).toBe(0);
+  });
+
+  it("budget INDICATIF : la limite Claude du mois ne refuse plus le comité (alerte, le lot part)", async () => {
+    await allumer();
+    await ecrireParametre("budget.mode", "indicatif");
+    await ecrireParametre("claude.plafondMensuelUsd", 0.01);
+    const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") });
+    expect(issue.etat).not.toBe("arrete");
+    expect(postsLots()).toBe(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "budget" && /Claude du mois/.test(x.titre))).toHaveLength(1);
+  });
+
   it("limite Claude DU MOIS : au-delà, rien ne part", async () => {
     await allumer();
     await ecrireParametre("claude.plafondMensuelUsd", 0.01);
