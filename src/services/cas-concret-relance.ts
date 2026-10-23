@@ -16,6 +16,8 @@ import { coutNouvelEssaiEcritureCentimes, ID_MOTEUR_CAS_CONCRET, lireEntreesCasC
 import { depots, ErreurStudio } from "./_commun";
 import { exigerSession } from "./auth";
 import { REGLAGES_CAS_CONCRET, reglageAllume } from "./cas-concret-reglages";
+import { PHRASE_RELANCE_CAS_TRAITE, TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
+import { estCasTraite } from "./cas-concret-traites";
 import { reessayerTravail } from "./travaux";
 
 export type IssueRelanceCasConcret = { statut: "relancee"; travailId: Id } | { statut: "accord-requis"; centimes: number; phrase: string } | { statut: "refusee"; phrase: string };
@@ -27,6 +29,7 @@ export const PHRASES_RELANCE = {
   sansReessai: "Cette étape ne se réessaie pas telle quelle : reprenez le cas, puis fabriquez une nouvelle vidéo.",
   pasCeFormat: "Cette fabrication n'est pas un cas concret.",
   casIndisponible: "Ce cas n'est pas disponible pour le moment : la relance est refusée et rien n'est dépensé.",
+  dejaTraite: PHRASE_RELANCE_CAS_TRAITE,
   panne: "La relance n'a pas abouti. Rien n'est perdu : réessayez dans un instant.",
 } as const;
 
@@ -50,11 +53,15 @@ export async function relancerEtapeCasConcret(travailId: Id, accord?: number | t
   const commande = version?.commande;
   if (commande && commande.moteurId && commande.moteurId !== ID_MOTEUR_CAS_CONCRET) return { statut: "refusee", phrase: PHRASES_RELANCE.pasCeFormat };
   // Stock de cas : une vidéo d'un cas du stock ne se relance pas tant que `casConcret.stockMetiers` est éteint (refus net, avant tout prix).
-  const casDeLaVideo = commande ? (lireEntreesCasConcret(commande.entrees).casId ?? "") : "";
+  const entreesCas = commande ? lireEntreesCasConcret(commande.entrees) : undefined;
+  // Porte B : le cas est construit à chaque description, jamais « traité » (aucune garde).
+  const casDeLaVideo = entreesCas && entreesCas.porte !== "porte-b" ? (entreesCas.casId ?? "") : "";
   if (casDeLaVideo && estCasStock(casDeLaVideo)) {
     const allume = await (dep.stockMetiersAllume ?? (() => reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers)))().catch(() => false);
     if (!allume) return { statut: "refusee", phrase: PHRASES_RELANCE.casIndisponible };
   }
+  // Cas déjà traité par une AUTRE vidéo : la panne de celle-ci ne se relance pas (refus net, avant tout prix, rien n'est dépensé).
+  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await estCasTraite(casDeLaVideo, { saufVideoId: t.cibleId }).catch(() => false))) return { statut: "refusee", phrase: PHRASES_RELANCE.dejaTraite };
   const enEchec = t.etapes.filter((e) => e.statut === "echec");
   const erreur = enEchec[0]?.erreur ?? t.erreur;
   if (erreur?.reessayable === false) return { statut: "refusee", phrase: PHRASES_RELANCE.sansReessai };

@@ -22,6 +22,7 @@ import { chaineDeLEcriture, lancerGeneration, prixLancement } from "./boucle-gen
 import { resumeBudget } from "./couts";
 import { claudeBranche, depenseGenerationUsd, ecritureEnEssai, engageClaudeDuMoisCentimes, plafondChaineUsd, plafondMensuelClaudeUsd, taux } from "./generation-claude";
 import { ajouterIdee } from "./idees";
+import { budgetIndicatif } from "./mode-budget";
 import { depots, ErreurStudio, ecrireParametre, journaliser, lireParametre, maintenant } from "./_commun";
 
 /** Au plus 20 idées d'un geste. */
@@ -63,6 +64,8 @@ export function calculerPlanSerie(e: {
   plafondSujetUsdCentimes: number;
   restantClaudeUsdCentimes: number;
   essai: boolean;
+  /** Mode budget indicatif : le budget et la limite Claude du mois sont des repères, tout part ; la limite reste dite en information. */
+  indicatif?: boolean;
 }): { partiront: number; limite?: "budget" | "claude" } {
   const n = Math.max(0, Math.floor(e.demandees));
   if (e.essai) return { partiront: n };
@@ -70,7 +73,8 @@ export function calculerPlanSerie(e: {
   const parClaude = e.plafondSujetUsdCentimes > 0 ? Math.floor(Math.max(0, e.restantClaudeUsdCentimes) / e.plafondSujetUsdCentimes) : n;
   const partiront = Math.min(n, parBudget, parClaude);
   if (partiront >= n) return { partiront };
-  return { partiront, limite: parBudget <= parClaude ? "budget" : "claude" };
+  const limite = parBudget <= parClaude ? ("budget" as const) : ("claude" as const);
+  return e.indicatif ? { partiront: n, limite } : { partiront, limite };
 }
 
 /** Reste possible des écritures déjà parties (dollars) : leur plafond moins ce qu'elles ont dépensé. */
@@ -94,6 +98,7 @@ export async function planSerie(demandees: number): Promise<PlanSerie> {
     plafondSujetUsdCentimes: Math.round(plafondSujetUsd * 100),
     restantClaudeUsdCentimes: Math.round(plafondUsd * 100) - engageClaude.depense - engageClaude.reserve - resteCentimesUsd,
     essai,
+    indicatif: await budgetIndicatif(),
   });
   return { demandees: n, partiront, prixUnitaire, totalMax: centimes(n * prixUnitaire.centimes), totalPartant: centimes(partiront * prixUnitaire.centimes), essai, limite };
 }

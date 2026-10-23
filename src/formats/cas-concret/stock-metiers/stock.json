@@ -1,1 +1,3781 @@
-{ "version": 1, "cas": [] }
+{
+  "version": 1,
+  "cas": [
+    {
+      "rangement": {
+        "fiche": "AS-01",
+        "secteur": "AS",
+        "metier": "artisanat.garagiste-carrossier",
+        "metierNom": "Garagiste, carrossier",
+        "taille": "TPE",
+        "socle": "S14",
+        "inventaire": [
+          "A2",
+          "A4"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "planning-urgences",
+        "casUsage": null,
+        "voisinCatalogue": "rappels-rendez-vous",
+        "angle": "Le rendez-vous est un passage à l'atelier, avec des créneaux pris à la main et un créneau libéré à remplir, pas un appel de découverte."
+      },
+      "cas": {
+        "id": "garage-rendez-vous-rappeles",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les rendez-vous d'atelier confirmés et rappelés",
+        "theme": "Rendez-vous d'atelier",
+        "promesse": "Chaque rendez-vous d'atelier est confirmé et rappelé.",
+        "cible": "Un garagiste ou un carrossier qui note ses rendez-vous à la main, entre un véhicule et le suivant.",
+        "avant": {
+          "taches": [
+            "Noter les rendez-vous sur un papier",
+            "Rappeler les clients à la main",
+            "Perdre un créneau oublié"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le créneau choisi",
+            "ligne": "Le client choisit un créneau libre.",
+            "detail": "Seuls les créneaux réellement libres de l'atelier sont proposés, y compris ceux pris à la main.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "La confirmation",
+            "ligne": "La confirmation part aussitôt.",
+            "detail": "Le client reçoit le jour, l'heure et ce qu'il doit apporter avec son véhicule.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Le rappel de la veille",
+            "ligne": "Un rappel part la veille.",
+            "detail": "Le client peut confirmer ou se décommander sans appeler l'atelier.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          },
+          {
+            "titre": "Le rappel juste avant",
+            "ligne": "Un dernier rappel part peu avant.",
+            "detail": "Un message court arrive sur son téléphone, au moment utile.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Le créneau libéré",
+            "ligne": "Vous décidez qui appeler pour le remplir.",
+            "detail": "Si le client se décommande, le créneau se libère et vous choisissez quoi en faire.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Décider qui appeler quand un créneau se libère.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vos rendez-vous d'atelier arrivent confirmés, et vos soirées servent moins à les rappeler.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "CRENEAUX",
+        "vigilance": [
+          "Ne dire aucun délai de réparation.",
+          "Ne promettre aucun nombre de véhicules en plus.",
+          "Ne parler ni de sécurité d'un véhicule ni de contrôle."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "AS-04",
+        "secteur": "AS",
+        "metier": "artisanat.garagiste-carrossier",
+        "metierNom": "Garagiste, carrossier",
+        "taille": "TPE",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "client-qui-appelle",
+        "casUsage": "artisanat.garagiste-carrossier.formation.c02",
+        "voisinCatalogue": "email-difficile",
+        "angle": "Le message explique une réparation à un client inquiet, il ne répond pas à un courrier tendu ; il décrit un véhicule réparé, pas un ouvrage de chantier comme dans la fiche du bâtiment sur le même thème."
+      },
+      "cas": {
+        "id": "garage-expliquer-reparation",
+        "version": 1,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Expliquer une réparation au client, par écrit",
+        "theme": "Réparation expliquée",
+        "promesse": "Vous expliquez la réparation sans jargon.",
+        "cible": "Un garagiste ou un carrossier qui doit rassurer un client inquiet sans promettre ce qu'il ne maîtrise pas.",
+        "avant": {
+          "taches": [
+            "Expliquer de vive voix à chaud",
+            "Chercher ses mots",
+            "Voir le client rappeler"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La note de l'atelier",
+            "ligne": "Vous partez de la note de l'atelier.",
+            "detail": "Ce qui a été constaté, pièces et travaux, sert de base à l'explication.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La bonne demande",
+            "ligne": "Vous apprenez à bien demander.",
+            "detail": "Qui lit, ce qu'il craint, quel ton prendre : la demande décide du brouillon.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Le brouillon",
+            "ligne": "L'IA écrit une explication en mots simples.",
+            "detail": "Pas de jargon d'atelier, pas de promesse sur ce que vous ne maîtrisez pas.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Votre relecture",
+            "ligne": "Vous gardez ce qui est vrai.",
+            "detail": "Vous corrigez, vous retirez toute promesse, vous signez avec vos mots.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "La trame gardée",
+            "ligne": "Vous gardez la trame pour la prochaine fois.",
+            "detail": "Le message réussi sert de modèle pour les cas semblables.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          }
+        ],
+        "resteHumain": "Décider de ce qu'on promet et parler au client.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Vous expliquez une réparation par écrit, et le client peut la relire.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "EXPLIQUER",
+        "vigilance": [
+          "Ne dire aucun délai de réparation.",
+          "Ne rien affirmer sur la sécurité d'un véhicule.",
+          "Ne pas citer de règle de contrôle ni de norme."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "AS-08",
+        "secteur": "AS",
+        "metier": "artisanat.entreprise-nettoyage",
+        "metierNom": "Entreprise de nettoyage",
+        "taille": "PME",
+        "socle": "S05",
+        "inventaire": [
+          "A38",
+          "C17"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "planning-urgences",
+        "casUsage": "artisanat.entreprise-nettoyage.integration.c01",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "nettoyage-point-du-matin",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Le point du matin : les sites sans passage confirmé",
+        "theme": "Passages",
+        "promesse": "Chaque matin, les passages manquants sont listés.",
+        "cible": "Une entreprise de nettoyage dont le planning se refait dans l'urgence quand un agent manque.",
+        "avant": {
+          "taches": [
+            "Parcourir le planning à la main",
+            "Appeler les agents au hasard",
+            "Découvrir un trou trop tard"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le planning relu",
+            "ligne": "Chaque matin, la liste est recalculée.",
+            "detail": "Les passages du jour sont comparés à ce qui a été confirmé.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Les trous repérés",
+            "ligne": "Les sites sans passage confirmé ressortent.",
+            "detail": "Une liste courte, avec le site, l'agent attendu et l'heure du passage.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le ménage de la liste",
+            "ligne": "Ce qui est réglé disparaît seul.",
+            "detail": "Dès que l'agent confirme son passage par message, le site sort de la liste.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            }
+          },
+          {
+            "titre": "Le chef d'équipe prévenu",
+            "ligne": "Le chef d'équipe reçoit la liste courte.",
+            "detail": "Un message arrive sur son téléphone avant l'ouverture des sites.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Les appels",
+            "ligne": "Votre équipe appelle l'agent attendu ou un remplaçant.",
+            "detail": "Elle choisit le remplaçant avec la personne concernée.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-capture"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Appeler l'agent attendu ou un remplaçant, et choisir le remplaçant.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous commencez la journée avec la liste des sites à appeler.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "PASSAGE",
+        "vigilance": [
+          "Ne promettre aucun gain de temps chiffré.",
+          "Ne jamais dire que l'outil gère vos équipes à votre place.",
+          "Ne citer aucun nombre de contrats gagnés."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "AS-09",
+        "secteur": "AS",
+        "metier": "artisanat.entreprise-nettoyage",
+        "metierNom": "Entreprise de nettoyage",
+        "taille": "PME",
+        "socle": "S02",
+        "inventaire": [
+          "A7",
+          "A3"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "demandes-entrantes",
+        "casUsage": null,
+        "voisinCatalogue": "contact-vers-crm",
+        "angle": "L'enjeu est de compléter et trier une demande de prestation avant la visite des locaux, pas la fiche client dans un CRM."
+      },
+      "cas": {
+        "id": "nettoyage-demande-prestation",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "La demande de prestation d'un client reçue et mise au clair",
+        "theme": "Demandes",
+        "promesse": "Chaque demande arrive avec ce qui manque réclamé.",
+        "cible": "Une entreprise de nettoyage dont les demandes de prestation arrivent incomplètes avant la visite des locaux.",
+        "avant": {
+          "taches": [
+            "Recopier chaque demande",
+            "Rappeler pour la surface et l'accès",
+            "Relancer les demandes oubliées"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le message du client",
+            "ligne": "Le message du client est enregistré à son arrivée.",
+            "detail": "Message, formulaire ou e-mail : tout est rangé au même endroit.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Ce qui manque",
+            "ligne": "Surface, fréquence et accès sont repérés.",
+            "detail": "Ce qui manque au cahier des charges ressort tout de suite.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La réponse au client",
+            "ligne": "Le client reçoit une demande de précisions.",
+            "detail": "Un message poli lui réclame ce qui manque, sans appel de votre part.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Le signal",
+            "ligne": "Le responsable est prévenu quand le client a répondu.",
+            "detail": "Il voit la demande complète au lieu de messages épars.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "La visite des locaux",
+            "ligne": "Votre équipe planifie la visite et chiffre.",
+            "detail": "Elle part avec une demande claire et décide elle-même de la suite.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Planifier la visite des locaux et chiffrer la prestation.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Chaque demande arrive classée, avec ce qui manque déjà réclamé.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "PRESTATION",
+        "vigilance": [
+          "Ne promettre aucun nombre de contrats gagnés.",
+          "Ne promettre aucun gain de temps chiffré.",
+          "Ne jamais dire que l'outil gère vos équipes à votre place."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "BT-02",
+        "secteur": "BT",
+        "metier": "btp.plombier",
+        "metierNom": "Plombier",
+        "taille": "TPE",
+        "socle": "S02",
+        "inventaire": [
+          "A7",
+          "A3"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "demandes-entrantes",
+        "casUsage": "btp.plombier.integration.c04",
+        "voisinCatalogue": "contact-vers-crm",
+        "angle": "Ici on montre le tri entre urgence et simple devis pour un plombier qui ne peut pas décrocher, pas la création d'une fiche dans un CRM."
+      },
+      "cas": {
+        "id": "plombier-urgences-triees",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les messages d'urgence et les demandes de devis triés seuls",
+        "theme": "Urgence, devis",
+        "promesse": "L'urgence passe avant le reste.",
+        "cible": "Un plombier seul qui rate des urgences quand il a les mains dans l'eau.",
+        "avant": {
+          "taches": [
+            "Décrocher les mains mouillées",
+            "Rappeler le soir, trop tard",
+            "Mêler urgences et simples devis",
+            "Répondre à chaque demande à la main"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La demande",
+            "ligne": "Chaque message ou formulaire laisse une demande écrite.",
+            "detail": "Nom, adresse, ce qui fuit : tout est noté sans que vous touchiez au téléphone.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-capture"
+            }
+          },
+          {
+            "titre": "Le tri",
+            "ligne": "La demande est classée : urgence, devis ou simple question.",
+            "detail": "Une fuite active passe devant une salle de bains à refaire.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le signal",
+            "ligne": "Une urgence fait sonner votre téléphone tout de suite.",
+            "detail": "Les devis attendent la fin de la journée, sans bruit.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "L'accusé",
+            "ligne": "Le client reçoit un message qui confirme sa demande.",
+            "detail": "Il sait qu'on le rappelle, il n'appelle pas ailleurs.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Le rappel",
+            "ligne": "Vous rappelez et vous décidez de ce que vous prenez.",
+            "detail": "Le tri propose, vous tranchez : urgence, devis ou refus poli.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Rappeler, décider de ce que vous prenez.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Chaque demande arrive classée, l'urgence en tête.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "FUITE",
+        "vigilance": [
+          "Ne pas dire que l'outil diagnostique la panne.",
+          "Ne promettre aucun nombre d'urgences sauvées ni gain de temps.",
+          "Ne citer aucune règle sur les installations.",
+          "Ne pas dire que les appels manqués sont retranscrits : seuls les messages écrits et le formulaire sont traités."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "BT-03",
+        "secteur": "BT",
+        "metier": "btp.chauffagiste-climatisation-pompes-chaleur",
+        "metierNom": "Chauffagiste",
+        "taille": "TPE",
+        "socle": "S04",
+        "inventaire": [
+          "A51",
+          "A38"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "echeances-papiers",
+        "casUsage": "btp.chauffagiste-climatisation-pompes-chaleur.integration.c01",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "chauffagiste-entretien-prevenu",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "L'entretien de chaudière : le client prévenu avant la date",
+        "theme": "Entretien annuel",
+        "promesse": "Aucun entretien annuel oublié.",
+        "cible": "Un chauffagiste seul dont les contrats d'entretien reviennent chaque année.",
+        "avant": {
+          "taches": [
+            "Retrouver qui doit un entretien",
+            "Rappeler chaque client un par un",
+            "Fixer la date au téléphone",
+            "Oublier un contrat de mémoire"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La liste",
+            "ligne": "Chaque contrat d'entretien garde sa date d'échéance.",
+            "detail": "Chaudière, pompe à chaleur ou climatisation : une date par appareil.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Bientôt échu",
+            "ligne": "Un contrat passe à bientôt échu avant la saison de chauffe.",
+            "detail": "Vous voyez d'un coup d'œil ceux qui arrivent.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Le message",
+            "ligne": "Le client reçoit un message avant la date.",
+            "detail": "Le message rappelle son contrat et la saison, pour qu'il vous réponde sans que vous l'appeliez.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Les réponses",
+            "ligne": "Ceux qui ne répondent pas restent signalés.",
+            "detail": "Vous voyez d'un coup d'œil qui n'a pas encore choisi sa date.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "La tournée",
+            "ligne": "Vous fixez les dates et organisez vos passages.",
+            "detail": "Vous regroupez, vous décalez, vous appelez ceux qui hésitent.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Fixer les dates, organiser les passages, appeler qui ne répond pas.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Chaque client est prévenu avant la date de son entretien.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "ENTRETIEN",
+        "vigilance": [
+          "Ne citer aucun montant d'aide ni règle d'éligibilité.",
+          "Ne promettre aucun gain de temps chiffré.",
+          "Ne pas dire que l'outil règle la chaudière."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "BT-09",
+        "secteur": "BT",
+        "metier": "btp.entreprise-renovation",
+        "metierNom": "Entreprise de rénovation",
+        "taille": "PME",
+        "socle": "S06",
+        "inventaire": [
+          "A9",
+          "C18",
+          "B3.4"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "prevenir-le-bon",
+        "casUsage": "btp.entreprise-renovation.audit.c03",
+        "voisinCatalogue": "alerte-courte",
+        "angle": "Ici l'alerte est une réserve de chantier envoyée au conducteur de travaux concerné, pas une alerte générique."
+      },
+      "cas": {
+        "id": "renovation-reserve-bon-conducteur",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Une réserve de chantier signalée arrive au bon conducteur de travaux",
+        "theme": "Réserves",
+        "promesse": "La réserve arrive à la bonne personne.",
+        "cible": "Une entreprise de rénovation dont les réserves sont notées sur papier puis ressaisies.",
+        "avant": {
+          "taches": [
+            "Noter la réserve sur papier",
+            "La ressaisir au bureau",
+            "Chercher qui s'en occupe",
+            "Appeler le conducteur de travaux"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La réserve",
+            "ligne": "La réserve est saisie sur place, avec une photo.",
+            "detail": "Un texte court, l'endroit, le corps d'état concerné.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-capture"
+            }
+          },
+          {
+            "titre": "Le destinataire",
+            "ligne": "Elle est rattachée au chantier et à son conducteur de travaux.",
+            "detail": "Plus de recherche dans les mails.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "L'alerte",
+            "ligne": "Une alerte courte arrive sur son téléphone.",
+            "detail": "Une seule alerte par réserve, jamais en double.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Le suivi",
+            "ligne": "La réserve reste ouverte tant qu'elle n'est pas levée.",
+            "detail": "Elle disparaît de la liste quand elle est réglée.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La levée",
+            "ligne": "Le conducteur de travaux vérifie sur place avant de lever.",
+            "detail": "La réserve n'est levée que par une personne.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Vérifier sur place et lever la réserve.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Chaque réserve est signalée au bon conducteur de travaux.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "RESERVE",
+        "vigilance": [
+          "Ne donner aucune règle de réception.",
+          "Ne promettre aucun nombre de jours gagnés.",
+          "Ne pas dire que l'outil remplace le conducteur de travaux."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "BT-11",
+        "secteur": "BT",
+        "metier": "btp.entreprise-generale-batiment",
+        "metierNom": "Entreprise générale du bâtiment",
+        "taille": "PME",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "demandes-entrantes",
+        "casUsage": "btp.entreprise-generale-batiment.formation.c02",
+        "voisinCatalogue": "programme-par-ia",
+        "angle": "Ici la trame construite sert à répondre à un appel d'offres, pas à écrire un programme de formation."
+      },
+      "cas": {
+        "id": "chantier-reponse-appel-offres",
+        "version": 3,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Répondre à un appel d'offres avec une trame",
+        "theme": "Appel d'offres",
+        "promesse": "Une trame qui évite l'oubli d'un poste.",
+        "cible": "Une entreprise générale qui lit le CCTP et le DPGF le soir, avec la crainte d'oublier un poste.",
+        "avant": {
+          "taches": [
+            "Lire le CCTP le soir",
+            "Craindre d'oublier un poste",
+            "Repartir d'une page blanche à chaque réponse",
+            "Rédiger dans l'urgence"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les pièces",
+            "ligne": "Votre équipe apprend à résumer un CCTP avec l'assistant.",
+            "detail": "Un résumé par lot, avec les points à vérifier.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Les postes",
+            "ligne": "Elle apprend à comparer le résumé et le DPGF.",
+            "detail": "Pour repérer un poste absent ou en double.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La trame",
+            "ligne": "Elle construit sa trame de réponse, pas à pas.",
+            "detail": "Chaque réponse repart de la même base.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "programme"
+            }
+          },
+          {
+            "titre": "La relecture",
+            "ligne": "Elle apprend à relire avec le CCTP sous les yeux.",
+            "detail": "La lecture finale reste celle d'une personne.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "La décision",
+            "ligne": "La direction décide de répondre ou non.",
+            "detail": "La trame prépare la réponse, le choix reste à la direction.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          }
+        ],
+        "resteHumain": "Lire le cahier des charges en entier et décider de répondre.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Votre équipe répond avec une trame qu'elle maîtrise.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "TRAME",
+        "vigilance": [
+          "Ne pas dire que l'outil lit les plans à votre place.",
+          "Ne promettre aucun gain d'heures.",
+          "Ne donner aucune règle de marché public.",
+          "Ne pas confier les pièces d'un appel d'offres à un assistant sans règle de confidentialité."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "BT-14",
+        "secteur": "BT",
+        "metier": "btp.menuisier",
+        "metierNom": "Menuisier",
+        "taille": "TPE",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "client-qui-appelle",
+        "casUsage": "btp.menuisier.formation.c01",
+        "voisinCatalogue": "email-difficile",
+        "angle": "Ici on apprend à décrire un ouvrage au client avant la fabrication, pas à écrire un e-mail qu'on repousse."
+      },
+      "cas": {
+        "id": "menuisier-ouvrage-sans-jargon",
+        "version": 1,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Décrire un ouvrage à un client sans jargon",
+        "theme": "Descriptif d'ouvrage",
+        "promesse": "Un client qui comprend avant de signer.",
+        "cible": "Un menuisier dont les clients veulent comprendre l'ouvrage avant de signer.",
+        "avant": {
+          "taches": [
+            "Employer les mots de l'atelier",
+            "Voir le client hésiter",
+            "Réexpliquer au téléphone",
+            "Perdre la vente faute de clarté"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "L'ouvrage en mots",
+            "ligne": "Vous apprenez à décrire l'ouvrage avec l'assistant.",
+            "detail": "Essence, ferrage, finition : chaque mot du métier est expliqué.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Le client",
+            "ligne": "Vous apprenez à écrire pour le client, pas pour l'atelier.",
+            "detail": "Des phrases courtes, ce que le client verra et touchera.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Les photos",
+            "ligne": "Vous apprenez à joindre une photo qui aide.",
+            "detail": "Un ouvrage proche, déjà réalisé, avec l'accord de son propriétaire.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "La relecture",
+            "ligne": "Vous apprenez à relire avec les yeux du client.",
+            "detail": "Rien ne part sans que vous l'ayez relu.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "Votre modèle",
+            "ligne": "Vous gardez un modèle de descriptif pour la suite.",
+            "detail": "Il se reprend d'un ouvrage à l'autre.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "programme"
+            }
+          }
+        ],
+        "resteHumain": "Relire et envoyer le descriptif vous-même.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Le client comprend l'ouvrage avant de signer.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "JARGON",
+        "vigilance": [
+          "Ne promettre aucun délai de fabrication ni prix de revient.",
+          "Ne pas dire que l'outil dessine vos meubles.",
+          "Ne publier aucune photo sans l'accord du client."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "DG-02",
+        "secteur": "DG",
+        "metier": "generaliste.generaliste-dirigeant-entreprise-tous-metiers",
+        "metierNom": "Dirigeant tous métiers",
+        "taille": "PME",
+        "socle": "S15",
+        "inventaire": [
+          "C9",
+          "A62"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "savoir-retrouver",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "dg-sauvegardes-essai-restauration",
+        "version": 2,
+        "offre": "audit",
+        "posture": "offre",
+        "titre": "Vos sauvegardes se rouvrent-elles vraiment ?",
+        "theme": "Sauvegardes",
+        "promesse": "Vos fichiers reviennent-ils le jour voulu ?",
+        "cible": "Un dirigeant de PME qui a des sauvegardes mais n'a jamais vérifié qu'on peut en retirer un fichier.",
+        "avant": {
+          "taches": [
+            "Croire que la copie existe",
+            "Ne jamais l'avoir rouverte",
+            "Chercher à qui la demander"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La liste",
+            "ligne": "On dresse la liste de ce qui doit pouvoir revenir.",
+            "detail": "Dossiers clients, comptabilité, fichiers de l'équipe.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Les copies",
+            "ligne": "On regarde où partent les copies et qui les surveille.",
+            "detail": "Un endroit hors des locaux, un responsable nommé.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "L'essai",
+            "ligne": "On restaure un fichier choisi, pour de vrai, en essai.",
+            "detail": "C'est la seule preuve qu'une copie se rouvre.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            }
+          },
+          {
+            "titre": "Le plan d'audit",
+            "ligne": "Vous recevez un plan : ce qui tient, ce qui manque.",
+            "detail": "Dans un ordre de priorité clair.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          }
+        ],
+        "resteHumain": "Décider quoi corriger en premier et qui s'en occupe.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous savez ce qui revient, ce qui manque, et par où commencer.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Exemple de plan d'audit",
+          "finCadeauId": "fin-if-cadeau-audit"
+        },
+        "mot": "SAUVEGARDE",
+        "vigilance": [
+          "Ne pas dire que tout est sauvegardé tant qu'un essai de restauration n'a pas réussi.",
+          "Aucun chiffre de durée, de volume ou de coût.",
+          "Ne pas parler de sécurité des données comme d'un acquis.",
+          "Dire qui s'en occupe ensuite dans l'entreprise."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-01",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "TPE",
+        "socle": "S02",
+        "inventaire": [
+          "A7",
+          "A3"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "demandes-entrantes",
+        "casUsage": "industrie.mecanique-metallurgie.integration.c03",
+        "voisinCatalogue": "contact-vers-crm",
+        "angle": "Ici on trie la demande de prix avant le chiffrage, on ne tient pas un fichier de contacts."
+      },
+      "cas": {
+        "id": "usinage-demandes-de-prix",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les demandes de prix triées avant le chiffrage",
+        "theme": "Chiffrage",
+        "promesse": "Chaque demande arrive déjà classée",
+        "cible": "Dirigeant d'un atelier d'usinage qui chiffre ses plans le soir",
+        "avant": {
+          "taches": [
+            "Trier la boîte de réception",
+            "Relire chaque plan joint",
+            "Relancer les demandes floues"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La demande arrive",
+            "ligne": "Une demande de prix arrive avec son plan.",
+            "detail": "Le message et sa pièce jointe sont enregistrés, le demandeur reçoit un accusé de réception.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Le tri",
+            "ligne": "Elle est classée selon son urgence.",
+            "detail": "Elle prend sa place dans la liste, avec le type de pièce demandé.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le manque",
+            "ligne": "Ce qui manque est repéré, la précision à demander est prête.",
+            "detail": "Quantité, matière ou délai absents : la demande de précision est prête, vous la relisez avant l'envoi, et vous êtes prévenu sur votre téléphone.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Le chiffrage",
+            "ligne": "Vous chiffrez la pièce.",
+            "detail": "Vous décidez de répondre ou non, puis vous relisez votre réponse avant de l'envoyer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Chiffrer la pièce, décider de répondre ou non.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Vous ouvrez des demandes déjà classées, pas une boîte en désordre.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "CHIFFRAGE",
+        "vigilance": [
+          "Ne jamais promettre un temps d'usinage réduit ni un taux de rebut.",
+          "Ne jamais citer de tolérance ni de norme.",
+          "Ne jamais dire que la pièce est programmée ou contrôlée par l'outil.",
+          "Une personne relit toute réponse avant l'envoi."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-02",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "PME",
+        "socle": "S08",
+        "inventaire": [
+          "A65",
+          "A15"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "savoir-retrouver",
+        "casUsage": "industrie.mecanique-metallurgie.integration.c04",
+        "voisinCatalogue": "outils-branches",
+        "angle": "Proche par le thème seulement : ici la base contient d'anciens devis de pièces, on n'y branche pas des outils."
+      },
+      "cas": {
+        "id": "usinage-ancien-devis",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Retrouver l'ancien devis d'une pièce déjà faite",
+        "theme": "Anciens devis",
+        "promesse": "L'ancien devis revient en une question",
+        "cible": "Un atelier de mécanique dont le bureau rechiffre des pièces déjà faites",
+        "avant": {
+          "taches": [
+            "Fouiller les anciens dossiers",
+            "Demander à celui qui s'en souvient",
+            "Rechiffrer la pièce depuis le début"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les devis déposés",
+            "ligne": "Chaque devis envoyé est rangé dans une base.",
+            "detail": "Devis, plan et notes de la pièce restent ensemble, sans ressaisie.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "La question",
+            "ligne": "Vous décrivez la pièce comme au téléphone.",
+            "detail": "Une phrase suffit : la matière, la forme, le client.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "La réponse sourcée",
+            "ligne": "Les devis proches s'affichent avec leur source.",
+            "detail": "Chaque réponse renvoie au devis d'origine ; si rien ne correspond, l'outil le dit sans inventer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bulle-lien"
+            }
+          },
+          {
+            "titre": "Le choix",
+            "ligne": "Votre bureau reprend ou ajuste.",
+            "detail": "Il relit l'ancien chiffrage et décide du prix à envoyer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Décider de reprendre l'ancien devis ou de l'ajuster.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Votre bureau part de l'ancien devis au lieu de repartir d'une page blanche.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "MEMOIRE",
+        "vigilance": [
+          "Ne jamais présenter un ancien prix comme valable aujourd'hui.",
+          "Ne jamais promettre un temps d'usinage réduit ni un taux de rebut.",
+          "La réponse cite toujours le devis d'origine ; sans source, elle se tait."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-03",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "PME",
+        "socle": "S01",
+        "inventaire": [
+          "A28"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "commandes-documents-recus",
+        "casUsage": "industrie.mecanique-metallurgie.integration.c02",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "usinage-certificats-matiere",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les certificats matière rangés avec la commande",
+        "theme": "Certificats matière",
+        "promesse": "Chaque certificat retrouve sa commande",
+        "cible": "Un atelier de mécanique qui reçoit les certificats matière en PDF",
+        "avant": {
+          "taches": [
+            "Ouvrir chaque PDF reçu",
+            "Chercher la bonne commande",
+            "Classer à la main"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le certificat arrive",
+            "ligne": "Le certificat matière arrive en PDF.",
+            "detail": "Il est déposé tel quel, sans retaper un seul mot.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "La lecture",
+            "ligne": "Son texte est lu, la coulée relevée.",
+            "detail": "Numéro de commande, matière et référence du lot sont tirés du document.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Le rangement",
+            "ligne": "Il est rangé avec la commande.",
+            "detail": "Le certificat est rattaché à la bonne commande et au bon fournisseur ; ce qui est illisible est signalé, jamais deviné.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "La vérification",
+            "ligne": "Votre équipe vérifie le certificat.",
+            "detail": "Elle le compare au cahier des charges du client avant de le classer comme bon.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Vérifier le certificat au regard du cahier des charges du client.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Quand le client le réclame, le certificat est déjà avec sa commande.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "CERTIFICAT",
+        "vigilance": [
+          "Ne jamais dire que l'outil valide la matière ni la qualité de la pièce.",
+          "Ne jamais citer de norme ni de tolérance.",
+          "Un champ illisible est signalé, jamais complété au hasard."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-04",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "PME",
+        "socle": "OC",
+        "inventaire": [],
+        "niveauPreuve": "offre-a-construire",
+        "douleur": "demandes-entrantes",
+        "casUsage": "industrie.mecanique-metallurgie.integration.c01",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "usinage-devis-depuis-plan",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Le devis de pièce préparé à partir du plan reçu",
+        "theme": "Devis",
+        "promesse": "Le plan arrive, le brouillon de devis suit",
+        "cible": "Un atelier de mécanique dont le bureau relève chaque plan à la main",
+        "avant": {
+          "taches": [
+            "Lire chaque plan reçu",
+            "Relever matière et opérations",
+            "Monter le devis pas à pas"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le plan arrive",
+            "ligne": "Un plan arrive avec la demande.",
+            "detail": "Le plan et le message sont rangés ensemble.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "La lecture",
+            "ligne": "Le plan est lu : matière, opérations, quantité.",
+            "detail": "Les éléments relevés sont listés ; ceux qui restent incertains sont marqués.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Le brouillon",
+            "ligne": "Un brouillon de devis est préparé.",
+            "detail": "Il reprend vos anciens devis et votre façon de chiffrer, sans fixer de prix.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La relecture",
+            "ligne": "Votre bureau relit, corrige et fixe le prix.",
+            "detail": "Rien ne part sans lui.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Lire le plan, fixer le prix, envoyer.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Le bureau relit un brouillon au lieu de partir d'une page blanche.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "BROUILLON",
+        "vigilance": [
+          "Rien de tel ne tourne encore chez Axion-IA : à construire pour le client, ne jamais dire que c'est déjà fait.",
+          "Ne jamais promettre un temps d'usinage réduit, un taux de rebut ni une tolérance.",
+          "Ne jamais dire que l'outil fixe le prix ou lit le plan sans erreur.",
+          "Une personne lit le plan avant tout chiffrage."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-05",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "TPE",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "savoir-retrouver",
+        "casUsage": "industrie.mecanique-metallurgie.formation.c01",
+        "voisinCatalogue": "programme-par-ia",
+        "angle": "Ici on met par écrit une méthode de chiffrage, on n'écrit pas un programme de formation."
+      },
+      "cas": {
+        "id": "usinage-methode-chiffrage",
+        "version": 1,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Mettre par écrit sa méthode de chiffrage",
+        "theme": "Méthode écrite",
+        "promesse": "Votre méthode de chiffrage, enfin écrite",
+        "cible": "Dirigeant d'un atelier d'usinage dont le chiffrage tient dans sa tête",
+        "avant": {
+          "taches": [
+            "Chiffrer de tête, à chaque fois",
+            "N'avoir rien d'écrit",
+            "Tout reprendre au moindre empêchement"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Votre dernier devis",
+            "ligne": "On part d'un devis que vous avez fait.",
+            "detail": "Vous racontez comment vous avez chiffré, étape par étape.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Les étapes",
+            "ligne": "Vos gestes sont mis dans l'ordre.",
+            "detail": "Matière, opérations, réglage, finition : l'IA aide à les lister.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La trame",
+            "ligne": "Une trame de chiffrage est rédigée.",
+            "detail": "Elle reprend vos mots et vos habitudes, avec les points à demander au client.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "programme"
+            }
+          },
+          {
+            "titre": "Votre validation",
+            "ligne": "Vous la relisez et la corrigez.",
+            "detail": "La méthode reste la vôtre : vous la validez et vous fixez vos prix.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Valider la méthode et fixer vos prix.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Vous avez une trame de chiffrage écrite, dans vos mots.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "METHODE",
+        "vigilance": [
+          "Ne jamais promettre un temps d'usinage réduit ni un taux de rebut.",
+          "Ne jamais citer de tolérance ni de norme.",
+          "Parler d'atelier, de plans et de devis, sans mot de spécialiste."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-06",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "PME",
+        "socle": "AU",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "demandes-entrantes",
+        "casUsage": "industrie.mecanique-metallurgie.audit.c01",
+        "voisinCatalogue": "audit-departement",
+        "angle": "Ici l'audit suit une seule demande, du plan au devis, dans un atelier ; il ne passe pas un département en revue."
+      },
+      "cas": {
+        "id": "usinage-audit-plan-devis",
+        "version": 1,
+        "offre": "audit",
+        "posture": "offre",
+        "titre": "Du plan reçu au devis envoyé : où la demande attend",
+        "theme": "Plan, devis",
+        "promesse": "Voir où chaque demande attend",
+        "cible": "Un atelier de mécanique dont les demandes de prix passent par plusieurs mains",
+        "avant": {
+          "taches": [
+            "Passer le plan de main en main",
+            "Attendre le retour de quelqu'un",
+            "Oublier une demande en route"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le parcours",
+            "ligne": "On suit une demande, du plan au devis.",
+            "detail": "On repère chaque personne par qui elle passe.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Les attentes",
+            "ligne": "On note où la demande attend.",
+            "detail": "Boîte de réception, bureau des méthodes, atelier : chaque attente est relevée sur un cas réel.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          },
+          {
+            "titre": "Les causes",
+            "ligne": "On cherche pourquoi elle attend.",
+            "detail": "Ressaisie, pièce manquante, personne absente : on classe les causes.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le constat",
+            "ligne": "Vous recevez les points à simplifier.",
+            "detail": "Un plan court, dans l'ordre où les traiter.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Votre choix",
+            "ligne": "Vous choisissez ce que l'on simplifie.",
+            "detail": "Rien n'est modifié sans votre accord.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Choisir ce que l'on simplifie.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous savez où vos demandes attendent et par quoi commencer.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Exemple de plan d'audit",
+          "finCadeauId": "fin-if-cadeau-audit"
+        },
+        "mot": "ATTENTE",
+        "vigilance": [
+          "Ne jamais promettre un délai de réponse chiffré ni un devis en plus.",
+          "L'audit constate et propose : il ne change rien sans accord.",
+          "Ne jamais promettre un temps d'usinage réduit ni un taux de rebut."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-08",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "PME",
+        "socle": "S15",
+        "inventaire": [
+          "C9",
+          "A62"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "savoir-retrouver",
+        "casUsage": null,
+        "voisinCatalogue": "audit-une-journee",
+        "angle": "Ici l'audit ne porte que sur les plans, programmes et fichiers de l'atelier : sont-ils récupérables ? Ce n'est pas un audit d'une journée sur l'ensemble."
+      },
+      "cas": {
+        "id": "usinage-audit-sauvegardes",
+        "version": 2,
+        "offre": "audit",
+        "posture": "offre",
+        "titre": "Plans et programmes de l'atelier : récupérables le jour où l'ordinateur des programmes lâche ?",
+        "theme": "Programmes",
+        "promesse": "Vos plans reviennent-ils si l'ordinateur lâche",
+        "cible": "Un atelier de mécanique dont les plans et les programmes vivent sur quelques ordinateurs",
+        "avant": {
+          "taches": [
+            "Copier les fichiers sur une clé",
+            "Espérer qu'une copie se relise",
+            "Découvrir la panne trop tard"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les fichiers qui comptent",
+            "ligne": "On liste vos plans, programmes et gammes.",
+            "detail": "On repère ce qui arrêterait l'atelier s'il disparaissait.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Où ils sont",
+            "ligne": "On relève où chaque fichier est copié.",
+            "detail": "Ordinateur, serveur, clé, copie extérieure : on note ce qui existe vraiment.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "L'essai",
+            "ligne": "On essaie de restaurer un fichier, pour de vrai.",
+            "detail": "Seul un essai montre qu'une copie se relit.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          },
+          {
+            "titre": "Le constat",
+            "ligne": "Vous recevez ce qui manque et l'ordre pour le traiter.",
+            "detail": "Un rapport court, sans jargon.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Votre décision",
+            "ligne": "Vous décidez de ce que l'on met en place.",
+            "detail": "L'audit ne touche à aucun fichier sans accord.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Décider de ce que l'on met en place.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous savez si vos plans reviennent le jour où l'ordinateur des programmes lâche.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Exemple de plan d'audit",
+          "finCadeauId": "fin-if-cadeau-audit"
+        },
+        "mot": "RESTAURER",
+        "vigilance": [
+          "Ne jamais dire qu'une copie est sûre sans un essai de restauration.",
+          "Ne jamais promettre qu'aucun fichier ne sera perdu.",
+          "L'audit constate : on ne touche à aucun fichier sans accord."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-09",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "PME",
+        "socle": "S01",
+        "inventaire": [
+          "A28"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "commandes-documents-recus",
+        "casUsage": "industrie.sous-traitant-industriel.integration.c02",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "soustraitant-appels-livraison",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les appels de livraison du donneur d'ordre préparés en brouillon",
+        "theme": "Livraisons",
+        "promesse": "Chaque appel de livraison arrive en brouillon",
+        "cible": "Un sous-traitant dont l'administration des ventes ressaisit les appels de livraison",
+        "avant": {
+          "taches": [
+            "Ouvrir chaque appel reçu",
+            "Ressaisir ligne par ligne",
+            "Vérifier la commande ouverte"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "L'appel arrive",
+            "ligne": "L'appel de livraison arrive en PDF ou dans un message.",
+            "detail": "Il est reçu tel quel, quelle que soit sa forme.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "La lecture",
+            "ligne": "Son contenu est lu : référence, quantité, date.",
+            "detail": "Ce qui est illisible est signalé, jamais deviné.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Le rapprochement",
+            "ligne": "Chaque ligne est rapprochée de la commande ouverte et préparée en brouillon.",
+            "detail": "Dans votre logiciel de gestion. Rien n'est validé : les lignes attendent.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "outils-relies"
+            }
+          },
+          {
+            "titre": "La validation",
+            "ligne": "L'administration des ventes valide chaque ligne.",
+            "detail": "Elle corrige si besoin, puis la ligne entre dans le logiciel.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Valider chaque ligne avant son entrée dans le logiciel de gestion.",
+        "resteHumainApresEtape": 3,
+        "resultat": "L'administration des ventes valide au lieu de ressaisir.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "LIVRAISON",
+        "vigilance": [
+          "Ne jamais dire que l'outil accepte ou refuse une commande.",
+          "Ne jamais présenter l'outil comme une assurance sur les exigences du donneur d'ordre.",
+          "Une ligne illisible reste en attente, jamais devinée."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-10",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "PME",
+        "socle": "S06",
+        "inventaire": [
+          "A9",
+          "C18"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "prevenir-le-bon",
+        "casUsage": "industrie.sous-traitant-industriel.integration.c03",
+        "voisinCatalogue": "alerte-courte",
+        "angle": "Ici l'alerte courte prévient l'atelier et les achats d'un changement de cadence du donneur d'ordre."
+      },
+      "cas": {
+        "id": "soustraitant-changement-cadence",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Le changement de cadence prévient l'atelier et les achats",
+        "theme": "Cadence",
+        "promesse": "L'atelier apprend le changement tout de suite",
+        "cible": "Un sous-traitant dont le donneur d'ordre change souvent la cadence ou la date",
+        "avant": {
+          "taches": [
+            "Transférer le message à la main",
+            "Appeler l'atelier puis les achats",
+            "Oublier de prévenir quelqu'un"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le changement",
+            "ligne": "Le donneur d'ordre modifie cadence, quantité ou date.",
+            "detail": "Le message est reçu et lu.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Le résumé",
+            "ligne": "Le changement est résumé en une phrase.",
+            "detail": "Ce qui change et pour quand, rien d'autre.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "L'alerte",
+            "ligne": "Une alerte courte part à l'atelier et aux achats.",
+            "detail": "Elle arrive sur le téléphone du bon groupe.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Sans doublon",
+            "ligne": "Chaque groupe est prévenu sans doublon.",
+            "detail": "Le rythme des messages est limité pour que l'alerte reste lue.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "pile-notifications"
+            }
+          },
+          {
+            "titre": "La réponse",
+            "ligne": "Votre équipe décide de ce qui est possible.",
+            "detail": "Elle répond ensuite au donneur d'ordre.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Décider de ce qui est possible et répondre au donneur d'ordre.",
+        "resteHumainApresEtape": 4,
+        "resultat": "L'atelier et les achats savent le changement le jour même.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "CADENCE",
+        "vigilance": [
+          "Ne jamais promettre un délai de réponse chiffré.",
+          "Ne jamais laisser croire qu'une commande est acceptée sans décision d'une personne.",
+          "Une alerte courte dit ce qui change, pas plus."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-11",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "PME",
+        "socle": "S03",
+        "inventaire": [
+          "A44",
+          "A45"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "relances-paiements",
+        "casUsage": "industrie.sous-traitant-industriel.integration.c04",
+        "voisinCatalogue": "devis-relances",
+        "angle": "Ici ce sont les factures échues d'un grand compte, pas des devis non signés."
+      },
+      "cas": {
+        "id": "soustraitant-facture-bloquee",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "La facture bloquée chez le donneur d'ordre, repérée et relancée",
+        "theme": "Facture bloquée",
+        "promesse": "Une facture bloquée ne passe plus inaperçue",
+        "cible": "Un sous-traitant dont des factures restent bloquées chez un grand compte",
+        "avant": {
+          "taches": [
+            "Repérer les factures en retard",
+            "Deviner pourquoi elles bloquent",
+            "Relancer quand on y pense"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le matin",
+            "ligne": "Chaque matin, les factures échues sont repérées.",
+            "detail": "La liste se recalcule seule.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          },
+          {
+            "titre": "Le blocage",
+            "ligne": "Celles qui restent sans réponse ressortent.",
+            "detail": "Votre équipe note le motif en face : forme ou pièce manquante.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La relance préparée",
+            "ligne": "La relance du palier suivant est préparée.",
+            "detail": "Le texte est prêt, adapté au grand compte.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Le pointage",
+            "ligne": "Votre équipe vérifie le paiement, puis décide.",
+            "detail": "Elle choisit le ton, le moment et l'envoi.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Corriger la forme, décider du ton, du moment et de l'envoi.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Une facture bloquée est repérée avant que quelqu'un ne l'oublie.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "BLOQUEE",
+        "vigilance": [
+          "Ne jamais promettre un paiement plus rapide ni un chiffre d'affaires en plus.",
+          "Aucune relance ne part sans pointage et accord d'une personne.",
+          "Ne pas refaire un cas sur les devis : celui-ci porte sur les factures échues."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-12",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "PME",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "savoir-retrouver",
+        "casUsage": "industrie.sous-traitant-industriel.formation.c02",
+        "voisinCatalogue": "programme-par-ia",
+        "angle": "Ici on apprend à réutiliser ses réponses aux questionnaires des donneurs d'ordre, on n'écrit pas un programme de formation."
+      },
+      "cas": {
+        "id": "soustraitant-questionnaires",
+        "version": 1,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Les questionnaires des donneurs d'ordre sans tout réécrire",
+        "theme": "Questionnaires clients",
+        "promesse": "Vos réponses se réutilisent, sans tout réécrire",
+        "cible": "Un sous-traitant qui répond sans cesse aux mêmes questionnaires de donneurs d'ordre",
+        "avant": {
+          "taches": [
+            "Réécrire les mêmes réponses",
+            "Chercher le document déjà fourni",
+            "Remplir chaque questionnaire sur une page blanche"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Vos réponses de base",
+            "ligne": "On réunit les réponses déjà données.",
+            "detail": "Questionnaires passés et documents fournis sont mis ensemble.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Le questionnaire",
+            "ligne": "On lit un questionnaire de donneur d'ordre.",
+            "detail": "Chaque question est reliée à une réponse déjà écrite.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "La banque de réponses",
+            "ligne": "Vos réponses sont réutilisées, puis adaptées.",
+            "detail": "Votre équipe apprend à les retrouver et à les ajuster.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La vérification",
+            "ligne": "Votre équipe vérifie chaque réponse et signe.",
+            "detail": "Rien n'est déclaré sans vérification.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Vérifier chaque réponse, ne rien déclarer d'inexact, signer.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Chaque questionnaire repart de vos réponses.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "REPONSES",
+        "vigilance": [
+          "Ne jamais déclarer à un donneur d'ordre ce qui n'a pas été vérifié.",
+          "Ne jamais laisser croire que l'outil répond à la place de l'entreprise.",
+          "Ne jamais présenter les exigences d'un donneur d'ordre comme remplies par l'outil."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-13",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "PME",
+        "socle": "S04",
+        "inventaire": [
+          "A51",
+          "A38"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "echeances-papiers",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "soustraitant-attestations",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les attestations exigées par les donneurs d'ordre, suivies avant l'échéance",
+        "theme": "Attestations",
+        "promesse": "Chaque attestation prévient avant sa date",
+        "cible": "Un sous-traitant qui doit fournir des attestations à plusieurs donneurs d'ordre",
+        "avant": {
+          "taches": [
+            "Noter les dates dans un tableur",
+            "Y repenser trop tard",
+            "Courir après un renouvellement"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La liste",
+            "ligne": "Chaque attestation exigée est notée avec sa date.",
+            "detail": "Pour chaque donneur d'ordre, on voit ce qu'il réclame.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Le suivi",
+            "ligne": "Son état passe de à jour à bientôt échue.",
+            "detail": "Il se recalcule chaque matin.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Le rappel",
+            "ligne": "Votre équipe est prévenue avant l'échéance.",
+            "detail": "L'alerte arrive sur le téléphone, bien avant la date.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Le renouvellement",
+            "ligne": "Votre équipe demande le renouvellement.",
+            "detail": "Elle vérifie la nouvelle attestation avant de la classer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Demander le renouvellement et vérifier la nouvelle attestation.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Une attestation à renouveler se voit avant qu'elle ne soit échue.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "ECHEANCE",
+        "vigilance": [
+          "Ne jamais dire que l'outil renouvelle une attestation.",
+          "Ne jamais promettre un nouveau client ni un référencement.",
+          "Ne jamais présenter les exigences d'un donneur d'ordre comme remplies par l'outil."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-14",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "TPE",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": "industrie.sous-traitant-industriel.formation.c03",
+        "voisinCatalogue": "email-difficile",
+        "angle": "Ici le message s'adresse à un nouveau donneur d'ordre, à qui l'on écrit pour la première fois."
+      },
+      "cas": {
+        "id": "soustraitant-premier-message",
+        "version": 1,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Écrire à un nouveau donneur d'ordre",
+        "theme": "Premier message",
+        "promesse": "Un premier message qui part enfin",
+        "cible": "Dirigeant d'un atelier de sous-traitance qui prospecte peu, faute de temps",
+        "avant": {
+          "taches": [
+            "Repousser l'écriture du message",
+            "Ne pas savoir quoi dire",
+            "Y revenir le soir"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "L'entreprise visée",
+            "ligne": "Vous choisissez l'entreprise à qui écrire.",
+            "detail": "Un nom, une raison de lui écrire.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Ce que vous savez faire",
+            "ligne": "Vous dites ce que votre atelier fait de mieux.",
+            "detail": "Les séries, les matières, les délais que vous tenez.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le brouillon",
+            "ligne": "Un premier message est rédigé avec vous.",
+            "detail": "Il reste court, dans vos mots.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Votre envoi",
+            "ligne": "Vous relisez, corrigez et envoyez vous-même.",
+            "detail": "Le message part de vous.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Choisir les entreprises visées, relire, envoyer vous-même.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Vous avez un premier message prêt, écrit dans vos mots.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "ACCROCHE",
+        "vigilance": [
+          "Ne jamais promettre un nouveau client signé ni un chiffre d'affaires en plus.",
+          "Le message part de vous : l'outil n'envoie rien seul.",
+          "Parler d'atelier, de séries et de plans, sans mot de spécialiste."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-16",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "ETI",
+        "socle": "AU",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "prevenir-le-bon",
+        "casUsage": "industrie.sous-traitant-industriel.audit.c02",
+        "voisinCatalogue": "audit-departement",
+        "angle": "Ici l'audit suit un seul message, du donneur d'ordre jusqu'à l'atelier, sur plusieurs sites."
+      },
+      "cas": {
+        "id": "soustraitant-audit-circuit",
+        "version": 1,
+        "offre": "audit",
+        "posture": "offre",
+        "titre": "Du message du donneur d'ordre jusqu'à l'atelier",
+        "theme": "Circuit",
+        "promesse": "Voir le chemin d'un message jusqu'à l'atelier",
+        "cible": "Une entreprise de sous-traitance à plusieurs sites, où un message client passe par plusieurs services",
+        "avant": {
+          "taches": [
+            "Transférer de service en service",
+            "Perdre le fil d'un changement",
+            "Prévenir l'atelier trop tard"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le point de départ",
+            "ligne": "On choisit un message réel de donneur d'ordre.",
+            "detail": "Il sert de fil conducteur à l'audit.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Le trajet",
+            "ligne": "On suit ce message, site par site.",
+            "detail": "On note chaque service par lequel il passe.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Les attentes",
+            "ligne": "On relève chaque étape où l'information attend.",
+            "detail": "Boîte partagée, ressaisie, appel : chaque attente est datée sur le cas réel.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          },
+          {
+            "titre": "Les priorités",
+            "ligne": "Vous recevez les points à traiter, classés par priorité.",
+            "detail": "Un rapport structuré, avec une méthode et des étapes.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "La décision",
+            "ligne": "Votre comité de direction choisit comment raccourcir le circuit.",
+            "detail": "Il décide par quel site commencer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Choisir comment raccourcir le circuit et par quel site commencer.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous voyez le circuit complet et vous savez par où commencer.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Exemple de plan d'audit",
+          "finCadeauId": "fin-if-cadeau-audit"
+        },
+        "mot": "CIRCUIT",
+        "vigilance": [
+          "Ne jamais laisser croire que tout se décide d'un seul coup.",
+          "Ne jamais promettre de délai de réponse chiffré.",
+          "L'audit constate et propose : aucun site n'est modifié sans accord."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-17",
+        "secteur": "IN",
+        "metier": "industrie.plasturgie",
+        "metierNom": "Atelier de plasturgie",
+        "taille": "PME",
+        "socle": "S01",
+        "inventaire": [
+          "A28"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "commandes-documents-recus",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "plasturgie-commandes-clients",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les commandes clients lues et saisies en brouillon",
+        "theme": "Commandes clients",
+        "promesse": "Chaque commande arrive déjà en brouillon",
+        "cible": "Une plasturgie dont l'administration des ventes ressaisit les commandes clients",
+        "avant": {
+          "taches": [
+            "Ouvrir chaque commande reçue",
+            "Ressaisir matière, coloris, moule",
+            "Chercher la date de livraison"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La commande arrive",
+            "ligne": "La commande arrive en PDF ou dans un message.",
+            "detail": "Elle est reçue telle quelle.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "La lecture",
+            "ligne": "Son contenu est lu : pièce, matière, coloris, moule.",
+            "detail": "Le changement de série est relevé ; ce qui est illisible est signalé, jamais deviné.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Le brouillon",
+            "ligne": "La commande est saisie en brouillon dans votre logiciel de gestion.",
+            "detail": "Rien n'est validé : elle attend.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "outils-relies"
+            }
+          },
+          {
+            "titre": "La validation",
+            "ligne": "L'administration des ventes valide chaque ligne.",
+            "detail": "Elle corrige si besoin, puis la commande entre.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Valider chaque ligne avant son entrée dans le logiciel de gestion.",
+        "resteHumainApresEtape": 3,
+        "resultat": "L'administration des ventes valide au lieu de tout ressaisir.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "COMMANDES",
+        "vigilance": [
+          "Ne jamais promettre un taux de rebut en baisse ni un temps de cycle réduit.",
+          "Ne jamais dire que la presse est réglée ou arrêtée par l'outil.",
+          "Une ligne illisible reste en attente, jamais devinée."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-18",
+        "secteur": "IN",
+        "metier": "industrie.plasturgie",
+        "metierNom": "Atelier de plasturgie",
+        "taille": "PME",
+        "socle": "S04",
+        "inventaire": [
+          "A51",
+          "A38"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "fournisseurs",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "plasturgie-fiches-fournisseurs",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les fiches techniques de matière tenues à jour avant échéance",
+        "theme": "Fiches matière",
+        "promesse": "Chaque fiche matière prévient avant sa date",
+        "cible": "Une plasturgie qui suit les fiches de plusieurs fournisseurs de matière",
+        "avant": {
+          "taches": [
+            "Noter les dates de chaque fiche",
+            "Y repenser trop tard",
+            "Réclamer la fiche au dernier moment"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les fiches",
+            "ligne": "Chaque fiche technique de matière est classée avec sa date.",
+            "detail": "Granulés, colorants : chaque fournisseur a son dossier.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Le suivi",
+            "ligne": "Son état passe de à jour à bientôt échue.",
+            "detail": "Il se recalcule chaque matin.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Le rappel",
+            "ligne": "Votre équipe est prévenue avant l'échéance.",
+            "detail": "La demande au fournisseur est prête à partir.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "La mise à jour",
+            "ligne": "Votre équipe vérifie la nouvelle fiche et la range.",
+            "detail": "Elle vérifie que la matière reste celle attendue.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Réclamer la nouvelle fiche, la vérifier et la ranger.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Une fiche à renouveler se voit avant qu'elle ne soit échue.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "FICHEMATIERE",
+        "vigilance": [
+          "Ne jamais promettre de qualité de pièce ni de taux de rebut en baisse.",
+          "Ne jamais dire que l'outil choisit le fournisseur.",
+          "Le suivi prévient : il ne renouvelle aucune fiche."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-19",
+        "secteur": "IN",
+        "metier": "industrie.plasturgie",
+        "metierNom": "Atelier de plasturgie",
+        "taille": "PME",
+        "socle": "S12",
+        "inventaire": [
+          "C2"
+        ],
+        "niveauPreuve": "a-confirmer",
+        "douleur": "compte-rendu",
+        "casUsage": null,
+        "voisinCatalogue": "compte-rendu-visio",
+        "angle": "Ici le document est la relève d'équipe dictée au poste pour l'équipe suivante, pas le compte rendu d'une visio ni un compte rendu dicté après coup."
+      },
+      "cas": {
+        "id": "plasturgie-releve-equipe",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "La relève d'équipe dictée au poste, relue par le chef d'équipe",
+        "theme": "Relève d'équipe",
+        "promesse": "La relève se dicte, puis se relit",
+        "cible": "Une plasturgie dont les équipes se relaient autour des presses",
+        "avant": {
+          "taches": [
+            "Écrire la relève à la main",
+            "La transmettre de vive voix",
+            "Oublier un réglage en route"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La dictée",
+            "ligne": "À la fin du poste, le régleur dicte sa relève.",
+            "detail": "Il parle comme il le ferait à son collègue.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-capture"
+            }
+          },
+          {
+            "titre": "Le texte",
+            "ligne": "Sa dictée devient une relève écrite.",
+            "detail": "Réglages, arrêts de la presse, matière restante : tout est rangé sous les mêmes titres.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "La relecture",
+            "ligne": "Le chef d'équipe relit et corrige.",
+            "detail": "Rien n'est publié avant sa validation.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "La transmission",
+            "ligne": "La relève validée part à l'équipe suivante.",
+            "detail": "Elle la lit dès son arrivée.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          }
+        ],
+        "resteHumain": "Relire la relève, la corriger et la valider.",
+        "resteHumainApresEtape": 3,
+        "resultat": "L'équipe suivante lit une relève claire dès son arrivée.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "CONSIGNES",
+        "vigilance": [
+          "Ne jamais dire que la relève est publiée sans relecture du chef d'équipe.",
+          "Ne jamais promettre un taux de rebut en baisse ni un temps de cycle réduit.",
+          "Ne jamais dire que l'outil règle la presse.",
+          "Dicter sur le poste exige l'accord des personnes concernées."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-20",
+        "secteur": "IN",
+        "metier": "industrie.plasturgie",
+        "metierNom": "Atelier de plasturgie",
+        "taille": "PME",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "savoir-retrouver",
+        "casUsage": "industrie.plasturgie.formation.c01",
+        "voisinCatalogue": "programme-par-ia",
+        "angle": "Ici on apprend à écrire un mode opératoire de poste, on n'écrit pas un programme de formation."
+      },
+      "cas": {
+        "id": "plasturgie-mode-operatoire",
+        "version": 2,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Un mode opératoire de poste clair, une version de référence",
+        "theme": "Mode opératoire",
+        "promesse": "Une version de référence pour chaque poste",
+        "cible": "Une plasturgie dont les modes opératoires existent en plusieurs versions différentes",
+        "avant": {
+          "taches": [
+            "Retrouver la bonne version",
+            "Comparer des papiers qui diffèrent",
+            "Corriger au poste sans le dire"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les versions existantes",
+            "ligne": "On rassemble les versions qui circulent.",
+            "detail": "On voit ce qui diffère d'un poste à l'autre.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Le geste réel",
+            "ligne": "On part de ce que fait le régleur au poste.",
+            "detail": "Votre équipe raconte les gestes, dans l'ordre réel.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "La version de référence",
+            "ligne": "Un mode opératoire clair est rédigé ensemble.",
+            "detail": "Une page lisible au poste, avec les mots de l'atelier.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "programme"
+            }
+          },
+          {
+            "titre": "La validation",
+            "ligne": "Le régleur et le chef d'équipe la valident.",
+            "detail": "La version de référence est la leur.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Faire valider la version par le régleur et le chef d'équipe.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Chaque poste a une seule version, claire et validée.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "REFERENCE",
+        "vigilance": [
+          "Ne jamais promettre de qualité de pièce ni de taux de rebut en baisse.",
+          "Ne jamais dire que l'outil règle la presse.",
+          "La version de référence est validée par une personne du poste, jamais seule."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-21",
+        "secteur": "IN",
+        "metier": "industrie.plasturgie",
+        "metierNom": "Atelier de plasturgie",
+        "taille": "ETI",
+        "socle": "AU",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "compte-rendu",
+        "casUsage": null,
+        "voisinCatalogue": "audit-departement",
+        "angle": "Ici l'audit porte sur le passage de relais entre l'équipe de jour et l'équipe de nuit, sur plusieurs sites."
+      },
+      "cas": {
+        "id": "plasturgie-audit-relais",
+        "version": 1,
+        "offre": "audit",
+        "posture": "offre",
+        "titre": "Entre l'équipe de jour et l'équipe de nuit : où l'information se perd",
+        "theme": "Jour-nuit",
+        "promesse": "Voir où l'information se perd la nuit",
+        "cible": "Une entreprise de plasturgie à plusieurs sites, avec des équipes de jour et de nuit",
+        "avant": {
+          "taches": [
+            "Transmettre à l'oral",
+            "Noter sur un papier",
+            "Redécouvrir un arrêt au matin"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le passage de relais",
+            "ligne": "On observe le passage de relais, sur vos sites.",
+            "detail": "On regarde ce qui se dit à l'arrivée de chaque équipe.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Ce qui se transmet",
+            "ligne": "On relève ce qui se transmet, et comment.",
+            "detail": "À l'oral, sur papier, par message : on compare les pratiques.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Ce qui se perd",
+            "ligne": "On repère ce qui n'arrive jamais à l'équipe suivante.",
+            "detail": "Matière restante, arrêt de presse, changement de moule : on liste les oublis.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "La méthode",
+            "ligne": "Vous recevez une méthode de relève commune.",
+            "detail": "Des règles d'usage communes, par étapes, pour tous vos sites.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Les priorités",
+            "ligne": "Votre comité de direction choisit par où commencer.",
+            "detail": "Il décide de l'ordre, site par site.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Choisir par où commencer et quelle méthode de relève retenir.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous savez où l'information se perd et par quoi commencer.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Exemple de plan d'audit",
+          "finCadeauId": "fin-if-cadeau-audit"
+        },
+        "mot": "RELAIS",
+        "vigilance": [
+          "Ne jamais laisser croire que tout se décide d'un seul coup.",
+          "Ne jamais promettre un taux de rebut en baisse ni un temps de cycle réduit.",
+          "L'audit propose : il ne change aucun réglage de presse."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-33",
+        "secteur": "IN",
+        "metier": "industrie.service-apres-vente-maintenance",
+        "metierNom": "Maintenance industrielle, SAV",
+        "taille": "PME",
+        "socle": "S10",
+        "inventaire": [
+          "A43"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "facturation",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "sav-facture-intervention-lendemain",
+        "version": 1,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "La facture d'intervention prête le lendemain, à valider",
+        "theme": "Facture d'intervention",
+        "promesse": "La facture prête le lendemain, à valider.",
+        "cible": "Une PME de maintenance dont les factures d'intervention se font longtemps après, quand les rapports sont rentrés.",
+        "avant": {
+          "taches": [
+            "Attendre le rapport pour facturer",
+            "Recopier le temps passé et les pièces",
+            "Facturer trop tard"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "L'intervention terminée",
+            "ligne": "La fin de l'intervention est enregistrée.",
+            "detail": "Avec le rapport et les pièces utilisées.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "La facture préparée",
+            "ligne": "Le lendemain, la facture est établie.",
+            "detail": "Temps passé et pièces sont repris du rapport.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Le message prêt",
+            "ligne": "Le PDF et le courriel sont préparés.",
+            "detail": "Au nom du client concerné.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "La retenue",
+            "ligne": "Rien ne part sans validation.",
+            "detail": "Une facture laissée incomplète est reprise, jamais en double.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            }
+          }
+        ],
+        "resteHumain": "Relire la facture et la valider avant l'envoi.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Dès le lendemain de l'intervention, la facture attend sa validation.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "LENDEMAIN",
+        "vigilance": [
+          "Aucun montant ni prix annoncé.",
+          "Aucun délai de paiement promis.",
+          "Une facture ne part jamais sans validation."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "LT-01",
+        "secteur": "LT",
+        "metier": "industrie.transporteur",
+        "metierNom": "Transporteur",
+        "taille": "TPE",
+        "socle": "S09",
+        "inventaire": [
+          "A41",
+          "A8"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "facturation",
+        "casUsage": "industrie.transporteur.integration.c03",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "transporteur-bons-signes-factures",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les bons de livraison signés remontent seuls à la facturation",
+        "theme": "Bons signés",
+        "promesse": "Plus aucun bon signé oublié dans la cabine.",
+        "cible": "Un transporteur qui travaille seul ou presque, et dont la facture attend les bons rapportés par les chauffeurs.",
+        "avant": {
+          "taches": [
+            "Réclamer les bons signés aux chauffeurs",
+            "Trier les papiers froissés le soir",
+            "Facturer en retard faute de preuve"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le bon signé",
+            "ligne": "Le chauffeur photographie le bon signé à la livraison.",
+            "detail": "Le destinataire signe, avec ses réserves éventuelles, et la photo part directement dans le dossier de la livraison.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-capture"
+            }
+          },
+          {
+            "titre": "Le rattrapage",
+            "ligne": "Chaque heure, les bons jamais remontés sont repérés.",
+            "detail": "Une livraison faite sans bon reçu est signalée, et le chauffeur reçoit un message pour l'envoyer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          },
+          {
+            "titre": "Le dossier",
+            "ligne": "Chaque bon rejoint la bonne livraison.",
+            "detail": "Le bon est rangé avec la commande du client, prêt pour la facture.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "La facture préparée",
+            "ligne": "La facture est préparée avec son bon en pièce jointe.",
+            "detail": "Elle attend, retenue, que vous la regardiez.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Votre validation",
+            "ligne": "Vous lisez les réserves et validez la facture.",
+            "detail": "Rien ne part sans votre accord.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Lire les réserves du destinataire et valider la facture.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Chaque livraison faite arrive à la facture avec son bon signé.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "SIGNES",
+        "vigilance": [
+          "Ne citer aucun gain de temps chiffré ni délai de paiement.",
+          "Ne citer aucun kilomètre ni carburant économisé.",
+          "Ne pas laisser croire que la facture part sans votre validation."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "LT-05",
+        "secteur": "LT",
+        "metier": "industrie.transporteur",
+        "metierNom": "Transporteur",
+        "taille": "TPE",
+        "socle": "F",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "client-qui-appelle",
+        "casUsage": "industrie.transporteur.formation.c03",
+        "voisinCatalogue": "email-difficile",
+        "angle": "Ici la réponse repose sur un dossier de preuves de livraison, ce n'est pas un e-mail difficile en général."
+      },
+      "cas": {
+        "id": "transporteur-reponse-litige",
+        "version": 2,
+        "offre": "formation",
+        "posture": "offre",
+        "titre": "Écrire la réponse à un litige de livraison",
+        "theme": "Litige",
+        "promesse": "Une réponse claire, même un soir fatigué.",
+        "cible": "Un dirigeant de petit transport qui répond seul aux réclamations de ses clients, souvent le soir.",
+        "avant": {
+          "taches": [
+            "Chercher photos, bon et messages éparpillés",
+            "Rédiger la réponse dans l'urgence",
+            "Hésiter sur le ton et sur ce qu'on promet"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les faits d'abord",
+            "ligne": "Vous réunissez le bon, les photos et les messages.",
+            "detail": "Un seul dossier par litige, avec le bon émargé, les réserves écrites et ce qui s'est vraiment passé.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Les bonnes questions",
+            "ligne": "Vous demandez à l'IA de résumer le litige.",
+            "detail": "Vous apprenez à poser des questions précises pour obtenir un résumé fidèle.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Le brouillon",
+            "ligne": "Vous obtenez un brouillon de réponse au ton posé.",
+            "detail": "Le texte reconnaît le problème sans promettre ce que vous ne tiendrez pas.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Votre relecture",
+            "ligne": "Vous relisez, corrigez et choisissez votre geste.",
+            "detail": "Vous restez le seul à décider de ce que vous proposez au client.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "Le modèle gardé",
+            "ligne": "Vous gardez la meilleure réponse comme modèle.",
+            "detail": "Le prochain litige commencera avec un texte déjà prêt.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          }
+        ],
+        "resteHumain": "Dire la vérité et choisir ce que vous proposez au client.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Une réclamation reçoit un texte clair, sans y passer la soirée.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Programme de la formation",
+          "finCadeauId": "fin-if-cadeau-formation"
+        },
+        "mot": "LITIGE",
+        "vigilance": [
+          "Ne promettre aucun remboursement ni geste commercial à la place du dirigeant.",
+          "Ne citer aucun nombre de litiges évités.",
+          "Ne pas laisser croire que l'IA tranche à votre place."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "LT-08",
+        "secteur": "LT",
+        "metier": "industrie.logisticien-entrepot",
+        "metierNom": "Logisticien, entrepôt",
+        "taille": "PME",
+        "socle": "S07",
+        "inventaire": [
+          "A10",
+          "A43"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "client-qui-appelle",
+        "casUsage": "industrie.logisticien-entrepot.integration.c03",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "entrepot-ecart-reception-client",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "L'écart de réception raconté au client, relu avant envoi",
+        "theme": "Écarts réception",
+        "promesse": "Chaque écart raconté au client, après relecture.",
+        "cible": "Un entrepôt dont la réception relève des manques ou des casses qu'il faut ensuite expliquer au client.",
+        "avant": {
+          "taches": [
+            "Noter l'écart sur un papier",
+            "Rédiger le message au client",
+            "Oublier d'en prévenir un"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "L'écart relevé",
+            "ligne": "Le manque, la casse ou la mauvaise référence est relevé.",
+            "detail": "Le responsable de la réception le saisit avec une photo, au pied de la palette.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-capture"
+            }
+          },
+          {
+            "titre": "Le récit préparé",
+            "ligne": "Le message au client est préparé avec les faits.",
+            "detail": "Référence, nature de l'écart et photo sont repris, sans rien inventer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "La retenue",
+            "ligne": "Le message est retenu avant de partir.",
+            "detail": "Un écart engage votre entrepôt : rien ne part tout seul.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Votre relecture",
+            "ligne": "Votre équipe relit, corrige et valide.",
+            "detail": "Elle choisit les mots et ce qui est proposé au client.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "L'envoi",
+            "ligne": "Dès qu'il est validé, le message part au client.",
+            "detail": "L'écart est suivi jusqu'à la réponse.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          }
+        ],
+        "resteHumain": "Relire, envoyer et négocier la suite avec le client.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Chaque écart de réception est raconté au client, sans recopier.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "ECART",
+        "vigilance": [
+          "Ne promettre aucun taux de service ni réduction d'erreurs chiffrée.",
+          "Ne pas dire que la cause d'un écart se décide sans une personne.",
+          "Ne pas laisser croire que le message part sans relecture."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "LT-09",
+        "secteur": "LT",
+        "metier": "industrie.logisticien-entrepot",
+        "metierNom": "Logisticien, entrepôt",
+        "taille": "PME",
+        "socle": "S13",
+        "inventaire": [
+          "C16",
+          "A27"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "tableau-de-bord",
+        "casUsage": "industrie.logisticien-entrepot.integration.c04",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "entrepot-etat-stock-client",
+        "version": 2,
+        "offre": "integration",
+        "nature": "outils-relies",
+        "posture": "offre",
+        "titre": "L'état de stock de chaque client, monté seul chaque semaine",
+        "theme": "Stocks",
+        "promesse": "Le tableau du client est prêt le lundi.",
+        "cible": "Un entrepôt dont les clients réclament chaque semaine leur état de stock, monté à la main.",
+        "avant": {
+          "taches": [
+            "Recopier les lignes du logiciel d'entrepôt",
+            "Monter un tableau par client",
+            "Répondre aux relances"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le stock relevé",
+            "ligne": "Le stock de chaque client est lu dans votre logiciel d'entrepôt.",
+            "detail": "Les mêmes données servent à tous, sans recopie.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "outils-relies"
+            }
+          },
+          {
+            "titre": "Le tableau monté",
+            "ligne": "Chaque lundi, l'état de chaque client se monte seul.",
+            "detail": "Un tableau par client, dans le format qu'il connaît.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Le dépôt",
+            "ligne": "Le tableau est déposé dans un dossier daté.",
+            "detail": "Votre équipe le retrouve sans le chercher.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "Votre relecture",
+            "ligne": "Un responsable relit l'état avant de le transmettre.",
+            "detail": "Il corrige ce qui doit l'être et valide.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "L'envoi",
+            "ligne": "Le client reçoit son état sans avoir relancé.",
+            "detail": "Il arrive au même moment chaque semaine.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          }
+        ],
+        "resteHumain": "Relire l'état avant de le transmettre au client.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Chaque client reçoit son état de stock sans relancer.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Schéma de l'intégration",
+          "finCadeauId": "fin-if-cadeau-integration"
+        },
+        "mot": "STOCK",
+        "vigilance": [
+          "Ne promettre aucun taux de service ni nombre de palettes en plus.",
+          "Ne pas dire que l'entrepôt se gère seul.",
+          "Ne citer aucune réduction d'erreurs chiffrée."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "LT-10",
+        "secteur": "LT",
+        "metier": "industrie.logisticien-entrepot",
+        "metierNom": "Logisticien, entrepôt",
+        "taille": "PME",
+        "socle": "S14",
+        "inventaire": [
+          "A2",
+          "A4"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "planning-urgences",
+        "casUsage": "industrie.logisticien-entrepot.audit.c03",
+        "voisinCatalogue": "rappels-rendez-vous",
+        "angle": "Ici les créneaux sont des créneaux de quai pour des camions, pas des rendez-vous d'appel commercial."
+      },
+      "cas": {
+        "id": "entrepot-creneaux-quai",
+        "version": 3,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les créneaux de quai réservés et rappelés",
+        "theme": "Quai",
+        "promesse": "Chaque camion a un créneau confirmé.",
+        "cible": "Un entrepôt dont la réception organise les arrivées de camions par téléphone, avec des urgences qui s'invitent.",
+        "avant": {
+          "taches": [
+            "Fixer les arrivées par téléphone",
+            "Découvrir un camion urgent à quai",
+            "Refaire le planning du matin"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le créneau réservé",
+            "ligne": "Le transporteur réserve un créneau de quai.",
+            "detail": "Il choisit parmi les créneaux libres, sans appeler.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "La confirmation",
+            "ligne": "Une confirmation part aussitôt.",
+            "detail": "Le chauffeur et la réception ont la même information.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "e-mail"
+            }
+          },
+          {
+            "titre": "Le créneau à jour",
+            "ligne": "Un créneau pris ailleurs disparaît de l'offre.",
+            "detail": "Plus de double réservation à démêler au dernier moment.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le rappel",
+            "ligne": "La veille et juste avant, le chauffeur est rappelé.",
+            "detail": "Un message court lui redit le créneau et le quai.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Le quai",
+            "ligne": "Votre équipe organise le quai et le déchargement.",
+            "detail": "Elle décide de l'ordre quand une urgence se présente.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Organiser le quai et décider de l'ordre de déchargement.",
+        "resteHumainApresEtape": 4,
+        "resultat": "La réception connaît ses arrivées bien avant que les camions se présentent.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "QUAI",
+        "vigilance": [
+          "Ne promettre aucun taux de service ni nombre de palettes en plus.",
+          "Ne pas laisser croire que les emplacements ou l'ordre du quai se décident seuls.",
+          "Ne citer aucune réduction d'attente chiffrée."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "NB-04",
+        "secteur": "NB",
+        "metier": "commerce.grossiste-negoce",
+        "metierNom": "Grossiste, négoce",
+        "taille": "PME",
+        "socle": "S08",
+        "inventaire": [
+          "A65"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "savoir-retrouver",
+        "casUsage": null,
+        "voisinCatalogue": "outils-branches",
+        "angle": "Ici on retrouve une réponse dans des fiches fournisseurs, on ne branche pas des outils entre eux."
+      },
+      "cas": {
+        "id": "negoce-reponse-fiches",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "La réponse à une question technique tirée des fiches fournisseurs",
+        "theme": "Fiches fournisseurs",
+        "promesse": "La réponse est déjà dans vos fiches.",
+        "cible": "Un grossiste ou un négoce dont les clients posent des questions techniques sur les références.",
+        "avant": {
+          "taches": [
+            "Chercher la bonne fiche fournisseur",
+            "Feuilleter plusieurs classeurs",
+            "Rappeler le représentant",
+            "Rédiger la réponse au client"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les fiches",
+            "ligne": "Vos fiches fournisseurs sont rassemblées au même endroit.",
+            "detail": "Classeurs, fichiers et documents reçus alimentent la même base.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "La question",
+            "ligne": "La question du client est posée en mots simples.",
+            "detail": "Le commercial écrit la question comme le client l'a dite.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "La réponse",
+            "ligne": "Un brouillon de réponse est tiré des fiches.",
+            "detail": "La fiche d'origine est indiquée, pour vérifier d'un coup d'œil.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Le doute",
+            "ligne": "Si les fiches ne disent rien, l'outil le dit.",
+            "detail": "Il ne devine pas : la question retourne au fournisseur.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bulle-lien"
+            }
+          },
+          {
+            "titre": "La relecture",
+            "ligne": "Le commercial relit, puis répond au client.",
+            "detail": "Une réponse technique engage l'entreprise : elle part après lui.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Relire la réponse avant de l'envoyer et engager l'entreprise.",
+        "resteHumainApresEtape": 4,
+        "resultat": "La réponse s'appuie sur la fiche, pas sur la mémoire de chacun.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "FICHES",
+        "vigilance": [
+          "Ne jamais laisser croire que la réponse part seule : une personne relit avant tout envoi.",
+          "Aucune affirmation sur la sécurité d'un produit : seule la fiche du fournisseur fait foi.",
+          "Aucun tarif, aucune remise."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "NB-05",
+        "secteur": "NB",
+        "metier": "commerce.grossiste-negoce",
+        "metierNom": "Grossiste, négoce",
+        "taille": "PME",
+        "socle": "AU",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "fournisseurs",
+        "casUsage": "commerce.grossiste-negoce.audit.c01",
+        "voisinCatalogue": "audit-departement",
+        "angle": "Ici l'audit porte sur un seul circuit, celui des tarifs des fournisseurs, et non sur un département entier ni sur une journée."
+      },
+      "cas": {
+        "id": "negoce-audit-tarifs",
+        "version": 2,
+        "offre": "audit",
+        "posture": "offre",
+        "titre": "Les tarifs des fournisseurs : où ils arrivent, qui les met à jour",
+        "theme": "Tarifs fournisseurs",
+        "promesse": "Savoir par où passe chaque tarif.",
+        "cible": "Un grossiste ou un négoce dont les tarifs fournisseurs arrivent sous plusieurs formes.",
+        "avant": {
+          "taches": [
+            "Recevoir un tarif sous divers formats",
+            "Reporter les prix référence par référence",
+            "Ignorer qui a mis à jour"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Les arrivées",
+            "ligne": "On liste comment chaque tarif arrive chez vous.",
+            "detail": "Document, tableur, e-mail : chaque voie d'entrée est notée.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "pile-notifications"
+            }
+          },
+          {
+            "titre": "Le trajet",
+            "ligne": "On suit le tarif jusqu'au logiciel de gestion.",
+            "detail": "On voit qui le reçoit, qui le reporte, et à quel moment.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Les points fragiles",
+            "ligne": "On repère où l'information se perd.",
+            "detail": "Une version ancienne, une ressaisie, un tarif oublié.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "Le plan",
+            "ligne": "On vous remet un plan des points à corriger.",
+            "detail": "Dans l'ordre, du plus simple au plus utile.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "programme"
+            }
+          },
+          {
+            "titre": "Le choix",
+            "ligne": "Votre équipe décide du circuit à garder.",
+            "detail": "L'audit éclaire, il ne tranche pas à votre place.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Décider du circuit à garder.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous savez par où passe chaque tarif et qui le met à jour.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Exemple de plan d'audit",
+          "finCadeauId": "fin-if-cadeau-audit"
+        },
+        "mot": "TARIFS",
+        "vigilance": [
+          "Aucun tarif, aucune remise, aucune marge citée.",
+          "Ne pas présenter de gain chiffré : l'audit éclaire un circuit, il ne promet pas de résultat.",
+          "Aucune automatisation n'est annoncée : c'est un audit."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "NB-06",
+        "secteur": "NB",
+        "metier": "btp.loueur-materiel-chantier",
+        "metierNom": "Loueur de matériel de chantier",
+        "taille": "TPE",
+        "socle": "S14",
+        "inventaire": [
+          "A2",
+          "A4"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "planning-urgences",
+        "casUsage": "btp.loueur-materiel-chantier.integration.c03",
+        "voisinCatalogue": "rappels-rendez-vous",
+        "angle": "Ici le rappel annonce la fin d'une location et le retour du matériel, ce n'est pas un rendez-vous."
+      },
+      "cas": {
+        "id": "location-fin-rappelee",
+        "version": 2,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "La fin de location rappelée la veille au client",
+        "theme": "Location",
+        "promesse": "Vous savez la veille ce qui rentre.",
+        "cible": "Un loueur de matériel de chantier qui court après ses retours chaque matin.",
+        "avant": {
+          "taches": [
+            "Refaire le planning de retour chaque matin",
+            "Appeler les clients un par un",
+            "Découvrir le retard trop tard",
+            "Décaler la location suivante"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "La date de fin",
+            "ligne": "La fin de chaque location est inscrite à l'agenda.",
+            "detail": "Dès le contrat, la date et l'heure de retour sont connues.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Le rappel de la veille",
+            "ligne": "Le client reçoit un rappel la veille.",
+            "detail": "Le message dit quel matériel rentre, quand, et où.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "Le rappel juste avant",
+            "ligne": "Un second rappel part juste avant l'heure de retour.",
+            "detail": "Le client peut répondre qu'il prolonge.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          },
+          {
+            "titre": "Le planning à jour",
+            "ligne": "Vous voyez quels retours sont confirmés.",
+            "detail": "Votre planning de la journée se met à jour tout seul.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "La prolongation",
+            "ligne": "Vous acceptez ou refusez la demande de prolongation.",
+            "detail": "Selon la location suivante et votre planning.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Accepter ou refuser une prolongation, selon le planning.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vous savez le matin quels retours sont confirmés, avant d'appeler quiconque.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "RETOURS",
+        "vigilance": [
+          "Ne jamais annoncer un taux d'occupation ni un gain chiffré.",
+          "Une prolongation ne s'accorde jamais seule : vous décidez.",
+          "Parler à la personne qui loue : « vous » et « votre planning », jamais de forme collective."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "NB-07",
+        "secteur": "NB",
+        "metier": "btp.loueur-materiel-chantier",
+        "metierNom": "Loueur de matériel de chantier",
+        "taille": "PME",
+        "socle": "S04",
+        "inventaire": [
+          "A51",
+          "A38"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "echeances-papiers",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "location-verifications-parc",
+        "version": 3,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "Les vérifications du parc qui préviennent avant la date",
+        "theme": "Vérifications",
+        "promesse": "Aucune vérification du parc n'est oubliée.",
+        "cible": "Un loueur de matériel de chantier dont les vérifications périodiques se suivent sur des feuilles.",
+        "avant": {
+          "taches": [
+            "Chercher la feuille de la dernière vérification",
+            "Garder les dates sur des feuilles volantes",
+            "Découvrir l'échéance dépassée",
+            "Relancer le prestataire au dernier moment"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le parc listé",
+            "ligne": "Chaque équipement du parc est inscrit avec ses échéances.",
+            "detail": "Nacelle, mini-pelle, échafaudage : la date de la prochaine vérification est notée.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "L'état du jour",
+            "ligne": "L'état de chaque vérification se met à jour seul.",
+            "detail": "À jour, bientôt échue, échue : l'état se recalcule à chaque consultation.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "L'alerte",
+            "ligne": "Votre équipe est prévenue avant la date.",
+            "detail": "Le message arrive assez tôt pour planifier la vérification avant la prochaine sortie en location.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "telephone-notification"
+            }
+          },
+          {
+            "titre": "La vérification",
+            "ligne": "Les personnes compétentes font la vérification.",
+            "detail": "L'outil prévient, il ne contrôle rien lui-même.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "Le suivi",
+            "ligne": "La nouvelle date remplace l'ancienne dans la liste.",
+            "detail": "Le suivi reprend avec la prochaine échéance.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          }
+        ],
+        "resteHumain": "Faire la vérification et décider des règles de maintenance.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Votre équipe voit tout ce qui arrive à échéance, bien avant le dépassement.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "PARC",
+        "vigilance": [
+          "Ne jamais dire qu'un équipement est sûr : la vérification reste faite par les personnes compétentes.",
+          "Aucun taux d'occupation, aucun gain chiffré, aucun tarif.",
+          "L'outil prévient avant la date, il ne remplace pas la vérification."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "NB-08",
+        "secteur": "NB",
+        "metier": "btp.loueur-materiel-chantier",
+        "metierNom": "Loueur de matériel de chantier",
+        "taille": "PME",
+        "socle": "S10",
+        "inventaire": [
+          "A43"
+        ],
+        "niveauPreuve": "lu-dans-le-code",
+        "douleur": "facturation",
+        "casUsage": "btp.loueur-materiel-chantier.integration.c04",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "location-facture-retour",
+        "version": 5,
+        "offre": "integration",
+        "nature": "automatisation",
+        "posture": "offre",
+        "titre": "La facture de location préparée au retour du matériel",
+        "theme": "Facture",
+        "promesse": "Chaque jour de location est facturé.",
+        "cible": "Un loueur de matériel de chantier dont les prolongations accordées au téléphone échappent à la facture.",
+        "avant": {
+          "taches": [
+            "Reprendre les contrats un à un",
+            "Se souvenir des prolongations accordées",
+            "Monter la facture à la main",
+            "Facturer en retard"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le retour",
+            "ligne": "Le retour du matériel est enregistré au comptoir.",
+            "detail": "La date réelle de retour est notée avec le contrat.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "contrat-signature"
+            }
+          },
+          {
+            "titre": "Les prolongations",
+            "ligne": "Les prolongations accordées sont rattachées au contrat.",
+            "detail": "Plus aucune ne dépend d'un souvenir.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "La facture",
+            "ligne": "La facture est préparée le lendemain du retour.",
+            "detail": "Elle reprend les dates réelles et les prolongations notées.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          },
+          {
+            "titre": "La retenue",
+            "ligne": "La facture attend votre validation.",
+            "detail": "Rien ne part au client avant le contrôle.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le contrôle",
+            "ligne": "Votre service administratif contrôle, corrige, envoie.",
+            "detail": "Un oubli ou une erreur se corrige avant l'envoi.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Contrôler, corriger, envoyer.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Chaque prolongation accordée se retrouve sur la facture.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Structure de l'automatisation",
+          "finCadeauId": "fin-if-cadeau-automatisation"
+        },
+        "mot": "PROLONGATION",
+        "vigilance": [
+          "Ne jamais dire que la facture part seule : elle est retenue pour validation.",
+          "Aucun tarif, aucun montant, aucun gain chiffré.",
+          "L'outil ne dit jamais qui paie un dommage : cela reste une décision."
+        ]
+      }
+    }
+  ],
+  "retires": [
+    {
+      "id": "nettoyage-chefs-equipe-sites",
+      "derniereVersion": 1
+    }
+  ]
+}

@@ -12,7 +12,7 @@ export const TEXTES_PLAFOND_SUJET = {
   libelle: "Plafond d'un sujet (Écrire)",
   explication: "C'est une limite de sécurité calculée au pire cas, pas le prix : une écriture coûte en réalité environ 0,3 à 0,4 $.",
   bornes: "Entre 0,50 $ et 5 $.",
-  portee: "Ce plafond ne s'applique qu'aux chaînes « courte » et « équipe » (réglage « chaîne d'écriture »), pas à la grande chaîne, qui a le sien.",
+  portee: "Ce plafond s'applique à la chaîne « courte », la seule qui écrit les nouveaux scripts (les chaînes équipe et grande sont verrouillées depuis le 23/10/2026) ; une écriture déjà lancée sur la grande chaîne garde son propre plafond.",
   horsBornes: "Cette valeur est hors des bornes de saisie (elle est tout de même appliquée telle quelle) : enregistrez une valeur entre 0,50 $ et 5 $ pour la remplacer.",
 } as const;
 

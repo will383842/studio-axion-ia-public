@@ -152,13 +152,13 @@ type IssueClaude = { ok: true; texte: TexteReseau } | { ok: false; message: stri
  * évaluation CRITIQUE (nombre inventé, faux témoignage, mention écrite, adresse, longueur, lien, tournure interdite) est
  * rejetée : UNE reprise ciblée, puis le texte actuel est gardé. Rien d'inventé n'entre dans le kit.
  */
-async function texteParClaude(s: SourceTextes, reseau: IdReseau): Promise<IssueClaude> {
+async function texteParClaude(s: SourceTextes, reseau: IdReseau, options: { parWill?: boolean } = {}): Promise<IssueClaude> {
   const v = s.video;
   const nom = obtenirReseau(reseau).nom;
   const lien = { type: "video" as const, id: v.id };
   let donnees = donneesDe(s, reseau, await depots().reglesDatees.lister());
   for (let tour = 1; tour <= ESSAIS_TEXTE_PUBLICATION; tour++) {
-    const r = await executerRolePourVideo(v.id, rolePublication, entreePublication(donnees), { etape: `Texte de publication · ${nom}` });
+    const r = await executerRolePourVideo(v.id, rolePublication, entreePublication(donnees), { etape: `Texte de publication · ${nom}`, ...(options.parWill ? { parWill: true } : {}) });
     if (!r.ok) return { ok: false, message: r.message, arret: true };
     if (r.marqueur) {
       console.info(`[studio] texte ${reseau} de ${v.id} : marqueur ${r.marqueur}`);
@@ -464,7 +464,7 @@ export async function regenererTexteKit(videoId: string, reseau: IdReseau, optio
     // VERIF-E2E-2 (double toucher) : un seul appel payé par texte à la fois, même depuis deux onglets.
     const jeton = await reserverReecriture(kit.id, reseau);
     try {
-      const r = await texteParClaude(s, reseau);
+      const r = await texteParClaude(s, reseau, { parWill: true });
       if (!r.ok) throw new ErreurStudio("TEXTE_NON_ECRIT", r.message);
       nouveau = r.texte;
     } finally {

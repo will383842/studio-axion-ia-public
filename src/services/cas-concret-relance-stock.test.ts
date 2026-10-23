@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Relance d'un cas du stock, réglage éteint : refus net, avant tout prix et toute dépense.
-const etat = vi.hoisted(() => ({ casId: "stock-fab", reessayer: vi.fn() }));
+const etat = vi.hoisted(() => ({ casId: "stock-fab", reessayer: vi.fn(), traite: vi.fn() }));
 vi.mock("./_commun", () => ({
   ErreurStudio: class extends Error {},
   depots: () => ({
-    travaux: { obtenir: async () => ({ id: "t1", statut: "echec", versionId: "ver1", etapes: [{ cle: "ecriture", statut: "echec" }] }) },
+    travaux: { obtenir: async () => ({ id: "t1", cibleId: "v-en-panne", type: "fabrication", statut: "echec", versionId: "ver1", etapes: [{ cle: "ecriture", statut: "echec" }] }) },
     versions: { obtenir: async () => ({ commande: { moteurId: "cas-concret", entrees: { casConcret: { casId: etat.casId } } } }) },
   }),
 }));
+vi.mock("./cas-concret-traites", () => ({ estCasTraite: etat.traite, PHRASE_CAS_TRAITE: "Ce cas est déjà traité : il n'est plus disponible." }));
 vi.mock("./auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
 vi.mock("./travaux", () => ({ reessayerTravail: etat.reessayer }));
 vi.mock("./cas-concret-reglages", () => ({ REGLAGES_CAS_CONCRET: { stockMetiers: "casConcret.stockMetiers" }, reglageAllume: vi.fn(async () => false) }));
@@ -24,6 +25,8 @@ import { PHRASES_RELANCE, relancerEtapeCasConcret } from "./cas-concret-relance"
 beforeEach(() => {
   etat.reessayer.mockReset();
   etat.reessayer.mockResolvedValue({ id: "t1" });
+  etat.traite.mockReset();
+  etat.traite.mockResolvedValue(false);
 });
 
 describe("relance d'un cas du stock", () => {
@@ -61,5 +64,24 @@ describe("relance d'un cas du stock", () => {
     expect(lire).not.toHaveBeenCalled();
     const r2 = await relancerEtapeCasConcret("t1", 123, { claudeActif: async () => true, stockMetiersAllume: lire });
     expect(r2).toEqual({ statut: "relancee", travailId: "t1" });
+  });
+});
+
+describe("relance d'un cas déjà traité (ordre de Will : jamais deux vidéos identiques)", () => {
+  it("le cas est fini par une autre vidéo : refus net, ni prix ni relance", async () => {
+    etat.casId = "ancien";
+    etat.traite.mockResolvedValue(true);
+    const claudeActif = vi.fn(async () => true);
+    const r = await relancerEtapeCasConcret("t1", 123, { claudeActif });
+    expect(r).toEqual({ statut: "refusee", phrase: PHRASES_RELANCE.dejaTraite });
+    expect(etat.traite).toHaveBeenCalledWith("ancien", { saufVideoId: "v-en-panne" });
+    expect(etat.reessayer).not.toHaveBeenCalled();
+    expect(claudeActif).not.toHaveBeenCalled();
+  });
+
+  it("la vidéo en panne elle-même, cas non traité : la relance reste permise", async () => {
+    etat.casId = "ancien";
+    const r = await relancerEtapeCasConcret("t1", 123, { claudeActif: async () => true });
+    expect(r).toEqual({ statut: "relancee", travailId: "t1" });
   });
 });

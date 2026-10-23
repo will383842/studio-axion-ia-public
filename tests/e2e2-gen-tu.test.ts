@@ -65,6 +65,7 @@ describe("E2E-2 parcours n° 8 · « + Tu » entièrement au « tu »", () => {
   // Chaîne courte en production (réglage `generateur.chaine`) : le même parcours, sur les deux chaînes (relecture A09).
   it.each(["complete", "courte"])("accroche, corps, limite et fin des versions « Tu » : aucun « vous » ; la limite y est, au « tu » (chaîne %s)", async (chaine) => {
     const { ecrireParametre } = await import("@/services/_commun");
+    (await import("@/services/generation-claude")).forcerChainePourEssai(chaine === "complete" ? "grande" : null);
     await ecrireParametre("generateur.chaine", chaine);
     const id = await sujetEcritEtValide();
     const r = await bg.ajouterDeclinaison(id, { adresse: "tu" });

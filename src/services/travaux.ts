@@ -9,6 +9,7 @@
  */
 import "server-only";
 import type { CommandeFabrication, LigneCout, Montant, Notification, Plan, Ratio, Sortie, SuiteFabrication, Travail, VersionVideo, Video } from "@/domaine/types";
+import { TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
 import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, depenseDesEtapes, finEstimee, formaterHeure, minutesRestantes, peutAvancer } from "@/domaine/suivi";
 import { bailTenu } from "@/donnees/memoire";
 import { trouverFormat } from "@/formats";
@@ -243,6 +244,15 @@ async function appliquerResultat(travail: Travail, resultat: ResultatFabrication
   const recalque = travail.type === "recalque-sous-titres";
   // CORRECTEUR FINAL A (VERIF-E2E-1 n° 3) : une vidéo sortie du moteur d'essai est annoncée comme un essai.
   const essai = !video.estDemo && commandeEnEssai((await d.versions.obtenir(travail.versionId))?.commande);
+  // Cas concret allé au bout : le cas est inscrit durablement (il n'est plus disponible, même vidéo supprimée). Un essai
+  // simulé ne retire pas le cas. Une erreur ici ne fait JAMAIS échouer la fin de fabrication (la vidéo reste prête).
+  if (video.formatId === "cas-concret" && !essai) {
+    try {
+      await (await import("./cas-concret-traites")).noterCasTraite(video);
+    } catch (e) {
+      await journaliser("fabrication", `Cas concret : inscription du cas traité impossible pour « ${video.titre} » (${e instanceof Error ? e.name : "erreur"})`, { type: "video", id: video.id }).catch(() => undefined);
+    }
+  }
   const titreNotif = recalque ? "Sous-titres corrigés dans la vidéo" : essai ? "Essai · vidéo de démonstration prête" : "Votre vidéo est prête";
   const messageNotif = essai ? `« ${video.titre} » : c'est un essai, rien n'a été payé. Ce n'est pas encore votre vraie vidéo.` : `« ${video.titre} »`;
   await notifier({ type: "video-prete", titre: titreNotif, message: messageNotif, lien: `/videos/${video.id}`, estDemo: video.estDemo });
@@ -780,6 +790,13 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   // Coût restant et origine lus hors verrous ; contrôlés plus bas, sous le verrou des crédits.
   const restant = await estimationRestante(avant);
   const versionAvant = avant.versionId ? await depots().versions.obtenir(avant.versionId) : null;
+  // Cas concret déjà traité par une AUTRE vidéo : la panne de celle-ci ne se relance pas (jamais deux vidéos identiques).
+  const videoAvant = versionAvant?.commande.formatId === "cas-concret" ? await depots().videos.obtenir(avant.cibleId) : null;
+  if (videoAvant && !videoAvant.estDemo && !videoAvant.sourceVideoId && !videoAvant.typeDerive && !TRAVAUX_SUR_VIDEO_FINIE.includes(avant.type)) {
+    const { refusCasDejaTraite } = await import("./cas-concret-traites");
+    const phrase = await refusCasDejaTraite(versionAvant.commande.entrees, avant.cibleId);
+    if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
+  }
   // L3-01 : contrôle du budget du mois (origine de la commande) et des crédits sur le coût RESTANT, réactivation de la
   // réservation et de l'engagement, puis le travail repart, d'un seul tenant sous le verrou des crédits. Le prix du
   // double a été confirmé au lancement : seul le seuil habituel redemande une confirmation.

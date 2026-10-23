@@ -2,8 +2,8 @@
  * RÈGLES D'ÉCRITURE PAR RÉSEAU (générateur, plan v5 B.5.1). PUR : importable côté client.
  *
  * Chaque valeur porte son `regleId` : l'identifiant d'une règle datée semée en base (`reglesDatees`, B.5.4). Une valeur
- * sans source de plateforme cite une règle `hyp-*` (niveau HYPOTHÈSE, n° 92) et s'affiche comme telle. Rien ici n'est
- * lu par un contrôle avant G3 ; le générateur central ne connaît aucun nom de réseau : il lit cette table.
+ * sans source de plateforme cite une règle `hyp-*` (niveau HYPOTHÈSE, n° 92) et s'affiche comme telle. Table lue par
+ * `ecritureReseau` (chaîne du générateur, rôle publication, textes de publication) ; le générateur central ne connaît aucun nom de réseau : il lit cette table.
  */
 import type { ReseauDeclinaison, TypeAppel } from "@/domaine/types";
 

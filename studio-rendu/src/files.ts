@@ -16,6 +16,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ErreurRendu, type DemandeRendu, type EtatRendu, type Operation, type OperationRendu } from "./contrat.js";
+import { sansAdresses } from "./outils.js";
 
 export interface OptionsFiles {
   operations: Partial<Record<OperationRendu, Operation>>;
@@ -216,7 +217,11 @@ export class FilesRendu {
       if (entree.etat.statut !== "en_cours") return;
       entree.etat = { statut: "termine", sortieCle: demande.sortie.cle, ...(resultat.mesures ? { mesures: resultat.mesures } : {}) };
     } catch (e) {
-      if (entree.etat.statut === "en_cours") entree.etat = { statut: "echec", erreur: motifEchec(e) };
+      if (entree.etat.statut === "en_cours") {
+        const erreur = motifEchec(e);
+        entree.etat = { statut: "echec", erreur };
+        console.error(`[studio-rendu] échec ${demande.operation} ${demande.idRendu} : ${erreur.code} ${sansAdresses(erreur.message).slice(0, 300)}`);
+      }
     } finally {
       clearTimeout(minuterie);
       entree.controleur = undefined;

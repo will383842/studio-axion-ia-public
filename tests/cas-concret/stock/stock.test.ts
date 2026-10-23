@@ -3,7 +3,8 @@
  * Service pur : aucun accès au serveur, aucune écriture, aucun appel payant.
  */
 import { describe, expect, it } from "vitest";
-import { CATALOGUE, casVisibles } from "@/formats/cas-concret/catalogue";
+import { CATALOGUE, casVisibles, estCasStock } from "@/formats/cas-concret/catalogue";
+import { CATALOGUE_TS } from "@/formats/cas-concret/catalogue/base";
 import { IDEES_A_VENIR } from "@/formats/cas-concret/stock-idees";
 import type { Video } from "@/domaine/types";
 import type { ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
@@ -17,7 +18,10 @@ const script = (casId: string, numero = 2, valideLe = "2026-09-30"): ScriptValid
 describe("construireStockCas", () => {
   it("donne une ligne par cas du catalogue, dans l'ordre, avec titre, offre, nature, posture, thème", () => {
     const lignes = construireStockCas({ scripts: {}, videos: [] });
-    expect(lignes.map((l) => l.casId)).toEqual(CATALOGUE.map((c) => c.id));
+    // Sans catalogue fourni : les cas d'avant le stock SEULEMENT (aucun cas du stock par métier).
+    expect(lignes.map((l) => l.casId)).toEqual(CATALOGUE_TS.map((c) => c.id));
+    expect(lignes.some((l) => estCasStock(l.casId))).toBe(false);
+    expect(construireStockCas({ scripts: {}, videos: [], catalogue: CATALOGUE })).toHaveLength(CATALOGUE.length);
     const premier = lignes[0]!;
     expect(premier.titre).toBe(CATALOGUE[0]!.titre);
     expect(premier.offre).toBe(CATALOGUE[0]!.offre);
@@ -41,9 +45,10 @@ describe("construireStockCas", () => {
   it("catalogue étendu éteint : le stock ne montre pas les cas de la phase 2 (même filtre que la page)", () => {
     const visibles = casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu: false }).map((x) => x.cas);
     expect(visibles.length).toBe(8);
+    expect(visibles.some((c) => estCasStock(c.id))).toBe(false);
     const lignes = construireStockCas({ scripts: {}, videos: [], catalogue: visibles });
     expect(lignes).toHaveLength(8);
-    expect(construireStockCas({ scripts: {}, videos: [], catalogue: casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu: true }).map((x) => x.cas) })).toHaveLength(CATALOGUE.length);
+    expect(construireStockCas({ scripts: {}, videos: [], catalogue: casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu: true }).map((x) => x.cas) })).toHaveLength(CATALOGUE_TS.length);
   });
 
   it("à défaut de script du studio, prend le script validé du code", () => {
@@ -115,7 +120,7 @@ describe("synthèse", () => {
   it("« 8 cas · 1 script prêt · 7 à valider · N vidéos faites »", () => {
     const lignes = construireStockCas({ scripts: {}, videos: [video("a", CATALOGUE[0]!.id, "prete")] });
     const s = synthese(lignes);
-    expect(s.cas).toBe(CATALOGUE.length);
+    expect(s.cas).toBe(CATALOGUE_TS.length);
     expect(s.prets + s.aValider).toBe(s.cas);
     expect(s.videosFaites).toBe(1);
     expect(phraseSynthese({ cas: 8, prets: 1, aValider: 7, videosFaites: 0 })).toBe("8 cas · 1 script prêt · 7 à valider · 0 vidéo faite");

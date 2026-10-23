@@ -1,7 +1,15 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { DemandeRendu, EtatRendu, ServiceRendu } from "@/fournisseurs/types";
-import { creerRegistreMemoire, empreinteCarrousel, rendreCarrousel, type DependancesRenduVisuels } from "@/visuels/services/rendu";
+import { creerRegistreMemoire, empreinteCarrousel, VERSION_RENDU, rendreCarrousel, type DependancesRenduVisuels } from "@/visuels/services/rendu";
 import { CONTENU_ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
+
+/** JSON à clés triées, comme `empreinteCarrousel` (recopié : la fonction n'est pas exportée). */
+function canonique(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonique).join(",")}]`;
+  if (v && typeof v === "object") return `{${Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => `${JSON.stringify(k)}:${canonique(x)}`).join(",")}}`;
+  return JSON.stringify(v);
+}
 
 /** Service de rendu SIMULÉ (aucun Chromium) : enregistre les soumissions, répond « terminé » avec des mesures plausibles. */
 function simule(options: { debordements?: number; redemarrageApres?: number } = {}) {
@@ -146,5 +154,16 @@ describe("M2-03 · service de rendu des visuels (rendu simulé)", () => {
     };
     await rendreCarrousel({ ...CONTENU_ESSAI, alt: "charge" }, dependances(service));
     expect(max).toBeLessThanOrEqual(2);
+  });
+
+  it("VERSION_RENDU est figée à visuel-page/3 (les pages auparavant coupées, désormais acceptées, ne réutilisent pas l'ancien cache)", () => {
+    expect(VERSION_RENDU).toBe("visuel-page/3");
+  });
+
+  it("l'empreinte dépend de la version du rendu : même spec, version différente = autre empreinte", () => {
+    const spec = JSON.stringify(CONTENU_ESSAI);
+    const avecVersion = (v: string) => createHash("sha256").update(`${v}\n${canonique(JSON.parse(spec))}`).digest("hex");
+    expect(empreinteCarrousel(CONTENU_ESSAI)).toBe(avecVersion(VERSION_RENDU));
+    expect(empreinteCarrousel(CONTENU_ESSAI)).not.toBe(avecVersion("visuel-page/2"));
   });
 });

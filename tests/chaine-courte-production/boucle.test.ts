@@ -59,6 +59,7 @@ afterEach(() => {
   bg.arreterBoucleGeneration();
   credits.injecterLecteursPourEssai(null);
   gc.injecterClaudePourEssai(null);
+  gc.forcerChainePourEssai(null);
 });
 
 const S = SUJETS_BANC[0];
@@ -84,8 +85,18 @@ describe("aiguillage : la chaîne qui écrit, lue du réglage et figée au lance
     expect((await depots().generations.obtenir(r.generationId))?.statut).toBe("terminee");
   });
 
-  it("réglage « complete » : la GRANDE chaîne, comme avant", async () => {
+  it("réglage « complete » : la COURTE (la grande chaîne n'est plus choisie pour les nouvelles écritures)", async () => {
     await ecrireParametre(bg.PARAM_CHAINE, "complete");
+    const r = await lancer();
+    expect((await options(r.generationId))?.chaine).toBe("courte");
+    const { executeur, appels } = executeurSimule();
+    expect(await bg.tourBoucleGeneration(() => executeur)).toBe(r.generationId);
+    expect(roles(appels)).toContain("court-angle");
+    expect(roles(appels)).not.toContain("stratege");
+  });
+
+  it("grande chaîne forcée (essais seulement) : son code écrit encore, comme avant", async () => {
+    gc.forcerChainePourEssai("grande");
     const r = await lancer();
     expect((await options(r.generationId))?.chaine).toBe("grande");
     const { executeur, appels } = executeurSimule();
@@ -127,24 +138,25 @@ describe("aiguillage : la chaîne qui écrit, lue du réglage et figée au lance
     expect(await depots().variantes.compter((v) => v.scriptMaitreId === r.scriptMaitreId)).toBe(1);
   });
 
-  it("« je choisis » : toujours la grande chaîne, même avec le réglage « courte »", async () => {
+  it("« je choisis » : la chaîne du réglage (courte), plus jamais la grande ; aucune pause sur les angles", async () => {
     await courte();
     const m = await (await import("@/services/generateur")).creerSujet(brief());
     await depots().scriptsMaitres.modifier(m.id, { brief: { ...m.brief, modeChoix: "je-choisis" } });
     const r = await bg.lancerGeneration({ scriptMaitreId: m.id });
     if (!r.ok) throw new Error("lancement");
-    expect((await options(r.generationId))?.chaine).toBe("grande");
+    expect((await options(r.generationId))?.chaine).toBe("courte");
     const { executeur, appels } = executeurSimule();
     await bg.tourBoucleGeneration(() => executeur);
-    expect(roles(appels)[0]).toBe("stratege");
-    expect((await depots().generations.obtenir(r.generationId))?.statut).toBe("en-pause");
+    expect(roles(appels)[0]).toBe("court-angle");
+    expect((await depots().generations.obtenir(r.generationId))?.statut).toBe("terminee");
   });
 
   it("le réglage change en route : l'écriture finit sur la chaîne où elle a commencé (dans les deux sens)", async () => {
     await courte();
     const a = await lancer({ reseaux: [S.reseaux[0]] });
-    await ecrireParametre(bg.PARAM_CHAINE, "complete");
+    gc.forcerChainePourEssai("grande");
     const b = await lancer({ idee: SUJETS_BANC[1].idee, reseaux: [SUJETS_BANC[1].reseaux[0]], pilier: SUJETS_BANC[1].pilier.id });
+    gc.forcerChainePourEssai(null);
     await courte();
     const sa = executeurSimule();
     expect(await bg.tourBoucleGeneration(() => sa.executeur)).toBe(a.generationId);
@@ -417,7 +429,7 @@ describe("pire cas de la chaîne figée, plafond par défaut (1,50 $)", () => {
   }, 60_000);
 
   it("grande (réglage « complete ») : pire cas au-dessus du plafond, refusée AVANT le 1er appel", async () => {
-    await ecrireParametre(bg.PARAM_CHAINE, "complete");
+    gc.forcerChainePourEssai("grande");
     const claude = await brancher(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
     const r = await lancer();
     await bg.tourBoucleGeneration();

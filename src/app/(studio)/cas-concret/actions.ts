@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { ErreurStudio, essayer, type Resultat } from "@/services/_commun";
 import { confirmerCas, estimerCas, preparerEtLancer, type ChoixAvantPrix, type DemandeCasConcret, type EstimationCas, type IssueCasConcret } from "@/services/cas-concret";
 import { trouverCasAutorise } from "@/services/cas-concret-stock-acces";
+import { remettreEnStock } from "@/services/cas-concret-traites";
 import { avecConsigneVoix } from "@/services/cas-concret-voix";
 import { confirmerFaitPorteB, demarrerPorteB, suivrePorteB, type EtatPorteB } from "@/services/cas-concret-porte-b";
 import { versVueCasPorteB, type VueCas } from "@/components/formats/cas-concret/entree/vue";
@@ -20,6 +21,19 @@ const RESEAUX = ["facebook", "instagram", "tiktok", "linkedin"];
 /** Stock de cas : un cas du stock est inconnu tant que le réglage est éteint (refus propre, sans aucun effet). */
 async function exigerCasDisponible(casId: string): Promise<void> {
   if (!(await trouverCasAutorise(casId))) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'est pas disponible.");
+}
+
+/**
+ * « Remettre en stock » : un cas traité redevient disponible (décision de Will, session exigée par le service, journalisée).
+ * Rien n'est fabriqué, rien n'est dépensé, aucune vidéo n'est supprimée.
+ */
+export async function remettreEnStockAction(casId: string): Promise<Resultat<{ remisLe: string }>> {
+  const r = await essayer(async () => {
+    if (typeof casId !== "string" || !casId.trim()) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
+    return remettreEnStock(casId.trim());
+  });
+  if (r.ok) revalidatePath("/cas-concret");
+  return r;
 }
 
 /** « Je valide ce cas » : garde l'empreinte du cas et la date. */

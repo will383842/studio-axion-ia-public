@@ -16,9 +16,10 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { nettoyerFichier } from "../../studio-rendu/src/operations/nettoyage-audio";
-import { REFERENCE_V4, VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { refusReessayableIV, vueFabrication } from "@/components/formats/image-video/vue";
 import {
   REGLES_SILENCES_IV,
@@ -31,10 +32,27 @@ import {
 } from "@/moteurs/montage-image-video/assemblage";
 import { REGLES_FIN_DE_VOIX, lireWav, niveauxDb, planRaccordVoix, recalerCoupesSurSilences, silencesMesures, type Silence, type Son } from "@/moteurs/montage-image-video/emprunts";
 import { attendWillIV, avancerJusquAArretIV, etatInitialIV, reprendreIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
+import { motsDits } from "@/domaine/image-video/fiche";
 import { sonsBrutsIV } from "@/moteurs/montage-image-video/voix";
 import { convertirSonEnWavParFfmpeg } from "@/services/image-video";
 import { MESURE_REFERENCE, carteFixe, demandeEssai, enMp3, monde, outilsSimules, type Monde, type OptionsMonde } from "./doubles-fabrication";
 import { outilsAvecRendu, ServeurDouble } from "./doubles-rendu";
+
+/**
+ * 20/10 : la lecture unique de la voix est la règle (`LECTURE_UNIQUE_IV`). Les blocs ci-dessous qui décrivent une voix
+ * payée en segments SÉPARÉS (arrêts de fin, fins de secours, replis : « voix-iv/1 », qui existe encore en prod) la
+ * remettent à `false` le temps du bloc ; la lecture unique a ses propres tests (`fabrication-lecture-unique.test.ts`).
+ */
+const reglageVoix = vi.hoisted(() => ({ lectureUnique: true }));
+vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/voix")>();
+  return {
+    ...vrai,
+    get LECTURE_UNIQUE_IV() {
+      return reglageVoix.lectureUnique;
+    },
+  };
+});
 
 vi.setConfig({ testTimeout: 300_000 });
 
@@ -282,7 +300,7 @@ describe.skipIf(!FFMPEG_PRESENT)("bruts MP3 réalistes (parole −12 à −25 dB
     let etat = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
     expect(etat.etape).toBe("refusee");
     expect(etat.refus).toMatchObject({ etape: "voix", code: "IV_VOIX", reessayable: false });
-    expect(etat.refus!.message).toMatch(/^Voix \(youtube-shorts\) · la coupe à \d+,\d\d s du son du corps tombe en plein son, hors de tout silence mesuré \(\d+ coupes dans ce cas\) : la voix n'est jamais coupée ailleurs que dans un silence\. Détail \(coupe : niveau, seuil, silence le plus proche ; recherche à ±0,25 s\) : corps \d+,\d\d s : −\d+,\d dB, seuil −\d+,\d dB, (silence le plus proche à \d+,\d\d s \(\d+,\d\d s → \d+,\d\d s\)|aucun silence mesuré dans ce son)( ; .+)?\.$/);
+    expect(etat.refus!.message).toMatch(/^Voix \(youtube-shorts\) · la coupe à \d+,\d\d s du son du corps tombe en plein son, hors de tout silence mesuré( \(\d+ coupes dans ce cas\))? : la voix n'est jamais coupée ailleurs que dans un silence\. Détail \(coupe : niveau, seuil, silence le plus proche ; recherche à ±0,25 s\) : corps \d+,\d\d s : −\d+,\d dB, seuil −\d+,\d dB, (silence le plus proche à \d+,\d\d s \(\d+,\d\d s → \d+,\d\d s\)|aucun silence mesuré dans ce son)( ; .+)?\.$/);
     expect(etat.voix?.issue?.statut).toBe("faite");
     expect(etat.pistes).toBeUndefined();
     // Phrase EXACTE de la prod : même forme, reconnue.
@@ -329,7 +347,14 @@ describe.skipIf(!FFMPEG_PRESENT)("bruts MP3 réalistes (parole −12 à −25 dB
 /* ------------------------------------------------------------------ */
 
 describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE : bruts MP3 bruités, vraie recette, rendu, écoute, contrôles, 5 versions (Facebook en repli Instagram)", () => {
-  const HORS = (facteur: number, dyn = 1) => ({ ...Object.fromEntries(Object.entries({ ...REFERENCE_V4, hauteurHz: REFERENCE_V4.hauteurHz * facteur, dynamique: REFERENCE_V4.dynamique * dyn }).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX });
+  // Fins de secours et replis : voix payée en segments séparés (« voix-iv/1 »).
+  beforeAll(() => {
+    reglageVoix.lectureUnique = false;
+  });
+  afterAll(() => {
+    reglageVoix.lectureUnique = true;
+  });
+  const HORS = (facteur: number, dyn = 1) => ({ ...Object.fromEntries(Object.entries({ ...REFERENCE_V4_IV, hauteurHz: REFERENCE_V4_IV.hauteurHz * facteur, dynamique: REFERENCE_V4_IV.dynamique * dyn }).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX });
   const FIN_FB = "Le lien est en commentaire.";
   const SECOURS = "Le lien est dans le premier commentaire.";
   const SECOURS_2 = "Le lien est juste sous la vidéo.";
@@ -381,5 +406,72 @@ describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE : bruts MP3 bruités, 
     // Chaque brut converti une fois (rangé), jamais relu chez HeyGen au-delà des lectures de la chaîne de secours.
     const bruts = [...m.sons.keys()].filter((k) => /^brut-\d+\.mp3$/.test(k));
     expect(compte.conversions).toBe(new Set(bruts.filter((b) => m.sons.has(cleWavDuBrut(b)))).size);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Répétition générale · lecture unique (20/10)                           */
+/* ------------------------------------------------------------------ */
+
+describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE · lecture unique : bruts MP3 bruités, vraie recette, une seule lecture, versions taillées", () => {
+  it("LinkedIn = corps seul, Instagram = corps + partie commune + phrase Instagram, Facebook = sans la phrase Instagram ; coupes, durées, mots, aucun son abîmé", async () => {
+    const m = monde();
+    const carte = carteFixe("C");
+    const compte = { conversions: 0 };
+    const o = outilsSimules(carte, m, bruite({ assemblage: assemblageReel(m, compte) }));
+    const etat = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
+    expect(etat.refus?.message).toBeUndefined();
+    expect(etat.etape).toBe("prete");
+
+    // Une seule lecture HeyGen, d'un trait, et un seul brut converti.
+    const voix = etat.voix!;
+    expect(voix.version).toBe("voix-iv/2");
+    expect(m.lus).toEqual([voix.segments.corps]);
+    expect(compte.conversions).toBe(1);
+    const lecture = voix.segments.lecture!;
+    const lus = motsDits(voix.segments.corps);
+    const attendus = (id: string) => [...lus.slice(0, lecture.motsCorps), ...(lecture.fins[id] ?? []).flatMap(([a, b]) => lus.slice(a, b))];
+
+    const pistes = etat.pistes!.filter((p) => !p.courte);
+    expect(pistes.map((p) => p.version)).toEqual(voix.segments.versions.map((v) => v.id));
+    for (const p of pistes) {
+      // Les mots dits : exactement le corps puis la fin de cette version, rien d'autre (aucun mot perdu, aucun mot de trop).
+      expect(p.mots.map((x) => x.mot), p.version).toEqual(attendus(p.version));
+      expect(p.motsCorps).toBe(lecture.motsCorps);
+      // La durée annoncée est celle du fichier rendu.
+      const son = lireWav(m.sons.get(p.cle)!);
+      expect(son.echantillons.length / son.frequence).toBeCloseTo(p.dureeSec, 1);
+      // Aucune coupe nette : la dernière parole est suivie de silence jusqu'à la fin du fichier (contrôle Q19 de l'assemblage).
+      // (la recette remonte aussi le bruit de fond : on compare à la parole de la même piste, 10 dB au moins plus bas)
+      const niv = niveauxDb(son, FEN);
+      const parole = niv.slice(Math.ceil(p.mots[0].debutSec / FEN), Math.floor(p.mots.at(-1)!.finSec / FEN)).sort((x, y) => x - y);
+      const mediane = parole[Math.floor(parole.length / 2)];
+      const dernier = p.mots.at(-1)!;
+      const fin = niv.slice(Math.ceil((dernier.finSec + 0.1) / FEN), Math.floor(Math.min(p.dureeSec, dernier.finSec + 0.4) / FEN));
+      expect(fin.length).toBeGreaterThan(0);
+      for (const d of fin) expect(d).toBeLessThan(mediane - 10);
+    }
+    const [li] = pistes.filter((p) => p.reseaux.includes("linkedin"));
+    const [ig] = pistes.filter((p) => p.reseaux.includes("instagram"));
+    const [fb] = pistes.filter((p) => p.reseaux.includes("facebook"));
+    // LinkedIn : corps seul, rien après la phrase-choc.
+    expect(li.mots).toHaveLength(li.motsCorps);
+    expect(li.raccordSec).toBeUndefined();
+    expect(li.dureeSec).toBeLessThan(ig.dureeSec);
+    // Instagram : le corps, la partie commune, sa phrase.
+    expect(ig.mots.length).toBeGreaterThan(ig.motsCorps);
+    // Facebook : sa phrase propre à la place de celle d'Instagram ; le blanc laissé par la phrase sautée est silencieux.
+    expect(fb.mots.map((x) => x.mot)).not.toEqual(ig.mots.map((x) => x.mot));
+    const [commun] = lecture.fins[fb.version];
+    const iPhrase = lecture.motsCorps + (commun[1] - commun[0]);
+    const trou = [fb.mots[iPhrase - 1].finSec + 0.03, fb.mots[iPhrase].debutSec - 0.03];
+    expect(trou[1] - trou[0]).toBeGreaterThan(0.03);
+    const son = lireWav(m.sons.get(fb.cle)!);
+    const nivFb = niveauxDb(son, FEN);
+    const paroleFb = nivFb.slice(Math.ceil(fb.mots[0].debutSec / FEN), Math.floor(fb.mots.at(-1)!.finSec / FEN)).sort((x, y) => x - y);
+    for (const d of nivFb.slice(Math.ceil(trou[0] / FEN), Math.floor(trou[1] / FEN))) expect(d).toBeLessThan(paroleFb[Math.floor(paroleFb.length / 2)] - 10);
+    // Les pistes qui disent la même chose sont identiques.
+    expect(new Set(pistes.map((p) => p.empreinte)).size).toBe(new Set(pistes.map((p) => JSON.stringify(lecture.fins[p.version] ?? []))).size);
+    expect(etat.controles?.verdict?.ok).toBe(true);
   });
 });

@@ -8,7 +8,8 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { REFERENCE_V4, VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
 import type { MotHorodate } from "@/domaine/types";
@@ -186,7 +187,7 @@ export function monde(): Monde {
   return { lus: [], sons: new Map(), appelsClaude: [], depenses: [], ordre: [], rendus: [], transcriptions: [], mesures: 0 };
 }
 
-export const MESURE_REFERENCE: Record<string, number> = { ...Object.fromEntries(Object.entries(REFERENCE_V4).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
+export const MESURE_REFERENCE: Record<string, number> = { ...Object.fromEntries(Object.entries(REFERENCE_V4_IV).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
 export const TARIF_SIMULE = 0.05;
 export const MESURES_FICHIER = Object.freeze({ lufs: -14, creteVraieDbtp: -1.5, noirMaxSec: 0, figeMaxSec: 0, largeur: 1080, hauteur: 1920, fps: 25 });
 

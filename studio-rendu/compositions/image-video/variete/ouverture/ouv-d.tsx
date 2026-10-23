@@ -8,6 +8,7 @@ import React from "react";
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
 import { ANTON, avance, Bulle, C, CarteIcone, claque, Ecran, Etiquette, Horizon, largeurAnton, Points } from "../objets-ouverture";
 import type { DonneesOuverture } from "./donnees";
+import { PhraseChoc, zonePhrase, type PhraseBoucle } from "./phrase-choc";
 
 type D = Extract<DonneesOuverture, { code: "OUV-D" }>;
 
@@ -43,7 +44,7 @@ export function disposerMots(mots: readonly string[]): { mots: number[]; taille:
   return meilleur;
 }
 
-export function OuvertureD({ d, t, format, boucle }: { d: D; t: number; format: FormatIV; boucle?: boolean }) {
+export function OuvertureD({ d, t, format, boucle, phrase }: { d: D; t: number; format: FormatIV; boucle?: boolean; phrase?: PhraseBoucle }) {
   const tt = boucle ? 99 : t;
   // Comme la maquette OUV-D-1 : les mots déjà dits occupent toute la place, la phrase se recompose à chaque mot.
   const visibles = Math.max(1, d.mots.filter((m) => tt >= m.t).length);
@@ -58,7 +59,8 @@ export function OuvertureD({ d, t, format, boucle }: { d: D; t: number; format: 
   return (
     <Ecran fond="ivoire" largeur={1080} hauteur={format === "4:5" ? 1350 : 1920} cadre45={format === "4:5"}>
       {d.situation ? <Etiquette texte="Situation type" y={262} fond="ivoire" /> : null}
-      {lignes.map((l, k) => {
+      {boucle && phrase ? <PhraseChoc p={phrase} t={t} zone={zonePhrase("OUV-D", format)} couleur={C.encre} orange={C.orange} /> : null}
+      {(boucle && phrase ? [] : lignes).map((l, k) => {
         const top = tops[k];
         return (
           <div key={k} style={{ position: "absolute", left: 66, top, ...ANTON, fontSize: l.taille, color: C.encre, whiteSpace: "nowrap", display: "flex", gap: `${0.22 * l.taille}px` }}>
@@ -74,7 +76,7 @@ export function OuvertureD({ d, t, format, boucle }: { d: D; t: number; format: 
           </div>
         );
       })}
-      {visibles < d.mots.length && Math.floor(tt * 2.5) % 2 === 0 ? <div style={{ position: "absolute", left: 72, top: Math.min(BAS, y + 10), width: 22, height: 120, background: C.orange }} /> : null}
+      {!(boucle && phrase) && visibles < d.mots.length && Math.floor(tt * 2.5) % 2 === 0 ? <div style={{ position: "absolute", left: 72, top: Math.min(BAS, y + 10), width: 22, height: 120, background: C.orange }} /> : null}
       {appoint ? (
         <>
           {[1312, 1384, 1456].map((by, i) => (

@@ -31,7 +31,7 @@ import type { RapportAlignement, ReglagesVoix } from "@/domaine/types";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeAlignement, DemandeRendu, FournisseurAlignement, FournisseurVoix, ServiceRendu, StockageFichiers } from "@/fournisseurs/types";
 import { blancsLongs, calculerCoupures, coupuresAppliquees, debitEtVitesseConseillee, decalerMots, intervallesDesMesures, type Coupure, type Intervalle, type ReglesNettoyage } from "./nettoyage";
-import { choisirMeilleurePrise, comparerAReference, lecturesVoixMax, mesureVoixDesMesures, rangMesureAncienne, versionMesureDesMesures, VERSION_MESURE_VOIX, type ReglageRessemblanceVoix, type TraitementMesureVoix } from "./reference";
+import { choisirMeilleurePrise, comparerAReference, lecturesVoixMax, REFERENCE_V4, mesureVoixDesMesures, rangMesureAncienne, versionMesureDesMesures, VERSION_MESURE_VOIX, type MesureVoix, type ReglageRessemblanceVoix, type TraitementMesureVoix } from "./reference";
 import type { AudioBrut, AudioMaitre, PriseVoixMesuree, RapportRessemblanceVoix } from "./types";
 
 /** Nouvelles demandes au conteneur après un échec passager d'une opération (puis la reprise de la boucle prend le relais). */
@@ -94,6 +94,8 @@ export interface OutilsVoixMaitre {
   nouvelleLecture?: boolean;
   /** Traitement de la mesure de voix demandé au rendu (19/10, Image → vidéo). Jamais dans l'empreinte. */
   mesureVoix?: TraitementMesureVoix;
+  /** Référence de la voix (20/10, Image → vidéo : 158,4 Hz). Absente : `REFERENCE_V4`, comme avant. Jamais dans l'empreinte. */
+  reference?: Readonly<MesureVoix>;
   regles: ReglesNettoyage;
   /**
    * Appelé juste AVANT la lecture payante (budget, réservation, voix compatible) : lever une erreur l'interdit, aucun
@@ -185,9 +187,9 @@ async function lireLaVoix(o: OutilsVoixMaitre, relance = false): Promise<{ brut:
  * La prise gardée (celle qui ressemble, sinon la plus proche) devient LE son brut : toutes les lectures payées sont
  * comptées dans son coût et ses caractères, et le rapport les trace une à une.
  */
-function priseRetenue(prises: PriseVoixMesuree[]): AudioBrut {
+function priseRetenue(prises: PriseVoixMesuree[], reference: Readonly<MesureVoix> = REFERENCE_V4): AudioBrut {
   const derniere = prises.length - 1;
-  const retenue = prises[derniere].ressemblante ? derniere : Math.max(0, choisirMeilleurePrise(prises.map((p) => ({ mesure: p.mesure ?? { hauteurHz: Number.NaN, variationHz: Number.NaN, energie: Number.NaN, dynamique: Number.NaN, rythmePicsParSec: Number.NaN, partieParole: Number.NaN } }))));
+  const retenue = prises[derniere].ressemblante ? derniere : Math.max(0, choisirMeilleurePrise(prises.map((p) => ({ mesure: p.mesure ?? { hauteurHz: Number.NaN, variationHz: Number.NaN, energie: Number.NaN, dynamique: Number.NaN, rythmePicsParSec: Number.NaN, partieParole: Number.NaN } })), reference));
   const rapport: RapportRessemblanceVoix = {
     prises: prises.map((p) => ({ empreinteDemande: p.empreinteDemande, fichierCle: p.brut.fichierCle, coutCentimes: p.brut.coutCentimes, caracteres: p.brut.caracteres, mesure: p.mesure, ...(p.versionMesure !== undefined ? { versionMesure: p.versionMesure } : {}), ressemblante: p.ressemblante, ecarts: p.ecarts })),
     retenue,
@@ -241,7 +243,7 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
     // Service de rendu pas encore à jour : la mesure ancienne n'est pas reprise pour neuve (la reprise suivante réessaie).
     if (versionMesure < VERSION_MESURE_VOIX) throw new ErreurRendu({ code: "refuse", reessayable: false, message: `Le service de rendu mesure encore la voix avec la version ${versionMesure} : mettez-le à jour puis réessayez (aucune voix n'est relue).` });
     const mesure = mesureVoixDesMesures(e.mesures);
-    const c = mesure ? comparerAReference(mesure) : { ressemblante: false, ecarts: [{ libelle: "mesure illisible" }] };
+    const c = mesure ? comparerAReference(mesure, o.reference ?? REFERENCE_V4) : { ressemblante: false, ecarts: [{ libelle: "mesure illisible" }] };
     const audio = structuredClone(etat.audio);
     const r = audio.ressemblance!;
     r.prises[etat.rang] = { ...r.prises[etat.rang], mesure, versionMesure, ressemblante: c.ressemblante, ecarts: c.ecarts.map((x) => x.libelle) };
@@ -262,14 +264,14 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
     }
     if (e.statut !== "termine") return etat;
     const mesure = mesureVoixDesMesures(e.mesures);
-    const c = mesure ? comparerAReference(mesure) : { ressemblante: false, ecarts: [{ libelle: "mesure illisible" }] };
+    const c = mesure ? comparerAReference(mesure, o.reference ?? REFERENCE_V4) : { ressemblante: false, ecarts: [{ libelle: "mesure illisible" }] };
     const { ressemblance: _r, copieEnAttente: _c, ...son } = etat.brut;
     void _r;
     void _c;
     const prises: PriseVoixMesuree[] = [...etat.prises, { brut: son, empreinteDemande: empreinteDemande(o, n), mesure, versionMesure: versionMesureDesMesures(e.mesures), ressemblante: c.ressemblante, ecarts: c.ecarts.map((x) => x.libelle) }];
     // Hors tolérance et relance permise : une nouvelle lecture (budget revérifié) ; sinon la prise la plus proche.
     if (!c.ressemblante && prises.length < lecturesVoixMax(o.ressemblance)) return { phase: "a-relire", texte: etat.texte, prises };
-    const brut = priseRetenue(prises);
+    const brut = priseRetenue(prises, o.reference ?? REFERENCE_V4);
     return o.caler(!!brut.motsEstimes) ? { phase: "a-aligner", brut, texte: etat.texte } : versAnalyseDe(brut);
   }
   if (etat.phase === "a-lire") {

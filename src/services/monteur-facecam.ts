@@ -335,7 +335,7 @@ export async function discuterAvecMonteur(videoId: Id, texte: string, options: {
   const entrees = courante.commande.entrees ?? {};
   let etat = etatDe(entrees);
   const fil = await filMonteur(videoId);
-  const [mots, plafondAtteint, habitudes, animations] = await Promise.all([transcription(etat.facecam.transcriptionCle), plafondClaudeDuMoisAtteint(), listerHabitudes(), listerAnimations()]);
+  const [mots, plafondAtteint, habitudes, animations] = await Promise.all([transcription(etat.facecam.transcriptionCle), plafondClaudeDuMoisAtteint(courante.commande.origine), listerHabitudes(), listerAnimations()]);
   const will: EchangeMonteur = { id: nouvelId("fil"), le: maintenant(), de: "will", texte: demande, ...(options.dicte ? { dicte: true } : {}) };
   // Lot F1 : « fais-moi aussi une version carrée » : le format part tout de suite, sans appel Claude.
   const formats = comprendreDemandeFormats(demande);
@@ -421,7 +421,7 @@ export async function discuterAvecMonteur(videoId: Id, texte: string, options: {
     },
     {
       // Lot G : plafond propre au monteur pour cette version (le tour commence avec ce message).
-      appeler: (entree) => executerRolePourVideo(videoId, roleMonteurFacecam, entree, { etape: "Monteur · discussion", facecam: { depuis: will.le } }),
+      appeler: (entree) => executerRolePourVideo(videoId, roleMonteurFacecam, entree, { etape: "Monteur · discussion", facecam: { depuis: will.le }, parWill: true }),
       nouvelId,
       cleCarte: (passageId) => `facecam/${videoId}/cartes/${passageId}.json.gz`,
       imageReference: await effets.resolveurImagesReference(),
@@ -993,14 +993,14 @@ export interface ImageControle {
  * relecture impossible rend null et la vidéo est livrée (règle de panne, B.24). À brancher dans
  * `creerMoteurMontageFacecam({ relire })` par la chaîne vidéo, et dans `piloterMonteur({ relire })`.
  */
-export async function relireImagesControle(videoId: Id, etat: EtatMonteur, images: ImageControle[], options: { depuis?: string } = {}): Promise<SortieRelecture | null> {
+export async function relireImagesControle(videoId: Id, etat: EtatMonteur, images: ImageControle[], options: { depuis?: string; origine?: "studio" | "usine" } = {}): Promise<SortieRelecture | null> {
   if (!images.length) return null;
   try {
     const variable = [
       `<elements>\n${etat.facecam.passages.map((p) => `${p.id} · ${p.type}${(p as PassageMonteur).detourage ? " · détourage" : ""} · ${p.texte ?? ""}`).join("\n")}\n</elements>`,
       "Les images suivent, chacune précédée de sa légende (élément et instant).",
     ].join("\n");
-    const r = await executerRolePourVideo(videoId, roleRelectureFacecam, { contexte: {}, variable, images: images.slice(0, 40).map((i) => ({ type: i.type, base64: i.base64, legende: `${i.elementId ? `[${i.elementId}] ` : ""}${i.legende}` })) }, { etape: "Monteur · relecture des images", facecam: { depuis: options.depuis ?? maintenant() } });
+    const r = await executerRolePourVideo(videoId, roleRelectureFacecam, { contexte: {}, variable, images: images.slice(0, 40).map((i) => ({ type: i.type, base64: i.base64, legende: `${i.elementId ? `[${i.elementId}] ` : ""}${i.legende}` })) }, { etape: "Monteur · relecture des images", facecam: { depuis: options.depuis ?? maintenant() }, ...(options.origine ? { origine: options.origine } : {}) });
     // Panne du 10/10 : les corrections illisibles sont écartées (motif exact au journal du serveur), le reste sert.
     if (r.ok && (r.ecartees?.length || r.invalide)) console.warn(`[studio] relecture des images : ${[...(r.ecartees ?? []), r.invalide].filter(Boolean).join(" | ").slice(0, 500)}`);
     return r.ok && r.donnees ? r.donnees : null;
@@ -1027,7 +1027,7 @@ async function proposerEffetsDansLeFil(videoId: Id, aConfirmer: Awaited<ReturnTy
  */
 export async function monteurPourFabrication(
   videoId: Id,
-  commande: { entrees: Record<string, unknown>; plafondClaudeAtteint?: boolean },
+  commande: { entrees: Record<string, unknown>; plafondClaudeAtteint?: boolean; origine?: "studio" | "usine" },
   options: { titre: string; mots: MotHorodate[]; dureePriseSec: number; images?: (etat: EtatMonteur) => Promise<ImageControle[]>; depuis?: string },
 ): Promise<{ entrees: Record<string, unknown>; resultat: Awaited<ReturnType<typeof piloterMonteur>> }> {
   const etat = etatDe(commande.entrees ?? {});
@@ -1047,8 +1047,8 @@ export async function monteurPourFabrication(
     },
     {
       // Lot G : plafond propre au monteur pour cette version (depuis le début de la fabrication).
-      appeler: (entree) => executerRolePourVideo(videoId, roleMonteurFacecam, entree, { etape: "Monteur · consignes", facecam: { depuis: options.depuis ?? maintenant() } }),
-      relire: options.images ? async (e) => relireImagesControle(videoId, e, await options.images!(e), { depuis: options.depuis }) : undefined,
+      appeler: (entree) => executerRolePourVideo(videoId, roleMonteurFacecam, entree, { etape: "Monteur · consignes", facecam: { depuis: options.depuis ?? maintenant() }, ...(commande.origine ? { origine: commande.origine } : {}) }),
+      relire: options.images ? async (e) => relireImagesControle(videoId, e, await options.images!(e), { depuis: options.depuis, ...(commande.origine ? { origine: commande.origine } : {}) }) : undefined,
       nouvelId,
       cleCarte: (passageId) => `facecam/${videoId}/cartes/${passageId}.json.gz`,
       imageReference: await (await import("./effet-realiste-ia")).resolveurImagesReference(),

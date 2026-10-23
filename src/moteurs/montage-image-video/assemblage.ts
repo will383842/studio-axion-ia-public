@@ -50,6 +50,8 @@ export const CRETE_IV_DBTP = -1;
 /** Silence mesuré exigé après le dernier mot de la piste voix seule (Q19), et autour d'une borne de chapitre (Q11 bis). */
 export const SILENCE_FIN_MIN_SEC = 0.3;
 export const SILENCE_BORNE_MIN_SEC = 0.3;
+/** Lecture unique : blanc mesuré exigé de chaque côté d'une phrase sautée (HeyGen en met 0,32 à 0,72 s après un point). */
+const SILENCE_PHRASE_SAUTEE_MIN_SEC = 0.1;
 
 const VERSION_ASSEMBLAGE = "assemblage-iv/1";
 /** Tolérance de calcul sur les instants (secondes). */
@@ -1103,6 +1105,13 @@ interface EntreePiste {
   fin?: SonBrutIV;
   /** Parties du corps retirées EXPRÈS (chapitres d'une version courte) : hors du contrôle de la parole retirée. */
   retraitsVoulus?: [number, number][];
+  /**
+   * Lecture unique (20/10) : le « corps » est la lecture d'un trait taillée pour cette version (corps, puis sa fin, sans
+   * fin séparée). `motsCorps` : mots du script, les premiers ; `coupeSec` : coupe en bout de fichier, à poser dans un silence.
+   */
+  motsCorps?: number;
+  coupeSec?: number;
+  coupeEntreSec?: [number, number];
 }
 
 /** Sons bruts lus en WAV et leurs mesures, une seule lecture par clé. */
@@ -1139,7 +1148,37 @@ async function assemblerPiste(e: EntreePiste, o: OutilsAssemblageIV, cache: Cach
   const nom = `(${e.reseaux.join(", ") || e.version}${e.courte ? ", version courte" : ""})`;
   const corps = await mesureDe(e.corps.fichierCle, `brut du corps ${nom}`, o, cache);
   const mesures = { corps, ...(e.fin ? { fin: await mesureDe(e.fin.fichierCle, `brut de la fin ${nom}`, o, cache, corps.plancherDb) } : {}) };
-  const { plan, coupesDeplacees, hors, paroleRetiree } = couperVoixIV(e.corps, e.fin, mesures, e.retraitsVoulus);
+  // Lecture unique : la coupe en bout de fichier se pose dans un silence mesuré entre le dernier mot gardé et le premier
+  // mot retiré (marge comprise), sinon refus : jamais un mot abîmé.
+  let corpsCoupe = e.corps;
+  const horsLecture: CoupeEnPleinSon[] = [];
+  if (e.coupeSec !== undefined) {
+    const [lo, hi] = e.coupeEntreSec ?? [e.coupeSec, e.coupeSec];
+    const p = pointDansUnSilence(e.coupeSec, lo, hi, mesures.corps.silences, REGLES_COUPES_IV.margeSec);
+    if (p === null) horsLecture.push({ source: "corps", instantSec: e.coupeSec });
+    else corpsCoupe = { ...e.corps, dureeSec: arrondi(Math.max(p, lo)) };
+  }
+  // Lecture unique : une phrase sautée exige un silence mesuré (0,1 s au moins) juste avant et juste après elle, sinon
+  // refus : les protections de parole retirée ne regardent pas un écart voulu.
+  if (e.motsCorps !== undefined) {
+    for (const [de, a] of e.retraitsVoulus ?? []) {
+      const avant = [...e.corps.mots].reverse().find((m) => m.finSec <= de + EPS_INSTANT);
+      const apres = e.corps.mots.find((m) => m.debutSec >= a - EPS_INSTANT);
+      const blanc = (lo: number, hi: number) => Math.max(0, ...mesures.corps.silences.filter((x) => x.debutSec <= hi + EPS_INSTANT && x.finSec >= lo - EPS_INSTANT).map((x) => Math.min(x.finSec, hi) - Math.max(x.debutSec, lo)));
+      for (const [lo, hi, ou] of [
+        [avant?.finSec ?? de, de, "avant"],
+        [a, apres?.debutSec ?? a, "après"],
+      ] as const) {
+        if (blanc(lo, hi) < SILENCE_PHRASE_SAUTEE_MIN_SEC - EPS_INSTANT) {
+          horsLecture.push({ source: "corps", instantSec: ou === "avant" ? de : a });
+          break;
+        }
+      }
+    }
+  }
+  const coupe = couperVoixIV(corpsCoupe, e.fin, mesures, e.retraitsVoulus);
+  const { plan, coupesDeplacees, paroleRetiree } = coupe;
+  const hors = [...horsLecture, ...coupe.hors];
   if (hors.length) {
     const h = hors[0];
     const details = hors.slice(0, DIAGNOSTICS_MAX).map((c) => diagnosticCoupe(c, c.source === "fin" ? mesures.fin! : mesures.corps));
@@ -1170,8 +1209,9 @@ async function assemblerPiste(e: EntreePiste, o: OutilsAssemblageIV, cache: Cach
     dureeSec: arrondi(son.echantillons.length / son.frequence),
     empreinte: empreinteSon(octets!),
     mots: plan.mots,
-    motsCorps: plan.motsCorps,
-    ...(plan.raccordSec !== undefined ? { raccordSec: plan.raccordSec } : {}),
+    // Lecture unique : les premiers mots sont ceux du script, les suivants ceux de la fin (aucun blanc de raccord).
+    motsCorps: e.motsCorps ?? plan.motsCorps,
+    ...(plan.raccordSec !== undefined ? { raccordSec: plan.raccordSec } : e.motsCorps !== undefined && plan.mots.length > e.motsCorps ? { raccordSec: plan.mots[e.motsCorps].debutSec } : {}),
     finVoixSec,
     coupesDeplacees,
     tempo: TEMPO_IV,
@@ -1191,6 +1231,12 @@ export async function assemblerVersionsIV(etat: EtatVoixIV, o: OutilsAssemblageI
 }
 
 function entreeDe(v: VersionVoixIV, sons: ReturnType<typeof sonsBrutsIV>): EntreePiste {
+  if (sons.lecture) {
+    // Lecture unique : un seul son pour la version, taillé par heures de mots (aucune fin séparée).
+    const l = sons.lecture[v.id];
+    if (!l) throw new ErreurVoixIV("entree", `Le son de la version ${v.id} manque.`);
+    return { version: v.id, reseaux: v.reseaux, courte: false, corps: l.son, motsCorps: l.motsCorps, ...(l.retraitsVoulus.length ? { retraitsVoulus: l.retraitsVoulus } : {}), ...(l.coupeSec !== undefined ? { coupeSec: l.coupeSec, ...(l.coupeEntreSec ? { coupeEntreSec: l.coupeEntreSec } : {}) } : {}) };
+  }
   const fin = v.segment ? sons.fins[v.segment] : undefined;
   if (v.segment && !fin) throw new ErreurVoixIV("entree", `Le son de la fin ${v.segment} manque.`);
   return { version: v.id, reseaux: v.reseaux, courte: false, corps: sons.corps, ...(fin ? { fin } : {}) };
@@ -1238,7 +1284,10 @@ export async function assemblerVersionCourteIV(
   }
   const sons = sonsBrutsIV(e.etat);
   const entree = entreeDe(v, sons);
-  const mots = entree.corps.mots;
+  // Lecture unique : le son de la version porte le corps PUIS sa fin ; seuls les premiers mots sont ceux du script.
+  const lu = entree.motsCorps !== undefined;
+  const mots = lu ? entree.corps.mots.slice(0, entree.motsCorps) : entree.corps.mots;
+  const motsFin = lu ? entree.corps.mots.slice(entree.motsCorps) : [];
 
   // Rang du premier mot de chaque écran dans les mots lus du corps.
   const comptes = e.fiche.ecrans.map((x) => motsDits(x.texteDit).length);
@@ -1278,8 +1327,12 @@ export async function assemblerVersionCourteIV(
     }
   }
 
-  const corps: SonBrutIV = { ...entree.corps, mots: motsGardes.map((k) => mots[k]) };
-  const piste = await assemblerPiste({ ...entree, courte: true, corps, retraitsVoulus }, o, new Map());
+  const corps: SonBrutIV = { ...entree.corps, mots: [...motsGardes.map((k) => mots[k]), ...motsFin] };
+  const piste = await assemblerPiste(
+    { ...entree, courte: true, corps, retraitsVoulus: [...retraitsVoulus, ...(entree.retraitsVoulus ?? [])], ...(lu ? { motsCorps: motsGardes.length } : {}) },
+    o,
+    new Map(),
+  );
   return { piste, fiche: courte, retires: retires.map((c) => c.titre), motsGardes };
 }
 

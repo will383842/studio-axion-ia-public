@@ -649,6 +649,8 @@ export async function outilsCasConcret(c: CommandeFabrication, travailId: Id, de
         const lignes: LigneCout[] = [{ etape: "voix", fournisseur: voix.fournisseur, unite: "caractere", quantite: e.caracteres, prixUnitaire: centimes(tarifCentimesParCaractere), total, nature: "estime" }];
         await reserverVoix({ lignes, total }, e.centimes, "Cette vidéo", { videoId: c.videoId, travailId });
       },
+      // Mode indicatif : le contrôle par montant de la part voix est remplacé par un compteur de lectures (3 par texte).
+      ...((await (await import("./mode-budget")).budgetIndicatifPour(c.origine)) ? { indicatif: { lecturesVoixMax: (await import("@/moteurs/montage-cas-concret/fabriquer")).LECTURES_VOIX_MAX_INDICATIF, facteurSecurite: (await import("./mode-budget")).FACTEUR_SECURITE_BUDGET } } : {}),
     },
     contexte: {
       aujourdhui: new Date().toISOString().slice(0, 10),

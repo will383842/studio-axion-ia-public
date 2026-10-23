@@ -5,7 +5,8 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import type { BruitagePlace } from "@/briques/intensite/types";
-import { REFERENCE_V4, VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import type { MotHorodate } from "@/domaine/types";
 import { motsDits, type FicheImage } from "@/domaine/image-video/fiche";
 import type { DemandeRendu, EtatRendu, FournisseurAlignement, FournisseurVoix, ServiceRendu, StockageFichiers } from "@/fournisseurs/types";
@@ -139,7 +140,7 @@ interface Monde {
 }
 
 /** Mesure rendue par studio-rendu à jour (version 2 de la mesure, 15/10). */
-const MESURE_REFERENCE: Record<string, number> = { ...Object.fromEntries(Object.entries(REFERENCE_V4).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
+const MESURE_REFERENCE: Record<string, number> = { ...Object.fromEntries(Object.entries(REFERENCE_V4_IV).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
 
 function monde(p: Partial<Pick<Monde, "motsPour" | "mesurePour" | "niveauPauses" | "bruits" | "refuserReservation">> = {}): Monde {
   return { lus: [], nouvelles: [], demandesVoix: [], sons: new Map(), motsPour: p.motsPour ?? ((t) => motsDuTexte(t)), mesurePour: p.mesurePour ?? (() => MESURE_REFERENCE), niveauPauses: p.niveauPauses ?? (() => -60), bruits: p.bruits ?? (() => []), mesures: 0, reservations: [], journal: [], refuserReservation: p.refuserReservation ?? (() => false) };
@@ -269,7 +270,7 @@ const PETIT: SegmentsVoixIV = {
 
 describe("L12 · voix unique (clone HeyGen de Will, starfish, 1,1, recette v4)", () => {
   it("la voix du format est le clone de Will avec les réglages de la recette v4", () => {
-    expect(VOIX_IV).toEqual({ fournisseur: "heygen", moteur: "starfish", vitesse: 1.1, locale: "fr-FR", idVoix: "77ea2dbe3115461a911cfe478e22bc48" });
+    expect(VOIX_IV).toEqual({ fournisseur: "heygen", moteur: "starfish", vitesse: 1.1, locale: "fr-FR", idVoix: "b22b1a358ca740eda753772ebaaf11f7" });
     expect(RECETTE_VOIX_CAS_CONCRET.synthese).toMatchObject({ moteur: "starfish", vitesse: 1.1 });
     expect(TEMPO_IV).toBe(1.08);
     expect(LOUDNESS_IV_LUFS).toBe(-14);
@@ -339,7 +340,7 @@ describe("L12 · argent : réservation obligatoire avant chaque lecture HeyGen",
     let mesure = 0;
     const m = monde({
       motsPour: (t, n) => motsDuTexte(t, n === 1 && t === PETIT.corps ? { insertions: { 2: "euh" } } : {}),
-      mesurePour: () => (++mesure === 2 ? { ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4.hauteurHz * 1.2 } : MESURE_REFERENCE),
+      mesurePour: () => (++mesure === 2 ? { ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 } : MESURE_REFERENCE),
     });
     const fin = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
     expect(fin.issue).toEqual({ statut: "faite" });
@@ -452,7 +453,7 @@ describe("L12 · hésitation détectée → lecture neuve, 3 au plus pour le cor
   });
 
   it("voix toujours hors de la référence v4 après sa relance : refus Q16", async () => {
-    const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4.hauteurHz * 1.2 }) });
+    const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 }) });
     const fin = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
     expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
     if (fin.issue?.statut === "refus") expect(fin.issue.message).toMatch(/hauteur/);
@@ -507,7 +508,7 @@ describe("L12 · une voix payée n'est jamais relue", () => {
 
 describe("15/10 · mesure version 2 : une fin refusée sur l'ancienne mesure est re-mesurée, jamais relue", () => {
   /** Prod v-dd3049053f88 : la fin courte mesurée à l'ancienne (bords silencieux comptés) : part de parole −14 %. */
-  const ANCIENNE_FIN = Object.fromEntries(Object.entries({ ...REFERENCE_V4, partieParole: REFERENCE_V4.partieParole * 0.86 }).map(([k, v]) => [`voix.${k}`, v]));
+  const ANCIENNE_FIN = Object.fromEntries(Object.entries({ ...REFERENCE_V4_IV, partieParole: REFERENCE_V4_IV.partieParole * 0.86 }).map(([k, v]) => [`voix.${k}`, v]));
 
   /**
    * État gardé en prod après l'arrêt : voix finie (lectures payées, mesures d'avant la version 2), refus retiré par la
@@ -561,7 +562,7 @@ describe("15/10 · mesure version 2 : une fin refusée sur l'ancienne mesure est
 
   it("encore hors référence avec la mesure juste : refus Q16 de nouveau, toujours sans relire", async () => {
     let serviceAJour = false;
-    const loin = { ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4.hauteurHz * 1.2 };
+    const loin = { ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 };
     const m = monde({ mesurePour: (n) => (serviceAJour ? loin : n === 1 ? MESURE_REFERENCE : ANCIENNE_FIN) });
     const arrete = await arretEnProd(m);
     const lus = m.lus.length;
@@ -582,7 +583,7 @@ describe("15/10 · mesure version 2 : une fin refusée sur l'ancienne mesure est
   });
 
   it("une voix mesurée à la version courante n'est jamais re-mesurée", async () => {
-    const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4.hauteurHz * 1.2 }) });
+    const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 }) });
     const arrete = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
     expect(arrete.issue).toMatchObject({ statut: "refus", controle: "Q16" });
     expect(voixARemesurerIV(arrete)).toBe(false);

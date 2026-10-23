@@ -1,5 +1,5 @@
 /** Ajustement automatique du titre : fonctions PURES (la mesure réelle est injectée par `Titre.tsx`). */
-import { TITRE } from "./constantes";
+import { TAILLE_TEXTE_MIN, TITRE } from "./constantes";
 
 export interface OptionsAjustement {
   min?: number;
@@ -95,7 +95,10 @@ const TOLERANCE_CORPS = 0.88;
 /**
  * Essaie 1 à `maxLignes` lignes. Écarte celles qui débordent en largeur (erreur si aucune ne tient), celles qui laissent un mot
  * seul sur une ligne (sauf si toutes en ont), puis celles qui dépassent `hauteurMax`, et garde la plus courte dont le corps
- * vaut au moins 88 % du meilleur. Si aucune ne tient en hauteur, la moins haute.
+ * vaut au moins 88 % du meilleur. Si aucune ne tient en hauteur au corps ajusté à la largeur, le corps est RÉDUIT jusqu'à ce que
+ * la hauteur tienne (plancher `TAILLE_TEXTE_MIN`, 26 px, la lecture des textes de corps) : une ligne qui rétrécit reste dans la
+ * largeur. Si la hauteur ne tient même pas au plancher, on garde la mise en lignes la moins haute à ce plancher : la mesure de
+ * débordement de la zone fait alors échouer le rendu, le titre ne déborde jamais en silence.
  */
 export function choisirMiseEnLignes(
   titre: string,
@@ -123,7 +126,17 @@ export function choisirMiseEnLignes(
   const sansMotIsole = etroites.filter((c) => !motIsole(c));
   const parmiEtroites = sansMotIsole.length > 0 ? sansMotIsole : etroites;
   const quiTiennent = parmiEtroites.filter((c) => hauteur(c) <= hauteurMax);
-  if (quiTiennent.length === 0) return parmiEtroites.reduce((a, b) => (hauteur(b) < hauteur(a) ? b : a));
-  const meilleur = Math.max(...quiTiennent.map((c) => c.taille));
-  return quiTiennent.find((c) => c.taille >= meilleur * TOLERANCE_CORPS) as MiseEnLignes;
+  if (quiTiennent.length > 0) {
+    const meilleur = Math.max(...quiTiennent.map((c) => c.taille));
+    return quiTiennent.find((c) => c.taille >= meilleur * TOLERANCE_CORPS) as MiseEnLignes;
+  }
+  // Aucune ne tient en hauteur : on réduit le corps de chacune à la hauteur disponible (jamais sous le plancher), puis même choix.
+  const reduites = parmiEtroites.map((c) => {
+    const taille = Math.max(TAILLE_TEXTE_MIN, Math.min(c.taille, Math.floor((hauteurMax / (c.lignes.length * TITRE.interligne)) * 100) / 100));
+    return { ...c, taille, largeur: mesurer(c.lignes, taille), borne: taille < c.taille ? null : c.borne };
+  });
+  const tiennent = reduites.filter((c) => hauteur(c) <= hauteurMax);
+  if (tiennent.length === 0) return reduites.reduce((a, b) => (hauteur(b) < hauteur(a) ? b : a));
+  const meilleur = Math.max(...tiennent.map((c) => c.taille));
+  return tiennent.find((c) => c.taille >= meilleur * TOLERANCE_CORPS) as MiseEnLignes;
 }

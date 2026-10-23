@@ -8,6 +8,7 @@ import React from "react";
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
 import { a, ANTON, avance, Bulle, C, claque, Coche, Ecran, Etiquette, Icone, INTER, largeurAnton, Lueur, Points, T, tailleQuiTient, Traits } from "../objets-ouverture";
 import type { DonneesOuverture } from "./donnees";
+import { PhraseChoc, zonePhrase, type PhraseBoucle } from "./phrase-choc";
 
 type D = Extract<DonneesOuverture, { code: "OUV-B" }>;
 
@@ -73,9 +74,11 @@ function MoitieIvoire({ d, pop, coche, appoint }: { d: D; pop: number; coche: nu
   );
 }
 
-export function OuvertureB({ d, t, format, boucle }: { d: D; t: number; format: FormatIV; boucle?: boolean }) {
+export function OuvertureB({ d, t, format, boucle, phrase }: { d: D; t: number; format: FormatIV; boucle?: boolean; phrase?: PhraseBoucle }) {
   const tt = boucle ? 9 : t;
-  const appoint = format === "9:16";
+  const phraseBoucle = boucle ? phrase : undefined;
+  // La phrase-choc de la boucle prend la place des messages d'appoint (bas de l'écran, sous les sous-titres).
+  const appoint = format === "9:16" && !phraseBoucle;
   const bas = 1920;
   const front = 190 + (bas - 190) * avance(tt, 0, Math.max(0.4, d.bascule));
   const pop = claque(tt, 0.15, 0.32);
@@ -98,6 +101,7 @@ export function OuvertureB({ d, t, format, boucle }: { d: D; t: number; format: 
       ) : null}
       <div style={{ position: "absolute", left: 536, top: 186, width: 544, height: 8, background: C.orangeVif }} />
       <div style={{ position: "absolute", left: 536, top: 190, width: 8, height: Math.min(front, 1920) - 190, background: C.orangeVif }} />
+      {phraseBoucle ? <PhraseChoc p={phraseBoucle} t={t} zone={zonePhrase("OUV-B", format)} couleur={C.ivoire} orange={C.orangeVif} /> : null}
       {/* La bande nuit sous les sous-titres est posée par `Ecran` (9:16 et 4:5) : lisibles de part et d'autre de la couture. */}
     </Ecran>
   );

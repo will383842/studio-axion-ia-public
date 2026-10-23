@@ -306,7 +306,7 @@ export async function reecrirePasseport(videoId: string): Promise<PasseportWeb> 
   if (!passeport) throw new ErreurStudio("PASSEPORT_INTROUVABLE", "Cette vidéo n'a pas encore de page pour le site.");
   let donnees = { titre: passeport.titreWeb, texteValide: passeport.transcription, corrections: undefined as string[] | undefined };
   for (let tour = 1; tour <= ESSAIS_PASSEPORT_WEB; tour++) {
-    const r = await executerRolePourVideo(videoId, rolePasseportWeb, entreePasseportWeb(donnees), { etape: "Passeport du site" });
+    const r = await executerRolePourVideo(videoId, rolePasseportWeb, entreePasseportWeb(donnees), { etape: "Passeport du site", parWill: true });
     if (!r.ok) throw new ErreurStudio("CLAUDE_ARRET", r.message);
     if (r.simule) throw new ErreurStudio("CLAUDE_NON_RELIE", "Claude n'est pas relié : rien n'a été écrit.");
     if (r.marqueur) throw new ErreurStudio("PASSEPORT_REFUSE", "Claude n'a pas trouvé de quoi écrire cette page sans rien inventer : le texte actuel est gardé.");

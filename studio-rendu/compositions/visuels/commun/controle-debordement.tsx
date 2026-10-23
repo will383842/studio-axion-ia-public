@@ -1,21 +1,21 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
-import { chargerPoliceArchivoBlack, chargerPoliceJetBrainsMono, FAMILLE_ARCHIVO_BLACK, FAMILLE_JETBRAINS_MONO } from "../polices";
+import { chargerPoliceArchivoBlack, chargerPoliceJetBrainsMono, policeArchivoBlackPrete, policeJetBrainsMonoPrete } from "../polices";
+import { avecDelai, DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, DELAI_TITRES_MS, etatPolices } from "./attente-police";
 import { messageDebordement } from "./debordement";
 
 /** Attend que les deux polices soient réellement chargées : jamais de mesure avec une police de secours. */
-export async function attendrePolices(): Promise<void> {
-  const chargee = (famille: string) => [...document.fonts].some((f) => f.family === famille && f.status === "loaded");
-  for (let i = 0; i < 200; i++) {
-    if (chargee(FAMILLE_ARCHIVO_BLACK) && chargee(FAMILLE_JETBRAINS_MONO)) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error("Polices de la page non chargées : texte non mesurable");
+export function attendrePolices(): Promise<void> {
+  return avecDelai(
+    Promise.all([policeArchivoBlackPrete(), policeJetBrainsMonoPrete()]).then(() => undefined),
+    DELAI_POLICE_MS,
+    () => `Polices de la page non chargées après ${DELAI_POLICE_MS / 1000} s : texte non mesurable (${etatPolices()})`,
+  );
 }
 
 /** Attend que les titres ajustés (`Titre.tsx`) contenus dans la boîte aient pris leur corps définitif. */
 async function attendreTitres(boite: HTMLElement): Promise<void> {
-  for (let i = 0; i < 200 && boite.querySelector("[data-titre-attente]"); i++) await new Promise((r) => setTimeout(r, 25));
+  for (let i = 0; i < DELAI_TITRES_MS / 25 && boite.querySelector("[data-titre-attente]"); i++) await new Promise((r) => setTimeout(r, 25));
   await new Promise((r) => setTimeout(r, 40));
 }
 
@@ -27,7 +27,7 @@ export function useControleDebordement(cadre: RefObject<HTMLElement | null>, lib
   chargerPoliceArchivoBlack();
   chargerPoliceJetBrainsMono();
   useEffect(() => {
-    const attente = delayRender(`Contrôle du débordement de ${objet} « ${libelle.slice(0, 24)} »`);
+    const attente = delayRender(`Contrôle du débordement de ${objet} « ${libelle.slice(0, 24)} »`, { timeoutInMilliseconds: DELAI_DELAYRENDER_MS });
     attendrePolices()
       .then(async () => {
         if (cadre.current) await attendreTitres(cadre.current);

@@ -113,11 +113,11 @@ export function ecartPondere(m: MesureVoix, reference: Readonly<MesureVoix> = RE
 }
 
 /** Rang de la prise la plus proche de la référence (plus petit écart pondéré ; à égalité, la première). -1 : aucune. */
-export function choisirMeilleurePrise(prises: readonly { mesure: MesureVoix }[]): number {
+export function choisirMeilleurePrise(prises: readonly { mesure: MesureVoix }[], reference: Readonly<MesureVoix> = REFERENCE_V4): number {
   let meilleure = -1;
   let min = Number.POSITIVE_INFINITY;
   prises.forEach((p, i) => {
-    const e = ecartPondere(p.mesure);
+    const e = ecartPondere(p.mesure, reference);
     if (meilleure < 0 || e < min) {
       meilleure = i;
       min = e;

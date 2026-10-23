@@ -3,11 +3,13 @@
  * rangés par `construireStockCas`. N'écrit rien, ne dépense rien. Session exigée.
  */
 import "server-only";
+import type { CasTraite } from "@/domaine/cas-traites";
 import { marquerAttentes, statutEffectif } from "@/domaine/sujets-traites";
 import { CATALOGUE, casVisibles } from "@/formats/cas-concret/catalogue";
 import { depots } from "./_commun";
 import { exigerSession } from "./auth";
 import { scriptsValidesDe } from "./cas-concret-scripts-lot";
+import { lireCasTraites } from "./cas-concret-traites";
 import { construireStockCas, type LigneStock } from "./cas-concret-stock";
 import type { ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
 
@@ -17,9 +19,10 @@ const FORMAT_CAS_CONCRET_ID = "cas-concret";
  * `montants` : les prix « au plus » déjà calculés par la page (centimes, par cas) ; absent : aucun prix affiché.
  * `catalogueEtendu` : réglage `casConcret.catalogueEtendu` ; éteint, les cas de la phase 2 restent hors du stock (comme sur la page).
  * `stockMetiers` : réglage `casConcret.stockMetiers` ; éteint, les cas du stock par métier restent hors du stock.
+ * `traites` : les cas traités déjà lus par la page (une seule lecture par affichage) ; absent, ils sont lus ici.
  * `scripts` : les scripts déjà lus par la page (une seule lecture du réglage) ; absent, ils sont lus ici, une seule fois pour tous les cas.
  */
-export async function lireStockCas(montants?: Record<string, number>, catalogueEtendu = false, stockMetiers = false, scripts?: Record<string, ScriptValide | null>): Promise<LigneStock[]> {
+export async function lireStockCas(montants?: Record<string, number>, catalogueEtendu = false, stockMetiers = false, scripts?: Record<string, ScriptValide | null>, traites?: ReadonlyMap<string, CasTraite>): Promise<LigneStock[]> {
   await exigerSession();
   const catalogue = casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu, stockMetiers }).map((x) => x.cas);
   const [lues, valides] = await Promise.all([depots().videos.lister((v) => v.formatId === FORMAT_CAS_CONCRET_ID), scripts ?? scriptsValidesDe(catalogue.map((c) => c.id))]);
@@ -31,5 +34,5 @@ export async function lireStockCas(montants?: Record<string, number>, catalogueE
         return lues.map((v) => marquees.get(v.id) ?? v);
       })
     : lues;
-  return construireStockCas({ scripts: valides, videos, montants, catalogue });
+  return construireStockCas({ scripts: valides, videos, montants, catalogue, traites: traites ?? (await lireCasTraites()) });
 }

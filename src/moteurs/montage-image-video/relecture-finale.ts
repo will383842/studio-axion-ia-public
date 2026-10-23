@@ -139,7 +139,9 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
   const dernierF = pF ? dernierElement(pF) : null;
   const ouvertureFin = Math.max(l.segmentFin.debut, Math.min(Math.max(l.segmentFin.debut + OUVERTURE_FIN_SEC, dernierF === null ? 0 : dernierF + APRES_DERNIER_FIN_SEC), (pF?.fin ?? Infinity) - 0.05));
   if (!l.segmentFin.muet && l.segmentFin.debut < l.dureeSec) brut.push({ instantSec: ouvertureFin, sorte: "charniere", legende: "Ouverture du segment de fin (question de commentaire)." });
-  brut.push({ instantSec: Math.max(0, l.dureeSec - 0.3), sorte: "fin", legende: l.segmentFin.muet ? "Dernière image : la vidéo s'arrête sur la phrase-choc et la marque, rien d'autre." : "Dernière image de la vidéo : la fin du réseau." });
+  // Fin FIN-C (boucle, variété) : la dernière image reprend la première, c'est voulu ; la légende le dit exactement.
+  const finEnBoucle = (l.blocs ?? []).some((b) => b.sorte === "variete" && b.axe === "fin" && b.code === "FIN-C");
+  brut.push({ instantSec: Math.max(0, l.dureeSec - 0.3), sorte: "fin", legende: l.segmentFin.muet ? (finEnBoucle ? "Dernière image : la vidéo s'arrête sur la phrase-choc en entier, posée sur l'image d'ouverture reprise (boucle voulue), et la marque." : "Dernière image : la vidéo s'arrête sur la phrase-choc et la marque, rien d'autre.") : "Dernière image de la vidéo : la fin du réseau." });
 
   const bornes = brut.map((b) => ({ ...b, instantSec: arrondi(Math.min(Math.max(0, b.instantSec), Math.max(0, l.dureeSec - 0.04))) }));
   const choisis: Omit<InstantCleIV, "nom">[] = [];

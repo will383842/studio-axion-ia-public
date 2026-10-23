@@ -190,6 +190,29 @@ function phraseEchec(e: unknown): string {
   return /mesure/i.test(message) ? PHRASE_SERVEUR_NON_RELIE : PHRASE_ECHEC_FIXE;
 }
 
+/** Masque tout ce qui ressemble à une clé, un jeton, un en-tête d'autorisation ou une URL signée avant d'écrire dans le journal. */
+export function masquerSecrets(texte: string): string {
+  // Bornée avant tout : les expressions d'URL sont quadratiques sur un long texte de `http://` répétés.
+  return texte
+    .slice(0, 4000)
+    .replace(/(Bearer|Basic)\s+[\w.~+/=-]+/gi, "$1 [masqué]")
+    .replace(/https?:\/\/[^\s"')]*[?&](?:X-Amz-|Signature|token|key|sig|access_token)[^\s"')]*/gi, "[url signée masquée]")
+    .replace(/\b(?:sk|pk|rk|ghp|gho|xox[a-z]?|AKIA|AIza)[-_A-Za-z0-9]{12,}/g, "[clé masquée]")
+    .replace(/((?:^|[^A-Za-z0-9])(?:[\w-]*(?:token|key|secret|password|signature|authorization))["']?\s*[=:]\s*["']?)[^\s&"',)]+/gi, "$1[masqué]")
+    .replace(/([a-z][a-z0-9+.-]*:\/\/[^\s:@/]*:)[^\s@/]+@/gi, "$1[masqué]@")
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[masqué]");
+}
+
+function journaliserEchec(id: string, e: unknown): void {
+  try {
+    const err = e instanceof Error ? e : new Error(String(e));
+    const cause = err.cause === undefined ? "" : ` | cause : ${err.cause instanceof Error ? `${err.cause.name}: ${err.cause.message}` : typeof err.cause === "string" ? err.cause : (JSON.stringify(err.cause) ?? "")}`;
+    console.error(`[carrousels] rendu échoué | visuel ${id} | ${masquerSecrets(`${err.stack ?? `${err.name}: ${err.message}`}${cause}`)}`);
+  } catch {
+    // Le journal ne doit jamais empêcher de conclure le rendu.
+  }
+}
+
 export async function lancerRendu(id: string, deps: DependancesCarrousels): Promise<void> {
   await exigerAllume(deps);
   // `jeton` = la `renduDemandeLe` posée sous verrou par CE lancement : seul le dernier rendu lancé conclut.
@@ -230,6 +253,7 @@ export async function lancerRendu(id: string, deps: DependancesCarrousels): Prom
       renduLe: deps.maintenant(),
     };
   } catch (e) {
+    journaliserEchec(id, e);
     await conclure("echec_rendu", { erreur: phraseEchec(e) });
     return;
   }

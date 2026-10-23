@@ -6,6 +6,7 @@ import React from "react";
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
 import { a, accentDe, ANTON, avance, Bulle, C, Carte, CarteIcone, claque, Coche, Ecran, Etiquette, largeurAnton, Lueur, T, tailleQuiTient, texteDe, type NomFond } from "../objets-ouverture";
 import type { DonneesOuverture } from "./donnees";
+import { PhraseChoc, zonePhrase, type PhraseBoucle } from "./phrase-choc";
 
 type D = Extract<DonneesOuverture, { code: "OUV-A" }>;
 
@@ -46,7 +47,7 @@ function DixMessages({ y, fond, part, t }: { y: number; fond: NomFond; part: num
 }
 
 /** 1re image : le chiffre final claque ; le trait d'impact se dessine ; en appoint, les dix messages. */
-function Resultat({ d, t, boucle }: { d: D; t: number; boucle?: boolean }) {
+function Resultat({ d, t, boucle, phrase }: { d: D; t: number; boucle?: boolean; phrase?: PhraseBoucle }) {
   const tt = boucle ? 9 : t;
   const libelle = d.resultat.libelle;
   return (
@@ -55,7 +56,9 @@ function Resultat({ d, t, boucle }: { d: D; t: number; boucle?: boolean }) {
       {d.situation ? <Etiquette texte="Situation type" y={270} fond="sombre" /> : null}
       <ChiffreGeant d={d} x={60} y={322} largeur={936} max={580} couleur={C.orangeVif} echelle={Math.max(0.0001, claque(tt, 0, 0.3))} />
       <div style={{ position: "absolute", left: 72, top: 924, width: 630 * avance(tt, 0.12, 0.5), height: 14, borderRadius: 7, background: C.ivoire }} />
-      {libelle ? (
+      {boucle && phrase ? (
+        <PhraseChoc p={phrase} t={t} zone={zonePhrase("OUV-A", "9:16")} couleur={C.ivoire} orange={C.orangeVif} />
+      ) : libelle ? (
         <T x={72} y={972} taille={tailleQuiTient(libelle, 96, 936)} couleur={C.ivoire} style={{ opacity: avance(tt, 0.2, 0.25) }}>
           {libelle}
         </T>
@@ -111,7 +114,7 @@ export function Rembobine({ d, t, fond, appoint = true }: { d: D; t: number; fon
 }
 
 /** 4:5 (R45-OUV-A-1) : sur ivoire, le chiffre en majesté, la barre de la part achève de se remplir. */
-function Resultat45({ d, t }: { d: D; t: number }) {
+function Resultat45({ d, t, tReel, phrase }: { d: D; t: number; tReel: number; phrase?: PhraseBoucle }) {
   const libelle = d.resultat.libelle;
   const part = d.resultat.part;
   const remplie = avance(t, 0.1, 0.8);
@@ -119,25 +122,25 @@ function Resultat45({ d, t }: { d: D; t: number }) {
     <>
       {d.situation ? <Etiquette texte="Situation type" y={190} fond="ivoire" /> : null}
       <ChiffreGeant d={d} x={56} y={236} largeur={960} max={600} couleur={C.orange} echelle={Math.max(0.0001, claque(t, 0, 0.3))} />
-      {libelle ? <T x={72} y={850} taille={tailleQuiTient(libelle, 104, 936)} couleur={C.encre}>{libelle}</T> : null}
+      {phrase ? <PhraseChoc p={phrase} t={tReel} zone={zonePhrase("OUV-A", "4:5")} couleur={C.encre} orange={C.orange} /> : libelle ? <T x={72} y={850} taille={tailleQuiTient(libelle, 104, 936)} couleur={C.encre}>{libelle}</T> : null}
       <div style={{ position: "absolute", left: 72, top: 990, width: 936, height: 30, borderRadius: 15, background: C.encre }} />
       <div style={{ position: "absolute", left: 72, top: 990, width: Math.max(30, (936 * (part ?? 100)) / 100 - 6) * remplie, height: 30, borderRadius: 15, background: C.orange }} />
     </>
   );
 }
 
-export function OuvertureA({ d, t, format, boucle }: { d: D; t: number; format: FormatIV; boucle?: boolean }) {
+export function OuvertureA({ d, t, format, boucle, phrase }: { d: D; t: number; format: FormatIV; boucle?: boolean; phrase?: PhraseBoucle }) {
   const deuxieme = !boucle && t >= d.bascule;
   if (format === "4:5") {
     return (
       <Ecran fond="ivoire" largeur={1080} hauteur={1350} cadre45={deuxieme}>
-        {deuxieme ? <Rembobine d={d} t={t - d.bascule} fond="ivoire" appoint={false} /> : <Resultat45 d={d} t={boucle ? 9 : t} />}
+        {deuxieme ? <Rembobine d={d} t={t - d.bascule} fond="ivoire" appoint={false} /> : <Resultat45 d={d} t={boucle ? 9 : t} tReel={t} phrase={boucle ? phrase : undefined} />}
       </Ecran>
     );
   }
   return (
     <Ecran fond="sombre" largeur={1080} hauteur={1920}>
-      {deuxieme ? <Rembobine d={d} t={t - d.bascule} fond="sombre" /> : <Resultat d={d} t={t} boucle={boucle} />}
+      {deuxieme ? <Rembobine d={d} t={t - d.bascule} fond="sombre" /> : <Resultat d={d} t={t} boucle={boucle} phrase={phrase} />}
     </Ecran>
   );
 }

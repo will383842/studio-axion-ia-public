@@ -90,11 +90,11 @@ describe("porte qualité : chaque défaut rougit exactement son code", () => {
   });
   it("DENSITE : plus de 200 mots orange, plus de 260 rouge", () => {
     const carte = (n: number, titre = "Sujet") => ({ titre, corps: Array.from({ length: n }, () => "a").join(" ") });
-    const orange = specAvec([couverture, { type: "T02", titre: "Les bases", cartes: [carte(129), carte(80, "Autre")] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
+    const orange = specAvec([couverture, { type: "T02", titre: "Les bases", cartes: [carte(120), carte(80, "Autre")] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
     const r1 = controlerCarrousel(orange, ctx).rapport;
     expect(r1.controles.map((c) => [c.code, c.niveau, c.page])).toEqual([["DENSITE", "orange", 2]]);
     expect(r1.verdict).toBe("orange");
-    const rouge = specAvec([couverture, { type: "T02", titre: "Les bases", cartes: [carte(129, "ab cd"), carte(129, "ef gh")] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
+    const rouge = specAvec([couverture, { type: "T02", titre: "Les bases", cartes: [carte(120, Array.from({ length: 24 }, () => "a").join(" ")), carte(120, Array.from({ length: 24 }, () => "b").join(" "))] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
     const r2 = controlerCarrousel(rouge, ctx).rapport;
     expect(r2.controles.map((c) => [c.code, c.niveau, c.page])).toEqual([["DENSITE", "rouge", 2]]);
     expect(r2.verdict).toBe("rouge");

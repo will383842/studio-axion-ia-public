@@ -32,6 +32,8 @@ import type { ConvertirEnPng } from "@/moteurs/montage-image-video/lecture/prepa
 import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture";
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
+import { signalerDepassementIndicatif } from "./budget-mensuel";
+import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
 import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -313,6 +315,10 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         throw err;
       }
     },
+    // Mode indicatif : le plafond de la vidéo est un repère (cloche), l'arrêt de sécurité vient à 5 × ce plafond.
+    ...((await budgetIndicatifPour(dep.origine))
+      ? { indicatif: { facteurSecurite: FACTEUR_SECURITE_BUDGET, signaler: async (message: string) => signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", message, await sujetDeCloche(String(dep.videoId))) } }
+      : {}),
   };
 
   // Transcription et extraction d'images : conteneur `studio-aligneur` (routes existantes `transcrire` et `image`).

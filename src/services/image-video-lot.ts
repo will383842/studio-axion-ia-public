@@ -41,6 +41,8 @@ import { exigerSession } from "./auth";
 import { creerNotification } from "./notifications";
 import { libererLot, rendreAuLot, reserverLot, transfererDuLot } from "./credits";
 import type { SourcesSujets } from "./sujets-traites";
+import { signalerDepassementIndicatif } from "./budget-mensuel";
+import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, messageAuDelaDuBudgetIndicatif, origineDeLaVideo } from "./mode-budget";
 import { candidatImageIV, deposerImageVideo, PARAM_ACCORD_ESSAI_IV, PHRASES_IV, prixDuDepot, type DependancesEcranIV } from "./image-video-ecran";
 import { phraseImagesSautees } from "@/components/formats/image-video/sujet-deja-traite";
 
@@ -468,7 +470,12 @@ async function travailleSurLot(id: string, dep: DependancesLotIV): Promise<void>
       const e = etatDe(await dernierTravail(v.videoId));
       if (e) engage += engageCentimes(e);
     }
-    if (engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
+    // Mode indicatif : le prix accordé du lot est un repère (Will est prévenu) ; la pause vient à 5 × ce prix (arrêt de sécurité).
+    // Un lot dont une vidéo a été commandée par l'Usine reste BLOQUANT (le lot lui-même n'est déposé que par Will, session présente).
+    const indicatif = await budgetIndicatifPour(await origineDuLotIV(apres));
+    if (indicatif && engage + apres.prixParVideoCentimes > apres.plafondCentimes && engage + apres.prixParVideoCentimes <= apres.plafondCentimes * FACTEUR_SECURITE_BUDGET) {
+      await signalerDepassementIndicatif("video", "Prix annoncé du lot dépassé (le lot continue)", `Le lot d'images : ${messageAuDelaDuBudgetIndicatif(eurosTexte(apres.plafondCentimes))}`, id);
+    } else if (engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
       await sousVerrou(async () => {
         const lu = await lireLotIV(id);
         if (lu?.statut === "en-cours") await ecrireLotIV(pauseDe(lu, "budget", PHRASES_LOT_IV.pauseBudget));
@@ -499,6 +506,12 @@ async function travailleSurLot(id: string, dep: DependancesLotIV): Promise<void>
   } catch (e) {
     await echecDuLancement(id, suivante, e);
   }
+}
+
+/** « usine » si une vidéo du lot a été commandée par l'Usine (origine figée dans sa dernière version) ; sinon « studio ». */
+export async function origineDuLotIV(lot: Pick<LotIV, "videos">): Promise<"studio" | "usine"> {
+  for (const v of lot.videos) if ((await origineDeLaVideo(String(v.videoId))) === "usine") return "usine";
+  return "studio";
 }
 
 async function trouverOrpheline(lot: LotIV): Promise<VideoDuLotIV | null> {

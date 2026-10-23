@@ -1212,6 +1212,19 @@ function elementsMoment(c: Ctx, carte: CarteImage, refs: NoeudCarte[], clesCarte
   if (e.scene === "dossiers") {
     const n = refs.find((x) => x.sousElements?.length);
     if (n) etat.montres.add(n.id);
+    else {
+      // Aucun nœud cité n'a de sous-éléments (« Envoyé équipe concernée ») : chaque nœud cité se pose comme un dossier
+      // portant son libellé, sur le mot qui le nomme ; sans cela il resterait « jamais montré » et l'alerte suivante le
+      // poserait en déclencheur, après coup (`relancerMoment`).
+      let suite = 0;
+      refs.forEach((x, i, tous) => {
+        if (etat.montres.has(x.id) || x.photoPersonnes) return;
+        const k = rangQuiNomme(c, x.libelle, suite) ?? rangEtale(c, i, tous.length, suite);
+        suite = k + 1;
+        etat.montres.add(x.id);
+        els.push(nouvelEl(c, "dossier", "objet", heureMot(c, k), { ref: x.id, texte: x.libelle, chiffres: clesDuNoeud(x, carte, clesCarte), couverts: [k] }));
+      });
+    }
     let apres = 0;
     (n?.sousElements ?? []).forEach((s, i, tous) => {
       const k = rangQuiNomme(c, s, apres) ?? rangEtale(c, i, tous.length, apres);
@@ -1467,8 +1480,14 @@ function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: st
   const orange = lignes.find((t) => t.includes("*"));
   const lu = scene === "chiffre" && orange ? chiffresDuTexte(sansBalises(orange))[0] : undefined;
   if (lu && lu.valeur !== null && orange) {
-    const unite = sansBalises(orange).replace(/^\s*[\d\s,.:h]+/u, "").trim();
-    return { ...base, type: "chiffre", nombre: lu.valeur, unite, pastilles: lignes.filter((t) => t !== orange).map(sansBalises), compteur: lu.unite !== "heure" } as EcranCale;
+    const ligne = sansBalises(orange).trim();
+    const apresChiffre = (x: string) => x.replace(/^\s*[\d\s,.:h]+/u, "").trim();
+    // Heure (« 23h14 ») : la ligne se lit comme avant. Sinon l'unité s'arrête au tiret de séparation (« *80%* — Réponse connue » donne
+    // « % ») et ce qui suit le tiret devient la première pastille (« Réponse connue »), sans tiret : l'unité n'est plus toute la fin de ligne.
+    const [unitePartie, ...suite] = lu.unite === "heure" ? [apresChiffre(ligne)] : apresChiffre(ligne).split(/\s+[—–-]\s+/u);
+    const unite = unitePartie.trim();
+    const reste = suite.join(" — ").trim();
+    return { ...base, type: "chiffre", nombre: lu.valeur, unite, pastilles: [...(reste ? [reste] : []), ...lignes.filter((x) => x !== orange).map(sansBalises)], compteur: lu.unite !== "heure" } as EcranCale;
   }
   if (scene === "accroche" || scene === "chiffre") return { ...base, type: "accroche", lignes } as EcranCale;
   return { ...base, type: "titre", lignes } as EcranCale;

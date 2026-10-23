@@ -23,8 +23,9 @@
  * - Le repli ne lit rien : il est posé AUTOMATIQUEMENT, dans le même passage (`pasVoix`), dès que la dernière fin de secours
  *   est refusée. Au-delà, plus aucune lecture payante, même après « Relever le plafond ».
  */
-import { comparerAReference, TOLERANCES_VOIX, verdictSurMesureAncienne } from "@/briques/voix-maitre/reference";
+import { comparerAReference, TOLERANCES_VOIX, VERSION_MESURE_VOIX, verdictSurMesureAncienne } from "@/briques/voix-maitre/reference";
 import { ErreurFin, suiteDeFins, TABLE_FINS_DIAGNOSTIC, type FinChoisie } from "@/briques/fins";
+import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { PLAFONDS_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { EtatFabricationIV } from "./fabrication";
 import type { FinIV, PlanDesFinsIV } from "./fins";
@@ -63,7 +64,13 @@ export function ecartHorsReference(p: PriseVoix | undefined): string | null {
   if (p?.etat.phase !== "faite") return null;
   const r = p.etat.audio.ressemblance;
   if (!r || r.ressemblante) return null;
-  const ecarts = r.prises[r.retenue]?.ecarts ?? [];
+  const retenue = r.prises[r.retenue];
+  // 23/10 : référence recalibrée sur la nouvelle voix : la prise retenue, mesurée à la version courante, est rejugée sur sa mesure gardée (gratuit, aucune lecture, retenue inchangée). Un « oui » enregistré n'est jamais rejugé.
+  if (retenue?.mesure && (retenue.versionMesure ?? 1) >= VERSION_MESURE_VOIX) {
+    const c = comparerAReference(retenue.mesure, REFERENCE_V4_IV);
+    return c.ressemblante ? null : c.ecarts.map((e) => e.libelle).join(", ");
+  }
+  const ecarts = retenue?.ecarts ?? [];
   return ecarts.length ? ecarts.join(", ") : "écart à la référence";
 }
 
@@ -84,7 +91,7 @@ export function ecartFinHorsReference(fin: PriseVoix | undefined, corps: PriseVo
   const h = mesureFin?.hauteurHz;
   const hc = mesureCorps?.hauteurHz;
   if (!mesureFin || !mesureCorps || !Number.isFinite(h) || !Number.isFinite(hc) || !hc) return ecartHorsReference(fin);
-  const autres = comparerAReference(mesureFin).ecarts.filter((e) => e.mesure !== "hauteurHz").map((e) => e.libelle);
+  const autres = comparerAReference(mesureFin, REFERENCE_V4_IV).ecarts.filter((e) => e.mesure !== "hauteurHz").map((e) => e.libelle);
   const e = h! / hc - 1;
   const tol = TOLERANCES_VOIX.hauteurHz;
   if (Math.abs(e) > tol) autres.unshift(`hauteur ${e >= 0 ? "+" : ""}${Math.round(e * 100)} % par rapport au corps (toléré ${Math.round(tol * 100)} %)`);

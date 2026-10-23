@@ -3,6 +3,7 @@ import { cancelRender, continueRender, delayRender } from "remotion";
 import { FORMAT } from "../commun/constantes";
 import type { ProprietesVisuelPage } from "../commun/types";
 import { VisuelPage } from "../VisuelPage";
+import { attendreTitres } from "./attente-titres";
 import { formaterMesure } from "./protocole";
 
 /** `nonce` : tiré par l'opération pour ce rendu ; sans lui, la ligne de mesure serait ignorée. */
@@ -18,6 +19,9 @@ export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
   useEffect(() => {
     const mesurer = async () => {
       await document.fonts.ready;
+      // Les titres ajustés (`Titre.tsx`) prennent leur corps définitif après le chargement de leur police : on ne mesure pas un titre
+      // encore « en attente » (il n'a alors aucun texte, et une page dont le seul texte est un titre, T10 sans légende, sortait à 0).
+      await attendreTitres(() => racine.current);
       // Deux images d'animation : la mise en page est posée avant de mesurer.
       await new Promise<void>((fin) => requestAnimationFrame(() => requestAnimationFrame(() => fin())));
       const noeuds = [...(racine.current?.querySelectorAll<HTMLElement>("*") ?? [])];

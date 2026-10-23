@@ -42,7 +42,7 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
           titre: "Les bons réflexes",
           points: [{ texte: "Vider le plateau chaque soir" }, { texte: "Trier le courrier dès son arrivée" }, { texte: "Garder un seul carnet ouvert" }, { texte: "Essuyer la surface en partant" }],
         },
-        { type: "T08", titre: "Avant et après", avant: "Des papiers partout, la tâche du jour introuvable.", apres: "Un plateau net, la tâche du jour sous la main." },
+        { type: "T08", titre: "Avant et après", avant: "Des papiers partout, la tâche introuvable.", apres: "Un plateau net, la tâche sous la main." },
         {
           type: "T20",
           titre: "Comment bien s'y prendre",
@@ -95,7 +95,7 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
             { titre: "Huiler", corps: "Une goutte sur les parties mobiles." },
           ],
         },
-        { type: "T08", titre: "L'établi", avant: "Les outils traînent, on cherche avant de commencer.", apres: "Chaque outil a son crochet, le geste est immédiat." },
+        { type: "T08", titre: "L'établi", avant: "Les outils traînent, on cherche d'abord.", apres: "Chaque outil a son crochet, geste immédiat." },
         {
           type: "T06",
           titre: "Les habitudes utiles",
@@ -136,7 +136,7 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
             { titre: "Noter l'essentiel", corps: "Une ligne par décision, rien de plus.", mini: "W02" },
           ],
         },
-        { type: "T08", titre: "La préparation", avant: "On arrive les mains vides et on improvise.", apres: "On arrive avec une idée claire et un carnet ouvert." },
+        { type: "T08", titre: "La préparation", avant: "On arrive les mains vides et on improvise.", apres: "On arrive avec une idée claire et un carnet." },
         {
           type: "T20",
           titre: "Le déroulé idéal",
@@ -188,7 +188,7 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
           ],
         },
         { type: "T10", message: "Dire d'abord ce qu'on attend", legende: "Le reste vient ensuite" },
-        { type: "T08", titre: "Une phrase allégée", avant: "Je me permets de revenir vers vous afin de savoir si éventuellement vous pourriez me répondre.", apres: "Pouvez-vous me répondre avant demain soir ?" },
+        { type: "T08", titre: "Une phrase allégée", avant: "Je me permets de revenir vers vous, si possible.", apres: "Pouvez-vous me répondre avant demain soir ?" },
         {
           type: "T06",
           titre: "La relecture",
@@ -220,7 +220,7 @@ export const FIXTURES: readonly FixtureCarrousel[] = [
           titre: "Les constats",
           points: [{ texte: "Les piles montent sans qu'on s'en aperçoive" }, { texte: "Les noms de fichiers ne disent plus rien" }, { texte: "On garde tout par peur de manquer" }],
         },
-        { type: "T08", titre: "Le classement", avant: "Des dossiers sans nom, empilés au fond d'un tiroir.", apres: "Des dossiers nommés, rangés par thème, faciles à retrouver." },
+        { type: "T08", titre: "Le classement", avant: "Des dossiers sans nom, empilés dans un tiroir.", apres: "Des dossiers nommés, rangés, faciles à retrouver." },
         {
           type: "T02",
           titre: "Les gestes de tri",

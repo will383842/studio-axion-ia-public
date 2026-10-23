@@ -6,7 +6,7 @@ import type { Porte, RapportPorte } from "@/domaine/visuels/contrats";
 import type { CarrouselSpecType } from "@/domaine/visuels/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import type { ResultatRendu } from "@/visuels/services/rendu";
-import { creerDepuisSujet, deposerSession, ErreurVisuel, lancerRendu, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
+import { creerDepuisSujet, deposerSession, ErreurVisuel, lancerRendu, masquerSecrets, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 
 const SPEC = { version: "carrousel/1", alt: "Carrousel inventé", pages: [{ type: "T01", titre: "Titre inventé" }, { type: "T21" }] } as CarrouselSpecType;
 const SPEC_CORRIGE = { ...SPEC, alt: "Carrousel inventé corrigé" } as CarrouselSpecType;
@@ -174,6 +174,36 @@ describe("deposerSession", () => {
   });
 });
 
+describe("masquerSecrets", () => {
+  it.each([
+    ["clé seule sans Bearer", "échec sk-ant-api03-ABCDEFGHIJKL fin", "sk-ant-api03"],
+    ["token= hors URL, en début de texte", "token=abc123 reste", "abc123"],
+    ["password= en début de texte", "password=hunter2", "hunter2"],
+    ["api_key=", "appel api_key=zzTOPzz", "zzTOPzz"],
+    ["access_token=", "x access_token=zzTOPzz", "zzTOPzz"],
+    ["R2_SECRET_ACCESS_KEY=", "R2_SECRET_ACCESS_KEY=zzTOPzz", "zzTOPzz"],
+    ["x-api-key:", "x-api-key: zzTOPzz", "zzTOPzz"],
+    ["jeton de 32 signes", "jeton abcdefghijklmnopqrstuvwxyz012345 fin", "abcdefghijklmnopqrstuvwxyz012345"],
+    ["JSON", '{"password":"hunter2","a":1}', "hunter2"],
+    ["adresse postgresql avec mot de passe", "postgresql://user:hunter2@h:5432/db", "hunter2"],
+    ["adresse redis sans utilisateur", "redis://:hunter2@h:6379", "hunter2"],
+    ["adresse https avec mot de passe", "https://user:hunter2@h/x", "hunter2"],
+    ["Bearer", "Authorization: Bearer abc.def-ghi", "abc.def-ghi"],
+    ["URL signée", "GET https://r2.exemple/x?X-Amz-Signature=abc123def456 ko", "abc123def456"],
+  ])("masque : %s", (_nom, entree, secret) => {
+    const sortie = masquerSecrets(entree);
+    expect(sortie).not.toContain(secret);
+    expect(sortie).toMatch(/masqué|masquée/);
+  });
+  it("reste linéaire : 100 000 signes en moins de 200 ms", () => {
+    for (const bloc of ["http://", "a=", "https://u:", "token=", "a".repeat(40) + " "]) {
+      const t0 = performance.now();
+      masquerSecrets(bloc.repeat(Math.ceil(100_000 / bloc.length)));
+      expect(performance.now() - t0).toBeLessThan(200);
+    }
+  });
+});
+
 describe("lancerRendu", () => {
   it("échec → echec_rendu avec phrase ; relancer → a_valider avec le rendu", async () => {
     let n = 0;
@@ -189,6 +219,27 @@ describe("lancerRendu", () => {
     expect(ok.erreur).toBeUndefined();
     expect(ok.rendu).toMatchObject({ empreinte: RENDU.empreinte, pdfCle: "k/c.pdf", vignetteCle: "k/p1x1.jpg", renduLe: m.deps.maintenant() });
     expect(ok.rendu?.pages).toEqual([{ index: 0, x1Cle: "k/p1x1.jpg", x2Cle: "k/p1x2.jpg" }, { index: 1, x1Cle: "k/p2x1.jpg", x2Cle: "k/p2x2.jpg" }]);
+  });
+  it("échec inattendu : l'erreur réelle est journalisée (secrets masqués), la base garde la phrase fixe", async () => {
+    const journal = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const cause = new Error("racine https://r2.exemple/x?X-Amz-Signature=abc123def456 refusée");
+      const m = monter({ rendu: async () => { throw new Error("ENOENT /app/assemblage-pdf Bearer sk-ant-api03-SECRETSECRETSECRET", { cause }); } });
+      const { id } = await creerDepuisSujet("Sujet journal", m.deps);
+      await lancerRendu(id, m.deps);
+      const lignes = journal.mock.calls.map((a) => a.map(String).join(" ")).join("\n");
+      expect(lignes).toContain("[carrousels] rendu échoué");
+      expect(lignes).toContain(`visuel ${id} |`);
+      expect(lignes).toContain("ENOENT /app/assemblage-pdf");
+      expect(lignes).toContain("racine");
+      expect(lignes).toContain("at ");
+      expect(lignes).not.toMatch(/SECRETSECRET|abc123def456|X-Amz-Signature=abc/);
+      const v = (await m.depot.obtenir(id))!;
+      expect(v.statut).toBe("echec_rendu");
+      expect(v.erreur).toBe("Le rendu a échoué : réessayez avec « Relancer le rendu »");
+    } finally {
+      journal.mockRestore();
+    }
   });
   it("message contenant « mesure » → serveur de rendu non relié", async () => {
     const m = monter({ rendu: async () => { throw new Error("mesure des débordements absente"); } });

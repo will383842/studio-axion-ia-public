@@ -34,10 +34,10 @@ Aucune autre clé n'est admise, ni dans le paquet ni dans la spec. Aucun lien, a
 | --- | --- | --- |
 | T01 | `titre`, `sousTitre` (facultatif) | titre 60, sous-titre 100 |
 | T01B, T01C | `titre`, `sousTitre` (facultatif), `deco` (facultatif, E01 à E15) | titre 40, sous-titre 100 |
-| T02 | `titre`, `cartes` (2 à 6, chacune `titre`, `corps`, `mini` facultatif parmi W01, W02, W03, W06, W07, W25) | titre de page 30 ; par carte : 2 cartes 60 / 260, 3 cartes 60 / 100, 4 cartes 32 / 80, 5 ou 6 cartes 20 / 40 (titre / corps) |
-| T06 | `titre`, `points` (3 à 5, chacun `texte`) | titre 30 ; par point : 3 points 120, 4 points 90, 5 points 60 |
-| T08 | `titre`, `avant`, `apres` | titre 30, chaque panneau 100 |
-| T10 | `message`, `legende` (facultative), `deco` (facultatif) | message 60, légende 60 |
+| T02 | `titre`, `cartes` (2 à 6, chacune `titre`, `corps`, `mini` facultatif parmi W01, W02, W03, W06, W07, W25) | titre de page 30 ; par carte : 2 cartes 48 / 240, 3 cartes 48 / 80, 4 cartes 32 / 80, 5 ou 6 cartes 17 / 36 (titre / corps) ; aucun mot de plus de 12 signes dans un titre de carte à 4, 5 ou 6 cartes (15 à 2 ou 3 cartes), sinon le rendu échoue |
+| T06 | `titre`, `points` (3 à 4, chacun `texte`) | titre 30 ; par point : 3 points 110, 4 points 58 |
+| T08 | `titre`, `avant`, `apres` | titre 30, chaque panneau 50 |
+| T10 | `message`, `legende` (facultative), `deco` (facultatif) | message 50, légende 60 |
 | T20 | `titre`, `etapes` (3 à 5, chacune `titre`, `corps`) | titre 30 ; par étape : 3 étapes 30 / 120, 4 étapes 30 / 80, 5 étapes 28 / 44 (titre / corps) |
 | T21 | aucun | aucun |
 

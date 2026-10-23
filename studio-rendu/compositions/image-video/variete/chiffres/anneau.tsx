@@ -5,7 +5,7 @@ import React from "react";
  * la pastille de la sortie où part le reste.
  */
 import type { DonneesEcranChiffresRendu } from "./donnees";
-import { a, arc, Appoint, Bulle, C, ChiffreAnton, doux, INTER, Pastille, Points, progres, type CadreChiffres } from "./outils";
+import { a, arc, Appoint, Bulle, C, ChiffreAnton, contreEchelle, doux, INTER, Pastille, Points, progres, type CadreChiffres } from "./outils";
 
 const ECART = 4;
 
@@ -15,7 +15,7 @@ export function geometrieAnneau(cadre: CadreChiffres) {
   return cadre.appoint ? { cx: 540, cy: 655, r: 340, ep: 70, taille: 330 } : { cx: 540, cy: 540, r: 330, ep: 72, taille: 330 };
 }
 
-export function Anneau({ d, t, t0, cadre, discret = 0 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; discret?: number }) {
+export function Anneau({ d, t, t0, cadre, discret = 0, echelle = 1 }: { d: DonneesEcranChiffresRendu; t: number; t0: number; cadre: CadreChiffres; discret?: number; echelle?: number }) {
   const g = geometrieAnneau(cadre);
   const valeur = d.anneau?.valeur ?? 0;
   const reste = d.anneau?.reste;
@@ -38,7 +38,7 @@ export function Anneau({ d, t, t0, cadre, discret = 0 }: { d: DonneesEcranChiffr
       </svg>
       <div style={{ position: "absolute", opacity: t >= t0 - 0.05 ? 1 : 0, left: g.cx - g.r + g.ep / 2, top: g.cy - g.taille * 0.7, width: 2 * g.r - g.ep, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
         <ChiffreAnton texte={focal.texte} taille={g.taille} couleur={C.orange} />
-        {focal.legende ? <div style={{ ...INTER, fontSize: 62, color: C.encre, marginTop: 14, opacity: doux(progres(t, t0 + 0.2, 0.4)) * (1 - discret) }}>{focal.legende}</div> : null}
+        {focal.legende ? <div style={{ ...INTER, fontSize: 62, color: C.encre, marginTop: 14, opacity: doux(progres(t, t0 + 0.2, 0.4)), ...contreEchelle(echelle, "50% 0%") }}>{focal.legende}</div> : null}
       </div>
       {/* La demande suivante entre dans l'anneau par le bas, puis le reste (déjà dit) prend sa place. */}
       {vingt < 1 ? (

@@ -151,7 +151,7 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", reseau);
   await auth.seConnecter(MDP, false);
   // Lot A5 : réglage absent = chaîne courte ; ce test éprouve la GRANDE chaîne, il la demande donc expressément.
-  await ecrireParametre("generateur.chaine", "complete");
+  (await import("@/services/generation-claude")).forcerChainePourEssai("grande");
   for (const m of SUJET.matieres) await depots().matieres.enregistrer(m);
   for (const p of SUJET.preuves) await depots().preuves.enregistrer(p);
   // Réglages posés EN BASE en production.

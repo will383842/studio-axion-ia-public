@@ -241,7 +241,7 @@ describe("D. garde : une dépense Claude ou de fabrication avec l'origine « usi
 
 describe("E. plafond d'un sujet = plafond de la chaîne active", () => {
   it("chaîne grande (réglage « complete ») : suit `generateur.plafondGrandeChaineUsd` (3 $ à 0,9 = 270 centimes)", async () => {
-    await ecrireParametre(gc.PARAM_CHAINE, "complete");
+    (await import("@/services/generation-claude")).forcerChainePourEssai("grande");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 3);
     await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 1.5);
     expect(await budget.plafondSujetCentimes()).toBe(270);
@@ -250,6 +250,7 @@ describe("E. plafond d'un sujet = plafond de la chaîne active", () => {
   });
 
   it("chaîne courte : suit `generateur.plafondSujetUsd` (2 $ à 0,5 = 100 centimes)", async () => {
+    gc.forcerChainePourEssai(null);
     await ecrireParametre(gc.PARAM_CHAINE, "courte");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 3);
     await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 2);

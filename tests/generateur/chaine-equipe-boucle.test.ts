@@ -1,7 +1,7 @@
 /**
  * CHAÎNE « ÉQUIPE » · aiguillage de la boucle d'écriture, en simulation : aucune clé réelle, `fetch` interdit, 0 $.
- * Livrée ÉTEINTE : réglage absent → courte (lot A5) ; « courte » → courte (inchangé) ; « equipe » seulement → la chaîne « équipe » ;
- * « je choisis » → toujours la grande. La réserve d'un sujet « équipe » passe sous le plafond du sujet.
+ * VERROUILLÉE depuis le 23/10/2026 : plus aucun réglage ne la choisit (la courte écrit), mais son code reste et les essais la
+ * forcent (`forcerChainePourEssai`), comme une écriture déjà lancée sur elle. La réserve d'un sujet « équipe » passe sous le plafond du sujet.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -21,6 +21,8 @@ const bg = await import("@/services/boucle-generation");
 const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const { pireCasChaine } = await import("@/generateur/pire-cas");
 const { etapeZeroBanc } = await import("../helpers/g4");
+
+afterEach(() => gc.forcerChainePourEssai(null));
 
 const MDP = "essai-chaine-equipe";
 
@@ -53,10 +55,12 @@ const lancer = async () => {
 const chaineFigee = async (id: string) => (await lireParametre<{ chaine?: string } | null>(`generateur.chaine-options.${id}`, null))?.chaine;
 
 describe("chaîne « équipe » : éteinte par défaut", () => {
-  it("réglage absent → courte (lot A5) ; « complete » → grande ; « courte » → courte", async () => {
+  it("réglage absent → courte (lot A5) ; « complete » et « equipe » → courte aussi (verrouillées) ; « courte » → courte", async () => {
     expect(await gc.chaineDeLEcriture()).toBe("courte");
     await ecrireParametre(bg.PARAM_CHAINE, "complete");
-    expect(await gc.chaineDeLEcriture()).toBe("grande");
+    expect(await gc.chaineDeLEcriture()).toBe("courte");
+    await ecrireParametre(bg.PARAM_CHAINE, "equipe");
+    expect(await gc.chaineDeLEcriture()).toBe("courte");
     await ecrireParametre(bg.PARAM_CHAINE, "courte");
     expect(await gc.chaineDeLEcriture()).toBe("courte");
     const r = await lancer();
@@ -66,16 +70,16 @@ describe("chaîne « équipe » : éteinte par défaut", () => {
     expect(appels.some((a) => a.role.startsWith("equipe-"))).toBe(false);
   });
 
-  it("une valeur inconnue → grande ; « je choisis » → grande même avec « equipe »", async () => {
+  it("une valeur inconnue → courte ; « je choisis » → courte même avec « equipe »", async () => {
     await ecrireParametre(bg.PARAM_CHAINE, "equipe-v2");
-    expect(await gc.chaineDeLEcriture()).toBe("grande");
+    expect(await gc.chaineDeLEcriture()).toBe("courte");
     await ecrireParametre(bg.PARAM_CHAINE, "equipe");
-    expect(await gc.chaineDeLEcriture("je-choisis")).toBe("grande");
+    expect(await gc.chaineDeLEcriture("je-choisis")).toBe("courte");
     expect(gc.reglagePlafond("equipe")).toBe(gc.PARAM_PLAFOND_SUJET);
   });
 
-  it("« equipe » : les 4 rôles de l'équipe, une déclinaison par réseau en plus, l'écriture rangée", async () => {
-    await ecrireParametre(bg.PARAM_CHAINE, "equipe");
+  it("« equipe » forcée (essais) : les 4 rôles de l'équipe, une déclinaison par réseau en plus, l'écriture rangée", async () => {
+    gc.forcerChainePourEssai("equipe");
     const r = await lancer();
     expect(await chaineFigee(r.generationId)).toBe("equipe");
     const { executeur, appels } = executeurSimule();
@@ -86,6 +90,26 @@ describe("chaîne « équipe » : éteinte par défaut", () => {
     expect(variantes.map((v) => v.reseau).sort()).toEqual([...S.reseaux].sort());
     const e = await bg.etatEcriture(r.scriptMaitreId);
     expect(e?.etapes).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("reprise : une écriture lancée sur « equipe » finit sur « equipe » même si le crochet est remis à la courte, sans rien repayer", async () => {
+    gc.forcerChainePourEssai("equipe");
+    const r = await lancer();
+    gc.forcerChainePourEssai(null);
+    expect(await gc.chaineDeLEcriture()).toBe("courte");
+    expect(await chaineFigee(r.generationId)).toBe("equipe");
+    const { executeur, appels } = executeurSimule();
+    expect(await bg.tourBoucleGeneration(() => executeur)).toBe(r.generationId);
+    const roles = appels.map((a) => a.role);
+    expect(roles.every((x) => x.startsWith("equipe-") || x === "declinaison")).toBe(true);
+    expect(roles.some((x) => x.startsWith("court-"))).toBe(false);
+    // Chaque étape payée une seule fois.
+    for (const id of ["equipe-chef", "equipe-scenariste", "equipe-accroches", "equipe-relecteur"]) expect(roles.filter((x) => x === id)).toHaveLength(1);
+    expect((await depots().generations.obtenir(r.generationId))?.statut).toBe("terminee");
+    // Un nouveau tour n'appelle plus rien : l'écriture terminée n'est pas repayée.
+    const apres = executeurSimule();
+    await bg.tourBoucleGeneration(() => apres.executeur);
+    expect(apres.appels).toHaveLength(0);
   });
 
   it("pire cas « équipe » de ce sujet (3 réseaux) sous le plafond d'un sujet par défaut", () => {

@@ -10,7 +10,7 @@ interface Proprietes {
   total: number;
 }
 
-/** T06 — liste numérotée courte (3 à 5 points) : une ligne par point, le rang est montré par des points (jamais de chiffre). */
+/** T06 — liste numérotée courte (3 à 4 points) : une ligne par point, le rang est montré par des points (jamais de chiffre). */
 export function T06({ titre, points, index, total }: Proprietes) {
   chargerPoliceJetBrainsMono();
   return (

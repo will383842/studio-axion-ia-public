@@ -57,7 +57,7 @@ beforeEach(async () => {
   await credits.declarerRecharge("anthropic", 100_000);
   await ecrireParametre("fournisseur.script", "claude");
   // Lot A5 : réglage absent = chaîne courte ; ce fichier éprouve les garde-fous de la GRANDE chaîne, il la demande donc expressément.
-  await ecrireParametre("generateur.chaine", "complete");
+  (await import("@/services/generation-claude")).forcerChainePourEssai("grande");
 });
 
 afterEach(() => {
@@ -408,13 +408,16 @@ describe("Re-relecture A09 (PR #254) · une seule source pour le plafond d'un su
     const serie = await import("@/services/serie-ecriture");
     await ecrireParametre("budget.mensuel", { centimes: 1_000_000, devise: "EUR" });
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 10);
-    // Grande chaîne (réglage `generateur.chaine` absent) : seul son réglage est relevé.
+    // Grande chaîne (forcée par le crochet d'essai du beforeEach) : seul son réglage est relevé.
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 4.88);
     expect((await serie.planSerie(5)).partiront).toBe(Math.floor(10 / 4.88));
     // Chaîne courte : c'est le réglage du sujet qui compte.
+    gc.forcerChainePourEssai(null);
     await ecrireParametre(bg.PARAM_CHAINE, "courte");
-    await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 3.4);
-    expect((await serie.planSerie(5)).partiront).toBe(Math.floor(10 / 3.4));
+    await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 2.4);
+    await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 4.88);
+    // 10 / 2,4 donne 4 ; 10 / 4,88 donnerait 2 : seul le réglage du sujet (courte) compte.
+    expect((await serie.planSerie(5)).partiront).toBe(Math.floor(10 / 2.4));
   });
 
   it("aucune valeur 1,50 $ retapée : le plafond par défaut d'un sujet a une seule source", async () => {

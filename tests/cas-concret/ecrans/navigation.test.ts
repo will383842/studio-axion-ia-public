@@ -10,11 +10,11 @@ const tableau = (statut: F["statut"]): F => ({ id: "tableau-anime", statut });
 const cas = (statut: F["statut"]): F => ({ id: "cas-concret", statut });
 const avocat: F = { id: "avocat", statut: "actif" };
 
-const LIBELLES = ["Accueil", "Nouvelle vidéo", "Mes vidéos", "Calendrier", "Mesures", "Écrire", "Personnages", "Bibliothèque", "Mes modèles", "Veille", "Réglages"];
+const LIBELLES = ["Accueil", "Nouvelle vidéo", "Mes vidéos", "Carrousels", "Calendrier", "Mesures", "Écrire", "Personnages", "Bibliothèque", "Mes modèles", "Veille", "Réglages"];
 const INTERDITS = ["/tableau/nouvelle", "/cas-concret", "/image-video", "/face-camera-animee"];
 
 describe("navigationLaterale", () => {
-  it("le menu est fixe : Accueil, Nouvelle vidéo, Mes vidéos, puis le reste", () => {
+  it("le menu est fixe : Accueil, Nouvelle vidéo, Mes vidéos, Carrousels, puis le reste", () => {
     expect(NAV_LATERALE.map((e) => e.libelle)).toEqual(LIBELLES);
   });
 

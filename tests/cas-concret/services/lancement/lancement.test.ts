@@ -226,7 +226,7 @@ describe("preparerEtLancer", () => {
     // Brouillon lancé (statut quitté) : la prochaine demande crée une autre vidéo. Le contrôle « sujet déjà traité »
     // (lot L3) refuserait ce second lancement du même cas : il est éteint ici, ce test ne parle que des codes de suivi.
     await ecrireParametre("sujets.garde", "eteint");
-    if (a.statut === "accord-requis") await depots().videos.modifier(a.videoId, { statut: "prete" });
+    if (a.statut === "accord-requis") await depots().videos.modifier(a.videoId, { statut: "en_fabrication" });
     await service.preparerEtLancer(demande({ mot: "AUTRE", accordCentimes: undefined }), { lancer });
     const codes = (await videosCas()).map((v) => (v.entrees as { casConcret: { codeSuivi: string } }).casConcret.codeSuivi);
     expect(codes).toHaveLength(2);

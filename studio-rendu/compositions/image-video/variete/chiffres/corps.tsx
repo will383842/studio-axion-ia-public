@@ -36,7 +36,8 @@ export function CorpsChiffres({ d, t, hauteur, marque }: { d: DonneesEcranChiffr
   const k = rangeesOuvertes(d, t);
   const focale = tailleFocale(d, cadre);
   const echelle = echelleVariante(d, cadre, k, focale);
-  // Variante rangée : ses petits textes (légendes, chiffre du reste) s'effacent, ils passeraient sous 58 px.
+  // Variante rangée : le chiffre du reste (et sa légende) s'efface, il passerait sous 58 px. La légende du chiffre
+  // principal, elle, reste : contre-agrandie (`contreEchelle`), elle garde ses 62 px à l'écran.
   const discret = c01(k);
   // Le géant n'a pas d'étiquette (il monte jusqu'à la limite haute), les autres la gardent.
   const avecEtiquette = !!d.etiquette && d.code !== "CHI-D";
@@ -45,10 +46,10 @@ export function CorpsChiffres({ d, t, hauteur, marque }: { d: DonneesEcranChiffr
       <Fond fond={d.fond} largeur={1080} hauteur={hauteur} />
       {avecEtiquette ? <Etiquette t={d.etiquette!} fond={d.fond} y={cadre.etiquetteY} /> : null}
       <AbsoluteFill style={{ transform: `scale(${echelle})`, transformOrigin: `540px ${cadre.haut}px` }}>
-        {d.code === "CHI-B" ? <Anneau d={d} t={t} t0={t0} cadre={cadre} discret={discret} /> : null}
+        {d.code === "CHI-B" ? <Anneau d={d} t={t} t0={t0} cadre={cadre} discret={discret} echelle={echelle} /> : null}
         {d.code === "CHI-C" ? <Duel d={d} t={t} t0={t0} cadre={cadre} discret={discret} echelle={echelle} /> : null}
-        {d.code === "CHI-D" ? <Geant d={d} t={t} t0={t0} cadre={cadre} discret={discret} /> : null}
-        {d.code === "CHI-E" ? <Objets d={d} t={t} t0={t0} cadre={cadre} discret={discret} /> : null}
+        {d.code === "CHI-D" ? <Geant d={d} t={t} t0={t0} cadre={cadre} discret={discret} echelle={echelle} /> : null}
+        {d.code === "CHI-E" ? <Objets d={d} t={t} t0={t0} cadre={cadre} discret={discret} echelle={echelle} /> : null}
       </AbsoluteFill>
       <Pile d={d} t={t} cadre={cadre} tailleFocale={focale} />
       {d.code === "CHI-B" ? <AppointAnneau d={d} t={t} t0={t0} cadre={cadre} /> : null}

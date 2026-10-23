@@ -3,6 +3,8 @@
  * même script rejoué). Le contrôle `verifierSujet` joue dans `preparerEtLancer`, AVANT toute création et tout prix, et
  * `estimerCas` annonce `dejaTraite` à la fiche de prix. « Nouvel angle » = l'option existante « Nouveau script ».
  * Base en mémoire, lancement simulé : aucun appel réseau, rien de payé.
+ * Depuis le 23/10/2026, une vidéo PRÊTE rend le cas indisponible (refus net, voir `cas-traites.test.ts`) : le contrôle à trois
+ * choix ne joue donc plus que pour une vidéo comptée mais pas finie (ici « en fabrication »), ou en pause.
  */
 import { hash } from "@node-rs/argon2";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -56,7 +58,7 @@ const demande = (o: Partial<Parameters<typeof service.preparerEtLancer>[0]> = {}
 
 function video(id: string, extra: Partial<Video> = {}): Video {
   const maintenant = new Date().toISOString();
-  return { id, titre: "Recruter des apporteurs", sujet: "x", formatId: "cas-concret", statut: "prete", entrees: { casConcret: { casId: CAS } }, creeLe: maintenant, modifieLe: maintenant, ...extra } as unknown as Video;
+  return { id, titre: "Recruter des apporteurs", sujet: "x", formatId: "cas-concret", statut: "en_fabrication", entrees: { casConcret: { casId: CAS } }, creeLe: maintenant, modifieLe: maintenant, ...extra } as unknown as Video;
 }
 const nombre = (c: "videos" | "depenses" | "travaux") => depots()[c].compter();
 const entreesCas = async (videoId: string): Promise<Record<string, unknown>> => ((await depots().videos.obtenir(videoId))!.entrees as { casConcret: Record<string, unknown> }).casConcret;

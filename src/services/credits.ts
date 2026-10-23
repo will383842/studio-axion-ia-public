@@ -53,6 +53,7 @@ import type { LecteurCredit, TestConnexion } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
 import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { accordCouvre, accordPropre, type AccordPrix } from "@/domaine/accord";
+import { budgetIndicatif } from "./mode-budget";
 import { partDoubleReel, phraseAvatarParle } from "@/domaine/double-reel";
 import type { Estimation } from "@/moteurs";
 import { depots, ecrireParametre, ErreurStudio, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
@@ -291,9 +292,12 @@ export async function manquesPour(lignes: LigneCout[]): Promise<{ manques: Manqu
   const besoins = await besoinsDeLEstimation(lignes);
   const disponibles: Record<string, number | null> = {};
   const refusees: string[] = [];
+  const indicatif = await budgetIndicatif();
   for (const b of besoins) {
     const s = await soldeFournisseur(b.fournisseur, FRAICHEUR_PREVOL_MS);
-    disponibles[b.fournisseur] = s.disponible;
+    // Mode indicatif : un solde seulement SUIVI (fal.ai : recharges déclarées moins dépenses) est un repère deviné, jamais opposé.
+    // Les soldes LUS chez HeyGen / ElevenLabs restent opposés. (L'affichage et les alertes de solde ne changent pas.)
+    disponibles[b.fournisseur] = indicatif && s.mode === "suivi" ? null : s.disponible;
     if (s.cleRefusee) refusees.push(b.fournisseur);
   }
   return { manques: calculerManques(besoins, disponibles), besoins, refusees };
@@ -314,7 +318,7 @@ export async function verifierBudgetEtCredits(
   estimation: Pick<Estimation, "lignes" | "total">,
   accord: AccordPrix,
   quoi: string,
-  options: { doubleDejaConfirme?: boolean; origine?: OrigineLancement; travailId?: Id } = {},
+  options: { doubleDejaConfirme?: boolean; origine?: OrigineLancement; travailId?: Id; automatique?: boolean } = {},
 ): Promise<void> {
   const confirme = accordPropre(accord);
   // Lot R2 : une ligne `facultative` (textes des réseaux) ne bloque jamais ; elle reste engagée (verifierEtReserver).
@@ -325,7 +329,10 @@ export async function verifierBudgetEtCredits(
   const budget = await resumeBudget();
   // Relecture paquet 4 (D2) : la confirmation porte le MONTANT (centimes d'euro), à l'écran et au retour. Un montant
   // confirmé plus bas que le prix du jour est refusé : Will revoit le nouveau prix.
-  if (bloquant > budget.seuilConfirmation.centimes && !accordCouvre(confirme, bloquant, budget.seuilConfirmation.centimes)) {
+  // Mode indicatif : la confirmation de prix au-dessus du seuil n'est plus exigée d'un lancement AUTOMATIQUE (relance, reprise
+  // après recharge) ; elle reste exigée d'un lancement fait à la main par Will et de toute commande de l'Usine.
+  const seuilIndicatif = options.automatique === true && options.origine !== "usine" && (await budgetIndicatif());
+  if (!seuilIndicatif && bloquant > budget.seuilConfirmation.centimes && !accordCouvre(confirme, bloquant, budget.seuilConfirmation.centimes)) {
     const prix = formaterMontant({ centimes: bloquant, devise: "EUR" });
     const message = typeof confirme === "number" ? `Le prix a changé : ${prix} au plus. Confirmez ce prix pour continuer.` : `${quoi} coûte au plus ${prix}, plus que d'habitude. Confirmez ce prix pour continuer.`;
     throw new ErreurStudio("CONFIRMATION_REQUISE", message, bloquant);
@@ -392,11 +399,11 @@ export async function verifierEtReserver(
   confirme: AccordPrix,
   quoi: string,
   demande: { videoId?: Id; travailId: Id },
-  options: { origine?: OrigineLancement } = {},
+  options: { origine?: OrigineLancement; automatique?: boolean } = {},
 ): Promise<void> {
   await sousVerrouCredits(async () => {
     // L1-09 : `origine: "usine"` exige le budget du mois reçu de l'Usine ; sans origine, la commande de Will (inchangée).
-    await verifierBudgetEtCredits(estimation, confirme, quoi, { origine: options.origine, travailId: demande.travailId });
+    await verifierBudgetEtCredits(estimation, confirme, quoi, { origine: options.origine, travailId: demande.travailId, automatique: options.automatique });
     await reserverCredits({ ...demande, lignes: estimation.lignes });
     // E2E-2 argent n° 5 : l'estimation est ENGAGÉE sur le budget du mois jusqu'à la fin (restant = budget − dépensé − engagé).
     await engagerBudget(demande.travailId, estimation.total, demande.videoId);
@@ -511,8 +518,8 @@ export function reserverPourUsine(estimation: Pick<Estimation, "lignes" | "total
  * L3-01 : ce test tient aussi la liste FERMÉE de tous les sites de dépense du dépôt (§ 3 : garde, pré-vol, crochet ou hors
  * porte, chacun avec sa raison) ; un site nouveau, ou une garde qui reçoit une origine écrite en dur, le fait rougir.
  */
-export function verifierEtReserverSelonOrigine(origine: OrigineLancement | undefined, estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id }): Promise<void> {
-  return origine === "usine" ? reserverPourUsine(estimation, confirme, quoi, demande) : verifierEtReserver(estimation, confirme, quoi, demande);
+export function verifierEtReserverSelonOrigine(origine: OrigineLancement | undefined, estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id }, options: { automatique?: boolean } = {}): Promise<void> {
+  return origine === "usine" ? reserverPourUsine(estimation, confirme, quoi, demande) : verifierEtReserver(estimation, confirme, quoi, demande, { automatique: options.automatique });
 }
 
 /**

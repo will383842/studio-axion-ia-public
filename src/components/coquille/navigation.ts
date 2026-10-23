@@ -17,6 +17,8 @@ export const NAV_LATERALE: EntreeNavigation[] = [
   { href: "/", libelle: "Accueil", icone: "accueil" },
   { href: "/nouvelle", libelle: "Nouvelle vidéo", icone: "plus" },
   { href: "/videos", libelle: "Mes vidéos", icone: "film", actifSur: ["/videos", "/formats"] },
+  // 18/10 : carrousels, infographies et vidéos sont trois familles distinctes (jamais sous « Mes vidéos »).
+  { href: "/carrousels", libelle: "Carrousels", icone: "images" },
   { href: "/calendrier", libelle: "Calendrier", icone: "calendrier" },
   // Navigation (03/10) : « Mesures » et « Ce qui marche » n'étaient joignables que par une tuile de l'Accueil.
   { href: "/mesures", libelle: "Mesures", icone: "resultats" },
@@ -38,6 +40,7 @@ export const ONGLETS_BAS: (EntreeNavigation & { central?: boolean })[] = [
 
 /** Feuille « Plus » (mobile) : grille de tuiles. */
 export const TUILES_PLUS: EntreeNavigation[] = [
+  { href: "/carrousels", libelle: "Carrousels", icone: "images" },
   { href: "/personnages", libelle: "Personnages", icone: "personnages" },
   { href: "/bibliotheque", libelle: "Bibliothèque", icone: "bibliotheque" },
   { href: "/modeles", libelle: "Mes modèles", icone: "modele" },

@@ -296,7 +296,7 @@ describe("5. L3-01 : options payantes hors porte (clic de Will uniquement)", () 
  *  - src/services/site-videos.ts ~l.299 : passeport web du site ;
  *  - src/services/tableau-creation.ts ~l.620 : découpage du tableau animé ;
  *  - src/services/tableau-scripts/client-studio.ts ~l.97 : passes du script du tableau ;
- *  - src/services/monteur-facecam.ts ~l.424, ~l.1003, ~l.1050 : monteur face caméra (discussion, relecture, consignes) ;
+ *  - src/services/monteur-facecam.ts ~l.424 : message tapé par Will au monteur (`parWill: true`, volontairement sans origine) ; relecture et consignes passent l'origine de la commande ;
  *  - src/services/facecam-animee.ts ~l.183 : réalisateur V4 (fichier d'une autre session, NON modifié ici).
  * Fichiers d'autres sessions, listés seulement, jamais modifiés par L3-01 : src/app/(studio)/image-video/**,
  * src/app/(studio)/nouvelle/[format]/**, src/components/creation/*, src/services/facecam-animee.ts,
@@ -304,8 +304,7 @@ describe("5. L3-01 : options payantes hors porte (clic de Will uniquement)", () 
  * Liste FERMÉE : un appel nouveau sans origine, ou un appel branché, la fait rougir (la mettre à jour, avec le lot 4).
  */
 const SANS_ORIGINE_LOT_4 = [
-  "src/services/facecam-animee.ts × 1",
-  "src/services/monteur-facecam.ts × 3",
+  "src/services/monteur-facecam.ts × 1",
   "src/services/publications.ts × 1",
   "src/services/site-videos.ts × 1",
   "src/services/tableau-creation.ts × 1",

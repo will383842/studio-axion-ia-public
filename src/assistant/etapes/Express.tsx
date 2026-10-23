@@ -234,6 +234,7 @@ export function EtapeExpress(props: ProprietesEtape) {
         manques: manquesAvantFabrication(plateau, voix),
         essaiGratuit: donnees.essaiGratuit,
         manquesAcceptes: options.manquesAcceptes,
+        budgetIndicatif: !!donnees.budget.indicatif,
       });
       if (decision.genre === "completer") {
         notifier.info(decision.bloc === "plateau" ? "Choisissez d'abord qui parle" : "Choisissez d'abord une voix");
@@ -506,6 +507,13 @@ export function EtapeExpress(props: ProprietesEtape) {
               Budget du mois dépassé ·{" "}
               <Link href="/reglages#budget" className="font-semibold underline">
                 Augmenter le budget
+              </Link>
+            </p>
+          ) : apercu?.budget.depasseIndicatif ? (
+            <p className="text-center text-xs text-ambre">
+              Au-delà du budget indicatif du mois · la vidéo part quand même ·{" "}
+              <Link href="/reglages#budget" className="font-semibold underline">
+                Régler le repère
               </Link>
             </p>
           ) : enVrai ? (

@@ -6,7 +6,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { CommandeFabrication, Travail } from "@/domaine/types";
 import { formatImageVideo, RACCORDS_IMAGE_VIDEO, schemaReglagesImageVideo } from "@/formats/image-video";
 import {
@@ -35,10 +35,27 @@ import { codeDuFormat } from "@/formats/registre-codes";
 import { idMoteurDeCommande, moteurExiste, obtenirMoteur } from "@/moteurs";
 import { lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
 import { carteFixe, demandeEssai, IMAGES, MESURE_REFERENCE, monde, outilsSimules, type Monde, type OptionsMonde } from "./doubles-fabrication";
-import { REFERENCE_V4, verdictSurMesureAncienne, VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { verdictSurMesureAncienne, VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
+import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { cartesReseaux, refusReessayableIV, vueFabrication } from "@/components/formats/image-video/vue";
 import { etapeDeSecoursIV, finsHorsReferenceIV, planDeSecoursIV, secoursApresArretIV } from "@/moteurs/montage-image-video/secours";
 import type { CarteImage } from "@/domaine/image-video/carte";
+
+/**
+ * 20/10 : la lecture unique de la voix est la règle (`LECTURE_UNIQUE_IV`). Les blocs ci-dessous qui décrivent une voix
+ * payée en segments SÉPARÉS (arrêts de fin, fins de secours, replis : « voix-iv/1 », qui existe encore en prod) la
+ * remettent à `false` le temps du bloc ; la lecture unique a ses propres tests (`fabrication-lecture-unique.test.ts`).
+ */
+const reglageVoix = vi.hoisted(() => ({ lectureUnique: true }));
+vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/voix")>();
+  return {
+    ...vrai,
+    get LECTURE_UNIQUE_IV() {
+      return reglageVoix.lectureUnique;
+    },
+  };
+});
 
 vi.setConfig({ testTimeout: 120_000 });
 
@@ -320,10 +337,18 @@ describe("porte « script » : rien de plus n'est payé avant la validation", ()
 /* ------------------------------------------------------------------ */
 
 describe("reprise après erreur, sans repayer", () => {
+  // Voix payée en segments séparés (« voix-iv/1 ») : corps puis une lecture par fin, secours et replis.
+  beforeAll(() => {
+    reglageVoix.lectureUnique = false;
+  });
+  afterAll(() => {
+    reglageVoix.lectureUnique = true;
+  });
+
   it("15/10 · arrêt Q16 « part de parole −14 % » sur l'ancienne mesure (v-dd3049053f88) : « Refaire cette partie » re-mesure, aucune voix relue ni réservée", async () => {
     // Prod : la fin courte mesurée avant la version 2 (bords silencieux comptés), studio-rendu pas encore à jour.
     let serviceAJour = false;
-    const ancienne = Object.fromEntries(Object.entries({ ...REFERENCE_V4, partieParole: REFERENCE_V4.partieParole * 0.86 }).map(([k, v]) => [`voix.${k}`, v]));
+    const ancienne = Object.fromEntries(Object.entries({ ...REFERENCE_V4_IV, partieParole: REFERENCE_V4_IV.partieParole * 0.86 }).map(([k, v]) => [`voix.${k}`, v]));
     const { m, o, e } = demarrer("C", { mesureVoix: (n) => (serviceAJour ? MESURE_REFERENCE : n === 1 ? MESURE_REFERENCE : ancienne) });
     const { etat } = await jusquAuBout(e, o);
     // Avec ce correctif, la re-mesure part dès la voix finie : studio-rendu « ancien » → panne claire, réessayable.
@@ -346,7 +371,7 @@ describe("reprise après erreur, sans repayer", () => {
 
   describe("15/10 · fin Facebook hors référence en mesure v2 (v-dd3049053f88, trav-f2b26bba35ac) : fin de secours", () => {
     /** Prod : « … Le lien est en commentaire. » mesurée à 177,78 Hz (hauteur +17 %), deux lectures, mesure version 2. */
-    const HORS_REFERENCE = { ...Object.fromEntries(Object.entries({ ...REFERENCE_V4, hauteurHz: REFERENCE_V4.hauteurHz * 1.17 }).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
+    const HORS_REFERENCE = { ...Object.fromEntries(Object.entries({ ...REFERENCE_V4_IV, hauteurHz: REFERENCE_V4_IV.hauteurHz * 1.17 }).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
     const FIN_FB = "Le lien est en commentaire.";
     const SECOURS = "Le lien est dans le premier commentaire.";
 
@@ -387,7 +412,7 @@ describe("reprise après erreur, sans repayer", () => {
       const voixApres = fin.etat.caisse.reservations.filter((r) => r.etape === "voix");
       expect(voixApres.slice(0, voixAvant.length)).toEqual(voixAvant);
       expect(voixApres.slice(voixAvant.length)).toHaveLength(1);
-      expect(voixApres.at(-1)!.cle).toMatch(/iv-voix-fin-facebook-3$/);
+      expect(voixApres.at(-1)!.cle).toMatch(/iv-voix-fin-facebook-[0-9a-f]{10}-\d+$/);
       expect(engageCentimes(fin.etat)).toBeLessThanOrEqual(fin.etat.caisse.plafondCentimes);
       // Le texte de la version Facebook suit la nouvelle phrase : carton de fin, sous-titres (mots de la voix), publication.
       const fb = fin.etat.plan!.fins.find((f) => f.reseaux.includes("facebook"))!;
@@ -413,7 +438,7 @@ describe("reprise après erreur, sans repayer", () => {
 
     describe("15/10 · 2ᵉ fin de secours puis repli Instagram (prod : v-dd3049053f88, trav-f2b26bba35ac, studio 039c3f62)", () => {
       /** Prod : « … Le lien est dans le premier commentaire. » mesurée hauteur +24 %, dynamique +20 % (mesure version 2). */
-      const SECOURS_HORS = { ...Object.fromEntries(Object.entries({ ...REFERENCE_V4, hauteurHz: REFERENCE_V4.hauteurHz * 1.24, dynamique: REFERENCE_V4.dynamique * 1.202 }).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
+      const SECOURS_HORS = { ...Object.fromEntries(Object.entries({ ...REFERENCE_V4_IV, hauteurHz: REFERENCE_V4_IV.hauteurHz * 1.19, dynamique: REFERENCE_V4_IV.dynamique * 1.202 }).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX };
       const SECOURS_2 = "Le lien est juste sous la vidéo.";
       const PROFIL = "Le lien est dans mon profil.";
       const REPLI = "Facebook reprend la version Instagram : la voix des fins Facebook ne ressemblait pas à la référence.";
@@ -440,7 +465,7 @@ describe("reprise après erreur, sans repayer", () => {
       it("état de prod : secours 1 lu une fois et refusé (+24 %, +20 %) → « Refaire cette partie » proposé, avec le secours 2 et le repli annoncés", async () => {
         const { m, etat } = await etatDeProd("ok");
         expect(etat.refus).toMatchObject({ etape: "voix", code: "IV_VOIX", reessayable: false });
-        expect(etat.refus?.message).toMatch(/La voix de la fin de secours pour facebook ne ressemble pas non plus à la voix de référence \(hauteur \+24 % \(toléré 8 %\), dynamique \+20 % \(toléré 20 %\)\)\. Aucune autre lecture n'est faite/);
+        expect(etat.refus?.message).toMatch(/La voix de la fin de secours pour facebook ne ressemble pas non plus à la voix de référence \(hauteur \+19 % \(toléré 8 %\), dynamique \+20 % \(toléré 20 %\)\)\. Aucune autre lecture n'est faite/); // 23/10 : référence Image → vidéo recalibrée sur la nouvelle voix (188,2 Hz) ; facteur 1,19 = +19 % (toujours refusée)
         expect(m.lus.filter((t) => t.endsWith(SECOURS))).toHaveLength(1);
         expect(m.lus.some((t) => t.endsWith(SECOURS_2))).toBe(false);
         const v = vueFabrication(etat);
@@ -462,7 +487,7 @@ describe("reprise après erreur, sans repayer", () => {
         expect(nouvelles[0]).toMatch(/Faites votre diagnostic gratuit en quelques minutes\. Le lien est juste sous la vidéo\.$/);
         const voixApres = fin.etat.caisse.reservations.filter((r) => r.etape === "voix");
         expect(voixApres.slice(0, voixAvant.length)).toEqual(voixAvant);
-        expect(voixApres.slice(voixAvant.length).map((r) => r.cle)).toEqual([expect.stringMatching(/iv-voix-fin-facebook-4$/)]);
+        expect(voixApres.slice(voixAvant.length).map((r) => r.cle)).toEqual([expect.stringMatching(/iv-voix-fin-facebook-[0-9a-f]{10}-\d+$/)]);
         expect(engageCentimes(fin.etat)).toBeLessThanOrEqual(fin.etat.caisse.plafondCentimes);
         // Dit (sous-titres = mots de la voix), affiché (carton de fin), publié (texte du post, lien en premier commentaire).
         const fb = fin.etat.plan!.fins.find((f) => f.reseaux.includes("facebook"))!;
@@ -671,7 +696,7 @@ describe("reprise après erreur, sans repayer", () => {
         const voixApres = apres.caisse.reservations.filter((r) => r.etape === "voix");
         expect(voixApres.slice(0, voixAvant.length)).toEqual(voixAvant);
         expect(voixApres.slice(voixAvant.length)).toHaveLength(1);
-        expect(voixApres.at(-1)!.cle).toMatch(/iv-voix-fin-[a-z-]+-3$/);
+        expect(voixApres.at(-1)!.cle).toMatch(/iv-voix-fin-[a-z-]+-[0-9a-f]{10}-\d+$/);
         expect(engageCentimes(apres)).toBeLessThanOrEqual(apres.caisse.plafondCentimes);
         // Instagram : écran identique à la fin normale, secours sans repli ; Shorts : sa propre ligne, même texte dit.
         expect(fin(apres, "instagram")).toMatchObject({ secours: true });
@@ -722,7 +747,7 @@ describe("reprise après erreur, sans repayer", () => {
         const voixApres = e3.caisse.reservations.filter((r) => r.etape === "voix");
         expect(voixApres.slice(0, voixAvant.length)).toEqual(voixAvant);
         expect(voixApres.slice(voixAvant.length)).toHaveLength(1);
-        expect(voixApres.at(-1)!.cle).toMatch(/iv-voix-fin-[a-z-]+-4$/);
+        expect(voixApres.at(-1)!.cle).toMatch(/iv-voix-fin-[a-z-]+-[0-9a-f]{10}-\d+$/);
         const prise = e3.voix!.voix.fins.find((f) => f.texte === s.relire[0])!.prise!;
         expect(prise.essai).toBeGreaterThanOrEqual(3);
         expect(e3.voix!.relues).toEqual([s.relire[0]]);

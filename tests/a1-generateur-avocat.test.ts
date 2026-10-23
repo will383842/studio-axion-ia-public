@@ -89,7 +89,7 @@ beforeEach(async () => {
   });
   await auth.seConnecter(MDP, false);
   // Lot A5 : réglage absent = chaîne courte ; ce test éprouve la GRANDE chaîne, il la demande donc expressément.
-  await ecrireParametre("generateur.chaine", "complete");
+  (await import("@/services/generation-claude")).forcerChainePourEssai("grande");
   await ecrireParametre("budget.seuilConfirmation", centimes(1_000_000));
   credits.injecterLecteursPourEssai([creerLecteurAnthropic({ ANTHROPIC_API_KEY: CLE_ESSAI_CLAUDE }, (async () => { throw new Error("réseau interdit"); }) as typeof fetch)], ["anthropic"]);
   await credits.declarerRecharge("anthropic", 500);

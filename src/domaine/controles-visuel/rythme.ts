@@ -1,4 +1,5 @@
 /** Contrôles de structure d'un carrousel (pages, rythme, variété, titres, série, densité) : purs. */
+import { capaciteMotCarte } from "../../briques/visuels/registre-pages";
 import type { ControlePorte } from "../visuels/contrats";
 import type { CarrouselSpecType } from "../visuels/types";
 import { mots, normaliser } from "./texte";
@@ -25,6 +26,18 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
     if (i > 0 && pages[i - 1].type === p.type) {
       res.push({ code: "RYTHME", niveau: "rouge", page: i + 1, phrase: `Pages ${i} et ${i + 1} : deux pages de suite de même type (${p.type}) ; alternez les mises en page.` });
     }
+  });
+
+  pages.forEach((p, i) => {
+    if (p.type !== "T02") return;
+    const max = capaciteMotCarte(p.cartes.length);
+    p.cartes.forEach((c, k) => {
+      // Choix prudent : seuls l'espace ordinaire, les tirets ASCII/U+2010 et les blancs de contrôle coupent un mot ; les tirets demi-cadratin et cadratin et U+200B ne coupent pas (le mot reste long, donc refusé plus facilement).
+      const long = c.titre.split(/[ \t\n\r\f\-\u2010]+/u).reduce((a, m) => (m.length > a.length ? m : a), "");
+      if (long.length > max) {
+        res.push({ code: "MOT_TROP_LONG", niveau: "rouge", page: i + 1, chemin: `pages.${i}.cartes.${k}.titre`, phrase: `Page ${i + 1} : le mot « ${long} » (${long.length} signes) est trop long pour un titre de carte (${max} signes au plus avec ${p.cartes.length} cartes) ; choisissez un mot plus court.` });
+      }
+    });
   });
 
   const types = new Set(pages.map((p) => p.type));

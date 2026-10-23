@@ -31,7 +31,9 @@ import { nouvelId } from "@/lib/ids";
 import { centimes, centimesDuPlafond, formaterMontant } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { libererReservation, MARGE_CREDITS, signalerAttenteCredit, verifierEtReserverSelonOrigine } from "./credits";
-import type { OrigineLancement } from "./budget-mensuel";
+import { jugerPlafond, signalerDepassementIndicatif, type OrigineLancement } from "./budget-mensuel";
+import { formatSansPrix } from "@/formats";
+import { budgetIndicatifPour, messageArretSecurite, origineDeLaVideo, sujetDeCloche } from "./mode-budget";
 import { appelerAvecRotation, attendre, messageSansCompte, attenteSurcharge, claudeActif, coutReelUsd, envClaude, peutEcrire, engageClaudeDuMoisCentimes, ESSAIS_SURCHARGE, ligne, MESSAGE_CLE_REFUSEE, MESSAGE_MODELE_CHANGE, PARAM_MODELE_BLOQUE, plafondMensuelClaudeUsd, sousVerrouMois, taux } from "./generation-claude";
 
 /** Plafond Claude PAR VIDÉO pour ses textes de publication (≈ 0,05 $ attendus pour 4 réseaux). */
@@ -236,6 +238,13 @@ async function solderAppelsInterrompus(): Promise<void> {
  * l'en-tête). `ok: false` : rien n'est parti, rien n'est payé (sauf coupure après l'envoi, comptée et plafonnée).
  */
 /**
+ * ORIGINE DE LA DÉPENSE. Chemin automatique (fabrication, relecture lancée par la fabrication) : `options.origine` est celle de
+ * la commande ; absente, elle est lue sur la dernière version de la vidéo (une vidéo de l'Usine reste bloquante).
+ * Action que Will fait LUI-MÊME en session (message tapé au monteur, « Régénérer le texte », clic site-videos ou tableau) :
+ * `options.parWill: true` saute cette lecture de secours, l'origine est « studio » (budget indicatif), même sur une vidéo venue
+ * de l'Usine. Seules les commandes réellement passées par l'Usine restent bloquantes.
+ */
+/**
  * `options.facecam` (lot G, facultatif) : appel du monteur face caméra, compté sur le plafond de la VERSION (dépenses
  * depuis `depuis`) au lieu du plafond des textes ; plafond atteint → arrêt « plafond-video » sans montant (le monteur
  * sort alors la version simple). L'étape doit commencer par « Monteur · ».
@@ -244,7 +253,7 @@ async function solderAppelsInterrompus(): Promise<void> {
  * `options.plafondPropre` (tableau animé, facultatif) : appel compté sur SON plafond par vidéo (découpage, écriture du
  * script) au lieu du plafond des textes ; l'étape doit commencer par son préfixe.
  */
-export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, role: DefinitionRole<S>, entree: EntreeRole, options: { etape: string; facecam?: { depuis: string }; plafondPropre?: PlafondPropre; origine?: OrigineLancement }): Promise<ResultatVideo<z.infer<S>>> {
+export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, role: DefinitionRole<S>, entree: EntreeRole, options: { etape: string; facecam?: { depuis: string }; plafondPropre?: PlafondPropre; origine?: OrigineLancement; parWill?: boolean }): Promise<ResultatVideo<z.infer<S>>> {
   const d = depots();
   const video = await d.videos.obtenir(videoId);
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
@@ -273,6 +282,11 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
   const demande = Math.ceil(pire * 100 * (1 + MARGE_CREDITS));
 
   // 2. Plafond de la vidéo, limite du mois, pré-vol et réservation, d'un seul tenant sous le verrou du mois.
+  // L'origine passée l'emporte ; sinon celle de la dernière version de la vidéo : une vidéo de l'Usine reste bloquante.
+  const origineEffective = options.origine ?? (options.parWill ? "studio" : await origineDeLaVideo(videoId));
+  const sansPrix = formatSansPrix(video.formatId);
+  const indicatif = await budgetIndicatifPour(origineEffective);
+  const sujet = await sujetDeCloche(videoId);
   let reserve = false;
   try {
     const arret = await sousVerrouMois(async (): Promise<ResultatVideo<never> | null> => {
@@ -280,7 +294,12 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
       if (options.facecam) {
         // Lot G : plafond du monteur pour cette version, jamais montré (format sans prix).
         const plafond = await plafondFacecamVersionUsd();
-        if ((await engageFacecamVersionCentimes(videoId, options.facecam.depuis)) + demande > centimesDuPlafond(plafond)) {
+        const sur = await jugerPlafond((await engageFacecamVersionCentimes(videoId, options.facecam.depuis)) + demande, plafond, indicatif, `${libelle} (monteur, cette version)`, sujet, { sansPrix: true });
+        if (sur === "arret-securite") {
+          await journaliser("retouche", `${libelle} : arrêt de sécurité du monteur (5 × son plafond), version simple`, { type: "video", id: videoId });
+          return { ok: false, arret: "plafond-video", message: messageArretSecurite() };
+        }
+        if (sur === "bloque") {
           await journaliser("retouche", `${libelle} : plafond du monteur pour cette version atteint, version simple`, { type: "video", id: videoId });
           return { ok: false, arret: "plafond-video", message: "Version simple pour cette modification." };
         }
@@ -288,30 +307,47 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
       if (propre) {
         // Tableau animé : plafond propre de cette vidéo (découpage ou écriture), dit en euros comme le prix du bouton.
         const plafond = await valeurPlafondPropre(propre);
-        if ((await engagePlafondPropreCentimes(videoId, propre)) + demande > centimesDuPlafond(plafond)) {
+        const sur = await jugerPlafond((await engagePlafondPropreCentimes(videoId, propre)) + demande, plafond, indicatif, `${libelle} (cette vidéo)`, sujet, sansPrix ? { sansPrix: true } : { tauxUsdEur: t });
+        if (sur === "arret-securite") {
+          await journaliser("video", `${libelle} : arrêt de sécurité (5 × le plafond de cette vidéo), rien n'est parti`, { type: "video", id: videoId });
+          return { ok: false, arret: "plafond-video", message: messageArretSecurite(sansPrix ? undefined : formaterMontant(centimes(centimesDuPlafond(plafond * t)))) };
+        }
+        if (sur === "bloque") {
           const enEuros = formaterMontant(centimes(centimesDuPlafond(plafond * t)));
           await journaliser("video", `${libelle} : plafond de cette vidéo atteint (${enEuros}), rien n'est parti`, { type: "video", id: videoId });
           return { ok: false, arret: "plafond-video", message: `Plafond de cette vidéo atteint (${enEuros}) : rien n'a été payé.` };
         }
       }
       const plafondVideo = await plafondKitUsd();
-      if (!options.facecam && !propre && (await engageClaudeVideoCentimes(videoId)) + demande > centimesDuPlafond(plafondVideo)) {
-        // Une seule monnaie à l'écran : le plafond (réglé en dollars) est dit en euros, comme le prix du bouton.
-        const enEuros = formaterMontant(centimes(centimesDuPlafond(plafondVideo * t)));
-        await journaliser("publication", `${libelle} : plafond de la vidéo atteint (${enEuros}), le texte n'est pas écrit`, { type: "video", id: videoId });
-        return { ok: false, arret: "plafond-video", message: `Plafond des textes de cette vidéo atteint (${enEuros}) : le texte actuel est gardé.` };
+      if (!options.facecam && !propre) {
+        const sur = await jugerPlafond((await engageClaudeVideoCentimes(videoId)) + demande, plafondVideo, indicatif, `${libelle} (textes de la vidéo)`, sujet, { tauxUsdEur: t });
+        if (sur === "arret-securite") {
+          await journaliser("publication", `${libelle} : arrêt de sécurité (5 × le plafond des textes), le texte n'est pas écrit`, { type: "video", id: videoId });
+          return { ok: false, arret: "plafond-video", message: `${messageArretSecurite(formaterMontant(centimes(centimesDuPlafond(plafondVideo * t))))} Le texte actuel est gardé.` };
+        }
+        if (sur === "bloque") {
+          // Une seule monnaie à l'écran : le plafond (réglé en dollars) est dit en euros, comme le prix du bouton.
+          const enEuros = formaterMontant(centimes(centimesDuPlafond(plafondVideo * t)));
+          await journaliser("publication", `${libelle} : plafond de la vidéo atteint (${enEuros}), le texte n'est pas écrit`, { type: "video", id: videoId });
+          return { ok: false, arret: "plafond-video", message: `Plafond des textes de cette vidéo atteint (${enEuros}) : le texte actuel est gardé.` };
+        }
       }
       const plafondMois = await plafondMensuelClaudeUsd();
       const engage = await engageClaudeDuMoisCentimes();
       if (engage.depense + engage.reserve + demande > centimesDuPlafond(plafondMois)) {
-        await journaliser("publication", "Textes de publication : limite Claude du mois atteinte", { type: "video", id: videoId });
-        return { ok: false, arret: "en-attente-credit", message: "Limite Claude du mois atteinte : le texte actuel est gardé." };
+        if (indicatif) {
+          // Pas de plafond mensuel en mode indicatif : repère seulement. Le refus d'Anthropic (crédit épuisé) reste le vrai arrêt.
+          await signalerDepassementIndicatif("claude-mois", "Repère Claude du mois dépassé", "Rien n'est arrêté : les textes continuent. Seul un crédit Claude épuisé les met en attente.");
+        } else {
+          await journaliser("publication", "Textes de publication : limite Claude du mois atteinte", { type: "video", id: videoId });
+          return { ok: false, arret: "en-attente-credit", message: "Limite Claude du mois atteinte : le texte actuel est gardé." };
+        }
       }
       try {
         // CORRECTEUR 1 — B6 : aucune confirmation en dur. Un texte est borné par les plafonds Claude (vidéo, mois) : il ne
         // dépasse jamais le seuil de confirmation ; s'il le dépassait, il serait refusé (personne ne l'a confirmé).
         // L3-0 : contrôle, réservation ET engagement sur le budget du mois d'un seul tenant (verrou des crédits) ; « usine » passe par `reserverPourUsine`.
-        await verifierEtReserverSelonOrigine(options.origine, { lignes, total: lignes[0].total }, false, "Ce texte", { videoId, travailId: appelId });
+        await verifierEtReserverSelonOrigine(origineEffective, { lignes, total: lignes[0].total }, false, "Ce texte", { videoId, travailId: appelId });
       } catch (e) {
         // L3-0 : dépense commandée par l'Usine sans budget reçu (ou budget atteint) : refus net, rien n'est payé.
         if (e instanceof ErreurStudio && (e.code === "BUDGET_USINE_ABSENT" || e.code === "BUDGET_MENSUEL_ATTEINT")) {

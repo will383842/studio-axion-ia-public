@@ -188,14 +188,14 @@ export default async function PageReglages() {
             <div className="my-4 h-px bg-trait" />
             <OptionsPayantes initial={coupees} />
             <div className="my-4 h-px bg-trait" />
-            <PlafondSujet key={`${plafondSujet.usd}-${plafondSujet.reglee}-${chaine ?? "grande"}`} {...plafondSujet} chaine={chaine} />
+            <PlafondSujet key={`${plafondSujet.usd}-${plafondSujet.reglee}-${chaine}`} {...plafondSujet} chaine={chaine} />
           </CarteSection>
         </Apparition>
 
         {/* Choix de la chaîne qui écrit les prochains scripts (courte ou équipe), coût mesuré affiché. */}
         <Apparition index={2}>
           <CarteSection id="ecriture" icone="ecrire" titre="Écriture des scripts">
-            <ChoixChaineEcriture key={chaine ?? "aucune"} initiale={chaine} />
+            <ChoixChaineEcriture key={chaine} initiale={chaine} />
             <div className="my-4 h-px bg-trait" />
             <GardeSujetsReglage key={gardeSujets} garde={gardeSujets} />
             <div className="my-4 h-px bg-trait" />

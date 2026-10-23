@@ -35,7 +35,7 @@ const LISTE_REELLE = {
       support_locale: false,
       support_pause: true,
       type: "private",
-      voice_id: "77ea2dbe3115461a911cfe478e22bc48",
+      voice_id: "b22b1a358ca740eda753772ebaaf11f7",
     },
   ],
   has_more: false,
@@ -83,7 +83,7 @@ function fournisseurAvec(reponses: (a: Appel) => Response | Promise<Response>, s
   return { voix, appels };
 }
 
-const DEMANDE = { idExterne: "77ea2dbe3115461a911cfe478e22bc48", texte: "Un bon PV, puis un pépin : voilà comment tout commence.", reglages: { vitesse: 1, stabilite: 60, emotion: 50 }, prononciations: [] };
+const DEMANDE = { idExterne: "b22b1a358ca740eda753772ebaaf11f7", texte: "Un bon PV, puis un pépin : voilà comment tout commence.", reglages: { vitesse: 1, stabilite: 60, emotion: 50 }, prononciations: [] };
 
 beforeAll(async () => {
   process.env.SESSION_SECRET = "v".repeat(48);
@@ -106,7 +106,7 @@ describe("lister les voix privées (GET /v3/voices?type=private)", () => {
   it("la voix de Will : copie instantanée (moteur starfish), utilisable, français, aperçu gardé", async () => {
     const { voix, appels } = fournisseurAvec(() => json(LISTE_REELLE));
     const liste = await voix.listerVoixExistantes();
-    expect(liste).toEqual([{ idExterne: "77ea2dbe3115461a911cfe478e22bc48", nom: "DJI_04_20261001_231540", langue: "fr-FR", typeClone: "instant", utilisable: true, apercuUrl: "https://resource2.heygen.ai/voice_preview/apercu.mp3" }]);
+    expect(liste).toEqual([{ idExterne: "b22b1a358ca740eda753772ebaaf11f7", nom: "DJI_04_20261001_231540", langue: "fr-FR", typeClone: "instant", utilisable: true, apercuUrl: "https://resource2.heygen.ai/voice_preview/apercu.mp3" }]);
     expect(appels[0].url).toBe("https://api.heygen.com/v3/voices?type=private&limit=100");
     expect((appels[0].init?.headers as Record<string, string>)["x-api-key"]).toBe("cle-de-test");
   });
@@ -114,7 +114,7 @@ describe("lister les voix privées (GET /v3/voices?type=private)", () => {
     const { voix, appels } = fournisseurAvec((a) =>
       a.url.includes("token=") ? json({ data: [{ ...LISTE_REELLE.data[0], voice_id: "v2", name: "Deuxième" }], has_more: false }) : json({ ...LISTE_REELLE, has_more: true, next_token: "page-2" }),
     );
-    expect((await voix.listerVoixExistantes()).map((v) => v.idExterne)).toEqual(["77ea2dbe3115461a911cfe478e22bc48", "v2"]);
+    expect((await voix.listerVoixExistantes()).map((v) => v.idExterne)).toEqual(["b22b1a358ca740eda753772ebaaf11f7", "v2"]);
     expect(appels[1].url).toContain("token=page-2");
   });
   it("sans moteur starfish : non utilisable (ne peut pas être reliée)", () => {
@@ -168,7 +168,7 @@ describe("lire (POST /v3/voices/speech) : son seul + horodatage des mots", () =>
     const r2: StockageFichiers = { ...stockageSimulation, id: "r2", mode: "reel", urlDepotDuree: async (cle) => `https://r2.exemple/${cle}?signe` };
     const { voix } = fournisseurAvec((a) => (a.url.endsWith(".wav") ? new Response(new Uint8Array([1, 2, 3, 4]), { headers: { "content-type": "audio/wav" } }) : json(PAROLE_REELLE)), r2);
     const r = await voix.lire(DEMANDE);
-    expect(r.fichierCle).toMatch(/^studio\/dev\/voix\/77ea2dbe3115461a911cfe478e22bc48\/[\w-]+\.wav$/);
+    expect(r.fichierCle).toMatch(/^studio\/dev\/voix\/b22b1a358ca740eda753772ebaaf11f7\/[\w-]+\.wav$/);
     expect(depots).toEqual([{ url: `https://r2.exemple/${r.fichierCle}?signe`, type: "audio/wav", taille: 4 }]);
   });
   it("texte de plus de 5 000 caractères, ou voix non reliée : refus clair, aucun appel", async () => {

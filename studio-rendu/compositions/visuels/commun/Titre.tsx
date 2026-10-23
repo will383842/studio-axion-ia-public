@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
-import { chargerPoliceArchivoBlack, FAMILLE_ARCHIVO_BLACK } from "../polices";
+import { chargerPoliceArchivoBlack, FAMILLE_ARCHIVO_BLACK, policeArchivoBlackPrete } from "../polices";
+import { avecDelai, DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, etatPolices } from "./attente-police";
 import { choisirMiseEnLignes, type MiseEnLignes } from "./ajustement";
 import { COULEURS, LARGEUR_TEXTE, POLICE_TITRE, TITRE } from "./constantes";
 
@@ -20,12 +21,8 @@ interface Proprietes {
 }
 
 /** Attend que la police soit réellement chargée : jamais de mesure avec une police de secours. */
-async function attendrePolice(): Promise<void> {
-  for (let i = 0; i < 200; i++) {
-    if ([...document.fonts].some((f) => f.family === FAMILLE_ARCHIVO_BLACK && f.status === "loaded")) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error("Police Archivo Black non chargée : titre non mesurable");
+function attendrePolice(): Promise<void> {
+  return avecDelai(policeArchivoBlackPrete(), DELAI_POLICE_MS, () => `Police Archivo Black non chargée après ${DELAI_POLICE_MS / 1000} s : titre non mesurable (${etatPolices()})`);
 }
 
 /** Mesure réelle d'une ligne (canvas) avec la police chargée, au corps `taille`. */
@@ -37,7 +34,7 @@ function mesurerLignes(contexte: CanvasRenderingContext2D, lignes: string[], tai
 /** Titre de page : corps ajusté par dichotomie (90–170 px) sous `delayRender`, ligne la plus large à 984 ± 4 px ou bornée. */
 export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = COULEURS.encre, largeur = LARGEUR_TEXTE, min }: Proprietes) {
   chargerPoliceArchivoBlack();
-  const [attente] = useState(() => delayRender(`Ajustement du titre « ${texte.slice(0, 24)} »`));
+  const [attente] = useState(() => delayRender(`Ajustement du titre « ${texte.slice(0, 24)} »`, { timeoutInMilliseconds: DELAI_DELAYRENDER_MS }));
   const [mise, setMise] = useState<MiseEnLignes | null>(null);
 
   useEffect(() => {

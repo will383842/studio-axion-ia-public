@@ -290,11 +290,12 @@ function libelleDureeCourte(sec: number): string {
  * TEST-UI-REEL U6 : il manque « qui parle » ou la voix → on les demande (vraie vidéo) ; en essai gratuit, on dit qu'une
  * vidéo de démonstration les remplace, et Will choisit (`manquesAcceptes`). Le prix d'une vraie vidéo se confirme toujours.
  */
-export function decisionLancement(p: { coutCentimes: number; seuilCentimes: number; resteCentimes: number; aVerifier: string[]; montageReel?: boolean; double?: boolean; manques?: BlocManquant[]; essaiGratuit?: boolean; manquesAcceptes?: boolean }): DecisionLancement {
+export function decisionLancement(p: { coutCentimes: number; seuilCentimes: number; resteCentimes: number; aVerifier: string[]; montageReel?: boolean; double?: boolean; manques?: BlocManquant[]; essaiGratuit?: boolean; manquesAcceptes?: boolean; budgetIndicatif?: boolean }): DecisionLancement {
   const manques = p.manques ?? [];
   if (manques.length && !p.essaiGratuit) return { genre: "completer", bloc: manques[0] };
   if (manques.length && !p.manquesAcceptes) return { genre: "essai-demonstration", manques };
-  if (p.coutCentimes > p.resteCentimes) return { genre: "budget", resteCentimes: p.resteCentimes, coutCentimes: p.coutCentimes };
+  // Mode indicatif : le budget du mois est un repère (bandeau ambre), jamais une carte qui bloque.
+  if (!p.budgetIndicatif && p.coutCentimes > p.resteCentimes) return { genre: "budget", resteCentimes: p.resteCentimes, coutCentimes: p.coutCentimes };
   const raisons = [...p.aVerifier];
   if (p.coutCentimes > p.seuilCentimes) raisons.unshift("Plus cher que d'habitude");
   // CORRECTEUR FINAL A (VERIF-E2E-1 n° 6) : une vidéo montée pour de vrai, ou où votre avatar parle, fait toujours

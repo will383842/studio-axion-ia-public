@@ -103,4 +103,21 @@ describe("après un redémarrage", () => {
       serveur.close();
     }
   });
+
+  it("un échec est journalisé avec l'identifiant du rendu, jamais l'adresse de dépôt", async () => {
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const op: Operation = async () => {
+      throw new Error("https://r2.exemple/cle?X-Amz-Signature=abc: Server returned 403");
+    };
+    const files = new FilesRendu({ operations: { composition: op }, creerDossier: dossierFactice });
+    files.soumettre(scene("s-journal", 0, 5_000));
+    await files.inactif();
+    const sortie = erreurs.mock.calls.map((a) => a.join(" ")).join("\n");
+    erreurs.mockRestore();
+    expect(sortie).toContain("s-journal");
+    expect(sortie).toContain("Server returned 403");
+    expect(sortie).not.toContain("https://");
+    expect(sortie).not.toContain("X-Amz-Signature");
+    expect(sortie).not.toContain("https://r2/depot");
+  });
 });

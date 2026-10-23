@@ -2,6 +2,8 @@
  * Lecture du plan de rendu (blocs transmis aux compositions), sans rien supposer des contrôles : ce que chaque bloc
  * dessine, et ce que les contrôles comptent sans qu'il soit dessiné (règle d'or, `rien-de-compte-sans-dessin.test.ts`).
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { compteRythme } from "@/moteurs/montage-image-video/controles-scene";
 import type { BlocRenduIV, ResultatMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
@@ -23,6 +25,38 @@ const NOMBRES: Record<string, string> = { zero: "0", un: "1", une: "1", premier:
 const CLES_HEURE = new Set(["t", "t0", "debut", "frappe", "apparition", "debutCoches", "finCoches", "bascule", "tValeur"]);
 const CLES_NOMBRE = new Set(["nombre", "quantite", "compte", "valeur", "cochees"]);
 const LISTES_HEURE = new Set(["heures", "heuresLignes", "mots", "chutes", "distinctions"]);
+
+/** Les champs des données d'un écran de fin (`DonneesFinIV`) qu'un composant de fin peut dessiner. */
+const CHAMPS_FIN = ["phrase", "mots", "heures", "lignes", "boucle", "heure", "deja", "chiffre", "part"] as const;
+
+/**
+ * Parmi les données d'un bloc `variete` d'axe `fin`, ce que le composant dessine VRAIMENT : les champs `d.<champ>` que lit
+ * son source (`studio-rendu/compositions/image-video/variete/fin/fin-c.tsx`, `fin-d.tsx`, commentaires retirés). Un
+ * texte posé dans les données mais jamais passé au composant n'est pas dessiné (relecture du 23/10/2026 : FIN-C ne
+ * passait que `boucle`, `heure`, `deja` ; la phrase-choc, présente dans les données, comptait à tort comme dessinée).
+ */
+export function champsDessinesParLaFin(code: string): string[] {
+  const source = readFileSync(join(process.cwd(), `studio-rendu/compositions/image-video/variete/fin/${code.toLowerCase()}.tsx`), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  return CHAMPS_FIN.filter((c) => new RegExp(`\\bd\\.${c}\\b`).test(source));
+}
+
+/**
+ * Quand la boucle de FIN-C porte la phrase-choc, l'ouverture reprise ne dessine plus certains textes (la phrase les
+ * remplace : `ouverture/ouv-a.tsx` le libellé du résultat, `ouv-d.tsx` les mots de l'accroche, `ouv-e.tsx` le libellé et le
+ * détail du gros plan, `ouv-c.tsx` le chiffre « déjà dit » de l'horloge) : ils ne comptent plus comme dessinés.
+ */
+function boucleSansTextesRemplaces(boucle: unknown): unknown {
+  const o = boucle as { code?: string; resultat?: object; mots?: unknown[]; detail?: object; heure?: { texte?: string } | null; objet?: object } | null;
+  if (!o || typeof o !== "object") return boucle;
+  if (o.code === "OUV-A") return { ...o, resultat: { ...o.resultat, libelle: null } };
+  // OUV-C horloge (avec une heure) : ni l'heure écrite (« 23h14 ») ni le libellé de l'objet ne sont dessinés (la phrase prend la place du chiffre).
+  if (o.code === "OUV-C" && o.heure) return { ...o, heure: { ...o.heure, texte: "" }, objet: { ...o.objet, libelle: "", chiffre: null } };
+  if (o.code === "OUV-D") return { ...o, mots: [] };
+  if (o.code === "OUV-E") return { ...o, detail: { ...o.detail, libelle: "", detail: null } };
+  return boucle;
+}
 
 /** Ce que dessine un bloc : instants (absolus), textes (normalisés), nœuds parlés (toile). */
 interface Dessin {
@@ -86,6 +120,15 @@ function dessinDe(b: BlocRenduIV): Dessin {
     for (const m of b.moments) {
       if (m.sorte === "ensemble") for (const n of m.schema.noeuds) d.noeuds.add(n.id);
       parcourir(m, "", b.debut, m.sorte !== "ensemble");
+    }
+  } else if (b.sorte === "variete" && b.axe === "fin") {
+    // Fin de variété : seuls comptent les champs que le composant reçoit et dessine.
+    const donnees = (b.donnees ?? {}) as Record<string, unknown>;
+    const champs = champsDessinesParLaFin(b.code);
+    const phraseDansLaBoucle = b.code === "FIN-C" && champs.includes("phrase");
+    for (const c of champs) {
+      if (!(c in donnees) || (phraseDansLaBoucle && c === "deja")) continue;
+      parcourir(c === "boucle" && phraseDansLaBoucle ? boucleSansTextesRemplaces(donnees[c]) : donnees[c], c, b.debut, true);
     }
   } else parcourir(b, "", b.debut, true);
   return d;
