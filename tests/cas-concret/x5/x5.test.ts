@@ -21,10 +21,11 @@ vi.mock("@/formats/cas-concret/catalogue", async (importOriginal) => {
 
 const { OFFRES, NATURES_EN_CLAIR, verifierCas } = await import("@/formats/cas-concret/cas");
 const { CATALOGUE } = await import("@/formats/cas-concret/catalogue");
+const { CATALOGUE_TS } = await import("@/formats/cas-concret/catalogue/base");
 const { finsParReseau } = await import("@/formats/cas-concret");
 const { recettePour } = await import("@/formats/cas-concret/recette");
 const { TABLE_FINS_DIAGNOSTIC } = await import("@/briques/fins");
-const { planDesFins, RAISON_SANS_CADEAU } = await import("@/moteurs/montage-cas-concret/fins");
+const { planDesFins } = await import("@/moteurs/montage-cas-concret/fins");
 const { cadeauDuCas, problemesDuCas } = await import("@/moteurs/montage-cas-concret/regles");
 const { variableEcriture } = await import("@/moteurs/montage-cas-concret/ecriture");
 const { pastillesOffres, versVueCas, motsCommuns } = await import("@/components/formats/cas-concret/entree/vue");
@@ -68,7 +69,7 @@ describe("X5 · les offres", () => {
 });
 
 describe("X5 · les pastilles et les cartes", () => {
-  const vues = CATALOGUE.map((c) => versVueCas(c, "e", true));
+  const vues = CATALOGUE_TS.map((c) => versVueCas(c, "e", true));
 
   it("Tous, Formation, Audit, Intégration ; « Coaching » seulement quand un cas validé le porte", () => {
     expect(pastillesOffres(vues).map((p) => p.libelle)).toEqual(["Tous", "Formation", "Audit", "Intégration"]);
@@ -147,12 +148,12 @@ describe("X5 · les fins (X6 : une seule demande, le mot là où il est branché
     }
   });
 
-  it("coaching : aucun cadeau, la fin propose le diagnostic, avec sa raison", () => {
-    expect(ids(casCoaching)).toEqual(["fin-if-diagnostic-gratuit", "fin-fb-lien-commentaire"]);
-    expect(cadeauDuCas(casCoaching)).toBeUndefined();
+  it("coaching : le cadeau est le déroulé de l'accompagnement, la fin dit le mot là où il est branché", () => {
+    expect(ids(casCoaching)).toEqual(["fin-if-mot", "fin-if-envoi-structure"]);
+    expect(cadeauDuCas(casCoaching)).toBe("fin-if-cadeau-coaching");
     expect(problemesDuCas(casCoaching)).toEqual([]);
     const plan = planDesFins({ reseaux: ["facebook", "tiktok"], offre: "coaching", mot: "COACH", avecMot: true, motSur: ["facebook"], table: TABLE_FINS_DIAGNOSTIC });
-    expect(plan.reduites).toEqual([{ reseaux: ["facebook"], raison: RAISON_SANS_CADEAU }]);
+    expect(plan.reduites).toEqual([]);
     expect(planDesFins({ reseaux: ["facebook"], offre: "coaching", mot: "COACH", avecMot: false, table: TABLE_FINS_DIAGNOSTIC }).reduites).toEqual([]);
   });
 });

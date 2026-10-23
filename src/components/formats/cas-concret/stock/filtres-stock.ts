@@ -23,7 +23,7 @@ export const LIBELLES_SECTEURS: Record<string, string> = {
 /** Le libellé d'un secteur ; un code inconnu reste tel quel. */
 export const libelleSecteur = (c: string): string => LIBELLES_SECTEURS[c] ?? c;
 
-export const LIBELLES_ETATS: Record<EtatStock, string> = { restant: "Restants", traite: "Déjà traités", "a-valider": "À valider", valide: "Validés" };
+export const LIBELLES_ETATS: Record<EtatStock, string> = { restant: "Restants", traite: "Déjà faits", "a-valider": "À valider", valide: "Validés" };
 
 export interface OptionFiltre {
   valeur: string;

@@ -51,7 +51,7 @@ describe("StockDesCas", () => {
     expect(rendu()).not.toMatch(/Villeexemple|Aucun gain garanti/);
   });
 
-  it("« Déjà traités » : titre, lien vers la vidéo ou « vidéo supprimée », bouton « Remettre en stock » ; section vide sinon", () => {
+  it("« Déjà traités » : la liste détaillée est sur la page « Déjà faits » ; ici seulement le compteur du bandeau et le lien", () => {
     const [a, b] = CATALOGUE;
     const lignes = construireStockCas({
       scripts: {},
@@ -62,16 +62,11 @@ describe("StockDesCas", () => {
       ]),
     });
     const html = renderToStaticMarkup(createElement(StockDesCas, { lignes, idees: [] }));
-    expect(html).toContain("Déjà traités (2)");
-    expect(html).toContain('href="/videos/v-fini"');
-    expect(html).toContain("Vidéo supprimée");
-    expect(html).toContain("2 cas déjà traités (voir plus bas, dans Stock des cas)");
-    expect(html).toContain('href="?stock=1#deja-traites"');
+    expect(html).toContain("2 cas déjà faits");
+    expect(html).toContain('href="/cas-concret/deja-faits"');
+    expect(html).not.toContain("Remettre en stock");
+    expect(html).not.toContain('href="/videos/v-fini"');
     expect(renderToStaticMarkup(createElement(StockDesCas, { lignes, idees: [], ouvert: true }))).toMatch(/<details[^>]* open/);
-    expect(html).toContain('aria-label="Voir la vidéo : ');
-    expect(html.match(/Remettre en stock/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(html).toContain("min-h-11");
-    expect(rendu()).toContain("Déjà traités (0)");
-    expect(rendu()).not.toContain("Remettre en stock");
+    expect(rendu()).not.toContain("deja-faits");
   });
 });

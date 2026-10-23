@@ -60,8 +60,8 @@ export type SorteDescription = Exclude<Offre, "integration"> | NatureCas;
 export const sorteDe = (b: { offre: Offre; nature?: NatureCas }): SorteDescription => (b.offre === "integration" ? (b.nature ?? "outils-relies") : b.offre);
 
 /**
- * Cadeau du coaching : le code n'en déclare aucun (`cadeauDeLOffre`), le document promis en porte un quand même ; c'est
- * celui du cas « coaching » d'essai (X5).
+ * Cadeau du coaching : le coaching a désormais son cadeau (`cadeauDeLOffre`), identique à celui du document promis des
+ * cas « coaching ».
  */
 export const CADEAU_COACHING = "fin-if-cadeau-coaching";
 
