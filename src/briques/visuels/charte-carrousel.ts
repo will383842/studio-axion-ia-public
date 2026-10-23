@@ -9,6 +9,8 @@ export const CHARTE_CARROUSEL = {
     orange: "#D9622B",
     orangeFonce: "#B44F29",
     pale: "#F2DFCB",
+    // Blanc chaud : fond des cartes impaires (L1), plus clair que la crème de la page.
+    blanc: "#FFFCF7",
   },
   // Au-delà de ce corps (px), un texte compte comme « grand » (seuil de 3:1).
   grandTextePx: 40,

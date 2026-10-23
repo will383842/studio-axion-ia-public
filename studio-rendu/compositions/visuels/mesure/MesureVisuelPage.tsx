@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
 import { FORMAT } from "../commun/constantes";
+import { dessinsDe } from "../commun/occupation";
+import { ATTRIBUT_ZONE_CORPS, boiteEnZoneReservee, compterChevauchements, partVide, type Boite } from "../commun/zones";
 import type { ProprietesVisuelPage } from "../commun/types";
 import { VisuelPage } from "../VisuelPage";
 import { attendreTitres } from "./attente-titres";
@@ -27,6 +29,9 @@ export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
       const noeuds = [...(racine.current?.querySelectorAll<HTMLElement>("*") ?? [])];
       let debordements = 0;
       let taillePoliceMin = Infinity;
+      let textesEnZone = 0;
+      const lignes: { boite: Boite; groupe: number }[] = [];
+      let groupe = 0;
       for (const n of noeuds) {
         const style = getComputedStyle(n);
         const coupe = style.overflow !== "visible";
@@ -35,10 +40,29 @@ export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
         if (texte) {
           taillePoliceMin = Math.min(taillePoliceMin, parseFloat(style.fontSize));
           const r = n.getBoundingClientRect();
+          // Zones recouvertes par la plateforme : on mesure chaque ligne de texte (pas la boîte de l'élément, plus large que son texte).
+          const plage = document.createRange();
+          for (const c of n.childNodes) {
+            if (c.nodeType !== Node.TEXT_NODE || (c.textContent ?? "").trim() === "") continue;
+            plage.selectNodeContents(c);
+            groupe++;
+            for (const l of plage.getClientRects()) {
+              const boite = { gauche: l.left, haut: l.top, droite: l.right, bas: l.bottom };
+              if (boiteEnZoneReservee(boite)) textesEnZone++;
+              lignes.push({ boite, groupe });
+            }
+          }
           if (r.left < -TOLERANCE_PX || r.top < -TOLERANCE_PX || r.right > FORMAT.largeur + TOLERANCE_PX || r.bottom > FORMAT.hauteur + TOLERANCE_PX) debordements++;
         }
       }
-      console.log(formaterMesure(nonce, { debordements, taillePoliceMin: Number.isFinite(taillePoliceMin) ? taillePoliceMin : 0, textes: noeuds.length }));
+      // Chevauchements : deux textes l'un sur l'autre, ou un texte posé sur un dessin : enveloppe marquée `ATTRIBUT_DESSIN`, ou `<svg>` dessiné sur place.
+      const dessins = racine.current ? dessinsDe(racine.current) : [];
+      const chevauchements = compterChevauchements(lignes, dessins);
+      // Vide : part de la hauteur du corps de page sans texte ni dessin (0 pour une page sans corps : couvertures).
+      const corps = racine.current?.querySelector(`[${ATTRIBUT_ZONE_CORPS}]`);
+      const r = corps?.getBoundingClientRect();
+      const vide = r ? partVide({ haut: r.top, bas: r.bottom }, [...lignes.map((l) => l.boite), ...dessins]) : 0;
+      console.log(formaterMesure(nonce, { debordements, taillePoliceMin: Number.isFinite(taillePoliceMin) ? taillePoliceMin : 0, textes: noeuds.length, textesEnZone, chevauchements, vide }));
     };
     mesurer().then(() => continueRender(attente), (e: unknown) => cancelRender(e));
   }, [nonce, attente]);

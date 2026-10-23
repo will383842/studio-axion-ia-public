@@ -27,7 +27,7 @@ export { FINS_MOT_AVEC_ENVOI, motValide } from "../montage-cas-concret/fins";
 export { CONSIGNE_PREMIER_COMMENTAIRE, INDICATION_FACEBOOK, premierCommentaireDiagnostic, textesDePublication } from "../montage-cas-concret/publication";
 export type { OuPoserLeLien, TextePublication } from "../montage-cas-concret/publication";
 export type { PlanDesFins } from "../montage-cas-concret/fiche";
-export { proprietesPleineImage } from "../montage-cas-concret/zone-objets";
+export { dessinAuDessusDesSousTitres, proprietesPleineImage } from "../montage-cas-concret/zone-objets";
 export { MOTS_INTERDITS_FORMAT, UNITES_NOMBRE, texteAvecNombres } from "../montage-cas-concret/regles";
 export { APPELS_ECRITURE_MAX, EXEMPLE_TON_V4, MAX_TOKENS_ECRITURE } from "../montage-cas-concret/ecriture";
 export { AVANCE_SOUFFLE_SEC, CLOTURE_AVANT_FIN_SEC, DECLENCHEUR_DE, ECART_MIN_SEC, SORTES_BRUITAGE, poserBruitages } from "../montage-cas-concret/bruitages";

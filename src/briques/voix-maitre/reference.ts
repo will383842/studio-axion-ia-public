@@ -68,8 +68,20 @@ export function verdictSurMesureAncienne(audio: { ressemblance?: { ressemblante:
   return audio?.ressemblance?.ressemblante === false && mesureAncienne(audio);
 }
 
-/** Mesures de la référence (LISEZ-MOI du 14/10 ; INCHANGÉES par les mesures versions 2 et 3 : 0,7702 de part de parole). */
-export const REFERENCE_V4: Readonly<MesureVoix> = Object.freeze({ hauteurHz: 152.4, variationHz: 31.2, energie: 0.141, dynamique: 0.528, rythmePicsParSec: 5.0, partieParole: 0.77 });
+/**
+ * Mesures de la référence de la voix (avocat, tableau, cas concret). 23/10/2026 (décision de Will : « cette voix me
+ * convient ») : l'ancienne voix n'existe plus chez HeyGen ; la référence est la NOUVELLE voix (b22b1a358ca740eda753772ebaaf11f7),
+ * mesure brute (sans traitement « video-finie », comme l'avocat, le tableau et le cas concret), non arrondie, de la prise 2 d'Image → vidéo (v-6e4a06b9c718, 75,36 s).
+ * Les tolérances (`TOLERANCES_VOIX`) et `VERSION_MESURE_VOIX` ne changent pas. Voir `docs/voix-reference/LISEZ-MOI.md`.
+ */
+export const REFERENCE_V4: Readonly<MesureVoix> = Object.freeze({ hauteurHz: 188.23529, variationHz: 41.20256, energie: 0.09306, dynamique: 0.59929, rythmePicsParSec: 4.77686, partieParole: 0.61973 });
+
+/**
+ * ARCHIVE : référence de l'ancienne voix (LISEZ-MOI du 14/10 ; INCHANGÉE par les mesures versions 2 et 3 : 0,7702 de part
+ * de parole). 23/10/2026, décision de Will : « cette voix me convient » (la nouvelle). Gardée pour mémoire et pour le test
+ * du WAV de référence (`voix-reference-v4-25-30s.wav`, extrait de l'ancienne voix). Plus utilisée par aucun jugement.
+ */
+export const REFERENCE_ANCIENNE_VOIX_V4: Readonly<MesureVoix> = Object.freeze({ hauteurHz: 152.4, variationHz: 31.2, energie: 0.141, dynamique: 0.528, rythmePicsParSec: 5.0, partieParole: 0.77 });
 
 /** Écart relatif toléré par mesure (provisoire, à régler à l'oreille avec Will). */
 export const TOLERANCES_VOIX: Readonly<MesureVoix> = Object.freeze({ hauteurHz: 0.08, variationHz: 0.25, energie: 0.2, dynamique: 0.2, rythmePicsParSec: 0.12, partieParole: 0.12 });

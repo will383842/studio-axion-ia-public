@@ -100,6 +100,8 @@ describe("stock de cas · catalogue et réglage (K1)", () => {
     expect(stock.REFUSES_STOCK).toEqual([]);
     expect(CATALOGUE.slice(0, 22)).toEqual([...CATALOGUE_TS]);
     expect(CATALOGUE).toHaveLength(22 + stock.CAS_STOCK.length);
+    // Les 96 fiches du stock : l'importeur remplace stock.json en entier, une perte doit se voir ici.
+    expect(stock.CAS_STOCK).toHaveLength(96);
   });
 
   it("réglage éteint : exactement les cas d'aujourd'hui ; stockMetiers allumé : les cas du stock s'ajoutent à la fin", async () => {

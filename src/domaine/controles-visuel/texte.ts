@@ -159,6 +159,24 @@ export function contientJAide(texte: string): boolean {
   return J_AIDE.test(texte);
 }
 
+/** Expressions bannies, comparées sans casse, sans accents et espaces ramenés à un seul. */
+const EXPRESSIONS_BANNIES: readonly { libelle: string; motif: RegExp }[] = [
+  { libelle: "Grenoble", motif: /(?<![a-z0-9])grenobl(?:e|ois|oise)s?(?![a-z0-9])/u },
+  { libelle: "Aucun gain garanti", motif: /(?<![a-z0-9])aucuns? gains? (?:n'est |ne sont )?garantis?(?![a-z0-9])/u },
+];
+
+/** Libellés des expressions bannies présentes dans le texte (hors « J'aide », contrôlé à part). */
+export function expressionsBannieDans(texte: string): string[] {
+  const norme = texte
+    .replace(/[\u00AD\u200B-\u200D\u2060]/gu, "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[’‘ʼ]/gu, "'")
+    .replace(/\s+/gu, " ");
+  return EXPRESSIONS_BANNIES.filter((e) => e.motif.test(norme)).map((e) => e.libelle);
+}
+
 // --- Anglais -------------------------------------------------------------------------------------------------------
 
 /** Liste fermée de mots-outils anglais, hors mots aussi français (a, on, or, an, but, me…). */

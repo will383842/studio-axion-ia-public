@@ -1,7 +1,7 @@
 /**
  * ESSAI RÉEL des CAPACITÉS MAXIMALES du registre (`registre-pages.ts`) : pour chaque type de page et chaque variante (nombre
  * d'éléments), rend avec le vrai Remotion un contenu de longueur MAXIMALE autorisée par le registre et vérifie, sur la mesure du
- * DOM réel, `debordements` = 0 et `taillePoliceMin` >= 26 px (`taillePoliceMin` = 0, aucun texte mesuré, est un ÉCHEC comme le reste : toute page de ce registre porte du texte).
+ * DOM réel, `debordements` = 0, `chevauchements` = 0 (L9 : texte sur texte ou sur un dessin), `vide` ≤ 25 % sur T22 à T28 (part du corps de page sans texte ni dessin), `textesEnZone` = 0 (aucune ligne de texte dans la zone de la flèche LinkedIn x ≥ 920, y 560-790, ni dans celle du compteur Meta x ≥ 860, y ≥ 1080) et `taillePoliceMin` >= 26 px (`taillePoliceMin` = 0, aucun texte mesuré, est un ÉCHEC comme le reste : toute page de ce registre porte du texte).
  * Les titres sont essayés sous deux formes (mots courants ; mots longs de même longueur, la plus rude : deux lignes pleines) et à 19, 21 signes et au titreMax du registre,
  * CHACUN avec deux formes de corps : « mots courants » (texte inventé coupé à la longueur exacte du budget) et « mots LONGS » (mots français entiers de 12 à 15
  * lettres, jamais coupés : les lignes se remplissent mal, c'est la forme la plus haute), la seconde avec deux ordres de mots ; puis « ADVERSAIRE » (un mot court, un mot de 15 lettres, en alternance : le pire cas est un mot long juste après une fin de ligne), deux ordres.
@@ -15,8 +15,9 @@ import { join, resolve } from "node:path";
 import { PAGES, TYPES_PAGE, type TypePage } from "../../src/briques/visuels/registre-pages.js";
 import { LIMITES } from "../../src/briques/visuels/limites.js";
 import { TAILLE_TEXTE_MIN } from "../compositions/visuels/commun/constantes.js";
+import { VIDE_MAX } from "../compositions/visuels/commun/zones.js";
 import { creerVisuelPage, rendreAvecRemotion } from "../src/operations/visuel-page.js";
-import { casMax, specAutour, texteAdversaire, texteInvente, texteMotsLongs } from "./contenu-essai-visuel.js";
+import { casMax, MINIS_ESSAI, specAutour, texteAdversaire, texteInvente, texteMotsLongs } from "./contenu-essai-visuel.js";
 
 process.env.STUDIO_RENDU_ESSAI ??= "1";
 const sortie = resolve("essais-visuels", "capacites");
@@ -24,6 +25,9 @@ const travail = mkdtempSync(join(tmpdir(), "capacites-max-"));
 // Dossier vidé seulement pour un essai complet : lancer certains types ne doit pas effacer les JPEG des autres.
 if (process.argv.length <= 2) rmSync(sortie, { recursive: true, force: true });
 mkdirSync(sortie, { recursive: true });
+
+/** Gabarits soumis au contrôle du vide (L9). */
+const AVEC_VIDE = new Set(["T22", "T23", "T24", "T26", "T27", "T28"]);
 
 const op = creerVisuelPage({
   rendre: rendreAvecRemotion({ navigateur: process.env.STUDIO_RENDU_NAVIGATEUR }),
@@ -74,6 +78,12 @@ async function rendre(page: Record<string, unknown>, fichier: string, garder: bo
     const m = (r.mesures ?? {}) as Record<string, number>;
     if (garder) copyFileSync(cible, join(sortie, fichier));
     if (m.debordements !== 0) return { libelle: "", fichier, mesures: m, erreur: `${m.debordements} débordement(s)` };
+    // Zones recouvertes par la plateforme (flèche LinkedIn, compteur Meta) : aucun texte n'y entre, `undefined` (mesure absente) est un échec.
+    if (m.textesEnZone !== 0) return { libelle: "", fichier, mesures: m, erreur: `${m.textesEnZone} ligne(s) de texte dans une zone réservée (x ≥ 920, y 560-790 ou x ≥ 860, y ≥ 1080)` };
+    // Chevauchements (L9) : deux textes l'un sur l'autre, ou un texte posé sur un dessin de la banque ; `undefined` (mesure absente) est un échec.
+    if (m.chevauchements !== 0) return { libelle: "", fichier, mesures: m, erreur: `${m.chevauchements} chevauchement(s) texte/texte ou texte/illustration` };
+    // Vide (L9) : sur les gabarits T22 à T28, au plus `VIDE_MAX` du corps de page sans texte ni dessin ; mesure absente = échec.
+    if (AVEC_VIDE.has(String(page.type)) && !(m.vide <= VIDE_MAX)) return { libelle: "", fichier, mesures: m, erreur: `vide ${Math.round(m.vide * 100)} % du corps (> ${VIDE_MAX * 100} %)` };
     if (!(m.taillePoliceMin >= TAILLE_TEXTE_MIN)) return { libelle: "", fichier, mesures: m, erreur: `texte à ${m.taillePoliceMin} px (< ${TAILLE_TEXTE_MIN})` };
     return { libelle: "", fichier, mesures: m, erreur: null };
   } catch (e) {
@@ -112,6 +122,19 @@ for (const type of types) {
           if (v.erreur) echecs.push(`${nom} : ${v.erreur}`);
         }
       }
+    }
+  }
+}
+
+// T02 : 1 ou 2 cartes courtes sont AGRANDIES (échelle 1,3, `echelleCartes`) : on essaie la frontière exacte (titre 24 signes, corps 80 signes) sous les trois formes de texte.
+if (types.includes("T02")) {
+  for (const nbCartes of [2]) {
+    for (const corps of corpsEssayes) {
+      const page = { type: "T02", titre: texteInvente(PAGES.T02.titreMax), cartes: Array.from({ length: nbCartes }, (_, i) => ({ titre: corps.texte(24, i, 12), corps: corps.texte(80, i + 3), mini: MINIS_ESSAI[i] })) };
+      const v = await rendre(page, `t02-courtes-${nbCartes}-${corps.nom.replace(/ /g, "-")}.jpg`, corps.nom === "corps mots LONGS");
+      const nom = `T02 ${nbCartes} cartes courtes agrandies [${corps.nom}] (frontière 24 + 80 signes)`;
+      console.log(`${nom} : ${v.erreur ? "ÉCHEC" : "ok"} ${v.erreur ?? ""} ${v.mesures ? `[débordements ${v.mesures.debordements}, police min ${v.mesures.taillePoliceMin}]` : ""}`);
+      if (v.erreur) echecs.push(`${nom} : ${v.erreur}`);
     }
   }
 }

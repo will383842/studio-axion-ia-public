@@ -5,6 +5,7 @@
  */
 import type { TypeDecor } from "../../../../src/briques/visuels/registre-decor";
 import type { TypeMini } from "../../../../src/briques/visuels/registre-mini";
+import type { NomIcone } from "../../../../src/briques/visuels/registre-illustrations";
 
 export interface CarteSpec {
   titre: string;
@@ -26,7 +27,24 @@ export type PageSpec =
   | { type: "T08"; titre: string; avant: string; apres: string }
   | { type: "T10"; message: string; legende?: string; deco?: TypeDecor }
   | { type: "T20"; titre: string; etapes: EtapeSpec[] }
-  | { type: "T21" };
+  | { type: "T21" }
+  | { type: "T22"; titre: string; mythe: string; realite: string }
+  | { type: "T23"; titre: string; questions: QuestionSpec[]; annotation: string }
+  | { type: "T24"; titre: string; lignes: { sans: string; avec: string }[] }
+  | { type: "T26"; titre: string; avant: string[]; avec: string[]; outils?: string[]; vous: string }
+  | { type: "T27"; titre: string; lignes: { texte: string }[] }
+  | { type: "T28"; titre: string; noeuds: NoeudSpec[] };
+
+export interface QuestionSpec {
+  question: string;
+  aide: string;
+  icone?: NomIcone;
+}
+
+export interface NoeudSpec {
+  texte: string;
+  icone?: NomIcone;
+}
 
 export interface SpecVisuel {
   version: "carrousel/1";

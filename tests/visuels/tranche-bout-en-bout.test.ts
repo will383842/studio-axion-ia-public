@@ -10,7 +10,7 @@ const fauxRendu: ServiceRendu = {
   },
   async etat(id): Promise<EtatRendu> {
     const d = demandes.find((x) => x.idRendu === id);
-    return { statut: "termine", sortieCle: d?.sortie.cle ?? "", mesures: { debordements: 0, taillePoliceMin: 28 } };
+    return { statut: "termine", sortieCle: d?.sortie.cle ?? "", mesures: { debordements: 0, textesEnZone: 0, chevauchements: 0, taillePoliceMin: 28 } };
   },
 };
 vi.mock("@/fournisseurs/rendu/client", async (original) => ({ ...(await original<typeof import("@/fournisseurs/rendu/client")>()), obtenirServiceRendu: () => fauxRendu }));

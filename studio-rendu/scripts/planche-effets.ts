@@ -16,7 +16,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { ensureBrowser, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { COMPOSITION_OBJET_MAIN, COMPOSITION_PLATEAU_DEMO, COMPOSITION_TRANSITION, preparerObjetMain } from "../../src/briques/effets-speciaux/demande";
 import { caracterePrise, carteEnvironnement, estimerLumiere } from "../../src/briques/effets-speciaux/lumiere";
 import { synthetiserVerre, wavMono16 } from "../../src/briques/effets-speciaux/son-verre";
@@ -39,7 +39,9 @@ mkdirSync(travail, { recursive: true });
 const args = process.argv.slice(2);
 const imagesSeules = args.includes("--images");
 const choisis = args.filter((a) => !a.startsWith("--"));
-const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR ?? ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell"].find((c) => existsSync(c));
+const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR;
+// Sans navigateur imposé : Remotion obtient le sien (ensureBrowser) ou échoue avec son message ; aucun chemin en dur.
+if (!navigateur) await ensureBrowser();
 // Lot I : délai par image relevé (vitre + carte, canevas logiciel : une image dépassait 30 s sur 4 cœurs chargés).
 const reglages = { browserExecutable: navigateur ?? null, chromiumOptions: { gl: "swangle" as const }, timeoutInMilliseconds: 180_000 };
 

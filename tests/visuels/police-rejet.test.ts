@@ -6,7 +6,9 @@ const remotion = vi.hoisted(() => ({ cancelRender: vi.fn(), continueRender: vi.f
 // Chemin ESM réel de remotion (installé dans studio-rendu) : c'est celui que vitest charge, un simple vi.mock("remotion") ne l'atteint pas.
 const cheminRemotion = createRequire(new URL("../../studio-rendu/package.json", import.meta.url)).resolve("remotion").replace("/cjs/index.js", "/esm/index.mjs");
 vi.mock("../../studio-rendu/compositions/commune/polices/ArchivoBlack-Regular.ttf", () => ({ default: "archivo.ttf" }));
-vi.mock("../../studio-rendu/compositions/commune/polices/JetBrainsMono-Variable.ttf", () => ({ default: "jetbrains.ttf" }));
+vi.mock("../../studio-rendu/compositions/commune/polices/Inter-Medium.ttf", () => ({ default: "inter-medium.ttf" }));
+vi.mock("../../studio-rendu/compositions/commune/polices/Inter-SemiBold.ttf", () => ({ default: "inter-semibold.ttf" }));
+vi.mock("../../studio-rendu/compositions/commune/polices/Inter-Bold.ttf", () => ({ default: "inter-bold.ttf" }));
 
 describe("police Archivo Black : comportement sans navigateur", () => {
   beforeEach(() => {
@@ -36,5 +38,24 @@ describe("police Archivo Black : comportement sans navigateur", () => {
     expect(remotion.delayRender).toHaveBeenCalledWith("Police Archivo Black", { timeoutInMilliseconds: 30_000 });
     expect(DELAI_DELAYRENDER_MS).toBe(30_000);
     expect(DELAI_DELAYRENDER_MS).toBeGreaterThan(DELAI_POLICE_MS);
+  });
+
+  it("Inter : un FontFace qui rejette fait échouer le rendu une seule fois, même avec trois graisses", async () => {
+    vi.stubGlobal("FontFace", class { load() { return Promise.reject(new Error("404")); } });
+    const { policeInterPrete } = await import("../../studio-rendu/compositions/visuels/polices");
+    await expect(policeInterPrete()).rejects.toThrow(/Police Inter illisible : 404/);
+    await expect(policeInterPrete()).rejects.toThrow(/illisible/);
+    expect(remotion.cancelRender).toHaveBeenCalledTimes(1);
+    expect(remotion.continueRender).not.toHaveBeenCalled();
+  });
+
+  it("Inter : les trois graisses chargées, continueRender une fois, delayRender explicite de 30 s", async () => {
+    const graisses: string[] = [];
+    vi.stubGlobal("FontFace", class { constructor(_f: string, _u: string, d: { weight: string }) { graisses.push(d.weight); } load() { return Promise.resolve(this); } });
+    const { policeInterPrete } = await import("../../studio-rendu/compositions/visuels/polices");
+    await policeInterPrete();
+    expect(graisses.sort()).toEqual(["500", "600", "700"]);
+    expect(remotion.continueRender).toHaveBeenCalledTimes(1);
+    expect(remotion.delayRender).toHaveBeenCalledWith("Police Inter", { timeoutInMilliseconds: 30_000 });
   });
 });

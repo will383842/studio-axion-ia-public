@@ -94,7 +94,7 @@ export interface OutilsVoixMaitre {
   nouvelleLecture?: boolean;
   /** Traitement de la mesure de voix demandé au rendu (19/10, Image → vidéo). Jamais dans l'empreinte. */
   mesureVoix?: TraitementMesureVoix;
-  /** Référence de la voix (20/10, Image → vidéo : 158,4 Hz). Absente : `REFERENCE_V4`, comme avant. Jamais dans l'empreinte. */
+  /** Référence de la voix (20/10, Image → vidéo : 158,4 Hz, puis 188,2 Hz depuis le 23/10/2026). Absente : `REFERENCE_V4` (nouvelle voix depuis le 23/10/2026). Jamais dans l'empreinte. */
   reference?: Readonly<MesureVoix>;
   regles: ReglesNettoyage;
   /**

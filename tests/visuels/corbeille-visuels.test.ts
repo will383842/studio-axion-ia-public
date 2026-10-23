@@ -206,7 +206,7 @@ describe("vues", () => {
     await garnir(b);
     const f = await ficheCarrousel("vis_av", b.deps);
     expect(f).toMatchObject({ pdfUrl: "https://stockage.invente/k/c.pdf", generateurAllume: true, modeTexte: "simulation" });
-    expect(f.pages).toEqual([{ index: 0, type: "T01", urlX1: "https://stockage.invente/k/1x1.jpg" }, { index: 1, type: "T21", urlX1: "https://stockage.invente/k/2x1.jpg" }]);
+    expect(f.pages).toEqual([{ index: 0, type: "T01", urlX1: "https://stockage.invente/k/1x1.jpg", urlX2: "https://stockage.invente/k/1x2.jpg" }, { index: 1, type: "T21", urlX1: "https://stockage.invente/k/2x1.jpg", urlX2: "https://stockage.invente/k/2x2.jpg" }]);
     expect([...f.actionsPermises].sort()).toEqual(["corbeille", "refaire", "refuser", "valider"]);
     expect((await ficheCarrousel("vis_ecrit", b.deps)).actionsPermises.sort()).toEqual(["corbeille", "relancer_rendu"]);
     expect((await ficheCarrousel("vis_ok", b.deps)).actionsPermises).toEqual(["corbeille"]);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { LIMITES } from "../../briques/visuels/limites";
-import { CAPACITE_CITATION, CAPACITE_PANNEAU, capaciteCarte, capaciteEtape, capaciteListe, PAGES, TYPES_COUVERTURE, TYPES_PAGE } from "../../briques/visuels/registre-pages";
+import { CAPACITE_ANNOTATION, CAPACITE_CAS, CAPACITE_CHECKLIST, CAPACITE_CITATION, CAPACITE_COMPARAISON, CAPACITE_MYTHE, CAPACITE_NOEUD, CAPACITE_PANNEAU, capaciteCarte, capaciteEtape, capaciteListe, capaciteQuestion, PAGES, TYPES_COUVERTURE, TYPES_PAGE } from "../../briques/visuels/registre-pages";
+import { NOMS_ICONES_PAGE } from "../../briques/visuels/registre-illustrations";
 import { TYPES_MINI } from "../../briques/visuels/registre-mini";
 import { TYPES_DECOR } from "../../briques/visuels/registre-decor";
 import { chargerReglesCarrousel } from "../../briques/visuels/regles/charger-regles";
@@ -125,7 +126,80 @@ const PageT20 = z
 // Dernière page sombre : AUCUN champ, tout le texte est posé par le code (`textes-fixes.ts`) : ni lien, ni nom, ni mot-clé d'appel.
 const PageT21 = z.object({ type: z.literal("T21") }).strict();
 
-export const Page = z.discriminatedUnion("type", [PageT01, PageT01B, PageT01C, PageT02, PageT06, PageT08, PageT10, PageT20, PageT21]);
+// --- Vague 1 des nouveaux gabarits (L9) : chaque texte est borné par son budget MESURÉ au rendu ; les étiquettes sont posées par le code. ---
+
+/** Icône de la banque (liste fermée) : le contenu CHOISIT un nom, il n'apporte jamais de dessin. */
+const Icone = z.enum(NOMS_ICONES_PAGE);
+
+const PageT22 = z
+  .object({
+    type: z.literal("T22"),
+    titre: titrePage("T22"),
+    mythe: texte(1, CAPACITE_MYTHE.mythe),
+    realite: texte(1, CAPACITE_MYTHE.realite),
+  })
+  .strict();
+
+const PageT23 = z
+  .object({
+    type: z.literal("T23"),
+    titre: titrePage("T23"),
+    questions: z
+      .array(z.object({ question: texte(1, LIMITES.corpsMax), aide: texte(1, LIMITES.corpsMax), icone: Icone.optional() }).strict())
+      .min(PAGES.T23.elements.min)
+      .max(PAGES.T23.elements.max),
+    annotation: texte(1, CAPACITE_ANNOTATION),
+  })
+  .strict()
+  .superRefine((page, ctx) => {
+    const capacite = capaciteQuestion(page.questions.length);
+    page.questions.forEach((q, i) => {
+      verifierBudget(ctx, ["questions", i, "question"], q.question, capacite.question, `Question (pour ${page.questions.length} questions)`);
+      verifierBudget(ctx, ["questions", i, "aide"], q.aide, capacite.aide, `Aide (pour ${page.questions.length} questions)`);
+    });
+  });
+
+const PageT24 = z
+  .object({
+    type: z.literal("T24"),
+    titre: titrePage("T24"),
+    lignes: z
+      .array(z.object({ sans: texte(1, CAPACITE_COMPARAISON.case), avec: texte(1, CAPACITE_COMPARAISON.case) }).strict())
+      .min(PAGES.T24.elements.min)
+      .max(PAGES.T24.elements.max),
+  })
+  .strict();
+
+const ligneCas = texte(1, CAPACITE_CAS.ligne);
+const PageT26 = z
+  .object({
+    type: z.literal("T26"),
+    titre: titrePage("T26"),
+    avant: z.array(ligneCas).min(PAGES.T26.elements.min).max(PAGES.T26.elements.max),
+    avec: z.array(ligneCas).min(PAGES.T26.elements.min).max(PAGES.T26.elements.max),
+    /** Noms d'outils en pastilles de TEXTE (jamais de logo). */
+    outils: z.array(texte(1, CAPACITE_CAS.outil)).max(CAPACITE_CAS.outilsMax).optional(),
+    vous: texte(1, CAPACITE_CAS.vous),
+  })
+  .strict();
+
+const PageT27 = z
+  .object({
+    type: z.literal("T27"),
+    titre: titrePage("T27"),
+    lignes: z.array(z.object({ texte: texte(1, CAPACITE_CHECKLIST.ligne) }).strict()).min(PAGES.T27.elements.min).max(PAGES.T27.elements.max),
+  })
+  .strict();
+
+const PageT28 = z
+  .object({
+    type: z.literal("T28"),
+    titre: titrePage("T28"),
+    noeuds: z.array(z.object({ texte: texte(1, CAPACITE_NOEUD.texte), icone: Icone.optional() }).strict()).min(PAGES.T28.elements.min).max(PAGES.T28.elements.max),
+  })
+  .strict();
+
+export const Page = z.discriminatedUnion("type", [PageT01, PageT01B, PageT01C, PageT02, PageT06, PageT08, PageT10, PageT20, PageT21, PageT22, PageT23, PageT24, PageT26, PageT27, PageT28]);
 
 export const CarrouselSpec = z
   .object({

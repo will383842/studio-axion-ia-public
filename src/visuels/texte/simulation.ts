@@ -1,10 +1,11 @@
 import { LIMITES } from "../../briques/visuels/limites";
 import { PAGES, TYPES_COUVERTURE } from "../../briques/visuels/registre-pages";
 import { chiffresDe } from "../../domaine/image-video/chiffres";
+import { contientJAide, expressionsBannieDans, tutoiementDans } from "../../domaine/controles-visuel/texte";
 import { CarrouselSpec } from "../../domaine/visuels/schema";
 import type { DemandeTexteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
 import type { CarrouselSpecType } from "../../domaine/visuels/types";
-import { FIXTURES } from "./fixtures";
+import { FIXTURES_AXION } from "./fixtures";
 import { ErreurTexteCarrousel } from "./verrou-api";
 
 const SUJET_MAX = 200;
@@ -28,9 +29,14 @@ function fnv1a(texte: string): number {
   return h;
 }
 
-/** Choix déterministe : FNV-1a du sujet normalisé, ramené au nombre de fixtures. */
+/** Choix déterministe : FNV-1a du sujet normalisé, ramené au nombre de modèles du studio. */
 function choisirFixture(sujet: string) {
-  return FIXTURES[fnv1a(normaliser(sujet)) % FIXTURES.length];
+  return FIXTURES_AXION[fnv1a(normaliser(sujet)) % FIXTURES_AXION.length];
+}
+
+/** Un sujet que la porte refuserait (expression bannie, tutoiement, « J'aide ») ne devient jamais titre. */
+function sujetRefuse(sujet: string): boolean {
+  return expressionsBannieDans(sujet).length > 0 || tutoiementDans(sujet) !== undefined || contientJAide(sujet);
 }
 
 /** Titre de couverture : le sujet seulement s'il tient dans le budget du type, sans chiffre, et que la spec reste valide. */
@@ -38,7 +44,7 @@ function specAvecSujet(spec: CarrouselSpecType, sujet: string): CarrouselSpecTyp
   const [couverture, ...suite] = spec.pages;
   if (!(TYPES_COUVERTURE as readonly string[]).includes(couverture.type) || !("titre" in couverture)) return spec;
   const max = Math.min(PAGES[couverture.type].titreMax, LIMITES.titreMax);
-  if (sujet.length === 0 || sujet.length > max || contientChiffre(sujet)) return spec;
+  if (sujet.length === 0 || sujet.length > max || contientChiffre(sujet) || sujetRefuse(sujet)) return spec;
   const candidate = { ...spec, pages: [{ ...couverture, titre: sujet }, ...suite] } as CarrouselSpecType;
   return CarrouselSpec.safeParse(candidate).success ? candidate : spec;
 }

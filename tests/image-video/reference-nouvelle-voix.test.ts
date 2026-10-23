@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { refusReessayableIV } from "@/components/formats/image-video/vue";
-import { comparerAReference, REFERENCE_V4, VERSION_MESURE_VOIX, type MesureVoix } from "@/briques/voix-maitre/reference";
+import { comparerAReference, REFERENCE_ANCIENNE_VOIX_V4, REFERENCE_V4, VERSION_MESURE_VOIX, type MesureVoix } from "@/briques/voix-maitre/reference";
 import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { ecartHorsReference, voixAcceptableParLaRegleDesFinsIV } from "@/moteurs/montage-image-video/secours";
 import { verdictVoixFaite, type EtatVoixIV } from "@/moteurs/montage-image-video/voix";
@@ -15,7 +15,7 @@ import type { PriseVoix } from "@/moteurs/montage-image-video/emprunts";
 const PRISE_1: MesureVoix = { hauteurHz: 192.77108, variationHz: 41.75259, energie: 0.13292, dynamique: 0.52929, rythmePicsParSec: 4.83368, partieParole: 0.704 };
 const PRISE_2: MesureVoix = { hauteurHz: 188.23529, variationHz: 42.27422, energie: 0.13313, dynamique: 0.52493, rythmePicsParSec: 5.02898, partieParole: 0.70003 };
 /** La mesure refusée en prod : l'ancienne référence (v4 à 158,4 Hz) contre la nouvelle voix. */
-const ANCIENNE_REF: MesureVoix = { ...REFERENCE_V4, hauteurHz: 158.4 };
+const ANCIENNE_REF: MesureVoix = { ...REFERENCE_ANCIENNE_VOIX_V4, hauteurHz: 158.4 };
 
 function prise(mesure: MesureVoix, ressemblante: boolean, versionMesure: number | undefined = VERSION_MESURE_VOIX, ecarts: string[] = ressemblante ? [] : ["hauteur +19 % (toléré 8 %)", "variation de hauteur +35 % (toléré 25 %)"]): PriseVoix {
   return {
@@ -34,10 +34,10 @@ function etatVoix(corps: PriseVoix): EtatVoixIV {
 }
 
 describe("référence Image → vidéo recalibrée sur la nouvelle voix", () => {
-  it("la constante reprend la prise 2 arrondie ; la v4 de l'avocat ne bouge pas", () => {
+  it("la constante reprend la prise 2 arrondie ; REFERENCE_V4 (avocat, tableau, cas concret) a la même voix, en valeurs brutes", () => {
     expect(REFERENCE_V4_IV).toEqual({ hauteurHz: 188.2, variationHz: 42.3, energie: 0.133, dynamique: 0.525, rythmePicsParSec: 5.03, partieParole: 0.7 });
     expect(Object.isFrozen(REFERENCE_V4_IV)).toBe(true);
-    expect(REFERENCE_V4.hauteurHz).toBe(152.4);
+    expect(REFERENCE_V4.hauteurHz).toBe(188.23529);
   });
 
   it("les deux prises réelles (1 et 2) ressemblent à la nouvelle référence", () => {

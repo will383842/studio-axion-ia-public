@@ -12,7 +12,7 @@ import { StockDesCas } from "@/components/formats/cas-concret/stock/StockDesCas"
 import { IDEES_A_VENIR } from "@/formats/cas-concret/stock-idees";
 import { lireCasTraites } from "@/services/cas-concret-traites";
 import { lireStockCas } from "@/services/cas-concret-stock-lecture";
-import { lireParamsStock } from "@/components/formats/cas-concret/stock/filtres-stock";
+import { lienStock, lireParamsStock } from "@/components/formats/cas-concret/stock/filtres-stock";
 import { apercuDesEcrans } from "@/moteurs/montage-cas-concret/script-valide";
 
 export const metadata: Metadata = { title: "Cas concret MD" };
@@ -56,9 +56,14 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
     return info ? { ...v, stock: info } : v;
   };
   const params = avecStock ? lireParamsStock(await searchParams, stock.flatMap((l) => (l.rangement ? [l.rangement.secteur] : []))) : null;
+  const nbFaits = stock.filter((l) => !!l.traite).length;
   return (
     <div className="mx-auto max-w-2xl">
       <EnTetePage titre="Cas concret MD" sousTitre="Une phrase, une vidéo." />
+      <nav aria-label="Listes des cas" className="mt-4 flex flex-wrap gap-3">
+        <a className="inline-flex min-h-11 items-center rounded-sm border border-trait px-4 text-[15px] font-semibold text-orange-vif focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href={avecStock ? lienStock({ etat: "restant" }) : "/cas-concret?stock=1"}>Cas restants à faire</a>
+        <a className="inline-flex min-h-11 items-center rounded-sm border border-trait px-4 text-[15px] font-semibold text-orange-vif focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href="/cas-concret/deja-faits">{nbFaits > 0 ? `Cas déjà faits (${nbFaits})` : "Cas déjà faits"}</a>
+      </nav>
       <EntreeCasConcret
         valides={valides.map((c) => vue(c, true))}
         aValider={aValider.map((c) => vue(c, false))}

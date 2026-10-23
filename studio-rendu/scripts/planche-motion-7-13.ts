@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { ensureBrowser, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { CATALOGUE_MOTION_ETENDU } from "../../src/briques/motion/catalogue-etendu";
 import { EXEMPLES_AXION_ETENDUS, EXEMPLES_GRAPHIQUE } from "../../src/briques/motion/exemples-axion-etendus";
 import { FICHES_STYLE_MOTION, STYLES_MOTION, type StyleMotion } from "../../src/briques/motion/style";
@@ -53,7 +53,9 @@ const styleDemande = iStyle >= 0 ? (args[iStyle + 1] as StyleMotion) : null;
 const styles: StyleMotion[] = styleDemande && STYLES_MOTION.includes(styleDemande) ? [styleDemande] : [...STYLES_MOTION];
 const filtres = args.filter((a, i) => !a.startsWith("--") && i !== iStyle + 1);
 const entrees = filtres.length ? ENTREES.filter((e) => filtres.some((f) => e.cle === f || e.id === f)) : ENTREES;
-const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR ?? ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell"].find((c) => existsSync(c));
+const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR;
+// Sans navigateur imposé : Remotion obtient le sien (ensureBrowser) ou échoue avec son message ; aucun chemin en dur.
+if (!navigateur) await ensureBrowser();
 const instants = (process.env.PLANCHE_INSTANTS ?? "0.2,0.6,1,1.5,2,2.5,3,3.6,4.2,4.7").split(",").map(Number);
 
 const MISE_EN_PAGE: MiseEnPageCarte = { ratio: "9:16", largeur: 1080, hauteur: 1920, hauteurVideo: 1920, disposition: "plein-ecran", fps: 25, images: 125 };

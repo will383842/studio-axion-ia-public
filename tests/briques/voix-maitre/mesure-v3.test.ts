@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { REGLES_NETTOYAGE_PAR_DEFAUT } from "@/briques/voix-maitre";
 import { avancerVoixMaitre, versRemesure, type EtatVoixMaitre, type OutilsVoixMaitre } from "@/briques/voix-maitre/machine";
-import { comparerAReference, REFERENCE_V4, VERSION_MESURE_VOIX, type MesureVoix } from "@/briques/voix-maitre/reference";
+import { comparerAReference, REFERENCE_ANCIENNE_VOIX_V4, REFERENCE_V4, VERSION_MESURE_VOIX, type MesureVoix } from "@/briques/voix-maitre/reference";
 import type { AudioMaitre } from "@/briques/voix-maitre/types";
 import type { DemandeRendu, EtatRendu, FournisseurAlignement, FournisseurVoix, ServiceRendu, StockageFichiers } from "@/fournisseurs/types";
 import { empreintePriseVoix } from "@/moteurs/montage-cas-concret/voix";
@@ -369,7 +369,7 @@ const PRISES = [
 ] as const;
 const CLES = ["hauteurHz", "variationHz", "energie", "dynamique", "rythmePicsParSec", "partieParole"] as const;
 const mesureDe = (mesures: Record<string, number>): MesureVoix => Object.fromEntries(CLES.map((k) => [k, mesures[`voix.${k}`] ?? Number.NaN])) as unknown as MesureVoix;
-const pct = (m: MesureVoix, k: (typeof CLES)[number]) => (m[k] / REFERENCE_V4[k] - 1) * 100;
+const pct = (m: MesureVoix, k: (typeof CLES)[number]) => (m[k] / REFERENCE_ANCIENNE_VOIX_V4[k] - 1) * 100;
 
 describe("mesure v3 : les 8 prises réelles", () => {
   it.skipIf(!ffmpegPresent || !SONS)("tableau des 6 écarts avant (v2 brute) / après (v3 vidéo finie) pour chaque prise, et verdicts", async () => {
@@ -382,8 +382,8 @@ describe("mesure v3 : les 8 prises réelles", () => {
       const v2 = mesureDe((await nettoyerFichier(chemin, { mode: "mesure-voix" })).mesures);
       const r3 = await nettoyerFichier(chemin, { ...VIDEO_FINIE });
       const v3 = mesureDe(r3.mesures);
-      const c2 = comparerAReference(v2);
-      const c3 = comparerAReference(v3);
+      const c2 = comparerAReference(v2, REFERENCE_ANCIENNE_VOIX_V4);
+      const c3 = comparerAReference(v3, REFERENCE_ANCIENNE_VOIX_V4);
       resultats.set(p.fichier, { v2, v3, verdict2: c2.ressemblante, verdict3: c3.ressemblante });
       if (p.fichier === "mvegpox87yuye9.mp3") {
         // Information : une seconde passe sur le son déjà traité (une vraie voix re-comprimée bouge la dynamique) ; non bloquant.

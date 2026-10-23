@@ -34,11 +34,11 @@ import type { CommandeFabrication, MediaCommande } from "@/domaine/types";
 import { suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { COMPOSITION_ECRAN, CRF_ECRAN, DECOR_NUIT, RECETTE_COMPOSITION_CAS_CONCRET } from "@/moteurs/montage-cas-concret/fabriquer";
-import { dessinAuDessusDesSousTitres, proprietesPleineImage } from "@/moteurs/montage-cas-concret/zone-objets";
+import { dessinAuDessusDesSousTitres } from "@/moteurs/montage-cas-concret/zone-objets";
 import { controlerProprietes, proprietesEcrans, type ProprietesEcran } from "@/briques/ecrans-motion";
-import { ErreurRenduDefinitifIV, RenduEnCoursIV, type DemandeRenduIV } from "@/moteurs/montage-image-video/fabrication";
+import { ErreurRenduDefinitifIV, RenduEnCoursIV, VERSION_COMPOSITIONS_IV, type DemandeRenduIV } from "@/moteurs/montage-image-video/fabrication";
 import type { BlocRenduIV, LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
-import { LIGNES_MAX_ECRAN_IV } from "@/moteurs/montage-image-video/ecrans-v4";
+import { LIGNES_MAX_ECRAN_IV, proprietesEcranIV916 } from "@/moteurs/montage-image-video/ecrans-v4";
 import { BANDE_SOUS_TITRES_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, type FormatEcranIV } from "@/briques/schema-motion/types";
 import { passagesIvoireIV, segmentsDeBaseIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { figeHorsVoixMaxSec, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
@@ -144,7 +144,7 @@ function parametresSansVariete(b: BlocRenduIV, ligne: Pick<LigneDeTempsIV, "larg
       // Durée de la scène = place du bloc au montage (`fin − debut`, comme les autres sortes) : la mise en scène allonge
       // le dernier bloc jusqu'à la fin de la vidéo sans toucher `finMs` ; sans cela, fin noire ou figée.
       const ecran = { ...b.ecran, finMs: b.ecran.debutMs + Math.round((b.fin - b.debut) * 1000) };
-      const p = ratioDeLaLigneIV(ligne) === "4:5" ? proprietesEcran4x5(ecran, ligne) : proprietesPleineImage({ ecrans: [ecran], captures: {} })[0];
+      const p = ratioDeLaLigneIV(ligne) === "4:5" ? proprietesEcran4x5(ecran, ligne) : proprietesEcranIV916(ecran);
       return { composition: COMPOSITIONS_RENDU_IV.ecran, proprietes: p as unknown as Record<string, unknown>, crf: CRF_SCENE_IV };
     }
     case "toile":
@@ -184,7 +184,9 @@ export function scenesDeLaLigne(ligne: LigneDeTempsIV, o: { env: string; videoId
     const parametres = parametresDuBloc(b, ligne);
     // Version de la clé : "/2" (18/10/2026) = fond ivoire des vues d'ensemble, pastille « 80 % » de REC-B (nouvelle place),
     // chute de l'alerte. Sans ce changement, une vidéo refaite réutiliserait ses anciennes scènes de toile (clé identique).
-    const e = `iv-${empreinte(["scene-iv/2", parametres])}`;
+    // 23/10/2026 : VERSION_COMPOSITIONS_IV y entre aussi : une correction de studio-rendu/compositions/image-video (bulle du récit,
+    // dossier seul…) ne change pas les propriétés d'une scène, donc sa clé restait la même et l'ancien dessin était réutilisé.
+    const e = `iv-${empreinte(["scene-iv/2", VERSION_COMPOSITIONS_IV, parametres])}`;
     return { id: b.id, sorte: b.sorte, debutSec: b.debut, finSec: b.fin, parametres, empreinte: e, cle: cleSceneParEmpreinte(o.env, o.videoId, e) };
   });
 }

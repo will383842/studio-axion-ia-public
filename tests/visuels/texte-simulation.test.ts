@@ -3,7 +3,7 @@ import { CarrouselSpec } from "@/domaine/visuels/schema";
 import { chiffresDe } from "@/domaine/image-video/chiffres";
 import { PAGES, TYPES_COUVERTURE } from "@/briques/visuels/registre-pages";
 import { creerFournisseurSimulation } from "@/visuels/texte/simulation";
-import { FIXTURES } from "@/visuels/texte/fixtures";
+import { FIXTURES, FIXTURES_AXION } from "@/visuels/texte/fixtures";
 
 const SUJETS = [
   "Ranger son bureau le matin",
@@ -76,6 +76,13 @@ describe("fournisseur de simulation", () => {
     expect((r.spec as { pages: { titre: string }[] }).pages[0].titre).toBe("Ranger son bureau");
   });
 
+  it("ne recopie pas en titre un sujet que la porte refuse", async () => {
+    for (const sujet of ["Les équipes de Grenoble", "Aucun gain garanti", "Tu peux ranger"]) {
+      const r = await fournisseur.ecrire({ type: "sujet", sujet });
+      expect((r.spec as { pages: { titre: string }[] }).pages[0].titre, sujet).not.toBe(sujet);
+    }
+  });
+
   it("garde le titre de la fixture quand le sujet est trop long", async () => {
     const sujet = "Un sujet très long qui ne tient dans aucun titre de couverture, même le plus généreux du registre";
     const r = await fournisseur.ecrire({ type: "sujet", sujet });
@@ -101,6 +108,14 @@ describe("fournisseur de simulation", () => {
 
   it("refuse un sujet vide avec SUJET_INVALIDE", async () => {
     await expect(fournisseur.ecrire({ type: "sujet", sujet: "   " })).rejects.toMatchObject({ code: "SUJET_INVALIDE" });
+  });
+
+  it("ne choisit que des modèles Axion (aucun thème de bureau ou d'atelier)", async () => {
+    const ids = new Set(FIXTURES_AXION.map((f) => f.id));
+    for (const sujet of SUJETS) {
+      const r = await fournisseur.ecrire({ type: "sujet", sujet });
+      expect(ids.has(FIXTURES_AXION.find((f) => JSON.stringify(f.pourquoi) === JSON.stringify(r.pourquoi))?.id ?? ""), sujet).toBe(true);
+    }
   });
 
   it("n'ouvre aucune connexion réseau", async () => {

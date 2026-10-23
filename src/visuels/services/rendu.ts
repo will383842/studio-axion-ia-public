@@ -13,7 +13,7 @@ import { validerProprietesPage } from "../proprietes-page";
  */
 
 /** À changer quand la composition ou le rendu changent : les anciens rendus ne servent plus. */
-export const VERSION_RENDU = "visuel-page/3";
+export const VERSION_RENDU = "visuel-page/5";
 export const TAILLE_TEXTE_MIN_PX = 26;
 const DELAI_RENDU_MS = 180_000;
 /** Une page à la fois (×1 et ×2 ensemble) : le plus simple pour ne pas saturer le navigateur de la file courte (partagée avec les miniatures). */
@@ -110,6 +110,13 @@ async function executer(spec: unknown, empreinte: string, deps: DependancesRendu
     if (mesures.debordements >= 1) throw new Error(`La page ${index + 1} déborde de son cadre (${mesures.debordements} débordement(s)) : texte coupé`);
     if (typeof mesures.taillePoliceMin !== "number") throw new Error(`La page ${index + 1} : mesure de la police absente (rendu refusé)`);
     if (mesures.taillePoliceMin < TAILLE_TEXTE_MIN_PX) throw new Error(`La page ${index + 1} a un texte sous ${TAILLE_TEXTE_MIN_PX} px (${mesures.taillePoliceMin})`);
+    // Aucune tolérance N-1 : un studio-rendu sans cette mesure n'a pas vérifié les zones réservées (flèche, pastille) ;
+    // mieux vaut refuser (réessayable une fois le nouveau studio-rendu déployé) que publier une page non vérifiée.
+    if (typeof mesures.textesEnZone !== "number") throw new Error(`La page ${index + 1} : mesure des textes en zone réservée absente (rendu refusé)`);
+    if (mesures.textesEnZone >= 1) throw new Error(`La page ${index + 1} : un texte entre dans une zone réservée (${mesures.textesEnZone} ligne(s)) : rendu refusé`);
+    // Chevauchements texte/texte et texte/illustration (L9) : même règle, aucune tolérance pour une mesure absente.
+    if (typeof mesures.chevauchements !== "number") throw new Error(`La page ${index + 1} : mesure des chevauchements absente (rendu refusé)`);
+    if (mesures.chevauchements >= 1) throw new Error(`La page ${index + 1} : un texte en chevauche un autre ou une illustration (${mesures.chevauchements} cas) : rendu refusé`);
     return { cle, mesures };
   }
 

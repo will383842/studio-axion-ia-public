@@ -8,10 +8,10 @@
  *   STUDIO_RENDU_NAVIGATEUR=/chemin/chrome            → navigateur sans affichage à utiliser (sinon celui de Remotion)
  * Rendu en local, sans serveur : mêmes compositions que l'opération `composition` (sans mode) du conteneur.
  */
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { ensureBrowser, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { CATALOGUE_MOTION, IDS_MODELES_MOTION, carteExemple } from "../../src/briques/motion/catalogue";
 import type { IdModeleMotion, MiseEnPageCarte } from "../../src/briques/motion/types";
 
@@ -23,7 +23,9 @@ const args = process.argv.slice(2);
 const images = args.includes("--images");
 const choisis = (args.filter((a) => !a.startsWith("--")) as IdModeleMotion[]).filter((a) => IDS_MODELES_MOTION.includes(a));
 const modeles = choisis.length ? choisis : IDS_MODELES_MOTION;
-const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR ?? ["/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell"].find((c) => existsSync(c));
+const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR;
+// Sans navigateur imposé : Remotion obtient le sien (ensureBrowser) ou échoue avec son message ; aucun chemin en dur.
+if (!navigateur) await ensureBrowser();
 
 const MISE_EN_PAGE: MiseEnPageCarte = { ratio: "9:16", largeur: 1080, hauteur: 1920, hauteurVideo: 1920, disposition: "plein-ecran", fps: 25, images: 125 };
 

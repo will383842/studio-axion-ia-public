@@ -22,8 +22,12 @@ export const BEIGE_ETEINT = "#E2D7C9";
 
 /** Calendrier (secondes depuis le début de l'apparition, qui précède le mot de `TEMPS_IV.avanceNoeud`). */
 export const TEMPS_APPARITION = Object.freeze({
-  /** APP-B : le contour se trace, le blanc se pose, puis le texte ; le feutre s'en va. */
-  feutre: Object.freeze({ contour: 0.42, blancDebut: 0.2, blanc: 0.3, texteDebut: 0.34, texte: 0.24, sortieDebut: 0.42, sortie: 0.22 }),
+  /**
+   * APP-B : le contour se trace, le blanc se pose, puis le texte ; le feutre s'en va. Tout est posé 0,30 s après le début de
+   * l'apparition (plancher de la relecture des images : dernier mot + 0,3 s ; 23/10/2026, v-6e4a06b9c718 à 22,4 s : « 4 sec »
+   * encore sous le feutre, blanc à 68 %, texte à 26 %). Même ordre, mêmes formes, seulement plus vite.
+   */
+  feutre: Object.freeze({ contour: 0.28, blancDebut: 0.04, blanc: 0.16, texteDebut: 0.16, texte: 0.1, sortieDebut: 0.21, sortie: 0.08 }),
   /** APP-C : la carte éteinte s'allume. */
   allumage: 0.3,
   /** APP-D : la fiche tombe, touche la table, rebondit à peine. */

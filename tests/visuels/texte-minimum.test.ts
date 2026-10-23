@@ -33,9 +33,12 @@ describe("composition VisuelPage : aucun texte sous 26 px", () => {
     }
   });
 
-  it("aucune police manuscrite (Kalam…) et aucune URL dans les composants", () => {
+  it("une seule police manuscrite, Kalam, réservée aux annotations (L9) ; aucune URL dans les composants", () => {
+    // Kalam n'est déclarée qu'aux trois endroits prévus : son chargeur, sa constante, et les pages qui portent une annotation manuscrite.
+    const KALAM_PERMIS = /(?:^|\/)(?:polices\.ts|constantes\.ts|controle-debordement\.tsx|T22\.tsx|T23\.tsx)$/;
     for (const { chemin, texte } of sources(RACINE)) {
-      expect(texte, chemin).not.toMatch(/kalam|caveat|handwrit|cursive/i);
+      expect(texte, chemin).not.toMatch(/caveat|handwrit|marker/i);
+      if (!KALAM_PERMIS.test(chemin)) expect(texte, chemin).not.toMatch(/kalam|cursive/i);
       expect(texte, chemin).not.toMatch(/https?:\/\//i);
     }
   });

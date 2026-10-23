@@ -64,7 +64,7 @@ for (const type of types) {
       for (const champ of ["avant", "apres"]) console.log(`T08 : ${champ} tenant = ${await chercher((l) => ({ ...page, [champ]: texteInvente(l) }), LIMITES.corpsMax)} signes (budget actuel ${(page[champ] as string).length})`);
     } else if (type === "T10") {
       console.log(`T10 : message tenant = ${await chercher((l) => ({ ...page, message: texteInvente(l) }), LIMITES.corpsMax)} signes (budget actuel ${(page.message as string).length})`);
-      console.log(`T10 : légende tenant = ${await chercher((l) => ({ ...page, legende: texteInvente(l) }), LIMITES.corpsMax)} signes (budget actuel ${(page.legende as string).length})`);
+      console.log(`T10 : légende tenant = ${await chercher((l) => ({ ...page, legende: texteInvente(l) }), LIMITES.corpsMax)} signes (budget actuel ${(page.legende as string | undefined)?.length ?? 0})`);
     }
   }
 }

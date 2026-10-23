@@ -88,16 +88,15 @@ describe("porte qualité : chaque défaut rougit exactement son code", () => {
     expect(codes(reference("Le calme se prépare"))).toEqual([]);
     expect(codes(reference("The tool"))).toEqual([]);
   });
-  it("DENSITE : plus de 200 mots orange, plus de 260 rouge", () => {
-    const carte = (n: number, titre = "Sujet") => ({ titre, corps: Array.from({ length: n }, () => "a").join(" ") });
-    const orange = specAvec([couverture, { type: "T02", titre: "Les bases", cartes: [carte(120), carte(80, "Autre")] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
-    const r1 = controlerCarrousel(orange, ctx).rapport;
-    expect(r1.controles.map((c) => [c.code, c.niveau, c.page])).toEqual([["DENSITE", "orange", 2]]);
-    expect(r1.verdict).toBe("orange");
-    const rouge = specAvec([couverture, { type: "T02", titre: "Les bases", cartes: [carte(120, Array.from({ length: 24 }, () => "a").join(" ")), carte(120, Array.from({ length: 24 }, () => "b").join(" "))] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
-    const r2 = controlerCarrousel(rouge, ctx).rapport;
-    expect(r2.controles.map((c) => [c.code, c.niveau, c.page])).toEqual([["DENSITE", "rouge", 2]]);
-    expect(r2.verdict).toBe("rouge");
+  it("DENSITE : la page la plus dense que le schéma accepte reste sous 200 mots (le contrôle est une ceinture de sécurité, les budgets du lot L1 passent avant)", () => {
+    const mots = (n: number) => Array.from({ length: n }, () => "a").join(" ");
+    const carte = (titre: number, corps: number) => ({ titre: mots(titre), corps: mots(corps) });
+    const plus = specAvec([couverture, { type: "T02", titre: mots(15), cartes: [carte(24, 65), carte(24, 65)] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
+    const r = controlerCarrousel(plus, ctx).rapport;
+    expect(r.controles.filter((c) => c.code === "DENSITE")).toEqual([]);
+    // Au-delà du schéma, la lecture du texte (même d'une spec refusée) ne rougit pas la densité : c'est le schéma qui refuse.
+    const trop = specAvec([couverture, { type: "T02", titre: "Les bases", cartes: [carte(1, 100), carte(1, 100)] }, liste, avantApres, etapes, citation("Le calme se prépare"), fin]);
+    expect(controlerCarrousel(trop, ctx).rapport.controles.some((c) => c.code === "SCHEMA" && c.page === 2)).toBe(true);
   });
   it("RYTHME : deux pages de suite de même type", () => {
     const autre = { ...dense, titre: "Les bases bis" };

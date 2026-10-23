@@ -1,0 +1,50 @@
+{
+  "sujet": "Ranger un atelier sans y passer la journée",
+  "verdictPorte": "vert",
+  "dureeSec": 34,
+  "complet": true,
+  "parPage": [
+    {
+      "page": 1,
+      "type": "T01",
+      "debordements": 0,
+      "taillePoliceMin": 30
+    },
+    {
+      "page": 2,
+      "type": "T20",
+      "debordements": 0,
+      "taillePoliceMin": 28
+    },
+    {
+      "page": 3,
+      "type": "T02",
+      "debordements": 0,
+      "taillePoliceMin": 28
+    },
+    {
+      "page": 4,
+      "type": "T10",
+      "debordements": 0,
+      "taillePoliceMin": 30
+    },
+    {
+      "page": 5,
+      "type": "T08",
+      "debordements": 0,
+      "taillePoliceMin": 30
+    },
+    {
+      "page": 6,
+      "type": "T06",
+      "debordements": 0,
+      "taillePoliceMin": 36
+    },
+    {
+      "page": 7,
+      "type": "T21",
+      "debordements": 0,
+      "taillePoliceMin": 44
+    }
+  ]
+}

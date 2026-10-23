@@ -12,7 +12,7 @@ function canonique(v: unknown): string {
 }
 
 /** Service de rendu SIMULÉ (aucun Chromium) : enregistre les soumissions, répond « terminé » avec des mesures plausibles. */
-function simule(options: { debordements?: number; redemarrageApres?: number } = {}) {
+function simule(options: { debordements?: number; textesEnZone?: number; chevauchements?: number; redemarrageApres?: number } = {}) {
   const soumises: DemandeRendu[] = [];
   const termines = new Set<string>();
   let etats = 0;
@@ -32,7 +32,7 @@ function simule(options: { debordements?: number; redemarrageApres?: number } = 
       if (!termines.has(id)) return { statut: "inconnu" };
       const x2 = id.includes("-x2");
       const pdf = id.includes("-pdf");
-      return { statut: "termine", sortieCle: `cle/${id}`, mesures: pdf ? { pages: 2, octets: 1000 } : { debordements: options.debordements ?? 0, taillePoliceMin: 26, largeur: x2 ? 2160 : 1080, hauteur: x2 ? 2700 : 1350, scale: x2 ? 2 : 1, octets: 5000 } };
+      return { statut: "termine", sortieCle: `cle/${id}`, mesures: pdf ? { pages: 2, octets: 1000 } : { debordements: options.debordements ?? 0, textesEnZone: options.textesEnZone ?? 0, chevauchements: options.chevauchements ?? 0, taillePoliceMin: 26, largeur: x2 ? 2160 : 1080, hauteur: x2 ? 2700 : 1350, scale: x2 ? 2 : 1, octets: 5000 } };
     },
   };
   return { service, soumises };
@@ -113,6 +113,40 @@ describe("M2-03 · service de rendu des visuels (rendu simulé)", () => {
     expect(soumises.some((d) => d.operation === "assemblage-pdf")).toBe(false);
     expect(await deps.registre.lire(empreinteCarrousel(CONTENU_ESSAI))).toBeNull();
   });
+  it("une page dont un texte entre dans une zone réservée (textesEnZone ≥ 1) est refusée, rien n'est mémorisé et le PDF n'est pas assemblé", async () => {
+    const { service, soumises } = simule({ textesEnZone: 1 });
+    const deps = dependances(service);
+    await expect(rendreCarrousel(CONTENU_ESSAI, deps)).rejects.toThrow(/zone réservée/);
+    expect(soumises.some((d) => d.operation === "assemblage-pdf")).toBe(false);
+    expect(await deps.registre.lire(empreinteCarrousel(CONTENU_ESSAI))).toBeNull();
+  });
+  it("une mesure textesEnZone absente est refusée (aucune tolérance : un ancien studio-rendu ne publie pas de page non vérifiée)", async () => {
+    const { service } = simule();
+    const base = service.etat.bind(service);
+    service.etat = async (id) => {
+      const e = await base(id);
+      return e.statut === "termine" && !id.includes("-pdf") ? { ...e, mesures: { debordements: 0, taillePoliceMin: 26 } } : e;
+    };
+    const err = await rendreCarrousel({ ...CONTENU_ESSAI, alt: "sans zone" }, dependances(service)).catch((e: Error) => e);
+    expect((err as Error).message).toMatch(/^La page \d+ : mesure des textes en zone réservée absente \(rendu refusé\)$/);
+  });
+  it("une page dont un texte chevauche un autre texte ou une illustration (chevauchements ≥ 1) est refusée, rien n'est mémorisé", async () => {
+    const { service, soumises } = simule({ chevauchements: 1 });
+    const deps = dependances(service);
+    await expect(rendreCarrousel(CONTENU_ESSAI, deps)).rejects.toThrow(/chevauche/);
+    expect(soumises.some((d) => d.operation === "assemblage-pdf")).toBe(false);
+    expect(await deps.registre.lire(empreinteCarrousel(CONTENU_ESSAI))).toBeNull();
+  });
+  it("une mesure chevauchements absente est refusée", async () => {
+    const { service } = simule();
+    const base = service.etat.bind(service);
+    service.etat = async (id) => {
+      const e = await base(id);
+      return e.statut === "termine" && !id.includes("-pdf") ? { ...e, mesures: { debordements: 0, textesEnZone: 0, taillePoliceMin: 26 } } : e;
+    };
+    const err = await rendreCarrousel({ ...CONTENU_ESSAI, alt: "sans chevauchements" }, dependances(service)).catch((e: Error) => e);
+    expect((err as Error).message).toMatch(/^La page \d+ : mesure des chevauchements absente \(rendu refusé\)$/);
+  });
   it("interrupteur éteint = 0 soumission", async () => {
     const { service, soumises } = simule();
     await expect(rendreCarrousel({ ...CONTENU_ESSAI, alt: "éteint" }, { ...dependances(service), allume: async () => false })).rejects.toThrow(/éteint/);
@@ -156,8 +190,8 @@ describe("M2-03 · service de rendu des visuels (rendu simulé)", () => {
     expect(max).toBeLessThanOrEqual(2);
   });
 
-  it("VERSION_RENDU est figée à visuel-page/3 (les pages auparavant coupées, désormais acceptées, ne réutilisent pas l'ancien cache)", () => {
-    expect(VERSION_RENDU).toBe("visuel-page/3");
+  it("VERSION_RENDU est figée à visuel-page/5 (L9 : nouveaux gabarits T22 à T28, mesure des chevauchements ; les rendus de la version 4 ne servent plus)", () => {
+    expect(VERSION_RENDU).toBe("visuel-page/5");
   });
 
   it("l'empreinte dépend de la version du rendu : même spec, version différente = autre empreinte", () => {

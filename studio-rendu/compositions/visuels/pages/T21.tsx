@@ -1,10 +1,10 @@
 import { AbsoluteFill } from "remotion";
 import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
-import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE, MARGE, PAGE, POLICE_CORPS, TAILLES } from "../commun/constantes";
+import { BORD_DROIT_TEXTE, COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLES } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
 import { Swipe } from "../commun/Swipe";
 import { Titre } from "../commun/Titre";
-import { chargerPoliceJetBrainsMono } from "../polices";
+import { chargerPoliceInter } from "../polices";
 
 interface Proprietes {
   index: number;
@@ -30,15 +30,15 @@ function Bulles() {
  * Tout le texte est posé par le code (`textes-fixes.ts`) : aucun lien, aucun nom, aucun mot-clé d'appel.
  */
 export function T21({ index, total }: Proprietes) {
-  chargerPoliceJetBrainsMono();
+  chargerPoliceInter();
   return (
     <AbsoluteFill style={{ background: COULEURS.encre, padding: MARGE, boxSizing: "border-box" }}>
       <Zone libelle="T21 : corps" style={{ flex: 1, minHeight: 0, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", justifyContent: "space-between", marginBottom: PAGE.ecart }}>
-        <Titre texte={TEXTES_FIXES.t21Titre} maxLignes={3} hauteurMax={520} couleur={COULEURS.creme} largeur={LARGEUR_TITRE} accent />
+        <Titre texte={TEXTES_FIXES.t21Titre} maxLignes={3} hauteurMax={520} couleur={COULEURS.creme} largeur={LARGEUR_TITRE_BORNE} accent />
         <div style={{ alignSelf: "center" }}>
           <Bulles />
         </div>
-        <div style={{ fontFamily: POLICE_CORPS, fontWeight: 500, fontSize: TAILLES.phrase, lineHeight: 1.3, color: COULEURS.creme }}>{TEXTES_FIXES.t21Ligne}</div>
+        <div style={{ maxWidth: BORD_DROIT_TEXTE - MARGE, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLES.phrase, lineHeight: 1.3, color: COULEURS.creme }}>{TEXTES_FIXES.t21Ligne}</div>
       </Zone>
       <div style={{ height: PAGE.hauteurPied }}>
         <Swipe index={index} total={total} sombre />

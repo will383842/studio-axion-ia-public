@@ -1,5 +1,5 @@
 /** Contrôles de structure d'un carrousel (pages, rythme, variété, titres, série, densité) : purs. */
-import { capaciteMotCarte } from "../../briques/visuels/registre-pages";
+import { CAPACITE_COMPARAISON, capaciteMotCarte } from "../../briques/visuels/registre-pages";
 import type { ControlePorte } from "../visuels/contrats";
 import type { CarrouselSpecType } from "../visuels/types";
 import { mots, normaliser } from "./texte";
@@ -40,6 +40,19 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
     });
   });
 
+  // T24 : une case est étroite ; un mot ne se coupe pas, il doit y tenir seul.
+  pages.forEach((p, i) => {
+    if (p.type !== "T24") return;
+    p.lignes.forEach((l, k) => {
+      for (const cote of ["sans", "avec"] as const) {
+        const long = l[cote].split(/[ \t\n\r\f\-\u2010]+/u).reduce((a, m) => (m.length > a.length ? m : a), "");
+        if (long.length > CAPACITE_COMPARAISON.mot) {
+          res.push({ code: "MOT_TROP_LONG", niveau: "rouge", page: i + 1, chemin: `pages.${i}.lignes.${k}.${cote}`, phrase: `Page ${i + 1} : le mot « ${long} » (${long.length} signes) est trop long pour une case de comparaison (${CAPACITE_COMPARAISON.mot} signes au plus) ; choisissez un mot plus court.` });
+        }
+      }
+    });
+  });
+
   const types = new Set(pages.map((p) => p.type));
   if (types.size < TYPES_MIN) {
     res.push({ code: "VARIETE", niveau: "orange", phrase: `Le carrousel n'utilise que ${types.size} types de pages différents ; il en faut au moins ${TYPES_MIN} pour qu'il reste vivant.` });
@@ -54,7 +67,8 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
     else res.push({ code: "TITRE_DOUBLE", niveau: "rouge", page: t.page, phrase: `Page ${t.page} : le titre (« ${t.titre} ») est le même qu'à la page ${avant}.` });
   }
 
-  const scenarios = titres.filter((t) => normaliser(t.titre).startsWith("scenario type"));
+  // Un cas concret T26 porte toujours l'étiquette « Scénario type » (posée par le code) : il compte dans la série.
+  const scenarios = pages.flatMap((p, i) => (p.type === "T26" || ("titre" in p && normaliser(p.titre).startsWith("scenario type")) ? [i + 1] : []));
   if (scenarios.length > SERIE_MAX) {
     res.push({ code: "SERIE", niveau: "orange", phrase: `${scenarios.length} pages « Scénario type » : ${SERIE_MAX} au plus, sinon le carrousel se répète.` });
   }
