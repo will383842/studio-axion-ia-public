@@ -1,0 +1,696 @@
+{
+ "version": "plan-facecam-animee/1",
+ "charte": "interface-claire/1",
+ "duree": 22.8,
+ "fps": 30,
+ "largeur": 1080,
+ "hauteur": 1920,
+ "prise": {
+  "src": "prise-demo.mp4",
+  "finSec": 22.8,
+  "yeux": 0.325,
+  "centreX": 0.513,
+  "largeurVisage": 0.49
+ },
+ "groupes": [
+  {
+   "mots": [
+    {
+     "w": "Le",
+     "a": 0.3
+    },
+    {
+     "w": "soir",
+     "a": 0.5
+    },
+    {
+     "w": "vous",
+     "a": 0.75
+    }
+   ],
+   "fin": 0.95
+  },
+  {
+   "mots": [
+    {
+     "w": "tapez",
+     "a": 0.95
+    },
+    {
+     "w": "encore",
+     "a": 1.2
+    }
+   ],
+   "fin": 1.5
+  },
+  {
+   "mots": [
+    {
+     "w": "vos",
+     "a": 1.5
+    },
+    {
+     "w": "devis",
+     "a": 1.7,
+     "fort": true
+    }
+   ],
+   "fin": 2.3
+  },
+  {
+   "mots": [
+    {
+     "w": "Et",
+     "a": 2.3
+    },
+    {
+     "w": "pendant",
+     "a": 2.5
+    }
+   ],
+   "fin": 2.8
+  },
+  {
+   "mots": [
+    {
+     "w": "ce",
+     "a": 2.8
+    },
+    {
+     "w": "temps",
+     "a": 3,
+     "fort": true
+    }
+   ],
+   "fin": 3.2
+  },
+  {
+   "mots": [
+    {
+     "w": "vos",
+     "a": 3.2
+    },
+    {
+     "w": "clients",
+     "a": 3.45,
+     "fort": true
+    }
+   ],
+   "fin": 3.8
+  },
+  {
+   "mots": [
+    {
+     "w": "attendent",
+     "a": 3.8
+    },
+    {
+     "w": "une",
+     "a": 4.15
+    },
+    {
+     "w": "relance",
+     "a": 4.4,
+     "fort": true
+    }
+   ],
+   "fin": 4.75
+  },
+  {
+   "mots": [
+    {
+     "w": "sur",
+     "a": 4.75
+    },
+    {
+     "w": "leur",
+     "a": 4.9
+    },
+    {
+     "w": "téléphone",
+     "a": 5.05,
+     "fort": true
+    }
+   ],
+   "fin": 5.85
+  },
+  {
+   "mots": [
+    {
+     "w": "Avec",
+     "a": 5.9
+    },
+    {
+     "w": "l'assistant",
+     "a": 6.1
+    }
+   ],
+   "fin": 6.7
+  },
+  {
+   "mots": [
+    {
+     "w": "relance",
+     "a": 6.7,
+     "fort": true
+    }
+   ],
+   "fin": 7
+  },
+  {
+   "mots": [
+    {
+     "w": "envoyée",
+     "a": 7
+    },
+    {
+     "w": "devis",
+     "a": 7.5,
+     "fort": true
+    }
+   ],
+   "fin": 7.8
+  },
+  {
+   "mots": [
+    {
+     "w": "signé",
+     "a": 7.8
+    },
+    {
+     "w": "rendez-vous",
+     "a": 8.1,
+     "fort": true
+    }
+   ],
+   "fin": 8.5
+  },
+  {
+   "mots": [
+    {
+     "w": "confirmé",
+     "a": 8.5
+    }
+   ],
+   "fin": 9.2
+  },
+  {
+   "mots": [
+    {
+     "w": "Stop",
+     "a": 9.2,
+     "fort": true
+    }
+   ],
+   "fin": 9.5
+  },
+  {
+   "mots": [
+    {
+     "w": "à",
+     "a": 9.5
+    },
+    {
+     "w": "la",
+     "a": 9.6
+    },
+    {
+     "w": "saisie",
+     "a": 9.75
+    }
+   ],
+   "fin": 10
+  },
+  {
+   "mots": [
+    {
+     "w": "manuelle",
+     "a": 10
+    }
+   ],
+   "fin": 10.8
+  },
+  {
+   "mots": [
+    {
+     "w": "Vos",
+     "a": 11.2
+    },
+    {
+     "w": "documents",
+     "a": 11.4,
+     "fort": true
+    }
+   ],
+   "fin": 11.8
+  },
+  {
+   "mots": [
+    {
+     "w": "partent",
+     "a": 11.8
+    },
+    {
+     "w": "tout",
+     "a": 12.1
+    },
+    {
+     "w": "seuls",
+     "a": 12.3
+    }
+   ],
+   "fin": 12.6
+  },
+  {
+   "mots": [
+    {
+     "w": "chez",
+     "a": 12.6
+    },
+    {
+     "w": "le",
+     "a": 12.8
+    },
+    {
+     "w": "client",
+     "a": 12.9,
+     "fort": true
+    }
+   ],
+   "fin": 13.6
+  },
+  {
+   "mots": [
+    {
+     "w": "Vous",
+     "a": 13.6
+    },
+    {
+     "w": "gagnez",
+     "a": 13.8,
+     "fort": true
+    }
+   ],
+   "fin": 14.1
+  },
+  {
+   "mots": [
+    {
+     "w": "du",
+     "a": 14.1
+    },
+    {
+     "w": "temps",
+     "a": 14.2,
+     "fort": true
+    }
+   ],
+   "fin": 14.5
+  },
+  {
+   "mots": [
+    {
+     "w": "sur",
+     "a": 14.5
+    },
+    {
+     "w": "la",
+     "a": 14.7
+    },
+    {
+     "w": "relance",
+     "a": 14.9,
+     "fort": true
+    }
+   ],
+   "fin": 15.4
+  },
+  {
+   "mots": [
+    {
+     "w": "la",
+     "a": 15.4
+    },
+    {
+     "w": "facture",
+     "a": 15.6,
+     "fort": true
+    }
+   ],
+   "fin": 16
+  },
+  {
+   "mots": [
+    {
+     "w": "et",
+     "a": 16
+    },
+    {
+     "w": "le",
+     "a": 16.1
+    },
+    {
+     "w": "planning",
+     "a": 16.3,
+     "fort": true
+    }
+   ],
+   "fin": 17.1
+  },
+  {
+   "mots": [
+    {
+     "w": "Avec",
+     "a": 17.2
+    },
+    {
+     "w": "votre",
+     "a": 17.4
+    },
+    {
+     "w": "agenda",
+     "a": 17.6
+    }
+   ],
+   "fin": 17.9
+  },
+  {
+   "mots": [
+    {
+     "w": "sur",
+     "a": 17.9
+    },
+    {
+     "w": "mobile",
+     "a": 18.2
+    }
+   ],
+   "fin": 19
+  },
+  {
+   "mots": [
+    {
+     "w": "et",
+     "a": 19.2
+    },
+    {
+     "w": "vous",
+     "a": 19.4
+    },
+    {
+     "w": "restez",
+     "a": 19.6
+    }
+   ],
+   "fin": 19.9
+  },
+  {
+   "mots": [
+    {
+     "w": "serein",
+     "a": 19.9,
+     "fort": true
+    }
+   ],
+   "fin": 20.7
+  }
+ ],
+ "cartes": [],
+ "fenetres": [],
+ "calques": [],
+ "zooms": [],
+ "elementsV3": [
+  {
+   "id": "mot-saute",
+   "debut": 1.6,
+   "fin": 2.8,
+   "mots": [
+    "DEVIS"
+   ],
+   "illustre": "tapez encore vos devis"
+  },
+  {
+   "id": "fenetre-telephone",
+   "debut": 3.4,
+   "fin": 5.6,
+   "mots": [
+    "Relance"
+   ],
+   "recherches": [
+    "client qui lit une relance sur son téléphone"
+   ],
+   "medias": [
+    "broll/telephone.mp4"
+   ],
+   "illustre": "relance sur leur téléphone"
+  },
+  {
+   "id": "notifications-verre",
+   "debut": 6.4,
+   "fin": 8.9,
+   "lignes": [
+    {
+     "texte": "Relance envoyée",
+     "a": 6.7,
+     "icone": "mail"
+    },
+    {
+     "texte": "Devis signé",
+     "a": 7.5,
+     "icone": "coche"
+    },
+    {
+     "texte": "Rendez-vous confirmé",
+     "a": 8.1,
+     "icone": "calendrier"
+    }
+   ],
+   "illustre": "relance envoyée devis signé rendez-vous confirmé"
+  },
+  {
+   "id": "dalle-claquee",
+   "debut": 9.2,
+   "fin": 10.3,
+   "mots": [
+    "Stop"
+   ],
+   "illustre": "Stop à la saisie manuelle"
+  },
+  {
+   "id": "bande-video",
+   "debut": 11.5,
+   "fin": 13.3,
+   "mots": [
+    "Partent"
+   ],
+   "recherches": [
+    "documents qui partent en livraison chez le client"
+   ],
+   "medias": [
+    "broll/livraison.mp4"
+   ],
+   "illustre": "documents partent chez le client"
+  },
+  {
+   "id": "carte-verre",
+   "debut": 13.7,
+   "fin": 17.2,
+   "mots": [
+    "Temps"
+   ],
+   "lignes": [
+    {
+     "texte": "Relance",
+     "a": 14.9,
+     "icone": "mail"
+    },
+    {
+     "texte": "Facture",
+     "a": 15.6,
+     "icone": "document"
+    },
+    {
+     "texte": "Planning",
+     "a": 16.3,
+     "icone": "calendrier"
+    }
+   ],
+   "illustre": "temps sur la relance la facture le planning"
+  },
+  {
+   "id": "cercle-epaule",
+   "debut": 17.5,
+   "fin": 19.1,
+   "recherches": [
+    "personne qui consulte son agenda sur un ordinateur"
+   ],
+   "medias": [
+    "broll/agenda.mp4"
+   ],
+   "illustre": "votre agenda sur mobile"
+  },
+  {
+   "id": "mot-derriere",
+   "debut": 19.4,
+   "fin": 21.1,
+   "mots": [
+    "SEREIN"
+   ],
+   "illustre": "vous restez serein"
+  }
+ ],
+ "fin": {
+  "debut": 21.3,
+  "marque": "Axion-IA",
+  "adresse": "axion-ia.com",
+  "motCle": "DEVIS",
+  "tuiles": [
+   "mail",
+   "calendrier",
+   "document"
+  ]
+ },
+ "sons": [
+  [
+   1.6,
+   "select_001",
+   0.08
+  ],
+  [
+   2.067,
+   "drop_003",
+   0.08
+  ],
+  [
+   3.4,
+   "maximize_004",
+   0.1
+  ],
+  [
+   4.133,
+   "tick_001",
+   0.08
+  ],
+  [
+   5.4,
+   "minimize_004",
+   0.08
+  ],
+  [
+   6.4,
+   "vibreur",
+   0.08
+  ],
+  [
+   6.433,
+   "ding-1",
+   0.08
+  ],
+  [
+   6.867,
+   "ding-2",
+   0.08
+  ],
+  [
+   7.3,
+   "ding-3",
+   0.08
+  ],
+  [
+   8.45,
+   "whoosh-out",
+   0.07
+  ],
+  [
+   9.2,
+   "drop_004",
+   0.14
+  ],
+  [
+   10.2,
+   "whoosh-out",
+   0.16
+  ],
+  [
+   11.5,
+   "whoosh-in",
+   0.08
+  ],
+  [
+   13.1,
+   "whoosh-out",
+   0.06
+  ],
+  [
+   13.733,
+   "drop_003",
+   0.12
+  ],
+  [
+   13.967,
+   "tick_001",
+   0.07
+  ],
+  [
+   14.367,
+   "tick_001",
+   0.07
+  ],
+  [
+   14.767,
+   "tick_001",
+   0.07
+  ],
+  [
+   16.85,
+   "whoosh-out",
+   0.08
+  ],
+  [
+   17.5,
+   "select_002",
+   0.08
+  ],
+  [
+   17.8,
+   "tick_002",
+   0.06
+  ],
+  [
+   19.4,
+   "whoosh-in",
+   0.1
+  ],
+  [
+   21.28,
+   "whoosh-in",
+   0.3
+  ],
+  [
+   21.55,
+   "drop_004",
+   0.05
+  ],
+  [
+   21.75,
+   "tick_001",
+   0.05
+  ],
+  [
+   21.84,
+   "tick_001",
+   0.05
+  ],
+  [
+   21.93,
+   "tick_001",
+   0.05
+  ],
+  [
+   22.25,
+   "confirmation_002",
+   0.06
+  ]
+ ],
+ "pastilles": false
+}

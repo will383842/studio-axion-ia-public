@@ -1,0 +1,7 @@
+{
+  "chrono": { "instants": [5, 18, 30], "noms": ["v4 : anneau et compteur ensemble", "anneau qui s'ouvre, unité après", "compteur d'abord, anneau ensuite"] },
+  "contrat-signature": { "instants": [12, 20, 45], "noms": ["v4 : lignes puis signature", "feuille qui glisse, puis lignes", "lignes en fondu, du bas vers le haut"] },
+  "dossier-classe": { "instants": [10, 22, 45], "noms": ["v4 : feuille rangée, coche", "feuille en deux temps, coche dessinée", "dossier qui monte, puis la feuille"] },
+  "e-mail": { "instants": [6, 22, 55], "noms": ["v4 : rabat, message, coche", "enveloppe qui glisse, coche dessinée", "ouverture vive, message qui se pose"] },
+  "outils-relies": { "instants": [12, 20, 50], "noms": ["v4 : pastilles, fil, point", "pastilles glissées en alternance", "ordre inversé, point à rebours"] }
+}

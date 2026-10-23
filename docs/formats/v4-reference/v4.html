@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>On recrute en 15 minutes, version 4</title>
+<style>
+@font-face { font-family: "Cond"; src: url("polices/Anton-Regular.ttf"); }
+@font-face { font-family: "Texte"; src: url("polices/Inter-Bold.ttf"); }
+:root { --nuit:#110A05; --orange:#C2532A; --vif:#F0703C; --ivoire:#F4EFE7; --gris:#8a7c6e; --vert:#22a55b; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--nuit); }
+#scene { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: "Texte", sans-serif; }
+.plan { position: absolute; inset: 0; display: none; overflow: hidden; }
+.D { background: radial-gradient(900px 700px at 50% 78%, #7a3418 0%, #2a150b 45%, #0d0704 80%); color: #fff; }
+.I { background: radial-gradient(1000px 900px at 50% 45%, #fbf8f3 0%, #efe9df 75%); color: #15100c; }
+.lab { position: absolute; left: 0; right: 0; text-align: center; font: 28px "Texte"; letter-spacing: 9px; text-transform: uppercase; color: var(--orange); }
+.D .lab { color: var(--vif); }
+.mm { position: absolute; left: 40px; right: 40px; text-align: center; font-family: "Cond"; text-transform: uppercase; line-height: 1.04; white-space: nowrap; }
+.mm .w { display: inline-block; will-change: transform, filter; }
+.mm .acc { color: var(--orange); }
+.D .mm .acc { color: var(--vif); }
+.lueur { text-shadow: 0 0 60px rgba(240,112,60,.75), 0 0 140px rgba(240,112,60,.45); }
+.ligne { position: absolute; left: 60px; right: 60px; text-align: center; font: 42px "Texte"; color: var(--gris); }
+.D .ligne { color: #c9b8a6; }
+.obj { position: absolute; will-change: transform; }
+.ombre { box-shadow: 0 60px 120px rgba(40,20,8,.35), 0 12px 30px rgba(40,20,8,.18); }
+.D .ombre { box-shadow: 0 60px 130px rgba(0,0,0,.7); }
+.tel { width: 470px; height: 920px; border-radius: 76px; background: #0c0c0e; padding: 14px; }
+.tel .ecran { position: relative; width: 100%; height: 100%; border-radius: 62px; overflow: hidden; background: #fff; }
+.tel img { position: absolute; left: 0; top: 0; width: 100%; transform-origin: 0 0; }
+.onde { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 7px solid var(--vif); background: rgba(240,112,60,.35); opacity: 0; }
+.puce { position: absolute; padding: 18px 34px 18px 88px; border-radius: 60px; background: #fff; color: #15100c; font: 44px "Texte"; white-space: nowrap; opacity: 0; }
+.puce:before { content: ""; position: absolute; left: 16px; top: 50%; width: 56px; height: 56px; margin-top: -28px; border-radius: 50%; background: var(--vert); }
+.puce:after { content: ""; position: absolute; left: 36px; top: 50%; width: 14px; height: 26px; margin-top: -19px; border: solid #fff; border-width: 0 6px 6px 0; transform: rotate(45deg); }
+.etiq { position: absolute; padding: 12px 28px; border-radius: 40px; border: 2px solid rgba(255,255,255,.28); font: 36px "Texte"; color: #e9dccb; white-space: nowrap; opacity: 0; }
+.fiche { background: #fff; border-radius: 40px; color: #15100c; }
+.rang { position: relative; height: 112px; padding-left: 96px; font: 50px/112px "Texte"; white-space: nowrap; opacity: 0; border-bottom: 2px solid #eee7dc; }
+.rang:before { content: ""; position: absolute; left: 22px; top: 32px; width: 44px; height: 44px; border-radius: 12px; border: 4px solid #cfc4b6; }
+.notif { position: absolute; left: 0; width: 900px; height: 190px; border-radius: 36px; background: #fff; color: #15100c; padding: 34px 120px 0 160px; opacity: 0; }
+.notif .ic { position: absolute; left: 34px; top: 40px; width: 100px; height: 100px; border-radius: 26px; background: var(--orange); color: #fff; font: 64px/100px "Cond"; text-align: center; }
+.notif .qui { font: 30px "Texte"; color: var(--gris); }
+.notif .suj { font: 42px/1.2 "Texte"; margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif .ok { position: absolute; right: 30px; top: 62px; width: 66px; height: 66px; border-radius: 50%; background: var(--vert); opacity: 0; }
+.notif .ok:after { content: ""; position: absolute; left: 24px; top: 12px; width: 16px; height: 30px; border: solid #fff; border-width: 0 7px 7px 0; transform: rotate(45deg); }
+.barre { height: 18px; border-radius: 9px; background: #ddd3c6; margin: 0 0 26px; width: 0; }
+#fil { position: absolute; left: 60px; bottom: 150px; height: 6px; border-radius: 3px; background: var(--vif); width: 0; opacity: 0; }
+#st { position: absolute; left: 60px; right: 60px; top: 1600px; text-align: center; font: 42px/1.2 "Texte"; }
+#st span { color: var(--vif); }
+#eclair { position: absolute; inset: 0; background: var(--vif); opacity: 0; pointer-events: none; }
+.pt { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #ffb38c; opacity: .5; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <!-- ACCROCHE -->
+  <div class="plan D" id="s1">
+    <div class="lab" style="top:560px">Recrutement · cas réel</div>
+    <div class="mm" data-k="a1" data-fit style="top:630px;font-size:230px">On recrute</div>
+    <div class="mm" data-k="a2" data-fit style="top:890px;font-size:150px">nos collaborateurs</div>
+    <div class="mm" data-k="a3" style="top:1080px;font-size:230px">*en…*</div>
+  </div>
+  <div class="plan D" id="s2">
+    <div id="pts2"></div>
+    <div class="mm lueur" data-k="b1" style="top:330px;font-size:720px;color:var(--vif)">15</div>
+    <div class="mm" data-k="b2" style="top:1090px;font-size:230px">minutes.</div>
+    <div class="etiq" style="left:70px;top:1400px">0 CV à trier</div><div class="etiq" style="left:400px;top:1400px">0 relance</div><div class="etiq" style="left:690px;top:1400px">0 papier</div>
+  </div>
+
+  <!-- LE PROBLÈME -->
+  <div class="plan I" id="s4">
+    <div class="lab" style="top:250px">Avant</div>
+    <div class="mm" data-k="d1" style="top:300px;font-size:170px">C'était *ça.*</div>
+    <div class="obj fiche ombre" id="liste" style="left:110px;top:560px;width:860px;padding:26px 30px 20px">
+      <div class="rang">Trier les candidatures</div><div class="rang">Répondre à chacun</div><div class="rang">Relancer</div>
+      <div class="rang">Caler un rendez-vous</div><div class="rang">Envoyer le contrat</div><div class="rang" style="border:0">Courir après la signature</div>
+    </div>
+    <div class="obj" data-k="d9" style="left:520px;top:1150px;padding:26px 46px 20px;border-radius:36px;background:var(--orange);color:#fff;font:170px/1 Cond;opacity:0;box-shadow:0 30px 70px rgba(120,50,20,.45)">+1 H<div style="font:36px Texte;margin-top:8px">pour chaque personne</div></div>
+  </div>
+
+  <!-- LA BASCULE -->
+  <div class="plan D" id="s6">
+    <div id="pts6"></div>
+    <div class="mm" data-k="e1" style="top:640px;font-size:190px">Alors on a</div>
+    <div class="mm lueur" data-k="e2" data-fit style="top:870px;font-size:250px">tout *automatisé.*</div>
+  </div>
+
+  <div id="etapes"></div>
+
+  <!-- LE RAPPEL -->
+  <div class="plan D" id="s11">
+    <div class="mm" data-k="g1" style="top:290px;font-size:190px">Elle *oublie ?*</div>
+    <div class="ligne" data-k="g2" style="top:520px">Le rappel part tout seul.</div>
+    <div class="obj tel ombre" id="tel11" style="left:305px;top:640px"><div class="ecran" style="background:linear-gradient(180deg,#1b1410,#3a1d10)">
+      <div style="position:absolute;left:0;right:0;top:110px;text-align:center;font:130px Cond;color:#fff;letter-spacing:2px">09:41</div>
+      <div id="n11" style="position:absolute;left:18px;right:18px;top:350px;border-radius:30px;background:rgba(255,255,255,.94);color:#15100c;padding:22px 24px;opacity:0">
+        <div style="font:22px Texte;color:#8a7c6e">AXION-IA · maintenant</div><div style="font:30px/1.25 Texte;margin-top:8px">Rappel : notre échange demain à 14:00</div></div>
+    </div></div>
+  </div>
+
+  <!-- NOTRE SEUL TRAVAIL -->
+  <div class="plan D" id="s13">
+    <div id="pts13"></div>
+    <div class="mm" data-k="h1" style="top:650px;font-size:230px">Notre seul</div>
+    <div class="mm lueur" data-k="h2" data-fit style="top:920px;font-size:330px">*travail.*</div>
+  </div>
+
+  <!-- CLASSÉ -->
+  <div class="plan D" id="s16">
+    <div class="mm" data-k="k1" data-fit style="top:330px;font-size:230px">Dossier *classé.*</div>
+    <div class="obj" id="dossier" style="left:240px;top:760px;width:600px;height:640px">
+      <div style="position:absolute;left:0;top:60px;width:600px;height:560px;border-radius:36px;background:#8f3b1c"></div>
+      <div style="position:absolute;left:0;top:0;width:260px;height:120px;border-radius:30px 30px 0 0;background:#8f3b1c"></div>
+      <div id="feuille" style="position:absolute;left:80px;top:-260px;width:440px;height:560px;border-radius:22px;background:#fff;padding:40px 36px"><div class="barre" style="width:60%;background:var(--orange)"></div><div class="barre" style="width:100%"></div><div class="barre" style="width:90%"></div><div class="barre" style="width:96%"></div><div class="barre" style="width:70%"></div></div>
+      <div style="position:absolute;left:0;top:210px;width:600px;height:430px;border-radius:36px;background:linear-gradient(180deg,#f0703c,#c2532a);box-shadow:0 -10px 40px rgba(0,0,0,.25)"></div>
+      <div id="ok16" style="position:absolute;left:210px;top:330px;width:180px;height:180px;border-radius:50%;background:#fff;opacity:0"><div style="position:absolute;left:64px;top:30px;width:50px;height:92px;border:solid var(--vert);border-width:0 22px 22px 0;transform:rotate(45deg)"></div></div>
+    </div>
+  </div>
+
+  <!-- LE RÉSULTAT -->
+  <div class="plan I" id="s17">
+    <div class="lab" style="top:250px">Résultat</div>
+    <div class="mm" data-k="l1" data-fit style="top:300px;font-size:190px">Des heures *gagnées.*</div>
+    <div class="lab" style="top:640px;text-align:left;left:90px;color:var(--gris)">Avant</div>
+    <div id="j1" style="position:absolute;left:90px;top:690px;height:190px;width:0;border-radius:30px;background:#15100c;color:#fff;font:130px/190px Cond;padding-left:40px;overflow:hidden;white-space:nowrap">+1 H</div>
+    <div class="lab" style="top:980px;text-align:left;left:90px">Maintenant</div>
+    <div id="j2" style="position:absolute;left:90px;top:1030px;height:190px;width:0;border-radius:30px;background:var(--vif);color:#15100c;font:130px/190px Cond;padding-left:40px;overflow:hidden;white-space:nowrap">15 MIN</div>
+    <div class="ligne" data-k="l2" style="top:1300px">à chaque recrutement</div>
+  </div>
+
+  <!-- ET VOUS ? -->
+  <div class="plan D" id="s18">
+    <div class="mm" data-k="m1" style="top:560px;font-size:170px">Et dans votre</div>
+    <div class="mm lueur" data-k="m2" data-fit style="top:770px;font-size:290px">*entreprise ?*</div>
+    <div class="ligne" data-k="m3" style="top:1140px;font-size:50px">Quelle tâche pourrait tourner toute seule ?</div>
+  </div>
+  <div class="plan I" id="s19">
+    <div class="lab" style="top:330px">Pour recevoir le plan</div>
+    <div class="mm" data-k="n1" style="top:390px;font-size:250px">Écrivez</div>
+    <div class="obj fiche ombre" id="champ" style="left:90px;top:760px;width:900px;height:260px;border-radius:130px">
+      <div style="position:absolute;left:34px;top:40px;width:180px;height:180px;border-radius:50%;background:#e6dccf"></div>
+      <div id="tape" style="position:absolute;left:260px;top:34px;font:170px/1.1 Cond;color:var(--orange);letter-spacing:6px"></div>
+      <div style="position:absolute;right:34px;top:50px;width:160px;height:160px;border-radius:50%;background:var(--vif)"><div style="position:absolute;left:58px;top:46px;border-style:solid;border-width:34px 0 34px 56px;border-color:transparent transparent transparent #fff"></div></div>
+    </div>
+    <div class="mm" data-k="n3" data-fit style="top:1100px;font-size:190px">en *commentaire.*</div>
+  </div>
+  <div class="plan D" id="s20">
+    <div id="pts20"></div>
+    <div class="mm" data-k="p1" style="top:560px;font-size:170px">On vous envoie</div>
+    <div class="mm lueur" data-k="p2" data-fit style="top:770px;font-size:330px">*le plan.*</div>
+    <div class="ligne" data-k="p3" style="top:1200px;font-size:46px">de cette machine, en message privé</div>
+    <div data-k="p4" style="position:absolute;left:0;right:0;top:1370px;text-align:center;font:90px Cond;color:#fff;opacity:0">Axion-<b style="color:var(--vif);font-weight:normal">IA</b></div>
+  </div>
+
+  <div id="fil"></div>
+  <div id="st"></div>
+  <div id="eclair"></div>
+</div>
+
+<script src="voix4.js"></script>
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const K = (k) => document.querySelector(`[data-k="${k}"]`);
+const c01 = (x) => Math.max(0, Math.min(1, x));
+const p = (t, a, d) => c01((t - a) / d);
+const doux = (x) => 1 - Math.pow(1 - x, 3);
+const va = (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const rebond = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const mel = (a, b, x) => a + (b - a) * x;
+
+// ---------- les 6 étapes, toutes sur le même gabarit ----------
+const ETAPES = [
+  { id: "s7", f: "I", titre: "L'*annonce*", ligne: "Elle la voit sur Facebook." },
+  { id: "s8", f: "I", titre: "L'*inscription*", ligne: "Toute seule. En vingt secondes." },
+  { id: "s9", f: "D", titre: "Les *e-mails*", ligne: "Ils partent tout seuls." },
+  { id: "s10", f: "I", titre: "Le *rendez-vous*", ligne: "Elle le choisit elle-même." },
+  { id: "s12", f: "D", titre: "La *visio*", ligne: "Là, c'est nous." },
+  { id: "s14", f: "I", titre: "Le *contrat*", ligne: "Il part tout seul." },
+];
+ETAPES.forEach((e, i) => {
+  const d = document.createElement("div");
+  d.className = "plan " + e.f; d.id = e.id; d.dataset.etape = i + 1;
+  d.innerHTML = `<div class="lab" style="top:250px">Étape 0${i + 1}</div><div class="mm et" style="top:300px;font-size:190px">${e.titre}</div><div class="ligne el" style="top:540px">${e.ligne}</div><div class="corps"></div>`;
+  $("#etapes").appendChild(d);
+});
+const tel = (id, contenu) => `<div class="obj tel ombre" id="${id}" style="left:305px;top:640px"><div class="ecran">${contenu}<div class="onde"></div></div></div>`;
+$("#s7 .corps").innerHTML = tel("tel7", '<img src="rushes/pub.png" alt="" style="width:505px;left:-32px;transform-origin:50% 40%">');
+$("#s8 .corps").innerHTML = tel("tel8", '<img id="form" alt="">') + '<div class="puce ombre" id="pu8" style="left:560px;top:1400px">Inscrite</div>';
+$("#s9 .corps").innerHTML = `<div class="obj" id="pile" style="left:90px;top:700px;width:900px;height:460px">
+  <div class="notif ombre" style="top:0"><div class="ic">A</div><div class="qui">Axion-IA</div><div class="suj">C'est noté</div><div class="ok"></div></div>
+  <div class="notif ombre" style="top:230px"><div class="ic">A</div><div class="qui">Axion-IA</div><div class="suj">Votre échange vous attend</div><div class="ok"></div></div></div>`;
+$("#s10 .corps").innerHTML = tel("tel10", '<img id="rdvA" src="rushes/rdv-entier.jpg" alt=""><img id="rdvB" src="rushes/rdv-2.jpg" alt="">') + '<div class="puce ombre" id="pu10" style="left:500px;top:1400px">Réservé sans nous</div>';
+$("#s12 .corps").innerHTML = `<svg style="position:absolute;left:170px;top:690px;filter:drop-shadow(0 0 50px rgba(240,112,60,.55))" width="740" height="740" viewBox="0 0 740 740"><circle cx="370" cy="370" r="320" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="30"/><circle id="anneau" cx="370" cy="370" r="320" fill="none" stroke="#F0703C" stroke-width="30" stroke-linecap="round" stroke-dasharray="2011" stroke-dashoffset="2011" transform="rotate(-90 370 370)"/></svg>
+  <div class="mm lueur" id="chrono" style="top:840px;font-size:340px;color:var(--vif)">0</div><div class="mm" style="top:1210px;font-size:80px">minutes</div>`;
+$("#s14 .corps").innerHTML = `<div class="obj fiche ombre" id="contrat" style="left:230px;top:660px;width:620px;height:800px;padding:60px 54px;border-radius:30px">
+  <div class="barre" style="background:var(--orange);height:26px"></div><div class="barre"></div><div class="barre"></div><div class="barre"></div><div class="barre"></div><div class="barre"></div><div class="barre"></div><div class="barre"></div>
+  <svg style="position:absolute;left:60px;bottom:70px" width="360" height="150" viewBox="0 0 360 150"><path id="signature" d="M10 110 C 40 20, 70 20, 80 90 S 120 140, 140 60 S 170 20, 190 95 S 240 120, 260 70 S 300 60, 350 85" fill="none" stroke="#15100c" stroke-width="8" stroke-linecap="round" stroke-dasharray="620" stroke-dashoffset="620"/></svg>
+  <div style="position:absolute;left:60px;right:54px;bottom:60px;height:3px;background:#cfc4b6"></div></div>
+  <div class="puce ombre" id="pu14a" style="left:470px;top:760px">Envoyé tout seul</div><div class="puce ombre" id="pu14b" style="left:560px;top:1330px">Signé</div>`;
+
+// particules des plans lumineux
+["pts2", "pts6", "pts13", "pts20"].forEach((id, g) => { $("#" + id).innerHTML = Array.from({ length: 16 }, (_, i) => `<i class="pt" data-x="${(i * 197 + g * 71) % 1000 + 40}" data-y="${(i * 331 + g * 53) % 1500 + 200}" data-v="${.4 + ((i * 7) % 10) / 12}"></i>`).join(""); });
+
+// mots animés un par un : *mot* = mot en orange
+$$(".mm").forEach((el) => { if (el.id === "chrono") return; el.innerHTML = el.innerHTML.split(" ").map((m) => { const acc = /\*/.test(m); return `<span class="w${acc ? " acc" : ""}">${m.replace(/\*/g, "")}</span>`; }).join(" "); });
+function mots(el, ecoule, pas = .09, duree = .34) { $$(".w", el).forEach((w, i) => { const x = p(ecoule - i * pas, 0, duree); w.style.opacity = x; w.style.transform = `translateY(${(1 - doux(x)) * 60}px)`; w.style.filter = x < 1 ? `blur(${(1 - x) * 12}px)` : "none"; }); }
+function entrer(el, x, dy = 90) { el.style.opacity = c01(x * 2.5); return `translateY(${(1 - doux(x)) * dy}px) scale(${.93 + .07 * doux(x)})`; }
+function biais(t, ry = -11, rx = 5) { return `perspective(1900px) rotateY(${ry + 3 * Math.sin(t * .9)}deg) rotateX(${rx + 1.6 * Math.cos(t * .7)}deg)`; }
+function surgir(el, x, rot = 0) { el.style.opacity = c01(x * 3); el.style.transform = `scale(${.6 + .4 * rebond(x)}) rotate(${rot}deg)`; }
+function onde(o, x, ox, oy) { o.style.left = ox + "px"; o.style.top = oy + "px"; o.style.opacity = x > 0 && x < 1 ? 1 - x : 0; o.style.transform = `scale(${.4 + x})`; }
+
+// ---------- la voix donne le tempo ----------
+const TEMPO = 1.08;
+const MOTS = window.VOIX.mots.map((m) => ({ mot: m.word, a: m.start / TEMPO, b: m.end / TEMPO }));
+const net = (s) => s.toLowerCase().replace(/[.,?!:;«»"]/g, "").trim();
+const manquants = [];
+function q(mot, n = 1, avance = 0) { let vu = 0; for (const m of MOTS) if (m.b > m.a && net(m.mot) === mot && ++vu === n) return Math.max(0, m.a - avance); if (!manquants.includes(`${mot}#${n}`)) manquants.push(`${mot}#${n}`); return 0; }
+const FIN = MOTS.filter((m) => m.b > m.a).at(-1).b + 1.5;
+window.DUREE = +FIN.toFixed(2);
+const PLANS = [["s1", 0], ["s2", q("quinze", 1, .08)], ["s4", q("avant", 1, .1)], ["s6", q("alors", 1, .1)], ["s7", q("voit", 1, .45)], ["s8", q("s'inscrit", 1, .25)], ["s9", q("reçoit", 1, .25)],
+  ["s10", q("choisit", 1, .25)], ["s11", q("oublie", 1, .48)], ["s12", q("nous", 1, .1)], ["s13", q("c'est", 1, .08)], ["s14", q("derrière", 1, .1)], ["s16", q("dossier", 1, .28)],
+  ["s17", q("résultat", 1, .1)], ["s18", q("dans", 1, .18)], ["s19", q("écrivez", 1, .1)], ["s20", q("envoie", 1, .32)]].map(([id, a], i, tous) => ({ id, a, b: tous[i + 1] ? tous[i + 1][1] : FIN }));
+
+const SONS = []; let tour = 0;
+const son = (t, famille, vol) => SONS.push([+Math.max(0, t).toFixed(3), `${famille}-${(tour++ % 4) + 1}.wav`, vol]);
+PLANS.slice(1).forEach((pl) => son(pl.a - .03, "illustration-forte", .22));
+[q("quinze", 1), q("plus", 1) + .1, q("automatisé", 1), q("travail", 1), q("classé", 1), q("heures", 1), q("plan", 2)].forEach((t) => son(t, "impact", .55));
+["trier", "répondre", "relancer", "caler", "envoyer", "courir"].forEach((m) => son(q(m), "document", .3));
+[q("reçoit"), q("e-mails"), q("rappel")].forEach((t) => son(t, "telephone", .5));
+[q("elle-même"), q("rendez-vous", 2), q("vingt"), q("part", 2), q("téléphone"), q("plan", 1)].forEach((t) => son(t, "chiffre", .5));
+for (let k = 0; k < 16; k++) son(q("s'inscrit", 1, .1) + k * .06, "chiffre", .16);
+for (let k = 0; k < 12; k++) son(q("quinze", 3) + k * .035, "chiffre", .22);
+window.SONS = SONS;
+
+// sous-titres discrets (pour ceux qui regardent sans le son)
+const FORTS = /^(quinze|minutes|collaborateurs|heure|automatisé|seule?|vingt|secondes|e-mails|rendez-vous|rappel|visio|travail|contrat|signe|classé|heures|recrutement|entreprise|plan|commentaire)$/i;
+const ST = [];
+{ let lot = []; const fermer = () => { if (lot.length) { ST.push({ a: lot[0].a, b: lot.at(-1).b, mots: lot.map((m) => m.mot) }); lot = []; } };
+  for (const m of MOTS) { if (m.b <= m.a) { if (lot.length && /^[?!]$/.test(m.mot)) { lot.at(-1).mot += " " + m.mot; fermer(); } continue; }
+    lot.push({ ...m }); const petit = /^(à|de|des|du|le|la|les|un|une|son|sa|ses|et|en|où|tout|toute|est|sont|nos|vos|votre|notre|nous|vous|on|plus|par|cette|sur|pour|si|elle|d'une|c'est|c'était|a)$/i.test(net(m.mot));
+    if (/[.,?!:]$/.test(m.mot) || ((lot.length >= 5 || lot.map((x) => x.mot).join(" ").length >= 24) && (!petit || lot.length >= 7))) fermer(); }
+  fermer(); ST.forEach((s, i) => { s.fin = Math.min(s.b + .35, ST[i + 1] ? ST[i + 1].a : s.b + .8); }); }
+
+const NB_FORM = 29, E = 442 / 1080;          // E = échelle d'une capture dans l'écran du téléphone
+let formCourant = -1, stCourant = -2;
+
+window.rendre = async function (t) {
+  let fond = "D", local = 9, etape = 0, avance = 0;
+  for (const { id, a, b } of PLANS) {
+    const el = document.getElementById(id), actif = t >= a && t < b;
+    el.style.display = actif ? "block" : "none";
+    if (!actif) continue;
+    const l = t - a, d = b - a, T = (mot, n = 1, av = 0) => t - q(mot, n, av);
+    fond = el.classList.contains("I") ? "I" : "D"; local = l; etape = +el.dataset.etape || 0; avance = l / d;
+    const e0 = p(l, 0, .2); el.style.opacity = t < .05 ? 1 : c01(.35 + e0); el.style.transform = `scale(${1.04 - .04 * doux(e0)})`;
+    $$(".pt", el).forEach((pt) => { const v = +pt.dataset.v; pt.style.transform = `translate(${+pt.dataset.x + 30 * Math.sin(t * v + v * 9)}px, ${+pt.dataset.y - (t * 40 * v) % 300}px)`; pt.style.opacity = .25 + .35 * Math.abs(Math.sin(t * v * 2)); });
+
+    if (etape) { mots($(".et", el), l - .02, .1); const x = p(l, .35, .3), li = $(".el", el); li.style.opacity = x; li.style.transform = `translateY(${(1 - doux(x)) * 20}px)`; }
+
+    if (id === "s1") { mots(K("a1"), l + .5, .12); mots(K("a2"), T("collaborateurs") + .05); mots(K("a3"), T("en") + .05); }
+    if (id === "s2") {
+      const x = p(l, 0, .3), b1 = K("b1").firstChild; b1.style.opacity = c01(x * 3); b1.style.transform = `scale(${1.5 - .5 * doux(x)})`; b1.style.filter = x < 1 ? `blur(${(1 - x) * 18}px)` : "none";
+      mots(K("b2"), T("minutes") + .04);
+      $$(".etiq", el).forEach((e2, k) => { const y = p(T("oui"), k * .16, .28); e2.style.opacity = y; e2.style.transform = `translateY(${(1 - doux(y)) * 30}px)`; });
+    }
+    if (id === "s4") {
+      mots(K("d1"), l - .02, .12);
+      const L = $("#liste"), fin = T("plus"), tremble = fin > .1 && fin < .45 ? Math.sin(fin * 90) * 8 * (1 - p(fin, .1, .35)) : 0;
+      L.style.transform = `${entrer(L, p(l, .15, .4))} translateX(${tremble}px) ${biais(t, 6, 3)}`;
+      ["trier", "répondre", "relancer", "caler", "envoyer", "courir"].forEach((m, k) => { const r = $$(".rang", el)[k], x = p(T(m), -.05, .28); r.style.opacity = x * (fin > 0 ? mel(1, .4, p(fin, 0, .3)) : 1); r.style.transform = `translateX(${(1 - doux(x)) * -50}px)`; });
+      surgir(K("d9"), p(fin, .08, .3), 5);
+    }
+    if (id === "s6") { mots(K("e1"), l - .02, .1); mots(K("e2"), T("tout", 1) + .04, .16); }
+    if (id === "s7") {
+      const o = $("#tel7"); o.style.transform = `${entrer(o, p(l, .1, .45))} ${biais(t)}`;
+      $("img", o).style.transform = `scale(${1.02 + .1 * p(l, 0, d)}) translateY(${mel(-10, -70, va(p(l, .2, d)))}px)`;
+    }
+    if (id === "s8") {
+      const o = $("#tel8"); o.style.transform = `${entrer(o, p(l, .1, .4))} ${biais(t, 10, 4)}`;
+      const finFrappe = Math.max(.9, q("vingt") - a - .05), k = Math.round(c01((l - .3) / (finFrappe - .3)) * (NB_FORM - 1)), im = $("#form");
+      if (k !== formCourant) { im.src = `rushes/form/f${String(k).padStart(3, "0")}.jpg`; await im.decode().catch(() => {}); formCourant = k; }
+      im.style.transform = "translateY(-70px)";
+      surgir($("#pu8"), p(T("vingt"), .15, .3), -4);
+    }
+    if (id === "s9") {
+      const o = $("#pile"); o.style.transform = biais(t, -8, 4);
+      $$(".notif", el).forEach((nf, k) => { const x = p(T(k ? "e-mails" : "reçoit"), -.05, .34); nf.style.opacity = c01(x * 2.5); nf.style.transform = `translateY(${(1 - doux(x)) * 120}px) scale(${.92 + .08 * doux(x)})`; surgir($(".ok", nf), p(T(k ? "e-mails" : "reçoit"), .35, .28)); });
+    }
+    if (id === "s10") {
+      const o = $("#tel10"); o.style.transform = `${entrer(o, p(l, .1, .4))} ${biais(t)}`;
+      const A = $("#rdvA"), B = $("#rdvB"), sw = p(T("son", 1), 0, .25);
+      A.style.transform = `translateY(${mel(-900, -1560, doux(p(l, .1, .6))) * E}px)`;
+      B.style.transform = `translateX(${(1 - doux(sw)) * 520}px)`; B.style.opacity = sw > 0 ? 1 : 0;
+      if (sw <= 0) onde($(".onde", o), p(T("elle-même"), .02, .4), 138 * E, (2275 - 1560) * E); else onde($(".onde", o), p(T("rendez-vous", 2), .02, .4), 540 * E, 1247 * E);
+      surgir($("#pu10"), p(T("rendez-vous", 2), .3, .3), -4);
+    }
+    if (id === "s11") {
+      mots(K("g1"), l - .02, .12); const x = p(T("rappel"), -.1, .3); K("g2").style.opacity = x;
+      const o = $("#tel11"); o.style.transform = `${entrer(o, p(l, .1, .4))} ${biais(t, 9, 4)} rotate(${Math.sin(T("rappel") * 45) * 2.2 * (T("rappel") > 0 ? 1 - p(T("rappel"), 0, .5) : 0)}deg)`;
+      const n = $("#n11"), y = p(T("rappel"), 0, .3); n.style.opacity = c01(y * 3); n.style.transform = `translateY(${(1 - doux(y)) * -90}px) scale(${.9 + .1 * rebond(y)})`;
+    }
+    if (id === "s12") { const x = va(p(T("quinze", 3), 0, .55)); $("#anneau").setAttribute("stroke-dashoffset", 2011 * (1 - x)); const ch = $("#chrono"); ch.textContent = Math.round(15 * x); ch.style.transform = `scale(${1 + .16 * Math.sin(Math.PI * p(T("quinze", 3), .55, .3))})`; }
+    if (id === "s13") { mots(K("h1"), l - .02, .12); mots(K("h2"), T("travail") + .06); }
+    if (id === "s14") {
+      const o = $("#contrat"); o.style.transform = `${entrer(o, p(l, .1, .4))} ${biais(t, 8, 4)}`;
+      $$(".barre", o).forEach((bz, k) => { bz.style.width = [55, 100, 92, 100, 84, 96, 100, 60][k] * doux(p(l, .25 + k * .05, .3)) + "%"; });
+      surgir($("#pu14a"), p(T("part", 2), .1, .3), 4);
+      const s = T("signe"); $(".el", el).textContent = s > 0 ? "Elle signe sur son téléphone." : "Il part tout seul.";
+      $("#signature").setAttribute("stroke-dashoffset", 620 * (1 - va(p(s, .15, .7))));
+      surgir($("#pu14b"), p(T("téléphone"), .1, .3), -5);
+    }
+    if (id === "s16") {
+      mots(K("k1"), l - .02, .14); const o = $("#dossier"); o.style.transform = `${entrer(o, p(l, .05, .35))} ${biais(t, -8, 5)}`;
+      $("#feuille").style.transform = `translateY(${doux(p(l, .2, .5)) * 420}px)`; surgir($("#ok16"), p(T("classé"), .05, .3));
+    }
+    if (id === "s17") { mots(K("l1"), T("heures") + .2, .12); $("#j1").style.width = 900 * doux(p(l, .1, .5)) + "px"; $("#j2").style.width = 520 * rebond(p(T("heures"), .1, .4)) + "px"; K("l2").style.opacity = p(T("chaque", 2), 0, .3); }
+    if (id === "s18") { mots(K("m1"), l - .02, .12); mots(K("m2"), T("entreprise") + .05); const x = p(T("quelle"), 0, .35); K("m3").style.opacity = x; K("m3").style.transform = `translateY(${(1 - doux(x)) * 24}px)`; }
+    if (id === "s19") {
+      mots(K("n1"), l - .02); const o = $("#champ"); o.style.transform = `${entrer(o, p(l, .12, .35))} ${biais(t, 6, 3)}`;
+      $("#tape").textContent = "PLAN".slice(0, Math.round(4 * c01(T("plan", 1) / .32 + .25))) + ((Math.floor(l * 3) % 2) ? "|" : "");
+      mots(K("n3"), T("commentaire") + .2);
+    }
+    if (id === "s20") { mots(K("p1"), l - .02, .1); mots(K("p2"), T("plan", 2) + .12, .14); const x = p(T("machine"), -.3, .35); K("p3").style.opacity = x; K("p4").style.opacity = p(T("machine"), .25, .4); }
+  }
+  // fil d'avancement des étapes, éclair orange aux trois moments clés, sous-titre
+  const fil = $("#fil"); fil.style.opacity = etape ? 1 : 0; fil.style.width = etape ? 960 * (etape - 1 + avance) / 6 + "px" : "0";
+  const cle = ["s2", "s6", "s17"].map((id) => PLANS.find((x) => x.id === id).a).some((a) => t >= a && t < a + .14);
+  $("#eclair").style.opacity = cle ? .55 * (1 - p(local, 0, .14)) : 0;
+  const i = ST.findIndex((s) => t >= s.a - .03 && t < s.fin), st = $("#st");
+  if (i !== stCourant) { st.innerHTML = i < 0 ? "" : ST[i].mots.map((m) => (FORTS.test(net(m)) ? `<span>${m}</span>` : m)).join(" "); stCourant = i; }
+  st.style.color = fond === "I" ? "#3a2f26" : "#f3e9dc"; st.style.opacity = i >= 0 ? p(t, ST[i].a - .03, .12) : 0;
+  await new Promise((r) => requestAnimationFrame(() => r()));
+};
+
+window.pret = (async () => {
+  await document.fonts.load('80px "Cond"'); await document.fonts.load('40px "Texte"'); await document.fonts.ready;
+  await Promise.all([...document.images].filter((im) => im.getAttribute("src")).map((im) => im.decode().catch(() => {})));
+  $$(".plan").forEach((pl) => { pl.style.display = "block"; });
+  $$("[data-fit], .et").forEach((el) => { let f = parseFloat(getComputedStyle(el).fontSize); while (el.scrollWidth > el.clientWidth + 1 && f > 60) { f -= 4; el.style.fontSize = f + "px"; } });
+  $$(".plan").forEach((pl) => { pl.style.display = "none"; });
+  return { plans: PLANS.map((x) => `${x.id}@${x.a.toFixed(2)}`).join(" "), duree: window.DUREE, sousTitres: ST.length, manquants };
+})();
+</script>
+</body>
+</html>

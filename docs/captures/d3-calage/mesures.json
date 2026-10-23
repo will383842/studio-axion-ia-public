@@ -1,0 +1,1953 @@
+{
+ "date": "2026-10-02T16:22:42",
+ "modele": "wav2vec2 VOXPOPULI_ASR_BASE_10K_FR (celui de WhisperX pour le français), processeur seul, 2 fils",
+ "chargementModeleSec": 14.08,
+ "etalon": {
+  "mots": 32,
+  "latenceMedianeMs": 52.5,
+  "latenceMoyenneMs": 58.7,
+  "ecartTypeMs": 33.7,
+  "constanteRetenueMs": 50
+ },
+ "fixture": {
+  "reference": "débuts exacts des mots donnés par la synthèse Windows (voix-essai.debuts.json)",
+  "aligneur": {
+   "mots": 24,
+   "ecartMoyenMs": 22.8,
+   "ecartMedianMs": 19.5,
+   "ecartMaxMs": 55,
+   "biaisMs": 14.7
+  },
+  "aligneurLatenceSeule": {
+   "mots": 24,
+   "ecartMoyenMs": 26.1,
+   "ecartMedianMs": 24.5,
+   "ecartMaxMs": 72,
+   "biaisMs": 15.5
+  },
+  "dureeSonSec": 10.92,
+  "dureeCalculSec": 9.43,
+  "mots": [
+   {
+    "mot": "Vous",
+    "reference": 0.47,
+    "aligneur": 0.49
+   },
+   {
+    "mot": "recevez",
+    "reference": 0.652,
+    "aligneur": 0.671
+   },
+   {
+    "mot": "un",
+    "reference": 1.015,
+    "aligneur": 1.012
+   },
+   {
+    "mot": "pé",
+    "reference": 1.12,
+    "aligneur": 1.112
+   },
+   {
+    "mot": "vé",
+    "reference": 1.313,
+    "aligneur": 1.293
+   },
+   {
+    "mot": "de",
+    "reference": 1.456,
+    "aligneur": 1.473
+   },
+   {
+    "mot": "cent",
+    "reference": 1.559,
+    "aligneur": 1.593
+   },
+   {
+    "mot": "trente-cinq",
+    "reference": 1.815,
+    "aligneur": 1.813
+   },
+   {
+    "mot": "euros",
+    "reference": 2.396,
+    "aligneur": 2.355
+   },
+   {
+    "mot": "Surtout",
+    "reference": 4.126,
+    "aligneur": 4.165
+   },
+   {
+    "mot": "ne",
+    "reference": 4.88,
+    "aligneur": 4.9
+   },
+   {
+    "mot": "le",
+    "reference": 5.018,
+    "aligneur": 5.02
+   },
+   {
+    "mot": "payez",
+    "reference": 5.13,
+    "aligneur": 5.14
+   },
+   {
+    "mot": "pas",
+    "reference": 5.431,
+    "aligneur": 5.46
+   },
+   {
+    "mot": "tout",
+    "reference": 5.588,
+    "aligneur": 5.581
+   },
+   {
+    "mot": "de",
+    "reference": 5.759,
+    "aligneur": 5.801
+   },
+   {
+    "mot": "suite",
+    "reference": 5.866,
+    "aligneur": 5.921
+   },
+   {
+    "mot": "Je",
+    "reference": 7.62,
+    "aligneur": 7.635
+   },
+   {
+    "mot": "vous",
+    "reference": 7.802,
+    "aligneur": 7.785
+   },
+   {
+    "mot": "explique",
+    "reference": 7.925,
+    "aligneur": 7.965
+   },
+   {
+    "mot": "pourquoi",
+    "reference": 8.462,
+    "aligneur": 8.466
+   },
+   {
+    "mot": "en",
+    "reference": 9.176,
+    "aligneur": 9.19
+   },
+   {
+    "mot": "trois",
+    "reference": 9.276,
+    "aligneur": 9.328
+   },
+   {
+    "mot": "points",
+    "reference": 9.51,
+    "aligneur": 9.548
+   }
+  ],
+  "whisperxTelQuel": {
+   "mots": 24,
+   "ecartMoyenMs": 155.3,
+   "ecartMedianMs": 132.5,
+   "ecartMaxMs": 470,
+   "biaisMs": 116.1
+  },
+  "note": ""
+ },
+ "heygen": {
+  "reference": "reprise de la voix (passage voisé) après ≥ 60 ms sans voix, pour les mots qui suivent une ponctuation (ou ouvrent la phrase) et commencent par un son voisé",
+  "heygen": {
+   "mots": 17,
+   "ecartMoyenMs": 20.3,
+   "ecartMedianMs": 15.0,
+   "ecartMaxMs": 55,
+   "biaisMs": -12.6
+  },
+  "aligneur": {
+   "mots": 17,
+   "ecartMoyenMs": 39.1,
+   "ecartMedianMs": 25.0,
+   "ecartMaxMs": 170,
+   "biaisMs": -23.8
+  },
+  "aligneurLatenceSeule": {
+   "mots": 17,
+   "ecartMoyenMs": 31.3,
+   "ecartMedianMs": 20.0,
+   "ecartMaxMs": 92,
+   "biaisMs": -14.1
+  },
+  "whisperxTelQuel": {
+   "mots": 7,
+   "ecartMoyenMs": 99.0,
+   "ecartMedianMs": 99.0,
+   "ecartMaxMs": 154,
+   "biaisMs": 99.0,
+   "note": "mesuré le 02/10 sur les 7 reprises des phrases 1 à 6 seulement (WhisperX non installé lors de la mesure élargie aux phrases 7 à 9)"
+  },
+  "accordHeygenAligneur": {
+   "debutsMoyenMs": 22.3,
+   "debutsMedianMs": 16.0,
+   "finsMoyenMs": 80.6,
+   "mots": 138
+  },
+  "calcul": [
+   {
+    "phrase": "1-sons-proches",
+    "dureeSonSec": 5.02,
+    "dureeCalculSec": 3.06
+   },
+   {
+    "phrase": "2-montant",
+    "dureeSonSec": 4.34,
+    "dureeCalculSec": 3.41
+   },
+   {
+    "phrase": "3-nom-propre",
+    "dureeSonSec": 4.08,
+    "dureeCalculSec": 2.29
+   },
+   {
+    "phrase": "4-avant",
+    "dureeSonSec": 5.49,
+    "dureeCalculSec": 3.12
+   },
+   {
+    "phrase": "5-apres",
+    "dureeSonSec": 5.56,
+    "dureeCalculSec": 3.13
+   },
+   {
+    "phrase": "6-mesure",
+    "dureeSonSec": 8.59,
+    "dureeCalculSec": 5.21
+   },
+   {
+    "phrase": "7-mesure",
+    "dureeSonSec": 8.31,
+    "dureeCalculSec": 4.66
+   },
+   {
+    "phrase": "8-mesure",
+    "dureeSonSec": 9.61,
+    "dureeCalculSec": 5.81
+   },
+   {
+    "phrase": "9-mesure",
+    "dureeSonSec": 8.39,
+    "dureeCalculSec": 6.2
+   }
+  ],
+  "phrases": [
+   {
+    "phrase": "1-sons-proches",
+    "texte": "Un bon PV, puis un pépin : voilà comment tout commence.",
+    "attaquesVoisees": [
+     0.255,
+     2.125,
+     2.575,
+     3.155,
+     4.38
+    ],
+    "mots": [],
+    "aligneurTout": [
+     {
+      "mot": "Un",
+      "debutSec": 0.893,
+      "finSec": 0.993
+     },
+     {
+      "mot": "bon",
+      "debutSec": 0.993,
+      "finSec": 1.174
+     },
+     {
+      "mot": "PV,",
+      "debutSec": 1.174,
+      "finSec": 1.685
+     },
+     {
+      "mot": "puis",
+      "debutSec": 1.976,
+      "finSec": 2.157
+     },
+     {
+      "mot": "un",
+      "debutSec": 2.157,
+      "finSec": 2.297
+     },
+     {
+      "mot": "pépin",
+      "debutSec": 2.297,
+      "finSec": 2.908
+     },
+     {
+      "mot": "voilà",
+      "debutSec": 3.601,
+      "finSec": 3.862
+     },
+     {
+      "mot": "comment",
+      "debutSec": 3.862,
+      "finSec": 4.163
+     },
+     {
+      "mot": "tout",
+      "debutSec": 4.163,
+      "finSec": 4.324
+     },
+     {
+      "mot": "commence.",
+      "debutSec": 4.324,
+      "finSec": 4.915
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Un",
+      "debutSec": 0.86,
+      "finSec": 0.92
+     },
+     {
+      "mot": "bon",
+      "debutSec": 0.98,
+      "finSec": 1.1
+     },
+     {
+      "mot": "PV,",
+      "debutSec": 1.18,
+      "finSec": 1.54
+     },
+     {
+      "mot": "puis",
+      "debutSec": 2.02,
+      "finSec": 2.14
+     },
+     {
+      "mot": "un",
+      "debutSec": 2.18,
+      "finSec": 2.26
+     },
+     {
+      "mot": "pépin",
+      "debutSec": 2.3,
+      "finSec": 2.68
+     },
+     {
+      "mot": "voilà",
+      "debutSec": 3.58,
+      "finSec": 3.8
+     },
+     {
+      "mot": "comment",
+      "debutSec": 3.88,
+      "finSec": 4.12
+     },
+     {
+      "mot": "tout",
+      "debutSec": 4.16,
+      "finSec": 4.26
+     },
+     {
+      "mot": "commence.",
+      "debutSec": 4.3,
+      "finSec": 4.68
+     }
+    ]
+   },
+   {
+    "phrase": "2-montant",
+    "texte": "Cette amende de 135 € peut être contestée sous 45 jours.",
+    "attaquesVoisees": [
+     0.35,
+     1.105,
+     1.375,
+     1.615,
+     2.545,
+     2.93,
+     3.155,
+     3.365,
+     3.76
+    ],
+    "mots": [],
+    "aligneurTout": [
+     {
+      "mot": "Cette",
+      "debutSec": 0.26,
+      "finSec": 0.472
+     },
+     {
+      "mot": "amende",
+      "debutSec": 0.472,
+      "finSec": 0.813
+     },
+     {
+      "mot": "de",
+      "debutSec": 0.813,
+      "finSec": 0.994
+     },
+     {
+      "mot": "135",
+      "debutSec": 0.994,
+      "finSec": 1.777
+     },
+     {
+      "mot": "€",
+      "debutSec": 1.777,
+      "finSec": 2.098
+     },
+     {
+      "mot": "peut",
+      "debutSec": 2.098,
+      "finSec": 2.299
+     },
+     {
+      "mot": "être",
+      "debutSec": 2.299,
+      "finSec": 2.48
+     },
+     {
+      "mot": "contestée",
+      "debutSec": 2.48,
+      "finSec": 3.042
+     },
+     {
+      "mot": "sous",
+      "debutSec": 3.042,
+      "finSec": 3.283
+     },
+     {
+      "mot": "45",
+      "debutSec": 3.283,
+      "finSec": 3.905
+     },
+     {
+      "mot": "jours.",
+      "debutSec": 3.905,
+      "finSec": 4.316
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Cette",
+      "debutSec": 0.26,
+      "finSec": 0.42
+     },
+     {
+      "mot": "amende",
+      "debutSec": 0.48,
+      "finSec": 0.78
+     },
+     {
+      "mot": "de",
+      "debutSec": 0.8,
+      "finSec": 0.96
+     },
+     {
+      "mot": "135",
+      "debutSec": 1.02,
+      "finSec": 1.82
+     },
+     {
+      "mot": "peut",
+      "debutSec": 2.14,
+      "finSec": 2.28
+     },
+     {
+      "mot": "être",
+      "debutSec": 2.3,
+      "finSec": 2.44
+     },
+     {
+      "mot": "contestée",
+      "debutSec": 2.46,
+      "finSec": 3
+     },
+     {
+      "mot": "sous",
+      "debutSec": 3.06,
+      "finSec": 3.24
+     },
+     {
+      "mot": "45",
+      "debutSec": 3.48,
+      "finSec": 3.84
+     },
+     {
+      "mot": "jours.",
+      "debutSec": 3.9,
+      "finSec": 4.12
+     }
+    ]
+   },
+   {
+    "phrase": "3-nom-propre",
+    "texte": "Williams Jullin, d'Axion-IA, vous explique tout cela simplement.",
+    "attaquesVoisees": [
+     1.67,
+     1.995,
+     2.94,
+     3.13,
+     3.29,
+     3.45
+    ],
+    "mots": [
+     {
+      "mot": "d'Axion-IA,",
+      "reference": 1.67,
+      "heygen": 1.64,
+      "aligneur": 1.665,
+      "aligneurLatenceSeule": 1.676,
+      "whisperxTelQuel": 1.795
+     }
+    ],
+    "aligneurTout": [
+     {
+      "mot": "Williams",
+      "debutSec": 0.151,
+      "finSec": 0.713
+     },
+     {
+      "mot": "Jullin,",
+      "debutSec": 0.713,
+      "finSec": 1.204
+     },
+     {
+      "mot": "d'Axion-IA,",
+      "debutSec": 1.665,
+      "finSec": 2.52
+     },
+     {
+      "mot": "vous",
+      "debutSec": 2.52,
+      "finSec": 2.68
+     },
+     {
+      "mot": "explique",
+      "debutSec": 2.68,
+      "finSec": 3.041
+     },
+     {
+      "mot": "tout",
+      "debutSec": 3.041,
+      "finSec": 3.182
+     },
+     {
+      "mot": "cela",
+      "debutSec": 3.182,
+      "finSec": 3.383
+     },
+     {
+      "mot": "simplement.",
+      "debutSec": 3.383,
+      "finSec": 4.014
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Williams",
+      "debutSec": 0.22,
+      "finSec": 0.66
+     },
+     {
+      "mot": "Jullin,",
+      "debutSec": 0.7,
+      "finSec": 1
+     },
+     {
+      "mot": "d'Axion-IA,",
+      "debutSec": 1.64,
+      "finSec": 2.42
+     },
+     {
+      "mot": "vous",
+      "debutSec": 2.5,
+      "finSec": 2.64
+     },
+     {
+      "mot": "explique",
+      "debutSec": 2.68,
+      "finSec": 3
+     },
+     {
+      "mot": "tout",
+      "debutSec": 3.04,
+      "finSec": 3.12
+     },
+     {
+      "mot": "cela",
+      "debutSec": 3.14,
+      "finSec": 3.3
+     },
+     {
+      "mot": "simplement.",
+      "debutSec": 3.36,
+      "finSec": 3.78
+     }
+    ]
+   },
+   {
+    "phrase": "4-avant",
+    "texte": "Chez Axion-IA, nous préparons votre RGPD et vos PV.",
+    "attaquesVoisees": [
+     0.67,
+     0.965,
+     2.825,
+     3.515,
+     3.89
+    ],
+    "mots": [],
+    "aligneurTout": [
+     {
+      "mot": "Chez",
+      "debutSec": 0.511,
+      "finSec": 0.691
+     },
+     {
+      "mot": "Axion-IA,",
+      "debutSec": 0.691,
+      "finSec": 1.541
+     },
+     {
+      "mot": "nous",
+      "debutSec": 2.573,
+      "finSec": 2.713
+     },
+     {
+      "mot": "préparons",
+      "debutSec": 2.713,
+      "finSec": 3.173
+     },
+     {
+      "mot": "votre",
+      "debutSec": 3.173,
+      "finSec": 3.704
+     },
+     {
+      "mot": "RGPD",
+      "debutSec": 3.834,
+      "finSec": 4.475
+     },
+     {
+      "mot": "et",
+      "debutSec": 4.475,
+      "finSec": 4.595
+     },
+     {
+      "mot": "vos",
+      "debutSec": 4.595,
+      "finSec": 4.755
+     },
+     {
+      "mot": "PV.",
+      "debutSec": 4.755,
+      "finSec": 5.205
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Chez",
+      "debutSec": 0.54,
+      "finSec": 0.66
+     },
+     {
+      "mot": "Axion-IA,",
+      "debutSec": 0.7,
+      "finSec": 1.42
+     },
+     {
+      "mot": "nous",
+      "debutSec": 2.56,
+      "finSec": 2.68
+     },
+     {
+      "mot": "préparons",
+      "debutSec": 2.7,
+      "finSec": 3.12
+     },
+     {
+      "mot": "votre",
+      "debutSec": 3.16,
+      "finSec": 3.44
+     },
+     {
+      "mot": "RGPD",
+      "debutSec": 3.9,
+      "finSec": 4.44
+     },
+     {
+      "mot": "et",
+      "debutSec": 4.48,
+      "finSec": 4.56
+     },
+     {
+      "mot": "vos",
+      "debutSec": 4.58,
+      "finSec": 4.72
+     },
+     {
+      "mot": "PV.",
+      "debutSec": 4.76,
+      "finSec": 5.06
+     }
+    ]
+   },
+   {
+    "phrase": "5-apres",
+    "texte": "Chez axion i-a, nous préparons votre èr-jé-pé-dé et vos pé-vé.",
+    "attaquesVoisees": [
+     0.37,
+     0.735,
+     2.045,
+     2.25,
+     2.97,
+     3.36,
+     4.47
+    ],
+    "mots": [
+     {
+      "mot": "nous",
+      "reference": 2.045,
+      "heygen": 2,
+      "aligneur": 2.01,
+      "aligneurLatenceSeule": 1.979,
+      "whisperxTelQuel": 2.097
+     }
+    ],
+    "aligneurTout": [
+     {
+      "mot": "Chez",
+      "debutSec": 0.171,
+      "finSec": 0.432
+     },
+     {
+      "mot": "axion",
+      "debutSec": 0.432,
+      "finSec": 0.983
+     },
+     {
+      "mot": "i-a,",
+      "debutSec": 1.055,
+      "finSec": 1.566
+     },
+     {
+      "mot": "nous",
+      "debutSec": 2.01,
+      "finSec": 2.16
+     },
+     {
+      "mot": "préparons",
+      "debutSec": 2.16,
+      "finSec": 2.662
+     },
+     {
+      "mot": "votre",
+      "debutSec": 2.662,
+      "finSec": 2.923
+     },
+     {
+      "mot": "èr-jé-pé-dé",
+      "debutSec": 2.923,
+      "finSec": 3.997
+     },
+     {
+      "mot": "et",
+      "debutSec": 4.389,
+      "finSec": 4.57
+     },
+     {
+      "mot": "vos",
+      "debutSec": 4.57,
+      "finSec": 4.771
+     },
+     {
+      "mot": "pé-vé.",
+      "debutSec": 4.771,
+      "finSec": 5.382
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Chez",
+      "debutSec": 0.22,
+      "finSec": 0.38
+     },
+     {
+      "mot": "axion",
+      "debutSec": 0.44,
+      "finSec": 0.88
+     },
+     {
+      "mot": "i-a,",
+      "debutSec": 1.12,
+      "finSec": 1.42
+     },
+     {
+      "mot": "nous",
+      "debutSec": 2,
+      "finSec": 2.12
+     },
+     {
+      "mot": "préparons",
+      "debutSec": 2.14,
+      "finSec": 2.64
+     },
+     {
+      "mot": "votre",
+      "debutSec": 2.68,
+      "finSec": 2.9
+     },
+     {
+      "mot": "èr-jé-pé-dé",
+      "debutSec": 3,
+      "finSec": 3.84
+     },
+     {
+      "mot": "et",
+      "debutSec": 4.42,
+      "finSec": 4.5
+     },
+     {
+      "mot": "vos",
+      "debutSec": 4.54,
+      "finSec": 4.72
+     },
+     {
+      "mot": "pé-vé.",
+      "debutSec": 4.76,
+      "finSec": 5.24
+     }
+    ]
+   },
+   {
+    "phrase": "6-mesure",
+    "texte": "Bonjour. Mardi, votre dossier est arrivé. Le juge a lu vos lettres ; la décision viendra lundi. Avec nous, vous avancez. Merci, et à bientôt.",
+    "attaquesVoisees": [
+     1.39,
+     1.72,
+     3.475,
+     3.84,
+     5.345,
+     5.615,
+     6.035,
+     6.61,
+     7.195,
+     7.525,
+     7.815,
+     8.205
+    ],
+    "mots": [
+     {
+      "mot": "la",
+      "reference": 3.475,
+      "heygen": 3.48,
+      "aligneur": 3.436,
+      "aligneurLatenceSeule": 3.436,
+      "whisperxTelQuel": 3.574
+     },
+     {
+      "mot": "Avec",
+      "reference": 5.345,
+      "heygen": 5.32,
+      "aligneur": 5.3,
+      "aligneurLatenceSeule": 5.279,
+      "whisperxTelQuel": 5.422
+     },
+     {
+      "mot": "vous",
+      "reference": 6.035,
+      "heygen": 6.04,
+      "aligneur": 6.06,
+      "aligneurLatenceSeule": 6.06,
+      "whisperxTelQuel": 6.185
+     },
+     {
+      "mot": "Merci,",
+      "reference": 7.195,
+      "heygen": 7.2,
+      "aligneur": 7.202,
+      "aligneurLatenceSeule": 7.202,
+      "whisperxTelQuel": 7.349
+     },
+     {
+      "mot": "et",
+      "reference": 7.815,
+      "heygen": 7.76,
+      "aligneur": 7.723,
+      "aligneurLatenceSeule": 7.723,
+      "whisperxTelQuel": 7.851
+     }
+    ],
+    "aligneurTout": [
+     {
+      "mot": "Bonjour.",
+      "debutSec": 0.245,
+      "finSec": 0.751
+     },
+     {
+      "mot": "Mardi,",
+      "debutSec": 0.751,
+      "finSec": 1.152
+     },
+     {
+      "mot": "votre",
+      "debutSec": 1.152,
+      "finSec": 1.432
+     },
+     {
+      "mot": "dossier",
+      "debutSec": 1.432,
+      "finSec": 1.753
+     },
+     {
+      "mot": "est",
+      "debutSec": 1.753,
+      "finSec": 1.953
+     },
+     {
+      "mot": "arrivé.",
+      "debutSec": 1.953,
+      "finSec": 2.334
+     },
+     {
+      "mot": "Le",
+      "debutSec": 2.334,
+      "finSec": 2.494
+     },
+     {
+      "mot": "juge",
+      "debutSec": 2.494,
+      "finSec": 2.735
+     },
+     {
+      "mot": "a",
+      "debutSec": 2.735,
+      "finSec": 2.855
+     },
+     {
+      "mot": "lu",
+      "debutSec": 2.855,
+      "finSec": 3.035
+     },
+     {
+      "mot": "vos",
+      "debutSec": 3.035,
+      "finSec": 3.175
+     },
+     {
+      "mot": "lettres",
+      "debutSec": 3.175,
+      "finSec": 3.436
+     },
+     {
+      "mot": "la",
+      "debutSec": 3.436,
+      "finSec": 3.616
+     },
+     {
+      "mot": "décision",
+      "debutSec": 3.616,
+      "finSec": 4.037
+     },
+     {
+      "mot": "viendra",
+      "debutSec": 4.037,
+      "finSec": 4.377
+     },
+     {
+      "mot": "lundi.",
+      "debutSec": 4.377,
+      "finSec": 4.888
+     },
+     {
+      "mot": "Avec",
+      "debutSec": 5.3,
+      "finSec": 5.599
+     },
+     {
+      "mot": "nous,",
+      "debutSec": 5.599,
+      "finSec": 5.95
+     },
+     {
+      "mot": "vous",
+      "debutSec": 6.06,
+      "finSec": 6.24
+     },
+     {
+      "mot": "avancez.",
+      "debutSec": 6.24,
+      "finSec": 6.851
+     },
+     {
+      "mot": "Merci,",
+      "debutSec": 7.202,
+      "finSec": 7.723
+     },
+     {
+      "mot": "et",
+      "debutSec": 7.723,
+      "finSec": 7.823
+     },
+     {
+      "mot": "à",
+      "debutSec": 7.823,
+      "finSec": 7.943
+     },
+     {
+      "mot": "bientôt.",
+      "debutSec": 7.943,
+      "finSec": 8.474
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Bonjour.",
+      "debutSec": 0.24,
+      "finSec": 0.68
+     },
+     {
+      "mot": "Mardi,",
+      "debutSec": 0.78,
+      "finSec": 1.06
+     },
+     {
+      "mot": "votre",
+      "debutSec": 1.14,
+      "finSec": 1.38
+     },
+     {
+      "mot": "dossier",
+      "debutSec": 1.42,
+      "finSec": 1.76
+     },
+     {
+      "mot": "est",
+      "debutSec": 1.78,
+      "finSec": 1.9
+     },
+     {
+      "mot": "arrivé.",
+      "debutSec": 1.96,
+      "finSec": 2.28
+     },
+     {
+      "mot": "Le",
+      "debutSec": 2.34,
+      "finSec": 2.42
+     },
+     {
+      "mot": "juge",
+      "debutSec": 2.52,
+      "finSec": 2.7
+     },
+     {
+      "mot": "a",
+      "debutSec": 2.78,
+      "finSec": 2.82
+     },
+     {
+      "mot": "lu",
+      "debutSec": 2.86,
+      "finSec": 2.98
+     },
+     {
+      "mot": "vos",
+      "debutSec": 3.02,
+      "finSec": 3.14
+     },
+     {
+      "mot": "lettres",
+      "debutSec": 3.18,
+      "finSec": 3.42
+     },
+     {
+      "mot": "la",
+      "debutSec": 3.48,
+      "finSec": 3.56
+     },
+     {
+      "mot": "décision",
+      "debutSec": 3.6,
+      "finSec": 4.04
+     },
+     {
+      "mot": "viendra",
+      "debutSec": 4.08,
+      "finSec": 4.34
+     },
+     {
+      "mot": "lundi.",
+      "debutSec": 4.4,
+      "finSec": 4.72
+     },
+     {
+      "mot": "Avec",
+      "debutSec": 5.32,
+      "finSec": 5.56
+     },
+     {
+      "mot": "nous,",
+      "debutSec": 5.6,
+      "finSec": 5.76
+     },
+     {
+      "mot": "vous",
+      "debutSec": 6.04,
+      "finSec": 6.18
+     },
+     {
+      "mot": "avancez.",
+      "debutSec": 6.26,
+      "finSec": 6.66
+     },
+     {
+      "mot": "Merci,",
+      "debutSec": 7.2,
+      "finSec": 7.58
+     },
+     {
+      "mot": "et",
+      "debutSec": 7.76,
+      "finSec": 7.8
+     },
+     {
+      "mot": "à",
+      "debutSec": 7.84,
+      "finSec": 7.88
+     },
+     {
+      "mot": "bientôt.",
+      "debutSec": 7.92,
+      "finSec": 8.26
+     }
+    ]
+   },
+   {
+    "phrase": "7-mesure",
+    "texte": "Lundi, nous avons lu le contrat. Mais voilà : la clause est nulle. Alors, gardez votre calme. Nous allons agir. Bonne nouvelle, non ?",
+    "attaquesVoisees": [
+     0.265,
+     1.645,
+     2.39,
+     4.155,
+     6.335,
+     7.255
+    ],
+    "mots": [
+     {
+      "mot": "Lundi,",
+      "reference": 0.265,
+      "heygen": 0.24,
+      "aligneur": 0.095,
+      "aligneurLatenceSeule": 0.27,
+      "whisperxTelQuel": null
+     },
+     {
+      "mot": "Mais",
+      "reference": 2.39,
+      "heygen": 2.4,
+      "aligneur": 2.332,
+      "aligneurLatenceSeule": 2.332,
+      "whisperxTelQuel": null
+     },
+     {
+      "mot": "Nous",
+      "reference": 6.335,
+      "heygen": 6.32,
+      "aligneur": 6.315,
+      "aligneurLatenceSeule": 6.315,
+      "whisperxTelQuel": null
+     },
+     {
+      "mot": "Bonne",
+      "reference": 7.255,
+      "heygen": 7.24,
+      "aligneur": 7.236,
+      "aligneurLatenceSeule": 7.236,
+      "whisperxTelQuel": null
+     }
+    ],
+    "aligneurTout": [
+     {
+      "mot": "Lundi,",
+      "debutSec": 0.095,
+      "finSec": 0.671
+     },
+     {
+      "mot": "nous",
+      "debutSec": 0.671,
+      "finSec": 0.811
+     },
+     {
+      "mot": "avons",
+      "debutSec": 0.811,
+      "finSec": 1.031
+     },
+     {
+      "mot": "lu",
+      "debutSec": 1.031,
+      "finSec": 1.251
+     },
+     {
+      "mot": "le",
+      "debutSec": 1.251,
+      "finSec": 1.371
+     },
+     {
+      "mot": "contrat.",
+      "debutSec": 1.371,
+      "finSec": 1.921
+     },
+     {
+      "mot": "Mais",
+      "debutSec": 2.332,
+      "finSec": 2.742
+     },
+     {
+      "mot": "voilà",
+      "debutSec": 2.812,
+      "finSec": 3.223
+     },
+     {
+      "mot": "la",
+      "debutSec": 3.933,
+      "finSec": 4.033
+     },
+     {
+      "mot": "clause",
+      "debutSec": 4.033,
+      "finSec": 4.274
+     },
+     {
+      "mot": "est",
+      "debutSec": 4.274,
+      "finSec": 4.354
+     },
+     {
+      "mot": "nulle.",
+      "debutSec": 4.354,
+      "finSec": 4.784
+     },
+     {
+      "mot": "Alors,",
+      "debutSec": 5.074,
+      "finSec": 5.294
+     },
+     {
+      "mot": "gardez",
+      "debutSec": 5.294,
+      "finSec": 5.615
+     },
+     {
+      "mot": "votre",
+      "debutSec": 5.615,
+      "finSec": 5.835
+     },
+     {
+      "mot": "calme.",
+      "debutSec": 5.835,
+      "finSec": 6.315
+     },
+     {
+      "mot": "Nous",
+      "debutSec": 6.315,
+      "finSec": 6.475
+     },
+     {
+      "mot": "allons",
+      "debutSec": 6.475,
+      "finSec": 6.716
+     },
+     {
+      "mot": "agir.",
+      "debutSec": 6.716,
+      "finSec": 7.206
+     },
+     {
+      "mot": "Bonne",
+      "debutSec": 7.236,
+      "finSec": 7.416
+     },
+     {
+      "mot": "nouvelle,",
+      "debutSec": 7.416,
+      "finSec": 7.757
+     },
+     {
+      "mot": "non",
+      "debutSec": 7.757,
+      "finSec": 8.107
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Lundi,",
+      "debutSec": 0.24,
+      "finSec": 0.54
+     },
+     {
+      "mot": "nous",
+      "debutSec": 0.66,
+      "finSec": 0.78
+     },
+     {
+      "mot": "avons",
+      "debutSec": 0.84,
+      "finSec": 1.02
+     },
+     {
+      "mot": "lu",
+      "debutSec": 1.08,
+      "finSec": 1.18
+     },
+     {
+      "mot": "le",
+      "debutSec": 1.22,
+      "finSec": 1.32
+     },
+     {
+      "mot": "contrat.",
+      "debutSec": 1.36,
+      "finSec": 1.76
+     },
+     {
+      "mot": "Mais",
+      "debutSec": 2.4,
+      "finSec": 2.76
+     },
+     {
+      "mot": "voilà",
+      "debutSec": 2.8,
+      "finSec": 3.04
+     },
+     {
+      "mot": "la",
+      "debutSec": 3.92,
+      "finSec": 3.98
+     },
+     {
+      "mot": "clause",
+      "debutSec": 4.04,
+      "finSec": 4.22
+     },
+     {
+      "mot": "est",
+      "debutSec": 4.24,
+      "finSec": 4.3
+     },
+     {
+      "mot": "nulle.",
+      "debutSec": 4.34,
+      "finSec": 4.64
+     },
+     {
+      "mot": "Alors,",
+      "debutSec": 5.1,
+      "finSec": 5.26
+     },
+     {
+      "mot": "gardez",
+      "debutSec": 5.34,
+      "finSec": 5.58
+     },
+     {
+      "mot": "votre",
+      "debutSec": 5.62,
+      "finSec": 5.78
+     },
+     {
+      "mot": "calme.",
+      "debutSec": 5.82,
+      "finSec": 6.14
+     },
+     {
+      "mot": "Nous",
+      "debutSec": 6.32,
+      "finSec": 6.44
+     },
+     {
+      "mot": "allons",
+      "debutSec": 6.5,
+      "finSec": 6.66
+     },
+     {
+      "mot": "agir.",
+      "debutSec": 6.72,
+      "finSec": 7.04
+     },
+     {
+      "mot": "Bonne",
+      "debutSec": 7.24,
+      "finSec": 7.36
+     },
+     {
+      "mot": "nouvelle,",
+      "debutSec": 7.4,
+      "finSec": 7.68
+     },
+     {
+      "mot": "non",
+      "debutSec": 7.76,
+      "finSec": 7.9
+     }
+    ]
+   },
+   {
+    "phrase": "8-mesure",
+    "texte": "Le bail est signé. Mais le loyer a doublé ! Rassurez-vous : la loi vous protège. Leur demande est abusive. Merci de votre confiance.",
+    "attaquesVoisees": [
+     0.245,
+     1.125,
+     4.385,
+     5.585,
+     5.755,
+     6.335,
+     7.885,
+     8.235,
+     8.61,
+     8.75,
+     8.97
+    ],
+    "mots": [
+     {
+      "mot": "Le",
+      "reference": 0.245,
+      "heygen": 0.2,
+      "aligneur": 0.22,
+      "aligneurLatenceSeule": 0.25,
+      "whisperxTelQuel": null
+     },
+     {
+      "mot": "Leur",
+      "reference": 6.335,
+      "heygen": 6.32,
+      "aligneur": 6.319,
+      "aligneurLatenceSeule": 6.319,
+      "whisperxTelQuel": null
+     },
+     {
+      "mot": "Merci",
+      "reference": 7.885,
+      "heygen": 7.92,
+      "aligneur": 7.961,
+      "aligneurLatenceSeule": 7.961,
+      "whisperxTelQuel": null
+     }
+    ],
+    "aligneurTout": [
+     {
+      "mot": "Le",
+      "debutSec": 0.22,
+      "finSec": 0.391
+     },
+     {
+      "mot": "bail",
+      "debutSec": 0.391,
+      "finSec": 0.811
+     },
+     {
+      "mot": "est",
+      "debutSec": 0.811,
+      "finSec": 1.011
+     },
+     {
+      "mot": "signé.",
+      "debutSec": 1.011,
+      "finSec": 1.542
+     },
+     {
+      "mot": "Mais",
+      "debutSec": 2.053,
+      "finSec": 2.443
+     },
+     {
+      "mot": "le",
+      "debutSec": 2.513,
+      "finSec": 2.634
+     },
+     {
+      "mot": "loyer",
+      "debutSec": 2.634,
+      "finSec": 3.054
+     },
+     {
+      "mot": "a",
+      "debutSec": 3.054,
+      "finSec": 3.174
+     },
+     {
+      "mot": "doublé",
+      "debutSec": 3.174,
+      "finSec": 3.685
+     },
+     {
+      "mot": "Rassurez-vous",
+      "debutSec": 4.116,
+      "finSec": 4.987
+     },
+     {
+      "mot": "la",
+      "debutSec": 4.997,
+      "finSec": 5.097
+     },
+     {
+      "mot": "loi",
+      "debutSec": 5.097,
+      "finSec": 5.337
+     },
+     {
+      "mot": "vous",
+      "debutSec": 5.337,
+      "finSec": 5.538
+     },
+     {
+      "mot": "protège.",
+      "debutSec": 5.538,
+      "finSec": 6.248
+     },
+     {
+      "mot": "Leur",
+      "debutSec": 6.319,
+      "finSec": 6.539
+     },
+     {
+      "mot": "demande",
+      "debutSec": 6.539,
+      "finSec": 6.919
+     },
+     {
+      "mot": "est",
+      "debutSec": 6.919,
+      "finSec": 7.06
+     },
+     {
+      "mot": "abusive.",
+      "debutSec": 7.06,
+      "finSec": 7.81
+     },
+     {
+      "mot": "Merci",
+      "debutSec": 7.961,
+      "finSec": 8.301
+     },
+     {
+      "mot": "de",
+      "debutSec": 8.301,
+      "finSec": 8.422
+     },
+     {
+      "mot": "votre",
+      "debutSec": 8.422,
+      "finSec": 8.722
+     },
+     {
+      "mot": "confiance.",
+      "debutSec": 8.722,
+      "finSec": 9.393
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Le",
+      "debutSec": 0.2,
+      "finSec": 0.32
+     },
+     {
+      "mot": "bail",
+      "debutSec": 0.38,
+      "finSec": 0.7
+     },
+     {
+      "mot": "est",
+      "debutSec": 0.82,
+      "finSec": 0.96
+     },
+     {
+      "mot": "signé.",
+      "debutSec": 1.02,
+      "finSec": 1.42
+     },
+     {
+      "mot": "Mais",
+      "debutSec": 2.08,
+      "finSec": 2.44
+     },
+     {
+      "mot": "le",
+      "debutSec": 2.5,
+      "finSec": 2.6
+     },
+     {
+      "mot": "loyer",
+      "debutSec": 2.64,
+      "finSec": 3.02
+     },
+     {
+      "mot": "a",
+      "debutSec": 3.06,
+      "finSec": 3.1
+     },
+     {
+      "mot": "doublé",
+      "debutSec": 3.18,
+      "finSec": 3.6
+     },
+     {
+      "mot": "Rassurez-vous",
+      "debutSec": 4.08,
+      "finSec": 4.86
+     },
+     {
+      "mot": "la",
+      "debutSec": 4.98,
+      "finSec": 5.06
+     },
+     {
+      "mot": "loi",
+      "debutSec": 5.1,
+      "finSec": 5.28
+     },
+     {
+      "mot": "vous",
+      "debutSec": 5.34,
+      "finSec": 5.46
+     },
+     {
+      "mot": "protège.",
+      "debutSec": 5.48,
+      "finSec": 6.1
+     },
+     {
+      "mot": "Leur",
+      "debutSec": 6.32,
+      "finSec": 6.48
+     },
+     {
+      "mot": "demande",
+      "debutSec": 6.52,
+      "finSec": 6.88
+     },
+     {
+      "mot": "est",
+      "debutSec": 6.92,
+      "finSec": 7.02
+     },
+     {
+      "mot": "abusive.",
+      "debutSec": 7.08,
+      "finSec": 7.66
+     },
+     {
+      "mot": "Merci",
+      "debutSec": 7.92,
+      "finSec": 8.24
+     },
+     {
+      "mot": "de",
+      "debutSec": 8.28,
+      "finSec": 8.34
+     },
+     {
+      "mot": "votre",
+      "debutSec": 8.38,
+      "finSec": 8.62
+     },
+     {
+      "mot": "confiance.",
+      "debutSec": 8.66,
+      "finSec": 9.28
+     }
+    ]
+   },
+   {
+    "phrase": "9-mesure",
+    "texte": "Bonsoir. Votre amende est réduite. Le dossier avance bien ; la mairie a répondu. Demain, nous écrirons au juge. À lundi, et bon courage.",
+    "attaquesVoisees": [
+     0.485,
+     1.53,
+     2.47,
+     2.895,
+     3.735,
+     5.2,
+     5.87,
+     8.08
+    ],
+    "mots": [
+     {
+      "mot": "Le",
+      "reference": 2.47,
+      "heygen": 2.46,
+      "aligneur": 2.492,
+      "aligneurLatenceSeule": 2.492,
+      "whisperxTelQuel": null
+     },
+     {
+      "mot": "la",
+      "reference": 3.735,
+      "heygen": 3.74,
+      "aligneur": 3.732,
+      "aligneurLatenceSeule": 3.732,
+      "whisperxTelQuel": null
+     },
+     {
+      "mot": "Demain,",
+      "reference": 5.2,
+      "heygen": 5.2,
+      "aligneur": 5.193,
+      "aligneurLatenceSeule": 5.193,
+      "whisperxTelQuel": null
+     }
+    ],
+    "aligneurTout": [
+     {
+      "mot": "Bonsoir.",
+      "debutSec": 0.23,
+      "finSec": 0.84
+     },
+     {
+      "mot": "Votre",
+      "debutSec": 1.291,
+      "finSec": 1.491
+     },
+     {
+      "mot": "amende",
+      "debutSec": 1.491,
+      "finSec": 1.751
+     },
+     {
+      "mot": "est",
+      "debutSec": 1.751,
+      "finSec": 1.871
+     },
+     {
+      "mot": "réduite.",
+      "debutSec": 1.871,
+      "finSec": 2.461
+     },
+     {
+      "mot": "Le",
+      "debutSec": 2.492,
+      "finSec": 2.612
+     },
+     {
+      "mot": "dossier",
+      "debutSec": 2.612,
+      "finSec": 2.912
+     },
+     {
+      "mot": "avance",
+      "debutSec": 2.912,
+      "finSec": 3.292
+     },
+     {
+      "mot": "bien",
+      "debutSec": 3.292,
+      "finSec": 3.662
+     },
+     {
+      "mot": "la",
+      "debutSec": 3.732,
+      "finSec": 3.852
+     },
+     {
+      "mot": "mairie",
+      "debutSec": 3.852,
+      "finSec": 4.153
+     },
+     {
+      "mot": "a",
+      "debutSec": 4.153,
+      "finSec": 4.273
+     },
+     {
+      "mot": "répondu.",
+      "debutSec": 4.273,
+      "finSec": 4.883
+     },
+     {
+      "mot": "Demain,",
+      "debutSec": 5.193,
+      "finSec": 5.494
+     },
+     {
+      "mot": "nous",
+      "debutSec": 5.494,
+      "finSec": 5.654
+     },
+     {
+      "mot": "écrirons",
+      "debutSec": 5.654,
+      "finSec": 6.074
+     },
+     {
+      "mot": "au",
+      "debutSec": 6.074,
+      "finSec": 6.254
+     },
+     {
+      "mot": "juge.",
+      "debutSec": 6.254,
+      "finSec": 6.704
+     },
+     {
+      "mot": "À",
+      "debutSec": 6.714,
+      "finSec": 6.814
+     },
+     {
+      "mot": "lundi,",
+      "debutSec": 6.814,
+      "finSec": 7.315
+     },
+     {
+      "mot": "et",
+      "debutSec": 7.315,
+      "finSec": 7.435
+     },
+     {
+      "mot": "bon",
+      "debutSec": 7.435,
+      "finSec": 7.635
+     },
+     {
+      "mot": "courage.",
+      "debutSec": 7.635,
+      "finSec": 8.225
+     }
+    ],
+    "heygenTout": [
+     {
+      "mot": "Bonsoir.",
+      "debutSec": 0.2,
+      "finSec": 0.72
+     },
+     {
+      "mot": "Votre",
+      "debutSec": 1.3,
+      "finSec": 1.46
+     },
+     {
+      "mot": "amende",
+      "debutSec": 1.52,
+      "finSec": 1.72
+     },
+     {
+      "mot": "est",
+      "debutSec": 1.74,
+      "finSec": 1.8
+     },
+     {
+      "mot": "réduite.",
+      "debutSec": 1.84,
+      "finSec": 2.26
+     },
+     {
+      "mot": "Le",
+      "debutSec": 2.46,
+      "finSec": 2.56
+     },
+     {
+      "mot": "dossier",
+      "debutSec": 2.6,
+      "finSec": 2.9
+     },
+     {
+      "mot": "avance",
+      "debutSec": 2.96,
+      "finSec": 3.24
+     },
+     {
+      "mot": "bien",
+      "debutSec": 3.28,
+      "finSec": 3.46
+     },
+     {
+      "mot": "la",
+      "debutSec": 3.74,
+      "finSec": 3.8
+     },
+     {
+      "mot": "mairie",
+      "debutSec": 3.88,
+      "finSec": 4.12
+     },
+     {
+      "mot": "a",
+      "debutSec": 4.18,
+      "finSec": 4.2
+     },
+     {
+      "mot": "répondu.",
+      "debutSec": 4.26,
+      "finSec": 4.72
+     },
+     {
+      "mot": "Demain,",
+      "debutSec": 5.2,
+      "finSec": 5.44
+     },
+     {
+      "mot": "nous",
+      "debutSec": 5.5,
+      "finSec": 5.62
+     },
+     {
+      "mot": "écrirons",
+      "debutSec": 5.68,
+      "finSec": 6.04
+     },
+     {
+      "mot": "au",
+      "debutSec": 6.08,
+      "finSec": 6.14
+     },
+     {
+      "mot": "juge.",
+      "debutSec": 6.24,
+      "finSec": 6.52
+     },
+     {
+      "mot": "À",
+      "debutSec": 6.72,
+      "finSec": 6.78
+     },
+     {
+      "mot": "lundi,",
+      "debutSec": 6.82,
+      "finSec": 7.16
+     },
+     {
+      "mot": "et",
+      "debutSec": 7.34,
+      "finSec": 7.42
+     },
+     {
+      "mot": "bon",
+      "debutSec": 7.46,
+      "finSec": 7.6
+     },
+     {
+      "mot": "courage.",
+      "debutSec": 7.64,
+      "finSec": 8.08
+     }
+    ]
+   }
+  ]
+ },
+ "controleReferenceHeygen": {
+  "sur": "fixture voix-essai (mots après ponctuation, début voisé)",
+  "mots": 4,
+  "ecartMoyenMs": 11.0,
+  "ecartMedianMs": 10.0,
+  "ecartMaxMs": 15,
+  "biaisMs": 11.0
+ },
+ "memoireMaxMo": 1580.8,
+ "coutAppelsPayants": "0,11 $ en tout, relevés sur le solde (29,83 → 29,72 $) : phrase 6 0,03 $ puis phrases 7 à 9 0,08 $ (POST /v3/voices/speech × 4) ; phrases 1-5 du lot M0b réutilisées"
+}

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Effets spéciaux face caméra</title>
+<style>
+  :root { --fond: #16120F; --surface: #211A15; --orange: #C65A2E; --orange-vif: #E07040; --creme: #F6EEE0; --attenue: #A79E92; --filet: #3A322B; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--creme); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 32px 16px 64px; }
+  header { max-width: 1200px; margin: 0 auto 28px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 b { color: var(--orange-vif); }
+  header p { color: var(--attenue); margin: 0 0 6px; max-width: 760px; }
+  header p.note { color: var(--creme); background: var(--surface); border-left: 3px solid var(--orange-vif); padding: 10px 14px; border-radius: 8px; }
+  header p.note b { color: var(--orange-vif); font-weight: 600; }
+  main { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
+  figure { margin: 0; background: var(--surface); border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 1px var(--filet); }
+  video { display: block; width: 100%; aspect-ratio: 9 / 16; background: #0C0A08; }
+  figcaption { padding: 14px 16px 16px; display: grid; gap: 6px; }
+  figcaption strong { font-size: 17px; }
+  figcaption q { color: var(--orange-vif); font-size: 14px; font-weight: 600; quotes: "« " " »"; }
+  figcaption span { color: var(--attenue); font-size: 14px; }
+  .regles { max-width: 1200px; margin: 28px auto 0; color: var(--attenue); font-size: 14px; }
+  .regles li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Effets spéciaux — <b>à la demande</b></h1>
+  <p>Jamais posés tout seuls : seulement quand vous les demandez (« Monteur, … » au tournage, ou dans « Discuter avec mon monteur »). Chaque vidéo dure 5 s (1080 × 1920, 25 i/s).</p>
+  <p class="note"><b>Effets « main » (nouvelle version) :</b> l'objet est posé sur la <b>paume tournée vers le haut</b>, main à plat devant soi, comme si on y posait un téléphone. Le plateau est un montage de deux <b>vraies photos</b> libres (une personne, une main paume vers le haut — photos de test publiées avec MediaPipe) : la main y bouge d'un bloc et ses doigts ne se replient pas, ce qui ne permet pas tout. <b>L'essai final se fera sur une vraie prise de Will</b> (main suivie par MediaPipe, lumière, reflets et grain mesurés sur la prise). Main retournée ou paume montrée de face : pas d'effet, « Effet non réussi — Réessayer » avec le conseil « montrez la paume ouverte vers le haut ».</p>
+  <p>Les quatre transitions restent sur le plateau dessiné (piste simulée).</p>
+</header>
+<main>
+    <figure>
+      <video src="main-logo.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+      <figcaption><strong>Logo Axion posé sur la paume</strong><q>Monteur, pose le logo Axion dans ma main</q><span>Le « A » en métal anodisé orange, debout sur un petit socle en aluminium brossé, REPOSE sur la paume tournée vers le haut. Il apparaît en fondu avec un léger éclat quand la paume s'ouvre, suit la main sans retard (roulis, tangage, lacet) et disparaît quand elle se ferme, se retourne ou sort.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="main-telephone.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+      <figcaption><strong>Téléphone posé sur la paume</strong><q>Monteur, mets un téléphone dans ma main</q><span>Un smartphone modélisé comme un vrai (cadre métal brossé, verre avant et arrière, bloc photo, écran allumé) posé à plat sur la paume, incliné vers la caméra pour que l'écran se lise ; reflets tirés de l'image de la prise, lumière et grain accordés.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="vitre.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+      <figcaption><strong>Vitre qui se brise</strong><q>Monteur, brise l'écran quand je dis “stop”</q><span>L'image se fissure depuis un point hors du visage, les éclats tombent avec un flou de mouvement et révèlent le plan suivant. Bruitage de verre (facultatif).</span></figcaption>
+    </figure>
+    <figure>
+      <video src="vitre-carte.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+      <figcaption><strong>Vitre qui révèle une carte</strong><q>Monteur, brise l'écran et révèle “Le temps perdu”</q><span>Même effet ; derrière la vitre, une carte titre de la bibliothèque motion.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="pli.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+      <figcaption><strong>L'écran se plie</strong><q>Monteur, plie l'écran quand je passe au deuxième point</q><span>L'image se replie comme une feuille, en vraie perspective, puis s'envole et révèle le plan suivant.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="zoom.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+      <figcaption><strong>Zoom à travers l'écran</strong><q>Monteur, fais un zoom à travers l'écran sur “maintenant”</q><span>La caméra plonge dans l'image, qui s'ouvre en iris sur le plan suivant (cerclé d'orange).</span></figcaption>
+    </figure>
+</main>
+<ul class="regles">
+  <li>Le visage n'est jamais caché ; un seul effet fort à la fois ; une transition dure de 0,6 à 1,5 s, calée sur le mot demandé.</li>
+  <li>Main pas trouvée assez longtemps : la vidéo sort sans l'effet, avec « Effet non réussi — Réessayer ».</li>
+  <li>Sur vos vraies prises, la main est suivie par MediaPipe (21 points : poignet, jointures, orientation de la paume) ; la lumière (direction, température), les reflets, le flou et le grain de l'objet sont mesurés sur la prise.</li>
+  <li>Option « ultra réaliste » (payante, coupée par défaut, seulement sur demande) : un passage de 3 à 5 s peut être retouché par IA (Higgsfield, Kling Omni Edit avec une image de référence de l'objet). Rien n'est envoyé tant que vous ne l'activez pas.</li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+ "role": "fond",
+ "version": 1,
+ "sortie": {
+  "theme": "Coût caché Excel",
+  "motCle": "coût caché Excel",
+  "motCleVariante": "erreurs copier-coller tableur",
+  "idees": [
+   {
+    "affirmation": "Excel, ça paraît gratuit.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee"
+    ]
+   },
+   {
+    "affirmation": "Un tableur ne vérifie rien tout seul, donc chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ]
+   },
+   {
+    "affirmation": "Une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ]
+   }
+  ],
+  "appuiPrincipal": {},
+  "issue": "Premier geste : repérer dans vos propres fichiers chaque endroit où des données sont recopiées à la main d'un tableur à l'autre. C'est là que l'erreur passe sans que personne ne la voie.",
+  "livraison": "Le coût d'un tableur n'est sur aucune facture. Il est dans chaque copier-coller que personne ne vérifie.",
+  "exception": {
+   "source": "matiere",
+   "texte": "Si vos tableaux changent de forme chaque mois, gardez le tableur.",
+   "matiereId": "test-35h-limite",
+   "place": "apres-livraison"
+  },
+  "envoi": {
+   "destinataireRole": "DAF",
+   "phrase": "Envoyez-la à votre DAF : les chiffres qu'il lit sont passés par ces copier-coller."
+  },
+  "niveauConscience": "connait-le-probleme",
+  "criteresPropres": [
+   {
+    "texte": "Aucune quantité de temps n'est dite (ni « 35 heures », ni « temps plein », ni « des heures chaque semaine ») : le coût se montre en image concrète, exporter, copier, coller, vérifier, et l'erreur que personne ne voit."
+   },
+   {
+    "texte": "Aucun cas client n'est raconté : il n'existe aucune preuve, le scénario type n'est pas un client réel ; la 1re personne n'apparaît que mot pour mot depuis une matière de Will."
+   }
+  ]
+ }
+}

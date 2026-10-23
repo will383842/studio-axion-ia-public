@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "source": "exemple-inventé (version publique : les vraies bases sont dans un dépôt privé)",
+  "commit": null,
+  "date": null,
+  "synchronise_le": "2026-01-01T00:00:00.000Z",
+  "fichiers": {
+    "1-cibles.md": "8f706bbd363f8ba3777d9d6601144321c19bb1935c08dd179fede3204bb359ca",
+    "2-tailles.md": "b05d668d0cc291c9c0c67d1a7bd2273a7fcbef1f2506b24d1c90d42a4caea617",
+    "3-sujets.md": "a6f8b9e6a1818ae7f704dbc138f0712598c39a65f2df296cda2e4aa34b3c22e8",
+    "4-cas-d-usage.md": "24329a6b06459b405766d6ff086c90d0d3d038c0b08dc062754e0cc82d2b06dd",
+    "5-formats.md": "d4bfd1554f1038d85cf2d5b01fb52320a2a85a74781ee3408b05b78e18931c00",
+    "6-reseaux.md": "20ef86b83716accaff3c141162e2116898ab13954c90578a4ba89426e6306018",
+    "7-appels.md": "cb7c6af711da9eef3ece8cd41e6af4cfee83b4c0d86b75de0daf2f4082393e7a",
+    "8-voix-et-interdits.md": "f28a0c6c48c749b4a8d1984d182c6ab5bf190b7bfd4601045e5b001022ef92cb",
+    "9-accroches.md": "f20c2eecf5b3efa4947435e9ded273746c758554f11f786a4a23ad7b95c5f109"
+  },
+  "empreinte": "e416fd56d174bec7d8a77f8dde50623f22e31e7a776019aa504ce05dcbd979f3",
+  "json": {
+    "1-cibles.json": "90d4ad4a5a7b4ff186785444b42c2a5bd1c1eb38857c91bf05ed1bf687ade3e0",
+    "2-tailles.json": "aa1c42d98b1105bfeb96a94366679249537ee34263fa08fe53f4f4996e0b4bfe",
+    "3-sujets.json": "08294a97d41b76cc473d0aa7a55505e98ada78ad26b881a4757ed87763884968",
+    "4-cas-d-usage.json": "7929329fe2b8fe0f2715eda0a81a712e8c022f0c4861aab3e4950ec3d1f9b81d",
+    "5-formats.json": "ecb26a938304e984ef467732537325858da76dc28bb2c99b9eabae81741c4d39",
+    "6-reseaux.json": "a5c2909239c9219986799251fa1a2e255372c274f3afda28b5bd68baf84cf7cf",
+    "7-appels.json": "775d98c9f9b0323b639e664792654b9e80988ec15673e2ca3993d2c4b208a241",
+    "8-voix-et-interdits.json": "489feb550eb7408ff76ad2cafe230ff839410453fc5d670844571b0fbb071f9e",
+    "9-accroches.json": "59649c4f58fd4a6411d01e2f36c484cb24aea39f67ac46a51ceb3a6c130ea543"
+  }
+}

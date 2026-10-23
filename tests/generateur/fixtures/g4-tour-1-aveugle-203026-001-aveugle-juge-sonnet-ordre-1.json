@@ -1,0 +1,58 @@
+{
+ "role": "aveugle-juge-sonnet-ordre-1",
+ "version": 1,
+ "sortie": {
+  "notes": [
+   {
+    "id": "A",
+    "total": 52,
+    "accroche": 11,
+    "defauts": [
+     "Accroche générique (« Les gens pensent que… ») sans enjeu chiffré ni situation vécue",
+     "Aucune preuve ni cas concret : « plus de dix ans » est affirmé sans exemple de client ni résultat",
+     "Syntaxe orale approximative (« vous serez recrédité », répétitions) et fin sans appel à l'action"
+    ]
+   },
+   {
+    "id": "B",
+    "total": 55,
+    "accroche": 10,
+    "defauts": [
+     "Accroche abstraite et déclarative, sans chiffre ni scène vécue",
+     "Aucune preuve ni exemple concret d'erreur Excel et de son coût",
+     "Style écrit plutôt qu'oral (« Par contre, si vos tableaux changent de forme… »), appel final répétitif"
+    ]
+   },
+   {
+    "id": "C",
+    "total": 50,
+    "accroche": 12,
+    "defauts": [
+     "Affirmation absolue (« surtout ne paye pas ») non prouvée, avec risque de conseil trompeur",
+     "Raisonnement confus et répétitif (« on t'a pas arrêté » répété), fautes d'oral (« qui conduisait »)",
+     "Aucune preuve ni cas réel, et appel commercial brusque (« Hello Avocat »)"
+    ]
+   },
+   {
+    "id": "D",
+    "total": 68,
+    "accroche": 16,
+    "defauts": [
+     "Cas concret fort mais aucune preuve vérifiable (pas de pièce ni détail du calcul des 50 000 €)",
+     "Liste des préjudices maladroite et confuse (« durée indémisables », « séquelles permanents »)",
+     "Fin générique (« Ne vous défendez pas seul ») sans geste précis à faire"
+    ]
+   },
+   {
+    "id": "E",
+    "total": 42,
+    "accroche": 9,
+    "defauts": [
+     "Accroche conditionnelle floue qui cible le DAF mais ne crée aucune tension",
+     "Aucune preuve, chiffre ni exemple : promesse de tableau de bord sans démonstration",
+     "Phrases écrites et publicitaires, liste répétitive, appel à l'envoi sans raison forte"
+    ]
+   }
+  ]
+ }
+}

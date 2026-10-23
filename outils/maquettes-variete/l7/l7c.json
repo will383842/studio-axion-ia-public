@@ -1,0 +1,7 @@
+{
+  "pile-notifications": { "instants": [8, 22, 45], "noms": ["v4 : cartes qui montent, cochées", "cartes glissées de côté", "cartes posées d'en haut, coches dessinées"] },
+  "programme": { "instants": [16, 28, 60], "noms": ["v4 : modules depuis la droite", "modules depuis la gauche, puces qui surgissent", "modules qui se déplient"] },
+  "rapport": { "instants": [5, 22, 50], "noms": ["v4 : éventail, barre", "pages empilées d'un côté", "page de devant qui monte, puis l'éventail"] },
+  "telephone-capture": { "instants": [4, 7, 40], "noms": ["v4 : capture entière qui défile", "écran qui s'allume", "capture qui monte dans l'écran"] },
+  "telephone-notification": { "instants": [4, 20, 45], "noms": ["v4 : la notification tombe", "heure qui monte, carte glissée de côté", "écran qui s'allume, heure qui se pose"] }
+}

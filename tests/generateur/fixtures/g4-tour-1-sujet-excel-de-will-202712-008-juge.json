@@ -1,0 +1,88 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "linkedin",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« Si votre DAF exporte, copie, colle et vérifie des fichiers Excel » : générique, signable par tout concurrent"
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "oui",
+      "motif": "« cette vidéo est pour lui » : sujet Excel et cible DAF clairs"
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Accroche adressée au dirigeant sur son DAF, mais sans problème ressenti ni enjeu"
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "oui",
+      "motif": "Phrases courtes autonomes : « Exporter, copier, coller, vérifier. » « C'est la routine »"
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "sans-objet",
+      "motif": "Boucle : (aucune)"
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "Publication reprend le script ; « Presque tous ces fichiers... remplacés par une IA » non prouvé"
+     }
+    ]
+   },
+   {
+    "id": "tiktok",
+    "reponses": [
+     {
+      "id": "ACC-01",
+      "reponse": "oui",
+      "motif": "« tout ce travail sur vos fichiers Excel, chaque jour » : générique, aucun élément propre à Axion"
+     },
+     {
+      "id": "ACC-02",
+      "reponse": "sans-objet",
+      "motif": "Aucun chiffre dans l'accroche."
+     },
+     {
+      "id": "ACC-03",
+      "reponse": "non",
+      "motif": "« une petite partie de vos données » vague : problème flou, pas de geste concret"
+     },
+     {
+      "id": "ACC-04",
+      "reponse": "non",
+      "motif": "Pas de situation concrète ni de verdict ; constat vague sans enjeu pour le dirigeant"
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "non",
+      "motif": "« Voilà ce que ça change. » dépend de l'accroche, sans contenu autonome"
+     },
+     {
+      "id": "BCL-01",
+      "reponse": "non",
+      "motif": "« ...petite partie de vos données. Voilà ce que ça change. » : « ça » sans référent clair"
+     },
+     {
+      "id": "RET-02",
+      "reponse": "non",
+      "motif": "« Voici ce que la vidéo répond » : tournure artificielle, tic d'écriture générée"
+     }
+    ]
+   }
+  ]
+ }
+}

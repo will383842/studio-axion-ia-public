@@ -1,0 +1,308 @@
+{
+  "le": "2026-10-02T09:35:30.252Z",
+  "cout": "0 € (pages publiques, aucune clé)",
+  "appels": [
+    {
+      "url": "https://developers.heygen.com/changelog",
+      "statut": 200,
+      "octets": 712273,
+      "ms": 778
+    },
+    {
+      "url": "https://elevenlabs.io/docs/changelog",
+      "statut": 200,
+      "octets": 5901168,
+      "ms": 646
+    },
+    {
+      "url": "https://api.github.com/repos/remotion-dev/remotion/releases/latest",
+      "statut": 200,
+      "octets": 2799,
+      "ms": 237
+    },
+    {
+      "url": "https://registry.npmjs.org/remotion",
+      "statut": 200,
+      "octets": 3772905,
+      "ms": 381
+    },
+    {
+      "url": "https://raw.githubusercontent.com/remotion-dev/remotion/HEAD/LICENSE.md",
+      "statut": 200,
+      "octets": 2822,
+      "ms": 220
+    },
+    {
+      "url": "https://api.fal.ai/v1/models?category=text-to-image&limit=100",
+      "statut": 200,
+      "octets": 76534,
+      "ms": 591
+    },
+    {
+      "url": "https://api.fal.ai/v1/models?category=text-to-image&limit=100&cursor=Mg",
+      "statut": 200,
+      "octets": 71400,
+      "ms": 307
+    },
+    {
+      "url": "https://api.fal.ai/v1/models?category=text-to-image&limit=100&cursor=Mw",
+      "statut": 200,
+      "octets": 14301,
+      "ms": 390
+    },
+    {
+      "url": "https://api.fal.ai/v1/models?category=image-to-video&limit=100",
+      "statut": 200,
+      "octets": 75316,
+      "ms": 381
+    },
+    {
+      "url": "https://api.fal.ai/v1/models?category=image-to-video&limit=100&cursor=Mg",
+      "statut": 200,
+      "octets": 70287,
+      "ms": 390
+    },
+    {
+      "url": "https://api.fal.ai/v1/models?category=image-to-video&limit=100&cursor=Mw",
+      "statut": 200,
+      "octets": 24682,
+      "ms": 343
+    },
+    {
+      "url": "https://api.github.com/repos/m-bain/whisperX/releases/latest",
+      "statut": 200,
+      "octets": 4391,
+      "ms": 245
+    },
+    {
+      "url": "https://api.github.com/repos/FFmpeg/FFmpeg/releases/latest",
+      "statut": 404,
+      "octets": 130,
+      "ms": 235
+    },
+    {
+      "url": "https://api.github.com/repos/FFmpeg/FFmpeg/git/matching-refs/tags/",
+      "statut": 200,
+      "octets": 142275,
+      "ms": 391
+    },
+    {
+      "url": "https://support.tiktok.com/fr/using-tiktok/creating-videos/ai-generated-content",
+      "statut": 200,
+      "octets": 5868,
+      "ms": 710
+    },
+    {
+      "url": "https://www.facebook.com/help/instagram/1038071743007909",
+      "statut": 200,
+      "octets": 856671,
+      "ms": 1171
+    },
+    {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=fr",
+      "statut": 200,
+      "octets": 1635075,
+      "ms": 1465
+    },
+    {
+      "url": "https://www.linkedin.com/help/linkedin/answer/a564109",
+      "statut": 200,
+      "octets": 38702,
+      "ms": 487
+    }
+  ],
+  "resultats": [
+    {
+      "outil": "HeyGen",
+      "source": {
+        "type": "page",
+        "url": "https://developers.heygen.com/changelog"
+      },
+      "versionUtilisee": "v3",
+      "lecture": {
+        "version": "2026-10",
+        "date": null,
+        "lien": "https://developers.heygen.com/changelog",
+        "empreinte": "222b56f6b3ead328",
+        "fichiers": null
+      },
+      "etat": "a-jour",
+      "nouveaute": null
+    },
+    {
+      "outil": "ElevenLabs",
+      "source": {
+        "type": "page",
+        "url": "https://elevenlabs.io/docs/changelog"
+      },
+      "versionUtilisee": null,
+      "lecture": {
+        "version": "2026-09-28",
+        "date": "2026-09-28T00:00:00.000Z",
+        "lien": "https://elevenlabs.io/docs/changelog",
+        "empreinte": "b0b92d4ae81728bd",
+        "fichiers": null
+      },
+      "etat": "a-jour",
+      "nouveaute": null
+    },
+    {
+      "outil": "Remotion",
+      "source": {
+        "type": "github",
+        "depot": "remotion-dev/remotion",
+        "fichiersSurveilles": [
+          "LICENSE.md"
+        ]
+      },
+      "versionUtilisee": "4.0.532",
+      "lecture": {
+        "version": "4.0.532",
+        "date": "2026-10-01T07:13:43.598Z",
+        "lien": "https://github.com/remotion-dev/remotion/releases/tag/v4.0.532",
+        "empreinte": "649c891864190e87",
+        "fichiers": {
+          "LICENSE.md": "b23d9e96f693984a"
+        }
+      },
+      "etat": "a-jour",
+      "nouveaute": null
+    },
+    {
+      "outil": "Modèles d'illustration",
+      "source": {
+        "type": "fal"
+      },
+      "versionUtilisee": "nano-banana · seedance/v1/pro/fast",
+      "lecture": {
+        "version": "Flux 3 Image",
+        "date": "2026-10-01T09:42:01.969Z",
+        "lien": "https://fal.ai/models/blackforestlabs/flux-3/text-to-image",
+        "empreinte": "a8efe00c8dbc88f2",
+        "fichiers": null
+      },
+      "etat": "a-jour",
+      "nouveaute": null
+    },
+    {
+      "outil": "Claude",
+      "source": {
+        "type": "anthropic"
+      },
+      "versionUtilisee": null,
+      "lecture": {
+        "muette": "Impossible de vérifier : Claude n'est pas encore relié."
+      },
+      "etat": "injoignable",
+      "nouveaute": null
+    },
+    {
+      "outil": "WhisperX",
+      "source": {
+        "type": "github",
+        "depot": "m-bain/whisperX"
+      },
+      "versionUtilisee": null,
+      "lecture": {
+        "version": "3.8.6",
+        "date": "2026-05-25T12:35:47Z",
+        "lien": "https://github.com/m-bain/whisperX/releases/tag/v3.8.6",
+        "empreinte": "9ef8c9081e19ba3a",
+        "fichiers": null
+      },
+      "etat": "a-jour",
+      "nouveaute": null
+    },
+    {
+      "outil": "FFmpeg",
+      "source": {
+        "type": "github",
+        "depot": "FFmpeg/FFmpeg"
+      },
+      "versionUtilisee": "5.1",
+      "lecture": {
+        "version": "9.0.2",
+        "date": null,
+        "lien": "https://github.com/FFmpeg/FFmpeg/tags",
+        "empreinte": "db66e3af23c516e1",
+        "fichiers": null
+      },
+      "etat": "nouveaute",
+      "nouveaute": {
+        "versionVue": "9.0.2",
+        "resume": {
+          "ceQueCaChange": "Version 9.0.2 disponible ; vous utilisez la 5.1. Rien de visible attendu sur vos vidéos sans essai sur le banc d'essai.",
+          "interet": "moyen",
+          "rouge": false
+        }
+      }
+    },
+    {
+      "outil": "TikTok",
+      "source": {
+        "type": "page",
+        "url": "https://support.tiktok.com/fr/using-tiktok/creating-videos/ai-generated-content"
+      },
+      "versionUtilisee": null,
+      "lecture": {
+        "muette": "Page lisible seulement dans un navigateur."
+      },
+      "etat": "injoignable",
+      "nouveaute": null
+    },
+    {
+      "outil": "Instagram",
+      "source": {
+        "type": "page",
+        "url": "https://www.facebook.com/help/instagram/1038071743007909"
+      },
+      "versionUtilisee": null,
+      "lecture": {
+        "muette": "Page lisible seulement dans un navigateur."
+      },
+      "etat": "injoignable",
+      "nouveaute": null
+    },
+    {
+      "outil": "YouTube",
+      "source": {
+        "type": "page",
+        "url": "https://support.google.com/youtube/answer/14328491?hl=fr"
+      },
+      "versionUtilisee": null,
+      "lecture": {
+        "version": null,
+        "date": null,
+        "lien": "https://support.google.com/youtube/answer/14328491?hl=fr",
+        "empreinte": "8f5796787e477ac1",
+        "fichiers": null
+      },
+      "etat": "a-jour",
+      "nouveaute": null
+    },
+    {
+      "outil": "LinkedIn",
+      "source": {
+        "type": "page",
+        "url": "https://www.linkedin.com/help/linkedin/answer/a564109"
+      },
+      "versionUtilisee": null,
+      "lecture": {
+        "version": null,
+        "date": null,
+        "lien": "https://www.linkedin.com/help/linkedin/answer/a564109",
+        "empreinte": "677f08957817d9d9",
+        "fichiers": null
+      },
+      "etat": "a-jour",
+      "nouveaute": null
+    }
+  ],
+  "remotionLicenceModifieeSimulee": {
+    "fichiersChanges": [
+      "LICENSE.md"
+    ],
+    "rouge": true,
+    "risque": "La licence change : à relire avant toute mise à jour."
+  }
+}

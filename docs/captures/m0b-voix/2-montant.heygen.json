@@ -1,0 +1,56 @@
+{
+  "texte": "Cette amende de 135 € peut être contestée sous 45 jours.",
+  "mots": [
+    {
+      "mot": "Cette",
+      "debutSec": 0.26,
+      "finSec": 0.42
+    },
+    {
+      "mot": "amende",
+      "debutSec": 0.48,
+      "finSec": 0.78
+    },
+    {
+      "mot": "de",
+      "debutSec": 0.8,
+      "finSec": 0.96
+    },
+    {
+      "mot": "135",
+      "debutSec": 1.02,
+      "finSec": 1.82
+    },
+    {
+      "mot": "peut",
+      "debutSec": 2.14,
+      "finSec": 2.28
+    },
+    {
+      "mot": "être",
+      "debutSec": 2.3,
+      "finSec": 2.44
+    },
+    {
+      "mot": "contestée",
+      "debutSec": 2.46,
+      "finSec": 3
+    },
+    {
+      "mot": "sous",
+      "debutSec": 3.06,
+      "finSec": 3.24
+    },
+    {
+      "mot": "45",
+      "debutSec": 3.48,
+      "finSec": 3.84
+    },
+    {
+      "mot": "jours.",
+      "debutSec": 3.9,
+      "finSec": 4.12
+    }
+  ],
+  "dureeSec": 4.336
+}

@@ -1,0 +1,120 @@
+{
+ "role": "plan",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "partie": "accroche",
+    "fonction": [
+     "cout",
+     "ancrage",
+     "mot-cle",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Dirigeant de PME, Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "ouvre": {
+     "id": "q-main",
+     "question": "Où est le vrai coût d'un tableur qui paraît gratuit ?"
+    },
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "ancrage",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "La raison : un tableur ne vérifie rien tout seul.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "ouvre": {
+     "id": "q-verif",
+     "question": "Si le tableur ne vérifie rien, qui le fait ?"
+    }
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "boucle-fermee",
+     "relance"
+    ],
+    "nature": "fait",
+    "resume": "Alors quelqu'un exporte, copie, colle et vérifie les données à la main, d'un fichier à l'autre, sans chiffrer le temps passé.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs"
+    ],
+    "ferme": "q-verif",
+    "lien": "consequence"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Et une seule erreur de formule suffit : tous les chiffres qui en dépendent sont faux.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "citeMatiereId": "test-35h-obs2",
+    "ouvre": {
+     "id": "q-impact",
+     "question": "Qu'est-ce que ces chiffres faux changent pour vous ?"
+    },
+    "lien": "consequence"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "emotion",
+     "boucle-fermee",
+     "boucle-ouverte"
+    ],
+    "nature": "opinion",
+    "resume": "Ce sont peut-être ces chiffres-là sur lesquels vous décidez, sans le savoir.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "ferme": "q-impact",
+    "lien": "consequence",
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "livraison",
+     "boucle-fermee"
+    ],
+    "nature": "opinion",
+    "resume": "Le coût d'Excel n'est sur aucune facture : il est dans chaque copier-coller que personne ne vérifie.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "ferme": "q-main",
+    "promesseId": "q-main",
+    "situation": "neutre"
+   }
+  ],
+  "exceptionIndex": 7,
+  "ancrageIndex": [
+   0,
+   1
+  ],
+  "appuiPrincipalIndex": 1,
+  "livraisonIndex": 5
+ }
+}

@@ -1,0 +1,59 @@
+# CI CIBLÉE « VISUELS » (carrousels, infographies) : tests + types des seuls dossiers visuels.
+# Aucun secret, aucun Docker, aucun rendu. Actions épinglées par SHA de commit complet.
+# Le dossier studio-rendu/compositions/visuels est dans le filtre car des tests de tests/visuels l'importent ; en revanche
+# tsc (tsconfig.visuels.json) ne couvre pas studio-rendu : ses types se vérifient dans studio-rendu (`npm run verifier`).
+name: tests-visuels
+
+on:
+  pull_request:
+    paths:
+      - "src/visuels/**"
+      - "src/briques/visuels/**"
+      - "src/domaine/visuels/**"
+      - "src/domaine/controles-visuel/**"
+      - "src/components/visuels/**"
+      - "src/app/(studio)/carrousels/**"
+      - "tests/visuels/**"
+      - "studio-rendu/compositions/visuels/**"
+      - "tsconfig.visuels.json"
+      - ".github/workflows/tests-visuels.yml"
+  push:
+    branches: [master]
+    paths:
+      - "src/visuels/**"
+      - "src/briques/visuels/**"
+      - "src/domaine/visuels/**"
+      - "src/domaine/controles-visuel/**"
+      - "src/components/visuels/**"
+      - "src/app/(studio)/carrousels/**"
+      - "tests/visuels/**"
+      - "studio-rendu/compositions/visuels/**"
+      - "tsconfig.visuels.json"
+      - ".github/workflows/tests-visuels.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-visuels-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests-visuels:
+    name: tests visuels
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Tests visuels
+        run: pnpm vitest run tests/visuels
+      - name: Types visuels
+        run: pnpm tsc --noEmit -p tsconfig.visuels.json

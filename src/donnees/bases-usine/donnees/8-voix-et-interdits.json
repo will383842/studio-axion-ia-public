@@ -1,0 +1,121 @@
+{
+ "base": 8,
+ "fichier": "8-voix-et-interdits.md",
+ "tables": {
+  "voix": {
+   "colonnes": [
+    "code",
+    "regle",
+    "pourquoi",
+    "s_applique_a",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "voix.vouvoiement",
+     "regle": "On vouvoie toujours.",
+     "pourquoi": "Exemple inventé.",
+     "s_applique_a": "video ; post_texte ; carrousel",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "voix.phrases-courtes",
+     "regle": "Phrases courtes, une image concrète par phrase.",
+     "pourquoi": "Exemple inventé.",
+     "s_applique_a": "video",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "voix.une-idee",
+     "regle": "Une seule idée par contenu.",
+     "pourquoi": "Exemple inventé.",
+     "s_applique_a": "video ; carrousel",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "interdit": {
+   "colonnes": [
+    "code",
+    "expression",
+    "remplacement",
+    "raison",
+    "portee",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "interdit.ville",
+     "expression": "Une ville précise",
+     "remplacement": "« partout en France »",
+     "raison": "Exemple inventé.",
+     "portee": "partout",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "interdit.gain-garanti",
+     "expression": "Aucun gain garanti",
+     "remplacement": "",
+     "raison": "Exemple inventé.",
+     "portee": "partout",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "interdit.exemple-chiffre",
+     "expression": "Tout chiffre sans fait sourcé",
+     "remplacement": "",
+     "raison": "Exemple inventé.",
+     "portee": "partout",
+     "etat": "valide",
+     "version": "1",
+     "origine": "repris",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "fait": {
+   "colonnes": [
+    "code",
+    "enonce",
+    "source",
+    "date",
+    "portee",
+    "perime_le",
+    "etat",
+    "version",
+    "origine",
+    "valide_le"
+   ],
+   "lignes": []
+  }
+ }
+}

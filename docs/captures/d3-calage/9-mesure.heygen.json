@@ -1,0 +1,121 @@
+{
+  "texte": "Bonsoir. Votre amende est réduite. Le dossier avance bien ; la mairie a répondu. Demain, nous écrirons au juge. À lundi, et bon courage.",
+  "mots": [
+    {
+      "mot": "Bonsoir.",
+      "debutSec": 0.2,
+      "finSec": 0.72
+    },
+    {
+      "mot": "Votre",
+      "debutSec": 1.3,
+      "finSec": 1.46
+    },
+    {
+      "mot": "amende",
+      "debutSec": 1.52,
+      "finSec": 1.72
+    },
+    {
+      "mot": "est",
+      "debutSec": 1.74,
+      "finSec": 1.8
+    },
+    {
+      "mot": "réduite.",
+      "debutSec": 1.84,
+      "finSec": 2.26
+    },
+    {
+      "mot": "Le",
+      "debutSec": 2.46,
+      "finSec": 2.56
+    },
+    {
+      "mot": "dossier",
+      "debutSec": 2.6,
+      "finSec": 2.9
+    },
+    {
+      "mot": "avance",
+      "debutSec": 2.96,
+      "finSec": 3.24
+    },
+    {
+      "mot": "bien",
+      "debutSec": 3.28,
+      "finSec": 3.46
+    },
+    {
+      "mot": "la",
+      "debutSec": 3.74,
+      "finSec": 3.8
+    },
+    {
+      "mot": "mairie",
+      "debutSec": 3.88,
+      "finSec": 4.12
+    },
+    {
+      "mot": "a",
+      "debutSec": 4.18,
+      "finSec": 4.2
+    },
+    {
+      "mot": "répondu.",
+      "debutSec": 4.26,
+      "finSec": 4.72
+    },
+    {
+      "mot": "Demain,",
+      "debutSec": 5.2,
+      "finSec": 5.44
+    },
+    {
+      "mot": "nous",
+      "debutSec": 5.5,
+      "finSec": 5.62
+    },
+    {
+      "mot": "écrirons",
+      "debutSec": 5.68,
+      "finSec": 6.04
+    },
+    {
+      "mot": "au",
+      "debutSec": 6.08,
+      "finSec": 6.14
+    },
+    {
+      "mot": "juge.",
+      "debutSec": 6.24,
+      "finSec": 6.52
+    },
+    {
+      "mot": "À",
+      "debutSec": 6.72,
+      "finSec": 6.78
+    },
+    {
+      "mot": "lundi,",
+      "debutSec": 6.82,
+      "finSec": 7.16
+    },
+    {
+      "mot": "et",
+      "debutSec": 7.34,
+      "finSec": 7.42
+    },
+    {
+      "mot": "bon",
+      "debutSec": 7.46,
+      "finSec": 7.6
+    },
+    {
+      "mot": "courage.",
+      "debutSec": 7.64,
+      "finSec": 8.08
+    }
+  ],
+  "dureeSec": 8.385
+}

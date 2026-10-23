@@ -1,0 +1,7 @@
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.cube -text diff
+*.ttf binary
+*.wav binary
+*.mp4 binary

@@ -1,0 +1,37 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Dirigeant de PME, votre tableur ne vérifie rien. Chaque copier-coller peut cacher des erreurs Excel que personne ne voit.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Si vous avez un DAF, envoyez-lui cette vidéo. Il saura vite où des données sont recopiées à la main chez vous, d'un tableur à l'autre."
+  },
+  "boucle": "Et ça coûte plus cher qu'on croit.",
+  "encadre": "Erreurs Excel : le coût caché",
+  "couverture": "Erreurs Excel : le vrai coût",
+  "segmentFacultatifRetenu": true,
+  "publication": {
+   "premiereLigne": "Erreurs Excel : que coûtent vraiment des données recopiées à la main ?",
+   "texte": "Erreurs Excel : que coûtent vraiment des données recopiées à la main ?\n\nUn tableur ne vérifie rien tout seul. Chaque copier-coller est une occasion d'erreur que personne ne voit. Le coût n'est sur aucune facture.\n\nPremier geste : repérez où vos données sont recopiées d'un tableur à l'autre.\n\nEnvoyez cette vidéo à votre DAF.",
+   "motsDiese": [
+    "#excel"
+   ],
+   "justifications": [
+    {
+     "texte": "Le mot-clé exact « erreurs Excel » figure dans les 125 premiers caractères de la première ligne.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Un seul mot-dièse, dans la fourchette de 0 à 3.",
+     "regleId": "ig-hashtags-5"
+    },
+    {
+     "texte": "Une boucle est posée, car le réseau en prévoit une.",
+     "regleId": "hyp-ecriture-reseau"
+    }
+   ]
+  }
+ }
+}

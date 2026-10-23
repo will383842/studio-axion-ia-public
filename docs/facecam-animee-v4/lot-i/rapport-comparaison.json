@@ -1,0 +1,49 @@
+{
+ "duree": 82.666667,
+ "dureeValide": 82.688,
+ "taille": [
+  "1080",
+  "1920",
+  "30/1"
+ ],
+ "audio": [
+  "aac",
+  "48000"
+ ],
+ "psnrMoyen": "average:43.310402",
+ "octets": 34255272,
+ "gardes": 30,
+ "dureeMontee": 82.667,
+ "plaquettes": 38,
+ "groupes": 120,
+ "essaisClaude": 1,
+ "appelsClaude": [
+  "claude-opus-5-5 · realisateur-facecam-animee v4 · 5324 car."
+ ],
+ "passages": [
+  "0 s · en_cours · coupes",
+  "5 s · en_cours · mise-en-scene",
+  "10 s · en_cours · rendu",
+  "1017 s · termine · prete"
+ ],
+ "mesuresRendu": {
+  "ratio": "9:16",
+  "fichierCle": "studio/dev/facecam-animee/v-repetition-lot-i/fa4-ver-repetition-lot-i.mp4",
+  "vignetteCle": "studio/dev/facecam-animee/v-repetition-lot-i/fa4-ver-repetition-lot-i.jpg",
+  "resolution": "1080x1920",
+  "dureeSec": 82.667,
+  "taille": 34255272,
+  "rapportQualite": {
+   "note": 90,
+   "verifie": {
+    "image": true,
+    "son": true,
+    "sousTitres": true,
+    "mentionIA": false,
+    "droits": false
+   },
+   "alertes": [],
+   "niveauSonoreLufs": -14
+  }
+ }
+}

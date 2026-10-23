@@ -1,0 +1,18 @@
+diff --git a/src/instrumentation.ts b/src/instrumentation.ts
+index 338a6db..03b1df4 100644
+--- a/src/instrumentation.ts
++++ b/src/instrumentation.ts
+@@ -28,6 +28,13 @@ export async function register() {
+     const { demarrerVeille } = await import("@/services/veille");
+     if (demarrerVeille()) console.log("[studio] veille des outils démarrée (une lecture par jour)");
+   }
++  // Lot G4 (générateur) : la boucle d'écriture, SON drapeau, hors de la file `Travail` (B.0 n° 52) ; reprise après un
++  // redémarrage depuis la dernière étape terminée, sans rien repayer. Coupée par STUDIO_BOUCLE_GENERATION=0.
++  if (process.env.STUDIO_BOUCLE_GENERATION !== "0") {
++    const { assurerBoucleGeneration } = await import("@/services/boucle-generation");
++    assurerBoucleGeneration();
++    console.log("[studio] boucle d'écriture démarrée (toutes les 4 s)");
++  }
+   if (process.env.STUDIO_BOUCLE === "0") return; // coupure de secours (variable d'environnement)
+   const { demarrerBoucle } = await import("@/services/boucle");
+   if (demarrerBoucle()) console.log("[studio] boucle de fond démarrée (toutes les 5 s)");

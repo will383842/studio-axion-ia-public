@@ -1,0 +1,266 @@
+{
+  "date": "2026-10-02T14:26:56.746Z",
+  "pourquoi": "Effet VOULU du lot intensité · bruitages (règle 0.5 du contrat) : le moteur passe désormais chaque effet par la courbe unique (Équilibré) et pose des bruitages discrets. La démonstration d'avant (docs/captures/m4-demo/, outils/demo-m4/rendre-demo.mts) reste rendue à l'identique : ce script ne la remplace pas, il la complète.",
+  "plansAvant": [
+    {
+      "ordre": 1,
+      "de": 0,
+      "a": 2.263,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 2,
+      "de": 2.263,
+      "a": 3.963,
+      "source": "double",
+      "cadrage": "poitrine",
+      "zoom": 1.2,
+      "incrustation": false
+    },
+    {
+      "ordre": 3,
+      "de": 3.963,
+      "a": 5.508,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 4,
+      "de": 5.508,
+      "a": 7.138,
+      "source": "double",
+      "cadrage": "poitrine",
+      "zoom": 1.2,
+      "incrustation": false
+    },
+    {
+      "ordre": 5,
+      "de": 7.138,
+      "a": 8.657,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 6,
+      "de": 8.657,
+      "a": 10.657,
+      "source": "illustration",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 7,
+      "de": 10.657,
+      "a": 12.93,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": true
+    },
+    {
+      "ordre": 8,
+      "de": 12.93,
+      "a": 15.571,
+      "source": "double",
+      "cadrage": "poitrine",
+      "zoom": 1.2,
+      "incrustation": false
+    }
+  ],
+  "plansApres": [
+    {
+      "ordre": 1,
+      "de": 0,
+      "a": 2.263,
+      "source": "double",
+      "cadrage": "large",
+      "incrustation": false
+    },
+    {
+      "ordre": 2,
+      "de": 2.263,
+      "a": 3.963,
+      "source": "double",
+      "cadrage": "poitrine",
+      "incrustation": false
+    },
+    {
+      "ordre": 3,
+      "de": 3.963,
+      "a": 5.508,
+      "source": "double",
+      "cadrage": "large",
+      "incrustation": false
+    },
+    {
+      "ordre": 4,
+      "de": 5.508,
+      "a": 7.138,
+      "source": "double",
+      "cadrage": "poitrine",
+      "incrustation": false
+    },
+    {
+      "ordre": 5,
+      "de": 7.138,
+      "a": 8.657,
+      "source": "double",
+      "cadrage": "large",
+      "incrustation": false
+    },
+    {
+      "ordre": 6,
+      "de": 8.657,
+      "a": 10.657,
+      "source": "illustration",
+      "incrustation": false
+    },
+    {
+      "ordre": 7,
+      "de": 10.657,
+      "a": 12.93,
+      "source": "double",
+      "cadrage": "large",
+      "incrustation": false
+    },
+    {
+      "ordre": 8,
+      "de": 12.93,
+      "a": 15.571,
+      "source": "double",
+      "cadrage": "poitrine",
+      "incrustation": false
+    }
+  ],
+  "accentsAvant": [
+    {
+      "de": 0.064,
+      "style": "base",
+      "souligne": 1,
+      "texte": "Vous recevez"
+    },
+    {
+      "de": 0.843,
+      "style": "impact",
+      "souligne": null,
+      "texte": "de 135 € ?"
+    },
+    {
+      "de": 3.273,
+      "style": "bandeau",
+      "souligne": null,
+      "texte": "tout de suite :"
+    },
+    {
+      "de": 4.682,
+      "style": "base",
+      "souligne": 0,
+      "texte": "pourquoi."
+    },
+    {
+      "de": 8.243,
+      "style": "base",
+      "souligne": 0,
+      "texte": "erreur sur l'avis"
+    },
+    {
+      "de": 11.174,
+      "style": "impact",
+      "souligne": null,
+      "texte": "2 500 €"
+    }
+  ],
+  "accentsApres": [
+    {
+      "de": 0.064,
+      "style": "base",
+      "souligne": 1,
+      "texte": "Vous recevez"
+    },
+    {
+      "de": 0.843,
+      "style": "impact",
+      "souligne": null,
+      "texte": "de 135 € ?"
+    },
+    {
+      "de": 4.682,
+      "style": "base",
+      "souligne": 0,
+      "texte": "pourquoi."
+    },
+    {
+      "de": 8.243,
+      "style": "base",
+      "souligne": 0,
+      "texte": "erreur sur l'avis"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "plan-7:incrustation",
+      "decision": "saute",
+      "debutSec": 10.657,
+      "finSec": 12.93,
+      "raison": "respiration après un effet fort"
+    },
+    {
+      "id": "st-st-11:bandeau",
+      "decision": "saute",
+      "debutSec": 3.273,
+      "finSec": 3.963,
+      "raison": "plafond de la fenêtre de 3 s atteint"
+    },
+    {
+      "id": "st-st-36:impact",
+      "decision": "saute",
+      "debutSec": 11.174,
+      "finSec": 12.129,
+      "raison": "plafond de la fenêtre de 3 s atteint"
+    },
+    {
+      "id": "bruitage:chiffre:0.72",
+      "decision": "saute",
+      "debutSec": 0.723,
+      "finSec": 0.873,
+      "raison": "moins de 10 s après un autre son"
+    }
+  ],
+  "bruitages": [
+    {
+      "elementId": "bruit-document-3",
+      "declencheur": "document",
+      "debutSec": 8.537,
+      "dureeSec": 0.28,
+      "gainDb": -21,
+      "planId": "plan-6",
+      "sousLaVoixMesureDb": 21
+    }
+  ],
+  "courbe": {
+    "plafond": 5,
+    "chargeMax": 5,
+    "depassements": []
+  },
+  "son": {
+    "lufsAvant": -14.1,
+    "lufsApres": -14.1,
+    "creteAvantDbtp": -3.1,
+    "creteApresDbtp": -3.1,
+    "voixNiveauActifDb": -12.64,
+    "sousLaVoixMinDb": 21,
+    "sousLaVoixMaxDb": 21,
+    "mesuresStudioRendu": {
+      "bruitages": 1,
+      "bruitagesSousVoixMinDb": 21,
+      "bruitagesSousVoixMaxDb": 21
+    }
+  }
+}

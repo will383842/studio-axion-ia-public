@@ -1,0 +1,515 @@
+[
+  {
+    "fichier": "video-1-linkedin.mp4",
+    "empreinte": "56b5bec19ffc436e232934c21d943b7ff48da900916ed75c4040cbb572f53b12",
+    "octets": 10959083,
+    "dureeSec": 54.12,
+    "dureeLigneSec": 54.12,
+    "ecartSec": 0,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "son": true,
+    "noirMaxSec": 0,
+    "figeMaxSec": 1.6,
+    "noirOuFigeHorsFin": [
+      {
+        "quoi": "figé",
+        "debut": 2.92,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 11.24,
+        "duree": 0.76
+      },
+      {
+        "quoi": "figé",
+        "debut": 16.68,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 31.6,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 36,
+        "duree": 0.68
+      },
+      {
+        "quoi": "figé",
+        "debut": 38.08,
+        "duree": 0.68
+      },
+      {
+        "quoi": "figé",
+        "debut": 40.68,
+        "duree": 1
+      },
+      {
+        "quoi": "figé",
+        "debut": 44.36,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 46.92,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 47.48,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 51.88,
+        "duree": 0.64
+      }
+    ],
+    "images": 20,
+    "occupationOk": 12,
+    "occupationNon": 8
+  },
+  {
+    "fichier": "video-1-tiktok.mp4",
+    "empreinte": "fcb32974d74e6ff30ef9f1f4eec6cc85c781375bcb65f46fa9b69ea05b5c5412",
+    "octets": 10205170,
+    "dureeSec": 62.44,
+    "dureeLigneSec": 62.44,
+    "ecartSec": 0,
+    "largeur": 1080,
+    "hauteur": 1920,
+    "son": true,
+    "noirMaxSec": 0,
+    "figeMaxSec": 1.6,
+    "noirOuFigeHorsFin": [
+      {
+        "quoi": "figé",
+        "debut": 0.32,
+        "duree": 0.72
+      },
+      {
+        "quoi": "figé",
+        "debut": 2.96,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 11.28,
+        "duree": 0.92
+      },
+      {
+        "quoi": "figé",
+        "debut": 12.28,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 20.32,
+        "duree": 0.64
+      },
+      {
+        "quoi": "figé",
+        "debut": 20.96,
+        "duree": 0.84
+      },
+      {
+        "quoi": "figé",
+        "debut": 21.8,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 25.48,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 28.24,
+        "duree": 0.72
+      },
+      {
+        "quoi": "figé",
+        "debut": 28.96,
+        "duree": 0.8
+      },
+      {
+        "quoi": "figé",
+        "debut": 31.48,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 36,
+        "duree": 0.68
+      },
+      {
+        "quoi": "figé",
+        "debut": 40.68,
+        "duree": 1
+      },
+      {
+        "quoi": "figé",
+        "debut": 44.4,
+        "duree": 0.76
+      },
+      {
+        "quoi": "figé",
+        "debut": 46.88,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 47.48,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 48.32,
+        "duree": 0.64
+      },
+      {
+        "quoi": "figé",
+        "debut": 48.96,
+        "duree": 0.8
+      },
+      {
+        "quoi": "figé",
+        "debut": 49.76,
+        "duree": 0.64
+      },
+      {
+        "quoi": "figé",
+        "debut": 50.6,
+        "duree": 0.88
+      },
+      {
+        "quoi": "figé",
+        "debut": 51.56,
+        "duree": 0.96
+      },
+      {
+        "quoi": "figé",
+        "debut": 53.44,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 54.08,
+        "duree": 1
+      },
+      {
+        "quoi": "figé",
+        "debut": 55.16,
+        "duree": 0.64
+      },
+      {
+        "quoi": "figé",
+        "debut": 56.64,
+        "duree": 0.84
+      },
+      {
+        "quoi": "figé",
+        "debut": 59.88,
+        "duree": 0.96
+      }
+    ],
+    "images": 22,
+    "occupationOk": 18,
+    "occupationNon": 4
+  },
+  {
+    "fichier": "video-2-linkedin.mp4",
+    "empreinte": "5eddd60995a5e9f7cf9484bacf5154453f1602ca250ca8f384e03168f296f3dc",
+    "octets": 6706759,
+    "dureeSec": 44.68,
+    "dureeLigneSec": 44.68,
+    "ecartSec": 0,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "son": true,
+    "noirMaxSec": 0,
+    "figeMaxSec": 1.6,
+    "noirOuFigeHorsFin": [
+      {
+        "quoi": "figé",
+        "debut": 14.12,
+        "duree": 1
+      },
+      {
+        "quoi": "figé",
+        "debut": 27.2,
+        "duree": 0.64
+      },
+      {
+        "quoi": "figé",
+        "debut": 28.08,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 30.12,
+        "duree": 0.72
+      },
+      {
+        "quoi": "figé",
+        "debut": 32.6,
+        "duree": 0.72
+      },
+      {
+        "quoi": "figé",
+        "debut": 33.4,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 34.48,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 36.48,
+        "duree": 0.84
+      },
+      {
+        "quoi": "figé",
+        "debut": 37.32,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 39.2,
+        "duree": 0.52
+      }
+    ],
+    "images": 16,
+    "occupationOk": 8,
+    "occupationNon": 8
+  },
+  {
+    "fichier": "video-2-tiktok.mp4",
+    "empreinte": "498f762ed8ea95a228e00eb33cacd2a06937fc3394f23c642031e8fb95666c19",
+    "octets": 7731269,
+    "dureeSec": 53.32,
+    "dureeLigneSec": 53.32,
+    "ecartSec": 0,
+    "largeur": 1080,
+    "hauteur": 1920,
+    "son": true,
+    "noirMaxSec": 0,
+    "figeMaxSec": 2.56,
+    "noirOuFigeHorsFin": [
+      {
+        "quoi": "figé",
+        "debut": 0.96,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 14.12,
+        "duree": 1
+      },
+      {
+        "quoi": "figé",
+        "debut": 27.24,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 28,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 30.08,
+        "duree": 0.76
+      },
+      {
+        "quoi": "figé",
+        "debut": 32.6,
+        "duree": 0.76
+      },
+      {
+        "quoi": "figé",
+        "debut": 36.56,
+        "duree": 0.76
+      },
+      {
+        "quoi": "figé",
+        "debut": 37.32,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 39.84,
+        "duree": 2.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 44.24,
+        "duree": 0.64
+      },
+      {
+        "quoi": "figé",
+        "debut": 44.88,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 46.16,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 47.6,
+        "duree": 0.76
+      },
+      {
+        "quoi": "figé",
+        "debut": 50.8,
+        "duree": 0.92
+      }
+    ],
+    "images": 19,
+    "occupationOk": 1,
+    "occupationNon": 18
+  },
+  {
+    "fichier": "video-3-linkedin.mp4",
+    "empreinte": "5631d6dfe90be2f9631b875475838a58de1f5b6ab8f6455649db0321046ec439",
+    "octets": 29102277,
+    "dureeSec": 41.76,
+    "dureeLigneSec": 41.76,
+    "ecartSec": 0,
+    "largeur": 1080,
+    "hauteur": 1350,
+    "son": true,
+    "noirMaxSec": 0,
+    "figeMaxSec": 1.6,
+    "noirOuFigeHorsFin": [
+      {
+        "quoi": "figé",
+        "debut": 9.04,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 18.12,
+        "duree": 1
+      },
+      {
+        "quoi": "figé",
+        "debut": 20.68,
+        "duree": 0.72
+      },
+      {
+        "quoi": "figé",
+        "debut": 28,
+        "duree": 0.8
+      },
+      {
+        "quoi": "figé",
+        "debut": 32.2,
+        "duree": 0.56
+      },
+      {
+        "quoi": "figé",
+        "debut": 33.04,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 36,
+        "duree": 0.6
+      }
+    ],
+    "images": 15,
+    "occupationOk": 8,
+    "occupationNon": 7
+  },
+  {
+    "fichier": "video-3-tiktok.mp4",
+    "empreinte": "a5582a4658dc7dd5fd549035c7039673b77b3d4a1eb2ec97ad78a8274626cf58",
+    "octets": 36752925,
+    "dureeSec": 50.44,
+    "dureeLigneSec": 50.44,
+    "ecartSec": 0,
+    "largeur": 1080,
+    "hauteur": 1920,
+    "son": true,
+    "noirMaxSec": 0,
+    "figeMaxSec": 1.6,
+    "noirOuFigeHorsFin": [
+      {
+        "quoi": "figé",
+        "debut": 2.96,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 9.04,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 18.24,
+        "duree": 0.88
+      },
+      {
+        "quoi": "figé",
+        "debut": 20.68,
+        "duree": 0.72
+      },
+      {
+        "quoi": "figé",
+        "debut": 28,
+        "duree": 0.8
+      },
+      {
+        "quoi": "figé",
+        "debut": 32.2,
+        "duree": 0.64
+      },
+      {
+        "quoi": "figé",
+        "debut": 33.04,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 36,
+        "duree": 0.6
+      },
+      {
+        "quoi": "figé",
+        "debut": 38.6,
+        "duree": 0.52
+      },
+      {
+        "quoi": "figé",
+        "debut": 39.2,
+        "duree": 0.8
+      },
+      {
+        "quoi": "figé",
+        "debut": 41.4,
+        "duree": 0.8
+      },
+      {
+        "quoi": "figé",
+        "debut": 44.64,
+        "duree": 0.84
+      },
+      {
+        "quoi": "figé",
+        "debut": 47.88,
+        "duree": 0.96
+      }
+    ],
+    "images": 18,
+    "occupationOk": 8,
+    "occupationNon": 10
+  }
+]

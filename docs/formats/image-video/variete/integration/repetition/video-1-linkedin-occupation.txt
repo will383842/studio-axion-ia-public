@@ -1,0 +1,21 @@
+image          occupation  trou max  équilibre  appoint  verdict
+video-1-linkedin-0_5        83 %        5 %       2.08    —     OK
+video-1-linkedin-1_5        69 %       10 %       2.30    —     OK
+video-1-linkedin-3        18 %       44 %       0.47    —     NON
+video-1-linkedin-6        21 %       41 %       0.28    —     NON
+video-1-linkedin-9        13 %       46 %       0.57    —     NON
+video-1-linkedin-12        80 %       20 %       2.10    —     NON
+video-1-linkedin-15        82 %       15 %       1.73    —     OK
+video-1-linkedin-18        74 %       15 %       2.88    —     OK
+video-1-linkedin-21        58 %       15 %       1.78    —     NON
+video-1-linkedin-24        76 %       15 %       1.62    —     OK
+video-1-linkedin-27        46 %       22 %       1.19    —     NON
+video-1-linkedin-30        55 %       21 %       0.66    —     NON
+video-1-linkedin-33        73 %       13 %       2.00    —     OK
+video-1-linkedin-36        86 %       10 %       1.39    —     OK
+video-1-linkedin-39        90 %       10 %       1.23    —     OK
+video-1-linkedin-42        46 %       15 %       1.33    —     NON
+video-1-linkedin-45        71 %       13 %       0.52    —     OK
+video-1-linkedin-48        63 %       10 %       0.63    —     OK
+video-1-linkedin-51        88 %        7 %       0.78    —     OK
+video-1-linkedin-54        87 %        7 %       0.88    —     OK

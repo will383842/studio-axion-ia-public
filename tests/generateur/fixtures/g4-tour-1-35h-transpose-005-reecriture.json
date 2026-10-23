@@ -1,0 +1,26 @@
+{
+ "role": "reecriture",
+ "version": 1,
+ "sortie": {
+  "corrections": [
+   {
+    "segmentIndex": -1,
+    "texte": "Dirigeant, Excel paraît gratuit. Mais un copier-coller fait à la main d'un fichier à l'autre, c'est une occasion d'erreur. Souvent invisible.",
+    "marqueurs": [
+     "mot-cle",
+     "boucle-ouverte"
+    ],
+    "motif": "J'ai retiré les absolus « chaque » et « personne ne », absents de la matière. J'ai aussi retiré « de PME », une taille d'entreprise qui n'est pas dans les données. J'ai ajouté une phrase courte pour le rythme."
+   },
+   {
+    "segmentIndex": 0,
+    "texte": "Premier geste. Repérez dans vos propres fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre. Ce sont les points où l'erreur passe inaperçue.",
+    "marqueurs": [
+     "relance",
+     "solution"
+    ],
+    "motif": "J'ai retiré « Un tableur ne vérifie rien tout seul », une matière élargie et non citée mot pour mot. Le segment reprend désormais fidèlement l'issue fournie."
+   }
+  ]
+ }
+}

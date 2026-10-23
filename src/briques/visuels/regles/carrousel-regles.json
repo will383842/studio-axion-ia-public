@@ -1,0 +1,9 @@
+{
+  "version": "carrousel-regles/1",
+  "longueurs": { "titreMax": 60, "corpsMax": 280, "altMax": 125 },
+  "cartes": { "min": 2, "max": 6 },
+  "structure": { "premiereCarte": "couverture", "derniereCarte": "libre" },
+  "motsSignales": [],
+  "famillesAccroche": [],
+  "appels": []
+}

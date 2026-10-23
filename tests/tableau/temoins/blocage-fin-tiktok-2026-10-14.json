@@ -1,0 +1,3078 @@
+{
+ "origine": "production, vidéo v-9238deaab41e, travail trav-0896d99c1d64, 14/10/2026 : arrêt au calage de la sortie vertical-liens (TikTok/Shorts)",
+ "erreur": {
+  "code": "TABLEAU_ECHEC",
+  "reessayable": false,
+  "detailTechnique": "Fabrication arrêtée à l'étape « calage » : Fin propre à TikTok et Shorts · Scène s10 · règle « du rythme : un événement visuel toutes les 4 secondes » : aucun événement visuel entre 48,6 s et 52,9 s ; un toutes les 4 s au moins. Ajoutez une ligne écrite ou un geste dans la scène 10.",
+  "messagePourWill": "Le calage sur la voix n'a pas abouti. Fin propre à TikTok et Shorts · Scène s10 · règle « du rythme : un événement visuel toutes les 4 secondes » : aucun événement visuel entre 48,6 s et 52,9 s ; un toutes les 4 s au moins. Ajoutez une ligne écrite ou un geste dans la scène 10. Modifiez la fiche de scènes, puis relancez."
+ },
+ "fiche": {
+  "ratio": "9:16",
+  "serie": {
+   "nom": "Automatisations",
+   "code": "automatisations"
+  },
+  "stylo": "crayon/1",
+  "scenes": [
+   {
+    "id": "s01",
+    "page": 1,
+    "role": "accroche",
+    "ecrans": [
+     {
+      "liste": [
+       {
+        "ancre": 10,
+        "texte": "Vos délais"
+       },
+       {
+        "ancre": 12,
+        "texte": "Vos horaires"
+       },
+       {
+        "ancre": 14,
+        "texte": "Votre zone"
+       }
+      ],
+      "moment": "accroche",
+      "gabarit": "accroche-cases",
+      "etiquette": "Le constat",
+      "motsForts": [
+       "retapez",
+       "réponse"
+      ]
+     },
+     {
+      "ancre": 16,
+      "moment": "douleur",
+      "gabarit": "constat",
+      "etiquette": "Le constat",
+      "motsForts": [
+       "déjà",
+       "écrit"
+      ]
+     }
+    ],
+    "elements": [
+     {
+      "id": "e01",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Vous retapez la même réponse",
+      "marque": "entoure",
+      "niveau": "titre"
+     },
+     {
+      "id": "e02",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 5,
+      "texte": "dix fois par jour",
+      "marque": "entoure",
+      "niveau": "texte"
+     },
+     {
+      "id": "e03",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 9,
+      "dessinId": "bulle"
+     },
+     {
+      "id": "e04",
+      "role": "condition",
+      "type": "ligne",
+      "ancre": 10,
+      "texte": "Délais, horaires, zone",
+      "niveau": "texte"
+     },
+     {
+      "id": "e05",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 16,
+      "dessinId": "calendrier"
+     },
+     {
+      "id": "e06",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 22,
+      "texte": "« Je l'ai déjà écrit »",
+      "marque": "souligne",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Vous retapez la même réponse dix fois par jour. Vos délais. Vos horaires. Votre zone d'intervention. Entre deux rendez-vous, vous soupirez : je l'ai déjà écrit."
+   },
+   {
+    "id": "s02",
+    "page": 2,
+    "role": "idee-recue",
+    "ecrans": [
+     {
+      "moment": "retournement",
+      "gabarit": "idee-recue",
+      "etiquette": "Le vrai problème",
+      "motsForts": [
+       "tête"
+      ]
+     },
+     {
+      "ancre": 15,
+      "moment": "promesse",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "retaper"
+      ]
+     }
+    ],
+    "elements": [
+     {
+      "id": "e07",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Le problème : vos clients",
+      "marque": "barre",
+      "niveau": "texte"
+     },
+     {
+      "id": "e08",
+      "cote": "centre",
+      "type": "dessin",
+      "ancre": 6,
+      "dessinId": "ampoule"
+     },
+     {
+      "id": "e09",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 8,
+      "texte": "La réponse est dans votre tête",
+      "marque": "souligne",
+      "niveau": "texte"
+     },
+     {
+      "id": "e10",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 15,
+      "dessinId": "fleche-droite"
+     },
+     {
+      "id": "e11",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 17,
+      "texte": "Ne plus jamais la retaper",
+      "niveau": "titre"
+     }
+    ],
+    "texteDit": "Le problème n'est pas vos clients. C'est que votre réponse n'existe que dans votre tête. Voici comment ne plus jamais la retaper, en quatre étapes."
+   },
+   {
+    "id": "s03",
+    "page": 3,
+    "role": "etape",
+    "ecrans": [
+     {
+      "etape": {
+       "n": 1,
+       "nom": "Relire",
+       "total": 4
+      },
+      "moment": "etape",
+      "gabarit": "etape",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Relisez",
+       "Notez"
+      ]
+     }
+    ],
+    "elements": [
+     {
+      "id": "e12",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Relisez vos messages envoyés",
+      "niveau": "titre"
+     },
+     {
+      "id": "e13",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 3,
+      "dessinId": "enveloppe"
+     },
+     {
+      "id": "e14",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 8,
+      "texte": "Notez les questions qui reviennent",
+      "niveau": "texte"
+     },
+     {
+      "id": "e15",
+      "type": "geste",
+      "ancre": 12,
+      "geste": "souligner",
+      "cibleId": "e14"
+     }
+    ],
+    "texteDit": "Un. Relisez vos messages envoyés de la semaine. Notez chaque question qui revient au moins deux fois."
+   },
+   {
+    "id": "s04",
+    "page": 3,
+    "role": "etape",
+    "ecrans": [
+     {
+      "etape": {
+       "n": 2,
+       "nom": "Écrire",
+       "total": 4
+      },
+      "moment": "etape",
+      "gabarit": "etape",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Écrivez",
+       "réponse"
+      ]
+     }
+    ],
+    "elements": [
+     {
+      "id": "e16",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Écrivez une réponse type",
+      "niveau": "titre"
+     },
+     {
+      "id": "e17",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 3,
+      "dessinId": "crayon"
+     },
+     {
+      "id": "e18",
+      "role": "condition",
+      "type": "ligne",
+      "ancre": 7,
+      "texte": "Une fois, au calme, vos vrais délais",
+      "niveau": "texte"
+     },
+     {
+      "id": "e19",
+      "type": "geste",
+      "ancre": 16,
+      "geste": "souligner",
+      "cibleId": "e18"
+     }
+    ],
+    "texteDit": "Deux. Écrivez une réponse type pour chacune. Une seule fois, au calme, avec vos mots et vos vrais délais."
+   },
+   {
+    "id": "s05",
+    "page": 4,
+    "role": "etape",
+    "ecrans": [
+     {
+      "etape": {
+       "n": 3,
+       "nom": "Ranger",
+       "total": 4
+      },
+      "liste": [
+       {
+        "ancre": 9,
+        "texte": "Gmail",
+        "detail": "Modèles"
+       },
+       {
+        "ancre": 12,
+        "texte": "WhatsApp Business",
+        "detail": "Réponses rapides"
+       }
+      ],
+      "moment": "etape",
+      "gabarit": "liste",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Rangez-les"
+      ]
+     }
+    ],
+    "elements": [
+     {
+      "id": "e20",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Rangez-les dans votre messagerie",
+      "niveau": "titre"
+     },
+     {
+      "id": "e21",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 4,
+      "dessinId": "dossier"
+     },
+     {
+      "id": "e22",
+      "role": "avantage",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Gmail : Modèles",
+      "niveau": "texte"
+     },
+     {
+      "id": "e23",
+      "role": "avantage",
+      "type": "ligne",
+      "ancre": 12,
+      "texte": "WhatsApp Business : réponses rapides",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Trois. Rangez-les dans les réponses enregistrées de votre messagerie. Modèles dans Gmail, réponses rapides dans WhatsApp Business."
+   },
+   {
+    "id": "s06",
+    "page": 4,
+    "role": "etape",
+    "ecrans": [
+     {
+      "etape": {
+       "n": 4,
+       "nom": "Automatiser",
+       "total": 4
+      },
+      "moment": "etape",
+      "gabarit": "etape",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Automatisez"
+      ]
+     }
+    ],
+    "elements": [
+     {
+      "id": "e24",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Automatisez la plus fréquente",
+      "marque": "surligne",
+      "niveau": "titre"
+     },
+     {
+      "id": "e25",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 7,
+      "dessinId": "engrenage"
+     },
+     {
+      "id": "e26",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 12,
+      "texte": "Message d'accueil automatique",
+      "niveau": "texte"
+     },
+     {
+      "id": "e27",
+      "type": "geste",
+      "ancre": 17,
+      "geste": "entourer",
+      "cibleId": "e26"
+     }
+    ],
+    "texteDit": "Quatre. Automatisez la question la plus fréquente. Mettez sa réponse dans le message d'accueil automatique : il part au premier message."
+   },
+   {
+    "id": "s07",
+    "page": 5,
+    "role": "exemple",
+    "ecrans": [
+     {
+      "moment": "exemple",
+      "gabarit": "exemple",
+      "etiquette": "Exemple",
+      "motsForts": [
+       "retape"
+      ]
+     }
+    ],
+    "elements": [
+     {
+      "id": "e28",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Un plombier, la question des délais",
+      "niveau": "titre"
+     },
+     {
+      "id": "e29",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 8,
+      "dessinId": "telephone"
+     },
+     {
+      "id": "e30",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Avant : il retape ses délais",
+      "marque": "barre",
+      "niveau": "texte"
+     },
+     {
+      "id": "e31",
+      "type": "mention",
+      "texte": "Exemple illustratif"
+     }
+    ],
+    "texteDit": "Prenons un plombier et la question des délais. Avant, il retape ses délais six fois par jour, sur le chantier."
+   },
+   {
+    "id": "s08",
+    "page": 5,
+    "role": "preuve",
+    "ecrans": [
+     {
+      "moment": "exemple",
+      "gabarit": "exemple",
+      "etiquette": "Exemple"
+     }
+    ],
+    "elements": [
+     {
+      "id": "e32",
+      "type": "preuve",
+      "ancre": 0,
+      "lignes": [
+       "Après : l'accueil donne délais et horaires",
+       "Il ne tape plus que le créneau"
+      ],
+      "preuveId": "mat-import-demo-01"
+     },
+     {
+      "id": "e33",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 10,
+      "dessinId": "coche-cercle"
+     },
+     {
+      "id": "e34",
+      "type": "geste",
+      "ancre": 17,
+      "geste": "entourer",
+      "cibleId": "e32"
+     },
+     {
+      "id": "e35",
+      "type": "mention",
+      "texte": "Exemple illustratif"
+     }
+    ],
+    "texteDit": "Après, son message d'accueil annonce ses délais et ses horaires. Lui ne tape plus qu'une chose : le créneau."
+   },
+   {
+    "id": "s09",
+    "page": 6,
+    "role": "resultat",
+    "ecrans": [
+     {
+      "liste": [
+       {
+        "ancre": 0,
+        "texte": "Relisez"
+       },
+       {
+        "ancre": 1,
+        "texte": "Écrivez une fois"
+       },
+       {
+        "ancre": 4,
+        "texte": "Rangez"
+       },
+       {
+        "ancre": 5,
+        "texte": "Automatisez"
+       }
+      ],
+      "moment": "recapitulatif",
+      "gabarit": "recapitulatif",
+      "etiquette": "En résumé"
+     }
+    ],
+    "elements": [
+     {
+      "id": "e36",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 0,
+      "dessinId": "liste-cochee"
+     },
+     {
+      "id": "e37",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Relire, écrire, ranger, automatiser",
+      "niveau": "titre"
+     },
+     {
+      "id": "e38",
+      "type": "geste",
+      "ancre": 5,
+      "geste": "cocher",
+      "cibleId": "e37"
+     }
+    ],
+    "texteDit": "Relisez. Écrivez une fois. Rangez. Automatisez la plus fréquente."
+   },
+   {
+    "id": "s10",
+    "page": 6,
+    "role": "fin",
+    "ecrans": [
+     {
+      "moment": "appel",
+      "gabarit": "appel-commentaire",
+      "etiquette": "À vous",
+      "motsForts": [
+       "REPONSES"
+      ],
+      "motCommentaire": "REPONSES"
+     }
+    ],
+    "elements": [
+     {
+      "id": "e39",
+      "cote": "centre",
+      "type": "dessin",
+      "ancre": 0,
+      "dessinId": "document"
+     },
+     {
+      "id": "e40",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 10,
+      "texte": "Écrivez REPONSES en commentaire",
+      "marque": "entoure",
+      "niveau": "titre"
+     },
+     {
+      "id": "s10l1",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Dix réponses types",
+      "niveau": "texte"
+     },
+     {
+      "id": "s10l2",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Sur une page",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Les dix réponses types à préparer tiennent sur une page. Écrivez REPONSES en commentaire. Je vous l'envoie."
+   }
+  ],
+  "appelId": "fin-if-mot-envoi",
+  "douleur": "Vous retapez la même réponse dix fois par jour. Vos délais. Vos horaires. Votre zone d'intervention.",
+  "version": "fiche-scenes/1",
+  "videoId": "v-9238deaab41e",
+  "formatId": "tableau-anime",
+  "habillage": "blocs/2",
+  "structure": "demonstration",
+  "versionId": "b1",
+  "gesteMinute": "Répondre dix fois par jour aux mêmes questions de clients"
+ },
+ "ficheCalee": {
+  "ratio": "9:16",
+  "serie": {
+   "nom": "Automatisations",
+   "code": "automatisations"
+  },
+  "stylo": "crayon/1",
+  "scenes": [
+   {
+    "id": "s01",
+    "page": 1,
+    "role": "accroche",
+    "finMs": 6921,
+    "ecrans": [
+     {
+      "liste": [
+       {
+        "ancre": 10,
+        "texte": "Vos délais"
+       },
+       {
+        "ancre": 12,
+        "texte": "Vos horaires"
+       },
+       {
+        "ancre": 14,
+        "texte": "Votre zone"
+       }
+      ],
+      "moment": "accroche",
+      "gabarit": "accroche-cases",
+      "etiquette": "Le constat",
+      "motsForts": [
+       "retapez",
+       "réponse"
+      ]
+     },
+     {
+      "ancre": 16,
+      "moment": "douleur",
+      "gabarit": "constat",
+      "etiquette": "Le constat",
+      "motsForts": [
+       "déjà",
+       "écrit"
+      ]
+     }
+    ],
+    "debutMs": 0,
+    "elements": [
+     {
+      "id": "e01",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Vous retapez la même réponse",
+      "marque": "entoure",
+      "niveau": "titre"
+     },
+     {
+      "id": "e02",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 5,
+      "texte": "dix fois par jour",
+      "marque": "entoure",
+      "niveau": "texte"
+     },
+     {
+      "id": "e03",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 9,
+      "dessinId": "bulle"
+     },
+     {
+      "id": "e04",
+      "role": "condition",
+      "type": "ligne",
+      "ancre": 10,
+      "texte": "Délais, horaires, zone",
+      "niveau": "texte"
+     },
+     {
+      "id": "e05",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 16,
+      "dessinId": "calendrier"
+     },
+     {
+      "id": "e06",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 22,
+      "texte": "« Je l'ai déjà écrit »",
+      "marque": "souligne",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Vous retapez la même réponse dix fois par jour. Vos délais. Vos horaires. Votre zone d'intervention. Entre deux rendez-vous, vous soupirez : je l'ai déjà écrit."
+   },
+   {
+    "id": "s02",
+    "page": 2,
+    "role": "idee-recue",
+    "finMs": 13079,
+    "ecrans": [
+     {
+      "moment": "retournement",
+      "gabarit": "idee-recue",
+      "etiquette": "Le vrai problème",
+      "motsForts": [
+       "tête"
+      ]
+     },
+     {
+      "ancre": 15,
+      "moment": "promesse",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "retaper"
+      ]
+     }
+    ],
+    "debutMs": 6921,
+    "elements": [
+     {
+      "id": "e07",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Le problème : vos clients",
+      "marque": "barre",
+      "niveau": "texte"
+     },
+     {
+      "id": "e08",
+      "cote": "centre",
+      "type": "dessin",
+      "ancre": 6,
+      "dessinId": "ampoule"
+     },
+     {
+      "id": "e09",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 8,
+      "texte": "La réponse est dans votre tête",
+      "marque": "souligne",
+      "niveau": "texte"
+     },
+     {
+      "id": "e10",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 15,
+      "dessinId": "fleche-droite"
+     },
+     {
+      "id": "e11",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 17,
+      "texte": "Ne plus jamais la retaper",
+      "niveau": "titre"
+     }
+    ],
+    "texteDit": "Le problème n'est pas vos clients. C'est que votre réponse n'existe que dans votre tête. Voici comment ne plus jamais la retaper, en quatre étapes."
+   },
+   {
+    "id": "s03",
+    "page": 3,
+    "role": "etape",
+    "finMs": 17448,
+    "ecrans": [
+     {
+      "etape": {
+       "n": 1,
+       "nom": "Relire",
+       "total": 4
+      },
+      "moment": "etape",
+      "gabarit": "etape",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Relisez",
+       "Notez"
+      ]
+     }
+    ],
+    "debutMs": 13079,
+    "elements": [
+     {
+      "id": "e12",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Relisez vos messages envoyés",
+      "niveau": "titre"
+     },
+     {
+      "id": "e13",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 3,
+      "dessinId": "enveloppe"
+     },
+     {
+      "id": "e14",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 8,
+      "texte": "Notez les questions qui reviennent",
+      "niveau": "texte"
+     },
+     {
+      "id": "e15",
+      "type": "geste",
+      "ancre": 12,
+      "geste": "souligner",
+      "cibleId": "e14"
+     }
+    ],
+    "texteDit": "Un. Relisez vos messages envoyés de la semaine. Notez chaque question qui revient au moins deux fois."
+   },
+   {
+    "id": "s04",
+    "page": 3,
+    "role": "etape",
+    "finMs": 22291,
+    "ecrans": [
+     {
+      "etape": {
+       "n": 2,
+       "nom": "Écrire",
+       "total": 4
+      },
+      "moment": "etape",
+      "gabarit": "etape",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Écrivez",
+       "réponse"
+      ]
+     }
+    ],
+    "debutMs": 17448,
+    "elements": [
+     {
+      "id": "e16",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Écrivez une réponse type",
+      "niveau": "titre"
+     },
+     {
+      "id": "e17",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 3,
+      "dessinId": "crayon"
+     },
+     {
+      "id": "e18",
+      "role": "condition",
+      "type": "ligne",
+      "ancre": 7,
+      "texte": "Une fois, au calme, vos vrais délais",
+      "niveau": "texte"
+     },
+     {
+      "id": "e19",
+      "type": "geste",
+      "ancre": 16,
+      "geste": "souligner",
+      "cibleId": "e18"
+     }
+    ],
+    "texteDit": "Deux. Écrivez une réponse type pour chacune. Une seule fois, au calme, avec vos mots et vos vrais délais."
+   },
+   {
+    "id": "s05",
+    "page": 4,
+    "role": "etape",
+    "finMs": 28689,
+    "ecrans": [
+     {
+      "etape": {
+       "n": 3,
+       "nom": "Ranger",
+       "total": 4
+      },
+      "liste": [
+       {
+        "ancre": 9,
+        "texte": "Gmail",
+        "detail": "Modèles"
+       },
+       {
+        "ancre": 12,
+        "texte": "WhatsApp Business",
+        "detail": "Réponses rapides"
+       }
+      ],
+      "moment": "etape",
+      "gabarit": "liste",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Rangez-les"
+      ]
+     }
+    ],
+    "debutMs": 22291,
+    "elements": [
+     {
+      "id": "e20",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Rangez-les dans votre messagerie",
+      "niveau": "titre"
+     },
+     {
+      "id": "e21",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 4,
+      "dessinId": "dossier"
+     },
+     {
+      "id": "e22",
+      "role": "avantage",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Gmail : Modèles",
+      "niveau": "texte"
+     },
+     {
+      "id": "e23",
+      "role": "avantage",
+      "type": "ligne",
+      "ancre": 12,
+      "texte": "WhatsApp Business : réponses rapides",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Trois. Rangez-les dans les réponses enregistrées de votre messagerie. Modèles dans Gmail, réponses rapides dans WhatsApp Business."
+   },
+   {
+    "id": "s06",
+    "page": 4,
+    "role": "etape",
+    "finMs": 34707,
+    "ecrans": [
+     {
+      "etape": {
+       "n": 4,
+       "nom": "Automatiser",
+       "total": 4
+      },
+      "moment": "etape",
+      "gabarit": "etape",
+      "etiquette": "La méthode",
+      "motsForts": [
+       "Automatisez"
+      ]
+     }
+    ],
+    "debutMs": 28689,
+    "elements": [
+     {
+      "id": "e24",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Automatisez la plus fréquente",
+      "marque": "surligne",
+      "niveau": "titre"
+     },
+     {
+      "id": "e25",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 7,
+      "dessinId": "engrenage"
+     },
+     {
+      "id": "e26",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 12,
+      "texte": "Message d'accueil automatique",
+      "niveau": "texte"
+     },
+     {
+      "id": "e27",
+      "type": "geste",
+      "ancre": 17,
+      "geste": "entourer",
+      "cibleId": "e26"
+     }
+    ],
+    "texteDit": "Quatre. Automatisez la question la plus fréquente. Mettez sa réponse dans le message d'accueil automatique : il part au premier message."
+   },
+   {
+    "id": "s07",
+    "page": 5,
+    "role": "exemple",
+    "finMs": 39791,
+    "ecrans": [
+     {
+      "moment": "exemple",
+      "gabarit": "exemple",
+      "etiquette": "Exemple",
+      "motsForts": [
+       "retape"
+      ]
+     }
+    ],
+    "debutMs": 34707,
+    "elements": [
+     {
+      "id": "e28",
+      "role": "titre",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Un plombier, la question des délais",
+      "niveau": "titre"
+     },
+     {
+      "id": "e29",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 8,
+      "dessinId": "telephone"
+     },
+     {
+      "id": "e30",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Avant : il retape ses délais",
+      "marque": "barre",
+      "niveau": "texte"
+     },
+     {
+      "id": "e31",
+      "type": "mention",
+      "texte": "Exemple illustratif"
+     }
+    ],
+    "texteDit": "Prenons un plombier et la question des délais. Avant, il retape ses délais six fois par jour, sur le chantier."
+   },
+   {
+    "id": "s08",
+    "page": 5,
+    "role": "preuve",
+    "finMs": 44402,
+    "ecrans": [
+     {
+      "moment": "exemple",
+      "gabarit": "exemple",
+      "etiquette": "Exemple"
+     }
+    ],
+    "debutMs": 39791,
+    "elements": [
+     {
+      "id": "e32",
+      "type": "preuve",
+      "ancre": 0,
+      "lignes": [
+       "Après : l'accueil donne délais et horaires",
+       "Il ne tape plus que le créneau"
+      ],
+      "preuveId": "mat-import-demo-01"
+     },
+     {
+      "id": "e33",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 10,
+      "dessinId": "coche-cercle"
+     },
+     {
+      "id": "e34",
+      "type": "geste",
+      "ancre": 17,
+      "geste": "entourer",
+      "cibleId": "e32"
+     },
+     {
+      "id": "e35",
+      "type": "mention",
+      "texte": "Exemple illustratif"
+     }
+    ],
+    "texteDit": "Après, son message d'accueil annonce ses délais et ses horaires. Lui ne tape plus qu'une chose : le créneau."
+   },
+   {
+    "id": "s09",
+    "page": 6,
+    "role": "resultat",
+    "finMs": 48050,
+    "ecrans": [
+     {
+      "liste": [
+       {
+        "ancre": 0,
+        "texte": "Relisez"
+       },
+       {
+        "ancre": 1,
+        "texte": "Écrivez une fois"
+       },
+       {
+        "ancre": 4,
+        "texte": "Rangez"
+       },
+       {
+        "ancre": 5,
+        "texte": "Automatisez"
+       }
+      ],
+      "moment": "recapitulatif",
+      "gabarit": "recapitulatif",
+      "etiquette": "En résumé"
+     }
+    ],
+    "debutMs": 44402,
+    "elements": [
+     {
+      "id": "e36",
+      "cote": "gauche",
+      "type": "dessin",
+      "ancre": 0,
+      "dessinId": "liste-cochee"
+     },
+     {
+      "id": "e37",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Relire, écrire, ranger, automatiser",
+      "niveau": "titre"
+     },
+     {
+      "id": "e38",
+      "type": "geste",
+      "ancre": 5,
+      "geste": "cocher",
+      "cibleId": "e37"
+     }
+    ],
+    "texteDit": "Relisez. Écrivez une fois. Rangez. Automatisez la plus fréquente."
+   },
+   {
+    "id": "s10",
+    "page": 6,
+    "role": "fin",
+    "finMs": 56191,
+    "ecrans": [
+     {
+      "moment": "appel",
+      "gabarit": "appel-commentaire",
+      "etiquette": "À vous",
+      "motsForts": [
+       "REPONSES"
+      ],
+      "motCommentaire": "REPONSES"
+     }
+    ],
+    "debutMs": 48050,
+    "elements": [
+     {
+      "id": "e39",
+      "cote": "centre",
+      "type": "dessin",
+      "ancre": 0,
+      "dessinId": "document"
+     },
+     {
+      "id": "e40",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 10,
+      "texte": "Écrivez REPONSES en commentaire",
+      "marque": "entoure",
+      "niveau": "titre"
+     },
+     {
+      "id": "s10l1",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Dix réponses types",
+      "niveau": "texte"
+     },
+     {
+      "id": "s10l2",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Sur une page",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Les dix réponses types à préparer tiennent sur une page. Écrivez REPONSES en commentaire. Je vous l'envoie."
+   }
+  ],
+  "appelId": "fin-if-mot-envoi",
+  "douleur": "Vous retapez la même réponse dix fois par jour. Vos délais. Vos horaires. Votre zone d'intervention.",
+  "version": "fiche-scenes/1",
+  "videoId": "v-9238deaab41e",
+  "formatId": "tableau-anime",
+  "habillage": "blocs/2",
+  "structure": "demonstration",
+  "versionId": "b1",
+  "gesteMinute": "Répondre dix fois par jour aux mêmes questions de clients"
+ },
+ "voix": {
+  "mots": [
+   {
+    "mot": "Vous",
+    "finSec": 0.088,
+    "debutSec": 0.0324
+   },
+   {
+    "mot": "retapez",
+    "finSec": 0.4583,
+    "debutSec": 0.125
+   },
+   {
+    "mot": "la",
+    "finSec": 0.588,
+    "debutSec": 0.5139
+   },
+   {
+    "mot": "même",
+    "finSec": 0.7361,
+    "debutSec": 0.625
+   },
+   {
+    "mot": "réponse",
+    "finSec": 1.125,
+    "debutSec": 0.7917
+   },
+   {
+    "mot": "dix",
+    "finSec": 1.2361,
+    "debutSec": 1.1435
+   },
+   {
+    "mot": "fois",
+    "finSec": 1.3843,
+    "debutSec": 1.2731
+   },
+   {
+    "mot": "par",
+    "finSec": 1.5139,
+    "debutSec": 1.4213
+   },
+   {
+    "mot": "jour.",
+    "finSec": 1.8102,
+    "debutSec": 1.588
+   },
+   {
+    "mot": "Vos",
+    "finSec": 2.088,
+    "debutSec": 1.9954
+   },
+   {
+    "mot": "délais.",
+    "finSec": 2.4954,
+    "debutSec": 2.125
+   },
+   {
+    "mot": "Vos",
+    "finSec": 2.8287,
+    "debutSec": 2.6806
+   },
+   {
+    "mot": "horaires.",
+    "finSec": 3.2176,
+    "debutSec": 2.8472
+   },
+   {
+    "mot": "Votre",
+    "finSec": 3.625,
+    "debutSec": 3.4028
+   },
+   {
+    "mot": "zone",
+    "finSec": 3.7731,
+    "debutSec": 3.662
+   },
+   {
+    "mot": "d'intervention.",
+    "finSec": 4.3843,
+    "debutSec": 3.7917
+   },
+   {
+    "mot": "Entre",
+    "finSec": 4.7731,
+    "debutSec": 4.5694
+   },
+   {
+    "mot": "deux",
+    "finSec": 4.8843,
+    "debutSec": 4.8102
+   },
+   {
+    "mot": "rendez-vous,",
+    "finSec": 5.2546,
+    "debutSec": 4.9213
+   },
+   {
+    "mot": "vous",
+    "finSec": 5.4213,
+    "debutSec": 5.3287
+   },
+   {
+    "mot": "soupirez",
+    "finSec": 5.8657,
+    "debutSec": 5.4769
+   },
+   {
+    "mot": "je",
+    "finSec": 6.0324,
+    "debutSec": 5.9583
+   },
+   {
+    "mot": "l'ai",
+    "finSec": 6.1435,
+    "debutSec": 6.0694
+   },
+   {
+    "mot": "déjà",
+    "finSec": 6.4213,
+    "debutSec": 6.1806
+   },
+   {
+    "mot": "écrit.",
+    "finSec": 6.7361,
+    "debutSec": 6.4769
+   },
+   {
+    "mot": "Le",
+    "finSec": 6.9954,
+    "debutSec": 6.9213
+   },
+   {
+    "mot": "problème",
+    "finSec": 7.2917,
+    "debutSec": 7.0324
+   },
+   {
+    "mot": "n'est",
+    "finSec": 7.4213,
+    "debutSec": 7.3287
+   },
+   {
+    "mot": "pas",
+    "finSec": 7.5324,
+    "debutSec": 7.4583
+   },
+   {
+    "mot": "vos",
+    "finSec": 7.662,
+    "debutSec": 7.5694
+   },
+   {
+    "mot": "clients.",
+    "finSec": 7.9769,
+    "debutSec": 7.6991
+   },
+   {
+    "mot": "C'est",
+    "finSec": 8.2546,
+    "debutSec": 8.162
+   },
+   {
+    "mot": "que",
+    "finSec": 8.3843,
+    "debutSec": 8.2917
+   },
+   {
+    "mot": "votre",
+    "finSec": 8.588,
+    "debutSec": 8.4213
+   },
+   {
+    "mot": "réponse",
+    "finSec": 9.0139,
+    "debutSec": 8.6065
+   },
+   {
+    "mot": "n'existe",
+    "finSec": 9.5139,
+    "debutSec": 9.0509
+   },
+   {
+    "mot": "que",
+    "finSec": 9.662,
+    "debutSec": 9.5694
+   },
+   {
+    "mot": "dans",
+    "finSec": 9.8102,
+    "debutSec": 9.6991
+   },
+   {
+    "mot": "votre",
+    "finSec": 10.125,
+    "debutSec": 9.8472
+   },
+   {
+    "mot": "tête.",
+    "finSec": 10.3657,
+    "debutSec": 10.162
+   },
+   {
+    "mot": "Voici",
+    "finSec": 10.8287,
+    "debutSec": 10.5509
+   },
+   {
+    "mot": "comment",
+    "finSec": 11.0509,
+    "debutSec": 10.8843
+   },
+   {
+    "mot": "ne",
+    "finSec": 11.2176,
+    "debutSec": 11.088
+   },
+   {
+    "mot": "plus",
+    "finSec": 11.3657,
+    "debutSec": 11.2546
+   },
+   {
+    "mot": "jamais",
+    "finSec": 11.588,
+    "debutSec": 11.4028
+   },
+   {
+    "mot": "la",
+    "finSec": 11.6991,
+    "debutSec": 11.625
+   },
+   {
+    "mot": "retaper,",
+    "finSec": 12.125,
+    "debutSec": 11.7361
+   },
+   {
+    "mot": "en",
+    "finSec": 12.3194,
+    "debutSec": 12.2454
+   },
+   {
+    "mot": "quatre",
+    "finSec": 12.5231,
+    "debutSec": 12.3565
+   },
+   {
+    "mot": "étapes.",
+    "finSec": 12.8935,
+    "debutSec": 12.5787
+   },
+   {
+    "mot": "Un.",
+    "finSec": 13.2074,
+    "debutSec": 13.0787
+   },
+   {
+    "mot": "Relisez",
+    "finSec": 13.7259,
+    "debutSec": 13.3926
+   },
+   {
+    "mot": "vos",
+    "finSec": 13.8556,
+    "debutSec": 13.763
+   },
+   {
+    "mot": "messages",
+    "finSec": 14.2074,
+    "debutSec": 13.8926
+   },
+   {
+    "mot": "envoyés",
+    "finSec": 14.4667,
+    "debutSec": 14.2444
+   },
+   {
+    "mot": "de",
+    "finSec": 14.5222,
+    "debutSec": 14.5037
+   },
+   {
+    "mot": "la",
+    "finSec": 14.6333,
+    "debutSec": 14.5593
+   },
+   {
+    "mot": "semaine.",
+    "finSec": 15.0222,
+    "debutSec": 14.6704
+   },
+   {
+    "mot": "Notez",
+    "finSec": 15.4852,
+    "debutSec": 15.2074
+   },
+   {
+    "mot": "chaque",
+    "finSec": 15.7444,
+    "debutSec": 15.5593
+   },
+   {
+    "mot": "question",
+    "finSec": 16.1333,
+    "debutSec": 15.7815
+   },
+   {
+    "mot": "qui",
+    "finSec": 16.263,
+    "debutSec": 16.1704
+   },
+   {
+    "mot": "revient",
+    "finSec": 16.5593,
+    "debutSec": 16.3
+   },
+   {
+    "mot": "au",
+    "finSec": 16.6333,
+    "debutSec": 16.5778
+   },
+   {
+    "mot": "moins",
+    "finSec": 16.8,
+    "debutSec": 16.6704
+   },
+   {
+    "mot": "deux",
+    "finSec": 16.9667,
+    "debutSec": 16.8556
+   },
+   {
+    "mot": "fois.",
+    "finSec": 17.263,
+    "debutSec": 17.0222
+   },
+   {
+    "mot": "Deux.",
+    "finSec": 17.6889,
+    "debutSec": 17.4481
+   },
+   {
+    "mot": "Écrivez",
+    "finSec": 18.1519,
+    "debutSec": 17.8741
+   },
+   {
+    "mot": "une",
+    "finSec": 18.263,
+    "debutSec": 18.1889
+   },
+   {
+    "mot": "réponse",
+    "finSec": 18.6333,
+    "debutSec": 18.3
+   },
+   {
+    "mot": "type",
+    "finSec": 18.837,
+    "debutSec": 18.6889
+   },
+   {
+    "mot": "pour",
+    "finSec": 18.9852,
+    "debutSec": 18.8741
+   },
+   {
+    "mot": "chacune.",
+    "finSec": 19.4296,
+    "debutSec": 19.0037
+   },
+   {
+    "mot": "Une",
+    "finSec": 19.7074,
+    "debutSec": 19.6148
+   },
+   {
+    "mot": "seule",
+    "finSec": 19.9296,
+    "debutSec": 19.763
+   },
+   {
+    "mot": "fois,",
+    "finSec": 20.1889,
+    "debutSec": 20.0037
+   },
+   {
+    "mot": "au",
+    "finSec": 20.4019,
+    "debutSec": 20.3093
+   },
+   {
+    "mot": "calme,",
+    "finSec": 20.7907,
+    "debutSec": 20.4759
+   },
+   {
+    "mot": "avec",
+    "finSec": 21.05,
+    "debutSec": 20.8648
+   },
+   {
+    "mot": "vos",
+    "finSec": 21.1981,
+    "debutSec": 21.087
+   },
+   {
+    "mot": "mots",
+    "finSec": 21.4389,
+    "debutSec": 21.2537
+   },
+   {
+    "mot": "et",
+    "finSec": 21.5315,
+    "debutSec": 21.4759
+   },
+   {
+    "mot": "vos",
+    "finSec": 21.6611,
+    "debutSec": 21.5685
+   },
+   {
+    "mot": "vrais",
+    "finSec": 21.8278,
+    "debutSec": 21.6981
+   },
+   {
+    "mot": "délais.",
+    "finSec": 22.1056,
+    "debutSec": 21.8648
+   },
+   {
+    "mot": "Trois.",
+    "finSec": 22.6426,
+    "debutSec": 22.2907
+   },
+   {
+    "mot": "Rangez-les",
+    "finSec": 23.2907,
+    "debutSec": 22.8278
+   },
+   {
+    "mot": "dans",
+    "finSec": 23.4019,
+    "debutSec": 23.3278
+   },
+   {
+    "mot": "les",
+    "finSec": 23.4944,
+    "debutSec": 23.4389
+   },
+   {
+    "mot": "réponses",
+    "finSec": 23.9019,
+    "debutSec": 23.55
+   },
+   {
+    "mot": "enregistrées",
+    "finSec": 24.4574,
+    "debutSec": 23.9759
+   },
+   {
+    "mot": "de",
+    "finSec": 24.5315,
+    "debutSec": 24.4759
+   },
+   {
+    "mot": "votre",
+    "finSec": 24.7722,
+    "debutSec": 24.5685
+   },
+   {
+    "mot": "messagerie.",
+    "finSec": 25.3278,
+    "debutSec": 24.8093
+   },
+   {
+    "mot": "Modèles",
+    "finSec": 25.8269,
+    "debutSec": 25.513
+   },
+   {
+    "mot": "dans",
+    "finSec": 25.9935,
+    "debutSec": 25.8639
+   },
+   {
+    "mot": "Gmail,",
+    "finSec": 26.4389,
+    "debutSec": 26.05
+   },
+   {
+    "mot": "réponses",
+    "finSec": 26.8926,
+    "debutSec": 26.5593
+   },
+   {
+    "mot": "rapides",
+    "finSec": 27.4111,
+    "debutSec": 26.9481
+   },
+   {
+    "mot": "dans",
+    "finSec": 27.5593,
+    "debutSec": 27.4481
+   },
+   {
+    "mot": "WhatsApp",
+    "finSec": 27.9667,
+    "debutSec": 27.5963
+   },
+   {
+    "mot": "Business.",
+    "finSec": 28.5037,
+    "debutSec": 28.0222
+   },
+   {
+    "mot": "Quatre.",
+    "finSec": 29.0407,
+    "debutSec": 28.6889
+   },
+   {
+    "mot": "Automatisez",
+    "finSec": 29.7815,
+    "debutSec": 29.2259
+   },
+   {
+    "mot": "la",
+    "finSec": 29.9111,
+    "debutSec": 29.837
+   },
+   {
+    "mot": "question",
+    "finSec": 30.2074,
+    "debutSec": 29.9481
+   },
+   {
+    "mot": "la",
+    "finSec": 30.3185,
+    "debutSec": 30.2444
+   },
+   {
+    "mot": "plus",
+    "finSec": 30.4667,
+    "debutSec": 30.3556
+   },
+   {
+    "mot": "fréquente.",
+    "finSec": 30.9481,
+    "debutSec": 30.5037
+   },
+   {
+    "mot": "Mettez",
+    "finSec": 31.3556,
+    "debutSec": 31.1333
+   },
+   {
+    "mot": "sa",
+    "finSec": 31.4667,
+    "debutSec": 31.3926
+   },
+   {
+    "mot": "réponse",
+    "finSec": 32.1519,
+    "debutSec": 31.5222
+   },
+   {
+    "mot": "dans",
+    "finSec": 32.2815,
+    "debutSec": 32.2074
+   },
+   {
+    "mot": "le",
+    "finSec": 32.337,
+    "debutSec": 32.3
+   },
+   {
+    "mot": "message",
+    "finSec": 32.6148,
+    "debutSec": 32.3741
+   },
+   {
+    "mot": "d'accueil",
+    "finSec": 32.837,
+    "debutSec": 32.6333
+   },
+   {
+    "mot": "automatique",
+    "finSec": 33.3741,
+    "debutSec": 32.8556
+   },
+   {
+    "mot": "il",
+    "finSec": 33.5407,
+    "debutSec": 33.4481
+   },
+   {
+    "mot": "part",
+    "finSec": 33.6889,
+    "debutSec": 33.5778
+   },
+   {
+    "mot": "au",
+    "finSec": 33.7815,
+    "debutSec": 33.7259
+   },
+   {
+    "mot": "premier",
+    "finSec": 34.0037,
+    "debutSec": 33.8
+   },
+   {
+    "mot": "message.",
+    "finSec": 34.5222,
+    "debutSec": 34.0407
+   },
+   {
+    "mot": "Prenons",
+    "finSec": 34.9481,
+    "debutSec": 34.7074
+   },
+   {
+    "mot": "un",
+    "finSec": 35.0407,
+    "debutSec": 34.9852
+   },
+   {
+    "mot": "plombier",
+    "finSec": 35.4667,
+    "debutSec": 35.0778
+   },
+   {
+    "mot": "et",
+    "finSec": 35.5407,
+    "debutSec": 35.5037
+   },
+   {
+    "mot": "la",
+    "finSec": 35.6519,
+    "debutSec": 35.5778
+   },
+   {
+    "mot": "question",
+    "finSec": 35.9111,
+    "debutSec": 35.6889
+   },
+   {
+    "mot": "des",
+    "finSec": 36.0037,
+    "debutSec": 35.9481
+   },
+   {
+    "mot": "délais.",
+    "finSec": 36.3741,
+    "debutSec": 36.0407
+   },
+   {
+    "mot": "Avant,",
+    "finSec": 36.9296,
+    "debutSec": 36.5593
+   },
+   {
+    "mot": "il",
+    "finSec": 37.0778,
+    "debutSec": 37.0037
+   },
+   {
+    "mot": "retape",
+    "finSec": 37.3926,
+    "debutSec": 37.1148
+   },
+   {
+    "mot": "ses",
+    "finSec": 37.5222,
+    "debutSec": 37.4296
+   },
+   {
+    "mot": "délais",
+    "finSec": 38.1704,
+    "debutSec": 37.5593
+   },
+   {
+    "mot": "six",
+    "finSec": 38.337,
+    "debutSec": 38.2444
+   },
+   {
+    "mot": "fois",
+    "finSec": 38.4667,
+    "debutSec": 38.3556
+   },
+   {
+    "mot": "par",
+    "finSec": 38.6148,
+    "debutSec": 38.5037
+   },
+   {
+    "mot": "jour,",
+    "finSec": 38.8556,
+    "debutSec": 38.6704
+   },
+   {
+    "mot": "sur",
+    "finSec": 39.0685,
+    "debutSec": 38.9759
+   },
+   {
+    "mot": "le",
+    "finSec": 39.1611,
+    "debutSec": 39.1056
+   },
+   {
+    "mot": "chantier.",
+    "finSec": 39.6056,
+    "debutSec": 39.1981
+   },
+   {
+    "mot": "Après,",
+    "finSec": 39.9944,
+    "debutSec": 39.7907
+   },
+   {
+    "mot": "son",
+    "finSec": 40.1241,
+    "debutSec": 40.05
+   },
+   {
+    "mot": "message",
+    "finSec": 40.4019,
+    "debutSec": 40.1426
+   },
+   {
+    "mot": "d'accueil",
+    "finSec": 40.7352,
+    "debutSec": 40.4204
+   },
+   {
+    "mot": "annonce",
+    "finSec": 41.05,
+    "debutSec": 40.7907
+   },
+   {
+    "mot": "ses",
+    "finSec": 41.1981,
+    "debutSec": 41.087
+   },
+   {
+    "mot": "délais",
+    "finSec": 41.4759,
+    "debutSec": 41.2352
+   },
+   {
+    "mot": "et",
+    "finSec": 41.55,
+    "debutSec": 41.4944
+   },
+   {
+    "mot": "ses",
+    "finSec": 41.7352,
+    "debutSec": 41.6056
+   },
+   {
+    "mot": "horaires.",
+    "finSec": 42.1981,
+    "debutSec": 41.7537
+   },
+   {
+    "mot": "Lui",
+    "finSec": 42.5315,
+    "debutSec": 42.3833
+   },
+   {
+    "mot": "ne",
+    "finSec": 42.6796,
+    "debutSec": 42.587
+   },
+   {
+    "mot": "tape",
+    "finSec": 42.8833,
+    "debutSec": 42.7352
+   },
+   {
+    "mot": "plus",
+    "finSec": 43.05,
+    "debutSec": 42.9389
+   },
+   {
+    "mot": "qu'une",
+    "finSec": 43.2537,
+    "debutSec": 43.087
+   },
+   {
+    "mot": "chose",
+    "finSec": 43.6056,
+    "debutSec": 43.3093
+   },
+   {
+    "mot": "le",
+    "finSec": 43.7907,
+    "debutSec": 43.6981
+   },
+   {
+    "mot": "créneau.",
+    "finSec": 44.2167,
+    "debutSec": 43.8463
+   },
+   {
+    "mot": "Relisez.",
+    "finSec": 44.9204,
+    "debutSec": 44.4019
+   },
+   {
+    "mot": "Écrivez",
+    "finSec": 45.4019,
+    "debutSec": 45.1056
+   },
+   {
+    "mot": "une",
+    "finSec": 45.55,
+    "debutSec": 45.4389
+   },
+   {
+    "mot": "fois.",
+    "finSec": 45.8648,
+    "debutSec": 45.6056
+   },
+   {
+    "mot": "Rangez.",
+    "finSec": 46.4019,
+    "debutSec": 46.05
+   },
+   {
+    "mot": "Automatisez",
+    "finSec": 47.1241,
+    "debutSec": 46.587
+   },
+   {
+    "mot": "la",
+    "finSec": 47.2352,
+    "debutSec": 47.1611
+   },
+   {
+    "mot": "plus",
+    "finSec": 47.3648,
+    "debutSec": 47.2722
+   },
+   {
+    "mot": "fréquente.",
+    "finSec": 47.8648,
+    "debutSec": 47.4019
+   },
+   {
+    "mot": "Les",
+    "finSec": 48.1426,
+    "debutSec": 48.05
+   },
+   {
+    "mot": "dix",
+    "finSec": 48.2722,
+    "debutSec": 48.1796
+   },
+   {
+    "mot": "réponses",
+    "finSec": 48.6611,
+    "debutSec": 48.3093
+   },
+   {
+    "mot": "types",
+    "finSec": 48.9389,
+    "debutSec": 48.7167
+   },
+   {
+    "mot": "à",
+    "finSec": 49.05,
+    "debutSec": 48.9944
+   },
+   {
+    "mot": "préparer",
+    "finSec": 49.6056,
+    "debutSec": 49.0685
+   },
+   {
+    "mot": "tiennent",
+    "finSec": 49.8463,
+    "debutSec": 49.6611
+   },
+   {
+    "mot": "sur",
+    "finSec": 49.9944,
+    "debutSec": 49.8833
+   },
+   {
+    "mot": "une",
+    "finSec": 50.1981,
+    "debutSec": 50.0315
+   },
+   {
+    "mot": "page.",
+    "finSec": 50.5685,
+    "debutSec": 50.2537
+   },
+   {
+    "mot": "Écrivez",
+    "finSec": 51.1426,
+    "debutSec": 50.7537
+   },
+   {
+    "mot": "REPONSES",
+    "finSec": 51.7537,
+    "debutSec": 51.2352
+   },
+   {
+    "mot": "en",
+    "finSec": 51.8833,
+    "debutSec": 51.8093
+   },
+   {
+    "mot": "commentaire.",
+    "finSec": 52.4944,
+    "debutSec": 51.9204
+   },
+   {
+    "mot": "Je",
+    "finSec": 52.7537,
+    "debutSec": 52.6796
+   },
+   {
+    "mot": "vous",
+    "finSec": 52.8833,
+    "debutSec": 52.8093
+   },
+   {
+    "mot": "l'envoie.",
+    "finSec": 53.2907,
+    "debutSec": 52.9019
+   }
+  ],
+  "dureeSec": 54.401
+ },
+ "voixTikTok": {
+  "mots": [
+   {
+    "mot": "Vous",
+    "finSec": 0.088,
+    "debutSec": 0.0324
+   },
+   {
+    "mot": "retapez",
+    "finSec": 0.4583,
+    "debutSec": 0.125
+   },
+   {
+    "mot": "la",
+    "finSec": 0.588,
+    "debutSec": 0.5139
+   },
+   {
+    "mot": "même",
+    "finSec": 0.7361,
+    "debutSec": 0.625
+   },
+   {
+    "mot": "réponse",
+    "finSec": 1.125,
+    "debutSec": 0.7917
+   },
+   {
+    "mot": "dix",
+    "finSec": 1.2361,
+    "debutSec": 1.1435
+   },
+   {
+    "mot": "fois",
+    "finSec": 1.3843,
+    "debutSec": 1.2731
+   },
+   {
+    "mot": "par",
+    "finSec": 1.5139,
+    "debutSec": 1.4213
+   },
+   {
+    "mot": "jour.",
+    "finSec": 1.8102,
+    "debutSec": 1.588
+   },
+   {
+    "mot": "Vos",
+    "finSec": 2.088,
+    "debutSec": 1.9954
+   },
+   {
+    "mot": "délais.",
+    "finSec": 2.4954,
+    "debutSec": 2.125
+   },
+   {
+    "mot": "Vos",
+    "finSec": 2.8287,
+    "debutSec": 2.6806
+   },
+   {
+    "mot": "horaires.",
+    "finSec": 3.2176,
+    "debutSec": 2.8472
+   },
+   {
+    "mot": "Votre",
+    "finSec": 3.625,
+    "debutSec": 3.4028
+   },
+   {
+    "mot": "zone",
+    "finSec": 3.7731,
+    "debutSec": 3.662
+   },
+   {
+    "mot": "d'intervention.",
+    "finSec": 4.3843,
+    "debutSec": 3.7917
+   },
+   {
+    "mot": "Entre",
+    "finSec": 4.7731,
+    "debutSec": 4.5694
+   },
+   {
+    "mot": "deux",
+    "finSec": 4.8843,
+    "debutSec": 4.8102
+   },
+   {
+    "mot": "rendez-vous,",
+    "finSec": 5.2546,
+    "debutSec": 4.9213
+   },
+   {
+    "mot": "vous",
+    "finSec": 5.4213,
+    "debutSec": 5.3287
+   },
+   {
+    "mot": "soupirez",
+    "finSec": 5.8657,
+    "debutSec": 5.4769
+   },
+   {
+    "mot": "je",
+    "finSec": 6.0324,
+    "debutSec": 5.9583
+   },
+   {
+    "mot": "l'ai",
+    "finSec": 6.1435,
+    "debutSec": 6.0694
+   },
+   {
+    "mot": "déjà",
+    "finSec": 6.4213,
+    "debutSec": 6.1806
+   },
+   {
+    "mot": "écrit.",
+    "finSec": 6.7361,
+    "debutSec": 6.4769
+   },
+   {
+    "mot": "Le",
+    "finSec": 6.9954,
+    "debutSec": 6.9213
+   },
+   {
+    "mot": "problème",
+    "finSec": 7.2917,
+    "debutSec": 7.0324
+   },
+   {
+    "mot": "n'est",
+    "finSec": 7.4213,
+    "debutSec": 7.3287
+   },
+   {
+    "mot": "pas",
+    "finSec": 7.5324,
+    "debutSec": 7.4583
+   },
+   {
+    "mot": "vos",
+    "finSec": 7.662,
+    "debutSec": 7.5694
+   },
+   {
+    "mot": "clients.",
+    "finSec": 7.9769,
+    "debutSec": 7.6991
+   },
+   {
+    "mot": "C'est",
+    "finSec": 8.2546,
+    "debutSec": 8.162
+   },
+   {
+    "mot": "que",
+    "finSec": 8.3843,
+    "debutSec": 8.2917
+   },
+   {
+    "mot": "votre",
+    "finSec": 8.588,
+    "debutSec": 8.4213
+   },
+   {
+    "mot": "réponse",
+    "finSec": 9.0139,
+    "debutSec": 8.6065
+   },
+   {
+    "mot": "n'existe",
+    "finSec": 9.5139,
+    "debutSec": 9.0509
+   },
+   {
+    "mot": "que",
+    "finSec": 9.662,
+    "debutSec": 9.5694
+   },
+   {
+    "mot": "dans",
+    "finSec": 9.8102,
+    "debutSec": 9.6991
+   },
+   {
+    "mot": "votre",
+    "finSec": 10.125,
+    "debutSec": 9.8472
+   },
+   {
+    "mot": "tête.",
+    "finSec": 10.3657,
+    "debutSec": 10.162
+   },
+   {
+    "mot": "Voici",
+    "finSec": 10.8287,
+    "debutSec": 10.5509
+   },
+   {
+    "mot": "comment",
+    "finSec": 11.0509,
+    "debutSec": 10.8843
+   },
+   {
+    "mot": "ne",
+    "finSec": 11.2176,
+    "debutSec": 11.088
+   },
+   {
+    "mot": "plus",
+    "finSec": 11.3657,
+    "debutSec": 11.2546
+   },
+   {
+    "mot": "jamais",
+    "finSec": 11.588,
+    "debutSec": 11.4028
+   },
+   {
+    "mot": "la",
+    "finSec": 11.6991,
+    "debutSec": 11.625
+   },
+   {
+    "mot": "retaper,",
+    "finSec": 12.125,
+    "debutSec": 11.7361
+   },
+   {
+    "mot": "en",
+    "finSec": 12.3194,
+    "debutSec": 12.2454
+   },
+   {
+    "mot": "quatre",
+    "finSec": 12.5231,
+    "debutSec": 12.3565
+   },
+   {
+    "mot": "étapes.",
+    "finSec": 12.8935,
+    "debutSec": 12.5787
+   },
+   {
+    "mot": "Un.",
+    "finSec": 13.2074,
+    "debutSec": 13.0787
+   },
+   {
+    "mot": "Relisez",
+    "finSec": 13.7259,
+    "debutSec": 13.3926
+   },
+   {
+    "mot": "vos",
+    "finSec": 13.8556,
+    "debutSec": 13.763
+   },
+   {
+    "mot": "messages",
+    "finSec": 14.2074,
+    "debutSec": 13.8926
+   },
+   {
+    "mot": "envoyés",
+    "finSec": 14.4667,
+    "debutSec": 14.2444
+   },
+   {
+    "mot": "de",
+    "finSec": 14.5222,
+    "debutSec": 14.5037
+   },
+   {
+    "mot": "la",
+    "finSec": 14.6333,
+    "debutSec": 14.5593
+   },
+   {
+    "mot": "semaine.",
+    "finSec": 15.0222,
+    "debutSec": 14.6704
+   },
+   {
+    "mot": "Notez",
+    "finSec": 15.4852,
+    "debutSec": 15.2074
+   },
+   {
+    "mot": "chaque",
+    "finSec": 15.7444,
+    "debutSec": 15.5593
+   },
+   {
+    "mot": "question",
+    "finSec": 16.1333,
+    "debutSec": 15.7815
+   },
+   {
+    "mot": "qui",
+    "finSec": 16.263,
+    "debutSec": 16.1704
+   },
+   {
+    "mot": "revient",
+    "finSec": 16.5593,
+    "debutSec": 16.3
+   },
+   {
+    "mot": "au",
+    "finSec": 16.6333,
+    "debutSec": 16.5778
+   },
+   {
+    "mot": "moins",
+    "finSec": 16.8,
+    "debutSec": 16.6704
+   },
+   {
+    "mot": "deux",
+    "finSec": 16.9667,
+    "debutSec": 16.8556
+   },
+   {
+    "mot": "fois.",
+    "finSec": 17.263,
+    "debutSec": 17.0222
+   },
+   {
+    "mot": "Deux.",
+    "finSec": 17.6889,
+    "debutSec": 17.4481
+   },
+   {
+    "mot": "Écrivez",
+    "finSec": 18.1519,
+    "debutSec": 17.8741
+   },
+   {
+    "mot": "une",
+    "finSec": 18.263,
+    "debutSec": 18.1889
+   },
+   {
+    "mot": "réponse",
+    "finSec": 18.6333,
+    "debutSec": 18.3
+   },
+   {
+    "mot": "type",
+    "finSec": 18.837,
+    "debutSec": 18.6889
+   },
+   {
+    "mot": "pour",
+    "finSec": 18.9852,
+    "debutSec": 18.8741
+   },
+   {
+    "mot": "chacune.",
+    "finSec": 19.4296,
+    "debutSec": 19.0037
+   },
+   {
+    "mot": "Une",
+    "finSec": 19.7074,
+    "debutSec": 19.6148
+   },
+   {
+    "mot": "seule",
+    "finSec": 19.9296,
+    "debutSec": 19.763
+   },
+   {
+    "mot": "fois,",
+    "finSec": 20.1889,
+    "debutSec": 20.0037
+   },
+   {
+    "mot": "au",
+    "finSec": 20.4019,
+    "debutSec": 20.3093
+   },
+   {
+    "mot": "calme,",
+    "finSec": 20.7907,
+    "debutSec": 20.4759
+   },
+   {
+    "mot": "avec",
+    "finSec": 21.05,
+    "debutSec": 20.8648
+   },
+   {
+    "mot": "vos",
+    "finSec": 21.1981,
+    "debutSec": 21.087
+   },
+   {
+    "mot": "mots",
+    "finSec": 21.4389,
+    "debutSec": 21.2537
+   },
+   {
+    "mot": "et",
+    "finSec": 21.5315,
+    "debutSec": 21.4759
+   },
+   {
+    "mot": "vos",
+    "finSec": 21.6611,
+    "debutSec": 21.5685
+   },
+   {
+    "mot": "vrais",
+    "finSec": 21.8278,
+    "debutSec": 21.6981
+   },
+   {
+    "mot": "délais.",
+    "finSec": 22.1056,
+    "debutSec": 21.8648
+   },
+   {
+    "mot": "Trois.",
+    "finSec": 22.6426,
+    "debutSec": 22.2907
+   },
+   {
+    "mot": "Rangez-les",
+    "finSec": 23.2907,
+    "debutSec": 22.8278
+   },
+   {
+    "mot": "dans",
+    "finSec": 23.4019,
+    "debutSec": 23.3278
+   },
+   {
+    "mot": "les",
+    "finSec": 23.4944,
+    "debutSec": 23.4389
+   },
+   {
+    "mot": "réponses",
+    "finSec": 23.9019,
+    "debutSec": 23.55
+   },
+   {
+    "mot": "enregistrées",
+    "finSec": 24.4574,
+    "debutSec": 23.9759
+   },
+   {
+    "mot": "de",
+    "finSec": 24.5315,
+    "debutSec": 24.4759
+   },
+   {
+    "mot": "votre",
+    "finSec": 24.7722,
+    "debutSec": 24.5685
+   },
+   {
+    "mot": "messagerie.",
+    "finSec": 25.3278,
+    "debutSec": 24.8093
+   },
+   {
+    "mot": "Modèles",
+    "finSec": 25.8269,
+    "debutSec": 25.513
+   },
+   {
+    "mot": "dans",
+    "finSec": 25.9935,
+    "debutSec": 25.8639
+   },
+   {
+    "mot": "Gmail,",
+    "finSec": 26.4389,
+    "debutSec": 26.05
+   },
+   {
+    "mot": "réponses",
+    "finSec": 26.8926,
+    "debutSec": 26.5593
+   },
+   {
+    "mot": "rapides",
+    "finSec": 27.4111,
+    "debutSec": 26.9481
+   },
+   {
+    "mot": "dans",
+    "finSec": 27.5593,
+    "debutSec": 27.4481
+   },
+   {
+    "mot": "WhatsApp",
+    "finSec": 27.9667,
+    "debutSec": 27.5963
+   },
+   {
+    "mot": "Business.",
+    "finSec": 28.5037,
+    "debutSec": 28.0222
+   },
+   {
+    "mot": "Quatre.",
+    "finSec": 29.0407,
+    "debutSec": 28.6889
+   },
+   {
+    "mot": "Automatisez",
+    "finSec": 29.7815,
+    "debutSec": 29.2259
+   },
+   {
+    "mot": "la",
+    "finSec": 29.9111,
+    "debutSec": 29.837
+   },
+   {
+    "mot": "question",
+    "finSec": 30.2074,
+    "debutSec": 29.9481
+   },
+   {
+    "mot": "la",
+    "finSec": 30.3185,
+    "debutSec": 30.2444
+   },
+   {
+    "mot": "plus",
+    "finSec": 30.4667,
+    "debutSec": 30.3556
+   },
+   {
+    "mot": "fréquente.",
+    "finSec": 30.9481,
+    "debutSec": 30.5037
+   },
+   {
+    "mot": "Mettez",
+    "finSec": 31.3556,
+    "debutSec": 31.1333
+   },
+   {
+    "mot": "sa",
+    "finSec": 31.4667,
+    "debutSec": 31.3926
+   },
+   {
+    "mot": "réponse",
+    "finSec": 32.1519,
+    "debutSec": 31.5222
+   },
+   {
+    "mot": "dans",
+    "finSec": 32.2815,
+    "debutSec": 32.2074
+   },
+   {
+    "mot": "le",
+    "finSec": 32.337,
+    "debutSec": 32.3
+   },
+   {
+    "mot": "message",
+    "finSec": 32.6148,
+    "debutSec": 32.3741
+   },
+   {
+    "mot": "d'accueil",
+    "finSec": 32.837,
+    "debutSec": 32.6333
+   },
+   {
+    "mot": "automatique",
+    "finSec": 33.3741,
+    "debutSec": 32.8556
+   },
+   {
+    "mot": "il",
+    "finSec": 33.5407,
+    "debutSec": 33.4481
+   },
+   {
+    "mot": "part",
+    "finSec": 33.6889,
+    "debutSec": 33.5778
+   },
+   {
+    "mot": "au",
+    "finSec": 33.7815,
+    "debutSec": 33.7259
+   },
+   {
+    "mot": "premier",
+    "finSec": 34.0037,
+    "debutSec": 33.8
+   },
+   {
+    "mot": "message.",
+    "finSec": 34.5222,
+    "debutSec": 34.0407
+   },
+   {
+    "mot": "Prenons",
+    "finSec": 34.9481,
+    "debutSec": 34.7074
+   },
+   {
+    "mot": "un",
+    "finSec": 35.0407,
+    "debutSec": 34.9852
+   },
+   {
+    "mot": "plombier",
+    "finSec": 35.4667,
+    "debutSec": 35.0778
+   },
+   {
+    "mot": "et",
+    "finSec": 35.5407,
+    "debutSec": 35.5037
+   },
+   {
+    "mot": "la",
+    "finSec": 35.6519,
+    "debutSec": 35.5778
+   },
+   {
+    "mot": "question",
+    "finSec": 35.9111,
+    "debutSec": 35.6889
+   },
+   {
+    "mot": "des",
+    "finSec": 36.0037,
+    "debutSec": 35.9481
+   },
+   {
+    "mot": "délais.",
+    "finSec": 36.3741,
+    "debutSec": 36.0407
+   },
+   {
+    "mot": "Avant,",
+    "finSec": 36.9296,
+    "debutSec": 36.5593
+   },
+   {
+    "mot": "il",
+    "finSec": 37.0778,
+    "debutSec": 37.0037
+   },
+   {
+    "mot": "retape",
+    "finSec": 37.3926,
+    "debutSec": 37.1148
+   },
+   {
+    "mot": "ses",
+    "finSec": 37.5222,
+    "debutSec": 37.4296
+   },
+   {
+    "mot": "délais",
+    "finSec": 38.1704,
+    "debutSec": 37.5593
+   },
+   {
+    "mot": "six",
+    "finSec": 38.337,
+    "debutSec": 38.2444
+   },
+   {
+    "mot": "fois",
+    "finSec": 38.4667,
+    "debutSec": 38.3556
+   },
+   {
+    "mot": "par",
+    "finSec": 38.6148,
+    "debutSec": 38.5037
+   },
+   {
+    "mot": "jour,",
+    "finSec": 38.8556,
+    "debutSec": 38.6704
+   },
+   {
+    "mot": "sur",
+    "finSec": 39.0685,
+    "debutSec": 38.9759
+   },
+   {
+    "mot": "le",
+    "finSec": 39.1611,
+    "debutSec": 39.1056
+   },
+   {
+    "mot": "chantier.",
+    "finSec": 39.6056,
+    "debutSec": 39.1981
+   },
+   {
+    "mot": "Après,",
+    "finSec": 39.9944,
+    "debutSec": 39.7907
+   },
+   {
+    "mot": "son",
+    "finSec": 40.1241,
+    "debutSec": 40.05
+   },
+   {
+    "mot": "message",
+    "finSec": 40.4019,
+    "debutSec": 40.1426
+   },
+   {
+    "mot": "d'accueil",
+    "finSec": 40.7352,
+    "debutSec": 40.4204
+   },
+   {
+    "mot": "annonce",
+    "finSec": 41.05,
+    "debutSec": 40.7907
+   },
+   {
+    "mot": "ses",
+    "finSec": 41.1981,
+    "debutSec": 41.087
+   },
+   {
+    "mot": "délais",
+    "finSec": 41.4759,
+    "debutSec": 41.2352
+   },
+   {
+    "mot": "et",
+    "finSec": 41.55,
+    "debutSec": 41.4944
+   },
+   {
+    "mot": "ses",
+    "finSec": 41.7352,
+    "debutSec": 41.6056
+   },
+   {
+    "mot": "horaires.",
+    "finSec": 42.1981,
+    "debutSec": 41.7537
+   },
+   {
+    "mot": "Lui",
+    "finSec": 42.5315,
+    "debutSec": 42.3833
+   },
+   {
+    "mot": "ne",
+    "finSec": 42.6796,
+    "debutSec": 42.587
+   },
+   {
+    "mot": "tape",
+    "finSec": 42.8833,
+    "debutSec": 42.7352
+   },
+   {
+    "mot": "plus",
+    "finSec": 43.05,
+    "debutSec": 42.9389
+   },
+   {
+    "mot": "qu'une",
+    "finSec": 43.2537,
+    "debutSec": 43.087
+   },
+   {
+    "mot": "chose",
+    "finSec": 43.6056,
+    "debutSec": 43.3093
+   },
+   {
+    "mot": "le",
+    "finSec": 43.7907,
+    "debutSec": 43.6981
+   },
+   {
+    "mot": "créneau.",
+    "finSec": 44.2167,
+    "debutSec": 43.8463
+   },
+   {
+    "mot": "Relisez.",
+    "finSec": 44.9204,
+    "debutSec": 44.4019
+   },
+   {
+    "mot": "Écrivez",
+    "finSec": 45.4019,
+    "debutSec": 45.1056
+   },
+   {
+    "mot": "une",
+    "finSec": 45.55,
+    "debutSec": 45.4389
+   },
+   {
+    "mot": "fois.",
+    "finSec": 45.8648,
+    "debutSec": 45.6056
+   },
+   {
+    "mot": "Rangez.",
+    "finSec": 46.4019,
+    "debutSec": 46.05
+   },
+   {
+    "mot": "Automatisez",
+    "finSec": 47.1241,
+    "debutSec": 46.587
+   },
+   {
+    "mot": "la",
+    "finSec": 47.2352,
+    "debutSec": 47.1611
+   },
+   {
+    "mot": "plus",
+    "finSec": 47.3648,
+    "debutSec": 47.2722
+   },
+   {
+    "mot": "fréquente.",
+    "finSec": 47.8648,
+    "debutSec": 47.4019
+   },
+   {
+    "mot": "Les",
+    "finSec": 48.1426,
+    "debutSec": 48.05
+   },
+   {
+    "mot": "dix",
+    "finSec": 48.2722,
+    "debutSec": 48.1796
+   },
+   {
+    "mot": "réponses",
+    "finSec": 48.6611,
+    "debutSec": 48.3093
+   },
+   {
+    "mot": "types",
+    "finSec": 48.9389,
+    "debutSec": 48.7167
+   },
+   {
+    "mot": "à",
+    "finSec": 49.05,
+    "debutSec": 48.9944
+   },
+   {
+    "mot": "préparer",
+    "finSec": 49.6056,
+    "debutSec": 49.0685
+   },
+   {
+    "mot": "tiennent",
+    "finSec": 49.8463,
+    "debutSec": 49.6611
+   },
+   {
+    "mot": "sur",
+    "finSec": 49.9944,
+    "debutSec": 49.8833
+   },
+   {
+    "mot": "une",
+    "finSec": 50.1981,
+    "debutSec": 50.0315
+   },
+   {
+    "mot": "page.",
+    "finSec": 50.5685,
+    "debutSec": 50.2537
+   }
+  ],
+  "dureeSec": 51.632
+ }
+}

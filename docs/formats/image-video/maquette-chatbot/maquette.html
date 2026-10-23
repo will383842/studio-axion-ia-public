@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Chatbot 24h/24 — maquette animée (style v4)</title>
+<!-- Maquette pilotée par le temps : rendre(t) dessine l'image exacte à la seconde t (aucune voix, aucun son).
+     Timings estimés à 2,75 mots/s sur le script C.2 ; en production ils viendront de l'horodatage mot à mot de la voix. -->
+<style>
+@font-face { font-family: "Cond"; src: url("polices/Anton-Regular.ttf"); }
+@font-face { font-family: "Texte"; src: url("polices/Inter-Bold.ttf"); }
+:root { --nuit:#110A05; --orange:#C2532A; --vif:#F0703C; --ivoire:#F4EFE7; --gris:#8a7c6e; --vert:#22a55b; --encre:#15100c; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--nuit); }
+#scene { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: "Texte", sans-serif; }
+.plan { position: absolute; inset: 0; display: none; overflow: hidden; }
+.D { background: radial-gradient(900px 700px at 50% 78%, #7a3418 0%, #2a150b 45%, #0d0704 80%); color: #fff; }
+.I { background: radial-gradient(1000px 900px at 50% 45%, #fbf8f3 0%, #efe9df 75%); color: var(--encre); }
+.lab { position: absolute; left: 0; right: 0; text-align: center; font: 28px "Texte"; letter-spacing: 9px; text-transform: uppercase; color: var(--orange); }
+.D .lab { color: var(--vif); }
+.mm { position: absolute; left: 40px; right: 40px; text-align: center; font-family: "Cond"; text-transform: uppercase; line-height: 1.04; white-space: nowrap; }
+.mm .w { display: inline-block; will-change: transform, filter; }
+.mm .acc { color: var(--orange); }
+.D .mm .acc { color: var(--vif); }
+.lueur { text-shadow: 0 0 60px rgba(240,112,60,.75), 0 0 140px rgba(240,112,60,.45); }
+.ligne { position: absolute; left: 60px; right: 60px; text-align: center; font: 42px "Texte"; color: var(--gris); }
+.D .ligne { color: #c9b8a6; }
+.obj { position: absolute; will-change: transform; }
+.ombre { box-shadow: 0 60px 120px rgba(40,20,8,.35), 0 12px 30px rgba(40,20,8,.18); }
+.D .ombre { box-shadow: 0 60px 130px rgba(0,0,0,.7); }
+.fiche { background: #fff; border-radius: 40px; color: var(--encre); }
+.tel { width: 470px; height: 920px; border-radius: 76px; background: #0c0c0e; padding: 14px; }
+.tel .ecran { position: relative; width: 100%; height: 100%; border-radius: 62px; overflow: hidden; }
+.pt { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #ffb38c; opacity: .5; }
+.coche { position: absolute; border-radius: 50%; background: var(--vert); }
+.coche:after { content: ""; position: absolute; left: 36%; top: 18%; width: 22%; height: 44%; border: solid #fff; border-width: 0 .9vmin .9vmin 0; transform: rotate(45deg); }
+
+/* marque + sous-titres + barre d'avancement */
+#marque { position: absolute; left: 0; right: 0; top: 86px; text-align: center; font: 30px "Texte"; letter-spacing: 3px; z-index: 30; }
+#marque b { font-weight: normal; color: var(--vif); }
+#st { position: absolute; left: 70px; right: 70px; top: 1400px; text-align: center; font: 44px/1.22 "Texte"; z-index: 30; }
+#st span { color: var(--vif); }
+#fil { position: absolute; left: 60px; top: 1500px; height: 6px; border-radius: 3px; background: var(--vif); width: 0; z-index: 30; }
+
+/* ===== la toile du schéma (caméra virtuelle) ===== */
+#toile { position: absolute; left: 0; top: 0; width: 2200px; height: 2600px; transform-origin: 0 0; }
+#fils { position: absolute; left: 0; top: 0; overflow: visible; }
+.noeud { position: absolute; background: #fff; border-radius: 36px; color: var(--encre); box-shadow: 0 40px 90px rgba(40,20,8,.22), 0 10px 24px rgba(40,20,8,.12); opacity: 0; transition: none; }
+.noeud.actif { box-shadow: 0 0 0 7px rgba(240,112,60,.75), 0 0 90px rgba(240,112,60,.45), 0 40px 90px rgba(40,20,8,.25); }
+.noeud.sombre.actif { box-shadow: 0 0 0 7px rgba(21,16,12,.9), 0 0 90px rgba(21,16,12,.35), 0 40px 90px rgba(40,20,8,.25); }
+.tete { font: 26px "Texte"; letter-spacing: 5px; text-transform: uppercase; color: var(--gris); }
+.voile-h { position: absolute; left: 0; right: 0; top: 0; height: 660px; background: linear-gradient(180deg, #f2ede5 0, #f2ede5 520px, rgba(242,237,229,0) 660px); z-index: 5; }
+.voile-b { position: absolute; left: 0; right: 0; top: 1200px; bottom: 0; background: linear-gradient(180deg, rgba(240,234,225,0) 0, #f0eae1 150px); z-index: 5; }
+.surtitre { z-index: 6; }
+.pastille { position: absolute; height: 150px; border-radius: 75px; padding: 0 44px 0 170px; font: 54px/150px "Texte"; white-space: nowrap; opacity: 0; }
+.pastille .nb { position: absolute; left: 20px; top: 15px; width: 120px; height: 120px; }
+.pastille .nb b { position: absolute; inset: 0; text-align: center; font: 46px/120px "Cond"; font-weight: normal; }
+.rangee { position: relative; height: 74px; padding-left: 190px; font: 32px/74px "Texte"; border-bottom: 2px solid #eee7dc; white-space: nowrap; overflow: hidden; }
+.rangee i { position: absolute; left: 0; top: 0; font-style: normal; color: var(--orange); font-size: 26px; letter-spacing: 3px; text-transform: uppercase; }
+.rangee .val { display: inline-block; overflow: hidden; vertical-align: top; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="scene">
+
+  <!-- 1. ACCROCHE (sombre) -->
+  <div class="plan D" id="p1">
+    <div id="pts1"></div>
+    <div class="lab" style="top:300px">Situation type · support client</div>
+    <div class="mm" data-k="t1" data-a="1.6" style="top:350px;font-size:170px">Un client vous *écrit.*</div>
+    <div class="obj tel ombre" id="tel1" style="left:305px;top:600px;transform-origin:50% 0">
+      <div class="ecran" style="background:linear-gradient(180deg,#1b1410,#3a1d10)">
+        <div style="position:absolute;left:0;right:0;top:70px;text-align:center;font:30px Texte;color:#c9b8a6">mardi 14 octobre</div>
+        <div id="horloge1" style="position:absolute;left:0;right:0;top:110px;text-align:center;font:150px Cond;color:var(--vif);letter-spacing:2px">23:14</div>
+        <div id="notif1" style="position:absolute;left:18px;right:18px;top:360px;border-radius:30px;background:rgba(255,255,255,.95);color:#15100c;padding:22px 24px;opacity:0">
+          <div style="font:22px Texte;color:#8a7c6e">SITE · CHAT · maintenant</div>
+          <div style="font:30px/1.25 Texte;margin-top:8px">Bonjour, ma commande n'est pas arrivée…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DOULEUR (sombre) -->
+  <div class="plan D" id="p2">
+    <div id="pts2"></div>
+    <div class="mm" data-k="t2a" data-a="2.9" data-b="5.4" style="top:350px;font-size:150px">Lui, il *attend.*</div>
+    <div class="mm" data-k="t2b" data-a="7.6" style="top:350px;font-size:150px">Il a vu *ailleurs.*</div>
+    <div style="position:absolute;left:539px;top:620px;width:2px;height:640px;background:rgba(255,255,255,.14)"></div>
+    <div class="lab" style="top:600px;left:0;right:540px;color:#c9b8a6">Vous</div>
+    <div class="lab" style="top:600px;left:540px;right:0;color:#c9b8a6">Lui</div>
+    <div class="obj" id="lune" style="left:140px;top:760px;width:260px;height:260px;border-radius:50%;box-shadow:-46px 26px 0 0 #f3e6d2;transform:rotate(-10deg)"></div>
+    <div class="obj" id="zzz" style="left:300px;top:690px;font:80px Cond;color:#f3e6d2"><span>Z</span><span style="font-size:60px;margin-left:10px">z</span><span style="font-size:44px;margin-left:8px">z</span></div>
+    <div class="obj fiche ombre" id="bulle2" style="left:620px;top:820px;width:340px;height:190px;border-radius:60px 60px 60px 14px">
+      <i class="pts" style="position:absolute;left:78px;top:76px;width:38px;height:38px;border-radius:50%;background:#bfb3a5"></i>
+      <i class="pts" style="position:absolute;left:151px;top:76px;width:38px;height:38px;border-radius:50%;background:#bfb3a5"></i>
+      <i class="pts" style="position:absolute;left:224px;top:76px;width:38px;height:38px;border-radius:50%;background:#bfb3a5"></i>
+    </div>
+    <div class="ligne" id="attente2" style="top:1090px;left:560px;right:40px;font-size:36px">… toujours sans réponse</div>
+  </div>
+
+  <!-- 3. BASCULE (ivoire) -->
+  <div class="plan I" id="p3">
+    <div class="mm" data-k="t3a" data-a="8.8" style="top:560px;font-size:150px">Sauf si quelqu'un</div>
+    <div class="mm" data-k="t3b" data-a="9.6" style="top:730px;font-size:150px">lui répond.</div>
+    <div class="mm" data-k="t3c" data-a="10.4" style="top:930px;font-size:200px">*Tout de suite.*</div>
+    <div id="fil3" style="position:absolute;left:537px;top:1160px;width:6px;height:0;border-radius:3px;background:var(--vif)"></div>
+  </div>
+
+  <!-- 4. LE SCHÉMA (ivoire) : une seule toile, une caméra qui la parcourt -->
+  <div class="plan I" id="pT">
+    <div id="toile">
+      <svg id="fils" width="2200" height="2600" viewBox="0 0 2200 2600">
+        <path id="w1" d="M1100 400 L1100 640" fill="none" stroke="#F0703C" stroke-width="12" stroke-linecap="round"/>
+        <path id="wT" d="M1100 940 L1100 1010" fill="none" stroke="#F0703C" stroke-width="12" stroke-linecap="round"/>
+        <path id="wL" d="M1100 1010 C1100 1090 600 1060 600 1150" fill="none" stroke="#F0703C" stroke-width="12" stroke-linecap="round"/>
+        <path id="wR" d="M1100 1010 C1100 1090 1600 1060 1600 1150" fill="none" stroke="#15100c" stroke-width="12" stroke-linecap="round"/>
+        <path id="cL" d="M600 1300 L600 2370" fill="none" stroke="#F0703C" stroke-width="12" stroke-linecap="round"/>
+        <path id="cR" d="M1600 1300 L1600 2520" fill="none" stroke="#15100c" stroke-width="12" stroke-linecap="round"/>
+        <path id="retour" d="M600 2370 L600 1150 C600 1060 1100 1090 1100 1010 L1100 940" fill="none" stroke="#F0703C" stroke-width="10" stroke-dasharray="18 22" stroke-linecap="round" opacity="0"/>
+        <circle id="point" r="22" fill="#F0703C" opacity="0" style="filter:drop-shadow(0 0 18px rgba(240,112,60,.9))"/>
+        <circle id="onde2" cx="1100" cy="790" r="200" fill="none" stroke="#F0703C" stroke-width="8" opacity="0"/>
+      </svg>
+
+      <!-- n1 : message entrant -->
+      <div class="noeud" id="n1" style="left:720px;top:200px;width:760px;height:200px">
+        <div style="position:absolute;left:30px;top:40px;width:120px;height:120px;border-radius:30px;background:var(--orange)">
+          <div style="position:absolute;left:24px;top:28px;width:72px;height:52px;border-radius:14px;background:#fff"></div>
+          <div style="position:absolute;left:34px;top:74px;border-style:solid;border-width:16px 14px 0 0;border-color:#fff transparent transparent transparent"></div>
+        </div>
+        <div class="tete" style="position:absolute;left:180px;top:46px">Message client entrant</div>
+        <div style="position:absolute;left:180px;top:92px;font:34px Texte">« Ma commande n'est pas… »</div>
+        <div style="position:absolute;right:34px;top:30px;font:80px Cond;color:var(--orange)">23H14</div>
+      </div>
+
+      <!-- n2 : le chatbot analyse -->
+      <div class="noeud" id="n2" style="left:720px;top:640px;width:760px;height:300px">
+        <div style="position:absolute;left:30px;top:60px;width:170px;height:170px;border-radius:44px;background:#15100c">
+          <div style="position:absolute;left:79px;top:-26px;width:12px;height:30px;background:#15100c"></div>
+          <div style="position:absolute;left:73px;top:-40px;width:24px;height:24px;border-radius:50%;background:var(--vif)"></div>
+          <div class="oeil" style="position:absolute;left:38px;top:62px;width:30px;height:38px;border-radius:15px;background:var(--vif)"></div>
+          <div class="oeil" style="position:absolute;left:102px;top:62px;width:30px;height:38px;border-radius:15px;background:var(--vif)"></div>
+          <div style="position:absolute;left:52px;top:122px;width:66px;height:10px;border-radius:5px;background:#5a4436"></div>
+        </div>
+        <div class="tete" style="position:absolute;left:236px;top:44px">Chatbot IA · analyse</div>
+        <div id="lu" style="position:absolute;left:236px;top:96px;width:480px;font:32px/1.45 Texte;color:#15100c">Ma commande n'est pas arrivée, où en est-elle ?</div>
+        <div id="trait" style="position:absolute;left:236px;top:236px;height:8px;width:0;border-radius:4px;background:var(--vif)"></div>
+        <svg id="loupe" style="position:absolute;left:236px;top:84px" width="130" height="150" viewBox="0 0 130 150"><circle cx="54" cy="54" r="40" fill="rgba(240,112,60,.16)" stroke="#15100c" stroke-width="10"/><path d="M84 86 L118 132" stroke="#15100c" stroke-width="16" stroke-linecap="round"/></svg>
+      </div>
+
+      <!-- étiquettes de l'embranchement -->
+      <div class="pastille noeud" id="eL" style="left:250px;top:1150px;background:var(--vif);color:#fff;border-radius:75px">
+        <svg class="nb" viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="12"/><circle id="gL" cx="60" cy="60" r="50" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314" transform="rotate(-90 60 60)"/></svg>
+        <div class="nb"><b id="nL">0 %</b></div>Réponse connue
+      </div>
+      <div class="pastille noeud sombre" id="eR" style="left:1215px;top:1150px;background:#15100c;color:#fff;border-radius:75px">
+        <svg class="nb" viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="12"/><circle id="gR" cx="60" cy="60" r="50" fill="none" stroke="#F0703C" stroke-width="12" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314" transform="rotate(-90 60 60)"/></svg>
+        <div class="nb"><b id="nR">0 %</b></div>Limite atteinte
+      </div>
+
+      <!-- branche 80 % -->
+      <div class="noeud" id="A1" style="left:250px;top:1360px;width:700px;height:220px">
+        <div class="tete" style="position:absolute;left:36px;top:30px">Réponse générée</div>
+        <div style="position:absolute;left:36px;top:76px;width:628px;min-height:110px;border-radius:30px 30px 30px 8px;background:#f6efe6;padding:16px 22px;font:30px/1.35 Texte"><span id="tape1"></span><span id="caret1" style="display:inline-block;width:4px;height:34px;background:var(--orange);vertical-align:-6px;margin-left:3px"></span></div>
+      </div>
+      <div class="noeud" id="A2" style="left:250px;top:1640px;width:700px;height:240px">
+        <svg style="position:absolute;left:30px;top:30px" width="180" height="180" viewBox="0 0 180 180"><circle cx="90" cy="90" r="74" fill="none" stroke="#eee5d9" stroke-width="18"/><circle id="gA2" cx="90" cy="90" r="74" fill="none" stroke="#F0703C" stroke-width="18" stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465" transform="rotate(-90 90 90)"/></svg>
+        <div id="chrono" style="position:absolute;left:30px;top:62px;width:180px;text-align:center;font:84px Cond;color:var(--encre)">0</div>
+        <div class="tete" style="position:absolute;left:250px;top:62px">Envoyée en</div>
+        <div style="position:absolute;left:250px;top:100px;font:90px Cond;color:var(--orange)">4 SEC</div>
+        <svg id="avion" style="position:absolute;left:520px;top:70px" width="130" height="100" viewBox="0 0 130 100"><path d="M6 46 L124 6 L84 94 L62 58 Z" fill="#F0703C"/><path d="M62 58 L124 6" stroke="#fff" stroke-width="5"/></svg>
+      </div>
+      <div class="noeud" id="A3" style="left:250px;top:1940px;width:700px;height:220px">
+        <div style="position:absolute;left:150px;top:0;bottom:0;border-left:5px dashed #e3d8ca"></div>
+        <div style="position:absolute;left:34px;top:62px;font:64px Cond;color:#cfc4b6">#</div>
+        <div class="tete" style="position:absolute;left:190px;top:46px">Ticket n° 2318</div>
+        <div style="position:absolute;left:190px;top:96px;font:46px Texte">Clôturé auto</div>
+        <div class="coche" id="ok3" style="left:540px;top:40px;width:140px;height:140px;opacity:0"></div>
+      </div>
+      <div class="noeud" id="A4" style="left:250px;top:2220px;width:700px;height:150px;background:var(--vif);color:#fff">
+        <div style="position:absolute;left:0;right:0;top:0;text-align:center;font:46px/150px Cond;text-transform:uppercase;white-space:nowrap">Résolu sans intervention humaine</div>
+      </div>
+
+      <!-- branche 20 % -->
+      <div class="noeud sombre" id="B1" style="left:1250px;top:1360px;width:700px;height:440px">
+        <div style="position:absolute;left:0;right:0;top:0;height:90px;border-radius:36px 36px 0 0;background:#15100c"></div>
+        <div style="position:absolute;left:36px;top:22px;width:62px;height:46px;border-radius:8px;background:#fff"></div>
+        <div style="position:absolute;left:36px;top:22px;width:62px;height:46px;border-radius:8px;background:linear-gradient(155deg,transparent 47%,#15100c 48%,#15100c 54%,transparent 55%),linear-gradient(205deg,transparent 47%,#15100c 48%,#15100c 54%,transparent 55%)"></div>
+        <div style="position:absolute;left:120px;top:24px;font:30px/42px Texte;color:#fff">E-mail structuré · auto</div>
+        <div style="position:absolute;left:36px;right:36px;top:116px">
+          <div class="rangee" id="r1"><i>Objet</i><span class="val">Commande non reçue</span></div>
+          <div class="rangee" id="r2"><i>Contexte</i><span class="val">Commande passée hier</span></div>
+          <div class="rangee" id="r3"><i>Demande</i><span class="val">Changer l'adresse</span></div>
+          <div class="rangee" id="r4" style="border:0"><i>Urgence</i><span class="val"><b style="font-weight:normal;padding:6px 18px;border-radius:20px;background:var(--vif);color:#fff">Moyenne</b></span></div>
+        </div>
+      </div>
+      <div class="noeud sombre" id="B2" style="left:1250px;top:1860px;width:700px;height:180px">
+        <div id="env2" style="position:absolute;left:40px;top:58px;width:86px;height:62px;border-radius:10px;background:#15100c"></div>
+        <div style="position:absolute;left:150px;top:86px;width:260px;border-top:5px dashed #d8cbbb"></div>
+        <div id="equipe" style="position:absolute;left:430px;top:30px;width:230px;height:120px">
+          <div style="position:absolute;left:0;top:30px;width:64px;height:64px;border-radius:50%;background:#cfc4b6"></div>
+          <div style="position:absolute;left:82px;top:10px;width:76px;height:76px;border-radius:50%;background:#cfc4b6"></div>
+          <div style="position:absolute;left:176px;top:30px;width:64px;height:64px;border-radius:50%;background:#cfc4b6"></div>
+          <div style="position:absolute;left:0;right:-10px;top:96px;text-align:center;font:24px Texte;letter-spacing:3px;color:var(--gris)">ÉQUIPE</div>
+        </div>
+      </div>
+      <div class="noeud sombre" id="B3" style="left:1250px;top:2100px;width:700px;height:190px">
+        <div style="position:absolute;left:34px;top:40px;width:110px;height:110px;border-radius:50%;background:#2AABEE"><svg style="position:absolute;left:22px;top:26px" width="66" height="58" viewBox="0 0 66 58"><path d="M2 26 L64 2 L52 56 L30 40 Z" fill="#fff"/></svg></div>
+        <div class="tete" style="position:absolute;left:176px;top:44px">Telegram · maintenant</div>
+        <div style="position:absolute;left:176px;top:92px;font:38px Texte;white-space:nowrap">🔔 Intervention requise</div>
+      </div>
+      <div class="noeud sombre" id="B4" style="left:1250px;top:2350px;width:700px;height:170px">
+        <div class="tete" style="position:absolute;left:36px;top:26px">Client informé</div>
+        <div style="position:absolute;left:36px;top:70px;padding:12px 26px;border-radius:30px 30px 30px 8px;background:#f6efe6;font:40px Texte">Réponse sous <b style="font-weight:normal;color:var(--orange)">2h</b></div>
+        <div class="coche" id="ok4" style="left:560px;top:30px;width:110px;height:110px;opacity:0"></div>
+      </div>
+    </div>
+    <div class="voile-h"></div><div class="voile-b"></div>
+    <div class="lab surtitre" id="labT" style="top:300px"></div>
+    <div id="titresT"></div>
+  </div>
+
+  <!-- 5. LES TROIS CHIFFRES (sombre) -->
+  <div class="plan D" id="p5">
+    <div id="pts5"></div>
+    <div class="lab" style="top:300px">Résultat</div>
+    <div class="mm lueur" id="g80" style="top:520px;font-size:520px;color:var(--vif)">80 %</div>
+    <div class="ligne" id="g80l" style="top:1100px;font-size:52px;color:#e9dccb">résolus tout de suite</div>
+    <div class="obj" id="r80" style="left:90px;top:390px;width:900px;height:280px">
+      <div style="position:absolute;left:0;top:10px;font:205px/1 Cond;color:var(--vif)" class="lueur">80 %</div>
+      <div style="position:absolute;left:575px;top:70px;font:48px/1.2 Texte;color:#e9dccb">résolus<br>tout de suite</div>
+    </div>
+    <div class="obj" id="r0" style="left:90px;top:690px;width:900px;height:280px">
+      <div style="position:absolute;left:0;top:0;width:420px;text-align:center;font:230px/1 Cond;color:#fff">0</div>
+      <div style="position:absolute;left:575px;top:70px;font:48px/1.2 Texte;color:#e9dccb">demande<br>perdue</div>
+    </div>
+    <div class="obj" id="r24" style="left:90px;top:990px;width:900px;height:280px">
+      <svg style="position:absolute;left:80px;top:0" width="260" height="260" viewBox="0 0 260 260"><circle cx="130" cy="130" r="110" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="22"/><circle id="g24" cx="130" cy="130" r="110" fill="none" stroke="#F0703C" stroke-width="22" stroke-linecap="round" stroke-dasharray="691" stroke-dashoffset="691" transform="rotate(-90 130 130)"/><line id="aig24" x1="130" y1="130" x2="130" y2="52" stroke="#fff" stroke-width="12" stroke-linecap="round"/><circle cx="130" cy="130" r="12" fill="#fff"/></svg>
+      <div style="position:absolute;left:575px;top:40px;font:120px/1 Cond;color:#fff">24H/24</div>
+      <div style="position:absolute;left:575px;top:170px;font:40px Texte;color:#c9b8a6">sans pause</div>
+    </div>
+  </div>
+
+  <!-- 6. PHRASE-CHOC (sombre) -->
+  <div class="plan D" id="p6">
+    <div id="pts6"></div>
+    <div class="mm" data-k="t6a" data-a="48.8" data-b="50.6" style="top:560px;font-size:150px">Votre client a</div>
+    <div class="mm" data-k="t6b" data-a="49.5" data-b="50.6" style="top:740px;font-size:170px">toujours une *réponse.*</div>
+    <div class="obj" id="cadran" style="left:340px;top:420px;width:400px;height:400px;opacity:0">
+      <div style="position:absolute;inset:0;border-radius:50%;background:#1d120b;border:16px solid #f3e6d2;box-shadow:0 0 90px rgba(240,112,60,.35)"></div>
+      <div style="position:absolute;left:192px;top:70px;width:16px;height:140px;border-radius:8px;background:#f3e6d2"></div>
+      <div id="petite" style="position:absolute;left:192px;top:192px;width:120px;height:16px;border-radius:8px;background:var(--vif)"></div>
+      <div style="position:absolute;left:180px;top:180px;width:40px;height:40px;border-radius:50%;background:#f3e6d2"></div>
+      <div class="coche" id="ok6" style="left:290px;top:270px;width:150px;height:150px;opacity:0;box-shadow:0 20px 50px rgba(0,0,0,.5)"></div>
+    </div>
+    <div class="mm lueur" data-k="t6c" data-a="50.6" style="top:900px;font-size:200px">Même à *3h*</div>
+    <div class="mm" data-k="t6d" data-a="51.2" style="top:1120px;font-size:150px">du matin.</div>
+  </div>
+
+  <!-- S. ANNONCE « SITUATION TYPE » (ivoire) — scène insérée -->
+  <div class="plan I" id="pS">
+    <div class="lab" style="top:300px">Exemple illustratif</div>
+    <div class="mm" data-l="0" style="top:350px;font-size:170px">Une situation</div>
+    <div class="mm" data-l=".45" style="top:540px;font-size:230px">*type.*</div>
+    <div class="obj" id="tampon" style="left:170px;top:880px;width:740px;height:300px;border:12px solid var(--vif);border-radius:36px;text-align:center">
+      <div style="font:100px/170px Cond;color:var(--vif);letter-spacing:4px;white-space:nowrap">SITUATION TYPE</div>
+      <div style="font:34px Texte;color:var(--encre)">Un exemple pour comprendre,<br>pas un client réel.</div>
+    </div>
+  </div>
+
+  <!-- V. VUE D'ENSEMBLE (ivoire) — scène dédiée, schéma simplifié lisible -->
+  <div class="plan I" id="pV">
+    <div class="lab" style="top:300px">Vue d'ensemble</div>
+    <div class="mm" data-l="0" style="top:350px;font-size:150px">Tout le *circuit.*</div>
+    <svg style="position:absolute;left:0;top:0" width="1080" height="1920" viewBox="0 0 1080 1920">
+      <path id="v1" d="M540 650 L540 720" fill="none" stroke="#F0703C" stroke-width="10" stroke-linecap="round"/>
+      <path id="vL" d="M540 840 C540 900 290 890 290 950" fill="none" stroke="#F0703C" stroke-width="10" stroke-linecap="round"/>
+      <path id="vR" d="M540 840 C540 900 790 890 790 950" fill="none" stroke="#15100c" stroke-width="10" stroke-linecap="round"/>
+      <path id="vLc" d="M290 1030 L290 1300" fill="none" stroke="#F0703C" stroke-width="10" stroke-linecap="round"/>
+      <path id="vRc" d="M790 1030 L790 1300" fill="none" stroke="#15100c" stroke-width="10" stroke-linecap="round"/>
+    </svg>
+    <div class="obj fiche ombre" id="vIn" style="left:290px;top:560px;width:500px;height:90px;border-radius:45px;text-align:center;font:52px/90px Cond;letter-spacing:2px">MESSAGE · <span style="color:var(--orange)">23H14</span></div>
+    <div class="obj" id="vBot" style="left:480px;top:720px;width:120px;height:120px;border-radius:34px;background:#15100c">
+      <div style="position:absolute;left:26px;top:42px;width:22px;height:30px;border-radius:11px;background:var(--vif)"></div>
+      <div style="position:absolute;left:72px;top:42px;width:22px;height:30px;border-radius:11px;background:var(--vif)"></div>
+    </div>
+    <div class="obj" id="vBotL" style="left:625px;top:752px;font:44px Texte">Chatbot IA</div>
+    <div class="obj" id="vHL" style="left:140px;top:950px;width:300px;height:80px;border-radius:40px;background:var(--vif);color:#fff;text-align:center;font:62px/80px Cond">80 %</div>
+    <div class="obj" id="vHR" style="left:640px;top:950px;width:300px;height:80px;border-radius:40px;background:#15100c;color:#fff;text-align:center;font:62px/80px Cond">20 %</div>
+    <div id="vChips"></div>
+  </div>
+
+  <!-- Q. QUESTION À COMMENTER (sombre) — scène insérée -->
+  <div class="plan D" id="pQ">
+    <div id="ptsQ"></div>
+    <div class="lab" style="top:300px">À vous de répondre</div>
+    <div class="mm" data-l="0" style="top:350px;font-size:112px">Et chez vous,</div>
+    <div class="mm" data-l=".5" style="top:480px;font-size:112px">combien de messages</div>
+    <div class="mm" data-l="1.5" style="top:610px;font-size:112px">attendent jusqu'au</div>
+    <div class="mm lueur" data-l="2.0" style="top:760px;font-size:190px">*lendemain ?*</div>
+    <div class="obj fiche ombre" id="bulleQ" style="left:150px;top:1060px;width:780px;height:210px;border-radius:60px 60px 60px 14px">
+      <div style="position:absolute;left:36px;top:35px;width:140px;height:140px;border-radius:50%;background:#e6dccf"></div>
+      <div class="tete" style="position:absolute;left:210px;top:44px">Votre commentaire</div>
+      <div style="position:absolute;left:210px;top:92px;font:46px Texte;white-space:nowrap"><span id="tapeQ"></span><span id="caretQ" style="display:inline-block;width:5px;height:48px;background:var(--orange);vertical-align:-8px;margin-left:4px"></span></div>
+    </div>
+  </div>
+
+  <!-- 7. FIN (ivoire) — version Instagram -->
+  <div class="plan I" id="p7">
+    <div class="lab" style="top:300px">Le schéma complet</div>
+    <div class="mm" data-k="t7a" data-a="54.0" style="top:350px;font-size:170px">Le lien est</div>
+    <div class="mm" data-k="t7b" data-a="54.5" style="top:540px;font-size:210px">dans la *bio.*</div>
+    <div class="obj fiche ombre" id="profil" style="left:120px;top:850px;width:840px;height:400px;border-radius:44px">
+      <div style="position:absolute;left:40px;top:40px;width:160px;height:160px;border-radius:50%;background:#110A05;text-align:center;font:100px/160px Cond;color:var(--vif)">A</div>
+      <div style="position:absolute;left:236px;top:62px;font:54px Texte">Axion-IA</div>
+      <div style="position:absolute;left:236px;top:134px;font:32px Texte;color:var(--gris)">Automatisations &amp; formations IA</div>
+      <div id="lien7" style="position:absolute;left:40px;top:250px;width:760px;height:104px;border-radius:52px;background:#f6efe6;color:var(--orange);font:48px/104px Texte;padding-left:44px">axion-ia.com</div>
+    </div>
+    <svg id="main7" class="obj" style="left:0;top:0" width="90" height="110" viewBox="0 0 90 110"><path d="M8 4 L8 86 L28 68 L42 100 L58 93 L44 62 L72 62 Z" fill="#15100c" stroke="#fff" stroke-width="6" stroke-linejoin="round"/></svg>
+  </div>
+
+  <div id="marque">axion-<b>ia</b>.com</div>
+  <div id="st"></div>
+  <div id="fil"></div>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const c01 = (x) => Math.max(0, Math.min(1, x));
+const p = (t, a, d) => c01((t - a) / d);
+const doux = (x) => 1 - Math.pow(1 - x, 3);
+const va = (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const rebond = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const mel = (a, b, x) => a + (b - a) * x;
+
+// ---------- les plans ----------
+const PLANS = [["p1", 0], ["p2", 2.9], ["p3", 8.8], ["pT", 11.6], ["p5", 42.2], ["p6", 48.8], ["p7", 52.4]]
+  .map(([id, a], i, tous) => ({ id, a, b: tous[i + 1] ? tous[i + 1][1] : 56.5 }));
+window.DUREE = 56.5;
+
+// ---------- sous-titres (texte dit) ----------
+const SEG = [
+  [0, 1.6, "Vingt-trois heures *quatorze.*"], [1.6, 2.9, "Un client vous *écrit.*"], [2.9, 4.1, "Vous, vous *dormez.*"], [4.1, 5.4, "Lui, il *attend.*"],
+  [5.4, 6.9, "Et demain matin,"], [6.9, 8.8, "il a peut-être déjà vu *ailleurs.*"], [8.8, 10.4, "Sauf si quelqu'un lui *répond.*"], [10.4, 11.6, "*Tout de suite.*"],
+  [11.6, 13.0, "Son message *arrive.*"], [13.0, 14.8, "Le chatbot *lit* la demande."], [14.8, 16.4, "Et là, *deux* chemins."],
+  [16.4, 18.0, "*Quatre-vingts pour cent* du temps,"], [18.0, 19.6, "la réponse est *connue.*"], [19.6, 21.0, "Il l'écrit, il l'envoie"], [21.0, 22.4, "en *quatre secondes,*"],
+  [22.4, 24.2, "et le ticket se ferme *tout seul.*"], [24.2, 25.6, "Personne n'a *bougé.*"], [25.6, 27.0, "Les *vingt pour cent* restants,"], [27.0, 28.8, "il atteint sa *limite.*"],
+  [28.8, 30.4, "Alors il prépare un e-mail *propre :*"], [30.4, 33.2, "l'objet, le contexte, la demande, l'urgence."], [33.2, 35.2, "L'e-mail part à la bonne *équipe.*"],
+  [35.2, 36.6, "Une *alerte* tombe sur Telegram :"], [36.6, 38.0, "intervention requise."], [38.0, 39.4, "Et le client est *prévenu :*"], [39.4, 41.0, "réponse sous *deux heures.*"],
+  [42.2, 45.4, "Résultat : *quatre-vingts pour cent* résolus tout de suite."], [45.4, 46.9, "*Zéro* demande perdue."], [46.9, 48.8, "*Vingt-quatre heures* sur vingt-quatre."],
+  [48.8, 50.6, "Votre client a *toujours* une réponse."], [50.6, 52.4, "Même à *trois heures* du matin."],
+  [52.4, 54.0, "Le schéma *complet ?*"], [54.0, 56.5, "Le lien est dans la *bio.*"],
+];
+const enHtml = (s) => s.replace(/\*([^*]+)\*/g, "<span>$1</span>");
+window.texteDit = (a, b) => SEG.filter((s) => s[1] > a && s[0] < b).map((s) => s[2].replace(/\*/g, "")).join(" ");
+
+// ---------- titres du schéma (changent avec la voix) ----------
+const TITRES_T = [
+  [11.6, 13.0, "Le message *arrive.*"], [13.0, 14.8, "Le chatbot *lit.*"], [14.8, 16.4, "*Deux* chemins."], [16.4, 19.6, "Réponse *connue.*"],
+  [19.6, 22.4, "Envoyée en *4 s.*"], [22.4, 25.6, "Ticket *clôturé.*"], [25.6, 28.8, "Sa *limite.*"], [28.8, 33.2, "Un e-mail *propre.*"],
+  [33.2, 35.2, "La bonne *équipe.*"], [35.2, 38.0, "Une *alerte.*"], [38.0, 41.0, "Client *prévenu.*"], [41.0, 42.2, "Tout le *circuit.*"],
+];
+const LABS_T = [[11.6, 14.8, "L'automatisation"], [14.8, 16.4, "Le chatbot décide"], [16.4, 25.6, "Chemin 1 · 80 %"], [25.6, 41.0, "Chemin 2 · 20 %"], [41.0, 42.2, "Vue d'ensemble"]];
+TITRES_T.forEach(([a, b, txt]) => { const d = document.createElement("div"); d.className = "mm surtitre"; d.dataset.a = a; d.dataset.b = b; d.style.cssText = "top:350px;font-size:150px"; d.textContent = txt; $("#titresT").appendChild(d); });
+
+// mots animés un par un : *mot* = mot en orange
+$$(".mm").forEach((el) => { if (el.children.length) return; el.innerHTML = el.textContent.split(" ").map((m) => `<span class="w${/\*/.test(m) ? " acc" : ""}">${m.replace(/\*/g, "")}</span>`).join(" "); });
+function mots(el, ecoule, pas = .09, duree = .34) { $$(".w", el).forEach((w, i) => { const x = p(ecoule - i * pas, 0, duree); w.style.opacity = x; w.style.transform = `translateY(${(1 - doux(x)) * 60}px)`; w.style.filter = x < 1 ? `blur(${(1 - x) * 12}px)` : "none"; }); }
+function titre(el, t) { const a = +el.dataset.a, b = el.dataset.b ? +el.dataset.b : 1e9; const sortie = p(t, b - .18, .18); el.style.display = t >= a - .05 && t < b ? "block" : "none"; el.style.opacity = 1 - sortie; mots(el, t - a); }
+function biais(t, ry = -11, rx = 5) { return `perspective(1900px) rotateY(${ry + 3 * Math.sin(t * .9)}deg) rotateX(${rx + 1.6 * Math.cos(t * .7)}deg)`; }
+function surgir(el, x, rot = 0) { el.style.opacity = c01(x * 3); el.style.transform = `scale(${.6 + .4 * rebond(x)}) rotate(${rot}deg)`; }
+
+// particules des plans sombres
+["pts1", "pts2", "pts5", "pts6", "ptsQ"].forEach((id, g) => { $("#" + id).innerHTML = Array.from({ length: 16 }, (_, i) => `<i class="pt" data-x="${(i * 197 + g * 71) % 1000 + 40}" data-y="${(i * 331 + g * 53) % 1300 + 200}" data-v="${.4 + ((i * 7) % 10) / 12}"></i>`).join(""); });
+
+// ajuster les titres trop larges
+document.fonts.ready.then(() => { window.PRET = true; });
+function ajuster() { $$(".plan").forEach((pl) => (pl.style.display = "block")); $$(".mm").forEach((el) => { const d = el.style.display; el.style.display = "block"; let f = parseFloat(el.style.fontSize) || 150; let n = 0; while (el.scrollWidth > el.clientWidth + 2 && n++ < 60) { f -= 4; el.style.fontSize = f + "px"; } el.style.display = d; }); }
+
+// ---------- la caméra virtuelle : [début du mouvement, durée, x, y, échelle] ----------
+const CAM = [
+  [11.6, 0, 1100, 330, 1.05], [12.9, .8, 1100, 600, .95], [14.8, .9, 1100, 1180, .55],
+  [16.3, .8, 600, 1300, .85], [19.4, .7, 600, 1620, .85], [22.2, .7, 600, 2130, .85],
+  [25.6, 1.0, 1100, 820, .66], [26.9, .9, 1600, 1300, .85], [28.7, .6, 1600, 1580, .85], [33.0, .6, 1600, 1950, .85],
+  [35.0, .6, 1600, 2190, .85], [37.8, .6, 1600, 2420, .85], [40.9, 1.1, 1100, 1370, .345],
+];
+function camera(t) {
+  let [, , x, y, s] = CAM[0];
+  for (let i = 1; i < CAM.length; i++) { const [a, d, x2, y2, s2] = CAM[i]; if (t < a) break; const k = va(p(t, a, d)); x = mel(x, x2, k); y = mel(y, y2, k); s = mel(s, s2, k); }
+  s *= 1 + .012 * Math.sin(t * .8); // souffle léger
+  $("#toile").style.transform = `translate(${540 - x * s}px, ${900 - y * s}px) scale(${s})`;
+}
+function trace(id, x) { const el = $("#" + id); const L = el.getTotalLength(); el.style.strokeDasharray = L; el.style.strokeDashoffset = L * (1 - x); }
+
+// apparition (a) et fenêtres d'activité des nœuds
+const NOEUDS = {
+  n1: [11.7, [[11.7, 13.0]]], n2: [13.0, [[13.0, 14.8], [25.9, 27.0]]],
+  eL: [15.2, [[14.8, 19.6]]], eR: [15.4, [[14.8, 16.4], [26.9, 28.8]]],
+  A1: [19.6, [[19.6, 21.0]]], A2: [21.0, [[21.0, 22.4]]], A3: [22.4, [[22.4, 24.1]]], A4: [24.1, [[24.1, 25.6]]],
+  B1: [28.8, [[28.8, 33.2]]], B2: [33.2, [[33.2, 35.2]]], B3: [35.2, [[35.2, 38.0]]], B4: [38.0, [[38.0, 41.0]]],
+};
+function etatNoeud(id, t) {
+  const [a, fen] = NOEUDS[id]; const el = $("#" + id);
+  const vis = p(t, a, .45); const act = t >= 41.0 || fen.some(([x, y]) => t >= x && t < y);
+  el.style.opacity = vis <= 0 ? 0 : c01(vis * 2.5) * (act ? 1 : .32);
+  el.style.transform = `translateY(${(1 - doux(vis)) * 70}px) scale(${.9 + .1 * rebond(vis)})`;
+  el.style.filter = act ? "none" : "saturate(.15)";
+  el.classList.toggle("actif", act && t < 41.0);
+}
+
+// ---------- rendre(t) : l'image exacte à la seconde t ----------
+window.rendre = function (t) {
+  const plan = PLANS.find((pl) => t >= pl.a && t < pl.b) || PLANS.at(-1);
+  PLANS.forEach((pl) => ($("#" + pl.id).style.display = pl === plan ? "block" : "none"));
+  const sombre = $("#" + plan.id).classList.contains("D");
+  $("#marque").style.color = sombre ? "#e9dccb" : "#15100c";
+  $("#st").style.color = sombre ? "#fff" : "#15100c";
+  const seg = SEG.find((s) => t >= s[0] && t < s[1]);
+  $("#st").innerHTML = seg ? enHtml(seg[2]) : "";
+  $("#fil").style.width = (960 * t / window.DUREE) + "px";
+  $$(".pt").forEach((pt) => { pt.style.left = pt.dataset.x + "px"; pt.style.top = (pt.dataset.y - t * 30 * pt.dataset.v) + "px"; });
+  $$(".mm[data-a]").forEach((el) => titre(el, t));
+  INSERTS.forEach((s) => ($("#" + s.id).style.display = "none"));
+  const L = plan.id;
+
+  if (L === "p1") {
+    const tel = $("#tel1"); tel.style.transform = `scale(.8) ${biais(t, -8, 4)}`;
+    const h = p(t, .15, .7); $("#horloge1").style.opacity = .12 + .88 * h;
+    $("#horloge1").style.textShadow = `0 0 ${60 * h}px rgba(240,112,60,${.8 * h})`;
+    const n = p(t, 1.65, .45); const no = $("#notif1"); no.style.opacity = c01(n * 3);
+    no.style.transform = `translateY(${(1 - rebond(n)) * -160}px) rotate(${t > 1.9 && t < 2.5 ? 1.6 * Math.sin(t * 60) : 0}deg)`;
+  }
+  if (L === "p2") {
+    const e = t - 2.9;
+    $("#lune").style.opacity = .35 + .65 * p(e, 0, .5); $("#zzz").style.opacity = p(e, .4, .4) * (.6 + .4 * Math.sin(t * 3));
+    $("#zzz").style.transform = `translateY(${-20 * Math.sin(t * 2)}px)`;
+    const b = $("#bulle2"); const part = doux(p(t, 7.6, 1.0)); const ent = p(e, 1.2, .4);
+    b.style.opacity = c01(ent * 3) * (1 - part * .7); b.style.transform = `translateX(${part * 460}px) rotate(${part * 8}deg) scale(${.7 + .3 * rebond(ent)})`;
+    $$("#bulle2 .pts").forEach((d, i) => { d.style.background = Math.floor(t * 3) % 3 === i ? "#15100c" : "#cfc4b6"; });
+    $("#attente2").style.opacity = p(e, 1.8, .4) * (1 - part);
+  }
+  if (L === "p3") { $("#fil3").style.height = 220 * doux(p(t, 10.9, .7)) + "px"; }
+
+  if (L === "pT") {
+    camera(t);
+    Object.keys(NOEUDS).forEach((id) => etatNoeud(id, t));
+    trace("w1", doux(p(t, 12.3, .7)));
+    trace("wT", doux(p(t, 14.85, .25))); trace("wL", doux(p(t, 15.0, .6))); trace("wR", doux(p(t, 15.15, .6)));
+    $("#wL").style.opacity = t >= 25.6 && t < 41 ? .35 : 1; $("#wR").style.opacity = t >= 16.4 && t < 25.6 ? .35 : 1;
+    const segL = [[1360, 19.6], [1640, 21.0], [1940, 22.4], [2220, 24.1], [2370, 24.5]]; let dL = 0, prev = 1300;
+    segL.forEach(([y, a]) => { dL += (y - prev) * doux(p(t, a - .45, .45)); prev = y; }); trace("cL", dL / 1070);
+    const segR = [[1360, 28.8], [1860, 33.2], [2100, 35.2], [2350, 38.0], [2520, 38.4]]; let dR = 0; prev = 1300;
+    segR.forEach(([y, a]) => { dR += (y - prev) * doux(p(t, a - .45, .45)); prev = y; }); trace("cR", dR / 1220);
+    $("#cL").style.opacity = t >= 25.6 && t < 41 ? .35 : 1;
+    // le chatbot lit : la loupe balaie, le texte lu se souligne
+    const lec = p(t, 13.3, 1.4); $("#loupe").style.left = (236 + 380 * Math.abs(Math.sin(lec * Math.PI * 1.5))) + "px";
+    $("#loupe").style.top = (84 + (lec > .5 ? 46 : 0)) + "px"; $("#loupe").style.opacity = t < 14.8 ? 1 : 0;
+    $("#trait").style.width = 470 * lec + "px";
+    $$(".oeil").forEach((o) => (o.style.height = (Math.sin(t * 7) > .93 ? 8 : 38) + "px"));
+    // compteurs 80 / 20 et jauges
+    $("#nL").textContent = Math.round(80 * doux(p(t, 15.3, .7))) + " %"; $("#nR").textContent = Math.round(20 * doux(p(t, 15.5, .6))) + " %";
+    $("#gL").style.strokeDashoffset = 314 * (1 - .8 * doux(p(t, 16.5, 1.2))); $("#gR").style.strokeDashoffset = 314 * (1 - .2 * doux(p(t, 27.0, .8)));
+    // A1 : la réponse se tape
+    const rep = "Bonjour ! Votre colis part aujourd'hui. Voici le lien de suivi."; const nb = Math.round(rep.length * p(t, 19.8, 1.3));
+    $("#tape1").textContent = rep.slice(0, nb); $("#caret1").style.opacity = nb < rep.length || Math.floor(t * 3) % 2 ? 1 : 0;
+    // A2 : chrono 0 → 4 s, l'avion part
+    const ch = p(t, 21.0, 1.0); $("#chrono").textContent = (4 * ch).toFixed(ch < 1 ? 1 : 0).replace(".", ",");
+    $("#gA2").style.strokeDashoffset = 465 * (1 - ch); const av = doux(p(t, 22.0, .6));
+    $("#avion").style.transform = `translate(${av * 180}px, ${-av * 120}px) scale(${1 - .4 * av})`; $("#avion").style.opacity = 1 - av;
+    // A3 : le ticket se coche ; B4 : le client est prévenu
+    surgir($("#ok3"), p(t, 23.1, .45)); surgir($("#ok4"), p(t, 39.9, .45));
+    // B1 : les quatre lignes de l'e-mail se remplissent sur les quatre mots
+    [[30.5, "r1"], [31.2, "r2"], [31.9, "r3"], [32.6, "r4"]].forEach(([a, id]) => { const x = p(t, a, .5); const r = $("#" + id); r.querySelector("i").style.opacity = c01(x * 3); r.querySelector(".val").style.maxWidth = (360 * doux(x)) + "px"; r.style.background = x > 0 && x < 1 ? "rgba(240,112,60,.08)" : "transparent"; });
+    // B2 : l'e-mail glisse vers l'équipe qui s'allume
+    const gl = va(p(t, 33.5, .8)); $("#env2").style.transform = `translateX(${gl * 330}px) scale(${1 - .4 * gl})`; $("#env2").style.opacity = 1 - .9 * p(t, 34.2, .2);
+    $$("#equipe > div:not(:last-child)").forEach((d) => (d.style.background = t > 34.3 ? "var(--vif)" : "#cfc4b6"));
+    // B3 : l'alerte secoue
+    const sec = t > 35.5 && t < 36.4 ? Math.sin(t * 70) * 2.2 * (1 - p(t, 35.5, .9)) : 0; $("#B3").style.transform += ` rotate(${sec}deg)`;
+    // retour visible au nœud de décision
+    const ret = p(t, 25.6, 1.1); const R = $("#retour"); const LR = R.getTotalLength();
+    R.style.opacity = t >= 25.6 && t < 28.8 ? .9 * (1 - p(t, 27.6, 1.0)) : 0; R.style.strokeDashoffset = 0;
+    R.style.strokeDasharray = `18 22`; R.setAttribute("stroke-dasharray", "18 22");
+    const vis = LR * va(ret); R.style.clipPath = "none";
+    const pt = R.getPointAtLength(vis); const P = $("#point"); P.setAttribute("cx", pt.x); P.setAttribute("cy", pt.y); P.style.opacity = t >= 25.6 && t < 26.9 ? 1 : 0;
+    // n'afficher le pointillé que sur la partie déjà parcourue
+    R.style.strokeDasharray = `${vis} ${LR}`; R.style.strokeDashoffset = 0;
+    const on = p(t, 26.5, .9); $("#onde2").setAttribute("r", 170 + 160 * on); $("#onde2").style.opacity = on > 0 && on < 1 ? 1 - on : 0;
+    // surtitre et titre du moment
+    const lab = LABS_T.find(([a, b]) => t >= a && t < b); $("#labT").textContent = lab ? lab[2] : "";
+  }
+
+  if (L === "p5") {
+    const big = p(t, 42.3, .5), sort = p(t, 45.1, .35);
+    $("#g80").style.opacity = c01(big * 3) * (1 - sort); $("#g80").style.transform = `scale(${(.6 + .4 * rebond(big)) * (1 - .4 * sort)})`;
+    $("#g80l").style.opacity = p(t, 43.6, .4) * (1 - sort);
+    const r1 = p(t, 45.2, .4); $("#r80").style.opacity = r1; $("#r80").style.transform = `translateY(${(1 - doux(r1)) * 120}px)`;
+    surgir($("#r0"), p(t, 45.5, .45));
+    const r3 = p(t, 46.9, .4); $("#r24").style.opacity = r3; $("#r24").style.transform = `translateY(${(1 - doux(r3)) * 90}px)`;
+    const tour = p(t, 47.1, 1.5); $("#g24").style.strokeDashoffset = 691 * (1 - tour);
+    $("#aig24").setAttribute("transform", `rotate(${360 * tour} 130 130)`);
+  }
+  if (L === "p6") {
+    const c = p(t, 50.6, .5); const cad = $("#cadran"); cad.style.opacity = c01(c * 3); cad.style.transform = `scale(${.6 + .4 * rebond(c)}) ${biais(t, -6, 3)}`;
+    surgir($("#ok6"), p(t, 51.7, .45), -8);
+  }
+  if (L === "p7") {
+    const ch = p(t, 52.6, .5); $("#profil").style.opacity = c01(ch * 3); $("#profil").style.transform = `translateY(${(1 - doux(ch)) * 90}px) ${biais(t, -7, 3)}`;
+    const m = va(p(t, 54.6, .7)); const clic = p(t, 55.3, .25);
+    $("#main7").style.opacity = p(t, 54.4, .3);
+    $("#main7").style.transform = `translate(${mel(820, 560, m)}px, ${mel(1420, 1150, m)}px) scale(${1 - .15 * Math.sin(Math.PI * clic)})`;
+    const on = clic > .5; $("#lien7").style.background = on ? "var(--vif)" : "#f6efe6"; $("#lien7").style.color = on ? "#fff" : "var(--orange)";
+  }
+};
+
+// ---------- scènes insérées (annonce, vue d'ensemble, question) : le temps de base est décalé ----------
+const INSERTS = [
+  { at: 11.6, d: 1.8, id: "pS", st: [[0, 1.8, "Prenons une *situation type.*"]] },
+  { at: 42.2, d: 2.4, id: "pV", st: [[0, 2.4, "Voilà tout le *circuit.*"]] },
+  { at: 52.4, d: 3.4, id: "pQ", st: [[0, 1.5, "Et chez vous, combien de messages"], [1.5, 3.4, "attendent jusqu'au *lendemain ?*"]] },
+];
+window.DUREE_TOTALE = 56.5 + INSERTS.reduce((x, s) => x + s.d, 0);
+window.situer = function (t) { let off = 0; for (const s of INSERTS) { const a = s.at + off; if (t < a) break; if (t < a + s.d) return { ins: s, l: t - a }; off += s.d; } return { base: t - off }; };
+const CHIPS = [["Réponse générée", "Envoyée en 4 s", "Ticket clôturé", "Résolu sans humain"], ["E-mail structuré", "Équipe concernée", "Alerte Telegram", "Client : sous 2h"]];
+$("#vChips").innerHTML = CHIPS.map((col, c) => col.map((txt, i) => `<div class="obj" data-c="${c}" data-i="${i}" style="left:${c ? 590 : 80}px;top:${1052 + i * 72}px;width:410px;height:60px;border-radius:30px;text-align:center;font:34px/60px Texte;background:${c ? "#15100c" : "#fff"};color:${c ? "#fff" : "#15100c"};border:${c ? "0" : "4px solid #F0703C"};line-height:${c ? 60 : 52}px">${txt}</div>`).join("")).join("");
+function titreL(el, l) { const a = +el.dataset.l; el.style.display = l >= a - .05 ? "block" : "none"; el.style.opacity = 1; mots(el, l - a); }
+function rendreInsert(s, l, t) {
+  PLANS.concat(INSERTS).forEach((pl) => ($("#" + pl.id).style.display = pl.id === s.id ? "block" : "none"));
+  const sombre = $("#" + s.id).classList.contains("D");
+  $("#marque").style.color = sombre ? "#e9dccb" : "#15100c"; $("#st").style.color = sombre ? "#fff" : "#15100c";
+  const seg = s.st.find((x) => l >= x[0] && l < x[1]); $("#st").innerHTML = seg ? enHtml(seg[2]) : "";
+  $$(".pt").forEach((pt) => { pt.style.left = pt.dataset.x + "px"; pt.style.top = (pt.dataset.y - t * 30 * pt.dataset.v) + "px"; });
+  $$("#" + s.id + " .mm[data-l]").forEach((el) => titreL(el, l));
+  if (s.id === "pS") { const x = p(l, .7, .45); const el = $("#tampon"); el.style.opacity = c01(x * 3); el.style.transform = `scale(${1.5 - .5 * rebond(x)}) rotate(-6deg)`; }
+  if (s.id === "pV") {
+    surgir($("#vIn"), p(l, 0, .35)); trace("v1", doux(p(l, .25, .25))); surgir($("#vBot"), p(l, .4, .35)); $("#vBotL").style.opacity = p(l, .5, .3);
+    trace("vL", doux(p(l, .65, .35))); trace("vR", doux(p(l, .75, .35))); surgir($("#vHL"), p(l, .85, .3)); surgir($("#vHR"), p(l, .95, .3));
+    trace("vLc", doux(p(l, 1.0, .5))); trace("vRc", doux(p(l, 1.25, .5)));
+    $$("#vChips .obj").forEach((el) => surgir(el, p(l, 1.05 + (+el.dataset.c) * .25 + (+el.dataset.i) * .12, .3)));
+  }
+  if (s.id === "pQ") {
+    const b = p(l, 2.3, .4); $("#bulleQ").style.opacity = c01(b * 3); $("#bulleQ").style.transform = `scale(${.7 + .3 * rebond(b)}) ${biais(t, -6, 3)}`;
+    const rep = "Chez nous, au moins une dizaine…"; const n = Math.round(rep.length * p(l, 2.6, .8)); $("#tapeQ").textContent = rep.slice(0, n);
+    $("#caretQ").style.opacity = n < rep.length || Math.floor(t * 3) % 2 ? 1 : 0;
+  }
+}
+const rendreBase = window.rendre;
+window.rendre = function (t) {
+  const o = window.situer(t);
+  if (o.ins) rendreInsert(o.ins, o.l, t); else rendreBase(o.base);
+  $("#fil").style.width = (960 * t / window.DUREE_TOTALE) + "px";
+};
+window.preparer = async () => { await document.fonts.ready; ajuster(); window.rendre(0); return true; };
+window.addEventListener("load", () => { window.preparer().then(() => { const m = location.hash.match(/t=([\d.]+)/); window.rendre(m ? +m[1] : 0); }); });
+</script>
+</body>
+</html>

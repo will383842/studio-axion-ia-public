@@ -1,0 +1,57 @@
+{
+ "role": "fond",
+ "version": 1,
+ "sortie": {
+  "theme": "Erreurs Excel cachées",
+  "motCle": "erreurs Excel",
+  "motCleVariante": "copier-coller tableur",
+  "idees": [
+   {
+    "affirmation": "Excel paraît gratuit, mais son coût est dans chaque copier-coller fait à la main d'un fichier à l'autre.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ]
+   },
+   {
+    "affirmation": "Un tableur ne vérifie rien tout seul : chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ]
+   },
+   {
+    "affirmation": "Une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ]
+   }
+  ],
+  "appuiPrincipal": {
+   "matiereId": "test-35h-cause"
+  },
+  "issue": "Premier geste : repérer dans vos propres fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre. Ce sont les points où l'erreur passe inaperçue.",
+  "livraison": "Le coût d'Excel n'est sur aucune facture : il est dans chaque copier-coller que personne ne vérifie. Cherchez d'abord où vos données sont recopiées à la main.",
+  "exception": {
+   "source": "matiere",
+   "texte": "Si vos tableaux changent de forme chaque mois, gardez le tableur.",
+   "matiereId": "test-35h-limite",
+   "place": "apres-livraison"
+  },
+  "envoi": {
+   "destinataireRole": "DAF",
+   "phrase": "Les chiffres sur lesquels vous décidez ont peut-être été recopiés à la main. Voilà où regarder."
+  },
+  "niveauConscience": "connait-le-probleme",
+  "criteresPropres": [
+   {
+    "texte": "Aucun volume d'heures n'est chiffré : le « 35 heures » et le scénario type ne sont jamais cités ; le coût se dit en image concrète (exporter, copier, coller, vérifier)."
+   },
+   {
+    "texte": "Aucun client réel n'est évoqué : le texte reste au niveau de l'observation générale, sans cas ni résultat attribué à Axion-IA."
+   }
+  ]
+ }
+}

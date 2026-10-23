@@ -1,0 +1,222 @@
+{
+  "date": "2026-10-02T13:30:56.387Z",
+  "objet": "Test d'écoute avant / après, script « 35 heures dans Excel » (extrait de 42 s), intensité Équilibré, bruitages Discrets. 0 € (voix de Windows).",
+  "methode": "Même code que le moteur : découpage (R14), sous-titres, chef d'orchestre (brique intensite), chaîne du son de studio-rendu. Écart sous la voix = niveau actif (RMS des trames de 10 ms à moins de 30 dB de la plus forte) de la voix traitée moins celui de chaque son posé, même mesure.",
+  "dureeSec": 41.78,
+  "plans": [
+    {
+      "ordre": 1,
+      "de": 0,
+      "a": 1.613,
+      "source": "double",
+      "cadrage": "large"
+    },
+    {
+      "ordre": 2,
+      "de": 1.613,
+      "a": 3.891,
+      "source": "double",
+      "cadrage": "poitrine"
+    },
+    {
+      "ordre": 3,
+      "de": 3.891,
+      "a": 5.69,
+      "source": "double",
+      "cadrage": "large",
+      "incrustation": "35 h / semaine"
+    },
+    {
+      "ordre": 4,
+      "de": 5.69,
+      "a": 7.69,
+      "source": "illustration"
+    },
+    {
+      "ordre": 5,
+      "de": 7.69,
+      "a": 11.096,
+      "source": "double",
+      "cadrage": "poitrine"
+    },
+    {
+      "ordre": 6,
+      "de": 11.096,
+      "a": 13.08,
+      "source": "double",
+      "cadrage": "large"
+    },
+    {
+      "ordre": 7,
+      "de": 13.08,
+      "a": 14.81,
+      "source": "illustration"
+    },
+    {
+      "ordre": 8,
+      "de": 14.81,
+      "a": 18.654,
+      "source": "double",
+      "cadrage": "large"
+    },
+    {
+      "ordre": 9,
+      "de": 18.654,
+      "a": 22.064,
+      "source": "double",
+      "cadrage": "poitrine"
+    },
+    {
+      "ordre": 10,
+      "de": 22.064,
+      "a": 24.447,
+      "source": "double",
+      "cadrage": "large"
+    },
+    {
+      "ordre": 11,
+      "de": 24.447,
+      "a": 26.992,
+      "source": "double",
+      "cadrage": "poitrine"
+    },
+    {
+      "ordre": 12,
+      "de": 26.992,
+      "a": 28.88,
+      "source": "illustration"
+    },
+    {
+      "ordre": 13,
+      "de": 28.88,
+      "a": 31.383,
+      "source": "double",
+      "cadrage": "large"
+    },
+    {
+      "ordre": 14,
+      "de": 31.383,
+      "a": 33.383,
+      "source": "illustration"
+    },
+    {
+      "ordre": 15,
+      "de": 33.383,
+      "a": 36.73,
+      "source": "double",
+      "cadrage": "poitrine",
+      "incrustation": "100 %"
+    },
+    {
+      "ordre": 16,
+      "de": 36.73,
+      "a": 38.918,
+      "source": "double",
+      "cadrage": "large"
+    },
+    {
+      "ordre": 17,
+      "de": 38.918,
+      "a": 41.782,
+      "source": "double",
+      "cadrage": "poitrine"
+    }
+  ],
+  "accents": [
+    {
+      "de": 0.074,
+      "style": "impact",
+      "texte": "Une personne"
+    },
+    {
+      "de": 9.443,
+      "style": "impact",
+      "texte": "de 35 heures"
+    },
+    {
+      "de": 21.149,
+      "style": "impact",
+      "texte": "sont faux."
+    }
+  ],
+  "bruitages": [
+    {
+      "elementId": "bruit-impact-4",
+      "declencheur": "impact",
+      "debutSec": 0,
+      "dureeSec": 0.18,
+      "gainDb": -21,
+      "planId": "plan-1",
+      "sousLaVoixMesureDb": 21
+    },
+    {
+      "elementId": "bruit-document-4",
+      "declencheur": "document",
+      "debutSec": 12.96,
+      "dureeSec": 0.35,
+      "gainDb": -21,
+      "planId": "plan-7",
+      "sousLaVoixMesureDb": 21
+    },
+    {
+      "elementId": "bruit-telephone-4",
+      "declencheur": "telephone",
+      "debutSec": 31.263,
+      "dureeSec": 0.29,
+      "gainDb": -21,
+      "planId": "plan-14",
+      "sousLaVoixMesureDb": 21
+    }
+  ],
+  "sonsNonPoses": [
+    {
+      "id": "bruitage:chiffre:9.32",
+      "raison": "moins de 10 s après un autre son"
+    },
+    {
+      "id": "bruitage:chiffre:34.76",
+      "raison": "moins de 10 s après un autre son"
+    },
+    {
+      "id": "bruitage:illustration-forte:5.57",
+      "raison": "moins de 10 s après un autre son"
+    },
+    {
+      "id": "bruitage:illustration-forte:26.87",
+      "raison": "moins de 10 s après un autre son"
+    },
+    {
+      "id": "bruitage:impact:21.03",
+      "raison": "moins de 10 s après un autre son"
+    }
+  ],
+  "intensite": {
+    "plafond": 5,
+    "chargeMax": 5,
+    "depassements": [],
+    "gardes": 28,
+    "decales": 1,
+    "sautes": 11
+  },
+  "son": {
+    "voixNiveauActifDb": -12.64,
+    "avant": {
+      "lufs": -14.2,
+      "creteVraieDbtp": -0.1,
+      "gainVoixDb": 9.59
+    },
+    "apres": {
+      "lufs": -14.2,
+      "creteVraieDbtp": -0.1,
+      "gainVoixDb": 9.59
+    },
+    "ecartSonieVoixLu": 0,
+    "sousLaVoixMinDb": 21,
+    "sousLaVoixMaxDb": 21
+  },
+  "fichiers": [
+    "35h-avant.m4a",
+    "35h-apres.m4a",
+    "35h-bruitages-seuls-remontes.m4a"
+  ]
+}

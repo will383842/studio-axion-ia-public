@@ -1,0 +1,96 @@
+# TESTS CIBLÉS « CAS CONCRET » : informatif, NON BLOQUANT (ne jamais l'ajouter aux contrôles exigés de la protection de `main`).
+# Liste fixe de tests verts. Exclus car rouges ou instables : variete/l3c (empreintes différentes sous Linux, vert sous Windows), l7-socle, services/boucle, x7/avant-prix, s1e, x9/montant, x6, prix/prix-au-plus.
+# Pas de tsc ni d'eslint complets (erreurs de types préexistantes). Aucun secret.
+name: tests-cibles
+
+on:
+  pull_request:
+    paths:
+      - "src/moteurs/montage-cas-concret/**"
+      - "src/formats/cas-concret/**"
+      - "src/briques/ecrans-motion/**"
+      - "src/services/cas-concret*"
+      - "src/components/formats/cas-concret/entree/**"
+      - "tests/cas-concret/**"
+      - "src/domaine/sujets-traites*"
+      - "src/services/sujets-traites*"
+      - "src/services/tableau-creation.ts"
+      - "tests/tableau/sujets-traites/**"
+      - "src/components/formats/tableau-anime/sujet-deja-traite.ts"
+      - "src/services/image-video-ecran.ts"
+      - "src/services/image-video-lot.ts"
+      - "tests/image-video/sujets-traites/**"
+      - "src/components/formats/image-video/sujet-deja-traite.ts"
+      - "src/components/formats/commun/avant-prix.ts"
+      - "src/services/facecam-animee.ts"
+      - "tests/facecam-animee/sujets-traites/**"
+      - "src/components/formats/facecam-animee/sujet-deja-traite.ts"
+      - "src/services/sujet-central-controle.ts"
+      - "src/services/generateur.ts"
+      - "src/services/generateur-ecran.ts"
+      - "src/services/usine-sujet.ts"
+      - "src/components/generateur/sujet-deja-traite.ts"
+      - "tests/generateur/sujets-traites/**"
+      - "src/services/fabrication.ts"
+      - "src/donnees/**"
+      - "src/services/empreintes-fichiers.ts"
+      - "src/services/envois.ts"
+      - "src/fournisseurs/r2/stockage.ts"
+      - "src/fournisseurs/types.ts"
+      - "tests/empreintes-fichiers.test.ts"
+      - "tests/r2-empreinte.test.ts"
+      - "tests/empreintes-controle.test.ts"
+      - "tests/numero-suivi-*.ts"
+      - "src/services/reglage-garde-sujets.ts"
+      - "src/components/reglages/GardeSujetsReglage.tsx"
+      - "src/app/(studio)/reglages/actions-garde-sujets.ts"
+      - "tests/sujets-traites/**"
+      - ".github/workflows/tests-cibles.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-cibles-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests-cibles:
+    name: tests ciblés cas concret
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Tests ciblés (liste fixe)
+        run: |
+          pnpm exec vitest run \
+            tests/cas-concret/variete/variete.test.ts \
+            tests/cas-concret/variete/l6.test.ts \
+            tests/cas-concret/variete/maquettes-par-canal.test.ts \
+            tests/cas-concret/variete/part-v4-centree.test.ts \
+            tests/cas-concret/variete/structure-chaine.test.ts \
+            tests/cas-concret/variete/fiche-et-chaine.test.ts \
+            tests/cas-concret/variete-scripts \
+            tests/cas-concret/script-valide \
+            tests/cas-concret/ecriture/ecriture.test.ts \
+            tests/cas-concret/suivi/suivi.test.ts \
+            src/formats/cas-concret/cas-concret.test.ts \
+            src/domaine/sujets-traites.test.ts \
+            src/services/sujets-traites.test.ts \
+            tests/tableau/sujets-traites/controle-sujet.test.ts \
+            tests/image-video/sujets-traites/controle-sujet.test.ts \
+            tests/facecam-animee/sujets-traites/controle-sujet.test.ts \
+            tests/generateur/sujets-traites/controle-sujet.test.ts \
+            tests/cas-concret/suivi/numero-suivi-unique.test.ts \
+            tests/numero-suivi-postgres.test.ts \
+            tests/cas-concret/sujets-traites/controle-sujet.test.ts \
+            tests/empreintes-fichiers.test.ts \
+            tests/r2-empreinte.test.ts \
+            tests/empreintes-controle.test.ts \
+            tests/sujets-traites/reglage-garde.test.ts

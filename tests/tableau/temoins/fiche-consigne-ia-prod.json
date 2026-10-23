@@ -1,0 +1,628 @@
+{
+ "ratio": "9:16",
+ "serie": {
+  "nom": "Coaching 1 to 1",
+  "code": "coaching"
+ },
+ "stylo": "crayon/1",
+ "scenes": [
+  {
+   "id": "s01",
+   "page": 1,
+   "role": "accroche",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Déléguer"
+      },
+      {
+       "ancre": 6,
+       "texte": "Réécrire tout"
+      },
+      {
+       "ancre": 9,
+       "texte": "Corriger chaque phrase"
+      }
+     ],
+     "moment": "accroche",
+     "gabarit": "accroche-cases",
+     "etiquette": "Le constat",
+     "motsForts": [
+      "déléguez",
+      "réécrivez"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e01",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Vous déléguez, puis réécrivez tout",
+     "marque": "entoure",
+     "niveau": "titre"
+    },
+    {
+     "id": "e02",
+     "type": "geste",
+     "ancre": 6,
+     "geste": "entourer",
+     "cibleId": "e01"
+    },
+    {
+     "id": "e03",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 9,
+     "dessinId": "gomme"
+    },
+    {
+     "id": "e04",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 10,
+     "texte": "Chaque phrase, une par une",
+     "niveau": "texte"
+    },
+    {
+     "id": "e05",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 20,
+     "dessinId": "horloge"
+    },
+    {
+     "id": "e06",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 22,
+     "texte": "Plus rapide seul ?",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Vous déléguez à l'IA, puis vous réécrivez tout. Vous corrigez chaque phrase, une par une. Et vous vous dites : j'aurais été plus rapide seul."
+  },
+  {
+   "id": "s02",
+   "page": 2,
+   "role": "idee-recue",
+   "ecrans": [
+    {
+     "moment": "retournement",
+     "gabarit": "idee-recue",
+     "etiquette": "Le vrai problème",
+     "motsForts": [
+      "tranché"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e07",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Le problème, c'est l'IA",
+     "marque": "barre",
+     "niveau": "texte"
+    },
+    {
+     "id": "e08",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 6,
+     "texte": "Vous n'avez pas tranché",
+     "marque": "souligne",
+     "niveau": "titre"
+    },
+    {
+     "id": "e09",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 13,
+     "dessinId": "point-interrogation"
+    },
+    {
+     "id": "e10",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 16,
+     "texte": "Elle décide à votre place",
+     "niveau": "texte"
+    },
+    {
+     "id": "e11",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 22,
+     "texte": "Décisions à prendre avant",
+     "niveau": "texte"
+    },
+    {
+     "id": "e12",
+     "type": "geste",
+     "ancre": 25,
+     "geste": "souligner",
+     "cibleId": "e11"
+    }
+   ],
+   "texteDit": "Le problème n'est pas l'IA. Vous n'avez pas tranché ce que vous vouliez. Alors elle a décidé à votre place. Voici quatre décisions à prendre avant, en quatre lignes."
+  },
+  {
+   "id": "s03",
+   "page": 3,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 1,
+      "nom": "Livrable",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Livrable",
+       "detail": "Un mail court"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "livrable"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e13",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Tranchez le livrable",
+     "marque": "souligne",
+     "niveau": "titre"
+    },
+    {
+     "id": "e14",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 5,
+     "dessinId": "document"
+    },
+    {
+     "id": "e15",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 11,
+     "texte": "Un mail court, pas « un texte »",
+     "niveau": "texte"
+    },
+    {
+     "id": "e16",
+     "type": "geste",
+     "ancre": 16,
+     "geste": "cocher",
+     "cibleId": "e15"
+    }
+   ],
+   "texteDit": "Un. Tranchez le livrable : ce que vous voulez recevoir, exactement. Un mail de cinq lignes, pas « un texte sur le sujet »."
+  },
+  {
+   "id": "s04",
+   "page": 3,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 2,
+      "nom": "Lecteur",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Lecteur",
+       "detail": "Client pressé"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "lecteur"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e17",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Tranchez le lecteur",
+     "marque": "souligne",
+     "niveau": "titre"
+    },
+    {
+     "id": "e18",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 5,
+     "dessinId": "bulle"
+    },
+    {
+     "id": "e19",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 8,
+     "texte": "Qui lit ? Que sait-il déjà ?",
+     "niveau": "texte"
+    },
+    {
+     "id": "e20",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 14,
+     "texte": "Client pressé, pas associé",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Deux. Tranchez le lecteur : qui va lire, et ce qu'il sait déjà. Un client pressé ne connaît pas le dossier comme votre associé."
+  },
+  {
+   "id": "s05",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 3,
+      "nom": "Critère",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Critère",
+       "detail": "Oui ou non"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "critère",
+      "Réussi"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e21",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Tranchez le critère",
+     "marque": "souligne",
+     "niveau": "titre"
+    },
+    {
+     "id": "e22",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 5,
+     "dessinId": "cible"
+    },
+    {
+     "id": "e23",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 12,
+     "texte": "Réussi si : oui ou non",
+     "niveau": "texte"
+    },
+    {
+     "id": "e24",
+     "type": "geste",
+     "ancre": 18,
+     "geste": "cocher",
+     "cibleId": "e23"
+    }
+   ],
+   "texteDit": "Trois. Tranchez le critère : une phrase qui dit quand c'est réussi. Réussi si le client peut répondre oui ou non."
+  },
+  {
+   "id": "s06",
+   "page": 4,
+   "role": "etape",
+   "ecrans": [
+    {
+     "etape": {
+      "n": 4,
+      "nom": "Interdit",
+      "total": 4
+     },
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Interdit",
+       "detail": "Vos corrections répétées"
+      }
+     ],
+     "moment": "etape",
+     "gabarit": "etape",
+     "etiquette": "La méthode",
+     "motsForts": [
+      "corrections"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e25",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Tranchez l'interdit",
+     "marque": "souligne",
+     "niveau": "titre"
+    },
+    {
+     "id": "e26",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 4,
+     "dessinId": "croix"
+    },
+    {
+     "id": "e27",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 8,
+     "texte": "Listez vos corrections répétées",
+     "niveau": "texte"
+    },
+    {
+     "id": "e28",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 15,
+     "texte": "La ligne qui manquait",
+     "marque": "entoure",
+     "niveau": "texte"
+    },
+    {
+     "id": "e29",
+     "type": "geste",
+     "ancre": 17,
+     "geste": "pointer",
+     "cibleId": "e28"
+    }
+   ],
+   "texteDit": "Quatre. Tranchez l'interdit : listez ce que vous corrigez à chaque fois. Vos corrections répétées, c'est la ligne qui manquait."
+  },
+  {
+   "id": "s07",
+   "page": 5,
+   "role": "exemple",
+   "ecrans": [
+    {
+     "moment": "exemple",
+     "gabarit": "exemple",
+     "etiquette": "Exemple",
+     "motsForts": [
+      "Avant"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e30",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e31",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 4,
+     "dessinId": "enveloppe"
+    },
+    {
+     "id": "e32",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 8,
+     "texte": "Avant : « Rédigez une relance. »",
+     "niveau": "texte"
+    },
+    {
+     "id": "e33",
+     "role": "alerte",
+     "type": "ligne",
+     "ancre": 16,
+     "texte": "Paragraphes polis, à réécrire",
+     "marque": "barre",
+     "niveau": "texte"
+    }
+   ],
+   "texteDit": "Prenons une consultante qui relance un prospect silencieux. Avant : « Rédigez une relance. » Trois paragraphes polis, à réécrire."
+  },
+  {
+   "id": "s08",
+   "page": 5,
+   "role": "preuve",
+   "ecrans": [
+    {
+     "moment": "exemple",
+     "gabarit": "exemple",
+     "etiquette": "Exemple",
+     "motsForts": [
+      "Après"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e34",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 0,
+     "texte": "Après : mail court, dirigeant pressé",
+     "niveau": "texte"
+    },
+    {
+     "id": "e35",
+     "cote": "droite",
+     "type": "dessin",
+     "ancre": 11,
+     "dessinId": "coche-cercle"
+    },
+    {
+     "id": "e36",
+     "role": "condition",
+     "type": "ligne",
+     "ancre": 17,
+     "texte": "Interdit : « je me permets »",
+     "marque": "barre",
+     "niveau": "texte"
+    },
+    {
+     "id": "e37",
+     "type": "preuve",
+     "ancre": 24,
+     "lignes": [
+      "Avant : relance à réécrire",
+      "Après : envoyée telle quelle"
+     ],
+     "preuveId": "mat-import-demo-02"
+    },
+    {
+     "id": "e38",
+     "type": "geste",
+     "ancre": 26,
+     "geste": "entourer",
+     "cibleId": "e37"
+    }
+   ],
+   "texteDit": "Après : un mail de cinq lignes, pour un dirigeant pressé. Réussi s'il répond oui ou non. Interdit : « je me permets ». Elle change le prénom et elle envoie."
+  },
+  {
+   "id": "s09",
+   "page": 6,
+   "role": "resultat",
+   "ecrans": [
+    {
+     "liste": [
+      {
+       "ancre": 1,
+       "texte": "Livrable"
+      },
+      {
+       "ancre": 3,
+       "texte": "Lecteur"
+      },
+      {
+       "ancre": 5,
+       "texte": "Critère"
+      },
+      {
+       "ancre": 6,
+       "texte": "Interdit"
+      }
+     ],
+     "moment": "recapitulatif",
+     "gabarit": "recapitulatif",
+     "etiquette": "En résumé",
+     "motsForts": [
+      "modèle"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "e39",
+     "cote": "gauche",
+     "type": "dessin",
+     "ancre": 0,
+     "dessinId": "liste-cochee"
+    },
+    {
+     "id": "e40",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "Livrable, lecteur",
+     "niveau": "texte"
+    },
+    {
+     "id": "e41",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 5,
+     "texte": "Critère, interdit",
+     "niveau": "texte"
+    },
+    {
+     "id": "e42",
+     "role": "resultat",
+     "type": "ligne",
+     "ancre": 7,
+     "texte": "Un modèle qui tient",
+     "marque": "souligne",
+     "niveau": "titre"
+    }
+   ],
+   "texteDit": "Le livrable. Le lecteur. Le critère. L'interdit. Le modèle tient en quatre lignes."
+  },
+  {
+   "id": "s10",
+   "page": 6,
+   "role": "fin",
+   "ecrans": [
+    {
+     "moment": "appel",
+     "gabarit": "appel-commentaire",
+     "etiquette": "À vous",
+     "motsForts": [
+      "CONSIGNE"
+     ],
+     "motCommentaire": "CONSIGNE"
+    }
+   ],
+   "elements": [
+    {
+     "id": "e43",
+     "role": "regle",
+     "type": "ligne",
+     "ancre": 1,
+     "texte": "CONSIGNE",
+     "marque": "entoure",
+     "niveau": "titre"
+    },
+    {
+     "id": "e44",
+     "cote": "centre",
+     "type": "dessin",
+     "ancre": 3,
+     "dessinId": "bulle"
+    }
+   ],
+   "texteDit": "Écrivez CONSIGNE en commentaire. Je vous l'envoie."
+  }
+ ],
+ "appelId": "fin-if-mot-envoi",
+ "douleur": "Vous déléguez à l'IA, puis vous réécrivez tout. Vous corrigez chaque phrase, une par une.",
+ "version": "fiche-scenes/1",
+ "videoId": "v-9d15cce3c6e3",
+ "formatId": "tableau-anime",
+ "habillage": "blocs/2",
+ "structure": "demonstration",
+ "versionId": "b1",
+ "gesteMinute": "Vous déléguez une tâche à l'IA et vous repassez derrière à chaque fois : comment lui donner une consigne qui tient"
+}

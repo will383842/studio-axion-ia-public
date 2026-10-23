@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-02T09:54:00.911Z",
+  "coutUsd": 0,
+  "decor": "photo-incrustee (fal.ai, sans personne), flou 14 px, liseré doré côté gauche",
+  "double": "silhouette simulée",
+  "dureeSec": 85,
+  "images": [
+    {
+      "ratio": "9:16",
+      "plan": "large",
+      "fichier": "docs/captures/b1-decors/demo-photo-9x16-large.jpg",
+      "alertes": []
+    },
+    {
+      "ratio": "9:16",
+      "plan": "poitrine",
+      "fichier": "docs/captures/b1-decors/demo-photo-9x16-poitrine.jpg",
+      "alertes": []
+    },
+    {
+      "ratio": "4:5",
+      "plan": "large",
+      "fichier": "docs/captures/b1-decors/demo-photo-4x5-large.jpg",
+      "alertes": []
+    },
+    {
+      "ratio": "4:5",
+      "plan": "poitrine",
+      "fichier": "docs/captures/b1-decors/demo-photo-4x5-poitrine.jpg",
+      "alertes": []
+    },
+    {
+      "ratio": "1:1",
+      "plan": "large",
+      "fichier": "docs/captures/b1-decors/demo-photo-1x1-large.jpg",
+      "alertes": []
+    },
+    {
+      "ratio": "1:1",
+      "plan": "poitrine",
+      "fichier": "docs/captures/b1-decors/demo-photo-1x1-poitrine.jpg",
+      "alertes": []
+    }
+  ]
+}

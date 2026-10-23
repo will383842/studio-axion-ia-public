@@ -1,0 +1,50 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Dirigeant de PME, votre tableur ne vérifie rien. Chaque copier-coller peut cacher une erreur que personne ne voit.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF, pour repérer ensemble dans vos fichiers les données recopiées à la main."
+  },
+  "boucle": "",
+  "encadre": "Erreurs Excel : points invisibles",
+  "couverture": "Vos erreurs Excel invisibles",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Un tableur ne vérifie rien tout seul.",
+   "texte": "Un tableur ne vérifie rien tout seul.\nChaque copier-coller est une occasion d'erreur que personne ne voit.\n\nPremier geste : repérez dans vos fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre. Ce sont les points où les erreurs Excel passent inaperçues. Une seule erreur de formule, et tous les chiffres qui en dépendent sont faux.\n\nEnvoyez cette vidéo à votre DAF, pour repérer ensemble ces points dans vos fichiers.",
+   "motsDiese": [
+    "#Excel",
+    "#PME"
+   ],
+   "post": {
+    "texte": "Un tableur ne vérifie rien tout seul.\nChaque copier-coller est une occasion d'erreur que personne ne voit.\n\nPremier geste : repérez dans vos fichiers les endroits où des données sont recopiées à la main d'un tableur à l'autre. Ce sont les points où les erreurs Excel passent inaperçues. Une seule erreur de formule, et tous les chiffres qui en dépendent sont faux.\n\nEnvoyez cette vidéo à votre DAF, pour repérer ensemble ces points dans vos fichiers.",
+    "detailAncrage": "Un tableur ne vérifie rien tout seul, donc chaque copier-coller est une occasion d'erreur que personne ne voit."
+   },
+   "justifications": [
+    {
+     "texte": "Les deux premières lignes se lisent seules et reprennent le détail vrai du sujet, sans le mot-clé qui est exempté.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Deux mots-dièse seulement, dans la limite de 0 à 3.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Post rédigé avec la vidéo, détail vrai tiré de l'observation, sans formule d'écriture générée.",
+     "regleId": "li-ai-slop-2026"
+    },
+    {
+     "texte": "Aucun lien dans le post, la fin reprend l'appel unique de la vidéo.",
+     "regleId": "li-lien-commentaire"
+    },
+    {
+     "texte": "Publication en vidéo native.",
+     "regleId": "li-video-2026"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,116 @@
+{
+  "texte": "Le bail est signé. Mais le loyer a doublé ! Rassurez-vous : la loi vous protège. Leur demande est abusive. Merci de votre confiance.",
+  "mots": [
+    {
+      "mot": "Le",
+      "debutSec": 0.2,
+      "finSec": 0.32
+    },
+    {
+      "mot": "bail",
+      "debutSec": 0.38,
+      "finSec": 0.7
+    },
+    {
+      "mot": "est",
+      "debutSec": 0.82,
+      "finSec": 0.96
+    },
+    {
+      "mot": "signé.",
+      "debutSec": 1.02,
+      "finSec": 1.42
+    },
+    {
+      "mot": "Mais",
+      "debutSec": 2.08,
+      "finSec": 2.44
+    },
+    {
+      "mot": "le",
+      "debutSec": 2.5,
+      "finSec": 2.6
+    },
+    {
+      "mot": "loyer",
+      "debutSec": 2.64,
+      "finSec": 3.02
+    },
+    {
+      "mot": "a",
+      "debutSec": 3.06,
+      "finSec": 3.1
+    },
+    {
+      "mot": "doublé",
+      "debutSec": 3.18,
+      "finSec": 3.6
+    },
+    {
+      "mot": "Rassurez-vous",
+      "debutSec": 4.08,
+      "finSec": 4.86
+    },
+    {
+      "mot": "la",
+      "debutSec": 4.98,
+      "finSec": 5.06
+    },
+    {
+      "mot": "loi",
+      "debutSec": 5.1,
+      "finSec": 5.28
+    },
+    {
+      "mot": "vous",
+      "debutSec": 5.34,
+      "finSec": 5.46
+    },
+    {
+      "mot": "protège.",
+      "debutSec": 5.48,
+      "finSec": 6.1
+    },
+    {
+      "mot": "Leur",
+      "debutSec": 6.32,
+      "finSec": 6.48
+    },
+    {
+      "mot": "demande",
+      "debutSec": 6.52,
+      "finSec": 6.88
+    },
+    {
+      "mot": "est",
+      "debutSec": 6.92,
+      "finSec": 7.02
+    },
+    {
+      "mot": "abusive.",
+      "debutSec": 7.08,
+      "finSec": 7.66
+    },
+    {
+      "mot": "Merci",
+      "debutSec": 7.92,
+      "finSec": 8.24
+    },
+    {
+      "mot": "de",
+      "debutSec": 8.28,
+      "finSec": 8.34
+    },
+    {
+      "mot": "votre",
+      "debutSec": 8.38,
+      "finSec": 8.62
+    },
+    {
+      "mot": "confiance.",
+      "debutSec": 8.66,
+      "finSec": 9.28
+    }
+  ],
+  "dureeSec": 9.613
+}

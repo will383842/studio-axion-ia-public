@@ -1,0 +1,306 @@
+[
+ {
+  "style": "Pastille Axion",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "posé": "Pastille Axion",
+  "gabarit": "karaoke",
+  "contraste": 9.26,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "pastille-axion-tableau-blanc-vertical.jpg"
+ },
+ {
+  "style": "Pastille Axion",
+  "fond": "ardoise",
+  "format": "vertical",
+  "posé": "Pastille Axion",
+  "gabarit": "karaoke",
+  "contraste": 8.1,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "pastille-axion-ardoise-vertical.jpg"
+ },
+ {
+  "style": "Pastille Axion",
+  "fond": "paperboard",
+  "format": "vertical",
+  "posé": "Pastille Axion",
+  "gabarit": "karaoke",
+  "contraste": 9.26,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "pastille-axion-paperboard-vertical.jpg"
+ },
+ {
+  "style": "Karaoké",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "posé": "Karaoké",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "karaoke-tableau-blanc-vertical.jpg"
+ },
+ {
+  "style": "Karaoké",
+  "fond": "ardoise",
+  "format": "vertical",
+  "posé": "Karaoké",
+  "gabarit": "karaoke",
+  "contraste": 5.98,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "karaoke-ardoise-vertical.jpg"
+ },
+ {
+  "style": "Karaoké",
+  "fond": "paperboard",
+  "format": "vertical",
+  "posé": "Karaoké",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "karaoke-paperboard-vertical.jpg"
+ },
+ {
+  "style": "Axion pop",
+  "fond": "tableau-blanc",
+  "format": "vertical",
+  "posé": "Axion pop",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "axion-pop-tableau-blanc-vertical.jpg"
+ },
+ {
+  "style": "Axion pop",
+  "fond": "ardoise",
+  "format": "vertical",
+  "posé": "Axion pop",
+  "gabarit": "impact",
+  "contraste": 5.98,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "axion-pop-ardoise-vertical.jpg"
+ },
+ {
+  "style": "Axion pop",
+  "fond": "paperboard",
+  "format": "vertical",
+  "posé": "Axion pop",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1386,
+   "y1": 1536
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "axion-pop-paperboard-vertical.jpg"
+ },
+ {
+  "style": "Pastille Axion",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "posé": "Pastille Axion",
+  "gabarit": "karaoke",
+  "contraste": 9.26,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [],
+  "instantSec": 9.096,
+  "pixelsHorsCharteBande": 0,
+  "image": "pastille-axion-tableau-blanc-portrait.jpg"
+ },
+ {
+  "style": "Pastille Axion",
+  "fond": "ardoise",
+  "format": "portrait",
+  "posé": "Pastille Axion",
+  "gabarit": "karaoke",
+  "contraste": 8.1,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [],
+  "instantSec": 9.096,
+  "pixelsHorsCharteBande": 0,
+  "image": "pastille-axion-ardoise-portrait.jpg"
+ },
+ {
+  "style": "Pastille Axion",
+  "fond": "paperboard",
+  "format": "portrait",
+  "posé": "Pastille Axion",
+  "gabarit": "karaoke",
+  "contraste": 9.26,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [],
+  "instantSec": 9.096,
+  "pixelsHorsCharteBande": 0,
+  "image": "pastille-axion-paperboard-portrait.jpg"
+ },
+ {
+  "style": "Karaoké",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "posé": "Karaoké",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "karaoke-tableau-blanc-portrait.jpg"
+ },
+ {
+  "style": "Karaoké",
+  "fond": "ardoise",
+  "format": "portrait",
+  "posé": "Karaoké",
+  "gabarit": "karaoke",
+  "contraste": 5.98,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "karaoke-ardoise-portrait.jpg"
+ },
+ {
+  "style": "Karaoké",
+  "fond": "paperboard",
+  "format": "portrait",
+  "posé": "Karaoké",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "karaoke-paperboard-portrait.jpg"
+ },
+ {
+  "style": "Axion pop",
+  "fond": "tableau-blanc",
+  "format": "portrait",
+  "posé": "Axion pop",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "axion-pop-tableau-blanc-portrait.jpg"
+ },
+ {
+  "style": "Axion pop",
+  "fond": "ardoise",
+  "format": "portrait",
+  "posé": "Axion pop",
+  "gabarit": "impact",
+  "contraste": 5.98,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "axion-pop-ardoise-portrait.jpg"
+ },
+ {
+  "style": "Axion pop",
+  "fond": "paperboard",
+  "format": "portrait",
+  "posé": "Axion pop",
+  "gabarit": "bandeau",
+  "contraste": 16,
+  "bande": {
+   "y0": 1048,
+   "y1": 1188
+  },
+  "alertesComposition": [
+   "Décor clair : ombre des sous-titres renforcée."
+  ],
+  "instantSec": 8.566,
+  "pixelsHorsCharteBande": 0,
+  "image": "axion-pop-paperboard-portrait.jpg"
+ }
+]

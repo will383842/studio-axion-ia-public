@@ -1,0 +1,57 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-1",
+  "accroche": "Dirigeant, chaque jour on exporte, on copie, on colle vos fichiers Excel. Et vous n'en voyez qu'une petite partie.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. Il verra vite combien de ces fichiers Excel pourraient laisser la place à un tableau de bord."
+  },
+  "boucle": "Chez vous aussi,",
+  "encadre": "Fichiers Excel : presque tous remplaçables",
+  "couverture": "Vos fichiers Excel, remplacés ?",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Fichiers Excel : vos tableurs, chaque jour. Un tableau de bord les remplace.",
+   "texte": "Fichiers Excel : vos tableurs, chaque jour. Un tableau de bord les remplace.",
+   "motsDiese": [
+    "#fichiersExcel",
+    "#IA",
+    "#DAF",
+    "#tableaudebord"
+   ],
+   "commentaireEpingle": "Source : avis de Will, Axion-IA. Presque tous ces fichiers Excel peuvent être remplacés par une IA.",
+   "motsClesDeclares": [
+    "fichiers Excel",
+    "tableurs",
+    "tableau de bord",
+    "IA en entreprise"
+   ],
+   "motsClesBloques": [
+    "garanti",
+    "100 %",
+    "à coup sûr"
+   ],
+   "motCleVariante": "tableurs",
+   "justifications": [
+    {
+     "texte": "Première ligne : mot-clé exact en tête, variante parlée « tableurs », puis ce que la vidéo répond, en moins de 100 caractères.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mots-clés déclarés et bloqués saisis à la main, 4 déclarés et 3 bloqués.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Commentaire épinglé = la source des faits, sans question puisque l'appel est un envoi.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "4 mots-dièse, boucle posée en fin de vidéo.",
+     "regleId": "hyp-ecriture-reseau"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,375 @@
+{
+  "date": "2026-10-03T00:51:37.578Z",
+  "lot": "G6 + G6b",
+  "coutReel": "0 € (voix Windows, double d'essai, studio-rendu local, aligneur rejoué)",
+  "operations": {
+    "nettoyage-audio": 10,
+    "composition": 6,
+    "assemblage": 5
+  },
+  "dureeTotaleSec": 291,
+  "versions": {
+    "0042-AV-LI": {
+      "role": "mere",
+      "dureeSec": 18.733,
+      "plans": 8,
+      "estimation": {
+        "centimes": 233,
+        "devise": "EUR"
+      },
+      "coupesImposees": [
+        3.006,
+        9.946,
+        13.497,
+        16.515
+      ]
+    },
+    "0042-AV-TT": {
+      "role": "variante-reseau",
+      "estimation": {
+        "centimes": 77,
+        "devise": "EUR"
+      },
+      "dureeSec": 14.971,
+      "morceaux": [
+        {
+          "entree": "partiel",
+          "deSec": 0,
+          "aSec": 1.749,
+          "versSec": 0
+        },
+        {
+          "entree": "mere",
+          "deSec": 3.006,
+          "aSec": 9.946,
+          "versSec": 1.749
+        },
+        {
+          "entree": "mere",
+          "deSec": 13.497,
+          "aSec": 16.515,
+          "versSec": 8.689
+        },
+        {
+          "entree": "partiel",
+          "deSec": 1.749,
+          "aSec": 5.013,
+          "versSec": 11.707
+        }
+      ],
+      "jointures": [
+        {
+          "t": 1.749,
+          "visible": false
+        },
+        {
+          "t": 8.689,
+          "visible": false
+        },
+        {
+          "t": 11.707,
+          "visible": false
+        }
+      ],
+      "corpsIdentiqueALaMere": [
+        {
+          "de": 3.006,
+          "a": 9.946,
+          "echantillons": 328320,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        },
+        {
+          "de": 13.497,
+          "a": 16.515,
+          "echantillons": 140064,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        }
+      ],
+      "zoneReseau": {
+        "haut": 10,
+        "droite": 18,
+        "bas": 26,
+        "gauche": 4
+      },
+      "sousTitresSurUnion": {
+        "haut": 14,
+        "droite": 18,
+        "bas": 30,
+        "gauche": 6
+      }
+    },
+    "0042-AV-IG": {
+      "role": "variante-reseau",
+      "estimation": {
+        "centimes": 70,
+        "devise": "EUR"
+      },
+      "dureeSec": 14.577,
+      "morceaux": [
+        {
+          "entree": "partiel",
+          "deSec": 0,
+          "aSec": 2.167,
+          "versSec": 0
+        },
+        {
+          "entree": "mere",
+          "deSec": 3.006,
+          "aSec": 9.946,
+          "versSec": 2.167
+        },
+        {
+          "entree": "mere",
+          "deSec": 13.497,
+          "aSec": 16.515,
+          "versSec": 9.107
+        },
+        {
+          "entree": "partiel",
+          "deSec": 2.167,
+          "aSec": 4.619,
+          "versSec": 12.125
+        }
+      ],
+      "jointures": [
+        {
+          "t": 2.167,
+          "visible": false
+        },
+        {
+          "t": 9.107,
+          "visible": false
+        },
+        {
+          "t": 12.125,
+          "visible": false
+        }
+      ],
+      "corpsIdentiqueALaMere": [
+        {
+          "de": 3.006,
+          "a": 9.946,
+          "echantillons": 328320,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        },
+        {
+          "de": 13.497,
+          "a": 16.515,
+          "echantillons": 140064,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        }
+      ],
+      "zoneReseau": {
+        "haut": 14,
+        "droite": 16,
+        "bas": 30,
+        "gauche": 6
+      },
+      "sousTitresSurUnion": {
+        "haut": 14,
+        "droite": 18,
+        "bas": 30,
+        "gauche": 6
+      }
+    },
+    "0042-AV-YS": {
+      "role": "variante-reseau",
+      "estimation": {
+        "centimes": 77,
+        "devise": "EUR"
+      },
+      "dureeSec": 14.315,
+      "morceaux": [
+        {
+          "entree": "partiel",
+          "deSec": 0,
+          "aSec": 2.177,
+          "versSec": 0
+        },
+        {
+          "entree": "mere",
+          "deSec": 3.006,
+          "aSec": 9.946,
+          "versSec": 2.177
+        },
+        {
+          "entree": "mere",
+          "deSec": 13.497,
+          "aSec": 16.515,
+          "versSec": 9.117
+        },
+        {
+          "entree": "partiel",
+          "deSec": 2.177,
+          "aSec": 4.357,
+          "versSec": 12.135
+        }
+      ],
+      "jointures": [
+        {
+          "t": 2.177,
+          "visible": false
+        },
+        {
+          "t": 9.117,
+          "visible": false
+        },
+        {
+          "t": 12.135,
+          "visible": false
+        }
+      ],
+      "corpsIdentiqueALaMere": [
+        {
+          "de": 3.006,
+          "a": 9.946,
+          "echantillons": 328320,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        },
+        {
+          "de": 13.497,
+          "a": 16.515,
+          "echantillons": 140064,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        }
+      ],
+      "zoneReseau": {
+        "haut": 10,
+        "droite": 16,
+        "bas": 20,
+        "gauche": 4
+      },
+      "sousTitresSurUnion": {
+        "haut": 14,
+        "droite": 18,
+        "bas": 30,
+        "gauche": 6
+      }
+    },
+    "0042-AV-FB": {
+      "role": "variante-reseau",
+      "estimation": {
+        "centimes": 77,
+        "devise": "EUR"
+      },
+      "dureeSec": 14.132,
+      "morceaux": [
+        {
+          "entree": "partiel",
+          "deSec": 0,
+          "aSec": 1.679,
+          "versSec": 0
+        },
+        {
+          "entree": "mere",
+          "deSec": 3.006,
+          "aSec": 9.946,
+          "versSec": 1.679
+        },
+        {
+          "entree": "mere",
+          "deSec": 13.497,
+          "aSec": 16.515,
+          "versSec": 8.619
+        },
+        {
+          "entree": "partiel",
+          "deSec": 1.679,
+          "aSec": 4.174,
+          "versSec": 11.637
+        }
+      ],
+      "jointures": [
+        {
+          "t": 1.679,
+          "visible": false
+        },
+        {
+          "t": 8.619,
+          "visible": false
+        },
+        {
+          "t": 11.637,
+          "visible": false
+        }
+      ],
+      "corpsIdentiqueALaMere": [
+        {
+          "de": 3.006,
+          "a": 9.946,
+          "echantillons": 328320,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        },
+        {
+          "de": 13.497,
+          "a": 16.515,
+          "echantillons": 140064,
+          "differentsDePlusDUnPas": 0,
+          "ecartMaxEnPas": 1
+        }
+      ],
+      "zoneReseau": {
+        "haut": 14,
+        "droite": 16,
+        "bas": 30,
+        "gauche": 6
+      },
+      "sousTitresSurUnion": {
+        "haut": 14,
+        "droite": 18,
+        "bas": 30,
+        "gauche": 6
+      }
+    },
+    "0042-AV-TT-L": {
+      "role": "je-lis",
+      "estimation": {
+        "centimes": 0,
+        "devise": "EUR"
+      },
+      "motsSousTitres": [
+        "Vous@0.25",
+        "recevez@0.43",
+        "un@0.77",
+        "PV@0.87",
+        "de@1.23",
+        "135@1.35",
+        "€ ?@1.93",
+        "Surtout,@3.92",
+        "ne@4.66",
+        "le@4.78",
+        "payez@4.90",
+        "pas@5.22",
+        "tout@5.34",
+        "de@5.56",
+        "suite.@5.68",
+        "Je@7.39",
+        "vous@7.54",
+        "explique@7.72",
+        "pourquoi,@8.23",
+        "en@8.95",
+        "trois@9.09",
+        "points.@9.31"
+      ],
+      "projet": {
+        "morceaux": [
+          {
+            "entree": "prise-p1",
+            "deSec": 0.24,
+            "aSec": 10.37,
+            "versSec": 0
+          }
+        ],
+        "jointures": [],
+        "source": "prises"
+      }
+    }
+  }
+}

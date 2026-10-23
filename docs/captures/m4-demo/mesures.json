@@ -1,0 +1,410 @@
+{
+  "date": "2026-10-02T06:40:36.595Z",
+  "lot": "M4b",
+  "machine": {
+    "processeur": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz",
+    "fils": 12,
+    "coeursVus": 12,
+    "concurrenceNavigateur": 4,
+    "image": "ffmpeg"
+  },
+  "avantM4b": {
+    "source": "v1/mesures.json (lot M4, même poste, concurrence 2)",
+    "9:16": 210.4,
+    "4:5": 173,
+    "1:1": 146.8
+  },
+  "voix": {
+    "dureeSec": 15.64,
+    "mots": 53
+  },
+  "dureeVideoSec": 15.57,
+  "doubleEssaiWebmSec": 0,
+  "plans": [
+    {
+      "ordre": 1,
+      "de": 0,
+      "a": 2.263,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 2,
+      "de": 2.263,
+      "a": 3.963,
+      "source": "double",
+      "cadrage": "poitrine",
+      "zoom": 1.2,
+      "incrustation": false
+    },
+    {
+      "ordre": 3,
+      "de": 3.963,
+      "a": 5.508,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 4,
+      "de": 5.508,
+      "a": 7.138,
+      "source": "double",
+      "cadrage": "poitrine",
+      "zoom": 1.2,
+      "incrustation": false
+    },
+    {
+      "ordre": 5,
+      "de": 7.138,
+      "a": 8.657,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 6,
+      "de": 8.657,
+      "a": 10.657,
+      "source": "illustration",
+      "zoom": 1,
+      "incrustation": false
+    },
+    {
+      "ordre": 7,
+      "de": 10.657,
+      "a": 12.93,
+      "source": "double",
+      "cadrage": "large",
+      "zoom": 1,
+      "incrustation": true
+    },
+    {
+      "ordre": 8,
+      "de": 12.93,
+      "a": 15.571,
+      "source": "double",
+      "cadrage": "poitrine",
+      "zoom": 1.2,
+      "incrustation": false
+    }
+  ],
+  "alertesRythme": [
+    {
+      "code": "rythme",
+      "gravite": "attention",
+      "message": "La première coupe arrive après 2 s."
+    }
+  ],
+  "captures": [
+    {
+      "nom": "1-ouverture-encadre",
+      "t": 1
+    },
+    {
+      "nom": "2-plan-large",
+      "t": 4.7355
+    },
+    {
+      "nom": "3-plan-poitrine-120",
+      "t": 6.323
+    },
+    {
+      "nom": "4-illustration",
+      "t": 9.657
+    },
+    {
+      "nom": "5-montant-incruste",
+      "t": 11.7935
+    },
+    {
+      "nom": "6-fin",
+      "t": 14.871
+    }
+  ],
+  "resultats": {
+    "9:16": {
+      "tempsSec": 52.5,
+      "mesures": {
+        "largeur": 1080,
+        "hauteur": 1920,
+        "fps": 25,
+        "dureeSec": 15.571,
+        "debitKbps": 7824,
+        "taille": 15227823,
+        "bt709": 1,
+        "plageTv": 1,
+        "yuv420p": 1,
+        "profilHigh": 1,
+        "niveau": 41,
+        "audioHz": 48000,
+        "audioKbps": 243,
+        "audioCanaux": 2,
+        "faststart": 1,
+        "imageNoireTete": 0,
+        "lufs": -14.1,
+        "lra": 2.1,
+        "creteVraieDbtp": -3.1,
+        "pauses": 4,
+        "pauseMinDb": -43,
+        "pauseMaxDb": -42,
+        "lraBrut": 2.1,
+        "compression": 0,
+        "gainDb": 6.8500000000000005,
+        "tonDeSynthese": 1,
+        "imageParFfmpeg": 1,
+        "imagesTexte": 69,
+        "tempsSonSec": 1.8,
+        "tempsTexteSec": 9.7,
+        "tempsImageSec": 33.8,
+        "tempsCouleursSec": 0,
+        "tempsImageEtTexteSec": 33.8,
+        "tempsExportSec": 15.6,
+        "tempsTotalSec": 52.5,
+        "images": 389
+      },
+      "alertesComposition": [],
+      "luts": [
+        {
+          "entree": "lut-1",
+          "intensite": 0.7,
+          "plages": [
+            [
+              0,
+              15.571
+            ]
+          ]
+        }
+      ],
+      "encadre": {
+        "lignes": [
+          "Amende :",
+          "L'ERREUR QUE TOUT",
+          "LE MONDE FAIT"
+        ],
+        "deSec": 0,
+        "aSec": 3,
+        "centreYPx": 1221,
+        "taillePx": 54,
+        "rayonPx": 30,
+        "margeXPx": 36,
+        "margeYPx": 26
+      },
+      "incrustations": [
+        {
+          "deSec": 10.657,
+          "aSec": 12.93,
+          "type": "montant",
+          "texte": "+ 2 500 €",
+          "couleur": "#34C26B",
+          "centreXPx": 540,
+          "centreYPx": 1171,
+          "taillePx": 118
+        }
+      ],
+      "preuves": {
+        "encadreHautPx": 1099,
+        "sousTitresBasPx": 1020,
+        "ecartPx": 80,
+        "montantsEnDouble": [],
+        "capsuleMicro": {
+          "gauche": 724,
+          "haut": 576,
+          "largeur": 238,
+          "hauteur": 147
+        },
+        "capsuleEntiere": true
+      }
+    },
+    "4:5": {
+      "tempsSec": 45.1,
+      "mesures": {
+        "largeur": 1080,
+        "hauteur": 1350,
+        "fps": 25,
+        "dureeSec": 15.571,
+        "debitKbps": 5247,
+        "taille": 10213590,
+        "bt709": 1,
+        "plageTv": 1,
+        "yuv420p": 1,
+        "profilHigh": 1,
+        "niveau": 41,
+        "audioHz": 48000,
+        "audioKbps": 243,
+        "audioCanaux": 2,
+        "faststart": 1,
+        "imageNoireTete": 0,
+        "lufs": -14.1,
+        "lra": 2.1,
+        "creteVraieDbtp": -3.1,
+        "pauses": 4,
+        "pauseMinDb": -43,
+        "pauseMaxDb": -42,
+        "lraBrut": 2.1,
+        "compression": 0,
+        "gainDb": 6.8500000000000005,
+        "tonDeSynthese": 1,
+        "imageParFfmpeg": 1,
+        "imagesTexte": 69,
+        "tempsSonSec": 1.8,
+        "tempsTexteSec": 9.4,
+        "tempsImageSec": 30.7,
+        "tempsCouleursSec": 0,
+        "tempsImageEtTexteSec": 30.7,
+        "tempsExportSec": 11.4,
+        "tempsTotalSec": 45.1,
+        "images": 389
+      },
+      "alertesComposition": [],
+      "luts": [
+        {
+          "entree": "lut-1",
+          "intensite": 0.7,
+          "plages": [
+            [
+              0,
+              15.571
+            ]
+          ]
+        }
+      ],
+      "encadre": {
+        "lignes": [
+          "Amende :",
+          "L'ERREUR QUE TOUT",
+          "LE MONDE FAIT"
+        ],
+        "deSec": 0,
+        "aSec": 3,
+        "centreYPx": 1092,
+        "taillePx": 54,
+        "rayonPx": 30,
+        "margeXPx": 36,
+        "margeYPx": 26
+      },
+      "incrustations": [
+        {
+          "deSec": 10.657,
+          "aSec": 12.93,
+          "type": "montant",
+          "texte": "+ 2 500 €",
+          "couleur": "#34C26B",
+          "centreXPx": 540,
+          "centreYPx": 959,
+          "taillePx": 118
+        }
+      ],
+      "preuves": {
+        "encadreHautPx": 970,
+        "sousTitresBasPx": 891,
+        "ecartPx": 80,
+        "montantsEnDouble": [],
+        "capsuleMicro": {
+          "gauche": 724,
+          "haut": 576,
+          "largeur": 238,
+          "hauteur": 147
+        },
+        "capsuleEntiere": true
+      }
+    },
+    "1:1": {
+      "tempsSec": 37.3,
+      "mesures": {
+        "largeur": 1080,
+        "hauteur": 1080,
+        "fps": 25,
+        "dureeSec": 15.571,
+        "debitKbps": 4449,
+        "taille": 8659434,
+        "bt709": 1,
+        "plageTv": 1,
+        "yuv420p": 1,
+        "profilHigh": 1,
+        "niveau": 41,
+        "audioHz": 48000,
+        "audioKbps": 243,
+        "audioCanaux": 2,
+        "faststart": 1,
+        "imageNoireTete": 0,
+        "lufs": -14.1,
+        "lra": 2.1,
+        "creteVraieDbtp": -3.1,
+        "pauses": 4,
+        "pauseMinDb": -43,
+        "pauseMaxDb": -42,
+        "lraBrut": 2.1,
+        "compression": 0,
+        "gainDb": 6.8500000000000005,
+        "tonDeSynthese": 1,
+        "imageParFfmpeg": 1,
+        "imagesTexte": 69,
+        "tempsSonSec": 1.9,
+        "tempsTexteSec": 7.5,
+        "tempsImageSec": 24.8,
+        "tempsCouleursSec": 0,
+        "tempsImageEtTexteSec": 24.8,
+        "tempsExportSec": 9.4,
+        "tempsTotalSec": 37.3,
+        "images": 389
+      },
+      "alertesComposition": [],
+      "luts": [
+        {
+          "entree": "lut-1",
+          "intensite": 0.7,
+          "plages": [
+            [
+              0,
+              15.571
+            ]
+          ]
+        }
+      ],
+      "encadre": {
+        "lignes": [
+          "Amende :",
+          "L'ERREUR QUE TOUT",
+          "LE MONDE FAIT"
+        ],
+        "deSec": 0,
+        "aSec": 3,
+        "centreYPx": 849,
+        "taillePx": 54,
+        "rayonPx": 30,
+        "margeXPx": 36,
+        "margeYPx": 26
+      },
+      "incrustations": [
+        {
+          "deSec": 10.657,
+          "aSec": 12.93,
+          "type": "montant",
+          "texte": "+ 2 500 €",
+          "couleur": "#34C26B",
+          "centreXPx": 540,
+          "centreYPx": 767,
+          "taillePx": 118
+        }
+      ],
+      "preuves": {
+        "encadreHautPx": 727,
+        "sousTitresBasPx": 648,
+        "ecartPx": 80,
+        "montantsEnDouble": [],
+        "capsuleMicro": {
+          "gauche": 724,
+          "haut": 576,
+          "largeur": 238,
+          "hauteur": 147
+        },
+        "capsuleEntiere": true
+      }
+    }
+  }
+}

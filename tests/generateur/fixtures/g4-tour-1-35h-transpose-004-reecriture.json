@@ -1,0 +1,23 @@
+{
+ "role": "reecriture",
+ "version": 1,
+ "sortie": {
+  "corrections": [
+   {
+    "segmentIndex": -1,
+    "texte": "Dirigeant de PME, Excel paraît gratuit. Mais un copier-coller fait à la main, c'est une occasion d'erreur qui passe inaperçue.",
+    "motif": "Les absolus « chaque » et « personne ne » ont été retirés : ils ne figurent dans aucune matière citée."
+   },
+   {
+    "segmentIndex": 0,
+    "texte": "Un tableur ne vérifie rien tout seul. Regardez où vos données sont recopiées à la main d'un tableur à l'autre. C'est là que l'erreur passe inaperçue.",
+    "marqueurs": [
+     "ancrage",
+     "relance",
+     "solution"
+    ],
+    "motif": "Le segment reprend la matière et le premier geste sans les élargir : « fichier » devient « tableur », comme dans la formulation fournie, et le connecteur ajouté est retiré."
+   }
+  ]
+ }
+}

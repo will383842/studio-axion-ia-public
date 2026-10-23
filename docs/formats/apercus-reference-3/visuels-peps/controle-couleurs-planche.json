@@ -1,0 +1,406 @@
+{
+ "regle": "pixel coloré (saturation ≥ 12 %) hors des teintes 355°-60° = vert, bleu ou violet",
+ "total": 0,
+ "images": [
+  {
+   "fichier": "chiffre-entoure.png",
+   "colores": 39103,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "barres-avant-apres.png",
+   "colores": 105377,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chrono.png",
+   "colores": 54534,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "calendrier.png",
+   "colores": 61534,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "email-envoye.png",
+   "colores": 55923,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "document-barre.png",
+   "colores": 67741,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "liste-cochee.png",
+   "colores": 34985,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "schema-a-b.png",
+   "colores": 63840,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "entonnoir.png",
+   "colores": 56889,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "balance.png",
+   "colores": 39594,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "cible.png",
+   "colores": 68275,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "telephone-notification.png",
+   "colores": 77063,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "bouclier-coche.png",
+   "colores": 82275,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "graphique-monte.png",
+   "colores": 30610,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "fenetre-discussion.png",
+   "colores": 85604,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "equipe.png",
+   "colores": 58972,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chiffre-entoure-700.png",
+   "colores": 3132,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chiffre-entoure-1100.png",
+   "colores": 4416,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chiffre-entoure-1550.png",
+   "colores": 11192,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chiffre-entoure-2100.png",
+   "colores": 41141,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "barres-avant-apres-700.png",
+   "colores": 2140,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "barres-avant-apres-1100.png",
+   "colores": 16578,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "barres-avant-apres-1550.png",
+   "colores": 32996,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "barres-avant-apres-2100.png",
+   "colores": 105377,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chrono-700.png",
+   "colores": 11402,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chrono-1100.png",
+   "colores": 21731,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chrono-1550.png",
+   "colores": 24915,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "chrono-2100.png",
+   "colores": 54512,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "calendrier-700.png",
+   "colores": 23634,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "calendrier-1100.png",
+   "colores": 36048,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "calendrier-1550.png",
+   "colores": 46540,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "calendrier-2100.png",
+   "colores": 58276,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "email-envoye-700.png",
+   "colores": 16181,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "email-envoye-1100.png",
+   "colores": 31717,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "email-envoye-1550.png",
+   "colores": 51717,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "email-envoye-2100.png",
+   "colores": 58106,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "document-barre-700.png",
+   "colores": 20421,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "document-barre-1100.png",
+   "colores": 42485,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "document-barre-1550.png",
+   "colores": 57769,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "document-barre-2100.png",
+   "colores": 69428,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "liste-cochee-700.png",
+   "colores": 8597,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "liste-cochee-1100.png",
+   "colores": 17684,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "liste-cochee-1550.png",
+   "colores": 27425,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "liste-cochee-2100.png",
+   "colores": 36741,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "schema-a-b-700.png",
+   "colores": 14343,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "schema-a-b-1100.png",
+   "colores": 31040,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "schema-a-b-1550.png",
+   "colores": 57223,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "schema-a-b-2100.png",
+   "colores": 64839,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "entonnoir-700.png",
+   "colores": 16152,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "entonnoir-1100.png",
+   "colores": 30977,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "entonnoir-1550.png",
+   "colores": 56468,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "entonnoir-2100.png",
+   "colores": 56892,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "balance-700.png",
+   "colores": 10266,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "balance-1100.png",
+   "colores": 21528,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "balance-1550.png",
+   "colores": 33631,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "balance-2100.png",
+   "colores": 39577,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "cible-700.png",
+   "colores": 13665,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "cible-1100.png",
+   "colores": 29472,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "cible-1550.png",
+   "colores": 55054,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "cible-2100.png",
+   "colores": 68275,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "telephone-notification-700.png",
+   "colores": 22988,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "telephone-notification-1100.png",
+   "colores": 44932,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "telephone-notification-1550.png",
+   "colores": 66110,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "telephone-notification-2100.png",
+   "colores": 77063,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "bouclier-coche-700.png",
+   "colores": 12073,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "bouclier-coche-1100.png",
+   "colores": 25330,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "bouclier-coche-1550.png",
+   "colores": 65420,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "bouclier-coche-2100.png",
+   "colores": 83696,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "graphique-monte-700.png",
+   "colores": 7281,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "graphique-monte-1100.png",
+   "colores": 14519,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "graphique-monte-1550.png",
+   "colores": 15971,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "graphique-monte-2100.png",
+   "colores": 32786,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "fenetre-discussion-700.png",
+   "colores": 30387,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "fenetre-discussion-1100.png",
+   "colores": 58540,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "fenetre-discussion-1550.png",
+   "colores": 81696,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "fenetre-discussion-2100.png",
+   "colores": 85596,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "equipe-700.png",
+   "colores": 11519,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "equipe-1100.png",
+   "colores": 25391,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "equipe-1550.png",
+   "colores": 37654,
+   "horsFamille": 0
+  },
+  {
+   "fichier": "equipe-2100.png",
+   "colores": 60441,
+   "horsFamille": 0
+  }
+ ]
+}

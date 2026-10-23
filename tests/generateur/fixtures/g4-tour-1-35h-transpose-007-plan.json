@@ -1,0 +1,146 @@
+{
+ "role": "plan",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "partie": "accroche",
+    "fonction": [
+     "ancrage",
+     "cout",
+     "mot-cle"
+    ],
+    "nature": "opinion",
+    "resume": "Dirigeant de PME, Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause"
+    ],
+    "ouvre": {
+     "id": "q1",
+     "question": "Où se cache le vrai coût de vos tableurs ?"
+    },
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "cout",
+     "emotion"
+    ],
+    "nature": "fait",
+    "resume": "Image concrète de la routine, sans aucun volume d'heures : quelqu'un exporte, copie, colle et vérifie des données d'un tableur à l'autre.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs"
+    ],
+    "lien": "consequence",
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "ancrage"
+    ],
+    "nature": "fait",
+    "resume": "La raison : un tableur ne vérifie rien tout seul, donc l'erreur passe sans que personne la voie.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "citeMatiereId": "test-35h-cause",
+    "ferme": "q2",
+    "lien": "cause"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "relance"
+    ],
+    "nature": "fait",
+    "resume": "Une seule erreur de formule dans un tableur, et tous les chiffres qui en dépendent sont faux.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2"
+    ],
+    "citeMatiereId": "test-35h-obs2",
+    "ouvre": {
+     "id": "q3",
+     "question": "Comment savoir où vos chiffres risquent d'être faux ?"
+    },
+    "lien": "consequence"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "livraison",
+     "solution",
+     "methode"
+    ],
+    "nature": "opinion",
+    "resume": "Le coût d'Excel n'est sur aucune facture, il est dans chaque copier-coller que personne ne vérifie. Premier geste : repérer dans vos fichiers où des données sont recopiées à la main d'un tableur à l'autre.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause",
+     "test-35h-idee"
+    ],
+    "ferme": "q3",
+    "lien": "consequence",
+    "promesseId": "acc-1"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "exception"
+    ],
+    "nature": "opinion",
+    "resume": "Par contre, si vos tableaux changent de forme chaque mois, gardez le tableur.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-limite"
+    ],
+    "citeMatiereId": "test-35h-limite",
+    "ouvre": {
+     "id": "q4",
+     "question": "Faut-il se passer de tous ses tableurs ?"
+    },
+    "ferme": "q4",
+    "lien": "opposition"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "resultat",
+     "boucle-fermee"
+    ],
+    "nature": "fait",
+    "resume": "Fin sur le fait : ces endroits recopiés à la main, c'est exactement là que l'erreur passe inaperçue.",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-cause"
+    ],
+    "ferme": "q1",
+    "lien": "consequence"
+   },
+   {
+    "partie": "appel",
+    "fonction": [
+     "cta",
+     "envoi"
+    ],
+    "nature": "opinion",
+    "resume": "Envoyez ça à votre DAF, et pour repérer ces points de copie dans vos fichiers, écrivez à Axion-IA pour un échange gratuit.",
+    "preuveIds": [],
+    "matiereIds": []
+   }
+  ],
+  "exceptionIndex": 5,
+  "ancrageIndex": [
+   0,
+   2
+  ],
+  "appuiPrincipalIndex": 2,
+  "livraisonIndex": 4
+ }
+}

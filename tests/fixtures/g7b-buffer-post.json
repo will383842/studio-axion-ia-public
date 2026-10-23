@@ -1,0 +1,31 @@
+{
+  "_note": "TEST : forme RECONSTITUÉE d'une réponse Buffer (query post + metrics). Le schéma n'a pas pu être relu le 03/10/2026 (connecteur hors ligne, aucune clé locale) : à remplacer par une réponse enregistrée au premier essai réel (lecture seule).",
+  "liste": {
+    "data": {
+      "post": {
+        "id": "66f1a2b3c4d5e6f708192a3b",
+        "status": "sent",
+        "sentAt": "2026-09-28T07:00:00.000Z",
+        "metricsUpdatedAt": "2026-10-02T03:10:00.000Z",
+        "metrics": [
+          { "type": "views", "value": 1840 },
+          { "type": "reach", "value": 1500 },
+          { "type": "reactions", "value": 96 },
+          { "type": "comments", "value": 11 },
+          { "type": "shares", "value": 18 }
+        ]
+      }
+    }
+  },
+  "objet": {
+    "data": {
+      "post": {
+        "id": "66f1a2b3c4d5e6f708192a3c",
+        "status": "sent",
+        "sentAt": "2026-09-29T07:00:00.000Z",
+        "metrics": { "videoViews": "920", "reach": 800, "likes": 40, "comments": 3, "reposts": 4, "averageWatchTime": 11.4 }
+      }
+    }
+  },
+  "erreur": { "errors": [{ "message": "Post not found" }] }
+}

@@ -1,0 +1,364 @@
+{
+  "version": "carte-image/1",
+  "image": {
+    "cle": "essais/image-video/F.png",
+    "empreinte": "essai-f",
+    "largeur": 1080,
+    "hauteur": 1350,
+    "orientation": "portrait"
+  },
+  "types": [
+    "avant-apres"
+  ],
+  "offre": "integration",
+  "automatisation": true,
+  "titre": "Saisie unique des commandes",
+  "phraseChoc": "Une saisie. Trois outils. Zéro erreur.",
+  "formulesAbsolues": [
+    {
+      "texte": "risque erreur : zéro",
+      "ou": "noeuds.n11.detail",
+      "proposition": "risque d'erreur : très faible"
+    },
+    {
+      "texte": "Zéro erreur",
+      "ou": "phraseChoc",
+      "proposition": "Une saisie. Trois outils. Presque plus d'erreurs."
+    }
+  ],
+  "noeuds": [
+    {
+      "id": "n01",
+      "libelle": "Commande reçue",
+      "role": "declencheur",
+      "icone": "document",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 1
+    },
+    {
+      "id": "n02",
+      "libelle": "Saisie CRM",
+      "detail": "8 min",
+      "role": "etape",
+      "icone": "horloge",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 2
+    },
+    {
+      "id": "n03",
+      "libelle": "Saisie Compta",
+      "detail": "6 min",
+      "role": "etape",
+      "icone": "horloge",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 3
+    },
+    {
+      "id": "n04",
+      "libelle": "Saisie Stock",
+      "detail": "5 min",
+      "role": "etape",
+      "icone": "horloge",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 4
+    },
+    {
+      "id": "n05",
+      "libelle": "19 min/commande",
+      "detail": "risque erreur : élevé",
+      "role": "resultat",
+      "icone": "alerte",
+      "couleur": "noir",
+      "acteur": "humain",
+      "groupe": "g-avant",
+      "ordre": 5
+    },
+    {
+      "id": "n06",
+      "libelle": "Commande reçue",
+      "detail": "saisie 1 fois",
+      "role": "declencheur",
+      "icone": "document",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 6
+    },
+    {
+      "id": "n07",
+      "libelle": "IA",
+      "detail": "saisie unique automatisée",
+      "role": "moteur",
+      "icone": "ia",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 7
+    },
+    {
+      "id": "n08",
+      "libelle": "CRM",
+      "detail": "✓ instantané",
+      "role": "sortie",
+      "icone": "coche",
+      "couleur": "vert",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 8
+    },
+    {
+      "id": "n09",
+      "libelle": "Compta",
+      "detail": "✓ instantané",
+      "role": "sortie",
+      "icone": "coche",
+      "couleur": "vert",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 9
+    },
+    {
+      "id": "n10",
+      "libelle": "Stock",
+      "detail": "✓ instantané",
+      "role": "sortie",
+      "icone": "coche",
+      "couleur": "vert",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 10
+    },
+    {
+      "id": "n11",
+      "libelle": "45 sec",
+      "detail": "risque erreur : zéro",
+      "role": "resultat",
+      "icone": "coche",
+      "couleur": "vert",
+      "acteur": "auto",
+      "groupe": "g-apres",
+      "ordre": 11
+    }
+  ],
+  "liens": [
+    {
+      "id": "l01",
+      "de": "n01",
+      "vers": "n02",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l02",
+      "de": "n02",
+      "vers": "n03",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l03",
+      "de": "n03",
+      "vers": "n04",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l04",
+      "de": "n04",
+      "vers": "n05",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l05",
+      "de": "n06",
+      "vers": "n07",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l06",
+      "de": "n07",
+      "vers": "n08",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l07",
+      "de": "n07",
+      "vers": "n09",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l08",
+      "de": "n07",
+      "vers": "n10",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l09",
+      "de": "n08",
+      "vers": "n11",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l10",
+      "de": "n09",
+      "vers": "n11",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l11",
+      "de": "n10",
+      "vers": "n11",
+      "couleur": "orange",
+      "style": "plein"
+    }
+  ],
+  "groupes": [
+    {
+      "id": "g-avant",
+      "sorte": "avant",
+      "titre": "Avant",
+      "noeuds": [
+        "n01",
+        "n02",
+        "n03",
+        "n04",
+        "n05"
+      ]
+    },
+    {
+      "id": "g-apres",
+      "sorte": "apres",
+      "titre": "Après",
+      "noeuds": [
+        "n06",
+        "n07",
+        "n08",
+        "n09",
+        "n10",
+        "n11"
+      ]
+    }
+  ],
+  "bandeau": [
+    "19 min économisées",
+    "Sur 20 cmd/jour = 6h récupérées"
+  ],
+  "bandeauChiffres": [
+    "c07",
+    "c08",
+    "c09"
+  ],
+  "chiffres": [
+    {
+      "id": "c01",
+      "brut": "8 min",
+      "valeur": 8,
+      "unite": "min",
+      "dansNoeud": "n02",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c02",
+      "brut": "6 min",
+      "valeur": 6,
+      "unite": "min",
+      "dansNoeud": "n03",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c03",
+      "brut": "5 min",
+      "valeur": 5,
+      "unite": "min",
+      "dansNoeud": "n04",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c04",
+      "brut": "19 min/commande",
+      "valeur": 19,
+      "unite": "min",
+      "dansNoeud": "n05",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c05",
+      "brut": "1 fois",
+      "valeur": 1,
+      "unite": "nombre",
+      "dansNoeud": "n06",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c06",
+      "brut": "45 sec",
+      "valeur": 45,
+      "unite": "sec",
+      "dansNoeud": "n11",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c07",
+      "brut": "19 min",
+      "valeur": 19,
+      "unite": "min",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c08",
+      "brut": "20 cmd/jour",
+      "valeur": 20,
+      "unite": "nombre",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c09",
+      "brut": "6h",
+      "valeur": 6,
+      "unite": "h",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    }
+  ],
+  "pied": [],
+  "coherence": [
+    {
+      "calcul": "8 + 6 + 5 = 19",
+      "ok": true
+    },
+    {
+      "calcul": "19 × 20 = 6 h 20 ≠ 6 h",
+      "ok": false
+    }
+  ],
+  "lecture": {
+    "ecarts": [],
+    "alertes": []
+  }
+}

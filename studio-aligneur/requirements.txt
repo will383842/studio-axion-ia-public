@@ -1,0 +1,13 @@
+# studio-aligneur : processeur seul (roues « cpu » de PyTorch, aucune bibliothèque GPU dans l'image).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.8.0+cpu
+torchaudio==2.8.0+cpu
+numpy==2.1.3
+# Face caméra (plan facecam v4, lot B) — licences commerciales uniquement (pas de RVM ni de MatAnyone) :
+#   faster-whisper (MIT) + CTranslate2 (MIT) : /transcrire ;
+#   MediaPipe (Apache 2.0) : /visages (FaceLandmarker, HandLandmarker), avec OpenCV (Apache 2.0) : /image.
+# MediaPipe 1.x accepte numpy 2 (0.10.21 l'interdisait) ; OpenCV épinglé en 4.x (MediaPipe tirerait la 5).
+faster-whisper==1.1.1
+requests==2.32.3
+mediapipe==1.1.0
+opencv-contrib-python==4.11.0.86

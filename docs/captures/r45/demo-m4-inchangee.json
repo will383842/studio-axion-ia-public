@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-03",
+  "objet": "Lots R4 + R5 (miniatures, étalonnage, son) : la démonstration M4 refaite par outils/demo-m4/rendre-demo.mts inchangé, une fois avec le code des lots, une fois avec les compositions de 03d297b (Racine.tsx et commune/index.ts remis le temps du rendu ; rien d'autre du chemin de la démo n'est touché par les lots).",
+  "methode": "Empreinte MD5 (12 premiers caractères) des lignes ffmpeg -f framemd5 hors commentaires, images puis son, même méthode que docs/captures/d1-bruitages/demo-m4-inchangee.json (méthode recalée sur la vidéo du dépôt : 0302e1a08c99 / 1a829a7c2541 retrouvés).",
+  "videos": {
+    "9:16": { "images": 389, "avecLesLots": "59cf135d2d1b / 1a829a7c2541", "avec03d297b": "59cf135d2d1b / 1a829a7c2541", "fichiersIdentiquesOctetAOctet": true },
+    "4:5": { "images": 389, "avecLesLots": "484cf25eb7ee / 1a829a7c2541", "avec03d297b": "484cf25eb7ee / 1a829a7c2541" },
+    "1:1": { "images": 389, "avecLesLots": "cec2f851029f / 1a829a7c2541", "avec03d297b": "cec2f851029f / 1a829a7c2541" }
+  },
+  "resultat": "identique à 03d297b : les lots R4 et R5 ne changent pas la démonstration.",
+  "ecartAvecLaReference": "Les empreintes de référence 0302e1a08c99 / 4cfe49eac70c / c6b1aa0e3fe5 (son 1a829a7c2541, identique) sont celles de la vidéo du dépôt, rendue AVANT 1e7eb49 (« sous-titres lisibles sur fond clair », paramètres de composition) : 03d297b lui-même donne aujourd'hui 59cf135d2d1b / 484cf25eb7ee / cec2f851029f. La vidéo et les captures du dépôt (docs/captures/m4-demo/) sont laissées telles quelles : les remplacer est une décision à part."
+}

@@ -1,0 +1,230 @@
+{
+ "role": "stratege",
+ "version": 1,
+ "sortie": {
+  "angles": [
+   {
+    "titre": "Presque tous ces fichiers Excel peuvent être remplacés",
+    "promesse": "Le verdict de Will sur les dizaines de fichiers Excel d'un dirigeant, et ce qu'on met à leur place.",
+    "combinaison": 2,
+    "structure": "AV.S1",
+    "typeAngle": "verdict",
+    "sourceAngle": "parole-dirigeant",
+    "probleme": "Un dirigeant fait tenir des dizaines de fichiers Excel. Chaque jour : exporter, copier, coller, vérifier, recommencer.",
+    "cout": "Image concrète : la même routine chaque jour, sur des dizaines de fichiers, sans fin.",
+    "issue": "Verdict : presque tous ces fichiers peuvent être remplacés par une IA. À la place : un tableau de bord, des données qui arrivent et se vérifient toutes seules, une alerte au moindre problème.",
+    "intensite": "gain",
+    "cible": "dirigeant",
+    "termePivot": "presque tous",
+    "contrePied": false,
+    "probabilite": "forte",
+    "risqueBanal": "moyen",
+    "quiParleConseille": "will",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-avis",
+     "will-excel-routine",
+     "will-excel-solution"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "will-excel-avis",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-routine",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-solution",
+      "pertinence": "forte"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": false,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "Une seule erreur de formule fausse tout le mois",
+    "promesse": "Pourquoi l'erreur passe, et comment on l'arrête avant qu'elle fausse les chiffres.",
+    "combinaison": 1,
+    "structure": "AV.S4",
+    "typeAngle": "contre-pied",
+    "sourceAngle": "matiere",
+    "probleme": "Le DAF consolide les chiffres du mois dans des fichiers Excel que personne n'a le temps de relire.",
+    "cout": "Une seule erreur de formule, et tous les chiffres du mois sont faux.",
+    "issue": "Des données vérifiées toutes seules et une alerte au moindre problème, à la place de la relecture que personne ne fait.",
+    "intensite": "douleur",
+    "cible": "DAF",
+    "termePivot": "erreur de formule",
+    "contrePied": true,
+    "probabilite": "peu-probable",
+    "risqueBanal": "faible",
+    "quiParleConseille": "will",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-formule",
+     "will-excel-cause",
+     "will-excel-solution"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "will-excel-formule",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-cause",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-solution",
+      "pertinence": "forte"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": true,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "Tout ce travail pour ne voir qu'une petite partie",
+    "promesse": "Le paradoxe des fichiers Excel : beaucoup d'efforts, peu de visibilité. Et ce qui change avec un tableau de bord.",
+    "combinaison": 3,
+    "structure": "AV.S4",
+    "typeAngle": "contre-pied",
+    "sourceAngle": "matiere",
+    "probleme": "Chaque jour, exporter, copier, coller, vérifier, recommencer, sur des dizaines de fichiers.",
+    "cout": "Malgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.",
+    "issue": "Un tableau de bord alimenté tout seul, vérifié tout seul, avec une alerte au moindre problème.",
+    "intensite": "curiosite",
+    "cible": "dirigeant",
+    "termePivot": "une petite partie",
+    "contrePied": true,
+    "probabilite": "peu-probable",
+    "risqueBanal": "faible",
+    "quiParleConseille": "will",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie",
+     "will-excel-solution"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "will-excel-routine",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-partie",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-solution",
+      "pertinence": "forte"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": true,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "Exporter, copier, coller : une routine à arrêter",
+    "promesse": "Le verdict de Will sur la routine quotidienne des fichiers Excel.",
+    "combinaison": 2,
+    "structure": "AV.S1",
+    "typeAngle": "verdict",
+    "sourceAngle": "parole-dirigeant",
+    "probleme": "Chaque jour, la même routine sur des dizaines de fichiers : exporter, copier, coller, vérifier, recommencer.",
+    "cout": "Des heures de gestes répétés chaque jour, en image concrète, sans chiffre.",
+    "issue": "Des données qui arrivent toutes seules et se vérifient toutes seules : la routine disparaît.",
+    "intensite": "douleur",
+    "cible": "dirigeant",
+    "termePivot": "la même routine",
+    "contrePied": false,
+    "probabilite": "forte",
+    "risqueBanal": "eleve",
+    "quiParleConseille": "will",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-avis",
+     "will-excel-solution"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "will-excel-routine",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-avis",
+      "pertinence": "acceptable"
+     },
+     {
+      "matiereId": "will-excel-solution",
+      "pertinence": "forte"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": false,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "Le vrai problème n'est pas le fichier, c'est la relecture",
+    "promesse": "Ce qui fausse vraiment les chiffres du mois, et la vérification qui se fait toute seule.",
+    "combinaison": 1,
+    "structure": "AV.S4",
+    "typeAngle": "contre-pied",
+    "sourceAngle": "matiere",
+    "probleme": "Personne n'a le temps de tout relire les fichiers du mois.",
+    "cout": "Une erreur de formule passe et fausse les chiffres du mois.",
+    "issue": "Données vérifiées toutes seules et alerte au moindre problème, à la place des fichiers.",
+    "intensite": "gain",
+    "cible": "DAF",
+    "termePivot": "tout relire",
+    "contrePied": true,
+    "probabilite": "peu-probable",
+    "risqueBanal": "moyen",
+    "quiParleConseille": "will",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-cause",
+     "will-excel-formule",
+     "will-excel-solution"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "will-excel-cause",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-formule",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "will-excel-solution",
+      "pertinence": "forte"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": true,
+     "cible": true,
+     "maintenant": false
+    }
+   }
+  ],
+  "retenu": 2,
+  "raisonChoix": "L'angle « une petite partie » est un contre-pied tenu entièrement par trois observations dictées par Will (routine, petite partie, solution), toutes fortes, sans chiffre à prouver ni croyance attribuée au public. Il évite l'ouverture en « vous » et « par contre », et apporte une issue concrète (tableau de bord, vérification et alerte automatiques). Aucune preuve validée n'existe : pas de cas client, pas de résultat chiffré. Le « 99 % » n'est jamais dit, seulement « presque tous » dans l'angle verdict."
+ }
+}

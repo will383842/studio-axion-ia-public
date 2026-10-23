@@ -1,0 +1,7 @@
+{
+  "bouclier-coche": { "instants": [3, 14, 45], "noms": ["v4 : la coche surgit", "coche qui se dessine", "fiche qui pivote puis coche"] },
+  "bulle-lien": { "instants": [5, 12, 45], "noms": ["v4 : immobile", "pastille puis texte dévoilé", "bulle qui s'étire"] },
+  "calendrier": { "instants": [6, 23, 45], "noms": ["v4 : jour allumé, coche", "grille en vague, coche dessinée", "bandeau qui descend, rangées posées"] },
+  "carte-taches": { "instants": [8, 22, 45], "noms": ["v4 : trois cases orange", "cases en cascade", "rangées glissées, ordre inversé"] },
+  "champ-commentaire": { "instants": [4, 29, 45], "noms": ["v4 : frappe lettre à lettre", "champ qui s'étire, puis frappe", "envoi qui pulse"] }
+}

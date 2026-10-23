@@ -1,0 +1,133 @@
+﻿{
+    "texte":  "Votre employeur vous doit peut-être des heures supplémentaires Gardez chaque bulletin de paie notez vos horaires et demandez conseil rapidement Le délai pour agir est de trois ans après c\u0027est trop tard",
+    "mots":  [
+                 {
+                     "mot":  "Votre",
+                     "debutSec":  0.34
+                 },
+                 {
+                     "mot":  "employeur",
+                     "debutSec":  0.657
+                 },
+                 {
+                     "mot":  "vous",
+                     "debutSec":  1.203
+                 },
+                 {
+                     "mot":  "doit",
+                     "debutSec":  1.324
+                 },
+                 {
+                     "mot":  "peut-être",
+                     "debutSec":  1.521
+                 },
+                 {
+                     "mot":  "des",
+                     "debutSec":  1.986
+                 },
+                 {
+                     "mot":  "heures",
+                     "debutSec":  2.111
+                 },
+                 {
+                     "mot":  "supplémentaires",
+                     "debutSec":  2.33
+                 },
+                 {
+                     "mot":  "Gardez",
+                     "debutSec":  4.586
+                 },
+                 {
+                     "mot":  "chaque",
+                     "debutSec":  4.991
+                 },
+                 {
+                     "mot":  "bulletin",
+                     "debutSec":  5.226
+                 },
+                 {
+                     "mot":  "de",
+                     "debutSec":  5.668
+                 },
+                 {
+                     "mot":  "paie",
+                     "debutSec":  5.776
+                 },
+                 {
+                     "mot":  "notez",
+                     "debutSec":  6.219
+                 },
+                 {
+                     "mot":  "vos",
+                     "debutSec":  6.556
+                 },
+                 {
+                     "mot":  "horaires",
+                     "debutSec":  6.695
+                 },
+                 {
+                     "mot":  "et",
+                     "debutSec":  7.319
+                 },
+                 {
+                     "mot":  "demandez",
+                     "debutSec":  7.395
+                 },
+                 {
+                     "mot":  "conseil",
+                     "debutSec":  7.784
+                 },
+                 {
+                     "mot":  "rapidement",
+                     "debutSec":  8.216
+                 },
+                 {
+                     "mot":  "Le",
+                     "debutSec":  10.003
+                 },
+                 {
+                     "mot":  "délai",
+                     "debutSec":  10.195
+                 },
+                 {
+                     "mot":  "pour",
+                     "debutSec":  10.46
+                 },
+                 {
+                     "mot":  "agir",
+                     "debutSec":  10.643
+                 },
+                 {
+                     "mot":  "est",
+                     "debutSec":  10.939
+                 },
+                 {
+                     "mot":  "de",
+                     "debutSec":  11.007
+                 },
+                 {
+                     "mot":  "trois",
+                     "debutSec":  11.114
+                 },
+                 {
+                     "mot":  "ans",
+                     "debutSec":  11.367
+                 },
+                 {
+                     "mot":  "après",
+                     "debutSec":  11.78
+                 },
+                 {
+                     "mot":  "c\u0027est",
+                     "debutSec":  12.37
+                 },
+                 {
+                     "mot":  "trop",
+                     "debutSec":  12.553
+                 },
+                 {
+                     "mot":  "tard",
+                     "debutSec":  12.752
+                 }
+             ]
+}

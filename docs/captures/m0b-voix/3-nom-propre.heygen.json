@@ -1,0 +1,46 @@
+{
+  "texte": "Williams Jullin, d'Axion-IA, vous explique tout cela simplement.",
+  "mots": [
+    {
+      "mot": "Williams",
+      "debutSec": 0.22,
+      "finSec": 0.66
+    },
+    {
+      "mot": "Jullin,",
+      "debutSec": 0.7,
+      "finSec": 1
+    },
+    {
+      "mot": "d'Axion-IA,",
+      "debutSec": 1.64,
+      "finSec": 2.42
+    },
+    {
+      "mot": "vous",
+      "debutSec": 2.5,
+      "finSec": 2.64
+    },
+    {
+      "mot": "explique",
+      "debutSec": 2.68,
+      "finSec": 3
+    },
+    {
+      "mot": "tout",
+      "debutSec": 3.04,
+      "finSec": 3.12
+    },
+    {
+      "mot": "cela",
+      "debutSec": 3.14,
+      "finSec": 3.3
+    },
+    {
+      "mot": "simplement.",
+      "debutSec": 3.36,
+      "finSec": 3.78
+    }
+  ],
+  "dureeSec": 4.075
+}

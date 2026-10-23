@@ -1,0 +1,67 @@
+diff --git a/src/formats/facecam/index.ts b/src/formats/facecam/index.ts
+index 639592d..5ad8c24 100644
+--- a/src/formats/facecam/index.ts
++++ b/src/formats/facecam/index.ts
+@@ -33,7 +33,7 @@ export const formatFacecam: DefinitionFormat = {
+   accroche: "Filmée à l'iPhone, montée toute seule",
+   description: "Vous vous filmez à l'iPhone, vous envoyez : le studio coupe, règle le son et l'image, cadre, sous-titre et anime.",
+   icone: "camera",
+-  statut: "masque",
++  statut: "actif",
+   famille: "face-camera",
+   codeClassement: "FC",
+   declinaison: "aucune",
+diff --git a/src/moteurs/montage-facecam/index.ts b/src/moteurs/montage-facecam/index.ts
+index b686841..4b33c3f 100644
+--- a/src/moteurs/montage-facecam/index.ts
++++ b/src/moteurs/montage-facecam/index.ts
+@@ -246,7 +246,8 @@ export function creerMoteurMontageFacecam(dependances: DependancesMoteurFacecam
+     refusAuLancement(commande) {
+       // Lot B : la chaîne réelle monte vraiment la vidéo ; sans elle, le squelette ne doit jamais passer pour réel.
+       if (commande && chaineDe(commande)) return null;
+-      return { code: "FACECAM_EN_CHANTIER", message: "Le montage face caméra n'est pas encore prêt." };
++      // Mise en ligne : le squelette ne part jamais ; sans chaîne réelle (serveur de montage non relié), on le dit.
++      return { code: "FACECAM_EN_CHANTIER", message: "Le serveur de montage face caméra n'est pas relié. Vérifiez Réglages > Connexions." };
+     },
+ 
+     async lancer(commande, contexte) {
+diff --git a/src/services/fabrication.ts b/src/services/fabrication.ts
+index b70682c..8907e37 100644
+--- a/src/services/fabrication.ts
++++ b/src/services/fabrication.ts
+@@ -304,7 +304,8 @@ async function mediasDeLaCommande(c: Pick<CommandeFabrication, "styles" | "acces
+ export const PARAM_FACECAM_REEL = "facecam.aligneur.reel";
+ 
+ async function entreesFacecamDuLancement(): Promise<Record<string, unknown>> {
+-  const reel = (await lireParametre<boolean>(PARAM_FACECAM_REEL, false)) === true;
++  // Mise en ligne : allumé par défaut (le réel n'est pris que si STUDIO_ALIGNEUR_URL est posée) ; `false` en base le coupe.
++  const reel = (await lireParametre<boolean>(PARAM_FACECAM_REEL, true)) === true;
+   const { lireReglageDecorIa } = await import("./decor-ia");
+   const decor = (await lireReglageDecorIa()).actif === true;
+   // Mission H : multicaméra du face caméra (réglage caché `facecam.multicamera`, coupé par défaut).
+diff --git a/tests/facecam-fondations.test.ts b/tests/facecam-fondations.test.ts
+index 3a30f67..1157f29 100644
+--- a/tests/facecam-fondations.test.ts
++++ b/tests/facecam-fondations.test.ts
+@@ -63,18 +63,18 @@ async function jusquAuBout(moteur: MoteurVideo, c: CommandeFabrication, t: Trava
+ testerMoteurVideo(moteurMontageFacecam, commandeFacecam, { sansPrix: true });
+ 
+ describe("facecam · format (lot A)", () => {
+-  it("inscrit, code FC, masqué, famille face-camera, 9:16, express → fabrication, moteur montage-facecam, sans prix", () => {
++  it("inscrit, code FC, actif, famille face-camera, 9:16, express → fabrication, moteur montage-facecam, sans prix", () => {
+     const f = formats.obtenirFormat("facecam");
+     expect(codeDuFormat("facecam")).toBe("FC");
+     expect(f.codeClassement).toBe("FC");
+-    expect(f.statut).toBe("masque");
++    expect(f.statut).toBe("actif");
+     expect(f.famille).toBe("face-camera");
+     expect(f.ratios).toEqual(["9:16"]);
+     expect(f.etapes).toEqual(["express", "fabrication"]);
+     expect(f.moteur).toBe("montage-facecam");
+     expect(f.declinaison).toBe("aucune");
+     expect(f.sansPrix).toBe(true);
+-    expect(formats.listerFormats().map((x) => x.id)).not.toContain("facecam");
++    expect(formats.listerFormats().map((x) => x.id)).toContain("facecam");
+     expect(formats.formatGenerateur("facecam").recette.modeParDefaut).toBe("teleprompteur");
+   });
+ 

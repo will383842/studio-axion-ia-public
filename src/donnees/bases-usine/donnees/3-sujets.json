@@ -1,0 +1,154 @@
+{
+ "base": 3,
+ "fichier": "3-sujets.md",
+ "tables": {
+  "famille": {
+   "colonnes": [
+    "code",
+    "nom",
+    "suivi",
+    "rythme_cible",
+    "public",
+    "toujours_valide_par_will",
+    "dans_les_lots",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "A",
+     "nom": "Famille d'exemple A",
+     "suivi": "pourcentage",
+     "rythme_cible": "sans objet",
+     "public": "clients",
+     "toujours_valide_par_will": "non",
+     "dans_les_lots": "oui",
+     "etat": "valide",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "B",
+     "nom": "Famille d'exemple B",
+     "suivi": "rythme",
+     "rythme_cible": "1 par semaine",
+     "public": "clients",
+     "toujours_valide_par_will": "non",
+     "dans_les_lots": "oui",
+     "etat": "valide",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "sujet": {
+   "colonnes": [
+    "code",
+    "famille",
+    "titre",
+    "de_quoi",
+    "public",
+    "nourri_par",
+    "serie_studio",
+    "types_contenu",
+    "interdits_propres",
+    "actif",
+    "etat",
+    "version",
+    "origine",
+    "source",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "a.formation",
+     "famille": "A",
+     "titre": "Exemple : apprendre un geste réutilisable",
+     "de_quoi": "Un geste précis que la personne peut refaire seule",
+     "public": "clients",
+     "nourri_par": "base 4",
+     "serie_studio": "formation",
+     "types_contenu": "video ; carrousel ; post_texte",
+     "interdits_propres": "aucun chiffre",
+     "actif": "oui",
+     "etat": "valide",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "a.integration",
+     "famille": "A",
+     "titre": "Exemple : une tâche répétitive automatisée",
+     "de_quoi": "Une tâche du quotidien confiée à un outil",
+     "public": "clients",
+     "nourri_par": "base 4",
+     "serie_studio": "integration",
+     "types_contenu": "video ; carrousel",
+     "interdits_propres": "aucun chiffre",
+     "actif": "oui",
+     "etat": "valide",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    },
+    {
+     "code": "a.audit",
+     "famille": "A",
+     "titre": "Exemple : un état des lieux",
+     "de_quoi": "Un sujet d'exemple désactivé",
+     "public": "clients",
+     "nourri_par": "base 4",
+     "serie_studio": "audit",
+     "types_contenu": "video",
+     "interdits_propres": "aucun chiffre",
+     "actif": "non",
+     "etat": "valide",
+     "version": "1",
+     "origine": "propose",
+     "source": "exemple inventé",
+     "valide_le": ""
+    }
+   ]
+  },
+  "actualite": {
+   "colonnes": [
+    "code",
+    "titre",
+    "ce_qui_change_pour_un_dirigeant",
+    "source",
+    "date_source",
+    "perime_le",
+    "retenue",
+    "etat",
+    "version",
+    "origine",
+    "valide_le"
+   ],
+   "lignes": [
+    {
+     "code": "actu.exemple.1",
+     "titre": "Exemple d'actualité inventée",
+     "ce_qui_change_pour_un_dirigeant": "Exemple : une tâche devient plus simple.",
+     "source": "exemple inventé",
+     "date_source": "2026-01-01",
+     "perime_le": "2026-01-08",
+     "retenue": "non",
+     "etat": "propose",
+     "version": "1",
+     "origine": "propose",
+     "valide_le": ""
+    }
+   ]
+  }
+ }
+}

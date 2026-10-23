@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/*
+ * Système de design « Studio » (PLAN B.5).
+ * TOUTES les couleurs passent par ces jetons. La palette Tailwind par défaut
+ * est désactivée (--color-*: initial) : une classe comme bg-red-500 n'existe pas.
+ * Changer d'ambiance = modifier ce bloc :root, rien d'autre.
+ */
+:root {
+  --fond: #16120f;
+  --surface-1: #1f1a16;
+  --surface-2: #2a2420;
+  --surface-3: #342c27;
+  --trait: #3a322c;
+  --trait-fort: #4d433b;
+  --texte: #f3ede4;
+  --texte-doux: #b8ada0;
+  --texte-faible: #9a8f83; /* ≥ 4,5:1 sur --surface-2 (petits textes) */
+  --orange: #b4512a; /* 4,7:1 avec --sur-orange (WCAG AA texte normal) ; #e07040 reste pour lueurs et accents */
+  --orange-vif: #e07040;
+  --orange-doux: rgb(198 90 46 / 0.16);
+  --sur-orange: #fff6ec;
+  --sauge: #8fb08a;
+  --sauge-doux: rgb(143 176 138 / 0.16);
+  --ambre: #e3a64b;
+  --ambre-doux: rgb(227 166 75 / 0.16);
+  --brique: #e5735c; /* navigation 03/10 : ≥ 4,5:1 sur --brique-doux (axe, petites pastilles) ; était #d9664f */
+  --brique-doux: rgb(217 102 79 / 0.16);
+  --voile: rgb(10 8 6 / 0.72);
+  --lueur: radial-gradient(60% 60% at 50% 0%, rgb(224 112 64 / 0.18) 0%, rgb(224 112 64 / 0.06) 45%, transparent 75%);
+  --lueur-forte: radial-gradient(70% 70% at 50% 30%, rgb(224 112 64 / 0.32) 0%, rgb(198 90 46 / 0.1) 50%, transparent 80%);
+  --ombre-carte: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  --ombre-orange: 0 10px 30px -10px rgb(224 112 64 / 0.55);
+  --hauteur-onglets-bas: 72px;
+  --largeur-barre: 264px;
+  --largeur-barre-repliee: 72px;
+  --largeur-barre-courante: var(--largeur-barre);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-*: initial;
+  --color-fond: var(--fond);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-trait: var(--trait);
+  --color-trait-fort: var(--trait-fort);
+  --color-texte: var(--texte);
+  --color-texte-doux: var(--texte-doux);
+  --color-texte-faible: var(--texte-faible);
+  --color-orange: var(--orange);
+  --color-orange-vif: var(--orange-vif);
+  --color-orange-doux: var(--orange-doux);
+  --color-sur-orange: var(--sur-orange);
+  --color-sauge: var(--sauge);
+  --color-sauge-doux: var(--sauge-doux);
+  --color-ambre: var(--ambre);
+  --color-ambre-doux: var(--ambre-doux);
+  --color-brique: var(--brique);
+  --color-brique-doux: var(--brique-doux);
+  --color-voile: var(--voile);
+
+  --font-titre: var(--police-titre), "Arial Black", sans-serif;
+  --font-texte: var(--police-texte), system-ui, sans-serif;
+  --font-sans: var(--police-texte), system-ui, sans-serif;
+
+  --radius-carte: 16px;
+  --radius-champ: 12px;
+
+  --shadow-carte: var(--ombre-carte);
+  --shadow-orange: var(--ombre-orange);
+
+  --ease-studio: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    background: var(--fond);
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--font-texte);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    /* Un mot ou une adresse trop longs passent à la ligne au lieu de déborder (mobile 375 px). */
+    overflow-wrap: break-word;
+  }
+  /* Blocs de texte libre (idée, message, adresse collée) : coupe même dans un élément qui ne rétrécit pas.
+     :where() = aucune priorité, une classe (whitespace-nowrap, truncate…) l'emporte toujours ; pastilles et boutons intacts. */
+  :where(p, dd, blockquote, h1, h2, h3) {
+    overflow-wrap: anywhere;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-titre);
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+  }
+  :focus-visible {
+    outline: 2px solid var(--orange-vif);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--orange);
+    color: var(--sur-orange);
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .lueur {
+    background-image: var(--lueur);
+  }
+  .lueur-forte {
+    background-image: var(--lueur-forte);
+  }
+  .titre-affiche {
+    font-family: var(--font-titre);
+    text-transform: uppercase;
+    letter-spacing: -0.005em;
+    line-height: 0.95;
+  }
+  .sans-barre {
+    scrollbar-width: none;
+  }
+  .sans-barre::-webkit-scrollbar {
+    display: none;
+  }
+  .marge-onglets-bas {
+    padding-bottom: calc(var(--hauteur-onglets-bas) + env(safe-area-inset-bottom) + 16px);
+  }
+  @media (min-width: 1024px) {
+    .marge-onglets-bas {
+      padding-bottom: 32px;
+    }
+  }
+}
+
+@keyframes miroiter {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes apparition {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.squelette {
+  background: linear-gradient(90deg, var(--surface-1) 0%, var(--surface-2) 50%, var(--surface-1) 100%);
+  background-size: 200% 100%;
+  animation: miroiter 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

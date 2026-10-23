@@ -1,0 +1,43 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-4",
+  "accroche": "Si votre DAF exporte, copie, colle et vérifie des fichiers Excel chaque jour, cette vidéo est pour lui.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Envoyez cette vidéo à votre DAF. S'il passe ses journées sur ces tableurs, parlons-en avec nous chez Axion-IA, par message ou par échange."
+  },
+  "boucle": "",
+  "encadre": "Fichiers Excel : presque tous remplaçables",
+  "couverture": "Vos fichiers Excel, remplacés",
+  "segmentFacultatifRetenu": false,
+  "publication": {
+   "premiereLigne": "Presque tous vos fichiers Excel peuvent être remplacés par une IA.",
+   "texte": "Presque tous vos fichiers Excel peuvent être remplacés par une IA.\nExporter, copier, coller, vérifier, chaque jour. Et le dirigeant ne voit qu'une petite partie de ses données.\nPersonne n'a le temps de tout relire. Une erreur de formule passe et fausse les chiffres du mois.\nÀ la place, un tableau de bord.\nSi votre DAF passe ses journées sur ces tableurs Excel, envoyez-lui cette vidéo. Nous en parlons ensuite avec vous chez Axion-IA.",
+   "motsDiese": [
+    "#Excel",
+    "#IA"
+   ],
+   "motCleVariante": "tableurs Excel",
+   "justifications": [
+    {
+     "texte": "Post rédigé avec la vidéo, le détail vrai du sujet (presque tous les fichiers remplaçables, sans chiffre) est dans la première ligne, sans tic d'écriture générée.",
+     "regleId": "li-ai-slop-2026"
+    },
+    {
+     "texte": "Les 2 premières lignes se lisent seules, sans lien et sans « Sources : ».",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Deux mots-dièse seulement, dans la limite de 0 à 3.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "La fin du post reprend l'appel d'envoi de la vidéo, sans second appel et sans lien.",
+     "regleId": "li-lien-commentaire"
+    }
+   ]
+  }
+ }
+}

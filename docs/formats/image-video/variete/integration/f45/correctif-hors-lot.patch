@@ -1,0 +1,94 @@
+diff --git a/src/moteurs/montage-image-video/mise-en-scene.ts b/src/moteurs/montage-image-video/mise-en-scene.ts
+index 5ea2431..a0c177d 100644
+--- a/src/moteurs/montage-image-video/mise-en-scene.ts
++++ b/src/moteurs/montage-image-video/mise-en-scene.ts
+@@ -525,7 +525,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
+ 
+   // 10. Sous-titres mot à mot, mot fort orange.
+   const forts: MotFort[] = plans.flatMap((p) => p.textes.flatMap((t) => [...t.matchAll(/\*([^*]+)\*/g)].map((m) => ({ debutSec: p.debut, finSec: p.fin, mot: m[1] }))));
+-  const sousTitres = sousTitresIV(calage.voix, { reseaux: entree.reseaux, motsForts: forts });
++  const sousTitres = sousTitresIV(calage.voix, { reseaux: entree.reseaux, motsForts: forts, ...(format === "4:5" ? { format } : {}) });
+ 
+   // 11. Bruitages (L4).
+   const poses = poserBruitagesIV({ evenements, dureeSec, valides: entree.bruitagesValides });
+diff --git a/src/moteurs/montage-image-video/sous-titres-varies.ts b/src/moteurs/montage-image-video/sous-titres-varies.ts
+index c88e1dd..ad863aa 100644
+--- a/src/moteurs/montage-image-video/sous-titres-varies.ts
++++ b/src/moteurs/montage-image-video/sous-titres-varies.ts
+@@ -16,7 +16,7 @@
+  * Q22 (`controlerVariationsIV`) refait la même mesure groupe par groupe, à chaque instant d'entrée.
+  */
+ import { donneesCalque, elementDe, largeurElement, melanger, type DonneesCalque, type ElementDessine } from "@/briques/sous-titres";
+-import { BANDE_SOUS_TITRES_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
++import { BANDE_SOUS_TITRES_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
+ import type { IntensiteSousTitres, SegmentSousTitres } from "@/domaine/types";
+ import { ENCRE_SOUS_TITRES_IVOIRE, LARGEUR_SOUS_TITRES_PCT, STYLE_SOUS_TITRES_DUO } from "./emprunts";
+ import { chiffresDitsDe, type LigneDeTempsIV } from "./mise-en-scene";
+@@ -46,8 +46,12 @@ export function passagesIvoireIV(ligne: Pick<LigneDeTempsIV, "plans">): { debutS
+ }
+ 
+ /** Calque de mesure : celui que la composition dessine (charte duo, bande du format, 9:16, écrans ivoire). */
+-function calqueIV(segments: SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans">): DonneesCalque {
+-  const d = donneesCalque({ segments, base: "minimal", ratio: "9:16", style: STYLE_SOUS_TITRES_IV });
++function calqueIV(segments: SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur">): DonneesCalque {
++  // 4:5 (lot F45) : le calque du ratio 4:5, centré dans la bande du 4:5 ; le 9:16 est inchangé.
++  const format = formatDeHauteurIV(ligne.hauteur);
++  const b = MISE_EN_PAGE_IV[format].bandeSousTitres;
++  const style = format === "4:5" ? { ...STYLE_SOUS_TITRES_IV, positionPct: +(((b.haut + b.bas) / 2) * 100).toFixed(2) } : STYLE_SOUS_TITRES_IV;
++  const d = donneesCalque({ segments, base: "minimal", ratio: format, style });
+   const clairs = passagesIvoireIV(ligne);
+   return clairs.length ? { ...d, passagesClairs: clairs } : d;
+ }
+@@ -68,9 +72,10 @@ const instantsDe = (s: SegmentSousTitres) => [s.debutSec, s.debutSec + 0.06, s.d
+ 
+ /** Défauts d'un groupe dans la bande (vide = il y tient à chaque instant). */
+ function defautsGroupe(d: DonneesCalque, s: SegmentSousTitres, hauteur: number): string[] {
+-  const haut = BANDE_SOUS_TITRES_IV.haut * hauteur;
+-  const bas = BANDE_SOUS_TITRES_IV.bas * hauteur;
+-  const utile = ZONE_UTILE_IV.bas * hauteur;
++  const m = MISE_EN_PAGE_IV[formatDeHauteurIV(hauteur)];
++  const haut = (m.format === "9:16" ? BANDE_SOUS_TITRES_IV : m.bandeSousTitres).haut * hauteur;
++  const bas = (m.format === "9:16" ? BANDE_SOUS_TITRES_IV : m.bandeSousTitres).bas * hauteur;
++  const utile = (m.format === "9:16" ? ZONE_UTILE_IV : m.zoneUtile).bas * hauteur;
+   const defauts = new Set<string>();
+   for (const t of instantsDe(s)) {
+     const e = empriseVerticale(elementDe(d, s, t));
+diff --git a/studio-rendu/compositions/image-video/Compositions.tsx b/studio-rendu/compositions/image-video/Compositions.tsx
+index 8e7f4ec..13035c9 100644
+--- a/studio-rendu/compositions/image-video/Compositions.tsx
++++ b/studio-rendu/compositions/image-video/Compositions.tsx
+@@ -28,6 +28,7 @@ import { EmailStructure } from "./EmailStructure";
+ import { Ensemble } from "./Ensemble";
+ import { Entete } from "./Entete";
+ import { PhraseChoc } from "./PhraseChoc";
++import { decalageReferenceIV } from "./mise-en-page";
+ import { calculerScene, enteteA, ensembleA, masqueToile } from "./plan";
+ import { objetsA, planEnsemble, secousseAlerte, type ObjetSceneIV, type ProprietesSceneObjetsIV } from "./plan-objets";
+ import { Recherche } from "./Recherche";
+@@ -89,7 +90,7 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV) {
+             </AbsoluteFill>
+           ) : null}
+           {ensemble && vue ? (
+-            <AbsoluteFill style={{ transform: `scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
++            <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
+               <Ensemble plan={vue} schema={p.schema} ecoule={ensemble.ecoule} fondu={ensemble.fondu} />
+             </AbsoluteFill>
+           ) : null}
+@@ -158,7 +159,7 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
+       <HabillageVariete>
+         <AbsoluteFill>
+           <Fond fond={p.fond} largeur={p.largeur} hauteur={p.hauteur} />
+-          <AbsoluteFill style={{ transform: `scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
++          <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
+             {objetsA(p, t).map(({ objet, opacite }, i) => (
+               <AbsoluteFill key={`${objet.sorte}-${i}`} style={{ opacity: opacite }}>
+                 <ObjetIV objet={objet} t={t} fond={p.fond} />
+@@ -238,7 +239,7 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV; t
+         <AbsoluteFill>
+           <Fond fond={m.fond} largeur={p.largeur} hauteur={p.hauteur} />
+           {/* Seul le contenu tremble à l'arrivée d'une alerte : le fond reste, aucun bord découvert. */}
+-          <AbsoluteFill style={{ transform: `translate(${secousse.x * echelle}px, ${secousse.y * echelle}px) scale(${echelle})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
++          <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} translate(${secousse.x * echelle}px, ${secousse.y * echelle}px) scale(${echelle})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
+             <ObjetDuMoment m={m} t={t} />
+             {p.repere ? <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={m.fond} /> : null}
+             {temoin && (m.sousTitre ?? m.entete?.titre) ? <TemoinSousTitres texte={(m.sousTitre ?? m.entete?.titre)!} fond={m.fond} /> : null}

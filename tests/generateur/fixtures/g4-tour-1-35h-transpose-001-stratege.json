@@ -1,0 +1,264 @@
+{
+ "role": "stratege",
+ "version": 1,
+ "sortie": {
+  "angles": [
+   {
+    "titre": "Excel paraît gratuit. Ce qu'il coûte, personne ne le voit.",
+    "promesse": "Le vrai coût d'un tableur ne figure sur aucune facture. Il est dans chaque copier-coller qu'aucun outil ne vérifie. Vous saurez où le chercher dans vos propres fichiers.",
+    "combinaison": 1,
+    "structure": "AV.S4",
+    "typeAngle": "contre-pied",
+    "sourceAngle": "matiere",
+    "probleme": "Le dirigeant pense que ses tableurs ne lui coûtent rien. Pendant ce temps, quelqu'un exporte, copie, colle et vérifie des données à la main d'un fichier à l'autre.",
+    "cout": "Des heures de copier-coller chaque semaine. Chacun est une occasion d'erreur que personne ne voit. Ce sont des chiffres faux sur lesquels on décide.",
+    "issue": "Premier geste : repérer les endroits où des données sont recopiées à la main d'un tableur à l'autre. Ce sont les points où l'erreur passe inaperçue.",
+    "intensite": "curiosite",
+    "cible": "dirigeant de PME",
+    "termePivot": "gratuit",
+    "contrePied": true,
+    "probabilite": "forte",
+    "risqueBanal": "moyen",
+    "quiParleConseille": "avatar",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause",
+     "test-35h-obs2"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "test-35h-idee",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-cause",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-obs2",
+      "pertinence": "acceptable"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": true,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "Une seule erreur de formule, et tous vos chiffres sont faux.",
+    "promesse": "Le verdict tombe d'entrée : une formule fausse contamine tout ce qui en dépend. Puis la raison : le tableur ne vérifie rien tout seul.",
+    "combinaison": 2,
+    "structure": "AV.S1",
+    "typeAngle": "verdict",
+    "sourceAngle": "matiere",
+    "probleme": "Le DAF consolide ses chiffres dans des tableurs alimentés par copier-coller. Il n'a aucun moyen de savoir si une formule a été cassée en route.",
+    "cout": "Le risque : présenter à la direction des chiffres faux sans le savoir.",
+    "issue": "Verdict utilisable : ne pas considérer un total comme fiable s'il dépend de données recopiées à la main. Il faut identifier les formules dont tout le reste dépend.",
+    "intensite": "douleur",
+    "cible": "DAF",
+    "termePivot": "erreur de formule",
+    "contrePied": false,
+    "probabilite": "forte",
+    "risqueBanal": "moyen",
+    "quiParleConseille": "avatar",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs2",
+     "test-35h-cause"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "test-35h-obs2",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-cause",
+      "pertinence": "forte"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": false,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "Si vos tableaux changent de forme chaque mois, gardez votre tableur.",
+    "promesse": "Ceux qui automatisent vous disent quand ne pas automatiser. Vous saurez dans quel cas le tableur reste le bon outil, et dans quel cas il vous coûte.",
+    "combinaison": 2,
+    "structure": "AV.S1",
+    "typeAngle": "contre-pied",
+    "sourceAngle": "matiere",
+    "probleme": "Le dirigeant hésite à quitter ses tableurs. Il ne sait pas si son cas justifie de changer.",
+    "cout": "Le risque est double : casser ce qui marche, ou laisser filer les erreurs de copier-coller que personne ne voit.",
+    "issue": "Règle claire : si vos tableaux changent de forme chaque mois, gardez le tableur. Par contre, s'ils gardent la même forme et sont recopiés à la main, chaque copier-coller est une occasion d'erreur.",
+    "intensite": "gain",
+    "cible": "dirigeant de PME",
+    "termePivot": "changent de forme",
+    "contrePied": true,
+    "probabilite": "peu-probable",
+    "risqueBanal": "faible",
+    "quiParleConseille": "avatar",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-limite",
+     "test-35h-cause"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "test-35h-limite",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-cause",
+      "pertinence": "acceptable"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": true,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "On m'a demandé : est-ce qu'on peut se passer de nos Excel sans tout casser ?",
+    "promesse": "La réponse tient en une règle. Elle dépend de la forme de vos tableaux, pas de leur nombre. Elle s'accompagne du pourquoi : le tableur ne vérifie rien tout seul.",
+    "combinaison": 3,
+    "structure": "AV.S5",
+    "typeAngle": "question",
+    "sourceAngle": "question-recue",
+    "probleme": "Le dirigeant voudrait sortir du copier-coller dans ses tableurs. Il a peur de casser un fonctionnement que toute l'équipe connaît.",
+    "cout": "Rester par peur, c'est garder des copier-coller dont chacun est une occasion d'erreur que personne ne voit.",
+    "issue": "Règle : si vos tableaux changent de forme chaque mois, gardez le tableur. Sinon, les copier-coller répétitifs sont les premiers à remplacer. Appel : un échange avec Axion-IA pour regarder votre cas.",
+    "intensite": "gain",
+    "cible": "dirigeant de PME",
+    "termePivot": "sans tout casser",
+    "contrePied": false,
+    "probabilite": "forte",
+    "risqueBanal": "moyen",
+    "quiParleConseille": "avatar",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-question",
+     "test-35h-limite",
+     "test-35h-cause"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "test-35h-question",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-limite",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-cause",
+      "pertinence": "acceptable"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": false,
+     "cible": true,
+     "maintenant": true
+    }
+   },
+   {
+    "titre": "Le danger d'un tableur, ce n'est pas la formule qui plante. C'est celle qui ne dit rien.",
+    "promesse": "On croit qu'Excel ne coûte rien et qu'une erreur se verrait. Mais un tableur ne vérifie rien tout seul : l'erreur ne prévient pas. Voici où regarder.",
+    "combinaison": 1,
+    "structure": "AV.S4",
+    "typeAngle": "contre-pied",
+    "sourceAngle": "matiere",
+    "probleme": "Le DAF fait confiance à ses tableaux parce qu'aucune alerte ne s'affiche. Pourtant ils sont nourris par des copier-coller manuels.",
+    "cout": "Des erreurs silencieuses, que personne ne voit, se propagent à tous les chiffres qui en dépendent.",
+    "issue": "Geste : lister les cellules alimentées par copier-coller et les formules dont dépend le reste. C'est là que l'erreur se cache.",
+    "intensite": "curiosite",
+    "cible": "DAF",
+    "termePivot": "ne vérifie rien",
+    "contrePied": true,
+    "probabilite": "peu-probable",
+    "risqueBanal": "faible",
+    "quiParleConseille": "avatar",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-idee",
+     "test-35h-cause",
+     "test-35h-obs2"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "test-35h-idee",
+      "pertinence": "acceptable"
+     },
+     {
+      "matiereId": "test-35h-cause",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-obs2",
+      "pertinence": "forte"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": true,
+     "cible": true,
+     "maintenant": false
+    }
+   },
+   {
+    "titre": "Prenons une PME où une personne passe ses semaines à exporter, copier, coller et vérifier des tableurs.",
+    "promesse": "Un scénario type, annoncé comme tel. Il montre ce que coûte une semaine de copier-coller, en temps et en erreurs invisibles. Puis il dit ce qu'on met en place dans ce cas.",
+    "combinaison": 2,
+    "structure": "AV.S1",
+    "typeAngle": "cas",
+    "sourceAngle": "matiere",
+    "probleme": "Dans une PME, une personne passe ses semaines à exporter, copier, coller et vérifier des données dans des dizaines de tableurs.",
+    "cout": "Des semaines entières de gestes manuels. Chaque copier-coller est une occasion d'erreur que personne ne voit.",
+    "issue": "Verdict : ce temps-là se récupère quand les tableaux gardent la même forme. S'ils changent chaque mois, on garde le tableur.",
+    "intensite": "douleur",
+    "cible": "dirigeant de PME",
+    "termePivot": "copier-coller",
+    "contrePied": false,
+    "probabilite": "forte",
+    "risqueBanal": "eleve",
+    "quiParleConseille": "avatar",
+    "preuveIds": [],
+    "matiereIds": [
+     "test-35h-obs",
+     "test-35h-cause",
+     "test-35h-limite"
+    ],
+    "pertinences": [
+     {
+      "matiereId": "test-35h-obs",
+      "pertinence": "acceptable"
+     },
+     {
+      "matiereId": "test-35h-cause",
+      "pertinence": "forte"
+     },
+     {
+      "matiereId": "test-35h-limite",
+      "pertinence": "acceptable"
+     }
+    ],
+    "tests": {
+     "enjeu": true,
+     "contrePiedProuvable": false,
+     "cible": true,
+     "maintenant": false
+    }
+   }
+  ],
+  "retenu": 0,
+  "raisonChoix": "Aucune preuve n'est validée. Aucun angle ne raconte donc de cas client, ni de résultat obtenu, ni le chiffre de 35 heures (marqué non prouvé). L'angle 0 répond au sujet, « ce que ça coûte vraiment », par une idée reçue fournie (« Excel, ça paraît gratuit »). Il la retourne avec une observation forte de Will : chaque copier-coller est une occasion d'erreur que personne ne voit. Le coût est dit en image concrète et l'issue est un premier geste. Un dirigeant de PME s'y reconnaît et peut l'envoyer à son DAF. La limite (angle 2) peut servir d'exception dans le corps."
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "base": "http://localhost:3210",
+ "date": "2026-10-02T11:52:27.460Z",
+ "essais": 7,
+ "normal": [
+  938,
+  887,
+  728,
+  661,
+  726,
+  596,
+  617
+ ],
+ "ralentiX4": [
+  3554,
+  3293,
+  3961,
+  3767,
+  3771,
+  3426,
+  3968
+ ],
+ "ralentiX4Apres2s": [
+  3495,
+  4018,
+  3756,
+  3352,
+  3770,
+  3870,
+  3498
+ ],
+ "medianeNormalMs": 726,
+ "medianeRalentiX4Ms": 3767,
+ "maxRalentiX4Ms": 3968,
+ "medianeRalentiX4Apres2sMs": 3756,
+ "maxRalentiX4Apres2sMs": 4018,
+ "maxNormalMs": 938,
+ "fichiersLut": [
+  {
+   "url": "/luts/axion-buffer-clair-obscur.cube",
+   "octets": 7414981,
+   "encodage": "aucun"
+  }
+ ]
+}

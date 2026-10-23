@@ -1,0 +1,51 @@
+{
+  "texte": "Chez Axion-IA, nous préparons votre RGPD et vos PV.",
+  "mots": [
+    {
+      "mot": "Chez",
+      "debutSec": 0.54,
+      "finSec": 0.66
+    },
+    {
+      "mot": "Axion-IA,",
+      "debutSec": 0.7,
+      "finSec": 1.42
+    },
+    {
+      "mot": "nous",
+      "debutSec": 2.56,
+      "finSec": 2.68
+    },
+    {
+      "mot": "préparons",
+      "debutSec": 2.7,
+      "finSec": 3.12
+    },
+    {
+      "mot": "votre",
+      "debutSec": 3.16,
+      "finSec": 3.44
+    },
+    {
+      "mot": "RGPD",
+      "debutSec": 3.9,
+      "finSec": 4.44
+    },
+    {
+      "mot": "et",
+      "debutSec": 4.48,
+      "finSec": 4.56
+    },
+    {
+      "mot": "vos",
+      "debutSec": 4.58,
+      "finSec": 4.72
+    },
+    {
+      "mot": "PV.",
+      "debutSec": 4.76,
+      "finSec": 5.06
+    }
+  ],
+  "dureeSec": 5.486
+}

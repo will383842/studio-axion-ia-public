@@ -1,0 +1,130 @@
+{
+ "role": "prose",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "planIndex": 1,
+    "bloc": "coeur",
+    "texte": "Des dizaines de fichiers Excel. Chaque jour, la même routine : exporter, copier, coller, vérifier… et recommencer.",
+    "nature": "fait",
+    "marqueurs": [
+     "ancrage",
+     "relance"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ],
+    "citeMatiereId": "will-excel-routine",
+    "emphase": [],
+    "intentionIllustration": "Des dizaines d'onglets de tableur ouverts les uns sur les autres à l'écran",
+    "facultatif": false
+   },
+   {
+    "planIndex": 2,
+    "bloc": "coeur",
+    "texte": "Mais malgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.",
+    "nature": "fait",
+    "marqueurs": [
+     "relance",
+     "emotion"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-partie"
+    ],
+    "citeMatiereId": "will-excel-partie",
+    "emphase": [
+     "petite partie"
+    ],
+    "facultatif": false
+   },
+   {
+    "planIndex": 3,
+    "bloc": "coeur",
+    "texte": "Personne n'a le temps de tout relire, donc une erreur de formule passe et fausse les chiffres du mois.",
+    "nature": "fait",
+    "marqueurs": [
+     "relance"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-cause"
+    ],
+    "citeMatiereId": "will-excel-cause",
+    "emphase": [],
+    "facultatif": false
+   },
+   {
+    "planIndex": 4,
+    "bloc": "coeur",
+    "texte": "À la place : un tableau de bord. Rempli tout seul. Vérifié tout seul.",
+    "nature": "opinion",
+    "marqueurs": [
+     "solution",
+     "methode"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution"
+    ],
+    "emphase": [],
+    "intentionIllustration": "Un écran unique qui remplace une pile de fichiers posée sur un bureau",
+    "facultatif": false
+   },
+   {
+    "planIndex": 5,
+    "bloc": "coeur",
+    "texte": "Ce travail de chaque jour, il le fait à votre place.",
+    "nature": "opinion",
+    "marqueurs": [
+     "livraison",
+     "solution",
+     "boucle-fermee"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie",
+     "will-excel-solution"
+    ],
+    "emphase": [],
+    "facultatif": false
+   },
+   {
+    "planIndex": 5,
+    "bloc": "coeur",
+    "texte": "[LIMITE À VALIDER]",
+    "nature": "fait",
+    "marqueurs": [
+     "exception"
+    ],
+    "preuveIds": [],
+    "matiereIds": [],
+    "emphase": [],
+    "facultatif": false
+   },
+   {
+    "planIndex": 6,
+    "bloc": "coeur",
+    "texte": "Et au moindre problème, une alerte arrive.",
+    "nature": "fait",
+    "marqueurs": [
+     "resultat"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution",
+     "will-excel-cause"
+    ],
+    "emphase": [
+     "alerte"
+    ],
+    "intentionIllustration": "Une notification d'alerte qui s'affiche sur un écran d'ordinateur",
+    "facultatif": false
+   }
+  ],
+  "limiteProposee": "Alors oui, certains fichiers resteront : presque tous peuvent être remplacés, pas forcément tous."
+ }
+}

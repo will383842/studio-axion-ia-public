@@ -1,0 +1,269 @@
+{
+  "videos": [
+    {
+      "n": 1,
+      "carte": "C",
+      "graine": "repetition-c",
+      "recette": {
+        "ouverture": "OUV-E",
+        "recit": "REC-D",
+        "chiffres": "CHI-E",
+        "camera": "CAM-E",
+        "texte": "TYP-B",
+        "apparition": "APP-C",
+        "transitions": "TRA-C",
+        "fin": "FIN-C",
+        "matiere": "MAT-C",
+        "sousTitres": "SOU-B"
+      }
+    },
+    {
+      "n": 2,
+      "carte": "D",
+      "graine": "repetition-d",
+      "recette": {
+        "ouverture": "OUV-D",
+        "recit": "REC-C",
+        "chiffres": "CHI-D",
+        "camera": "CAM-B",
+        "texte": "TYP-C",
+        "apparition": "APP-D",
+        "transitions": "TRA-D",
+        "fin": "FIN-C",
+        "matiere": "MAT-C",
+        "sousTitres": "SOU-C"
+      }
+    },
+    {
+      "n": 3,
+      "carte": "E",
+      "graine": "repetition-e",
+      "recette": {
+        "ouverture": "OUV-B",
+        "recit": "REC-D",
+        "chiffres": "CHI-C",
+        "camera": "CAM-B",
+        "texte": "TYP-B",
+        "apparition": "APP-B",
+        "transitions": "TRA-C",
+        "fin": "FIN-C",
+        "matiere": "MAT-B",
+        "sousTitres": "SOU-B"
+      }
+    }
+  ],
+  "ressemblances": [
+    {
+      "paire": "1-2",
+      "ressemblance": 12.9
+    },
+    {
+      "paire": "1-3",
+      "ressemblance": 38.7
+    },
+    {
+      "paire": "2-3",
+      "ressemblance": 19.4
+    }
+  ],
+  "versions": [
+    {
+      "fichier": "video-1-tiktok",
+      "version": "fin-tiktok",
+      "format": "9:16",
+      "reseaux": [
+        "tiktok"
+      ],
+      "recette": {
+        "ouverture": "OUV-C",
+        "recit": "REC-D",
+        "chiffres": "CHI-E",
+        "camera": "CAM-E",
+        "texte": "TYP-B",
+        "apparition": "APP-C",
+        "transitions": "TRA-C",
+        "fin": "FIN-C",
+        "matiere": "MAT-C",
+        "sousTitres": "SOU-B"
+      },
+      "dureeSec": 62.44,
+      "ok": true,
+      "phrases": [],
+      "replis": [
+        {
+          "axe": "texte",
+          "code": "TYP-B",
+          "raison": "bloc b03 (écran e03) trop long pour un mot géant à la fois (ou format 9:16) : TYP-C"
+        }
+      ]
+    },
+    {
+      "fichier": "video-1-linkedin",
+      "version": "fin-linkedin-4x5",
+      "format": "4:5",
+      "reseaux": [
+        "linkedin"
+      ],
+      "recette": {
+        "ouverture": "OUV-E",
+        "recit": "REC-D",
+        "chiffres": "CHI-E",
+        "camera": "CAM-B",
+        "texte": "TYP-C",
+        "apparition": "APP-C",
+        "transitions": "TRA-C",
+        "fin": "FIN-D",
+        "matiere": "MAT-C",
+        "sousTitres": "SOU-B"
+      },
+      "dureeSec": 54.12,
+      "ok": true,
+      "phrases": [],
+      "replis": []
+    },
+    {
+      "fichier": "video-2-tiktok",
+      "version": "fin-tiktok",
+      "format": "9:16",
+      "reseaux": [
+        "tiktok"
+      ],
+      "recette": {
+        "ouverture": "OUV-D",
+        "recit": "REC-C",
+        "chiffres": "CHI-D",
+        "camera": "CAM-B",
+        "texte": "TYP-C",
+        "apparition": "APP-D",
+        "transitions": "TRA-D",
+        "fin": "FIN-C",
+        "matiere": "MAT-C",
+        "sousTitres": "SOU-C"
+      },
+      "dureeSec": 53.32,
+      "ok": true,
+      "phrases": [],
+      "replis": [
+        {
+          "axe": "recit",
+          "code": "REC-C",
+          "raison": "l'explication n'a pas de toile où suivre le message"
+        },
+        {
+          "axe": "camera",
+          "code": "CAM-B",
+          "raison": "aucune séquence de toile"
+        },
+        {
+          "axe": "apparition",
+          "code": "APP-D",
+          "raison": "aucune toile dans cette version : rien n'apparaît sur un schéma"
+        },
+        {
+          "axe": "transitions",
+          "code": "TRA-D",
+          "raison": "aucune jointure ne s'y prête (coupe franche partout)"
+        }
+      ]
+    },
+    {
+      "fichier": "video-2-linkedin",
+      "version": "fin-linkedin-4x5",
+      "format": "4:5",
+      "reseaux": [
+        "linkedin"
+      ],
+      "recette": {
+        "ouverture": "OUV-B",
+        "recit": "REC-C",
+        "chiffres": "CHI-D",
+        "camera": "CAM-B",
+        "texte": "TYP-C",
+        "apparition": "APP-D",
+        "transitions": "TRA-D",
+        "fin": "FIN-D",
+        "matiere": "MAT-C",
+        "sousTitres": "SOU-B"
+      },
+      "dureeSec": 44.68,
+      "ok": true,
+      "phrases": [],
+      "replis": [
+        {
+          "axe": "recit",
+          "code": "REC-C",
+          "raison": "l'explication n'a pas de toile où suivre le message"
+        },
+        {
+          "axe": "camera",
+          "code": "CAM-B",
+          "raison": "aucune séquence de toile"
+        },
+        {
+          "axe": "apparition",
+          "code": "APP-D",
+          "raison": "aucune toile dans cette version : rien n'apparaît sur un schéma"
+        },
+        {
+          "axe": "transitions",
+          "code": "TRA-D",
+          "raison": "aucune jointure ne s'y prête (coupe franche partout)"
+        }
+      ]
+    },
+    {
+      "fichier": "video-3-tiktok",
+      "version": "fin-tiktok",
+      "format": "9:16",
+      "reseaux": [
+        "tiktok"
+      ],
+      "recette": {
+        "ouverture": "OUV-A",
+        "recit": "REC-D",
+        "chiffres": "CHI-C",
+        "camera": "CAM-B",
+        "texte": "TYP-B",
+        "apparition": "APP-B",
+        "transitions": "TRA-C",
+        "fin": "FIN-C",
+        "matiere": "MAT-B",
+        "sousTitres": "SOU-B"
+      },
+      "dureeSec": 50.44,
+      "ok": true,
+      "phrases": [],
+      "replis": [
+        {
+          "axe": "texte",
+          "code": "TYP-B",
+          "raison": "bloc b05 (écran e05) trop long pour un mot géant à la fois (ou format 9:16) : TYP-C"
+        }
+      ]
+    },
+    {
+      "fichier": "video-3-linkedin",
+      "version": "fin-linkedin-4x5",
+      "format": "4:5",
+      "reseaux": [
+        "linkedin"
+      ],
+      "recette": {
+        "ouverture": "OUV-B",
+        "recit": "REC-D",
+        "chiffres": "CHI-C",
+        "camera": "CAM-B",
+        "texte": "TYP-C",
+        "apparition": "APP-B",
+        "transitions": "TRA-C",
+        "fin": "FIN-D",
+        "matiere": "MAT-B",
+        "sousTitres": "SOU-B"
+      },
+      "dureeSec": 41.76,
+      "ok": true,
+      "phrases": [],
+      "replis": []
+    }
+  ]
+}

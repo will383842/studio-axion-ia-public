@@ -1,0 +1,4 @@
+# Contexte de construction de studio-aligneur : son seul dossier (pas le studio, pas node_modules).
+*
+!studio-aligneur
+studio-aligneur/**/__pycache__

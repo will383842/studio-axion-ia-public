@@ -1,0 +1,642 @@
+{
+ "variantes": [
+  {
+   "code": "OUV-A",
+   "nom": "Résultat d'abord",
+   "decision": "garder",
+   "images": [
+    "OUV-A-1",
+    "OUV-A-2"
+   ],
+   "note": 18.5,
+   "raison": "Le 80 % claque plein écran, dix bulles dont huit cochées remplissent le bas ; puis retour à 23h14. Un seul point focal.",
+   "remplissage": "90 % / trou 5 % ; 73 % / trou 9 %",
+   "v2": "Bulles 8/10 sous le sous-titre, sous-titres « Pendant votre sommeil. » / « Revenons au tout début. ».",
+   "occupation_v3": "OUV-A-1 71 % · trou 10 % · équilibre 0.77 · appoint 88 % ; OUV-A-2 72 % · trou 11 % · équilibre 1.18 · appoint 90 %"
+  },
+  {
+   "code": "OUV-B",
+   "nom": "Avant / après",
+   "decision": "garder",
+   "images": [
+    "OUV-B-1",
+    "OUV-B-2"
+   ],
+   "note": 18.5,
+   "raison": "Écran coupé net : nuit sans réponse à gauche, « 4 s » sur ivoire à droite ; les bulles continuent sous le sous-titre.",
+   "remplissage": "100 % (bord vertical) / trou 0 % ; vérifié à l'œil : bien rempli",
+   "v2": "Bulles prolongées dans la zone d'appoint, sous-titre « Le client n'attend plus. ».",
+   "occupation_v3": "OUV-B-1 100 % · trou 0 % · équilibre 0.94 · appoint 98 % ; OUV-B-2 100 % · trou 0 % · équilibre 1.06 · appoint 100 %"
+  },
+  {
+   "code": "OUV-C",
+   "nom": "Horloge à 23h14",
+   "decision": "garder",
+   "images": [
+    "OUV-C-1",
+    "OUV-C-2"
+   ],
+   "note": 18.5,
+   "raison": "Horloge à 23h14 puis téléphone qui vibre ; le téléphone posé remplit le bas sans rien dire de plus.",
+   "remplissage": "90 % / trou 4 % ; 65 % / trou 11 %",
+   "v2": "Téléphone posé dans la zone d'appoint, sous-titres qui ne répètent plus 23h14.",
+   "occupation_v3": "OUV-C-1 81 % · trou 5 % · équilibre 0.84 · appoint 92 % ; OUV-C-2 86 % · trou 6 % · équilibre 0.94 · appoint 75 %"
+  },
+  {
+   "code": "OUV-D",
+   "nom": "Question géante",
+   "decision": "garder",
+   "images": [
+    "OUV-D-1",
+    "OUV-D-2"
+   ],
+   "note": 18,
+   "raison": "Question géante sur ivoire ; une lune qui se couche sur l'horizon occupe le bas.",
+   "remplissage": "92 % / trou 3 % ; 83 % / trou 7 %",
+   "v2": "Horizon et lune (plus bulles en D-2) ajoutés dans le bas.",
+   "occupation_v3": "OUV-D-1 77 % · trou 10 % · équilibre 1.11 · appoint 90 % ; OUV-D-2 63 % · trou 11 % · équilibre 1.37 · appoint 88 %"
+  },
+  {
+   "code": "OUV-E",
+   "nom": "Détail puis recul",
+   "decision": "garder",
+   "images": [
+    "OUV-E-1",
+    "OUV-E-2"
+   ],
+   "note": 18.5,
+   "raison": "Gros plan sur l'alerte Telegram puis recul sur tout le schéma, qui descend jusqu'au bas de l'écran.",
+   "remplissage": "94 % / trou 3 % ; 86 % / trou 5 %",
+   "v2": "Carte de l'équipe en gros plan dessous ; schéma entier étalé sur la hauteur.",
+   "occupation_v3": "OUV-E-1 88 % · trou 5 % · équilibre 1.08 · appoint 88 % ; OUV-E-2 85 % · trou 6 % · équilibre 1.44 · appoint 78 %"
+  },
+  {
+   "code": "REC-A",
+   "nom": "Dans l'ordre",
+   "decision": "reference",
+   "images": [
+    "REC-A-1"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer."
+  },
+  {
+   "code": "REC-B",
+   "nom": "Résultat puis comment",
+   "decision": "garder",
+   "images": [
+    "REC-B-1",
+    "REC-B-2"
+   ],
+   "note": 18,
+   "raison": "Le 80 % d'abord, puis « Voici comment » avec les vraies cartes et les deux branches dessous.",
+   "remplissage": "77 % / trou 7 % ; 84 % / trou 4 %",
+   "v2": "Carte fantôme sous le sous-titre (B-1), deux branches (B-2), sous-titre « Il prend le relais. ».",
+   "occupation_v3": "REC-B-1 75 % · trou 7 % · équilibre 1.60 · appoint 86 % ; REC-B-2 88 % · trou 5 % · équilibre 1.28 · appoint 92 %"
+  },
+  {
+   "code": "REC-C",
+   "nom": "Suivre un message",
+   "decision": "garder",
+   "images": [
+    "REC-C-1",
+    "REC-C-2"
+   ],
+   "note": 18.5,
+   "raison": "La bulle 23h14 qu'on suit jusqu'au ticket clôturé en 4 s ; le téléphone du client ferme le bas.",
+   "remplissage": "89 % / trou 6 % ; 87 % / trou 3 %",
+   "v2": "Téléphone du client dans la zone d'appoint ; pastille du chatbot ramenée à x = 72.",
+   "occupation_v3": "REC-C-1 71 % · trou 13 % · équilibre 1.08 · appoint 92 % ; REC-C-2 84 % · trou 7 % · équilibre 1.49 · appoint 95 %"
+  },
+  {
+   "code": "REC-D",
+   "nom": "Trois étapes annoncées",
+   "decision": "garder",
+   "images": [
+    "REC-D-1",
+    "REC-D-2"
+   ],
+   "note": 18,
+   "raison": "Repère 1/3 puis 2/3 net et vraie carte du schéma ; REC-D-2 revient : « Message client » en encre sur carte claire (rapport 13).",
+   "remplissage": "68 % / trou 9 % ; 81 % / trou 6 %",
+   "v2": "Branches et carte suivante en fantôme dans le bas ; reprise : texte de la carte passée en encre.",
+   "occupation_v3": "REC-D-1 67 % · trou 11 % · équilibre 1.39 · appoint 90 % ; REC-D-2 69 % · trou 11 % · équilibre 1.72 · appoint 95 %"
+  },
+  {
+   "code": "CHI-A",
+   "nom": "Compteur",
+   "decision": "reference",
+   "images": [
+    "CHI-A-1"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer."
+  },
+  {
+   "code": "CHI-B",
+   "nom": "Jauge en anneau",
+   "decision": "garder",
+   "images": [
+    "CHI-B-1",
+    "CHI-B-2"
+   ],
+   "note": 18.5,
+   "raison": "L'anneau se remplit à 80 % puis le reste part à l'équipe ; bulles et pastille de l'équipe (propre) en appui dessous.",
+   "remplissage": "81 % / trou 7 % ; 95 % / trou 2 %",
+   "v2": "Bulles et icône de l'équipe dans la zone d'appoint, sous-titres nouveaux.",
+   "occupation_v3": "CHI-B-1 85 % · trou 4 % · équilibre 0.67 · appoint 88 % ; CHI-B-2 80 % · trou 6 % · équilibre 0.59 · appoint 85 %"
+  },
+  {
+   "code": "CHI-C",
+   "nom": "Duel de tailles",
+   "decision": "garder",
+   "images": [
+    "CHI-C-1",
+    "CHI-C-2"
+   ],
+   "note": 18.5,
+   "raison": "« Le lendemain » rétrécit et se raye, « 4 s » envahit l'écran ; en bas, une bulle d'attente barrée (plus aucun mot dans la zone d'appoint).",
+   "remplissage": "77 % / trou 9 % ; 77 % / trou 8 %",
+   "v2": "Bulles en appui ; reprise : « LE LENDEMAIN » barré remplacé par une bulle barrée.",
+   "occupation_v3": "CHI-C-1 78 % · trou 9 % · équilibre 1.22 · appoint 92 % ; CHI-C-2 73 % · trou 9 % · équilibre 1.13 · appoint 81 %"
+  },
+  {
+   "code": "CHI-D",
+   "nom": "Chiffre géant",
+   "decision": "garder",
+   "images": [
+    "CHI-D-1"
+   ],
+   "note": 18.5,
+   "raison": "« 24h/24 » plein écran entier, sous la limite haute (y = 277), cadran en appui dessous.",
+   "remplissage": "92 % / trou 3 %",
+   "v2": "Chiffre agrandi puis redescendu sous y = 269 ; « /24 » entier ; demi-cadran dans le bas.",
+   "occupation_v3": "CHI-D-1 85 % · trou 6 % · équilibre 0.82 · appoint 86 %"
+  },
+  {
+   "code": "CHI-E",
+   "nom": "Compter en objets",
+   "decision": "garder",
+   "images": [
+    "CHI-E-2"
+   ],
+   "note": 18,
+   "raison": "Huit bulles cochées, deux partent vers l'équipe, qui attend en bas de l'écran.",
+   "remplissage": "86 % / trou 6 %",
+   "v2": "Grille 4 × 2 sous le 80 %, équipe dans la zone d'appoint ; pastille de l'équipe nettoyée.",
+   "occupation_v3": "CHI-E-2 77 % · trou 7 % · équilibre 0.99 · appoint 92 %"
+  },
+  {
+   "code": "CAM-A",
+   "nom": "Suivi",
+   "decision": "reference",
+   "images": [
+    "CAM-A-1",
+    "CAM-A-2"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer."
+  },
+  {
+   "code": "CAM-B",
+   "nom": "Vue d'ensemble d'abord",
+   "decision": "garder",
+   "images": [
+    "CAM-B-1",
+    "CAM-B-2"
+   ],
+   "note": 18.5,
+   "raison": "Schéma en silhouette sur nuit, puis plongée sur le Chatbot IA ; la carte est entière.",
+   "remplissage": "67 % / trou 6 % ; 78 % / trou 11 %",
+   "v2": "Carte CHATBOT IA recadrée (plus coupée à gauche), schéma prolongé sous le sous-titre.",
+   "occupation_v3": "CAM-B-1 74 % · trou 10 % · équilibre 1.72 · appoint 92 % ; CAM-B-2 76 % · trou 9 % · équilibre 1.57 · appoint 81 %"
+  },
+  {
+   "code": "CAM-C",
+   "nom": "Voyage du message",
+   "decision": "garder",
+   "images": [
+    "CAM-C-1",
+    "CAM-C-2"
+   ],
+   "note": 18.5,
+   "raison": "Le point lumineux court sur le fil ; les cartes suivantes attendent dessous.",
+   "remplissage": "70 % / trou 7 % ; 65 % / trou 11 %",
+   "v2": "Cartes suivantes en fantôme dans la zone d'appoint ; pastilles d'icônes ramenées à x ≥ 68.",
+   "occupation_v3": "CAM-C-1 78 % · trou 12 % · équilibre 1.50 · appoint 93 % ; CAM-C-2 88 % · trou 5 % · équilibre 1.02 · appoint 64 %"
+  },
+  {
+   "code": "CAM-D",
+   "nom": "Plan fixe construit",
+   "decision": "retirer",
+   "images": [],
+   "note": 16,
+   "raison": "Trop de libellés (8) et presque identique à APP-C en vignette."
+  },
+  {
+   "code": "CAM-E",
+   "nom": "Deux branches côte à côte",
+   "decision": "garder",
+   "images": [
+    "CAM-E-1",
+    "CAM-E-2"
+   ],
+   "note": 18.5,
+   "raison": "Écran partagé orange / nuit sur toute la hauteur, 80 % centré dans son panneau ; les étapes de chaque branche continuent dessous.",
+   "remplissage": "98 % (bord vertical) / trou 2 % ; vérifié à l'œil : bien rempli",
+   "v2": "Panneaux étirés, étapes sous le sous-titre ; reprise : 80 % centré.",
+   "occupation_v3": "CAM-E-1 92 % · trou 5 % · équilibre 1.03 · appoint 98 % ; CAM-E-2 92 % · trou 5 % · équilibre 1.03 · appoint 98 %"
+  },
+  {
+   "code": "APP-A",
+   "nom": "Surgit avec rebond",
+   "decision": "reference",
+   "images": [
+    "APP-A-1",
+    "APP-A-2"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer."
+  },
+  {
+   "code": "APP-B",
+   "nom": "Tracé au feutre",
+   "decision": "garder",
+   "images": [
+    "APP-B-2"
+   ],
+   "note": 18,
+   "raison": "Le feutre trace la carte suivante sous la vraie carte ; une carte en pointillé attend dessous.",
+   "remplissage": "75 % / trou 14 %",
+   "v2": "Carte agrandie, cadre tracé plus grand, carte fantôme dans la zone d'appoint.",
+   "occupation_v3": "APP-B-2 83 % · trou 6 % · équilibre 1.02 · appoint 83 %"
+  },
+  {
+   "code": "APP-C",
+   "nom": "Fantôme qui s'allume",
+   "decision": "garder",
+   "images": [
+    "APP-C-2"
+   ],
+   "note": 18,
+   "raison": "Schéma pâle, une seule étape allumée ; la pastille 80 % ne touche plus aucune carte.",
+   "remplissage": "73 % / trou 10 %",
+   "v2": "Pastille 80 % déplacée au-dessus de la carte, pastilles d'icônes à x ≥ 68, schéma étalé jusqu'en bas.",
+   "occupation_v3": "APP-C-2 86 % · trou 6 % · équilibre 0.86 · appoint 71 %"
+  },
+  {
+   "code": "APP-D",
+   "nom": "Cartes qui tombent",
+   "decision": "garder",
+   "images": [
+    "APP-D-1"
+   ],
+   "note": 18.5,
+   "raison": "Fiches qui tombent et se posent, ombre au sol ; la fiche suivante arrive en pointillé.",
+   "remplissage": "70 % / trou 12 %",
+   "v2": "Cartes agrandies, fiche suivante dans la zone d'appoint.",
+   "occupation_v3": "APP-D-1 83 % · trou 4 % · équilibre 1.07 · appoint 85 %"
+  },
+  {
+   "code": "TRA-B",
+   "nom": "Raccord d'objet",
+   "decision": "garder",
+   "images": [
+    "TRA-B-1",
+    "TRA-B-2"
+   ],
+   "note": 18.5,
+   "raison": "La coche grossit jusqu'à devenir l'écran « Résolu » ; la frise des étapes se coche dessous.",
+   "remplissage": "66 % / trou 12 % ; 89 % / trou 6 %",
+   "v2": "Frise des quatre étapes dans la zone d'appoint, carte agrandie.",
+   "occupation_v3": "TRA-B-1 85 % · trou 11 % · équilibre 1.18 · appoint 85 % ; TRA-B-2 94 % · trou 3 % · équilibre 0.86 · appoint 85 %"
+  },
+  {
+   "code": "TRA-C",
+   "nom": "Balayage orange",
+   "decision": "garder",
+   "images": [
+    "TRA-C-1"
+   ],
+   "note": 18,
+   "raison": "Bande orange en diagonale qui révèle « Sa limite » ; plus de coche en double.",
+   "remplissage": "67 % / trou 7 %",
+   "v2": "Coche en double supprimée, branches de l'équipe dans le bas.",
+   "occupation_v3": "TRA-C-1 89 % · trou 4 % · équilibre 0.85 · appoint 81 %"
+  },
+  {
+   "code": "TRA-D",
+   "nom": "On entre dedans",
+   "decision": "garder",
+   "images": [
+    "TRA-D-1"
+   ],
+   "note": 18.5,
+   "raison": "La carte remplit l'écran et devient la scène des deux chemins ; plus rien de coupé.",
+   "remplissage": "83 % / trou 6 %",
+   "v2": "Pastille du chatbot entière (x = 75), 80 % à 28 px du trait, cartes suivantes dessous.",
+   "occupation_v3": "TRA-D-1 90 % · trou 5 % · équilibre 0.93 · appoint 85 %"
+  },
+  {
+   "code": "TRA-E",
+   "nom": "Poussée",
+   "decision": "retirer",
+   "images": [],
+   "note": 16,
+   "raison": "La marque est coupée par la jointure, le mouvement ne se devine pas et l'image ressemble à CAM-E."
+  },
+  {
+   "code": "TYP-A",
+   "nom": "Mot par mot",
+   "decision": "reference",
+   "images": [
+    "TYP-A-1"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer (mot flou : défaut connu)."
+  },
+  {
+   "code": "TYP-B",
+   "nom": "Un mot géant",
+   "decision": "garder",
+   "images": [
+    "TYP-B-2"
+   ],
+   "note": 18,
+   "raison": "« 3H. » plein écran sur panneau orange, une horloge à 3h en appui dans le bas.",
+   "remplissage": "77 % / trou 9 %",
+   "v2": "Horloge à 3h ajoutée dans la zone d'appoint.",
+   "occupation_v3": "TYP-B-2 70 % · trou 13 % · équilibre 1.38 · appoint 93 %"
+  },
+  {
+   "code": "TYP-C",
+   "nom": "Lignes qui glissent",
+   "decision": "garder",
+   "images": [
+    "TYP-C-2"
+   ],
+   "note": 18,
+   "raison": "Phrase-choc qui sort de ses caches, filet qui se trace ; TYP-C-2 descendue (y = 279), faux accent retiré. TYP-C-1 reste non montrée : deux filets vides remplissent le bas sans rien dire.",
+   "remplissage": "90 % / trou 5 %",
+   "v2": "Texte agrandi et descendu sous y = 269, point du filet placé après le point final, bulle répondue en bas.",
+   "occupation_v3": "TYP-C-2 78 % · trou 8 % · équilibre 1.67 · appoint 78 %"
+  },
+  {
+   "code": "TYP-D",
+   "nom": "Le mot devient objet",
+   "decision": "garder",
+   "images": [
+    "TYP-D-1",
+    "TYP-D-2"
+   ],
+   "note": 18.5,
+   "raison": "« Alerte » devient une vraie cloche (anse, robe, battant) qui sonne ; ALERTE a 30 px d'air de chaque côté.",
+   "remplissage": "88 % / trou 6 % ; 95 % / trou 3 %",
+   "v2": "Cloche redessinée, ALERTE ne touche plus le trait ; alerte Telegram et équipe dans le bas.",
+   "occupation_v3": "TYP-D-1 73 % · trou 14 % · équilibre 1.49 · appoint 97 % ; TYP-D-2 73 % · trou 10 % · équilibre 2.13 · appoint 90 %"
+  },
+  {
+   "code": "FIN-A",
+   "nom": "Phrase-choc seule",
+   "decision": "reference",
+   "images": [
+    "FIN-A-1"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer."
+  },
+  {
+   "code": "FIN-B",
+   "nom": "Schéma puis phrase",
+   "decision": "retirer",
+   "images": [],
+   "note": 16,
+   "raison": "Schéma minuscule sans libellés, et l'écran de la phrase est presque celui de FIN-D."
+  },
+  {
+   "code": "FIN-C",
+   "nom": "Boucle",
+   "decision": "garder",
+   "images": [
+    "FIN-C-1",
+    "FIN-C-3"
+   ],
+   "note": 18.5,
+   "raison": "L'horloge passe de 3h à 23h14 : la fin retombe sur le début. FIN-C-2 n'est pas montrée : identique au pixel près à OUV-C-1, la planche FIN-C-3 montre déjà la boucle.",
+   "remplissage": "88 % / trou 7 % ; FIN-C-3 98 %",
+   "v2": "Téléphone répondu dans le bas, 24H/24 agrandi, planche large de la boucle.",
+   "occupation_v3": "FIN-C-1 80 % · trou 11 % · équilibre 0.91 · appoint 92 %"
+  },
+  {
+   "code": "FIN-D",
+   "nom": "Le chiffre reste",
+   "decision": "garder",
+   "images": [
+    "FIN-D-2"
+   ],
+   "note": 18,
+   "raison": "Le 80 % reste, petit, au-dessus de la phrase-choc ; accent de RÉPONSE à 18 px ; jauge 8/10 dans le bas. FIN-D-1 reste non montrée : en vignette c'est la même image que OUV-A-1.",
+   "remplissage": "95 % / trou 3 %",
+   "v2": "80 % sorti de derrière la phrase, interligne élargi (accent à 18 px), jauge dans la zone d'appoint.",
+   "occupation_v3": "FIN-D-2 68 % · trou 6 % · équilibre 2.21 · appoint 80 %"
+  },
+  {
+   "code": "MAT-A",
+   "nom": "Net et plat",
+   "decision": "reference",
+   "images": [
+    "MAT-A-1"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer."
+  },
+  {
+   "code": "MAT-B",
+   "nom": "Papier",
+   "decision": "garder",
+   "images": [
+    "MAT-B-1"
+   ],
+   "note": 18,
+   "raison": "Grain de papier léger ; écran nettoyé : titre seul, carte « Chatbot IA », un seul orange (le 80 %), 6 mots. La plus subtile des trois en vignette (fond plus grainé).",
+   "remplissage": "78 % / trou 6 %",
+   "v2": "Étiquette orange et « analyse la demande » supprimées, voix « Il trie chaque demande. », branches dans le bas.",
+   "occupation_v3": "MAT-B-1 74 % · trou 11 % · équilibre 1.09 · appoint 97 %"
+  },
+  {
+   "code": "MAT-C",
+   "nom": "Trait fait main",
+   "decision": "garder",
+   "images": [
+    "MAT-C-1"
+   ],
+   "note": 18.5,
+   "raison": "Contours tremblés et hachures, lisibles même en petit ; écran nettoyé (un seul orange, 6 mots).",
+   "remplissage": "92 % / trou 5 %",
+   "v2": "Même nettoyage que MAT-B ; branches hachurées dans le bas.",
+   "occupation_v3": "MAT-C-1 81 % · trou 10 % · équilibre 1.28 · appoint 100 %"
+  },
+  {
+   "code": "MAT-D",
+   "nom": "Profondeur douce",
+   "decision": "garder",
+   "images": [
+    "MAT-D-1"
+   ],
+   "note": 18,
+   "raison": "Cartes avec épaisseur sur deux plateaux en relief ; écran nettoyé (un seul orange, 6 mots).",
+   "remplissage": "79 % / trou 6 %",
+   "v2": "Même nettoyage que MAT-B ; second plateau dans le bas.",
+   "occupation_v3": "MAT-D-1 82 % · trou 11 % · équilibre 1.42 · appoint 100 %"
+  },
+  {
+   "code": "SOU-A",
+   "nom": "Sous-titres calmes",
+   "decision": "retirer",
+   "images": [],
+   "note": 15,
+   "raison": "Impossible à distinguer d'aujourd'hui (SOU-B) en vignette."
+  },
+  {
+   "code": "SOU-B",
+   "nom": "Équilibré",
+   "decision": "reference",
+   "images": [
+    "SOU-B-1"
+   ],
+   "note": null,
+   "raison": "Niveau d'aujourd'hui, pour comparer."
+  },
+  {
+   "code": "SOU-C",
+   "nom": "Sous-titres appuyés",
+   "decision": "garder",
+   "images": [
+    "SOU-C-1"
+   ],
+   "note": 18,
+   "raison": "Sous-titre appuyé en capitales, « TRIE » en pavé d'encre penché : nettement différent de SOU-B ; écran nettoyé (un seul orange, 6 mots).",
+   "remplissage": "77 % / trou 6 %",
+   "v2": "Étiquette et libellé long supprimés, pavé passé d'orange à encre.",
+   "occupation_v3": "SOU-C-1 74 % · trou 11 % · équilibre 1.10 · appoint 95 %"
+  }
+ ],
+ "r45": [
+  {
+   "id": "R45-OUV-A-1",
+   "nom": "Résultat d'abord 4:5",
+   "decision": "garder",
+   "raison": "Chiffre géant, libellé, jauge et sous-titre à sa place ; tout tient entre x = 60 et 1020."
+  },
+  {
+   "id": "R45-CHI-B-1",
+   "nom": "Jauge 4:5",
+   "decision": "garder",
+   "raison": "Sous-titre « Un humain s'en charge. » à sa place, pastille de l'équipe en appui ; le bas n'est plus vide."
+  },
+  {
+   "id": "R45-CHI-D-1",
+   "nom": "Chiffre géant 4:5",
+   "decision": "garder",
+   "raison": "Remplit le cadre sans déborder ; « sans pause » sous le filet."
+  },
+  {
+   "id": "R45-CAM-C-1",
+   "nom": "Voyage du message 4:5",
+   "decision": "garder",
+   "raison": "Point, fils et icônes lisibles, sous-titre à sa place ; marque à 50 px de la carte."
+  },
+  {
+   "id": "R45-FIN-D-1",
+   "nom": "Chiffre qui reste 4:5",
+   "decision": "garder",
+   "raison": "80 % et jauge au-dessus, phrase-choc mot pour mot, accent de RÉPONSE à 18 px."
+  },
+  {
+   "id": "R45-ENS-1",
+   "nom": "Vue d'ensemble 4:5",
+   "decision": "retirer",
+   "raison": "8 libellés (maximum 6) et une coche qui mord sur « SANS »."
+  }
+ ],
+ "paires": [
+  {
+   "a": "CAM-D",
+   "b": "APP-C",
+   "distinctes": false,
+   "raison": "Même fond ivoire, même colonne de cartes, même fantôme à droite : on ne les distingue pas en 200 px. CAM-D retirée."
+  },
+  {
+   "a": "FIN-B",
+   "b": "FIN-D",
+   "distinctes": false,
+   "raison": "Les écrans de phrase ont la même mise en page (phrase à gauche, 3H orange) ; seul le fond change. FIN-B retirée."
+  },
+  {
+   "a": "SOU-A",
+   "b": "SOU-B",
+   "distinctes": false,
+   "raison": "Seuls le soulignement et un mot orange diffèrent : invisible en vignette. SOU-A retirée."
+  },
+  {
+   "a": "OUV-D",
+   "b": "OUV-E",
+   "distinctes": true,
+   "raison": "Typo géante contre carte en gros plan : forme et point focal différents."
+  },
+  {
+   "a": "MAT-B",
+   "b": "MAT-D",
+   "distinctes": true,
+   "raison": "De justesse : fond grainé plus sombre contre plateau en relief ; l'axe Matière reste subtil par nature."
+  },
+  {
+   "a": "OUV-A",
+   "b": "FIN-D",
+   "distinctes": false,
+   "raison": "Axes différents, mais OUV-A-1 et FIN-D-1 sont la même image en vignette (80 % orange, libellé, rangée 8/10). FIN-D-1 n'est plus montrée, FIN-D-2 porte la variante."
+  },
+  {
+   "a": "OUV-C",
+   "b": "FIN-C",
+   "distinctes": true,
+   "raison": "FIN-C-2 est OUV-C-1 au pixel près (c'est la boucle voulue) ; on montre FIN-C-1 et la planche FIN-C-3, pas le doublon."
+  },
+  {
+   "a": "OUV-A",
+   "b": "REC-B",
+   "distinctes": true,
+   "raison": "REC-B-1 ressemble à OUV-A-1 (80 % sur nuit), mais REC-B-2 sur ivoire avec les cartes distingue la variante ; dans l'axe Récit, B, C et D sont nettement différentes."
+  },
+  {
+   "a": "CHI-C",
+   "b": "CHI-D",
+   "distinctes": true,
+   "raison": "« 4 s » orange sur ivoire avec cadres contre « 24h/24 » sur nuit : fond et forme différents."
+  },
+  {
+   "a": "CAM-B",
+   "b": "CAM-C",
+   "distinctes": true,
+   "raison": "Silhouette sur nuit contre point lumineux sur ivoire."
+  },
+  {
+   "a": "APP-B",
+   "b": "APP-D",
+   "distinctes": true,
+   "raison": "Cadre tracé au feutre contre trois fiches penchées : formes différentes."
+  },
+  {
+   "a": "TYP-C",
+   "b": "TYP-D",
+   "distinctes": true,
+   "raison": "Lignes filetées sur ivoire contre cloche sur nuit."
+  },
+  {
+   "a": "MAT-B",
+   "b": "MAT-D",
+   "distinctes": true,
+   "raison": "Vignettes MAT-B / C / D refaites : grain plus sombre, contours hachurés, plateaux blancs en relief ; MAT-B reste la plus subtile mais se distingue de MAT-D (pas de plateau)."
+  }
+ ]
+}

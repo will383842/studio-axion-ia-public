@@ -1,0 +1,62 @@
+{
+  "versionContrat": 1,
+  "idStudio": "vid_exemple",
+  "versionPasseport": 3,
+  "slugPropose": "automatiser-ses-devis-en-10-minutes",
+  "titre": "Automatiser ses devis en 10 minutes",
+  "resume": "Un devis prend trop de temps : voici la méthode en trois gestes pour le faire en dix minutes, avec un modèle que vous réutilisez à chaque fois.",
+  "transcription": "Vos devis vous prennent trop de temps. Voici comment les faire en dix minutes. Premier geste : un modèle. Deuxième geste : vos prix. Troisième geste : l'envoi. Essayez dès aujourd'hui.",
+  "aRetenir": [
+    "Un modèle suffit.",
+    "Dix minutes par devis.",
+    "Aucun outil à payer."
+  ],
+  "questions": [
+    {
+      "question": "Faut-il un logiciel ?",
+      "reponse": "Non, un modèle suffit."
+    },
+    {
+      "question": "Combien de temps faut-il ?",
+      "reponse": "Dix minutes par devis."
+    }
+  ],
+  "chapitres": [
+    {
+      "debutSec": 0,
+      "finSec": 6.4,
+      "libelle": "Accroche"
+    },
+    {
+      "debutSec": 6.4,
+      "finSec": 30.2,
+      "libelle": "Cœur"
+    },
+    {
+      "debutSec": 30.2,
+      "finSec": 47.2,
+      "libelle": "Appel"
+    }
+  ],
+  "rubrique": "Automatisation",
+  "motsCles": [
+    "devis",
+    "automatisation"
+  ],
+  "generateur": "avocat",
+  "langue": "fr",
+  "dureeSec": 47.2,
+  "largeur": 1080,
+  "hauteur": 1920,
+  "contenuGenere": true,
+  "publieLe": "2026-10-18T10:05:00.000Z",
+  "urlVideo": "https://axion-ia.com/medias/videos/vid_exemple/automatiser-ses-devis-en-10-minutes-v3-1a2b3c4d.mp4",
+  "urlVignette": "https://axion-ia.com/medias/videos/vid_exemple/automatiser-ses-devis-en-10-minutes-v3-5e6f7a8b.jpg",
+  "largeurVignette": 1280,
+  "hauteurVignette": 720,
+  "urlVtt": "https://axion-ia.com/medias/videos/vid_exemple/automatiser-ses-devis-en-10-minutes-v3-9c0d1e2f.vtt",
+  "credits": [
+    "Musique : Studio Axion IA"
+  ],
+  "lienService": "/fr/services/automatisation"
+}

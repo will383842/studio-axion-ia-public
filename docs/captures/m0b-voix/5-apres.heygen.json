@@ -1,0 +1,56 @@
+{
+  "texte": "Chez axion i-a, nous préparons votre èr-jé-pé-dé et vos pé-vé.",
+  "mots": [
+    {
+      "mot": "Chez",
+      "debutSec": 0.22,
+      "finSec": 0.38
+    },
+    {
+      "mot": "axion",
+      "debutSec": 0.44,
+      "finSec": 0.88
+    },
+    {
+      "mot": "i-a,",
+      "debutSec": 1.12,
+      "finSec": 1.42
+    },
+    {
+      "mot": "nous",
+      "debutSec": 2,
+      "finSec": 2.12
+    },
+    {
+      "mot": "préparons",
+      "debutSec": 2.14,
+      "finSec": 2.64
+    },
+    {
+      "mot": "votre",
+      "debutSec": 2.68,
+      "finSec": 2.9
+    },
+    {
+      "mot": "èr-jé-pé-dé",
+      "debutSec": 3,
+      "finSec": 3.84
+    },
+    {
+      "mot": "et",
+      "debutSec": 4.42,
+      "finSec": 4.5
+    },
+    {
+      "mot": "vos",
+      "debutSec": 4.54,
+      "finSec": 4.72
+    },
+    {
+      "mot": "pé-vé.",
+      "debutSec": 4.76,
+      "finSec": 5.24
+    }
+  ],
+  "dureeSec": 5.564
+}

@@ -1,0 +1,23 @@
+diff --git a/src/fournisseurs/index.ts b/src/fournisseurs/index.ts
+index c13a603..0eb384b 100644
+--- a/src/fournisseurs/index.ts
++++ b/src/fournisseurs/index.ts
+@@ -26,6 +26,8 @@ import { stockageR2DepuisEnv } from "./r2/stockage";
+ import { visagesHeygen, voixHeygen } from "./heygen/inscription";
+ import { illustrationsReelles } from "./illustration/inscription";
+ import { aligneurReel } from "./aligneur/inscription";
++// Lot G0 (générateur) : Claude, inscrit seulement si ANTHROPIC_API_KEY existe ; actif par FOURNISSEUR_SCRIPT=claude.
++import { scriptClaude } from "./claude/inscription";
+ import { fournisseurAlignementSimulation } from "./simulation/alignement";
+ import { fournisseurMontageRemotionLambda, fournisseurMontageStudioRendu, remotionLambdaConfigure, studioRenduRelie } from "./rendu/montage";
+ import type { CarteFournisseurs, EtatConnexion, FournisseurBase, TypeFournisseur } from "./types";
+@@ -36,7 +38,8 @@ type Implementations = { [K in TypeFournisseur]: Record<string, CarteFournisseur
+ 
+ /** Implémentations disponibles par type. Un vrai fournisseur s'ajoute ici, rien d'autre ne change. */
+ const IMPLEMENTATIONS: Implementations = {
+-  script: { simulation: fournisseurScriptSimulation },
++  // Lot G0 : `claude` (anciennes méthodes déléguées à la simulation, seul `executerRole` appelle Claude, après le pré-vol).
++  script: { simulation: fournisseurScriptSimulation, ...scriptClaude() },
+   // Lots A1 (voix HeyGen, M0b) et B1 (Looks HeyGen) : inscrits par `heygen/inscription.ts`, jamais ici.
+   visage: { simulation: fournisseurVisageSimulation, ...visagesHeygen() },
+   voix: { simulation: fournisseurVoixSimulation, ...voixHeygen() },

@@ -1,0 +1,65 @@
+{
+ "role": "declinaison",
+ "version": 1,
+ "sortie": {
+  "accrocheId": "acc-5",
+  "accroche": "Vous gérez des chiffres : vos erreurs Excel, personne ne les voit. Un copier-coller peut en cacher une.",
+  "appel": {
+   "type": "envoi",
+   "texte": "Si vous avez un DAF, envoyez-lui cette vidéo. Il saura où des données sont recopiées à la main chez vous."
+  },
+  "boucle": "Et personne ne vérifie.",
+  "encadre": "Erreurs Excel : le coût caché",
+  "couverture": "Erreurs Excel invisibles",
+  "segmentFacultatifRetenu": true,
+  "publication": {
+   "premiereLigne": "Erreurs Excel : le coût caché du copier-coller. Un tableur ne vérifie rien seul.",
+   "texte": "Erreurs Excel : le coût caché du copier-coller. Un tableur ne vérifie rien seul. Les erreurs de tableur, vous ne les voyez pas sur une facture. La vidéo donne un premier geste à faire dans vos fichiers. Envoyez-la à votre DAF.",
+   "motsDiese": [
+    "#erreursexcel",
+    "#tableur",
+    "#PME",
+    "#donnees"
+   ],
+   "commentaireEpingle": "Source : observation d'Axion-IA, dictée : un tableur ne vérifie rien tout seul, donc chaque copier-coller est une occasion d'erreur que personne ne voit.",
+   "motsClesDeclares": [
+    "erreurs Excel",
+    "tableur",
+    "copier-coller",
+    "données recopiées à la main"
+   ],
+   "motsClesBloques": [
+    "gratuit",
+    "miracle",
+    "magique"
+   ],
+   "motCleVariante": "erreurs de tableur",
+   "justifications": [
+    {
+     "texte": "Première ligne : mot-clé exact en tête, puis phrases descriptives, 100 caractères au plus.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mot-clé dit dans l'accroche, avant 5 secondes.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Mots-clés déclarés et bloqués à saisir à la main dans l'application.",
+     "regleId": "tt-mots-cles-2026"
+    },
+    {
+     "texte": "Commentaire épinglé : la source des faits, pas une question, car l'appel est un envoi.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "4 mots-dièse, dans la fourchette de 3 à 4.",
+     "regleId": "hyp-ecriture-reseau"
+    },
+    {
+     "texte": "Boucle posée pour relier la fin à l'accroche.",
+     "regleId": "hyp-ecriture-reseau"
+    }
+   ]
+  }
+ }
+}

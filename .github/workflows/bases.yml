@@ -1,0 +1,28 @@
+# GARDES D'ÉCART DES BASES (ADR 0001, L0-07). Le studio n'a pas d'autre CI : ce fichier ne fait QUE les bases
+# (`pnpm verifier` reste à lancer à la main avant une fusion). Interne = sans secret. La garde externe (comparaison avec un dépôt privé) n'existe pas dans la version publique.
+name: bases
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: "17 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  interne:
+    name: garde interne (copie = source.json)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Tests des bases (garde interne, garde externe simulée, non-divergence banque.ts ⇄ base 7)
+        run: pnpm exec vitest run src/donnees/bases-usine src/briques/fins

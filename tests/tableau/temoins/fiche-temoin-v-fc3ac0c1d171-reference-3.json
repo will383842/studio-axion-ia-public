@@ -1,0 +1,397 @@
+{
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "videoId": "v-fc3ac0c1d171",
+  "versionId": "r1",
+  "habillage": "reference/3",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "structure": "demonstration",
+  "serie": {
+    "code": "formation",
+    "nom": "Formation"
+  },
+  "douleur": "Réunion finie depuis trois jours, et toujours aucun compte rendu.",
+  "gesteMinute": "Une trame commune, des notes dictées en sortant, les noms et les dates relus avant d'envoyer.",
+  "appelId": null,
+  "scenes": [
+    {
+      "id": "s01",
+      "role": "accroche",
+      "page": 1,
+      "texteDit": "Réunion finie depuis trois jours, et toujours aucun compte rendu. Votre équipe a pourtant l'IA.",
+      "gabarit": {
+        "role": "accroche",
+        "visuel": {
+          "id": "calendrier"
+        }
+      },
+      "elements": [
+        {
+          "id": "e01",
+          "type": "ligne",
+          "texte": "Réunion finie depuis trois jours, et toujours aucun compte rendu.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "ancre": 0,
+          "marque": "entoure",
+          "importants": [
+            "trois jours",
+            "compte rendu"
+          ]
+        },
+        {
+          "id": "e02",
+          "type": "ligne",
+          "texte": "Votre équipe a pourtant l'IA.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "ancre": 10
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "role": "douleur",
+      "page": 2,
+      "texteDit": "Le compte rendu arrive enfin : quatre pages. On y cherche encore qui fait quoi. Alors on refait la réunion.",
+      "gabarit": {
+        "role": "douleur"
+      },
+      "elements": [
+        {
+          "id": "e03",
+          "type": "ligne",
+          "texte": "Qui fait quoi",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "ancre": 7
+        },
+        {
+          "id": "e04",
+          "type": "ligne",
+          "texte": "On y cherche encore qui fait quoi.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "phrase-cle",
+          "ancre": 7
+        },
+        {
+          "id": "e05",
+          "type": "dessin",
+          "dessinId": "document",
+          "cote": "droite",
+          "ancre": 0
+        },
+        {
+          "id": "e06",
+          "type": "ligne",
+          "texte": "Alors on refait la réunion.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "detail",
+          "ancre": 14
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "role": "etape",
+      "page": 3,
+      "texteDit": "Trois réflexes pour l'envoyer en dix minutes. Le troisième évite de refaire la réunion.",
+      "gabarit": {
+        "role": "solution",
+        "visuel": {
+          "id": "liste-cochee"
+        }
+      },
+      "elements": [
+        {
+          "id": "e07",
+          "type": "ligne",
+          "texte": "Trois réflexes pour l'envoyer.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "ancre": 0
+        },
+        {
+          "id": "e08",
+          "type": "ligne",
+          "texte": "Le troisième évite de refaire la réunion.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "ancre": 7
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "role": "etape",
+      "page": 4,
+      "texteDit": "Un. Donnez à l'équipe la même trame. Trois titres : décisions, qui s'en charge, pour quand. Collez-la dans l'outil avant vos notes.",
+      "gabarit": {
+        "role": "solution",
+        "numero": {
+          "n": 1,
+          "ancre": 0
+        }
+      },
+      "elements": [
+        {
+          "id": "e09",
+          "type": "ligne",
+          "texte": "La même trame",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "ancre": 1
+        },
+        {
+          "id": "e10",
+          "type": "ligne",
+          "texte": "Décisions",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "coche",
+          "ancre": 9
+        },
+        {
+          "id": "e11",
+          "type": "ligne",
+          "texte": "Qui s'en charge",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "coche",
+          "ancre": 10
+        },
+        {
+          "id": "e12",
+          "type": "ligne",
+          "texte": "Pour quand",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "coche",
+          "ancre": 13
+        },
+        {
+          "id": "e13",
+          "type": "ligne",
+          "texte": "Collez-la dans l'outil avant vos notes.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "ancre": 15
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "role": "etape",
+      "page": 5,
+      "texteDit": "Deux. Dictez vos notes en sortant de la salle. Deux minutes, en vrac, sur votre téléphone. Demandez à l'IA de les ranger sous les trois titres.",
+      "gabarit": {
+        "role": "solution",
+        "numero": {
+          "n": 2,
+          "ancre": 0
+        },
+        "visuel": {
+          "id": "telephone-notification"
+        }
+      },
+      "elements": [
+        {
+          "id": "e14",
+          "type": "ligne",
+          "texte": "Dictez",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "ancre": 1
+        },
+        {
+          "id": "e15",
+          "type": "ligne",
+          "texte": "Dictez vos notes en sortant de la salle.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "ancre": 1
+        },
+        {
+          "id": "e16",
+          "type": "ligne",
+          "texte": "Demandez à l'IA de les ranger sous les trois titres.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "ancre": 17
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "role": "etape",
+      "page": 6,
+      "texteDit": "Trois. Relisez les noms et les dates avant d'envoyer. L'outil peut mal placer un nom ou ajouter une date. Un nom faux, et la tâche repart en réunion.",
+      "gabarit": {
+        "role": "solution",
+        "numero": {
+          "n": 3,
+          "ancre": 0
+        }
+      },
+      "elements": [
+        {
+          "id": "e17",
+          "type": "ligne",
+          "texte": "Relisez",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "ancre": 1
+        },
+        {
+          "id": "e18",
+          "type": "ligne",
+          "texte": "Relisez les noms et les dates avant d'envoyer.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "ancre": 1
+        },
+        {
+          "id": "e19",
+          "type": "ligne",
+          "texte": "Un nom faux, et la tâche repart en réunion.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "detail",
+          "ancre": 20
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "role": "exemple",
+      "page": 7,
+      "texteDit": "Un chef d'atelier sort de sa réunion.",
+      "gabarit": {
+        "role": "exemple"
+      },
+      "elements": [
+        {
+          "id": "e20",
+          "type": "mention",
+          "texte": "Exemple illustratif"
+        },
+        {
+          "id": "e21",
+          "type": "ligne",
+          "texte": "Un chef d'atelier",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "titre",
+          "ancre": 0
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "role": "preuve",
+      "page": 7,
+      "texteDit": "Avant, ses notes partaient trois jours après. Maintenant, il dicte et relit les noms. Une demi-page part dix minutes plus tard.",
+      "gabarit": {
+        "role": "exemple"
+      },
+      "elements": [
+        {
+          "id": "e28",
+          "type": "mention",
+          "texte": "Exemple illustratif"
+        },
+        {
+          "id": "e22",
+          "type": "ligne",
+          "texte": "Ses notes partaient 3 jours après.",
+          "niveau": "texte",
+          "role": "alerte",
+          "bloc": "avant",
+          "ancre": 0
+        },
+        {
+          "id": "e23",
+          "type": "ligne",
+          "texte": "Il dicte et relit les noms.",
+          "niveau": "texte",
+          "role": "resultat",
+          "bloc": "apres",
+          "ancre": 7
+        },
+        {
+          "id": "e24",
+          "type": "preuve",
+          "preuveId": "mat-compte-rendu-reunion",
+          "lignes": [
+            "Une demi-page part 10 minutes plus tard."
+          ],
+          "ancre": 13
+        }
+      ]
+    },
+    {
+      "id": "s09",
+      "role": "resultat",
+      "page": 8,
+      "texteDit": "Un compte rendu s'apprend avec une trame, remplie à chaud.",
+      "gabarit": {
+        "role": "retenir"
+      },
+      "elements": [
+        {
+          "id": "e25",
+          "type": "ligne",
+          "texte": "Un compte rendu s'apprend avec une trame, remplie à chaud.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "phrase-cle",
+          "ancre": 0
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "role": "fin",
+      "page": 9,
+      "texteDit": "Axion-IA forme les équipes à ce réflexe. Réservez un appel de diagnostic.",
+      "gabarit": {
+        "role": "appel"
+      },
+      "elements": [
+        {
+          "id": "e26",
+          "type": "ligne",
+          "texte": "Axion-IA forme les équipes à ce réflexe.",
+          "niveau": "texte",
+          "role": "regle",
+          "bloc": "detail",
+          "ancre": 0
+        },
+        {
+          "id": "e27",
+          "type": "ligne",
+          "texte": "Réservez un appel de diagnostic",
+          "niveau": "titre",
+          "role": "regle",
+          "bloc": "appel",
+          "ancre": 7
+        }
+      ]
+    }
+  ]
+}

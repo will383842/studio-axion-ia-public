@@ -1,0 +1,6 @@
+{
+  "tag_name": "v4.0.532",
+  "published_at": "2026-10-01T07:37:10Z",
+  "html_url": "https://github.com/remotion-dev/remotion/releases/tag/v4.0.532",
+  "body": "⚠️ Fixes a broken publish (4.0.531)\n\n## What's Changed\n\n- remotion.dev/new: Add first-visit notice by @samohovets in https://github.com/remotion-dev/remotion/pull/11844\n\n## Elements\n\n- Add per-element dark checkerboard previews by @samohovets in https://github.com/remotion-dev/remotion/pull/11850\n\n## Internal and Experimental\n\n- `@remotion/agent-plugin`: Adapt preview instructions to new skill structure by @JonnyBurger in https://github.com/remotion-dev/remotion/commit/038e3bfab8\n- Skills: Fix agent plugin build after preview guidance change by @JonnyBurger in https://github.com/remotion-dev/remotion/pull/11851\n- Internal: Reject empty JavaScript in release tarballs by @JonnyBurger in https://github.com/remotion-dev/remotion/pull/11862\n- Internal: Run prepublish scripts before release packing by @JonnyBurger in https://github.com/remotion-dev/remotion/pull/11863\n\n**Full Changelog**: https://github.com/remotion-dev/remotion/compare/v4.0.531...v4.0.532\n"
+}

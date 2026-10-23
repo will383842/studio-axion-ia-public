@@ -1,0 +1,56 @@
+{
+ "version": "complete",
+ "essais": 1,
+ "appelsSimules": 1,
+ "rendable": true,
+ "erreurs": [],
+ "avertissements": [],
+ "plaquettes": 38,
+ "evenements": 292,
+ "priseSeule": [],
+ "mesures": {
+  "elements": 38,
+  "plaquettes": {
+   "EtiquetteTete": 3,
+   "CarteCalendrier": 2,
+   "element-barre": 2,
+   "PileNotifications": 3,
+   "Interjection": 3,
+   "MosaiqueVideos": 2,
+   "BadgeProfil": 3,
+   "CarteStatuts": 3,
+   "MotSaute": 3,
+   "FenetreTelephone": 3,
+   "GraphiqueBarres": 2,
+   "duel-video": 1,
+   "CarteChecklist": 3,
+   "CarrouselFeuillete": 2,
+   "BadgeCompteur": 1,
+   "EclatChiffre": 1,
+   "dalle-claquee": 1
+  },
+  "emplacements": {
+   "tete": 15,
+   "carte": 10,
+   "bas": 3,
+   "plein-cadre": 5,
+   "fenetre": 5
+  },
+  "coupsDePoing": 5,
+  "premierElementSec": 0,
+  "premierCouvrantSec": 8.2,
+  "premierPleinCadreSec": 8.2,
+  "densiteMoyenne": 3.53,
+  "densiteMinFenetre5s": 2.6,
+  "priseSeuleMaxSec": 0,
+  "priseSeulePart": 0,
+  "imagesVisagePartielMax": 3,
+  "tempsParGabarit": {
+   "M1": 23.8,
+   "M2": 31,
+   "M7": 6.7,
+   "M5": 9,
+   "M4": 12.17
+  }
+ }
+}

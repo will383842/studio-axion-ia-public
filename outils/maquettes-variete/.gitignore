@@ -1,0 +1,6 @@
+# Images séparées : régénérables (serveur.sh). Seules les planches et les sous-titres calculés sont gardés.
+sortie/*
+!sortie/planche-maquettes.jpg
+!sortie/planche-1.jpg
+!sortie/planche-2.jpg
+!sortie/sous-titres.json

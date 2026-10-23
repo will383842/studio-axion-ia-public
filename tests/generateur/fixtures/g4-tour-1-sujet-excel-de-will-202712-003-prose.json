@@ -1,0 +1,67 @@
+{
+ "role": "prose",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "planIndex": 1,
+    "bloc": "coeur",
+    "texte": "Des dizaines de fichiers Excel. Chaque jour, la même routine : exporter, copier, coller, vérifier… et recommencer.",
+    "nature": "fait",
+    "marqueurs": [
+     "ancrage",
+     "relance",
+     "boucle-ouverte",
+     "mot-cle"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ],
+    "citeMatiereId": "will-excel-routine",
+    "emphase": [],
+    "intentionIllustration": "Un écran couvert de tableurs ouverts les uns sur les autres, des colonnes copiées puis collées d'un fichier à l'autre",
+    "facultatif": false
+   },
+   {
+    "planIndex": 2,
+    "bloc": "coeur",
+    "texte": "Mais malgré tout ce travail, le dirigeant ne voit qu'une petite partie de ses données.",
+    "nature": "fait",
+    "marqueurs": [
+     "boucle-fermee",
+     "boucle-ouverte",
+     "cout"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-partie"
+    ],
+    "citeMatiereId": "will-excel-partie",
+    "emphase": [
+     "petite partie"
+    ],
+    "facultatif": false
+   },
+   {
+    "planIndex": 2,
+    "bloc": "coeur",
+    "texte": "À la place des fichiers : un tableau de bord, des données qui arrivent toutes seules, vérifiées toutes seules, et une alerte au moindre problème.",
+    "nature": "opinion",
+    "marqueurs": [
+     "solution"
+    ],
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-solution"
+    ],
+    "citeMatiereId": "will-excel-solution",
+    "emphase": [
+     "alerte"
+    ],
+    "intentionIllustration": "Un tableau de bord unique qui se remplit seul, avec une notification d'alerte qui apparaît",
+    "facultatif": false
+   }
+  ]
+ }
+}

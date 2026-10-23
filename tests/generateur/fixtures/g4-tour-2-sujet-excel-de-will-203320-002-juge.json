@@ -1,0 +1,113 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "corps-1",
+    "reponses": [
+     {
+      "id": "SCR-01",
+      "reponse": "oui",
+      "motif": "Aucune référence à Axion ni client ; « À la place : un tableau de bord » dit par tout concurrent."
+     },
+     {
+      "id": "ANC-01",
+      "reponse": "non",
+      "motif": "Aucune preuve ni élément vrai ; seules matières non étayées, « une erreur de formule passe » plaquée."
+     },
+     {
+      "id": "CRED-01",
+      "reponse": "oui",
+      "motif": "« Ce travail de chaque jour, il le fait à votre place » sans preuve ni limite."
+     },
+     {
+      "id": "CRED-02",
+      "reponse": "oui",
+      "motif": "« une erreur de formule passe et fausse les chiffres du mois » absent des matières ; invention."
+     },
+     {
+      "id": "CRED-03",
+      "reponse": "non",
+      "motif": "Exception « certains fichiers resteront » absente ; seul « [LIMITE À VALIDER] » non dit."
+     },
+     {
+      "id": "CRED-05",
+      "reponse": "sans-objet",
+      "motif": "Aucune preuve citée dans le texte."
+     },
+     {
+      "id": "CRED-06",
+      "reponse": "sans-objet",
+      "motif": "Pas d'idée reçue réfutée ; contre-pied sur la visibilité seulement."
+     },
+     {
+      "id": "VOIX-02",
+      "reponse": "oui",
+      "motif": "« Rempli tout seul. Vérifié tout seul. » ressemble à argumentaire de plaquette."
+     },
+     {
+      "id": "RET-01",
+      "reponse": "non",
+      "motif": "« Des dizaines de fichiers Excel… la même routine » répète l'accroche presque mot pour mot."
+     },
+     {
+      "id": "ENV-01",
+      "reponse": "non",
+      "motif": "Le texte n'offre aucune action concrète ; pas d'envoi ni d'étape pour le DAF."
+     },
+     {
+      "id": "ENV-02",
+      "reponse": "non",
+      "motif": "Pas de règle claire à retenir ; seulement « un tableau de bord » remplace les fichiers."
+     },
+     {
+      "id": "ENV-03",
+      "reponse": "non",
+      "motif": "Le texte s'adresse au « Dirigeant » ; l'envoi vise un DAF, non mis en cause."
+     },
+     {
+      "id": "FIN-01",
+      "reponse": "oui",
+      "motif": "« Et au moindre problème, une alerte arrive » vend la fonctionnalité du tableau de bord."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "non",
+      "motif": "« Mais malgré tout ce travail » et « donc une erreur… » dépendent de la phrase précédente."
+     },
+     {
+      "id": "CTA-01",
+      "reponse": "sans-objet",
+      "motif": "Aucun appel à l'action dans le texte."
+     },
+     {
+      "id": "PROM-01",
+      "reponse": "non",
+      "motif": "Promesse d'un contre-pied avec visibilité ; livraison sans preuve, avec « [LIMITE À VALIDER] » non résolu."
+     },
+     {
+      "id": "PROB-01",
+      "reponse": "oui",
+      "motif": "« chaque jour on exporte, on copie, on colle… vous n'en voyez qu'une petite partie »."
+     },
+     {
+      "id": "REC-01",
+      "reponse": "non",
+      "motif": "Aucun client ni cas décrit ; seul « Dirigeant, » générique."
+     },
+     {
+      "id": "BRF-01",
+      "reponse": "oui",
+      "motif": "Aucun « 99 % » dit ; « presque tous » absent mais non requis."
+     },
+     {
+      "id": "BRF-02",
+      "reponse": "oui",
+      "motif": "« Des dizaines de fichiers » et « chaque jour » sans chiffre précis ni temps gagné."
+     }
+    ]
+   }
+  ]
+ }
+}

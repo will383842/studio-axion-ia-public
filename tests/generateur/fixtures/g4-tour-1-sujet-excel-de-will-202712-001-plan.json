@@ -1,0 +1,72 @@
+{
+ "role": "plan",
+ "version": 1,
+ "sortie": {
+  "segments": [
+   {
+    "partie": "accroche",
+    "fonction": [
+     "mot-cle",
+     "cout",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Dirigeant, chaque jour on exporte, on copie, on colle vos fichiers Excel. Et vous n'en voyez qu'une petite partie.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "ouvre": {
+     "id": "q-principale",
+     "question": "Pourquoi tant de travail pour si peu de visibilité, et que mettre à la place ?"
+    },
+    "situation": "neutre"
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "ancrage",
+     "emotion",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Le contexte, dit tel quel : des dizaines de fichiers Excel, chaque jour la même routine, exporter, copier, coller, vérifier, et recommencer.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ],
+    "citeMatiereId": "will-excel-routine",
+    "ouvre": {
+     "id": "q-routine",
+     "question": "Cette routine protège-t-elle vraiment les chiffres ?"
+    }
+   },
+   {
+    "partie": "corps",
+    "fonction": [
+     "relance",
+     "cout",
+     "boucle-fermee",
+     "boucle-ouverte"
+    ],
+    "nature": "fait",
+    "resume": "Pivot « Mais » : une seule erreur de formule, et tous les chiffres sont faux.",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-formule"
+    ],
+    "citeMatiereId": "will-excel-formule",
+    "ferme": "q-routine",
+    "lien": "opposition",
+    "situation": "neutre"
+   }
+  ],
+  "exceptionIndex": -1,
+  "ancrageIndex": [
+   1
+  ],
+  "appuiPrincipalIndex": 1,
+  "livraisonIndex": 5
+ }
+}

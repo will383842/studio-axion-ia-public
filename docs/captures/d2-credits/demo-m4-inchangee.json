@@ -1,0 +1,8 @@
+{
+  "date": "2026-10-02",
+  "objet": "Lot D2 (crédits et clés, voix par format) : la démonstration M4 (outils/demo-m4/rendre-demo.mts) est identique par construction.",
+  "methode": "Graphe complet des imports (statiques et dynamiques, chemins @/ résolus) de outils/demo-m4/rendre-demo.mts : 61 fichiers. Intersection avec les 31 fichiers créés ou modifiés par D2 : vide. Aucun fichier exécuté par la démonstration n'a changé du fait de D2 ; studio-rendu n'est pas touché par D2.",
+  "pourquoiPasDeNouveauRendu": "L'arbre de travail est partagé avec D1, dont l'intensité et les bruitages peuvent modifier la démonstration volontairement : un nouveau rendu ici mesurerait les changements de D1, pas ceux de D2.",
+  "fichiersD2": ["src/domaine/credits.ts", "src/fournisseurs/credits/*", "src/services/credits.ts", "src/services/travaux.ts", "src/services/boucle.ts", "src/services/notifications.ts", "src/services/personnages.ts", "src/services/videos.ts", "src/services/vues.ts", "src/services/migrations/etape-17-credits.ts", "src/briques/index.ts (libellé du fournisseur de la ligne estimée « Voix »)", "écrans (Réglages, Accueil, Votre vidéo, fiche personnage, suivi de fabrication)"],
+  "resultat": "identique (aucun fichier commun)"
+}

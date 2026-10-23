@@ -1,0 +1,1077 @@
+{
+ "FilEtape": [
+  {
+   "mot": "DEUXIÈME",
+   "debut": 0.3,
+   "fin": 0.57,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "ÉTAPE",
+   "debut": 0.6,
+   "fin": 0.92,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "LE",
+   "debut": 0.95,
+   "fin": 1.07,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "FORMAT",
+   "debut": 1.1,
+   "fin": 1.52,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ON",
+   "debut": 1.55,
+   "fin": 1.72,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CHOISIT",
+   "debut": 1.75,
+   "fin": 2.07,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "SELON",
+   "debut": 2.1,
+   "fin": 2.27,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "LA",
+   "debut": 2.3,
+   "fin": 2.37,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PLATEFORME",
+   "debut": 2.4,
+   "fin": 2.85,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ET",
+   "debut": 3.05,
+   "fin": 3.17,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "ON",
+   "debut": 3.2,
+   "fin": 3.32,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "AVANCE",
+   "debut": 3.35,
+   "fin": 3.75,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "Chrono": [
+  {
+   "mot": "ÇA",
+   "debut": 0.25,
+   "fin": 0.42,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PREND",
+   "debut": 0.45,
+   "fin": 0.72,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "DEUX",
+   "debut": 0.75,
+   "fin": 0.97,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "MINUTES",
+   "debut": 1,
+   "fin": 1.45,
+   "fort": true,
+   "chiffre": true
+  },
+  {
+   "mot": "POUR",
+   "debut": 1.55,
+   "fin": 1.72,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CRÉER",
+   "debut": 1.75,
+   "fin": 1.92,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "UN",
+   "debut": 1.95,
+   "fin": 2.02,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "AGENT",
+   "debut": 2.05,
+   "fin": 2.5,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ET",
+   "debut": 2.65,
+   "fin": 2.77,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "C'EST",
+   "debut": 2.8,
+   "fin": 2.97,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PRÊT",
+   "debut": 3,
+   "fin": 3.4,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "AvisEtoiles": [
+  {
+   "mot": "LÀ",
+   "debut": 0.25,
+   "fin": 0.37,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "L'AGENT",
+   "debut": 0.4,
+   "fin": 0.67,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "DEVIENT",
+   "debut": 0.7,
+   "fin": 0.97,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "NIVEAU",
+   "debut": 1,
+   "fin": 1.42,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "EXPERT",
+   "debut": 1.45,
+   "fin": 1.77,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "CINQ",
+   "debut": 1.8,
+   "fin": 1.97,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "SUR",
+   "debut": 2,
+   "fin": 2.12,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CINQ",
+   "debut": 2.15,
+   "fin": 2.6,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "C'EST",
+   "debut": 2.7,
+   "fin": 2.87,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "BON",
+   "debut": 2.9,
+   "fin": 3.3,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "EclatChiffre": [
+  {
+   "mot": "AVANT,",
+   "debut": 0.1,
+   "fin": 0.42,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "ÇA",
+   "debut": 0.45,
+   "fin": 0.57,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PRENAIT",
+   "debut": 0.6,
+   "fin": 0.87,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "45",
+   "debut": 0.9,
+   "fin": 1.35,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "MINUTES",
+   "debut": 1.55,
+   "fin": 1.82,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "PAR",
+   "debut": 1.85,
+   "fin": 1.97,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "DEVIS",
+   "debut": 2,
+   "fin": 2.45,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ET",
+   "debut": 2.7,
+   "fin": 2.82,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "MAINTENANT",
+   "debut": 2.85,
+   "fin": 3.25,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "PageWebDefile": [
+  {
+   "mot": "VOILÀ",
+   "debut": 0.25,
+   "fin": 0.47,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "LA",
+   "debut": 0.5,
+   "fin": 0.59,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PAGE",
+   "debut": 0.62,
+   "fin": 0.87,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "QU'IL",
+   "debut": 0.9,
+   "fin": 0.97,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "A",
+   "debut": 1,
+   "fin": 1.07,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CONSTRUITE",
+   "debut": 1.1,
+   "fin": 1.55,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "EN",
+   "debut": 1.7,
+   "fin": 1.82,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "UNE",
+   "debut": 1.85,
+   "fin": 1.97,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "HEURE",
+   "debut": 2,
+   "fin": 2.45,
+   "fort": true,
+   "chiffre": true
+  },
+  {
+   "mot": "TOUT",
+   "debut": 2.75,
+   "fin": 2.92,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "SEUL",
+   "debut": 2.95,
+   "fin": 3.35,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "CarrouselFeuillete": [
+  {
+   "mot": "IL",
+   "debut": 0.05,
+   "fin": 0.17,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "ME",
+   "debut": 0.2,
+   "fin": 0.27,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "SORT",
+   "debut": 0.3,
+   "fin": 0.42,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "UN",
+   "debut": 0.45,
+   "fin": 0.57,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CARROUSEL",
+   "debut": 0.6,
+   "fin": 1.05,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ENTIER",
+   "debut": 1.1,
+   "fin": 1.52,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "À",
+   "debut": 1.55,
+   "fin": 1.62,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "MA",
+   "debut": 1.65,
+   "fin": 1.72,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CHARTE",
+   "debut": 1.75,
+   "fin": 2.2,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "PRÊT",
+   "debut": 2.3,
+   "fin": 2.47,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "À",
+   "debut": 2.5,
+   "fin": 2.57,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PUBLIER",
+   "debut": 2.6,
+   "fin": 3.05,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "DIRECT",
+   "debut": 3.1,
+   "fin": 3.5,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "JaugePourcentage": [
+  {
+   "mot": "IL",
+   "debut": 0.25,
+   "fin": 0.37,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "ME",
+   "debut": 0.4,
+   "fin": 0.47,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "SORT",
+   "debut": 0.5,
+   "fin": 0.72,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "LA",
+   "debut": 0.75,
+   "fin": 0.82,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "VIDÉO",
+   "debut": 0.85,
+   "fin": 1.07,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "MONTÉE",
+   "debut": 1.1,
+   "fin": 1.55,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "PRÊTE",
+   "debut": 1.6,
+   "fin": 1.77,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "À",
+   "debut": 1.8,
+   "fin": 1.92,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CENT",
+   "debut": 1.95,
+   "fin": 2.12,
+   "fort": true,
+   "chiffre": true
+  },
+  {
+   "mot": "POUR",
+   "debut": 2.15,
+   "fin": 2.27,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CENT",
+   "debut": 2.3,
+   "fin": 2.75,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "ET",
+   "debut": 2.9,
+   "fin": 3.02,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "HOP",
+   "debut": 3.05,
+   "fin": 3.45,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "PileNotifications": [
+  {
+   "mot": "JE",
+   "debut": 0.15,
+   "fin": 0.27,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "RELANCE",
+   "debut": 0.3,
+   "fin": 0.52,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "LE",
+   "debut": 0.55,
+   "fin": 0.62,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CLIENT",
+   "debut": 0.65,
+   "fin": 0.77,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "RÉPOND",
+   "debut": 0.8,
+   "fin": 1.07,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "LE",
+   "debut": 1.1,
+   "fin": 1.22,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "DEVIS",
+   "debut": 1.25,
+   "fin": 1.37,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "SIGNÉ",
+   "debut": 1.4,
+   "fin": 1.67,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ARRIVE",
+   "debut": 1.7,
+   "fin": 1.97,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "ET",
+   "debut": 2,
+   "fin": 2.12,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "TOUT",
+   "debut": 2.15,
+   "fin": 2.27,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "SEUL",
+   "debut": 2.3,
+   "fin": 2.7,
+   "fort": true,
+   "chiffre": false
+  }
+ ],
+ "enchainement": [
+  {
+   "mot": "MON",
+   "debut": 0,
+   "fin": 0.17,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "AGENT",
+   "debut": 0.2,
+   "fin": 0.39,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "VIDÉO",
+   "debut": 0.42,
+   "fin": 0.77,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ME",
+   "debut": 0.8,
+   "fin": 0.97,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "SORT",
+   "debut": 1,
+   "fin": 1.17,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "LE",
+   "debut": 1.2,
+   "fin": 1.32,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "MONTAGE",
+   "debut": 1.35,
+   "fin": 1.72,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "PRÊT",
+   "debut": 1.75,
+   "fin": 1.92,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "À",
+   "debut": 1.95,
+   "fin": 2.07,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CENT",
+   "debut": 2.1,
+   "fin": 2.27,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "POUR",
+   "debut": 2.3,
+   "fin": 2.42,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CENT",
+   "debut": 2.45,
+   "fin": 2.67,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "NIVEAU",
+   "debut": 2.7,
+   "fin": 2.92,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "EXPERT",
+   "debut": 2.95,
+   "fin": 3.27,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "CINQ",
+   "debut": 3.3,
+   "fin": 3.47,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "SUR",
+   "debut": 3.5,
+   "fin": 3.59,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CINQ",
+   "debut": 3.62,
+   "fin": 3.87,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "DEUXIÈME",
+   "debut": 3.9,
+   "fin": 4.17,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "ÉTAPE",
+   "debut": 4.2,
+   "fin": 4.52,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "LE",
+   "debut": 4.55,
+   "fin": 4.67,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "FORMAT",
+   "debut": 4.7,
+   "fin": 5.07,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ÇA",
+   "debut": 5.1,
+   "fin": 5.22,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PREND",
+   "debut": 5.25,
+   "fin": 5.42,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "DEUX",
+   "debut": 5.45,
+   "fin": 5.62,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "MINUTES",
+   "debut": 5.65,
+   "fin": 5.97,
+   "fort": true,
+   "chiffre": true
+  },
+  {
+   "mot": "POUR",
+   "debut": 6,
+   "fin": 6.12,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CRÉER",
+   "debut": 6.15,
+   "fin": 6.27,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "UN",
+   "debut": 6.3,
+   "fin": 6.37,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "AGENT",
+   "debut": 6.4,
+   "fin": 6.57,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "VOILÀ",
+   "debut": 6.6,
+   "fin": 6.77,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "LA",
+   "debut": 6.8,
+   "fin": 6.87,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PAGE",
+   "debut": 6.9,
+   "fin": 7.12,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "QU'IL",
+   "debut": 7.15,
+   "fin": 7.27,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "A",
+   "debut": 7.3,
+   "fin": 7.37,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CONSTRUITE",
+   "debut": 7.4,
+   "fin": 7.82,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "EN",
+   "debut": 7.85,
+   "fin": 7.97,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "UNE",
+   "debut": 8,
+   "fin": 8.07,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "HEURE",
+   "debut": 8.1,
+   "fin": 8.47,
+   "fort": true,
+   "chiffre": true
+  },
+  {
+   "mot": "JE",
+   "debut": 8.5,
+   "fin": 8.59,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "RELANCE",
+   "debut": 8.62,
+   "fin": 8.92,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "LE",
+   "debut": 8.95,
+   "fin": 9.02,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CLIENT",
+   "debut": 9.05,
+   "fin": 9.22,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "RÉPOND",
+   "debut": 9.25,
+   "fin": 9.52,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "LE",
+   "debut": 9.55,
+   "fin": 9.62,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "DEVIS",
+   "debut": 9.65,
+   "fin": 9.77,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "SIGNÉ",
+   "debut": 9.8,
+   "fin": 10.25,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "45",
+   "debut": 10.45,
+   "fin": 10.9,
+   "fort": false,
+   "chiffre": true
+  },
+  {
+   "mot": "MINUTES",
+   "debut": 11.15,
+   "fin": 11.37,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "PAR",
+   "debut": 11.4,
+   "fin": 11.52,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "DEVIS",
+   "debut": 11.55,
+   "fin": 11.87,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "CARROUSEL",
+   "debut": 11.9,
+   "fin": 12.22,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "ENTIER",
+   "debut": 12.25,
+   "fin": 12.52,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "À",
+   "debut": 12.55,
+   "fin": 12.62,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "MA",
+   "debut": 12.65,
+   "fin": 12.77,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "CHARTE",
+   "debut": 12.8,
+   "fin": 13.12,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "PRÊT",
+   "debut": 13.15,
+   "fin": 13.32,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "À",
+   "debut": 13.35,
+   "fin": 13.42,
+   "fort": false,
+   "chiffre": false
+  },
+  {
+   "mot": "PUBLIER",
+   "debut": 13.45,
+   "fin": 13.9,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "COMMENTEZ",
+   "debut": 14.2,
+   "fin": 14.47,
+   "fort": true,
+   "chiffre": false
+  },
+  {
+   "mot": "RELANCE",
+   "debut": 14.5,
+   "fin": 14.9,
+   "fort": true,
+   "chiffre": false
+  }
+ ]
+}

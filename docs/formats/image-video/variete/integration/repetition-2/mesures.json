@@ -1,0 +1,20 @@
+[
+  {
+    "fichier": "video-1-tiktok.mp4",
+    "empreinte": "889321d3f77a126d952a7a29e2756ada7bdb7348552b91876869ec7469986598",
+    "octets": 12404575,
+    "dureeSec": 62.44,
+    "dureeLigneSec": 62.44,
+    "ecartSec": 0,
+    "largeur": 1080,
+    "hauteur": 1920,
+    "son": true,
+    "noirMaxSec": 0,
+    "figeMaxSec": 1.6,
+    "figeHorsVoixMaxSec": 1.6,
+    "noirOuFigeHorsFin": [],
+    "images": 22,
+    "occupationOk": 18,
+    "occupationNon": 4
+  }
+]

@@ -1,0 +1,506 @@
+{
+ "version": "fiche-scenes/1",
+ "formatId": "tableau-anime",
+ "videoId": "v-gabarit-cadre-visuels",
+ "versionId": "r1",
+ "habillage": "reference/3",
+ "stylo": "crayon/1",
+ "ratio": "9:16",
+ "structure": "demonstration",
+ "serie": {
+  "code": "formation",
+  "nom": "Formation"
+ },
+ "douleur": "Ce devis collé dans ChatGPT contient trois données de trop.",
+ "gesteMinute": "Avant de coller : remplacer les noms, effacer les coordonnées, couper la signature.",
+ "appelId": null,
+ "scenes": [
+  {
+   "id": "s01",
+   "role": "accroche",
+   "page": 1,
+   "texteDit": "Ce devis collé dans ChatGPT contient trois données de trop.",
+   "gabarit": {
+    "role": "accroche",
+    "bloc": {
+     "texte": "données de trop.",
+     "compteur": {
+      "de": 0,
+      "a": 3
+     },
+     "ancre": 6
+    },
+    "visuel": {
+     "id": "document-barre"
+    }
+   },
+   "elements": [
+    {
+     "id": "e01",
+     "type": "ligne",
+     "texte": "Ce devis collé dans ChatGPT contient :",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0,
+     "marque": "entoure",
+     "importants": [
+      "devis",
+      "collé",
+      "ChatGPT"
+     ]
+    },
+    {
+     "id": "e01b",
+     "type": "chiffre",
+     "valeur": "3",
+     "sourceId": "src-exemple-devis",
+     "ancre": 6
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "role": "douleur",
+   "page": 2,
+   "texteDit": "Le nom du client. L'adresse du chantier. Son portable.",
+   "gabarit": {
+    "role": "douleur"
+   },
+   "elements": [
+    {
+     "id": "e03",
+     "type": "ligne",
+     "texte": "Trois données",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 0
+    },
+    {
+     "id": "e04",
+     "type": "ligne",
+     "texte": "Le nom du client.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e05",
+     "type": "ligne",
+     "texte": "L'adresse du chantier, son portable.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "detail",
+     "ancre": 4
+    },
+    {
+     "id": "e06",
+     "type": "dessin",
+     "dessinId": "dossier",
+     "cote": "droite",
+     "ancre": 7
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "role": "douleur",
+   "page": 3,
+   "texteDit": "Selon les réglages, l'outil peut s'en servir pour s'entraîner. Votre client, lui, n'a rien autorisé.",
+   "gabarit": {
+    "role": "douleur"
+   },
+   "elements": [
+    {
+     "id": "e07",
+     "type": "ligne",
+     "texte": "Selon les réglages, l'outil peut s'en servir.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e08",
+     "type": "geste",
+     "geste": "souligner",
+     "cibleId": "e07",
+     "ancre": 4
+    },
+    {
+     "id": "e09",
+     "type": "dessin",
+     "dessinId": "cadenas",
+     "cote": "droite",
+     "ancre": 8
+    },
+    {
+     "id": "e10",
+     "type": "ligne",
+     "texte": "Votre client, lui, n'a rien autorisé.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "detail",
+     "ancre": 9
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "role": "etape",
+   "page": 4,
+   "texteDit": "Trois réflexes à prendre avant de coller. Le troisième se cache là où personne ne regarde.",
+   "gabarit": {
+    "role": "solution",
+    "visuel": {
+     "id": "liste-cochee"
+    }
+   },
+   "elements": [
+    {
+     "id": "e12",
+     "type": "ligne",
+     "texte": "Trois réflexes à prendre avant de coller.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e14",
+     "type": "ligne",
+     "texte": "Le troisième se cache là où personne ne regarde.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "detail",
+     "ancre": 7
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "role": "etape",
+   "page": 5,
+   "texteDit": "Un. Remplacez les noms par des lettres. Monsieur Martin devient Client A, la société Durand devient Fournisseur B. Pour rédiger une relance, l'IA n'a pas besoin du vrai nom.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 1,
+     "ancre": 0
+    },
+    "visuel": {
+     "id": "schema-a-b",
+     "gauche": "personne",
+     "droite": "A"
+    }
+   },
+   "elements": [
+    {
+     "id": "e15",
+     "type": "ligne",
+     "texte": "Remplacez",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e16",
+     "type": "ligne",
+     "texte": "Remplacez les noms par des lettres.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e17",
+     "type": "ligne",
+     "texte": "M. Martin → Client A",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "transformation",
+     "ancre": 7
+    },
+    {
+     "id": "e18",
+     "type": "ligne",
+     "texte": "Durand → Fournisseur B",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "transformation",
+     "ancre": 12
+    },
+    {
+     "id": "e20",
+     "type": "geste",
+     "geste": "souligner",
+     "cibleId": "e16",
+     "ancre": 24
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "role": "etape",
+   "page": 6,
+   "texteDit": "Deux. Effacez les coordonnées : adresse, téléphone, e-mail, numéro de dossier. Gardez seulement ce qui sert à la réponse, par exemple « chantier en ville ».",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 2,
+     "ancre": 0
+    },
+    "visuel": {
+     "id": "document-barre"
+    }
+   },
+   "elements": [
+    {
+     "id": "e21",
+     "type": "ligne",
+     "texte": "Effacez",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e22",
+     "type": "ligne",
+     "texte": "Effacez les coordonnées.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e23",
+     "type": "ligne",
+     "texte": "Adresse",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 4
+    },
+    {
+     "id": "e24",
+     "type": "ligne",
+     "texte": "Téléphone",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 5
+    },
+    {
+     "id": "e25",
+     "type": "ligne",
+     "texte": "E-mail",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 6
+    },
+    {
+     "id": "e26",
+     "type": "ligne",
+     "texte": "Numéro de dossier",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "coche",
+     "ancre": 7
+    },
+    {
+     "id": "e28",
+     "type": "geste",
+     "geste": "pointer",
+     "cibleId": "e22",
+     "ancre": 16
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "role": "etape",
+   "page": 7,
+   "texteDit": "Trois. Coupez la signature et l'historique en bas du mail. C'est là que restent le nom, le portable et souvent l'adresse du client.",
+   "gabarit": {
+    "role": "solution",
+    "numero": {
+     "n": 3,
+     "ancre": 0
+    },
+    "visuel": {
+     "id": "email-envoye"
+    }
+   },
+   "elements": [
+    {
+     "id": "e29",
+     "type": "ligne",
+     "texte": "Coupez",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "titre",
+     "ancre": 1
+    },
+    {
+     "id": "e30",
+     "type": "ligne",
+     "texte": "Coupez la signature et l'historique du mail.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 1
+    },
+    {
+     "id": "e32",
+     "type": "ligne",
+     "texte": "Là restent le nom, le portable, l'adresse.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "detail",
+     "ancre": 10
+    },
+    {
+     "id": "e33",
+     "type": "geste",
+     "geste": "souligner",
+     "cibleId": "e32",
+     "ancre": 17
+    }
+   ]
+  },
+  {
+   "id": "s08",
+   "role": "exemple",
+   "page": 8,
+   "texteDit": "Une assistante prépare une relance de devis. Avant, elle collait tout le fil de mails.",
+   "gabarit": {
+    "role": "exemple"
+   },
+   "elements": [
+    {
+     "id": "e34",
+     "type": "mention",
+     "texte": "Exemple illustratif"
+    },
+    {
+     "id": "e35",
+     "type": "ligne",
+     "texte": "Une assistante prépare une relance de devis.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    },
+    {
+     "id": "e36",
+     "type": "ligne",
+     "texte": "Elle collait tout le fil de mails.",
+     "niveau": "texte",
+     "role": "alerte",
+     "bloc": "avant",
+     "ancre": 7
+    }
+   ]
+  },
+  {
+   "id": "s09",
+   "role": "preuve",
+   "page": 8,
+   "texteDit": "Maintenant, elle colle six lignes : Client A, sans coordonnées, sans signature. La relance est aussi utile, et les données du client restent chez vous.",
+   "gabarit": {
+    "role": "exemple",
+    "visuel": {
+     "id": "bouclier-coche"
+    }
+   },
+   "elements": [
+    {
+     "id": "e37",
+     "type": "ligne",
+     "texte": "Elle colle six lignes : Client A.",
+     "niveau": "texte",
+     "role": "resultat",
+     "bloc": "apres",
+     "ancre": 0
+    },
+    {
+     "id": "e38",
+     "type": "geste",
+     "geste": "souligner",
+     "cibleId": "e37",
+     "ancre": 7
+    },
+    {
+     "id": "e40",
+     "type": "preuve",
+     "preuveId": "mat-relance-demo",
+     "lignes": [
+      "Les données restent chez vous."
+     ],
+     "ancre": 17
+    },
+    {
+     "id": "e41",
+     "type": "geste",
+     "geste": "pointer",
+     "cibleId": "e37",
+     "ancre": 21
+    }
+   ]
+  },
+  {
+   "id": "s10",
+   "role": "resultat",
+   "page": 9,
+   "texteDit": "Ce qui permet de reconnaître votre client ne se colle pas.",
+   "gabarit": {
+    "role": "retenir"
+   },
+   "elements": [
+    {
+     "id": "e42",
+     "type": "ligne",
+     "texte": "Ce qui permet de reconnaître votre client ne se colle pas.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "phrase-cle",
+     "ancre": 0
+    }
+   ]
+  },
+  {
+   "id": "s11",
+   "role": "fin",
+   "page": 10,
+   "texteDit": "Axion-IA forme les équipes à ces réflexes. Réservez un appel de diagnostic.",
+   "gabarit": {
+    "role": "appel"
+   },
+   "elements": [
+    {
+     "id": "e43",
+     "type": "ligne",
+     "texte": "Axion-IA forme les équipes à ces réflexes.",
+     "niveau": "texte",
+     "role": "regle",
+     "bloc": "detail",
+     "ancre": 0
+    },
+    {
+     "id": "e44",
+     "type": "ligne",
+     "texte": "Réservez un appel de diagnostic",
+     "niveau": "titre",
+     "role": "regle",
+     "bloc": "appel",
+     "ancre": 7
+    }
+   ]
+  }
+ ]
+}

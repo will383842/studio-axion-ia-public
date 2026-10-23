@@ -1,0 +1,29 @@
+{
+  "name": "studio-rendu",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Conteneur SANS ÉTAT du Studio vidéo Axion-IA : FFmpeg, ffprobe, Remotion. Deux files (courte prioritaire, longue un à la fois). Lot M1b.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "verifier": "tsc -p tsconfig.json --noEmit",
+    "navigateur": "node --input-type=module -e \"import('@remotion/renderer').then((m) => m.ensureBrowser())\""
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.532",
+    "@remotion/renderer": "4.0.532",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.532",
+    "tsx": "^4.23.15",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "@types/react": "^19",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

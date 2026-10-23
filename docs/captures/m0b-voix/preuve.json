@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-02T08:20:54.864Z",
+  "voix": {
+    "nom": "DJI_04_20261001_231540",
+    "typeClone": "instant",
+    "langue": "fr-FR",
+    "moteur": "starfish"
+  },
+  "appels": {
+    "liste": "GET /v3/voices?type=private",
+    "parole": "POST /v3/voices/speech × 5",
+    "solde": "GET /v3/users/me × 2"
+  },
+  "cout": {
+    "soldeAvantUsd": 29.98,
+    "soldeApresUsd": 29.9,
+    "depenseUsd": 0.08,
+    "caracteres": 288
+  },
+  "phrases": [
+    {
+      "id": "1-sons-proches",
+      "texte": "Un bon PV, puis un pépin : voilà comment tout commence.",
+      "texteDit": "Un bon PV, puis un pépin : voilà comment tout commence.",
+      "caracteres": 55,
+      "dureeSec": 5.016,
+      "mots": 10,
+      "motsParSeconde": 2.62,
+      "syllabesParSeconde": 3.4,
+      "blancsDe120msOuPlus": 2,
+      "respirations": 0,
+      "ecartPremierMotMs": 780,
+      "ecartAttaquesMs": [
+        -120,
+        450
+      ],
+      "ecartFinsMs": [
+        -150,
+        -160
+      ]
+    },
+    {
+      "id": "2-montant",
+      "texte": "Cette amende de 135 € peut être contestée sous 45 jours.",
+      "texteDit": "Cette amende de 135 € peut être contestée sous 45 jours.",
+      "caracteres": 56,
+      "dureeSec": 4.336,
+      "mots": 10,
+      "motsParSeconde": 2.59,
+      "syllabesParSeconde": 2.85,
+      "blancsDe120msOuPlus": 2,
+      "respirations": 0,
+      "ecartPremierMotMs": 190,
+      "ecartAttaquesMs": [
+        -410
+      ],
+      "ecartFinsMs": [
+        -610
+      ]
+    },
+    {
+      "id": "3-nom-propre",
+      "texte": "Williams Jullin, d'Axion-IA, vous explique tout cela simplement.",
+      "texteDit": "Williams Jullin, d'Axion-IA, vous explique tout cela simplement.",
+      "caracteres": 64,
+      "dureeSec": 4.075,
+      "mots": 8,
+      "motsParSeconde": 2.25,
+      "syllabesParSeconde": 4.49,
+      "blancsDe120msOuPlus": 1,
+      "respirations": 0,
+      "ecartPremierMotMs": -30,
+      "ecartAttaquesMs": [
+        -30
+      ],
+      "ecartFinsMs": [
+        -140
+      ]
+    },
+    {
+      "id": "4-avant",
+      "texte": "Chez Axion-IA, nous préparons votre RGPD et vos PV.",
+      "texteDit": "Chez Axion-IA, nous préparons votre RGPD et vos PV.",
+      "caracteres": 51,
+      "dureeSec": 5.486,
+      "mots": 9,
+      "motsParSeconde": 1.99,
+      "syllabesParSeconde": 2.88,
+      "blancsDe120msOuPlus": 2,
+      "respirations": 0,
+      "ecartPremierMotMs": 460,
+      "ecartAttaquesMs": [
+        40,
+        390
+      ],
+      "ecartFinsMs": [
+        -650,
+        80
+      ]
+    },
+    {
+      "id": "5-apres",
+      "texte": "Chez Axion-IA, nous préparons votre RGPD et vos PV.",
+      "texteDit": "Chez axion i-a, nous préparons votre èr-jé-pé-dé et vos pé-vé.",
+      "caracteres": 62,
+      "dureeSec": 5.564,
+      "mots": 10,
+      "motsParSeconde": 1.99,
+      "syllabesParSeconde": 2.99,
+      "blancsDe120msOuPlus": 3,
+      "respirations": 0,
+      "ecartPremierMotMs": 150,
+      "ecartAttaquesMs": [
+        -50,
+        -40
+      ],
+      "ecartFinsMs": [
+        -230,
+        -110
+      ]
+    }
+  ],
+  "syntheseDebit": {
+    "motsParSecondeMoyen": 2.29,
+    "syllabesParSecondeMoyen": 3.32,
+    "cibleMotsParSeconde": "4,0 à 4,8 (B.4)",
+    "cibleSyllabesParSeconde": "6,0 à 6,5 (B.4)",
+    "respirationsDetectees": 0
+  },
+  "controleHorodatage": {
+    "methode": "son de HeyGen par fenêtres de 10 ms au seuil de −35 dB : arrêt et reprise réels de la voix autour de chaque blanc annoncé ≥ 150 ms, et début réel du premier mot (écart positif = annoncé trop tard)",
+    "premierMotMs": [
+      780,
+      190,
+      -30,
+      460,
+      150
+    ],
+    "ecartMoyenPremierMotMs": 322,
+    "ecartMoyenFinsAvantBlancMs": 266,
+    "ecartMoyenAttaquesApresBlancMs": 191,
+    "seuilB5": "< 40 ms visé ; au-delà de 80 ms : construire studio-aligneur (WhisperX)"
+  }
+}

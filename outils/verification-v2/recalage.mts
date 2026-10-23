@@ -1,0 +1,15 @@
+import { readFileSync } from "node:fs";
+import { appliquerRecalages, calculerCoupes } from "@/briques/coupes";
+import { motsPourMonteur } from "@/moteurs/montage-facecam/monteur/temps";
+import type { MotHorodate } from "@/domaine/types";
+const reel = JSON.parse(readFileSync("tests/fixtures/img7747-v2-montage-reel.json", "utf-8")) as { mots: MotHorodate[] };
+const SCRIPT = /const SCRIPT =\s*"([^"]+)"/.exec(readFileSync("tests/facecam-reprise-cartes.test.ts", "utf-8"))![1];
+const plan = calculerCoupes({ mots: reel.mots, dureeSec: 130.732, texteValide: SCRIPT });
+const coupes = plan.coupes.map((c) => ({ debutSec: c.debutSec, finSec: c.finSec }));
+const brut = motsPourMonteur(reel.mots, coupes);
+const juste = motsPourMonteur(appliquerRecalages(reel.mots, plan.recalages), coupes);
+const perdus = brut.filter((m, i) => m.monteeSec === null && juste[i].monteeSec !== null);
+console.log("recalages", plan.recalages.length, "; mots vus par le monteur : brut", brut.filter((m) => m.monteeSec !== null).length, "/ juste", juste.filter((m) => m.monteeSec !== null).length);
+console.log("perdus pour le monteur :", perdus.map((m) => m.mot).join(" "));
+const decales = brut.filter((m, i) => m.monteeSec !== null && juste[i].monteeSec !== null && Math.abs(m.monteeSec - juste[i].monteeSec!) > 0.3);
+console.log("décalés de > 0,3 s :", decales.map((m) => m.mot).join(" "));

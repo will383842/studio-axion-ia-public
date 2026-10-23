@@ -1,0 +1,336 @@
+{
+  "version": "carte-image/1",
+  "image": {
+    "cle": "essais/image-video/C.png",
+    "empreinte": "essai-c",
+    "largeur": 1080,
+    "hauteur": 1350,
+    "orientation": "portrait"
+  },
+  "types": [
+    "embranchement"
+  ],
+  "offre": "integration",
+  "automatisation": true,
+  "titre": "Chatbot support client",
+  "phraseChoc": "Votre client a toujours une réponse. Même à 3h du matin.",
+  "formulesAbsolues": [
+    {
+      "texte": "0 demande perdue",
+      "ou": "bandeau.1",
+      "proposition": "presque aucune demande perdue"
+    },
+    {
+      "texte": "toujours",
+      "ou": "phraseChoc",
+      "proposition": "Votre client a presque toujours une réponse. Même à 3h du matin."
+    }
+  ],
+  "noeuds": [
+    {
+      "id": "n01",
+      "libelle": "Message client entrant",
+      "detail": "23h14",
+      "role": "declencheur",
+      "icone": "message",
+      "couleur": "noir",
+      "acteur": "humain",
+      "ordre": 1
+    },
+    {
+      "id": "n02",
+      "libelle": "Chatbot IA",
+      "detail": "analyse la demande",
+      "role": "decision",
+      "icone": "chatbot",
+      "couleur": "orange",
+      "acteur": "auto",
+      "ordre": 2
+    },
+    {
+      "id": "n03",
+      "libelle": "Réponse générée",
+      "role": "etape",
+      "icone": "etincelle",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 3
+    },
+    {
+      "id": "n04",
+      "libelle": "Envoyée en 4 sec",
+      "role": "etape",
+      "icone": "eclair",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 4
+    },
+    {
+      "id": "n05",
+      "libelle": "Ticket clôturé auto",
+      "role": "etape",
+      "icone": "ticket",
+      "couleur": "orange",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 5
+    },
+    {
+      "id": "n06",
+      "libelle": "Résolu sans intervention humaine",
+      "role": "resultat",
+      "icone": "coche",
+      "couleur": "vert",
+      "acteur": "auto",
+      "groupe": "g-branche-a",
+      "ordre": 6
+    },
+    {
+      "id": "n07",
+      "libelle": "Email structuré auto",
+      "role": "etape",
+      "icone": "enveloppe",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 7,
+      "sousElements": [
+        "Objet",
+        "Contexte",
+        "Demande",
+        "Urgence"
+      ]
+    },
+    {
+      "id": "n08",
+      "libelle": "Envoyé équipe concernée",
+      "role": "etape",
+      "icone": "equipe",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 8
+    },
+    {
+      "id": "n09",
+      "libelle": "Alerte Telegram",
+      "detail": "🔔 Intervention requise",
+      "role": "etape",
+      "icone": "cloche",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 9
+    },
+    {
+      "id": "n10",
+      "libelle": "Client informé",
+      "detail": "Réponse sous 2h",
+      "role": "resultat",
+      "icone": "client",
+      "couleur": "noir",
+      "acteur": "auto",
+      "groupe": "g-branche-b",
+      "ordre": 10
+    }
+  ],
+  "liens": [
+    {
+      "id": "l01",
+      "de": "n01",
+      "vers": "n02",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l02",
+      "de": "n02",
+      "vers": "n03",
+      "etiquette": "80 % — Réponse connue",
+      "part": 80,
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l03",
+      "de": "n03",
+      "vers": "n04",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l04",
+      "de": "n04",
+      "vers": "n05",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l05",
+      "de": "n05",
+      "vers": "n06",
+      "couleur": "orange",
+      "style": "plein"
+    },
+    {
+      "id": "l06",
+      "de": "n02",
+      "vers": "n07",
+      "etiquette": "20 % — Limite atteinte",
+      "part": 20,
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l07",
+      "de": "n07",
+      "vers": "n08",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l08",
+      "de": "n08",
+      "vers": "n09",
+      "couleur": "noir",
+      "style": "plein"
+    },
+    {
+      "id": "l09",
+      "de": "n09",
+      "vers": "n10",
+      "couleur": "noir",
+      "style": "plein"
+    }
+  ],
+  "groupes": [
+    {
+      "id": "g-branche-a",
+      "sorte": "branche",
+      "titre": "Réponse connue",
+      "noeuds": [
+        "n03",
+        "n04",
+        "n05",
+        "n06"
+      ],
+      "majoritaire": true
+    },
+    {
+      "id": "g-branche-b",
+      "sorte": "branche",
+      "titre": "Limite atteinte",
+      "noeuds": [
+        "n07",
+        "n08",
+        "n09",
+        "n10"
+      ]
+    }
+  ],
+  "bandeau": [
+    "80 % résolus instantanément",
+    "0 demande perdue",
+    "24h/24"
+  ],
+  "bandeauChiffres": [
+    "c06",
+    "c07",
+    "c08"
+  ],
+  "chiffres": [
+    {
+      "id": "c01",
+      "brut": "23h14",
+      "valeur": 1394,
+      "unite": "heure",
+      "dansNoeud": "n01",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c02",
+      "brut": "4 sec",
+      "valeur": 4,
+      "unite": "sec",
+      "dansNoeud": "n04",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c03",
+      "brut": "2h",
+      "valeur": 2,
+      "unite": "h",
+      "dansNoeud": "n10",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c04",
+      "brut": "80 %",
+      "valeur": 80,
+      "unite": "%",
+      "dansLien": "l02",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c05",
+      "brut": "20 %",
+      "valeur": 20,
+      "unite": "%",
+      "dansLien": "l06",
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c06",
+      "brut": "80 %",
+      "valeur": 80,
+      "unite": "%",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c07",
+      "brut": "0 demande",
+      "valeur": 0,
+      "unite": "nombre",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c08",
+      "brut": "24h/24",
+      "valeur": null,
+      "unite": "autre",
+      "dansBandeau": true,
+      "aDire": true,
+      "lu": "les-deux"
+    },
+    {
+      "id": "c09",
+      "brut": "3h",
+      "valeur": 180,
+      "unite": "heure",
+      "aDire": true,
+      "lu": "les-deux"
+    }
+  ],
+  "pied": [],
+  "coherence": [
+    {
+      "calcul": "80 % + 20 % = 100 %",
+      "ok": true
+    }
+  ],
+  "lecture": {
+    "ecarts": [],
+    "alertes": []
+  }
+}

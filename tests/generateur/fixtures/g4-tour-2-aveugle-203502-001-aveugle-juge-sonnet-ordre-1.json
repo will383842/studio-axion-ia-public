@@ -1,0 +1,58 @@
+{
+ "role": "aveugle-juge-sonnet-ordre-1",
+ "version": 1,
+ "sortie": {
+  "notes": [
+   {
+    "id": "A",
+    "total": 52,
+    "accroche": 11,
+    "defauts": [
+     "Accroche générique (« Les gens, ils pensent que… ») sans enjeu chiffré ni tension immédiate",
+     "Aucune preuve concrète : pas de cas client, de chiffre ni de résultat vérifiable, seulement « depuis plus de dix ans »",
+     "Répétitions et syntaxe orale approximative (« vous serez recrédité », explication du mécanisme redondante) et absence d'appel final"
+    ]
+   },
+   {
+    "id": "B",
+    "total": 55,
+    "accroche": 10,
+    "defauts": [
+     "Accroche confuse, syntaxe cassée (« Dirigeant de PME, les erreurs Excel se cachent… ») et sans enjeu chiffré",
+     "Aucune preuve ni cas réel : affirmations générales sur les erreurs de formule",
+     "Ton écrit et répétitif, la consigne finale est dupliquée (premier geste puis DAF) sans émotion"
+    ]
+   },
+   {
+    "id": "C",
+    "total": 45,
+    "accroche": 13,
+    "defauts": [
+     "Conseil juridique catégorique et risqué (« surtout ne paye pas ») sans nuance ni preuve",
+     "Fautes d'oral (« qui conduisait », « te contester ») et phrases redondantes qui répètent « on t'a pas arrêté »",
+     "Appel final promotionnel abrupt (Hello Avocat), aucun cas concret ni émotion"
+    ]
+   },
+   {
+    "id": "D",
+    "total": 70,
+    "accroche": 16,
+    "defauts": [
+     "Cas concret fort mais sans preuve vérifiable (pas de pièce, date ni contexte précis) et formulation maladroite (« indémisables », « séquelles permanents »)",
+     "Milieu énumératif qui ralentit la rétention, liste de chefs de préjudice trop technique",
+     "Appel final générique (« Ne vous défendez pas seul ») sans geste précis"
+    ]
+   },
+   {
+    "id": "E",
+    "total": 32,
+    "accroche": 9,
+    "defauts": [
+     "Marqueur [LIMITE À VALIDER] resté dans le texte et phrase finale tronquée (« Chez vous aussi, ») : non publiable",
+     "Aucune preuve ni ancrage concret, répétitions (exporter, copier, coller) et promesse floue du tableau de bord",
+     "Mélange des personnes (« on exporte vos fichiers » puis « le dirigeant ») qui brouille le message"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,38 @@
+{
+  "construitLe": "2026-10-03",
+  "source": "Réponses CONSTRUITES d'après la documentation publique HeyGen relue le 03/10/2026 (aucun appel réel, aucune clé) : docs/avatar-from-video, reference/create-avatar, reference/get-avatar-look, reference/create-avatar-consent, reference/get-avatar-group, reference/create-video, reference/get-video, transparent-background-videos. À remplacer par les réponses relevées au premier essai payant (R7e).",
+  "creationDouble": {
+    "data": {
+      "avatar_item": { "id": "look_essai_tq_001", "default_voice_id": "voice_cloned_essai", "status": "processing", "group_id": "groupe_essai_001", "avatar_type": "digital_twin" },
+      "avatar_group": { "id": "groupe_essai_001", "default_voice_id": "voice_cloned_essai", "status": "processing", "consent_status": null }
+    }
+  },
+  "lookEnCours": { "data": { "id": "look_essai_tq_001", "name": "Trois-quarts, chemise noire", "avatar_type": "digital_twin", "group_id": "groupe_essai_001", "status": "processing", "supported_api_engines": [], "error": null } },
+  "lookAccordAttendu": { "data": { "id": "look_essai_tq_001", "name": "Trois-quarts, chemise noire", "avatar_type": "digital_twin", "group_id": "groupe_essai_001", "status": "pending_consent", "supported_api_engines": [], "error": null } },
+  "lookTermine": {
+    "data": {
+      "id": "look_essai_tq_001",
+      "name": "Trois-quarts, chemise noire",
+      "avatar_type": "digital_twin",
+      "group_id": "groupe_essai_001",
+      "status": "completed",
+      "preview_image_url": "https://files2.heygen.ai/enregistre/look_essai.webp",
+      "preview_video_url": "https://files2.heygen.ai/enregistre/look_essai.mp4",
+      "supported_api_engines": ["avatar_v", "avatar_iv", "avatar_iii"],
+      "image_width": 1080,
+      "image_height": 1920,
+      "preferred_orientation": "portrait",
+      "error": null
+    }
+  },
+  "lookEchecEntrainement": { "data": { "id": "look_essai_tq_001", "status": "failed", "group_id": "groupe_essai_001", "error": { "code": "training_failed", "message": "Face not visible in all frames" } } },
+  "lookEchecModeration": { "data": { "id": "look_essai_tq_001", "status": "failed", "group_id": "groupe_essai_001", "error": { "code": "moderation_failed", "message": "Content rejected" } } },
+  "accord": { "data": { "avatar_group": { "id": "groupe_essai_001", "status": "pending_consent", "consent_status": null }, "url": "https://app.heygen.com/consent/essai-lien-24h" } },
+  "groupeAccordDonne": { "data": { "id": "groupe_essai_001", "name": "Williams", "looks_count": 1, "status": "completed", "consent_status": "accepted" } },
+  "groupeSansAccord": { "data": { "id": "groupe_essai_001", "name": "Williams", "looks_count": 1, "status": "pending_consent", "consent_status": null } },
+  "creationVideo": { "data": { "video_id": "video_essai_001", "status": "waiting", "output_format": "webm" } },
+  "videoEnCours": { "data": { "id": "video_essai_001", "status": "processing", "video_url": null, "duration": null, "failure_code": null, "failure_message": null } },
+  "videoTerminee": { "data": { "id": "video_essai_001", "status": "completed", "video_url": "https://files2.heygen.ai/enregistre/video_essai_001.webm?signature=essai", "thumbnail_url": "https://files2.heygen.ai/enregistre/video_essai_001.jpg", "duration": 12.48, "completed_at": 1759500000, "failure_code": null, "failure_message": null } },
+  "videoEchecFichier": { "data": { "id": "video_essai_001", "status": "failed", "video_url": null, "duration": null, "failure_code": "audio_download_failed", "failure_message": "Unable to download audio from the provided URL" } },
+  "videoEchecModeration": { "data": { "id": "video_essai_001", "status": "failed", "video_url": null, "duration": null, "failure_code": "moderation_rejected", "failure_message": "Content violates policy" } }
+}

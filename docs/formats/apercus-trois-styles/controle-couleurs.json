@@ -1,0 +1,282 @@
+{
+ "regle": "pixel de teinte 70°-290° (vert, bleu, violet), saturation > 0,12 et valeur > 0,12 : hors charte ; compté sur l'image rendue sans perte (PNG), avant la compression des aperçus en JPEG",
+ "total": 45787,
+ "images": [
+  {
+   "image": "animation-ardoise.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "animation-paperboard.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "animation-tableau-blanc.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "film-v667-ardoise.mp4",
+   "pixels_hors_charte": 21501
+  },
+  {
+   "image": "film-v667-paperboard.mp4",
+   "pixels_hors_charte": 20604
+  },
+  {
+   "image": "film-v667-tableau-blanc.mp4",
+   "pixels_hors_charte": 3682
+  },
+  {
+   "image": "fin-tiktok-v667-ardoise.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "fin-tiktok-v667-paperboard.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "fin-tiktok-v667-tableau-blanc.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-portrait-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-portrait-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-portrait-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-portrait-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-portrait-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-vertical-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-vertical-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-vertical-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-vertical-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-ardoise-vertical-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-portrait-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-portrait-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-portrait-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-portrait-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-portrait-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-vertical-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-vertical-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-vertical-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-vertical-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-paperboard-vertical-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-portrait-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-portrait-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-portrait-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-portrait-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-portrait-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-vertical-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-vertical-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-vertical-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-vertical-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "maquettes-tableau-blanc-vertical-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-portrait-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-portrait-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-portrait-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-portrait-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-portrait-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-vertical-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-vertical-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-vertical-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-vertical-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-ardoise-vertical-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-portrait-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-portrait-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-portrait-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-portrait-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-portrait-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-vertical-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-vertical-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-vertical-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-vertical-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-paperboard-vertical-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-portrait-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-portrait-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-portrait-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-portrait-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-portrait-5-appel.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-vertical-1-accroche.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-vertical-2-etape.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-vertical-3-exemple.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-vertical-4-a-retenir.jpg",
+   "pixels_hors_charte": 0
+  },
+  {
+   "image": "v667-tableau-blanc-vertical-5-appel.jpg",
+   "pixels_hors_charte": 0
+  }
+ ]
+}

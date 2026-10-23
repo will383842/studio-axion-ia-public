@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-02",
+  "objet": "Centralisation de la composition (brique commune src/briques/composition + recette avocat) : la démonstration M4b refaite AVANT et APRÈS sur le même poste, par outils/demo-m4/rendre-demo.mts inchangé.",
+  "methode": "Empreinte MD5 de chaque image décodée (ffmpeg -f framemd5) et de chaque trame audio ; comparaison octet à octet des fichiers ; mesures.json comparé hors dates et temps ; paramètres 9:16 comparés.",
+  "videos": {
+    "9:16": { "images": 389, "empreinteImagesAvant": "0302e1a08c99", "empreinteImagesApres": "0302e1a08c99", "empreinteSonAvant": "1a829a7c2541", "empreinteSonApres": "1a829a7c2541", "fichiersIdentiquesOctetAOctet": true, "egaleAuFichierDuCommitM4b": true },
+    "4:5": { "images": 389, "empreinteImagesAvant": "4cfe49eac70c", "empreinteImagesApres": "4cfe49eac70c", "empreinteSonAvant": "1a829a7c2541", "empreinteSonApres": "1a829a7c2541", "fichiersIdentiquesOctetAOctet": true },
+    "1:1": { "images": 389, "empreinteImagesAvant": "c6b1aa0e3fe5", "empreinteImagesApres": "c6b1aa0e3fe5", "empreinteSonAvant": "1a829a7c2541", "empreinteSonApres": "1a829a7c2541", "fichiersIdentiquesOctetAOctet": true }
+  },
+  "captures": { "identiques": ["1-ouverture-encadre.jpg", "2-plan-large.jpg", "3-plan-poitrine-120.jpg", "4-illustration.jpg", "5-montant-incruste.jpg", "6-fin.jpg", "7-format-4x5.jpg", "8-format-1x1.jpg", "9-lut-avant-apres.jpg", "10-cote-a-cote-reference.jpg"] },
+  "mesuresHorsDatesEtTemps": "identiques (−14,1 LUFS, crête vraie −3,1 dBTP, pauses −43/−42 dB, 7 824 kb/s, BT.709 / tv / yuv420p, +faststart, 69 images de texte)",
+  "parametres916": "identiques, sauf l'ajout du champ image.reductionLarge = { 9:16: 1, 4:5: 0,85, 1:1: 0,72 } (la recette avocat, mêmes valeurs qu'avant en dur)",
+  "tempsSec": { "avant": { "9:16": 55.9, "4:5": 40.9, "1:1": 33.0 }, "apres": { "9:16": 47.5, "4:5": 38.4, "1:1": 33.4 } },
+  "tests": "tous les tests des lots M1-M4b passent SANS modification (anciens chemins gardés par ré-export) ; src/briques/composition/composition.test.ts ajouté"
+}

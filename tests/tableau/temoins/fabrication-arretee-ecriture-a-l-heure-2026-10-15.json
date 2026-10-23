@@ -1,0 +1,633 @@
+{
+ "origine": "production, vidéo v-d3e2a726cf0c (style reference/3, Formation v3), 15/10/2026 : fabrication ARRÊTÉE au dessin par le contrôle « Blocs écrits à l’heure » (voix réelle payée). Fautes : s03 « En quatre étapes » +0,17/+0,28 s ; s04 « Ce qui est collé » +0,41 s ; s08 « Contrôles des données » +1,85 s ; s08 « Décochez « Améliorer le modèle » » +0,53 s.",
+ "fiche": {
+  "ratio": "9:16",
+  "serie": {
+   "nom": "Formation",
+   "code": "formation"
+  },
+  "stylo": "crayon/1",
+  "scenes": [
+   {
+    "id": "s01",
+    "page": 1,
+    "role": "accroche",
+    "gabarit": {
+     "role": "accroche"
+    },
+    "elements": [
+     {
+      "id": "e01",
+      "bloc": "phrase-cle",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Vous ne savez pas ce que votre équipe colle dans l'IA.",
+      "marque": "entoure",
+      "niveau": "texte",
+      "importants": [
+       "savez",
+       "équipe",
+       "colle",
+       "l'IA"
+      ]
+     },
+     {
+      "id": "e02",
+      "bloc": "detail",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 11,
+      "texte": "Un devis, un contrat collés quittent l'entreprise.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e03",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 17,
+      "dessinId": "document"
+     }
+    ],
+    "texteDit": "Vous ne savez pas ce que votre équipe colle dans l'IA. Un devis, un fichier client, un contrat collés dans l'outil quittent l'entreprise."
+   },
+   {
+    "id": "s02",
+    "page": 2,
+    "role": "douleur",
+    "gabarit": {
+     "role": "douleur"
+    },
+    "elements": [
+     {
+      "id": "e04",
+      "bloc": "phrase-cle",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Si le client l'apprend, votre parole est en jeu.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e05",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 4,
+      "dessinId": "cadenas"
+     }
+    ],
+    "texteDit": "Si le client l'apprend, votre parole est en jeu."
+   },
+   {
+    "id": "s03",
+    "page": 3,
+    "role": "accroche",
+    "gabarit": {
+     "role": "solution"
+    },
+    "elements": [
+     {
+      "id": "e06",
+      "bloc": "phrase-cle",
+      "role": "avantage",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Voici comment les former, sur leurs vraies tâches.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e07",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 6,
+      "dessinId": "cible"
+     },
+     {
+      "id": "s03l1",
+      "bloc": "detail",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 6,
+      "texte": "En quatre étapes",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Voici comment les former vous-même, en quatre étapes, sur leurs vraies tâches."
+   },
+   {
+    "id": "s04",
+    "page": 4,
+    "role": "etape",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 1,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e08",
+      "bloc": "titre",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Demandez",
+      "niveau": "titre"
+     },
+     {
+      "id": "e09",
+      "bloc": "phrase-cle",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Demandez à chacun ce qu'il confie déjà à l'IA.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e10",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 15,
+      "texte": "La tâche",
+      "niveau": "texte"
+     },
+     {
+      "id": "e11",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 17,
+      "texte": "L'outil",
+      "niveau": "texte"
+     },
+     {
+      "id": "e12",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 18,
+      "texte": "Ce qui est collé",
+      "niveau": "texte"
+     },
+     {
+      "id": "e13",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 24,
+      "dessinId": "liste-cochee"
+     }
+    ],
+    "texteDit": "Un. Demandez à chacun ce qu'il confie déjà à l'IA. Sans reproche, par écrit : la tâche, l'outil, ce qui est collé. Vous avez une première liste de ce qui sort, et vers où."
+   },
+   {
+    "id": "s05",
+    "page": 5,
+    "role": "etape",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 2,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e14",
+      "bloc": "titre",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Écrivez",
+      "niveau": "titre"
+     },
+     {
+      "id": "e15",
+      "bloc": "phrase-cle",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Écrivez ce qui n'entre jamais dans l'outil.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e16",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 5,
+      "dessinId": "croix"
+     },
+     {
+      "id": "e17",
+      "bloc": "code",
+      "code": "rouge",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 8,
+      "texte": "Rouge : santé, paie nominative.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e18",
+      "bloc": "code",
+      "code": "rouge",
+      "role": "alerte",
+      "type": "ligne",
+      "ancre": 11,
+      "texte": "Rouge : mots de passe, secrets.",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Deux. Écrivez ce qui n'entre jamais dans l'outil. Santé, paie nominative, mots de passe, secrets promis par contrat."
+   },
+   {
+    "id": "s06",
+    "page": 6,
+    "role": "etape",
+    "gabarit": {
+     "role": "solution"
+    },
+    "elements": [
+     {
+      "id": "e19",
+      "bloc": "phrase-cle",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Le reste se colle sans rien qui reconnaisse quelqu'un.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e20",
+      "bloc": "code",
+      "code": "orange",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 10,
+      "texte": "Orange : sans nom ni adresse.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e21",
+      "bloc": "code",
+      "code": "orange",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 12,
+      "texte": "Orange : sans téléphone ni numéro.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e22",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 13,
+      "dessinId": "gomme"
+     },
+     {
+      "id": "e23",
+      "bloc": "detail",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 14,
+      "texte": "Une règle d'une page, la même pour tous.",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Le reste se colle sans rien qui reconnaisse quelqu'un : nom, adresse, téléphone, numéro. Une règle d'une page, la même pour tous."
+   },
+   {
+    "id": "s07",
+    "page": 7,
+    "role": "etape",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 3,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e24",
+      "bloc": "titre",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Refaites",
+      "niveau": "titre"
+     },
+     {
+      "id": "e25",
+      "bloc": "phrase-cle",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Refaites ensemble une vraie tâche de chacun, nettoyée.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e26",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Chacun nettoie son exemple.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e27",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 13,
+      "texte": "La réponse reste utile.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e28",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 17,
+      "dessinId": "loupe"
+     },
+     {
+      "id": "e29",
+      "bloc": "coche",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 20,
+      "texte": "Le bon geste sur leur travail.",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Trois. Refaites ensemble une vraie tâche de chacun, nettoyée. Chacun nettoie son exemple, puis vérifie que la réponse reste utile. Tous ont fait le bon geste sur leur propre travail."
+   },
+   {
+    "id": "s08",
+    "page": 8,
+    "role": "etape",
+    "gabarit": {
+     "role": "solution",
+     "numero": {
+      "n": 4,
+      "ancre": 0
+     }
+    },
+    "elements": [
+     {
+      "id": "e30",
+      "bloc": "titre",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Coupez",
+      "niveau": "titre"
+     },
+     {
+      "id": "e31",
+      "bloc": "phrase-cle",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Coupez l'entraînement sur chaque compte de l'équipe.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e32",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 9,
+      "dessinId": "engrenage"
+     },
+     {
+      "id": "e33",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 11,
+      "texte": "Paramètres",
+      "niveau": "texte"
+     },
+     {
+      "id": "e34",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 12,
+      "texte": "Contrôles des données",
+      "niveau": "texte"
+     },
+     {
+      "id": "e35",
+      "bloc": "coche",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 15,
+      "texte": "Décochez « Améliorer le modèle »",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Quatre. Coupez l'entraînement sur chaque compte de l'équipe. Dans ChatGPT : Paramètres, Contrôles des données, décochez « Améliorer le modèle pour tout le monde »."
+   },
+   {
+    "id": "s09",
+    "page": 9,
+    "role": "etape",
+    "gabarit": {
+     "role": "solution"
+    },
+    "elements": [
+     {
+      "id": "e36",
+      "bloc": "phrase-cle",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Autre outil : cherchez le réglage équivalent.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e37",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 4,
+      "dessinId": "loupe"
+     },
+     {
+      "id": "e38",
+      "bloc": "detail",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 8,
+      "texte": "Les nouveaux échanges n'entraînent plus le modèle.",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "Dans un autre outil, cherchez le réglage équivalent. Les nouveaux échanges ne servent plus à entraîner le modèle."
+   },
+   {
+    "id": "s10",
+    "page": 10,
+    "role": "exemple",
+    "gabarit": {
+     "role": "exemple"
+    },
+    "elements": [
+     {
+      "id": "e39",
+      "type": "mention",
+      "texte": "Exemple illustratif"
+     },
+     {
+      "id": "e40",
+      "bloc": "titre",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 1,
+      "texte": "Une plomberie",
+      "niveau": "titre"
+     },
+     {
+      "id": "e41",
+      "cote": "droite",
+      "type": "dessin",
+      "ancre": 7,
+      "dessinId": "calculatrice"
+     }
+    ],
+    "texteDit": "Prenons une plomberie et une relance de devis."
+   },
+   {
+    "id": "s11",
+    "page": 10,
+    "role": "preuve",
+    "gabarit": {
+     "role": "exemple"
+    },
+    "elements": [
+     {
+      "id": "e42",
+      "type": "preuve",
+      "ancre": 0,
+      "lignes": [
+       "Avant : tout l'échange collé.",
+       "Après : Client A, sans l'adresse."
+      ],
+      "preuveId": "mat-import-demo-02"
+     },
+     {
+      "id": "e43",
+      "type": "geste",
+      "ancre": 8,
+      "geste": "cocher",
+      "cibleId": "e42"
+     },
+     {
+      "id": "e44",
+      "bloc": "detail",
+      "role": "resultat",
+      "type": "ligne",
+      "ancre": 18,
+      "texte": "Elle coupe aussi la signature du mail.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e45",
+      "type": "geste",
+      "ancre": 26,
+      "geste": "souligner",
+      "cibleId": "e44"
+     }
+    ],
+    "texteDit": "Avant, l'assistante collait tout l'échange avec le client. Maintenant, elle écrit Client A et retire l'adresse du chantier. Elle coupe aussi la signature du mail : nom et téléphone y restaient."
+   },
+   {
+    "id": "s12",
+    "page": 11,
+    "role": "resultat",
+    "gabarit": {
+     "role": "retenir"
+    },
+    "elements": [
+     {
+      "id": "e46",
+      "bloc": "liste",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 3,
+      "texte": "Demandez",
+      "niveau": "texte"
+     },
+     {
+      "id": "e47",
+      "bloc": "liste",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 4,
+      "texte": "Écrivez la règle",
+      "niveau": "texte"
+     },
+     {
+      "id": "e48",
+      "bloc": "liste",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 7,
+      "texte": "Refaites ensemble",
+      "niveau": "texte"
+     },
+     {
+      "id": "e49",
+      "bloc": "liste",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 9,
+      "texte": "Coupez l'entraînement",
+      "niveau": "texte"
+     }
+    ],
+    "texteDit": "À retenir : demandez, écrivez la règle, refaites ensemble, coupez l'entraînement."
+   },
+   {
+    "id": "s13",
+    "page": 12,
+    "role": "fin",
+    "gabarit": {
+     "role": "appel"
+    },
+    "elements": [
+     {
+      "id": "e50",
+      "bloc": "detail",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 0,
+      "texte": "Axion-IA forme les équipes à l'IA, sur leurs vraies tâches.",
+      "niveau": "texte"
+     },
+     {
+      "id": "e51",
+      "bloc": "appel",
+      "role": "regle",
+      "type": "ligne",
+      "ancre": 10,
+      "texte": "Réservez un appel de diagnostic",
+      "niveau": "titre"
+     }
+    ],
+    "texteDit": "Axion-IA forme les équipes à l'IA, sur leurs vraies tâches. Réservez un appel de diagnostic."
+   }
+  ],
+  "appelId": "fin-if-diagnostic",
+  "douleur": "Vous ne savez pas ce que votre équipe colle dans l'IA. Un devis, un fichier client, un contrat collés dans l'outil quittent l'entreprise.",
+  "version": "fiche-scenes/1",
+  "videoId": "v-d3e2a726cf0c",
+  "formatId": "tableau-anime",
+  "habillage": "reference/3",
+  "structure": "demonstration",
+  "versionId": "b2",
+  "gesteMinute": "Retirer noms, adresses et numéros d'un texte avant de le coller dans l'IA"
+ }
+}

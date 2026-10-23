@@ -1,0 +1,48 @@
+{
+  "version": "fiche-scenes/1",
+  "formatId": "tableau-anime",
+  "videoId": "v-667edcd8e3a8",
+  "versionId": "r1",
+  "habillage": "reference/3",
+  "stylo": "crayon/1",
+  "ratio": "9:16",
+  "structure": "demonstration",
+  "serie": { "code": "formation", "nom": "Formation" },
+  "douleur": "Vos équipes ont l'IA, et leurs mails prennent le même temps.",
+  "gesteMinute": "Faire rédiger les réponses aux mails répétitifs, puis relire.",
+  "appelId": null,
+  "scenes": [
+    { "id": "s01", "role": "accroche", "page": 1, "texteDit": "Vos équipes ont l'IA, et leurs mails prennent le même temps.", "gabarit": { "role": "accroche" }, "elements": [
+      { "id": "e01", "type": "ligne", "texte": "Vos équipes ont l'IA, et leurs mails prennent le même temps.", "niveau": "texte", "role": "regle", "bloc": "phrase-cle", "ancre": 0, "marque": "entoure", "importants": ["équipes", "mails", "temps"] },
+      { "id": "e02", "type": "dessin", "dessinId": "enveloppe", "cote": "droite", "ancre": 5 } ] },
+    { "id": "s02", "role": "douleur", "page": 2, "texteDit": "On leur a donné l'outil, pas ce qu'il faut lui demander. Le compte rendu, tapé à la main.", "gabarit": { "role": "douleur" }, "elements": [
+      { "id": "e03", "type": "ligne", "texte": "On leur a donné l'outil, pas ce qu'il faut lui demander.", "niveau": "texte", "role": "regle", "bloc": "phrase-cle", "ancre": 0 },
+      { "id": "e04", "type": "ligne", "texte": "Le compte rendu, tapé à la main.", "niveau": "texte", "role": "alerte", "bloc": "detail", "ancre": 11 } ] },
+    { "id": "s03", "role": "etape", "page": 3, "texteDit": "Trois tâches à apprendre en premier, dix minutes gagnées par mail.", "gabarit": { "role": "solution" }, "elements": [
+      { "id": "e05", "type": "ligne", "texte": "Tâches à apprendre en premier, des minutes gagnées par mail.", "niveau": "texte", "role": "regle", "bloc": "phrase-cle", "ancre": 0 },
+      { "id": "e06", "type": "dessin", "dessinId": "horloge", "cote": "droite", "ancre": 6 } ] },
+    { "id": "s04", "role": "etape", "page": 4, "texteDit": "Un. Faites rédiger les réponses aux mails répétitifs. Collez la demande reçue, sans nom ni coordonnées, et demandez un brouillon.", "gabarit": { "role": "solution", "numero": { "n": 1, "ancre": 0 } }, "elements": [
+      { "id": "e07", "type": "ligne", "texte": "Faites rédiger", "niveau": "titre", "role": "regle", "bloc": "titre", "ancre": 1 },
+      { "id": "e08", "type": "ligne", "texte": "Faites rédiger les réponses aux mails répétitifs.", "niveau": "texte", "role": "regle", "bloc": "phrase-cle", "ancre": 1 },
+      { "id": "e09", "type": "ligne", "texte": "Collez la demande reçue", "niveau": "texte", "role": "regle", "bloc": "coche", "ancre": 8 },
+      { "id": "e10", "type": "ligne", "texte": "Sans nom ni coordonnées", "niveau": "texte", "role": "regle", "bloc": "coche", "ancre": 12 },
+      { "id": "e11", "type": "ligne", "texte": "Demandez un brouillon", "niveau": "texte", "role": "regle", "bloc": "coche", "ancre": 16 } ] },
+    { "id": "s05", "role": "etape", "page": 5, "texteDit": "Deux. Transformez les notes de réunion en compte rendu, et demandez trois actions.", "gabarit": { "role": "solution", "numero": { "n": 2, "ancre": 0 } }, "elements": [
+      { "id": "e12", "type": "ligne", "texte": "Transformez", "niveau": "titre", "role": "regle", "bloc": "titre", "ancre": 1 },
+      { "id": "e13", "type": "ligne", "texte": "Transformez les notes de réunion en compte rendu.", "niveau": "texte", "role": "regle", "bloc": "phrase-cle", "ancre": 1 } ] },
+    { "id": "s06", "role": "etape", "page": 6, "texteDit": "Trois. Faites préparer les relances de la semaine, avec un code à la place du nom.", "gabarit": { "role": "solution", "numero": { "n": 3, "ancre": 0 } }, "elements": [
+      { "id": "e14", "type": "ligne", "texte": "Faites préparer", "niveau": "titre", "role": "regle", "bloc": "titre", "ancre": 1 },
+      { "id": "e15", "type": "ligne", "texte": "Faites préparer les relances de la semaine.", "niveau": "texte", "role": "regle", "bloc": "phrase-cle", "ancre": 1 },
+      { "id": "e16", "type": "ligne", "texte": "Le nom → Un code", "niveau": "texte", "role": "regle", "bloc": "transformation", "ancre": 10 } ] },
+    { "id": "s07", "role": "exemple", "page": 7, "texteDit": "Exemple : avant, chaque mail lui prenait dix minutes.", "gabarit": { "role": "exemple" }, "elements": [
+      { "id": "e17", "type": "mention", "texte": "Exemple illustratif" },
+      { "id": "e18", "type": "ligne", "texte": "Avant, chaque mail lui prenait des minutes.", "niveau": "texte", "role": "alerte", "bloc": "avant", "ancre": 1 } ] },
+    { "id": "s08", "role": "preuve", "page": 7, "texteDit": "Maintenant, elle relit un brouillon et l'envoie : trois minutes.", "gabarit": { "role": "exemple" }, "elements": [
+      { "id": "e19", "type": "ligne", "texte": "Maintenant, elle relit un brouillon et l'envoie.", "niveau": "texte", "role": "resultat", "bloc": "apres", "ancre": 0 } ] },
+    { "id": "s09", "role": "resultat", "page": 8, "texteDit": "Une équipe apprend l'IA sur les tâches qu'elle refait chaque semaine.", "gabarit": { "role": "retenir" }, "elements": [
+      { "id": "e20", "type": "ligne", "texte": "Une équipe apprend l'IA sur les tâches qu'elle refait chaque semaine.", "niveau": "texte", "role": "regle", "bloc": "phrase-cle", "ancre": 0 } ] },
+    { "id": "s10", "role": "fin", "page": 9, "texteDit": "Axion-IA forme vos équipes et vous dit comment le faire financer. Réservez un appel de diagnostic.", "gabarit": { "role": "appel" }, "elements": [
+      { "id": "e21", "type": "ligne", "texte": "Axion-IA forme vos équipes et vous dit comment le faire financer.", "niveau": "texte", "role": "regle", "bloc": "detail", "ancre": 0 },
+      { "id": "e22", "type": "ligne", "texte": "Réservez un appel de diagnostic", "niveau": "titre", "role": "regle", "bloc": "appel", "ancre": 11 } ] }
+  ]
+}

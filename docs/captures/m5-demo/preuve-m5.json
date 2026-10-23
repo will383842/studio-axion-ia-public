@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-02T08:32:44.813Z",
+  "apercu": {
+    "dureeMs": 1612,
+    "plans": [
+      {
+        "texte": "Votre contestation part toujours avec un accusé de réception : c'est votre seule preuve.",
+        "requete": "un accusé de réception de lettre recommandée",
+        "origine": "a-fabriquer"
+      },
+      {
+        "texte": "Relisez aussi le contrat de location du véhicule avant de signer quoi que ce soit.",
+        "requete": "un contrat sur une table",
+        "origine": "reutilisee",
+        "licence": "Banque Axion",
+        "element": "Contrat sur une table"
+      },
+      {
+        "texte": "Un client a gardé ses 2 500 € en billets, simplement comme ça.",
+        "requete": "billets d'euros sur une table",
+        "origine": "banque",
+        "licence": "Pexels — https://www.pexels.com/video/counting-cash-and-planning-finance-with-banknotes-34812223/",
+        "element": "Counting cash and planning finance with banknotes"
+      },
+      {
+        "texte": "Moi, je suis tout dans ma console de suivi du budget, chaque semaine.",
+        "requete": "la console de suivi du budget",
+        "origine": "mes-images",
+        "licence": "Propriété Axion-IA",
+        "element": "Console budget studio"
+      }
+    ],
+    "resume": {
+      "mesImages": 1,
+      "reutilisees": 1,
+      "banques": 1,
+      "aFabriquer": 1,
+      "centimesAFabriquer": 13
+    },
+    "coutEstime": {
+      "centimes": 220,
+      "devise": "EUR"
+    },
+    "lignes": [
+      {
+        "etape": "Illustrations à fabriquer",
+        "fournisseur": "fal.ai",
+        "unite": "image",
+        "quantite": 1,
+        "prixUnitaire": {
+          "centimes": 13,
+          "devise": "EUR"
+        },
+        "total": {
+          "centimes": 13,
+          "devise": "EUR"
+        },
+        "nature": "estime"
+      }
+    ]
+  },
+  "banque": {
+    "texte": "Un client a gardé ses 2 500 € en billets, simplement comme ça.",
+    "requete": "billets d'euros sur une table",
+    "origine": "banque",
+    "licence": "Pexels — https://www.pexels.com/video/counting-cash-and-planning-finance-with-banknotes-34812223/",
+    "element": {
+      "nom": "Counting cash and planning finance with banknotes",
+      "licence": {
+        "type": "libre",
+        "usageCommercial": true,
+        "reseaux": [],
+        "source": "Pexels — https://www.pexels.com/video/counting-cash-and-planning-finance-with-banknotes-34812223/"
+      },
+      "empreinte": "pexels:34812223",
+      "motsCles": [
+        "billet",
+        "euro",
+        "table",
+        "counting",
+        "cash",
+        "and",
+        "planning",
+        "finance",
+        "with",
+        "banknotes"
+      ]
+    }
+  },
+  "fabrication": {
+    "versionId": "ver-7dcf7585a0f1",
+    "etape": {
+      "statut": "terminee",
+      "coutReel": {
+        "centimes": 14,
+        "devise": "EUR"
+      }
+    },
+    "plans": [
+      {
+        "phase": "faite",
+        "image": {
+          "modele": "fal-ai/nano-banana",
+          "coutUsdCentimes": 3.9
+        },
+        "clip": {
+          "modele": "fal-ai/bytedance/seedance/v1/pro/fast/image-to-video",
+          "coutUsdCentimes": 10.8
+        }
+      }
+    ],
+    "coutUsd": 0.14700000000000002,
+    "depenses": [
+      [
+        {
+          "etape": "Illustrations fabriquées",
+          "fournisseur": "fal.ai",
+          "unite": "image",
+          "quantite": 1,
+          "prixUnitaire": {
+            "centimes": 14,
+            "devise": "EUR"
+          },
+          "total": {
+            "centimes": 14,
+            "devise": "EUR"
+          },
+          "nature": "reel"
+        }
+      ]
+    ]
+  },
+  "bibliotheque": {
+    "id": "el-3e322d7ce01d",
+    "nom": "Un accusé de réception de lettre recommandée",
+    "type": "illustration-video",
+    "origine": "fabriquee",
+    "licence": {
+      "type": "generee-ia",
+      "usageCommercial": true,
+      "reseaux": [],
+      "source": "fal.ai — fal-ai/nano-banana puis fal-ai/bytedance/seedance/v1/pro/fast/image-to-video"
+    },
+    "motsCles": [
+      "accuse",
+      "reception",
+      "lettre",
+      "recommandee"
+    ],
+    "utilisations": 1,
+    "derniereVideoId": "v-5ef2b661741c"
+  },
+  "mesImages": {
+    "nom": "Console budget studio",
+    "categorie": "consoles",
+    "statut": "prete",
+    "zones": 3
+  }
+}

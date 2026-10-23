@@ -1,0 +1,113 @@
+{
+ "role": "juge",
+ "version": 1,
+ "sortie": {
+  "elements": [
+   {
+    "id": "corps-1",
+    "reponses": [
+     {
+      "id": "SCR-01",
+      "reponse": "oui",
+      "motif": "Aucune mention d'Axion-IA ni de cas : « Excel paraît gratuit » est dicible par tout concurrent."
+     },
+     {
+      "id": "ANC-01",
+      "reponse": "non",
+      "motif": "Aucun ancrage factuel ; seulement des affirmations générales, pas de fait vérifié relié au sujet."
+     },
+     {
+      "id": "CRED-01",
+      "reponse": "non",
+      "motif": "Conclusion mesurée : « c'est là que l'erreur passe inaperçue », sans promesse de résultat."
+     },
+     {
+      "id": "CRED-02",
+      "reponse": "oui",
+      "motif": "« tous les chiffres qui en dépendent sont faux » généralise ; « Ça se propage » aussi."
+     },
+     {
+      "id": "CRED-03",
+      "reponse": "non",
+      "motif": "Aucune limite : l'exception « si vos tableaux changent de forme » est absente du texte."
+     },
+     {
+      "id": "CRED-05",
+      "reponse": "sans-objet",
+      "motif": "Aucune preuve citée dans le texte, preuveIds vide."
+     },
+     {
+      "id": "CRED-06",
+      "reponse": "oui",
+      "motif": "Idée « paraît gratuit » réfutée par erreurs de copier-coller : le coût n'est pas chiffré."
+     },
+     {
+      "id": "VOIX-02",
+      "reponse": "non",
+      "motif": "Phrases courtes et orales, sans emphase commerciale : « Un tableur ne vérifie rien tout seul »."
+     },
+     {
+      "id": "RET-01",
+      "reponse": "non",
+      "motif": "« Ça se propage » et la dernière phrase répètent l'erreur déjà dite."
+     },
+     {
+      "id": "ENV-01",
+      "reponse": "oui",
+      "motif": "Le DAF peut repérer où « vos données sont recopiées à la main »."
+     },
+     {
+      "id": "ENV-02",
+      "reponse": "oui",
+      "motif": "Règle simple : chercher les recopies manuelles entre fichiers, là où l'erreur passe inaperçue."
+     },
+     {
+      "id": "ENV-03",
+      "reponse": "non",
+      "motif": "Le texte vise le « Dirigeant de PME », pas le DAF destinataire."
+     },
+     {
+      "id": "FIN-01",
+      "reponse": "non",
+      "motif": "Dernière phrase informative sur la formule fausse, aucune vente."
+     },
+     {
+      "id": "FMT-01",
+      "reponse": "oui",
+      "motif": "Phrases courtes autonomes, coupables après chacune sans perdre le sens."
+     },
+     {
+      "id": "CTA-01",
+      "reponse": "sans-objet",
+      "motif": "Aucun appel à l'action dans le texte."
+     },
+     {
+      "id": "PROM-01",
+      "reponse": "non",
+      "motif": "Promet « où le chercher » mais le « coût sur aucune facture » n'est pas dit."
+     },
+     {
+      "id": "PROB-01",
+      "reponse": "oui",
+      "motif": "« Dirigeant de PME, Excel paraît gratuit. Mais chaque copier-coller est une occasion d'erreur »."
+     },
+     {
+      "id": "REC-01",
+      "reponse": "non",
+      "motif": "Aucun client ni situation concrète ; seulement « Dirigeant de PME » en adresse."
+     },
+     {
+      "id": "BRF-01",
+      "reponse": "oui",
+      "motif": "Aucun volume d'heures, ni « 35 heures » ; image copier-coller à la main."
+     },
+     {
+      "id": "BRF-02",
+      "reponse": "oui",
+      "motif": "Aucun client ni résultat Axion-IA ; observation générale seulement."
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,8 @@
+# Installé avec `pip install --no-deps` : DeepFilterNet 0.5.6 (MIT / Apache 2.0) déclare numpy < 2, mais fonctionne avec
+# le numpy 2 du conteneur (seules des fonctions de base). Ses autres dépendances (sympy, packaging) viennent déjà
+# de torch et de matplotlib.
+# En panne (import, modèle) : la route /son se replie sur `afftdn` de FFmpeg, jamais d'échec.
+deepfilternet==0.5.6
+deepfilterlib==0.5.6
+appdirs==1.4.4
+loguru==0.7.3

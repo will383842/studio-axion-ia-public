@@ -1,0 +1,170 @@
+{
+ "role": "accroches",
+ "version": 1,
+ "sortie": {
+  "accroches": [
+   {
+    "famille": "situation-spectateur",
+    "objectif": "fin-de-visionnage",
+    "dit": "Dirigeant, chaque jour on exporte, on copie, on colle vos fichiers Excel. Et vous n'en voyez qu'une petite partie.",
+    "ecrit": "Tout ça pour si peu",
+    "vu": "Écran rempli d'onglets Excel ouverts, curseur qui copie-colle en boucle",
+    "anomalie": "Un travail quotidien qui ne donne qu'une vision partielle des données",
+    "boucleOuverte": "Ce qui manque dans ce qu'il voit, et comment le récupérer",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "contre-intuitif",
+    "objectif": "commentaire",
+    "dit": "Des dizaines de fichiers Excel, et le dirigeant ne voit qu'une petite partie de ses données.",
+    "ecrit": "Plus de fichiers, moins vu",
+    "vu": "Pile de fichiers Excel sur un bureau d'ordinateur, un seul graphique visible",
+    "anomalie": "Beaucoup de fichiers mais peu de visibilité",
+    "boucleOuverte": "Pourquoi tant de fichiers montrent si peu",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "cible-nommee",
+    "objectif": "envoi",
+    "dit": "Dirigeants : tout ce travail sur Excel, chaque jour, pour ne voir qu'une petite partie de vos données.",
+    "ecrit": "Une petite partie",
+    "vu": "Tableau Excel géant dont seule une cellule est éclairée",
+    "anomalie": "L'effort quotidien ne se transforme pas en vision",
+    "boucleOuverte": "Ce qui remplace ce travail sans perdre de données",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "mise-en-garde-destinataire",
+    "objectif": "envoi",
+    "dit": "Si votre DAF exporte, copie, colle et vérifie des fichiers Excel chaque jour, cette vidéo est pour lui.",
+    "ecrit": "Chaque jour. Encore.",
+    "vu": "Raccourcis Ctrl+C, Ctrl+V qui s'enchaînent sur un clavier, tableur en arrière-plan",
+    "anomalie": "La même routine manuelle répétée tous les jours",
+    "boucleOuverte": "Ce qu'il pourrait ne plus jamais faire à la main",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "question",
+    "objectif": "commentaire",
+    "dit": "Combien de fichiers Excel remplissez-vous chaque jour pour ne voir qu'une petite partie de vos données ?",
+    "ecrit": "Le compte, honnêtement",
+    "vu": "Dossier partagé qui défile, des dizaines de fichiers .xlsx",
+    "anomalie": "Le volume de fichiers contraste avec la faible visibilité",
+    "boucleOuverte": "Ce qu'on voit quand ces fichiers disparaissent",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "promesse",
+    "objectif": "sauvegarde",
+    "dit": "Comment avoir vos chiffres sans copier-coller entre des fichiers Excel chaque jour.",
+    "ecrit": "Les données arrivent seules",
+    "vu": "Tableau de bord dont les chiffres se mettent à jour seuls",
+    "anomalie": "Un copier-coller quotidien qui n'a plus de raison d'être",
+    "boucleOuverte": "Ce qui vérifie les données à la place de l'équipe",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-solution"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "verdict-expert",
+    "objectif": "commentaire",
+    "dit": "Fichiers Excel ou tableau de bord pour piloter ? Verdict : presque tous ces fichiers peuvent être remplacés par une IA.",
+    "ecrit": "Presque tous remplaçables",
+    "vu": "Liste de fichiers Excel qui se barrent un par un, un tableau de bord apparaît",
+    "anomalie": "Des fichiers gardés alors que presque tous sont remplaçables",
+    "boucleOuverte": "Lesquels restent, et lesquels partent",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-avis",
+     "will-excel-solution"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "situation-spectateur",
+    "objectif": "sauvegarde",
+    "dit": "Une seule erreur de formule dans un fichier Excel. Et tous les chiffres sont faux.",
+    "ecrit": "Une cellule suffit",
+    "vu": "Cellule Excel avec une formule erronée, total qui change en rouge",
+    "anomalie": "Une erreur minuscule fausse tout le reste",
+    "boucleOuverte": "Comment la repérer avant qu'elle fausse le mois",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-formule"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "erreur-commune",
+    "objectif": "fin-de-visionnage",
+    "dit": "L'erreur, c'est de piloter avec des fichiers Excel que personne n'a le temps de relire.",
+    "ecrit": "Personne ne relit",
+    "vu": "Fichier Excel non ouvert depuis des semaines, date de modification visible",
+    "anomalie": "Des chiffres de pilotage jamais relus",
+    "boucleOuverte": "Ce qui relit à la place de l'équipe",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-cause"
+    ],
+    "porteAngle": false
+   },
+   {
+    "famille": "contre-intuitif",
+    "objectif": "fin-de-visionnage",
+    "dit": "Exporter, copier, coller, vérifier, recommencer. Chaque jour. Pour une petite partie de vos données.",
+    "ecrit": "Et on recommence",
+    "vu": "Même séquence d'export Excel rejouée en accéléré, en boucle",
+    "anomalie": "Une boucle quotidienne qui ne montre presque rien",
+    "boucleOuverte": "Ce qui casse cette boucle sans perdre le contrôle",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-routine",
+     "will-excel-partie"
+    ],
+    "porteAngle": true
+   },
+   {
+    "famille": "cible-nommee",
+    "objectif": "envoi",
+    "dit": "Dirigeants : une erreur de formule passe, personne n'a eu le temps de relire, et les chiffres du mois sont faux.",
+    "ecrit": "Le mois entier faussé",
+    "vu": "Graphique mensuel qui bascule après correction d'une cellule",
+    "anomalie": "Une erreur non relue fausse tout le mois",
+    "boucleOuverte": "L'alerte qui la signale au moindre problème",
+    "preuveIds": [],
+    "matiereIds": [
+     "will-excel-cause",
+     "will-excel-solution"
+    ],
+    "porteAngle": false
+   }
+  ]
+ }
+}
