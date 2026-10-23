@@ -112,7 +112,8 @@ export function documentDuCas(cas: CasConcret, _options: OptionsDocument = {}): 
       ligne: e.ligne,
       detail: e.detail,
       humaine: e.humaine === true,
-      besoin: e.humaine ? "Vous. C'est une étape humaine" : objet ? BESOIN_PAR_OBJET[objet] : "À définir ensemble",
+      // Un coaching n'installe pas d'automatisation : ses besoins ne viennent pas de la banque des objets.
+      besoin: e.humaine ? "Vous. C'est une étape humaine" : objet && cas.offre !== "coaching" ? BESOIN_PAR_OBJET[objet] : "À définir ensemble",
     };
   });
   const limites = [

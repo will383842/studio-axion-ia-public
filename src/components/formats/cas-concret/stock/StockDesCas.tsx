@@ -6,7 +6,6 @@ import type { IdeeAutomatisation } from "@/formats/cas-concret/stock-idees";
 import { phraseSynthese, synthese, type EtatVideoCas, type LigneStock } from "@/services/cas-concret-stock";
 import { centimes, formaterMontant } from "@/lib/montants";
 import { filtrerStock, syntheseStock, type FiltresStock as Filtres } from "@/services/cas-concret-stock-synthese";
-import { BoutonRemettreEnStock } from "./BoutonRemettreEnStock";
 import { FiltresStock } from "./FiltresStock";
 import { groupesDepuisCompteurs, lienStock, PAR_PAGE } from "./filtres-stock";
 
@@ -61,44 +60,6 @@ function CarteStock({ l }: { l: LigneStock }) {
   );
 }
 
-/** Section « Déjà traités » : les cas dont la vidéo est allée au bout (plus disponibles), avec le moyen de les remettre en stock. */
-function DejaTraites({ lignes }: { lignes: readonly LigneStock[] }) {
-  const traites = lignes.filter((l) => l.traite);
-  return (
-    <section className="mt-6" aria-labelledby="deja-traites">
-      <h3 id="deja-traites" className="text-[15px] font-semibold text-texte">Déjà traités ({traites.length})</h3>
-      {traites.length === 0 ? (
-        <p className="mt-1 text-[13px] text-texte-doux">Aucun cas traité pour le moment.</p>
-      ) : (
-        <ul className="mt-2 flex flex-col gap-3 p-0">
-          {traites.map((l) => {
-            const t = l.traite!;
-            const jour = jourMois(t.le);
-            return (
-              <Carte as="li" key={l.casId} className="list-none">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[15px] font-semibold text-texte">{l.titre}</span>
-                  <span className="text-[13px] text-texte-doux">
-                    {jour ? `Traité le ${jour} · ` : ""}
-                    {t.videoId ? (
-                      <a className="inline-flex min-h-11 items-center text-orange-vif underline" href={`/videos/${t.videoId}`} aria-label={`Voir la vidéo : ${l.titre}`}>Voir la vidéo</a>
-                    ) : (
-                      "Vidéo supprimée"
-                    )}
-                  </span>
-                  <div>
-                    <BoutonRemettreEnStock casId={l.casId} titre={l.titre} />
-                  </div>
-                </div>
-              </Carte>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 /** Une case du bandeau : un chiffre et son nom. */
 function CaseBandeau({ nombre, libelle }: { nombre: number; libelle: string }) {
   return (
@@ -125,7 +86,7 @@ function TableauDeBord({ lignes, filtres, page }: { lignes: readonly LigneStock[
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Bandeau du stock">
         <CaseBandeau nombre={compteurs.total} libelle="Cas au total" />
         <CaseBandeau nombre={compteurs.parEtat.restant} libelle="Restants" />
-        <CaseBandeau nombre={compteurs.parEtat.traite} libelle="Déjà traités" />
+        <CaseBandeau nombre={compteurs.parEtat.traite} libelle="Déjà faits" />
         <CaseBandeau nombre={compteurs.parEtat["a-valider"]} libelle="À valider" />
         <CaseBandeau nombre={compteurs.parEtat.valide} libelle="Validés" />
       </div>
@@ -163,8 +124,8 @@ export function StockDesCas({ lignes, idees, tableau, ouvert: ouvertParLien }: {
   return (
     <>
     {nbTraites > 0 && (
-      <p className="mt-6 text-[13px] text-texte-doux">
-        <a className="inline-flex min-h-11 items-center text-orange-vif underline" href="?stock=1#deja-traites">{nbTraites > 1 ? `${nbTraites} cas déjà traités` : "1 cas déjà traité"} (voir plus bas, dans Stock des cas)</a>
+      <p className="mt-6">
+        <a className="inline-flex min-h-11 items-center rounded-sm text-[15px] font-semibold text-orange-vif underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href="/cas-concret/deja-faits">{nbTraites > 1 ? `${nbTraites} cas déjà faits` : "1 cas déjà fait"}</a>
       </p>
     )}
     <details id={tableau ? "stock" : undefined} open={ouvert || undefined} className="group mt-6 rounded-carte border border-trait bg-surface-1 p-4">
@@ -179,7 +140,11 @@ export function StockDesCas({ lignes, idees, tableau, ouvert: ouvertParLien }: {
           {lignes.map((l) => <CarteStock key={l.casId} l={l} />)}
         </ul>
       )}
-      <DejaTraites lignes={lignes} />
+      {nbTraites > 0 && (
+        <p className="mt-6 text-[13px] text-texte-doux">
+          Les cas déjà faits sont sur la <a className="inline-flex min-h-11 items-center text-orange-vif underline" href="/cas-concret/deja-faits">page Cas déjà faits</a>.
+        </p>
+      )}
       <section className="mt-6">
         <h3 className="text-[15px] font-semibold text-texte">Idées à venir ({idees.length})</h3>
         {idees.length === 0 ? (

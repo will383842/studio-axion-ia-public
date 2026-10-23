@@ -159,7 +159,9 @@ describe("finsParReseau (X6 : une seule demande par fin)", () => {
     expect(finsParReseau("formation", ["facebook"]).facebook).toEqual(["fin-if-mot", "fin-if-envoi-structure"]);
   });
 
-  it("une offre sans document (coaching) n'a jamais le mot", () => {
-    expect(finsParReseau("coaching", ["facebook", "instagram"]).facebook).toEqual(FB);
+  it("le coaching a le mot là où il est branché", () => {
+    const f = finsParReseau("coaching", ["facebook", "instagram"]);
+    expect(f.facebook).toEqual(["fin-if-mot", "fin-if-envoi-structure"]);
+    expect(f.instagram).toEqual(["fin-ig-mot-abonnement"]);
   });
 });

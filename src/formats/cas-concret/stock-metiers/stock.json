@@ -395,6 +395,101 @@
     },
     {
       "rangement": {
+        "fiche": "AS-10",
+        "secteur": "AS",
+        "metier": "artisanat.entreprise-nettoyage",
+        "metierNom": "Entreprise de nettoyage",
+        "taille": "PME",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "nettoyage-chefs-equipe-sites",
+        "version": 2,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Tenir des chefs d'équipe répartis sur plusieurs sites",
+        "theme": "Chefs d'équipe",
+        "promesse": "Vos chefs d'équipe n'appellent que pour l'essentiel.",
+        "cible": "Un dirigeant d'entreprise de nettoyage dont les chefs d'équipe sont répartis sur plusieurs sites.",
+        "avant": {
+          "taches": [
+            "Répondre à chaque appel en tournée",
+            "Trancher chaque question de site",
+            "Tout porter seul"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le point de départ",
+            "ligne": "On met à plat qui suit quel site.",
+            "detail": "Chaque chef d'équipe, ses sites et ce qui remonte aujourd'hui jusqu'à vous.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Ce que chacun décide",
+            "ligne": "On fixe ce que chaque chef décide seul.",
+            "detail": "Remplacer un agent, répondre à un client : ce qui se règle sur place.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le rythme",
+            "ligne": "On choisit quand vous vous parlez.",
+            "detail": "Un rendez-vous régulier remplace les appels dans la tournée.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Ce qui remonte",
+            "ligne": "On définit ce qui doit vous remonter.",
+            "detail": "Les vraies urgences, pas chaque question.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "pile-notifications"
+            }
+          },
+          {
+            "titre": "Votre cap",
+            "ligne": "Vous tranchez et vous tenez le cap.",
+            "detail": "Le ton avec chaque chef d'équipe et les décisions restent les vôtres.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Toutes les décisions, et le ton avec vos chefs d'équipe.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vos chefs d'équipe savent ce qu'ils décident, et vos tournées sont moins interrompues.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "CHEFS",
+        "vigilance": [
+          "Ne promettre aucun gain de temps chiffré.",
+          "Ne citer aucun nombre de contrats gagnés.",
+          "Ne jamais dire que l'outil gère vos équipes à votre place."
+        ]
+      }
+    },
+    {
+      "rangement": {
         "fiche": "BT-02",
         "secteur": "BT",
         "metier": "btp.plombier",
@@ -591,6 +686,102 @@
           "Ne citer aucun montant d'aide ni règle d'éligibilité.",
           "Ne promettre aucun gain de temps chiffré.",
           "Ne pas dire que l'outil règle la chaudière."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "BT-05",
+        "secteur": "BT",
+        "metier": "btp.plombier",
+        "metierNom": "Plombier",
+        "taille": "TPE",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": null,
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "plombier-devis-du-dimanche",
+        "version": 1,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Ne plus faire ses devis le dimanche soir",
+        "theme": "Dimanche soir",
+        "promesse": "Retrouver vos dimanches soirs.",
+        "cible": "Un plombier seul qui monte ses devis le week-end, faute de temps en semaine.",
+        "avant": {
+          "taches": [
+            "Monter les devis le dimanche",
+            "Recopier un ancien devis",
+            "Corriger les lignes une à une",
+            "Commencer la semaine fatigué"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Le constat",
+            "ligne": "On regarde ensemble où passe votre dimanche soir.",
+            "detail": "Quels devis, pour quels clients, avec quelle fatigue.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le tri",
+            "ligne": "Vous choisissez les demandes qui méritent un devis.",
+            "detail": "Certaines ne demandent qu'un prix donné au téléphone.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "La règle",
+            "ligne": "Vous fixez un créneau de semaine pour les devis.",
+            "detail": "Un horaire, un lieu, une durée que vous tenez.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "La tenue",
+            "ligne": "Vous dites non quand la règle le demande.",
+            "detail": "Seul le dirigeant peut refuser une demande.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "Le point",
+            "ligne": "On refait le point après quelques semaines.",
+            "detail": "Ce qui tient reste, le reste s'ajuste.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "chrono"
+            }
+          }
+        ],
+        "resteHumain": "Décider de vos règles et les tenir devant vos clients.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Vous avez une règle et un créneau de semaine pour vos devis.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "DIMANCHE",
+        "vigilance": [
+          "Ne promettre aucun gain de temps chiffré.",
+          "Ne donner aucun conseil sur les règles d'installation.",
+          "Rester sur l'organisation du dirigeant, sans promesse de résultat."
         ]
       }
     },
@@ -974,6 +1165,102 @@
           "Aucun chiffre de durée, de volume ou de coût.",
           "Ne pas parler de sécurité des données comme d'un acquis.",
           "Dire qui s'en occupe ensuite dans l'entreprise."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "DG-05",
+        "secteur": "DG",
+        "metier": "generaliste.generaliste-dirigeant-entreprise-tous-metiers",
+        "metierNom": "Dirigeant tous métiers",
+        "taille": "PME",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": "generaliste.generaliste-dirigeant-entreprise-tous-metiers.coaching.c01",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "dg-par-quoi-commencer-tout-urgent",
+        "version": 1,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Par quoi commencer quand tout paraît urgent",
+        "theme": "Priorités",
+        "promesse": "Un seul sujet pour commencer, choisi avec vous.",
+        "cible": "Un dirigeant de PME qui voit passer beaucoup d'outils et de sujets, et n'en lance aucun.",
+        "avant": {
+          "taches": [
+            "Ouvrir un outil puis l'abandonner",
+            "Déplacer une pile d'un coin à l'autre",
+            "Remettre la décision à plus tard"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Tout poser",
+            "ligne": "On pose sur la table tout ce qui paraît urgent.",
+            "detail": "Outils, demandes, idées, sans tri.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Trier",
+            "ligne": "On sépare ce qui brûle de ce qui peut attendre.",
+            "detail": "Avec les mots de votre entreprise.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Choisir",
+            "ligne": "Vous retenez un seul sujet pour commencer.",
+            "detail": "Le plus utile, pas le plus bruyant.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "En parler",
+            "ligne": "Vous expliquez à votre équipe pourquoi celui-là.",
+            "detail": "Sans l'inquiéter.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Se revoir",
+            "ligne": "On se revoit pour ajuster le cap.",
+            "detail": "Le sujet suivant vient ensuite.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          }
+        ],
+        "resteHumain": "La décision elle-même, et la façon d'en parler à l'équipe.",
+        "resteHumainApresEtape": 2,
+        "resultat": "Un point de départ choisi, expliqué à l'équipe, sans dispersion.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "PRIORITE",
+        "vigilance": [
+          "Pas de méthode miracle ni de résultat chiffré.",
+          "Ne pas décider à la place du dirigeant.",
+          "Pas de grands mots de cabinet : parler de son entreprise.",
+          "Dire qui s'occupe du sujet retenu dans l'équipe."
         ]
       }
     },
@@ -1513,6 +1800,92 @@
           "Ne jamais promettre un délai de réponse chiffré ni un devis en plus.",
           "L'audit constate et propose : il ne change rien sans accord.",
           "Ne jamais promettre un temps d'usinage réduit ni un taux de rebut."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-07",
+        "secteur": "IN",
+        "metier": "industrie.mecanique-metallurgie",
+        "metierNom": "Atelier d'usinage",
+        "taille": "TPE",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": "industrie.mecanique-metallurgie.coaching.c01",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "usinage-savoir-faire",
+        "version": 1,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Garder son savoir-faire sans en être prisonnier",
+        "theme": "Savoir-faire",
+        "promesse": "Garder son savoir-faire sans le porter seul",
+        "cible": "Dirigeant d'un atelier d'usinage dont tout le savoir-faire repose sur lui",
+        "avant": {
+          "taches": [
+            "Tout garder dans sa tête",
+            "Être la seule personne à savoir",
+            "Ne jamais pouvoir s'éloigner"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Ce que vous seul savez",
+            "ligne": "On met à plat ce que vous seul savez faire.",
+            "detail": "Réglages, gammes, séries, façons de chiffrer : tout est listé.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Ce qui peut s'écrire",
+            "ligne": "Vous triez ce qui se transmet et ce qui se garde.",
+            "detail": "Chaque élément reçoit sa réponse, sans pression.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Le premier pas",
+            "ligne": "Vous choisissez une première gamme à transmettre.",
+            "detail": "Un seul sujet, un rendez-vous fixé.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Le premier réglage",
+            "ligne": "Le premier réglage est montré à un régleur.",
+            "detail": "Vous le montrez gamme en main, à votre rythme.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Choisir ce que vous transmettez.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Vous savez ce qui reste à vous et ce qui peut se partager.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "TRANSMETTRE",
+        "vigilance": [
+          "Un coaching accompagne le dirigeant : ne pas le présenter comme une automatisation.",
+          "Ne jamais promettre un résultat de production ni un taux de rebut.",
+          "Parler d'atelier, de gestes et de devis, sans mot de spécialiste."
         ]
       }
     },
@@ -2156,6 +2529,92 @@
     },
     {
       "rangement": {
+        "fiche": "IN-15",
+        "secteur": "IN",
+        "metier": "industrie.sous-traitant-industriel",
+        "metierNom": "Sous-traitant industriel",
+        "taille": "PME",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": "industrie.sous-traitant-industriel.coaching.c01",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "soustraitant-client-dominant",
+        "version": 1,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Ne plus dépendre d'un client dominant",
+        "theme": "Client dominant",
+        "promesse": "Ne plus tout attendre d'un seul client",
+        "cible": "Un dirigeant de sous-traitant dont le plan de charge tient à un donneur d'ordre",
+        "avant": {
+          "taches": [
+            "Dépendre d'un seul donneur d'ordre",
+            "Repousser la prospection",
+            "Craindre une baisse de commandes"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "L'état des lieux",
+            "ligne": "On regarde d'où vient votre plan de charge.",
+            "detail": "Quels donneurs d'ordre pèsent le plus, et pourquoi.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Le temps réservé",
+            "ligne": "On vous réserve un créneau fixe pour prospecter.",
+            "detail": "Protégé du quotidien, jour après jour.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Les cibles",
+            "ligne": "Vous choisissez les entreprises à approcher.",
+            "detail": "Le choix reste le vôtre, comme l'effort que vous y mettez.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "Le point régulier",
+            "ligne": "On fait le point à chaque étape.",
+            "detail": "On ajuste la méthode avec vous.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "rapport"
+            }
+          }
+        ],
+        "resteHumain": "Décider de l'effort de prospection.",
+        "resteHumainApresEtape": 3,
+        "resultat": "Vous avez un temps réservé et une méthode pour développer.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "DEPENDRE",
+        "vigilance": [
+          "Ne jamais promettre un nouveau client ni un chiffre d'affaires en plus.",
+          "Un coaching accompagne le dirigeant : il ne prospecte pas à sa place.",
+          "Ne pas le présenter comme une automatisation."
+        ]
+      }
+    },
+    {
+      "rangement": {
         "fiche": "IN-16",
         "secteur": "IN",
         "metier": "industrie.sous-traitant-industriel",
@@ -2701,6 +3160,101 @@
     },
     {
       "rangement": {
+        "fiche": "IN-27",
+        "secteur": "IN",
+        "metier": "industrie.agroalimentaire",
+        "metierNom": "Agroalimentaire",
+        "taille": "ETI",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": "industrie.agroalimentaire.coaching.c02",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "agro-qualite-pompier",
+        "version": 1,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Quand la responsable qualité joue les pompiers toute la journée",
+        "theme": "Responsable qualité",
+        "promesse": "La qualité n'est plus appelée pour tout.",
+        "cible": "Un directeur de site agroalimentaire dont la responsable qualité est appelée pour chaque urgence.",
+        "avant": {
+          "taches": [
+            "Répondre à chaque urgence",
+            "Voir la ligne attendre son retour",
+            "Ne jamais avoir le temps du fond"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "L'état des lieux",
+            "ligne": "On liste ce qui remonte jusqu'à la qualité.",
+            "detail": "Pour chaque site : qui appelle, pour quoi, à quel moment.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Le tri des urgences",
+            "ligne": "On sépare l'urgent de ce qui se prépare.",
+            "detail": "Une méthode en étapes, avec des priorités que vous défendez en comité de direction.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Les règles communes",
+            "ligne": "On pose des règles d'usage communes à vos sites.",
+            "detail": "Ce que chacun retrouve seul, ce qui passe par la qualité.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "dossier-classe"
+            }
+          },
+          {
+            "titre": "La parole à la qualité",
+            "ligne": "On prépare la conversation avec elle.",
+            "detail": "Elle est soutenue devant les équipes, elle ne subit pas le changement.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            },
+            "humaine": true
+          },
+          {
+            "titre": "Le point d'étape",
+            "ligne": "On revoit les priorités ensemble.",
+            "detail": "Chaque étape est ajustée avant la suivante.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          }
+        ],
+        "resteHumain": "La soutenir devant les équipes, décider de ce qui se partage.",
+        "resteHumainApresEtape": 3,
+        "resultat": "La ligne sait quoi faire en l'absence de la qualité.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "POMPIER",
+        "vigilance": [
+          "Ne jamais présenter l'outil comme un remplaçant de la qualité.",
+          "Aucune règle d'hygiène ni de sécurité des aliments.",
+          "Aucun gain de temps annoncé."
+        ]
+      }
+    },
+    {
+      "rangement": {
         "fiche": "IN-33",
         "secteur": "IN",
         "metier": "industrie.service-apres-vente-maintenance",
@@ -2784,6 +3338,100 @@
           "Aucun montant ni prix annoncé.",
           "Aucun délai de paiement promis.",
           "Une facture ne part jamais sans validation."
+        ]
+      }
+    },
+    {
+      "rangement": {
+        "fiche": "IN-35",
+        "secteur": "IN",
+        "metier": "industrie.service-apres-vente-maintenance",
+        "metierNom": "Maintenance industrielle, SAV",
+        "taille": "ETI",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": "industrie.service-apres-vente-maintenance.coaching.c02",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "sav-savoir-des-anciens",
+        "version": 1,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Transmettre le savoir des anciens techniciens",
+        "theme": "Transmission",
+        "promesse": "Transmettre le savoir avant le départ des anciens.",
+        "cible": "Un directeur de maintenance d'une ETI dont le savoir part à la retraite avec ses anciens techniciens.",
+        "avant": {
+          "taches": [
+            "Voir partir les anciens avec leur savoir",
+            "Transmettre au hasard des échanges",
+            "N'avoir rien d'écrit sur les équipements"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Ce qui se sait",
+            "ligne": "On repère ce que seuls les anciens savent.",
+            "detail": "Site par site, équipement par équipement.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "carte-taches"
+            }
+          },
+          {
+            "titre": "Les anciens en confiance",
+            "ligne": "On prépare la conversation avec eux.",
+            "detail": "Il s'agit de les convaincre, pas de les remplacer.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Une méthode commune",
+            "ligne": "On choisit comment le savoir est noté.",
+            "detail": "Des règles d'usage communes à vos sites.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "programme"
+            }
+          },
+          {
+            "titre": "Les premières étapes",
+            "ligne": "On commence par un équipement et un ancien.",
+            "detail": "Le reste suit par étapes, selon vos priorités.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "liste-taches"
+            }
+          },
+          {
+            "titre": "Le point d'étape",
+            "ligne": "On revoit ensemble ce qui a été recueilli.",
+            "detail": "Le comité de direction suit l'avancement.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          }
+        ],
+        "resteHumain": "Convaincre les anciens de transmettre ; décider de ce qui est gardé.",
+        "resteHumainApresEtape": 2,
+        "resultat": "Le savoir des anciens est repéré et son recueil engagé avec eux.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "ANCIENS",
+        "vigilance": [
+          "Jamais présenté comme un remplacement des anciens.",
+          "Aucune règle de sécurité d'intervention dictée par l'IA.",
+          "Aucun gain de temps annoncé."
         ]
       }
     },
@@ -3280,6 +3928,100 @@
     },
     {
       "rangement": {
+        "fiche": "LT-12",
+        "secteur": "LT",
+        "metier": "industrie.logisticien-entrepot",
+        "metierNom": "Logisticien, entrepôt",
+        "taille": "ETI",
+        "socle": "CO",
+        "inventaire": [],
+        "niveauPreuve": "sans-automatisation",
+        "douleur": "organisation-dirigeant",
+        "casUsage": "industrie.logisticien-entrepot.coaching.c02",
+        "voisinCatalogue": null,
+        "angle": null
+      },
+      "cas": {
+        "id": "entrepot-confiance-quai",
+        "version": 1,
+        "offre": "coaching",
+        "posture": "offre",
+        "titre": "Garder la confiance des équipes de quai",
+        "theme": "Confiance",
+        "promesse": "Un outil nouveau sans perdre la confiance.",
+        "cible": "Un directeur logistique dont les équipes de quai redoutent qu'un nouvel outil serve à mesurer chacun.",
+        "avant": {
+          "taches": [
+            "Entendre l'inquiétude circuler",
+            "Répondre au cas par cas sur chaque site",
+            "Voir les changements ralentir"
+          ]
+        },
+        "etapes": [
+          {
+            "titre": "Nommer la crainte",
+            "ligne": "Vous mettez des mots sur ce que redoutent les équipes.",
+            "detail": "Première étape de la méthode : écouter avant d'annoncer quoi que ce soit.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "champ-commentaire"
+            }
+          },
+          {
+            "titre": "Poser l'engagement",
+            "ligne": "Vous choisissez ce qui ne sera pas suivi individuellement.",
+            "detail": "Vous écrivez la règle en termes simples, que chacun comprend.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "contrat-signature"
+            }
+          },
+          {
+            "titre": "Le dire aux sites",
+            "ligne": "Vous annoncez l'engagement avec une méthode commune.",
+            "detail": "Les mêmes mots, sur tous vos sites, pour éviter les versions différentes.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "programme"
+            }
+          },
+          {
+            "titre": "Le point régulier",
+            "ligne": "Un point régulier vérifie que la promesse tient.",
+            "detail": "Les remontées du terrain servent à ajuster, sans surprise.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "calendrier"
+            }
+          },
+          {
+            "titre": "Tenir",
+            "ligne": "Vous tenez votre engagement dans la durée.",
+            "detail": "C'est vous, et personne d'autre, qui gardez la confiance.",
+            "visuel": {
+              "sorte": "objet",
+              "objet": "bouclier-coche"
+            },
+            "humaine": true
+          }
+        ],
+        "resteHumain": "Tenir cet engagement dans la durée.",
+        "resteHumainApresEtape": 4,
+        "resultat": "Vos équipes savent ce qui ne sera pas suivi, et vous tenez parole.",
+        "faits": [],
+        "documentPromis": {
+          "nom": "Déroulé de l'accompagnement",
+          "finCadeauId": "fin-if-cadeau-coaching"
+        },
+        "mot": "CONFIANCE",
+        "vigilance": [
+          "Ne promettre aucun taux de service ni réduction d'erreurs chiffrée.",
+          "Ne rien promettre que le directeur ne pourra pas tenir."
+        ]
+      }
+    },
+    {
+      "rangement": {
         "fiche": "NB-04",
         "secteur": "NB",
         "metier": "commerce.grossiste-negoce",
@@ -3770,12 +4512,6 @@
           "L'outil ne dit jamais qui paie un dommage : cela reste une décision."
         ]
       }
-    }
-  ],
-  "retires": [
-    {
-      "id": "nettoyage-chefs-equipe-sites",
-      "derniereVersion": 1
     }
   ]
 }

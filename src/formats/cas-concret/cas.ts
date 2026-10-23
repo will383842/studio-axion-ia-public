@@ -7,7 +7,7 @@ import { jsonCanonique } from "../../briques/fiche-scenes/empreinte";
 
 /**
  * Les services d'Axion-IA, pour l'Usine comme pour le studio (X5). Automatisation et intégration sont une seule offre,
- * `integration` ; `coaching` n'a encore aucun cas au catalogue.
+ * `integration`.
  */
 export const OFFRES = ["formation", "audit", "integration", "coaching"] as const;
 export type Offre = (typeof OFFRES)[number];

@@ -17,9 +17,9 @@ import { statutEffectif } from "./sujets-traites";
 import type { StatutVideo } from "./types";
 
 export const FORMAT_CAS_CONCRET = "cas-concret";
-export const PHRASE_CAS_TRAITE = "Ce cas est déjà traité : il n'est plus disponible. Pour le rouvrir : Stock des cas › Déjà traités › Remettre en stock.";
+export const PHRASE_CAS_TRAITE = "Ce cas est déjà traité : il n'est plus disponible. Pour le rouvrir : Cas concret MD › Cas déjà faits › Remettre en stock.";
 /** Refus d'une relance (panne) dont le cas est fini par une autre vidéo. */
-export const PHRASE_RELANCE_CAS_TRAITE = "Une autre vidéo de ce cas est déjà finie : cette relance est refusée, rien n'est dépensé. Pour refaire ce cas, remettez-le en stock (Stock des cas › Déjà traités).";
+export const PHRASE_RELANCE_CAS_TRAITE = "Une autre vidéo de ce cas est déjà finie : cette relance est refusée, rien n'est dépensé. Pour refaire ce cas, remettez-le en stock (Cas concret MD › Cas déjà faits › Remettre en stock).";
 /** Travaux d'une vidéo déjà finie (retouche, réexport, sous-titres) : la garde « cas traité » ne les touche pas. */
 export const TRAVAUX_SUR_VIDEO_FINIE: readonly string[] = ["retouche", "reexport", "recalque-sous-titres"];
 
