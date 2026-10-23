@@ -38,7 +38,8 @@ import { versionsRoles } from "@/generateur/roles";
 import { nouvelId } from "@/lib/ids";
 import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { exigerSession } from "./auth";
-import { chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
+import { effacerRepriseDeWill, limiteSecuriteUsd, marquerRepriseDeWill, plafondAnnonceUsd, phraseArretSecuriteEcriture, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
+import { budgetIndicatifPour } from "./mode-budget";
 import { gagnantsDuJour, poidsApprentissage } from "./apprentissage";
 import { controlerSujetCentral, ErreurSujetDejaTraite } from "./sujet-central-controle";
 import { attribuerNumero, attribuerNumeroSousVerrou, creerSujet, prendreEpisode, PLAFOND_SUPPLEMENT_ADRESSE_USD, PLAFOND_SUPPLEMENT_USD, rattacherVideoAVariante, reporterCorps, retoucherCorps, retoucherVariante, synchroniserSujet, validerVersions, type BriefSujet } from "./generateur";
@@ -68,7 +69,7 @@ interface OptionsGeneration {
    */
   origine?: OrigineLancement;
   /**
-   * Chaîne qui écrit, FIGÉE au lancement (réglage `generateur.chaine`, « je choisis » : toujours la grande) : une écriture
+   * Chaîne qui écrit, FIGÉE au lancement (depuis le 23/10/2026 toute NOUVELLE écriture est sur la courte, `chaineDeLEcriture`) : une écriture
    * finit sur la chaîne où elle a commencé, même si le réglage change en route. Absente (écriture d'avant ce champ) : la
    * grande.
    */
@@ -435,7 +436,12 @@ export async function tourBoucleGeneration(executeur?: (generationId: Id) => Exe
     g = [...candidates.filter((c) => !pannes.get(c.id)), ...candidates.filter((c) => !!pannes.get(c.id))].find((c) => (pannes.get(c.id)?.prochainEssai ?? "") <= t);
     if (!g) return null;
     const origine = (await lireParametre<OptionsGeneration | null>(cleOptions(g.id), null))?.origine;
-    await deroulerGeneration(g, executeur ? executeur(g.id) : executeurFacture(g.id, origine));
+    try {
+      await deroulerGeneration(g, executeur ? executeur(g.id) : executeurFacture(g.id, origine));
+    } finally {
+      // Le drapeau « Reprendre de Will » (seuil de confirmation levé) ne vaut que pour CE tour.
+      await effacerRepriseDeWill(g.id);
+    }
     // Relecture finale : l'épisode de la série se prend à la première étape vraiment payée (jamais par un essai).
     const apres = await d.generations.obtenir(g.id);
     if (apres && !ecritureEnEssai(apres) && apres.etapes.some((x) => !!x.termineLe && x.modeleDemande !== "simulation")) await prendreEpisode(g.scriptMaitreId);
@@ -554,7 +560,7 @@ async function prixAConfirmerArretee(liste: { g: GenerationScript; releveUsd: nu
   for (const { g, releveUsd } of liste) {
     const plafond = await plafondRepriseUsd(g);
     if (plafond > g.plafondUsd + 1e-9) releveAuReglage = true;
-    prixUsd += (await devisReprise(g, plafond + releveUsd)).prixUsd;
+    prixUsd += (await devisReprise(g, plafond + releveUsd, releveUsd)).prixUsd;
   }
   if (releveAuReglage && prixUsd > 0) {
     const montant = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
@@ -577,7 +583,7 @@ export async function reprendreEcritureArretee(scriptMaitreId: Id, accord?: Acco
   // Correctif après relecture (15/10) : la reprise (après une réponse coupée, une panne) ne part que si son pire cas,
   // RECALCULÉ avec ce qui est déjà dépensé, tient sous le plafond ; sinon le bouton l'a déjà dit, rien ne change ici.
   for (const { g, releveUsd } of liste) {
-    const devis = await devisReprise(g, (await plafondRepriseUsd(g)) + releveUsd);
+    const devis = await devisReprise(g, (await plafondRepriseUsd(g)) + releveUsd, releveUsd);
     if (!devis.possible) throw new ErreurStudio("REPRISE_IMPOSSIBLE", devis.raison!);
   }
   const aConfirmer = await prixAConfirmerArretee(liste);
@@ -621,7 +627,7 @@ export async function ecritureArretee(scriptMaitreId: Id): Promise<{ message: st
   // Correctif après relecture (15/10) : si la reprise ne peut pas partir, le bouton dit pourquoi (jamais un prix puis un refus).
   let bloque: string | undefined;
   for (const x of liste) {
-    const devis = await devisReprise(x.g, (await plafondRepriseUsd(x.g)) + x.releveUsd);
+    const devis = await devisReprise(x.g, (await plafondRepriseUsd(x.g)) + x.releveUsd, x.releveUsd);
     if (!devis.possible) bloque ??= devis.raison;
   }
   return { message: panne.message, portee: g.portee, ...(supplement ? { supplement } : {}), ...(bloque ? { bloque } : {}) };
@@ -671,7 +677,7 @@ async function releverPlafondAuReglage(g: GenerationScript): Promise<void> {
  * calcul que la réserve du tour suivant (`reserverPireCasChaine`) : si le devis dit « possible », la reprise part ; sinon
  * il dit pourquoi, et aucun prix n'est proposé. Écriture déjà en route sans réserve : ce que le plafond laisse, au plus.
  */
-async function devisReprise(g: GenerationScript, plafondUsd: number): Promise<DevisReprise> {
+async function devisReprise(g: GenerationScript, plafondUsd: number, releveUsd = 0): Promise<DevisReprise> {
   const depenseUsd = depenseGenerationUsd(g);
   const sansReserve = await ecritureSansReserve(g);
   const base = { plafondUsd, depenseUsd, sansReserve };
@@ -688,13 +694,19 @@ async function devisReprise(g: GenerationScript, plafondUsd: number): Promise<De
   const chaine = chaineDe(o);
   const depart = await departDe(g, o, limite);
   const pire = pireCasChaine(chaine, { donnees: z.donnees, options: optionsPireCas(chaine, optionsDeLaChaine(chaine, z), chaine === "courte" && (await memoireCentraleAllumee())), etatDepart: depart ?? undefined }).usd;
-  const reste = Math.max(0, plafondUsd - depenseUsd);
+  // Mode indicatif (commande de Will) : le plafond du sujet est un repère, la reprise est possible jusqu'à 5 × ce plafond (même règle que la réserve du tour).
+  const indicatif = await budgetIndicatifPour(o.origine);
+  const limiteUsd = indicatif ? Math.max(plafondUsd, limiteSecuriteUsd({ ...g, plafondUsd }, releveUsd)) : plafondUsd;
+  const annonceUsd = plafondAnnonceUsd({ ...g, plafondUsd }, releveUsd);
+  const reste = Math.max(0, limiteUsd - depenseUsd);
   const reglage = await reglageDe(g, o);
   if (sansReserve) {
     if (reste >= 0.01) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
+    if (indicatif) return { ...base, possible: false, prixUsd: 0, raison: phraseArretSecuriteEcriture(annonceUsd) };
     return { ...base, possible: false, prixUsd: 0, raison: `Plafond de l'écriture atteint (${formaterUsd(depenseUsd)} $ utilisés sur ${formaterUsd(plafondUsd)} $) : elle ne peut pas reprendre.${reglage ? ` Relevez le réglage « ${reglage} » pour la reprendre.` : ""}` };
   }
-  if (depenseUsd + pire <= plafondUsd + 1e-9) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
+  if (depenseUsd + pire <= limiteUsd + 1e-9) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
+  if (indicatif) return { ...base, possible: false, prixUsd: 0, raison: phraseArretSecuriteEcriture(annonceUsd) };
   return { ...base, possible: false, prixUsd: 0, raison: await phrasePireCasTropHaut({ pireCasUsd: depenseUsd + pire, plafondUsd, reglage }, "elle ne peut pas reprendre") };
 }
 
@@ -761,6 +773,7 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
     await releverPlafondAuReglage(g);
     if (g.statut === "plafond-atteint") {
       await d.generations.modifier(g.id, { statut: "en-cours" });
+      await marquerRepriseDeWill(g.id);
       await journaliser("generateur", `Écriture reprise par Will (au plus ${formaterMontant(prix)}).`, { type: "sujet", id: scriptMaitreId });
       n++;
     }
@@ -865,7 +878,7 @@ async function deroulerGeneration(g: GenerationScript, executeur: ExecuteurRoles
   // (écriture payante seulement). Au-dessus du plafond, rien ne part. Une écriture déjà en route sans réserve au moment de
   // la mise en ligne n'est jamais arrêtée au milieu : elle garde le contrôle appel par appel.
   if (executeur.facture && !ecritureEnEssai(g) && (await claudeBranche()) && !(await ecritureSansReserve(g))) {
-    const reserve = await reserverPireCasChaine(g.id, { pireCasRestantUsd: pireCasChaine(chaine, { donnees: z.donnees, options: optionsPireCas(chaine, options, memoireAllumee), etatDepart: depart ?? undefined }).usd, etape: depart ? etapeDeDepart(depart) : 0, chaine, reglage: await reglageDe(g, o) });
+    const reserve = await reserverPireCasChaine(g.id, { pireCasRestantUsd: pireCasChaine(chaine, { donnees: z.donnees, options: optionsPireCas(chaine, options, memoireAllumee), etatDepart: depart ?? undefined }).usd, etape: depart ? etapeDeDepart(depart) : 0, chaine, reglage: await reglageDe(g, o), indicatif: await budgetIndicatifPour(o.origine) });
     if (!reserve.ok) return;
   }
   // L'aiguillage : la chaîne FIGÉE au lancement (courte en production, « équipe » derrière son réglage, grande derrière le

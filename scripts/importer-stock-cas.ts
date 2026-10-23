@@ -180,7 +180,7 @@ export async function principal(argv: readonly string[]): Promise<number> {
   const essai = argv.includes("--essai");
   const iSortie = argv.indexOf("--sortie");
   const sortie = iSortie >= 0 ? argv[iSortie + 1] : CHEMIN_STOCK;
-  const entree = argv.find((a, i) => !a.startsWith("--") && i !== iSortie + 1);
+  const entree = argv.find((a, i) => !a.startsWith("--") && (iSortie < 0 || i !== iSortie + 1));
   if (!entree || !sortie) {
     console.error("Usage : npx tsx scripts/importer-stock-cas.ts <stock-cas-metiers.json> [--sortie <stock.json>] [--essai]");
     return 1;

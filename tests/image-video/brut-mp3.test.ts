@@ -146,7 +146,8 @@ describe.skipIf(!FFMPEG_PRESENT)("son brut MP3 (copie HeyGen) → WAV avant de m
     expect(etat.etape).toBe("prete");
     expect(etat.livraison?.map((l) => l.reseau)).toEqual(["youtube-shorts", "linkedin", "instagram", "facebook"]);
     const bruts = [...m.sons.keys()].filter((k) => /^brut-\d+\.mp3$/.test(k));
-    expect(bruts.length).toBeGreaterThan(1);
+    // 20/10 : la voix est lue d'un trait (un seul brut) ; avant, un brut par fin distincte.
+    expect(bruts.length).toBe(1);
     // Chaque brut converti une seule fois, et rangé en WAV à côté du MP3.
     expect(compte.conversions).toBe(bruts.length);
     for (const b of bruts) expect(estWav(m.sons.get(cleWavDuBrut(b))!)).toBe(true);

@@ -86,7 +86,7 @@ brancherServicesFacecam({
   monteur: (c, travailId) => async ({ entrees, mots, dureePriseSec }) => {
     const { monteurPourFabrication } = await import("./monteur-facecam");
     const video = await depots().videos.obtenir(c.videoId);
-    const { entrees: apres, resultat } = await monteurPourFabrication(c.videoId, { entrees, plafondClaudeAtteint: c.plafondClaudeAtteint }, { titre: video?.titre ?? "", mots, dureePriseSec, depuis: await debutDuTravail(travailId) });
+    const { entrees: apres, resultat } = await monteurPourFabrication(c.videoId, { entrees, plafondClaudeAtteint: c.plafondClaudeAtteint, ...(c.origine ? { origine: c.origine } : {}) }, { titre: video?.titre ?? "", mots, dureePriseSec, depuis: await debutDuTravail(travailId) });
     // Ce que le monteur a compris et posé est gardé sur la vidéo (fil, « Annuler une consigne », retouches). Relue au
     // retour de l'appel : supprimée définitivement entre-temps, rien n'est écrit.
     const fraiche = video ? await depots().videos.obtenir(video.id) : null;
@@ -145,7 +145,7 @@ brancherServicesFacecam({
     const { lireReglagesMonteur } = await import("@/moteurs/montage-facecam/monteur");
     const { appliquerRelecture } = await import("@/moteurs/montage-facecam/relecture");
     const { nouvelId } = await import("@/lib/ids");
-    const sortie = await relireImagesControle(c.videoId, { facecam: lireEntreesFacecam(entrees), reglages: lireReglagesMonteur(entrees) }, lues, { depuis: await debutDuTravail(travailId) });
+    const sortie = await relireImagesControle(c.videoId, { facecam: lireEntreesFacecam(entrees), reglages: lireReglagesMonteur(entrees) }, lues, { depuis: await debutDuTravail(travailId), ...(c.origine ? { origine: c.origine } : {}) });
     const r = appliquerRelecture(entrees, sortie, { ...(await motsDeLaPrise(entrees)), nouvelId });
     if (r.defauts.length) console.warn(`[facecam] relecture de ${c.videoId} : ${r.defauts.map((d) => d.defaut).join(", ")}${r.correction ? ` — ${r.correction}` : ""}`);
     return r;
@@ -166,7 +166,7 @@ brancherServicesFacecam({
     const { lireReglagesMonteur } = await import("@/moteurs/montage-facecam/monteur");
     const video = await depots().videos.obtenir(c.videoId);
     const entrees = (video?.entrees ?? c.entrees ?? {}) as Record<string, unknown>;
-    const r = await relireImagesControle(c.videoId, { facecam: lireEntreesFacecam(entrees), reglages: lireReglagesMonteur(entrees) }, [{ elementId: null, legende: "Vignette de la vidéo finie", ...image }, ...effets], { depuis: await debutDuTravail(contexte.travailId) });
+    const r = await relireImagesControle(c.videoId, { facecam: lireEntreesFacecam(entrees), reglages: lireReglagesMonteur(entrees) }, [{ elementId: null, legende: "Vignette de la vidéo finie", ...image }, ...effets], { depuis: await debutDuTravail(contexte.travailId), ...(c.origine ? { origine: c.origine } : {}) });
     if (r && !r.ok && r.defauts.length) console.warn(`[facecam] relecture de ${c.videoId} : ${r.defauts.map((d) => d.defaut).join(", ")}`);
   },
 });

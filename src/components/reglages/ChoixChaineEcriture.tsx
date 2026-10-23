@@ -11,14 +11,12 @@ import type { ChaineChoisie } from "@/services/chaine-ecriture";
 export const TEXTES_CHAINE = {
   libelle: "Chaîne d'écriture",
   courte: { libelle: "Économique", cout: "≈ 0,28 $ par script" },
-  equipe: { libelle: "Premium", cout: "≈ 0,39 $ par script" },
   avertissement: "S'applique aux prochains scripts.",
-  aucunChoix: "Aucun choix : la grande chaîne écrit les scripts (la plus chère).",
 } as const;
 
-export function ChoixChaineEcriture({ initiale }: { initiale: ChaineChoisie | null }) {
+export function ChoixChaineEcriture({ initiale }: { initiale: ChaineChoisie }) {
   const router = useRouter();
-  const [chaine, setChaine] = useState<ChaineChoisie | null>(initiale);
+  const [chaine, setChaine] = useState<ChaineChoisie>(initiale);
   const [enCours, demarrer] = useTransition();
 
   function choisir(v: ChaineChoisie) {
@@ -39,7 +37,7 @@ export function ChoixChaineEcriture({ initiale }: { initiale: ChaineChoisie | nu
         notifier.erreur(r.message);
         return;
       }
-      notifier.succes(`Chaîne ${TEXTES_CHAINE[v].libelle} choisie`);
+      notifier.succes(`Chaîne ${TEXTES_CHAINE.courte.libelle} choisie`);
       router.refresh();
     });
   }
@@ -48,20 +46,14 @@ export function ChoixChaineEcriture({ initiale }: { initiale: ChaineChoisie | nu
     <div>
       <SelecteurPastilles<ChaineChoisie>
         libelle={TEXTES_CHAINE.libelle}
-        valeur={chaine ?? undefined}
+        valeur={chaine}
         onChange={choisir}
         taille="lg"
         options={[
           { valeur: "courte", libelle: TEXTES_CHAINE.courte.libelle, detail: TEXTES_CHAINE.courte.cout, desactive: enCours },
-          { valeur: "equipe", libelle: TEXTES_CHAINE.equipe.libelle, detail: TEXTES_CHAINE.equipe.cout, desactive: enCours },
         ]}
       />
       <p className="mt-2 text-xs text-texte-faible">{TEXTES_CHAINE.avertissement}</p>
-      {chaine === null && (
-        <p role="status" className="mt-2 text-xs text-texte-doux">
-          {TEXTES_CHAINE.aucunChoix}
-        </p>
-      )}
     </div>
   );
 }

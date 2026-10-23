@@ -38,6 +38,7 @@ import { lancerAvecAccord, nouveauBrouillonFormat, type DependancesLancement } f
 import { trouverMoi } from "./moi";
 import { cleCas, marquerAttentes, statutEffectif, type Confirmation, type NiveauSujet, type Precedent, type ResultatVerification, type Suggestion } from "@/domaine/sujets-traites";
 import { verifierSujet as verifierSujetTraite } from "./sujets-traites";
+import { estCasTraite, PHRASE_CAS_TRAITE } from "./cas-concret-traites";
 
 
 /**
@@ -230,7 +231,10 @@ async function controleAvantPrix(casId: string, choix: ChoixAvantPrix, maintenan
   // X6 : le mot n'est dit que pour les comptes où il est branché ; ailleurs, la fin « diagnostic ».
   const motSur = choix.avecMot && motValide(mot) ? reseauxDuMot(mot, reseaux, await lecteurMotsBranches()) : [];
   const motPris = motSur.length > 0 && videos.some((v) => v.id !== reprise?.id && entreesDe(v).avecMot !== false && (!Array.isArray(entreesDe(v).motSur) || (entreesDe(v).motSur as unknown[]).length > 0) && typeof entreesDe(v).mot === "string" && motNormalise(entreesDe(v).mot as string) === motNormalise(mot));
-  const refus = refusAvantPrix({
+  // Cas déjà traité (vidéo allée au bout) : refus net, AVANT le prix et avant toute création, même avec un brouillon repris, un
+  // jeton « refaire » / « nouvel angle » ou le réglage `sujets.garde` éteint. Jamais la porte B (cas construit à chaque description).
+  const dejaTraite = cas && !porteB ? await estCasTraite(cas.id) : false;
+  const refus = dejaTraite ? PHRASE_CAS_TRAITE : refusAvantPrix({
     cas,
     ...(choix.empreinteVue ? { empreinteVue: choix.empreinteVue } : {}),
     reseaux,

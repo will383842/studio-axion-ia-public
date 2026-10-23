@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 import { sequencesDe } from "@/domaine/cas-concret-variete";
 import { EXTRAITS_WILL } from "@/donnees/generateur/modeles-will";
 import { CATALOGUE, trouverCas } from "@/formats/cas-concret/catalogue";
+import { CATALOGUE_TS } from "@/formats/cas-concret/catalogue/base";
+import { CAS_STOCK } from "@/formats/cas-concret/stock-metiers";
 import { recettePour, structureEffective, STRUCTURES_RECETTE } from "@/formats/cas-concret/recette";
 import { ficheParGabarit, variableEcriture } from "@/moteurs/montage-cas-concret/ecriture";
 import { texteDuCorps, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
@@ -21,6 +23,8 @@ const AUTRES = STRUCTURES_RECETTE.slice(1);
 const FIXE = { videoId: "video-1", versionId: "version-1", habillage: "charte-duo/1", origine: "porte-a" } as const;
 const recrutement = trouverCas("recrutement-apporteurs")!;
 const TOUS = [...CATALOGUE, casCoaching];
+/** Les 22 cas d'origine + coaching (23) : seuls figés par une empreinte v4. Les cas du stock s'ajoutent à la fin du catalogue sans en avoir. */
+const ORIGINAUX = [...CATALOGUE_TS, casCoaching];
 const ids = Array.from({ length: 200 }, (_, i) => `video-${i}`);
 const empreinte = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 16);
 
@@ -56,10 +60,19 @@ const EMPREINTE_PATRONS_V4 = "1dac3ee01a3d0d89";
 
 describe("D1 · recettes par structure", () => {
   it("1 · sans structure ou en v4 : la recette de toujours ; la liste égale celle du moteur de variété", () => {
-    for (const c of TOUS) {
+    for (const c of ORIGINAUX) {
       expect(recettePour(c), c.id).toEqual(recettePour(c, V4));
       // Empreinte calculée sur le code de master (avant ce lot) : une recette v4 modifiée par erreur rougit ici.
       expect(empreinte(JSON.stringify(recettePour(c))), c.id).toBe(EMPREINTES_RECETTE_V4[c.id]);
+    }
+    // Cas du stock : pas d'empreinte figée, mais la recette doit se calculer (v4 et chaque autre structure), sans erreur ni bloc manquant.
+    for (const c of CAS_STOCK) {
+      for (const s of STRUCTURES_RECETTE) {
+        const blocs = recettePour(c, s);
+        expect(blocs.length, `${s} · ${c.id}`).toBeGreaterThan(0);
+        expect(blocs[0].id, `${s} · ${c.id}`).toBe("accroche");
+      }
+      expect(recettePour(c), c.id).toEqual(recettePour(c, V4));
     }
     expect([...STRUCTURES]).toEqual([...STRUCTURES_RECETTE]);
     expect(recettePour(recrutement).map((b) => b.id)).toContain("chiffre");
@@ -143,7 +156,7 @@ describe("D1 · partie variable", () => {
     expect(variableEcriture(recrutement, recettePour(recrutement), FIXE, [], { patrons: patronsDeLaVideo("v", 0), structure: null })).toBe(base);
     expect(base).not.toContain("<structure_de_la_video>");
     // Empreinte calculée sur le code de master : la partie variable de la v4 (23 cas) est inchangée, donc rien n'est repayé.
-    const variables = TOUS.map((c) => variableEcriture(c, recettePour(c, V4), FIXE, [], { patrons: patronsDeLaVideo("video-3", 0, V4), structure: blocStructure(V4) }));
+    const variables = ORIGINAUX.map((c) => variableEcriture(c, recettePour(c, V4), FIXE, [], { patrons: patronsDeLaVideo("video-3", 0, V4), structure: blocStructure(V4) }));
     expect(empreinte(variables.join("\n====\n"))).toBe(EMPREINTE_VARIABLE_V4);
     for (const s of AUTRES) {
       const texte = variableEcriture(recrutement, recettePour(recrutement, s), FIXE, [], { patrons: patronsDeLaVideo("v", 0, s), structure: blocStructure(s) });

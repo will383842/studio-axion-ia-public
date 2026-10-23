@@ -37,7 +37,7 @@ coût. Le test est ignoré (`skip`) si ffmpeg est absent.
 
 ## Points à trancher par Will
 
-- **LinkedIn 9:16 ou 4:5 : à trancher par Will.** Le registre donne à LinkedIn `ratioPrefere` 4:5, `ecriture.ts` et la règle
+- **LinkedIn 9:16 ou 4:5 : TRANCHÉ (9:16, #580, décision de Will du 19/10) ; le texte qui suit est l'état d'avant.** Le registre donnait alors à LinkedIn `ratioPrefere` 4:5, `ecriture.ts` et la règle
   `li-video-2026` disent « vertical 9:16 par défaut ». Décision prise en attendant : `ratioReseau` garde 9:16 et
   n'utilise PAS `ratioPrefere` pour LinkedIn (pas de 4:5 silencieux). 4:5 n'est rendu que s'il est le seul ratio disponible.
 
@@ -49,7 +49,7 @@ coût. Le test est ignoré (`skip`) si ffmpeg est absent.
 
 **Limites connues (non corrigées)** : (1) le script enregistré pour la vidéo (`videoDeVersion`, ~l.605) n'est pas coupé : seule la commande l'est ; (2) `v.dureeEstimeeSec` (durée affichée dans le plan « Fabriquer les N ») ignore la coupe, alors que le prix, lui, en tient compte.
 
-**Pas branché** : `ratioReseau` (les ratios sont décidés par `ratiosDeLaMere`/`ratiosVersion`, partagés avec la mère et le prix : aujourd'hui la version LinkedIn sort en 4:5, ce qui contredit « LinkedIn 9:16 par défaut » ; à trancher par Will avant de toucher) ; `boucleVisuelle` et `habillageReseau` (aucun champ de `CommandeFabrication` ne les porte : il faudrait toucher `src/domaine/types.ts` et les moteurs/`studio-rendu`, hors périmètre) ; `src/services/fabrication.ts` (gelée).
+**Pas branché** : `ratioReseau` (les ratios sont décidés par `ratiosDeLaMere`/`ratiosVersion`, partagés avec la mère et le prix : au moment de ce lot la version LinkedIn sortait en 4:5 ; depuis #580 LinkedIn est en 9:16 et `ratioReseau` lit `ratioPrefere`, mais `ratioReseau` reste non appelée) ; `boucleVisuelle` et `habillageReseau` (aucun champ de `CommandeFabrication` ne les porte : il faudrait toucher `src/domaine/types.ts` et les moteurs/`studio-rendu`, hors périmètre) ; `src/services/fabrication.ts` (gelée).
 
 ## RÉPÉTITION GÉNÉRALE à faire avant d'allumer
 

@@ -349,6 +349,7 @@ function outilsMaitre(o: OutilsAvancerVoix, prise: PriseVoix, nom: string): Outi
     ...(o.erreurStockage ? { erreurStockage: o.erreurStockage } : {}),
     ...(o.ressemblance ? { ressemblance: o.ressemblance } : {}),
     ...(o.mesureVoix ? { mesureVoix: o.mesureVoix } : {}),
+    ...(o.reference ? { reference: o.reference } : {}),
     ...(prise.essai ? { nouvelleLecture: true } : {}),
     cle: (fichier) => o.cle(`${court}-${fichier}`),
     idBase: `cc-voix-${court}`,

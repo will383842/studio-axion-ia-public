@@ -20,10 +20,11 @@
  */
 import type { MotHorodate, ReglagesVoix } from "@/domaine/types";
 import type { FicheImage } from "@/domaine/image-video/fiche";
-import { texteDuCorps } from "@/domaine/image-video/fiche";
+import { motsDits, texteDuCorps } from "@/domaine/image-video/fiche";
 import type { ReseauIV } from "@/domaine/image-video/plafonds";
 import { versRemesure } from "@/briques/voix-maitre/machine";
 import { VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/voix-epinglee";
+import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { RESSEMBLANCE_VOIX_PAR_DEFAUT, verdictSurMesureAncienne, type ReglageRessemblanceVoix } from "@/briques/voix-maitre/reference";
 import {
   LECTURES_CORPS_MAX,
@@ -47,6 +48,17 @@ export const VOIX_IV = Object.freeze({ ...RECETTE_VOIX_CAS_CONCRET.synthese, idV
 const REGLAGES_PAR_DEFAUT: ReglagesVoix = { vitesse: VOIX_IV.vitesse, stabilite: 45, emotion: 30 };
 
 export { LECTURES_CORPS_MAX, LECTURES_FIN_MAX };
+
+/**
+ * 20/10 : LECTURE UNIQUE. HeyGen lit d'un trait le corps, la partie COMMUNE des fins, puis la phrase propre à chaque
+ * réseau ; chaque version est ensuite taillée dans ce fichier par heures de mots (comme une version courte). Aucune fin
+ * n'est plus lue à part : une lecture séparée de 7 s était jugée avec des tolérances faites pour un long texte, et son
+ * « Et » de tête provoquait des pauses. Retour en arrière : mettre `false` (une PR).
+ */
+export const LECTURE_UNIQUE_IV = true;
+
+/** Marge gardée avant le premier mot retiré en bout de fichier (s) : la coupe tombe dans le blanc qui le précède. */
+export const MARGE_COUPE_LECTURE_SEC = 0.05;
 
 /** Contrôle à l'origine d'un refus (plan § 7). `entree` : données incohérentes reçues par l'étape. */
 /** `budget` : la réservation de dépense a été refusée avant une lecture payante (aucun appel fait). */
@@ -86,17 +98,32 @@ export interface VersionVoixIV {
   segment: string | null;
 }
 
+/**
+ * Lecture unique (20/10) : le `corps` des segments est alors le texte lu en entier. `motsCorps` : mots du script (les
+ * premiers du texte lu). `fins` : pour l'identifiant de chaque version qui dit quelque chose après la phrase-choc, les
+ * plages [début, fin[ de mots du texte lu qu'elle garde (partie commune, puis sa phrase propre) ; LinkedIn n'y figure pas.
+ */
+export interface LectureUniqueIV {
+  motsCorps: number;
+  fins: Record<string, [number, number][]>;
+}
+
 export interface SegmentsVoixIV {
   corps: string;
   fins: SegmentFinIV[];
   versions: VersionVoixIV[];
+  /** Présent seulement en lecture unique : `fins` est alors vide (rien n'est lu à part). */
+  lecture?: LectureUniqueIV;
 }
 
 /**
  * Ce que la voix lit : le corps (écrans de la fiche bout à bout) une fois, et chaque texte de fin DISTINCT une fois.
  * Deux fins du plan au même texte dit (écrans différents) partagent la même lecture.
+ *
+ * `lectureUnique` (20/10) : un seul texte lu (corps, partie commune des fins, phrase propre à chaque fin) ; voir
+ * `LECTURE_UNIQUE_IV`. Sans fin à dire (LinkedIn seul), rien ne change.
  */
-export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<PlanDesFinsIV, "fins">): SegmentsVoixIV {
+export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<PlanDesFinsIV, "fins">, o: { lectureUnique?: boolean } = {}): SegmentsVoixIV {
   const corps = texteDuCorps(fiche).trim();
   if (!corps) throw new ErreurVoixIV("entree", "Le script n'a aucun texte à dire.");
   const fins: SegmentFinIV[] = [];
@@ -114,7 +141,64 @@ export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<Pla
     if (f.secours) s.secours = true;
     versions.push({ id: f.id, reseaux: [...f.reseaux], segment: s.id });
   }
+  if (o.lectureUnique && fins.length) return lectureUniqueDe(fiche, corps, fins, versions);
   return { corps, fins, versions };
+}
+
+/** Phrases d'un texte dit (fin de phrase : . ! ? …, avec ou sans guillemet) ; un morceau sans lettre se rattache à la précédente. */
+function phrasesDeFin(texte: string): string[] {
+  const phrases: string[][] = [];
+  let courante: string[] = [];
+  for (const jeton of texte.split(/\s+/).filter(Boolean)) {
+    courante.push(jeton);
+    if (/[.!?…]["»”)]*$/u.test(jeton)) {
+      phrases.push(courante);
+      courante = [];
+    }
+  }
+  if (courante.length) phrases.push(courante);
+  const res: string[][] = [];
+  for (const p of phrases) {
+    if (!motsDits(p.join(" ")).length && res.length) res[res.length - 1].push(...p);
+    else res.push(p);
+  }
+  return res.map((p) => p.join(" "));
+}
+
+/**
+ * Le texte lu d'un trait et la plage de mots que garde chaque version : le corps, la partie COMMUNE des fins (plus long
+ * préfixe de phrases que partagent toutes les fins distinctes), puis la phrase propre à chaque fin, dans l'ordre du plan.
+ */
+function lectureUniqueDe(fiche: Pick<FicheImage, "ecrans">, corps: string, fins: SegmentFinIV[], versions: VersionVoixIV[]): SegmentsVoixIV {
+  const phrases = fins.map((f) => phrasesDeFin(f.texte));
+  let commun = 0;
+  while (phrases.every((p) => p.length > commun && p[commun] === phrases[0][commun])) commun++;
+  const nombre = (t: string[]) => motsDits(t.join(" ")).length;
+  const motsCorps = fiche.ecrans.reduce((n, e) => n + motsDits(e.texteDit).length, 0);
+  const finCommun = motsCorps + nombre(phrases[0].slice(0, commun));
+  const parSegment = new Map<string, [number, number][]>();
+  let pos = finCommun;
+  phrases.forEach((p, i) => {
+    const n = nombre(p.slice(commun));
+    const plages: [number, number][] = [];
+    if (finCommun > motsCorps) plages.push([motsCorps, finCommun]);
+    if (n > 0) {
+      // Collée à la partie commune (première suite) : une seule plage.
+      if (plages.length && plages[plages.length - 1][1] === pos) plages[plages.length - 1][1] = pos + n;
+      else plages.push([pos, pos + n]);
+    }
+    pos += n;
+    parSegment.set(fins[i].id, plages);
+  });
+  const fait: Record<string, [number, number][]> = {};
+  for (const v of versions) if (v.segment) fait[v.id] = (parSegment.get(v.segment) ?? []).map(([a, b]) => [a, b]);
+  const lu = [corps, ...phrases[0].slice(0, commun), ...phrases.flatMap((p) => p.slice(commun))].join(" ");
+  // Contrôle GRATUIT avant toute lecture payante : la voix (`controlerPrise`) ne compte comme mot que ce qui garde une lettre
+  // ou un chiffre de a à z après retrait des accents (`cleMot`) ; nous, toute lettre ou chiffre Unicode (`motsDits`). Si les deux
+  // comptes diffèrent (jeton « Ω », « œ » seul…), la vidéo ne pourrait pas être taillée après coup : refus avant de payer.
+  const parLaVoix = lu.split(/\s+/).filter((t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").length > 0).length;
+  if (parLaVoix !== motsDits(lu).length) throw new ErreurVoixIV("entree", `Le texte à lire d'un trait ne se découpe pas en mots comme la voix les compte (${motsDits(lu).length} mots pour nous, ${parLaVoix} pour la voix) : corrigez le script (un signe ou une lettre isolée) ; rien n'a été lu ni payé.`);
+  return { corps: lu, fins: [], versions, lecture: { motsCorps, fins: fait } };
 }
 
 /* ------------------------------------------------------------------ */
@@ -136,7 +220,7 @@ export interface ReservationLectureIV {
  * la voix, ses réglages et ses règles, posés ici (voix unique), et la reformulation (un script validé n'est jamais
  * réécrit). La réservation de dépense et le tarif sont OBLIGATOIRES : aucune valeur par défaut ne laisse lire.
  */
-export type OutilsVoixIV = Omit<OutilsAvancerVoix, "idVoix" | "fournisseurVoix" | "regles" | "faits" | "texteFige" | "reformuler" | "assembler" | "lireSon" | "avantLecture" | "ressemblance" | "mesureVoix"> & {
+export type OutilsVoixIV = Omit<OutilsAvancerVoix, "idVoix" | "fournisseurVoix" | "regles" | "faits" | "texteFige" | "reformuler" | "assembler" | "lireSon" | "avantLecture" | "ressemblance" | "mesureVoix" | "reference"> & {
   /** Tarif de la voix (centimes par caractère), strictement positif : sert au coût maximal réservé. */
   tarifCentimesParCaractere: number;
   /** Réservation AVANT chaque lecture payante ; lever une erreur l'interdit (aucun appel HeyGen). */
@@ -170,7 +254,8 @@ function outilsRefuses(o: OutilsVoixIV): { controle: ControleVoixIV; message: st
 }
 
 export interface EtatVoixIV {
-  version: "voix-iv/1";
+  /** « voix-iv/2 » : lecture unique (20/10). Un état « voix-iv/1 » garde ses segments séparés, jamais relus. */
+  version: "voix-iv/1" | "voix-iv/2";
   segments: SegmentsVoixIV;
   voix: EtatVoixCasConcret;
   issue?: { statut: "faite" } | { statut: "refus"; controle: ControleVoixIV; message: string };
@@ -196,6 +281,8 @@ export function outilsVoixCasConcretIV(o: OutilsVoixIV): OutilsAvancerVoix {
     ressemblance: { ...RESSEMBLANCE_VOIX_PAR_DEFAUT },
     // 19/10 : la voix de référence v4 est un extrait de vidéo finie ; le corps est mesuré comme tel. Jamais dans l'empreinte.
     mesureVoix: "video-finie",
+    // 20/10 : hauteur de référence = la v4 entière (158,4 Hz), pour Image → vidéo seulement. Jamais dans l'empreinte.
+    reference: REFERENCE_V4_IV,
     faits: [],
     // Appelée par la voix maître juste avant CHAQUE `voix.lire` (première lecture, lecture neuve, relance).
     avantLecture: async (l) => {
@@ -222,7 +309,7 @@ function empreinteAttendue(o: OutilsVoixIV, texte: string, essai?: number): stri
 }
 
 export function etatInitialVoixIV(segments: SegmentsVoixIV): EtatVoixIV {
-  return { version: "voix-iv/1", segments, voix: etatInitialVoixCasConcret({ corps: segments.corps, fins: segments.fins.map((f) => ({ id: f.id, texte: f.texte })) }) };
+  return { version: segments.lecture ? "voix-iv/2" : "voix-iv/1", segments, voix: etatInitialVoixCasConcret({ corps: segments.corps, fins: segments.fins.map((f) => ({ id: f.id, texte: f.texte })) }) };
 }
 
 /** Prise payée et finie (son maître fait, ou en re-mesure gratuite : 15/10). */
@@ -372,9 +459,59 @@ function brutDe(p: PriseVoix | undefined, nom: string): SonBrutIV {
   return { fichierCle: b.fichierCle, dureeSec: b.dureeSec, mots: [...b.mots] };
 }
 
-/** Sons bruts d'une voix finie et acceptée : le corps, et un son par segment de fin. */
-export function sonsBrutsIV(etat: EtatVoixIV): { corps: SonBrutIV; fins: Record<string, SonBrutIV> } {
+/**
+ * Lecture unique : le son d'UNE version, taillé dans la lecture d'un trait. `son` : les mots que la version garde (le
+ * corps, puis sa fin), `dureeSec` coupée avant le premier mot retiré en bout de fichier ; `retraitsVoulus` : les phrases
+ * sautées au milieu (parole retirée EXPRÈS, comme un chapitre de version courte) ; `coupeSec` : l'instant de la coupe en
+ * bout de fichier, qui doit tomber dans un silence mesuré (absent : le fichier va jusqu'au bout).
+ */
+export interface SonLectureIV {
+  son: SonBrutIV;
+  motsCorps: number;
+  retraitsVoulus: [number, number][];
+  coupeSec?: number;
+  /** Bornes sûres de la coupe : fin du dernier mot gardé, début du premier mot retiré (la coupe se place dans un silence entre les deux). */
+  coupeEntreSec?: [number, number];
+}
+
+const porteUneLettre = (m: MotHorodate) => /[\p{L}\p{N}]/u.test(m.mot);
+
+/** Sons des versions d'une lecture unique, coupés par heures de mots. REFUS « entree » si les mots ne collent pas au texte lu. */
+function sonsDeLecture(etat: EtatVoixIV, lecture: LectureUniqueIV): { corps: SonBrutIV; lecture: Record<string, SonLectureIV> } {
+  const brut = brutDe(etat.voix.corps.prise, "lue d'un trait");
+  const lettres = brut.mots.filter(porteUneLettre);
+  const attendus = motsDits(etat.voix.corps.texte).length;
+  if (lettres.length !== attendus) throw new ErreurVoixIV("entree", `Les mots de la voix lue d'un trait (${lettres.length}) ne correspondent pas au texte lu (${attendus}) : la vidéo ne peut pas être taillée.`);
+  if (lecture.motsCorps < 1 || lecture.motsCorps > lettres.length) throw new ErreurVoixIV("entree", "Le corps du script n'a aucun mot dans la voix lue d'un trait.");
+  const taille = (gardes: number[]): SonLectureIV => {
+    const dernier = gardes[gardes.length - 1];
+    const suivant = lettres[dernier + 1];
+    const retraits: [number, number][] = [];
+    gardes.forEach((k, i) => {
+      if (i > 0 && k > gardes[i - 1] + 1) retraits.push([lettres[gardes[i - 1] + 1].debutSec, lettres[k - 1].finSec]);
+    });
+    const coupeSec = suivant ? Math.max(lettres[dernier].finSec, +(suivant.debutSec - MARGE_COUPE_LECTURE_SEC).toFixed(4)) : undefined;
+    return {
+      son: { fichierCle: brut.fichierCle, dureeSec: coupeSec ?? brut.dureeSec, mots: gardes.map((k) => lettres[k]) },
+      motsCorps: lecture.motsCorps,
+      retraitsVoulus: retraits,
+      ...(coupeSec !== undefined ? { coupeSec, coupeEntreSec: [lettres[dernier].finSec, suivant!.debutSec] as [number, number] } : {}),
+    };
+  };
+  const rang = (de: number, a: number) => Array.from({ length: Math.max(0, a - de) }, (_, i) => de + i);
+  const versions: Record<string, SonLectureIV> = {};
+  for (const v of etat.segments.versions) versions[v.id] = taille([...rang(0, lecture.motsCorps), ...(lecture.fins[v.id] ?? []).flatMap(([a, b]) => rang(a, Math.min(b, lettres.length)))]);
+  return { corps: taille(rang(0, lecture.motsCorps)).son, lecture: versions };
+}
+
+/**
+ * Sons bruts d'une voix finie et acceptée : le corps, et un son par segment de fin. En lecture unique
+ * (`segments.lecture`), `corps` est le corps seul (coupé avant le premier mot de fin), `fins` est vide et `lecture`
+ * donne le son de chaque version.
+ */
+export function sonsBrutsIV(etat: EtatVoixIV): { corps: SonBrutIV; fins: Record<string, SonBrutIV>; lecture?: Record<string, SonLectureIV> } {
   if (etat.issue?.statut !== "faite") throw new ErreurVoixIV("entree", "La voix n'est pas finie ou a été refusée : rien à assembler.");
+  if (etat.segments.lecture) return { ...sonsDeLecture(etat, etat.segments.lecture), fins: {} };
   return {
     corps: brutDe(etat.voix.corps.prise, "du corps"),
     fins: Object.fromEntries(etat.voix.fins.map((f) => [f.id, brutDe(f.prise, `de la fin ${f.id}`)])),

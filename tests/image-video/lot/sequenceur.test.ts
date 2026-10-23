@@ -262,6 +262,19 @@ describe("séquenceur", () => {
     expect((await lire(lotId)).pause).toMatchObject({ raison: "budget", phrase: "Le prix accordé pour ce lot est atteint : rien de plus n'est lancé." });
   });
 
+  it("plafond du lot en mode INDICATIF : le prix accordé est un repère, la suivante part (arrêt de sécurité à 5 ×)", async () => {
+    const { lotId, prix } = await deposer();
+    const lot = await lire(lotId);
+    const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("budget.mode", "indicatif");
+    await ecrireParametre(`imageVideo.lot.${lotId}`, { ...lot, plafondCentimes: prix });
+    await lots.avancerLotsIV(dep());
+    await terminer(lot.videos[0].videoId, "termine", etat("prete", { caisse: { plafondCentimes: prix, reservations: [{ cle: "x", etape: "voix", fournisseur: "heygen", centimes: prix }] } }));
+    await lots.avancerLotsIV(dep());
+    expect(lancees).toHaveLength(2);
+    expect((await lire(lotId)).pause).toBeFalsy();
+  });
+
   it("vidéo supprimée : l'entrée est mise de côté « Supprimée. »", async () => {
     const { lotId } = await deposer();
     const lot = await lire(lotId);

@@ -144,8 +144,8 @@ function enChiffres(m: string): string {
       .replace(/(?<![\p{L}])une (?:seule )?fois(?![\p{L}])/giu, "1 fois")
       .replace(/(?<![\p{L}])premi(?:er|ère)(?![\p{L}])/giu, "1er"),
   )
-    .replace(/\b(\d{1,3}) heures? sur (\d{1,3})\b/g, "$1h/$2")
-    .replace(/\b(\d{1,3}) jours? sur (\d{1,3})\b/g, "$1j/$2")
+    .replace(/\b(\d{1,3}) ?(?:h|heures?) sur (\d{1,3})\b/g, "$1h/$2")
+    .replace(/\b(\d{1,3}) ?(?:j|jours?) sur (\d{1,3})\b/g, "$1j/$2")
     .replace(/ de l apres-midi/g, " de l'apres-midi");
 }
 

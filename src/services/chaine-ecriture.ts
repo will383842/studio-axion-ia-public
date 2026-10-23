@@ -4,20 +4,18 @@ import { ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_co
 import { exigerSession } from "./auth";
 import { PARAM_CHAINE } from "./generation-claude";
 
-export const CHAINES_CHOISIES = ["courte", "equipe"] as const;
+/** Depuis le 23/10/2026 (décision de Will : « on garde l'Économique »), seule la chaîne courte se choisit ; équipe (Premium) et grande sont verrouillées. */
+export const CHAINES_CHOISIES = ["courte"] as const;
 export type ChaineChoisie = (typeof CHAINES_CHOISIES)[number];
-/** Donnée non sûre : seulement les deux valeurs exactes (jamais « complete », « Equipe », « equipe-v2 »). */
-export const estChaineChoisie = (v: unknown): v is ChaineChoisie => v === "courte" || v === "equipe";
+/** Donnée non sûre : seulement la valeur exacte « courte » (jamais « equipe », « complete », « Equipe »). */
+export const estChaineChoisie = (v: unknown): v is ChaineChoisie => v === "courte";
 
 /**
- * Ce que l'écran coche, d'accord avec ce qui écrit vraiment (`chaineDeLEcriture`) : réglage ABSENT → « courte » (défaut du
- * code, lot A5) ; « courte » et « equipe » → eux-mêmes ; « complete » ou toute autre valeur → null : rien de coché (la
- * grande chaîne écrit).
+ * Ce que l'écran coche, d'accord avec ce qui écrit vraiment (`chaineDeLEcriture`) : toujours « courte » (réglage absent,
+ * « equipe », « complete » ou inconnu en base : la courte écrit).
  */
-export async function lireChaineReglee(): Promise<ChaineChoisie | null> {
-  const v = await lireParametre<unknown>(PARAM_CHAINE, null);
-  if (v === null || v === undefined) return "courte";
-  return estChaineChoisie(v) ? v : null;
+export async function lireChaineReglee(): Promise<ChaineChoisie> {
+  return "courte";
 }
 
 export async function definirChaineEcriture(valeur: unknown): Promise<ChaineChoisie> {
@@ -25,6 +23,6 @@ export async function definirChaineEcriture(valeur: unknown): Promise<ChaineChoi
   if (!estChaineChoisie(valeur)) throw new ErreurStudio("CHOIX_INCONNU", "Ce choix n'existe pas.");
   if ((await lireParametre<unknown>(PARAM_CHAINE, null)) === valeur) return valeur; // double clic : rien de plus
   await ecrireParametre(PARAM_CHAINE, valeur);
-  await journaliser("reglages", valeur === "courte" ? "Chaîne d'écriture : Économique" : "Chaîne d'écriture : Premium");
+  await journaliser("reglages", "Chaîne d'écriture : Économique");
   return valeur;
 }

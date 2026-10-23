@@ -67,4 +67,19 @@ describe("polices des carrousels (M1-02)", () => {
     const codes = codesCmap(readFileSync(new URL(fichier, DOSSIER_POLICES)));
     for (const c of "ÉÀÇŒœ’«»") expect(codes.has(c.codePointAt(0)!), c).toBe(true);
   });
+
+  it("l'attente est exposée, une erreur de chargement fait échouer le rendu, et les bornes de 5 s ont disparu", () => {
+    const src = readFileSync(SOURCE, "utf8");
+    expect(src).toContain("export function policeArchivoBlackPrete");
+    expect(src).toContain("export function policeJetBrainsMonoPrete");
+    expect(src).toContain("cancelRender");
+    for (const f of ["commun/Titre.tsx", "commun/controle-debordement.tsx"]) {
+      const s = readFileSync(new URL(`../../studio-rendu/compositions/visuels/${f}`, import.meta.url), "utf8");
+      expect(s, f).toContain("DELAI_POLICE_MS");
+    }
+    const titre = readFileSync(new URL("../../studio-rendu/compositions/visuels/commun/Titre.tsx", import.meta.url), "utf8");
+    expect(titre).not.toMatch(/i < 200/);
+    const ctrl = readFileSync(new URL("../../studio-rendu/compositions/visuels/commun/controle-debordement.tsx", import.meta.url), "utf8");
+    expect(ctrl.slice(0, ctrl.indexOf("attendreTitres"))).not.toMatch(/i < 200/);
+  });
 });

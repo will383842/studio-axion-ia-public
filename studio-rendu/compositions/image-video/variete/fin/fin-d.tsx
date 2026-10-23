@@ -5,7 +5,8 @@ import React from "react";
  * en appoint, les dix barres de la part (8 sur 10 pour 80 %). En 4:5, les barres passent à droite du chiffre.
  */
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
-import { a, ANTON, C, DixBarres, Ecran, largeurAnton, Lueur } from "../objets-ouverture";
+import { largeurAnton } from "../../../../../src/briques/schema-motion/chasse-anton";
+import { a, ANTON, C, DixBarres, Ecran, Lueur } from "../objets-ouverture";
 import type { DonneesFin } from "./donnees";
 
 type D = Extract<DonneesFin, { code: "FIN-D" }>;
@@ -13,13 +14,13 @@ type D = Extract<DonneesFin, { code: "FIN-D" }>;
 const LARGEUR = 936;
 
 /** Coupe une suite de mots en lignes de `largeur` px à la taille donnée. */
-function couper(mots: readonly { texte: string; k: number }[], taille: number): { texte: string; k: number }[][] {
+function couper(mots: readonly { texte: string; k: number }[], taille: number, largeur: number = LARGEUR): { texte: string; k: number }[][] {
   const lignes: { texte: string; k: number }[][] = [];
   let l = 0;
   for (const m of mots) {
     const w = largeurAnton(m.texte, taille);
     const courante = lignes[lignes.length - 1];
-    if (!courante || l + 0.22 * taille + w > LARGEUR) {
+    if (!courante || l + 0.22 * taille + w > largeur) {
       lignes.push([m]);
       l = w;
     } else {
@@ -31,19 +32,34 @@ function couper(mots: readonly { texte: string; k: number }[], taille: number): 
 }
 
 /** La phrase en lignes : les phrases d'abord en 88 px, la dernière en 156 px ; tout réduit d'un même rapport si trop haut. */
-export function disposerPhrase(d: Pick<DonneesFin, "mots" | "lignes">, hauteurMax: number): { mots: { texte: string; k: number }[]; taille: number; interligne: number; marge: number }[] {
+export type LignePhrase = { mots: { texte: string; k: number }[]; taille: number; interligne: number; marge: number };
+export function disposerPhrase(d: Pick<DonneesFin, "mots" | "lignes">, hauteurMax: number, largeur: number = LARGEUR): LignePhrase[] {
+  return disposerPhraseDetail(d, hauteurMax, largeur).lignes;
+}
+
+/** Comme `disposerPhrase`, et dit si le REPLI a été utilisé (rien de plus grand que 58 px ne tenait dans la zone). */
+export function disposerPhraseDetail(d: Pick<DonneesFin, "mots" | "lignes">, hauteurMax: number, largeur: number = LARGEUR): { lignes: LignePhrase[]; repli: boolean } {
   let k = 0;
   const phrases = d.lignes.map((n) => d.mots.slice(k, (k += n)).map((texte, i) => ({ texte, k: k - n + i })));
-  for (let r = 2.4; r >= 0.4; r -= 0.04) {
+  // Rapport de 2,4 à 0,4 par pas de 0,04, en entiers (pas de dérive de flottant : le dernier pas est bien 0,40).
+  for (let i = 60; i >= 10; i--) {
+    const r = i / 25;
     const res = phrases.flatMap((p, i) => {
       const derniere = i === phrases.length - 1 && phrases.length > 1;
       const taille = Math.max(58, Math.min(derniere ? 230 : phrases.length > 1 ? 200 : 320, Math.round((derniere ? 156 : phrases.length > 1 ? 88 : 130) * r)));
       const interligne = derniere || phrases.length === 1 ? 1.12 : 1.2;
-      return couper(p, taille).map((mots, j) => ({ mots, taille, interligne, marge: j === 0 && i > 0 ? (derniere ? 22 : 8) : 0 }));
+      return couper(p, taille, largeur).map((mots, j) => ({ mots, taille, interligne, marge: j === 0 && i > 0 ? (derniere ? 22 : 8) : 0 }));
     });
-    if (res.reduce((s, l) => s + l.taille * l.interligne + l.marge, 0) <= hauteurMax) return res;
+    // Aucune ligne plus large que la zone (mesure réelle d'Anton, `chasse-anton`, la même que celle des tests) : sinon on réduit.
+    const largeurLigne = (l: { mots: { texte: string }[]; taille: number }) => l.mots.reduce((w, m) => w + largeurAnton(m.texte, l.taille), 0) + 0.22 * l.taille * (l.mots.length - 1);
+    if (res.reduce((s, l) => s + l.taille * l.interligne + l.marge, 0) <= hauteurMax && res.every((l) => largeurLigne(l) <= largeur + 1e-6)) return { lignes: res, repli: false };
   }
-  return phrases.map((p) => ({ mots: p, taille: 58, interligne: 1.12, marge: 0 }));
+  // Repli (très peu de hauteur) : 58 px, coupé à la largeur, jamais une ligne plus large que la zone.
+  const lignes = phrases.flatMap((p, i) => {
+    const derniere = i === phrases.length - 1 && phrases.length > 1;
+    return couper(p, 58, largeur).map((mots, j) => ({ mots, taille: 58, interligne: derniere || phrases.length === 1 ? 1.12 : 1.2, marge: j === 0 && i > 0 ? (derniere ? 22 : 8) : 0 }));
+  });
+  return { lignes, repli: true };
 }
 
 export function FinD({ d, t, format }: { d: D; t: number; format: FormatIV }) {

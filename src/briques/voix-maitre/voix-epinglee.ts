@@ -2,7 +2,7 @@
  * VOIX ÉPINGLÉE (L1-05) : la seule voix HeyGen qui a le droit de parler dans une vidéo du studio. Toute synthèse HeyGen
  * résout sa voix par cette constante ; une autre voix (ou le doublon « Ma voix HeyGen ») est refusée AVANT la dépense.
  */
-export const VOIX_MAITRE_HEYGEN_ID = "77ea2dbe3115461a911cfe478e22bc48";
+export const VOIX_MAITRE_HEYGEN_ID = "b22b1a358ca740eda753772ebaaf11f7";
 
 /** Doublon « Ma voix HeyGen » : refusé explicitement, quoi qu'il arrive. */
 export const VOIX_HEYGEN_INTERDITES: readonly string[] = Object.freeze(["f22784b5"]);

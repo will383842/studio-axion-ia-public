@@ -32,6 +32,7 @@ import {
 } from "@/domaine/sujets-traites";
 import type { Travail } from "@/domaine/types";
 import { depots, lireParametre, maintenant } from "./_commun";
+import { lireCasTraites } from "./cas-concret-traites";
 
 /** Clé du réglage dans les paramètres du studio. */
 export const REGLAGE_GARDE_SUJETS = "sujets.garde";
@@ -49,6 +50,8 @@ export interface SourcesSujets {
   catalogueEtendu(): Promise<boolean>;
   /** Réglage `casConcret.stockMetiers` ; absent (faux dépôt de test) : éteint. */
   stockMetiers?(): Promise<boolean>;
+  /** Cas concrets déjà traités (vidéo allée au bout) : jamais suggérés. Absent (faux dépôt de test) : aucun écarté. */
+  casTraites?(): Promise<ReadonlySet<string>>;
   /** Banque de l'Usine (cas d'usage `propose` et `valide`), pour un métier si donné. */
   banque(cible?: string): CandidatSuggestion[] | Promise<CandidatSuggestion[]>;
   maintenant(): string;
@@ -182,6 +185,7 @@ export const SOURCES_PAR_DEFAUT: SourcesSujets = {
   garde: () => lireParametre<unknown>(REGLAGE_GARDE_SUJETS, "bloquant"),
   catalogueEtendu: async () => (await lireParametre<unknown>("casConcret.catalogueEtendu", false)) === true,
   stockMetiers: async () => (await lireParametre<unknown>("casConcret.stockMetiers", false)) === true,
+  casTraites: async () => new Set((await lireCasTraites()).keys()),
   banque: banqueUsine,
   maintenant,
 };
@@ -214,7 +218,8 @@ export async function suggestionsSujets(format: string, cible?: string, src: Sou
   const quand = src.maintenant();
   if (format === "cas-concret") {
     const visibles = casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu: await src.catalogueEtendu(), stockMetiers: (await src.stockMetiers?.()) === true }).map((x) => x.cas);
-    const candidats: CandidatSuggestion[] = visibles.map((c) => ({ titre: c.titre, casId: c.id, source: "catalogue" as const }));
+    const traites = (await src.casTraites?.()) ?? new Set<string>();
+    const candidats: CandidatSuggestion[] = visibles.filter((c) => !traites.has(c.id)).map((c) => ({ titre: c.titre, casId: c.id, source: "catalogue" as const }));
     return filtrerSuggestions(candidats, reg, format, quand, NB_SUGGESTIONS);
   }
   return filtrerSuggestions(await src.banque(cible), reg, format, quand, NB_SUGGESTIONS);

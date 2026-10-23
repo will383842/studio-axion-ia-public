@@ -10,7 +10,9 @@ import { avecConsigneVoix, etatVoixCasConcret } from "@/services/cas-concret-voi
 import { CAS_PAR_PAGE, preparerPageCas, scriptsValidesDe } from "@/services/cas-concret-scripts-lot";
 import { StockDesCas } from "@/components/formats/cas-concret/stock/StockDesCas";
 import { IDEES_A_VENIR } from "@/formats/cas-concret/stock-idees";
+import { lireCasTraites } from "@/services/cas-concret-traites";
 import { lireStockCas } from "@/services/cas-concret-stock-lecture";
+import { lireParamsStock } from "@/components/formats/cas-concret/stock/filtres-stock";
 import { apercuDesEcrans } from "@/moteurs/montage-cas-concret/script-valide";
 
 export const metadata: Metadata = { title: "Cas concret MD" };
@@ -22,11 +24,13 @@ const RESEAUX = ["facebook", "instagram", "tiktok", "linkedin"];
  * CAS CONCRET MD : une phrase, une vidéo. Atteignable par son adresse même quand le format est masqué (aucun lien ne la
  * montre). Les cas validés en cartes, les autres dans « À valider ».
  */
-export default async function PageCasConcret() {
-  const [liste, voix, mots, etendu, ecranFourni, porteB, stockMetiers] = await Promise.all([listerCas(), etatVoixCasConcret(), etatMotsCasConcret(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.ecranFourni), reglageAllume(REGLAGES_CAS_CONCRET.porteB), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers)]);
+export default async function PageCasConcret({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const [liste, voix, mots, etendu, ecranFourni, porteB, stockMetiers, traites] = await Promise.all([listerCas(), etatVoixCasConcret(), etatMotsCasConcret(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.ecranFourni), reglageAllume(REGLAGES_CAS_CONCRET.porteB), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers), lireCasTraites()]);
   // Portage phase 2 : les cas ajoutés ne sont montrés que si `casConcret.catalogueEtendu` est allumé (éteint par défaut).
-  const valides = casVisibles(liste.valides, { catalogueEtendu: etendu, stockMetiers });
-  const aValider = casVisibles(liste.aValider, { catalogueEtendu: etendu, stockMetiers });
+  // Un cas TRAITÉ (vidéo allée au bout) n'est plus proposé : ni dans la liste, ni estimé, ni piochable (les 22 cas d'origine aussi).
+  // Il reste visible, avec son bouton « Remettre en stock », dans la section « Déjà traités » du stock.
+  const valides = casVisibles(liste.valides, { catalogueEtendu: etendu, stockMetiers }).filter((c) => !traites.has(c.cas.id));
+  const aValider = casVisibles(liste.aValider, { catalogueEtendu: etendu, stockMetiers }).filter((c) => !traites.has(c.cas.id));
   // K3 : le réglage des scripts est lu UNE fois pour tous les cas ; les cas d'avant le stock sont tous estimés (comme avant K3) ;
   // seuls 20 cas du stock au plus le sont. Les autres s'ouvrent sans prix : la feuille « Votre vidéo » l'estime à l'ouverture.
   const scripts = await scriptsValidesDe([...valides, ...aValider].map((c) => c.cas.id));
@@ -42,20 +46,29 @@ export default async function PageCasConcret() {
     const s = scripts[c.cas.id];
     if (s && s.versionCas === c.cas.version) apercus[c.cas.id] = apercuDesEcrans(s.ecrans);
   }
-  const stock = await lireStockCas(montants, etendu, stockMetiers, scripts);
+  const stock = await lireStockCas(montants, etendu, stockMetiers, scripts, traites);
+  // Lots K4-K5 : le tableau de bord et les filtres n'existent que réglage allumé ET cas rangés ; sinon la page est celle d'avant.
+  const avecStock = stockMetiers && stock.some((l) => l.rangement);
+  const infos = new Map(stock.map((l) => [l.casId, { traite: l.videos.comptees > 0 || !!l.traite, ...(l.rangement ? { fiche: l.rangement.fiche, secteur: l.rangement.secteur, taille: l.rangement.taille } : {}) }]));
+  const vue = (c: (typeof valides)[number], valide: boolean) => {
+    const v = versVueCas(c.cas, c.empreinte, valide, apercus[c.cas.id], ecranFourni);
+    const info = avecStock ? infos.get(c.cas.id) : undefined;
+    return info ? { ...v, stock: info } : v;
+  };
+  const params = avecStock ? lireParamsStock(await searchParams, stock.flatMap((l) => (l.rangement ? [l.rangement.secteur] : []))) : null;
   return (
     <div className="mx-auto max-w-2xl">
       <EnTetePage titre="Cas concret MD" sousTitre="Une phrase, une vidéo." />
       <EntreeCasConcret
-        valides={valides.map((c) => versVueCas(c.cas, c.empreinte, true, apercus[c.cas.id], ecranFourni))}
-        aValider={aValider.map((c) => versVueCas(c.cas, c.empreinte, false, apercus[c.cas.id], ecranFourni))}
+        valides={valides.map((c) => vue(c, true))}
+        aValider={aValider.map((c) => vue(c, false))}
         montants={montants}
         refus={refus}
         voix={voix}
         mots={mots}
         porteB={porteB}
       />
-      <StockDesCas lignes={stock} idees={IDEES_A_VENIR} />
+      <StockDesCas lignes={stock} idees={IDEES_A_VENIR} ouvert={(await searchParams).stock === "1"} {...(params ? { tableau: params } : {})} />
     </div>
   );
 }

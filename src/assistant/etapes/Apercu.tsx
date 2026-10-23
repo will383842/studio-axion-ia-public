@@ -673,6 +673,13 @@ export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: Apercu
           <Icone nom="chevron-droite" size={16} className="ml-auto" />
         </Link>
       )}
+      {donnees.budget.depasseIndicatif && (
+        <Link href="/reglages#budget" className="mt-3 flex min-h-11 items-center gap-2 text-sm font-semibold text-ambre">
+          <Icone nom="attention" size={16} />
+          Au-delà du budget indicatif du mois : la vidéo part quand même
+          <Icone nom="chevron-droite" size={16} className="ml-auto" />
+        </Link>
+      )}
       {donnees.etapes.length > 0 && (
         <div className="sans-barre mt-4 flex items-center gap-1 overflow-x-auto text-[11px] font-semibold text-texte-faible">
           {donnees.etapes.map((e, i) => (

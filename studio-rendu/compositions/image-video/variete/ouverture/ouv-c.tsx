@@ -8,11 +8,12 @@ import React from "react";
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
 import { a, ANTON, avance, Bulle, C, CarteIcone, Coche, Ecran, Etiquette, Horloge, Icone, Lueur, Points, T, TableDeNuit, tailleQuiTient, Telephone, Vibration } from "../objets-ouverture";
 import type { ChiffreOuverture, DonneesOuverture } from "./donnees";
+import { PhraseChoc, zonePhrase, type PhraseBoucle } from "./phrase-choc";
 
 type D = Extract<DonneesOuverture, { code: "OUV-C" }>;
 
 /** Ce qui remplace l'heure et le texte dans la boucle (FIN-C) : l'heure de la phrase-choc, un chiffre déjà dit. */
-export type BoucleC = { heure: { h: number; m: number } | null; deja: ChiffreOuverture | null };
+export type BoucleC = { heure: { h: number; m: number } | null; deja: ChiffreOuverture | null; phrase?: PhraseBoucle };
 
 /** 1re image avec une heure : l'horloge en gros plan et le téléphone posé (il vibre, ou il a répondu en boucle). */
 function HorlogeEtTable({ d, t, boucle, appoint }: { d: D; t: number; boucle?: BoucleC; appoint: boolean }) {
@@ -27,16 +28,20 @@ function HorlogeEtTable({ d, t, boucle, appoint }: { d: D; t: number; boucle?: B
       <Lueur x={540} y={640} r={600} o={0.7} />
       {d.situation && !boucle ? <Etiquette texte="Situation type" y={262} fond="sombre" /> : null}
       <Horloge cx={540} cy={640} r={296} h={Math.floor(minutes / 60)} m={minutes % 60} trace={boucle ? 0 : 40} traceHeure={boucle ? 150 : 0} />
-      <T x={130} y={974} largeur={820} align="center" taille={tailleQuiTient(texte, 170, 820, 96)} couleur={C.ivoire}>
-        {texte}
-      </T>
+      {/* Boucle avec la phrase-choc : elle prend la place du chiffre déjà dit (la bande des sous-titres, 1152 → 1286 px, reste
+          libre dans les deux formats). */}
+      {boucle?.phrase ? <PhraseChoc p={boucle.phrase} t={t} zone={zonePhrase("OUV-C-horloge", appoint ? "9:16" : "4:5")} couleur={C.ivoire} orange={C.orangeVif} /> : (
+        <T x={130} y={974} largeur={820} align="center" taille={tailleQuiTient(texte, 170, 820, 96)} couleur={C.ivoire}>
+          {texte}
+        </T>
+      )}
       {appoint ? <TableDeNuit icone={d.objet.icone} iconeReponse={d.moteur} vibre={!boucle} repondu={!!boucle} /> : null}
     </>
   );
 }
 
 /** Le téléphone debout : l'heure (ou le chiffre du déclencheur) sur l'écran verrouillé, la notification qui tombe. */
-function TelephoneMessage({ d, t, repondu, appoint }: { d: D; t: number; repondu?: boolean; appoint: boolean }) {
+function TelephoneMessage({ d, t, repondu, appoint, phrase, tPhrase = 0 }: { d: D; t: number; repondu?: boolean; appoint: boolean; phrase?: PhraseBoucle; tPhrase?: number }) {
   const chute = avance(t, 0, 0.45);
   const ecran = d.heure?.texte ?? d.objet.chiffre?.texte ?? null;
   const libelle = d.objet.libelle;
@@ -70,10 +75,13 @@ function TelephoneMessage({ d, t, repondu, appoint }: { d: D; t: number; repondu
             </div>
           ) : null}
         </div>
-        <Bulle x={30} y={616} l={470} h={110} fond={C.ivoire} opacite={avance(t, 0.3, 0.3)}>
-          <Points couleur={C.gris} taille={26} />
-        </Bulle>
+        {phrase ? null : (
+          <Bulle x={30} y={616} l={470} h={110} fond={C.ivoire} opacite={avance(t, 0.3, 0.3)}>
+            <Points couleur={C.gris} taille={26} />
+          </Bulle>
+        )}
       </Telephone>
+      {phrase ? <PhraseChoc p={phrase} t={tPhrase} zone={zonePhrase("OUV-C-telephone", appoint ? "9:16" : "4:5")} couleur={C.ivoire} orange={C.orangeVif} /> : null}
       {repondu ? null : (
         <>
           <Vibration x={130} y={720} cote={-1} />
@@ -98,7 +106,7 @@ export function OuvertureC({ d, t, format, boucle }: { d: D; t: number; format: 
   const deuxieme = !boucle && t >= d.bascule;
   let contenu: React.ReactNode;
   if (d.heure && (boucle || !deuxieme)) contenu = <HorlogeEtTable d={d} t={t} boucle={boucle} appoint={appoint} />;
-  else if (boucle) contenu = <TelephoneMessage d={d} t={9} repondu appoint={appoint} />;
+  else if (boucle) contenu = <TelephoneMessage d={d} t={9} repondu appoint={appoint} phrase={boucle.phrase} tPhrase={t} />;
   else contenu = <TelephoneMessage d={d} t={d.heure ? t - d.bascule : t} appoint={appoint} />;
   return (
     <Ecran fond="sombre" largeur={1080} hauteur={format === "4:5" ? 1350 : 1920} cadre45={format === "4:5"}>

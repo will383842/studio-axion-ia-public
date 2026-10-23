@@ -10,6 +10,7 @@ vi.mock("./_commun", () => ({
   }),
 }));
 vi.mock("./auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
+vi.mock("./cas-concret-traites", () => ({ lireCasTraites: vi.fn(async () => new Map()) }));
 vi.mock("./cas-concret-scripts-lot", () => ({ scriptsValidesDe: vi.fn(async () => ({})) }));
 
 import { CATALOGUE, estCasStock } from "@/formats/cas-concret/catalogue";

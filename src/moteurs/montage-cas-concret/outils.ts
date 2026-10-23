@@ -124,7 +124,7 @@ export interface PauseAMesurer {
  * Outils de la voix maître fournis par l'appelant, plus ce que la voix du format demande en propre. Vue COMPLÈTE lue par
  * la voix (`voix.ts`) ; la chaîne en reçoit une partie (`OutilsVoixFournis`) et pose le reste.
  */
-export type OutilsVoixCasConcret = Pick<OutilsVoixMaitre, "voix" | "stockage" | "aligneur" | "rendu" | "renduEstSimule" | "idVoix" | "reglages" | "tauxUsdEur" | "fournisseurVoix" | "caler" | "regles" | "erreurStockage" | "ressemblance" | "mesureVoix"> & {
+export type OutilsVoixCasConcret = Pick<OutilsVoixMaitre, "voix" | "stockage" | "aligneur" | "rendu" | "renduEstSimule" | "idVoix" | "reglages" | "tauxUsdEur" | "fournisseurVoix" | "caler" | "regles" | "erreurStockage" | "ressemblance" | "mesureVoix" | "reference"> & {
   /** Clé de stockage d'un fichier de la voix (une par prise). */
   cle: (nom: string) => string;
   /**
@@ -267,6 +267,8 @@ export interface OutilsFabricationCasConcret<J = unknown> {
      * lecture : une lecture qui le ferait dépasser n'est pas faite. Absent : aucun plafond propre.
      */
     plafondVoix?: { centimes: number; prixLecture: (texte: string) => number };
+    /** Mode indicatif (posé par les services) : le montant ne refuse plus, au plus `lecturesVoixMax` lectures par texte. */
+    indicatif?: { lecturesVoixMax: number; facteurSecurite?: number };
   };
   contexte: ContexteFabricationCasConcret;
   /** L2 · variété (absent : aucun tirage, la fiche reste telle quelle, rendu v4). */

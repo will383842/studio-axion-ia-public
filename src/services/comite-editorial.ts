@@ -46,6 +46,8 @@ import { nouvelId } from "@/lib/ids";
 import { centimes, centimesDuPlafond, formaterMontant, usdVersEur } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { libererReservation, MARGE_CREDITS, verifierEtReserverSelonOrigine } from "./credits";
+import { signalerDepassementIndicatif } from "./budget-mensuel";
+import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET } from "./mode-budget";
 import type { OrigineLancement } from "./budget-mensuel";
 import { appelerAvecRotation, claudeActif, cleClaudeDuStudio, coutReelUsd, engageClaudeDuMoisCentimes, envClaude, fetchClaudeEssai, ligne, messageSansCompte, peutEcrire, plafondMensuelClaudeUsd, sousVerrouMois, taux } from "./generation-claude";
 import { marquerEpuisee } from "./source-claude";
@@ -225,18 +227,33 @@ async function reserverPourComite(appelId: string, etape: string, pireUsd: numbe
   const t = await taux();
   const lignes: LigneCout[] = [ligne(etape, pireUsd, t, "estime")];
   const demande = Math.ceil(pireUsd * 100 * (1 + MARGE_CREDITS));
-  return sousVerrouMois(async () => {
+  // Mode indicatif (commande de Will, jamais l'Usine) : le plafond des idées et la limite Claude du mois sont des repères (alerte, rien n'est refusé).
+  const indicatif = await budgetIndicatifPour(origine);
+  // Les alertes du mode indicatif partent APRÈS le verrou du mois (pas d'écriture de notification sous verrou).
+  const alertes: [string, string, string][] = [];
+  const resultat = await sousVerrouMois(async () => {
     const plafondIdees = await plafondIdeesMoisUsd();
     if ((await engageIdeesDuMoisCentimes()) + demande > centimesDuPlafond(plafondIdees)) {
       const enEuros = formaterMontant(centimes(centimesDuPlafond(plafondIdees * t)));
-      await journaliser("generateur", `Comité éditorial : plafond des idées du mois atteint (${enEuros}), rien n'est parti`);
-      return `Plafond des idées du mois atteint (${enEuros}) : rien n'a été payé.`;
+      if (!indicatif) {
+        await journaliser("generateur", `Comité éditorial : plafond des idées du mois atteint (${enEuros}), rien n'est parti`);
+        return `Plafond des idées du mois atteint (${enEuros}) : rien n'a été payé.`;
+      }
+      // Arrêt de sécurité : même en indicatif, jamais au-delà de 5 × le repère des idées du mois.
+      if ((await engageIdeesDuMoisCentimes()) + demande > centimesDuPlafond(plafondIdees) * FACTEUR_SECURITE_BUDGET) {
+        await journaliser("generateur", `Comité éditorial : arrêt de sécurité (5 fois le repère des idées du mois, ${enEuros}), rien n'est parti`);
+        return `Arrêt de sécurité : le jugement d'idées dépasserait ${FACTEUR_SECURITE_BUDGET} fois le repère des idées du mois (${enEuros}), rien n'a été payé.`;
+      }
+      alertes.push(["idees-mois", "Repère des idées du mois dépassé", `Le jugement d'idées continue (repère du mois ${enEuros}) ; rien n'est arrêté. Réglages pour l'ajuster.`]);
     }
     const plafondMois = await plafondMensuelClaudeUsd();
     const engage = await engageClaudeDuMoisCentimes();
     if (engage.depense + engage.reserve + demande > centimesDuPlafond(plafondMois)) {
-      await journaliser("generateur", "Comité éditorial : limite Claude du mois atteinte, rien n'est parti");
-      return "Limite Claude du mois atteinte : rien n'a été payé.";
+      if (!indicatif) {
+        await journaliser("generateur", "Comité éditorial : limite Claude du mois atteinte, rien n'est parti");
+        return "Limite Claude du mois atteinte : rien n'a été payé.";
+      }
+      alertes.push(["claude-mois", "Repère Claude du mois dépassé", "Rien n'est arrêté : le jugement d'idées continue. Seul un crédit Claude épuisé l'arrête."]);
     }
     try {
       // Contrôle, réservation ET engagement sur le budget du mois, d'un seul tenant (libérés par `libererReservation`).
@@ -256,6 +273,8 @@ async function reserverPourComite(appelId: string, etape: string, pireUsd: numbe
     }
     return null;
   });
+  for (const [motif, titre, message] of alertes) await signalerDepassementIndicatif(motif, titre, message);
+  return resultat;
 }
 
 async function enregistrerDepense(appelId: string, etape: string, usd: number, nature: LigneCout["nature"], source?: SourceClaude): Promise<DepenseEnregistree> {

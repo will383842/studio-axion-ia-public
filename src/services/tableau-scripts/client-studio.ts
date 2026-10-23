@@ -94,7 +94,7 @@ export function clientScriptsStudio(videoId: Id, pireCasUsd: number, plafond: Pl
     async appeler(requete, passe) {
       socle ??= chargerSocle().catch(() => undefined);
       const { role, entree } = roleDeRequete(requete, passe, await socle);
-      const r = await executerRolePourVideo(videoId, role, entree, { etape: `${ETAPE_SCRIPT_TABLEAU} · ${NOMS[passe]}`, plafondPropre: plafond });
+      const r = await executerRolePourVideo(videoId, role, entree, { etape: `${ETAPE_SCRIPT_TABLEAU} · ${NOMS[passe]}`, plafondPropre: plafond, parWill: true });
       if (!r.ok) throw new ArretClientScripts(r.message);
       if (r.simule) throw new ArretClientScripts("Claude n'est pas relié pour l'écriture : aucun script n'a été écrit, rien n'a été payé.");
       // Appel fait et payé, réponse inutilisable : refaire le même appel ne servirait à rien (arrêt définitif).

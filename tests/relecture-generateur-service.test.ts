@@ -42,7 +42,7 @@ beforeEach(async () => {
   bg.suspendreBoucleGeneration(true);
   await auth.seConnecter(MDP, false);
   // Lot A5 : réglage absent = chaîne courte ; ce test éprouve la GRANDE chaîne, il la demande donc expressément.
-  await ecrireParametre("generateur.chaine", "complete");
+  (await import("@/services/generation-claude")).forcerChainePourEssai("grande");
 });
 afterEach(() => bg.arreterBoucleGeneration());
 

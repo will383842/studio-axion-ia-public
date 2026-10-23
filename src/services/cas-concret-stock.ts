@@ -3,6 +3,7 @@
  * vidéos sont faites et dans quel état, les faits de la fiche qui ont (ou non) une preuve. PUR : les scripts et les
  * vidéos sont fournis par l'appelant (`cas-concret-stock-lecture.ts`). N'écrit rien, ne dépense rien.
  */
+import type { CasTraite } from "@/domaine/cas-traites";
 import type { Video } from "@/domaine/types";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { videoCompte } from "@/domaine/sujets-traites";
@@ -42,6 +43,8 @@ export interface LigneStock {
     /** Date (ISO) de la dernière modifiée. */
     derniere?: string;
   };
+  /** Vidéo allée au bout (règle `casTraites`) : le cas n'est plus disponible. Absent : pas traité (ou règle non fournie). */
+  traite?: CasTraite;
   /** Rangement (secteur, taille, métier…) : seulement pour un cas du stock par métier. */
   rangement?: Rangement;
   /** Prix estimé « au plus » (centimes), seulement s'il est fourni. */
@@ -56,6 +59,8 @@ export interface EntreeStock {
   montants?: Record<string, number>;
   catalogue?: readonly CasConcret[];
   catalogueScripts?: (casId: string) => ScriptValide | undefined;
+  /** Cas traités selon `casTraites` (vidéo finie ou inscription durable) ; absent : seules les vidéos qui comptent font « traité ». */
+  traites?: ReadonlyMap<string, CasTraite>;
   /** Rangement par id de cas ; absent : celui du stock par métier chargé du fichier. */
   rangement?: Readonly<Record<string, Rangement>>;
 }
@@ -128,6 +133,7 @@ export function construireStockCas(entree: EntreeStock): LigneStock[] {
       ...(cas.theme ? { theme: cas.theme } : {}),
       script: s ? { valide: true, version: s.numero ?? 1, date: s.valideLe } : { valide: false },
       videos: { total, faites: (parEtat["a-relire"] ?? 0) + (parEtat.validee ?? 0), comptees, parEtat, derniere },
+      ...(entree.traites?.get(cas.id) ? { traite: entree.traites.get(cas.id)! } : {}),
       ...(rangements[cas.id] ? { rangement: rangements[cas.id] } : {}),
       ...(typeof prix === "number" ? { prixAuPlusCentimes: prix } : {}),
       faits: faitsDe(cas),

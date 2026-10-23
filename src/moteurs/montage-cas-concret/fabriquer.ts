@@ -316,6 +316,38 @@ export function phrasePlafondVoix(plafondCentimes: number, dejaCentimes: number)
   return `Une lecture de plus dépasserait le prix confirmé de la voix (au plus ${formaterMontant(centimes(plafondCentimes))}, ${formaterMontant(centimes(dejaCentimes))} déjà payés) : rien de plus n'est payé. Relancez la vidéo pour confirmer un nouveau prix.`;
 }
 
+/** Mode indicatif : lectures payées au plus, par texte et par tentative (comme `lecturesVoixMax` de l'avocat). */
+export const LECTURES_VOIX_MAX_INDICATIF = 3;
+
+/**
+ * Contrôle avant une lecture payée. Bloquant : la part « voix » du prix confirmé n'est pas dépassée (17/10). Indicatif
+ * (`budget.indicatif`, posé par le service) : le montant n'arrête plus rien, un COMPTEUR le remplace : au plus
+ * `lecturesVoixMax` lectures payées par texte (prise) et par tentative, sinon arrêt anti-boucle. PUR.
+ */
+export function verifierPartVoix(
+  budget: { plafondVoix?: { centimes: number; prixLecture: (texte: string) => number }; indicatif?: { lecturesVoixMax: number; facteurSecurite?: number } },
+  payees: readonly PrisePayee[],
+  l: { prise: string; texte: string },
+): void {
+  if (budget.indicatif) {
+    const deja = payees.filter((p) => p.prise === l.prise).length;
+    if (deja >= budget.indicatif.lecturesVoixMax) {
+      throw new ErreurFabricationCasConcret("voix", [`Cette voix a déjà été lue ${deja} fois pour ce texte : rien de plus n'est payé. Changez le texte pour le relire.`]);
+    }
+    // DEUXIÈME borne, gardée : arrêt de sécurité à `facteurSecurite` × la part voix du prix confirmé (compteur ET 5 ×).
+    const p = budget.plafondVoix;
+    const facteur = budget.indicatif.facteurSecurite;
+    if (p && facteur) {
+      const paye = payees.reduce((n, x) => n + x.coutCentimes, 0);
+      if (paye + p.prixLecture(l.texte) > p.centimes * facteur) throw new ErreurFabricationCasConcret("voix", [`Arrêt de sécurité : cette voix dépasserait ${facteur} fois le prix confirmé (${formaterMontant(centimes(p.centimes))}, ${formaterMontant(centimes(paye))} déjà payés) : rien de plus n'est payé.`]);
+    }
+    return;
+  }
+  const plafond = budget.plafondVoix;
+  const deja = payees.reduce((n, x) => n + x.coutCentimes, 0);
+  if (plafond && deja + plafond.prixLecture(l.texte) > plafond.centimes) throw new ErreurFabricationCasConcret("voix", [phrasePlafondVoix(plafond.centimes, deja)]);
+}
+
 /* ------------------------------------------------------------------ */
 /* Petites pièces                                                        */
 /* ------------------------------------------------------------------ */
@@ -635,9 +667,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     reformuler: (phrase, faits) => reformulerPhrase(phrase, faits, ecritureVoix, { videoId: o.videoId, appelId: `${o.videoId}-${o.versionId}-l${e.corps.lectures}` }),
     avantLecture: (l) => {
       // 17/10 : une lecture qui ferait dépasser la part « voix » du prix confirmé n'est pas faite (« au plus » reste vrai).
-      const plafond = outils.budget.plafondVoix;
-      const deja = e.payees.reduce((n, x) => n + x.coutCentimes, 0);
-      if (plafond && deja + plafond.prixLecture(l.texte) > plafond.centimes) throw new ErreurFabricationCasConcret("voix", [phrasePlafondVoix(plafond.centimes, deja)]);
+      // Mode indicatif : compteur de lectures à la place du montant (voir `verifierPartVoix`).
+      verifierPartVoix(outils.budget, e.payees, l);
       return outils.budget.verifierEtReserver(estimerVoixCasConcret([l.texte], tarif));
     },
   });

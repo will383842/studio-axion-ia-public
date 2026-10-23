@@ -1,6 +1,7 @@
 /**
  * Réglages › Écriture des scripts : le bouton qui choisit la chaîne d'écriture (réglage `generateur.chaine`).
- * Valeurs strictes (« courte » / « equipe »), session exigée, journal sans doublon, aucun réseau.
+ * Depuis le 23/10/2026 (Will : « on garde l'Économique »), seule « courte » se choisit ; « equipe » et la grande sont verrouillées.
+ * Valeurs strictes (« courte » seulement), session exigée, journal sans doublon, aucun réseau.
  */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -43,40 +44,41 @@ afterEach(() => {
 
 const lignesReglages = async () => (await depots().evenements.lister()).filter((e) => e.type === "reglages").length;
 
-describe("lecture de ce que l'écran coche", () => {
-  it("absent → « courte » cochée (c'est elle qui écrit, lot A5) ; « complete » → rien de coché ; « courte » et « equipe » → coché", async () => {
-    expect(await lireChaineReglee()).toBe("courte");
+describe("l'aiguillage : toute NOUVELLE écriture passe par la courte", () => {
+  it.each([undefined, "courte", "equipe", "complete", "grande", "equipe-v2", "Equipe", "", null, 1, {}])("réglage %j : la courte écrit et l'écran coche « courte »", async (v) => {
+    if (v !== undefined) await ecrireParametre(gc.PARAM_CHAINE, v);
     expect(await gc.chaineDeLEcriture()).toBe("courte");
-    await ecrireParametre(gc.PARAM_CHAINE, "complete");
-    expect(await lireChaineReglee()).toBeNull();
-    expect(await gc.chaineDeLEcriture()).toBe("grande");
-    await ecrireParametre(gc.PARAM_CHAINE, "courte");
     expect(await lireChaineReglee()).toBe("courte");
-    await ecrireParametre(gc.PARAM_CHAINE, "equipe");
-    expect(await lireChaineReglee()).toBe("equipe");
+  });
+  it("le mode « je choisis » ne ramène jamais la grande chaîne", async () => {
+    for (const v of ["courte", "equipe", "complete"]) {
+      await ecrireParametre(gc.PARAM_CHAINE, v);
+      expect(await gc.chaineDeLEcriture("je-choisis")).toBe("courte");
+    }
+  });
+  it("le crochet d'essai peut encore forcer equipe ou la grande (leur code reste), puis revenir à la courte", async () => {
+    gc.forcerChainePourEssai("equipe");
+    expect(await gc.chaineDeLEcriture()).toBe("equipe");
+    gc.forcerChainePourEssai("grande");
+    expect(await gc.chaineDeLEcriture()).toBe("grande");
+    gc.forcerChainePourEssai(null);
+    expect(await gc.chaineDeLEcriture()).toBe("courte");
   });
 });
 
 describe("l'action serveur", () => {
-  it("« equipe » : réglage posé, lu par l'écriture, une ligne de journal ; un second appel identique ne journalise rien", async () => {
+  it("« courte » : réglage posé, une ligne de journal ; un second appel identique ne journalise rien", async () => {
+    await ecrireParametre(gc.PARAM_CHAINE, "equipe");
     const avant = await lignesReglages();
-    const r = await definirChaineEcritureAction("equipe");
+    const r = await definirChaineEcritureAction("courte");
     expect(r.ok).toBe(true);
-    expect(await lireParametre(gc.PARAM_CHAINE, null)).toBe("equipe");
-    expect(await gc.chaineDeLEcriture()).toBe("equipe");
+    expect(await lireParametre(gc.PARAM_CHAINE, null)).toBe("courte");
     expect(await lignesReglages()).toBe(avant + 1);
-    const encore = await definirChaineEcritureAction("equipe");
-    expect(encore.ok).toBe(true);
-    expect(await lignesReglages()).toBe(avant + 1);
-  });
-
-  it("revenir à « courte » est pris en compte tout de suite", async () => {
-    await definirChaineEcritureAction("equipe");
     expect((await definirChaineEcritureAction("courte")).ok).toBe(true);
-    expect(await gc.chaineDeLEcriture()).toBe("courte");
+    expect(await lignesReglages()).toBe(avant + 1);
   });
 
-  it.each(["complete", "grande", "equipe-v2", "Equipe", "", null, 1, {}, ["courte"]])("valeur refusée %j : rien ne change", async (v) => {
+  it.each(["equipe", "complete", "grande", "equipe-v2", "Equipe", "", null, 1, {}, ["courte"]])("valeur refusée %j : rien ne change", async (v) => {
     await ecrireParametre(gc.PARAM_CHAINE, "courte");
     const r = await definirChaineEcritureAction(v);
     expect(r.ok).toBe(false);
@@ -87,34 +89,27 @@ describe("l'action serveur", () => {
   it("sans session : refusé, rien ne change", async () => {
     await ecrireParametre(gc.PARAM_CHAINE, "courte");
     await auth.seDeconnecter();
-    await expect(definirChaineEcritureAction("equipe")).rejects.toBeTruthy();
+    await expect(definirChaineEcritureAction("courte")).rejects.toBeTruthy();
     expect(await lireParametre(gc.PARAM_CHAINE, null)).toBe("courte");
-  });
-
-  it("réglage ABSENT : la chaîne courte écrit (lot A5) ; « complete » : la grande", async () => {
-    expect(await lireParametre(gc.PARAM_CHAINE, null)).toBeNull();
-    expect(await gc.chaineDeLEcriture()).toBe("courte");
-    await ecrireParametre(gc.PARAM_CHAINE, "complete");
-    expect(await gc.chaineDeLEcriture()).toBe("grande");
-  });
-
-  it("le mode « je choisis » reste sur la grande chaîne, quel que soit le bouton", async () => {
-    await definirChaineEcritureAction("equipe");
-    expect(await gc.chaineDeLEcriture("je-choisis")).toBe("grande");
   });
 });
 
 describe("l'affichage", () => {
-  it("deux choix avec leur coût, un seul coché, l'avertissement, rien de garanti", () => {
+  it("un seul choix, « Économique », coché, avec son coût et l'avertissement ; plus de Premium, rien de garanti", () => {
     const html = renderToStaticMarkup(createElement(ChoixChaineEcriture, { initiale: "courte" }));
     expect(html).toContain('role="radiogroup"');
-    for (const t of ["Économique", "Premium", "0,28 $", "0,39 $", "prochains scripts"]) expect(html).toContain(t);
+    for (const t of ["Économique", "0,28 $", "prochains scripts"]) expect(html).toContain(t);
+    for (const t of ["Premium", "0,39 $", "grande chaîne"]) expect(html).not.toContain(t);
     expect(html.match(/aria-checked="true"/g)).toHaveLength(1);
+    expect(html.match(/role="radio"/g)).toHaveLength(1);
     expect(html).not.toMatch(/garanti/i);
   });
-  it("réglage « complete » en base : aucun choix coché, la grande chaîne écrit", () => {
-    const html = renderToStaticMarkup(createElement(ChoixChaineEcriture, { initiale: null }));
-    expect(html).not.toContain('aria-checked="true"');
-    expect(html).toContain("grande chaîne");
+  it("valeur inconnue en base (« complete », « equipe ») : l'écran montre « Économique » cochée", async () => {
+    for (const v of ["complete", "equipe", "n'importe quoi"]) {
+      await ecrireParametre(gc.PARAM_CHAINE, v);
+      const html = renderToStaticMarkup(createElement(ChoixChaineEcriture, { initiale: await lireChaineReglee() }));
+      expect(html.match(/aria-checked="true"/g)).toHaveLength(1);
+      expect(html).not.toContain("Premium");
+    }
   });
 });

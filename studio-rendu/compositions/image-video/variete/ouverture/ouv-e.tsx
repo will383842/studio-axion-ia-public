@@ -7,6 +7,7 @@ import React from "react";
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
 import { a, ANTON, avance, C, Carte, CarteIcone, couleursNoeud, Ecran, Etiquette, Icone, INTER, T, tailleQuiTient, Vibration } from "../objets-ouverture";
 import { grosPlanOuvE, type DonneesOuverture, type NoeudSchemaOuverture } from "./donnees";
+import { PhraseChoc, zonePhrase, type PhraseBoucle } from "./phrase-choc";
 
 type D = Extract<DonneesOuverture, { code: "OUV-E" }>;
 
@@ -23,7 +24,7 @@ function Cloche({ cx, cy, r, angle, icone }: { cx: number; cy: number; r: number
 }
 
 /** 1re image : le nœud en gros plan, la carte déborde ; le fil mène à la carte suivante, qui entre dans le champ. */
-function GrosPlan({ d, t, appoint }: { d: D; t: number; appoint: boolean }) {
+function GrosPlan({ d, t, appoint, phrase, tPhrase = 0 }: { d: D; t: number; appoint: boolean; phrase?: PhraseBoucle; tPhrase?: number }) {
   const angle = Math.sin(t * 14) * 16;
   const g = grosPlanOuvE(d.detail.libelle, appoint ? "9:16" : "4:5");
   return (
@@ -31,12 +32,16 @@ function GrosPlan({ d, t, appoint }: { d: D; t: number; appoint: boolean }) {
       {d.situation ? <Etiquette texte="Situation type" y={262} fond="ivoire" /> : null}
       <div style={{ position: "absolute", left: g.carte.x, top: 344, width: g.carte.l, height: 780, boxSizing: "border-box", borderRadius: 80, background: C.blanc, border: `16px solid ${C.encre}`, boxShadow: `0 40px 100px ${a(C.encre, 0.12)}` }} />
       <Cloche cx={262} cy={548} r={124} angle={angle} icone={d.detail.icone} />
-      <T x={g.texte.x} y={g.texte.lignes.length > 1 ? 700 : 744} taille={g.texte.taille} couleur={C.encre} style={{ lineHeight: 1.05 }}>
-        {g.texte.lignes.map((l, i) => (
-          <div key={i}>{l}</div>
-        ))}
-      </T>
-      {d.detail.detail ? <div style={{ position: "absolute", left: 112, top: 906, width: 880, ...INTER, fontSize: 66, color: C.encre, lineHeight: 1.12 }}>{d.detail.detail}</div> : null}
+      {phrase ? (
+        <PhraseChoc p={phrase} t={tPhrase} zone={zonePhrase("OUV-E", appoint ? "9:16" : "4:5")} couleur={C.encre} orange={C.orange} />
+      ) : (
+        <T x={g.texte.x} y={g.texte.lignes.length > 1 ? 700 : 744} taille={g.texte.taille} couleur={C.encre} style={{ lineHeight: 1.05 }}>
+          {g.texte.lignes.map((l, i) => (
+            <div key={i}>{l}</div>
+          ))}
+        </T>
+      )}
+      {d.detail.detail && !phrase ? <div style={{ position: "absolute", left: 112, top: 906, width: 880, ...INTER, fontSize: 66, color: C.encre, lineHeight: 1.12 }}>{d.detail.detail}</div> : null}
       {appoint ? (
         <>
           <div style={{ position: "absolute", left: 147, top: 1124, width: 6, height: 216, background: C.encre }} />
@@ -120,12 +125,12 @@ function Recul({ d, t, appoint }: { d: D; t: number; appoint: boolean }) {
   );
 }
 
-export function OuvertureE({ d, t, format, boucle }: { d: D; t: number; format: FormatIV; boucle?: boolean }) {
+export function OuvertureE({ d, t, format, boucle, phrase }: { d: D; t: number; format: FormatIV; boucle?: boolean; phrase?: PhraseBoucle }) {
   const appoint = format === "9:16";
   const deuxieme = !boucle && t >= d.bascule;
   return (
     <Ecran fond="ivoire" largeur={1080} hauteur={format === "4:5" ? 1350 : 1920} cadre45={format === "4:5"}>
-      {deuxieme ? <Recul d={d} t={t - d.bascule} appoint={appoint} /> : <GrosPlan d={d} t={boucle ? 0.3 : t} appoint={appoint} />}
+      {deuxieme ? <Recul d={d} t={t - d.bascule} appoint={appoint} /> : <GrosPlan d={d} t={boucle ? 0.3 : t} appoint={appoint} phrase={boucle ? phrase : undefined} tPhrase={t} />}
     </Ecran>
   );
 }

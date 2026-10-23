@@ -93,6 +93,14 @@ describe("service sujets traités : vérification", () => {
 });
 
 describe("service sujets traités : suggestions", () => {
+  it("cas concret : un cas traité (vidéo allée au bout, même supprimée) n'est jamais suggéré", async () => {
+    const tous = await suggestionsSujets("cas-concret", undefined, sources([], { catalogueEtendu: async () => true }));
+    expect(tous.length).toBeGreaterThan(0);
+    const ids = new Set(tous.map((x) => x.casId!));
+    const sans = await suggestionsSujets("cas-concret", undefined, sources([], { catalogueEtendu: async () => true, casTraites: async () => ids }));
+    expect(sans.every((x) => !ids.has(x.casId!))).toBe(true);
+  });
+
   it("cas concret : jamais un cas déjà pris, jamais un cas de la phase 2 si le catalogue étendu est éteint", async () => {
     const s = await suggestionsSujets("cas-concret", undefined, sources([casRecrutement]));
     expect(s.length).toBeGreaterThan(0);

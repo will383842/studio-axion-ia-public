@@ -1,0 +1,4102 @@
+{
+ "_note": "Transcriptions Whisper réelles de v-6e4a06b9c718 (23/10/2026) : mots et heures seulement, aucune clé ni adresse.",
+ "fiche": {
+  "ecrans": [
+   {
+    "id": "e01",
+    "fond": "sombre",
+    "refs": [
+     "n01",
+     "c01"
+    ],
+    "scene": "accroche",
+    "partie": "accroche",
+    "surMot": [
+     {
+      "mot": 0,
+      "ref": "c01",
+      "action": "compte"
+     },
+     {
+      "mot": 4,
+      "ref": "n01",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Vingt-trois heures quatorze. Un client vous écrit.",
+    "textesEcran": [
+     "*23h14*",
+     "Un client vous écrit."
+    ]
+   },
+   {
+    "id": "e02",
+    "fond": "ivoire",
+    "refs": [
+     "n01"
+    ],
+    "scene": "micro-objet",
+    "partie": "douleur",
+    "surMot": [
+     {
+      "mot": 7,
+      "ref": "n01",
+      "action": "tombe"
+     }
+    ],
+    "texteDit": "Votre équipe est partie. Le message attend le matin. Le client, lui, reste sans nouvelles. Demain, il faudra tout rattraper.",
+    "textesEcran": [
+     "Le message *attend*"
+    ]
+   },
+   {
+    "id": "e03",
+    "fond": "sombre",
+    "refs": [
+     "l02",
+     "l07"
+    ],
+    "scene": "titre",
+    "partie": "debut-reponse",
+    "surMot": [
+     {
+      "mot": 12,
+      "action": "separe"
+     }
+    ],
+    "texteDit": "Maintenant, ce message a une réponse. Oui, ce soir. Il peut prendre deux chemins.",
+    "textesEcran": [
+     "Deux *chemins*"
+    ]
+   },
+   {
+    "id": "e04",
+    "fond": "ivoire",
+    "refs": [
+     "n01",
+     "c01",
+     "l01"
+    ],
+    "scene": "toile",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 5,
+      "ref": "n01",
+      "action": "apparait"
+     },
+     {
+      "mot": 8,
+      "ref": "c01",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "Voici une situation type. Un message arrive à vingt-trois heures quatorze. Personne n'est au bureau.",
+    "textesEcran": [
+     "Situation type",
+     "Message client entrant — *23h14*"
+    ]
+   },
+   {
+    "id": "e05",
+    "fond": "sombre",
+    "refs": [
+     "n02"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 3,
+      "ref": "n02",
+      "action": "apparait"
+     },
+     {
+      "mot": 14,
+      "ref": "n02",
+      "action": "separe"
+     }
+    ],
+    "texteDit": "Il arrive au chatbot IA. Le chatbot analyse la demande. Il connaît la réponse, ou pas.",
+    "textesEcran": [
+     "Chatbot IA",
+     "*analyse* la demande"
+    ]
+   },
+   {
+    "id": "e06",
+    "fond": "ivoire",
+    "refs": [
+     "n03",
+     "c02",
+     "g-branche-a"
+    ],
+    "scene": "chiffre",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 2,
+      "ref": "c02",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "Premier chemin : quatre-vingts pour cent des cas. La réponse est connue.",
+    "textesEcran": [
+     "*80%* — Réponse connue"
+    ]
+   },
+   {
+    "id": "e07",
+    "fond": "sombre",
+    "refs": [
+     "n04",
+     "n05",
+     "c03",
+     "l03",
+     "l04"
+    ],
+    "scene": "micro-objet",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 1,
+      "ref": "n04",
+      "action": "apparait"
+     },
+     {
+      "mot": 7,
+      "ref": "c03",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "L'automatisation rédige la réponse. Elle repart en quatre secondes. Le message ne dort pas dans une boîte.",
+    "textesEcran": [
+     "Réponse générée",
+     "Envoyée en *4 sec*"
+    ]
+   },
+   {
+    "id": "e08",
+    "fond": "ivoire",
+    "refs": [
+     "n06",
+     "n07",
+     "l05",
+     "l06"
+    ],
+    "scene": "micro-objet",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 3,
+      "ref": "n06",
+      "action": "coche"
+     },
+     {
+      "mot": 6,
+      "ref": "n07",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Le ticket se clôture tout seul. Résolu sans intervention humaine. Votre équipe dort, le client est servi.",
+    "textesEcran": [
+     "Ticket *clôturé* auto",
+     "Résolu sans intervention humaine"
+    ]
+   },
+   {
+    "id": "e09",
+    "fond": "sombre",
+    "refs": [
+     "n02",
+     "l07",
+     "n08",
+     "c04",
+     "g-branche-b"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 0,
+      "ref": "n02",
+      "action": "bascule"
+     },
+     {
+      "mot": 5,
+      "ref": "c04",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "Retour au chatbot. Deuxième chemin : vingt pour cent des cas. Là, il atteint sa limite.",
+    "textesEcran": [
+     "Chatbot IA",
+     "*20%* — Limite atteinte"
+    ]
+   },
+   {
+    "id": "e10",
+    "fond": "ivoire",
+    "refs": [
+     "n09",
+     "l08"
+    ],
+    "scene": "email",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 9,
+      "ref": "n09",
+      "action": "apparait"
+     },
+     {
+      "mot": 14,
+      "ref": "n09",
+      "action": "allume"
+     }
+    ],
+    "texteDit": "Il ne bricole pas une réponse. Il rédige un e-mail structuré. Objet, contexte, demande, urgence.",
+    "textesEcran": [
+     "Email structuré auto:",
+     "Objet / Contexte / Demande / *Urgence*"
+    ]
+   },
+   {
+    "id": "e11",
+    "fond": "sombre",
+    "refs": [
+     "n10",
+     "l09"
+    ],
+    "scene": "dossiers",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 3,
+      "ref": "n10",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "L'e-mail part à l'équipe concernée. Pas à tout le monde.",
+    "textesEcran": [
+     "Envoyé équipe *concernée*"
+    ]
+   },
+   {
+    "id": "e12",
+    "fond": "ivoire",
+    "refs": [
+     "n11",
+     "l10"
+    ],
+    "scene": "alerte",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 2,
+      "ref": "n11",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Puis une alerte Telegram tombe : intervention requise. Quelqu'un sait qu'il doit agir.",
+    "textesEcran": [
+     "Alerte Telegram:",
+     "“🔔 Intervention *requise*”"
+    ]
+   },
+   {
+    "id": "e13",
+    "fond": "sombre",
+    "refs": [
+     "n12",
+     "c05",
+     "l11"
+    ],
+    "scene": "micro-objet",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 4,
+      "ref": "n12",
+      "action": "apparait"
+     },
+     {
+      "mot": 7,
+      "ref": "c05",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "Et le client est prévenu : réponse sous deux heures. Il sait où en est sa demande.",
+    "textesEcran": [
+     "Client informé:",
+     "“Réponse sous *2h*”"
+    ]
+   },
+   {
+    "id": "e14",
+    "fond": "ivoire",
+    "refs": [
+     "n01",
+     "c01",
+     "n02"
+    ],
+    "scene": "ensemble",
+    "partie": "resultat",
+    "surMot": [
+     {
+      "mot": 0,
+      "action": "apparait"
+     },
+     {
+      "mot": 5,
+      "ref": "c01",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "Reprenons ce message. Entré à vingt-trois heures quatorze. Il ressort avec une réponse.",
+    "textesEcran": [
+     "Message client entrant — *23h14*"
+    ]
+   },
+   {
+    "id": "e15",
+    "fond": "sombre",
+    "refs": [
+     "c06",
+     "c07",
+     "c08"
+    ],
+    "scene": "bandeau-chiffres",
+    "partie": "resultat",
+    "surMot": [
+     {
+      "mot": 0,
+      "ref": "c06",
+      "action": "compte"
+     },
+     {
+      "mot": 5,
+      "ref": "c07",
+      "action": "compte"
+     },
+     {
+      "mot": 8,
+      "ref": "c08",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "Quatre-vingts pour cent résolus instantanément. Zéro demande perdue. Vingt-quatre heures sur vingt-quatre.",
+    "textesEcran": [
+     "80% résolus instantanément",
+     "*0* demande perdue",
+     "24h/24"
+    ]
+   },
+   {
+    "id": "e16",
+    "fond": "ivoire",
+    "refs": [
+     "c09"
+    ],
+    "scene": "phrase-choc",
+    "partie": "phrase-choc",
+    "surMot": [
+     {
+      "mot": 8,
+      "ref": "c09",
+      "action": "compte"
+     }
+    ],
+    "texteDit": "Votre client a toujours une réponse. Même à trois heures du matin.",
+    "textesEcran": [
+     "Votre client a toujours une réponse. Même à *3h* du matin."
+    ]
+   }
+  ],
+  "version": "fiche-image/1",
+  "accroches": [
+   {
+    "famille": "situation",
+    "texteDit": "Vingt-trois heures quatorze. Un client vous écrit.",
+    "textesEcran": [
+     "*23h14*",
+     "Un client vous écrit."
+    ]
+   },
+   {
+    "famille": "question",
+    "texteDit": "Qui répond à vos clients la nuit ?",
+    "textesEcran": [
+     "Qui répond à vos clients la *nuit* ?"
+    ]
+   }
+  ],
+  "chapitres": [
+   {
+    "titre": "80% — Réponse connue",
+    "ecrans": [
+     "e04",
+     "e05",
+     "e06",
+     "e07",
+     "e08"
+    ],
+    "repere": "1/2",
+    "essentiel": true
+   },
+   {
+    "titre": "20% — Limite atteinte",
+    "ecrans": [
+     "e09",
+     "e10",
+     "e11",
+     "e12",
+     "e13"
+    ],
+    "repere": "2/2",
+    "essentiel": false
+   }
+  ],
+  "empreinteCarte": "e84ff8b464d17f2743e6a34e20f8cb9431da5791da00c368e229a43fba8da965",
+  "questionCommentaire": {
+   "texteDit": "Chez vous, qui répond aux messages qui arrivent la nuit ?",
+   "texteEcran": "Chez vous, qui répond aux messages qui arrivent la nuit ?"
+  }
+ },
+ "pistes": [
+  {
+   "version": "fin-linkedin",
+   "finVoixSec": 55.98,
+   "fin": {
+    "id": "fin-linkedin",
+    "muet": true,
+    "appels": [],
+    "reseaux": [
+     "linkedin"
+    ]
+   },
+   "transcription": [
+    {
+     "mot": "23h14.",
+     "finSec": 0.74,
+     "debutSec": 0.38
+    },
+    {
+     "mot": "Un",
+     "finSec": 1.2,
+     "debutSec": 1.1
+    },
+    {
+     "mot": "client",
+     "finSec": 1.38,
+     "debutSec": 1.2
+    },
+    {
+     "mot": "vous",
+     "finSec": 1.54,
+     "debutSec": 1.38
+    },
+    {
+     "mot": "écrit.",
+     "finSec": 1.74,
+     "debutSec": 1.54
+    },
+    {
+     "mot": "Votre",
+     "finSec": 2.16,
+     "debutSec": 2.02
+    },
+    {
+     "mot": "équipe",
+     "finSec": 2.34,
+     "debutSec": 2.16
+    },
+    {
+     "mot": "est",
+     "finSec": 2.44,
+     "debutSec": 2.34
+    },
+    {
+     "mot": "parti.",
+     "finSec": 2.66,
+     "debutSec": 2.44
+    },
+    {
+     "mot": "Le",
+     "finSec": 2.98,
+     "debutSec": 2.92
+    },
+    {
+     "mot": "message",
+     "finSec": 3.2,
+     "debutSec": 2.98
+    },
+    {
+     "mot": "attend",
+     "finSec": 3.42,
+     "debutSec": 3.2
+    },
+    {
+     "mot": "le",
+     "finSec": 3.52,
+     "debutSec": 3.42
+    },
+    {
+     "mot": "matin.",
+     "finSec": 3.68,
+     "debutSec": 3.52
+    },
+    {
+     "mot": "Le",
+     "finSec": 4.02,
+     "debutSec": 3.96
+    },
+    {
+     "mot": "client",
+     "finSec": 4.22,
+     "debutSec": 4.02
+    },
+    {
+     "mot": "lui",
+     "finSec": 4.34,
+     "debutSec": 4.22
+    },
+    {
+     "mot": "reste",
+     "finSec": 4.52,
+     "debutSec": 4.34
+    },
+    {
+     "mot": "en",
+     "finSec": 4.64,
+     "debutSec": 4.52
+    },
+    {
+     "mot": "nouvelle.",
+     "finSec": 4.78,
+     "debutSec": 4.64
+    },
+    {
+     "mot": "Demain,",
+     "finSec": 5.26,
+     "debutSec": 5.04
+    },
+    {
+     "mot": "il",
+     "finSec": 5.34,
+     "debutSec": 5.32
+    },
+    {
+     "mot": "faudra",
+     "finSec": 5.54,
+     "debutSec": 5.34
+    },
+    {
+     "mot": "tout",
+     "finSec": 5.68,
+     "debutSec": 5.54
+    },
+    {
+     "mot": "rattraper.",
+     "finSec": 6.02,
+     "debutSec": 5.68
+    },
+    {
+     "mot": "Maintenant,",
+     "finSec": 6.42,
+     "debutSec": 6.2
+    },
+    {
+     "mot": "ce",
+     "finSec": 6.84,
+     "debutSec": 6.72
+    },
+    {
+     "mot": "message",
+     "finSec": 7.04,
+     "debutSec": 6.84
+    },
+    {
+     "mot": "a",
+     "finSec": 7.16,
+     "debutSec": 7.04
+    },
+    {
+     "mot": "une",
+     "finSec": 7.26,
+     "debutSec": 7.16
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 7.48,
+     "debutSec": 7.26
+    },
+    {
+     "mot": "Oui,",
+     "finSec": 8.08,
+     "debutSec": 7.92
+    },
+    {
+     "mot": "ce",
+     "finSec": 8.4,
+     "debutSec": 8.34
+    },
+    {
+     "mot": "soir.",
+     "finSec": 8.62,
+     "debutSec": 8.4
+    },
+    {
+     "mot": "Il",
+     "finSec": 8.92,
+     "debutSec": 8.88
+    },
+    {
+     "mot": "peut",
+     "finSec": 9.04,
+     "debutSec": 8.92
+    },
+    {
+     "mot": "prendre",
+     "finSec": 9.22,
+     "debutSec": 9.04
+    },
+    {
+     "mot": "deux",
+     "finSec": 9.48,
+     "debutSec": 9.22
+    },
+    {
+     "mot": "chemins.",
+     "finSec": 9.74,
+     "debutSec": 9.48
+    },
+    {
+     "mot": "Voici",
+     "finSec": 10.14,
+     "debutSec": 9.9
+    },
+    {
+     "mot": "une",
+     "finSec": 10.26,
+     "debutSec": 10.14
+    },
+    {
+     "mot": "situation",
+     "finSec": 10.54,
+     "debutSec": 10.26
+    },
+    {
+     "mot": "type.",
+     "finSec": 10.78,
+     "debutSec": 10.54
+    },
+    {
+     "mot": "Un",
+     "finSec": 11.12,
+     "debutSec": 11.08
+    },
+    {
+     "mot": "message",
+     "finSec": 11.34,
+     "debutSec": 11.12
+    },
+    {
+     "mot": "arrive",
+     "finSec": 11.6,
+     "debutSec": 11.34
+    },
+    {
+     "mot": "à",
+     "finSec": 11.7,
+     "debutSec": 11.6
+    },
+    {
+     "mot": "23h14.",
+     "finSec": 12.44,
+     "debutSec": 11.7
+    },
+    {
+     "mot": "Personne",
+     "finSec": 13.14,
+     "debutSec": 12.8
+    },
+    {
+     "mot": "n",
+     "finSec": 13.2,
+     "debutSec": 13.14
+    },
+    {
+     "mot": "'est",
+     "finSec": 13.2,
+     "debutSec": 13.2
+    },
+    {
+     "mot": "au",
+     "finSec": 13.34,
+     "debutSec": 13.2
+    },
+    {
+     "mot": "bureau.",
+     "finSec": 13.48,
+     "debutSec": 13.34
+    },
+    {
+     "mot": "Il",
+     "finSec": 13.86,
+     "debutSec": 13.78
+    },
+    {
+     "mot": "arrive",
+     "finSec": 14.02,
+     "debutSec": 13.86
+    },
+    {
+     "mot": "au",
+     "finSec": 14.14,
+     "debutSec": 14.02
+    },
+    {
+     "mot": "chatbot",
+     "finSec": 14.44,
+     "debutSec": 14.14
+    },
+    {
+     "mot": "hier.",
+     "finSec": 14.58,
+     "debutSec": 14.44
+    },
+    {
+     "mot": "Le",
+     "finSec": 14.9,
+     "debutSec": 14.84
+    },
+    {
+     "mot": "chatbot",
+     "finSec": 15.2,
+     "debutSec": 14.9
+    },
+    {
+     "mot": "analyse",
+     "finSec": 15.66,
+     "debutSec": 15.2
+    },
+    {
+     "mot": "la",
+     "finSec": 15.82,
+     "debutSec": 15.66
+    },
+    {
+     "mot": "demande.",
+     "finSec": 15.98,
+     "debutSec": 15.82
+    },
+    {
+     "mot": "Il",
+     "finSec": 16.34,
+     "debutSec": 16.24
+    },
+    {
+     "mot": "connaît",
+     "finSec": 16.52,
+     "debutSec": 16.34
+    },
+    {
+     "mot": "la",
+     "finSec": 16.62,
+     "debutSec": 16.52
+    },
+    {
+     "mot": "réponse",
+     "finSec": 16.86,
+     "debutSec": 16.62
+    },
+    {
+     "mot": "ou",
+     "finSec": 17.26,
+     "debutSec": 16.86
+    },
+    {
+     "mot": "pas.",
+     "finSec": 17.4,
+     "debutSec": 17.26
+    },
+    {
+     "mot": "Premier",
+     "finSec": 17.8,
+     "debutSec": 17.62
+    },
+    {
+     "mot": "chemin,",
+     "finSec": 18.02,
+     "debutSec": 17.8
+    },
+    {
+     "mot": "4",
+     "finSec": 18.36,
+     "debutSec": 18.26
+    },
+    {
+     "mot": "-20",
+     "finSec": 18.52,
+     "debutSec": 18.36
+    },
+    {
+     "mot": "%",
+     "finSec": 18.74,
+     "debutSec": 18.52
+    },
+    {
+     "mot": "des",
+     "finSec": 18.86,
+     "debutSec": 18.74
+    },
+    {
+     "mot": "cas.",
+     "finSec": 18.98,
+     "debutSec": 18.86
+    },
+    {
+     "mot": "La",
+     "finSec": 19.18,
+     "debutSec": 19.12
+    },
+    {
+     "mot": "réponse",
+     "finSec": 19.38,
+     "debutSec": 19.18
+    },
+    {
+     "mot": "est",
+     "finSec": 19.52,
+     "debutSec": 19.38
+    },
+    {
+     "mot": "connue.",
+     "finSec": 19.72,
+     "debutSec": 19.52
+    },
+    {
+     "mot": "L",
+     "finSec": 20.02,
+     "debutSec": 19.9
+    },
+    {
+     "mot": "'automatisation",
+     "finSec": 20.6,
+     "debutSec": 20.02
+    },
+    {
+     "mot": "rédige",
+     "finSec": 20.86,
+     "debutSec": 20.6
+    },
+    {
+     "mot": "la",
+     "finSec": 21,
+     "debutSec": 20.86
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 21.26,
+     "debutSec": 21
+    },
+    {
+     "mot": "Elle",
+     "finSec": 21.8,
+     "debutSec": 21.68
+    },
+    {
+     "mot": "repart",
+     "finSec": 22.06,
+     "debutSec": 21.8
+    },
+    {
+     "mot": "en",
+     "finSec": 22.2,
+     "debutSec": 22.06
+    },
+    {
+     "mot": "4",
+     "finSec": 22.32,
+     "debutSec": 22.2
+    },
+    {
+     "mot": "secondes.",
+     "finSec": 22.74,
+     "debutSec": 22.32
+    },
+    {
+     "mot": "Le",
+     "finSec": 23.04,
+     "debutSec": 22.94
+    },
+    {
+     "mot": "message",
+     "finSec": 23.26,
+     "debutSec": 23.04
+    },
+    {
+     "mot": "ne",
+     "finSec": 23.42,
+     "debutSec": 23.26
+    },
+    {
+     "mot": "dort",
+     "finSec": 23.5,
+     "debutSec": 23.42
+    },
+    {
+     "mot": "pas.",
+     "finSec": 23.74,
+     "debutSec": 23.5
+    },
+    {
+     "mot": "Dans",
+     "finSec": 24.08,
+     "debutSec": 24
+    },
+    {
+     "mot": "une",
+     "finSec": 24.2,
+     "debutSec": 24.08
+    },
+    {
+     "mot": "boîte,",
+     "finSec": 24.48,
+     "debutSec": 24.2
+    },
+    {
+     "mot": "le",
+     "finSec": 24.72,
+     "debutSec": 24.64
+    },
+    {
+     "mot": "ticket",
+     "finSec": 24.9,
+     "debutSec": 24.72
+    },
+    {
+     "mot": "se",
+     "finSec": 25.08,
+     "debutSec": 24.9
+    },
+    {
+     "mot": "clôture",
+     "finSec": 25.38,
+     "debutSec": 25.08
+    },
+    {
+     "mot": "tout",
+     "finSec": 25.52,
+     "debutSec": 25.38
+    },
+    {
+     "mot": "seul,",
+     "finSec": 25.74,
+     "debutSec": 25.52
+    },
+    {
+     "mot": "résolue",
+     "finSec": 26.32,
+     "debutSec": 25.98
+    },
+    {
+     "mot": "sans",
+     "finSec": 26.56,
+     "debutSec": 26.32
+    },
+    {
+     "mot": "intervention",
+     "finSec": 26.98,
+     "debutSec": 26.56
+    },
+    {
+     "mot": "humaine.",
+     "finSec": 27.3,
+     "debutSec": 26.98
+    },
+    {
+     "mot": "votre",
+     "finSec": 27.66,
+     "debutSec": 27.3
+    },
+    {
+     "mot": "équipe",
+     "finSec": 27.94,
+     "debutSec": 27.66
+    },
+    {
+     "mot": "d",
+     "finSec": 28.08,
+     "debutSec": 27.94
+    },
+    {
+     "mot": "'or,",
+     "finSec": 28.2,
+     "debutSec": 28.08
+    },
+    {
+     "mot": "le",
+     "finSec": 28.46,
+     "debutSec": 28.38
+    },
+    {
+     "mot": "client",
+     "finSec": 28.68,
+     "debutSec": 28.46
+    },
+    {
+     "mot": "est",
+     "finSec": 28.88,
+     "debutSec": 28.68
+    },
+    {
+     "mot": "servi,",
+     "finSec": 29.14,
+     "debutSec": 28.88
+    },
+    {
+     "mot": "retour",
+     "finSec": 29.56,
+     "debutSec": 29.36
+    },
+    {
+     "mot": "au",
+     "finSec": 29.68,
+     "debutSec": 29.56
+    },
+    {
+     "mot": "chatbot.",
+     "finSec": 29.98,
+     "debutSec": 29.68
+    },
+    {
+     "mot": "Deuxième",
+     "finSec": 30.44,
+     "debutSec": 30.14
+    },
+    {
+     "mot": "chemin,",
+     "finSec": 30.66,
+     "debutSec": 30.44
+    },
+    {
+     "mot": "20",
+     "finSec": 31,
+     "debutSec": 30.84
+    },
+    {
+     "mot": "%",
+     "finSec": 31.28,
+     "debutSec": 31
+    },
+    {
+     "mot": "des",
+     "finSec": 31.44,
+     "debutSec": 31.28
+    },
+    {
+     "mot": "cas,",
+     "finSec": 31.6,
+     "debutSec": 31.44
+    },
+    {
+     "mot": "là",
+     "finSec": 31.76,
+     "debutSec": 31.68
+    },
+    {
+     "mot": "il",
+     "finSec": 31.88,
+     "debutSec": 31.76
+    },
+    {
+     "mot": "atteint",
+     "finSec": 32.1,
+     "debutSec": 31.88
+    },
+    {
+     "mot": "sa",
+     "finSec": 32.22,
+     "debutSec": 32.1
+    },
+    {
+     "mot": "limite,",
+     "finSec": 32.44,
+     "debutSec": 32.22
+    },
+    {
+     "mot": "il",
+     "finSec": 32.82,
+     "debutSec": 32.78
+    },
+    {
+     "mot": "ne",
+     "finSec": 32.96,
+     "debutSec": 32.82
+    },
+    {
+     "mot": "bricole",
+     "finSec": 33.26,
+     "debutSec": 32.96
+    },
+    {
+     "mot": "pas",
+     "finSec": 33.38,
+     "debutSec": 33.26
+    },
+    {
+     "mot": "une",
+     "finSec": 33.52,
+     "debutSec": 33.38
+    },
+    {
+     "mot": "réponse,",
+     "finSec": 33.86,
+     "debutSec": 33.52
+    },
+    {
+     "mot": "il",
+     "finSec": 34.26,
+     "debutSec": 34.2
+    },
+    {
+     "mot": "rédige",
+     "finSec": 34.48,
+     "debutSec": 34.26
+    },
+    {
+     "mot": "un",
+     "finSec": 34.6,
+     "debutSec": 34.48
+    },
+    {
+     "mot": "email",
+     "finSec": 34.74,
+     "debutSec": 34.6
+    },
+    {
+     "mot": "structuré,",
+     "finSec": 35.36,
+     "debutSec": 34.74
+    },
+    {
+     "mot": "objet,",
+     "finSec": 35.76,
+     "debutSec": 35.48
+    },
+    {
+     "mot": "contexte,",
+     "finSec": 36.32,
+     "debutSec": 35.96
+    },
+    {
+     "mot": "demande",
+     "finSec": 36.46,
+     "debutSec": 36.42
+    },
+    {
+     "mot": "d",
+     "finSec": 36.6,
+     "debutSec": 36.46
+    },
+    {
+     "mot": "'urgence.",
+     "finSec": 36.76,
+     "debutSec": 36.6
+    },
+    {
+     "mot": "L",
+     "finSec": 37.26,
+     "debutSec": 37.12
+    },
+    {
+     "mot": "'email",
+     "finSec": 37.42,
+     "debutSec": 37.26
+    },
+    {
+     "mot": "part",
+     "finSec": 37.66,
+     "debutSec": 37.42
+    },
+    {
+     "mot": "à",
+     "finSec": 37.72,
+     "debutSec": 37.66
+    },
+    {
+     "mot": "l",
+     "finSec": 37.78,
+     "debutSec": 37.72
+    },
+    {
+     "mot": "'équipe",
+     "finSec": 37.94,
+     "debutSec": 37.78
+    },
+    {
+     "mot": "concernée,",
+     "finSec": 38.4,
+     "debutSec": 37.94
+    },
+    {
+     "mot": "pas",
+     "finSec": 38.68,
+     "debutSec": 38.58
+    },
+    {
+     "mot": "à",
+     "finSec": 38.78,
+     "debutSec": 38.68
+    },
+    {
+     "mot": "tout",
+     "finSec": 38.82,
+     "debutSec": 38.78
+    },
+    {
+     "mot": "le",
+     "finSec": 38.9,
+     "debutSec": 38.82
+    },
+    {
+     "mot": "monde.",
+     "finSec": 39.04,
+     "debutSec": 38.9
+    },
+    {
+     "mot": "Puis",
+     "finSec": 39.32,
+     "debutSec": 39.2
+    },
+    {
+     "mot": "une",
+     "finSec": 39.54,
+     "debutSec": 39.32
+    },
+    {
+     "mot": "alerte",
+     "finSec": 39.76,
+     "debutSec": 39.54
+    },
+    {
+     "mot": "d",
+     "finSec": 39.8,
+     "debutSec": 39.76
+    },
+    {
+     "mot": "'élégramme",
+     "finSec": 40.06,
+     "debutSec": 39.8
+    },
+    {
+     "mot": "tombe,",
+     "finSec": 40.3,
+     "debutSec": 40.06
+    },
+    {
+     "mot": "intervention",
+     "finSec": 40.72,
+     "debutSec": 40.42
+    },
+    {
+     "mot": "requise,",
+     "finSec": 41.18,
+     "debutSec": 40.72
+    },
+    {
+     "mot": "quelqu",
+     "finSec": 41.52,
+     "debutSec": 41.36
+    },
+    {
+     "mot": "'un",
+     "finSec": 41.72,
+     "debutSec": 41.52
+    },
+    {
+     "mot": "sait",
+     "finSec": 41.86,
+     "debutSec": 41.72
+    },
+    {
+     "mot": "qu",
+     "finSec": 41.98,
+     "debutSec": 41.86
+    },
+    {
+     "mot": "'il",
+     "finSec": 42,
+     "debutSec": 41.98
+    },
+    {
+     "mot": "doit",
+     "finSec": 42.12,
+     "debutSec": 42
+    },
+    {
+     "mot": "agir",
+     "finSec": 42.44,
+     "debutSec": 42.12
+    },
+    {
+     "mot": "et",
+     "finSec": 42.66,
+     "debutSec": 42.44
+    },
+    {
+     "mot": "le",
+     "finSec": 42.76,
+     "debutSec": 42.66
+    },
+    {
+     "mot": "client",
+     "finSec": 42.92,
+     "debutSec": 42.76
+    },
+    {
+     "mot": "est",
+     "finSec": 43.04,
+     "debutSec": 42.92
+    },
+    {
+     "mot": "prévenu,",
+     "finSec": 43.34,
+     "debutSec": 43.04
+    },
+    {
+     "mot": "réponse",
+     "finSec": 43.72,
+     "debutSec": 43.48
+    },
+    {
+     "mot": "sous",
+     "finSec": 43.9,
+     "debutSec": 43.72
+    },
+    {
+     "mot": "deux",
+     "finSec": 44.02,
+     "debutSec": 43.9
+    },
+    {
+     "mot": "heures.",
+     "finSec": 44.2,
+     "debutSec": 44.02
+    },
+    {
+     "mot": "Il",
+     "finSec": 44.46,
+     "debutSec": 44.36
+    },
+    {
+     "mot": "sait",
+     "finSec": 44.64,
+     "debutSec": 44.46
+    },
+    {
+     "mot": "où",
+     "finSec": 44.76,
+     "debutSec": 44.64
+    },
+    {
+     "mot": "on",
+     "finSec": 44.82,
+     "debutSec": 44.76
+    },
+    {
+     "mot": "est",
+     "finSec": 44.9,
+     "debutSec": 44.82
+    },
+    {
+     "mot": "sa",
+     "finSec": 45,
+     "debutSec": 44.9
+    },
+    {
+     "mot": "demande,",
+     "finSec": 45.26,
+     "debutSec": 45
+    },
+    {
+     "mot": "reprenons",
+     "finSec": 45.82,
+     "debutSec": 45.46
+    },
+    {
+     "mot": "ce",
+     "finSec": 45.92,
+     "debutSec": 45.82
+    },
+    {
+     "mot": "message.",
+     "finSec": 46.16,
+     "debutSec": 45.92
+    },
+    {
+     "mot": "Entrez",
+     "finSec": 46.68,
+     "debutSec": 46.42
+    },
+    {
+     "mot": "à",
+     "finSec": 46.8,
+     "debutSec": 46.68
+    },
+    {
+     "mot": "23h14,",
+     "finSec": 47.44,
+     "debutSec": 46.8
+    },
+    {
+     "mot": "il",
+     "finSec": 47.88,
+     "debutSec": 47.78
+    },
+    {
+     "mot": "ressort",
+     "finSec": 48.18,
+     "debutSec": 47.88
+    },
+    {
+     "mot": "avec",
+     "finSec": 48.36,
+     "debutSec": 48.18
+    },
+    {
+     "mot": "une",
+     "finSec": 48.52,
+     "debutSec": 48.36
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 48.78,
+     "debutSec": 48.52
+    },
+    {
+     "mot": "80",
+     "finSec": 49.36,
+     "debutSec": 49.16
+    },
+    {
+     "mot": "%",
+     "finSec": 49.82,
+     "debutSec": 49.36
+    },
+    {
+     "mot": "résolu",
+     "finSec": 50.2,
+     "debutSec": 49.82
+    },
+    {
+     "mot": "instantanément,",
+     "finSec": 50.84,
+     "debutSec": 50.2
+    },
+    {
+     "mot": "zéro",
+     "finSec": 51.28,
+     "debutSec": 51.1
+    },
+    {
+     "mot": "demande",
+     "finSec": 51.5,
+     "debutSec": 51.28
+    },
+    {
+     "mot": "perdu,",
+     "finSec": 51.8,
+     "debutSec": 51.5
+    },
+    {
+     "mot": "24h",
+     "finSec": 52.56,
+     "debutSec": 52.04
+    },
+    {
+     "mot": "sur",
+     "finSec": 52.68,
+     "debutSec": 52.56
+    },
+    {
+     "mot": "24.",
+     "finSec": 52.92,
+     "debutSec": 52.68
+    },
+    {
+     "mot": "Votre",
+     "finSec": 53.46,
+     "debutSec": 53.26
+    },
+    {
+     "mot": "client",
+     "finSec": 53.72,
+     "debutSec": 53.46
+    },
+    {
+     "mot": "a",
+     "finSec": 53.98,
+     "debutSec": 53.72
+    },
+    {
+     "mot": "toujours",
+     "finSec": 54.18,
+     "debutSec": 53.98
+    },
+    {
+     "mot": "une",
+     "finSec": 54.34,
+     "debutSec": 54.18
+    },
+    {
+     "mot": "réponse,",
+     "finSec": 54.66,
+     "debutSec": 54.34
+    },
+    {
+     "mot": "même",
+     "finSec": 55.14,
+     "debutSec": 54.94
+    },
+    {
+     "mot": "à",
+     "finSec": 55.24,
+     "debutSec": 55.14
+    },
+    {
+     "mot": "3h",
+     "finSec": 55.52,
+     "debutSec": 55.24
+    },
+    {
+     "mot": "du",
+     "finSec": 55.64,
+     "debutSec": 55.52
+    },
+    {
+     "mot": "matin.",
+     "finSec": 55.84,
+     "debutSec": 55.64
+    }
+   ]
+  },
+  {
+   "version": "fin-instagram",
+   "finVoixSec": 60.89,
+   "fin": {
+    "id": "fin-instagram",
+    "muet": false,
+    "appels": [
+     {
+      "id": "fin-if-diagnostic-gratuit",
+      "dit": "Faites votre diagnostic gratuit en quelques minutes.",
+      "type": "rendez-vous",
+      "ecran": "Faites votre diagnostic gratuit",
+      "groupe": "instagram-facebook"
+     },
+     {
+      "id": "fin-ig-lien-profil",
+      "dit": "Le lien est dans mon profil.",
+      "type": "lien",
+      "ecran": "Diagnostic gratuit · lien dans le profil",
+      "groupe": "instagram-facebook"
+     }
+    ],
+    "reseaux": [
+     "instagram"
+    ],
+    "question": {
+     "dit": "Chez vous, qui répond aux messages qui arrivent la nuit ?",
+     "ecran": "Votre réponse en commentaire",
+     "ligne": "fin-if-question",
+     "origine": "image"
+    }
+   },
+   "transcription": [
+    {
+     "mot": "23h14.",
+     "finSec": 0.74,
+     "debutSec": 0
+    },
+    {
+     "mot": "Un",
+     "finSec": 1.2,
+     "debutSec": 1.1
+    },
+    {
+     "mot": "client",
+     "finSec": 1.38,
+     "debutSec": 1.2
+    },
+    {
+     "mot": "vous",
+     "finSec": 1.54,
+     "debutSec": 1.38
+    },
+    {
+     "mot": "écrit.",
+     "finSec": 1.74,
+     "debutSec": 1.54
+    },
+    {
+     "mot": "Votre",
+     "finSec": 2.16,
+     "debutSec": 2.02
+    },
+    {
+     "mot": "équipe",
+     "finSec": 2.34,
+     "debutSec": 2.16
+    },
+    {
+     "mot": "est",
+     "finSec": 2.44,
+     "debutSec": 2.34
+    },
+    {
+     "mot": "parti.",
+     "finSec": 2.66,
+     "debutSec": 2.44
+    },
+    {
+     "mot": "Le",
+     "finSec": 3,
+     "debutSec": 2.92
+    },
+    {
+     "mot": "message",
+     "finSec": 3.22,
+     "debutSec": 3
+    },
+    {
+     "mot": "attend",
+     "finSec": 3.42,
+     "debutSec": 3.22
+    },
+    {
+     "mot": "le",
+     "finSec": 3.52,
+     "debutSec": 3.42
+    },
+    {
+     "mot": "matin.",
+     "finSec": 3.68,
+     "debutSec": 3.52
+    },
+    {
+     "mot": "Le",
+     "finSec": 4.02,
+     "debutSec": 3.96
+    },
+    {
+     "mot": "client",
+     "finSec": 4.22,
+     "debutSec": 4.02
+    },
+    {
+     "mot": "lui",
+     "finSec": 4.34,
+     "debutSec": 4.22
+    },
+    {
+     "mot": "reste",
+     "finSec": 4.52,
+     "debutSec": 4.34
+    },
+    {
+     "mot": "en",
+     "finSec": 4.64,
+     "debutSec": 4.52
+    },
+    {
+     "mot": "nouvelle.",
+     "finSec": 4.78,
+     "debutSec": 4.64
+    },
+    {
+     "mot": "Demain",
+     "finSec": 5.26,
+     "debutSec": 5.04
+    },
+    {
+     "mot": "il",
+     "finSec": 5.34,
+     "debutSec": 5.26
+    },
+    {
+     "mot": "faudra",
+     "finSec": 5.52,
+     "debutSec": 5.34
+    },
+    {
+     "mot": "tout",
+     "finSec": 5.68,
+     "debutSec": 5.52
+    },
+    {
+     "mot": "rattraper.",
+     "finSec": 6.02,
+     "debutSec": 5.68
+    },
+    {
+     "mot": "Maintenant,",
+     "finSec": 6.42,
+     "debutSec": 6.2
+    },
+    {
+     "mot": "ce",
+     "finSec": 6.84,
+     "debutSec": 6.72
+    },
+    {
+     "mot": "message",
+     "finSec": 7.04,
+     "debutSec": 6.84
+    },
+    {
+     "mot": "a",
+     "finSec": 7.16,
+     "debutSec": 7.04
+    },
+    {
+     "mot": "une",
+     "finSec": 7.24,
+     "debutSec": 7.16
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 7.48,
+     "debutSec": 7.24
+    },
+    {
+     "mot": "Oui,",
+     "finSec": 8.08,
+     "debutSec": 7.92
+    },
+    {
+     "mot": "ce",
+     "finSec": 8.4,
+     "debutSec": 8.36
+    },
+    {
+     "mot": "soir.",
+     "finSec": 8.62,
+     "debutSec": 8.4
+    },
+    {
+     "mot": "Il",
+     "finSec": 8.92,
+     "debutSec": 8.86
+    },
+    {
+     "mot": "peut",
+     "finSec": 9.04,
+     "debutSec": 8.92
+    },
+    {
+     "mot": "prendre",
+     "finSec": 9.22,
+     "debutSec": 9.04
+    },
+    {
+     "mot": "deux",
+     "finSec": 9.48,
+     "debutSec": 9.22
+    },
+    {
+     "mot": "chemins.",
+     "finSec": 9.76,
+     "debutSec": 9.48
+    },
+    {
+     "mot": "Voici",
+     "finSec": 10.14,
+     "debutSec": 9.9
+    },
+    {
+     "mot": "une",
+     "finSec": 10.26,
+     "debutSec": 10.14
+    },
+    {
+     "mot": "situation",
+     "finSec": 10.52,
+     "debutSec": 10.26
+    },
+    {
+     "mot": "type.",
+     "finSec": 10.78,
+     "debutSec": 10.52
+    },
+    {
+     "mot": "Un",
+     "finSec": 11.12,
+     "debutSec": 11.08
+    },
+    {
+     "mot": "message",
+     "finSec": 11.34,
+     "debutSec": 11.12
+    },
+    {
+     "mot": "arrive",
+     "finSec": 11.6,
+     "debutSec": 11.34
+    },
+    {
+     "mot": "à",
+     "finSec": 11.7,
+     "debutSec": 11.6
+    },
+    {
+     "mot": "23h14.",
+     "finSec": 12.44,
+     "debutSec": 11.7
+    },
+    {
+     "mot": "Personne",
+     "finSec": 13.14,
+     "debutSec": 12.8
+    },
+    {
+     "mot": "n",
+     "finSec": 13.2,
+     "debutSec": 13.14
+    },
+    {
+     "mot": "'est",
+     "finSec": 13.22,
+     "debutSec": 13.2
+    },
+    {
+     "mot": "au",
+     "finSec": 13.36,
+     "debutSec": 13.22
+    },
+    {
+     "mot": "bureau.",
+     "finSec": 13.48,
+     "debutSec": 13.36
+    },
+    {
+     "mot": "Il",
+     "finSec": 13.86,
+     "debutSec": 13.78
+    },
+    {
+     "mot": "arrive",
+     "finSec": 14.02,
+     "debutSec": 13.86
+    },
+    {
+     "mot": "au",
+     "finSec": 14.14,
+     "debutSec": 14.02
+    },
+    {
+     "mot": "chatbot",
+     "finSec": 14.44,
+     "debutSec": 14.14
+    },
+    {
+     "mot": "hier.",
+     "finSec": 14.58,
+     "debutSec": 14.44
+    },
+    {
+     "mot": "Le",
+     "finSec": 14.9,
+     "debutSec": 14.84
+    },
+    {
+     "mot": "chatbot",
+     "finSec": 15.2,
+     "debutSec": 14.9
+    },
+    {
+     "mot": "analyse",
+     "finSec": 15.66,
+     "debutSec": 15.2
+    },
+    {
+     "mot": "la",
+     "finSec": 15.82,
+     "debutSec": 15.66
+    },
+    {
+     "mot": "demande.",
+     "finSec": 15.98,
+     "debutSec": 15.82
+    },
+    {
+     "mot": "Il",
+     "finSec": 16.34,
+     "debutSec": 16.24
+    },
+    {
+     "mot": "connaît",
+     "finSec": 16.52,
+     "debutSec": 16.34
+    },
+    {
+     "mot": "la",
+     "finSec": 16.62,
+     "debutSec": 16.52
+    },
+    {
+     "mot": "réponse",
+     "finSec": 16.86,
+     "debutSec": 16.62
+    },
+    {
+     "mot": "ou",
+     "finSec": 17.26,
+     "debutSec": 16.86
+    },
+    {
+     "mot": "pas.",
+     "finSec": 17.4,
+     "debutSec": 17.26
+    },
+    {
+     "mot": "Premier",
+     "finSec": 17.8,
+     "debutSec": 17.62
+    },
+    {
+     "mot": "chemin,",
+     "finSec": 18.02,
+     "debutSec": 17.8
+    },
+    {
+     "mot": "4",
+     "finSec": 18.36,
+     "debutSec": 18.26
+    },
+    {
+     "mot": "-20",
+     "finSec": 18.52,
+     "debutSec": 18.36
+    },
+    {
+     "mot": "%",
+     "finSec": 18.74,
+     "debutSec": 18.52
+    },
+    {
+     "mot": "des",
+     "finSec": 18.88,
+     "debutSec": 18.74
+    },
+    {
+     "mot": "cas.",
+     "finSec": 18.98,
+     "debutSec": 18.88
+    },
+    {
+     "mot": "La",
+     "finSec": 19.18,
+     "debutSec": 19.12
+    },
+    {
+     "mot": "réponse",
+     "finSec": 19.38,
+     "debutSec": 19.18
+    },
+    {
+     "mot": "est",
+     "finSec": 19.52,
+     "debutSec": 19.38
+    },
+    {
+     "mot": "connue.",
+     "finSec": 19.72,
+     "debutSec": 19.52
+    },
+    {
+     "mot": "L",
+     "finSec": 20.02,
+     "debutSec": 19.92
+    },
+    {
+     "mot": "'automatisation",
+     "finSec": 20.6,
+     "debutSec": 20.02
+    },
+    {
+     "mot": "rédige",
+     "finSec": 20.86,
+     "debutSec": 20.6
+    },
+    {
+     "mot": "la",
+     "finSec": 21,
+     "debutSec": 20.86
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 21.26,
+     "debutSec": 21
+    },
+    {
+     "mot": "Elle",
+     "finSec": 21.8,
+     "debutSec": 21.68
+    },
+    {
+     "mot": "repart",
+     "finSec": 22.06,
+     "debutSec": 21.8
+    },
+    {
+     "mot": "en",
+     "finSec": 22.2,
+     "debutSec": 22.06
+    },
+    {
+     "mot": "4",
+     "finSec": 22.32,
+     "debutSec": 22.2
+    },
+    {
+     "mot": "secondes.",
+     "finSec": 22.74,
+     "debutSec": 22.32
+    },
+    {
+     "mot": "Le",
+     "finSec": 23.04,
+     "debutSec": 22.94
+    },
+    {
+     "mot": "message",
+     "finSec": 23.26,
+     "debutSec": 23.04
+    },
+    {
+     "mot": "ne",
+     "finSec": 23.42,
+     "debutSec": 23.26
+    },
+    {
+     "mot": "dort",
+     "finSec": 23.52,
+     "debutSec": 23.42
+    },
+    {
+     "mot": "pas.",
+     "finSec": 23.76,
+     "debutSec": 23.52
+    },
+    {
+     "mot": "Dans",
+     "finSec": 24.08,
+     "debutSec": 24
+    },
+    {
+     "mot": "une",
+     "finSec": 24.2,
+     "debutSec": 24.08
+    },
+    {
+     "mot": "boîte,",
+     "finSec": 24.52,
+     "debutSec": 24.2
+    },
+    {
+     "mot": "le",
+     "finSec": 24.72,
+     "debutSec": 24.64
+    },
+    {
+     "mot": "ticket",
+     "finSec": 24.92,
+     "debutSec": 24.72
+    },
+    {
+     "mot": "se",
+     "finSec": 25.08,
+     "debutSec": 24.92
+    },
+    {
+     "mot": "clôture",
+     "finSec": 25.38,
+     "debutSec": 25.08
+    },
+    {
+     "mot": "tout",
+     "finSec": 25.52,
+     "debutSec": 25.38
+    },
+    {
+     "mot": "seul,",
+     "finSec": 25.74,
+     "debutSec": 25.52
+    },
+    {
+     "mot": "résolue",
+     "finSec": 26.32,
+     "debutSec": 25.98
+    },
+    {
+     "mot": "sans",
+     "finSec": 26.54,
+     "debutSec": 26.32
+    },
+    {
+     "mot": "intervention",
+     "finSec": 26.98,
+     "debutSec": 26.54
+    },
+    {
+     "mot": "humaine.",
+     "finSec": 27.3,
+     "debutSec": 26.98
+    },
+    {
+     "mot": "votre",
+     "finSec": 27.66,
+     "debutSec": 27.3
+    },
+    {
+     "mot": "équipe",
+     "finSec": 27.94,
+     "debutSec": 27.66
+    },
+    {
+     "mot": "d",
+     "finSec": 28.08,
+     "debutSec": 27.94
+    },
+    {
+     "mot": "'or,",
+     "finSec": 28.2,
+     "debutSec": 28.08
+    },
+    {
+     "mot": "le",
+     "finSec": 28.46,
+     "debutSec": 28.38
+    },
+    {
+     "mot": "client",
+     "finSec": 28.68,
+     "debutSec": 28.46
+    },
+    {
+     "mot": "est",
+     "finSec": 28.9,
+     "debutSec": 28.68
+    },
+    {
+     "mot": "servi,",
+     "finSec": 29.14,
+     "debutSec": 28.9
+    },
+    {
+     "mot": "retour",
+     "finSec": 29.56,
+     "debutSec": 29.36
+    },
+    {
+     "mot": "au",
+     "finSec": 29.68,
+     "debutSec": 29.56
+    },
+    {
+     "mot": "chatbot.",
+     "finSec": 29.98,
+     "debutSec": 29.68
+    },
+    {
+     "mot": "Deuxième",
+     "finSec": 30.44,
+     "debutSec": 30.18
+    },
+    {
+     "mot": "chemin,",
+     "finSec": 30.66,
+     "debutSec": 30.44
+    },
+    {
+     "mot": "20",
+     "finSec": 31,
+     "debutSec": 30.86
+    },
+    {
+     "mot": "%",
+     "finSec": 31.28,
+     "debutSec": 31
+    },
+    {
+     "mot": "des",
+     "finSec": 31.46,
+     "debutSec": 31.28
+    },
+    {
+     "mot": "cas,",
+     "finSec": 31.6,
+     "debutSec": 31.46
+    },
+    {
+     "mot": "là",
+     "finSec": 31.76,
+     "debutSec": 31.68
+    },
+    {
+     "mot": "il",
+     "finSec": 31.88,
+     "debutSec": 31.76
+    },
+    {
+     "mot": "atteint",
+     "finSec": 32.1,
+     "debutSec": 31.88
+    },
+    {
+     "mot": "sa",
+     "finSec": 32.22,
+     "debutSec": 32.1
+    },
+    {
+     "mot": "limite,",
+     "finSec": 32.44,
+     "debutSec": 32.22
+    },
+    {
+     "mot": "il",
+     "finSec": 32.84,
+     "debutSec": 32.78
+    },
+    {
+     "mot": "ne",
+     "finSec": 32.96,
+     "debutSec": 32.84
+    },
+    {
+     "mot": "bricole",
+     "finSec": 33.26,
+     "debutSec": 32.96
+    },
+    {
+     "mot": "pas",
+     "finSec": 33.38,
+     "debutSec": 33.26
+    },
+    {
+     "mot": "une",
+     "finSec": 33.52,
+     "debutSec": 33.38
+    },
+    {
+     "mot": "réponse,",
+     "finSec": 33.84,
+     "debutSec": 33.52
+    },
+    {
+     "mot": "il",
+     "finSec": 34.26,
+     "debutSec": 34.2
+    },
+    {
+     "mot": "rédige",
+     "finSec": 34.48,
+     "debutSec": 34.26
+    },
+    {
+     "mot": "un",
+     "finSec": 34.6,
+     "debutSec": 34.48
+    },
+    {
+     "mot": "email",
+     "finSec": 34.74,
+     "debutSec": 34.6
+    },
+    {
+     "mot": "structuré,",
+     "finSec": 35.36,
+     "debutSec": 34.74
+    },
+    {
+     "mot": "objet,",
+     "finSec": 35.72,
+     "debutSec": 35.5
+    },
+    {
+     "mot": "contexte,",
+     "finSec": 36.32,
+     "debutSec": 35.96
+    },
+    {
+     "mot": "demande",
+     "finSec": 36.46,
+     "debutSec": 36.42
+    },
+    {
+     "mot": "d",
+     "finSec": 36.6,
+     "debutSec": 36.46
+    },
+    {
+     "mot": "'urgence.",
+     "finSec": 36.78,
+     "debutSec": 36.6
+    },
+    {
+     "mot": "L",
+     "finSec": 37.26,
+     "debutSec": 37.12
+    },
+    {
+     "mot": "'email",
+     "finSec": 37.42,
+     "debutSec": 37.26
+    },
+    {
+     "mot": "part",
+     "finSec": 37.66,
+     "debutSec": 37.42
+    },
+    {
+     "mot": "à",
+     "finSec": 37.74,
+     "debutSec": 37.66
+    },
+    {
+     "mot": "l",
+     "finSec": 37.8,
+     "debutSec": 37.74
+    },
+    {
+     "mot": "'équipe",
+     "finSec": 37.94,
+     "debutSec": 37.8
+    },
+    {
+     "mot": "concernée,",
+     "finSec": 38.4,
+     "debutSec": 37.94
+    },
+    {
+     "mot": "pas",
+     "finSec": 38.68,
+     "debutSec": 38.58
+    },
+    {
+     "mot": "à",
+     "finSec": 38.78,
+     "debutSec": 38.68
+    },
+    {
+     "mot": "tout",
+     "finSec": 38.82,
+     "debutSec": 38.78
+    },
+    {
+     "mot": "le",
+     "finSec": 38.9,
+     "debutSec": 38.82
+    },
+    {
+     "mot": "monde.",
+     "finSec": 39.04,
+     "debutSec": 38.9
+    },
+    {
+     "mot": "Puis",
+     "finSec": 39.32,
+     "debutSec": 39.2
+    },
+    {
+     "mot": "une",
+     "finSec": 39.54,
+     "debutSec": 39.32
+    },
+    {
+     "mot": "alerte",
+     "finSec": 39.74,
+     "debutSec": 39.54
+    },
+    {
+     "mot": "d",
+     "finSec": 39.8,
+     "debutSec": 39.74
+    },
+    {
+     "mot": "'élégramme",
+     "finSec": 40.06,
+     "debutSec": 39.8
+    },
+    {
+     "mot": "tombe,",
+     "finSec": 40.3,
+     "debutSec": 40.06
+    },
+    {
+     "mot": "intervention",
+     "finSec": 40.7,
+     "debutSec": 40.42
+    },
+    {
+     "mot": "requise,",
+     "finSec": 41.18,
+     "debutSec": 40.7
+    },
+    {
+     "mot": "quelqu",
+     "finSec": 41.52,
+     "debutSec": 41.36
+    },
+    {
+     "mot": "'un",
+     "finSec": 41.72,
+     "debutSec": 41.52
+    },
+    {
+     "mot": "sait",
+     "finSec": 41.86,
+     "debutSec": 41.72
+    },
+    {
+     "mot": "qu",
+     "finSec": 42,
+     "debutSec": 41.86
+    },
+    {
+     "mot": "'il",
+     "finSec": 42,
+     "debutSec": 42
+    },
+    {
+     "mot": "doit",
+     "finSec": 42.12,
+     "debutSec": 42
+    },
+    {
+     "mot": "agir",
+     "finSec": 42.44,
+     "debutSec": 42.12
+    },
+    {
+     "mot": "et",
+     "finSec": 42.66,
+     "debutSec": 42.44
+    },
+    {
+     "mot": "le",
+     "finSec": 42.76,
+     "debutSec": 42.66
+    },
+    {
+     "mot": "client",
+     "finSec": 42.92,
+     "debutSec": 42.76
+    },
+    {
+     "mot": "est",
+     "finSec": 43.04,
+     "debutSec": 42.92
+    },
+    {
+     "mot": "prévenu,",
+     "finSec": 43.34,
+     "debutSec": 43.04
+    },
+    {
+     "mot": "réponse",
+     "finSec": 43.72,
+     "debutSec": 43.48
+    },
+    {
+     "mot": "sous",
+     "finSec": 43.92,
+     "debutSec": 43.72
+    },
+    {
+     "mot": "deux",
+     "finSec": 44.02,
+     "debutSec": 43.92
+    },
+    {
+     "mot": "heures.",
+     "finSec": 44.2,
+     "debutSec": 44.02
+    },
+    {
+     "mot": "Il",
+     "finSec": 44.46,
+     "debutSec": 44.36
+    },
+    {
+     "mot": "sait",
+     "finSec": 44.64,
+     "debutSec": 44.46
+    },
+    {
+     "mot": "où",
+     "finSec": 44.76,
+     "debutSec": 44.64
+    },
+    {
+     "mot": "on",
+     "finSec": 44.82,
+     "debutSec": 44.76
+    },
+    {
+     "mot": "est",
+     "finSec": 44.9,
+     "debutSec": 44.82
+    },
+    {
+     "mot": "sa",
+     "finSec": 45,
+     "debutSec": 44.9
+    },
+    {
+     "mot": "demande,",
+     "finSec": 45.24,
+     "debutSec": 45
+    },
+    {
+     "mot": "reprenons",
+     "finSec": 45.82,
+     "debutSec": 45.48
+    },
+    {
+     "mot": "ce",
+     "finSec": 45.94,
+     "debutSec": 45.82
+    },
+    {
+     "mot": "message.",
+     "finSec": 46.16,
+     "debutSec": 45.94
+    },
+    {
+     "mot": "Entrez",
+     "finSec": 46.66,
+     "debutSec": 46.42
+    },
+    {
+     "mot": "à",
+     "finSec": 46.8,
+     "debutSec": 46.66
+    },
+    {
+     "mot": "23h14,",
+     "finSec": 47.44,
+     "debutSec": 46.8
+    },
+    {
+     "mot": "il",
+     "finSec": 47.88,
+     "debutSec": 47.78
+    },
+    {
+     "mot": "ressort",
+     "finSec": 48.18,
+     "debutSec": 47.88
+    },
+    {
+     "mot": "avec",
+     "finSec": 48.36,
+     "debutSec": 48.18
+    },
+    {
+     "mot": "une",
+     "finSec": 48.52,
+     "debutSec": 48.36
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 48.78,
+     "debutSec": 48.52
+    },
+    {
+     "mot": "80",
+     "finSec": 49.34,
+     "debutSec": 49.16
+    },
+    {
+     "mot": "%",
+     "finSec": 49.82,
+     "debutSec": 49.34
+    },
+    {
+     "mot": "résolu",
+     "finSec": 50.18,
+     "debutSec": 49.82
+    },
+    {
+     "mot": "instantanément,",
+     "finSec": 50.84,
+     "debutSec": 50.18
+    },
+    {
+     "mot": "zéro",
+     "finSec": 51.26,
+     "debutSec": 51.08
+    },
+    {
+     "mot": "demande",
+     "finSec": 51.48,
+     "debutSec": 51.26
+    },
+    {
+     "mot": "perdu,",
+     "finSec": 51.8,
+     "debutSec": 51.48
+    },
+    {
+     "mot": "24h",
+     "finSec": 52.56,
+     "debutSec": 52.06
+    },
+    {
+     "mot": "sur",
+     "finSec": 52.68,
+     "debutSec": 52.56
+    },
+    {
+     "mot": "24.",
+     "finSec": 52.9,
+     "debutSec": 52.68
+    },
+    {
+     "mot": "Votre",
+     "finSec": 53.46,
+     "debutSec": 53.26
+    },
+    {
+     "mot": "client",
+     "finSec": 53.72,
+     "debutSec": 53.46
+    },
+    {
+     "mot": "a",
+     "finSec": 53.98,
+     "debutSec": 53.72
+    },
+    {
+     "mot": "toujours",
+     "finSec": 54.18,
+     "debutSec": 53.98
+    },
+    {
+     "mot": "une",
+     "finSec": 54.34,
+     "debutSec": 54.18
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 54.62,
+     "debutSec": 54.34
+    },
+    {
+     "mot": "Même",
+     "finSec": 55.14,
+     "debutSec": 54.94
+    },
+    {
+     "mot": "à",
+     "finSec": 55.26,
+     "debutSec": 55.14
+    },
+    {
+     "mot": "3h",
+     "finSec": 55.52,
+     "debutSec": 55.26
+    },
+    {
+     "mot": "du",
+     "finSec": 55.64,
+     "debutSec": 55.52
+    },
+    {
+     "mot": "matin",
+     "finSec": 55.82,
+     "debutSec": 55.64
+    },
+    {
+     "mot": "chez",
+     "finSec": 56.22,
+     "debutSec": 55.82
+    },
+    {
+     "mot": "vous,",
+     "finSec": 56.4,
+     "debutSec": 56.22
+    },
+    {
+     "mot": "qui",
+     "finSec": 56.68,
+     "debutSec": 56.4
+    },
+    {
+     "mot": "répond",
+     "finSec": 56.9,
+     "debutSec": 56.68
+    },
+    {
+     "mot": "au",
+     "finSec": 57.02,
+     "debutSec": 56.9
+    },
+    {
+     "mot": "message",
+     "finSec": 57.22,
+     "debutSec": 57.02
+    },
+    {
+     "mot": "qui",
+     "finSec": 57.38,
+     "debutSec": 57.22
+    },
+    {
+     "mot": "arrive",
+     "finSec": 57.48,
+     "debutSec": 57.38
+    },
+    {
+     "mot": "la",
+     "finSec": 57.62,
+     "debutSec": 57.48
+    },
+    {
+     "mot": "nuit",
+     "finSec": 57.74,
+     "debutSec": 57.62
+    },
+    {
+     "mot": "?",
+     "finSec": 57.92,
+     "debutSec": 57.74
+    },
+    {
+     "mot": "Faites",
+     "finSec": 58.06,
+     "debutSec": 57.92
+    },
+    {
+     "mot": "votre",
+     "finSec": 58.16,
+     "debutSec": 58.06
+    },
+    {
+     "mot": "diagnostic",
+     "finSec": 58.54,
+     "debutSec": 58.16
+    },
+    {
+     "mot": "gratuit",
+     "finSec": 58.9,
+     "debutSec": 58.54
+    },
+    {
+     "mot": "en",
+     "finSec": 59.24,
+     "debutSec": 58.9
+    },
+    {
+     "mot": "quelques",
+     "finSec": 59.42,
+     "debutSec": 59.24
+    },
+    {
+     "mot": "minutes.",
+     "finSec": 59.7,
+     "debutSec": 59.42
+    },
+    {
+     "mot": "Le",
+     "finSec": 60.02,
+     "debutSec": 59.94
+    },
+    {
+     "mot": "lien",
+     "finSec": 60.18,
+     "debutSec": 60.02
+    },
+    {
+     "mot": "est",
+     "finSec": 60.28,
+     "debutSec": 60.18
+    },
+    {
+     "mot": "dans",
+     "finSec": 60.34,
+     "debutSec": 60.28
+    },
+    {
+     "mot": "mon",
+     "finSec": 60.44,
+     "debutSec": 60.34
+    },
+    {
+     "mot": "profil.",
+     "finSec": 60.78,
+     "debutSec": 60.44
+    }
+   ]
+  },
+  {
+   "version": "fin-facebook",
+   "finVoixSec": 60.89,
+   "fin": {
+    "id": "fin-facebook",
+    "muet": false,
+    "appels": [
+     {
+      "id": "fin-if-diagnostic-gratuit",
+      "dit": "Faites votre diagnostic gratuit en quelques minutes.",
+      "type": "rendez-vous",
+      "ecran": "Faites votre diagnostic gratuit",
+      "groupe": "instagram-facebook"
+     },
+     {
+      "id": "fin-fb-lien-commentaire",
+      "dit": "Le lien est en commentaire.",
+      "type": "lien",
+      "ecran": "Diagnostic gratuit · lien en commentaire",
+      "groupe": "instagram-facebook"
+     }
+    ],
+    "reseaux": [
+     "facebook"
+    ],
+    "question": {
+     "dit": "Chez vous, qui répond aux messages qui arrivent la nuit ?",
+     "ecran": "Votre réponse en commentaire",
+     "ligne": "fin-if-question",
+     "origine": "image"
+    }
+   },
+   "transcription": [
+    {
+     "mot": "23h14.",
+     "finSec": 0.74,
+     "debutSec": 0
+    },
+    {
+     "mot": "Un",
+     "finSec": 1.2,
+     "debutSec": 1.1
+    },
+    {
+     "mot": "client",
+     "finSec": 1.38,
+     "debutSec": 1.2
+    },
+    {
+     "mot": "vous",
+     "finSec": 1.54,
+     "debutSec": 1.38
+    },
+    {
+     "mot": "écrit.",
+     "finSec": 1.74,
+     "debutSec": 1.54
+    },
+    {
+     "mot": "Votre",
+     "finSec": 2.16,
+     "debutSec": 2.02
+    },
+    {
+     "mot": "équipe",
+     "finSec": 2.34,
+     "debutSec": 2.16
+    },
+    {
+     "mot": "est",
+     "finSec": 2.44,
+     "debutSec": 2.34
+    },
+    {
+     "mot": "parti.",
+     "finSec": 2.66,
+     "debutSec": 2.44
+    },
+    {
+     "mot": "Le",
+     "finSec": 3,
+     "debutSec": 2.92
+    },
+    {
+     "mot": "message",
+     "finSec": 3.22,
+     "debutSec": 3
+    },
+    {
+     "mot": "attend",
+     "finSec": 3.42,
+     "debutSec": 3.22
+    },
+    {
+     "mot": "le",
+     "finSec": 3.52,
+     "debutSec": 3.42
+    },
+    {
+     "mot": "matin.",
+     "finSec": 3.68,
+     "debutSec": 3.52
+    },
+    {
+     "mot": "Le",
+     "finSec": 4.02,
+     "debutSec": 3.96
+    },
+    {
+     "mot": "client",
+     "finSec": 4.22,
+     "debutSec": 4.02
+    },
+    {
+     "mot": "lui",
+     "finSec": 4.34,
+     "debutSec": 4.22
+    },
+    {
+     "mot": "reste",
+     "finSec": 4.52,
+     "debutSec": 4.34
+    },
+    {
+     "mot": "en",
+     "finSec": 4.64,
+     "debutSec": 4.52
+    },
+    {
+     "mot": "nouvelle.",
+     "finSec": 4.78,
+     "debutSec": 4.64
+    },
+    {
+     "mot": "Demain",
+     "finSec": 5.26,
+     "debutSec": 5.04
+    },
+    {
+     "mot": "il",
+     "finSec": 5.34,
+     "debutSec": 5.26
+    },
+    {
+     "mot": "faudra",
+     "finSec": 5.52,
+     "debutSec": 5.34
+    },
+    {
+     "mot": "tout",
+     "finSec": 5.68,
+     "debutSec": 5.52
+    },
+    {
+     "mot": "rattraper.",
+     "finSec": 6.02,
+     "debutSec": 5.68
+    },
+    {
+     "mot": "Maintenant,",
+     "finSec": 6.42,
+     "debutSec": 6.2
+    },
+    {
+     "mot": "ce",
+     "finSec": 6.84,
+     "debutSec": 6.72
+    },
+    {
+     "mot": "message",
+     "finSec": 7.04,
+     "debutSec": 6.84
+    },
+    {
+     "mot": "a",
+     "finSec": 7.16,
+     "debutSec": 7.04
+    },
+    {
+     "mot": "une",
+     "finSec": 7.24,
+     "debutSec": 7.16
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 7.48,
+     "debutSec": 7.24
+    },
+    {
+     "mot": "Oui,",
+     "finSec": 8.08,
+     "debutSec": 7.92
+    },
+    {
+     "mot": "ce",
+     "finSec": 8.4,
+     "debutSec": 8.36
+    },
+    {
+     "mot": "soir.",
+     "finSec": 8.62,
+     "debutSec": 8.4
+    },
+    {
+     "mot": "Il",
+     "finSec": 8.92,
+     "debutSec": 8.86
+    },
+    {
+     "mot": "peut",
+     "finSec": 9.04,
+     "debutSec": 8.92
+    },
+    {
+     "mot": "prendre",
+     "finSec": 9.22,
+     "debutSec": 9.04
+    },
+    {
+     "mot": "deux",
+     "finSec": 9.48,
+     "debutSec": 9.22
+    },
+    {
+     "mot": "chemins.",
+     "finSec": 9.76,
+     "debutSec": 9.48
+    },
+    {
+     "mot": "Voici",
+     "finSec": 10.14,
+     "debutSec": 9.9
+    },
+    {
+     "mot": "une",
+     "finSec": 10.26,
+     "debutSec": 10.14
+    },
+    {
+     "mot": "situation",
+     "finSec": 10.52,
+     "debutSec": 10.26
+    },
+    {
+     "mot": "type.",
+     "finSec": 10.78,
+     "debutSec": 10.52
+    },
+    {
+     "mot": "Un",
+     "finSec": 11.12,
+     "debutSec": 11.08
+    },
+    {
+     "mot": "message",
+     "finSec": 11.34,
+     "debutSec": 11.12
+    },
+    {
+     "mot": "arrive",
+     "finSec": 11.6,
+     "debutSec": 11.34
+    },
+    {
+     "mot": "à",
+     "finSec": 11.7,
+     "debutSec": 11.6
+    },
+    {
+     "mot": "23h14.",
+     "finSec": 12.44,
+     "debutSec": 11.7
+    },
+    {
+     "mot": "Personne",
+     "finSec": 13.14,
+     "debutSec": 12.8
+    },
+    {
+     "mot": "n",
+     "finSec": 13.2,
+     "debutSec": 13.14
+    },
+    {
+     "mot": "'est",
+     "finSec": 13.22,
+     "debutSec": 13.2
+    },
+    {
+     "mot": "au",
+     "finSec": 13.36,
+     "debutSec": 13.22
+    },
+    {
+     "mot": "bureau.",
+     "finSec": 13.48,
+     "debutSec": 13.36
+    },
+    {
+     "mot": "Il",
+     "finSec": 13.86,
+     "debutSec": 13.78
+    },
+    {
+     "mot": "arrive",
+     "finSec": 14.02,
+     "debutSec": 13.86
+    },
+    {
+     "mot": "au",
+     "finSec": 14.14,
+     "debutSec": 14.02
+    },
+    {
+     "mot": "chatbot",
+     "finSec": 14.44,
+     "debutSec": 14.14
+    },
+    {
+     "mot": "hier.",
+     "finSec": 14.58,
+     "debutSec": 14.44
+    },
+    {
+     "mot": "Le",
+     "finSec": 14.9,
+     "debutSec": 14.84
+    },
+    {
+     "mot": "chatbot",
+     "finSec": 15.2,
+     "debutSec": 14.9
+    },
+    {
+     "mot": "analyse",
+     "finSec": 15.66,
+     "debutSec": 15.2
+    },
+    {
+     "mot": "la",
+     "finSec": 15.82,
+     "debutSec": 15.66
+    },
+    {
+     "mot": "demande.",
+     "finSec": 15.98,
+     "debutSec": 15.82
+    },
+    {
+     "mot": "Il",
+     "finSec": 16.34,
+     "debutSec": 16.24
+    },
+    {
+     "mot": "connaît",
+     "finSec": 16.52,
+     "debutSec": 16.34
+    },
+    {
+     "mot": "la",
+     "finSec": 16.62,
+     "debutSec": 16.52
+    },
+    {
+     "mot": "réponse",
+     "finSec": 16.86,
+     "debutSec": 16.62
+    },
+    {
+     "mot": "ou",
+     "finSec": 17.26,
+     "debutSec": 16.86
+    },
+    {
+     "mot": "pas.",
+     "finSec": 17.4,
+     "debutSec": 17.26
+    },
+    {
+     "mot": "Premier",
+     "finSec": 17.8,
+     "debutSec": 17.62
+    },
+    {
+     "mot": "chemin,",
+     "finSec": 18.02,
+     "debutSec": 17.8
+    },
+    {
+     "mot": "4",
+     "finSec": 18.36,
+     "debutSec": 18.26
+    },
+    {
+     "mot": "-20",
+     "finSec": 18.52,
+     "debutSec": 18.36
+    },
+    {
+     "mot": "%",
+     "finSec": 18.74,
+     "debutSec": 18.52
+    },
+    {
+     "mot": "des",
+     "finSec": 18.88,
+     "debutSec": 18.74
+    },
+    {
+     "mot": "cas.",
+     "finSec": 18.98,
+     "debutSec": 18.88
+    },
+    {
+     "mot": "La",
+     "finSec": 19.18,
+     "debutSec": 19.12
+    },
+    {
+     "mot": "réponse",
+     "finSec": 19.38,
+     "debutSec": 19.18
+    },
+    {
+     "mot": "est",
+     "finSec": 19.52,
+     "debutSec": 19.38
+    },
+    {
+     "mot": "connue.",
+     "finSec": 19.72,
+     "debutSec": 19.52
+    },
+    {
+     "mot": "L",
+     "finSec": 20.02,
+     "debutSec": 19.92
+    },
+    {
+     "mot": "'automatisation",
+     "finSec": 20.6,
+     "debutSec": 20.02
+    },
+    {
+     "mot": "rédige",
+     "finSec": 20.86,
+     "debutSec": 20.6
+    },
+    {
+     "mot": "la",
+     "finSec": 21,
+     "debutSec": 20.86
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 21.26,
+     "debutSec": 21
+    },
+    {
+     "mot": "Elle",
+     "finSec": 21.8,
+     "debutSec": 21.68
+    },
+    {
+     "mot": "repart",
+     "finSec": 22.06,
+     "debutSec": 21.8
+    },
+    {
+     "mot": "en",
+     "finSec": 22.2,
+     "debutSec": 22.06
+    },
+    {
+     "mot": "4",
+     "finSec": 22.32,
+     "debutSec": 22.2
+    },
+    {
+     "mot": "secondes.",
+     "finSec": 22.74,
+     "debutSec": 22.32
+    },
+    {
+     "mot": "Le",
+     "finSec": 23.04,
+     "debutSec": 22.94
+    },
+    {
+     "mot": "message",
+     "finSec": 23.26,
+     "debutSec": 23.04
+    },
+    {
+     "mot": "ne",
+     "finSec": 23.42,
+     "debutSec": 23.26
+    },
+    {
+     "mot": "dort",
+     "finSec": 23.52,
+     "debutSec": 23.42
+    },
+    {
+     "mot": "pas.",
+     "finSec": 23.76,
+     "debutSec": 23.52
+    },
+    {
+     "mot": "Dans",
+     "finSec": 24.08,
+     "debutSec": 24
+    },
+    {
+     "mot": "une",
+     "finSec": 24.2,
+     "debutSec": 24.08
+    },
+    {
+     "mot": "boîte,",
+     "finSec": 24.52,
+     "debutSec": 24.2
+    },
+    {
+     "mot": "le",
+     "finSec": 24.72,
+     "debutSec": 24.64
+    },
+    {
+     "mot": "ticket",
+     "finSec": 24.92,
+     "debutSec": 24.72
+    },
+    {
+     "mot": "se",
+     "finSec": 25.08,
+     "debutSec": 24.92
+    },
+    {
+     "mot": "clôture",
+     "finSec": 25.38,
+     "debutSec": 25.08
+    },
+    {
+     "mot": "tout",
+     "finSec": 25.52,
+     "debutSec": 25.38
+    },
+    {
+     "mot": "seul,",
+     "finSec": 25.74,
+     "debutSec": 25.52
+    },
+    {
+     "mot": "résolue",
+     "finSec": 26.32,
+     "debutSec": 25.98
+    },
+    {
+     "mot": "sans",
+     "finSec": 26.54,
+     "debutSec": 26.32
+    },
+    {
+     "mot": "intervention",
+     "finSec": 26.98,
+     "debutSec": 26.54
+    },
+    {
+     "mot": "humaine.",
+     "finSec": 27.3,
+     "debutSec": 26.98
+    },
+    {
+     "mot": "votre",
+     "finSec": 27.66,
+     "debutSec": 27.3
+    },
+    {
+     "mot": "équipe",
+     "finSec": 27.94,
+     "debutSec": 27.66
+    },
+    {
+     "mot": "d",
+     "finSec": 28.08,
+     "debutSec": 27.94
+    },
+    {
+     "mot": "'or,",
+     "finSec": 28.2,
+     "debutSec": 28.08
+    },
+    {
+     "mot": "le",
+     "finSec": 28.46,
+     "debutSec": 28.38
+    },
+    {
+     "mot": "client",
+     "finSec": 28.68,
+     "debutSec": 28.46
+    },
+    {
+     "mot": "est",
+     "finSec": 28.9,
+     "debutSec": 28.68
+    },
+    {
+     "mot": "servi,",
+     "finSec": 29.14,
+     "debutSec": 28.9
+    },
+    {
+     "mot": "retour",
+     "finSec": 29.56,
+     "debutSec": 29.36
+    },
+    {
+     "mot": "au",
+     "finSec": 29.68,
+     "debutSec": 29.56
+    },
+    {
+     "mot": "chatbot.",
+     "finSec": 29.98,
+     "debutSec": 29.68
+    },
+    {
+     "mot": "Deuxième",
+     "finSec": 30.44,
+     "debutSec": 30.18
+    },
+    {
+     "mot": "chemin,",
+     "finSec": 30.66,
+     "debutSec": 30.44
+    },
+    {
+     "mot": "20",
+     "finSec": 31,
+     "debutSec": 30.86
+    },
+    {
+     "mot": "%",
+     "finSec": 31.28,
+     "debutSec": 31
+    },
+    {
+     "mot": "des",
+     "finSec": 31.46,
+     "debutSec": 31.28
+    },
+    {
+     "mot": "cas,",
+     "finSec": 31.6,
+     "debutSec": 31.46
+    },
+    {
+     "mot": "là",
+     "finSec": 31.76,
+     "debutSec": 31.68
+    },
+    {
+     "mot": "il",
+     "finSec": 31.88,
+     "debutSec": 31.76
+    },
+    {
+     "mot": "atteint",
+     "finSec": 32.1,
+     "debutSec": 31.88
+    },
+    {
+     "mot": "sa",
+     "finSec": 32.22,
+     "debutSec": 32.1
+    },
+    {
+     "mot": "limite,",
+     "finSec": 32.44,
+     "debutSec": 32.22
+    },
+    {
+     "mot": "il",
+     "finSec": 32.84,
+     "debutSec": 32.78
+    },
+    {
+     "mot": "ne",
+     "finSec": 32.96,
+     "debutSec": 32.84
+    },
+    {
+     "mot": "bricole",
+     "finSec": 33.26,
+     "debutSec": 32.96
+    },
+    {
+     "mot": "pas",
+     "finSec": 33.38,
+     "debutSec": 33.26
+    },
+    {
+     "mot": "une",
+     "finSec": 33.52,
+     "debutSec": 33.38
+    },
+    {
+     "mot": "réponse,",
+     "finSec": 33.84,
+     "debutSec": 33.52
+    },
+    {
+     "mot": "il",
+     "finSec": 34.26,
+     "debutSec": 34.2
+    },
+    {
+     "mot": "rédige",
+     "finSec": 34.48,
+     "debutSec": 34.26
+    },
+    {
+     "mot": "un",
+     "finSec": 34.6,
+     "debutSec": 34.48
+    },
+    {
+     "mot": "email",
+     "finSec": 34.74,
+     "debutSec": 34.6
+    },
+    {
+     "mot": "structuré,",
+     "finSec": 35.36,
+     "debutSec": 34.74
+    },
+    {
+     "mot": "objet,",
+     "finSec": 35.72,
+     "debutSec": 35.5
+    },
+    {
+     "mot": "contexte,",
+     "finSec": 36.32,
+     "debutSec": 35.96
+    },
+    {
+     "mot": "demande",
+     "finSec": 36.46,
+     "debutSec": 36.42
+    },
+    {
+     "mot": "d",
+     "finSec": 36.6,
+     "debutSec": 36.46
+    },
+    {
+     "mot": "'urgence.",
+     "finSec": 36.78,
+     "debutSec": 36.6
+    },
+    {
+     "mot": "L",
+     "finSec": 37.26,
+     "debutSec": 37.12
+    },
+    {
+     "mot": "'email",
+     "finSec": 37.42,
+     "debutSec": 37.26
+    },
+    {
+     "mot": "part",
+     "finSec": 37.66,
+     "debutSec": 37.42
+    },
+    {
+     "mot": "à",
+     "finSec": 37.74,
+     "debutSec": 37.66
+    },
+    {
+     "mot": "l",
+     "finSec": 37.8,
+     "debutSec": 37.74
+    },
+    {
+     "mot": "'équipe",
+     "finSec": 37.94,
+     "debutSec": 37.8
+    },
+    {
+     "mot": "concernée,",
+     "finSec": 38.4,
+     "debutSec": 37.94
+    },
+    {
+     "mot": "pas",
+     "finSec": 38.68,
+     "debutSec": 38.58
+    },
+    {
+     "mot": "à",
+     "finSec": 38.78,
+     "debutSec": 38.68
+    },
+    {
+     "mot": "tout",
+     "finSec": 38.82,
+     "debutSec": 38.78
+    },
+    {
+     "mot": "le",
+     "finSec": 38.9,
+     "debutSec": 38.82
+    },
+    {
+     "mot": "monde.",
+     "finSec": 39.04,
+     "debutSec": 38.9
+    },
+    {
+     "mot": "Puis",
+     "finSec": 39.32,
+     "debutSec": 39.2
+    },
+    {
+     "mot": "une",
+     "finSec": 39.54,
+     "debutSec": 39.32
+    },
+    {
+     "mot": "alerte",
+     "finSec": 39.74,
+     "debutSec": 39.54
+    },
+    {
+     "mot": "d",
+     "finSec": 39.8,
+     "debutSec": 39.74
+    },
+    {
+     "mot": "'élégramme",
+     "finSec": 40.06,
+     "debutSec": 39.8
+    },
+    {
+     "mot": "tombe,",
+     "finSec": 40.3,
+     "debutSec": 40.06
+    },
+    {
+     "mot": "intervention",
+     "finSec": 40.7,
+     "debutSec": 40.42
+    },
+    {
+     "mot": "requise,",
+     "finSec": 41.18,
+     "debutSec": 40.7
+    },
+    {
+     "mot": "quelqu",
+     "finSec": 41.52,
+     "debutSec": 41.36
+    },
+    {
+     "mot": "'un",
+     "finSec": 41.72,
+     "debutSec": 41.52
+    },
+    {
+     "mot": "sait",
+     "finSec": 41.86,
+     "debutSec": 41.72
+    },
+    {
+     "mot": "qu",
+     "finSec": 42,
+     "debutSec": 41.86
+    },
+    {
+     "mot": "'il",
+     "finSec": 42,
+     "debutSec": 42
+    },
+    {
+     "mot": "doit",
+     "finSec": 42.12,
+     "debutSec": 42
+    },
+    {
+     "mot": "agir",
+     "finSec": 42.44,
+     "debutSec": 42.12
+    },
+    {
+     "mot": "et",
+     "finSec": 42.66,
+     "debutSec": 42.44
+    },
+    {
+     "mot": "le",
+     "finSec": 42.76,
+     "debutSec": 42.66
+    },
+    {
+     "mot": "client",
+     "finSec": 42.92,
+     "debutSec": 42.76
+    },
+    {
+     "mot": "est",
+     "finSec": 43.04,
+     "debutSec": 42.92
+    },
+    {
+     "mot": "prévenu,",
+     "finSec": 43.34,
+     "debutSec": 43.04
+    },
+    {
+     "mot": "réponse",
+     "finSec": 43.72,
+     "debutSec": 43.48
+    },
+    {
+     "mot": "sous",
+     "finSec": 43.92,
+     "debutSec": 43.72
+    },
+    {
+     "mot": "deux",
+     "finSec": 44.02,
+     "debutSec": 43.92
+    },
+    {
+     "mot": "heures.",
+     "finSec": 44.2,
+     "debutSec": 44.02
+    },
+    {
+     "mot": "Il",
+     "finSec": 44.46,
+     "debutSec": 44.36
+    },
+    {
+     "mot": "sait",
+     "finSec": 44.64,
+     "debutSec": 44.46
+    },
+    {
+     "mot": "où",
+     "finSec": 44.76,
+     "debutSec": 44.64
+    },
+    {
+     "mot": "on",
+     "finSec": 44.82,
+     "debutSec": 44.76
+    },
+    {
+     "mot": "est",
+     "finSec": 44.9,
+     "debutSec": 44.82
+    },
+    {
+     "mot": "sa",
+     "finSec": 45,
+     "debutSec": 44.9
+    },
+    {
+     "mot": "demande,",
+     "finSec": 45.24,
+     "debutSec": 45
+    },
+    {
+     "mot": "reprenons",
+     "finSec": 45.82,
+     "debutSec": 45.48
+    },
+    {
+     "mot": "ce",
+     "finSec": 45.94,
+     "debutSec": 45.82
+    },
+    {
+     "mot": "message.",
+     "finSec": 46.16,
+     "debutSec": 45.94
+    },
+    {
+     "mot": "Entrez",
+     "finSec": 46.66,
+     "debutSec": 46.42
+    },
+    {
+     "mot": "à",
+     "finSec": 46.8,
+     "debutSec": 46.66
+    },
+    {
+     "mot": "23h14,",
+     "finSec": 47.44,
+     "debutSec": 46.8
+    },
+    {
+     "mot": "il",
+     "finSec": 47.88,
+     "debutSec": 47.78
+    },
+    {
+     "mot": "ressort",
+     "finSec": 48.18,
+     "debutSec": 47.88
+    },
+    {
+     "mot": "avec",
+     "finSec": 48.36,
+     "debutSec": 48.18
+    },
+    {
+     "mot": "une",
+     "finSec": 48.52,
+     "debutSec": 48.36
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 48.78,
+     "debutSec": 48.52
+    },
+    {
+     "mot": "80",
+     "finSec": 49.34,
+     "debutSec": 49.16
+    },
+    {
+     "mot": "%",
+     "finSec": 49.82,
+     "debutSec": 49.34
+    },
+    {
+     "mot": "résolu",
+     "finSec": 50.18,
+     "debutSec": 49.82
+    },
+    {
+     "mot": "instantanément,",
+     "finSec": 50.84,
+     "debutSec": 50.18
+    },
+    {
+     "mot": "zéro",
+     "finSec": 51.26,
+     "debutSec": 51.08
+    },
+    {
+     "mot": "demande",
+     "finSec": 51.48,
+     "debutSec": 51.26
+    },
+    {
+     "mot": "perdu,",
+     "finSec": 51.8,
+     "debutSec": 51.48
+    },
+    {
+     "mot": "24h",
+     "finSec": 52.56,
+     "debutSec": 52.06
+    },
+    {
+     "mot": "sur",
+     "finSec": 52.68,
+     "debutSec": 52.56
+    },
+    {
+     "mot": "24.",
+     "finSec": 52.9,
+     "debutSec": 52.68
+    },
+    {
+     "mot": "Votre",
+     "finSec": 53.46,
+     "debutSec": 53.26
+    },
+    {
+     "mot": "client",
+     "finSec": 53.72,
+     "debutSec": 53.46
+    },
+    {
+     "mot": "a",
+     "finSec": 53.98,
+     "debutSec": 53.72
+    },
+    {
+     "mot": "toujours",
+     "finSec": 54.18,
+     "debutSec": 53.98
+    },
+    {
+     "mot": "une",
+     "finSec": 54.34,
+     "debutSec": 54.18
+    },
+    {
+     "mot": "réponse.",
+     "finSec": 54.62,
+     "debutSec": 54.34
+    },
+    {
+     "mot": "Même",
+     "finSec": 55.14,
+     "debutSec": 54.94
+    },
+    {
+     "mot": "à",
+     "finSec": 55.26,
+     "debutSec": 55.14
+    },
+    {
+     "mot": "3h",
+     "finSec": 55.52,
+     "debutSec": 55.26
+    },
+    {
+     "mot": "du",
+     "finSec": 55.64,
+     "debutSec": 55.52
+    },
+    {
+     "mot": "matin",
+     "finSec": 55.82,
+     "debutSec": 55.64
+    },
+    {
+     "mot": "chez",
+     "finSec": 56.22,
+     "debutSec": 55.82
+    },
+    {
+     "mot": "vous,",
+     "finSec": 56.4,
+     "debutSec": 56.22
+    },
+    {
+     "mot": "Qui",
+     "finSec": 56.68,
+     "debutSec": 56.4
+    },
+    {
+     "mot": "répond",
+     "finSec": 56.92,
+     "debutSec": 56.68
+    },
+    {
+     "mot": "au",
+     "finSec": 57,
+     "debutSec": 56.92
+    },
+    {
+     "mot": "message",
+     "finSec": 57.22,
+     "debutSec": 57
+    },
+    {
+     "mot": "qui",
+     "finSec": 57.38,
+     "debutSec": 57.22
+    },
+    {
+     "mot": "arrive",
+     "finSec": 57.48,
+     "debutSec": 57.38
+    },
+    {
+     "mot": "la",
+     "finSec": 57.62,
+     "debutSec": 57.48
+    },
+    {
+     "mot": "nuit",
+     "finSec": 57.74,
+     "debutSec": 57.62
+    },
+    {
+     "mot": "?",
+     "finSec": 57.9,
+     "debutSec": 57.74
+    },
+    {
+     "mot": "Faites",
+     "finSec": 58.06,
+     "debutSec": 57.9
+    },
+    {
+     "mot": "votre",
+     "finSec": 58.14,
+     "debutSec": 58.06
+    },
+    {
+     "mot": "diagnostic",
+     "finSec": 58.54,
+     "debutSec": 58.14
+    },
+    {
+     "mot": "gratuit",
+     "finSec": 58.92,
+     "debutSec": 58.54
+    },
+    {
+     "mot": "en",
+     "finSec": 59.24,
+     "debutSec": 58.92
+    },
+    {
+     "mot": "quelques",
+     "finSec": 59.42,
+     "debutSec": 59.24
+    },
+    {
+     "mot": "minutes.",
+     "finSec": 59.68,
+     "debutSec": 59.42
+    },
+    {
+     "mot": "Le",
+     "finSec": 60.02,
+     "debutSec": 59.94
+    },
+    {
+     "mot": "lien",
+     "finSec": 60.2,
+     "debutSec": 60.02
+    },
+    {
+     "mot": "est",
+     "finSec": 60.34,
+     "debutSec": 60.2
+    },
+    {
+     "mot": "en",
+     "finSec": 60.42,
+     "debutSec": 60.34
+    },
+    {
+     "mot": "commentaire.",
+     "finSec": 60.84,
+     "debutSec": 60.42
+    }
+   ]
+  }
+ ]
+}

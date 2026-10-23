@@ -50,6 +50,21 @@ export function chasseAnton(texte: string): number {
 /** Taille d'un texte Anton qui tient dans `largeur`, au plus `max`. */
 export const tailleAnton = (texte: string, largeur: number, max: number) => Math.min(max, largeur / chasseAnton(texte));
 
+/**
+ * Règle commune des légendes du chiffre principal (CHI-B, C, D, E) : la légende reste LISIBLE une fois la variante
+ * rapetissée (`echelle` < 1, `corps.tsx`) : elle est contre-agrandie de 1 / échelle, donc à l'écran elle garde sa
+ * taille d'origine (62 px, toujours ≥ 58 px). `origine` : TOUJOURS le milieu haut (`50% 0%`) d'une boîte centrée sur
+ * x = 540 (l'axe de l'échelle de `corps.tsx`) : la boîte garde alors la même place à l'écran, quelle que soit l'échelle, et
+ * le texte retourne à la ligne dans sa largeur au lieu de déborder à droite.
+ */
+export const LEGENDE_MIN_PX = 58;
+export function contreEchelle(echelle: number, origine: string): CSSProperties {
+  const e = Math.max(0.05, Math.min(1, echelle));
+  return e >= 1 ? {} : { transform: `scale(${1 / e})`, transformOrigin: origine };
+}
+/** Hauteur en plus, dans le repère de la variante, que prend une légende de `px` de haut une fois contre-agrandie. */
+export const surplusLegende = (px: number, echelle: number) => Math.round(px * (1 / Math.max(0.05, Math.min(1, echelle)) - 1));
+
 /** Étiquette en capitales espacées (28 px, ≤ 4 mots) : la seule exception sous 58 px. */
 export function Etiquette({ t, fond, y, x = 72 }: { t: string; fond: NomFondChiffres; y: number; x?: number }) {
   return <div style={{ position: "absolute", left: x, top: y, ...INTER, fontSize: 28, letterSpacing: "0.32em", textTransform: "uppercase", color: fond === "ivoire" ? C.encre : C.grisClair }}>{t}</div>;

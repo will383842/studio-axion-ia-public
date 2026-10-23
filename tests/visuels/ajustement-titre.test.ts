@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, DELAI_TITRES_MS } from "../../studio-rendu/compositions/visuels/commun/attente-police";
+import { attendreTitres } from "../../studio-rendu/compositions/visuels/mesure/attente-titres";
 import { ajusterTailleTitre, choisirMiseEnLignes, decouperTitre } from "../../studio-rendu/compositions/visuels/commun/ajustement";
 
 /** Largeur simulée : 0,62 em par caractère de la ligne la plus longue (monotone en la taille). */
@@ -54,15 +56,31 @@ describe("ajustement du titre (M1-03) : fonction pure", () => {
     expect(choix.lignes.join(" ")).toBe(titre);
     expect(choix.taille).toBeGreaterThanOrEqual(90);
     expect(choix.lignes.length * choix.taille * 1.02).toBeLessThanOrEqual(900 + 1);
-    // une hauteur impossible à tenir : on garde la mise en lignes la moins haute, sans jamais déborder en largeur
-    const serre = choisirMiseEnLignes(titre, mesure, { maxLignes: 4, hauteurMax: 100 });
+  });
+
+  it("ajuste AUSSI le corps à la hauteur : deux lignes de mots longs au corps de la largeur (≈ 160 px) débordaient de 19 à 35 px", () => {
+    // Deux mots de 12 signes : une seule ligne ne tient pas en largeur au corps minimal, deux lignes donneraient ≈ 164 px, soit 2 × 1,02 × corps > 302 px.
+    const largeurs = (lignes: string[], taille: number) => Math.max(...lignes.map((l) => l.length)) * 0.5 * taille;
+    const choix = choisirMiseEnLignes("Construisons messageries", largeurs, { maxLignes: 2, hauteurMax: 302 });
+    expect(choix.lignes).toHaveLength(2);
+    expect(choix.lignes.length * choix.taille * 1.02).toBeLessThanOrEqual(302 + 0.01);
+    expect(choix.largeur).toBeLessThanOrEqual(988);
+    // le corps ne descend que pour tenir : jamais plus bas que nécessaire
+    expect(choix.lignes.length * (choix.taille + 1) * 1.02).toBeGreaterThan(302);
+    expect(choix.taille).toBeGreaterThanOrEqual(26);
+  });
+
+  it("une hauteur impossible même au plancher de 26 px : corps au plancher, hauteur excédentaire laissée à la mesure existante", () => {
+    const serre = choisirMiseEnLignes("Six tâches qui rythment un bureau", mesure, { maxLignes: 4, hauteurMax: 20 });
+    expect(serre.taille).toBe(26);
     expect(serre.largeur).toBeLessThanOrEqual(988);
-    const hauteurs = [1, 2, 3, 4].map((n) => {
-      const l = decouperTitre(titre, n);
-      const r = ajusterTailleTitre((t) => mesure(l, t));
-      return r.largeur <= 988 ? l.length * r.taille * 1.02 : Infinity;
-    });
-    expect(serre.lignes.length * serre.taille * 1.02).toBeCloseTo(Math.min(...hauteurs), 5);
+    expect(serre.lignes.length * serre.taille * 1.02).toBeGreaterThan(20);
+  });
+
+  it("un titre qui tenait déjà en hauteur ne change pas (couvertures T01, T01B, T01C)", () => {
+    const titre = "Six tâches qui rythment un bureau";
+    const avant = choisirMiseEnLignes(titre, mesure, { maxLignes: 3, hauteurMax: 100000 });
+    expect(choisirMiseEnLignes(titre, mesure, { maxLignes: 3, hauteurMax: 1200 })).toEqual(avant);
   });
 
   it("ne laisse aucun mot isolé sur une ligne quand une autre mise en lignes tient", () => {
@@ -72,5 +90,33 @@ describe("ajustement du titre (M1-03) : fonction pure", () => {
 
   it("lève une erreur claire quand aucune mise en lignes ne tient en largeur", () => {
     expect(() => choisirMiseEnLignes("Anticonstitutionnellement", mesure, { maxLignes: 4, hauteurMax: 968 })).toThrow(/ne tient pas/);
+  });
+
+  it("borne nulle dès que le corps est réduit pour tenir en hauteur (même au plancher)", () => {
+    const reduit = choisirMiseEnLignes("Six tâches qui rythment un bureau", mesure, { maxLignes: 4, hauteurMax: 20 });
+    expect(reduit.borne).toBeNull();
+  });
+});
+
+describe("attente des titres avant la mesure (MesureVisuelPage)", () => {
+  const racine = (attente: () => boolean) => ({ querySelector: () => (attente() ? {} : null) }) as unknown as Element;
+
+  it("rend la main dès que plus aucun titre n'est en attente", async () => {
+    let appels = 0;
+    await attendreTitres(() => racine(() => appels++ < 3), async () => {});
+    // 3 attentes + 1 constat « plus rien » dans la boucle + le contrôle final (qui lève s'il reste un titre) = 5 lectures.
+    expect(appels).toBe(5);
+  });
+
+  it("lève une erreur si un titre est encore en attente après la boucle, au lieu de mesurer un bloc vide", async () => {
+    await expect(attendreTitres(() => racine(() => true), async () => {})).rejects.toThrow(/en attente/);
+  });
+
+  it("patiente plus que l'attente de la police (20 s) mais moins que delayRender (30 s) : 25 s au total", async () => {
+    let pauses = 0;
+    await expect(attendreTitres(() => racine(() => true), async () => void pauses++)).rejects.toThrow(/après 25 s/);
+    expect(pauses * 25).toBe(DELAI_TITRES_MS);
+    expect(DELAI_TITRES_MS).toBeGreaterThan(DELAI_POLICE_MS);
+    expect(DELAI_TITRES_MS).toBeLessThan(DELAI_DELAYRENDER_MS);
   });
 });

@@ -58,6 +58,7 @@ import { avecSerieALEcran } from "./series";
 import { complementsGenerateur, type TexteRelu } from "./fabrication-reseaux";
 import { ligneSimulee, resumeBudget } from "./couts";
 import { depenserSelonOrigine, libererReservation, verifierEtReserverSelonOrigine } from "./credits";
+import { budgetIndicatif } from "./mode-budget";
 import { reglageIntensite } from "@/briques/intensite/reglage";
 import { bruitagesDeLaCommande } from "./bruitages";
 import { appliquerProduitsDuMoteur } from "./travaux";
@@ -323,7 +324,7 @@ async function entreesFacecamDuLancement(): Promise<Record<string, unknown>> {
 }
 
 /** Construit la commande de fabrication versionnée (AV2.2-1, contrat v2). */
-export async function construireCommande(videoId: Id, options: { simulerEchecEtape?: string } = {}): Promise<CommandeFabrication> {
+export async function construireCommande(videoId: Id, options: { simulerEchecEtape?: string; origine?: OrigineLancement } = {}): Promise<CommandeFabrication> {
   const video = await depots().videos.obtenir(videoId);
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
   return commandeDeLaVideo(video, options);
@@ -338,7 +339,7 @@ export async function construireCommandeEstimation(video: Video, script: Script,
   return commandeDeLaVideo(video, { script, sansPlans: true, relu });
 }
 
-async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: string; script?: Script; sansPlans?: boolean; relu?: TexteRelu }): Promise<CommandeFabrication> {
+async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: string; origine?: OrigineLancement; script?: Script; sansPlans?: boolean; relu?: TexteRelu }): Promise<CommandeFabrication> {
   const d = depots();
   const videoId = video.id;
   const format = obtenirFormat(video.formatId);
@@ -462,7 +463,7 @@ async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: st
     simulerEchecEtape: options.simulerEchecEtape,
     // Plan facecam v4 (lot D, ajout pur) : plafond Claude du mois lu à la construction, pour le face caméra seulement
     // (version simple sans aucun appel Claude). Les autres formats ne reçoivent pas ce champ.
-    ...(format.id === "facecam" ? { plafondClaudeAtteint: await plafondClaudeDuMoisAtteint() } : {}),
+    ...(format.id === "facecam" ? { plafondClaudeAtteint: await plafondClaudeDuMoisAtteint(options.origine) } : {}),
     construiteLe: maintenant(),
     // Lot M2 : base et intensité des sous-titres (choix de la vidéo > profil du format > style de base). Depuis le lot
     // « intensité » (02/10), l'intensité des sous-titres EST le réglage global de la vidéo (mêmes valeurs qu'avant
@@ -524,7 +525,7 @@ export interface ApercuFabrication {
   /** Lot M5 (ajout pur) : cascade des illustrations. */
   illustrations?: IllustrationsApercu;
   estimation: Estimation;
-  budget: { restant: Montant; depasse: boolean; /** Vérif A2 : ce que le serveur compare au seuil et au budget restant (lignes facultatives retirées). */ bloquant: Montant; confirmationRequise: boolean; seuil: Montant; /** Lot R7 : part du double réel (confirmation toujours exigée). */ double: Montant | null; /** Lot R8 : vidéo montée pour de vrai par l'interrupteur (prix confirmé à chaque lancement). */ montageReel: boolean };
+  budget: { restant: Montant; depasse: boolean; /** Mode indicatif (`budget.mode`) : `depasse` reste faux, le dépassement est un repère ambre (`depasseIndicatif`). */ indicatif: boolean; depasseIndicatif: boolean; /** Vérif A2 : ce que le serveur compare au seuil et au budget restant (lignes facultatives retirées). */ bloquant: Montant; confirmationRequise: boolean; seuil: Montant; /** Lot R7 : part du double réel (confirmation toujours exigée). */ double: Montant | null; /** Lot R8 : vidéo montée pour de vrai par l'interrupteur (prix confirmé à chaque lancement). */ montageReel: boolean };
   /** Étapes qui seront exécutées (affichage « Voix → Double → … »). */
   etapes: { cle: string; nom: string; icone: string }[];
   /** Lot R2 : part des textes des réseaux écrits par Claude à la fin (comptée dans le total) ; absente sinon. */
@@ -552,6 +553,7 @@ export async function apercuFabrication(videoId: Id): Promise<ApercuFabrication>
   // Lot R2 : les textes des réseaux (ligne facultative) ne bloquent jamais le lancement.
   const bloquant = centimesBloquants(estimation);
   const restantApres = b.restant.centimes - bloquant;
+  const indicatif = await budgetIndicatif();
   const economique = await modeEconomique(videoId);
   const montageReel = await montageReelDeLaCommande(commande);
   const refus = await refusSimulationEnProduction(commande, estimation.lignes);
@@ -573,7 +575,7 @@ export async function apercuFabrication(videoId: Id): Promise<ApercuFabrication>
     estimation,
     // Lot R7 : le double réel exige toujours la confirmation de son prix (même règle que `verifierBudgetEtCredits`).
     // Lot R8 : une vidéo montée pour de vrai par l'interrupteur montre et fait confirmer son prix à chaque lancement.
-    budget: { restant: b.restant, depasse: restantApres < 0, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: bloquant > b.seuilConfirmation.centimes || !!partDoubleReel(estimation.lignes) || montageReel, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
+    budget: { restant: b.restant, depasse: restantApres < 0 && !indicatif, indicatif, depasseIndicatif: restantApres < 0 && indicatif, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: bloquant > b.seuilConfirmation.centimes || !!partDoubleReel(estimation.lignes) || montageReel, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
     etapes: moteur.etapes(commande).map((e) => ({ cle: e.cle, nom: e.nom, icone: e.icone })),
     essaiGratuit: commandeEnEssai(commande) && !montageReel && !partDoubleReel(estimation.lignes) && estimation.lignes.every((l) => ligneSimulee(l) || l.total.centimes <= 0),
     ...(textesReseaux ? { textesReseaux } : {}),
@@ -819,7 +821,13 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
     if (!options.scriptRelu || !script || empreinteDesBlocs(script.blocs) !== options.scriptRelu) throw new ErreurStudio("SCRIPT_NON_RELU", "Le script a changé depuis votre relecture : relisez-le avant de lancer la vidéo.");
   }
 
-  const commande = await construireCommande(videoId, { simulerEchecEtape: options.simulerEchecEtape });
+  // Défense en profondeur : un cas concret déjà traité par une AUTRE vidéo ne part jamais (refus avant toute réservation).
+  if (video.formatId === "cas-concret" && !video.estDemo && !video.sourceVideoId && !video.typeDerive) {
+    const { PHRASE_CAS_TRAITE } = await import("@/domaine/cas-traites");
+    const phrase = await (await import("./cas-concret-traites")).refusCasDejaTraite(video.entrees, videoId, PHRASE_CAS_TRAITE);
+    if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
+  }
+  const commande = await construireCommande(videoId, { simulerEchecEtape: options.simulerEchecEtape, ...(options.origine ? { origine: options.origine } : {}) });
   // La voix déjà fabriquée par la maquette (même texte, même voix) est transmise : elle ne sera pas repayée ; le double
   // déjà rendu sur cette voix non plus (correcteur réel 2).
   await avecReutilisations(commande);
@@ -928,7 +936,8 @@ async function maquetteSousVerrou(videoId: Id, confirme: AccordPrix, origine?: O
   // Une fabrication déjà lancée lira (et paiera) la voix elle-même : une maquette maintenant la paierait deux fois.
   const fabrique = await d.travaux.trouver((t) => t.cibleId === videoId && (t.statut === "en_cours" || t.statut === "en_file"));
   if (fabrique) throw new ErreurStudio("EN_FABRICATION", "Cette vidéo est déjà en fabrication : l'aperçu rapide n'est plus utile, la vidéo arrive.");
-  const commande = await construireCommande(videoId);
+  const commande = await construireCommande(videoId, origine ? { origine } : {});
+  if (origine) commande.origine = origine;
   commande.audioMaitre = await audioMaitreReutilisable(commande);
   const moteur = moteurDeCommande(commande);
   // Son brut déjà lu et payé par une maquette tombée en panne ensuite (même texte, même voix) : repris, pas relu.
