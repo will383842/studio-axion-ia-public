@@ -75,3 +75,9 @@ describe("patrons", () => {
     expect(places.size).toBe(3);
   });
 });
+
+describe("cas sans fait chiffré : le patron « chiffre » du résultat n'est jamais tiré", () => {
+  it("200 identifiants", () => {
+    for (let i = 0; i < 200; i++) expect(patronsDeLaVideo(`video-${i}`, 0, undefined, undefined, { sansChiffre: true }).resultat.id).not.toBe("chiffre");
+  });
+});
