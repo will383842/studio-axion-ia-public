@@ -211,15 +211,24 @@ export const EXEMPLES_ECRANS_A_CHIFFRE: readonly [ExempleChiffre, ExempleResulta
  */
 export const CONSIGNE_ECRITURE = `Tu écris le CORPS d'une vidéo verticale « Cas concret » à partir d'un cas fourni : une voix dit le texte pendant que des écrans montrent une automatisation étape par étape. Tu rends la fiche d'écrans : le texte dit et les textes d'écran ensemble.
 
-TON : on PARLE, on n'écrit pas. Phrases courtes, concrètes, au présent ; chaque phrase montre une action ; aucun adjectif creux ; vouvoiement quand on s'adresse au public. Une étape par phrase, sujet simple. En posture « offre », sans « on a » ni « nous ».
+TON : on PARLE, on n'écrit pas. Phrases courtes, concrètes, au présent ; chaque phrase montre une action ; aucun adjectif creux ; vouvoiement quand on s'adresse au public. Une idée par phrase, avec un sujet qui NOMME la chose ou la personne (le client, la demande, l'automatisation, votre équipe) ; jamais un passif sans agent ; jamais « elle » ni « il » en tête d'écran si le nom n'est pas dans la phrase d'avant ; aucune phrase de moins de 3 mots. En posture « offre », sans « on a » ni « nous ».
 
 ${blocExemplesDeRythme()}
+
+CLARTÉ D'ABORD : quelqu'un qui ne connaît pas le métier doit comprendre la vidéo en l'écoutant une fois.
+- Avant le 3e écran, le sujet est dit en clair : qui, quelle chose, quel problème.
+- Quand <recit> est donné : l'accroche dit son « sujet » ; le « avant » raconte sa « scene » au présent (les tâches de <avant> restent les cases de la liste) ; ses « mots_cles » sont dits dans les trois premiers écrans.
+- Un seul exemple est suivi d'un bout à l'autre (celui de « exemple » dans <recit>, sinon une chose précise tirée de <avant>) : chaque étape dit ce qui arrive à CETTE chose, jamais une étiquette abstraite.
+- Les étapes de <etapes> sont une source, pas un texte à lire : regroupe-les en 3 temps au plus, et ne dis jamais un titre d'étape seul.
+- La part humaine (<reste_humain>, mot pour mot, R23) se dit à sa place ; puis le bénéfice vécu : la même scène, sans le problème.
+- La question finale porte sur ce même problème.
+- Ne recopie jamais la description d'une forme de <formes_de_la_video>.
 
 FORME DE CETTE VIDÉO : <formes_de_la_video> donne la FORME de l'accroche, du « avant », de la bascule, du résultat et de la question finale, tirée pour cette vidéo seule : suis-la. Chaque description est une forme, jamais une phrase à recopier. Quand <place_reste_humain> est donné, dis ce qui reste humain à cet endroit.
 
 DÉJÀ DIT : quand <deja_dit> est donné, ces tournures ont déjà servi dans d'autres vidéos : ne les reprends pas, ni leurs variantes proches (même ordre de mots avec quelques mots changés). Dis la même chose autrement ; la promesse et les faits du cas, eux, restent exacts. Une séquence de 5 mots de suite reprise de cette liste fait refuser le script.
 
-ACCROCHE (e01, puis le premier chiffre) : elle met en avant la PROMESSE du cas, le gain annoncé, jamais le « avant ». Le premier écran « chiffre », juste après e01, montre le fait chiffré de la PROMESSE quand la promesse porte un nombre : jamais le total de l'« avant », qui vient ensuite, dans la liste « avant ».
+ACCROCHE (e01, puis le premier chiffre) : elle met en avant la PROMESSE du cas, le gain annoncé, jamais le « avant » ; quand <recit> est donné, elle dit à la place le « sujet » de <recit> (mêmes limites de mots et de temps), et la promesse peut se redire au résultat. Le premier écran « chiffre », juste après e01, montre le fait chiffré de la PROMESSE quand la promesse porte un nombre : jamais le total de l'« avant », qui vient ensuite, dans la liste « avant ».
 
 UNE SEULE IDÉE : la vidéo montre UN seul mécanisme, celui du cas ; aucune seconde promesse ni bénéfice ajouté ; après l'accroche, aucun écran ne redit la promesse (le « resultat » montre le gain : chiffré quand un fait le porte, en mots sinon).
 
@@ -231,7 +240,7 @@ SANS FAIT CHIFFRÉ : quand aucun fait de <faits> ne porte de valeur (« (aucun) 
 
 RÈGLES (la fiche est refusée sinon) :
 - R02 : les « texteDit » mis bout à bout forment le script du corps ; chaque écran dit sa part.
-- R03 : écran e01 de type « accroche » ; il dit la promesse du cas (<promesse>), avec tous ses mots pleins et ses nombres, en ${ACCROCHE_MOTS_DITS_MAX} mots dits au plus, fini avant ${virgule(ACCROCHE_FIN_MAX_MS / 1000)} s.
+- R03 : écran e01 de type « accroche » ; il dit la promesse du cas (<promesse>), ou, quand <recit> est donné, son « sujet », avec tous ses mots pleins et ses nombres, en ${ACCROCHE_MOTS_DITS_MAX} mots dits au plus, fini avant ${virgule(ACCROCHE_FIN_MAX_MS / 1000)} s.
 - R04 : ordre : accroche ; la liste « avant » (type « liste-avant ») commence avant ${virgule(LISTE_DEBUT_MAX_MS / 1000)} s ; un « titre » (la bascule) entre la liste et la première étape ; toutes les « etape » ; ce qui reste humain (<reste_humain>) est dit APRÈS la première étape ; le « resultat » suit la dernière étape ; la « question » est le dernier écran, et le seul de son type.
 - R05 : chaque écran dure de ${virgule(ECRAN_DUREE_MIN_MS / 1000)} à ${virgule(ECRAN_DUREE_MAX_MS / 1000)} s, estimé au débit prudent de ${virgule(DEBIT_ECRAN_PRUDENT)} mots par seconde (la voix réelle est plus lente que 3,4) : de 4 à ${MOTS_ECRAN_MAX} mots dits par écran, 14 si l'écran a une avance ; écran liste-avant : ${MOTS_LISTE_AVANT_MAX} mots dits au plus. Coupez une phrase longue sur deux écrans. Jamais deux écrans sur deux mots voisins : le premier mot d'un écran vient au moins 4 mots dits (une seconde) après le premier mot du précédent ; un écran trop court est réuni à son voisin au calage.
 - R06 : un événement visible toutes les ${virgule(ECART_EVENEMENT_MAX_MS / 1000)} s au plus (entrée d'écran ou « evenements ») : au plus 6 mots dits entre deux événements. Débit de ${virgule(DEBIT_MIN)} à ${virgule(DEBIT_MAX)} mots par seconde.
@@ -248,7 +257,7 @@ RÈGLES (la fiche est refusée sinon) :
 - R17 : la conformité n'est dite que si <conformite> porte une phrase, et alors mot pour mot ; ses textes d'écran n'emploient que des mots de cette phrase.
 - R19 : objets de la banque <objets> seulement. Un vrai écran (« sorte »: « ecran ») vise une étape du cas dont le visuel est un écran, avec un « repli » de la banque.
 - R20 : de ${ECRANS_CORPS.min} à ${ECRANS_CORPS.max} écrans ; de ${ETAPES.min} à ${ETAPES.max} écrans « etape » (le studio les numérote).
-- R21 : la vidéo entière, fin comprise, tient de ${DUREE_TOTALE_REFUS_MS.min / 1000} à ${DUREE_TOTALE_REFUS_MS.max / 1000} s ; visée : la vidéo la plus COURTE (celle de la fin la plus courte) dure de ${DUREE_SORTIE_COURTE_VISEE_MS.min / 1000} à ${DUREE_SORTIE_COURTE_VISEE_MS.max / 1000} s, jamais plus de ${DUREE_SORTIE_COURTE_MAX_MS / 1000} s (la v4 dure 41 s) : mieux vaut un écran de moins qu'une phrase de trop. Quand <duree_fins> est donné, le corps dure ce qu'il indique : une fin courte demande plus d'écrans dans le corps (étapes détaillées, écrans « objet »). Ces durées sont estimées à ${virgule(CARACTERES_PAR_SECONDE_ATEMPO_108)} caractères dits par seconde (espaces et ponctuation compris). Quand la matière du cas est courte, ajoutez des écrans qui ne portent AUCUN fait nouveau : une « question » plus développée, une étape reprise en deux écrans (le geste, puis ce qu'il évite) ; n'inventez jamais un fait pour durer.
+- R21 : la vidéo entière, fin comprise, tient de ${DUREE_TOTALE_REFUS_MS.min / 1000} à ${DUREE_TOTALE_REFUS_MS.max / 1000} s ; visée : la vidéo la plus COURTE (celle de la fin la plus courte) dure de ${DUREE_SORTIE_COURTE_VISEE_MS.min / 1000} à ${DUREE_SORTIE_COURTE_VISEE_MS.max / 1000} s, jamais plus de ${DUREE_SORTIE_COURTE_MAX_MS / 1000} s (la v4 dure 41 s) : mieux vaut un écran de moins qu'une phrase de trop. Quand <duree_fins> est donné, le corps dure ce qu'il indique : une fin courte demande plus d'écrans dans le corps (étapes détaillées, écrans « objet »). Ces durées sont estimées à ${virgule(CARACTERES_PAR_SECONDE_ATEMPO_108)} caractères dits par seconde (espaces et ponctuation compris). Quand la matière du cas est courte, ajoutez des écrans qui ne portent AUCUN fait nouveau : une « question » plus développée, une phrase de plus sur l'exemple suivi (ce qui lui arrive, ce qu'il évite) ; n'inventez jamais un fait pour durer.
 - R23 : l'ordre du VRAI fonctionnement : les étapes se montrent dans l'ordre de <etapes> (jamais une étape avant une étape qui la précède) ; ce qui reste humain (<reste_humain>) se dit mot pour mot, À SA PLACE : juste après l'étape donnée par <reste_humain_apres_etape>, avant l'étape suivante (la visio avant le contrat, par exemple).
 - R22 : un sigle dit s'écrit pour être lu dans le texte dit (« R.G.P.D. », « I.A. ») ; à l'écran il s'écrit « RGPD », « IA ».
 
@@ -739,7 +748,8 @@ function simulerEcriture(entree: EntreeRole): FicheEcrans | string {
 export const roleEcritureCasConcret = {
   id: "ecriture-cas-concret",
   // 2 : cas sans fait chiffré (résultat en mots, barres sans nombre), 24/10/2026.
-  version: 2,
+  // 3 : clarté et récit, 24/10/2026.
+  version: 3,
   consigne: CONSIGNE_ECRITURE,
   modele: MODELE_ECRITURE,
   effort: "medium",
