@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MotHorodate } from "@/domaine/types";
-import { REGLES_COUPES_IV, coupesEnPleinSon, placerCoupesIV, type MesureSonIV } from "@/moteurs/montage-image-video/assemblage";
+import { RECETTE_VOIX_IV, REGLES_COUPES_IV, coupesEnPleinSon, placerCoupesIV, type MesureSonIV } from "@/moteurs/montage-image-video/assemblage";
 import { planRaccordVoix, type Silence } from "@/moteurs/montage-image-video/emprunts";
 
 const f = 0.02;
@@ -33,7 +33,7 @@ const mots = [
 const plan = (coupes: [number, number][]) => {
   const bords = [0, ...coupes.flat(), DUREE];
   return {
-    ...planRaccordVoix({ mots, dureeSec: DUREE }),
+    ...planRaccordVoix({ mots, dureeSec: DUREE }, undefined, RECETTE_VOIX_IV),
     morceaux: Array.from({ length: bords.length / 2 }, (_, i) => ({ debutSec: bords[2 * i], finSec: bords[2 * i + 1], source: 0 as const })),
   };
 };

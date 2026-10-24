@@ -8,10 +8,11 @@ import { cleChiffre, chiffresDe } from "./chiffres";
 import type { CarteImage, NoeudCarte, TypeImage } from "./carte";
 
 /**
- * Débit de référence (voix de Will à 1,1 puis tempo ×1,08), recalibré le 18/10/2026 sur deux vraies voix : 3,52 mots/s
- * (v-dcc902c3f3dd) et 3,27 (v-dd3049053f88), soit 3,39 de moyenne. Les mots de chaque classe en découlent : aucun nombre de mots en dur.
+ * Débit de référence (voix de Will à 1,1 puis tempo ×1,05), recalibré le 18/10/2026 sur deux vraies voix : 3,52 mots/s
+ * (v-dcc902c3f3dd) et 3,27 (v-dd3049053f88), soit 3,39 de moyenne, à tempo ×1,08. Le 24/10/2026 (décision de Will) le tempo passe à ×1,05 :
+ * 3,4 × 1,05 / 1,08 ≈ 3,3, par le calcul en attendant la mesure d'une vraie vidéo (la v-6e4a06b9c718 faisait 3,97 à ×1,08). Les mots de chaque classe en découlent : aucun nombre de mots en dur.
  */
-export const DEBIT_MOTS_PAR_SEC = 3.4;
+export const DEBIT_MOTS_PAR_SEC = 3.3;
 
 export const CLASSES = ["simple", "moyenne", "branches", "tres-complexe"] as const;
 export type ClasseImage = (typeof CLASSES)[number];

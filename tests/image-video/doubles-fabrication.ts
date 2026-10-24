@@ -98,12 +98,12 @@ function sonDesMots(mots: readonly MotHorodate[], dureeSec: number, naturel = fa
 }
 
 /**
- * Mots horodatés d'un texte (centièmes ronds) : 0,27 s par mot, 0,12 s entre deux mots (≈ 2,75 mots/s (plus lent que le débit réel de 3,4 : à recalibrer) après le tempo
- * ×1,08, le débit de référence du plan), 0,40 s après une phrase.
+ * Mots horodatés d'un texte (centièmes ronds) : 0,26 s par mot, 0,12 s entre deux mots (≈ 2,75 mots/s (plus lent que le débit réel de 3,3 : à recalibrer) après le tempo
+ * ×1,05, le débit de référence du plan), 0,40 s après une phrase.
  */
 function motsDuTexte(texte: string, lent = false): MotHorodate[] {
   const res: MotHorodate[] = [];
-  const mot0 = lent ? 30 : 27;
+  const mot0 = lent ? 30 : 26; // 26 (et non 27) depuis le tempo ×1,05 : le script fixe des doubles dure autant qu'avant à l'écoute
   let t = 30;
   for (const mot of texte.split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m))) {
     res.push({ mot, debutSec: t / 100, finSec: (t + mot0) / 100 });
