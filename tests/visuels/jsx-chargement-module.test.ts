@@ -56,7 +56,7 @@ describe("JSX au chargement des modules de compositions/visuels", () => {
   });
 
   it.skipIf(!existsSync(ESBUILD))("chaque module se charge en JSX classique sans React global (esbuild, comme l'image de prod)", async () => {
-    const esbuild = createRequire(import.meta.url)(ESBUILD) as typeof import("esbuild");
+    const esbuild = createRequire(import.meta.url)(ESBUILD) as { build(options: Record<string, unknown>): Promise<unknown> };
     expect((globalThis as { React?: unknown }).React).toBeUndefined();
     const modules = fichiers(DOSSIER);
     const travail = mkdtempSync(join(tmpdir(), "jsx-classique-"));
