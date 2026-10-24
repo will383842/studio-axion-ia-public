@@ -62,6 +62,8 @@ export interface VueCas {
   valide: boolean;
   /** V4-3 : le script validé du cas (texte dit et ordre des écrans), montré avant la voix ; absent : Claude écrira. */
   script?: EcranApercu[];
+  /** Le script validé du cas est celui de Will (tapé ou collé dans « Mon script »). */
+  scriptFourni?: boolean;
   /** P2C : numéros (à partir de 1) des étapes dont l'écran est derrière une connexion : « Fournir cet écran ». Absent : réglage éteint. */
   ecransAFournir?: number[];
   /**
