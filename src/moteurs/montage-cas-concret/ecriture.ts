@@ -55,6 +55,7 @@ import {
   type FicheEcrans,
   type FinPlanifiee,
 } from "./fiche";
+import { controlerClarte, messageClarte } from "./clarte";
 import { CLASSEMENT_CHAMPS, HAUTEURS_BARRES_SANS_FAIT, OBJETS_A_TEXTES, casSansFaitChiffre, completerFiche, ficheFixe, textesParDefautDuVisuel, uniteDuFait, type FicheFixe } from "./champs-du-cas";
 import type { OutilsEcriture, ReponseAppelEcriture } from "./outils";
 import { blocExemplesDeRythme } from "./exemples-ton";
@@ -488,6 +489,24 @@ function rangDe(t: string, partie: string, depuis = 0): number {
 type SansCommun<T> = T extends unknown ? Omit<T, "id" | "fond" | "marque" | "avanceMs"> : never;
 type Brouillon = SansCommun<EcranCorps>;
 
+/** La scène d'un récit en morceaux dits de 11 mots au plus (coupés de préférence à la fin d'une phrase), le dernier d'au moins 4 mots. */
+function decouperScene(scene: string, max = 11): string[] {
+  const morceaux: string[] = [];
+  let courant: string[] = [];
+  for (const m of scene.trim().split(/\s+/)) {
+    courant.push(m);
+    if (courant.length >= max || (/[.!?…]$/.test(m) && courant.length >= 6)) {
+      morceaux.push(courant.join(" "));
+      courant = [];
+    }
+  }
+  if (courant.length) {
+    if (courant.length < 4 && morceaux.length) morceaux[morceaux.length - 1] += ` ${courant.join(" ")}`;
+    else morceaux.push(courant.join(" "));
+  }
+  return morceaux;
+}
+
 /** Tâches « avant » en écrans de 2 à 4 tâches, chacun de `MOTS_LISTE_MAX` mots dits au plus ; une tâche isolée est laissée. */
 function groupesAvant(taches: readonly string[]): string[][] {
   const groupes: string[][] = [];
@@ -564,7 +583,9 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   const blocs = new Set(recette.map((b) => b.id));
 
   // Accroche : la promesse, en 2 ou 3 lignes ; un sigle de la promesse est écrit pour être lu (« C.R.M. »).
-  const promesse = sansPointFinal(cas.promesse);
+  // Un cas qui a un récit : l'accroche dit son sujet à la place de la promesse (R03).
+  const accroche = cas.recit?.sujet ?? cas.promesse;
+  const promesse = sansPointFinal(accroche);
   const mp = promesse.split(/\s+/);
   const nl = mp.length <= 6 ? 2 : 3;
   const tailles = Array.from({ length: nl }, (_, i) => Math.floor(mp.length / nl) + (i < mp.length % nl ? 1 : 0));
@@ -573,13 +594,13 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   const candidats = lignes[lignes.length - 1].split(/\s+/).map((m) => m.replace(/[^\p{L}\p{N}'-]+/gu, ""));
   const chiffre = mp.map((m) => m.replace(/[^\p{L}\p{N}]+/gu, "")).find((m) => /^\d+$/.test(m));
   const motOrange = chiffre ?? [...candidats].sort((a, b) => b.length - a.length)[0];
-  const ditAccroche = sigleLu(cas.promesse);
+  const ditAccroche = sigleLu(accroche);
   brouillons.push({ type: "accroche", texteDit: ditAccroche, etiquette: ETIQUETTE_POSTURE[cas.posture], lignes, motOrange, eclair: true, evenements: evenements(ditAccroche, lignes.slice(1).map((l, i) => [`titre-${i + 2}`, rangDe(ditAccroche, l)]), []) });
 
   // Le chiffre : l'énoncé d'un fait, s'il tient avant la liste. V4-2 : quand la promesse porte un nombre, seul un fait
   // qui le porte (le gain : « 15 minutes ») est montré ici, jamais un autre (la v4 : « 15 MINUTES. », pas « 1 HEURE. »).
   const lusAccroche = nombreLus(ditAccroche);
-  const nombresPromesse = (cas.promesse.match(/\d+/g) ?? []).map(Number);
+  const nombresPromesse = (accroche.match(/\d+/g) ?? []).map(Number);
   const faitsDuChiffre = nombresPromesse.length ? cas.faits.filter((f) => f.valeurs.some((v) => nombresPromesse.includes(v))) : cas.faits;
   let faitChiffre: FaitCas | undefined;
   if (blocs.has("chiffre")) {
@@ -599,7 +620,16 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   // par tâche suffit alors au rythme).
   const dicibles = cas.avant.taches.filter((t) => dicible(t, cas));
   const courtes = dicibles.filter((t) => nombreLus(t) <= PAS_MOTS);
-  groupesAvant(courtes.length >= 2 ? courtes : dicibles).forEach((g, gi, tous) => {
+  const groupesDeTaches = groupesAvant(courtes.length >= 2 ? courtes : dicibles);
+  if (cas.recit) {
+    // La scène du récit, dite en morceaux au présent ; les cases sont les tâches « avant » (reprises d'un morceau à l'autre au besoin).
+    decouperScene(sigleLu(cas.recit.scene)).forEach((m, gi) => {
+      const dit = `${gi === 0 ? "Avant : " : ""}${m}`;
+      const g = groupesDeTaches[gi % Math.max(1, groupesDeTaches.length)] ?? cas.avant.taches.slice(0, 2);
+      brouillons.push({ type: "liste-avant", texteDit: dit, taches: (g.length >= 2 ? g : cas.avant.taches.slice(0, 2)).map((t) => couper(t, MOTS_MAX.ligne)), evenements: evenements(dit, [["tache-1", 5], ["tache-2", 10]], []) });
+    });
+  }
+  if (!cas.recit) groupesDeTaches.forEach((g, gi, tous) => {
     const morceaux = g.map((t) => minusculeInitiale(sigleLu(sansPointFinal(t))));
     const dernier = gi === tous.length - 1;
     const dit = `${gi === 0 ? "Avant : " : ""}${morceaux.join(", ")}${dernier ? "." : ","}`;
@@ -637,6 +667,9 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
       dit = `${dit} ${sigleLu(x.detail)}`;
       detailDit = true;
     }
+    // Un cas qui a un récit : l'exemple suivi est repris en tête de la phrase quand elle y tient.
+    const reprise = cas.recit ? `Pour ${cas.recit.exemple} : ` : "";
+    if (reprise && nombreLus(reprise + dit) <= 14) dit = `${reprise}${minusculeInitiale(dit)}`;
     const visuel = x.visuel.sorte === "objet" ? { sorte: "objet" as const, objet: x.visuel.objet } : { sorte: "ecran" as const, etapeCas: rang, repli: x.visuel.repli ?? "telephone-capture" };
     const titre = couper(x.titre, MOTS_MAX.titre);
     brouillons.push({ type: "etape", texteDit: dit, numero: i + 1, total: etapes.length, titre, ligne: couper(x.ligne, MOTS_MAX.ligne), visuel, puces: [], evenements: evenements(dit, [], ["ligne", ...relaisDuVisuel(visuel.sorte === "objet" ? visuel.objet : "telephone-capture")]) });
@@ -648,7 +681,8 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
       brouillons.push({ type: "objet", texteDit: ditEvite, titre, ligne: couper(evitee, MOTS_MAX.ligne), visuel: { sorte: "objet", objet }, evenements: evenements(ditEvite, [], ["ligne", ...relaisDuVisuel(objet)]) });
     }
     if (manque > 0 && detailDicible && !detailDit) {
-      const ditDetail = sigleLu(x.detail);
+      const ditDetail0 = sigleLu(x.detail);
+      const ditDetail = reprise && nombreLus(reprise + ditDetail0) <= 14 ? `${reprise}${minusculeInitiale(ditDetail0)}` : ditDetail0;
       const objet = visuel.sorte === "objet" ? visuel.objet : visuel.repli;
       brouillons.push({ type: "objet", texteDit: ditDetail, titre, ligne: couper(x.detail, MOTS_MAX.ligne), visuel: { sorte: "objet", objet }, evenements: evenements(ditDetail, [], ["ligne", ...relaisDuVisuel(objet)]) });
       manque--;
@@ -709,8 +743,8 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   }
 
   // Question (développée au remplissage 1).
-  const question = remplissage >= 1 ? QUESTION_GABARIT_LONGUE : QUESTION_GABARIT;
-  brouillons.push({ type: "question", texteDit: question, lignes: ["Et chez vous,", "dans votre entreprise"], question: "Quelle tâche pourrait tourner toute seule ?", evenements: evenements(question, remplissage >= 1 ? [["titre-2", 4], ["question", 9]] : [["question", 4]], []) });
+  const question = cas.recit ? `Et chez vous, ${minusculeInitiale(sansPointFinal(cas.recit.sujet))} ?` : remplissage >= 1 ? QUESTION_GABARIT_LONGUE : QUESTION_GABARIT;
+  brouillons.push({ type: "question", texteDit: question, lignes: ["Et chez vous,", "dans votre entreprise"], question: "Quelle tâche pourrait tourner toute seule ?", evenements: evenements(question, remplissage >= 1 || cas.recit ? [["titre-2", 4], ["question", 9]] : [["question", 4]], []) });
 
   // Un objet vide sans ses textes (liste de tâches, programme) les reçoit ici, comme la complétion les poserait.
   let rang = 0;
@@ -869,7 +903,7 @@ export function alertesPositionnement(f: FicheEcrans): string[] {
  * Juge une réponse lue : d'abord la passe des champs tirés du cas (X9), puis les champs figés, puis la validation complète
  * (le script est le texte dit de la fiche elle-même). `notes` : les écarts corrigés par la passe.
  */
-export function jugerFiche(lue: unknown, e: EntreeEcriture): { ok: true; fiche: FicheEcrans; notes: string[] } | { ok: false; refus: string[]; notes: string[] } {
+export function jugerFiche(lue: unknown, e: EntreeEcriture): { ok: true; fiche: FicheEcrans; notes: string[]; clarte: string[] } | { ok: false; refus: string[]; notes: string[] } {
   const c = completerFiche(lue, e);
   const refuses = new Set(c.ecransRefuses);
   const propres = [...c.refus, ...controlesEcriture(c.brute, e)];
@@ -878,7 +912,10 @@ export function jugerFiche(lue: unknown, e: EntreeEcriture): { ok: true; fiche: 
   const v = validerFicheEcrans(c.brute, { ...e.controle, cas: e.cas, texteScript: texteDuCorps(forme.fiche) });
   const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message))];
   const notes = [...c.notes, ...alertesPositionnement(forme.fiche)];
-  return refus.length || !v.ok ? { ok: false, refus, notes } : { ok: true, fiche: v.fiche, notes };
+  if (refus.length || !v.ok) return { ok: false, refus, notes };
+  // Clarté : avec un récit, un manque est un refus de qualité (la relance existante) ; sans récit, une alerte dans les notes.
+  const manques = controlerClarte(v.fiche, e.cas).map(messageClarte);
+  return e.cas.recit ? { ok: true, fiche: v.fiche, notes, clarte: manques } : { ok: true, fiche: v.fiche, notes: [...notes, ...manques.map((m) => `${m} (alerte)`)], clarte: [] };
 }
 
 /* ------------------------------------------------------------------ */
@@ -996,9 +1033,9 @@ async function ecrireFicheInterne(entree: EntreeEcriture, outils: OutilsEcriture
   /** Coût réel rendu par les appels (X2 : chacun compté une fois). */
   let coutUsd: number | undefined;
   /** Premier script valide mais trop proche d'un script antérieur : gardé si la relance n'aboutit pas mieux. */
-  let proche: { fiche: FicheEcrans; notes: string[]; copies: Sequence[] } | undefined;
+  let proche: { fiche: FicheEcrans; notes: string[]; copies: Sequence[]; clarte: string[] } | undefined;
   const garde = (simule: boolean): ResultatEcriture | undefined =>
-    proche && { ok: true, fiche: proche.fiche, appels, relance: appels > 1, simule, ...(coutUsd !== undefined ? { coutUsd } : {}), notes: [...proche.notes, noteRessemblance(proche.copies, appels > 1)] };
+    proche && { ok: true, fiche: proche.fiche, appels, relance: appels > 1, simule, ...(coutUsd !== undefined ? { coutUsd } : {}), notes: [...proche.notes, ...noteClarte(proche.clarte), ...(proche.copies.length ? [noteRessemblance(proche.copies, appels > 1)] : [])] };
 
   for (let essai = 1; essai <= APPELS_ECRITURE_MAX; essai++) {
     const entreeRole: EntreeRole = { contexte: await socleDe(outils), variable };
@@ -1025,11 +1062,12 @@ async function ecrireFicheInterne(entree: EntreeEcriture, outils: OutilsEcriture
     if (jugement.ok) {
       const copies = copiesDuScript(jugement.fiche, variete, reponse.simule);
       const resultat = { ok: true as const, fiche: jugement.fiche, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
-      if (!copies.length) return { ...resultat, notes: jugement.notes };
-      // Refus de qualité : la relance existante (jamais un appel de plus) ; la ressemblance restante n'est pas un échec.
-      if (essai >= APPELS_ECRITURE_MAX) return { ...resultat, notes: [...jugement.notes, noteRessemblance(copies, essai > 1)] };
-      proche = { fiche: jugement.fiche, notes: jugement.notes, copies };
-      refus = refusRessemblance(copies);
+      if (!copies.length && !jugement.clarte.length) return { ...resultat, notes: jugement.notes };
+      // Refus de qualité : la relance existante (jamais un appel de plus) ; la ressemblance ou le manque de clarté restant n'est pas un échec
+      // (la fiche est gardée avec sa note : Will relit avant toute voix payée).
+      if (essai >= APPELS_ECRITURE_MAX) return { ...resultat, notes: [...jugement.notes, ...noteClarte(jugement.clarte), ...(copies.length ? [noteRessemblance(copies, essai > 1)] : [])] };
+      proche = { fiche: jugement.fiche, notes: jugement.notes, copies, clarte: jugement.clarte };
+      refus = [...jugement.clarte, ...(copies.length ? refusRessemblance(copies) : [])];
       variable = variableRelance(base, lecture.texte, refus);
       continue;
     }
@@ -1040,6 +1078,9 @@ async function ecrireFicheInterne(entree: EntreeEcriture, outils: OutilsEcriture
 
   return garde(false) ?? { ok: false, motif: "refusee", message: `${DEBUT_REFUS_ECRITURE} après ${APPELS_ECRITURE_MAX} essais (${refus.length} refus) : à reprendre à la main.`, refus, appels, ...brute(derniere) };
 }
+
+/** Note d'une fiche gardée malgré un manque de clarté (rien si elle est claire) : visible à la relecture, avant toute voix payée. */
+const noteClarte = (manques: readonly string[]): string[] => (manques.length ? [`Clarté (à voir avant de valider) : ${manques.join(" ; ")}`] : []);
 
 /** Début de la phrase d'une écriture refusée (premier passage ou reprise) : le moteur y ajoute le prix d'un nouvel essai. */
 export const DEBUT_REFUS_ECRITURE = "Fiche d'écrans refusée";
@@ -1064,9 +1105,9 @@ async function reprendreEcriture(entree: EntreeEcriture, outils: OutilsEcriture,
   const variete = varieteDe(entree, commune);
   const base = variableEcriture(entree.cas, recettePour(entree.cas, entree.structure), entree, entree.controle?.fins ?? [], variete.options);
   /** Notes d'une réponse qui passe : la ressemblance éventuelle est dite, jamais refusée (pas de nouvel appel pour elle). */
-  const notesDe = (j: { fiche: FicheEcrans; notes: string[] }, simule: boolean) => {
+  const notesDe = (j: { fiche: FicheEcrans; notes: string[]; clarte: string[] }, simule: boolean) => {
     const copies = copiesDuScript(j.fiche, variete, simule);
-    return copies.length ? [...j.notes, noteRessemblance(copies, false)] : j.notes;
+    return [...j.notes, ...noteClarte(j.clarte), ...(copies.length ? [noteRessemblance(copies, false)] : [])];
   };
   const anciennes = [...Array.from({ length: APPELS_ECRITURE_MAX }, (_, i) => idAppelEcriture(entree, i + 1)), ...Array.from({ length: reprise - 1 }, (_, i) => idAppelEcriture(entree, `r${i + 1}`))];
   let derniere: { texte: string; refus: string[] } | undefined;
