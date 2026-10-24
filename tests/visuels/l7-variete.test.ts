@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { TYPES_PAGE } from "../../src/briques/visuels/registre-pages";
 import { dessinsDuCarrousel, ILLUSTRATIONS_FIXES, illustrationCouverture } from "../../src/briques/visuels/choix-illustration";
 import { controlerCarrousel } from "../../src/domaine/controles-visuel/porte";
-import { controlesStructure } from "../../src/domaine/controles-visuel/rythme";
+import { controlesStructure, controlesSurfaceOrange } from "../../src/domaine/controles-visuel/rythme";
 import { controlesMemoire, empreinteCarrousel, recentsAEviter, MEMOIRE_CARROUSELS } from "../../src/domaine/controles-visuel/memoire-carrousels";
 import { FAMILLE_VARIETE, SURFACE_ORANGE } from "../../src/domaine/visuels/familles-pages";
 import { CarrouselSpec } from "../../src/domaine/visuels/schema";
@@ -38,6 +38,9 @@ describe("L7 : familles de pages", () => {
     expect(r).toHaveLength(1);
     expect(r[0]).toMatchObject({ niveau: "rouge", page: 3 });
     expect(r[0].phrase).toMatch(/Pages 2 et 3 .*rangées/);
+  });
+  it("la couverture a son rôle : couverture puis message clé n'est pas une suite de famille", () => {
+    expect(de("FAMILLE", lu(couverture, message, grille, liste(), avantApres, etapes(), fin))).toEqual([]);
   });
   it("même type à la suite reste un cas particulier (RYTHME), sans double alerte FAMILLE", () => {
     const s = lu(couverture, liste("Un"), liste("Deux"), grille, etapes(), message, fin);
@@ -80,12 +83,12 @@ describe("L7 : une seule grande surface orange", () => {
     expect(Object.keys(SURFACE_ORANGE).sort()).toEqual(["T01", "T01B", "T01C", "T08", "T10"]);
   });
   it("deux grandes surfaces orange : alerte qui nomme les pages", () => {
-    const r = de("SURFACE_ORANGE", lu(couverture, grille, liste(), avantApres, etapes(), message, fin));
+    const r = controlesSurfaceOrange(lu(couverture, grille, liste(), avantApres, etapes(), message, fin));
     expect(r).toHaveLength(1);
     expect(r[0].phrase).toMatch(/pages 1, 4 et 6/);
   });
   it("une seule : rien", () => {
-    expect(de("SURFACE_ORANGE", lu(couverture, grille, liste(), checklist, etapes(), fin))).toEqual([]);
+    expect(controlesSurfaceOrange(lu(couverture, grille, liste(), checklist, etapes(), fin))).toEqual([]);
   });
   it("jamais vide : chaque couverture porte toujours une illustration", () => {
     for (const t of ["T01", "T01B", "T01C"] as const) expect(illustrationCouverture(t, "Rien de reconnu")).toMatch(/^I\d\d$/);
@@ -161,8 +164,7 @@ describe("L7 : nombre écrit dans un titre", () => {
   it("une durée n'est pas un compte", () => {
     expect(de("NOMBRE_TITRE", lu(couverture, grille, liste("En 5 minutes"), avantApres, etapes(), fin))).toEqual([]);
   });
-  it("couverture : le nombre compte les pages de contenu", () => {
-    expect(de("NOMBRE_TITRE", lu({ ...couverture, titre: "5 bons réflexes" }, grille, liste(), avantApres, etapes(), message, fin))).toEqual([]);
-    expect(de("NOMBRE_TITRE", lu({ ...couverture, titre: "Sept bons réflexes" }, grille, liste(), avantApres, etapes(), message, fin))).toHaveLength(1);
+  it("couverture et message : aucun élément à compter, rien n'est contrôlé", () => {
+    expect(de("NOMBRE_TITRE", lu({ ...couverture, titre: "Sept bons réflexes" }, grille, liste(), avantApres, etapes(), message, fin))).toEqual([]);
   });
 });

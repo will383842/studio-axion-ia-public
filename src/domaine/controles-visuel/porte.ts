@@ -1,6 +1,7 @@
 /** Porte qualité d'un carrousel, PAR CODE : aucune IA, aucun réseau. PUR. */
 import { CarrouselSpec } from "../visuels/schema";
 import type { ControlePorte, NiveauControle, Porte, RapportPorte } from "../visuels/contrats";
+import { controlesMemoire } from "./memoire-carrousels";
 import { controlesStructure } from "./rythme";
 import { classementDans, contientJAide, expressionsBannieDans, MOTS_MIN_ANGLAIS, partAnglais, premierChiffre, sansNombreDePages, SEUIL_ANGLAIS, sortantsDans, tutoiementDans } from "./texte";
 import { textesDe } from "./textes-de";
@@ -98,6 +99,7 @@ export const controlerCarrousel: Porte = (spec, ctx) => {
   const corrections: string[] = [];
   if (analyse.success) {
     controles.push(...controlesStructure(analyse.data));
+    if (ctx.recents) controles.push(...controlesMemoire(analyse.data, ctx.recents));
     const typo = corrigerTypographie(analyse.data);
     if (typo.corrections.length > 0 && CarrouselSpec.safeParse(typo.specCorrige).success) {
       specCorrige = typo.specCorrige;
