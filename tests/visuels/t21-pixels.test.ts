@@ -8,7 +8,6 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { CHARTE_CARROUSEL } from "@/briques/visuels/charte-carrousel";
-import { VARIANTES_T21, varianteT21 } from "@/briques/visuels/variante-t21";
 import type { ImageRgb } from "../../studio-rendu/scripts/analyse-image";
 
 const MINUTES = 60_000;
@@ -111,7 +110,13 @@ describe.skipIf(!DISPONIBLE)("T21 rendue : aucun gros rond orange plein sous le 
   // Titres de couverture ordinaires : à eux tous, ils font rendre chaque variante de la page sombre.
   const TITRES = ["Répondre plus vite aux demandes", "Ranger les dossiers du cabinet", "Préparer un devis sans stress", "Relancer sans gêner", "Trois réflexes pour vos devis", "Une semaine mieux rangée"];
   let rendre: (titre: string) => Promise<ImageRgb>;
+  let VARIANTES_T21: readonly string[];
+  let varianteT21: (titre: string) => string;
   beforeAll(async () => {
+    // Chargée ici : la composition importe remotion, absent sans les dépendances de studio-rendu (le détecteur, lui, est toujours essayé).
+    const t21 = await import("../../studio-rendu/compositions/visuels/pages/T21");
+    VARIANTES_T21 = t21.VARIANTES_T21;
+    varianteT21 = (titre) => t21.varianteFin({ version: "carrousel/1", alt: "Essai", pages: [{ type: "T01", titre }, { type: "T21" }] });
     const { ouvrirRendeur } = await import("../../studio-rendu/scripts/rendu-visuel");
     const { decoderPng } = await import("../../studio-rendu/scripts/analyse-image");
     const rendeur = await ouvrirRendeur();

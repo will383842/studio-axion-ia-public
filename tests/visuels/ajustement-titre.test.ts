@@ -2,33 +2,37 @@ import { describe, expect, it } from "vitest";
 import { DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, DELAI_TITRES_MS } from "../../studio-rendu/compositions/visuels/commun/attente-police";
 import { attendreTitres } from "../../studio-rendu/compositions/visuels/mesure/attente-titres";
 import { ajusterTailleTitre, choisirMiseEnLignes, decouperTitre } from "../../studio-rendu/compositions/visuels/commun/ajustement";
+import { TITRE } from "../../studio-rendu/compositions/visuels/commun/constantes";
+
+/** Largeur visée par défaut (colonne de texte, ART-1 : 1080 − 2 × 64). */
+const CIBLE = TITRE.cible;
 
 /** Largeur simulée : 0,62 em par caractère de la ligne la plus longue (monotone en la taille). */
 const mesure = (lignes: string[], taille: number) => Math.max(...lignes.map((l) => l.length)) * 0.62 * taille;
 
 describe("ajustement du titre (M1-03) : fonction pure", () => {
-  it("la dichotomie amène la ligne la plus large à 984 ± 4 px", () => {
+  it("la dichotomie amène la ligne la plus large à la cible (colonne de texte) ± 4 px", () => {
     for (const texte of ["Six tâches de bureau", "Un bureau en ordre", "Ranger, classer, répondre"]) {
       const r = ajusterTailleTitre((t) => mesure([texte], t));
-      if (r.borne === null) expect(Math.abs(r.largeur - 984)).toBeLessThanOrEqual(4);
-      if (r.borne !== "min") expect(r.largeur).toBeLessThanOrEqual(988);
+      if (r.borne === null) expect(Math.abs(r.largeur - CIBLE)).toBeLessThanOrEqual(4);
+      if (r.borne !== "min") expect(r.largeur).toBeLessThanOrEqual(CIBLE + 4);
     }
-    const r = ajusterTailleTitre((t) => mesure(["abcdefghijklmnop"], t));
+    const r = ajusterTailleTitre((t) => mesure(["abcdefghijklmnopqr"], t));
     expect(r.borne).toBeNull();
-    expect(r.taille).toBeGreaterThanOrEqual(90);
-    expect(r.taille).toBeLessThanOrEqual(170);
-    expect(Math.abs(r.largeur - 984)).toBeLessThanOrEqual(4);
+    expect(r.taille).toBeGreaterThanOrEqual(TITRE.min);
+    expect(r.taille).toBeLessThanOrEqual(TITRE.max);
+    expect(Math.abs(r.largeur - CIBLE)).toBeLessThanOrEqual(4);
   });
 
-  it("borne haute : une ligne très courte reste à 170 px (ligne plus étroite que 984)", () => {
+  it("borne haute : une ligne très courte reste au corps maximal (ligne plus étroite que la cible)", () => {
     const r = ajusterTailleTitre((t) => mesure(["Un"], t));
-    expect(r).toMatchObject({ taille: 170, borne: "max" });
-    expect(r.largeur).toBeLessThan(984);
+    expect(r).toMatchObject({ taille: TITRE.max, borne: "max" });
+    expect(r.largeur).toBeLessThan(CIBLE);
   });
 
-  it("borne basse : une ligne très longue reste à 90 px", () => {
+  it("borne basse : une ligne très longue reste au corps minimal", () => {
     const r = ajusterTailleTitre((t) => mesure(["x".repeat(60)], t));
-    expect(r).toMatchObject({ taille: 90, borne: "min" });
+    expect(r).toMatchObject({ taille: TITRE.min, borne: "min" });
   });
 
   it("respecte des bornes passées en option et reste dans [min, max]", () => {
@@ -54,14 +58,15 @@ describe("ajustement du titre (M1-03) : fonction pure", () => {
     const titre = "Six tâches qui rythment un bureau";
     const choix = choisirMiseEnLignes(titre, mesure, { maxLignes: 4, hauteurMax: 900 });
     expect(choix.lignes.join(" ")).toBe(titre);
-    expect(choix.taille).toBeGreaterThanOrEqual(90);
+    expect(choix.taille).toBeGreaterThanOrEqual(TITRE.min);
     expect(choix.lignes.length * choix.taille * 1.02).toBeLessThanOrEqual(900 + 1);
   });
 
   it("ajuste AUSSI le corps à la hauteur : deux lignes de mots longs au corps de la largeur (≈ 160 px) débordaient de 19 à 35 px", () => {
     // Deux mots de 12 signes : une seule ligne ne tient pas en largeur au corps minimal, deux lignes donneraient ≈ 164 px, soit 2 × 1,02 × corps > 302 px.
     const largeurs = (lignes: string[], taille: number) => Math.max(...lignes.map((l) => l.length)) * 0.5 * taille;
-    const choix = choisirMiseEnLignes("Construisons messageries", largeurs, { maxLignes: 2, hauteurMax: 302 });
+    // Bornes d'avant ART-1 (90-170 px, cible 984 px), explicites : le cas reste celui qui a été mesuré.
+    const choix = choisirMiseEnLignes("Construisons messageries", largeurs, { maxLignes: 2, hauteurMax: 302, min: 90, max: 170, cible: 984 });
     expect(choix.lignes).toHaveLength(2);
     expect(choix.lignes.length * choix.taille * 1.02).toBeLessThanOrEqual(302 + 0.01);
     expect(choix.largeur).toBeLessThanOrEqual(988);
@@ -89,7 +94,8 @@ describe("ajustement du titre (M1-03) : fonction pure", () => {
   });
 
   it("lève une erreur claire quand aucune mise en lignes ne tient en largeur", () => {
-    expect(() => choisirMiseEnLignes("Anticonstitutionnellement", mesure, { maxLignes: 4, hauteurMax: 968 })).toThrow(/ne tient pas/);
+    expect(() => choisirMiseEnLignes("Anticonstitutionnellement", mesure, { maxLignes: 4, hauteurMax: 968, min: 90, cible: 984 })).toThrow(/ne tient pas/);
+    expect(() => choisirMiseEnLignes("Anticonstitutionnellementanticonstitutionnellement", mesure, { maxLignes: 4, hauteurMax: 968 })).toThrow(/ne tient pas/);
   });
 
   it("borne nulle dès que le corps est réduit pour tenir en hauteur (même au plancher)", () => {

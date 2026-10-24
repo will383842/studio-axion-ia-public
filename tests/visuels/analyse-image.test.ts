@@ -1,6 +1,7 @@
 import { deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { decoderPng, plusHauteZoneVide, type ImageRgb } from "../../studio-rendu/scripts/analyse-image";
+import { PART_LARGEUR_ZONE_VIDE, PART_ZONE_VIDE_MAX, zoneVideDuCorps } from "../../studio-rendu/scripts/controle-pages";
 
 /** Encode un PNG RVB 8 bits (filtre 0) : sert à fabriquer des images de test. */
 function encoderPng({ largeur, hauteur, rgb }: ImageRgb, filtre = 0): Buffer {
@@ -75,5 +76,27 @@ describe("plus haute zone vide", () => {
   it("un fond sombre s'apprécie sur lui-même : le texte clair compte comme contenu", () => {
     const sombre = image(200, 300, ENCRE, [{ x: 10, y: 140, l: 180, h: 20, c: CREME }]);
     expect(plusHauteZoneVide(sombre, [], 100).hauteurPx).toBe(140);
+  });
+});
+
+/**
+ * Tour 2 : contrôle pixel des pages minimales (`controle-pages.ts`). Une zone vide compte dès la MOITIÉ de la largeur de page ; la bande de
+ * droite (x ≥ 912, sans texte par règle) est ignorée, pour que le blanc voulu n'y soit pas compté. Une page remplie seulement à gauche échoue.
+ */
+describe("zone vide du corps (pages minimales)", () => {
+  const PAGE = { l: 1080, h: 1350 };
+  /** Lignes de texte simulées (barres d'encre de 30 px tous les 60 px), de x = 64 à `droite`. */
+  const lignes = (droite: number) => Array.from({ length: 20 }, (_, i) => ({ x: 64, y: 40 + i * 64, l: droite - 64, h: 30, c: ENCRE }));
+  const part = (droite: number) => zoneVideDuCorps(image(PAGE.l, PAGE.h, CREME, lignes(droite)), [PALE]).hauteurPx / PAGE.h;
+
+  it("une page remplie jusqu'au bord du texte (x = 880) passe : le blanc à droite de 912 est voulu", () => {
+    expect(part(880)).toBeLessThanOrEqual(PART_ZONE_VIDE_MAX);
+  });
+  it("ROUGE : une page remplie sur sa moitié gauche seulement (x ≤ 340) échoue", () => {
+    expect(part(340)).toBeGreaterThan(PART_ZONE_VIDE_MAX);
+  });
+  it("la largeur comptée reste la moitié de la page (0,5) : à 0,85, la page à moitié vide passait", () => {
+    expect(PART_LARGEUR_ZONE_VIDE).toBe(0.5);
+    expect(plusHauteZoneVide(image(PAGE.l, PAGE.h, CREME, lignes(340)), [PALE], PAGE.l * 0.85).hauteurPx / PAGE.h).toBeLessThanOrEqual(PART_ZONE_VIDE_MAX);
   });
 });

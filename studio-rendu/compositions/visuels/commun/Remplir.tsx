@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { cancelRender, continueRender, delayRender } from "remotion";
+import { cancelRender, continueRender, delayRender, getInputProps } from "remotion";
 import { avecDelai, DELAI_DELAYRENDER_MS, DELAI_TITRES_MS } from "./attente-police";
 import { attendrePolices } from "./controle-debordement";
-import { dessinsDe, lignesDeTexte } from "./occupation";
+import { largeurAuFacteur1, type Colonne } from "./geometrie";
+import { dessinsDe, lignesDeTexte, textesTropLarges } from "./occupation";
 import { partVide, VIDE_MAX } from "./zones";
 
 /** Variable CSS du facteur de remplissage : les tailles du corps s'écrivent `k(n)` (n px × facteur). */
@@ -24,6 +25,15 @@ async function attendreAutresTitres(soi: Element): Promise<void> {
     DELAI_TITRES_MS,
     () => `Un titre est resté en attente après ${DELAI_TITRES_MS / 1000} s : le corps de page ne peut pas être ajusté`,
   );
+}
+
+/**
+ * Plafond du facteur pour les ESSAIS seulement (`scripts/essai-art1.ts` rend chaque page aussi au facteur 1) : posé dans les propriétés
+ * d'entrée APRÈS leur validation ; en production, les propriétés validées (schéma strict) ne peuvent pas le porter.
+ */
+function plafondEssai(): number {
+  const p = (typeof window === "undefined" ? {} : getInputProps()) as { facteurMaxEssai?: unknown };
+  return typeof p.facteurMaxEssai === "number" && p.facteurMaxEssai >= 1 ? p.facteurMaxEssai : Infinity;
 }
 
 /** Vide visé par le choix de mise en page : un peu sous `VIDE_MAX`, pour garder une marge sur la mesure du rendu. */
@@ -58,7 +68,7 @@ export function Remplir({
   const [variante, setVariante] = useState(0);
   /** Essais déjà faits : facteur et vide de chaque variante qui tient au facteur 1. */
   const essais = useRef<Map<number, { facteur: number; vide: number }>>(new Map());
-  const maxVariante = typeof max === "function" ? max(variante) : max;
+  const maxVariante = Math.min(plafondEssai(), typeof max === "function" ? max(variante) : max);
   const [attente] = useState(() => delayRender("Remplissage du corps de page", { timeoutInMilliseconds: DELAI_DELAYRENDER_MS }));
 
   useEffect(() => {
@@ -82,7 +92,8 @@ export function Remplir({
       const place = { hauteur: c.clientHeight - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom), largeur: c.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight) };
       const tient = (f: number) => {
         c.style.setProperty(VARIABLE, String(f));
-        return d.scrollHeight <= place.hauteur && d.scrollWidth <= place.largeur;
+        // Le cadre total ne suffit pas : un mot insécable plus large que sa colonne (ou une pastille plus large que sa rangée) refuse le facteur.
+        return d.scrollHeight <= place.hauteur && d.scrollWidth <= place.largeur && textesTropLarges(d) === 0;
       };
       const derniere = variante >= variantes - 1;
       /** La moins vide des variantes essayées (tri stable : à égalité, la première) ; on y revient si ce n'est pas celle-ci. */
@@ -115,7 +126,7 @@ export function Remplir({
       const f = Math.floor(bas * 1000) / 1000;
       c.style.setProperty(VARIABLE, String(f));
       const r = c.getBoundingClientRect();
-      const vide = partVide({ haut: r.top, bas: r.bottom }, [...lignesDeTexte(c), ...dessinsDe(c)]);
+      const vide = partVide({ haut: r.top, bas: r.bottom }, [...lignesDeTexte(c), ...dessinsDe(c, { pourVide: true })]);
       essais.current.set(variante, { facteur: f, vide });
       if (vide <= VIDE_VISE || variantes === 1) return setFacteur(f);
       if (!derniere) return suivante();
@@ -145,6 +156,9 @@ export function Remplir({
 
 /** Largeur CSS `base` px diminuée de ce que gagne un élément de `n` px en grandissant avec le facteur : le bord droit du texte ne bouge pas. */
 export const moinsK = (base: number, n: number): string => `calc(${base}px - ${n}px * (var(${VARIABLE}, 1) - 1))`;
+
+/** Largeur CSS maximale du texte d'une colonne (`geometrie.ts`) : son bord droit ne bouge pas quand ce qui est à sa gauche grandit. */
+export const largeurColonne = (c: Colonne): string => moinsK(largeurAuFacteur1(c), c.croissance + c.recul);
 
 /** Transformation CSS qui agrandit un dessin de taille fixe avec le facteur (à poser sur un bloc de `n` px, dans une enveloppe de `k(n)`). */
 export const ECHELLE = `scale(var(${VARIABLE}, 1))`;

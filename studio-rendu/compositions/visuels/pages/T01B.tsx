@@ -1,40 +1,41 @@
 import { AbsoluteFill } from "remotion";
-import { Annotation } from "../commun/Annotation";
-import { Badge } from "../commun/Badge";
-import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BAS, MARGE, PAGE, TITRE_MIN_COUVERTURE } from "../commun/constantes";
+import { illustrationCouverture } from "../../../../src/briques/visuels/choix-illustration";
 import { Zone } from "../commun/controle-debordement";
-import { BORD_DROIT_TEXTE_BAS } from "../commun/zones";
-import { Swipe } from "../commun/Swipe";
+import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BAS, MARGE, TITRE_MAX_COUVERTURE, TITRE_MIN_COUVERTURE } from "../commun/constantes";
+import { IllustrationCouverture, PiedCouverture, SousTitre } from "../commun/Couverture";
 import { Titre } from "../commun/Titre";
-import { COMPOSANTS_DECOR } from "../decor/formes";
-import type { TypeDecor } from "../../../../src/briques/visuels/registre-decor";
+import { BORD_DROIT_TEXTE_BAS } from "../commun/zones";
 
 interface Proprietes {
   titre: string;
   sousTitre?: string;
-  deco?: TypeDecor;
   index: number;
   total: number;
 }
 
-/** T01B — couverture, variante B : grand bloc orange décoré en haut (il prend la place laissée par le texte), puis titre (dernière ligne en orange), trait et sous-titre. */
-export function T01B({ titre, sousTitre, deco = "E01", index, total }: Proprietes) {
-  const Deco = COMPOSANTS_DECOR[deco];
+const HAUTEUR_TITRE = 470;
+const ILLUSTRATION_MAX = 560;
+
+/**
+ * T01B — couverture, variante B (style C, demi-page) : bloc orange à fond perdu en haut, qui porte l'illustration du sujet (banque I01…I12) ;
+ * dessous, sur la crème, le titre géant en capitales (dernière ligne orange) et le sous-titre. Le bloc prend la place laissée par le texte :
+ * jamais d'aplat vide, jamais de forme sans sens.
+ */
+export function T01B({ titre, sousTitre, index, total }: Proprietes) {
+  const illustration = illustrationCouverture("T01B", titre, sousTitre);
   return (
-    <AbsoluteFill style={{ background: COULEURS.creme, padding: MARGE, boxSizing: "border-box" }}>
-      <div style={{ flex: 1, minHeight: 360, boxSizing: "border-box", borderRadius: 44, background: COULEURS.orange, border: `4px solid ${COULEURS.encre}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {/* Le décor suit la place laissée par le texte : 60 % de la hauteur du bloc, au plus 520 px. */}
-        <div style={{ height: "60%", maxHeight: 520, aspectRatio: "1" }}>
-          <Deco taille="100%" sur="orange" />
-        </div>
+    <AbsoluteFill style={{ background: COULEURS.creme }}>
+      <div style={{ flex: 1, minHeight: 400, background: COULEURS.orange, display: "flex", alignItems: "center", justifyContent: "center", padding: `${MARGE}px ${MARGE}px 48px` }}>
+        <IllustrationCouverture id={illustration} max={ILLUSTRATION_MAX} surOrange />
       </div>
-      <Zone libelle="T01B : texte" style={{ flex: "none", maxHeight: 760, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", gap: 34, margin: `34px 0 ${PAGE.ecart}px` }}>
-        <Titre texte={titre} maxLignes={3} hauteurMax={470} largeur={LARGEUR_TITRE_BAS} min={TITRE_MIN_COUVERTURE} accent />
-        <Annotation largeur={LARGEUR_TEXTE / 2} />
-        {sousTitre && <Badge texte={sousTitre} largeurMax={BORD_DROIT_TEXTE_BAS - MARGE} />}
-      </Zone>
-      <div style={{ height: PAGE.hauteurPied }}>
-        <Swipe index={index} total={total} />
+      <div style={{ flex: "none", padding: `48px ${MARGE}px ${MARGE}px`, display: "flex", flexDirection: "column" }}>
+        <Zone libelle="T01B : texte" style={{ maxHeight: 740, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", gap: 28 }}>
+          <Titre texte={titre} maxLignes={3} hauteurMax={HAUTEUR_TITRE} largeur={LARGEUR_TITRE_BAS} min={TITRE_MIN_COUVERTURE} max={TITRE_MAX_COUVERTURE} grand accent />
+          {sousTitre && <SousTitre texte={sousTitre} largeurMax={BORD_DROIT_TEXTE_BAS - MARGE} />}
+        </Zone>
+        <div style={{ marginTop: 32 }}>
+          <PiedCouverture index={index} total={total} />
+        </div>
       </div>
     </AbsoluteFill>
   );
