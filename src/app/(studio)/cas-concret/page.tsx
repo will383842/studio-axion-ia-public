@@ -11,7 +11,8 @@ import { CAS_PAR_PAGE, preparerPageCas, scriptsValidesDe } from "@/services/cas-
 import { StockDesCas } from "@/components/formats/cas-concret/stock/StockDesCas";
 import { IDEES_A_VENIR } from "@/formats/cas-concret/stock-idees";
 import { lireCasTraites } from "@/services/cas-concret-traites";
-import { lireCasRetires } from "@/services/cas-concret-retires";
+import { lireCasRetires, lireRetraits } from "@/services/cas-concret-retires";
+import { listerCasRetires } from "@/components/formats/cas-concret/stock/cas-retires";
 import { casProposables } from "@/components/formats/cas-concret/entree/proposables";
 import { lireStockCas } from "@/services/cas-concret-stock-lecture";
 import { lienStock, lireParamsStock } from "@/components/formats/cas-concret/stock/filtres-stock";
@@ -59,14 +60,16 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
   };
   const params = avecStock ? lireParamsStock(await searchParams, stock.flatMap((l) => (l.rangement ? [l.rangement.secteur] : []))) : null;
   const nbFaits = stock.filter((l) => !!l.traite).length;
+  // Le compteur « Cas retirés » compte comme la page /cas-concret/retires (même filtre de visibilité).
+  const nbRetires = listerCasRetires(await lireRetraits(), { catalogueEtendu: etendu, stockMetiers }).length;
   return (
     <div className="mx-auto max-w-2xl">
       <EnTetePage titre="Cas concret MD" sousTitre="Une phrase, une vidéo." />
       <nav aria-label="Listes des cas" className="mt-4 flex flex-wrap gap-3">
         <a className="inline-flex min-h-11 items-center rounded-sm border border-trait px-4 text-[15px] font-semibold text-orange-vif focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href={avecStock ? lienStock({ etat: "restant" }) : "/cas-concret?stock=1"}>Cas restants à faire</a>
         <a className="inline-flex min-h-11 items-center rounded-sm border border-trait px-4 text-[15px] font-semibold text-orange-vif focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href="/cas-concret/deja-faits">{nbFaits > 0 ? `Cas déjà faits (${nbFaits})` : "Cas déjà faits"}</a>
-        {retires.size > 0 && (
-          <a className="inline-flex min-h-11 items-center rounded-sm border border-trait px-4 text-[15px] font-semibold text-orange-vif focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href="/cas-concret/retires">{`Cas retirés (${retires.size})`}</a>
+        {nbRetires > 0 && (
+          <a className="inline-flex min-h-11 items-center rounded-sm border border-trait px-4 text-[15px] font-semibold text-orange-vif focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href="/cas-concret/retires">{`Cas retirés (${nbRetires})`}</a>
         )}
       </nav>
       <EntreeCasConcret

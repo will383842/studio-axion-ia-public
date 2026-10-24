@@ -458,7 +458,7 @@ export function ContenuVotreVideo({
           Je valide ce cas
         </Bouton>
       )}
-      {onRetire && !cas.porteB && <BoutonRetirerCas casId={cas.id} titre={cas.titre} onRetire={onRetire} />}
+      {onRetire && !cas.porteB && <BoutonRetirerCas casId={cas.id} titre={cas.titre} onRetire={onRetire} desactive={occupe} />}
     </div>
   );
 }
