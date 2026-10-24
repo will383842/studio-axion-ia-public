@@ -334,6 +334,6 @@ export async function refaire(id: string, deps: DependancesCarrousels): Promise<
       deps,
     );
   });
-  // La version suivante décale le choix du modèle de simulation : « Refaire » ne redonne pas le même texte.
+  // La version suivante décale le choix du modèle de simulation (avec une intention : l'ordre des listes libres) : « Refaire » ne redonne pas le même texte.
   await rediger(id, fournisseur, { ...demande, version }, deps);
 }

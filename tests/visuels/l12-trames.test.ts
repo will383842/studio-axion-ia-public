@@ -71,6 +71,8 @@ describe("données des trames", () => {
     expect(ecartsTrame(["T01", "T06", "T10", "T06", "T10", "T06", "T10", "T21"]).join(" ")).toMatch(/types/u);
     expect(ecartsTrame(["T01", "T02", "T20", "T27", "T10", "T21"]).join(" ")).toMatch(/denses/u);
     expect(ecartsTrame(["T01", "T06", "T21", "T10", "T22", "T23"]).join(" ")).toMatch(/sombre/u);
+    // Règle de la note : la page sombre (T21) ferme le carrousel, jamais en page 2.
+    expect(ecartsTrame(["T01", "T21", "T06", "T10", "T22", "T23"]).join(" ")).toMatch(/sombre/u);
   });
 });
 
@@ -132,6 +134,19 @@ describe("choix de la trame par l'intention", () => {
         const r = await f.ecrire({ type: "sujet", sujet, intention: i });
         expect((r.spec as CarrouselSpecType).pages.map((p) => p.type), `${i} ${sujet}`).toEqual(typesDeLaTrame(i));
         expect(CarrouselSpec.safeParse(r.spec).success).toBe(true);
+      }
+    }
+  });
+
+  it("avec une intention, « Refaire » (version 2) change le texte sans changer la trame", async () => {
+    for (const i of INTENTIONS) {
+      for (const sujet of SUJETS) {
+        const v1 = await f.ecrire({ type: "sujet", sujet, intention: i, version: 1 });
+        const v2 = await f.ecrire({ type: "sujet", sujet, intention: i, version: 2 });
+        expect((v2.spec as CarrouselSpecType).pages.map((p) => p.type), `${i} ${sujet}`).toEqual(typesDeLaTrame(i));
+        expect(CarrouselSpec.safeParse(v2.spec).success).toBe(true);
+        expect(JSON.stringify(v2.spec), `${i} ${sujet}`).not.toBe(JSON.stringify(v1.spec));
+        expect(await f.ecrire({ type: "sujet", sujet, intention: i, version: 2 })).toEqual(v2);
       }
     }
   });

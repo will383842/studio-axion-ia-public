@@ -35,6 +35,22 @@ function choisirFixture(sujet: string, version: number) {
   return FIXTURES_AXION[(fnv1a(normaliser(sujet)) + Math.max(0, version - 1)) % FIXTURES_AXION.length];
 }
 
+/** Listes sans ordre imposé (points, questions, checklist) : « Refaire » les fait tourner d'un cran par version, la trame reste la même. */
+const LISTES_LIBRES: Partial<Record<string, string>> = { T06: "points", T23: "questions", T27: "lignes" };
+
+function specVariee(spec: CarrouselSpecType, version: number): CarrouselSpecType {
+  const cran = Math.max(0, version - 1);
+  if (cran === 0) return spec;
+  const pages = spec.pages.map((page) => {
+    const cle = LISTES_LIBRES[page.type];
+    const liste = cle ? (page as Record<string, unknown>)[cle] : undefined;
+    if (!cle || !Array.isArray(liste) || liste.length < 2) return page;
+    const k = cran % liste.length;
+    return { ...page, [cle]: [...liste.slice(k), ...liste.slice(0, k)] };
+  });
+  return { ...spec, pages } as CarrouselSpecType;
+}
+
 /** Un sujet que la porte refuserait (expression bannie, tutoiement, « J'aide ») ne devient jamais titre. */
 function sujetRefuse(sujet: string): boolean {
   return expressionsBannieDans(sujet).length > 0 || tutoiementDans(sujet) !== undefined || contientJAide(sujet);
@@ -74,8 +90,9 @@ export function creerFournisseurSimulation(): FournisseurTexteCarrousel {
         throw new ErreurTexteCarrousel("SUJET_INVALIDE", "Le sujet est vide ou trop long.");
       }
       // Une intention choisit la trame (L12) ; sans intention, le choix reste celui d'avant.
-      const fixture = demande.intention ? FIXTURES_TRAMES[demande.intention] : choisirFixture(sujet, demande.version ?? 1);
-      const { spec, note } = specAvecSujet(fixture.spec, sujet);
+      const version = demande.version ?? 1;
+      const fixture = demande.intention ? FIXTURES_TRAMES[demande.intention] : choisirFixture(sujet, version);
+      const { spec, note } = specAvecSujet(demande.intention ? specVariee(fixture.spec, version) : fixture.spec, sujet);
       const couverture = spec.pages[0];
       const titre = "titre" in couverture ? couverture.titre : sujet;
       return { titre, spec, pourquoi: [...fixture.pourquoi], mode: "simulation", ...(note ? { note } : {}) };
