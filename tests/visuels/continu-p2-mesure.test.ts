@@ -32,7 +32,7 @@ describe("continu P2 : règles de position sur la toile (pures)", () => {
   });
   it("un texte hors de la marge sûre de 80 px de sa page", () => {
     expect(horsMarge(boite(80, 80, 1000, 1270), 1350)).toBe(false);
-    expect(horsMarge(boite(1150, 300, 1200, 330), 1350)).toBe(false);
+    expect(horsMarge(boite(1170, 300, 1200, 330), 1350)).toBe(false);
     expect(horsMarge(boite(70, 300, 400, 330), 1350)).toBe(true);
     expect(horsMarge(boite(200, 1300, 400, 1330), 1350)).toBe(true);
   });
