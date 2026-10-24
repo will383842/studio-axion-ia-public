@@ -60,6 +60,11 @@ async function lireUrl(cle: string): Promise<string> {
   return s.urlLectureDuree ? s.urlLectureDuree(cle, VALIDITE_SEC) : s.urlLecture(cle);
 }
 
+async function lireUrlTelechargement(cle: string, nom: string): Promise<string> {
+  const s = await fournisseur("stockage");
+  return s.urlLectureDuree ? s.urlLectureDuree(cle, VALIDITE_SEC, { telechargerSous: nom }) : lireUrl(cle);
+}
+
 /** Registre des rendus gardé dans les paramètres : un même contenu n'est jamais rendu deux fois. */
 const registre: RegistreRendus = {
   lire: (empreinte) => lireParametre<ResultatRendu | null>(PREFIXE_REGISTRE + empreinte, null),
@@ -76,6 +81,7 @@ export function dependancesCarrousels(): DependancesCarrousels {
     allume,
     rendre: (spec) => rendreCarrousel(spec, { rendu: () => obtenirServiceRendu(), stockage, registre, allume }),
     urlLecture: lireUrl,
+    urlTelechargement: lireUrlTelechargement,
     verrou: sousVerrou,
     maintenant,
     lireParametre,

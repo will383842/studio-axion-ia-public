@@ -11,7 +11,7 @@ export function TexteImprimable({ texte, charte = CHARTE_TERRACOTTA }: { texte: 
       <style>{"@page { size: A4; margin: 14mm; }"}</style>
       <article
         aria-label={titre}
-        className="mx-auto w-full max-w-[210mm] bg-white p-[14mm] text-[11pt] leading-relaxed shadow-lg print:max-w-none print:p-0 print:shadow-none"
+        className="mx-auto w-full max-w-[210mm] bg-sur-orange p-[14mm] text-[11pt] leading-relaxed shadow-lg print:max-w-none print:p-0 print:shadow-none"
         style={{ color: charte.texte, fontFamily: charte.police }}
       >
         <header className="mb-6 border-b-4 pb-4" style={{ borderColor: charte.principale }}>
