@@ -4,7 +4,14 @@ import { DELAI_DELAYRENDER_MS, DELAI_POLICE_MS } from "../../studio-rendu/compos
 
 const remotion = vi.hoisted(() => ({ cancelRender: vi.fn(), continueRender: vi.fn(), delayRender: vi.fn(() => 7) }));
 // Chemin ESM réel de remotion (installé dans studio-rendu) : c'est celui que vitest charge, un simple vi.mock("remotion") ne l'atteint pas.
-const cheminRemotion = createRequire(new URL("../../studio-rendu/package.json", import.meta.url)).resolve("remotion").replace("/cjs/index.js", "/esm/index.mjs");
+// Sans les dépendances de studio-rendu (CI ciblée des visuels), le module n'est pas installé : on simule alors « remotion » lui-même.
+const cheminRemotion = (() => {
+  try {
+    return createRequire(new URL("../../studio-rendu/package.json", import.meta.url)).resolve("remotion").replace("/cjs/index.js", "/esm/index.mjs");
+  } catch {
+    return "remotion";
+  }
+})();
 vi.mock("../../studio-rendu/compositions/commune/polices/ArchivoBlack-Regular.ttf", () => ({ default: "archivo.ttf" }));
 vi.mock("../../studio-rendu/compositions/commune/polices/Inter-Medium.ttf", () => ({ default: "inter-medium.ttf" }));
 vi.mock("../../studio-rendu/compositions/commune/polices/Inter-SemiBold.ttf", () => ({ default: "inter-semibold.ttf" }));
