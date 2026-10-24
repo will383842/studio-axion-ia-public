@@ -11,6 +11,7 @@ import { confirmerCas, estimerCas, preparerEtLancer, type ChoixAvantPrix, type D
 import { trouverCasAutorise } from "@/services/cas-concret-stock-acces";
 import { remettreEnStock } from "@/services/cas-concret-traites";
 import { remettreCas, retirerCas } from "@/services/cas-concret-retires";
+import { controlerScriptFourni, enregistrerScriptFourni, revenirAuScriptDeLIA, type ApercuScriptFourni } from "@/services/cas-concret-script-fourni";
 import { avecConsigneVoix } from "@/services/cas-concret-voix";
 import { confirmerFaitPorteB, demarrerPorteB, suivrePorteB, type EtatPorteB } from "@/services/cas-concret-porte-b";
 import { versVueCasPorteB, type VueCas } from "@/components/formats/cas-concret/entree/vue";
@@ -63,6 +64,28 @@ export async function remettreCasAction(casId: string): Promise<Resultat<{ remis
     revalidatePath("/cas-concret");
     revalidatePath("/cas-concret/retires");
   }
+  return r;
+}
+
+/** « Vérifier » mon script : gratuit, n'écrit rien (l'aperçu écran par écran, ou les refus en « Ligne N : … »). */
+export async function controlerScriptFourniAction(casId: string, texte: string): Promise<Resultat<ApercuScriptFourni>> {
+  return essayer(() => controlerScriptFourni(casId, texte));
+}
+
+/** « Enregistrer mon script » : devient le script validé du cas (rejoué mot pour mot, sans écriture par l'IA). Le serveur revérifie. */
+export async function enregistrerScriptFourniAction(casId: string, texte: string): Promise<Resultat<{ numero: number; modifie: boolean }>> {
+  const r = await essayer(async () => {
+    const e = await enregistrerScriptFourni(casId, texte);
+    return { numero: e.numero, modifie: e.modifie };
+  });
+  if (r.ok) revalidatePath("/cas-concret");
+  return r;
+}
+
+/** « Revenir au script écrit par l'IA » : rien n'est effacé, l'historique garde le script de Will. */
+export async function revenirAuScriptDeLIAAction(casId: string): Promise<Resultat<{ modifie: boolean }>> {
+  const r = await essayer(async () => ({ modifie: (await revenirAuScriptDeLIA(casId)).modifie }));
+  if (r.ok) revalidatePath("/cas-concret");
   return r;
 }
 
