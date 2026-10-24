@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import { DEBIT_RECETTE, dureeFinMs, dureeFinParDefautMs, tempsEcrans } from "@/moteurs/montage-cas-concret/regles";
-import { bornesDesFins, controlerTexteFourni, limiteCaracteresDuCorps, lireTexteFourni, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
+import { bornesDesFins, controlerTexteFourni, lireTexteFourni, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
 
 const FIXE = { videoId: "v", versionId: "v", habillage: "charte-duo/1", origine: "porte-a" } as const;
 const LT02 = trouverCas("transporteur-demandes-de-cotation")!;
@@ -66,13 +66,5 @@ describe("durée : R21", () => {
       }
     }
     expect(vu).toBe(true);
-  });
-});
-
-describe("la limite du prix (tant que le prix exact d'un script de Will n'existe pas)", () => {
-  it("la limite est le nombre de caractères du corps que l'estimation utilise : le gabarit lui-même y tient pile", () => {
-    const limite = limiteCaracteresDuCorps(LT02);
-    expect(limite).toBe(gabarit.ecrans.map((e) => e.texteDit.trim()).join(" ").length);
-    expect(limite).toBeGreaterThan(300);
   });
 });

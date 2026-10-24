@@ -286,7 +286,9 @@ export async function estimerCas(casId: string, reseaux: readonly string[], avec
   if (!c.cas) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
   // 14/10 : contrôle de ressemblance de la voix : le prix affiché couvre toutes les lectures possibles.
   const forcer = choix.sujet?.choix === "nouvel-angle" || choix.nouveauScript === true;
-  const e = estimerDepuisCas(c.cas, c.reseaux, avecMot, { voix: c.voix ? { fournisseur: c.voix.fournisseur } : {}, motSur: c.motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(forcer ? { nouveauScript: true } : {}) });
+  // PRIX EXACT : le script validé courant (celui que le lancement figera) : aucune ligne « Écriture », voix sur SON texte.
+  const relu = forcer ? null : await (await import("./cas-concret-scripts")).scriptValideCourant(c.cas);
+  const e = estimerDepuisCas(c.cas, c.reseaux, avecMot, { voix: c.voix ? { fournisseur: c.voix.fournisseur } : {}, motSur: c.motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(forcer ? { nouveauScript: true } : {}), ...(relu ? { script: relu } : {}) });
   // Lot L3 : annonce du sujet déjà traité pour la fiche de prix (rien n'est créé, rien n'est payé).
   const sujet = c.refus ? null : await controleSujetCas(c.cas, c, choix.sujet);
   return {
@@ -426,7 +428,9 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
   }
   const empreinte = empreinteCas(cas);
 
-  const estimation = estimerDepuisCas(cas, reseaux, demande.avecMot, { voix: { fournisseur: voix.fournisseur }, motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(ecarte ? { nouveauScript: true } : {}) });
+  // PRIX EXACT : le script relu (sinon aucun) est figé dans la vidéo et compté tel quel, par l'estimation d'ici comme par le moteur.
+  const relu = ecarte || c.porteB ? null : await (await import("./cas-concret-scripts")).scriptValideCourant(cas);
+  const estimation = estimerDepuisCas(cas, reseaux, demande.avecMot, { voix: { fournisseur: voix.fournisseur }, motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(ecarte ? { nouveauScript: true } : {}), ...(relu ? { script: relu } : {}) });
 
   const motDit = motNormalise(mot) === motNormalise(cas.mot) ? cas.motDit : undefined;
   const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];
@@ -445,6 +449,7 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
     ...(demande.empreinteScriptRelu && !ecarte ? { scriptRelu: demande.empreinteScriptRelu } : {}),
     // LOT F : le numéro du script validé écarté ; un script plus récent (validé ensuite par Will) est, lui, rejoué.
     ...(ecarte ? { nouveauScript: ecarte.numero ?? 1 } : {}),
+    ...(relu ? { scriptFige: structuredClone(relu) } : {}),
   };
 
   let videoId: Id;
