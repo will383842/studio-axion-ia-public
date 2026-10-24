@@ -11,8 +11,8 @@ import { empreinteCarrousel, VERSION_RENDU } from "@/visuels/services/rendu";
 import { CONTENU_ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
 
 describe("version de la composition dans le spec validé", () => {
-  it("VERSION_RENDU (empreinte du studio) est la version de la composition de studio-rendu, visuel-page/8 (ART-1, puis finitions de la PR n° 5)", () => {
-    expect(VERSION_COMPOSITION).toBe("visuel-page/8");
+  it("VERSION_RENDU (empreinte du studio) est la version de la composition de studio-rendu, visuel-page/9 (ART-1, finitions de la PR n° 5, puis T29 et la variante étapes à mini-maquettes)", () => {
+    expect(VERSION_COMPOSITION).toBe("visuel-page/9");
     expect(VERSION_RENDU).toBe(VERSION_COMPOSITION);
   });
   it("le spec validé porte la version de la composition (studio) ; revalidé par studio-rendu, il est accepté tel quel", () => {

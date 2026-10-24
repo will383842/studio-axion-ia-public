@@ -40,10 +40,9 @@ const EXEMPLES: Record<(typeof NOUVEAUX)[number], Record<string, unknown>> = {
 };
 
 describe("L9 : registre des pages", () => {
-  it("ajoute T22, T23, T24, T26, T27, T28 ; T25 et T29 restent réservés ; les pages existantes ne changent pas", () => {
+  it("ajoute T22, T23, T24, T26, T27, T28 ; T25 reste réservé (T29 arrive au lot L11) ; les pages existantes ne changent pas", () => {
     for (const t of NOUVEAUX) expect(TYPES_PAGE).toContain(t);
     expect(TYPES_PAGE).not.toContain("T25");
-    expect(TYPES_PAGE).not.toContain("T29");
     expect(TYPES_PAGE.slice(0, 9)).toEqual(["T01", "T01B", "T01C", "T02", "T06", "T08", "T10", "T20", "T21"]);
   });
   it("chaque type a une famille visuelle, une rubrique posée par le code et un titre de 30 signes au plus", () => {
