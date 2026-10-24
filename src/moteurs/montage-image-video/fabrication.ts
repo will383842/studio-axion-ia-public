@@ -21,7 +21,8 @@
  *   rendu, chaque transcription et relecture restent dans l'état ; `reprendreIV` ne relance que l'étape arrêtée.
  * - Rendu : l'opération EXISTANTE du serveur (branchée par les services) ; une attente rend la main (`attente`).
  * - FORMATS (lot F45, décisions de Will du 16/10) : une version par (groupe de fins × format) : TikTok, Shorts, Reels
- *   Instagram et LinkedIn en 9:16 (LinkedIn : décision de Will du 19/10) ; Facebook en DEUX fichiers (Reel 9:16 et fil 4:5, même fin).
+ *   Instagram en 9:16 ; LinkedIn en 4:5 (décision de Will du 24/10, qui remplace celle du 19/10 « LinkedIn en 9:16 ») ;
+ *   Facebook en DEUX fichiers (Reel 9:16 et fil 4:5, même fin).
  *   Même voix, mêmes pistes : le 4:5 est une autre mise en page, jamais une autre lecture ; sa transcription est celle
  *   de sa piste (déjà payée par le 9:16), seule sa relecture d'images s'ajoute.
  * - VARIÉTÉ (lot F, doc 80 § 5) : une recette (un code par axe) est tirée APRÈS la validation de la carte et AVANT
@@ -434,18 +435,18 @@ export const FORMATS_PAR_RESEAU_IV: Readonly<Record<ReseauIV, readonly FormatIV[
   tiktok: Object.freeze(["9:16"] as const),
   "youtube-shorts": Object.freeze(["9:16"] as const),
   instagram: Object.freeze(["9:16"] as const),
-  linkedin: Object.freeze(["9:16"] as const),
+  linkedin: Object.freeze(["4:5"] as const),
   facebook: Object.freeze(["9:16", "4:5"] as const),
 });
 const ORDRE_FORMATS_IV: readonly FormatIV[] = ["9:16", "4:5"];
 
 /**
- * Le 4:5 part-il par défaut ? NON tant que la mise en scène ne passe pas le format aux sous-titres et que les
- * sous-titres variés ne se mesurent pas dans la bande du format : sans cela, le contrôle bloquant Q22 refuse toute
- * version 4:5 (fichiers hors du lot F45 : `mise-en-scene.ts` et `sous-titres-varies.ts`, correctif écrit dans la PR et
- * dans `docs/formats/image-video/variete/integration/f45/`). Une demande peut porter ses formats (`demande.formats`).
+ * Le 4:5 part-il par défaut ? OUI depuis le 24/10/2026 (décision de Will « fais tout selon tes recommandations » :
+ * LinkedIn et fil Facebook en 4:5, Instagram et Reel Facebook en 9:16 ; surcoût du fil Facebook accepté, environ
+ * 0,25 € par vidéo, 1 € au plus). La mise en scène passe le format aux sous-titres et le contrôle Q22 mesure la bande
+ * du format. Une demande peut porter ses formats (`demande.formats`) ; sans eux, ce sont ceux-ci.
  */
-export const FORMAT_4X5_PRET_IV = false;
+export const FORMAT_4X5_PRET_IV = true;
 
 /** Formats d'un réseau pour cette fabrication (absent : 9:16 seul, comme avant). */
 const formatsDe = (demande: Pick<DemandeFabricationIV, "formats">, r: ReseauIV): readonly FormatIV[] => demande.formats?.[r] ?? ["9:16"];

@@ -1,4 +1,8 @@
 /**
+ * DÉCISION DE WILL (24/10/2026, « fais tout selon tes recommandations ») : LinkedIn et fil Facebook en 4:5, Instagram et
+ * Reel Facebook en 9:16 ; surcoût du fil Facebook 4:5 accepté (environ +0,25 € par vidéo, +1 € au plus) ; la vidéo
+ * v-6e4a06b9c718 reste en 9:16 ; débit de voix inchangé. Cette décision REMPLACE celle du 19/10 « LinkedIn en 9:16 » (#580).
+ *
  * Variété « Image → vidéo » · LOT F45 : format 4:5 (1080 × 1350) pour LinkedIn et le fil Facebook, Facebook en DEUX
  * fichiers (Reel 9:16 + fil 4:5), une seule voix. Le 9:16 reste identique à avant (empreintes figées sur la branche du
  * socle f3c79ec, avant le lot). Aucun appel payant : doubles de `doubles-fabrication.ts`.
@@ -33,6 +37,7 @@ import {
 } from "@/moteurs/montage-image-video/fabrication";
 import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { mettreEnSceneIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
+import { resultatDe } from "@/moteurs/montage-image-video";
 import { CONSIGNE_FIL_FACEBOOK, texteFilFacebookIV, type PublicationIV } from "@/moteurs/montage-image-video/publication";
 import { bandeSousTitres, controlerSousTitresIV, LIMITES_BAS_SOUS_TITRES_4X5_IV, sousTitresIV } from "@/moteurs/montage-image-video/sous-titres";
 import { CENTRE_SOUS_TITRES_IV_4X5_PCT, CENTRE_SOUS_TITRES_IV_PCT, demandeMontageIV, parametresDuBloc, ratioDeLaLigneIV, scenesDeLaLigne } from "@/services/image-video-rendu";
@@ -131,10 +136,12 @@ describe("F45 · le 9:16 ne change pas", () => {
     expect(montages.digest("hex")).toBe(EMPREINTE_MONTAGES_916);
   });
 
-  it("fabrication sans formats (défaut tant que le correctif hors lot manque) : tout en 9:16, état d'avant", () => {
-    expect(FORMAT_4X5_PRET_IV).toBe(false);
+  it("fabrication sans formats imposés (24/10/2026) : le 4:5 est allumé par défaut, la demande porte les formats par réseau", () => {
+    expect(FORMAT_4X5_PRET_IV).toBe(true);
     const e = etatInitialIV(demandeEssai(carteFixe("C")));
-    expect(e.demande).not.toHaveProperty("formats");
+    expect(e.demande.formats).toEqual(FORMATS_PAR_RESEAU_IV);
+    expect(FORMATS_PAR_RESEAU_IV.linkedin).toEqual(["4:5"]);
+    expect(FORMATS_PAR_RESEAU_IV.instagram).toEqual(["9:16"]);
   });
 });
 
@@ -196,11 +203,11 @@ describe("F45 · mise en page 4:5", () => {
 });
 
 /** Jusqu'à la mise en scène (carte et script validés tels quels) : les pistes voix sont faites. */
-async function jusquALaMiseEnScene(formats: boolean, reseaux: EtatFabricationIV["demande"]["reseaux"]) {
+async function jusquALaMiseEnScene(formats: boolean | "defaut", reseaux: EtatFabricationIV["demande"]["reseaux"]) {
   const carte = carteFixe("C");
   const m = monde();
   const o = outilsSimules(carte, m);
-  let e = etatInitialIV(demandeEssai(carte, { reseaux, ...(formats ? { formats: FORMATS_PAR_RESEAU_IV } : {}) }));
+  let e = etatInitialIV(demandeEssai(carte, { reseaux, ...(formats === "defaut" ? {} : { formats: formats ? FORMATS_PAR_RESEAU_IV : {} }) }));
   for (let i = 0; i < 200 && e.etape !== "mise-en-scene" && e.etape !== "refusee"; i++) {
     if (attendWillIV(e) === "carte") e = validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-16T08:00:00.000Z" });
     else if (attendWillIV(e) === "script") e = validerScriptIV(e, { proposition: e.propositionScript!.empreinte, choixFormules: Object.fromEntries(e.propositionScript!.formules.map((f) => [f.cle, "garder" as const])) });
@@ -239,7 +246,18 @@ describe("F45 · une version par (groupe de fins × format), une seule voix", ()
     expect(v[2].ligne.sousTitres.groupes).toEqual(v[1].ligne.sousTitres.groupes);
   });
 
-  it("sans formats (défaut actuel) : la version LinkedIn reste en 1080 × 1920, Facebook n'a qu'un fichier", async () => {
+  it("SANS formats imposés (défaut du 24/10) : versions fin-linkedin-4x5 (4:5), fin-instagram, fin-facebook et fin-facebook-4x5", async () => {
+    const { e } = await jusquALaMiseEnScene("defaut", ["linkedin", "instagram", "facebook"]);
+    expect(e.etape).toBe("mise-en-scene");
+    expect(lignesDesVersionsIV(e).map((x) => [x.version, x.format, x.ligne.largeur, x.ligne.hauteur])).toEqual([
+      ["fin-linkedin-4x5", "4:5", 1080, 1350],
+      ["fin-instagram", "9:16", 1080, 1920],
+      ["fin-facebook", "9:16", 1080, 1920],
+      ["fin-facebook-4x5", "4:5", 1080, 1350],
+    ]);
+  });
+
+  it("formats explicitement vides (anciennes demandes) : la version LinkedIn reste en 1080 × 1920, Facebook n'a qu'un fichier", async () => {
     const { e } = await jusquALaMiseEnScene(false, ["linkedin", "facebook"]);
     expect(lignesDesVersionsIV(e).map((x) => [x.version, x.ligne.hauteur])).toEqual([
       ["fin-linkedin", 1920],
@@ -256,6 +274,19 @@ describe("F45 · une version par (groupe de fins × format), une seule voix", ()
     // Relecture : 0,25 $ (habituel), 0,50 $ au pire (comptée deux fois au pire), au taux prudent (1 € pour 1 $).
     expect(avec45.habituelCentimes - avant.habituelCentimes).toBe(25);
     expect(avec45.auPlusCentimes - avant.auPlusCentimes).toBe(100);
+  });
+});
+
+describe("F45 · première sortie déclarée au moteur", () => {
+  const etatAvec = (livraison: unknown[]) => ({ livraison, caisse: { reservations: [] }, journal: [] }) as never;
+  it("LinkedIn seul (4:5) : la sortie est déclarée en 4:5, 1080x1350", () => {
+    const r = resultatDe(etatAvec([{ reseau: "linkedin", version: "longue", fichierCle: "final/li-45.mp4", format: "4:5", dureeSec: 50 }]), 0);
+    expect(r.sorties).toHaveLength(1);
+    expect(r.sorties[0]).toMatchObject({ ratio: "4:5", resolution: "1080x1350", fichierCle: "final/li-45.mp4" });
+  });
+  it("LinkedIn + Instagram : la première sortie est le fichier 9:16 (1080x1920)", () => {
+    const r = resultatDe(etatAvec([{ reseau: "linkedin", version: "longue", fichierCle: "final/li-45.mp4", format: "4:5", dureeSec: 50 }, { reseau: "instagram", version: "longue", fichierCle: "final/ig.mp4", dureeSec: 50 }]), 0);
+    expect(r.sorties[0]).toMatchObject({ ratio: "9:16", resolution: "1080x1920", fichierCle: "final/ig.mp4" });
   });
 });
 
@@ -291,10 +322,10 @@ describe("F45 · livraison Facebook en deux fichiers", () => {
     expect(texteFilFacebookIV({ textes: [{ reseau: "facebook", texte: "T", premierCommentaire: "L", ouPoserLeLien: "premier-commentaire", consigneLien: "C" }] })).toEqual({ texte: "T", premierCommentaire: "L", consigneLien: CONSIGNE_FIL_FACEBOOK });
   });
 
-  it("boucle complète sans formats : rien de neuf dans la livraison (pas de fil, pas de format)", async () => {
+  it("boucle complète avec formats vides (anciennes demandes) : rien de neuf dans la livraison (pas de fil, pas de format)", async () => {
     const carte = carteFixe("C");
     const o = outilsSimules(carte, monde());
-    let e = etatInitialIV(demandeEssai(carte, { reseaux: ["linkedin", "facebook"] }));
+    let e = etatInitialIV(demandeEssai(carte, { reseaux: ["linkedin", "facebook"], formats: {} }));
     for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee"; i++) {
       e = await avancerJusquAArretIV(e, o);
       if (attendWillIV(e) === "carte") e = validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-16T08:00:00.000Z" });

@@ -3,7 +3,7 @@
 /**
  * ÉCRAN 3 · LA RECETTE DE LA VIDÉO (lot F, variété) : la façon de montrer tirée pour cette vidéo, axe par axe, en
  * libellés (jamais un code). Will peut changer un axe avant de payer la voix ; le déroulé, déjà dans le script, est
- * seulement montré. Chaque réseau reçoit ensuite son ouverture et son format (le fil Facebook en 4:5 ; LinkedIn en 9:16).
+ * seulement montré. Chaque réseau reçoit ensuite son ouverture et son format (le fil Facebook et LinkedIn en 4:5, depuis la décision de Will du 24/10).
  */
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import { Carte } from "@/components/ui/Carte";

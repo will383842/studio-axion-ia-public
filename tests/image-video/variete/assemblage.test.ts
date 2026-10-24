@@ -198,9 +198,9 @@ function demarrer(o: { videoId?: string; formats?: boolean; historique?: readonl
 }
 
 describe("assemblage · la variété dans la fabrication (doubles, aucun appel payant)", { timeout: 240_000 }, () => {
-  it("le 4:5 reste éteint par défaut (son allumage attend l'accord de Will)", () => {
-    expect(FORMAT_4X5_PRET_IV).toBe(false);
-    expect(etatInitialIV(demandeEssai(carteFixe("C"))).demande).not.toHaveProperty("formats");
+  it("le 4:5 est allumé par défaut (décision de Will du 24/10/2026 : LinkedIn et fil Facebook en 4:5)", () => {
+    expect(FORMAT_4X5_PRET_IV).toBe(true);
+    expect(etatInitialIV(demandeEssai(carteFixe("C"))).demande.formats).toEqual(FORMATS_PAR_RESEAU_IV);
   });
 
   it("4 réseaux (4:5 allumé) → 5 fichiers dont Facebook ×2, une seule voix payée, chaque version avec sa recette", async () => {

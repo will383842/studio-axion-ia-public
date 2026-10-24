@@ -3,7 +3,7 @@
  * « un peu longue » ou « version courte », rouge si le réseau n'est pas livré), le texte de publication et le premier
  * commentaire à copier, l'endroit où poser le lien, le téléchargement. Publication par téléchargement seulement :
  * aucun bouton de programmation (deux défauts Buffer sont encore ouverts). Facebook a deux fichiers (lot F45) : le Reel
- * en 9:16 et la vidéo du fil en 4:5, chacun avec son lecteur et son téléchargement ; LinkedIn est en 9:16 (décision de Will du 19/10).
+ * en 9:16 et la vidéo du fil en 4:5, chacun avec son lecteur et son téléchargement ; LinkedIn est en 4:5 (décision de Will du 24/10, qui remplace celle du 19/10).
  */
 import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { BoutonLienPrive, type LienPriveVideo } from "@/components/partage/BoutonLienPrive";
