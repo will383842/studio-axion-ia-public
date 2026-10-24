@@ -15,7 +15,6 @@ import { CarrouselSpec } from "../../src/domaine/visuels/schema";
 import type { ContextePorte } from "../../src/domaine/visuels/contrats";
 import type { CarrouselSpecType } from "../../src/domaine/visuels/types";
 import { FIXTURES_AXION } from "../../src/visuels/texte/fixtures";
-import { ICONE_DU_MINI } from "../../studio-rendu/compositions/visuels/pages/T02";
 import { ICONE_DU_MINI_PAGE, ICONES_NOEUDS_DEFAUT } from "../../src/briques/visuels/choix-illustration";
 
 const ctx: ContextePorte = { interditsDans: () => [], faitsDisponibles: true };
@@ -109,7 +108,9 @@ describe("L7 : même dessin jamais deux fois", () => {
     for (const id of ILLUSTRATIONS_FIXES.T26) expect(t26).toContain(`<Scene id="${id}"`);
   });
   it("les tables d'icônes suivent les gabarits", () => {
-    expect(ICONE_DU_MINI_PAGE).toEqual(ICONE_DU_MINI);
+    const t02 = readFileSync(new URL("../../studio-rendu/compositions/visuels/pages/T02.tsx", import.meta.url), "utf8");
+    const table = Object.entries(ICONE_DU_MINI_PAGE).map(([m, n]) => `${m}: "${n}"`).join(", ");
+    expect(t02).toContain(`export const ICONE_DU_MINI: Record<Exclude<TypeMini, "W01">, NomIcone> = { ${table} };`);
     const t28 = readFileSync(new URL("../../studio-rendu/compositions/visuels/pages/T28.tsx", import.meta.url), "utf8");
     expect(t28).toContain(`const ICONES_DEFAUT: readonly NomIcone[] = ${JSON.stringify(ICONES_NOEUDS_DEFAUT).replace(/,/g, ", ")};`);
   });
