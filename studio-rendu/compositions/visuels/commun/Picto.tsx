@@ -16,11 +16,11 @@ export function Picto({ nom, taille, couleurs }: { nom: NomIcone; taille: number
 }
 
 /** Illustration de la banque (I01…I12), marquée comme dessin : aucun texte ne s'y pose (mesure du rendu). */
-export function Scene({ id, taille }: { id: IdIllustration; taille: number | string }) {
+export function Scene({ id, taille, couleurs }: { id: IdIllustration; taille: number | string; couleurs?: CouleursDessin }) {
   const Illustration = COMPOSANTS_ILLUSTRATIONS[id];
   return (
     <div {...{ [ATTRIBUT_DESSIN]: id }} style={{ flex: "none", width: taille, height: taille, lineHeight: 0 }}>
-      <Illustration taille="100%" />
+      <Illustration taille="100%" {...couleurs} />
     </div>
   );
 }

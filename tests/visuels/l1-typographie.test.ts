@@ -7,13 +7,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TEXTES_FIXES, RUBRIQUES } from "@/briques/visuels/textes-fixes";
 import { TYPES_PAGE, TYPES_COUVERTURE } from "@/briques/visuels/registre-pages";
-import { CHARTE_CARROUSEL } from "@/briques/visuels/charte-carrousel";
 import { CarrouselSpec } from "@/domaine/visuels/schema";
-import { BORD_DROIT_TEXTE, BORDURE_CARTE, COULEURS, FOND_CARTE_CLAIR, MARGE, OMBRE_CARTE, REMPLISSAGE_CARTE, POLICE_CORPS, TAILLE_TEXTE_MIN, TAILLES } from "../../studio-rendu/compositions/visuels/commun/constantes";
+import { BORD_DROIT_TEXTE, FILET, MARGE, OMBRE_DOUCE, POLICE_CORPS, POLICE_TITRE, TAILLE_TEXTE_MIN, TAILLES } from "../../studio-rendu/compositions/visuels/commun/constantes";
 import { enCapitales, mettreEnLignesCapitales } from "../../studio-rendu/compositions/visuels/commun/capitales";
-import { styleCarte } from "../../studio-rendu/compositions/visuels/commun/style-carte";
+import { rangEcrit } from "../../studio-rendu/compositions/visuels/commun/editorial";
 import { BORD_DROIT_TEXTE_BAS, boiteEnZoneReservee, boiteSignature, largeurTexteMax, ZONES_RESERVEES } from "../../studio-rendu/compositions/visuels/commun/zones";
-import { ECHELLE_PEU_DE_TEXTE, echelleCartes, gaucheCarte, largeursTexteCarte } from "../../studio-rendu/compositions/visuels/commun/mise-en-page";
+import { ICONE_DU_MINI, systemeReperes } from "../../studio-rendu/compositions/visuels/pages/T02";
 
 const RACINE = new URL("../../studio-rendu/compositions/visuels/", import.meta.url);
 const lire = (f: string) => readFileSync(new URL(f, RACINE), "utf8");
@@ -79,42 +78,59 @@ describe("L1 : rubrique des pages intérieures", () => {
     }
     for (const t of Object.values(RUBRIQUES)) expect(t).toBe(t.toLocaleUpperCase("fr-FR"));
   });
-  it("PageBase pose la rubrique et la signature ; la couverture n’en porte pas", () => {
-    expect(lire("commun/PageBase.tsx")).toContain("RUBRIQUES");
-    for (const f of ["pages/T01.tsx", "pages/T01B.tsx", "pages/T01C.tsx", "pages/T21.tsx"]) expect(lire(f), f).not.toMatch(/RUBRIQUES|signature/i);
+  it("PageBase pose la rubrique ; la couverture et la page sombre n’en portent pas, mais TOUTES les pages portent la marque (ART-1)", () => {
+    expect(lire("commun/PageBase.tsx")).toContain("rubriqueAffichee(");
+    for (const f of ["pages/T01.tsx", "pages/T01B.tsx", "pages/T01C.tsx", "pages/T21.tsx"]) expect(lire(f), f).not.toMatch(/RUBRIQUES|rubriqueAffichee/);
+    expect(lire("pages/T21.tsx")).toContain("signature={TEXTES_FIXES.signature}");
+    expect(lire("commun/Couverture.tsx")).toContain("signature={TEXTES_FIXES.signature}");
+    for (const f of ["pages/T01.tsx", "pages/T01B.tsx", "pages/T01C.tsx"]) expect(lire(f), f).toContain("<PiedCouverture");
   });
 });
 
-describe("L1 : cartes alternées et rang chiffré", () => {
-  it("le rang chiffré est isolé derrière UNE constante, facile à retirer", () => {
-    const src = lire("mini/W01.tsx");
-    expect(src).toMatch(/export const RANG_CHIFFRE = true/);
-    expect(src.match(/RANG_CHIFFRE/g)!.length).toBeGreaterThanOrEqual(2);
-    expect(src).toContain("POLICE_TITRE");
+describe("ART-1 : style éditorial (A) et typographique (C)", () => {
+  it("titres en Inter Display Black, rang écrit sur deux chiffres par le code", () => {
+    expect(POLICE_TITRE).toContain("Axion Inter Display");
+    expect(rangEcrit(1)).toBe("01");
+    expect(rangEcrit(6)).toBe("06");
   });
-  it("ombre décalée 8 px sur une carte sur deux, fond blanc #FFFCF7 en alternance", () => {
-    const c = lire("commun/constantes.ts");
-    expect(CHARTE_CARROUSEL.couleurs.blanc).toBe("#FFFCF7");
-    expect(c).toContain("FOND_CARTE_CLAIR = COULEURS.blanc");
-    expect(c).toMatch(/OMBRE_CARTE.*8px 8px 0/);
-    expect(lire("commun/Carte.tsx")).toContain("styleCarte");
-  });
-});
-
-describe("L1 : style d'une carte selon son rang", () => {
-  it("rang 1 et 3 : fond blanc #FFFCF7 et ombre décalée", () => {
-    for (const rang of [1, 3, 5]) {
-      expect(styleCarte(rang)).toEqual({ background: "#FFFCF7", boxShadow: OMBRE_CARTE });
+  it("plus aucun contour de 3-4 px ni ombre décalée « néo-brutaliste » dans les gabarits : filets de 2 px, ombre floue légère seulement", () => {
+    expect(FILET).toBe(2);
+    expect(OMBRE_DOUCE).toMatch(/^0 \d+px \d+px /);
+    for (const f of sources().filter((f) => f.startsWith("pages/") || f.startsWith("commun/"))) {
+      const src = lire(f);
+      expect(src, f).not.toMatch(/border(?:Top|Bottom|Left|Right)?: `?[34]px solid/);
+      expect(src, f).not.toMatch(/\b\d+px \d+px 0 \$\{/);
+      expect(src, f).not.toMatch(/OMBRE_CARTE|OMBRE_ORANGE|styleCarte|COMPOSANTS_DECOR/);
     }
-    expect(FOND_CARTE_CLAIR).toBe("#FFFCF7");
-    expect(OMBRE_CARTE).toBe(`8px 8px 0 ${COULEURS.encre}`);
   });
-  it("rang 2 (et pairs) : fond pâle, sans ombre", () => {
-    for (const rang of [2, 4, 6]) {
-      const s = styleCarte(rang);
-      expect(s.background).toBe(COULEURS.pale);
-      expect(s.boxShadow).toBeUndefined();
-    }
+  it("T02 : un seul système de repères par page (toutes numérotées OU toutes avec une icône qui a un sens)", () => {
+    const carte = (mini?: "W01" | "W02" | "W03" | "W06" | "W07" | "W25") => ({ titre: "Un titre", corps: "Un texte", ...(mini ? { mini } : {}) });
+    expect(systemeReperes([carte("W02"), carte("W03"), carte("W06")])).toBe("icones");
+    expect(systemeReperes([carte("W01"), carte("W03"), carte("W06")])).toBe("numeros");
+    expect(systemeReperes([carte("W02"), carte()])).toBe("numeros");
+    expect(Object.keys(ICONE_DU_MINI).sort()).toEqual(["W02", "W03", "W06", "W07", "W25"]);
+  });
+  it("T02 : sur deux colonnes, chaque carte est une sous-grille (titres alignés par rangée)", () => {
+    expect(lire("pages/T02.tsx")).toContain('gridTemplateRows: "subgrid"');
+  });
+  it("T23 : l'icône à droite seulement si chaque question en a une ; T24 : texte aligné en haut de rangée", () => {
+    expect(lire("pages/T23.tsx")).toContain("iconesDesQuestions(questions)");
+    expect(lire("pages/T24.tsx")).toMatch(/alignItems: "flex-start"/);
+  });
+  it("T28 : les liaisons ont une hauteur plafonnée et ne comptent pas dans le vide", () => {
+    const src = lire("pages/T28.tsx");
+    expect(src).toContain("ATTRIBUT_LIAISON");
+    expect(src).not.toMatch(/flex: 1, minHeight: 36/);
+    expect(lire("mesure/MesureVisuelPage.tsx")).toContain("dessinsDe(racine.current, { pourVide: true })");
+  });
+  it("T10 : plus de cible ni de cercle décoratif ; le bandeau disparaît sans légende", () => {
+    const src = lire("pages/T10.tsx");
+    expect(src).not.toMatch(/Deco|E13|<circle/);
+    expect(src).toContain("legende ? HAUTEUR_LEGENDE : 0");
+  });
+  it("T01B, T08 : plus de cercle vide ni de formes décoratives (cercle + carré + triangle)", () => {
+    for (const f of ["pages/T01.tsx", "pages/T01B.tsx", "pages/T01C.tsx", "pages/T08.tsx"]) expect(lire(f), f).not.toMatch(/<circle|<rect|COMPOSANTS_DECOR|Pictogramme/);
+    expect(lire("pages/T01B.tsx")).toContain("illustrationCouverture(");
   });
 });
 
@@ -133,34 +149,10 @@ describe("L1 : zones réservées (flèche LinkedIn, compteur Meta)", () => {
     expect(boiteEnZoneReservee({ gauche: 700, haut: 1100, droite: 870, bas: 1140 })).toBe(true); // bas de page, x ≥ 860
     expect(boiteEnZoneReservee({ gauche: 700, haut: 1100, droite: 860, bas: 1140 })).toBe(false);
   });
-  it("la colonne de texte de chaque carte s'arrête à 912, pour 1 à 6 cartes et chaque rang", () => {
-    for (let n = 2; n <= 6; n++) {
-      const colonnes = n <= 3 ? 1 : 2;
-      for (let i = 0; i < n; i++) {
-        for (const mini of [true, false]) {
-          const gauche = gaucheCarte(i, colonnes);
-          const l = largeursTexteCarte({ gauche, miniTaille: colonnes === 1 ? 132 : 64, enLigne: colonnes === 1, avecMini: mini });
-          const debutCorps = colonnes === 1 && mini ? gauche + BORDURE_CARTE + REMPLISSAGE_CARTE + 132 + 28 : gauche + BORDURE_CARTE + REMPLISSAGE_CARTE;
-          expect(debutCorps + l.corps, `${n} cartes, rang ${i + 1}, mini ${mini}`).toBeLessThanOrEqual(BORD_DROIT_TEXTE);
-          expect(l.titre).toBeGreaterThan(0);
-        }
-      }
-    }
-  });
-  it("la dernière rangée de cartes s'arrête à x = 860 (le compteur de Meta couvre x ≥ 860, y ≥ 1080), les autres à 912", () => {
-    const haut = largeursTexteCarte({ gauche: 48, miniTaille: 64, enLigne: false, avecMini: false });
-    const bas = largeursTexteCarte({ gauche: 48, miniTaille: 64, enLigne: false, avecMini: false, derniereRangee: true });
-    expect(48 + BORDURE_CARTE + REMPLISSAGE_CARTE + haut.corps).toBe(BORD_DROIT_TEXTE);
-    expect(48 + BORDURE_CARTE + REMPLISSAGE_CARTE + bas.corps).toBe(BORD_DROIT_TEXTE_BAS);
+  it("le bas de page s'arrête à x = 860 (le compteur de Meta couvre x ≥ 860, y ≥ 1080), le reste à 912", () => {
     expect(BORD_DROIT_TEXTE_BAS).toBe(860);
     expect(largeurTexteMax(100, BORD_DROIT_TEXTE_BAS)).toBe(760);
-  });
-  it("2 cartes courtes agrandissent leurs caractères ; 3 cartes ou un texte plus long gardent la taille normale", () => {
-    const court = { titre: "Un titre court", corps: "Un texte bref." };
-    expect(echelleCartes([court, court])).toBe(ECHELLE_PEU_DE_TEXTE);
-    expect(echelleCartes([court, court, court])).toBe(1);
-    expect(echelleCartes([court, { ...court, corps: "x".repeat(81) }])).toBe(1);
-    expect(echelleCartes([{ ...court, titre: "x".repeat(25) }, court])).toBe(1);
+    // Les bords droits de CHAQUE gabarit (bandeau et colonnes de T26, T24, T28, T23, cartes de T02 de 1 à 6) : `bords-droits.test.ts`.
   });
   it("la signature est en bas à gauche, hors des deux zones, même au plus large", () => {
     const b = boiteSignature(300);

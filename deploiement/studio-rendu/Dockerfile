@@ -48,6 +48,7 @@ COPY --chown=rendu:rendu studio-rendu/src ./src
 COPY --chown=rendu:rendu studio-rendu/compositions ./compositions
 COPY --chown=rendu:rendu src/briques/sous-titres /app/src/briques/sous-titres
 COPY --chown=rendu:rendu src/briques/composition/scene.ts /app/src/briques/composition/scene.ts
+COPY --chown=rendu:rendu src/briques/composition/metriques-inter.ts /app/src/briques/composition/metriques-inter.ts
 COPY --chown=rendu:rendu src/briques/habillage-facecam/mise-en-page.ts /app/src/briques/habillage-facecam/mise-en-page.ts
 COPY --chown=rendu:rendu src/briques/motion /app/src/briques/motion
 COPY --chown=rendu:rendu src/briques/ecrans-motion /app/src/briques/ecrans-motion

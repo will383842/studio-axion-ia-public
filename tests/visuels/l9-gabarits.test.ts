@@ -216,14 +216,15 @@ describe("L9 : sources de la composition", () => {
     const src = lire(`pages/${t}.tsx`);
     expect(lire("VisuelPage.tsx")).toContain(`case "${t}":`);
     expect(src).toContain(`type="${t}"`);
-    expect(src).toContain("largeurTexteMax(");
+    // Colonnes bornées par `largeurTexteMax` ou par la géométrie pure des colonnes (`geometrie.ts`, tests `bords-droits`).
+    expect(src).toMatch(/largeurTexteMax\(|largeurColonne\(/);
     expect(src).not.toMatch(/from "@\//);
     expect(src).not.toMatch(/from "zod"|server-only/);
     expect(src).not.toMatch(/from "[^"]+\.js"/);
   });
   it.each(NOUVEAUX)("%s : un élément visuel de la banque ou dessiné qui a du sens, jamais de photo ni d'image externe", (t) => {
     const src = lire(`pages/${t}.tsx`);
-    expect(src).toMatch(/<Picto|<Scene|<Interrupteur|<Cadran/);
+    expect(src).toMatch(/<Picto|<Scene|<Interrupteur|<CaseACocher|<Cadran/);
     expect(src).not.toMatch(/<img|<Img|staticFile|https?:/);
   });
   it.each(NOUVEAUX)("%s : aucun corps de texte écrit sous 26 px", (t) => {
@@ -264,7 +265,7 @@ describe("L9 : contrôle automatique des chevauchements (mesure du rendu)", () =
   });
   it("la mesure du rendu publie `chevauchements` et marque les dessins de la banque", () => {
     expect(lire("mesure/MesureVisuelPage.tsx")).toContain("compterChevauchements(");
-    expect(lire("mesure/MesureVisuelPage.tsx")).toMatch(/chevauchements, vide \}/);
+    expect(lire("mesure/MesureVisuelPage.tsx")).toMatch(/chevauchements, vide[,} ]/);
     expect(lire("commun/Picto.tsx")).toContain("ATTRIBUT_DESSIN");
   });
 });
@@ -321,9 +322,10 @@ describe("L9 : mesure du VIDE (part du corps de page sans texte ni dessin, tour 
 });
 
 describe("L9 : retours visuels du tour 2", () => {
-  it("T27 : interrupteurs NEUTRES (aucune coche, aucune piste orange « oui ») et jauge « peu → beaucoup » sans aiguille figée", () => {
+  it("T27 : cases à cocher NEUTRES (aucune coche, aucun orange « oui ») et jauge « peu → beaucoup » sans aiguille figée", () => {
     const src = lire("pages/T27.tsx");
-    const interrupteur = src.slice(src.indexOf("function Interrupteur"), src.indexOf("function Jauge"));
+    const interrupteur = src.slice(src.indexOf("function CaseACocher"), src.indexOf("function Jauge"));
+    expect(interrupteur.length).toBeGreaterThan(0);
     expect(interrupteur).not.toContain("COULEURS.orange");
     expect(interrupteur).not.toMatch(/<path/);
     expect(src).toContain("linearGradient");

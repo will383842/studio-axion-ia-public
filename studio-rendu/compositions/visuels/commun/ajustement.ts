@@ -6,6 +6,18 @@ export interface OptionsAjustement {
   max?: number;
   cible?: number;
   tolerance?: number;
+  /**
+   * Hauteur (px) d'un bloc de `lignes` au corps `taille` ; proportionnelle au corps. Par défaut `lignes × taille × TITRE.interligne` ;
+   * les titres en capitales passent leur interligne calculé et l'encre qui dépasse (`interligne-capitales.ts`).
+   */
+  hauteur?: (lignes: string[], taille: number) => number;
+  /**
+   * Plus petite longueur (signes) d'un mot admis SEUL sur sa ligne (couvertures, message clé : « RELANCER / SANS Y PENSER ») ; par défaut aucun
+   * mot seul n'est admis tant qu'une autre mise en lignes convient (titres de page).
+   */
+  motSeulMin?: number;
+  /** Part du meilleur corps sous laquelle on refuse une ligne de moins (`TOLERANCE_CORPS` par défaut) ; les grands titres visent le plus grand corps. */
+  toleranceCorps?: number;
 }
 
 export interface ResultatAjustement {
@@ -103,7 +115,7 @@ const TOLERANCE_CORPS = 0.88;
 export function choisirMiseEnLignes(
   titre: string,
   mesurer: (lignes: string[], taille: number) => number,
-  { maxLignes, hauteurMax, ...options }: OptionsAjustement & { maxLignes: number; hauteurMax: number },
+  { maxLignes, hauteurMax, hauteur: hauteurBloc = (l, t) => l.length * t * TITRE.interligne, motSeulMin = Infinity, toleranceCorps = TOLERANCE_CORPS, ...options }: OptionsAjustement & { maxLignes: number; hauteurMax: number },
 ): MiseEnLignes {
   const candidates: MiseEnLignes[] = [];
   const vues = new Set<string>();
@@ -115,28 +127,28 @@ export function choisirMiseEnLignes(
     candidates.push({ lignes, ...ajusterTailleTitre((t) => mesurer(lignes, t), options) });
   }
   const limite = (options.cible ?? TITRE.cible) + (options.tolerance ?? TITRE.tolerance);
-  const hauteur = (c: MiseEnLignes) => c.lignes.length * c.taille * TITRE.interligne;
+  const hauteur = (c: MiseEnLignes) => hauteurBloc(c.lignes, c.taille);
   // Jamais de ligne plus large que le cadre, même en dernier recours : on échoue plutôt que de déborder en silence.
   const etroites = candidates.filter((c) => c.largeur <= limite);
   if (etroites.length === 0) {
     throw new Error(`Le titre « ${titre.slice(0, 40)} » ne tient pas dans la largeur du cadre (${limite} px) même au corps minimal`);
   }
   // Un mot seul sur une ligne (hors titre d'une seule ligne) est écarté tant qu'une autre mise en lignes convient.
-  const motIsole = (c: MiseEnLignes) => c.lignes.length > 1 && c.lignes.some((l) => !l.includes(" "));
+  const motIsole = (c: MiseEnLignes) => c.lignes.length > 1 && c.lignes.some((l) => !l.includes(" ") && l.length < motSeulMin);
   const sansMotIsole = etroites.filter((c) => !motIsole(c));
   const parmiEtroites = sansMotIsole.length > 0 ? sansMotIsole : etroites;
   const quiTiennent = parmiEtroites.filter((c) => hauteur(c) <= hauteurMax);
   if (quiTiennent.length > 0) {
     const meilleur = Math.max(...quiTiennent.map((c) => c.taille));
-    return quiTiennent.find((c) => c.taille >= meilleur * TOLERANCE_CORPS) as MiseEnLignes;
+    return quiTiennent.find((c) => c.taille >= meilleur * toleranceCorps) as MiseEnLignes;
   }
   // Aucune ne tient en hauteur : on réduit le corps de chacune à la hauteur disponible (jamais sous le plancher), puis même choix.
   const reduites = parmiEtroites.map((c) => {
-    const taille = Math.max(TAILLE_TEXTE_MIN, Math.min(c.taille, Math.floor((hauteurMax / (c.lignes.length * TITRE.interligne)) * 100) / 100));
+    const taille = Math.max(TAILLE_TEXTE_MIN, Math.min(c.taille, Math.floor((hauteurMax / hauteurBloc(c.lignes, 1)) * 100) / 100));
     return { ...c, taille, largeur: mesurer(c.lignes, taille), borne: taille < c.taille ? null : c.borne };
   });
   const tiennent = reduites.filter((c) => hauteur(c) <= hauteurMax);
   if (tiennent.length === 0) return reduites.reduce((a, b) => (hauteur(b) < hauteur(a) ? b : a));
   const meilleur = Math.max(...tiennent.map((c) => c.taille));
-  return tiennent.find((c) => c.taille >= meilleur * TOLERANCE_CORPS) as MiseEnLignes;
+  return tiennent.find((c) => c.taille >= meilleur * toleranceCorps) as MiseEnLignes;
 }

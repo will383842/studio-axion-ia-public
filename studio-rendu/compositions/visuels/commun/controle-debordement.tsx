@@ -1,14 +1,14 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
-import { chargerPoliceArchivoBlack, chargerPoliceInter, policeArchivoBlackPrete, policeInterPrete, policeKalamPrete } from "../polices";
+import { chargerPoliceTitre, chargerPoliceInter, policeTitrePrete, policeInterPrete, policeKalamPrete } from "../polices";
 import { avecDelai, DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, DELAI_TITRES_MS, etatPolices } from "./attente-police";
 import { messageDebordement } from "./debordement";
 import { ATTRIBUT_ZONE_CORPS } from "./zones";
 
-/** Attend que les polices (Archivo Black, Inter et, si la page l'emploie, Kalam) soient réellement chargées : jamais de mesure avec une police de secours. */
+/** Attend que les polices (Inter Display Black, Inter et, si la page l'emploie, Kalam) soient réellement chargées : jamais de mesure avec une police de secours. */
 export function attendrePolices(): Promise<void> {
   return avecDelai(
-    Promise.all([policeArchivoBlackPrete(), policeInterPrete(), policeKalamPrete()]).then(() => undefined),
+    Promise.all([policeTitrePrete(), policeInterPrete(), policeKalamPrete()]).then(() => undefined),
     DELAI_POLICE_MS,
     () => `Polices de la page non chargées après ${DELAI_POLICE_MS / 1000} s : texte non mesurable (${etatPolices()})`,
   );
@@ -25,7 +25,7 @@ async function attendreTitres(boite: HTMLElement): Promise<void> {
  * (même mesure pour les cartes et pour les zones des pages : `debordement.ts`).
  */
 export function useControleDebordement(cadre: RefObject<HTMLElement | null>, libelle: string, objet: string, dependances: readonly unknown[]): void {
-  chargerPoliceArchivoBlack();
+  chargerPoliceTitre();
   chargerPoliceInter();
   useEffect(() => {
     const attente = delayRender(`Contrôle du débordement de ${objet} « ${libelle.slice(0, 24)} »`, { timeoutInMilliseconds: DELAI_DELAYRENDER_MS });

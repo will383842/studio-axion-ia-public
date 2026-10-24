@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { AbsoluteFill } from "remotion";
 import { rubriqueAffichee } from "../../../../src/briques/visuels/rubrique";
 import { TEXTES_FIXES, type TypePageAvecRubrique } from "../../../../src/briques/visuels/textes-fixes";
-import { Annotation } from "./Annotation";
 import { JAMBAGE, Zone } from "./controle-debordement";
-import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE, MARGE, PAGE, POLICE_CORPS, TAILLE_RUBRIQUE, TAILLE_SIGNATURE } from "./constantes";
+import { BORD_DROIT_TEXTE, COULEURS, FILET, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLE_SIGNATURE } from "./constantes";
+import { Filet, Rubrique } from "./editorial";
 import { Swipe } from "./Swipe";
 import { Titre } from "./Titre";
 
@@ -15,58 +15,69 @@ interface Proprietes {
   total: number;
   /** Corps de page : zone mesurée, le rendu échoue si son contenu déborde. */
   children: ReactNode;
-  /** Type de la page de contenu : nomme la zone dans les messages d'échec et donne l'étiquette de rubrique (`RUBRIQUES`). */
+  /** Type de la page de contenu : nomme la zone dans les messages d'échec et donne l'étiquette de rubrique (`rubriqueAffichee`). */
   type: TypePageAvecRubrique;
   /** Étiquette posée par le CODE à droite de la rubrique (cas concret : « Scénario type · exemple illustratif »). */
   etiquette?: string;
-  /** Hauteur (px) réservée au titre : plus basse pour les pages qui ont besoin de place (le titre reste ≥ 2 × le corps). */
+  /** Hauteur (px) réservée au titre. */
   hauteurTitre?: number;
+  /**
+   * Corps à fond perdu (style C) : la zone du corps s'étend d'un bord de page à l'autre, sans marge ; chaque élément y pose lui-même la marge
+   * de 64 px (`DANS_LA_COLONNE`), un bloc plein y touche les deux bords et garde son texte dans la colonne.
+   */
+  fondPerdu?: boolean;
 }
 
+/** Marges d'un élément du corps `fondPerdu` : son texte reste dans la colonne (x ≥ 64) ; un bloc plein porte ces marges en remplissage. */
+export const DANS_LA_COLONNE = { paddingLeft: MARGE, paddingRight: MARGE } as const;
+
+/** Colonne de texte de la grille (x = 64 → 912) : titres, filets et corps s'arrêtent au même bord droit. */
+export const LARGEUR_COLONNE = BORD_DROIT_TEXTE - MARGE;
+
 /** Hauteur (px) de la ligne de rubrique, marge basse comprise. */
-export const HAUTEUR_RUBRIQUE = 44;
+export const HAUTEUR_RUBRIQUE = 56;
+/** Espace (px) entre le titre et le filet, puis entre le filet et le corps de page. */
+export const ECART_FILET = { avant: 20, apres: 36 } as const;
 
 /**
- * Étiquette de rubrique : carré orange et mot en capitales (encre), au-dessus du titre. Le texte vient de `RUBRIQUES`, jamais du spec ;
- * sans texte (le titre dit déjà la rubrique), la ligne garde sa hauteur : la place du titre et du corps ne change pas.
+ * Rubrique posée par le code (petites capitales espacées) et, à droite, l'étiquette éventuelle (texte du code, filet de 2 px autour).
+ * Sans texte (le titre dit déjà la rubrique), la ligne garde sa hauteur : la place du titre et du corps ne change pas.
  */
-function Rubrique({ texte, etiquette }: { texte?: string; etiquette?: string }) {
+function LigneRubrique({ texte, etiquette }: { texte?: string; etiquette?: string }) {
   return (
-    <div style={{ flex: "none", height: HAUTEUR_RUBRIQUE, display: "flex", alignItems: "flex-start", gap: 14 }}>
-      {texte && (
-        <>
-          <div style={{ width: 22, height: 22, marginTop: 6, borderRadius: 6, background: COULEURS.orange, border: `3px solid ${COULEURS.encre}`, boxSizing: "border-box" }} />
-          <div style={{ fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: TAILLE_RUBRIQUE, lineHeight: "34px", letterSpacing: 3, color: COULEURS.encre }}>{texte}</div>
-        </>
-      )}
+    <div style={{ flex: "none", width: LARGEUR_COLONNE, height: HAUTEUR_RUBRIQUE, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+      {texte ? <Rubrique texte={texte} /> : <div />}
       {etiquette && (
-        <div style={{ marginLeft: texte ? 10 : 0, marginTop: -2, padding: "1px 16px", borderRadius: 999, border: `3px dashed ${COULEURS.encre}`, background: COULEURS.blanc, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLE_SIGNATURE, lineHeight: "32px", color: COULEURS.encre, whiteSpace: "nowrap" }}>
-          {etiquette}
-        </div>
+        <div style={{ marginTop: -8, padding: "4px 16px", borderRadius: 999, border: `${FILET}px solid ${COULEURS.encre}`, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLE_SIGNATURE, lineHeight: "32px", color: COULEURS.encre, whiteSpace: "nowrap" }}>{etiquette}</div>
       )}
     </div>
   );
 }
 
-/** Cadre commun des pages intérieures à fond crème : rubrique posée par le code, titre (zone mesurée), trait, corps (zone mesurée), repère de défilement avec la signature. */
-export function PageBase({ titre, index, total, children, type, etiquette, hauteurTitre = PAGE.hauteurTitre }: Proprietes) {
+/**
+ * Cadre ÉDITORIAL (A) des pages intérieures à fond crème : rubrique en petites capitales posée par le code, titre en capitales (zone mesurée),
+ * filet de 2 px pleine colonne, corps (zone mesurée), pied avec la marque « Axion-IA ».
+ */
+export function PageBase({ titre, index, total, children, type, etiquette, hauteurTitre = PAGE.hauteurTitre, fondPerdu = false }: Proprietes) {
   return (
     <AbsoluteFill style={{ background: COULEURS.creme, padding: MARGE, boxSizing: "border-box" }}>
-      <Rubrique texte={rubriqueAffichee(type, titre)} etiquette={etiquette} />
+      <LigneRubrique texte={rubriqueAffichee(type, titre)} etiquette={etiquette} />
       {titre && (
         <>
           <Zone libelle={`${type} : titre`} style={{ maxHeight: hauteurTitre, flex: "none" }}>
-            <Titre texte={titre} maxLignes={2} hauteurMax={hauteurTitre - JAMBAGE} largeur={LARGEUR_TITRE} />
+            <Titre texte={titre} maxLignes={2} hauteurMax={hauteurTitre - JAMBAGE} largeur={LARGEUR_TITRE_BORNE} />
           </Zone>
-          <div style={{ margin: "12px 0 16px" }}>
-            <Annotation largeur={LARGEUR_TEXTE / 3} epaisseur={14} />
-          </div>
+          <Filet style={{ width: LARGEUR_COLONNE, margin: `${ECART_FILET.avant - JAMBAGE}px 0 ${ECART_FILET.apres}px` }} />
         </>
       )}
-      <Zone libelle={`${type} : corps`} corps style={{ flex: 1, minHeight: 0, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", marginBottom: PAGE.ecart }}>
+      <Zone
+        libelle={`${type} : corps`}
+        corps
+        style={{ flex: 1, minHeight: 0, width: fondPerdu ? LARGEUR_TEXTE + 2 * MARGE : LARGEUR_TEXTE, display: "flex", flexDirection: "column", marginBottom: PAGE.ecart, ...(fondPerdu ? { marginLeft: -MARGE, marginRight: -MARGE } : {}) }}
+      >
         {children}
       </Zone>
-      <div style={{ height: PAGE.hauteurPied }}>
+      <div style={{ flex: "none", height: PAGE.hauteurPied }}>
         <Swipe index={index} total={total} signature={TEXTES_FIXES.signature} />
       </div>
     </AbsoluteFill>
