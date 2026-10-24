@@ -67,7 +67,8 @@ export function reglagesVisuelPage(parametres: DemandeRendu["parametres"]): { sc
 
 /**
  * Propriétés refusées par `validerProprietesPage` : un refus, sauf une version de composition inconnue (le studio et studio-rendu
- * ne sont pas encore à la même version, mise en ligne en cours) : indisponible, à réessayer. PUR.
+ * ne sont pas encore à la même version, mise en ligne en cours ; message émis par la vérification de version de composition
+ * (proprietes-page)) : indisponible, à réessayer. PUR.
  */
 export function erreurDeValidation(message: string): ErreurRendu {
   if (message.startsWith("Version de composition")) return new ErreurRendu({ code: "indisponible", reessayable: true, message });

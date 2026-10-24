@@ -164,3 +164,45 @@ describe("porte : « ton » nom commun n'est pas un tutoiement (tour 2)", () => 
     expect(new Set(phrases).size).toBe(phrases.length);
   });
 });
+
+describe("porte : événements, étapes et pluriels ne sont pas des classements (tour 4)", () => {
+  it.each([
+    "Le premier salon national des TPE",
+    "Première journée nationale de l'artisanat",
+    "Première édition nationale",
+    "Les premiers retours du marché",
+    "Les meilleures pratiques du marché",
+    "Votre premier client en France",
+    "Le premier mois de lancement du marché",
+    "Les premières étapes en France",
+    "premiers jours en France",
+    "premiers devis du marché",
+    "Premier vrai pas en France",
+    "Devenir un leader reconnu par son équipe",
+    "un leader historique de l'équipe",
+    "Le meilleur ouvrier de France",
+    "Meilleurs ouvriers de France",
+  ])("« %s » passe", (texte) => {
+    expect(classementDans(texte)).toBeUndefined();
+    expect(codes(specDe(texte))).not.toContain("CLASSEMENT");
+  });
+  it.each([
+    "premier banque de France",
+    "premier site du marché",
+    "premier opérateur de France",
+    "premier assureur national",
+    "Leader incontesté depuis 10 ans",
+    "Leader français du conseil",
+    "numéro un du marché",
+    "le meilleur cabinet de France",
+    "Leaders européens du conseil",
+    "Nous sommes leaders mondiaux",
+    "Des leaders mondiaux",
+    "Des leaders incontestés",
+    "Leaders nationaux du conseil",
+    "Leader absolu",
+  ])("« %s » reste bloqué", (texte) => {
+    expect(classementDans(texte)).toBeDefined();
+    expect(codes(specDe(texte))).toContain("CLASSEMENT");
+  });
+});
