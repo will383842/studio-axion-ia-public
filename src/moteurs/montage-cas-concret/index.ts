@@ -57,7 +57,7 @@ import { apercuRetoucheCasConcret, estOperationRetoucheCasConcret, lireOperation
 import { reglagesRecette } from "./recette-voix";
 import { empreintePriseVoix, type EtatVoixCasConcret } from "./voix";
 import { STRUCTURES } from "./variete";
-import { CODE_SCRIPT_A_VALIDER, idSegmentEcran, PHRASE_SCRIPT_A_VALIDER, scriptValideDuCatalogue, type ScriptValide } from "./script-valide";
+import { CODE_SCRIPT_A_VALIDER, idSegmentEcran, PHRASE_SCRIPT_A_VALIDER, problemesScriptValide, scriptValideDuCatalogue, type ScriptValide } from "./script-valide";
 
 /* Contrat commun des moteurs (TYPES seulement, `src/moteurs/types.ts`), lu par `import()` de type, comme le patron. */
 type MoteurVideo = import("@/moteurs/types").MoteurVideo;
@@ -615,13 +615,23 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   }
   const numeroVersion = await lireNumero?.(versionId);
   // V4-3 : le script validé du cas (services, sinon catalogue) ; une fiche fournie l'emporte (elle saute l'écriture).
-  const scriptCourant = entrees.ficheCle ? null : lireScript ? await lireScript(cas.id) : (scriptValideDuCatalogue(cas.id) ?? null);
+  const scriptLu = entrees.ficheCle ? null : lireScript ? await lireScript(cas.id) : (scriptValideDuCatalogue(cas.id) ?? null);
+  // Un script validé DEPUIS LE STUDIO qui ne convient plus au cas (autre cas, autre version) est périmé : traité comme ABSENT (Claude
+  // écrit un nouveau script, la fabrication s'arrête à « Script à valider », Will valide, la voix n'est payée qu'après). Même règle
+  // que la feuille « Votre vidéo » (`problemesScriptValide`). Sinon la fabrication le refusait (« faites revalider le script ») sans
+  // aucun recours dans l'interface. Un script du CATALOGUE périmé reste un refus (défaut de code).
+  const duCatalogue = scriptValideDuCatalogue(cas.id);
+  const perime = (s: ScriptValide | null | undefined): boolean => !!s && s !== duCatalogue && problemesScriptValide(s, cas).length > 0;
+  // Réglage du studio périmé alors que le script du catalogue convient à la version courante : on retombe sur le catalogue.
+  const scriptCourant = perime(scriptLu) ? (duCatalogue && !problemesScriptValide(duCatalogue, cas).length ? duCatalogue : null) : scriptLu;
   // LOT F · « Nouveau script » : la vidéo ne rejoue JAMAIS le script du cas. Elle rejoue la dernière version validée qui vient
   // d'ELLE (Will a validé son script écrit : plus récente ou non), sinon elle écrit / reste à « Script à valider » (sa fiche
   // écrite est au journal, aucune réécriture). Ni le script d'une autre vidéo, ni une version modifiée à la relecture.
   const nouveau = entrees.nouveauScript !== undefined && !entrees.ficheCle;
   const ecarte = nouveau ? scriptCourant : null;
-  const scriptValide = nouveau ? ((lireDeLaVideo ? await lireDeLaVideo(cas.id, commande.videoId) : null) ?? null) : scriptCourant;
+  const deLaVideo = nouveau ? ((lireDeLaVideo ? await lireDeLaVideo(cas.id, commande.videoId) : null) ?? null) : null;
+  // Le script validé de la vidéo, d'une version périmée du cas (jamais celui du catalogue), est lui aussi traité comme absent.
+  const scriptValide = nouveau ? (perime(deLaVideo) ? null : deLaVideo) : scriptCourant;
   // Essai : « simuler l'échec d'une étape » devient la panne d'essai de la chaîne (un échec, puis la réussite).
   const panneDEssai = contexte.panneDEssai ?? (estEtape(commande.simulerEchecEtape) ? commande.simulerEchecEtape : undefined);
   // 14/10 : contrôle de ressemblance à la voix de référence, figé dans la commande au lancement (absent : coupé).
