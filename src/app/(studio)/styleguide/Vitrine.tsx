@@ -240,7 +240,7 @@ export function Vitrine({ elements }: { elements: VueElement[] }) {
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <LecteurVideo src="/demo/avocat-droits.mp4" affiche="/demo/avocat-droits.jpg" titre="Démonstration" className="max-h-[480px]" />
+          <LecteurVideo src="/demo/avocat-droits.mp4" affiche="/demo/avocat-droits.jpg" titre="Démonstration" className="max-w-[270px]" />
           <div>
             <Bouton variante="secondaire" icone="calques" onClick={() => setZones((z) => !z)} className="mb-3">
               Zones des réseaux
