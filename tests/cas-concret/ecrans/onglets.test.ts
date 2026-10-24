@@ -7,10 +7,11 @@ import { createElement, isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-const etat = vi.hoisted(() => ({ regl: { catalogueEtendu: true, stockMetiers: true } as Record<string, boolean>, traites: new Map<string, unknown>(), retraits: {} as Record<string, unknown>, retires: new Set<string>() }));
+const etat = vi.hoisted(() => ({ stock: [] as unknown[], regl: { catalogueEtendu: true, stockMetiers: true } as Record<string, boolean>, traites: new Map<string, unknown>(), retraits: {} as Record<string, unknown>, retires: new Set<string>() }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined, refresh: () => undefined }), usePathname: () => "/cas-concret", useSearchParams: () => new URLSearchParams() }));
+vi.mock("@/services/auth", () => ({ lireSession: async () => ({ ok: true }) }));
+vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error(`REDIRECT:${u}`); }, useRouter: () => ({ push: () => undefined, refresh: () => undefined }), usePathname: () => "/cas-concret", useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/app/(studio)/cas-concret/actions", () => ({
   confirmerCasAction: vi.fn(), confirmerFaitPorteBAction: vi.fn(), controlerScriptValideAction: vi.fn(), demarrerPorteBAction: vi.fn(), estimerCasAction: vi.fn(),
   modifierScriptValideAction: vi.fn(), preparerEtLancerAction: vi.fn(), suivrePorteBAction: vi.fn(), retirerCasAction: vi.fn(), remettreCasAction: vi.fn(), remettreEnStockAction: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock("@/services/cas-concret-retires", () => ({ lireCasRetires: async () => e
 vi.mock("@/services/cas-concret-voix", () => ({ etatVoixCasConcret: async () => ({}), avecConsigneVoix: (x: unknown) => x }));
 vi.mock("@/services/cas-concret-mots", () => ({ etatMotsCasConcret: async () => ({}) }));
 vi.mock("@/services/cas-concret-scripts-lot", () => ({ CAS_PAR_PAGE: 20, scriptsValidesDe: async () => ({}), preparerPageCas: async () => ({ montants: {}, refus: {} }) }));
-vi.mock("@/services/cas-concret-stock-lecture", () => ({ lireStockCas: async () => [] }));
+vi.mock("@/services/cas-concret-stock-lecture", () => ({ lireStockCas: async () => etat.stock }));
 vi.mock("@/services/cas-concret", () => ({
   estimerCas: async () => ({ centimes: 0 }),
   listerCas: async () => {
@@ -73,13 +74,16 @@ describe("onglets (pur)", () => {
 describe("barre d'onglets", () => {
   const rendre = (actif: "a-faire" | "deja-faits" | "retires") =>
     renderToStaticMarkup(createElement(OngletsCasConcret, { actif, nombres: { "a-faire": 103, "deja-faits": 4, retires: 2 }, synthese: { aFaire: 103, faits: 4, valides: 3 } }));
-  it("trois liens dans un tablist, un seul onglet actif (aria-selected, aria-current), compteurs et synthèse", () => {
+  it("trois liens dans une navigation nommée, un seul actif (aria-current), aucun faux rôle d'onglet, compteurs et synthèse", () => {
     const h = rendre("deja-faits");
-    expect(h).toContain('role="tablist"');
-    expect((h.match(/role="tab"/g) ?? []).length).toBe(3);
+    expect(h).toContain('<nav aria-label="Listes des cas"');
+    expect(h).not.toMatch(/role="tab(list|panel)?"/);
+    expect(h).not.toContain("aria-selected");
+    expect(h).not.toContain("aria-controls");
+    expect((h.match(/<a /g) ?? []).length).toBe(3);
     expect((h.match(/aria-current="page"/g) ?? []).length).toBe(1);
-    expect(h).toMatch(/id="onglet-deja-faits"[^>]*aria-selected="true"/);
-    expect(h).toMatch(/id="onglet-a-faire"[^>]*aria-selected="false"/);
+    expect(h).toMatch(/id="onglet-deja-faits"[^>]*aria-current="page"/);
+    expect(h).not.toMatch(/id="onglet-a-faire"[^>]*aria-current/);
     expect(h).toContain('href="/cas-concret?onglet=retires"');
     expect(h).toContain('href="/cas-concret"');
     const t = texte(h);
@@ -105,7 +109,8 @@ describe("la page, onglet par onglet (réglages allumés)", () => {
     expect(h).not.toContain("<details");
     expect(t).not.toContain("Stock des cas");
     expect(t).not.toContain("Cas restants à faire");
-    expect(h).toContain('role="tabpanel"');
+    expect(h).toMatch(/<section id="panneau-cas" aria-labelledby="onglet-a-faire"/);
+    expect(h).not.toContain('role="tabpanel"');
     expect(t).toContain(`${CATALOGUE_TS.length} cas à faire · 0 déjà fait · 3 validés`);
   });
 
@@ -145,5 +150,52 @@ describe("la page, onglet par onglet (réglages allumés)", () => {
     expect(t).not.toContain("Secteur");
     expect(t).toContain("À faire (");
     etat.regl = { catalogueEtendu: true, stockMetiers: true };
+  });
+});
+
+describe("pagination et filtres de l'onglet À faire", () => {
+  it("plus de 20 cas à valider : exactement 20 cartes par page, « Page 1 sur 3 », le total dans le titre", async () => {
+    const { EntreeCasConcret } = await import("@/components/formats/cas-concret/entree/EntreeCasConcret");
+    const { versVueCas } = await import("@/components/formats/cas-concret/entree/vue");
+    const { empreinteCas } = await import("@/formats/cas-concret/cas");
+    const modele = CATALOGUE_TS[5]!;
+    const cas = Array.from({ length: 45 }, (_, i) => versVueCas({ ...modele, id: `cas-pagination-${i}`, titre: `Cas numéro ${i}` }, empreinteCas(modele), false));
+    const h = renderToStaticMarkup(createElement(EntreeCasConcret, { valides: [], aValider: cas, montants: {} }));
+    expect((h.match(/Je valide ce cas/g) ?? []).length).toBe(20);
+    const t = texte(h);
+    expect(t).toContain("À valider (45)");
+    expect(t).toContain("Page 1 sur 3");
+    expect(t).toContain("Page suivante");
+    expect(t).not.toContain("Page précédente");
+    expect(h).toContain("Ouvrir l&#x27;essai : Cas numéro 0");
+  });
+
+  const ligne = (cas: (typeof CATALOGUE_TS)[number], plus: Record<string, unknown> = {}) => ({ casId: cas.id, titre: cas.titre, offre: cas.offre, posture: cas.posture, script: { valide: false }, videos: { total: 0, faites: 0, comptees: 0, parEtat: {} }, faits: { total: 0, avecPreuve: 0, aSignaler: [] }, rangement: { fiche: "IN-01", secteur: "IN", taille: "PME" }, ...plus });
+
+  it("réglages allumés et cas rangés : filtres Secteur et Taille et pastilles sur les cartes ; éteints : rien de tout cela", async () => {
+    etat.regl = { catalogueEtendu: true, stockMetiers: true };
+    etat.stock = CATALOGUE_TS.map((c) => ligne(c));
+    const allume = await page();
+    expect(texte(allume)).toContain("Secteur");
+    expect(texte(allume)).toContain("Taille");
+    expect(texte(allume)).toContain("Industrie");
+    expect(allume).toContain("Filtres du stock");
+    etat.regl = { catalogueEtendu: true, stockMetiers: false };
+    const eteintHtml = await page();
+    const eteint = texte(eteintHtml);
+    expect(eteintHtml).not.toContain("Filtres du stock");
+    expect(eteint).not.toContain("Secteur");
+    expect(eteint).not.toContain("Industrie");
+    etat.regl = { catalogueEtendu: true, stockMetiers: true };
+    etat.stock = [];
+  });
+
+  it("une ancienne adresse avec ?etat= ou ?offre= ne bloque pas la liste (seuls secteur et taille sont repris)", async () => {
+    etat.stock = CATALOGUE_TS.map((c) => ligne(c));
+    const t = texte(await page({ etat: "traite", offre: "integration", secteur: "IN" }));
+    expect(t).toContain(`À faire (${CATALOGUE_TS.length})`);
+    expect(t).toContain("Prêts à fabriquer (3)");
+    expect(t).not.toContain("Aucun cas pour ces filtres.");
+    etat.stock = [];
   });
 });
