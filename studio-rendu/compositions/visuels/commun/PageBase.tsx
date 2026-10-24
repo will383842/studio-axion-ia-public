@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AbsoluteFill } from "remotion";
-import { RUBRIQUES, TEXTES_FIXES, type TypePageAvecRubrique } from "../../../../src/briques/visuels/textes-fixes";
+import { rubriqueAffichee, TEXTES_FIXES, type TypePageAvecRubrique } from "../../../../src/briques/visuels/textes-fixes";
 import { Annotation } from "./Annotation";
 import { JAMBAGE, Zone } from "./controle-debordement";
 import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE, MARGE, PAGE, POLICE_CORPS, TAILLE_RUBRIQUE, TAILLE_SIGNATURE } from "./constantes";
@@ -25,14 +25,21 @@ interface Proprietes {
 /** Hauteur (px) de la ligne de rubrique, marge basse comprise. */
 export const HAUTEUR_RUBRIQUE = 44;
 
-/** Étiquette de rubrique : carré orange et mot en capitales (encre), au-dessus du titre. Le texte vient de `RUBRIQUES`, jamais du spec. */
-function Rubrique({ texte, etiquette }: { texte: string; etiquette?: string }) {
+/**
+ * Étiquette de rubrique : carré orange et mot en capitales (encre), au-dessus du titre. Le texte vient de `RUBRIQUES`, jamais du spec ;
+ * sans texte (le titre dit déjà la rubrique), la ligne garde sa hauteur : la place du titre et du corps ne change pas.
+ */
+function Rubrique({ texte, etiquette }: { texte?: string; etiquette?: string }) {
   return (
     <div style={{ flex: "none", height: HAUTEUR_RUBRIQUE, display: "flex", alignItems: "flex-start", gap: 14 }}>
-      <div style={{ width: 22, height: 22, marginTop: 6, borderRadius: 6, background: COULEURS.orange, border: `3px solid ${COULEURS.encre}`, boxSizing: "border-box" }} />
-      <div style={{ fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: TAILLE_RUBRIQUE, lineHeight: "34px", letterSpacing: 3, color: COULEURS.encre }}>{texte}</div>
+      {texte && (
+        <>
+          <div style={{ width: 22, height: 22, marginTop: 6, borderRadius: 6, background: COULEURS.orange, border: `3px solid ${COULEURS.encre}`, boxSizing: "border-box" }} />
+          <div style={{ fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: TAILLE_RUBRIQUE, lineHeight: "34px", letterSpacing: 3, color: COULEURS.encre }}>{texte}</div>
+        </>
+      )}
       {etiquette && (
-        <div style={{ marginLeft: 10, marginTop: -2, padding: "1px 16px", borderRadius: 999, border: `3px dashed ${COULEURS.encre}`, background: COULEURS.blanc, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLE_SIGNATURE, lineHeight: "32px", color: COULEURS.encre, whiteSpace: "nowrap" }}>
+        <div style={{ marginLeft: texte ? 10 : 0, marginTop: -2, padding: "1px 16px", borderRadius: 999, border: `3px dashed ${COULEURS.encre}`, background: COULEURS.blanc, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLE_SIGNATURE, lineHeight: "32px", color: COULEURS.encre, whiteSpace: "nowrap" }}>
           {etiquette}
         </div>
       )}
@@ -44,7 +51,7 @@ function Rubrique({ texte, etiquette }: { texte: string; etiquette?: string }) {
 export function PageBase({ titre, index, total, children, type, etiquette, hauteurTitre = PAGE.hauteurTitre }: Proprietes) {
   return (
     <AbsoluteFill style={{ background: COULEURS.creme, padding: MARGE, boxSizing: "border-box" }}>
-      <Rubrique texte={RUBRIQUES[type]} etiquette={etiquette} />
+      <Rubrique texte={rubriqueAffichee(type, titre)} etiquette={etiquette} />
       {titre && (
         <>
           <Zone libelle={`${type} : titre`} style={{ maxHeight: hauteurTitre, flex: "none" }}>
