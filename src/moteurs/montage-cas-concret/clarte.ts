@@ -3,11 +3,12 @@
  * suivi, étiquettes abstraites lues telles quelles, « Possible. », question finale sans rapport. Ce contrôle PUR relit une
  * fiche déjà valide au regard du récit du cas (`cas.recit`) :
  *  C1 chaque mot clé du récit est dit dans les 3 premiers écrans ;
- *  C2 au moins 3 mots pleins de la scène sont dits avant la bascule (écran « titre ») ;
- *  C3 l'exemple (ou un mot clé) est repris dans la moitié au moins des étapes, et au résultat ou à la question ;
+ *  C2 au moins 2 mots pleins de la scène, absents des tâches « avant » (qui se disent de toute façon), sont dits avant la bascule ;
+ *  C3 le nom noyau de l'exemple (son premier mot plein) ou un mot clé est repris dans la moitié au moins des étapes, et au
+ *     résultat ou à la question ; aucune étape ne commence par un pronom (« Elle », « Il », « Tout ») sans ce nom dans la phrase d'avant ;
  *  C4 aucune phrase de moins de 3 mots (« Possible. ») ;
  *  C5 aucune phrase égale au titre d'une étape du cas (une étiquette lue telle quelle) ;
- *  C6 la question finale reprend le sujet, l'exemple ou la scène ;
+ *  C6 la question finale reprend un mot clé ou le nom noyau de l'exemple ;
  *  C7 aucune suite de 5 mots reprise d'une description de forme (`PATRONS`).
  * Sans récit : seulement C4, C5 et C7, en alerte (jamais un refus). Les mots se comparent par leur racine
  * (« demande » et « demandes » sont le même mot).
@@ -25,8 +26,8 @@ export interface ManqueClarte {
   detail: string;
 }
 
-/** Nombre minimal de phrases lues de la scène (mots pleins distincts) à dire avant la bascule. */
-export const SCENE_MOTS_PLEINS_MIN = 3;
+/** Nombre minimal de mots pleins de la scène, absents des tâches « avant » (qui se disent de toute façon), à dire avant la bascule. */
+export const SCENE_MOTS_PLEINS_MIN = 2;
 /** Une phrase dite compte au moins ce nombre de mots lus. */
 export const PHRASE_MOTS_MIN = 3;
 /** Longueur de la suite de mots qu'une forme de patron ne doit pas voir recopiée. */
@@ -42,7 +43,7 @@ let formesCache: Set<string> | undefined;
 const sequencesDesFormes = (): Set<string> => (formesCache ??= new Set(Object.values(PATRONS).flatMap((l) => l.flatMap((p) => sequencesDe(p.forme, SUITE_FORME_MAX)))));
 
 /** Les manques de clarté d'une fiche. `refuser` : le cas a un récit, tous les critères comptent. */
-export function controlerClarte(fiche: FicheEcrans, cas: Pick<CasConcret, "recit" | "etapes">): ManqueClarte[] {
+export function controlerClarte(fiche: FicheEcrans, cas: Pick<CasConcret, "recit" | "etapes" | "avant">): ManqueClarte[] {
   const manques: ManqueClarte[] = [];
   const ecrans = fiche.ecrans;
   const dit = (i: number, j: number) => ecrans.slice(i, j).map((e) => e.texteDit).join(" ");
@@ -76,16 +77,23 @@ export function controlerClarte(fiche: FicheEcrans, cas: Pick<CasConcret, "recit
     // C2 : la scène, avant la bascule.
     const iTitre = ecrans.findIndex((e) => e.type === "titre");
     const avantBascule = racinesDe(dit(0, iTitre < 0 ? Math.max(3, ecrans.findIndex((e) => e.type === "etape")) : iTitre));
-    const scene = [...racinesDe(r.scene)];
+    const taches = racinesDe(cas.avant.taches.join(" "));
+    const scene = [...racinesDe(r.scene)].filter((m) => !taches.has(m));
     const dits = scene.filter((m) => avantBascule.has(m));
-    if (dits.length < SCENE_MOTS_PLEINS_MIN) manques.push({ critere: "C2", detail: `la scène n'est pas racontée avant la bascule : ${dits.length} mot${dits.length > 1 ? "s" : ""} plein${dits.length > 1 ? "s" : ""} de « ${r.scene} » dit${dits.length > 1 ? "s" : ""}, il en faut ${SCENE_MOTS_PLEINS_MIN} au moins.` });
+    if (dits.length < SCENE_MOTS_PLEINS_MIN) manques.push({ critere: "C2", detail: `la scène n'est pas racontée avant la bascule : ${dits.length} mot${dits.length > 1 ? "s" : ""} plein${dits.length > 1 ? "s" : ""} de « ${r.scene} » (hors tâches « avant ») dit${dits.length > 1 ? "s" : ""}, il en faut ${SCENE_MOTS_PLEINS_MIN} au moins.` });
 
     // C3 : l'exemple suivi à travers les étapes, puis au résultat ou à la question.
-    const suivis = new Set([...racinesDe(r.exemple), ...r.motsCles.flatMap(racinesDuMot)]);
+    // Seuls comptent le nom noyau de l'exemple (son premier mot plein) et les mots clés.
+    const noyau = motsPleins(r.exemple).slice(0, 1).map(racine);
+    const suivis = new Set([...noyau, ...r.motsCles.flatMap(racinesDuMot)]);
     const reprend = (t: string) => [...racinesDe(t)].some((m) => suivis.has(m));
     const etapes = ecrans.filter((e) => e.type === "etape" || e.type === "objet");
     const reprises = etapes.filter((e) => reprend(e.texteDit)).length;
     const bout = ecrans.filter((e) => e.type === "resultat" || e.type === "question").some((e) => reprend(e.texteDit));
+    // Une étape ne commence pas par un pronom (« Elle est triée », « Tout s'enregistre ») sans le nom dans la phrase d'avant.
+    const PRONOM = /^(?:(?:puis|alors|ensuite|et|complète,?)\s+)?(?:elle|il|elles|ils|tout|cela|ça)(?![\p{L}])/iu;
+    const sansNom = ecrans.filter((e, i) => (e.type === "etape" || e.type === "objet") && PRONOM.test(e.texteDit.trim()) && !(i > 0 && reprend(ecrans[i - 1].texteDit)));
+    if (sansNom.length) manques.push({ critere: "C3", detail: `l'étape « ${sansNom[0].texteDit.trim()} » commence par un pronom sans que le nom (« ${r.exemple} ») soit dans la phrase d'avant : nommez la chose.` });
     if (etapes.length && (reprises * 2 < etapes.length || !bout)) {
       manques.push({ critere: "C3", detail: `l'exemple suivi (« ${r.exemple} ») n'est repris que dans ${reprises} étape${reprises > 1 ? "s" : ""} sur ${etapes.length}${bout ? "" : ", ni au résultat ni à la question"} : chaque étape dit ce qui arrive à cette chose.` });
     }
@@ -93,7 +101,7 @@ export function controlerClarte(fiche: FicheEcrans, cas: Pick<CasConcret, "recit
     // C6 : la question finale parle du même problème.
     const question = ecrans.filter((e) => e.type === "question").at(-1);
     if (question) {
-      const permis = new Set([...r.motsCles.flatMap(racinesDuMot), ...racinesDe(r.exemple), ...racinesDe(r.scene)]);
+      const permis = new Set([...r.motsCles.flatMap(racinesDuMot), ...motsPleins(r.exemple).slice(0, 1).map(racine)]);
       if (![...racinesDe(question.texteDit)].some((m) => permis.has(m))) manques.push({ critere: "C6", detail: `la question finale (« ${question.texteDit.trim()} ») ne porte pas sur le problème du sujet (« ${r.sujet} »).` });
     }
   }

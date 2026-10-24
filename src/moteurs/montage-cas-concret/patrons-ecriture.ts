@@ -81,7 +81,7 @@ export const PATRONS_AVEC_RECIT: Readonly<Partial<Record<RolePatron, readonly st
   avant: ["scene"],
   bascule: ["courte", "regle", "question"],
   resultat: ["image", "contraste", "libere", "durable"],
-  question: ["metier", "imaginer", "premier"],
+  question: ["imaginer"],
 };
 
 /**
@@ -133,10 +133,12 @@ export function blocStructure(demandee: Structure, offre?: Offre): string | null
 const NOMS_ROLE: Record<RolePatron, string> = { accroche: "accroche (e01)", avant: "« avant »", bascule: "bascule", resultat: "résultat", question: "question finale" };
 
 /** Le bloc de la consigne : la forme choisie pour cette vidéo, rôle par rôle. */
-export function blocPatrons(p: PatronsDeLaVideo): string {
+export function blocPatrons(p: PatronsDeLaVideo, recit = false): string {
   return [
     "FORME POUR CETTE VIDÉO (une description de la FORME à suivre, jamais une phrase à recopier ; toutes les règles ci-dessus restent vraies) :",
     ...ROLES_PATRON.map((r) => `- ${NOMS_ROLE[r]} : ${p[r].forme}`),
+    // Un cas qui a un récit : R03 exige le SUJET à l'accroche ; les formes qui parlent de la promesse se lisent avec lui.
+    ...(recit ? ["Avec <recit> : partout où une forme dit « la promesse du cas », lis « le sujet de <recit> » ; le « avant » raconte la scène (les tâches restent les cases) ; la question finale porte sur le problème du sujet."] : []),
   ].join("\n");
 }
 

@@ -32,11 +32,11 @@ export const EXEMPLES_DE_RYTHME: readonly ExempleDeRythme[] = [
       "Vos réservations de salle se croisent. Lundi matin, deux équipes arrivent à la même porte : l'une a réservé par message, l'autre sur le tableau. Personne ne sait qui est arrivé en premier, et la réunion commence en retard. Voici ce que devient une réservation. Elle est notée une seule fois, au même endroit, quel que soit le moyen. La salle affiche alors qui l'occupe, en direct. Votre équipe n'arbitre plus rien. Combien de réservations se croisent chez vous ?",
   },
   {
-    sujet: "les factures d'un artisan",
+    sujet: "les inscriptions à un cours de danse",
     structure: "accroche qui pose une question · « avant » en une scène · bascule courte · résultat durable · invitation à imaginer",
     patrons: { accroche: "question", avant: "scene", bascule: "courte", resultat: "durable", question: "imaginer" },
     texte:
-      "Vos factures d'artisan partent-elles le jour même ? Un plombier termine un chantier à midi. Le soir, il note ses heures sur un papier ; la facture attend dans la camionnette. Alors le papier devient un message. La facture se prépare à partir de ce message, avec le client et les heures déjà remplis. Le plombier relit, puis valide. Désormais, la facture part avant le chantier suivant. Imaginez le même soir sans le papier froissé. Quelle facture attend dans votre camionnette ?",
+      "Les inscriptions à vos cours arrivent-elles sans le bon créneau ? Un mardi soir, une élève écrit pour le cours du jeudi. La professeure note son prénom sur un cahier, compte les places à la main, puis répond le lendemain. Alors le message devient une fiche. L'inscription s'enregistre avec le cours choisi, et la liste des places se met à jour. La professeure garde la main sur les cas particuliers. Désormais, chaque élève reçoit sa réponse dès le matin. Imaginez le même mardi, sans le cahier. Quelle inscription attend encore dans votre cahier ?",
   },
   {
     sujet: "un planning de bénévoles",

@@ -7,7 +7,7 @@ import type { CasConcret } from "@/formats/cas-concret/cas";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
 import { controlerClarte } from "@/moteurs/montage-cas-concret/clarte";
-import { ecrireFiche, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
+import { ecrireFiche, ficheParGabarit, jugerFiche } from "@/moteurs/montage-cas-concret/ecriture";
 import type { FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
 import type { OutilsEcriture } from "@/moteurs/montage-cas-concret/outils";
 import { regleAccroche } from "@/moteurs/montage-cas-concret/regles";
@@ -46,13 +46,79 @@ const SCRIPT_REFERENCE = fiche([
   ["etape", "La demande de ce client est enregistrée au même endroit, d'où qu'elle vienne."],
   ["etape", "L'automatisation voit ce qui manque : le poids et l'adresse."],
   ["etape", "Le client reçoit aussitôt un message court qui les réclame."],
-  ["etape", "Il répond ; la demande complète arrive sur le téléphone de votre équipe."],
+  ["etape", "Le client répond ; la demande complète arrive sur le téléphone de votre équipe."],
   ["objet", "Votre exploitant garde la main : fixer le prix et accepter ou non le transport."],
   ["resultat", "Résultat : plus personne ne rappelle pour un poids, votre équipe chiffre des demandes complètes."],
   ["question", "Et chez vous, combien de demandes de prix arrivent sans le poids ?"],
 ]);
 
+/** Les 13 textes dits du script de référence, sur les 13 écrans typés du gabarit de LT-02 (les règles R02-R23 s'appliquent en entier). */
+const TEXTES_REFERENCE = [
+  "Vos demandes de prix arrivent sans le poids ?",
+  "Avant : un client écrit, il lui faut un camion la semaine prochaine.",
+  "Ni poids, ni adresse d'enlèvement.",
+  "Votre exploitant recopie, rappelle, attend. La demande dort dans la pile.",
+  "Voici ce que devient cette demande.",
+  "La demande de ce client est enregistrée au même endroit, d'où qu'elle vienne.",
+  "L'automatisation voit ce qui manque : le poids et l'adresse.",
+  "Le client reçoit aussitôt un message court qui les réclame.",
+  "Le client répond ; la demande complète arrive sur le téléphone de votre équipe.",
+  "Votre exploitant garde la main : fixer le prix et accepter ou non le transport.",
+  "Alors la demande est prête : l'exploitant fixe le prix et accepte ou non.",
+  "Résultat : plus personne ne rappelle pour un poids, votre équipe chiffre des demandes complètes.",
+  "Et chez vous, combien de demandes de prix arrivent sans le poids ?",
+];
+/** Le sujet est dit, mais les étapes parlent par pronoms (« Tout s'enregistre », « Elle est triée »). */
+const TEXTES_PRONOMS = [
+  ...TEXTES_REFERENCE.slice(0, 5),
+  "Tout s'enregistre au même endroit, quel que soit le moyen utilisé.",
+  "Elle est triée selon ce qui manque dans la fiche reçue.",
+  "Elle part ensuite vers le téléphone de votre équipe.",
+  "Elle attend alors la réponse écrite de la personne concernée.",
+  ...TEXTES_REFERENCE.slice(9),
+];
+/** La fiche du gabarit (13 écrans typés), dont on remplace le texte dit et dont on refait les événements (un tous les 4 mots). */
+function ficheAvecTextes(textes: string[]): FicheEcrans {
+  const f = structuredClone(ficheParGabarit(lt02, FIXE));
+  f.ecrans.forEach((e, i) => {
+    const n = textes[i].split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m)).length;
+    const cibles = e.evenements.map((x) => x.cible);
+    e.texteDit = textes[i];
+    e.evenements = (cibles.length ? Array.from({ length: Math.floor((n - 1) / 4) }, (_, k) => ({ cible: cibles[k % cibles.length], surMot: 4 * (k + 1), avanceMs: 0 })) : []) as typeof e.evenements;
+  });
+  return f;
+}
+const ENTREE = { ...FIXE, cas: lt02 };
+
 describe("clarté · critères C1 à C7", () => {
+  it("(b) complet : le script de référence, sur ses écrans typés, passe toutes les règles (jugerFiche) et les sept critères", () => {
+    const j = jugerFiche(ficheAvecTextes(TEXTES_REFERENCE), ENTREE);
+    if (!j.ok) throw new Error(j.refus.join("\n"));
+    expect(j.clarte, j.clarte.join("\n")).toEqual([]);
+  });
+
+  it("sujet dit mais étapes en pronoms (« Tout s'enregistre », « Elle est triée ») : valide pour les règles, refusé pour la clarté (C3)", () => {
+    const j = jugerFiche(ficheAvecTextes(TEXTES_PRONOMS), ENTREE);
+    if (!j.ok) throw new Error(j.refus.join("\n"));
+    expect(j.clarte.join(" ")).toContain("Clarté C3");
+  });
+
+  it("C2 : une scène qui ne vient pas avant la bascule (rien de plus que les tâches « avant ») est refusée", () => {
+    const f = fiche([
+      ["accroche", "Vos demandes de prix arrivent sans le poids ?"],
+      ["liste-avant", "Avant : vous recopiez, vous rappelez, vous attendez."],
+      ["titre", "Voici ce que devient cette demande."],
+      ["etape", "La demande de ce client est enregistrée au même endroit."],
+      ["question", "Et chez vous, combien de demandes de prix arrivent sans le poids ?"],
+    ]);
+    expect(controlerClarte(f, lt02).some((m) => m.critere === "C2")).toBe(true);
+  });
+
+  it("C6 : une question sur un autre sujet que le problème est refusée, même si la scène en parle", () => {
+    const f = fiche([...SCRIPT_REFERENCE.ecrans.slice(0, -1).map((e) => [e.type, e.texteDit] as [string, string]), ["question", "Et chez vous, qui recopie encore, rappelle et attend la pile ?"]]);
+    expect(controlerClarte(f, lt02).some((m) => m.critere === "C6")).toBe(true);
+  });
+
   it("(a) le script réel de LT-02 est refusé : C1, C4, C6 et C7", () => {
     const manques = controlerClarte(SCRIPT_REEL, lt02);
     const criteres = new Set(manques.map((m) => m.critere));
