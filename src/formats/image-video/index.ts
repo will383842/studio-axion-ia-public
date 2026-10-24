@@ -8,7 +8,7 @@ import { CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES } from "../commun
  *
  * Une infographie d'Axion-IA prend vie : le studio la lit (deux lectures Claude, carte validée par Will), écrit le
  * script (validé par Will), le fait dire par la voix de Will, puis anime l'image bloc par bloc sur la voix, une version
- * par réseau (YouTube Shorts, LinkedIn, Instagram, Facebook), toutes en 9:16. Aucun visage, aucune musique ;
+ * par réseau (YouTube Shorts, LinkedIn, Instagram, Facebook), en 9:16, sauf LinkedIn et le fil Facebook en 4:5 (décision de Will du 24/10). Aucun visage, aucune musique ;
  * bruitages discrets obligatoires.
  *
  * Statut `masque`. Inscrit au lot L17 dans `src/formats/index.ts`, `registre-codes.ts`, `moteurs/ids.ts`,
@@ -19,7 +19,7 @@ export const ID_FORMAT_IMAGE_VIDEO = "image-video";
 export const CODE_FORMAT_IMAGE_VIDEO = "IV";
 export const ID_MOTEUR_IMAGE_VIDEO = "montage-image-video";
 
-/** Les quatre réseaux du format, tous en 9:16 (LinkedIn compris, B4). */
+/** Les quatre réseaux du format (formats : voir `FORMATS_PAR_RESEAU_IV`, LinkedIn en 4:5 depuis le 24/10). */
 export const RESEAUX_IMAGE_VIDEO = ["youtube-shorts", "linkedin", "instagram", "facebook"] as const;
 
 /**

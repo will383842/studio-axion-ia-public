@@ -26,6 +26,7 @@ import {
   centimesEurDeUsd,
   ETAPES_IV,
   etatInitialIV,
+  FORMAT_4X5_PRET_IV,
   PLAFOND_VIDEO_IV_CENTIMES,
   reprendreIV,
   tarifVoixCentimesEur,
@@ -183,13 +184,16 @@ export function estimerImageVideo(commande: CommandeFabrication): Estimation {
   const reseaux = e.reseaux.length || RESEAUX_IV.length;
   // Versions : une par fin distincte (≤ réseaux), plus une courte au plus par version.
   const versions = 2 * reseaux;
+  // Fichiers à relire : un par version, plus le fil Facebook en 4:5 (décision du 24/10 : +0,25 € habituel, +1 € au pire).
+  const filFacebook = FORMAT_4X5_PRET_IV && (e.reseaux.length ? e.reseaux.includes("facebook") : true);
+  const relectures = versions + (filFacebook ? 2 : 0);
   const caracteres = Math.ceil(Math.max(commande.dureeCibleSec || 50, 30) * CARACTERES_PAR_SECONDE) + reseaux * 160;
   const voix = Math.ceil(caracteres * 6 * tarifVoixCentimesEur(CENTIMES_USD_PAR_CARACTERE_HEYGEN, taux) - 1e-9);
   const lignes = [
     ligne("Lecture de l'image", "anthropic", "appel", 4, centimesEurDeUsd(PRIX_AU_PIRE_USD.lecture, taux)),
     ligne("Écriture du script", "anthropic", "appel", 2, centimesEurDeUsd(PRIX_AU_PIRE_USD.ecriture, taux)),
     ligne("Voix", "heygen", "caractere", caracteres * 6, voix),
-    ligne("Relecture des images finales", "anthropic", "appel", versions, centimesEurDeUsd(PRIX_AU_PIRE_USD.relectureParVersion * versions, taux)),
+    ligne("Relecture des images finales", "anthropic", "appel", relectures, centimesEurDeUsd(PRIX_AU_PIRE_USD.relectureParVersion * relectures, taux)),
     ligne("Écoute", "transcription", "appel", versions, centimesEurDeUsd(PRIX_AU_PIRE_USD.transcriptionParVersion * versions, taux)),
     ligne("Montage image → vidéo", "studio", "forfait", 1, 0),
   ];
@@ -322,13 +326,16 @@ function suivant(travail: Travail, etat: EtatFabricationIV, maintenant: number):
   };
 }
 
-function resultatDe(etat: EtatFabricationIV, maintenant: number): ResultatFabrication {
+export function resultatDe(etat: EtatFabricationIV, maintenant: number): ResultatFabrication {
   const mentions = etat.controles?.verdict?.mentions ?? [];
   const alertes: AlerteQualite[] = mentions.map((message) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message }));
   const note = Math.max(60, 90 - 3 * mentions.length);
-  const premiere = (etat.livraison ?? []).find((l) => l.fichierCle);
+  // Première livraison : de préférence un fichier 9:16 (Reel, Instagram…) ; LinkedIn seul (4:5) est déclaré en 4:5.
+  const livrees = (etat.livraison ?? []).filter((l) => l.fichierCle);
+  const premiere = livrees.find((l) => l.format !== "4:5") ?? livrees[0];
+  const quatreCinq = premiere?.format === "4:5";
   const sorties = premiere
-    ? [{ ratio: "9:16" as const, fichierCle: premiere.fichierCle!, vignetteCle: premiere.fichierCle!, resolution: "1080x1920", dureeSec: premiere.dureeSec ?? 0, taille: 0, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 } }]
+    ? [{ ratio: (quatreCinq ? "4:5" : "9:16") as "4:5" | "9:16", fichierCle: premiere.fichierCle!, vignetteCle: premiere.fichierCle!, resolution: quatreCinq ? "1080x1350" : "1080x1920", dureeSec: premiere.dureeSec ?? 0, taille: 0, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 } }]
     : [];
   return {
     sorties,
