@@ -17,7 +17,7 @@ import { T26 } from "./pages/T26";
 import { T27 } from "./pages/T27";
 import { T28 } from "./pages/T28";
 
-function dessiner(page: PageSpec, index: number, total: number): ReactElement {
+function dessiner(page: PageSpec, index: number, total: number, titreCouverture: string): ReactElement {
   switch (page.type) {
     case "T01":
       return <T01 titre={page.titre} sousTitre={page.sousTitre} index={index} total={total} />;
@@ -36,7 +36,7 @@ function dessiner(page: PageSpec, index: number, total: number): ReactElement {
     case "T20":
       return <T20 titre={page.titre} etapes={page.etapes} index={index} total={total} />;
     case "T21":
-      return <T21 index={index} total={total} />;
+      return <T21 index={index} total={total} titreCouverture={titreCouverture} />;
     case "T22":
       return <T22 titre={page.titre} mythe={page.mythe} realite={page.realite} index={index} total={total} />;
     case "T23":
@@ -58,5 +58,6 @@ function dessiner(page: PageSpec, index: number, total: number): ReactElement {
  * la composition n'ajoute ni adresse, ni couleur libre.
  */
 export function VisuelPage({ spec, index }: ProprietesVisuelPage) {
-  return dessiner(pageDuSpec(spec, index), index, spec.pages.length);
+  const couverture = spec.pages[0];
+  return dessiner(pageDuSpec(spec, index), index, spec.pages.length, couverture && "titre" in couverture ? couverture.titre : "");
 }

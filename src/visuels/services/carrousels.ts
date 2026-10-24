@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { LIMITES } from "@/briques/visuels/limites";
 import { LIBELLES_STATUT, transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { CODES_ERREUR_VISUELS, type DemandeTexteCarrousel, type ContextePorte, type FournisseurTexteCarrousel, type Porte } from "@/domaine/visuels/contrats";
 import { CarrouselSpec } from "@/domaine/visuels/schema";
@@ -120,7 +121,17 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
   const specCorrige = controle.specCorrige ?? (specLue?.success ? specLue.data : undefined);
   let patch: Partial<Visuel>;
   try {
-    patch = { titre: reponse.titre.trim().slice(0, TITRE_MAX) || "Carrousel", pourquoi: [...reponse.pourquoi], modeTexte: reponse.mode, rapport, spec: specCorrige, noteTexte: reponse.note };
+    const pagesEcrites = (reponse.spec as { pages?: unknown } | null)?.pages;
+    patch = {
+      titre: reponse.titre.trim().slice(0, TITRE_MAX) || "Carrousel",
+      pourquoi: [...reponse.pourquoi],
+      modeTexte: reponse.mode,
+      rapport,
+      spec: specCorrige,
+      noteTexte: reponse.note,
+      // Borné au maximum du schéma : un texte refusé peut annoncer n'importe quel nombre de pages.
+      pagesTexte: Array.isArray(pagesEcrites) ? Math.min(pagesEcrites.length, LIMITES.pagesMax) : undefined,
+    };
   } catch {
     await bloquer("La réponse du texte est incomplète");
     return;
@@ -316,7 +327,7 @@ export async function refaire(id: string, deps: DependancesCarrousels): Promise<
     await transiter(
       id,
       "brouillon",
-      { versionSpec: frais.versionSpec + 1, spec: undefined, rapport: undefined, rendu: undefined, renduDemandeLe: undefined, erreur: undefined, valideLe: undefined, pourquoi: undefined, noteTexte: undefined },
+      { versionSpec: frais.versionSpec + 1, spec: undefined, rapport: undefined, rendu: undefined, renduDemandeLe: undefined, erreur: undefined, valideLe: undefined, pourquoi: undefined, noteTexte: undefined, pagesTexte: undefined },
       deps,
     );
   });

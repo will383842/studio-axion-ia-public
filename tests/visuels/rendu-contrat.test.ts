@@ -4,7 +4,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { OPERATIONS, ErreurRendu, type DemandeRendu } from "../../studio-rendu/src/contrat";
-import { creerVisuelPage, extraireMesure, formaterMesure, type DependancesVisuelPage } from "../../studio-rendu/src/operations/visuel-page";
+import { creerVisuelPage, erreurDeValidation, extraireMesure, formaterMesure, type DependancesVisuelPage } from "../../studio-rendu/src/operations/visuel-page";
 import { CONTENU_ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
 
 const lire = (chemin: string) => readFileSync(chemin, "utf8");
@@ -285,5 +285,9 @@ describe("M2-01 · opération visuel-page", () => {
       deposer: async () => {},
     };
     await expect(creerVisuelPage(deps)(demande({ proprietes }), contexte())).rejects.toMatchObject({ erreur: { code: "refuse", reessayable: false } });
+  });
+  it("une version de composition refusée (mise en ligne en cours) est indisponible et réessayable ; les autres refus restent des refus", () => {
+    expect(erreurDeValidation("Version de composition inconnue : visuel-page/9").erreur).toEqual({ code: "indisponible", reessayable: true, message: "Version de composition inconnue : visuel-page/9" });
+    expect(erreurDeValidation("Spec de carrousel invalide : pages trop courtes").erreur).toMatchObject({ code: "refuse", reessayable: false });
   });
 });

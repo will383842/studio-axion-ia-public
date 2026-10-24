@@ -25,6 +25,7 @@ async function carte(v: Visuel, deps: DependancesVues): Promise<VueCarrouselCart
     libelleStatut: LIBELLES_STATUT[v.statut],
     ...(v.rapport ? { verdict: v.rapport.verdict } : {}),
     nbPages: v.spec?.pages.length ?? 0,
+    ...(!v.spec && v.pagesTexte ? { pagesTexte: v.pagesTexte } : {}),
     ...(v.rendu ? { vignetteUrl: await deps.urlLecture(v.rendu.vignetteCle) } : {}),
     modifieLe: v.modifieLe,
     ...(v.corbeilleLe ? { joursRestantsCorbeille: joursRestants(v.corbeilleLe, Date.parse(deps.maintenant())) } : {}),

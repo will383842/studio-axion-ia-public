@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FIXTURES_AXION } from "../../src/visuels/texte/fixtures";
 import { CHARTE_CARROUSEL } from "../../src/briques/visuels/charte-carrousel";
+import { interditsDans, LISTE_INTERDITS } from "../../src/domaine/qualite-script/regles/interdits";
 import { noterCarrousel, type MesuresPage, type MesuresRendu } from "../../src/domaine/controles-visuel/note";
 
 const { encre, creme } = CHARTE_CARROUSEL.couleurs;
@@ -188,8 +189,13 @@ describe("note sur 100 : jamais « présenté » si la porte refuse", () => {
     expect(r.verdict).toBe("bloque");
     expect(critere(r, 1).raison).toMatch(/même type/i);
   });
-  it("un mot de la liste partagée autre que Grenoble est refusé par défaut", () => {
-    const spec = avecPage(1, { type: "T10", message: "Une formation certifiée Qualiopi pour vous" });
+  it("un mot de la liste partagée autre que la ville est refusé par défaut", () => {
+    // Le mot est lu dans la liste publique (pas recopié) : la première entrée de « Écrire », hors ville, que son propre libellé déclenche.
+    const expression = LISTE_INTERDITS.filter((i) => i.portee.includes("ecrire"))
+      .map((i) => i.libelle.replace(/\(.*\)/g, "").replace(/[«»]/g, "").trim())
+      .find((t) => !/villeexemple/i.test(t) && interditsDans(t, "ecrire").length > 0);
+    expect(expression).toBeDefined();
+    const spec = avecPage(1, { type: "T10", message: `Une formation : ${expression}` });
     const r = noterCarrousel(spec, sain(), { valeurHumaine: 8 });
     expect(critere(r, 1).bloquant).toBe(true);
     expect(r.verdict).toBe("bloque");

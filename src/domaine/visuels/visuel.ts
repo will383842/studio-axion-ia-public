@@ -25,6 +25,8 @@ export interface Visuel {
   statut: StatutVisuel;
   modeTexte: ModeTexte;
   spec?: CarrouselSpecType;
+  /** Nombre de pages du texte écrit, gardé même quand la porte le refuse (le spec, lui, n'est alors pas gardé). */
+  pagesTexte?: number;
   pourquoi?: string[];
   versionSpec: number;
   rapport?: RapportPorte;
