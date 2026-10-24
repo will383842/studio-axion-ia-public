@@ -5,7 +5,7 @@ import React from "react";
  * du texte de la charte : le seul mot orange de l'écran reste le chiffre de la variante.
  */
 import type { DonneesEcranChiffresRendu } from "./donnees";
-import { ANTON, c01, doux, encre, INTER, progres, rebond, tailleAnton, type CadreChiffres } from "./outils";
+import { ANTON, c01, doux, encre, INTER, progres, rebond, scinderChiffre, tailleAnton, type CadreChiffres } from "./outils";
 
 /** Hauteur d'une rangée de la pile (chiffre-clé de 112 px, ≥ 96). */
 export const RANGEE_PILE = 132;
@@ -44,7 +44,7 @@ export function planPile(d: DonneesEcranChiffresRendu, cadre: CadreChiffres, t: 
   return d.chiffres
     .map((c, i) => ({ c, i }))
     .filter((x) => x.i !== d.focal)
-    .map((x, j) => ({ ...x, y: haut + j * r, hauteur: r, taille: Math.max(96, Math.min(112, r * 0.9, tailleAnton(x.c.texte, COL_CHIFFRE, 112))) }));
+    .map((x, j) => ({ ...x, y: haut + j * r, hauteur: r, taille: Math.max(96, Math.min(112, r * 0.9, tailleAnton(scinderChiffre(x.c.texte, x.c.legende).texte, COL_CHIFFRE, 112))) }));
 }
 
 /** « 80 % » compte de 0 à 80 ; un chiffre composé (« 24h/24 ») claque tel quel. */
@@ -63,12 +63,13 @@ export function Pile({ d, t, cadre, tailleFocale }: { d: DonneesEcranChiffresRen
         const x = progres(t, c.t, 0.32);
         const opacite = c01(x * 4);
         if (opacite <= 0) return null;
+        const { texte, legende } = scinderChiffre(c.texte, c.legende);
         return (
           <div key={i} style={{ position: "absolute", left: 72, top: y, width: 936, height: hauteur, display: "flex", alignItems: "center", gap: 36 }}>
             <div style={{ width: COL_CHIFFRE, flex: "none", display: "flex", justifyContent: "flex-end" }}>
-              <div style={{ ...ANTON, fontSize: taille, color: encre(d.fond), whiteSpace: "nowrap", opacity: opacite, transform: `scale(${1.6 - 0.6 * rebond(x)})`, transformOrigin: "100% 50%" }}>{compte(c.texte, progres(t, c.t, 0.7))}</div>
+              <div style={{ ...ANTON, fontSize: taille, color: encre(d.fond), whiteSpace: "nowrap", opacity: opacite, transform: `scale(${1.6 - 0.6 * rebond(x)})`, transformOrigin: "100% 50%" }}>{compte(texte, progres(t, c.t, 0.7))}</div>
             </div>
-            {c.legende ? <div style={{ ...INTER, fontSize: 60, color: encre(d.fond), opacity: progres(t, c.t + 0.15, 0.35), maxWidth: 400 }}>{c.legende}</div> : null}
+            {legende ? <div style={{ ...INTER, lineHeight: 1.05, fontSize: 60, color: encre(d.fond), opacity: progres(t, c.t + 0.15, 0.35), maxWidth: 400 }}>{legende}</div> : null}
           </div>
         );
       })}
