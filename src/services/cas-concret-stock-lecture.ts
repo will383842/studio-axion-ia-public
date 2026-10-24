@@ -10,6 +10,7 @@ import { depots } from "./_commun";
 import { exigerSession } from "./auth";
 import { scriptsValidesDe } from "./cas-concret-scripts-lot";
 import { lireCasRetires } from "./cas-concret-retires";
+import { lireCasAjoutes } from "./cas-concret-ajoutes-lecture";
 import { lireCasTraites } from "./cas-concret-traites";
 import { construireStockCas, type LigneStock } from "./cas-concret-stock";
 import type { ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
@@ -27,7 +28,7 @@ export async function lireStockCas(montants?: Record<string, number>, catalogueE
   await exigerSession();
   // Un cas retiré par Will n'est ni compté ni listé (absent : lu ici).
   const lesRetires = retires ?? (await lireCasRetires());
-  const catalogue = casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu, stockMetiers }).map((x) => x.cas).filter((c) => !lesRetires.has(c.id));
+  const catalogue = casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu, stockMetiers }).map((x) => x.cas).concat(await lireCasAjoutes()).filter((c) => !lesRetires.has(c.id));
   const [lues, valides] = await Promise.all([depots().videos.lister((v) => v.formatId === FORMAT_CAS_CONCRET_ID), scripts ?? scriptsValidesDe(catalogue.map((c) => c.id))]);
   // Une pause « script à valider » (échec marqué par son dernier travail) compte comme traitée, comme dans l'anti-doublon.
   const enEchec = lues.filter((v) => statutEffectif(v) === "echec");

@@ -10,9 +10,9 @@
  */
 import "server-only";
 import type { Id } from "@/domaine/types";
-import { estCasStock, trouverCas } from "@/formats/cas-concret/catalogue";
+import { estCasStock } from "@/formats/cas-concret/catalogue";
 import { formaterMontant } from "@/lib/montants";
-import { coutNouvelEssaiEcritureCentimes, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
+import { casDesEntrees, coutNouvelEssaiEcritureCentimes, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { depots, ErreurStudio } from "./_commun";
 import { exigerSession } from "./auth";
 import { REGLAGES_CAS_CONCRET, reglageAllume } from "./cas-concret-reglages";
@@ -76,7 +76,8 @@ export async function relancerEtapeCasConcret(travailId: Id, accord?: number | t
   let annonce = "";
   const claudeActif = dep.claudeActif ?? (async () => (await import("./depense-claude-video")).claudeTextesActif());
   if (enEchec.some((e) => e.cle === "ecriture") && commande && (await claudeActif())) {
-    const cas = trouverCas(lireEntreesCasConcret(commande.entrees).casId ?? "");
+    // Le cas DE LA VIDÉO (un cas ajouté à la main est figé dans sa commande) : le prix du nouvel essai porte sur lui.
+    const cas = casDesEntrees(lireEntreesCasConcret(commande.entrees));
     if (cas) {
       const centimes = coutNouvelEssaiEcritureCentimes(cas, commande);
       annonce = annonceEcriture(centimes);

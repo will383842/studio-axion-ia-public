@@ -59,6 +59,11 @@ export interface EntreesCasConcret {
   ficheCle?: string;
   /** P2S · porte B : le cas construit depuis la description (brut, validé par `casDesEntrees`), jamais au catalogue. */
   cas?: unknown;
+  /**
+   * AJOUTER UN CAS · porte A : le cas AJOUTÉ À LA MAIN, gardé tel quel avec la vidéo (brut, validé par `casDesEntrees`). Le moteur est
+   * pur et synchrone : il ne lit pas la base, donc le cas qu'il fabrique est CE cas figé au lancement, jamais une relecture.
+   */
+  casFige?: unknown;
   /** P2S · porte B : le texte libre de Will dont le cas vient (la garde d'honnêteté est rejouée avant le prix). */
   description?: string;
   /** P2S · porte B : les faits « à confirmer » que Will a confirmés. */
@@ -87,6 +92,7 @@ export function lireEntreesCasConcret(entrees: CommandeFabrication["entrees"] | 
     ...(texteNonVide(b.codeSuivi) ? { codeSuivi: b.codeSuivi.trim() } : {}),
     ...(texteNonVide(b.ficheCle) ? { ficheCle: b.ficheCle } : {}),
     ...(typeof b.nouveauScript === "number" && Number.isInteger(b.nouveauScript) && b.nouveauScript >= 1 ? { nouveauScript: b.nouveauScript } : {}),
+    ...(porte === "porte-a" && b.casFige && typeof b.casFige === "object" && !Array.isArray(b.casFige) ? { casFige: b.casFige } : {}),
     ...(porte === "porte-b" && b.cas && typeof b.cas === "object" ? { cas: b.cas } : {}),
     ...(porte === "porte-b" && texteNonVide(b.description) ? { description: b.description } : {}),
     ...(porte === "porte-b" && Array.isArray(b.faitsConfirmes) ? { faitsConfirmes: b.faitsConfirmes.filter(texteNonVide) } : {}),

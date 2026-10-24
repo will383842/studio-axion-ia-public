@@ -6,6 +6,7 @@ import { ListeCasRetires } from "@/components/formats/cas-concret/stock/ListeCas
 import { lireSession } from "@/services/auth";
 import { lireRetraits } from "@/services/cas-concret-retires";
 import { reglageAllume, REGLAGES_CAS_CONCRET } from "@/services/cas-concret-reglages";
+import { lireEntreesCasAjoutes } from "@/services/cas-concret-ajoutes-lecture";
 
 export const metadata: Metadata = { title: "Cas retirés" };
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function PageCasRetires() {
   if (!(await lireSession())) redirect("/connexion");
   const [retraits, catalogueEtendu, stockMetiers] = await Promise.all([lireRetraits(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers)]);
-  const cas = listerCasRetires(retraits, { catalogueEtendu, stockMetiers });
+  const cas = listerCasRetires(retraits, { catalogueEtendu, stockMetiers }, Object.values(await lireEntreesCasAjoutes()));
   return (
     <div className="mx-auto max-w-2xl">
       <EnTetePage titre="Cas retirés" sousTitre="Ces cas ne sont plus proposés. Remettez-en un pour le revoir dans la liste." retour={{ href: "/cas-concret", libelle: "Cas concret MD" }} />

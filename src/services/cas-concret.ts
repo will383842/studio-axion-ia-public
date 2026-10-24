@@ -14,7 +14,7 @@
 import type { EntreeRole } from "@/generateur/roles/types";
 import "server-only";
 import { empreinteCas, type CasConcret } from "@/formats/cas-concret/cas";
-import { CATALOGUE } from "@/formats/cas-concret/catalogue";
+import { CATALOGUE, trouverCas } from "@/formats/cas-concret/catalogue";
 import { FORMAT_VOIX_DE_REFERENCE, fournisseurVoixPermis, VALIDITE_CAS_JOURS, type ReseauCas } from "@/formats/cas-concret";
 import { reseauxDuMot } from "@/formats/cas-concret/mots-branches";
 import { recettePour, type IdBloc } from "@/formats/cas-concret/recette";
@@ -40,6 +40,8 @@ import { cleCas, marquerAttentes, statutEffectif, type Confirmation, type Niveau
 import { verifierSujet as verifierSujetTraite } from "./sujets-traites";
 import { estCasTraite, PHRASE_CAS_TRAITE } from "./cas-concret-traites";
 import { lireCasRetires, PHRASE_CAS_RETIRE } from "./cas-concret-retires";
+import { estCasAjoute, lireCasAjoutes } from "./cas-concret-ajoutes-lecture";
+import { refusDoublonAvecCatalogue } from "@/moteurs/montage-cas-concret/cas-ajoutes";
 
 
 /**
@@ -93,11 +95,25 @@ export async function listerCas(dependances: { maintenant?: number } = {}): Prom
   const validations = await lireParametre<Validations>(CLE_VALIDATIONS, {});
   const maintenant = dependances.maintenant ?? Date.now();
   const sortie: ListeCas = { valides: [], aValider: [] };
-  for (const cas of CATALOGUE) {
+  // Les cas ajoutés à la main suivent ceux du catalogue (à valider tant que Will ne les a pas validés).
+  for (const cas of [...CATALOGUE, ...(await lireCasAjoutes())]) {
     const empreinte = empreinteCas(cas);
     (estValide(cas, empreinte, validations, maintenant) ? sortie.valides : sortie.aValider).push({ cas, empreinte });
   }
   return sortie;
+}
+
+const verrouValidations = creerVerrou();
+
+/**
+ * LA seule écriture d'une validation de Will (`casConcret.validations`) : relue puis écrite sous un verrou commun, pour qu'une
+ * validation et un ajout de cas simultanés ne s'écrasent jamais. Utilisée par `confirmerCas` et par l'ajout d'un cas.
+ */
+export async function ecrireValidation(casId: string, empreinte: string, valideLe: string): Promise<void> {
+  await verrouValidations(async () => {
+    const validations = await lireParametre<Validations>(CLE_VALIDATIONS, {});
+    await ecrireParametre(CLE_VALIDATIONS, { ...validations, [casId]: { empreinte, valideLe } });
+  });
 }
 
 /** Will valide un cas : l'empreinte courante et la date sont gardées dans le réglage, une ligne va au journal. */
@@ -107,8 +123,7 @@ export async function confirmerCas(casId: string, dependances: { maintenant?: nu
   if (!cas) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
   if ((await lireCasRetires()).has(cas.id)) throw new ErreurStudio("CAS_RETIRE", PHRASE_CAS_RETIRE);
   const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString();
-  const validations = await lireParametre<Validations>(CLE_VALIDATIONS, {});
-  await ecrireParametre(CLE_VALIDATIONS, { ...validations, [cas.id]: { empreinte: empreinteCas(cas), valideLe } });
+  await ecrireValidation(cas.id, empreinteCas(cas), valideLe);
   await journaliser("cas-concret", `Cas validé : ${cas.titre}`);
   return { casId: cas.id, valideLe };
 }
@@ -238,7 +253,9 @@ async function controleAvantPrix(casId: string, choix: ChoixAvantPrix, maintenan
   const dejaTraite = cas && !porteB ? await estCasTraite(cas.id) : false;
   // Cas retiré par Will : refus net, avant le prix et avant toute création (jamais la porte B).
   const retire = cas && !porteB ? (await lireCasRetires()).has(cas.id) : false;
-  const refus = dejaTraite ? PHRASE_CAS_TRAITE : retire ? PHRASE_CAS_RETIRE : refusAvantPrix({
+  // Cas ajouté à la main : son mot ou son thème ne doit pas être aussi celui d'un cas du catalogue ou du stock (importé après l'ajout).
+  const doublon = cas && !porteB && estCasAjoute(cas.id) ? refusDoublonAvecCatalogue(cas) : null;
+  const refus = dejaTraite ? PHRASE_CAS_TRAITE : retire ? PHRASE_CAS_RETIRE : doublon ?? refusAvantPrix({
     cas,
     ...(choix.empreinteVue ? { empreinteVue: choix.empreinteVue } : {}),
     reseaux,
@@ -445,6 +462,9 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
     ...(demande.empreinteScriptRelu && !ecarte ? { scriptRelu: demande.empreinteScriptRelu } : {}),
     // LOT F : le numéro du script validé écarté ; un script plus récent (validé ensuite par Will) est, lui, rejoué.
     ...(ecarte ? { nouveauScript: ecarte.numero ?? 1 } : {}),
+    // AJOUTER UN CAS : un cas ajouté à la main (hors catalogue) part FIGÉ avec la vidéo : le moteur, pur et synchrone, ne lit pas la
+    // base ; moteur, boucle et relance relisent donc le même cas, même après un redémarrage ou pendant une mise en ligne.
+    ...(!c.porteB && !trouverCas(cas.id) ? { casFige: structuredClone(cas) } : {}),
   };
 
   let videoId: Id;

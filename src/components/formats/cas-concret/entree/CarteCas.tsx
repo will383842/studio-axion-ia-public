@@ -4,7 +4,7 @@
 import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
 import { libelleSecteur } from "../stock/filtres-stock";
-import type { VueCas } from "./vue";
+import { MENTION_AJOUTE, type VueCas } from "./vue";
 
 export function CarteCas({ cas, onOuvrir }: { cas: VueCas; onOuvrir: () => void }) {
   return (
@@ -14,6 +14,7 @@ export function CarteCas({ cas, onOuvrir }: { cas: VueCas; onOuvrir: () => void 
           <Pastille ton={cas.posture === "Chez nous" ? "sauge" : "orange"}>{cas.posture}</Pastille>
           <Pastille>{cas.offreLibelle}</Pastille>
           {cas.nature && <Pastille>{cas.nature}</Pastille>}
+          {cas.ajoute && <Pastille ton="sauge">{MENTION_AJOUTE}</Pastille>}
           {cas.stock?.secteur && <Pastille>{libelleSecteur(cas.stock.secteur)}</Pastille>}
           {cas.stock?.taille && <Pastille>{cas.stock.taille}</Pastille>}
           {cas.vraisEcrans && <Pastille ton="ambre">Vrais écrans</Pastille>}
