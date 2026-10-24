@@ -1,10 +1,15 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { DepotMemoire } from "@/donnees/memoire";
+import type { Porte } from "../../src/domaine/visuels/contrats";
+import type { Visuel } from "../../src/domaine/visuels/visuel";
+import { creerDepuisSujet, type DependancesCarrousels } from "@/visuels/services/carrousels";
+import { creerFournisseurSimulation } from "../../src/visuels/texte/simulation";
 import { TYPES_PAGE } from "../../src/briques/visuels/registre-pages";
 import { dessinsDuCarrousel, ILLUSTRATIONS_FIXES, illustrationCouverture } from "../../src/briques/visuels/choix-illustration";
 import { controlerCarrousel } from "../../src/domaine/controles-visuel/porte";
 import { controlesStructure, controlesSurfaceOrange } from "../../src/domaine/controles-visuel/rythme";
-import { controlesMemoire, empreinteCarrousel, recentsAEviter, MEMOIRE_CARROUSELS } from "../../src/domaine/controles-visuel/memoire-carrousels";
+import { controlesMemoire, empreinteCarrousel, recentsAEviter, repete, MEMOIRE_CARROUSELS } from "../../src/domaine/controles-visuel/memoire-carrousels";
 import { FAMILLE_VARIETE, SURFACE_ORANGE } from "../../src/domaine/visuels/familles-pages";
 import { CarrouselSpec } from "../../src/domaine/visuels/schema";
 import type { ContextePorte } from "../../src/domaine/visuels/contrats";
@@ -166,5 +171,43 @@ describe("L7 : nombre écrit dans un titre", () => {
   });
   it("couverture et message : aucun élément à compter, rien n'est contrôlé", () => {
     expect(de("NOMBRE_TITRE", lu({ ...couverture, titre: "Sept bons réflexes" }, grille, liste(), avantApres, etapes(), message, fin))).toEqual([]);
+  });
+});
+
+describe("L7 : mémoire branchée à la fabrication", () => {
+  it("la simulation ne reprend pas la suite ni la couverture d'un carrousel récent", async () => {
+    const f = creerFournisseurSimulation();
+    const premier = await f.ecrire({ type: "sujet", sujet: "Ranger son bureau" });
+    const recents = [empreinteCarrousel(premier.spec as CarrouselSpecType)];
+    const second = await f.ecrire({ type: "sujet", sujet: "Ranger son bureau", eviter: recents });
+    expect(repete(empreinteCarrousel(second.spec as CarrouselSpecType), recents)).toBe(false);
+    // Sans mémoire : même sujet, même modèle (reproductible).
+    expect((await f.ecrire({ type: "sujet", sujet: "Ranger son bureau" })).spec).toEqual(premier.spec);
+  });
+  it("le service passe les 5 derniers carrousels à l'écriture et à la porte", async () => {
+    const depot = new DepotMemoire<Visuel>();
+    const a = lu(couverture, grille, liste(), avantApres, etapes(), message, fin);
+    for (let i = 0; i < 7; i++) {
+      await depot.enregistrer({ id: `vis_${i}`, famille: "carrousel", titre: "T", entree: { type: "sujet", sujet: `sujet ${i}` }, statut: "ecrit", modeTexte: "simulation", spec: a, versionSpec: 1, coutCentimes: 0, creeLe: `2026-10-0${i + 1}T00:00:00.000Z`, modifieLe: "x" });
+    }
+    const ecrire = vi.fn(async () => ({ titre: "Titre", spec: a, pourquoi: [], mode: "simulation" as const }));
+    const porte = vi.fn(((s: unknown, c: ContextePorte) => controlerCarrousel(s, c)) as Porte);
+    const deps: DependancesCarrousels = {
+      depot,
+      texte: () => ({ mode: "simulation", ecrire }) as never,
+      porte,
+      contextePorte: async () => ({ interditsDans: () => [], faitsDisponibles: true }),
+      allume: async () => true,
+      rendre: async () => ({}) as never,
+      urlLecture: async (c) => c,
+      verrou: (f) => f(),
+      maintenant: () => "2026-10-20T00:00:00.000Z",
+      lireParametre: async <T>(_: string, d: T) => d,
+      ecrireParametre: async () => undefined,
+    };
+    await creerDepuisSujet("Un sujet exemple type", deps);
+    const eviter = (ecrire.mock.calls[0] as unknown as [{ eviter?: unknown[] }])[0].eviter;
+    expect(eviter).toHaveLength(MEMOIRE_CARROUSELS);
+    expect(porte.mock.calls[0][1].recents).toHaveLength(MEMOIRE_CARROUSELS);
   });
 });
