@@ -5,15 +5,16 @@ import { branchementsReels, type chargerModulesReels } from "@/services/tableau-
 
 type Modules = Awaited<ReturnType<typeof chargerModulesReels>>;
 
-function modules(idExterne: string | null) {
+function modules(idExterne: string | null, plus: { voix?: { id: string; nom: string; fournisseur: string; statut: string }[]; personnage?: Record<string, unknown>; ids?: Record<string, string> } = {}) {
   const resoudreFournisseur = vi.fn(() => ({ mode: "simulation" }));
   const m = {
     commun: {
       depots: () => ({
-        personnages: { obtenir: async () => ({ id: "p1", nom: "Moi" }) },
-        voix: { lister: async () => [{ id: "v1", nom: "Ma voix", fournisseur: "heygen", statut: "pret" }] },
+        personnages: { obtenir: async () => ({ id: "p1", nom: "Moi", ...plus.personnage }) },
+        videos: { obtenir: async () => null },
+        voix: { lister: async () => plus.voix ?? [{ id: "v1", nom: "Ma voix", fournisseur: "heygen", statut: "pret" }] },
       }),
-      ressourceActive: async () => (idExterne ? { idExterne } : null),
+      ressourceActive: async (id: string) => (plus.ids ? { idExterne: plus.ids[id] } : idExterne ? { idExterne } : null),
       lireParametre: async () => 1,
     },
     fournisseurs: { resoudreFournisseur },
@@ -43,5 +44,28 @@ describe("tableau animé : branchements réels", () => {
     const { m, resoudreFournisseur } = modules(VOIX_MAITRE_HEYGEN_ID);
     await expect(branchementsReels("p1", "v1", async () => m)).rejects.toThrow(/voix d'essai/);
     expect(resoudreFournisseur).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("tableau animé : la voix choisie par défaut passe avant la première voix prête (24/10/2026)", () => {
+  const deux = [
+    { id: "ancienne", nom: "Ma voix HeyGen", fournisseur: "heygen", statut: "pret" },
+    { id: "nouvelle", nom: "Ma voix HeyGen", fournisseur: "heygen", statut: "pret" },
+  ];
+  const ids = { ancienne: "77ea2dbe3115461a911cfe478e22bc48", nouvelle: VOIX_MAITRE_HEYGEN_ID };
+  it("avec la voix par défaut sur la nouvelle : la garde est passée (puis la voix d'essai est refusée, hors sujet ici)", async () => {
+    const { m, resoudreFournisseur } = modules(null, { voix: deux, personnage: { voixParDefautId: "nouvelle" }, ids });
+    await expect(branchementsReels("p1", "v1", async () => m)).rejects.toThrow(/voix d'essai/);
+    expect(resoudreFournisseur).toHaveBeenCalledTimes(1);
+  });
+  it("sans voix par défaut : la première (l'ancienne) est refusée par la garde, aucun fournisseur appelé", async () => {
+    const { m, resoudreFournisseur } = modules(null, { voix: deux, ids });
+    await expect(branchementsReels("p1", "v1", async () => m)).rejects.toBeInstanceOf(VoixNonEpingleeError);
+    expect(resoudreFournisseur).not.toHaveBeenCalled();
+  });
+  it("la voix par défaut sur l'ancienne voix est toujours refusée par la garde", async () => {
+    const { m, resoudreFournisseur } = modules(null, { voix: deux, personnage: { voixParDefautId: "ancienne" }, ids });
+    await expect(branchementsReels("p1", "v1", async () => m)).rejects.toBeInstanceOf(VoixNonEpingleeError);
+    expect(resoudreFournisseur).not.toHaveBeenCalled();
   });
 });
