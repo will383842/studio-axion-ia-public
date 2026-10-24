@@ -8,8 +8,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { controlerFinDeVoix, lireSilencedetect, lireWav, recalerCoupesSurSilences, silencesMesures } from "@/moteurs/montage-cas-concret/fin-de-voix";
-import { planRaccordVoix } from "@/moteurs/montage-cas-concret/recette-voix";
+import { REGLES_FIN_DE_VOIX, REGLES_RECALAGE_CAS_CONCRET, controlerFinDeVoix, lireSilencedetect, lireWav, recalerCoupesSurSilences, silencesMesures } from "@/moteurs/montage-cas-concret/fin-de-voix";
+import { RECETTE_VOIX_CAS_CONCRET, planRaccordVoix } from "@/moteurs/montage-cas-concret/recette-voix";
 
 const SONS = join(__dirname, "sons");
 const wav = (nom: string) => lireWav(readFileSync(join(SONS, nom)));
@@ -132,5 +132,75 @@ describe("coupes dans un silence mesuré", () => {
     const r = recalerCoupesSurSilences(p, { corps: [corps.mots[0], { ...corps.mots[1], finSec: 1.3 }], fin: fin.mots }, { 0: silencesCorps, 1: silencesFin });
     expect(r.plan).toEqual(p);
     expect(r.coupesDeplacees).toBe(0);
+  });
+});
+
+describe("coupe déjà dans un blanc mais à quelques ms de son début (v-0250d2cedaa6)", () => {
+  // « deux. » finit à 1,20 s : la recette coupe à 1,30 s ; le blanc mesuré commence à 1,29 s (10 ms avant la coupe).
+  const corps = { mots: [{ mot: "un", debutSec: 0.2, finSec: 0.5 }, { mot: "deux.", debutSec: 0.7, finSec: 1.2 }], dureeSec: 2 };
+  const fin = { mots: [{ mot: "trois.", debutSec: 0.3, finSec: 0.8 }], dureeSec: 1.5 };
+  const silencesFin = [{ debutSec: 0, finSec: 0.3 }, { debutSec: 0.8, finSec: 1.5 }];
+  const blancs = (debut: number) => [{ debutSec: 0, finSec: 0.2 }, { debutSec: 0.5, finSec: 0.7 }, { debutSec: debut, finSec: 2 }];
+  const dernier = (p: ReturnType<typeof planRaccordVoix>) => p.morceaux.filter((m) => m.source === 0 && !m.silence).at(-1)!;
+
+  it("(a) avec les réglages du cas concret, la coupe garde 0,04 s de blanc ; mots et durée suivent", () => {
+    const p = planRaccordVoix(corps, fin);
+    expect(dernier(p).finSec).toBeCloseTo(1.3, 3);
+    const r = recalerCoupesSurSilences(p, { corps: corps.mots, fin: fin.mots }, { 0: blancs(1.29), 1: silencesFin }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET);
+    expect(dernier(r.plan).finSec).toBeCloseTo(1.33, 4);
+    expect(r.coupesDeplacees).toBe(1);
+    expect(r.plan.mots[2].debutSec - p.mots[2].debutSec).toBeCloseTo(0.03 / 1.08, 3);
+    expect(r.plan.dureeSec - p.dureeSec).toBeCloseTo(0.03 / 1.08, 3);
+    expect(r.plan.mots.slice(0, 2)).toEqual(p.mots.slice(0, 2));
+  });
+
+  it("(b) avec les réglages par défaut (image→vidéo), le plan est rendu inchangé", () => {
+    const p = planRaccordVoix(corps, fin);
+    const r = recalerCoupesSurSilences(p, { corps: corps.mots, fin: fin.mots }, { 0: blancs(1.29), 1: silencesFin });
+    expect(r.plan).toEqual(p);
+    expect(r.coupesDeplacees).toBe(0);
+    expect(REGLES_FIN_DE_VOIX.queueMinDansBlancSec).toBe(0);
+  });
+
+  it("(c) une coupe déjà à 0,04 s ou plus du début de son blanc ne bouge pas", () => {
+    const p = planRaccordVoix(corps, fin);
+    const r = recalerCoupesSurSilences(p, { corps: corps.mots, fin: fin.mots }, { 0: blancs(1.25), 1: silencesFin }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET);
+    expect(r.plan).toEqual(p);
+    expect(r.coupesDeplacees).toBe(0);
+  });
+
+  it("(d) morceau suivant collé à la coupe : rien ne bouge", () => {
+    const p = planRaccordVoix(corps, fin);
+    const d = dernier(p);
+    const colle = { ...p, morceaux: [...p.morceaux, { ...d, debutSec: d.finSec, finSec: d.finSec + 0.3 }] };
+    const r = recalerCoupesSurSilences(colle, { corps: corps.mots, fin: fin.mots }, { 0: blancs(1.29), 1: silencesFin }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET);
+    expect(r.plan.morceaux[p.morceaux.indexOf(d)].finSec).toBeCloseTo(d.finSec, 4);
+  });
+
+  /** Le vrai cas de LT-02 : deux morceaux du CORPS séparés par un blanc ; `ecart` = distance entre la fin du premier et le début du second. */
+  const deuxMorceaux = (ecart: number) => {
+    const p = planRaccordVoix(corps, fin);
+    const i = p.morceaux.indexOf(dernier(p));
+    const d = p.morceaux[i];
+    const a = { ...d, finSec: d.finSec };
+    const b = { ...d, debutSec: d.finSec + ecart, finSec: d.finSec + ecart + 0.5 };
+    return { p, i, plan: { ...p, morceaux: [...p.morceaux.slice(0, i), a, b, ...p.morceaux.slice(i + 1)] } };
+  };
+
+  it("(e) deux morceaux du corps séparés par le blanc : la fin du premier garde 0,04 s, le début du second ne bouge pas, les mots suivants avancent", () => {
+    const { p, i, plan } = deuxMorceaux(0.5);
+    const r = recalerCoupesSurSilences(plan, { corps: corps.mots, fin: fin.mots }, { 0: blancs(1.29), 1: silencesFin }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET);
+    expect(r.plan.morceaux[i].finSec).toBeCloseTo(1.33, 4);
+    expect(r.plan.morceaux[i + 1].debutSec).toBeCloseTo(plan.morceaux[i + 1].debutSec, 4);
+    expect(r.coupesDeplacees).toBe(1);
+    expect(r.plan.mots[2].debutSec - plan.mots[2].debutSec).toBeCloseTo(0.03 / 1.08, 3);
+    expect(r.plan.mots.slice(0, 2)).toEqual(p.mots.slice(0, 2));
+  });
+
+  it("(f) morceau suivant à 0,02 s de la coupe : la fin s'arrête au début du suivant", () => {
+    const { i, plan } = deuxMorceaux(0.02);
+    const r = recalerCoupesSurSilences(plan, { corps: corps.mots, fin: fin.mots }, { 0: blancs(1.29), 1: silencesFin }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET);
+    expect(r.plan.morceaux[i].finSec).toBeCloseTo(r.plan.morceaux[i + 1].debutSec, 4);
+    expect(r.plan.morceaux[i].finSec).toBeCloseTo(plan.morceaux[i].finSec + 0.02, 4);
   });
 });
