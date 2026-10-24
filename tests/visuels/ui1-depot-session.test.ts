@@ -57,6 +57,7 @@ function monter() {
     contextePorte: async () => ({ faitsDisponibles: false, interditsDans }),
     allume: async () => allume,
     rendre: async () => { throw new Error("pas de rendu ici"); },
+    rendreReseaux: async () => { throw new Error("pas de rendu ici"); },
     urlLecture: async (c: string) => c,
     verrou: (f: () => Promise<unknown>) => { const s = chaine.then(f, f); chaine = s.catch(() => undefined); return s; },
     maintenant: () => "2026-10-23T10:00:00.000Z",

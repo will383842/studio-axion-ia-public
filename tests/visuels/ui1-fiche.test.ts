@@ -23,6 +23,7 @@ function monter() {
     contextePorte: vi.fn(),
     allume: async () => true,
     rendre,
+    rendreReseaux: async () => [],
     urlLecture: async (cle: string) => `https://stockage.invente/${cle}`,
     verrou: (f) => {
       const suite = chaine.then(f, f);
