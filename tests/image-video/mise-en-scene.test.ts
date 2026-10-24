@@ -340,6 +340,21 @@ describe("caméra et lisibilité (Q15)", () => {
       }
     }
   });
+
+  it("liens sans part (part: null) : serveur et studio ne réservent AUCUNE pastille de part, et s'accordent", () => {
+    let vues = 0;
+    for (const nom of NOMS) {
+      for (const b of toiles(ligneDe(nom))) {
+        const sansPart = { ...b.proprietes, schema: { ...b.proprietes.schema, liens: b.proprietes.schema.liens.map((l) => ({ ...l, part: null })) } } as unknown as typeof b.proprietes;
+        const s = calculerScene(sansPart);
+        const serveur = cadrageToile(sansPart, s.toile).etiquettes ?? [];
+        expect(serveur.filter((e) => e.id.startsWith("part-")), `${nom} ${b.id}`).toEqual([]);
+        expect(serveur).toEqual(cadrageDeToile(s.toile, sansPart).etiquettes ?? []);
+        vues++;
+      }
+    }
+    expect(vues).toBeGreaterThan(0);
+  });
 });
 
 describe("scène « Ensemble », bénéfices, repère", () => {
