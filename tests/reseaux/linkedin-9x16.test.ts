@@ -1,6 +1,8 @@
 /**
- * Décision de Will (19/10/2026) : LinkedIn sort en 9:16 comme les autres réseaux (plus de fichier 4:5 pour LinkedIn).
- * Remplace la décision du 18/10 « LinkedIn = 4:5 partout ».
+ * Décision de Will (24/10/2026, « fais tout selon tes recommandations ») : pour Image → vidéo SEULEMENT, LinkedIn et le fil
+ * Facebook sortent en 4:5, Instagram et le Reel Facebook en 9:16. Cela REMPLACE, pour ce générateur, la décision du 19/10
+ * « LinkedIn en 9:16 » (#580). Les autres générateurs gardent LinkedIn en 9:16 (`ratioPrefere`, `formatsVoulus`, etc.).
+ * Remplace aussi la décision du 18/10 « LinkedIn = 4:5 partout ».
  */
 import { describe, expect, it } from "vitest";
 import type { Ratio } from "@/domaine/types";
@@ -11,7 +13,7 @@ import { FORMATS_PAR_RESEAU_IV, reseauxParFormatIV } from "@/moteurs/montage-ima
 
 const TOUS: Ratio[] = ["9:16", "4:5", "1:1"];
 
-describe("LinkedIn en 9:16", () => {
+describe("LinkedIn en 9:16 (autres générateurs) · 4:5 pour Image → vidéo", () => {
   it("le format préféré de LinkedIn est le 9:16", () => {
     expect(obtenirReseau("linkedin").ratioPrefere).toBe("9:16");
   });
@@ -38,12 +40,13 @@ describe("LinkedIn en 9:16", () => {
     expect(meilleureSortie("linkedin", [ancienne])).toBe(ancienne);
   });
 
-  it("image → vidéo : LinkedIn en 9:16, Facebook garde son fil 4:5", () => {
-    expect(FORMATS_PAR_RESEAU_IV.linkedin).toEqual(["9:16"]);
+  it("image → vidéo (décision du 24/10) : LinkedIn en 4:5, Facebook 9:16 + 4:5, Instagram en 9:16", () => {
+    expect(FORMATS_PAR_RESEAU_IV.linkedin).toEqual(["4:5"]);
     expect(FORMATS_PAR_RESEAU_IV.facebook).toEqual(["9:16", "4:5"]);
+    expect(FORMATS_PAR_RESEAU_IV.instagram).toEqual(["9:16"]);
     expect(reseauxParFormatIV(["linkedin", "facebook"])).toEqual([
-      { format: "9:16", reseaux: ["linkedin", "facebook"] },
-      { format: "4:5", reseaux: ["facebook"] },
+      { format: "9:16", reseaux: ["facebook"] },
+      { format: "4:5", reseaux: ["linkedin", "facebook"] },
     ]);
   });
 });

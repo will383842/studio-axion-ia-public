@@ -68,7 +68,7 @@ describe("piste 2-3 : la voix (ancien état repris) ne cause pas « le bloc n'ap
     const carte = carteFixe("C");
     const m = monde();
     const o = outilsSimules(carte, m);
-    const fini = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
+    const fini = await jusquAuBout(etatInitialIV(demandeEssai(carte, { formats: {} })), o);
     expect(fini.etape).toBe("prete");
     // L'état de prod : voix et pistes gardées, refus posé sur l'étape voix (« Refaire cette partie »).
     const garde = JSON.parse(JSON.stringify({ ...fini, etape: "refusee", refus: { etape: "voix", code: "IV_VOIX", message: "Voix refusée le 15/10.", reessayable: false } })) as EtatFabricationIV;
@@ -123,7 +123,7 @@ describe("piste 3 bis : un écran « micro-objet » sur une carte sans bénéfic
 
   it("bout en bout : script validé par Will avec l'écran « micro-objet » → vidéo prête sur les 5 réseaux (aucun refus IV_MISE_EN_SCENE)", async () => {
     const carte = carteFixe("C");
-    const e = await jusquAuBout(recitReference(etatInitialIV(demandeEssai(carte))), outilsSimules(carte, monde()), ficheMicroObjetC());
+    const e = await jusquAuBout(recitReference(etatInitialIV(demandeEssai(carte, { formats: {} }))), outilsSimules(carte, monde()), ficheMicroObjetC());
     expect(e.refus).toBeUndefined();
     expect(e.etape).toBe("prete");
     expect(entreesMiseEnSceneIV(e)).toHaveLength(e.pistes!.length + (e.courtes ?? []).filter((c) => c.resultat).length);

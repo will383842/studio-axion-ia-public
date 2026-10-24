@@ -532,7 +532,7 @@ export interface CarteReseauIV {
   phrase: string;
   duree?: string;
   fichierCle?: string;
-  /** Format du fichier principal (absent : 9:16 ; 4:5 pour le fil Facebook et les anciennes vidéos LinkedIn). */
+  /** Format du fichier principal (absent : 9:16 ; 4:5 pour LinkedIn seul ; le fil Facebook a son propre champ). */
   format?: "4:5";
   /** Facebook : la vidéo du fil en 4:5, son texte et l'endroit du lien (en plus du Reel 9:16). */
   fil?: { fichierCle: string; duree?: string; texte?: string; consigneLien?: string };
