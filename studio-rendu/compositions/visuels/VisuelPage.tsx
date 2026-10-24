@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { varianteEtapes } from "../../../src/briques/visuels/maquettes-etapes";
 import { espacerPage } from "../../../src/briques/visuels/typographie-francaise";
+import { ContexteCadre, retraitPage, type Cadre } from "./commun/cadre";
 import { pageDuSpec } from "./commun/page";
 import type { PageSpec, ProprietesVisuelPage } from "./commun/types";
 import { T01 } from "./pages/T01";
@@ -20,15 +21,17 @@ import { T27 } from "./pages/T27";
 import { T28 } from "./pages/T28";
 import { T29 } from "./pages/T29";
 
-function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spec"]): ReactElement {
+function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spec"], cadre: Cadre | undefined): ReactElement {
   const total = spec.pages.length;
+  // Couvertures : retraits du cadre en haut et en bas (pastille du titre LinkedIn, bandes carrées de Facebook) ; sans cadre, la marge habituelle.
+  const retrait = retraitPage(cadre);
   switch (page.type) {
     case "T01":
-      return <T01 titre={page.titre} sousTitre={page.sousTitre} index={index} total={total} />;
+      return <T01 titre={page.titre} sousTitre={page.sousTitre} index={index} total={total} retrait={retrait} />;
     case "T01B":
-      return <T01B titre={page.titre} sousTitre={page.sousTitre} index={index} total={total} />;
+      return <T01B titre={page.titre} sousTitre={page.sousTitre} index={index} total={total} retrait={retrait} />;
     case "T01C":
-      return <T01C titre={page.titre} sousTitre={page.sousTitre} index={index} total={total} />;
+      return <T01C titre={page.titre} sousTitre={page.sousTitre} index={index} total={total} retrait={retrait} />;
     case "T02":
       return <T02 titre={page.titre} cartes={page.cartes} index={index} total={total} />;
     case "T06":
@@ -61,9 +64,10 @@ function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spe
 /**
  * Composition VisuelPage (1080 × 1350) : dessine UNE page (`index`) d'un CarrouselSpec déjà validé par le schéma Zod
  * (`src/visuels/proprietes-page.ts`). Tout texte vient du spec, sauf les textes génériques de `textes-fixes.ts` ;
- * la composition n'ajoute ni adresse, ni couleur libre.
+ * la composition n'ajoute ni adresse, ni couleur libre. `cadre` (H2) : retraits des couvertures et pied propre au réseau ; sans cadre, rendu
+ * inchangé (le contexte n'ajoute aucun élément au DOM).
  */
-export function VisuelPage({ spec, index }: ProprietesVisuelPage) {
+export function VisuelPage({ spec, index, cadre }: ProprietesVisuelPage) {
   // Typographie française (espaces insécables) appliquée à TOUS les textes du spec, avant le dessin.
-  return dessiner(espacerPage(pageDuSpec(spec, index)), index, spec);
+  return <ContexteCadre.Provider value={cadre}>{dessiner(espacerPage(pageDuSpec(spec, index)), index, spec, cadre)}</ContexteCadre.Provider>;
 }

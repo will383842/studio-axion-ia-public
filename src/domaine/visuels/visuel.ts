@@ -1,3 +1,4 @@
+import type { Intention } from "../../briques/visuels/trames";
 import type { Id } from "../types";
 import type { RapportPorte } from "./contrats";
 import type { CarrouselSpecType } from "./types";
@@ -21,7 +22,8 @@ export interface Visuel {
   famille: "carrousel";
   /** 120 caractères au plus. */
   titre: string;
-  entree: { type: "sujet"; sujet: string } | { type: "session" };
+  /** `intention` (L12, facultative) : choisit la trame du carrousel ; absente, rien ne change. */
+  entree: { type: "sujet"; sujet: string; intention?: Intention } | { type: "session" };
   statut: StatutVisuel;
   modeTexte: ModeTexte;
   spec?: CarrouselSpecType;

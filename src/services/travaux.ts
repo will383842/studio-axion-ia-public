@@ -796,6 +796,9 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
     const { refusCasDejaTraite } = await import("./cas-concret-traites");
     const phrase = await refusCasDejaTraite(versionAvant.commande.entrees, avant.cibleId);
     if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
+    // Cas retiré par Will : la panne ou la pause de cette vidéo ne se relance pas (rien n'est dépensé).
+    const retire = await (await import("./cas-concret-retires")).refusCasRetire(versionAvant.commande.entrees);
+    if (retire) throw new ErreurStudio("CAS_RETIRE", retire);
   }
   // L3-01 : contrôle du budget du mois (origine de la commande) et des crédits sur le coût RESTANT, réactivation de la
   // réservation et de l'engagement, puis le travail repart, d'un seul tenant sous le verrou des crédits. Le prix du

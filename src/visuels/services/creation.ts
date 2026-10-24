@@ -1,3 +1,4 @@
+import { estIntention } from "../../briques/visuels/trames";
 import type { EtatCreation } from "../../domaine/visuels/etat-creation";
 import { ErreurVisuel, creerDepuisSujet, deposerSession, type DependancesCarrousels } from "./carrousels";
 
@@ -15,9 +16,10 @@ export async function creerDepuisFormulaire(donnees: FormData, deps: Dependances
   const type = donnees.get("type");
   const sujet = typeof donnees.get("sujet") === "string" ? (donnees.get("sujet") as string) : undefined;
   const contenu = typeof donnees.get("contenu") === "string" ? (donnees.get("contenu") as string) : undefined;
+  const intention = donnees.get("intention");
   const garde = { ...(sujet !== undefined ? { sujet } : {}), ...(contenu !== undefined ? { contenu } : {}) };
   try {
-    if (type === "sujet") return await creerDepuisSujet(sujet ?? "", deps);
+    if (type === "sujet") return await creerDepuisSujet(sujet ?? "", deps, estIntention(intention) ? intention : undefined);
     if (type === "paquet-session") return await deposerSession(contenu ?? "", deps);
     return { erreurs: ["Un souci est survenu. Réessayez dans un instant."], ...garde };
   } catch (e) {

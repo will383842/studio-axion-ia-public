@@ -10,6 +10,7 @@ import { ErreurStudio, essayer, type Resultat } from "@/services/_commun";
 import { confirmerCas, estimerCas, preparerEtLancer, type ChoixAvantPrix, type DemandeCasConcret, type EstimationCas, type IssueCasConcret } from "@/services/cas-concret";
 import { trouverCasAutorise } from "@/services/cas-concret-stock-acces";
 import { remettreEnStock } from "@/services/cas-concret-traites";
+import { remettreCas, retirerCas } from "@/services/cas-concret-retires";
 import { avecConsigneVoix } from "@/services/cas-concret-voix";
 import { confirmerFaitPorteB, demarrerPorteB, suivrePorteB, type EtatPorteB } from "@/services/cas-concret-porte-b";
 import { versVueCasPorteB, type VueCas } from "@/components/formats/cas-concret/entree/vue";
@@ -33,6 +34,35 @@ export async function remettreEnStockAction(casId: string): Promise<Resultat<{ r
     return remettreEnStock(casId.trim());
   });
   if (r.ok) revalidatePath("/cas-concret");
+  return r;
+}
+
+/**
+ * « Retirer ce cas » : le cas n'est plus proposé (réversible, session exigée par le service, journalisé). Rien n'est supprimé,
+ * rien n'est fabriqué, rien n'est dépensé.
+ */
+export async function retirerCasAction(casId: string): Promise<Resultat<{ retireLe: string }>> {
+  const r = await essayer(async () => {
+    if (typeof casId !== "string" || !casId.trim()) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
+    return retirerCas(casId.trim());
+  });
+  if (r.ok) {
+    revalidatePath("/cas-concret");
+    revalidatePath("/cas-concret/retires");
+  }
+  return r;
+}
+
+/** « Remettre ce cas » : un cas retiré est de nouveau proposé. */
+export async function remettreCasAction(casId: string): Promise<Resultat<{ remisLe: string }>> {
+  const r = await essayer(async () => {
+    if (typeof casId !== "string" || !casId.trim()) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
+    return remettreCas(casId.trim());
+  });
+  if (r.ok) {
+    revalidatePath("/cas-concret");
+    revalidatePath("/cas-concret/retires");
+  }
   return r;
 }
 
