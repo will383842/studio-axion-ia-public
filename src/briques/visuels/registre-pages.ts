@@ -1,5 +1,5 @@
-/** T22 à T29 : vague 1 des nouveaux gabarits (L9) ; T25 et T29 restent réservés. T29 (relance) entrera ni dense ni de famille « liste » (voir trames.ts). */
-export const TYPES_PAGE = ["T01", "T01B", "T01C", "T02", "T06", "T08", "T10", "T20", "T21", "T22", "T23", "T24", "T26", "T27", "T28"] as const;
+/** T22 à T28 : vague 1 des nouveaux gabarits (L9) ; T29 « relance » (L11), ni dense ni de famille « liste » (voir trames.ts) ; T25 reste réservé. */
+export const TYPES_PAGE = ["T01", "T01B", "T01C", "T02", "T06", "T08", "T10", "T20", "T21", "T22", "T23", "T24", "T26", "T27", "T28", "T29"] as const;
 export type TypePage = (typeof TYPES_PAGE)[number];
 
 export interface DefinitionPage {
@@ -17,7 +17,7 @@ export interface DefinitionPage {
   famille: FamillePage;
 }
 
-export type FamillePage = "couverture" | "cartes" | "liste" | "contraste" | "message" | "etapes" | "cas" | "fin";
+export type FamillePage = "couverture" | "cartes" | "liste" | "contraste" | "message" | "etapes" | "cas" | "appel" | "fin";
 
 export const PAGES: Record<TypePage, DefinitionPage> = {
   T01: { id: "T01", nom: "Couverture A", role: "Première page : grand titre pleine largeur, trait, sous-titre.", cartesMax: 0, elements: { min: 0, max: 0 }, titreMax: 52, famille: "couverture" },
@@ -35,6 +35,7 @@ export const PAGES: Record<TypePage, DefinitionPage> = {
   T26: { id: "T26", nom: "Cas concret", role: "Page de contenu : scénario type (étiquette posée par le code), carte AVANT, flèche, carte AVEC NOUS, bandeau « VOUS : … ».", cartesMax: 0, elements: { min: 2, max: 2 }, titreMax: 30, famille: "cas" },
   T27: { id: "T27", nom: "Checklist", role: "Page de contenu : 4 à 5 affirmations à cocher (interrupteur dessiné), jauge en bas posée par le code.", cartesMax: 0, elements: { min: 4, max: 5 }, titreMax: 30, famille: "liste" },
   T28: { id: "T28", nom: "Schéma de flux", role: "Page de contenu : 3 à 5 nœuds reliés par des flèches, texte court DANS chaque nœud.", cartesMax: 0, elements: { min: 3, max: 5 }, titreMax: 30, famille: "etapes" },
+  T29: { id: "T29", nom: "Relance", role: "Avant-dernière page en général (jamais sombre) : une question directe ou une phrase courte et forte en grand, puis 2 à 3 rappels de ce que le lecteur a vu.", cartesMax: 0, elements: { min: 2, max: 3 }, titreMax: 0, famille: "appel" },
 };
 
 /** Types de couverture : la première page d'un carrousel. */
@@ -127,3 +128,6 @@ export const CAPACITE_CHECKLIST = { ligne: 55 } as const;
 
 /** Budget d'un nœud du schéma de flux (T28). */
 export const CAPACITE_NOEUD = { texte: 24 } as const;
+
+/** Budget de la page de relance (T29) : la relance en capitales ajustées, chaque rappel (2 à 3) sous l'étiquette posée par le code. */
+export const CAPACITE_RELANCE = { relance: 60, rappel: 44 } as const;

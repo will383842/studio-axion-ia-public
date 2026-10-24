@@ -2,13 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { controlerCarrousel } from "../../src/domaine/controles-visuel/porte";
 import { capaciteMotCarte } from "../../src/briques/visuels/registre-pages";
 import type { ContextePorte } from "../../src/domaine/visuels/contrats";
-import { PLACES_T26, placesT02, placesT23, placesT24, placesT28 } from "../../src/briques/visuels/places-mots";
+import { PLACE_T29, PLACES_T26, placesT02, placesT20Maquettes, placesT23, placesT24, placesT28 } from "../../src/briques/visuels/places-mots";
 import { largeurAuFacteur1 } from "../../studio-rendu/compositions/visuels/commun/geometrie";
 import { colonnesT02 } from "../../studio-rendu/compositions/visuels/pages/T02";
+import { colonnesT20Maquettes } from "../../studio-rendu/compositions/visuels/pages/T20";
 import { colonnesT23 } from "../../studio-rendu/compositions/visuels/pages/T23";
 import { colonnesT24, VARIANTES_T24 } from "../../studio-rendu/compositions/visuels/pages/T24";
 import { COLONNES_T26, texteBandeauT26 } from "../../studio-rendu/compositions/visuels/pages/T26";
 import { colonnesT28, VARIANTES_T28 } from "../../studio-rendu/compositions/visuels/pages/T28";
+import { COLONNE_RAPPEL_T29 } from "../../studio-rendu/compositions/visuels/pages/T29";
 
 // Sans les dépendances de studio-rendu (CI ciblée des visuels), « remotion » est simulé : les composants se chargent quand même.
 // Installé, le vrai module est chargé (son chemin résolu n'est pas « remotion »), le test reste le même.
@@ -103,7 +105,7 @@ describe("MOT_TROP_LONG : gabarits à colonnes (largeur réelle du mot)", () => 
 });
 
 describe("MOT_TROP_LONG : la place de la porte est celle du gabarit (copie vérifiée de la géométrie de studio-rendu)", () => {
-  it("T26, T28, T24, T23, T02 : mêmes largeurs au facteur 1", () => {
+  it("T26, T28, T24, T23, T02, T29, T20 à maquettes : mêmes largeurs au facteur 1", () => {
     expect(PLACES_T26.avant).toBe(largeurAuFacteur1(COLONNES_T26.avant));
     expect(PLACES_T26.avec).toBe(largeurAuFacteur1(COLONNES_T26.avec));
     expect(PLACES_T26.outil).toBe(largeurAuFacteur1(COLONNES_T26.outils) - 2 * 16 - 2 * 2);
@@ -114,5 +116,7 @@ describe("MOT_TROP_LONG : la place de la porte est celle du gabarit (copie véri
     }
     for (let n = 2; n <= 4; n++) expect(placesT23(n), `T23 ${n}`).toEqual(colonnesT23(n, true).map(largeurAuFacteur1));
     for (let n = 2; n <= 6; n++) expect(placesT02(n), `T02 ${n}`).toEqual(colonnesT02(n).map(largeurAuFacteur1));
+    expect(PLACE_T29).toBe(largeurAuFacteur1(COLONNE_RAPPEL_T29));
+    for (let n = 3; n <= 5; n++) expect(placesT20Maquettes(n), `T20 maquettes ${n}`).toEqual(colonnesT20Maquettes(n).map(largeurAuFacteur1));
   });
 });

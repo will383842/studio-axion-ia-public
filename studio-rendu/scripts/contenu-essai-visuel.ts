@@ -1,4 +1,4 @@
-import { CAPACITE_ANNOTATION, CAPACITE_CAS, CAPACITE_CHECKLIST, CAPACITE_CITATION, CAPACITE_COMPARAISON, CAPACITE_MYTHE, CAPACITE_NOEUD, CAPACITE_PANNEAU, capaciteCarte, capaciteMotCarte, capaciteEtape, capaciteListe, capaciteQuestion, PAGES, type TypePage } from "../../src/briques/visuels/registre-pages.js";
+import { CAPACITE_ANNOTATION, CAPACITE_CAS, CAPACITE_CHECKLIST, CAPACITE_CITATION, CAPACITE_COMPARAISON, CAPACITE_MYTHE, CAPACITE_NOEUD, CAPACITE_PANNEAU, CAPACITE_RELANCE, capaciteCarte, capaciteMotCarte, capaciteEtape, capaciteListe, capaciteQuestion, PAGES, type TypePage } from "../../src/briques/visuels/registre-pages.js";
 import { LIMITES } from "../../src/briques/visuels/limites.js";
 
 /**
@@ -252,6 +252,8 @@ export function casMax(type: TypePage, texte: FabriqueTexte = texteInvente): Cas
       return nombres(min, max).map((n) => ({ nom: `${n} lignes au maximum`, page: { type, titre, lignes: Array.from({ length: n }, (_, i) => ({ texte: texte(CAPACITE_CHECKLIST.ligne, i) })) } }));
     case "T28":
       return nombres(min, max).map((n) => ({ nom: `${n} nœuds au maximum`, page: { type, titre, noeuds: Array.from({ length: n }, (_, i) => ({ texte: texte(CAPACITE_NOEUD.texte, i), icone: ICONES_ESSAI[i] })) } }));
+    case "T29":
+      return nombres(min, max).map((n) => ({ nom: `${n} rappels au maximum`, page: { type, relance: texte(CAPACITE_RELANCE.relance), rappels: Array.from({ length: n }, (_, i) => ({ texte: texte(CAPACITE_RELANCE.rappel, i + 2) })) } }));
   }
 }
 
@@ -291,6 +293,8 @@ export function casMin(type: TypePage): CasPage[] {
       return [{ nom: `${n} lignes courtes`, page: { type, titre, lignes: Array.from({ length: n }, (_, i) => ({ texte: texteInvente(MIN_TEXTE, i) })) } }];
     case "T28":
       return [{ nom: `${n} nœuds courts`, page: { type, titre, noeuds: Array.from({ length: n }, (_, i) => ({ texte: texteInvente(MIN_TITRE - 4, i) })) } }];
+    case "T29":
+      return [{ nom: `${n} rappels courts`, page: { type, relance: texteInvente(MIN_TEXTE), rappels: Array.from({ length: n }, (_, i) => ({ texte: texteInvente(MIN_TEXTE, i + 2) })) } }];
   }
 }
 

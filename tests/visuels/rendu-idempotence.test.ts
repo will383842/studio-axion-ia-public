@@ -190,8 +190,8 @@ describe("M2-03 · service de rendu des visuels (rendu simulé)", () => {
     expect(max).toBeLessThanOrEqual(2);
   });
 
-  it("VERSION_RENDU est figée à visuel-page/9 (ART-1 modernisation C + A, finitions : T21 sans ronds, rubrique non répétée par le titre, puis H2 : cadre par réseau ; les rendus des versions précédentes ne servent plus)", () => {
-    expect(VERSION_RENDU).toBe("visuel-page/9");
+  it("VERSION_RENDU est figée à visuel-page/10 (ART-1 modernisation C + A, finitions : T21 sans ronds, rubrique non répétée par le titre, H2 : cadre par réseau ; puis T29 et la variante étapes à mini-maquettes ; les rendus des versions précédentes ne servent plus)", () => {
+    expect(VERSION_RENDU).toBe("visuel-page/10");
   });
 
   it("l'empreinte dépend de la version du rendu : même spec, version différente = autre empreinte", () => {

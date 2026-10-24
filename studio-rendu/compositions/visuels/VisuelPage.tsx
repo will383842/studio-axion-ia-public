@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { varianteEtapes } from "../../../src/briques/visuels/maquettes-etapes";
 import { espacerPage } from "../../../src/briques/visuels/typographie-francaise";
 import { ContexteCadre, retraitPage, type Cadre } from "./commun/cadre";
 import { pageDuSpec } from "./commun/page";
@@ -18,6 +19,7 @@ import { T24 } from "./pages/T24";
 import { T26 } from "./pages/T26";
 import { T27 } from "./pages/T27";
 import { T28 } from "./pages/T28";
+import { T29 } from "./pages/T29";
 
 function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spec"], cadre: Cadre | undefined): ReactElement {
   const total = spec.pages.length;
@@ -39,7 +41,7 @@ function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spe
     case "T10":
       return <T10 message={page.message} legende={page.legende} index={index} total={total} />;
     case "T20":
-      return <T20 titre={page.titre} etapes={page.etapes} index={index} total={total} />;
+      return <T20 titre={page.titre} etapes={page.etapes} index={index} total={total} variante={varianteEtapes(page)} />;
     case "T21":
       return <T21 index={index} total={total} variante={varianteFin(spec)} />;
     case "T22":
@@ -54,6 +56,8 @@ function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spe
       return <T27 titre={page.titre} lignes={page.lignes} index={index} total={total} />;
     case "T28":
       return <T28 titre={page.titre} noeuds={page.noeuds} index={index} total={total} />;
+    case "T29":
+      return <T29 relance={page.relance} rappels={page.rappels} index={index} total={total} />;
   }
 }
 

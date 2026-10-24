@@ -115,8 +115,8 @@ describe("fichier de règles unique (M0-03)", () => {
 });
 
 describe("registres", () => {
-  it("pages T01, T01B, T01C, T02, T06, T08, T10, T20, T21, puis la vague 1 (L9) T22, T23, T24, T26, T27, T28", () => {
-    expect([...TYPES_PAGE]).toEqual(["T01", "T01B", "T01C", "T02", "T06", "T08", "T10", "T20", "T21", "T22", "T23", "T24", "T26", "T27", "T28"]);
+  it("pages T01, T01B, T01C, T02, T06, T08, T10, T20, T21, puis la vague 1 (L9) T22, T23, T24, T26, T27, T28, puis T29 (L11)", () => {
+    expect([...TYPES_PAGE]).toEqual(["T01", "T01B", "T01C", "T02", "T06", "T08", "T10", "T20", "T21", "T22", "T23", "T24", "T26", "T27", "T28", "T29"]);
     expect(PAGES.T02.cartesMax).toBe(6);
   });
   it("mini-visuels W01,W02,W03,W06,W07,W25", () => {
