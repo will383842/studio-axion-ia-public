@@ -3,6 +3,7 @@
  * et la relance de l'écriture sert un manque de clarté (jamais un appel de plus). Doubles seulement, aucun appel réel.
  */
 import { describe, expect, it } from "vitest";
+import type { CasConcret } from "@/formats/cas-concret/cas";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
 import { controlerClarte } from "@/moteurs/montage-cas-concret/clarte";
@@ -13,7 +14,8 @@ import { regleAccroche } from "@/moteurs/montage-cas-concret/regles";
 import { RECIT_LT02 } from "../../clarte/recits-de-test";
 
 const FIXE = { videoId: "video-c", versionId: "version-c", habillage: "charte-duo/1", origine: "porte-a" } as const;
-const base = trouverCas("transporteur-demandes-de-cotation")!;
+const { recit: _recit, ...baseSansRecit } = trouverCas("transporteur-demandes-de-cotation")!;
+const base: CasConcret = baseSansRecit;
 const lt02 = { ...base, recit: RECIT_LT02 };
 
 /** Une fiche réduite à ce que lit le contrôle : le type et le texte dit de chaque écran. */

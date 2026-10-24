@@ -46,7 +46,8 @@ export function controlerClarte(fiche: FicheEcrans, cas: Pick<CasConcret, "recit
   const manques: ManqueClarte[] = [];
   const ecrans = fiche.ecrans;
   const dit = (i: number, j: number) => ecrans.slice(i, j).map((e) => e.texteDit).join(" ");
-  const tout = ecrans.map((e) => e.texteDit).join(" ");
+  // Les points d'un sigle lu (« I.A. », « C.R.M. ») ne finissent pas une phrase.
+  const tout = ecrans.map((e) => e.texteDit).join(" ").replace(/(?<![\p{L}\p{N}])(?:\p{Lu}\.){2,}/gu, (m) => m.replace(/\./g, ""));
   const phrases = phrasesDe(tout);
 
   // C4 : phrase trop courte (le préfixe « Avant : » ou « Résultat : » ne compte pas).

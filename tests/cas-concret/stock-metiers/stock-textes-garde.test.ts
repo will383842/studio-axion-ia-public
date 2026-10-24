@@ -6,6 +6,9 @@ import { describe, expect, it } from "vitest";
 import figes from "./stock-champs-figes.json";
 import brut from "@/formats/cas-concret/stock-metiers/stock.json";
 import type { CasConcret } from "@/formats/cas-concret/cas";
+import { raconteUnClient } from "@/domaine/controles-script";
+import { contientExpression } from "@/domaine/controles-script/texte";
+import { TOURNURES_USAGE_REEL, nombresDe, nomsPropres } from "@/moteurs/montage-cas-concret/regles";
 
 /** Même comptage que `nombreMots` de `cas.ts` : on coupe aux espaces. */
 const mots = (t: string): number => t.split(/\s+/).filter(Boolean).length;
@@ -62,5 +65,43 @@ describe("stock de cas · garde des textes (96 fiches)", () => {
       };
     }
     expect(reel).toEqual(attendu);
+  });
+
+  describe("récit (clarté des scripts)", () => {
+    const sansAccent = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    const textes = (c: CasConcret) => (c.recit ? [c.recit.sujet, c.recit.scene, c.recit.exemple] : []);
+
+    it("chaque cas a un récit", () => {
+      expect(cas.filter(({ cas: c }) => !c.recit).map((x) => x.rangement.fiche)).toEqual([]);
+    });
+
+    it("aucun nombre, aucun nom propre, aucune tournure d'usage réel, aucun mot interdit dans le récit", () => {
+      const ecarts: string[] = [];
+      for (const { rangement, cas: c } of cas) {
+        const f = rangement.fiche;
+        for (const t of textes(c)) {
+          if (nombresDe(t).length) ecarts.push(`${f} nombre dans « ${t} »`);
+          if (nomsPropres(t).length) ecarts.push(`${f} nom propre ${nomsPropres(t).join(", ")} dans « ${t} »`);
+          const tournure = TOURNURES_USAGE_REEL.find((x) => contientExpression(t, x));
+          if (tournure) ecarts.push(`${f} tournure d'usage réel « ${tournure} » dans « ${t} »`);
+          if (/grenoble|aucun gain garanti|j['’]aide|faites-le vous-m[eê]me/i.test(t)) ecarts.push(`${f} mot interdit dans « ${t} »`);
+        }
+        if (c.recit && raconteUnClient(c.recit.scene)) ecarts.push(`${f} la scène raconte un client : « ${c.recit.scene} »`);
+      }
+      expect(ecarts).toEqual([]);
+    });
+
+    it("les sujets sont tous distincts et contiennent leurs mots clés", () => {
+      const vus = new Map<string, string[]>();
+      const manques: string[] = [];
+      for (const { rangement, cas: c } of cas) {
+        if (!c.recit) continue;
+        const k = sansAccent(c.recit.sujet);
+        vus.set(k, [...(vus.get(k) ?? []), rangement.fiche]);
+        for (const m of c.recit.motsCles) if (!k.includes(sansAccent(m))) manques.push(`${rangement.fiche} mot clé « ${m} » absent du sujet`);
+      }
+      expect([...vus].filter(([, f]) => f.length > 1)).toEqual([]);
+      expect(manques).toEqual([]);
+    });
   });
 });
