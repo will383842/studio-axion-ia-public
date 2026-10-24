@@ -129,6 +129,16 @@ describe("Voyants", () => {
     const html = renderToStaticMarkup(createElement(Voyants, { rapport: { version: "porte-carrousel/1", verdict: "vert", controles: [], corrections: [] } }));
     expect(html).toContain("Tout est en ordre");
   });
+  it("un seul voyant « Rouge » en tête de liste : pas de voyant global répété par le premier contrôle", () => {
+    const html = renderToStaticMarkup(createElement(Voyants, { rapport }));
+    // Un voyant par contrôle (rouge, orange), aucun en double avant la liste.
+    expect(html.match(/>Rouge</g)).toHaveLength(1);
+    expect(html.match(/>Orange</g)).toHaveLength(1);
+  });
+  it("vert sans contrôle : le voyant global reste, avec la phrase", () => {
+    const html = renderToStaticMarkup(createElement(Voyants, { rapport: { version: "porte-carrousel/1", verdict: "vert", controles: [], corrections: [] } }));
+    expect(html.match(/>Vert</g)).toHaveLength(1);
+  });
 });
 
 describe("RangeePages", () => {
