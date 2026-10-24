@@ -6,14 +6,13 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { MAQUETTES, maquettesDesEtapes } from "@/briques/visuels/maquettes-etapes";
+import { MAQUETTES, maquettesDesEtapes, varianteEtapes } from "@/briques/visuels/maquettes-etapes";
 import { placesDesMots } from "@/briques/visuels/places-mots";
 import { CAPACITE_RELANCE, PAGES, TYPES_PAGE } from "@/briques/visuels/registre-pages";
 import { RUBRIQUES, TEXTES_FIXES_L11 } from "@/briques/visuels/textes-fixes";
 import { controlerCarrousel } from "@/domaine/controles-visuel/porte";
 import { CarrouselSpec } from "@/domaine/visuels/schema";
 import { EXEMPLES_PAGES } from "@/visuels/texte/aide-format";
-import { varianteEtapes } from "../../studio-rendu/compositions/visuels/pages/T20";
 
 const RACINE = new URL("../../studio-rendu/compositions/visuels/", import.meta.url);
 const lire = (f: string) => readFileSync(new URL(f, RACINE), "utf8");
