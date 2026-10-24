@@ -38,6 +38,7 @@ function CarteStock({ l }: { l: LigneStock }) {
           {dernier && <Pastille>Dernière le {dernier}</Pastille>}
         </span>
         <span className="text-[17px] font-semibold text-texte">{l.titre}</span>
+        {l.sujet && <span className="text-[15px] text-texte">{l.sujet}</span>}
         <span className="text-[13px] text-texte-doux">
           {[l.posture === "chez-nous" ? "Chez nous" : "Notre offre", offre, l.theme].filter(Boolean).join(" · ")}
         </span>

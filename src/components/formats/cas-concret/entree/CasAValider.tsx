@@ -14,6 +14,7 @@ export function CasAValider({ cas, occupe, onValider, onEssai }: { cas: readonly
         {cas.map((c) => (
           <Carte as="li" key={c.id} className="list-none bg-surface-2">
             <p className="text-[17px] font-semibold text-texte">{c.titre}</p>
+            {c.recit && <p className="mt-1 text-[15px] text-texte">{c.recit.sujet}</p>}
             <p className="mt-1 text-[15px] text-texte-doux">{c.promesse}</p>
             {c.faits.length > 0 && (
               <ul className="mt-3 space-y-1 text-sm text-texte-doux">
