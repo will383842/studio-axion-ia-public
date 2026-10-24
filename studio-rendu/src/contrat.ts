@@ -19,7 +19,8 @@ export type OperationRendu =
   | "mixage"
   | "extrait"
   | "visuel-page"
-  | "assemblage-pdf";
+  | "assemblage-pdf"
+  | "toile-continue"; // file courte : toile large rendue puis découpée
 
 export interface ErreurFournisseur {
   code: "fichier-inaccessible" | "indisponible" | "refuse" | "quota" | "inconnu";
@@ -61,6 +62,7 @@ export const OPERATIONS: readonly OperationRendu[] = [
   "extrait",
   "visuel-page",
   "assemblage-pdf",
+  "toile-continue",
 ];
 
 /** Contexte donné à une opération : progression (0-100) et dossier de travail temporaire. */
