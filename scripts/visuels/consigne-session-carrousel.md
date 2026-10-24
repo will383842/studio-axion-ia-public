@@ -38,13 +38,14 @@ Aucune autre clé n'est admise, ni dans le paquet ni dans la spec. Aucun lien, a
 | T06 | `titre`, `points` (3 à 4, chacun `texte`) | titre 30 ; par point : 3 points 110, 4 points 52 (le rang est une pastille numérotée dessinée par le code) |
 | T08 | `titre`, `avant`, `apres` | titre 30, chaque panneau 50 |
 | T10 | `message`, `legende` (facultative), `deco` (facultatif) | message 50, légende 60 |
-| T20 | `titre`, `etapes` (3 à 5, chacune `titre`, `corps`) | titre 30 ; par étape : 3 étapes 30 / 76, 4 étapes 26 / 44, 5 étapes 28 / 36 (titre / corps) |
+| T20 | `titre`, `etapes` (3 à 5, chacune `titre`, `corps`), `variante` (facultative : `maquettes`) | titre 30 ; par étape : 3 étapes 30 / 76, 4 étapes 26 / 44, 5 étapes 28 / 36 (titre / corps) |
 | T22 | `titre`, `mythe`, `realite` | titre 30, mythe 60, réalité 80 |
 | T23 | `titre`, `questions` (2 à 4, chacune `question`, `aide`, `icone` facultative), `annotation` | titre 30 ; par question : 2 questions 56 / 72, 3 questions 44 / 52, 4 questions 34 / 36 (question / aide) ; annotation 40 |
 | T24 | `titre`, `lignes` (3 à 5, chacune `sans`, `avec`) | titre 30 ; chaque case 24, aucun mot de plus de 15 signes |
 | T26 | `titre`, `avant` (2 lignes), `avec` (2 lignes), `outils` (facultatif, 3 au plus), `vous` | titre 30 ; chaque ligne 35, chaque outil 16, vous 44 |
 | T27 | `titre`, `lignes` (4 à 5, chacune `texte`) | titre 30 ; chaque ligne 55 |
 | T28 | `titre`, `noeuds` (3 à 5, chacun `texte`, `icone` facultative) | titre 30 ; chaque nœud 24 |
+| T29 | `relance`, `rappels` (2 à 3, chacun `texte`) | relance 60 ; chaque rappel 44 |
 | T21 | aucun | aucun |
 
 Un texte plus long que son budget est refusé à la lecture du paquet.
@@ -61,6 +62,8 @@ Un type n'est choisi que si le CONTENU a déjà cette forme ; on ne tord jamais 
 - **T26 cas concret** : un scénario inventé et vraisemblable (jamais un client réel), deux constats avant, deux changements avec nous, et ce que le lecteur y gagne (`vous`, sans chiffre ni promesse). L'étiquette « Scénario type · exemple illustratif » est posée par le code ; trois cas concrets au plus par carrousel. `outils` : des noms génériques en texte (« Tableur partagé »), jamais une marque.
 - **T27 checklist** : de 4 à 5 affirmations auxquelles on répond « oui » ou « non » sur sa propre situation. La phrase de la jauge est posée par le code.
 - **T28 schéma de flux** : un circuit qui s'enchaîne vraiment (une étape mène à la suivante), de 3 à 5 étapes très courtes. Pour une méthode avec explications, préférer T20.
+- **T29 relance** : avant-dernière page en général (jamais sombre) ; `relance` est une question directe au lecteur ou une phrase courte et forte, `rappels` redit en peu de mots ce qu'il a vu dans le carrousel (sans rien d'inédit). L'étiquette « CE QUE VOUS AVEZ VU » est posée par le code.
+- **T20 `variante: "maquettes"`** : chaque étape montre une mini-maquette d'écran dessinée par le code (choisie d'après le texte de l'étape) ; à réserver aux étapes qui se passent vraiment à l'écran. Sans la clé, l'ancienne page étapes.
 - Deux pages de même famille ne se suivent pas : T08, T22 et T24 (contrastes) ; T06, T23 et T27 (listes) ; T20 et T28 (enchaînements).
 
 ## Mise en ligne des types T22 à T28 (L9)
