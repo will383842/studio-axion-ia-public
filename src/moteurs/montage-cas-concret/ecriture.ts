@@ -219,7 +219,7 @@ ${blocExemplesDeRythme()}
 CLARTÉ D'ABORD : quelqu'un qui ne connaît pas le métier doit comprendre la vidéo en l'écoutant une fois.
 - Avant le 3e écran, le sujet est dit en clair : qui, quelle chose, quel problème.
 - Quand <recit> est donné : l'accroche dit son « sujet » ; le « avant » raconte sa « scene » au présent, avec tes mots, en entier ou résumée selon la durée (R21) (les tâches de <avant> restent les cases de la liste) ; ses « mots_cles » sont dits dans les trois premiers écrans.
-- Un seul exemple est suivi d'un bout à l'autre (celui de « exemple » dans <recit>, sinon une chose précise tirée de <avant>) : chaque étape dit ce qui arrive à CETTE chose, jamais une étiquette abstraite.
+- Un seul exemple est suivi d'un bout à l'autre (celui de « exemple » dans <recit>, sinon une chose précise tirée de <avant>) : chaque étape dit ce qui arrive à CETTE chose, jamais une étiquette abstraite ; une étape ne commence jamais par « Elle », « Il » ou « Tout » sans que la chose soit nommée juste avant.
 - Les étapes de <etapes> sont une source, pas un texte à lire : regroupe-les en 3 temps au plus, et ne dis jamais un titre d'étape seul.
 - La part humaine (<reste_humain>, mot pour mot, R23) se dit à sa place ; puis le bénéfice vécu : la même scène, sans le problème (coaching, audit, formation : ce que la méthode met en place, jamais un résultat obtenu).
 - La question finale porte sur ce même problème.

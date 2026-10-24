@@ -138,7 +138,7 @@ export function blocPatrons(p: PatronsDeLaVideo, recit = false): string {
     "FORME POUR CETTE VIDÉO (une description de la FORME à suivre, jamais une phrase à recopier ; toutes les règles ci-dessus restent vraies) :",
     ...ROLES_PATRON.map((r) => `- ${NOMS_ROLE[r]} : ${p[r].forme}`),
     // Un cas qui a un récit : R03 exige le SUJET à l'accroche ; les formes qui parlent de la promesse se lisent avec lui.
-    ...(recit ? ["Avec <recit> : partout où une forme dit « la promesse du cas », lis « le sujet de <recit> » ; le « avant » raconte la scène (les tâches restent les cases) ; la question finale porte sur le problème du sujet."] : []),
+    ...(recit ? ["Avec <recit> : partout où une forme dit « la promesse du cas », lis « le sujet de <recit> » ; le « avant » raconte la scène (les tâches restent les cases) ; la question finale porte sur le problème du sujet (l'accroche pose le problème du sujet, jamais le gain)."] : []),
   ].join("\n");
 }
 
