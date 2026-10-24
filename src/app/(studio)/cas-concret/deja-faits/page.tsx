@@ -5,6 +5,7 @@ import { listerDejaFaits } from "@/components/formats/cas-concret/stock/deja-fai
 import { ListeDejaFaits } from "@/components/formats/cas-concret/stock/ListeDejaFaits";
 import { lireSession } from "@/services/auth";
 import { lireCasTraites } from "@/services/cas-concret-traites";
+import { lireCasRetires } from "@/services/cas-concret-retires";
 import { reglageAllume, REGLAGES_CAS_CONCRET } from "@/services/cas-concret-reglages";
 
 export const metadata: Metadata = { title: "Cas déjà faits" };
@@ -16,8 +17,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function PageDejaFaits() {
   if (!(await lireSession())) redirect("/connexion");
-  const [traites, catalogueEtendu, stockMetiers] = await Promise.all([lireCasTraites(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers)]);
-  const cas = listerDejaFaits(traites, { catalogueEtendu, stockMetiers });
+  const [traites, catalogueEtendu, stockMetiers, retires] = await Promise.all([lireCasTraites(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers), lireCasRetires()]);
+  const cas = listerDejaFaits(traites, { catalogueEtendu, stockMetiers }, retires);
   return (
     <div className="mx-auto max-w-2xl">
       <EnTetePage titre="Cas déjà faits" sousTitre="Ces cas ont déjà leur vidéo. Remettez-en un en stock pour le refaire." retour={{ href: "/cas-concret", libelle: "Cas concret MD" }} />
