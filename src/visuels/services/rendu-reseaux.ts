@@ -9,7 +9,8 @@ import { canonique, DELAI_RENDU_MS, rendrePageVisuel, VERSION_RENDU, type Depend
  * Rendu d'un carrousel PAR RÉSEAU (H3) : une version par CADRE, pas par réseau. LinkedIn : chaque page en JPEG ×1 et ×2 et le PDF (document
  * LinkedIn, titre de 40 signes au plus). Meta (Instagram ET Facebook) : UNE seule série de JPEG ×1, sans PDF. Chaque version a sa propre
  * empreinte (le cadre y entre) : même spec et même cadre = aucun nouveau rendu. Le rendu sans cadre (`rendreCarrousel`) ne change pas.
- * L'interrupteur du générateur est vérifié avant toute soumission ; une page qui empiète sur une zone réservée du cadre est refusée.
+ * Un carrousel plus long que `pagesMax` d'un réseau demandé est refusé et l'interrupteur du générateur est vérifié, avant toute soumission ;
+ * une page qui empiète sur une zone réservée du cadre est refusée.
  */
 
 export interface PageReseau {
@@ -66,6 +67,10 @@ export async function rendreVersionsReseaux(spec: unknown, reseaux: readonly Res
   const inconnu = reseaux.find((r) => !Object.hasOwn(PROFILS_RESEAUX, r));
   if (inconnu !== undefined) throw new Error(`Réseau inconnu « ${String(inconnu)} »`);
   const { spec: valide } = validerProprietesPage({ spec, index: 0 });
+  for (const r of reseaux) {
+    const max = PROFILS_RESEAUX[r].pagesMax;
+    if (valide.pages.length > max) throw new Error(`Carrousel trop long pour ${r} : ${valide.pages.length} pages pour ${max} au plus`);
+  }
   const groupes = new Map<Cadre, Reseau[]>();
   for (const r of reseaux) {
     const liste = groupes.get(cadreDe(r)) ?? [];

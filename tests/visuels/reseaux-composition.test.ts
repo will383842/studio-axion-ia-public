@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { validerProprietesPage } from "@/visuels/proprietes-page";
-import { compterIntrusions, flecheVisible, retraitPage } from "../../studio-rendu/compositions/visuels/commun/cadre";
+import { compterIntrusions, flecheVisible, retraitPage, TOLERANCE_PX } from "../../studio-rendu/compositions/visuels/commun/cadre";
 import { CONTENU_ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
 
 describe("H2 · cadre dans les propriétés de VisuelPage", () => {
@@ -58,5 +58,12 @@ describe("H2 · intrusions (texte dans une zone interdite du cadre)", () => {
   it("un bord qui touche la zone ne compte pas ; sans cadre, rien ne compte", () => {
     expect(compterIntrusions([{ gauche: 64, haut: 170, droite: 600, bas: 260 }], "linkedin", 0).total).toBe(0);
     expect(compterIntrusions([ligneEnHaut], undefined, 0)).toEqual({ total: 0, parZone: {} });
+  });
+  it("tolérance de 1 px (TOLERANCE_PX de la mesure) : une ligne qui mord d'une fraction de pixel ne compte pas, au-delà oui", () => {
+    expect(TOLERANCE_PX).toBe(1);
+    expect(compterIntrusions([{ gauche: 64, haut: 169.6, droite: 600, bas: 260 }], "linkedin", 0).total).toBe(0);
+    expect(compterIntrusions([{ gauche: 64, haut: 1100, droite: 600, bas: 1215.4 }], "meta", 0).total).toBe(0);
+    expect(compterIntrusions([{ gauche: 64, haut: 168, droite: 600, bas: 260 }], "linkedin", 0).total).toBe(1);
+    expect(compterIntrusions([{ gauche: 64, haut: 1100, droite: 600, bas: 1217 }], "meta", 0).parZone).toEqual({ carreFacebookBas: 1 });
   });
 });

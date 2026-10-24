@@ -1,6 +1,6 @@
 /**
  * ESSAI RÉEL de la composition par réseau (H2) : rend avec le vrai Remotion les trois couvertures (T01, T01B, T01C), titres et sous-titres
- * AU MAXIMUM du schéma (mots courants, puis mots longs), et une page intérieure (T06), sans cadre puis dans les cadres `linkedin` et `meta`.
+ * AU MAXIMUM du schéma (mots courants, puis mots longs ; et un titre T01 maximal en capitales accentuées É, À, Ç), et une page intérieure (T06), sans cadre puis dans les cadres `linkedin` et `meta`.
  * Vérifie sur la mesure du DOM réel : `debordements` = 0, `intrusions` = 0 (aucun texte dans une zone interdite du cadre,
  * `src/briques/visuels/reseaux.ts`), `taillePoliceMin` ≥ 26 px. Puis une page de TEST hors schéma (une page à titre en haut, y ≈ 60,
  * posée en première page du cadre `linkedin`) doit compter `intrusions` ≥ 1 : la mesure voit bien la pastille du titre.
@@ -37,6 +37,10 @@ const FORMES = [
   { nom: "longs", texte: (n: number) => texteMotsLongs(n) },
 ] as const;
 
+/** Titre T01 au MAXIMUM (52 signes), en capitales accentuées (É, À, Ç) : les accents montent au-dessus des capitales, vers la pastille du titre. */
+const TITRE_T01_ACCENTS = "ÉCRITURE À FAÇON : ÇA ÉVITE DÉJÀ LES ÉCARTS DE L’ÉTÉ";
+if ([...TITRE_T01_ACCENTS].length !== PAGES.T01.titreMax) throw new Error(`Titre accentué : ${[...TITRE_T01_ACCENTS].length} signes pour ${PAGES.T01.titreMax}`);
+
 const interieure = { type: "T06", titre: texteInvente(24), points: [{ texte: texteInvente(60) }, { texte: texteInvente(60, 3) }, { texte: texteInvente(60, 6) }] };
 
 function cas() {
@@ -47,6 +51,8 @@ function cas() {
       liste.push({ fichier: `${type.toLowerCase()}-${forme.nom}`, spec: { version: "carrousel/1", alt: "Essai par réseau", pages: [couverture, interieure, { type: "T21" }] }, index: 0 });
     }
   }
+  const accents = { type: "T01", titre: TITRE_T01_ACCENTS, sousTitre: texteInvente(LIMITES.sousTitreMax, 2) };
+  liste.push({ fichier: "t01-accents", spec: { version: "carrousel/1", alt: "Essai par réseau", pages: [accents, interieure, { type: "T21" }] }, index: 0 });
   liste.push({ fichier: "t06-interieure", spec: { version: "carrousel/1", alt: "Essai par réseau", pages: [{ type: "T01", titre: "Une couverture" }, interieure, { type: "T21" }] }, index: 1 });
   return liste;
 }
