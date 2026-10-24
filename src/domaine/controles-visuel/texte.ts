@@ -103,25 +103,36 @@ function estNombreEnLettres(mot: string): boolean {
 }
 
 const FIN_MOT = "(?![\\p{L}\\p{N}])";
-/** Noms qui font d'un « premier du… » un classement (« le premier du mois » n'en est pas un). */
-const NOM_CLASSEMENT = `(?:march[eé]|secteur|france|monde|r[eé]gion|m[eé]tier|pays|europe|classement)${FIN_MOT}`;
-const SUITE_CLASSEMENT_DIRECTE = new RegExp(`^\\s+(?:(?:du|de la|des|de l['’]?)\\s+${NOM_CLASSEMENT}|de france${FIN_MOT}|en france${FIN_MOT}|au monde${FIN_MOT}|mondial${FIN_MOT}|mondiale${FIN_MOT}|national${FIN_MOT}|nationale${FIN_MOT})`, "iu");
-/** « Premier pas / fois / jour… en France » est une étape, pas un rang. */
+/** Zones ou marchés : « premier du marché », « meilleur artisan de la région » (« le premier du mois » n'en est pas un). */
+const NOM_CLASSEMENT = `(?:march[eé]|secteur|france|monde|r[eé]gion|d[eé]partement|ville|m[eé]tier|pays|europe|classement)${FIN_MOT}`;
+const ZONE_NATIONALE = `de france${FIN_MOT}|en france${FIN_MOT}|au monde${FIN_MOT}|mondial${FIN_MOT}|mondiale${FIN_MOT}|national${FIN_MOT}|nationale${FIN_MOT}`;
+/** « du marché », « de la région », « sur son marché », « dans le secteur », « en France », « au monde ». */
+const SUR_ZONE = `(?:(?:du|de la|des|de l['’]?|d['’])\\s*${NOM_CLASSEMENT}|(?:sur|dans)\\s+(?:son|sa|ses|leur|leurs|notre|nos|votre|vos|le|la|les|l['’])\\s*${NOM_CLASSEMENT}|${ZONE_NATIONALE})`;
+/** Acteurs : l'ENTREPRISE ou son offre face aux autres (« le premier client », « le premier salon » ordonnent un événement). */
+const ACTEUR = `(?:cabinet|artisan|fournisseur|entreprise|soci[eé]t[eé]|solution|agence|prestataire|acteur|expert|sp[eé]cialiste|consultant|formateur|organisme|offre|service|outil|logiciel|plateforme|partenaire|r[eé]seau|marque|enseigne|commerce|atelier|bureau|studio|[eé]quipe)s?${FIN_MOT}`;
+const SUITE_CLASSEMENT_DIRECTE = new RegExp(`^\\s+${SUR_ZONE}`, "iu");
+/** « premier [grand] cabinet [d'expertise] de France » : un acteur, puis sa zone ; les mots avant l'acteur ne sont pas des prépositions. */
 const SUITE_CLASSEMENT_PROCHE = new RegExp(
-  `^(?!\\s+(?:pas|fois|[eé]tape|jour|contact|rendez-vous|devis)${FIN_MOT})(?:\\s+\\p{L}+){0,3}?\\s+(?:(?:du|de la|des)\\s+${NOM_CLASSEMENT}|de france${FIN_MOT}|en france${FIN_MOT}|au monde${FIN_MOT}|mondial${FIN_MOT}|mondiale${FIN_MOT}|national${FIN_MOT}|nationale${FIN_MOT})`,
+  `^(?:\\s+(?!(?:du|de|des|d|la|le|les|l)${FIN_MOT})\\p{L}+){0,2}?\\s+${ACTEUR}(?:\\s+[\\p{L}'’]+){0,3}?\\s+${SUR_ZONE}`,
   "iu",
 );
 const NUMERO_UN = /^\s*(?:°|o|º)?\s+un(?![\p{L}\p{N}])/iu;
 const SUITE_LEADER = /^\s+(?:du|de|des|d['’]|sur|dans|en|au|mondial|mondiale|national|nationale|europ[eé]en)(?![\p{L}\p{N}])/iu;
+/** « Nous sommes leaders », « elle est leader », « devenir leader » : l'entreprise se dit leader. */
+const ETRE_LEADER = /(?:^|[^\p{L}])(?:sommes|suis|es|est|sont|êtes|etes|être|etre|devenir|devenu|devenue|devenus|devenues|rester|restons|reste|restent)\s+(?:(?:le|la|les|un|une|des|l['’])\s+)?$/iu;
 
-/** Classement affiché (« premier du marché », « première solution au monde », « leader du secteur », « numéro un »), ou `undefined`. */
+/**
+ * Classement affiché, porté par l'ENTREPRISE ou son offre face aux autres (« premier du marché », « première solution au monde »,
+ * « meilleur artisan de la région », « leader du secteur », « nous sommes leaders », « numéro un »), ou `undefined`.
+ */
 function classementDe(texte: string, index: number, mot: string): string | undefined {
   const n = normaliser(mot);
   const suite = texte.slice(index + mot.length);
   const avant = texte.slice(Math.max(0, index - 12), index);
-  if (/^premiere?s?$/.test(n)) {
+  if (/^premiere?s?$/.test(n) || /^meilleure?s?$/.test(n)) {
     const m = SUITE_CLASSEMENT_DIRECTE.exec(suite) ?? SUITE_CLASSEMENT_PROCHE.exec(suite);
     if (m) return `${mot}${m[0]}`;
+    if (!/^premiere?s?$/.test(n)) return undefined;
     // Une place, un rang ou une position ne classent que dans « à la première place », « au premier rang », « en première position ».
     const rang = /^\s+(place|rang|position)(?![\p{L}\p{N}])/iu.exec(suite);
     if (rang && ((n === "premiere" && /(?:^|\s)[aà]\s+la\s+$/iu.test(avant) && rang[1]!.toLowerCase() !== "rang") || (n === "premier" && /(?:^|\s)au\s+$/iu.test(avant) && rang[1]!.toLowerCase() === "rang") || (n === "premiere" && /(?:^|\s)en\s+$/iu.test(avant) && rang[1]!.toLowerCase() === "position"))) return `${mot}${rang[0]}`;
@@ -130,7 +141,9 @@ function classementDe(texte: string, index: number, mot: string): string | undef
   if (n === "leader" || n === "leaders") {
     const m = SUITE_LEADER.exec(suite);
     if (m) return `${mot}${m[0]}`;
-    return /(?:^|[.!?:;\n–—])\s*$/u.test(texte.slice(0, index)) ? mot : undefined;
+    if (ETRE_LEADER.test(texte.slice(Math.max(0, index - 24), index))) return mot;
+    // Seul en tête de phrase et sans suite (« Leader. ») : un titre qui se proclame ; « Leaders, voici… » est une apostrophe.
+    return /(?:^|[.!?:;\n–—])\s*$/u.test(texte.slice(0, index)) && /^\s*(?:[.!?…]|$)/u.test(suite) ? mot : undefined;
   }
   if ((n === "numero" || n === "n") && NUMERO_UN.test(suite)) return `${mot}${/^\s*\S*\s+un/iu.exec(suite)?.[0] ?? ""}`;
   return undefined;
