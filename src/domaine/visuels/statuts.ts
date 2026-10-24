@@ -36,3 +36,13 @@ export const LIBELLES_STATUT: Record<StatutVisuel, string> = {
   programme: "Programmé",
   publie: "Publié",
 };
+
+/**
+ * Nombre de pages d'un carrousel pour la carte et la fiche : les pages gardées, sinon celles du texte écrit (bloqué par la porte :
+ * « 3 pages, non rendues »), sinon « aucune page ».
+ */
+export function libellePages(c: { nbPages: number; pagesTexte?: number }): string {
+  if (c.nbPages > 0) return `${c.nbPages} ${c.nbPages > 1 ? "pages" : "page"}`;
+  if (c.pagesTexte && c.pagesTexte > 0) return c.pagesTexte > 1 ? `${c.pagesTexte} pages, non rendues` : "1 page, non rendue";
+  return "aucune page";
+}
