@@ -190,8 +190,8 @@ describe("M2-03 · service de rendu des visuels (rendu simulé)", () => {
     expect(max).toBeLessThanOrEqual(2);
   });
 
-  it("VERSION_RENDU est figée à visuel-page/8 (finitions : T21 à variantes, rubrique non répétée par le titre ; les rendus des versions précédentes ne servent plus)", () => {
-    expect(VERSION_RENDU).toBe("visuel-page/8");
+  it("VERSION_RENDU est figée à visuel-page/9 (T10 : la place d'un message court va au bandeau ; les rendus des versions précédentes ne servent plus)", () => {
+    expect(VERSION_RENDU).toBe("visuel-page/9");
   });
 
   it("l'empreinte dépend de la version du rendu : même spec, version différente = autre empreinte", () => {

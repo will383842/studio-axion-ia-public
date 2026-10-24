@@ -14,7 +14,10 @@ interface Proprietes {
   total: number;
 }
 
-/** Bandeau de hauteur fixe : un message court se centre dans la place restante au lieu de laisser un grand aplat orange vide. */
+/**
+ * Hauteur minimale du bandeau. La place laissée par un message court va pour deux tiers au bandeau, pour un tiers à la zone du message (qui le
+ * centre) : un message de deux mots ne laisse plus de grand vide crème au-dessus et au-dessous de lui.
+ */
 const HAUTEUR_BANDEAU = 400;
 const HAUTEUR_MESSAGE = 460;
 
@@ -38,13 +41,12 @@ export function T10({ message, legende, deco = "E13", index, total }: Proprietes
         <Guillemets />
         <div style={{ flex: 1, height: 14, borderRadius: 7, background: COULEURS.orange }} />
       </div>
-      <Zone libelle="T10 : message" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center", margin: "30px 0" }}>
+      <Zone libelle="T10 : message" style={{ flex: "1 0 auto", display: "flex", flexDirection: "column", justifyContent: "center", margin: "30px 0" }}>
         <Titre texte={message} maxLignes={6} hauteurMax={HAUTEUR_MESSAGE} largeur={LARGEUR_TITRE_BORNE} min={TITRE_MIN_MESSAGE} />
       </Zone>
       <div
         style={{
-          flex: "none",
-          height: HAUTEUR_BANDEAU,
+          flex: `2 0 ${HAUTEUR_BANDEAU}px`,
           boxSizing: "border-box",
           display: "flex",
           alignItems: "center",
