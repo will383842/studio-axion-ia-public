@@ -100,7 +100,8 @@ async function OngletAFaire({ valides, aValider, traites, retires, etendu, stock
   const vue = (c: (typeof valides)[number], valide: boolean) => {
     const v = versVueCas(c.cas, c.empreinte, valide, apercus[c.cas.id], ecranFourni);
     const info = avecStock ? infos.get(c.cas.id) : undefined;
-    return info ? { ...v, stock: info } : v;
+    const avecScript = apercus[c.cas.id] && scripts[c.cas.id]?.fourni ? { ...v, scriptFourni: true } : v;
+    return info ? { ...avecScript, stock: info } : avecScript;
   };
   const params = avecStock ? lireParamsStock(searchParams, stock.flatMap((l) => (l.rangement ? [l.rangement.secteur] : []))) : null;
   // Seuls le secteur et la taille d'une ancienne adresse deviennent des filtres de départ : l'état et l'offre n'ont ici aucun contrôle pour les retirer.

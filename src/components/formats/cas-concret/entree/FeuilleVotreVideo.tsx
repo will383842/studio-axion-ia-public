@@ -25,6 +25,7 @@ import { BoutonFabriquer } from "@/components/formats/commun/BoutonFabriquer";
 import { ChoixReseaux } from "@/components/formats/commun/ChoixReseaux";
 import { MENTION_EXEMPLE, OFFRES_PASTILLES, RESEAUX_ECRAN, type VueCas } from "./vue";
 import { ScriptEcrans } from "../fiche-video/ScriptEcrans";
+import { LienMonScript } from "./LienMonScript";
 import type { AvertissementSujet, DejaTraiteCas } from "@/services/cas-concret";
 import { PanneauSujetDejaTraite } from "./PanneauSujetDejaTraite";
 import { choixApresEstimation, choixApresInterrupteur, nouveauScriptPourEstimation, peutFabriquer, sujetAEnvoyer, type ChoixSujet } from "./sujet-deja-traite";
@@ -398,9 +399,17 @@ export function ContenuVotreVideo({
       {/* Nouveau script : le script validé n'est pas utilisé pour cette vidéo, il n'est donc pas montré. */}
       {cas.script && !nouveauScript && (
         <section aria-label="Le script validé">
-          <h3 className="mb-1 text-sm font-semibold text-texte-doux">Le script validé, dit mot pour mot</h3>
+          <h3 className="mb-1 flex flex-wrap items-center gap-2 text-sm font-semibold text-texte-doux">
+            Le script validé, dit mot pour mot
+            {cas.scriptFourni && <Pastille ton="sauge">Votre script</Pastille>}
+          </h3>
           <p className="mb-2 text-sm text-texte-faible">Vous le relirez, et pourrez le modifier, avant le lancement.</p>
           <ScriptEcrans ecrans={cas.script} />
+        </section>
+      )}
+      {!cas.porteB && (
+        <section aria-label="Mon script">
+          <LienMonScript cas={cas} />
         </section>
       )}
       {cas.script && onNouveauScript && (
