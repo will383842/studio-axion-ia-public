@@ -1,6 +1,7 @@
 /**
- * La barre d'onglets de la page « Cas concret MD » : trois LIENS serveur (aucun état dans le navigateur), un onglet actif
- * (`aria-selected`, `aria-current`), lisible à 360 px (les onglets défilent si besoin). Le panneau est rendu par la page.
+ * La barre d'onglets de la page « Cas concret MD » : trois LIENS serveur (aucun état dans le navigateur) dans une navigation,
+ * l'onglet actif porte `aria-current="page"` (ce sont des liens de page, pas des onglets à bascule : aucun rôle tab), lisible à
+ * 360 px (les onglets défilent si besoin). La liste est rendue par la page, dans une section nommée par le lien actif.
  */
 import { cn } from "@/lib/cn";
 import { lienOnglet, ONGLETS, phraseSyntheseOnglets, type OngletId } from "./onglets";
@@ -12,20 +13,17 @@ export function OngletsCasConcret({ actif, nombres, synthese }: { actif: OngletI
   return (
     <div className="mt-4">
       <nav aria-label="Listes des cas">
-        <div role="tablist" aria-label="Listes des cas" className="flex gap-1 overflow-x-auto border-b border-trait">
+        <div className="flex gap-1 overflow-x-auto border-b border-trait">
           {ONGLETS.map((o) => {
             const choisi = o.id === actif;
             return (
               <a
                 key={o.id}
                 id={idOnglet(o.id)}
-                role="tab"
-                aria-selected={choisi}
                 aria-current={choisi ? "page" : undefined}
-                aria-controls={ID_PANNEAU_CAS}
                 href={lienOnglet(o.id)}
                 className={cn(
-                  "inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif",
+                  "inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-orange-vif",
                   choisi ? "border-orange text-texte" : "border-transparent text-texte-doux hover:text-texte",
                 )}
               >
