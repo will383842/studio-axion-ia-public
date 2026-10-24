@@ -6,6 +6,7 @@ import { CarrouselSpec } from "../../domaine/visuels/schema";
 import type { DemandeTexteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
 import type { CarrouselSpecType } from "../../domaine/visuels/types";
 import { FIXTURES_AXION } from "./fixtures";
+import { FIXTURES_TRAMES } from "./fixtures-trames";
 import { ErreurTexteCarrousel } from "./verrou-api";
 
 const SUJET_MAX = 200;
@@ -72,7 +73,8 @@ export function creerFournisseurSimulation(): FournisseurTexteCarrousel {
       if (sujet.length === 0 || sujet.length > SUJET_MAX) {
         throw new ErreurTexteCarrousel("SUJET_INVALIDE", "Le sujet est vide ou trop long.");
       }
-      const fixture = choisirFixture(sujet, demande.version ?? 1);
+      // Une intention choisit la trame (L12) ; sans intention, le choix reste celui d'avant.
+      const fixture = demande.intention ? FIXTURES_TRAMES[demande.intention] : choisirFixture(sujet, demande.version ?? 1);
       const { spec, note } = specAvecSujet(fixture.spec, sujet);
       const couverture = spec.pages[0];
       const titre = "titre" in couverture ? couverture.titre : sujet;

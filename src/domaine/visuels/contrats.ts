@@ -1,8 +1,9 @@
+import type { Intention } from "../../briques/visuels/trames";
 import type { ModeTexte, MotifRefus } from "./visuel";
 import type { StatutVisuel } from "./statuts";
 import type { CarrouselSpecType } from "./types";
 
-export type DemandeTexteCarrousel = { type: "sujet"; sujet: string; version?: number } | { type: "paquet-session"; contenu: string };
+export type DemandeTexteCarrousel = { type: "sujet"; sujet: string; version?: number; intention?: Intention } | { type: "paquet-session"; contenu: string };
 
 export interface ReponseTexteCarrousel {
   titre: string;
