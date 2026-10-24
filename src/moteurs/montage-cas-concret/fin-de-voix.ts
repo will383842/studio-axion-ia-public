@@ -45,6 +45,13 @@ export const REGLES_FIN_DE_VOIX = Object.freeze({
   rallongeMaxSec: 0.35,
   queueSec: 0.04,
   /**
+   * Une coupe DÉJÀ dans un blanc mais à moins de ce temps (s) de son début est rallongée jusqu'à ce temps (dans le blanc,
+   * sans chevaucher le morceau voisin). Prod v-0250d2cedaa6 : coupe à 13,30 s pour un blanc débutant à 13,29 s ; la traîne
+   * du mot (−47 dB brut) devient −30 dB après compresseur + loudnorm, puis le fondu tombe sur le bruit de fond : fausse
+   * « voix coupée net à 9,86 s » (jonction de deux morceaux du corps). 0 = désactivé (image→vidéo ne change pas).
+   */
+  queueMinDansBlancSec: 0 as number,
+  /**
    * Petit son isolé (bruit de bouche, clic) : une chute brutale juste après un son d'au plus ce temps (s), lui-même
    * précédé d'au moins `tenueSec` sous `blancDb`, n'est PAS une coupe en plein mot. Prod v-dcc902c3f3dd, 37,59 s : 40 ms
    * isolés entre ≥ 190 ms et ≥ 100 ms de silence. 0 = désactivé (le cas concret ne change pas).
@@ -205,6 +212,9 @@ export function controlerFinDeVoix(son: Son, dernierMotFinSec: number, regles = 
 const arrondi = (x: number) => +x.toFixed(4);
 const dansUnBlanc = (t: number, s: readonly Silence[]) => s.some((x) => t >= x.debutSec - 1e-6 && t <= x.finSec + 1e-6);
 
+/** Réglages du recalage du cas concret : le contrôle (`REGLES_FIN_DE_VOIX`) est le même, seule la queue minimale est active. */
+export const REGLES_RECALAGE_CAS_CONCRET = Object.freeze({ ...REGLES_FIN_DE_VOIX, queueMinDansBlancSec: 0.04 });
+
 /**
  * Déplace dans le blanc mesuré le plus proche chaque coupe du plan qui tombe en plein son (fin d'un morceau en avant,
  * début en arrière, de `rallongeMaxSec` au plus, sans chevaucher le morceau voisin de la même source). Les mots, la durée,
@@ -233,6 +243,17 @@ export function recalerCoupesSurSilences(
         const vise = Math.min(blanc.debutSec + regles.queueSec, blanc.finSec);
         m.finSec = arrondi(suivant ? Math.min(vise, suivant.debutSec) : vise);
         deplacees++;
+      }
+    } else {
+      const q = regles.queueMinDansBlancSec ?? 0;
+      const dans = q > 0 ? s.find((x) => m.finSec >= x.debutSec - 1e-6 && m.finSec <= x.finSec + 1e-6) : undefined;
+      if (dans && m.finSec - dans.debutSec < q - 1e-6) {
+        const vise = Math.min(dans.debutSec + q, dans.finSec);
+        const nouveau = arrondi(suivant ? Math.min(vise, suivant.debutSec) : vise);
+        if (nouveau > m.finSec + 1e-6) {
+          m.finSec = nouveau;
+          deplacees++;
+        }
       }
     }
     if (!dansUnBlanc(m.debutSec, s)) {
