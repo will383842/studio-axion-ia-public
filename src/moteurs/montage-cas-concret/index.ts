@@ -615,7 +615,11 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   }
   const numeroVersion = await lireNumero?.(versionId);
   // V4-3 : le script validé du cas (services, sinon catalogue) ; une fiche fournie l'emporte (elle saute l'écriture).
-  const scriptCourant = entrees.ficheCle ? null : lireScript ? await lireScript(cas.id) : (scriptValideDuCatalogue(cas.id) ?? null);
+  const scriptLu = entrees.ficheCle ? null : lireScript ? await lireScript(cas.id) : (scriptValideDuCatalogue(cas.id) ?? null);
+  // Un script validé DEPUIS LE STUDIO pour une autre version du cas est périmé : traité comme ABSENT (Claude écrit un nouveau script,
+  // la fabrication s'arrête à « Script à valider », Will valide, la voix n'est payée qu'après). Sinon la fabrication le refusait
+  // (« faites revalider le script ») sans aucun recours dans l'interface. Un script du CATALOGUE périmé reste un refus (défaut de code).
+  const scriptCourant = scriptLu && scriptLu !== scriptValideDuCatalogue(cas.id) && scriptLu.versionCas !== cas.version ? null : scriptLu;
   // LOT F · « Nouveau script » : la vidéo ne rejoue JAMAIS le script du cas. Elle rejoue la dernière version validée qui vient
   // d'ELLE (Will a validé son script écrit : plus récente ou non), sinon elle écrit / reste à « Script à valider » (sa fiche
   // écrite est au journal, aucune réécriture). Ni le script d'une autre vidéo, ni une version modifiée à la relecture.
