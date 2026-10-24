@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
+import { compterIntrusions } from "../commun/cadre";
 import { FORMAT } from "../commun/constantes";
 import { dessinsDe, encreDesTitres, textesTropLarges } from "../commun/occupation";
 import { ATTRIBUT_ZONE_CORPS, boiteEnZoneReservee, collisionsInterligne, compterChevauchements, partVide, type Boite } from "../commun/zones";
@@ -13,8 +14,11 @@ export type ProprietesMesure = ProprietesVisuelPage & { nonce: string };
 
 const TOLERANCE_PX = 1;
 
-/** Habille VisuelPage sans rien y changer : mesure le DOM réel (débordements, plus petit corps de texte) puis l'écrit dans la console. */
-export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
+/**
+ * Habille VisuelPage sans rien y changer : mesure le DOM réel (débordements, plus petit corps de texte) puis l'écrit dans la console.
+ * `intrusions` (H2) : lignes de texte posées dans une zone interdite du cadre (0 sans cadre) ; `intrusion_<zone>` : détail par zone touchée.
+ */
+export function MesureVisuelPage({ spec, index, cadre, nonce }: ProprietesMesure) {
   const racine = useRef<HTMLDivElement>(null);
   // Le rendu attend dès le PREMIER rendu du composant (pas après l'effet) : aucune image prise avant la mesure.
   const [attente] = useState(() => delayRender("Mesure de la page"));
@@ -81,14 +85,16 @@ export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
       const r = corps?.getBoundingClientRect();
       // Les liaisons (flèches de T28) ne comptent pas dans l'occupation : une flèche étirée ne remplit pas une page (ART-1).
       const occupes = racine.current ? dessinsDe(racine.current, { pourVide: true }) : [];
+      const intrusions = compterIntrusions(lignes.map((l) => l.boite), cadre, index);
+      const detail = Object.fromEntries(Object.entries(intrusions.parZone).map(([nom, n]) => [`intrusion_${nom}`, n]));
       const vide = r ? partVide({ haut: r.top, bas: r.bottom }, [...lignes.map((l) => l.boite), ...occupes]) : 0;
-      console.log(formaterMesure(nonce, { debordements, taillePoliceMin: Number.isFinite(taillePoliceMin) ? taillePoliceMin : 0, textes: noeuds.length, textesEnZone, chevauchements, vide, jambages, signesLigneMax }));
+      console.log(formaterMesure(nonce, { debordements, taillePoliceMin: Number.isFinite(taillePoliceMin) ? taillePoliceMin : 0, textes: noeuds.length, textesEnZone, chevauchements, vide, jambages, signesLigneMax, intrusions: intrusions.total, ...detail }));
     };
     mesurer().then(() => continueRender(attente), (e: unknown) => cancelRender(e));
-  }, [nonce, attente]);
+  }, [nonce, attente, cadre, index]);
   return (
     <div ref={racine} style={{ width: FORMAT.largeur, height: FORMAT.hauteur, position: "relative" }}>
-      <VisuelPage spec={spec} index={index} />
+      <VisuelPage spec={spec} index={index} cadre={cadre} />
     </div>
   );
 }
