@@ -43,17 +43,3 @@ export const TEXTES_FIXES_L9 = {
   t26Vous: "VOUS :",
   t27Jauge: "Plus vous répondez «\u00a0oui\u00a0», plus le sujet mérite qu’on s’y arrête.",
 } as const;
-
-/** Minuscules, sans accent, apostrophes et ponctuation ramenées à une espace. */
-const motsCompares = (texte: string): string =>
-  ` ${texte.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `;
-
-/**
- * Rubrique à afficher au-dessus du titre, ou `undefined` quand le titre la dit déjà (« Idée reçue, réalité » sous « IDÉE REÇUE ») :
- * la rubrique, sans son article de tête, est comparée mot pour mot au titre, sans casse ni accents.
- */
-export function rubriqueAffichee(type: TypePageAvecRubrique, titre: string | undefined): string | undefined {
-  const rubrique = RUBRIQUES[type];
-  const coeur = motsCompares(rubrique).replace(/^ (?:le|la|les|l) /u, " ");
-  return titre && motsCompares(titre).includes(coeur) ? undefined : rubrique;
-}

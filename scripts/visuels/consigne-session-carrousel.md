@@ -69,7 +69,7 @@ Tant que ces types ne sont pas en ligne des deux côtés, ne pas les employer. O
 
 1. **studio-rendu D'ABORD** (ou en même temps que le studio) : il porte les gabarits T22 à T28 et publie la mesure `chevauchements`.
 2. Vérifier qu'une page rendue par le nouveau studio-rendu porte bien la mesure `chevauchements` (avec `vide`) dans ses mesures.
-3. **Puis le studio** (`VERSION_RENDU` = `visuel-page/5`) : il refuse toute page dont la mesure `chevauchements` est absente ou vaut 1 ou plus.
+3. **Puis le studio** (`VERSION_RENDU` = `visuel-page/8`) : il refuse toute page dont la mesure `chevauchements` est absente ou vaut 1 ou plus.
 
 Dans l'ordre inverse (studio d'abord), chaque rendu échoue avec « mesure des chevauchements absente (rendu refusé) » : c'est VOULU (aucune
 page non vérifiée n'est publiée) et RÉESSAYABLE une fois studio-rendu mis en ligne. Un spec qui contient T22 à T28 envoyé à un ancien
