@@ -3,6 +3,7 @@ import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
 import { varianteT21, type VarianteT21 } from "../../../../src/briques/visuels/variante-t21";
 import { BORD_DROIT_TEXTE, COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLES } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
+import { BORD_DROIT_TEXTE_BAS } from "../commun/zones";
 import { Swipe } from "../commun/Swipe";
 import { Titre } from "../commun/Titre";
 import { LUCIDE } from "../icones/lucide";
@@ -44,7 +45,8 @@ function BulleMessage() {
 function PhraseEnGrand() {
   const [debut, fin] = TEXTES_FIXES.t21Ligne.split(/(?<=:)\s+/u);
   return (
-    <div style={{ maxWidth: BORD_DROIT_TEXTE - MARGE, fontFamily: POLICE_CORPS, fontWeight: 800, fontSize: TAILLES.phrase * 2, lineHeight: 1.12, letterSpacing: -1.5, color: COULEURS.creme }}>
+    // Bornée au bord du compteur de Meta : la phrase descend sous y = 1080.
+    <div style={{ maxWidth: BORD_DROIT_TEXTE_BAS - MARGE, fontFamily: POLICE_CORPS, fontWeight: 800, fontSize: TAILLES.phrase * 2.65, lineHeight: 1.35, letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
       {debut} <span style={{ color: COULEURS.orange }}>{fin}</span>
     </div>
   );
@@ -69,10 +71,8 @@ export function T21({ index, total, titreCouverture }: Proprietes) {
       <Zone libelle="T21 : corps" style={{ flex: 1, minHeight: 0, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", justifyContent: "space-between", marginBottom: PAGE.ecart }}>
         <Titre texte={TEXTES_FIXES.t21Titre} maxLignes={3} hauteurMax={520} couleur={COULEURS.creme} largeur={LARGEUR_TITRE_BORNE} accent />
         <Milieu variante={variante} />
-        {/* Phrase en grand : centrée entre le titre et le pied (le bloc vide du bas équilibre l'espace), loin du compteur de Meta. */}
-        {variante === "typographie" ? (
-          <div />
-        ) : (
+        {/* Phrase en grand : elle descend jusqu'au pied (lignes équilibrées, interligne large), sans autre ligne en dessous. */}
+        {variante === "typographie" ? null : (
           <div style={{ maxWidth: BORD_DROIT_TEXTE - MARGE, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLES.phrase, lineHeight: 1.3, color: COULEURS.creme }}>{TEXTES_FIXES.t21Ligne}</div>
         )}
       </Zone>
