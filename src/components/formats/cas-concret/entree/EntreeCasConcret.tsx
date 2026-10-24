@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * L'écran « Cas concret MD » : la case, les offres, les cartes des cas validés, le groupe « À valider », la feuille
+ * L'écran de l'onglet « À faire » : la case, les offres, les filtres, « Proposez-moi un cas restant », les cartes « Prêts à
+ * fabriquer » (cas validés), la liste paginée « À valider », la feuille
  * « Votre vidéo ». Trois gestes : choisir un cas, relire la feuille, « Fabriquer la vidéo ».
  * Brique 3 : un cas qui a un script validé passe par « Relire le script » (écran commun) ; le lancement part de là, avec
  * l'empreinte du texte relu, et une modification devient d'abord une nouvelle version validée du script.
@@ -25,6 +26,7 @@ import { CaseDuCas } from "./CaseDuCas";
 import { FeuilleVotreVideo, type ChoixVideo, type EtatVoix } from "./FeuilleVotreVideo";
 import { PastillesOffres } from "./PastillesOffres";
 import { FiltresStock } from "@/components/formats/cas-concret/stock/FiltresStock";
+import { PAR_PAGE } from "@/components/formats/cas-concret/stock/filtres-stock";
 import type { FiltresStock as Filtres } from "@/services/cas-concret-stock-synthese";
 import { filtrerCas, groupesDepuisCas, piocherCas, PHRASE_AUCUN_RESTANT } from "./piocher";
 import { RelireAvantLancement } from "./RelireAvantLancement";
@@ -36,24 +38,31 @@ const RELECTURE_PORTE_B_MS = 1500;
 
 type EtatCase = Exclude<VuePorteB, { statut: "pret" }>;
 
-export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mots, porteB: porteBAllumee = false }: { porteB?: boolean; valides: VueCas[]; aValider: VueCas[]; montants: Record<string, number>; refus?: Record<string, string>; voix?: EtatVoix; mots?: EtatMotsFeuille }) {
+export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mots, filtresInitiaux, porteB: porteBAllumee = false }: { filtresInitiaux?: Filtres; porteB?: boolean; valides: VueCas[]; aValider: VueCas[]; montants: Record<string, number>; refus?: Record<string, string>; voix?: EtatVoix; mots?: EtatMotsFeuille }) {
   const router = useRouter();
   const [occupe, demarrer] = useTransition();
   const [phrase, setPhrase] = useState("");
   const [offre, setOffre] = useState<FiltreOffre>("tous");
   const [ouvert, setOuvert] = useState<{ cas: VueCas; essai: boolean; montant?: number; refus?: string | null } | null>(null);
   const [relecture, setRelecture] = useState<{ cas: VueCas; essai: boolean; choix: ChoixVideo; montant: number } | null>(null);
-  const [filtresStock, setFiltresStock] = useState<Filtres>({});
+  const [filtresStock, setFiltresStock] = useState<Filtres>(filtresInitiaux ?? {});
+  const [page, setPage] = useState(1);
   const [aucunRestant, setAucunRestant] = useState(false);
   const [porteB, setPorteB] = useState<EtatCase | null>(null);
   const [occupeB, demarrerB] = useTransition();
 
   // Lots K4-K5 : filtres du stock, seulement si le serveur a joint le rang du stock aux cas (réglage `casConcret.stockMetiers` allumé).
   const avecStock = useMemo(() => [...valides, ...aValider].some((c) => c.stock), [valides, aValider]);
-  const groupesStock = useMemo(() => (avecStock ? groupesDepuisCas([...valides, ...aValider]) : []), [avecStock, valides, aValider]);
+  // L'onglet est « À faire » : l'état « restants » est implicite, pas de groupe « État ».
+  const groupesStock = useMemo(() => (avecStock ? groupesDepuisCas([...valides, ...aValider]).filter((g) => g.cle !== "etat") : []), [avecStock, valides, aValider]);
   const validesFiltres = useMemo(() => (avecStock ? filtrerCas(valides, filtresStock) : valides), [avecStock, valides, filtresStock]);
   const aValiderFiltres = useMemo(() => (avecStock ? filtrerCas(aValider, filtresStock) : aValider), [avecStock, aValider, filtresStock]);
   const cartes = useMemo(() => classerCas(phrase, validesFiltres.filter((c) => offre === "tous" || c.offre === offre)), [phrase, offre, validesFiltres]);
+  // La recherche et l'offre valent aussi pour « À valider » ; la liste est paginée (la page courante revient à 1 quand le filtre change).
+  const aValiderListe = useMemo(() => classerCas(phrase, aValiderFiltres.filter((c) => offre === "tous" || c.offre === offre)), [phrase, offre, aValiderFiltres]);
+  const pages = Math.max(1, Math.ceil(aValiderListe.length / PAR_PAGE));
+  const pageCourante = Math.min(page, pages);
+  const aValiderPage = aValiderListe.slice((pageCourante - 1) * PAR_PAGE, pageCourante * PAR_PAGE);
 
   /** « Proposez-moi un cas restant » : OUVRE seulement la feuille « Votre vidéo » (aucune fabrication, aucun prix confirmé). */
   function proposerUnCas() {
@@ -61,8 +70,20 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
     setAucunRestant(!choix);
     if (choix) setOuvert({ cas: choix.cas, essai: choix.essai });
   }
+  /** Change de page de « À valider » : le focus et la vue vont sur le titre du groupe (pas de saut perdu pour le clavier). */
+  function changerPage(n: number) {
+    setPage(n);
+    requestAnimationFrame(() => {
+      const titre = document.getElementById("titre-a-valider");
+      if (!titre) return;
+      titre.setAttribute("tabindex", "-1");
+      titre.focus();
+      titre.scrollIntoView?.({ block: "start" });
+    });
+  }
   function changerFiltresStock(f: Filtres) {
     setFiltresStock(f);
+    setPage(1);
     setAucunRestant(false);
   }
 
@@ -174,6 +195,7 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
 
   function changerPhrase(v: string) {
     setPhrase(v);
+    setPage(1);
     // Une phrase d'aide ou un échec s'efface dès que Will réécrit ; une préparation en cours continue.
     if (porteB?.statut !== "en-cours") setPorteB(null);
   }
@@ -211,7 +233,7 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
       <div className="space-y-6">
         <CaseDuCas valeur={phrase} porteB={porteBAllumee} onChange={changerPhrase} onEntree={() => undefined} />
         {caseLibre}
-        <EtatVide icone="baguette" titre="Validez un premier cas." />
+        <EtatVide compact icone="baguette" titre="Aucun cas à faire pour l'instant." />
       </div>
     );
 
@@ -221,28 +243,39 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
     <div className="space-y-6">
       <CaseDuCas valeur={phrase} porteB={porteBAllumee} onChange={changerPhrase} onEntree={() => cartes[0] && setOuvert({ cas: cartes[0], essai: false })} />
       {caseLibre}
-      <PastillesOffres valeur={offre} onChange={setOffre} cas={valides} />
-      {avecStock && (
-        <div className="space-y-3 rounded-carte border border-trait bg-surface-1 p-4">
-          <FiltresStock groupes={groupesStock} actuels={filtresStock} onChange={changerFiltresStock} />
-          <Bouton variante="secondaire" icone="baguette" onClick={proposerUnCas}>
-            Proposez-moi un cas restant
-          </Bouton>
-          {aucunRestant && <p role="status" className="text-[15px] text-texte-doux">{PHRASE_AUCUN_RESTANT}</p>}
-        </div>
+      <PastillesOffres valeur={offre} onChange={(v) => { setOffre(v); setPage(1); }} cas={[...valides, ...aValider]} />
+      <div className="space-y-3">
+        {avecStock && groupesStock.length > 0 && (
+          <div className="rounded-carte border border-trait bg-surface-1 p-4">
+            <FiltresStock groupes={groupesStock} actuels={filtresStock} onChange={changerFiltresStock} />
+          </div>
+        )}
+        <Bouton variante="secondaire" icone="baguette" onClick={proposerUnCas}>
+          Proposez-moi un cas restant
+        </Bouton>
+        {aucunRestant && <p role="status" className="text-[15px] text-texte-doux">{PHRASE_AUCUN_RESTANT}</p>}
+      </div>
+      {cartes.length > 0 && (
+        <section aria-labelledby="titre-prets" className="space-y-3">
+          <h2 id="titre-prets" className="text-[15px] font-semibold text-texte">Prêts à fabriquer ({cartes.length})</h2>
+          <ul className="grid gap-3 p-0 sm:grid-cols-2">
+            {cartes.map((c) => (
+              <CarteCas key={c.id} cas={c} onOuvrir={() => setOuvert({ cas: c, essai: false })} />
+            ))}
+          </ul>
+        </section>
       )}
-      {!valides.length ? (
-        <EtatVide compact icone="baguette" titre="Validez un premier cas." />
-      ) : cartes.length ? (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {cartes.map((c) => (
-            <CarteCas key={c.id} cas={c} onOuvrir={() => setOuvert({ cas: c, essai: false })} />
-          ))}
-        </ul>
-      ) : (
-        <p className="py-6 text-center text-[15px] text-texte-doux">{avecStock && Object.values(filtresStock).some(Boolean) ? "Aucun cas pour ces filtres." : "Aucun cas ne correspond. Essayez un autre mot."}</p>
+      <CasAValider cas={aValiderPage} total={aValiderListe.length} occupe={occupe} onValider={valider} onEssai={(c) => setOuvert({ cas: c, essai: true })} />
+      {pages > 1 && (
+        <nav className="flex items-center justify-between gap-3" aria-label="Pages des cas à faire">
+          {pageCourante > 1 ? <Bouton variante="fantome" onClick={() => changerPage(pageCourante - 1)}>Page précédente</Bouton> : <span />}
+          <span className="text-[13px] text-texte-doux">Page {pageCourante} sur {pages}</span>
+          {pageCourante < pages ? <Bouton variante="fantome" onClick={() => changerPage(pageCourante + 1)}>Page suivante</Bouton> : <span />}
+        </nav>
       )}
-      <CasAValider cas={aValiderFiltres} occupe={occupe} onValider={valider} onEssai={(c) => setOuvert({ cas: c, essai: true })} />
+      {cartes.length === 0 && aValiderListe.length === 0 && (
+        <p className="py-6 text-center text-[15px] text-texte-doux">{Object.values(filtresStock).some(Boolean) ? "Aucun cas pour ces filtres." : "Aucun cas ne correspond. Essayez un autre mot."}</p>
+      )}
       {ouvert && (
         <FeuilleVotreVideo
           key={`${ouvert.cas.id}-${ouvert.essai}-${ouvert.cas.empreinte}-${ouvert.cas.porteB?.aConfirmer.length ?? 0}`}
