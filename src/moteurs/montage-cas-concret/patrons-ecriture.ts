@@ -72,10 +72,23 @@ export const PATRONS_COMPATIBLES: Readonly<Record<Exclude<Structure, "v4-avant-e
 };
 
 /**
+ * Les patrons gardés quand le cas a un récit (`cas.recit`) : jamais « c'est possible » (defi), « le nombre d'abord »
+ * (contraste d'accroche), le détour, le constat « l'ancienne façon ne tenait plus » ni le choix, que le script recopiait
+ * sans les comprendre. Le tableau PATRONS ne change pas (EMPREINTE_PATRONS_V4).
+ */
+export const PATRONS_AVEC_RECIT: Readonly<Partial<Record<RolePatron, readonly string[]>>> = {
+  accroche: ["affirme", "question", "scene"],
+  avant: ["scene"],
+  bascule: ["courte", "regle", "question"],
+  resultat: ["image", "contraste", "libere", "durable"],
+  question: ["metier", "imaginer", "premier"],
+};
+
+/**
  * Les patrons d'une vidéo : même identifiant (et même `sel`), mêmes patrons. Sans structure ou en v4 : le tirage de
  * toujours ; sinon le même hachage, sur la liste des patrons compatibles avec la structure.
  */
-export function patronsDeLaVideo(videoId: string, sel = 0, demandee?: Structure, offre?: Offre, options: { sansChiffre?: boolean } = {}): PatronsDeLaVideo {
+export function patronsDeLaVideo(videoId: string, sel = 0, demandee?: Structure, offre?: Offre, options: { sansChiffre?: boolean; recit?: boolean } = {}): PatronsDeLaVideo {
   const graine = graineDe(`${videoId}#${sel}`);
   // Coaching + « une-journee » : se comporte comme la v4 (voir `structureEffective`).
   const structure = demandee && offre ? structureEffective(offre, demandee) : demandee;
@@ -87,6 +100,11 @@ export function patronsDeLaVideo(videoId: string, sel = 0, demandee?: Structure,
       const ecartes: Partial<Record<RolePatron, readonly string[]>> = { resultat: ["chiffre"], accroche: ["contraste"], avant: ["verbes", "question"] };
       const ecart = ecartes[r];
       if (ecart) liste = liste.filter((p) => !ecart.includes(p.id));
+    }
+    if (options.recit && PATRONS_AVEC_RECIT[r]) {
+      // Un cas qui a un récit : seuls les patrons qui le laissent se comprendre ; si la structure n'en laisse aucun, on garde sa liste.
+      const gardes = liste.filter((p) => PATRONS_AVEC_RECIT[r]!.includes(p.id));
+      if (gardes.length) liste = gardes;
     }
     return liste[hacher32(`${graine}:${r}`) % liste.length]!;
   };

@@ -890,7 +890,7 @@ function varieteDe(entree: EntreeEcriture, commune: MemoireCentrale | null = nul
     anterieurs,
     tolere,
     options: {
-      patrons: patronsDeLaVideo(entree.videoId, sel, entree.structure, entree.cas.offre, { sansChiffre: casSansFaitChiffre(entree.cas) }),
+      patrons: patronsDeLaVideo(entree.videoId, sel, entree.structure, entree.cas.offre, { sansChiffre: casSansFaitChiffre(entree.cas), recit: !!entree.cas.recit }),
       ...(entree.structure ? { structure: blocStructure(entree.structure, entree.cas.offre) } : {}),
       placeResteHumain: placeDuResteHumain(entree.videoId, sel, entree.cas.resteHumainApresEtape, entree.cas.etapes.length),
       memoire: memoireAntiCopie(anterieurs, { tolere }),
