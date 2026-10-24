@@ -5,7 +5,7 @@ import { CATALOGUE_TS } from "@/formats/cas-concret/catalogue/base";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { RECIT_LT02 } from "./recits-de-test";
 
-const lt02 = trouverCas("transporteur-demandes-de-cotation")!;
+const { recit: _recit, ...lt02 } = trouverCas("transporteur-demandes-de-cotation")!;
 const avec = (recit: unknown) => verifierCas({ ...lt02, recit });
 
 describe("recit · contrat du cas", () => {

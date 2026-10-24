@@ -534,6 +534,8 @@ function groupesAvant(taches: readonly string[]): string[][] {
 /** Niveaux de remplissage d'un cas à peu de matière (`gabarit`). */
 const REMPLISSAGES = 3;
 const MARGE_VISEE_MS = 2000;
+/** Cas à récit : place gardée sous le haut de la visée (ms). */
+const MARGE_HAUTE_RECIT_MS = 1000;
 
 export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: DureesFins | null = null): FicheEcrans {
   let fins = finsConnues;
@@ -554,20 +556,37 @@ export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: D
   // sans nombre en écrans « objet ».
   // X7 : si la forme longue reste courte, des écrans sans AUCUN fait nouveau (question développée, puis un titre de
   // transition qui redit la promesse, puis la reprise d'une étape en deux écrans).
-  const essais = [
-    ...Array.from({ length: cas.etapes.length + 1 }, (_, details) => gabarit(cas, fixe, details)),
-    ...Array.from({ length: REMPLISSAGES + 1 }, (_, remplissage) => gabarit(cas, fixe, cas.etapes.length, true, remplissage)),
-  ].filter((f) => f.ecrans.length <= ECRANS_CORPS.max);
+  // Un cas qui a un récit : la scène entière d'abord, puis de plus en plus courte si le corps dépasse la visée.
+  const morceauxDeScene = cas.recit ? decouperScene(cas.recit.scene).length : 0;
+  const scenes: (number | undefined)[] = cas.recit ? [undefined, ...Array.from({ length: Math.max(0, morceauxDeScene - 1) }, (_, i) => morceauxDeScene - 1 - i)] : [undefined];
+  // Puis, si le corps reste trop long, une reprise plus courte (« Pour demandes : … », puis « Demandes : … »).
+  const reprises = cas.recit ? [0, 1, 2] : [0];
+  // Les variantes se calculent groupe après groupe : on s'arrête au premier groupe qui tient la visée (coût du prix indicatif).
+  const groupes = reprises.flatMap((court) => scenes.map((nbScene) => ({ court, nbScene })));
+  const unGroupe = ({ court, nbScene }: { court: number; nbScene: number | undefined }) =>
+    [
+      ...Array.from({ length: cas.etapes.length + 1 }, (_, details) => gabarit(cas, fixe, details, false, 0, nbScene, court)),
+      ...Array.from({ length: REMPLISSAGES + 1 }, (_, remplissage) => gabarit(cas, fixe, cas.etapes.length, true, remplissage, nbScene, court)),
+    ].filter((f) => f.ecrans.length <= ECRANS_CORPS.max);
   const vise = corpsVise(fins);
   const tientVise = (f: FicheEcrans) => corpsMs(f) >= vise.minMs && corpsMs(f) <= vise.maxMs;
   // De préférence avec une marge au-dessus du minimum : la voix réelle lit souvent plus vite que le débit de la recette.
   const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + MARGE_VISEE_MS && corpsMs(f) <= vise.maxMs;
   const tientRefus = (f: FicheEcrans) => corpsMs(f) + fins.plusCourteMs >= DUREE_TOTALE_REFUS_MS.min && corpsMs(f) + fins.plusLongueMs <= DUREE_TOTALE_REFUS_MS.max;
+  // Un cas qui a un récit (corps plus long, estimé au caractère près) : de préférence un corps qui garde de la place sous le haut de la visée.
+  const tientSousLeHaut = (f: FicheEcrans) => tientAvecMarge(f) && corpsMs(f) <= vise.maxMs - MARGE_HAUTE_RECIT_MS;
+  const essais: FicheEcrans[] = [];
+  for (const g of groupes) {
+    const lot = unGroupe(g);
+    essais.push(...lot);
+    const trouve = (cas.recit ? lot.find(tientSousLeHaut) : undefined) ?? lot.find(tientAvecMarge) ?? lot.find(tientVise);
+    if (trouve) return trouve;
+  }
   // Hors de la visée, le corps qui tient dans les bornes de refus au plus près de la visée (V4-2 : le plus long ne l'est
   // plus forcément, une visée manquée de peu par le haut tombait sur le corps le plus long).
   const ecart = (f: FicheEcrans) => Math.max(0, vise.minMs - corpsMs(f), corpsMs(f) - vise.maxMs);
   const proche = essais.filter(tientRefus).sort((a, b) => ecart(a) - ecart(b) || corpsMs(b) - corpsMs(a))[0];
-  return essais.find(tientAvecMarge) ?? essais.find(tientVise) ?? proche ?? gabarit(cas, fixe);
+  return proche ?? gabarit(cas, fixe);
 }
 
 /**
@@ -577,7 +596,7 @@ export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: D
  * promesse ; 3 en plus la reprise d'une étape en deux écrans (le geste, puis la tâche « avant » qu'il évite). Aucun ne
  * porte de fait nouveau : ils redisent la matière du cas.
  */
-function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = false, remplissage = 0): FicheEcrans {
+function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = false, remplissage = 0, nbScene?: number, repriseCourte = 0): FicheEcrans {
   const brouillons: Brouillon[] = [];
   const recette = recettePour(cas);
   const blocs = new Set(recette.map((b) => b.id));
@@ -623,7 +642,7 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   const groupesDeTaches = groupesAvant(courtes.length >= 2 ? courtes : dicibles);
   if (cas.recit) {
     // La scène du récit, dite en morceaux au présent ; les cases sont les tâches « avant » (reprises d'un morceau à l'autre au besoin).
-    decouperScene(sigleLu(cas.recit.scene)).forEach((m, gi) => {
+    decouperScene(sigleLu(cas.recit.scene)).slice(0, nbScene).forEach((m, gi) => {
       const dit = `${gi === 0 ? "Avant : " : ""}${m}`;
       const g = groupesDeTaches[gi % Math.max(1, groupesDeTaches.length)] ?? cas.avant.taches.slice(0, 2);
       brouillons.push({ type: "liste-avant", texteDit: dit, taches: (g.length >= 2 ? g : cas.avant.taches.slice(0, 2)).map((t) => couper(t, MOTS_MAX.ligne)), evenements: evenements(dit, [["tache-1", 5], ["tache-2", 10]], []) });
@@ -668,8 +687,10 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
       detailDit = true;
     }
     // Un cas qui a un récit : l'exemple suivi est repris en tête de la phrase quand elle y tient.
-    const reprise = cas.recit ? `Pour ${cas.recit.exemple} : ` : "";
-    if (reprise && nombreLus(reprise + dit) <= 14) dit = `${reprise}${minusculeInitiale(dit)}`;
+    // (l'exemple en entier, sinon le premier mot clé du sujet : une simulation n'a pas à être élégante).
+    const repriseDe = (texte: string) => cas.recit ? (repriseCourte === 2 ? [`${cas.recit.motsCles[0].charAt(0).toUpperCase()}${cas.recit.motsCles[0].slice(1)} : `] : repriseCourte === 1 ? [`Pour ${cas.recit.motsCles[0]} : `] : [`Pour ${cas.recit.exemple} : `, `Pour ${cas.recit.motsCles[0]} : `]).find((r) => nombreLus(r + texte) <= 14) ?? "" : "";
+    const reprise = repriseDe(dit);
+    if (reprise) dit = `${reprise}${minusculeInitiale(dit)}`;
     const visuel = x.visuel.sorte === "objet" ? { sorte: "objet" as const, objet: x.visuel.objet } : { sorte: "ecran" as const, etapeCas: rang, repli: x.visuel.repli ?? "telephone-capture" };
     const titre = couper(x.titre, MOTS_MAX.titre);
     brouillons.push({ type: "etape", texteDit: dit, numero: i + 1, total: etapes.length, titre, ligne: couper(x.ligne, MOTS_MAX.ligne), visuel, puces: [], evenements: evenements(dit, [], ["ligne", ...relaisDuVisuel(visuel.sorte === "objet" ? visuel.objet : "telephone-capture")]) });
@@ -682,7 +703,8 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
     }
     if (manque > 0 && detailDicible && !detailDit) {
       const ditDetail0 = sigleLu(x.detail);
-      const ditDetail = reprise && nombreLus(reprise + ditDetail0) <= 14 ? `${reprise}${minusculeInitiale(ditDetail0)}` : ditDetail0;
+      const repriseDetail = repriseDe(ditDetail0);
+      const ditDetail = repriseDetail ? `${repriseDetail}${minusculeInitiale(ditDetail0)}` : ditDetail0;
       const objet = visuel.sorte === "objet" ? visuel.objet : visuel.repli;
       brouillons.push({ type: "objet", texteDit: ditDetail, titre, ligne: couper(x.detail, MOTS_MAX.ligne), visuel: { sorte: "objet", objet }, evenements: evenements(ditDetail, [], ["ligne", ...relaisDuVisuel(objet)]) });
       manque--;
@@ -743,7 +765,7 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   }
 
   // Question (développée au remplissage 1).
-  const question = cas.recit ? `Et chez vous, ${minusculeInitiale(sansPointFinal(cas.recit.sujet))} ?` : remplissage >= 1 ? QUESTION_GABARIT_LONGUE : QUESTION_GABARIT;
+  const question = cas.recit ? (repriseCourte === 2 ? `Et chez vous, ${cas.recit.motsCles.slice(0, 2).join(" et ")} ?` : `Et chez vous, ${minusculeInitiale(sansPointFinal(cas.recit.sujet))} ?`) : remplissage >= 1 ? QUESTION_GABARIT_LONGUE : QUESTION_GABARIT;
   brouillons.push({ type: "question", texteDit: question, lignes: ["Et chez vous,", "dans votre entreprise"], question: "Quelle tâche pourrait tourner toute seule ?", evenements: evenements(question, remplissage >= 1 || cas.recit ? [["titre-2", 4], ["question", 9]] : [["question", 4]], []) });
 
   // Un objet vide sans ses textes (liste de tâches, programme) les reçoit ici, comme la complétion les poserait.
