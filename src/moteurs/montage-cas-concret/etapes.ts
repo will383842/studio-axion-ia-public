@@ -55,6 +55,14 @@ export interface EntreesCasConcret {
    * Dès que Will valide un script plus récent que ce numéro, c'est lui qui est rejoué (aucune écriture de plus).
    */
   nouveauScript?: number;
+  /**
+   * PRIX EXACT · le script validé RELU par Will, figé dans la vidéo au lancement (porte A seulement, objet brut relu par
+   * `lireScriptValide`). L'estimation (feuille, lancement, moteur) compte alors SON texte et aucune ligne « Écriture », et la
+   * fabrication le rejoue, jamais une réécriture non réservée. Absent (anciennes commandes) : le prix est celui d'avant.
+   */
+  scriptFige?: unknown;
+  /** Empreinte du texte relu par Will au lancement (posée par les services) : le script joué doit être celui-là. */
+  scriptRelu?: string;
   /** Fiche d'écrans déjà écrite (stockage) : l'écriture est sautée. */
   ficheCle?: string;
   /** P2S · porte B : le cas construit depuis la description (brut, validé par `casDesEntrees`), jamais au catalogue. */
@@ -87,6 +95,8 @@ export function lireEntreesCasConcret(entrees: CommandeFabrication["entrees"] | 
     ...(texteNonVide(b.codeSuivi) ? { codeSuivi: b.codeSuivi.trim() } : {}),
     ...(texteNonVide(b.ficheCle) ? { ficheCle: b.ficheCle } : {}),
     ...(typeof b.nouveauScript === "number" && Number.isInteger(b.nouveauScript) && b.nouveauScript >= 1 ? { nouveauScript: b.nouveauScript } : {}),
+    ...(texteNonVide(b.scriptRelu) ? { scriptRelu: b.scriptRelu } : {}),
+    ...(porte === "porte-a" && b.scriptFige && typeof b.scriptFige === "object" && !Array.isArray(b.scriptFige) ? { scriptFige: b.scriptFige } : {}),
     ...(porte === "porte-b" && b.cas && typeof b.cas === "object" ? { cas: b.cas } : {}),
     ...(porte === "porte-b" && texteNonVide(b.description) ? { description: b.description } : {}),
     ...(porte === "porte-b" && Array.isArray(b.faitsConfirmes) ? { faitsConfirmes: b.faitsConfirmes.filter(texteNonVide) } : {}),

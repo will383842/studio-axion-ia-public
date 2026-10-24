@@ -61,6 +61,12 @@ export interface ScriptValide {
 /** Phrase de l'arrêt quand le script validé ne passe pas les contrôles (suivie des refus exacts). */
 export const PHRASE_SCRIPT_VALIDE_REFUSE = "Le script validé de ce cas ne passe pas les contrôles : la fabrication s'arrête, il n'est jamais corrigé en silence. Faites-le corriger, puis validez-le de nouveau.";
 
+/** PRIX EXACT · le cas a changé depuis le lancement : le script figé ne lui convient plus. Rien à corriger ici, une nouvelle vidéo repart du cas. */
+export const PHRASE_CAS_CHANGE_DEPUIS_LANCEMENT = "Le cas a changé depuis le lancement : fabriquez une nouvelle vidéo depuis le cas. Rien n'a été payé.";
+export const CODE_PRIX_CHANGE = "CAS_CONCRET_PRIX_CHANGE";
+/** PRIX EXACT · le script à jouer n'est plus celui dont le prix a été confirmé (collé ou modifié après le lancement). */
+export const PHRASE_SCRIPT_CHANGE_DEPUIS_PRIX = "Le script a changé depuis le prix confirmé : fabriquez une nouvelle vidéo depuis le cas. Rien n'a été payé pour la voix.";
+
 /** V4-3 · un script écrit par Claude attend la validation de Will : la fabrication s'arrête après la relecture. */
 export const PHRASE_SCRIPT_A_VALIDER = "Le script est écrit et relu : relisez son texte et l'ordre des écrans, puis validez-le. La voix ne sera payée qu'après votre validation.";
 export const CODE_SCRIPT_A_VALIDER = "CAS_CONCRET_SCRIPT_A_VALIDER";

@@ -106,12 +106,12 @@ describe("service : le lancement avec l'option", () => {
     if (r.statut === "accord-requis") expect(r.centimes).toBeGreaterThanOrEqual(avec.centimes);
   });
 
-  it("sans l'option, rien ne change : repère toujours exigé, entrées de la vidéo sans la nouvelle clé", async () => {
+  it("sans l'option, rien ne change : repère toujours exigé, entrées de la vidéo sans la nouvelle clé (le script relu est figé pour le prix exact)", async () => {
     expect(await service.preparerEtLancer(demande(), { lancer })).toEqual({ statut: "refusee", phrase: scripts.PHRASE_SCRIPT_NON_RELU });
     const relu = scripts.empreinteScriptValide(SCRIPT_V4_RECRUTEMENT);
     expect((await service.preparerEtLancer(demande({ empreinteScriptRelu: relu }), { lancer })).statut).toBe("lancee");
     const e = await entreesCasConcret();
-    expect(Object.keys(e).sort()).toEqual(["avecMot", "casId", "codeSuivi", "empreinteCas", "essai", "mot", "motDit", "motSur", "porte", "reseaux", "scriptRelu"]);
+    expect(Object.keys(e).sort()).toEqual(["avecMot", "casId", "codeSuivi", "empreinteCas", "essai", "mot", "motDit", "motSur", "porte", "reseaux", "scriptFige", "scriptRelu"]);
     // `nouveauScript: false` vaut « sans l'option ».
     expect(await service.preparerEtLancer(demande({ nouveauScript: false }), { lancer })).toEqual({ statut: "refusee", phrase: scripts.PHRASE_SCRIPT_NON_RELU });
   });
