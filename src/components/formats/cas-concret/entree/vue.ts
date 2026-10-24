@@ -53,6 +53,8 @@ export interface VueCas {
   posture: string;
   vraisEcrans: boolean;
   etapes: string[];
+  /** Le récit du cas, gratuit et lisible (sans les mots clés) : de quoi parle la vidéo, la scène, l'exemple suivi. Absent : cas du catalogue d'origine. */
+  recit?: { sujet: string; scene: string; exemple: string };
   faits: { id: string; phrase: string; source: string }[];
   mot: string;
   /** Empreinte du cas à l'écran : le serveur refuse si le cas a changé depuis. */
@@ -84,6 +86,7 @@ export function versVueCas(cas: CasConcret, empreinte: string, valide: boolean, 
     posture: cas.posture === "chez-nous" ? "Chez nous" : "Notre offre",
     vraisEcrans: cas.etapes.some((e) => e.visuel.sorte === "ecran"),
     etapes: cas.etapes.map((e) => e.titre),
+    ...(cas.recit ? { recit: { sujet: cas.recit.sujet, scene: cas.recit.scene, exemple: cas.recit.exemple } } : {}),
     faits: cas.faits.map((f) => ({ id: f.id, phrase: f.enonce, source: SOURCES_EN_CLAIR[f.source] })),
     mot: cas.mot,
     empreinte,

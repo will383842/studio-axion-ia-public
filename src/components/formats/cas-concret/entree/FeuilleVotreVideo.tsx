@@ -62,6 +62,8 @@ export interface EstimationFeuille {
 /** Le prix d'un cas ouvert sans montant d'avance n'a pas pu être calculé : le bouton reste inactif. */
 export const PHRASE_PRIX_INTROUVABLE = "Le prix n'a pas pu être calculé. Fermez cette fenêtre et rouvrez le cas.";
 
+/** Ce que la feuille dit du texte exact d'une vidéo dont le cas a un récit : honnête sur le moment et le prix. */
+export const PHRASE_TEXTE_ECRIT_AU_LANCEMENT = "Le texte exact dit dans la vidéo est écrit au lancement (≈ 0,5 €) puis relu par vous avant la voix.";
 export const LIBELLE_NOUVEAU_SCRIPT = "Nouveau script (autre structure)";
 export const PHRASE_NOUVEAU_SCRIPT = "Claude écrit un nouveau script pour cette vidéo, dans une autre structure. Vous le relisez avant que la voix soit payée. Le script validé reste tel quel tant que vous ne validez pas le nouveau.";
 
@@ -347,6 +349,23 @@ export function ContenuVotreVideo({
               </li>
             ))}
           </ul>
+        </section>
+      )}
+      {cas.recit && (
+        <section aria-label="Le récit de la vidéo" className="space-y-2">
+          <div>
+            <h3 className="text-sm font-semibold text-texte-doux">De quoi parle la vidéo</h3>
+            <p className="text-[15px] text-texte">{cas.recit.sujet}</p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-texte-doux">La scène</h3>
+            <p className="text-[15px] text-texte">{cas.recit.scene}</p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-texte-doux">L&apos;exemple suivi</h3>
+            <p className="text-[15px] text-texte">{cas.recit.exemple}</p>
+          </div>
+          <p className="text-sm text-texte-doux">{PHRASE_TEXTE_ECRIT_AU_LANCEMENT}</p>
         </section>
       )}
       <section aria-label="Les étapes">

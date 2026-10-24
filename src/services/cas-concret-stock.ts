@@ -28,6 +28,8 @@ export interface LigneStock {
   nature?: CasConcret["nature"];
   posture: CasConcret["posture"];
   theme?: string;
+  /** De quoi parle la vidéo (une ligne du récit du cas), pour reconnaître le cas d'un coup d'œil. */
+  sujet?: string;
   script: { valide: true; version: number; date: string } | { valide: false };
   videos: {
     /** Toutes celles du cas, sauf archivées et arrêtées. */
@@ -131,6 +133,7 @@ export function construireStockCas(entree: EntreeStock): LigneStock[] {
       ...(cas.nature ? { nature: cas.nature } : {}),
       posture: cas.posture,
       ...(cas.theme ? { theme: cas.theme } : {}),
+      ...(cas.recit ? { sujet: cas.recit.sujet } : {}),
       script: s ? { valide: true, version: s.numero ?? 1, date: s.valideLe } : { valide: false },
       videos: { total, faites: (parEtat["a-relire"] ?? 0) + (parEtat.validee ?? 0), comptees, parEtat, derniere },
       ...(entree.traites?.get(cas.id) ? { traite: entree.traites.get(cas.id)! } : {}),
