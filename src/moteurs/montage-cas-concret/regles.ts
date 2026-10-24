@@ -370,16 +370,18 @@ export function regleAccroche(fiche: FicheEcrans, contexte: ContexteCasConcret):
   // « quinze minutes. » sur le chiffre) ; elle tient alors dans les 8 premiers mots dits et finit avant 3 s.
   const temps = tempsEcrans(fiche.ecrans, debitDe(contexte));
   const premiers = temps.flatMap((t) => motsLus(t.ecran.texteDit).map((m, r) => ({ m, ms: t.motsMs[r] }))).slice(0, ACCROCHE_MOTS_DITS_MAX + 1);
-  const promesse = texteNormalise(contexte.cas.promesse);
+  // Un cas qui a un récit : l'accroche dit son sujet à la place de la promesse (clarté des scripts).
+  const ditParAccroche = contexte.cas.recit?.sujet ?? contexte.cas.promesse;
+  const promesse = texteNormalise(ditParAccroche);
   const manque = (k: number) => {
     const t = premiers.slice(0, k).map((x) => x.m).join(" ");
     const motsDits = new Set(motsPleins(texteNormalise(t)));
     const nombresDits = nombresDe(t);
-    return [...motsPleins(promesse).filter((m) => !motsDits.has(m)), ...nombresDe(contexte.cas.promesse).filter((v) => !nombresDits.includes(v)).map(String)];
+    return [...motsPleins(promesse).filter((m) => !motsDits.has(m)), ...nombresDe(ditParAccroche).filter((v) => !nombresDits.includes(v)).map(String)];
   };
   const k = Array.from({ length: Math.min(ACCROCHE_MOTS_DITS_MAX, premiers.length) }, (_, i) => i + 1).find((x) => manque(x).length === 0);
   if (k === undefined) {
-    res.push({ ecranId: premier.id, detail: `l'accroche ne dit pas la promesse du cas (« ${contexte.cas.promesse} ») ; il manque ${manque(Math.min(n, ACCROCHE_MOTS_DITS_MAX)).map((m) => `« ${m} »`).join(", ")}.` });
+    res.push({ ecranId: premier.id, detail: `l'accroche ne dit pas ${contexte.cas.recit ? "le sujet" : "la promesse"} du cas (« ${ditParAccroche} ») ; il manque ${manque(Math.min(n, ACCROCHE_MOTS_DITS_MAX)).map((m) => `« ${m} »`).join(", ")}.` });
   }
 
   // Promesse dite par l'accroche seule : l'accroche finit avant 3 s ; finie sur l'écran suivant : le mot qui la suit.

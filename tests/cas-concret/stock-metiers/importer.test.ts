@@ -93,6 +93,19 @@ describe("import du stock (K6)", () => {
     expect(encore.fichier.cas[0]?.cas.version).toBe(3);
   });
 
+  it("un cas qui avait un récit ne le perd jamais par un import : refus, rien d'écrit", () => {
+    const recit = { sujet: "Vos demandes arrivent sans le poids.", scene: "Un client écrit sans donner le poids. Votre équipe rappelle.", exemple: "la demande de ce client", motsCles: ["demandes", "poids"] };
+    const avec = ok(importerStock(exportDe(fiche("IN-01", "cas-recit", "RECITMOT", "retenu-will", { recit }))));
+    expect(avec.fichier.cas[0]?.cas.recit).toEqual(recit);
+    // La source n'a plus le récit (export ancien) : refus, avec la fiche et la raison.
+    const perdu = importerStock(exportDe(fiche("IN-01", "cas-recit", "RECITMOT")), avec.fichier);
+    expect(perdu.ok).toBe(false);
+    if (!perdu.ok) expect(JSON.stringify(perdu.refus)).toContain("reportez le récit dans le fichier source");
+    // Le même export avec le récit passe, sans monter la version.
+    const garde = ok(importerStock(exportDe(fiche("IN-01", "cas-recit", "RECITMOT", "retenu-will", { recit })), avec.fichier));
+    expect(garde.versionsAugmentees).toEqual([]);
+  });
+
   it("un cas retiré est signalé ; remis, il repart au moins à sa dernière version + 1 ; un cas jamais retiré reste inchangé", () => {
     const v1 = ok(importerStock(exportDe(fiche("IN-01", "cas-bon", "BONMOT"), fiche("IN-02", "cas-stable", "STABLE"))));
     const v2 = ok(importerStock(exportDe(fiche("IN-01", "cas-bon", "BONMOT", "retenu-will", { resultat: "Réécrit." }), fiche("IN-02", "cas-stable", "STABLE")), v1.fichier));
