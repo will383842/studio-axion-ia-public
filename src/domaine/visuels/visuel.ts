@@ -3,6 +3,7 @@ import type { Id } from "../types";
 import type { RapportPorte } from "./contrats";
 import type { CarrouselSpecType } from "./types";
 import type { StatutVisuel } from "./statuts";
+import type { ToileSpecType } from "./continu/schema-toile";
 
 export type ModeTexte = "simulation" | "session" | "api";
 export type MotifRefus = "texte" | "mise_en_page" | "sujet" | "ton" | "autre";
@@ -19,7 +20,7 @@ export interface RenduVisuel {
 export interface Visuel {
   /** "vis_" + crypto.randomUUID() */
   id: Id;
-  famille: "carrousel";
+  famille: "carrousel" | "carrousel-continu";
   /** 120 caractères au plus. */
   titre: string;
   /** `intention` (L12, facultative) : choisit la trame du carrousel ; absente, rien ne change. */
@@ -27,6 +28,8 @@ export interface Visuel {
   statut: StatutVisuel;
   modeTexte: ModeTexte;
   spec?: CarrouselSpecType;
+  toile?: ToileSpecType;
+  renduToile?: { empreinte: string; format: "4:5" | "3:4"; pages: { index: number; cle: string }[]; bandeCle: string; vignetteCle: string; renduLe: string };
   /** Nombre de pages du texte écrit, gardé même quand la porte le refuse (le spec, lui, n'est alors pas gardé). */
   pagesTexte?: number;
   pourquoi?: string[];
