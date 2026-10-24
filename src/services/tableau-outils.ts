@@ -70,6 +70,15 @@ export function lectureSignee(stockage: StockageFichiers, rendreLisible: (cle: s
 }
 
 /**
+ * La voix du personnage : celle qu'il a choisie par défaut (Personnages › Voix), sinon la première prête. Avant le 24/10/2026
+ * on prenait toujours la première : après le changement de voix, l'ancienne voix (supprimée chez HeyGen) passait devant la
+ * nouvelle et la garde de voix refusait la fabrication, sans rien dépenser (essai réel v-43f3e2278b14).
+ */
+export function choisirVoixDuPersonnage<V extends { id: string }>(pretes: readonly V[], personnage: { voixParDefautId?: string | undefined }): V | undefined {
+  return pretes.find((v) => v.id === personnage.voixParDefautId) ?? pretes[0];
+}
+
+/**
  * Branchements RÉELS (seulement avec `--reel`). Non exécuté par les tests (aucun vrai appel) : voir
  * `docs/formats/tableau-anime-essai.md`, « ce qui n'a pas pu être vérifié ».
  */
@@ -86,7 +95,7 @@ export async function branchementsReels(personnageId: string, videoId: string, c
   const d = depots();
   const personnage = await d.personnages.obtenir(personnageId);
   if (!personnage) throw new Error(`Personnage « ${personnageId} » introuvable.`);
-  const [voix] = await d.voix.lister((v) => v.personnageId === personnageId && v.statut === "pret");
+  const voix = choisirVoixDuPersonnage(await d.voix.lister((v) => v.personnageId === personnageId && v.statut === "pret"), personnage);
   if (!voix) throw new Error(`Le personnage « ${personnage.nom} » n'a pas de voix prête.`);
   const ressource = await ressourceActive(voix.id);
   if (!ressource?.idExterne) throw new Error(`La voix « ${voix.nom} » n'est pas reliée chez son fournisseur.`);
