@@ -16,7 +16,9 @@ import { coutNouvelEssaiEcritureCentimes, ID_MOTEUR_CAS_CONCRET, lireEntreesCasC
 import { depots, ErreurStudio } from "./_commun";
 import { exigerSession } from "./auth";
 import { REGLAGES_CAS_CONCRET, reglageAllume } from "./cas-concret-reglages";
+import { PHRASE_RELANCE_CAS_RETIRE } from "@/domaine/cas-retires";
 import { PHRASE_RELANCE_CAS_TRAITE, TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
+import { lireCasRetires } from "./cas-concret-retires";
 import { estCasTraite } from "./cas-concret-traites";
 import { reessayerTravail } from "./travaux";
 
@@ -30,6 +32,7 @@ export const PHRASES_RELANCE = {
   pasCeFormat: "Cette fabrication n'est pas un cas concret.",
   casIndisponible: "Ce cas n'est pas disponible pour le moment : la relance est refusée et rien n'est dépensé.",
   dejaTraite: PHRASE_RELANCE_CAS_TRAITE,
+  casRetire: PHRASE_RELANCE_CAS_RETIRE,
   panne: "La relance n'a pas abouti. Rien n'est perdu : réessayez dans un instant.",
 } as const;
 
@@ -62,6 +65,8 @@ export async function relancerEtapeCasConcret(travailId: Id, accord?: number | t
   }
   // Cas déjà traité par une AUTRE vidéo : la panne de celle-ci ne se relance pas (refus net, avant tout prix, rien n'est dépensé).
   if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await estCasTraite(casDeLaVideo, { saufVideoId: t.cibleId }).catch(() => false))) return { statut: "refusee", phrase: PHRASES_RELANCE.dejaTraite };
+  // Cas retiré par Will : la panne ou la pause de cette vidéo ne se relance pas (refus net, avant tout prix, rien n'est dépensé).
+  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await lireCasRetires().then((r) => r.has(casDeLaVideo)).catch(() => false))) return { statut: "refusee", phrase: PHRASES_RELANCE.casRetire };
   const enEchec = t.etapes.filter((e) => e.statut === "echec");
   const erreur = enEchec[0]?.erreur ?? t.erreur;
   if (erreur?.reessayable === false) return { statut: "refusee", phrase: PHRASES_RELANCE.sansReessai };

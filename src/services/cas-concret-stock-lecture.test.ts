@@ -10,6 +10,7 @@ vi.mock("./_commun", () => ({
   }),
 }));
 vi.mock("./auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
+vi.mock("./cas-concret-retires", () => ({ lireCasRetires: vi.fn(async () => new Set<string>()) }));
 vi.mock("./cas-concret-traites", () => ({ lireCasTraites: vi.fn(async () => new Map()) }));
 vi.mock("./cas-concret-scripts-lot", () => ({ scriptsValidesDe: vi.fn(async () => ({})) }));
 
@@ -29,5 +30,21 @@ describe("lireStockCas : pause « à valider »", () => {
     const lignes = await lireStockCas();
     expect(lignes.find((l) => l.casId === casA)!.videos.comptees).toBe(1);
     expect(lignes.find((l) => l.casId === casB)!.videos.comptees).toBe(0);
+  });
+});
+
+describe("lireStockCas : cas retirés", () => {
+  it("un cas retiré n'est ni compté ni listé (paramètre donné par la page, ou lu ici)", async () => {
+    etat.videos = [];
+    etat.travaux = [];
+    const tous = await lireStockCas();
+    expect(tous.some((l) => l.casId === casA)).toBe(true);
+    const sans = await lireStockCas(undefined, false, false, undefined, undefined, new Set([casA]));
+    expect(sans.some((l) => l.casId === casA)).toBe(false);
+    expect(sans.length).toBe(tous.length - 1);
+    expect(sans.some((l) => l.casId === casB)).toBe(true);
+    const { lireCasRetires } = await import("./cas-concret-retires");
+    vi.mocked(lireCasRetires).mockResolvedValueOnce(new Set([casB]));
+    expect((await lireStockCas()).some((l) => l.casId === casB)).toBe(false);
   });
 });
