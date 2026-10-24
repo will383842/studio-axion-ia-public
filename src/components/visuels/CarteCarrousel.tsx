@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { VueCarrouselCarte } from "@/domaine/visuels/contrats";
+import { libellePages } from "@/domaine/visuels/statuts";
 import { urlSure } from "../../domaine/visuels/depot";
 import { Voyant } from "./Voyants";
 
@@ -27,7 +28,7 @@ export function CarteCarrousel({ carrousel: c, href }: { carrousel: VueCarrousel
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-[15px] font-semibold text-texte">{c.titre}</h3>
         <p className="mt-0.5 text-sm text-texte-doux">
-          {c.libelleStatut} · {c.nbPages} {c.nbPages > 1 ? "pages" : "page"}
+          {c.libelleStatut} · {libellePages(c)}
         </p>
         {c.joursRestantsCorbeille !== undefined && <p className="mt-0.5 text-sm font-semibold text-ambre">{phraseCorbeille(c.joursRestantsCorbeille)}</p>}
       </div>

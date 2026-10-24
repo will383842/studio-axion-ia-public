@@ -120,7 +120,16 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
   const specCorrige = controle.specCorrige ?? (specLue?.success ? specLue.data : undefined);
   let patch: Partial<Visuel>;
   try {
-    patch = { titre: reponse.titre.trim().slice(0, TITRE_MAX) || "Carrousel", pourquoi: [...reponse.pourquoi], modeTexte: reponse.mode, rapport, spec: specCorrige, noteTexte: reponse.note };
+    const pagesEcrites = (reponse.spec as { pages?: unknown } | null)?.pages;
+    patch = {
+      titre: reponse.titre.trim().slice(0, TITRE_MAX) || "Carrousel",
+      pourquoi: [...reponse.pourquoi],
+      modeTexte: reponse.mode,
+      rapport,
+      spec: specCorrige,
+      noteTexte: reponse.note,
+      pagesTexte: Array.isArray(pagesEcrites) ? pagesEcrites.length : undefined,
+    };
   } catch {
     await bloquer("La réponse du texte est incomplète");
     return;

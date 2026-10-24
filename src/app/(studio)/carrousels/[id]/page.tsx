@@ -10,6 +10,7 @@ import { exigerSession } from "@/services/auth";
 import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { dependancesCarrousels, phraseDuCode } from "@/visuels/services/production";
 import { ficheCarrousel } from "@/visuels/services/vues";
+import { libellePages } from "@/domaine/visuels/statuts";
 import { corbeilleAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, validerAction } from "./actions";
 
 export const metadata: Metadata = { title: "Carrousel" };
@@ -39,7 +40,7 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
   const erreur = phraseDuCode(sp.erreur);
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre={fiche.titre} sousTitre={`${fiche.libelleStatut} · ${fiche.nbPages} ${fiche.nbPages > 1 ? "pages" : "page"}`} actions={fiche.verdict && fiche.statut !== "echec_rendu" ? <Voyant niveau={fiche.verdict} avecPorte /> : undefined} />
+      <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre={fiche.titre} sousTitre={`${fiche.libelleStatut} · ${libellePages(fiche)}`} actions={fiche.verdict && fiche.statut !== "echec_rendu" ? <Voyant niveau={fiche.verdict} avecPorte /> : undefined} />
       {!fiche.generateurAllume && <BandeauGenerateurEteint />}
       {erreur && (
         <p role="alert" className="mb-4 text-sm text-brique">
