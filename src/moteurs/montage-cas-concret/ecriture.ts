@@ -55,6 +55,7 @@ import {
   type FicheEcrans,
   type FinPlanifiee,
 } from "./fiche";
+import { controlerClarte, messageClarte } from "./clarte";
 import { CLASSEMENT_CHAMPS, HAUTEURS_BARRES_SANS_FAIT, OBJETS_A_TEXTES, casSansFaitChiffre, completerFiche, ficheFixe, textesParDefautDuVisuel, uniteDuFait, type FicheFixe } from "./champs-du-cas";
 import type { OutilsEcriture, ReponseAppelEcriture } from "./outils";
 import { blocExemplesDeRythme } from "./exemples-ton";
@@ -211,17 +212,26 @@ export const EXEMPLES_ECRANS_A_CHIFFRE: readonly [ExempleChiffre, ExempleResulta
  */
 export const CONSIGNE_ECRITURE = `Tu écris le CORPS d'une vidéo verticale « Cas concret » à partir d'un cas fourni : une voix dit le texte pendant que des écrans montrent une automatisation étape par étape. Tu rends la fiche d'écrans : le texte dit et les textes d'écran ensemble.
 
-TON : on PARLE, on n'écrit pas. Phrases courtes, concrètes, au présent ; chaque phrase montre une action ; aucun adjectif creux ; vouvoiement quand on s'adresse au public. Une étape par phrase, sujet simple. En posture « offre », sans « on a » ni « nous ».
+TON : on PARLE, on n'écrit pas. Phrases courtes, concrètes, au présent ; chaque phrase montre une action ; aucun adjectif creux ; vouvoiement quand on s'adresse au public. Une idée par phrase, avec un sujet qui NOMME la chose ou la personne (le client, la demande, l'automatisation, votre équipe) ; jamais un passif sans agent ; jamais « elle » ni « il » en tête d'écran si le nom n'est pas dans la phrase d'avant ; aucune phrase de moins de 3 mots. En posture « offre », sans « on a » ni « nous ».
 
 ${blocExemplesDeRythme()}
+
+CLARTÉ D'ABORD : quelqu'un qui ne connaît pas le métier doit comprendre la vidéo en l'écoutant une fois.
+- Avant le 3e écran, le sujet est dit en clair : qui, quelle chose, quel problème.
+- Quand <recit> est donné : l'accroche dit son « sujet » ; le « avant » raconte sa « scene » au présent, avec tes mots, en entier ou résumée selon la durée (R21) (les tâches de <avant> restent les cases de la liste) ; ses « mots_cles » sont dits dans les trois premiers écrans.
+- Un seul exemple est suivi d'un bout à l'autre (celui de « exemple » dans <recit>, sinon une chose précise tirée de <avant>) : chaque étape dit ce qui arrive à CETTE chose, jamais une étiquette abstraite ; une étape ne commence jamais par « Elle », « Il » ou « Tout » sans que la chose soit nommée juste avant.
+- Les étapes de <etapes> sont une source, pas un texte à lire : regroupe-les en 3 temps au plus, et ne dis jamais un titre d'étape seul.
+- La part humaine (<reste_humain>, mot pour mot, R23) se dit à sa place ; puis le bénéfice vécu : la même scène, sans le problème (coaching, audit, formation : ce que la méthode met en place, jamais un résultat obtenu).
+- La question finale porte sur ce même problème.
+- Ne recopie jamais la description d'une forme de <formes_de_la_video>.
 
 FORME DE CETTE VIDÉO : <formes_de_la_video> donne la FORME de l'accroche, du « avant », de la bascule, du résultat et de la question finale, tirée pour cette vidéo seule : suis-la. Chaque description est une forme, jamais une phrase à recopier. Quand <place_reste_humain> est donné, dis ce qui reste humain à cet endroit.
 
 DÉJÀ DIT : quand <deja_dit> est donné, ces tournures ont déjà servi dans d'autres vidéos : ne les reprends pas, ni leurs variantes proches (même ordre de mots avec quelques mots changés). Dis la même chose autrement ; la promesse et les faits du cas, eux, restent exacts. Une séquence de 5 mots de suite reprise de cette liste fait refuser le script.
 
-ACCROCHE (e01, puis le premier chiffre) : elle met en avant la PROMESSE du cas, le gain annoncé, jamais le « avant ». Le premier écran « chiffre », juste après e01, montre le fait chiffré de la PROMESSE quand la promesse porte un nombre : jamais le total de l'« avant », qui vient ensuite, dans la liste « avant ».
+ACCROCHE (e01, puis le premier chiffre) : elle met en avant la PROMESSE du cas, le gain annoncé, jamais le « avant » ; quand <recit> est donné, elle dit à la place le « sujet » de <recit> (mêmes limites de mots et de temps), et la promesse peut se redire au résultat. Le premier écran « chiffre », juste après e01, montre le fait chiffré de la PROMESSE quand la promesse porte un nombre : jamais le total de l'« avant », qui vient ensuite, dans la liste « avant ».
 
-UNE SEULE IDÉE : la vidéo montre UN seul mécanisme, celui du cas ; aucune seconde promesse ni bénéfice ajouté ; après l'accroche, aucun écran ne redit la promesse (le « resultat » montre le gain : chiffré quand un fait le porte, en mots sinon).
+UNE SEULE IDÉE : la vidéo montre UN seul mécanisme, celui du cas ; aucune seconde promesse ni bénéfice ajouté ; après l'accroche, aucun écran ne redit la promesse, sauf, quand <recit> est donné, le « resultat », qui peut la dire (le « resultat » montre le gain : chiffré quand un fait le porte, en mots sinon).
 
 CE QUE TU N'ÉCRIS JAMAIS : la fin de la vidéo. Elle est fabriquée à part. Le corps s'arrête sur la question au public. Aucune invitation à commenter, à cliquer, à suivre un lien, à écrire un mot ou à réserver quoi que ce soit, ni dans le texte dit ni dans les textes d'écran. Aucun écran de type ${liste(TYPES_ECRAN_FIN)}.
 
@@ -231,7 +241,7 @@ SANS FAIT CHIFFRÉ : quand aucun fait de <faits> ne porte de valeur (« (aucun) 
 
 RÈGLES (la fiche est refusée sinon) :
 - R02 : les « texteDit » mis bout à bout forment le script du corps ; chaque écran dit sa part.
-- R03 : écran e01 de type « accroche » ; il dit la promesse du cas (<promesse>), avec tous ses mots pleins et ses nombres, en ${ACCROCHE_MOTS_DITS_MAX} mots dits au plus, fini avant ${virgule(ACCROCHE_FIN_MAX_MS / 1000)} s.
+- R03 : écran e01 de type « accroche » ; il dit la promesse du cas (<promesse>), ou, quand <recit> est donné, son « sujet », avec tous ses mots pleins et ses nombres, en ${ACCROCHE_MOTS_DITS_MAX} mots dits au plus, fini avant ${virgule(ACCROCHE_FIN_MAX_MS / 1000)} s.
 - R04 : ordre : accroche ; la liste « avant » (type « liste-avant ») commence avant ${virgule(LISTE_DEBUT_MAX_MS / 1000)} s ; un « titre » (la bascule) entre la liste et la première étape ; toutes les « etape » ; ce qui reste humain (<reste_humain>) est dit APRÈS la première étape ; le « resultat » suit la dernière étape ; la « question » est le dernier écran, et le seul de son type.
 - R05 : chaque écran dure de ${virgule(ECRAN_DUREE_MIN_MS / 1000)} à ${virgule(ECRAN_DUREE_MAX_MS / 1000)} s, estimé au débit prudent de ${virgule(DEBIT_ECRAN_PRUDENT)} mots par seconde (la voix réelle est plus lente que 3,4) : de 4 à ${MOTS_ECRAN_MAX} mots dits par écran, 14 si l'écran a une avance ; écran liste-avant : ${MOTS_LISTE_AVANT_MAX} mots dits au plus. Coupez une phrase longue sur deux écrans. Jamais deux écrans sur deux mots voisins : le premier mot d'un écran vient au moins 4 mots dits (une seconde) après le premier mot du précédent ; un écran trop court est réuni à son voisin au calage.
 - R06 : un événement visible toutes les ${virgule(ECART_EVENEMENT_MAX_MS / 1000)} s au plus (entrée d'écran ou « evenements ») : au plus 6 mots dits entre deux événements. Débit de ${virgule(DEBIT_MIN)} à ${virgule(DEBIT_MAX)} mots par seconde.
@@ -248,7 +258,7 @@ RÈGLES (la fiche est refusée sinon) :
 - R17 : la conformité n'est dite que si <conformite> porte une phrase, et alors mot pour mot ; ses textes d'écran n'emploient que des mots de cette phrase.
 - R19 : objets de la banque <objets> seulement. Un vrai écran (« sorte »: « ecran ») vise une étape du cas dont le visuel est un écran, avec un « repli » de la banque.
 - R20 : de ${ECRANS_CORPS.min} à ${ECRANS_CORPS.max} écrans ; de ${ETAPES.min} à ${ETAPES.max} écrans « etape » (le studio les numérote).
-- R21 : la vidéo entière, fin comprise, tient de ${DUREE_TOTALE_REFUS_MS.min / 1000} à ${DUREE_TOTALE_REFUS_MS.max / 1000} s ; visée : la vidéo la plus COURTE (celle de la fin la plus courte) dure de ${DUREE_SORTIE_COURTE_VISEE_MS.min / 1000} à ${DUREE_SORTIE_COURTE_VISEE_MS.max / 1000} s, jamais plus de ${DUREE_SORTIE_COURTE_MAX_MS / 1000} s (la v4 dure 41 s) : mieux vaut un écran de moins qu'une phrase de trop. Quand <duree_fins> est donné, le corps dure ce qu'il indique : une fin courte demande plus d'écrans dans le corps (étapes détaillées, écrans « objet »). Ces durées sont estimées à ${virgule(CARACTERES_PAR_SECONDE_ATEMPO_108)} caractères dits par seconde (espaces et ponctuation compris). Quand la matière du cas est courte, ajoutez des écrans qui ne portent AUCUN fait nouveau : une « question » plus développée, une étape reprise en deux écrans (le geste, puis ce qu'il évite) ; n'inventez jamais un fait pour durer.
+- R21 : la vidéo entière, fin comprise, tient de ${DUREE_TOTALE_REFUS_MS.min / 1000} à ${DUREE_TOTALE_REFUS_MS.max / 1000} s ; visée : la vidéo la plus COURTE (celle de la fin la plus courte) dure de ${DUREE_SORTIE_COURTE_VISEE_MS.min / 1000} à ${DUREE_SORTIE_COURTE_VISEE_MS.max / 1000} s, jamais plus de ${DUREE_SORTIE_COURTE_MAX_MS / 1000} s (la v4 dure 41 s) : mieux vaut un écran de moins qu'une phrase de trop. Quand <duree_fins> est donné, le corps dure ce qu'il indique : une fin courte demande plus d'écrans dans le corps (étapes détaillées, écrans « objet »). Ces durées sont estimées à ${virgule(CARACTERES_PAR_SECONDE_ATEMPO_108)} caractères dits par seconde (espaces et ponctuation compris). Quand la matière du cas est courte, ajoutez des écrans qui ne portent AUCUN fait nouveau : une « question » plus développée, une phrase de plus sur l'exemple suivi (ce qui lui arrive, ce qu'il évite) ; n'inventez jamais un fait pour durer.
 - R23 : l'ordre du VRAI fonctionnement : les étapes se montrent dans l'ordre de <etapes> (jamais une étape avant une étape qui la précède) ; ce qui reste humain (<reste_humain>) se dit mot pour mot, À SA PLACE : juste après l'étape donnée par <reste_humain_apres_etape>, avant l'étape suivante (la visio avant le contrat, par exemple).
 - R22 : un sigle dit s'écrit pour être lu dans le texte dit (« R.G.P.D. », « I.A. ») ; à l'écran il s'écrit « RGPD », « IA ».
 
@@ -307,6 +317,12 @@ export function variableEcriture(cas: CasConcret, recette: readonly BlocCas[], f
     `<recette>\n${recette.map((b) => `${b.id} · ${b.nom} · ${b.dureeCibleSec[0]} à ${b.dureeCibleSec[1]} s${b.facultatif ? " · facultatif" : ""}${b.consigne ? ` · ${b.consigne}` : ""}`).join("\n")}\n</recette>`,
     `<titre>${cas.titre}</titre>`,
     `<cible>${cas.cible}</cible>`,
+    ...(cas.recit ? [`<recit>
+sujet : ${cas.recit.sujet}
+scene : ${cas.recit.scene}
+exemple : ${cas.recit.exemple}
+mots_cles : ${cas.recit.motsCles.join(", ")}
+</recit>`] : []),
     `<promesse>${cas.promesse}</promesse>`,
     `<avant>\n${cas.avant.taches.map((t) => `- ${t}`).join("\n")}${cas.avant.total ? `\ntotal : ${cas.avant.total}` : ""}\n</avant>`,
     `<etapes>\n${cas.etapes.map((x, i) => `${i + 1} · ${x.titre} · ${x.ligne} · détail : ${x.detail} · visuel : ${visuel(x.visuel)}${x.humaine ? " · humaine" : ""}`).join("\n")}\n</etapes>`,
@@ -319,7 +335,7 @@ export function variableEcriture(cas: CasConcret, recette: readonly BlocCas[], f
     `<objets>${OBJETS.join(", ")}</objets>`,
     ...(duree ? [`<duree_fins>${texteDureeFins(duree)}</duree_fins>`] : []),
     ...(variete.structure ? [`<structure_de_la_video>\n${variete.structure}\n</structure_de_la_video>`] : []),
-    ...(variete.patrons ? [`<formes_de_la_video>\n${blocPatrons(variete.patrons)}\n</formes_de_la_video>`] : []),
+    ...(variete.patrons ? [`<formes_de_la_video>\n${blocPatrons(variete.patrons, !!cas.recit)}\n</formes_de_la_video>`] : []),
     ...(variete.placeResteHumain ? [`<place_reste_humain>${variete.placeResteHumain}</place_reste_humain>`] : []),
     ...(variete.memoire?.length ? [`<deja_dit>\n${blocMemoire(variete.memoire)}\n</deja_dit>`] : []),
     ...(variete.memoireCommune ? [variete.memoireCommune] : []),
@@ -473,6 +489,24 @@ function rangDe(t: string, partie: string, depuis = 0): number {
 type SansCommun<T> = T extends unknown ? Omit<T, "id" | "fond" | "marque" | "avanceMs"> : never;
 type Brouillon = SansCommun<EcranCorps>;
 
+/** La scène d'un récit en morceaux dits de 11 mots au plus (coupés de préférence à la fin d'une phrase), le dernier d'au moins 4 mots. */
+function decouperScene(scene: string, max = 11): string[] {
+  const morceaux: string[] = [];
+  let courant: string[] = [];
+  for (const m of scene.trim().split(/\s+/)) {
+    courant.push(m);
+    if (courant.length >= max || (/[.!?…]$/.test(m) && courant.length >= 6)) {
+      morceaux.push(courant.join(" "));
+      courant = [];
+    }
+  }
+  if (courant.length) {
+    if (courant.length < 4 && morceaux.length) morceaux[morceaux.length - 1] += ` ${courant.join(" ")}`;
+    else morceaux.push(courant.join(" "));
+  }
+  return morceaux;
+}
+
 /** Tâches « avant » en écrans de 2 à 4 tâches, chacun de `MOTS_LISTE_MAX` mots dits au plus ; une tâche isolée est laissée. */
 function groupesAvant(taches: readonly string[]): string[][] {
   const groupes: string[][] = [];
@@ -500,6 +534,8 @@ function groupesAvant(taches: readonly string[]): string[][] {
 /** Niveaux de remplissage d'un cas à peu de matière (`gabarit`). */
 const REMPLISSAGES = 3;
 const MARGE_VISEE_MS = 2000;
+/** Cas à récit : place gardée sous le haut de la visée (ms). */
+const MARGE_HAUTE_RECIT_MS = 1000;
 
 export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: DureesFins | null = null): FicheEcrans {
   let fins = finsConnues;
@@ -520,20 +556,37 @@ export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: D
   // sans nombre en écrans « objet ».
   // X7 : si la forme longue reste courte, des écrans sans AUCUN fait nouveau (question développée, puis un titre de
   // transition qui redit la promesse, puis la reprise d'une étape en deux écrans).
-  const essais = [
-    ...Array.from({ length: cas.etapes.length + 1 }, (_, details) => gabarit(cas, fixe, details)),
-    ...Array.from({ length: REMPLISSAGES + 1 }, (_, remplissage) => gabarit(cas, fixe, cas.etapes.length, true, remplissage)),
-  ].filter((f) => f.ecrans.length <= ECRANS_CORPS.max);
+  // Un cas qui a un récit : la scène entière d'abord, puis de plus en plus courte si le corps dépasse la visée.
+  const morceauxDeScene = cas.recit ? decouperScene(cas.recit.scene).length : 0;
+  const scenes: (number | undefined)[] = cas.recit ? [undefined, ...Array.from({ length: Math.max(0, morceauxDeScene - 1) }, (_, i) => morceauxDeScene - 1 - i)] : [undefined];
+  // Puis, si le corps reste trop long, une reprise plus courte (« Pour demandes : … », puis « Demandes : … »).
+  const reprises = cas.recit ? [0, 1, 2] : [0];
+  // Les variantes se calculent groupe après groupe : on s'arrête au premier groupe qui tient la visée (coût du prix indicatif).
+  const groupes = reprises.flatMap((court) => scenes.map((nbScene) => ({ court, nbScene })));
+  const unGroupe = ({ court, nbScene }: { court: number; nbScene: number | undefined }) =>
+    [
+      ...Array.from({ length: cas.etapes.length + 1 }, (_, details) => gabarit(cas, fixe, details, false, 0, nbScene, court)),
+      ...Array.from({ length: REMPLISSAGES + 1 }, (_, remplissage) => gabarit(cas, fixe, cas.etapes.length, true, remplissage, nbScene, court)),
+    ].filter((f) => f.ecrans.length <= ECRANS_CORPS.max);
   const vise = corpsVise(fins);
   const tientVise = (f: FicheEcrans) => corpsMs(f) >= vise.minMs && corpsMs(f) <= vise.maxMs;
   // De préférence avec une marge au-dessus du minimum : la voix réelle lit souvent plus vite que le débit de la recette.
   const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + MARGE_VISEE_MS && corpsMs(f) <= vise.maxMs;
   const tientRefus = (f: FicheEcrans) => corpsMs(f) + fins.plusCourteMs >= DUREE_TOTALE_REFUS_MS.min && corpsMs(f) + fins.plusLongueMs <= DUREE_TOTALE_REFUS_MS.max;
+  // Un cas qui a un récit (corps plus long, estimé au caractère près) : de préférence un corps qui garde de la place sous le haut de la visée.
+  const tientSousLeHaut = (f: FicheEcrans) => tientAvecMarge(f) && corpsMs(f) <= vise.maxMs - MARGE_HAUTE_RECIT_MS;
+  const essais: FicheEcrans[] = [];
+  for (const g of groupes) {
+    const lot = unGroupe(g);
+    essais.push(...lot);
+    const trouve = (cas.recit ? lot.find(tientSousLeHaut) : undefined) ?? lot.find(tientAvecMarge) ?? lot.find(tientVise);
+    if (trouve) return trouve;
+  }
   // Hors de la visée, le corps qui tient dans les bornes de refus au plus près de la visée (V4-2 : le plus long ne l'est
   // plus forcément, une visée manquée de peu par le haut tombait sur le corps le plus long).
   const ecart = (f: FicheEcrans) => Math.max(0, vise.minMs - corpsMs(f), corpsMs(f) - vise.maxMs);
   const proche = essais.filter(tientRefus).sort((a, b) => ecart(a) - ecart(b) || corpsMs(b) - corpsMs(a))[0];
-  return essais.find(tientAvecMarge) ?? essais.find(tientVise) ?? proche ?? gabarit(cas, fixe);
+  return proche ?? gabarit(cas, fixe);
 }
 
 /**
@@ -543,13 +596,15 @@ export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: D
  * promesse ; 3 en plus la reprise d'une étape en deux écrans (le geste, puis la tâche « avant » qu'il évite). Aucun ne
  * porte de fait nouveau : ils redisent la matière du cas.
  */
-function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = false, remplissage = 0): FicheEcrans {
+function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = false, remplissage = 0, nbScene?: number, repriseCourte = 0): FicheEcrans {
   const brouillons: Brouillon[] = [];
   const recette = recettePour(cas);
   const blocs = new Set(recette.map((b) => b.id));
 
   // Accroche : la promesse, en 2 ou 3 lignes ; un sigle de la promesse est écrit pour être lu (« C.R.M. »).
-  const promesse = sansPointFinal(cas.promesse);
+  // Un cas qui a un récit : l'accroche dit son sujet à la place de la promesse (R03).
+  const accroche = cas.recit?.sujet ?? cas.promesse;
+  const promesse = sansPointFinal(accroche);
   const mp = promesse.split(/\s+/);
   const nl = mp.length <= 6 ? 2 : 3;
   const tailles = Array.from({ length: nl }, (_, i) => Math.floor(mp.length / nl) + (i < mp.length % nl ? 1 : 0));
@@ -558,13 +613,13 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   const candidats = lignes[lignes.length - 1].split(/\s+/).map((m) => m.replace(/[^\p{L}\p{N}'-]+/gu, ""));
   const chiffre = mp.map((m) => m.replace(/[^\p{L}\p{N}]+/gu, "")).find((m) => /^\d+$/.test(m));
   const motOrange = chiffre ?? [...candidats].sort((a, b) => b.length - a.length)[0];
-  const ditAccroche = sigleLu(cas.promesse);
+  const ditAccroche = sigleLu(accroche);
   brouillons.push({ type: "accroche", texteDit: ditAccroche, etiquette: ETIQUETTE_POSTURE[cas.posture], lignes, motOrange, eclair: true, evenements: evenements(ditAccroche, lignes.slice(1).map((l, i) => [`titre-${i + 2}`, rangDe(ditAccroche, l)]), []) });
 
   // Le chiffre : l'énoncé d'un fait, s'il tient avant la liste. V4-2 : quand la promesse porte un nombre, seul un fait
   // qui le porte (le gain : « 15 minutes ») est montré ici, jamais un autre (la v4 : « 15 MINUTES. », pas « 1 HEURE. »).
   const lusAccroche = nombreLus(ditAccroche);
-  const nombresPromesse = (cas.promesse.match(/\d+/g) ?? []).map(Number);
+  const nombresPromesse = (accroche.match(/\d+/g) ?? []).map(Number);
   const faitsDuChiffre = nombresPromesse.length ? cas.faits.filter((f) => f.valeurs.some((v) => nombresPromesse.includes(v))) : cas.faits;
   let faitChiffre: FaitCas | undefined;
   if (blocs.has("chiffre")) {
@@ -584,7 +639,16 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   // par tâche suffit alors au rythme).
   const dicibles = cas.avant.taches.filter((t) => dicible(t, cas));
   const courtes = dicibles.filter((t) => nombreLus(t) <= PAS_MOTS);
-  groupesAvant(courtes.length >= 2 ? courtes : dicibles).forEach((g, gi, tous) => {
+  const groupesDeTaches = groupesAvant(courtes.length >= 2 ? courtes : dicibles);
+  if (cas.recit) {
+    // La scène du récit, dite en morceaux au présent ; les cases sont les tâches « avant » (reprises d'un morceau à l'autre au besoin).
+    decouperScene(sigleLu(cas.recit.scene)).slice(0, nbScene).forEach((m, gi) => {
+      const dit = `${gi === 0 ? "Avant : " : ""}${m}`;
+      const g = groupesDeTaches[gi % Math.max(1, groupesDeTaches.length)] ?? cas.avant.taches.slice(0, 2);
+      brouillons.push({ type: "liste-avant", texteDit: dit, taches: (g.length >= 2 ? g : cas.avant.taches.slice(0, 2)).map((t) => couper(t, MOTS_MAX.ligne)), evenements: evenements(dit, [["tache-1", 5], ["tache-2", 10]], []) });
+    });
+  }
+  if (!cas.recit) groupesDeTaches.forEach((g, gi, tous) => {
     const morceaux = g.map((t) => minusculeInitiale(sigleLu(sansPointFinal(t))));
     const dernier = gi === tous.length - 1;
     const dit = `${gi === 0 ? "Avant : " : ""}${morceaux.join(", ")}${dernier ? "." : ","}`;
@@ -622,6 +686,11 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
       dit = `${dit} ${sigleLu(x.detail)}`;
       detailDit = true;
     }
+    // Un cas qui a un récit : l'exemple suivi est repris en tête de la phrase quand elle y tient.
+    // (l'exemple en entier, sinon le premier mot clé du sujet : une simulation n'a pas à être élégante).
+    const repriseDe = (texte: string) => cas.recit ? (repriseCourte === 2 ? [`${cas.recit.motsCles[0].charAt(0).toUpperCase()}${cas.recit.motsCles[0].slice(1)} : `] : repriseCourte === 1 ? [`Pour ${cas.recit.motsCles[0]} : `] : [`Pour ${cas.recit.exemple} : `, `Pour ${cas.recit.motsCles[0]} : `]).find((r) => nombreLus(r + texte) <= 14) ?? "" : "";
+    const reprise = repriseDe(dit);
+    if (reprise) dit = `${reprise}${minusculeInitiale(dit)}`;
     const visuel = x.visuel.sorte === "objet" ? { sorte: "objet" as const, objet: x.visuel.objet } : { sorte: "ecran" as const, etapeCas: rang, repli: x.visuel.repli ?? "telephone-capture" };
     const titre = couper(x.titre, MOTS_MAX.titre);
     brouillons.push({ type: "etape", texteDit: dit, numero: i + 1, total: etapes.length, titre, ligne: couper(x.ligne, MOTS_MAX.ligne), visuel, puces: [], evenements: evenements(dit, [], ["ligne", ...relaisDuVisuel(visuel.sorte === "objet" ? visuel.objet : "telephone-capture")]) });
@@ -633,7 +702,9 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
       brouillons.push({ type: "objet", texteDit: ditEvite, titre, ligne: couper(evitee, MOTS_MAX.ligne), visuel: { sorte: "objet", objet }, evenements: evenements(ditEvite, [], ["ligne", ...relaisDuVisuel(objet)]) });
     }
     if (manque > 0 && detailDicible && !detailDit) {
-      const ditDetail = sigleLu(x.detail);
+      const ditDetail0 = sigleLu(x.detail);
+      const repriseDetail = repriseDe(ditDetail0);
+      const ditDetail = repriseDetail ? `${repriseDetail}${minusculeInitiale(ditDetail0)}` : ditDetail0;
       const objet = visuel.sorte === "objet" ? visuel.objet : visuel.repli;
       brouillons.push({ type: "objet", texteDit: ditDetail, titre, ligne: couper(x.detail, MOTS_MAX.ligne), visuel: { sorte: "objet", objet }, evenements: evenements(ditDetail, [], ["ligne", ...relaisDuVisuel(objet)]) });
       manque--;
@@ -694,8 +765,8 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
   }
 
   // Question (développée au remplissage 1).
-  const question = remplissage >= 1 ? QUESTION_GABARIT_LONGUE : QUESTION_GABARIT;
-  brouillons.push({ type: "question", texteDit: question, lignes: ["Et chez vous,", "dans votre entreprise"], question: "Quelle tâche pourrait tourner toute seule ?", evenements: evenements(question, remplissage >= 1 ? [["titre-2", 4], ["question", 9]] : [["question", 4]], []) });
+  const question = cas.recit ? (repriseCourte === 2 ? `Et chez vous, ${cas.recit.motsCles.slice(0, 2).join(" et ")} ?` : `Et chez vous, ${minusculeInitiale(sansPointFinal(cas.recit.sujet))} ?`) : remplissage >= 1 ? QUESTION_GABARIT_LONGUE : QUESTION_GABARIT;
+  brouillons.push({ type: "question", texteDit: question, lignes: ["Et chez vous,", "dans votre entreprise"], question: "Quelle tâche pourrait tourner toute seule ?", evenements: evenements(question, remplissage >= 1 || cas.recit ? [["titre-2", 4], ["question", 9]] : [["question", 4]], []) });
 
   // Un objet vide sans ses textes (liste de tâches, programme) les reçoit ici, comme la complétion les poserait.
   let rang = 0;
@@ -733,7 +804,8 @@ function simulerEcriture(entree: EntreeRole): FicheEcrans | string {
 export const roleEcritureCasConcret = {
   id: "ecriture-cas-concret",
   // 2 : cas sans fait chiffré (résultat en mots, barres sans nombre), 24/10/2026.
-  version: 2,
+  // 3 : clarté et récit, 24/10/2026.
+  version: 3,
   consigne: CONSIGNE_ECRITURE,
   modele: MODELE_ECRITURE,
   effort: "medium",
@@ -853,7 +925,7 @@ export function alertesPositionnement(f: FicheEcrans): string[] {
  * Juge une réponse lue : d'abord la passe des champs tirés du cas (X9), puis les champs figés, puis la validation complète
  * (le script est le texte dit de la fiche elle-même). `notes` : les écarts corrigés par la passe.
  */
-export function jugerFiche(lue: unknown, e: EntreeEcriture): { ok: true; fiche: FicheEcrans; notes: string[] } | { ok: false; refus: string[]; notes: string[] } {
+export function jugerFiche(lue: unknown, e: EntreeEcriture): { ok: true; fiche: FicheEcrans; notes: string[]; clarte: string[] } | { ok: false; refus: string[]; notes: string[] } {
   const c = completerFiche(lue, e);
   const refuses = new Set(c.ecransRefuses);
   const propres = [...c.refus, ...controlesEcriture(c.brute, e)];
@@ -862,7 +934,10 @@ export function jugerFiche(lue: unknown, e: EntreeEcriture): { ok: true; fiche: 
   const v = validerFicheEcrans(c.brute, { ...e.controle, cas: e.cas, texteScript: texteDuCorps(forme.fiche) });
   const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message))];
   const notes = [...c.notes, ...alertesPositionnement(forme.fiche)];
-  return refus.length || !v.ok ? { ok: false, refus, notes } : { ok: true, fiche: v.fiche, notes };
+  if (refus.length || !v.ok) return { ok: false, refus, notes };
+  // Clarté : avec un récit, un manque est un refus de qualité (la relance existante) ; sans récit, une alerte dans les notes.
+  const manques = controlerClarte(v.fiche, e.cas).map(messageClarte);
+  return e.cas.recit ? { ok: true, fiche: v.fiche, notes, clarte: manques } : { ok: true, fiche: v.fiche, notes: [...notes, ...manques.map((m) => `${m} (alerte)`)], clarte: [] };
 }
 
 /* ------------------------------------------------------------------ */
@@ -878,7 +953,7 @@ const COPIES_CITEES_MAX = 6;
 
 /** Textes que le cas courant DOIT redire (jamais comptés comme une reprise) : promesse, faits, partie humaine, conformité, mot. */
 export function textesImposesDuCas(cas: CasConcret): string[] {
-  return [cas.promesse, ...cas.faits.map((f) => f.enonce), cas.resteHumain, cas.conformite?.rgpd?.phrase, cas.mot, cas.motDit].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+  return [cas.promesse, cas.recit?.sujet, cas.recit?.exemple, ...cas.faits.map((f) => f.enonce), cas.resteHumain, cas.conformite?.rgpd?.phrase, cas.mot, cas.motDit].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
 }
 
 /** La variété d'un appel : graine = la vidéo (+ le numéro de « Réessayer »), mémoire des scripts antérieurs. */
@@ -890,7 +965,7 @@ function varieteDe(entree: EntreeEcriture, commune: MemoireCentrale | null = nul
     anterieurs,
     tolere,
     options: {
-      patrons: patronsDeLaVideo(entree.videoId, sel, entree.structure, entree.cas.offre, { sansChiffre: casSansFaitChiffre(entree.cas) }),
+      patrons: patronsDeLaVideo(entree.videoId, sel, entree.structure, entree.cas.offre, { sansChiffre: casSansFaitChiffre(entree.cas), recit: !!entree.cas.recit }),
       ...(entree.structure ? { structure: blocStructure(entree.structure, entree.cas.offre) } : {}),
       placeResteHumain: placeDuResteHumain(entree.videoId, sel, entree.cas.resteHumainApresEtape, entree.cas.etapes.length),
       memoire: memoireAntiCopie(anterieurs, { tolere }),
@@ -980,9 +1055,9 @@ async function ecrireFicheInterne(entree: EntreeEcriture, outils: OutilsEcriture
   /** Coût réel rendu par les appels (X2 : chacun compté une fois). */
   let coutUsd: number | undefined;
   /** Premier script valide mais trop proche d'un script antérieur : gardé si la relance n'aboutit pas mieux. */
-  let proche: { fiche: FicheEcrans; notes: string[]; copies: Sequence[] } | undefined;
+  let proche: { fiche: FicheEcrans; notes: string[]; copies: Sequence[]; clarte: string[] } | undefined;
   const garde = (simule: boolean): ResultatEcriture | undefined =>
-    proche && { ok: true, fiche: proche.fiche, appels, relance: appels > 1, simule, ...(coutUsd !== undefined ? { coutUsd } : {}), notes: [...proche.notes, noteRessemblance(proche.copies, appels > 1)] };
+    proche && { ok: true, fiche: proche.fiche, appels, relance: appels > 1, simule, ...(coutUsd !== undefined ? { coutUsd } : {}), notes: [...proche.notes, ...noteClarte(proche.clarte), ...(proche.copies.length ? [noteRessemblance(proche.copies, appels > 1)] : [])] };
 
   for (let essai = 1; essai <= APPELS_ECRITURE_MAX; essai++) {
     const entreeRole: EntreeRole = { contexte: await socleDe(outils), variable };
@@ -1009,11 +1084,12 @@ async function ecrireFicheInterne(entree: EntreeEcriture, outils: OutilsEcriture
     if (jugement.ok) {
       const copies = copiesDuScript(jugement.fiche, variete, reponse.simule);
       const resultat = { ok: true as const, fiche: jugement.fiche, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
-      if (!copies.length) return { ...resultat, notes: jugement.notes };
-      // Refus de qualité : la relance existante (jamais un appel de plus) ; la ressemblance restante n'est pas un échec.
-      if (essai >= APPELS_ECRITURE_MAX) return { ...resultat, notes: [...jugement.notes, noteRessemblance(copies, essai > 1)] };
-      proche = { fiche: jugement.fiche, notes: jugement.notes, copies };
-      refus = refusRessemblance(copies);
+      if (!copies.length && !jugement.clarte.length) return { ...resultat, notes: jugement.notes };
+      // Refus de qualité : la relance existante (jamais un appel de plus) ; la ressemblance ou le manque de clarté restant n'est pas un échec
+      // (la fiche est gardée avec sa note : Will relit avant toute voix payée).
+      if (essai >= APPELS_ECRITURE_MAX) return { ...resultat, notes: [...jugement.notes, ...noteClarte(jugement.clarte), ...(copies.length ? [noteRessemblance(copies, essai > 1)] : [])] };
+      proche = { fiche: jugement.fiche, notes: jugement.notes, copies, clarte: jugement.clarte };
+      refus = [...jugement.clarte, ...(copies.length ? refusRessemblance(copies) : [])];
       variable = variableRelance(base, lecture.texte, refus);
       continue;
     }
@@ -1024,6 +1100,9 @@ async function ecrireFicheInterne(entree: EntreeEcriture, outils: OutilsEcriture
 
   return garde(false) ?? { ok: false, motif: "refusee", message: `${DEBUT_REFUS_ECRITURE} après ${APPELS_ECRITURE_MAX} essais (${refus.length} refus) : à reprendre à la main.`, refus, appels, ...brute(derniere) };
 }
+
+/** Note d'une fiche gardée malgré un manque de clarté (rien si elle est claire) : visible à la relecture, avant toute voix payée. */
+const noteClarte = (manques: readonly string[]): string[] => (manques.length ? [`Clarté (à voir avant de valider) : ${manques.join(" ; ")}`] : []);
 
 /** Début de la phrase d'une écriture refusée (premier passage ou reprise) : le moteur y ajoute le prix d'un nouvel essai. */
 export const DEBUT_REFUS_ECRITURE = "Fiche d'écrans refusée";
@@ -1048,9 +1127,9 @@ async function reprendreEcriture(entree: EntreeEcriture, outils: OutilsEcriture,
   const variete = varieteDe(entree, commune);
   const base = variableEcriture(entree.cas, recettePour(entree.cas, entree.structure), entree, entree.controle?.fins ?? [], variete.options);
   /** Notes d'une réponse qui passe : la ressemblance éventuelle est dite, jamais refusée (pas de nouvel appel pour elle). */
-  const notesDe = (j: { fiche: FicheEcrans; notes: string[] }, simule: boolean) => {
+  const notesDe = (j: { fiche: FicheEcrans; notes: string[]; clarte: string[] }, simule: boolean) => {
     const copies = copiesDuScript(j.fiche, variete, simule);
-    return copies.length ? [...j.notes, noteRessemblance(copies, false)] : j.notes;
+    return [...j.notes, ...noteClarte(j.clarte), ...(copies.length ? [noteRessemblance(copies, false)] : [])];
   };
   const anciennes = [...Array.from({ length: APPELS_ECRITURE_MAX }, (_, i) => idAppelEcriture(entree, i + 1)), ...Array.from({ length: reprise - 1 }, (_, i) => idAppelEcriture(entree, `r${i + 1}`))];
   let derniere: { texte: string; refus: string[] } | undefined;
