@@ -55,7 +55,7 @@ import {
   type FicheEcrans,
   type FinPlanifiee,
 } from "./fiche";
-import { CLASSEMENT_CHAMPS, OBJETS_A_TEXTES, completerFiche, ficheFixe, textesParDefautDuVisuel, uniteDuFait, type FicheFixe } from "./champs-du-cas";
+import { CLASSEMENT_CHAMPS, HAUTEURS_BARRES_SANS_FAIT, OBJETS_A_TEXTES, casSansFaitChiffre, completerFiche, ficheFixe, textesParDefautDuVisuel, uniteDuFait, type FicheFixe } from "./champs-du-cas";
 import type { OutilsEcriture, ReponseAppelEcriture } from "./outils";
 import { blocExemplesDeRythme } from "./exemples-ton";
 import { blocPatrons, blocStructure, patronsDeLaVideo, placeDuResteHumain, type PatronsDeLaVideo } from "./patrons-ecriture";
@@ -221,11 +221,13 @@ DÉJÀ DIT : quand <deja_dit> est donné, ces tournures ont déjà servi dans d'
 
 ACCROCHE (e01, puis le premier chiffre) : elle met en avant la PROMESSE du cas, le gain annoncé, jamais le « avant ». Le premier écran « chiffre », juste après e01, montre le fait chiffré de la PROMESSE quand la promesse porte un nombre : jamais le total de l'« avant », qui vient ensuite, dans la liste « avant ».
 
-UNE SEULE IDÉE : la vidéo montre UN seul mécanisme, celui du cas ; aucune seconde promesse ni bénéfice ajouté ; après l'accroche, aucun écran ne redit la promesse (le « resultat » montre le gain chiffré).
+UNE SEULE IDÉE : la vidéo montre UN seul mécanisme, celui du cas ; aucune seconde promesse ni bénéfice ajouté ; après l'accroche, aucun écran ne redit la promesse (le « resultat » montre le gain : chiffré quand un fait le porte, en mots sinon).
 
 CE QUE TU N'ÉCRIS JAMAIS : la fin de la vidéo. Elle est fabriquée à part. Le corps s'arrête sur la question au public. Aucune invitation à commenter, à cliquer, à suivre un lien, à écrire un mot ou à réserver quoi que ce soit, ni dans le texte dit ni dans les textes d'écran. Aucun écran de type ${liste(TYPES_ECRAN_FIN)}.
 
 LES FAITS : les faits du cas sont dans <faits>. Chacun est à citer tel quel ou à ne pas citer. Tout nombre dit ou écrit (en chiffres ou en lettres) est une valeur d'un fait ; « un » et « une » ne comptent comme nombre que devant une unité (heure, minute, seconde, jour, semaine, mois, euro, %). Un fait de source « estimation » se dit avec sa réserve (${liste(RESERVES_ESTIMATION)}). Une tâche, une étape ou un détail qui porte un autre nombre se dit sans ce nombre, ou ne se dit pas. Tu n'inventes ni fait, ni chiffre, ni durée, ni prix.
+
+SANS FAIT CHIFFRÉ : quand aucun fait de <faits> ne porte de valeur (« (aucun) », ou « valeurs aucune » sur chaque fait), la vidéo ne dit et n'écrit AUCUN nombre. Aucun écran « chiffre », même si <recette> nomme « Le chiffre ». Le « resultat » reste obligatoire (R04) : il dit le gain en mots, d'après <resultat> ; ses barres « avant » et « maintenant » sont { "libelle" } seuls, sans « faitId » ni « valeur » (le studio les dessine sans aucun nombre) ; chaque libellé, de 1 à 3 mots sans nombre, nomme l'état que la barre montre (« Avant » et « Maintenant » sont déjà écrits au-dessus). Ce n'est pas une preuve manquante : rends la fiche, jamais PREUVE_MANQUANTE pour cette raison.
 
 RÈGLES (la fiche est refusée sinon) :
 - R02 : les « texteDit » mis bout à bout forment le script du corps ; chaque écran dit sa part.
@@ -239,7 +241,7 @@ RÈGLES (la fiche est refusée sinon) :
 - R09 : la marque « ${MARQUE} » est posée par le studio sur chaque écran.
 - R10 : aucun mot interdit (<interdits>), ni « machine » (dites « automatisation »).
 - R11 : vouvoiement, jamais de tutoiement.
-- R12 et R13 : voir LES FAITS. Un écran « chiffre » et chaque barre d'un « resultat » DÉSIGNENT un fait chiffré de <faits> par son identifiant (« faitId ») ; le studio y pose lui-même la valeur du fait : tu ne rends jamais « valeur ».
+- R12 et R13 : voir LES FAITS. Un écran « chiffre » et chaque barre d'un « resultat » DÉSIGNENT un fait chiffré de <faits> par son identifiant (« faitId ») ; le studio y pose lui-même la valeur du fait : tu ne rends jamais « valeur ». Sans fait chiffré : voir SANS FAIT CHIFFRÉ.
 - R14 : aucun récit de client, aucun avis ni témoignage ; aucun nom propre hors ${LISTE_BLANCHE_NOMS.join(", ")} (une majuscule ailleurs qu'en début de phrase est un nom propre, sauf un sigle tout en capitales).
 - R15 : posture « offre » : aucune tournure d'usage réel chez nous (« chez nous », « notre équipe », « on utilise », « nous avons automatisé »…).
 - R16 : aucun prix, sauf un fait de source « site » qui énonce un montant.
@@ -263,7 +265,7 @@ Les 9 types du corps (${liste(TYPES_ECRAN_CORPS)}) :
 - textes d'un visuel « objet » : obligatoires pour « liste-taches » (1 à 3 tâches de 2 à 4 mots, celles que fait l'étape) et « programme » (les modules) ; sans eux l'objet est une fiche blanche
 - le premier texte d'un écran « titre », « objet » ou « question » apparaît dès le début de l'écran : son premier événement vise l'un des premiers mots, jamais une phrase plus loin (un écran ne reste jamais vide)
 - preuve : "titre", "puces" (exactement 2)
-- resultat : "titre", "avant" et "maintenant" ({ "libelle", "faitId" } : le fait chiffré dont la barre montre la valeur ; le texte de la barre est tiré du fait, jamais d'un calcul ; jamais « valeur »), "ligne"
+- resultat : "titre", "avant" et "maintenant" ({ "libelle", "faitId" } : le fait chiffré dont la barre montre la valeur ; le texte de la barre est tiré du fait, jamais d'un calcul ; jamais « valeur » ; sans fait chiffré : { "libelle" } seul), "ligne"
 - question : "lignes" (exactement 2), "question"
 Exemples COMPLETS et exacts des deux écrans à chiffre (les identifiants de fait sont ceux d'un autre cas : prends ceux de <faits>) :
 ${EXEMPLES_ECRANS_A_CHIFFRE.map((x) => JSON.stringify(x)).join("\n")}
@@ -678,8 +680,8 @@ function gabarit(cas: CasConcret, fixe: FicheFixe, details?: number, long = fals
     type: "resultat",
     texteDit: ditResultat,
     titre: nombreLus(tete) <= MOTS_MAX.titre ? tete : "Le résultat",
-    avant: barreDuFait("Avant", faitAvant, 100),
-    maintenant: barreDuFait("Maintenant", faitChiffre, 20),
+    avant: barreDuFait("Avant", faitAvant, HAUTEURS_BARRES_SANS_FAIT.avant),
+    maintenant: barreDuFait("Maintenant", faitChiffre, HAUTEURS_BARRES_SANS_FAIT.maintenant),
     ligne: couper(cas.resultat, MOTS_MAX.ligne),
     eclair: true,
     evenements: evenements(ditResultat, [["barre-maintenant", 2]], ["ligne"]),
@@ -730,7 +732,8 @@ function simulerEcriture(entree: EntreeRole): FicheEcrans | string {
  */
 export const roleEcritureCasConcret = {
   id: "ecriture-cas-concret",
-  version: 1,
+  // 2 : cas sans fait chiffré (résultat en mots, barres sans nombre), 24/10/2026.
+  version: 2,
   consigne: CONSIGNE_ECRITURE,
   modele: MODELE_ECRITURE,
   effort: "medium",
@@ -882,7 +885,7 @@ function varieteDe(entree: EntreeEcriture, commune: MemoireCentrale | null = nul
     anterieurs,
     tolere,
     options: {
-      patrons: patronsDeLaVideo(entree.videoId, sel, entree.structure, entree.cas.offre),
+      patrons: patronsDeLaVideo(entree.videoId, sel, entree.structure, entree.cas.offre, { sansChiffre: casSansFaitChiffre(entree.cas) }),
       ...(entree.structure ? { structure: blocStructure(entree.structure, entree.cas.offre) } : {}),
       placeResteHumain: placeDuResteHumain(entree.videoId, sel, entree.cas.resteHumainApresEtape, entree.cas.etapes.length),
       memoire: memoireAntiCopie(anterieurs, { tolere }),
@@ -1088,6 +1091,7 @@ RÈGLES ABSOLUES :
 - Pas plus de mots que la phrase d'origine.
 - Même sens ; aucun fait ajouté ; vouvoiement ; aucun nom propre ; un sigle s'écrit pour être lu (« I.A. »).
 - Aucune invitation à commenter, à cliquer ou à réserver.
+- <faits> vaut « (aucun) » : la phrase n'a aucun nombre et n'en reçoit aucun ; ce n'est pas une preuve manquante.
 
 FORME : JSON seul, { "phrase": "…" }.`;
 
@@ -1099,7 +1103,7 @@ function simulerReformulation(entree: EntreeRole): { phrase: string } | string {
 
 export const roleReformulationCasConcret = {
   id: "reformulation-cas-concret",
-  version: 1,
+  version: 2,
   consigne: CONSIGNE_REFORMULATION,
   modele: MODELE_ECRITURE,
   effort: "low",

@@ -137,6 +137,10 @@ Premier essai réel (vidéo `v-3a71b4a4dfea`) : l'écriture était refusée deux
 
 Écriture refusée : la réponse brute du dernier essai (20 000 caractères au plus) est gardée dans le détail technique de l'étape, lisible par le pli « Détail technique » (`DetailTechniqueCasConcret`). « Réessayer » relit d'abord les réponses déjà payées, puis fait au plus un nouvel appel (voir X12). Le montant à confirmer est celui que le lancement réserve (ligne « Textes des réseaux » comprise). L'onglet « Sous-titres » dit « Le texte arrive après l'écriture » tant que la fiche n'est pas écrite (`TexteDitCasConcret`), puis les vrais sous-titres arrivent avec le résultat. Tests : `tests/cas-concret/x9/`.
 
+## Cas sans fait chiffré (24/10)
+
+Les 96 cas du stock n'ont aucun fait chiffré. Le premier essai réel d'un de ces cas a échoué : la consigne exigeait que chaque barre du « resultat » désigne un fait chiffré, et Claude répondait `PREUVE_MANQUANTE`. Désormais, quand aucun fait du cas ne porte de valeur (`casSansFaitChiffre`), la consigne le dit (paragraphe « SANS FAIT CHIFFRÉ ») : aucun nombre dit ou écrit, aucun écran « chiffre », et le « resultat » reste obligatoire (R04) mais dit le gain en mots, ses barres « avant » et « maintenant » étant `{ "libelle" }` seuls. `completerFiche` pose lui-même leur hauteur de dessin (`HAUTEURS_BARRES_SANS_FAIT`, 100 et 20), jamais affichée en nombre : la barre porte son libellé. Le patron de résultat « chiffre » n'est pas tiré pour ces cas, et la reformulation d'une phrase sans fait ne reçoit aucun nombre. Inchangés : R04, R12 (aucun nombre dans les libellés), le schéma, le budget, la limite de 2 appels, et l'exigence d'un `faitId` pour tout cas qui a au moins un fait chiffré.
+
 ## Quand un rendu rate (X10, 12/10)
 
 Incident du tableau animé du 12/10 (le rendu d'une scène de sa seconde sortie avait raté ; la fabrication est restée « en cours » 30 minutes, sans erreur). Notre format sort un fichier par fin : le même piège y a été cherché et fermé.

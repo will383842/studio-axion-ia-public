@@ -21,6 +21,11 @@ import { empreinteCas as empreinteDuCas, type CasConcret, type FaitCas } from "@
 import { FORMAT_CAS_CONCRET, VERSION_FICHE_ECRANS, cleMot, idEcranAttendu, type Origine } from "./fiche";
 import { MARQUE, nombresDe, sansPointsDeSigle } from "./regles";
 
+/** Le cas ne porte aucun fait chiffré : ses barres de résultat n'ont aucun fait à désigner. */
+export const casSansFaitChiffre = (cas: Pick<CasConcret, "faits">): boolean => !cas.faits.some((f) => f.valeurs.length > 0);
+/** Hauteurs de dessin d'une barre sans fait : jamais affichées (texteBarre rend "", la barre porte son libellé). */
+export const HAUTEURS_BARRES_SANS_FAIT = { avant: 100, maintenant: 20 } as const;
+
 /** Champs figés de la fiche, posés par le code (jamais demandés à Claude). */
 export interface FicheFixe {
   videoId: string;
@@ -203,6 +208,9 @@ export function completerFiche(lue: unknown, e: FicheFixe & { cas: CasConcret })
         ecransRefuses.add(id);
         return undefined;
       };
+      if (casSansFaitChiffre(cas)) {
+        return refuser("désigne un fait, mais le cas n'a aucun fait chiffré : aucun écran « chiffre », et chaque barre du résultat en { \"libelle\" } seul, sans « faitId ».");
+      }
       if (faitId === undefined) return refuser("ne désigne aucun fait : donnez « faitId », l'identifiant d'un fait chiffré de <faits>.");
       const f = cas.faits.find((y) => y.id === faitId);
       if (!f) return refuser(`désigne le fait ${montre(faitId)}, absent du cas : choisissez un identifiant de <faits>.`);
@@ -261,6 +269,12 @@ export function completerFiche(lue: unknown, e: FicheFixe & { cas: CasConcret })
           if (!estObjet(b)) continue;
           // Sans fait désigné, une barre peut garder sa hauteur seule (jamais montrée en nombre) ; sans hauteur non plus : refus.
           if (b.faitId === undefined && b.valeur !== undefined) continue;
+          if (casSansFaitChiffre(cas) && (b.faitId === undefined || b.faitId === null)) {
+            delete b.faitId;
+            b.valeur = HAUTEURS_BARRES_SANS_FAIT[cote];
+            notes.push(`${ou} : la barre « ${cote} » ne désigne aucun fait (le cas n'a aucun fait chiffré) : dessinée sans nombre.`);
+            continue;
+          }
           const f = faitDe(b.faitId, `la barre « ${cote} »`);
           if (f) valeurDuFait(b, f, `la barre « ${cote} »`);
         }

@@ -80,9 +80,11 @@ const memoireDe = (anciens: string[], extra: Record<string, unknown> = {}) => {
 
 describe("(g) interrupteur coupé : le prompt est identique octet pour octet", () => {
   it("CONSIGNE_ECRITURE n'a pas bougé d'un octet", () => {
-    // B3 : consigne volontairement modifiée (R05 au débit prudent, liste-avant). B3-bis : modification voulue (débit de 3 à 3,9).
-    expect(createHash("sha256").update(CONSIGNE_ECRITURE).digest("hex")).toBe("4147c51b72f8e5c0727cafccd74a28a307cea177bad992e67d90018d8f25c0fd");
+    // B3 : consigne volontairement modifiée (R05 au débit prudent, liste-avant). B3-bis : modification voulue (débit de 3 à 3,9). 24/10 : modification voulue (cas sans fait chiffré, paragraphe SANS FAIT CHIFFRÉ).
+    expect(createHash("sha256").update(CONSIGNE_ECRITURE).digest("hex")).toBe("19ee7ab59c6e2dfddfc021386009d6bd59d96183dd95d1b07f56ff9f1ed6ce8e");
     expect(CONSIGNE_ECRITURE).not.toContain(ENTETE_BLOC_MEMOIRE);
+    expect(CONSIGNE_ECRITURE).toContain("SANS FAIT CHIFFRÉ");
+    expect(CONSIGNE_ECRITURE).toContain("jamais PREUVE_MANQUANTE pour cette raison");
   });
   it("sans outil de mémoire, avec un outil qui rend « rien » ou un bloc vide : les entrées sont identiques", async () => {
     const a = double([base]);
