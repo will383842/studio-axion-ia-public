@@ -16,12 +16,12 @@
     "react-dom": "19.2.8",
     "remotion": "4.0.532",
     "tsx": "^4.23.15",
+    "typescript": "5.9.3",
     "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
-    "@types/react": "^19",
-    "typescript": "^5"
+    "@types/react": "^19"
   },
   "engines": {
     "node": ">=22"
