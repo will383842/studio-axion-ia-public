@@ -18,7 +18,7 @@ export {
   repriseVoixCasConcret,
 } from "../montage-cas-concret/voix";
 export type { EtatVoixCasConcret, OutilsAvancerVoix, PriseVoix } from "../montage-cas-concret/voix";
-// Recette de la voix v4 (L12) : LUE seulement, jamais modifiée (resserrage, atempo 1,08, −14 LUFS, raccord corps + fin).
+// Recette de la voix v4 (L12) : LUE seulement, jamais modifiée (resserrage, atempo 1,08, −14 LUFS, raccord corps + fin) ; Image → vidéo ne change que le tempo, dans `RECETTE_VOIX_IV` (assemblage.ts).
 export { RECETTE_VOIX_CAS_CONCRET, parametresRaccord, planRaccordVoix } from "../montage-cas-concret/recette-voix";
 export type { PlanRaccordVoix } from "../montage-cas-concret/recette-voix";
 export { REGLES_FIN_DE_VOIX, controlerFinDeVoix, lireWav, niveauxDb, recalerCoupesSurSilences, silencesMesures } from "../montage-cas-concret/fin-de-voix";

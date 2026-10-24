@@ -6,7 +6,7 @@
  *     lui, saute les coupes et le contrôle en silence). 15/10 (v-dd3049053f88) : le brut gardé est la copie HeyGen, un
  *     MP3 ; il est CONVERTI en WAV mono (FFmpeg du studio, même décodeur que `studio-rendu`) et rangé à côté
  *     (`cleWavDuBrut`) pour ne jamais être reconverti ; le MP3 payé n'est jamais modifié ni relu chez HeyGen ;
- *  2. la recette de la voix v4 (lue seulement : resserrage des blancs, raccord corps + fin, atempo ×1,08, −14 LUFS) fait
+ *  2. la recette de la voix v4 (lue seulement : resserrage des blancs, raccord corps + fin, atempo ×1,05 pour Image → vidéo, −14 LUFS) fait
  *     le plan ; chaque coupe tombée en plein son est rapprochée du silence mesuré le plus proche, en avant OU en arrière,
  *     à ±0,25 s au plus (`placerCoupesIV`), puis TOUTES les coupes sont vérifiées : une seule hors d'un silence mesuré =
  *     refus, avec, pour chaque coupe fautive, son niveau, le seuil et la distance au silence le plus proche ;
@@ -42,8 +42,14 @@ import { COUPE_EN_PLEIN_SON_IV, SUITE_REFUS_WAV_IV } from "./phrases-assemblage"
 import { chapitresDetachables, ficheSansChapitres } from "./recettes";
 import { ErreurVoixIV, sonsBrutsIV, type EtatVoixIV, type SonBrutIV, type VersionVoixIV } from "./voix";
 
-/** Tempo de la voix (recette v4) : ×1,08. */
-export const TEMPO_IV = RECETTE_VOIX_CAS_CONCRET.filtres.atempo;
+/**
+ * Recette de la voix d'Image → vidéo : celle du cas concret (lue seulement), SAUF le tempo appliqué après la lecture HeyGen,
+ * ×1,05 au lieu de ×1,08 (décision de Will, 24/10/2026 : voix très légèrement moins rapide). La vitesse HeyGen (1,1) et
+ * tous les autres réglages restent ceux de la recette partagée, qui n'est pas modifiée.
+ */
+export const RECETTE_VOIX_IV = Object.freeze({ ...RECETTE_VOIX_CAS_CONCRET, filtres: Object.freeze({ ...RECETTE_VOIX_CAS_CONCRET.filtres, atempo: 1.05 }) });
+/** Tempo de la voix (recette d'Image → vidéo) : ×1,05. */
+export const TEMPO_IV = RECETTE_VOIX_IV.filtres.atempo;
 /** Niveau visé du mixage (Q24). */
 export const LOUDNESS_IV_LUFS = -14;
 export const CRETE_IV_DBTP = -1;
@@ -53,7 +59,7 @@ export const SILENCE_BORNE_MIN_SEC = 0.3;
 /** Lecture unique : blanc mesuré exigé de chaque côté d'une phrase sautée (HeyGen en met 0,32 à 0,72 s après un point). */
 const SILENCE_PHRASE_SAUTEE_MIN_SEC = 0.1;
 
-const VERSION_ASSEMBLAGE = "assemblage-iv/1";
+const VERSION_ASSEMBLAGE = "assemblage-iv/2"; // /2 (24/10/2026) : tempo ×1,05 au lieu de ×1,08
 /** Tolérance de calcul sur les instants (secondes). */
 const EPS_INSTANT = 1e-6;
 const arrondi = (x: number) => +x.toFixed(4);
@@ -925,7 +931,7 @@ export function placerCoupesIV(
   }
   if (!deplacees) return { plan, coupesDeplacees: 0 };
 
-  const k = RECETTE_VOIX_CAS_CONCRET.filtres.atempo;
+  const k = RECETTE_VOIX_IV.filtres.atempo;
   const bruts = [...motsBruts.corps, ...(motsBruts.fin ?? [])];
   const decale = (source: 0 | 1, t: number | undefined) => (t === undefined ? 0 : (instantResserre(morceaux, source, t) - instantResserre(plan.morceaux, source, t)) / k);
   const mots = plan.mots.map((mot, n) => {
@@ -1027,7 +1033,7 @@ export function couperVoixIV(
 ): { plan: PlanRaccordVoix; coupesDeplacees: number; hors: CoupeEnPleinSon[]; paroleRetiree: ParoleRetireeIV[] } {
   const silences = { corps: mesures.corps.silences, ...(fin && mesures.fin ? { fin: mesures.fin.silences } : {}) };
   const durees = { corps: corps.dureeSec, ...(fin ? { fin: fin.dureeSec } : {}) };
-  const brut = planRaccordVoix(corps, fin);
+  const brut = planRaccordVoix(corps, fin, RECETTE_VOIX_IV);
   const place = placerCoupesIV(brut, { corps: corps.mots, ...(fin ? { fin: fin.mots } : {}) }, silences, durees, REGLES_COUPES_IV, { mesures, retraitsVoulus, garderPausesSansSilence: true });
   const { coupesDeplacees } = place;
   const plan = sansJonctions(place.plan);
@@ -1196,7 +1202,7 @@ async function assemblerPiste(e: EntreePiste, o: OutilsAssemblageIV, cache: Cach
     id,
     morceaux,
     tempo: TEMPO_IV,
-    recette: { corps: e.corps.fichierCle, ...(e.fin ? { fin: e.fin.fichierCle } : {}), parametres: parametresRaccord(plan), dureeSec: plan.dureeSec },
+    recette: { corps: e.corps.fichierCle, ...(e.fin ? { fin: e.fin.fichierCle } : {}), parametres: parametresRaccord(plan, RECETTE_VOIX_IV), dureeSec: plan.dureeSec },
   });
   const octets = await o.lireSon(fait.cle);
   const son = exigerWav(octets, `de la piste voix seule ${nom}`);

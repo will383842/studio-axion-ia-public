@@ -107,7 +107,7 @@ function versionDe(carte: CarteImage, fiche: FicheImage, fin: FinIV, sons: Map<s
     ...(segment ? { raccordSec: voix.mots[voix.motsCorps]?.debutSec } : {}),
     finVoixSec: voix.finVoixSec,
     coupesDeplacees: 0,
-    tempo: 1.08,
+    tempo: 1.05,
   };
   const scene = { carte, fiche, voix, fin: segment ? fin : null, reseaux: fin.reseaux, bruitagesValides: VALIDES };
   const ligne = mettreEnSceneIV(scene).ligne;
