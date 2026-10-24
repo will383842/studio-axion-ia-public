@@ -109,3 +109,19 @@ describe("en-têtes et scène « Ensemble »", () => {
     for (let i = 0; i < 20; i++) expect(JSON.stringify(calculerScene(sceneGalerieC()).trajectoire)).toBe(premier);
   });
 });
+
+describe("embranchement dont les liens n'ont pas de part (part: null, cas réel des cartes)", () => {
+  const p2 = { ...p, schema: { ...p.schema, liens: p.schema.liens.map((l) => ({ ...l, part: null })) } } as unknown as typeof p;
+  const s2 = calculerScene(p2);
+  it("aucune pastille de part, ni « 0 % » figé : partsEmbranchement rend []", () => {
+    const ts = p2.separations![0].t;
+    expect(partsEmbranchement(s2, "n02", ts + 2)).toEqual([]);
+    expect(partsEmbranchement(s2, "n02", instant("2-separation"))).toEqual([]);
+  });
+  it("aucune étiquette de toile `part-*` n'est réservée (elles gonfleraient le cadrage pour rien)", () => {
+    expect((s2.cadrage.etiquettes ?? []).filter((e) => e.id.startsWith("part-"))).toEqual([]);
+  });
+  it("avec des parts (80/20), les étiquettes `part-*` existent toujours", () => {
+    expect((s.cadrage.etiquettes ?? []).filter((e) => e.id.startsWith("part-")).length).toBe(2);
+  });
+});

@@ -284,15 +284,17 @@ function geometrie(toile: DispositionToile, p: Pick<ProprietesSceneIV, "schema" 
     if (tetes.length) coude.set(d.id, bas + Math.min(COUDE_MAX, Math.min(...tetes) / 2));
   }
   // Pastilles de part : textes de la toile soumis au cadrage comme les nœuds, rattachés à leur nœud de décision.
-  const part = new Map(p.schema.liens.filter((l) => l.part !== undefined).map((l) => [l.id, l.part!]));
+  const part = new Map(p.schema.liens.filter((l) => typeof l.part === "number" && l.part > 0).map((l) => [l.id, l.part!]));
   const etiquettes: EtiquetteToile[] = [];
   for (const sep of trier(p.separations ?? [])) {
     const y = coude.get(sep.noeud);
     if (y === undefined) continue;
     for (const f of toile.fleches) {
       if (f.de !== sep.noeud || !colonne.get(f.vers) || colonne.get(f.vers) === colonne.get(f.de)) continue;
+      // Pas de part (cartes réelles : `part: null`) = pas de pastille « 0 % » figée.
+      if (!part.get(f.id)) continue;
       const ch = cheminFleche(parId.get(f.de)!, parId.get(f.vers)!, y);
-      etiquettes.push({ id: `part-${f.id}`, noeud: sep.noeud, des: sep.t + TEMPS_IV.dessinFleche * 0.6, ...rectPastillePart(ch.milieu[0], ch.milieu[1], part.get(f.id) ?? 0) });
+      etiquettes.push({ id: `part-${f.id}`, noeud: sep.noeud, des: sep.t + TEMPS_IV.dessinFleche * 0.6, ...rectPastillePart(ch.milieu[0], ch.milieu[1], part.get(f.id)!) });
     }
   }
   return { parId, colonne, coude, etiquettes };
@@ -326,7 +328,7 @@ export function calculerScene(p: Pick<ProprietesSceneIV, "schema" | "mots" | "du
     colonne,
     separation: new Map(trier(p.separations ?? []).map((s) => [s.noeud, s.t])),
     coche: new Map(trier(p.coches ?? []).map((s) => [s.noeud, s.t])),
-    part: new Map(p.schema.liens.filter((l) => l.part !== undefined).map((l) => [l.id, l.part!])),
+    part: new Map(p.schema.liens.filter((l) => typeof l.part === "number" && l.part > 0).map((l) => [l.id, l.part!])),
   };
 }
 
@@ -569,7 +571,8 @@ export function partsEmbranchement(s: SceneCalculee, decision: string, t: number
     const branche = s.colonne.get(f.vers);
     const b = s.parId.get(f.vers);
     if (!branche || !b || !estFlecheDeSeparation(s, f)) continue;
-    const part = s.part.get(f.id) ?? 0;
+    const part = s.part.get(f.id);
+    if (!part) continue;
     const ch = cheminDe(s, f)!;
     res.push({
       fleche: f.id,
