@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { couperPhrase, VARIANTES_T21, varianteT21 } from "@/briques/visuels/variante-t21";
 
 const TITRES = ["Répondre plus vite aux demandes", "Ranger les dossiers du cabinet", "Préparer un devis sans stress", "Relancer sans gêner", "Trois réflexes pour vos devis", "Une semaine mieux rangée"];
+/** Styles en ligne qui dessinent un rond plein orange : `borderRadius: "50%"` et fond orange dans le même objet. */
+const rondsOrange = (texte: string) => (texte.match(/style=\{\{[^}]*\}\}/g) ?? []).filter((st) => /borderRadius:\s*"50%"/.test(st) && /background:\s*COULEURS\.orange/.test(st));
 const source = () => readFileSync("studio-rendu/compositions/visuels/pages/T21.tsx", "utf8");
 
 describe("T21 : variante choisie par le carrousel", () => {
@@ -24,6 +26,13 @@ describe("T21 : variante choisie par le carrousel", () => {
     expect(s).toContain("varianteT21(");
     // Les trois points vivent DANS une bulle (tracé de la bulle juste avant) : jamais de gros ronds orange seuls.
     expect(s).not.toMatch(/<circle[^>]*fill=\{COULEURS\.orange\}/);
+    // Ni de div arrondies sur fond orange (le défaut d'origine).
+    expect(rondsOrange(s)).toEqual([]);
+  });
+  it("le contrôle des ronds orange attrape le défaut d'origine (div `borderRadius: \"50%\"` sur fond orange), dans les deux ordres", () => {
+    expect(rondsOrange('<div key={x} style={{ width: 220, height: 220, borderRadius: "50%", background: COULEURS.orange }} />')).toHaveLength(1);
+    expect(rondsOrange('<div style={{ background: COULEURS.orange, borderRadius: "50%" }} />')).toHaveLength(1);
+    expect(rondsOrange('<div style={{ borderRadius: 999, border: "2px solid", background: COULEURS.creme }} />')).toEqual([]);
   });
   it("la composition reçoit le titre de couverture", () => {
     expect(readFileSync("studio-rendu/compositions/visuels/VisuelPage.tsx", "utf8")).toMatch(/<T21 [^>]*titreCouverture=/);

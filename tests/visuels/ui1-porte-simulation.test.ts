@@ -134,6 +134,24 @@ describe("porte : un classement porte sur l'entreprise face aux autres, pas sur 
   });
 });
 
+describe("porte : zone nationale sans acteur exigé, zone locale avec acteur (tour 3)", () => {
+  it.each([
+    "Le premier banque de France",
+    "Le premier site du marché",
+    "Le premier opérateur de France",
+    "Le premier assureur national",
+    "Leader incontesté depuis 10 ans",
+    "Leader français du conseil",
+  ])("« %s » est un classement", (texte) => {
+    expect(classementDans(texte)).toBeDefined();
+    expect(codes(specDe(texte))).toContain("CLASSEMENT");
+  });
+  it.each(["Un premier devis", "Une première étape", "Le ton reste le même", "Leaders, voici la méthode", "Premier pas en France pour votre site", "Le premier salon du métier"])("« %s » passe", (texte) => {
+    expect(classementDans(texte)).toBeUndefined();
+    expect(codes(specDe(texte))).toEqual([]);
+  });
+});
+
 describe("porte : « ton » nom commun n'est pas un tutoiement (tour 2)", () => {
   it.each(["Ton variable", "Ton constant", "Le ton reste le même", "Ton sur ton"])("« %s » passe", (titre) => {
     expect(codes(specDe(titre))).toEqual([]);

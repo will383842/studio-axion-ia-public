@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { CarteCarrousel } from "@/components/visuels/CarteCarrousel";
+import { LIMITES } from "@/briques/visuels/limites";
 import { DepotMemoire } from "@/donnees/memoire";
 import type { Porte } from "@/domaine/visuels/contrats";
 import { libellePages } from "@/domaine/visuels/statuts";
@@ -77,6 +78,12 @@ describe("carrousel bloqué par la porte", () => {
     expect(v?.statut).toBe("bloque");
     expect(v?.pagesTexte).toBeUndefined();
     expect(libellePages(await ficheCarrousel(id, deps))).toBe("aucune page");
+  });
+  it("un texte écrit de 500 pages est borné au nombre maximal de pages du schéma", async () => {
+    const pages = Array.from({ length: 500 }, () => ({ type: "T10", message: "Un message" }));
+    const { deps, depot } = dependances(async () => ({ ...(await ecritRouge()), spec: { ...SPEC_3, pages } }));
+    const { id } = await creerDepuisSujet("Sujet rouge", deps);
+    expect((await depot.obtenir(id))?.pagesTexte).toBe(LIMITES.pagesMax);
   });
   it("l'en-tête de la fiche passe par `libellePages`", () => {
     expect(readFileSync("src/app/(studio)/carrousels/[id]/page.tsx", "utf8")).toMatch(/sousTitre=\{`\$\{fiche\.libelleStatut\} · \$\{libellePages\(fiche\)\}`\}/);
