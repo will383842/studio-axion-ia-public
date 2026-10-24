@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
 import { FORMAT } from "../commun/constantes";
-import { dessinsDe } from "../commun/occupation";
-import { ATTRIBUT_ZONE_CORPS, boiteEnZoneReservee, compterChevauchements, partVide, type Boite } from "../commun/zones";
+import { dessinsDe, encreDesTitres, textesTropLarges } from "../commun/occupation";
+import { ATTRIBUT_ZONE_CORPS, boiteEnZoneReservee, collisionsInterligne, compterChevauchements, partVide, type Boite } from "../commun/zones";
 import type { ProprietesVisuelPage } from "../commun/types";
 import { VisuelPage } from "../VisuelPage";
 import { attendreTitres } from "./attente-titres";
@@ -32,6 +32,8 @@ export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
       let textesEnZone = 0;
       const lignes: { boite: Boite; groupe: number }[] = [];
       let groupe = 0;
+      // Plus longue ligne RENDUE, en signes (critère « lisibilité mobile » de la note) : chaque signe est rangé sur sa ligne réelle.
+      let signesLigneMax = 0;
       for (const n of noeuds) {
         const style = getComputedStyle(n);
         const coupe = style.overflow !== "visible";
@@ -44,6 +46,18 @@ export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
           const plage = document.createRange();
           for (const c of n.childNodes) {
             if (c.nodeType !== Node.TEXT_NODE || (c.textContent ?? "").trim() === "") continue;
+            const parLigne = new Map<number, number>();
+            const texteNoeud = c.textContent ?? "";
+            for (let k = 0; k < texteNoeud.length; k++) {
+              if (texteNoeud[k] === "\n") continue;
+              plage.setStart(c, k);
+              plage.setEnd(c, k + 1);
+              const rect = plage.getBoundingClientRect();
+              const cle = Math.round(rect.top + rect.height / 2);
+              const ligne = [...parLigne.keys()].find((h) => Math.abs(h - cle) < rect.height / 2) ?? cle;
+              parLigne.set(ligne, (parLigne.get(ligne) ?? 0) + 1);
+            }
+            for (const v of parLigne.values()) signesLigneMax = Math.max(signesLigneMax, v);
             plage.selectNodeContents(c);
             groupe++;
             for (const l of plage.getClientRects()) {
@@ -55,14 +69,20 @@ export function MesureVisuelPage({ spec, index, nonce }: ProprietesMesure) {
           if (r.left < -TOLERANCE_PX || r.top < -TOLERANCE_PX || r.right > FORMAT.largeur + TOLERANCE_PX || r.bottom > FORMAT.hauteur + TOLERANCE_PX) debordements++;
         }
       }
+      // Corps de page : un mot ou une pastille plus large que sa colonne est un débordement (le cadre total peut tenir quand même).
+      for (const corpsRempli of racine.current?.querySelectorAll("[data-remplissage]") ?? []) debordements += textesTropLarges(corpsRempli);
       // Chevauchements : deux textes l'un sur l'autre, ou un texte posé sur un dessin : enveloppe marquée `ATTRIBUT_DESSIN`, ou `<svg>` dessiné sur place.
       const dessins = racine.current ? dessinsDe(racine.current) : [];
-      const chevauchements = compterChevauchements(lignes, dessins);
+      // ART-1 : une ligne de titre dont le jambage (Ç, virgule) touche l'accent (É, À) de la ligne suivante compte aussi comme un chevauchement.
+      const jambages = racine.current ? collisionsInterligne(encreDesTitres(racine.current)) : 0;
+      const chevauchements = compterChevauchements(lignes, dessins) + jambages;
       // Vide : part de la hauteur du corps de page sans texte ni dessin (0 pour une page sans corps : couvertures).
       const corps = racine.current?.querySelector(`[${ATTRIBUT_ZONE_CORPS}]`);
       const r = corps?.getBoundingClientRect();
-      const vide = r ? partVide({ haut: r.top, bas: r.bottom }, [...lignes.map((l) => l.boite), ...dessins]) : 0;
-      console.log(formaterMesure(nonce, { debordements, taillePoliceMin: Number.isFinite(taillePoliceMin) ? taillePoliceMin : 0, textes: noeuds.length, textesEnZone, chevauchements, vide }));
+      // Les liaisons (flèches de T28) ne comptent pas dans l'occupation : une flèche étirée ne remplit pas une page (ART-1).
+      const occupes = racine.current ? dessinsDe(racine.current, { pourVide: true }) : [];
+      const vide = r ? partVide({ haut: r.top, bas: r.bottom }, [...lignes.map((l) => l.boite), ...occupes]) : 0;
+      console.log(formaterMesure(nonce, { debordements, taillePoliceMin: Number.isFinite(taillePoliceMin) ? taillePoliceMin : 0, textes: noeuds.length, textesEnZone, chevauchements, vide, jambages, signesLigneMax }));
     };
     mesurer().then(() => continueRender(attente), (e: unknown) => cancelRender(e));
   }, [nonce, attente]);

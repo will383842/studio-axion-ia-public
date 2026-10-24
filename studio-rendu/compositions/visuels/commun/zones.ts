@@ -111,3 +111,17 @@ export function partVide(zone: { haut: number; bas: number }, boites: readonly B
   }
   return Math.round((1 - occupe / hauteur) * 1000) / 1000;
 }
+
+/** Écart d'encre minimal (px) entre deux lignes d'un même titre. */
+export const ECART_ENCRE_PX = 2;
+
+/**
+ * Collisions « jambage de la ligne n contre accent de la ligne n + 1 » (ART-1) : pour chaque titre, boîtes d'ENCRE réelle de ses lignes, de
+ * haut en bas ; une paire compte si le bas de l'une passe sous le haut de la suivante moins `marge`. Fonction PURE (la mesure du DOM réel
+ * l'applique, `mesure/MesureVisuelPage.tsx`).
+ */
+export function collisionsInterligne(titres: readonly (readonly { haut: number; bas: number }[])[], marge: number = ECART_ENCRE_PX): number {
+  let n = 0;
+  for (const lignes of titres) for (let i = 1; i < lignes.length; i++) if (lignes[i - 1].bas + marge > lignes[i].haut) n++;
+  return n;
+}

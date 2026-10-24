@@ -1,84 +1,102 @@
 import { AbsoluteFill } from "remotion";
 import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
-import { couperPhrase, varianteT21, type VarianteT21 } from "../../../../src/briques/visuels/variante-t21";
-import { BORD_DROIT_TEXTE, COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLES } from "../commun/constantes";
+import { typographieFrancaise } from "../../../../src/briques/visuels/typographie-francaise";
+import { couperPhrase } from "../../../../src/briques/visuels/variante-t21";
+import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLES, TITRE_MAX_COUVERTURE } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
-import { BORD_DROIT_TEXTE_BAS } from "../commun/zones";
+import { Dessin } from "../commun/Picto";
+import type { SpecVisuel } from "../commun/types";
 import { Swipe } from "../commun/Swipe";
 import { Titre } from "../commun/Titre";
-import { LUCIDE } from "../icones/lucide";
+import { BORD_DROIT_TEXTE_BAS, largeurTexteMax } from "../commun/zones";
 import { chargerPoliceInter } from "../polices";
 
 interface Proprietes {
   index: number;
   total: number;
-  /** Titre de la couverture : choisit la variante (`varianteT21`), pour que la page change d'un carrousel à l'autre. */
-  titreCouverture: string;
+  variante?: VarianteT21;
 }
 
-/** Conversation : une grande bulle orange (trois points DEDANS : quelqu'un écrit) et une réponse plus petite à droite, sans texte. */
-function Bulles() {
+/** Mises en page de la dernière page (tour 2) : bulle pleine orange, bulle au contour crème avec trois points, typographique (phrase en grand). */
+export const VARIANTES_T21 = ["bulle-pleine", "bulle-points", "typographique"] as const;
+export type VarianteT21 = (typeof VARIANTES_T21)[number];
+
+/**
+ * Variante de la dernière page d'après le SUJET du carrousel (titre de la couverture, empreinte FNV-1a) : deux carrousels différents n'ont pas
+ * forcément la même dernière page, le même carrousel a toujours la même. Fonction PURE.
+ */
+export function varianteFin(spec: SpecVisuel): VarianteT21 {
+  const couverture = spec.pages[0];
+  const sujet = couverture && "titre" in couverture ? couverture.titre : spec.alt;
+  let h = 0x811c9dc5;
+  for (const c of sujet) h = Math.imul(h ^ (c.codePointAt(0) ?? 0), 0x01000193) >>> 0;
+  return VARIANTES_T21[h % VARIANTES_T21.length];
+}
+
+/** Bulle de discussion (viewBox 120 × 104) : rectangle arrondi et queue en bas à gauche ; trois points au centre (« on vous écrit »). */
+const CHEMIN_BULLE = "M22 4 H98 A18 18 0 0 1 116 22 V62 A18 18 0 0 1 98 80 H50 L26 100 L30 80 H22 A18 18 0 0 1 4 62 V22 A18 18 0 0 1 22 4 Z";
+const TROIS_POINTS = [38, 60, 82] as const;
+const LARGEUR_BULLE = 340;
+
+/** Bulle NETTE dessinée sur place : pleine orange (points crème), ou contour crème épais (points orange). */
+function Bulle({ pleine }: { pleine: boolean }) {
   return (
-    <svg width={700} height={670} viewBox="0 0 460 440" role="img" aria-hidden>
-      <path d="M60 12 H400 A48 48 0 0 1 448 60 V230 A48 48 0 0 1 400 278 H190 L96 348 L110 278 H60 A48 48 0 0 1 12 230 V60 A48 48 0 0 1 60 12 Z" fill={COULEURS.orange} stroke={COULEURS.creme} strokeWidth="8" strokeLinejoin="round" />
-      {[150, 230, 310].map((x) => (
-        <circle key={x} cx={x} cy={145} r="22" fill={COULEURS.creme} />
-      ))}
-      <path d="M270 300 H388 A40 40 0 0 1 428 340 V362 A40 40 0 0 1 388 402 H370 L400 428 L338 402 H270 A40 40 0 0 1 230 362 V340 A40 40 0 0 1 270 300 Z" fill={COULEURS.creme} stroke={COULEURS.creme} strokeWidth="8" strokeLinejoin="round" />
-      <path d="M270 351 H388" stroke={COULEURS.encre} strokeWidth="14" strokeLinecap="round" />
-    </svg>
+    <Dessin nom="bulle">
+      <svg width={LARGEUR_BULLE} height={(LARGEUR_BULLE * 104) / 120} viewBox="0 0 120 104" role="img" aria-hidden style={{ display: "block" }}>
+        <path d={CHEMIN_BULLE} fill={pleine ? COULEURS.orange : "none"} stroke={pleine ? "none" : COULEURS.creme} strokeWidth={6} strokeLinejoin="round" />
+        {TROIS_POINTS.map((x) => (
+          <circle key={x} cx={x} cy={42} r={7.5} fill={pleine ? COULEURS.creme : COULEURS.orange} />
+        ))}
+      </svg>
+    </Dessin>
   );
 }
 
-/** Bulle de message de la banque Lucide (« bulle », message-square) en grand, trois points DEDANS : « écrivez-nous ». Sans texte. */
-function BulleMessage() {
-  const [, attributs] = LUCIDE.bulle[0]!;
-  return (
-    <svg width={560} height={560} viewBox="0 0 24 24" role="img" aria-hidden>
-      <path d={attributs.d as string} fill={COULEURS.orange} stroke={COULEURS.creme} strokeWidth="1.1" strokeLinejoin="round" />
-      <path d="M8 11h.01M12 11h.01M16 11h.01" stroke={COULEURS.creme} strokeWidth="2.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Composition typographique pleine : la phrase d'invitation en grand, sans dessin ; la fin de phrase en orange (`couperPhrase`, avec ou sans « : »). */
+/**
+ * Variante typographique : la phrase d'invitation en grand, sans dessin (aucun rond) ; la fin de phrase en orange (`couperPhrase`, avec ou
+ * sans « : »). Bornée au bord du compteur de Meta : la phrase descend sous y = 1080.
+ */
 function PhraseEnGrand() {
   const { debut, fin } = couperPhrase(TEXTES_FIXES.t21Ligne);
   return (
-    // Bornée au bord du compteur de Meta : la phrase descend sous y = 1080.
-    <div style={{ maxWidth: BORD_DROIT_TEXTE_BAS - MARGE, fontFamily: POLICE_CORPS, fontWeight: 800, fontSize: TAILLES.phrase * 2.65, lineHeight: 1.35, letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
-      {debut && `${debut} `}
+    <div style={{ maxWidth: largeurTexteMax(MARGE, BORD_DROIT_TEXTE_BAS), fontFamily: POLICE_CORPS, fontWeight: 800, fontSize: TAILLES.phrase * 2.1, lineHeight: 1.3, letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
+      {debut && `${typographieFrancaise(debut)} `}
       <span style={{ color: COULEURS.orange }}>{fin}</span>
     </div>
   );
 }
 
-/** Ce qui occupe le milieu de la page, selon la variante. */
-function Milieu({ variante }: { variante: VarianteT21 }) {
-  if (variante === "typographie") return <PhraseEnGrand />;
-  return <div style={{ alignSelf: "center" }}>{variante === "conversation" ? <Bulles /> : <BulleMessage />}</div>;
-}
+const TAILLE_LIGNE = 46;
 
 /**
- * T21 — DERNIÈRE page, seule page sombre (fond encre) : invitation générique à écrire en message privé.
+ * T21 — DERNIÈRE page, seule page sombre (fond encre), style TYPOGRAPHIQUE (C, ART-1) : l'appel en capitales géantes (crème, dernière ligne
+ * orange), puis une bulle de discussion NETTE dessinée sur place (pleine, ou au contour avec trois points) et la ligne d'invitation sous un
+ * filet orange ou, en variante typographique, la phrase d'invitation seule en grand sous le filet ; la marque « Axion-IA » en pied, discrète.
  * Tout le texte est posé par le code (`textes-fixes.ts`) : aucun lien, aucun nom, aucun mot-clé d'appel.
- * La variante (conversation, bulle de message, phrase en grand) vient du titre de couverture : elle change d'un carrousel à l'autre.
  */
-export function T21({ index, total, titreCouverture }: Proprietes) {
+export function T21({ index, total, variante = "bulle-pleine" }: Proprietes) {
+  const typographique = variante === "typographique";
   chargerPoliceInter();
-  const variante = varianteT21(titreCouverture);
   return (
     <AbsoluteFill style={{ background: COULEURS.encre, padding: MARGE, boxSizing: "border-box" }}>
       <Zone libelle="T21 : corps" style={{ flex: 1, minHeight: 0, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", justifyContent: "space-between", marginBottom: PAGE.ecart }}>
-        <Titre texte={TEXTES_FIXES.t21Titre} maxLignes={3} hauteurMax={520} couleur={COULEURS.creme} largeur={LARGEUR_TITRE_BORNE} accent />
-        <Milieu variante={variante} />
-        {/* Phrase en grand : elle descend jusqu'au pied (lignes équilibrées, interligne large), sans autre ligne en dessous. */}
-        {variante === "typographie" ? null : (
-          <div style={{ maxWidth: BORD_DROIT_TEXTE - MARGE, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLES.phrase, lineHeight: 1.3, color: COULEURS.creme }}>{TEXTES_FIXES.t21Ligne}</div>
+        <Titre texte={TEXTES_FIXES.t21Titre} maxLignes={4} hauteurMax={560} couleur={COULEURS.creme} largeur={LARGEUR_TITRE_BORNE} max={TITRE_MAX_COUVERTURE} grand accent />
+        {typographique ? null : (
+          <div style={{ alignSelf: "center" }}>
+            <Bulle pleine={variante === "bulle-pleine"} />
+          </div>
         )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          <div style={{ width: 120, height: 6, background: COULEURS.orange }} />
+          {typographique ? (
+            <PhraseEnGrand />
+          ) : (
+            <div style={{ maxWidth: largeurTexteMax(MARGE, BORD_DROIT_TEXTE_BAS), fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLE_LIGNE, lineHeight: 1.25, color: COULEURS.creme }}>{TEXTES_FIXES.t21Ligne}</div>
+          )}
+        </div>
       </Zone>
-      <div style={{ height: PAGE.hauteurPied }}>
-        <Swipe index={index} total={total} sombre />
+      <div style={{ flex: "none", height: PAGE.hauteurPied }}>
+        <Swipe index={index} total={total} sombre signature={TEXTES_FIXES.signature} />
       </div>
     </AbsoluteFill>
   );

@@ -299,8 +299,8 @@ export function casMin(type: TypePage): CasPage[] {
  * page sombre (le repère de défilement y montre sa flèche), une couverture suivie de la page sombre, la page sombre après une couverture.
  * Renvoie le spec et l'index de la page à rendre.
  */
-export function specAutour(page: Record<string, unknown>): { spec: object; index: number } {
-  const couverture = { type: "T01", titre: "Une couverture" };
+export function specAutour(page: Record<string, unknown>, titreCouverture = "Une couverture"): { spec: object; index: number } {
+  const couverture = { type: "T01", titre: titreCouverture };
   const sombre = { type: "T21" };
   const type = page.type as string;
   const pages = type === "T21" ? [couverture, page] : type.startsWith("T01") ? [page, sombre] : [couverture, page, sombre];

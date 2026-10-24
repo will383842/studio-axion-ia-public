@@ -1,4 +1,4 @@
-/** Détection du texte coupé : fonction PURE (le DOM réel est lu par `Carte.tsx`). */
+/** Détection du texte coupé : fonction PURE (le DOM réel est lu par `controle-debordement.tsx`). */
 
 export interface BoiteMesuree {
   clientWidth: number;

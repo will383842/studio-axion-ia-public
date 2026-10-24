@@ -2,7 +2,7 @@
 // La dernière page sombre (T21) invite à écrire en message privé ; les étiquettes de la page avant/après (T08) sont neutres.
 export const TEXTES_FIXES = {
   t21Titre: "Écrivez-nous en message privé",
-  t21Ligne: "Une question, une idée, un projet : un message privé suffit.",
+  t21Ligne: "Une question, une idée, un projet\u00a0: un message privé suffit.",
   t08Avant: "Avant",
   t08Apres: "Après",
   /** Signature discrète en bas à gauche des pages intérieures. */
@@ -40,6 +40,6 @@ export const TEXTES_FIXES_L9 = {
   t26Etiquette: "Scénario type · exemple illustratif",
   t26Avant: "AVANT",
   t26AvecNous: "AVEC NOUS",
-  t26Vous: "VOUS :",
+  t26Vous: "VOUS\u00a0:",
   t27Jauge: "Plus vous répondez «\u00a0oui\u00a0», plus le sujet mérite qu’on s’y arrête.",
 } as const;
