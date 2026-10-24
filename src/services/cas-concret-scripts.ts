@@ -31,8 +31,11 @@ import { validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
 import { avertissementsCorrespondance } from "@/moteurs/montage-cas-concret/correspondance";
 
 export type { EcranApercu } from "@/moteurs/montage-cas-concret/script-valide";
-import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
+import { creerVerrou, depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
+
+/** UN seul verrou pour toute écriture d'une nouvelle version de script validé (validation, modification, script fourni). */
+export const verrouScripts = creerVerrou();
 
 export const CLE_SCRIPTS_VALIDES = "casConcret.scriptsValides";
 /** Toutes les versions validées de chaque cas, dans l'ordre (jamais réécrites, jamais effacées). */
@@ -175,7 +178,7 @@ export async function validerScriptCasConcret(videoId: Id, dependances: { mainte
     fiche = c.fiche;
   }
   const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString().slice(0, 10);
-  await garderNouvelleVersion(cas, scriptDeFiche(fiche, { versionCas: cas.version, valideLe, source: `Vidéo ${videoId} : script écrit, relu, puis validé par Will.`, videoId }));
+  await verrouScripts(() => garderNouvelleVersion(cas, scriptDeFiche(fiche, { versionCas: cas.version, valideLe, source: `Vidéo ${videoId} : script écrit, relu, puis validé par Will.`, videoId })));
   // L0a (15/10) : le script de la vidéo (onglet Script) devient le texte validé, écran par écran (plus la trame).
   const { enregistrerScriptDuBrouillon } = await import("./videos");
   await enregistrerScriptDuBrouillon(videoId, blocsScriptDesEcrans(fiche.ecrans, videoId));
@@ -301,10 +304,10 @@ export async function modifierScriptValideCasConcret(casId: string, modification
   const c = await controlerModifications(ficheARelire(actuel, cas), m, cas);
   if (!c.ok) throw new ErreurStudio("SCRIPT_MODIFIE_REFUSE", c.message);
   const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString().slice(0, 10);
-  const candidat = scriptDeFiche(c.fiche, { versionCas: cas.version, valideLe, source: `Modifié par Will avant le lancement (remplace la version ${numeroDe(actuel)}).` });
+  const candidat = scriptDeFiche(c.fiche, { versionCas: cas.version, valideLe, source: `Modifié par Will avant le lancement (remplace la version ${numeroDe(actuel)}).`, ...(actuel.fourni ? { fourni: true as const } : {}) });
   const apres = empreinteScriptValide(candidat);
   if (apres === avant) return { casId: cas.id, numero: numeroDe(actuel), empreinte: avant, modifie: false };
-  const nouvelle = await garderNouvelleVersion(cas, candidat);
+  const nouvelle = await verrouScripts(() => garderNouvelleVersion(cas, candidat));
   await journaliser("cas-concret", `Script modifié (version ${nouvelle.numero}) : ${cas.titre}`);
   return { casId: cas.id, numero: nouvelle.numero!, empreinte: apres, modifie: true };
 }
