@@ -71,6 +71,8 @@ export interface VueCas {
    * le stock a des cas rangés (absent : l'écran est celui d'avant). `fiche`, `secteur` et `taille` : cas du stock par métier seulement.
    */
   stock?: { traite: boolean; fiche?: string; secteur?: string; taille?: string };
+  /** AJOUTER UN CAS · cas ajouté à la main par Will (pastille « Ajouté par vous ») ; son secteur et sa taille s'il les a donnés. */
+  ajoute?: { secteur?: string; taille?: string };
   /** P2S · cas né de la porte B : son brouillon et les faits à confirmer (absent : cas du catalogue). */
   porteB?: { videoId: string; aConfirmer: { id: string; enonce: string }[] };
 }
@@ -97,6 +99,19 @@ export function versVueCas(cas: CasConcret, empreinte: string, valide: boolean, 
     ...(ecranFourni && cas.etapes.some(ecranDerriereConnexion) ? { ecransAFournir: cas.etapes.flatMap((e, i) => (ecranDerriereConnexion(e) ? [i + 1] : [])) } : {}),
   };
 }
+
+/**
+ * Le rang d'un cas AJOUTÉ à la main pour les filtres (secteur, taille) : il passe par `stock`, comme celui d'un cas du stock, pour
+ * que les filtres le voient. Rien à dire (ni secteur ni taille, ni rang du stock) : pas de rang.
+ */
+export function stockDeLAjoute(ajoute: { secteur?: string; taille?: string }, info?: VueCas["stock"]): VueCas["stock"] | undefined {
+  const rang = { ...(ajoute.secteur ? { secteur: ajoute.secteur } : {}), ...(ajoute.taille ? { taille: ajoute.taille } : {}) };
+  if (!info && !Object.keys(rang).length) return undefined;
+  return { traite: info?.traite ?? false, ...(info?.fiche ? { fiche: info.fiche } : {}), ...rang };
+}
+
+/** Pastille d'un cas que Will a ajouté lui-même. */
+export const MENTION_AJOUTE = "Ajouté par vous";
 
 /** Mention montrée sur la feuille d'un cas de la porte B. */
 export const MENTION_EXEMPLE = "Exemple, pas un cas réel";

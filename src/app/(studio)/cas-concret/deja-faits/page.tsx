@@ -7,6 +7,7 @@ import { lireSession } from "@/services/auth";
 import { lireCasTraites } from "@/services/cas-concret-traites";
 import { lireCasRetires } from "@/services/cas-concret-retires";
 import { reglageAllume, REGLAGES_CAS_CONCRET } from "@/services/cas-concret-reglages";
+import { lireEntreesCasAjoutes } from "@/services/cas-concret-ajoutes-lecture";
 
 export const metadata: Metadata = { title: "Cas déjà faits" };
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function PageDejaFaits() {
   if (!(await lireSession())) redirect("/connexion");
   const [traites, catalogueEtendu, stockMetiers, retires] = await Promise.all([lireCasTraites(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers), lireCasRetires()]);
-  const cas = listerDejaFaits(traites, { catalogueEtendu, stockMetiers }, retires);
+  const cas = listerDejaFaits(traites, { catalogueEtendu, stockMetiers }, retires, Object.values(await lireEntreesCasAjoutes()));
   return (
     <div className="mx-auto max-w-2xl">
       <EnTetePage titre="Cas déjà faits" sousTitre="Ces cas ont déjà leur vidéo. Remettez-en un en stock pour le refaire." retour={{ href: "/cas-concret", libelle: "Cas concret MD" }} />
