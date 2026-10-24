@@ -322,13 +322,16 @@ function suivant(travail: Travail, etat: EtatFabricationIV, maintenant: number):
   };
 }
 
-function resultatDe(etat: EtatFabricationIV, maintenant: number): ResultatFabrication {
+export function resultatDe(etat: EtatFabricationIV, maintenant: number): ResultatFabrication {
   const mentions = etat.controles?.verdict?.mentions ?? [];
   const alertes: AlerteQualite[] = mentions.map((message) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message }));
   const note = Math.max(60, 90 - 3 * mentions.length);
-  const premiere = (etat.livraison ?? []).find((l) => l.fichierCle);
+  // Première livraison : de préférence un fichier 9:16 (Reel, Instagram…) ; LinkedIn seul (4:5) est déclaré en 4:5.
+  const livrees = (etat.livraison ?? []).filter((l) => l.fichierCle);
+  const premiere = livrees.find((l) => l.format !== "4:5") ?? livrees[0];
+  const quatreCinq = premiere?.format === "4:5";
   const sorties = premiere
-    ? [{ ratio: "9:16" as const, fichierCle: premiere.fichierCle!, vignetteCle: premiere.fichierCle!, resolution: "1080x1920", dureeSec: premiere.dureeSec ?? 0, taille: 0, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 } }]
+    ? [{ ratio: (quatreCinq ? "4:5" : "9:16") as "4:5" | "9:16", fichierCle: premiere.fichierCle!, vignetteCle: premiere.fichierCle!, resolution: quatreCinq ? "1080x1350" : "1080x1920", dureeSec: premiere.dureeSec ?? 0, taille: 0, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 } }]
     : [];
   return {
     sorties,
