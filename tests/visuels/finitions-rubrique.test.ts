@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { RUBRIQUES, rubriqueAffichee } from "@/briques/visuels/textes-fixes";
+import { rubriqueAffichee } from "@/briques/visuels/rubrique";
+import { RUBRIQUES } from "@/briques/visuels/textes-fixes";
 
 describe("rubrique : jamais répétée par le titre", () => {
   it("T22 « Idée reçue, réalité » : la rubrique « IDÉE REÇUE » n'est pas affichée (le titre la dit déjà)", () => {
@@ -19,7 +20,10 @@ describe("rubrique : jamais répétée par le titre", () => {
     // Un mot de la rubrique pris dans un autre mot ne compte pas.
     expect(rubriqueAffichee("T08", "Les constatations")).toBe(RUBRIQUES.T08);
   });
-  it("le cadre commun des pages passe par `rubriqueAffichee`", () => {
-    expect(readFileSync("studio-rendu/compositions/visuels/commun/PageBase.tsx", "utf8")).toContain("rubriqueAffichee(");
+  it("le cadre commun des pages passe par `rubriqueAffichee`, importée de `rubrique.ts` (pas de `textes-fixes.ts`)", () => {
+    const base = readFileSync("studio-rendu/compositions/visuels/commun/PageBase.tsx", "utf8");
+    expect(base).toContain("rubriqueAffichee(");
+    expect(base).toMatch(/import \{ rubriqueAffichee \} from "[./]+\/src\/briques\/visuels\/rubrique";/);
+    expect(readFileSync("src/briques/visuels/textes-fixes.ts", "utf8")).not.toContain("rubriqueAffichee");
   });
 });

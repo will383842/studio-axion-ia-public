@@ -193,7 +193,7 @@ describe("note sur 100 : jamais « présenté » si la porte refuse", () => {
     // Le mot est lu dans la liste publique (pas recopié) : la première entrée de « Écrire », hors ville, que son propre libellé déclenche.
     const expression = LISTE_INTERDITS.filter((i) => i.portee.includes("ecrire"))
       .map((i) => i.libelle.replace(/\(.*\)/g, "").replace(/[«»]/g, "").trim())
-      .find((t) => !/villeexemple|grenoble/i.test(t) && interditsDans(t, "ecrire").length > 0);
+      .find((t) => !/villeexemple/i.test(t) && interditsDans(t, "ecrire").length > 0);
     expect(expression).toBeDefined();
     const spec = avecPage(1, { type: "T10", message: `Une formation : ${expression}` });
     const r = noterCarrousel(spec, sain(), { valeurHumaine: 8 });

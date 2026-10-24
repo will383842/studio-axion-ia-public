@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AbsoluteFill } from "remotion";
-import { rubriqueAffichee, TEXTES_FIXES, type TypePageAvecRubrique } from "../../../../src/briques/visuels/textes-fixes";
+import { rubriqueAffichee } from "../../../../src/briques/visuels/rubrique";
+import { TEXTES_FIXES, type TypePageAvecRubrique } from "../../../../src/briques/visuels/textes-fixes";
 import { Annotation } from "./Annotation";
 import { JAMBAGE, Zone } from "./controle-debordement";
 import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE, MARGE, PAGE, POLICE_CORPS, TAILLE_RUBRIQUE, TAILLE_SIGNATURE } from "./constantes";

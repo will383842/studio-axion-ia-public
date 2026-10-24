@@ -1,6 +1,6 @@
 import { AbsoluteFill } from "remotion";
 import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
-import { varianteT21, type VarianteT21 } from "../../../../src/briques/visuels/variante-t21";
+import { couperPhrase, varianteT21, type VarianteT21 } from "../../../../src/briques/visuels/variante-t21";
 import { BORD_DROIT_TEXTE, COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLES } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
 import { BORD_DROIT_TEXTE_BAS } from "../commun/zones";
@@ -41,13 +41,14 @@ function BulleMessage() {
   );
 }
 
-/** Composition typographique pleine : la phrase d'invitation en grand, sans dessin ; la fin de phrase en orange. */
+/** Composition typographique pleine : la phrase d'invitation en grand, sans dessin ; la fin de phrase en orange (`couperPhrase`, avec ou sans « : »). */
 function PhraseEnGrand() {
-  const [debut, fin] = TEXTES_FIXES.t21Ligne.split(/(?<=:)\s+/u);
+  const { debut, fin } = couperPhrase(TEXTES_FIXES.t21Ligne);
   return (
     // Bornée au bord du compteur de Meta : la phrase descend sous y = 1080.
     <div style={{ maxWidth: BORD_DROIT_TEXTE_BAS - MARGE, fontFamily: POLICE_CORPS, fontWeight: 800, fontSize: TAILLES.phrase * 2.65, lineHeight: 1.35, letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
-      {debut} <span style={{ color: COULEURS.orange }}>{fin}</span>
+      {debut && `${debut} `}
+      <span style={{ color: COULEURS.orange }}>{fin}</span>
     </div>
   );
 }

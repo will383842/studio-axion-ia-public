@@ -325,7 +325,7 @@ export async function refaire(id: string, deps: DependancesCarrousels): Promise<
     await transiter(
       id,
       "brouillon",
-      { versionSpec: frais.versionSpec + 1, spec: undefined, rapport: undefined, rendu: undefined, renduDemandeLe: undefined, erreur: undefined, valideLe: undefined, pourquoi: undefined, noteTexte: undefined },
+      { versionSpec: frais.versionSpec + 1, spec: undefined, rapport: undefined, rendu: undefined, renduDemandeLe: undefined, erreur: undefined, valideLe: undefined, pourquoi: undefined, noteTexte: undefined, pagesTexte: undefined },
       deps,
     );
   });
