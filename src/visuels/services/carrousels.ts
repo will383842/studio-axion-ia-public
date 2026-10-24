@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { LIMITES } from "@/briques/visuels/limites";
 import { LIBELLES_STATUT, transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { CODES_ERREUR_VISUELS, type DemandeTexteCarrousel, type ContextePorte, type EmpreinteCarrousel, type FournisseurTexteCarrousel, type Porte } from "@/domaine/visuels/contrats";
-import { recentsAEviter } from "@/domaine/controles-visuel/memoire-carrousels";
+import { MEMOIRE_CARROUSELS, recentsAEviter } from "@/domaine/controles-visuel/memoire-carrousels";
 import { CarrouselSpec } from "@/domaine/visuels/schema";
 import type { CarrouselSpecType } from "@/domaine/visuels/types";
 import type { MotifRefus, Visuel } from "@/domaine/visuels/visuel";
@@ -88,10 +88,20 @@ function fournisseurPermis(demande: DemandeTexteCarrousel, deps: DependancesCarr
   return f;
 }
 
-/** Empreintes des derniers carrousels produits (L7, mémoire anti-répétition) ; une lecture en échec n'empêche jamais d'écrire. */
+/** Statuts d'un carrousel réellement produit (texte passé par la porte) : un brouillon ou une fiche bloquée n'est pas à éviter. */
+const STATUTS_NON_PRODUITS: readonly StatutVisuel[] = ["brouillon", "bloque"];
+
+/** Ne garde de la spec que ce que lit l'empreinte (type des pages, titre et sous-titre de la couverture) : lecture allégée du dépôt. */
+const pourEmpreinte = (v: Visuel): Visuel => ({ ...v, spec: { ...v.spec!, pages: v.spec!.pages.map((p, i) => (i === 0 ? p : { type: p.type })) as CarrouselSpecType["pages"] } });
+
+/**
+ * Empreintes des `MEMOIRE_CARROUSELS` derniers carrousels produits (L7, mémoire anti-répétition) ; seules les pages utiles sont copiées,
+ * les 5 plus récentes gardées. Une lecture en échec n'empêche jamais d'écrire.
+ */
 async function recentsDe(id: string, deps: DependancesCarrousels): Promise<EmpreinteCarrousel[]> {
   try {
-    return recentsAEviter(await deps.depot.lister((v) => v.id !== id && v.famille === "carrousel" && !v.corbeilleLe && v.spec !== undefined));
+    const fiches = await deps.depot.lister((v) => v.id !== id && v.famille === "carrousel" && !v.corbeilleLe && v.spec !== undefined && !STATUTS_NON_PRODUITS.includes(v.statut), pourEmpreinte);
+    return recentsAEviter(fiches, MEMOIRE_CARROUSELS);
   } catch {
     return [];
   }
