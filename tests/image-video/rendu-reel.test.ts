@@ -46,7 +46,7 @@ async function jusquAuBout(e0: EtatFabricationIV, o: OutilsFabricationIV): Promi
   return { etat: e, attentes };
 }
 
-const depart = (reseaux?: EtatFabricationIV["demande"]["reseaux"]) => etatInitialIV(demandeEssai(carteFixe("C"), reseaux ? { reseaux } : {}));
+const depart = (reseaux?: EtatFabricationIV["demande"]["reseaux"]) => etatInitialIV(demandeEssai(carteFixe("C"), reseaux ? { reseaux, formats: {} } : { formats: {} })); // formats vides (24/10/2026) : ce test suit le chemin 9:16 ; le 4:5 est couvert par format-4x5.test.ts
 
 /* ------------------------------------------------------------------ */
 /* Succès                                                                */
