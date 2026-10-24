@@ -1296,7 +1296,7 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
  * sans elle, une correction qui ne touche que l'affichage ne change ni la ligne de temps ni l'identifiant de rendu, et « Refaire
  * cette partie » reprend les anciens rendus (même refus, à 0 €). 23/10/2026 : bulle du récit, légende du chiffre, phrase de la fin.
  */
-export const VERSION_COMPOSITIONS_IV = "compositions-iv/6"; // /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
+export const VERSION_COMPOSITIONS_IV = "compositions-iv/7"; // /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
 
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
