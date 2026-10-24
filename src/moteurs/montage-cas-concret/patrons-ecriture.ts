@@ -75,13 +75,19 @@ export const PATRONS_COMPATIBLES: Readonly<Record<Exclude<Structure, "v4-avant-e
  * Les patrons d'une vidéo : même identifiant (et même `sel`), mêmes patrons. Sans structure ou en v4 : le tirage de
  * toujours ; sinon le même hachage, sur la liste des patrons compatibles avec la structure.
  */
-export function patronsDeLaVideo(videoId: string, sel = 0, demandee?: Structure, offre?: Offre): PatronsDeLaVideo {
+export function patronsDeLaVideo(videoId: string, sel = 0, demandee?: Structure, offre?: Offre, options: { sansChiffre?: boolean } = {}): PatronsDeLaVideo {
   const graine = graineDe(`${videoId}#${sel}`);
   // Coaching + « une-journee » : se comporte comme la v4 (voir `structureEffective`).
   const structure = demandee && offre ? structureEffective(offre, demandee) : demandee;
   const compatibles = structure && structure !== STRUCTURES[0] ? PATRONS_COMPATIBLES[structure] : undefined;
   const choisi = (r: RolePatron) => {
-    const liste = compatibles?.[r] ? PATRONS[r].filter((p) => compatibles[r]!.includes(p.id)) : PATRONS[r];
+    let liste = compatibles?.[r] ? PATRONS[r].filter((p) => compatibles[r]!.includes(p.id)) : PATRONS[r];
+    if (options.sansChiffre) {
+      // Aucun nombre à dire : pas de « chiffre » en résultat, pas d'accroche « le nombre d'abord », pas de « total » en fin d'avant.
+      const ecartes: Partial<Record<RolePatron, readonly string[]>> = { resultat: ["chiffre"], accroche: ["contraste"], avant: ["verbes", "question"] };
+      const ecart = ecartes[r];
+      if (ecart) liste = liste.filter((p) => !ecart.includes(p.id));
+    }
     return liste[hacher32(`${graine}:${r}`) % liste.length]!;
   };
   return Object.fromEntries(ROLES_PATRON.map((r) => [r, choisi(r)])) as PatronsDeLaVideo;
@@ -89,7 +95,7 @@ export function patronsDeLaVideo(videoId: string, sel = 0, demandee?: Structure,
 
 const FORME_DE_STRUCTURE: Readonly<Record<Exclude<Structure, "v4-avant-etapes-resultat">, string>> = {
   "resultat-d-abord":
-    "STRUCTURE DE CETTE VIDÉO : le résultat d'abord. Juste après l'accroche, un court écran « resultat » dit le gain obtenu en quelques mots ; la vidéo montre ensuite d'où l'on part, puis comment on y arrive. Pour cette vidéo, le premier écran après l'accroche n'est PAS un écran « chiffre » : c'est le « resultat » court de cette structure (3 à 6 mots dits), qui porte son titre et ses deux barres avant / maintenant tirées des faits du cas. Pas d'écran « chiffre » : le gain est dit par l'accroche et par ce premier résultat. Le dernier écran « resultat » vient après la dernière étape et redit le gain autrement, sans nouveau chiffre.",
+    "STRUCTURE DE CETTE VIDÉO : le résultat d'abord. Juste après l'accroche, un court écran « resultat » dit le gain obtenu en quelques mots ; la vidéo montre ensuite d'où l'on part, puis comment on y arrive. Pour cette vidéo, le premier écran après l'accroche n'est PAS un écran « chiffre » : c'est le « resultat » court de cette structure (3 à 6 mots dits), qui porte son titre et ses deux barres avant / maintenant tirées des faits du cas (cas sans fait chiffré : leurs libellés seuls, sans nombre). Pas d'écran « chiffre » : le gain est dit par l'accroche et par ce premier résultat. Le dernier écran « resultat » vient après la dernière étape et redit le gain autrement, sans nouveau chiffre.",
   "probleme-solution":
     "STRUCTURE DE CETTE VIDÉO : le problème, puis la solution. Après l'accroche, la liste « avant » est un vrai problème : ce que chaque tâche coûte, tâche par tâche, le total en dernier s'il existe. Une phrase pose ensuite la solution, puis les étapes la déroulent. Pas d'écran « chiffre ».",
   "une-journee":
