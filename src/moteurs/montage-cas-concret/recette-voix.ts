@@ -30,7 +30,7 @@ export const RECETTE_VOIX_CAS_CONCRET = Object.freeze({
     queueSec: 0.45,
   }),
   filtres: Object.freeze({
-    atempo: 1.08,
+    atempo: 1.08 as number, // `number` (et non le littéral 1,08) : Image → vidéo dérive sa propre recette à ×1,05 (`RECETTE_VOIX_IV`)
     passeHaut: "highpass=f=70",
     compresseur: "acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=3",
     volume: "loudnorm=I=-14:TP=-1.5:LRA=7",

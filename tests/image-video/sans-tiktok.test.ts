@@ -45,7 +45,7 @@ describe("(a) le dépôt Image → vidéo ne propose plus TikTok", () => {
 
   it("le prix « au plus » du dépôt baisse avec quatre réseaux (le moteur réserve le même prix)", () => {
     const quatre = ecran.prixDuDepot(RESEAUX_IV);
-    expect(quatre).toBe(895); // 8,95 € au plus (24/10 : 7,95 € + 1 € de relectures du fil Facebook 4:5 ; cinq réseaux avant : 9,26 €)
+    expect(quatre).toBe(890); // 8,90 € au plus (24/10 : 7,90 € + 1 € de relectures du fil Facebook 4:5 ; tempo x1,05 ; cinq réseaux avant : 9,26 €)
     expect(quatre).toBeLessThan(926);
     expect(quatre).toBeGreaterThan(ecran.prixDuDepot(["youtube-shorts", "linkedin", "instagram"]));
   });

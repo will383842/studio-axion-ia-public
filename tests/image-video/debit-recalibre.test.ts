@@ -1,5 +1,5 @@
 /**
- * Débit recalibré le 18/10/2026 : 3,4 mots/s (et plus 2,75), mesuré sur les pistes de deux vraies voix. Tout ce qui en
+ * Débit recalibré le 18/10/2026 à 3,4 mots/s (et plus 2,75), mesuré sur les pistes de deux vraies voix à tempo ×1,08 ; 24/10/2026 : 3,3 (3,4 × 1,05 / 1,08) depuis le tempo ×1,05. Tout ce qui en
  * dépend suit la constante : mots de chaque classe (durée × débit), jugement du script (Q10), prix affiché au dépôt.
  * Aucun appel, aucun réseau : cartes figées, fiches simulées, services purs.
  */
@@ -43,9 +43,9 @@ function ficheDeMots(n: number): FicheImage {
 
 const q10 = (f: FicheImage) => verifierScript(f, { carte: faux }).manquements.filter((m) => m.regle === "Q10");
 
-describe("débit de référence : 3,4 mots par seconde", () => {
-  it("la constante vaut 3,4", () => {
-    expect(DEBIT_MOTS_PAR_SEC).toBe(3.4);
+describe("débit de référence : 3,3 mots par seconde", () => {
+  it("la constante vaut 3,3", () => {
+    expect(DEBIT_MOTS_PAR_SEC).toBe(3.3);
   });
 
   it("les mots de chaque classe sont la durée visée × le débit, arrondis (aucun nombre en dur)", () => {
@@ -53,10 +53,10 @@ describe("débit de référence : 3,4 mots par seconde", () => {
       const { corpsSec, mots } = BORNES_CLASSE[c];
       expect(mots).toEqual([Math.round(corpsSec[0] * DEBIT_MOTS_PAR_SEC), Math.round(corpsSec[1] * DEBIT_MOTS_PAR_SEC)]);
     }
-    expect(BORNES_CLASSE.simple.mots).toEqual([102, 136]);
-    expect(BORNES_CLASSE.moyenne.mots).toEqual([136, 170]);
-    expect(BORNES_CLASSE.branches.mots).toEqual([163, 190]);
-    expect(BORNES_CLASSE["tres-complexe"].mots).toEqual([204, 265]);
+    expect(BORNES_CLASSE.simple.mots).toEqual([99, 132]);
+    expect(BORNES_CLASSE.moyenne.mots).toEqual([132, 165]);
+    expect(BORNES_CLASSE.branches.mots).toEqual([158, 185]);
+    expect(BORNES_CLASSE["tres-complexe"].mots).toEqual([198, 257]);
   });
 
   it("la complexité d'une carte rend les mots de sa classe, calculés depuis la durée", () => {
@@ -67,7 +67,7 @@ describe("débit de référence : 3,4 mots par seconde", () => {
   });
 });
 
-describe("Q10 au débit de 3,4 mots/s (image très complexe : 60 à 78 s)", () => {
+describe("Q10 au débit de 3,3 mots/s (image très complexe : 60 à 78 s)", () => {
   it("le faux schéma est bien très complexe", () => {
     expect(complexiteDe(faux).classe).toBe("tres-complexe");
   });
@@ -78,13 +78,13 @@ describe("Q10 au débit de 3,4 mots/s (image très complexe : 60 à 78 s)", () =
     expect(m[0]!.message).toMatch(/trop court/);
   });
 
-  it("204 mots (60 s) passent, comme le bas de la fourchette du prompt", () => {
-    expect(q10(ficheDeMots(204))).toEqual([]);
+  it("198 mots (60 s) passent, comme le bas de la fourchette du prompt", () => {
+    expect(q10(ficheDeMots(198))).toEqual([]);
   });
 
-  it("le seuil bas de Q10 reste à 90 % de 60 s : 184 mots passent, 183 refusent", () => {
-    expect(q10(ficheDeMots(184))).toEqual([]);
-    expect(q10(ficheDeMots(183))).toHaveLength(1);
+  it("le seuil bas de Q10 reste à 90 % de 60 s : 179 mots passent, 178 refusent", () => {
+    expect(q10(ficheDeMots(179))).toEqual([]);
+    expect(q10(ficheDeMots(178))).toHaveLength(1);
   });
 });
 
@@ -99,8 +99,8 @@ describe("débit mesuré sur les voix réelles", () => {
 });
 
 describe("prix affiché au dépôt (la voix au pire suit le débit)", () => {
-  it("deux réseaux (YouTube Shorts et LinkedIn) : 5,33 €", () => {
-    expect(ecran.prixDuDepot(["youtube-shorts", "linkedin"])).toBe(533);
+  it("deux réseaux (YouTube Shorts et LinkedIn) : 5,27 €", () => {
+    expect(ecran.prixDuDepot(["youtube-shorts", "linkedin"])).toBe(527);
   });
 
   it("le format déclare le même débit (écrans génériques d'écriture)", () => {
