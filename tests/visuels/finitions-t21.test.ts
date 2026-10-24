@@ -4,8 +4,25 @@ import { describe, expect, it } from "vitest";
 import { couperPhrase, VARIANTES_T21, varianteT21 } from "@/briques/visuels/variante-t21";
 
 const TITRES = ["Répondre plus vite aux demandes", "Ranger les dossiers du cabinet", "Préparer un devis sans stress", "Relancer sans gêner", "Trois réflexes pour vos devis", "Une semaine mieux rangée"];
-/** Styles en ligne qui dessinent un rond plein orange : `borderRadius: "50%"` et fond orange dans le même objet. */
-const rondsOrange = (texte: string) => (texte.match(/style=\{\{[^}]*\}\}/g) ?? []).filter((st) => /borderRadius:\s*"50%"/.test(st) && /background:\s*COULEURS\.orange/.test(st));
+/** Chaque `style={{ … }}` jusqu'à l'accolade qui l'équilibre (les `${…}` des gabarits ne le coupent pas). */
+const stylesEnLigne = (texte: string) => {
+  const styles: string[] = [];
+  for (const m of texte.matchAll(/style=\{\{/g)) {
+    const debut = m.index + "style=".length;
+    let profondeur = 0;
+    for (let i = debut; i < texte.length; i++) {
+      if (texte[i] === "{") profondeur++;
+      else if (texte[i] === "}" && --profondeur === 0) {
+        styles.push(texte.slice(m.index, i + 1));
+        break;
+      }
+    }
+  }
+  return styles;
+};
+/** Styles en ligne qui dessinent un rond plein orange : `borderRadius: "50%"` (ou 999…) et fond orange dans le même objet. */
+const rondsOrange = (texte: string) =>
+  stylesEnLigne(texte).filter((st) => /borderRadius:\s*(?:["']50%["']|9{3,})/.test(st) && /background(?:Color)?:\s*COULEURS\.orange/.test(st));
 const source = () => readFileSync("studio-rendu/compositions/visuels/pages/T21.tsx", "utf8");
 
 describe("T21 : variante choisie par le carrousel", () => {
@@ -33,6 +50,11 @@ describe("T21 : variante choisie par le carrousel", () => {
     expect(rondsOrange('<div key={x} style={{ width: 220, height: 220, borderRadius: "50%", background: COULEURS.orange }} />')).toHaveLength(1);
     expect(rondsOrange('<div style={{ background: COULEURS.orange, borderRadius: "50%" }} />')).toHaveLength(1);
     expect(rondsOrange('<div style={{ borderRadius: 999, border: "2px solid", background: COULEURS.creme }} />')).toEqual([]);
+  });
+  it("le contrôle lit tout l'objet de style, gabarits `${…}` compris, et les variantes `backgroundColor` / `borderRadius: 999`", () => {
+    expect(rondsOrange("<div style={{ border: `4px solid ${COULEURS.creme}`, borderRadius: 999, backgroundColor: COULEURS.orange }} />")).toHaveLength(1);
+    expect(rondsOrange("<div style={{ outline: `${ep}px solid ${COULEURS.creme}`, background: COULEURS.orange, borderRadius: '50%' }} />")).toHaveLength(1);
+    expect(rondsOrange("<div style={{ border: `4px solid ${COULEURS.orange}`, borderRadius: 12, background: COULEURS.creme }} />")).toEqual([]);
   });
   it("la composition reçoit le titre de couverture", () => {
     expect(readFileSync("studio-rendu/compositions/visuels/VisuelPage.tsx", "utf8")).toMatch(/<T21 [^>]*titreCouverture=/);

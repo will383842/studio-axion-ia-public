@@ -113,20 +113,26 @@ const ACTEUR = `(?:cabinet|artisan|fournisseur|entreprise|soci[eé]t[eé]|soluti
 const SUITE_CLASSEMENT_DIRECTE = new RegExp(`^\\s+${SUR_ZONE}`, "iu");
 /** Zones larges (marché, pays, monde) : tout ce qui s'y classe est un rang (« premier site du marché », « premier assureur national »). */
 const ZONE_LARGE = `(?:(?:du|de la|des)\\s+(?:march[eé]|france|monde|pays|europe|classement)${FIN_MOT}|${ZONE_NATIONALE})`;
+/** Événements, étapes et retours : ils ordonnent un moment, pas l'entreprise (« premier salon national », « premiers retours du marché »). */
+const EVENEMENT = `(?:salon|journ[eé]e|[eé]dition|retour|pratique|mois|semaine|client|r[eé]sultat|chiffre|[eé]tape|jour|pas|fois|devis|contact|rendez-vous)(?:s|x)?${FIN_MOT}`;
 /**
- * Zone large : jusqu'à trois mots quelconques avant elle, sauf une étape (« premier pas en France ») ; zone locale (région, département,
- * ville, métier, secteur) : un acteur d'abord (« premier [grand] cabinet [d'expertise] de la région », pas « premier salon du métier »).
+ * Zone large : jusqu'à trois mots avant elle, dont aucun événement ni étape (« premier [vrai] pas en France ») ; zone locale (région,
+ * département, ville, métier, secteur) : un acteur d'abord (« premier [grand] cabinet [d'expertise] de la région », pas « premier salon du métier »).
  */
 const SUITE_CLASSEMENT_PROCHE = new RegExp(
-  `^(?:(?!\\s+(?:pas|fois|[eé]tape|jour|contact|rendez-vous|devis)${FIN_MOT})(?:\\s+\\p{L}+){0,3}?\\s+${ZONE_LARGE}` +
+  `^(?:(?:\\s+(?!${EVENEMENT})\\p{L}+){0,3}?\\s+${ZONE_LARGE}` +
     `|(?:\\s+(?!(?:du|de|des|d|la|le|les|l)${FIN_MOT})\\p{L}+){0,2}?\\s+${ACTEUR}(?:\\s+[\\p{L}'’]+){0,3}?\\s+${SUR_ZONE})`,
   "iu",
 );
 const NUMERO_UN = /^\s*(?:°|o|º)?\s+un(?![\p{L}\p{N}])/iu;
-/** « leader du secteur », « leader en France », « leader incontesté », « leader français du conseil ». */
-const SUITE_LEADER = /^\s+(?:du|de|des|d['’]|sur|dans|en|au|mondial|mondiale|national|nationale|europ[eé]en(?:ne)?|fran[cç]ais(?:e)?|incontest[eé]e?|historique|reconnue?|absolue?)(?![\p{L}\p{N}])/iu;
+/** « leader du secteur », « leader en France », « leaders incontestés », « leaders mondiaux » (« leader reconnu par son équipe » n'en est pas un). */
+const SUITE_LEADER = /^\s+(?:du|de|des|d['’]|sur|dans|en|au|mondiale?s?|mondiaux|nationale?s?|nationaux|europ[eé]en(?:ne)?s?|fran[cç]ais(?:es?)?|incontest[eé]e?s?|absolue?s?)(?![\p{L}\p{N}])/iu;
 /** « Nous sommes leaders », « elle est leader », « devenir leader » : l'entreprise se dit leader. */
 const ETRE_LEADER = /(?:^|[^\p{L}])(?:sommes|suis|es|est|sont|êtes|etes|être|etre|devenir|devenu|devenue|devenus|devenues|rester|restons|reste|restent)\s+(?:(?:le|la|les|un|une|des|l['’])\s+)?$/iu;
+/** « Devenir un leader », « être une leader » : un conseil sur la posture d'une personne, pas l'entreprise qui se classe. */
+const CONSEIL_LEADER = /(?:^|[^\p{L}])(?:être|etre|devenir|rester)\s+(?:un|une)\s+$/iu;
+/** « Meilleur ouvrier de France » : titre officiel décerné à une personne, pas un classement que l'entreprise s'attribue. */
+const TITRE_MOF = /^\s+ouvri[eè]re?s?\s+de\s+france(?![\p{L}\p{N}])/iu;
 
 /**
  * Classement affiché, porté par l'ENTREPRISE ou son offre face aux autres (« premier du marché », « première solution au monde »,
@@ -137,6 +143,7 @@ function classementDe(texte: string, index: number, mot: string): string | undef
   const suite = texte.slice(index + mot.length);
   const avant = texte.slice(Math.max(0, index - 12), index);
   if (/^premiere?s?$/.test(n) || /^meilleure?s?$/.test(n)) {
+    if (/^meilleure?s?$/.test(n) && TITRE_MOF.test(suite)) return undefined;
     const m = SUITE_CLASSEMENT_DIRECTE.exec(suite) ?? SUITE_CLASSEMENT_PROCHE.exec(suite);
     if (m) return `${mot}${m[0]}`;
     if (!/^premiere?s?$/.test(n)) return undefined;
@@ -148,7 +155,8 @@ function classementDe(texte: string, index: number, mot: string): string | undef
   if (n === "leader" || n === "leaders") {
     const m = SUITE_LEADER.exec(suite);
     if (m) return `${mot}${m[0]}`;
-    if (ETRE_LEADER.test(texte.slice(Math.max(0, index - 24), index))) return mot;
+    const avantLeader = texte.slice(Math.max(0, index - 24), index);
+    if (ETRE_LEADER.test(avantLeader) && !CONSEIL_LEADER.test(avantLeader)) return mot;
     // Seul en tête de phrase et sans suite (« Leader. ») : un titre qui se proclame ; « Leaders, voici… » est une apostrophe.
     return /(?:^|[.!?:;\n–—])\s*$/u.test(texte.slice(0, index)) && /^\s*(?:[.!?…]|$)/u.test(suite) ? mot : undefined;
   }
