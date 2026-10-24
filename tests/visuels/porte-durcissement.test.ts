@@ -45,7 +45,10 @@ describe("durcissement : CHIFFRE", () => {
   });
   it("chiffres romains", () => expect(codes(reference("Au XXIe siècle"))).toEqual(["CHIFFRE"]));
   it("ordinaux en lettres", () => {
-    for (const s of ["Le deuxième pas", "Le premier pas", "Le second pas", "Le vingtième pas"]) expect(codes(reference(s))).toEqual(["CHIFFRE"]);
+    for (const s of ["Le deuxième pas", "Le vingtième pas"]) expect(codes(reference(s))).toEqual(["CHIFFRE"]);
+  });
+  it("premier, première, second, seconde : adjectifs, pas des chiffres (UI-1)", () => {
+    for (const s of ["Le premier pas", "Le second pas", "Une première étape", "Une seconde chance"]) expect(codes(reference(s)), s).toEqual([]);
   });
   it("fractions et quantités", () => {
     for (const s of ["La moitié du temps", "Un demi tour", "Le tiers restant", "Un quart", "Le double", "Le triple", "Quadruple effet", "Une dizaine", "Une douzaine", "Une quinzaine", "Une vingtaine", "Une trentaine", "Une centaine", "Un millier"]) {

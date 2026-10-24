@@ -49,7 +49,8 @@ describe("garde d'accès des carrousels", () => {
   });
 
   it("la fiche ne se recharge pas toutes les 5 s quand le rendu est périmé (relancer_rendu permis)", () => {
-    const source = readFileSync(join(RACINE, "[id]/page.tsx"), "utf8");
-    expect(source).toMatch(/enCours\s*=[^;]*!fiche\.actionsPermises\.includes\("relancer_rendu"\)/);
+    // UI-1 : l'actualisation suit `renduEnCours` (récent), calculé par le service ; périmé = relance proposée, pas de rechargement.
+    const source = readFileSync(join(RACINE, "../../../components/visuels/MessagesFiche.tsx"), "utf8");
+    expect(source).toMatch(/fiche\.renduEnCours\s*&&\s*!aCorbeille\s*&&\s*<meta httpEquiv="refresh"/);
   });
 });

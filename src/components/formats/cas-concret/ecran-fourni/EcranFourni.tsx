@@ -143,7 +143,7 @@ export function EcranFourni({ casId, etapes }: { casId: string; etapes: EtapeAEc
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={source} alt="Votre image, avant masquage" className="pointer-events-none block w-full" draggable={false} />
             {[...zones, ...(tracee ? [tracee] : [])].map((z, i) => (
-              <div key={i} data-testid="zone-masquee" className="pointer-events-none absolute bg-black" style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.largeur * 100}%`, height: `${z.hauteur * 100}%` }} />
+              <div key={i} data-testid="zone-masquee" className="pointer-events-none absolute bg-fond" style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.largeur * 100}%`, height: `${z.hauteur * 100}%` }} />
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">

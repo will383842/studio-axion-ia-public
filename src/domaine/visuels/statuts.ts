@@ -7,7 +7,7 @@ export const TRANSITIONS: Record<StatutVisuel, readonly StatutVisuel[]> = {
   ecrit: ["rendu_en_cours"],
   bloque: ["brouillon"],
   rendu_en_cours: ["a_valider", "echec_rendu"],
-  echec_rendu: ["rendu_en_cours"],
+  echec_rendu: ["rendu_en_cours", "brouillon"],
   a_valider: ["valide", "refuse"],
   refuse: ["brouillon"],
   valide: [],

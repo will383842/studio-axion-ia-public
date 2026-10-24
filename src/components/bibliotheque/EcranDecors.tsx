@@ -52,7 +52,7 @@ export function EcranDecors({ donnees, ajouterAuDepart }: { donnees: DonneesEcra
             {d.code && <Pastille>{d.code}</Pastille>}
             {d.etat !== "fond-neutre" && d.etat !== "photo" && <Pastille ton={d.ton}>{d.libelleEtat}</Pastille>}
           </span>
-          {d.defautAvocat && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">Défaut</span>}
+          {d.defautAvocat && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-voile px-2 py-0.5 text-[11px] font-semibold text-texte">Défaut</span>}
         </div>
         <p className="mt-1.5 truncate text-xs font-semibold text-texte">{d.nom}</p>
       </button>

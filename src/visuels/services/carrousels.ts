@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { LIBELLES_STATUT, transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { CODES_ERREUR_VISUELS, type DemandeTexteCarrousel, type ContextePorte, type FournisseurTexteCarrousel, type Porte } from "@/domaine/visuels/contrats";
+import { CarrouselSpec } from "@/domaine/visuels/schema";
 import type { CarrouselSpecType } from "@/domaine/visuels/types";
 import type { MotifRefus, Visuel } from "@/domaine/visuels/visuel";
 import type { Depot } from "@/domaine/depots";
+import { phrasesPaquetSession } from "../texte/phrases-paquet";
 import type { ResultatRendu } from "./rendu";
 
 /**
@@ -18,6 +20,8 @@ export class ErreurVisuel extends Error {
   constructor(
     public readonly code: CodeErreurVisuel,
     message: string,
+    /** Phrases précises à montrer à l'écran (p. ex. les champs fautifs d'un texte déposé). */
+    public readonly details?: string[],
   ) {
     super(message);
     this.name = "ErreurVisuel";
@@ -32,6 +36,8 @@ export interface DependancesCarrousels {
   allume: () => Promise<boolean>;
   rendre: (spec: CarrouselSpecType) => Promise<ResultatRendu>;
   urlLecture: (cle: string) => Promise<string>;
+  /** Adresse qui TÉLÉCHARGE le fichier sous ce nom (absente : l'adresse de lecture sert). */
+  urlTelechargement?: (cle: string, nom: string) => Promise<string>;
   verrou: <T>(f: () => Promise<T>) => Promise<T>;
   maintenant: () => string;
   lireParametre: <T>(id: string, defaut: T) => Promise<T>;
@@ -53,7 +59,7 @@ const SESSION_MAX = 100_000;
 /** Schémas (http, mailto…), « www. », « // » et tout domaine nu : un sujet ne porte aucun lien. */
 const LIEN = /(?:https?|ftp|mailto|file):|www\.|\/\/|[\p{L}\p{N}][\p{L}\p{N}-]*\.\p{L}{2,}/iu;
 
-const refus = (code: CodeErreurVisuel, message: string) => new ErreurVisuel(code, message);
+const refus = (code: CodeErreurVisuel, message: string, details?: string[]) => new ErreurVisuel(code, message, details);
 const normaliser = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
 async function exigerAllume(deps: DependancesCarrousels): Promise<void> {
@@ -93,7 +99,7 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
   try {
     reponse = await fournisseur.ecrire(demande);
   } catch {
-    await bloquer("L'écriture du texte a échoué : réessayez avec « Refaire »");
+    await bloquer(demande.type === "sujet" ? "L'écriture du texte a échoué : réessayez avec « Refaire »" : "La lecture du texte déposé a échoué : déposez un texte corrigé");
     return;
   }
   if (!reponse) {
@@ -107,10 +113,14 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
     await bloquer("Le texte n'a pas pu être contrôlé par la porte");
     return;
   }
-  const { rapport, specCorrige } = controle;
+  // La porte ne rend de texte corrigé que s'il y a eu des corrections : sans correction, le texte validé est repris tel quel.
+  const { rapport } = controle;
+  // Sans correction, le texte est repris tel que le schéma l'a lu (espaces rognés), pas la saisie brute.
+  const specLue = rapport.verdict === "rouge" ? undefined : CarrouselSpec.safeParse(reponse.spec);
+  const specCorrige = controle.specCorrige ?? (specLue?.success ? specLue.data : undefined);
   let patch: Partial<Visuel>;
   try {
-    patch = { titre: reponse.titre.trim().slice(0, TITRE_MAX) || "Carrousel", pourquoi: [...reponse.pourquoi], modeTexte: reponse.mode, rapport, spec: specCorrige };
+    patch = { titre: reponse.titre.trim().slice(0, TITRE_MAX) || "Carrousel", pourquoi: [...reponse.pourquoi], modeTexte: reponse.mode, rapport, spec: specCorrige, noteTexte: reponse.note };
   } catch {
     await bloquer("La réponse du texte est incomplète");
     return;
@@ -176,16 +186,30 @@ export async function creerDepuisSujet(sujet: string, deps: DependancesCarrousel
 
 export async function deposerSession(contenu: string, deps: DependancesCarrousels): Promise<{ id: string }> {
   await exigerAllume(deps);
-  if (!contenu.trim() || contenu.length > SESSION_MAX) throw refus("PAQUET_INVALIDE", "Le fichier de session est vide ou trop long");
+  if (!contenu.trim() || contenu.length > SESSION_MAX) throw refus("PAQUET_INVALIDE", "Le fichier de session est vide ou trop long", ["Le texte déposé est vide ou trop long."]);
+  // Lu et validé AVANT la création de la fiche : un paquet invalide ne laisse aucune fiche vide.
+  const phrases = phrasesPaquetSession(contenu);
+  if (phrases.length > 0) throw refus("PAQUET_INVALIDE", phrases.join(" "), phrases);
   return demarrer({ type: "session" }, { type: "paquet-session", contenu }, "Carrousel depuis une session", createHash("sha256").update(contenu).digest("hex"), deps);
 }
 
 const PHRASE_ECHEC_FIXE = "Le rendu a échoué : réessayez avec « Relancer le rendu »";
 /** Phrases écrites par le rendu pour l'équipe ; tout autre message (adresse, chemin, pile) n'est jamais recopié. */
-const PHRASES_CONNUES = [/^La page \d+ déborde\b/, /^La page \d+ a un texte sous 26 px \(\d+(?:[.,]\d+)?\)$/, /^Le serveur du studio n'a pas fini à temps\.$/];
+const PHRASES_CONNUES = [/^Le serveur du studio n'a pas fini à temps\.$/];
+/** Contrôles de mise en page du rendu (débordement, zone réservée, texte sous 26 px, chevauchement, jambage) : un nouvel essai échouera pareil. */
+const CONTROLE_MISE_EN_PAGE = /^La page (\d+)(?: (déborde)\b| a un texte (sous) \d+ px \(\d|\s*:\s*un texte (?:(entre) dans une zone réservée|(en) chevauche)|\s*:[^:]*\b(jambage))/i;
+/** Une cause, une phrase : seule la zone réservée parle de LinkedIn. */
+const CAUSES_MISE_EN_PAGE = ["le texte dépasse de son cadre", "le texte devient trop petit pour être lu", "zone réservée de LinkedIn", "deux textes se touchent", "une lettre est coupée"] as const;
+/** Phrase gardée quand la mise en page refuse le texte : la fiche ne propose alors pas « Relancer le rendu ». */
+export const ERREUR_MISE_EN_PAGE = /ne tient pas dans la mise en page/;
 
 function phraseEchec(e: unknown): string {
   const message = e instanceof Error ? e.message : "";
+  const controle = CONTROLE_MISE_EN_PAGE.exec(message);
+  if (controle) {
+    const cause = CAUSES_MISE_EN_PAGE[controle.slice(2, 7).findIndex((g) => g !== undefined)] ?? CAUSES_MISE_EN_PAGE[0];
+    return `La page ${controle[1]} ne tient pas dans la mise en page (${cause}) : raccourcissez ce texte ou changez de type de page.`;
+  }
   if (PHRASES_CONNUES.some((r) => r.test(message))) return message.slice(0, 300);
   return /mesure/i.test(message) ? PHRASE_SERVEUR_NON_RELIE : PHRASE_ECHEC_FIXE;
 }
@@ -275,7 +299,7 @@ export async function refuser(id: string, motif: MotifRefus, page: number | unde
   });
 }
 
-/** bloque|refuse → brouillon → réécriture (sujet seulement). Depuis « à valider » : refus « autre » d'abord, la table reste intacte. */
+/** bloque|refuse|echec_rendu → brouillon → réécriture (sujet seulement). Depuis « à valider » : refus « autre » d'abord, la table reste intacte. */
 export async function refaire(id: string, deps: DependancesCarrousels): Promise<void> {
   await exigerAllume(deps);
   const v = await lireVisuel(id, deps);
@@ -285,14 +309,17 @@ export async function refaire(id: string, deps: DependancesCarrousels): Promise<
   const fournisseur = fournisseurPermis(demande, deps);
   if (v.statut === "a_valider") await refuser(id, "autre", undefined, undefined, deps);
   else if (!transitionPermise(v.statut, "brouillon")) throw refus("TRANSITION_REFUSEE", `Un carrousel « ${LIBELLES_STATUT[v.statut]} » ne se refait pas`);
+  let version = 1;
   await deps.verrou(async () => {
     const frais = await lireVisuel(id, deps);
+    version = frais.versionSpec + 1;
     await transiter(
       id,
       "brouillon",
-      { versionSpec: frais.versionSpec + 1, spec: undefined, rapport: undefined, rendu: undefined, renduDemandeLe: undefined, erreur: undefined, valideLe: undefined, pourquoi: undefined },
+      { versionSpec: frais.versionSpec + 1, spec: undefined, rapport: undefined, rendu: undefined, renduDemandeLe: undefined, erreur: undefined, valideLe: undefined, pourquoi: undefined, noteTexte: undefined },
       deps,
     );
   });
-  await rediger(id, fournisseur, demande, deps);
+  // La version suivante décale le choix du modèle de simulation : « Refaire » ne redonne pas le même texte.
+  await rediger(id, fournisseur, { ...demande, version }, deps);
 }
