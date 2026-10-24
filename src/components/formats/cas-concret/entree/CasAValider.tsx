@@ -12,6 +12,7 @@ import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
 import { libelleSecteur } from "../stock/filtres-stock";
 import { BoutonRetirerCas } from "./BoutonRetirerCas";
+import { LienMonScript } from "./LienMonScript";
 import type { VueCas } from "./vue";
 
 export function CasAValider({ cas, occupe, onValider, onEssai, total }: { cas: readonly VueCas[]; occupe: boolean; onValider: (c: VueCas) => void; onEssai: (c: VueCas) => void; total?: number }) {
@@ -56,6 +57,7 @@ export function CasAValider({ cas, occupe, onValider, onEssai, total }: { cas: r
               <Bouton variante="secondaire" disabled={occupe} onClick={() => onEssai(c)}>
                 Fabriquer un essai
               </Bouton>
+              <LienMonScript cas={c} />
               <BoutonRetirerCas casId={c.id} titre={c.titre} desactive={occupe} onRetire={apresRetrait} />
             </div>
           </Carte>

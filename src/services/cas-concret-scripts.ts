@@ -31,8 +31,11 @@ import { validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
 import { avertissementsCorrespondance } from "@/moteurs/montage-cas-concret/correspondance";
 
 export type { EcranApercu } from "@/moteurs/montage-cas-concret/script-valide";
-import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
+import { creerVerrou, depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
+
+/** UN seul verrou pour toute écriture d'une nouvelle version de script validé (validation, modification, script fourni). */
+export const verrouScripts = creerVerrou();
 
 export const CLE_SCRIPTS_VALIDES = "casConcret.scriptsValides";
 /** Toutes les versions validées de chaque cas, dans l'ordre (jamais réécrites, jamais effacées). */
@@ -175,7 +178,7 @@ export async function validerScriptCasConcret(videoId: Id, dependances: { mainte
     fiche = c.fiche;
   }
   const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString().slice(0, 10);
-  await garderNouvelleVersion(cas, scriptDeFiche(fiche, { versionCas: cas.version, valideLe, source: `Vidéo ${videoId} : script écrit, relu, puis validé par Will.`, videoId }));
+  await verrouScripts(() => garderNouvelleVersion(cas, scriptDeFiche(fiche, { versionCas: cas.version, valideLe, source: `Vidéo ${videoId} : script écrit, relu, puis validé par Will.`, videoId })));
   // L0a (15/10) : le script de la vidéo (onglet Script) devient le texte validé, écran par écran (plus la trame).
   const { enregistrerScriptDuBrouillon } = await import("./videos");
   await enregistrerScriptDuBrouillon(videoId, blocsScriptDesEcrans(fiche.ecrans, videoId));
@@ -193,11 +196,16 @@ const utiles = (modifications: readonly ModificationEcran[] | undefined): Modifi
 type Controle = { ok: true; fiche: FicheEcrans } | { ok: false; message: string; problemes: { ligneId?: string; texte: string }[] };
 
 /** Applique les modifications de Will puis repasse TOUS les contrôles (schéma, règles, faits du cas, interdits de Will). */
+/** Les mots interdits de Will (jargon et promesses interdites de la marque la plus récente), tels que la fabrication les rejoue. */
+export async function motsInterditsDeWill(): Promise<string[]> {
+  const marque = (await depots().contexteAxion.lister()).sort((x, y) => y.version - x.version)[0];
+  return [...(marque?.jargonInterdit ?? []), ...(marque?.promessesInterdites ?? [])].filter((x): x is string => typeof x === "string" && !!x.trim());
+}
+
 async function controlerModifications(fiche: FicheEcrans, modifications: readonly ModificationEcran[], cas: CasConcret): Promise<Controle> {
   const a = appliquerModifications(fiche, modifications);
   if (!a.ok) return { ok: false, message: a.raisons.join(" "), problemes: a.raisons.map((texte) => ({ texte })) };
-  const marque = (await depots().contexteAxion.lister()).sort((x, y) => y.version - x.version)[0];
-  const motsInterdits = [...(marque?.jargonInterdit ?? []), ...(marque?.promessesInterdites ?? [])].filter((x) => typeof x === "string" && x.trim());
+  const motsInterdits = await motsInterditsDeWill();
   const v = validerFicheEcrans(a.fiche, { cas, texteScript: texteDuCorps(a.fiche), motsInterdits });
   if (!v.ok) return { ok: false, message: `Le script modifié ne passe pas les contrôles : ${v.problemes.map((p) => p.message).join(" ")}`, problemes: v.problemes.map((p) => ({ ...(p.sceneId ? { ligneId: p.sceneId } : {}), texte: p.message })) };
   return { ok: true, fiche: v.fiche };
@@ -221,7 +229,7 @@ const numeroDe = (s: ScriptValide | null | undefined): number => s?.numero ?? 1;
  * Garde une NOUVELLE version validée : numéro suivant, ajoutée à l'historique (la précédente y est déjà, ou y entre
  * d'abord), puis désignée comme celle du cas. Rien n'est réécrit : ni une version gardée, ni le script du catalogue.
  */
-async function garderNouvelleVersion(cas: Pick<CasConcret, "id">, script: ScriptValide): Promise<ScriptValide> {
+export async function garderNouvelleVersion(cas: Pick<CasConcret, "id">, script: ScriptValide): Promise<ScriptValide> {
   const gardes = await lireParametre<ScriptsGardes>(CLE_SCRIPTS_VALIDES, {});
   const precedente = lireScriptValide(gardes?.[cas.id]) ?? scriptValideDuCatalogue(cas.id) ?? null;
   const historiques = await lireParametre<Record<string, unknown>>(CLE_HISTORIQUE_SCRIPTS, {});
@@ -249,7 +257,7 @@ export async function historiqueScriptsValides(casId: string): Promise<ScriptVal
 }
 
 /** Le script validé utilisable pour la version courante du cas ; `null` : aucun (Claude écrira, Will validera). */
-async function scriptValideCourant(cas: CasConcret): Promise<ScriptValide | null> {
+export async function scriptValideCourant(cas: CasConcret): Promise<ScriptValide | null> {
   const s = await scriptValideDuStudio(cas.id);
   return s && !problemesScriptValide(s, cas).length ? s : null;
 }
@@ -296,10 +304,10 @@ export async function modifierScriptValideCasConcret(casId: string, modification
   const c = await controlerModifications(ficheARelire(actuel, cas), m, cas);
   if (!c.ok) throw new ErreurStudio("SCRIPT_MODIFIE_REFUSE", c.message);
   const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString().slice(0, 10);
-  const candidat = scriptDeFiche(c.fiche, { versionCas: cas.version, valideLe, source: `Modifié par Will avant le lancement (remplace la version ${numeroDe(actuel)}).` });
+  const candidat = scriptDeFiche(c.fiche, { versionCas: cas.version, valideLe, source: `Modifié par Will avant le lancement (remplace la version ${numeroDe(actuel)}).`, ...(actuel.fourni ? { fourni: true as const } : {}) });
   const apres = empreinteScriptValide(candidat);
   if (apres === avant) return { casId: cas.id, numero: numeroDe(actuel), empreinte: avant, modifie: false };
-  const nouvelle = await garderNouvelleVersion(cas, candidat);
+  const nouvelle = await verrouScripts(() => garderNouvelleVersion(cas, candidat));
   await journaliser("cas-concret", `Script modifié (version ${nouvelle.numero}) : ${cas.titre}`);
   return { casId: cas.id, numero: nouvelle.numero!, empreinte: apres, modifie: true };
 }
