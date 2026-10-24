@@ -63,3 +63,21 @@ describe("recit · patrons", () => {
     for (let i = 0; i < 50; i++) expect(["cout", "question", "verbes"]).toContain(patronsDeLaVideo(`v-${i}`, 0, "probleme-solution", "integration", { recit: true }).avant.id);
   });
 });
+
+import { recettePour } from "@/formats/cas-concret/recette";
+import { textesImposesDuCas, variableEcriture } from "@/moteurs/montage-cas-concret/ecriture";
+
+describe("recit · partie variable", () => {
+  const avecRecit = { ...lt02, recit: RECIT_LT02 };
+  it("le bloc <recit> suit <cible> quand le cas a un récit, et n'apparaît pas sinon", () => {
+    const v = variableEcriture(avecRecit, recettePour(avecRecit));
+    expect(v).toContain("<recit>\nsujet : Vos demandes de prix arrivent sans le poids.\nscene : Un client écrit");
+    expect(v).toContain("exemple : la demande de ce client\nmots_cles : demandes, prix, poids\n</recit>");
+    expect(v.indexOf("<recit>")).toBeGreaterThan(v.indexOf("<cible>"));
+    expect(variableEcriture(lt02, recettePour(lt02))).not.toContain("<recit>");
+  });
+  it("le sujet est un texte imposé du cas (jamais compté comme une reprise)", () => {
+    expect(textesImposesDuCas(avecRecit)).toContain(RECIT_LT02.sujet);
+    expect(textesImposesDuCas(lt02)).not.toContain(RECIT_LT02.sujet);
+  });
+});
