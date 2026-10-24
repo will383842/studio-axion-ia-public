@@ -43,6 +43,9 @@ describe("carrousel bloqué par la porte", () => {
       rendre: async () => {
         throw new Error("aucun rendu");
       },
+      rendreReseaux: async () => {
+        throw new Error("aucun rendu");
+      },
       urlLecture: async (cle: string) => `https://stockage.invente/${cle}`,
       verrou: (f: () => Promise<unknown>) => {
         const suite = chaine.then(f, f);
