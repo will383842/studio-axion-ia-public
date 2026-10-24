@@ -53,10 +53,9 @@ describe("données des trames", () => {
   it("les enchaînements suivent l'intention", () => {
     expect(typesDeLaTrame("eveil")).toEqual(expect.arrayContaining(["T22", "T23"]));
     expect(typesDeLaTrame("methode")).toEqual(expect.arrayContaining(["T02", "T20", "T27", "T28"]));
-    expect(typesDeLaTrame("preuve")).toEqual(expect.arrayContaining(["T26", "T24", "T08"]));
+    expect(typesDeLaTrame("preuve")).toEqual(expect.arrayContaining(["T26", "T24", "T28"]));
     const preuve = typesDeLaTrame("preuve");
     expect(preuve.indexOf("T26")).toBeLessThan(preuve.indexOf("T24"));
-    expect(preuve.indexOf("T24")).toBeLessThan(preuve.indexOf("T08"));
   });
 
   it("T29 « relance » est facultative : absente du registre, elle est retirée de la trame", () => {

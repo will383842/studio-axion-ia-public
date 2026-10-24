@@ -70,12 +70,12 @@ Quand le carrousel a une **intention**, son plan suit la trame de cette intentio
 | Intention | Trame | Enchaînement des pages |
 | --- | --- | --- |
 | `eveil` | Éveil / déclic | T01 → T06 → T10 → T22 → T23 → (T29) → T21 |
-| `methode` | Méthode / comment faire | T01 → T02 → T10 → T20 → T27 → T08 → T28 → (T29) → T21 |
-| `preuve` | Preuve / cas | T01C → T26 → T24 → T10 → T08 → T27 → (T29) → T21 |
+| `methode` | Méthode / comment faire | T01 → T02 → T10 → T20 → T27 → T22 → T28 → (T29) → T21 |
+| `preuve` | Preuve / cas | T01C → T26 → T24 → T10 → T28 → T27 → (T29) → T21 |
 
 - Éveil : problème, ce qui coince au quotidien, coût de l'inaction (sans chiffre), idée reçue contre réalité, questions à se poser, appel.
-- Méthode : promesse, sommaire, principe à retenir, étapes (un verbe d'action chacune), checklist, avant / après, schéma du circuit, appel.
-- Preuve : la question du lecteur, un cas concret (« Scénario type », inventé), sans / avec, ce qui change, avant / après, « et chez vous ? », appel.
+- Méthode : promesse, sommaire, principe à retenir, étapes (un verbe d'action chacune), checklist, idée reçue contre réalité, schéma du circuit, appel.
+- Preuve : la question du lecteur, un cas concret (« Scénario type », inventé, qui porte l'avant / après), sans / avec, ce qui change, le chemin suivi en schéma, « et chez vous ? », appel.
 - `(T29)` (relance) est facultative : ne l'employer que lorsque ce type est au registre.
 - Chaque trame respecte la variété : jamais deux pages de même famille à la suite, au moins 4 types (5 dès 8 pages), jamais trois pages denses de suite, une seule page sombre (T21, la dernière).
 
