@@ -31,7 +31,7 @@ export function CarteCarrousel({ carrousel: c, href }: { carrousel: VueCarrousel
         </p>
         {c.joursRestantsCorbeille !== undefined && <p className="mt-0.5 text-sm font-semibold text-ambre">{phraseCorbeille(c.joursRestantsCorbeille)}</p>}
       </div>
-      {c.verdict && <Voyant niveau={c.verdict} />}
+      {c.verdict && c.statut !== "echec_rendu" && <Voyant niveau={c.verdict} avecPorte />}
     </Link>
   );
 }

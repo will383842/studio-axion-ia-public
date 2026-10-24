@@ -104,7 +104,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
                   onClick={() => setChoisies((x) => (pris ? x.filter((y) => y !== a.id) : x.length < 3 ? [...x, a.id] : x))}
                   className={cn("flex w-full items-start gap-3 rounded-carte border p-4 text-left", pris ? "border-orange bg-orange-doux" : "border-trait bg-surface-1")}
                 >
-                  <span className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-xs font-bold", pris ? "border-orange bg-orange text-white" : "border-trait-fort text-texte-faible")}>{pris ? choisies.indexOf(a.id) + 1 : ""}</span>
+                  <span className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-xs font-bold", pris ? "border-orange bg-orange text-sur-orange" : "border-trait-fort text-texte-faible")}>{pris ? choisies.indexOf(a.id) + 1 : ""}</span>
                   <span className="text-[15px] font-semibold leading-snug text-texte">{a.dit}</span>
                 </button>
               </li>

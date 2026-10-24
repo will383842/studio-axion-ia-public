@@ -24,7 +24,7 @@ const BOUTONS: Record<Exclude<ActionCarrousel, "refuser">, { libelle: string; ic
 const ORDRE: ActionCarrousel[] = ["valider", "refuser", "refaire", "relancer_rendu", "corbeille", "restaurer"];
 
 /** Actions de la fiche. N'affiche QUE les actions permises ; les actions sont passées en props. */
-export function BarreValidation({ id, actionsPermises, actions, pdfUrl: pdfBrut }: { id: string; actionsPermises: ActionCarrousel[]; actions: ActionsCarrousel; pdfUrl?: string }) {
+export function BarreValidation({ id, actionsPermises, actions, pdfUrl: pdfBrut, pdfTelechargement = false }: { id: string; actionsPermises: ActionCarrousel[]; actions: ActionsCarrousel; pdfUrl?: string; pdfTelechargement?: boolean }) {
   const pdfUrl = urlSure(pdfBrut);
   const permises = ORDRE.filter((a) => actionsPermises.includes(a));
   if (permises.length === 0 && !pdfUrl) return null;
@@ -43,7 +43,8 @@ export function BarreValidation({ id, actionsPermises, actions, pdfUrl: pdfBrut 
           ))}
         {pdfUrl && (
           <Bouton asChild variante="fantome" icone="telecharger">
-            <a href={pdfUrl} download>
+            {/* Adresse signée « attachment » : le PDF s'enregistre. Sinon (adresse de lecture simple), nouvel onglet : le studio reste ouvert. */}
+            <a href={pdfUrl} download {...(pdfTelechargement ? {} : { target: "_blank", rel: "noopener" })}>
               Télécharger le PDF
             </a>
           </Bouton>

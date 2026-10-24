@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { BarreValidation, type ActionsCarrousel } from "@/components/visuels/BarreValidation";
+import { MessagesFiche } from "@/components/visuels/MessagesFiche";
 import { RangeePages } from "@/components/visuels/RangeePages";
 import { Voyant, Voyants } from "@/components/visuels/Voyants";
 import { exigerSession } from "@/services/auth";
@@ -35,34 +36,17 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
     if (e instanceof ErreurVisuel && e.code === "INTROUVABLE") notFound();
     throw e;
   }
-  const enCours = fiche.statut === "rendu_en_cours" && fiche.joursRestantsCorbeille === undefined && !fiche.actionsPermises.includes("relancer_rendu");
   const erreur = phraseDuCode(sp.erreur);
   return (
     <div className="mx-auto w-full max-w-2xl">
-      {/* Rafraîchissement simple tant que le rendu tourne. */}
-      {enCours && <meta httpEquiv="refresh" content="5" />}
-      <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre={fiche.titre} sousTitre={`${fiche.libelleStatut} · ${fiche.nbPages} ${fiche.nbPages > 1 ? "pages" : "page"}`} actions={fiche.verdict ? <Voyant niveau={fiche.verdict} /> : undefined} />
+      <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre={fiche.titre} sousTitre={`${fiche.libelleStatut} · ${fiche.nbPages} ${fiche.nbPages > 1 ? "pages" : "page"}`} actions={fiche.verdict && fiche.statut !== "echec_rendu" ? <Voyant niveau={fiche.verdict} avecPorte /> : undefined} />
       {!fiche.generateurAllume && <BandeauGenerateurEteint />}
       {erreur && (
         <p role="alert" className="mb-4 text-sm text-brique">
           {erreur}
         </p>
       )}
-      {fiche.erreur && (
-        <p role="status" className="mb-4 text-sm text-brique">
-          {fiche.erreur}
-        </p>
-      )}
-      {enCours && (
-        <p role="status" className="mb-4 text-sm text-texte-doux">
-          Le rendu est en cours : cette page se met à jour toute seule.
-        </p>
-      )}
-      {fiche.statut === "rendu_en_cours" && fiche.actionsPermises.includes("relancer_rendu") && (
-        <p role="status" className="mb-4 text-sm text-texte-doux">
-          Le rendu semble bloqué : utilisez « Relancer le rendu ».
-        </p>
-      )}
+      <MessagesFiche fiche={fiche} />
       {fiche.pages.length > 0 && <RangeePages pages={fiche.pages} titre={fiche.titre} className="mb-6" />}
       {fiche.rapport && <Voyants rapport={fiche.rapport} className="mb-6" />}
       {fiche.pourquoi.length > 0 && (
@@ -79,7 +63,7 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
           </ol>
         </section>
       )}
-      <BarreValidation id={fiche.id} actionsPermises={fiche.actionsPermises} actions={ACTIONS} pdfUrl={fiche.pdfUrl} />
+      <BarreValidation id={fiche.id} actionsPermises={fiche.actionsPermises} actions={ACTIONS} pdfUrl={fiche.pdfUrl} pdfTelechargement={fiche.pdfTelechargement} />
     </div>
   );
 }
