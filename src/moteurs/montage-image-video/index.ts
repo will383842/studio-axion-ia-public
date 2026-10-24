@@ -170,7 +170,7 @@ export function etapesImageVideo(): DefinitionEtapeMoteur[] {
 
 /** Plan § 9, au pire (dollars) : lecture (2 lectures, une relance chacune), écriture (2 appels), relecture par version. */
 export const PRIX_AU_PIRE_USD = Object.freeze({ lecture: 0.36, ecriture: 0.5, relectureParVersion: 0.5, transcriptionParVersion: 0.012 });
-/** Caractères dits par seconde de voix (le débit de référence en mots de 6 caractères, espaces compris : 20,4 à 3,4 mots/s). */
+/** Caractères dits par seconde de voix (le débit de référence en mots de 6 caractères, espaces compris : 19,8 à 3,3 mots/s). */
 const CARACTERES_PAR_SECONDE = DEBIT_MOTS_PAR_SEC * 6;
 
 function ligne(etape: string, fournisseur: string, unite: LigneCout["unite"], quantite: number, total: number, nature: LigneCout["nature"] = "estime"): LigneCout {

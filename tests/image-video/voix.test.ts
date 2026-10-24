@@ -612,6 +612,7 @@ describe("L12 · assemblage : WAV obligatoire, coupes dans les silences mesurés
     expect(pistes.map((p) => p.version)).toEqual(s.versions.map((v) => v.id));
     expect(pistes.every((p) => /^voix-seule-[0-9a-f]{32}$/.test(p.empreinte) && p.tempo === 1.05)).toBe(true);
     expect(a.demandes.every((d) => d.tempo === 1.05)).toBe(true);
+    expect(a.demandes.every((d) => String(d.recette.parametres.filtres).startsWith("atempo=1.05,"))).toBe(true);
     // LinkedIn : corps seul, aucun raccord ; les autres : corps + fin.
     const li = pistes.find((p) => p.reseaux.includes("linkedin"))!;
     expect(li.raccordSec).toBeUndefined();
