@@ -16,6 +16,7 @@ export function CarteCas({ cas, onOuvrir }: { cas: VueCas; onOuvrir: () => void 
           {cas.vraisEcrans && <Pastille ton="ambre">Vrais écrans</Pastille>}
         </span>
         <span className="text-[17px] font-semibold text-texte">{cas.titre}</span>
+        {cas.recit && <span className="text-[15px] text-texte">{cas.recit.sujet}</span>}
         <span className="text-[15px] text-texte-doux">{cas.promesse}</span>
       </button>
     </Carte>
