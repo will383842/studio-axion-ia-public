@@ -5,7 +5,7 @@
  * Défaut vu en prod (T26) : le bandeau « VOUS » supposait l'étiquette à 150 px ; mesurée, elle fait 138,05 px × f → texte en zone du compteur.
  */
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BORD_DROIT_TEXTE, FORMAT, MARGE } from "../../studio-rendu/compositions/visuels/commun/constantes";
 import { bordsAuFacteur, type Colonne } from "../../studio-rendu/compositions/visuels/commun/geometrie";
 import { boiteEnZoneReservee, BORD_DROIT_TEXTE_BAS } from "../../studio-rendu/compositions/visuels/commun/zones";
@@ -14,6 +14,10 @@ import { colonnesT23 } from "../../studio-rendu/compositions/visuels/pages/T23";
 import { colonnesT24, VARIANTES_T24 } from "../../studio-rendu/compositions/visuels/pages/T24";
 import { COLONNES_T26, FACTEUR_MAX_T26, REMPLISSAGE_DROIT_BANDEAU, texteBandeauT26 } from "../../studio-rendu/compositions/visuels/pages/T26";
 import { colonnesT28, FACTEUR_MAX_T28, VARIANTES_T28 } from "../../studio-rendu/compositions/visuels/pages/T28";
+
+// Sans les dépendances de studio-rendu (CI ciblée des visuels), « remotion » est simulé : les composants se chargent quand même.
+// Installé, le vrai module est chargé (son chemin résolu n'est pas « remotion »), le test reste le même.
+vi.mock("remotion", () => ({ cancelRender: () => undefined, continueRender: () => undefined, delayRender: () => 0, AbsoluteFill: () => null }));
 
 const lire = (f: string) => readFileSync(new URL(`../../studio-rendu/compositions/visuels/${f}`, import.meta.url), "utf8");
 

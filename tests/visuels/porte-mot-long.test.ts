@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { controlerCarrousel } from "../../src/domaine/controles-visuel/porte";
 import { capaciteMotCarte } from "../../src/briques/visuels/registre-pages";
 import type { ContextePorte } from "../../src/domaine/visuels/contrats";
@@ -9,6 +9,10 @@ import { colonnesT23 } from "../../studio-rendu/compositions/visuels/pages/T23";
 import { colonnesT24, VARIANTES_T24 } from "../../studio-rendu/compositions/visuels/pages/T24";
 import { COLONNES_T26, texteBandeauT26 } from "../../studio-rendu/compositions/visuels/pages/T26";
 import { colonnesT28, VARIANTES_T28 } from "../../studio-rendu/compositions/visuels/pages/T28";
+
+// Sans les dépendances de studio-rendu (CI ciblée des visuels), « remotion » est simulé : les composants se chargent quand même.
+// Installé, le vrai module est chargé (son chemin résolu n'est pas « remotion »), le test reste le même.
+vi.mock("remotion", () => ({ cancelRender: () => undefined, continueRender: () => undefined, delayRender: () => 0, AbsoluteFill: () => null }));
 
 const ctx: ContextePorte = { interditsDans: () => [], faitsDisponibles: false };
 const carte = (titre: string) => ({ titre, corps: "Un texte court." });
