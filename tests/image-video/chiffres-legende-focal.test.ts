@@ -15,7 +15,8 @@ import type { DonneesEcranChiffresRendu } from "../../studio-rendu/compositions/
 import { Duel, planDuel } from "../../studio-rendu/compositions/image-video/variete/chiffres/duel";
 import { Geant, planGeant } from "../../studio-rendu/compositions/image-video/variete/chiffres/geant";
 import { Objets } from "../../studio-rendu/compositions/image-video/variete/chiffres/objets";
-import { cadreChiffres, LEGENDE_MIN_PX } from "../../studio-rendu/compositions/image-video/variete/chiffres/outils";
+import { Pile } from "../../studio-rendu/compositions/image-video/variete/chiffres/pile";
+import { cadreChiffres, LEGENDE_MIN_PX, scinderChiffre } from "../../studio-rendu/compositions/image-video/variete/chiffres/outils";
 
 const LEGENDE = "résolus instantanément";
 const scene = JSON.parse(readFileSync(join(process.cwd(), "tests/image-video/fixtures/v-6e4a06b9c718-scene.json"), "utf8"));
@@ -158,5 +159,49 @@ describe("légende du chiffre principal · ne déborde pas à droite et ne gross
       const grille = 624 + dy + 52 + Math.round(71 * (1 / e - 1));
       expect(bas).toBeLessThanOrEqual(grille + 1);
     }
+  });
+});
+
+describe("CHI-E (objets) · chiffre et légende centrés, écart avec la grille (relecture du 24/10/2026)", () => {
+  it("le chiffre focal est centré dans une boîte de 936 px, la légende est centrée (text-align:center)", () => {
+    const html = rendre("CHI-E", 1);
+    const style = styleDeLegende(html)!;
+    expect(style).toMatch(/text-align:center/);
+    expect(style).toMatch(/left:72px/);
+    expect(style).toMatch(/width:936px/);
+    // La boîte du chiffre (premier bloc positionné) : 936 de large, contenu centré.
+    const premier = /<div style="([^"]*)"/.exec(html)![1];
+    expect(premier).toMatch(/left:72px/);
+    expect(premier).toMatch(/width:936px/);
+    expect(premier).toMatch(/display:flex/);
+    expect(premier).toMatch(/justify-content:center/);
+  });
+
+  for (const e of [1, 0.7]) {
+    it(`échelle ${e} : au moins 40 px entre le bas de la légende (top + 71 / échelle) et le haut de la grille`, () => {
+      const html = rendre("CHI-E", e);
+      const haut = Number(/top:(\d+(?:\.\d+)?)px/.exec(styleDeLegende(html)!)![1]);
+      const grille = Number(/top:(\d+(?:\.\d+)?)px;width:\d+(?:\.\d+)?px;height:[\d.]+px;transform:rotate/.exec(html)![1]);
+      expect(grille - (haut + 71 / e)).toBeGreaterThanOrEqual(40);
+    });
+  }
+});
+
+describe("pile · « 0 demande » + « perdue » : le nombre seul en grand, le mot dans la légende", () => {
+  it("scinderChiffre sépare le nombre du mot, sauf pour une unité (%, h, min, sec, s, j, €)", () => {
+    expect(scinderChiffre("0 demande", "perdue")).toEqual({ texte: "0", legende: "demande perdue" });
+    expect(scinderChiffre("0 demande")).toEqual({ texte: "0", legende: "demande" });
+    expect(scinderChiffre("2,5 jours ouvrés")).toEqual({ texte: "2,5", legende: "jours ouvrés" });
+    for (const t of ["4 sec", "24h/24", "80%", "80 %", "12 h", "5 min", "3 s", "2 j", "40 €", "23 min"]) expect(scinderChiffre(t, "x")).toEqual({ texte: t, legende: "x" });
+    expect(scinderChiffre("24h/24")).toEqual({ texte: "24h/24", legende: undefined });
+  });
+
+  it("Pile : la balise Anton contient « 0 » seul, la légende « demande perdue », jamais « >0 demande< »", () => {
+    const d = donnees["CHI-E"];
+    const html = renderToStaticMarkup(createElement(Pile, { d, t: 6, cadre, tailleFocale: 350 }));
+    expect(html).not.toContain(">0 demande<");
+    expect(html).toMatch(/>0<\/div>/);
+    expect(html).toContain(">demande perdue</div>");
+    expect(html).toContain(">24h/24<");
   });
 });
