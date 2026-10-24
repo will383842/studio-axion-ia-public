@@ -6,6 +6,7 @@
 import type { TypeDecor } from "../../../../src/briques/visuels/registre-decor";
 import type { TypeMini } from "../../../../src/briques/visuels/registre-mini";
 import type { NomIcone } from "../../../../src/briques/visuels/registre-illustrations";
+import type { Cadre } from "../../../../src/briques/visuels/reseaux";
 
 export interface CarteSpec {
   titre: string;
@@ -52,5 +53,5 @@ export interface SpecVisuel {
   pages: PageSpec[];
 }
 
-/** Propriétés de la composition : le spec validé et la page à dessiner (index dans `spec.pages`). */
-export type ProprietesVisuelPage = { spec: SpecVisuel; index: number };
+/** Propriétés de la composition : le spec validé, la page à dessiner (index dans `spec.pages`) et, facultatif, le cadre du réseau visé (H2). */
+export type ProprietesVisuelPage = { spec: SpecVisuel; index: number; cadre?: Cadre };
