@@ -357,7 +357,7 @@ function FeuilleDetailVisage({ personnageId, visage, habituel, verrouille, onFer
           <AnimatePresence mode="wait">
             {essaiUrl ? (
               <motion.div key="essai" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}>
-                <LecteurVideo src={essaiUrl} titre={`Essai de ${v.nom}`} ratio="9:16" autoLecture className="h-[46dvh]" />
+                <LecteurVideo src={essaiUrl} titre={`Essai de ${v.nom}`} ratio="9:16" autoLecture hauteurMax="46dvh" />
               </motion.div>
             ) : (
               <motion.div key="photo" className="relative mx-auto aspect-[4/5] w-full max-w-60 overflow-hidden rounded-carte bg-surface-2">

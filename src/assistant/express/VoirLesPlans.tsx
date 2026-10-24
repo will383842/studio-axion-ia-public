@@ -51,7 +51,7 @@ export function VoirLesPlans({ enregistrer, desactive }: { enregistrer: () => Pr
       </Bouton>
       <FeuilleBas ouverte={!!maquette} onOuverteChange={(o) => !o && setMaquette(null)} titre="Les plans" description="Sur votre vraie voix : ce que vous voyez est ce qui sera fabriqué.">
         {maquette?.genre === "navigateur" && <MaquetteNavigateur plans={maquette.plans} audioUrl={maquette.audioUrl} dureeSec={maquette.dureeSec} sousTitres={maquette.sousTitres} ratio={maquette.ratio} className="mx-auto max-w-[320px] pb-4" />}
-        {maquette?.genre === "fichier" && <LecteurVideo src={maquette.url} affiche={maquette.vignette} ratio={maquette.ratio} titre="Les plans" autoLecture className="mx-auto max-h-[60dvh]" />}
+        {maquette?.genre === "fichier" && <LecteurVideo src={maquette.url} affiche={maquette.vignette} ratio={maquette.ratio} titre="Les plans" autoLecture hauteurMax="60dvh" />}
       </FeuilleBas>
     </>
   );
