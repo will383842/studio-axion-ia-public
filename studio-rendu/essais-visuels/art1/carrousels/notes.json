@@ -1,0 +1,146 @@
+{
+  "relances": {
+    "total": 99,
+    "verdict": "presente",
+    "criteres": [
+      "1. Conformité : 15/15 — Conforme.",
+      "2. Lisibilité mobile : 12/12 — Tout texte ≥ 26 px, lignes ≤ 45 signes.",
+      "3. Contraste : 8/8 — AA partout.",
+      "4. Hiérarchie : 10/10 — Un titre clair par page.",
+      "5. Densité : 8/8 — Pages ≤ 260 mots, zone vide ≤ 30 %.",
+      "6. Cohérence de marque : 12/12 — Couleurs et polices de la charte.",
+      "7. Diversité : 10/10 — 6 types, aucune suite de même famille.",
+      "8. Accroche page 1 : 10/10 — Accroche de 6 mots.",
+      "9. Valeur et lien Axion : 7/8 (humain) — Noté par une personne.",
+      "10. Appel à l'action : 7/7 — Message privé, une seule action."
+    ],
+    "mesures": [
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 16,
+        "zoneVidePct": 0
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 26,
+        "zoneVidePct": 0
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 22,
+        "zoneVidePct": 0
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 13,
+        "zoneVidePct": 13
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 29,
+        "zoneVidePct": 10
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 36,
+        "zoneVidePct": 0
+      }
+    ]
+  },
+  "factures": {
+    "total": 99,
+    "verdict": "presente",
+    "criteres": [
+      "1. Conformité : 15/15 — Conforme.",
+      "2. Lisibilité mobile : 12/12 — Tout texte ≥ 26 px, lignes ≤ 45 signes.",
+      "3. Contraste : 8/8 — AA partout.",
+      "4. Hiérarchie : 10/10 — Un titre clair par page.",
+      "5. Densité : 8/8 — Pages ≤ 260 mots, zone vide ≤ 30 %.",
+      "6. Cohérence de marque : 12/12 — Couleurs et polices de la charte.",
+      "7. Diversité : 10/10 — 6 types, aucune suite de même famille.",
+      "8. Accroche page 1 : 10/10 — Accroche de 5 mots.",
+      "9. Valeur et lien Axion : 7/8 (humain) — Noté par une personne.",
+      "10. Appel à l'action : 7/7 — Message privé, une seule action."
+    ],
+    "mesures": [
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 26,
+        "zoneVidePct": 0
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 21,
+        "zoneVidePct": 13
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 18,
+        "zoneVidePct": 19
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 31,
+        "zoneVidePct": 6
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 24,
+        "zoneVidePct": 8
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 36,
+        "zoneVidePct": 0
+      }
+    ]
+  },
+  "reunions": {
+    "total": 99,
+    "verdict": "presente",
+    "criteres": [
+      "1. Conformité : 15/15 — Conforme.",
+      "2. Lisibilité mobile : 12/12 — Tout texte ≥ 26 px, lignes ≤ 45 signes.",
+      "3. Contraste : 8/8 — AA partout.",
+      "4. Hiérarchie : 10/10 — Un titre clair par page.",
+      "5. Densité : 8/8 — Pages ≤ 260 mots, zone vide ≤ 30 %.",
+      "6. Cohérence de marque : 12/12 — Couleurs et polices de la charte.",
+      "7. Diversité : 10/10 — 6 types, aucune suite de même famille.",
+      "8. Accroche page 1 : 10/10 — Accroche de 5 mots.",
+      "9. Valeur et lien Axion : 7/8 (humain) — Noté par une personne.",
+      "10. Appel à l'action : 7/7 — Message privé, une seule action."
+    ],
+    "mesures": [
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 28,
+        "zoneVidePct": 0
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 17,
+        "zoneVidePct": 5
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 17,
+        "zoneVidePct": 18
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 35,
+        "zoneVidePct": 11
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 23,
+        "zoneVidePct": 0
+      },
+      {
+        "plusPetitTextePx": 26,
+        "signesParLigneMax": 27,
+        "zoneVidePct": 0
+      }
+    ]
+  }
+}

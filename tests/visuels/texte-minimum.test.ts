@@ -22,7 +22,8 @@ describe("composition VisuelPage : aucun texte sous 26 px", () => {
   it("toutes les tailles de texte déclarées valent au moins 26 px", () => {
     expect(TAILLE_TEXTE_MIN).toBe(26);
     for (const [nom, px] of Object.entries(TAILLES)) expect(px, nom).toBeGreaterThanOrEqual(26);
-    expect(TITRE.min).toBeGreaterThanOrEqual(90);
+    // ART-1 : titres de page en Inter Display Black, 60 à 112 px (deux lignes au plus) ; un titre reste au moins deux fois le texte courant.
+    expect(TITRE.min).toBeGreaterThanOrEqual(2 * 30);
     expect(TITRE.max).toBeLessThanOrEqual(170);
   });
 
