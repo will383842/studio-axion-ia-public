@@ -10,7 +10,7 @@ const fauxRendu: ServiceRendu = {
   },
   async etat(id): Promise<EtatRendu> {
     const d = demandes.find((x) => x.idRendu === id);
-    const mesures = d?.operation === "assemblage-pdf" ? { pages: 2, octets: 1000 } : { debordements: 0, textesEnZone: 0, chevauchements: 0, taillePoliceMin: 28, intrusions: 0 };
+    const mesures: Record<string, number> = d?.operation === "assemblage-pdf" ? { pages: 2, octets: 1000 } : { debordements: 0, textesEnZone: 0, chevauchements: 0, taillePoliceMin: 28, intrusions: 0 };
     return { statut: "termine", sortieCle: d?.sortie.cle ?? "", mesures };
   },
 };
@@ -27,7 +27,10 @@ vi.mock("@/services/_commun", async (original) => ({
 import { reinitialiserDepots } from "@/donnees/memoire";
 import { ecrireParametre } from "@/services/_commun";
 import { dependancesCarrousels } from "@/visuels/services/production";
-import { CONTENU_ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
+import { CarrouselSpec } from "@/domaine/visuels/schema";
+import { CONTENU_ESSAI as ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
+
+const CONTENU_ESSAI = CarrouselSpec.parse(ESSAI);
 
 const pagesDe = (s: DemandeRendu[]) => s.filter((d) => d.operation === "visuel-page");
 const pdfsDe = (s: DemandeRendu[]) => s.filter((d) => d.operation === "assemblage-pdf");
