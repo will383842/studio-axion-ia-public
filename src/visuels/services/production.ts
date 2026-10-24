@@ -9,6 +9,7 @@ import { generateurAllume } from "../interrupteur";
 import { fournisseurTexte } from "../texte/choisir";
 import { ErreurVisuel, type DependancesCarrousels } from "./carrousels";
 import { rendreCarrousel, type DependancesRenduVisuels, type RegistreRendus, type ResultatRendu } from "./rendu";
+import { rendreVersionsReseaux, type RegistreVersionsReseaux, type VersionRendue } from "./rendu-reseaux";
 
 /**
  * SEUL endroit qui relie les services des carrousels au reste du studio (dépôt, texte, porte, rendu, stockage, paramètres).
@@ -71,6 +72,12 @@ const registre: RegistreRendus = {
   ecrire: (empreinte, resultat) => ecrireParametre(PREFIXE_REGISTRE + empreinte, resultat),
 };
 
+/** Registre des versions par réseau : l'empreinte par cadre diffère de l'empreinte sans cadre, le préfixe partagé ne crée aucune collision. */
+const registreReseaux: RegistreVersionsReseaux = {
+  lire: (empreinte) => lireParametre<VersionRendue | null>(PREFIXE_REGISTRE + empreinte, null),
+  ecrire: (empreinte, version) => ecrireParametre(PREFIXE_REGISTRE + empreinte, version),
+};
+
 export function dependancesCarrousels(): DependancesCarrousels {
   const allume = () => generateurAllume("carrousels");
   return {
@@ -80,6 +87,7 @@ export function dependancesCarrousels(): DependancesCarrousels {
     contextePorte,
     allume,
     rendre: (spec) => rendreCarrousel(spec, { rendu: () => obtenirServiceRendu(), stockage, registre, allume }),
+    rendreReseaux: (spec, reseaux) => rendreVersionsReseaux(spec, reseaux, { rendu: () => obtenirServiceRendu(), stockage, registre: registreReseaux, allume }),
     urlLecture: lireUrl,
     urlTelechargement: lireUrlTelechargement,
     verrou: sousVerrou,
