@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { FIXTURES_AXION } from "@/visuels/texte/fixtures";
 import { controlerCarrousel } from "@/domaine/controles-visuel/porte";
-import { premierChiffre } from "@/domaine/controles-visuel/texte";
+import { classementDans, premierChiffre } from "@/domaine/controles-visuel/texte";
 import type { ContextePorte } from "@/domaine/visuels/contrats";
 import { creerFournisseurSimulation } from "@/visuels/texte/simulation";
 
@@ -123,6 +123,35 @@ describe("porte : classements et durées (tour 2, tour 3)", () => {
   });
 });
 
+describe("porte : un classement porte sur l'entreprise face aux autres, pas sur un événement", () => {
+  it.each(["Nous sommes leaders.", "Premier sur son marché", "Le premier fournisseur du département", "Le meilleur artisan de la région"])("« %s » est un classement", (texte) => {
+    expect(classementDans(texte)).toBeDefined();
+    expect(codes(specDe(texte))).toEqual(["CLASSEMENT"]);
+  });
+  it.each(["Le premier client de la région nous a fait confiance", "Le premier salon du métier", "Leaders, voici la méthode"])("« %s » n'est pas un classement", (texte) => {
+    expect(classementDans(texte)).toBeUndefined();
+    expect(codes(specDe(texte))).not.toContain("CLASSEMENT");
+  });
+});
+
+describe("porte : zone nationale sans acteur exigé, zone locale avec acteur (tour 3)", () => {
+  it.each([
+    "Le premier banque de France",
+    "Le premier site du marché",
+    "Le premier opérateur de France",
+    "Le premier assureur national",
+    "Leader incontesté depuis 10 ans",
+    "Leader français du conseil",
+  ])("« %s » est un classement", (texte) => {
+    expect(classementDans(texte)).toBeDefined();
+    expect(codes(specDe(texte))).toContain("CLASSEMENT");
+  });
+  it.each(["Un premier devis", "Une première étape", "Le ton reste le même", "Leaders, voici la méthode", "Premier pas en France pour votre site", "Le premier salon du métier"])("« %s » passe", (texte) => {
+    expect(classementDans(texte)).toBeUndefined();
+    expect(codes(specDe(texte))).toEqual([]);
+  });
+});
+
 describe("porte : « ton » nom commun n'est pas un tutoiement (tour 2)", () => {
   it.each(["Ton variable", "Ton constant", "Le ton reste le même", "Ton sur ton"])("« %s » passe", (titre) => {
     expect(codes(specDe(titre))).toEqual([]);
@@ -133,5 +162,47 @@ describe("porte : « ton » nom commun n'est pas un tutoiement (tour 2)", () => 
   it("une même phrase n'est pas répétée dans la liste des contrôles", () => {
     const phrases = controlerCarrousel(specDe("Ton équipe"), ctx).rapport.controles.map((c) => c.phrase);
     expect(new Set(phrases).size).toBe(phrases.length);
+  });
+});
+
+describe("porte : événements, étapes et pluriels ne sont pas des classements (tour 4)", () => {
+  it.each([
+    "Le premier salon national des TPE",
+    "Première journée nationale de l'artisanat",
+    "Première édition nationale",
+    "Les premiers retours du marché",
+    "Les meilleures pratiques du marché",
+    "Votre premier client en France",
+    "Le premier mois de lancement du marché",
+    "Les premières étapes en France",
+    "premiers jours en France",
+    "premiers devis du marché",
+    "Premier vrai pas en France",
+    "Devenir un leader reconnu par son équipe",
+    "un leader historique de l'équipe",
+    "Le meilleur ouvrier de France",
+    "Meilleurs ouvriers de France",
+  ])("« %s » passe", (texte) => {
+    expect(classementDans(texte)).toBeUndefined();
+    expect(codes(specDe(texte))).not.toContain("CLASSEMENT");
+  });
+  it.each([
+    "premier banque de France",
+    "premier site du marché",
+    "premier opérateur de France",
+    "premier assureur national",
+    "Leader incontesté depuis 10 ans",
+    "Leader français du conseil",
+    "numéro un du marché",
+    "le meilleur cabinet de France",
+    "Leaders européens du conseil",
+    "Nous sommes leaders mondiaux",
+    "Des leaders mondiaux",
+    "Des leaders incontestés",
+    "Leaders nationaux du conseil",
+    "Leader absolu",
+  ])("« %s » reste bloqué", (texte) => {
+    expect(classementDans(texte)).toBeDefined();
+    expect(codes(specDe(texte))).toContain("CLASSEMENT");
   });
 });
