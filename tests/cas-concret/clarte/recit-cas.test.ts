@@ -38,3 +38,28 @@ describe("recit · contrat du cas", () => {
     }
   });
 });
+
+import { patronsDeLaVideo } from "@/moteurs/montage-cas-concret/patrons-ecriture";
+
+describe("recit · patrons", () => {
+  it("avec un récit, 200 tirages sans defi, contraste d'accroche, detour, constat ni choix", () => {
+    for (let i = 0; i < 200; i++) {
+      const p = patronsDeLaVideo(`video-${i}`, 0, undefined, undefined, { recit: true });
+      expect(p.accroche.id).not.toBe("defi");
+      expect(p.accroche.id).not.toBe("contraste");
+      expect(p.bascule.id).not.toBe("detour");
+      expect(p.bascule.id).not.toBe("constat");
+      expect(p.question.id).not.toBe("choix");
+      expect(p.avant.id).toBe("scene");
+    }
+  });
+  it("sans l'option, les tirages sont ceux de toujours", () => {
+    for (let i = 0; i < 50; i++) {
+      expect(patronsDeLaVideo(`video-${i}`, 0, undefined, undefined, { recit: false })).toEqual(patronsDeLaVideo(`video-${i}`));
+    }
+  });
+  it("avec une structure qui n'en laisse aucun, la liste de la structure est gardée", () => {
+    // probleme-solution : avant = cout, question, verbes ; aucun n'est « scene » : on garde la liste de la structure.
+    for (let i = 0; i < 50; i++) expect(["cout", "question", "verbes"]).toContain(patronsDeLaVideo(`v-${i}`, 0, "probleme-solution", "integration", { recit: true }).avant.id);
+  });
+});
