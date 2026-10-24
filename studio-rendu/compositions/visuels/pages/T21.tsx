@@ -2,7 +2,7 @@ import { AbsoluteFill } from "remotion";
 import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
 import { typographieFrancaise } from "../../../../src/briques/visuels/typographie-francaise";
 import { couperPhrase } from "../../../../src/briques/visuels/variante-t21";
-import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLES, TITRE_MAX_COUVERTURE } from "../commun/constantes";
+import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TITRE_MAX_COUVERTURE } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
 import { Dessin } from "../commun/Picto";
 import type { SpecVisuel } from "../commun/types";
@@ -52,6 +52,9 @@ function Bulle({ pleine }: { pleine: boolean }) {
   );
 }
 
+/** Taille de la phrase en grand : celle validée en rendu réel et mise en ligne le 24/10 (fin de phrase orange, aucune ligne hors colonne). */
+const TAILLE_PHRASE = 116;
+
 /**
  * Variante typographique : la phrase d'invitation en grand, sans dessin (aucun rond) ; la fin de phrase en orange (`couperPhrase`, avec ou
  * sans « : »). Bornée au bord du compteur de Meta : la phrase descend sous y = 1080.
@@ -59,7 +62,7 @@ function Bulle({ pleine }: { pleine: boolean }) {
 function PhraseEnGrand() {
   const { debut, fin } = couperPhrase(TEXTES_FIXES.t21Ligne);
   return (
-    <div style={{ maxWidth: largeurTexteMax(MARGE, BORD_DROIT_TEXTE_BAS), fontFamily: POLICE_CORPS, fontWeight: 800, fontSize: TAILLES.phrase * 2.1, lineHeight: 1.3, letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
+    <div style={{ maxWidth: largeurTexteMax(MARGE, BORD_DROIT_TEXTE_BAS), fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: TAILLE_PHRASE, lineHeight: 1.1, letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
       {debut && `${typographieFrancaise(debut)} `}
       <span style={{ color: COULEURS.orange }}>{fin}</span>
     </div>
