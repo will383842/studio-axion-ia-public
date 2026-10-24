@@ -3,6 +3,7 @@
 // compte s'il apparaît en mots entiers, sans tenir compte des accents, de la casse ni du pluriel. Aucun mot-clé : aucune illustration, la
 // couverture reste une composition typographique (jamais un aplat vide).
 import { ICONES, ILLUSTRATIONS, NOMS_ICONES_PAGE, type IdIllustration, type NomIcone } from "./registre-illustrations";
+import { maquettesDesEtapes } from "./maquettes-etapes";
 import type { TypeMini } from "./registre-mini";
 
 /** Mots normalisés : minuscules sans accents, ponctuation retirée, pluriel en -s / -x ramené au singulier. */
@@ -94,11 +95,12 @@ type PageDessinee =
   | { type: "T02"; cartes: readonly { mini?: TypeMini }[] }
   | { type: "T23"; questions: readonly { question: string; aide: string; icone?: NomIcone }[] }
   | { type: "T28"; noeuds: readonly { icone?: NomIcone }[] }
+  | { type: "T20"; etapes: readonly { titre: string; corps: string }[]; variante?: "maquettes" }
   | { type: string };
 
 /**
  * Dessins posés par chaque page d'un carrousel, dans l'ordre (illustrations « Ixx », icônes « icone-nom ») : la porte refuse qu'un même dessin
- * revienne (L7). Les croix, coches et cases des en-têtes et des listes sont des signes du gabarit, pas des dessins.
+ * revienne (L7). Les mini-maquettes d'une page T20 « maquettes » (« maquette-nom ») sont des dessins. Les croix, coches et cases des en-têtes et des listes sont des signes du gabarit, pas des dessins.
  */
 export function dessinsDuCarrousel(spec: { pages: readonly PageDessinee[] }): { page: number; dessin: string }[] {
   return spec.pages.flatMap((p, i) => {
@@ -115,6 +117,10 @@ export function dessinsDuCarrousel(spec: { pages: readonly PageDessinee[] }): { 
     }
     if (p.type === "T23") return icones(iconesDesQuestions((p as Extract<PageDessinee, { type: "T23" }>).questions) ?? []);
     if (p.type === "T28") return icones((p as Extract<PageDessinee, { type: "T28" }>).noeuds.map((n, k) => n.icone ?? ICONES_NOEUDS_DEFAUT[k % ICONES_NOEUDS_DEFAUT.length]));
+    if (p.type === "T20") {
+      const t20 = p as Extract<PageDessinee, { type: "T20" }>;
+      if (t20.variante === "maquettes") return maquettesDesEtapes(t20.etapes).map((m) => ({ page, dessin: `maquette-${m}` }));
+    }
     return [];
   });
 }
