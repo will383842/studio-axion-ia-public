@@ -10,6 +10,9 @@ import type { Boite } from "./zones";
 
 export type { Cadre };
 
+/** Tolérance (px) de la mesure : un débordement ou une intrusion de moins d'un pixel (arrondi du navigateur) ne compte pas. */
+export const TOLERANCE_PX = 1;
+
 /** Cadre de la page en cours de dessin (`undefined` : aucun). */
 export const ContexteCadre = createContext<Cadre | undefined>(undefined);
 
@@ -25,7 +28,8 @@ export function flecheVisible(index: number, total: number, cadre: Cadre | undef
 
 /**
  * Lignes de texte qui entrent dans une zone interdite du cadre pour la page `index` (0 = couverture) : `total` lignes en cause et, par
- * zone, le nombre de lignes qui la touchent. Un bord qui touche la zone ne compte pas. Sans cadre : rien. PUR.
+ * zone, le nombre de lignes qui la touchent. Chaque ligne est rétrécie de `TOLERANCE_PX` de chaque côté : un bord qui touche la zone, ou
+ * qui y mord de moins d'un pixel, ne compte pas. Sans cadre : rien. PUR.
  */
 export function compterIntrusions(lignes: readonly Boite[], cadre: Cadre | undefined, index: number): { total: number; parZone: Record<string, number> } {
   const parZone: Record<string, number> = {};
@@ -33,7 +37,7 @@ export function compterIntrusions(lignes: readonly Boite[], cadre: Cadre | undef
   const zones = zonesInterdites(cadre, index);
   let total = 0;
   for (const l of lignes) {
-    const rect = { x: l.gauche, y: l.haut, largeur: l.droite - l.gauche, hauteur: l.bas - l.haut };
+    const rect = { x: l.gauche + TOLERANCE_PX, y: l.haut + TOLERANCE_PX, largeur: l.droite - l.gauche - 2 * TOLERANCE_PX, hauteur: l.bas - l.haut - 2 * TOLERANCE_PX };
     const touchees = zones.filter((z) => intersecte(rect, z));
     if (touchees.length) total++;
     for (const z of touchees) parZone[z.nom] = (parZone[z.nom] ?? 0) + 1;

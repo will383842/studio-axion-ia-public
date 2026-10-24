@@ -10,6 +10,7 @@ import { validerProprietesPage } from "@/visuels/proprietes-page";
 import { canonique, empreinteCarrousel, rendreCarrousel, rendrePageVisuel, VERSION_RENDU, creerRegistreMemoire } from "@/visuels/services/rendu";
 import { creerRegistreVersionsMemoire, empreinteReseau, rendreVersionsReseaux, titreDocument, type DependancesRenduReseaux } from "@/visuels/services/rendu-reseaux";
 import { CONTENU_ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
+import { PROFILS_RESEAUX } from "@/briques/visuels/reseaux";
 
 /** Service SIMULÉ : enregistre les soumissions, répond « terminé » ; `intrusions` : mesures renvoyées pour la page 1. */
 function simule(options: { intrusions?: Record<string, number> } = {}) {
@@ -44,6 +45,20 @@ const pdfsDe = (s: DemandeRendu[]) => s.filter((d) => d.operation === "assemblag
 const proprietes = (d: DemandeRendu) => d.parametres.proprietes as Record<string, unknown>;
 
 describe("H3 · rendreVersionsReseaux", () => {
+  it("refuse, avant toute soumission, un carrousel plus long que `pagesMax` du profil d'un réseau demandé", async () => {
+    const avant = PROFILS_RESEAUX.facebook.pagesMax;
+    PROFILS_RESEAUX.facebook.pagesMax = CONTENU_ESSAI.pages.length - 1;
+    try {
+      const { service, soumises } = simule();
+      await expect(rendreVersionsReseaux(CONTENU_ESSAI, ["instagram", "facebook"], dependances(service))).rejects.toThrow(
+        `facebook : ${CONTENU_ESSAI.pages.length} pages pour ${CONTENU_ESSAI.pages.length - 1} au plus`,
+      );
+      expect(soumises).toHaveLength(0);
+      await expect(rendreVersionsReseaux(CONTENU_ESSAI, ["linkedin"], dependances(service))).resolves.toHaveLength(1);
+    } finally {
+      PROFILS_RESEAUX.facebook.pagesMax = avant;
+    }
+  });
   it("Instagram + Facebook : UNE seule série de JPEG (cadre meta), aucun PDF", async () => {
     const { service, soumises } = simule();
     const versions = await rendreVersionsReseaux(CONTENU_ESSAI, ["instagram", "facebook"], dependances(service));

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
-import { compterIntrusions } from "../commun/cadre";
+import { compterIntrusions, TOLERANCE_PX } from "../commun/cadre";
 import { FORMAT } from "../commun/constantes";
 import { dessinsDe, encreDesTitres, textesTropLarges } from "../commun/occupation";
 import { ATTRIBUT_ZONE_CORPS, boiteEnZoneReservee, collisionsInterligne, compterChevauchements, partVide, type Boite } from "../commun/zones";
@@ -11,8 +11,6 @@ import { formaterMesure } from "./protocole";
 
 /** `nonce` : tiré par l'opération pour ce rendu ; sans lui, la ligne de mesure serait ignorée. */
 export type ProprietesMesure = ProprietesVisuelPage & { nonce: string };
-
-const TOLERANCE_PX = 1;
 
 /**
  * Habille VisuelPage sans rien y changer : mesure le DOM réel (débordements, plus petit corps de texte) puis l'écrit dans la console.
