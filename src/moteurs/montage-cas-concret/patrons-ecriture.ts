@@ -82,7 +82,12 @@ export function patronsDeLaVideo(videoId: string, sel = 0, demandee?: Structure,
   const compatibles = structure && structure !== STRUCTURES[0] ? PATRONS_COMPATIBLES[structure] : undefined;
   const choisi = (r: RolePatron) => {
     let liste = compatibles?.[r] ? PATRONS[r].filter((p) => compatibles[r]!.includes(p.id)) : PATRONS[r];
-    if (options.sansChiffre && r === "resultat") liste = liste.filter((p) => p.id !== "chiffre");
+    if (options.sansChiffre) {
+      // Aucun nombre à dire : pas de « chiffre » en résultat, pas d'accroche « le nombre d'abord », pas de « total » en fin d'avant.
+      const ecartes: Partial<Record<RolePatron, readonly string[]>> = { resultat: ["chiffre"], accroche: ["contraste"], avant: ["verbes", "question"] };
+      const ecart = ecartes[r];
+      if (ecart) liste = liste.filter((p) => !ecart.includes(p.id));
+    }
     return liste[hacher32(`${graine}:${r}`) % liste.length]!;
   };
   return Object.fromEntries(ROLES_PATRON.map((r) => [r, choisi(r)])) as PatronsDeLaVideo;

@@ -267,7 +267,7 @@ Les 9 types du corps (${liste(TYPES_ECRAN_CORPS)}) :
 - preuve : "titre", "puces" (exactement 2)
 - resultat : "titre", "avant" et "maintenant" ({ "libelle", "faitId" } : le fait chiffré dont la barre montre la valeur ; le texte de la barre est tiré du fait, jamais d'un calcul ; jamais « valeur » ; sans fait chiffré : { "libelle" } seul), "ligne"
 - question : "lignes" (exactement 2), "question"
-Exemples COMPLETS et exacts des deux écrans à chiffre (les identifiants de fait sont ceux d'un autre cas : prends ceux de <faits>) :
+Exemples COMPLETS et exacts des deux écrans à chiffre (les identifiants de fait sont ceux d'un autre cas : prends ceux de <faits> ; sans fait chiffré : aucun écran « chiffre », et le « resultat » en { "libelle" } seuls, voir SANS FAIT CHIFFRÉ) :
 ${EXEMPLES_ECRANS_A_CHIFFRE.map((x) => JSON.stringify(x)).join("\n")}
 Cibles d'événement : seulement ces noms, lus par les écrans : ${liste(EVENEMENTS_CAS_CONCRET.fixes)} ; et, suivis d'un rang à partir de 1 : ${EVENEMENTS_CAS_CONCRET.numerotes.map((n) => `« ${n}-1 »`).join(", ")}… (« titre-2 » : 2e ligne d'une accroche, d'un titre ou d'une question). Tout autre nom est refusé.
 
@@ -801,6 +801,11 @@ export function sansCloture(texte: string): string {
   return m ? m[1]! : texte;
 }
 
+/** Cas sans fait chiffré et réponse « PREUVE_MANQUANTE » : dit à Claude que ce n'est pas une preuve manquante. */
+export function refusSansFait(texte: string, cas: Pick<CasConcret, "faits">): string[] {
+  return casSansFaitChiffre(cas) && texte.includes("PREUVE_MANQUANTE") ? ["Ce cas n'a aucun fait chiffré : ce n'est pas une preuve manquante. Rendez la fiche (voir SANS FAIT CHIFFRÉ)."] : [];
+}
+
 /** Lit la réponse : objet déjà lu, ou texte JSON (clôture Markdown entière retirée). Aucune autre réparation. */
 export function lireReponse(donnees: unknown): Lecture {
   if (donnees === undefined || donnees === null || donnees === "") return { ok: false, refus: "La réponse est vide : aucune fiche rendue.", texte: "" };
@@ -1000,7 +1005,7 @@ async function ecrireFicheInterne(entree: EntreeEcriture, outils: OutilsEcriture
 
     const lecture = lireReponse(contenuDe(reponse));
     derniere = lecture.texte;
-    const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus] };
+    const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus, ...refusSansFait(lecture.texte, entree.cas)] };
     if (jugement.ok) {
       const copies = copiesDuScript(jugement.fiche, variete, reponse.simule);
       const resultat = { ok: true as const, fiche: jugement.fiche, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
@@ -1053,7 +1058,7 @@ async function reprendreEcriture(entree: EntreeEcriture, outils: OutilsEcriture,
     const r = outils.relire ? await outils.relire(id) : null;
     if (!r?.ok || estCoupee(r)) continue;
     const lecture = lireReponse(contenuDe(r));
-    const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus] };
+    const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus, ...refusSansFait(lecture.texte, entree.cas)] };
     if (jugement.ok) return { ok: true, fiche: jugement.fiche, appels: 0, relance: true, simule: r.simule, notes: [...notesDe(jugement, r.simule), NOTE_REPONSE_REPRISE] };
     derniere = { texte: lecture.texte, refus: jugement.refus };
   }
@@ -1069,7 +1074,7 @@ async function reprendreEcriture(entree: EntreeEcriture, outils: OutilsEcriture,
   const coutUsd = reponse.coutUsd;
   if (estCoupee(reponse)) return { ok: false, motif: "refusee", message: `${DEBUT_REFUS_ECRITURE} au nouvel essai : réponse coupée.`, refus: [REPONSE_COUPEE], appels: 1, ...brute(typeof reponse.texte === "string" ? reponse.texte : undefined) };
   const lecture = lireReponse(contenuDe(reponse));
-  const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus] };
+  const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus, ...refusSansFait(lecture.texte, entree.cas)] };
   if (jugement.ok) return { ok: true, fiche: jugement.fiche, appels: 1, relance: true, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}), notes: notesDe(jugement, reponse.simule) };
   return { ok: false, motif: "refusee", message: `${DEBUT_REFUS_ECRITURE} au nouvel essai (${jugement.refus.length} refus) : à reprendre à la main.`, refus: jugement.refus, appels: 1, ...brute(lecture.texte) };
 }
@@ -1091,7 +1096,7 @@ RÈGLES ABSOLUES :
 - Pas plus de mots que la phrase d'origine.
 - Même sens ; aucun fait ajouté ; vouvoiement ; aucun nom propre ; un sigle s'écrit pour être lu (« I.A. »).
 - Aucune invitation à commenter, à cliquer ou à réserver.
-- <faits> vaut « (aucun) » : la phrase n'a aucun nombre et n'en reçoit aucun ; ce n'est pas une preuve manquante.
+- Quand <faits> vaut « (aucun) », ou que chaque fait porte « valeurs aucune », la phrase n'a aucun nombre et n'en reçoit aucun ; ce n'est pas une preuve manquante : rendez la phrase.
 
 FORME : JSON seul, { "phrase": "…" }.`;
 
