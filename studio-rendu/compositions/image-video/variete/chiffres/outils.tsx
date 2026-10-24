@@ -70,6 +70,19 @@ export function Etiquette({ t, fond, y, x = 72 }: { t: string; fond: NomFondChif
   return <div style={{ position: "absolute", left: x, top: y, ...INTER, fontSize: 28, letterSpacing: "0.32em", textTransform: "uppercase", color: fond === "ivoire" ? C.encre : C.grisClair }}>{t}</div>;
 }
 
+/** Mots qui restent collés au nombre : des unités (« 4 sec », « 12 h »), jamais un nom commun (« 0 demande »). */
+const UNITES_CHIFFRE = new Set(["%", "h", "min", "sec", "s", "j", "€"]);
+const MOTIF_NOMBRE_MOT = /^(\d+(?:[.,]\d+)?)\s+(\p{L}[\p{L}'’-]*(?:\s+\p{L}[\p{L}'’-]*)*)$/u;
+/**
+ * Sépare « 0 demande » en le nombre (grand, en Anton) et le mot (qui passe dans la légende : « demande perdue »). Une unité
+ * (%, h, min, sec, s, j, €) et un chiffre composé (« 24h/24 ») restent tels quels.
+ */
+export function scinderChiffre(texte: string, legende?: string): { texte: string; legende: string | undefined } {
+  const m = MOTIF_NOMBRE_MOT.exec(texte.trim());
+  if (!m || UNITES_CHIFFRE.has(m[2].toLowerCase())) return { texte, legende };
+  return { texte: m[1], legende: legende ? `${m[2]} ${legende}` : m[2] };
+}
+
 /** Un chiffre « nombre + unité » : le nombre en grand, l'unité courte (%, s, h) un peu plus petite, collée. */
 export function ChiffreAnton({ texte, taille, couleur, style }: { texte: string; taille: number; couleur: string; style?: CSSProperties }) {
   const m = /^(\d+(?:[.,]\d+)?)\s*(%)$/.exec(texte.trim());
