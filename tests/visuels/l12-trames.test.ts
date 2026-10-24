@@ -187,6 +187,9 @@ function monter() {
     rendre: async () => {
       throw new Error("non utilisé");
     },
+    rendreReseaux: async () => {
+      throw new Error("non utilisé");
+    },
     urlLecture: async (cle) => `https://stockage.invente/${cle}`,
     verrou: (fn) => {
       const suite = chaine.then(fn, fn);

@@ -228,6 +228,7 @@ describe("L7 : mémoire branchée à la fabrication", () => {
       contextePorte: async () => ({ interditsDans: () => [], faitsDisponibles: true }),
       allume: async () => true,
       rendre: async () => ({}) as never,
+      rendreReseaux: async () => [],
       urlLecture: async (c) => c,
       verrou: (f) => f(),
       maintenant: () => "2026-10-20T00:00:00.000Z",
