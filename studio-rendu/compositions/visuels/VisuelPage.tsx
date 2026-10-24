@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { varianteEtapes } from "../../../src/briques/visuels/maquettes-etapes";
 import { espacerPage } from "../../../src/briques/visuels/typographie-francaise";
 import { pageDuSpec } from "./commun/page";
 import type { PageSpec, ProprietesVisuelPage } from "./commun/types";
@@ -9,7 +10,7 @@ import { T02 } from "./pages/T02";
 import { T06 } from "./pages/T06";
 import { T08 } from "./pages/T08";
 import { T10 } from "./pages/T10";
-import { T20, varianteEtapes } from "./pages/T20";
+import { T20 } from "./pages/T20";
 import { T21, varianteFin } from "./pages/T21";
 import { T22 } from "./pages/T22";
 import { T23 } from "./pages/T23";

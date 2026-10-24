@@ -1,4 +1,4 @@
-import { HAUTEUR_MAQUETTE, LARGEUR_MAQUETTE, maquettesDesEtapes } from "../../../../src/briques/visuels/maquettes-etapes";
+import { HAUTEUR_MAQUETTE, LARGEUR_MAQUETTE, maquettesDesEtapes, type VarianteT20 } from "../../../../src/briques/visuels/maquettes-etapes";
 import { BORD_DROIT_TEXTE, COULEURS, FILET, MARGE, POLICE_CORPS } from "../commun/constantes";
 import { Numero } from "../commun/editorial";
 import { PageBase } from "../commun/PageBase";
@@ -15,14 +15,6 @@ interface Proprietes {
   index: number;
   total: number;
   variante?: VarianteT20;
-}
-
-/** Mises en page de la page étapes : l'ancienne (texte seul) et, en L10, les étapes à mini-maquettes d'écran. */
-export type VarianteT20 = "classique" | "maquettes";
-
-/** Variante choisie par le CODE d'après la page : sans la clé `variante` (anciennes fiches), l'ancienne page, au pixel près. Fonction PURE. */
-export function varianteEtapes(page: { variante?: "maquettes" }): VarianteT20 {
-  return page.variante === "maquettes" ? "maquettes" : "classique";
 }
 
 /** Colonne des numéros (px avant remplissage), reliés par un filet vertical de 2 px. */

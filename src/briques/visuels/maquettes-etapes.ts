@@ -4,6 +4,14 @@
  * page, toujours la même pour le même texte. Fonction PURE, partagée par la composition (`pages/T20.tsx`) et la porte (`places-mots.ts`).
  */
 
+/** Mises en page de la page étapes : l'ancienne (texte seul) et, en L10, les étapes à mini-maquettes d'écran. */
+export type VarianteT20 = "classique" | "maquettes";
+
+/** Variante choisie par le CODE d'après la page : sans la clé `variante` (anciennes fiches), l'ancienne page, au pixel près. Fonction PURE. */
+export function varianteEtapes(page: { variante?: "maquettes" }): VarianteT20 {
+  return page.variante === "maquettes" ? "maquettes" : "classique";
+}
+
 /** Maquettes dessinées (`studio-rendu/compositions/visuels/pages/maquettes-etapes.tsx`), dans l'ordre de repli. */
 export const MAQUETTES = ["liste", "formulaire", "messages", "agenda", "tableau", "validation"] as const;
 export type Maquette = (typeof MAQUETTES)[number];
