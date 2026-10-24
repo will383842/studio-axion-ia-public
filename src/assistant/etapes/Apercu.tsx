@@ -581,7 +581,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
       </FeuilleBas>
 
       <FeuilleBas ouverte={!!maquette} onOuverteChange={(o) => !o && setMaquette(null)} titre="Maquette rapide" description="Sans visage ni voix : le rythme et les textes.">
-        {maquette && <LecteurVideo src={maquette.url} affiche={maquette.vignette} ratio={maquette.ratio} titre="Maquette rapide" autoLecture className="mx-auto max-h-[60dvh]" />}
+        {maquette && <LecteurVideo src={maquette.url} affiche={maquette.vignette} ratio={maquette.ratio} titre="Maquette rapide" autoLecture hauteurMax="60dvh" />}
       </FeuilleBas>
     </div>
   );

@@ -9,7 +9,8 @@ const ASPECT: Record<Ratio, string> = { "9:16": "aspect-[9/16]", "1:1": "aspect-
 
 /**
  * Lecteur vidéo au ratio réel. Gros bouton lecture, contrôles natifs ensuite.
- * Sur ordinateur, un 9:16 est limité en hauteur (max 78 vh) et centré.
+ * Sur ordinateur, un 9:16 est limité en hauteur (max 78 vh, via la largeur maximale) et centré ; la vidéo n'est jamais rognée.
+ * `hauteurMax` (ex. « 60dvh ») plafonne la hauteur en plafonnant la largeur selon le ratio : ne pas utiliser `max-h-*` dans `className`.
  * Lot M3 : le temps courant est EXPOSÉ (`onTemps`, image par image pendant la lecture) et la lecture peut être
  * déplacée de l'extérieur (`onPret` donne une fonction « aller à ») : les sous-titres sous la vidéo suivent le lecteur.
  */
@@ -24,6 +25,7 @@ export function LecteurVideo({
   sousTitresVtt,
   onTemps,
   onPret,
+  hauteurMax,
   className,
 }: {
   src: string;
@@ -39,6 +41,8 @@ export function LecteurVideo({
   onTemps?: (t: number) => void;
   /** Reçoit une fonction qui déplace la lecture (toucher un groupe de sous-titres). */
   onPret?: (aller: (t: number) => void) => void;
+  /** Hauteur maximale CSS (ex. « 60dvh ») ; ramenée à une largeur maximale pour garder le ratio. */
+  hauteurMax?: string;
   className?: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -74,10 +78,13 @@ export function LecteurVideo({
       className={cn(
         "relative isolate mx-auto overflow-hidden rounded-carte border border-trait bg-fond shadow-carte",
         ASPECT[ratio],
-        ratio === "9:16" && "h-[62vh] w-auto max-w-full lg:h-[78vh]",
-        ratio === "4:5" && "max-h-[78vh]",
+        // La largeur plafonne la hauteur (jamais l'inverse) : fixer la hauteur puis plafonner la largeur déformait la boîte dans une
+        // colonne étroite et `object-cover` rognait les côtés de la vidéo.
+        ratio === "9:16" && "w-full max-w-[calc(62vh*9/16)] lg:max-w-[calc(78vh*9/16)]",
+        ratio === "4:5" && "w-full max-w-[calc(78vh*4/5)]",
         className,
       )}
+      style={hauteurMax && (ratio === "9:16" || ratio === "4:5") ? { maxWidth: `calc(${hauteurMax} * ${ratio === "9:16" ? "9 / 16" : "4 / 5"})` } : undefined}
     >
       <video
         ref={ref}
@@ -90,7 +97,7 @@ export function LecteurVideo({
         muted={muet}
         preload="metadata"
         aria-label={titre}
-        className="absolute inset-0 size-full object-cover"
+        className="absolute inset-0 size-full object-contain"
         onPlay={() => {
           setDemarre(true);
           setEnLecture(true);
