@@ -1,17 +1,21 @@
 import { AbsoluteFill } from "remotion";
 import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
+import { varianteT21, type VarianteT21 } from "../../../../src/briques/visuels/variante-t21";
 import { BORD_DROIT_TEXTE, COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TAILLES } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
 import { Swipe } from "../commun/Swipe";
 import { Titre } from "../commun/Titre";
+import { LUCIDE } from "../icones/lucide";
 import { chargerPoliceInter } from "../polices";
 
 interface Proprietes {
   index: number;
   total: number;
+  /** Titre de la couverture : choisit la variante (`varianteT21`), pour que la page change d'un carrousel à l'autre. */
+  titreCouverture: string;
 }
 
-/** Conversation : une grande bulle orange (trois points) et une réponse plus petite à droite, sans texte. */
+/** Conversation : une grande bulle orange (trois points DEDANS : quelqu'un écrit) et une réponse plus petite à droite, sans texte. */
 function Bulles() {
   return (
     <svg width={700} height={670} viewBox="0 0 460 440" role="img" aria-hidden>
@@ -25,20 +29,52 @@ function Bulles() {
   );
 }
 
+/** Bulle de message de la banque Lucide (« bulle », message-square) en grand, trois points DEDANS : « écrivez-nous ». Sans texte. */
+function BulleMessage() {
+  const [, attributs] = LUCIDE.bulle[0]!;
+  return (
+    <svg width={560} height={560} viewBox="0 0 24 24" role="img" aria-hidden>
+      <path d={attributs.d as string} fill={COULEURS.orange} stroke={COULEURS.creme} strokeWidth="1.1" strokeLinejoin="round" />
+      <path d="M8 11h.01M12 11h.01M16 11h.01" stroke={COULEURS.creme} strokeWidth="2.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Composition typographique pleine : la phrase d'invitation en grand, sans dessin ; la fin de phrase en orange. */
+function PhraseEnGrand() {
+  const [debut, fin] = TEXTES_FIXES.t21Ligne.split(/(?<=:)\s+/u);
+  return (
+    <div style={{ maxWidth: BORD_DROIT_TEXTE - MARGE, fontFamily: POLICE_CORPS, fontWeight: 800, fontSize: TAILLES.phrase * 2, lineHeight: 1.12, letterSpacing: -1.5, color: COULEURS.creme }}>
+      {debut} <span style={{ color: COULEURS.orange }}>{fin}</span>
+    </div>
+  );
+}
+
+/** Ce qui occupe le milieu de la page, selon la variante. */
+function Milieu({ variante }: { variante: VarianteT21 }) {
+  if (variante === "typographie") return <PhraseEnGrand />;
+  return <div style={{ alignSelf: "center" }}>{variante === "conversation" ? <Bulles /> : <BulleMessage />}</div>;
+}
+
 /**
  * T21 — DERNIÈRE page, seule page sombre (fond encre) : invitation générique à écrire en message privé.
  * Tout le texte est posé par le code (`textes-fixes.ts`) : aucun lien, aucun nom, aucun mot-clé d'appel.
+ * La variante (conversation, bulle de message, phrase en grand) vient du titre de couverture : elle change d'un carrousel à l'autre.
  */
-export function T21({ index, total }: Proprietes) {
+export function T21({ index, total, titreCouverture }: Proprietes) {
   chargerPoliceInter();
+  const variante = varianteT21(titreCouverture);
   return (
     <AbsoluteFill style={{ background: COULEURS.encre, padding: MARGE, boxSizing: "border-box" }}>
       <Zone libelle="T21 : corps" style={{ flex: 1, minHeight: 0, width: LARGEUR_TEXTE, display: "flex", flexDirection: "column", justifyContent: "space-between", marginBottom: PAGE.ecart }}>
         <Titre texte={TEXTES_FIXES.t21Titre} maxLignes={3} hauteurMax={520} couleur={COULEURS.creme} largeur={LARGEUR_TITRE_BORNE} accent />
-        <div style={{ alignSelf: "center" }}>
-          <Bulles />
-        </div>
-        <div style={{ maxWidth: BORD_DROIT_TEXTE - MARGE, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLES.phrase, lineHeight: 1.3, color: COULEURS.creme }}>{TEXTES_FIXES.t21Ligne}</div>
+        <Milieu variante={variante} />
+        {/* Phrase en grand : centrée entre le titre et le pied (le bloc vide du bas équilibre l'espace), loin du compteur de Meta. */}
+        {variante === "typographie" ? (
+          <div />
+        ) : (
+          <div style={{ maxWidth: BORD_DROIT_TEXTE - MARGE, fontFamily: POLICE_CORPS, fontWeight: 600, fontSize: TAILLES.phrase, lineHeight: 1.3, color: COULEURS.creme }}>{TEXTES_FIXES.t21Ligne}</div>
+        )}
       </Zone>
       <div style={{ height: PAGE.hauteurPied }}>
         <Swipe index={index} total={total} sombre />
