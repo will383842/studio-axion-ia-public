@@ -1,6 +1,14 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "incremental": false },
+  "compilerOptions": {
+    "incremental": false,
+    "paths": {
+      "@/*": ["./src/*"],
+      "remotion": ["./studio-rendu/node_modules/remotion", "./tests/visuels/types/remotion-absent.d.ts"],
+      "@remotion/renderer": ["./studio-rendu/node_modules/@remotion/renderer", "./tests/visuels/types/remotion-absent.d.ts"],
+      "@remotion/bundler": ["./studio-rendu/node_modules/@remotion/bundler", "./tests/visuels/types/remotion-absent.d.ts"]
+    }
+  },
   "include": ["next-env.d.ts", "src/visuels/**/*.ts", "src/briques/visuels/**/*.ts", "src/domaine/visuels/**/*.ts", "src/domaine/controles-visuel/**/*.ts", "tests/visuels/**/*.ts", "src/polices-ttf.d.ts"],
   "exclude": ["node_modules"]
 }
