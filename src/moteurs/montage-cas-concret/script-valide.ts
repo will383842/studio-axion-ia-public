@@ -50,6 +50,12 @@ export interface ScriptValide {
    * jamais posé pour la v4. Une nouvelle vidéo du cas reprend ce script mot pour mot, donc cette structure.
    */
   structure?: Structure;
+  /**
+   * Script FOURNI par Will (tapé ou collé dans le studio) : l'IA n'a rien écrit. `texteFourni` est le texte brut de Will, gardé
+   * pour le lui rendre tel quel dans « Mon script » (4000 caractères au plus).
+   */
+  fourni?: true;
+  texteFourni?: string;
 }
 
 /** Phrase de l'arrêt quand le script validé ne passe pas les contrôles (suivie des refus exacts). */
@@ -85,7 +91,7 @@ export function ficheDuScriptValide(script: ScriptValide, fixe: FicheFixe, cas: 
 }
 
 /** Le script d'une fiche relue (V4-3, point 5) : ses écrans sans identifiant, marque ni heures. */
-export function scriptDeFiche(fiche: Pick<FicheEcrans, "casId" | "ecrans" | "structure">, meta: { versionCas: number; valideLe: string; source: string; videoId?: string }): ScriptValide {
+export function scriptDeFiche(fiche: Pick<FicheEcrans, "casId" | "ecrans" | "structure">, meta: { versionCas: number; valideLe: string; source: string; videoId?: string; fourni?: true; texteFourni?: string }): ScriptValide {
   return {
     casId: fiche.casId,
     ...meta,
@@ -111,7 +117,7 @@ export function lireScriptValide(brut: unknown): ScriptValide | null {
   const n = numero(s.numero);
   const r = numero(s.remplace);
   const structure = (STRUCTURES as readonly unknown[]).includes(s.structure) && s.structure !== STRUCTURES[0] ? (s.structure as Structure) : undefined;
-  return { casId: s.casId, versionCas: s.versionCas, valideLe: s.valideLe, source: s.source, ecrans: s.ecrans as EcranScript[], ...(n ? { numero: n } : {}), ...(r ? { remplace: r } : {}), ...(typeof s.videoId === "string" && s.videoId ? { videoId: s.videoId } : {}), ...(structure ? { structure } : {}) };
+  return { casId: s.casId, versionCas: s.versionCas, valideLe: s.valideLe, source: s.source, ecrans: s.ecrans as EcranScript[], ...(n ? { numero: n } : {}), ...(r ? { remplace: r } : {}), ...(typeof s.videoId === "string" && s.videoId ? { videoId: s.videoId } : {}), ...(structure ? { structure } : {}), ...(s.fourni === true ? { fourni: true as const } : {}), ...(typeof s.texteFourni === "string" && s.texteFourni.length <= 4000 ? { texteFourni: s.texteFourni } : {}) };
 }
 
 /* ------------------------------------------------------------------ */
