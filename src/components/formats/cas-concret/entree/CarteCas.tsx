@@ -15,8 +15,6 @@ export function CarteCas({ cas, onOuvrir }: { cas: VueCas; onOuvrir: () => void 
           <Pastille>{cas.offreLibelle}</Pastille>
           {cas.nature && <Pastille>{cas.nature}</Pastille>}
           {cas.ajoute && <Pastille ton="sauge">{MENTION_AJOUTE}</Pastille>}
-          {cas.ajoute?.secteur && <Pastille>{libelleSecteur(cas.ajoute.secteur)}</Pastille>}
-          {cas.ajoute?.taille && <Pastille>{cas.ajoute.taille}</Pastille>}
           {cas.stock?.secteur && <Pastille>{libelleSecteur(cas.stock.secteur)}</Pastille>}
           {cas.stock?.taille && <Pastille>{cas.stock.taille}</Pastille>}
           {cas.vraisEcrans && <Pastille ton="ambre">Vrais écrans</Pastille>}

@@ -15,7 +15,7 @@ const AIDE_SCRIPT = "Facultatif. Une ligne = un écran. Étiquettes facultatives
 type PropsChamp = { id: string; "aria-describedby": string; "aria-invalid": boolean };
 
 /** Un champ : libellé visible, aide, compteur, aria-describedby et aria-invalid. */
-function Champ({ id, libelle, aide, max, valeur, enFaute, children }: { id: string; libelle: string; aide?: string; max?: number; valeur?: string; enFaute?: boolean; children: (p: PropsChamp) => ReactNode }) {
+function Champ({ id, libelle, aide, max, valeur, enFaute, erreur, children }: { id: string; libelle: string; aide?: string; max?: number; valeur?: string; enFaute?: boolean; erreur?: string; children: (p: PropsChamp) => ReactNode }) {
   const idAide = `${id}-aide`;
   return (
     <div>
@@ -27,6 +27,7 @@ function Champ({ id, libelle, aide, max, valeur, enFaute, children }: { id: stri
         {aide}
         {max ? ` ${(valeur ?? "").length} / ${max} caractères.` : ""}
       </p>
+      {erreur && <p className="mt-1 text-[13px] font-semibold text-brique">{erreur}</p>}
     </div>
   );
 }
@@ -53,7 +54,15 @@ export function FormulaireCas() {
     setRessemble(null);
   };
   const id = (nom: string) => `${pref}-${nom}`;
+  /** Retire une étape ; le curseur va sur l'étape d'avant (sur la première s'il n'y en a pas) : il n'est jamais perdu. */
+  const retirerEtape = (i: number) => {
+    setS((x) => ({ ...x, etapes: x.etapes.filter((_, j) => j !== i) }));
+    setRessemble(null);
+    requestAnimationFrame(() => document.getElementById(`${pref}-etape-${Math.max(0, i - 1)}`)?.focus());
+  };
   const fautes = new Set(refus.map(champEnFaute).filter((x): x is string => !!x));
+  // Le refus de chaque champ est aussi montré SOUS ce champ (le premier message du champ).
+  const err = (cle: string): string | undefined => refus.find((r) => champEnFaute(r) === cle);
 
   // Après un refus, le curseur va sur le premier champ en faute (sinon sur la liste des refus).
   useEffect(() => {
@@ -84,7 +93,8 @@ export function FormulaireCas() {
         setRefus(r.message.split("\n").filter(Boolean));
         return;
       }
-      notifier.succes("Cas ajouté", r.donnees.titre);
+      if (r.donnees.raisonScript) notifier.succes("Cas ajouté", `Cas ajouté ; script refusé : ${r.donnees.raisonScript}`);
+      else notifier.succes("Cas ajouté", r.donnees.titre);
       routeur.push("/cas-concret");
     });
   }
@@ -98,10 +108,10 @@ export function FormulaireCas() {
       }}
       noValidate
     >
-      <Champ id={id("titre")} libelle="Titre" aide="Ce que la vidéo montre, en une phrase, sans chiffre ni nom propre." max={100} valeur={s.titre} enFaute={fautes.has("titre")}>
+      <Champ id={id("titre")} libelle="Titre" aide="Ce que la vidéo montre, en une phrase, sans chiffre ni nom propre." max={100} valeur={s.titre} enFaute={fautes.has("titre")} erreur={err("titre")}>
         {(p) => <input {...p} type="text" value={s.titre} maxLength={100} onChange={(e) => maj("titre", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("theme")} libelle="Thème (1 ou 2 mots)" aide="Il sert de sur-titre sur les écrans. Il doit être différent de celui des autres cas." max={30} valeur={s.theme} enFaute={fautes.has("theme")}>
+      <Champ id={id("theme")} libelle="Thème (1 ou 2 mots)" aide="Il sert de sur-titre sur les écrans. Il doit être différent de celui des autres cas." max={30} valeur={s.theme} enFaute={fautes.has("theme")} erreur={err("theme")}>
         {(p) => <input {...p} type="text" value={s.theme} maxLength={30} onChange={(e) => maj("theme", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
 
@@ -153,22 +163,22 @@ export function FormulaireCas() {
         </Champ>
       </div>
 
-      <Champ id={id("cible")} libelle="Pour qui" aide="La personne à qui s'adresse la vidéo." max={160} valeur={s.cible} enFaute={fautes.has("cible")}>
+      <Champ id={id("cible")} libelle="Pour qui" aide="La personne à qui s'adresse la vidéo." max={160} valeur={s.cible} enFaute={fautes.has("cible")} erreur={err("cible")}>
         {(p) => <input {...p} type="text" value={s.cible} maxLength={160} onChange={(e) => maj("cible", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("promesse")} libelle="Promesse" aide="8 mots au plus, avec un point final, sans point d'interrogation." max={100} valeur={s.promesse} enFaute={fautes.has("promesse")}>
+      <Champ id={id("promesse")} libelle="Promesse" aide="8 mots au plus, avec un point final, sans point d'interrogation." max={100} valeur={s.promesse} enFaute={fautes.has("promesse")} erreur={err("promesse")}>
         {(p) => <input {...p} type="text" value={s.promesse} maxLength={100} onChange={(e) => maj("promesse", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("sujet")} libelle="De quoi parle la vidéo" aide="Le sujet en 8 mots au plus : l'accroche le dit." max={100} valeur={s.sujet} enFaute={fautes.has("sujet")}>
+      <Champ id={id("sujet")} libelle="De quoi parle la vidéo" aide="Le sujet en 8 mots au plus : l'accroche le dit." max={100} valeur={s.sujet} enFaute={fautes.has("sujet")} erreur={err("sujet")}>
         {(p) => <input {...p} type="text" value={s.sujet} maxLength={100} onChange={(e) => maj("sujet", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("scene")} libelle="La scène, au présent, sans nom ni chiffre" aide="Ce qui se passe avant : une situation, pas un client réel." max={260} valeur={s.scene} enFaute={fautes.has("scene")}>
+      <Champ id={id("scene")} libelle="La scène, au présent, sans nom ni chiffre" aide="Ce qui se passe avant : une situation, pas un client réel." max={260} valeur={s.scene} enFaute={fautes.has("scene")} erreur={err("scene")}>
         {(p) => <textarea {...p} rows={4} value={s.scene} maxLength={260} onChange={(e) => maj("scene", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("exemple")} libelle="L'exemple suivi" aide="La chose que la vidéo suit du début à la fin (« ce devis envoyé… »)." max={80} valeur={s.exemple} enFaute={fautes.has("exemple")}>
+      <Champ id={id("exemple")} libelle="L'exemple suivi" aide="La chose que la vidéo suit du début à la fin (« ce devis envoyé… »)." max={80} valeur={s.exemple} enFaute={fautes.has("exemple")} erreur={err("exemple")}>
         {(p) => <input {...p} type="text" value={s.exemple} maxLength={80} onChange={(e) => maj("exemple", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("taches")} libelle="Ce qui se fait à la main aujourd'hui" aide="Une tâche par ligne, de 2 à 6, 6 mots au plus chacune." enFaute={fautes.has("taches")}>
+      <Champ id={id("taches")} libelle="Ce qui se fait à la main aujourd'hui" aide="Une tâche par ligne, de 2 à 6, 6 mots au plus chacune." enFaute={fautes.has("taches")} erreur={err("taches")}>
         {(p) => <textarea {...p} rows={4} value={s.taches} onChange={(e) => maj("taches", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
 
@@ -179,10 +189,10 @@ export function FormulaireCas() {
         {s.etapes.map((e, i) => (
           <div key={i} className="space-y-3 rounded-2xl border border-trait bg-surface-2 p-4">
             <p className="text-[15px] font-semibold text-texte">Étape {i + 1}</p>
-            <Champ id={id(`etape-${i}`)} libelle="Ce qui se passe" aide="Une phrase, 12 mots au plus." max={120} valeur={e.ligne} enFaute={fautes.has(`etape-${i}`)}>
+            <Champ id={id(`etape-${i}`)} libelle="Ce qui se passe" aide="Une phrase, 12 mots au plus." max={120} valeur={e.ligne} enFaute={fautes.has(`etape-${i}`)} erreur={err(`etape-${i}`)}>
               {(p) => <input {...p} type="text" value={e.ligne} maxLength={120} onChange={(x) => majEtape(i, { ligne: x.target.value })} className={CLASSE_CHAMP} />}
             </Champ>
-            <Champ id={id(`etape-${i}-titre`)} libelle="Nom court (3 mots, facultatif)" aide="Sinon, les premiers mots de la phrase.">
+            <Champ id={id(`etape-${i}-titre`)} libelle="Nom court (3 mots, facultatif)" aide="Sinon, les premiers mots de la phrase." enFaute={fautes.has(`etape-${i}-titre`)} erreur={err(`etape-${i}-titre`)}>
               {(p) => <input {...p} type="text" value={e.titre} maxLength={60} onChange={(x) => majEtape(i, { titre: x.target.value })} className={CLASSE_CHAMP} />}
             </Champ>
             <Champ id={id(`etape-${i}-objet`)} libelle="À l'écran" aide="Laissez « Choisi pour vous » : l'image est tirée de la phrase.">
@@ -197,11 +207,11 @@ export function FormulaireCas() {
                 </select>
               )}
             </Champ>
-            <Champ id={id(`etape-${i}-detail`)} libelle="Précision (facultatif)" aide="Un peu plus de détail, sans chiffre." max={300} valeur={e.detail}>
+            <Champ id={id(`etape-${i}-detail`)} libelle="Précision (facultatif)" aide="Un peu plus de détail, sans chiffre." max={300} valeur={e.detail} enFaute={fautes.has(`etape-${i}-detail`)} erreur={err(`etape-${i}-detail`)}>
               {(p) => <textarea {...p} rows={2} value={e.detail} maxLength={300} onChange={(x) => majEtape(i, { detail: x.target.value })} className={CLASSE_CHAMP} />}
             </Champ>
             {s.etapes.length > ETAPES_MIN && (
-              <Bouton variante="fantome" disabled={attente} onClick={() => setS((x) => ({ ...x, etapes: x.etapes.filter((_, j) => j !== i) }))}>
+              <Bouton variante="fantome" disabled={attente} onClick={() => retirerEtape(i)}>
                 Retirer l&apos;étape {i + 1}
               </Bouton>
             )}
@@ -214,20 +224,20 @@ export function FormulaireCas() {
         )}
       </fieldset>
 
-      <Champ id={id("resteHumain")} libelle="Ce qui reste humain" aide="Ce qui ne s'automatise pas : 11 mots au plus, sans sigle. Dit mot pour mot dans la vidéo." max={200} valeur={s.resteHumain} enFaute={fautes.has("resteHumain")}>
+      <Champ id={id("resteHumain")} libelle="Ce qui reste humain" aide="Ce qui ne s'automatise pas : 11 mots au plus, sans sigle. Dit mot pour mot dans la vidéo." max={200} valeur={s.resteHumain} enFaute={fautes.has("resteHumain")} erreur={err("resteHumain")}>
         {(p) => <input {...p} type="text" value={s.resteHumain} maxLength={200} onChange={(e) => maj("resteHumain", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("apres")} libelle="…et vient après l'étape numéro" aide={`De 1 à ${s.etapes.length}.`}>
+      <Champ id={id("apres")} libelle="…et vient après l'étape numéro" aide={`De 1 à ${s.etapes.length}.`} enFaute={fautes.has("apres")} erreur={err("apres")}>
         {(p) => <input {...p} type="number" inputMode="numeric" min={1} max={s.etapes.length} value={s.apres} onChange={(e) => maj("apres", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("resultat")} libelle="Résultat" aide="Ce que le client obtient : 13 mots au plus, sans chiffre." max={200} valeur={s.resultat} enFaute={fautes.has("resultat")}>
+      <Champ id={id("resultat")} libelle="Résultat" aide="Ce que le client obtient : 13 mots au plus, sans chiffre." max={200} valeur={s.resultat} enFaute={fautes.has("resultat")} erreur={err("resultat")}>
         {(p) => <input {...p} type="text" value={s.resultat} maxLength={200} onChange={(e) => maj("resultat", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("mot")} libelle="Mot à commenter" aide="De 2 à 24 lettres ou chiffres, sans espace. Il doit être différent de celui des autres cas." enFaute={fautes.has("mot")}>
+      <Champ id={id("mot")} libelle="Mot à commenter" aide="De 2 à 24 lettres ou chiffres, sans espace. Il doit être différent de celui des autres cas." enFaute={fautes.has("mot")} erreur={err("mot")}>
         {(p) => <input {...p} type="text" value={s.mot} maxLength={24} autoCapitalize="characters" onChange={(e) => maj("mot", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
 
-      <Champ id={id("script")} libelle="Mon script (facultatif)" aide={AIDE_SCRIPT} max={4000} valeur={s.script} enFaute={fautes.has("script")}>
+      <Champ id={id("script")} libelle="Mon script (facultatif)" aide={AIDE_SCRIPT} max={4000} valeur={s.script} enFaute={fautes.has("script")} erreur={err("script")}>
         {(p) => <textarea {...p} rows={8} maxLength={4000} spellCheck value={s.script} onChange={(e) => maj("script", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
 
