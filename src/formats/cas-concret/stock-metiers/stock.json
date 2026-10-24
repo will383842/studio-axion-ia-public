@@ -21,13 +21,23 @@
       },
       "cas": {
         "id": "garage-rendez-vous-rappeles",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les rendez-vous d'atelier rappelés la veille, sans téléphoner",
         "theme": "Rendez-vous d'atelier",
         "promesse": "Rappelé la veille, le client confirme ou annule.",
+        "recit": {
+          "sujet": "Vos clients oublient leur rendez-vous à l'atelier.",
+          "scene": "Le pont est libre, l'outillage est sorti, mais la voiture attendue ne vient pas. Le rendez-vous était noté sur un papier près de la caisse, et personne n'a eu le temps de rappeler le client la veille.",
+          "exemple": "le rendez-vous de ce client à l'atelier",
+          "motsCles": [
+            "clients",
+            "oublient",
+            "rendez-vous"
+          ]
+        },
         "cible": "Un garagiste ou un carrossier qui note ses rendez-vous à la main, entre un véhicule et le suivant.",
         "avant": {
           "taches": [
@@ -121,13 +131,23 @@
       },
       "cas": {
         "id": "garage-vehicule-pret-prevenu",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Véhicule prêt : le client prévenu sans appel",
         "theme": "Véhicule prêt",
         "promesse": "Le client sait que c'est prêt, sans appeler.",
+        "recit": {
+          "sujet": "Vos clients appellent pour savoir si c'est prêt.",
+          "scene": "Le téléphone sonne pendant que le mécanicien est sous une voiture. Le client veut savoir si sa voiture est prête. Il faut s'essuyer les mains, aller voir l'avancement, puis rappeler pour dire que c'est fini.",
+          "exemple": "la voiture de ce client",
+          "motsCles": [
+            "clients",
+            "appellent",
+            "prêt"
+          ]
+        },
         "cible": "Un garagiste ou un carrossier dont le téléphone sonne pendant que tout le monde est sous un véhicule.",
         "avant": {
           "taches": [
@@ -211,13 +231,23 @@
       },
       "cas": {
         "id": "garage-devis-reparation-relu",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le devis de réparation préparé dès la réception, relu avant envoi",
         "theme": "Devis d'atelier",
         "promesse": "Le devis prêt à relire, pas à taper.",
+        "recit": {
+          "sujet": "Vos devis de réparation se tapent le soir.",
+          "scene": "À la fermeture, l'accueil reprend les notes griffonnées à la réception d'une voiture. Il cherche les références des pièces, retape tout dans le devis, et le client attend sa réponse jusqu'au lendemain.",
+          "exemple": "le devis de réparation de cette voiture",
+          "motsCles": [
+            "devis",
+            "réparation",
+            "soir"
+          ]
+        },
         "cible": "Un garage ou une carrosserie dont l'accueil rédige les devis de réparation en fin de journée.",
         "avant": {
           "taches": [
@@ -308,12 +338,22 @@
       },
       "cas": {
         "id": "garage-expliquer-reparation",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Expliquer une réparation à un client inquiet, par écrit",
         "theme": "Réparation expliquée",
         "promesse": "Le client comprend sa réparation, sans jargon d'atelier.",
+        "recit": {
+          "sujet": "Expliquer une réparation à un client inquiet.",
+          "scene": "Au comptoir, un client inquiet demande ce qui a été trouvé sur sa voiture. Le garagiste explique à chaud, avec les mots de l'atelier, et cherche ses phrases. Le soir, le client rappelle : il n'a pas tout compris.",
+          "exemple": "l'explication de la réparation de ce client",
+          "motsCles": [
+            "expliquer",
+            "réparation",
+            "inquiet"
+          ]
+        },
         "cible": "Un garagiste ou un carrossier qui doit rassurer un client inquiet sans promettre ce qu'il ne maîtrise pas.",
         "avant": {
           "taches": [
@@ -406,13 +446,23 @@
       },
       "cas": {
         "id": "depannage-demandes-classees",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les messages de nuit relevés pour le régulateur d'astreinte",
         "theme": "Astreinte",
         "promesse": "La nuit, chaque message laissé arrive déjà noté.",
+        "recit": {
+          "sujet": "Les messages de la nuit attendent le matin.",
+          "scene": "En pleine nuit, un client laisse un message vocal : plus de chauffage, une rue mais pas de numéro. Le régulateur d'astreinte ne peut pas décrocher. Au réveil, il écoute le message, note l'adresse sur un carnet et rappelle pour compléter.",
+          "exemple": "le message de ce client laissé dans la nuit",
+          "motsCles": [
+            "messages",
+            "nuit",
+            "matin"
+          ]
+        },
         "cible": "Une société de dépannage dont la régulation d'astreinte ne peut pas décrocher la nuit.",
         "avant": {
           "taches": [
@@ -504,13 +554,23 @@
       },
       "cas": {
         "id": "depannage-bon-dicte-sur-place",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le bon d'intervention dicté avant de partir, signé par le client",
         "theme": "Bon d'intervention",
         "promesse": "Le bon dicté sur place, prêt à relire.",
+        "recit": {
+          "sujet": "Vos bons d'intervention s'écrivent le soir, de mémoire.",
+          "scene": "Le soir, dans la camionnette, le technicien remplit le bon de la journée. Il ne sait plus quelle pièce il a changée chez le client du matin. Au bureau, quelqu'un ressaisit tout et cherche l'adresse.",
+          "exemple": "le bon d'intervention de ce client",
+          "motsCles": [
+            "bons",
+            "intervention",
+            "mémoire"
+          ]
+        },
         "cible": "Une société de dépannage dont les techniciens écrivent leur bon le soir, de mémoire.",
         "avant": {
           "taches": [
@@ -602,13 +662,23 @@
       },
       "cas": {
         "id": "depannage-facture-lendemain",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le bon signé facturé le lendemain, pas en fin de mois",
         "theme": "Dépannage facturé",
         "promesse": "Le bon signé hier, facturé aujourd'hui.",
+        "recit": {
+          "sujet": "Vos bons signés attendent la fin du mois.",
+          "scene": "Sur le bureau, la pile de bons signés grossit toute la semaine. Personne ne facture avant la fin du mois. Alors tout part d'un coup, et un client reçoit la facture d'un dépannage qu'il avait oublié.",
+          "exemple": "le bon signé de ce dépannage",
+          "motsCles": [
+            "bons",
+            "signés",
+            "mois"
+          ]
+        },
         "cible": "Une société de dépannage dont les bons signés attendent la fin du mois pour être facturés.",
         "avant": {
           "taches": [
@@ -701,13 +771,23 @@
       },
       "cas": {
         "id": "nettoyage-point-du-matin",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Un agent manque : les sites à couvrir listés avant l'ouverture",
         "theme": "Agent manquant",
         "promesse": "Les sites sans agent confirmé, listés avant l'ouverture.",
+        "recit": {
+          "sujet": "Un agent manque, le site n'est pas nettoyé.",
+          "scene": "Tôt le matin, un agent ne se présente pas sur un site. Le chef d'équipe parcourt le planning à la main et appelle au hasard. Pendant ce temps, le client ouvre ses bureaux et trouve les poubelles pleines.",
+          "exemple": "ce site sans agent confirmé ce matin",
+          "motsCles": [
+            "agent",
+            "manque",
+            "site"
+          ]
+        },
         "cible": "Une entreprise de nettoyage dont le planning se refait dans l'urgence quand un agent manque.",
         "avant": {
           "taches": [
@@ -800,13 +880,23 @@
       },
       "cas": {
         "id": "nettoyage-demande-prestation",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La demande de prestation mise au clair avant la visite des locaux",
         "theme": "Demandes incomplètes",
         "promesse": "Surface, fréquence, accès : réclamés avant la visite.",
+        "recit": {
+          "sujet": "Vos demandes de nettoyage arrivent sans la surface.",
+          "scene": "Un client écrit : il cherche une entreprise pour entretenir ses bureaux. Rien sur la surface, ni sur la fréquence, ni sur l'accès. Le responsable recopie, rappelle, relance, et la demande attend dans la boîte.",
+          "exemple": "la demande de ce client pour ses bureaux",
+          "motsCles": [
+            "demandes",
+            "nettoyage",
+            "surface"
+          ]
+        },
         "cible": "Une entreprise de nettoyage dont les demandes de prestation arrivent incomplètes avant la visite des locaux.",
         "avant": {
           "taches": [
@@ -896,12 +986,22 @@
       },
       "cas": {
         "id": "nettoyage-chefs-equipe-sites",
-        "version": 3,
+        "version": 4,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Tenir des chefs d'équipe répartis sur plusieurs sites",
         "theme": "Chefs d'équipe",
         "promesse": "Un cadre pour les appels des chefs d'équipe.",
+        "recit": {
+          "sujet": "Vos chefs d'équipe vous appellent pour tout.",
+          "scene": "En tournée, le dirigeant décroche encore : un chef d'équipe demande s'il peut décaler l'horaire d'un site. Puis un autre appelle pour une clé perdue. Chaque question remonte, et le dirigeant tranche tout seul.",
+          "exemple": "la question de ce chef d'équipe sur son site",
+          "motsCles": [
+            "chefs",
+            "équipe",
+            "appellent"
+          ]
+        },
         "cible": "Un dirigeant d'entreprise de nettoyage dont les chefs d'équipe sont répartis sur plusieurs sites.",
         "avant": {
           "taches": [
@@ -993,13 +1093,23 @@
       },
       "cas": {
         "id": "electricien-visite-dictee",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La visite dictée dans le camion devient la base du devis",
         "theme": "Visite dictée",
         "promesse": "Votre devis commence dans le camion.",
+        "recit": {
+          "sujet": "Vos notes de visite se retapent le soir.",
+          "scene": "Devant le tableau électrique, l'électricien griffonne sur un bout de carton. Le soir, il rouvre ses photos, retape la liste dans le devis et cherche ce qu'il avait vu sur place. Un détail manque.",
+          "exemple": "les notes de cette visite",
+          "motsCles": [
+            "notes",
+            "visite",
+            "retapent"
+          ]
+        },
         "cible": "Un électricien seul ou presque, qui monte ses devis le soir à partir de notes de visite.",
         "avant": {
           "taches": [
@@ -1093,13 +1203,23 @@
       },
       "cas": {
         "id": "plombier-urgences-triees",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Fuite urgente ou simple devis : vos messages triés pour vous",
         "theme": "Urgences triées",
         "promesse": "La fuite passe avant la salle de bains.",
+        "recit": {
+          "sujet": "Une fuite urgente se perd parmi vos devis.",
+          "scene": "Le plombier est sous un évier, les mains dans l'eau. Un message tombe : une fuite ou un simple devis ? Il le lira le soir, trop tard, mélangé aux autres demandes.",
+          "exemple": "le message de ce client pour une fuite",
+          "motsCles": [
+            "fuite",
+            "urgente",
+            "devis"
+          ]
+        },
         "cible": "Un plombier seul qui rate des urgences quand il a les mains dans l'eau.",
         "avant": {
           "taches": [
@@ -1194,13 +1314,23 @@
       },
       "cas": {
         "id": "chauffagiste-entretien-prevenu",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "L'entretien de chaudière : le client prévenu avant la date",
         "theme": "Entretien annuel",
         "promesse": "Plus aucun entretien de chaudière oublié.",
+        "recit": {
+          "sujet": "Vos entretiens de chaudière s'oublient chaque année.",
+          "scene": "À l'automne, le chauffagiste feuillette son carnet pour retrouver qui doit un entretien. Il rappelle chaque client, cale la date au téléphone. Un contrat noté ailleurs passe à la trappe.",
+          "exemple": "l'entretien de chaudière de ce client",
+          "motsCles": [
+            "entretiens",
+            "chaudière",
+            "oublient"
+          ]
+        },
         "cible": "Un chauffagiste seul dont les contrats d'entretien reviennent chaque année.",
         "avant": {
           "taches": [
@@ -1291,12 +1421,22 @@
       },
       "cas": {
         "id": "electricien-devis-clair",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Écrire un devis clair à partir de ses notes de visite",
         "theme": "Devis clair",
         "promesse": "Des lignes de devis que le client comprend.",
+        "recit": {
+          "sujet": "Vos lignes de devis restent trop techniques.",
+          "scene": "Le soir, l'électricien déchiffre ses notes de visite, recopie ligne par ligne et écrit des termes que le client ne comprend pas. La soirée entière y passe.",
+          "exemple": "les lignes de ce devis",
+          "motsCles": [
+            "lignes",
+            "devis",
+            "techniques"
+          ]
+        },
         "cible": "Un électricien seul qui rédige ses devis le soir, à partir de notes et de photos.",
         "avant": {
           "taches": [
@@ -1387,12 +1527,22 @@
       },
       "cas": {
         "id": "plombier-devis-du-dimanche",
-        "version": 2,
+        "version": 3,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Ne plus faire ses devis le dimanche soir",
         "theme": "Dimanche soir",
         "promesse": "Un créneau de semaine pour vos devis.",
+        "recit": {
+          "sujet": "Vos devis se font le dimanche soir.",
+          "scene": "Dimanche soir, le plombier s'installe à la table de la cuisine. Il rouvre un ancien devis, corrige les lignes à la main, et commence la semaine déjà fatigué.",
+          "exemple": "la pile de devis de ce dimanche",
+          "motsCles": [
+            "devis",
+            "dimanche",
+            "soir"
+          ]
+        },
         "cible": "Un plombier seul qui monte ses devis le week-end, faute de temps en semaine.",
         "avant": {
           "taches": [
@@ -1485,13 +1635,23 @@
       },
       "cas": {
         "id": "chauffagiste-facture-contrat",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La facture d'entretien prête le lendemain, sans recopier le contrat",
         "theme": "Facture d'entretien",
         "promesse": "Chaque facture d'entretien préparée avec son contrat.",
+        "recit": {
+          "sujet": "Vos factures d'entretien partent en retard, en bloc.",
+          "scene": "Les fournitures sont notées sur un carnet dans la camionnette. En fin de mois, le chauffagiste recopie chaque contrat d'entretien et facture tout en bloc, bien après son passage.",
+          "exemple": "la facture de cet entretien",
+          "motsCles": [
+            "factures",
+            "entretien",
+            "retard"
+          ]
+        },
         "cible": "Un chauffagiste seul dont les factures d'entretien partent en bloc, en retard.",
         "avant": {
           "taches": [
@@ -1583,13 +1743,23 @@
       },
       "cas": {
         "id": "chantier-compte-rendu-prepare",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La réunion de chantier enregistrée, le compte rendu prêt à relire",
         "theme": "Réunion chantier",
         "promesse": "Le compte rendu de réunion, déjà préparé.",
+        "recit": {
+          "sujet": "Vos comptes rendus de chantier s'écrivent de mémoire.",
+          "scene": "En réunion de chantier, le conducteur de travaux prend des notes debout. Le vendredi, il rédige le compte rendu de mémoire, oublie une réserve, et l'envoie en retard aux entreprises.",
+          "exemple": "le compte rendu de cette réunion",
+          "motsCles": [
+            "comptes",
+            "chantier",
+            "mémoire"
+          ]
+        },
         "cible": "Une entreprise générale dont le conducteur de travaux rédige les comptes rendus de mémoire.",
         "avant": {
           "taches": [
@@ -1683,13 +1853,23 @@
       },
       "cas": {
         "id": "chantier-attestations-sous-traitants",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les attestations des sous-traitants suivies et relancées à temps",
         "theme": "Attestations sous-traitants",
         "promesse": "Le sous-traitant relancé dès que son attestation expire.",
+        "recit": {
+          "sujet": "L'attestation du sous-traitant expire sans relance.",
+          "scene": "Les pièces des sous-traitants vivent dans un tableur que chacun tient à sa façon. Un matin, le conducteur de travaux découvre qu'une attestation est échue et relance dans l'urgence.",
+          "exemple": "l'attestation de ce sous-traitant",
+          "motsCles": [
+            "attestation",
+            "sous-traitant",
+            "expire"
+          ]
+        },
         "cible": "Une entreprise générale qui suit les pièces de ses sous-traitants sans méthode commune.",
         "avant": {
           "taches": [
@@ -1784,13 +1964,23 @@
       },
       "cas": {
         "id": "renovation-reserve-bon-conducteur",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La réserve notée sur place arrive au bon conducteur de travaux",
         "theme": "Réserves",
         "promesse": "La réserve arrive au bon conducteur de travaux.",
+        "recit": {
+          "sujet": "Vos réserves de chantier se perdent sur papier.",
+          "scene": "Sur le chantier, le chef d'équipe note une réserve sur un bout de papier. Au bureau, quelqu'un la ressaisit, cherche quel conducteur de travaux suit ce chantier, puis l'appelle.",
+          "exemple": "la réserve sur cette porte",
+          "motsCles": [
+            "réserves",
+            "papier",
+            "perdent"
+          ]
+        },
         "cible": "Une entreprise de rénovation dont les réserves sont notées sur papier puis ressaisies.",
         "avant": {
           "taches": [
@@ -1881,12 +2071,22 @@
       },
       "cas": {
         "id": "chantier-du-devis-au-planning",
-        "version": 2,
+        "version": 3,
         "offre": "audit",
         "posture": "offre",
         "titre": "Du devis signé au planning des équipes : où le passage se perd",
         "theme": "Lancement chantier",
         "promesse": "Ce qui retarde vos démarrages de chantier, repéré.",
+        "recit": {
+          "sujet": "Après la signature, votre chantier tarde à démarrer.",
+          "scene": "Le devis est signé, le client attend. Au bureau, quelqu'un ressaisit le dossier, cherche qui lance le chantier, et les équipes découvrent le planning au dernier moment.",
+          "exemple": "le dossier de ce devis signé",
+          "motsCles": [
+            "signature",
+            "chantier",
+            "démarrer"
+          ]
+        },
         "cible": "Une entreprise générale qui lance ses chantiers après la signature sans passage de relais clair.",
         "avant": {
           "taches": [
@@ -1977,12 +2177,22 @@
       },
       "cas": {
         "id": "chantier-reponse-appel-offres",
-        "version": 4,
+        "version": 5,
         "offre": "formation",
         "posture": "offre",
         "titre": "Répondre à un appel d'offres sans oublier un poste",
         "theme": "Appel d'offres",
         "promesse": "Le poste oublié, repéré avant de répondre.",
+        "recit": {
+          "sujet": "Vous craignez d'oublier un poste dans l'appel d'offres.",
+          "scene": "Le soir, quelqu'un de l'équipe lit le cahier des charges et la décomposition des prix, page après page. Il repart d'une page blanche et rédige dans l'urgence, avec la crainte d'oublier un poste.",
+          "exemple": "la réponse à cet appel d'offres",
+          "motsCles": [
+            "oublier",
+            "poste",
+            "offres"
+          ]
+        },
         "cible": "Une entreprise générale qui lit le CCTP et le DPGF le soir, avec la crainte d'oublier un poste.",
         "avant": {
           "taches": [
@@ -2076,13 +2286,23 @@
       },
       "cas": {
         "id": "menuisier-cotes-recues",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les cotes reçues du client mises au propre, sans les retaper",
         "theme": "Cotes reçues",
         "promesse": "Les cotes du client, sans les retaper.",
+        "recit": {
+          "sujet": "Une cote mal recopiée finit en fabrication.",
+          "scene": "Un client envoie ses cotes dans un document joint à son message. À l'atelier, le menuisier l'ouvre et retape chaque cote à la main. Le placard part en fabrication avec une erreur de mesure.",
+          "exemple": "les cotes de ce placard",
+          "motsCles": [
+            "cote",
+            "recopiée",
+            "fabrication"
+          ]
+        },
         "cible": "Un menuisier dont les clients envoient leurs cotes dans un document joint à un message.",
         "avant": {
           "taches": [
@@ -2178,13 +2398,23 @@
       },
       "cas": {
         "id": "metallier-commande-en-retard",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La commande fournisseur en retard signalée avant la pose",
         "theme": "Retard fournisseur",
         "promesse": "Le retard fournisseur, connu avant la pose.",
+        "recit": {
+          "sujet": "Le retard fournisseur se découvre à la pose.",
+          "scene": "La pose d'un garde-corps est prévue pour demain. La pièce commandée n'arrive pas, sans nouvelles. L'équipe découvre le retard à la livraison, rappelle le fournisseur en urgence et prévient l'acheteur au dernier moment.",
+          "exemple": "la commande de ce garde-corps",
+          "motsCles": [
+            "retard",
+            "fournisseur",
+            "pose"
+          ]
+        },
         "cible": "Une entreprise de métallerie dont la pose attend parfois une pièce commandée trop tard.",
         "avant": {
           "taches": [
@@ -2275,12 +2505,22 @@
       },
       "cas": {
         "id": "menuisier-ouvrage-sans-jargon",
-        "version": 1,
+        "version": 2,
         "offre": "formation",
         "posture": "offre",
         "titre": "Décrire un ouvrage à un client sans jargon",
         "theme": "Descriptif d'ouvrage",
         "promesse": "Un client qui comprend avant de signer.",
+        "recit": {
+          "sujet": "Votre descriptif d'ouvrage parle le jargon de l'atelier.",
+          "scene": "Le menuisier décrit l'escalier avec les mots de l'atelier. Le client hésite, rappelle pour se faire réexpliquer, puis laisse le projet en attente sans signer.",
+          "exemple": "le descriptif de cet escalier",
+          "motsCles": [
+            "descriptif",
+            "ouvrage",
+            "jargon"
+          ]
+        },
         "cible": "Un menuisier dont les clients veulent comprendre l'ouvrage avant de signer.",
         "avant": {
           "taches": [
@@ -2374,13 +2614,23 @@
       },
       "cas": {
         "id": "dg-emails-relus-avant-envoi",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Devis, délai, facture : les e-mails relus avant de partir",
         "theme": "E-mails sensibles",
         "promesse": "Devis, délai, facture : relus avant envoi.",
+        "recit": {
+          "sujet": "Vos e-mails qui engagent partent sans relecture.",
+          "scene": "Le soir, le dirigeant répond à ses clients depuis la cuisine. Il tape vite un délai de livraison et appuie sur envoyer. Le lendemain, il relit : le délai est intenable, et le client l'a déjà noté.",
+          "exemple": "l'e-mail qui annonce ce délai au client",
+          "motsCles": [
+            "e-mails",
+            "engagent",
+            "relecture"
+          ]
+        },
         "cible": "Un dirigeant seul qui répond lui-même à ses clients, souvent le soir, et envoie des e-mails sans les relire.",
         "avant": {
           "taches": [
@@ -2465,12 +2715,21 @@
       },
       "cas": {
         "id": "dg-sauvegardes-essai-restauration",
-        "version": 3,
+        "version": 4,
         "offre": "audit",
         "posture": "offre",
         "titre": "Vos sauvegardes se rouvrent-elles vraiment ?",
         "theme": "Sauvegardes",
         "promesse": "Rouvrir une sauvegarde avant d'en avoir besoin.",
+        "recit": {
+          "sujet": "Vos sauvegardes n'ont jamais été rouvertes.",
+          "scene": "Un fichier client disparaît d'un poste. Le dirigeant se rassure : il existe une sauvegarde. Mais personne ne l'a jamais rouverte, et il cherche à qui demander comment récupérer ce fichier.",
+          "exemple": "ce fichier client à récupérer",
+          "motsCles": [
+            "sauvegardes",
+            "rouvertes"
+          ]
+        },
         "cible": "Un dirigeant de PME qui a des sauvegardes mais n'a jamais vérifié qu'on peut en retirer un fichier.",
         "avant": {
           "taches": [
@@ -2554,13 +2813,23 @@
       },
       "cas": {
         "id": "dg-point-du-matin-reste-a-faire",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Devis sans réponse, rendez-vous à confirmer : la liste du matin",
         "theme": "À faire",
         "promesse": "Le devis sans réponse ne s'oublie plus.",
+        "recit": {
+          "sujet": "Vos devis sans réponse finissent par s'oublier.",
+          "scene": "Le matin, café à la main, le dirigeant rouvre ses notes de la veille. Il se demande ce qui manque et relit ce qui est déjà réglé. Le devis envoyé la semaine dernière, lui, attend toujours une réponse.",
+          "exemple": "le devis resté sans réponse",
+          "motsCles": [
+            "devis",
+            "réponse",
+            "oublier"
+          ]
+        },
         "cible": "Un dirigeant seul qui rouvre ses notes chaque matin pour savoir ce qu'il a oublié.",
         "avant": {
           "taches": [
@@ -2645,13 +2914,23 @@
       },
       "cas": {
         "id": "dg-tableau-du-lundi-monte-seul",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le tableau de suivi du lundi, rempli sans recopier les chiffres",
         "theme": "Tableau hebdomadaire",
         "promesse": "Lundi matin, le tableau est déjà rempli.",
+        "recit": {
+          "sujet": "Le tableau du lundi, c'est de la recopie.",
+          "scene": "Lundi matin, quelqu'un ouvre la facturation, l'agenda, le suivi. Il recopie les chiffres à la main dans le tableau. Puis, en réunion, tout le monde cherche la dernière version.",
+          "exemple": "le tableau de la réunion du lundi",
+          "motsCles": [
+            "tableau",
+            "lundi",
+            "recopie"
+          ]
+        },
         "cible": "Un dirigeant de PME dont le tableau de suivi est rempli à la main, quand quelqu'un a le temps.",
         "avant": {
           "taches": [
@@ -2733,12 +3012,21 @@
       },
       "cas": {
         "id": "dg-par-quoi-commencer-tout-urgent",
-        "version": 2,
+        "version": 3,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Par quoi commencer quand tout paraît urgent",
         "theme": "Priorités",
         "promesse": "Quand tout est urgent, commencez par un sujet.",
+        "recit": {
+          "sujet": "Tout paraît urgent, et rien ne démarre.",
+          "scene": "Sur le bureau du dirigeant, les dossiers s'empilent. Il ouvre un nouvel outil, l'abandonne, déplace la pile, puis remet la décision à la semaine prochaine. Son équipe attend de savoir par quoi commencer.",
+          "exemple": "la pile de dossiers urgents sur ce bureau",
+          "motsCles": [
+            "urgent",
+            "démarre"
+          ]
+        },
         "cible": "Un dirigeant de PME qui voit passer beaucoup d'outils et de sujets, et n'en lance aucun.",
         "avant": {
           "taches": [
@@ -2831,13 +3119,23 @@
       },
       "cas": {
         "id": "dg-fiche-prospect-depuis-numero",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le prospect du salon : sa fiche remplie depuis son numéro d'entreprise",
         "theme": "Fiche prospect",
         "promesse": "Un numéro saisi, la fiche prospect se remplit.",
+        "recit": {
+          "sujet": "Les prospects du salon attendent leur fiche.",
+          "scene": "Au retour d'un salon, le commercial étale les cartes de visite sur son bureau. Pour chaque prospect, il cherche l'activité sur internet, recopie l'adresse, puis oublie de le classer.",
+          "exemple": "la fiche de ce prospect rencontré au salon",
+          "motsCles": [
+            "prospects",
+            "salon",
+            "fiche"
+          ]
+        },
         "cible": "Une société de services dont le commercial, au retour d'un salon, recopie à la main l'activité et l'adresse de chaque prospect.",
         "avant": {
           "taches": [
@@ -2922,13 +3220,23 @@
       },
       "cas": {
         "id": "dg-contrats-signes-jamais-renvoyes",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le contrat signé jamais renvoyé, repéré et envoyé au client",
         "theme": "Contrats signés",
         "promesse": "L'exemplaire signé repart au client, sans oubli.",
+        "recit": {
+          "sujet": "Le contrat signé n'est jamais renvoyé au client.",
+          "scene": "Le contrat est signé, rangé dans un classeur, et la journée continue. À la fin du mois, le client relance : il attend toujours son exemplaire. Personne ne sait qui devait l'envoyer.",
+          "exemple": "l'exemplaire signé de ce client",
+          "motsCles": [
+            "contrat",
+            "signé",
+            "renvoyé"
+          ]
+        },
         "cible": "Une société de services dont des contrats signés restent dans un classeur sans retourner au client.",
         "avant": {
           "taches": [
@@ -3019,12 +3327,22 @@
       },
       "cas": {
         "id": "dg-resumer-un-cahier-des-charges",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Résumer un long cahier des charges d'appel d'offres",
         "theme": "Exigences clés",
         "promesse": "Repérez l'exigence qui piège avant de répondre.",
+        "recit": {
+          "sujet": "Le cahier des charges cache un piège.",
+          "scene": "Un appel d'offres arrive avec un cahier des charges épais. L'équipe le lit sans savoir où chercher, décide de répondre, puis découvre une exigence bloquante la veille du dépôt.",
+          "exemple": "l'exigence cachée de ce cahier des charges",
+          "motsCles": [
+            "cahier",
+            "charges",
+            "piège"
+          ]
+        },
         "cible": "Une société de services qui lit trop tard les longs cahiers des charges des appels d'offres.",
         "avant": {
           "taches": [
@@ -3109,13 +3427,23 @@
       },
       "cas": {
         "id": "usinage-demandes-de-prix",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les demandes de prix triées avant le chiffrage",
         "theme": "Demandes reçues",
         "promesse": "Vos demandes de prix arrivent déjà triées.",
+        "recit": {
+          "sujet": "Vos demandes de prix arrivent pêle-mêle, souvent incomplètes.",
+          "scene": "Le soir, le dirigeant ouvre sa boîte de réception : des plans joints, des messages mêlés. Une demande ne dit ni la quantité ni la matière. Il relit, la met de côté, et oublie de relancer.",
+          "exemple": "la demande de prix de ce client, avec son plan",
+          "motsCles": [
+            "demandes",
+            "prix",
+            "incomplètes"
+          ]
+        },
         "cible": "Dirigeant d'un atelier d'usinage qui chiffre ses plans le soir",
         "avant": {
           "taches": [
@@ -3200,13 +3528,23 @@
       },
       "cas": {
         "id": "usinage-ancien-devis",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Retrouver l'ancien devis d'une pièce déjà faite",
         "theme": "Anciens devis",
         "promesse": "L'ancien devis revient en une question.",
+        "recit": {
+          "sujet": "Personne ne retrouve l'ancien devis de cette pièce.",
+          "scene": "Un client recommande une pièce déjà faite. Au bureau, on fouille les anciens dossiers, on demande à celui qui s'en souvient. Faute de trouver, le technicien rechiffre la pièce depuis le début.",
+          "exemple": "l'ancien devis de cette pièce",
+          "motsCles": [
+            "ancien",
+            "devis",
+            "pièce"
+          ]
+        },
         "cible": "Un atelier de mécanique dont le bureau rechiffre des pièces déjà faites",
         "avant": {
           "taches": [
@@ -3289,13 +3627,23 @@
       },
       "cas": {
         "id": "usinage-certificats-matiere",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les certificats matière rangés avec la commande",
         "theme": "Certificats matière",
         "promesse": "Chaque certificat retrouve sa commande.",
+        "recit": {
+          "sujet": "Vos certificats matière se perdent loin des commandes.",
+          "scene": "Un fournisseur envoie un certificat matière en pièce jointe. À l'atelier, quelqu'un ouvre le fichier, cherche la bonne commande, puis le classe à la main. Le jour où le client le réclame, on fouille encore.",
+          "exemple": "le certificat matière de cette commande",
+          "motsCles": [
+            "certificats",
+            "matière",
+            "commandes"
+          ]
+        },
         "cible": "Un atelier de mécanique qui reçoit les certificats matière en PDF",
         "avant": {
           "taches": [
@@ -3376,13 +3724,23 @@
       },
       "cas": {
         "id": "usinage-devis-depuis-plan",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le devis de pièce préparé à partir du plan reçu",
         "theme": "Plans reçus",
         "promesse": "Le plan arrive, le brouillon de devis suit.",
+        "recit": {
+          "sujet": "Chaque plan reçu se recopie avant le devis.",
+          "scene": "Un plan arrive avec la demande. Au bureau, le technicien l'ouvre, relève la matière, les opérations, la quantité, puis monte le devis ligne après ligne. Les autres plans attendent sur la pile.",
+          "exemple": "le plan de cette pièce",
+          "motsCles": [
+            "plan",
+            "recopie",
+            "devis"
+          ]
+        },
         "cible": "Un atelier de mécanique dont le bureau relève chaque plan à la main",
         "avant": {
           "taches": [
@@ -3464,12 +3822,21 @@
       },
       "cas": {
         "id": "usinage-methode-chiffrage",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Mettre par écrit sa méthode de chiffrage",
         "theme": "Méthode écrite",
         "promesse": "Le chiffrage sort enfin de votre tête.",
+        "recit": {
+          "sujet": "Votre chiffrage tient seulement dans votre tête.",
+          "scene": "Une demande de devis arrive pendant que le dirigeant est absent. À l'atelier, personne ne sait chiffrer la pièce : rien n'est écrit. Le client attend, et la demande reste sur le bureau jusqu'à son retour.",
+          "exemple": "le dernier devis que le dirigeant a chiffré",
+          "motsCles": [
+            "chiffrage",
+            "tête"
+          ]
+        },
         "cible": "Dirigeant d'un atelier d'usinage dont le chiffrage tient dans sa tête",
         "avant": {
           "taches": [
@@ -3550,12 +3917,22 @@
       },
       "cas": {
         "id": "usinage-audit-plan-devis",
-        "version": 2,
+        "version": 3,
         "offre": "audit",
         "posture": "offre",
         "titre": "Du plan reçu au devis envoyé : où la demande attend",
         "theme": "Demandes bloquées",
         "promesse": "Vous savez où vos demandes de prix attendent.",
+        "recit": {
+          "sujet": "Du plan au devis, la demande reste coincée.",
+          "scene": "Un plan arrive par e-mail. Il passe au bureau des méthodes, attend un retour de l'atelier, revient au bureau. Personne ne sait où la demande dort, et le client relance pour son devis.",
+          "exemple": "la demande de ce client, du plan au devis",
+          "motsCles": [
+            "plan",
+            "devis",
+            "coincée"
+          ]
+        },
         "cible": "Un atelier de mécanique dont les demandes de prix passent par plusieurs mains",
         "avant": {
           "taches": [
@@ -3645,12 +4022,22 @@
       },
       "cas": {
         "id": "usinage-savoir-faire",
-        "version": 2,
+        "version": 3,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Garder son savoir-faire sans en être prisonnier",
         "theme": "Savoir-faire",
         "promesse": "Vous choisissez ce que vous transmettez.",
+        "recit": {
+          "sujet": "Tout le savoir-faire de l'atelier repose sur vous.",
+          "scene": "Un régleur bloque sur un réglage et appelle le dirigeant, en congé. Les gammes, les façons de chiffrer, les astuces de l'atelier : tout est dans sa tête. Le dirigeant ne peut jamais s'éloigner de l'atelier.",
+          "exemple": "la gamme que le dirigeant choisit de transmettre",
+          "motsCles": [
+            "savoir-faire",
+            "atelier",
+            "repose"
+          ]
+        },
         "cible": "Dirigeant d'un atelier d'usinage dont tout le savoir-faire repose sur lui",
         "avant": {
           "taches": [
@@ -3734,12 +4121,22 @@
       },
       "cas": {
         "id": "usinage-audit-sauvegardes",
-        "version": 3,
+        "version": 4,
         "offre": "audit",
         "posture": "offre",
         "titre": "Plans et programmes : récupérables si l'ordinateur lâche ?",
         "theme": "Sauvegardes atelier",
         "promesse": "Vous savez si vos plans reviennent vraiment.",
+        "recit": {
+          "sujet": "Vos plans dépendent d'une copie jamais essayée.",
+          "scene": "Le soir, quelqu'un copie les plans et les programmes sur une clé, puis la range dans un tiroir. Personne n'a jamais essayé de relire cette copie. Le matin où l'ordinateur des programmes refuse de démarrer, l'atelier découvre le problème.",
+          "exemple": "la copie des programmes sur la clé",
+          "motsCles": [
+            "plans",
+            "copie",
+            "essayée"
+          ]
+        },
         "cible": "Un atelier de mécanique dont les plans et les programmes vivent sur quelques ordinateurs",
         "avant": {
           "taches": [
@@ -3831,13 +4228,23 @@
       },
       "cas": {
         "id": "soustraitant-appels-livraison",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les appels de livraison du donneur d'ordre préparés en brouillon",
         "theme": "Livraisons",
         "promesse": "Vos appels de livraison, déjà saisis en brouillon.",
+        "recit": {
+          "sujet": "Vos appels de livraison sont tous ressaisis.",
+          "scene": "Le donneur d'ordre envoie un appel de livraison en pièce jointe. À l'administration des ventes, quelqu'un l'ouvre, recopie chaque référence, chaque quantité, chaque date, puis vérifie la commande ouverte. Un autre appel arrive déjà.",
+          "exemple": "l'appel de livraison de ce donneur d'ordre",
+          "motsCles": [
+            "appels",
+            "livraison",
+            "ressaisis"
+          ]
+        },
         "cible": "Un sous-traitant dont l'administration des ventes ressaisit les appels de livraison",
         "avant": {
           "taches": [
@@ -3921,13 +4328,23 @@
       },
       "cas": {
         "id": "soustraitant-changement-cadence",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le changement de cadence prévient l'atelier et les achats",
         "theme": "Cadence",
         "promesse": "Le client change la cadence, l'atelier le sait.",
+        "recit": {
+          "sujet": "Le client change la cadence, l'atelier l'ignore.",
+          "scene": "Le donneur d'ordre écrit : la date avance, la quantité change. Le message arrive à l'administration, qui le transfère à la main, appelle l'atelier, puis les achats. Parfois, quelqu'un l'apprend trop tard.",
+          "exemple": "le changement de cadence de ce client",
+          "motsCles": [
+            "client",
+            "cadence",
+            "atelier"
+          ]
+        },
         "cible": "Un sous-traitant dont le donneur d'ordre change souvent la cadence ou la date",
         "avant": {
           "taches": [
@@ -4020,13 +4437,23 @@
       },
       "cas": {
         "id": "soustraitant-facture-bloquee",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La facture bloquée chez le donneur d'ordre, repérée et relancée",
         "theme": "Facture bloquée",
         "promesse": "Une facture bloquée ne passe plus inaperçue.",
+        "recit": {
+          "sujet": "Vos factures restent bloquées chez le grand compte.",
+          "scene": "Une facture dort chez le grand compte depuis des semaines : il manque une pièce, personne ne l'a dit. Au bureau, on remarque le retard par hasard, on devine le motif, on relance quand on y pense.",
+          "exemple": "la facture bloquée chez ce grand compte",
+          "motsCles": [
+            "factures",
+            "bloquées",
+            "compte"
+          ]
+        },
         "cible": "Un sous-traitant dont des factures restent bloquées chez un grand compte",
         "avant": {
           "taches": [
@@ -4107,12 +4534,22 @@
       },
       "cas": {
         "id": "soustraitant-questionnaires",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Les questionnaires des donneurs d'ordre sans tout réécrire",
         "theme": "Questionnaires clients",
         "promesse": "Le même questionnaire client, sans tout réécrire.",
+        "recit": {
+          "sujet": "Vous réécrivez sans cesse les mêmes questionnaires clients.",
+          "scene": "Un donneur d'ordre envoie un long questionnaire. Au bureau, quelqu'un cherche le document déjà fourni à un autre client, ne le trouve pas, et réécrit des réponses déjà données ailleurs.",
+          "exemple": "le questionnaire de ce donneur d'ordre",
+          "motsCles": [
+            "réécrivez",
+            "questionnaires",
+            "clients"
+          ]
+        },
         "cible": "Un sous-traitant qui répond sans cesse aux mêmes questionnaires de donneurs d'ordre",
         "avant": {
           "taches": [
@@ -4196,13 +4633,22 @@
       },
       "cas": {
         "id": "soustraitant-attestations",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les attestations du donneur d'ordre suivies avant l'échéance",
         "theme": "Attestations exigées",
         "promesse": "L'attestation qui expire, repérée avant le client.",
+        "recit": {
+          "sujet": "Vos attestations expirent sans que personne le voie.",
+          "scene": "Un donneur d'ordre réclame l'attestation à jour. Au bureau, quelqu'un ouvre le tableur des dates : elle a expiré le mois dernier. Il faut courir après le renouvellement, dans l'urgence.",
+          "exemple": "l'attestation réclamée par ce donneur d'ordre",
+          "motsCles": [
+            "attestations",
+            "expirent"
+          ]
+        },
         "cible": "Un sous-traitant qui doit fournir des attestations à plusieurs donneurs d'ordre",
         "avant": {
           "taches": [
@@ -4283,12 +4729,22 @@
       },
       "cas": {
         "id": "soustraitant-premier-message",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Le premier message à un nouveau donneur d'ordre",
         "theme": "Premier message",
         "promesse": "Un premier message écrit, relu, prêt à partir.",
+        "recit": {
+          "sujet": "Votre message à un nouveau client attend toujours.",
+          "scene": "Le dirigeant veut écrire à une entreprise qu'il a repérée. Entre les séries et les livraisons, il repousse. Le soir, devant l'écran vide, il ne sait pas quoi dire, et referme.",
+          "exemple": "le message à cette entreprise visée",
+          "motsCles": [
+            "message",
+            "nouveau",
+            "client"
+          ]
+        },
         "cible": "Dirigeant d'un atelier de sous-traitance qui prospecte peu, faute de temps",
         "avant": {
           "taches": [
@@ -4369,12 +4825,22 @@
       },
       "cas": {
         "id": "soustraitant-client-dominant",
-        "version": 2,
+        "version": 3,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Ne plus dépendre d'un client dominant",
         "theme": "Client dominant",
         "promesse": "Un temps fixe pour chercher d'autres clients.",
+        "recit": {
+          "sujet": "Votre plan de charge dépend d'un donneur d'ordre.",
+          "scene": "Le dirigeant regarde le planning : presque toutes les commandes viennent du même donneur d'ordre. Il sait qu'il devrait prospecter, mais le quotidien passe avant. Chaque rumeur de baisse l'inquiète.",
+          "exemple": "le créneau réservé à la prospection",
+          "motsCles": [
+            "plan",
+            "charge",
+            "dépend"
+          ]
+        },
         "cible": "Un dirigeant de sous-traitant dont le plan de charge tient à un donneur d'ordre",
         "avant": {
           "taches": [
@@ -4455,12 +4921,22 @@
       },
       "cas": {
         "id": "soustraitant-audit-circuit",
-        "version": 2,
+        "version": 3,
         "offre": "audit",
         "posture": "offre",
         "titre": "Le message du donneur d'ordre, de site en site jusqu'à l'atelier",
         "theme": "Circuit multisite",
         "promesse": "Où le message client s'arrête, site par site.",
+        "recit": {
+          "sujet": "Le message client se perd entre vos sites.",
+          "scene": "Un donneur d'ordre change une date. Son message arrive au siège, passe aux ventes, puis à un autre site, puis au planning. Quand l'atelier l'apprend enfin, il est déjà trop tard pour s'organiser.",
+          "exemple": "le message de ce donneur d'ordre",
+          "motsCles": [
+            "message",
+            "perd",
+            "sites"
+          ]
+        },
         "cible": "Une entreprise de sous-traitance à plusieurs sites, où un message client passe par plusieurs services",
         "avant": {
           "taches": [
@@ -4552,13 +5028,23 @@
       },
       "cas": {
         "id": "plasturgie-commandes-clients",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Commandes clients : matière, coloris et moule saisis en brouillon",
         "theme": "Commandes plasturgie",
         "promesse": "Matière, coloris, moule : déjà saisis en brouillon.",
+        "recit": {
+          "sujet": "Vos commandes se ressaisissent : matière, coloris, moule.",
+          "scene": "Une commande arrive en pièce jointe. À l'administration des ventes, quelqu'un recopie la pièce, la matière, le coloris, le moule, puis cherche la date de livraison au fond du message. Les autres commandes attendent leur tour.",
+          "exemple": "la commande de ce client",
+          "motsCles": [
+            "commandes",
+            "coloris",
+            "moule"
+          ]
+        },
         "cible": "Une plasturgie dont l'administration des ventes ressaisit les commandes clients",
         "avant": {
           "taches": [
@@ -4642,13 +5128,23 @@
       },
       "cas": {
         "id": "plasturgie-fiches-fournisseurs",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les fiches techniques de matière tenues à jour avant échéance",
         "theme": "Fiches matière",
         "promesse": "Chaque fiche matière prévient avant sa date.",
+        "recit": {
+          "sujet": "Vos fiches matière se périment en silence.",
+          "scene": "Au moment de lancer un colorant, quelqu'un s'aperçoit que sa fiche technique est périmée. Personne n'avait noté la date. Il écrit en urgence au fournisseur et attend sa réponse.",
+          "exemple": "la fiche technique de ce colorant",
+          "motsCles": [
+            "fiches",
+            "matière",
+            "périment"
+          ]
+        },
         "cible": "Une plasturgie qui suit les fiches de plusieurs fournisseurs de matière",
         "avant": {
           "taches": [
@@ -4731,13 +5227,23 @@
       },
       "cas": {
         "id": "plasturgie-releve-equipe",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La relève d'équipe dictée au poste, relue par le chef d'équipe",
         "theme": "Relève d'équipe",
         "promesse": "Fin de poste : la relève se dicte.",
+        "recit": {
+          "sujet": "La relève d'équipe oublie souvent un réglage.",
+          "scene": "En fin de poste, le régleur griffonne sa relève sur un papier près de la presse. Il dit le reste de vive voix, en partant. L'équipe suivante découvre un réglage modifié que personne n'a noté.",
+          "exemple": "la relève de ce régleur",
+          "motsCles": [
+            "relève",
+            "équipe",
+            "réglage"
+          ]
+        },
         "cible": "Une plasturgie dont les équipes se relaient autour des presses",
         "avant": {
           "taches": [
@@ -4819,12 +5325,22 @@
       },
       "cas": {
         "id": "plasturgie-mode-operatoire",
-        "version": 3,
+        "version": 4,
         "offre": "formation",
         "posture": "offre",
         "titre": "Un mode opératoire de poste clair, une version de référence",
         "theme": "Mode opératoire",
         "promesse": "Un seul mode opératoire par poste, validé.",
+        "recit": {
+          "sujet": "Vos modes opératoires existent en plusieurs versions.",
+          "scene": "Au poste, le régleur suit une feuille plastifiée. Le chef d'équipe en garde une autre, différente, dans son bureau. Chacun corrige au poste sans le dire, et plus personne ne sait laquelle est la bonne.",
+          "exemple": "le mode opératoire de ce poste",
+          "motsCles": [
+            "modes",
+            "opératoires",
+            "versions"
+          ]
+        },
         "cible": "Une plasturgie dont les modes opératoires existent en plusieurs versions différentes",
         "avant": {
           "taches": [
@@ -4905,12 +5421,22 @@
       },
       "cas": {
         "id": "plasturgie-audit-relais",
-        "version": 2,
+        "version": 3,
         "offre": "audit",
         "posture": "offre",
         "titre": "Entre l'équipe de jour et l'équipe de nuit : où l'information se perd",
         "theme": "Relais jour-nuit",
         "promesse": "Une méthode de relève commune, jour et nuit.",
+        "recit": {
+          "sujet": "Entre jour et nuit, l'information se perd.",
+          "scene": "À l'arrivée de l'équipe de nuit, quelques mots s'échangent près de la presse, un papier traîne sur l'établi. Le matin, l'équipe de jour découvre un arrêt de presse dont personne ne lui a parlé.",
+          "exemple": "le passage de relais de ce soir",
+          "motsCles": [
+            "jour",
+            "nuit",
+            "information"
+          ]
+        },
         "cible": "Une entreprise de plasturgie à plusieurs sites, avec des équipes de jour et de nuit",
         "avant": {
           "taches": [
@@ -5003,13 +5529,23 @@
       },
       "cas": {
         "id": "agro-exigence-cahier-des-charges",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Retrouver l'exigence d'un client dans son cahier des charges",
         "theme": "Exigences client",
         "promesse": "L'exigence du client retrouvée, sans attendre la qualité.",
+        "recit": {
+          "sujet": "L'exigence du client attend la responsable qualité.",
+          "scene": "Sur la ligne, une question tombe : quel emballage ce client a-t-il demandé ? La réponse est quelque part dans son cahier des charges. On appelle la responsable qualité, absente, et la ligne attend son retour.",
+          "exemple": "l'exigence d'emballage de ce client",
+          "motsCles": [
+            "exigence",
+            "client",
+            "qualité"
+          ]
+        },
         "cible": "Une PME agroalimentaire dont la ligne attend la responsable qualité pour retrouver une exigence d'un client.",
         "avant": {
           "taches": [
@@ -5093,13 +5629,23 @@
       },
       "cas": {
         "id": "agro-attestations-emballages",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Attestations d'emballage : la bonne version, réclamée à temps",
         "theme": "Attestations emballages",
         "promesse": "Chaque attestation d'emballage réclamée avant sa date.",
+        "recit": {
+          "sujet": "L'attestation d'emballage périmée se découvre trop tard.",
+          "scene": "La responsable qualité ouvre son tableur : l'attestation du fournisseur de barquettes est périmée. Elle fouille ses e-mails, trouve des versions mélangées, relance le fournisseur, puis attend sa réponse.",
+          "exemple": "l'attestation de ce fournisseur de barquettes",
+          "motsCles": [
+            "attestation",
+            "emballage",
+            "périmée"
+          ]
+        },
         "cible": "Une PME agroalimentaire qui suit les déclarations de ses fournisseurs d'emballages par e-mails et tableurs.",
         "avant": {
           "taches": [
@@ -5192,13 +5738,23 @@
       },
       "cas": {
         "id": "agro-fiche-technique-client",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La fiche technique au format de chaque client, relue avant envoi",
         "theme": "Fiche technique",
         "promesse": "Une fiche technique, un format par client.",
+        "recit": {
+          "sujet": "Chaque client veut sa propre fiche technique.",
+          "scene": "Un client de la grande distribution réclame la fiche technique d'un produit dans son propre modèle. L'assistante qualité refait la fiche, recopie les ingrédients à la main et cherche la dernière version à jour.",
+          "exemple": "la fiche technique de ce produit pour ce client",
+          "motsCles": [
+            "client",
+            "fiche",
+            "technique"
+          ]
+        },
         "cible": "Une PME agroalimentaire dont chaque client réclame sa version de la fiche technique, dans son format.",
         "avant": {
           "taches": [
@@ -5291,13 +5847,23 @@
       },
       "cas": {
         "id": "agro-changements-commande-lignes",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Commandes modifiées au dernier moment, réunies avant le planning",
         "theme": "Dernière minute",
         "promesse": "Les changements de commande réunis avant le planning.",
+        "recit": {
+          "sujet": "Les commandes changent encore la veille de fabrication.",
+          "scene": "La veille au soir, un client de la grande distribution modifie sa commande par e-mail. Puis un autre envoie un document. La personne qui planifie refait le planning et court prévenir la ligne de vive voix.",
+          "exemple": "la commande modifiée de ce client",
+          "motsCles": [
+            "commandes",
+            "changent",
+            "veille"
+          ]
+        },
         "cible": "Une PME agroalimentaire dont les clients de la grande distribution modifient leurs commandes au dernier moment.",
         "avant": {
           "taches": [
@@ -5387,12 +5953,22 @@
       },
       "cas": {
         "id": "agro-reponse-client-probleme",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Répondre à un client qui signale un problème de livraison",
         "theme": "Réclamation",
         "promesse": "Client mécontent : répondre avec des lots vérifiés.",
+        "recit": {
+          "sujet": "Client mécontent : la réponse s'écrit dans l'urgence.",
+          "scene": "Un client appelle : sa livraison pose problème. La responsable qualité doit lui répondre vite. Elle cherche les lots à la main, hésite sur le ton à prendre et écrit sa réponse dans l'urgence.",
+          "exemple": "la réponse à ce client mécontent",
+          "motsCles": [
+            "client",
+            "mécontent",
+            "réponse"
+          ]
+        },
         "cible": "Une PME agroalimentaire dont la qualité ou les ventes répondent dans l'urgence à un client qui signale un problème.",
         "avant": {
           "taches": [
@@ -5482,12 +6058,21 @@
       },
       "cas": {
         "id": "agro-qualite-pompier",
-        "version": 2,
+        "version": 3,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Quand la responsable qualité joue les pompiers toute la journée",
         "theme": "Responsable qualité",
         "promesse": "Ce qui remonte à la qualité, trié ensemble.",
+        "recit": {
+          "sujet": "Votre responsable qualité court après chaque urgence.",
+          "scene": "La responsable qualité quitte sa réunion : la ligne l'appelle pour une étiquette. Puis l'atelier, puis un client. La ligne attend son retour, et le travail de fond reste sur son bureau.",
+          "exemple": "les appels qui remontent jusqu'à la qualité",
+          "motsCles": [
+            "qualité",
+            "urgence"
+          ]
+        },
         "cible": "Un directeur de site agroalimentaire dont la responsable qualité est appelée pour chaque urgence.",
         "avant": {
           "taches": [
@@ -5577,12 +6162,21 @@
       },
       "cas": {
         "id": "agro-accueil-nouvel-arrivant",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Préparer l'accueil au poste d'un intérimaire ou d'un saisonnier",
         "theme": "Premier jour",
         "promesse": "Un intérimaire accueilli au poste, geste par geste.",
+        "recit": {
+          "sujet": "L'accueil d'un intérimaire s'improvise le matin même.",
+          "scene": "Un intérimaire arrive à l'atelier ce matin. Le dirigeant l'accueille entre les livraisons, explique le poste de mémoire et oublie de montrer un geste. Le nouveau regarde, hésite et n'ose pas demander.",
+          "exemple": "l'accueil de cet intérimaire au poste",
+          "motsCles": [
+            "accueil",
+            "intérimaire"
+          ]
+        },
         "cible": "Un dirigeant d'atelier agroalimentaire qui accueille un intérimaire ou un saisonnier qui ne connaît pas encore le métier.",
         "avant": {
           "taches": [
@@ -5674,13 +6268,23 @@
       },
       "cas": {
         "id": "sav-rapport-intervention-dicte",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le rapport d'intervention dicté sur place, photos jointes",
         "theme": "Rapport d'intervention",
         "promesse": "Le rapport relu et signé avant de repartir.",
+        "recit": {
+          "sujet": "Votre rapport d'intervention oublie un détail de panne.",
+          "scene": "Le soir, de retour de chez le client, le technicien ouvre son ordinateur. Il cherche ses photos dans son téléphone, tente de se rappeler la panne et les pièces changées. Un détail lui échappe.",
+          "exemple": "le rapport de cette intervention",
+          "motsCles": [
+            "rapport",
+            "intervention",
+            "panne"
+          ]
+        },
         "cible": "Une PME de maintenance dont les techniciens écrivent leur rapport d'intervention le soir, de mémoire.",
         "avant": {
           "taches": [
@@ -5773,13 +6377,22 @@
       },
       "cas": {
         "id": "sav-pannes-deja-rencontrees",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Retrouver les pannes déjà rencontrées sur un équipement",
         "theme": "Historique d'équipement",
         "promesse": "Les pannes déjà vues, retrouvées en une question.",
+        "recit": {
+          "sujet": "Une panne déjà rencontrée, introuvable dans les classeurs.",
+          "scene": "Un équipement s'arrête en pleine production. Le technicien se souvient qu'il a déjà eu ce souci. Il fouille les classeurs et les tableaux, appelle un ancien, puis repart de rien sur la panne.",
+          "exemple": "la panne de cet équipement",
+          "motsCles": [
+            "panne",
+            "classeurs"
+          ]
+        },
         "cible": "Une PME de maintenance dont les techniciens cherchent dans les classeurs et les tableaux ce qui a déjà été fait.",
         "avant": {
           "taches": [
@@ -5863,13 +6476,23 @@
       },
       "cas": {
         "id": "sav-demandes-intervention-triees",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "« Ça ne marche plus » : la demande complétée avant de rappeler",
         "theme": "Demandes d'intervention",
         "promesse": "Ce qui manque, demandé avant de rappeler.",
+        "recit": {
+          "sujet": "La demande d'intervention arrive sans décrire la panne.",
+          "scene": "Un client laisse un message : son installation ne marche plus. Pas de lieu, pas d'équipement, pas de symptôme. Le responsable recopie la demande dans le logiciel, puis rappelle le client pour comprendre la panne.",
+          "exemple": "la demande de ce client",
+          "motsCles": [
+            "demande",
+            "intervention",
+            "panne"
+          ]
+        },
         "cible": "Une PME de maintenance dont les demandes arrivent par plusieurs canaux, avec une panne mal décrite.",
         "avant": {
           "taches": [
@@ -5952,13 +6575,23 @@
       },
       "cas": {
         "id": "sav-preventifs-repousses",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les préventifs repoussés remis en vue chaque matin",
         "theme": "Préventifs repoussés",
         "promesse": "Le préventif repoussé revient sous vos yeux.",
+        "recit": {
+          "sujet": "Le préventif repoussé par une urgence est oublié.",
+          "scene": "Une urgence tombe un matin : le technicien laisse de côté le préventif prévu sur un compresseur. Les jours passent, et personne ne sait plus lequel a été repoussé. Le responsable fouille calendrier et tableaux.",
+          "exemple": "le préventif repoussé de ce compresseur",
+          "motsCles": [
+            "préventif",
+            "repoussé",
+            "oublié"
+          ]
+        },
         "cible": "Une PME de maintenance dont les préventifs sont repoussés par les urgences, sans que personne retrouve lesquels.",
         "avant": {
           "taches": [
@@ -6040,13 +6673,23 @@
       },
       "cas": {
         "id": "sav-facture-intervention-lendemain",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La facture d'intervention prête le lendemain, à valider",
         "theme": "Facture maintenance",
         "promesse": "Une pile de rapports, des factures prêtes.",
+        "recit": {
+          "sujet": "La facture d'intervention part longtemps après la réparation.",
+          "scene": "L'intervention est finie depuis longtemps. La facture attend toujours le rapport. Quand il arrive enfin, l'assistante recopie le temps passé et les pièces à la main, et la facture part bien trop tard.",
+          "exemple": "la facture de cette intervention",
+          "motsCles": [
+            "facture",
+            "intervention",
+            "longtemps"
+          ]
+        },
         "cible": "Une PME de maintenance dont les factures d'intervention se font longtemps après, quand les rapports sont rentrés.",
         "avant": {
           "taches": [
@@ -6126,12 +6769,22 @@
       },
       "cas": {
         "id": "sav-recherche-notices-questions",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Interroger les notices constructeur au lieu de les feuilleter",
         "theme": "Notices constructeur",
         "promesse": "La bonne page de notice, trouvée sans feuilleter.",
+        "recit": {
+          "sujet": "La bonne page de la notice reste introuvable.",
+          "scene": "Un code de panne s'affiche sur l'équipement. Le technicien ouvre la notice du constructeur, puis une autre version du même document. Il feuillette, compare, et ne sait plus laquelle est à jour.",
+          "exemple": "la question sur ce code de panne",
+          "motsCles": [
+            "page",
+            "notice",
+            "introuvable"
+          ]
+        },
         "cible": "Une PME de maintenance dont les techniciens ouvrent plusieurs notices sans savoir laquelle est à jour.",
         "avant": {
           "taches": [
@@ -6221,12 +6874,22 @@
       },
       "cas": {
         "id": "sav-savoir-des-anciens",
-        "version": 2,
+        "version": 3,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Transmettre le savoir des anciens techniciens avant leur retraite",
         "theme": "Transmission",
         "promesse": "Un plan pour recueillir le savoir des anciens.",
+        "recit": {
+          "sujet": "Vos anciens techniciens partent, leur savoir avec eux.",
+          "scene": "Un ancien technicien prépare son départ en retraite. Lui seul sait régler la vieille presse du fond de l'atelier. Rien n'est écrit, et ce qu'il transmet dépend des échanges au hasard des pauses.",
+          "exemple": "ce que cet ancien sait de la vieille presse",
+          "motsCles": [
+            "anciens",
+            "techniciens",
+            "savoir"
+          ]
+        },
         "cible": "Un directeur de maintenance d'une ETI dont le savoir part à la retraite avec ses anciens techniciens.",
         "avant": {
           "taches": [
@@ -6317,13 +6980,23 @@
       },
       "cas": {
         "id": "site-bons-de-commande-brouillon",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Bon de commande modifié : repéré avant l'ordre de fabrication",
         "theme": "Commandes modifiées",
         "promesse": "La ligne de commande modifiée, repérée avant fabrication.",
+        "recit": {
+          "sujet": "Chaque commande modifiée se compare à la main.",
+          "scene": "Un client renvoie son bon de commande avec des changements. L'assistante des ventes l'ouvre à côté de la dernière confirmation, compare références, quantités et dates, puis ressaisit chaque ligne à la main.",
+          "exemple": "le bon de commande modifié de ce client",
+          "motsCles": [
+            "commande",
+            "modifiée",
+            "compare"
+          ]
+        },
         "cible": "Une PME industrielle dont l'administration des ventes compare à la main les bons de commande modifiés par les clients.",
         "avant": {
           "taches": [
@@ -6416,13 +7089,23 @@
       },
       "cas": {
         "id": "site-tableau-directeur-lundi",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le tableau du directeur de site prêt le lundi matin",
         "theme": "Pilotage",
         "promesse": "Chaque chiffre du tableau renvoie à sa source.",
+        "recit": {
+          "sujet": "Le tableau du lundi se monte le dimanche.",
+          "scene": "Dimanche soir, le directeur de site ouvre ses fichiers. Il copie les chiffres de chaque site dans son tableau pour la direction, retouche les mêmes cases que la semaine passée, et finit tard.",
+          "exemple": "le tableau de ce lundi",
+          "motsCles": [
+            "tableau",
+            "lundi",
+            "dimanche"
+          ]
+        },
         "cible": "Une ETI industrielle dont le directeur de site monte à la main son tableau de bord pour la direction.",
         "avant": {
           "taches": [
@@ -6514,13 +7197,23 @@
       },
       "cas": {
         "id": "site-nouveau-fournisseur-numero",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Référencer un fournisseur à partir de son numéro d'entreprise",
         "theme": "Nouveau fournisseur",
         "promesse": "Nouveau fournisseur : sa fiche préparée pour l'acheteur.",
+        "recit": {
+          "sujet": "Chaque nouveau fournisseur se recopie à la main.",
+          "scene": "Un nouveau fournisseur doit être créé avant la commande. L'acheteur ouvre site internet après site internet, recopie l'adresse, l'activité, les mentions légales, puis cherche chaque contact à la main.",
+          "exemple": "la fiche de ce nouveau fournisseur",
+          "motsCles": [
+            "nouveau",
+            "fournisseur",
+            "recopie"
+          ]
+        },
         "cible": "Une PME industrielle dont les achats référencent un nouveau fournisseur en recopiant à la main plusieurs sites internet.",
         "avant": {
           "taches": [
@@ -6613,13 +7306,23 @@
       },
       "cas": {
         "id": "site-habilitations-verifications",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Habilitations et vérifications périodiques : prévenu avant la date",
         "theme": "Habilitations",
         "promesse": "Chaque habilitation à renouveler, signalée à temps.",
+        "recit": {
+          "sujet": "Une habilitation expire sans que personne soit prévenu.",
+          "scene": "Le jour d'une vérification, le responsable découvre dans son tableur que l'habilitation d'un technicien a expiré. Il relance chacun à la main et cherche les autres échéances déjà dépassées.",
+          "exemple": "l'habilitation de ce technicien",
+          "motsCles": [
+            "habilitation",
+            "expire",
+            "prévenu"
+          ]
+        },
         "cible": "Une PME industrielle qui suit à la main les habilitations et les vérifications périodiques de son site.",
         "avant": {
           "taches": [
@@ -6699,12 +7402,22 @@
       },
       "cas": {
         "id": "site-stock-tableur-rayonnage",
-        "version": 2,
+        "version": 3,
         "offre": "audit",
         "posture": "offre",
         "titre": "Le stock de matière : le tableur contre le rayonnage",
         "theme": "Stock matière",
         "promesse": "Vous savez d'où viennent vos écarts de stock.",
+        "recit": {
+          "sujet": "Le tableur dit oui, le rayonnage est vide.",
+          "scene": "Un opérateur vient chercher une bobine de matière annoncée dans le tableur. Le rayonnage est vide. Il recompte, appelle le magasin, et le tableur se corrige après coup, sans savoir d'où vient l'écart.",
+          "exemple": "l'écart sur cette bobine de matière",
+          "motsCles": [
+            "tableur",
+            "rayonnage",
+            "vide"
+          ]
+        },
         "cible": "Une ETI industrielle dont le tableur annonce de la matière que l'opérateur ne trouve pas au rayonnage.",
         "avant": {
           "taches": [
@@ -6793,13 +7506,23 @@
       },
       "cas": {
         "id": "site-stock-suivi-reappro",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le stock suivi sans ressaisie, avec un rappel avant la rupture",
         "theme": "Réapprovisionnement",
         "promesse": "Un rappel avant la rupture de stock.",
+        "recit": {
+          "sujet": "La rupture de stock se découvre trop tard.",
+          "scene": "L'acheteur ressaisit les sorties de stock dans son tableur, quand il a le temps. Un matin, l'atelier réclame une matière : le bac est vide. Il recompte pour être sûr, puis commande en urgence.",
+          "exemple": "le stock de cette matière",
+          "motsCles": [
+            "rupture",
+            "stock",
+            "tard"
+          ]
+        },
         "cible": "Une PME industrielle dont les achats suivent le stock à la main et découvrent la rupture trop tard.",
         "avant": {
           "taches": [
@@ -6889,12 +7612,22 @@
       },
       "cas": {
         "id": "site-ecart-taux-de-service",
-        "version": 2,
+        "version": 3,
         "offre": "formation",
         "posture": "offre",
         "titre": "Expliquer à la direction la baisse du taux de service",
         "theme": "Écart expliqué",
         "promesse": "Une trame pour expliquer l'écart de service.",
+        "recit": {
+          "sujet": "Le taux de service baisse : expliquez pourquoi.",
+          "scene": "La direction du groupe écrit au directeur des opérations : le taux de service a baissé, pourquoi ? Il cherche les chiffres dans des fichiers différents et reconstruit sa réponse de mémoire, sans trame commune.",
+          "exemple": "l'explication de cette baisse du taux de service",
+          "motsCles": [
+            "taux",
+            "service",
+            "baisse"
+          ]
+        },
         "cible": "Un directeur qualité ou opérations d'une ETI à qui la direction demande pourquoi le taux de service a baissé.",
         "avant": {
           "taches": [
@@ -6987,13 +7720,23 @@
       },
       "cas": {
         "id": "bureau-decisions-projet-echanges",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Retrouver une décision de projet perdue dans les e-mails",
         "theme": "Décisions retrouvées",
         "promesse": "Qui a décidé quoi, et quand.",
+        "recit": {
+          "sujet": "Une décision de projet, perdue dans les e-mails.",
+          "scene": "Sur le chantier, une entreprise demande pourquoi la gaine passe à cet endroit. Le chargé d'études fouille les e-mails du projet, relit les anciens comptes rendus, puis appelle ceux qui étaient en réunion.",
+          "exemple": "la décision sur le passage de cette gaine",
+          "motsCles": [
+            "décision",
+            "projet",
+            "perdue"
+          ]
+        },
         "cible": "Un bureau d'études en PME dont les décisions de projet sont perdues dans les e-mails et les comptes rendus.",
         "avant": {
           "taches": [
@@ -7076,13 +7819,22 @@
       },
       "cas": {
         "id": "bureau-compte-rendu-reunion",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La réunion de coordination : observations rangées par plan, à relire",
         "theme": "Compte rendu",
         "promesse": "Les observations rangées plan par plan, à relire.",
+        "recit": {
+          "sujet": "Le compte rendu de réunion arrive après coup.",
+          "scene": "Après la réunion de coordination, le gérant du bureau d'études rentre avec ses notes griffonnées. Il reconstitue qui a dit quoi, plan par plan. Quand le compte rendu part, les entreprises ont déjà avancé.",
+          "exemple": "le compte rendu de cette réunion",
+          "motsCles": [
+            "compte",
+            "réunion"
+          ]
+        },
         "cible": "Un bureau d'études de très petite taille dont le compte rendu de réunion part quand les entreprises ont déjà avancé.",
         "avant": {
           "taches": [
@@ -7175,13 +7927,23 @@
       },
       "cas": {
         "id": "transporteur-bons-signes-factures",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les bons de livraison signés remontent seuls à la facturation",
         "theme": "Bons signés",
         "promesse": "Plus aucun bon signé oublié dans la cabine.",
+        "recit": {
+          "sujet": "Les bons de livraison dorment dans la cabine.",
+          "scene": "Le soir, un chauffeur rentre au dépôt. Le bon signé de la livraison du matin est resté plié sous le pare-soleil. Le dirigeant le réclame, trie les papiers froissés, et la facture attend encore.",
+          "exemple": "le bon signé de cette livraison",
+          "motsCles": [
+            "bons",
+            "livraison",
+            "cabine"
+          ]
+        },
         "cible": "Un transporteur qui travaille seul ou presque, et dont la facture attend les bons rapportés par les chauffeurs.",
         "avant": {
           "taches": [
@@ -7274,13 +8036,23 @@
       },
       "cas": {
         "id": "transporteur-demandes-de-cotation",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les demandes de cotation incomplètes, complétées sans rappeler",
         "theme": "Cotation",
         "promesse": "Le poids manquant, réclamé sans rappeler.",
+        "recit": {
+          "sujet": "Vos demandes de prix arrivent sans le poids.",
+          "scene": "Un client écrit : il lui faut un camion la semaine prochaine. Ni poids, ni adresse d'enlèvement. Votre exploitant recopie, rappelle, attend, et la demande dort dans la pile.",
+          "exemple": "la demande de ce client",
+          "motsCles": [
+            "demandes",
+            "prix",
+            "poids"
+          ]
+        },
         "cible": "Un transporteur dont l'exploitation reçoit des demandes de prix par plusieurs canaux, presque toujours incomplètes.",
         "avant": {
           "taches": [
@@ -7374,13 +8146,23 @@
       },
       "cas": {
         "id": "transporteur-retard-annonce-client",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le retard annoncé au client avant qu'il appelle",
         "theme": "Retard livraison",
         "promesse": "Votre client prévenu du retard avant d'appeler.",
+        "recit": {
+          "sujet": "Le camion est en retard, le client appelle.",
+          "scene": "En fin de matinée, le téléphone de l'exploitation sonne : le client attend sa livraison. L'exploitant appelle le chauffeur sur la route, puis écrit le message dans l'urgence, pendant qu'un autre client appelle déjà.",
+          "exemple": "la livraison en retard de ce client",
+          "motsCles": [
+            "camion",
+            "retard",
+            "client"
+          ]
+        },
         "cible": "Un transporteur dont l'exploitation passe sa journée à répondre aux clients qui demandent où est leur camion.",
         "avant": {
           "taches": [
@@ -7473,13 +8255,23 @@
       },
       "cas": {
         "id": "transporteur-controles-vehicules",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les échéances de contrôle des camions signalées avant la date",
         "theme": "Papiers véhicules",
         "promesse": "Le contrôle du camion signalé avant l'échéance.",
+        "recit": {
+          "sujet": "Contrôle du camion échu, découvert au départ.",
+          "scene": "Au petit matin, un chauffeur va prendre son camion au dépôt. Le responsable regarde les papiers du véhicule : le contrôle est échu depuis la semaine dernière. La date dormait dans un tableur que personne n'a rouvert.",
+          "exemple": "le contrôle de ce camion",
+          "motsCles": [
+            "contrôle",
+            "camion",
+            "échu"
+          ]
+        },
         "cible": "Un transporteur dont le parc de véhicules demande des contrôles et des papiers à renouveler à des dates différentes.",
         "avant": {
           "taches": [
@@ -7569,12 +8361,22 @@
       },
       "cas": {
         "id": "transporteur-reponse-litige",
-        "version": 3,
+        "version": 4,
         "offre": "formation",
         "posture": "offre",
         "titre": "Répondre au client qui écrit « marchandise abîmée »",
         "theme": "Litige livraison",
         "promesse": "Une réponse claire, même un soir fatigué.",
+        "recit": {
+          "sujet": "Un client écrit : sa marchandise est abîmée.",
+          "scene": "Le soir, le dirigeant ouvre un message : un client a reçu une marchandise abîmée. Le bon, les photos et les messages sont éparpillés. Fatigué, il hésite sur le ton et rédige sa réponse dans l'urgence.",
+          "exemple": "la réclamation de ce client",
+          "motsCles": [
+            "client",
+            "marchandise",
+            "abîmée"
+          ]
+        },
         "cible": "Un dirigeant de petit transport qui répond seul aux réclamations de ses clients, souvent le soir.",
         "avant": {
           "taches": [
@@ -7664,12 +8466,22 @@
       },
       "cas": {
         "id": "transporteur-bon-vers-facture",
-        "version": 2,
+        "version": 3,
         "offre": "audit",
         "posture": "offre",
         "titre": "Où le bon de livraison papier attend avant la facture",
         "theme": "Audit facturation",
         "promesse": "Vous voyez où le bon retarde la facture.",
+        "recit": {
+          "sujet": "Le bon de livraison papier retarde vos factures.",
+          "scene": "En fin de mois, la facturation attend. Un bon signé traîne dans une cabine, un autre sur un bureau, d'autres dans la pile du soir. Chacun retape les mêmes lignes, et personne ne sait où le papier s'arrête.",
+          "exemple": "le bon papier de cette livraison",
+          "motsCles": [
+            "bon",
+            "livraison",
+            "factures"
+          ]
+        },
         "cible": "Un transporteur dont la facture part en retard, sans que personne ne sache où le bon de livraison s'arrête.",
         "avant": {
           "taches": [
@@ -7761,13 +8573,23 @@
       },
       "cas": {
         "id": "entrepot-annonces-expedition",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les annonces d'expédition lues avant l'arrivée du camion",
         "theme": "Annonces d'expédition",
         "promesse": "L'annonce lue avant que le camion recule.",
+        "recit": {
+          "sujet": "Le camion arrive avant que l'annonce soit lue.",
+          "scene": "Un camion recule déjà au quai de réception. L'annonce du fournisseur est arrivée par e-mail, dans un format inhabituel, et personne ne l'a lue. Le réceptionnaire recopie les références à la main, devant la palette.",
+          "exemple": "l'annonce de ce fournisseur",
+          "motsCles": [
+            "camion",
+            "annonce",
+            "lue"
+          ]
+        },
         "cible": "Un entrepôt dont la réception reçoit des annonces de fournisseurs dans des formats différents.",
         "avant": {
           "taches": [
@@ -7860,13 +8682,23 @@
       },
       "cas": {
         "id": "entrepot-ecart-reception-client",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Le manque ou la casse à réception, écrit au client avec photo",
         "theme": "Écarts réception",
         "promesse": "Le client prévenu de la casse, photo comprise.",
+        "recit": {
+          "sujet": "Le client apprend la casse bien trop tard.",
+          "scene": "Au pied d'une palette, le réceptionnaire voit des cartons écrasés. Il note l'écart sur un papier glissé sous le film. Le soir, le message au client reste à rédiger, et un autre écart est déjà oublié.",
+          "exemple": "la palette aux cartons écrasés",
+          "motsCles": [
+            "client",
+            "casse",
+            "tard"
+          ]
+        },
         "cible": "Un entrepôt dont la réception relève des manques ou des casses qu'il faut ensuite expliquer au client.",
         "avant": {
           "taches": [
@@ -7959,13 +8791,23 @@
       },
       "cas": {
         "id": "entrepot-etat-stock-client",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "outils-relies",
         "posture": "offre",
         "titre": "L'état de stock de chaque client, monté seul chaque semaine",
         "theme": "Stocks clients",
         "promesse": "L'état de stock client monté sans rien recopier.",
+        "recit": {
+          "sujet": "Chaque semaine, l'état de stock se recopie.",
+          "scene": "En début de semaine, un client relance : il attend son état de stock. Un employé ouvre le logiciel d'entrepôt, recopie les lignes, monte le tableau de ce client, puis passe au suivant.",
+          "exemple": "l'état de stock de ce client",
+          "motsCles": [
+            "état",
+            "stock",
+            "recopie"
+          ]
+        },
         "cible": "Un entrepôt dont les clients réclament chaque semaine leur état de stock, monté à la main.",
         "avant": {
           "taches": [
@@ -8058,13 +8900,23 @@
       },
       "cas": {
         "id": "entrepot-creneaux-quai",
-        "version": 4,
+        "version": 5,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les créneaux de quai réservés par les transporteurs, rappelés la veille",
         "theme": "Rendez-vous camions",
         "promesse": "Chaque camion à quai a son créneau confirmé.",
+        "recit": {
+          "sujet": "Les camions arrivent au quai sans créneau réservé.",
+          "scene": "Le matin, la réception a calé ses arrivées au téléphone. Un camion urgent se présente au quai sans prévenir. Le chef de quai refait son planning, pendant qu'un chauffeur attend dans sa cabine.",
+          "exemple": "le créneau de ce camion",
+          "motsCles": [
+            "camions",
+            "quai",
+            "créneau"
+          ]
+        },
         "cible": "Un entrepôt dont la réception organise les arrivées de camions par téléphone, avec des urgences qui s'invitent.",
         "avant": {
           "taches": [
@@ -8154,12 +9006,22 @@
       },
       "cas": {
         "id": "entrepot-consignes-preparation",
-        "version": 1,
+        "version": 2,
         "offre": "formation",
         "posture": "offre",
         "titre": "Rédiger les consignes de préparation d'un client",
         "theme": "Consignes",
         "promesse": "Les consignes sortent de la tête des anciens.",
+        "recit": {
+          "sujet": "Vos consignes de préparation restent dans les têtes.",
+          "scene": "Un nouveau préparateur arrive au poste. Pour ce client, il faut une étiquette précise et un ordre de colisage. Aucun fichier ne le dit : il demande à l'ancien, qui corrige ensuite ses erreurs.",
+          "exemple": "la consigne de préparation de ce client",
+          "motsCles": [
+            "consignes",
+            "préparation",
+            "têtes"
+          ]
+        },
         "cible": "Un entrepôt dont les consignes de préparation de chaque client ne vivent que dans la tête de quelques anciens.",
         "avant": {
           "taches": [
@@ -8249,12 +9111,22 @@
       },
       "cas": {
         "id": "entrepot-confiance-quai",
-        "version": 2,
+        "version": 3,
         "offre": "coaching",
         "posture": "offre",
         "titre": "Garder la confiance des équipes de quai",
         "theme": "Confiance",
         "promesse": "Un engagement clair envers vos équipes de quai.",
+        "recit": {
+          "sujet": "Vos équipes de quai craignent d'être mesurées.",
+          "scene": "Un nouvel outil est annoncé. Au quai, la rumeur circule à la pause : il servira à surveiller chacun. Le directeur répond au cas par cas, d'un site à l'autre, et les changements ralentissent.",
+          "exemple": "la crainte des équipes de quai",
+          "motsCles": [
+            "équipes",
+            "quai",
+            "mesurées"
+          ]
+        },
         "cible": "Un directeur logistique dont les équipes de quai redoutent qu'un nouvel outil serve à mesurer chacun.",
         "avant": {
           "taches": [
@@ -8345,13 +9217,23 @@
       },
       "cas": {
         "id": "negoce-commandes-recues",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les bons de commande reçus par e-mail, mis en brouillon sans retaper",
         "theme": "Commandes e-mail",
         "promesse": "Les commandes reçues par e-mail, sans retaper.",
+        "recit": {
+          "sujet": "Les commandes reçues par e-mail se retapent.",
+          "scene": "Le matin, un bon de commande arrive en pièce jointe. Au bureau, un employé l'ouvre, ressaisit chaque référence, cherche le code article dans le catalogue, et traque la ligne qui cloche.",
+          "exemple": "le bon de commande de ce client",
+          "motsCles": [
+            "commandes",
+            "e-mail",
+            "retapent"
+          ]
+        },
         "cible": "Un grossiste ou un négoce dont les commandes arrivent par e-mail et se ressaisissent à la main.",
         "avant": {
           "taches": [
@@ -8444,13 +9326,23 @@
       },
       "cas": {
         "id": "negoce-compte-client-ouvert",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Nouveau client pro : son compte prérempli depuis son numéro",
         "theme": "Nouveaux clients",
         "promesse": "Nouveau client pro, son compte prêt à vérifier.",
+        "recit": {
+          "sujet": "Le compte d'un nouveau client pro se recopie.",
+          "scene": "Un artisan veut ouvrir un compte au comptoir. L'employé cherche son entreprise sur plusieurs sites, recopie l'adresse et l'activité, cherche le bon contact, puis crée la fiche à la main.",
+          "exemple": "le compte de ce nouveau client",
+          "motsCles": [
+            "compte",
+            "nouveau",
+            "client"
+          ]
+        },
         "cible": "Un grossiste ou un négoce qui ouvre régulièrement des comptes à de nouveaux clients professionnels.",
         "avant": {
           "taches": [
@@ -8543,13 +9435,23 @@
       },
       "cas": {
         "id": "negoce-factures-echues",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les factures échues relancées palier par palier, après pointage",
         "theme": "Factures échues",
         "promesse": "Chaque facture échue relancée, après votre pointage.",
+        "recit": {
+          "sujet": "Vos factures échues se relancent de mémoire.",
+          "scene": "Une facture est échue depuis la semaine dernière. Au bureau, la comptable feuillette les factures non réglées, cherche si ce client a déjà été relancé, puis rédige la relance, trop tard.",
+          "exemple": "la facture échue de ce client",
+          "motsCles": [
+            "factures",
+            "échues",
+            "mémoire"
+          ]
+        },
         "cible": "Un grossiste ou un négoce dont les relances de factures se font de mémoire.",
         "avant": {
           "taches": [
@@ -8642,13 +9544,23 @@
       },
       "cas": {
         "id": "negoce-reponse-fiches",
-        "version": 2,
+        "version": 3,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La réponse à une question technique tirée des fiches fournisseurs",
         "theme": "Fiches fournisseurs",
         "promesse": "La réponse est déjà dans vos fiches.",
+        "recit": {
+          "sujet": "La réponse technique dort dans les fiches fournisseurs.",
+          "scene": "Un client demande si une référence convient à son chantier. Le commercial feuillette les classeurs, cherche la fiche du fournisseur, rappelle le représentant, et le client attend toujours sa réponse.",
+          "exemple": "la question de ce client",
+          "motsCles": [
+            "réponse",
+            "technique",
+            "fiches"
+          ]
+        },
         "cible": "Un grossiste ou un négoce dont les clients posent des questions techniques sur les références.",
         "avant": {
           "taches": [
@@ -8739,12 +9651,22 @@
       },
       "cas": {
         "id": "negoce-audit-tarifs",
-        "version": 3,
+        "version": 4,
         "offre": "audit",
         "posture": "offre",
         "titre": "Les tarifs des fournisseurs : où ils arrivent, qui les met à jour",
         "theme": "Tarifs fournisseurs",
         "promesse": "Chaque tarif fournisseur suivi jusqu'à votre logiciel.",
+        "recit": {
+          "sujet": "Vos tarifs fournisseurs se perdent avant le logiciel.",
+          "scene": "Un fournisseur envoie son nouveau tarif en pièce jointe. Un acheteur le reçoit, un autre garde l'ancienne version. Au bureau, quelqu'un reporte les prix référence par référence, sans savoir qui l'a déjà fait.",
+          "exemple": "le nouveau tarif de ce fournisseur",
+          "motsCles": [
+            "tarifs",
+            "fournisseurs",
+            "perdent"
+          ]
+        },
         "cible": "Un grossiste ou un négoce dont les tarifs fournisseurs arrivent sous plusieurs formes.",
         "avant": {
           "taches": [
@@ -8837,13 +9759,23 @@
       },
       "cas": {
         "id": "location-fin-rappelee",
-        "version": 3,
+        "version": 4,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La fin de location rappelée la veille au client",
         "theme": "Retours location",
         "promesse": "Vous savez la veille ce qui rentre.",
+        "recit": {
+          "sujet": "Vous ne savez pas quel matériel rentre demain.",
+          "scene": "Tôt le matin, le loueur refait son planning. La mini-pelle louée devait rentrer, mais le client ne répond pas. Il appelle chaque client, découvre le retard trop tard, et décale la location suivante.",
+          "exemple": "le retour de cette mini-pelle",
+          "motsCles": [
+            "matériel",
+            "rentre",
+            "demain"
+          ]
+        },
         "cible": "Un loueur de matériel de chantier qui court après ses retours chaque matin.",
         "avant": {
           "taches": [
@@ -8937,13 +9869,23 @@
       },
       "cas": {
         "id": "location-verifications-parc",
-        "version": 4,
+        "version": 5,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "Les vérifications des nacelles et mini-pelles signalées avant la date",
         "theme": "Vérifications parc",
         "promesse": "Chaque vérification du parc signalée avant la date.",
+        "recit": {
+          "sujet": "La vérification périodique de la nacelle est dépassée.",
+          "scene": "Une nacelle est prête à partir en location. Au dépôt, quelqu'un cherche la dernière feuille de vérification et découvre l'échéance dépassée. Il relance le prestataire au dernier moment.",
+          "exemple": "la vérification de cette nacelle",
+          "motsCles": [
+            "vérification",
+            "nacelle",
+            "dépassée"
+          ]
+        },
         "cible": "Un loueur de matériel de chantier dont les vérifications périodiques se suivent sur des feuilles.",
         "avant": {
           "taches": [
@@ -9036,13 +9978,23 @@
       },
       "cas": {
         "id": "location-facture-retour",
-        "version": 6,
+        "version": 7,
         "offre": "integration",
         "nature": "automatisation",
         "posture": "offre",
         "titre": "La facture de location préparée au retour du matériel",
         "theme": "Facture location",
         "promesse": "Chaque prolongation accordée finit sur la facture.",
+        "recit": {
+          "sujet": "Vos prolongations accordées échappent à la facture.",
+          "scene": "Au téléphone, un client demande à garder l'échafaudage quelques jours de plus. Le loueur accepte. Au retour, le service administratif monte la facture à la main, et la prolongation n'y figure pas.",
+          "exemple": "la prolongation de ce client",
+          "motsCles": [
+            "prolongations",
+            "facture",
+            "échappent"
+          ]
+        },
         "cible": "Un loueur de matériel de chantier dont les prolongations accordées au téléphone échappent à la facture.",
         "avant": {
           "taches": [

@@ -39,6 +39,7 @@ export const ADRESSE_SITE = "https://axion-ia.com/";
 
 const texte = (max = 200) => z.string().trim().min(1, "texte vide").max(max, `texte trop long (${max} caractères au plus)`);
 const nombreMots = (t: string): number => t.split(/\s+/).filter(Boolean).length;
+const sansAccent = (t: string): string => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date attendue au format AAAA-MM-JJ");
 
 /**
@@ -88,6 +89,21 @@ const fait = z
   })
   .strict();
 
+/**
+ * Le RÉCIT d'un cas (clarté des scripts, 24/10/2026), facultatif : de quoi le script se comprend sans connaître le métier.
+ * `sujet` est dit par l'accroche à la place de la promesse ; `scene` raconte le « avant » ; `exemple` est la chose suivie
+ * d'un bout à l'autre ; `motsCles` sont des mots du sujet que le script doit dire tôt. La scène est une illustration, pas un
+ * témoignage : présent, 3e personne, sans nombre ni nom propre.
+ */
+const recit = z
+  .object({
+    sujet: texte(100).refine((p) => nombreMots(p) <= 8, "sujet de plus de 8 mots"),
+    scene: texte(260),
+    exemple: texte(80),
+    motsCles: z.array(z.string().regex(/^[\p{L}-]{3,30}$/u, "mot clé de 3 à 30 lettres")).min(2).max(3),
+  })
+  .strict();
+
 export const schemaCas = z
   .object({
     id: z.string().regex(/^[a-z][a-z0-9-]{1,47}$/, "identifiant de cas mal formé"),
@@ -102,6 +118,8 @@ export const schemaCas = z
      */
     theme: texte(30).optional(),
     promesse: texte(100).refine((p) => nombreMots(p) <= 8, "promesse de plus de 8 mots"),
+    /** Récit du cas (voir `recit`) : absent des cas du catalogue d'origine, leur empreinte ne change pas. */
+    recit: recit.optional(),
     cible: texte(160),
     avant: z.object({ taches: z.array(texte(80)).min(2).max(6), total: texte(40).optional() }).strict(),
     etapes: z.array(etape).min(3, "au moins 3 étapes").max(7, "pas plus de 7 étapes"),
@@ -130,6 +148,12 @@ export const schemaCas = z
     if (cas.resteHumainApresEtape !== undefined && cas.resteHumainApresEtape > cas.etapes.length) ctx.addIssue({ code: "custom", path: ["resteHumainApresEtape"], message: `la partie humaine vient après l'étape ${cas.resteHumainApresEtape} ; le cas n'en a que ${cas.etapes.length}` });
     if (cas.posture === "chez-nous" && !cas.enServiceVerifie) ctx.addIssue({ code: "custom", path: ["enServiceVerifie"], message: "un cas « chez nous » exige la vérification qu'il est en service" });
     if (cas.nature && cas.offre !== "integration") ctx.addIssue({ code: "custom", path: ["nature"], message: "seule une intégration porte une nature" });
+    if (cas.recit) {
+      const sujet = sansAccent(cas.recit.sujet);
+      cas.recit.motsCles.forEach((m, i) => {
+        if (!sujet.includes(sansAccent(m))) ctx.addIssue({ code: "custom", path: ["recit", "motsCles", i], message: `le mot clé « ${m} » n'est pas dans le sujet du récit` });
+      });
+    }
     if (new Set(cas.faits.map((f) => f.id)).size !== cas.faits.length) ctx.addIssue({ code: "custom", path: ["faits"], message: "deux faits portent le même identifiant" });
   });
 

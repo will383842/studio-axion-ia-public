@@ -141,6 +141,10 @@ export function importerStock(exporte: unknown, existant: unknown = null): Resul
     const phrase = refusAvantPrix({ cas, reseaux: RESEAUX_NEUTRES, mot: cas.mot, avecMot: false, motSur: [], essai: true });
     if (phrase) refus.push({ fiche: charge.rangement[cas.id]?.fiche ?? cas.id, id: cas.id, raisons: [`refus avant le prix : ${phrase}`] });
   }
+  // Un cas qui avait un récit (clarté des scripts) ne le perd jamais par un import : la source de l'export n'a pas été mise à jour.
+  for (const cas of charge.cas) {
+    if (avant.get(cas.id)?.recit && !cas.recit) refus.push({ fiche: charge.rangement[cas.id]?.fiche ?? cas.id, id: cas.id, raisons: ["le cas avait un récit (« recit ») et l'export n'en a plus : reportez le récit dans le fichier source avant d'importer"] });
+  }
   if (refus.length) return { ok: false, refus };
 
   // Cas retirés : dans le stock actuel, absents du nouveau. On garde la plus haute version vue, y compris des retraits passés.

@@ -25,18 +25,18 @@ export const EXEMPLES_DE_RYTHME: readonly ExempleDeRythme[] = [
       "Nos devis partent en dix minutes. Avant : saisir, recopier, vérifier, corriger, renvoyer. Une demi-journée par client. Alors le tableur travaille seul. Résultat : dix minutes au lieu d'une demi-journée. Et vous, quel tableau recopiez-vous encore à la main ?",
   },
   {
-    sujet: "un déménagement",
-    structure: "accroche qui pose une question · « avant » en une scène · bascule en détour · résultat en image · question finale sur le quotidien",
-    patrons: { accroche: "question", avant: "scene", bascule: "detour", resultat: "image", question: "metier" },
+    sujet: "les réservations d'une salle de réunion",
+    structure: "accroche qui dit le sujet par une scène · « avant » en une scène · bascule en règle · résultat en image · question sur le même problème",
+    patrons: { accroche: "scene", avant: "scene", bascule: "regle", resultat: "image", question: "metier" },
     texte:
-      "Combien de cartons avez-vous déjà perdus ? Samedi matin, trois personnes cherchent la clé du camion pendant que le canapé attend sur le trottoir. Un détour, pourtant, change tout. Pourquoi cette clé disparaissait-elle ? Personne ne savait qui l'avait prise. Maintenant, chaque clé porte un nom et un créneau. Le canapé entre le premier. Quelle clé cherchez-vous chaque semaine ?",
+      "Vos réservations de salle se croisent. Lundi matin, deux équipes arrivent à la même porte : l'une a réservé par message, l'autre sur le tableau. Personne ne sait qui est arrivé en premier, et la réunion commence en retard. Voici ce que devient une réservation. Elle est notée une seule fois, au même endroit, quel que soit le moyen. La salle affiche alors qui l'occupe, en direct. Votre équipe n'arbitre plus rien. Combien de réservations se croisent chez vous ?",
   },
   {
-    sujet: "un camion de livraison",
-    structure: "accroche qui décrit une scène · « avant » en une question · bascule en constat · résultat chiffré en image · invitation à imaginer",
-    patrons: { accroche: "scene", avant: "question", bascule: "constat", resultat: "image", question: "imaginer" },
+    sujet: "les inscriptions à un cours de danse",
+    structure: "accroche qui pose une question · « avant » en une scène · bascule courte · résultat durable · invitation à imaginer",
+    patrons: { accroche: "question", avant: "scene", bascule: "courte", resultat: "durable", question: "imaginer" },
     texte:
-      "Six heures du matin, le camion démarre déjà chargé. Comment ? La veille, qui comptait les colis un à un, le soir, sous le néon ? Personne n'en voulait. Il existait une autre façon. Le bon colis trouve son camion avant la nuit. Cette semaine : zéro oubli, zéro appel furieux. Imaginez le même soir, sans les cartons à compter. Quelle tâche part trop tard chez vous ?",
+      "Les inscriptions à vos cours arrivent-elles sans le bon créneau ? Un mardi soir, une élève écrit pour le cours du jeudi. La professeure note son prénom sur un cahier, compte les places à la main, puis répond le lendemain. Alors le message devient une fiche. L'inscription s'enregistre avec le cours choisi, et la liste des places se met à jour. La professeure garde la main sur les cas particuliers. Désormais, chaque élève reçoit sa réponse dès le matin. Imaginez le même mardi, sans le cahier. Quelle inscription attend encore dans votre cahier ?",
   },
   {
     sujet: "un planning de bénévoles",
