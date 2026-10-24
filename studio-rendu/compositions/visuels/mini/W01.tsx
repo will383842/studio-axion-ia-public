@@ -1,9 +1,9 @@
 import { COULEURS, POLICE_TITRE } from "../commun/constantes";
-import { chargerPoliceArchivoBlack } from "../polices";
+import { chargerPoliceTitre } from "../polices";
 import type { ProprietesMini } from "./types";
 
 /**
- * Le rang est dessiné en CHIFFRE (Archivo Black) par le code, jamais par le spec : décision de design à confirmer.
+ * Le rang est dessiné en CHIFFRE (Inter Display Black) par le code, jamais par le spec : décision de design à confirmer.
  * Passer à `false` rétablit les points (de 1 à 9) sans toucher à rien d'autre.
  */
 export const RANG_CHIFFRE = true;
@@ -11,7 +11,7 @@ export const RANG_CHIFFRE = true;
 /** W01 — pastille numérotée : le rang est montré par un chiffre (`RANG_CHIFFRE`), sinon par des points, de 1 à 9. */
 export function W01({ taille, rang = 1 }: ProprietesMini) {
   const n = Math.max(1, Math.min(9, Math.floor(rang)));
-  if (RANG_CHIFFRE) chargerPoliceArchivoBlack();
+  if (RANG_CHIFFRE) chargerPoliceTitre();
   return (
     <svg width={taille} height={taille} viewBox="0 0 120 120" role="img" aria-hidden>
       <circle cx="60" cy="60" r="54" fill={COULEURS.orange} stroke={COULEURS.encre} strokeWidth="6" />

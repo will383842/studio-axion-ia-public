@@ -1,4 +1,6 @@
 /** Contrôles de structure d'un carrousel (pages, rythme, variété, titres, série, densité) : purs. */
+import { motLePlusLarge } from "../../briques/visuels/largeur-mot";
+import { placesDesMots } from "../../briques/visuels/places-mots";
 import { CAPACITE_COMPARAISON, capaciteMotCarte } from "../../briques/visuels/registre-pages";
 import type { ControlePorte } from "../visuels/contrats";
 import type { CarrouselSpecType } from "../visuels/types";
@@ -51,6 +53,20 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
         }
       }
     });
+  });
+
+  // Gabarits à colonnes (ART-1, tour 2) : un mot insécable plus large que sa colonne (chasses réelles d'Inter Bold) déborderait au rendu ;
+  // refusé ici, avant. Une seule alerte par champ (le budget en signes ci-dessus a pu la donner déjà).
+  pages.forEach((p, i) => {
+    for (const place of placesDesMots(p)) {
+      const chemin = `pages.${i}.${place.chemin}`;
+      if (res.some((r) => r.code === "MOT_TROP_LONG" && r.chemin === chemin)) continue;
+      const { mot, largeur } = motLePlusLarge(place.texte, place.corps);
+      if (largeur > place.largeur) {
+        const affiche = mot.replace(/[\u00a0\u202f]/g, " ");
+        res.push({ code: "MOT_TROP_LONG", niveau: "rouge", page: i + 1, chemin, phrase: `Page ${i + 1} : « ${affiche} » est trop large pour ${place.lieu} (${Math.round(largeur)} px pour ${place.largeur} px de place) ; choisissez un mot plus court ou des lettres moins larges.` });
+      }
+    }
   });
 
   const types = new Set(pages.map((p) => p.type));

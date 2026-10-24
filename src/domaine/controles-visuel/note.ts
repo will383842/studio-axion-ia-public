@@ -18,7 +18,8 @@ export const TEXTE_MIN_PX = 26;
 export const SIGNES_LIGNE_MAX = 45;
 export const ZONE_VIDE_MAX_PCT = 30;
 export const ACCROCHE_MOTS_MAX = 9;
-export const POLICES_AUTORISEES: readonly string[] = ["Archivo Black", "Inter", "Kalam"];
+// Inter Display : titres depuis ART-1 ; Archivo Black reste admise pour noter les rendus faits avant ART-1.
+export const POLICES_AUTORISEES: readonly string[] = ["Inter Display", "Inter", "Kalam", "Archivo Black"];
 /** Part des points accordée à un critère de rendu qui n'a pas été mesuré. */
 const PART_NON_MESURE = 0.5;
 /** Couleur écrite dans un texte : exactement 3 ou 6 chiffres hexadécimaux, sans lettre ni chiffre autour (« #2026 », « #face » ou un hashtag ne sont pas des couleurs). */
