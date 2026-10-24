@@ -127,4 +127,20 @@ describe("témoins : ce qui doit rester refusé ou inchangé", () => {
     const { plan: p } = placerCoupesIV(plan, { corps: mots }, { corps: sil }, { corps: DUREE }, REGLES_COUPES_IV, { mesures: { corps: mesureDe(sil, TRAINE) }, retraitsVoulus: [[81.2, 81.96]], garderPausesSansSilence: true });
     expect(p.morceaux.filter((x) => !x.silence)[0].finSec).toBeGreaterThanOrEqual(80.9);
   });
+
+  it("(vi) horodatage du mot gardé en RETARD (0,18 s) : creux interne avant son début horodaté, l'attaque « Pour » n'est jamais retirée", () => {
+    // « Pourtant » horodaté 82,20-82,60 mais dit dès 82,02 ; creux « Pour|tant » 82,10-82,22 ; voix à −20 dB (plateau, pas une traîne).
+    const creux: Silence = { debutSec: 82.1, finSec: 82.22 };
+    const sil = [SIL_AVANT, creux];
+    const mots = [mot("minutes.", 80.42, 80.7), mot("Pourtant", 82.2, 82.6), mot("lien", 82.7, 82.9)];
+    const plan = {
+      ...planRaccordVoix({ mots, dureeSec: DUREE }, undefined, RECETTE_VOIX_IV),
+      morceaux: [
+        { debutSec: 0, finSec: 81.0, source: 0 as const },
+        { debutSec: 82.0, finSec: DUREE, source: 0 as const },
+      ],
+    };
+    const { plan: p } = placerCoupesIV(plan, { corps: mots }, { corps: sil }, { corps: DUREE }, REGLES_COUPES_IV, { mesures: { corps: mesureDe(sil, {}) }, retraitsVoulus: RETRAIT, garderPausesSansSilence: true });
+    expect(p.morceaux.filter((x) => !x.silence)[1].debutSec).toBeLessThanOrEqual(82.02 + 1e-6);
+  });
 });
