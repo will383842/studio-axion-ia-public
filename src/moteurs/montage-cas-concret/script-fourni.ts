@@ -14,7 +14,7 @@ import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import { VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { completerFiche, HAUTEURS_BARRES_SANS_FAIT, type FicheFixe } from "./champs-du-cas";
-import { couper, dureeDiteMs, sigleLu } from "./ecriture";
+import { couper, dureeDiteMs, dureesDesFins, ficheParGabarit, sigleLu } from "./ecriture";
 import { regrouperFins } from "./etapes";
 import {
   cleMot,
@@ -27,7 +27,7 @@ import {
   type FinPlanifiee,
 } from "./fiche";
 import { planDesFins } from "./fins";
-import { MOTS_MAX, nombresDe, sansPointsDeSigle, TENUE_FINALE_MS, texteNormalise, validerFicheEcrans } from "./regles";
+import { DEBIT_RECETTE, DUREE_TOTALE_REFUS_MS, dureeFinMs, dureeFinParDefautMs, MOTS_MAX, nombresDe, sansPointsDeSigle, tempsEcrans, texteNormalise, validerFicheEcrans } from "./regles";
 import { scriptDeFiche, type EcranScript } from "./script-valide";
 import { ETIQUETTE_POSTURE } from "@/formats/cas-concret/recette";
 import type { ContexteCasConcret } from "./regles";
@@ -144,11 +144,18 @@ export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHum
 
   const formes: (FormeLigne | null)[] = lignes.map((l) => l.forme);
   const libre = (i: number) => formes[i] === null;
-  // (a) « Avant… » et « Résultat… » en tête de ligne.
+  // (a) « Avant… » (seulement dans la suite des lignes qui suivent l'accroche, et un chiffre, avant toute autre ligne : « Avant le
+  // rendez-vous, le client reçoit un rappel. » au milieu des étapes n'est pas une liste) et « Résultat… » en tête de ligne.
+  let enTete = true;
   lignes.forEach((l, i) => {
-    if (!libre(i)) return;
-    if (/^avant\b/i.test(l.texte)) formes[i] = "avant";
-    else if (/^r[ée]sultat\b/i.test(l.texte)) formes[i] = "resultat";
+    if (i === 0) return;
+    if (enTete && (formes[i] === "chiffre" || formes[i] === "avant")) return;
+    if (enTete && libre(i) && /^avant\b/i.test(l.texte)) {
+      formes[i] = "avant";
+      return;
+    }
+    enTete = false;
+    if (libre(i) && /^r[ée]sultat\b/i.test(l.texte)) formes[i] = "resultat";
   });
   // (b) la première ligne est l'accroche, la dernière la question.
   if (libre(0)) formes[0] = "accroche";
@@ -168,6 +175,11 @@ export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHum
     }
     while (i < lignes.length && !libre(i)) i++;
     if (i < lignes.length && formes[i] === null) formes[i] = "bascule";
+  }
+  // Des étapes étiquetées sans aucune bascule : on ne devine pas où la méthode commence.
+  if (!formes.includes("bascule")) {
+    const premiere = formes.findIndex((f) => f === "etape");
+    if (premiere >= 0) return { ok: false, refus: [{ ligne: premiere + 1, message: `Ligne ${premiere + 1} : ajoutez une ligne [bascule] avant la première étape.` }] };
   }
   // (e) entre la bascule et le résultat : la ligne qui dit la partie humaine mot pour mot, sinon une étape.
   const humain = cas ? texteNormalise(cas.resteHumain) : "";
@@ -249,7 +261,7 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
     switch (l.forme) {
       case "accroche": {
         const n = nombreLus(l.texte);
-        if (n > 8 || n < 2) return non(l, `l'accroche compte ${n} mot${n > 1 ? "s" : ""} ; de 2 à 8 mots. Dites le sujet de la vidéo, par exemple « ${cas.recit?.sujet ?? cas.promesse} »`);
+        if (n > 8 || n < 2) return non(l, `l'accroche compte ${n} mot${n > 1 ? "s" : ""} ; de 2 à 8 mots. Dites le sujet de la vidéo, par exemple « ${cas.recit?.sujet ?? cas.promesse} ».`);
         const mots = sansPointsDeSigle(sansPointFinal(l.texte)).split(/\s+/);
         const nl = mots.length <= 6 ? 2 : 3;
         const tailles = Array.from({ length: nl }, (_, k) => Math.floor(mots.length / nl) + (k < mots.length % nl ? 1 : 0));
@@ -369,14 +381,11 @@ export type ControleFourni =
   | { ok: true; ecrans: EcranScript[]; dureeMs: { min: number; max: number }; lignes: LigneFournie[] }
   | { ok: false; refus: RefusFourni[]; dureeMs?: { min: number; max: number } };
 
-const secondes = (ms: number) => `${Math.round(ms / 1000)} s`;
-
-/** Un refus des règles, dit en « Ligne N : … » avec le geste à faire. `fin` : le contrôle qui l'a rendu. */
-function messageFourni(p: { regle: string; message: string }, lignes: readonly LigneFournie[], cas: CasConcret, fin: "courte" | "longue"): RefusFourni {
+/** Un refus des règles, dit en « Ligne N : … » avec le geste à faire (la durée totale est jugée à part, par `controlerTexteFourni`). */
+function messageFourni(p: { regle: string; message: string }, cas: CasConcret): RefusFourni {
   const m = /^Écran e(\d+) · règle « (.+?) » : ([\s\S]*)$/.exec(p.message);
   const rang = m ? Number(m[1]) : undefined;
   const detail = (m ? m[3] : p.message.replace(/^Fiche · règle « .+? » : /, "")).trim();
-  const l = (rang ? lignes[rang - 1] : undefined) as LigneFournie | undefined;
   const ou = rang ? `Ligne ${rang} : ` : "";
   let geste = "";
   switch (p.regle) {
@@ -389,14 +398,6 @@ function messageFourni(p: { regle: string; message: string }, lignes: readonly L
     case "nombre d'écrans":
       geste = ` Il faut de 12 à 26 lignes, dont 3 à 7 étapes.`;
       break;
-    case "durée totale": {
-      const t = /estimée à (\d+(?:,\d+)?) s/.exec(detail);
-      const s = t ? Number(t[1].replace(",", ".")) : undefined;
-      const quand = fin === "courte" ? "avec la fin la plus courte" : "avec la fin la plus longue";
-      if (s !== undefined && s < 35) return { message: `Durée : ${quand} la vidéo ferait environ ${String(s).replace(".", ",")} s, il en faut au moins 35 : ajoutez une phrase.` };
-      if (s !== undefined && s > 65) return { message: `Durée : ${quand} la vidéo ferait environ ${String(s).replace(".", ",")} s, 65 s au plus : retirez une phrase.` };
-      return { message: `Durée : ${detail}` };
-    }
     case "ordre du fonctionnement":
       geste = ` Dites mot pour mot « ${cas.resteHumain} », après l'étape ${cas.resteHumainApresEtape ?? "indiquée"}.`;
       break;
@@ -415,7 +416,6 @@ function messageFourni(p: { regle: string; message: string }, lignes: readonly L
     default:
       break;
   }
-  void l;
   return { ...(rang ? { ligne: rang } : {}), message: `${ou}${detail}${geste}` };
 }
 
@@ -444,35 +444,30 @@ export function controlerTexteFourni(texte: unknown, cas: CasConcret, options: {
     vus.add(r.message);
     refus.push(r);
   };
-  for (const r of c.refus) ajouter(messageFourni({ regle: "champs du cas", message: r }, lignes, cas, "courte"));
+  for (const r of c.refus) ajouter(messageFourni({ regle: "champs du cas", message: r }, cas));
   const forme = validerSchemaFiche(c.brute);
   if (!forme.ok) {
-    for (const p of forme.problemes) ajouter(messageFourni(p, lignes, cas, "courte"));
+    for (const p of forme.problemes) ajouter(messageFourni(p, cas));
     return { ok: false, refus };
   }
-  const { courte, longue } = bornesDesFins(cas);
+  const { courte } = bornesDesFins(cas);
   const contexte = { cas, texteScript: texteDuCorps(forme.fiche), ...(options.motsInterdits?.length ? { motsInterdits: options.motsInterdits } : {}) } as ContexteCasConcret;
-  let dernier: { fiche: typeof forme.fiche } | undefined;
-  for (const [fin, fins] of [["courte", [courte]], ["longue", undefined]] as const) {
+  // Les règles que la fabrication rejoue, avec la fin la plus courte puis la plus longue (la durée totale est jugée plus bas).
+  for (const fins of [[courte], undefined] as const) {
     const v = validerFicheEcrans(c.brute, { ...contexte, ...(fins ? { fins } : {}) });
-    if (v.ok) {
-      dernier = { fiche: v.fiche };
-      continue;
-    }
-    for (const p of v.problemes) {
-      if (p.regle === "durée totale") {
-        // Trop court : jugé avec la fin la plus courte ; trop long : avec la plus longue.
-        const s = /estimée à (\d+(?:,\d+)?) s/.exec(p.message);
-        const t = s ? Number(s[1].replace(",", ".")) : 0;
-        if ((fin === "courte" && t >= 35) || (fin === "longue" && t < 35)) continue;
-      }
-      ajouter(messageFourni(p, lignes, cas, fin));
-    }
+    if (!v.ok) for (const p of v.problemes) if (p.regle !== "durée totale") ajouter(messageFourni(p, cas));
   }
-  const corps = dureeDiteMs((dernier?.fiche ?? forme.fiche).ecrans);
-  const dureeMs = { min: corps + dureeDiteMs(courte.ecrans) + TENUE_FINALE_MS, max: corps + dureeDiteMs(longue.ecrans) + TENUE_FINALE_MS };
-  if (refus.length || !dernier) return { ok: false, refus, dureeMs };
-  const script = scriptDeFiche(dernier.fiche, { versionCas: cas.version, valideLe: "2000-01-01", source: "contrôle" });
+  // R21 comme la règle : le corps au débit de la recette, plus la fin la plus courte (trop court) ou la plus longue (trop long).
+  const temps = tempsEcrans(forme.fiche.ecrans, DEBIT_RECETTE);
+  const corpsMs = temps.length ? temps[temps.length - 1].finMs - temps[0].debutMs : 0;
+  const dureeMs = { min: corpsMs + dureeFinMs(courte), max: corpsMs + dureeFinParDefautMs(cas) };
+  // Vers le bas pour « trop court », vers le haut pour « trop long » : le nombre dit n'est jamais du bon côté de la borne.
+  const secBas = (ms: number) => String(Math.floor(ms / 100) / 10).replace(".", ",");
+  const secHaut = (ms: number) => String(Math.ceil(ms / 100) / 10).replace(".", ",");
+  if (dureeMs.min < DUREE_TOTALE_REFUS_MS.min) ajouter({ message: `Durée : avec la fin la plus courte la vidéo ferait environ ${secBas(dureeMs.min)} s, il en faut au moins ${DUREE_TOTALE_REFUS_MS.min / 1000} : ajoutez une phrase.` });
+  if (dureeMs.max > DUREE_TOTALE_REFUS_MS.max) ajouter({ message: `Durée : avec la fin la plus longue la vidéo ferait environ ${secHaut(dureeMs.max)} s, ${DUREE_TOTALE_REFUS_MS.max / 1000} au plus : retirez une phrase.` });
+  if (refus.length) return { ok: false, refus, dureeMs };
+  const script = scriptDeFiche(forme.fiche, { versionCas: cas.version, valideLe: "2000-01-01", source: "contrôle" });
   return { ok: true, ecrans: script.ecrans, dureeMs, lignes };
 }
 
@@ -523,3 +518,17 @@ export function texteFourniDesEcrans(ecrans: readonly (EcranScript | EcranCorps)
     })
     .join("\n");
 }
+
+/**
+ * Le nombre de caractères du corps que l'ESTIMATION du prix utilise pour la voix d'un cas sans script du catalogue (le texte du
+ * gabarit, avec les fins des quatre réseaux). Tant que le prix exact d'un script de Will n'existe pas, un script plus long ferait
+ * dépasser la voix annoncée : il est refusé. PUR.
+ */
+export function limiteCaracteresDuCorps(cas: CasConcret): number {
+  const b = bornesDesFins(cas);
+  const g = ficheParGabarit(cas, { videoId: "estimation", versionId: "estimation", habillage: VERSION_CHARTE_DUO, origine: "porte-a" }, dureesDesFins([b.courte, b.longue]));
+  return texteDuCorps(g).length;
+}
+
+/** Les caractères du corps d'un script contrôlé (la mesure de `limiteCaracteresDuCorps`). */
+export const caracteresDuCorps = (ecrans: readonly { texteDit: string }[]): number => ecrans.map((e) => e.texteDit.trim()).join(" ").length;

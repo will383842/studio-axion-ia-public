@@ -60,7 +60,8 @@ export function FormulaireScriptFourni({ casId, titre, texteDepart, origine, per
     demarrer(async () => {
       const r = await enregistrerScriptFourniAction(casId, texte);
       if (!r.ok) return void setErreur(r.message);
-      notifier.succes("Script enregistré", "Il sera dit mot pour mot, sans écriture par l'IA.");
+      if (r.donnees.modifie) notifier.succes("Script enregistré", "Il sera dit mot pour mot, sans écriture par l'IA.");
+      else notifier.succes("Aucun changement", "Ce script était déjà enregistré tel quel.");
       routeur.push("/cas-concret");
     });
   }
@@ -102,7 +103,7 @@ export function FormulaireScriptFourni({ casId, titre, texteDepart, origine, per
           className="block w-full resize-y rounded-champ border border-trait bg-surface-1 px-3.5 py-3 text-base leading-relaxed text-texte hover:border-trait-fort focus:border-orange focus:outline-none"
         />
         <p id={idAide} className="mt-1.5 text-[13px] text-texte-doux">
-          {AIDE} <span aria-live="polite">{texte.length} / 4000 caractères.</span>
+          {AIDE} {texte.length} / 4000 caractères.
         </p>
       </div>
 

@@ -10,20 +10,35 @@ const FIXE = { videoId: "v", versionId: "v", habillage: "charte-duo/1", origine:
 describe("aller-retour sur les cas", () => {
   it("chaque cas dont le gabarit est conforme : le texte tiré du gabarit est conforme, avec les mêmes phrases", () => {
     const echecs: string[] = [];
+    const ignores: string[] = [];
+    const couverts = { sansRecit: 0, chiffre: 0, preuve: 0 };
     let n = 0;
     for (const cas of CATALOGUE) {
       // Le gabarit avec les fins connues, jugé avec la fin la plus courte comme avec la plus longue.
       const b = bornesDesFins(cas);
       const g = ficheParGabarit(cas, FIXE, dureesDesFins([b.courte, b.longue]));
       const texteScript = g.ecrans.map((e) => e.texteDit).join(" ");
-      if (!validerFicheEcrans(g, { cas, texteScript, fins: [b.courte] }).ok || !validerFicheEcrans(g, { cas, texteScript }).ok) continue;
+      if (!validerFicheEcrans(g, { cas, texteScript, fins: [b.courte] }).ok || !validerFicheEcrans(g, { cas, texteScript }).ok) {
+        ignores.push(cas.id);
+        continue;
+      }
       n++;
+      if (!cas.recit) couverts.sansRecit++;
+      if (g.ecrans.some((e) => e.type === "chiffre")) couverts.chiffre++;
+      if (g.ecrans.some((e) => e.type === "preuve")) couverts.preuve++;
       const texte = texteFourniDesEcrans(g.ecrans, cas);
       const r = controlerTexteFourni(texte, cas, { motsInterdits: [] });
       if (!r.ok) echecs.push(`${cas.id} : ${r.refus.map((x) => x.message).join(" | ").slice(0, 400)}`);
       else if (JSON.stringify(r.ecrans.map((e) => e.texteDit)) !== JSON.stringify(g.ecrans.map((e) => e.texteDit))) echecs.push(`${cas.id} : phrases différentes`);
     }
-    expect(n).toBeGreaterThan(50);
+    // Les 118 cas (22 du catalogue, 96 du stock) ont un gabarit conforme : aucun n'est ignoré.
+    expect(ignores, `cas ignorés : ${ignores.join(", ")}`).toEqual([]);
+    expect(n).toBe(CATALOGUE.length);
+    expect(n).toBe(118);
+    // La couverture : des cas sans récit (catalogue), des cas avec un chiffre, des cas avec une preuve.
+    expect(couverts.sansRecit).toBe(22);
+    expect(couverts.chiffre).toBeGreaterThan(0);
+    expect(couverts.preuve).toBeGreaterThan(0);
     expect(echecs, echecs.join("\n")).toEqual([]);
   });
 });
@@ -83,7 +98,7 @@ describe("refus, en « Ligne N : … » avec le geste à faire", () => {
     const l = lignesBase();
     l[0] = "[accroche] Vos demandes de prix arrivent sans le poids du colis.";
     const r = refusDe(l.join("\n"));
-    expect(r[0]).toBe(`Ligne 1 : l'accroche compte 10 mots ; de 2 à 8 mots. Dites le sujet de la vidéo, par exemple « ${LT02.recit!.sujet} »`);
+    expect(r[0]).toBe(`Ligne 1 : l'accroche compte 10 mots ; de 2 à 8 mots. Dites le sujet de la vidéo, par exemple « ${LT02.recit!.sujet} ».`);
   });
 
   it("accroche qui ne dit pas le sujet (R03) : la phrase à dire", () => {
