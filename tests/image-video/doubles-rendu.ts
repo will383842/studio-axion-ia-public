@@ -37,8 +37,10 @@ export class ServeurDouble implements ServiceRendu {
     if (this.o.echoue?.(d)) return { statut: "echec", erreur: { code: "refuse", reessayable: false, message: "chrome-headless-shell a quitté (code 139) idRendu=xyz" } };
     if (n <= (this.o.enCours ?? 0)) return { statut: "en_cours", progression: 50 };
     this.deposes.add(d.sortie.cle);
-    const p = d.parametres as { mode?: string; dureeSec?: number };
-    return { statut: "termine", sortieCle: d.sortie.cle, mesures: p.mode === "complet" ? { ...MESURES_SERVEUR, dureeSec: p.dureeSec ?? 0 } : {} };
+    const p = d.parametres as { mode?: string; dureeSec?: number; ratio?: string };
+    // Le fichier final a la hauteur du format demandé (24/10/2026 : LinkedIn en 4:5 = 1080 × 1350).
+    const hauteur = p.ratio === "4:5" ? 1350 : MESURES_SERVEUR.hauteur;
+    return { statut: "termine", sortieCle: d.sortie.cle, mesures: p.mode === "complet" ? { ...MESURES_SERVEUR, hauteur, dureeSec: p.dureeSec ?? 0 } : {} };
   }
   scenes() {
     return this.soumises.filter((d) => !(d.parametres as { mode?: string }).mode);

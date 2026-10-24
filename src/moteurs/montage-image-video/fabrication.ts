@@ -122,8 +122,8 @@ export interface DemandeFabricationIV {
   /** Mots interdits de Will (contexte de marque), en plus de ceux du format. */
   interdits?: string[];
   /**
-   * Formats livrés à chaque réseau (lot F45), figés au lancement ; absent : tout en 9:16 (comme avant). Posé par
-   * `etatInitialIV` dès que le 4:5 est prêt (`FORMAT_4X5_PRET_IV`).
+   * Formats livrés à chaque réseau (lot F45), figés au lancement ; absent (états d'avant le 24/10) : tout en 9:16.
+   * Posé par `etatInitialIV` (`FORMAT_4X5_PRET_IV`, allumé le 24/10/2026).
    */
   formats?: Partial<Record<ReseauIV, readonly FormatIV[]>>;
   /**
@@ -248,7 +248,7 @@ export interface LivraisonReseauIV {
   /** Fichier principal (Facebook : le Reel 9:16). */
   fichierCle?: string;
   dureeSec?: number;
-  /** Format du fichier principal, s'il n'est pas le 9:16 (anciennes vidéos LinkedIn en 4:5). */
+  /** Format du fichier principal, s'il n'est pas le 9:16 (LinkedIn seul : 4:5). */
   format?: "4:5";
   /** Facebook : second fichier, la vidéo du fil en 4:5 (1080 × 1350), même fin. */
   fichierCleFil?: string;
@@ -1370,7 +1370,7 @@ export function livraisonDe(e: EtatFabricationIV, verdict: Pick<VerdictPorteIV, 
   return e.demande.reseaux.map((reseau): LivraisonReseauIV => {
     const v = verdict.reseaux.find((x) => x.reseau === reseau);
     if (!v || v.version === "aucune") return { reseau, version: "aucune", mention: v?.phrase ?? (reseau === "tiktok" ? "TikTok n'est plus proposé pour Image → vidéo." : "Réseau non livré.") };
-    // Fichier principal : le 9:16 s'il existe (Facebook : le Reel), sinon le 4:5 (anciennes vidéos LinkedIn) ; Facebook a en plus le fil 4:5.
+    // Fichier principal : le 9:16 s'il existe (Facebook : le Reel), sinon le 4:5 (LinkedIn seul) ; Facebook a en plus le fil 4:5.
     const siennes = versions.filter((x) => x.reseaux.includes(reseau) && x.courte === (v.version === "courte"));
     const version = siennes.find((x) => (x.format ?? "9:16") === "9:16") ?? siennes[0];
     const fil = version && (version.format ?? "9:16") === "9:16" ? siennes.find((x) => x.format === "4:5") : undefined;

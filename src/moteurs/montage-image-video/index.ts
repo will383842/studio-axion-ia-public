@@ -26,6 +26,7 @@ import {
   centimesEurDeUsd,
   ETAPES_IV,
   etatInitialIV,
+  FORMAT_4X5_PRET_IV,
   PLAFOND_VIDEO_IV_CENTIMES,
   reprendreIV,
   tarifVoixCentimesEur,
@@ -183,13 +184,16 @@ export function estimerImageVideo(commande: CommandeFabrication): Estimation {
   const reseaux = e.reseaux.length || RESEAUX_IV.length;
   // Versions : une par fin distincte (≤ réseaux), plus une courte au plus par version.
   const versions = 2 * reseaux;
+  // Fichiers à relire : un par version, plus le fil Facebook en 4:5 (décision du 24/10 : +0,25 € habituel, +1 € au pire).
+  const filFacebook = FORMAT_4X5_PRET_IV && (e.reseaux.length ? e.reseaux.includes("facebook") : true);
+  const relectures = versions + (filFacebook ? 2 : 0);
   const caracteres = Math.ceil(Math.max(commande.dureeCibleSec || 50, 30) * CARACTERES_PAR_SECONDE) + reseaux * 160;
   const voix = Math.ceil(caracteres * 6 * tarifVoixCentimesEur(CENTIMES_USD_PAR_CARACTERE_HEYGEN, taux) - 1e-9);
   const lignes = [
     ligne("Lecture de l'image", "anthropic", "appel", 4, centimesEurDeUsd(PRIX_AU_PIRE_USD.lecture, taux)),
     ligne("Écriture du script", "anthropic", "appel", 2, centimesEurDeUsd(PRIX_AU_PIRE_USD.ecriture, taux)),
     ligne("Voix", "heygen", "caractere", caracteres * 6, voix),
-    ligne("Relecture des images finales", "anthropic", "appel", versions, centimesEurDeUsd(PRIX_AU_PIRE_USD.relectureParVersion * versions, taux)),
+    ligne("Relecture des images finales", "anthropic", "appel", relectures, centimesEurDeUsd(PRIX_AU_PIRE_USD.relectureParVersion * relectures, taux)),
     ligne("Écoute", "transcription", "appel", versions, centimesEurDeUsd(PRIX_AU_PIRE_USD.transcriptionParVersion * versions, taux)),
     ligne("Montage image → vidéo", "studio", "forfait", 1, 0),
   ];
