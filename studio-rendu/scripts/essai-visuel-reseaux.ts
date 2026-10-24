@@ -54,7 +54,7 @@ function cas() {
 const empreinte = (chemin: string) => createHash("sha256").update(readFileSync(chemin)).digest("hex");
 const echecs: string[] = [];
 
-for (const c of cas()) {
+for (const c of cas().filter((x) => !process.env.ESSAI_FILTRE || x.fichier.startsWith(process.env.ESSAI_FILTRE))) {
   for (const cadre of CADRES) {
     const fichier = `${c.fichier}-${cadre ?? "sans-cadre"}.jpg`;
     const cible = join(sortie, fichier);
@@ -64,7 +64,8 @@ for (const c of cas()) {
       { progression: () => {}, dossier: mkdtempSync(join(travail, "p-")), signal: new AbortController().signal },
     );
     const m = (r.mesures ?? {}) as Record<string, number>;
-    const bilan = `débordements ${m.debordements}, intrusions ${m.intrusions}, police min ${m.taillePoliceMin} px, chevauchements ${m.chevauchements}`;
+    const zones = Object.keys(m).filter((k) => k.startsWith("intrusion_"));
+    const bilan = `débordements ${m.debordements}, intrusions ${m.intrusions}${zones.length ? ` (${zones.join(", ")})` : ""}, police min ${m.taillePoliceMin} px, chevauchements ${m.chevauchements}`;
     console.log(`${fichier} : ${bilan}${cadre ? "" : `, sha256 ${empreinte(cible)}`}`);
     if (m.debordements !== 0 || m.taillePoliceMin < TAILLE_TEXTE_MIN || m.chevauchements !== 0) echecs.push(`${fichier} : ${bilan}`);
     if (!sansCadreSeulement && m.intrusions !== 0) echecs.push(`${fichier} : ${bilan}`);
