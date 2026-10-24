@@ -64,7 +64,7 @@ import { poserBruitages } from "./bruitages";
 import { calerFiche, IMAGE_MS, type EvenementCale } from "./calage";
 import { appliquerCaptures, avancerCaptures, etatInitialCaptures, planCaptures, type EtatCaptures } from "./captures";
 import { clesImagesDuCas, imagesDuCas } from "./visuels-du-cas";
-import { controlerFinDeVoix, lireWav, recalerCoupesSurSilences, silencesMesures, type Silence, type Son } from "./fin-de-voix";
+import { REGLES_RECALAGE_CAS_CONCRET, controlerFinDeVoix, lireWav, recalerCoupesSurSilences, silencesMesures, type Silence, type Son } from "./fin-de-voix";
 import { controlerVideoCasConcret, type MesuresFin, type RapportControleCasConcret } from "./controles";
 import { defautsVisuels, type DefautVisuel } from "./defauts-visuels";
 import { ecrireFiche, PREFIXE_APPEL_ECRITURE, reformulerPhrase, type ResultatEcriture } from "./ecriture";
@@ -736,7 +736,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const blancsCorps = await blancsDe(v, mesurables[corps.fichierCle] ?? corps.fichierCle);
     for (const x of sons) {
       const blancsFin = await blancsDe(v, mesurables[x.son.fichierCle] ?? x.son.fichierCle);
-      if (blancsCorps || blancsFin) x.plan = recalerCoupesSurSilences(x.plan, { corps: corps.mots, fin: x.son.mots }, { ...(blancsCorps ? { 0: blancsCorps } : {}), ...(blancsFin ? { 1: blancsFin } : {}) }).plan;
+      if (blancsCorps || blancsFin) x.plan = recalerCoupesSurSilences(x.plan, { corps: corps.mots, fin: x.son.mots }, { ...(blancsCorps ? { 0: blancsCorps } : {}), ...(blancsFin ? { 1: blancsFin } : {}) }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET).plan;
     }
     // Assemblages soumis ensemble, relus à chaque tour : un rendu pas fini ne tient pas la main (S1e). Leur empreinte
     // porte les PLANS (coupes replacées dans les blancs) : un plan changé refait l'assemblage, jamais l'ancien son.
