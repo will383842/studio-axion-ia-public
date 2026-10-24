@@ -16,7 +16,7 @@ export function Voyant({ niveau, className, avecPorte }: { niveau: NiveauControl
   );
 }
 
-/** Résultat de la porte : une ligne par contrôle, avec la phrase et la page concernée. */
+/** Résultat de la porte : une ligne par contrôle, avec son voyant, la phrase et la page concernée ; sans contrôle, le voyant global. */
 export function Voyants({ rapport, className }: { rapport: RapportPorte; className?: string }) {
   // Le même message n'est montré qu'une fois (deux textes fautifs peuvent donner la même phrase).
   const vus = new Set<string>();
@@ -28,9 +28,12 @@ export function Voyants({ rapport, className }: { rapport: RapportPorte; classNa
   });
   return (
     <section aria-label="Contrôles avant validation" className={cn("flex flex-col gap-2", className)}>
-      <Voyant niveau={rapport.verdict} className="self-start" />
+      {/* Le verdict global n'est montré que sans contrôle : sinon le premier contrôle le répète (et l'en-tête dit déjà « Porte : … »). */}
       {controles.length === 0 ? (
-        <p className="text-sm text-texte-doux">Tout est en ordre.</p>
+        <>
+          <Voyant niveau={rapport.verdict} className="self-start" />
+          <p className="text-sm text-texte-doux">Tout est en ordre.</p>
+        </>
       ) : (
         <ul className="flex flex-col gap-2">
           {controles.map((c, i) => (
