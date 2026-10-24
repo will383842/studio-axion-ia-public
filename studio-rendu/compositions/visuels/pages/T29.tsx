@@ -20,8 +20,12 @@ interface Proprietes {
 const HAUTEUR_RELANCE = 470;
 /** Corps maximal de la relance : un grand texte du style C, sous le message clé de T10. */
 const RELANCE_MAX = 150;
-const REMPLISSAGE_BLOC = 40;
+/** Écart entre la relance et le bloc orange, et remplissage du bloc (px) : peu d'air, le vide du corps reste sous 15 %. */
+const ECART_BLOC = 36;
+const REMPLISSAGE_BLOC = 32;
 /** Coche d'un rappel (disque crème, coche encre) et écart avant le texte. */
+/** Étiquette des rappels (px, fixe). */
+const TAILLE_ETIQUETTE = 32;
 const COCHE = 52;
 const ECART = 24;
 const X_TEXTE = MARGE + COCHE + ECART;
@@ -50,12 +54,10 @@ export function T29({ relance, rappels, index, total }: Proprietes) {
       <Zone libelle="T29 : relance" style={{ ...DANS_LA_COLONNE, flex: "none", maxHeight: HAUTEUR_RELANCE + 16 }}>
         <Titre texte={relance} maxLignes={4} hauteurMax={HAUTEUR_RELANCE} largeur={LARGEUR_TITRE_BORNE} min={TITRE_MIN_MESSAGE} max={RELANCE_MAX} grand accent />
       </Zone>
-      <div style={{ ...DANS_LA_COLONNE, flex: "none", margin: "28px 0 36px" }}>
-        <div style={{ width: 120, height: 6, background: COULEURS.orange }} />
-      </div>
-      <Remplir max={1.5} style={{ ...DANS_LA_COLONNE, paddingTop: REMPLISSAGE_BLOC, paddingBottom: REMPLISSAGE_BLOC, background: COULEURS.orange }}>
-        <div style={{ paddingBottom: k(22) }}>
-          <Etiquette texte={TEXTES_FIXES_L11.t29Rappel} taille={k(28)} />
+      <Remplir max={2.2} style={{ ...DANS_LA_COLONNE, marginTop: ECART_BLOC, paddingTop: REMPLISSAGE_BLOC, paddingBottom: REMPLISSAGE_BLOC, background: COULEURS.orange }}>
+        {/* L'étiquette ne grandit pas avec le facteur (lettres espacées) et s'arrête à x = 860 : jamais dans la zone de la flèche. */}
+        <div style={{ maxWidth: largeurTexteMax(MARGE, BORD_DROIT_TEXTE_BAS), paddingBottom: k(22) }}>
+          <Etiquette texte={TEXTES_FIXES_L11.t29Rappel} taille={TAILLE_ETIQUETTE} />
         </div>
         {rappels.map((r, i) => (
           <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: ECART, paddingBottom: i === rappels.length - 1 ? 0 : k(22), ...filetAuDessus(i === 0, 22) }}>

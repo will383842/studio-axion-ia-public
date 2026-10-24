@@ -85,6 +85,16 @@ describe("L11 : porte qualité sur T29", () => {
   });
 });
 
+describe("L11 : consigne de session", () => {
+  const consigne = readFileSync(new URL("../../scripts/visuels/consigne-session-carrousel.md", import.meta.url), "utf8");
+  const ligne = (t: string) => consigne.split("\n").find((l) => l.startsWith(`| ${t} |`)) ?? "";
+  it("donne T29 avec ses budgets du registre et quand le choisir, et la variante « maquettes » de T20", () => {
+    expect(ligne("T29")).toContain(`relance ${CAPACITE_RELANCE.relance} ; chaque rappel ${CAPACITE_RELANCE.rappel}`);
+    expect(consigne).toMatch(/\*\*T29 relance\*\*/);
+    expect(ligne("T20")).toContain("`variante` (facultative : `maquettes`)");
+  });
+});
+
 describe("L11 : textes de T29 posés par le code", () => {
   it("rubrique en capitales et étiquette du rappel : sans chiffre, sans lien, sans promesse, admis par le schéma", () => {
     expect(RUBRIQUES.T29).toBe(RUBRIQUES.T29.toLocaleUpperCase("fr-FR"));
