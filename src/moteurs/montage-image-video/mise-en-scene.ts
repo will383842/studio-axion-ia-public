@@ -734,7 +734,7 @@ function elementsToile(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>
     etat.montres.add(`sep-${decision.id}`);
     const kAnnonce = c.ecrits.findIndex((m) => /^(deux|trois|quatre|chemins?|voies?)[.,!?:;…]*$/iu.test(m));
     const k = kAnnonce >= 0 ? kAnnonce : rangOrange(c);
-    const parts = carte.liens.filter((l) => l.de === decision.id && l.part !== undefined).map((l) => `${l.part}|%`);
+    const parts = carte.liens.filter((l) => l.de === decision.id && typeof l.part === "number" && l.part > 0).map((l) => `${l.part}|%`);
     if (!etat.montres.has(decision.id)) {
       etat.montres.add(decision.id);
       const kd = rangQuiNomme(c, decision.libelle) ?? 0;
@@ -932,7 +932,13 @@ function objetsEnSerie(places: EcranPlace[], carte: CarteImage): void {
 
 /** Nom de l'application et message affichés dans la notification : sans « Alerte » ni émoji (cloche comprise). */
 export function sourceEtMessageAlerte(n: Pick<NoeudCarte, "libelle" | "detail"> | undefined): { source: string; message: string; messageDit: string } {
-  const sansEmoji = (t: string) => t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, "");
+  const sansEmoji = (t: string) =>
+    t
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, "")
+      // L'émoji retiré ne laisse pas d'espace contre un guillemet ou une parenthèse (les « » gardent leurs espaces françaises).
+      .replace(/([“‘(\[])\s+/gu, "$1")
+      .replace(/\s+([”’)\]])/gu, "$1")
+      .replace(/\s{2,}/gu, (m) => (/[  ]/u.test(m) ? " " : " "));
   const source = sansEmoji(n?.libelle ?? "").replace(/^\s*alerte\s+/i, "").replace(/[:\s]+$/, "").trim() || "Alerte";
   const message = sansEmoji(n?.detail ?? n?.libelle ?? "").trim();
   // `messageDit` : le détail seul (vide si la carte n'en a pas) ; `message` retombe sur le libellé pour l'affichage.
@@ -1253,7 +1259,7 @@ function elementsMoment(c: Ctx, carte: CarteImage, refs: NoeudCarte[], clesCarte
 function inserer(places: EcranPlace[], carte: CarteImage, fiche: FicheImage, clesCarte: Map<string, string>): void {
   const branches = carte.groupes.filter((g) => g.sorte === "branche");
   const dansBranche = new Set(branches.flatMap((g) => g.noeuds));
-  const parts = carte.liens.filter((l) => l.part !== undefined).sort((a, b) => (b.part ?? 0) - (a.part ?? 0) || a.id.localeCompare(b.id)).map((l) => `${l.part} %`);
+  const parts = carte.liens.filter((l) => typeof l.part === "number" && l.part > 0).sort((a, b) => (b.part ?? 0) - (a.part ?? 0) || a.id.localeCompare(b.id)).map((l) => `${l.part} %`);
   const aEnsemble = (i: number) => places[i].c.e.scene === "ensemble";
 
   // Écrans « Ensemble » de la fiche : la vue d'ensemble occupe leur début (≤ 1,5 s), chiffres dits en chiffres-clés.
