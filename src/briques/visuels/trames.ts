@@ -30,7 +30,7 @@ export interface Trame {
   ecriture: readonly string[];
 }
 
-// T29 (relance, réservé) : à son entrée au registre, ni dans TYPES_DENSES ni de famille « liste » (il suit T27 ou T23, et T21 le suit).
+// T29 (relance, au registre depuis L11) : ni dans TYPES_DENSES ni de famille « liste » (famille « appel ») ; il suit T27 ou T23, et T21 le suit.
 const RELANCE: EtapeTrame = { type: "T29", role: "relance : une phrase qui remet le lecteur face à sa propre situation avant l'appel", facultatif: true };
 const APPEL: EtapeTrame = { type: "T21", role: "appel : la page sombre, posée par le code, invite à écrire en message privé" };
 

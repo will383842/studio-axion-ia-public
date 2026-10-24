@@ -70,7 +70,7 @@ describe("L1 : titres en capitales", () => {
 describe("L1 : rubrique des pages intérieures", () => {
   it("une rubrique par type de page de contenu, jamais sur une couverture ni sur la page sombre", () => {
     const avecRubrique = Object.keys(RUBRIQUES).sort();
-    expect(avecRubrique).toEqual(["T02", "T06", "T08", "T10", "T20", "T22", "T23", "T24", "T26", "T27", "T28"]);
+    expect(avecRubrique).toEqual(["T02", "T06", "T08", "T10", "T20", "T22", "T23", "T24", "T26", "T27", "T28", "T29"]);
     for (const c of TYPES_COUVERTURE) expect(RUBRIQUES, c).not.toHaveProperty(c);
     expect(RUBRIQUES).not.toHaveProperty("T21");
     expect(TYPES_PAGE).toContain("T21");

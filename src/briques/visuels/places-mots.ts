@@ -6,6 +6,7 @@
  * jamais `studio-rendu/` ; le test `tests/visuels/porte-mot-long.test.ts` vérifie que les deux restent égales.
  */
 import type { PageSpec } from "../../domaine/visuels/types";
+import { LARGEUR_MAQUETTE } from "./maquettes-etapes";
 import { capaciteQuestion } from "./registre-pages";
 
 export interface PlaceMot {
@@ -62,6 +63,10 @@ export function placesT02(n: number): number[] {
 }
 /** T27 : après la case à cocher (48 + 26). */
 export const PLACE_T27 = BORD - (MARGE + 48 + 26);
+/** T29 : rappels dans le bloc du bas (bord 860 toujours), après la coche (52 + 24). */
+export const PLACE_T29 = BORD_BAS - (MARGE + 52 + 24);
+/** T20 en variante « maquettes » : après la colonne des numéros (96 + 28) et la mini-maquette (+ 28). */
+export const placesT20Maquettes = (n: number): number[] => Array.from({ length: n }, (_, i) => bordLigne(i, n) - (MARGE + 96 + 28 + LARGEUR_MAQUETTE + 28));
 
 /** Textes à colonnes d'une page, avec leur place. Les autres pages (pleine largeur) n'en ont pas. */
 export function placesDesMots(page: PageSpec): PlaceMot[] {
@@ -100,6 +105,17 @@ export function placesDesMots(page: PageSpec): PlaceMot[] {
     }
     case "T27":
       return page.lignes.map((l, i) => ({ chemin: `lignes.${i}.texte`, texte: l.texte, largeur: PLACE_T27, corps: page.lignes.length <= 4 ? 36 : 33, lieu: "une ligne de la liste" }));
+    case "T29":
+      return page.rappels.map((r, i) => ({ chemin: `rappels.${i}.texte`, texte: r.texte, largeur: PLACE_T29, corps: 34, lieu: "un rappel de la relance" }));
+    case "T20": {
+      // L'ancienne page (sans la clé) garde toute la colonne : seuls les textes de la variante « maquettes » ont une place étroite.
+      if (page.variante !== "maquettes") return [];
+      const places = placesT20Maquettes(page.etapes.length);
+      return page.etapes.flatMap((e, i) => [
+        { chemin: `etapes.${i}.titre`, texte: e.titre, largeur: places[i], corps: 36, lieu: "un titre d'étape" },
+        { chemin: `etapes.${i}.corps`, texte: e.corps, largeur: places[i], corps: 30, lieu: "le texte d'une étape" },
+      ]);
+    }
     default:
       return [];
   }

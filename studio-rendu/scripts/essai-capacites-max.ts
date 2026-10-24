@@ -27,7 +27,7 @@ if (process.argv.length <= 2) rmSync(sortie, { recursive: true, force: true });
 mkdirSync(sortie, { recursive: true });
 
 /** Gabarits soumis au contrôle du vide (L9). */
-const AVEC_VIDE = new Set(["T22", "T23", "T24", "T26", "T27", "T28"]);
+const AVEC_VIDE = new Set(["T22", "T23", "T24", "T26", "T27", "T28", "T29"]);
 
 const op = creerVisuelPage({
   rendre: rendreAvecRemotion({ navigateur: process.env.STUDIO_RENDU_NAVIGATEUR }),

@@ -25,6 +25,7 @@ export const RUBRIQUES = {
   T26: "CAS CONCRET",
   T27: "À VÉRIFIER",
   T28: "LE CIRCUIT",
+  T29: "AVANT DE PARTIR",
 } as const;
 export type TypePageAvecRubrique = keyof typeof RUBRIQUES;
 
@@ -42,4 +43,10 @@ export const TEXTES_FIXES_L9 = {
   t26AvecNous: "AVEC NOUS",
   t26Vous: "VOUS\u00a0:",
   t27Jauge: "Plus vous répondez «\u00a0oui\u00a0», plus le sujet mérite qu’on s’y arrête.",
+} as const;
+
+/** Textes génériques de la page de relance (T29, L11), posés par le code : jamais de chiffre, jamais de promesse. */
+export const TEXTES_FIXES_L11 = {
+  /** Étiquette au-dessus des rappels. */
+  t29Rappel: "CE QUE VOUS AVEZ VU",
 } as const;

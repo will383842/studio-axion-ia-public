@@ -15,6 +15,7 @@ export const FIXTURES_TRAMES: Record<Intention, FixtureCarrousel> = {
       "Le message clé fait sentir ce que coûte l'attente.",
       "Idée reçue contre réalité : l'IA n'est pas réservée aux grands.",
       "Les questions aident le lecteur à situer son entreprise.",
+      "La relance remet le lecteur face à sa propre situation.",
       "La dernière page invite à écrire en message privé.",
     ],
     spec: {
@@ -44,6 +45,7 @@ export const FIXTURES_TRAMES: Record<Intention, FixtureCarrousel> = {
           ],
           annotation: "Vos réponses tracent le chemin",
         },
+        { type: "T29", relance: "Et chez vous, quelle tâche revient ?", rappels: [{ texte: "Les tâches répétées prennent du temps" }, { texte: "Une petite équipe peut commencer" }, { texte: "Vos réponses montrent par où partir" }] },
         { type: "T21" },
       ],
     },
@@ -58,6 +60,7 @@ export const FIXTURES_TRAMES: Record<Intention, FixtureCarrousel> = {
       "La checklist aide à vérifier que l'on est prêt.",
       "Idée reçue contre réalité : pas besoin de tout changer d'un coup.",
       "Le schéma montre le circuit d'une demande une fois la méthode en place.",
+      "La relance demande au lecteur où il en est.",
       "La dernière page invite à écrire en message privé.",
     ],
     spec: {
@@ -107,6 +110,7 @@ export const FIXTURES_TRAMES: Record<Intention, FixtureCarrousel> = {
             { texte: "Le client est servi", icone: "utilisateurs" },
           ],
         },
+        { type: "T29", relance: "Par quelle tâche commencez-vous ?", rappels: [{ texte: "Partir de vos tâches" }, { texte: "Essayer sur une seule tâche" }, { texte: "Garder ce qui marche" }] },
         { type: "T21" },
       ],
     },
@@ -120,6 +124,7 @@ export const FIXTURES_TRAMES: Record<Intention, FixtureCarrousel> = {
       "Le message clé retient ce qui change vraiment.",
       "Le schéma montre le chemin suivi par l'atelier du scénario.",
       "La checklist invite le lecteur à se situer.",
+      "La relance ramène le scénario chez le lecteur.",
       "La dernière page invite à écrire en message privé.",
     ],
     spec: {
@@ -166,6 +171,7 @@ export const FIXTURES_TRAMES: Record<Intention, FixtureCarrousel> = {
             { texte: "Des relances passent à la trappe" },
           ],
         },
+        { type: "T29", relance: "Et si c'était votre atelier ?", rappels: [{ texte: "Un seul fil pour les demandes" }, { texte: "Un brouillon prêt à relire" }, { texte: "Vous gardez la main" }] },
         { type: "T21" },
       ],
     },
