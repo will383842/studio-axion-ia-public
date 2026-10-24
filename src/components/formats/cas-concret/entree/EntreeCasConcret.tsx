@@ -256,6 +256,7 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
           voix={voix}
           mots={mots}
           onFermer={() => setOuvert(null)}
+          onRetire={() => setOuvert(null)}
           estimer={estimer}
           onFabriquer={fabriquer}
           onValider={() => valider(ouvert.cas)}

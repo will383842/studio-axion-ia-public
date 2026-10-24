@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/(studio)/cas-concret/actions", () => ({ remettreEnStockAction: vi.fn() }));
 const lireSession = vi.fn();
 vi.mock("@/services/auth", () => ({ lireSession: () => lireSession() }));
+vi.mock("@/services/cas-concret-retires", () => ({ lireCasRetires: async () => new Set<string>() }));
 const lireCasTraites = vi.fn();
 vi.mock("@/services/cas-concret-traites", () => ({ lireCasTraites: () => lireCasTraites() }));
 
