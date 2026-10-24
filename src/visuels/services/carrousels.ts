@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { LIMITES } from "@/briques/visuels/limites";
+import type { Intention } from "@/briques/visuels/trames";
 import { LIBELLES_STATUT, transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { CODES_ERREUR_VISUELS, type DemandeTexteCarrousel, type ContextePorte, type EmpreinteCarrousel, type FournisseurTexteCarrousel, type Porte } from "@/domaine/visuels/contrats";
 import { MEMOIRE_CARROUSELS, recentsAEviter } from "@/domaine/controles-visuel/memoire-carrousels";
@@ -207,13 +208,15 @@ async function demarrer(entree: Visuel["entree"], demande: DemandeTexteCarrousel
   return { id };
 }
 
-export async function creerDepuisSujet(sujet: string, deps: DependancesCarrousels): Promise<{ id: string }> {
+/** `intention` (L12, facultative) : choisit la trame ; elle est gardée pour « Refaire ». */
+export async function creerDepuisSujet(sujet: string, deps: DependancesCarrousels, intention?: Intention): Promise<{ id: string }> {
   await exigerAllume(deps);
   const net = sujet.trim();
   if (net.length < SUJET_MIN || net.length > SUJET_MAX || LIEN.test(net)) {
     throw refus("SUJET_INVALIDE", `Le sujet fait de ${SUJET_MIN} à ${SUJET_MAX} signes, sans lien`);
   }
-  return demarrer({ type: "sujet", sujet: net }, { type: "sujet", sujet: net }, net, null, deps);
+  const avecIntention = intention ? { intention } : {};
+  return demarrer({ type: "sujet", sujet: net, ...avecIntention }, { type: "sujet", sujet: net, ...avecIntention }, net, null, deps);
 }
 
 export async function deposerSession(contenu: string, deps: DependancesCarrousels): Promise<{ id: string }> {
@@ -337,7 +340,7 @@ export async function refaire(id: string, deps: DependancesCarrousels): Promise<
   const v = await lireVisuel(id, deps);
   if (v.entree.type === "session") throw refus("SESSION_ATTENDUE", "Ce carrousel vient d'une session : déposez un nouveau fichier");
   if (v.corbeilleLe) throw refus("TRANSITION_REFUSEE", "Ce carrousel est à la corbeille : restaurez-le d'abord");
-  const demande: DemandeTexteCarrousel = { type: "sujet", sujet: v.entree.sujet };
+  const demande: DemandeTexteCarrousel = { type: "sujet", sujet: v.entree.sujet, ...(v.entree.intention ? { intention: v.entree.intention } : {}) };
   const fournisseur = fournisseurPermis(demande, deps);
   if (v.statut === "a_valider") await refuser(id, "autre", undefined, undefined, deps);
   else if (!transitionPermise(v.statut, "brouillon")) throw refus("TRANSITION_REFUSEE", `Un carrousel « ${LIBELLES_STATUT[v.statut]} » ne se refait pas`);
@@ -352,6 +355,6 @@ export async function refaire(id: string, deps: DependancesCarrousels): Promise<
       deps,
     );
   });
-  // La version suivante décale le choix du modèle de simulation : « Refaire » ne redonne pas le même texte.
+  // La version suivante décale le choix du modèle de simulation (avec une intention : l'ordre des listes libres) : « Refaire » ne redonne pas le même texte.
   await rediger(id, fournisseur, { ...demande, version }, deps);
 }
