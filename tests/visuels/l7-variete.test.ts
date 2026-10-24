@@ -66,9 +66,9 @@ describe("L7 : familles de pages", () => {
   it("la note donne le même verdict que la porte : une série T26 numérotée n'est pas une suite de même famille", () => {
     const s = spec(couverture, cas("Scénario 1 : la relance"), cas("Scénario 2 : le devis"), grille, etapes(), message, fin);
     const c7 = noterCarrousel(s).criteres.find((c) => c.id === 7)!;
-    expect(c7.raison).not.toMatch(/même famille/);
+    expect(c7.raison).not.toMatch(/de mise en page à la suite/);
     const sansRang = spec(couverture, cas("La relance"), cas("Le devis"), grille, etapes(), message, fin);
-    expect(noterCarrousel(sansRang).criteres.find((c) => c.id === 7)!.raison).toMatch(/même famille/);
+    expect(noterCarrousel(sansRang).criteres.find((c) => c.id === 7)!.raison).toMatch(/de mise en page à la suite/);
   });
   it("« Une relance oubliée » puis « Deux devis perdus » : un nombre n'est pas un rang, pas une série", () => {
     const s = lu(couverture, cas("Une relance oubliée"), cas("Deux devis perdus"), grille, etapes(), message, fin);
