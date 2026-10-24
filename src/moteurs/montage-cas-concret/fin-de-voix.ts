@@ -219,6 +219,7 @@ export const REGLES_RECALAGE_CAS_CONCRET = Object.freeze({ ...REGLES_FIN_DE_VOIX
  * Déplace dans le blanc mesuré le plus proche chaque coupe du plan qui tombe en plein son (fin d'un morceau en avant,
  * début en arrière, de `rallongeMaxSec` au plus, sans chevaucher le morceau voisin de la même source). Les mots, la durée,
  * le fondu de sortie et le raccord suivent. `motsBruts` : les mots du corps et de la fin, sur l'horloge de leur son brut.
+ * Une fin déjà dans un blanc, à moins de `queueMinDansBlancSec` de son début, y est rallongée (sans chevaucher le suivant).
  * Rien à déplacer : le plan est rendu tel quel.
  */
 export function recalerCoupesSurSilences(
