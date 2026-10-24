@@ -36,6 +36,10 @@ export const SUITE_FORME_MAX = 5;
 const racinesDe = (t: string): Set<string> => new Set(motsPleins(t).map(racine));
 /** Un mot clé (« e-mails », « rendez-vous ») compte pour les racines de ses mots pleins. */
 const racinesDuMot = (m: string): string[] => motsPleins(m).map(racine);
+/** Adjectifs qui ouvrent parfois un exemple (« le dernier devis ») : ils ne sont pas le nom noyau. */
+const ADJECTIFS_DE_TETE = new Set(["dernier", "derniere", "nouveau", "nouvelle", "ancien", "ancienne", "premier", "premiere", "meme"]);
+/** Le nom noyau d'une chose (« la demande de ce client » -> « demande ») : son premier mot plein, hors adjectif de tête. */
+const noyauDe = (t: string): string[] => motsPleins(t).filter((m) => !ADJECTIFS_DE_TETE.has(m)).slice(0, 1).map(racine);
 const cleTitre = (t: string) => motsLus(t.replace(/\*/g, "")).map(cleMot).join(" ");
 const PREFIXE = /^\s*(avant|résultat|resultat)\s*:\s*/i;
 
@@ -84,15 +88,18 @@ export function controlerClarte(fiche: FicheEcrans, cas: Pick<CasConcret, "recit
 
     // C3 : l'exemple suivi à travers les étapes, puis au résultat ou à la question.
     // Seuls comptent le nom noyau de l'exemple (son premier mot plein) et les mots clés.
-    const noyau = motsPleins(r.exemple).slice(0, 1).map(racine);
+    const noyau = noyauDe(r.exemple);
     const suivis = new Set([...noyau, ...r.motsCles.flatMap(racinesDuMot)]);
     const reprend = (t: string) => [...racinesDe(t)].some((m) => suivis.has(m));
     const etapes = ecrans.filter((e) => e.type === "etape" || e.type === "objet");
     const reprises = etapes.filter((e) => reprend(e.texteDit)).length;
     const bout = ecrans.filter((e) => e.type === "resultat" || e.type === "question").some((e) => reprend(e.texteDit));
     // Une étape ne commence pas par un pronom (« Elle est triée », « Tout s'enregistre ») sans le nom dans la phrase d'avant.
-    const PRONOM = /^(?:(?:puis|alors|ensuite|et|complète,?)\s+)?(?:elle|il|elles|ils|tout|cela|ça)(?![\p{L}])/iu;
-    const sansNom = ecrans.filter((e, i) => (e.type === "etape" || e.type === "objet") && PRONOM.test(e.texteDit.trim()) && !(i > 0 && reprend(ecrans[i - 1].texteDit)));
+    // (« Tout le », « Tout de » : déterminant ; « Il faut », « Il reste », « Il suffit » : impersonnel.) L'antécédent peut être
+    // une autre personne de l'exemple (« Le client reçoit… » puis « Il répond… ») : tout mot plein de l'exemple ou mot clé le nomme.
+    const PRONOM = /^(?:(?:puis|alors|ensuite|et|complète,?)\s+)?(?:elle|elles|ils|il(?!\s+(?:faut|reste|suffit)(?![\p{L}]))|tout(?!\s+(?:le|la|les|de)(?![\p{L}]))|cela|ça)(?![\p{L}])/iu;
+    const antecedent = new Set([...racinesDe(r.exemple), ...r.motsCles.flatMap(racinesDuMot)]);
+    const sansNom = ecrans.filter((e, i) => (e.type === "etape" || e.type === "objet") && PRONOM.test(e.texteDit.trim()) && !(i > 0 && [...racinesDe(ecrans[i - 1].texteDit)].some((m) => antecedent.has(m))));
     if (sansNom.length) manques.push({ critere: "C3", detail: `l'étape « ${sansNom[0].texteDit.trim()} » commence par un pronom sans que le nom (« ${r.exemple} ») soit dans la phrase d'avant : nommez la chose.` });
     if (etapes.length && (reprises * 2 < etapes.length || !bout)) {
       manques.push({ critere: "C3", detail: `l'exemple suivi (« ${r.exemple} ») n'est repris que dans ${reprises} étape${reprises > 1 ? "s" : ""} sur ${etapes.length}${bout ? "" : ", ni au résultat ni à la question"} : chaque étape dit ce qui arrive à cette chose.` });
@@ -101,7 +108,7 @@ export function controlerClarte(fiche: FicheEcrans, cas: Pick<CasConcret, "recit
     // C6 : la question finale parle du même problème.
     const question = ecrans.filter((e) => e.type === "question").at(-1);
     if (question) {
-      const permis = new Set([...r.motsCles.flatMap(racinesDuMot), ...motsPleins(r.exemple).slice(0, 1).map(racine)]);
+      const permis = new Set([...r.motsCles.flatMap(racinesDuMot), ...noyauDe(r.exemple)]);
       if (![...racinesDe(question.texteDit)].some((m) => permis.has(m))) manques.push({ critere: "C6", detail: `la question finale (« ${question.texteDit.trim()} ») ne porte pas sur le problème du sujet (« ${r.sujet} »).` });
     }
   }

@@ -46,7 +46,7 @@ const SCRIPT_REFERENCE = fiche([
   ["etape", "La demande de ce client est enregistrée au même endroit, d'où qu'elle vienne."],
   ["etape", "L'automatisation voit ce qui manque : le poids et l'adresse."],
   ["etape", "Le client reçoit aussitôt un message court qui les réclame."],
-  ["etape", "Le client répond ; la demande complète arrive sur le téléphone de votre équipe."],
+  ["etape", "Il répond ; la demande complète arrive sur le téléphone de votre équipe."],
   ["objet", "Votre exploitant garde la main : fixer le prix et accepter ou non le transport."],
   ["resultat", "Résultat : plus personne ne rappelle pour un poids, votre équipe chiffre des demandes complètes."],
   ["question", "Et chez vous, combien de demandes de prix arrivent sans le poids ?"],
@@ -62,7 +62,7 @@ const TEXTES_REFERENCE = [
   "La demande de ce client est enregistrée au même endroit, d'où qu'elle vienne.",
   "L'automatisation voit ce qui manque : le poids et l'adresse.",
   "Le client reçoit aussitôt un message court qui les réclame.",
-  "Le client répond ; la demande complète arrive sur le téléphone de votre équipe.",
+  "Il répond ; la demande complète arrive sur le téléphone de votre équipe.",
   "Votre exploitant garde la main : fixer le prix et accepter ou non le transport.",
   "Alors la demande est prête : l'exploitant fixe le prix et accepte ou non.",
   "Résultat : plus personne ne rappelle pour un poids, votre équipe chiffre des demandes complètes.",
@@ -119,11 +119,42 @@ describe("clarté · critères C1 à C7", () => {
     expect(controlerClarte(f, lt02).some((m) => m.critere === "C6")).toBe(true);
   });
 
-  it("(a) le script réel de LT-02 est refusé : C1, C4, C6 et C7", () => {
+  it("(a) le script réel de LT-02 est refusé : C1, C2, C3, C4, C6 et C7", () => {
     const manques = controlerClarte(SCRIPT_REEL, lt02);
     const criteres = new Set(manques.map((m) => m.critere));
-    for (const c of ["C1", "C4", "C6", "C7"]) expect(criteres, [...criteres].join(",")).toContain(c);
+    for (const c of ["C1", "C2", "C3", "C4", "C6", "C7"]) expect(criteres, [...criteres].join(",")).toContain(c);
     expect(manques.find((m) => m.critere === "C1")!.detail).toContain("« prix »");
+  });
+
+  it("C3 : « Tout le… » (déterminant) et « Il faut… » (impersonnel) ne sont pas des pronoms sans nom ; « Il » après « Le client reçoit… » a son antécédent", () => {
+    const f = fiche([
+      ["accroche", "Vos demandes de prix arrivent sans le poids ?"],
+      ["liste-avant", "Avant : un client écrit, il lui faut un camion la semaine prochaine."],
+      ["titre", "Voici ce que devient cette demande."],
+      ["etape", "Le client reçoit aussitôt un message court qui réclame le poids."],
+      ["etape", "Il répond ; la demande complète arrive chez votre équipe."],
+      ["etape", "Tout le reste de la demande attend votre exploitant."],
+      ["objet", "Il faut alors fixer le prix de la demande."],
+      ["resultat", "Résultat : votre équipe chiffre des demandes complètes."],
+      ["question", "Et chez vous, combien de demandes de prix arrivent sans le poids ?"],
+    ]);
+    expect(controlerClarte(f, lt02).filter((m) => m.critere === "C3")).toEqual([]);
+  });
+
+  it("C3 : le nom noyau d'un exemple qui s'ouvre par un adjectif (« le dernier devis ») est le nom, pas l'adjectif", () => {
+    const cas = { ...lt02, recit: { ...RECIT_LT02, exemple: "le dernier devis de ce client", motsCles: ["demandes", "prix", "poids"] } };
+    const f = fiche([
+      ["accroche", "Vos demandes de prix arrivent sans le poids ?"],
+      ["liste-avant", "Avant : un client écrit, il lui faut un camion la semaine prochaine."],
+      ["titre", "Voici la suite."],
+      ["etape", "Le dernier arrive au même endroit."],
+      ["etape", "Le dernier est trié selon le poids."],
+      ["etape", "Le dernier part chez votre équipe."],
+      ["resultat", "Résultat : plus de rappel."],
+      ["question", "Et chez vous, combien de demandes de prix arrivent sans le poids ?"],
+    ]);
+    // « dernier » n'est pas le nom noyau : seul « devis » ou un mot clé compte, et les étapes ci-dessus n'en reprennent qu'un (« poids »).
+    expect(controlerClarte(f, cas).some((m) => m.critere === "C3")).toBe(true);
   });
 
   it("(b) le script de référence passe les sept critères", () => {
