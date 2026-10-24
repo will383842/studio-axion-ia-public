@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { FIXTURES_AXION } from "@/visuels/texte/fixtures";
 import { controlerCarrousel } from "@/domaine/controles-visuel/porte";
-import { premierChiffre } from "@/domaine/controles-visuel/texte";
+import { classementDans, premierChiffre } from "@/domaine/controles-visuel/texte";
 import type { ContextePorte } from "@/domaine/visuels/contrats";
 import { creerFournisseurSimulation } from "@/visuels/texte/simulation";
 
@@ -120,6 +120,17 @@ describe("porte : classements et durées (tour 2, tour 3)", () => {
     "À la seconde près",
   ])("« %s » passe", (titre) => {
     expect(codes(specDe(titre))).toEqual([]);
+  });
+});
+
+describe("porte : un classement porte sur l'entreprise face aux autres, pas sur un événement", () => {
+  it.each(["Nous sommes leaders.", "Premier sur son marché", "Le premier fournisseur du département", "Le meilleur artisan de la région"])("« %s » est un classement", (texte) => {
+    expect(classementDans(texte)).toBeDefined();
+    expect(codes(specDe(texte))).toEqual(["CLASSEMENT"]);
+  });
+  it.each(["Le premier client de la région nous a fait confiance", "Le premier salon du métier", "Leaders, voici la méthode"])("« %s » n'est pas un classement", (texte) => {
+    expect(classementDans(texte)).toBeUndefined();
+    expect(codes(specDe(texte))).not.toContain("CLASSEMENT");
   });
 });
 
