@@ -1,0 +1,581 @@
+<title>Carrousel continu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Étude de plaquettes : page d'outil en 6 temps (bibliothèque, parcours continus, téléphone, écran, réseaux, lots). Les pages de carrousel sont des oeuvres 1080 x 1350 mises à l'échelle. */
+:root{
+  --bg:#EAE5DC; --panel:#F7F3EB; --fg:#17120E; --muted:#6A6055; --line:#D2CABD;
+  --accent:#C4501F; --accent-ink:#FFFFFF; --chip:#DDD5C7; --ok:#2F7A4B; --warn:#B7791F; --seam:#1E6BFF;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14100D; --panel:#1E1915; --fg:#F1EBE1; --muted:#A99E90; --line:#383028; --accent:#E8783F; --accent-ink:#17120E; --chip:#2C251F; --ok:#6CC38C; --warn:#E0A94A; --seam:#6FA0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14100D; --panel:#1E1915; --fg:#F1EBE1; --muted:#A99E90; --line:#383028; --accent:#E8783F; --accent-ink:#17120E; --chip:#2C251F; --ok:#6CC38C; --warn:#E0A94A; --seam:#6FA0FF; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.55 Inter,system-ui,sans-serif;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:24px 80px}
+.wrap{max-width:1180px;margin-inline:auto;display:flex;flex-direction:column;gap:64px}
+h1,h2,h3{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:800;letter-spacing:-.035em;line-height:1;text-wrap:balance;margin:0}
+h1{font-size:clamp(40px,7vw,84px)} h2{font-size:clamp(28px,4vw,44px)}
+h1 em,h2 em{font:italic 400 1.1em 'Instrument Serif',serif;letter-spacing:-.01em;color:var(--accent)}
+.lab{font:700 12px/1 'JetBrains Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+p{max-width:68ch;margin:0}.sub{color:var(--muted)}
+section{display:flex;flex-direction:column;gap:20px;min-width:0;scroll-margin-top:70px}
+.head{display:flex;flex-direction:column;gap:12px}
+.status{display:inline-flex;gap:8px;align-items:center;align-self:flex-start;background:var(--chip);border-radius:999px;padding:7px 14px;font:700 12px/1 'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase}
+.status i{width:9px;height:9px;border-radius:50%;background:var(--warn);display:block}
+nav.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;gap:8px;flex-wrap:wrap;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line)}
+nav.top a{font:600 13px/1 Inter;color:var(--fg);text-decoration:none;border:1.5px solid var(--line);padding:9px 14px;border-radius:999px}
+nav.top a:hover,nav.top a:focus-visible{border-color:var(--fg);outline:none}
+.tabs,.fam{display:flex;gap:8px;flex-wrap:wrap}
+.tabs button,.fam button{font:600 14px/1 Inter,sans-serif;border:1.5px solid var(--fg);background:transparent;color:var(--fg);padding:11px 16px;border-radius:999px;cursor:pointer}
+.tabs button[aria-pressed="true"],.fam button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;gap:6px}
+.opts{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.opts label{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
+select{font:600 14px Inter;padding:10px 12px;border-radius:10px;border:1.5px solid var(--fg);background:var(--panel);color:var(--fg)}
+.strip{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:14px}
+.strip-in{position:relative;margin-inline:auto}
+.strip-in .holder{position:absolute;inset:0;overflow:hidden;border-radius:8px}
+.seam{position:absolute;top:-8px;bottom:-8px;width:0;border-left:3px dashed var(--seam);display:none;pointer-events:none;z-index:5}
+.seam b{position:absolute;top:-2px;left:6px;font:700 11px/1 'JetBrains Mono',monospace;color:var(--seam);background:var(--panel);padding:3px 6px;border-radius:4px;white-space:nowrap}
+.show-seams .seam{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:22px}
+.gi{display:flex;flex-direction:column;gap:10px;min-width:0}
+.gi button.thumb{text-align:left;font:inherit;padding:0;border:0;background:none;cursor:pointer;border-radius:16px;overflow:hidden;position:relative;aspect-ratio:4/5;width:100%;box-shadow:0 1px 0 var(--line),0 18px 36px -22px rgba(30,15,5,.45);transition:transform .2s}
+.gi button.thumb:hover{transform:translateY(-3px)}
+.gi .cap{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.gi .cap b{font:700 14px/1.2 Inter}.gi .cap span{font:700 11px/1 'JetBrains Mono',monospace;color:var(--muted);letter-spacing:.06em}
+.modal{position:fixed;inset:0;background:rgba(10,6,3,.78);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;overflow:auto}
+.modal.on{display:flex}
+.modal .box{position:relative;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modal .x{position:fixed;top:max(14px,env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));border:0;border-radius:999px;background:#fff;color:#111;font:700 14px Inter;padding:12px 18px;cursor:pointer;z-index:60}
+.demo{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:40px;align-items:start}
+.phone{width:316px;max-width:100%;background:#0b0907;border-radius:46px;padding:14px;box-shadow:0 22px 50px rgba(0,0,0,.3)}
+.phone .bar{height:22px;display:flex;justify-content:center}.phone .bar i{width:90px;height:22px;background:#0b0907;border-radius:0 0 14px 14px;display:block}
+.ig{background:#fff;color:#111;border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
+.ig .tp{display:flex;align-items:center;gap:8px;padding:9px 10px;font:600 12px/1 Inter}
+.ig .av{width:26px;height:26px;border-radius:50%;background:#D9622B;display:grid;place-items:center;color:#14100C;font:700 11px/1 Inter}
+.ig .scr{overflow-x:auto;display:flex;scroll-snap-type:x mandatory;scrollbar-width:none;position:relative}
+.ig .scr::-webkit-scrollbar{display:none}
+.slide{flex:none;width:288px;height:360px;position:relative;overflow:hidden;scroll-snap-align:start;scroll-snap-stop:always;background:#F6EFE4}
+.ig .dots{display:flex;justify-content:center;gap:5px;padding:9px}.ig .dots i{width:6px;height:6px;border-radius:50%;background:#C9C9C9;display:block}.ig .dots i.on{background:#0095F6}
+.ig .act{display:flex;gap:12px;padding:2px 10px 10px;font-size:18px}
+.zones{position:absolute;inset:0;pointer-events:none;display:none;z-index:6}.show-zones .zones{display:block}
+.zones .m{position:absolute;inset:7.4%;border:2px dashed #1E6BFF}.zones .nogo{position:absolute;right:0;bottom:0;width:18.5%;height:14.8%;background:rgba(220,40,40,.28);border:2px solid #D22}
+.rules{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.rules li{display:grid;grid-template-columns:28px 1fr;gap:12px;align-items:start}
+.rules .n{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 13px/1 'JetBrains Mono',monospace}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}tr:last-child td{border-bottom:0}
+.tag{display:inline-block;font:700 11px/1 'JetBrains Mono',monospace;border-radius:999px;padding:5px 9px;background:var(--chip)}
+.tag.ok{background:var(--ok);color:var(--bg)}.tag.v2{background:var(--warn);color:var(--bg)}
+.cons{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel);display:grid;grid-template-columns:230px minmax(0,1fr) 270px;min-width:0}
+.cons>div{padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.cons .side{background:#17120E;color:#F1EBE1}
+.field{display:grid;gap:6px}.field>span{font:600 12px/1 Inter;letter-spacing:.04em;text-transform:uppercase}
+.fake{border:1.5px solid var(--fg);border-radius:12px;padding:11px 12px;background:var(--panel);font-size:14px;min-height:44px}
+.side .fake{border-color:#4a3f35;background:#241d17;color:#F1EBE1}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chp{border:1.5px solid currentColor;border-radius:999px;padding:7px 12px;font:600 13px/1 Inter}.chp.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.score{display:flex;align-items:baseline;gap:6px}.score b{font:800 72px/1 'Bricolage Grotesque';letter-spacing:-.04em;color:var(--ok)}.score span{font:700 16px/1 'JetBrains Mono';color:var(--muted)}
+.chk{display:grid;gap:8px;margin:0;padding:0;list-style:none;font-size:13px}.chk li{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:start}
+.chk .d{width:18px;height:18px;border-radius:5px;background:var(--ok);color:var(--bg);display:grid;place-items:center;font:900 12px/1 Inter}.chk .d.w{background:var(--warn)}
+.chk em{font:700 11px/1 'JetBrains Mono';font-style:normal;color:var(--muted)}
+.btns{display:grid;gap:8px}.btn{border:1.5px solid var(--fg);border-radius:12px;padding:12px;font:700 14px/1 Inter;text-align:center}.btn.main{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.warnbox{border-left:5px solid var(--warn);background:var(--chip);border-radius:8px;padding:10px 12px;font-size:13px}
+.lots{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:0;padding:0;list-style:none}
+.lots li{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:6px;align-content:start}
+.lots li.gate{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.lots li.gate .lab{color:inherit;opacity:.85}.lots .lab{display:block}.lots li span{font-size:14px}
+@media (max-width:900px){.demo{grid-template-columns:1fr;justify-items:center}.cons{grid-template-columns:1fr}.cons .side{order:-1}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* ======= LANGAGE VISUEL DES PAGES (début 2027) : crème, encre, orange ; icônes en relief, objets, texture ======= */
+.pg,.pano{--c:#F6EFE4;--c2:#EDE2D1;--w:#FFFBF4;--k:#14100C;--k2:#241C15;--o:#D9622B;--o2:#F08A52;--op:#F7DCC8;--mu:#51463B}
+.sf{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;letter-spacing:-.02em}
+.bf{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;letter-spacing:-.04em}
+.mf{font-family:'JetBrains Mono',monospace}
+.pg{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--c);color:var(--k);font-family:Inter,sans-serif;padding:84px 80px 0;display:flex;flex-direction:column}
+.pg *{box-sizing:border-box}
+.pg.dk{background:var(--k);color:var(--c)}.pg.or{background:var(--o);color:var(--k)}.pg.pl{background:var(--op)}
+.pg .glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(900px 700px at 105% 8%,rgba(217,98,43,.18),transparent 62%),radial-gradient(700px 600px at -10% 100%,rgba(217,98,43,.12),transparent 60%)}
+.pg.dk .glow{background:radial-gradient(900px 700px at 105% 0%,rgba(217,98,43,.3),transparent 62%),radial-gradient(800px 700px at -10% 100%,rgba(217,98,43,.14),transparent 60%)}
+.pg:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:9;opacity:.5;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.pg.dk:after{mix-blend-mode:screen;opacity:.35}
+.pg .top{display:flex;justify-content:space-between;align-items:center;height:60px;position:relative;z-index:2}
+.chip{display:inline-flex;gap:12px;align-items:center;font:700 23px/1 Inter;letter-spacing:.09em;text-transform:uppercase;padding:15px 24px;border-radius:999px;background:rgba(20,16,12,.075);white-space:nowrap}
+.dk .chip{background:rgba(246,239,228,.12)}.chip i{width:12px;height:12px;border-radius:50%;background:var(--o);display:block}
+.or .chip{background:rgba(20,16,12,.14)}.or .chip i{background:var(--k)}
+.wm{font:italic 400 46px/1 'Instrument Serif',serif;white-space:nowrap}.wm b{font-style:italic;font-weight:400;color:var(--o)}.or .wm b{color:var(--k)}
+.main{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;min-height:0;padding:52px 0 150px}
+.t{font:800 var(--s,132px)/.94 'Bricolage Grotesque',sans-serif;letter-spacing:-.045em;word-spacing:.08em;margin:0;text-wrap:balance}
+.t em,.ser{font:italic 400 1.1em/.9 'Instrument Serif',serif;letter-spacing:-.015em;color:var(--o);word-spacing:0}
+.or .t em{color:var(--k)}
+.p{font:500 38px/1.32 Inter,sans-serif;color:var(--mu);margin:0}.dk .p{color:#CDBFAE}.or .p{color:var(--k)}
+.lb{font:700 24px/1 Inter;letter-spacing:.1em;text-transform:uppercase}
+.card{background:var(--w);border-radius:44px;padding:40px;box-shadow:0 0 0 1.5px rgba(20,16,12,.06),inset 0 2px 0 rgba(255,255,255,.9),0 44px 60px -34px rgba(70,30,8,.42);position:relative}
+.card.k{background:linear-gradient(160deg,#2B2118,#171009);color:var(--c);box-shadow:inset 0 2px 0 rgba(255,255,255,.12),0 44px 60px -34px rgba(20,8,0,.7)}
+.card.o{background:linear-gradient(150deg,#F08A52,#D9622B 60%,#C4501F);color:var(--k);box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 44px 60px -34px rgba(120,40,8,.6)}
+.card.pl{background:linear-gradient(160deg,#FBE9DA,#F4D2B6)}.card.c{background:var(--c2);box-shadow:none}
+.card.glass{background:linear-gradient(160deg,rgba(255,251,244,.14),rgba(255,251,244,.04));box-shadow:inset 0 0 0 1.5px rgba(246,239,228,.18),inset 0 2px 0 rgba(255,255,255,.2);color:var(--c)}
+.h3{font:800 54px/1 'Bricolage Grotesque';letter-spacing:-.035em;margin:0}
+.h4{font:700 40px/1.05 'Bricolage Grotesque';letter-spacing:-.03em;margin:0}
+.sm{font:500 31px/1.3 Inter;margin:0;opacity:.78}
+.foot{position:absolute;left:80px;right:80px;bottom:58px;display:flex;flex-direction:column;gap:22px;z-index:10}
+.foot .row{display:flex;gap:30px;align-items:center;font:700 25px/1 'JetBrains Mono',monospace;letter-spacing:.05em}
+.foot .hint{opacity:.55;font-weight:500}
+.rail{height:5px;border-radius:3px;background:rgba(20,16,12,.12);position:relative}.dk .rail{background:rgba(246,239,228,.18)}
+.rail u{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--o);display:block}
+.tagx{display:inline-flex;align-self:flex-start;font:700 22px/1 Inter;letter-spacing:.07em;text-transform:uppercase;padding:12px 18px;border-radius:12px;background:var(--op);color:var(--k)}
+.ab{position:absolute}
+.tg{width:104px;height:60px;border-radius:30px;background:#CFC3B1;position:relative;flex:none;box-shadow:inset 0 3px 6px rgba(0,0,0,.18)}.tg::after{content:"";position:absolute;left:6px;top:6px;width:48px;height:48px;border-radius:50%;background:#fff;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.tg.on{background:linear-gradient(90deg,#F08A52,#D9622B)}.tg.on::after{left:50px}
+.bub{border-radius:34px;padding:26px 32px;font:500 34px/1.3 Inter;max-width:760px}
+.bub.l{background:var(--w);border-bottom-left-radius:10px;box-shadow:0 0 0 1.5px rgba(20,16,12,.06),0 20px 30px -20px rgba(70,30,8,.4)}.bub.r{background:var(--k);color:var(--c);border-bottom-right-radius:10px;align-self:flex-end}.bub.ro{background:linear-gradient(150deg,#F08A52,#D9622B);color:var(--k);border-bottom-right-radius:10px;align-self:flex-end}
+.pill{display:inline-flex;gap:14px;align-items:center;border-radius:999px;padding:16px 26px 16px 18px;font:700 28px/1 Inter;background:var(--w);box-shadow:0 0 0 1.5px rgba(20,16,12,.06),0 20px 30px -18px rgba(70,30,8,.45);white-space:nowrap}
+.pano{position:absolute;left:0;top:0;height:1350px;transform-origin:0 0;background:var(--c);color:var(--k);font-family:Inter,sans-serif;overflow:hidden}
+.pano *{box-sizing:border-box}
+.pano .bg{position:absolute;top:0;height:1350px}
+.pano .grainw{position:absolute;inset:0;pointer-events:none;z-index:9;opacity:.5;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <radialGradient id="gS" cx="34%" cy="28%" r="78%"><stop offset="0" stop-color="#FFD2AE"/><stop offset=".38" stop-color="#F08A52"/><stop offset=".78" stop-color="#C9511D"/><stop offset="1" stop-color="#8F3410"/></radialGradient>
+  <radialGradient id="gK" cx="34%" cy="28%" r="78%"><stop offset="0" stop-color="#5B4B3E"/><stop offset=".5" stop-color="#241C15"/><stop offset="1" stop-color="#0E0905"/></radialGradient>
+  <linearGradient id="gO" x1="0" x2="1"><stop offset="0" stop-color="#F08A52"/><stop offset="1" stop-color="#D9622B"/></linearGradient>
+  <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D9622B" stop-opacity=".34"/><stop offset="1" stop-color="#D9622B" stop-opacity="0"/></linearGradient>
+  <linearGradient id="gGl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".75"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".12"/></linearGradient>
+  <linearGradient id="pO" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFA66E"/><stop offset="1" stop-color="#D9622B"/></linearGradient>
+  <linearGradient id="pK" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4A3B2F"/><stop offset="1" stop-color="#1D1510"/></linearGradient>
+  <linearGradient id="pP" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF3E6"/><stop offset="1" stop-color="#F2C9A8"/></linearGradient>
+  <linearGradient id="gSt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A2D22"/><stop offset="1" stop-color="#14100C"/></linearGradient>
+  <filter id="fsh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="26" stdDeviation="22" flood-color="#5a2208" flood-opacity=".34"/></filter>
+</defs></svg>
+
+<main class="wrap" id="top">
+  <header class="head">
+    <span class="status"><i></i>Maquettes à valider · rien n'est codé</span>
+    <h1>Plaquettes et <em>carrousel continu</em></h1>
+    <p class="sub">Version fixe : les images ne bougent pas, l'effet vient du glissement (les vidéos auront leur propre générateur indépendant). Style début 2027 : icônes en relief, objets illustrés, cartes en verre et en bento, texture fine, titres Bricolage avec accent en serif. Même crème, même encre, même orange. Cliquez une plaquette pour la voir en grand.</p>
+  </header>
+  <nav class="top" aria-label="Sections"><a href="#plaquettes">Plaquettes</a><a href="#parcours">Parcours continus</a><a href="#telephone">Téléphone</a><a href="#ecran">Écran</a><a href="#reseaux">Réseaux</a></nav>
+
+  <section id="plaquettes" aria-labelledby="s1">
+    <div class="head"><span class="lab">1 · La bibliothèque</span><h2 id="s1"><span id="count">27</span> plaquettes, <em>six familles</em></h2>
+    <p class="sub">Le générateur en combine 4 à 10 par carrousel avec les règles de variété (jamais deux pages de la même famille à la suite, une seule page sombre).</p></div>
+    <div class="fam" id="fam" role="group" aria-label="Filtrer par famille"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="parcours" aria-labelledby="s2">
+    <div class="head"><span class="lab">2 · Les parcours continus</span><h2 id="s2">Huit façons de <em>glisser</em></h2></div>
+    <div class="tabs" id="tabs" role="group" aria-label="Choisir un parcours"></div>
+    <div class="note" id="pano-note"></div>
+    <div class="opts"><label><input type="checkbox" id="chk-seams" checked> Montrer les coutures (là où le réseau coupe)</label></div>
+    <div class="strip" id="strip"><div class="strip-in" id="strip-in"></div></div>
+  </section>
+
+  <section id="telephone" aria-labelledby="s3">
+    <div class="head"><span class="lab">3 · Ce que voit le lecteur</span><h2 id="s3">Faites glisser <em>dans le téléphone</em></h2></div>
+    <div class="demo">
+      <div class="phone"><div class="bar"><i></i></div>
+        <div class="ig" id="ig"><div class="tp"><span class="av">A</span><span>axion.ia</span><span style="margin-left:auto">···</span></div>
+          <div class="scr" id="scr"></div><div class="act"><span>♡</span><span>💬</span><span>➤</span><span style="margin-left:auto">⚑</span></div><div class="dots" id="dots"></div></div></div>
+      <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <div class="opts"><label for="sel">Parcours</label><select id="sel"></select>
+        <label><input type="checkbox" id="chk-zones"> Zones sûres de la page 1</label></div>
+        <ul class="rules">
+          <li><span class="n">1</span><span><strong>Page 1 lisible seule</strong>, promesse en moins de 10 mots.</span></li>
+          <li><span class="n">2</span><span><strong>Un élément dépasse sur la couture</strong> pour inviter à glisser, hors du coin bas droit.</span></li>
+          <li><span class="n">3</span><span><strong>Aucun mot coupé en deux.</strong> Chaque page se comprend seule si le réseau l'affiche en mosaïque.</span></li>
+          <li><span class="n">4</span><span><strong>Rien de fin sur la couture</strong> : un trait fin ou un dégradé qui tombe pile sur la jonction montre un écart de teinte après compression.</span></li>
+          <li><span class="n">5</span><span><strong>Texte à 30 px ou plus</strong>, marge de 80 px, orange réservé aux grands titres.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="ecran" aria-labelledby="s4">
+    <div class="head"><span class="lab">4 · L'écran dans la console du studio</span><h2 id="s4">Le <em>générateur</em></h2>
+    <p class="sub">Rien ne part sans validation : « Valider » met la fiche en attente de publication, il ne publie pas.</p></div>
+    <div class="cons">
+      <div class="side"><span class="lab" style="color:#A99E90">Nouveau carrousel continu</span>
+        <div class="field"><span>Sujet</span><div class="fake">Par où commencer avec l'IA quand on dirige une petite entreprise</div></div>
+        <div class="field"><span>Réseau</span><div class="chips"><span class="chp on">Instagram</span><span class="chp on">Facebook</span><span class="chp" style="opacity:.55">LinkedIn · V2</span></div></div>
+        <div class="field"><span>Parcours</span><div class="fake">Le chemin · 4 pages</div></div>
+        <div class="field"><span>Plaquettes autorisées</span><div class="chips"><span class="chp on">Couvertures</span><span class="chp on">Listes</span><span class="chp on">Cas</span><span class="chp">Données</span><span class="chp on">Appel</span></div></div>
+        <div class="field"><span>Variété</span><div class="fake" style="min-height:0;padding:10px"><div style="height:8px;border-radius:4px;background:#4a3f35;position:relative"><div style="position:absolute;left:0;top:0;height:8px;width:70%;border-radius:4px;background:var(--accent)"></div></div></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><span class="lab">Aperçu · 4 pages · 4320 × 1350</span><span class="tag">Instagram 4:5</span></div>
+        <div class="strip" id="cons-strip" style="padding:10px"><div class="strip-in show-seams" id="cons-in"></div></div>
+        <div class="warnbox"><strong>À corriger avant de valider :</strong> la phrase de la page 3 passe à 10 px de la couture. Déplacez-la de 40 px, ou « Refaire » propose une variante.</div>
+        <div class="field"><span>Texte du post · prêt à relire</span><div class="fake" style="font-size:13px">Chaque entreprise qui nous écrit pose la même question : par où commencer ? Voici le chemin en trois étapes. Faites glisser. Enregistrez pour y revenir.</div></div>
+      </div>
+      <div><span class="lab">Note de la fiche</span><div class="score"><b>92</b><span>/ 100</span></div>
+        <p class="sub" style="font-size:13px">90 et plus : présentable. 85 à 89 : retouche automatique. Sous 85 : refait.</p>
+        <ul class="chk"><li><span class="d">✓</span><span>Page 1 lisible seule</span><em>15</em></li><li><span class="d">✓</span><span>Aucun mot coupé par une couture</span><em>12</em></li><li><span class="d">✓</span><span>Texte ≥ 26 px mesuré</span><em>12</em></li><li><span class="d">✓</span><span>Contraste, orange en grands titres</span><em>8</em></li><li><span class="d w">!</span><span>Zone sûre : 1 texte proche de la couture</span><em>7/10</em></li><li><span class="d">✓</span><span>Charte, mots interdits, faits</span><em>15</em></li></ul>
+        <div class="btns"><div class="btn main">Valider</div><div class="btn">Refaire</div><div class="btn">Refuser (motif)</div><div class="btn">Corbeille</div></div></div>
+    </div>
+  </section>
+
+  <section id="reseaux" aria-labelledby="s5">
+    <div class="head"><span class="lab">5 · Où on le publie</span><h2 id="s5">Réseaux de la <em>première version</em></h2></div>
+    <div class="tbl"><table><thead><tr><th>Réseau</th><th>Version</th><th>Sortie</th><th>À savoir</th></tr></thead><tbody>
+      <tr><td><strong>Instagram</strong></td><td><span class="tag ok">V1</span></td><td>N images 1080 × 1350 (4:5) ou 1080 × 1440 (3:4)</td><td>La page 1 fixe le recadrage de toutes les autres.</td></tr>
+      <tr><td><strong>Facebook</strong></td><td><span class="tag ok">V1</span></td><td>Les mêmes images, 10 pages au plus</td><td>Affichage parfois en mosaïque : essai réel obligatoire.</td></tr>
+      <tr><td><strong>LinkedIn</strong></td><td><span class="tag v2">V2</span></td><td>Un PDF, mêmes pages</td><td>Flèche et zone plein écran en bas à droite à éviter.</td></tr></tbody></table></div>
+  </section>
+</main>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Plaquette en grand"><button class="x" id="mx" type="button">Fermer</button><div class="box" id="mbox"></div></div>
+
+<script>
+(function(){
+var W=1080,H=1350;
+/* ---------- icônes duotones : f = forme pleine (teinte 24 %), s = traits ---------- */
+var IC={
+mail:{f:'M3 7a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z',s:'M3.5 7.5l8.5 6 8.5-6'},
+clock:{f:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',s:'M12 7.5V12l3 2'},
+shield:{f:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',s:'M8.5 12l2.5 2.5L15.5 10'},
+layers:{f:'M12 3l9 5-9 5-9-5z',s:'M3 12.5l9 5 9-5M3 16.5l9 5 9-5'},
+users:{f:'M9 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',s:'M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6M17.5 6.5a2.5 2.5 0 1 1 0 5M17 14c3 0 5 2 5 5'},
+check:{f:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',s:'M7.5 12.5l3 3 6-6.5'},
+x:{f:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',s:'M8.5 8.5l7 7M15.5 8.5l-7 7'},
+arrow:{f:'',s:'M5 12h14M13 6l6 6-6 6'},
+bookmark:{f:'M7 3h10v18l-5-4-5 4z',s:''},
+send:{f:'M3 11l18-8-8 18-2-8z',s:'M11 13l10-10'},
+calendar:{f:'M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z',s:'M3 10h18M8 3v4M16 3v4'},
+target:{f:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',s:'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 11.2a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6z'},
+doc:{f:'M6 3h8l4 4v14H6z',s:'M14 3v4h4M9 12h6M9 16h6'},
+chat:{f:'M4 5h16v11H9l-5 4z',s:'M8 9.5h8M8 12.5h5'},
+gear:{f:'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',s:'M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1'},
+chart:{f:'M5 14l4-5 3 3 6-7v13H5z',s:'M4 20V4M4 20h16M5 14l4-5 3 3 6-7'},
+spark:{f:'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',s:'M19 16v4M17 18h4'},
+bolt:{f:'M13 2L4 14h7l-1 8 9-12h-7z',s:''},
+lock:{f:'M5 11h14v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z',s:'M8 11V8a4 4 0 0 1 8 0v3M12 15v2'},
+search:{f:'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z',s:'M16.5 16.5L21 21'},
+bell:{f:'M6 17V11a6 6 0 0 1 12 0v6l2 2H4z',s:'M10 21h4'},
+folder:{f:'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',s:''},
+euro:{f:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',s:'M15 9a4 4 0 1 0 0 6M8 11h5M8 13.5h5'},
+receipt:{f:'M6 3h12v18l-3-2-3 2-3-2-3 2z',s:'M9 8h6M9 12h6'},
+bulb:{f:'M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z',s:'M10 21h4'},
+cursor:{f:'M5 3l14 7-6 2-2 6z',s:''},
+flag:{f:'M5 4h12l-2 4 2 4H5z',s:'M5 21V4'},
+link:{f:'',s:'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'},
+eye:{f:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z',s:'M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z'},
+trend:{f:'',s:'M3 17l6-6 4 4 8-8M15 7h6v6'},
+hourglass:{f:'M6 3h12v4l-5 5 5 5v4H6v-4l5-5-5-5z',s:''}
+};
+function ic(n,s,c,w){var d=IC[n];return '<svg viewBox="0 0 24 24" width="'+s+'" height="'+s+'" fill="none" stroke="'+(c||'currentColor')+'" stroke-width="'+(w||1.8)+'" stroke-linecap="round" stroke-linejoin="round" style="display:block">'+(d.f?'<path d="'+d.f+'" fill="'+(c||'currentColor')+'" fill-opacity=".24"/>':'')+(d.s?'<path d="'+d.s+'"/>':'')+'</svg>'}
+var TB={o:'linear-gradient(145deg,#FFA66E 0%,#D9622B 58%,#B8481A 100%)',k:'linear-gradient(145deg,#52412F,#1D1510 62%,#0E0905)',w:'linear-gradient(145deg,#FFFFFF,#F1E6D6)',p:'linear-gradient(145deg,#FDEBDD,#F2C6A2)',g:'linear-gradient(145deg,rgba(255,255,255,.26),rgba(255,255,255,.06))'};
+var TC={o:'#FFF4E8',k:'#FFA66E',w:'#D9622B',p:'#B8481A',g:'#F6EFE4'};
+function tile(n,sz,v){v=v||'o';var r=Math.round(sz*.3),bl=Math.round(sz*.05);return '<span style="display:grid;place-items:center;flex:none;width:'+sz+'px;height:'+sz+'px;border-radius:'+r+'px;background:'+TB[v]+';color:'+TC[v]+';box-shadow:inset 0 2px 0 rgba(255,255,255,'+(v=='k'?.18:.6)+'),inset 0 -'+bl+'px 0 rgba(0,0,0,.13),'+(v=='g'?'inset 0 0 0 1.5px rgba(246,239,228,.22),':'')+'0 '+Math.round(sz*.22)+'px '+Math.round(sz*.3)+'px -'+Math.round(sz*.12)+'px rgba(70,25,5,.5)">'+ic(n,Math.round(sz*.54),'currentColor',1.7)+'</span>'}
+function pad(n){return (n<10?'0':'')+n}
+function ab(st,h){return '<div class="ab" style="'+st+'">'+h+'</div>'}
+function spk(x,y,s,c){return ab('left:'+x+'px;top:'+y+'px','<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0c.6 6.5 5.5 11.4 12 12-6.5.6-11.4 5.5-12 12-.6-6.5-5.5-11.4-12-12 6.5-.6 11.4-5.5 12-12z" fill="'+(c||'#D9622B')+'"/></svg>')}
+function sph(r,dark){var d=r*2;return '<svg width="'+d+'" height="'+d+'" viewBox="0 0 '+d+' '+d+'" style="display:block;overflow:visible" aria-hidden="true"><circle cx="'+r+'" cy="'+r+'" r="'+(r*.98)+'" fill="url(#'+(dark?'gK':'gS')+')" filter="url(#fsh)"/><ellipse cx="'+(r*.62)+'" cy="'+(r*.46)+'" rx="'+(r*.34)+'" ry="'+(r*.2)+'" fill="url(#gGl)" transform="rotate(-28 '+(r*.62)+' '+(r*.46)+')"/></svg>'}
+function foot(o){return '<div class="foot"><div class="row"><span>'+pad(o.n)+' / '+pad(o.N)+'</span><span class="hint">'+(o.last?'enregistrer':'glisser →')+'</span></div><div class="rail"><u style="width:'+(o.n/o.N*100)+'%"></u></div></div>'}
+function pg(o,inner,extra){return '<div class="pg '+(o.dk?'dk ':'')+(o.or?'or ':'')+(o.pl?'pl ':'')+'">'+(o.glow===0?'':'<div class="glow"></div>')+(extra||'')+'<div class="top"><span class="chip"'+(o.chip?'':' style="visibility:hidden"')+'><i></i>'+(o.chip||'.')+'</span><span class="wm">Axion-<b>IA</b></span></div><div class="main">'+inner+'</div>'+foot(o)+'</div>'}
+function T(s,h,st){return '<h1 class="t" style="--s:'+s+'px;'+(st||'')+'">'+h+'</h1>'}
+function P(h,st){return '<p class="p" style="'+(st||'')+'">'+h+'</p>'}
+
+/* ---------- grands objets illustrés ---------- */
+function heroOrbit(S){var c=S/2,R=S*.43,r=S*.25,ts=Math.round(S*.19);
+  var h='<div style="position:relative;width:'+S+'px;height:'+S+'px"><svg width="'+S+'" height="'+S+'" style="position:absolute;left:0;top:0" aria-hidden="true"><circle cx="'+c+'" cy="'+c+'" r="'+R+'" fill="none" stroke="#14100C" stroke-opacity=".2" stroke-width="3" stroke-dasharray="4 16" stroke-linecap="round"/><circle cx="'+c+'" cy="'+c+'" r="'+(R*.72)+'" fill="none" stroke="#D9622B" stroke-opacity=".4" stroke-width="3"/></svg>'+ab('left:'+(c-r)+'px;top:'+(c-r)+'px',sph(r));
+  [['mail',-150,'w'],['calendar',-30,'o'],['chart',58,'k'],['chat',150,'p']].forEach(function(t){var a=t[1]*Math.PI/180;h+=ab('left:'+(c+R*Math.cos(a)-ts/2)+'px;top:'+(c+R*Math.sin(a)-ts/2)+'px',tile(t[0],ts,t[2]))});
+  return h+'</div>'}
+function notif(i,t,s,v){return '<div class="card" style="padding:20px 22px;border-radius:34px;display:flex;gap:18px;align-items:center">'+tile(i,76,v)+'<div><b style="font:700 28px/1.1 Inter;display:block">'+t+'</b><span style="font:500 23px/1.2 Inter;opacity:.65;display:block;margin-top:4px">'+s+'</span></div></div>'}
+function heroPhone(rot){return '<div style="width:430px;height:860px;border-radius:78px;background:#14100C;padding:16px;box-shadow:0 70px 80px -30px rgba(50,20,5,.65),inset 0 0 0 3px #3a2f26;transform:rotate('+(rot==null?-6:rot)+'deg)"><div style="width:100%;height:100%;border-radius:64px;background:#F6EFE4;position:relative;overflow:hidden;padding:30px 24px;display:flex;flex-direction:column;gap:18px"><div style="width:130px;height:36px;border-radius:20px;background:#14100C;margin:0 auto 18px"></div>'+notif('mail','Devis Martin','Relance prête à partir','o')+notif('calendar','Jeudi 10 h','Rendez-vous confirmé','k')+notif('doc','Compte rendu','Prêt à relire','w')+notif('check','Tout est à jour','Rien à signaler','p')+'</div></div>'}
+function heroDash(w){var h=Math.round(w*.78);var line='M0 150 C 60 140 90 130 140 110 S 220 70 280 50 S 340 20 400 10';
+  return '<div class="card" style="width:'+w+'px;height:'+h+'px;padding:0;border-radius:52px;overflow:hidden;display:flex"><div style="width:132px;background:var(--c2);padding:34px 0;display:flex;flex-direction:column;align-items:center;gap:22px">'+tile('spark',72,'o')+tile('mail',72,'w')+tile('calendar',72,'w')+tile('chart',72,'w')+'</div>'+
+  '<div style="flex:1;padding:34px;display:flex;flex-direction:column;gap:24px;min-width:0"><div style="display:flex;gap:12px;flex-wrap:wrap"><span class="pill" style="font-size:25px;padding:12px 20px 12px 14px">'+tile('clock',44,'p')+'2 relances prêtes</span><span class="pill" style="font-size:25px;padding:12px 20px 12px 14px">'+tile('check',44,'o')+'À jour</span></div>'+
+  '<div style="flex:1;border-radius:34px;background:var(--c2);padding:26px 26px 0;position:relative;overflow:hidden;min-height:0"><span class="lb" style="font-size:20px;opacity:.55">Activité</span><svg viewBox="0 0 400 170" style="position:absolute;left:0;right:0;bottom:0;width:100%;height:70%" preserveAspectRatio="none"><path d="'+line+' L400 170 L0 170Z" fill="url(#gA)"/><path d="'+line+'" fill="none" stroke="#D9622B" stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg></div>'+
+  '<div style="display:flex;flex-direction:column;gap:14px">'+[['mail','Devis Martin','relance prête'],['doc','Réunion du lundi','compte rendu']].map(function(r){return '<div style="display:flex;align-items:center;gap:18px">'+tile(r[0],58,'o')+'<b style="font:600 28px Inter;flex:1">'+r[1]+'</b><span style="font:500 24px Inter;opacity:.55">'+r[2]+'</span></div>'}).join('')+'</div></div></div>'}
+function heroDeck(){function cd(x,y,r,i,t,v,z){return ab('left:'+x+'px;top:'+y+'px;transform:rotate('+r+'deg);z-index:'+z,'<div class="card '+(v||'')+'" style="width:330px;height:450px;padding:34px;border-radius:52px;display:flex;flex-direction:column;justify-content:space-between">'+tile(i,150,v=='k'?'o':(v=='o'?'k':'o'))+'<div><b class="bf" style="font-size:46px;line-height:1;display:block">'+t+'</b><span style="display:block;height:12px;border-radius:6px;background:currentColor;opacity:.14;margin-top:20px;width:80%"></span><span style="display:block;height:12px;border-radius:6px;background:currentColor;opacity:.14;margin-top:12px;width:56%"></span></div></div>')}
+  return '<div style="position:relative;width:960px;height:640px">'+cd(20,130,-12,'calendar','Un cas','pl',1)+cd(600,130,12,'shield','Validé','k',1)+cd(290,40,0,'target','Le bon','o',2)+'</div>'}
+function plate(cx,y,w,h,t,top,l,r){return '<polygon points="'+cx+','+y+' '+(cx+w)+','+(y+h)+' '+cx+','+(y+2*h)+' '+(cx-w)+','+(y+h)+'" fill="'+top+'"/><polygon points="'+(cx-w)+','+(y+h)+' '+cx+','+(y+2*h)+' '+cx+','+(y+2*h+t)+' '+(cx-w)+','+(y+h+t)+'" fill="'+l+'"/><polygon points="'+cx+','+(y+2*h)+' '+(cx+w)+','+(y+h)+' '+(cx+w)+','+(y+h+t)+' '+cx+','+(y+2*h+t)+'" fill="'+r+'"/>'}
+function heroLayers(S){return '<div style="position:relative;width:'+S+'px;height:'+S+'px"><svg width="'+S+'" height="'+S+'" viewBox="0 0 700 700" aria-hidden="true" style="overflow:visible"><g filter="url(#fsh)">'+plate(350,430,300,150,44,'url(#pP)','#E3B896','#C99B78')+plate(350,320,300,150,44,'url(#pK)','#120C07','#0B0704')+plate(350,210,300,150,44,'url(#pO)','#B8481A','#9A3A12')+'</g></svg>'+ab('left:'+(S*.4)+'px;top:'+(S*.2)+'px',tile('spark',Math.round(S*.2),'w'))+'</div>'}
+
+var L=[]; function add(fam,name,fn){L.push({fam:fam,name:name,fn:fn})}
+
+/* ===== COUVERTURES ===== */
+add('Couvertures','Orbite',function(){return pg({n:1,N:8,chip:'IA pour les entreprises'},
+  T(150,'Par où <em>commencer</em> avec l’IA&nbsp;?','margin-top:20px')+P('Les outils se multiplient. Votre temps, non.','margin-top:36px;max-width:470px'),
+  ab('left:340px;top:620px',heroOrbit(820))+spk(900,300,70)+spk(840,190,34,'#14100C'))});
+add('Couvertures','Question sur fond sombre',function(){return pg({n:1,N:8,chip:'Le constat',dk:1},
+  T(140,'Perdus face à l’IA&nbsp;?','margin-top:30px;max-width:640px')+P('La plupart des entreprises ne savent pas par où commencer. Vous n’êtes pas seul.','margin-top:44px;max-width:560px'),
+  ab('right:-70px;top:150px;font:italic 400 1250px/0.8 Instrument Serif,serif;color:#D9622B;letter-spacing:-.05em;opacity:.95','?')+
+  ab('left:120px;top:880px;transform:rotate(-8deg)',tile('clock',210,'g'))+ab('left:430px;top:1000px;transform:rotate(6deg)',tile('users',170,'g'))+ab('left:690px;top:830px;transform:rotate(-4deg)',tile('chart',190,'o'))+spk(350,770,60)+spk(930,1060,44,'#F6EFE4'))});
+add('Couvertures','Sommaire illustré',function(){
+  var rows=[['01','target','La tâche qui vous pèse'],['02','users','Qui s’en occupe'],['03','chart','Comment mesurer']].map(function(r,i){return '<div class="card" style="display:flex;align-items:center;gap:30px;padding:26px 34px;border-radius:44px"><span class="bf" style="font-size:74px;line-height:1;width:112px;color:'+(i==0?'var(--o)':'var(--k)')+'">'+r[0]+'</span><b class="h4" style="flex:1;font-size:42px">'+r[2]+'</b>'+tile(r[1],104,i==0?'o':'p')+'</div>'}).join('');
+  return pg({n:1,N:8,chip:'Pour démarrer'},T(120,'3 questions pour savoir <em>par où commencer</em>','max-width:900px')+'<div style="margin-top:auto;display:flex;flex-direction:column;gap:20px">'+rows+'</div>',ab('right:-120px;top:560px;opacity:.9',sph(190)))});
+add('Couvertures','Cartes en éventail',function(){return pg({n:1,N:8,chip:'Une idée reçue'},
+  T(150,'Un seul <em>cas</em>, bien choisi.','margin-top:20px;max-width:900px')+P('Pas dix projets d’un coup.','margin-top:34px'),
+  ab('left:60px;top:690px',heroDeck())+spk(930,620,52))});
+add('Couvertures','Fenêtre d’application',function(){return pg({n:1,N:8,chip:'Automatiser'},
+  T(120,'Et si la relance se faisait <em>toute seule</em>&nbsp;?','max-width:900px'),
+  ab('left:80px;top:560px',heroDash(920))+ab('left:610px;top:1040px;transform:rotate(3deg)','<span class="pill" style="font-size:30px">'+tile('send',64,'o')+'Relance envoyée</span>')+spk(900,470,44))});
+add('Couvertures','Manifeste et plaques',function(){return pg({n:1,N:8,chip:'Axion-IA',pl:1},
+  '<div class="sf" style="font-size:134px;line-height:.98;margin-top:20px">On ne vous vend pas de l’IA. On vous dit <span style="color:var(--o)">par où commencer.</span></div>',
+  ab('left:430px;top:760px',heroLayers(700))+spk(110,1000,60)+spk(200,900,28,'#14100C'))});
+add('Couvertures','Téléphone',function(){return pg({n:1,N:8,chip:'Au quotidien'},
+  T(138,'Votre journée, <em>sans les relances</em>','margin-top:16px;max-width:560px')+P('Tout ce qui revient chaque semaine, préparé pour vous.','margin-top:36px;max-width:400px'),
+  ab('left:600px;top:420px',heroPhone(-6))+ab('left:60px;top:900px',tile('bell',150,'o'))+spk(470,980,48))});
+
+/* ===== LISTES ===== */
+add('Listes','Bento illustré',function(){
+  function tl(cls,i,t,s,st,v){return '<div class="card '+cls+'" style="display:flex;flex-direction:column;justify-content:space-between;padding:34px;'+(st||'')+'">'+tile(i,124,v)+'<div><b class="bf" style="font-size:50px;line-height:1;display:block">'+t+'</b><p class="sm" style="margin-top:10px">'+s+'</p></div></div>'}
+  return pg({n:3,N:8,chip:'Ce qui freine'},T(100,'Ce qui vous freine, <em>souvent</em>','margin-bottom:40px')+
+   '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.2fr 1fr;gap:22px">'+tl('o','layers','Trop d’outils','Lequel choisir ?','grid-row:span 2','k')+tl('','hourglass','Pas le temps','Le métier d’abord.','','o')+tl('k','lock','Peur pour les données','Où vont-elles ?','','o')+'</div>')});
+add('Listes','Liste à gros chiffres',function(){
+  var r=[['Auditer','On repère où le temps se perd.','search'],['Choisir','Un premier cas, avec vous.','target'],['Installer','Chez vous, à votre façon.','gear'],['Suivre','On ajuste tant que c’est utile.','trend']].map(function(x,i){return '<div class="card" style="display:flex;gap:28px;align-items:center;padding:22px 30px;border-radius:40px"><span class="bf" style="font-size:96px;line-height:.9;width:92px;color:'+(i==0?'var(--o)':'var(--k)')+'">'+(i+1)+'</span><div style="flex:1"><b class="bf" style="font-size:48px;display:block;line-height:1">'+x[0]+'</b><p class="sm" style="margin-top:6px;font-size:29px">'+x[1]+'</p></div>'+tile(x[2],104,i==0?'o':'p')+'</div>'}).join('');
+  return pg({n:4,N:8,chip:'Notre rôle'},T(100,'Ce qu’on fait <em>pour vous</em>','margin-bottom:34px')+'<div style="display:flex;flex-direction:column;gap:18px">'+r+'</div>')});
+add('Listes','Escalier',function(){
+  function st(i,l,h,ico){return '<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:18px;align-items:center">'+tile(ico,118,i==3?'o':'w')+'<div style="width:100%;height:'+h+'px;border-radius:30px 30px 0 0;background:'+(i==3?'linear-gradient(180deg,#FFA66E,#D9622B)':'linear-gradient(180deg,#3A2D22,#14100C)')+';color:'+(i==3?'var(--k)':'var(--c)')+';padding:26px 20px;font:800 36px/1.05 Bricolage Grotesque,sans-serif;letter-spacing:-.03em">'+l+'</div></div>'}
+  return pg({n:5,N:8,chip:'Un pas après l’autre'},T(110,'On avance <em>par étapes</em>','margin-bottom:20px')+
+   '<div style="margin-top:auto;display:flex;gap:14px;align-items:flex-end;position:relative">'+st(0,'Écouter',210,'users')+st(1,'Choisir',340,'target')+st(2,'Installer',470,'gear')+st(3,'Suivre',600,'flag')+'</div>',spk(900,300,60))});
+add('Listes','Chronologie',function(){
+  var it=[['Jour 1','Le devis part, la relance est prête.','mail'],['Jour 3','Rappel doux, sans y penser.','bell'],['Jour 7','Réponse reçue ou nouvelle piste.','check']].map(function(x,i){return '<div style="display:flex;gap:36px;position:relative;padding-bottom:'+(i==2?0:46)+'px"><div style="width:120px;display:flex;flex-direction:column;align-items:center">'+tile(x[2],120,i==2?'o':'k')+(i==2?'':'<span style="flex:1;width:8px;margin-top:10px;border-radius:4px;background:repeating-linear-gradient(var(--o) 0 14px,transparent 14px 26px)"></span>')+'</div><div style="padding-top:10px"><div class="lb" style="color:var(--o)">'+x[0]+'</div><b class="bf" style="font-size:50px;line-height:1.02;display:block;margin-top:12px">'+x[1]+'</b></div></div>'}).join('');
+  return pg({n:5,N:8,chip:'Cas concret'},'<span class="tagx" style="margin-bottom:24px">Scénario type · exemple illustratif</span>'+T(104,'Un devis, <em>de bout en bout</em>','margin-bottom:50px')+it)});
+add('Listes','Checklist',function(){
+  var r=[['Un seul cas choisi','target',1],['Une personne responsable','users',1],['Un critère de réussite','chart',1],['Vous validez avant l’envoi','shield',1],['Tout automatiser d’un coup','bolt',0]].map(function(x){return '<div class="card" style="display:flex;align-items:center;gap:26px;padding:20px 30px;border-radius:40px;'+(x[2]?'':'opacity:.6')+'">'+tile(x[1],90,x[2]?'o':'p')+'<span style="font:600 38px/1.12 Inter;flex:1;'+(x[2]?'':'text-decoration:line-through')+'">'+x[0]+'</span><span class="tg '+(x[2]?'on':'')+'"></span></div>'}).join('');
+  return pg({n:6,N:8,chip:'À cocher'},T(100,'Avant de <em>lancer</em>','margin-bottom:36px')+'<div style="display:flex;flex-direction:column;gap:18px">'+r+'</div>')});
+add('Listes','Matrice effort / impact',function(){
+  function dot(x,y,l,hot){return ab('left:'+x+'px;top:'+y+'px;display:flex;align-items:center;gap:16px;transform:translateY(-50%)',tile(hot?'target':'bulb',hot?96:72,hot?'k':'w')+'<b style="font:700 31px Inter">'+l+'</b>')}
+  return pg({n:6,N:8,chip:'Prioriser'},T(96,'Commencez <em>par là</em>','margin-bottom:34px')+
+   '<div style="flex:1;position:relative;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:16px;margin-left:50px;margin-bottom:46px"><div class="card c" style="border-radius:40px"></div><div class="card o" style="border-radius:40px"><span class="lb">Commencez ici</span></div><div class="card c" style="border-radius:40px"></div><div class="card c" style="border-radius:40px"></div>'+
+   dot(530,330,'Relances',1)+dot(60,300,'Veille',0)+dot(70,640,'Refonte',0)+dot(520,680,'Compte rendu',0)+
+   '<span class="lb" style="position:absolute;left:-50px;top:50%;transform:translate(-50%,-50%) rotate(-90deg);white-space:nowrap;opacity:.6">Impact →</span><span class="lb" style="position:absolute;left:50%;bottom:-46px;transform:translateX(-50%);opacity:.6">Facilité →</span></div>')});
+add('Listes','Grille d’icônes',function(){
+  var it=[['Relances','mail'],['Comptes rendus','doc'],['Factures','receipt'],['Agenda','calendar'],['Suivi','trend'],['Équipe','users'],['Données','folder'],['Alertes','bell'],['Sécurité','shield']];
+  var cells=it.map(function(x,i){var v=i==4?'o':(i%4==1?'k':(i%3==2?'p':'w'));return '<div style="display:flex;flex-direction:column;align-items:center;gap:18px">'+tile(x[1],190,v)+'<b style="font:700 31px/1.1 Inter;text-align:center">'+x[0]+'</b></div>'}).join('');
+  return pg({n:3,N:8,chip:'Tout ce qu’on peut préparer'},T(100,'Neuf tâches <em>qui reviennent</em>','margin-bottom:30px')+'<div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);align-content:space-between;gap:20px 10px">'+cells+'</div>')});
+
+/* ===== COMPARAISONS ===== */
+add('Comparaisons','Avant / avec nous',function(){
+  function half(dark,tag,items,ico){return '<div style="flex:1;border-radius:46px;padding:36px 42px;display:flex;flex-direction:column;gap:20px;justify-content:center;'+(dark?'background:linear-gradient(160deg,#2B2118,#14100C);color:var(--c);box-shadow:0 44px 60px -34px rgba(20,8,0,.7)':'background:var(--w);box-shadow:0 0 0 1.5px rgba(20,16,12,.06),0 44px 60px -34px rgba(70,30,8,.4)')+'"><span class="lb" style="opacity:.7">'+tag+'</span>'+items.map(function(t){return '<div style="display:flex;align-items:center;gap:24px;font:600 38px/1.15 Inter">'+tile(ico,74,dark?'o':'p')+t+'</div>'}).join('')+'</div>'}
+  return pg({n:4,N:8,chip:'Cas concret'},'<span class="tagx" style="margin-bottom:22px">Scénario type · exemple illustratif</span>'+T(100,'Les devis <em>sans réponse</em>','margin-bottom:30px')+
+   '<div style="flex:1;display:flex;flex-direction:column;gap:16px">'+half(0,'Avant',['Devis envoyés, puis oubliés','Relances faites au hasard'],'x')+half(1,'Avec nous',['Chaque devis est suivi','La relance est préparée'],'check')+'</div>')});
+add('Comparaisons','Mythe / réalité',function(){return pg({n:2,N:8,chip:'Une idée reçue'},
+  '<div class="card" style="padding:40px 46px"><div style="display:flex;align-items:center;gap:24px">'+tile('x',104,'k')+'<span class="bf" style="font-size:80px;line-height:1;text-decoration:line-through;text-decoration-thickness:8px;text-decoration-color:var(--o)">Mythe</span></div><p class="sf" style="font-size:78px;line-height:1.02;margin-top:26px">« Il faut un grand projet pour se lancer. »</p></div>'+
+  '<div style="display:grid;place-items:center;margin:22px 0">'+tile('arrow',96,'o')+'</div>'+
+  '<div class="card o" style="padding:40px 46px;flex:1;display:flex;flex-direction:column;justify-content:space-between"><div style="display:flex;align-items:center;gap:24px">'+tile('check',104,'k')+'<span class="bf" style="font-size:80px;line-height:1">Réalité</span></div><p class="bf" style="font-size:56px;line-height:1.05;letter-spacing:-.035em">Un premier cas simple suffit. Ensuite, on étend.</p></div>',spk(900,240,56))});
+add('Comparaisons','Tableau sans / avec',function(){
+  var r=[['La relance','mail','Oubliée','Préparée'],['Le compte rendu','doc','Éparpillé','Clair'],['La saisie','gear','Manuelle','Extraite']].map(function(x){return '<div style="display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:16px;align-items:center"><div style="display:flex;gap:18px;align-items:center">'+tile(x[1],84,'k')+'<b class="bf" style="font-size:34px;line-height:1.05">'+x[0]+'</b></div><span class="card c" style="padding:24px;border-radius:30px;font:600 30px Inter;display:flex;gap:10px;align-items:center;opacity:.85">'+ic('x',30,'currentColor',2.4)+x[2]+'</span><span class="card o" style="padding:24px;border-radius:30px;font:700 30px Inter;display:flex;gap:10px;align-items:center">'+ic('check',30,'currentColor',2.6)+x[3]+'</span></div>'}).join('');
+  return pg({n:5,N:8,chip:'Comparer'},T(100,'Sans, <em>puis avec</em>','margin-bottom:40px')+'<div style="display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:16px;margin-bottom:22px"><span></span><span class="lb" style="opacity:.6">Sans</span><span class="lb" style="color:var(--o)">Avec nous</span></div><div style="display:flex;flex-direction:column;gap:30px">'+r+'</div>')});
+add('Comparaisons','Barres de durée',function(){
+  function bar(l,w,cls,sub,i,v){return '<div class="card" style="padding:28px 32px;border-radius:44px"><div style="display:flex;align-items:center;gap:22px;margin-bottom:20px">'+tile(i,86,v)+'<b class="bf" style="font-size:44px;flex:1">'+l+'</b><span class="sm" style="font-size:28px">'+sub+'</span></div><div style="height:64px;border-radius:32px;background:rgba(20,16,12,.08)"><div style="height:100%;width:'+w+'%;border-radius:32px;background:'+cls+'"></div></div></div>'}
+  return pg({n:5,N:8,chip:'Temps gardé'},'<span class="tagx" style="margin-bottom:22px">Exemple illustratif · sans chiffre réel</span>'+T(100,'Le temps <em>que vous gardez</em>','margin-bottom:46px')+
+   '<div style="display:flex;flex-direction:column;gap:24px">'+bar('Avant',92,'linear-gradient(90deg,#3A2D22,#14100C)','suivi à la main','hourglass','k')+bar('Avec nous',34,'linear-gradient(90deg,#FFA66E,#D9622B)','suivi préparé','bolt','o')+'</div>'+P('Le reste de la semaine, vous le consacrez à votre métier.','margin-top:auto'))});
+
+/* ===== CAS CONCRETS ===== */
+add('Cas concrets','Fenêtre : la relance',function(){return pg({n:4,N:8,chip:'Cas concret'},
+  '<span class="tagx" style="margin-bottom:22px">Scénario type · exemple illustratif</span>'+T(98,'Une relance <em>prête à partir</em>','margin-bottom:34px')+
+  '<div class="card" style="padding:0;overflow:hidden;border-radius:50px"><div style="background:var(--c2);padding:22px 34px;display:flex;gap:10px;align-items:center"><b style="width:18px;height:18px;border-radius:50%;background:#D8CBB8"></b><b style="width:18px;height:18px;border-radius:50%;background:#D8CBB8"></b><b style="width:18px;height:18px;border-radius:50%;background:var(--o)"></b><span style="margin-left:18px;font:600 26px Inter;opacity:.6">Brouillon · Devis Martin</span></div>'+
+  '<div style="padding:34px 40px;display:flex;flex-direction:column;gap:22px"><div style="display:flex;gap:22px;align-items:center">'+tile('mail',84,'o')+'<div><b style="font:700 30px Inter;display:block">À : M. Martin</b><span style="font:500 26px Inter;opacity:.6">Suite à notre devis du 12</span></div></div><div style="font:500 33px/1.35 Inter">Bonjour, je reviens vers vous au sujet du devis envoyé la semaine dernière. Avez-vous eu le temps de le regarder&nbsp;?</div><div style="display:flex;align-items:center;gap:22px;margin-top:6px"><span class="tg on"></span><b style="font:600 30px Inter">Vous validez avant l’envoi</b></div></div></div>',spk(910,300,52))});
+add('Cas concrets','Conversation',function(){
+  var gl='background:rgba(246,239,228,.1);box-shadow:inset 0 0 0 1.5px rgba(246,239,228,.12);color:var(--c)';
+  return pg({n:4,N:8,chip:'Cas concret',dk:1},
+  '<span class="tagx" style="margin-bottom:22px">Scénario type · exemple illustratif</span>'+T(96,'Une question, <em>une réponse prête</em>','margin-bottom:44px')+
+  '<div style="display:flex;flex-direction:column;gap:24px"><div style="display:flex;gap:18px;align-items:flex-end">'+tile('spark',80,'g')+'<div class="bub l" style="'+gl+'">Vous avez reçu une demande de devis. Je prépare la réponse ?</div></div><div style="display:flex;gap:18px;align-items:flex-end;justify-content:flex-end"><div class="bub ro">Oui, avec nos délais habituels.</div>'+tile('users',80,'w')+'</div><div style="display:flex;gap:18px;align-items:flex-end">'+tile('spark',80,'g')+'<div class="bub l" style="'+gl+'">C’est prêt. Relisez, puis validez.</div></div><div style="display:flex;gap:18px;align-items:flex-end;justify-content:flex-end"><div class="bub r" style="background:var(--c);color:var(--k)">Validé ✓</div>'+tile('check',80,'o')+'</div></div>')});
+add('Cas concrets','Schéma en trois nœuds',function(){
+  function node(ico,t,s,v){return '<div style="display:flex;gap:36px;align-items:center">'+tile(ico,180,v)+'<div><b class="bf" style="font-size:58px;line-height:1;display:block">'+t+'</b><p class="sm" style="margin-top:8px">'+s+'</p></div></div>'}
+  function link(){return '<div style="margin-left:86px;width:10px;height:54px;border-radius:5px;background:repeating-linear-gradient(var(--o) 0 14px,transparent 14px 26px)"></div>'}
+  return pg({n:5,N:8,chip:'Le chemin'},T(100,'Chaque demande suit <em>le même chemin</em>','margin-bottom:40px')+'<div style="display:flex;flex-direction:column;gap:10px">'+node('mail','On la reçoit','Un message, un formulaire, un appel.','w')+link()+node('spark','On prépare','La réponse est rédigée pour vous.','k')+link()+node('check','Vous validez','Rien ne part sans votre accord.','o')+'</div>',spk(920,320,60))});
+
+/* ===== DONNÉES ===== */
+add('Données et citations','Grand chiffre',function(){
+  var C=2*Math.PI*150;return pg({n:3,N:8,chip:'Le chiffre'},
+  '<span class="tagx">Exemple de mise en page · chiffre à valider</span>'+
+  '<div style="display:flex;align-items:center;gap:30px;margin-top:40px"><div style="position:relative;width:420px;height:420px;flex:none"><svg width="420" height="420" viewBox="0 0 420 420"><circle cx="210" cy="210" r="150" fill="none" stroke="rgba(20,16,12,.1)" stroke-width="54"/><circle cx="210" cy="210" r="150" fill="none" stroke="url(#gO)" stroke-width="54" stroke-linecap="round" stroke-dasharray="'+(C*.75)+' '+C+'" transform="rotate(-90 210 210)"/></svg><div style="position:absolute;inset:0;display:grid;place-items:center">'+tile('users',150,'o')+'</div></div><div class="bf" style="font-size:330px;line-height:.82;letter-spacing:-.07em">3<span class="sf" style="font-size:.5em;color:var(--o)"> sur </span>4</div></div>'+
+  '<p class="p" style="margin-top:auto;font-size:40px">dirigeants disent ne pas savoir par où commencer. Source et date : ligne obligatoire du fait validé.</p>')});
+add('Données et citations','Citation',function(){return pg({n:3,N:8,chip:'Ils le disent',pl:1},
+  '<div class="sf" style="font-size:380px;line-height:.7;color:var(--o);margin-top:36px">“</div>'+
+  '<div class="sf" style="font-size:112px;line-height:1.01;margin-top:6px">On a gagné du temps dès la première semaine, sans changer nos habitudes.</div>'+
+  '<div style="margin-top:auto;display:flex;align-items:center;gap:26px">'+tile('users',120,'o')+'<div><b style="font:700 36px Inter;display:block">Exemple de citation</b><span class="sm" style="font-size:28px">Nom, fonction, entreprise : accord écrit requis</span></div></div>',spk(880,300,64)+spk(790,210,30,'#14100C'))});
+add('Données et citations','Trois barres',function(){
+  function b(l,h,hot,i){return '<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:16px;align-items:center">'+tile(i,112,hot?'o':'w')+'<div style="width:100%;height:'+h+'px;border-radius:34px 34px 0 0;background:'+(hot?'linear-gradient(180deg,#FFA66E,#D9622B)':'linear-gradient(180deg,#3A2D22,#14100C)')+'"></div><b class="bf" style="font-size:36px">'+l+'</b></div>'}
+  return pg({n:5,N:8,chip:'Comparer'},'<span class="tagx" style="margin-bottom:22px">Exemple illustratif</span>'+T(100,'Où part <em>le temps</em>','margin-bottom:30px')+
+   '<div style="flex:1;display:flex;gap:26px;align-items:flex-end;border-bottom:3px solid rgba(20,16,12,.18)">'+b('Saisie',430,0,'doc')+b('Relances',320,0,'mail')+b('Métier',200,1,'target')+'</div>')});
+
+/* ===== APPEL ===== */
+add('Appel à l’action','Message privé',function(){var gl='background:rgba(246,239,228,.1);box-shadow:inset 0 0 0 1.5px rgba(246,239,228,.12);color:var(--c);max-width:620px';return pg({n:8,N:8,chip:'Et maintenant',dk:1,last:1},
+  T(124,'Racontez-nous <em>votre situation</em>','margin-top:10px')+
+  '<div style="margin-top:44px;display:flex;flex-direction:column;gap:20px"><div style="display:flex;gap:18px;align-items:flex-end">'+tile('spark',84,'g')+'<div class="bub l" style="'+gl+'">On répond avec une première piste.</div></div><div class="bub ro" style="max-width:580px">Par où dois-je commencer&nbsp;?</div></div>'+
+  '<div style="margin-top:auto;display:flex;gap:20px;align-items:center"><span style="background:linear-gradient(150deg,#FFA66E,#D9622B);color:var(--k);border-radius:999px;padding:24px 30px 24px 44px;font:800 40px Bricolage Grotesque,sans-serif;letter-spacing:-.02em;display:flex;gap:20px;align-items:center;box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 30px 40px -20px rgba(217,98,43,.6)">Écrire en message privé<span style="width:74px;height:74px;border-radius:50%;background:var(--k);color:#FFA66E;display:grid;place-items:center">'+ic('send',38,'currentColor',2)+'</span></span></div>',spk(900,360,64))});
+add('Appel à l’action','À retenir',function(){
+  var r=[['Un seul cas pour démarrer','target'],['Vous validez chaque envoi','shield'],['On ajuste tant que c’est utile','gear']].map(function(x,i){return '<div class="card" style="display:flex;gap:34px;align-items:center;padding:30px 38px;border-radius:48px">'+tile(x[1],130,i==0?'o':(i==1?'k':'p'))+'<b class="bf" style="font-size:50px;line-height:1.02;letter-spacing:-.035em">'+x[0]+'</b></div>'}).join('');
+  return pg({n:7,N:8,chip:'À retenir',pl:1},T(120,'En <em>trois</em> idées','margin-bottom:44px')+'<div style="display:flex;flex-direction:column;gap:22px">'+r+'</div>',spk(900,200,58))});
+add('Appel à l’action','Enregistrer et partager',function(){return pg({n:8,N:8,chip:'Pour y revenir',or:1,last:1},
+  T(150,'Enregistrez <em>pour y revenir</em>','margin-top:10px')+P('Et envoyez-le à la personne qui se pose la question dans votre équipe.','margin-top:36px;max-width:640px'),
+  ab('left:90px;top:790px;transform:rotate(-8deg)',tile('bookmark',330,'k'))+ab('left:470px;top:880px;transform:rotate(7deg)',tile('send',250,'w'))+ab('left:60px;top:1150px;font:italic 400 64px Instrument Serif,serif','axion-ia.com')+spk(780,740,70,'#14100C')+spk(900,1020,40,'#FFF4E8'))});
+
+/* ===== PARCOURS CONTINUS ===== */
+var PANOS=[];
+function pano(n,inner,o){o=o||{};var dk=o.dk||[];var h='<div class="pano" style="width:'+(n*W)+'px">';
+  for(var i=0;i<n;i++){var d=dk.indexOf(i)>=0;h+='<div class="bg" style="left:'+(i*W)+'px;width:'+W+'px;background:'+(d?'#14100C':'transparent')+'"></div>'}
+  h+='<svg class="ab" style="left:0;top:0" width="'+(n*W)+'" height="'+H+'" viewBox="0 0 '+(n*W)+' '+H+'" aria-hidden="true"><defs><radialGradient id="gl'+n+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#D9622B" stop-opacity=".22"/><stop offset="1" stop-color="#D9622B" stop-opacity="0"/></radialGradient></defs>'+(o.glow||[]).map(function(g){return '<circle cx="'+g[0]+'" cy="'+g[1]+'" r="'+g[2]+'" fill="url(#gl'+n+')"/>'}).join('')+'</svg>';
+  h+=inner;
+  for(var j=0;j<n;j++){var dj=dk.indexOf(j)>=0,x=j*W;
+    h+='<div class="ab wm" style="left:'+(x+620)+'px;top:92px;width:380px;text-align:right;'+(dj?'color:#F6EFE4':'')+'">Axion-<b>IA</b></div>';
+    h+='<div class="ab" style="left:'+(x+80)+'px;top:1232px;display:flex;gap:30px;font:700 25px/1 JetBrains Mono,monospace;letter-spacing:.05em;z-index:10;'+(dj?'color:#F6EFE4':'')+'"><span>'+pad(j+1)+' / '+pad(n)+'</span><span style="opacity:.55;font-weight:500">'+(j==n-1?'enregistrer':'glisser →')+'</span></div>';
+    h+='<div class="ab" style="left:'+(x+80)+'px;top:1290px;width:920px;height:5px;border-radius:3px;z-index:10;background:'+(dj?'rgba(246,239,228,.18)':'rgba(20,16,12,.12)')+'"><u style="position:absolute;left:0;top:0;bottom:0;width:'+((j+1)/n*100)+'%;border-radius:3px;background:#D9622B;display:block"></u></div>'}
+  return h+'<div class="grainw"></div></div>'}
+function chipA(x,txt){return ab('left:'+x+'px;top:84px','<span class="chip"><i></i>'+txt+'</span>')}
+function ttl(x,y,s,h,w){return ab('left:'+x+'px;top:'+y+'px;width:'+(w||920)+'px','<h1 class="t" style="--s:'+s+'px">'+h+'</h1>')}
+function txt(x,y,w,h,st){return ab('left:'+x+'px;top:'+y+'px;width:'+w+'px','<p class="p" style="'+(st||'')+'">'+h+'</p>')}
+function card(x,y,w,h,cls,inner){return '<div class="card '+(cls||'')+'" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+w+'px;height:'+h+'px;padding:30px 36px">'+inner+'</div>'}
+function sc(i,t,s,v,sz,fs){return '<div style="display:flex;gap:30px;align-items:center;height:100%">'+tile(i,sz||120,v||'o')+'<div><b class="bf" style="font-size:'+(fs||52)+'px;line-height:1;display:block">'+t+'</b><p class="sm" style="margin-top:8px;font-size:29px">'+s+'</p></div></div>'}
+function num(n,t,s,c){return '<div style="display:flex;gap:30px;align-items:center;height:100%"><span class="bf" style="font-size:110px;color:'+c+';line-height:1;width:70px">'+n+'</span><div><b class="bf" style="font-size:52px;display:block;line-height:1">'+t+'</b><p class="sm" style="margin-top:8px;font-size:29px">'+s+'</p></div></div>'}
+
+PANOS.push({id:'a',n:4,title:'Le chemin',note:'Une route orange relie trois étapes (icônes en relief) et traverse trois coutures. Une pastille « On vous guide » déborde sur la page 2 (le texte reste sur la page 1). La dernière page passe en sombre.',
+ html:function(){var s='';var pth='M-40 1130 C 420 1130 760 560 1340 560 C 1800 560 1960 880 2420 880 C 2900 880 2980 470 3420 470 C 3860 470 3980 760 4420 760';
+  s+='<svg class="ab" style="left:0;top:0" width="4320" height="1350" viewBox="0 0 4320 1350" aria-hidden="true"><path d="'+pth+'" fill="none" stroke="#14100C" stroke-opacity=".07" stroke-width="64" stroke-linecap="round"/><path d="'+pth+'" fill="none" stroke="#D9622B" stroke-width="20" stroke-linecap="round"/><path d="'+pth+'" fill="none" stroke="#F6EFE4" stroke-opacity=".6" stroke-width="3" stroke-dasharray="2 26" stroke-linecap="round"/></svg>';
+  s+=chipA(80,'IA pour les entreprises')+ttl(80,200,150,'Par où <em>commencer</em>&nbsp;?',920)+txt(80,540,520,'Les outils se multiplient. Votre temps, non.');
+  s+=ab('left:560px;top:880px;width:700px;height:110px;border-radius:55px;background:linear-gradient(150deg,#3A2D22,#14100C);color:#F6EFE4;display:flex;align-items:center;padding-left:46px;font:800 42px Bricolage Grotesque,sans-serif;letter-spacing:-.02em;box-shadow:0 30px 40px -20px rgba(20,8,0,.6)','On vous guide<span style="position:absolute;right:14px;top:14px;width:82px;height:82px;border-radius:50%;background:linear-gradient(150deg,#FFA66E,#D9622B);display:grid;place-items:center;color:#14100C">'+ic('arrow',44,'currentColor',2.2)+'</span>');
+  s+=ab('left:60px;top:960px;transform:rotate(-7deg)',tile('bell',130,'o'))+spk(420,900,44)+spk(830,610,30,'#14100C');
+  s+=ab('left:1286px;top:506px',tile('target',108,'o'))+ab('left:2366px;top:826px',tile('layers',108,'k'))+ab('left:3366px;top:416px',tile('gear',108,'o'));
+  s+=card(1130,150,880,250,'',num(1,'On audite','On repère où le temps se perd.','#D9622B'));
+  s+=card(2200,985,880,230,'',num(2,'On choisit','Un premier cas simple, avec vous.','#D9622B'));
+  s+=card(3320,150,880,240,'glass',num(3,'On installe','Chez vous, à votre façon.','#F08A52'));
+  s+=ab('left:3320px;top:790px;width:900px;font:italic 400 138px/.92 Instrument Serif,serif;color:#F6EFE4;letter-spacing:-.02em','Nous, on vous<br><span style="color:#D9622B">le dit.</span>');
+  s+=ab('left:3320px;top:1075px;width:900px','<p class="p" style="color:#CDBFAE;font-size:34px">Racontez-nous votre situation. On répond avec une première piste.</p>')+spk(4090,860,56);
+  return pano(4,s,{dk:[3],glow:[[1400,300,700],[200,1250,600]]})}});
+
+PANOS.push({id:'b',n:3,title:'Avant / avec nous',note:'Deux voies de durées inégales, avec des icônes sur chaque étape. En glissant, la voie « avant » ne finit jamais, la voie « avec nous » s’arrête tôt. Cas inventé : l’étiquette « Scénario type » est posée par le code.',
+ html:function(){var s='';
+  function nd(x,y,i,v,lab,w){return ab('left:'+(x-52)+'px;top:'+(y-52)+'px',tile(i,104,v))+ab('left:'+(x-(w||150))+'px;top:'+(y+70)+'px;width:'+((w||150)*2)+'px;text-align:center;font:800 34px/1.1 Bricolage Grotesque,sans-serif;letter-spacing:-.025em',lab)}
+  s+='<svg class="ab" style="left:0;top:0" width="3240" height="1350" viewBox="0 0 3240 1350" aria-hidden="true"><rect x="80" y="700" width="2960" height="26" rx="13" fill="#14100C"/><rect x="80" y="1010" width="1440" height="26" rx="13" fill="url(#gO)"/><path d="M1560 1023 H3040" stroke="#14100C" stroke-opacity=".35" stroke-width="6" stroke-dasharray="3 18" stroke-linecap="round"/><path d="M1580 1150 H3020 M1580 1150 l22 -16 M1580 1150 l22 16 M3020 1150 l-22 -16 M3020 1150 l-22 16" fill="none" stroke="#14100C" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/></svg>';
+  s+=chipA(80,'Cas concret')+ab('left:80px;top:170px','<span class="tagx">Scénario type · exemple illustratif</span>')+ttl(80,240,110,'Les devis <em>sans réponse</em>',920)+txt(80,500,780,'Un devis part, le quotidien reprend, la relance attend.');
+  s+=ab('left:80px;top:610px','<span class="lb" style="opacity:.6">Avant</span>')+ab('left:80px;top:920px','<span class="lb" style="color:#D9622B">Avec nous</span>');
+  s+=nd(340,713,'mail','w','Devis envoyé')+nd(1280,713,'hourglass','k','Oublié')+nd(2400,713,'x','p','Relance au hasard',210)+nd(3000,713,'chat','w','Réponse ?')+nd(340,1023,'mail','w','Relance prête')+nd(1500,1023,'check','o','Réponse reçue');
+  s+=ab('left:1180px;top:220px;width:820px;font:italic 400 84px/1 Instrument Serif,serif;color:#51463B','pendant ce temps, la relance attend…')+spk(1820,420,52);
+  s+=ttl(2240,200,104,'Chaque devis <em>est suivi</em>.',860)+txt(2240,500,800,'Sans y penser, sans oublier.');
+  s+=ab('left:2300px;top:1068px','<span style="font:italic 400 56px Instrument Serif,serif">le temps que vous gardez</span>');
+  return pano(3,s,{glow:[[2700,260,640]]})}});
+
+PANOS.push({id:'c',n:3,title:'Le grand mot',note:'Un mot par page, une règle graduée continue qui les relie, une sphère à cheval sur la première couture et des icônes en relief qui flottent entre les mots. Le plus sobre : une promesse en trois mots, lisible en miniature.',
+ html:function(){var s='';var ticks='';for(var x=80;x<=3160;x+=40){ticks+='<line x1="'+x+'" x2="'+x+'" y1="1010" y2="'+((x-80)%200==0?1050:1032)+'" stroke="#14100C" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>'}
+  s+='<svg class="ab" style="left:0;top:0" width="3240" height="1350" viewBox="0 0 3240 1350" aria-hidden="true"><line x1="80" x2="3160" y1="1010" y2="1010" stroke="#14100C" stroke-opacity=".35" stroke-width="3"/>'+ticks+'<circle cx="80" cy="1010" r="16" fill="#D9622B"/><circle cx="3160" cy="1010" r="16" fill="#D9622B"/></svg>';
+  s+=ab('left:830px;top:140px',sph(250))+chipA(80,'Une idée reçue')+ab('left:340px;top:250px;transform:rotate(-10deg)',tile('target',150,'k'))+ab('left:1500px;top:190px;transform:rotate(8deg)',tile('bulb',160,'o'))+ab('left:2520px;top:200px;transform:rotate(-6deg)',tile('check',170,'w'))+spk(2200,260,60)+spk(1400,880,40,'#14100C');
+  s+=ab('left:60px;top:470px;font:800 420px/.9 Bricolage Grotesque,sans-serif;letter-spacing:-.07em','Un');
+  s+=ab('left:1140px;top:430px;font:italic 400 460px/.9 Instrument Serif,serif;color:#D9622B;letter-spacing:-.03em','seul');
+  s+=ab('left:2220px;top:470px;font:800 390px/.9 Bricolage Grotesque,sans-serif;letter-spacing:-.07em','cas.');
+  s+=ab('left:80px;top:1090px;font:italic 400 60px Instrument Serif,serif;color:#51463B','pas dix projets d’un coup.');
+  s+=txt(1160,1090,820,'Choisissez ce qui revient chaque semaine et vous pèse.','font-size:34px')+txt(2240,1090,860,'Un premier cas simple suffit pour démarrer. Ensuite, on étend.','font-size:34px');
+  return pano(3,s,{glow:[[1700,300,640]]})}});
+
+PANOS.push({id:'d',n:3,title:'L’objet à cheval',note:'Une loupe sur la première couture, un curseur sur la seconde : les objets passent d’une page à l’autre, le texte reste entre les deux. Variante pour les « 3 questions » ou « 3 raisons ».',
+ html:function(){var s='';
+  s+='<svg class="ab" style="left:0;top:0" width="3240" height="1350" viewBox="0 0 3240 1350" aria-hidden="true"><g transform="translate(1080,760)" filter="url(#fsh)"><path d="M120 120 L300 300" stroke="#14100C" stroke-width="64" stroke-linecap="round"/><path d="M200 200 L300 300" stroke="#D9622B" stroke-width="64" stroke-linecap="round"/><circle r="190" fill="rgba(255,251,244,.6)" stroke="#14100C" stroke-width="30"/><circle r="175" fill="url(#gGl)" opacity=".55"/><path d="M-100 -30 q30 -90 120 -70" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" opacity=".9"/></g>'+
+  '<g transform="translate(2160,820) rotate(-12)" filter="url(#fsh)"><path d="M-130 -190 L-130 160 L-40 80 L30 220 L100 190 L30 56 L150 56 Z" fill="url(#pO)" stroke="#14100C" stroke-width="14" stroke-linejoin="round"/></g></svg>';
+  s+=chipA(80,'Pour démarrer')+ttl(80,200,112,'3 questions <em>pour savoir</em> par où commencer',880)+txt(80,1000,600,'Trois questions simples, une page chacune. Notez vos réponses.','font-size:34px');
+  s+=card(1130,150,880,260,'',sc('clock','Quelle tâche vous pèse&nbsp;?','Celle qui revient chaque semaine.','o',120,44));
+  s+=card(1160,990,840,220,'k',sc('users','Qui s’en occupe&nbsp;?','Avec quels outils&nbsp;?','o',112,44));
+  s+=card(2330,150,780,330,'o','<div style="display:flex;flex-direction:column;gap:14px;height:100%;justify-content:center">'+tile('chart',104,'k')+'<b class="bf" style="font-size:44px;line-height:1.02">Comment saurez-vous que ça marche&nbsp;?</b></div>');
+  s+=ab('left:2300px;top:1000px;width:780px;font:italic 400 70px/1.05 Instrument Serif,serif;color:#51463B','pas sûr des réponses ? on les trouve avec vous.')+spk(1980,560,50);
+  return pano(3,s,{glow:[[1100,1100,640]]})}});
+
+PANOS.push({id:'e',n:4,title:'Bento continu',note:'Une grille de tuiles illustrées sur quatre pages : deux tuiles chevauchent une couture (leur texte reste d’un seul côté). La dernière tuile, sombre, ferme avec l’appel.',
+ html:function(){var s='';
+  function tl(x,y,w,h,cls,ico,t,sub,tw,v){return '<div class="card '+cls+'" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+w+'px;height:'+h+'px;padding:34px;border-radius:46px"><div style="position:absolute;left:34px;top:34px">'+tile(ico,112,v||'o')+'</div><div style="position:absolute;left:34px;bottom:34px;width:'+(tw||w-68)+'px"><b class="bf" style="font-size:46px;line-height:1;display:block">'+t+'</b>'+(sub?'<p class="sm" style="margin-top:8px;font-size:28px">'+sub+'</p>':'')+'</div></div>'}
+  s+=chipA(80,'Au quotidien')+ttl(80,200,112,'Ce que ça <em>change</em>',920);
+  s+=tl(80,560,540,640,'o','mail','Moins de relances oubliées','',420,'k');
+  s+=tl(660,560,880,350,'','doc','Des comptes rendus clairs','Après chaque réunion.',370);
+  s+=ab('left:1150px;top:610px','<div style="width:330px;height:230px;border-radius:28px;background:var(--c2);padding:26px;display:flex;flex-direction:column;gap:16px"><b style="height:16px;width:80%;border-radius:8px;background:#CDBFAE;display:block"></b><b style="height:16px;width:96%;border-radius:8px;background:#DACDB9;display:block"></b><b style="height:16px;width:60%;border-radius:8px;background:#DACDB9;display:block"></b><b style="height:16px;width:84%;border-radius:8px;background:var(--o);display:block"></b></div>');
+  s+=tl(660,950,340,250,'pl','hourglass','Du temps','',280,'k')+tl(1120,950,420,250,'k','shield','Vous validez','',340);
+  s+=tl(1580,560,880,640,'','chart','Une vue claire de l’activité','Où en sont les dossiers, d’un coup d’oeil.',400);
+  s+=ab('left:2180px;top:640px','<div style="width:240px;display:flex;gap:16px;align-items:flex-end;height:420px"><b style="flex:1;height:44%;border-radius:18px 18px 0 0;background:linear-gradient(180deg,#3A2D22,#14100C);display:block"></b><b style="flex:1;height:68%;border-radius:18px 18px 0 0;background:linear-gradient(180deg,#3A2D22,#14100C);display:block"></b><b style="flex:1;height:100%;border-radius:18px 18px 0 0;background:linear-gradient(180deg,#FFA66E,#D9622B);display:block"></b></div>');
+  s+=tl(2500,560,500,350,'pl','users','L’équipe suit','',420,'k')+tl(2500,950,500,250,'c','gear','Vos outils','',420,'w');
+  s+=ab('left:1180px;top:230px;width:820px;font:italic 400 80px/1 Instrument Serif,serif;color:#51463B','ce que vous gagnez, pas ce qu’on installe.')+ab('left:2260px;top:230px;width:900px;font:italic 400 80px/1 Instrument Serif,serif;color:#51463B','sans changer vos habitudes.');
+  s+=card(3320,560,840,640,'k','<div style="display:flex;flex-direction:column;justify-content:space-between;height:100%">'+tile('spark',120,'o')+'<div><b class="bf" style="font-size:66px;line-height:1;display:block">On regarde ensemble <span class="ser">lequel vous concerne.</span></b></div><span style="align-self:flex-start;background:linear-gradient(150deg,#FFA66E,#D9622B);color:#14100C;border-radius:999px;padding:22px 34px;font:800 34px Bricolage Grotesque,sans-serif;display:flex;gap:14px;align-items:center">Écrire en message privé '+ic('send',34,'currentColor',2)+'</span></div>');
+  return pano(4,s,{glow:[[1700,300,700],[3500,200,500]]})}});
+
+PANOS.push({id:'f',n:4,title:'La courbe',note:'Une courbe qui démarre doucement puis accélère, quatre jalons avec icônes en relief. Aucun chiffre : schéma illustratif. L’aire sous la courbe est un dégradé doux (aucun trait vertical sur les coutures).',
+ html:function(){var s='';
+  var line='M240 1060 C 700 1060 900 1000 1300 990 C 1800 990 2000 850 2400 850 C 2800 850 3000 620 3380 620 C 3650 620 3800 420 4100 420';
+  s+='<svg class="ab" style="left:0;top:0" width="4320" height="1350" viewBox="0 0 4320 1350" aria-hidden="true"><path d="'+line+' L4100 1130 L240 1130 Z" fill="url(#gA)"/><line x1="80" x2="4240" y1="1130" y2="1130" stroke="#14100C" stroke-opacity=".2" stroke-width="3"/><path d="'+line+'" fill="none" stroke="#D9622B" stroke-width="22" stroke-linecap="round"/></svg>';
+  s+=ab('left:1250px;top:940px',tile('calendar',100,'w'))+ab('left:2350px;top:800px',tile('users',100,'k'))+ab('left:3330px;top:570px',tile('chart',100,'w'))+ab('left:4050px;top:370px',tile('flag',100,'o'));
+  s+=chipA(80,'Schéma illustratif')+ttl(80,200,112,'Ça démarre <em>doucement</em>, puis ça accélère.',920)+txt(80,820,540,'Un premier cas, puis deux, puis toute l’équipe.','font-size:34px');
+  s+=card(1010,740,420,170,'','<b class="bf" style="font-size:42px;line-height:1.05">Un premier cas</b>')
+   +card(2160,590,420,170,'','<b class="bf" style="font-size:42px;line-height:1.05">Deux cas</b>')+card(3290,330,420,170,'','<b class="bf" style="font-size:42px;line-height:1.05">Toute l’équipe</b>')+card(3820,150,360,170,'o','<b class="bf" style="font-size:42px;line-height:1.05">Ça tourne</b>');
+  s+=ab('left:200px;top:1160px;font:italic 400 50px Instrument Serif,serif;color:#51463B','au départ')+ab('left:3520px;top:1160px;font:italic 400 50px Instrument Serif,serif;color:#51463B','quelques mois plus tard')+spk(1900,420,52)+spk(2900,260,38,'#14100C');
+  return pano(4,s,{glow:[[3600,400,700]]})}});
+
+PANOS.push({id:'g',n:4,title:'L’escalier',note:'Un escalier encre dont chaque marche traverse une couture. Des cartes avec icônes en relief posées sur les marches portent les étapes. Un drapeau orange en haut : le résultat.',
+ html:function(){var s='';
+  s+='<svg class="ab" style="left:0;top:0" width="4320" height="1350" viewBox="0 0 4320 1350" aria-hidden="true"><path d="M-10 1350 V1010 H1260 V860 H2340 V710 H3420 V560 H4330 V1350 Z" fill="url(#gSt)"/><path d="M-10 1010 H1260 V860 H2340 V710 H3420 V560 H4330" fill="none" stroke="#D9622B" stroke-width="12" stroke-linejoin="round"/><path d="M4120 560 V250" stroke="#14100C" stroke-width="12" stroke-linecap="round"/><path d="M4120 250 H4260 L4220 296 L4260 342 H4120 Z" fill="#D9622B"/></svg>';
+  s+=chipA(80,'Un pas après l’autre')+ttl(80,200,130,'On avance <em>par étapes</em>',880);
+  s+=card(120,720,760,250,'',sc('users','Écouter','On comprend votre quotidien.','o',112,46));
+  s+=card(1320,570,760,250,'',sc('target','Choisir','Un premier cas simple.','k',112,46));
+  s+=card(2400,420,720,250,'',sc('gear','Installer','Chez vous, à votre façon.','o',112,46));
+  s+=card(3480,270,580,250,'o',sc('check','Suivre','On ajuste.','k',112,46))+spk(3600,150,44)+spk(900,450,52)+spk(2000,300,34,'#14100C');
+  return pano(4,s,{glow:[[800,200,600]]})}});
+
+PANOS.push({id:'h',n:4,title:'Le circuit',note:'Un circuit en quatre nœuds (icônes en relief) relié par une ligne qui traverse trois coutures. La dernière page passe en sombre : « Vous validez » est le point final. Chaque nœud tient sur une seule page.',
+ html:function(){var s='';var cx=[300,1380,2460,3540],y=860;
+  s+='<svg class="ab" style="left:0;top:0" width="4320" height="1350" viewBox="0 0 4320 1350" aria-hidden="true"><path d="M300 '+y+' H3540" stroke="#14100C" stroke-opacity=".08" stroke-width="60" stroke-linecap="round"/><path d="M300 '+y+' H3540" stroke="#D9622B" stroke-width="16" stroke-linecap="round"/>'+
+  [0,1,2].map(function(i){var x=(cx[i]+cx[i+1])/2;return '<path d="M'+(x-12)+' '+(y-26)+' l26 26 l-26 26" fill="none" stroke="#D9622B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>'}).join('')+'</svg>';
+  s+=chipA(80,'Le circuit')+ttl(80,200,100,'Chaque demande suit <em>le même chemin</em>',920);
+  var nodes=[['mail','On la reçoit','Un message, un appel.','w'],['spark','On prépare','La réponse est rédigée.','k'],['doc','Vous relisez','Vous corrigez si besoin.','w'],['check','Vous validez','Rien ne part sans vous.','o']];
+  nodes.forEach(function(nd,i){var x=cx[i],last=i==3;
+    s+=ab('left:'+(x-110)+'px;top:'+(y-110)+'px',tile(nd[0],220,nd[3]));
+    s+=ab('left:'+(x-230)+'px;top:'+(y+150)+'px;width:460px;text-align:center','<b class="bf" style="font-size:52px;line-height:1;display:block;'+(last?'color:#F6EFE4':'')+'">'+nd[1]+'</b><p class="sm" style="margin-top:10px;font-size:30px;'+(last?'color:#CDBFAE;opacity:1':'')+'">'+nd[2]+'</p>');
+    s+=ab('left:'+(x-230)+'px;top:'+(y-300)+'px;width:460px;text-align:center;font:italic 400 110px/1 Instrument Serif,serif;color:#D9622B','0'+(i+1))});
+  s+=spk(2000,560,52)+spk(3000,1080,40,'#14100C');
+  return pano(4,s,{dk:[3],glow:[[1500,1200,700]]})}});
+
+/* ===== RENDU ===== */
+var famsList=['Toutes'];L.forEach(function(x){if(famsList.indexOf(x.fam)<0)famsList.push(x.fam)});
+var grid=document.getElementById('grid'),famBox=document.getElementById('fam'),modal=document.getElementById('modal'),mbox=document.getElementById('mbox');
+document.getElementById('count').textContent=L.length;
+function thumb(item,scaleW){var box=document.createElement('div');box.style.cssText='position:absolute;left:0;top:0;width:'+W+'px;height:'+H+'px;transform-origin:0 0;transform:scale('+(scaleW/W)+')';box.innerHTML=item.fn();return box}
+function renderGrid(f){
+  grid.innerHTML='';
+  L.forEach(function(item){
+    if(f!=='Toutes'&&item.fam!==f)return;
+    var gi=document.createElement('div');gi.className='gi';
+    var b=document.createElement('button');b.type='button';b.className='thumb';b.setAttribute('aria-label','Agrandir : '+item.name);gi.appendChild(b);
+    var cap=document.createElement('div');cap.className='cap';cap.innerHTML='<b>'+item.name+'</b><span>'+item.fam.toUpperCase().slice(0,9)+'</span>';gi.appendChild(cap);
+    grid.appendChild(gi);
+    b.appendChild(thumb(item,b.clientWidth||240));
+    b.addEventListener('click',function(){openModal(item)});
+  });
+}
+function openModal(item){var w=Math.min(560,window.innerWidth-32,(window.innerHeight-90)*.8);mbox.style.width=w+'px';mbox.style.height=(w*H/W)+'px';mbox.innerHTML='';mbox.appendChild(thumb(item,w));modal.classList.add('on')}
+function closeModal(){modal.classList.remove('on')}
+document.getElementById('mx').addEventListener('click',closeModal);
+modal.addEventListener('click',function(e){if(e.target===modal)closeModal()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
+famsList.forEach(function(f,i){var b=document.createElement('button');b.type='button';b.textContent=f;b.setAttribute('aria-pressed',i==0?'true':'false');b.addEventListener('click',function(){famBox.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed','false')});b.setAttribute('aria-pressed','true');renderGrid(f)});famBox.appendChild(b)});
+
+var tabs=document.getElementById('tabs'),stripIn=document.getElementById('strip-in'),strip=document.getElementById('strip'),scr=document.getElementById('scr'),dots=document.getElementById('dots'),note=document.getElementById('pano-note'),consIn=document.getElementById('cons-in'),sel=document.getElementById('sel');
+var cur=PANOS[0];
+function mk(p){var d=document.createElement('div');d.innerHTML=p.html();return d.firstChild}
+function buildStrip(host,p,minSlide,labels){
+  host.innerHTML='';var avail=host.parentElement.clientWidth-28,n=p.n;var s=Math.max(avail/(n*W),minSlide/W);
+  host.style.width=(n*W*s)+'px';host.style.height=(H*s)+'px';
+  var holder=document.createElement('div');holder.className='holder';var el=mk(p);el.style.transform='scale('+s+')';holder.appendChild(el);host.appendChild(holder);
+  for(var i=1;i<n;i++){var sm=document.createElement('div');sm.className='seam';sm.style.left=(i*W*s)+'px';sm.innerHTML=labels?'<b>couture '+i+'/'+(i+1)+'</b>':'';host.appendChild(sm)}
+}
+function buildPhone(p){
+  var n=p.n,s=288/W;scr.innerHTML='';dots.innerHTML='';
+  for(var i=0;i<n;i++){var sl=document.createElement('div');sl.className='slide';var el=mk(p);el.style.transform='scale('+s+') translateX('+(-i*W)+'px)';sl.appendChild(el);
+    if(i===0){var z=document.createElement('div');z.className='zones';z.innerHTML='<div class="m"></div><div class="nogo"></div>';sl.appendChild(z)}
+    scr.appendChild(sl);var d=document.createElement('i');if(i===0)d.className='on';dots.appendChild(d)}
+  scr.scrollLeft=0;
+}
+function layout(){buildStrip(stripIn,cur,230,true);buildPhone(cur);buildStrip(consIn,PANOS[0],140,false);strip.classList.toggle('show-seams',document.getElementById('chk-seams').checked)}
+function select(id){cur=PANOS.filter(function(p){return p.id===id})[0];note.innerHTML='<strong>'+cur.title+' · '+cur.n+' pages</strong><span class="sub">'+cur.note+'</span>';tabs.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.id===id?'true':'false')});sel.value=id;layout()}
+PANOS.forEach(function(p){var b=document.createElement('button');b.type='button';b.dataset.id=p.id;b.textContent=p.title;b.addEventListener('click',function(){select(p.id)});tabs.appendChild(b);var o=document.createElement('option');o.value=p.id;o.textContent=p.title;sel.appendChild(o)});
+sel.addEventListener('change',function(){select(sel.value)});
+document.getElementById('chk-seams').addEventListener('change',function(){strip.classList.toggle('show-seams',this.checked)});
+document.getElementById('chk-zones').addEventListener('change',function(){document.getElementById('ig').classList.toggle('show-zones',this.checked)});
+scr.addEventListener('scroll',function(){var k=Math.round(scr.scrollLeft/288);dots.querySelectorAll('i').forEach(function(d,i){d.className=i===k?'on':''})},{passive:true});
+var rz;window.addEventListener('resize',function(){clearTimeout(rz);rz=setTimeout(function(){layout();renderGrid(famBox.querySelector('[aria-pressed="true"]').textContent)},150)});
+function go(){renderGrid(famBox.querySelector('[aria-pressed="true"]').textContent);select(cur.id)}
+go();
+if(document.fonts&&document.fonts.ready){document.fonts.ready.then(go)}
+})();
+</script>
