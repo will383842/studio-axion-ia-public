@@ -27,14 +27,15 @@ export type PageSpec =
   | { type: "T06"; titre: string; points: { texte: string }[] }
   | { type: "T08"; titre: string; avant: string; apres: string }
   | { type: "T10"; message: string; legende?: string; deco?: TypeDecor }
-  | { type: "T20"; titre: string; etapes: EtapeSpec[] }
+  | { type: "T20"; titre: string; etapes: EtapeSpec[]; variante?: "maquettes" }
   | { type: "T21" }
   | { type: "T22"; titre: string; mythe: string; realite: string }
   | { type: "T23"; titre: string; questions: QuestionSpec[]; annotation: string }
   | { type: "T24"; titre: string; lignes: { sans: string; avec: string }[] }
   | { type: "T26"; titre: string; avant: string[]; avec: string[]; outils?: string[]; vous: string }
   | { type: "T27"; titre: string; lignes: { texte: string }[] }
-  | { type: "T28"; titre: string; noeuds: NoeudSpec[] };
+  | { type: "T28"; titre: string; noeuds: NoeudSpec[] }
+  | { type: "T29"; relance: string; rappels: { texte: string }[] };
 
 export interface QuestionSpec {
   question: string;

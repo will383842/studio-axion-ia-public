@@ -21,6 +21,7 @@ export const LIBELLES_CHAMPS: Record<string, string> = {
   deco: "décor",
   mini: "mini-visuel",
   icone: "icône",
+  relance: "relance",
 };
 
 /** Liste d'éléments d'une page : [singulier, pluriel]. */
@@ -32,6 +33,7 @@ export const LIBELLES_LISTES: Record<string, [string, string]> = {
   lignes: ["ligne", "lignes"],
   noeuds: ["nœud", "nœuds"],
   outils: ["outil", "outils"],
+  rappels: ["rappel", "rappels"],
   avant: ["ligne « avant »", "lignes « avant »"],
   avec: ["ligne « avec nous »", "lignes « avec nous »"],
 };

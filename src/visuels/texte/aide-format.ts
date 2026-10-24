@@ -28,6 +28,7 @@ export const EXEMPLES_PAGES: Record<TypePage, Record<string, unknown>> = {
   T26: { type: "T26", titre: "Un cas simple", avant: ["Des dossiers dispersés", "Des oublis fréquents"], avec: ["Un classement clair", "Des rappels utiles"], outils: ["Agenda"], vous: "Vous gardez la main" },
   T27: { type: "T27", titre: "Votre liste", lignes: [{ texte: "Vos tâches sont notées" }, { texte: "Vos priorités sont claires" }, { texte: "Vos pauses sont prévues" }, { texte: "Votre semaine est lisible" }] },
   T28: { type: "T28", titre: "Le trajet", noeuds: [{ texte: "Une demande" }, { texte: "Un tri" }, { texte: "Une réponse" }] },
+  T29: { type: "T29", relance: "Et chez vous, par où commencer ?", rappels: [{ texte: "Repérer une tâche qui revient" }, { texte: "Garder la main" }] },
 };
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;

@@ -6,7 +6,7 @@ import type { CarrouselSpecType } from "../domaine/visuels/types";
  * Version de la composition des pages de carrousel (`studio-rendu/compositions/visuels/`) : à changer avec elle, ET avec `VERSION_RENDU`
  * (`services/rendu.ts`, test `version-composition`). Ce fichier est dans l'image de studio-rendu : les deux côtés lisent la même valeur.
  */
-export const VERSION_COMPOSITION = "visuel-page/9";
+export const VERSION_COMPOSITION = "visuel-page/10";
 
 /** Spec validé : le CarrouselSpec, plus la version de la composition qui doit le dessiner (elle entre dans l'empreinte du rendu). */
 export type SpecValide = CarrouselSpecType & { composition: typeof VERSION_COMPOSITION };
