@@ -1,4 +1,4 @@
-/** T22 à T29 : vague 1 des nouveaux gabarits (L9) ; T25 et T29 restent réservés. */
+/** T22 à T29 : vague 1 des nouveaux gabarits (L9) ; T25 et T29 restent réservés. T29 (relance) entrera ni dense ni de famille « liste » (voir trames.ts). */
 export const TYPES_PAGE = ["T01", "T01B", "T01C", "T02", "T06", "T08", "T10", "T20", "T21", "T22", "T23", "T24", "T26", "T27", "T28"] as const;
 export type TypePage = (typeof TYPES_PAGE)[number];
 

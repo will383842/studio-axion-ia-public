@@ -1,3 +1,4 @@
+import type { Intention } from "../../briques/visuels/trames";
 import type { ModeTexte, MotifRefus } from "./visuel";
 import type { StatutVisuel } from "./statuts";
 import type { CarrouselSpecType } from "./types";
@@ -9,7 +10,7 @@ export interface EmpreinteCarrousel {
 }
 
 /** `eviter` : empreintes des derniers carrousels produits, que la fabrication ne doit pas répéter. */
-export type DemandeTexteCarrousel = { type: "sujet"; sujet: string; version?: number; eviter?: readonly EmpreinteCarrousel[] } | { type: "paquet-session"; contenu: string };
+export type DemandeTexteCarrousel = { type: "sujet"; sujet: string; version?: number; intention?: Intention; eviter?: readonly EmpreinteCarrousel[] } | { type: "paquet-session"; contenu: string };
 
 export interface ReponseTexteCarrousel {
   titre: string;
