@@ -5,7 +5,7 @@ import { NOMS_ICONES_PAGE } from "../../briques/visuels/registre-illustrations";
 import { TYPES_MINI } from "../../briques/visuels/registre-mini";
 import { TYPES_DECOR } from "../../briques/visuels/registre-decor";
 import { chargerReglesCarrousel } from "../../briques/visuels/regles/charger-regles";
-import { placeSombrePermise, TYPES_SOMBRES } from "./familles-pages";
+import { placeSombrePermise, TYPES_SOMBRES, TYPES_SOMBRES_CONTENU } from "./familles-pages";
 
 const REGLES = chargerReglesCarrousel();
 
@@ -219,11 +219,13 @@ export const CarrouselSpec = z
     if (spec.pages.length < 2 && spec.pages.at(-1)?.type === "T21") {
       ctx.addIssue({ code: "custom", path: ["pages"], message: "La page sombre (T21) suit au moins une autre page" });
     }
-    // Une seule page sombre par carrousel (L7), en page 2 ou en dernière page.
+    // Une seule page sombre par carrousel (L7) : en dernière page, ou en page 2 pour un type sombre de contenu (T21 reste la dernière).
     const sombres = spec.pages.flatMap((page, i) => (TYPES_SOMBRES.includes(page.type) ? [i] : []));
     for (const i of sombres) {
-      if (!placeSombrePermise(i, spec.pages.length)) {
-        ctx.addIssue({ code: "custom", path: ["pages", i], message: `la page sombre (${spec.pages[i].type}) n'est permise qu'en page 2 ou en dernière page ; déplacez-la` });
+      const type = spec.pages[i].type;
+      if (!placeSombrePermise(type, i, spec.pages.length)) {
+        const places = TYPES_SOMBRES_CONTENU.includes(type) ? "en page 2 ou en dernière page" : "en dernière page";
+        ctx.addIssue({ code: "custom", path: ["pages", i], message: `la page sombre (${type}) n'est permise qu'${places} ; déplacez-la` });
       }
     }
     if (sombres.length > 1) {
