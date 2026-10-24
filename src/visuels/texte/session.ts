@@ -8,7 +8,7 @@ export { ErreurTexteCarrousel };
 /** Taille maximale d'un paquet de session, en octets (64 Ko). */
 export const TAILLE_PAQUET_MAX = 64 * 1024;
 
-const Paquet = z
+export const Paquet = z
   .object({
     version: z.literal("paquet-session-carrousel/1"),
     sujet: texteSansLien(1, 200),

@@ -20,9 +20,9 @@ import { jusquALaReprise } from "./reprise";
 import { AUCUNE_CORRECTION, carteACorriger, carteCorrigeeParWill, type BlocCarte, type CorrectionsCarte, type VueCarte } from "./vue";
 
 const PASTILLE_COULEUR: Record<BlocCarte["couleur"], string> = {
-  orange: "bg-orange text-white",
+  orange: "bg-orange text-sur-orange",
   noir: "bg-texte text-fond",
-  vert: "bg-sauge text-white",
+  vert: "bg-sauge text-fond",
   neutre: "bg-surface-3 text-texte",
 };
 

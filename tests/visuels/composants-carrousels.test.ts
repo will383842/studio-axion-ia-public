@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { BarreValidation } from "@/components/visuels/BarreValidation";
 import { CarteCarrousel } from "@/components/visuels/CarteCarrousel";
+import { aideFormat } from "@/visuels/texte/aide-format";
 import { FormulaireNouveauCarrousel } from "@/components/visuels/FormulaireNouveauCarrousel";
 import { ListeCarrousels } from "@/components/visuels/ListeCarrousels";
 import { OngletsCarrousels } from "@/components/visuels/OngletsCarrousels";
@@ -119,6 +120,11 @@ describe("Voyants", () => {
     expect(html).toContain("Page 3 : un chiffre");
     expect(html).not.toContain("(page 3)");
   });
+  it("la même phrase n'est montrée qu'une fois", () => {
+    const c = { code: "TUTOIEMENT", niveau: "rouge" as const, phrase: "Page 2 : le texte tutoie.", page: 2 };
+    const html = renderToStaticMarkup(createElement(Voyants, { rapport: { version: "porte-carrousel/1", verdict: "rouge", controles: [c, { ...c }], corrections: [] } }));
+    expect(html.match(/Page 2 : le texte tutoie\./g)).toHaveLength(1);
+  });
   it("vert : une phrase rassurante", () => {
     const html = renderToStaticMarkup(createElement(Voyants, { rapport: { version: "porte-carrousel/1", verdict: "vert", controles: [], corrections: [] } }));
     expect(html).toContain("Tout est en ordre");
@@ -158,7 +164,7 @@ describe("RangeePages", () => {
 });
 
 describe("FormulaireNouveauCarrousel", () => {
-  const html = renderToStaticMarkup(createElement(FormulaireNouveauCarrousel, { creer: action }));
+  const html = renderToStaticMarkup(createElement(FormulaireNouveauCarrousel, { creer: async () => ({ erreurs: [] }), aide: aideFormat() }));
   it("deux onglets actifs et trois entrées « bientôt »", () => {
     expect(html).toContain("Un sujet");
     expect(html).toContain("Déposer un texte écrit en session");

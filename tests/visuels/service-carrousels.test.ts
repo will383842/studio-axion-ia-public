@@ -7,6 +7,7 @@ import type { CarrouselSpecType } from "@/domaine/visuels/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import type { ResultatRendu } from "@/visuels/services/rendu";
 import { creerDepuisSujet, deposerSession, ErreurVisuel, lancerRendu, masquerSecrets, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
+import { MODELE_PAQUET } from "@/visuels/texte/aide-format";
 
 const SPEC = { version: "carrousel/1", alt: "Carrousel inventé", pages: [{ type: "T01", titre: "Titre inventé" }, { type: "T21" }] } as CarrouselSpecType;
 const SPEC_CORRIGE = { ...SPEC, alt: "Carrousel inventé corrigé" } as CarrouselSpecType;
@@ -155,8 +156,8 @@ describe("deposerSession", () => {
   it("entrée session, mode session, paquet transmis tel quel", async () => {
     const m = monter();
     m.texte.mockReturnValueOnce({ mode: "session", ecrire: async () => ({ titre: "Depuis la session", spec: SPEC, pourquoi: [], mode: "session" }) } as never);
-    const { id } = await deposerSession("contenu de session inventé", m.deps);
-    expect(m.texte).toHaveBeenCalledWith({ type: "paquet-session", contenu: "contenu de session inventé" });
+    const { id } = await deposerSession(MODELE_PAQUET, m.deps);
+    expect(m.texte).toHaveBeenCalledWith({ type: "paquet-session", contenu: MODELE_PAQUET });
     expect(await m.depot.obtenir(id)).toMatchObject({ entree: { type: "session" }, modeTexte: "session", statut: "ecrit", titre: "Depuis la session" });
   });
   it("contenu vide : PAQUET_INVALIDE", async () => {
@@ -248,6 +249,7 @@ describe("lancerRendu", () => {
     expect((await m.depot.obtenir(id))!.erreur).toBe("Le serveur de rendu n'est pas relié : aucun aperçu");
   });
   it("jeton de rendu : le même instant écrit autrement (+00:00) conclut quand même", async () => {
+    // eslint-disable-next-line prefer-const -- affectée plus bas : la fermeture de `rendu` la lit au moment du rendu
     let reformater: (() => Promise<unknown>) | undefined;
     const m = monter({ rendu: async () => { await reformater?.(); return RENDU; } });
     const { id } = await creerDepuisSujet("Sujet jeton", m.deps);
@@ -334,6 +336,16 @@ describe("valider, refuser, refaire", () => {
     await refaire(id, m.deps);
     expect(await m.depot.obtenir(id)).toMatchObject({ statut: "ecrit", versionSpec: 2 });
   });
+  it("refaire depuis echec_rendu (mise en page refusée) : repart en écriture, erreur effacée", async () => {
+    const m = monter({ rendu: async () => { throw new Error("La page 2 déborde de 40 px"); } });
+    const { id } = await creerDepuisSujet("Sujet trop long", m.deps);
+    await lancerRendu(id, m.deps);
+    expect(await m.depot.obtenir(id)).toMatchObject({ statut: "echec_rendu" });
+    await refaire(id, m.deps);
+    const v = (await m.depot.obtenir(id))!;
+    expect(v).toMatchObject({ statut: "ecrit", versionSpec: 2 });
+    expect(v.erreur).toBeUndefined();
+  });
   it("refaire une session : SESSION_ATTENDUE, rien ne bouge", async () => {
     const m = monter();
     const id = await amener(m, "refuse", { entree: { type: "session" }, modeTexte: "session" });
@@ -377,6 +389,8 @@ describe("transitions hors table", () => {
   }
 });
 
+const PHRASE_PAGE_2 = "La page 2 ne tient pas dans la mise en page (le texte dépasse de son cadre) : raccourcissez ce texte ou changez de type de page.";
+
 describe("corrections de relecture (V3-C)", () => {
   it("phraseEchec : un message brut (adresse, chemin) n'apparaît jamais dans erreur", async () => {
     const m = monter({ rendu: async () => { throw new Error("ECONNREFUSED 10.0.0.5:3000 /srv/x"); } });
@@ -391,16 +405,37 @@ describe("corrections de relecture (V3-C)", () => {
     const m = monter({ rendu: async () => { throw new Error("La page 2 déborde de 40 px"); } });
     const { id } = await creerDepuisSujet("Sujet débord", m.deps);
     await lancerRendu(id, m.deps);
-    expect((await m.depot.obtenir(id))!.erreur).toBe("La page 2 déborde de 40 px");
+    expect((await m.depot.obtenir(id))!.erreur).toBe(PHRASE_PAGE_2);
+  });
+  it.each([
+    ["La page 2 : un texte entre dans une zone réservée (1 ligne(s)) : rendu refusé", "zone réservée de LinkedIn"],
+    ["La page 2 déborde de 40 px", "le texte dépasse de son cadre"],
+    ["La page 2 a un texte sous 26 px (24)", "le texte devient trop petit pour être lu"],
+    ["La page 2 : un texte en chevauche un autre ou une illustration (1 cas) : rendu refusé", "deux textes se touchent"],
+  ])("phraseEchec : « %s » → une phrase par cause (%s), jamais « réessayez »", async (brut, cause) => {
+    const m = monter({ rendu: async () => { throw new Error(brut); } });
+    const { id } = await creerDepuisSujet("Sujet zone", m.deps);
+    await lancerRendu(id, m.deps);
+    const v = (await m.depot.obtenir(id))!;
+    expect(v.erreur).toBe(`La page 2 ne tient pas dans la mise en page (${cause}) : raccourcissez ce texte ou changez de type de page.`);
+    if (cause !== "zone réservée de LinkedIn") expect(v.erreur).not.toMatch(/LinkedIn/);
+    expect(v.erreur).not.toMatch(/Relancer/);
+  });
+  it("phraseEchec : un jambage coupé garde la phrase de mise en page, sans « LinkedIn »", async () => {
+    const m = monter({ rendu: async () => { throw new Error("La page 2 : un jambage est coupé : rendu refusé"); } });
+    const { id } = await creerDepuisSujet("Sujet jambage", m.deps);
+    await lancerRendu(id, m.deps);
+    const e = (await m.depot.obtenir(id))!.erreur!;
+    expect(e).toMatch(/^La page 2 ne tient pas dans la mise en page \(une lettre est coupée\) : raccourcissez/);
   });
   it("deposerSession : même contenu deux fois en moins de 60 s → un document, un appel au texte", async () => {
     const m = monter();
-    const [a, b] = await Promise.all([deposerSession("contenu de session inventé", m.deps), deposerSession("contenu de session inventé", m.deps)]);
+    const [a, b] = await Promise.all([deposerSession(MODELE_PAQUET, m.deps), deposerSession(MODELE_PAQUET, m.deps)]);
     expect(a.id).toBe(b.id);
     expect(await m.depot.compter()).toBe(1);
     expect(m.ecrire).toHaveBeenCalledTimes(1);
     m.avancer(61_000);
-    expect((await deposerSession("contenu de session inventé", m.deps)).id).not.toBe(a.id);
+    expect((await deposerSession(MODELE_PAQUET, m.deps)).id).not.toBe(a.id);
   });
   it("refaire depuis a_valider en mode api : API_PAYANTE_VERROUILLEE, statut inchangé, refus vide", async () => {
     const m = monter();
@@ -445,9 +480,9 @@ describe("corrections de relecture (V3-C)", () => {
     await second;
     expect(await m.depot.obtenir(id)).toMatchObject({ statut: "a_valider", erreur: undefined });
   });
-  it("phrases du rendu : « sous 26 px (24) » conservée, « mesure absente » = serveur non relié ; ancrage strict", async () => {
+  it("phrases du rendu : « sous 26 px (24) » = phrase de mise en page, « mesure absente » = serveur non relié ; ancrage strict", async () => {
     const cas: [string, string][] = [
-      ["La page 3 a un texte sous 26 px (24)", "La page 3 a un texte sous 26 px (24)"],
+      ["La page 3 a un texte sous 26 px (24)", "La page 3 ne tient pas dans la mise en page (le texte devient trop petit pour être lu) : raccourcissez ce texte ou changez de type de page."],
       ["La page 3 a un texte sous 26 px (mesure absente)", "Le serveur de rendu n'est pas relié : aucun aperçu"],
       ["La page 3 : mesure de la police absente (rendu refusé)", "Le serveur de rendu n'est pas relié : aucun aperçu"],
       ["Le serveur du studio n'a pas fini à temps.", "Le serveur du studio n'a pas fini à temps."],

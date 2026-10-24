@@ -7,25 +7,33 @@ const NOMS: Record<NiveauControle, string> = { vert: "Vert", orange: "Orange", r
 const POINTS: Record<NiveauControle, string> = { vert: "bg-sauge", orange: "bg-ambre", rouge: "bg-brique" };
 
 /** Petit voyant : pastille de couleur + mot (la couleur ne porte jamais seule l'information). */
-export function Voyant({ niveau, className }: { niveau: NiveauControle; className?: string }) {
+export function Voyant({ niveau, className, avecPorte }: { niveau: NiveauControle; className?: string; avecPorte?: boolean }) {
   return (
     <Pastille ton={TONS[niveau]} className={className}>
       <span aria-hidden className={cn("size-2 rounded-full", POINTS[niveau])} />
-      {NOMS[niveau]}
+      {avecPorte ? `Porte : ${NOMS[niveau].toLowerCase()}` : NOMS[niveau]}
     </Pastille>
   );
 }
 
 /** Résultat de la porte : une ligne par contrôle, avec la phrase et la page concernée. */
 export function Voyants({ rapport, className }: { rapport: RapportPorte; className?: string }) {
+  // Le même message n'est montré qu'une fois (deux textes fautifs peuvent donner la même phrase).
+  const vus = new Set<string>();
+  const controles = rapport.controles.filter((c) => {
+    const cle = `${c.niveau}|${c.page ?? ""}|${c.phrase}`;
+    if (vus.has(cle)) return false;
+    vus.add(cle);
+    return true;
+  });
   return (
     <section aria-label="Contrôles avant validation" className={cn("flex flex-col gap-2", className)}>
       <Voyant niveau={rapport.verdict} className="self-start" />
-      {rapport.controles.length === 0 ? (
+      {controles.length === 0 ? (
         <p className="text-sm text-texte-doux">Tout est en ordre.</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {rapport.controles.map((c, i) => (
+          {controles.map((c, i) => (
             <li key={`${c.code}-${i}`} className="flex min-h-11 items-start gap-3 rounded-champ border border-trait bg-surface-1 px-3.5 py-2.5">
               <Voyant niveau={c.niveau} />
               <p className="text-sm text-texte">

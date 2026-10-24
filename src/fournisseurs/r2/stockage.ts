@@ -215,8 +215,10 @@ export function creerStockageR2(config: ConfigR2, dependances: { fetch?: Fetch; 
       if (!cleStockage || cleStockage.startsWith("/")) return cleStockage;
       return signer("GET", cleStockage, DUREES_R2.navigateur);
     },
-    async urlLectureDuree(cleStockage, secondes) {
-      return signer("GET", cleStockage, secondes);
+    async urlLectureDuree(cleStockage, secondes, options) {
+      // « Télécharger » : le stockage répond avec `attachment`, le navigateur enregistre le fichier au lieu de l'ouvrir.
+      const nom = options?.telechargerSous?.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 120);
+      return signer("GET", cleStockage, secondes, nom ? { "response-content-disposition": `attachment; filename="${nom}"` } : undefined);
     },
     async urlDepotDuree(cleStockage, secondes) {
       return signer("PUT", cleStockage, secondes);

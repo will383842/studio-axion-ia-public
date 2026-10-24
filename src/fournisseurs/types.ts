@@ -607,7 +607,7 @@ export interface StockageFichiers extends FournisseurBase {
   urlLecture(cleStockage: string): Promise<string>;
   /* --- Lot M1b (ajouts facultatifs, R2) --- */
   /** Adresse de lecture valable `secondes` (24 h pour HeyGen, qui ne dit pas quand il récupère le fichier). */
-  urlLectureDuree?(cleStockage: string, secondes: number): Promise<string>;
+  urlLectureDuree?(cleStockage: string, secondes: number, options?: { telechargerSous?: string }): Promise<string>;
   /** Adresse de dépôt d'un fichier entier (PUT signé), pour `studio-rendu`. */
   urlDepotDuree?(cleStockage: string, secondes: number, mime?: string): Promise<string>;
   /** Envoi par morceaux, direct du navigateur vers le stockage (rushs de 1-2 Go). Absent : envoi simulé. */

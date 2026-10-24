@@ -73,7 +73,7 @@ export function LecturePrompteur() {
   const paragraphes = texte.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black text-white">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-fond text-texte">
       <div
         ref={zone}
         onClick={() => setLecture((l) => !l)}
@@ -81,16 +81,16 @@ export function LecturePrompteur() {
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         {paragraphes.length === 0 ? (
-          <p className="text-center text-2xl text-white">Aucun texte à lire. Ouvrez cette page depuis « {titre || "Lire sur l'iPad"} » de l&apos;écran du texte.</p>
+          <p className="text-center text-2xl text-texte">Aucun texte à lire. Ouvrez cette page depuis « {titre || "Lire sur l'iPad"} » de l&apos;écran du texte.</p>
         ) : (
           <div style={{ transform: miroir ? "scaleX(-1)" : undefined, fontSize: taille, lineHeight: 1.35 }} className="mx-auto max-w-[1100px] font-bold">
             {paragraphes.map((p, i) =>
               p === PAUSE ? (
-                <p key={i} className="my-[0.8em] text-center text-[0.5em] font-semibold uppercase tracking-widest text-yellow-300">
+                <p key={i} className="my-[0.8em] text-center text-[0.5em] font-semibold uppercase tracking-widest text-ambre">
                   — pause —
                 </p>
               ) : (
-                <p key={i} className="mb-[0.9em] text-white">
+                <p key={i} className="mb-[0.9em] text-texte">
                   {p}
                 </p>
               ),
@@ -99,30 +99,30 @@ export function LecturePrompteur() {
         )}
       </div>
 
-      <div role="group" aria-label="Réglages de lecture" className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-white/30 bg-black px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <button type="button" onClick={() => setLecture((l) => !l)} className="min-h-12 min-w-28 rounded-full bg-white px-5 text-lg font-bold text-black">
+      <div role="group" aria-label="Réglages de lecture" className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-trait-fort bg-fond px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <button type="button" onClick={() => setLecture((l) => !l)} className="min-h-12 min-w-28 rounded-full bg-texte px-5 text-lg font-bold text-fond">
           {lecture ? "Pause" : "Lecture"}
         </button>
-        <button type="button" onClick={debut} className="min-h-12 rounded-full border border-white px-4 text-base font-semibold text-white">
+        <button type="button" onClick={debut} className="min-h-12 rounded-full border border-texte px-4 text-base font-semibold text-texte">
           Début
         </button>
-        <label className="flex items-center gap-2 text-base font-semibold text-white">
+        <label className="flex items-center gap-2 text-base font-semibold text-texte">
           Vitesse
-          <input type="range" min={VITESSE_MIN} max={VITESSE_MAX} step={1} value={vitesse} onChange={(e) => setVitesse(Number(e.target.value))} className="h-8 w-36 accent-yellow-300" />
+          <input type="range" min={VITESSE_MIN} max={VITESSE_MAX} step={1} value={vitesse} onChange={(e) => setVitesse(Number(e.target.value))} className="h-8 w-36 accent-ambre" />
           <span className="w-5 tabular-nums">{vitesse}</span>
         </label>
-        <label className="flex items-center gap-2 text-base font-semibold text-white">
+        <label className="flex items-center gap-2 text-base font-semibold text-texte">
           Taille
-          <input type="range" min={TAILLE_MIN} max={TAILLE_MAX} step={4} value={taille} onChange={(e) => setTaille(Number(e.target.value))} className="h-8 w-28 accent-yellow-300" />
+          <input type="range" min={TAILLE_MIN} max={TAILLE_MAX} step={4} value={taille} onChange={(e) => setTaille(Number(e.target.value))} className="h-8 w-28 accent-ambre" />
         </label>
-        <label className="flex min-h-12 items-center gap-2 text-base font-semibold text-white">
-          <input type="checkbox" checked={miroir} onChange={(e) => setMiroir(e.target.checked)} className="size-6 accent-yellow-300" />
+        <label className="flex min-h-12 items-center gap-2 text-base font-semibold text-texte">
+          <input type="checkbox" checked={miroir} onChange={(e) => setMiroir(e.target.checked)} className="size-6 accent-ambre" />
           Miroir
         </label>
         <button
           type="button"
           onClick={fermer}
-          className="ml-auto min-h-12 content-center rounded-full border border-white px-4 text-base font-semibold text-white"
+          className="ml-auto min-h-12 content-center rounded-full border border-texte px-4 text-base font-semibold text-texte"
         >
           Fermer
         </button>

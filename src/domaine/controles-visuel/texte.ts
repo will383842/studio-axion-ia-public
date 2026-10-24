@@ -46,8 +46,8 @@ export function sansTelephones(texte: string): string {
 /** « un » et « une » sont des articles : ils ne comptent pas comme chiffre. */
 const NOMBRES_EN_LETTRES = new Set([
   ...["zero", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "vingt", "vingts", "trente", "quarante", "cinquante", "soixante", "cent", "cents", "mille", "million", "millions", "milliard", "milliards"],
-  // ordinaux sans suffixe régulier, fractions et quantités
-  ...["premier", "premiere", "premiers", "premieres", "second", "seconds", "seconde", "secondes", "moitie", "moities", "demi", "demie", "demis", "demies", "tiers", "quart", "quarts", "double", "doubles", "triple", "triples", "quadruple", "quadruples", "dizaine", "dizaines", "douzaine", "douzaines", "quinzaine", "quinzaines", "vingtaine", "vingtaines", "trentaine", "trentaines", "centaine", "centaines", "millier", "milliers"],
+  // fractions et quantités (« premier », « première », « second », « seconde » sont des adjectifs : ni nombre ni chiffre)
+  ...["seconds", "secondes", "moitie", "moities", "demi", "demie", "demis", "demies", "tiers", "quart", "quarts", "double", "doubles", "triple", "triples", "quadruple", "quadruples", "dizaine", "dizaines", "douzaine", "douzaines", "quinzaine", "quinzaines", "vingtaine", "vingtaines", "trentaine", "trentaines", "centaine", "centaines", "millier", "milliers"],
   // belgicismes
   ...["septante", "huitante", "octante", "nonante"],
 ]);
@@ -102,6 +102,61 @@ function estNombreEnLettres(mot: string): boolean {
   return NOMBRES_EN_LETTRES.has(n) || ORDINAL.test(n);
 }
 
+const FIN_MOT = "(?![\\p{L}\\p{N}])";
+/** Noms qui font d'un « premier du… » un classement (« le premier du mois » n'en est pas un). */
+const NOM_CLASSEMENT = `(?:march[eé]|secteur|france|monde|r[eé]gion|m[eé]tier|pays|europe|classement)${FIN_MOT}`;
+const SUITE_CLASSEMENT_DIRECTE = new RegExp(`^\\s+(?:(?:du|de la|des|de l['’]?)\\s+${NOM_CLASSEMENT}|de france${FIN_MOT}|en france${FIN_MOT}|au monde${FIN_MOT}|mondial${FIN_MOT}|mondiale${FIN_MOT}|national${FIN_MOT}|nationale${FIN_MOT})`, "iu");
+/** « Premier pas / fois / jour… en France » est une étape, pas un rang. */
+const SUITE_CLASSEMENT_PROCHE = new RegExp(
+  `^(?!\\s+(?:pas|fois|[eé]tape|jour|contact|rendez-vous|devis)${FIN_MOT})(?:\\s+\\p{L}+){0,3}?\\s+(?:(?:du|de la|des)\\s+${NOM_CLASSEMENT}|de france${FIN_MOT}|en france${FIN_MOT}|au monde${FIN_MOT}|mondial${FIN_MOT}|mondiale${FIN_MOT}|national${FIN_MOT}|nationale${FIN_MOT})`,
+  "iu",
+);
+const NUMERO_UN = /^\s*(?:°|o|º)?\s+un(?![\p{L}\p{N}])/iu;
+const SUITE_LEADER = /^\s+(?:du|de|des|d['’]|sur|dans|en|au|mondial|mondiale|national|nationale|europ[eé]en)(?![\p{L}\p{N}])/iu;
+
+/** Classement affiché (« premier du marché », « première solution au monde », « leader du secteur », « numéro un »), ou `undefined`. */
+function classementDe(texte: string, index: number, mot: string): string | undefined {
+  const n = normaliser(mot);
+  const suite = texte.slice(index + mot.length);
+  const avant = texte.slice(Math.max(0, index - 12), index);
+  if (/^premiere?s?$/.test(n)) {
+    const m = SUITE_CLASSEMENT_DIRECTE.exec(suite) ?? SUITE_CLASSEMENT_PROCHE.exec(suite);
+    if (m) return `${mot}${m[0]}`;
+    // Une place, un rang ou une position ne classent que dans « à la première place », « au premier rang », « en première position ».
+    const rang = /^\s+(place|rang|position)(?![\p{L}\p{N}])/iu.exec(suite);
+    if (rang && ((n === "premiere" && /(?:^|\s)[aà]\s+la\s+$/iu.test(avant) && rang[1]!.toLowerCase() !== "rang") || (n === "premier" && /(?:^|\s)au\s+$/iu.test(avant) && rang[1]!.toLowerCase() === "rang") || (n === "premiere" && /(?:^|\s)en\s+$/iu.test(avant) && rang[1]!.toLowerCase() === "position"))) return `${mot}${rang[0]}`;
+    return undefined;
+  }
+  if (n === "leader" || n === "leaders") {
+    const m = SUITE_LEADER.exec(suite);
+    if (m) return `${mot}${m[0]}`;
+    return /(?:^|[.!?:;\n–—])\s*$/u.test(texte.slice(0, index)) ? mot : undefined;
+  }
+  if ((n === "numero" || n === "n") && NUMERO_UN.test(suite)) return `${mot}${/^\s*\S*\s+un/iu.exec(suite)?.[0] ?? ""}`;
+  return undefined;
+}
+
+/** Premier classement affiché dans le texte (« premier du marché », « leader du secteur », « numéro un »), tel qu'écrit, ou `undefined`. */
+export function classementDans(texte: string): string | undefined {
+  const propre = sansTelephones(texte.normalize("NFKC"));
+  for (const m of propre.matchAll(/\p{L}+/gu)) {
+    const c = classementDe(propre, m.index ?? 0, m[0]);
+    if (c) return c.trim();
+  }
+  return undefined;
+}
+
+const AVANT_SECONDE_DUREE = new Set(["une", "chaque", "par", "d", "quelques", "cette", "toute"]);
+const SUITE_SECONDE_DUREE = /^(?:\s*(?:[.,;:!?)»]|$)|\s+(?:pour|de|a|à|et|ou|pres|près|seulement|plus|avant|apres|après|par|ne|sans|compte|suffit|suffisent)(?![\p{L}\p{N}]))/iu;
+
+/** « seconde » est une durée après « une / chaque / par » quand aucun nom ne suit (« une seconde chance » est un ordinal ; « la seconde de trop », « à la seconde près » sont des expressions). */
+function secondeDuree(avant: string, suite: string, mot: string): boolean {
+  if (normaliser(mot) !== "seconde") return false;
+  const a = normaliser(avant);
+  if (a === "chaque" || a === "par") return true;
+  return AVANT_SECONDE_DUREE.has(a) && SUITE_SECONDE_DUREE.test(suite);
+}
+
 /** Premier nombre en lettres, ordinal ou chiffre romain du texte (« neuf » adjectif exclu), avec sa position. */
 function premierEnLettres(texte: string): { brut: string; index: number } | undefined {
   let precedent = "";
@@ -110,7 +165,7 @@ function premierEnLettres(texte: string): { brut: string; index: number } | unde
     const index = m.index ?? 0;
     const avant = precedent;
     precedent = mot;
-    if (!estNombreEnLettres(mot)) continue;
+    if (!estNombreEnLettres(mot) && !secondeDuree(avant, texte.slice(index + mot.length), mot)) continue;
     if (normaliser(mot) === "neuf") {
       const suite = texte.slice(index + mot.length);
       if (!neufEstNombre(normaliser(avant), suite)) continue;
@@ -136,6 +191,8 @@ export function premierChiffre(texte: string): string | undefined {
 // --- Tutoiement ----------------------------------------------------------------------------------------------------
 
 const MOT_ENTIER = "(?<![\\p{L}])";
+/** « Ton variable », « Ton constant » : en tête de texte ou de phrase, « ton » suivi d'un adjectif ou verbe de tonalité est le nom commun. */
+const TON_EN_TETE = "(?!(?<=(?:^|[.!?:;\\n–—])\\s*ton)\\s+(?:variable|constant|constante|juste|neutre|direct|sobre|uniforme|cohérent|adapté|employé|choisi|reste|change|varie|est|devient|doit|se)(?![\\p{L}\\p{N}]))";
 const TUTOIEMENT = new RegExp(
   "(?<![\\p{L}\\p{N}])(?:" +
     "(?:tu|ta|tes|toi|te)(?![\\p{L}\\p{N}])" +
@@ -143,7 +200,7 @@ const TUTOIEMENT = new RegExp(
     `|(?<=${MOT_ENTIER}(?:le|la|les)\\s+)tien(?:ne)?s?(?![\\p{L}\\p{N}])` +
     `|(?<!${MOT_ENTIER}(?:je|j['’‘ʼ](?:y|en)|nous)\\s+)tiens(?![\\p{L}\\p{N}])` +
     // « ton » : possessif, sauf tonalité (le ton, un ton, du ton, bon ton, même ton, ce ton, changer de ton, ton sur ton)
-    `|ton(?![\\p{L}\\p{N}])(?<!${MOT_ENTIER}(?:le|un|du|au|bon|même|ce|cet|votre|notre|son|leur|mon|quel|quelle)\\s+ton)(?<!${MOT_ENTIER}(?:chang|baiss|hauss)\\p{L}*\\s+de\\s+ton)(?<!${MOT_ENTIER}ton\\s+sur\\s+ton)(?!\\s+sur\\s+ton(?![\\p{L}\\p{N}]))` +
+    `|ton(?![\\p{L}\\p{N}])(?<!${MOT_ENTIER}(?:le|un|du|au|bon|même|ce|cet|votre|notre|son|leur|mon|quel|quelle)\\s+ton)(?<!${MOT_ENTIER}(?:chang|baiss|hauss)\\p{L}*\\s+de\\s+ton)(?<!${MOT_ENTIER}ton\\s+sur\\s+ton)(?!\\s+sur\\s+ton(?![\\p{L}\\p{N}]))${TON_EN_TETE}` +
     "|t['’‘ʼ](?=\\p{L})" +
     ")",
   "iu",
@@ -191,4 +248,14 @@ export function partAnglais(texte: string): number | undefined {
   const m = mots(texte).map((x) => x.toLowerCase());
   if (m.length < MOTS_MIN_ANGLAIS) return undefined;
   return m.filter((x) => MOTS_ANGLAIS.has(x)).length / m.length;
+}
+
+const PAGES_EN_LETTRES: Record<string, number> = { une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10 };
+
+/** Texte alternatif sans « N pages » quand N est le nombre de pages du carrousel lui-même (en lettres ou en chiffres). */
+export function sansNombreDePages(texte: string, nbPages: number): string {
+  return texte.replace(/(?<![\p{L}\p{N}])(\d{1,2}|[a-zéè]+)\s+pages?(?![\p{L}\p{N}])/giu, (tout, n: string) => {
+    const valeur = /^\d+$/.test(n) ? Number(n) : PAGES_EN_LETTRES[normaliser(n)];
+    return valeur === nbPages ? "pages" : tout;
+  });
 }

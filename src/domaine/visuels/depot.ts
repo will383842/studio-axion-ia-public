@@ -19,3 +19,15 @@ export function urlSure(u: string | undefined): string | undefined {
   if (/^\/(?![\/\\])/.test(u)) return u;
   return u.startsWith("https:") ? u : undefined;
 }
+
+/** Nom du PDF téléchargé : titre sans accents ni signes (lettres, chiffres et tirets), 80 signes au plus, + « .pdf ». */
+export function nomFichierPdf(titre: string): string {
+  const propre = titre
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+  return `${propre || "carrousel"}.pdf`;
+}
