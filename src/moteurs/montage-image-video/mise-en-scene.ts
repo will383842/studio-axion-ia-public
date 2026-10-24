@@ -2016,7 +2016,7 @@ function pastillesDePart(toile: DispositionToile, p: Pick<ProprietesSceneIV, "sc
   const branches = new Set(toile.branches.map((b) => b.id));
   const parId = new Map(toile.boites.map((b) => [b.id, b]));
   const colonne = new Map(toile.boites.map((b) => [b.id, b.colonne !== null && branches.has(b.colonne) ? b.colonne : null]));
-  const part = new Map(p.schema.liens.filter((l) => l.part !== undefined).map((l) => [l.id, l.part!]));
+  const part = new Map(p.schema.liens.filter((l) => typeof l.part === "number" && l.part > 0).map((l) => [l.id, l.part!]));
   const separations = [...(p.separations ?? [])].sort((a, b) => a.t - b.t || a.noeud.localeCompare(b.noeud));
   const taille = TAILLE_LIBELLE_IV * ECRAN_IV.hauteur;
   const res: EtiquetteToile[] = [];
@@ -2028,9 +2028,11 @@ function pastillesDePart(toile: DispositionToile, p: Pick<ProprietesSceneIV, "sc
     if (!versBranche.length) continue;
     const coude = bas + Math.min(K.coudeMax, Math.min(...versBranche.map((f) => parId.get(f.vers)!.y - bas)) / 2);
     for (const f of versBranche) {
+      // Comme L7 : sans part (cartes à `part: null`), pas de pastille.
+      if (!part.get(f.id)) continue;
       const b = parId.get(f.vers)!;
       const [x, y] = milieuFleche(d, b, coude);
-      const texte = `${part.get(f.id) ?? 0} %`;
+      const texte = `${part.get(f.id)!} %`;
       const largeur = texte.length * K.pastille.signe * taille + 2 * K.pastille.padX;
       const hauteur = taille * 1.15 + K.pastille.padHaut + K.pastille.padBas;
       res.push({ id: `part-${f.id}`, noeud: sep.noeud, des: sep.t + K.dessinFleche * 0.6, x: x - largeur / 2, y: y - hauteur / 2, largeur, hauteur });
