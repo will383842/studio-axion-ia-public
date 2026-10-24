@@ -101,6 +101,14 @@ describe("service sujets traités : suggestions", () => {
     expect(sans.every((x) => !ids.has(x.casId!))).toBe(true);
   });
 
+  it("les cas retirés par Will ne sont jamais suggérés", async () => {
+    const tous = await suggestionsSujets("cas-concret", undefined, sources([], { catalogueEtendu: async () => true }));
+    const ids = new Set(tous.flatMap((x) => (x.casId ? [x.casId] : [])).slice(0, 2));
+    expect(ids.size).toBeGreaterThan(0);
+    const sans = await suggestionsSujets("cas-concret", undefined, sources([], { catalogueEtendu: async () => true, casRetires: async () => ids }));
+    expect(sans.some((x) => x.casId && ids.has(x.casId))).toBe(false);
+  });
+
   it("cas concret : jamais un cas déjà pris, jamais un cas de la phase 2 si le catalogue étendu est éteint", async () => {
     const s = await suggestionsSujets("cas-concret", undefined, sources([casRecrutement]));
     expect(s.length).toBeGreaterThan(0);

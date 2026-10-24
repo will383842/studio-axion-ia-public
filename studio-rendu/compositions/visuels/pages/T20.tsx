@@ -1,6 +1,7 @@
 import { HAUTEUR_MAQUETTE, LARGEUR_MAQUETTE, maquettesDesEtapes, type VarianteT20 } from "../../../../src/briques/visuels/maquettes-etapes";
 import { BORD_DROIT_TEXTE, COULEURS, FILET, MARGE, POLICE_CORPS } from "../commun/constantes";
 import { Numero } from "../commun/editorial";
+import { colonne, largeurAuFacteur1 } from "../commun/geometrie";
 import { PageBase } from "../commun/PageBase";
 import { Dessin } from "../commun/Picto";
 import { k, moinsK, Remplir } from "../commun/Remplir";
@@ -57,6 +58,9 @@ export function T20({ titre, etapes, index, total, variante = "classique" }: Pro
 
 /** Colonne du texte de la variante à maquettes : après les numéros et la mini-maquette. */
 const X_TEXTE_MAQUETTE = X_TEXTE + LARGEUR_MAQUETTE + ECART;
+/** Colonnes du texte des étapes à maquettes (places de la porte : `placesT20Maquettes`). */
+export const colonnesT20Maquettes = (n: number) =>
+  Array.from({ length: n }, (_, i) => colonne(X_TEXTE_MAQUETTE, i >= n - 2 ? BORD_DROIT_TEXTE_BAS : BORD_DROIT_TEXTE, COLONNE_NUMERO + LARGEUR_MAQUETTE));
 
 /**
  * T20, variante « étapes à mini-maquettes » (L10) : même fil de numéros que l'ancienne page ; entre le numéro et le texte, chaque étape montre
@@ -67,12 +71,13 @@ function EtapesMaquettes({ titre, etapes, index, total }: Omit<Proprietes, "vari
   chargerPoliceInter();
   chargerPoliceTitre();
   const maquettes = maquettesDesEtapes(etapes);
+  const colonnes = colonnesT20Maquettes(etapes.length);
   return (
     <PageBase titre={titre} index={index} total={total} type="T20">
       <Remplir max={1.6}>
         {etapes.map((e, i) => {
           const derniere = i === etapes.length - 1;
-          const largeur = moinsK(largeurTexteMax(X_TEXTE_MAQUETTE, i >= etapes.length - 2 ? BORD_DROIT_TEXTE_BAS : BORD_DROIT_TEXTE), COLONNE_NUMERO + LARGEUR_MAQUETTE);
+          const largeur = moinsK(largeurAuFacteur1(colonnes[i]), colonnes[i].croissance);
           return (
             <div key={i} style={{ display: "flex", gap: ECART }}>
               <div style={{ flex: "none", width: k(COLONNE_NUMERO), display: "flex", flexDirection: "column", alignItems: "center" }}>

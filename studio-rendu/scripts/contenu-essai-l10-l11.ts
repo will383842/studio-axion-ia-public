@@ -29,7 +29,7 @@ export const CAS_L10_L11: CasL10L11[] = [
   ...[3, 4, 5].map((n) => ({ nom: `t20-maquettes-max-${n}`, page: { type: "T20", titre: "Construire messages", etapes: etapesMax(n), variante: "maquettes" } })),
   // T29 : contenu ordinaire (question, phrase forte), mots longs, budgets maximaux.
   { nom: "t29-question", page: { type: "T29", relance: "Et chez vous, par où commencer ?", rappels: [{ texte: "Repérer une tâche qui revient" }, { texte: "Garder la main sur chaque étape" }] } },
-  { nom: "t29-phrase", page: { type: "T29", relance: "Le plus dur, c'est de commencer.", rappels: [{ texte: "Une tâche précise suffit" }, { texte: "Un essai court, sans risque" }, { texte: "Vous décidez de la suite" }] } },
+  { nom: "t29-phrase", page: { type: "T29", relance: "Le plus dur, c'est de commencer.", rappels: [{ texte: "Une tâche précise suffit" }, { texte: "Un essai court pour voir" }, { texte: "Vous décidez de la suite" }] } },
   { nom: "t29-mots-longs", page: { type: "T29", relance: "Professionnalisation administrative indispensable", rappels: [{ texte: "Professionnalisation des correspondances" }, { texte: "Responsabilités hiérarchiques" }, { texte: "Vérifications indispensables" }] } },
   ...casMax("T29", texteMotsLongs).map((c, i) => ({ nom: `t29-maximal-v${i + 1}`, page: c.page })),
 ];

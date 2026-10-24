@@ -2,6 +2,7 @@ import { TEXTES_FIXES_L11 } from "../../../../src/briques/visuels/textes-fixes";
 import { COULEURS, LARGEUR_TITRE_BORNE, MARGE, POLICE_CORPS, TITRE_MIN_MESSAGE } from "../commun/constantes";
 import { Zone } from "../commun/controle-debordement";
 import { Etiquette, filetAuDessus } from "../commun/editorial";
+import { colonne, largeurAuFacteur1 } from "../commun/geometrie";
 import { DANS_LA_COLONNE, PageBase } from "../commun/PageBase";
 import { Dessin } from "../commun/Picto";
 import { k, moinsK, Remplir } from "../commun/Remplir";
@@ -29,6 +30,8 @@ const TAILLE_ETIQUETTE = 32;
 const COCHE = 52;
 const ECART = 24;
 const X_TEXTE = MARGE + COCHE + ECART;
+/** Colonne d'un rappel : après la coche, jusqu'à x = 860 (place de la porte : `PLACE_T29`). */
+export const COLONNE_RAPPEL_T29 = colonne(X_TEXTE, BORD_DROIT_TEXTE_BAS, COCHE);
 
 /** Coche d'un rappel : disque crème, coche encre ; sans texte. */
 function CocheRappel() {
@@ -64,7 +67,7 @@ export function T29({ relance, rappels, index, total }: Proprietes) {
             <Dessin nom="coche-rappel" grandit={{ largeur: COCHE, hauteur: COCHE }}>
               <CocheRappel />
             </Dessin>
-            <div style={{ maxWidth: moinsK(largeurTexteMax(X_TEXTE, BORD_DROIT_TEXTE_BAS), COCHE), paddingTop: k(4), fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: k(34), lineHeight: 1.25, color: COULEURS.encre }}>{r.texte}</div>
+            <div style={{ maxWidth: moinsK(largeurAuFacteur1(COLONNE_RAPPEL_T29), COCHE), paddingTop: k(4), fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: k(34), lineHeight: 1.25, color: COULEURS.encre }}>{r.texte}</div>
           </div>
         ))}
       </Remplir>

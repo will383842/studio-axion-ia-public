@@ -1,8 +1,16 @@
+import type { Intention } from "../../briques/visuels/trames";
 import type { ModeTexte, MotifRefus } from "./visuel";
 import type { StatutVisuel } from "./statuts";
 import type { CarrouselSpecType } from "./types";
 
-export type DemandeTexteCarrousel = { type: "sujet"; sujet: string; version?: number } | { type: "paquet-session"; contenu: string };
+/** Ce qui distingue un carrousel d'un autre à l'œil (L7, mémoire anti-répétition) : la suite de ses types et sa couverture (type et dessin). */
+export interface EmpreinteCarrousel {
+  suite: string;
+  couverture: string;
+}
+
+/** `eviter` : empreintes des derniers carrousels produits, que la fabrication ne doit pas répéter. */
+export type DemandeTexteCarrousel = { type: "sujet"; sujet: string; version?: number; intention?: Intention; eviter?: readonly EmpreinteCarrousel[] } | { type: "paquet-session"; contenu: string };
 
 export interface ReponseTexteCarrousel {
   titre: string;
@@ -39,6 +47,8 @@ export interface ContextePorte {
   interditsDans: (texte: string) => string[];
   /** Faux tant que la liste de faits n'est pas validée : tout chiffre est alors rouge. */
   faitsDisponibles: boolean;
+  /** Empreintes des derniers carrousels produits (absent : aucune mémoire, aucun contrôle de répétition). */
+  recents?: readonly EmpreinteCarrousel[];
 }
 
 export type Porte = (spec: unknown, ctx: ContextePorte) => { rapport: RapportPorte; specCorrige?: CarrouselSpecType };

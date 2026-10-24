@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { CONSIGNE_VOIX_CAS_CONCRET } from "@/moteurs/montage-cas-concret/avant-prix";
 import { motNormalise, PHRASE_MOT_INDISPONIBLE, PHRASE_MOT_TROP_FREQUENT, type EtatMotsFeuille } from "@/formats/cas-concret/mots-branches";
 import { Bouton } from "@/components/ui/Bouton";
+import { BoutonRetirerCas } from "./BoutonRetirerCas";
 import { Champ } from "@/components/ui/Champ";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Interrupteur } from "@/components/ui/Interrupteur";
@@ -75,6 +76,7 @@ export function FeuilleVotreVideo({
   voix,
   mots,
   onFermer,
+  onRetire,
   estimer,
   onFabriquer,
   onValider,
@@ -93,6 +95,8 @@ export function FeuilleVotreVideo({
   /** Où chaque mot est branché, comptes chargés en mot (X6) ; absent : rien n'est branché. */
   mots?: EtatMotsFeuille;
   onFermer: () => void;
+  /** « Retirer ce cas » : après le retrait, ferme la feuille. Absent : le bouton n'est pas montré. */
+  onRetire?: () => void;
   /** Montant (centimes) pour ce choix, et le refus avant le prix (X7) ; `null` : l'estimation a échoué. */
   estimer: (choix: ChoixVideo) => Promise<EstimationFeuille | null>;
   /** Lot L3 : « Choisir un autre sujet » ouvre l'autre cas. */
@@ -229,7 +233,7 @@ export function FeuilleVotreVideo({
           Ce sujet existe déjà dans un autre type de vidéo : {avertissement.precedents.slice(0, 3).map((p) => p.titre).join(" · ")}.
         </p>
       )}
-      <ContenuVotreVideo cas={cas} essai={essai} reseaux={reseaux} onReseaux={setReseaux} mot={mot} onMot={setMot} avecMot={avecMot} onAvecMot={setAvecMot} nouveauScript={nouveauScript} onNouveauScript={changerNouveauScript} mots={mots} onValider={onValider} onFait={onFait} occupe={occupe} />
+      <ContenuVotreVideo cas={cas} essai={essai} reseaux={reseaux} onReseaux={setReseaux} mot={mot} onMot={setMot} avecMot={avecMot} onAvecMot={setAvecMot} nouveauScript={nouveauScript} onNouveauScript={changerNouveauScript} mots={mots} onValider={onValider} onFait={onFait} occupe={occupe} {...(onRetire ? { onRetire } : {})} />
     </FeuilleBas>
   );
 }
@@ -309,6 +313,7 @@ export function ContenuVotreVideo({
   onValider,
   onFait,
   occupe = false,
+  onRetire,
 }: {
   cas: VueCas;
   essai: boolean;
@@ -325,6 +330,8 @@ export function ContenuVotreVideo({
   onValider: () => void;
   onFait?: (faitId: string, decision: "confirmer" | "retirer") => void;
   occupe?: boolean;
+  /** Montre « Retirer ce cas » (jamais en porte B) ; appelé après le retrait. */
+  onRetire?: () => void;
 }) {
   const aConfirmer = new Set(cas.porteB?.aConfirmer.map((f) => f.id) ?? []);
   // X6 : le mot n'est dit que sur les comptes cochés où il est branché ; sans aucun, l'option est grisée.
@@ -451,6 +458,7 @@ export function ContenuVotreVideo({
           Je valide ce cas
         </Bouton>
       )}
+      {onRetire && !cas.porteB && <BoutonRetirerCas casId={cas.id} titre={cas.titre} onRetire={onRetire} desactive={occupe} />}
     </div>
   );
 }
