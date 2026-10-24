@@ -1,4 +1,7 @@
-/** « Stock des cas » : où en est chaque cas, combien de vidéos sont faites. Lecture seule, repliable, sans bouton qui dépense. */
+/**
+ * OBSOLÈTE pour la page « Cas concret MD » (refonte du 24/10/2026 : trois onglets ; son contenu est devenu l'onglet « À faire ») :
+ * ce bloc replié n'est plus affiché par la page, il reste pour ses tests et ses réutilisations (`IdeesAVenir`).
+ * « Stock des cas » : où en est chaque cas, combien de vidéos sont faites. Lecture seule, repliable, sans bouton qui dépense. */
 import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
 import { OFFRES_PASTILLES } from "@/components/formats/cas-concret/entree/vue";
@@ -58,6 +61,28 @@ function CarteStock({ l }: { l: LigneStock }) {
         )}
       </div>
     </Carte>
+  );
+}
+
+/** « Idées à venir (n) » : les idées d'automatisation pas encore des cas. Lecture seule. */
+export function IdeesAVenir({ idees, niveau = "h3" }: { idees: readonly IdeeAutomatisation[]; niveau?: "h2" | "h3" }) {
+  const Titre = niveau;
+  return (
+    <section className="mt-6">
+      <Titre className="text-[15px] font-semibold text-texte">Idées à venir ({idees.length})</Titre>
+      {idees.length === 0 ? (
+        <p className="mt-1 text-[13px] text-texte-doux">Aucune idée pour le moment.</p>
+      ) : (
+        <ul className="mt-2 flex flex-col gap-3 p-0">
+          {idees.map((i) => (
+            <Carte as="li" key={i.id} className="list-none">
+              <span className="block text-[15px] font-semibold text-texte">{i.nom}</span>
+              <span className="block text-[13px] text-texte-doux">{i.resume}</span>
+            </Carte>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -146,21 +171,7 @@ export function StockDesCas({ lignes, idees, tableau, ouvert: ouvertParLien }: {
           Les cas déjà faits sont sur la <a className="inline-flex min-h-11 items-center text-orange-vif underline" href="/cas-concret/deja-faits">page Cas déjà faits</a>.
         </p>
       )}
-      <section className="mt-6">
-        <h3 className="text-[15px] font-semibold text-texte">Idées à venir ({idees.length})</h3>
-        {idees.length === 0 ? (
-          <p className="mt-1 text-[13px] text-texte-doux">Aucune idée pour le moment.</p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-3 p-0">
-            {idees.map((i) => (
-              <Carte as="li" key={i.id} className="list-none">
-                <span className="block text-[15px] font-semibold text-texte">{i.nom}</span>
-                <span className="block text-[13px] text-texte-doux">{i.resume}</span>
-              </Carte>
-            ))}
-          </ul>
-        )}
-      </section>
+      <IdeesAVenir idees={idees} />
     </details>
     </>
   );

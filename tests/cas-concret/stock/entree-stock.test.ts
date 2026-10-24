@@ -17,9 +17,9 @@ const aValider = vues.filter((v) => !v.valide);
 const rendre = (v: VueCas[], a: VueCas[]) => renderToStaticMarkup(createElement(EntreeCasConcret, { valides: v, aValider: a, montants: {} }));
 
 describe("écran de choix et stock", () => {
-  it("réglage éteint : ni filtres du stock ni bouton « Proposez-moi un cas restant »", () => {
+  it("réglage éteint : pas de filtres du stock ; le bouton « Proposez-moi un cas restant » est là (refonte de la page, 24/10)", () => {
     const h = rendre(valides, aValider);
-    expect(h).not.toContain("Proposez-moi");
+    expect(h).toContain("Proposez-moi un cas restant");
     expect(h).not.toContain("Filtres du stock");
   });
 

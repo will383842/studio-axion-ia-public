@@ -3,6 +3,7 @@
 /** Une carte par cas validé : titre, promesse, « Chez nous » ou « Notre offre », l'offre et sa nature, « Vrais écrans » s'il y en a. */
 import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
+import { libelleSecteur } from "../stock/filtres-stock";
 import type { VueCas } from "./vue";
 
 export function CarteCas({ cas, onOuvrir }: { cas: VueCas; onOuvrir: () => void }) {
@@ -13,6 +14,8 @@ export function CarteCas({ cas, onOuvrir }: { cas: VueCas; onOuvrir: () => void 
           <Pastille ton={cas.posture === "Chez nous" ? "sauge" : "orange"}>{cas.posture}</Pastille>
           <Pastille>{cas.offreLibelle}</Pastille>
           {cas.nature && <Pastille>{cas.nature}</Pastille>}
+          {cas.stock?.secteur && <Pastille>{libelleSecteur(cas.stock.secteur)}</Pastille>}
+          {cas.stock?.taille && <Pastille>{cas.stock.taille}</Pastille>}
           {cas.vraisEcrans && <Pastille ton="ambre">Vrais écrans</Pastille>}
         </span>
         <span className="text-[17px] font-semibold text-texte">{cas.titre}</span>
