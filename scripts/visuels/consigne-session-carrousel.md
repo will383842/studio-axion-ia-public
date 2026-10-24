@@ -63,6 +63,22 @@ Un type n'est choisi que si le CONTENU a déjà cette forme ; on ne tord jamais 
 - **T28 schéma de flux** : un circuit qui s'enchaîne vraiment (une étape mène à la suivante), de 3 à 5 étapes très courtes. Pour une méthode avec explications, préférer T20.
 - Deux pages de même famille ne se suivent pas : T08, T22 et T24 (contrastes) ; T06, T23 et T27 (listes) ; T20 et T28 (enchaînements).
 
+## Trames par intention (L12)
+
+Quand le carrousel a une **intention**, son plan suit la trame de cette intention (`src/briques/visuels/trames.ts`, même ordre, mêmes rôles) ; sans intention, la structure libre ci-dessus s'applique. Lecteur : dirigeants et équipes de TPE et PME qui entendent parler d'IA sans savoir par où commencer. Faire sentir le temps gagné et les clients mieux servis, sans jamais l'annoncer ni le promettre.
+
+| Intention | Trame | Enchaînement des pages |
+| --- | --- | --- |
+| `eveil` | Éveil / déclic | T01 → T06 → T10 → T22 → T23 → (T29) → T21 |
+| `methode` | Méthode / comment faire | T01 → T02 → T10 → T20 → T27 → T08 → T28 → (T29) → T21 |
+| `preuve` | Preuve / cas | T01C → T26 → T24 → T10 → T08 → T27 → (T29) → T21 |
+
+- Éveil : problème, ce qui coince au quotidien, coût de l'inaction (sans chiffre), idée reçue contre réalité, questions à se poser, appel.
+- Méthode : promesse, sommaire, principe à retenir, étapes (un verbe d'action chacune), checklist, avant / après, schéma du circuit, appel.
+- Preuve : la question du lecteur, un cas concret (« Scénario type », inventé), sans / avec, ce qui change, avant / après, « et chez vous ? », appel.
+- `(T29)` (relance) est facultative : ne l'employer que lorsque ce type est au registre.
+- Chaque trame respecte la variété : jamais deux pages de même famille à la suite, au moins 4 types (5 dès 8 pages), jamais trois pages denses de suite, une seule page sombre (T21, la dernière).
+
 ## Mise en ligne des types T22 à T28 (L9)
 
 Tant que ces types ne sont pas en ligne des deux côtés, ne pas les employer. Ordre de mise en ligne :

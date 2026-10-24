@@ -1,4 +1,5 @@
 import { PAGES, TYPES_PAGE } from "../../briques/visuels/registre-pages";
+import { consigneTrame, type Intention } from "../../briques/visuels/trames";
 import type { DemandeTexteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
 import { lirePaquetSession } from "./session";
 import { ErreurTexteCarrousel, exigerApiDeverrouillee } from "./verrou-api";
@@ -15,6 +16,11 @@ export const CONSIGNE_API = [
   "La première page est une couverture, la dernière est T21, sans aucun champ.",
 ].join("\n");
 
+/** Consigne de l'API, suivie du plan et des consignes d'écriture de la trame quand le carrousel a une intention (L12). */
+export function consigneApi(intention?: Intention): string {
+  return intention ? `${CONSIGNE_API}\n${consigneTrame(intention)}` : CONSIGNE_API;
+}
+
 /** Fournisseur « api » : verrouillé. La première instruction d'`ecrire` refuse tant que le verrou n'est pas levé par Will. */
 export function creerFournisseurApi(deps: DependancesApi): FournisseurTexteCarrousel {
   return {
@@ -22,7 +28,7 @@ export function creerFournisseurApi(deps: DependancesApi): FournisseurTexteCarro
     async ecrire(demande: DemandeTexteCarrousel): Promise<ReponseTexteCarrousel> {
       exigerApiDeverrouillee();
       if (demande.type !== "sujet") throw new ErreurTexteCarrousel("SUJET_INVALIDE", "Le fournisseur API attend un sujet.");
-      const sortie = await deps.appeler(CONSIGNE_API, demande.sujet);
+      const sortie = await deps.appeler(consigneApi(demande.intention), demande.sujet);
       return { ...lirePaquetSession(sortie), mode: "api" };
     },
   };

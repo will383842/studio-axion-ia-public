@@ -69,7 +69,7 @@ describe("données des trames", () => {
 
   it("ecartsTrame signale une suite de même famille, trop peu de types, trois pages denses de suite, une page sombre mal placée", () => {
     expect(ecartsTrame(["T01", "T22", "T24", "T10", "T06", "T21"]).join(" ")).toMatch(/famille/u);
-    expect(ecartsTrame(["T01", "T06", "T10", "T06", "T10", "T21"]).join(" ")).toMatch(/types/u);
+    expect(ecartsTrame(["T01", "T06", "T10", "T06", "T10", "T06", "T10", "T21"]).join(" ")).toMatch(/types/u);
     expect(ecartsTrame(["T01", "T02", "T20", "T27", "T10", "T21"]).join(" ")).toMatch(/denses/u);
     expect(ecartsTrame(["T01", "T06", "T21", "T10", "T22", "T23"]).join(" ")).toMatch(/sombre/u);
   });
@@ -84,7 +84,7 @@ describe("consignes de plan et d'écriture", () => {
       expect([...ordre].sort((a, b) => a - b), i).toEqual(ordre);
       expect(c, i).toContain(TRAMES[i].nom);
       expect(c, i).toMatch(/TPE et PME/u);
-      expect(c, i).not.toMatch(/\d{2,}|J['’]aide|Aucun gain garanti/iu);
+      expect(c, i).not.toMatch(/J['’]aide|Aucun gain garanti|%/iu);
     }
   });
 
@@ -118,7 +118,7 @@ describe("contenus d'essai par trame", () => {
       const note = noterCarrousel(f.spec);
       expect(note.bloquants, i).toEqual([]);
       expect(note.criteres.find((c) => c.nom === "Diversité")?.niveau, i).toBe("vert");
-      expect(JSON.stringify(f.spec), i).not.toMatch(/\d|J['’]aide|Aucun gain garanti/iu);
+      expect(JSON.stringify(f.spec), i).not.toMatch(/J['’]aide|Aucun gain garanti|%/iu);
     }
   });
 });
@@ -161,12 +161,13 @@ function monter() {
   const depot = new DepotMemoire<Visuel>();
   const demandes: DemandeTexteCarrousel[] = [];
   const spec = FIXTURES_TRAMES.eveil.spec;
-  const rapport = { version: "porte-carrousel/1" as const, verdict: "vert" as const, controles: [], corrections: [] };
+  // Porte rouge : le brouillon est « bloqué », donc « Refaire » est permis.
+  const rapport = { version: "porte-carrousel/1" as const, verdict: "rouge" as const, controles: [{ code: "C1", niveau: "rouge" as const, phrase: "Contrôle inventé" }], corrections: [] };
   let chaine: Promise<unknown> = Promise.resolve();
   const deps: DependancesCarrousels = {
     depot,
     texte: () => ({ mode: "simulation", ecrire: async (d: DemandeTexteCarrousel) => (demandes.push(d), { titre: "Titre", spec, pourquoi: [...FIXTURES_TRAMES.eveil.pourquoi], mode: "simulation" as const }) }),
-    porte: () => ({ rapport, specCorrige: spec }),
+    porte: () => ({ rapport }),
     contextePorte: async () => ({ interditsDans: () => [], faitsDisponibles: false }),
     allume: async () => true,
     rendre: async () => {
