@@ -2,7 +2,7 @@
 import { CarrouselSpec } from "../visuels/schema";
 import type { ControlePorte, NiveauControle, Porte, RapportPorte } from "../visuels/contrats";
 import { controlesStructure } from "./rythme";
-import { contientJAide, expressionsBannieDans, MOTS_MIN_ANGLAIS, partAnglais, premierChiffre, SEUIL_ANGLAIS, sortantsDans, tutoiementDans } from "./texte";
+import { classementDans, contientJAide, expressionsBannieDans, MOTS_MIN_ANGLAIS, partAnglais, premierChiffre, sansNombreDePages, SEUIL_ANGLAIS, sortantsDans, tutoiementDans } from "./texte";
 import { textesDe } from "./textes-de";
 import { corrigerTypographie } from "./typographie";
 
@@ -56,6 +56,7 @@ export const controlerCarrousel: Porte = (spec, ctx) => {
   }
 
   // Les contrôles de texte lisent toutes les chaînes, même d'une spec refusée par le schéma.
+  const nbPages = Array.isArray((spec as { pages?: unknown })?.pages) ? (spec as { pages: unknown[] }).pages.length : 0;
   const textes = textesDe(spec, analyse.success ? undefined : BORNES_SPEC_REFUSEE);
   const anglaisChaine = new Set<number | undefined>();
   for (const { chemin, texte, page } of textes) {
@@ -63,8 +64,10 @@ export const controlerCarrousel: Porte = (spec, ctx) => {
     const ajouter = (code: string, phrase: string) => controles.push({ code, niveau: "rouge", phrase, ...ou });
 
     if (ctx.faitsDisponibles === false) {
-      const chiffre = premierChiffre(texte);
+      const chiffre = premierChiffre(chemin === "alt" ? sansNombreDePages(texte, nbPages) : texte);
       if (chiffre !== undefined) ajouter("CHIFFRE", `${lieu(chemin, page)} : un chiffre est écrit ("${chiffre}") ; aucun chiffre tant que la liste de faits n'est pas validée.`);
+      const classement = classementDans(chemin === "alt" ? sansNombreDePages(texte, nbPages) : texte);
+      if (classement !== undefined) ajouter("CLASSEMENT", `${lieu(chemin, page)} : classement sans source : "${classement}" ; retirez-le ou citez la source.`);
     }
     const interdits = ctx.interditsDans(texte);
     if (interdits.length > 0) ajouter("INTERDIT", `${lieu(chemin, page)} : ${interdits.length > 1 ? "des mots ou formules interdits sont employés" : "un mot ou une formule interdit est employé"} (${interdits.map((x) => `"${x}"`).join(", ")}).`);

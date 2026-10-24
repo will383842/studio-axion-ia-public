@@ -31,7 +31,7 @@ export default async function PageDocument({ params }: { params: Promise<{ video
     throw e;
   }
   return (
-    <div className="fixed inset-0 z-50 overflow-auto bg-fond p-4 print:static print:overflow-visible print:bg-white print:p-0">
+    <div className="fixed inset-0 z-50 overflow-auto bg-fond p-4 print:static print:overflow-visible print:bg-sur-orange print:p-0">
       <div className="mx-auto mb-4 flex max-w-[210mm] flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex flex-wrap items-center gap-3">
           <Link href={`/videos/${videoId}`} className="text-sm text-texte-doux underline">Retour à la vidéo</Link>

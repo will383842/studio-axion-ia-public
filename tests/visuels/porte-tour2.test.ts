@@ -67,8 +67,8 @@ describe("tour 2 : ordinaux et « neuf »", () => {
     for (const s of ["Un regard neuf sur vos dossiers", "Quoi de neuf", "Un outil neuf", "Un outil flambant neuf"]) expect(codes(reference(s)), s).toEqual([]);
     for (const s of ["Il en reste neuf.", "Neuf clients", "Neuf cents clients"]) expect(codes(reference(s)), s).toEqual(["CHIFFRE"]);
   });
-  it("décision prudente : tiers, premier, zéro, quart restent rouges", () => {
-    for (const s of ["Un tiers du temps", "Le premier pas", "Zéro stress", "Un quart d'heure"]) expect(codes(reference(s)), s).toEqual(["CHIFFRE"]);
+  it("décision prudente : tiers, zéro, quart restent rouges", () => {
+    for (const s of ["Un tiers du temps", "Zéro stress", "Un quart d'heure"]) expect(codes(reference(s)), s).toEqual(["CHIFFRE"]);
   });
 });
 

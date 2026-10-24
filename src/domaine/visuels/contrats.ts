@@ -1,14 +1,16 @@
-import type { ModeTexte } from "./visuel";
+import type { ModeTexte, MotifRefus } from "./visuel";
 import type { StatutVisuel } from "./statuts";
 import type { CarrouselSpecType } from "./types";
 
-export type DemandeTexteCarrousel = { type: "sujet"; sujet: string } | { type: "paquet-session"; contenu: string };
+export type DemandeTexteCarrousel = { type: "sujet"; sujet: string; version?: number } | { type: "paquet-session"; contenu: string };
 
 export interface ReponseTexteCarrousel {
   titre: string;
   spec: unknown;
   pourquoi: string[];
   mode: ModeTexte;
+  /** Explication à montrer sur la fiche (simulation : sujet non repris comme titre). */
+  note?: string;
 }
 
 export interface FournisseurTexteCarrousel {
@@ -61,7 +63,15 @@ export interface VueCarrouselFiche extends VueCarrouselCarte {
   rapport?: RapportPorte;
   pages: { index: number; type: string; urlX1?: string; urlX2?: string }[];
   pdfUrl?: string;
+  /** L'adresse du PDF l'enregistre au lieu de l'ouvrir (sinon : nouvel onglet). */
+  pdfTelechargement: boolean;
   erreur?: string;
+  /** D'où vient le texte : un sujet (« Refaire » possible) ou un texte déposé (on dépose un texte corrigé). */
+  entree: "sujet" | "session";
+  /** Texte écrit ou rendu demandé il y a moins de RENDU_PERIME_MS : la page s'actualise, pas de relance. */
+  renduEnCours: boolean;
+  noteTexte?: string;
+  refus: { motif: MotifRefus; libelleMotif: string; page?: number; commentaire?: string; le: string }[];
   actionsPermises: ActionCarrousel[];
   generateurAllume: boolean;
 }

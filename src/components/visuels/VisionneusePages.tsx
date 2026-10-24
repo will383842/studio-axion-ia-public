@@ -143,17 +143,17 @@ export function Visionneuse({
       aria-label={`Pages du carrousel : ${titre}`}
       tabIndex={-1}
       onClick={(e) => estClicFond(e.target, e.currentTarget) && onFermer()}
-      className="fixed inset-0 z-50 flex flex-col bg-black/90 p-4 outline-none"
+      className="fixed inset-0 z-50 flex flex-col bg-fond p-4 outline-none"
     >
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p aria-live="polite" className="text-sm font-semibold text-white">
+        <p aria-live="polite" className="text-sm font-semibold text-texte">
           {compteur(index, total)}
         </p>
         <button type="button" onClick={onFermer} className={bouton}>
           Fermer
         </button>
       </div>
-      <div onClick={(e) => estClicFond(e.target, e.currentTarget) && onFermer()} className="flex min-h-0 flex-1 items-center justify-center">
+      <div onClick={(e) => estClicFond(e.target, e.currentTarget) && onFermer()} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element -- page déjà rendue, adresse fournie par le service
           <img src={url} alt={`Page ${page.n} : ${titre}`} className="max-h-full max-w-full object-contain" />

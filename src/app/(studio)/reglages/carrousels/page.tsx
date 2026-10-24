@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { exigerSession } from "@/services/auth";
-import { generateurAllume, PHRASE_GENERATEUR_ETEINT, type FamilleVisuelle } from "@/visuels/interrupteur";
+import { generateurAllume, type FamilleVisuelle } from "@/visuels/interrupteur";
 import { basculerGenerateurFormulaire } from "./actions";
 
 export const metadata: Metadata = { title: "Carrousels" };
@@ -26,12 +26,12 @@ export default async function PageReglagesCarrousels() {
       </Link>
       <ul className="flex flex-col gap-3">
         {etats.map((e) => (
-          <li key={e.id} className="flex flex-col gap-2 rounded-2xl border border-bordure p-4">
+          <li key={e.id} className="flex flex-col gap-2 rounded-2xl border border-trait p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-semibold">{e.libelle}</span>
               <span>{e.allume ? "Allumé" : "Éteint"}</span>
             </div>
-            {!e.allume && <p className="text-sm text-texte-doux">{PHRASE_GENERATEUR_ETEINT}</p>}
+            {!e.allume && <p className="text-sm text-texte-doux">Éteint : rien ne s&apos;écrit ni ne se rend tant que vous ne l&apos;allumez pas.</p>}
             <form action={basculerGenerateurFormulaire}>
               <input type="hidden" name="famille" value={e.id} />
               <input type="hidden" name="valeur" value={e.allume ? "non" : "oui"} />

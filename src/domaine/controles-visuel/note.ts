@@ -131,7 +131,7 @@ export function noterCarrousel(spec: unknown, mesures?: MesuresRendu, options: O
   const duRapport = (...codes: string[]) => rapport.controles.filter((c) => codes.includes(c.code));
 
   // 1. Conformité (15, tout ou rien)
-  const fautes: string[] = duRapport("SCHEMA", "INTERDIT", "TUTOIEMENT", "J_AIDE", "EXPRESSION_BANNIE", "CHIFFRE").map((c) => c.phrase);
+  const fautes: string[] = duRapport("SCHEMA", "INTERDIT", "TUTOIEMENT", "J_AIDE", "EXPRESSION_BANNIE", "CHIFFRE", "CLASSEMENT").map((c) => c.phrase);
   fautes.push(...duRapport("SORTANT").filter((c) => c.page !== derniere).map((c) => c.phrase));
   for (let i = 0; i < n; i++) {
     const t = normaliser(textes.filter((x) => x.page === i + 1).map((x) => x.texte).join(" "));
