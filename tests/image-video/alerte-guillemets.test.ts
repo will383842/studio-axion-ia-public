@@ -25,6 +25,10 @@ describe("sourceEtMessageAlerte · émoji entre guillemets", () => {
     const r = sourceEtMessageAlerte({ libelle: "Alerte X", detail: "« \u{1F514} Bonjour tout le monde »" });
     expect(r.message).toBe("« Bonjour tout le monde »");
   });
+  it("garde une espace insécable contre un « » quand l'émoji est retiré", () => {
+    const r = sourceEtMessageAlerte({ libelle: "Alerte X", detail: "« \u{1F514} Bonjour»" });
+    expect(r.message).toBe("« Bonjour»");
+  });
 });
 
 describe("parts de liens à null", () => {
@@ -37,7 +41,7 @@ describe("parts de liens à null", () => {
       const fiche = FICHES_SIMULEES[IMAGES[nom]];
       const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins[0];
       const r = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: [], variete: RECETTE_REFERENCE_IV, format: "9:16" });
-      expect(JSON.stringify(r.ligne)).not.toMatch(/null\s*%/);
+      expect(JSON.stringify(r.ligne)).not.toMatch(/null\s*\|?\s*%/);
     });
   }
 });

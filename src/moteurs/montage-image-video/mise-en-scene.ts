@@ -734,7 +734,7 @@ function elementsToile(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>
     etat.montres.add(`sep-${decision.id}`);
     const kAnnonce = c.ecrits.findIndex((m) => /^(deux|trois|quatre|chemins?|voies?)[.,!?:;…]*$/iu.test(m));
     const k = kAnnonce >= 0 ? kAnnonce : rangOrange(c);
-    const parts = carte.liens.filter((l) => l.de === decision.id && l.part !== undefined).map((l) => `${l.part}|%`);
+    const parts = carte.liens.filter((l) => l.de === decision.id && typeof l.part === "number" && l.part > 0).map((l) => `${l.part}|%`);
     if (!etat.montres.has(decision.id)) {
       etat.montres.add(decision.id);
       const kd = rangQuiNomme(c, decision.libelle) ?? 0;
@@ -938,7 +938,7 @@ export function sourceEtMessageAlerte(n: Pick<NoeudCarte, "libelle" | "detail"> 
       // L'émoji retiré ne laisse pas d'espace contre un guillemet ou une parenthèse (les « » gardent leurs espaces françaises).
       .replace(/([“‘(\[])\s+/gu, "$1")
       .replace(/\s+([”’)\]])/gu, "$1")
-      .replace(/\s{2,}/g, " ");
+      .replace(/\s{2,}/gu, (m) => (/[  ]/u.test(m) ? " " : " "));
   const source = sansEmoji(n?.libelle ?? "").replace(/^\s*alerte\s+/i, "").replace(/[:\s]+$/, "").trim() || "Alerte";
   const message = sansEmoji(n?.detail ?? n?.libelle ?? "").trim();
   // `messageDit` : le détail seul (vide si la carte n'en a pas) ; `message` retombe sur le libellé pour l'affichage.
