@@ -67,15 +67,22 @@ describe("page", () => {
     expect(pastilles).not.toContain("Automatisation");
     expect(pastilles).not.toContain("Coaching");
     for (const v of valides) expect(t).toContain(v.titre);
+    expect(t).toContain(`Prêts à fabriquer (${valides.length})`);
+    expect(t).toContain("Proposez-moi un cas restant");
     expect(t).toContain(`À valider (${aValider.length})`);
     expect(t).toContain("Je valide ce cas");
     expect(t).toContain("Fabriquer un essai");
     sansMotTechnique(t);
   });
 
-  it("aucune carte : la phrase du plan ; aucun cas validé : « Validez un premier cas. »", () => {
-    expect(texte(renderToStaticMarkup(createElement(EntreeCasConcret, { valides: [], aValider, montants: {} })))).toContain("Validez un premier cas.");
-    expect(texte(renderToStaticMarkup(createElement(EntreeCasConcret, { valides: [], aValider: [], montants: {} })))).toContain("Validez un premier cas.");
+  it("aucun cas validé : plus de zone vide, les cas à valider restent visibles ; aucun cas du tout : une phrase propre", () => {
+    const sansValides = texte(renderToStaticMarkup(createElement(EntreeCasConcret, { valides: [], aValider, montants: {} })));
+    expect(sansValides).not.toContain("Validez un premier cas.");
+    expect(sansValides).toContain(`À valider (${aValider.length})`);
+    expect(sansValides).not.toContain("Prêts à fabriquer");
+    const rien = texte(renderToStaticMarkup(createElement(EntreeCasConcret, { valides: [], aValider: [], montants: {} })));
+    expect(rien).not.toContain("Validez un premier cas.");
+    expect(rien).toContain("Aucun cas à faire pour l'instant.");
   });
 
   it("une carte : titre, promesse, « Chez nous » ou « Notre offre », « Vrais écrans »", () => {

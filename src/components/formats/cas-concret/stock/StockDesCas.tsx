@@ -61,6 +61,27 @@ function CarteStock({ l }: { l: LigneStock }) {
   );
 }
 
+/** « Idées à venir (n) » : les idées d'automatisation pas encore des cas. Lecture seule. */
+export function IdeesAVenir({ idees }: { idees: readonly IdeeAutomatisation[] }) {
+  return (
+    <section className="mt-6">
+      <h3 className="text-[15px] font-semibold text-texte">Idées à venir ({idees.length})</h3>
+      {idees.length === 0 ? (
+        <p className="mt-1 text-[13px] text-texte-doux">Aucune idée pour le moment.</p>
+      ) : (
+        <ul className="mt-2 flex flex-col gap-3 p-0">
+          {idees.map((i) => (
+            <Carte as="li" key={i.id} className="list-none">
+              <span className="block text-[15px] font-semibold text-texte">{i.nom}</span>
+              <span className="block text-[13px] text-texte-doux">{i.resume}</span>
+            </Carte>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** Une case du bandeau : un chiffre et son nom. */
 function CaseBandeau({ nombre, libelle }: { nombre: number; libelle: string }) {
   return (
@@ -146,21 +167,7 @@ export function StockDesCas({ lignes, idees, tableau, ouvert: ouvertParLien }: {
           Les cas déjà faits sont sur la <a className="inline-flex min-h-11 items-center text-orange-vif underline" href="/cas-concret/deja-faits">page Cas déjà faits</a>.
         </p>
       )}
-      <section className="mt-6">
-        <h3 className="text-[15px] font-semibold text-texte">Idées à venir ({idees.length})</h3>
-        {idees.length === 0 ? (
-          <p className="mt-1 text-[13px] text-texte-doux">Aucune idée pour le moment.</p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-3 p-0">
-            {idees.map((i) => (
-              <Carte as="li" key={i.id} className="list-none">
-                <span className="block text-[15px] font-semibold text-texte">{i.nom}</span>
-                <span className="block text-[13px] text-texte-doux">{i.resume}</span>
-              </Carte>
-            ))}
-          </ul>
-        )}
-      </section>
+      <IdeesAVenir idees={idees} />
     </details>
     </>
   );
