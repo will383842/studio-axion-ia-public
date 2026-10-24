@@ -33,7 +33,7 @@ describe("étiquettes", () => {
       "[Résultat] n",
       "[question] o ?",
     ].join("\n");
-    expect(formes(t)).toEqual(["accroche", "chiffre", "avant", "bascule", "bascule", "bascule", "etape", "etape", "etape", "detail", "detail", "humain", "preuve", "resultat", "question"].map((f, i) => (i === 9 ? "detail" : f)));
+    expect(formes(t)).toEqual(["accroche", "chiffre", "avant", "bascule", "bascule", "bascule", "etape", "etape", "etape", "detail", "detail", "humain", "preuve", "resultat", "question"]);
   });
 
   it("le rang d'étape donné par l'étiquette est gardé ; sinon l'étape suivante ; un détail s'attache à l'étape d'avant", () => {
@@ -81,7 +81,7 @@ describe("formes devinées (règles a à f)", () => {
     expect(formes(["Bonjour ici.", "Avant : x.", "Un texte.", "Résultat : y.", "Fin ?"].join("\n"))).toEqual(["accroche", "avant", "bascule", "resultat", "question"]);
   });
   it("(c) sans résultat : la ligne juste avant la question", () => {
-    expect(formes(["a b.", "Avant : c.", "d e.", "f g.", "h ?"].join("\n"))).toEqual(["accroche", "avant", "bascule", "resultat", "question"].map((f, i) => (i === 3 ? "resultat" : f)).map((f, i) => (i === 3 ? "resultat" : f)));
+    expect(formes(["a b.", "Avant : c.", "d e.", "f g.", "h ?"].join("\n"))).toEqual(["accroche", "avant", "bascule", "resultat", "question"]);
   });
   it("(d) sans bascule ni avant : la ligne 2 est l'avant, la suivante la bascule", () => {
     expect(formes(["a b.", "c d.", "e f.", "g h.", "i j.", "k ?"].join("\n")).slice(0, 3)).toEqual(["accroche", "avant", "bascule"]);
