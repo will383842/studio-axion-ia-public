@@ -280,6 +280,12 @@ const versDejaTraite = (v: Extract<ResultatVerification, { ok: false }>): DejaTr
 });
 
 /** Le montant du bouton « Fabriquer la vidéo », et le refus éventuel avant le prix (aucune vidéo n'est créée). */
+/** Les prononciations que la commande portera (mêmes règles que la construction de la commande) : le prix compte le texte réellement lu. */
+async function prononciationsDuCas(voix: { voixId?: string; personnageId?: string }): Promise<{ mot: string; prononciation: string }[]> {
+  const { prononciationsActives } = await import("@/domaine/prononciations");
+  return prononciationsActives(await depots().prononciations.lister(), { voixId: voix.voixId, personnageId: voix.personnageId }).map((p) => ({ mot: p.mot, prononciation: p.prononciation }));
+}
+
 export async function estimerCas(casId: string, reseaux: readonly string[], avecMot: boolean, choix: Omit<ChoixAvantPrix, "reseaux" | "avecMot"> = {}, dependances: { maintenant?: number } = {}): Promise<EstimationCas> {
   await exigerSession();
   const c = await controleAvantPrix(casId, { ...choix, reseaux, avecMot }, dependances.maintenant ?? Date.now());
@@ -287,8 +293,9 @@ export async function estimerCas(casId: string, reseaux: readonly string[], avec
   // 14/10 : contrôle de ressemblance de la voix : le prix affiché couvre toutes les lectures possibles.
   const forcer = choix.sujet?.choix === "nouvel-angle" || choix.nouveauScript === true;
   // PRIX EXACT : le script validé courant (celui que le lancement figera) : aucune ligne « Écriture », voix sur SON texte.
-  const relu = forcer ? null : await (await import("./cas-concret-scripts")).scriptValideCourant(c.cas);
-  const e = estimerDepuisCas(c.cas, c.reseaux, avecMot, { voix: c.voix ? { fournisseur: c.voix.fournisseur } : {}, motSur: c.motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(forcer ? { nouveauScript: true } : {}), ...(relu ? { script: relu } : {}) });
+  const relu = forcer || c.porteB ? null : await (await import("./cas-concret-scripts")).scriptValideCourant(c.cas);
+  const prononciations = c.voix ? await prononciationsDuCas(c.voix) : [];
+  const e = estimerDepuisCas(c.cas, c.reseaux, avecMot, { voix: c.voix ? { fournisseur: c.voix.fournisseur } : {}, motSur: c.motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(forcer ? { nouveauScript: true } : {}), ...(relu ? { script: relu } : {}), ...(prononciations.length ? { prononciations } : {}) });
   // Lot L3 : annonce du sujet déjà traité pour la fiche de prix (rien n'est créé, rien n'est payé).
   const sujet = c.refus ? null : await controleSujetCas(c.cas, c, choix.sujet);
   return {
@@ -422,15 +429,17 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
   const nouveauScript = demande.nouveauScript === true || (sujet?.ok === true && sujet.confirme === "nouvel-angle");
   const courant = nouveauScript ? await scriptValideDuStudio(cas.id) : null;
   const ecarte = courant && !problemesScriptValide(courant, cas).length ? courant : null;
-  if (!ecarte) {
-    const refusRelu = await (await import("./cas-concret-scripts")).refusScriptRelu(cas, demande.empreinteScriptRelu);
-    if (refusRelu) return refus(refusRelu);
+  // PRIX EXACT : UNE seule lecture du script courant. Le même objet est comparé à ce que Will a relu, compté dans le prix et figé dans
+  // la vidéo : aucun enregistrement ne peut s'intercaler entre le contrôle et le figeage (pas de seconde lecture).
+  const scriptsMod = await import("./cas-concret-scripts");
+  const relu = ecarte || c.porteB ? null : await scriptsMod.scriptValideCourant(cas);
+  if (relu) {
+    if (!demande.empreinteScriptRelu) return refus(scriptsMod.PHRASE_SCRIPT_NON_RELU);
+    if (scriptsMod.empreinteScriptValide(relu) !== demande.empreinteScriptRelu) return refus(scriptsMod.PHRASE_SCRIPT_CHANGE);
   }
   const empreinte = empreinteCas(cas);
-
-  // PRIX EXACT : le script relu (sinon aucun) est figé dans la vidéo et compté tel quel, par l'estimation d'ici comme par le moteur.
-  const relu = ecarte || c.porteB ? null : await (await import("./cas-concret-scripts")).scriptValideCourant(cas);
-  const estimation = estimerDepuisCas(cas, reseaux, demande.avecMot, { voix: { fournisseur: voix.fournisseur }, motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(ecarte ? { nouveauScript: true } : {}), ...(relu ? { script: relu } : {}) });
+  const prononciations = await prononciationsDuCas(voix);
+  const estimation = estimerDepuisCas(cas, reseaux, demande.avecMot, { voix: { fournisseur: voix.fournisseur }, motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(ecarte ? { nouveauScript: true } : {}), ...(relu ? { script: relu } : {}), ...(prononciations.length ? { prononciations } : {}) });
 
   const motDit = motNormalise(mot) === motNormalise(cas.mot) ? cas.motDit : undefined;
   const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];

@@ -9,7 +9,10 @@ import type { CommandeFabrication, Travail } from "@/domaine/types";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { estimerDepuisCas } from "@/moteurs/montage-cas-concret";
 import { dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
-import { PHRASE_SCRIPT_VALIDE_REFUSE, scriptDeFiche, type ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
+import { apercuDesEcrans, CODE_PRIX_CHANGE, PHRASE_CAS_CHANGE_DEPUIS_LANCEMENT, PHRASE_SCRIPT_CHANGE_DEPUIS_PRIX, scriptDeFiche, type ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
+import { empreinte as empreinteRelecture } from "@/domaine/relecture-script";
+import { lignesDesEcrans } from "@/moteurs/montage-cas-concret/relecture";
+import { LECTURES_CORPS_MAX } from "@/moteurs/montage-cas-concret/voix";
 import { bornesDesFins, controlerTexteFourni, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
 import type { MoteurVideo } from "@/moteurs/types";
 import { banc } from "../moteur/doubles";
@@ -45,9 +48,12 @@ type Lignes = { lignes: { etape: string; quantite: number; total: { centimes: nu
 const ligne = (e: Lignes, etape: string) => e.lignes.find((l) => l.etape === etape);
 const cmd = (b: ReturnType<typeof banc>, plus: Record<string, unknown> = {}): CommandeFabrication => {
   const c = b.commande();
-  return { ...c, entrees: { casConcret: { ...(c.entrees as { casConcret: object }).casConcret, ...plus } } } as CommandeFabrication;
+  return { ...c, entrees: { ...(c.entrees as object), casConcret: { ...(c.entrees as { casConcret: object }).casConcret, ...plus } } } as CommandeFabrication;
 };
 const banque = () => banc({ casId: CAS.id, avecMot: false, scriptValide: async () => null });
+/** L'empreinte du texte relu, comme l'écran la calcule (même calcul que les services). */
+const empreinteDe = (s: ScriptValide) => empreinteRelecture(lignesDesEcrans(apercuDesEcrans(s.ecrans)));
+const TOUTES = Array.from({ length: 80 }, (_, i) => i + 1);
 async function jusquAuBout(moteur: MoteurVideo, commande: CommandeFabrication, t: Travail) {
   for (let n = 0; n < 300 && t.statut !== "termine" && t.statut !== "echec"; n++) t = (await moteur.avancer(JSON.parse(JSON.stringify(t)) as Travail, commande, T0 + n * 1000)).travail;
   return t;
@@ -126,17 +132,62 @@ describe("la fabrication d'un script figé", () => {
     expect(b.d.lus.reduce((n, x) => n + x.length, 0)).toBeLessThanOrEqual(voix.quantite);
   });
 
-  it("un script figé périmé : arrêt à l'étape « fiche », phrase claire, AUCUN appel d'écriture, AUCUNE voix, même si un script courant existe", async () => {
-    const courant = court;
-    const b = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => courant });
+  it("un script figé périmé : arrêt à l'étape « fiche », phrase dédiée non réessayable, AUCUN appel d'écriture, AUCUNE voix, même si un script courant existe", async () => {
+    const b = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => court });
     const perime = { ...long, versionCas: CAS.version + 1 };
     const c = cmd(b, { scriptFige: perime });
     const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-perime")));
     expect(t.statut).toBe("echec");
     expect(t.etapes.find((e) => e.statut === "echec")?.cle).toBe("fiche");
-    expect(t.erreur?.messagePourWill).toContain(PHRASE_SCRIPT_VALIDE_REFUSE);
+    expect(t.erreur?.code).toBe(CODE_PRIX_CHANGE);
+    expect(t.erreur?.reessayable).toBe(false);
+    expect(t.erreur?.messagePourWill).toBe(PHRASE_CAS_CHANGE_DEPUIS_LANCEMENT);
     expect(b.d.appelsEcriture()).toBe(0);
     expect(b.d.lus).toEqual([]);
+  });
+
+  it("un script figé qui n'est plus celui relu au lancement (repère différent) : arrêt avant toute voix ; avec son repère il passe", async () => {
+    const b = banque();
+    const c = cmd(b, { scriptFige: long, scriptRelu: empreinteDe(court) });
+    const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-autre-relu")));
+    expect(t.statut).toBe("echec");
+    expect(t.erreur?.code).toBe(CODE_PRIX_CHANGE);
+    expect(t.erreur?.messagePourWill).toBe(PHRASE_SCRIPT_CHANGE_DEPUIS_PRIX);
+    expect(b.d.lus).toEqual([]);
+    expect(b.d.appelsEcriture()).toBe(0);
+    const b2 = banque();
+    const c2 = cmd(b2, { scriptFige: long, scriptRelu: empreinteDe(long) });
+    expect((await jusquAuBout(b2.moteur, c2, await b2.moteur.lancer(c2, ctx("t-bon-relu")))).statut).toBe("termine");
+  });
+
+  it("c'est le script FIGÉ qui est joué, même si un autre script (plus long) est validé après le lancement", async () => {
+    const b = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => long });
+    const c = cmd(b, { scriptFige: court });
+    const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-fige-joue")));
+    expect(t.statut).toBe("termine");
+    expect(b.d.lus.join(" ")).not.toContain("dès que vous le décidez");
+    expect(b.d.appelsEcriture()).toBe(0);
+  });
+
+  it("SANS script figé (lancée sans script validé), un script LONG collé ensuite n'est pas joué : arrêt à « fiche », 0 voix payée", async () => {
+    const b = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => long });
+    const c = cmd(b);
+    const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-colle-long")));
+    expect(t.statut).toBe("echec");
+    expect(t.etapes.find((e) => e.statut === "echec")?.cle).toBe("fiche");
+    expect(t.erreur?.code).toBe(CODE_PRIX_CHANGE);
+    expect(t.erreur?.reessayable).toBe(false);
+    expect(t.erreur?.messagePourWill).toBe(PHRASE_SCRIPT_CHANGE_DEPUIS_PRIX);
+    expect(b.d.lus).toEqual([]);
+  });
+
+  it("SANS script figé : le script relu au lancement (même repère) ou un script qui ne dépasse pas le corps du prix est joué", async () => {
+    const releve = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => long });
+    const c1 = cmd(releve, { scriptRelu: empreinteDe(long) });
+    expect((await jusquAuBout(releve.moteur, c1, await releve.moteur.lancer(c1, ctx("t-relu")))).statut).toBe("termine");
+    const moins = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => tresCourt });
+    const c2 = cmd(moins);
+    expect((await jusquAuBout(moins.moteur, c2, await moins.moteur.lancer(c2, ctx("t-moins")))).statut).toBe("termine");
   });
 
   it("sans script figé (ancienne commande) et sans script validé : l'écriture a lieu comme avant", async () => {
@@ -145,5 +196,52 @@ describe("la fabrication d'un script figé", () => {
     const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-avant")));
     expect(b.d.appelsEcriture()).toBeGreaterThan(0);
     expect(["termine", "echec"]).toContain(t.statut);
+  });
+});
+
+describe("le plafond de voix suit le vrai texte (lectures rejetées)", () => {
+  const somme = (lus: string[]) => lus.reduce((n, x) => n + x.length, 0);
+  const prixLecture = (n: number) => Math.ceil(n * 0.03 * 0.9 - 1e-9);
+
+  it("script long figé, toutes les lectures rejetées : le corps est lu 3 fois, TOUT ce qui est lu tient dans la ligne « Voix » (caractères et centimes)", async () => {
+    const b = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => null, lecturesFautives: TOUTES });
+    const c = cmd(b, { scriptFige: long });
+    const voix = ligne((await b.moteur.estimer(c)) as unknown as Lignes, "Voix")!;
+    const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-rejets")));
+    expect(t.statut).toBe("echec");
+    // La chaîne s'arrête d'elle-même après deux refus identiques (jamais plus que LECTURES_CORPS_MAX lectures).
+    expect(b.d.lus.length).toBeGreaterThan(0);
+    expect(b.d.lus.length).toBeLessThanOrEqual(LECTURES_CORPS_MAX);
+    expect(somme(b.d.lus)).toBeLessThanOrEqual(voix.quantite);
+    expect(b.d.lus.reduce((n, x) => n + prixLecture(x.length), 0)).toBeLessThanOrEqual(voix.total.centimes);
+    expect(b.d.appelsEcriture()).toBe(0);
+  });
+
+  it("ressemblance (2 lectures par texte) : la ligne « Voix » double exactement, sur le script long comme sur le court", async () => {
+    const b = banque();
+    for (const s of [court, long]) {
+      const base = cmd(b, { scriptFige: s });
+      const un = ligne((await b.moteur.estimer(base)) as unknown as Lignes, "Voix")!;
+      const c2 = { ...base, entrees: { ...(base.entrees as object), ressemblanceVoix: { actif: true, relancesMax: 1 } } } as CommandeFabrication;
+      const deux = ligne((await b.moteur.estimer(c2)) as unknown as Lignes, "Voix")!;
+      expect(deux.quantite).toBe(un.quantite * 2);
+    }
+  });
+
+  it("prononciations : le prix compte le texte réellement lu (corps et fins), moteur et estimation d'un cas donnent le même prix, et les lectures tiennent dedans", async () => {
+    const b = banque();
+    const mot = court.ecrans.map((e) => e.texteDit).join(" ").split(/[^\p{L}]+/u).find((w) => w.length >= 6)!;
+    const pr = [{ mot, prononciation: `${mot} ${mot} ${mot}` }];
+    const sans = (await b.moteur.estimer(cmd(b, { scriptFige: court }))) as unknown as Lignes;
+    const c = { ...cmd(b, { scriptFige: court }), prononciations: pr } as CommandeFabrication;
+    const avec = (await b.moteur.estimer(c)) as unknown as Lignes;
+    const direct = estimerDepuisCas(CAS, [...RESEAUX], false, { voix: { fournisseur: "heygen" }, script: court, prononciations: pr }) as unknown as Lignes;
+    expect(ligne(avec, "Voix")!.quantite).toBeGreaterThan(ligne(sans, "Voix")!.quantite);
+    expect(avec.total.centimes).toBe(direct.total.centimes);
+    const r = banc({ casId: CAS.id, avecMot: false, scriptValide: async () => null, lecturesFautives: TOUTES });
+    const cr = { ...cmd(r, { scriptFige: court }), prononciations: pr } as CommandeFabrication;
+    const voix = ligne((await r.moteur.estimer(cr)) as unknown as Lignes, "Voix")!;
+    await jusquAuBout(r.moteur, cr, await r.moteur.lancer(cr, ctx("t-pron")));
+    expect(somme(r.d.lus)).toBeLessThanOrEqual(voix.quantite);
   });
 });
