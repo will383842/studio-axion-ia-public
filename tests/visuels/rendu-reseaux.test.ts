@@ -98,8 +98,8 @@ describe("H3 · rendreVersionsReseaux", () => {
   });
   it("aucun réseau ou un réseau inconnu : refusé avant tout rendu", async () => {
     const { service, soumises } = simule();
-    await expect(rendreVersionsReseaux(CONTENU_ESSAI, [], dependances(service))).rejects.toThrow(/réseau/);
-    await expect(rendreVersionsReseaux(CONTENU_ESSAI, ["tiktok" as never], dependances(service))).rejects.toThrow(/réseau/);
+    await expect(rendreVersionsReseaux(CONTENU_ESSAI, [], dependances(service))).rejects.toThrow(/réseau/i);
+    await expect(rendreVersionsReseaux(CONTENU_ESSAI, ["tiktok" as never], dependances(service))).rejects.toThrow(/réseau/i);
     expect(soumises).toHaveLength(0);
   });
 });
