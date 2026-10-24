@@ -740,19 +740,20 @@ function pointDansUnGroupe(t: number, lo: number, hi: number, s: readonly Silenc
 
 /**
  * Le son de `[de, pb]` est-il la TRAÎNE décroissante d'un mot qui finit en `de` (et non l'attaque d'un mot suivant, plateau
- * ou montée) ? Niveaux fenêtre par fenêtre depuis `de` jusqu'au premier silence : jamais plus de 1 dB au-dessus de la
- * fenêtre précédente, et au moins 3 dB plus bas à la fin qu'au début. Sans mesure : non. PUR.
+ * ou montée) ? `pb` doit tomber dans le PREMIER silence mesuré après `de` ; les niveaux de toutes les fenêtres de `de` à
+ * ce silence (un creux plus bref qu'un silence mesuré compte : il ne s'arrête pas là) ne remontent jamais de plus de 1 dB,
+ * et la fin des fenêtres au-dessus du seuil est au moins 3 dB plus bas que le début. Sans mesure : non. PUR.
  */
-function trainePuisSilence(m: MesureSonIV | undefined, de: number, pb: number): boolean {
+function trainePuisSilence(m: MesureSonIV | undefined, s: readonly Silence[], de: number, pb: number): boolean {
   if (!m) return false;
+  const z = s.find((x) => x.finSec > de + EPS_INSTANT);
+  if (!z || pb < z.debutSec - EPS_INSTANT || pb > z.finSec + EPS_INSTANT) return false;
   const f = m.fenetreSec ?? REGLES_SILENCES_IV.fenetreSec;
   const niv: number[] = [];
-  for (let w = Math.max(0, Math.floor(de / f + EPS_INSTANT)); w < m.niveaux.length && w * f < pb - EPS_INSTANT; w++) {
-    if (m.niveaux[w] <= m.seuilDb) break;
-    niv.push(m.niveaux[w]);
-  }
-  if (niv.length < 2) return niv.length === 0 || niv[0] <= m.seuilDb + 12;
-  return niv.every((x, i) => i === 0 || x <= niv[i - 1] + 1) && niv[niv.length - 1] <= niv[0] - 3;
+  for (let w = Math.max(0, Math.floor(de / f + EPS_INSTANT)); w < m.niveaux.length && w * f < z.debutSec - EPS_INSTANT; w++) niv.push(m.niveaux[w]);
+  if (!niv.every((x, i) => i === 0 || x <= niv[i - 1] + 1)) return false;
+  const sons = niv.filter((x) => x > m.seuilDb);
+  return sons.length === 0 || (sons.length < 2 ? sons[0] <= m.seuilDb + 12 : sons[sons.length - 1] <= sons[0] - 3);
 }
 
 /**
@@ -875,7 +876,7 @@ export function placerCoupesIV(
           const finRetrait = retraitsProches.length ? Math.max(...retraitsProches.map(([, y]) => y)) : undefined;
           const premierGarde = motsDe(b)[0];
           const finOk = retirable(pa, Math.min(a.finSec, pb));
-          const debutOk = retirable(Math.max(b.debutSec, pa), pb) || (finRetrait !== undefined && b.debutSec >= finRetrait - EPS_INSTANT && (premierGarde === undefined || pb <= premierGarde.debutSec + EPS_INSTANT) && !s.some((z) => z.finSec > Math.min(b.debutSec, finRetrait) + EPS_INSTANT && z.finSec < pb - EPS_INSTANT) && trainePuisSilence(mesure, finRetrait, pb));
+          const debutOk = retirable(Math.max(b.debutSec, pa), pb) || (finRetrait !== undefined && b.debutSec >= finRetrait - EPS_INSTANT && (premierGarde === undefined || pb <= premierGarde.debutSec + EPS_INSTANT) && !s.some((z) => z.finSec > Math.min(b.debutSec, finRetrait) + EPS_INSTANT && z.finSec < pb - EPS_INSTANT) && trainePuisSilence(mesure, s, finRetrait, pb));
           if (!finOk || !debutOk) continue;
           const k = [paroleEntre(pa, pb) >= r.paroleRetireeMaxSec - EPS_INSTANT ? 1 : 0, (qa.franche ? 0 : 1) + (qb.franche ? 0 : 1), Math.abs(pa - a.finSec) + Math.abs(pb - b.debutSec)];
           if (choix && !avant(k, cle)) continue;
