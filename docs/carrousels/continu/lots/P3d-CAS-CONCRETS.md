@@ -1,0 +1,2 @@
+# P3d — Cas concrets (3) : branche `carrousels/continu-p3d`, `familles/cas.ts`, `gabarits/cas/`
+S01 Fenêtre : la relance (`cas:true`) · S02 Conversation (`cas:true`, `sombre:true`) · S03 Schéma en trois nœuds (pointillés en tirets épais, jamais un trait fin sur une couture). Les noms propres d'exemple (« M. Martin ») restent des champs ; les pastilles d'outils sont du TEXTE (aucun logo). Test : les 3 portent `cas:true` et le composant affiche `textesFixes.t26Etiquette` (recherche dans le rendu de l'essai).

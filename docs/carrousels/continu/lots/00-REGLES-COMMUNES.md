@@ -1,0 +1,23 @@
+# Règles communes à toutes les routines « carrousel continu » (à coller AVANT la consigne du lot)
+Contexte : studio interne Axion-IA. Dépôt PUBLIC `will383842/studio-axion-ia-public`, base `master`. On construit un « carrousel continu » : une seule image large (N × 1080 px, hauteur 1350 en 4:5 ou 1440 en 3:4) découpée en N pages ; le lecteur voit un visuel qui glisse d'une page à l'autre. Version FIXE (images, aucune vidéo). Réseaux V1 : Instagram et Facebook. Source visuelle validée : `docs/carrousels/continu/MAQUETTE-v3.html` (27 plaquettes, 8 parcours) et note d'architecture `docs/carrousels/continu/ARCHITECTURE.md` (écrite par P1).
+## Git
+- Branche `carrousels/continu-<lot>` (ex. `carrousels/continu-p3a`) depuis `origin/master` à jour. Pousser après chaque étape (le compte peut changer).
+- PR en BROUILLON sur le dépôt public, titre en français. Description : objectif, liste EXACTE des fichiers EXISTANTS modifiés, crans de version (`VERSION_TOILE_SOCLE` et `version` des gabarits), sorties des tests collées, chemins des preuves. Ne fusionne jamais.
+- Dépôt public PROPRE : rien de privé (aucun prénom de personne réelle, ni « le commanditaire », ni phrase d’instruction interne, ni nom de client, prix, marge, clé, IP, chemin personnel), aucune ligne `ligne de session`, aucun lien lien de session. Messages de commit propres, en français.
+- CI seulement dans le dépôt public. Aucun appel payant, aucune publication, aucun réseau social.
+## Interdits de code
+- Ne modifie JAMAIS `src/visuels/services/production.ts` ni `src/domaine/controles-visuel/note.ts` (fichiers remplacés sur le serveur).
+- Ne modifie JAMAIS `VERSION_RENDU` (`src/visuels/services/rendu.ts`) ni `VERSION_COMPOSITION` (`src/visuels/proprietes-page.ts`). Le continu a ses versions : `VERSION_TOILE_SOCLE` (`src/domaine/visuels/continu/version.ts`) et le champ `version` de chaque gabarit. Tout changement de version est annoncé avec son cran (« toile-continue/1 → /2 », « C03 v1 → v2 »).
+- Next.js 16.3.8 n'est PAS standard : lis `node_modules/next/dist/docs/` (guide concerné) avant de toucher `src/app/**`. Ne valide pas le bloc que `next dev` ajoute à AGENTS.md.
+## Règles techniques vérifiées par des tests existants
+- Imports relatifs SANS extension `.js` dans `src/visuels`, `src/briques/visuels`, `src/domaine/visuels`, `src/domaine/controles-visuel`, `src/components/visuels`, `src/app/(studio)/carrousels` (test `imports-sans-js`). Avec `.js` dans `studio-rendu/src` et `studio-rendu/scripts` (usage existant).
+- JSX UNIQUEMENT dans des fonctions appelées au rendu, jamais dans une constante de module (test `jsx-chargement-module`, panne « React is not defined » du 24/10).
+- AUCUNE couleur littérale (#hex, rgb, rgba, hsl, nom CSS) hors de `src/briques/visuels/charte-carrousel.ts` dans `studio-rendu/compositions/visuels/**` et `src/briques/visuels/**` (test `sources-sans-couleur-litterale`). Utilise `CHARTE_CONTINU`, `alpha(jeton, a)` et `degrade(...)`.
+- Les identifiants et réglages vont sous des clés techniques (`type`, `version`, `icone`, `variante`) : `textesDe` contrôle toute autre chaîne (« PA1 » ou « 4:5 » en texte = porte CHIFFRE).
+- Texte ≥ 26 px MESURÉ (cible 30 px et plus), marge sûre 80 px, rien d'important dans les 200 × 200 px du coin bas droit de chaque page, orange seulement en grands titres (≥ 64 px), vouvoiement, français. Interdits : « Grenoble », « Aucun gain garanti », « J'aide », « garanti », « CPF », tutoiement, chiffres sans fait validé, domaine ou lien sur une page, logos d'outils, photos de personnes.
+## Commandes
+- `pnpm install --frozen-lockfile --ignore-scripts` ; tests : `pnpm vitest run tests/visuels` ; types : `pnpm tsc --noEmit -p tsconfig.visuels.json`.
+- studio-rendu : `cd studio-rendu && npm ci && npm run verifier` ; navigateur : `npm run navigateur` (Chrome Headless Shell de Remotion).
+- Preuve de rendu = Chrome Headless Shell de REMOTION, script lancé SANS `STUDIO_RENDU_NAVIGATEUR` (ou avec ce binaire-là). JAMAIS `/opt/pw-browsers` ni le Chromium de Playwright, et aucun script de `studio-rendu/scripts` ne cite `pw-browsers` (test existant). Exception : Playwright est permis UNIQUEMENT pour capturer la maquette HTML de référence, par un script HORS du dépôt.
+## Méthode
+1. Écris d'abord les tests ROUGES (commit « test rouge : … »), lance-les, colle la sortie rouge dans la PR. 2. Code. 3. Tests verts + types + `npm run verifier`. 4. Preuves réelles : rendus dans `studio-rendu/essais-visuels/continu/<lot>/` (JPEG ≤ 400 Ko chacun, planche ≤ 1,5 Mo, `mesures.json`). 5. Rapport final dans la PR : fait, preuves, limites, reste.
