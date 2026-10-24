@@ -30,6 +30,7 @@ export interface Trame {
   ecriture: readonly string[];
 }
 
+// T29 (relance, réservé) : à son entrée au registre, ni dans TYPES_DENSES ni de famille « liste » (il suit T27 ou T23, et T21 le suit).
 const RELANCE: EtapeTrame = { type: "T29", role: "relance : une phrase qui remet le lecteur face à sa propre situation avant l'appel", facultatif: true };
 const APPEL: EtapeTrame = { type: "T21", role: "appel : la page sombre, posée par le code, invite à écrire en message privé" };
 
@@ -105,14 +106,14 @@ export function ecartsTrame(types: readonly string[]): string[] {
   if (distincts < requis) res.push(`${distincts} types pour ${types.length} pages ; ${requis} au moins`);
   for (let k = 2; k < types.length; k++) if (dense(types[k - 2]) && dense(types[k - 1]) && dense(types[k])) res.push(`pages ${k - 1} à ${k + 1} : trois pages denses de suite`);
   const sombres = types.flatMap((t, k) => (t === "T21" ? [k] : []));
-  if (sombres.length !== 1 || (sombres[0] !== 1 && sombres[0] !== types.length - 1)) res.push("une seule page sombre, en page 2 ou en dernière");
+  if (sombres.length !== 1 || sombres[0] !== types.length - 1) res.push("une seule page sombre, en dernière page");
   return res;
 }
 
 /** Consignes communes à toutes les trames : la cible, et ce que le carrousel fait sentir sans le dire. */
 const ECRITURE_COMMUNE = [
   "Lecteur : dirigeants et équipes de TPE et PME qui entendent parler d'IA sans savoir par où commencer.",
-  "Faire sentir le temps gagné, le travail mieux payé de retour et les clients mieux servis, sans jamais l'annoncer ni le promettre.",
+  "Faire sentir le temps gagné, un travail moins répétitif et les clients mieux servis, sans jamais l'annoncer ni le promettre.",
   "Vouvoiement, phrases courtes, zéro jargon ; aucun chiffre, aucun mot-nombre, aucun lien.",
 ];
 

@@ -33,7 +33,7 @@ export const FIXTURES_TRAMES: Record<Intention, FixtureCarrousel> = {
           ],
         },
         { type: "T10", message: "Attendre aussi a un coût", legende: "Du temps perdu, des clients qui patientent", deco: "E01" },
-        { type: "T22", titre: "Idée reçue, réalité", mythe: "L'IA, c'est pour les grandes entreprises.", realite: "Une petite équipe en profite vite, sur ses tâches de tous les jours." },
+        { type: "T22", titre: "Idée reçue, réalité", mythe: "L'IA, c'est pour les grandes entreprises.", realite: "Une petite équipe peut commencer, sur ses tâches de tous les jours." },
         {
           type: "T23",
           titre: "Avant de vous lancer",
