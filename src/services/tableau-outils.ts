@@ -6,7 +6,8 @@
 import { REGLES_NETTOYAGE_PAR_DEFAUT } from "@/briques/voix-maitre/nettoyage";
 import { exigerVoixMaitre } from "@/briques/voix-maitre/voix-epinglee";
 import type { OutilsRenduCartes } from "@/briques/motion/rendu-cartes";
-import type { Video } from "@/domaine/types";
+import type { Video, Voix } from "@/domaine/types";
+import { voixPourFormat } from "@/domaine/voix-format";
 import type { StockageFichiers } from "@/fournisseurs/types";
 import { CENTIMES_USD_PAR_CARACTERE_HEYGEN } from "@/fournisseurs/heygen/voix";
 import type { EstimationFabrication, OutilsFabrication } from "@/moteurs/montage-tableau/fabriquer";
@@ -69,6 +70,23 @@ export function lectureSignee(stockage: StockageFichiers, rendreLisible: (cle: s
   };
 }
 
+/** Identifiant du format (le même que `FORMAT_TABLEAU_ANIME` des composants, redéclaré ici : un service chargé dynamiquement n'importe pas `@/components`). */
+const FORMAT_TABLEAU = "tableau-anime";
+
+/**
+ * La voix de la fabrication : le MÊME résolveur que l'écran de création (`voixPourFormat`, domaine/voix-format.ts) : choix de la
+ * vidéo, sinon voix du format, sinon voix par défaut du personnage, sinon la première prête. Avant le 24/10/2026 on prenait toujours
+ * la première : après le changement de voix, l'ancienne (supprimée chez HeyGen) passait devant la nouvelle et la garde de voix
+ * refusait la fabrication, sans rien dépenser (essai réel v-43f3e2278b14).
+ */
+export function choisirVoixDeFabrication<V extends Pick<Voix, "id" | "statut">>(
+  pretes: V[],
+  personnage: Parameters<typeof voixPourFormat>[1],
+  choixVideo?: string,
+): V | undefined {
+  return voixPourFormat(pretes, personnage, FORMAT_TABLEAU, choixVideo) ?? pretes[0];
+}
+
 /**
  * Branchements RÉELS (seulement avec `--reel`). Non exécuté par les tests (aucun vrai appel) : voir
  * `docs/formats/tableau-anime-essai.md`, « ce qui n'a pas pu être vérifié ».
@@ -86,7 +104,9 @@ export async function branchementsReels(personnageId: string, videoId: string, c
   const d = depots();
   const personnage = await d.personnages.obtenir(personnageId);
   if (!personnage) throw new Error(`Personnage « ${personnageId} » introuvable.`);
-  const [voix] = await d.voix.lister((v) => v.personnageId === personnageId && v.statut === "pret");
+  const video = await d.videos.obtenir(videoId);
+  const choixVideo = video?.distribution?.find((x) => x.role === "voix")?.voixId;
+  const voix = choisirVoixDeFabrication(await d.voix.lister((v) => v.personnageId === personnageId && v.statut === "pret"), personnage, choixVideo);
   if (!voix) throw new Error(`Le personnage « ${personnage.nom} » n'a pas de voix prête.`);
   const ressource = await ressourceActive(voix.id);
   if (!ressource?.idExterne) throw new Error(`La voix « ${voix.nom} » n'est pas reliée chez son fournisseur.`);
