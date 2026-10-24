@@ -826,6 +826,10 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
     const { PHRASE_CAS_TRAITE } = await import("@/domaine/cas-traites");
     const phrase = await (await import("./cas-concret-traites")).refusCasDejaTraite(video.entrees, videoId, PHRASE_CAS_TRAITE);
     if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
+    // Défense en profondeur : un cas retiré par Will ne part pas non plus (refus avant toute réservation).
+    const { PHRASE_CAS_RETIRE } = await import("@/domaine/cas-retires");
+    const retire = await (await import("./cas-concret-retires")).refusCasRetire(video.entrees, PHRASE_CAS_RETIRE);
+    if (retire) throw new ErreurStudio("CAS_RETIRE", retire);
   }
   const commande = await construireCommande(videoId, { simulerEchecEtape: options.simulerEchecEtape, ...(options.origine ? { origine: options.origine } : {}) });
   // La voix déjà fabriquée par la maquette (même texte, même voix) est transmise : elle ne sera pas repayée ; le double

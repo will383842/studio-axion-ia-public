@@ -3,6 +3,7 @@
 /** Groupe replié « À valider (n) » : chaque cas montre sa promesse et ses faits avec leur source. */
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
+import { BoutonRetirerCas } from "./BoutonRetirerCas";
 import type { VueCas } from "./vue";
 
 export function CasAValider({ cas, occupe, onValider, onEssai }: { cas: readonly VueCas[]; occupe: boolean; onValider: (c: VueCas) => void; onEssai: (c: VueCas) => void }) {
@@ -32,6 +33,7 @@ export function CasAValider({ cas, occupe, onValider, onEssai }: { cas: readonly
               <Bouton variante="secondaire" disabled={occupe} onClick={() => onEssai(c)}>
                 Fabriquer un essai
               </Bouton>
+              <BoutonRetirerCas casId={c.id} titre={c.titre} />
             </div>
           </Carte>
         ))}
