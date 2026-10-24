@@ -1,0 +1,2 @@
+# P3c — Comparaisons (4) : branche `carrousels/continu-p3c`, `familles/comparaisons.ts`, `gabarits/comparaisons/`
+K01 Avant / avec nous (`cas:true`) · K02 Mythe / réalité (étiquettes MYTHE / RÉALITÉ posées par le code) · K03 Tableau sans / avec (en-têtes « Sans » / « Avec » posés par le code, 3 à 4 lignes) · K04 Barres de durée (étiquette « Exemple illustratif · sans chiffre réel » posée par le code ; longueurs = clé technique `variante` parmi 3 profils, jamais un nombre saisi). Le « froid » se rend en encre atténuée, jamais en bleu.
