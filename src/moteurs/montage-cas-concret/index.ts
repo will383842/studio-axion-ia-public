@@ -57,7 +57,9 @@ import { apercuRetoucheCasConcret, estOperationRetoucheCasConcret, lireOperation
 import { reglagesRecette } from "./recette-voix";
 import { empreintePriseVoix, type EtatVoixCasConcret } from "./voix";
 import { STRUCTURES } from "./variete";
-import { CODE_SCRIPT_A_VALIDER, idSegmentEcran, lireScriptValide, PHRASE_SCRIPT_A_VALIDER, problemesScriptValide, scriptValideDuCatalogue, type ScriptValide } from "./script-valide";
+import { empreinte as empreinteRelecture } from "@/domaine/relecture-script";
+import { lignesDesEcrans } from "./relecture";
+import { apercuDesEcrans, CODE_PRIX_CHANGE, CODE_SCRIPT_A_VALIDER, PHRASE_CAS_CHANGE_DEPUIS_LANCEMENT, PHRASE_SCRIPT_CHANGE_DEPUIS_PRIX, idSegmentEcran, lireScriptValide, PHRASE_SCRIPT_A_VALIDER, problemesScriptValide, scriptValideDuCatalogue, type ScriptValide } from "./script-valide";
 
 /* Contrat commun des moteurs (TYPES seulement, `src/moteurs/types.ts`), lu par `import()` de type, comme le patron. */
 type MoteurVideo = import("@/moteurs/types").MoteurVideo;
@@ -211,6 +213,8 @@ interface DemandeEstimation {
    * convient plus au cas (autre cas, autre version) : le prix est alors celui d'avant (la fabrication s'arrêtera avant la voix).
    */
   scriptFige?: ScriptValide;
+  /** Prononciations connues : le prix compte le texte réellement lu (corps et fins), comme la chaîne. */
+  prononciations?: readonly { mot: string; prononciation: string }[];
   /** Voix désignée (absente : aucune voix). */
   voix: { fournisseur?: string } | null;
   /** Texte du corps quand le cas ne le donne pas (fiche fournie, script de la vidéo). */
@@ -253,6 +257,17 @@ function ligneVoixPireCas(fournisseur: string | undefined, corps: string | undef
   return [{ ...modele, quantite: parTexte.reduce((n, x) => n + x.ligne.quantite * x.fois, 0), total: centimes(parTexte.reduce((n, x) => n + x.ligne.total.centimes * x.fois, 0)) }];
 }
 
+/** Le script compté (figé utilisable, sinon celui du catalogue) et le corps dont la voix est estimée (avant prononciations). */
+function scriptEtCorpsEstimes(d: DemandeEstimation, plan: ReturnType<typeof regrouperFins> | null): { script: ScriptValide | undefined; corps: string } {
+  const figeUtilisable = d.scriptFige && d.cas && !problemesScriptValide(d.scriptFige, d.cas).length ? d.scriptFige : undefined;
+  const script = d.ecriture && !d.nouveauScript ? (figeUtilisable ?? scriptDuCas(d.cas)) : undefined;
+  const corps = script ? script.ecrans.map((e) => e.texteDit.trim()).join(" ") : d.cas && d.ecriture ? texteDuCorps(ficheParGabarit(d.cas, FIXE_ESSAI, dureesDesFins(plan?.fins ?? []))) : (d.texteCorps ?? "");
+  return { script, corps };
+}
+
+/** Empreinte du texte d'un script validé, telle que l'écran de relecture la calcule (même calcul que les services). PUR. */
+const empreinteDuScript = (s: Pick<ScriptValide, "ecrans">): string => empreinteRelecture(lignesDesEcrans(apercuDesEcrans(s.ecrans)));
+
 function lignesEstimees(d: DemandeEstimation): LigneCout[] {
   const l: LigneCout[] = [];
   const offre = d.cas?.offre;
@@ -260,12 +275,12 @@ function lignesEstimees(d: DemandeEstimation): LigneCout[] {
   const motDit = d.motDit ?? d.cas?.motDit;
   const plan = offre ? regrouperFins(planDesFins({ reseaux: [...d.reseaux], offre, ...(d.cas?.nature ? { nature: d.cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot: d.avecMot, ...(d.motSur ? { motSur: d.motSur } : {}), table: TABLE_FINS_DIAGNOSTIC })) : null;
   // V4-3 : un cas à script validé ne paie aucune écriture ; sa voix est estimée sur le texte du script.
-  const figeUtilisable = d.scriptFige && d.cas && !problemesScriptValide(d.scriptFige, d.cas).length ? d.scriptFige : undefined;
-  const script = d.ecriture && !d.nouveauScript ? (figeUtilisable ?? scriptDuCas(d.cas)) : undefined;
+  const { script, corps: corpsBrut } = scriptEtCorpsEstimes(d, plan);
   if (d.ecriture && d.cas && !script) l.push(ligne("Écriture", "claude", "appel", APPELS_ECRITURE_MAX, "estime", centimes(coutEcritureCentimes(d.cas, plan?.fins ?? [], d.tauxUsdEur, d.socle))));
   if (d.voix) {
-    const corps = script ? script.ecrans.map((e) => e.texteDit.trim()).join(" ") : d.cas && d.ecriture ? texteDuCorps(ficheParGabarit(d.cas, FIXE_ESSAI, dureesDesFins(plan?.fins ?? []))) : (d.texteCorps ?? "");
-    const fins = d.sansFins ? [] : (plan?.fins ?? []).map((f) => f.ecrans.map((e) => e.texteDit.trim()).join(" "));
+    const lire = (t: string) => (d.prononciations?.length ? substituerPrononciations(t, [...d.prononciations]) : t);
+    const corps = lire(corpsBrut);
+    const fins = d.sansFins ? [] : (plan?.fins ?? []).map((f) => lire(f.ecrans.map((e) => e.texteDit.trim()).join(" ")));
     // 17/10 (essai réel v-99d2f6353f41 : 0,56 € annoncés « au plus », 1,05 € payés) : le prix annoncé est le PIRE cas de
     // la chaîne. Le corps est lu jusqu'à `LECTURES_CORPS_MAX` fois et chaque fin `LECTURES_FIN_MAX` fois (contrôle des
     // mots et des blancs), et CHACUNE de ces lectures peut être relancée par la ressemblance (`lecturesVoixMax`) ;
@@ -305,8 +320,8 @@ const casDe = (commande: Pick<CommandeFabrication, "entrees">, outils?: Pick<Out
  * Estimation d'un cas avant toute commande (écran du format) : même calcul que `estimer`. `voix` : le fournisseur de la
  * voix désignée (absent : tarif de la simulation) ; `null` : sans voix.
  */
-export function estimerDepuisCas(cas: CasConcret, reseaux: readonly ReseauCas[], avecMot: boolean, options: { voix?: { fournisseur?: string } | null; tauxUsdEur?: number; motSur?: readonly ReseauCas[]; lecturesVoixMax?: number; socle?: EntreeRole["contexte"]; nouveauScript?: boolean; script?: ScriptValide | null } = {}): Estimation {
-  const lignes = lignesEstimees({ cas, reseaux, avecMot, ...(options.nouveauScript ? { nouveauScript: true } : {}), ...(options.script && !options.nouveauScript ? { scriptFige: options.script } : {}),...(options.motSur ? { motSur: options.motSur } : {}), ecriture: true, voix: options.voix === undefined ? {} : options.voix, tauxUsdEur: options.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT, ...(options.lecturesVoixMax ? { lecturesVoixMax: options.lecturesVoixMax } : {}), ...(options.socle ? { socle: options.socle } : {}) });
+export function estimerDepuisCas(cas: CasConcret, reseaux: readonly ReseauCas[], avecMot: boolean, options: { voix?: { fournisseur?: string } | null; tauxUsdEur?: number; motSur?: readonly ReseauCas[]; lecturesVoixMax?: number; socle?: EntreeRole["contexte"]; nouveauScript?: boolean; script?: ScriptValide | null; prononciations?: readonly { mot: string; prononciation: string }[] } = {}): Estimation {
+  const lignes = lignesEstimees({ cas, reseaux, avecMot, ...(options.nouveauScript ? { nouveauScript: true } : {}), ...(options.script && !options.nouveauScript ? { scriptFige: options.script } : {}),...(options.motSur ? { motSur: options.motSur } : {}), ...(options.prononciations?.length ? { prononciations: options.prononciations } : {}), ecriture: true, voix: options.voix === undefined ? {} : options.voix, tauxUsdEur: options.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT, ...(options.lecturesVoixMax ? { lecturesVoixMax: options.lecturesVoixMax } : {}), ...(options.socle ? { socle: options.socle } : {}) });
   return estimation(lignes, dureeDe({ reseaux: [...reseaux] }));
 }
 
@@ -328,6 +343,7 @@ function demandeDe(commande: CommandeFabrication): DemandeEstimation {
     texteCorps: commande.script.texteComplet ?? "",
     tauxUsdEur: commande.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT,
     lecturesVoixMax: lecturesVoixMax(ressemblanceDeLaCommande(commande.entrees)),
+    ...(commande.prononciations?.length ? { prononciations: commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation })) } : {}),
   };
 }
 
@@ -643,6 +659,25 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   // réservée : même périmé, il va à l'étape « fiche » qui le refuse avant toute voix, sans aucun appel d'écriture.
   const fige = entrees.ficheCle || nouveau ? null : lireScriptValide(entrees.scriptFige);
   const scriptValide = fige ?? (nouveau ? (perime(deLaVideo) ? null : deLaVideo) : scriptCourant);
+  // PRIX EXACT · le script joué doit être celui dont le prix a été confirmé : sinon arrêt à « fiche », AVANT toute voix et toute écriture.
+  if (!entrees.ficheCle && !nouveau && !retouche) {
+    const arret = (phrase: string) => ({ etat: depart, issue: { type: "echec" as const, cle: "fiche" as const, erreur: { code: CODE_PRIX_CHANGE, reessayable: false, messagePourWill: phrase } } });
+    if (fige) {
+      // Figé devenu périmé (le cas a changé) ; ou figé qui n'est plus celui que Will a relu.
+      if (problemesScriptValide(fige, cas).length) return arret(PHRASE_CAS_CHANGE_DEPUIS_LANCEMENT);
+      if (entrees.scriptRelu && empreinteDuScript(fige) !== entrees.scriptRelu) return arret(PHRASE_SCRIPT_CHANGE_DEPUIS_PRIX);
+    } else if (scriptCourant && scriptCourant !== duCatalogue) {
+      // Commande SANS script figé (lancée sans script validé, ou avant cette version) : un script collé ensuite n'est rejoué que
+      // s'il est celui relu au lancement, ou s'il ne dépasse pas le corps que le prix confirmé couvre (plafond de voix).
+      const pr = commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation }));
+      const lire = (t: string) => (pr.length ? substituerPrononciations(t, pr) : t);
+      const relu = !!entrees.scriptRelu && empreinteDuScript(scriptCourant) === entrees.scriptRelu;
+      const d = demandeDe(commande);
+      const couvert = lire(scriptEtCorpsEstimes(d, d.cas ? regrouperFins(planDesFins({ reseaux: [...d.reseaux], offre: d.cas.offre, ...(d.cas.nature ? { nature: d.cas.nature } : {}), mot: d.mot ?? d.cas.mot, ...((d.motDit ?? d.cas.motDit) ? { motDit: (d.motDit ?? d.cas.motDit)! } : {}), avecMot: d.avecMot, ...(d.motSur ? { motSur: d.motSur } : {}), table: TABLE_FINS_DIAGNOSTIC })) : null).corps).length;
+      const joue = lire(scriptCourant.ecrans.map((e) => e.texteDit.trim()).join(" ")).length;
+      if (!relu && joue > couvert) return arret(PHRASE_SCRIPT_CHANGE_DEPUIS_PRIX);
+    }
+  }
   // Essai : « simuler l'échec d'une étape » devient la panne d'essai de la chaîne (un échec, puis la réussite).
   const panneDEssai = contexte.panneDEssai ?? (estEtape(commande.simulerEchecEtape) ? commande.simulerEchecEtape : undefined);
   // 14/10 : contrôle de ressemblance à la voix de référence, figé dans la commande au lancement (absent : coupé).

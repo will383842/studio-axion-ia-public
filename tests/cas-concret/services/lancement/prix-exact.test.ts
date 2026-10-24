@@ -20,10 +20,12 @@ const fourni = await import("@/services/cas-concret-script-fourni");
 const scripts = await import("@/services/cas-concret-scripts");
 const { construireCommande } = await import("@/services/fabrication");
 const { moteurDeCommande } = await import("@/moteurs");
+const { VOIX_MAITRE_HEYGEN_ID } = await import("@/briques/voix-maitre");
 const { trouverCas } = await import("@/formats/cas-concret/catalogue");
 const { dureesDesFins, ficheParGabarit } = await import("@/moteurs/montage-cas-concret/ecriture");
 const { bornesDesFins, texteFourniDesEcrans } = await import("@/moteurs/montage-cas-concret/script-fourni");
 
+const scriptsEmpreinte = (s: Parameters<typeof scripts.empreinteScriptValide>[0]) => scripts.empreinteScriptValide(s);
 const lancer = vi.fn(async () => ({ travailId: "t-prix" }));
 const MDP = "cas-concret-prix-exact";
 const RESEAUX = ["facebook", "instagram", "tiktok", "linkedin"];
@@ -40,15 +42,23 @@ beforeAll(async () => {
   process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(e).toString("base64");
 });
 
-beforeEach(async () => {
-  lancer.mockClear();
+/** Base propre, avec une voix HeyGen (voix maître) : le prix de la voix compte vraiment (la simulation ne coûte rien et ne prouverait rien). */
+async function baseAvecVoixHeygen() {
   reinitialiserDepots();
-  reinitialiserRequete();
   await auth.seConnecter(MDP, false);
   const d = depots();
   const base = (await d.voix.obtenir("voix-will"))!;
-  await d.voix.enregistrer({ ...base, id: "voix-avocat-test", nom: "Voix avocat", statut: "pret" });
+  await d.voix.enregistrer({ ...base, id: "voix-avocat-test", nom: "Voix avocat", statut: "pret", fournisseur: "heygen" } as never);
+  const rf = (await d.ressourcesFournisseurs.obtenir("rf-3"))!;
+  await d.ressourcesFournisseurs.modifier("rf-3", { fournisseur: "heygen", idExterne: VOIX_MAITRE_HEYGEN_ID } as never);
+  await d.ressourcesFournisseurs.enregistrer({ ...rf, id: "rf-avocat-test", entiteId: "voix-avocat-test", fournisseur: "heygen", idExterne: VOIX_MAITRE_HEYGEN_ID } as never);
   await d.personnages.modifier("p-will", { voixParDefautId: "voix-will", voixParFormat: { avocat: "voix-avocat-test" } });
+}
+
+beforeEach(async () => {
+  lancer.mockClear();
+  reinitialiserRequete();
+  await baseAvecVoixHeygen();
 });
 
 const demande = (plus: Record<string, unknown> = {}) => ({ casId: CAS_ID, reseaux: RESEAUX, mot: "IA", avecMot: false, essai: true, ...plus }) as Parameters<typeof service.preparerEtLancer>[0];
@@ -80,16 +90,11 @@ describe("prix exact d'un script validé du studio", () => {
       expect(p.e.lignes.some((l) => l.etape === "Écriture")).toBe(false);
       prix[nom] = p.feuille;
       // Autre vidéo à chaque tour : on repart d'une base propre.
-      reinitialiserDepots();
-      await auth.seConnecter(MDP, false);
-      const d = depots();
-      const base = (await d.voix.obtenir("voix-will"))!;
-      await d.voix.enregistrer({ ...base, id: "voix-avocat-test", nom: "Voix avocat", statut: "pret" });
-      await d.personnages.modifier("p-will", { voixParDefautId: "voix-will", voixParFormat: { avocat: "voix-avocat-test" } });
+      await baseAvecVoixHeygen();
     }
     expect(prix.gabarit).toBeLessThan(sans.centimes);
-    expect(prix.long).toBeGreaterThanOrEqual(prix.gabarit);
-    expect(prix.court).toBeLessThanOrEqual(prix.gabarit);
+    expect(prix.long).toBeGreaterThan(prix.gabarit);
+    expect(prix.court).toBeLessThan(prix.gabarit);
   }, 60_000);
 
   it("le lancement passe avec exactement le prix, et un centime de moins est refusé (aucune dépense au-delà du prix confirmé)", async () => {
@@ -102,6 +107,56 @@ describe("prix exact d'un script validé du studio", () => {
     const bon = await service.preparerEtLancer(demande({ ...p.relu, accordCentimes: p.lancement }), { lancer });
     expect(bon.statut).toBe("lancee");
     expect(lancer).toHaveBeenCalledTimes(1);
+  }, 60_000);
+
+  it("ÉCHOUE SANS LA PR : le montant exact (sans écriture, plus bas que l'ancien prix) suffit pour lancer ; avant, il aurait été refusé", async () => {
+    const ancien = (await service.estimerCas(CAS_ID, RESEAUX, false, { essai: true })).centimes;
+    await fourni.enregistrerScriptFourni(CAS_ID, TEXTE);
+    const p = await troisPrix();
+    expect(p.lancement).toBeLessThan(ancien);
+    lancer.mockClear();
+    const r = await service.preparerEtLancer(demande({ ...p.relu, accordCentimes: p.lancement }), { lancer });
+    expect(r.statut).toBe("lancee");
+    expect(lancer).toHaveBeenCalledTimes(1);
+  }, 60_000);
+
+  it("un script enregistré entre la relecture et le lancement : refus « le script a changé », rien de créé ni de payé", async () => {
+    await fourni.enregistrerScriptFourni(CAS_ID, TEXTE);
+    const a = scriptsEmpreinte((await scripts.scriptValideCourant(CAS))!);
+    await fourni.enregistrerScriptFourni(CAS_ID, TEXTE_LONG);
+    const avant = await depots().videos.compter(() => true);
+    const r = await service.preparerEtLancer(demande({ empreinteScriptRelu: a, accordCentimes: 10_000 }), { lancer });
+    expect(r).toEqual({ statut: "refusee", phrase: scripts.PHRASE_SCRIPT_CHANGE });
+    expect(lancer).not.toHaveBeenCalled();
+    expect(await depots().videos.compter(() => true)).toBe(avant);
+    const sans = await service.preparerEtLancer(demande({ accordCentimes: 10_000 }), { lancer });
+    expect(sans).toEqual({ statut: "refusee", phrase: scripts.PHRASE_SCRIPT_NON_RELU });
+  }, 60_000);
+
+  it("« Nouveau script » : pas de script figé, la ligne « Écriture » est comptée et le montant demandé est celui du moteur", async () => {
+    await fourni.enregistrerScriptFourni(CAS_ID, TEXTE_LONG);
+    const feuille = (await service.estimerCas(CAS_ID, RESEAUX, false, { essai: true, nouveauScript: true })).centimes;
+    const r = await service.preparerEtLancer(demande({ nouveauScript: true, accordCentimes: undefined }), { lancer });
+    expect(r.statut).toBe("accord-requis");
+    if (r.statut !== "accord-requis") return;
+    const commande = await construireCommande(r.videoId);
+    expect((commande.entrees.casConcret as { scriptFige?: unknown }).scriptFige).toBeUndefined();
+    const e = (await moteurDeCommande(commande).estimer(commande)) as unknown as Lignes;
+    expect(e.lignes.some((l) => l.etape === "Écriture")).toBe(true);
+    expect(e.total.centimes).toBe(r.centimes);
+    expect(feuille).toBe(r.centimes);
+  }, 60_000);
+
+  it("un script figé et des prononciations connues : feuille, lancement et moteur donnent encore le même prix", async () => {
+    await fourni.enregistrerScriptFourni(CAS_ID, TEXTE);
+    const mot = (await scripts.scriptValideCourant(CAS))!.ecrans.map((e) => e.texteDit).join(" ").split(/[^\p{L}]+/u).find((w) => w.length >= 6)!;
+    const d = depots();
+    const sansPron = (await service.estimerCas(CAS_ID, RESEAUX, false, { essai: true })).centimes;
+    await d.prononciations.enregistrer({ id: "pr-test", mot, prononciation: `${mot} ${mot} ${mot}`, actif: true, portee: "globale", creeLe: "2026-10-24T09:00:00.000Z", modifieLe: "2026-10-24T09:00:00.000Z" } as never);
+    const p = await troisPrix();
+    expect(p.feuille).toBeGreaterThan(sansPron);
+    expect(p.lancement).toBe(p.feuille);
+    expect(p.moteur).toBe(p.feuille);
   }, 60_000);
 
   it("un cas sans script du studio : prix d'avant, AVEC la ligne « Écriture » et sans script figé", async () => {
