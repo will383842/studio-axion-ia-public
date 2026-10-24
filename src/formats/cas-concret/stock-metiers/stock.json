@@ -30,7 +30,7 @@
         "promesse": "Rappelé la veille, le client confirme ou annule.",
         "recit": {
           "sujet": "Vos clients oublient leur rendez-vous à l'atelier.",
-          "scene": "Le pont est libre, l'outillage est sorti, mais la voiture attendue ne vient pas. Le rendez-vous était noté sur un papier près de la caisse. Le soir, le garagiste rappelle encore à la main les clients du lendemain.",
+          "scene": "Le pont est libre, l'outillage est sorti, mais la voiture attendue ne vient pas. Le rendez-vous était noté sur un papier près de la caisse, et personne n'a eu le temps de rappeler le client la veille.",
           "exemple": "le rendez-vous de ce client à l'atelier",
           "motsCles": [
             "clients",
@@ -455,7 +455,7 @@
         "promesse": "La nuit, chaque message laissé arrive déjà noté.",
         "recit": {
           "sujet": "Les messages de la nuit attendent le matin.",
-          "scene": "En pleine nuit, un client écrit : plus de chauffage, il donne sa rue mais pas le numéro. Le régulateur d'astreinte est sur la route et ne peut pas lire. Au réveil, il note l'adresse sur un carnet et rappelle pour compléter.",
+          "scene": "En pleine nuit, un client laisse un message vocal : plus de chauffage, une rue mais pas de numéro. Le régulateur d'astreinte ne peut pas décrocher. Au réveil, il écoute le message, note l'adresse sur un carnet et rappelle pour compléter.",
           "exemple": "le message de ce client laissé dans la nuit",
           "motsCles": [
             "messages",
@@ -888,13 +888,13 @@
         "theme": "Demandes incomplètes",
         "promesse": "Surface, fréquence, accès : réclamés avant la visite.",
         "recit": {
-          "sujet": "La surface manque à chaque demande de nettoyage.",
+          "sujet": "Vos demandes de nettoyage arrivent sans la surface.",
           "scene": "Un client écrit : il cherche une entreprise pour entretenir ses bureaux. Rien sur la surface, ni sur la fréquence, ni sur l'accès. Le responsable recopie, rappelle, relance, et la demande attend dans la boîte.",
           "exemple": "la demande de ce client pour ses bureaux",
           "motsCles": [
-            "surface",
-            "demande",
-            "nettoyage"
+            "demandes",
+            "nettoyage",
+            "surface"
           ]
         },
         "cible": "Une entreprise de nettoyage dont les demandes de prestation arrivent incomplètes avant la visite des locaux.",
@@ -2295,7 +2295,7 @@
         "promesse": "Les cotes du client, sans les retaper.",
         "recit": {
           "sujet": "Une cote mal recopiée finit en fabrication.",
-          "scene": "Un client envoie ses cotes dans un document joint à son message. À l'atelier, le menuisier l'ouvre et retape chaque cote à la main. Une cote mal recopiée part en fabrication.",
+          "scene": "Un client envoie ses cotes dans un document joint à son message. À l'atelier, le menuisier l'ouvre et retape chaque cote à la main. Le placard part en fabrication avec une erreur de mesure.",
           "exemple": "les cotes de ce placard",
           "motsCles": [
             "cote",
@@ -3732,12 +3732,12 @@
         "theme": "Plans reçus",
         "promesse": "Le plan arrive, le brouillon de devis suit.",
         "recit": {
-          "sujet": "Votre bureau relève chaque plan avant le devis.",
+          "sujet": "Chaque plan reçu se recopie avant le devis.",
           "scene": "Un plan arrive avec la demande. Au bureau, le technicien l'ouvre, relève la matière, les opérations, la quantité, puis monte le devis ligne après ligne. Les autres plans attendent sur la pile.",
           "exemple": "le plan de cette pièce",
           "motsCles": [
-            "bureau",
             "plan",
+            "recopie",
             "devis"
           ]
         },
@@ -5537,7 +5537,7 @@
         "theme": "Exigences client",
         "promesse": "L'exigence du client retrouvée, sans attendre la qualité.",
         "recit": {
-          "sujet": "Sans la qualité, l'exigence client reste introuvable.",
+          "sujet": "L'exigence du client attend la responsable qualité.",
           "scene": "Sur la ligne, une question tombe : quel emballage ce client a-t-il demandé ? La réponse est quelque part dans son cahier des charges. On appelle la responsable qualité, absente, et la ligne attend son retour.",
           "exemple": "l'exigence d'emballage de ce client",
           "motsCles": [
@@ -5637,13 +5637,13 @@
         "theme": "Attestations emballages",
         "promesse": "Chaque attestation d'emballage réclamée avant sa date.",
         "recit": {
-          "sujet": "Vos fournisseurs d'emballage tardent à renvoyer leurs attestations.",
+          "sujet": "L'attestation d'emballage périmée se découvre trop tard.",
           "scene": "La responsable qualité ouvre son tableur : l'attestation du fournisseur de barquettes est périmée. Elle fouille ses e-mails, trouve des versions mélangées, relance le fournisseur, puis attend sa réponse.",
           "exemple": "l'attestation de ce fournisseur de barquettes",
           "motsCles": [
-            "fournisseurs",
+            "attestation",
             "emballage",
-            "attestations"
+            "périmée"
           ]
         },
         "cible": "Une PME agroalimentaire qui suit les déclarations de ses fournisseurs d'emballages par e-mails et tableurs.",
@@ -6276,13 +6276,13 @@
         "theme": "Rapport d'intervention",
         "promesse": "Le rapport relu et signé avant de repartir.",
         "recit": {
-          "sujet": "Le rapport d'intervention s'écrit le soir, de mémoire.",
+          "sujet": "Votre rapport d'intervention oublie un détail de panne.",
           "scene": "Le soir, de retour de chez le client, le technicien ouvre son ordinateur. Il cherche ses photos dans son téléphone, tente de se rappeler la panne et les pièces changées. Un détail lui échappe.",
           "exemple": "le rapport de cette intervention",
           "motsCles": [
             "rapport",
             "intervention",
-            "mémoire"
+            "panne"
           ]
         },
         "cible": "Une PME de maintenance dont les techniciens écrivent leur rapport d'intervention le soir, de mémoire.",
@@ -6988,13 +6988,13 @@
         "theme": "Commandes modifiées",
         "promesse": "La ligne de commande modifiée, repérée avant fabrication.",
         "recit": {
-          "sujet": "Bon de commande modifié, recomparé à la main.",
+          "sujet": "Chaque commande modifiée se compare à la main.",
           "scene": "Un client renvoie son bon de commande avec des changements. L'assistante des ventes l'ouvre à côté de la dernière confirmation, compare références, quantités et dates, puis ressaisit chaque ligne à la main.",
           "exemple": "le bon de commande modifié de ce client",
           "motsCles": [
             "commande",
-            "modifié",
-            "recomparé"
+            "modifiée",
+            "compare"
           ]
         },
         "cible": "Une PME industrielle dont l'administration des ventes compare à la main les bons de commande modifiés par les clients.",
@@ -8263,13 +8263,13 @@
         "theme": "Papiers véhicules",
         "promesse": "Le contrôle du camion signalé avant l'échéance.",
         "recit": {
-          "sujet": "Le contrôle du camion a expiré sans prévenir.",
+          "sujet": "Contrôle du camion échu, découvert au départ.",
           "scene": "Au petit matin, un chauffeur va prendre son camion au dépôt. Le responsable regarde les papiers du véhicule : le contrôle est échu depuis la semaine dernière. La date dormait dans un tableur que personne n'a rouvert.",
           "exemple": "le contrôle de ce camion",
           "motsCles": [
             "contrôle",
             "camion",
-            "expiré"
+            "échu"
           ]
         },
         "cible": "Un transporteur dont le parc de véhicules demande des contrôles et des papiers à renouveler à des dates différentes.",
@@ -8690,13 +8690,13 @@
         "theme": "Écarts réception",
         "promesse": "Le client prévenu de la casse, photo comprise.",
         "recit": {
-          "sujet": "Chaque casse à réception s'explique au client.",
+          "sujet": "Le client apprend la casse bien trop tard.",
           "scene": "Au pied d'une palette, le réceptionnaire voit des cartons écrasés. Il note l'écart sur un papier glissé sous le film. Le soir, le message au client reste à rédiger, et un autre écart est déjà oublié.",
           "exemple": "la palette aux cartons écrasés",
           "motsCles": [
+            "client",
             "casse",
-            "réception",
-            "client"
+            "tard"
           ]
         },
         "cible": "Un entrepôt dont la réception relève des manques ou des casses qu'il faut ensuite expliquer au client.",

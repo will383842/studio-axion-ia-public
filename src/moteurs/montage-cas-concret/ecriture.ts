@@ -218,10 +218,10 @@ ${blocExemplesDeRythme()}
 
 CLARTÉ D'ABORD : quelqu'un qui ne connaît pas le métier doit comprendre la vidéo en l'écoutant une fois.
 - Avant le 3e écran, le sujet est dit en clair : qui, quelle chose, quel problème.
-- Quand <recit> est donné : l'accroche dit son « sujet » ; le « avant » raconte sa « scene » au présent (les tâches de <avant> restent les cases de la liste) ; ses « mots_cles » sont dits dans les trois premiers écrans.
+- Quand <recit> est donné : l'accroche dit son « sujet » ; le « avant » raconte sa « scene » au présent, avec tes mots, en entier ou résumée selon la durée (R21) (les tâches de <avant> restent les cases de la liste) ; ses « mots_cles » sont dits dans les trois premiers écrans.
 - Un seul exemple est suivi d'un bout à l'autre (celui de « exemple » dans <recit>, sinon une chose précise tirée de <avant>) : chaque étape dit ce qui arrive à CETTE chose, jamais une étiquette abstraite.
 - Les étapes de <etapes> sont une source, pas un texte à lire : regroupe-les en 3 temps au plus, et ne dis jamais un titre d'étape seul.
-- La part humaine (<reste_humain>, mot pour mot, R23) se dit à sa place ; puis le bénéfice vécu : la même scène, sans le problème.
+- La part humaine (<reste_humain>, mot pour mot, R23) se dit à sa place ; puis le bénéfice vécu : la même scène, sans le problème (coaching, audit, formation : ce que la méthode met en place, jamais un résultat obtenu).
 - La question finale porte sur ce même problème.
 - Ne recopie jamais la description d'une forme de <formes_de_la_video>.
 
@@ -231,7 +231,7 @@ DÉJÀ DIT : quand <deja_dit> est donné, ces tournures ont déjà servi dans d'
 
 ACCROCHE (e01, puis le premier chiffre) : elle met en avant la PROMESSE du cas, le gain annoncé, jamais le « avant » ; quand <recit> est donné, elle dit à la place le « sujet » de <recit> (mêmes limites de mots et de temps), et la promesse peut se redire au résultat. Le premier écran « chiffre », juste après e01, montre le fait chiffré de la PROMESSE quand la promesse porte un nombre : jamais le total de l'« avant », qui vient ensuite, dans la liste « avant ».
 
-UNE SEULE IDÉE : la vidéo montre UN seul mécanisme, celui du cas ; aucune seconde promesse ni bénéfice ajouté ; après l'accroche, aucun écran ne redit la promesse (le « resultat » montre le gain : chiffré quand un fait le porte, en mots sinon).
+UNE SEULE IDÉE : la vidéo montre UN seul mécanisme, celui du cas ; aucune seconde promesse ni bénéfice ajouté ; après l'accroche, aucun écran ne redit la promesse, sauf, quand <recit> est donné, le « resultat », qui peut la dire (le « resultat » montre le gain : chiffré quand un fait le porte, en mots sinon).
 
 CE QUE TU N'ÉCRIS JAMAIS : la fin de la vidéo. Elle est fabriquée à part. Le corps s'arrête sur la question au public. Aucune invitation à commenter, à cliquer, à suivre un lien, à écrire un mot ou à réserver quoi que ce soit, ni dans le texte dit ni dans les textes d'écran. Aucun écran de type ${liste(TYPES_ECRAN_FIN)}.
 
@@ -335,7 +335,7 @@ mots_cles : ${cas.recit.motsCles.join(", ")}
     `<objets>${OBJETS.join(", ")}</objets>`,
     ...(duree ? [`<duree_fins>${texteDureeFins(duree)}</duree_fins>`] : []),
     ...(variete.structure ? [`<structure_de_la_video>\n${variete.structure}\n</structure_de_la_video>`] : []),
-    ...(variete.patrons ? [`<formes_de_la_video>\n${blocPatrons(variete.patrons)}\n</formes_de_la_video>`] : []),
+    ...(variete.patrons ? [`<formes_de_la_video>\n${blocPatrons(variete.patrons, !!cas.recit)}\n</formes_de_la_video>`] : []),
     ...(variete.placeResteHumain ? [`<place_reste_humain>${variete.placeResteHumain}</place_reste_humain>`] : []),
     ...(variete.memoire?.length ? [`<deja_dit>\n${blocMemoire(variete.memoire)}\n</deja_dit>`] : []),
     ...(variete.memoireCommune ? [variete.memoireCommune] : []),
@@ -953,7 +953,7 @@ const COPIES_CITEES_MAX = 6;
 
 /** Textes que le cas courant DOIT redire (jamais comptés comme une reprise) : promesse, faits, partie humaine, conformité, mot. */
 export function textesImposesDuCas(cas: CasConcret): string[] {
-  return [cas.promesse, cas.recit?.sujet, ...cas.faits.map((f) => f.enonce), cas.resteHumain, cas.conformite?.rgpd?.phrase, cas.mot, cas.motDit].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+  return [cas.promesse, cas.recit?.sujet, cas.recit?.exemple, ...cas.faits.map((f) => f.enonce), cas.resteHumain, cas.conformite?.rgpd?.phrase, cas.mot, cas.motDit].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
 }
 
 /** La variété d'un appel : graine = la vidéo (+ le numéro de « Réessayer »), mémoire des scripts antérieurs. */
