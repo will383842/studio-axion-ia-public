@@ -28,6 +28,7 @@ function monter(allume = true) {
     contextePorte: vi.fn(),
     allume: async () => allume,
     rendre,
+    rendreReseaux: async () => [],
     urlLecture,
     verrou: (f) => {
       const suite = chaine.then(f, f);

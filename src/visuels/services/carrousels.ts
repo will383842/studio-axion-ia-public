@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { LIMITES } from "@/briques/visuels/limites";
+import type { Reseau } from "@/briques/visuels/reseaux";
 import type { Intention } from "@/briques/visuels/trames";
 import { LIBELLES_STATUT, transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { CODES_ERREUR_VISUELS, type DemandeTexteCarrousel, type ContextePorte, type EmpreinteCarrousel, type FournisseurTexteCarrousel, type Porte } from "@/domaine/visuels/contrats";
@@ -10,6 +11,7 @@ import type { MotifRefus, Visuel } from "@/domaine/visuels/visuel";
 import type { Depot } from "@/domaine/depots";
 import { phrasesPaquetSession } from "../texte/phrases-paquet";
 import type { ResultatRendu } from "./rendu";
+import type { VersionReseau } from "./rendu-reseaux";
 
 /**
  * Service des carrousels (V3-C) : cycle de vie d'un visuel, de la demande à la validation. TOUT est injecté (dépôt, texte,
@@ -38,6 +40,8 @@ export interface DependancesCarrousels {
   contextePorte: () => Promise<ContextePorte>;
   allume: () => Promise<boolean>;
   rendre: (spec: CarrouselSpecType) => Promise<ResultatRendu>;
+  /** Une version par cadre (LinkedIn : pages + PDF ; Meta : une série de JPEG pour Instagram et Facebook). */
+  rendreReseaux: (spec: CarrouselSpecType, reseaux: readonly Reseau[]) => Promise<VersionReseau[]>;
   urlLecture: (cle: string) => Promise<string>;
   /** Adresse qui TÉLÉCHARGE le fichier sous ce nom (absente : l'adresse de lecture sert). */
   urlTelechargement?: (cle: string, nom: string) => Promise<string>;
