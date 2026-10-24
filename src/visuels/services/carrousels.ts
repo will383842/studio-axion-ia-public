@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { LIMITES } from "@/briques/visuels/limites";
 import { LIBELLES_STATUT, transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
-import { CODES_ERREUR_VISUELS, type DemandeTexteCarrousel, type ContextePorte, type FournisseurTexteCarrousel, type Porte } from "@/domaine/visuels/contrats";
+import { CODES_ERREUR_VISUELS, type DemandeTexteCarrousel, type ContextePorte, type EmpreinteCarrousel, type FournisseurTexteCarrousel, type Porte } from "@/domaine/visuels/contrats";
+import { recentsAEviter } from "@/domaine/controles-visuel/memoire-carrousels";
 import { CarrouselSpec } from "@/domaine/visuels/schema";
 import type { CarrouselSpecType } from "@/domaine/visuels/types";
 import type { MotifRefus, Visuel } from "@/domaine/visuels/visuel";
@@ -87,6 +88,15 @@ function fournisseurPermis(demande: DemandeTexteCarrousel, deps: DependancesCarr
   return f;
 }
 
+/** Empreintes des derniers carrousels produits (L7, mémoire anti-répétition) ; une lecture en échec n'empêche jamais d'écrire. */
+async function recentsDe(id: string, deps: DependancesCarrousels): Promise<EmpreinteCarrousel[]> {
+  try {
+    return recentsAEviter(await deps.depot.lister((v) => v.id !== id && v.famille === "carrousel" && !v.corbeilleLe && v.spec !== undefined));
+  } catch {
+    return [];
+  }
+}
+
 /** Écrit le texte, passe la porte, puis range le brouillon `id` en « ecrit » ou « bloque ». Un brouillon mis à la corbeille entre-temps est laissé tel quel. */
 async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, demande: DemandeTexteCarrousel, deps: DependancesCarrousels): Promise<void> {
   const ranger = (vers: StatutVisuel, patch: Partial<Visuel>) =>
@@ -96,9 +106,10 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
       await transiter(id, vers, patch, deps);
     });
   const bloquer = (erreur: string, patch: Partial<Visuel> = {}) => ranger("bloque", { ...patch, erreur });
+  const recents = await recentsDe(id, deps);
   let reponse;
   try {
-    reponse = await fournisseur.ecrire(demande);
+    reponse = await fournisseur.ecrire(demande.type === "sujet" && recents.length > 0 ? { ...demande, eviter: recents } : demande);
   } catch {
     await bloquer(demande.type === "sujet" ? "L'écriture du texte a échoué : réessayez avec « Refaire »" : "La lecture du texte déposé a échoué : déposez un texte corrigé");
     return;
@@ -109,7 +120,7 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
   }
   let controle;
   try {
-    controle = deps.porte(reponse.spec, await deps.contextePorte());
+    controle = deps.porte(reponse.spec, { ...(await deps.contextePorte()), recents });
   } catch {
     await bloquer("Le texte n'a pas pu être contrôlé par la porte");
     return;
