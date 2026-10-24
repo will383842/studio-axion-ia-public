@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LIMITES } from "../../briques/visuels/limites";
-import { CAPACITE_ANNOTATION, CAPACITE_CAS, CAPACITE_CHECKLIST, CAPACITE_CITATION, CAPACITE_COMPARAISON, CAPACITE_MYTHE, CAPACITE_NOEUD, CAPACITE_PANNEAU, capaciteCarte, capaciteEtape, capaciteListe, capaciteQuestion, PAGES, TYPES_COUVERTURE, TYPES_PAGE } from "../../briques/visuels/registre-pages";
+import { CAPACITE_ANNOTATION, CAPACITE_CAS, CAPACITE_CHECKLIST, CAPACITE_CITATION, CAPACITE_COMPARAISON, CAPACITE_MYTHE, CAPACITE_NOEUD, CAPACITE_PANNEAU, CAPACITE_RELANCE, capaciteCarte, capaciteEtape, capaciteListe, capaciteQuestion, PAGES, TYPES_COUVERTURE, TYPES_PAGE } from "../../briques/visuels/registre-pages";
 import { NOMS_ICONES_PAGE } from "../../briques/visuels/registre-illustrations";
 import { TYPES_MINI } from "../../briques/visuels/registre-mini";
 import { TYPES_DECOR } from "../../briques/visuels/registre-decor";
@@ -113,6 +113,8 @@ const PageT20 = z
     type: z.literal("T20"),
     titre: titrePage("T20"),
     etapes: z.array(Carte.omit({ mini: true })).min(PAGES.T20.elements.min).max(PAGES.T20.elements.max),
+    /** Variante « étapes à mini-maquettes » (L10) : chaque étape montre un petit écran dessiné par le code. Sans la clé : l'ancienne page. */
+    variante: z.enum(["maquettes"]).optional(),
   })
   .strict()
   .superRefine((page, ctx) => {
@@ -199,7 +201,16 @@ const PageT28 = z
   })
   .strict();
 
-export const Page = z.discriminatedUnion("type", [PageT01, PageT01B, PageT01C, PageT02, PageT06, PageT08, PageT10, PageT20, PageT21, PageT22, PageT23, PageT24, PageT26, PageT27, PageT28]);
+// Relance (L11) : avant-dernière page en général, jamais sombre ; la relance en grand, puis le rappel de ce que le lecteur a vu.
+const PageT29 = z
+  .object({
+    type: z.literal("T29"),
+    relance: texte(1, CAPACITE_RELANCE.relance),
+    rappels: z.array(z.object({ texte: texte(1, CAPACITE_RELANCE.rappel) }).strict()).min(PAGES.T29.elements.min).max(PAGES.T29.elements.max),
+  })
+  .strict();
+
+export const Page = z.discriminatedUnion("type", [PageT01, PageT01B, PageT01C, PageT02, PageT06, PageT08, PageT10, PageT20, PageT21, PageT22, PageT23, PageT24, PageT26, PageT27, PageT28, PageT29]);
 
 export const CarrouselSpec = z
   .object({

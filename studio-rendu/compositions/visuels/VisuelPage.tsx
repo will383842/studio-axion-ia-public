@@ -9,7 +9,7 @@ import { T02 } from "./pages/T02";
 import { T06 } from "./pages/T06";
 import { T08 } from "./pages/T08";
 import { T10 } from "./pages/T10";
-import { T20 } from "./pages/T20";
+import { T20, varianteEtapes } from "./pages/T20";
 import { T21, varianteFin } from "./pages/T21";
 import { T22 } from "./pages/T22";
 import { T23 } from "./pages/T23";
@@ -17,6 +17,7 @@ import { T24 } from "./pages/T24";
 import { T26 } from "./pages/T26";
 import { T27 } from "./pages/T27";
 import { T28 } from "./pages/T28";
+import { T29 } from "./pages/T29";
 
 function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spec"]): ReactElement {
   const total = spec.pages.length;
@@ -36,7 +37,7 @@ function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spe
     case "T10":
       return <T10 message={page.message} legende={page.legende} index={index} total={total} />;
     case "T20":
-      return <T20 titre={page.titre} etapes={page.etapes} index={index} total={total} />;
+      return <T20 titre={page.titre} etapes={page.etapes} index={index} total={total} variante={varianteEtapes(page)} />;
     case "T21":
       return <T21 index={index} total={total} variante={varianteFin(spec)} />;
     case "T22":
@@ -51,6 +52,8 @@ function dessiner(page: PageSpec, index: number, spec: ProprietesVisuelPage["spe
       return <T27 titre={page.titre} lignes={page.lignes} index={index} total={total} />;
     case "T28":
       return <T28 titre={page.titre} noeuds={page.noeuds} index={index} total={total} />;
+    case "T29":
+      return <T29 relance={page.relance} rappels={page.rappels} index={index} total={total} />;
   }
 }
 
