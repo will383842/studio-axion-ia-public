@@ -33,6 +33,8 @@ import {
 import type { Travail } from "@/domaine/types";
 import { depots, lireParametre, maintenant } from "./_commun";
 import { lireCasRetires } from "./cas-concret-retires";
+import { lireCasAjoutes } from "./cas-concret-ajoutes-lecture";
+import type { CasConcret } from "@/formats/cas-concret/cas";
 import { lireCasTraites } from "./cas-concret-traites";
 
 /** Clé du réglage dans les paramètres du studio. */
@@ -55,6 +57,8 @@ export interface SourcesSujets {
   casTraites?(): Promise<ReadonlySet<string>>;
   /** Cas retirés par Will : jamais suggérés. Absent (faux dépôt de test) : aucun écarté. */
   casRetires?(): Promise<ReadonlySet<string>>;
+  /** Les cas ajoutés à la main (proposés comme les autres) ; absent : aucun. */
+  casAjoutes?(): Promise<readonly CasConcret[]>;
   /** Banque de l'Usine (cas d'usage `propose` et `valide`), pour un métier si donné. */
   banque(cible?: string): CandidatSuggestion[] | Promise<CandidatSuggestion[]>;
   maintenant(): string;
@@ -190,6 +194,7 @@ export const SOURCES_PAR_DEFAUT: SourcesSujets = {
   stockMetiers: async () => (await lireParametre<unknown>("casConcret.stockMetiers", false)) === true,
   casTraites: async () => new Set((await lireCasTraites()).keys()),
   casRetires: lireCasRetires,
+  casAjoutes: lireCasAjoutes,
   banque: banqueUsine,
   maintenant,
 };
@@ -222,6 +227,9 @@ export async function suggestionsSujets(format: string, cible?: string, src: Sou
   const quand = src.maintenant();
   if (format === "cas-concret") {
     const visibles = casVisibles(CATALOGUE.map((cas) => ({ cas })), { catalogueEtendu: await src.catalogueEtendu(), stockMetiers: (await src.stockMetiers?.()) === true }).map((x) => x.cas);
+    // AJOUTER UN CAS : les cas ajoutés à la main sont aussi proposés (jamais en lisant la base ici si la source est injectée).
+    const ajoutes = src.casAjoutes ? await src.casAjoutes() : [];
+    visibles.push(...ajoutes);
     const traites = (await src.casTraites?.()) ?? new Set<string>();
     const retires = (await src.casRetires?.()) ?? new Set<string>();
     const candidats: CandidatSuggestion[] = visibles.filter((c) => !traites.has(c.id) && !retires.has(c.id)).map((c) => ({ titre: c.titre, casId: c.id, source: "catalogue" as const }));

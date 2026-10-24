@@ -3,7 +3,7 @@
  * brute et sépare ce qui est montrable de ce qui est écarté. Un cas invalide n'est JAMAIS affiché : il est listé dans
  * `refuses`, avec sa fiche, son id et les raisons en français. Les mêmes contrôles servent à l'import (lot K6).
  */
-import { verifierCas, type CasConcret } from "../cas";
+import { PREFIXE_CAS_AJOUTE, verifierCas, type CasConcret } from "../cas";
 import { schemaLigneStock, verifierRangement, type Rangement } from "./schema";
 
 export interface RefusStock {
@@ -52,6 +52,7 @@ export function chargerStock(lignes: readonly unknown[], dejaPris: DejaPris): St
     const rang = verifierRangement(lue.data.rangement);
     const raisons = [...(cas.ok ? [] : cas.raisons), ...(rang.ok ? [] : rang.raisons)];
     if (cas.ok && rang.ok) {
+      if (cas.cas.id.startsWith(PREFIXE_CAS_AJOUTE)) raisons.push(`id « ${cas.cas.id} » : le préfixe « ${PREFIXE_CAS_AJOUTE} » est réservé aux cas ajoutés à la main`);
       if (ids.has(cas.cas.id)) raisons.push(`id « ${cas.cas.id} » déjà pris (catalogue ou fiche précédente)`);
       if (mots.has(normaliserMot(cas.cas.mot))) raisons.push(`mot « ${cas.cas.mot} » déjà pris (catalogue ou fiche précédente)`);
       if (fiches.has(rang.rangement.fiche)) raisons.push(`fiche « ${rang.rangement.fiche} » déjà présente`);

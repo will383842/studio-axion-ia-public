@@ -4,9 +4,12 @@
  */
 import type { CasTraite } from "@/domaine/cas-traites";
 import { CATALOGUE, casVisibles, type ReglagesVisibilite } from "@/formats/cas-concret/catalogue";
+import type { CasConcret } from "@/formats/cas-concret/cas";
 import { RANGEMENT } from "@/formats/cas-concret/stock-metiers";
 import { OFFRES_PASTILLES } from "@/components/formats/cas-concret/entree/vue";
 import { libelleSecteur } from "./filtres-stock";
+
+export type CasAjouteListe = { cas: CasConcret; secteur?: string; taille?: string };
 
 export interface CasDejaFait {
   casId: string;
@@ -32,17 +35,18 @@ export function dateComplete(iso: string | undefined): string {
  * `reglages` : les mêmes que ceux du compteur de la page (catalogueEtendu, stockMetiers) ; un cas caché par ces réglages n'est ni
  * compté ni listé. Un identifiant absent du catalogue reste listé (sans bouton).
  */
-export function listerDejaFaits(traites: ReadonlyMap<string, CasTraite>, reglages: ReglagesVisibilite = { catalogueEtendu: false }, retires: ReadonlySet<string> = new Set()): CasDejaFait[] {
+export function listerDejaFaits(traites: ReadonlyMap<string, CasTraite>, reglages: ReglagesVisibilite = { catalogueEtendu: false }, retires: ReadonlySet<string> = new Set(), ajoutes: readonly CasAjouteListe[] = []): CasDejaFait[] {
   const visibles = new Set(casVisibles(CATALOGUE.map((cas) => ({ cas })), reglages).map((x) => x.cas.id));
   return [...traites]
     .filter(([casId]) => !retires.has(casId))
-    .filter(([casId]) => visibles.has(casId) || !CATALOGUE.some((c) => c.id === casId))
+    .filter(([casId]) => visibles.has(casId) || ajoutes.some((a) => a.cas.id === casId) || !CATALOGUE.some((c) => c.id === casId))
     .sort(([, a], [, b]) => (Date.parse(b.le) || 0) - (Date.parse(a.le) || 0))
     .map(([casId, t]) => {
-      const cas = CATALOGUE.find((c) => c.id === casId);
-      const rang = (RANGEMENT as Record<string, { secteur: string; taille: string } | undefined>)[casId];
+      const ajoute = ajoutes.find((a) => a.cas.id === casId);
+      const cas = CATALOGUE.find((c) => c.id === casId) ?? ajoute?.cas;
+      const rang = ajoute ? (ajoute.secteur || ajoute.taille ? { secteur: ajoute.secteur ?? "", taille: ajoute.taille ?? "" } : undefined) : (RANGEMENT as Record<string, { secteur: string; taille: string } | undefined>)[casId];
       const offre = OFFRES_PASTILLES.find((o) => o.valeur === cas?.offre)?.libelle;
-      const details = [rang ? libelleSecteur(rang.secteur) : "", rang?.taille ?? "", offre ?? ""].filter(Boolean).join(" · ");
+      const details = [rang?.secteur ? libelleSecteur(rang.secteur) : "", rang?.taille ?? "", offre ?? ""].filter(Boolean).join(" · ");
       return { casId, titre: cas?.titre || t.titre || casId, auCatalogue: !!cas, details, date: dateComplete(t.le), ...(t.videoId ? { videoId: t.videoId } : {}) };
     });
 }

@@ -14,7 +14,7 @@
 import type { EntreeRole } from "@/generateur/roles/types";
 import "server-only";
 import { empreinteCas, type CasConcret } from "@/formats/cas-concret/cas";
-import { CATALOGUE } from "@/formats/cas-concret/catalogue";
+import { CATALOGUE, trouverCas } from "@/formats/cas-concret/catalogue";
 import { FORMAT_VOIX_DE_REFERENCE, fournisseurVoixPermis, VALIDITE_CAS_JOURS, type ReseauCas } from "@/formats/cas-concret";
 import { reseauxDuMot } from "@/formats/cas-concret/mots-branches";
 import { recettePour, type IdBloc } from "@/formats/cas-concret/recette";
@@ -40,6 +40,7 @@ import { cleCas, marquerAttentes, statutEffectif, type Confirmation, type Niveau
 import { verifierSujet as verifierSujetTraite } from "./sujets-traites";
 import { estCasTraite, PHRASE_CAS_TRAITE } from "./cas-concret-traites";
 import { lireCasRetires, PHRASE_CAS_RETIRE } from "./cas-concret-retires";
+import { lireCasAjoutes } from "./cas-concret-ajoutes-lecture";
 
 
 /**
@@ -93,7 +94,8 @@ export async function listerCas(dependances: { maintenant?: number } = {}): Prom
   const validations = await lireParametre<Validations>(CLE_VALIDATIONS, {});
   const maintenant = dependances.maintenant ?? Date.now();
   const sortie: ListeCas = { valides: [], aValider: [] };
-  for (const cas of CATALOGUE) {
+  // Les cas ajoutés à la main suivent ceux du catalogue (à valider tant que Will ne les a pas validés).
+  for (const cas of [...CATALOGUE, ...(await lireCasAjoutes())]) {
     const empreinte = empreinteCas(cas);
     (estValide(cas, empreinte, validations, maintenant) ? sortie.valides : sortie.aValider).push({ cas, empreinte });
   }
@@ -445,6 +447,9 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
     ...(demande.empreinteScriptRelu && !ecarte ? { scriptRelu: demande.empreinteScriptRelu } : {}),
     // LOT F : le numéro du script validé écarté ; un script plus récent (validé ensuite par Will) est, lui, rejoué.
     ...(ecarte ? { nouveauScript: ecarte.numero ?? 1 } : {}),
+    // AJOUTER UN CAS : un cas ajouté à la main (hors catalogue) part FIGÉ avec la vidéo : le moteur, pur et synchrone, ne lit pas la
+    // base ; moteur, boucle et relance relisent donc le même cas, même après un redémarrage ou pendant une mise en ligne.
+    ...(!c.porteB && !trouverCas(cas.id) ? { casFige: structuredClone(cas) } : {}),
   };
 
   let videoId: Id;

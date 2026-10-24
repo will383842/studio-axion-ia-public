@@ -13,7 +13,7 @@ import { Pastille } from "@/components/ui/Pastille";
 import { libelleSecteur } from "../stock/filtres-stock";
 import { BoutonRetirerCas } from "./BoutonRetirerCas";
 import { LienMonScript } from "./LienMonScript";
-import type { VueCas } from "./vue";
+import { MENTION_AJOUTE, type VueCas } from "./vue";
 
 export function CasAValider({ cas, occupe, onValider, onEssai, total }: { cas: readonly VueCas[]; occupe: boolean; onValider: (c: VueCas) => void; onEssai: (c: VueCas) => void; total?: number }) {
   const titre = useRef<HTMLHeadingElement>(null);
@@ -33,6 +33,9 @@ export function CasAValider({ cas, occupe, onValider, onEssai, total }: { cas: r
           <Carte as="li" key={c.id} className="list-none bg-surface-2">
             <span className="flex flex-wrap gap-1.5">
               <Pastille>{c.offreLibelle}</Pastille>
+              {c.ajoute && <Pastille ton="sauge">{MENTION_AJOUTE}</Pastille>}
+              {c.ajoute?.secteur && <Pastille>{libelleSecteur(c.ajoute.secteur)}</Pastille>}
+              {c.ajoute?.taille && <Pastille>{c.ajoute.taille}</Pastille>}
               {c.stock?.secteur && <Pastille>{libelleSecteur(c.stock.secteur)}</Pastille>}
               {c.stock?.taille && <Pastille>{c.stock.taille}</Pastille>}
             </span>

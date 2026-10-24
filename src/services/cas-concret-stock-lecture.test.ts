@@ -11,6 +11,7 @@ vi.mock("./_commun", () => ({
 }));
 vi.mock("./auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
 vi.mock("./cas-concret-retires", () => ({ lireCasRetires: vi.fn(async () => new Set<string>()) }));
+vi.mock("./cas-concret-ajoutes-lecture", () => ({ lireCasAjoutes: vi.fn(async () => []) }));
 vi.mock("./cas-concret-traites", () => ({ lireCasTraites: vi.fn(async () => new Map()) }));
 vi.mock("./cas-concret-scripts-lot", () => ({ scriptsValidesDe: vi.fn(async () => ({})) }));
 

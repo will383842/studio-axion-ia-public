@@ -278,11 +278,19 @@ function dureeDe(entrees: Pick<EntreesCasConcret, "reseaux" | "ficheCle">): numb
  * Le cas d'une vidéo, lu dans ses entrées : porte B (P2S), le cas construit depuis la description et gardé avec la vidéo
  * (jamais au catalogue) ; porte A, celui du catalogue désigné par `casId`. Illisible ou absent : `undefined`.
  */
-export function casDesEntrees(e: Pick<EntreesCasConcret, "porte" | "casId" | "cas">): CasConcret | undefined {
+export function casDesEntrees(e: Pick<EntreesCasConcret, "porte" | "casId" | "cas"> & { casFige?: unknown }): CasConcret | undefined {
   if (e.porte === "porte-b" && e.cas !== undefined) {
     const lu = verifierCas(e.cas);
     if (!lu.ok) return undefined;
     // L'écriture simulée retrouve un cas par son identifiant : celui-ci n'est pas au catalogue.
+    retenirCasPourSimulation(lu.cas);
+    return lu.cas;
+  }
+  // AJOUTER UN CAS : en porte A, un cas figé avec la vidéo (cas ajouté à la main) est lu tel quel. Invalide, ou d'un autre
+  // identifiant que `casId` : « le cas n'existe plus », jamais l'origine en douce.
+  if (e.casFige !== undefined) {
+    const lu = verifierCas(e.casFige);
+    if (!lu.ok || lu.cas.id !== e.casId) return undefined;
     retenirCasPourSimulation(lu.cas);
     return lu.cas;
   }
