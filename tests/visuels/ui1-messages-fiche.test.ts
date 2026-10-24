@@ -73,8 +73,9 @@ describe("fiche refusée", () => {
 
 describe("fiche à la corbeille", () => {
   it("bandeau avec le nombre de jours", () => {
-    expect(rendu({ joursRestantsCorbeille: 12 })).toContain("À la corbeille : supprimée définitivement dans 12 jours");
-    expect(rendu({ joursRestantsCorbeille: 1 })).toContain("supprimée définitivement dans 1 jour<");
+    expect(rendu({ joursRestantsCorbeille: 12 })).toContain("À la corbeille : supprimé définitivement dans 12 jours");
+    expect(rendu({ joursRestantsCorbeille: 1 })).toContain("supprimé définitivement dans 1 jour<");
+    expect(rendu({ joursRestantsCorbeille: 12 })).not.toContain("supprimée");
   });
 });
 

@@ -21,7 +21,7 @@ export function MessagesFiche({ fiche }: { fiche: VueCarrouselFiche }) {
     <>
       {/* Rafraîchissement simple tant que le rendu tourne. */}
       {fiche.renduEnCours && !aCorbeille && <meta httpEquiv="refresh" content="5" />}
-      {aCorbeille && <Message ton="ambre">À la corbeille : supprimée définitivement dans {pluriel(Math.max(0, fiche.joursRestantsCorbeille ?? 0))}</Message>}
+      {aCorbeille && <Message ton="ambre">À la corbeille : supprimé définitivement dans {pluriel(Math.max(0, fiche.joursRestantsCorbeille ?? 0))}</Message>}
       {fiche.erreur && <Message ton="brique">{fiche.erreur}</Message>}
       {fiche.renduEnCours && !aCorbeille && <Message>Rendu en cours, environ une minute : cette page se met à jour toute seule</Message>}
       {fiche.statut === "rendu_en_cours" && !fiche.renduEnCours && fiche.actionsPermises.includes("relancer_rendu") && (
