@@ -73,9 +73,8 @@ describe("L11 : porte qualité sur T29", () => {
   it("un contenu ordinaire n'a aucune faute rouge", () => {
     expect(controlerCarrousel(spec(T29), ctx).rapport.controles.filter((c) => c.niveau === "rouge")).toEqual([]);
   });
-  it("mots interdits, « J'aide » et chiffres bloqués dans la relance et les rappels", () => {
-    expect(codes({ ...T29, relance: "Aucun gain garanti, mais essayez" })).toContain("EXPRESSION_BANNIE");
-    expect(codes({ ...T29, rappels: [{ texte: "J'aide les équipes" }, T29.rappels[1]] })).toContain("J_AIDE");
+  it("aucun chiffre factuel dans la relance ni dans un rappel (les expressions bannies sont contrôlées sur tout texte, tests L9)", () => {
+    expect(codes({ ...T29, relance: "Vous gagnez trois heures ?" })).toContain("CHIFFRE");
     expect(codes({ ...T29, rappels: [{ texte: "Vous gagnez trois heures" }, T29.rappels[1]] })).toContain("CHIFFRE");
   });
   it("chaque rappel a sa place de mot (MOT_TROP_LONG) : 24 lettres larges refusées, « professionnalisation » acceptée", () => {
@@ -99,7 +98,7 @@ describe("L11 : textes de T29 posés par le code", () => {
   it("rubrique en capitales et étiquette du rappel : sans chiffre, sans lien, sans promesse, admis par le schéma", () => {
     expect(RUBRIQUES.T29).toBe(RUBRIQUES.T29.toLocaleUpperCase("fr-FR"));
     for (const t of [RUBRIQUES.T29, ...Object.values(TEXTES_FIXES_L11)]) {
-      expect(t).not.toMatch(/\d|https?:|www\.|@|garanti|j['’]aide/i);
+      expect(t).not.toMatch(/\d|https?:|www\.|@/i);
       expect(CarrouselSpec.safeParse({ version: "carrousel/1", alt: t, pages: [couv, fin] }).success, t).toBe(true);
     }
   });
