@@ -59,7 +59,7 @@ export const SILENCE_BORNE_MIN_SEC = 0.3;
 /** Lecture unique : blanc mesuré exigé de chaque côté d'une phrase sautée (HeyGen en met 0,32 à 0,72 s après un point). */
 const SILENCE_PHRASE_SAUTEE_MIN_SEC = 0.1;
 
-const VERSION_ASSEMBLAGE = "assemblage-iv/2"; // /2 (24/10/2026) : tempo ×1,05 au lieu de ×1,08
+const VERSION_ASSEMBLAGE = "assemblage-iv/3"; // /3 (25/10/2026) : phrase sautée dont le silence dépasse l'horodatage ; /2 (24/10/2026) : tempo ×1,05 au lieu de ×1,08
 /** Tolérance de calcul sur les instants (secondes). */
 const EPS_INSTANT = 1e-6;
 const arrondi = (x: number) => +x.toFixed(4);
@@ -739,6 +739,24 @@ function pointDansUnGroupe(t: number, lo: number, hi: number, s: readonly Silenc
 }
 
 /**
+ * Le son de `[de, pb]` est-il la TRAÎNE décroissante d'un mot qui finit en `de` (et non l'attaque d'un mot suivant, plateau
+ * ou montée) ? `pb` doit tomber dans le PREMIER silence mesuré après `de` ; les niveaux de toutes les fenêtres de `de` à
+ * ce silence (un creux plus bref qu'un silence mesuré compte : il ne s'arrête pas là) ne remontent jamais de plus de 1 dB,
+ * et la fin des fenêtres au-dessus du seuil est au moins 3 dB plus bas que le début. Sans mesure : non. PUR.
+ */
+function trainePuisSilence(m: MesureSonIV | undefined, s: readonly Silence[], de: number, pb: number): boolean {
+  if (!m) return false;
+  const z = s.find((x) => x.finSec > de + EPS_INSTANT);
+  if (!z || pb < z.debutSec - EPS_INSTANT || pb > z.finSec + EPS_INSTANT) return false;
+  const f = m.fenetreSec ?? REGLES_SILENCES_IV.fenetreSec;
+  const niv: number[] = [];
+  for (let w = Math.max(0, Math.floor(de / f + EPS_INSTANT)); w < m.niveaux.length && w * f < z.debutSec - EPS_INSTANT; w++) niv.push(m.niveaux[w]);
+  if (!niv.every((x, i) => i === 0 || x <= niv[i - 1] + 1)) return false;
+  const sons = niv.filter((x) => x > m.seuilDb);
+  return sons.length === 0 || (sons.length < 2 ? sons[0] <= m.seuilDb + 12 : sons[sons.length - 1] <= sons[0] - 3);
+}
+
+/**
  * Rapproche chaque coupe en plein son du silence mesuré le plus proche (voir `REGLES_COUPES_IV`). PUR. Les mots, la
  * durée, le fondu de sortie et le raccord suivent. Rien à déplacer : le plan est rendu tel quel.
  */
@@ -849,7 +867,17 @@ export function placerCoupesIV(
           if (pa < a.debutSec + (colle ? 0 : r.dureeMinMorceauSec) - EPS_INSTANT || pb > b.finSec - r.dureeMinMorceauSec + EPS_INSTANT) continue;
           // Jamais de son retiré : ce que la fin rend (et que le début suivant ne reprend pas), ce que le début rend (et que
           // la fin précédente ne reprend pas) sont retirables (`retirable`).
-          if (!retirable(pa, Math.min(a.finSec, pb)) || !retirable(Math.max(b.debutSec, pa), pb)) continue;
+          // Écart retiré EXPRÈS (`voulu`) : le son retiré juste avant le mot gardé peut être la traîne du dernier mot sauté
+          // (ses horodatages sont en avance). Accepté seulement si le début du morceau reste dans la phrase retirée ou sa
+          // traîne : pas au-delà du début horodaté du premier mot gardé, et aucun silence ne se termine entre la fin de la
+          // phrase sautée et le point (sinon c'est l'attaque, ou une pause, du mot gardé). Côté fin : jamais, le son qui
+          // précède la phrase sautée est la queue d'un mot gardé.
+          const retraitsProches = voulu ? retraitsVoulus.filter(([x, y]) => x < b.debutSec && y > a.finSec) : [];
+          const finRetrait = retraitsProches.length ? Math.max(...retraitsProches.map(([, y]) => y)) : undefined;
+          const premierGarde = motsDe(b)[0];
+          const finOk = retirable(pa, Math.min(a.finSec, pb));
+          const debutOk = retirable(Math.max(b.debutSec, pa), pb) || (finRetrait !== undefined && b.debutSec >= finRetrait - EPS_INSTANT && (premierGarde === undefined || pb <= premierGarde.debutSec + EPS_INSTANT) && !s.some((z) => z.finSec > Math.min(b.debutSec, finRetrait) + EPS_INSTANT && z.finSec < pb - EPS_INSTANT) && trainePuisSilence(mesure, s, finRetrait, pb));
+          if (!finOk || !debutOk) continue;
           const k = [paroleEntre(pa, pb) >= r.paroleRetireeMaxSec - EPS_INSTANT ? 1 : 0, (qa.franche ? 0 : 1) + (qb.franche ? 0 : 1), Math.abs(pa - a.finSec) + Math.abs(pb - b.debutSec)];
           if (choix && !avant(k, cle)) continue;
           choix = [pa, pb];
@@ -1150,6 +1178,35 @@ function controlerPiste(son: Son, mots: readonly MotHorodate[], nom: string): nu
   return verdict.finSonoreSec;
 }
 
+/**
+ * Lecture unique : une phrase sautée exige un silence mesuré (0,1 s au moins) juste avant et juste après elle, sinon
+ * refus. Les horodatages de HeyGen peuvent être en avance ou en retard de `decalageMotsMaxSec` : la recherche du silence
+ * s'élargit de cette erreur ; seul compte un silence qui touche l'écart horodaté (jamais un creux à l'intérieur d'un mot
+ * gardé). `mots` ne contient que les mots gardés. PUR.
+ */
+export function phrasesSauteesSansSilenceIV(mots: readonly MotHorodate[], silences: readonly Silence[], retraitsVoulus: readonly [number, number][]): CoupeEnPleinSon[] {
+  const hors: CoupeEnPleinSon[] = [];
+  const marge = REGLES_COUPES_IV.decalageMotsMaxSec;
+  for (const [de, a] of retraitsVoulus) {
+    const avant = [...mots].reverse().find((m) => m.finSec <= de + EPS_INSTANT);
+    const apres = mots.find((m) => m.debutSec >= a - EPS_INSTANT);
+    const blanc = (lo: number, hi: number, garde: (x: Silence) => boolean) => Math.max(0, ...silences.filter((x) => garde(x) && x.debutSec <= hi + EPS_INSTANT && x.finSec >= lo - EPS_INSTANT).map((x) => Math.min(x.finSec, hi) - Math.max(x.debutSec, lo)));
+    // Les mots sautés ne sont pas dans `mots` (seuls les mots gardés y sont) : côté « avant » la fenêtre reste dans la phrase
+    // retirée (jusqu'à `a`), côté « après » dans le mot gardé suivant au plus de l'erreur d'horodatage. Seul un silence qui
+    // touche l'écart horodaté compte (pas un creux à l'intérieur du mot gardé ni de la phrase sautée).
+    for (const [lo, hi, ou, garde] of [
+      [avant?.finSec ?? de, Math.min(a, de + marge), "avant", (x: Silence) => x.debutSec <= de + EPS_INSTANT],
+      [Math.max(de, a - marge), Math.max(a, Math.min((apres?.debutSec ?? a) + marge, apres?.finSec ?? a)), "après", (x: Silence) => x.finSec >= a - EPS_INSTANT && x.debutSec <= (apres?.debutSec ?? a) + EPS_INSTANT],
+    ] as const) {
+      if (blanc(lo, hi, garde) < SILENCE_PHRASE_SAUTEE_MIN_SEC - EPS_INSTANT) {
+        hors.push({ source: "corps", instantSec: ou === "avant" ? de : a });
+        break;
+      }
+    }
+  }
+  return hors;
+}
+
 async function assemblerPiste(e: EntreePiste, o: OutilsAssemblageIV, cache: CacheSons): Promise<PisteVoixSeuleIV> {
   const nom = `(${e.reseaux.join(", ") || e.version}${e.courte ? ", version courte" : ""})`;
   const corps = await mesureDe(e.corps.fichierCle, `brut du corps ${nom}`, o, cache);
@@ -1166,22 +1223,7 @@ async function assemblerPiste(e: EntreePiste, o: OutilsAssemblageIV, cache: Cach
   }
   // Lecture unique : une phrase sautée exige un silence mesuré (0,1 s au moins) juste avant et juste après elle, sinon
   // refus : les protections de parole retirée ne regardent pas un écart voulu.
-  if (e.motsCorps !== undefined) {
-    for (const [de, a] of e.retraitsVoulus ?? []) {
-      const avant = [...e.corps.mots].reverse().find((m) => m.finSec <= de + EPS_INSTANT);
-      const apres = e.corps.mots.find((m) => m.debutSec >= a - EPS_INSTANT);
-      const blanc = (lo: number, hi: number) => Math.max(0, ...mesures.corps.silences.filter((x) => x.debutSec <= hi + EPS_INSTANT && x.finSec >= lo - EPS_INSTANT).map((x) => Math.min(x.finSec, hi) - Math.max(x.debutSec, lo)));
-      for (const [lo, hi, ou] of [
-        [avant?.finSec ?? de, de, "avant"],
-        [a, apres?.debutSec ?? a, "après"],
-      ] as const) {
-        if (blanc(lo, hi) < SILENCE_PHRASE_SAUTEE_MIN_SEC - EPS_INSTANT) {
-          horsLecture.push({ source: "corps", instantSec: ou === "avant" ? de : a });
-          break;
-        }
-      }
-    }
-  }
+  if (e.motsCorps !== undefined) horsLecture.push(...phrasesSauteesSansSilenceIV(e.corps.mots, mesures.corps.silences, e.retraitsVoulus ?? []));
   const coupe = couperVoixIV(corpsCoupe, e.fin, mesures, e.retraitsVoulus);
   const { plan, coupesDeplacees, paroleRetiree } = coupe;
   const hors = [...horsLecture, ...coupe.hors];
