@@ -30,6 +30,7 @@ import {
   lignesDesVersionsIV,
   livraisonDe,
   prixSuiteIV,
+  reprendreIV,
   reseauxParFormatIV,
   validerCarteIV,
   validerScriptIV,
@@ -37,7 +38,7 @@ import {
 } from "@/moteurs/montage-image-video/fabrication";
 import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { mettreEnSceneIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
-import { resultatDe } from "@/moteurs/montage-image-video";
+import { estimerImageVideo, PRIX_AU_PIRE_USD, resultatDe } from "@/moteurs/montage-image-video";
 import { CONSIGNE_FIL_FACEBOOK, texteFilFacebookIV, type PublicationIV } from "@/moteurs/montage-image-video/publication";
 import { bandeSousTitres, controlerSousTitresIV, LIMITES_BAS_SOUS_TITRES_4X5_IV, sousTitresIV } from "@/moteurs/montage-image-video/sous-titres";
 import { CENTRE_SOUS_TITRES_IV_4X5_PCT, CENTRE_SOUS_TITRES_IV_PCT, demandeMontageIV, parametresDuBloc, ratioDeLaLigneIV, scenesDeLaLigne } from "@/services/image-video-rendu";
@@ -274,6 +275,42 @@ describe("F45 · une version par (groupe de fins × format), une seule voix", ()
     // Relecture : 0,25 $ (habituel), 0,50 $ au pire (comptée deux fois au pire), au taux prudent (1 € pour 1 $).
     expect(avec45.habituelCentimes - avant.habituelCentimes).toBe(25);
     expect(avec45.auPlusCentimes - avant.auPlusCentimes).toBe(100);
+  });
+});
+
+describe("F45 · prix au pire, états d'avant et parcours par défaut", () => {
+  const estim = (reseaux: string[]) => estimerImageVideo({ entrees: { imageVideo: { reseaux } }, dureeCibleSec: 50, tauxUsdEur: 1 } as never);
+  const relectures = (reseaux: string[]) => estim(reseaux).lignes.find((l) => l.etape === "Relecture des images finales")!.quantite;
+  it("prix au pire : le fil Facebook 4:5 ajoute 2 relectures (une par version longue et courte), les autres réseaux rien", () => {
+    expect(relectures(["linkedin"])).toBe(2);
+    expect(relectures(["instagram"])).toBe(2);
+    expect(relectures(["facebook"])).toBe(4);
+    expect(relectures(["linkedin", "instagram", "facebook"])).toBe(8);
+    expect(PRIX_AU_PIRE_USD.relectureParVersion * 2).toBe(1); // +1 € au pire, accepté par Will le 24/10
+  });
+
+  it("état d'avant (clé `formats` ABSENTE de la demande) : une reprise reste tout en 9:16, aucune version -4x5", async () => {
+    const { e } = await jusquALaMiseEnScene("defaut", ["linkedin", "facebook"]);
+    const ancien = JSON.parse(JSON.stringify(e)) as EtatFabricationIV;
+    delete (ancien.demande as { formats?: unknown }).formats;
+    const repris = reprendreIV({ ...ancien, etape: "refusee", refus: { etape: "mise-en-scene", code: "IV_MISE_EN_SCENE", message: "x", reessayable: true } } as EtatFabricationIV);
+    expect(repris.demande).not.toHaveProperty("formats");
+    expect(lignesDesVersionsIV(repris).map((x) => x.version)).toEqual(["fin-linkedin", "fin-facebook"]);
+  });
+
+  it("parcours par défaut (sans `formats`) jusqu'à « prête » : LinkedIn 4:5, Facebook Reel 9:16 + fil 4:5", async () => {
+    const carte = carteFixe("C");
+    const o = outilsSimules(carte, monde());
+    let e = etatInitialIV(demandeEssai(carte, { reseaux: ["linkedin", "facebook"] }));
+    for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee"; i++) {
+      e = await avancerJusquAArretIV(e, o);
+      if (attendWillIV(e) === "carte") e = validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-16T08:00:00.000Z" });
+      else if (attendWillIV(e) === "script") e = validerScriptIV(e, { proposition: e.propositionScript!.empreinte, choixFormules: Object.fromEntries(e.propositionScript!.formules.map((f) => [f.cle, "garder" as const])) });
+    }
+    expect(e.etape).toBe("prete");
+    expect(e.livraison?.find((l) => l.reseau === "linkedin")).toMatchObject({ format: "4:5" });
+    expect(e.livraison?.find((l) => l.reseau === "facebook")).toHaveProperty("fichierCleFil");
+    expect(e.livraison?.find((l) => l.reseau === "facebook")).not.toHaveProperty("format");
   });
 });
 

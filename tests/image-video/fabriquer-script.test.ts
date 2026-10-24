@@ -143,7 +143,8 @@ describe("lanceur, mode réel sur doubles : validations dans le studio, rendu, s
     const studio = studioDouble(m, serveur);
     const lignes: string[] = [];
     const deps = { ecrire: (l: string) => lignes.push(l), branchements: studio.branchements, attendre: async () => undefined };
-    const base = ["--image", image, "--plafond", "5", "--dossier", dossier, "--sortie", sortie, "--reseaux", "youtube-shorts,linkedin"];
+    // Plafond 6 € (24/10 : LinkedIn en 4:5 est un fichier à part de YouTube Shorts, d'où une relecture et une voix de plus : prix au plus 5,44 €).
+    const base = ["--image", image, "--plafond", "6", "--dossier", dossier, "--sortie", sortie, "--reseaux", "youtube-shorts,linkedin"];
 
     expect(await lancer(lireArguments(base), deps)).toBe(5);
     expect(attendWillIV(studio.publies.at(-1)!)).toBe("carte");
@@ -164,9 +165,9 @@ describe("lanceur, mode réel sur doubles : validations dans le studio, rendu, s
     expect(studio.publies.at(-1)!.etape).toBe("prete");
 
     const resume = JSON.parse(readFileSync(join(sortie, "resume.json"), "utf8"));
-    expect(resume).toMatchObject({ etape: "prete", arret: null, plafondCentimes: 500, depenseReelle: { centimes: 137 }, verdict: { ok: true } });
+    expect(resume).toMatchObject({ etape: "prete", arret: null, plafondCentimes: 600, depenseReelle: { centimes: 137 }, verdict: { ok: true } });
     expect(resume.engageCentimes).toBeGreaterThan(0);
-    expect(resume.engageCentimes).toBeLessThanOrEqual(500);
+    expect(resume.engageCentimes).toBeLessThanOrEqual(600);
     for (const r of ["youtube-shorts", "linkedin"]) {
       const l = resume.reseaux.find((x: { reseau: string }) => x.reseau === r);
       expect(l.fichier).toMatch(/\.mp4$/);
