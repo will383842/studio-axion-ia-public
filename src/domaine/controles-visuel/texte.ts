@@ -111,13 +111,20 @@ const SUR_ZONE = `(?:(?:du|de la|des|de l['’]?|d['’])\\s*${NOM_CLASSEMENT}|(
 /** Acteurs : l'ENTREPRISE ou son offre face aux autres (« le premier client », « le premier salon » ordonnent un événement). */
 const ACTEUR = `(?:cabinet|artisan|fournisseur|entreprise|soci[eé]t[eé]|solution|agence|prestataire|acteur|expert|sp[eé]cialiste|consultant|formateur|organisme|offre|service|outil|logiciel|plateforme|partenaire|r[eé]seau|marque|enseigne|commerce|atelier|bureau|studio|[eé]quipe)s?${FIN_MOT}`;
 const SUITE_CLASSEMENT_DIRECTE = new RegExp(`^\\s+${SUR_ZONE}`, "iu");
-/** « premier [grand] cabinet [d'expertise] de France » : un acteur, puis sa zone ; les mots avant l'acteur ne sont pas des prépositions. */
+/** Zones larges (marché, pays, monde) : tout ce qui s'y classe est un rang (« premier site du marché », « premier assureur national »). */
+const ZONE_LARGE = `(?:(?:du|de la|des)\\s+(?:march[eé]|france|monde|pays|europe|classement)${FIN_MOT}|${ZONE_NATIONALE})`;
+/**
+ * Zone large : jusqu'à trois mots quelconques avant elle, sauf une étape (« premier pas en France ») ; zone locale (région, département,
+ * ville, métier, secteur) : un acteur d'abord (« premier [grand] cabinet [d'expertise] de la région », pas « premier salon du métier »).
+ */
 const SUITE_CLASSEMENT_PROCHE = new RegExp(
-  `^(?:\\s+(?!(?:du|de|des|d|la|le|les|l)${FIN_MOT})\\p{L}+){0,2}?\\s+${ACTEUR}(?:\\s+[\\p{L}'’]+){0,3}?\\s+${SUR_ZONE}`,
+  `^(?:(?!\\s+(?:pas|fois|[eé]tape|jour|contact|rendez-vous|devis)${FIN_MOT})(?:\\s+\\p{L}+){0,3}?\\s+${ZONE_LARGE}` +
+    `|(?:\\s+(?!(?:du|de|des|d|la|le|les|l)${FIN_MOT})\\p{L}+){0,2}?\\s+${ACTEUR}(?:\\s+[\\p{L}'’]+){0,3}?\\s+${SUR_ZONE})`,
   "iu",
 );
 const NUMERO_UN = /^\s*(?:°|o|º)?\s+un(?![\p{L}\p{N}])/iu;
-const SUITE_LEADER = /^\s+(?:du|de|des|d['’]|sur|dans|en|au|mondial|mondiale|national|nationale|europ[eé]en)(?![\p{L}\p{N}])/iu;
+/** « leader du secteur », « leader en France », « leader incontesté », « leader français du conseil ». */
+const SUITE_LEADER = /^\s+(?:du|de|des|d['’]|sur|dans|en|au|mondial|mondiale|national|nationale|europ[eé]en(?:ne)?|fran[cç]ais(?:e)?|incontest[eé]e?|historique|reconnue?|absolue?)(?![\p{L}\p{N}])/iu;
 /** « Nous sommes leaders », « elle est leader », « devenir leader » : l'entreprise se dit leader. */
 const ETRE_LEADER = /(?:^|[^\p{L}])(?:sommes|suis|es|est|sont|êtes|etes|être|etre|devenir|devenu|devenue|devenus|devenues|rester|restons|reste|restent)\s+(?:(?:le|la|les|un|une|des|l['’])\s+)?$/iu;
 

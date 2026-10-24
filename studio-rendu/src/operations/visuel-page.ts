@@ -65,6 +65,15 @@ export function reglagesVisuelPage(parametres: DemandeRendu["parametres"]): { sc
   return { scale, jpegQuality };
 }
 
+/**
+ * Propriétés refusées par `validerProprietesPage` : un refus, sauf une version de composition inconnue (le studio et studio-rendu
+ * ne sont pas encore à la même version, mise en ligne en cours) : indisponible, à réessayer. PUR.
+ */
+export function erreurDeValidation(message: string): ErreurRendu {
+  if (message.startsWith("Version de composition")) return new ErreurRendu({ code: "indisponible", reessayable: true, message });
+  return refus(message);
+}
+
 /** Message sans chemin interne (dossiers du conteneur, fichiers sources) : ils ne regardent pas le studio. PUR. */
 export function sansChemins(message: string): string {
   return message
@@ -82,7 +91,7 @@ export function creerVisuelPage(deps: DependancesVisuelPage): Operation {
     try {
       valides = validerProprietesPage(brutes);
     } catch (e) {
-      throw refus(e instanceof Error ? e.message : "Propriétés de page invalides");
+      throw erreurDeValidation(e instanceof Error ? e.message : "Propriétés de page invalides");
     }
     const nonce = randomBytes(16).toString("hex");
     const lignes: string[] = [];
