@@ -35,7 +35,7 @@ export function CasAValider({ cas, occupe, onValider, onEssai, total }: { cas: r
               {c.stock?.secteur && <Pastille>{libelleSecteur(c.stock.secteur)}</Pastille>}
               {c.stock?.taille && <Pastille>{c.stock.taille}</Pastille>}
             </span>
-            <button type="button" onClick={() => onEssai(c)} className="mt-2 flex min-h-11 w-full items-center text-left text-[17px] font-semibold text-texte focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
+            <button type="button" aria-label={`Ouvrir l'essai : ${c.titre}`} onClick={() => onEssai(c)} className="mt-2 flex min-h-11 w-full items-center text-left text-[17px] font-semibold text-texte focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
               {c.titre}
             </button>
             {c.recit && <p className="mt-1 text-[15px] text-texte">{c.recit.sujet}</p>}

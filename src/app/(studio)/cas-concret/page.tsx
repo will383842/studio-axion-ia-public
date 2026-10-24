@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { lireSession } from "@/services/auth";
 import { EntreeCasConcret } from "@/components/formats/cas-concret/entree/EntreeCasConcret";
 import { versVueCas } from "@/components/formats/cas-concret/entree/vue";
 import { EnTetePage } from "@/components/ui/EnTetePage";
@@ -41,6 +43,7 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
   // Il reste visible, avec son bouton « Remettre en stock », sur la page « Déjà faits » (/cas-concret/deja-faits).
   const valides = casProposables(casVisibles(liste.valides, { catalogueEtendu: etendu, stockMetiers }), traites, retires);
   const aValider = casProposables(casVisibles(liste.aValider, { catalogueEtendu: etendu, stockMetiers }), traites, retires);
+  if (!(await lireSession())) redirect("/connexion");
   const regl = { catalogueEtendu: etendu, stockMetiers };
   const onglet = lireOnglet(await searchParams);
   // Les compteurs des trois onglets (et la ligne de synthèse) ne coûtent aucune estimation.
@@ -52,7 +55,7 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
     <div className="mx-auto max-w-2xl">
       <EnTetePage titre="Cas concret MD" sousTitre="Une phrase, une vidéo." />
       <OngletsCasConcret actif={onglet} nombres={nombres} synthese={synthese} />
-      <div role="tabpanel" id={ID_PANNEAU_CAS} aria-labelledby={idOnglet(onglet)} className="mt-6">
+      <section id={ID_PANNEAU_CAS} aria-labelledby={idOnglet(onglet)} className="mt-6">
         {onglet === "deja-faits" && (
           <>
             <p className="mb-4 text-[15px] text-texte-doux">Ces cas ont déjà leur vidéo. Remettez-en un en stock pour le refaire.</p>
@@ -66,7 +69,7 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
           </>
         )}
         {onglet === "a-faire" && <OngletAFaire valides={valides} aValider={aValider} traites={traites} retires={retires} etendu={etendu} stockMetiers={stockMetiers} ecranFourni={ecranFourni} porteB={porteB} voix={voix} mots={mots} searchParams={await searchParams} />}
-      </div>
+      </section>
     </div>
   );
 }
@@ -100,6 +103,9 @@ async function OngletAFaire({ valides, aValider, traites, retires, etendu, stock
     return info ? { ...v, stock: info } : v;
   };
   const params = avecStock ? lireParamsStock(searchParams, stock.flatMap((l) => (l.rangement ? [l.rangement.secteur] : []))) : null;
+  // Seuls le secteur et la taille d'une ancienne adresse deviennent des filtres de départ : l'état et l'offre n'ont ici aucun contrôle pour les retirer.
+  const initiaux = params ? { ...(params.filtres.secteur ? { secteur: params.filtres.secteur } : {}), ...(params.filtres.taille ? { taille: params.filtres.taille } : {}) } : {};
+  const filtresInitiaux = Object.keys(initiaux).length ? initiaux : undefined;
   return (
     <>
       <EntreeCasConcret
@@ -110,9 +116,9 @@ async function OngletAFaire({ valides, aValider, traites, retires, etendu, stock
         voix={voix}
         mots={mots}
         porteB={porteB}
-        {...(params && Object.values(params.filtres).some(Boolean) ? { filtresInitiaux: params.filtres } : {})}
+        {...(filtresInitiaux ? { filtresInitiaux } : {})}
       />
-      <IdeesAVenir idees={IDEES_A_VENIR} />
+      <IdeesAVenir idees={IDEES_A_VENIR} niveau="h2" />
     </>
   );
 }

@@ -70,6 +70,17 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
     setAucunRestant(!choix);
     if (choix) setOuvert({ cas: choix.cas, essai: choix.essai });
   }
+  /** Change de page de « À valider » : le focus et la vue vont sur le titre du groupe (pas de saut perdu pour le clavier). */
+  function changerPage(n: number) {
+    setPage(n);
+    requestAnimationFrame(() => {
+      const titre = document.getElementById("titre-a-valider");
+      if (!titre) return;
+      titre.setAttribute("tabindex", "-1");
+      titre.focus();
+      titre.scrollIntoView?.({ block: "start" });
+    });
+  }
   function changerFiltresStock(f: Filtres) {
     setFiltresStock(f);
     setPage(1);
@@ -232,7 +243,7 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
     <div className="space-y-6">
       <CaseDuCas valeur={phrase} porteB={porteBAllumee} onChange={changerPhrase} onEntree={() => cartes[0] && setOuvert({ cas: cartes[0], essai: false })} />
       {caseLibre}
-      <PastillesOffres valeur={offre} onChange={(v) => { setOffre(v); setPage(1); }} cas={valides} />
+      <PastillesOffres valeur={offre} onChange={(v) => { setOffre(v); setPage(1); }} cas={[...valides, ...aValider]} />
       <div className="space-y-3">
         {avecStock && groupesStock.length > 0 && (
           <div className="rounded-carte border border-trait bg-surface-1 p-4">
@@ -257,9 +268,9 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
       <CasAValider cas={aValiderPage} total={aValiderListe.length} occupe={occupe} onValider={valider} onEssai={(c) => setOuvert({ cas: c, essai: true })} />
       {pages > 1 && (
         <nav className="flex items-center justify-between gap-3" aria-label="Pages des cas à faire">
-          {pageCourante > 1 ? <Bouton variante="fantome" onClick={() => setPage(pageCourante - 1)}>Page précédente</Bouton> : <span />}
+          {pageCourante > 1 ? <Bouton variante="fantome" onClick={() => changerPage(pageCourante - 1)}>Page précédente</Bouton> : <span />}
           <span className="text-[13px] text-texte-doux">Page {pageCourante} sur {pages}</span>
-          {pageCourante < pages ? <Bouton variante="fantome" onClick={() => setPage(pageCourante + 1)}>Page suivante</Bouton> : <span />}
+          {pageCourante < pages ? <Bouton variante="fantome" onClick={() => changerPage(pageCourante + 1)}>Page suivante</Bouton> : <span />}
         </nav>
       )}
       {cartes.length === 0 && aValiderListe.length === 0 && (
