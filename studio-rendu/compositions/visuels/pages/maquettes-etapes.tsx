@@ -15,9 +15,13 @@ const Coche = ({ x, y, t, couleur }: { x: number; y: number; t: number; couleur:
   <path d={`M${x} ${y + t * 0.5} L${x + t * 0.38} ${y + t * 0.85} L${x + t} ${y + t * 0.1}`} fill="none" stroke={couleur} strokeWidth={t * 0.22} strokeLinecap="round" strokeLinejoin="round" />
 );
 
-/** Contenu de chaque écran : rectangles, barres, coches ; jamais de texte, de marque ni de capture. */
-const ECRANS: Record<Maquette, ReactElement> = {
-  liste: (
+/**
+ * Contenu de chaque écran : rectangles, barres, coches ; jamais de texte, de marque ni de capture. Des FONCTIONS appelées au rendu, jamais du JSX
+ * construit au chargement du module : sans TypeScript (image de prod, `npm ci --omit=dev`), le chargeur esbuild de Remotion ignore le tsconfig
+ * et compile le JSX en `React.createElement`, et un JSX évalué au chargement cassait tout le paquet (« React is not defined »).
+ */
+const ECRANS: Record<Maquette, () => ReactElement> = {
+  liste: () => (
     <>
       {[0, 1, 2].map((i) => (
         <g key={i}>
@@ -28,7 +32,7 @@ const ECRANS: Record<Maquette, ReactElement> = {
       ))}
     </>
   ),
-  formulaire: (
+  formulaire: () => (
     <>
       <Barre x={16} y={HAUT + 6} l={40} />
       <rect x={16} y={HAUT + 14} width={118} height={12} rx={4} fill={COULEURS.blanc} stroke={COULEURS.encre} strokeWidth={2} />
@@ -37,7 +41,7 @@ const ECRANS: Record<Maquette, ReactElement> = {
       <rect x={92} y={HAUT + 58} width={42} height={12} rx={6} fill={COULEURS.orange} />
     </>
   ),
-  messages: (
+  messages: () => (
     <>
       <rect x={14} y={HAUT + 8} width={78} height={22} rx={8} fill={COULEURS.pale} />
       <Barre x={22} y={HAUT + 16} l={58} />
@@ -48,7 +52,7 @@ const ECRANS: Record<Maquette, ReactElement> = {
       <circle cx={40} cy={HAUT + 69} r={3} fill={COULEURS.encre} />
     </>
   ),
-  agenda: (
+  agenda: () => (
     <>
       {[0, 1, 2].map((r) =>
         [0, 1, 2, 3, 4].map((c) => (
@@ -57,7 +61,7 @@ const ECRANS: Record<Maquette, ReactElement> = {
       )}
     </>
   ),
-  tableau: (
+  tableau: () => (
     <>
       {[0, 1, 2, 3].map((i) => (
         <rect key={i} x={22 + i * 30} y={HAUT + 66 - [22, 34, 28, 48][i]} width={20} height={[22, 34, 28, 48][i]} rx={3} fill={i === 3 ? COULEURS.orange : COULEURS.pale} stroke={COULEURS.encre} strokeWidth={1.5} />
@@ -65,7 +69,7 @@ const ECRANS: Record<Maquette, ReactElement> = {
       <rect x={14} y={HAUT + 66} width={122} height={2.5} fill={COULEURS.encre} />
     </>
   ),
-  validation: (
+  validation: () => (
     <>
       <circle cx={L / 2} cy={HAUT + 30} r={22} fill={COULEURS.orange} />
       <Coche x={L / 2 - 12} y={HAUT + 19} t={24} couleur={COULEURS.creme} />
@@ -86,7 +90,7 @@ export function MiniMaquette({ maquette }: { maquette: Maquette }) {
       {[12, 22, 32].map((x) => (
         <circle key={x} cx={x} cy={(HAUT - 4) / 2 + 1} r={3} fill={x === 12 ? COULEURS.orange : COULEURS.creme} />
       ))}
-      {ECRANS[maquette]}
+      {ECRANS[maquette]()}
     </svg>
   );
 }
