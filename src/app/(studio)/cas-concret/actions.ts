@@ -96,8 +96,9 @@ export async function controlerCasAjouteAction(formulaire: unknown, script?: str
 }
 
 /** « Ajouter le cas » : le cas est rangé durablement (validé si Will le demande), avec son script s'il en donne un. */
-export async function ajouterCasAction(formulaire: unknown, options: { valider?: boolean; script?: string | null } = {}): Promise<Resultat<{ casId: string; titre: string; scriptEnregistre: boolean }>> {
-  const r = await essayer(() => ajouterCas(formulaire, { valider: options?.valider !== false, script: typeof options?.script === "string" ? options.script : null }));
+export async function ajouterCasAction(formulaire: unknown, options: { valider?: boolean; script?: string | null } = {}): Promise<Resultat<{ casId: string; titre: string; scriptEnregistre: boolean; raisonScript?: string }>> {
+  // Jamais validé par défaut : seule la case cochée par Will (`valider: true`) valide le cas.
+  const r = await essayer(() => ajouterCas(formulaire, { valider: options?.valider === true, script: typeof options?.script === "string" ? options.script : null }));
   if (r.ok) revalidatePath("/cas-concret");
   return r;
 }

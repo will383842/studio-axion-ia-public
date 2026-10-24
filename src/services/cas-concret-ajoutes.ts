@@ -5,7 +5,7 @@
  *
  * Argent : ajouter un cas ne dépense rien et ne contourne rien. Il n'est lu que par `trouverCasAutorise`, donc passe par les
  * mêmes contrôles avant le prix que les cas du catalogue (déjà traité, retiré, validé, mot pris…). Il n'est « validé » que si
- * Will le dit (case cochée par défaut dans le formulaire) : l'empreinte validée est celle du cas, jamais `valideParWill`.
+ * Will le demande expressément (`valider: true`) : l'empreinte validée est celle du cas, jamais `valideParWill`.
  */
 import "server-only";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
@@ -15,11 +15,11 @@ import { controlerTexteFourni, TEXTE_FOURNI_MAX } from "@/moteurs/montage-cas-co
 import { creerVerrou, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { CAS_AJOUTES_MAX, CLE_CAS_AJOUTES, lireEntreesCasAjoutes, type EntreeCasAjoute } from "./cas-concret-ajoutes-lecture";
+import { lireCasRetires } from "./cas-concret-retires";
+import { ecrireValidation } from "./cas-concret";
+import { refusArgent } from "./cas-concret-script-fourni";
 
 export { CAS_AJOUTES_MAX, CLE_CAS_AJOUTES };
-
-/** Réglage des validations de Will (par empreinte), le même que `cas-concret.ts`. */
-export const CLE_VALIDATIONS_CAS = "casConcret.validations";
 
 const verrou = creerVerrou();
 
@@ -48,6 +48,16 @@ async function motsInterdits(): Promise<string[]> {
   return (await import("./cas-concret-scripts")).motsInterditsDeWill();
 }
 
+/**
+ * Les refus du script facultatif AVANT toute écriture : les règles du script (R02 à R23, ses mots interdits) ET la limite d'argent
+ * de « Mon script » (un script plus long que celui qui a servi au prix est refusé, comme dans « Mon script »).
+ */
+function refusScript(cas: Parameters<typeof refusArgent>[0], c: ReturnType<typeof controlerTexteFourni>): string[] {
+  if (!c.ok) return c.refus.map((x) => `Mon script : ${x.message}`);
+  const argent = refusArgent(cas, c.ecrans);
+  return argent ? [`Mon script : ${argent}`] : [];
+}
+
 /** Contrôle GRATUIT (aucune écriture) : les refus en phrases, et les cas qui ressemblent. */
 export async function controlerCasAjoute(formulaire: unknown, script?: string | null): Promise<ApercuAjout> {
   await exigerSession();
@@ -57,53 +67,56 @@ export async function controlerCasAjoute(formulaire: unknown, script?: string | 
   const autres = [...CATALOGUE, ...ajoutes];
   const r = preparerCasAjoute(formulaire, { id: "ajout-controle-0000", autres });
   const raisons = r.ok ? [] : [...r.raisons];
-  if (r.ok && script && script.trim()) {
-    const c = controlerTexteFourni(script, r.cas, { motsInterdits: await motsInterdits() });
-    if (!c.ok) raisons.push(...c.refus.map((x) => `Mon script : ${x.message}`));
-  }
+  if (r.ok && script && script.trim()) raisons.push(...refusScript(r.cas, controlerTexteFourni(script, r.cas, { motsInterdits: await motsInterdits() })));
   const f = r.formulaire;
   return { ok: raisons.length === 0, raisons, ressemblances: f ? ressemblances(f, autres) : [] };
 }
 
 /**
- * Ajoute le cas : contrôle, écriture sous verrou, validation si demandée, script fourni si donné. Un refus est une
- * `ErreurStudio` dont le message porte une raison par ligne ; rien n'est écrit. Rend l'identifiant du cas.
+ * Ajoute le cas : contrôle, écriture sous verrou, validation si demandée EXPRESSÉMENT (`valider: true`, sinon le cas reste « à
+ * valider »), script fourni si donné. Un refus est une `ErreurStudio` dont le message porte une raison par ligne ; rien n'est écrit.
+ * Le script est contrôlé (règles ET limite d'argent) AVANT toute écriture. Si l'enregistrement du script échoue malgré tout
+ * (cas retiré entre-temps…), le cas reste ajouté et la raison est rendue : l'action n'échoue pas.
  */
-export async function ajouterCas(formulaire: unknown, options: { valider?: boolean; script?: string | null } = {}): Promise<{ casId: string; titre: string; scriptEnregistre: boolean }> {
+export async function ajouterCas(formulaire: unknown, options: { valider?: boolean; script?: string | null } = {}): Promise<{ casId: string; titre: string; scriptEnregistre: boolean; raisonScript?: string }> {
   await exigerSession();
   const script = typeof options.script === "string" && options.script.trim() ? options.script : null;
   const trop = borner(formulaire, script);
   if (trop) throw new ErreurStudio("CAS_AJOUT_REFUSE", trop);
   const interdits = script ? await motsInterdits() : [];
+  const valider = options.valider === true;
   const sortie = await verrou(async () => {
     const lus = await lireEntreesCasAjoutes();
-    if (Object.keys(lus).length >= CAS_AJOUTES_MAX) throw new ErreurStudio("CAS_AJOUT_PLEIN", `Vous avez déjà ${CAS_AJOUTES_MAX} cas ajoutés : retirez-en avant d'en ajouter.`);
+    // Le plafond compte les cas ajoutés NON retirés : un cas retiré ne bloque pas un nouvel ajout.
+    const retires = await lireCasRetires();
+    const actifs = Object.keys(lus).filter((id) => !retires.has(id)).length;
+    if (actifs >= CAS_AJOUTES_MAX) throw new ErreurStudio("CAS_AJOUT_PLEIN", `Vous avez déjà ${CAS_AJOUTES_MAX} cas ajoutés : retirez-en avant d'en ajouter.`);
     const autres = [...CATALOGUE, ...Object.values(lus).map((e) => e.cas)];
     const id = idCasAjoute(typeof (formulaire as { theme?: unknown }).theme === "string" ? (formulaire as { theme: string }).theme : "", new Set(autres.map((c) => c.id)));
     const r = preparerCasAjoute(formulaire, { id, autres });
     if (!r.ok) throw new ErreurStudio("CAS_AJOUT_REFUSE", r.raisons.join("\n"));
     // Le script est contrôlé AVANT toute écriture : refusé, rien n'est écrit.
     if (script) {
-      const c = controlerTexteFourni(script, r.cas, { motsInterdits: interdits });
-      if (!c.ok) throw new ErreurStudio("SCRIPT_FOURNI_REFUSE", c.refus.map((x) => `Mon script : ${x.message}`).join("\n"));
+      const refus = refusScript(r.cas, controlerTexteFourni(script, r.cas, { motsInterdits: interdits }));
+      if (refus.length) throw new ErreurStudio("SCRIPT_FOURNI_REFUSE", refus.join("\n"));
     }
     const f = r.formulaire as FormulaireCas;
     const le = maintenant();
     const entree: EntreeCasAjoute = { cas: r.cas, ...(f.secteur ? { secteur: f.secteur } : {}), ...(f.taille ? { taille: f.taille } : {}), ajouteLe: le, historique: [{ version: r.cas.version, cas: r.cas, le }] };
     const brut = (await lireParametre<Record<string, unknown>>(CLE_CAS_AJOUTES, {})) ?? {};
     await ecrireParametre(CLE_CAS_AJOUTES, { ...brut, [id]: entree });
-    if (options.valider !== false) {
-      const validations = (await lireParametre<Record<string, unknown>>(CLE_VALIDATIONS_CAS, {})) ?? {};
-      await ecrireParametre(CLE_VALIDATIONS_CAS, { ...validations, [id]: { empreinte: empreinteCas(r.cas), valideLe: le } });
-    }
-    await journaliser("cas-concret", `Cas ajouté : ${r.cas.titre}${options.valider !== false ? " (validé)" : " (à valider)"}`, { type: "cas-concret", id });
+    if (valider) await ecrireValidation(id, empreinteCas(r.cas), le);
+    await journaliser("cas-concret", `Cas ajouté : ${r.cas.titre}${valider ? " (validé)" : " (à valider)"}`, { type: "cas-concret", id });
     return { casId: id, titre: r.cas.titre };
   });
-  let scriptEnregistre = false;
-  if (script) {
+  if (!script) return { ...sortie, scriptEnregistre: false };
+  try {
     const { enregistrerScriptFourni } = await import("./cas-concret-script-fourni");
     await enregistrerScriptFourni(sortie.casId, script);
-    scriptEnregistre = true;
+    return { ...sortie, scriptEnregistre: true };
+  } catch (e) {
+    // Le cas est ajouté ; seul le script est refusé (cas retiré entre-temps, règle revue…) : on le dit, l'action n'échoue pas.
+    const raison = e instanceof ErreurStudio ? e.message : "le script n'a pas pu être enregistré.";
+    return { ...sortie, scriptEnregistre: false, raisonScript: raison };
   }
-  return { ...sortie, scriptEnregistre };
 }

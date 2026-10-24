@@ -50,7 +50,7 @@ async function cadre(casId: unknown, texte: unknown) {
 export const PHRASE_CAS_A_SCRIPT_CATALOGUE = "Ce cas a déjà un script validé du code : « Mon script » n'est pas encore possible pour lui, parce que le prix annoncé ne suivrait pas votre texte. Cela viendra avec la mise à jour du prix.";
 export const phraseScriptTropLong = (limite: number): string => `Votre script est plus long que celui qui a servi au prix : raccourcissez-le (${limite} caractères au plus pour le texte dit).`;
 
-function refusArgent(cas: Parameters<typeof limiteCaracteresDuCorps>[0], ecrans: readonly { texteDit: string }[]): string | null {
+export function refusArgent(cas: Parameters<typeof limiteCaracteresDuCorps>[0], ecrans: readonly { texteDit: string }[]): string | null {
   if (scriptValideDuCatalogue(cas.id)) return PHRASE_CAS_A_SCRIPT_CATALOGUE;
   const limite = limiteCaracteresDuCorps(cas);
   return caracteresDuCorps(ecrans) > limite ? phraseScriptTropLong(limite) : null;

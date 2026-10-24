@@ -34,8 +34,6 @@ export function CasAValider({ cas, occupe, onValider, onEssai, total }: { cas: r
             <span className="flex flex-wrap gap-1.5">
               <Pastille>{c.offreLibelle}</Pastille>
               {c.ajoute && <Pastille ton="sauge">{MENTION_AJOUTE}</Pastille>}
-              {c.ajoute?.secteur && <Pastille>{libelleSecteur(c.ajoute.secteur)}</Pastille>}
-              {c.ajoute?.taille && <Pastille>{c.ajoute.taille}</Pastille>}
               {c.stock?.secteur && <Pastille>{libelleSecteur(c.stock.secteur)}</Pastille>}
               {c.stock?.taille && <Pastille>{c.stock.taille}</Pastille>}
             </span>

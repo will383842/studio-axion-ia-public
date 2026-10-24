@@ -20,8 +20,8 @@ export interface OptionsGardesTextes {
   scene?: boolean;
 }
 
-/** Mots entiers « je », « j' », « nous », « notre », « nos » (apostrophe droite ou courbe), sans tenir compte de la casse. */
-const JE_NOUS = /(?<![\p{L}\p{N}])(?:je|nous|notre|nos)(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])j['’]/iu;
+/** Première personne : mots entiers « je », « j' », « nous », « notre », « nos », « mon », « ma », « mes », « moi », « me », « m' » (apostrophe droite ou courbe), sans tenir compte de la casse. */
+const JE_NOUS = /(?<![\p{L}\p{N}])(?:je|nous|notre|nos|mon|ma|mes|moi|me)(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])[jm]['’]/iu;
 
 /** Expressions refusées partout (la marque et ses interdits de Will). */
 const EXPRESSIONS_INTERDITES: readonly { motif: RegExp; phrase: string }[] = [
@@ -73,4 +73,58 @@ export function motsClesParDefaut(sujet: string): string[] {
   });
   const choisis = [...mots].sort((a, b) => b.mot.length - a.mot.length || a.rang - b.rang).slice(0, 3);
   return choisis.sort((a, b) => a.rang - b.rang).map((x) => x.mot);
+}
+
+/* ------------------------------------------------------------------ */
+/* Gardes propres à un cas ajouté à la main                              */
+/* ------------------------------------------------------------------ */
+
+/** Le mot à commenter : jamais un mot de la liste des interdits (Grenoble…), de la première personne ou du format. */
+export function refusMot(nom: string, mot: string): string[] {
+  const raisons: string[] = [];
+  const t = mot.trim();
+  if (!t) return raisons;
+  for (const { motif, phrase } of EXPRESSIONS_INTERDITES) if (motif.test(t)) raisons.push(`${nom} : ${phrase}.`);
+  if (MOTS_INTERDITS_FORMAT.some((m) => t.toLowerCase().includes(m.toLowerCase().replace(/\s+/g, "")))) raisons.push(`${nom} : ce mot est interdit dans ce format.`);
+  if (JE_NOUS.test(t)) raisons.push(`${nom} : choisissez un mot neutre (pas « je », « nous », « notre »…).`);
+  return raisons;
+}
+
+/** Promesses de résultat chiffré SANS chiffre (« doubler », « moitié », « zéro »…) : aucun fait vérifié ne les porte. */
+const PROMESSES_CHIFFREES = /(?<![\p{L}\p{N}])(?:doubl\p{L}*|tripl\p{L}*|quadrupl\p{L}*|moiti[ée]s?|mille|milles|milliers?|million\p{L}*|milliard\p{L}*|z[ée]ro)(?![\p{L}\p{N}])|fois plus|pour cent|%/iu;
+
+/** Refuse, dans les champs donnés, une promesse de résultat chiffré sans fait vérifié. */
+export function refusPromessesChiffrees(champs: readonly ChampTexte[]): string[] {
+  return champs.filter(({ texte }) => PROMESSES_CHIFFREES.test(texte)).map(({ nom }) => `${nom} : promet un résultat chiffré sans fait vérifié (doubler, moitié, zéro, « fois plus »…). Parlez du résultat sans le chiffrer.`);
+}
+
+/** Sigles permis dans un cas ajouté (les autres mots tout en capitales de 3 lettres ou plus sont refusés). */
+export const SIGLES_PERMIS: ReadonlySet<string> = new Set(["CRM", "RGPD", "PME", "TPE", "ETI", "PDF", "SMS", "API", "ERP", "GED", "CCTP", "BTP", "TVA", "URL", "SEO", "RSE", "RH", "IA"]);
+
+/** Refuse un mot tout en capitales de 3 lettres ou plus qui n'est pas un sigle connu (nom d'entreprise, de marque, de personne…). */
+export function refusSiglesInconnus(champs: readonly ChampTexte[]): string[] {
+  const raisons: string[] = [];
+  for (const { nom, texte } of champs) {
+    const inconnus = [...texte.matchAll(/(?<![\p{L}\p{N}])\p{Lu}{3,}(?![\p{L}\p{N}])/gu)].map((m) => m[0]).filter((m) => !SIGLES_PERMIS.has(m));
+    if (inconnus.length) raisons.push(`${nom} : « ${inconnus.join(" », « ")} » ressemble à un nom de marque ou d'entreprise. Aucun nom propre ni sigle inconnu.`);
+  }
+  return raisons;
+}
+
+/**
+ * Le premier mot d'un texte (qui prend toujours une majuscule) ne passe pas la détection des noms propres de `regles.ts`
+ * (« Dupont relance… »). On ne le refuse que s'il est inconnu : absent du vocabulaire donné (celui du catalogue) ET absent, en
+ * minuscules, du reste du formulaire. Un mot courant au début d'une phrase ne gêne donc jamais.
+ */
+export function refusPremierMotPropre(champs: readonly ChampTexte[], vocabulaire: ReadonlySet<string>): string[] {
+  const connus = new Set(vocabulaire);
+  for (const { texte } of champs) for (const m of texte.split(/\s+/).slice(1)) connus.add(m.replace(/^[«"“(]+|[»"”)\],;:.!?…]+$/g, "").toLowerCase());
+  const raisons: string[] = [];
+  for (const { nom, texte } of champs) {
+    const premier = texte.trim().split(/\s+/)[0]?.replace(/^[«"“(]+|[»"”)\],;:.!?…]+$/g, "") ?? "";
+    const sansElision = premier.replace(/^(?:[ldjmnstc]|qu|jusqu|lorsqu|puisqu)['’]/i, "");
+    if (sansElision.length < 4 || !/^\p{Lu}\p{Ll}+$/u.test(sansElision)) continue;
+    if (!connus.has(sansElision.toLowerCase())) raisons.push(`${nom} : « ${sansElision} » ressemble à un nom propre. Commencez par un mot courant ou reformulez.`);
+  }
+  return raisons;
 }
