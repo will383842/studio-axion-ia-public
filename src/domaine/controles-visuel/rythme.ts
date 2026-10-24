@@ -79,6 +79,13 @@ function elementsDe(p: PageSpec): number | undefined {
 /** Famille de mise en page d'un type : celle du registre, seule source ; le type lui-même s'il n'y est pas. */
 export const familleDePage = (type: string): string => (Object.hasOwn(PAGES, type) ? PAGES[type as TypePage].famille : type);
 
+/**
+ * Types dont chaque élément porte un rang dessiné en rangées (« 01 », « 02 », « 03 ») : liste, étapes, questions. Deux pages de ces types à
+ * la suite se lisent comme une seule longue liste, quelle que soit leur famille au registre (T06 et T23 « liste », T20 « etapes ») : refusées.
+ */
+const TYPES_NUMEROTES: readonly string[] = ["T06", "T20", "T23"];
+export const pageNumerotee = (p: { type?: string }): boolean => p.type !== undefined && TYPES_NUMEROTES.includes(p.type);
+
 export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
   const res: ControlePorte[] = [];
   const { pages } = spec;
@@ -103,6 +110,8 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
     } else if (familleDePage(avant.type) === familleDePage(p.type)) {
       const famille = familleDePage(p.type);
       res.push({ code: "FAMILLE", niveau: "rouge", page: i + 1, phrase: `Pages ${i} et ${i + 1} : deux mises en page de même famille (« ${famille} » : ${avant.type} puis ${p.type}) à la suite ; intercalez une page d'une autre famille.` });
+    } else if (pageNumerotee(avant) && pageNumerotee(p)) {
+      res.push({ code: "FAMILLE", niveau: "rouge", page: i + 1, phrase: `Pages ${i} et ${i + 1} : deux listes numérotées (01, 02, 03 : ${avant.type} puis ${p.type}) à la suite ; intercalez une page d'une autre forme.` });
     }
   });
 
