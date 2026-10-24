@@ -15,6 +15,7 @@ on:
       - "src/app/(studio)/carrousels/**"
       - "tests/visuels/**"
       - "studio-rendu/compositions/visuels/**"
+      - "studio-rendu/src/operations/toile-*.ts"
       - "tsconfig.visuels.json"
       - ".github/workflows/tests-visuels.yml"
   push:
@@ -28,6 +29,7 @@ on:
       - "src/app/(studio)/carrousels/**"
       - "tests/visuels/**"
       - "studio-rendu/compositions/visuels/**"
+      - "studio-rendu/src/operations/toile-*.ts"
       - "tsconfig.visuels.json"
       - ".github/workflows/tests-visuels.yml"
 

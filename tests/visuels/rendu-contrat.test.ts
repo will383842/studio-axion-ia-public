@@ -8,7 +8,7 @@ import { creerVisuelPage, erreurDeValidation, extraireMesure, formaterMesure, ty
 import { CONTENU_ESSAI } from "../../studio-rendu/scripts/contenu-essai-visuel";
 
 const lire = (chemin: string) => readFileSync(chemin, "utf8");
-const NOUVELLES = ["visuel-page", "assemblage-pdf"] as const;
+const NOUVELLES = ["visuel-page", "assemblage-pdf", "toile-continue"] as const;
 /** Les 13 opérations d'AVANT les carrousels V2-A, figées : la PR n'y fait que des ajouts. */
 const ANCIENNES = [
   "nettoyage-audio", "tranches-audio", "analyse-media", "mesure-son", "composition", "image-fixe", "traitement-image",

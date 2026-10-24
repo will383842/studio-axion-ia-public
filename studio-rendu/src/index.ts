@@ -64,6 +64,7 @@ const files = new FilesRendu({
     // empêcher le démarrage ni toucher les 12 autres opérations.
     "visuel-page": async (d, c) => (await charger("visuel-page", () => import("./operations/visuel-page.js"))).visuelPage(d, c),
     "assemblage-pdf": async (d, c) => (await charger("assemblage-pdf", () => import("./operations/assemblage-pdf.js"))).assemblagePdf(d, c),
+    "toile-continue": async (d, c) => (await charger("toile-continue", () => import("./operations/toile-continue.js"))).toileContinue(d, c),
     // « tranches-audio » (lot M6) : refusée clairement tant qu'elle n'existe pas.
   },
 });
@@ -88,6 +89,7 @@ void import("./remotion.js").then(({ paquetCompositions }) => paquetCompositions
 
 // Carrousels V2-A : le paquet de MESURE des pages est construit de la même façon, sans bloquer le démarrage.
 void import("./paquet-mesure.js").then(({ paquetMesure }) => paquetMesure()).catch((e: unknown) => console.error("[studio-rendu] préparation du paquet de mesure en échec", e instanceof Error ? e.message : e));
+void import("./paquet-toile.js").then(({ paquetToile }) => paquetToile()).catch((e: unknown) => console.error("[studio-rendu] préparation du paquet de la toile en échec", e instanceof Error ? e.message : e));
 
 function arreter() {
   serveur.close();
