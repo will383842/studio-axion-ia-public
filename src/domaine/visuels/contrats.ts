@@ -52,6 +52,8 @@ export interface VueCarrouselCarte {
   libelleStatut: string;
   verdict?: NiveauControle;
   nbPages: number;
+  /** Pages du texte écrit quand aucune n'est gardée (bloqué par la porte) : « 3 pages, non rendues ». */
+  pagesTexte?: number;
   vignetteUrl?: string;
   modifieLe: string;
   joursRestantsCorbeille?: number;
