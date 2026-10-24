@@ -67,3 +67,22 @@ describe("défaut 1 : deux listes numérotées (01 02 03) à la suite", () => {
     }
   });
 });
+
+describe("défaut 4 : DESSIN_DOUBLE d'une mini-maquette (T20 variante maquettes)", () => {
+  const ETAPES = [{ titre: "Noter", corps: "Écrire l'essentiel." }, { titre: "Trier", corps: "Garder le principal." }, { titre: "Agir", corps: "Avancer pas à pas." }];
+  const maquettes = (titre: string) => ({ type: "T20", titre, etapes: ETAPES, variante: "maquettes" });
+  it("la maquette est choisie par le code : reformuler les étapes ou retirer la variante", () => {
+    const r = de("DESSIN_DOUBLE", lu(couverture, maquettes("Le parcours"), grille, avantApres, maquettes("Le retour"), message, fin));
+    expect(r.length).toBeGreaterThan(0);
+    for (const c of r) {
+      expect(c.phrase).toMatch(/la mini-maquette « [a-z]+ » est déjà dessinée page 2 ; un même dessin ne revient jamais dans un carrousel, reformulez les étapes ou retirez la variante\.$/u);
+      expect(c.phrase).not.toContain("choisissez-en un autre");
+    }
+  });
+  it("une illustration ou une icône garde « choisissez-en un autre »", () => {
+    const icones = { type: "T28", titre: "Le trajet", noeuds: [{ texte: "Arrive", icone: "courrier" }, { texte: "Triée", icone: "courrier" }, { texte: "Validée", icone: "coche-cercle" }] };
+    const r = de("DESSIN_DOUBLE", lu(couverture, icones, grille, avantApres, message, fin));
+    expect(r.length).toBeGreaterThan(0);
+    expect(r[0].phrase).toMatch(/l'icône « courrier » .*choisissez-en un autre\.$/u);
+  });
+});
