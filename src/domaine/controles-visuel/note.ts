@@ -4,10 +4,10 @@
  * Mesure absente : « non mesuré » → points proportionnels (la moitié), jamais bloquant, mais le verdict ne dépasse pas « retouche ».
  */
 import { CHARTE_CARROUSEL, texteLisible } from "../../briques/visuels/charte-carrousel";
-import { PAGES, type TypePage } from "../../briques/visuels/registre-pages";
 import type { ContextePorte } from "../visuels/contrats";
+import { TYPES_SOMBRES } from "../visuels/familles-pages";
 import { controlerCarrousel } from "./porte";
-import { MOTS_ROUGE } from "./rythme";
+import { familleDePage, MOTS_ROUGE, serieNumerotee } from "./rythme";
 import { interditsDans as interditsPartages, interditsTousEcrivains } from "../qualite-script/regles/interdits";
 import { mots, normaliser, sortantsDans } from "./texte";
 import { textesDe } from "./textes-de";
@@ -77,8 +77,8 @@ export interface NoteCarrousel {
   bloquants: string[];
 }
 
-/** Famille de mise en page (`registre-pages.ts`) : deux pages de même famille à la suite sont refusées. */
-const famille = (type: string | undefined): string => (type && type in PAGES ? PAGES[type as TypePage].famille : type) || "?";
+/** Famille de mise en page (`registre-pages.ts`, comme la porte) : deux pages de même famille à la suite sont refusées. */
+const famille = (type: string | undefined): string => (type ? familleDePage(type) : "?");
 
 interface PageLue {
   type?: string;
@@ -221,7 +221,7 @@ export function noterCarrousel(spec: unknown, mesures?: MesuresRendu, options: O
   couleursMesurees?.flat().forEach((c) => !permises.has(c.toUpperCase()) && hors.add(c.toUpperCase()));
   const policesMesurees = mesure(mesures, n, (p) => p.polices, listeNonVideDeChaines);
   const mauvaisesPolices = [...new Set((policesMesurees ?? []).flat().filter((p) => !POLICES_AUTORISEES.includes(p)))];
-  const sombres = pages.filter((p) => p.type === "T21").length;
+  const sombres = pages.filter((p) => p.type !== undefined && TYPES_SOMBRES.includes(p.type)).length;
   const fMarque: string[] = [];
   if (hors.size) fMarque.push(`Couleur hors de la charte : ${[...hors].join(", ")}.`);
   if (mauvaisesPolices.length) fMarque.push(`Police hors charte : ${mauvaisesPolices.join(", ")}.`);
@@ -236,7 +236,9 @@ export function noterCarrousel(spec: unknown, mesures?: MesuresRendu, options: O
   // 7. Diversité (10)
   const types = new Set(pages.map((p) => p.type));
   const requis = n >= 8 ? 5 : 4;
-  const suites = pages.flatMap((p, i) => (i > 0 && famille(pages[i - 1].type) === famille(p.type) ? [i + 1] : []));
+  // Même verdict que la porte : une série T26 numérotée (orange à la porte) n'est pas une suite de même famille.
+  const serie = serieNumerotee(pages.map((p) => ({ type: p.type, titre: p.principal })));
+  const suites = pages.flatMap((p, i) => (i > 0 && famille(pages[i - 1].type) === famille(p.type) && !(serie.has(i - 1) && serie.has(i)) ? [i + 1] : []));
   const manque = Math.max(0, requis - types.size);
   const fDiv: string[] = [];
   if (suites.length) fDiv.push(`Pages ${suites.map((i) => `${i - 1}-${i}`).join(", ")} : même famille de mise en page à la suite.`);

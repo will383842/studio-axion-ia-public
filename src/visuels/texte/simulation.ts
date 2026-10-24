@@ -1,9 +1,10 @@
 import { LIMITES } from "../../briques/visuels/limites";
 import { PAGES, TYPES_COUVERTURE } from "../../briques/visuels/registre-pages";
 import { chiffresDe } from "../../domaine/image-video/chiffres";
+import { empreinteCarrousel, premierSansRepetition } from "../../domaine/controles-visuel/memoire-carrousels";
 import { contientJAide, expressionsBannieDans, tutoiementDans } from "../../domaine/controles-visuel/texte";
 import { CarrouselSpec } from "../../domaine/visuels/schema";
-import type { DemandeTexteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
+import type { DemandeTexteCarrousel, EmpreinteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
 import type { CarrouselSpecType } from "../../domaine/visuels/types";
 import { FIXTURES_AXION } from "./fixtures";
 import { ErreurTexteCarrousel } from "./verrou-api";
@@ -29,9 +30,13 @@ function fnv1a(texte: string): number {
   return h;
 }
 
-/** Choix déterministe : FNV-1a du sujet normalisé, décalé d'un cran à chaque « Refaire » (version), ramené au nombre de modèles du studio. */
-function choisirFixture(sujet: string, version: number) {
-  return FIXTURES_AXION[(fnv1a(normaliser(sujet)) + Math.max(0, version - 1)) % FIXTURES_AXION.length];
+/**
+ * Choix déterministe : FNV-1a du sujet normalisé, décalé d'un cran à chaque « Refaire » (version), ramené au nombre de modèles du studio ;
+ * puis, à partir de là, le premier modèle qui ne répète ni la suite ni la couverture des derniers carrousels (`eviter`, L7).
+ */
+function choisirFixture(sujet: string, version: number, eviter: readonly EmpreinteCarrousel[]) {
+  const depart = (fnv1a(normaliser(sujet)) + Math.max(0, version - 1)) % FIXTURES_AXION.length;
+  return premierSansRepetition(FIXTURES_AXION, depart, (f) => empreinteCarrousel(specAvecSujet(f.spec, sujet).spec), eviter);
 }
 
 /** Un sujet que la porte refuserait (expression bannie, tutoiement, « J'aide ») ne devient jamais titre. */
@@ -72,7 +77,7 @@ export function creerFournisseurSimulation(): FournisseurTexteCarrousel {
       if (sujet.length === 0 || sujet.length > SUJET_MAX) {
         throw new ErreurTexteCarrousel("SUJET_INVALIDE", "Le sujet est vide ou trop long.");
       }
-      const fixture = choisirFixture(sujet, demande.version ?? 1);
+      const fixture = choisirFixture(sujet, demande.version ?? 1, demande.eviter ?? []);
       const { spec, note } = specAvecSujet(fixture.spec, sujet);
       const couverture = spec.pages[0];
       const titre = "titre" in couverture ? couverture.titre : sujet;
