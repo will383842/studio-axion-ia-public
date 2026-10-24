@@ -1,8 +1,12 @@
 /** T21 (page sombre) : plus de ronds décoratifs sans sens, et une variante qui change d'un carrousel à l'autre (choix déterministe). */
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { couperPhrase } from "@/briques/visuels/variante-t21";
 import { VARIANTES_T21, varianteFin } from "../../studio-rendu/compositions/visuels/pages/T21";
+
+// Sans les dépendances de studio-rendu (CI ciblée des visuels), « remotion » est simulé : les composants se chargent quand même.
+// Installé, le vrai module est chargé (son chemin résolu n'est pas « remotion »), le test reste le même.
+vi.mock("remotion", () => ({ cancelRender: () => undefined, continueRender: () => undefined, delayRender: () => 0, AbsoluteFill: () => null }));
 
 const TITRES = ["Répondre plus vite aux demandes", "Ranger les dossiers du cabinet", "Préparer un devis sans stress", "Relancer sans gêner", "Trois réflexes pour vos devis", "Une semaine mieux rangée"];
 /** Chaque `style={{ … }}` jusqu'à l'accolade qui l'équilibre (les `${…}` des gabarits ne le coupent pas). */

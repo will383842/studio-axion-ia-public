@@ -4,8 +4,12 @@
  * carrousel (titre de la couverture) : deux carrousels différents n'ont pas forcément la même dernière page ; le même carrousel, toujours la même.
  */
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { VARIANTES_T21, varianteFin } from "../../studio-rendu/compositions/visuels/pages/T21";
+
+// Sans les dépendances de studio-rendu (CI ciblée des visuels), « remotion » est simulé : les composants se chargent quand même.
+// Installé, le vrai module est chargé (son chemin résolu n'est pas « remotion »), le test reste le même.
+vi.mock("remotion", () => ({ cancelRender: () => undefined, continueRender: () => undefined, delayRender: () => 0, AbsoluteFill: () => null }));
 
 const lire = (f: string) => readFileSync(new URL(`../../studio-rendu/compositions/visuels/${f}`, import.meta.url), "utf8");
 const spec = (titre: string) => ({ version: "carrousel/1" as const, alt: "Un carrousel", pages: [{ type: "T01" as const, titre }, { type: "T21" as const }] });

@@ -4,7 +4,7 @@
  * en capitales, rubrique posée par le code sur les pages intérieures, rang chiffré isolé derrière une constante.
  */
 import { readFileSync, readdirSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TEXTES_FIXES, RUBRIQUES } from "@/briques/visuels/textes-fixes";
 import { TYPES_PAGE, TYPES_COUVERTURE } from "@/briques/visuels/registre-pages";
 import { CarrouselSpec } from "@/domaine/visuels/schema";
@@ -13,6 +13,10 @@ import { enCapitales, mettreEnLignesCapitales } from "../../studio-rendu/composi
 import { rangEcrit } from "../../studio-rendu/compositions/visuels/commun/editorial";
 import { BORD_DROIT_TEXTE_BAS, boiteEnZoneReservee, boiteSignature, largeurTexteMax, ZONES_RESERVEES } from "../../studio-rendu/compositions/visuels/commun/zones";
 import { ICONE_DU_MINI, systemeReperes } from "../../studio-rendu/compositions/visuels/pages/T02";
+
+// Sans les dépendances de studio-rendu (CI ciblée des visuels), « remotion » est simulé : les composants se chargent quand même.
+// Installé, le vrai module est chargé (son chemin résolu n'est pas « remotion »), le test reste le même.
+vi.mock("remotion", () => ({ cancelRender: () => undefined, continueRender: () => undefined, delayRender: () => 0, AbsoluteFill: () => null }));
 
 const RACINE = new URL("../../studio-rendu/compositions/visuels/", import.meta.url);
 const lire = (f: string) => readFileSync(new URL(f, RACINE), "utf8");
