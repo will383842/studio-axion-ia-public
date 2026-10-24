@@ -51,6 +51,8 @@ beforeEach(async () => {
   await d.personnages.modifier("p-will", { voixParDefautId: "voix-will", voixParFormat: { avocat: "voix-avocat-test" } });
 });
 
+/** Ajout validé (la case « Je valide ce cas » cochée) : sans cette option, un cas ajouté reste « à valider ». */
+const ajoutValide = (f: unknown = FORMULAIRE_MINIMAL, o: { script?: string | null } = {}) => ajoutes.ajouterCas(f, { valider: true, ...o });
 const demande = (casId: string, plus: Record<string, unknown> = {}) => ({ casId, reseaux: RESEAUX, mot: "IA", avecMot: false, essai: false, ...plus }) as Parameters<typeof service.preparerEtLancer>[0];
 const texteDuCas = () => {
   const r = preparerCasAjoute(FORMULAIRE_MINIMAL, { id: "ajout-essai-ab12", autres: CATALOGUE });
@@ -75,7 +77,7 @@ describe("ajouter un cas · écriture", () => {
   });
 
   it("écriture durable, validation par empreinte, journal ; le cas est lu par l'accès par identifiant et listé", async () => {
-    const r = await ajoutes.ajouterCas({ ...FORMULAIRE_MINIMAL, secteur: "AS", taille: "TPE" });
+    const r = await ajoutValide({ ...FORMULAIRE_MINIMAL, secteur: "AS", taille: "TPE" });
     expect(r.casId).toMatch(/^ajout-/);
     const lus = await lecture.lireEntreesCasAjoutes();
     expect(Object.keys(lus)).toEqual([r.casId]);
@@ -96,13 +98,13 @@ describe("ajouter un cas · écriture", () => {
   });
 
   it("deux ajouts du même formulaire : le second est refusé (thème, mot et sujet distincts exigés)", async () => {
-    await ajoutes.ajouterCas(FORMULAIRE_MINIMAL);
-    await expect(ajoutes.ajouterCas(FORMULAIRE_MINIMAL)).rejects.toMatchObject({ code: "CAS_AJOUT_REFUSE" });
+    await ajoutValide();
+    await expect(ajoutValide()).rejects.toMatchObject({ code: "CAS_AJOUT_REFUSE" });
     expect(await lecture.lireCasAjoutes()).toHaveLength(1);
   });
 
   it("plafond de 200 cas ajoutés", async () => {
-    const r = await ajoutes.ajouterCas(FORMULAIRE_MINIMAL);
+    const r = await ajoutValide();
     const un = (await lecture.lireEntreesCasAjoutes())[r.casId];
     const beaucoup: Record<string, unknown> = {};
     for (let i = 0; i < lecture.CAS_AJOUTES_MAX; i++) beaucoup[`ajout-x${i}-aaaa`] = { ...un, cas: { ...un.cas, id: `ajout-x${i}-aaaa` } };
@@ -114,7 +116,7 @@ describe("ajouter un cas · écriture", () => {
     const apercu = await ajoutes.controlerCasAjoute(FORMULAIRE_MINIMAL);
     expect(apercu.ok).toBe(true);
     expect(apercu.ressemblances).toEqual([]);
-    const r = await ajoutes.ajouterCas(FORMULAIRE_MINIMAL);
+    const r = await ajoutValide();
     // Un second cas très proche (titre et promesse identiques, thème, mot et sujet distincts) : signalé, pas bloqué.
     const proche = { ...FORMULAIRE_MINIMAL, theme: "Relances devis", mot: "RELANCES", sujet: "Vos devis envoyés restent sans réponse." };
     const a2 = await ajoutes.controlerCasAjoute(proche);
@@ -131,7 +133,7 @@ describe("ajouter un cas · script fourni", () => {
   });
 
   it("script conforme : enregistré comme script fourni", async () => {
-    const r = await ajoutes.ajouterCas(FORMULAIRE_MINIMAL, { script: texteDuCas() });
+    const r = await ajoutValide(FORMULAIRE_MINIMAL, { script: texteDuCas() });
     expect(r.scriptEnregistre).toBe(true);
     const cas = (await acces.trouverCasAutorise(r.casId))!;
     const s = await scripts.scriptValideCourant(cas);
@@ -151,7 +153,7 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
   }, 30_000);
 
   it("retiré : refus net, avant toute création de vidéo ; remis, tout repart", async () => {
-    const { casId } = await ajoutes.ajouterCas(FORMULAIRE_MINIMAL);
+    const { casId } = await ajoutValide();
     await retires.retirerCas(casId);
     expect((await service.estimerCas(casId, RESEAUX, false)).refus).toBe(PHRASE_CAS_RETIRE);
     expect(await service.preparerEtLancer(demande(casId, { accordCentimes: 10_000 }), { lancer })).toEqual({ statut: "refusee", phrase: PHRASE_CAS_RETIRE });
@@ -161,7 +163,7 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
   }, 30_000);
 
   it("déjà traité (vidéo finie) : refus net, comme pour un cas du catalogue", async () => {
-    const { casId } = await ajoutes.ajouterCas(FORMULAIRE_MINIMAL);
+    const { casId } = await ajoutValide();
     const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
     expect(a.statut).toBe("accord-requis");
     if (a.statut !== "accord-requis") return;
@@ -170,7 +172,7 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
   }, 30_000);
 
   it("le cas ajouté est figé dans sa vidéo ; le montant demandé est celui du moteur sur la commande", async () => {
-    const { casId } = await ajoutes.ajouterCas(FORMULAIRE_MINIMAL);
+    const { casId } = await ajoutValide();
     const feuille = (await service.estimerCas(casId, RESEAUX, false)).centimes;
     const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
     expect(a.statut).toBe("accord-requis");
@@ -185,11 +187,99 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
   }, 30_000);
 
   it("un cas du catalogue n'est JAMAIS figé (comme avant) : aucune différence pour le stock", async () => {
-    const id = CATALOGUE[0].id;
+    const id = "rappels-rendez-vous";
     await service.confirmerCas(id);
     const a = await service.preparerEtLancer(demande(id, { accordCentimes: undefined }), { lancer });
+    expect(a.statut).toBe("accord-requis");
     if (a.statut !== "accord-requis") return;
     const commande = await construireCommande(a.videoId);
     expect((commande.entrees.casConcret as Record<string, unknown>).casFige).toBeUndefined();
   }, 30_000);
+});
+
+describe("ajouter un cas · corrections de relecture", () => {
+  it("jamais validé par défaut : sans l'option « valider », le cas est « à valider » ; l'action n'envoie « valider » que si la case est cochée", async () => {
+    const r = await ajoutes.ajouterCas(FORMULAIRE_MINIMAL);
+    const liste = await service.listerCas();
+    expect(liste.aValider.map((c) => c.cas.id)).toContain(r.casId);
+    expect(liste.valides.map((c) => c.cas.id)).not.toContain(r.casId);
+    expect((await service.estimerCas(r.casId, RESEAUX, false)).refus).toMatch(/pas encore validé/);
+    const r2 = await ajoutes.ajouterCas({ ...FORMULAIRE_MINIMAL, theme: "Relances devis", mot: "RELANCES", sujet: "Vos devis envoyés restent sans suite." }, { valider: "oui" as never });
+    expect((await service.listerCas()).valides.map((c) => c.cas.id)).not.toContain(r2.casId);
+  }, 30_000);
+
+  it("plafond de 200 : seuls les cas ajoutés NON retirés comptent", async () => {
+    const r = await ajoutValide();
+    const un = (await lecture.lireEntreesCasAjoutes())[r.casId];
+    const beaucoup: Record<string, unknown> = {};
+    for (let i = 0; i < lecture.CAS_AJOUTES_MAX; i++) beaucoup[`ajout-x${i}-aaaa`] = { ...un, cas: { ...un.cas, id: `ajout-x${i}-aaaa` } };
+    await ecrireParametre(lecture.CLE_CAS_AJOUTES, beaucoup);
+    const autre = { ...FORMULAIRE_MINIMAL, theme: "Autre", mot: "AUTRE", sujet: "Les relances restent oubliées trop souvent." };
+    await expect(ajoutes.ajouterCas(autre)).rejects.toMatchObject({ code: "CAS_AJOUT_PLEIN" });
+    await retires.retirerCas("ajout-x0-aaaa");
+    await expect(ajoutes.ajouterCas(autre)).resolves.toMatchObject({ casId: expect.stringMatching(/^ajout-/) });
+  }, 60_000);
+
+  it("script conforme mais plus long que celui qui a servi au prix : refusé AVANT toute écriture (contrôle et ajout)", async () => {
+    // Conforme aux règles, mais UN mot de plus que le texte qui a servi au prix : la voix coûterait plus que le prix annoncé.
+    const lignes = texteDuCas().split("\n");
+    const i1 = lignes.findIndex((l) => /^\[étape 1\]/.test(l));
+    lignes[i1] = lignes[i1].replace(/\.?$/, " bien.");
+    const long = lignes.join("\n");
+    const apercu = await ajoutes.controlerCasAjoute(FORMULAIRE_MINIMAL, long);
+    expect(apercu.ok).toBe(false);
+    expect(apercu.raisons.join("|")).toMatch(/Mon script : .*plus long/);
+    await expect(ajoutValide(FORMULAIRE_MINIMAL, { script: long })).rejects.toMatchObject({ code: "SCRIPT_FOURNI_REFUSE", message: expect.stringMatching(/plus long/) });
+    expect(await lecture.lireCasAjoutes()).toEqual([]);
+    expect((await depots().parametres.obtenir(lecture.CLE_CAS_AJOUTES))?.valeur ?? {}).toEqual({});
+    expect((await depots().parametres.obtenir("casConcret.validations"))?.valeur ?? {}).toEqual({});
+    // Sans ce script, le cas s'ajoute normalement, sans script.
+    const r = await ajoutValide();
+    expect(r.scriptEnregistre).toBe(false);
+  }, 60_000);
+
+  it("l'enregistrement du script échoue après l'écriture du cas : le cas reste, la raison est rendue, l'action n'échoue pas", async () => {
+    const fourniMod = await import("@/services/cas-concret-script-fourni");
+    const { ErreurStudio } = await import("@/services/_commun");
+    const espion = vi.spyOn(fourniMod, "enregistrerScriptFourni").mockRejectedValueOnce(new ErreurStudio("SCRIPT_FOURNI_REFUSE", "Ce cas est retiré."));
+    try {
+      const r = await ajoutValide(FORMULAIRE_MINIMAL, { script: texteDuCas() });
+      expect(r.scriptEnregistre).toBe(false);
+      expect(r.raisonScript).toBe("Ce cas est retiré.");
+      expect((await lecture.lireCasAjoutes()).map((c) => c.id)).toEqual([r.casId]);
+    } finally {
+      espion.mockRestore();
+    }
+  }, 60_000);
+
+  it("le mot ou le thème d'un cas ajouté devenu aussi celui d'un cas du catalogue (stock importé après) : refus avant le prix", async () => {
+    const { casId } = await ajoutValide();
+    const entrees = await lecture.lireEntreesCasAjoutes();
+    const e = entrees[casId];
+    await ecrireParametre(lecture.CLE_CAS_AJOUTES, { [casId]: { ...e, cas: { ...e.cas, mot: CATALOGUE[0].mot } } });
+    expect((await service.estimerCas(casId, RESEAUX, false, { essai: true })).refus).toMatch(/Mot à commenter : .* déjà celui d'un autre cas, modifiez-le/);
+    await ecrireParametre(lecture.CLE_CAS_AJOUTES, { [casId]: { ...e, cas: { ...e.cas, theme: CATALOGUE.find((c) => c.theme)!.theme } } });
+    expect((await service.estimerCas(casId, RESEAUX, false, { essai: true })).refus).toMatch(/Thème : .* déjà celui d'un autre cas, modifiez-le/);
+    expect(await service.preparerEtLancer(demande(casId, { accordCentimes: 10_000, essai: true }), { lancer })).toMatchObject({ statut: "refusee" });
+    expect(lancer).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it("cas ajouté retiré du réglage entre « accord requis » et l'accord : « Ce cas n'existe plus », rien n'est lancé", async () => {
+    const { casId } = await ajoutValide();
+    const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
+    expect(a.statut).toBe("accord-requis");
+    if (a.statut !== "accord-requis") return;
+    await ecrireParametre(lecture.CLE_CAS_AJOUTES, {});
+    const r = await service.preparerEtLancer(demande(casId, { accordCentimes: a.centimes }), { lancer });
+    expect(r).toEqual({ statut: "refusee", phrase: "Ce cas n'existe plus." });
+    expect(lancer).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it("une validation et un ajout simultanés ne s'écrasent pas (une seule fonction, un verrou commun)", async () => {
+    const a = await ajoutValide();
+    const autre = { ...FORMULAIRE_MINIMAL, theme: "Relances devis", mot: "RELANCES", sujet: "Vos devis envoyés restent sans suite." };
+    const [b] = await Promise.all([ajoutValide(autre), service.confirmerCas(CATALOGUE[0].id)]);
+    const v = (await depots().parametres.obtenir("casConcret.validations"))?.valeur as Record<string, unknown> | undefined;
+    expect(Object.keys(v ?? {}).sort()).toEqual([a.casId, b.casId, CATALOGUE[0].id].sort());
+  }, 60_000);
 });

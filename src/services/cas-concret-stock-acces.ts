@@ -19,9 +19,10 @@ export async function trouverCasAutorise(id: string, stockMetiersAllume: () => P
 }
 
 /**
- * Le cas d'un identifiant déjà connu du studio (une vidéo en cours, un script déjà validé) : le catalogue SANS le contrôle du
- * réglage du stock (comportement d'avant : `trouverCas`), puis les cas ajoutés à la main. Pour les chemins qui ne reçoivent pas
- * l'identifiant de l'extérieur ; tout point d'entrée externe passe par `trouverCasAutorise`.
+ * Le cas d'une vidéo DÉJÀ EN COURS (son identifiant vient de ses propres entrées, jamais de l'extérieur) : le catalogue SANS le
+ * contrôle du réglage du stock (comportement d'avant : `trouverCas`), puis les cas ajoutés à la main. Seul `casDeLaVideo`
+ * (`cas-concret-scripts.ts`) l'appelle, après avoir lu le cas figé de la vidéo. Tout point d'entrée externe passe par
+ * `trouverCasAutorise`.
  */
 export async function trouverCasConnu(id: string): Promise<CasConcret | undefined> {
   const cas = trouverCas(id);

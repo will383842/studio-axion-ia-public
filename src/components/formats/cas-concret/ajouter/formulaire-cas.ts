@@ -81,10 +81,17 @@ export function versFormulaire(s: SaisieCas): Record<string, unknown> {
 /** Le champ en faute d'une raison « Champ : … » (pour y placer le curseur) ; absent : on reste sur la liste. */
 export function champEnFaute(raison: string): string | null {
   const nom = raison.split(" : ")[0]?.trim() ?? "";
-  const fixes: Record<string, string> = { Titre: "titre", "Thème": "theme", Promesse: "promesse", "Pour qui": "cible", Sujet: "sujet", "Scène": "scene", Exemple: "exemple", "Ce qui reste humain": "resteHumain", "Résultat": "resultat", "Mot à commenter": "mot", "Mon script": "script" };
+  const fixes: Record<string, string> = {
+    Titre: "titre", "Thème": "theme", Promesse: "promesse", "Pour qui": "cible", Sujet: "sujet", "Scène": "scene", Exemple: "exemple",
+    "Tâches": "taches", "Ce qui reste humain": "resteHumain", "Partie humaine (étape)": "apres", "Résultat": "resultat",
+    "Mot à commenter": "mot", "Mon script": "script", Secteur: "secteur", Taille: "taille", Nature: "nature",
+  };
   if (fixes[nom]) return fixes[nom];
   if (/^Tâche \d+$/.test(nom)) return "taches";
-  const e = /^Étape (\d+)/.exec(nom);
-  if (e) return `etape-${Number(e[1]) - 1}`;
+  const e = /^Étape (\d+)(?: \((nom court|précision|à l'écran)\))?$/.exec(nom);
+  if (e) {
+    const i = Number(e[1]) - 1;
+    return e[2] === "nom court" ? `etape-${i}-titre` : e[2] === "précision" ? `etape-${i}-detail` : e[2] === "à l'écran" ? `etape-${i}-objet` : `etape-${i}`;
+  }
   return null;
 }

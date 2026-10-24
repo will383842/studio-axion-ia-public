@@ -46,7 +46,7 @@ describe("saisie → formulaire", () => {
     expect(champEnFaute("Ce qui reste humain : 12 mots")).toBe("resteHumain");
     expect(champEnFaute("Tâche 2 : trop long")).toBe("taches");
     expect(champEnFaute("Étape 3 : trop long")).toBe("etape-2");
-    expect(champEnFaute("Étape 3 (précision) : x")).toBe("etape-2");
+    expect(champEnFaute("Étape 3 (précision) : x")).toBe("etape-2-detail");
     expect(champEnFaute("Refus avant le prix : x")).toBeNull();
   });
 });

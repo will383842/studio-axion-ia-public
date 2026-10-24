@@ -56,7 +56,8 @@ describe("cas ajouté · refus en phrases (une règle, un test)", () => {
     expect(refus({ resultat: "Aucun gain garanti mais des devis suivis." }).join("|")).toMatch(/aucun gain garanti/i);
   });
   it("tournure d'usage réel", () => {
-    expect(refus({ scene: "Chez un client, le devis est parti depuis longtemps et personne n'a demandé la réponse." }).length).toBeGreaterThan(0);
+    expect(refus({ scene: "On utilise un outil depuis longtemps, mais personne n'a pensé à demander la réponse du devis." }).join("|")).toMatch(/Scène : « on utilise » laisse croire à un usage réel/);
+    expect(refus({ scene: "Chez un client, le devis est parti depuis longtemps et personne n'a demandé la réponse." }).join("|")).toMatch(/Scène : raconte un client réel/);
   });
   it("thème déjà pris, mot déjà pris, sujet déjà pris", () => {
     const pris = CATALOGUE.find((c) => c.theme)!;

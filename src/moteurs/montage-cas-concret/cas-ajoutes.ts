@@ -13,7 +13,8 @@ import { NATURES, OBJETS, OFFRES, PREFIXE_CAS_AJOUTE, verifierCas, type CasConcr
 import { refusAvantPrix } from "./avant-prix";
 import { DOCUMENT_PAR_SORTE, sorteDe } from "./description";
 import { couper } from "./ecriture";
-import { motsClesParDefaut, refusTextesCas, type ChampTexte } from "./gardes-textes-cas";
+import { CATALOGUE } from "@/formats/cas-concret/catalogue";
+import { motsClesParDefaut, refusMot, refusPremierMotPropre, refusPromessesChiffrees, refusSiglesInconnus, refusTextesCas, type ChampTexte } from "./gardes-textes-cas";
 import { cadeauDeLOffre, problemesDuCas } from "./regles";
 
 /* ------------------------------------------------------------------ */
@@ -30,7 +31,22 @@ export const estIdCasAjoute = (id: unknown): id is string => typeof id === "stri
 
 const nombreMots = (t: string): number => t.split(/\s+/).filter(Boolean).length;
 const sansAccent = (t: string): string => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-const texte = (max: number) => z.string().trim().min(1, "texte vide").max(max, `texte trop long (${max} caractères au plus)`);
+/**
+ * Un texte du formulaire : normalisé (NFKC), tabulations et sauts de ligne ramenés à une espace, puis refusé s'il garde un
+ * caractère de contrôle ou invisible (zéro largeur, mise en forme) : ce qui s'affiche est ce qui est dit.
+ */
+const texte = (max: number) =>
+  z
+    .string()
+    .transform((t) => t.normalize("NFKC").replace(/[\t\r\n]+/g, " "))
+    .pipe(
+      z
+        .string()
+        .trim()
+        .min(1, "à remplir")
+        .max(max, `trop long (${max} caractères au plus)`)
+        .refine((t) => !/[\p{Cc}\p{Cf}]/u.test(t), "caractères de contrôle ou invisibles refusés"),
+    );
 
 /* ------------------------------------------------------------------ */
 /* Le formulaire                                                         */
@@ -58,13 +74,13 @@ export const schemaFormulaireCas = z
     sujet: texte(100),
     scene: texte(260),
     exemple: texte(80),
-    motsCles: z.array(z.string().regex(/^[\p{L}-]{3,30}$/u, "mot clé de 3 à 30 lettres")).min(2).max(3).optional(),
-    taches: z.array(texte(80)).min(2).max(6),
+    motsCles: z.array(z.string().regex(/^[\p{L}-]{3,30}$/u, "mot clé de 3 à 30 lettres")).min(2, "donnez au moins deux mots porteurs").max(3, "trois mots porteurs au plus").optional(),
+    taches: z.array(texte(80)).min(2, "donnez au moins 2 tâches").max(6, "6 tâches au plus"),
     etapes: z.array(etapeFormulaire).min(3, "au moins 3 étapes").max(7, "pas plus de 7 étapes"),
     resteHumain: texte(200),
-    resteHumainApresEtape: z.number().int().min(1).max(7),
+    resteHumainApresEtape: z.number("indiquez le numéro de l'étape").int("un numéro entier").min(1, "indiquez le numéro de l'étape (1 au moins)").max(7, "7 au plus"),
     resultat: texte(200),
-    mot: z.string().trim().min(2).max(24),
+    mot: z.string().trim().min(2, "au moins 2 lettres").max(24, "24 lettres au plus"),
   })
   .strict();
 
@@ -108,10 +124,10 @@ export function lireFormulaireCas(brut: unknown): { ok: true; formulaire: Formul
     ok: false,
     raisons: lu.error.issues.map((i) => {
       const lieu = i.path.length ? `${i.path.join(".")} : ` : "";
-      if (i.code === "invalid_type") return `${lieu}valeur absente ou de mauvais type`;
-      if (i.code === "unrecognized_keys") return `${lieu}champ inconnu`;
-      if (i.code === "invalid_value") return `${lieu}valeur non permise`;
-      return `${lieu}${i.message}`;
+      if (i.code === "invalid_type") return nomEnClair(`${lieu}valeur absente ou de mauvais type`);
+      if (i.code === "unrecognized_keys") return nomEnClair(`${lieu}champ inconnu`);
+      if (i.code === "invalid_value") return nomEnClair(`${lieu}valeur non permise`);
+      return nomEnClair(`${lieu}${i.message}`);
     }),
   };
 }
@@ -163,21 +179,51 @@ const RESEAUX_NEUTRES = ["facebook", "instagram", "tiktok", "linkedin"] as const
 
 const SIGLE = /(?<![\p{L}\p{N}])\p{Lu}{2,}(?![\p{L}\p{N}])/u;
 
-const NOMS_CHAMPS: Record<string, string> = { titre: "Titre", theme: "Thème", promesse: "Promesse", cible: "Pour qui", resultat: "Résultat", resteHumain: "Ce qui reste humain", resteHumainApresEtape: "Partie humaine (étape)", mot: "Mot à commenter", offre: "Offre", nature: "Nature", "recit.sujet": "Sujet", "recit.scene": "Scène", "recit.exemple": "Exemple", "recit.motsCles": "Mots clés" };
+const NOMS_CHAMPS: Record<string, string> = { titre: "Titre", theme: "Thème", promesse: "Promesse", cible: "Pour qui", sujet: "Sujet", scene: "Scène", exemple: "Exemple", resultat: "Résultat", resteHumain: "Ce qui reste humain", resteHumainApresEtape: "Partie humaine (étape)", mot: "Mot à commenter", offre: "Offre", nature: "Nature", secteur: "Secteur", taille: "Taille", motsCles: "Sujet", "recit.sujet": "Sujet", "recit.scene": "Scène", "recit.exemple": "Exemple", "recit.motsCles": "Sujet", taches: "Tâches", etapes: "Étapes" };
+const PARTIES_ETAPE: Record<string, string> = { titre: " (nom court)", detail: " (précision)", objet: " (à l'écran)", ligne: "" };
 
 /** « etapes.1.ligne : … » devient « Étape 2 : … » : les refus du schéma parlent comme le formulaire. */
 function nomEnClair(raison: string): string {
   const m = /^([A-Za-z0-9_.]+) : ([\s\S]*)$/.exec(raison);
   if (!m) return raison;
   const chemin = m[1];
-  const etape = /^etapes\.(\d+)(?:\.|$)/.exec(chemin);
-  if (etape) return `Étape ${Number(etape[1]) + 1} : ${m[2]}`;
-  const tache = /^avant\.taches\.(\d+)$/.exec(chemin);
+  const etape = /^etapes\.(\d+)(?:\.(\w+))?$/.exec(chemin);
+  if (etape) return `Étape ${Number(etape[1]) + 1}${PARTIES_ETAPE[etape[2] ?? "ligne"] ?? ""} : ${m[2]}`;
+  const tache = /^(?:avant\.)?taches\.(\d+)$/.exec(chemin);
   if (tache) return `Tâche ${Number(tache[1]) + 1} : ${m[2]}`;
+  if (/^(?:recit\.)?motsCles\.\d+$/.test(chemin)) return `Sujet : ${m[2]}`;
   if (chemin === "etapes") return `Étapes : ${m[2]}`;
   if (chemin === "avant.taches") return `Tâches : ${m[2]}`;
   const nom = NOMS_CHAMPS[chemin] ?? NOMS_CHAMPS[chemin.split(".").slice(0, 2).join(".")];
   return nom ? `${nom} : ${m[2]}` : raison;
+}
+
+let VOCABULAIRE: Set<string> | null = null;
+/** Les mots (en minuscules) de tous les textes du catalogue et du stock : de quoi reconnaître un mot courant en début de phrase. */
+function vocabulaireDuCatalogue(): ReadonlySet<string> {
+  if (VOCABULAIRE) return VOCABULAIRE;
+  const v = new Set<string>();
+  const ajouter = (t: unknown) => {
+    if (typeof t === "string") for (const m of t.split(/[^\p{L}'’-]+/u)) if (m) v.add(m.toLowerCase().replace(/^(?:[ldjmnstc]|qu)['’]/, ""));
+  };
+  for (const c of CATALOGUE) {
+    for (const t of [c.titre, c.theme, c.promesse, c.cible, c.resteHumain, c.resultat, c.recit?.sujet, c.recit?.scene, c.recit?.exemple, ...c.avant.taches, ...c.etapes.flatMap((e) => [e.titre, e.ligne, e.detail])]) ajouter(t);
+  }
+  VOCABULAIRE = v;
+  return v;
+}
+
+/**
+ * Le cas ajouté partage-t-il son mot à commenter ou son thème avec un cas du catalogue ou du stock (importé après l'ajout) ?
+ * Refus avant le prix, avec la phrase qui dit quoi changer. `null` : rien ne s'y oppose.
+ */
+export function refusDoublonAvecCatalogue(cas: Pick<CasConcret, "id" | "mot" | "theme">, catalogue: readonly Pick<CasConcret, "id" | "mot" | "theme">[] = CATALOGUE): string | null {
+  for (const a of catalogue) {
+    if (a.id === cas.id) continue;
+    if (a.mot.toUpperCase() === cas.mot.toUpperCase()) return `Mot à commenter : « ${cas.mot} » est déjà celui d'un autre cas, modifiez-le.`;
+    if (cas.theme && a.theme && a.theme.trim().toLowerCase() === cas.theme.trim().toLowerCase()) return `Thème : « ${cas.theme} » est déjà celui d'un autre cas, modifiez-le.`;
+  }
+  return null;
 }
 
 export type ResultatCasAjoute = { ok: true; cas: CasConcret } | { ok: false; raisons: string[] };
@@ -222,6 +268,13 @@ export function verifierCasAjoute(brut: unknown, autres: AutresCas): ResultatCas
     { nom: "Résultat", texte: cas.resultat },
   ];
   raisons.push(...refusTextesCas(champs, { Scène: { scene: true } }));
+  // Plus strict que le stock (texte écrit à la main) : sigles inconnus, premier mot inconnu, promesses chiffrées sans chiffre.
+  raisons.push(...refusSiglesInconnus(champs));
+  raisons.push(...refusPremierMotPropre(champs, vocabulaireDuCatalogue()));
+  raisons.push(...refusPromessesChiffrees(champs.filter((c) => ["Titre", "Promesse", "Résultat", "Sujet"].includes(c.nom))));
+  // Mot à commenter : lettres seulement (A à Z), jamais un mot interdit.
+  if (!/^[A-Z]{2,24}$/.test(cas.mot)) raisons.push("Mot à commenter : de 2 à 24 lettres, sans chiffre, sans espace ni accent.");
+  raisons.push(...refusMot("Mot à commenter", cas.mot));
 
   // Unicité : identifiant, mot, thème, sujet.
   for (const a of autres) {

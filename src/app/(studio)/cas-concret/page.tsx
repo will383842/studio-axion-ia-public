@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { lireSession } from "@/services/auth";
 import { EntreeCasConcret } from "@/components/formats/cas-concret/entree/EntreeCasConcret";
-import { versVueCas } from "@/components/formats/cas-concret/entree/vue";
+import { stockDeLAjoute, versVueCas } from "@/components/formats/cas-concret/entree/vue";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { casVisibles, estCasStock } from "@/formats/cas-concret/catalogue";
 import { estimerCas, listerCas } from "@/services/cas-concret";
@@ -104,8 +104,10 @@ async function OngletAFaire({ valides, aValider, traites, retires, ajoutes, eten
     const info = avecStock ? infos.get(c.cas.id) : undefined;
     const avecScript = apercus[c.cas.id] && scripts[c.cas.id]?.fourni ? { ...v, scriptFourni: true } : v;
     const ajoute = ajoutes[c.cas.id];
-    const avecAjoute = ajoute ? { ...avecScript, ajoute: { ...(ajoute.secteur ? { secteur: ajoute.secteur } : {}), ...(ajoute.taille ? { taille: ajoute.taille } : {}) } } : avecScript;
-    return info ? { ...avecAjoute, stock: info } : avecAjoute;
+    if (!ajoute) return info ? { ...avecScript, stock: info } : avecScript;
+    // Un cas ajouté à la main : sa pastille, et son secteur / sa taille passent par `stock` pour que les filtres le voient.
+    const stock = stockDeLAjoute(ajoute, info);
+    return { ...avecScript, ajoute: {}, ...(stock ? { stock } : {}) };
   };
   const params = avecStock ? lireParamsStock(searchParams, stock.flatMap((l) => (l.rangement ? [l.rangement.secteur] : []))) : null;
   // Seuls le secteur et la taille d'une ancienne adresse deviennent des filtres de départ : l'état et l'offre n'ont ici aucun contrôle pour les retirer.
