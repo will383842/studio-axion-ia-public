@@ -7,7 +7,7 @@ import { CHARTE_CARROUSEL, texteLisible } from "../../briques/visuels/charte-car
 import type { ContextePorte } from "../visuels/contrats";
 import { TYPES_SOMBRES } from "../visuels/familles-pages";
 import { controlerCarrousel } from "./porte";
-import { familleDePage, MOTS_ROUGE, serieNumerotee } from "./rythme";
+import { familleDePage, MOTS_ROUGE, pageNumerotee, serieNumerotee } from "./rythme";
 import { interditsDans as interditsPartages, interditsTousEcrivains } from "../qualite-script/regles/interdits";
 import { mots, normaliser, sortantsDans } from "./texte";
 import { textesDe } from "./textes-de";
@@ -238,7 +238,7 @@ export function noterCarrousel(spec: unknown, mesures?: MesuresRendu, options: O
   const requis = n >= 8 ? 5 : 4;
   // Même verdict que la porte : une série T26 numérotée (orange à la porte) n'est pas une suite de même famille.
   const serie = serieNumerotee(pages.map((p) => ({ type: p.type, titre: p.principal })));
-  const suites = pages.flatMap((p, i) => (i > 0 && famille(pages[i - 1].type) === famille(p.type) && !(serie.has(i - 1) && serie.has(i)) ? [i + 1] : []));
+  const suites = pages.flatMap((p, i) => (i > 0 && (famille(pages[i - 1].type) === famille(p.type) || (pageNumerotee(pages[i - 1]) && pageNumerotee(p))) && !(serie.has(i - 1) && serie.has(i)) ? [i + 1] : []));
   const manque = Math.max(0, requis - types.size);
   const fDiv: string[] = [];
   if (suites.length) fDiv.push(`Pages ${suites.map((i) => `${i - 1}-${i}`).join(", ")} : même famille de mise en page à la suite.`);
