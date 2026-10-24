@@ -7,7 +7,7 @@ import { CATALOGUE, casVisibles, type ReglagesVisibilite } from "@/formats/cas-c
 import { RANGEMENT } from "@/formats/cas-concret/stock-metiers";
 import { OFFRES_PASTILLES } from "@/components/formats/cas-concret/entree/vue";
 import { libelleSecteur } from "./filtres-stock";
-import { dateComplete } from "./deja-faits";
+import { dateComplete, type CasAjouteListe } from "./deja-faits";
 
 export interface CasRetire {
   casId: string;
@@ -24,17 +24,18 @@ export interface CasRetire {
  * `reglages` : les mêmes que ceux de la page (catalogueEtendu, stockMetiers) ; un cas caché par ces réglages n'est pas listé.
  * Un identifiant absent du catalogue reste listé (sans bouton) : son retrait est gardé, il n'existe plus.
  */
-export function listerCasRetires(retraits: Record<string, Partial<RetraitCas> | undefined>, reglages: ReglagesVisibilite = { catalogueEtendu: false }): CasRetire[] {
+export function listerCasRetires(retraits: Record<string, Partial<RetraitCas> | undefined>, reglages: ReglagesVisibilite = { catalogueEtendu: false }, ajoutes: readonly CasAjouteListe[] = []): CasRetire[] {
   const visibles = new Set(casVisibles(CATALOGUE.map((cas) => ({ cas })), reglages).map((x) => x.cas.id));
   return Object.entries(retraits)
     .filter(([, r]) => estRetire(r))
-    .filter(([casId]) => visibles.has(casId) || !CATALOGUE.some((c) => c.id === casId))
+    .filter(([casId]) => visibles.has(casId) || ajoutes.some((a) => a.cas.id === casId) || !CATALOGUE.some((c) => c.id === casId))
     .sort(([, a], [, b]) => (Date.parse(b!.retireLe!) || 0) - (Date.parse(a!.retireLe!) || 0))
     .map(([casId, r]) => {
-      const cas = CATALOGUE.find((c) => c.id === casId);
-      const rang = (RANGEMENT as Record<string, { secteur: string; taille: string } | undefined>)[casId];
+      const ajoute = ajoutes.find((a) => a.cas.id === casId);
+      const cas = CATALOGUE.find((c) => c.id === casId) ?? ajoute?.cas;
+      const rang = ajoute ? (ajoute.secteur || ajoute.taille ? { secteur: ajoute.secteur ?? "", taille: ajoute.taille ?? "" } : undefined) : (RANGEMENT as Record<string, { secteur: string; taille: string } | undefined>)[casId];
       const offre = OFFRES_PASTILLES.find((o) => o.valeur === cas?.offre)?.libelle;
-      const details = [rang ? libelleSecteur(rang.secteur) : "", rang?.taille ?? "", offre ?? ""].filter(Boolean).join(" · ");
+      const details = [rang?.secteur ? libelleSecteur(rang.secteur) : "", rang?.taille ?? "", offre ?? ""].filter(Boolean).join(" · ");
       return { casId, titre: cas?.titre || r?.titre || casId, auCatalogue: !!cas, details, date: dateComplete(r?.retireLe) };
     });
 }

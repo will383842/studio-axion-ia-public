@@ -21,7 +21,7 @@ import { VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo";
 import { empreinte, type PastilleControle } from "@/domaine/relecture-script";
 import type { Id, Travail } from "@/domaine/types";
 import type { CasConcret } from "@/formats/cas-concret/cas";
-import { trouverCas } from "@/formats/cas-concret/catalogue";
+import { trouverCasConnu } from "./cas-concret-stock-acces";
 import { ID_MOTEUR_CAS_CONCRET } from "@/moteurs/montage-cas-concret";
 import { apercuDesEcrans, blocsScriptDesEcrans, CODE_SCRIPT_A_VALIDER, ficheDuScriptValide, lireScriptValide, problemesScriptValide, scriptDeFiche, scriptValideDuCatalogue, SCRIPTS_VALIDES_CATALOGUE, type EcranApercu, type ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
 import { lignesDesEcrans } from "@/moteurs/montage-cas-concret/relecture";
@@ -166,7 +166,7 @@ export async function validerScriptCasConcret(videoId: Id, dependances: { mainte
   const travail = await travailDeLaVideo(videoId);
   const ecrite = ficheDuTravail(travail);
   if (!travail || !ecrite || !attendValidation(travail)) throw new ErreurStudio("SCRIPT_PAS_A_VALIDER", "Aucun script n'attend votre validation pour cette vidéo.");
-  const cas = trouverCas(ecrite.casId);
+  const cas = await trouverCasConnu(ecrite.casId);
   if (!cas) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
   // Demande de Will (14/10) : le script se modifie avant d'être validé. La fiche modifiée repasse TOUS les contrôles
   // (schéma, règles, faits du cas, interdits de Will) ; un refus est dit en phrases et rien n'est gardé.
@@ -268,7 +268,7 @@ const ficheARelire = (script: ScriptValide, cas: CasConcret): FicheEcrans => fic
 /** Contrôle GRATUIT des modifications d'un script validé, pendant la relecture (aucune écriture, aucun appel payant). */
 export async function controlerScriptValideCasConcret(casId: string, modifications: readonly ModificationEcran[]): Promise<PastilleControle[]> {
   await exigerSession();
-  const cas = trouverCas(casId);
+  const cas = await trouverCasConnu(casId);
   if (!cas) return [{ niveau: "bloquant", texte: "Ce cas n'existe plus." }];
   const script = await scriptValideCourant(cas);
   if (!script) return [{ niveau: "bloquant", texte: "Ce cas n'a pas de script validé à relire." }];
@@ -281,7 +281,7 @@ export async function controlerScriptAValiderCasConcret(videoId: Id, modificatio
   await exigerSession();
   const travail = await travailDeLaVideo(videoId);
   const ecrite = ficheDuTravail(travail);
-  const cas = ecrite ? trouverCas(ecrite.casId) : undefined;
+  const cas = ecrite ? await trouverCasConnu(ecrite.casId) : undefined;
   if (!ecrite || !cas || !attendValidation(travail)) return [{ niveau: "bloquant", texte: "Aucun script n'attend votre validation pour cette vidéo." }];
   const m = utiles(modifications);
   return m.length ? pastillesDe(await controlerModifications(ecrite, m, cas)) : [];
@@ -294,7 +294,7 @@ export async function controlerScriptAValiderCasConcret(videoId: Id, modificatio
  */
 export async function modifierScriptValideCasConcret(casId: string, modifications: readonly ModificationEcran[], dependances: { maintenant?: number } = {}): Promise<{ casId: string; numero: number; empreinte: string; modifie: boolean }> {
   await exigerSession();
-  const cas = trouverCas(casId);
+  const cas = await trouverCasConnu(casId);
   if (!cas) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
   const actuel = await scriptValideCourant(cas);
   if (!actuel) throw new ErreurStudio("SCRIPT_PAS_VALIDE", "Ce cas n'a pas de script validé à modifier.");
