@@ -42,6 +42,7 @@ function monter(options: { allume?: boolean; verdict?: RapportPorte["verdict"]; 
     contextePorte: async () => ({ interditsDans: () => [], faitsDisponibles: false }),
     allume: async () => allume,
     rendre,
+    rendreReseaux: async () => [],
     urlLecture: async (cle) => `https://stockage.invente/${cle}`,
     verrou: (f) => {
       const suite = chaine.then(f, f);
