@@ -143,4 +143,19 @@ describe("témoins : ce qui doit rester refusé ou inchangé", () => {
     const { plan: p } = placerCoupesIV(plan, { corps: mots }, { corps: sil }, { corps: DUREE }, REGLES_COUPES_IV, { mesures: { corps: mesureDe(sil, {}) }, retraitsVoulus: RETRAIT, garderPausesSansSilence: true });
     expect(p.morceaux.filter((x) => !x.silence)[1].debutSec).toBeLessThanOrEqual(82.02 + 1e-6);
   });
+
+  it("(vii) un creux de 20 ms (bouche qui se ferme avant le « P ») avant l'attaque d'un mot gardé en retard : l'attaque n'est jamais retirée", () => {
+    const creux: Silence = { debutSec: 82.16, finSec: 82.3 };
+    const sil = [SIL_AVANT, creux];
+    const mots = [mot("minutes.", 80.42, 80.7), mot("Pourtant", 82.3, 82.7), mot("lien", 82.8, 83.0)];
+    const plan = {
+      ...planRaccordVoix({ mots, dureeSec: DUREE }, undefined, RECETTE_VOIX_IV),
+      morceaux: [
+        { debutSec: 0, finSec: 81.0, source: 0 as const },
+        { debutSec: 82.04, finSec: DUREE, source: 0 as const },
+      ],
+    };
+    const { plan: p } = placerCoupesIV(plan, { corps: mots }, { corps: sil }, { corps: DUREE }, REGLES_COUPES_IV, { mesures: { corps: mesureDe(sil, { ...TRAINE, [fen(82.06)]: -50 }) }, retraitsVoulus: RETRAIT, garderPausesSansSilence: true });
+    expect(p.morceaux.filter((y) => !y.silence)[1].debutSec).toBeLessThanOrEqual(82.08 + 1e-6);
+  });
 });
