@@ -23,7 +23,7 @@ import { Interrupteur } from "@/components/ui/Interrupteur";
 import { Pastille } from "@/components/ui/Pastille";
 import { BoutonFabriquer } from "@/components/formats/commun/BoutonFabriquer";
 import { ChoixReseaux } from "@/components/formats/commun/ChoixReseaux";
-import { MENTION_EXEMPLE, OFFRES_PASTILLES, RESEAUX_ECRAN, type VueCas } from "./vue";
+import { MENTION_AJOUTE, MENTION_EXEMPLE, OFFRES_PASTILLES, RESEAUX_ECRAN, type VueCas } from "./vue";
 import { ScriptEcrans } from "../fiche-video/ScriptEcrans";
 import { LienMonScript } from "./LienMonScript";
 import type { AvertissementSujet, DejaTraiteCas } from "@/services/cas-concret";
@@ -343,6 +343,13 @@ export function ContenuVotreVideo({
   return (
     <div className="space-y-6">
       {essai && <p className="text-sm text-texte-doux">Essai : cas à confirmer par Will, ne pas publier.</p>}
+      {cas.ajoute && (
+        <p>
+          <Pastille ton="sauge" taille="md">
+            {MENTION_AJOUTE}
+          </Pastille>
+        </p>
+      )}
       {cas.porteB && (
         <section aria-label="L'offre" className="space-y-2">
           <Pastille ton="ambre" taille="md">

@@ -11,6 +11,7 @@ import { confirmerCas, estimerCas, preparerEtLancer, type ChoixAvantPrix, type D
 import { trouverCasAutorise } from "@/services/cas-concret-stock-acces";
 import { remettreEnStock } from "@/services/cas-concret-traites";
 import { remettreCas, retirerCas } from "@/services/cas-concret-retires";
+import { ajouterCas, controlerCasAjoute, type ApercuAjout } from "@/services/cas-concret-ajoutes";
 import { controlerScriptFourni, enregistrerScriptFourni, revenirAuScriptDeLIA, type ApercuScriptFourni } from "@/services/cas-concret-script-fourni";
 import { avecConsigneVoix } from "@/services/cas-concret-voix";
 import { confirmerFaitPorteB, demarrerPorteB, suivrePorteB, type EtatPorteB } from "@/services/cas-concret-porte-b";
@@ -85,6 +86,18 @@ export async function enregistrerScriptFourniAction(casId: string, texte: string
 /** « Revenir au script écrit par l'IA » : rien n'est effacé, l'historique garde le script de Will. */
 export async function revenirAuScriptDeLIAAction(casId: string): Promise<Resultat<{ modifie: boolean }>> {
   const r = await essayer(async () => ({ modifie: (await revenirAuScriptDeLIA(casId)).modifie }));
+  if (r.ok) revalidatePath("/cas-concret");
+  return r;
+}
+
+/** « Vérifier » un cas à ajouter : gratuit, n'écrit rien (les refus en phrases, et les cas qui ressemblent). */
+export async function controlerCasAjouteAction(formulaire: unknown, script?: string | null): Promise<Resultat<ApercuAjout>> {
+  return essayer(() => controlerCasAjoute(formulaire, script));
+}
+
+/** « Ajouter le cas » : le cas est rangé durablement (validé si Will le demande), avec son script s'il en donne un. */
+export async function ajouterCasAction(formulaire: unknown, options: { valider?: boolean; script?: string | null } = {}): Promise<Resultat<{ casId: string; titre: string; scriptEnregistre: boolean }>> {
+  const r = await essayer(() => ajouterCas(formulaire, { valider: options?.valider !== false, script: typeof options?.script === "string" ? options.script : null }));
   if (r.ok) revalidatePath("/cas-concret");
   return r;
 }

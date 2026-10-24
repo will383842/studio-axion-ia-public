@@ -20,6 +20,9 @@ export const NATURES = ["automatisation", "outils-relies"] as const;
 export type NatureCas = (typeof NATURES)[number];
 export const NATURES_EN_CLAIR: Record<NatureCas, string> = { automatisation: "Automatisation", "outils-relies": "Outils reliés" };
 
+/** Préfixe RÉSERVÉ aux cas ajoutés à la main par Will (réglage `casConcret.casAjoutes`) : jamais un cas du catalogue ni du stock importé. */
+export const PREFIXE_CAS_AJOUTE = "ajout-";
+
 export const POSTURES = ["chez-nous", "offre"] as const;
 export type Posture = (typeof POSTURES)[number];
 
