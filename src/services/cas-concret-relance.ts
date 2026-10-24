@@ -66,7 +66,8 @@ export async function relancerEtapeCasConcret(travailId: Id, accord?: number | t
   // Cas déjà traité par une AUTRE vidéo : la panne de celle-ci ne se relance pas (refus net, avant tout prix, rien n'est dépensé).
   if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await estCasTraite(casDeLaVideo, { saufVideoId: t.cibleId }).catch(() => false))) return { statut: "refusee", phrase: PHRASES_RELANCE.dejaTraite };
   // Cas retiré par Will : la panne ou la pause de cette vidéo ne se relance pas (refus net, avant tout prix, rien n'est dépensé).
-  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await lireCasRetires().then((r) => r.has(casDeLaVideo)).catch(() => false))) return { statut: "refusee", phrase: PHRASES_RELANCE.casRetire };
+  // Réglage illisible : on REFUSE (plus prudent qu'un lancement payant d'un cas peut-être retiré).
+  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await lireCasRetires().then((r) => r.has(casDeLaVideo)).catch(() => true))) return { statut: "refusee", phrase: PHRASES_RELANCE.casRetire };
   const enEchec = t.etapes.filter((e) => e.statut === "echec");
   const erreur = enEchec[0]?.erreur ?? t.erreur;
   if (erreur?.reessayable === false) return { statut: "refusee", phrase: PHRASES_RELANCE.sansReessai };

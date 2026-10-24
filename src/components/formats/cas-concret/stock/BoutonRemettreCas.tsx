@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { remettreCasAction } from "@/app/(studio)/cas-concret/actions";
 import { Bouton } from "@/components/ui/Bouton";
+import { notifier } from "@/components/ui/Toast";
 
 /** « Remettre ce cas » : le cas est de nouveau proposé. Demande une confirmation avant d'agir ; ne fabrique ni ne dépense rien. */
 export function BoutonRemettreCas({ casId, titre }: { casId: string; titre: string }) {
@@ -12,13 +13,21 @@ export function BoutonRemettreCas({ casId, titre }: { casId: string; titre: stri
   const [confirmer, setConfirmer] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const oui = useRef<HTMLButtonElement>(null);
-  // Le clavier suit le geste : après « Remettre ce cas », le focus passe sur la confirmation.
+  const depart = useRef<HTMLButtonElement>(null);
+  const dejaOuvert = useRef(false);
+  // Le clavier suit le geste : après « Remettre ce cas », le focus passe sur la confirmation ; après « Annuler », il revient au bouton.
   useEffect(() => {
-    if (confirmer) oui.current?.focus();
+    if (confirmer) {
+      oui.current?.focus();
+      dejaOuvert.current = true;
+    } else if (dejaOuvert.current) {
+      depart.current?.focus();
+      dejaOuvert.current = false;
+    }
   }, [confirmer]);
   if (!confirmer) {
     return (
-      <Bouton variante="contour" aria-label={`Remettre ce cas : ${titre}`} onClick={() => setConfirmer(true)}>
+      <Bouton ref={depart} variante="contour" aria-label={`Remettre ce cas : ${titre}`} onClick={() => setConfirmer(true)}>
         Remettre ce cas
       </Bouton>
     );
@@ -33,7 +42,10 @@ export function BoutonRemettreCas({ casId, titre }: { casId: string; titre: stri
           onClick={() =>
             demarrer(async () => {
               const r = await remettreCasAction(casId);
-              if (r.ok) routeur.refresh();
+              if (r.ok) {
+                notifier.succes("Cas remis", titre);
+                routeur.refresh();
+              }
               else setMessage(r.message);
             })
           }

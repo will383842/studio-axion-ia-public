@@ -95,6 +95,13 @@ describe("bouton « Retirer ce cas »", () => {
     expect(texte(renderToStaticMarkup(createElement(CarteCas, { cas: vue, onOuvrir: () => undefined })))).not.toContain("Retirer ce cas");
   });
 
+  it("le bouton est désactivé pendant qu'une action est en cours (occupe)", () => {
+    const html = (occupe: boolean) => renderToStaticMarkup(createElement(CasAValider, { cas: [versVueCas(B, empreinteCas(B), false)], occupe, onValider: () => undefined, onEssai: () => undefined }));
+    const bouton = (h: string) => h.match(/<button[^>]*aria-label="Retirer ce cas[^"]*"[^>]*>/)![0];
+    expect(bouton(html(true))).toContain('disabled=""');
+    expect(bouton(html(false))).not.toContain('disabled=""');
+  });
+
   it("le bouton porte un nom accessible qui dit quel cas", () => {
     const html = renderToStaticMarkup(createElement(CasAValider, { cas: [versVueCas(B, empreinteCas(B), false)], occupe: false, onValider: () => undefined, onEssai: () => undefined }));
     expect(html).toContain(`aria-label="Retirer ce cas : ${B.titre.replace(/'/g, "&#x27;")}"`);
