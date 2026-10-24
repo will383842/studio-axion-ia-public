@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Relance d'un cas du stock, réglage éteint : refus net, avant tout prix et toute dépense.
-const etat = vi.hoisted(() => ({ casId: "stock-fab", reessayer: vi.fn(), traite: vi.fn() }));
+const etat = vi.hoisted(() => ({ casId: "stock-fab", reessayer: vi.fn(), traite: vi.fn(), retires: new Set<string>() }));
 vi.mock("./_commun", () => ({
   ErreurStudio: class extends Error {},
   depots: () => ({
@@ -10,6 +10,7 @@ vi.mock("./_commun", () => ({
   }),
 }));
 vi.mock("./cas-concret-traites", () => ({ estCasTraite: etat.traite, PHRASE_CAS_TRAITE: "Ce cas est déjà traité : il n'est plus disponible." }));
+vi.mock("./cas-concret-retires", () => ({ lireCasRetires: async () => etat.retires }));
 vi.mock("./auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
 vi.mock("./travaux", () => ({ reessayerTravail: etat.reessayer }));
 vi.mock("./cas-concret-reglages", () => ({ REGLAGES_CAS_CONCRET: { stockMetiers: "casConcret.stockMetiers" }, reglageAllume: vi.fn(async () => false) }));
@@ -27,6 +28,7 @@ beforeEach(() => {
   etat.reessayer.mockResolvedValue({ id: "t1" });
   etat.traite.mockReset();
   etat.traite.mockResolvedValue(false);
+  etat.retires = new Set();
 });
 
 describe("relance d'un cas du stock", () => {
@@ -81,6 +83,26 @@ describe("relance d'un cas déjà traité (ordre de Will : jamais deux vidéos i
 
   it("la vidéo en panne elle-même, cas non traité : la relance reste permise", async () => {
     etat.casId = "ancien";
+    const r = await relancerEtapeCasConcret("t1", 123, { claudeActif: async () => true });
+    expect(r).toEqual({ statut: "relancee", travailId: "t1" });
+  });
+});
+
+describe("relance d'un cas retiré par Will", () => {
+  it("le cas est retiré : refus net avant toute estimation, rien n'est relancé", async () => {
+    etat.casId = "ancien";
+    etat.retires = new Set(["ancien"]);
+    const claudeActif = vi.fn(async () => true);
+    const r = await relancerEtapeCasConcret("t1", 123, { claudeActif });
+    expect(r).toEqual({ statut: "refusee", phrase: PHRASES_RELANCE.casRetire });
+    expect(PHRASES_RELANCE.casRetire).toContain("Ce cas est retiré");
+    expect(etat.reessayer).not.toHaveBeenCalled();
+    expect(claudeActif).not.toHaveBeenCalled();
+  });
+
+  it("le cas n'est pas retiré : la relance suit son cours", async () => {
+    etat.casId = "ancien";
+    etat.retires = new Set(["un-autre"]);
     const r = await relancerEtapeCasConcret("t1", 123, { claudeActif: async () => true });
     expect(r).toEqual({ statut: "relancee", travailId: "t1" });
   });

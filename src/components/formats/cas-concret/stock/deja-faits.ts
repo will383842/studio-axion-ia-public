@@ -32,9 +32,10 @@ export function dateComplete(iso: string | undefined): string {
  * `reglages` : les mêmes que ceux du compteur de la page (catalogueEtendu, stockMetiers) ; un cas caché par ces réglages n'est ni
  * compté ni listé. Un identifiant absent du catalogue reste listé (sans bouton).
  */
-export function listerDejaFaits(traites: ReadonlyMap<string, CasTraite>, reglages: ReglagesVisibilite = { catalogueEtendu: false }): CasDejaFait[] {
+export function listerDejaFaits(traites: ReadonlyMap<string, CasTraite>, reglages: ReglagesVisibilite = { catalogueEtendu: false }, retires: ReadonlySet<string> = new Set()): CasDejaFait[] {
   const visibles = new Set(casVisibles(CATALOGUE.map((cas) => ({ cas })), reglages).map((x) => x.cas.id));
   return [...traites]
+    .filter(([casId]) => !retires.has(casId))
     .filter(([casId]) => visibles.has(casId) || !CATALOGUE.some((c) => c.id === casId))
     .sort(([, a], [, b]) => (Date.parse(b.le) || 0) - (Date.parse(a.le) || 0))
     .map(([casId, t]) => {
