@@ -26,8 +26,8 @@ const sansRecit = CATALOGUE_TS[0]!;
 const vueAvec = versVueCas(avecRecit, empreinteCas(avecRecit), true);
 const vueSans = versVueCas(sansRecit, empreinteCas(sansRecit), true);
 
-const feuille = (cas: typeof vueAvec) =>
-  renderToStaticMarkup(createElement(ContenuVotreVideo, { cas, essai: false, reseaux: ["facebook"], onReseaux: () => undefined, mot: cas.mot, onMot: () => undefined, avecMot: true, onAvecMot: () => undefined, onValider: () => undefined } as never));
+const feuille = (cas: typeof vueAvec, plus: Record<string, unknown> = {}) =>
+  renderToStaticMarkup(createElement(ContenuVotreVideo, { cas, essai: false, reseaux: ["facebook"], onReseaux: () => undefined, mot: cas.mot, onMot: () => undefined, avecMot: true, onAvecMot: () => undefined, onValider: () => undefined, ...plus } as never));
 
 describe("récit visible", () => {
   it("la vue du cas porte le sujet, la scène et l'exemple, et rien d'autre du récit (pas les mots clés)", () => {
@@ -41,7 +41,7 @@ describe("récit visible", () => {
     const t = texte(feuille(vueAvec));
     for (const x of ["De quoi parle la vidéo", avecRecit.recit!.sujet, "La scène", avecRecit.recit!.scene, "L'exemple suivi", avecRecit.recit!.exemple, PHRASE_TEXTE_ECRIT_AU_LANCEMENT]) expect(t).toContain(x);
     expect(t.indexOf("De quoi parle la vidéo")).toBeLessThan(t.indexOf("Les étapes"));
-    expect(PHRASE_TEXTE_ECRIT_AU_LANCEMENT).toBe("Le texte exact dit dans la vidéo est écrit au lancement (≈ 0,5 €) puis relu par vous avant la voix.");
+    expect(PHRASE_TEXTE_ECRIT_AU_LANCEMENT).toBe("Le texte exact dit dans la vidéo est écrit au lancement (compris dans le prix affiché, ≈ 0,5 €) puis relu par vous avant la voix.");
   });
 
   it("la feuille d'un cas sans récit ne change pas : aucun bloc, aucune phrase", () => {
@@ -54,7 +54,15 @@ describe("récit visible", () => {
 
   it("le script validé, quand il existe, est toujours montré comme avant", () => {
     const script = [{ rang: 1, type: "accroche", nom: "Accroche", texteDit: "Vos demandes de prix arrivent sans le poids.", affiches: ["Demandes sans poids"] }] as never;
-    expect(texte(feuille({ ...vueAvec, script }))).toContain("Le script validé, dit mot pour mot");
+    const t = texte(feuille({ ...vueAvec, script }));
+    expect(t).toContain("Le script validé, dit mot pour mot");
+    // Le récit reste montré, mais le script validé est rejoué sans écriture payée : la phrase du prix n'a pas lieu d'être.
+    expect(t).toContain(avecRecit.recit!.sujet);
+    expect(t).not.toContain(PHRASE_TEXTE_ECRIT_AU_LANCEMENT);
+    // « Nouveau script » : une écriture sera payée, la phrase revient et le script validé n'est plus montré.
+    const nouveau = texte(feuille({ ...vueAvec, script }, { nouveauScript: true, onNouveauScript: () => undefined }));
+    expect(nouveau).toContain(PHRASE_TEXTE_ECRIT_AU_LANCEMENT);
+    expect(nouveau).not.toContain("Le script validé, dit mot pour mot");
   });
 
   it("les cartes montrent le sujet sous le titre quand il existe, et rien sinon", () => {
