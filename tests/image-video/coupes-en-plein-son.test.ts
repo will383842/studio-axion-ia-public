@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import type { MotHorodate } from "@/domaine/types";
 import {
+  RECETTE_VOIX_IV,
   REGLES_COUPES_IV,
   assemblerVersionsIV,
   coupesEnPleinSon,
@@ -196,7 +197,7 @@ const sonDans = (t: number, vrais: readonly VraiMot[]) => vrais.find((w) => t > 
 describe("coupes de l'assemblage sur une voix réaliste (bruit rose −40 dB, horodatages décalés de 50 à 200 ms)", () => {
   const v = voixRealiste();
   const mesure = silencesIV(v.son);
-  const brut = planRaccordVoix({ mots: v.mots, dureeSec: v.dureeSec });
+  const brut = planRaccordVoix({ mots: v.mots, dureeSec: v.dureeSec }, undefined, RECETTE_VOIX_IV);
   const silences = { corps: mesure.silences };
   const durees = { corps: v.dureeSec };
 
@@ -236,14 +237,14 @@ describe("coupes de l'assemblage sur une voix réaliste (bruit rose −40 dB, ho
     plan.mots.forEach((w, i) => i && expect(w.debutSec).toBeGreaterThanOrEqual(plan.mots[i - 1].debutSec));
     const somme = (p: typeof plan) => p.morceaux.reduce((a, m) => a + m.finSec - m.debutSec, 0);
     expect(plan.dureeResserreeSec).toBeCloseTo(somme(plan), 3);
-    expect(plan.dureeSec - brut.dureeSec).toBeCloseTo((somme(plan) - somme(brut)) / 1.08, 3);
+    expect(plan.dureeSec - brut.dureeSec).toBeCloseTo((somme(plan) - somme(brut)) / 1.05, 3);
   });
 
   it("de 5 graines en 5 graines : le nouveau placement n'échoue jamais là où des pauses existent", () => {
     for (const g of [11, 23, 37, 51, 89]) {
       const w = voixRealiste(g);
       const s = { corps: silencesIV(w.son).silences };
-      const p = planRaccordVoix({ mots: w.mots, dureeSec: w.dureeSec });
+      const p = planRaccordVoix({ mots: w.mots, dureeSec: w.dureeSec }, undefined, RECETTE_VOIX_IV);
       expect(coupesEnPleinSon(placerCoupesIV(p, { corps: w.mots }, s, { corps: w.dureeSec }).plan, s, { corps: w.dureeSec })).toEqual([]);
     }
   });
@@ -283,7 +284,7 @@ describe("coupes de l'assemblage sur une voix réaliste (bruit rose −40 dB, ho
 describe("placerCoupesIV : sens, tolérance bornée, voisins", () => {
   const mots = (l: [number, number][]) => l.map(([debutSec, finSec], i) => ({ mot: `m${i}`, debutSec, finSec }));
   const plan = (morceaux: { debutSec: number; finSec: number }[], m: MotHorodate[]) => {
-    const p = planRaccordVoix({ mots: m, dureeSec: 10 });
+    const p = planRaccordVoix({ mots: m, dureeSec: 10 }, undefined, RECETTE_VOIX_IV);
     return { ...p, morceaux: morceaux.map((x) => ({ ...x, source: 0 as const })) };
   };
 
@@ -390,7 +391,7 @@ describe("refus restant : message DIAGNOSTIQUE", () => {
 describe("placerCoupesIV : jamais de son retiré, jamais de morceau vide", () => {
   const mots = (l: [number, number][]) => l.map(([debutSec, finSec], i) => ({ mot: `m${i}`, debutSec, finSec }));
   const plan = (morceaux: { debutSec: number; finSec: number }[], m: MotHorodate[]) => {
-    const p = planRaccordVoix({ mots: m, dureeSec: 10 });
+    const p = planRaccordVoix({ mots: m, dureeSec: 10 }, undefined, RECETTE_VOIX_IV);
     return { ...p, morceaux: morceaux.map((x) => ({ ...x, source: 0 as const })) };
   };
 
@@ -451,7 +452,7 @@ describe("placerCoupesIV : jamais de son retiré, jamais de morceau vide", () =>
       const v = voixRealiste(g, { phrases: 3, decalagesAuHasard: true, occlusivesFinales: true });
       const s = { corps: silencesIV(v.son).silences };
       const d = { corps: v.dureeSec };
-      const brut = planRaccordVoix({ mots: v.mots, dureeSec: v.dureeSec });
+      const brut = planRaccordVoix({ mots: v.mots, dureeSec: v.dureeSec }, undefined, RECETTE_VOIX_IV);
       const { plan: p } = placerCoupesIV(brut, { corps: v.mots }, s, d);
       if (coupesEnPleinSon(p, s, d).length) {
         refusees.push(g);
@@ -498,7 +499,7 @@ describe("placerCoupesIV : fusion d'une pause sans silence masqué (prod v-dcc90
     { mot: "Faites", debutSec: 2.58, finSec: 2.74 },
   ] as MotHorodate[];
   const plan = () => {
-    const p = planRaccordVoix({ mots, dureeSec: 6.687 });
+    const p = planRaccordVoix({ mots, dureeSec: 6.687 }, undefined, RECETTE_VOIX_IV);
     return {
       ...p,
       morceaux: [

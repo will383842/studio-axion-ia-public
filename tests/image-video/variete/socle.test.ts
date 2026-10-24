@@ -51,7 +51,7 @@ function entrees(): { nom: string; entree: EntreeMiseEnSceneIV }[] {
  * Q24) ; rien d'autre ne change (vérifié en neutralisant la queue : `96b05ce0…f82a`). `96b05ce0…f82a` → `059fa6c5…e2b`.
  */
 // 19/10/2026 : TikTok retiré d'Image → vidéo (décision de Will) : la version de référence 9:16 est celle de YouTube Shorts ; empreinte recalculée sur master avec YouTube Shorts à la place de TikTok : même valeur.
-const EMPREINTE_MASTER = "322a38b9f0d82f454ee97fada2ba8add96752cf54b060be1ef83aed1a72591fb";
+const EMPREINTE_MASTER = "851d5e4cd6f95b2f4a4f463ef494c8e74e153ba50812cf04cac99d7bd84f3d44";
 
 describe("socle · sans recette, rien ne change", () => {
   it("la ligne de temps des 6 cartes est identique octet pour octet à celle de master", () => {

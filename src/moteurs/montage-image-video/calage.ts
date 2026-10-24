@@ -2,7 +2,7 @@
  * IMAGE → VIDÉO · Calage du script sur la voix (lot L11, plan 50 § 1 [8]). PUR, déterministe.
  *
  * La voix est déjà assemblée par L12 : ses mots sont sur l'horloge de la PISTE VOIX SEULE (blancs resserrés, raccord
- * corps + fin, tempo ×1,08 appliqué). Le calage relie chaque mot écrit de la fiche (écran par écran, puis le segment de
+ * corps + fin, tempo ×1,05 appliqué). Le calage relie chaque mot écrit de la fiche (écran par écran, puis le segment de
  * fin : question de commentaire et phrases de la banque) au mot horodaté qui le dit. Alignement par plus longue suite
  * commune sur les mots comparables (minuscules, sans accents ni ponctuation) : un mot que l'aligneur a coupé ou fusionné
  * autrement prend une heure interpolée entre ses voisins calés. Trop de mots sans heure = la voix ne suit pas le script :

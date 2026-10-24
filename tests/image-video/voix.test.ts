@@ -272,7 +272,7 @@ describe("L12 · voix unique (clone HeyGen de Will, starfish, 1,1, recette v4)",
   it("la voix du format est le clone de Will avec les réglages de la recette v4", () => {
     expect(VOIX_IV).toEqual({ fournisseur: "heygen", moteur: "starfish", vitesse: 1.1, locale: "fr-FR", idVoix: "b22b1a358ca740eda753772ebaaf11f7" });
     expect(RECETTE_VOIX_CAS_CONCRET.synthese).toMatchObject({ moteur: "starfish", vitesse: 1.1 });
-    expect(TEMPO_IV).toBe(1.08);
+    expect(TEMPO_IV).toBe(1.05);
     expect(LOUDNESS_IV_LUFS).toBe(-14);
   });
 
@@ -601,7 +601,7 @@ async function voixFaite(s: SegmentsVoixIV, m: Monde): Promise<EtatVoixIV> {
 }
 
 describe("L12 · assemblage : WAV obligatoire, coupes dans les silences mesurés, fin dite en entier", () => {
-  it("une piste voix seule par version, avec son empreinte ; tempo ×1,08 ; aucune lecture de voix", async () => {
+  it("une piste voix seule par version, avec son empreinte ; tempo ×1,05 ; aucune lecture de voix", async () => {
     const m = monde();
     const s = segmentsDe(FICHE_C);
     const etat = await voixFaite(s, m);
@@ -610,8 +610,9 @@ describe("L12 · assemblage : WAV obligatoire, coupes dans les silences mesurés
     const pistes = await assemblerVersionsIV(etat, a);
     expect(m.lus).toHaveLength(lus);
     expect(pistes.map((p) => p.version)).toEqual(s.versions.map((v) => v.id));
-    expect(pistes.every((p) => /^voix-seule-[0-9a-f]{32}$/.test(p.empreinte) && p.tempo === 1.08)).toBe(true);
-    expect(a.demandes.every((d) => d.tempo === 1.08)).toBe(true);
+    expect(pistes.every((p) => /^voix-seule-[0-9a-f]{32}$/.test(p.empreinte) && p.tempo === 1.05)).toBe(true);
+    expect(a.demandes.every((d) => d.tempo === 1.05)).toBe(true);
+    expect(a.demandes.every((d) => String(d.recette.parametres.filtres).startsWith("atempo=1.05,"))).toBe(true);
     // LinkedIn : corps seul, aucun raccord ; les autres : corps + fin.
     const li = pistes.find((p) => p.reseaux.includes("linkedin"))!;
     expect(li.raccordSec).toBeUndefined();
