@@ -120,7 +120,7 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
     if (fixes.includes(dessin) && pages[premiere - 1].type === "T26" && pages[page - 1].type === "T26") continue;
     if (signales.has(`${dessin}@${page}`)) continue;
     signales.add(`${dessin}@${page}`);
-    const nom = dessin.startsWith("icone-") ? `l'icône « ${dessin.slice(6)} »` : `l'illustration ${dessin}`;
+    const nom = dessin.startsWith("icone-") ? `l'icône « ${dessin.slice(6)} »` : dessin.startsWith("maquette-") ? `la mini-maquette « ${dessin.slice(9)} »` : `l'illustration ${dessin}`;
     res.push({ code: "DESSIN_DOUBLE", niveau: "rouge", page, phrase: `Page ${page} : ${nom} est déjà dessinée ${premiere === page ? "sur cette page" : `page ${premiere}`} ; un même dessin ne revient jamais dans un carrousel, choisissez-en un autre.` });
   }
 
