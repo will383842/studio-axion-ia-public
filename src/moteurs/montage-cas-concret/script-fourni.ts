@@ -14,7 +14,7 @@ import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import { VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { completerFiche, HAUTEURS_BARRES_SANS_FAIT, type FicheFixe } from "./champs-du-cas";
-import { couper, dureeDiteMs, dureesDesFins, ficheParGabarit, sigleLu } from "./ecriture";
+import { couper, dureeDiteMs, sigleLu } from "./ecriture";
 import { regrouperFins } from "./etapes";
 import {
   cleMot,
@@ -518,17 +518,3 @@ export function texteFourniDesEcrans(ecrans: readonly (EcranScript | EcranCorps)
     })
     .join("\n");
 }
-
-/**
- * Le nombre de caractères du corps que l'ESTIMATION du prix utilise pour la voix d'un cas sans script du catalogue (le texte du
- * gabarit, avec les fins des quatre réseaux). Tant que le prix exact d'un script de Will n'existe pas, un script plus long ferait
- * dépasser la voix annoncée : il est refusé. PUR.
- */
-export function limiteCaracteresDuCorps(cas: CasConcret): number {
-  const b = bornesDesFins(cas);
-  const g = ficheParGabarit(cas, { videoId: "estimation", versionId: "estimation", habillage: VERSION_CHARTE_DUO, origine: "porte-a" }, dureesDesFins([b.courte, b.longue]));
-  return texteDuCorps(g).length;
-}
-
-/** Les caractères du corps d'un script contrôlé (la mesure de `limiteCaracteresDuCorps`). */
-export const caracteresDuCorps = (ecrans: readonly { texteDit: string }[]): number => ecrans.map((e) => e.texteDit.trim()).join(" ").length;
