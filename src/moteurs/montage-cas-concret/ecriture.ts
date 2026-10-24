@@ -307,6 +307,12 @@ export function variableEcriture(cas: CasConcret, recette: readonly BlocCas[], f
     `<recette>\n${recette.map((b) => `${b.id} · ${b.nom} · ${b.dureeCibleSec[0]} à ${b.dureeCibleSec[1]} s${b.facultatif ? " · facultatif" : ""}${b.consigne ? ` · ${b.consigne}` : ""}`).join("\n")}\n</recette>`,
     `<titre>${cas.titre}</titre>`,
     `<cible>${cas.cible}</cible>`,
+    ...(cas.recit ? [`<recit>
+sujet : ${cas.recit.sujet}
+scene : ${cas.recit.scene}
+exemple : ${cas.recit.exemple}
+mots_cles : ${cas.recit.motsCles.join(", ")}
+</recit>`] : []),
     `<promesse>${cas.promesse}</promesse>`,
     `<avant>\n${cas.avant.taches.map((t) => `- ${t}`).join("\n")}${cas.avant.total ? `\ntotal : ${cas.avant.total}` : ""}\n</avant>`,
     `<etapes>\n${cas.etapes.map((x, i) => `${i + 1} · ${x.titre} · ${x.ligne} · détail : ${x.detail} · visuel : ${visuel(x.visuel)}${x.humaine ? " · humaine" : ""}`).join("\n")}\n</etapes>`,
@@ -878,7 +884,7 @@ const COPIES_CITEES_MAX = 6;
 
 /** Textes que le cas courant DOIT redire (jamais comptés comme une reprise) : promesse, faits, partie humaine, conformité, mot. */
 export function textesImposesDuCas(cas: CasConcret): string[] {
-  return [cas.promesse, ...cas.faits.map((f) => f.enonce), cas.resteHumain, cas.conformite?.rgpd?.phrase, cas.mot, cas.motDit].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+  return [cas.promesse, cas.recit?.sujet, ...cas.faits.map((f) => f.enonce), cas.resteHumain, cas.conformite?.rgpd?.phrase, cas.mot, cas.motDit].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
 }
 
 /** La variété d'un appel : graine = la vidéo (+ le numéro de « Réessayer »), mémoire des scripts antérieurs. */
