@@ -80,7 +80,7 @@ describe("continu P1 : schéma de la toile", () => {
     brut.pages[0] = { ...page("X00"), titre: "  Titre  " };
     const r = ToileSpec.safeParse(brut);
     expect(r.success).toBe(true);
-    expect((r.data!.pages[0] as { titre: string }).titre).toBe("Titre");
+    expect((r.data!.pages[0] as unknown as { titre: string }).titre).toBe("Titre");
   });
 
   it("refuse les pages de parcours dans le désordre, incomplètes, ou deux parcours", () => {

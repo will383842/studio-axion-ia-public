@@ -1,6 +1,9 @@
 # Polices du carrousel continu (licence OFL, fichiers dans le dépôt)
 
-Source : dépôt google/fonts, dossiers `ofl/bricolagegrotesque/` et `ofl/instrumentserif/` (branche principale). Aucun chargement externe.
+Source : dépôt google/fonts au commit `e7db6ca603fd4862010383ff17ffd6cc4ffac1c0`, dossiers `ofl/bricolagegrotesque/` et `ofl/instrumentserif/`. Aucun chargement externe. Les sha256 ci-dessous ont été recalculés sur ces URL :
+- https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/bricolagegrotesque/BricolageGrotesque%5Bopsz,wdth,wght%5D.ttf
+- https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/instrumentserif/InstrumentSerif-Regular.ttf
+- https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/instrumentserif/InstrumentSerif-Italic.ttf
 
 | Fichier | sha256 |
 | --- | --- |

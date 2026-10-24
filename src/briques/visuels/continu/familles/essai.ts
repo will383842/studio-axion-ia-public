@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { texteSansLien } from "../../../../domaine/visuels/schema";
+import { RUBRIQUE_MAX } from "../../../../domaine/visuels/continu/geometrie";
 import type { DefinitionGabarit, RoleGabarit } from "../registre-gabarits";
 
 /** Gabarits d'essai génériques : jamais en production. */
@@ -16,7 +17,7 @@ function gabaritEssai(type: string, role: RoleGabarit, nom: string, titre: strin
       .object({
         type: z.literal(type),
         alt: texteSansLien(1, 125),
-        rubrique: texteSansLien(1, 40).optional(),
+        rubrique: texteSansLien(1, RUBRIQUE_MAX).optional(),
         titre: texteSansLien(1, 40),
         texte: texteSansLien(1, 90),
       })

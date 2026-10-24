@@ -9,6 +9,8 @@ export const BANDE_COUTURE = 80;
 export const PAGES_MIN = 3;
 export const PAGES_MAX = 10;
 export const PAGES_DEFAUT_MAX = 6;
+/** Longueur maximale de la rubrique d'une page (gabarits et parcours). */
+export const RUBRIQUE_MAX = 28;
 
 export function largeurToile(n: number): number {
   return n * LARGEUR_PAGE;
