@@ -78,6 +78,11 @@ describe("patrons", () => {
 
 describe("cas sans fait chiffré : le patron « chiffre » du résultat n'est jamais tiré", () => {
   it("200 identifiants", () => {
-    for (let i = 0; i < 200; i++) expect(patronsDeLaVideo(`video-${i}`, 0, undefined, undefined, { sansChiffre: true }).resultat.id).not.toBe("chiffre");
+    for (let i = 0; i < 200; i++) {
+      const p = patronsDeLaVideo(`video-${i}`, 0, undefined, undefined, { sansChiffre: true });
+      expect([p.resultat.id, p.accroche.id, p.avant.id]).not.toContain("chiffre");
+      expect(p.accroche.id).not.toBe("contraste");
+      expect(["verbes", "question"]).not.toContain(p.avant.id);
+    }
   });
 });

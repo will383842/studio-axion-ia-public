@@ -209,7 +209,9 @@ export function completerFiche(lue: unknown, e: FicheFixe & { cas: CasConcret })
         return undefined;
       };
       if (casSansFaitChiffre(cas)) {
-        return refuser("désigne un fait, mais le cas n'a aucun fait chiffré : aucun écran « chiffre », et chaque barre du résultat en { \"libelle\" } seul, sans « faitId ».");
+        return refuser(quoi === "le chiffre"
+          ? "n'a pas lieu d'être : le cas n'a aucun fait chiffré ; aucun écran « chiffre », et chaque barre du résultat en { \"libelle\" } seul, sans « faitId »."
+          : "désigne un fait, mais le cas n'a aucun fait chiffré : chaque barre du résultat en { \"libelle\" } seul, sans « faitId » ; aucun écran « chiffre ».");
       }
       if (faitId === undefined) return refuser("ne désigne aucun fait : donnez « faitId », l'identifiant d'un fait chiffré de <faits>.");
       const f = cas.faits.find((y) => y.id === faitId);
