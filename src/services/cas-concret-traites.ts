@@ -20,6 +20,7 @@ import {
   type VideoCasTraite,
 } from "@/domaine/cas-traites";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
+import { lireCasAjoutes } from "./cas-concret-ajoutes-lecture";
 import type { Video } from "@/domaine/types";
 import { statutEffectif } from "@/domaine/sujets-traites";
 import { creerVerrou, depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant } from "./_commun";
@@ -134,7 +135,7 @@ export async function noterCasTraite(video: { id: string; titre: string; formatI
 export async function remettreEnStock(casId: string, src: SourcesCasTraites = SOURCES_CAS_TRAITES): Promise<{ remisLe: string }> {
   await exigerSession();
   // Garde-fous : seul un cas du catalogue, et traité, se remet en stock ; la chaîne reçue n'est jamais recopiée telle quelle.
-  if (typeof casId !== "string" || casId.length > 120 || !CATALOGUE.some((c) => c.id === casId)) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
+  if (typeof casId !== "string" || casId.length > 120 || !(CATALOGUE.some((c) => c.id === casId) || (await lireCasAjoutes()).some((c) => c.id === casId))) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
   return verrou(async () => {
     const [videos, inscrits, remis] = await Promise.all([src.videos(), src.inscrits(), src.remis()]);
     if (!casTraites({ videos, inscrits, remis }).has(casId)) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'est pas dans les cas traités.");

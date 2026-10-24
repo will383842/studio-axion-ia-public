@@ -18,6 +18,7 @@ vi.mock("@/moteurs/montage-cas-concret", () => ({
   ID_MOTEUR_CAS_CONCRET: "cas-concret",
   lireEntreesCasConcret: (e: { casConcret?: { casId?: string } }) => ({ casId: e.casConcret?.casId }),
   coutNouvelEssaiEcritureCentimes: () => 123,
+  casDesEntrees: (e: { casId?: string }) => (e.casId ? { id: e.casId } : undefined),
 }));
 vi.mock("@/formats/cas-concret/catalogue", () => ({ estCasStock: (id: string) => id === "stock-fab", trouverCas: (id: string) => ({ id }) }));
 
