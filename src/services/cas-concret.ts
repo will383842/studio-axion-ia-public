@@ -39,6 +39,7 @@ import { trouverMoi } from "./moi";
 import { cleCas, marquerAttentes, statutEffectif, type Confirmation, type NiveauSujet, type Precedent, type ResultatVerification, type Suggestion } from "@/domaine/sujets-traites";
 import { verifierSujet as verifierSujetTraite } from "./sujets-traites";
 import { estCasTraite, PHRASE_CAS_TRAITE } from "./cas-concret-traites";
+import { lireCasRetires, PHRASE_CAS_RETIRE } from "./cas-concret-retires";
 
 
 /**
@@ -104,6 +105,7 @@ export async function confirmerCas(casId: string, dependances: { maintenant?: nu
   await exigerSession();
   const cas = await trouverCasAutorise(casId);
   if (!cas) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
+  if ((await lireCasRetires()).has(cas.id)) throw new ErreurStudio("CAS_RETIRE", PHRASE_CAS_RETIRE);
   const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString();
   const validations = await lireParametre<Validations>(CLE_VALIDATIONS, {});
   await ecrireParametre(CLE_VALIDATIONS, { ...validations, [cas.id]: { empreinte: empreinteCas(cas), valideLe } });
@@ -234,7 +236,9 @@ async function controleAvantPrix(casId: string, choix: ChoixAvantPrix, maintenan
   // Cas déjà traité (vidéo allée au bout) : refus net, AVANT le prix et avant toute création, même avec un brouillon repris, un
   // jeton « refaire » / « nouvel angle » ou le réglage `sujets.garde` éteint. Jamais la porte B (cas construit à chaque description).
   const dejaTraite = cas && !porteB ? await estCasTraite(cas.id) : false;
-  const refus = dejaTraite ? PHRASE_CAS_TRAITE : refusAvantPrix({
+  // Cas retiré par Will : refus net, avant le prix et avant toute création (jamais la porte B).
+  const retire = cas && !porteB ? (await lireCasRetires()).has(cas.id) : false;
+  const refus = dejaTraite ? PHRASE_CAS_TRAITE : retire ? PHRASE_CAS_RETIRE : refusAvantPrix({
     cas,
     ...(choix.empreinteVue ? { empreinteVue: choix.empreinteVue } : {}),
     reseaux,
