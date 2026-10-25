@@ -226,3 +226,45 @@ describe.each([
     expect(r).toMatchObject({ statut: indicatif ? "lancee" : "accord-requis" });
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* Cas concret : relance d'une écriture arrêtée (cas-concret-relance.ts) */
+/* ------------------------------------------------------------------ */
+
+const relanceCas = await import("@/services/cas-concret-relance");
+const casConcret = await import("@/services/cas-concret");
+const { RELU_RECRUTEMENT } = await import("../helpers/script-relu");
+import type { ErreurTravail, Travail } from "@/domaine/types";
+
+/** Une vraie vidéo du format, lancée (prix confirmé), puis son travail arrêté à l'étape « ecriture » comme le moteur le laisse. */
+async function ecritureArretee(): Promise<Travail> {
+  const r = await casConcret.preparerEtLancer({ casId: "recrutement-apporteurs", reseaux: ["facebook", "instagram", "tiktok", "linkedin"], mot: "IA", avecMot: false, accordCentimes: 100_000, empreinteScriptRelu: RELU_RECRUTEMENT });
+  expect(r.statut).toBe("lancee");
+  const [t] = await depots().travaux.lister((x) => x.type === "fabrication" && x.cibleId === (r as { videoId: string }).videoId);
+  const erreur: ErreurTravail = { code: "CAS_CONCRET_ECHEC", reessayable: true, messagePourWill: "L'étape n'a pas abouti (appel en panne)." };
+  const arrete: Travail = { ...t, statut: "echec", erreur, etapes: t.etapes.map((e) => (e.cle === "ecriture" ? { ...e, statut: "echec" as const, erreur } : { ...e, statut: "en_attente" as const })), parametres: { ...t.parametres, casConcret: { atteinte: -1, journal: { version: "x", etapes: {} } } } };
+  await depots().travaux.enregistrer(arrete);
+  return arrete;
+}
+
+describe.each([
+  ["indicatif", true],
+  ["bloquant", false],
+] as const)("cas concret, relance d'une écriture arrêtée — mode %s", (mode, indicatif) => {
+  beforeEach(async () => {
+    await ecrireParametre(CLE_MODE_BUDGET, mode);
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 1_000_000, devise: "EUR" });
+  });
+
+  it(indicatif ? "Claude réel, sans accord : la relance part, jamais accord-requis" : "témoin : Claude réel, sans accord, accord-requis avec le prix du nouvel essai", async () => {
+    const t = await ecritureArretee();
+    const r = await relanceCas.relancerEtapeCasConcret(t.id, undefined, { claudeActif: async () => true });
+    if (!indicatif) {
+      expect(r.statut).toBe("accord-requis");
+      expect((await depots().travaux.obtenir(t.id))?.statut).toBe("echec");
+      return;
+    }
+    expect(r).toEqual({ statut: "relancee", travailId: t.id });
+    expect((await depots().travaux.obtenir(t.id))?.statut).toBe("en_cours");
+  });
+});
