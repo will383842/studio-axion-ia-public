@@ -13,7 +13,7 @@
  */
 import { empriseEnsemble, empriseMoment, empriseObjet } from "@/briques/schema-motion/emprise";
 import { controlerMiseEnPage, zoneUtile, type EmpriseIV } from "@/briques/schema-motion/mise-en-page";
-import { controlerEntetes, objetsA, planEnsemble } from "@/briques/schema-motion/plan-objets";
+import { controlerEntetes, debordementsEnsemble, objetsA, planEnsemble } from "@/briques/schema-motion/plan-objets";
 import { TEMPS_IV } from "@/briques/schema-motion/temps";
 import type { BlocRenduIV, LigneDeTempsIV } from "./mise-en-scene";
 
@@ -60,12 +60,19 @@ function defautsEntetes(b: BlocRenduIV, ligne: Pick<LigneDeTempsIV, "largeur" | 
   return [];
 }
 
+/** Libellés qui dépasseraient leur bloc dans la vue d'ensemble à l'instant local `t` (la mise en page seule ne voit que les rectangles). */
+function debordementsDeLaToile(b: BlocRenduIV, t: number): string[] {
+  if (b.sorte !== "toile") return [];
+  const e = (b.proprietes.ensembles ?? []).find((x) => t >= x.debut && t < x.fin - TEMPS_IV.fondu);
+  return e ? debordementsEnsemble(planEnsemble(b.proprietes.schema, { allumes: e.allumes, chiffresCles: e.chiffresCles })) : [];
+}
+
 /** Mise en page de la version à chacun des instants clés : une entrée par instant (vide = conforme). */
 export function miseEnPageAuxInstantsIV(ligne: Pick<LigneDeTempsIV, "blocs" | "largeur" | "hauteur">, instants: readonly number[]): { instantSec: number; defauts: string[] }[] {
   return instants.map((instantSec) => {
     const b = blocA(ligne, instantSec);
     if (!b) return { instantSec, defauts: ["aucune scène à l'écran."] };
     const emprise = empriseDuBloc(b, instantSec - b.debut);
-    return { instantSec, defauts: [...defautsEntetes(b, ligne), ...(emprise ? controlerMiseEnPage(emprise) : [])] };
+    return { instantSec, defauts: [...defautsEntetes(b, ligne), ...(emprise ? controlerMiseEnPage(emprise) : []), ...debordementsDeLaToile(b, instantSec - b.debut)] };
   });
 }
