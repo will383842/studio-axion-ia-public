@@ -276,7 +276,7 @@ describe("porte unique : une vidéo conforme passe, sur toutes ses versions", ()
     expect(m.entree.versions.length).toBeGreaterThan(1);
     const [a, b] = m.entree.versions;
     // 1er passage : A relue conforme, B refusée (le 2ᵉ appel est celui de B).
-    const p1 = outils(m, { relecture: (r, k) => (k === 1 ? { ...r, images: r.images.map((x, i) => (i === 0 ? { ...x, toutMontre: false, manque: "20 %" } : x)) } : r) });
+    const p1 = outils(m, { relecture: (r, k) => (k === 1 ? { ...r, images: r.images.map((x, i) => (i === 0 ? { ...x, faux: "20 % au lieu de 30 %" } : x)) } : r) });
     const premier = await porteUniqueIV(m.entree, p1.o);
     expect(premier.ok).toBe(false);
     expect(premier.versions.find((x) => x.version === a.version)!.lignes.find((l) => l.code === "Q26")!.etat).toBe("reussi");
