@@ -5,6 +5,7 @@
  * Garde `essais-visuels/continu/p3b/<ID>-<format>.jpg` (page de la liste, contenu moyen) et `mesures.json`.
  * Usage (depuis `studio-rendu/`) : npx tsx scripts/essai-continu-listes.ts [ID...]
  */
+import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -65,16 +66,59 @@ function proprietes(format: FormatToile, type: string, page: Dict) {
   };
 }
 
+type Intervalle = [number, number];
+/** Largeur de la bande de bord que `bordsLibres` décrit (120 px de chaque bord) et écart de couleur à partir duquel une ligne est occupée. */
+const BANDE = 120;
+const ECART = 18;
+
+/**
+ * Mesure sur le JPEG de la page : intervalles [y1, y2] libres dans la bande de chaque bord (une ligne est libre quand tous ses pixels de la
+ * bande valent le pixel de fond de la même ligne, pris à 2 px du bord) et part de la page couverte par l'orange des cartes (tuiles et texte compris).
+ */
+function mesurerPage(fichier: string, hauteur: number): { gauche: Intervalle[]; droite: Intervalle[]; orange: number } {
+  const brut = execFileSync(process.env.FFMPEG ?? "ffmpeg", ["-v", "error", "-i", fichier, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 1080 * 1440 * 3 + 1024 });
+  if (brut.length !== 1080 * hauteur * 3) throw new Error(`page décodée de ${brut.length} octets (attendu ${1080 * hauteur * 3})`);
+  const px = (x: number, y: number) => (y * 1080 + x) * 3;
+  const libres = (x0: number, xRef: number): Intervalle[] => {
+    const res: Intervalle[] = [];
+    let debut = -1;
+    for (let y = 0; y <= hauteur; y++) {
+      let libre = y < hauteur;
+      for (let x = x0; libre && x < x0 + BANDE; x++) {
+        for (let k = 0; k < 3; k++) if (Math.abs(brut[px(x, y) + k] - brut[px(xRef, y) + k]) > ECART) libre = false;
+      }
+      if (libre && debut < 0) debut = y;
+      if (!libre && debut >= 0) {
+        res.push([debut, y]);
+        debut = -1;
+      }
+    }
+    return res;
+  };
+  let orange = 0;
+  for (let i = 0; i < 1080 * hauteur; i++) {
+    const r = brut[i * 3], g = brut[i * 3 + 1], b = brut[i * 3 + 2];
+    if (r > 170 && g > 70 && g < 170 && b < 100 && r - b > 100) orange++;
+  }
+  return { gauche: libres(0, 2), droite: libres(1080 - BANDE, 1077), orange: orange / (1080 * hauteur) };
+}
+
+/** Intersection de deux listes d'intervalles. */
+function croiser(a: Intervalle[], b: Intervalle[]): Intervalle[] {
+  const res: Intervalle[] = [];
+  for (const [a1, a2] of a) for (const [b1, b2] of b) if (Math.max(a1, b1) < Math.min(a2, b2)) res.push([Math.max(a1, b1), Math.min(a2, b2)]);
+  return res.sort((x, y) => x[0] - y[0]);
+}
+
 const sortie = resolve("essais-visuels", "continu", "p3b");
 mkdirSync(sortie, { recursive: true });
 const travail = mkdtempSync(join(tmpdir(), "essai-listes-"));
 const ADRESSE = "http://127.0.0.1/p3b/";
-let courant = "";
 const op = creerToileContinue({
   rendre: rendreToileAvecRemotion(navigateur ? { navigateur } : {}),
   deposer: async (url, chemin) => {
     const nom = decodeURIComponent(new URL(url).pathname.slice("/p3b/".length));
-    if (nom.endsWith("page-2.jpg")) copyFileSync(chemin, join(travail, `${nom.replace("/", "-")}`));
+    if (nom.endsWith("page-2.jpg") || nom.startsWith("garde/")) copyFileSync(chemin, join(travail, "page-2.jpg"));
     if (nom.startsWith("garde/")) copyFileSync(chemin, join(sortie, nom.slice("garde/".length)));
   },
 });
@@ -82,6 +126,8 @@ const op = creerToileContinue({
 const ids = process.argv.slice(2);
 const types = LISTES.map((g) => g.type).filter((t) => !ids.length || ids.includes(t));
 const resultats: Record<string, unknown> = {};
+/** Par type : intersection des intervalles libres sur tous les contenus et les deux formats (hauteur commune 1350), et part d'orange maximale. */
+const bords: Record<string, { gauche: Intervalle[]; droite: Intervalle[]; orangeMax: number; orangeAuNombre: Record<string, number> }> = {};
 const echecs: string[] = [];
 for (const type of types) {
   const [min, max] = BORNES_LISTES[type];
@@ -90,7 +136,6 @@ for (const type of types) {
   for (const format of ["4:5", "3:4"] as FormatToile[]) {
     for (const c of cas) {
       const nom = `${type}-${c.cas}-${c.n}-${format.replace(":", "x")}`;
-      courant = nom;
       const dossier = mkdtempSync(join(travail, "t-"));
       const garde = c.cas === "moyen" ? `garde/${type}-${format.replace(":", "x")}.jpg` : null;
       const depots = [1, 2, 3].map((i) => ({ cle: `${nom}/page-${i}.jpg`, urlDepot: `${ADRESSE}${i === 2 && garde ? garde : `${nom}/page-${i}.jpg`}` }));
@@ -110,7 +155,14 @@ for (const type of types) {
           m.intrusionsMetaP1 !== 0 && `${m.intrusionsMetaP1} intrusion(s) Meta`,
           m.chevauchements !== 0 && `${m.chevauchements} chevauchement(s)`,
         ].filter(Boolean) as string[];
-        resultats[nom] = { debordements: m.debordements, taillePoliceMin: m.taillePoliceMin, textesSurCouture: m.textesSurCouture, textesHorsMarge: m.textesHorsMarge, textesCoinReserve: m.textesCoinReserve, intrusionsMetaP1: m.intrusionsMetaP1, chevauchements: m.chevauchements };
+        const pg = mesurerPage(join(travail, "page-2.jpg"), HAUTEURS[format]);
+        const bt = (bords[type] ??= { gauche: [[0, 1350]], droite: [[0, 1350]], orangeMax: 0, orangeAuNombre: {} });
+        const borne = (l: Intervalle[]) => l.map(([a, b]) => [Math.min(a, 1350), Math.min(b, 1350)] as Intervalle).filter(([a, b]) => a < b);
+        bt.gauche = croiser(bt.gauche, borne(pg.gauche));
+        bt.droite = croiser(bt.droite, borne(pg.droite));
+        bt.orangeMax = Math.max(bt.orangeMax, pg.orange);
+        bt.orangeAuNombre[`${c.cas}-${c.n}-${format}`] = Math.round(pg.orange * 1000) / 10;
+        resultats[nom] = { orangePourcent: Math.round(pg.orange * 1000) / 10, debordements: m.debordements, taillePoliceMin: m.taillePoliceMin, textesSurCouture: m.textesSurCouture, textesHorsMarge: m.textesHorsMarge, textesCoinReserve: m.textesCoinReserve, intrusionsMetaP1: m.intrusionsMetaP1, chevauchements: m.chevauchements };
         if (garde) {
           const ko = statSync(join(sortie, garde.slice("garde/".length))).size / 1024;
           if (ko > 400) fautes.push(`JPEG de ${Math.round(ko)} Ko (> 400 Ko)`);
@@ -126,8 +178,8 @@ for (const type of types) {
     }
   }
 }
-void courant;
-if (!ids.length) writeFileSync(join(sortie, "mesures.json"), `${JSON.stringify(resultats, null, 2)}\n`);
+if (!ids.length) writeFileSync(join(sortie, "mesures.json"), `${JSON.stringify({ bordsLibres: Object.fromEntries(Object.entries(bords).map(([t, v]) => [t, { gauche: v.gauche, droite: v.droite }])), orangePartMaxPourcent: Object.fromEntries(Object.entries(bords).map(([t, v]) => [t, Math.round(v.orangeMax * 1000) / 10])), rendus: resultats }, null, 2)}\n`);
+console.log(JSON.stringify(Object.fromEntries(Object.entries(bords).map(([t, v]) => [t, { gauche: v.gauche, droite: v.droite, orangeMax: Math.round(v.orangeMax * 1000) / 10 }]))));
 if (echecs.length) {
   console.error(`\n${echecs.length} essai(s) en échec :\n- ${echecs.join("\n- ")}`);
   process.exit(1);
