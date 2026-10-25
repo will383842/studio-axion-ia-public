@@ -12,6 +12,7 @@ import { reponseFlux, fluxReussi } from "../helpers/g0";
 import type { DefinitionRole } from "@/generateur/roles/types";
 import { contexteExemple, ficheDemonstration, AUJOURDHUI_EXEMPLES } from "../tableau/regles/exemples";
 import { banc, versOutils } from "../tableau/moteur/doubles";
+import { banc as bancCas } from "../cas-concret/moteur/doubles";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -266,5 +267,83 @@ describe.each([
     }
     expect(r).toEqual({ statut: "relancee", travailId: t.id });
     expect((await depots().travaux.obtenir(t.id))?.statut).toBe("en_cours");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Cas concret : retouche par discussion, « Confirmer » (cas-concret-retouches.ts) */
+/* ------------------------------------------------------------------ */
+
+const retouchesCas = await import("@/services/cas-concret-retouches");
+import type { CommandeFabrication } from "@/domaine/types";
+import type { ReponseAppelEcriture } from "@/moteurs/montage-cas-concret/outils";
+import type { MoteurVideo, ParentRetouche, ResultatFabrication } from "@/moteurs/types";
+
+const T0 = Date.UTC(2026, 9, 12, 9, 0, 0);
+async function avancerJusqua(moteur: MoteurVideo, commande: CommandeFabrication, depart: Travail) {
+  let t = depart;
+  let resultat: ResultatFabrication | undefined;
+  for (let n = 0; n < 200; n++) {
+    const r = await moteur.avancer(JSON.parse(JSON.stringify(t)) as Travail, commande, T0 + n * 1000);
+    t = r.travail;
+    resultat = r.resultat ?? resultat;
+    if (t.statut === "termine" || t.statut === "echec") return { travail: t, resultat };
+  }
+  throw new Error(`Bloqué (${t.statut}).`);
+}
+
+/** v-03 devient une vidéo du format cas concret, fabriquée en simulation (comme tests/cas-concret/retouches-discussion). */
+async function videoCasConcret() {
+  const b = bancCas({ motSur: ["facebook", "instagram"] });
+  const commande = b.commande();
+  const fin = await avancerJusqua(b.moteur, commande, await b.moteur.lancer(commande, { travailId: "t-1", versionId: "ver-t-1", titre: "Essai", maintenant: T0 }));
+  expect(fin.travail.statut).toBe("termine");
+  const projetMontage = JSON.parse(JSON.stringify(fin.resultat!.projetMontage)) as ParentRetouche["projetMontage"];
+  const video = (await depots().videos.obtenir(VIDEO))!;
+  await depots().videos.modifier(VIDEO, { formatId: "cas-concret", estDemo: false });
+  await depots().versions.modifier(video.versionChoisieId!, { estDemo: false, commande: { ...commande, videoId: VIDEO }, projetMontage });
+  await ecrireParametre("casConcret.retouches", true);
+}
+
+/** Double des appels détachés : l'appel ne répond qu'à `repondre()`. */
+function detaches() {
+  const enAttente = new Map<string, () => Promise<ReponseAppelEcriture>>();
+  const reponses = new Map<string, ReponseAppelEcriture>();
+  return {
+    appels: { lancer: (cle: string, appel: () => Promise<ReponseAppelEcriture>) => void enAttente.set(cle, appel), lire: async (cle: string) => reponses.get(cle) ?? null },
+    repondre: async () => {
+      for (const [cle, appel] of enAttente) reponses.set(cle, await appel());
+      enAttente.clear();
+    },
+  };
+}
+
+describe.each([
+  ["indicatif", true],
+  ["bloquant", false],
+] as const)("cas concret, retouche par discussion — mode %s", (mode, indicatif) => {
+  beforeEach(async () => {
+    await ecrireParametre(CLE_MODE_BUDGET, mode);
+    await videoCasConcret();
+  });
+
+  it(indicatif ? "« Confirmer » avec un montant trop bas : relevé au prix du jour, la retouche part" : "témoin : « Confirmer » avec un montant trop bas, accord-requis et rien ne part", async () => {
+    const det = detaches();
+    const lancerRetouche = vi.fn(async () => ({ travailId: "t-retouche" }));
+    const dep = { appels: det.appels, executer: async (_v: string, role: DefinitionRole, entree: never) => ({ ok: true as const, simule: true, donnees: role.simuler(entree) }), claudeActif: async () => false, lancerRetouche };
+    await retouchesCas.proposerRetouche(VIDEO, "Changez le mot à commenter : RDV", dep as never);
+    await det.repondre();
+    const propose = await retouchesCas.suivreRetouche(VIDEO, dep as never);
+    if (propose.statut !== "proposee") throw new Error(propose.statut);
+    expect(propose.centimes).toBeGreaterThan(0);
+    const r = await retouchesCas.confirmerRetouche(VIDEO, propose.centimes - 1, dep as never);
+    if (!indicatif) {
+      expect(r.statut).toBe("accord-requis");
+      expect(lancerRetouche).not.toHaveBeenCalled();
+      return;
+    }
+    expect(r).toEqual({ statut: "lancee", travailId: "t-retouche" });
+    expect(lancerRetouche).toHaveBeenCalledTimes(1);
+    expect(lancerRetouche).toHaveBeenCalledWith(VIDEO, [], "Changez le mot à commenter : RDV", expect.objectContaining({ confirme: propose.centimes }));
   });
 });
