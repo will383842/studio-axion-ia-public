@@ -1,7 +1,13 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-import { ErreurRendu, OPERATIONS } from "../../studio-rendu/src/contrat";
-import { erreurDeValidationToile, grapheDecoupe, reglagesToile, verifierDepotsPages } from "../../studio-rendu/src/operations/toile-continue";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ErreurRendu, OPERATIONS, type DemandeRendu } from "../../studio-rendu/src/contrat";
+import { colonneExacteLaPlusProche, creerToileContinue, erreurDeValidationToile, grapheDecoupe, reglagesToile, verifierDepotsPages, type DependancesToile } from "../../studio-rendu/src/operations/toile-continue";
+import { PREFIXE_MESURE } from "../../studio-rendu/compositions/visuels/mesure/protocole";
+import { GABARITS } from "../../src/briques/visuels/continu/registre-gabarits";
+import { PARCOURS } from "../../src/briques/visuels/continu/registre-parcours";
 import { VERSION_TOILE_SOCLE } from "../../src/domaine/visuels/continu/version";
 
 const lire = (chemin: string) => readFileSync(chemin, "utf8");
@@ -50,6 +56,117 @@ describe("continu P2 : erreurs de validation", () => {
   it("une version de toile différente est indisponible, à réessayer ; le reste est un refus", () => {
     expect(erreurDeValidationToile("Version de toile indisponible : socle x").erreur).toMatchObject({ code: "indisponible", reessayable: true });
     expect(erreurDeValidationToile("Toile invalide : la page 1 : …").erreur).toMatchObject({ code: "refuse", reessayable: false });
+  });
+  it("une version absente ou invalide est un refus, pas une panne à réessayer", () => {
+    for (const m of ["Version de toile absente ou invalide", "Version de toile absente : gabarit X01", "Version de toile invalide : objet attendu"]) {
+      expect(erreurDeValidationToile(m).erreur, m).toMatchObject({ code: "refuse", reessayable: false });
+    }
+  });
+});
+
+describe("continu P2 : mesure discriminante de la couture", () => {
+  const H = 4;
+  // Toile de 3 colonnes de 1080 : chaque colonne x a une valeur propre (x % 251) ; la page copie la colonne exacte.
+  const L = 3 * 1080;
+  const toile = new Uint8Array(L * H * 3);
+  for (let y = 0; y < H; y++) for (let x = 0; x < L; x++) for (let k = 0; k < 3; k++) toile[(y * L + x) * 3 + k] = (x * 7) % 251;
+  const pageDe = (colToile: number) => {
+    const page = new Uint8Array(1080 * H * 3);
+    for (let y = 0; y < H; y++) for (let x = 0; x < 1080; x++) for (let k = 0; k < 3; k++) page[(y * 1080 + x) * 3 + k] = toile[(y * L + colToile) * 3 + k];
+    return page;
+  };
+  it("la colonne exacte est la plus proche", () => {
+    expect(colonneExacteLaPlusProche(pageDe(1080), toile, L, H, 0, 1080)).toBe(true);
+  });
+  it("une page décalée de 1 colonne est détectée", () => {
+    expect(colonneExacteLaPlusProche(pageDe(1081), toile, L, H, 0, 1080)).toBe(false);
+    expect(colonneExacteLaPlusProche(pageDe(1079), toile, L, H, 0, 1080)).toBe(false);
+  });
+});
+
+describe("continu P2 : opération avec fausses dépendances", () => {
+  let dossier: string;
+  beforeEach(async () => {
+    dossier = await mkdtemp(join(tmpdir(), "toile-continue-"));
+  });
+  afterEach(() => rm(dossier, { recursive: true, force: true }));
+
+  const contexte = () => ({ progression: () => {}, dossier, signal: new AbortController().signal });
+  const types = ["X00", "X01", "X02"];
+  const proprietes = () => ({
+    toile: { version: "toile/1", format: "4:5", pages: types.map((t) => GABARITS.find((g) => g.type === t)!.exemple), raccords: [] },
+    versions: {
+      socle: VERSION_TOILE_SOCLE,
+      gabarits: Object.fromEntries(GABARITS.filter((g) => types.includes(g.type)).map((g) => [g.type, g.version])),
+      parcours: Object.fromEntries(PARCOURS.filter((p) => p.pagesTypes.some((t) => types.includes(t))).map((p) => [p.id, p.version])),
+      raccords: {},
+    },
+  });
+  const demande = (parametres: Record<string, unknown>, entrees: Record<string, string> = {}): DemandeRendu => ({
+    idRendu: "tc-1", operation: "toile-continue", file: "courte", entrees, sortie: { urlDepot: "https://r2/bande.jpg?sig=x", cle: "bande.jpg" }, parametres,
+  });
+  const complet = (extra = {}) => ({ proprietes: proprietes(), depotsPages: [1, 2, 3].map(depot), ...extra });
+  const mesure = (nonce: string, extra: Record<string, number> = {}) =>
+    `${PREFIXE_MESURE} ${nonce} ${JSON.stringify({ debordements: 0, taillePoliceMin: 30, textes: 1, textesSurCouture: 0, textesHorsMarge: 0, textesCoinReserve: 0, intrusionsMetaP1: 0, chevauchements: 0, debordCouture1: 0, traitsFinsSurCouture: 0, pages: 3, largeur: 3240, hauteur: 1350, ...extra })}`;
+  function simule(opts: { mesure?: boolean; taille?: { largeur: number; hauteur: number }; extra?: Record<string, number> } = {}) {
+    let appels = 0;
+    const deps: DependancesToile = {
+      async rendre(o) {
+        appels++;
+        await writeFile(o.sortie, Buffer.from([0]));
+        if (opts.mesure !== false) o.surLog(mesure(o.inputProps.nonce as string, opts.extra));
+        return opts.taille ?? { largeur: 3240, hauteur: 1350 };
+      },
+      async deposer() {},
+    };
+    return { op: creerToileContinue(deps), appels: () => appels };
+  }
+
+  it("refuse toute entrée, sans rendre", async () => {
+    const { op, appels } = simule();
+    await expect(op(demande(complet(), { image: "https://exemple.org/a.png" }), contexte())).rejects.toMatchObject({ erreur: { code: "refuse", reessayable: false } });
+    expect(appels()).toBe(0);
+  });
+  it("refuse une URL dans les propriétés, sans rendre", async () => {
+    const { op, appels } = simule();
+    const p = proprietes();
+    (p.toile as { titre?: string }).titre = "voir https://exemple.org/x";
+    await expect(op(demande(complet({ proprietes: p })), contexte())).rejects.toMatchObject({ erreur: { code: "refuse", reessayable: false } });
+    expect(appels()).toBe(0);
+  });
+  it("une version de toile différente est indisponible et réessayable", async () => {
+    const { op, appels } = simule();
+    const p = proprietes();
+    p.versions.socle = "toile-continue/0";
+    await expect(op(demande(complet({ proprietes: p })), contexte())).rejects.toMatchObject({ erreur: { code: "indisponible", reessayable: true } });
+    expect(appels()).toBe(0);
+  });
+  it("une version absente est un refus", async () => {
+    const { op } = simule();
+    await expect(op(demande(complet({ proprietes: { ...proprietes(), versions: undefined } })), contexte())).rejects.toMatchObject({ erreur: { code: "refuse", reessayable: false } });
+  });
+  it("un nombre de depotsPages différent du nombre de pages est refusé", async () => {
+    const { op, appels } = simule();
+    await expect(op(demande(complet({ depotsPages: [depot(1), depot(2)] })), contexte())).rejects.toMatchObject({ erreur: { code: "refuse", reessayable: false } });
+    expect(appels()).toBe(0);
+  });
+  it("une mesure absente est un échec", async () => {
+    const { op } = simule({ mesure: false });
+    await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", reessayable: false, message: expect.stringMatching(/Mesure absente/) } });
+  });
+  it("une largeur rendue fausse est un échec", async () => {
+    const { op } = simule({ taille: { largeur: 3239, hauteur: 1350 } });
+    await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", message: expect.stringMatching(/3239/) } });
+  });
+  it("une hauteur rendue fausse (autre que celle du format) est un échec", async () => {
+    const { op } = simule({ taille: { largeur: 3240, hauteur: 1440 } });
+    await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", message: expect.stringMatching(/1440/) } });
+  });
+  it("une mesure dont la largeur ou la hauteur contredit le rendu est un échec", async () => {
+    for (const extra of [{ largeur: 3000 }, { hauteur: 1000 }]) {
+      const { op } = simule({ extra });
+      await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu" } });
+    }
   });
 });
 
