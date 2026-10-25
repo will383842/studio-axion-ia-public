@@ -16,6 +16,7 @@ import { empreinteSon, type PisteVoixSeuleIV } from "@/moteurs/montage-image-vid
 import type { BruitageValideIV } from "@/moteurs/montage-image-video/bruitages";
 import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { ficheSansChapitres } from "@/moteurs/montage-image-video/recettes";
+import { chiffresDuTexte } from "@/moteurs/montage-image-video/regles";
 import { bloque, CODES_CONTROLE_IV, CONTROLES_INDICATIFS, scriptDeLaVersion, type VersionAControlerIV } from "@/moteurs/montage-image-video/controles";
 import { comparerAuScript, ecouterVersionIV, PHRASES_PARASITES_WHISPER, SEUILS_ECOUTE_IV, transcriptionUtile, type DemandeReservationControleIV, type DemandeTranscriptionIV } from "@/moteurs/montage-image-video/ecoute";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
@@ -458,7 +459,7 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
 describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en dessous du plancher", () => {
   /** Retire `part` des mots de la transcription (hors chiffres), répartis, sans toucher au dernier mot. */
   const retirer = (part: number) => (_d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => {
-    const candidats = mots.map((x, i) => i).filter((i) => i < mots.length - 1 && /^[a-zàâçéèêëîïôûù']{1,5}$/i.test(mots[i].mot) && !/^(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|trente|cent|mille|zéro)$/i.test(mots[i].mot));
+    const candidats = mots.map((x, i) => i).filter((i) => i < mots.length - 1 && /^[a-zàâçéèêëîïôûù]{1,5}$/i.test(mots[i].mot) && chiffresDuTexte(mots[i].mot).length === 0 && !/^(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|trente|cent|mille|zéro)$/i.test(mots[i].mot));
     const nb = Math.round(mots.length * part);
     const pas = candidats.length / nb;
     const retires = new Set(Array.from({ length: nb }, (_x, k) => candidats[Math.floor(k * pas)]));
@@ -473,8 +474,11 @@ describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en
     expect(SEUILS_ECOUTE_IV.retrouvesPlancher).toBe(0.9);
     expect(SEUILS_ECOUTE_IV.retrouvesMin).toBe(0.97);
   });
-  it("environ 95,8 % des mots entendus : remarque orange (ligne non bloquante), pas un refus", async () => {
+  it("environ 95,8 % des mots entendus : remarque orange sur la ligne Q18 (non bloquante), pas un refus", async () => {
     const q18 = await q18De(0.042);
+    const pct = Number(/(\d+,\d) %/.exec(q18.phrase)![1].replace(",", "."));
+    expect(pct).toBeGreaterThan(90);
+    expect(pct).toBeLessThan(97);
     expect(q18.etat).toBe("echoue");
     expect(q18.bloquant).toBe(false);
     expect(bloque(q18)).toBe(false);
@@ -482,6 +486,7 @@ describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en
   });
   it("environ 80 % des mots entendus : la voix manque vraiment, la vidéo reste refusée", async () => {
     const q18 = await q18De(0.2);
+    expect(Number(/(\d+,\d) %/.exec(q18.phrase)![1].replace(",", "."))).toBeLessThan(90);
     expect(q18.bloquant).toBe(true);
     expect(bloque(q18)).toBe(true);
     expect(q18.phrase).toMatch(/90 % au moins/);
@@ -611,6 +616,38 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(v.mentions.join()).toMatch(/volume/);
   });
 
+  it("Q24 · planchers bloquants : noir de 10 s ou volume à −40 LUFS refusés, noir de 1 s seulement une remarque", async () => {
+    const q24De = async (mesures: Record<string, number>) => {
+      const m = monter("A");
+      m.entree.versions[0].fichier.mesures = { ...m.entree.versions[0].fichier.mesures, ...mesures };
+      return (await porteUniqueIV(m.entree, outils(m).o)).versions[0].lignes.find((l) => l.code === "Q24")!;
+    };
+    const noir = await q24De({ noirMaxSec: 10 });
+    expect(noir.etat).not.toBe("reussi");
+    expect(bloque(noir)).toBe(true);
+    const muet = await q24De({ lufs: -40 });
+    expect(muet.etat).not.toBe("reussi");
+    expect(bloque(muet)).toBe(true);
+    const court = await q24De({ noirMaxSec: 1 });
+    expect(court.etat).toBe("echoue");
+    expect(bloque(court)).toBe(false);
+  }, 60_000);
+
+  it("Q11 · corps trop long : remarque ; plafond du réseau dépassé : refus", async () => {
+    const m = monter("A");
+    const p = m.entree.versions[0].piste;
+    p.mots = p.mots.map((x, i) => (i === p.motsCorps - 1 ? { ...x, finSec: 500 } : x));
+    const q11 = (await porteUniqueIV(m.entree, outils(m).o)).versions[0].lignes.find((l) => l.code === "Q11")!;
+    expect(q11.etat).toBe("echoue");
+    expect(q11.phrase).toMatch(/la voix dépasse/);
+    expect(bloque(q11)).toBe(false);
+    const m2 = monter("A");
+    const fb = m2.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    fb.ligne = { ...fb.ligne, dureeSec: 400 };
+    const q11b = (await porteUniqueIV(m2.entree, outils(m2).o)).versions.find((x) => x.version === fb.version)!.lignes.find((l) => l.code === "Q11")!;
+    expect(bloque(q11b)).toBe(true);
+  }, 60_000);
+
   it("une mesure absente du fichier final échoue (non vérifiée), jamais réussie", async () => {
     const m = monter("A");
     m.entree.versions[0].fichier.mesures = { lufs: -14 };
@@ -649,13 +686,17 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     // Écran tenu 1,6 s pendant une phrase (la voix ne se tait jamais plus de 0,3 s) : accepté.
     expect((await q24De({ figeMaxSec: 1.6, figeHorsVoixMaxSec: 0.3 })).etat).toBe("reussi");
     expect((await q24De({ figeMaxSec: 2.5, figeHorsVoixMaxSec: 0.5 })).etat).toBe("reussi");
-    // Plus de 2,5 s, même sous la voix : refusé.
+    // Plus de 2,5 s, même sous la voix : remarque (sous le plancher de 5 s), la vidéo reste utilisable.
     const long = await q24De({ figeMaxSec: 2.6, figeHorsVoixMaxSec: 0.2 });
     expect(long.etat).not.toBe("reussi");
+    expect(bloque(long)).toBe(false);
     expect(long.phrase).toMatch(/image figée de 2,6 s \(2,5 s au plus/);
-    // Figé 0,8 s dans un silence (ou à la fin) : refusé.
+    // Figé 0,8 s dans un silence (ou à la fin) : remarque.
     const silence = await q24De({ figeMaxSec: 0.8, figeHorsVoixMaxSec: 0.8 });
     expect(silence.etat).not.toBe("reussi");
+    expect(bloque(silence)).toBe(false);
+    // Figé plus de 5 s : planchers franchis, refusé.
+    expect(bloque(await q24De({ figeMaxSec: 6, figeHorsVoixMaxSec: 0.2 }))).toBe(true);
     expect(silence.phrase).toMatch(/sans voix \(0,5 s au plus hors voix\)/);
     // Mesure « hors voix » absente : la limite d'avant (0,5 s) tient partout.
     expect((await q24De({ figeMaxSec: 1.6 })).etat).not.toBe("reussi");
