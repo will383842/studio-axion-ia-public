@@ -163,7 +163,7 @@ describe("bout en bout en simulation, avec les arrêts « carte » et « script 
       const mentions = etat.controles?.verdict.mentions ?? [];
       expect(mentions.some((p) => defaut.test(p))).toBe(true);
       expect(mentions.some((p) => /Mise en page/.test(p))).toBe(true);
-      expect(m.ordre.some((x) => /relecture/.test(x)) || m.appelsClaude.some((a) => a.role === "relecture-finale-iv")).toBe(true);
+      expect(m.appelsClaude.some((a) => a.role === "relecture-finale-iv")).toBe(true);
       chaqueAppelReserve(m);
       expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
     });
