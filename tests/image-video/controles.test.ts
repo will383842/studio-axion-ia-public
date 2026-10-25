@@ -494,14 +494,38 @@ describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en
 });
 
 describe("relecture des images finales (Q26) par l'extraction existante", () => {
-  it("une relecture « manque : 20 % » est refusée", async () => {
+  // 25/10/2026 (règle de Will : jamais d'arrêt pour un défaut de détail) : un « manque » isolé n'est plus un refus mais une remarque orange.
+  it("une relecture « manque : 20 % » (une image sur plusieurs) est une remarque orange, pas un refus", async () => {
     const m = monter("C");
     const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, toutMontre: false, manque: "20 %" } : x)) }) });
     const v = await porteUniqueIV(m.entree, o);
-    expect(v.ok).toBe(false);
+    expect(v.ok).toBe(true);
     const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(false);
     expect(q26.etat).toBe("echoue");
     expect(q26.phrase).toMatch(/il manque : 20 %/);
+    expect(v.mentions.join()).toMatch(/il manque : 20 %/);
+  });
+
+  it("une relecture « faux : 30 % au lieu de 20 % » est refusée", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, faux: "30 % au lieu de 20 %" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(false);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(true);
+    expect(q26.etat).toBe("echoue");
+    expect(q26.phrase).toMatch(/faux : 30 % au lieu de 20 %/);
+  });
+
+  it("une relecture « illisible : texte coupé par le bord » est refusée", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, illisible: "texte coupé par le bord" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(false);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(true);
+    expect(q26.phrase).toMatch(/illisible : texte coupé par le bord/);
   });
 
   it("« hors charte » et suggestions restent indicatifs", async () => {

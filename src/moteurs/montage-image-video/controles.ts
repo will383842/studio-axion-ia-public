@@ -138,7 +138,7 @@ export const MESURES_IV = Object.freeze({ lufs: LOUDNESS_IV_LUFS, toleranceLufs:
 
 export interface MesuresDeLaPorteIV {
   ecoute?: EcouteVersionIV;
-  relecture?: { q26: ConstatControle; indications: string[] };
+  relecture?: { q26: ConstatControle; indications: string[]; remarques?: string[] };
   /** Verdict des plafonds pour les réseaux de cette version (Q11), calculé par la porte sur toutes les versions. */
   plafonds: VerdictReseauIV[];
 }
@@ -432,7 +432,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   else L("Q24", [...q24, ...q24Souple], { indicatif: q24.length === 0 && q24Souple.length > 0 });
 
   sceneCode("Q25");
-  lignes.push(deConstat("Q26", v, m.relecture?.q26, "les images finales n'ont pas été relues."));
+  lignes.push(deConstat("Q26", v, avecRemarques(m.relecture?.q26, m.relecture?.remarques), "les images finales n'ont pas été relues."));
 
   // Q27 · textes de publication des réseaux de la version : présents, lien suivi là où la fin le promet, interdits.
   const q27: string[] = [];
