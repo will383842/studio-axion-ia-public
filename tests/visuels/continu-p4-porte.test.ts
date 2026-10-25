@@ -35,9 +35,10 @@ describe("continu P4 : porte de la toile, textes", () => {
     expect(codes(toile(undefined, "3:4"))).not.toContain("CHIFFRE");
     expect(codes(toile([exemple("X00"), { type: "PA1", alt: "Une étape", titre: "Une étape", texte: "Pas à pas." }, exemple("X02")]))).not.toContain("CHIFFRE");
   });
-  it("les raccords ne sont jamais lus comme du texte", () => {
-    const t = { ...toile([exemple("X00"), exemple("X01"), exemple("X02")]), raccords: [{ type: "R01", couture: 1, y: 980 }] };
-    expect(codes(t)).not.toContain("CHIFFRE");
+  it("les raccords ne sont jamais lus comme du texte (un raccord au texte interdit ne déclenche que SCHEMA)", () => {
+    const t = { ...toile(), raccords: [{ type: "R01", couture: 1, y: 980, legende: "Venez à Grenoble, 3 fois plus, tu gagnes" }] };
+    const r = controlerToile(t, ctx).rapport;
+    expect(r.controles.filter((c) => c.code !== "GABARIT_ETEINT").map((c) => `${c.code}:${c.chemin}`)).toEqual(["SCHEMA:raccords.0"]);
   });
   it("schéma refusé : messages en français, rouge SCHEMA", () => {
     const r = controlerToile({ version: "toile/1", format: "4:5", pages: [], raccords: [] }, ctx).rapport;

@@ -11,7 +11,7 @@ export const FAMILLES_MIN = 3;
 /**
  * Contrôles de structure d'une toile dont les pages sont lues par leur `type` (les types inconnus du registre sont
  * laissés au schéma). Rouge : deux familles identiques à la suite hors parcours, gabarit éteint ou qui exige un fait
- * ou un accord, plus de 2 pages de cas, plus d'une page orange fort, plus d'une page sombre. Orange : moins de 3
+ * ou un accord, plus de 2 pages de cas (famille « cas » ou étiquette `cas`), plus d'une page orange fort, plus d'une page sombre. Orange : moins de 3
  * familles pour 5 pages ou plus.
  */
 export function controlesStructureToile(toile: { pages: readonly { type: string }[] }, gabarits: readonly DefinitionGabarit[] = GABARITS): ControlePorte[] {
@@ -36,7 +36,7 @@ export function controlesStructureToile(toile: { pages: readonly { type: string 
       if (g && garde(g) && ++vus > max) rouge(code, i + 1, phrase);
     });
   };
-  auDela("CAS_MAX", (g) => g.famille === "cas", CAS_MAX, `une toile compte au plus ${CAS_MAX} pages de cas.`);
+  auDela("CAS_MAX", (g) => g.cas === true || g.famille === "cas", CAS_MAX, `une toile compte au plus ${CAS_MAX} pages de cas.`);
   auDela("ORANGE_FORT_MAX", (g) => g.orangeFort, 1, "une toile n'a qu'une seule page à fond orange.");
   auDela("SOMBRE_MAX", (g) => g.sombre, 1, "une toile n'a qu'une seule page sombre.");
 

@@ -21,6 +21,9 @@ const REGISTRE = [
   g("D03", "donnees", "contenu", { actif: false }),
   g("A01", "appel", "appel", { sombre: true }),
   g("A02", "appel", "relance", { orangeFort: true }),
+  g("KC1", "comparaison", "contenu", { cas: true }),
+  g("KC2", "comparaison", "contenu", { cas: true }),
+  g("S04", "cas"),
   g("PA1", "parcours"),
   g("PA2", "parcours"),
   g("PA3", "parcours"),
@@ -50,6 +53,13 @@ describe("continu P4 : structure de la toile (rythme-continu)", () => {
     expect(codes("C01", "S01", "L01", "S02", "A01")).not.toContain("CAS_MAX:rouge");
     expect(codes("C01", "K03", "L01", "A02")).toContain("ORANGE_FORT_MAX:rouge");
     expect(codes("C01", "K02", "L01", "A01")).toContain("SOMBRE_MAX:rouge");
+  });
+  it("une page de cas se reconnaît à sa famille « cas » OU à son étiquette `cas`", () => {
+    // Deux pages de famille « cas » + une page étiquetée `cas` d'une autre famille : 3 cas.
+    expect(codes("C01", "S01", "L01", "S02", "KC1", "A01")).toContain("CAS_MAX:rouge");
+    // Deux pages étiquetées `cas` hors famille + une page de famille « cas » sans étiquette : 3 cas.
+    expect(codes("C01", "KC1", "L01", "KC2", "K01", "S04", "A01")).toContain("CAS_MAX:rouge");
+    expect(codes("C01", "KC1", "L01", "S04", "A01")).not.toContain("CAS_MAX:rouge");
   });
   it("moins de 3 familles pour 5 pages ou plus : orange", () => {
     expect(codes("C01", "L01", "C01", "L02", "C01")).toContain("VARIETE:orange");
