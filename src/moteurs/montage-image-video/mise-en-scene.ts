@@ -63,6 +63,17 @@ import { appliquerVarieteIV, type RepliVarieteIV } from "./variete";
 const R = REGLES_SCENE_IV;
 const MARQUE = "axion-ia.com" as const;
 
+/**
+ * Étiquette de repli d'un en-tête (aucun groupe, aucune étiquette écrite) : le titre de l'image, sauf s'il redit la marque
+ * (déjà écrite en haut de l'écran) ; alors « Vue d'ensemble » sur l'écran d'ensemble, sinon rien (25/10).
+ */
+function etiquetteDeRepli(carte: Pick<CarteImage, "titre">, scene?: string): string {
+  const net = (t: string) => t.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]/g, "");
+  const t = net(carte.titre);
+  if (t !== net(MARQUE) && t !== net(MARQUE.replace(/\.com$/, ""))) return carte.titre;
+  return scene === "ensemble" ? "Vue d'ensemble" : "";
+}
+
 /* ------------------------------------------------------------------ */
 /* Types publics                                                         */
 /* ------------------------------------------------------------------ */
@@ -714,7 +725,7 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   // après…), sinon le titre de l'image.
   const groupe = c.e.refs.map((r) => carte.noeuds.find((n) => n.id === r)?.groupe).find((g) => g);
   const titreGroupe = carte.groupes.find((g) => g.id === groupe)?.titre;
-  const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? carte.titre);
+  const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? etiquetteDeRepli(carte, c.e.scene));
   const parties = partiesDe(c, titre, toutesCles);
   const montreAilleurs = (k: string) => {
     const d = c.chiffres.find((x) => x.cle === k);
@@ -730,7 +741,9 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
     const p = poserTexte(c, autre, toutesCles);
     const dernier = els.filter((x) => x.role === "entete").at(-1)!;
     if (p.couverts.length && p.t - dernier.t >= 1.2) els.push(nouvelEl(c, "entete", p.chiffres.length ? "chiffre" : "objet", p.t, { texte: `${etiquette}|${autre}`, chiffres: p.chiffres, couverts: p.couverts, coupe: true }));
-    else dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
+    // 25/10 : la seconde ligne ne passe en étiquette que si elle PRÉCÈDE le titre ; après lui, « 20 % — Limite atteinte » au-dessus de
+    // « 80 % — Réponse connue » se contredisait.
+    else if (lignes.indexOf(autre) < lignes.indexOf(titre)) dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
   }
 }
 
@@ -2165,7 +2178,7 @@ function entetesDe(lot: EcranPlace[], debut: number, fin: number, carte: CarteIm
   const rel = (t: number) => arrondi(Math.max(0, t - debut));
   const bruts = lot.flatMap((p) => p.els.filter((x) => x.role === "entete")).map((x) => {
     const [etiquette, titre] = (x.texte ?? "").split("|");
-    return { t: rel(x.t), etiquette: etiquette || carte.titre, titre: titre || etiquette };
+    return { t: rel(x.t), etiquette: etiquette || etiquetteDeRepli(carte, lot[0]?.c.e.scene), titre: titre || etiquette };
   });
   return bruts.map((x, k) => ({ debut: x.t, fin: k + 1 < bruts.length ? bruts[k + 1].t : rel(fin), etiquette: x.etiquette, titre: x.titre }));
 }
@@ -2180,7 +2193,7 @@ function blocMoments(id: string, lot: EcranPlace[], carte: CarteImage, debut: nu
   const ent = els.filter((x) => x.role === "entete");
   const entetes = ent.map((x) => {
     const [etiquette, titre] = (x.texte ?? "").split("|");
-    return { t: x.t, entete: { etiquette: etiquette || carte.titre, titre: titre || etiquette } };
+    return { t: x.t, entete: { etiquette: etiquette || etiquetteDeRepli(carte, e.scene), titre: titre || etiquette } };
   });
   let corps: MomentIV;
   // Un écran « carte-bénéfice » qui cite plusieurs bénéfices est un récapitulatif (`sorteDe`) : jamais un moment vide.
