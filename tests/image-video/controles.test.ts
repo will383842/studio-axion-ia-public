@@ -476,7 +476,7 @@ describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en
   });
   it("environ 95,8 % des mots entendus : remarque orange sur la ligne Q18 (non bloquante), pas un refus", async () => {
     const q18 = await q18De(0.042);
-    const pct = Number(/(\d+,\d) %/.exec(q18.phrase)![1].replace(",", "."));
+    const pct = Number(/(\d+[.,]\d) %/.exec(q18.phrase)![1].replace(",", "."));
     expect(pct).toBeGreaterThan(90);
     expect(pct).toBeLessThan(97);
     expect(q18.etat).toBe("echoue");
@@ -486,7 +486,7 @@ describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en
   });
   it("environ 80 % des mots entendus : la voix manque vraiment, la vidéo reste refusée", async () => {
     const q18 = await q18De(0.2);
-    expect(Number(/(\d+,\d) %/.exec(q18.phrase)![1].replace(",", "."))).toBeLessThan(90);
+    expect(Number(/(\d+[.,]\d) %/.exec(q18.phrase)![1].replace(",", "."))).toBeLessThan(90);
     expect(q18.bloquant).toBe(true);
     expect(bloque(q18)).toBe(true);
     expect(q18.phrase).toMatch(/90 % au moins/);
