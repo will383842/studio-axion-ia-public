@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CARTES_CAS } from "../../src/briques/visuels/continu/familles/cas";
 import { GABARITS, GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
@@ -43,6 +45,12 @@ describe("continu P3d : cas concrets", () => {
   it("les trois portent cas:true (étiquette posée par le code)", () => {
     for (const g of cas()) expect(g.cas, g.type).toBe(true);
     expect(TEXTES_FIXES_L9.t26Etiquette).toBe("Scénario type · exemple illustratif");
+  });
+  it("le rendu de chaque cas affiche l'étiquette « Scénario type » posée par le code", () => {
+    for (const g of cas()) {
+      const rendu = renderToStaticMarkup(createElement(COMPOSANTS_PLAQUETTES[g.type], { page: g.exemple as never, index: 1, total: 3, hauteur: 1350, sombre: g.sombre }));
+      expect(rendu, g.type).toContain(TEXTES_FIXES_L9.t26Etiquette);
+    }
   });
   it("l'exemple passe le schéma, un champ inconnu (dont « etiquette ») est refusé", () => {
     for (const g of cas()) {
