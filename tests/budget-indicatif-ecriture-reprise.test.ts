@@ -148,7 +148,7 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
   }, 90_000);
 
-  it("« Reprendre » en indicatif : devis possible entre 1 × et 5 ×, geste confirmé, l'écriture repart", async () => {
+  it("« Reprendre » en indicatif : devis possible entre 1 × et 5 ×, sans confirmation du prix, l'écriture repart", async () => {
     const pire = await pireCasDeLaGrandeChaine();
     const c = claude();
     await ecrireParametre("budget.mode", "bloquant");
@@ -161,9 +161,8 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, entre(pire, 3));
     const e = await bg.etatEcriture(r.scriptMaitreId);
     expect(e?.reprise).toMatchObject({ possible: true });
-    const err = await bg.reprendreEcriture(r.scriptMaitreId).catch((x) => x);
-    expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await bg.reprendreEcriture(r.scriptMaitreId, err.montant)).toBe(1);
+    // Le prix ne bloque jamais : plus de confirmation à la main, le geste suffit.
+    expect(await bg.reprendreEcriture(r.scriptMaitreId)).toBe(1);
     await bg.tourBoucleGeneration();
     expect(c.appels.length).toBeGreaterThan(0);
     expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");

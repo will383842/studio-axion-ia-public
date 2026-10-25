@@ -50,6 +50,7 @@ import { exigerSession } from "./auth";
 import { urlsFichiers } from "./fichiers";
 import { doublesDeBasePourLooks, enregistrerLookGenere } from "./personnages";
 import { accordDonne, type AccordPrix } from "@/domaine/accord";
+import { budgetIndicatifPour } from "./mode-budget";
 
 /** Double simulé seul (fond transparent), posé par l'écran sur une photo qui n'a pas encore sa vignette. */
 export const SILHOUETTE_DOUBLE = "/demo/decors/silhouette.png";
@@ -413,7 +414,7 @@ const PHOTOS_EN_PREPARATION = "Les photos sont encore en préparation. Rouvrez �
  */
 export async function demanderDecor(texte: string, options: { confirme: AccordPrix; origine?: OrigineLancement }): Promise<{ propositionIds: Id[]; cout: Montant; essai: boolean }> {
   await exigerSession();
-  if (!accordDonne(options.confirme)) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
+  if (!accordDonne(options.confirme) && !(await budgetIndicatifPour(options.origine))) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
   const phrase = texte.trim().slice(0, 200);
   const requetes = requetesPropositions(phrase);
   if (!requetes.length || requetes.length !== PROPOSITIONS_PAR_DEMANDE) throw new ErreurStudio("INCOMPRIS", "Décrivez un lieu (« un bureau avec une bibliothèque »), sans personne.");
@@ -642,7 +643,7 @@ export async function preparerLookDecor(decorId: Id, options: { confirme: Accord
   if (!bases.length) throw new ErreurStudio("DOUBLE_MANQUANT", "Votre double n'existe pas encore : le décor sera fabriqué dès qu'il sera prêt.");
   const manquants = bases.filter((b) => !e.valeur.lookIdParAngle?.[b.angle]);
   if (!manquants.length) return { crees: [], reutilise: true, essai: f.mode !== "reel" };
-  if (!accordDonne(options.confirme)) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
+  if (!accordDonne(options.confirme) && !(await budgetIndicatifPour(options.origine))) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
   const descriptionEn = descriptionEnCatalogue(e.valeur.catalogue?.code) ?? sujetDecorEn(e.valeur.description ?? e.nom);
   const lookIdParAngle = { ...(e.valeur.lookIdParAngle ?? {}) };
   const crees: AngleVisage[] = [];
@@ -777,7 +778,7 @@ export async function estimerDecorDepuisDescription(phrase: string, options: { d
 export async function creerDecorDepuisDescription(phrase: string, options: { confirme: AccordPrix; deuxAngles?: boolean }): Promise<{ decorId: Id; crees: AngleVisage[]; essai: boolean }> {
   const est = await estimerDecorDepuisDescription(phrase, options);
   if (est.bloque) throw new ErreurStudio(est.bloque === DECORS_DANS_HEYGEN ? "DECOR_DANS_HEYGEN" : "BLOQUE", est.bloque);
-  if (!accordDonne(options.confirme)) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
+  if (!accordDonne(options.confirme) && !(await budgetIndicatifPour())) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
   const d = depots();
   const texte = String(phrase).trim();
   const element: ElementBibliotheque & { valeur: ValeurDecor } = {

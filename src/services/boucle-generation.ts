@@ -39,7 +39,7 @@ import { nouvelId } from "@/lib/ids";
 import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { exigerSession } from "./auth";
 import { effacerRepriseDeWill, marquerRepriseDeWill, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
-import { budgetIndicatifPour } from "./mode-budget";
+import { accordAutomatique, budgetIndicatifPour } from "./mode-budget";
 import { gagnantsDuJour, poidsApprentissage } from "./apprentissage";
 import { controlerSujetCentral, ErreurSujetDejaTraite } from "./sujet-central-controle";
 import { attribuerNumero, attribuerNumeroSousVerrou, creerSujet, prendreEpisode, PLAFOND_SUPPLEMENT_ADRESSE_USD, PLAFOND_SUPPLEMENT_USD, rattacherVideoAVariante, reporterCorps, retoucherCorps, retoucherVariante, synchroniserSujet, validerVersions, type BriefSujet } from "./generateur";
@@ -587,15 +587,18 @@ export async function reprendreEcritureArretee(scriptMaitreId: Id, accord?: Acco
     if (!devis.possible) throw new ErreurStudio("REPRISE_IMPOSSIBLE", devis.raison!);
   }
   const aConfirmer = await prixAConfirmerArretee(liste);
-  const confirme = accordPropre(accord);
+  // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu, inchangé.
+  const confirme = aConfirmer ? await accordAutomatique(accordPropre(accord), aConfirmer.montant.centimes) : accordPropre(accord);
   if (aConfirmer && !(typeof confirme === "number" && confirme >= aConfirmer.montant.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", aConfirmer.phrase, aConfirmer.montant.centimes);
   const supplement = await supplementReprise(liste);
+  const indicatif = await budgetIndicatifPour();
   let n = 0;
   for (const { g, releveUsd } of liste) {
     // CORRECTEUR FINAL A (VERIF-E2E-1 n° 7) : les appels restés sans réponse ne bloquent plus la reprise au plafond.
     // G1 : jamais plus que le relèvement accepté ; plus haut entre-temps → le nouveau prix est redemandé.
     await releverPlafondAuReglage(g);
-    const releve = await releverPlafondApresPannes(g.id, releveUsd);
+    // Indicatif : le relèvement du jour est accepté d'office (l'arrêt de sécurité à 5 × reste) ; bloquant : celui que Will a vu.
+    const releve = await releverPlafondApresPannes(g.id, indicatif ? Number.POSITIVE_INFINITY : releveUsd);
     if (releve < 0) {
       const nouveau = (await supplementReprise(await ecrituresAReprendre(scriptMaitreId))) ?? supplement!;
       throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(nouveau), nouveau.centimes);
@@ -762,7 +765,7 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
     prixUsd += r.prixUsd;
   }
   const prix = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
-  const confirme = accordPropre(accord);
+  const confirme = prix.centimes > 0 ? await accordAutomatique(accordPropre(accord), prix.centimes) : accordPropre(accord);
   if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre peut coûter jusqu'à ${formaterMontant(prix)}. Confirmez pour continuer.`, prix.centimes);
   const d = depots();
   let n = 0;
