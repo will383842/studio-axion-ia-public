@@ -57,14 +57,47 @@ describe("Écoute : substitution sonore (chatbot entendu « chat de Bottia »)",
     expect(c.ajouts.filter((a) => a.remplace).map((a) => a.remplace)).toEqual(expect.arrayContaining(["chatbot ia", "chatbot"]));
   });
 
-  it.each(FIXTURE.pistes.map((p) => [p.version, p] as const))("%s : « chatbot » entendu « chat de mon équipe » (écart 0,60) reste bloquant", (_v, p) => {
+  it.each(FIXTURE.pistes.map((p) => [p.version, p] as const))("%s : garde de taille : « chatbot » entendu « chat de mon équipe » (4 mots) reste bloquant", (_v, p) => {
     const c = analyser(p, remplacer(p.transcription, ["chat", "de", "votre"], ["chat", "de", "mon", "équipe"]));
     expect(bloquants(c).map((a) => a.texte)).toContain("chat de mon équipe");
+  });
+
+  it.each(FIXTURE.pistes.map((p) => [p.version, p] as const))("%s : garde d'écart : « chatbot » entendu « chat de mon » (3 mots, écart sonore trop grand) reste bloquant", (_v, p) => {
+    const c = analyser(p, remplacer(p.transcription, ["chat", "de", "votre"], ["chat", "de", "mon"]));
+    expect(bloquants(c).map((a) => a.texte)).toContain("chat de mon");
   });
 
   it.each(FIXTURE.pistes.map((p) => [p.version, p] as const))("%s : « chatbot ia » entendu « concurrent humain » (écart 0,85) reste bloquant", (_v, p) => {
     const c = analyser(p, remplacer(p.transcription, ["chat", "de", "Bottia"], ["concurrent", "humain", "ici"]));
     expect(bloquants(c).map((a) => a.texte)).toContain("concurrent humain ici");
+  });
+});
+
+describe("comparerAuScript : règle de substitution sonore, sans fixture", () => {
+  const dit = (phrase: string) => phrase.split(" ").map((m, i) => ({ mot: m, debutSec: i, finSec: i + 0.5 }));
+  const ajoutsDe = (script: string, entendu: string) => comparerAuScript(script, dit(entendu)).ajouts;
+
+  it("un nombre entendu dans le groupe (« deux ») l'empêche d'être une substitution", () => {
+    const a = ajoutsDe("Le chatbot répond.", "Le chat deux bot répond.");
+    expect(a).toHaveLength(1);
+    expect(a[0].remplace).toBeUndefined();
+  });
+  it("un nombre à trait d'union (« quatre-vingts ») l'empêche aussi", () => {
+    const a = ajoutsDe("Le chatbot répond.", "Le chat quatre-vingts bot répond.");
+    expect(a.every((x) => x.remplace === undefined)).toBe(true);
+  });
+  it("la substitution est reconnue au milieu, en tête et en fin de texte", () => {
+    expect(ajoutsDe("Le chatbot répond.", "Le chat de bot répond.")[0].remplace).toBe("chatbot");
+    expect(ajoutsDe("Chatbot répond ici.", "Chat de bot répond ici.")[0].remplace).toBe("chatbot");
+    expect(ajoutsDe("Il parle au chatbot.", "Il parle au chat de bot.")[0].remplace).toBe("chatbot");
+  });
+  it("un groupe suivi de mots en trop après la fin n'est pas une substitution (trop long)", () => {
+    const a = ajoutsDe("Il parle au chatbot.", "Il parle au chat de bot ensuite merci.");
+    expect(a.every((x) => x.remplace === undefined)).toBe(true);
+  });
+  it("écart sonore : 0,30 passe, 0,40 ne passe pas", () => {
+    expect(ajoutsDe("Voici monsalbino ici.", "Voici monsalbamu ici.")[0].remplace).toBe("monsalbino");
+    expect(ajoutsDe("Voici monsalbino ici.", "Voici monsaltamu ici.")[0].remplace).toBeUndefined();
   });
 });
 

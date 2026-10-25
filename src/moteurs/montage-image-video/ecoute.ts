@@ -261,6 +261,7 @@ export function cleSonore(texte: string): string {
 
 /** Distance d'édition entre deux chaînes, ramenée à la plus longue (0 = identiques, 1 = rien en commun). */
 function ecartNormalise(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > ECART_SONORE_MAX * Math.max(a.length, b.length)) return 1;
   const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
   for (let j = 1; j <= b.length; j++) d[0][j] = j;
   for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
@@ -307,7 +308,7 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
     const trou = formes.slice(avant + 1, apres);
     if (trou.length === 0 || suite.length > trou.length + 2) return undefined;
     const entendu = suite.map((k) => entendus[k].mot);
-    if (porteUnChiffre(trou) || porteUnChiffre(entendu)) return undefined;
+    if (porteUnChiffre(trou) || porteUnChiffre(formesComparables(entendu.join(" ")))) return undefined;
     const cleScript = cleSonore(trou.join(""));
     if (cleScript.length < CLE_SONORE_MIN) return undefined;
     return ecartNormalise(cleScript, cleSonore(entendu.join(""))) <= ECART_SONORE_MAX ? trou.join(" ") : undefined;
