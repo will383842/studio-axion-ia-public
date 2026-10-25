@@ -122,12 +122,19 @@ export interface SceneIV {
  * Le bloc qui finit la vidéo reçoit la queue animée de la ligne (`queue`, ramenée au début du bloc) : sa composition
  * dessine le trait de fin ; un écran v4 passe alors par `ImageVideoEcranFin`.
  */
-export function parametresDuBloc(b: BlocRenduIV, ligne: Pick<LigneDeTempsIV, "largeur" | "hauteur" | "fps" | "repere"> & Partial<Pick<LigneDeTempsIV, "dureeSec" | "queue">>): SceneIV["parametres"] {
+export function parametresDuBloc(b: BlocRenduIV, ligne: Pick<LigneDeTempsIV, "largeur" | "hauteur" | "fps" | "repere"> & Partial<Pick<LigneDeTempsIV, "dureeSec" | "queue" | "affiche">>, premier = false): SceneIV["parametres"] {
   const p = parametresSansVariete(b, ligne);
   const avecVariete = b.variete ? { ...p, proprietes: { ...p.proprietes, variete: b.variete } } : p;
   const q = queueDuBloc(b, ligne);
-  if (!q) return avecVariete;
-  return { ...avecVariete, ...(b.sorte === "ecran" ? { composition: COMPOSITIONS_RENDU_IV.ecranFin } : {}), proprietes: { ...avecVariete.proprietes, queue: q } };
+  // Affiche : seulement le PREMIER bloc de la ligne (sa première image montre l'accroche écrite en entier).
+  const a = premier && ligne.affiche ? ligne.affiche : null;
+  if (!q && !a) return avecVariete;
+  // Un écran v4 passe par `ImageVideoEcranFin` dès qu'il porte une queue ou une affiche (même écran, calques par-dessus).
+  return {
+    ...avecVariete,
+    ...(b.sorte === "ecran" ? { composition: COMPOSITIONS_RENDU_IV.ecranFin } : {}),
+    proprietes: { ...avecVariete.proprietes, ...(q ? { queue: q } : {}), ...(a ? { affiche: a } : {}) },
+  };
 }
 
 /** Queue animée d'un bloc (secondes depuis son début) : seulement le bloc qui finit la vidéo et contient la queue. */
@@ -182,8 +189,8 @@ function proprietesEcran4x5(ecran: Extract<BlocRenduIV, { sorte: "ecran" }>["ecr
 
 /** Les scènes d'une version (PUR) : une par bloc, clé par empreinte (même bloc = même fichier, rendu une seule fois). */
 export function scenesDeLaLigne(ligne: LigneDeTempsIV, o: { env: string; videoId: string }): SceneIV[] {
-  return ligne.blocs.map((b) => {
-    const parametres = parametresDuBloc(b, ligne);
+  return ligne.blocs.map((b, rang) => {
+    const parametres = parametresDuBloc(b, ligne, rang === 0);
     // Version de la clé : "/2" (18/10/2026) = fond ivoire des vues d'ensemble, pastille « 80 % » de REC-B (nouvelle place),
     // chute de l'alerte. Sans ce changement, une vidéo refaite réutiliserait ses anciennes scènes de toile (clé identique).
     // 23/10/2026 : VERSION_COMPOSITIONS_IV y entre aussi : une correction de studio-rendu/compositions/image-video (bulle du récit,

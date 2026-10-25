@@ -34,7 +34,9 @@ import { EmailStructure } from "./EmailStructure";
 import { Ensemble } from "./Ensemble";
 import { Entete } from "./Entete";
 import { PhraseChoc } from "./PhraseChoc";
+import { Affiche } from "./Affiche";
 import { QueueFin } from "./QueueFin";
+import type { AvecAfficheIV } from "./variete/ouverture/donnees";
 import { decalageReferenceIV } from "./mise-en-page";
 import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, masqueToile, opaciteRail, placeRail } from "./plan";
 import { objetsA, planEnsemble, secousseAlerte, type ObjetSceneIV, type ProprietesSceneObjetsIV } from "./plan-objets";
@@ -68,7 +70,7 @@ export const COMPOSITIONS_IMAGE_VIDEO = Object.freeze({
 });
 
 /** Propriétés du dernier écran v4 d'une version : celles de `CasConcretEcran`, et la queue du bloc. */
-export type ProprietesEcranFinIV = ProprietesEcran & AvecQueueIV;
+export type ProprietesEcranFinIV = ProprietesEcran & AvecQueueIV & AvecAfficheIV;
 
 /**
  * `ImageVideoEcranFin` : le DERNIER écran v4 d'une version qui a une queue animée. L'écran est celui du cas concret
@@ -81,6 +83,7 @@ export function EcranFinIV(p: ProprietesEcranFinIV) {
     <AbsoluteFill>
       <Ecran {...p} />
       <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </AbsoluteFill>
   );
 }
@@ -107,7 +110,7 @@ function cartesEnAttenteCamC(scene: ReturnType<typeof calculerScene>, ensembles:
   return !!courant && scene.toile.fleches.some((f) => f.de === courant && (scene.premierMot.get(f.vers) ?? Infinity) - 0.15 > t && scene.parId.has(f.vers));
 }
 
-export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueueIV) {
+export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueueIV & AvecAfficheIV) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   const t = useCurrentFrame() / p.fps;
@@ -170,6 +173,7 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
           {/* CAM-B, CAM-C : le calque caméra repose la marque et l'en-tête, fixes, au-dessus de la scène recadrée (jamais deux titres). */}
           {camC ? null : <Entete entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={fondVu} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />}
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>
@@ -220,11 +224,11 @@ export function SceneObjetsImageVideo(p: ProprietesSceneObjetsIV) {
 }
 
 /** Scène d'objets de production : la même, sans témoin des sous-titres. */
-export function SceneObjetsProductionIV(p: ProprietesSceneObjetsIV & AvecQueueIV) {
+export function SceneObjetsProductionIV(p: ProprietesSceneObjetsIV & AvecQueueIV & AvecAfficheIV) {
   return <CorpsSceneObjets p={p} temoin={false} />;
 }
 
-function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVarieteIV & AvecQueueIV; temoin: boolean }) {
+function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVarieteIV & AvecQueueIV & AvecAfficheIV; temoin: boolean }) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   const t = useCurrentFrame() / p.fps;
@@ -244,6 +248,7 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
           <Entete entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           {temoin ? <TemoinEntete p={p} t={t} /> : null}
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>
@@ -297,11 +302,11 @@ export function GalerieImageVideo(p: ProprietesGalerieIV) {
 }
 
 /** Moments de production : la galerie sans témoin des sous-titres. */
-export function MomentsProductionIV(p: ProprietesGalerieIV & AvecQueueIV) {
+export function MomentsProductionIV(p: ProprietesGalerieIV & AvecQueueIV & AvecAfficheIV) {
   return <CorpsMoments p={p} temoin={false} />;
 }
 
-function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & AvecQueueIV; temoin: boolean }) {
+function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & AvecQueueIV & AvecAfficheIV; temoin: boolean }) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   const t = useCurrentFrame() / p.fps;
@@ -322,6 +327,7 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & 
           </AbsoluteFill>
           <Entete entete={entete} ecoule={t - m.debut} sortie={entete ? Math.max(0, Math.min(1, (t - (m.fin - 0.15)) / 0.15)) : 0} fond={m.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>
