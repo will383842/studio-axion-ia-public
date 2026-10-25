@@ -250,22 +250,27 @@ describe("confirmation de prix : seulement après un geste de reprise de Will", 
   });
 
   it("verifierEtReserverSelonOrigine : sans « automatique » le seuil est exigé ; avec, il ne l'est plus ; l'Usine l'exige TOUJOURS", async () => {
-    await expect(credits.verifierEtReserverSelonOrigine(undefined, est(500), false, "Cette écriture", { travailId: "t-1" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    // Règle « le prix ne bloque jamais » : en indicatif, le seuil n'est plus exigé, même sans « automatique » ; en bloquant il l'est.
+    await expect(credits.verifierEtReserverSelonOrigine(undefined, est(500), false, "Cette écriture", { travailId: "t-1" })).resolves.toBeUndefined();
     await expect(credits.verifierEtReserverSelonOrigine(undefined, est(500), false, "Cette écriture", { travailId: "t-2" }, { automatique: true })).resolves.toBeUndefined();
+    await ecrireParametre("budget.mode", "bloquant");
+    await expect(credits.verifierEtReserverSelonOrigine(undefined, est(500), false, "Cette écriture", { travailId: "t-1b" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await ecrireParametre("budget.mode", "indicatif");
     const { moisParis } = await import("@/services/couts");
     await ecrireParametre(`budget.usine.${moisParis()}`, { budget_mensuel_cents: 1_000_000, mois: moisParis(), le: new Date().toISOString() });
     await expect(credits.verifierEtReserverSelonOrigine("usine", est(500), false, "Cette écriture", { travailId: "t-3" }, { automatique: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
   });
 
-  it("premier tour d'un lancement de Will : seuil exigé (en attente « seuil ») ; après le geste « Reprendre » de Will : l'écriture part", async () => {
+  it("premier tour d'un lancement de Will : bloquant, le seuil met en attente ; indicatif, l'écriture part sans geste « Reprendre » (le prix ne bloque jamais)", async () => {
     await ecrireParametre("fournisseur.script", "claude");
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre("budget.seuilConfirmation", eur(0));
     const appels = brancherClaude();
     const g = await generation();
     expect(await gc.executerRoleFacture(g.id, roleSonde, entree)).toMatchObject({ ok: false, arret: "en-attente-credit" });
     expect(appels).toHaveLength(0);
     await depots().generations.modifier(g.id, { statut: "en-cours" });
-    await gc.marquerRepriseDeWill(g.id);
+    await ecrireParametre("budget.mode", "indicatif");
     expect((await gc.executerRoleFacture(g.id, roleSonde, entree)).ok).toBe(true);
     expect(appels).toHaveLength(1);
   });

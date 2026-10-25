@@ -53,7 +53,7 @@ import type { LecteurCredit, TestConnexion } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
 import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { accordCouvre, accordPropre, type AccordPrix } from "@/domaine/accord";
-import { budgetIndicatif } from "./mode-budget";
+import { accordAutomatique, budgetIndicatif } from "./mode-budget";
 import { partDoubleReel, phraseAvatarParle } from "@/domaine/double-reel";
 import type { Estimation } from "@/moteurs";
 import { depots, ecrireParametre, ErreurStudio, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
@@ -318,19 +318,28 @@ export async function verifierBudgetEtCredits(
   estimation: Pick<Estimation, "lignes" | "total">,
   accord: AccordPrix,
   quoi: string,
-  options: { doubleDejaConfirme?: boolean; origine?: OrigineLancement; travailId?: Id; automatique?: boolean } = {},
+  options: { doubleDejaConfirme?: boolean; origine?: OrigineLancement; travailId?: Id; automatique?: boolean; videoId?: Id } = {},
 ): Promise<void> {
-  const confirme = accordPropre(accord);
   // Lot R2 : une ligne `facultative` (textes des réseaux) ne bloque jamais ; elle reste engagée (verifierEtReserver).
   // L1-09 : au centime supérieur (pire cas, aucune fraction dans la somme du mois).
   const bloquant = Math.ceil(centimesBloquants(estimation));
+  // Règle « le prix ne bloque jamais » : en mode indicatif (commande de l'utilisateur), le prix du jour vaut accord, y compris
+  // pour le double réel. Mode bloquant et Usine : l'accord reçu, inchangé. Le journal et la cloche ne parlent que si l'ancienne
+  // règle (seuil de confirmation, double réel) aurait refusé : un appel sous le seuil, ou à 0 €, ne fait aucun bruit.
+  const seuilPrix = (await resumeBudget()).seuilConfirmation.centimes;
+  const accordRecu = accordPropre(accord);
+  const ancienneRegleRefusait =
+    (bloquant > seuilPrix && !accordCouvre(accordRecu, bloquant, seuilPrix)) ||
+    (partDoubleReel(estimation.lignes) !== null && !accordCouvre(accordRecu, typeof accordRecu === "number" ? bloquant : 0, seuilPrix) && !options.doubleDejaConfirme);
+  const confirme = await accordAutomatique(accordRecu, bloquant, { origine: options.origine, videoId: options.videoId, signaler: ancienneRegleRefusait });
   // L1-09 : plafond du mois (réglé dans le studio), puis budget de l'Usine pour une commande de l'Usine ; illisible → refus.
   await controlerBudgetDuMois(bloquant, { origine: options.origine, travailId: options.travailId });
   const budget = await resumeBudget();
   // Relecture paquet 4 (D2) : la confirmation porte le MONTANT (centimes d'euro), à l'écran et au retour. Un montant
   // confirmé plus bas que le prix du jour est refusé : Will revoit le nouveau prix.
-  // Mode indicatif : la confirmation de prix au-dessus du seuil n'est plus exigée d'un lancement AUTOMATIQUE (relance, reprise
-  // après recharge) ; elle reste exigée d'un lancement fait à la main par Will et de toute commande de l'Usine.
+  // Mode indicatif (commande de l'utilisateur) : `confirme` vaut déjà le prix du jour (accordAutomatique), la confirmation au-dessus
+  // du seuil ne refuse donc plus, que le lancement soit automatique ou fait à la main. `seuilIndicatif` ne fait que dispenser
+  // un lancement AUTOMATIQUE d'une commande qui garderait un accord insuffisant. Mode bloquant et Usine : confirmation exigée.
   const seuilIndicatif = options.automatique === true && options.origine !== "usine" && (await budgetIndicatif());
   if (!seuilIndicatif && bloquant > budget.seuilConfirmation.centimes && !accordCouvre(confirme, bloquant, budget.seuilConfirmation.centimes)) {
     const prix = formaterMontant({ centimes: bloquant, devise: "EUR" });
@@ -403,7 +412,7 @@ export async function verifierEtReserver(
 ): Promise<void> {
   await sousVerrouCredits(async () => {
     // L1-09 : `origine: "usine"` exige le budget du mois reçu de l'Usine ; sans origine, la commande de Will (inchangée).
-    await verifierBudgetEtCredits(estimation, confirme, quoi, { origine: options.origine, travailId: demande.travailId, automatique: options.automatique });
+    await verifierBudgetEtCredits(estimation, confirme, quoi, { origine: options.origine, travailId: demande.travailId, automatique: options.automatique, videoId: demande.videoId });
     await reserverCredits({ ...demande, lignes: estimation.lignes });
     // E2E-2 argent n° 5 : l'estimation est ENGAGÉE sur le budget du mois jusqu'à la fin (restant = budget − dépensé − engagé).
     await engagerBudget(demande.travailId, estimation.total, demande.videoId);
