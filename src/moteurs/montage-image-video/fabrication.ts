@@ -35,7 +35,8 @@
  */
 import { createHash } from "node:crypto";
 import { completerCarte, controlerCarte, reparerOrphelinsDeBranche, schemaCarteImage, type CarteImage, type ControleCarte, type TypeImage } from "@/domaine/image-video/carte";
-import { reparerEtSignaler } from "@/domaine/image-video/reparation";
+import { ecrireAdaptations, reparerEtSignaler } from "@/domaine/image-video/reparation";
+import { adapterCarteAutomatiquement } from "@/domaine/image-video/analyste/chaine-auto";
 import { schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
@@ -78,7 +79,11 @@ export const CARTES_OBLIGATOIRES = 10;
 /** Plafond par défaut d'une vidéo, en centimes d'euro (plan § 9 : au plus ≈ 2,20 € ; très complexe ≈ 3 €). */
 export const PLAFOND_VIDEO_IV_CENTIMES = 300;
 
-export type ValidationCarte = "toujours" | "si-doute";
+/**
+ * `automatique` (défaut, R5) : le code répare et adapte la carte, la carte et le script sont validés par le réglage, rien
+ * n'attend Will tant que le prix reste dans le prix accordé. `si-doute` et `toujours` : les portes de Will (B6).
+ */
+export type ValidationCarte = "automatique" | "toujours" | "si-doute";
 
 /* ------------------------------------------------------------------ */
 /* Bruitages validés                                                     */
@@ -697,6 +702,9 @@ export function validerCarteIV(etat: EtatFabricationIV, d: DecisionCarteIV): Eta
   const { carte: reliee, deduits } = reparerOrphelinsDeBranche(carte);
   const vusDeduits = new Set(deduits.map((l) => l.vers));
   carte = reliee;
+  // R5 : puis le réalisme (calculs, chiffres absurdes, parts, ordre), sans rien demander à Will ni à l'IA.
+  const auto = adapterCarteAutomatiquement(carte, { typeChoisi: !!d.carte });
+  carte = auto.carte;
   const controle = controlerCarte(carte);
   if (!controle.ok) {
     const aide = " Ce bloc n'a aucune flèche et le code ne peut pas deviner où le relier : relancez la lecture avec une image où il est relié.";
@@ -710,6 +718,7 @@ export function validerCarteIV(etat: EtatFabricationIV, d: DecisionCarteIV): Eta
   e.journal.push(`Carte validée par Will${d.carte ? " (corrigée)" : ""}.`);
   if (vusDeduits.size > 0) e.journal.push(`Liens déduits de la mise en page (aucune flèche sur l'image) : ${deduits.map((l) => `${l.de} → ${l.vers}`).join(", ")}.`);
   if (reparee.reparations.length > 0) e.journal.push(`Carte réparée par le code avant validation : ${reparee.reparations.map((x) => x.detail).join(" ")}`);
+  if (auto.phrases.length > 0) e.journal.push(`Carte adaptée automatiquement avant validation : ${auto.phrases.join(" ")}`);
   return passerA(e, "ecriture");
 }
 
@@ -1102,19 +1111,35 @@ async function pasConceptionTexte(e: EtatFabricationIV, o: OutilsFabricationIV, 
 /** Suite commune de la lecture d'une image et de la conception d'un texte : la carte proposée, ses doutes, la porte « carte ». */
 async function suiteCarteLue(e: EtatFabricationIV, o: OutilsFabricationIV, carteLue: CarteImage, controleLu: ControleCarte, ligne: (doutes: string[]) => string): Promise<EtatFabricationIV> {
   const { demande } = e;
-  const r = { carte: carteLue, controle: controleLu };
-  const doutes = doutesDeLaCarte(r.carte, r.controle);
-  e.propositionCarte = { carte: r.carte, controle: r.controle, doutes, empreinte: empreinteDe({ carte: r.carte, controle: r.controle }) };
+  // R5 : AVANT la validation et le script (l'empreinte de la carte, lue par Q03, change avec elle), la carte est réparée puis
+  // adaptée au réalisme par le code, sans appel IA. Si elle change, sa validation tombe (rien n'est encore validé ici).
+  const adaptee = adapterCarteAutomatiquement(carteLue, { typeChoisi: !!demande.typeImpose });
+  let lue = adaptee.carte;
+  const controle = adaptee.changee ? controlerCarte(lue) : controleLu;
+  const doutes = doutesDeLaCarte(lue, controle);
+  // Mode automatique : chaque doute accepté sans relecture est écrit dans les adaptations (visible sur l'écran de résultat),
+  // AVANT l'empreinte de la proposition.
+  if (demande.validationCarte === "automatique" && doutes.length) lue = ecrireAdaptations(lue, doutes.map((d) => `Point accepté sans relecture, à vérifier : ${d}`));
+  e.propositionCarte = { carte: lue, controle, doutes, empreinte: empreinteDe({ carte: lue, controle }) };
   e.journal.push(ligne(doutes));
-  if (r.carte.adaptations?.length) e.journal.push(`Carte adaptée automatiquement (${r.carte.adaptations.length}) : ${r.carte.adaptations.map((x) => x.replace(/^Adapté automatiquement : /, "")).join(" ; ")}`);
+  if (lue.adaptations?.length) e.journal.push(`Carte adaptée automatiquement (${lue.adaptations.length}) : ${lue.adaptations.map((x) => x.replace(/^Adapté automatiquement : /, "")).join(" ; ")}`);
 
   // Lot : aucune porte n'attend Will (ni B6, ni le réglage « toujours ») ; contrôle automatique à la place.
   if (demande.lot) return carteEnLot(e, o);
+  // Mode automatique (défaut) : la carte réparée est validée par le réglage, même sous 10 cartes et malgré les doutes.
+  // Seul un défaut bloquant que le code n'a pas su réparer garde la porte (Will peut alors corriger la carte).
+  if (demande.validationCarte === "automatique" && controle.ok) {
+    const carte: CarteImage = { ...lue, validation: { par: "reglage", le: o.maintenant().slice(0, 40), empreinteCarte: lue.image.empreinte } };
+    delete e.propositionCarte;
+    e.carte = { carte, par: "reglage" };
+    e.journal.push(`Carte validée par le réglage « automatique »${doutes.length ? ` : ${doutes.length} point(s) accepté(s) sans relecture, écrit(s) dans « Adapté automatiquement, à vérifier »` : ""}.`);
+    return passerA(e, "ecriture");
+  }
   const validees = await o.cartesValidees();
   const obligatoire = validees < CARTES_OBLIGATOIRES;
-  if (obligatoire || demande.validationCarte === "toujours" || doutes.length || !r.controle.ok) return passerA(e, "carte-a-valider");
+  if (obligatoire || demande.validationCarte === "toujours" || doutes.length || !controle.ok) return passerA(e, "carte-a-valider");
   // « si-doute », 10 cartes validées, aucun doute : la carte est validée par le réglage de Will.
-  const carte: CarteImage = { ...r.carte, validation: { par: "reglage", le: o.maintenant().slice(0, 40), empreinteCarte: r.carte.image.empreinte } };
+  const carte: CarteImage = { ...lue, validation: { par: "reglage", le: o.maintenant().slice(0, 40), empreinteCarte: lue.image.empreinte } };
   delete e.propositionCarte;
   e.carte = { carte, par: "reglage" };
   e.journal.push("Carte sans doute : validée par le réglage « si-doute » (10 cartes déjà validées).");
@@ -1124,15 +1149,16 @@ async function suiteCarteLue(e: EtatFabricationIV, o: OutilsFabricationIV, carte
 /** Lot, porte « carte » : les mêmes fonctions que Will (`validerCarteIV`), avec la carte telle que proposée. */
 function carteEnLot(e: EtatFabricationIV, o: OutilsFabricationIV): EtatFabricationIV {
   const p = e.propositionCarte!;
-  const mise = miseDeCoteCarteIV(p.carte, p.controle, p.doutes);
+  // Mode automatique : plus de mise de côté sur doute ; seul un défaut bloquant resté après réparation met la vidéo de côté.
+  const mise = e.demande.validationCarte === "automatique" ? (p.controle.ok ? null : { motif: "Ce que j'ai compris de l'image a un défaut.", phrases: [...new Set(p.controle.erreurs)] }) : miseDeCoteCarteIV(p.carte, p.controle, p.doutes);
   passerA(e, "carte-a-valider");
   if (mise) return mettreDeCote(e, "carte", mise.motif, mise.phrases);
   try {
     const valide = validerCarteIV(e, { proposition: p.empreinte, le: o.maintenant() });
     // Validée par le contrôle automatique, pas par Will : `par: "reglage"` ; elle ne compte pas parmi les cartes relues.
     valide.carte = { carte: { ...valide.carte!.carte, validation: { ...valide.carte!.carte.validation!, par: "reglage" } }, par: "reglage" };
-    valide.journal.pop();
-    valide.journal.push("Carte sans doute : validée par le contrôle automatique du lot.");
+    valide.journal = valide.journal.filter((l) => !l.startsWith("Carte validée par Will"));
+    valide.journal.push(e.demande.validationCarte === "automatique" ? "Carte validée par le réglage « automatique » (lot)." : "Carte sans doute : validée par le contrôle automatique du lot.");
     return valide;
   } catch (err) {
     return mettreDeCote(e, "carte", raisonDe(err), err instanceof ErreurDecisionIV ? err.phrases : []);
@@ -1177,7 +1203,7 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
     e.journal.push(`Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
     passerA(e, "script-a-valider");
     // Lot : aucune porte n'attend Will ; contrôle automatique avant de payer la voix.
-    return e.demande.lot ? controleAutomatiqueScriptIV(e, o.budget.indicatif?.facteurSecurite) : e;
+    return e.demande.lot || e.demande.validationCarte === "automatique" ? controleAutomatiqueScriptIV(e, e.demande.lot ? o.budget.indicatif?.facteurSecurite : undefined) : e;
   }
   if (r.motif === "budget") return refuser(e, "ecriture", plafond(), r.message);
   return refuser(e, "ecriture", "IV_ECRITURE", r.message, { phrases: r.refus, reessayable: r.motif !== "reglage" });
@@ -1187,9 +1213,11 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
  * Lot, porte « script » (plan § d.2). PUR. `null` : le script est sans doute (rien à trancher, prix connu et dans le prix
  * accordé). Les formules absolues passent avant « à trancher » : B7, rien n'est changé sans Will.
  */
-export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: number): { motif: string; phrases: string[] } | null {
-  if (p.formules.length) return { motif: `Une formule trop affirmative est dans le script : ${p.formules.map((f) => `« ${f.texte} »`).join(", ")}.`, phrases: p.aTrancher.map((m) => m.message) };
-  if (p.aTrancher.length) return { motif: "Le script a une phrase à trancher.", phrases: p.aTrancher.map((m) => m.message) };
+export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: number, options: { formulesGardees?: boolean } = {}): { motif: string; phrases: string[] } | null {
+  // R5 (mode automatique) : les phrases affirmatives sont GARDÉES telles quelles ; elles ne mettent rien de côté.
+  const aTrancher = options.formulesGardees ? p.aTrancher.filter((m) => m.regle !== "Q05bis") : p.aTrancher;
+  if (p.formules.length && !options.formulesGardees) return { motif: `Une formule trop affirmative est dans le script : ${p.formules.map((f) => `« ${f.texte} »`).join(", ")}.`, phrases: p.aTrancher.map((m) => m.message) };
+  if (aTrancher.length) return { motif: "Le script a une phrase à trancher.", phrases: aTrancher.map((m) => m.message) };
   if (p.prix.auPlusCentimes <= 0) return { motif: "Le prix de la voix n'a pas pu être calculé.", phrases: [] };
   // Mode indicatif (`facteurSecurite` donné) : le prix accordé est un repère ; seul l'arrêt de sécurité (n × ce prix) met le script de côté.
   if (p.prix.engageCentimes + p.prix.auPlusCentimes > p.prix.plafondCentimes * (facteurSecurite ?? 1)) {
@@ -1204,12 +1232,15 @@ export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: num
  */
 export function controleAutomatiqueScriptIV(etat: EtatFabricationIV, facteurSecurite?: number): EtatFabricationIV {
   const p = etat.propositionScript!;
-  const mise = miseDeCoteScriptIV(p, facteurSecurite);
+  // R5 : en mode automatique, les phrases affirmatives sont gardées (choix « garder » posé par le réglage, pas par Will).
+  const auto = etat.demande.validationCarte === "automatique";
+  const mise = miseDeCoteScriptIV(p, facteurSecurite, { formulesGardees: auto });
   if (mise) return mettreDeCote(etat, "script", mise.motif, mise.phrases);
   try {
-    const valide = validerScriptIV(etat, { proposition: p.empreinte, choixFormules: {}, ajoutsWill: [] });
+    const choixFormules: Record<string, ChoixFormule> = auto ? Object.fromEntries(p.formules.map((f) => [f.cle, "garder" as const])) : {};
+    const valide = validerScriptIV(etat, { proposition: p.empreinte, choixFormules, ajoutsWill: [] });
     valide.journal.pop();
-    valide.journal.push("Script sans doute : validé par le contrôle automatique du lot.");
+    valide.journal.push(auto ? `Script validé par le réglage « automatique » : le prix reste dans le prix accordé${p.formules.length ? `, ${p.formules.length} phrase(s) affirmative(s) gardée(s) telle(s) quelle(s)` : ""}.` : "Script sans doute : validé par le contrôle automatique du lot.");
     return valide;
   } catch (err) {
     return mettreDeCote(etat, "script", raisonDe(err), err instanceof ErreurDecisionIV ? err.phrases : []);

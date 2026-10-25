@@ -58,12 +58,16 @@ Le studio s'arrête net au plafond, il ne le dépasse jamais. Chaque étape atte
 - Le cadeau sera : votre image en grand format + une page « comment ça marche ».
 - Tant que ce cadeau n'existe pas réellement et que le mot n'est pas branché, **aucune vidéo ne promet d'envoi** : toutes proposent le diagnostic gratuit.
 
-### B6 · Validation de « ce que j'ai compris de l'image »
-- **Obligatoire pour les 10 premières vidéos.** Ensuite facultative : l'étape ne s'affiche que s'il y a un doute (désaccord entre les deux lectures, chiffre incertain, phrase trop affirmative). Modifiable : réglage « toujours ».
+### B6 · Validation de « ce que j'ai compris de l'image » (remplacé par le mode automatique)
+- **Mode automatique (défaut)** : l'image incohérente ne bloque jamais la vidéo. Avant la validation, le code répare la carte (blocs et flèches en doublon, références cassées, cycles, type non satisfait, blocs sans flèche), puis adapte au réalisme (calcul faux recalculé, chiffre absurde retiré, parts incorrectes retirées, ordre précisé). Aucun appel IA, aucun texte ni chiffre inventé.
+- La carte est validée par le réglage (`par: "reglage"`), même sous 10 cartes, malgré les doutes. En lot, plus de mise de côté sur doute. Seul un défaut bloquant que le code n'a pas su réparer garde la porte.
+- Le script est validé seul si le prix de la voix reste dans le prix accordé ; sinon la vidéo est mise de côté (comportement inchangé).
+- Tout ce qui a été réparé ou adapté est écrit dans `carte.adaptations` et listé sur l'écran de résultat (« Adapté automatiquement, à vérifier »). Le schéma d'exemple reste un exemple.
+- Les anciens réglages restent disponibles : « En cas de doute » (obligatoire pour les 10 premières) et « Toujours ».
 
 ### B7 · Promesses et formules trop affirmatives
 - Pour toute automatisation, la vidéo dit et affiche « situation type » (ou « exemple ») : jamais présentée comme un vrai client.
-- Les formules absolues de l'image (« zéro erreur », « 0 demande perdue », « dès le premier jour »…) sont surlignées à la validation du script, avec une version prudente proposée (ex. « Presque plus d'erreurs »). Vous choisissez « garder » ou « version prudente ». Rien n'est changé sans vous.
+- **Mode automatique** : les phrases affirmatives de l'image (« 0 question sans réponse », « zéro erreur »…) sont GARDÉES telles quelles. Elles ne bloquent rien et ne remplacent rien d'office ; elles sont signalées dans les adaptations. Dans les anciens réglages (« En cas de doute », « Toujours »), elles restent surlignées à la validation du script avec une version prudente proposée : Will choisit « garder » ou « version prudente ».
 - Les mots interdits (« machine », « Villeexemple », « aucun gain garanti »…) passent avant la règle « mot pour mot » : s'ils sont dans la phrase-choc de l'image, le studio propose une reformulation.
 
 ### B8 · Photos de vraies personnes dans l'image

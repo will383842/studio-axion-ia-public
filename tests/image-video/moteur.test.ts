@@ -237,20 +237,16 @@ describe("porte « carte » : obligatoire pour les 10 premières, puis selon le 
     expect(JSON.stringify(await avancerIV(apres, o))).toBe(JSON.stringify(apres));
   });
 
-  it("refus : carte corrigée avec un défaut bloquant, ou décision sur une autre proposition ; rien n'est gardé", async () => {
+  it("carte corrigée avec un bloc sans flèche : reliée seule ; décision sur une autre proposition : refus, rien n'est gardé", async () => {
     const { o, e } = demarrer("C");
     const arret = await avancerJusquAArretIV(e, o);
     const carte = arret.propositionCarte!.carte;
-    // Un bloc posé sans aucune flèche (hors branche) reste un défaut que le code ne peut pas deviner : refus. Une flèche
-    // vers un bloc absent, elle, est réparée seule (R2, tests/image-video/reparation-carte.test.ts).
-    const cassee = { ...carte, noeuds: [...carte.noeuds, { ...carte.noeuds[0]!, id: "n99", libelle: "Bloc perdu", ordre: 99 }] };
-    try {
-      validerCarteIV(arret, decisionCarte(arret, cassee));
-      throw new Error("aurait dû refuser");
-    } catch (err) {
-      expect(err).toBeInstanceOf(ErreurDecisionIV);
-      expect((err as ErreurDecisionIV).phrases.join(" ")).toMatch(/relié à rien/);
-    }
+    // R5 : un bloc posé sans aucune flèche ne bloque plus : le code le relie à son voisin et le dit.
+    const orpheline = { ...carte, noeuds: [...carte.noeuds, { ...carte.noeuds[0]!, id: "n99", libelle: "Bloc perdu", ordre: 99 }] };
+    const validee = validerCarteIV(arret, decisionCarte(arret, orpheline));
+    expect(validee.etape).toBe("ecriture");
+    expect(validee.carte!.carte.liens.some((l) => l.vers === "n99" || l.de === "n99")).toBe(true);
+    expect(validee.journal.join(" ")).toMatch(/Carte (réparée|adaptée)/);
     expect(() => validerCarteIV(arret, { proposition: "autre", le: "x" })).toThrow(/a changé/);
     expect(arret.etape).toBe("carte-a-valider");
   });
@@ -1067,7 +1063,8 @@ function commande(carte: CarteImage, plus: Record<string, unknown> = {}): Comman
     styles: {},
     briques: {},
     entrees: { imageVideo: { imageCle: carte.image.cle, empreinte: carte.image.empreinte, plafondCentimes: 500, codeSuivi: "essai", accordEssaiReel: true, ...plus } },
-    reglages: {},
+    // Ces tests décrivent les portes de Will : réglage « en cas de doute » (le défaut est « automatique », voir mode-automatique.test.ts).
+    reglages: { validationCarte: "si-doute" },
     plans: [],
     prononciations: [],
     mentionIA: { incrustee: false, position: "haut-droite", dureeSec: 0, texte: "", dansLegende: false },
@@ -1148,7 +1145,7 @@ describe("fiche du format « image-video » (code IV)", () => {
   it("masquée, code IV, sans musique, 9:16, moteur montage-image-video, réglages par défaut", () => {
     expect(formatImageVideo).toMatchObject({ id: "image-video", statut: "masque", codeClassement: "IV", musique: "interdite", moteur: "montage-image-video", ratios: ["9:16"] });
     expect(formatImageVideo.reseauxConseilles).toEqual(["youtube-shorts", "linkedin", "instagram", "facebook"]);
-    expect(schemaReglagesImageVideo.parse({})).toEqual({ decoupage: "chapitres", appelCommentaire: "question-puis-fin", validationCarte: "si-doute", bruitages: "discrets" });
+    expect(schemaReglagesImageVideo.parse({})).toEqual({ decoupage: "chapitres", appelCommentaire: "question-puis-fin", validationCarte: "automatique", bruitages: "discrets" });
     expect(schemaReglagesImageVideo.safeParse({ decoupage: "deux-videos" }).success).toBe(false);
     expect(schemaReglagesImageVideo.safeParse({ bruitages: "forts" }).success).toBe(false);
   });
