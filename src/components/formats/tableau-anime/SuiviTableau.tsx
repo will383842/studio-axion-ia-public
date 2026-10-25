@@ -55,12 +55,12 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
     });
   }
 
-  async function relancer(montant?: number, message?: string) {
+  async function relancer(montant?: number, message?: string, dejaRelance = false) {
     setPhrase(null);
     let accord: number | undefined;
     if (typeof montant === "number") {
       const a = await confirmerPrix({ message: message ?? "La voix de cette vidéo est la seule dépense (l'écriture et le découpage sont gardés).", montant });
-      if (typeof a !== "number") return setPhrase("Rien n'est relancé tant que le prix n'est pas confirmé.");
+      if (typeof a !== "number") return setPhrase("Relance non lancée. Prix indicatif, sans blocage : réessayez quand vous voulez.");
       accord = a;
     }
     demarrer(async () => {
@@ -68,7 +68,11 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
       if (!r) return setPhrase(injoignable);
       if (!r.ok) return setPhrase(r.message);
       if (r.donnees.statut === "refusee") return setPhrase(r.donnees.phrase);
-      if (r.donnees.statut === "accord-requis") return void relancer(r.donnees.centimes, r.donnees.phrase);
+      if (r.donnees.statut === "accord-requis") {
+        // UNE seule relance automatique, jamais de boucle.
+        if (dejaRelance) return setPhrase("Le prix a changé, réessayez.");
+        return void relancer(r.donnees.centimes, r.donnees.phrase, true);
+      }
       notifier.succes(r.donnees.phrase);
       // Relance d'un autre travail (arrêt à la relecture) : la page suit le nouveau ; sinon le suivi repart d'ici.
       if (r.donnees.travailId !== t.id) router.refresh();

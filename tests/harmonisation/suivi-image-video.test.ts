@@ -90,11 +90,12 @@ describe("F6 · Fabrication d'une vidéo, sur le socle", () => {
     expect(t).not.toContain("Déjà payé");
   });
 
-  it("l'ordre d'avant : steps, puis l'argent, puis le détail du refus, puis « Refaire cette partie », puis le plafond", () => {
+  it("l'ordre d'avant : steps, puis l'argent, puis le détail du refus, puis « Refaire cette partie » (plus de plafond à relever)", () => {
     const vue = { ...argent, pas: pas("fait", "arrete"), attente: true, refus: { phrase: "Le rendu n'a pas abouti.", details: ["Détail un"], reessayable: true } };
     const t = texte(rendreFab({ vue, plafond: { proposeCentimes: 700, arrete: false } }));
-    const ordre = ["Le rendu tourne", "Dépense", "Détail un", "Refaire cette partie", "Besoin de plus de marge"].map((m) => t.indexOf(m));
+    const ordre = ["Le rendu tourne", "Dépense", "Détail un", "Refaire cette partie"].map((m) => t.indexOf(m));
     expect(ordre.every((i) => i >= 0)).toBe(true);
+    expect(t).not.toContain("Besoin de plus de marge");
     expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
   });
 
@@ -122,8 +123,8 @@ describe("F6 · Fabrication d'une vidéo, sur le socle", () => {
     expect(texte(rendreFab({ vue, arretee: true }))).not.toContain("Refaire cette partie");
   });
 
-  it("le plafond relevable reste proposé hors fabrication en cours", () => {
-    expect(texte(rendreFab({ plafond: { proposeCentimes: 700, arrete: true } }))).toContain("Relever le plafond");
+  it("plus de « Relever le plafond » (règle du 25/10/2026) : la jauge de dépense reste en information", () => {
+    expect(texte(rendreFab({ plafond: { proposeCentimes: 700, arrete: true } }))).not.toContain("Relever le plafond");
     expect(texte(rendreFab({ enCours: true, arret, plafond: { proposeCentimes: 700, arrete: false } }))).not.toContain("Relever le plafond");
   });
 
