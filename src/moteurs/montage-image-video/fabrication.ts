@@ -34,7 +34,7 @@
  * Ce fichier n'importe aucun service, aucun fournisseur et rien de `studio-rendu/`.
  */
 import { createHash } from "node:crypto";
-import { completerCarte, controlerCarte, schemaCarteImage, type CarteImage, type ControleCarte, type TypeImage } from "@/domaine/image-video/carte";
+import { completerCarte, controlerCarte, reparerOrphelinsDeBranche, schemaCarteImage, type CarteImage, type ControleCarte, type TypeImage } from "@/domaine/image-video/carte";
 import { schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
@@ -684,14 +684,22 @@ export function validerCarteIV(etat: EtatFabricationIV, d: DecisionCarteIV): Eta
   } catch {
     throw new ErreurDecisionIV("La carte corrigée est incomplète : vérifiez chaque bloc, puis validez de nouveau.");
   }
+  // Blocs sans flèche rangés dans une branche : lien déduit de la mise en page (marqué, signalé), sinon blocage expliqué.
+  const { carte: reliee, deduits } = reparerOrphelinsDeBranche(carte);
+  const vusDeduits = new Set(deduits.map((l) => l.vers));
+  carte = reliee;
   const controle = controlerCarte(carte);
-  if (!controle.ok) throw new ErreurDecisionIV("La carte corrigée a encore un défaut bloquant.", controle.erreurs);
+  if (!controle.ok) {
+    const aide = " Ce bloc n'a aucune flèche et le code ne peut pas deviner où le relier : relancez la lecture avec une image où il est relié.";
+    throw new ErreurDecisionIV("La carte corrigée a encore un défaut bloquant.", controle.erreurs.map((m) => (m.endsWith("n'est relié à rien.") ? m + aide : m)));
+  }
   const validee: CarteImage = { ...carte, validation: { par: "will", le: d.le.slice(0, 40), empreinteCarte: carte.image.empreinte } };
   const e = structuredClone(etat);
   delete e.propositionCarte;
   delete e.miseDeCote;
   e.carte = { carte: validee, par: "will" };
   e.journal.push(`Carte validée par Will${d.carte ? " (corrigée)" : ""}.`);
+  if (vusDeduits.size > 0) e.journal.push(`Liens déduits de la mise en page (aucune flèche sur l'image) : ${deduits.map((l) => `${l.de} → ${l.vers}`).join(", ")}.`);
   return passerA(e, "ecriture");
 }
 
