@@ -26,7 +26,7 @@ import { CRETE_IV_DBTP, LOUDNESS_IV_LUFS } from "./assemblage";
 import { DEFAUTS_DE_DETAIL_IV, LIGNES_ZERO_BLOCAGE_IV } from "./adaptation-scene";
 import { clesDeLaCarte, controlerToutMontre, type LigneControleSceneIV } from "./controles-scene";
 import { miseEnPageAuxInstantsIV } from "./emprise-ligne";
-import { formeDite, formesComparables, type ConstatControle, type EcouteVersionIV } from "./ecoute";
+import { formeDite, formesComparables, SEUILS_ECOUTE_IV, type ConstatControle, type EcouteVersionIV } from "./ecoute";
 import { FIGE_IV } from "./commandes-ffmpeg";
 import type { FinIV } from "./fins";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV, type ResultatMiseEnSceneIV } from "./mise-en-scene";
@@ -381,8 +381,10 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // Q17-Q19 · écoute (piste voix seule) ; Q19 reprend aussi la ligne de temps.
   lignes.push(deConstat("Q17", v, ecoute?.q17, "la piste voix seule n'a pas été lue."));
   // Q18 sous ses planchers : remarque (une transcription approximative n'est pas une voix absente) ; écoute non faite = non fait.
+  // Voix absente (transcription vide, ou moins de 50 % des mots entendus) : blocage voulu.
   const q18 = avecRemarques(ecoute?.q18, ecoute?.q18Remarques);
-  lignes.push(deConstat("Q18", v, q18 && !q18.ok && !q18.nonFait ? { ...q18, souple: true } : q18, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined));
+  const voixAbsente = !ecoute?.comparaison || ecoute.comparaison.part < SEUILS_ECOUTE_IV.retrouvesAbsente - 1e-9;
+  lignes.push(deConstat("Q18", v, q18 && !q18.ok && !q18.nonFait && !voixAbsente ? { ...q18, souple: true } : q18, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined));
   const q19 = ecoute?.q19;
   const q19Ligne = sceneDe("Q19");
   lignes.push(deConstat("Q19", v, q19 ? { ...q19, ok: q19.ok && q19Ligne.length === 0, details: [...q19.details, ...q19Ligne] } : undefined, "la fin n'a pas été mesurée sur la voix seule."));

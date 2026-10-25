@@ -38,6 +38,8 @@ export const SEUILS_ECOUTE_IV = Object.freeze({
    * et reste refusée. Règle de Will : un défaut de détail signale, il ne bloque pas.
    */
   retrouvesPlancher: 0.9,
+  /** VOIX ABSENTE : en dessous de cette part (ou transcription vide), Q18 BLOQUE. Entre ce seuil et le plancher, remarque seulement. */
+  retrouvesAbsente: 0.5,
   /** Mots ajoutés consécutifs tolérés (au-delà : refus). */
   ajoutConsecutifMax: 2,
   /** Un mot transcrit qui commence plus de 0,3 s après la fin de la voix est ignoré (Whisper invente sur les silences). */
