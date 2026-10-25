@@ -75,3 +75,26 @@ describe.each([
     expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
   });
 });
+
+const decors = await import("@/services/decors");
+
+describe.each([
+  ["indicatif", true],
+  ["bloquant", false],
+] as const)("décors — mode %s", (mode, indicatif) => {
+  beforeEach(async () => {
+    await ecrireParametre(CLE_MODE_BUDGET, mode);
+  });
+
+  it(indicatif ? "« Un décor en une phrase » sans confirmation du coût : les 3 propositions partent" : "témoin : sans confirmation du coût, « Confirmez d'abord »", async () => {
+    const lancement = decors.demanderDecor("Un bureau en bois avec une bibliothèque", { confirme: false });
+    if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
+    expect((await lancement).propositionIds).toHaveLength(3);
+  });
+
+  it(indicatif ? "Look de décor sans confirmation du coût : un look par angle" : "témoin : Look de décor sans confirmation, « Confirmez d'abord »", async () => {
+    const lancement = decors.preparerLookDecor("decor-r2-bibliotheque", { confirme: false });
+    if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
+    expect((await lancement).crees.sort()).toEqual(["face", "trois-quarts"]);
+  });
+});
