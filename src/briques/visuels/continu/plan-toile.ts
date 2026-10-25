@@ -150,11 +150,8 @@ function poserRaccords(types: string[], debutParcours: number, parcours: Definit
     const zone = intersection(ctx.parType.get(types[c - 1])!.bordsLibres.droite, ctx.parType.get(types[c])!.bordsLibres.gauche, hauteur);
     const possibles = zone ? ctx.raccords.filter((x) => x.diametre <= zone[1] - zone[0]) : [];
     const choisi = piocher(possibles, r);
-    if (!choisi || !zone) {
-      // La couture 1/2 porte toujours un raccord quand le parcours n'ouvre pas la toile.
-      if (c === 1) return undefined;
-      continue;
-    }
+    // Une couture externe sans raccord possible écarte le plan.
+    if (!choisi || !zone) return undefined;
     raccords.push({ type: choisi.type, couture: c, y: Math.round((zone[0] + zone[1]) / 2) });
   }
   return raccords;
@@ -201,8 +198,11 @@ function phraseImpossible(entree: EntreePlan, parcours: DefinitionParcours[], ct
  * `premierSansRepetition` écarte les suites et couvertures des récents.
  */
 export function choisirPlan(entree: EntreePlan, registres: RegistresPlan = REGISTRES_PRODUCTION): PlanToile {
+  if (!Number.isInteger(entree.version) || entree.version < 1) {
+    throw new ErreurPlanToile("La version du plan doit être un entier d'au moins 1 : 1 au premier essai, puis +1 à chaque « Refaire ».");
+  }
   if (entree.pagesCible !== undefined && (entree.pagesCible < PAGES_MIN || entree.pagesCible > PAGES_MAX || !Number.isInteger(entree.pagesCible))) {
-    throw new ErreurPlanToile(`Le nombre de pages demandé doit être un entier de ${PAGES_MIN} à ${PAGES_MAX} : une toile compte ${PAGES_MAX} pages au plus.`);
+    throw new ErreurPlanToile(`Le nombre de pages demandé doit être un entier, de ${PAGES_MIN} à ${PAGES_MAX} pages : une toile en compte ${PAGES_MAX} au plus.`);
   }
   const production = registres.gabarits.filter((g) => g.actif && !g.essai);
   const parType = new Map(production.map((g) => [g.type, g]));
@@ -232,6 +232,9 @@ export function choisirPlan(entree: EntreePlan, registres: RegistresPlan = REGIS
   if (candidats.length === 0) candidats = tirer(disponibles);
   if (candidats.length === 0) throw new ErreurPlanToile(phraseImpossible(entree, disponibles, ctx));
 
+  if (candidats.length === 1 && entree.version > 1) {
+    throw new ErreurPlanToile("Un seul plan possible avec ces réglages : cochez une famille de plus ou changez la variété pour en voir un autre.");
+  }
   const depart = (graine + Math.max(0, entree.version - 1)) % candidats.length;
   const empreinte = (p: PlanToile) => empreintePlan(p.types);
   const choisi = premierSansRepetition(candidats, depart, empreinte, entree.recents);

@@ -5,3 +5,4 @@ Dockerfile text eol=lf
 *.ttf binary
 *.wav binary
 *.mp4 binary
+scripts/visuels/*.md text eol=lf
