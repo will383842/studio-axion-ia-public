@@ -150,15 +150,15 @@ export async function signalerDepassementIndicatif(motif: string, titre: string,
  *  - sous le plafond : "ok" ;
  *  - mode bloquant, plafond dépassé : "bloque" (refus comme avant) ;
  *  - mode indicatif, jusqu'à 5 × le plafond : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif) ;
- *  - mode indicatif, au-delà de 5 × le plafond : "arret-securite" (jamais payé).
+ *  - mode indicatif, au-delà de 5 × le plafond : "depasse" (même alerte, SANS arrêt : le prix ne bloque jamais).
  */
-export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque" | "arret-securite"> {
+export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque" | "depasse"> {
   const plafond = centimesDuPlafond(plafondUsd);
   if (totalCentimes <= plafond) return "ok";
   if (!indicatif) return "bloque";
-  if (totalCentimes > plafond * FACTEUR_SECURITE_BUDGET) return "arret-securite";
+  const loin = totalCentimes > plafond * FACTEUR_SECURITE_BUDGET;
   await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", `${quoi} : ${messageAuDelaDuBudgetIndicatif(affichage.sansPrix || affichage.tauxUsdEur === undefined ? undefined : formaterMontant(centimes(centimesDuPlafond(plafondUsd * affichage.tauxUsdEur))))}`, sujet);
-  return "ok";
+  return loin ? "depasse" : "ok";
 }
 
 async function alerterUneFoisParJour(motif: string, texte: { titre: string; message: string }): Promise<void> {

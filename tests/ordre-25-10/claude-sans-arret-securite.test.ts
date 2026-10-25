@@ -36,7 +36,7 @@ async function generation(plafondUsd = 1.5): Promise<GenerationScript> {
   await depots().generations.enregistrer(g);
   return g;
 }
-const cloches = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget" || x.type === "credit");
+const cloches = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget" && /dépassé|Plafond du sujet/.test(x.titre));
 
 describe("plafond par vidéo (jugerPlafond)", () => {
   it("indicatif : 6 × le plafond ne s'arrête pas, il signale", async () => {

@@ -334,13 +334,6 @@ export function verifierPartVoix(
     if (deja >= budget.indicatif.lecturesVoixMax) {
       throw new ErreurFabricationCasConcret("voix", [`Cette voix a déjà été lue ${deja} fois pour ce texte : rien de plus n'est payé. Changez le texte pour le relire.`]);
     }
-    // DEUXIÈME borne, gardée : arrêt de sécurité à `facteurSecurite` × la part voix du prix confirmé (compteur ET 5 ×).
-    const p = budget.plafondVoix;
-    const facteur = budget.indicatif.facteurSecurite;
-    if (p && facteur) {
-      const paye = payees.reduce((n, x) => n + x.coutCentimes, 0);
-      if (paye + p.prixLecture(l.texte) > p.centimes * facteur) throw new ErreurFabricationCasConcret("voix", [`Arrêt de sécurité : cette voix dépasserait ${facteur} fois le prix confirmé (${formaterMontant(centimes(p.centimes))}, ${formaterMontant(centimes(paye))} déjà payés) : rien de plus n'est payé.`]);
-    }
     return;
   }
   const plafond = budget.plafondVoix;

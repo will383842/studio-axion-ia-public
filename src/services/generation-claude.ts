@@ -472,10 +472,9 @@ export async function reserverDansPlafondSujet(generationId: Id, appelId: string
     const pireCas = depenseGenerationCentimesUsd(g) + reserveSujetCentimesUsd(generationId) + centimesAuSuperieur(usd * 100);
     const plafond = centimesDuPlafond(g.plafondUsd);
     if (pireCas > plafond) {
-      // Mode indicatif (commande de Will) : le plafond du sujet est un repère ; l'arrêt de sécurité est à 5 × ce plafond.
+      // Mode indicatif (commande de Will) : le plafond du sujet est un repère, jamais un arrêt (règle « le prix ne bloque jamais »).
       if (!indicatif) return { ok: false as const, plafondUsd: g.plafondUsd };
-      if (pireCas > centimesDuPlafond(limiteSecuriteUsd(g))) return { ok: false as const, plafondUsd: g.plafondUsd, securite: true as const };
-      depassement = `Le plafond du sujet (${formaterUsd(g.plafondUsd)} $) est dépassé ; l'écriture continue, l'arrêt de sécurité est à ${FACTEUR_SECURITE_BUDGET} fois ce prix.`;
+      depassement = `Le plafond du sujet (${formaterUsd(g.plafondUsd)} $) est dépassé ; l'écriture continue.`;
     }
     const m = enVol().sujet.get(generationId) ?? new Map<string, number>();
     m.set(appelId, usd);
@@ -1045,15 +1044,14 @@ export async function reserverPireCasChaine(generationId: Id, o: { pireCasRestan
   const pireCasUsd = depenseUsd + o.pireCasRestantUsd;
   // L3-01 (audit) : contrôle en centimes de dollar entiers (plus de tolérance 1e-9), dépenses au centime supérieur.
   const accepte = depenseGenerationCentimesUsd(g) + centimesAuSuperieur(o.pireCasRestantUsd * 100) <= centimesDuPlafond(g.plafondUsd);
-  // Mode indicatif (commande de Will) : un pire cas au-dessus du plafond PRÉVIENT, l'écriture part ; arrêt de sécurité à 5 × le plafond d'origine.
-  const securite = !!o.indicatif && !accepte && depenseGenerationCentimesUsd(g) + centimesAuSuperieur(o.pireCasRestantUsd * 100) > centimesDuPlafond(limiteSecuriteUsd(g));
-  const passeEnIndicatif = !!o.indicatif && !accepte && !securite;
+  // Mode indicatif (commande de Will) : un pire cas au-dessus du plafond PRÉVIENT, l'écriture part ; aucun arrêt de sécurité (le prix ne bloque jamais).
+  const passeEnIndicatif = !!o.indicatif && !accepte;
   // Le réglage à relever : celui donné (un supplément a le sien, relecture A09), sinon celui de la chaîne d'un sujet.
   const reglage = o.reglage ?? (g.portee === "sujet" && o.chaine ? reglagePlafond(o.chaine) : undefined);
-  await ecrireParametre(paramReserveChaine(g.id), { pireCasUsd, depenseUsd, plafondUsd: g.plafondUsd, accepte: accepte || passeEnIndicatif, etape: o.etape ?? 0, chaine: o.chaine, reglage, ...(securite ? { securite: true } : {}), le: maintenant() } satisfies ReserveChaine);
+  await ecrireParametre(paramReserveChaine(g.id), { pireCasUsd, depenseUsd, plafondUsd: g.plafondUsd, accepte: accepte || passeEnIndicatif, etape: o.etape ?? 0, chaine: o.chaine, reglage, le: maintenant() } satisfies ReserveChaine);
   if (passeEnIndicatif) {
     await journaliser("generateur", `Pire cas de l'écriture ${formaterUsd(pireCasUsd)} $ au-dessus du plafond du sujet (${formaterUsd(g.plafondUsd)} $) : l'écriture continue (budget indicatif).`, { type: "sujet", id: g.scriptMaitreId });
-    await signalerDepassementIndicatif("plafond-sujet", "Plafond du sujet dépassé (l'écriture continue)", `Cette écriture peut coûter jusqu'à ${formaterUsd(pireCasUsd)} $, plus que le repère de ${formaterUsd(g.plafondUsd)} $ par sujet ; rien n'est arrêté, l'arrêt de sécurité est à ${FACTEUR_SECURITE_BUDGET} fois ce prix.`);
+    await signalerDepassementIndicatif("plafond-sujet", "Plafond du sujet dépassé (l'écriture continue)", `Cette écriture peut coûter jusqu'à ${formaterUsd(pireCasUsd)} $, plus que le repère de ${formaterUsd(g.plafondUsd)} $ par sujet ; rien n'est arrêté.`);
     return { ok: true };
   }
   if (accepte) {
