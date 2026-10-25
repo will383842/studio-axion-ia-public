@@ -8,7 +8,7 @@ import type { DefinitionGabarit } from "../registre-gabarits";
  * l'étiquette « Scénario type · exemple illustratif » (`textesFixes.t26Etiquette`) est posée par le code, jamais saisie. Les noms propres
  * d'exemple (« M. Martin ») restent des champs ; les icônes sont des clés techniques posées par le composant.
  */
-/** Budgets (caractères) de chaque champ de texte, mesurés par `essai-continu-cas.ts` (texte plein et mots longs, police ≥ 26 px, 0 débordement). */
+/** Budgets (caractères) de chaque champ de texte. À MESURER avec `essai-continu-cas.ts` (texte plein et mots longs, police ≥ 26 px, 0 débordement) : pas encore mesurés. */
 export const BUDGETS_CAS = {
   S01: { titre: 22, accent: 22, fenetre: 34, destinataire: 24, objet: 40, message: 150, validation: 36 },
   S02: { titre: 22, accent: 28, question: 70, reponse: 50, pret: 50, validation: 24 },
@@ -54,6 +54,7 @@ export const CARTES_CAS: DefinitionGabarit[] = [
       message: "Bonjour, je reviens vers vous au sujet du devis envoyé la semaine dernière. Avez-vous eu le temps de le regarder\u00a0?",
       validation: "Vous validez avant l’envoi",
     },
+    // À mesurer (essai-continu-cas.ts) : provisoire, aucun bord n'est encore déclaré libre.
     bordsLibres: { gauche: [[0, 0]], droite: [[0, 0]] },
     cas: true,
     actif: true,
@@ -88,6 +89,7 @@ export const CARTES_CAS: DefinitionGabarit[] = [
       pret: "C’est prêt. Relisez, puis validez.",
       validation: "Validé ✓",
     },
+    // À mesurer (essai-continu-cas.ts) : provisoire, aucun bord n'est encore déclaré libre.
     bordsLibres: { gauche: [[0, 0]], droite: [[0, 0]] },
     cas: true,
     actif: true,
@@ -120,6 +122,7 @@ export const CARTES_CAS: DefinitionGabarit[] = [
         { titre: "Vous validez", texte: "Rien ne part sans votre accord." },
       ],
     },
+    // À mesurer (essai-continu-cas.ts) : provisoire, aucun bord n'est encore déclaré libre.
     bordsLibres: { gauche: [[0, 0]], droite: [[0, 0]] },
     cas: true,
     actif: true,
