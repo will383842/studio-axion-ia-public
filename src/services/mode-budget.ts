@@ -7,6 +7,8 @@
  * Ce qui reste dur dans les DEUX modes : les gardes de l'Usine, le solde réel HeyGen / ElevenLabs, les
  * plafonds anti-boucle (retouches, lectures de voix) et l'idempotence des réservations.
  * (Le double réel et le montage réel, eux, suivent le mode : en indicatif, le prix du jour vaut accord pour une commande de l'utilisateur.)
+ * HONNÊTETÉ (25/10/2026) : côté écran, `confirmerPrix` accepte désormais tout montant, quel que soit le mode : plus aucun clic de
+ * confirmation. En mode « bloquant », seuls les plafonds durs et le budget du mois tiennent encore côté serveur.
  * Le défaut vient du code (`STUDIO_BUDGET_MODE_DEFAUT`, « indicatif » sans variable) ; le réglage en base l'emporte.
  * Un réglage illisible retombe sur le défaut du code. Lu à l'exécution : pas de redémarrage, pas de migration.
  */
