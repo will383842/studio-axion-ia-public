@@ -163,7 +163,7 @@ describe("continu P2 : opération avec fausses dépendances", () => {
     await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", message: expect.stringMatching(/1440/) } });
   });
   it("une mesure dont la largeur ou la hauteur contredit le rendu est un échec", async () => {
-    for (const extra of [{ largeur: 3000 }, { hauteur: 1000 }]) {
+    for (const extra of [{ largeur: 3000 } as Record<string, number>, { hauteur: 1000 }]) {
       const { op } = simule({ extra });
       await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu" } });
     }
