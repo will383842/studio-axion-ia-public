@@ -588,23 +588,26 @@ export async function reprendreEcritureArretee(scriptMaitreId: Id, accord?: Acco
   }
   const aConfirmer = await prixAConfirmerArretee(liste);
   // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu, inchangé.
-  const confirme = aConfirmer ? await accordAutomatique(accordPropre(accord), aConfirmer.montant.centimes) : accordPropre(accord);
+  // L'origine est celle de la génération reprise (l'Usine reste bloquante).
+  const origine = liste.length ? (await lireParametre<OptionsGeneration | null>(cleOptions(liste[0].g.id), null))?.origine : undefined;
+  const accordVu = accordPropre(accord);
+  const confirme = aConfirmer ? await accordAutomatique(accordVu, aConfirmer.montant.centimes, { origine, signaler: !(typeof accordVu === "number" && accordVu >= aConfirmer.montant.centimes) }) : accordVu;
   if (aConfirmer && !(typeof confirme === "number" && confirme >= aConfirmer.montant.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", aConfirmer.phrase, aConfirmer.montant.centimes);
   const supplement = await supplementReprise(liste);
-  const indicatif = await budgetIndicatifPour();
+  const indicatif = await budgetIndicatifPour(origine);
   let n = 0;
   for (const { g, releveUsd } of liste) {
     // CORRECTEUR FINAL A (VERIF-E2E-1 n° 7) : les appels restés sans réponse ne bloquent plus la reprise au plafond.
     // G1 : jamais plus que le relèvement accepté ; plus haut entre-temps → le nouveau prix est redemandé.
     await releverPlafondAuReglage(g);
-    // Indicatif : le relèvement du jour est accepté d'office (l'arrêt de sécurité à 5 × reste) ; bloquant : celui que Will a vu.
+    // Indicatif : le relèvement du jour est accepté d'office (aucune limite, le prix ne bloque jamais) ; bloquant : celui que Will a vu.
     const releve = await releverPlafondApresPannes(g.id, indicatif ? Number.POSITIVE_INFINITY : releveUsd);
     if (releve < 0) {
       const nouveau = (await supplementReprise(await ecrituresAReprendre(scriptMaitreId))) ?? supplement!;
       throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(nouveau), nouveau.centimes);
     }
     await ecrireParametre(clePanne(g.id), null);
-    if (releve > 0) await journaliser("generateur", `Reprise acceptée par Will : jusqu'à ${formaterUsd(releve)} $ de plus pour les appels restés sans réponse (ils restent comptés dans le mois).`, { type: "sujet", id: scriptMaitreId });
+    if (releve > 0) await journaliser("generateur", indicatif ? `Reprise lancée, prix indicatif : jusqu'à ${formaterUsd(releve)} $ de plus pour les appels restés sans réponse (ils restent comptés dans le mois).` : `Reprise acceptée par Will : jusqu'à ${formaterUsd(releve)} $ de plus pour les appels restés sans réponse (ils restent comptés dans le mois).`, { type: "sujet", id: scriptMaitreId });
     await d.generations.modifier(g.id, { statut: "en-cours" });
     if (g.portee === "sujet") await d.scriptsMaitres.modifier(scriptMaitreId, { etat: "en-ecriture" });
     n++;
@@ -765,7 +768,8 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
     prixUsd += r.prixUsd;
   }
   const prix = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
-  const confirme = prix.centimes > 0 ? await accordAutomatique(accordPropre(accord), prix.centimes) : accordPropre(accord);
+  const accordVu = accordPropre(accord);
+  const confirme = prix.centimes > 0 ? await accordAutomatique(accordVu, prix.centimes, { signaler: !(typeof accordVu === "number" && accordVu >= prix.centimes) }) : accordVu;
   if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre peut coûter jusqu'à ${formaterMontant(prix)}. Confirmez pour continuer.`, prix.centimes);
   const d = depots();
   let n = 0;

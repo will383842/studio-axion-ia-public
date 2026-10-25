@@ -112,6 +112,14 @@ describe.each([
     if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
     expect((await lancement).crees.sort()).toEqual(["face", "trois-quarts"]);
   });
+
+  it(indicatif ? "« Créer un décor depuis une phrase » sans confirmation du coût : le décor est créé" : "témoin : création depuis une phrase sans confirmation, « Confirmez d'abord »", async () => {
+    const lancement = decors.creerDecorDepuisDescription("Un bureau en bois avec une bibliothèque", { confirme: false });
+    if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
+    const r = await lancement;
+    expect(r.decorId).toBeTruthy();
+    expect(r.crees.length).toBeGreaterThan(0);
+  });
 });
 
 /* ------------------------------------------------------------------ */
@@ -180,6 +188,46 @@ describe.each([
     await bg.tourBoucleGeneration();
     expect(c.appels.length).toBeGreaterThan(0);
     expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
+  }, 120_000);
+});
+
+describe("reprise d'une écriture ARRÊTÉE sur panne (« Reprendre l'écriture ») — mode indicatif", () => {
+  it("écriture arrêtée en bloquant, mode indicatif posé avant la reprise : elle repart sans montant confirmé, plafond relevé sans limite", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      credits.injecterLecteursPourEssai([creerLecteurAnthropic({ ANTHROPIC_API_KEY: CLE_ESSAI_CLAUDE }, fetchInterdit)], ["anthropic"]);
+      await credits.declarerRecharge("anthropic", 100_000);
+      await ecrireParametre("fournisseur.script", "claude");
+      gc.forcerChainePourEssai("grande");
+      const c = claudePire();
+      const panne = { active: true };
+      gc.injecterClaudePourEssai({
+        cle: CLE_ESSAI_CLAUDE,
+        fetch: (async (u: string | URL | Request, init?: RequestInit) => {
+          if (panne.active) throw new TypeError("coupure du réseau");
+          return c.fetch(u, init);
+        }) as typeof fetch,
+        attenteMs: () => 0,
+      });
+      // L'arrêt sur panne se provoque en mode bloquant ; le mode indicatif est posé ensuite, AVANT la reprise.
+      await ecrireParametre(CLE_MODE_BUDGET, "bloquant");
+      const r = await lancerSujet(0);
+      if (!r.ok) throw new Error("lancement");
+      for (let i = 0; i < 6 && !(await bg.ecritureArretee(r.scriptMaitreId)); i++) {
+        await bg.tourBoucleGeneration();
+        vi.setSystemTime(Date.now() + 61_000);
+      }
+      expect(await bg.ecritureArretee(r.scriptMaitreId)).toBeTruthy();
+      panne.active = false;
+      await ecrireParametre(CLE_MODE_BUDGET, "indicatif");
+      const plafondAvant = (await generation(r.generationId)).plafondUsd;
+      expect(await bg.reprendreEcritureArretee(r.scriptMaitreId)).toBe(true);
+      expect((await generation(r.generationId)).plafondUsd).toBeGreaterThanOrEqual(plafondAvant);
+      expect((await generation(r.generationId)).statut).not.toBe("echec");
+      expect(await bg.ecritureArretee(r.scriptMaitreId)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   }, 120_000);
 });
 

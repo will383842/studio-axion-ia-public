@@ -7,7 +7,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { AccordPrix } from "@/domaine/accord";
-import { essayer, type Resultat } from "@/services/_commun";
+import { depots, essayer, type Resultat } from "@/services/_commun";
 import { avecAccordAutomatique } from "@/services/mode-budget";
 import type { CaseDejaVu } from "@/moteurs/montage-tableau/controles";
 import type { PastilleControle } from "@/domaine/relecture-script";
@@ -108,7 +108,11 @@ export async function cocherDejaVuTableauAction(videoId: string, coche: boolean)
  * travail reprend l'étape en échec et les suivantes, sans repayer la voix. `accord` : le prix confirmé, s'il en faut un.
  */
 export async function relancerTableauAction(travailId: string, accord?: AccordPrix): Promise<Resultat<IssueRelanceTableau>> {
-  const r = await essayer(() => avecAccordAutomatique((a) => relancerTableau(travailId, a ?? accord), undefined));
+  // Origine lue comme la relance du cas concret : la vidéo visée par le travail (l'Usine reste bloquante).
+  const r = await essayer(async () => {
+    const videoId = (await depots().travaux.obtenir(travailId))?.cibleId;
+    return avecAccordAutomatique((a) => relancerTableau(travailId, a ?? accord), undefined, videoId ? { videoId } : {});
+  });
   if (r.ok && r.donnees.statut === "relancee") {
     revalidatePath("/videos");
     revalidatePath("/");
