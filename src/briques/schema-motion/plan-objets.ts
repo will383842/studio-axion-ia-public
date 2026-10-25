@@ -1382,6 +1382,8 @@ export type PlanEnsemble = {
   /** Rang d'apparition de chaque bloc (ordre de lecture). */
   rang: Map<string, number>;
   chiffres: ChiffreEnsemblePlan[];
+  /** Écart posé entre deux rangées (px, ≥ 16) : le rendu doit doser ombre, halo et grossissement pour que les blocs ne se mordent pas. */
+  ecart: number;
   alertes: string[];
 };
 
@@ -1557,10 +1559,11 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     return { mesures, rangees, total, taillePart };
   };
 
-  // La plus grande taille (pas de 2 px, ≥ plancher) dont les rangées, avec un écart minimal de 12 px, tiennent. Si le
+  // La plus grande taille (pas de 2 px, ≥ plancher) dont les rangées, avec un écart minimal de 16 px, tiennent. Si le
   // plancher ne suffit pas (zone utile basse, sous-titres remontés), la vue se SERRE : marges des blocs, écart et parts
   // réduits, jamais les libellés (toujours au plancher ou au-dessus).
-  let ECART_MIN = 12;
+  // 25/10/2026 (v-0339175a9f88, D3, compositions-iv/11) : écart minimal 16 px, y compris vue serrée (12, puis 6 avant : les blocs se mordaient).
+  const ECART_MIN = 16;
   let tailleMax = 0.036 * H;
   let c = construire(tailleMax);
   const tropHaut = () => c.total + (c.rangees.length - 1) * ECART_MIN > zone.hauteur;
@@ -1581,10 +1584,16 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     return meilleur?.ids ?? null;
   };
   while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
+  // D3 : plutôt que d'écraser l'écart, les chiffres-clés qui ne tiennent pas sont retirés AVANT de serrer la vue (même alerte que le dernier recours), puis la taille est cherchée de nouveau.
+  if (tropHaut() && autres.length) {
+    while (autres.length) alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
+    tailleMax = 0.036 * H;
+    c = construire(tailleMax);
+    while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
+  }
   if (tropHaut()) {
     serre = true;
     padY = PAD_BLOC_SERRE.y;
-    ECART_MIN = 6;
     tailleMax = 0.036 * H;
     c = construire(tailleMax);
     while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
@@ -1681,7 +1690,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
 
   for (const ch of chiffres) if (nombreDeMots(ch.texte) > MOTS_MAX_ENSEMBLE) alertes.push(`« ${ch.texte} » : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
   for (const b of blocs) if (unitesDeSens(texteDe(b.id)).length > MOTS_MAX_ENSEMBLE) alertes.push(`Libellé de ${b.id} : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
-  return { zone, blocs, fleches, rang, chiffres, alertes: [...new Set(alertes)] };
+  return { zone, blocs, fleches, rang, chiffres, ecart, alertes: [...new Set(alertes)] };
 }
 
 type GroupeEntreeIV = SchemaEntree["groupes"][number];
