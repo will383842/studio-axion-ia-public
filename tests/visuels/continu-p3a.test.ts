@@ -1,0 +1,114 @@
+import { describe, expect, it } from "vitest";
+import { GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
+import { COMPOSANTS_PLAQUETTES } from "../../studio-rendu/compositions/visuels/continu/registre-composants";
+import { RUBRIQUE_MAX } from "../../src/domaine/visuels/continu/geometrie";
+
+/** Table attendue (maquette v3, l. 305-325) : plaquette → fond sombre, orange fort. */
+const ATTENDU: Record<string, { nom: string; sombre: boolean; orangeFort: boolean }> = {
+  C01: { nom: "Orbite", sombre: false, orangeFort: false },
+  C02: { nom: "Question sur fond sombre", sombre: true, orangeFort: false },
+  C03: { nom: "Sommaire illustré", sombre: false, orangeFort: false },
+  C04: { nom: "Cartes en éventail", sombre: false, orangeFort: false },
+  C05: { nom: "Fenêtre d'application", sombre: false, orangeFort: false },
+  C06: { nom: "Manifeste et plaques", sombre: false, orangeFort: false },
+  C07: { nom: "Téléphone", sombre: false, orangeFort: false },
+};
+const TYPES = Object.keys(ATTENDU);
+const gabarit = (t: string) => GABARITS_PRODUCTION.find((g) => g.type === t)!;
+
+/** Budgets (caractères) de chaque texte visible : le budget passe, budget + 1 échoue. */
+const BUDGETS: [string, (string | number)[], number][] = [
+  ["C01", ["titre"], 18], ["C01", ["accent"], 14], ["C01", ["suite"], 22], ["C01", ["texte"], 60],
+  ["C02", ["titre"], 32], ["C02", ["texte"], 100],
+  ["C03", ["titre"], 26], ["C03", ["accent"], 20], ["C03", ["entrees", 0], 30], ["C03", ["entrees", 1], 30], ["C03", ["entrees", 2], 30],
+  ["C04", ["titre"], 14], ["C04", ["accent"], 10], ["C04", ["suite"], 20], ["C04", ["texte"], 40], ["C04", ["cartes", 0], 10], ["C04", ["cartes", 2], 10],
+  ["C05", ["titre"], 32], ["C05", ["accent"], 16], ["C05", ["suite"], 2], ["C05", ["badge"], 20], ["C05", ["etats", 0], 20], ["C05", ["etats", 1], 20],
+  ["C05", ["lignes", 0, "sujet"], 20], ["C05", ["lignes", 1, "detail"], 16],
+  ["C06", ["titre"], 30], ["C06", ["accent"], 20],
+  ["C07", ["titre"], 20], ["C07", ["accent"], 22], ["C07", ["texte"], 56], ["C07", ["notifications", 0, "titre"], 16], ["C07", ["notifications", 3, "detail"], 24],
+];
+
+function avec(objet: unknown, chemin: (string | number)[], valeur: unknown): unknown {
+  const copie = structuredClone(objet) as Record<string | number, unknown>;
+  let cur = copie;
+  chemin.slice(0, -1).forEach((k) => (cur = cur[k] as Record<string | number, unknown>));
+  cur[chemin[chemin.length - 1]] = valeur;
+  return copie;
+}
+
+describe("continu P3a : couvertures", () => {
+  it("les sept couvertures sont au registre, actives, en production", () => {
+    for (const t of TYPES) {
+      const g = gabarit(t);
+      expect(g, t).toBeDefined();
+      expect(g.famille).toBe("couverture");
+      expect(g.nom).toBe(ATTENDU[t].nom);
+      expect(g.actif).toBe(true);
+    }
+    expect(GABARITS_PRODUCTION.filter((g) => g.famille === "couverture").map((g) => g.type).sort()).toEqual(TYPES);
+  });
+  it("role « couverture » pour les sept", () => {
+    for (const t of TYPES) expect(gabarit(t).role, t).toBe("couverture");
+  });
+  it("sombre et orangeFort conformes à la maquette", () => {
+    for (const t of TYPES) {
+      expect(gabarit(t).sombre, t).toBe(ATTENDU[t].sombre);
+      expect(gabarit(t).orangeFort, t).toBe(ATTENDU[t].orangeFort);
+    }
+  });
+  it("version >= 1", () => {
+    for (const t of TYPES) expect(gabarit(t).version, t).toBeGreaterThanOrEqual(1);
+  });
+  it("chaque exemple passe son schéma, et l'exemple porte son type et un alt", () => {
+    for (const t of TYPES) {
+      const g = gabarit(t);
+      expect(g.schema.safeParse(g.exemple).success, t).toBe(true);
+      expect((g.exemple as { type: string; alt: string }).type).toBe(t);
+      expect((g.exemple as { alt: string }).alt.length).toBeGreaterThan(0);
+    }
+  });
+  it.each(BUDGETS)("%s %j : budget %i passe, budget + 1 échoue", (t, chemin, max) => {
+    const g = gabarit(t);
+    expect(g.schema.safeParse(avec(g.exemple, chemin, "a".repeat(max))).success).toBe(true);
+    expect(g.schema.safeParse(avec(g.exemple, chemin, "a".repeat(max + 1))).success).toBe(false);
+  });
+  it("un champ « étiquette » (texte fixe posé par le code) ou inconnu est refusé", () => {
+    for (const t of TYPES) {
+      const g = gabarit(t);
+      expect(g.schema.safeParse({ ...(g.exemple as object), etiquette: "Scénario type" }).success, t).toBe(false);
+      expect(g.schema.safeParse({ ...(g.exemple as object), numero: "01" }).success, t).toBe(false);
+    }
+  });
+  it("la rubrique est bornée à RUBRIQUE_MAX ; C06 porte « Axion-IA » en rubrique libre", () => {
+    for (const t of TYPES) {
+      const g = gabarit(t);
+      expect(g.schema.safeParse(avec(g.exemple, ["rubrique"], "a".repeat(RUBRIQUE_MAX))).success, t).toBe(true);
+      expect(g.schema.safeParse(avec(g.exemple, ["rubrique"], "a".repeat(RUBRIQUE_MAX + 1))).success, t).toBe(false);
+    }
+    expect((gabarit("C06").exemple as { rubrique?: string }).rubrique).toBe("Axion-IA");
+  });
+  it("le titre de page 1 compte 10 mots au plus (titre + accent + suite)", () => {
+    for (const t of TYPES) {
+      const e = gabarit(t).exemple as Record<string, string>;
+      const mots = [e.titre, e.accent, e.suite].filter(Boolean).join(" ").split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m));
+      expect(mots.length, t).toBeLessThanOrEqual(10);
+    }
+  });
+  it("le titre, l'accent et la suite sont bornés en mots (10 au plus ensemble)", () => {
+    for (const t of ["C01", "C04", "C05", "C06"]) {
+      const g = gabarit(t);
+      const e = g.exemple as Record<string, string>;
+      expect(g.schema.safeParse({ ...e, titre: "un deux trois quatre cinq six sept huit" }).success, t).toBe(false);
+    }
+  });
+  it("bords libres : la droite offre un intervalle d'au moins 260 px (raccord de la couture 1/2)", () => {
+    for (const t of TYPES) {
+      const { droite, gauche } = gabarit(t).bordsLibres;
+      expect(droite.some(([a, b]) => b - a >= 260), t).toBe(true);
+      expect(gauche.length, t).toBeGreaterThan(0);
+    }
+  });
+  it("chaque type du registre a son composant déclaré", () => {
+    for (const t of TYPES) expect(typeof COMPOSANTS_PLAQUETTES[t], t).toBe("function");
+  });
+});
