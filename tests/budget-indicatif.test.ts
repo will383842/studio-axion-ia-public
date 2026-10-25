@@ -66,7 +66,7 @@ afterEach(() => {
   credits.injecterLecteursPourEssai(null);
 });
 
-const notesBudget = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget");
+const notesBudget = async () => (await depots().notifications.lister()).filter((x) => x.type === "credit");
 
 describe("l'interrupteur budget.mode", () => {
   it("dans les tests, le défaut du code est « bloquant » (variable de vitest) ; le réglage en base l'emporte", async () => {

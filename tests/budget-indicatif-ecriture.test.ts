@@ -64,7 +64,7 @@ function brancherClaude() {
   return appels;
 }
 
-const cloches = async (motif: RegExp) => (await depots().notifications.lister()).filter((x) => x.type === "budget" && motif.test(x.titre));
+const cloches = async (motif: RegExp) => (await depots().notifications.lister()).filter((x) => x.type === "credit" && motif.test(x.titre));
 
 describe("plafond du SUJET (réservation par appel)", () => {
   it("mode bloquant : au-dessus du plafond, refus (comme avant)", async () => {
@@ -79,10 +79,10 @@ describe("plafond du SUJET (réservation par appel)", () => {
     expect(await cloches(/Plafond du sujet/)).toHaveLength(1);
   });
 
-  it("mode indicatif : au-delà de 5 × le plafond du sujet, arrêt de sécurité (rien n'est réservé)", async () => {
+  it("mode indicatif : au-delà de 5 × le plafond du sujet, plus d'arrêt de sécurité (le prix ne bloque jamais) ; bloquant, refus", async () => {
     const g = await generation();
-    expect(await gc.reserverDansPlafondSujet(g.id, "a1", 8, true)).toMatchObject({ ok: false, plafondUsd: 1.5, securite: true });
-    // la place n'a pas été prise : un petit appel passe encore
+    expect(await gc.reserverDansPlafondSujet(g.id, "a1", 8)).toEqual({ ok: false, plafondUsd: 1.5 });
+    expect(await gc.reserverDansPlafondSujet(g.id, "a1", 8, true)).toEqual({ ok: true });
     expect(await gc.reserverDansPlafondSujet(g.id, "a2", 1, true)).toEqual({ ok: true });
   });
 });
@@ -103,14 +103,14 @@ describe("executerRoleFacture (écriture réelle, faux Claude)", () => {
     expect(appels).toHaveLength(1);
   });
 
-  it("indicatif : 5 × dépassé → arrêt de sécurité, message clair, aucun appel", async () => {
+  it("bloquant : plafond dépassé de loin → refus, message clair, aucun appel", async () => {
     await ecrireParametre("fournisseur.script", "claude");
-    await ecrireParametre("budget.mode", "indicatif");
+    await ecrireParametre("budget.mode", "bloquant");
     const appels = brancherClaude();
     const g = await generation(1.5, 8);
     const r = await gc.executerRoleFacture(g.id, roleSonde, entree);
     expect(r).toMatchObject({ ok: false, arret: "plafond-atteint" });
-    expect(!r.ok && r.message).toMatch(/Arrêt de sécurité : cette écriture dépasserait 5 fois le prix annoncé/);
+    expect(!r.ok && r.message).toMatch(/Plafond du sujet atteint/);
     expect(appels).toHaveLength(0);
     expect((await depots().generations.obtenir(g.id))?.statut).toBe("plafond-atteint");
   });
@@ -154,19 +154,19 @@ describe("pire cas de la chaîne (avant le premier appel de chaque tour)", () =>
     expect(await cloches(/Plafond du sujet/)).toHaveLength(1);
   });
 
-  it("indicatif : pire cas au-delà de 5 × → arrêt de sécurité, rien ne part", async () => {
+  it("bloquant : pire cas au-delà de 5 × → refus, rien ne part ; indicatif : l'écriture part", async () => {
     const g = await generation();
-    const r = await gc.reserverPireCasChaine(g.id, { pireCasRestantUsd: 8, indicatif: true });
-    expect(r).toMatchObject({ ok: false });
-    expect(!r.ok && r.message).toMatch(/Arrêt de sécurité/);
+    expect(await gc.reserverPireCasChaine(g.id, { pireCasRestantUsd: 8 })).toMatchObject({ ok: false });
     expect((await depots().generations.obtenir(g.id))?.statut).toBe("plafond-atteint");
+    const g2 = await generation();
+    expect(await gc.reserverPireCasChaine(g2.id, { pireCasRestantUsd: 8, indicatif: true })).toEqual({ ok: true });
   });
 
-  it("indicatif : la reprise ne repaie rien — la dépense déjà faite compte dans le seuil de 5 ×", async () => {
+  it("bloquant : la reprise ne repaie rien — la dépense déjà faite compte dans le plafond", async () => {
     const g = await generation();
     await depots().generations.modifier(g.id, { etapes: [{ role: "x", versionConsigne: 1, modeleDemande: "claude-sonnet-5-5", effort: "low", appelId: "appel-deja", lanceLe: "2026-10-23T08:00:00Z", estimationPireCasUsd: 7 } as never] });
-    // 7 $ déjà dépensés + 1 $ restant = 8 $ > 7,5 $ (5 × 1,5 $) : arrêt de sécurité, même en indicatif
-    expect(await gc.reserverPireCasChaine(g.id, { pireCasRestantUsd: 1, indicatif: true })).toMatchObject({ ok: false });
+    // 7 $ déjà dépensés + 1 $ restant = 8 $ > 1,5 $ : refus en bloquant
+    expect(await gc.reserverPireCasChaine(g.id, { pireCasRestantUsd: 1 })).toMatchObject({ ok: false });
   });
 });
 
@@ -185,38 +185,35 @@ describe("écriture en série", () => {
 });
 
 describe("arrêt de sécurité : phrase et plafond d'origine", () => {
-  it("l'arrêt par appel, avec une réserve de chaîne déjà posée : la réserve devient « sécurité » (l'écran dit la bonne phrase)", async () => {
+  it("indicatif, avec une réserve de chaîne déjà posée : l'appel part, la réserve n'est jamais « sécurité »", async () => {
     await ecrireParametre("fournisseur.script", "claude");
     await ecrireParametre("budget.mode", "indicatif");
     brancherClaude();
     const g = await generation(1.5, 7.5);
     expect(await gc.reserverPireCasChaine(g.id, { pireCasRestantUsd: 0, indicatif: true })).toEqual({ ok: true });
     const r = await gc.executerRoleFacture(g.id, roleSonde, entree);
-    expect(!r.ok && r.message).toMatch(/dépasserait 5 fois le prix annoncé \(1,50 \$\), rien de plus n'est payé/);
-    expect(await gc.lireReserveChaine(g.id)).toMatchObject({ accepte: false, securite: true });
-    expect(await gc.phraseReserveRefusee(g.id)).toMatch(/dépasserait 5 fois le prix annoncé \(1,50 \$\)/);
+    expect(r.ok).toBe(true);
+    expect(await gc.lireReserveChaine(g.id)).not.toHaveProperty("securite");
   });
 
-  it("l'arrêt par appel d'une écriture « sans réserve » (déjà en route) n'écrit AUCUNE réserve : elle reste au régime appel par appel", async () => {
+  it("une écriture « sans réserve » (déjà en route) n'écrit AUCUNE réserve et, en indicatif, continue appel par appel", async () => {
     await ecrireParametre("fournisseur.script", "claude");
     await ecrireParametre("budget.mode", "indicatif");
     brancherClaude();
     const g = await generation(1.5, 8);
     expect(await gc.ecritureSansReserve(g)).toBe(true);
     const r = await gc.executerRoleFacture(g.id, roleSonde, entree);
-    expect(!r.ok && r.message).toMatch(/Arrêt de sécurité/);
+    expect(r.ok).toBe(true);
     expect(await gc.lireReserveChaine(g.id)).toBeNull();
     expect(await gc.ecritureSansReserve((await depots().generations.obtenir(g.id))!)).toBe(true);
   });
 
-  it("le « prix annoncé » affiché est le plafond d'ORIGINE, sans la part relevée après des pannes", async () => {
-    await ecrireParametre("budget.mode", "indicatif");
+  it("bloquant : le pire cas au-dessus du plafond relevé reste refusé", async () => {
+    await ecrireParametre("budget.mode", "bloquant");
     const g = await generation(1.5, 2);
     await gc.releverPlafondApresPannes(g.id, 5);
-    const r = await gc.reserverPireCasChaine(g.id, { pireCasRestantUsd: 50, indicatif: true });
+    const r = await gc.reserverPireCasChaine(g.id, { pireCasRestantUsd: 50 });
     expect(r).toMatchObject({ ok: false });
-    expect(!r.ok && r.message).toMatch(/\(1,50 \$\)/);
-    expect(await gc.phraseReserveRefusee(g.id)).toMatch(/\(1,50 \$\)/);
   });
 
   it("limiteSecuriteUsd : le relèvement du devis de reprise s'ajoute à 1 ×, il n'est pas multiplié par 5", () => {
@@ -229,13 +226,13 @@ describe("arrêt de sécurité : phrase et plafond d'origine", () => {
   });
 
 
-  it("plafond relevé après des pannes : le facteur 5 s'applique au plafond d'ORIGINE, la part relevée s'ajoute à 1 ×", async () => {
+  it("plafond relevé après des pannes : en bloquant le plafond relevé est la limite ; en indicatif plus d'arrêt de sécurité", async () => {
     const g = await generation(1.5, 2); // 2 $ d'un appel resté sans réponse
     expect(await gc.releverPlafondApresPannes(g.id, 5)).toBeCloseTo(2, 6);
     expect((await depots().generations.obtenir(g.id))!.plafondUsd).toBeCloseTo(3.5, 6);
-    // limite de sécurité = 5 × 1,50 + 2 = 9,50 $ (et non 5 × 3,50 = 17,50 $) ; 2 $ déjà comptés
+    expect(await gc.reserverDansPlafondSujet(g.id, "b0", 7.4)).toMatchObject({ ok: false });
     expect(await gc.reserverDansPlafondSujet(g.id, "b1", 7.4, true)).toEqual({ ok: true });
-    expect(await gc.reserverDansPlafondSujet(g.id, "b2", 1, true)).toMatchObject({ ok: false, securite: true });
+    expect(await gc.reserverDansPlafondSujet(g.id, "b2", 1, true)).toEqual({ ok: true });
   });
 });
 

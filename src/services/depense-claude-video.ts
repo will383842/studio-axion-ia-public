@@ -33,7 +33,7 @@ import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lirePar
 import { libererReservation, MARGE_CREDITS, signalerAttenteCredit, verifierEtReserverSelonOrigine } from "./credits";
 import { jugerPlafond, signalerDepassementIndicatif, type OrigineLancement } from "./budget-mensuel";
 import { formatSansPrix } from "@/formats";
-import { budgetIndicatifPour, messageArretSecurite, origineDeLaVideo, sujetDeCloche } from "./mode-budget";
+import { budgetIndicatifPour, origineDeLaVideo, sujetDeCloche } from "./mode-budget";
 import { appelerAvecRotation, attendre, messageSansCompte, attenteSurcharge, claudeActif, coutReelUsd, envClaude, peutEcrire, engageClaudeDuMoisCentimes, ESSAIS_SURCHARGE, ligne, MESSAGE_CLE_REFUSEE, MESSAGE_MODELE_CHANGE, PARAM_MODELE_BLOQUE, plafondMensuelClaudeUsd, sousVerrouMois, taux } from "./generation-claude";
 
 /** Plafond Claude PAR VIDÉO pour ses textes de publication (≈ 0,05 $ attendus pour 4 réseaux). */
@@ -295,10 +295,6 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
         // Lot G : plafond du monteur pour cette version, jamais montré (format sans prix).
         const plafond = await plafondFacecamVersionUsd();
         const sur = await jugerPlafond((await engageFacecamVersionCentimes(videoId, options.facecam.depuis)) + demande, plafond, indicatif, `${libelle} (monteur, cette version)`, sujet, { sansPrix: true });
-        if (sur === "arret-securite") {
-          await journaliser("retouche", `${libelle} : arrêt de sécurité du monteur (5 × son plafond), version simple`, { type: "video", id: videoId });
-          return { ok: false, arret: "plafond-video", message: messageArretSecurite() };
-        }
         if (sur === "bloque") {
           await journaliser("retouche", `${libelle} : plafond du monteur pour cette version atteint, version simple`, { type: "video", id: videoId });
           return { ok: false, arret: "plafond-video", message: "Version simple pour cette modification." };
@@ -308,10 +304,6 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
         // Tableau animé : plafond propre de cette vidéo (découpage ou écriture), dit en euros comme le prix du bouton.
         const plafond = await valeurPlafondPropre(propre);
         const sur = await jugerPlafond((await engagePlafondPropreCentimes(videoId, propre)) + demande, plafond, indicatif, `${libelle} (cette vidéo)`, sujet, sansPrix ? { sansPrix: true } : { tauxUsdEur: t });
-        if (sur === "arret-securite") {
-          await journaliser("video", `${libelle} : arrêt de sécurité (5 × le plafond de cette vidéo), rien n'est parti`, { type: "video", id: videoId });
-          return { ok: false, arret: "plafond-video", message: messageArretSecurite(sansPrix ? undefined : formaterMontant(centimes(centimesDuPlafond(plafond * t)))) };
-        }
         if (sur === "bloque") {
           const enEuros = formaterMontant(centimes(centimesDuPlafond(plafond * t)));
           await journaliser("video", `${libelle} : plafond de cette vidéo atteint (${enEuros}), rien n'est parti`, { type: "video", id: videoId });
@@ -321,10 +313,6 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
       const plafondVideo = await plafondKitUsd();
       if (!options.facecam && !propre) {
         const sur = await jugerPlafond((await engageClaudeVideoCentimes(videoId)) + demande, plafondVideo, indicatif, `${libelle} (textes de la vidéo)`, sujet, { tauxUsdEur: t });
-        if (sur === "arret-securite") {
-          await journaliser("publication", `${libelle} : arrêt de sécurité (5 × le plafond des textes), le texte n'est pas écrit`, { type: "video", id: videoId });
-          return { ok: false, arret: "plafond-video", message: `${messageArretSecurite(formaterMontant(centimes(centimesDuPlafond(plafondVideo * t))))} Le texte actuel est gardé.` };
-        }
         if (sur === "bloque") {
           // Une seule monnaie à l'écran : le plafond (réglé en dollars) est dit en euros, comme le prix du bouton.
           const enEuros = formaterMontant(centimes(centimesDuPlafond(plafondVideo * t)));
