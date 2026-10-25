@@ -28,8 +28,16 @@ import { chiffresDuTexte } from "./regles";
 
 /** Seuils de l'écoute (plan § 7, Q18-Q19). */
 export const SEUILS_ECOUTE_IV = Object.freeze({
-  /** Part des mots du script retrouvés dans l'ordre. */
+  /**
+   * Seuil de REMARQUE : en dessous, la part des mots entendus est signalée en orange (contrôle indicatif, la vidéo continue).
+   * Entre le plancher et ce seuil, c'est du bruit de transcription ou une prononciation : jamais un motif de refus.
+   */
   retrouvesMin: 0.97,
+  /**
+   * PLANCHER BLOQUANT : en dessous (la voix manque vraiment, des phrases entières sont absentes), la vidéo est inutilisable
+   * et reste refusée. Règle de Will : un défaut de détail signale, il ne bloque pas.
+   */
+  retrouvesPlancher: 0.9,
   /** Mots ajoutés consécutifs tolérés (au-delà : refus). */
   ajoutConsecutifMax: 2,
   /** Un mot transcrit qui commence plus de 0,3 s après la fin de la voix est ignoré (Whisper invente sur les silences). */
@@ -429,6 +437,8 @@ export interface EcouteVersionIV {
   q17: ConstatControle;
   q18: ConstatControle;
   q19: ConstatControle;
+  /** Remarques d'écoute NON bloquantes (part entre le plancher et le seuil) : orange à la porte, la vidéo continue. */
+  q18Remarques?: string[];
   /** Clés « valeur|unité » des chiffres entendus (pour « dit ET montré »). */
   chiffresEntendus: string[];
   /** Texte entendu utile (pour les interdits et la phrase-choc). */
@@ -531,7 +541,11 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
   const utile = transcriptionUtile(transcription, { finVoixSec: e.piste.finVoixSec, script: e.script });
   const c = comparerAuScript(e.script, utile.mots);
   const q18: string[] = [];
-  if (c.part < SEUILS_ECOUTE_IV.retrouvesMin - 1e-9) q18.push(`${Math.round(c.part * 1000) / 10} % des mots du script entendus dans l'ordre (97 % au moins)${c.manques.length ? ` ; manquent notamment : « ${c.manques.slice(0, 3).join(" », « ")} »` : ""}.`);
+  const q18Remarques: string[] = [];
+  const phrasePart = `${Math.round(c.part * 1000) / 10} % des mots du script entendus dans l'ordre${c.manques.length ? ` ; manquent notamment : « ${c.manques.slice(0, 3).join(" », « ")} »` : ""}`;
+  const partAssezBonne = c.part >= SEUILS_ECOUTE_IV.retrouvesPlancher - 1e-9;
+  if (!partAssezBonne) q18.push(`${phrasePart} (${Math.round(SEUILS_ECOUTE_IV.retrouvesPlancher * 100)} % au moins : la voix manque).`);
+  else if (c.part < SEUILS_ECOUTE_IV.retrouvesMin - 1e-9) q18Remarques.push(`${phrasePart} (${Math.round(SEUILS_ECOUTE_IV.retrouvesMin * 100)} % visés ; sans gravité, probablement la transcription).`);
   for (const a of c.ajouts.filter((x) => x.mots > SEUILS_ECOUTE_IV.ajoutConsecutifMax && !x.remplace)) q18.push(`la voix dit « ${a.texte} » (vers ${sec(a.debutSec)}), absent du script.`);
   for (const ch of c.chiffresNonEntendus) q18.push(`le chiffre « ${ch} » du script n'est pas entendu.`);
   for (const ch of c.chiffresInventes) q18.push(`le chiffre « ${ch} » est entendu mais n'est pas dans le script.`);
@@ -547,6 +561,7 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
     q17: constat([]),
     q18: constat(q18),
     q19: constat(q19),
+    q18Remarques,
     chiffresEntendus: clesChiffresDits(utile.mots.map((m) => m.mot).join(" ")),
     texteEntendu: utile.mots.map((m) => m.mot).join(" "),
     comparaison: c,
