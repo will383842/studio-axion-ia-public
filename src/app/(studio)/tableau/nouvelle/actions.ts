@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 import type { AccordPrix } from "@/domaine/accord";
 import { essayer, type Resultat } from "@/services/_commun";
+import { avecAccordAutomatique } from "@/services/mode-budget";
 import type { CaseDejaVu } from "@/moteurs/montage-tableau/controles";
 import type { PastilleControle } from "@/domaine/relecture-script";
 import {
@@ -39,7 +40,9 @@ import type { VueTacheTableau } from "@/services/tableau-taches";
  * est d'un sujet déjà traité : le refus structuré `sujet-deja-traite` revient avant tout brouillon ; `sujet` = choix + jeton.
  */
 export async function decouperScriptTableauAction(donnees: unknown, videoId?: string, accord?: AccordPrix, relu?: string, sujet?: { choix: "refaire" | "nouvel-angle"; jeton: string }): Promise<Resultat<IssueDecoupageTableau>> {
-  return essayer(() => decouperScriptTableau(donnees, { videoId, accord, relu, ...(sujet ? { sujet } : {}) }));
+  // Règle « le prix ne bloque jamais » : en mode indicatif, un accord-requis est relancé UNE fois avec le prix du jour
+  // (`tableau-creation` reste inchangé) ; en mode bloquant, l'issue d'avant est rendue telle quelle.
+  return essayer(() => avecAccordAutomatique((a) => decouperScriptTableau(donnees, { videoId, accord: a ?? accord, relu, ...(sujet ? { sujet } : {}) }), undefined, videoId ? { videoId } : {}));
 }
 
 /** « Reprendre la meilleure version » d'une écriture non livrée, depuis sa trace : aucun appel payant. */
@@ -67,7 +70,7 @@ export async function controlerFicheTableauAction(videoId: string, script: unkno
  * repère « script relu » (empreinte des lignes relues de la fiche), sinon refus.
  */
 export async function fabriquerVideoTableauAction(videoId: string, accord?: AccordPrix, relu?: string): Promise<Resultat<IssueFabricationTableau>> {
-  const r = await essayer(() => fabriquerVideoTableau(videoId, accord, {}, relu));
+  const r = await essayer(() => avecAccordAutomatique((a) => fabriquerVideoTableau(videoId, a ?? accord, {}, relu), undefined, { videoId }));
   if (r.ok && r.donnees.statut === "lancee") {
     revalidatePath("/videos");
     revalidatePath(`/videos/${videoId}`);
@@ -82,7 +85,7 @@ export async function fabriquerVideoTableauAction(videoId: string, accord?: Acco
  * suggestions, jeton) revient avant tout prix ; `sujet` = le choix et le jeton renvoyés tels quels pour passer.
  */
 export async function ecrireScriptTableauAction(demande: unknown, options: { videoId?: string; accord?: AccordPrix; accroche?: number; sujet?: { choix: "refaire" | "nouvel-angle"; jeton: string } } = {}): Promise<Resultat<IssueEcritureTableau>> {
-  return essayer(() => ecrireScriptTableau(demande, options));
+  return essayer(() => avecAccordAutomatique((a) => ecrireScriptTableau(demande, { ...options, accord: a ?? options.accord }), undefined, options.videoId ? { videoId: options.videoId } : {}));
 }
 
 /** Où en est la tâche de fond du brouillon (l'écran interroge toutes les 3 s). */
@@ -92,7 +95,7 @@ export async function suiviTacheTableauAction(videoId: string): Promise<Resultat
 
 /** « Réessayer » / « Reprendre » : les appels déjà payés sont gardés ; `accord` = le prix confirmé (écriture, découpage). */
 export async function reprendreTacheTableauAction(videoId: string, accord?: AccordPrix): Promise<Resultat<IssueRepriseTableau>> {
-  return essayer(() => reprendreTacheTableau(videoId, accord));
+  return essayer(() => avecAccordAutomatique((a) => reprendreTacheTableau(videoId, a ?? accord), undefined, { videoId }));
 }
 
 /** Case « Ce conseil n'est pas en première page d'une recherche » : cochée, datée du jour et gardée dans le brouillon. */
@@ -105,7 +108,7 @@ export async function cocherDejaVuTableauAction(videoId: string, coche: boolean)
  * travail reprend l'étape en échec et les suivantes, sans repayer la voix. `accord` : le prix confirmé, s'il en faut un.
  */
 export async function relancerTableauAction(travailId: string, accord?: AccordPrix): Promise<Resultat<IssueRelanceTableau>> {
-  const r = await essayer(() => relancerTableau(travailId, accord));
+  const r = await essayer(() => avecAccordAutomatique((a) => relancerTableau(travailId, a ?? accord), undefined));
   if (r.ok && r.donnees.statut === "relancee") {
     revalidatePath("/videos");
     revalidatePath("/");
