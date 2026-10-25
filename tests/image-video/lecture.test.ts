@@ -11,7 +11,6 @@ import { complexiteSchema, estimationGrammaire, SEUILS_GRAMMAIRE } from "@/gener
 import {
   fusionnerLectures,
   lireImage,
-  PHRASE_TYPE_INCONNU,
   roleLectureImage,
   schemaLectureImage,
   type DemandeReservationLecture,
@@ -257,15 +256,20 @@ describe("refus", () => {
     expect(!r.ok && r.message).toMatch(/^Je ne lis presque aucun texte/);
   });
 
-  it("type reconnu par aucune des deux lectures : « Je ne reconnais pas ce type d'image : choisissez-le », puis Will impose le type sans repayer", async () => {
+  it("type reconnu par aucune des deux lectures (R1) : plus de refus, le type vient du code avec l'adaptation « type déduit »", async () => {
     const inconnu: LectureImage = { ...lectureDeCarte(cartes.B), type: "inconnu" };
     const o = outils({ a: inconnu, b: inconnu });
     const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, o.outils);
-    expect(r).toMatchObject({ ok: false, motif: "type-inconnu", message: PHRASE_TYPE_INCONNU, choisirType: true, appels: 2 });
-    if (r.ok) return;
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.types).toEqual(["benefices"]);
+    expect(r.carte.adaptations?.some((x) => /type déduit/.test(x))).toBe(true);
+  });
 
+  it("Will peut toujours imposer le type, sans repayer (états anciens « type à choisir »)", async () => {
+    const inconnu: LectureImage = { ...lectureDeCarte(cartes.B), type: "inconnu" };
     const o2 = outils({ a: LECTURE_VIDE, b: LECTURE_VIDE });
-    const r2 = await lireImage({ videoId: "essai-B", source: source(cartes.B), typeImpose: "chaine" }, o2.outils, r.lectures);
+    const r2 = await lireImage({ videoId: "essai-B", source: source(cartes.B), typeImpose: "chaine" }, o2.outils, { a: inconnu, b: inconnu });
     expect(r2.ok).toBe(true);
     if (!r2.ok) return;
     expect(r2.appels).toBe(0);
