@@ -12,7 +12,7 @@ Objectif : studio-rendu sait rendre UNE toile large, la mesurer, la découper en
 - `studio-rendu/src/operations/toile-continue.ts` (modèle `visuel-page.ts`) :
   - paramètres connus : `proprietes`, `depotsPages`, `qualite` (90-95, défaut 95) ; aucune entrée ;
   - refuse une URL dans `proprietes` (`contientUneUrl`) ; chaque `depotsPages[i]` = `{cle, urlDepot}` passé par `exigerAdressePermise`, et leur nombre = nombre de pages ;
-  - `validerProprietesToile` ; une erreur « Version de toile » donne `indisponible`, réessayable ;
+  - `validerProprietesToile` ; une erreur « Version de toile indisponible » donne `indisponible`, réessayable ; « absente » ou « invalide » donne un refus (`refuse`, non réessayable) ;
   - `renderStill` PNG à scale 1 → `extraireMesure` (fonction existante) ;
   - FFmpeg : `crop=1080:H:i*1080:0` → `page-i.jpg` (`-pix_fmt yuvj444p -q:v 2`) ; mesure `ecartCoutureMax` en comparant, via `-f rawvideo -pix_fmt rgb24`, les colonnes 0 et 1079 de chaque JPEG avec celles du PNG ;
   - bande d'aperçu `scale=iw/4:-1` → `sortie` ;

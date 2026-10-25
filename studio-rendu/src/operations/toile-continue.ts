@@ -104,10 +104,13 @@ export function ecartMoyenColonne(page: Uint8Array, toile: Uint8Array, largeurTo
   return somme / (hauteur * 3);
 }
 
-/** Vrai si la colonne exacte de la toile est au moins aussi proche de la colonne de la page que les colonnes décalées de ±1 (mesure discriminante : un décalage d'une colonne la rend fausse). PUR. */
+/** Marge (0-255, par canal, en moyenne) dont une colonne voisine doit battre la colonne exacte pour compter comme couture décalée : le bruit JPEG ne suffit pas. */
+export const MARGE_VOISINE = 0.5;
+
+/** Faux seulement si une colonne décalée de ±1 bat la colonne exacte d'une marge (`voisine < exacte - MARGE_VOISINE`) : un décalage d'une colonne la rend fausse, le bruit JPEG non. PUR. */
 export function colonneExacteLaPlusProche(page: Uint8Array, toile: Uint8Array, largeurToile: number, hauteur: number, colPage: number, colToile: number): boolean {
   const exacte = ecartMoyenColonne(page, toile, largeurToile, hauteur, colPage, colToile);
-  return [-1, 1].every((d) => colToile + d < 0 || colToile + d >= largeurToile || exacte <= ecartMoyenColonne(page, toile, largeurToile, hauteur, colPage, colToile + d));
+  return [-1, 1].every((d) => colToile + d < 0 || colToile + d >= largeurToile || !(ecartMoyenColonne(page, toile, largeurToile, hauteur, colPage, colToile + d) < exacte - MARGE_VOISINE));
 }
 
 const enRgb = (entree: string, sortie: string, signal: AbortSignal) => executer(FFMPEG, ["-y", "-v", "error", "-i", entree, "-f", "rawvideo", "-pix_fmt", "rgb24", sortie], signal);
