@@ -35,6 +35,7 @@
  */
 import { createHash } from "node:crypto";
 import { completerCarte, controlerCarte, reparerOrphelinsDeBranche, schemaCarteImage, type CarteImage, type ControleCarte, type TypeImage } from "@/domaine/image-video/carte";
+import { reparerEtSignaler } from "@/domaine/image-video/reparation";
 import { schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
@@ -684,7 +685,10 @@ export function validerCarteIV(etat: EtatFabricationIV, d: DecisionCarteIV): Eta
   } catch {
     throw new ErreurDecisionIV("La carte corrigée est incomplète : vérifiez chaque bloc, puis validez de nouveau.");
   }
-  // Blocs sans flèche rangés dans une branche : lien déduit de la mise en page (marqué, signalé), sinon blocage expliqué.
+  // R2 : une carte incohérente ne bloque pas la vidéo, le code la répare seul (dit à Will dans les alertes et le journal).
+  const reparee = reparerEtSignaler(carte, { typeChoisi: !!d.carte });
+  carte = reparee.carte;
+  // Puis les blocs sans flèche rangés dans une branche : lien déduit de la mise en page (marqué, signalé), sinon blocage expliqué.
   const { carte: reliee, deduits } = reparerOrphelinsDeBranche(carte);
   const vusDeduits = new Set(deduits.map((l) => l.vers));
   carte = reliee;
@@ -700,6 +704,7 @@ export function validerCarteIV(etat: EtatFabricationIV, d: DecisionCarteIV): Eta
   e.carte = { carte: validee, par: "will" };
   e.journal.push(`Carte validée par Will${d.carte ? " (corrigée)" : ""}.`);
   if (vusDeduits.size > 0) e.journal.push(`Liens déduits de la mise en page (aucune flèche sur l'image) : ${deduits.map((l) => `${l.de} → ${l.vers}`).join(", ")}.`);
+  if (reparee.reparations.length > 0) e.journal.push(`Carte réparée par le code avant validation : ${reparee.reparations.map((x) => x.detail).join(" ")}`);
   return passerA(e, "ecriture");
 }
 

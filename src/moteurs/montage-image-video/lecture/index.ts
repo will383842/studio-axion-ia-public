@@ -41,6 +41,7 @@ import {
 } from "@/domaine/image-video/carte";
 import { chiffresDe, cleChiffre } from "@/domaine/image-video/chiffres";
 import { LIMITES_CARTE, normaliserCarteBrute, phraseAdaptation, refusTropChargee } from "@/domaine/image-video/normalisation";
+import { reparerEtSignaler } from "@/domaine/image-video/reparation";
 import { pireCasRole, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
 import type { Offre } from "../emprunts";
 import { roleLectureImage, schemaLectureImage, variableLecture, type GroupeLu, type LectureImage, type LienLu, type NoeudLu, type SensLecture } from "./consigne";
@@ -510,6 +511,8 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
     // Dernier filet : une carte qui échoue encore au schéma (cas non prévu par la normalisation) ne doit pas boucler.
     return refus("illisible", "La lecture de l'image a donné une carte que je ne sais pas réparer. Réessayer relit l'image (nouvelle lecture, comptée dans le prix) ; si cela recommence, déposez-la de nouveau, plus nette ou découpée en deux.");
   }
+  // R2 : une carte incohérente ne bloque pas la vidéo, le code la répare seul (les réparations sont dites dans `carte.adaptations`).
+  carte = reparerEtSignaler(carte, { typeChoisi: !!entree.typeImpose }).carte;
   return { ok: true, carte, controle: controlerCarte(carte), appels: compte.appels, simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
 }
 

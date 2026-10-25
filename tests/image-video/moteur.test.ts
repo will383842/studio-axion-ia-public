@@ -241,8 +241,16 @@ describe("porte « carte » : obligatoire pour les 10 premières, puis selon le 
     const { o, e } = demarrer("C");
     const arret = await avancerJusquAArretIV(e, o);
     const carte = arret.propositionCarte!.carte;
-    const cassee = { ...carte, liens: [...carte.liens, { ...carte.liens[0], id: "l99", vers: "n99" }] };
-    expect(() => validerCarteIV(arret, decisionCarte(arret, cassee))).toThrow(ErreurDecisionIV);
+    // Un bloc posé sans aucune flèche (hors branche) reste un défaut que le code ne peut pas deviner : refus. Une flèche
+    // vers un bloc absent, elle, est réparée seule (R2, tests/image-video/reparation-carte.test.ts).
+    const cassee = { ...carte, noeuds: [...carte.noeuds, { ...carte.noeuds[0]!, id: "n99", libelle: "Bloc perdu", ordre: 99 }] };
+    try {
+      validerCarteIV(arret, decisionCarte(arret, cassee));
+      throw new Error("aurait dû refuser");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ErreurDecisionIV);
+      expect((err as ErreurDecisionIV).phrases.join(" ")).toMatch(/relié à rien/);
+    }
     expect(() => validerCarteIV(arret, { proposition: "autre", le: "x" })).toThrow(/a changé/);
     expect(arret.etape).toBe("carte-a-valider");
   });
