@@ -157,6 +157,13 @@ export function creerToileContinue(deps: DependancesToile): Operation {
   };
 }
 
+/**
+ * Réglage du navigateur propre à la toile : `gl: "swiftshader"` (rastérisation logicielle de Chrome) au lieu de `swangle` (`REGLAGES_RENDU`,
+ * émulation d'un processeur graphique, utile aux compositions animées). Mesuré le 25/10 sur une toile de 10 pages (10 800 × 1350, à chaud) :
+ * 45 s en `swangle`, 8 s en `swiftshader`, pour une image identique à l'œil. La file courte coupe à 45 s.
+ */
+export const NAVIGATEUR_TOILE = { gl: "swiftshader" } as const;
+
 /** Rendu réel : Remotion `renderStill` en PNG, ×1, sur le paquet de la toile. `navigateur` : chemin d'un navigateur local (essais seulement). */
 export function rendreToileAvecRemotion(options: { navigateur?: string } = {}): DependancesToile["rendre"] {
   return async ({ inputProps, sortie, surLog, signal }) => {
@@ -166,9 +173,9 @@ export function rendreToileAvecRemotion(options: { navigateur?: string } = {}): 
     else signal.addEventListener("abort", () => cancel(), { once: true });
     const serveUrl = await paquetToile();
     const navigateur = options.navigateur ? { browserExecutable: options.navigateur } : {};
-    const composition = await selectComposition({ serveUrl, id: ID_COMPOSITION_TOILE, inputProps, ...navigateur });
+    const composition = await selectComposition({ serveUrl, id: ID_COMPOSITION_TOILE, inputProps, chromiumOptions: NAVIGATEUR_TOILE, ...navigateur });
     const onBrowserLog = (log: { text: string }) => surLog(log.text);
-    await renderStill({ ...REGLAGES_RENDU, composition, serveUrl, output: sortie, frame: 0, imageFormat: "png", scale: 1, inputProps, onBrowserLog, cancelSignal, ...navigateur } as never);
+    await renderStill({ ...REGLAGES_RENDU, chromiumOptions: NAVIGATEUR_TOILE, composition, serveUrl, output: sortie, frame: 0, imageFormat: "png", scale: 1, inputProps, onBrowserLog, cancelSignal, ...navigateur } as never);
     return { largeur: composition.width, hauteur: composition.height };
   };
 }

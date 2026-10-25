@@ -38,12 +38,12 @@ export function pagesSombres(toile: ToileSpecType): number[] {
   });
 }
 
-/** Halos de la maquette (`.pg .glow`), en coordonnées de la toile : ils passent les coutures sans bord. PUR. */
+/**
+ * Halos de la maquette (`.pg .glow`), en coordonnées de la toile, un par page, en quinconce (haut à droite, bas à gauche) et JAMAIS centrés
+ * sur une couture : un halo par couture marquerait la découpe d'une tache. PUR.
+ */
 export function halosDe(n: number, hauteur: number): Halo[] {
-  return Array.from({ length: n }, (_, i) => [
-    { x: i * LARGEUR_PAGE + Math.round(LARGEUR_PAGE * 1.05), y: Math.round(hauteur * 0.08), r: 900, a: 0.18 },
-    { x: i * LARGEUR_PAGE - Math.round(LARGEUR_PAGE * 0.1), y: hauteur, r: 700, a: 0.12 },
-  ]).flat();
+  return Array.from({ length: n }, (_, i) => (i % 2 === 0 ? { x: i * LARGEUR_PAGE + 760, y: Math.round(hauteur * 0.1), r: 900, a: 0.18 } : { x: i * LARGEUR_PAGE + 320, y: Math.round(hauteur * 0.92), r: 800, a: 0.13 }));
 }
 
 export function ToileContinue({ toile }: ProprietesToile) {
