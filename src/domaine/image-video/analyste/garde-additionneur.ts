@@ -16,7 +16,17 @@ export function contientCalculFaux(carte: CarteImage | null | undefined, textes:
   return !!carte && analyserRealisme(carte).problemes.some((p) => p.code === "calcul-faux");
 }
 
-/** Renvoie la scène demandée, sauf « additionneur » avec un calcul faux : alors la scène de repli. */
+/** Vrai si la carte a un entonnoir dont les étapes augmentent (jamais réparé : la scène « entonnoir » serait fausse). */
+export function contientEntonnoirCroissant(carte: CarteImage | null | undefined): boolean {
+  return !!carte && analyserRealisme(carte).problemes.some((p) => p.code === "entonnoir-croissant");
+}
+
+/**
+ * Renvoie la scène demandée, sauf « additionneur » avec un calcul faux, ou « entonnoir » dont les étapes augmentent :
+ * alors la scène de repli.
+ */
 export function sceneApresGarde<S extends string>(scene: S, carte: CarteImage | null | undefined, textes: readonly string[] = []): S | typeof SCENE_DE_REPLI {
-  return scene === "additionneur" && contientCalculFaux(carte, textes) ? SCENE_DE_REPLI : scene;
+  if (scene === "additionneur" && contientCalculFaux(carte, textes)) return SCENE_DE_REPLI;
+  if (scene === "entonnoir" && contientEntonnoirCroissant(carte)) return SCENE_DE_REPLI;
+  return scene;
 }

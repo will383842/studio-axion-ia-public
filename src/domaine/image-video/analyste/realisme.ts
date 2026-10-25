@@ -53,7 +53,6 @@ export interface RapportRealisme {
 
 const nombreFr = (n: number): string => String(Math.round(n * 1e6) / 1e6).replace(".", ",");
 const lireNombre = (s: string): number => Number.parseFloat(s.replace(",", "."));
-const echapper = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const parOrdre = (a: NoeudCarte, b: NoeudCarte): number => a.ordre - b.ordre || a.id.localeCompare(b.id);
 
 /** Types de schémas qui décrivent un flux : un bloc qui n'est relié à rien y est une impasse. */
@@ -106,11 +105,18 @@ function ecrireEmplacement(carte: CarteImage, ou: Emplacement, texte: string): b
 
 const NB = "\\d+(?:[.,]\\d+)?";
 const UNITE = "(?:\\s?[a-zA-Z%€]{1,12})?";
-const SOMME = new RegExp(`(${NB}${UNITE}(?:\\s*\\+\\s*${NB}${UNITE})+)\\s*=\\s*(${NB})(?!\\s*[≠\\d.,]|\\s?h\\s?\\d)`);
-const PRODUIT = new RegExp(`(${NB})\\s*[×x*]\\s*(${NB})\\s*=\\s*(${NB})(?!\\s*[≠\\d.,]|\\s?[a-zA-Z%€])`);
+const SOMME = new RegExp(`(${NB}${UNITE}(?:\\s*\\+\\s*${NB}${UNITE})+)\\s*=\\s*(${NB})(?:\\s?([a-zA-Z%€]{1,12}))?(?!\\s*[≠\\d.,])`, "g");
+const PRODUIT = new RegExp(`(${NB})\\s*[×x*]\\s*(${NB})\\s*=\\s*(${NB})(?!\\s*[≠\\d.,]|\\s?[a-zA-Z%€])`, "g");
+
+const SYNONYMES_UNITE: Record<string, string> = { minute: "min", mn: "min", min: "min", heure: "h", h: "h", seconde: "sec", sec: "sec", s: "sec", jour: "jour", j: "jour" };
+/** Unité ramenée à une forme unique (« minutes » = « min »), ou chaîne vide s'il n'y en a pas. */
+function uniteCanonique(u: string | undefined): string {
+  const x = (u ?? "").toLowerCase().replace(/s$/, "");
+  return SYNONYMES_UNITE[x] ?? x;
+}
 
 export interface CalculFauxDeTexte {
-  /** Fragment exact de l'égalité fausse (« 15 + 4 = 20 »). */
+  /** Fragment exact de l'égalité fausse (« 15 min + 4 min = 20 min »). */
   fragment: string;
   /** Même égalité, total remplacé par le calcul exact. */
   corrige: string;
@@ -118,21 +124,28 @@ export interface CalculFauxDeTexte {
   nouveau: number;
 }
 
-/** Égalités fausses (somme ou produit de nombres écrits) d'un texte. Fonction pure, réutilisée par la garde « additionneur ». */
+/**
+ * Égalités fausses d'un texte (toutes, pas seulement la première). Somme : termes ET total dans la MÊME unité (« 8 min + 6 min = 20 min ») ;
+ * « 1 h + 30 min = 90 min », « 1 + 1 = 3 » ou « 3 outils + 1 IA = 1 seul flux » ne sont jamais touchés. Produit : nombres seuls.
+ * Fonction pure, réutilisée par la garde « additionneur ».
+ */
 export function calculsFauxDeTexte(texte: string): CalculFauxDeTexte[] {
   const res: CalculFauxDeTexte[] = [];
-  const somme = SOMME.exec(texte);
-  if (somme) {
-    const termes = somme[1].split("+").map((t) => lireNombre(/\d+(?:[.,]\d+)?/.exec(t)![0]));
-    const total = lireNombre(somme[2]);
-    const vrai = Math.round(termes.reduce((s, x) => s + x, 0) * 1e6) / 1e6;
-    if (vrai !== total) res.push({ fragment: somme[0], corrige: somme[0].replace(new RegExp(`${echapper(somme[2])}$`), nombreFr(vrai)), ancien: total, nouveau: vrai });
+  for (const m of texte.matchAll(SOMME)) {
+    const parties = m[1].split("+").map((t) => new RegExp(`^\\s*(${NB})(?:\\s?([a-zA-Z%€]+))?\\s*$`).exec(t));
+    if (parties.some((x) => !x)) continue;
+    const unites = parties.map((x) => uniteCanonique(x![2]));
+    if (!unites[0] || unites.some((u) => u !== unites[0]) || uniteCanonique(m[3]) !== unites[0]) continue;
+    const vrai = Math.round(parties.reduce((t, x) => t + lireNombre(x![1]), 0) * 1e6) / 1e6;
+    const total = lireNombre(m[2]);
+    if (vrai === total) continue;
+    const fin = m[0].lastIndexOf(m[2]) + m[2].length;
+    res.push({ fragment: m[0], corrige: m[0].slice(0, m[0].lastIndexOf(m[2])) + nombreFr(vrai) + m[0].slice(fin), ancien: total, nouveau: vrai });
   }
-  const produit = PRODUIT.exec(texte);
-  if (produit) {
-    const vrai = Math.round(lireNombre(produit[1]) * lireNombre(produit[2]) * 1e6) / 1e6;
-    const total = lireNombre(produit[3]);
-    if (vrai !== total) res.push({ fragment: produit[0], corrige: produit[0].replace(new RegExp(`${echapper(produit[3])}$`), nombreFr(vrai)), ancien: total, nouveau: vrai });
+  for (const m of texte.matchAll(PRODUIT)) {
+    const vrai = Math.round(lireNombre(m[1]) * lireNombre(m[2]) * 1e6) / 1e6;
+    const total = lireNombre(m[3]);
+    if (vrai !== total) res.push({ fragment: m[0], corrige: m[0].slice(0, m[0].lastIndexOf(m[3])) + nombreFr(vrai), ancien: total, nouveau: vrai });
   }
   return res;
 }
@@ -178,6 +191,11 @@ function composantes(ids: string[], liens: { de: string; vers: string }[]): stri
   return res.sort((a, b) => a[0].localeCompare(b[0]));
 }
 
+const PREPOSITIONS_FIN = /(?:\b(?:en|sous|de|du|des|à|a|au|aux|dans|pour|par|sur|et|ou|avec)|[:+−–—-])$/i;
+const DELAI_AVANT = /(?:\b(?:en|sous|dans)|d[ée]lai(?:\s+de)?|r[ée]ponse(?:\s+en)?)\s*:?\s*$/i;
+const PAS_UN_DELAI = /par an|gagn|[ée]conomis|perd|cumul/i;
+const POURCENTAGE_TOLERE = /de plus|hausse|augment|croiss|multipli|\broi\b|retour sur investissement|rentab|marge|objectif|gain/i;
+
 export function analyserRealisme(carte: CarteImage): RapportRealisme {
   const problemes: ProblemeRealisme[] = [];
   const ops: OperationRealisme[] = [];
@@ -194,46 +212,62 @@ export function analyserRealisme(carte: CarteImage): RapportRealisme {
   const planifies = new Set<string>();
   const existe = (de: string, vers: string) => carte.liens.some((l) => l.de === de && l.vers === vers);
   /** Une flèche à poser, une seule fois par paire (le même trou peut être vu par deux contrôles). */
-  const relier = (de: string, vers: string, trace: string, id?: string) => {
+  const relier = (de: string, vers: string, trace: string) => {
     if (existe(de, vers) || planifies.has(`${de}>${vers}`)) return;
     planifies.add(`${de}>${vers}`);
-    ops.push({ op: "relier", id: id ?? idLien(de, vers), de, vers, trace });
+    ops.push({ op: "relier", id: idLien(de, vers), de, vers, trace });
   };
   const ordonnes = [...carte.noeuds].sort(parOrdre);
 
-  // 1 · Calculs faux écrits dans les textes (somme ou produit).
+  // Les corrections de texte sont enchaînées par emplacement : chaque opération part du texte laissé par la précédente,
+  // si bien qu'une seconde application ne trouve plus rien à faire (idempotence).
   const textes = textesTouchables(carte);
+  const courant = new Map<string, string>(textes.map((t) => [JSON.stringify(t.ou), t.texte]));
+  const editer = (ou: Emplacement, transformer: (s: string) => string, faire: (avant: string, apres: string) => OperationRealisme | null) => {
+    const k = JSON.stringify(ou);
+    const avant = courant.get(k);
+    if (avant === undefined) return;
+    const apres = transformer(avant);
+    if (apres === avant) return;
+    const op = faire(avant, apres);
+    if (!op) return;
+    courant.set(k, apres);
+    ops.push(op);
+  };
+
+  // 1 · Calculs faux écrits dans les textes (somme ou produit, toutes les égalités).
   for (const t of textes) {
     for (const f of calculsFauxDeTexte(t.texte)) {
       poser("calcul-faux", [blocDe(t.ou) ?? "texte"], "bloquant");
-      ops.push({ op: "corrigerTotal", ou: t.ou, avant: t.texte, apres: t.texte.replace(f.fragment, f.corrige), ancien: f.ancien, nouveau: f.nouveau, trace: `« ${f.fragment} » devient « ${f.corrige} » (somme exacte des termes écrits).` });
+      editer(t.ou, (s) => s.replace(f.fragment, f.corrige), (avant, apres) => ({ op: "corrigerTotal", ou: t.ou, avant, apres, ancien: f.ancien, nouveau: f.nouveau, trace: `« ${f.fragment} » devient « ${f.corrige} » (somme exacte des termes écrits).` }));
     }
   }
 
-  // 1b · Sorties d'un nœud qui ne refont pas sa quantité (« 15 + 4 ≠ 20 »).
+  // 1b · Sorties d'un nœud qui ne refont pas sa quantité (« 15 + 4 ≠ 20 »). La quantité d'entrée est celle du nœud lui-même ;
+  // celle d'un prédécesseur ne compte que s'il est seul et que le nœud n'en a pas.
   const sources = [...new Set(carte.liens.map((l) => l.de))].sort();
   for (const de of sources) {
     const entree = parId.get(de);
-    const porteur = carte.liens.filter((l) => l.vers === de).map((l) => parId.get(l.de)).find((n) => n?.quantite !== undefined) ?? (entree?.quantite !== undefined ? entree : undefined);
+    const predecesseurs = [...new Set(carte.liens.filter((l) => l.vers === de).map((l) => l.de))];
+    const unique = predecesseurs.length === 1 ? parId.get(predecesseurs[0]) : undefined;
+    const porteur = entree?.quantite !== undefined ? entree : unique?.quantite !== undefined ? unique : undefined;
     const qEntree = porteur?.quantite;
     const sorties = carte.liens.filter((l) => l.de === de).map((l) => parId.get(l.vers)).filter((n): n is NoeudCarte => n?.quantite !== undefined);
     if (!porteur || qEntree === undefined || qEntree < 2 || sorties.length < 2) continue;
     const somme = sorties.reduce((s, n) => s + (n.quantite ?? 0), 0);
     if (somme === qEntree) continue;
     poser("calcul-faux", [porteur.id, ...sorties.map((n) => n.id)], "bloquant");
-    const trace = `${sorties.map((n) => n.quantite).join(" + ")} ne font pas ${qEntree} : le total devient ${somme}.`;
-    // Le nombre écrit dans le texte du porteur suit la quantité, sans rien inventer d'autre.
+    // Une quantité est un entier de 1 à 99 : au-delà, ou non entière, le total est retiré plutôt que recalculé.
+    const valide = Number.isInteger(somme) && somme >= 1 && somme <= 99;
+    const trace = `${sorties.map((n) => n.quantite).join(" + ")} ne font pas ${qEntree} : ${valide ? `le total devient ${somme}` : "le total est retiré"}.`;
+    const quantite = { noeud: porteur.id, valeur: valide ? somme : null };
     const motif = new RegExp(`(?<![\\d.,])${qEntree}(?![\\d.,])`);
-    const champ = (["libelle", "detail"] as const).find((c) => porteur[c] && motif.test(porteur[c]!));
-    const avant = champ ? porteur[champ]! : undefined;
-    ops.push({
-      op: "corrigerTotal",
-      quantite: { noeud: porteur.id, valeur: somme },
-      ...(champ && avant ? { ou: { genre: "noeud" as const, id: porteur.id, champ }, avant, apres: avant.replace(motif, String(somme)) } : {}),
-      ancien: qEntree,
-      nouveau: somme,
-      trace,
-    });
+    const champ = valide ? (["libelle", "detail"] as const).find((c) => porteur[c] && motif.test(porteur[c]!)) : undefined;
+    if (champ) {
+      editer({ genre: "noeud", id: porteur.id, champ }, (s) => s.replace(motif, String(somme)), (avant, apres) => ({ op: "corrigerTotal", quantite, ou: { genre: "noeud", id: porteur.id, champ }, avant, apres, ancien: qEntree, nouveau: somme, trace }));
+    } else {
+      ops.push({ op: "corrigerTotal", quantite, ancien: qEntree, nouveau: valide ? somme : null, trace });
+    }
   }
 
   // 1c · Somme d'un groupe (étapes chiffrées dans une même unité et leur résultat).
@@ -251,68 +285,72 @@ export function analyserRealisme(carte: CarteImage): RapportRealisme {
     // Le total affiché au même endroit (bandeau, titre) est mis d'accord, sinon l'image se contredirait.
     for (const t of textes) {
       if (t.ou.genre === "lien" || (t.ou.genre === "noeud" && t.ou.id !== noeudResultat.id)) continue;
-      if (!t.texte.includes(resultat.brut)) continue;
-      ops.push({
+      editer(t.ou, (s) => (s.includes(resultat.brut) ? s.replace(resultat.brut, nouveauBrut) : s), (avant, apres) => ({
         op: "corrigerTotal",
         ou: t.ou,
-        avant: t.texte,
-        apres: t.texte.replace(resultat.brut, nouveauBrut),
+        avant,
+        apres,
         ancien: resultat.valeur!,
         nouveau: somme,
         trace: `${etapes.map((c) => nombreFr(c.valeur!)).join(" + ")} font ${nombreFr(somme)}, pas ${nombreFr(resultat.valeur!)} : « ${resultat.brut} » devient « ${nouveauBrut} ».`,
-      });
+      }));
     }
   }
 
   // 2 · Flux sans entrée ni sortie : bloc relié à rien dans un schéma de flux.
   const relies = new Set(carte.liens.flatMap((l) => [l.de, l.vers]));
-  if (carte.types.some((t) => TYPES_FLUX.has(t))) {
+  const estFlux = carte.types.some((t) => TYPES_FLUX.has(t));
+  if (estFlux) {
     for (const n of ordonnes) {
       if (relies.has(n.id) || n.photoPersonnes || !ROLES_FLUX.has(n.role)) continue;
       const i = ordonnes.findIndex((x) => x.id === n.id);
       const avant = ordonnes[i - 1];
       const apres = ordonnes[i + 1];
       poser("noeud-sans-lien", [n.id], "bloquant");
-      if (avant) {
-        relier(avant.id, n.id, `Le bloc « ${n.libelle} » n'avait ni entrée ni sortie : relié après « ${avant.libelle} ».`);
-      } else if (apres) {
-        relier(n.id, apres.id, `Le bloc « ${n.libelle} » n'avait ni entrée ni sortie : relié avant « ${apres.libelle} ».`);
-      }
+      if (avant) relier(avant.id, n.id, `Le bloc « ${n.libelle} » n'avait ni entrée ni sortie : relié après « ${avant.libelle} ».`);
+      else if (apres) relier(n.id, apres.id, `Le bloc « ${n.libelle} » n'avait ni entrée ni sortie : relié avant « ${apres.libelle} ».`);
     }
   }
 
-  // 3 · Boucle sans condition de sortie.
-  for (const c of composantes(carte.noeuds.map((n) => n.id), carte.liens)) {
-    const dedans = new Set(c);
-    const internes = carte.liens.filter((l) => dedans.has(l.de) && dedans.has(l.vers));
-    if (internes.length === 0) continue;
-    if (carte.liens.some((l) => dedans.has(l.de) && !dedans.has(l.vers))) continue;
-    poser("boucle-sans-sortie", c, "bloquant");
-    const membres = c.map((i) => parId.get(i)!).sort(parOrdre);
-    const dernier = membres[membres.length - 1];
-    const cible = ordonnes.find((n) => !dedans.has(n.id) && (n.role === "sortie" || n.role === "resultat") && !carte.liens.some((l) => l.vers === n.id));
-    if (cible) {
+  // 3 · Boucle sans condition de sortie : seulement dans un schéma de flux qui a un bloc de sortie hors de la boucle
+  // (un cycle PDCA ou un cercle vertueux, qui n'a pas de sortie par nature, reste intact).
+  if (estFlux) {
+    for (const c of composantes(carte.noeuds.map((n) => n.id), carte.liens)) {
+      const dedans = new Set(c);
+      if (!carte.liens.some((l) => dedans.has(l.de) && dedans.has(l.vers))) continue;
+      if (carte.liens.some((l) => dedans.has(l.de) && !dedans.has(l.vers))) continue;
+      const dehors = ordonnes.filter((n) => !dedans.has(n.id) && (n.role === "sortie" || n.role === "resultat"));
+      const cible = dehors.find((n) => !carte.liens.some((l) => l.vers === n.id)) ?? dehors[0];
+      if (!cible) continue;
+      poser("boucle-sans-sortie", c, "bloquant");
+      const dernier = c.map((i) => parId.get(i)!).sort(parOrdre).pop()!;
       relier(dernier.id, cible.id, `La boucle autour de « ${dernier.libelle} » n'avait aucune sortie : reliée à « ${cible.libelle} ».`);
-    } else {
-      const rang = (i: string) => parId.get(i)!.ordre;
-      const tries = [...internes].sort((a, b) => rang(a.vers) - rang(b.vers) || a.id.localeCompare(b.id));
-      const retour = tries.find((l) => rang(l.vers) <= rang(l.de)) ?? tries[0];
-      ops.push({ op: "retirer", cible: "lien", id: retour.id, de: retour.de, vers: retour.vers, trace: `Boucle sans condition de sortie : la flèche de retour ${retour.de} → ${retour.vers} est retirée.` });
     }
   }
 
-  // 4 · Étapes irréalistes : chiffre absurde, parts qui ne somment pas 100.
+  // 4 · Étapes irréalistes : délai absurde, pourcentage absurde, parts qui ne somment pas 100.
   for (const t of textes) {
-    for (const c of chiffresDe(t.texte)) {
-      if (c.valeur === null) continue;
+    const absurdes = chiffresDe(t.texte).filter((c) => {
+      if (c.valeur === null) return false;
       const i = t.texte.indexOf(c.brut);
-      const croissance = (i > 0 && t.texte[i - 1] === "+") || /de plus|hausse|augment|croiss|multipli/i.test(t.texte);
-      const absurde = (c.unite === "%" && c.valeur > 100 && !croissance) || (c.unite in MINUTES && c.valeur * MINUTES[c.unite] > UNE_ANNEE_MIN);
-      if (!absurde) continue;
-      poser("chiffre-absurde", [blocDe(t.ou) ?? "texte"], "avertissement");
-      const apres = t.texte.replace(c.brut, "").replace(/\s{2,}/g, " ").trim();
-      if (apres) ops.push({ op: "rendreRealiste", ou: t.ou, avant: t.texte, apres, trace: `Chiffre irréaliste « ${c.brut} » retiré (rien n'est inventé à sa place).` });
-    }
+      if (c.unite === "%") {
+        const avant = t.texte.slice(0, i).trimEnd();
+        return c.valeur > 100 && !avant.endsWith("+") && !POURCENTAGE_TOLERE.test(t.texte);
+      }
+      if (!(c.unite in MINUTES) || PAS_UN_DELAI.test(t.texte)) return false;
+      return c.valeur * MINUTES[c.unite] > UNE_ANNEE_MIN && DELAI_AVANT.test(t.texte.slice(0, i));
+    });
+    if (!absurdes.length) continue;
+    poser("chiffre-absurde", [blocDe(t.ou) ?? "texte"], "avertissement");
+    editer(
+      t.ou,
+      (s) => {
+        const reste = absurdes.reduce((x, c) => x.replace(c.brut, ""), s).replace(/\s{2,}/g, " ").trim();
+        // Un texte qui finirait sur une préposition ou qui n'aurait plus qu'un mot n'est pas retouché : simple avertissement.
+        return reste.split(/\s+/).length < 2 || PREPOSITIONS_FIN.test(reste) ? s : reste;
+      },
+      (avant, apres) => ({ op: "rendreRealiste", ou: t.ou, avant, apres, trace: `Chiffre irréaliste « ${absurdes.map((c) => c.brut).join(" », « ")} » retiré (rien n'est inventé à sa place).` }),
+    );
   }
   for (const de of sources) {
     const parts = carte.liens.filter((l) => l.de === de && l.part !== undefined).sort((a, b) => a.id.localeCompare(b.id));
@@ -326,39 +364,27 @@ export function analyserRealisme(carte: CarteImage): RapportRealisme {
       ops.push({ op: "retirer", cible: "part", id: l.id, trace: `Les parts de ${de} font ${nombreFr(somme)} % au lieu de 100 % : la part de ${l.id} est retirée.` });
       const pct = l.etiquette ? chiffresDe(l.etiquette).find((c) => c.unite === "%" && c.valeur === l.part) : undefined;
       if (pct && l.etiquette) {
-        const apres = l.etiquette.replace(pct.brut, "").replace(/^[\s—–\-:]+/, "").replace(/\s{2,}/g, " ").trim();
-        if (apres) ops.push({ op: "rendreRealiste", ou: { genre: "lien", id: l.id }, avant: l.etiquette, apres, trace: `Part « ${pct.brut} » retirée de l'étiquette de ${l.id}.` });
+        editer(
+          { genre: "lien", id: l.id },
+          (s) => s.replace(pct.brut, "").replace(/^[\s—–\-:]+/, "").replace(/\s{2,}/g, " ").trim(),
+          (avant, apres) => (apres ? { op: "rendreRealiste", ou: { genre: "lien", id: l.id }, avant, apres, trace: `Part « ${pct.brut} » retirée de l'étiquette de ${l.id}.` } : null),
+        );
       }
     }
   }
 
-  // 5 · Entonnoir dont les étapes augmentent.
-  const ordres = new Map(carte.noeuds.map((n) => [n.id, n.ordre]));
-  let changeOrdre = false;
+  // 5 · Entonnoir dont les étapes augmentent : SIGNALÉ seulement (la garde aval l'écarte), jamais réparé.
   if (carte.types.includes("entonnoir")) {
-    const croissants = carte.liens.filter((l) => (parId.get(l.vers)?.quantite ?? 0) > (parId.get(l.de)?.quantite ?? Infinity)).sort((a, b) => a.id.localeCompare(b.id));
-    if (croissants.length) {
-      poser("entonnoir-croissant", croissants.flatMap((l) => [l.de, l.vers]), "bloquant");
-      for (const l of croissants) {
-        ops.push({ op: "retirer", cible: "lien", id: l.id, de: l.de, vers: l.vers, trace: `Entonnoir qui grossit (${parId.get(l.de)!.quantite} puis ${parId.get(l.vers)!.quantite}) : la flèche ${l.de} → ${l.vers} est remise dans le bon sens.` });
-        relier(l.vers, l.de, `Flèche ${l.id} inversée : ${l.vers} → ${l.de}.`, l.id);
-      }
-      const chiffres = carte.noeuds.filter((n) => n.quantite !== undefined).sort(parOrdre);
-      const cases = chiffres.map((n) => n.ordre).sort((a, b) => a - b);
-      [...chiffres].sort((a, b) => b.quantite! - a.quantite! || parOrdre(a, b)).forEach((n, i) => ordres.set(n.id, cases[i]));
-      changeOrdre = true;
-    }
+    const croissants = carte.liens.filter((l) => (parId.get(l.vers)?.quantite ?? 0) > (parId.get(l.de)?.quantite ?? Infinity));
+    if (croissants.length) poser("entonnoir-croissant", croissants.flatMap((l) => [l.de, l.vers]), "bloquant");
   }
 
   // 6 · Ordre de lecture ambigu (deux blocs au même rang) : rangs resserrés, ordre relatif gardé.
-  const rangs = [...ordres.entries()].map(([id, ordre]) => ({ id, ordre }));
+  const rangs = carte.noeuds.map((n) => ({ id: n.id, ordre: n.ordre }));
   if (new Set(rangs.map((r) => r.ordre)).size !== rangs.length) {
     poser("ordre-ambigu", rangs.filter((r) => rangs.filter((x) => x.ordre === r.ordre).length > 1).map((r) => r.id), "avertissement");
-    rangs.sort((a, b) => a.ordre - b.ordre || a.id.localeCompare(b.id)).forEach((r, i) => ordres.set(r.id, i));
-    changeOrdre = true;
-  }
-  if (changeOrdre) {
-    const diff = carte.noeuds.filter((n) => ordres.get(n.id) !== n.ordre).map((n) => ({ id: n.id, ordre: ordres.get(n.id)! })).sort((a, b) => a.id.localeCompare(b.id));
+    const neufs = new Map(rangs.sort((a, b) => a.ordre - b.ordre || a.id.localeCompare(b.id)).map((r, i) => [r.id, i]));
+    const diff = carte.noeuds.filter((n) => neufs.get(n.id) !== n.ordre).map((n) => ({ id: n.id, ordre: neufs.get(n.id)! })).sort((a, b) => a.id.localeCompare(b.id));
     if (diff.length) ops.push({ op: "reordonner", ordres: diff, trace: "Ordre de lecture remis en cohérence." });
   }
 
@@ -377,7 +403,7 @@ function estUneSuppression(avant: string, apres: string): boolean {
   return j === apres.length && apres.length < avant.length;
 }
 
-export function appliquerOperations(carte: CarteImage, operations: readonly OperationRealisme[]): CarteImage {
+function appliquer(carte: CarteImage, operations: readonly OperationRealisme[]): CarteImage {
   const c: CarteImage = structuredClone(carte);
   const traces: string[] = [];
   const remplacer = (ou: Emplacement, avant: string, apres: string, garde: (a: string, b: string) => boolean): boolean => {
@@ -462,4 +488,19 @@ export function appliquerOperations(carte: CarteImage, operations: readonly Oper
   c.lecture = { ...c.lecture, alertes: alertes.slice(0, 60) };
   // Le code recalcule ensuite tout ce qui se calcule (chiffres, cohérence, types) : l'image reste cohérente avec elle-même.
   return completerCarte(c);
+}
+
+/**
+ * Applique les opérations sans jamais lever : si le résultat n'est plus une carte valide (ou si une opération est mal
+ * formée), la carte d'origine est rendue, avec une alerte qui le dit. Rien n'est appliqué à moitié.
+ */
+export function appliquerOperations(carte: CarteImage, operations: readonly OperationRealisme[]): CarteImage {
+  try {
+    return appliquer(carte, operations);
+  } catch {
+    const intacte: CarteImage = structuredClone(carte);
+    const alerte = "Corrections du réalisme non appliquées : le résultat n'était pas une carte valide.";
+    if (!intacte.lecture.alertes.includes(alerte)) intacte.lecture = { ...intacte.lecture, alertes: [...intacte.lecture.alertes, alerte].slice(0, 60) };
+    return intacte;
+  }
 }

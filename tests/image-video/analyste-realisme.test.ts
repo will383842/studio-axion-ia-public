@@ -45,11 +45,11 @@ describe("cartes de référence : rien de bloquant inventé", () => {
 
 describe("calcul faux affiché", () => {
   it("15 + 4 = 20 : le total devient 19, avec trace, le reste du texte est intact", () => {
-    const c = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Saisie", 2, { detail: "15 + 4 = 20 minutes perdues" }), noeud("c", "Fin", 3, { role: "resultat" })], liens: [lien("l1", "a", "b"), lien("l2", "b", "c")] });
+    const c = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Saisie", 2, { detail: "15 min + 4 min = 20 min perdues" }), noeud("c", "Fin", 3, { role: "resultat" })], liens: [lien("l1", "a", "b"), lien("l2", "b", "c")] });
     expect(analyserRealisme(c).problemes).toEqual([{ code: "calcul-faux", blocs: ["b"], gravite: "bloquant" }]);
     const apres = corriger(c);
-    expect(apres.noeuds.find((n) => n.id === "b")!.detail).toBe("15 + 4 = 19 minutes perdues");
-    expect(apres.lecture.alertes.join(" ")).toContain("15 + 4 = 19");
+    expect(apres.noeuds.find((n) => n.id === "b")!.detail).toBe("15 min + 4 min = 19 min perdues");
+    expect(apres.lecture.alertes.join(" ")).toContain("15 min + 4 min = 19 min");
     expect(codes(apres)).toEqual([]);
   });
 
@@ -57,6 +57,15 @@ describe("calcul faux affiché", () => {
     expect(calculsFauxDeTexte("3 × 4 = 13")[0]).toMatchObject({ corrige: "3 × 4 = 12", nouveau: 12 });
     expect(calculsFauxDeTexte("8 + 6 + 5 = 19")).toEqual([]);
     expect(calculsFauxDeTexte("19 × 20 = 6 h 20 ≠ 6 h")).toEqual([]);
+  });
+
+  it("ne bouge pas les égalités d'unités différentes, sans unité, ou suivies d'un autre mot", () => {
+    for (const t of ["1 h + 30 min = 90 min", "45 sec + 15 sec = 1 min", "2 h + 30 min = 2,5 h", "1 + 1 = 3", "3 outils + 1 IA = 1 seul flux", "8 + 6 + 5 = 20"]) expect(calculsFauxDeTexte(t), t).toEqual([]);
+    expect(calculsFauxDeTexte("8 min + 6 min = 14 min")).toEqual([]);
+  });
+
+  it("lit toutes les égalités d'un texte", () => {
+    expect(calculsFauxDeTexte("2 min + 2 min = 5 min puis 3 € + 3 € = 7 €").map((f) => f.nouveau)).toEqual([4, 6]);
   });
 
   it("somme d'un groupe (8 + 6 + 5 ≠ 20) : le résultat et le bandeau suivent la vraie somme", () => {
@@ -86,6 +95,32 @@ describe("calcul faux affiché", () => {
   });
 });
 
+describe("quantités : quelle entrée compter", () => {
+  const entonnoir = (qa: number | undefined, qb: number | undefined, extraLiens: ReturnType<typeof lien>[] = [], extraNoeuds: NoeudCarte[] = []) =>
+    carte({
+      noeuds: [noeud("a", "Entrée", 1, { role: "declencheur", ...(qa ? { quantite: qa } : {}) }), noeud("b", "Filtre", 2, { role: "decision", ...(qb ? { quantite: qb } : {}) }), noeud("c", "Gardées", 3, { quantite: 6 }), noeud("d", "Écartées", 4, { quantite: 4 }), ...extraNoeuds],
+      liens: [lien("l1", "a", "b"), lien("l2", "b", "c"), lien("l3", "b", "d"), ...extraLiens],
+    });
+
+  it("20 -> 10 -> 6 + 4 est juste : la quantité du nœud prime sur celle de son prédécesseur", () => {
+    expect(codes(entonnoir(20, 10))).not.toContain("calcul-faux");
+  });
+  it("un seul prédécesseur chiffré compte si le nœud n'a pas de quantité", () => {
+    expect(codes(entonnoir(20, undefined))).toContain("calcul-faux");
+  });
+  it("plusieurs prédécesseurs : rien n'est signalé", () => {
+    expect(codes(entonnoir(20, undefined, [lien("l4", "e", "b")], [noeud("e", "Autre entrée", 5, { quantite: 30 })]))).not.toContain("calcul-faux");
+  });
+  it("un total hors 1-99 est retiré, pas recalculé", () => {
+    const c = carte({
+      noeuds: [noeud("a", "Entrée", 1, { role: "declencheur", quantite: 20 }), noeud("c", "Gardées", 3, { quantite: 80 }), noeud("d", "Écartées", 4, { quantite: 40 })],
+      liens: [lien("l2", "a", "c"), lien("l3", "a", "d")],
+    });
+    expect(codes(c)).toContain("calcul-faux");
+    expect(corriger(c).noeuds.find((n) => n.id === "a")!.quantite).toBeUndefined();
+  });
+});
+
 describe("flux sans entrée ni sortie", () => {
   it("un bloc relié à rien est relié à son voisin dans l'ordre de lecture", () => {
     const c = carte({ noeuds: [...chaine3(), noeud("z", "Perdu", 4)], liens: [lien("l1", "a", "b"), lien("l2", "b", "c")] });
@@ -105,9 +140,10 @@ describe("boucle sans condition de sortie", () => {
     expect(codes(apres)).toEqual([]);
   });
 
-  it("sans bloc de sortie, la flèche de retour est retirée", () => {
-    const c = carte({ noeuds: [noeud("a", "Relire", 1), noeud("b", "Corriger", 2)], liens: [lien("l1", "a", "b"), lien("l2", "b", "a")] });
-    expect(corriger(c).liens.map((l) => l.id)).toEqual(["l1"]);
+  it("un cycle sans bloc de sortie (PDCA, cercle vertueux) est laissé intact", () => {
+    const c = carte({ noeuds: [noeud("a", "Planifier", 1), noeud("b", "Faire", 2), noeud("c", "Vérifier", 3), noeud("d", "Agir", 4)], liens: [lien("l1", "a", "b"), lien("l2", "b", "c"), lien("l3", "c", "d"), lien("l4", "d", "a")] });
+    expect(codes(c)).not.toContain("boucle-sans-sortie");
+    expect(corriger(c).liens.map((l) => l.id)).toEqual(["l1", "l2", "l3", "l4"]);
   });
 
   it("une boucle qui a une sortie n'est pas signalée", () => {
@@ -118,12 +154,34 @@ describe("boucle sans condition de sortie", () => {
 
 describe("étape irréaliste", () => {
   it("un délai de plus d'un an et un pourcentage au-dessus de 100 sont retirés, rien n'est mis à la place", () => {
-    const c = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Réponse en 900000 min", 2), noeud("c", "Satisfaction 150 %", 3, { role: "resultat" })], liens: [lien("l1", "a", "b"), lien("l2", "b", "c")] });
+    const c = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Réponse sous 900000 min garantie", 2), noeud("c", "Satisfaction 150 % des clients", 3, { role: "resultat" })], liens: [lien("l1", "a", "b"), lien("l2", "b", "c")] });
     expect(analyserRealisme(c).problemes.filter((p) => p.code === "chiffre-absurde").map((p) => p.blocs[0]).sort()).toEqual(["b", "c"]);
     const apres = corriger(c);
-    expect(apres.noeuds.find((n) => n.id === "b")!.libelle).toBe("Réponse en");
-    expect(apres.noeuds.find((n) => n.id === "c")!.libelle).toBe("Satisfaction");
+    expect(apres.noeuds.find((n) => n.id === "b")!.libelle).toBe("Réponse sous garantie");
+    expect(apres.noeuds.find((n) => n.id === "c")!.libelle).toBe("Satisfaction des clients");
     expect(codes(apres)).toEqual([]);
+  });
+
+  it("un texte qui finirait sur une préposition n'est pas retouché : simple avertissement", () => {
+    const c = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Réponse en 900000 min", 2)], liens: [lien("l1", "a", "b")] });
+    expect(codes(c)).toEqual(["chiffre-absurde"]);
+    expect(analyserRealisme(c).operationsProposees).toEqual([]);
+  });
+
+  it("des durées ou pourcentages légitimes ne sont pas absurdes", () => {
+    for (const t of ["Jusqu'à 900000 min gagnées par an", "ROI de 250 % sur 3 ans", "Marge de 300 %", "Objectif 400 % du plan", "Croissance + 150 %", "Cumul de 900000 min économisées"]) {
+      const c = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", t, 2)], liens: [lien("l1", "a", "b")] });
+      expect(codes(c), t).toEqual([]);
+    }
+  });
+
+  it("deux chiffres absurdes dans un même texte : un seul passage les retire tous, et c'est idempotent", () => {
+    const c = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Réponse sous 900000 min et satisfaction 150 % des clients", 2)], liens: [lien("l1", "a", "b")] });
+    const ops = analyserRealisme(c).operationsProposees;
+    const une = appliquerOperations(c, ops);
+    expect(une.noeuds.find((n) => n.id === "b")!.libelle).toBe("Réponse sous et satisfaction des clients");
+    expect(appliquerOperations(une, ops)).toEqual(une);
+    expect(codes(une)).toEqual([]);
   });
 
   it("une hausse « +150 % » est réaliste", () => {
@@ -145,19 +203,20 @@ describe("étape irréaliste", () => {
 });
 
 describe("entonnoir dont les étapes augmentent", () => {
-  it("la flèche est remise dans le sens décroissant et l'ordre suit les quantités", () => {
-    const c = {
-      ...carte({
-        noeuds: [noeud("a", "Prospects", 1, { role: "declencheur", quantite: 10 }), noeud("b", "Rendez-vous", 2, { quantite: 40 }), noeud("c", "Clients", 3, { role: "resultat", quantite: 5 })],
-        liens: [lien("l1", "a", "b"), lien("l2", "b", "c")],
-      }),
-      types: ["entonnoir"],
-    } as unknown as CarteImage;
-    expect(codes(c)).toContain("entonnoir-croissant");
-    const apres = appliquerOperations(c, analyserRealisme(c).operationsProposees);
-    expect(apres.liens.find((l) => l.id === "l1")).toMatchObject({ de: "b", vers: "a" });
-    expect(apres.noeuds.find((n) => n.id === "b")!.ordre).toBeLessThan(apres.noeuds.find((n) => n.id === "a")!.ordre);
-    expect(codes({ ...apres, types: ["entonnoir"] } as unknown as CarteImage)).not.toContain("entonnoir-croissant");
+  const c = {
+    ...carte({
+      noeuds: [noeud("a", "Prospects", 1, { role: "declencheur", quantite: 10 }), noeud("b", "Rendez-vous", 2, { quantite: 40 }), noeud("c", "Clients", 3, { role: "resultat", quantite: 5 })],
+      liens: [lien("l1", "a", "b"), lien("l2", "b", "c")],
+    }),
+    types: ["entonnoir"],
+  } as unknown as CarteImage;
+
+  it("est signalé (bloquant) mais jamais réparé : aucune opération", () => {
+    expect(analyserRealisme(c).problemes).toEqual([{ code: "entonnoir-croissant", blocs: ["a", "b"], gravite: "bloquant" }]);
+    expect(analyserRealisme(c).operationsProposees).toEqual([]);
+  });
+  it("la garde écarte la scène entonnoir", () => {
+    expect(sceneApresGarde("entonnoir", c)).toBe("toile");
   });
 });
 
@@ -171,8 +230,8 @@ describe("ordre ambigu", () => {
 
 describe("garanties communes", () => {
   const fautives = (): CarteImage[] => [
-    carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Saisie", 2, { detail: "15 + 4 = 20 minutes" }), noeud("z", "Perdu", 3)], liens: [lien("l1", "a", "b")] }),
-    carte({ noeuds: [noeud("a", "Relire", 1), noeud("b", "Corriger", 2)], liens: [lien("l1", "a", "b"), lien("l2", "b", "a")] }),
+    carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Saisie", 2, { detail: "15 min + 4 min = 20 min" }), noeud("z", "Perdu", 3)], liens: [lien("l1", "a", "b")] }),
+    carte({ noeuds: [noeud("a", "Relire", 1), noeud("b", "Corriger", 2), noeud("s", "Livré", 3, { role: "sortie" })], liens: [lien("l1", "a", "b"), lien("l2", "b", "a")] }),
     carte({ noeuds: [noeud("a", "Tri", 1, { role: "decision" }), noeud("b", "Oui", 2), noeud("c", "Non", 3)], liens: [lien("l1", "a", "b", { part: 70, etiquette: "70 % — connu" }), lien("l2", "a", "c", { part: 40, etiquette: "40 % — inconnu" })] }),
   ];
 
@@ -230,16 +289,23 @@ describe("garanties communes", () => {
 });
 
 describe("garde aval « additionneur »", () => {
-  const fausse = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Total", 2, { detail: "8 + 6 + 5 = 20" })], liens: [lien("l1", "a", "b")] });
-  const juste = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Total", 2, { detail: "8 + 6 + 5 = 19" })], liens: [lien("l1", "a", "b")] });
+  const fausse = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Total", 2, { detail: "8 min + 6 min + 5 min = 20 min" })], liens: [lien("l1", "a", "b")] });
+  const juste = carte({ noeuds: [noeud("a", "Début", 1, { role: "declencheur" }), noeud("b", "Total", 2, { detail: "8 min + 6 min + 5 min = 19 min" })], liens: [lien("l1", "a", "b")] });
 
   it("un calcul faux ne finit jamais en scène additionneur", () => {
     expect(sceneApresGarde("additionneur", fausse)).toBe("toile");
-    expect(sceneApresGarde("additionneur", null, ["Trois fois la même chose.", "8 + 6 + 5 = 20"])).toBe("toile");
+    expect(sceneApresGarde("additionneur", null, ["Trois fois la même chose.", "8 min + 6 min + 5 min = 20 min"])).toBe("toile");
   });
   it("un calcul juste garde l'additionneur, les autres scènes ne bougent pas", () => {
     expect(sceneApresGarde("additionneur", juste)).toBe("additionneur");
     expect(sceneApresGarde("entonnoir", fausse)).toBe("entonnoir");
+  });
+  it("appliquerOperations ne lève jamais : une opération qui casse la carte rend la carte d'origine avec une alerte", () => {
+    const base3 = carte({ noeuds: chaine3(), liens: [lien("l1", "a", "b"), lien("l2", "b", "c")] });
+    const r = appliquerOperations(base3, [{ op: "relier", id: "ID INVALIDE", de: "a", vers: "c", trace: "x" }]);
+    expect(r.liens).toEqual(base3.liens);
+    expect(r.lecture.alertes.join(" ")).toContain("non appliquées");
+    expect(() => appliquerOperations(base3, [{ op: "corrigerTotal", quantite: { noeud: "zz", valeur: 5 }, ancien: 1, nouveau: 5, trace: "x" }])).not.toThrow();
   });
   it("la carte corrigée repasse la garde", () => {
     expect(sceneApresGarde("additionneur", corriger(fausse))).toBe("additionneur");
