@@ -1,14 +1,13 @@
 "use client";
 
 /**
- * Bouton « Fabriquer la vidéo » : le montant est affiché, Will le confirme (`confirmerPrix`), puis UN seul envoi.
- * Si le serveur répond qu'il faut un autre montant, `onFabriquer` rend `{ centimes }` et la confirmation est redemandée.
+ * Bouton « Fabriquer la vidéo » : le montant est affiché à titre d'information, aucune confirmation n'est demandée.
+ * Si le serveur répond qu'il faut un autre montant, `onFabriquer` rend `{ centimes }` et UNE seule relance part avec lui.
  */
 import { useRef, useState } from "react";
 import { Bouton } from "@/components/ui/Bouton";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
 import { formaterMontant } from "@/lib/montants";
-import { montantApresControle } from "./avant-prix";
+import { fabriquerAvecUneRelance, montantApresControle } from "./avant-prix";
 
 const euros = (centimes: number) => formaterMontant({ centimes: Math.max(0, Math.ceil(centimes)), devise: "EUR" });
 
@@ -16,7 +15,6 @@ export function BoutonFabriquer({
   montantCentimes,
   onFabriquer,
   desactive,
-  message = "La voix de cette vidéo est la seule dépense.",
   libelle,
   avantPrix,
 }: {
@@ -24,6 +22,7 @@ export function BoutonFabriquer({
   /** Envoie l'accord (montant confirmé). Rend `{ centimes }` si le serveur demande un autre montant. */
   onFabriquer: (accord: number) => Promise<{ centimes: number } | void>;
   desactive?: boolean;
+  /** Gardé pour les appelants existants : plus aucune fenêtre ne l'affiche. */
   message?: string;
   /** Texte du bouton ; absent : « Fabriquer la vidéo (≈ prix) ». */
   libelle?: string;
@@ -36,13 +35,6 @@ export function BoutonFabriquer({
   const [enCours, setEnCours] = useState(false);
   const verrou = useRef(false);
 
-  async function lancer(montant: number) {
-    const accord = await confirmerPrix({ message, montant });
-    if (typeof accord !== "number") return;
-    const suite = await onFabriquer(accord);
-    if (suite && typeof suite.centimes === "number") await lancer(suite.centimes);
-  }
-
   async function cliquer() {
     if (verrou.current) return;
     verrou.current = true;
@@ -50,7 +42,7 @@ export function BoutonFabriquer({
     try {
       const montant = await montantApresControle(montantCentimes, avantPrix);
       if (montant === null) return;
-      await lancer(montant);
+      await fabriquerAvecUneRelance(montant, onFabriquer);
     } finally {
       verrou.current = false;
       setEnCours(false);

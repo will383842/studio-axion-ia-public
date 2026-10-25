@@ -8,3 +8,12 @@ export async function montantApresControle(montantCentimes: number, avantPrix?: 
   if (controle === false) return null;
   return typeof controle === "object" ? controle.centimes : montantCentimes;
 }
+
+/**
+ * Règle du 25/10/2026 : plus de clic de confirmation. Envoie le montant connu ; si le serveur répond « accord requis » avec
+ * un autre montant (`{ centimes }`), UNE seule relance part avec ce montant, jamais de boucle : la suite est rendue telle quelle.
+ */
+export async function fabriquerAvecUneRelance(montantCentimes: number, onFabriquer: (accord: number) => Promise<{ centimes: number } | void>): Promise<void> {
+  const suite = await onFabriquer(montantCentimes);
+  if (suite && typeof suite.centimes === "number") await onFabriquer(suite.centimes);
+}
