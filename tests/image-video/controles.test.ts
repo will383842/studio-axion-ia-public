@@ -17,7 +17,7 @@ import type { BruitageValideIV } from "@/moteurs/montage-image-video/bruitages";
 import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { ficheSansChapitres } from "@/moteurs/montage-image-video/recettes";
 import { bloque, CODES_CONTROLE_IV, CONTROLES_INDICATIFS, scriptDeLaVersion, type VersionAControlerIV } from "@/moteurs/montage-image-video/controles";
-import { comparerAuScript, ecouterVersionIV, PHRASES_PARASITES_WHISPER, transcriptionUtile, type DemandeReservationControleIV, type DemandeTranscriptionIV } from "@/moteurs/montage-image-video/ecoute";
+import { comparerAuScript, ecouterVersionIV, PHRASES_PARASITES_WHISPER, SEUILS_ECOUTE_IV, transcriptionUtile, type DemandeReservationControleIV, type DemandeTranscriptionIV } from "@/moteurs/montage-image-video/ecoute";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { liensSuivisIV, planDesFinsIV, type FinIV, type PlanDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
@@ -455,6 +455,39 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
   });
 });
 
+describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en dessous du plancher", () => {
+  /** Retire `part` des mots de la transcription (hors chiffres), répartis, sans toucher au dernier mot. */
+  const retirer = (part: number) => (_d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => {
+    const candidats = mots.map((x, i) => i).filter((i) => i < mots.length - 1 && /^[a-zàâçéèêëîïôûù']{1,5}$/i.test(mots[i].mot));
+    const nb = Math.round(mots.length * part);
+    const pas = candidats.length / nb;
+    const retires = new Set(Array.from({ length: nb }, (_x, k) => candidats[Math.floor(k * pas)]));
+    return mots.filter((_x, i) => !retires.has(i));
+  };
+  const q18De = async (part: number) => {
+    const m = monter("A");
+    const v = await porteUniqueIV(m.entree, outils(m, { transcrire: retirer(part) }).o);
+    return v.versions[0].lignes.find((l) => l.code === "Q18")!;
+  };
+  it("garde-fou : plancher 90 %, seuil de remarque 97 %", () => {
+    expect(SEUILS_ECOUTE_IV.retrouvesPlancher).toBe(0.9);
+    expect(SEUILS_ECOUTE_IV.retrouvesMin).toBe(0.97);
+  });
+  it("environ 95,8 % des mots entendus : remarque orange (ligne non bloquante), pas un refus", async () => {
+    const q18 = await q18De(0.042);
+    expect(q18.etat).toBe("echoue");
+    expect(q18.bloquant).toBe(false);
+    expect(bloque(q18)).toBe(false);
+    expect(q18.phrase).toMatch(/des mots du script entendus dans l'ordre/);
+  });
+  it("environ 80 % des mots entendus : la voix manque vraiment, la vidéo reste refusée", async () => {
+    const q18 = await q18De(0.2);
+    expect(q18.bloquant).toBe(true);
+    expect(bloque(q18)).toBe(true);
+    expect(q18.phrase).toMatch(/90 % au moins/);
+  });
+});
+
 describe("relecture des images finales (Q26) par l'extraction existante", () => {
   it("une relecture « manque : 20 % » est refusée", async () => {
     const m = monter("C");
@@ -557,13 +590,25 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
   it("le verdict lit toutes les versions : un défaut sur la seule version Facebook refuse la vidéo", async () => {
     const m = monter("A");
     const fb = m.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
-    fb.fichier.mesures = { ...fb.fichier.mesures, lufs: -20 };
+    // Cadre faux (défaut qui rend la vidéo inutilisable) : le volume, lui, n'est plus qu'une remarque (voir plus bas).
+    fb.fichier.mesures = { ...fb.fichier.mesures, hauteur: 1000 };
     const { o } = outils(m);
     const v = await porteUniqueIV(m.entree, o);
     expect(v.ok).toBe(false);
     expect(v.versions.find((x) => x.version === fb.version)!.ok).toBe(false);
     expect(v.versions.filter((x) => x.version !== fb.version).every((x) => x.ok || x.lignes.filter(bloque).every((l) => l.etat === "non-fait"))).toBe(true);
-    expect(v.phrases.join()).toMatch(/Facebook.*volume/);
+    expect(v.phrases.join()).toMatch(/Facebook.*hauteur/);
+  });
+
+  it("un volume hors de −14 LUFS ± 1 n'est qu'une remarque orange : la vidéo reste prête", async () => {
+    const m = monter("A");
+    const fb = m.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    fb.fichier.mesures = { ...fb.fichier.mesures, lufs: -20 };
+    const v = await porteUniqueIV(m.entree, outils(m).o);
+    const q24 = v.versions.find((x) => x.version === fb.version)!.lignes.find((l) => l.code === "Q24")!;
+    expect(q24.etat).toBe("echoue");
+    expect(bloque(q24)).toBe(false);
+    expect(v.mentions.join()).toMatch(/volume/);
   });
 
   it("une mesure absente du fichier final échoue (non vérifiée), jamais réussie", async () => {
