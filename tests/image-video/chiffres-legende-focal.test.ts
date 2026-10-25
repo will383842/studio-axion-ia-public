@@ -10,12 +10,12 @@ import { join } from "node:path";
 import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Anneau, geometrieAnneau } from "../../studio-rendu/compositions/image-video/variete/chiffres/anneau";
+import { Anneau, geometrieAnneau, planLegendeAnneau } from "../../studio-rendu/compositions/image-video/variete/chiffres/anneau";
 import type { DonneesEcranChiffresRendu } from "../../studio-rendu/compositions/image-video/variete/chiffres/donnees";
 import { Duel, planDuel } from "../../studio-rendu/compositions/image-video/variete/chiffres/duel";
 import { Geant, planGeant } from "../../studio-rendu/compositions/image-video/variete/chiffres/geant";
 import { Objets } from "../../studio-rendu/compositions/image-video/variete/chiffres/objets";
-import { Pile } from "../../studio-rendu/compositions/image-video/variete/chiffres/pile";
+import { echelleVariante, Pile } from "../../studio-rendu/compositions/image-video/variete/chiffres/pile";
 import { largeurAnton } from "../../src/briques/schema-motion/chasse-anton";
 import { largeurTexte } from "../../src/briques/ecrans-motion/mesure";
 import { cadreChiffres, LEGENDE_MIN_PX, scinderChiffre } from "../../studio-rendu/compositions/image-video/variete/chiffres/outils";
@@ -107,7 +107,8 @@ describe("légende du chiffre principal · reste lisible une fois le chiffre rap
 describe("légende du chiffre principal · ne déborde pas à droite et ne grossit pas dans une zone occupée", () => {
   /** Boîte de la légende, dans le repère de la variante (centre x = 540 : l'axe de l'échelle de `corps.tsx`). */
   function boite(code: string, style: string) {
-    if (code === "CHI-B") {
+    // D1 (25/10/2026) : « résolus instantanément » ne tient pas dans l'anneau, elle passe dessous (left 60, width 960, une ligne) ; sinon boîte du chiffre.
+    if (code === "CHI-B" && !/left:60px;width:960px/.test(style)) {
       const g = geometrieAnneau(cadre);
       return { gauche: g.cx - g.r + g.ep / 2, largeur: 2 * g.r - g.ep };
     }
@@ -126,7 +127,8 @@ describe("légende du chiffre principal · ne déborde pas à droite et ne gross
         const ecranDroite = 540 + (centre - 540) * echelle + largeur / 2;
         expect(ecranGauche).toBeGreaterThanOrEqual(60);
         expect(ecranDroite).toBeLessThanOrEqual(1080 - 60);
-        expect(style).not.toMatch(/white-space:nowrap/);
+        // CHI-B : sous l'anneau (D1) la légende tient sur UNE ligne dans 960 px, donc nowrap y est voulu ; les autres variantes passent à la ligne.
+        if (code !== "CHI-B") expect(style).not.toMatch(/white-space:nowrap/);
       });
     }
   }
@@ -143,14 +145,8 @@ describe("légende du chiffre principal · ne déborde pas à droite et ne gross
     }
   });
 
-  it("anneau : agrandie vers le bas, la légende reste à l'intérieur de l'anneau (avant son bord intérieur bas)", () => {
-    const g = geometrieAnneau(cadre);
-    for (const e of [1, 0.85, 0.7, 0.66]) {
-      // Haut de la légende : bas du chiffre (cy - 0,7 × taille + taille) + 14 ; hauteur agrandie : 62 × 1,15 / e.
-      const bas = g.cy - g.taille * 0.7 + g.taille + 14 + (62 * 1.15) / e;
-      expect(bas).toBeLessThanOrEqual(g.cy + g.r - g.ep / 2);
-    }
-  });
+  // « anneau : la légende reste à l'intérieur de l'anneau » (ancienne assertion) retirée le 25/10/2026 (D1) : « résolus instantanément » ne
+  // tient pas dans la corde intérieure, c'était justement le défaut ; la règle (dedans si ça tient, sinon dessous) est testée plus bas.
 
   it("objets : la grille de bulles commence sous la légende agrandie (aucun chevauchement)", () => {
     for (const e of [1, 0.85, 0.7, 0.66]) {
@@ -239,6 +235,60 @@ describe("D2 · pile centrée : le groupe chiffre + légende est centré sur x =
       expect((debut + fin) / 2).toBeGreaterThanOrEqual(536);
       expect((debut + fin) / 2).toBeLessThanOrEqual(544);
       expect(largeurTexte("demande perdue", "inter-gras", 60)).toBeLessThanOrEqual(colLegende);
+    });
+  }
+});
+
+describe("D1 · légende de l'anneau : jamais sur le trait (dedans si elle tient dans la corde, sinon dessous)", () => {
+  const H = 1.15;
+  /** Chaque ligne de la légende, à l'écran à l'échelle `e`, tient dans la corde intérieure de l'anneau moins 16 px. */
+  function tientDedans(plan: ReturnType<typeof planLegendeAnneau>, c: ReturnType<typeof cadreChiffres>, e: number) {
+    const { g, taillePx, lignes, top } = plan;
+    const cy = c.haut + (g.cy - c.haut) * e;
+    const ri = (g.r - g.ep / 2) * e;
+    const h = taillePx * H;
+    const t0 = c.haut + (top - c.haut) * e;
+    return lignes.every((l, k) => {
+      const dy = Math.max(Math.abs(t0 + k * h - cy), Math.abs(t0 + (k + 1) * h - cy));
+      return dy < ri && largeurTexte(l, "inter-gras", taillePx) <= 2 * Math.sqrt(ri * ri - dy * dy) - 16;
+    });
+  }
+  for (const hauteur of [1350, 1920]) {
+    for (const rangees of [0, 1, 2]) {
+      it(`cadre ${hauteur} · ${rangees} rangée(s) de pile : « ${LEGENDE} » est dans la corde (échelle 1 et minimale) ou dessous, lisible et sans toucher la pile ni les sous-titres`, () => {
+        const c = cadreChiffres(hauteur);
+        const d = doneesAnneau(LEGENDE, rangees);
+        const eMin = echelleVariante(d, c, rangees, 330);
+        const plan = planLegendeAnneau(d, c, eMin);
+        expect(plan.lignes.join(" ")).toBe(LEGENDE);
+        if (plan.place === "dedans") {
+          expect(tientDedans(plan, c, 1)).toBe(true);
+          expect(tientDedans(plan, c, eMin)).toBe(true);
+          return;
+        }
+        expect(plan.taillePx).toBeGreaterThanOrEqual(58);
+        for (const e of [1, eMin]) {
+          const bas = c.haut + (plan.top - c.haut) * e + plan.lignes.length * plan.taillePx * H;
+          expect(bas, `échelle ${e}`).toBeLessThanOrEqual(c.haut + (c.bas - c.haut) * e + 16);
+        }
+        expect(plan.top + plan.lignes.length * plan.taillePx * H).toBeLessThanOrEqual(c.sousTitres - 10);
+        // Le « reste » (20 %) passe sous elle et, à 72 px au moins, finit encore au-dessus des sous-titres.
+        expect(plan.top + plan.lignes.length * plan.taillePx * H + 12 + 72).toBeLessThanOrEqual(c.sousTitres - 10);
+        // Elle est bien sous l'anneau (le trait, extérieur compris, finit avant elle).
+        expect(plan.top).toBeGreaterThanOrEqual(plan.g.cy + plan.g.r + plan.g.ep / 2);
+        // L'anneau garde le haut qu'il avait et un rayon d'au moins 300.
+        const g0 = geometrieAnneau(c);
+        expect(plan.g.cy - plan.g.r).toBe(g0.cy - g0.r);
+        expect(plan.g.r).toBeGreaterThanOrEqual(300);
+      });
+    }
+    it(`cadre ${hauteur} · témoin : « résolus » seul reste DEDANS avec la géométrie actuelle (les légendes courtes ne changent pas)`, () => {
+      const c = cadreChiffres(hauteur);
+      const d = doneesAnneau("résolus", 2);
+      const plan = planLegendeAnneau(d, c, echelleVariante(d, c, 2, 330));
+      expect(plan.place).toBe("dedans");
+      expect(plan.g).toEqual(geometrieAnneau(c));
+      expect(plan.taillePx).toBe(62);
     });
   }
 });
