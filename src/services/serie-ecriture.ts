@@ -22,7 +22,7 @@ import { chaineDeLEcriture, lancerGeneration, prixLancement } from "./boucle-gen
 import { resumeBudget } from "./couts";
 import { claudeBranche, depenseGenerationUsd, ecritureEnEssai, engageClaudeDuMoisCentimes, plafondChaineUsd, plafondMensuelClaudeUsd, taux } from "./generation-claude";
 import { ajouterIdee } from "./idees";
-import { budgetIndicatif } from "./mode-budget";
+import { accordAutomatique, budgetIndicatif } from "./mode-budget";
 import { depots, ErreurStudio, ecrireParametre, journaliser, lireParametre, maintenant } from "./_commun";
 
 /** Au plus 20 idées d'un geste. */
@@ -208,7 +208,10 @@ async function exigerTotalConfirme(plan: PlanSerie, totalConfirme: number | unde
   if (plan.totalPartant.centimes <= seuilConfirmation.centimes) return;
   // Seconde relecture (R4) : la taille du plan vu est EXIGÉE dès qu'il y a une confirmation (absente = refus).
   const memeTaille = partirontConfirme === plan.partiront;
-  const confirme = memeTaille && typeof totalConfirme === "number" && Number.isFinite(totalConfirme) && totalConfirme >= plan.totalPartant.centimes;
+  // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu est rendu inchangé.
+  const vu = memeTaille && typeof totalConfirme === "number" && Number.isFinite(totalConfirme) ? totalConfirme : false;
+  const accord = await accordAutomatique(vu, plan.totalPartant.centimes);
+  const confirme = typeof accord === "number" && Number.isFinite(accord) && accord >= plan.totalPartant.centimes;
   if (!confirme) throw new ErreurStudio("CONFIRMATION_REQUISE", `Ces ${plan.partiront} écritures coûtent au plus ${formaterMontant(plan.totalPartant)}, plus que d'habitude. Confirmez ce prix pour continuer.`, plan.totalPartant.centimes);
 }
 
