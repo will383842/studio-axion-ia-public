@@ -108,8 +108,10 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
   });
   it("les défauts de détail d'une vidéo réelle (trav-dd7a8a2c50d4) : 0 bloquant, des remarques", () => {
     const defauts = [
-      { faux: "le surtitre SITUATION TYPE est masqué par le bandeau orange" },
-      { illisible: "VALIDE coiffe Autoliquidation" },
+      // Textes de défauts du travail réel, rangés dans leurs vrais champs (le rapport d'origine n'est pas dans le dépôt public :
+      // formulations reconstituées d'après le constat, pas copiées mot pour mot).
+      { illisible: "le surtitre SITUATION TYPE est masqué par le bandeau orange" },
+      { faux: "VALIDE coiffe Autoliquidation" },
       { illisible: "le texte du bloc est coupé par le bord droit" },
       { faux: "l'étiquette de la flèche ne correspond pas au bloc annoncé" },
       { illisible: "la légende est tronquée en bas de l'écran" },
@@ -117,7 +119,10 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     const j = jugerRelecture(relecture((_, k) => (k < defauts.length ? defauts[k] : {})), INSTANTS);
     expect(j.bloquants).toEqual([]);
     expect(j.remarques).toHaveLength(5);
+    expect(j.remarques[0]).toMatch(/illisible : le surtitre SITUATION TYPE/);
+    expect(j.remarques[1]).toMatch(/faux : VALIDE coiffe Autoliquidation/);
     for (const r of j.remarques) expect(r).toMatch(/\(détail, la vidéo continue\)\.$/);
+    for (const d of defauts) for (const t of Object.values(d)) expect(estIllisibleGlobalIV(t) || estChiffreFauxIV(t), t).toBe(false);
   });
   it("chiffre faux (« 30 % au lieu de 20 % ») : 1 bloquant", () => {
     const j = jugerRelecture(relecture((_, k) => (k === 2 ? { faux: "30 % au lieu de 20 %" } : {})), INSTANTS);
