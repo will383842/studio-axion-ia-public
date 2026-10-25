@@ -227,6 +227,120 @@ describe("carrousel continu P5 : service de bout en bout", () => {
   });
 });
 
+describe("carrousel continu P5 : correctifs de relecture", () => {
+  beforeEach(async () => {
+    reinitialiserDepots();
+    demandes.length = 0;
+    mesures = { ...MESURES_BONNES };
+    session.ouverte = true;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array([1, 2, 3]))));
+    await definirGenerateur("carrousels-continus", true);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const paquetDe = (surcharge: Record<string, unknown>) => JSON.stringify({ version: "paquet-session-toile/1", sujet: "Ranger", titre: "Ranger son bureau", pourquoi: ["a", "b", "c"], toile: toileDe(3), ...surcharge });
+
+  it("échec de rendu de la toile (pas une mesure absente) : « Refaire » au lieu de « Relancer le rendu »", async () => {
+    const deps = dependancesContinus();
+    const { id } = await creerToileDepuisSujet("Cinq erreurs inventées au lancement", deps);
+    mesures.textesSurCouture = 1;
+    await lancerRenduToile(id, deps);
+    const fiche = await ficheToile(id, deps);
+    expect(fiche.statut).toBe("echec_rendu");
+    expect(fiche.actionsPermises).toContain("refaire");
+    expect(fiche.actionsPermises).not.toContain("relancer_rendu");
+  });
+
+  it("mesure absente : « Relancer le rendu » reste proposé, pas « Refaire »", async () => {
+    const deps = dependancesContinus();
+    const { id } = await creerToileDepuisSujet("Cinq erreurs inventées au lancement", deps);
+    delete mesures.textesSurCouture;
+    await lancerRenduToile(id, deps);
+    const fiche = await ficheToile(id, deps);
+    expect(fiche.actionsPermises).toContain("relancer_rendu");
+    expect(fiche.actionsPermises).not.toContain("refaire");
+  });
+
+  it.each([
+    ["titre de plus de 120 signes", { titre: "T".repeat(121) }],
+    ["titre absent", { titre: undefined }],
+    ["pourquoi en texte", { pourquoi: "a, b, c" }],
+    ["pourquoi avec un nombre", { pourquoi: ["a", 2] }],
+    ["pourquoi trop long", { pourquoi: Array.from({ length: 40 }, () => "a") }],
+  ])("paquet mal formé (%s) → bloque avec sa phrase", async (_nom, surcharge) => {
+    const deps = dependancesContinus();
+    const { id } = await deposerSessionToile(paquetDe(surcharge), deps);
+    const v = await depots().visuels.obtenir(id);
+    expect(v?.statut).toBe("bloque");
+    expect(v?.erreur).toMatch(/lecture du texte déposé/);
+  });
+
+  it.each([
+    ["titre avec un mot interdit", { titre: "Un résultat garanti pour vous" }],
+    ["titre avec un lien", { titre: "Voir exemple.com" }],
+    ["pourquoi avec un mot interdit", { pourquoi: ["a", "Résultat garanti", "c"] }],
+    ["pourquoi avec un lien", { pourquoi: ["a", "https://exemple.com", "c"] }],
+  ])("session : %s → bloque, jamais « ecrit »", async (_nom, surcharge) => {
+    const deps = dependancesContinus();
+    const { id } = await deposerSessionToile(paquetDe(surcharge), deps);
+    const v = await depots().visuels.obtenir(id);
+    expect(v?.statut).toBe("bloque");
+    expect(v?.erreur).toMatch(/à retirer/);
+  });
+
+  it("interrupteur éteint après un premier rendu : la toile déjà connue n'est pas rendue à nouveau", async () => {
+    const deps = dependancesContinus();
+    await deps.rendre(toileDe(3) as never);
+    await definirGenerateur("carrousels-continus", false);
+    await expect(deps.rendre(toileDe(3) as never)).rejects.toThrow(/éteint/);
+  });
+
+  it("retouche automatique : aucun faux refus « Autre chose » dans la fiche", async () => {
+    const notes = [87, 60, 60];
+    const deps = { ...dependancesContinus(), noter: () => notes.shift() ?? 60 };
+    const { id } = await creerToileDepuisSujet("Cinq erreurs inventées au lancement", deps);
+    await lancerRenduToile(id, deps);
+    const v = await depots().visuels.obtenir(id);
+    expect(v?.statut).toBe("bloque");
+    expect(v?.refus ?? []).toHaveLength(0);
+  });
+
+  it("retouche automatique : interrupteur éteint pendant la retouche → pas d'erreur, la fiche reste à valider", async () => {
+    let allume = true;
+    const base = dependancesContinus();
+    const deps = { ...base, allume: async () => allume, noter: () => ((allume = false), 60) };
+    const { id } = await creerToileDepuisSujet("Cinq erreurs inventées au lancement", deps);
+    await expect(lancerRenduToile(id, deps)).resolves.toBeUndefined();
+    const v = await depots().visuels.obtenir(id);
+    expect([v?.statut, v?.versionSpec]).toEqual(["a_valider", 1]);
+  });
+
+  it("retouche automatique : fiche validée pendant la retouche → pas d'erreur, elle reste validée", async () => {
+    const base = dependancesContinus();
+    let cible = "";
+    const deps = { ...base, noter: () => (void depots().visuels.modifier(cible, { statut: "valide" }), 60) };
+    const { id } = await creerToileDepuisSujet("Cinq erreurs inventées au lancement", deps);
+    cible = id;
+    await expect(lancerRenduToile(id, deps)).resolves.toBeUndefined();
+    expect((await depots().visuels.obtenir(id))?.statut).toBe("valide");
+  });
+
+  it("bout en bout en 3:4 : demande de rendu, fiche, ZIP", async () => {
+    mesures = { ...MESURES_BONNES, hauteur: 1440 };
+    const deps = dependancesContinus();
+    const { id } = await deposerSessionToile(paquetDe({ toile: { ...toileDe(3), format: "3:4" } }), deps);
+    await lancerRenduToile(id, deps);
+    const v = await depots().visuels.obtenir(id);
+    expect(v?.statut).toBe("a_valider");
+    expect(v?.renduToile?.format).toBe("3:4");
+    expect((demandes[0].parametres.proprietes as { toile: { format: string } }).toile.format).toBe("3:4");
+    expect((await ficheToile(id, deps)).format).toBe("3:4");
+    const zip = await contenuZipToile(id, deps);
+    expect(zip.entrees).toHaveLength(6);
+    const lisezmoi = zip.entrees.find((e) => e.nom === "LISEZMOI.txt");
+    expect("contenu" in lisezmoi! && lisezmoi.contenu).toContain("3:4 : téléchargement seulement");
+  });
+});
+
 describe("carrousel continu P5 : sources", () => {
   const fichiers = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? fichiers(join(d, n)) : [join(d, n)]));
   it("aucun import de production.ts hors de production-continus.ts", () => {
