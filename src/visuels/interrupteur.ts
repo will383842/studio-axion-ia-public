@@ -6,10 +6,12 @@ import "server-only";
 import { ErreurStudio, ecrireParametre, journaliser, lireParametre } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 
-export const CLES_INTERRUPTEURS_VISUELS = ["carrousels.actif", "infographies.actif"] as const;
-export type FamilleVisuelle = "carrousels" | "infographies";
+export const CLES_INTERRUPTEURS_VISUELS = ["carrousels.actif", "infographies.actif", "carrousels-continus.actif"] as const;
+export type FamilleVisuelle = "carrousels" | "infographies" | "carrousels-continus";
 
 export const PHRASE_GENERATEUR_ETEINT = "Le générateur est éteint (Réglages › Carrousels)";
+
+const LIBELLES_JOURNAL: Record<FamilleVisuelle, string> = { carrousels: "Carrousels", infographies: "Infographies", "carrousels-continus": "Carrousels continus" };
 
 const cleDe = (famille: FamilleVisuelle) => `${famille}.actif` as (typeof CLES_INTERRUPTEURS_VISUELS)[number];
 
@@ -29,5 +31,5 @@ export async function exigerGenerateurAllume(famille: FamilleVisuelle): Promise<
 export async function definirGenerateur(famille: FamilleVisuelle, valeur: boolean): Promise<void> {
   await exigerSession();
   await ecrireParametre(cleDe(famille), valeur);
-  await journaliser("reglages", `${famille === "carrousels" ? "Carrousels" : "Infographies"} : ${valeur ? "allumé" : "éteint"}`);
+  await journaliser("reglages", `${LIBELLES_JOURNAL[famille]} : ${valeur ? "allumé" : "éteint"}`);
 }
