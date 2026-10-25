@@ -393,7 +393,7 @@ describe.each([
     expect(await depots().videos.compter()).toBe(videos + 1);
   });
 
-  it(indicatif ? "« Fabriquer la vidéo » sans accord : la fabrication part, jamais accord-requis" : "témoin : « Fabriquer la vidéo » sans accord, accord-requis", async () => {
+  it(indicatif ? "« Fabriquer la vidéo » sans accord : le prix ne l'arrête plus, jamais accord-requis" : "témoin : « Fabriquer la vidéo » sans accord, accord-requis", async () => {
     // Brouillon découpé (fiche valide), case « déjà vu » cochée, avec le prix accepté à la main (service, hors action).
     const relu = repereTexte(donneesTableau.texte);
     const prix = await creationTableau.decouperScriptTableau(donneesTableau, { relu, accord: 999_999 }, { aujourdhui: AUJOURDHUI_EXEMPLES });
@@ -402,6 +402,8 @@ describe.each([
     await creationTableau.cocherDejaVuTableau(prix.videoId, true, { aujourdhui: AUJOURDHUI_EXEMPLES });
     const fiche: FicheTableau = creationTableau.lireBrouillonTableau((await depots().videos.obtenir(prix.videoId))!)!.versions.at(-1)!.fiche;
     const r = await actionsTableau.fabriquerVideoTableauAction(prix.videoId, undefined, repereFiche(fiche));
-    expect(r).toMatchObject({ ok: true, donnees: { statut: indicatif ? "lancee" : "accord-requis" } });
+    // Indicatif : le prix est passé ; en test le stockage n'est pas relié, c'est ce qui arrête la fabrication (après le prix, rien payé).
+    if (indicatif) expect(r).toMatchObject({ ok: false, code: "STOCKAGE_NON_RELIE" });
+    else expect(r).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
   });
 });
