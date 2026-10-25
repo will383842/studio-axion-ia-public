@@ -19,10 +19,10 @@ import { recettePourVersion } from "@/moteurs/montage-image-video/variete/tirage
 
 interface PisteFixture { version: string; reseaux: string[]; dureeSec: number; finVoixSec: number; motsCorps: number; mots: { mot: string; debutSec: number; finSec: number }[] }
 interface FinFixture { id: string; muet: boolean }
-const F = JSON.parse(readFileSync(join(__dirname, "fixtures", "v-0339175a9f88-scene.json"), "utf8")) as {
+const F = JSON.parse(readFileSync(join(__dirname, "fixtures", "rythme-moment-vide-scene.json"), "utf8")) as {
   videoId: string;
   carte: unknown;
-  fiche: { ecrans: { id: string; scene: string; refs: string[] }[] };
+  fiche: { ecrans: { id: string; scene: string; refs: string[]; textesEcran: string[] }[] };
   recette: unknown;
   fins: FinFixture[];
   pistes: PisteFixture[];
@@ -30,12 +30,12 @@ const F = JSON.parse(readFileSync(join(__dirname, "fixtures", "v-0339175a9f88-sc
 };
 
 /** Même assemblage que `sceneDe` (fabrication.ts). */
-function entreeDe(v: (typeof F.versions)[number]): EntreeMiseEnSceneIV {
+function entreeDe(v: (typeof F.versions)[number], fiche: unknown = F.fiche): EntreeMiseEnSceneIV {
   const p = F.pistes.find((x) => x.version === v.piste)!;
   const fin = F.fins.find((f) => f.id === v.id);
   return {
     carte: F.carte,
-    fiche: F.fiche,
+    fiche,
     voix: { mots: p.mots, motsCorps: p.motsCorps, dureeSec: p.dureeSec, finVoixSec: p.finVoixSec },
     fin: fin && !fin.muet ? fin : null,
     reseaux: v.reseaux,
@@ -93,5 +93,35 @@ describe("rythme : un écran « dossiers » sans bloc cité ne laisse plus un tr
     const plansE04 = resultatDe(k).ligne.plans.filter((p) => p.ecran === "e04");
     expect(plansE04.length).toBeGreaterThan(0);
     for (const p of plansE04) expect(p.sorte).toBe("emotion");
+  });
+});
+
+/** Fiche de la fixture dont certains écrans sont modifiés. */
+const ficheAvec = (modif: Record<string, Record<string, unknown>>) => ({ ...F.fiche, ecrans: F.fiche.ecrans.map((e) => ({ ...e, ...(modif[e.id] ?? {}) })) });
+
+describe("rythme : les moments qui relancent eux-mêmes le rythme ne sont pas touchés", () => {
+  it.each([0, 1])("version %i : e12 (email) et e13 (alerte) avec un lien seul gardent leur scène et leur sorte « moment »", (k) => {
+    const e12 = F.fiche.ecrans.find((e) => e.id === "e12")!;
+    const e13 = F.fiche.ecrans.find((e) => e.id === "e13")!;
+    const e14 = F.fiche.ecrans.find((e) => e.id === "e14")!; // reçoit les blocs n09-n11 : sinon Q12 les attendrait en vain
+    expect([e12.scene, e13.scene]).toEqual(["email", "alerte"]);
+    const r = mettreEnSceneIV(entreeDe(F.versions[k], ficheAvec({ e12: { refs: ["l08"] }, e13: { refs: ["l09"] }, e14: { refs: [...e14.refs, "n09", "n10", "n11"] } })));
+    for (const id of ["e12", "e13"]) {
+      const plans = r.ligne.plans.filter((p) => p.ecran === id);
+      expect(plans.length, id).toBeGreaterThan(0);
+      for (const p of plans) {
+        expect(p.sorte, id).toBe("moment");
+        expect(p.scene, id).toBe(id === "e12" ? "email" : "alerte");
+      }
+    }
+    expect(r.phrases).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
+
+  it("un écran « dossiers » sans bloc cité ET sans texte d'écran n'est pas passé en « titre »", () => {
+    const r = mettreEnSceneIV(entreeDe(F.versions[1], ficheAvec({ e04: { textesEcran: [] } })));
+    const plans = r.ligne.plans.filter((p) => p.ecran === "e04");
+    expect(plans.length).toBeGreaterThan(0);
+    for (const p of plans) expect(p.sorte).toBe("moment");
   });
 });

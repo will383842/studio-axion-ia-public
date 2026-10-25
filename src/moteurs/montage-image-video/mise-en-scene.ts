@@ -483,17 +483,20 @@ interface EcranPlace {
  * (`SCENES_COMMUNES`), mais un écran de bénéfice ne dessine qu'un bloc « bénéfice ». Celui qui n'en cite aucun (et cite
  * des blocs) est mis en scène sur la toile : sinon ses blocs n'apparaissent jamais (Q12), son chiffre dit n'est pas
  * montré (Q13) et rien ne bouge pendant qu'il est dit (Q14).
- * 25/10 (prod, carte « chatbot ») : même trou pour un « moment » (ex. « dossiers ») qui ne cite AUCUN bloc de la carte : il
- * ne pose rien qui compte comme nouveauté (ses en-têtes de remplissage ne comptent pas), d'où 6 s sans rien de neuf (Q14).
- * Il passe en texte seul (« titre »), qui pose ses lignes l'une après l'autre.
+ * 25/10 (prod, carte « chatbot ») : même trou pour « dossiers », « sources » et « recherche » qui ne citent AUCUN bloc de la
+ * carte : ils ne posent rien qui compte comme nouveauté (leurs en-têtes de remplissage ne comptent pas), d'où 6 s sans rien
+ * de neuf (Q14). Ils passent en texte seul (« titre »), qui pose ses lignes l'une après l'autre. Les autres moments (email,
+ * alerte...) relancent eux-mêmes le rythme et gardent leurs liens cités : ils ne sont pas touchés.
  */
+const MOMENTS_SANS_RELANCE = new Set<string>(["dossiers", "sources", "recherche"]);
+
 function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheImage {
   const sansBenefice = (e: EcranFiche) => {
     const noeuds = e.refs.map((r) => carte.noeuds.find((n) => n.id === r)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
     return SCENES_BENEFICES.has(e.scene) && noeuds.length > 0 && !noeuds.some((n) => n.role === "benefice");
   };
   const momentVide = (e: EcranFiche) =>
-    sorteDe(e.scene, e.partie, e.refs, carte) === "moment" && !SANS_ENTETE.has(e.scene) && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
+    MOMENTS_SANS_RELANCE.has(e.scene) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
   if (!fiche.ecrans.some((e) => sansBenefice(e) || momentVide(e))) return fiche;
   return { ...fiche, ecrans: fiche.ecrans.map((e) => (sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
 }
