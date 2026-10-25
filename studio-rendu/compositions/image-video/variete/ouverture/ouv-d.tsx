@@ -21,7 +21,7 @@ const LARGEUR = 936;
  * Lignes et tailles : parmi les découpages des mots en 1 à 4 lignes (dans l'ordre), chaque ligne à la taille qui
  * remplit la largeur (548 px au plus), tout réduit d'un même rapport si trop haut ; on garde celui qui couvre le plus.
  */
-export function disposerMots(mots: readonly string[]): { mots: number[]; taille: number }[] {
+export function disposerMots(mots: readonly string[], interligne = 1.18): { mots: number[]; taille: number }[] {
   const n = mots.length;
   if (!n) return [];
   const largeur = (ix: number[]) => ix.reduce((s, i) => s + largeurAnton(mots[i], 1), 0) + 0.22 * (ix.length - 1);
@@ -33,7 +33,7 @@ export function disposerMots(mots: readonly string[]): { mots: number[]; taille:
     const bornes = [0, ...coupes.map((k) => k + 1), n];
     const lignes = bornes.slice(0, -1).map((b, k) => [...Array(bornes[k + 1] - b).keys()].map((x) => x + b));
     let tailles = lignes.map((ix) => Math.min(548, Math.floor(LARGEUR / largeur(ix))));
-    const hauteur = tailles.reduce((s, x) => s + x * 1.18, 0);
+    const hauteur = tailles.reduce((s, x) => s + x * interligne, 0);
     if (hauteur > BAS - HAUT) tailles = tailles.map((x) => Math.floor((x * (BAS - HAUT)) / hauteur));
     if (Math.min(...tailles) < 96) continue;
     const couvert = lignes.reduce((s, ix, k) => s + tailles[k] * Math.min(LARGEUR, largeur(ix) * tailles[k]), 0);
@@ -51,12 +51,14 @@ export function OuvertureD({ d, t, format, boucle, phrase, fond = "ivoire", affi
   const accent = fond === "sombre" ? accentDe("sombre") : C.orange;
   // Comme la maquette OUV-D-1 : les mots déjà dits occupent toute la place, la phrase se recompose à chaque mot.
   const visibles = Math.max(1, d.mots.filter((m) => tt >= m.t).length);
-  const lignes = disposerMots(d.mots.slice(0, visibles).map((m) => m.texte));
+  // Affiche : interligne 1,30 (l'accent d'une capitale ne touche pas la ligne du dessus) ; OUV-D de la vidéo : 1,18, inchangé.
+  const interligne = affiche ? 1.3 : 1.18;
+  const lignes = disposerMots(d.mots.slice(0, visibles).map((m) => m.texte), interligne);
   const appoint = format === "9:16" && !affiche;
   // Le bloc de mots est centré entre le haut et la bande des sous-titres : aucun grand trou au-dessus ni au-dessous.
-  const total = lignes.reduce((h, l) => h + l.taille * 1.18, 0);
+  const total = lignes.reduce((h, l) => h + l.taille * interligne, 0);
   const y0 = HAUT + Math.max(0, (BAS - HAUT - total) / 2);
-  const tops = lignes.map((_, k) => y0 + lignes.slice(0, k).reduce((h, l) => h + l.taille * 1.18, 0));
+  const tops = lignes.map((_, k) => y0 + lignes.slice(0, k).reduce((h, l) => h + l.taille * interligne, 0));
   const y = y0 + total;
   const dernier = d.mots[d.mots.length - 1];
   return (

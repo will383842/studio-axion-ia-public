@@ -50,6 +50,18 @@ describe("afficheIV · la première image montre l'accroche écrite en entier", 
     }
   }
 
+  it("le mot orange tombé après le 8e mot : le premier chiffre, sinon le dernier mot, devient orange", () => {
+    const carte = carteDe("A");
+    const fiche = FICHES_SIMULEES["essai-a"];
+    const avec = (texte: string) => afficheIV(carte, { ...fiche, ecrans: fiche.ecrans.map((e, i) => (e.partie === "accroche" && i === fiche.ecrans.findIndex((x) => x.partie === "accroche") ? { ...e, textesEcran: [texte] } : e.partie === "accroche" ? { ...e, textesEcran: [] } : e)) })!;
+    const sans = avec("un deux trois quatre cinq six sept huit *neuf*");
+    expect(sans.donnees.mots).toHaveLength(8);
+    expect(sans.donnees.mots.filter((m) => m.orange)).toHaveLength(1);
+    expect(sans.donnees.mots[7].orange).toBe(true);
+    const chiffre = avec("un deux 3 quatre cinq six sept huit *neuf*");
+    expect(chiffre.donnees.mots.findIndex((m) => m.orange)).toBe(2);
+  });
+
   it("sans aucun texte d'accroche : pas d'affiche (et pas de clé)", () => {
     const carte = carteDe("A");
     const fiche = FICHES_SIMULEES["essai-a"];

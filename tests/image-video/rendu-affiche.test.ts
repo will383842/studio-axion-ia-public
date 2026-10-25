@@ -13,7 +13,7 @@ import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { mettreEnSceneIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
-import { COMPOSITIONS_RENDU_IV, scenesDeLaLigne } from "@/services/image-video-rendu";
+import { COMPOSITIONS_RENDU_IV, parametresDuBloc, scenesDeLaLigne } from "@/services/image-video-rendu";
 import { sousTitresVariesIV } from "@/moteurs/montage-image-video/sous-titres-varies";
 
 const VALIDES: BruitageValideIV[] = SONS_BANQUE.map((s) => ({ elementId: idElementBruitage(s), declencheur: s.declencheur, variante: s.variante, dureeSec: s.dureeSec }));
@@ -35,13 +35,14 @@ describe("scenesDeLaLigne · l'affiche", () => {
     });
   }
 
-  it("un premier bloc écran v4 passe par ImageVideoEcranFin", () => {
+  it("un bloc écran v4 en première place passe par ImageVideoEcranFin (appel direct, cas forcé)", () => {
     const ligne = ligneDe("9:16");
-    const premier = ligne.blocs[0];
-    const ecran = { ...ligne, blocs: [{ ...premier, sorte: "ecran" as const, ecran: { type: "accroche", id: "e01", fond: "sombre", debutMs: 0, finMs: 2000, evenements: [], lignes: ["Test"] } } as never, ...ligne.blocs.slice(1)] };
-    if (premier.sorte === "ecran") return;
-    const s = scenesDeLaLigne(ecran as LigneDeTempsIV, O)[0];
-    expect(s.parametres.composition).toBe(COMPOSITIONS_RENDU_IV.ecranFin);
+    const bloc = ligne.blocs.find((b) => b.sorte === "ecran");
+    expect(bloc).toBeDefined();
+    const avec = parametresDuBloc(bloc!, ligne, true);
+    expect(avec.composition).toBe(COMPOSITIONS_RENDU_IV.ecranFin);
+    expect(avec.proprietes).toHaveProperty("affiche");
+    expect(parametresDuBloc(bloc!, ligne, false).proprietes).not.toHaveProperty("affiche");
   });
 
   it("sans affiche : aucune propriété `affiche` (rendus inchangés)", () => {

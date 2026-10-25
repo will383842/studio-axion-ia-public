@@ -463,6 +463,11 @@ export function afficheIV(carte: CarteImage, fiche: FicheImage): AfficheIV | nul
     .slice(0, 8)
     .map((m) => ({ ...m, t: 0 }));
   if (!mots.length) return null;
+  // Le mot orange peut être tombé après le 8e mot : à défaut, le premier chiffre, sinon le dernier mot.
+  if (!mots.some((m) => m.orange)) {
+    const chiffre = mots.findIndex((m) => /^\d/.test(m.texte));
+    mots[chiffre >= 0 ? chiffre : mots.length - 1].orange = true;
+  }
   const h = lecture.heure;
   const nuit = !!h && h.valeur !== null && (h.valeur >= 20 * 60 || h.valeur < 6 * 60);
   const fond = fiche.ecrans[0]?.fond === "ivoire" ? "ivoire" : "sombre";
