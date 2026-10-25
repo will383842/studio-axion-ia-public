@@ -223,9 +223,9 @@ describe("écriture en attente de crédit : en indicatif, seul le crédit réel 
   }, 60_000);
 });
 
-describe("seuil de confirmation : levé pour UN seul tour, après le vrai geste « Reprendre »", () => {
+describe("seuil de confirmation : plus jamais exigé en indicatif", () => {
   const eur0 = { centimes: 0, devise: "EUR" as const };
-  it("seuil dépassé → attente « seuil » (phrase « Confirmez le prix ») → reprendreEcriture → le tour part → le drapeau est effacé → le tour suivant exige de nouveau le seuil", async () => {
+  it("seuil dépassé en indicatif → le tour part tout de suite, sans attente « seuil » ni geste « Reprendre » (le prix ne bloque jamais)", async () => {
     const c = claude();
     await ecrireParametre("budget.mode", "indicatif");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 20);
@@ -233,22 +233,8 @@ describe("seuil de confirmation : levé pour UN seul tour, après le vrai geste 
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
-    expect((await generation(r.generationId)).statut).toBe("en-attente-credit");
-    expect(c.appels).toHaveLength(0);
-    expect(await gc.phraseAttenteSeuil(r.generationId)).toMatch(/Confirmez le prix avec « Reprendre »/);
-    expect(await gc.phraseAttenteSeuil(r.generationId)).not.toMatch(/Relevez/);
-    // le vrai geste de Will, avec confirmation du prix
-    const err = await bg.reprendreEcriture(r.scriptMaitreId).catch((x) => x);
-    expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await bg.reprendreEcriture(r.scriptMaitreId, err.montant)).toBeGreaterThan(0);
-    expect(await lireParametre<boolean>(`generateur.repriseDeWill.${r.generationId}`, false)).toBe(true);
-    await bg.tourBoucleGeneration();
+    expect((await generation(r.generationId)).statut).not.toBe("en-attente-credit");
     expect(c.appels.length).toBeGreaterThan(0);
-    // fin du tour : le drapeau n'existe plus, un tour relancé autrement (complément, choix d'accroches) exige de nouveau le seuil
-    expect(await lireParametre<boolean>(`generateur.repriseDeWill.${r.generationId}`, false)).toBe(false);
-    const { roleSonde } = await import("@/generateur/roles/sonde");
-    await depots().generations.modifier(r.generationId, { statut: "en-cours" }); // tour relancé par un autre geste (complément, choix d'accroches)
-    expect(await gc.executerRoleFacture(r.generationId, roleSonde, { contexte: {}, variable: "x" })).toMatchObject({ ok: false, arret: "en-attente-credit" });
   }, 90_000);
 
   it("mode bloquant : la phrase d'attente demande toujours de relever le seuil dans Réglages", async () => {

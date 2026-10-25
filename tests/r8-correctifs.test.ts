@@ -246,6 +246,13 @@ describe("n° 1 — un accord donné en essai ne vaut pas pour un montage réel"
     expect(rienDePaye()).toBe(true);
   });
 
+  it("mode indicatif : un confirmationDifferee sur un autre moteur ne refuse plus (le prix du jour vaut accord)", async () => {
+    await preparer();
+    await reglages.definirMontageReel("avocat", true);
+    await ecrireParametre("budget.mode", "indicatif");
+    await expect(fabrication.lancerFabricationConfirmee(VIDEO, { confirme: true, confirmationDifferee: { moteurId: "simulation" } })).resolves.toBeTruthy();
+  });
+
   it("accord donné pour le montage réel : la vidéo en attente part montée pour de vrai, comme confirmé", async () => {
     await preparer();
     await reglages.definirMontageReel("avocat", true);
