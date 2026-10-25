@@ -96,7 +96,7 @@ export type ContenuEcran<V = VisuelEcran> =
   | { type: "objet"; titre: string; ligne?: string; visuel: V }
   | { type: "preuve"; etiquette?: string; titre: string; puces: string[] }
   | { type: "resultat"; etiquette?: string; titre: string; avant: string; maintenant: string; ligne: string }
-  | { type: "question"; lignes: string[]; question: string }
+  | { type: "question"; lignes: string[]; question: string; hauteurLigneRef?: number }
   | { type: "appel-mot"; etiquette?: string; invite: string; mot: string; suite: string }
   | { type: "promesse"; invite: string; cadeau: string; ligne: string }
   | { type: "lien"; etiquette?: string; titre: string; lien: string; signature: string };

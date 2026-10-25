@@ -36,7 +36,8 @@ export function Entete({ entete, ecoule, sortie, fond, marque, largeur, hauteur 
       {entete && titre ? (
         <div style={{ position: "absolute", left: 0, top: haut, width: largeur, textAlign: "center", opacity: 1 - sortie }}>
           <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLES_DUO.etiquette * ht, letterSpacing: "0.32em", textTransform: "uppercase", color: c.accent, opacity: Math.min(1, ecoule / 0.2) }}>
-            {entete.etiquette}
+            {/* Étiquette vide : l'espace insécable garde la hauteur de la ligne (le titre ne remonte pas d'une ligne). */}
+            {entete.etiquette || "\u00a0"}
           </div>
           <div style={{ marginTop: ECART_ETIQUETTE * ht, fontFamily: famille("anton"), fontWeight: graisse("anton"), fontSize: titre.taille, lineHeight: 1.05, textTransform: "uppercase", color: c.texte }}>
             {titre.lignes.map((ligne, l) => (

@@ -27,7 +27,7 @@ export function CalqueChiffres({ children }: { children: ReactNode }) {
       {children}
       {d.accents?.length && scene?.parId ? (
         <AbsoluteFill style={{ transform: `scale(${echelle})`, transformOrigin: "0 0", width: 1080, height: height / echelle }}>
-          <AccentsToile scene={scene} accents={d.accents} t={t} />
+          <AccentsToile scene={scene} accents={d.accents} t={t} hauteur={height / echelle} />
         </AbsoluteFill>
       ) : null}
       {ecran ? (
