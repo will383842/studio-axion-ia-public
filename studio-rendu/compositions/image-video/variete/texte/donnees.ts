@@ -100,6 +100,10 @@ export interface Rangee {
 }
 
 const INTERLIGNE = 0.36;
+/** Air ajouté entre deux rangées en plus de l'interligne (× taille) : au plus 0,1 ⇒ trou visible ≤ 0,46 × taille (D4, compositions-iv/11). */
+export const ECART_MAX_RANGEES = 0.1;
+/** Un morceau de plusieurs mots n'est coupé que s'il faudrait le réduire sous cette part de sa taille pour qu'il tienne sur une ligne (D5). */
+const PART_MIN_UNE_LIGNE = 0.75;
 
 /**
  * TYP-C : coupe les lignes en rangées (mots entiers, largeur ≤ `largeur`) et choisit la plus grande taille qui fait
@@ -137,7 +141,9 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
           if (courante.length) rs.push(courante);
           return rs;
         };
-        let coupe = couperA(largeur);
+        // D5 : « Au matin » (~960 px à 280) tient sur une ligne à 268 : on garde l'expression entière (la réduction plus bas ajuste la taille).
+        const tailleUneLigne = largeur / Math.max(1e-6, larg(morceau.map((k) => l.mots[k].mot), 1));
+        let coupe = morceau.length > 1 && tailleUneLigne >= PART_MIN_UNE_LIGNE * t ? [morceau] : couperA(largeur);
         for (let l0 = largeur - 20; coupe.length > 1 && l0 > largeur * 0.4; l0 -= 20) {
           const essai = couperA(l0);
           if (essai.length > coupe.length) break;
@@ -153,16 +159,16 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
       return { ...r, taille, largeur: largeurAnton(textes.join(" ").toUpperCase(), taille) };
     });
   };
-  const total = (rs: Omit<Rangee, "y">[]) => rs.reduce((s, r) => s + r.taille * (1 + INTERLIGNE), 0) - (rs.at(-1)?.taille ?? 0) * INTERLIGNE;
+  const total = (rs: Omit<Rangee, "y">[]) => rs.reduce((s, r) => s + r.taille * (1 + INTERLIGNE), 0) - (rs.at(-1)?.taille ?? 0) * INTERLIGNE + 18; // + le filet sous la dernière rangée (lignes.tsx : taille + 12, 6 px de haut)
   let taille = tailleMax;
   let rs = couper(taille);
   while (taille > 70 && total(rs) > hauteur) {
     taille -= 6;
     rs = couper(taille);
   }
-  // Répartition : l'air restant est partagé entre les rangées (au plus une demi-taille de plus par écart).
+  // Répartition : l'air restant est partagé entre les rangées (au plus ECART_MAX_RANGEES × taille de plus par écart).
   const reste = Math.max(0, hauteur - total(rs));
-  const ecart = rs.length > 1 ? Math.min(reste / (rs.length - 1), taille * 0.6) : 0;
+  const ecart = rs.length > 1 ? Math.min(reste / (rs.length - 1), taille * ECART_MAX_RANGEES) : 0;
   let y = haut + Math.max(0, (hauteur - total(rs) - ecart * Math.max(0, rs.length - 1)) / 2);
   return rs.map((r) => {
     const posee = { ...r, y };
