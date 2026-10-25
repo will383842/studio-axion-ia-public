@@ -120,6 +120,33 @@ describe("réglage « automatique »", () => {
     expect(ancien.miseDeCote?.porte).toBe("carte");
   });
 
+  it("hors lot, le contrôle du prix reste STRICT au prix accordé même en mode indicatif (pas 5 ×)", async () => {
+    const c = carteFixe("A");
+    const base = outilsSimules(c, monde(), { cartesValidees: 0 });
+    const o = { ...base, budget: { ...base.budget, indicatif: { facteurSecurite: 5, signaler: async () => undefined } } };
+    const apres = await avancerJusquAArretIV(etatInitialIV(demandeEssai(c, { validationCarte: "automatique", plafondCentimes: 500 })), o);
+    expect(apres.etape).toBe("script-a-valider");
+    expect(apres.miseDeCote?.motif).toMatch(/dépasserait le prix accordé/);
+  });
+
+  it("un chiffre lu une seule fois est accepté sans relecture MAIS écrit dans les adaptations avant la validation", async () => {
+    const c = carteFixe("C");
+    const b = lectureDeCarte(c);
+    b.noeuds = b.noeuds.map((n) => ({ ...n, libelle: n.libelle.replace(/\d+/g, "").trim() || n.libelle, ...(n.detail ? { detail: n.detail.replace(/\d+/g, "").trim() || n.detail } : {}) }));
+    const apres = await avancerJusquAArretIV(etatInitialIV(demandeEssai(c, { validationCarte: "automatique", plafondCentimes: 5000 })), outilsSimules(c, monde(), { cartesValidees: 0, lectures: { b } }));
+    expect(apres.carte?.par).toBe("reglage");
+    expect(apres.carte?.carte.validation).toBeDefined();
+    const dites = phrasesAdaptees(apres.carte!.carte).join(" ");
+    expect(dites).toMatch(/Point accepté sans relecture, à vérifier/);
+    expect(dites).toMatch(/écart|lu\(s\) une seule fois|une seule fois/);
+  });
+
+  it("bout en bout : un mot interdit (Q08, « machine ») dans la phrase-choc met le script de côté", async () => {
+    const c = completerCarte({ ...carteFixe("B"), phraseChoc: "Cette machine travaille pour vous" } as unknown as BrouillonCarte);
+    const apres = await avancerJusquAArretIV(etatInitialIV(demandeEssai(c, { validationCarte: "automatique", plafondCentimes: 5000 })), outilsSimules(c, monde(), { cartesValidees: 0 }));
+    expect(apres.miseDeCote?.porte).toBe("script");
+  });
+
   it("l'ancien réglage « si-doute » garde sa porte sous 10 cartes", async () => {
     const c = carteFixe("B");
     const apres = await avancerJusquAArretIV(etatInitialIV(demandeEssai(c, { validationCarte: "si-doute" })), outilsSimules(c, monde(), { cartesValidees: 0 }));
