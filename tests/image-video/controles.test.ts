@@ -564,6 +564,14 @@ describe("relecture des images finales (Q26) par l'extraction existante", () => 
     const vs = await porteUniqueIV(ms.entree, outils(ms, { extraction: () => [] }).o);
     expect(vs.ok).toBe(false);
     expect(vs.versions[0].lignes.find((l) => l.code === "Q26")!.phrase).toMatch(/rendu est suspect/);
+    // Un volume ou une crête hors seuil n'est PAS un rendu suspect : la vidéo continue avec la remarque.
+    for (const mesure of [{ lufs: -17 }, { creteVraieDbtp: 0.5 }]) {
+      const mv = monter("A");
+      mv.entree.versions[0].fichier.mesures = { ...mv.entree.versions[0].fichier.mesures, ...mesure };
+      const vv = await porteUniqueIV(mv.entree, outils(mv, { extraction: () => [] }).o);
+      expect(vv.ok, JSON.stringify(mesure)).toBe(true);
+      expect(vv.mentions.join()).toMatch(/images finales non relues/);
+    }
     // 25/10/2026 : UNE image de contrôle manquante n'est plus un refus mais une remarque (la vidéo continue).
     const m1 = monter("A");
     const { o: o1 } = outils(m1, { extraction: (d) => d.parametres.instants.slice(1).map((i) => ({ nom: i.nom, cle: d.parametres.cles[i.nom] })) });

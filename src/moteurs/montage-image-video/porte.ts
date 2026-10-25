@@ -134,8 +134,8 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const refusEcoute = refusAvant || e.versions.some((v) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => bloque(l) && l.code !== "Q26"));
 
   // 3. Relecture des images finales (réservée), seulement si tout le reste passe.
-  // Rendu suspect : le fichier final a une anomalie de mesure (Q24) ; sans aucune image lue, la vidéo n'est alors pas livrée.
-  const renduSuspect = (v: VersionAControlerIV) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => l.code === "Q24" && l.etat !== "reussi");
+  // Rendu suspect : le fichier final a une anomalie de mesure d'image (noir, figé, largeur, hauteur) ou une ligne Q24 bloquante, jamais un volume ni une crête ; sans aucune image lue, la vidéo n'est alors pas livrée.
+  const renduSuspect = (v: VersionAControlerIV) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => l.code === "Q24" && l.etat !== "reussi" && (bloque(l) || l.details.some((d) => /image noire|image figée|largeur|hauteur/.test(d))));
   const relectures: Record<string, RelectureFinale> = { ...(e.deja?.relectures ?? {}) };
   const relues = new Map<string, Awaited<ReturnType<typeof relireVersionIV>>>();
   for (const v of e.versions) {
