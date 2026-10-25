@@ -122,8 +122,8 @@ describe("F6 · Fabrication d'une vidéo, sur le socle", () => {
     expect(texte(rendreFab({ vue, arretee: true }))).not.toContain("Refaire cette partie");
   });
 
-  it("le plafond relevable reste proposé hors fabrication en cours", () => {
-    expect(texte(rendreFab({ plafond: { proposeCentimes: 700, arrete: true } }))).toContain("Relever le plafond");
+  it("plus de « Relever le plafond » (règle du 25/10/2026) : la jauge de dépense reste en information", () => {
+    expect(texte(rendreFab({ plafond: { proposeCentimes: 700, arrete: true } }))).not.toContain("Relever le plafond");
     expect(texte(rendreFab({ enCours: true, arret, plafond: { proposeCentimes: 700, arrete: false } }))).not.toContain("Relever le plafond");
   });
 
