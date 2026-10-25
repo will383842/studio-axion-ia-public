@@ -193,7 +193,7 @@ export interface ComparaisonEcoute {
   retrouves: number;
   part: number;
   /** Suites de mots entendus qui ne sont pas dans le script (dans l'ordre), avec leur nombre de mots. */
-  ajouts: { texte: string; mots: number; debutSec: number }[];
+  ajouts: { texte: string; mots: number; debutSec: number; /** Mots du script que cette suite remplace à l'oreille (même suite de sons) : elle n'est alors pas un ajout. */ remplace?: string }[];
   /** Passages du script non entendus (3 premiers mots de chaque trou). */
   manques: string[];
   /** Chiffres du script (clé « valeur|unité ») non entendus, et chiffres entendus hors script. */
@@ -237,6 +237,45 @@ const lisible = (cle: string) => {
   return v === "plage" ? u : u === "nombre" ? v : `${v} ${u === "heure" ? "(heure)" : u}`;
 };
 
+/**
+ * Clé sonore d'un texte : ce que l'oreille retient, pas l'orthographe (« chatbot ia » et « chat de Bottia » se
+ * ressemblent). Minuscules, accents et tout ce qui n'est pas une lettre retirés, quelques sons ramenés à une
+ * seule lettre, « h » et « e » supprimés, lettres doublées fusionnées. PUR.
+ */
+export function cleSonore(texte: string): string {
+  return texte
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z]/g, "")
+    .replace(/t?ch|sh/g, "S")
+    .replace(/qu|k|c(?=[aou])/g, "K")
+    .replace(/ph/g, "f")
+    .replace(/v/g, "b")
+    .replace(/y/g, "i")
+    .replace(/eau|au/g, "o")
+    .replace(/h/g, "")
+    .replace(/e/g, "")
+    .replace(/(.)\1+/g, "$1");
+}
+
+/** Distance d'édition entre deux chaînes, ramenée à la plus longue (0 = identiques, 1 = rien en commun). */
+function ecartNormalise(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > ECART_SONORE_MAX * Math.max(a.length, b.length)) return 1;
+  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length] / Math.max(a.length, b.length, 1);
+}
+
+/** Écart sonore au-delà duquel une suite entendue n'est plus prise pour le passage du script qu'elle remplace. */
+const ECART_SONORE_MAX = 0.3;
+/** Clé sonore minimale du passage du script : un mot trop court se « ressemble » avec n'importe quoi. */
+const CLE_SONORE_MIN = 5;
+const MOT_DE_NOMBRE = /^(?:zero|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingts?|trente|quarante|cinquante|soixante|cents?|mille|millions?|milliards?)$/;
+const porteUnChiffre = (mots: readonly string[]) => mots.some((m) => /\d/.test(m) || MOT_DE_NOMBRE.test(cleAccents(m)));
+const cleAccents = (m: string) => m.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+
 /** Compare la transcription utile au script de la version. PUR. */
 export function comparerAuScript(script: string, entendus: readonly MotHorodate[]): ComparaisonEcoute {
   const formes = formesComparables(script);
@@ -251,8 +290,34 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
   const apparies = new Set(paire.filter((x) => x >= 0).map((j) => dits[j].mot));
   const ajouts: ComparaisonEcoute["ajouts"] = [];
   let courant: number[] = [];
+  /** Passage du script (entre les deux mots appariés qui encadrent la suite) qu'elle remplace à l'oreille, s'il y en a un. */
+  const remplacement = (suite: number[]): string | undefined => {
+    const premier = suite[0];
+    const dernier = suite[suite.length - 1];
+    let avant = -1;
+    let apres = formes.length;
+    for (let i = 0; i < formes.length; i++) {
+      if (paire[i] < 0) continue;
+      const k = dits[paire[i]].mot;
+      if (k < premier) avant = i;
+      else if (k > dernier) {
+        apres = i;
+        break;
+      }
+    }
+    const trou = formes.slice(avant + 1, apres);
+    if (trou.length === 0 || suite.length > trou.length + 2) return undefined;
+    const entendu = suite.map((k) => entendus[k].mot);
+    if (porteUnChiffre(trou) || porteUnChiffre(formesComparables(entendu.join(" ")))) return undefined;
+    const cleScript = cleSonore(trou.join(""));
+    if (cleScript.length < CLE_SONORE_MIN) return undefined;
+    return ecartNormalise(cleScript, cleSonore(entendu.join(""))) <= ECART_SONORE_MAX ? trou.join(" ") : undefined;
+  };
   const fermer = () => {
-    if (courant.length) ajouts.push({ texte: courant.map((k) => entendus[k].mot).join(" "), mots: courant.length, debutSec: entendus[courant[0]].debutSec });
+    if (courant.length) {
+      const remplace = remplacement(courant);
+      ajouts.push({ texte: courant.map((k) => entendus[k].mot).join(" "), mots: courant.length, debutSec: entendus[courant[0]].debutSec, ...(remplace ? { remplace } : {}) });
+    }
     courant = [];
   };
   entendus.forEach((_, k) => {
@@ -467,7 +532,7 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
   const c = comparerAuScript(e.script, utile.mots);
   const q18: string[] = [];
   if (c.part < SEUILS_ECOUTE_IV.retrouvesMin - 1e-9) q18.push(`${Math.round(c.part * 1000) / 10} % des mots du script entendus dans l'ordre (97 % au moins)${c.manques.length ? ` ; manquent notamment : « ${c.manques.slice(0, 3).join(" », « ")} »` : ""}.`);
-  for (const a of c.ajouts.filter((x) => x.mots > SEUILS_ECOUTE_IV.ajoutConsecutifMax)) q18.push(`la voix dit « ${a.texte} » (vers ${sec(a.debutSec)}), absent du script.`);
+  for (const a of c.ajouts.filter((x) => x.mots > SEUILS_ECOUTE_IV.ajoutConsecutifMax && !x.remplace)) q18.push(`la voix dit « ${a.texte} » (vers ${sec(a.debutSec)}), absent du script.`);
   for (const ch of c.chiffresNonEntendus) q18.push(`le chiffre « ${ch} » du script n'est pas entendu.`);
   for (const ch of c.chiffresInventes) q18.push(`le chiffre « ${ch} » est entendu mais n'est pas dans le script.`);
 
