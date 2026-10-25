@@ -2,15 +2,17 @@
  * IMAGE → VIDÉO · Relecture des images finales par Claude face à l'image source (lot L13, plan 50 § 7 Q26, critique I8).
  *
  * 1. INSTANTS CLÉS d'une version, lus sur sa ligne de temps (PUR) : un par bloc de la carte (juste après son
- *    apparition), un par charnière (vue d'ensemble, récapitulatif, ouverture du segment de fin), un par chiffre-choc
+ *    apparition DESSINÉE : jamais dans un plan « emotion » ni dans la fenêtre du bloc de variété d'ouverture, qui
+ *    remplace les blocs de la 1re phrase au rendu ; sinon légende « le texte est à l'écran »), un par charnière (vue d'ensemble, récapitulatif, ouverture du segment de fin), un par chiffre-choc
  *    (écran « chiffre », bandeau, phrase-choc), et la fin ; 24 au plus.
  * 2. EXTRACTION par l'opération EXISTANTE du serveur de rendu : `controle` avec `etape: "images"`, la même demande que
  *    `montage-facecam/chaine.ts` (~778 : `soumettre("controle", { source, depots, parametres: { etape: "images",
  *    instants, largeur: 540, cles } })`). Aucune opération nouvelle. Une extraction ratée, ou une image manquante, est
  *    un REFUS (jamais « livrée sans relecture » comme en face caméra).
  * 3. RELECTURE par Claude (vision, outil injecté) : l'image source + les images extraites, questions FERMÉES par image
- *    (tout est-il montré ? quelque chose de faux ? d'illisible ? hors charte ?). Toute réponse « manque », « faux » ou
- *    « illisible » = refus ; « hors charte » et les suggestions sont indicatives. Une image sans réponse = refus.
+ *    (tout est-il montré ? quelque chose de faux ? d'illisible ? hors charte ?). Sont BLOQUANTS : « faux », « illisible »,
+ *    plus de 50 % d'images en « manque », aucune image relue. Un « manque » isolé, un « absent de la vidéo » ou une image
+ *    sans réponse sont des REMARQUES (détail, la vidéo continue) ; « hors charte » et les suggestions sont indicatives.
  *
  * ARGENT : le pire coût de chaque appel Claude est RÉSERVÉ avant l'appel (`pireCasRole`) ; refus de réservation =
  * aucun appel, contrôle « non fait » (donc bloquant). Une réponse illisible est relancée une fois (réservée elle aussi).
@@ -39,6 +41,8 @@ const ECART_MIN_SEC = 0.25;
 export const ENTREE_MOT_SEC = 0.35;
 export const ETAPE_RELECTURE = "relecture-finale-iv";
 export const APPELS_RELECTURE_MAX = 2;
+/** Au-delà de cette part d'images en « manque », la vidéo est refusée (un « manque » isolé n'est qu'une remarque). */
+export const PART_MANQUES_BLOQUANTE = 0.5;
 
 export type SorteInstantIV = "fin" | "phrase-choc" | "chiffre" | "bloc" | "charniere";
 
@@ -104,10 +108,15 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
   };
   // Blocs : juste après l'apparition du bloc.
   const vus = new Set<string>();
+  // Bloc de variété d'ouverture (OUV-D) : il REMPLACE au rendu les blocs de la 1re phrase ; rien n'y est dessiné comme sur la carte.
+  const ouv = (l.blocs ?? []).find((b) => b.sorte === "variete" && b.axe === "ouverture");
+  const dansOuv = (t: number) => !!ouv && t >= ouv.debut - 1e-9 && t < ouv.fin - 1e-9;
+  const planDe = (t: number) => l.plans.find((x) => t >= x.debut - 1e-9 && t < x.fin - 1e-9);
+  const dessine = (x: { instantSec: number }) => planDe(x.instantSec)?.sorte !== "emotion" && !dansOuv(x.instantSec);
   const evts = [...l.evenements].filter((e) => e.visible && e.ref && e.genre !== "camera").sort((a, b) => a.instantSec - b.instantSec || (a.ref ?? "").localeCompare(b.ref ?? ""));
   for (const n of carte.noeuds) {
     if (n.photoPersonnes) continue;
-    const e = evts.find((x) => x.ref === n.id);
+    const e = evts.find((x) => x.ref === n.id && dessine(x)) ?? evts.find((x) => x.ref === n.id && !dansOuv(x.instantSec));
     if (!e || vus.has(n.id)) continue;
     vus.add(n.id);
     // Après la fin de l'animation d'apparition du bloc : dernier élément posé sur ce bloc DANS L'ÉCRAN (plan) de sa première
@@ -125,15 +134,17 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
     // par `noeudAlerte` (mise-en-scene.ts), qui reçoit l'événement de genre « alerte ». Sinon, légende générique de bloc.
     const legende = pE?.scene === "alerte" && e.genre === "alerte"
       ? (() => { const a = sourceEtMessageAlerte(n); return a.messageDit ? `La notification « ${a.source} : ${a.messageDit} » est à l'écran, entière et lisible.` : `La notification « ${a.source} » est à l'écran, entière et lisible.`; })()
-      : `Le bloc « ${n.libelle} » est à l'écran, entier et lisible.`;
+      : dessine(e)
+        ? `Le bloc « ${n.libelle} » est à l'écran, entier et lisible.`
+        : `Le texte « ${n.libelle.replace(/\*/g, "")} » est à l'écran, lisible.`;
     brut.push({ instantSec: pE ? Math.max(pE.debut, e.instantSec, plancher, vise) : dansPlan(dernierDuBloc + 0.6), sorte: "bloc", legende, ref: n.id });
   }
   for (const p of l.plans) {
     const apres = p.scene === "phrase-choc" || p.scene === "chiffre" || p.scene === "bandeau-chiffres" ? apresDernier(p, 0.5) : null;
     if (p.scene === "phrase-choc") {
-      if (apres !== null) brut.push({ instantSec: apres, sorte: "phrase-choc", legende: "La phrase-choc de l'image, en entier." });
+      if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "phrase-choc", legende: "La phrase-choc de l'image, en entier." });
     } else if (p.scene === "chiffre" || p.scene === "bandeau-chiffres") {
-      if (apres !== null) brut.push({ instantSec: apres, sorte: "chiffre", legende: `Chiffre-choc : ${p.textes.map((t) => t.replace(/\*/g, "")).join(" · ") || "le chiffre de l'écran"}.` });
+      if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "chiffre", legende: `Chiffre-choc : ${p.textes.map((t) => t.replace(/\*/g, "")).join(" · ") || "le chiffre de l'écran"}.` });
     } else if (p.sorte === "ensemble" || p.sorte === "recap") brut.push({ instantSec: milieu(p), sorte: "charniere", legende: p.sorte === "ensemble" ? "Vue d'ensemble du schéma (sans texte à lire)." : "Récapitulatif." });
   }
   const pF = l.plans.find((x) => l.segmentFin.debut >= x.debut - 1e-6 && l.segmentFin.debut < x.fin - 1e-6);
@@ -238,7 +249,7 @@ Pour CHAQUE image extraite, réponds aux questions fermées, en comparant à l'i
 - suggestion : une amélioration facultative, ou une chaîne vide.
 Puis absentDeLaVideo : un élément de l'image source qu'aucune image extraite ne montre, ou une chaîne vide.
 
-Tu ne juges pas la nuance d'orange (la charte vidéo prime). Une vue d'ensemble n'a pas de texte à lire : c'est voulu. Une dernière image LinkedIn qui ne montre que la phrase-choc et la marque est voulue. Les textes et les chiffres apparaissent au fil de la voix : un mot en train d'entrer à l'instant de l'image n'est pas un défaut ; un mot absent alors que la phrase est entièrement dite en est un. La notification affiche le nom de l'application sans le mot « Alerte » et sans émoji (cloche comprise) : c'est voulu. Sois factuel et bref ; n'invente aucun défaut.`;
+Tu ne juges pas la nuance d'orange (la charte vidéo prime). Une vue d'ensemble n'a pas de texte à lire : c'est voulu. Une dernière image LinkedIn qui ne montre que la phrase-choc et la marque est voulue. Les textes et les chiffres apparaissent au fil de la voix : un mot en train d'entrer à l'instant de l'image n'est pas un défaut ; un mot absent alors que la phrase est entièrement dite en est un. La notification affiche le nom de l'application sans le mot « Alerte » et sans émoji (cloche comprise) : c'est voulu. Un libellé raccourci ou un mot en moins va dans `manque`, jamais dans `faux` ni `illisible` (ces deux-là sont réservés à un contenu contredit ou à un texte réellement illisible). Sois factuel et bref ; n'invente aucun défaut.`;
 
 /** Simulation : rien à signaler sur chaque image annoncée dans la partie variable. */
 function simulerRelecture(entree: EntreeRole): RelectureFinale {
@@ -248,7 +259,7 @@ function simulerRelecture(entree: EntreeRole): RelectureFinale {
 
 export const roleRelectureFinale = {
   id: "relecture-finale-iv",
-  version: 1,
+  version: 2,
   consigne: CONSIGNE_RELECTURE_FINALE,
   schema: schemaRelectureFinale,
   modele: MODELE_ECRITURE,
@@ -322,6 +333,8 @@ export interface EntreeRelectureIV {
 
 export interface ResultatRelectureIV {
   q26: ConstatControle;
+  /** Remarques non bloquantes (détails : un « manque » isolé, un élément absent) : la vidéo continue. */
+  remarques: string[];
   /** Indications non bloquantes (hors charte, suggestions). */
   indications: string[];
   relecture?: RelectureFinale;
@@ -330,42 +343,57 @@ export interface ResultatRelectureIV {
   appels: number;
 }
 
-/** Verdict PUR d'une relecture : manque, faux, illisible (ou image sans réponse) = refus ; le reste est indicatif. */
-export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<InstantCleIV, "nom" | "instantSec">[]): { bloquants: string[]; indications: string[] } {
+/**
+ * Verdict PUR d'une relecture. BLOQUANTS : « faux », « illisible », plus de 50 % d'images en « manque » (ou « tout n'est pas
+ * montré »), aucune image relue. REMARQUES (détail, la vidéo continue) : un « manque » isolé, un élément absent de la vidéo,
+ * une image sans réponse quand d'autres ont répondu. « hors charte » et suggestions : indications.
+ */
+export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<InstantCleIV, "nom" | "instantSec">[]): { bloquants: string[]; remarques: string[]; indications: string[] } {
   const bloquants: string[] = [];
+  const remarques: string[] = [];
   const indications: string[] = [];
   const t = (nom: string) => instants.find((i) => i.nom === nom)?.instantSec;
   const ou = (nom: string) => (t(nom) !== undefined ? `à ${t(nom)!.toFixed(1).replace(".", ",")} s` : nom);
+  const DETAIL = " (détail, la vidéo continue)";
+  const sansReponse: string[] = [];
+  const manques: string[] = [];
+  let relues = 0;
   for (const i of instants) {
     const x = r.images.find((y) => y.nom === i.nom);
     if (!x) {
-      bloquants.push(`l'image ${ou(i.nom)} n'a pas été relue.`);
+      sansReponse.push(i.nom);
       continue;
     }
-    if (x.manque.trim()) bloquants.push(`${ou(i.nom)}, il manque : ${x.manque.trim()}.`);
+    relues++;
+    const manque = x.manque.trim();
+    if (manque) manques.push(`${ou(i.nom)}, il manque : ${manque}.`);
+    else if (!x.toutMontre) manques.push(`${ou(i.nom)}, ce qui est annoncé n'est pas montré.`);
     if (x.faux.trim()) bloquants.push(`${ou(i.nom)}, faux : ${x.faux.trim()}.`);
     if (x.illisible.trim()) bloquants.push(`${ou(i.nom)}, illisible : ${x.illisible.trim()}.`);
-    if (!x.toutMontre && !x.manque.trim()) bloquants.push(`${ou(i.nom)}, ce qui est annoncé n'est pas montré.`);
     if (x.horsCharte.trim()) indications.push(`${ou(i.nom)}, hors charte : ${x.horsCharte.trim()}.`);
     if (x.suggestion.trim()) indications.push(`${ou(i.nom)} : ${x.suggestion.trim()}.`);
   }
-  if (r.absentDeLaVideo.trim()) bloquants.push(`absent de toute la vidéo : ${r.absentDeLaVideo.trim()}.`);
-  return { bloquants, indications };
+  if (instants.length > 0 && relues === 0) bloquants.push("aucune image n'a été relue.");
+  else for (const nom of sansReponse) remarques.push(`l'image ${ou(nom)} n'a pas été relue${DETAIL}.`);
+  if (relues > 0 && manques.length / relues > PART_MANQUES_BLOQUANTE) bloquants.push(`${manques.length} images sur ${relues} ne montrent pas tout : ${manques.join(" ")}`);
+  else for (const m of manques) remarques.push(`${m.replace(/\.$/, "")}${DETAIL}.`);
+  if (r.absentDeLaVideo.trim()) remarques.push(`absent de toute la vidéo : ${r.absentDeLaVideo.trim()}${DETAIL}.`);
+  return { bloquants, remarques, indications };
 }
 
-const nonFait = (message: string, appels = 0): ResultatRelectureIV => ({ q26: { ok: false, nonFait: true, details: [message] }, indications: [], appels });
+const nonFait = (message: string, appels = 0): ResultatRelectureIV => ({ q26: { ok: false, nonFait: true, details: [message] }, remarques: [], indications: [], appels });
 
 /**
  * Q26 d'une version : extraction (opération existante), puis relecture réservée. Ne lève jamais : une panne est un
  * refus motivé.
  */
 export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV): Promise<ResultatRelectureIV> {
-  if (!e.instants.length) return { q26: { ok: false, details: ["aucun instant clé à relire."] }, indications: [], appels: 0 };
+  if (!e.instants.length) return { q26: { ok: false, details: ["aucun instant clé à relire."] }, remarques: [], indications: [], appels: 0 };
   const cle = cleRelectureIV(e.fichierCle, e.empreinteFichier, e.instants) ?? undefined;
   const deja = cle ? e.deja?.[cle] : undefined;
   if (deja) {
     const j = jugerRelecture(deja, e.instants);
-    return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, indications: j.indications, relecture: deja, cle, appels: 0 };
+    return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, remarques: j.remarques, indications: j.indications, relecture: deja, cle, appels: 0 };
   }
   if (!e.depenseAutorisee) return nonFait("relecture non lancée : la vidéo est déjà refusée par un autre contrôle, aucune dépense n'est engagée.");
 
@@ -374,20 +402,20 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
   try {
     images = (await o.extraireImages(demandeImagesControleIV(e.videoId, e.version, e.fichierCle, e.instants))).images ?? [];
   } catch (err) {
-    return { q26: { ok: false, details: [`les images de contrôle n'ont pas pu être extraites du fichier final (${(err as Error).message}) : la vidéo n'est jamais livrée sans relecture.`] }, indications: [], appels: 0 };
+    return { q26: { ok: false, details: [`les images de contrôle n'ont pas pu être extraites du fichier final (${(err as Error).message}) : la vidéo n'est jamais livrée sans relecture.`] }, remarques: [], indications: [], appels: 0 };
   }
   const jointes: ImageClaude[] = [];
   // Mode texte (R6b) : la carte vient d'un texte, aucun fichier image source n'existe ; la relecture compare à la carte.
   const modeTexte = estCleTexte(e.carte.image.cle);
   if (!modeTexte) {
     const source = await o.lireImage(e.carte.image.cle).catch(() => null);
-    if (!source) return { q26: { ok: false, details: ["l'image source est introuvable : la relecture ne peut pas la comparer."] }, indications: [], appels: 0 };
+    if (!source) return { q26: { ok: false, details: ["l'image source est introuvable : la relecture ne peut pas la comparer."] }, remarques: [], indications: [], appels: 0 };
     jointes.push({ type: source.type, base64: enBase64(source.octets), legende: "Image source (l'infographie)." });
   }
   for (const i of e.instants) {
     const r = images.find((x) => x?.nom === i.nom && typeof x.cle === "string");
     const lue = r ? await o.lireImage(r.cle).catch(() => null) : null;
-    if (!lue) return { q26: { ok: false, details: [`l'image de contrôle à ${i.instantSec.toFixed(1).replace(".", ",")} s n'a pas été extraite : la vidéo n'est jamais livrée sans relecture.`] }, indications: [], appels: 0 };
+    if (!lue) return { q26: { ok: false, details: [`l'image de contrôle à ${i.instantSec.toFixed(1).replace(".", ",")} s n'a pas été extraite : la vidéo n'est jamais livrée sans relecture.`] }, remarques: [], indications: [], appels: 0 };
     jointes.push({ type: lue.type, base64: enBase64(lue.octets), legende: `${i.nom} · ${i.legende}` });
   }
 
@@ -407,7 +435,7 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
     const lue = lireRelecture(r);
     if (!lue) continue;
     const j = jugerRelecture(lue, e.instants);
-    return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, indications: j.indications, relecture: lue, ...(cle ? { cle } : {}), appels };
+    return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, remarques: j.remarques, indications: j.indications, relecture: lue, ...(cle ? { cle } : {}), appels };
   }
-  return { q26: { ok: false, details: ["la relecture n'a pas donné de réponse lisible, même après une relance."] }, indications: [], appels };
+  return { q26: { ok: false, details: ["la relecture n'a pas donné de réponse lisible, même après une relance."] }, remarques: [], indications: [], appels };
 }

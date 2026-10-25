@@ -149,7 +149,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   // 4. Lignes finales, sur TOUTES les versions.
   const jugees: VersionJugeeIV[] = e.versions.map((v) => {
     const r = relues.get(v.version)!;
-    const lignes = controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version), relecture: { q26: r.q26, indications: r.indications } }));
+    const lignes = controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version), relecture: { q26: r.q26, indications: r.indications, remarques: r.remarques } }));
     // Garde-fou : un contrôle absent bloque (jamais sauté en silence).
     for (const code of CODES_CONTROLE_IV) {
       if (!lignes.some((l) => l.code === code)) lignes.push({ code, version: v.version, reseaux: [...v.reseaux], etat: "non-fait", bloquant: !CONTROLES_INDICATIFS.has(code), phrase: `${LIBELLES_CONTROLE_IV[code]} (non vérifié) : contrôle absent.`, details: ["contrôle absent."] });
