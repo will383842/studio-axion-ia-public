@@ -483,14 +483,22 @@ interface EcranPlace {
  * (`SCENES_COMMUNES`), mais un écran de bénéfice ne dessine qu'un bloc « bénéfice ». Celui qui n'en cite aucun (et cite
  * des blocs) est mis en scène sur la toile : sinon ses blocs n'apparaissent jamais (Q12), son chiffre dit n'est pas
  * montré (Q13) et rien ne bouge pendant qu'il est dit (Q14).
+ * 25/10 (prod, carte « chatbot ») : même trou pour « dossiers », « sources » et « recherche » qui ne citent AUCUN bloc de la
+ * carte : ils ne posent rien qui compte comme nouveauté (leurs en-têtes de remplissage ne comptent pas), d'où 6 s sans rien
+ * de neuf (Q14). Ils passent en texte seul (« titre »), qui pose ses lignes l'une après l'autre. Les autres moments (email,
+ * alerte...) relancent eux-mêmes le rythme et gardent leurs liens cités : ils ne sont pas touchés.
  */
+const MOMENTS_SANS_RELANCE = new Set<string>(["dossiers", "sources", "recherche"]);
+
 function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheImage {
   const sansBenefice = (e: EcranFiche) => {
     const noeuds = e.refs.map((r) => carte.noeuds.find((n) => n.id === r)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
     return SCENES_BENEFICES.has(e.scene) && noeuds.length > 0 && !noeuds.some((n) => n.role === "benefice");
   };
-  if (!fiche.ecrans.some(sansBenefice)) return fiche;
-  return { ...fiche, ecrans: fiche.ecrans.map((e) => (sansBenefice(e) ? { ...e, scene: "toile" as const } : e)) };
+  const momentVide = (e: EcranFiche) =>
+    MOMENTS_SANS_RELANCE.has(e.scene) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
+  if (!fiche.ecrans.some((e) => sansBenefice(e) || momentVide(e))) return fiche;
+  return { ...fiche, ecrans: fiche.ecrans.map((e) => (sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
 }
 
 /** Met en scène une version. Rend toujours la ligne de temps et le rapport des contrôles (`ok` = aucun bloquant). */
@@ -1774,7 +1782,7 @@ function recouper(bornes: number[], p: EcranPlace, precedent: PlanIV | undefined
     const b = res[k + 1];
     const longPrecedent = k === 0 ? (precedent ? precedent.fin - precedent.debut > R.planLong : false) : res[k] - res[k - 1] > R.planLong;
     if (!(b - a > R.planMax || (b - a > R.planLong && longPrecedent))) continue;
-    const dans = (marge: number) => p.els.filter((x) => x.visible && x.t > a + marge && x.t < b - marge && ["ligne", "entete", "micro", "ligne-carte", "objet", "champ", "declencheur", "alerte", "message", "tampon"].includes(x.role));
+    const dans = (marge: number) => p.els.filter((x) => x.visible && x.t > a + marge && x.t < b - marge && ["ligne", "entete", "micro", "ligne-carte", "objet", "champ", "declencheur", "alerte", "message", "tampon", "noeud"].includes(x.role));
     const candidats = dans(1.2).length ? dans(1.2) : dans(0.6);
     if (!candidats.length) continue;
     const milieu = (a + b) / 2;
