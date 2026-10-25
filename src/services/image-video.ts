@@ -29,6 +29,7 @@ import type { DemandeRendu, EtatRendu, ServiceRendu, StockageFichiers } from "@/
 import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
 import { BRUITAGES_V4_IV, historiqueVarieteIV, RenduEnCoursIV, tarifVoixCentimesEur, type DemandeDepenseIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import type { ConvertirEnPng } from "@/moteurs/montage-image-video/lecture/preparation";
+import { idTravailControleIV, imagesExtraitesIV } from "@/moteurs/montage-image-video/relecture-finale";
 import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture";
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
@@ -461,9 +462,10 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
       },
       extraireImages: async (d) => {
         const depots = Object.fromEntries(await Promise.all(Object.entries(d.parametres.cles).map(async ([nom, cle]) => [nom, await signerDepot(cle, "image/jpeg")] as const)));
-        const id = `iv-controle-${Buffer.from(`${dep.videoId}|${d.source}`).toString("base64url").slice(-48)}`;
-        await travailFacecam("image", id, async () => ({ source: await signerLecture(d.source), depots, parametres: d.parametres }), "L'extraction des images de contrôle", 10 * 60_000);
-        return { images: Object.entries(d.parametres.cles).map(([nom, cle]) => ({ nom, cle })) };
+        // L'id dépend des instants (l'aligneur garde ses travaux 24 h) ; seules les images réellement listées sont déclarées.
+        const id = idTravailControleIV(String(dep.videoId), d);
+        const r = await travailFacecam("image", id, async () => ({ source: await signerLecture(d.source), depots, parametres: d.parametres }), "L'extraction des images de contrôle", 10 * 60_000);
+        return { images: imagesExtraitesIV(r, d) };
       },
       lireImage: async (cle) => {
         const octets = await lireStockage(cle);

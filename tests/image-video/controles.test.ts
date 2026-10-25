@@ -538,10 +538,16 @@ describe("relecture des images finales (Q26) par l'extraction existante", () => 
 
   it("extraction ratée ou incomplète = refus (jamais « livrée sans relecture »)", async () => {
     const m = monter("A");
-    const { o } = outils(m, { extraction: (d) => d.parametres.instants.slice(1).map((i) => ({ nom: i.nom, cle: d.parametres.cles[i.nom] })) });
+    const { o } = outils(m, { extraction: () => [] });
     const v = await porteUniqueIV(m.entree, o);
     expect(v.ok).toBe(false);
     expect(v.versions[0].lignes.find((l) => l.code === "Q26")!.phrase).toMatch(/jamais livrée sans relecture/);
+    // 25/10/2026 : UNE image de contrôle manquante n'est plus un refus mais une remarque (la vidéo continue).
+    const m1 = monter("A");
+    const { o: o1 } = outils(m1, { extraction: (d) => d.parametres.instants.slice(1).map((i) => ({ nom: i.nom, cle: d.parametres.cles[i.nom] })) });
+    const v1 = await porteUniqueIV(m1.entree, o1);
+    expect(v1.versions[0].lignes.find((l) => l.code === "Q26")!.bloquant).toBe(false);
+    expect(v1.mentions.join()).toMatch(/n'a pas été extraite \(détail, la vidéo continue\)/);
     const m2 = monter("A");
     const { o: o2 } = outils(m2);
     const v2 = await porteUniqueIV(m2.entree, { ...o2, extraireImages: async () => { throw new Error("serveur de rendu indisponible"); } });
