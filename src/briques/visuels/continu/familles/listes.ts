@@ -8,14 +8,15 @@ import type { DefinitionGabarit } from "../registre-gabarits";
 export const BORNES_LISTES: Record<string, [number, number]> = { L01: [3, 3], L02: [3, 4], L03: [3, 4], L04: [3, 4], L05: [4, 5], L06: [3, 4], L07: [6, 9] };
 
 /**
- * Budgets de caractères (mesurés au rendu, 4:5 et 3:4, mots longs compris : voir `essai-continu-listes.ts`), par type et par nombre d'éléments :
+ * Budgets de caractères PROVISOIRES (estimés d'après la largeur des cartes, pas encore mesurés au rendu : à confirmer par `essai-continu-listes.ts`,
+ * 4:5 et 3:4, mots longs compris, L03 à 3 marches comprise), par type et par nombre d'éléments :
  * `titre` et `accent` pour la page, puis un budget par champ d'élément. Plus il y a d'éléments, moins chacun a de place (comme `capaciteListe`).
  */
 const BUDGETS: Record<string, { page: { titre: number; accent: number }; element: (n: number) => Record<string, number> }> = {
   L01: { page: { titre: 22, accent: 14 }, element: () => ({ titre: 21, sous: 18 }) },
   L02: { page: { titre: 22, accent: 14 }, element: (n) => ({ titre: 18, sous: n <= 3 ? 40 : 32 }) },
   L03: { page: { titre: 22, accent: 14 }, element: (n) => ({ label: n <= 3 ? 13 : 9 }) },
-  L04: { page: { titre: 18, accent: 18 }, element: (n) => ({ jour: 10, texte: n <= 3 ? 44 : 24 }) },
+  L04: { page: { titre: 18, accent: 18 }, element: (n) => ({ texte: n <= 3 ? 44 : 24 }) },
   L05: { page: { titre: 22, accent: 14 }, element: (n) => ({ texte: n <= 4 ? 56 : 48 }) },
   L06: { page: { titre: 22, accent: 14 }, element: () => ({ label: 12 }) },
   L07: { page: { titre: 16, accent: 14 }, element: () => ({ label: 14 }) },
@@ -66,8 +67,9 @@ function schemaListe<S extends z.ZodRawShape>(type: string, champs: S) {
 
 const item = (nom: number, sous: number, motNom: number, motSous: number) => z.object({ icone, titre: texteBorne(nom, motNom), sous: texteBorne(sous, motSous) }).strict();
 
-// Les bords d'une liste sont occupés par ses cartes de 80 à 1000 px : seul le haut (sous l'en-tête) est libre à coup sûr.
-const BORDS_PLEINS = { gauche: [[0, 196]], droite: [[0, 196]] } as DefinitionGabarit["bordsLibres"];
+// PROVISOIRE (à remplacer par les intervalles mesurés de l'essai) : les cartes occupent les bords de 80 à 1000 px dès y = 196 ; au-dessus,
+// l'en-tête tient la pastille à gauche et la marque (jusqu'à x = 1000) à droite pour y de 84 à 144, d'où deux bandes libres.
+const BORDS_PLEINS = { gauche: [[0, 84], [144, 196]], droite: [[0, 84], [144, 196]] } as DefinitionGabarit["bordsLibres"];
 
 const L01: DefinitionGabarit = {
   type: "L01",
@@ -75,12 +77,12 @@ const L01: DefinitionGabarit = {
   famille: "liste",
   role: "contenu",
   sombre: false,
-  orangeFort: false,
+  orangeFort: true,
   version: 1,
   schema: schemaListe("L01", { items: liste("L01", item(21, 18, 12, 14)) }),
   exemple: {
     type: "L01",
-    alt: "Trois freins fréquents : trop d’outils, pas le temps, peur pour les données.",
+    alt: "Des freins fréquents : trop d’outils, pas le temps, peur pour les données.",
     rubrique: "Ce qui freine",
     titre: "Ce qui vous freine,",
     accent: "souvent",
@@ -105,7 +107,7 @@ const L02: DefinitionGabarit = {
   schema: schemaListe("L02", { items: liste("L02", item(18, 40, 18, 20)) }),
   exemple: {
     type: "L02",
-    alt: "Ce qu’on fait pour vous en quatre temps : auditer, choisir, installer, suivre.",
+    alt: "Ce qu’on fait pour vous, dans l’ordre : auditer, choisir, installer, suivre.",
     rubrique: "Notre rôle",
     titre: "Ce qu’on fait",
     accent: "pour vous",
@@ -131,7 +133,7 @@ const L03: DefinitionGabarit = {
   schema: schemaListe("L03", { etapes: liste("L03", z.object({ icone, label: texteSansLien(1, 13) }).strict()) }),
   exemple: {
     type: "L03",
-    alt: "Un escalier en quatre marches : écouter, choisir, installer, suivre.",
+    alt: "Un escalier par étapes : écouter, choisir, installer, suivre.",
     rubrique: "Un pas après l’autre",
     titre: "On avance",
     accent: "par étapes",
@@ -154,17 +156,18 @@ const L04: DefinitionGabarit = {
   sombre: false,
   orangeFort: false,
   version: 1,
-  schema: schemaListe("L04", { etapes: liste("L04", z.object({ icone, jour: texteSansLien(1, 10), texte: texteSansLien(1, 56) }).strict()) }),
+  // Rubrique imposée ; le jour est un nombre, « Jour N » est posé par le composant (un nombre en texte déclencherait la porte CHIFFRE).
+  schema: schemaListe("L04", { rubrique: z.literal("Cas concret"), etapes: liste("L04", z.object({ icone, jour: z.number().int().min(1).max(99), texte: texteSansLien(1, 56) }).strict()) }),
   exemple: {
     type: "L04",
-    alt: "Un devis de bout en bout : jour 1, jour 3, jour 7.",
+    alt: "Un devis suivi de bout en bout : envoi, rappel, réponse.",
     rubrique: "Cas concret",
     titre: "Un devis,",
     accent: "de bout en bout",
     etapes: [
-      { icone: "mail", jour: "Jour 1", texte: "Le devis part, la relance est prête." },
-      { icone: "bell", jour: "Jour 3", texte: "Rappel doux, sans y penser." },
-      { icone: "check", jour: "Jour 7", texte: "Réponse reçue ou nouvelle piste." },
+      { icone: "mail", jour: 1, texte: "Le devis part, la relance est prête." },
+      { icone: "bell", jour: 3, texte: "Rappel doux, sans y penser." },
+      { icone: "check", jour: 7, texte: "Réponse reçue ou nouvelle piste." },
     ],
   },
   bordsLibres: BORDS_PLEINS,
@@ -180,10 +183,10 @@ const L05: DefinitionGabarit = {
   sombre: false,
   orangeFort: false,
   version: 1,
-  schema: schemaListe("L05", { lignes: liste("L05", z.object({ icone, texte: texteSansLien(1, 56), coche: z.boolean() }).strict()) }),
+  schema: schemaListe("L05", { lignes: liste("L05", z.object({ icone, texte: texteBorne(56, 20), coche: z.boolean() }).strict()) }),
   exemple: {
     type: "L05",
-    alt: "Une liste à cocher avant de lancer : quatre points validés, un à éviter.",
+    alt: "Une liste à cocher avant de lancer : les points validés, et un à éviter.",
     rubrique: "À cocher",
     titre: "Avant de",
     accent: "lancer",
@@ -207,10 +210,10 @@ const L06: DefinitionGabarit = {
   sombre: false,
   orangeFort: false,
   version: 1,
-  schema: schemaListe("L06", { points: liste("L06", z.object({ label: texteSansLien(1, 12) }).strict()) }),
+  schema: schemaListe("L06", { points: liste("L06", z.object({ label: texteBorne(12, 12) }).strict()) }),
   exemple: {
     type: "L06",
-    alt: "Une matrice effort et impact : les relances sont à traiter en premier.",
+    alt: "Une matrice effort et impact : les relances sont à traiter d’abord.",
     rubrique: "Prioriser",
     titre: "Commencez",
     accent: "par là",
@@ -232,7 +235,7 @@ const L07: DefinitionGabarit = {
   schema: schemaListe("L07", { items: liste("L07", z.object({ icone, label: texteSansLien(1, 14) }).strict()) }),
   exemple: {
     type: "L07",
-    alt: "Neuf tâches qui reviennent : relances, comptes rendus, factures, agenda, suivi, équipe, données, alertes, sécurité.",
+    alt: "Des tâches qui reviennent : relances, comptes rendus, factures, agenda, suivi, équipe, données, alertes, sécurité.",
     rubrique: "Tout ce qu’on peut préparer",
     titre: "Neuf tâches",
     accent: "qui reviennent",

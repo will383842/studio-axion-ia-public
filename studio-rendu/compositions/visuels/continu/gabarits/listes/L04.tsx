@@ -8,7 +8,7 @@ import { bf, LIBELLE_CLAIR, ZoneListe } from "./commun";
 
 interface Etape {
   icone: NomIconeContinu;
-  jour: string;
+  jour: number;
   texte: string;
 }
 
@@ -29,7 +29,7 @@ export function L04({ page, hauteur }: ProprietesPlaquette) {
               {derniere ? null : <span style={{ flex: 1, width: 8, marginTop: 10, borderRadius: 4, background: `repeating-linear-gradient(${C.orange} 0 14px, transparent 14px 26px)` }} />}
             </div>
             <div style={{ paddingTop: 10, flex: 1, minWidth: 0 }}>
-              <Libelle style={{ color: LIBELLE_CLAIR, display: "block" }}>{e.jour}</Libelle>
+              <Libelle style={{ color: LIBELLE_CLAIR, display: "block" }}>{`Jour ${e.jour}`}</Libelle>
               <b style={{ ...bf(50, 1.02), display: "block", marginTop: 12 }}>{e.texte}</b>
             </div>
           </div>

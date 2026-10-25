@@ -23,5 +23,5 @@ export function Sm({ children, style }: { children: ReactNode; style?: CSSProper
   return <p style={{ ...police(500, 31, 1.3, POLICE_TEXTE), margin: 0, opacity: 0.78, ...style }}>{children}</p>;
 }
 
-/** Rouge brûlé des libellés qui étaient en orange dans la maquette : l'orange est réservé aux grands titres. */
+/** Brun brûlé (`orangeBrule`) des libellés qui étaient en orange dans la maquette : l'orange est réservé aux grands titres. */
 export const LIBELLE_CLAIR = C.orangeBrule;
