@@ -24,7 +24,7 @@ const ATTENDU: Record<string, Attendu> = {
     sombres: [3],
     orangeFort: [],
     pages: {
-      PA1: { titre: 12, accent: 11, "suite?": 2, texte: 70, pastille: 16 },
+      PA1: { titre: 10, accent: 10, "suite?": 1, texte: 70, pastille: 16 },
       PA2: { etape: 16, detail: 60 },
       PA3: { etape: 16, detail: 60 },
       PA4: { etape: 16, detail: 40, titre: 14, accent: 8, appel: 80 },
@@ -37,9 +37,9 @@ const ATTENDU: Record<string, Attendu> = {
     sombres: [],
     orangeFort: [],
     pages: {
-      PB1: { titre: 14, accent: 14, texte: 70, avant: 18, avec: 18 },
-      PB2: { avant: 18, avec: 18, aparte: 40 },
-      PB3: { avant1: 22, avant2: 18, titre: 14, accent: 12, "suite?": 2, texte: 50, note: 30 },
+      PB1: { titre: 14, accent: 14, texte: 56, avant: 18, avec: 18 },
+      PB2: { avant: 11, avec: 18, aparte: 40 },
+      PB3: { avant1: 17, avant2: 18, titre: 14, accent: 12, "suite?": 2, texte: 50, note: 30 },
     },
   },
   PC: {
@@ -49,7 +49,7 @@ const ATTENDU: Record<string, Attendu> = {
     sombres: [],
     orangeFort: [],
     pages: {
-      PC1: { mot: 3, aparte: 34 },
+      PC1: { mot: 3, aparte: 30 },
       PC2: { mot: 4, texte: 56 },
       PC3: { mot: 4, texte: 64 },
     },
@@ -61,7 +61,7 @@ const ATTENDU: Record<string, Attendu> = {
     sombres: [],
     orangeFort: ["PD3"],
     pages: {
-      PD1: { titre: 14, accent: 14, "suite?": 24, texte: 70 },
+      PD1: { titre: 12, accent: 12, "suite?": 16, texte: 70 },
       PD2: { question1: 28, reponse1: 44, question2: 24, reponse2: 30 },
       PD3: { question: 40, aparte: 50 },
     },
@@ -74,7 +74,7 @@ const ATTENDU: Record<string, Attendu> = {
     orangeFort: ["PE1"],
     pages: {
       PE1: { titre: 14, accent: 10, tuile: 34 },
-      PE2: { doc: 26, docSous: 24, temps: 10, validez: 14, vue: 34, vueSous: 50, aparte: 46 },
+      PE2: { doc: 26, docSous: 24, temps: 8, validez: 14, vue: 34, vueSous: 50, aparte: 46 },
       PE3: { equipe: 18, outils: 14, aparte: 30 },
       PE4: { titre: 22, accent: 26, bouton: 28 },
     },
@@ -99,7 +99,7 @@ const ATTENDU: Record<string, Attendu> = {
     sombres: [],
     orangeFort: [],
     pages: {
-      PG1: { titre: 14, accent: 12, etape: 14, detail: 60 },
+      PG1: { titre: 11, accent: 12, etape: 14, detail: 60 },
       PG2: { etape: 14, detail: 60 },
       PG3: { etape: 14, detail: 60 },
       PG4: { etape: 12, detail: 30 },

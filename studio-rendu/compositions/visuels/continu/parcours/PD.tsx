@@ -31,7 +31,7 @@ export function PD({ pages }: ProprietesParcours) {
           <path d="M-130 -190 L-130 160 L-40 80 L30 220 L100 190 L30 56 L150 56 Z" fill={`url(#${p}pO)`} stroke={C.encre} strokeWidth={14} strokeLinejoin="round" />
         </g>
       </svg>
-      <TitreP x={80} y={200} taille={112} largeur={880} titre={champ(p1, "titre")} accent={champ(p1, "accent")} suite={champ(p1, "suite")} />
+      <TitreP x={80} y={200} taille={100} largeur={880} titre={champ(p1, "titre")} accent={champ(p1, "accent")} suite={champ(p1, "suite")} />
       <TexteP x={80} y={1000} largeur={600} taille={34}>
         {champ(p1, "texte")}
       </TexteP>

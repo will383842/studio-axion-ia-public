@@ -53,7 +53,7 @@ export function PA({ pages }: ProprietesParcours) {
       <CarteAbs x={1130} y={150} largeur={880} hauteur={250}>
         <Numero n={1} titre={champ(p2, "etape")} sous={champ(p2, "detail")} couleur={C.orange} />
       </CarteAbs>
-      <CarteAbs x={2200} y={985} largeur={880} hauteur={230}>
+      <CarteAbs x={2208} y={985} largeur={880} hauteur={230}>
         <Numero n={2} titre={champ(p3, "etape")} sous={champ(p3, "detail")} couleur={C.orange} />
       </CarteAbs>
       <CarteAbs x={3320} y={150} largeur={880} hauteur={240} variante="glass">
@@ -67,7 +67,7 @@ export function PA({ pages }: ProprietesParcours) {
       <TexteP x={3320} y={1075} largeur={900} taille={34} sombre>
         {champ(p4, "appel")}
       </TexteP>
-      <Pose x={4090} y={860}>
+      <Pose x={4090} y={700}>
         <Etincelle taille={56} />
       </Pose>
     </>

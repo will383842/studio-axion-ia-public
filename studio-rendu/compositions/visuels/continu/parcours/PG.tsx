@@ -8,6 +8,8 @@ import type { ProprietesParcours } from "../types";
 import { CalqueDecor, CarteAbs, champ, DefsParcours, Rangee, TitreP, useIdsSvg } from "./commun-parcours";
 
 const ESCALIER = "M-10 1010 H1260 V860 H2340 V710 H3420 V560 H4330";
+/** Le massif s'arrête au-dessus du pied posé par le moteur (numéro et rail, dès y = 1232) : sinon son texte encre disparaît sur l'encre. */
+const BAS_ESCALIER = 1190;
 
 export function PG({ pages }: ProprietesParcours) {
   const [p1, p2, p3, p4] = pages;
@@ -16,7 +18,7 @@ export function PG({ pages }: ProprietesParcours) {
     <>
       <CalqueDecor largeur={4320}>
         <DefsParcours p={p} />
-        <path d={`${ESCALIER} V1350 H-10 Z`} fill={`url(#${p}gSt)`} />
+        <path d={`${ESCALIER} V${BAS_ESCALIER} H-10 Z`} fill={`url(#${p}gSt)`} />
         <path data-a-cheval="" d={ESCALIER} fill="none" stroke={C.orange} strokeWidth={12} strokeLinejoin="round" />
         <path d="M4120 560 V250" stroke={C.encre} strokeWidth={12} strokeLinecap="round" />
         <path d="M4120 250 H4260 L4220 296 L4260 342 H4120 Z" fill={C.orange} />
