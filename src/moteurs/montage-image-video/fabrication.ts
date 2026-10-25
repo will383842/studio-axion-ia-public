@@ -420,7 +420,8 @@ export interface OutilsFabricationIV {
     reserver: (d: DemandeDepenseIV) => Promise<{ ok: true } | { ok: false; message: string }>;
     /**
      * MODE INDICATIF (`budget.mode`, posé par le service) : le plafond de la vidéo n'est qu'un repère. Au-dessus, la caisse
-     * appelle `signaler` (journal + cloche) et laisse passer ; l'arrêt de sécurité vient à `facteurSecurite` × le plafond.
+     * appelle `signaler` (journal + cloche) et laisse passer ; les chemins Claude et le lot d'images n'ont plus d'arrêt de sécurité
+     * (`facteurSecurite` ne sert que là où le service le demande encore).
      * Absent : mode bloquant, comportement d'avant.
      */
     indicatif?: { facteurSecurite: number; signaler: (message: string) => Promise<void> };
@@ -1214,7 +1215,7 @@ export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: num
   const aTrancher = options.formulesGardees ? p.aTrancher.filter((m) => m.regle !== "Q05bis") : p.aTrancher;
   if (p.formules.length && !options.formulesGardees) return { motif: `Une formule trop affirmative est dans le script : ${p.formules.map((f) => `« ${f.texte} »`).join(", ")}.`, phrases: p.aTrancher.map((m) => m.message) };
   if (aTrancher.length) return { motif: "Le script a une phrase à trancher.", phrases: aTrancher.map((m) => m.message) };
-  if (p.prix.auPlusCentimes <= 0) return { motif: "Le prix de la voix n'a pas pu être calculé.", phrases: [] };
+  if (!(p.prix.auPlusCentimes > 0)) return { motif: "Le prix de la voix n'a pas pu être calculé.", phrases: [] };
   // Mode indicatif (`prixIndicatif`, ordre du 25/10) : le prix ne met JAMAIS le script de côté (le prix de la voix inconnu, plus haut, reste un manque).
   if (options.prixIndicatif) return null;
   if (p.prix.engageCentimes + p.prix.auPlusCentimes > p.prix.plafondCentimes * (facteurSecurite ?? 1)) {
