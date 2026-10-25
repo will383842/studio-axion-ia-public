@@ -1,4 +1,5 @@
 import { choisirPlan, REGISTRES_PRODUCTION, type EntreePlan, type PlanToile, type RegistresPlan } from "../../../briques/visuels/continu/plan-toile";
+import { texteSansLien } from "../../../domaine/visuels/schema";
 import { contientJAide, expressionsBannieDans, tutoiementDans } from "../../../domaine/controles-visuel/texte";
 import { VERSION_MODELE_TOILE, type PageToile, type RaccordToile } from "../../../domaine/visuels/continu/schema-toile";
 import type { FormatToile } from "../../../domaine/visuels/continu/geometrie";
@@ -28,12 +29,19 @@ export interface ReponseSimulationToile extends ReponseTexteToile {
 const TITRE_MAX = 120;
 const NON_REPRIS = "sujet non repris : ";
 
+/** Pourquoi le sujet ne peut pas servir de titre (nombre, mot ou formule à éviter), sinon `undefined`. */
+function refusDuSujet(sujet: string): string | undefined {
+  if (/\d/u.test(sujet)) return "il contient un nombre";
+  if (expressionsBannieDans(sujet).length > 0 || tutoiementDans(sujet) !== undefined || contientJAide(sujet)) return "il contient un mot ou une formule à éviter";
+  return undefined;
+}
+
 /** Le sujet devient le titre de la première page s'il passe le schéma de sa plaquette (budget compris) et la porte. */
 function avecSujet(page: PageToile, sujet: string, registres: RegistresPlan): { page: PageToile; note?: string } {
   const gabarit = registres.gabarits.find((g) => g.type === page.type);
   if (!gabarit || !("titre" in page)) return { page, note: `${NON_REPRIS}cette couverture n'a pas de titre` };
-  if (/\d/u.test(sujet)) return { page, note: `${NON_REPRIS}il contient un nombre` };
-  if (expressionsBannieDans(sujet).length > 0 || tutoiementDans(sujet) !== undefined || contientJAide(sujet)) return { page, note: `${NON_REPRIS}il contient un mot ou une formule à éviter` };
+  const refus = refusDuSujet(sujet);
+  if (refus) return { page, note: `${NON_REPRIS}${refus}` };
   const candidate = { ...page, titre: sujet.trim() };
   if (!gabarit.schema.safeParse(candidate).success) return { page, note: `${NON_REPRIS}trop long pour la couverture` };
   return { page: candidate };
@@ -62,7 +70,7 @@ export function ecrireToileSimulation(entree: EntreePlan, registres: RegistresPl
   const { page, note } = avecSujet(pages[0], entree.sujet, registres);
   pages[0] = page;
   const sujet = entree.sujet.trim();
-  const titre = sujet.length <= TITRE_MAX ? sujet : String(pages[0].titre ?? pages[0].alt);
+  const titre = !refusDuSujet(sujet) && texteSansLien(1, TITRE_MAX).safeParse(sujet).success ? sujet : String(pages[0].titre ?? pages[0].alt);
   return {
     titre,
     pourquoi: pourquoiDe(plan, registres),

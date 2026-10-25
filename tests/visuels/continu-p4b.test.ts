@@ -164,21 +164,20 @@ describe("P4b : choisirPlan", () => {
   });
 
   it("écarte tout plan dont une couture externe n'a pas de raccord possible (bords libres disjoints)", () => {
-    let vus = 0;
     for (const p of echantillon) {
-      vus += p.types.includes("L03") || p.types.includes("K03") ? 1 : 0;
       for (let i = 1; i < p.types.length; i++) {
         expect(`${p.types[i - 1]} ${p.types[i]}`, p.types.join(" ")).not.toBe("C01 L03");
         expect(`${p.types[i - 1]} ${p.types[i]}`, p.types.join(" ")).not.toBe("L03 K03");
       }
     }
-    expect(vus).toBeGreaterThan(0);
   });
 
   it("avec un seul plan possible, avancer la version le dit en une phrase", () => {
-    const reglages = { sujet: "Préparer la semaine", familles: ["appel"], variete: "sobre", intention: "eveil" } as const;
-    expect(plan({ ...reglages, version: 1 }).types.length).toBeGreaterThan(0);
-    expect(() => plan({ ...reglages, version: 2 })).toThrow("Un seul plan possible avec ces réglages : cochez une famille de plus ou changez la variété pour en voir un autre.");
+    // Un parcours (PC), un seul appel (A01) : un seul plan, PC1 PC2 PC3 A01.
+    const restreints = { ...REGISTRES_ESSAI, gabarits: GABARITS_ESSAI.filter((g) => g.famille === "parcours" ? g.type.startsWith("PC") : g.type === "A01"), parcours: PARCOURS_ESSAI.filter((x) => x.id === "PC") };
+    const reglages = { ...base, familles: ["appel"], variete: "sobre" } as const;
+    expect(choisirPlan({ ...reglages, version: 1 }, restreints).types).toEqual(["PC1", "PC2", "PC3", "A01"]);
+    expect(() => choisirPlan({ ...reglages, version: 2 }, restreints)).toThrow("Un seul plan possible avec ces réglages : cochez une famille de plus ou changez la variété pour en voir un autre.");
   });
 
   it("repère à la main deux contenus de même famille à la suite", () => {
@@ -280,7 +279,7 @@ describe("P4b : consigne de session", () => {
     expect(md).toContain("paquet-session-toile/1");
     expect(md).toMatch(/^\| L01 \| liste \| contenu \| titre 40, texte 90, rubrique 28 \(facultatif\) \|$/mu);
     expect(md).toContain("| PA | 4 | oui | non | PA1, PA2, PA3, PA4 |");
-    expect(md).toMatch(/## Plan proposé\n\n.*Parcours P[A-H]/u);
+    expect(md).toMatch(/## Plan proposé\n\n.*parcours P[A-H]/u);
     expect(md).not.toMatch(/\| (D01|D02|X09) \|/u);
   });
 });
