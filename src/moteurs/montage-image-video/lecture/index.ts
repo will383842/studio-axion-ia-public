@@ -485,6 +485,8 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
   try {
     const nbChiffres = chiffresDeLaCarte(brouillon).length;
     if (nbChiffres > LIMITES_CARTE.chiffres) return refus("trop-chargee", refusTropChargee("chiffres", nbChiffres, LIMITES_CARTE.chiffres).message);
+    const enBandeau = chiffresDeLaCarte(brouillon).filter((c) => c.dansBandeau).length;
+    if (enBandeau > 12) adaptations.push({ code: "bandeau-chiffres-coupes", avant: String(enBandeau), apres: "12", raison: `${enBandeau} chiffres dans le bandeau : les 12 premiers gardés pour le bandeau (tous restent lus dans les blocs)` });
     const premiere = completerCarte(brouillon);
     // Concordance des chiffres : écrit dans les deux lectures, ou dans une seule (alerte de `controlerCarte`).
     const dansA = chiffresLus(a);
@@ -497,7 +499,8 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
     } else if (a.type === "inconnu" && b.type === "inconnu") {
       adaptations.push({ code: "type-deduit", avant: "inconnu", apres: carte.types.join(" + "), raison: `type déduit par le code (${carte.types.join(" + ")}) : aucune des deux lectures ne l'a reconnu` });
     }
-    // Calculs et formules coupés au maximum du schéma par `completerCarte` : on le dit.
+    // Calculs et formules coupés au maximum du schéma par `completerCarte` : on le dit. (Au-delà de 40 formules, les
+    // suivantes ne sont pas demandées à Will à la porte « carte » ; le script les contrôle de nouveau à sa propre porte.)
     const calculs = coherenceDe(brouillon).length;
     if (calculs > LIMITES_CARTE.calculs) adaptations.push({ code: "calculs-coupes", avant: String(calculs), apres: String(LIMITES_CARTE.calculs), raison: `${calculs} calculs à vérifier : les ${LIMITES_CARTE.calculs} premiers gardés` });
     const formules = formulesDeLaCarte(brouillon).length;
@@ -505,7 +508,7 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
     if (adaptations.length) carte = schemaCarteImage.parse({ ...carte, adaptations: adaptations.map(phraseAdaptation).slice(0, 60) });
   } catch {
     // Dernier filet : une carte qui échoue encore au schéma (cas non prévu par la normalisation) ne doit pas boucler.
-    return refus("illisible", "La lecture de l'image a donné une carte que je ne sais pas réparer : déposez l'image de nouveau (plus nette, ou découpée en deux). La relire à l'identique donnerait le même résultat.");
+    return refus("illisible", "La lecture de l'image a donné une carte que je ne sais pas réparer. Réessayer relit l'image (nouvelle lecture, comptée dans le prix) ; si cela recommence, déposez-la de nouveau, plus nette ou découpée en deux.");
   }
   return { ok: true, carte, controle: controlerCarte(carte), appels: compte.appels, simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
 }

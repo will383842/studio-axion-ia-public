@@ -184,6 +184,84 @@ describe("R1 · incohérences réparées à la lecture", () => {
   });
 });
 
+describe("R1 · corrections de relecture", () => {
+  it("bloc retiré au milieu d'une chaîne : précédent relié au suivant, sans texte ni chiffre inventé, carte contrôlée sans erreur", async () => {
+    const l = abimee((x) => {
+      x.type = "chaine";
+      const base = x.noeuds[0];
+      x.noeuds = [1, 2, 3].map((i) => ({ ...base, id: `n0${i}`, libelle: i === 2 ? "" : `Étape ${i}`, detail: "", role: "etape" as const, acteur: "auto" as const, ordre: i }));
+      x.liens = [
+        { id: "l01", de: "n01", vers: "n02", etiquette: "", part: null, couleur: "orange", style: "plein" },
+        { id: "l02", de: "n02", vers: "n03", etiquette: "", part: null, couleur: "orange", style: "plein" },
+      ];
+    });
+    const r = await lire(l);
+    const carte = adaptee(r, /flèche ajoutée/i);
+    expect(carte.noeuds.map((n) => n.id)).toEqual(["n01", "n03"]);
+    expect(carte.liens).toHaveLength(1);
+    expect(carte.liens[0]).toMatchObject({ de: "n01", vers: "n03", style: "plein" });
+    expect(carte.liens[0].etiquette).toBeUndefined();
+    expect(carte.liens[0].part).toBeUndefined();
+    expect(r.ok && r.controle.ok).toBe(true);
+  });
+
+  it("libellé vide, ni détail : le premier sous-élément sert de libellé avant de retirer le bloc", async () => {
+    const carte = adaptee(
+      await lire(
+        abimee((l) => {
+          l.noeuds[0].libelle = "";
+          l.noeuds[0].detail = "";
+          l.noeuds[0].sousElements = ["Petite étiquette", "Autre"];
+        }),
+      ),
+      /premier sous-élément/,
+    );
+    expect(carte.noeuds[0].libelle).toBe("Petite étiquette");
+    expect(carte.noeuds[0].sousElements).toEqual(["Autre"]);
+  });
+
+  it("textes d'écart très longs entre deux lectures : coupés aux limites, jamais un refus", async () => {
+    const longA = "alpha ".repeat(80).trim();
+    const longB = "bravo ".repeat(80).trim();
+    const a = abimee((l) => {
+      l.noeuds[0].detail = longA;
+    });
+    const b = abimee((l) => {
+      l.noeuds[0].detail = longB;
+    });
+    const o = outils(a);
+    o.outils.appeler = appelerEnSimulation({ a, b });
+    const r = await lireImage({ videoId: "essai", source: source(B) }, o.outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.lecture.ecarts.every((e) => e.lectureA.length <= 300 && e.lectureB.length <= 300 && e.champ.length <= 80)).toBe(true);
+    expect(schemaCarteImage.safeParse(r.carte).success).toBe(true);
+  });
+
+  it("coupe au mot : jamais au milieu d'un chiffre", () => {
+    const brut = structuredClone(B);
+    brut.noeuds[0].detail = `${"mot ".repeat(74)}12 345 euros économisés`;
+    const { carte } = normaliserCarteBrute(brut);
+    const d = carte.noeuds[0].detail!;
+    expect(d.length).toBeLessThanOrEqual(300);
+    expect(d).not.toMatch(/\d$/);
+    expect(d).toBe("mot ".repeat(74).trim());
+  });
+
+  it("plus de 12 chiffres au bandeau : liste coupée et dite", async () => {
+    const carte = adaptee(
+      await lire(
+        abimee((l) => {
+          l.bandeau = ["1 min 2 min 3 min 4 min", "5 min 6 min 7 min 8 min", "9 min 10 min 11 min 12 min", "13 min 14 min"];
+        }),
+      ),
+      /chiffres dans le bandeau/,
+    );
+    expect(carte.chiffres.filter((c) => c.dansBandeau).length).toBeGreaterThan(12);
+    expect(carte.bandeauChiffres).toHaveLength(12);
+  });
+});
+
 describe("R1 · seul refus : image trop chargée", () => {
   it("41 blocs : refus qui dit quoi faire", async () => {
     const l = abimee((x) => {
@@ -221,6 +299,11 @@ describe("R1 · reprise après « incomplete »", () => {
     let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { plafondCentimes: 5000 })), outilsSimules(carte, m, { lectures: { a: vide, b: vide } }));
     expect(e.refus?.code).toBe("IV_IMAGE");
     expect(e.lectures?.a).toBeDefined();
+    expect(e.refus?.reessayable).toBe(true);
+    // Un refus NON réessayable (ex. « trop chargée ») ne relit pas : les lectures restent.
+    const fige = structuredClone(e);
+    fige.refus!.reessayable = false;
+    expect(reprendreIV(fige).lectures?.a).toBeDefined();
     const avant = e.caisse.reservations.filter((r) => r.etape === "lecture").length;
 
     e = reprendreIV(e);

@@ -464,7 +464,8 @@ export function completerCarte(brouillon: BrouillonCarte): CarteImage {
     offre: brouillon.offre ?? offreDeduite(types),
     automatisation: brouillon.automatisation ?? estAutomatisation(types),
     chiffres,
-    bandeauChiffres: chiffres.filter((c) => c.dansBandeau).map((c) => c.id),
+    // R1 : au-delà de 12 chiffres au bandeau, la liste est coupée (jamais un refus de schéma).
+    bandeauChiffres: chiffres.filter((c) => c.dansBandeau).map((c) => c.id).slice(0, 12),
     // R1 : au-delà du maximum du schéma, la liste est coupée (jamais un refus).
     formulesAbsolues: formulesDeLaCarte(brouillon).slice(0, 40),
     coherence: coherenceDe(brouillon).slice(0, 20),

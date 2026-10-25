@@ -33,7 +33,7 @@ import { CODE_CARTE_A_VALIDER, CODE_SCRIPT_A_VALIDER, creerMoteurMontageImageVid
 import { formatGenerateur, listerFormats } from "@/formats";
 import { codeDuFormat } from "@/formats/registre-codes";
 import { idMoteurDeCommande, moteurExiste, obtenirMoteur } from "@/moteurs";
-import { lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
+import { LECTURE_VIDE, lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
 import { carteFixe, demandeEssai, IMAGES, MESURE_REFERENCE, monde, outilsSimules, type Monde, type OptionsMonde } from "./doubles-fabrication";
 import { verdictSurMesureAncienne, VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
 import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
@@ -265,6 +265,21 @@ describe("porte « carte » : obligatoire pour les 10 premières, puis selon le 
     expect((await avancerIV(arret, perimee)).etape).toBe("carte-a-valider");
     const bonne: OutilsFabricationIV = { ...o, decisions: { carte: async () => decisionCarte(arret) } };
     expect((await avancerIV(arret, bonne)).etape).toBe("ecriture");
+  });
+
+  it("ancien état « type à choisir » (IV_TYPE_A_CHOISIR) : le type imposé par Will reprend les lectures payées, 0 appel", async () => {
+    const carte = carteFixe("C");
+    const inconnue = { ...lectureDeCarte(carte), type: "inconnu" as const };
+    const { m, o, e } = demarrer("C", { lectures: { a: LECTURE_VIDE, b: LECTURE_VIDE } });
+    const ancien = structuredClone(e);
+    ancien.etape = "refusee";
+    ancien.refus = { etape: "lecture", code: "IV_TYPE_A_CHOISIR", message: "Je ne reconnais pas ce type d'image : choisissez-le", reessayable: false };
+    ancien.lectures = { a: inconnue, b: inconnue };
+    const apres = await avancerJusquAArretIV(imposerTypeIV(ancien, "embranchement"), o);
+    expect(apres.lectures).toBeUndefined();
+    expect(apres.etape).toBe("carte-a-valider");
+    expect(apres.propositionCarte?.carte.types).toEqual(["embranchement"]);
+    expect(m.appelsClaude.length).toBe(0);
   });
 
   it("type inconnu des deux lectures : plus de refus (R1), le code déduit le type et le dit", async () => {

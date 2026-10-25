@@ -43,13 +43,17 @@ export function refusTropChargee(quoi: RefusTropChargee["quoi"], n: number, max:
   return { quoi, n, max, message: `Image trop chargée (${n} ${quoi}, ${max} au plus) : découpez-la en deux images.` };
 }
 
-/** Texte rogné ; coupé au mot s'il dépasse 300 caractères. */
-function couper(s: string, max = LIMITES_CARTE.texte): string {
+/** Texte rogné ; coupé au mot s'il dépasse 300 caractères, sans jamais finir au milieu d'un chiffre. */
+function couper(s: string, max: number = LIMITES_CARTE.texte): string {
   if (s.length <= max) return s;
   const brut = s.slice(0, max);
   const dernierBlanc = brut.lastIndexOf(" ");
   // Coupe au mot, sauf si le seul mot est plus long que la limite (coupe franche).
-  return (dernierBlanc > 0 ? brut.slice(0, dernierBlanc) : brut).trimEnd();
+  let garde = (dernierBlanc > 0 ? brut.slice(0, dernierBlanc) : brut).trimEnd();
+  // Un texte coupé ne finit jamais par un chiffre (« 12 » de « 12 345 », « 19 » de « 19 min ») : on recule avant lui.
+  const sansChiffre = garde.replace(/\d[\d\s.,:]*$/, "").trimEnd();
+  if (sansChiffre) garde = sansChiffre;
+  return garde;
 }
 
 /** Identifiant valide (minuscules, chiffres, tirets, 40 au plus) tiré d'un nom, ou chaîne vide. */
@@ -96,6 +100,7 @@ export function normaliserCarteBrute<T extends Normalisable>(carteProposee: T): 
 
   // ─── Blocs ─────────────────────────────────────────────────────────────────────────────────────────────────────────
   const retires = new Set<string>();
+  const ordreRetires: string[] = [];
   const noeuds: NoeudCarte[] = [];
   for (const n0 of c.noeuds) {
     const n = { ...n0 } as NoeudCarte;
@@ -104,13 +109,22 @@ export function normaliserCarteBrute<T extends Normalisable>(carteProposee: T): 
     if (detail) n.detail = detail;
     else delete n.detail;
     if (!n.libelle) {
+      const premierSous = (n.sousElements ?? []).map((x) => texte(x, `un sous-élément du bloc ${n.id}`)).find(Boolean);
       if (n.detail) {
         noter("libelle-vide", "", n.detail, `libellé du bloc ${n.id} vide : repris du détail`);
         n.libelle = n.detail;
         delete n.detail;
+      } else if (premierSous) {
+        noter("libelle-vide", "", premierSous, `libellé du bloc ${n.id} vide : repris du premier sous-élément`);
+        n.libelle = premierSous;
+        // Le sous-élément repris ne reste pas affiché deux fois.
+        const reste = (n.sousElements ?? []).filter((x) => texte(x, "un sous-élément") && texte(x, "un sous-élément") !== premierSous);
+        if (reste.length) n.sousElements = reste;
+        else delete n.sousElements;
       } else {
         retires.add(n.id);
-        noter("bloc-retire", n.id, "", `bloc retiré (${n.id}) : ni libellé ni détail lisible`);
+        ordreRetires.push(n.id);
+        noter("bloc-retire", n.id, "", `bloc retiré (${n.id}) : ni libellé, ni détail, ni sous-élément lisible`);
         continue;
       }
     }
@@ -195,12 +209,30 @@ export function normaliserCarteBrute<T extends Normalisable>(carteProposee: T): 
   }
 
   // ─── Flèches ───────────────────────────────────────────────────────────────────────────────────────────────────────
-  const liens: LienCarte[] = [];
-  for (const l0 of c.liens) {
-    if (retires.has(l0.de) || retires.has(l0.vers)) {
-      noter("fleche-retiree", l0.id, "", `flèche ${l0.id} retirée : un des blocs qu'elle relie a été retiré`);
-      continue;
+  // Un bloc retiré qui avait des flèches ENTRANTES et SORTANTES : chaque précédent est relié à chaque suivant, pour que le
+  // chemin ne se coupe pas (flèche sans étiquette ni part : aucun texte ni chiffre inventé).
+  let source: LienCarte[] = c.liens.map((l) => ({ ...l }));
+  const idsLiens = new Set(source.map((l) => l.id));
+  for (const r of ordreRetires) {
+    const entrants = source.filter((l) => l.vers === r && l.de !== r);
+    const sortants = source.filter((l) => l.de === r && l.vers !== r);
+    source = source.filter((l) => l.de !== r && l.vers !== r);
+    for (const e of entrants) {
+      for (const sv of sortants) {
+        if (e.de === sv.vers || source.some((l) => l.de === e.de && l.vers === sv.vers)) continue;
+        let k = 1;
+        while (idsLiens.has(`l${String(k).padStart(2, "0")}`)) k++;
+        const id = `l${String(k).padStart(2, "0")}`;
+        idsLiens.add(id);
+        source.push({ id, de: e.de, vers: sv.vers, couleur: "neutre", style: "plein" });
+        noter("fleche-ajoutee", r, id, `flèche ajoutée de ${e.de} vers ${sv.vers} (${id}) pour garder le chemin : le bloc ${r} a été retiré`);
+      }
     }
+    if (!entrants.length || !sortants.length) noter("fleche-retiree", r, "", `flèche(s) du bloc retiré ${r} retirée(s)`);
+  }
+  const liens: LienCarte[] = [];
+  for (const l0 of source) {
+    if (retires.has(l0.de) || retires.has(l0.vers)) continue;
     const l = { ...l0 } as LienCarte;
     const etiquette = texte(l.etiquette, `la flèche ${l.id}`);
     if (etiquette) l.etiquette = etiquette;
@@ -225,6 +257,20 @@ export function normaliserCarteBrute<T extends Normalisable>(carteProposee: T): 
   c.noeuds = noeuds;
   c.liens = liens;
   c.groupes = groupes;
+
+  // ─── Traces de lecture : coupées aux limites du schéma (les textes lus peuvent être longs) ─────────────────────────────
+  const lec = c.lecture as { ecarts?: { champ: string; lectureA: string; lectureB: string }[]; alertes?: string[] } | undefined;
+  if (lec) {
+    let coupes = 0;
+    const cp = (t: string, max: number) => {
+      if (t.length <= max) return t;
+      coupes++;
+      return couper(t, max);
+    };
+    if (lec.ecarts) lec.ecarts = lec.ecarts.map((e) => ({ champ: cp(e.champ, 80), lectureA: cp(e.lectureA, 300), lectureB: cp(e.lectureB, 300) }));
+    if (lec.alertes) lec.alertes = lec.alertes.map((t) => cp(t, 300)).filter(Boolean);
+    if (coupes) noter("trace-coupee", coupes, "", `${coupes} texte(s) des écarts ou alertes entre les deux lectures coupé(s) à la limite`);
+  }
 
   // ─── Seul refus : trop chargée ─────────────────────────────────────────────────────────────────────────────────────
   let tropChargee: RefusTropChargee | undefined;
