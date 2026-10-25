@@ -17,6 +17,7 @@
  * Puis les contrôles BLOQUANTS (`controles-scene.ts`) : une ligne de temps qui ne les passe pas est refusée, avec une
  * phrase pour Will. Rien n'est tiré au hasard : mêmes entrées = même ligne de temps.
  */
+import { sceneApresGarde } from "@/domaine/image-video/analyste/garde-additionneur";
 import type { BruitagePlace } from "@/briques/intensite/types";
 import type { EcranCale } from "@/briques/ecrans-motion/types";
 import {
@@ -501,15 +502,18 @@ interface EcranPlace {
  */
 const MOMENTS_SANS_RELANCE = new Set<string>(["dossiers", "sources", "recherche"]);
 
-function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheImage {
+export function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheImage {
   const sansBenefice = (e: EcranFiche) => {
     const noeuds = e.refs.map((r) => carte.noeuds.find((n) => n.id === r)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
     return SCENES_BENEFICES.has(e.scene) && noeuds.length > 0 && !noeuds.some((n) => n.role === "benefice");
   };
   const momentVide = (e: EcranFiche) =>
     MOMENTS_SANS_RELANCE.has(e.scene) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
-  if (!fiche.ecrans.some((e) => sansBenefice(e) || momentVide(e))) return fiche;
-  return { ...fiche, ecrans: fiche.ecrans.map((e) => (sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
+  // R5 : un calcul faux ne finit jamais en « additionneur », un entonnoir qui croît jamais en « entonnoir » (retombent sur la toile).
+  const gardee = (e: EcranFiche): EcranFiche["scene"] => sceneApresGarde(e.scene, carte, [e.texteDit, ...e.textesEcran]);
+  const aGarder = (e: EcranFiche) => gardee(e) !== e.scene;
+  if (!fiche.ecrans.some((e) => sansBenefice(e) || momentVide(e) || aGarder(e))) return fiche;
+  return { ...fiche, ecrans: fiche.ecrans.map((e) => (aGarder(e) ? { ...e, scene: gardee(e) } : sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
 }
 
 /** Met en scène une version. Rend toujours la ligne de temps et le rapport des contrôles (`ok` = aucun bloquant). */
