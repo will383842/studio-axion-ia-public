@@ -42,9 +42,9 @@ describe("continu P1 : registres", () => {
     }
   });
   it("la rubrique de chaque gabarit est bornée à RUBRIQUE_MAX", () => {
+    expect(GABARITS.length).toBeGreaterThan(0);
     for (const g of GABARITS) {
       const base = g.exemple as Record<string, unknown>;
-      if (!("rubrique" in base)) continue;
       expect(g.schema.safeParse({ ...base, rubrique: "a".repeat(RUBRIQUE_MAX) }).success, g.type).toBe(true);
       expect(g.schema.safeParse({ ...base, rubrique: "a".repeat(RUBRIQUE_MAX + 1) }).success, g.type).toBe(false);
     }

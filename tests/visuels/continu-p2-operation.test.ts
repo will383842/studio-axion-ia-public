@@ -78,6 +78,21 @@ describe("continu P2 : mesure discriminante de la couture", () => {
   it("la colonne exacte est la plus proche", () => {
     expect(colonneExacteLaPlusProche(pageDe(1080), toile, L, H, 0, 1080)).toBe(true);
   });
+  it("aux bords de la toile (première et dernière colonne), la colonne exacte reste la plus proche", () => {
+    expect(colonneExacteLaPlusProche(pageDe(0), toile, L, H, 0, 0)).toBe(true);
+    expect(colonneExacteLaPlusProche(pageDe(L - 1), toile, L, H, 0, L - 1)).toBe(true);
+  });
+  it("une voisine à peine meilleure (moins de 0,5) n'est pas une couture décalée", () => {
+    const page = pageDe(1080);
+    const proche = toile.slice();
+    // Colonne exacte écartée de 0,25 en moyenne (un échantillon sur 12, de 3) ; la voisine 1081 est identique à la page.
+    for (let y = 0; y < H; y++) for (let k = 0; k < 3; k++) proche[(y * L + 1081) * 3 + k] = page[y * 1080 * 3 + k];
+    proche[1080 * 3] = page[0] + 3;
+    expect(colonneExacteLaPlusProche(page, proche, L, H, 0, 1080)).toBe(true);
+    // Écartée de 1 en moyenne : la voisine la bat de plus de 0,5, couture décalée.
+    for (let y = 0; y < H; y++) for (let k = 0; k < 3; k++) proche[(y * L + 1080) * 3 + k] = page[y * 1080 * 3 + k] + 1;
+    expect(colonneExacteLaPlusProche(page, proche, L, H, 0, 1080)).toBe(false);
+  });
   it("une page décalée de 1 colonne est détectée", () => {
     expect(colonneExacteLaPlusProche(pageDe(1081), toile, L, H, 0, 1080)).toBe(false);
     expect(colonneExacteLaPlusProche(pageDe(1079), toile, L, H, 0, 1080)).toBe(false);
@@ -142,8 +157,9 @@ describe("continu P2 : opération avec fausses dépendances", () => {
     expect(appels()).toBe(0);
   });
   it("une version absente est un refus", async () => {
-    const { op } = simule();
+    const { op, appels } = simule();
     await expect(op(demande(complet({ proprietes: { ...proprietes(), versions: undefined } })), contexte())).rejects.toMatchObject({ erreur: { code: "refuse", reessayable: false } });
+    expect(appels()).toBe(0);
   });
   it("un nombre de depotsPages différent du nombre de pages est refusé", async () => {
     const { op, appels } = simule();
@@ -154,18 +170,18 @@ describe("continu P2 : opération avec fausses dépendances", () => {
     const { op } = simule({ mesure: false });
     await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", reessayable: false, message: expect.stringMatching(/Mesure absente/) } });
   });
-  it("une largeur rendue fausse est un échec", async () => {
-    const { op } = simule({ taille: { largeur: 3239, hauteur: 1350 } });
-    await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", message: expect.stringMatching(/3239/) } });
+  it("une largeur rendue fausse (mesure d'accord avec le rendu) est un échec non réessayable", async () => {
+    const { op } = simule({ taille: { largeur: 3239, hauteur: 1350 }, extra: { largeur: 3239 } });
+    await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", reessayable: false, message: expect.stringMatching(/au lieu de 3240/) } });
   });
-  it("une hauteur rendue fausse (autre que celle du format) est un échec", async () => {
-    const { op } = simule({ taille: { largeur: 3240, hauteur: 1440 } });
-    await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", message: expect.stringMatching(/1440/) } });
+  it("une hauteur rendue fausse (mesure d'accord avec le rendu) est un échec non réessayable", async () => {
+    const { op } = simule({ taille: { largeur: 3240, hauteur: 1440 }, extra: { hauteur: 1440 } });
+    await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", reessayable: false, message: expect.stringMatching(/de haut au lieu de 1350/) } });
   });
   it("une mesure dont la largeur ou la hauteur contredit le rendu est un échec", async () => {
     for (const extra of [{ largeur: 3000 } as Record<string, number>, { hauteur: 1000 }]) {
       const { op } = simule({ extra });
-      await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu" } });
+      await expect(op(demande(complet()), contexte())).rejects.toMatchObject({ erreur: { code: "inconnu", reessayable: false, message: expect.stringMatching(/contraire au rendu/) } });
     }
   });
 });
