@@ -11,9 +11,10 @@ export const dynamic = "force-dynamic";
 const FAMILLES: { id: FamilleVisuelle; libelle: string }[] = [
   { id: "carrousels", libelle: "Carrousels" },
   { id: "infographies", libelle: "Infographies" },
+  { id: "carrousels-continus", libelle: "Carrousels continus" },
 ];
 
-/** Réglages › Carrousels : état des deux générateurs, éteints tant que vous ne les allumez pas. */
+/** Réglages › Carrousels : état des trois générateurs, éteints tant que vous ne les allumez pas. */
 export default async function PageReglagesCarrousels() {
   await exigerSession();
   const etats = await Promise.all(FAMILLES.map(async (f) => ({ ...f, allume: await generateurAllume(f.id) })));

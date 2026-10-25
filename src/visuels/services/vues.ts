@@ -10,11 +10,12 @@ import { ERREUR_MISE_EN_PAGE, lireVisuel, RENDU_PERIME_MS, type DependancesCarro
 export type DependancesVues = Pick<DependancesCarrousels, "depot" | "urlLecture" | "urlTelechargement" | "allume" | "maintenant">;
 export type VueListe = "tous" | "a_valider" | "valides" | "corbeille";
 
+/** Les carrousels continus ont leurs propres vues (`continu/services/vues-continus`) : la liste classique ne les montre pas. */
 const filtres: Record<VueListe, (v: Visuel) => boolean> = {
-  tous: (v) => !v.corbeilleLe,
-  a_valider: (v) => !v.corbeilleLe && v.statut === "a_valider",
-  valides: (v) => !v.corbeilleLe && v.statut === "valide",
-  corbeille: (v) => !!v.corbeilleLe,
+  tous: (v) => v.famille === "carrousel" && !v.corbeilleLe,
+  a_valider: (v) => v.famille === "carrousel" && !v.corbeilleLe && v.statut === "a_valider",
+  valides: (v) => v.famille === "carrousel" && !v.corbeilleLe && v.statut === "valide",
+  corbeille: (v) => v.famille === "carrousel" && !!v.corbeilleLe,
 };
 
 async function carte(v: Visuel, deps: DependancesVues): Promise<VueCarrouselCarte> {
@@ -36,7 +37,7 @@ async function carte(v: Visuel, deps: DependancesVues): Promise<VueCarrouselCart
 const ECRIT_RECENT_MS = 60_000;
 
 /** « ecrit » : fenêtre courte depuis le dernier changement ; « rendu_en_cours » : depuis la demande de rendu (sans date, périmé). */
-function renduRecent(v: Visuel, maintenantMs: number): boolean {
+export function renduRecent(v: Visuel, maintenantMs: number): boolean {
   if (v.statut === "ecrit") {
     const depuis = Date.parse(v.modifieLe);
     return Number.isFinite(depuis) && maintenantMs - depuis < ECRIT_RECENT_MS;
@@ -47,7 +48,7 @@ function renduRecent(v: Visuel, maintenantMs: number): boolean {
 }
 
 /** Calculées depuis TRANSITIONS et l'état corbeille : l'écran n'invente aucune action. */
-function actionsPermises(v: Visuel, maintenantMs: number): ActionCarrousel[] {
+export function actionsPermises(v: Visuel, maintenantMs: number): ActionCarrousel[] {
   if (v.corbeilleLe) return joursRestants(v.corbeilleLe, maintenantMs) > 0 ? ["restaurer"] : [];
   const vers = TRANSITIONS[v.statut];
   const actions: ActionCarrousel[] = [];
