@@ -139,6 +139,17 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     expect(j.remarques).toHaveLength(1);
     expect(j.remarques[0]).toMatch(/n'a pas été relue/);
   });
+  it("6 sans réponse sur 10 : bloquant (relecture presque vide)", () => {
+    const r = relecture();
+    const j = jugerRelecture({ ...r, images: r.images.slice(0, 4) }, INSTANTS);
+    expect(j.bloquants).toHaveLength(1);
+  });
+  it("1 sans réponse sur 10 : remarque", () => {
+    const r = relecture();
+    const j = jugerRelecture({ ...r, images: r.images.slice(0, 9) }, INSTANTS);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(1);
+  });
   it("aucune image relue : bloquant", () => {
     const j = jugerRelecture({ images: [], absentDeLaVideo: "" }, INSTANTS);
     expect(j.bloquants).toHaveLength(1);

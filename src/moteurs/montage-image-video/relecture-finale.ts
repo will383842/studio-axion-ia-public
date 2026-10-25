@@ -155,6 +155,9 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
   const finEnBoucle = (l.blocs ?? []).some((b) => b.sorte === "variete" && b.axe === "fin" && b.code === "FIN-C");
   brut.push({ instantSec: Math.max(0, l.dureeSec - 0.3), sorte: "fin", legende: l.segmentFin.muet ? (finEnBoucle ? "Dernière image : la vidéo s'arrête sur la phrase-choc en entier, posée sur l'image d'ouverture reprise (boucle voulue), et la marque." : "Dernière image : la vidéo s'arrête sur la phrase-choc et la marque, rien d'autre.") : "Dernière image de la vidéo : la fin du réseau." });
 
+  // L'écran d'ouverture remplace les blocs de la 1re phrase : une image juste avant sa fin montre l'accroche entière.
+  if (ouv) brut.push({ instantSec: ouv.fin - 0.3, sorte: "charniere", legende: "Ouverture : l'accroche (et son chiffre s'il y en a un), entière et lisible." });
+
   const bornes = brut.map((b) => ({ ...b, instantSec: arrondi(Math.min(Math.max(0, b.instantSec), Math.max(0, l.dureeSec - 0.04))) }));
   const choisis: Omit<InstantCleIV, "nom">[] = [];
   const ordre = bornes.map((b, i) => ({ b, i })).sort((x, y) => PRIORITE[x.b.sorte] - PRIORITE[y.b.sorte] || x.i - y.i);
@@ -314,7 +317,7 @@ const enBase64 = (o: Uint8Array) => Buffer.from(o.buffer, o.byteOffset, o.byteLe
  */
 export function cleRelectureIV(fichierCle: string, empreinteFichier: string | undefined, instants: readonly Pick<InstantCleIV, "nom" | "instantSec" | "legende">[]): string | null {
   if (!empreinteFichier) return null;
-  return `relecture-${createHash("sha256").update(JSON.stringify([fichierCle, empreinteFichier, instants.map((i) => [i.nom, i.instantSec, i.legende])])).digest("hex").slice(0, 32)}`;
+  return `relecture-${createHash("sha256").update(JSON.stringify([roleRelectureFinale.version, fichierCle, empreinteFichier, instants.map((i) => [i.nom, i.instantSec, i.legende])])).digest("hex").slice(0, 32)}`;
 }
 
 export interface EntreeRelectureIV {
@@ -376,6 +379,7 @@ export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<Insta
   if (instants.length > 0 && relues === 0) bloquants.push("aucune image n'a été relue.");
   else for (const nom of sansReponse) remarques.push(`l'image ${ou(nom)} n'a pas été relue${DETAIL}.`);
   if (relues > 0 && manques.length / relues > PART_MANQUES_BLOQUANTE) bloquants.push(`${manques.length} images sur ${relues} ne montrent pas tout : ${manques.join(" ")}`);
+  else if (relues > 0 && instants.length > 0 && (manques.length + sansReponse.length) / instants.length > PART_MANQUES_BLOQUANTE) bloquants.push(`${manques.length} images ne montrent pas tout et ${sansReponse.length} n'ont pas été relues, sur ${instants.length} : la relecture est trop incomplète.${manques.length ? " " + manques.join(" ") : ""}`);
   else for (const m of manques) remarques.push(`${m.replace(/\.$/, "")}${DETAIL}.`);
   if (r.absentDeLaVideo.trim()) remarques.push(`absent de toute la vidéo : ${r.absentDeLaVideo.trim()}${DETAIL}.`);
   return { bloquants, remarques, indications };
