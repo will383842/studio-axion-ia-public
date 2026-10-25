@@ -30,7 +30,6 @@ describe("confirmerPrix : un montant connu est accepté sans feuille", () => {
 
   it("sans montant : la feuille reste (la question attend une réponse)", async () => {
     expect(await dansLeTour(confirmerPrix({ message: "Continuer ?" }))).toBe(EN_ATTENTE);
-    await confirmerPrix({ message: "autre" }).then(() => undefined, () => undefined).catch(() => undefined);
   });
 });
 
