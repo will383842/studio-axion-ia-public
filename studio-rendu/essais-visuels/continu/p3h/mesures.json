@@ -1,0 +1,1552 @@
+{
+  "PA-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PA1",
+      "PA2",
+      "PA3",
+      "PA4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 2,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 11,
+      "octetsPages": 500339,
+      "octetsPageMax": 159914,
+      "dureeRenduMs": 12584,
+      "dureeMs": 15662
+    },
+    "octetsParPage": [
+      159914,
+      100590,
+      103011,
+      136824
+    ],
+    "fautes": []
+  },
+  "PA-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PA1",
+      "PA2",
+      "PA3",
+      "PA4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 2,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 25,
+      "octetsPages": 504351,
+      "octetsPageMax": 163046,
+      "dureeRenduMs": 3923,
+      "dureeMs": 6840
+    },
+    "octetsParPage": [
+      163046,
+      102453,
+      102124,
+      136728
+    ],
+    "fautes": []
+  },
+  "PA-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PA1",
+      "PA2",
+      "PA3",
+      "PA4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 2,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 11,
+      "octetsPages": 613966,
+      "octetsPageMax": 197657,
+      "dureeRenduMs": 3275,
+      "dureeMs": 6426
+    },
+    "octetsParPage": [
+      197657,
+      114847,
+      118236,
+      183226
+    ],
+    "fautes": []
+  },
+  "PA-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PA1",
+      "PA2",
+      "PA3",
+      "PA4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 2,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 25,
+      "octetsPages": 616429,
+      "octetsPageMax": 200854,
+      "dureeRenduMs": 3658,
+      "dureeMs": 6708
+    },
+    "octetsParPage": [
+      200854,
+      118279,
+      116551,
+      180745
+    ],
+    "fautes": []
+  },
+  "PA-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 4,
+    "types": [
+      "PA1",
+      "PA2",
+      "PA3",
+      "PA4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 2,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 11,
+      "octetsPages": 363542,
+      "octetsPageMax": 104764,
+      "dureeRenduMs": 3335,
+      "dureeMs": 6202
+    },
+    "octetsParPage": [
+      104764,
+      89524,
+      91209,
+      78045
+    ],
+    "fautes": []
+  },
+  "PB-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PB1",
+      "PB2",
+      "PB3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 35,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 514029,
+      "octetsPageMax": 155907,
+      "dureeRenduMs": 3154,
+      "dureeMs": 5954
+    },
+    "octetsParPage": [
+      155907,
+      107577,
+      136225,
+      114320
+    ],
+    "fautes": []
+  },
+  "PB-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PB1",
+      "PB2",
+      "PB3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 35,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 6,
+      "octetsPages": 510439,
+      "octetsPageMax": 159223,
+      "dureeRenduMs": 3491,
+      "dureeMs": 6554
+    },
+    "octetsParPage": [
+      159223,
+      104801,
+      133429,
+      112986
+    ],
+    "fautes": []
+  },
+  "PB-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PB1",
+      "PB2",
+      "PB3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 35,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 615654,
+      "octetsPageMax": 195555,
+      "dureeRenduMs": 3845,
+      "dureeMs": 6845
+    },
+    "octetsParPage": [
+      195555,
+      123797,
+      181982,
+      114320
+    ],
+    "fautes": []
+  },
+  "PB-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PB1",
+      "PB2",
+      "PB3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 35,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 6,
+      "octetsPages": 614703,
+      "octetsPageMax": 200337,
+      "dureeRenduMs": 3440,
+      "dureeMs": 6719
+    },
+    "octetsParPage": [
+      200337,
+      120705,
+      180675,
+      112986
+    ],
+    "fautes": []
+  },
+  "PB-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 4,
+    "types": [
+      "PB1",
+      "PB2",
+      "PB3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 35,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 360925,
+      "octetsPageMax": 114320,
+      "dureeRenduMs": 3624,
+      "dureeMs": 6590
+    },
+    "octetsParPage": [
+      95502,
+      74320,
+      76783,
+      114320
+    ],
+    "fautes": []
+  },
+  "PC-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PC1",
+      "PC2",
+      "PC3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 23,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 426194,
+      "octetsPageMax": 124187,
+      "dureeRenduMs": 3338,
+      "dureeMs": 6448
+    },
+    "octetsParPage": [
+      91741,
+      124187,
+      95946,
+      114320
+    ],
+    "fautes": []
+  },
+  "PC-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PC1",
+      "PC2",
+      "PC3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 23,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 7,
+      "octetsPages": 432069,
+      "octetsPageMax": 126010,
+      "dureeRenduMs": 3820,
+      "dureeMs": 7090
+    },
+    "octetsParPage": [
+      94792,
+      126010,
+      98281,
+      112986
+    ],
+    "fautes": []
+  },
+  "PC-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PC1",
+      "PC2",
+      "PC3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 23,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 452408,
+      "octetsPageMax": 133956,
+      "dureeRenduMs": 3895,
+      "dureeMs": 7205
+    },
+    "octetsParPage": [
+      107599,
+      133956,
+      96533,
+      114320
+    ],
+    "fautes": []
+  },
+  "PC-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PC1",
+      "PC2",
+      "PC3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 23,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 7,
+      "octetsPages": 458388,
+      "octetsPageMax": 135280,
+      "dureeRenduMs": 3930,
+      "dureeMs": 7236
+    },
+    "octetsParPage": [
+      111616,
+      135280,
+      98506,
+      112986
+    ],
+    "fautes": []
+  },
+  "PC-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 4,
+    "types": [
+      "PC1",
+      "PC2",
+      "PC3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 23,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 340120,
+      "octetsPageMax": 114320,
+      "dureeRenduMs": 3570,
+      "dureeMs": 6629
+    },
+    "octetsParPage": [
+      79634,
+      77856,
+      68310,
+      114320
+    ],
+    "fautes": []
+  },
+  "PD-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PD1",
+      "PD2",
+      "PD3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 27,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 17,
+      "octetsPages": 502442,
+      "octetsPageMax": 136053,
+      "dureeRenduMs": 4013,
+      "dureeMs": 7309
+    },
+    "octetsParPage": [
+      136053,
+      126758,
+      125311,
+      114320
+    ],
+    "fautes": []
+  },
+  "PD-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PD1",
+      "PD2",
+      "PD3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 27,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 21,
+      "octetsPages": 503131,
+      "octetsPageMax": 133482,
+      "dureeRenduMs": 4028,
+      "dureeMs": 7415
+    },
+    "octetsParPage": [
+      133482,
+      128275,
+      128388,
+      112986
+    ],
+    "fautes": []
+  },
+  "PD-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PD1",
+      "PD2",
+      "PD3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 27,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 17,
+      "octetsPages": 568607,
+      "octetsPageMax": 164813,
+      "dureeRenduMs": 3778,
+      "dureeMs": 6985
+    },
+    "octetsParPage": [
+      164813,
+      144451,
+      145023,
+      114320
+    ],
+    "fautes": []
+  },
+  "PD-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PD1",
+      "PD2",
+      "PD3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 27,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 21,
+      "octetsPages": 566287,
+      "octetsPageMax": 162685,
+      "dureeRenduMs": 4044,
+      "dureeMs": 7350
+    },
+    "octetsParPage": [
+      162685,
+      144476,
+      146140,
+      112986
+    ],
+    "fautes": []
+  },
+  "PD-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 4,
+    "types": [
+      "PD1",
+      "PD2",
+      "PD3",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 27,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 17,
+      "octetsPages": 360081,
+      "octetsPageMax": 114320,
+      "dureeRenduMs": 4118,
+      "dureeMs": 7170
+    },
+    "octetsParPage": [
+      69113,
+      101094,
+      75554,
+      114320
+    ],
+    "fautes": []
+  },
+  "PE-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PE1",
+      "PE2",
+      "PE3",
+      "PE4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 29,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 488785,
+      "octetsPageMax": 145168,
+      "dureeRenduMs": 3359,
+      "dureeMs": 6309
+    },
+    "octetsParPage": [
+      145168,
+      123955,
+      104420,
+      115242
+    ],
+    "fautes": []
+  },
+  "PE-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 4,
+    "types": [
+      "PE1",
+      "PE2",
+      "PE3",
+      "PE4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 29,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 7,
+      "octetsPages": 502130,
+      "octetsPageMax": 150367,
+      "dureeRenduMs": 3693,
+      "dureeMs": 6990
+    },
+    "octetsParPage": [
+      150367,
+      129131,
+      106063,
+      116569
+    ],
+    "fautes": []
+  },
+  "PE-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PE1",
+      "PE2",
+      "PE3",
+      "PE4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 29,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 603237,
+      "octetsPageMax": 191242,
+      "dureeRenduMs": 3672,
+      "dureeMs": 6994
+    },
+    "octetsParPage": [
+      191242,
+      150113,
+      121048,
+      140834
+    ],
+    "fautes": []
+  },
+  "PE-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 4,
+    "types": [
+      "PE1",
+      "PE2",
+      "PE3",
+      "PE4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 29,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 7,
+      "octetsPages": 615520,
+      "octetsPageMax": 195621,
+      "dureeRenduMs": 3672,
+      "dureeMs": 7359
+    },
+    "octetsParPage": [
+      195621,
+      154076,
+      123325,
+      142498
+    ],
+    "fautes": []
+  },
+  "PE-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 4,
+    "types": [
+      "PE1",
+      "PE2",
+      "PE3",
+      "PE4"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 29,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 294614,
+      "octetsPageMax": 83174,
+      "dureeRenduMs": 4027,
+      "dureeMs": 7637
+    },
+    "octetsParPage": [
+      83174,
+      74509,
+      73275,
+      63656
+    ],
+    "fautes": []
+  },
+  "PF-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 5,
+    "types": [
+      "PF1",
+      "PF2",
+      "PF3",
+      "PF4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 15,
+      "octetsPages": 514296,
+      "octetsPageMax": 146891,
+      "dureeRenduMs": 5122,
+      "dureeMs": 9628
+    },
+    "octetsParPage": [
+      146891,
+      75731,
+      77044,
+      99378,
+      115252
+    ],
+    "fautes": []
+  },
+  "PF-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 5,
+    "types": [
+      "PF1",
+      "PF2",
+      "PF3",
+      "PF4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1440,
+      "ecartCoutureMax": 15,
+      "octetsPages": 518722,
+      "octetsPageMax": 145857,
+      "dureeRenduMs": 5103,
+      "dureeMs": 9804
+    },
+    "octetsParPage": [
+      145857,
+      78149,
+      78732,
+      101920,
+      114064
+    ],
+    "fautes": []
+  },
+  "PF-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 5,
+    "types": [
+      "PF1",
+      "PF2",
+      "PF3",
+      "PF4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 15,
+      "octetsPages": 580647,
+      "octetsPageMax": 195065,
+      "dureeRenduMs": 5286,
+      "dureeMs": 9461
+    },
+    "octetsParPage": [
+      195065,
+      78000,
+      81090,
+      111240,
+      115252
+    ],
+    "fautes": []
+  },
+  "PF-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 5,
+    "types": [
+      "PF1",
+      "PF2",
+      "PF3",
+      "PF4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1440,
+      "ecartCoutureMax": 15,
+      "octetsPages": 589072,
+      "octetsPageMax": 195095,
+      "dureeRenduMs": 4862,
+      "dureeMs": 9419
+    },
+    "octetsParPage": [
+      195095,
+      80445,
+      83852,
+      115616,
+      114064
+    ],
+    "fautes": []
+  },
+  "PF-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 5,
+    "types": [
+      "PF1",
+      "PF2",
+      "PF3",
+      "PF4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 15,
+      "octetsPages": 412324,
+      "octetsPageMax": 115252,
+      "dureeRenduMs": 5202,
+      "dureeMs": 9364
+    },
+    "octetsParPage": [
+      73284,
+      70290,
+      74174,
+      79324,
+      115252
+    ],
+    "fautes": []
+  },
+  "PG-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 5,
+    "types": [
+      "PG1",
+      "PG2",
+      "PG3",
+      "PG4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 473467,
+      "octetsPageMax": 127081,
+      "dureeRenduMs": 4578,
+      "dureeMs": 8235
+    },
+    "octetsParPage": [
+      127081,
+      77013,
+      73131,
+      80990,
+      115252
+    ],
+    "fautes": []
+  },
+  "PG-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 5,
+    "types": [
+      "PG1",
+      "PG2",
+      "PG3",
+      "PG4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1440,
+      "ecartCoutureMax": 7,
+      "octetsPages": 486652,
+      "octetsPageMax": 134400,
+      "dureeRenduMs": 5032,
+      "dureeMs": 9352
+    },
+    "octetsParPage": [
+      134400,
+      77399,
+      77991,
+      82798,
+      114064
+    ],
+    "fautes": []
+  },
+  "PG-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 5,
+    "types": [
+      "PG1",
+      "PG2",
+      "PG3",
+      "PG4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 566077,
+      "octetsPageMax": 168571,
+      "dureeRenduMs": 5122,
+      "dureeMs": 9234
+    },
+    "octetsParPage": [
+      168571,
+      93437,
+      89195,
+      99622,
+      115252
+    ],
+    "fautes": []
+  },
+  "PG-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 5,
+    "types": [
+      "PG1",
+      "PG2",
+      "PG3",
+      "PG4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1440,
+      "ecartCoutureMax": 7,
+      "octetsPages": 577467,
+      "octetsPageMax": 175805,
+      "dureeRenduMs": 4714,
+      "dureeMs": 8942
+    },
+    "octetsParPage": [
+      175805,
+      94049,
+      92433,
+      101116,
+      114064
+    ],
+    "fautes": []
+  },
+  "PG-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 5,
+    "types": [
+      "PG1",
+      "PG2",
+      "PG3",
+      "PG4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 30,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 399961,
+      "octetsPageMax": 115252,
+      "dureeRenduMs": 4338,
+      "dureeMs": 8859
+    },
+    "octetsParPage": [
+      77856,
+      68971,
+      64203,
+      73679,
+      115252
+    ],
+    "fautes": []
+  },
+  "PH-4x5-moyen": {
+    "format": "4:5",
+    "contenu": "moyen",
+    "pages": 5,
+    "types": [
+      "PH1",
+      "PH2",
+      "PH3",
+      "PH4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 34,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 489163,
+      "octetsPageMax": 139576,
+      "dureeRenduMs": 4315,
+      "dureeMs": 8572
+    },
+    "octetsParPage": [
+      139576,
+      85786,
+      82930,
+      65619,
+      115252
+    ],
+    "fautes": []
+  },
+  "PH-3x4-moyen": {
+    "format": "3:4",
+    "contenu": "moyen",
+    "pages": 5,
+    "types": [
+      "PH1",
+      "PH2",
+      "PH3",
+      "PH4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 34,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1440,
+      "ecartCoutureMax": 6,
+      "octetsPages": 497182,
+      "octetsPageMax": 143604,
+      "dureeRenduMs": 4792,
+      "dureeMs": 8955
+    },
+    "octetsParPage": [
+      143604,
+      88168,
+      85602,
+      65744,
+      114064
+    ],
+    "fautes": []
+  },
+  "PH-4x5-maximal": {
+    "format": "4:5",
+    "contenu": "maximal",
+    "pages": 5,
+    "types": [
+      "PH1",
+      "PH2",
+      "PH3",
+      "PH4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 34,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 552387,
+      "octetsPageMax": 176872,
+      "dureeRenduMs": 5786,
+      "dureeMs": 9789
+    },
+    "octetsParPage": [
+      176872,
+      95335,
+      91701,
+      73227,
+      115252
+    ],
+    "fautes": []
+  },
+  "PH-3x4-maximal": {
+    "format": "3:4",
+    "contenu": "maximal",
+    "pages": 5,
+    "types": [
+      "PH1",
+      "PH2",
+      "PH3",
+      "PH4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 34,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1440,
+      "ecartCoutureMax": 6,
+      "octetsPages": 560671,
+      "octetsPageMax": 180417,
+      "dureeRenduMs": 4985,
+      "dureeMs": 8714
+    },
+    "octetsParPage": [
+      180417,
+      97768,
+      94441,
+      73981,
+      114064
+    ],
+    "fautes": []
+  },
+  "PH-4x5-minimal": {
+    "format": "4:5",
+    "contenu": "minimal",
+    "pages": 5,
+    "types": [
+      "PH1",
+      "PH2",
+      "PH3",
+      "PH4",
+      "X02"
+    ],
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 34,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1350,
+      "ecartCoutureMax": 6,
+      "octetsPages": 389521,
+      "octetsPageMax": 115252,
+      "dureeRenduMs": 4107,
+      "dureeMs": 7757
+    },
+    "octetsParPage": [
+      75208,
+      73309,
+      71090,
+      54662,
+      115252
+    ],
+    "fautes": []
+  }
+}
