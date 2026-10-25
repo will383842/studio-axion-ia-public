@@ -16,6 +16,8 @@ import { Duel, planDuel } from "../../studio-rendu/compositions/image-video/vari
 import { Geant, planGeant } from "../../studio-rendu/compositions/image-video/variete/chiffres/geant";
 import { Objets } from "../../studio-rendu/compositions/image-video/variete/chiffres/objets";
 import { Pile } from "../../studio-rendu/compositions/image-video/variete/chiffres/pile";
+import { largeurAnton } from "../../src/briques/schema-motion/chasse-anton";
+import { largeurTexte } from "../../src/briques/ecrans-motion/mesure";
 import { cadreChiffres, LEGENDE_MIN_PX, scinderChiffre } from "../../studio-rendu/compositions/image-video/variete/chiffres/outils";
 
 const LEGENDE = "résolus instantanément";
@@ -204,4 +206,39 @@ describe("pile · « 0 demande » + « perdue » : le nombre seul en grand, le m
     expect(html).toContain(">demande perdue</div>");
     expect(html).toContain(">24h/24<");
   });
+});
+
+// ── Défauts visuels de la vidéo v-0339175a9f88 (25/10/2026, compositions-iv/11) ─────────────────────────────────────
+const doneesAnneau = (legende = LEGENDE, rangees = 2): DonneesEcranChiffresRendu => ({
+  ...base("CHI-B", "80 %"),
+  chiffres: [
+    { texte: "80 %", legende, t: 0.4 },
+    ...(rangees >= 1 ? [{ texte: "0 demande", legende: "perdue", t: 2 }] : []),
+    ...(rangees >= 2 ? [{ texte: "24h/24", t: 3.5 }] : []),
+  ],
+  anneau: { valeur: 80, reste: { texte: "20 %", legende: "Limite atteinte" } },
+});
+const nombre = (re: RegExp, s: string) => Number(re.exec(s)![1]);
+
+describe("D2 · pile centrée : le groupe chiffre + légende est centré sur x = 540 (cadres 4:5 et 9:16)", () => {
+  for (const hauteur of [1350, 1920]) {
+    it(`cadre ${hauteur} : centre du groupe = 540 ± 4, légende « demande perdue » sur UNE ligne`, () => {
+      const c = cadreChiffres(hauteur);
+      const d = { ...base("CHI-B", "80 %"), chiffres: [{ texte: "80 %", legende: LEGENDE, t: 0.4 }, { texte: "0 demande", legende: "perdue", t: 2 }] };
+      const html = renderToStaticMarkup(createElement(Pile, { d, t: 6, cadre: c, tailleFocale: 330 }));
+      const rangee = /left:(\d+(?:\.\d+)?)px;top:[\d.]+px;width:(\d+(?:\.\d+)?)px;height/.exec(html)!;
+      const gauche = Number(rangee[1]);
+      const colChiffre = nombre(/width:(\d+(?:\.\d+)?)px;flex:none/, html);
+      const colLegende = nombre(/max-width:(\d+(?:\.\d+)?)px/, html);
+      // Le chiffre (calé à droite de sa colonne) commence à gauche + colonne - sa largeur ; la légende finit à gauche + colonne + 36 + sa largeur réelle.
+      const { texte } = scinderChiffre("0 demande", "perdue");
+      const taille = nombre(/font-size:(\d+(?:\.\d+)?)px/, html);
+      const debut = gauche + colChiffre - largeurAnton(texte, taille);
+      const largeurLegende = Math.min(colLegende, largeurTexte("demande perdue", "inter-gras", 60));
+      const fin = gauche + colChiffre + 36 + largeurLegende;
+      expect((debut + fin) / 2).toBeGreaterThanOrEqual(536);
+      expect((debut + fin) / 2).toBeLessThanOrEqual(544);
+      expect(largeurTexte("demande perdue", "inter-gras", 60)).toBeLessThanOrEqual(colLegende);
+    });
+  }
 });
