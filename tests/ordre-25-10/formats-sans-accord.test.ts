@@ -165,12 +165,14 @@ describe.each([
     await depots().generations.modifier(sonde.generationId, { statut: "echec" });
 
     const c = claudePire();
-    await ecrireParametre(CLE_MODE_BUDGET, mode);
+    // L'arrêt se provoque en mode bloquant (en indicatif il n'existe plus à 5 ×) ; le mode testé est posé ensuite, avant « Reprendre ».
+    await ecrireParametre(CLE_MODE_BUDGET, "bloquant");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
     const r = await lancerSujet(2);
     if (!r.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
     expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    await ecrireParametre(CLE_MODE_BUDGET, mode);
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, indicatif ? entre(pire, 3) : Math.ceil(pire * 100) / 100 + 1);
     const reprise = bg.reprendreEcriture(r.scriptMaitreId);
     if (!indicatif) return void (await expect(reprise).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" }));
