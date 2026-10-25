@@ -17,7 +17,7 @@ import type { Id } from "@/domaine/types";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant } from "./_commun";
 import { decalerMois, engagementDuTravail, jourParis, moisParis, resumeBudget } from "./couts";
 import { creerNotification } from "./notifications";
-import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, messageAuDelaDuBudgetIndicatif } from "./mode-budget";
+import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, messageAuDelaDuBudgetIndicatifClaude } from "./mode-budget";
 import { centimesDuPlafond } from "@/lib/montants";
 
 /** Plafond du mois par défaut (150 €, garde-fou du plan maître C2), tant que Will n'en a pas réglé d'autre. */
@@ -142,7 +142,7 @@ export async function signalerDepassementIndicatif(motif: string, titre: string,
     /* le journal ne bloque jamais */
   }
   // Une cloche par vidéo (ou sujet) et par jour : la clé porte l'identifiant ; sans identifiant, une par jour et par motif.
-  await alerterUneFoisParJour(sujet ? `indicatif-${motif}-${sujet}` : `indicatif-${motif}`, { titre, message });
+  await alerterUneFoisParJour(sujet ? `indicatif-${motif}-${sujet}` : `indicatif-${motif}`, { titre, message }, "credit");
 }
 
 /**
@@ -150,22 +150,23 @@ export async function signalerDepassementIndicatif(motif: string, titre: string,
  *  - sous le plafond : "ok" ;
  *  - mode bloquant, plafond dépassé : "bloque" (refus comme avant) ;
  *  - mode indicatif, jusqu'à 5 × le plafond : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif) ;
- *  - mode indicatif, au-delà de 5 × le plafond : "arret-securite" (jamais payé).
+ *  - mode indicatif, au-delà de 5 × le plafond : "depasse" (même alerte, SANS arrêt : le prix ne bloque jamais).
  */
-export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque" | "arret-securite"> {
+export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque" | "depasse"> {
   const plafond = centimesDuPlafond(plafondUsd);
   if (totalCentimes <= plafond) return "ok";
   if (!indicatif) return "bloque";
-  if (totalCentimes > plafond * FACTEUR_SECURITE_BUDGET) return "arret-securite";
-  await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", `${quoi} : ${messageAuDelaDuBudgetIndicatif(affichage.sansPrix || affichage.tauxUsdEur === undefined ? undefined : formaterMontant(centimes(centimesDuPlafond(plafondUsd * affichage.tauxUsdEur))))}`, sujet);
-  return "ok";
+  const loin = totalCentimes > plafond * FACTEUR_SECURITE_BUDGET;
+  await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", `${quoi} : ${messageAuDelaDuBudgetIndicatifClaude(affichage.sansPrix || affichage.tauxUsdEur === undefined ? undefined : formaterMontant(centimes(centimesDuPlafond(plafondUsd * affichage.tauxUsdEur))))}`, sujet);
+  return loin ? "depasse" : "ok";
 }
 
-async function alerterUneFoisParJour(motif: string, texte: { titre: string; message: string }): Promise<void> {
+/** `type` : "budget" (refus, canaux de Will) ; "credit" = cloche seule (jamais de push ni d'e-mail : cloches indicatives). */
+async function alerterUneFoisParJour(motif: string, texte: { titre: string; message: string }, type: "budget" | "credit" = "budget"): Promise<void> {
   try {
     const cle = `budget.refus.${jourParis()}.${motif}`;
     if (await lireParametre<boolean>(cle, false)) return;
-    await creerNotification({ type: "budget", ...texte, lien: "/reglages#budget" });
+    await creerNotification({ type, ...texte, lien: "/reglages#budget" });
     // L3-0 : la marque « déjà alerté » n'est posée qu'APRÈS l'envoi réussi ; une panne d'envoi laisse l'alerte repartir au refus suivant.
     await ecrireParametre(cle, true);
   } catch {

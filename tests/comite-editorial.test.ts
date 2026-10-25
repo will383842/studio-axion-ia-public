@@ -494,7 +494,7 @@ describe("Comité · travail de fond (lot groupé simulé)", () => {
     const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-18T08:00:00Z") });
     expect(issue.etat).not.toBe("arrete");
     expect(postsLots()).toBe(1);
-    expect((await depots().notifications.lister()).filter((x) => x.type === "budget" && /Repère des idées/.test(x.titre))).toHaveLength(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Repère des idées/.test(x.titre))).toHaveLength(1);
   });
 
   it("budget INDICATIF : au-delà de 5 × le plafond des idées, arrêt de sécurité (rien n'est envoyé)", async () => {
@@ -513,7 +513,7 @@ describe("Comité · travail de fond (lot groupé simulé)", () => {
     const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") });
     expect(issue.etat).not.toBe("arrete");
     expect(postsLots()).toBe(1);
-    expect((await depots().notifications.lister()).filter((x) => x.type === "budget" && /Claude du mois/.test(x.titre))).toHaveLength(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Claude du mois/.test(x.titre))).toHaveLength(1);
   });
 
   it("limite Claude DU MOIS : au-delà, rien ne part", async () => {

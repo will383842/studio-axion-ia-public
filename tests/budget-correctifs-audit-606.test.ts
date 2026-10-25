@@ -140,17 +140,18 @@ describe("cloche : une par vidéo et par jour", () => {
     await dcv.executerRolePourVideo(a.id, roleRelectureFacecam, entree, options());
     await dcv.executerRolePourVideo(b.id, roleRelectureFacecam, entree, options());
     await dcv.executerRolePourVideo(a.id, roleRelectureFacecam, entree, options());
-    const cloches = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const cloches = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(cloches).toHaveLength(2);
-    expect(cloches[0].message).toMatch(/Au-delà du budget indicatif : la fabrication continue, arrêt de sécurité à 5 fois le prix annoncé/);
+    expect(cloches[0].message).not.toMatch(/arrêt de sécurité/);
+    expect(cloches[0].message).toMatch(/Au-delà du budget indicatif : la fabrication continue\./);
   });
-  it("arrêt de sécurité : message exact et clair", async () => {
-    await ecrireParametre("budget.mode", "indicatif");
+  it("bloquant : le plafond des textes refuse, message exact et clair", async () => {
+    await ecrireParametre("budget.mode", "bloquant");
     brancherClaude();
     const v = await video();
     await depenseMonteur(v.id, 800, new Date(Date.now() - 30_000).toISOString());
     const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, options());
-    expect(!r.ok && r.message).toMatch(/dépasserait 5 fois le prix annoncé, rien de plus n'est payé/);
+    expect(!r.ok && r.message).toMatch(/Version simple pour cette modification/);
     expect(!r.ok && r.message).not.toMatch(/déjà coûté/);
   });
 });
@@ -161,11 +162,11 @@ describe("cas concret : voix en indicatif = compteur ET 5 ×", () => {
     const p = (prise: string) => ({ prise, coutCentimes: 1 }) as never;
     expect(() => verifierPartVoix({ indicatif: { lecturesVoixMax: 3, facteurSecurite: 5 } }, [p("a"), p("a"), p("a")], { prise: "a", texte: "t" })).toThrow(/déjà été lue 3 fois/);
   });
-  it("sous le compteur mais au-delà de 5 × la part voix : arrêt de sécurité", async () => {
+  it("bloquant, au-delà de la part voix : la lecture est refusée (en indicatif, plus d'arrêt à 5 ×)", async () => {
     const { verifierPartVoix } = await import("@/moteurs/montage-cas-concret/fabriquer");
-    const budget = { plafondVoix: { centimes: 10, prixLecture: () => 20 }, indicatif: { lecturesVoixMax: 3, facteurSecurite: 5 } };
+    const budget = { plafondVoix: { centimes: 10, prixLecture: () => 20 } };
     const payees = [{ prise: "a", coutCentimes: 40 }] as never;
-    expect(() => verifierPartVoix(budget, payees, { prise: "a", texte: "t" })).toThrow(/Arrêt de sécurité/);
+    expect(() => verifierPartVoix(budget, payees, { prise: "a", texte: "t" })).toThrow(/dépasserait le prix confirmé de la voix/);
   });
   it("au-dessus du montant mais sous 5 × : la lecture passe (indicatif)", async () => {
     const { verifierPartVoix } = await import("@/moteurs/montage-cas-concret/fabriquer");
@@ -179,7 +180,7 @@ describe("montants et devise de la cloche, origine illisible, sujet de lot", () 
     const { jugerPlafond } = await import("@/services/budget-mensuel");
     await ecrireParametre("budget.mode", "indicatif");
     expect(await jugerPlafond(200, 1.5, true, "Ce texte", "vid-x", { tauxUsdEur: 0.9 })).toBe("ok");
-    const n = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const n = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(n).toHaveLength(1);
     expect(n[0].message).toMatch(/\(1,35\s*€\)/);
     expect(n[0].message).not.toMatch(/\$/);
@@ -187,7 +188,7 @@ describe("montants et devise de la cloche, origine illisible, sujet de lot", () 
   it("face caméra (format sans prix) : aucun montant dans la cloche", async () => {
     const { jugerPlafond } = await import("@/services/budget-mensuel");
     await jugerPlafond(200, 1.5, true, "Monteur", "vid-y", { sansPrix: true });
-    const n = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const n = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(n[0].message).toMatch(/^Monteur : Au-delà du budget indicatif : la fabrication continue/);
   });
   it("origineDeLaVideo : lecture en panne = « usine » (échec fermé) ; vidéo sans version = « studio »", async () => {
@@ -290,13 +291,14 @@ describe("Usine : réservation sur le budget de l'Usine, actions de Will, format
     await depots().depenses.enregistrer({ id: nouvelId("dep"), videoId: v.id, lignes: [ligne], total: ligne.total, date, creeLe: date, modifieLe: date } as never);
     const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Face caméra animée · mise en scène", plafondPropre } as never);
     expect(r.ok).toBe(true);
-    const cloche = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const cloche = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(cloche).toHaveLength(1);
     expect(cloche[0].message).not.toMatch(/€|\$/);
     const ligne2 = { ...ligne, total: { centimes: 900, devise: "EUR" as const } };
     await depots().depenses.enregistrer({ id: nouvelId("dep"), videoId: v.id, lignes: [ligne2], total: ligne2.total, date, creeLe: date, modifieLe: date } as never);
+    await ecrireParametre("budget.mode", "bloquant");
     const r2 = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Face caméra animée · mise en scène", plafondPropre } as never);
-    expect(!r2.ok && r2.message).not.toMatch(/€|\$/);
-    expect(!r2.ok && r2.message).toMatch(/Arrêt de sécurité/);
+    expect(r2.ok).toBe(false);
+    expect(!r2.ok && r2.message).toMatch(/Plafond de cette vidéo atteint/);
   }, 30_000);
 });
