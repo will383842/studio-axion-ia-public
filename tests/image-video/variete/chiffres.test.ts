@@ -18,7 +18,8 @@ import { mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV } from "@/m
 import { AXE_CHIFFRES, geant, paireAvantApres, type DonneesChiffresIV, type DonneesEcranChiffresIV } from "@/moteurs/montage-image-video/variete/axes/chiffres";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import { parametresDuBloc } from "@/services/image-video-rendu";
-import { calculerScene } from "../../../studio-rendu/compositions/image-video/plan";
+import { calculerScene, DEBORD_COCHE, DEBORD_HACHURES, DEBORD_ICONE, RAIL_45 } from "../../../studio-rendu/compositions/image-video/plan";
+import { miseEnPageDeHauteurIV } from "../../../src/briques/schema-motion/types";
 import { boitesEcran, commun, placeAccent, type SceneAccents } from "../../../studio-rendu/compositions/image-video/variete/chiffres/accent";
 import type { DonneesChiffresRendu, DonneesEcranChiffresRendu } from "../../../studio-rendu/compositions/image-video/variete/chiffres/donnees";
 import { invariantsVarieteIV } from "./invariants";
@@ -147,6 +148,18 @@ describe("chiffres · données de chaque variante (carte C)", () => {
   });
 });
 
+/**
+ * Toile synthétique en 4:5, caméra fixe (écran = toile) : un nœud vers y 620-720 avec de la place dessus et dessous, et un
+ * voisin (y 892-940) dont la boîte nue est à 14 px du badge « dessous » mais dont l'ombre/coche (26 px, 32 px) le frôle.
+ */
+const noeud45 = (id: string, x: number, y: number, largeur: number, hauteur: number) => [id, { id, x, y, largeur, hauteur }] as const;
+const SCENE_45 = {
+  parId: new Map([noeud45("n", 240, 620, 600, 100), noeud45("voisin", 240, 892, 600, 48)]),
+  trajectoire: { images: [{ t: 0, cx: 540, cy: 960, zoom: 1 }] },
+} as unknown as SceneAccents;
+const ACCENT_45 = { noeud: "n", t: 1, texte: "2h" };
+const grandi = (o: { x: number; y: number; largeur: number; hauteur: number }) => ({ x: o.x - DEBORD_ICONE, y: o.y - DEBORD_COCHE, largeur: o.largeur + DEBORD_ICONE + DEBORD_HACHURES, hauteur: o.hauteur + DEBORD_COCHE + DEBORD_HACHURES });
+
 describe("chiffres · correctif : le chiffre qui claque sur une étape déjà posée", () => {
   it("avec une recette, la toile qui a des accents les porte dans `variete.donnees.chiffres` (même sans variante)", () => {
     for (const code of ["CHI-A", ...CODES] as const) {
@@ -183,6 +196,112 @@ describe("chiffres · correctif : le chiffre qui claque sur une étape déjà po
       }
     }
     expect(vus).toBeGreaterThan(30);
+  });
+
+  it("4:5 (25/10) : le badge reste dans le cadre du 4:5, au-dessus du rail des sous-titres et sous l'en-tête ; en surimpression, entre la marque et l'étiquette", () => {
+    const haut = miseEnPageDeHauteurIV(1350).entete.bas * 1350;
+    let vus = 0;
+    for (const nom of Object.keys(IMAGES) as (keyof typeof IMAGES)[]) {
+      const ligne = mettreEnSceneIV({ ...entree(nom), format: "4:5", variete: recette("CHI-A") }).ligne;
+      for (const b of ligne.blocs) {
+        const accents = (b.variete?.donnees?.chiffres as DonneesChiffresIV | undefined)?.accents;
+        if (b.sorte !== "toile" || !accents?.length) continue;
+        const scene = calculerScene(parametresDuBloc(b, ligne).proprietes as Parameters<typeof calculerScene>[0]) as unknown as SceneAccents;
+        for (const ac of accents) {
+          for (let t = ac.t; t <= ac.t + 1.9; t += 1 / 30) {
+            const p = placeAccent(scene, ac, t, 1350);
+            if (!p) continue;
+            vus++;
+            const qui = `${nom} · ${ac.texte} à ${t.toFixed(2)} s`;
+            if (p.surimpression) {
+              expect(p.y, qui).toBeGreaterThanOrEqual(90);
+              expect(p.y + p.hauteur, qui).toBeLessThanOrEqual(199);
+            } else {
+              expect(p.y + p.hauteur, qui).toBeLessThanOrEqual(RAIL_45.haut - RAIL_45.marge);
+              expect(p.y, qui).toBeGreaterThanOrEqual(haut);
+            }
+          }
+        }
+      }
+    }
+    expect(vus).toBeGreaterThan(30);
+  });
+
+  it("4:5, toile synthétique : le badge se pose À CÔTÉ du nœud (pas en surimpression), dans le cadre, hors des boîtes agrandies ; l'ombre du voisin l'écarte du dessous", () => {
+    const haut = miseEnPageDeHauteurIV(1350).entete.bas * 1350;
+    const p = placeAccent(SCENE_45, ACCENT_45, 1.2, 1350)!;
+    expect(p.surimpression).toBeUndefined();
+    expect(p.y).toBeGreaterThanOrEqual(haut);
+    expect(p.y + p.hauteur).toBeLessThanOrEqual(RAIL_45.haut - RAIL_45.marge);
+    for (const o of SCENE_45.parId.values()) expect(commun(p, grandi(o)), o.id).toBe(0);
+    // Le dessous (y 758-878) toucherait l'ombre/la coche du voisin (boîte agrandie dès y 860) : le badge passe au-dessus du nœud.
+    expect(p.y + p.hauteur).toBeLessThanOrEqual(620 - DEBORD_COCHE);
+  });
+
+  it("4:5, vue d'ensemble : les boîtes mesurées au repère 1920 sont remontées du décalage de référence (le filet finit sur le nœud tel que dessiné)", () => {
+    const nœud = { x: 100, y: 700, largeur: 880, hauteur: 200 };
+    const vue = { debut: 2, fin: 3, ...nœud, obstacles: [{ x: 0, y: 0, largeur: 1080, hauteur: 690 }, { x: 0, y: 910, largeur: 1080, hauteur: 1000 }] };
+    const ac = { noeud: "n", t: 2, texte: "2h", vues: [vue] };
+    const scene = { parId: new Map(), trajectoire: { images: [] } } as unknown as SceneAccents;
+    const decalage = miseEnPageDeHauteurIV(1350).decalageReference;
+    expect(decalage).toBe(60);
+    const p = placeAccent(scene, ac, 2.3, 1350)!;
+    expect(p.surimpression).toBeDefined();
+    expect(p.surimpression!.noeud.y).toBe(nœud.y - decalage);
+    const bout = p.surimpression!.filet.at(-1)!.y;
+    expect(bout).toBeGreaterThanOrEqual(nœud.y - decalage);
+    expect(bout).toBeLessThanOrEqual(nœud.y - decalage + nœud.hauteur);
+    // 9:16 : aucun décalage.
+    expect(placeAccent(scene, ac, 2.3, 1920)!.surimpression!.noeud.y).toBe(nœud.y);
+  });
+
+  it("le badge ne touche pas l'ombre hachurée ni les décors (pastille d'icône, coche) des nœuds, en 9:16 et en 4:5", () => {
+    let vus916 = 0;
+    let vus45 = 0;
+    let filets = 0;
+    const verifie = (qui: string, p: NonNullable<ReturnType<typeof placeAccent>>, boites: NonNullable<ReturnType<typeof boitesEcran>>) => {
+      for (const o of [boites.noeud, ...boites.obstacles]) expect(commun(p, grandi(o)), qui).toBe(0);
+    };
+    for (const hauteurEcran of [1920, 1350]) {
+      for (const nom of Object.keys(IMAGES) as (keyof typeof IMAGES)[]) {
+        const ligne = mettreEnSceneIV({ ...entree(nom), ...(hauteurEcran === 1350 ? { format: "4:5" as const } : {}), variete: recette("CHI-A") }).ligne;
+        for (const b of ligne.blocs) {
+          const accents = (b.variete?.donnees?.chiffres as DonneesChiffresIV | undefined)?.accents;
+          if (b.sorte !== "toile" || !accents?.length) continue;
+          const scene = calculerScene(parametresDuBloc(b, ligne).proprietes as Parameters<typeof calculerScene>[0]) as unknown as SceneAccents;
+          for (const ac of accents) {
+            for (let t = ac.t; t <= ac.t + 1.9; t += 1 / 30) {
+              if (ac.vues?.some((v) => t >= v.debut && t < v.fin)) continue; // vue d'ensemble : boîtes mesurées telles quelles
+              const p = placeAccent(scene, ac, t, hauteurEcran);
+              const boites = boitesEcran(scene, ac, t, hauteurEcran);
+              if (!p || !boites) continue;
+              if (p.surimpression) {
+                // Badge dans la bande de l'en-tête (zone masquée par le fondu du haut) : le filet passe au-delà des décors du plus avancé.
+                const tous = [boites.noeud, ...boites.obstacles].filter((o) => o.y + o.hauteur > p.y + p.hauteur);
+                const xm = p.surimpression.filet[1].x;
+                const droite = Math.max(...tous.map((o) => o.x + o.largeur));
+                const gauche = Math.min(...tous.map((o) => o.x));
+                expect(xm >= Math.min(1070, droite + DEBORD_HACHURES + 14) || xm <= Math.max(10, gauche - DEBORD_ICONE - 14), `filet ${hauteurEcran} · ${nom} à ${t.toFixed(2)} s`).toBe(true);
+                filets++;
+                continue;
+              }
+              if (hauteurEcran === 1920) vus916++;
+              else vus45++;
+              verifie(`${hauteurEcran} · ${nom} · ${ac.texte} à ${t.toFixed(2)} s`, p, boites);
+            }
+          }
+        }
+      }
+    }
+    // 4:5 : aucune carte d'essai n'y échappe à la surimpression (cadre texte 410-926 trop étroit) ; l'échantillon 4:5 est la toile synthétique.
+    for (let t = 1; t <= 2.9; t += 1 / 30) {
+      const p = placeAccent(SCENE_45, ACCENT_45, t, 1350)!;
+      vus45++;
+      verifie(`4:5 synthétique à ${t.toFixed(2)} s`, p, boitesEcran(SCENE_45, ACCENT_45, t, 1350)!);
+    }
+    expect(vus916).toBeGreaterThan(10);
+    expect(vus45).toBeGreaterThan(0);
+    expect(filets).toBeGreaterThan(0);
   });
 
   it("vue d'ensemble dense (carte C, « 2h » sur « Client informé ») : le badge passe hors du schéma, relié par un filet", () => {
