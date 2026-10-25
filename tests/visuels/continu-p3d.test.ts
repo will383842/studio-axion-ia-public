@@ -1,10 +1,12 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CARTES_CAS } from "../../src/briques/visuels/continu/familles/cas";
 import { GABARITS, GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
 import { TEXTES_FIXES_L9 } from "../../src/briques/visuels/textes-fixes";
 import { COMPOSANTS_PLAQUETTES } from "../../studio-rendu/compositions/visuels/continu/registre-composants";
+
+vi.mock("remotion", () => ({ cancelRender: () => undefined, continueRender: () => undefined, delayRender: () => 0, AbsoluteFill: () => null }));
 
 /** Table attendue (maquette v3, famille « Cas concrets ») : `dk` → sombre, `or` → orangeFort. */
 const ATTENDU: Record<string, { nom: string; sombre: boolean; orangeFort: boolean }> = {
