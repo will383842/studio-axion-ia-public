@@ -5,7 +5,7 @@ import type { ContextePorte } from "../../src/domaine/visuels/contrats";
 import { expressionsBannieDans } from "../../src/domaine/controles-visuel/texte";
 
 const ctx: ContextePorte = { interditsDans: (t) => (/\bgaranti\b/i.test(t) ? ["garanti"] : []), faitsDisponibles: false };
-const exemple = (type: string) => ({ ...GABARITS.find((x) => x.type === type)!.exemple });
+const exemple = (type: string): Record<string, unknown> & { type: string } => ({ ...GABARITS.find((x) => x.type === type)!.exemple, type });
 const toile = (pages = [exemple("X00"), exemple("X01"), exemple("X02")], format = "4:5") => ({ version: "toile/1", format, pages, raccords: [] as unknown[] });
 const avecTitre = (titre: string) => toile([exemple("X00"), { ...exemple("X01"), titre }, exemple("X02")]);
 const codes = (spec: unknown, c: ContextePorte = ctx) => [...new Set(controlerToile(spec, c).rapport.controles.map((x) => x.code))].sort();
@@ -72,7 +72,7 @@ describe("continu P4 : typographie corrigée", () => {
   it("espaces insécables ajoutées, toile corrigée encore valide, format intact", () => {
     const { rapport, specCorrige } = controlerToile(avecTitre("Prêt ? On commence"), ctx);
     expect(rapport.corrections.length).toBeGreaterThan(0);
-    expect((specCorrige!.pages[1] as { titre: string }).titre).toBe("Prêt ? On commence");
+    expect((specCorrige!.pages[1] as unknown as { titre: string }).titre).toBe("Prêt ? On commence");
     expect(specCorrige!.format).toBe("4:5");
   });
   it("aucune correction : pas de specCorrige", () => {
