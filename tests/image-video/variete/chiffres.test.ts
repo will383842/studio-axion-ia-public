@@ -18,7 +18,8 @@ import { mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV } from "@/m
 import { AXE_CHIFFRES, geant, paireAvantApres, type DonneesChiffresIV, type DonneesEcranChiffresIV } from "@/moteurs/montage-image-video/variete/axes/chiffres";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import { parametresDuBloc } from "@/services/image-video-rendu";
-import { calculerScene } from "../../../studio-rendu/compositions/image-video/plan";
+import { calculerScene, DEBORD_COCHE, DEBORD_HACHURES, DEBORD_ICONE, RAIL_45 } from "../../../studio-rendu/compositions/image-video/plan";
+import { miseEnPageDeHauteurIV } from "../../../src/briques/schema-motion/types";
 import { boitesEcran, commun, placeAccent, type SceneAccents } from "../../../studio-rendu/compositions/image-video/variete/chiffres/accent";
 import type { DonneesChiffresRendu, DonneesEcranChiffresRendu } from "../../../studio-rendu/compositions/image-video/variete/chiffres/donnees";
 import { invariantsVarieteIV } from "./invariants";
@@ -183,6 +184,65 @@ describe("chiffres · correctif : le chiffre qui claque sur une étape déjà po
       }
     }
     expect(vus).toBeGreaterThan(30);
+  });
+
+  it("4:5 (25/10) : le badge reste dans le cadre du 4:5, au-dessus du rail des sous-titres et sous l'en-tête ; en surimpression, entre la marque et l'étiquette", () => {
+    const haut = miseEnPageDeHauteurIV(1350).entete.bas * 1350;
+    let vus = 0;
+    for (const nom of Object.keys(IMAGES) as (keyof typeof IMAGES)[]) {
+      const ligne = mettreEnSceneIV({ ...entree(nom), format: "4:5", variete: recette("CHI-A") }).ligne;
+      for (const b of ligne.blocs) {
+        const accents = (b.variete?.donnees?.chiffres as DonneesChiffresIV | undefined)?.accents;
+        if (b.sorte !== "toile" || !accents?.length) continue;
+        const scene = calculerScene(parametresDuBloc(b, ligne).proprietes as Parameters<typeof calculerScene>[0]) as unknown as SceneAccents;
+        for (const ac of accents) {
+          for (let t = ac.t; t <= ac.t + 1.9; t += 1 / 30) {
+            const p = placeAccent(scene, ac, t, 1350);
+            if (!p) continue;
+            vus++;
+            const qui = `${nom} · ${ac.texte} à ${t.toFixed(2)} s`;
+            if (p.surimpression) {
+              expect(p.y, qui).toBeGreaterThanOrEqual(90);
+              expect(p.y + p.hauteur, qui).toBeLessThanOrEqual(199);
+            } else {
+              expect(p.y + p.hauteur, qui).toBeLessThanOrEqual(RAIL_45.haut - RAIL_45.marge);
+              expect(p.y, qui).toBeGreaterThanOrEqual(haut);
+            }
+          }
+        }
+      }
+    }
+    expect(vus).toBeGreaterThan(30);
+  });
+
+  it("le badge ne touche pas l'ombre hachurée ni les décors (pastille d'icône, coche) des nœuds, en 9:16 et en 4:5", () => {
+    let vus = 0;
+    for (const hauteurEcran of [1920, 1350]) {
+      for (const nom of Object.keys(IMAGES) as (keyof typeof IMAGES)[]) {
+        const ligne = mettreEnSceneIV({ ...entree(nom), ...(hauteurEcran === 1350 ? { format: "4:5" as const } : {}), variete: recette("CHI-A") }).ligne;
+        for (const b of ligne.blocs) {
+          const accents = (b.variete?.donnees?.chiffres as DonneesChiffresIV | undefined)?.accents;
+          if (b.sorte !== "toile" || !accents?.length) continue;
+          const scene = calculerScene(parametresDuBloc(b, ligne).proprietes as Parameters<typeof calculerScene>[0]) as unknown as SceneAccents;
+          for (const ac of accents) {
+            for (let t = ac.t; t <= ac.t + 1.9; t += 1 / 30) {
+              if (ac.vues?.some((v) => t >= v.debut && t < v.fin)) continue; // vue d'ensemble : boîtes mesurées telles quelles
+              const p = placeAccent(scene, ac, t, hauteurEcran);
+              const boites = boitesEcran(scene, ac, t);
+              // Surimpression : badge dans la bande de l'en-tête, hors du schéma (zone masquée par le fondu du haut), relié par un filet.
+              if (!p || !boites || p.surimpression) continue;
+              vus++;
+              for (const o of [boites.noeud, ...boites.obstacles]) {
+                const grand = { x: o.x - DEBORD_ICONE, y: o.y - DEBORD_COCHE, largeur: o.largeur + DEBORD_ICONE + DEBORD_HACHURES, hauteur: o.hauteur + DEBORD_COCHE + DEBORD_HACHURES };
+                expect(commun(p, grand), `${hauteurEcran} · ${nom} · ${ac.texte} à ${t.toFixed(2)} s`).toBe(0);
+              }
+            }
+          }
+        }
+      }
+    }
+    // Seule la carte C a un badge hors vue d'ensemble et hors surimpression (en 9:16) ; en 4:5 le cadre est plus bas : surimpression ou vue d'ensemble.
+    expect(vus).toBeGreaterThan(10);
   });
 
   it("vue d'ensemble dense (carte C, « 2h » sur « Client informé ») : le badge passe hors du schéma, relié par un filet", () => {

@@ -49,6 +49,13 @@ const SORTES_BANDES = new Set(["avant", "apres", "colonne", "sources"]);
 
 const parOrdre = (a: NoeudEntree, b: NoeudEntree) => a.ordre - b.ordre || a.id.localeCompare(b.id);
 
+/**
+ * Réserve de chasse (25/10) : Anton rendue est plus large que l'estimation (`signeAnton`) ; sans marge, une boîte à
+ * deux lignes passait à trois et le texte touchait ses bords. On coupe sur `intérieur / RESERVE_CHASSE` et la boîte
+ * porte la largeur estimée × RESERVE_CHASSE (toujours dans `largeurMax`).
+ */
+export const RESERVE_CHASSE = 1.06;
+
 /** Retour à la ligne glouton ; rend les lignes et la largeur de la plus longue (pixels). */
 function couper(texte: string, taillePx: number, signe: number, largeurMax: number): { lignes: number; largeur: number } {
   const parSigne = taillePx * signe;
@@ -75,18 +82,20 @@ function couper(texte: string, taillePx: number, signe: number, largeurMax: numb
 export function mesurerBoite(n: Pick<NoeudEntree, "libelle" | "detail">, largeurMax: number = MESURES_TOILE.largeurMax): { largeur: number; hauteur: number; textes: TexteBoite[] } {
   const M = MESURES_TOILE;
   const interieur = largeurMax - 2 * M.marge;
-  const lib = couper(n.libelle, TAILLE_LIBELLE_IV * H, M.signeAnton, interieur);
+  const coupe = interieur / RESERVE_CHASSE;
+  const lib = couper(n.libelle, TAILLE_LIBELLE_IV * H, M.signeAnton, coupe);
   const textes: TexteBoite[] = [{ texte: n.libelle, role: "libelle", taille: TAILLE_LIBELLE_IV, lignes: lib.lignes }];
   let largeur = lib.largeur;
   let hauteur = lib.lignes * TAILLE_LIBELLE_IV * H * M.interligne;
   if (n.detail) {
-    const det = couper(n.detail, TAILLE_DETAIL_IV * H, M.signeInter, interieur);
+    const det = couper(n.detail, TAILLE_DETAIL_IV * H, M.signeInter, coupe);
     textes.push({ texte: n.detail, role: "detail", taille: TAILLE_DETAIL_IV, lignes: det.lignes });
     largeur = Math.max(largeur, det.largeur);
     hauteur += M.ecartTextes + det.lignes * TAILLE_DETAIL_IV * H * M.interligne;
   }
   return {
-    largeur: Math.round(Math.max(M.largeurMin, largeur + 2 * M.marge)),
+    // Réserve incluse, sans dépasser `largeurMax` (sauf un mot seul plus long, qui garde sa largeur brute comme avant).
+    largeur: Math.round(Math.max(M.largeurMin, Math.min(largeur * RESERVE_CHASSE + 2 * M.marge, Math.max(largeurMax, largeur + 2 * M.marge)))),
     hauteur: Math.round(hauteur + 2 * M.marge),
     textes,
   };

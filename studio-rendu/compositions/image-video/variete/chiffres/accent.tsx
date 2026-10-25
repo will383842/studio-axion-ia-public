@@ -7,7 +7,8 @@ import React from "react";
  * surimpression hors du schéma (bande de l'en-tête), relié au nœud par un filet. Badge orange vif, texte encre
  * (rapport 6,4), Anton 96 px (72 px en surimpression). Il reste 1,6 s puis s'efface.
  */
-import { cameraA, ECRAN_IV, type BoiteNoeud, type TrajectoireCamera } from "../../../../../src/briques/schema-motion";
+import { cameraA, ECRAN_IV, miseEnPageDeHauteurIV, type BoiteNoeud, type TrajectoireCamera } from "../../../../../src/briques/schema-motion";
+import { DEBORD_COCHE, DEBORD_HACHURES, DEBORD_ICONE, RAIL_45 } from "../../plan";
 import type { AccentToileRendu, RectRendu } from "./donnees";
 import { a, ANTON, C, c01, doux, progres, rebond } from "./outils";
 
@@ -17,25 +18,42 @@ export type SceneAccents = { parId: Map<string, BoiteNoeud>; trajectoire: Pick<T
 export const TAILLE_ACCENT = 96;
 /** Badge posé hors du schéma (bande de l'en-tête) : réduit pour tenir entre la marque et l'étiquette. */
 export const TAILLE_ACCENT_SURIMPRESSION = 72;
-/** En-tête (fractions de la hauteur, `Entete.tsx`) : bas de la marque, haut de l'étiquette, bas de l'en-tête. */
-const MARQUE_BAS = 0.075;
-const ETIQUETTE_HAUT = 0.135;
-const BAS_ENTETE = 0.245;
 /** Zone protégée à droite (TikTok, 16 %) : le badge en surimpression n'y va pas. */
 const ZONE_PROTEGEE_DROITE = 0.16;
 const largeurBadge = (texte: string, taille: number) => texte.length * 0.5 * taille + 2 * 30;
 const TENUE_SEC = 1.6;
-/** Cadre du texte (standard 74 § 3, 9:16) : au-dessus de la bande des sous-titres (y 1152). */
-const CADRE = { x0: 65, x1: 1015, y0: 269, y1: 1140 };
+/** Cadre du texte : côtés (standard 74 § 3), haut et bas selon la hauteur de l'écran (voir `cadreAccent`). */
+const COTES = { x0: 65, x1: 1015 };
 const ECART = 12;
+/** Fractions de la hauteur de référence 1920 (`Entete.tsx`) : bas de la marque, haut de l'étiquette. */
+const MARQUE_BAS_REF = 0.075 * ECRAN_IV.hauteur;
+const ETIQUETTE_HAUT_REF = 0.135 * ECRAN_IV.hauteur;
+
+/**
+ * Cadre où le badge peut se poser, d'après la hauteur de l'écran. 9:16 (1920) : de y 269 à 1140, au-dessus de la bande
+ * des sous-titres (y 1152), marque finie à 144, étiquette à 259. 4:5 (1350) : sous l'en-tête (410) et au-dessus du rail
+ * des sous-titres (RAIL_45.haut − marge = 926) ; en-tête remonté de 60 px (marque finie à 84, étiquette à 199).
+ */
+export function cadreAccent(hauteurEcran: number) {
+  const m = miseEnPageDeHauteurIV(hauteurEcran);
+  const decalage = m.decalageReference;
+  return {
+    x0: COTES.x0,
+    x1: COTES.x1,
+    y0: Math.max(269, m.entete.bas * hauteurEcran),
+    y1: m.format === "4:5" ? RAIL_45.haut - RAIL_45.marge : 1140,
+    margeBas: MARQUE_BAS_REF - decalage,
+    etiquetteHaut: ETIQUETTE_HAUT_REF - decalage,
+  };
+}
 
 /** Surface commune de deux rectangles. */
 export const commun = (p: RectRendu, q: RectRendu) => Math.max(0, Math.min(p.x + p.largeur, q.x + q.largeur) - Math.max(p.x, q.x)) * Math.max(0, Math.min(p.y + p.hauteur, q.y + q.hauteur) - Math.max(p.y, q.y));
 
 /** Boîte du nœud et des autres nœuds à l'écran (pixels 1080 × 1920) à l'instant `t`, ou `null` si inconnu. */
-export function boitesEcran(scene: SceneAccents, ac: AccentToileRendu, t: number): { noeud: RectRendu; obstacles: RectRendu[] } | null {
+export function boitesEcran(scene: SceneAccents, ac: AccentToileRendu, t: number): { noeud: RectRendu; obstacles: RectRendu[]; vue?: true } | null {
   const vue = ac.vues?.find((v) => t >= v.debut && t < v.fin);
-  if (vue) return { noeud: vue, obstacles: vue.obstacles };
+  if (vue) return { noeud: vue, obstacles: vue.obstacles, vue: true };
   if (!scene.parId.get(ac.noeud)) return null;
   const pose = cameraA(scene.trajectoire, t);
   const dx = ECRAN_IV.largeur / 2 - pose.cx * pose.zoom;
@@ -61,22 +79,28 @@ export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number
   const hauteur = TAILLE_ACCENT + 24;
   const cx = n.x + n.largeur / 2 - largeur / 2;
   const cy = n.y + n.hauteur / 2 - hauteur / 2;
-  const y0 = Math.max(CADRE.y0, BAS_ENTETE * hauteurEcran);
-  const borne = (p: RectRendu): RectRendu => ({ ...p, x: Math.min(CADRE.x1 - p.largeur, Math.max(CADRE.x0, p.x)), y: Math.min(CADRE.y1 - p.hauteur, Math.max(y0, p.y)) });
+  const CADRE = cadreAccent(hauteurEcran);
+  const borne = (p: RectRendu): RectRendu => ({ ...p, x: Math.min(CADRE.x1 - p.largeur, Math.max(CADRE.x0, p.x)), y: Math.min(CADRE.y1 - p.hauteur, Math.max(CADRE.y0, p.y)) });
   const obstacles = [n, ...b.obstacles];
-  const libre = (p: RectRendu) => obstacles.every((o) => commun(p, o) === 0);
+  // « Libre » se juge sur les boîtes agrandies de ce qui déborde du nœud (pastille d'icône à gauche, coche en haut,
+  // ombre hachurée à droite et en bas) ; le nœud brut ne sert qu'au filet et au contour. Vue d'ensemble : boîtes telles quelles.
+  const gros = (o: RectRendu): RectRendu => (b.vue ? o : { x: o.x - DEBORD_ICONE, y: o.y - DEBORD_COCHE, largeur: o.largeur + DEBORD_ICONE + DEBORD_HACHURES, hauteur: o.hauteur + DEBORD_COCHE + DEBORD_HACHURES });
+  const agrandis = obstacles.map(gros);
+  const libre = (p: RectRendu) => agrandis.every((o) => commun(p, o) === 0);
+  // L'écart de 12 px se prend au bord des décors (et non de la carte nue) : sous/à droite l'ombre hachurée, au-dessus la coche, à gauche la pastille d'icône.
+  const d = b.vue ? { haut: 0, bas: 0, droite: 0, gauche: 0 } : { haut: DEBORD_COCHE, bas: DEBORD_HACHURES, droite: DEBORD_HACHURES, gauche: DEBORD_ICONE };
   const cotes: RectRendu[] = [
-    { x: cx, y: n.y + n.hauteur + ECART, largeur, hauteur },
-    { x: cx, y: n.y - hauteur - ECART, largeur, hauteur },
-    { x: n.x + n.largeur + ECART, y: cy, largeur, hauteur },
-    { x: n.x - largeur - ECART, y: cy, largeur, hauteur },
+    { x: cx, y: n.y + n.hauteur + d.bas + ECART, largeur, hauteur },
+    { x: cx, y: n.y - d.haut - hauteur - ECART, largeur, hauteur },
+    { x: n.x + n.largeur + d.droite + ECART, y: cy, largeur, hauteur },
+    { x: n.x - d.gauche - largeur - ECART, y: cy, largeur, hauteur },
   ].map(borne);
   const cote = cotes.find(libre);
   if (cote) return cote;
   // Surimpression : bande libre de l'en-tête (sous la marque, au-dessus de l'étiquette), au plus près du nœud.
   const lS = largeurBadge(ac.texte, TAILLE_ACCENT_SURIMPRESSION);
   const hS = TAILLE_ACCENT_SURIMPRESSION + 20;
-  const yS = (MARQUE_BAS * hauteurEcran + ETIQUETTE_HAUT * hauteurEcran - hS) / 2;
+  const yS = (CADRE.margeBas + CADRE.etiquetteHaut - hS) / 2;
   const xMax = Math.min(CADRE.x1, ECRAN_IV.largeur * (1 - ZONE_PROTEGEE_DROITE)) - lS;
   const essais = [n.x + n.largeur / 2 - lS / 2, ...Array.from({ length: 41 }, (_, i) => CADRE.x0 + ((xMax - CADRE.x0) * i) / 40)]
     .map((x) => Math.min(xMax, Math.max(CADRE.x0, x)))
@@ -98,12 +122,12 @@ export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number
   return { ...p, surimpression: { noeud: n, filet } };
 }
 
-export function AccentsToile({ scene, accents, t }: { scene: SceneAccents; accents: AccentToileRendu[]; t: number }) {
+export function AccentsToile({ scene, accents, t, hauteur = ECRAN_IV.hauteur }: { scene: SceneAccents; accents: AccentToileRendu[]; t: number; hauteur?: number }) {
   return (
     <>
       {accents.map((ac, i) => {
         if (t < ac.t - 0.05 || t > ac.t + TENUE_SEC + 0.3) return null;
-        const p = placeAccent(scene, ac, t);
+        const p = placeAccent(scene, ac, t, hauteur);
         if (!p) return null;
         const u = progres(t, ac.t, 0.32);
         const sortie = doux(progres(t, ac.t + TENUE_SEC, 0.3));

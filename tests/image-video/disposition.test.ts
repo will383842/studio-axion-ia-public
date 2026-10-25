@@ -7,8 +7,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { CarteImage } from "@/domaine/image-video/carte";
-import { chevauche, disposerEnsemble, disposerToile } from "@/briques/schema-motion/disposition";
-import { controlerEnsemble, nombreDeMots, PLANCHER_IV } from "@/briques/schema-motion/lisibilite";
+import { chevauche, disposerEnsemble, disposerToile, MESURES_TOILE, mesurerBoite, RESERVE_CHASSE } from "@/briques/schema-motion/disposition";
+import { controlerEnsemble, nombreDeMots, PLANCHER_IV, TAILLE_LIBELLE_IV } from "@/briques/schema-motion/lisibilite";
 import { ECRAN_IV, ZONE_CONTENU_IV, type DispositionToile } from "@/briques/schema-motion/types";
 
 const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
@@ -43,7 +43,8 @@ describe("toile : aucun chevauchement", () => {
         expect(b.x + b.largeur).toBeLessThanOrEqual(t.largeur);
         expect(b.y + b.hauteur).toBeLessThanOrEqual(t.hauteur);
       }
-      expect(t.largeur).toBeLessThanOrEqual(3 * ECRAN_IV.largeur);
+      // 25/10 : la réserve de chasse (+6 % sur la largeur des boîtes) élargit un peu la toile (E : 3274, F : 3245 sur 3240) ; la plafond reste 3 écrans, tolérance = la réserve.
+      expect(t.largeur).toBeLessThanOrEqual(3 * ECRAN_IV.largeur * RESERVE_CHASSE);
       expect(t.hauteur).toBeLessThanOrEqual(3 * ECRAN_IV.hauteur);
     });
   }
@@ -168,5 +169,18 @@ describe("module pur, importable par studio-rendu", () => {
     visiter(join(process.cwd(), "src/briques/schema-motion/index.ts"));
     for (const f of vus) expect(f.startsWith(join(process.cwd(), "src/briques/"))).toBe(true);
     expect(vus.size).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("réserve de chasse (25/10) : Anton rendu plus large que l'estimation", () => {
+  it("« 80% – Réponse connue » : la largeur intérieure de la boîte dépasse d'au moins 6 % l'estimation de sa plus longue ligne, sans passer à 3 lignes", () => {
+    const M = MESURES_TOILE;
+    const taille = TAILLE_LIBELLE_IV * ECRAN_IV.hauteur;
+    // Estimation brute (sans réserve) de la plus longue ligne : « 80% – Réponse » (la ligne « connue » passe dessous).
+    const estimation = "80% – Réponse".length * taille * M.signeAnton;
+    const b = mesurerBoite({ libelle: "80% – Réponse connue" });
+    expect(b.largeur - 2 * M.marge).toBeGreaterThanOrEqual(1.06 * estimation - 1);
+    expect(b.largeur).toBeLessThanOrEqual(M.largeurMax);
+    expect(b.textes[0].lignes).toBe(2);
   });
 });

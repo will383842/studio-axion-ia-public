@@ -12,7 +12,7 @@ import { ECRAN_IV, MESURES_TOILE, type BoiteNoeud } from "../../../src/briques/s
 import { COULEURS_DUO } from "../../../src/briques/habillage/charte-duo";
 import { famille, graisse, planSurgir, rebond, teinte } from "../cas-concret/plans/commun";
 import { Icone } from "../interface-claire/elements";
-import { couleurTrait, OPACITE_VU, RAYON_PASTILLE, type EtatNoeud } from "./plan";
+import { couleurTrait, DEBORD_HACHURES, OPACITE_VU, RAYON_PASTILLE, type EtatNoeud } from "./plan";
 import { apparitionDe, BEIGE_ETEINT, chuteFiche, graineDe, progresDe, TEMPS_APPARITION, traceFeutre } from "./variete/apparition/apparition";
 import { contourBas, Feutre, pointContourBas } from "./variete/apparition/Feutre";
 import { useVariete } from "./variete/ContexteVariete";
@@ -206,7 +206,7 @@ function FeutreSurCarte({ l, h, trace, opacite }: { l: number; h: number; trace:
 /** MAT-C · ombre « au feutre » : hachures obliques en bas et à droite de la carte. */
 function Hachures({ l, h, id, opacite }: { l: number; h: number; id: string; opacite: number }) {
   const clip = `hach-${id}`;
-  const e = 26;
+  const e = DEBORD_HACHURES;
   return (
     <svg width={l} height={h} style={{ position: "absolute", left: 0, top: 0, overflow: "visible", opacity: opacite }}>
       <defs>
