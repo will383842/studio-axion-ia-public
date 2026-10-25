@@ -504,6 +504,38 @@ describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en
     expect(bloque(q18)).toBe(false);
     expect(q18.phrase).toMatch(/90 % au moins/);
   });
+
+  // Voix absente ou quasi absente (moins de 50 % des mots entendus) : blocage voulu, la vidéo est refusée.
+  /** Ne garde que `part` des mots (les chiffres et le dernier mot restent), pour une voix quasi absente. */
+  const garder = (part: number) => (_d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => {
+    const libres = mots.map((_x, i) => i).filter((i) => i < mots.length - 1 && chiffresDuTexte(mots[i].mot).length === 0);
+    const retires = new Set(libres.filter((_i, k) => k >= Math.round(libres.length * part)));
+    return mots.filter((_x, i) => !retires.has(i));
+  };
+  const porteAvec = async (transcrire: (d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => { mot: string; debutSec: number; finSec: number }[]) => {
+    const m = monter("A");
+    return porteUniqueIV(m.entree, outils(m, { transcrire: transcrire as never }).o);
+  };
+  it("transcription vide : Q18 bloque, la vidéo est refusée", async () => {
+    const v = await porteAvec(() => []);
+    const q18 = v.versions[0].lignes.find((l) => l.code === "Q18")!;
+    expect(q18.etat).toBe("echoue");
+    expect(bloque(q18)).toBe(true);
+    expect(v.ok).toBe(false);
+  });
+  it("30 % des mots entendus : Q18 bloque, la vidéo est refusée", async () => {
+    const v = await porteAvec(garder(0.3));
+    const q18 = v.versions[0].lignes.find((l) => l.code === "Q18")!;
+    expect(bloque(q18)).toBe(true);
+    expect(v.ok).toBe(false);
+  });
+  it("80 % des mots entendus : la vidéo sort prête avec une remarque sur Q18", async () => {
+    const v = await porteAvec(retirer(0.2));
+    const q18 = v.versions[0].lignes.find((l) => l.code === "Q18")!;
+    expect(q18.etat).toBe("echoue");
+    expect(bloque(q18)).toBe(false);
+    expect(v.ok).toBe(true);
+  });
 });
 
 describe("relecture des images finales (Q26) par l'extraction existante", () => {
