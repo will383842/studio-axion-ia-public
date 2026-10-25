@@ -33,7 +33,7 @@ export function L03({ page, hauteur }: ProprietesPlaquette) {
           })}
         </div>
       </ZoneListe>
-      <Pose x={900} y={300}>
+      <Pose x={120} y={hauteur - 610}>
         <Etincelle taille={60} />
       </Pose>
     </>

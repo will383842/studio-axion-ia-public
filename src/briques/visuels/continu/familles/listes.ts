@@ -12,13 +12,13 @@ export const BORNES_LISTES: Record<string, [number, number]> = { L01: [3, 3], L0
  * `titre` et `accent` pour la page, puis un budget par champ d'élément. Plus il y a d'éléments, moins chacun a de place (comme `capaciteListe`).
  */
 const BUDGETS: Record<string, { page: { titre: number; accent: number }; element: (n: number) => Record<string, number> }> = {
-  L01: { page: { titre: 30, accent: 16 }, element: () => ({ titre: 21, sous: 18 }) },
-  L02: { page: { titre: 30, accent: 16 }, element: (n) => ({ titre: 18, sous: n <= 3 ? 40 : 32 }) },
-  L03: { page: { titre: 28, accent: 16 }, element: (n) => ({ label: n <= 3 ? 13 : 9 }) },
-  L04: { page: { titre: 28, accent: 18 }, element: (n) => ({ jour: 10, texte: n <= 3 ? 56 : 28 }) },
-  L05: { page: { titre: 30, accent: 16 }, element: (n) => ({ texte: n <= 4 ? 56 : 48 }) },
-  L06: { page: { titre: 28, accent: 16 }, element: () => ({ label: 14 }) },
-  L07: { page: { titre: 30, accent: 20 }, element: () => ({ label: 14 }) },
+  L01: { page: { titre: 22, accent: 14 }, element: () => ({ titre: 21, sous: 18 }) },
+  L02: { page: { titre: 22, accent: 14 }, element: (n) => ({ titre: 18, sous: n <= 3 ? 40 : 32 }) },
+  L03: { page: { titre: 22, accent: 14 }, element: (n) => ({ label: n <= 3 ? 13 : 9 }) },
+  L04: { page: { titre: 18, accent: 18 }, element: (n) => ({ jour: 10, texte: n <= 3 ? 44 : 24 }) },
+  L05: { page: { titre: 22, accent: 14 }, element: (n) => ({ texte: n <= 4 ? 56 : 48 }) },
+  L06: { page: { titre: 22, accent: 14 }, element: () => ({ label: 12 }) },
+  L07: { page: { titre: 16, accent: 14 }, element: () => ({ label: 14 }) },
 };
 
 /** Budgets de `type` pour `n` éléments : `page` (titre, accent) et `element` (un budget par champ texte d'un élément). */
@@ -29,6 +29,12 @@ export function budgetListe(type: string, n: number): { page: { titre: number; a
 }
 
 const icone = z.enum(NOMS_ICONES);
+
+/** Plus long mot admis dans un titre ou un accent : au-delà, un mot de 100 px déborde des 920 px de la zone. */
+export const MOT_TITRE_MAX = 14;
+/** Texte d'au plus `max` caractères dont aucun mot ne dépasse `motMax` (une carte étroite ne coupe pas un mot). */
+const texteBorne = (max: number, motMax: number) => texteSansLien(1, max).refine((t) => t.split(/\s+/).every((m) => m.length <= motMax), `un mot de plus de ${motMax} caractères`);
+const titreBorne = (max: number) => texteSansLien(1, max).refine((t) => t.split(/\s+/).every((m) => m.length <= MOT_TITRE_MAX), `un mot de plus de ${MOT_TITRE_MAX} caractères`);
 
 /** Liste bornée dont chaque champ texte d'élément respecte le budget du nombre d'éléments. */
 function liste<T extends z.ZodType>(type: string, element: T) {
@@ -51,14 +57,14 @@ function schemaListe<S extends z.ZodRawShape>(type: string, champs: S) {
       type: z.literal(type),
       alt: texteSansLien(1, 125),
       rubrique: texteSansLien(1, RUBRIQUE_MAX).optional(),
-      titre: texteSansLien(1, b.titre),
-      accent: texteSansLien(1, b.accent),
+      titre: titreBorne(b.titre),
+      accent: titreBorne(b.accent),
       ...champs,
     })
     .strict();
 }
 
-const item = (nom: number, sous: number) => z.object({ icone, titre: texteSansLien(1, nom), sous: texteSansLien(1, sous) }).strict();
+const item = (nom: number, sous: number, motNom: number, motSous: number) => z.object({ icone, titre: texteBorne(nom, motNom), sous: texteBorne(sous, motSous) }).strict();
 
 // Les bords d'une liste sont occupés par ses cartes de 80 à 1000 px : seul le haut (sous l'en-tête) est libre à coup sûr.
 const BORDS_PLEINS = { gauche: [[0, 196]], droite: [[0, 196]] } as DefinitionGabarit["bordsLibres"];
@@ -71,7 +77,7 @@ const L01: DefinitionGabarit = {
   sombre: false,
   orangeFort: false,
   version: 1,
-  schema: schemaListe("L01", { items: liste("L01", item(21, 18)) }),
+  schema: schemaListe("L01", { items: liste("L01", item(21, 18, 12, 14)) }),
   exemple: {
     type: "L01",
     alt: "Trois freins fréquents : trop d’outils, pas le temps, peur pour les données.",
@@ -96,7 +102,7 @@ const L02: DefinitionGabarit = {
   sombre: false,
   orangeFort: false,
   version: 1,
-  schema: schemaListe("L02", { items: liste("L02", item(18, 40)) }),
+  schema: schemaListe("L02", { items: liste("L02", item(18, 40, 18, 20)) }),
   exemple: {
     type: "L02",
     alt: "Ce qu’on fait pour vous en quatre temps : auditer, choisir, installer, suivre.",
@@ -201,7 +207,7 @@ const L06: DefinitionGabarit = {
   sombre: false,
   orangeFort: false,
   version: 1,
-  schema: schemaListe("L06", { points: liste("L06", z.object({ label: texteSansLien(1, 14) }).strict()) }),
+  schema: schemaListe("L06", { points: liste("L06", z.object({ label: texteSansLien(1, 12) }).strict()) }),
   exemple: {
     type: "L06",
     alt: "Une matrice effort et impact : les relances sont à traiter en premier.",
