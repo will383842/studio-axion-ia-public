@@ -21,8 +21,8 @@ async function lancer(famille: "carrousels" | "infographies") {
 }
 
 describe("interrupteur visuels", () => {
-  it("deux clés, dans la table des paramètres", () => {
-    expect([...CLES_INTERRUPTEURS_VISUELS].sort()).toEqual(["carrousels.actif", "infographies.actif"]);
+  it("trois clés, dans la table des paramètres", () => {
+    expect([...CLES_INTERRUPTEURS_VISUELS].sort()).toEqual(["carrousels-continus.actif", "carrousels.actif", "infographies.actif"]);
   });
   it("réglage absent → éteint", async () => {
     expect(await generateurAllume("carrousels")).toBe(false);
