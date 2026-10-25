@@ -13,6 +13,7 @@ import type { CodesParAxe, FormatIV } from "@/briques/schema-motion/variete";
 import type { CarteImage, ChiffreCarte, NoeudCarte } from "@/domaine/image-video/carte";
 import { iconeDe } from "@/domaine/image-video/icones";
 import { clesDeLaCarte, cleChiffre } from "../../controles-scene";
+import type { FicheImage } from "@/domaine/image-video/fiche";
 import type { BlocRenduIV } from "../../mise-en-scene";
 import { chiffresDuTexte } from "../../regles";
 import type { AxeVarieteIV, EtapeVarieteIV } from "../index";
@@ -435,3 +436,40 @@ export const AXE_OUVERTURE: AxeVarieteIV = {
     return { ...etape, blocs: [ouverture, ...coupe, ...reste] };
   },
 };
+
+/* ------------------------------------------------------------------ */
+/* Affiche : la première image montre le HOOK (aperçu des réseaux)       */
+/* ------------------------------------------------------------------ */
+
+/** Nombre d'images (au rythme de la vidéo) pendant lesquelles l'affiche couvre le premier bloc : une seule (40 ms). */
+export const IMAGES_AFFICHE_IV = 1;
+
+/**
+ * Affiche de la première image (aperçu des réseaux) : l'OUV-D dans son état FINAL (tous les mots de l'accroche posés,
+ * un seul mot orange, la marque, « Situation type » si automatisation), sur le fond du premier écran. Elle est posée par
+ * dessus le premier bloc pendant `images` image(s) seulement : durée, voix, sous-titres, blocs et événements ne changent pas.
+ */
+export interface AfficheIV {
+  donnees: Extract<DonneesOuvertureIV, { code: "OUV-D" }>;
+  fond: "ivoire" | "sombre";
+  images: number;
+}
+
+/** PUR. `null` : l'accroche n'a aucun texte à écrire. */
+export function afficheIV(carte: CarteImage, fiche: FicheImage): AfficheIV | null {
+  const lecture = new LectureCarte(carte);
+  const lignes = fiche.ecrans.filter((e) => e.partie === "accroche").flatMap((e) => e.textesEcran.map((texte) => ({ texte, t: 0 })));
+  const mots = motsDe(lignes, lecture, 99)
+    .slice(0, 8)
+    .map((m) => ({ ...m, t: 0 }));
+  if (!mots.length) return null;
+  // Le mot orange peut être tombé après le 8e mot : à défaut, le premier chiffre, sinon le dernier mot.
+  if (!mots.some((m) => m.orange)) {
+    const chiffre = mots.findIndex((m) => /^\d/.test(m.texte));
+    mots[chiffre >= 0 ? chiffre : mots.length - 1].orange = true;
+  }
+  const h = lecture.heure;
+  const nuit = !!h && h.valeur !== null && (h.valeur >= 20 * 60 || h.valeur < 6 * 60);
+  const fond = fiche.ecrans[0]?.fond === "ivoire" ? "ivoire" : "sombre";
+  return { donnees: { situation: carte.automatisation, duree: 0, bascule: 0, code: "OUV-D", mots, nuit, icone: iconeDuNoeud(lecture.declencheur ?? lecture.tries[0]) }, fond, images: IMAGES_AFFICHE_IV };
+}

@@ -52,7 +52,8 @@ function entrees(): { nom: string; entree: EntreeMiseEnSceneIV }[] {
  */
 // 19/10/2026 : TikTok retiré d'Image → vidéo (décision de Will) : la version de référence 9:16 est celle de YouTube Shorts ; empreinte recalculée sur master avec YouTube Shorts à la place de TikTok : même valeur.
 // 25/10/2026 : réserve de chasse de 6 % sur les boîtes de la toile (PR 42) : deux boîtes 9:16 gagnent une ligne (« L'IA au service de vos résultats » 2 → 3 lignes, « Envoyée en 4 sec » 1 → 2) et les largeurs des boîtes changent ; recalculée, ancienne 851d5e4c… (seule cause : la réserve).
-const EMPREINTE_MASTER = "25be908460642c8595efacb195c254234bdb655dd2a1802eface3dbc336093a5";
+// 25/10/2026 : affiche de la première image (`ligne.affiche`, nouvelle clé de chaque ligne) ; prouvé : affiche neutralisée, l'ancienne 25be9084… revient ; recalculée.
+const EMPREINTE_MASTER = "beb18bfb35b3a76737c7f831f307ece4dffea51c5b65ce7aa8b7190ca6eb04d1";
 
 describe("socle · sans recette, rien ne change", () => {
   it("la ligne de temps des 6 cartes est identique octet pour octet à celle de master", () => {

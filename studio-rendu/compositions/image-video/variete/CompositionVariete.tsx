@@ -10,6 +10,7 @@ import type { BlocVarieteDonnees, VarieteBlocIV } from "../../../../src/briques/
 import { chargerPoliceAnton, chargerPoliceTitre } from "../../commune/polices";
 import type { ChangementRepere } from "../plan-objets";
 import { decalageReferenceIV } from "../mise-en-page";
+import { Affiche } from "../Affiche";
 import { QueueFin } from "../QueueFin";
 import { RepereChapitre } from "../RepereChapitre";
 import { EcranCamera } from "./camera/ecran";
@@ -17,6 +18,7 @@ import { EcranChiffres } from "./chiffres/ecran";
 import { ContexteVariete } from "./ContexteVariete";
 import { EcranFin } from "./fin/ecran";
 import { HabillageVariete } from "./HabillageVariete";
+import type { AfficheIV } from "./ouverture/donnees";
 import { EcranOuverture } from "./ouverture/ecran";
 import { EcranTexte } from "./texte/ecran";
 
@@ -35,6 +37,8 @@ export type ProprietesEcranVariete = {
   repere?: { changements: ChangementRepere[]; total: number; prefixe?: string } | null;
   /** Queue animée quand le bloc finit la vidéo (trait de fin, `QueueFin`). */
   queue?: QueueFinIV | null;
+  /** Affiche de la première image (aperçu des réseaux), seulement sur le premier bloc de la version. */
+  affiche?: AfficheIV | null;
 };
 
 /** Fond de l'écran d'un axe (pour les couleurs du repère) : lu dans ses données, nuit par défaut. */
@@ -96,6 +100,7 @@ export function SceneVarieteIV(p: ProprietesEcranVariete) {
           <EcranDeLAxe {...p} />
           <Repere p={p} />
           <Queue p={p} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>

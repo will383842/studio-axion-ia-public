@@ -49,3 +49,8 @@ export function grosPlanOuvE(libelle: string, format: "9:16" | "4:5") {
   }
   return { carte, texte: { ...texte, taille, lignes } };
 }
+
+/** Affiche de la première image (recopie de `AfficheIV` du moteur, `variete/axes/ouverture.ts`) : l'OUV-D dans son état final. */
+export type AfficheIV = { donnees: Extract<DonneesOuverture, { code: "OUV-D" }>; fond: "ivoire" | "sombre"; images: number };
+/** Propriétés d'une composition dont la première image est l'affiche (absente ou `null` : rien de posé). */
+export type AvecAfficheIV = { affiche?: AfficheIV | null };
