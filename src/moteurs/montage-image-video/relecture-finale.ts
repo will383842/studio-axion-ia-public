@@ -385,35 +385,56 @@ export interface ResultatRelectureIV {
 const sansAccents = (t: string): string => t.normalize("NFD").replace(/\p{M}/gu, "").replace(/[’‘]/g, "'").toLowerCase();
 
 const NOMBRE_IV = String.raw`(?<![\d.,])(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d+)(?:[.,](\d+))?\s?(?:%|(?:er|ere|re|eme|e)(?!\p{L}))?`;
-const CHIFFRE_FAUX_IV = new RegExp(
-  `${NOMBRE_IV}(?:\\s+[^\\s\\d]+){0,3}\\s+(?:au lieu de|a la place de|remplace(?:e|s|es)? par|est devenue?|et non)\\s+${NOMBRE_IV}`,
-  "giu",
-);
+const LIEN_IV = String.raw`(?:au lieu (?:de|des|du|d')|a la place (?:de|des|du|d')|remplace(?:e|s|es)? par|est devenue?|et non|contre|devient|alors que (?:l'|la )?(?:image|carte) (?:dit|indique|affiche)(?:nt)?)`;
+/** Un nombre, 0 à 3 mots, un lien (« au lieu de », « contre », « devient »…), un autre nombre ; « passe de N à M » ; « l'image dit N, la vidéo montre M » (ordre inverse). Les groupes 1-2 et 3-4 sont les deux nombres. */
+const CHIFFRE_FAUX_IV: readonly RegExp[] = [
+  new RegExp(`${NOMBRE_IV}(?:\\s+[^\\s\\d]+){0,3}\\s+${LIEN_IV}\\s*${NOMBRE_IV}`, "gdiu"),
+  new RegExp(String.raw`pass(?:e|ent|ait|aient)\s+de\s+` + `${NOMBRE_IV}\\s+a\\s+${NOMBRE_IV}`, "gdiu"),
+  new RegExp(String.raw`(?:image|carte)\s+(?:dit|indique|affiche)\s+` + `${NOMBRE_IV}[^\\d]{0,40}?(?:video|ecran|rendu)\\s+(?:montre|affiche|indique|dit)\\s+${NOMBRE_IV}`, "gdiu"),
+];
 const valeurNombre = (entier: string, decimales?: string): string => `${entier.replace(/\D/g, "").replace(/^0+(?=\d)/, "")}${decimales ? `.${decimales.replace(/0+$/, "")}` : ""}`.replace(/\.$/, "");
 
-/** Le texte d'un « faux » dit-il un chiffre faux : un nombre, 0 à 3 mots, « au lieu de » (ou équivalent), un AUTRE nombre ? */
+/** Un nombre qui n'est pas un chiffre du schéma : durée (3 s, 2 sec, secondes), pixels, ou numéro d'étape, de bloc, de plan, d'image, d'écran. */
+function nombreHorsChiffre(t: string, debut: number, fin: number): boolean {
+  return /^\s*(?:s|sec|secs|secondes?|px)(?![\p{L}\d])/u.test(t.slice(fin)) || /(?:etapes?|blocs?|plans?|images?|ecrans?)\s*$/.test(t.slice(Math.max(0, debut - 12), debut));
+}
+
+/** Le texte d'un « faux » dit-il un chiffre faux : un nombre, un lien (« au lieu de », « à la place de », « contre », « devient », « passe de N à M », « l'image dit N, la vidéo montre M »…), un AUTRE nombre ? */
 export function estChiffreFauxIV(texte: string): boolean {
   const t = sansAccents(texte);
-  CHIFFRE_FAUX_IV.lastIndex = 0;
-  for (let m = CHIFFRE_FAUX_IV.exec(t); m; m = CHIFFRE_FAUX_IV.exec(t)) {
-    if (valeurNombre(m[1], m[2]) !== valeurNombre(m[3], m[4])) return true;
-    CHIFFRE_FAUX_IV.lastIndex = m.index + 1;
+  for (const re of CHIFFRE_FAUX_IV) {
+    re.lastIndex = 0;
+    for (let m = re.exec(t); m; m = re.exec(t)) {
+      const ind = (m as RegExpExecArray & { indices: ([number, number] | undefined)[] }).indices;
+      const fin = (g: number) => (ind[g + 1] ?? ind[g])![1];
+      if (valeurNombre(m[1], m[2]) !== valeurNombre(m[3], m[4]) && !nombreHorsChiffre(t, ind[1]![0], fin(1)) && !nombreHorsChiffre(t, ind[3]![0], fin(3))) return true;
+      re.lastIndex = m.index + 1;
+    }
   }
   return false;
 }
 
-const ILLISIBLE_GLOBAL_IV: readonly RegExp[] = [
-  /\b(?:image|ecran|plan|video)s?\s+(?:est\s+|reste\s+)?(?:entierement\s+|totalement\s+|completement\s+)?(?:noire|vide|blanche)s?\b/,
-  /\b(?:entierement|totalement|completement)\s+(?:noire|vide|blanche|floue?|illisible)s?\b/,
-  /\brien n'?est lisible\b/,
-  /\baucun texte(?: n'?est)?(?: lisible)\b/,
-  /\billisible dans son ensemble\b/,
+const ADJ_GLOBAL_IV = String.raw`(?:noire?|blanche?|vide|floue?|illisible)s?`;
+const LIEU_IV = String.raw`(?!\s+(?:a\s+(?:droite|gauche)|au\s+(?:centre|milieu|bas|haut|dessus|dessous)|en\s+(?:haut|bas)|du\s+schema|dans\s|sur\s))`;
+/** Image entière : le sujet est l'image, l'écran, le plan ou la vidéo (un surtitre, un titre ou un « plan vide à droite du schéma » n'en sont pas). Une forme niée ne compte pas. */
+const ILLISIBLE_GLOBAL_IV: readonly { re: RegExp; nie: boolean }[] = [
+  { re: new RegExp(String.raw`\b(?:image|ecran|plan|video)s?\s+(?:(?:est|reste)\s+)?(?:(?:entierement|totalement|completement)\s+)?${ADJ_GLOBAL_IV}\b${LIEU_IV}`, "g"), nie: true },
+  { re: /\brien n'?est lisible\b/g, nie: false },
+  { re: /\baucun texte(?: n'?est)?(?: lisible)\b/g, nie: false },
+  { re: /\billisible dans son ensemble\b/g, nie: true },
 ];
 
 /** Le texte d'un « illisible » dit-il l'image entière noire, vide, floue ou illisible (et pas un détail de texte) ? */
 export function estIllisibleGlobalIV(texte: string): boolean {
   const t = sansAccents(texte);
-  return ILLISIBLE_GLOBAL_IV.some((re) => re.test(t));
+  return ILLISIBLE_GLOBAL_IV.some(({ re, nie }) => {
+    re.lastIndex = 0;
+    for (let m = re.exec(t); m; m = re.exec(t)) {
+      const clause = t.slice(0, m.index).split(/[.;:!?,]/).pop()!.slice(-30);
+      if (!nie || !/(?:\bne\b|\bn'|\bpas\b|\bjamais\b|\bplus\b)/.test(clause)) return true;
+    }
+    return false;
+  });
 }
 
 /**

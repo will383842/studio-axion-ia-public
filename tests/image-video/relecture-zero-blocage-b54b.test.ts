@@ -219,8 +219,25 @@ describe("estChiffreFauxIV / estIllisibleGlobalIV", () => {
     expect(estChiffreFauxIV("")).toBe(false);
   });
   it("illisible dans son ensemble", () => {
-    for (const t of ["image entièrement noire", "image vide", "image blanche", "rien n'est lisible", "aucun texte lisible", "entièrement floue", "illisible dans son ensemble"]) expect(estIllisibleGlobalIV(t), t).toBe(true);
+    for (const t of ["image entièrement noire", "image vide", "image blanche", "rien n'est lisible", "aucun texte lisible", "l'image est entièrement floue", "illisible dans son ensemble"]) expect(estIllisibleGlobalIV(t), t).toBe(true);
   });
+  it.each([
+    "écran noir", "écran entièrement noir", "l'image est illisible", "image floue", "toute la vidéo est illisible",
+    "la vidéo est totalement noire", "le plan est complètement vide", "toute l'image est floue", "l'écran reste noir",
+  ])("image entière illisible : %s", (t) => expect(estIllisibleGlobalIV(t)).toBe(true));
+  it.each([
+    "le surtitre est complètement illisible", "le titre est totalement flou", "plan vide à droite du schéma",
+    "l'image n'est pas illisible", "l'écran n'est pas entièrement noir", "l'image n'est pas entièrement noire", "la vidéo n'est pas floue", "pas d'écran noir",
+  ])("pas une image entière illisible : %s", (t) => expect(estIllisibleGlobalIV(t)).toBe(false));
+  it.each([
+    "30 au lieu de 20", "30 au lieu des 20", "30 au lieu du 20", "30 au lieu d'20", "30 à la place de 20", "30 à la place des 20", "30 à la place du 20", "30 à la place d'20",
+    "la vidéo montre 30 alors que l'image dit 20", "la vidéo affiche 30 alors que la carte indique 20", "30 jours contre 20 jours", "30 devient 20", "passe de 30 à 20",
+    "l'image dit 20, la vidéo montre 30", "la carte affiche 20 mais l'écran montre 30",
+  ])("chiffre faux : %s", (t) => expect(estChiffreFauxIV(t)).toBe(true));
+  it.each([
+    "le titre apparaît à 3 s au lieu de 2 s", "le titre apparaît à 3 sec au lieu de 2 sec", "3 secondes au lieu de 2 secondes", "largeur 300 px au lieu de 200 px",
+    "étape 3 au lieu de étape 2", "bloc 3 à la place du bloc 2", "plan 4 au lieu du plan 3", "image 3 au lieu de l'image 2", "écran 3 au lieu de écran 2",
+  ])("durée, pixels ou numéro de bloc : pas un chiffre faux : %s", (t) => expect(estChiffreFauxIV(t)).toBe(false));
   it("illisible de détail", () => {
     for (const t of ["texte coupé par le bord", "VALIDE coiffe Autoliquidation", "le titre est flou"]) expect(estIllisibleGlobalIV(t), t).toBe(false);
   });
