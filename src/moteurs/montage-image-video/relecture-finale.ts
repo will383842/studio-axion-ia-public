@@ -375,9 +375,12 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
     return { q26: { ok: false, details: [`les images de contrôle n'ont pas pu être extraites du fichier final (${(err as Error).message}) : la vidéo n'est jamais livrée sans relecture.`] }, indications: [], appels: 0 };
   }
   const jointes: ImageClaude[] = [];
-  const source = await o.lireImage(e.carte.image.cle).catch(() => null);
-  if (!source) return { q26: { ok: false, details: ["l'image source est introuvable : la relecture ne peut pas la comparer."] }, indications: [], appels: 0 };
-  jointes.push({ type: source.type, base64: enBase64(source.octets), legende: "Image source (l'infographie)." });
+  // Mode texte (R6b) : la carte vient d'un texte, aucun fichier image source n'existe ; la relecture compare à la carte.
+  if (!e.carte.image.cle.startsWith("texte:")) {
+    const source = await o.lireImage(e.carte.image.cle).catch(() => null);
+    if (!source) return { q26: { ok: false, details: ["l'image source est introuvable : la relecture ne peut pas la comparer."] }, indications: [], appels: 0 };
+    jointes.push({ type: source.type, base64: enBase64(source.octets), legende: "Image source (l'infographie)." });
+  }
   for (const i of e.instants) {
     const r = images.find((x) => x?.nom === i.nom && typeof x.cle === "string");
     const lue = r ? await o.lireImage(r.cle).catch(() => null) : null;
