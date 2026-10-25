@@ -67,7 +67,9 @@ describe("filet zéro blocage de la mise en scène", () => {
     expect(issue.gardes).toEqual(["Rythme trop lent : 5,3 s"]);
     // Aucun essai ne réduit le nombre de défauts : toutes les adaptations sont annulées (on garde le meilleur résultat, le premier).
     expect(issue.adaptes).toEqual([]);
-    expect(n).toBe(ESSAIS_ADAPTATION_IV + 1);
+    // Une adaptation annulée marque ses écrans comme essayés : la boucle s'arrête dès qu'il n'y a plus d'écran neuf à désigner (au plus ESSAIS + 1 appels).
+    expect(n).toBeGreaterThanOrEqual(2);
+    expect(n).toBeLessThanOrEqual(ESSAIS_ADAPTATION_IV + 1);
     expect(issue.journal.at(-1)).toMatch(/la vidéo continue/);
   });
 
