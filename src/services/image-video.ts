@@ -33,7 +33,7 @@ import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture"
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
-import { accordAutomatique, budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
+import { accordAutomatique, budgetIndicatifPourVideo, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
 import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -287,19 +287,21 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
   const decisionsGardees = async () => lireParametre<Record<string, unknown> | null>(`${PREFIXE_DECISIONS}${dep.videoId}`, null);
 
   // Budget réel, APRÈS la caisse : pré-vol pour Claude et la transcription, réservation pour la voix.
-  const indicatifIV = await budgetIndicatifPour(dep.origine);
+  const indicatifIV = await budgetIndicatifPourVideo(String(dep.videoId), dep.origine);
   const budget: OutilsFabricationIV["budget"] = {
     reserver: async (d) => {
       // Lanceur : la voix ne part que sur l'accord de Will, relu à chaque réservation (avant même le mode simulé).
       let accordVoix: number = d.centimes;
+      let accordManquant = false;
       if (d.fournisseur === "heygen" && dep.accordDuScriptExige) {
         const accord = accordDeLaDecision((await decisionsGardees())?.script);
         // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord, Will ne valide jamais un prix à la main.
         if (accord === null && !indicatifIV) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
+        accordManquant = accord === null;
         accordVoix = accord ?? d.centimes;
       } else if (d.fournisseur === "heygen") accordVoix = accordDeLaVoixIV(d.centimes, dep.accordLotCentimes);
       if (d.fournisseur === "heygen") {
-        const auto = await accordAutomatique(accordVoix, d.centimes, { origine: dep.origine, videoId: String(dep.videoId) });
+        const auto = await accordAutomatique(accordVoix, d.centimes, { origine: dep.origine, videoId: String(dep.videoId), signaler: accordManquant });
         if (typeof auto === "number") accordVoix = auto;
       }
       const { claudeTextesActif } = await import("./depense-claude-video");

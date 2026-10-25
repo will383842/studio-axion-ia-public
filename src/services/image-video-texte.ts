@@ -89,7 +89,7 @@ export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: Depend
   return verrouDepotTexte<IssueDepotTexteIV>(async () => {
     // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord ; sinon l'accord reçu, tel quel.
     const accordBrut = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
-    const accordAuto = await accordAutomatique(accordBrut ?? false, montant);
+    const accordAuto = await accordAutomatique(accordBrut ?? false, montant, { signaler: accordBrut === undefined || accordBrut < montant });
     const accord = typeof accordAuto === "number" ? accordAuto : undefined;
     // Accord absent ou plus bas que le prix : rien n'est créé, le prix est redemandé.
     if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo coûte au plus ${(montant / 100).toFixed(2).replace(".", ",")} €. Confirmez ce prix pour lancer.` };

@@ -58,7 +58,7 @@ export async function validerScriptImageVideo(
   const montant = prixAffiche(etat.propositionScript);
   // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord, le lanceur n'attend plus un prix confirmé à la main.
   const accordBrut = typeof accord === "number" && Number.isFinite(accord) ? accord : undefined;
-  const auto = lanceur ? await accordAutomatique(accordBrut ?? false, montant, { videoId }) : accordBrut;
+  const auto = lanceur ? await accordAutomatique(accordBrut ?? false, montant, { videoId, signaler: accordBrut === undefined || accordBrut < montant }) : accordBrut;
   const accordCentimes = typeof auto === "number" ? auto : undefined;
   if (lanceur && (accordCentimes === undefined || accordCentimes < montant)) {
     // Pas « CONFIRMATION_REQUISE » : la reprise par « Réessayer » ne garderait pas la décision ; Will valide de nouveau.
