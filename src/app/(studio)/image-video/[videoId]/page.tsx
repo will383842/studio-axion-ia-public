@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
+import { AdapteAutomatiquementServeur } from "@/components/formats/image-video/AdapteAutomatiquementServeur";
 import { CarteComprise } from "@/components/formats/image-video/CarteComprise";
 import { Fabrication } from "@/components/formats/image-video/Fabrication";
 import { ScriptEcrans } from "@/components/formats/image-video/ScriptEcrans";
@@ -104,6 +105,7 @@ export default async function PageVideoImageVideo({
             arretee={vue.arretee}
           />
         )}
+        {vue.ecran === "videos" && <AdapteAutomatiquementServeur videoId={vue.videoId} />}
         {vue.ecran === "videos" && vue.videos && (
           <VosVideos
             videos={vue.videos}

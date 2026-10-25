@@ -17,6 +17,13 @@ import { lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation
 vi.setConfig({ testTimeout: 600_000 });
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined, push: () => undefined }), usePathname: () => "/image-video" }));
+// Ce test décrit le lot « en cas de doute » : ce qui est douteux est mis de côté. Le défaut est « automatique » (../mode-automatique.test.ts).
+vi.mock("@/formats/image-video", async (orig) => {
+  const v = await orig<typeof import("@/formats/image-video")>();
+  const s = v.schemaReglagesImageVideo;
+  const avec = (x: unknown) => ({ ...(x as object), validationCarte: "si-doute" });
+  return { ...v, schemaReglagesImageVideo: { parse: (x: unknown) => s.parse(avec(x)), safeParse: (x: unknown) => s.safeParse(avec(x)) } };
+});
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 vi.mock("@/services/auth", async (orig) => ({ ...(await orig<typeof import("@/services/auth")>()), exigerSession: async () => ({ utilisateurId: "will" }) }));
 

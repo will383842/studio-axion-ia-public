@@ -105,7 +105,10 @@ function lotDe(v: unknown): { lot?: NonNullable<EntreesImageVideo["lot"]> } {
 /** La demande de la machine pour une commande (réglages du format lus et bornés par son schéma). */
 export function demandeDeLaCommande(commande: CommandeFabrication, versionId: string, numeroVersion?: number): DemandeFabricationIV {
   const e = lireEntreesImageVideo(commande.entrees);
-  const reglages = schemaReglagesImageVideo.parse(commande.reglages ?? {});
+  // Commande d'avant R5 (réglage jamais écrit) : elle garde l'ancien comportement « en cas de doute » ; seules les commandes qui
+  // portent « automatique » (nouvelles vidéos) suivent le nouveau défaut.
+  const brut = (commande.reglages ?? {}) as Record<string, unknown>;
+  const reglages = schemaReglagesImageVideo.parse("validationCarte" in brut ? brut : { ...brut, validationCarte: "si-doute" });
   return {
     videoId: commande.videoId,
     versionId,
