@@ -42,7 +42,7 @@ import { creerNotification } from "./notifications";
 import { libererLot, rendreAuLot, reserverLot, transfererDuLot } from "./credits";
 import type { SourcesSujets } from "./sujets-traites";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
-import { accordAutomatique, avecAccordAutomatique, budgetIndicatifPour, messageAuDelaDuBudgetIndicatif, origineDeLaVideo } from "./mode-budget";
+import { accordAutomatique, avecAccordAutomatique, budgetIndicatifPour, messageAuDelaDuBudgetIndicatifClaude, origineDeLaVideo } from "./mode-budget";
 import { candidatImageIV, deposerImageVideo, PARAM_ACCORD_ESSAI_IV, PHRASES_IV, prixDuDepot, type DependancesEcranIV } from "./image-video-ecran";
 import { phraseImagesSautees } from "@/components/formats/image-video/sujet-deja-traite";
 
@@ -287,7 +287,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   const total = prixDuLotIV(nLot, prixParVideo);
   // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord pour tout le lot ; bloquant : l'accord reçu, tel quel.
   const accordBrut = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
-  const accordAuto = await accordAutomatique(accordBrut ?? false, total);
+  const accordAuto = await accordAutomatique(accordBrut ?? false, total, { signaler: accordBrut === undefined || accordBrut < total });
   const accord = typeof accordAuto === "number" ? accordAuto : undefined;
   if (accord === undefined || accord < total) {
     return { statut: "accord-requis", centimes: total, phrase: `${phraseSautees ? `${phraseSautees} ` : ""}Ce lot de ${nLot} vidéos coûte au plus ${eurosTexte(total)}. Confirmez ce prix pour lancer.`, ...(sautees.length ? { sautees } : {}) };
@@ -473,11 +473,11 @@ async function travailleSurLot(id: string, dep: DependancesLotIV): Promise<void>
       const e = etatDe(await dernierTravail(v.videoId));
       if (e) engage += engageCentimes(e);
     }
-    // Mode indicatif : le prix accordé du lot est un repère (Will est prévenu) ; la pause vient à 5 × ce prix (arrêt de sécurité).
+    // Mode indicatif : le prix accordé du lot est un repère (Will est prévenu), le lot continue : plus aucun arrêt de sécurité à 5 × ce prix.
     // Un lot dont une vidéo a été commandée par l'Usine reste BLOQUANT (le lot lui-même n'est déposé que par Will, session présente).
     const indicatif = await budgetIndicatifPour(await origineDuLotIV(apres));
     if (indicatif && engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
-      await signalerDepassementIndicatif("video", "Prix annoncé du lot dépassé (le lot continue)", `Le lot d'images : ${messageAuDelaDuBudgetIndicatif(eurosTexte(apres.plafondCentimes))}`, id);
+      await signalerDepassementIndicatif("video", "Prix annoncé du lot dépassé (le lot continue)", `Le lot d'images : ${messageAuDelaDuBudgetIndicatifClaude(eurosTexte(apres.plafondCentimes))}`, id);
     } else if (engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
       await sousVerrou(async () => {
         const lu = await lireLotIV(id);
