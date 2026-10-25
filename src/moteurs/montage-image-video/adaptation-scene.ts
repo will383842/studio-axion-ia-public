@@ -13,7 +13,11 @@ import { REGLES_SCENE_IV } from "./regles-scene";
 
 export const ESSAIS_ADAPTATION_IV = 3;
 
-/** Écrans de la fiche cités par les défauts de détail de la ligne de temps (Q13 : chiffre non montré ; Q14 : trou ou plan trop long). */
+/**
+ * Écrans de la fiche cités par les défauts de détail de la ligne de temps (Q13 : chiffre non montré ; Q14 : trou ou plan trop long).
+ * Limite connue : un Q14 SANS écran désigné (rythme moyen > 2,2 s, vue d'ensemble > 1,5 s, deux plans de suite > 4 s) ne cite
+ * aucun écran : l'adaptation n'a rien à changer et le défaut sort en « gardé » (la vidéo continue, remarque au journal).
+ */
 export function ecransEnDefautIV(l: Pick<LigneDeTempsIV, "evenements" | "plans" | "finVoixSec" | "chiffresDits">): { q13: string[]; q14: string[] } {
   const S = REGLES_SCENE_IV;
   const q13 = new Set<string>();
@@ -50,23 +54,43 @@ export interface IssueAdaptationIV {
   journal: string[];
 }
 
+/** Contrôles de DÉTAIL : ils n'arrêtent jamais une vidéo (remarque orange à la porte « Contrôles », voir `CONTROLES_INDICATIFS`). */
+export const DEFAUTS_DE_DETAIL_IV = ["Q13", "Q14"] as const;
+const estDetail = (code: string) => (DEFAUTS_DE_DETAIL_IV as readonly string[]).includes(code);
+
 /**
  * Met en scène une version avec le filet. `mettre(adaptes)` rend la mise en scène avec les écrans déjà adaptés
- * (les `deja` d'abord, puis ceux de cet appel).
+ * (les `deja` d'abord, puis ceux de cet appel). `fiche` (facultative) limite les écrans désignés à ceux qui ne sont pas
+ * déjà en scène « titre » et qui portent du texte.
+ * Une adaptation n'est GARDÉE que si elle règle tout ou réduit le nombre de défauts de détail ; sinon ses écrans sont
+ * notés comme essayés et on revient au meilleur résultat. Un Q12 né de l'adaptation ne peut donc jamais refuser la vidéo.
  */
-export function mettreEnSceneAvecFiletIV(mettre: (adaptes: readonly string[]) => ResultatMiseEnSceneIV, deja: readonly string[] = [], nom = "version"): IssueAdaptationIV {
+export function mettreEnSceneAvecFiletIV(mettre: (adaptes: readonly string[]) => ResultatMiseEnSceneIV, deja: readonly string[] = [], nom = "version", fiche?: FicheImage): IssueAdaptationIV {
   const adaptes: string[] = [];
+  const essayes = new Set<string>(deja);
   const journal: string[] = [];
   const tous = () => [...deja, ...adaptes];
   let resultat = mettre(tous());
-  const detailSeul = (r: ResultatMiseEnSceneIV) => !r.ok && r.rapport.bloquants.every((b) => b.code === "Q13" || b.code === "Q14");
+  const detailSeul = (r: ResultatMiseEnSceneIV) => !r.ok && r.rapport.bloquants.every((b) => estDetail(b.code));
+  const nbDetails = (r: ResultatMiseEnSceneIV) => r.rapport.bloquants.filter((b) => estDetail(b.code)).length;
+  const adaptable = (id: string) => {
+    if (!fiche) return true;
+    const e = fiche.ecrans.find((x) => x.id === id);
+    return !!e && e.scene !== "titre" && e.textesEcran.length > 0;
+  };
   for (let essai = 1; essai <= ESSAIS_ADAPTATION_IV && detailSeul(resultat); essai++) {
     const d = ecransEnDefautIV(resultat.ligne);
-    const ids = [...new Set([...d.q13, ...d.q14])].filter((id) => !tous().includes(id));
+    const ids = [...new Set([...d.q13, ...d.q14])].filter((id) => !essayes.has(id) && adaptable(id));
     if (!ids.length) break;
-    adaptes.push(...ids);
-    journal.push(`Mise en scène (${nom}), essai ${essai}/${ESSAIS_ADAPTATION_IV} : défaut de détail (${resultat.phrases[0]}) ; écran(s) ${ids.join(", ")} passé(s) en texte seul (« titre »).`);
-    resultat = mettre(tous());
+    ids.forEach((id) => essayes.add(id));
+    const candidat = mettre([...tous(), ...ids]);
+    if (candidat.ok || (detailSeul(candidat) && nbDetails(candidat) < nbDetails(resultat))) {
+      adaptes.push(...ids);
+      journal.push(`Mise en scène (${nom}), essai ${essai}/${ESSAIS_ADAPTATION_IV} : défaut de détail (${resultat.phrases[0]}) ; écran(s) ${ids.join(", ")} passé(s) en texte seul (« titre »).`);
+      resultat = candidat;
+    } else {
+      journal.push(`Mise en scène (${nom}), essai ${essai}/${ESSAIS_ADAPTATION_IV} : le texte seul pour ${ids.join(", ")} n'améliore rien, annulé.`);
+    }
   }
   if (resultat.ok) return { resultat, adaptes, refus: [], gardes: [], journal };
   if (detailSeul(resultat)) {
@@ -76,4 +100,3 @@ export function mettreEnSceneAvecFiletIV(mettre: (adaptes: readonly string[]) =>
   }
   return { resultat, adaptes, refus: resultat.phrases, gardes: [], journal };
 }
-

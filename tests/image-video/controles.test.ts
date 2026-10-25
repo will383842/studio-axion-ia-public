@@ -16,7 +16,7 @@ import { empreinteSon, type PisteVoixSeuleIV } from "@/moteurs/montage-image-vid
 import type { BruitageValideIV } from "@/moteurs/montage-image-video/bruitages";
 import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { ficheSansChapitres } from "@/moteurs/montage-image-video/recettes";
-import { bloque, CODES_CONTROLE_IV, scriptDeLaVersion, type VersionAControlerIV } from "@/moteurs/montage-image-video/controles";
+import { bloque, CODES_CONTROLE_IV, CONTROLES_INDICATIFS, scriptDeLaVersion, type VersionAControlerIV } from "@/moteurs/montage-image-video/controles";
 import { comparerAuScript, ecouterVersionIV, PHRASES_PARASITES_WHISPER, transcriptionUtile, type DemandeReservationControleIV, type DemandeTranscriptionIV } from "@/moteurs/montage-image-video/ecoute";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { liensSuivisIV, planDesFinsIV, type FinIV, type PlanDesFinsIV } from "@/moteurs/montage-image-video/fins";
@@ -685,4 +685,19 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(v.ok).toBe(false);
     expect(v.versions[0].lignes.find((l) => l.code === "Q08")!.phrase).toMatch(/machine/);
   });
+});
+
+describe("défauts de détail (Q13, Q14) : remarque orange, jamais un refus après le rendu payé", () => {
+  const ligne = (code: string, etat: "reussi" | "echoue" | "non-fait") => ({ code, etat, bloquant: !CONTROLES_INDICATIFS.has(code as never) });
+  it("Q13 et Q14 échoués ou non faits ne bloquent pas ; Q12, CHIFFRES, Q15, Q19 à Q24 et SCENE bloquent", () => {
+    expect(bloque(ligne("Q13", "echoue"))).toBe(false);
+    expect(bloque(ligne("Q14", "non-fait"))).toBe(false);
+    for (const c of ["SCENE", "Q12", "CHIFFRES", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24"]) expect(bloque(ligne(c, "echoue"))).toBe(true);
+  });
+  it("une version avec seulement un Q13 est ok (remarque) ; avec un Q12 elle est refusée", () => {
+    const verdict = (lignes: ReturnType<typeof ligne>[]) => !lignes.some(bloque);
+    expect(verdict([ligne("Q12", "reussi"), ligne("Q13", "echoue")])).toBe(true);
+    expect(verdict([ligne("Q12", "echoue"), ligne("Q13", "echoue")])).toBe(false);
+  });
+  // Limite : ces tests vérifient la règle (`CONTROLES_INDICATIFS` + `bloque`) ; fabriquer un vrai Q13 de bout en bout demande de rejouer la mise en scène complète.
 });

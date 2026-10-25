@@ -65,7 +65,8 @@ describe("filet zéro blocage de la mise en scène", () => {
     });
     expect(issue.refus).toEqual([]);
     expect(issue.gardes).toEqual(["Rythme trop lent : 5,3 s"]);
-    expect(issue.adaptes).toHaveLength(ESSAIS_ADAPTATION_IV);
+    // Aucun essai ne réduit le nombre de défauts : toutes les adaptations sont annulées (on garde le meilleur résultat, le premier).
+    expect(issue.adaptes).toEqual([]);
     expect(n).toBe(ESSAIS_ADAPTATION_IV + 1);
     expect(issue.journal.at(-1)).toMatch(/la vidéo continue/);
   });
@@ -75,6 +76,25 @@ describe("filet zéro blocage de la mise en scène", () => {
     expect(issue.refus).toHaveLength(2);
     expect(issue.adaptes).toEqual([]);
   });
+
+  it("une adaptation qui FAIT APPARAÎTRE un Q12 est annulée : la vidéo continue avec le résultat d'avant", () => {
+    const issue = mettreEnSceneAvecFiletIV((adaptes) => (adaptes.includes("e12") ? resultat([["Q12", "Il manque le bloc « A »."]]) : resultat([["Q13", "Chiffre dit mais pas montré"]])));
+    expect(issue.refus).toEqual([]);
+    expect(issue.adaptes).toEqual([]);
+    expect(issue.gardes).toEqual(["Chiffre dit mais pas montré"]);
+  });
+
+  it("une adaptation qui réduit les défauts de détail est gardée ; un écran déjà en « titre » ou sans texte n'est jamais désigné", () => {
+    const f = { ecrans: [{ id: "e01", scene: "toile", textesEcran: [{}] }, { id: "e12", scene: "alerte", textesEcran: [{}] }, { id: "e13", scene: "titre", textesEcran: [{}] }, { id: "e14", scene: "alerte", textesEcran: [] }] } as unknown as FicheImage;
+    const vus: (readonly string[])[] = [];
+    const issue = mettreEnSceneAvecFiletIV((a) => { vus.push(a); return a.includes("e12") ? resultat([["Q13", "un seul"]]) : resultat([["Q13", "un"], ["Q14", "deux"]]); }, [], "A", f);
+    expect(issue.adaptes).toEqual(["e12"]);
+    expect(vus.flat().some((id) => id === "e13" || id === "e14")).toBe(false);
+  });
+
+  // Limite assumée : `pasMiseEnScene` (état `ecransAdaptes` par version, `e.scenes`, journal ; rendu et contrôles relisent la même fiche via
+  // `sceneDe`) n'est pas exporté et dépend de la chaîne complète (carte, voix, bruitages) ; il n'a pas de test de bout en bout ici.
+  // Ce qui le porte est couvert au-dessus : le filet pur (`mettreEnSceneAvecFiletIV`) et `ficheAdapteeIV`.
 
   it("les écrans déjà adaptés (reprise) sont passés à la mise en scène dès le premier appel", () => {
     const premier: (readonly string[])[] = [];
