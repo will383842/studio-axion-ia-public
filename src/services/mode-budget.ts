@@ -2,7 +2,7 @@
  * MODE DU BUDGET : un seul interrupteur, `budget.mode` = "indicatif" | "bloquant" (décision de Will, 23/10).
  *  - « indicatif » : les montants (plafond du mois, seuil de confirmation, plafonds par vidéo, solde deviné de fal.ai) sont
  *    des REPÈRES. Au-delà, le studio journalise et prévient Will (cloche, une fois par jour et par motif), puis continue.
- *    Seul un arrêt de sécurité (5 × le prix annoncé, par vidéo ou par sujet) arrête encore une fabrication.
+ *    Sur les chemins Claude et le lot d'images, plus aucun arrêt de sécurité ; ailleurs, un arrêt à 5 × le prix annoncé subsiste encore.
  *  - « bloquant » : comportement d'avant, tous les seuils refusent. Retour en arrière : réglage `budget.mode` = "bloquant".
  * Ce qui reste dur dans les DEUX modes : les gardes de l'Usine, le solde réel HeyGen / ElevenLabs, les
  * plafonds anti-boucle (retouches, lectures de voix) et l'idempotence des réservations.

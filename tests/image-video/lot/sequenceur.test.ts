@@ -262,7 +262,7 @@ describe("séquenceur", () => {
     expect((await lire(lotId)).pause).toMatchObject({ raison: "budget", phrase: "Le prix accordé pour ce lot est atteint : rien de plus n'est lancé." });
   });
 
-  it("plafond du lot en mode INDICATIF : le prix accordé est un repère, la suivante part (arrêt de sécurité à 5 ×)", async () => {
+  it("plafond du lot en mode INDICATIF : le prix accordé est un repère, la suivante part (aucun arrêt de sécurité)", async () => {
     const { lotId, prix } = await deposer();
     const lot = await lire(lotId);
     const { ecrireParametre } = await import("@/services/_commun");
