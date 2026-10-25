@@ -5,12 +5,12 @@
  * Paramètres : `proprietes` ({ toile, versions }, validées par `validerProprietesToile`), `depotsPages` ({ cle, urlDepot } par page, chacune
  * passée par `exigerAdressePermise`), `qualite` (90 à 95, défaut 95). Jamais `scale` : à ×2, 10 pages dépasseraient 16 384 px. Aucune entrée.
  * Sortie : bande d'aperçu JPEG au quart (`sortie.urlDepot`). Mesures : celles de la toile (`MesureToile`), `ecartCoutureMax` (écart JPEG / PNG
- * sur les colonnes de bord), `dureeMs`, `octetsPages`, `octetsPageMax`.
+ * sur les colonnes de bord), `coutureDecalee` (colonnes de bord plus proches d'une colonne voisine de la toile que de la bonne : doit valoir 0), `dureeMs`, `octetsPages`, `octetsPageMax`.
  */
 import { randomBytes } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { LARGEUR_PAGE } from "../../../src/domaine/visuels/continu/geometrie.js";
+import { HAUTEURS, LARGEUR_PAGE } from "../../../src/domaine/visuels/continu/geometrie.js";
 import { validerProprietesToile } from "../../../src/domaine/visuels/continu/proprietes-toile.js";
 import { extraireMesureToile, ID_COMPOSITION_TOILE } from "../../compositions/visuels/continu/mesure/protocole-toile.js";
 import { ErreurRendu, type DemandeRendu, type Operation } from "../contrat.js";
@@ -76,9 +76,9 @@ export function echelleJpeg(qualite: number): number {
   return qualite >= 93 ? 2 : 3;
 }
 
-/** Version de toile inconnue (studio et studio-rendu pas encore à la même version) : indisponible, à réessayer ; sinon un refus. PUR. */
+/** Version de toile indisponible (studio et studio-rendu pas encore à la même version) : à réessayer ; « absente » ou « invalide », comme tout le reste : un refus. PUR. */
 export function erreurDeValidationToile(message: string): ErreurRendu {
-  if (message.startsWith("Version de toile")) return new ErreurRendu({ code: "indisponible", reessayable: true, message });
+  if (message.startsWith("Version de toile indisponible")) return new ErreurRendu({ code: "indisponible", reessayable: true, message });
   return refus(message);
 }
 
@@ -91,6 +91,23 @@ export function ecartColonne(page: Uint8Array, toile: Uint8Array, largeurToile: 
     for (let k = 0; k < 3; k++) max = Math.max(max, Math.abs(page[a + k] - toile[b + k]));
   }
   return max;
+}
+
+/** Écart moyen (0-255, par canal) entre la colonne `colPage` d'une page RGB et la colonne `colToile` de la toile RGB. PUR. */
+export function ecartMoyenColonne(page: Uint8Array, toile: Uint8Array, largeurToile: number, hauteur: number, colPage: number, colToile: number): number {
+  let somme = 0;
+  for (let y = 0; y < hauteur; y++) {
+    const a = (y * LARGEUR_PAGE + colPage) * 3;
+    const b = (y * largeurToile + colToile) * 3;
+    for (let k = 0; k < 3; k++) somme += Math.abs(page[a + k] - toile[b + k]);
+  }
+  return somme / (hauteur * 3);
+}
+
+/** Vrai si la colonne exacte de la toile est au moins aussi proche de la colonne de la page que les colonnes décalées de ±1 (mesure discriminante : un décalage d'une colonne la rend fausse). PUR. */
+export function colonneExacteLaPlusProche(page: Uint8Array, toile: Uint8Array, largeurToile: number, hauteur: number, colPage: number, colToile: number): boolean {
+  const exacte = ecartMoyenColonne(page, toile, largeurToile, hauteur, colPage, colToile);
+  return [-1, 1].every((d) => colToile + d < 0 || colToile + d >= largeurToile || exacte <= ecartMoyenColonne(page, toile, largeurToile, hauteur, colPage, colToile + d));
 }
 
 const enRgb = (entree: string, sortie: string, signal: AbortSignal) => executer(FFMPEG, ["-y", "-v", "error", "-i", entree, "-f", "rawvideo", "-pix_fmt", "rgb24", sortie], signal);
@@ -125,6 +142,9 @@ export function creerToileContinue(deps: DependancesToile): Operation {
     const mesure = extraireMesureToile(lignes, nonce);
     if (!mesure) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: "Mesure absente : la toile n'a pas rapporté sa mesure (rendu refusé)" });
     if (taille.largeur !== n * LARGEUR_PAGE) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: `Toile de ${taille.largeur} px au lieu de ${n * LARGEUR_PAGE}` });
+    const hauteurAttendue = HAUTEURS[valides.toile.format];
+    if (taille.hauteur !== hauteurAttendue) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: `Toile de ${taille.hauteur} px de haut au lieu de ${hauteurAttendue}` });
+    if (mesure.largeur !== taille.largeur || mesure.hauteur !== taille.hauteur) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: `Mesure de ${mesure.largeur} × ${mesure.hauteur} px contraire au rendu de ${taille.largeur} × ${taille.hauteur} px` });
 
     // Découpe exacte, puis contrôle des colonnes de bord de chaque JPEG contre celles du PNG.
     const { hauteur } = taille;
@@ -133,6 +153,7 @@ export function creerToileContinue(deps: DependancesToile): Operation {
     const brut = await readFile(toileRgb);
     const pages: string[] = [];
     let ecartCoutureMax = 0;
+    let coutureDecalee = 0;
     for (let i = 0; i < n; i++) {
       const jpeg = join(contexte.dossier, `page-${i + 1}.jpg`);
       await executer(FFMPEG, ["-y", "-v", "error", "-i", png, "-vf", grapheDecoupe(i, hauteur), "-frames:v", "1", "-pix_fmt", "yuvj444p", "-q:v", String(echelleJpeg(qualite)), jpeg], contexte.signal);
@@ -141,6 +162,7 @@ export function creerToileContinue(deps: DependancesToile): Operation {
       const page = await readFile(rgb);
       for (const [colPage, colToile] of [[0, i * LARGEUR_PAGE], [LARGEUR_PAGE - 1, (i + 1) * LARGEUR_PAGE - 1]]) {
         ecartCoutureMax = Math.max(ecartCoutureMax, ecartColonne(page, brut, taille.largeur, hauteur, colPage, colToile));
+        if (!colonneExacteLaPlusProche(page, brut, taille.largeur, hauteur, colPage, colToile)) coutureDecalee++;
       }
       pages.push(jpeg);
       contexte.progression(60 + Math.round((30 * (i + 1)) / n));
@@ -152,7 +174,7 @@ export function creerToileContinue(deps: DependancesToile): Operation {
     await deps.deposer(demande.sortie.urlDepot, bande, "image/jpeg", contexte.signal);
     const octets = await Promise.all(pages.map(async (p) => (await stat(p)).size));
     return {
-      mesures: { ...mesure, largeur: taille.largeur, hauteur, ecartCoutureMax, octetsPages: octets.reduce((a, b) => a + b, 0), octetsPageMax: Math.max(...octets), dureeRenduMs, dureeMs: Date.now() - debut },
+      mesures: { ...mesure, ecartCoutureMax, coutureDecalee, octetsPages: octets.reduce((a, b) => a + b, 0), octetsPageMax: Math.max(...octets), dureeRenduMs, dureeMs: Date.now() - debut },
     };
   };
 }
