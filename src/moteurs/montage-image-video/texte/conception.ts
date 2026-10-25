@@ -7,7 +7,8 @@
  *
  * - Provenance « texte » : sur le résultat (`provenance`) et dans la clé d'image de la carte (`texte:<empreinte>`,
  *   `estCleTexte`) ; aucun fichier n'existe.
- * - Réservation du pire coût AVANT chaque appel, dans le plafond de la vidéo (`PLAFOND_VIDEO_IV_CENTIMES`) ; au plus
+ * - Réservation du pire coût AVANT chaque appel : `budget.reserver` décide (plafond de la vidéo, mode indicatif), comme
+ *   pour `lireImage`. Un contrôle local EN PLUS est facultatif (`plafond`) ; au plus
  *   `APPELS_CONCEPTION_MAX` appels (1 + une relance si la sortie est illisible ou invalide).
  * - Jamais de crash : toute panne, tout refus, toute sortie invalide devient une erreur propre (`ok: false`, phrase
  *   simple pour Will) ; la chaîne n'est jamais bloquée, Will peut reformuler son texte et relancer.
@@ -17,8 +18,7 @@
 import { createHash } from "node:crypto";
 import { completerCarte, controlerCarte, type CarteImage, type ControleCarte } from "@/domaine/image-video/carte";
 import { pireCasRole, type DefinitionRole } from "@/generateur/roles/types";
-import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
-import { PLAFOND_VIDEO_IV_CENTIMES } from "../fabrication";
+import { centimesEurDeUsd } from "../fabrication";
 import type { OutilsLecture } from "../lecture";
 import { schemaLectureImage, type LectureImage } from "../lecture/consigne";
 import { roleConceptionWorkflowIV, variableConception } from "./consigne";
@@ -39,18 +39,21 @@ export const idAppelConception = (videoId: string, essai: number) => `iv-concept
 /** Vrai si la clé d'image d'une carte indique qu'elle vient d'un texte (aucun fichier). */
 export const estCleTexte = (cle: string) => cle.startsWith(`${PROVENANCE_TEXTE}:`);
 
-/** Dépense de la vidéo, en centimes d'euro, et son plafond. */
+/**
+ * Contrôle local FACULTATIF, en plus de la caisse (qui reste seule juge si `plafond` est absent, comme pour la lecture).
+ * Centimes d'euro ; conversion au taux PRUDENT de la caisse (jamais moins d'1 € pour 1 $).
+ */
 export interface PlafondConception {
-  plafondCentimes?: number;
+  plafondCentimes: number;
   /** Déjà dépensé sur cette vidéo (centimes d'euro). */
-  depenseCentimes?: number;
-  tauxUsdEur?: number;
+  depenseCentimes: number;
+  tauxUsdEur: number;
 }
 
 export interface EntreeConception {
   videoId: string;
   /** Description libre de Will. */
-  texte: string;
+  texte: unknown;
   /** Réseaux visés (indicatif, transmis tel quel à la conception). */
   reseaux?: readonly string[];
   plafond?: PlafondConception;
@@ -68,7 +71,7 @@ export type ResultatConception =
 // ─── Validation de la sortie ─────────────────────────────────────────────────────────────────────────────────────────
 
 /** Ce qui ferait passer un schéma d'exemple pour le résultat d'un vrai client (DGCCRF). */
-const CLIENT_REEL = /\b(t[ée]moignage|chez notre client|chez nos clients|nos clients (ont|ont obtenu|gagnent)|client r[ée]el|cas r[ée]el|r[ée]sultats? mesur[ée]s? chez)\b/i;
+const CLIENT_REEL = /(?<![\p{L}])(t[ée]moignage (de|du|d'|client de)\s+\p{Lu}\p{L}*|chez notre client|chez nos clients|client r[ée]el|cas r[ée]el|r[ée]sultats? mesur[ée]s? chez|nos clients ont obtenu|selon notre client)(?![\p{L}])/iu;
 
 const net = (s: string) => s.normalize("NFC").replace(/\s+/g, " ").trim();
 
@@ -95,14 +98,14 @@ export function erreurConception(l: LectureImage): string | null {
   if (groupes.size !== l.groupes.length) return "groupes en double";
   if (l.noeuds.some((n) => n.groupe && !groupes.has(n.groupe))) return "bloc dans un groupe inexistant";
   if (l.groupes.some((g) => g.noeuds.some((i) => !connus.has(i)))) return "groupe avec un bloc inexistant";
-  const textes = [l.titre, l.sousTitre, l.phraseChoc, ...l.noeuds.flatMap((n) => [n.libelle, n.detail, ...n.sousElements]), ...l.liens.map((x) => x.etiquette), ...l.bandeau, ...l.pied];
+  const textes = [l.titre, l.sousTitre, l.phraseChoc, ...l.noeuds.flatMap((n) => [n.libelle, n.detail, ...n.sousElements]), ...l.groupes.map((g) => g.titre), ...l.liens.map((x) => x.etiquette), ...l.bandeau, ...l.pied];
   if (textes.some((t) => CLIENT_REEL.test(t))) return "présenté comme le résultat d'un vrai client";
   return null;
 }
 
 /** Normalise sans rien inventer : aucune photo de personnes, mention d'exemple garantie. PUR. */
 export function normaliserConception(l: LectureImage): LectureImage {
-  const pied = l.pied.some((p) => /exemple|situation type/i.test(p)) ? l.pied : [...l.pied, MENTION_EXEMPLE];
+  const pied = l.pied.some((p) => p.includes(MENTION_EXEMPLE)) ? l.pied : [...l.pied.slice(0, 9), MENTION_EXEMPLE];
   return { ...l, noeuds: l.noeuds.map((n) => ({ ...n, photoPersonnes: false })), pied };
 }
 
@@ -136,7 +139,8 @@ export function carteDeConception(l: LectureImage, texte: string): CarteImage {
 // ─── Texte de Will ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Refus du texte avant tout appel (aucun coût). `null` si le texte peut partir. */
-export function refusTexte(texte: string): { motif: MotifRefusConception; message: string } | null {
+export function refusTexte(texte: unknown): { motif: MotifRefusConception; message: string } | null {
+  if (typeof texte !== "string") return { motif: "texte-vide", message: "Décrivez d'abord l'automatisation, avec vos mots, comme dans une conversation." };
   const t = texte.normalize("NFC").trim();
   if (!t) return { motif: "texte-vide", message: "Décrivez d'abord l'automatisation, avec vos mots, comme dans une conversation." };
   if (t.length > CARACTERES_MAX) return { motif: "texte-trop-long", message: `Le texte est trop long (plus de ${CARACTERES_MAX} caractères) : gardez l'essentiel de l'automatisation.` };
@@ -151,25 +155,32 @@ export async function concevoirWorkflow(entree: EntreeConception, outils: Outils
   const refus = (motif: MotifRefusConception, message: string, appels = 0): ResultatConception => ({ ok: false, provenance: PROVENANCE_TEXTE, motif, message, appels });
   const avant = refusTexte(entree.texte);
   if (avant) return refus(avant.motif, avant.message);
+  const texte = (entree.texte as string).trim();
+  let appels = 0;
 
   try {
     const role = roleConceptionWorkflowIV as unknown as DefinitionRole;
-    const contexte = { variable: variableConception(entree.texte.trim(), entree.reseaux ?? []) };
-    const taux = entree.plafond?.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT;
-    const plafondUsd = ((entree.plafond?.plafondCentimes ?? PLAFOND_VIDEO_IV_CENTIMES) - (entree.plafond?.depenseCentimes ?? 0)) / 100 / taux;
-    let appels = 0;
+    const contexte = { variable: variableConception(texte, entree.reseaux ?? []) };
+    const p = entree.plafond;
+    const bornesOk = !p || (Number.isFinite(p.plafondCentimes) && Number.isFinite(p.depenseCentimes) && Number.isFinite(p.tauxUsdEur) && p.plafondCentimes >= 0 && p.depenseCentimes >= 0 && p.tauxUsdEur > 0);
+    if (!bornesOk) return refus("plafond", "Le plafond de dépense de cette vidéo est illisible : la conception du schéma n'a pas été lancée.");
     let coutUsd: number | undefined;
+    /** Centimes déjà engagés par les essais précédents : le plus grand du pire réservé et du coût réel. */
+    let engageCentimes = 0;
     let dernier = "";
     for (let essai = 1; essai <= APPELS_CONCEPTION_MAX; essai++) {
       const pire = pireCasRole(role, { contexte: {}, ...contexte });
-      // Plafond de la vidéo : le pire coût de CET appel, plus ce qui est déjà engagé ici, doit y tenir.
-      if (pire + (coutUsd ?? 0) > plafondUsd) return refus("plafond", "Le plafond de dépense de cette vidéo est atteint : la conception du schéma n'a pas été lancée.", appels);
+      // Contrôle local facultatif (la caisse reste juge) : le pire coût de CET appel, plus ce qui est déjà engagé.
+      if (p && p.depenseCentimes + engageCentimes + centimesEurDeUsd(pire, p.tauxUsdEur) > p.plafondCentimes) {
+        return refus("plafond", "Le plafond de dépense de cette vidéo est atteint : la conception du schéma n'a pas été lancée.", appels);
+      }
       const r = await outils.budget.reserver({ appelId: idAppelConception(entree.videoId, essai), videoId: entree.videoId, etape: ETAPE_CONCEPTION, modele: role.modele, coutEstimeUsd: pire });
       if (!r.ok) return refus("budget", `Conception du schéma non lancée : ${r.message}`, appels);
       appels++;
       const rep = await outils.appeler(role, { contexte: {}, ...contexte });
       if (!rep.ok) return refus("appel", `Conception du schéma interrompue : ${rep.message}`, appels);
       if (rep.coutUsd !== undefined) coutUsd = (coutUsd ?? 0) + rep.coutUsd;
+      engageCentimes += centimesEurDeUsd(Math.max(pire, rep.coutUsd ?? 0), p?.tauxUsdEur ?? 1);
       let brut: unknown = rep.donnees;
       if (brut === undefined && typeof rep.texte === "string") {
         try {
@@ -185,11 +196,12 @@ export async function concevoirWorkflow(entree: EntreeConception, outils: Outils
         return refus("hors-sujet", "Je n'y vois pas d'automatisation à schématiser : décrivez ce qui se déclenche, ce que l'IA ou l'outil fait, et le résultat attendu.", appels);
       }
       const lecture = normaliserConception(v.data);
-      const erreur = erreurConception(lecture) ?? (lecture.type === "inconnu" ? "type non choisi" : null);
+      // Un type « inconnu » avec des blocs est accepté : le type de la carte est calculé par le code (aucun appel de plus).
+      const erreur = erreurConception(lecture);
       if (erreur) { dernier = erreur; continue; }
       let carte: CarteImage;
       try {
-        carte = carteDeConception(lecture, entree.texte.trim());
+        carte = carteDeConception(lecture, texte);
       } catch {
         dernier = "carte incohérente";
         continue;
@@ -201,6 +213,6 @@ export async function concevoirWorkflow(entree: EntreeConception, outils: Outils
     return refus("illisible", `Je n'ai pas réussi à concevoir un schéma exploitable (${dernier}) : reformulez ou précisez le texte, puis relancez.`, appels);
   } catch {
     // Jamais de crash de la chaîne : une panne imprévue devient une erreur propre.
-    return refus("appel", "La conception du schéma a rencontré un incident : relancez dans un instant.");
+    return refus("appel", "La conception du schéma a rencontré un incident : relancez dans un instant.", appels);
   }
 }

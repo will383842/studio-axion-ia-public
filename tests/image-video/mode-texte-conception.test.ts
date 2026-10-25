@@ -151,21 +151,91 @@ describe("concevoirWorkflow", () => {
     expect(journal).toHaveLength(0);
   });
 
-  it("plafond de la vidéo respecté : pire coût au-dessus du reste du plafond → aucune réservation ni appel", async () => {
+  const P = (o: Partial<{ plafondCentimes: number; depenseCentimes: number; tauxUsdEur: number }> = {}) => ({ plafondCentimes: PLAFOND_VIDEO_IV_CENTIMES, depenseCentimes: 0, tauxUsdEur: 0.9, ...o });
+
+  it("plafond local (facultatif) : pire coût au-dessus du reste → aucune réservation ni appel ; sans plafond, la caisse juge", async () => {
     const { o, reservations, journal } = outils();
-    const r = await concevoirWorkflow({ videoId: "v1", texte: TEXTE, plafond: { depenseCentimes: PLAFOND_VIDEO_IV_CENTIMES - 1 } }, o);
+    const r = await concevoirWorkflow({ videoId: "v1", texte: TEXTE, plafond: P({ depenseCentimes: PLAFOND_VIDEO_IV_CENTIMES - 1 }) }, o);
     expect(r).toMatchObject({ ok: false, motif: "plafond", appels: 0 });
     expect(reservations).toHaveLength(0);
     expect(journal).toHaveLength(0);
-    // Plafond par défaut (300 c) : la conception tient dedans.
-    expect((await concevoirWorkflow({ videoId: "v2", texte: TEXTE }, outils().o)).ok).toBe(true);
+    expect((await concevoirWorkflow({ videoId: "v2", texte: TEXTE, plafond: P() }, outils().o)).ok).toBe(true);
+    expect((await concevoirWorkflow({ videoId: "v3", texte: TEXTE }, outils().o)).ok).toBe(true);
   });
 
-  it("le coût de la 1re tentative compte dans le plafond de la relance", async () => {
-    const { o, reservations } = outils([{ ok: true, simule: true, donnees: { n: 1 }, coutUsd: 5 }, CONCEPTION_DEMO]);
+  it("frontière au taux prudent : un taux < 1 compte comme 1 €/$ (jamais moins)", async () => {
+    const { o, reservations } = outils();
+    const pire = (await (async () => { await concevoirWorkflow({ videoId: "v1", texte: TEXTE }, o); return reservations[0].coutEstimeUsd; })());
+    const juste = Math.ceil(pire * 100 - 1e-9);
+    // Plafond égal au pire coût à 1 €/$ : passe ; un centime de moins : refus, même avec un taux 0,5.
+    expect((await concevoirWorkflow({ videoId: "v2", texte: TEXTE, plafond: P({ plafondCentimes: juste, tauxUsdEur: 0.5 }) }, outils().o)).ok).toBe(true);
+    expect(await concevoirWorkflow({ videoId: "v3", texte: TEXTE, plafond: P({ plafondCentimes: juste - 1, tauxUsdEur: 0.5 }) }, outils().o)).toMatchObject({ ok: false, motif: "plafond" });
+  });
+
+  it("bornes illisibles (taux 0 ou NaN, négatifs, non finis) : refus « plafond » sans appel", async () => {
+    for (const plafond of [P({ tauxUsdEur: 0 }), P({ tauxUsdEur: NaN }), P({ depenseCentimes: -1 }), P({ plafondCentimes: Infinity }), P({ plafondCentimes: NaN })]) {
+      const { o, reservations } = outils();
+      expect(await concevoirWorkflow({ videoId: "v1", texte: TEXTE, plafond }, o)).toMatchObject({ ok: false, motif: "plafond", appels: 0 });
+      expect(reservations).toHaveLength(0);
+    }
+  });
+
+  it("le coût de la 1re tentative compte dans le plafond de la relance (coût réel ou, à défaut, pire réservé)", async () => {
+    const reel = outils([{ ok: true, simule: true, donnees: { n: 1 }, coutUsd: 5 }, CONCEPTION_DEMO]);
+    expect(await concevoirWorkflow({ videoId: "v1", texte: TEXTE, plafond: P() }, reel.o)).toMatchObject({ ok: false, motif: "plafond", appels: 1 });
+    expect(reel.reservations).toHaveLength(1);
+    // Sans coutUsd rendu : le pire réservé compte. Plafond pour un seul appel (pire ×1,5) → pas de relance.
+    const probe = outils();
+    await concevoirWorkflow({ videoId: "p", texte: TEXTE }, probe.o);
+    const juste = Math.ceil(probe.reservations[0].coutEstimeUsd * 100 * 1.5);
+    const sans = outils([{ ok: true, simule: true, donnees: { n: 1 } }, CONCEPTION_DEMO]);
+    expect(await concevoirWorkflow({ videoId: "v2", texte: TEXTE, plafond: P({ plafondCentimes: juste, tauxUsdEur: 1 }) }, sans.o)).toMatchObject({ ok: false, motif: "plafond", appels: 1 });
+  });
+
+  it("texte qui n'est pas une chaîne : « texte-vide », sans exception", async () => {
+    for (const texte of [undefined, null, 42, {}]) {
+      expect(await concevoirWorkflow({ videoId: "v1", texte }, outils().o)).toMatchObject({ ok: false, motif: "texte-vide", appels: 0 });
+    }
+  });
+
+  it("type « inconnu » mais schéma complet : accepté, sans second appel payant", async () => {
+    const { o, reservations } = outils({ ...CONCEPTION_DEMO, type: "inconnu" });
     const r = await concevoirWorkflow({ videoId: "v1", texte: TEXTE }, o);
-    expect(r).toMatchObject({ ok: false, motif: "plafond", appels: 1 });
+    expect(r).toMatchObject({ ok: true, appels: 1 });
     expect(reservations).toHaveLength(1);
+  });
+
+  it("réponse rendue en texte JSON : lue", async () => {
+    const { o } = outils({ ok: true, simule: false, texte: JSON.stringify(CONCEPTION_DEMO) });
+    expect(await concevoirWorkflow({ videoId: "v1", texte: TEXTE }, o)).toMatchObject({ ok: true, appels: 1, simule: false });
+  });
+
+  it("exception de l'appel : erreur propre qui rapporte les appels déjà faits", async () => {
+    const r = await concevoirWorkflow({ videoId: "v1", texte: TEXTE }, {
+      appeler: async () => {
+        throw new Error("boum");
+      },
+      budget: { reserver: async () => ({ ok: true }) },
+    });
+    expect(r).toMatchObject({ ok: false, motif: "appel", appels: 1 });
+  });
+
+  it("faux positifs évités : phrases affirmatives et mot « témoignage » seul sont gardés", async () => {
+    for (const texte of ["Nos clients ont toujours une réponse.", "Automatisation de la demande de témoignage client"]) {
+      const { o } = outils({ ...CONCEPTION_DEMO, phraseChoc: texte, noeuds: CONCEPTION_DEMO.noeuds.map((n, i) => (i === 1 ? { ...n, libelle: texte } : n)) });
+      expect(await concevoirWorkflow({ videoId: "v1", texte: TEXTE }, o)).toMatchObject({ ok: true, appels: 1 });
+    }
+  });
+
+  it("pied à 10 lignes : la dernière est remplacée par la mention exacte (jamais 11 lignes)", async () => {
+    const pied = Array.from({ length: 10 }, (_, i) => `Ligne ${i}`);
+    const l = normaliserConception({ ...CONCEPTION_DEMO, pied });
+    expect(l.pied).toHaveLength(10);
+    expect(l.pied[9]).toBe(MENTION_EXEMPLE);
+    const r = await concevoirWorkflow({ videoId: "v1", texte: TEXTE }, outils({ ...CONCEPTION_DEMO, pied }).o);
+    expect(r.ok && r.carte.pied.at(-1)).toBe(MENTION_EXEMPLE);
+    // Une mention approximative ne compte pas.
+    expect(normaliserConception({ ...CONCEPTION_DEMO, pied: ["exemple"] }).pied).toEqual(["exemple", MENTION_EXEMPLE]);
   });
 });
 
@@ -176,7 +246,9 @@ describe("erreurConception", () => {
     expect(erreurConception({ ...base, noeuds: base.noeuds.slice(0, 2), liens: base.liens.slice(0, 1) })).toMatch(/moins de 3/);
     expect(erreurConception({ ...base, liens: base.liens.slice(0, 2) })).toMatch(/non relié/);
     expect(erreurConception({ ...base, liens: [...base.liens, { ...base.liens[0], id: "l09", vers: "n99" }] })).toMatch(/inexistant/);
-    expect(erreurConception({ ...base, bandeau: ["Témoignage de notre client Dupont"] })).toMatch(/vrai client/);
+    expect(erreurConception({ ...base, bandeau: ["Témoignage de Dupont SARL"] })).toMatch(/vrai client/);
+    expect(erreurConception({ ...base, bandeau: ["Chez notre client, 40 % de gain"] })).toMatch(/vrai client/);
+    expect(erreurConception({ ...base, groupes: [{ id: "g-a", sorte: "branche", titre: "Cas réel", noeuds: ["n01"], majoritaire: false }] })).toMatch(/vrai client/);
     expect(erreurConception({ ...base, titre: "" })).toMatch(/manquant/);
   });
 });
