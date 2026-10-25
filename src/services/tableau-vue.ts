@@ -31,6 +31,7 @@ import { GESTES_RETOUCHE, lireOperationRetouche, type OperationRetouche, type Ty
 import { depots } from "./_commun";
 import { exigerSession } from "./auth";
 import { lancerRetouche } from "./fabrication";
+import { avecAccordAutomatique } from "./mode-budget";
 import { appelsValides, reseauDuTableau } from "./tableau-fin";
 import { interditsDeLaMarque } from "./tableau-marque";
 import { TARIF_VOIX_CENTIMES_PAR_CARACTERE } from "./tableau-outils";
@@ -361,6 +362,12 @@ function consigneDe(op: OperationRetouche, fiche: FicheTableau): string {
  * au moins égal au montant annoncé, sinon rien n'est lancé. Sinon : le chemin de retouche du studio.
  */
 export async function retoucherTableau(videoId: Id, operation: unknown, options: { accord?: AccordPrix } = {}, dependances: DependancesVueTableau = {}): Promise<IssueRetoucheTableau> {
+  // Règle « le prix ne bloque jamais » : en mode indicatif, un accord-requis est relancé UNE fois avec le prix du jour ;
+  // en mode bloquant (et pour l'Usine), l'issue d'avant est rendue telle quelle.
+  return avecAccordAutomatique((accord) => retoucherTableauSansAuto(videoId, operation, { accord: accord ?? options.accord }, dependances), undefined, { videoId });
+}
+
+async function retoucherTableauSansAuto(videoId: Id, operation: unknown, options: { accord?: AccordPrix }, dependances: DependancesVueTableau): Promise<IssueRetoucheTableau> {
   await exigerSession();
   const version = await versionDuTableau(videoId);
   if (!version) return { statut: "refusee", phrase: "La retouche par boutons n'est pas disponible pour cette vidéo." };
