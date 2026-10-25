@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
-import { COMPOSANTS_PLAQUETTES } from "../../studio-rendu/compositions/visuels/continu/registre-composants";
+import { readFileSync } from "node:fs";
 import { RUBRIQUE_MAX } from "../../src/domaine/visuels/continu/geometrie";
 
 /** Table attendue (maquette v3, l. 305-325) : plaquette → fond sombre, orange fort. */
@@ -122,6 +122,15 @@ describe("continu P3a : couvertures", () => {
     }
   });
   it("chaque type du registre a son composant déclaré", () => {
-    for (const t of TYPES) expect(typeof COMPOSANTS_PLAQUETTES[t], t).toBe("function");
+    // Lecture du source : la CI des tests n'installe pas les dépendances de studio-rendu (remotion), on n'importe donc pas les composants.
+    const dossier = "studio-rendu/compositions/visuels/continu/gabarits/couvertures";
+    const index = readFileSync(`${dossier}/index.ts`, "utf8");
+    const registre = readFileSync("studio-rendu/compositions/visuels/continu/registre-composants.ts", "utf8");
+    expect(registre).toContain("...PLAQUETTES_COUVERTURES");
+    for (const t of TYPES) {
+      expect(index, t).toMatch(new RegExp(`import \\{ ${t} \\} from "./${t}"`));
+      expect(index, t).toMatch(new RegExp(`PLAQUETTES_COUVERTURES[^=]*=\\s*\\{[^}]*\\b${t}\\b`));
+      expect(readFileSync(`${dossier}/${t}.tsx`, "utf8"), t).toContain(`export function ${t}(`);
+    }
   });
 });
