@@ -53,6 +53,7 @@ import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
+import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -302,6 +303,8 @@ export interface EtatFabricationIV {
   pistes?: PisteVoixSeuleIV[];
   courtes?: CourteIV[];
   scenes?: { version: string; dureeSec: number; empreinte: string }[];
+  /** 25/10 : écrans passés en scène « titre » par le filet de la mise en scène (défaut de détail Q13/Q14), PAR VERSION (id de version) ; rendu et contrôles relisent la même fiche. */
+  ecransAdaptes?: Record<string, string[]>;
   rendus?: Record<string, RenduFaitIV>;
   /** Transcriptions et relectures déjà payées (reprise de la porte sans repayer). */
   controles?: { transcriptions: VerdictPorteIV["transcriptions"]; relectures: VerdictPorteIV["relectures"]; verdict?: ResumePorteIV };
@@ -755,6 +758,7 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   delete e.pistes;
   delete e.courtes;
   delete e.scenes;
+  delete e.ecransAdaptes;
   e.journal.push(`Script validé par Will${d.fiche ? " (modifié)" : ""} : la voix peut être payée.`);
   return passerA(e, "voix");
 }
@@ -790,6 +794,7 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     delete e.refus;
     delete e.attente;
     delete e.scenes;
+    delete e.ecransAdaptes;
     if (avantVariete) delete e.rendus;
     e.etape = "mise-en-scene";
     e.tentatives["mise-en-scene"] = (e.tentatives["mise-en-scene"] ?? 1) + 1;
@@ -820,6 +825,7 @@ function poserSecoursIV(e: EtatFabricationIV, secours: SecoursIV): void {
   delete e.pistes;
   delete e.courtes;
   delete e.scenes;
+  delete e.ecransAdaptes;
   if (secours.phrases.length) e.journal.push(`Fin de secours pour ${secours.reseaux.join(", ")} : « ${secours.phrases.join(" ")} » (validée par Will).`);
   // 19/10 (v-6a3b74364711) : relecture de la seule fin de secours refusée (une lecture neuve du même texte, une seule fois) ;
   // la voix la prépare au tour suivant AVANT toute lecture, le corps et les autres fins payés sont gardés.
@@ -985,7 +991,7 @@ const nomVersion = (v: Pick<VersionIV, "reseaux" | "courte" | "format">) => `${v
 function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly BruitageValideIV[]): EntreeMiseEnSceneIV {
   return {
     carte: v.courte ? carteSansRetires(e.carte!.carte, v.noeudsRetires ?? []) : e.carte!.carte,
-    fiche: v.fiche,
+    fiche: ficheAdapteeIV(v.fiche, e.ecransAdaptes?.[v.id]),
     voix: { mots: v.piste.mots, motsCorps: v.piste.motsCorps, dureeSec: v.piste.dureeSec, finVoixSec: v.piste.finVoixSec },
     fin: v.fin,
     reseaux: v.reseaux,
@@ -1362,8 +1368,15 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   const scenes: NonNullable<EtatFabricationIV["scenes"]> = [];
   const phrases: string[] = [];
   for (const v of versionsDe(e)) {
-    const r = mettreEnSceneIV(sceneDe(e, v, bruitages));
-    if (!r.ok) phrases.push(...r.phrases.map((p) => `${nomVersion(v)} · ${p}`));
+    // 25/10 (zéro blocage, v-b54bb4798246) : un défaut de détail (Q13 chiffre non montré, Q14 rythme) ne refuse plus la vidéo :
+    // les écrans cités passent en texte seul (3 essais au plus) ; s'il persiste, la vidéo continue et le défaut reste au journal.
+    const issue = mettreEnSceneAvecFiletIV((adaptes) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, adaptes) }), [], nomVersion(v), v.fiche);
+    // Recalculé de zéro à chaque passage ; un état par version (chaque version est vérifiée séparément).
+    if (issue.adaptes.length) (e.ecransAdaptes ??= {})[v.id] = issue.adaptes;
+    else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
+    e.journal.push(...issue.journal);
+    const r = issue.resultat;
+    if (issue.refus.length) phrases.push(...issue.refus.map((p) => `${nomVersion(v)} · ${p}`));
     scenes.push({ version: v.id, dureeSec: r.ligne.dureeSec, empreinte: empreinteDe(r.ligne) });
   }
   if (phrases.length) return refuser(e, "mise-en-scene", "IV_MISE_EN_SCENE", `La mise en scène est refusée : ${phrases[0]}`, { phrases, reessayable: false });

@@ -514,8 +514,9 @@ export function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheIma
     const noeuds = e.refs.map((r) => carte.noeuds.find((n) => n.id === r)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
     return SCENES_BENEFICES.has(e.scene) && noeuds.length > 0 && !noeuds.some((n) => n.role === "benefice");
   };
+  // 25/10 (v-b54bb4798246) : une scène « micro-objet » / « carte-bénéfice » sans bloc cité mais avec du texte d'écran restait vide 5,3 s.
   const momentVide = (e: EcranFiche) =>
-    MOMENTS_SANS_RELANCE.has(e.scene) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
+    (MOMENTS_SANS_RELANCE.has(e.scene) || SCENES_BENEFICES.has(e.scene)) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
   // R5 : un calcul faux ne finit jamais en « additionneur », un entonnoir qui croît jamais en « entonnoir » (retombent sur la toile).
   const gardee = (e: EcranFiche): EcranFiche["scene"] => sceneApresGarde(e.scene, carte, [e.texteDit, ...e.textesEcran]);
   const aGarder = (e: EcranFiche) => gardee(e) !== e.scene;
@@ -753,7 +754,18 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   if (autre && !/situation type|exemple/i.test(autre)) {
     const p = poserTexte(c, autre, toutesCles);
     const dernier = els.filter((x) => x.role === "entete").at(-1)!;
+    // 25/10 (v-b54bb4798246) : une ligne qui porte un chiffre de la carte dit plus tard (« J+30 ») ne se replie plus en étiquette SANS ses chiffres : elle se pose en en-tête sur son mot.
+    const aMontrer = p.couverts.length > 0 && p.chiffres.some((x) => toutesCles.has(x) && !montreAilleurs(x));
     if (p.couverts.length && p.t - dernier.t >= 1.2) els.push(nouvelEl(c, "entete", p.chiffres.length ? "chiffre" : "objet", p.t, { texte: `${etiquette}|${autre}`, chiffres: p.chiffres, couverts: p.couverts, coupe: true }));
+    else if (aMontrer) {
+      const avant = els.some((x) => x.role === "entete" && x.t < p.t - 1e-9);
+      if (!avant) for (const x of els) if (x.role === "entete") x.coupe = true;
+      // 25/10 (zéro blocage) : l'en-tête précédent reste lisible au moins 0,6 s (l'idéal est 1,2 s, mais le chiffre doit rester montré dans la fenêtre de Q13) :
+      // on pose le nouveau à max(son mot, dernier + 0,6), sans sortir de la fenêtre de Q13 de ses chiffres à montrer ; si elle est déjà dépassée, il reste sur son mot.
+      const fenetre = Math.min(...p.chiffres.filter((x) => toutesCles.has(x) && !montreAilleurs(x)).map((x) => { const d = c.chiffres.find((y) => y.cle === x); return d ? heureMot(c, d.rang) + R.chiffreApres - 0.05 : Infinity; }));
+      const tPose = Math.max(p.t, Math.min(arrondi(dernier.t + 0.6), fenetre));
+      els.push(nouvelEl(c, "entete", "chiffre", tPose, { texte: `${etiquette}|${autre}`, chiffres: p.chiffres, couverts: p.couverts, coupe: avant }));
+    }
     // 25/10 : la seconde ligne ne passe en étiquette que si elle PRÉCÈDE le titre ; après lui, « 20 % — Limite atteinte » au-dessus de
     // « 80 % — Réponse connue » se contredisait.
     // Après le titre, nommée trop tôt pour relancer, sans chiffre à montrer sur son mot : elle relance l'en-tête 1,2 s après le dernier, s'il reste de la place avant la fin de l'écran.
