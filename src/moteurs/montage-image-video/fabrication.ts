@@ -102,6 +102,11 @@ export interface DemandeFabricationIV {
   versionId: string;
   /** Image déposée (clé de stockage ; jamais transmise à Claude). `empreinte` : celle du fichier, sinon calculée. */
   image: { cle: string; empreinte?: string };
+  /**
+   * MODE TEXTE (R6b) : description libre de Will à la place d'une image (la clé d'image est alors `texte:<empreinte>`,
+   * aucun fichier n'existe). L'étape « lecture » conçoit le workflow depuis ce texte au lieu de lire une image.
+   */
+  texte?: string;
   /** Réseaux cochés (tous les quatre par défaut). */
   reseaux: ReseauIV[];
   /** Offre corrigée par Will au dépôt ; absente : déduite du type de l'image. */
@@ -1055,6 +1060,7 @@ export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabrica
 
 async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { demande } = e;
+  if (demande.texte !== undefined) return pasConceptionTexte(e, o, caisse, plafond);
   const octets = await o.lireImageSource(demande.image.cle);
   if (!octets) return refuser(e, "lecture", "IV_IMAGE", "L'image déposée est introuvable : déposez-la de nouveau.", { reessayable: false });
   const r = await lireImage(
@@ -1071,9 +1077,35 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
   }
   // Lectures gardées : une correction de type ou une reprise ne relit jamais l'image.
   delete e.lectures;
+  return suiteCarteLue(e, o, r.carte, r.controle, (doutes) => `Image lue (${r.appels} appel(s)${r.simule ? ", simulés" : ""}) : ${r.carte.types.join(" + ")}${doutes.length ? `, ${doutes.length} doute(s)` : ""}.`);
+}
+
+/**
+ * MODE TEXTE (R6b) : l'étape « lecture » conçoit le workflow depuis le texte de Will (même chemin de dépense que la
+ * lecture : la caisse réserve le pire coût avant l'appel), puis la carte suit la chaîne d'une image lue (réparation
+ * automatique, doutes, porte « carte »). Aucun fichier n'est lu.
+ */
+async function pasConceptionTexte(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
+  const { concevoirWorkflow } = await import("./texte/conception");
+  const { demande } = e;
+  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
+  if (!t.ok) {
+    if (t.motif === "budget" || t.motif === "plafond") return refuser(e, "lecture", plafond(), t.message);
+    // Texte à reformuler : relancer le même texte donnerait le même refus ; panne ou sortie illisible : « Refaire » réessaie.
+    return refuser(e, "lecture", "IV_IMAGE", t.message, { reessayable: t.motif === "appel" || t.motif === "illisible" });
+  }
+  // Même réparation automatique que pour une image lue (R2).
+  const carte = reparerEtSignaler(t.carte, { typeChoisi: false }).carte;
+  return suiteCarteLue(e, o, carte, controlerCarte(carte), (doutes) => `Workflow conçu depuis votre texte (${t.appels} appel(s)${t.simule ? ", simulés" : ""}) : ${carte.types.join(" + ")}${doutes.length ? `, ${doutes.length} doute(s)` : ""}.`);
+}
+
+/** Suite commune de la lecture d'une image et de la conception d'un texte : la carte proposée, ses doutes, la porte « carte ». */
+async function suiteCarteLue(e: EtatFabricationIV, o: OutilsFabricationIV, carteLue: CarteImage, controleLu: ControleCarte, ligne: (doutes: string[]) => string): Promise<EtatFabricationIV> {
+  const { demande } = e;
+  const r = { carte: carteLue, controle: controleLu };
   const doutes = doutesDeLaCarte(r.carte, r.controle);
   e.propositionCarte = { carte: r.carte, controle: r.controle, doutes, empreinte: empreinteDe({ carte: r.carte, controle: r.controle }) };
-  e.journal.push(`Image lue (${r.appels} appel(s)${r.simule ? ", simulés" : ""}) : ${r.carte.types.join(" + ")}${doutes.length ? `, ${doutes.length} doute(s)` : ""}.`);
+  e.journal.push(ligne(doutes));
   if (r.carte.adaptations?.length) e.journal.push(`Carte adaptée automatiquement (${r.carte.adaptations.length}) : ${r.carte.adaptations.map((x) => x.replace(/^Adapté automatiquement : /, "")).join(" ; ")}`);
 
   // Lot : aucune porte n'attend Will (ni B6, ni le réglage « toujours ») ; contrôle automatique à la place.
