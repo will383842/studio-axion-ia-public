@@ -6,7 +6,7 @@ import { LIBELLES_MOTIF, type ModeTexte, type Visuel } from "@/domaine/visuels/v
 import type { StatutVisuel } from "@/domaine/visuels/statuts";
 import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { actionsPermises, renduRecent, type VueListe } from "@/visuels/services/vues";
-import { lireToile, type DependancesContinus } from "./carrousels-continus";
+import { lireToile, PHRASE_TOILE, type DependancesContinus } from "./carrousels-continus";
 
 /** Vues de lecture des carrousels continus : cartes de la liste, fiche, texte du post et contenu du ZIP. URL de lecture par `urlLecture`, jamais en dur. */
 
@@ -76,6 +76,17 @@ export async function listerToiles(vue: VueListe, deps: DependancesVuesContinus)
   return Promise.all(visuels.map((v) => carte(v, deps)));
 }
 
+/** Un rendu refusé pour une raison de mise en page (hors « mesure absente », qui se relance) ne passe pas en le relançant : « Refaire » (sujet) à la place. */
+function actionsToile(v: Visuel, maintenantMs: number): ActionCarrousel[] {
+  const actions = actionsPermises(v, maintenantMs);
+  const erreur = v.erreur ?? "";
+  if (v.corbeilleLe || v.statut !== "echec_rendu" || !PHRASE_TOILE.test(erreur) || /mesure[^\n]*absente/.test(erreur)) return actions;
+  const sans = actions.filter((a) => a !== "relancer_rendu");
+  if (v.entree.type !== "sujet" || sans.includes("refaire")) return sans;
+  const avantCorbeille = sans.includes("corbeille") ? sans.indexOf("corbeille") : sans.length;
+  return [...sans.slice(0, avantCorbeille), "refaire", ...sans.slice(avantCorbeille)];
+}
+
 export async function ficheToile(id: string, deps: DependancesVuesContinus): Promise<VueToileFiche> {
   const v = await lireToile(id, deps);
   const rendues = new Map((v.renduToile?.pages ?? []).map((p) => [p.index, p.cle]));
@@ -95,7 +106,7 @@ export async function ficheToile(id: string, deps: DependancesVuesContinus): Pro
     renduEnCours: !v.corbeilleLe && renduRecent(v, Date.parse(deps.maintenant())),
     ...(v.noteTexte ? { noteTexte: v.noteTexte } : {}),
     refus: (v.refus ?? []).map((r) => ({ ...r, libelleMotif: LIBELLES_MOTIF[r.motif] })),
-    actionsPermises: actionsPermises(v, Date.parse(deps.maintenant())),
+    actionsPermises: actionsToile(v, Date.parse(deps.maintenant())),
     generateurAllume: await deps.allume(),
   };
 }

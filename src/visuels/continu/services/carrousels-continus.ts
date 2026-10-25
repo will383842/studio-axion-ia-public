@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import type { Intention } from "@/briques/visuels/trames";
 import { ToileSpec, type ToileSpecType } from "@/domaine/visuels/continu/schema-toile";
 import type { ContextePorte, DemandeTexteCarrousel, FournisseurTexteCarrousel, RapportPorte } from "@/domaine/visuels/contrats";
 import type { Depot } from "@/domaine/depots";
 import { LIBELLES_STATUT, transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import type { MotifRefus, Visuel } from "@/domaine/visuels/visuel";
+import { PHRASE_GENERATEUR_ETEINT } from "@/visuels/interrupteur";
 import { ErreurVisuel, masquerSecrets, PHRASE_SERVEUR_NON_RELIE, RENDU_PERIME_MS, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import type { ResultatRenduToile } from "./rendu-toile";
 
@@ -25,7 +27,6 @@ export interface DependancesContinus extends Pick<DependancesCarrousels, "depot"
   noter: (toile: ToileSpecType) => number;
 }
 
-export const PHRASE_GENERATEUR_ETEINT = "Le générateur est éteint (Réglages › Carrousels)";
 /** Sous cette note, un sujet en simulation est retouché ; sous `NOTE_BLOCAGE`, la fiche est bloquée une fois les retouches épuisées. */
 export const NOTE_RETOUCHE = 90;
 export const NOTE_BLOCAGE = 85;
@@ -35,11 +36,20 @@ const MOTIFS_REFUS: readonly MotifRefus[] = ["texte", "mise_en_page", "sujet", "
 const CLE_SESSION = "carrousels-continus.session.";
 const COMMENTAIRE_MAX = 500;
 const TITRE_MAX = 120;
+const POURQUOI_MAX = 12;
+const POURQUOI_LIGNE_MAX = 300;
 const SUJET_MIN = 3;
 const SUJET_MAX = 200;
 const SESSION_MAX = 100_000;
 const LIEN = /(?:https?|ftp|mailto|file):|www\.|\/\/|[\p{L}\p{N}][\p{L}\p{N}-]*\.\p{L}{2,}/iu;
 const PHRASE_ECHEC_FIXE = "Le rendu a échoué : réessayez avec « Relancer le rendu »";
+
+/** Paquet `paquet-session-toile/1` : le titre et le « pourquoi » sont lus ICI, bornés ; la toile est contrôlée par la porte. Un paquet invalide lève dans `ecrire`. */
+export const PaquetSessionToile = z.object({
+  titre: z.string().trim().min(1).max(TITRE_MAX),
+  pourquoi: z.array(z.string().max(POURQUOI_LIGNE_MAX)).max(POURQUOI_MAX),
+  toile: z.unknown(),
+});
 
 const refus = (code: ErreurVisuel["code"], message: string, details?: string[]) => new ErreurVisuel(code, message, details);
 const normaliser = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
@@ -68,6 +78,13 @@ function fournisseurPermis(demande: DemandeTexteCarrousel, deps: DependancesCont
   return f;
 }
 
+function phraseTitreEtPourquoi(textes: string[], ctx: ContextePorte): string | undefined {
+  const interdit = textes.flatMap((t) => ctx.interditsDans(t))[0];
+  if (interdit) return `Le titre ou le « pourquoi » contient ${interdit} : à retirer`;
+  if (textes.some((t) => LIEN.test(t))) return "Le titre ou le « pourquoi » contient un lien : à retirer";
+  return undefined;
+}
+
 /** Écrit le texte de la toile, passe la porte, puis range le brouillon `id` en « ecrit » ou « bloque ». */
 async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, demande: DemandeTexteCarrousel, deps: DependancesContinus): Promise<void> {
   const ranger = (vers: StatutVisuel, patch: Partial<Visuel>) =>
@@ -89,8 +106,10 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
     return;
   }
   let controle;
+  let ctx: ContextePorte;
   try {
-    controle = deps.porte(reponse.spec, await deps.contextePorte());
+    ctx = await deps.contextePorte();
+    controle = deps.porte(reponse.spec, ctx);
   } catch {
     await bloquer("Le texte n'a pas pu être contrôlé par la porte");
     return;
@@ -110,7 +129,12 @@ async function rediger(id: string, fournisseur: FournisseurTexteCarrousel, deman
   };
   if (rapport.verdict === "rouge") await ranger("bloque", patch);
   else if (!toile) await bloquer("La porte n'a rendu aucun texte corrigé", patch);
-  else await ranger("ecrit", patch);
+  else {
+    // Le titre et le « pourquoi » (venus d'une session) ne passent pas par la porte de la toile : mêmes interdits, même règle « sans lien ».
+    const phrase = phraseTitreEtPourquoi([patch.titre ?? "", ...(patch.pourquoi ?? [])], ctx);
+    if (phrase) await bloquer(phrase, patch);
+    else await ranger("ecrit", patch);
+  }
 }
 
 async function demarrer(entree: Visuel["entree"], demande: DemandeTexteCarrousel, titre: string, empreinteSession: string | null, deps: DependancesContinus): Promise<{ id: string }> {
@@ -174,7 +198,7 @@ export async function deposerSessionToile(contenu: string, deps: DependancesCont
 }
 
 /** Phrases écrites par le rendu de la toile pour l'équipe : gardées telles quelles. Tout autre message (adresse, chemin, pile) n'est jamais recopié. */
-const PHRASE_TOILE = /^La (?:toile|page \d+)\b[^\n]{0,280}$/;
+export const PHRASE_TOILE = /^La (?:toile|page \d+)\b[^\n]{0,280}$/;
 const PHRASES_CONNUES = [/^Le serveur du studio n'a pas fini à temps\.$/];
 
 function phraseEchec(e: unknown): string {
@@ -234,6 +258,14 @@ export async function lancerRenduToile(id: string, deps: DependancesContinus): P
   await retoucherSiNecessaire(id, toile, deps);
 }
 
+function journaliserRetouche(id: string, e: unknown): void {
+  try {
+    console.warn(`[carrousels-continus] retouche automatique abandonnée | visuel ${id} | ${masquerSecrets(e instanceof Error ? e.message : String(e))}`);
+  } catch {
+    // Le journal ne doit jamais empêcher de conclure.
+  }
+}
+
 /** Sujet en simulation seulement : sous 90, UN `refaireToile` (version +1) puis nouveau rendu, tant que `versionSpec` < 3 ; ensuite, sous 85 : « bloque ». */
 async function retoucherSiNecessaire(id: string, toile: ToileSpecType, deps: DependancesContinus): Promise<void> {
   const v = await lireToile(id, deps);
@@ -241,8 +273,13 @@ async function retoucherSiNecessaire(id: string, toile: ToileSpecType, deps: Dep
   const note = deps.noter(toile);
   if (note >= NOTE_RETOUCHE) return;
   if (v.versionSpec < VERSION_SPEC_MAX) {
-    await refaireToile(id, deps);
-    if ((await lireToile(id, deps)).statut === "ecrit") await lancerRenduToile(id, deps);
+    // La fiche a pu être validée, mise à la corbeille ou l'interrupteur éteint pendant le rendu : la retouche s'arrête alors, journal seulement.
+    try {
+      await refaireToile(id, deps, { automatique: true });
+      if ((await lireToile(id, deps)).statut === "ecrit") await lancerRenduToile(id, deps);
+    } catch (e) {
+      journaliserRetouche(id, e);
+    }
     return;
   }
   if (note >= NOTE_BLOCAGE) return;
@@ -250,8 +287,8 @@ async function retoucherSiNecessaire(id: string, toile: ToileSpecType, deps: Dep
   await deps.verrou(async () => {
     const frais = await lireToile(id, deps);
     if (frais.statut !== "a_valider") return;
-    const entree = { motif: "autre" as const, commentaire: `note ${note}/100`, le: deps.maintenant() };
-    await transiter(id, "refuse", { refus: [...(frais.refus ?? []), entree] }, deps);
+    // Passage technique, pas un refus de l'équipe : rien n'est ajouté à `refus`.
+    await transiter(id, "refuse", {}, deps);
     await transiter(id, "brouillon", {}, deps);
     await transiter(id, "bloque", { erreur: `note ${note}/100 : à refaire` }, deps);
   });
@@ -272,15 +309,19 @@ export async function refuserToile(id: string, motif: MotifRefus, page: number |
   });
 }
 
-/** bloque|refuse|echec_rendu → brouillon → réécriture (sujet seulement). Depuis « à valider » : refus « autre » d'abord, la table reste intacte. */
-export async function refaireToile(id: string, deps: DependancesContinus): Promise<void> {
+/** bloque|refuse|echec_rendu → brouillon → réécriture (sujet seulement). Depuis « à valider » : refus « autre » d'abord (sauf retouche automatique), la table reste intacte. */
+export async function refaireToile(id: string, deps: DependancesContinus, options: { automatique?: boolean } = {}): Promise<void> {
   await exigerAllume(deps);
   const v = await lireToile(id, deps);
   if (v.entree.type === "session") throw refus("SESSION_ATTENDUE", "Ce carrousel vient d'une session : déposez un nouveau fichier");
   if (v.corbeilleLe) throw refus("TRANSITION_REFUSEE", "Ce carrousel est à la corbeille : restaurez-le d'abord");
   const demande: DemandeTexteCarrousel = { type: "sujet", sujet: v.entree.sujet, ...(v.entree.intention ? { intention: v.entree.intention } : {}) };
   const fournisseur = fournisseurPermis(demande, deps);
-  if (v.statut === "a_valider") await refuserToile(id, "autre", undefined, undefined, deps);
+  if (v.statut === "a_valider") {
+    // Retouche automatique : passage technique par « refusé », sans faux refus « Autre chose » dans l'historique.
+    if (options.automatique) await deps.verrou(() => transiter(id, "refuse", {}, deps));
+    else await refuserToile(id, "autre", undefined, undefined, deps);
+  }
   else if (!transitionPermise(v.statut, "brouillon")) throw refus("TRANSITION_REFUSEE", `Un carrousel « ${LIBELLES_STATUT[v.statut]} » ne se refait pas`);
   let version = 1;
   await deps.verrou(async () => {
