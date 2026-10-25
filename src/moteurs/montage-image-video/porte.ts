@@ -17,7 +17,7 @@ import type { CarteImage } from "@/domaine/image-video/carte";
 import type { FicheImage } from "@/domaine/image-video/fiche";
 import { PLAFONDS_IV, RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { MotHorodate } from "@/domaine/types";
-import { bloque, CODES_CONTROLE_IV, controlerVersionIV, LIBELLES_CONTROLE_IV, scriptDeLaVersion, type ContexteControlesIV, type LigneControleIV, type MesuresDeLaPorteIV, type VersionAControlerIV } from "./controles";
+import { bloque, CODES_CONTROLE_IV, CONTROLES_INDICATIFS, controlerVersionIV, LIBELLES_CONTROLE_IV, scriptDeLaVersion, type ContexteControlesIV, type LigneControleIV, type MesuresDeLaPorteIV, type VersionAControlerIV } from "./controles";
 import { ecouterVersionIV, type EcouteVersionIV, type OutilsEcouteIV } from "./ecoute";
 import type { PlanDesFinsIV } from "./fins";
 import { instantsClesIV, relireVersionIV, type InstantCleIV, type OutilsRelectureIV, type RelectureFinale } from "./relecture-finale";
@@ -152,7 +152,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
     const lignes = controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version), relecture: { q26: r.q26, indications: r.indications } }));
     // Garde-fou : un contrôle absent bloque (jamais sauté en silence).
     for (const code of CODES_CONTROLE_IV) {
-      if (!lignes.some((l) => l.code === code)) lignes.push({ code, version: v.version, reseaux: [...v.reseaux], etat: "non-fait", bloquant: true, phrase: `${LIBELLES_CONTROLE_IV[code]} (non vérifié) : contrôle absent.`, details: ["contrôle absent."] });
+      if (!lignes.some((l) => l.code === code)) lignes.push({ code, version: v.version, reseaux: [...v.reseaux], etat: "non-fait", bloquant: !CONTROLES_INDICATIFS.has(code), phrase: `${LIBELLES_CONTROLE_IV[code]} (non vérifié) : contrôle absent.`, details: ["contrôle absent."] });
     }
     return { version: v.version, reseaux: [...v.reseaux], courte: v.courte, ok: !lignes.some(bloque), instants: instants.get(v.version)!, lignes };
   });
