@@ -33,7 +33,7 @@ import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture"
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
-import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
+import { accordAutomatique, budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
 import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -287,15 +287,21 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
   const decisionsGardees = async () => lireParametre<Record<string, unknown> | null>(`${PREFIXE_DECISIONS}${dep.videoId}`, null);
 
   // Budget réel, APRÈS la caisse : pré-vol pour Claude et la transcription, réservation pour la voix.
+  const indicatifIV = await budgetIndicatifPour(dep.origine);
   const budget: OutilsFabricationIV["budget"] = {
     reserver: async (d) => {
       // Lanceur : la voix ne part que sur l'accord de Will, relu à chaque réservation (avant même le mode simulé).
       let accordVoix: number = d.centimes;
       if (d.fournisseur === "heygen" && dep.accordDuScriptExige) {
         const accord = accordDeLaDecision((await decisionsGardees())?.script);
-        if (accord === null) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
-        accordVoix = accord;
+        // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord, Will ne valide jamais un prix à la main.
+        if (accord === null && !indicatifIV) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
+        accordVoix = accord ?? d.centimes;
       } else if (d.fournisseur === "heygen") accordVoix = accordDeLaVoixIV(d.centimes, dep.accordLotCentimes);
+      if (d.fournisseur === "heygen") {
+        const auto = await accordAutomatique(accordVoix, d.centimes, { origine: dep.origine, videoId: String(dep.videoId) });
+        if (typeof auto === "number") accordVoix = auto;
+      }
       const { claudeTextesActif } = await import("./depense-claude-video");
       if (d.fournisseur === "anthropic" && !(await claudeTextesActif())) return { ok: true };
       if (d.fournisseur === "heygen" && voix.mode === "simulation") return { ok: true };
@@ -315,8 +321,8 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         throw err;
       }
     },
-    // Mode indicatif : le plafond de la vidéo est un repère (cloche), l'arrêt de sécurité vient à 5 × ce plafond.
-    ...((await budgetIndicatifPour(dep.origine))
+    // Mode indicatif : le plafond de la vidéo est un repère (cloche) ; le prix n'arrête plus rien (ordre du 25/10).
+    ...(indicatifIV
       ? { indicatif: { facteurSecurite: FACTEUR_SECURITE_BUDGET, signaler: async (message: string) => signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", message, await sujetDeCloche(String(dep.videoId))) } }
       : {}),
   };
@@ -343,7 +349,7 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
     script: async () => {
       const d = (await decisionsGardees())?.script ?? null;
       // Lanceur : une décision sans accord du prix n'avance pas la fabrication (le lanceur reste à la porte).
-      return (dep.accordDuScriptExige && accordDeLaDecision(d) === null ? null : d) as never;
+      return (dep.accordDuScriptExige && !indicatifIV && accordDeLaDecision(d) === null ? null : d) as never;
     },
   };
 

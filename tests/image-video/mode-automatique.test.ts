@@ -120,13 +120,20 @@ describe("réglage « automatique »", () => {
     expect(ancien.miseDeCote?.porte).toBe("carte");
   });
 
-  it("hors lot, le contrôle du prix reste STRICT au prix accordé même en mode indicatif (pas 5 ×)", async () => {
+  it("hors lot, en mode BLOQUANT, le contrôle du prix reste strict au prix accordé", async () => {
+    const c = carteFixe("A");
+    const apres = await avancerJusquAArretIV(etatInitialIV(demandeEssai(c, { validationCarte: "automatique", plafondCentimes: 500 })), outilsSimules(c, monde(), { cartesValidees: 0 }));
+    expect(apres.etape).toBe("script-a-valider");
+    expect(apres.miseDeCote?.motif).toMatch(/dépasserait le prix accordé/);
+  });
+
+  it("hors lot, en mode indicatif (ordre du 25/10), le prix ne met plus le script de côté", async () => {
     const c = carteFixe("A");
     const base = outilsSimules(c, monde(), { cartesValidees: 0 });
     const o = { ...base, budget: { ...base.budget, indicatif: { facteurSecurite: 5, signaler: async () => undefined } } };
-    const apres = await avancerJusquAArretIV(etatInitialIV(demandeEssai(c, { validationCarte: "automatique", plafondCentimes: 500 })), o);
-    expect(apres.etape).toBe("script-a-valider");
-    expect(apres.miseDeCote?.motif).toMatch(/dépasserait le prix accordé/);
+    const apres = await avancerJusquAArretIV(etatInitialIV(demandeEssai(c, { validationCarte: "automatique", plafondCentimes: 500 })), o, { pasMax: 4 });
+    expect(apres.miseDeCote).toBeUndefined();
+    expect(apres.etape).not.toBe("script-a-valider");
   });
 
   it("un chiffre lu une seule fois est accepté sans relecture MAIS écrit dans les adaptations avant la validation", async () => {

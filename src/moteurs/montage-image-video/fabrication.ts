@@ -610,14 +610,10 @@ class Caisse {
     const centimes = Math.max(0, Math.ceil(d.centimes));
     const ind = this.outils.budget.indicatif;
     const plafond = this.etat.caisse.plafondCentimes;
-    if (ind && engage + centimes > plafond && engage + centimes <= plafond * ind.facteurSecurite) {
-      // Repère dépassé, arrêt de sécurité pas atteint : Will est prévenu, la fabrication continue (la réservation reste posée).
+    if (ind && engage + centimes > plafond) {
+      // Règle du 25/10 : en indicatif le prix ne bloque jamais. Repère dépassé : Will est prévenu, la fabrication continue (la réservation reste posée).
       await ind.signaler(`Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`).catch(() => undefined);
     } else if (engage + centimes > plafond) {
-      if (ind) {
-        this.arretPlafond = `Arrêt de sécurité : cette vidéo a déjà coûté ${ind.facteurSecurite} fois son prix annoncé (${euros(plafond)}, déjà engagé ${euros(engage)}, il faudrait ${euros(centimes)} de plus) : rien n'a été payé pour cette étape.`;
-        return { ok: false, message: this.arretPlafond };
-      }
       this.arretPlafond = `Plafond de cette vidéo atteint (${euros(this.etat.caisse.plafondCentimes)}, déjà engagé ${euros(engage)}, il faudrait ${euros(centimes)} de plus) : rien n'a été payé pour cette étape.`;
       return { ok: false, message: this.arretPlafond };
     }
@@ -1203,7 +1199,7 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
     e.journal.push(`Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
     passerA(e, "script-a-valider");
     // Lot : aucune porte n'attend Will ; contrôle automatique avant de payer la voix.
-    return e.demande.lot || e.demande.validationCarte === "automatique" ? controleAutomatiqueScriptIV(e, e.demande.lot ? o.budget.indicatif?.facteurSecurite : undefined) : e;
+    return e.demande.lot || e.demande.validationCarte === "automatique" ? controleAutomatiqueScriptIV(e, e.demande.lot ? o.budget.indicatif?.facteurSecurite : undefined, { prixIndicatif: !!o.budget.indicatif }) : e;
   }
   if (r.motif === "budget") return refuser(e, "ecriture", plafond(), r.message);
   return refuser(e, "ecriture", "IV_ECRITURE", r.message, { phrases: r.refus, reessayable: r.motif !== "reglage" });
@@ -1213,13 +1209,14 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
  * Lot, porte « script » (plan § d.2). PUR. `null` : le script est sans doute (rien à trancher, prix connu et dans le prix
  * accordé). Les formules absolues passent avant « à trancher » : B7, rien n'est changé sans Will.
  */
-export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: number, options: { formulesGardees?: boolean } = {}): { motif: string; phrases: string[] } | null {
+export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: number, options: { formulesGardees?: boolean; prixIndicatif?: boolean } = {}): { motif: string; phrases: string[] } | null {
   // R5 (mode automatique) : les phrases affirmatives sont GARDÉES telles quelles ; elles ne mettent rien de côté.
   const aTrancher = options.formulesGardees ? p.aTrancher.filter((m) => m.regle !== "Q05bis") : p.aTrancher;
   if (p.formules.length && !options.formulesGardees) return { motif: `Une formule trop affirmative est dans le script : ${p.formules.map((f) => `« ${f.texte} »`).join(", ")}.`, phrases: p.aTrancher.map((m) => m.message) };
   if (aTrancher.length) return { motif: "Le script a une phrase à trancher.", phrases: aTrancher.map((m) => m.message) };
   if (p.prix.auPlusCentimes <= 0) return { motif: "Le prix de la voix n'a pas pu être calculé.", phrases: [] };
-  // Mode indicatif (`facteurSecurite` donné) : le prix accordé est un repère ; seul l'arrêt de sécurité (n × ce prix) met le script de côté.
+  // Mode indicatif (`prixIndicatif`, ordre du 25/10) : le prix ne met JAMAIS le script de côté (le prix de la voix inconnu, plus haut, reste un manque).
+  if (options.prixIndicatif) return null;
   if (p.prix.engageCentimes + p.prix.auPlusCentimes > p.prix.plafondCentimes * (facteurSecurite ?? 1)) {
     return { motif: `La voix dépasserait le prix accordé pour cette vidéo (${(p.prix.plafondCentimes / 100).toFixed(2).replace(".", ",")} €).`, phrases: [] };
   }
@@ -1230,11 +1227,11 @@ export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: num
  * Lot : le script est contrôlé et, s'il est sans doute, validé comme Will le ferait (`validerScriptIV`, script tel que
  * proposé) ; sinon la vidéo reste à la porte, mise de côté, sans payer la voix. PUR.
  */
-export function controleAutomatiqueScriptIV(etat: EtatFabricationIV, facteurSecurite?: number): EtatFabricationIV {
+export function controleAutomatiqueScriptIV(etat: EtatFabricationIV, facteurSecurite?: number, options: { prixIndicatif?: boolean } = {}): EtatFabricationIV {
   const p = etat.propositionScript!;
   // R5 : en mode automatique, les phrases affirmatives sont gardées (choix « garder » posé par le réglage, pas par Will).
   const auto = etat.demande.validationCarte === "automatique";
-  const mise = miseDeCoteScriptIV(p, facteurSecurite, { formulesGardees: auto });
+  const mise = miseDeCoteScriptIV(p, facteurSecurite, { formulesGardees: auto, prixIndicatif: options.prixIndicatif });
   if (mise) return mettreDeCote(etat, "script", mise.motif, mise.phrases);
   try {
     const choixFormules: Record<string, ChoixFormule> = auto ? Object.fromEntries(p.formules.map((f) => [f.cle, "garder" as const])) : {};
