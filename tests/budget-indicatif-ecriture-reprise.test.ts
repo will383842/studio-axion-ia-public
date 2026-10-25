@@ -74,7 +74,6 @@ function claudeAuPire(roles: DefinitionRole[]) {
 }
 
 const generation = async (id: string) => (await depots().generations.obtenir(id))!;
-const SECURITE = /dépasserait 5 fois le prix annoncé/;
 const claude = () => {
   const c = claudeAuPire(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
   gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: c.fetch, attenteMs: () => 0 });
@@ -131,33 +130,34 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     expect(c.appels).toHaveLength(0);
   }, 90_000);
 
-  it("au-delà de 5 × : arrêt de sécurité, l'écran dit la bonne phrase (écriture ET « Reprendre »), aucun appel", async () => {
+  it("au-delà de 5 × : indicatif, l'écriture PART quand même (plus d'arrêt de sécurité) ; bloquant, elle est refusée", async () => {
     const pire = await pireCasDeLaGrandeChaine();
     const c = claude();
-    await ecrireParametre("budget.mode", "indicatif");
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
+    const b = await lancer(1);
+    if (!b.ok) throw new Error("lancement");
+    await bg.tourBoucleGeneration();
+    expect(c.appels).toHaveLength(0);
+    expect((await generation(b.generationId)).statut).toBe("plafond-atteint");
+    await ecrireParametre("budget.mode", "indicatif");
     const r = await lancer(2);
     if (!r.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
-    expect(c.appels).toHaveLength(0);
-    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
-    expect(await gc.lireReserveChaine(r.generationId)).toMatchObject({ accepte: false, securite: true });
-    const e = await bg.etatEcriture(r.scriptMaitreId);
-    expect(e?.messagePlafond).toMatch(SECURITE);
-    expect(e?.messagePlafond).not.toMatch(/relevez le réglage/);
-    expect(e?.reprise).toMatchObject({ possible: false });
-    expect(e?.reprise?.raison).toMatch(SECURITE);
+    expect(c.appels.length).toBeGreaterThan(0);
+    expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
   }, 90_000);
 
   it("« Reprendre » en indicatif : devis possible entre 1 × et 5 ×, geste confirmé, l'écriture repart", async () => {
     const pire = await pireCasDeLaGrandeChaine();
     const c = claude();
-    await ecrireParametre("budget.mode", "indicatif");
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
     const r = await lancer(2);
     if (!r.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
     expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    await ecrireParametre("budget.mode", "indicatif");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, entre(pire, 3));
     const e = await bg.etatEcriture(r.scriptMaitreId);
     expect(e?.reprise).toMatchObject({ possible: true });
