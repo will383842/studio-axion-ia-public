@@ -358,7 +358,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   else sceneCode("Q12");
   sceneCode("Q13");
 
-  // Chaque chiffre de la carte à dire (hors chapitres retirés) : DIT (entendu, valeur + unité) ET MONTRÉ.
+  // Chaque chiffre de la carte à dire (hors chapitres retirés) : DIT (entendu, valeur + unité) ET MONTRÉ. Un chiffre non entendu (erreur de transcription, comme Q06 et Q18) ou jamais affiché (comme Q13) est une REMARQUE ; seul un chiffre FAUX (valeur différente entre l'image et la vidéo, relecture Q26) bloque.
   const cles = clesDeLaCarte(carte);
   const montres = new Set(v.ligne.evenements.filter((e) => e.visible).flatMap((e) => e.chiffres));
   const chiffres: string[] = [];
@@ -368,8 +368,8 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
     if (!sansEcoute && !ecoute!.chiffresEntendus.includes(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est pas entendu (valeur et unité).`);
     if (!montres.has(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est jamais affiché.`);
   }
-  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? {} : { nonFait: true });
-  else L("CHIFFRES", chiffres);
+  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? { indicatif: true } : { nonFait: true, indicatif: true });
+  else L("CHIFFRES", chiffres, { indicatif: true });
 
   sceneCode("Q14");
   sceneCode("Q15");

@@ -416,7 +416,7 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
     expect(v.versions[2].lignes.find((l) => l.code === "Q18")!.etat).toBe("non-fait");
   });
 
-  it("un chiffre non entendu est refusé (valeur ET unité)", async () => {
+  it("un chiffre non entendu (valeur ET unité) est une remarque : erreur de transcription, la vidéo continue", async () => {
     const m = monter("C");
     const ver = m.entree.versions[0];
     const script = scriptDeLaVersion(ver);
@@ -430,10 +430,13 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
     });
     expect(script.length).toBeGreaterThan(0);
     const v = await porteUniqueIV(m.entree, o);
-    expect(v.ok).toBe(false);
     const lignes = v.versions[0].lignes.filter(bloque).map((l) => l.code);
-    expect(lignes).toContain("CHIFFRES");
+    expect(lignes).not.toContain("CHIFFRES");
     expect(lignes).not.toContain("Q18");
+    const ch = v.versions[0].lignes.find((l) => l.code === "CHIFFRES")!;
+    expect(ch.etat).toBe("echoue");
+    expect(ch.bloquant).toBe(false);
+    expect(ch.phrase).toMatch(/n'est pas entendu/);
     expect(v.versions[0].lignes.find((l) => l.code === "Q18")!.phrase).toMatch(/chiffre/);
   });
 
