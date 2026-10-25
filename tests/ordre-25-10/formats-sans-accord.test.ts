@@ -10,6 +10,8 @@ import { CLE_ESSAI_CLAUDE } from "../helpers/g0";
 import { SUJETS_BANC } from "../generateur/banc/registre-banc-g4";
 import { reponseFlux, fluxReussi } from "../helpers/g0";
 import type { DefinitionRole } from "@/generateur/roles/types";
+import { contexteExemple, ficheDemonstration, AUJOURDHUI_EXEMPLES } from "../tableau/regles/exemples";
+import { banc, versOutils } from "../tableau/moteur/doubles";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -171,4 +173,56 @@ describe.each([
     expect(c.appels.length).toBeGreaterThan(0);
     expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
   }, 120_000);
+});
+
+/* ------------------------------------------------------------------ */
+/* Tableau animé : retouche payante (voix refaite), tableau-vue.ts       */
+/* ------------------------------------------------------------------ */
+
+const { brancherServicesTableau } = await import("@/moteurs/montage-tableau");
+const tableauVue = await import("@/services/tableau-vue");
+const VIDEO = "v-03";
+const nbVersions = () => depots().versions.compter((x) => x.videoId === VIDEO);
+
+/** v-03 devient une vraie vidéo du tableau animé (comme tests/tableau/raccords) ; la chaîne de retouche reçoit les doubles. */
+async function videoTableau() {
+  const { texteScript: _s, ...regles } = contexteExemple(ficheDemonstration);
+  void _s;
+  for (const p of regles.preuves) await depots().preuves.enregistrer(p as never);
+  for (const m of regles.matieres) await depots().matieres.enregistrer(m as never);
+  const b = banc(ficheDemonstration);
+  const c = { ...b.commande(ficheDemonstration), videoId: VIDEO };
+  const v = (await depots().videos.obtenir(VIDEO))!;
+  const ver = (await depots().versions.obtenir(v.versionChoisieId!))!;
+  await depots().videos.modifier(VIDEO, { formatId: "tableau-anime", estDemo: false });
+  await depots().versions.modifier(ver.id, { commande: c, estDemo: false, projetMontage: { moteur: "montage-tableau", tableau: { journal: { version: "fabrication-tableau/1", etapes: {} }, fiche: ficheDemonstration, retouchee: true } } });
+  brancherServicesTableau({ outils: async () => versOutils(b.d, b.fiches) });
+}
+const OP_VOIX = { type: "modifierTexteDit", sceneId: "s03", texte: "Geste deux : demandez trois idées de publication à partir de la question." };
+
+describe.each([
+  ["indicatif", true],
+  ["bloquant", false],
+] as const)("tableau animé, retouche payante — mode %s", (mode, indicatif) => {
+  beforeEach(async () => {
+    await ecrireParametre(CLE_MODE_BUDGET, mode);
+    await videoTableau();
+  });
+
+  it(indicatif ? "retoucherTableau sans accord : lancée, jamais accord-requis" : "témoin : retoucherTableau sans accord, accord-requis et rien n'est lancé", async () => {
+    const avant = await nbVersions();
+    const r = await tableauVue.retoucherTableau(VIDEO, OP_VOIX, {}, { aujourdhui: AUJOURDHUI_EXEMPLES });
+    if (!indicatif) {
+      expect(r).toMatchObject({ statut: "accord-requis" });
+      expect(await nbVersions()).toBe(avant);
+      return;
+    }
+    expect(r).toMatchObject({ statut: "lancee" });
+    expect(await nbVersions()).toBe(avant + 1);
+  });
+
+  it(indicatif ? "un accord trop bas est relevé au prix du jour : lancée" : "témoin : un accord trop bas redemande le prix", async () => {
+    const r = await tableauVue.retoucherTableau(VIDEO, OP_VOIX, { accord: 1 }, { aujourdhui: AUJOURDHUI_EXEMPLES });
+    expect(r).toMatchObject({ statut: indicatif ? "lancee" : "accord-requis" });
+  });
 });
