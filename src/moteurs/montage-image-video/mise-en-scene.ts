@@ -38,6 +38,7 @@ import {
   type TrajectoireCamera,
 } from "@/briques/schema-motion";
 import { MARGE_CADRE, type EtiquetteToile } from "@/briques/schema-motion/camera";
+import { planEnsemble } from "@/briques/schema-motion/plan-objets";
 import { CADRES_IV, type BlocVarieteDonnees, type FormatIV, type RecetteVarieteIV, type VarieteBlocIV } from "@/briques/schema-motion/variete";
 import { TAILLE_LIBELLE_IV } from "@/briques/schema-motion/lisibilite";
 import { proposerMicroObjet, type NomMicroObjet } from "@/briques/schema-motion/micro-objets";
@@ -1292,6 +1293,16 @@ function elementsMoment(c: Ctx, carte: CarteImage, refs: NoeudCarte[], clesCarte
 /* 3. Insertions                                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Chiffres-clés RÉELLEMENT posés par la vue d'ensemble (25/10/2026, D3, compositions-iv/12) : quand la rangée ne tient pas avec 16 px entre
+ * rangées, `planEnsemble` retire les chiffres-clés ; l'écran ne doit déclarer comme montrés que ceux qu'il pose (ils restent montrés quand ils sont dits).
+ */
+function chiffresPoses(carte: CarteImage, chiffresCles: string[], allumes: string[]): string[] {
+  if (!chiffresCles.length) return chiffresCles;
+  const poses = new Set(planEnsemble(schemaDeLaCarte(carte), { allumes, chiffresCles }).chiffres.map((x) => x.texte));
+  return chiffresCles.filter((t) => poses.has(t));
+}
+
 function inserer(places: EcranPlace[], carte: CarteImage, fiche: FicheImage, clesCarte: Map<string, string>): void {
   const branches = carte.groupes.filter((g) => g.sorte === "branche");
   const dansBranche = new Set(branches.flatMap((g) => g.noeuds));
@@ -1302,9 +1313,10 @@ function inserer(places: EcranPlace[], carte: CarteImage, fiche: FicheImage, cle
   places.forEach((p, i) => {
     if (!aEnsemble(i)) return;
     const cles = p.c.chiffres.map((x) => x.cle);
-    const chiffresCles = [...new Set(carte.chiffres.filter((ch) => cles.includes(clesCarte.get(ch.id)!)).map((ch) => ch.brut))].slice(0, 3);
+    const allumesEcran = p.c.e.refs.filter((r) => carte.noeuds.some((n) => n.id === r));
+    const chiffresCles = chiffresPoses(carte, [...new Set(carte.chiffres.filter((ch) => cles.includes(clesCarte.get(ch.id)!)).map((ch) => ch.brut))].slice(0, 3), allumesEcran);
     const duree = Math.min(R.ensemble, Math.max(R.ensembleMin, p.c.fin - p.c.debut - 0.6));
-    p.insertion = { debut: p.c.debut, fin: arrondi(p.c.debut + duree), sorte: "ensemble", chiffresCles, allumes: p.c.e.refs.filter((r) => carte.noeuds.some((n) => n.id === r)) };
+    p.insertion = { debut: p.c.debut, fin: arrondi(p.c.debut + duree), sorte: "ensemble", chiffresCles, allumes: allumesEcran };
     decaler(p, p.insertion.fin, chiffresCles);
   });
   // Ouverture de chaque chapitre.
@@ -1321,7 +1333,7 @@ function inserer(places: EcranPlace[], carte: CarteImage, fiche: FicheImage, cle
       if (p.c.e.refs.some((r) => dansBranche.has(r))) dernier = i;
     });
     const deja = places.some((p, i) => i > dernier && aEnsemble(i));
-    if (dernier >= 0 && dernier + 1 < places.length && !deja) poserInsertion(places, dernier + 1, "ensemble", parts.slice(0, 3), []);
+    if (dernier >= 0 && dernier + 1 < places.length && !deja) poserInsertion(places, dernier + 1, "ensemble", chiffresPoses(carte, parts.slice(0, 3), []), []);
   }
   // Bénéfices : récapitulatif après la dernière carte, si la fiche n'en a pas.
   if (carte.types[0] === "benefices" && !places.some((p) => p.sorte === "recap")) {
