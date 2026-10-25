@@ -37,18 +37,21 @@ const APPELS: Record<ReseauContinu, string> = {
 };
 
 /** Textes d'une page, hors alt et rubrique, dans l'ordre de la spec. */
-function textesDePage(page: PageLue): string[] {
+function entreesDePage(page: PageLue): { chemin: string; texte: string }[] {
   const { alt: _alt, rubrique: _rubrique, ...reste } = page;
-  return textesDe(reste).map((t) => t.texte.trim()).filter(Boolean);
+  return textesDe(reste).map((t) => ({ chemin: t.chemin, texte: t.texte.trim() })).filter((t) => t.texte);
 }
+const textesDePage = (page: PageLue): string[] => entreesDePage(page).map((t) => t.texte);
 
 const sansChiffre = (t: string) => !/\d/.test(t);
 const coupe = (t: string, max: number) => {
   const s = t.replace(/\s+/g, " ").trim();
   if (s.length <= max) return s;
-  const c = s.slice(0, max + 1);
+  // La place du « … » est réservée : le résultat ne dépasse jamais max.
+  const budget = max - 1;
+  const c = s.slice(0, budget + 1);
   const i = c.lastIndexOf(" ");
-  return `${(i > 0 ? c.slice(0, i) : s.slice(0, max)).replace(/[,;:\s]+$/, "")}…`;
+  return `${(i > 0 ? c.slice(0, i) : s.slice(0, budget)).replace(/[,;:\s]+$/, "")}…`;
 };
 const phrase = (t: string) => (/[.!?…]$/.test(t) ? t : `${t}.`);
 
@@ -64,9 +67,13 @@ export function textePost(toile: ToileLue, reseau: ReseauContinu, ctx: ContexteP
   const pages = toile.pages.map(textesDePage);
   const titre1 = pages[0]?.[0] ?? "";
   const premiere = coupe(titre1, PREMIERE_LIGNE_MAX - 1);
-  const points = pages
-    .slice(1)
-    .map((p) => p.find((t) => sansChiffre(t)))
+  // Points clés : champ titre en priorité, premier texte sans chiffre à défaut ; la dernière page porte l'appel de valeur.
+  const points = toile.pages
+    .slice(1, -1)
+    .map((p) => {
+      const e = entreesDePage(p).filter((t) => sansChiffre(t.texte));
+      return (e.find((t) => t.chemin === "titre") ?? e[0])?.texte;
+    })
     .filter((t): t is string => !!t)
     .map((t) => phrase(coupe(t, 120)));
   const hashtags = choisirDansFamille(PROPOSES, ctx.famille ?? null, lim.diese);
@@ -84,6 +91,7 @@ export function textePost(toile: ToileLue, reseau: ReseauContinu, ctx: ContexteP
     ...(tu ? [`tutoiement « ${tu} »`] : []),
     ...(contientJAide(texte) ? ["J'aide"] : []),
     ...(/commentez/i.test(texte) ? ["commentez"] : []),
+    ...(/\d/.test(texte.replace(/#\S+/g, "")) ? ["chiffre sans fait"] : []),
   ];
   return { texte, hashtags, interdits: [...new Set(interdits)] };
 }

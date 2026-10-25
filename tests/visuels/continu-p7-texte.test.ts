@@ -75,7 +75,7 @@ describe("P7 : texte du post", () => {
     expect(t).not.toContain("Dites-nous");
   });
   it("titre de page 1 de 200 signes : 1re ligne < 140, « … » compris", () => {
-    const long = ToileSpec.parse({ ...toile, pages: [{ ...toile.pages[0], titre: `${"mot ".repeat(50)}fin` }, ...toile.pages.slice(1)] });
+    const long = { ...toile, pages: [{ ...toile.pages[0], titre: `${"mot ".repeat(50)}fin` }, ...toile.pages.slice(1)] } as never;
     const premiere = textePost(long, "instagram", ctx).texte.split("\n")[0];
     expect(premiere.length).toBeLessThan(140);
     expect(premiere.endsWith("…")).toBe(true);
