@@ -153,6 +153,8 @@ export const schemaCarteImage = z.strictObject({
     alertes: z.array(z.string().min(1).max(300)).max(60),
   }),
   validation: z.strictObject({ par: z.enum(["will", "reglage"]), le: z.string().min(1).max(40), empreinteCarte: z.string().min(1).max(128) }).optional(),
+  /** R1 : réparations faites par le code à la lecture (« Adapté automatiquement : … »). Absent = rien adapté (cartes anciennes). */
+  adaptations: z.array(z.string().min(1).max(300)).max(60).optional(),
 });
 
 export type CarteImage = z.infer<typeof schemaCarteImage>;
@@ -463,7 +465,8 @@ export function completerCarte(brouillon: BrouillonCarte): CarteImage {
     automatisation: brouillon.automatisation ?? estAutomatisation(types),
     chiffres,
     bandeauChiffres: chiffres.filter((c) => c.dansBandeau).map((c) => c.id),
-    formulesAbsolues: formulesDeLaCarte(brouillon),
-    coherence: coherenceDe(brouillon),
+    // R1 : au-delà du maximum du schéma, la liste est coupée (jamais un refus).
+    formulesAbsolues: formulesDeLaCarte(brouillon).slice(0, 40),
+    coherence: coherenceDe(brouillon).slice(0, 20),
   });
 }

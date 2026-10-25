@@ -267,18 +267,15 @@ describe("porte « carte » : obligatoire pour les 10 premières, puis selon le 
     expect((await avancerIV(arret, bonne)).etape).toBe("ecriture");
   });
 
-  it("type inconnu des deux lectures : refus « choisissez-le », puis le type imposé par Will reprend les lectures payées", async () => {
+  it("type inconnu des deux lectures : plus de refus (R1), le code déduit le type et le dit", async () => {
     const carte = carteFixe("C");
     const inconnue = { ...lectureDeCarte(carte), type: "inconnu" as const };
-    const { m, o, e } = demarrer("C", { lectures: { a: inconnue, b: inconnue } });
-    const refus = await avancerJusquAArretIV(e, o);
-    expect(refus.refus).toMatchObject({ code: "IV_TYPE_A_CHOISIR", etape: "lecture" });
-    expect(refus.lectures?.a).toBeDefined();
-    const appels = m.appelsClaude.length;
-    const apres = await avancerJusquAArretIV(imposerTypeIV(refus, "embranchement"), o);
+    const { o, e } = demarrer("C", { lectures: { a: inconnue, b: inconnue } });
+    const apres = await avancerJusquAArretIV(e, o);
+    expect(apres.refus).toBeUndefined();
     expect(apres.etape).toBe("carte-a-valider");
-    expect(apres.propositionCarte?.carte.types).toEqual(["embranchement"]);
-    expect(m.appelsClaude.length).toBe(appels);
+    expect(apres.propositionCarte?.carte.types).toEqual(carte.types);
+    expect(apres.propositionCarte?.carte.adaptations?.some((x) => /type déduit/.test(x))).toBe(true);
   });
 });
 

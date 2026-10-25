@@ -84,10 +84,10 @@ describe("machine : la carte en lot", () => {
     expect(e.carte).toBeUndefined();
     expect(reservationsPayees(e).every((x) => x === "lecture")).toBe(true);
   });
-  it("C7 : type inconnu → refus IV_TYPE_A_CHOISIR (porte arrêt côté lot)", async () => {
+  it("C7 : type inconnu → plus de refus (R1) : le code déduit le type, la vidéo continue", async () => {
     const { e } = await fabriquer(carteFixe("E"), true, { lectures: { a: { ...lectureDeCarte(carteFixe("E")), type: "inconnu" }, b: { ...lectureDeCarte(carteFixe("E")), type: "inconnu" } } });
-    expect(e.etape).toBe("refusee");
-    expect(e.refus?.code).toBe("IV_TYPE_A_CHOISIR");
+    expect(e.refus).toBeUndefined();
+    expect(e.etape).not.toBe("refusee");
   });
   it("sans lot : comportement actuel exact (la carte attend Will, aucune mise de côté)", async () => {
     const { e } = await fabriquer(carteFixe("E"), false);

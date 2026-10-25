@@ -785,11 +785,16 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     return e;
   }
   const etape = e.refus.etape;
+  // R1 : une lecture refusée APRÈS les deux lectures payées (carte « incomplète » ou « illisible » d'origine fusion) donnerait
+  // le même refus si on rendait les mêmes lectures : on les efface pour relire vraiment. (« Type à choisir » d'un ancien
+  // état : les lectures restent, Will impose le type sans repayer.)
+  const relireVraiment = etape === "lecture" && e.refus.code === "IV_IMAGE" && !!e.lectures?.a && !!e.lectures?.b;
+  if (relireVraiment) delete e.lectures;
   delete e.refus;
   delete e.attente;
   e.etape = etape;
   e.tentatives[etape] = (e.tentatives[etape] ?? 1) + 1;
-  e.journal.push(`Reprise de l'étape « ${etape} ».`);
+  e.journal.push(relireVraiment ? `Reprise de l'étape « ${etape} » : relecture neuve, comptée dans le prix accordé.` : `Reprise de l'étape « ${etape} ».`);
   return e;
 }
 
@@ -1064,6 +1069,7 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
   const doutes = doutesDeLaCarte(r.carte, r.controle);
   e.propositionCarte = { carte: r.carte, controle: r.controle, doutes, empreinte: empreinteDe({ carte: r.carte, controle: r.controle }) };
   e.journal.push(`Image lue (${r.appels} appel(s)${r.simule ? ", simulés" : ""}) : ${r.carte.types.join(" + ")}${doutes.length ? `, ${doutes.length} doute(s)` : ""}.`);
+  if (r.carte.adaptations?.length) e.journal.push(`Carte adaptée automatiquement (${r.carte.adaptations.length}) : ${r.carte.adaptations.map((x) => x.replace(/^Adapté automatiquement : /, "")).join(" ; ")}`);
 
   // Lot : aucune porte n'attend Will (ni B6, ni le réglage « toujours ») ; contrôle automatique à la place.
   if (demande.lot) return carteEnLot(e, o);
