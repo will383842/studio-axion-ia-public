@@ -64,7 +64,7 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
   const phraseRelance = !relance || t.statut === "termine" ? null : t.statut === "echec" && t.tentatives > relance.tentatives ? PHRASES_ECRAN_RELANCE.denouveau : phraseRelancee(relance.etape);
   const affichee = phrase ?? (phraseRelance ? { texte: phraseRelance, ton: "info" as const } : null);
 
-  async function envoyer(accord?: number | true): Promise<void> {
+  async function envoyer(accord?: number | true, dejaRelance = false): Promise<void> {
     const controle = new AbortController();
     const minuterie = setTimeout(() => controle.abort(), DELAI_RELANCE_MS);
     let issue;
@@ -85,7 +85,9 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
     if (issue.statut === "accord-requis") {
       const confirme = await confirmerPrix({ message: issue.phrase, montant: issue.centimes });
       if (confirme === null) return setPhrase({ texte: PHRASES_ECRAN_RELANCE.annulee, ton: "info" });
-      return envoyer(confirme);
+      // UNE seule relance automatique, jamais de boucle.
+      if (dejaRelance) return setPhrase({ texte: "Le prix a changé, réessayez.", ton: "refus" });
+      return envoyer(confirme, true);
     }
     if (issue.statut === "refusee") return setPhrase({ texte: issue.phrase, ton: "refus" });
     setRelance({ tentatives: t.tentatives, etape: echec?.nom });

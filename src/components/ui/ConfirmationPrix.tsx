@@ -8,9 +8,9 @@ import { FeuilleBas } from "./FeuilleBas";
 import { Icone } from "./Icone";
 
 /**
- * Feuille « Confirmer ce prix » (relecture paquet 4, exactitude D2) : remplace `window.confirm`. Elle montre le MONTANT
- * renvoyé par le serveur avec `CONFIRMATION_REQUISE`, et rend ce montant à l'appelant, qui le renvoie au serveur : un
- * prix du jour plus haut est refusé (Will revoit le nouveau prix). Sans montant (simple question), elle rend `true`.
+ * Feuille « Confirmer » (remplace `window.confirm`) : réservée aux simples questions SANS montant (elle rend `true`).
+ * Un montant renvoyé par le serveur avec `CONFIRMATION_REQUISE` est accepté tout de suite par `confirmerPrix`, qui le rend
+ * à l'appelant pour qu'il le renvoie au serveur ; le prix reste affiché ailleurs à titre d'information.
  * À placer une fois (layout racine) : `<HoteConfirmationPrix />`.
  */
 interface Demande {
@@ -32,8 +32,12 @@ function abonner(f: () => void) {
   return () => void abonnes.delete(f);
 }
 
-/** Ouvre la feuille ; renvoie le montant confirmé (centimes), `true` sans montant, ou `null` si Will renonce. */
+/**
+ * Règle du 25/10/2026 : le prix ne bloque jamais et personne ne le valide à la main. Un montant connu est rendu tout de
+ * suite (accepté), sans ouvrir la feuille. Sans montant, la feuille s'ouvre ; elle rend `true`, ou `null` si Will renonce.
+ */
 export function confirmerPrix(r: { message: string; montant?: number }): Promise<number | true | null> {
+  if (typeof r.montant === "number" && Number.isFinite(r.montant)) return Promise.resolve(r.montant);
   return new Promise((resoudre) => {
     courante?.resoudre(null);
     publier({ message: r.message, montant: typeof r.montant === "number" && Number.isFinite(r.montant) ? r.montant : undefined, resoudre });

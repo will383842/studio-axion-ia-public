@@ -4,9 +4,8 @@
  * ÉCRAN 4 · LA FABRICATION (lot L16, plan § 8). Les étapes, une par bloc, avec leur état (faite, en cours, à venir,
  * arrêtée) et la dépense : ce qui est engagé face au plafond de la vidéo, et la voix réellement payée. L'écran se relit
  * seul toutes les quelques secondes tant que la fabrication avance. Un arrêt dit quoi en une phrase et propose
- * « Refaire cette partie » (seule l'étape arrêtée repart ; ce qui est payé reste). Hors fabrication en cours, « Relever le
- * plafond » demande un nouveau montant (proposé : l'engagé plus le pire coût restant), le fait confirmer (feuille
- * « Confirmer ce prix »), puis le pose ; « Relever et reprendre » relance aussi l'étape arrêtée.
+ * « Refaire cette partie » (seule l'étape arrêtée repart ; ce qui est payé reste). Règle du 25/10/2026 : le prix ne bloque
+ * jamais et rien ne demande d'accorder un prix ; la jauge de dépense reste une simple information.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,22 +17,15 @@ import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { PrevenirTelephone } from "@/components/fabrication/PrevenirTelephone";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
-import { Champ } from "@/components/ui/Champ";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonArreter } from "@/components/videos/BoutonArreter";
 import type { Montant } from "@/domaine/types";
-import { envoyerReprise, jusquALaReprise, releverPlafond } from "./reprise";
+import { refaireCettePartie } from "./reprise";
 import { euros, type VueFabrication } from "./vue";
 import { etatSuiviIV, versSuiviFabricationIV } from "./vues-gabarit";
 
 /** Relecture de l'avancement (ms). */
 const RELECTURE_MS = 4000;
-
-/** Montant saisi en euros (« 4,50 ») → centimes ; `null` : illisible. */
-function centimesDe(saisie: string): number | null {
-  const n = Number(saisie.replace(/\s|€/g, "").replace(",", "."));
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
-}
 
 export function Fabrication({
   videoId,
@@ -48,6 +40,7 @@ export function Fabrication({
   vue: VueFabrication;
   enCours: boolean;
   ecran: string;
+  /** Arrêt sur le plafond : « Refaire cette partie » relève au montant proposé puis reprend, sans saisie. */
   plafond?: { proposeCentimes: number; arrete: boolean };
   /** Présent seulement si l'arrêt est tenu (travail du studio en cours, pas le lanceur) : sinon pas de bouton « Arrêter ». */
   arret?: { travailId: string; depense: Montant };
@@ -57,7 +50,6 @@ export function Fabrication({
   const router = useRouter();
   const [occupe, setOccupe] = useState(false);
   const [phrase, setPhrase] = useState<string | null>(null);
-  const [saisie, setSaisie] = useState<string | null>(null);
 
   // Tant que la fabrication avance, l'écran relit son état ; la page ne se recharge que si quelque chose a changé.
   const signature = JSON.stringify(vue);
@@ -80,26 +72,9 @@ export function Fabrication({
     setOccupe(true);
     setPhrase(null);
     try {
-      const fin = await jusquALaReprise(videoId, await envoyerReprise(videoId));
+      const fin = await refaireCettePartie(videoId, plafond);
       if (fin) return setPhrase(fin);
       notifier.succes("C'est reparti");
-      router.refresh();
-    } finally {
-      setOccupe(false);
-    }
-  }
-
-  async function relever(reprendre: boolean) {
-    if (occupe || saisie === null) return;
-    const montant = centimesDe(saisie);
-    if (montant === null) return setPhrase("Indiquez un montant en euros.");
-    setOccupe(true);
-    setPhrase(null);
-    try {
-      const fin = await releverPlafond(videoId, montant, reprendre);
-      if (fin) return setPhrase(fin);
-      setSaisie(null);
-      notifier.succes(reprendre ? "Plafond relevé : c'est reparti" : "Plafond relevé");
       router.refresh();
     } finally {
       setOccupe(false);
@@ -171,42 +146,6 @@ export function Fabrication({
         }
       />
 
-      {plafond && !enCours && (
-        <Carte className={plafond.arrete ? "border-orange" : undefined}>
-          {saisie === null ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-texte-doux">{plafond.arrete ? "Le plafond de cette vidéo est atteint : relevez-le pour continuer." : "Besoin de plus de marge pour cette vidéo ?"}</p>
-              <Bouton variante={plafond.arrete ? "principal" : "secondaire"} icone="euro" onClick={() => setSaisie((plafond.proposeCentimes / 100).toFixed(2).replace(".", ","))}>
-                Relever le plafond
-              </Bouton>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Champ
-                libelle="Nouveau plafond"
-                inputMode="decimal"
-                value={saisie}
-                onChange={(x) => setSaisie(x.target.value)}
-                suffixe="€"
-                aide={`Proposé : ${euros(plafond.proposeCentimes)} (déjà engagé, plus le pire coût de la suite). Il ne peut que monter.`}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Bouton variante="secondaire" icone="euro" chargement={occupe} onClick={() => void relever(false)}>
-                  Relever le plafond
-                </Bouton>
-                {vue.refus?.reessayable && (
-                  <Bouton icone="reessayer" chargement={occupe} onClick={() => void relever(true)}>
-                    Relever et reprendre
-                  </Bouton>
-                )}
-                <Bouton variante="fantome" disabled={occupe} onClick={() => setSaisie(null)}>
-                  Annuler
-                </Bouton>
-              </div>
-            </div>
-          )}
-        </Carte>
-      )}
       {phrase && (
         <p role="alert" className="text-sm text-brique">
           {phrase}
