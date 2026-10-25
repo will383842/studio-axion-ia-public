@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { fluxZip, type EntreeFluxZip, type SourceZip } from "@/lib/zip";
+import { ouvrirAdresseDe } from "@/lib/ouvrir-adresse";
+import { fluxZip, type EntreeFluxZip } from "@/lib/zip";
 import { sessionApi } from "@/services/auth";
 import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { dependancesContinus } from "@/visuels/continu/services/production-continus";
@@ -22,14 +23,7 @@ export async function GET(requete: NextRequest, ctx: { params: Promise<{ id: str
   }
   const cookie = requete.headers.get("cookie") ?? "";
   const enc = new TextEncoder();
-  async function ouvrirAdresse(url: string): Promise<SourceZip> {
-    const r = await fetch(new URL(url, requete.nextUrl?.origin ?? "http://localhost"), { headers: url.startsWith("/") ? { cookie } : {}, cache: "no-store" });
-    if (!r.ok || !r.body) {
-      await r.body?.cancel().catch(() => undefined);
-      throw new Error(`fichier illisible (${r.status})`);
-    }
-    return r.body;
-  }
+  const ouvrirAdresse = ouvrirAdresseDe(requete.nextUrl?.origin ?? "http://localhost", cookie);
   const entrees: EntreeFluxZip[] = contenu.entrees.map((e) => ({ nom: e.nom, ouvrir: async () => ("contenu" in e ? enc.encode(e.contenu) : ouvrirAdresse(e.url)) }));
   return new NextResponse(fluxZip(entrees), {
     headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${encodeURIComponent(contenu.nom)}"`, "Cache-Control": "no-store" },

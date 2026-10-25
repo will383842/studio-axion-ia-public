@@ -6,7 +6,7 @@ import { obtenirServiceRendu } from "@/fournisseurs/rendu/client";
 import { depots, ecrireParametre, fournisseur, lireParametre, maintenant, sousVerrou } from "@/services/_commun";
 import { generateurAllume } from "@/visuels/interrupteur";
 import { dependancesCarrousels } from "@/visuels/services/production";
-import type { DependancesContinus } from "./carrousels-continus";
+import { PaquetSessionToile, type DependancesContinus } from "./carrousels-continus";
 import { rendreToile, type RegistreToiles, type ResultatRenduToile } from "./rendu-toile";
 
 /**
@@ -46,8 +46,9 @@ function texteProvisoire(demande: DemandeTexteCarrousel): FournisseurTexteCarrou
     return {
       mode: "session",
       async ecrire(d) {
-        const paquet = JSON.parse(d.type === "paquet-session" ? d.contenu : "{}") as { titre?: string; pourquoi?: string[]; toile?: unknown };
-        return { titre: paquet.titre ?? "Carrousel continu", spec: paquet.toile, pourquoi: paquet.pourquoi ?? [], mode: "session" };
+        // Un paquet mal formé lève ici : la fiche passe en « bloque » avec la phrase de lecture.
+        const paquet = PaquetSessionToile.parse(JSON.parse(d.type === "paquet-session" ? d.contenu : "{}"));
+        return { titre: paquet.titre, spec: paquet.toile, pourquoi: paquet.pourquoi, mode: "session" };
       },
     };
   }

@@ -88,9 +88,10 @@ export function versionsDe(brute: unknown): VersionsToile {
 }
 
 async function executer(toile: ToileSpecType, versions: VersionsToile, empreinte: string, deps: DependancesRenduToile): Promise<ResultatRenduToile> {
+  // L'interrupteur passe AVANT le court-circuit : éteint, même une toile déjà rendue n'est pas servie.
+  if (!(await deps.allume())) throw new Error("Le générateur de carrousels continus est éteint (Réglages › Carrousels)");
   const connu = await deps.registre.lire(empreinte);
   if (connu) return connu;
-  if (!(await deps.allume())) throw new Error("Le générateur de carrousels continus est éteint (Réglages › Carrousels)");
   const service = deps.rendu();
   const base = `studio/${segmentStockage()}/toiles/${empreinte.slice(0, 32)}`;
   const n = toile.pages.length;
