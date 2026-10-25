@@ -158,6 +158,19 @@ const SCENE_45 = {
   trajectoire: { images: [{ t: 0, cx: 540, cy: 960, zoom: 1 }] },
 } as unknown as SceneAccents;
 const ACCENT_45 = { noeud: "n", t: 1, texte: "2h" };
+/**
+ * Caméra qui bouge PENDANT l'accent : au début (zoom 1) seule la place au-dessus du nœud est libre (le voisin bouche le dessous,
+ * le nœud touche les côtés) ; en zoomant à 1,5 le nœud monte, la place du dessus sort du cadre (sous l'en-tête) : plus aucune place.
+ */
+const SCENE_45_CAMERA = {
+  parId: new Map([noeud45("n", 240, 620, 600, 100), noeud45("voisin", 240, 780, 600, 50)]),
+  trajectoire: { images: [{ t: 0, cx: 540, cy: 960, zoom: 1 }, { t: 1.2, cx: 540, cy: 960, zoom: 1 }, { t: 2.6, cx: 540, cy: 960, zoom: 1.5 }, { t: 5, cx: 540, cy: 960, zoom: 1.5 }] },
+} as unknown as SceneAccents;
+/** 9:16, hors vue d'ensemble : le nœud occupe toute la largeur du cadre, deux voisins le serrent dessus et dessous : aucune place libre, donc surimpression et filet. */
+const SCENE_916_DENSE = {
+  parId: new Map([noeud45("n", 65, 700, 950, 100), noeud45("haut", 65, 560, 950, 130), noeud45("bas", 65, 810, 950, 130)]),
+  trajectoire: { images: [{ t: 0, cx: 540, cy: 960, zoom: 1 }] },
+} as unknown as SceneAccents;
 const grandi = (o: { x: number; y: number; largeur: number; hauteur: number }) => ({ x: o.x - DEBORD_ICONE, y: o.y - DEBORD_COCHE, largeur: o.largeur + DEBORD_ICONE + DEBORD_HACHURES, hauteur: o.hauteur + DEBORD_COCHE + DEBORD_HACHURES });
 
 describe("chiffres · correctif : le chiffre qui claque sur une étape déjà posée", () => {
@@ -261,6 +274,32 @@ describe("chiffres · correctif : le chiffre qui claque sur une étape déjà po
     expect(placeAccent(SCENE_45, ACCENT_45, 1.2, 1350)).not.toBeNull();
   });
 
+  it("4:5 : décidé UNE fois par accent, jamais un mélange d'images sans badge et d'images avec badge (caméra qui bouge, une place disparaît)", () => {
+    // Le scénario est réel : image par image (sans la décision d'ensemble), la place existe au début puis disparaît.
+    const brut: boolean[] = [];
+    for (let t = 1; t <= 2.9; t += 1 / 30) brut.push(placeAccent(SCENE_45_CAMERA, ACCENT_45, t, 1350, false) !== null);
+    expect(brut[0]).toBe(true);
+    expect(brut.at(-1)).toBe(false);
+    // Décision d'accent : tout ou rien.
+    const suite: (boolean)[] = [];
+    for (let t = 1; t <= 2.9; t += 1 / 30) suite.push(placeAccent(SCENE_45_CAMERA, ACCENT_45, t, 1350) !== null);
+    expect(new Set(suite).size).toBe(1);
+    // Cartes d'essai : même règle sur chaque accent de chaque toile.
+    for (const nom of Object.keys(IMAGES) as (keyof typeof IMAGES)[]) {
+      const ligne = mettreEnSceneIV({ ...entree(nom), format: "4:5", variete: recette("CHI-A") }).ligne;
+      for (const b of ligne.blocs) {
+        const accents = (b.variete?.donnees?.chiffres as DonneesChiffresIV | undefined)?.accents;
+        if (b.sorte !== "toile" || !accents?.length) continue;
+        const scene = calculerScene(parametresDuBloc(b, ligne).proprietes as Parameters<typeof calculerScene>[0]) as unknown as SceneAccents;
+        for (const ac of accents) {
+          const etats = new Set<boolean>();
+          for (let t = ac.t; t <= ac.t + 1.9; t += 1 / 30) etats.add(placeAccent(scene, ac, t, 1350) !== null);
+          expect(etats.size, `${nom} · ${ac.texte}`).toBe(1);
+        }
+      }
+    }
+  });
+
   it("4:5, toile synthétique : le badge se pose À CÔTÉ du nœud (pas en surimpression), dans le cadre, hors des boîtes agrandies ; l'ombre du voisin l'écarte du dessous", () => {
     const haut = miseEnPageDeHauteurIV(1350).entete.bas * 1350;
     const p = placeAccent(SCENE_45, ACCENT_45, 1.2, 1350)!;
@@ -330,6 +369,18 @@ describe("chiffres · correctif : le chiffre qui claque sur une étape déjà po
         }
       }
     }
+    // 9:16 hors vue d'ensemble, sans place libre autour du nœud : la surimpression et son filet sont forcés ; le filet passe au-delà des décors.
+    for (let t = 1; t <= 2.9; t += 1 / 30) {
+      const p = placeAccent(SCENE_916_DENSE, ACCENT_45, t, 1920)!;
+      expect(p.surimpression, `9:16 dense à ${t.toFixed(2)} s`).toBeDefined();
+      const boites = boitesEcran(SCENE_916_DENSE, ACCENT_45, t, 1920)!;
+      const tous = [boites.noeud, ...boites.obstacles].filter((o) => o.y + o.hauteur > p.y + p.hauteur);
+      const xm = p.surimpression!.filet[1].x;
+      const droite = Math.max(...tous.map((o) => o.x + o.largeur));
+      const gauche = Math.min(...tous.map((o) => o.x));
+      expect(xm >= Math.min(1070, droite + DEBORD_HACHURES + 14) || xm <= Math.max(10, gauche - DEBORD_ICONE - 14), `filet 9:16 dense à ${t.toFixed(2)} s`).toBe(true);
+      filets++;
+    }
     // 4:5 : plus aucune surimpression (le badge sans place n'est pas dessiné) ; l'échantillon 4:5 est la toile synthétique + les badges posés à côté.
     for (let t = 1; t <= 2.9; t += 1 / 30) {
       const p = placeAccent(SCENE_45, ACCENT_45, t, 1350)!;
@@ -338,9 +389,8 @@ describe("chiffres · correctif : le chiffre qui claque sur une étape déjà po
     }
     expect(vus916).toBeGreaterThan(10);
     expect(vus45).toBeGreaterThan(0);
-    // Les filets viennent du 9:16 seul : aucun n'est compté pour 1350 (la boucle exige 1920 dès qu'un filet existe). En 9:16 la
-    // surimpression n'arrive que dans la vue d'ensemble (sautée ici, testée plus bas) : le compte peut être nul.
-    expect(filets).toBeGreaterThanOrEqual(0);
+    // Les filets viennent du 9:16 seul (la boucle exige 1920 dès qu'un filet existe) : ceux de la toile 9:16 dense forcent la vérification de la marge.
+    expect(filets).toBeGreaterThan(0);
   });
 
   it("vue d'ensemble dense (carte C, « 2h » sur « Client informé ») : le badge passe hors du schéma, relié par un filet", () => {

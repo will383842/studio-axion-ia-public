@@ -45,14 +45,16 @@ function entetesDe(blocs: unknown): Entete[] {
 }
 
 /** Fiche de l'image avec, pour UN écran à la fois, ces lignes à l'écran ; rend les en-têtes de chaque essai. */
-function entetesAvecLignes(nom: Nom, lignes: string[]): Entete[] {
+function entetesAvecLignes(nom: Nom, lignes: string[], textes?: string[]): Entete[] {
   const base = FICHES_SIMULEES[IMAGES[nom]];
   const tous: Entete[] = [];
   base.ecrans.forEach((e, i) => {
     if (!e.textesEcran?.length) return;
     const fiche: FicheImage = structuredClone(base);
     fiche.ecrans[i].textesEcran = lignes;
-    tous.push(...entetesDe(mettreEnSceneIV(entree(nom, fiche)).ligne.blocs));
+    const blocs = mettreEnSceneIV(entree(nom, fiche)).ligne.blocs;
+    tous.push(...entetesDe(blocs));
+    textes?.push(JSON.stringify(blocs));
   });
   return tous;
 }
@@ -61,8 +63,11 @@ const pourcentages = (t: string) => new Set([...t.matchAll(/(\d+)\s*%/g)].map((m
 
 describe("en-tête · la seconde ligne devient étiquette seulement si elle précède le titre", () => {
   it("« *80%* — Réponse connue » puis « 20% — Limite atteinte » (non relançable) : aucun en-tête n'a « 20% — Limite atteinte » en étiquette", () => {
-    const entetes = entetesAvecLignes("C", ["*80%* — Réponse connue", "20% — Limite atteinte"]);
+    const textes: string[] = [];
+    const entetes = entetesAvecLignes("C", ["*80%* — Réponse connue", "20% — Limite atteinte"], textes);
     expect(entetes.some((e) => /Réponse connue/.test(e.titre)), "le titre est bien montré").toBe(true);
+    // Le texte voulu n'est pas perdu : « Limite atteinte » reste écrit à l'écran (en-tête relancé ou autre élément du bloc).
+    expect(textes.some((t) => /Limite atteinte/.test(t)), "« Limite atteinte » est encore à l'écran").toBe(true);
     for (const e of entetes) expect(e.etiquette, JSON.stringify(e)).not.toMatch(/20\s*%\s*—\s*Limite atteinte/);
   });
 
@@ -103,6 +108,21 @@ describe("en-tête · l'étiquette de repli n'est jamais la marque", () => {
       expect(repli.length).toBeGreaterThan(0);
     });
   }
+
+  it("l'étiquette vide d'un en-tête n'est pas remplacée à tort par « Vue d'ensemble » à cause de la scène du premier écran du bloc", () => {
+    const temoin = entetesDe(mettreEnSceneIV(entree("C", FICHES_SIMULEES[IMAGES.C], sansGroupes("Chatbot support client"))).ligne.blocs);
+    const marque = entetesDe(mettreEnSceneIV(entree("C", FICHES_SIMULEES[IMAGES.C], sansGroupes("Axion-IA"))).ligne.blocs);
+    expect(marque).toHaveLength(temoin.length);
+    temoin.forEach((t, k) => {
+      if (t.etiquette === "Chatbot support client") expect(["", "Vue d'ensemble"], `en-tête ${k}`).toContain(marque[k].etiquette);
+      else expect(marque[k].etiquette, `en-tête ${k}`).toBe(t.etiquette);
+      expect(marque[k].titre, `en-tête ${k}`).toBe(t.titre);
+    });
+    // Les en-têtes de repli d'écrans qui ne sont pas l'ensemble restent vides : « Vue d'ensemble » ne dépasse pas celui des écrans d'ensemble.
+    const nbEnsemble = (ligne: ReturnType<typeof mettreEnSceneIV>["ligne"]) => ligne.blocs.reduce((n, b) => n + (b.sorte === "toile" ? (b.proprietes.ensembles?.length ?? 0) : 0), 0);
+    const ligne = mettreEnSceneIV(entree("C", FICHES_SIMULEES[IMAGES.C], sansGroupes("Axion-IA"))).ligne;
+    expect(marque.filter((e) => e.etiquette === "Vue d'ensemble").length).toBeLessThanOrEqual(Math.max(nbEnsemble(ligne), 1) * 2);
+  });
 
   it("la carte C (avec ses groupes), titrée « Axion-IA », garde ses étiquettes de groupe", () => {
     const groupes = (es: Entete[]) => es.filter((e) => e.etiquette === "Réponse connue" || e.etiquette === "Limite atteinte").length;

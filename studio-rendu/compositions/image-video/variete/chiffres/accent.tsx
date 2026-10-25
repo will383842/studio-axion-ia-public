@@ -78,7 +78,14 @@ export type PlaceAccent = RectRendu & { surimpression?: { noeud: RectRendu; file
  * 2. Sinon, en 4:5 : `null` (pas de badge). En 9:16 (vue d'ensemble dense : aucun espace libre), en surimpression hors du schéma, dans la bande libre entre la
  *    marque et l'étiquette de l'en-tête, au-dessus du nœud (réduit à 72 px), avec un filet vers le nœud par la marge.
  */
-export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number, hauteurEcran = ECRAN_IV.hauteur): PlaceAccent | null {
+export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number, hauteurEcran = ECRAN_IV.hauteur, uneSeuleFois = true): PlaceAccent | null {
+  // 4:5 : la décision « badge ou rien » se prend UNE fois pour tout l'accent. La caméra bouge pendant qu'il tient : une place
+  // libre à côté du nœud peut disparaître en cours de route ; sans cela le badge clignoterait (posé sur certaines images, absent sur d'autres).
+  if (uneSeuleFois && miseEnPageDeHauteurIV(hauteurEcran).format === "4:5") {
+    const fin = ac.t + TENUE_SEC + 0.3;
+    for (let s = ac.t; s <= fin + 1e-9; s += 1 / 30) if (!placeAccent(scene, ac, Math.min(s, fin), hauteurEcran, false)) return null;
+    if (!placeAccent(scene, ac, fin, hauteurEcran, false)) return null;
+  }
   const b = boitesEcran(scene, ac, t, hauteurEcran);
   if (!b) return null;
   const n = b.noeud;

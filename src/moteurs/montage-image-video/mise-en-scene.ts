@@ -743,7 +743,10 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
     if (p.couverts.length && p.t - dernier.t >= 1.2) els.push(nouvelEl(c, "entete", p.chiffres.length ? "chiffre" : "objet", p.t, { texte: `${etiquette}|${autre}`, chiffres: p.chiffres, couverts: p.couverts, coupe: true }));
     // 25/10 : la seconde ligne ne passe en étiquette que si elle PRÉCÈDE le titre ; après lui, « 20 % — Limite atteinte » au-dessus de
     // « 80 % — Réponse connue » se contredisait.
-    else if (lignes.indexOf(autre) < lignes.indexOf(titre)) dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
+    // Après le titre, nommée trop tôt pour relancer, sans chiffre à montrer sur son mot : elle relance l'en-tête 1,2 s après le dernier, s'il reste de la place avant la fin de l'écran.
+    else if (lignes.indexOf(autre) > lignes.indexOf(titre)) {
+      if (p.couverts.length && !p.chiffres.length && dernier.t + 1.2 < c.fin - 0.3) els.push(nouvelEl(c, "entete", "objet", arrondi(dernier.t + 1.2), { texte: `${etiquette}|${autre}`, chiffres: [], couverts: p.couverts, coupe: true }));
+    } else dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
   }
 }
 
@@ -2178,7 +2181,8 @@ function entetesDe(lot: EcranPlace[], debut: number, fin: number, carte: CarteIm
   const rel = (t: number) => arrondi(Math.max(0, t - debut));
   const bruts = lot.flatMap((p) => p.els.filter((x) => x.role === "entete")).map((x) => {
     const [etiquette, titre] = (x.texte ?? "").split("|");
-    return { t: rel(x.t), etiquette: etiquette || etiquetteDeRepli(carte, lot[0]?.c.e.scene), titre: titre || etiquette };
+    // Texte « étiquette|titre » : l'étiquette est déjà décidée (éventuellement vide, par `etiquetteDeRepli` avec la scène de SON écran) ; le repli ne sert qu'au texte sans « | ».
+    return { t: rel(x.t), etiquette: (x.texte ?? "").includes("|") ? etiquette : etiquette || etiquetteDeRepli(carte, lot[0]?.c.e.scene), titre: titre || etiquette };
   });
   return bruts.map((x, k) => ({ debut: x.t, fin: k + 1 < bruts.length ? bruts[k + 1].t : rel(fin), etiquette: x.etiquette, titre: x.titre }));
 }
@@ -2193,7 +2197,7 @@ function blocMoments(id: string, lot: EcranPlace[], carte: CarteImage, debut: nu
   const ent = els.filter((x) => x.role === "entete");
   const entetes = ent.map((x) => {
     const [etiquette, titre] = (x.texte ?? "").split("|");
-    return { t: x.t, entete: { etiquette: etiquette || etiquetteDeRepli(carte, e.scene), titre: titre || etiquette } };
+    return { t: x.t, entete: { etiquette: (x.texte ?? "").includes("|") ? etiquette : etiquette || etiquetteDeRepli(carte, e.scene), titre: titre || etiquette } };
   });
   let corps: MomentIV;
   // Un écran « carte-bénéfice » qui cite plusieurs bénéfices est un récapitulatif (`sorteDe`) : jamais un moment vide.
