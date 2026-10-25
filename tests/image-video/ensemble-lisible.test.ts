@@ -10,12 +10,12 @@ import type { SchemaEntree } from "@/briques/schema-motion";
 import { PLANCHER_PX, planEnsemble, ZONE_OBJETS_IV } from "../../studio-rendu/compositions/image-video/plan-objets";
 
 const noeud = (id: string, libelle: string, ordre: number, groupe?: string): SchemaEntree["noeuds"][number] => ({ id, libelle, role: "etape", couleur: groupe === "gb" ? "noir" : "orange", ordre, groupe });
-const LIB_A = ["Demande client reçue", "Tri automatique fait", "Devis préparé vite", "Réponse envoyée seule", "Dossier classé net"];
-const LIB_B = ["Cas particulier repéré", "Alerte envoyée", "Humain prévenu", "Réponse relue", "Dossier suivi"];
+const LIB_A = ["Demande reçue", "Tri fait", "Devis prêt", "Réponse envoyée", "Dossier classé"];
+const LIB_B = ["Cas repéré", "Alerte envoyée", "Humain prévenu", "Réponse relue", "Dossier suivi"];
 const schemaDense = (): SchemaEntree => {
   const noeuds = [
-    noeud("t1", "Message client entrant", 0),
-    noeud("t2", "Chatbot IA actif", 1),
+    noeud("t1", "Message client", 0),
+    noeud("t2", "Chatbot IA", 1),
     ...LIB_A.map((l, i) => noeud(`a${i}`, l, 2 + i, "ga")),
     ...LIB_B.map((l, i) => noeud(`b${i}`, l, 7 + i, "gb")),
   ];

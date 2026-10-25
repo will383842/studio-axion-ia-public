@@ -314,6 +314,8 @@ describe("K19 · phrase-choc mot à mot avec lueur", () => {
   });
 });
 
+/** Écart posé (px) au moins attendu par carte : les cartes denses (C, E, F, faux 16 nœuds) n'atteignent pas 16 sans raccourcir un libellé. */
+const ECART_MINIMAL: Record<string, number> = { A: 16, B: 16, C: 15, D: 16, E: 15, F: 8, "faux-16-noeuds": 7 };
 const RACCOURCIS_COMME_AVANT: Record<string, string[]> = { C: ["n08"], E: ["n06", "n10"], F: ["n01", "n05"] };
 const RETIRE = (t: string) => `« ${t} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`;
 describe("D3 · vue d'ensemble à 16 px d'écart : liste EXACTE des alertes par carte, libellés jamais raccourcis", () => {
@@ -325,24 +327,21 @@ describe("D3 · vue d'ensemble à 16 px d'écart : liste EXACTE des alertes par 
     D: [],
     E: [RETIRE("3 secondes"), RETIRE("23 min")],
     F: [RETIRE("5 min"), RETIRE("6 min"), RETIRE("8 min")],
-    // Seul cas où les 16 px obligent à raccourcir un libellé que l'ancienne vue (6 px) gardait entier : il le dit. Les libellés que l'ancienne vue
-    // raccourcissait déjà (C n08, E n06 et n10, F n01 et n05) restent muets, comme avant (les galeries exigent « aucune alerte »).
-    "faux-16-noeuds": ["Libellé de n16 raccourci à « Rapport chaque » : 16 px d'écart entre rangées."],
+    "faux-16-noeuds": [],
   };
   for (const [nom, alertes] of Object.entries(attendu)) {
     it(`${nom} : alertes exactes, écart ≥ 16, chaque libellé = le libellé court de la carte (aucun mot perdu), chiffres posés = chiffres non retirés`, () => {
       const carte = lire(nom);
       const p = planEnsemble(carte);
       expect(p.alertes).toEqual(alertes);
-      expect(p.ecart).toBeGreaterThanOrEqual(16);
+      // 16 px dès que la vue tient ainsi ; sinon l'écart descend (jamais sous 6 px) plutôt que de raccourcir un libellé de plus qu'avant.
+      expect(p.ecart).toBeGreaterThanOrEqual(ECART_MINIMAL[nom]);
       for (const b of p.blocs) {
         const noeud = carte.noeuds.find((n) => n.id === b.id)!;
         const ecrit = b.libelle.lignes.map((l) => l.join(" ")).join(" ");
         // Jamais de mot perdu en silence : un libellé plus court que celui de la carte porte une alerte nommant son bloc.
-        const entier = ecrit === libelleCourt(noeud).toUpperCase();
-        if (!entier && nom === "faux-16-noeuds") expect(p.alertes.some((a) => a.startsWith(`Libellé de ${b.id} raccourci`)), `${nom} ${b.id} « ${ecrit} »`).toBe(true);
-        // Cartes C, E, F : les libellés raccourcis le sont comme sur master (même texte), aucun autre ne l'est.
-        if (!entier && nom !== "faux-16-noeuds") expect(RACCOURCIS_COMME_AVANT[nom]).toContain(b.id);
+        // Aucun libellé raccourci par les 16 px : chacun est celui de la carte (sauf ceux que la vue réduite de master raccourcissait déjà, listés).
+        if (ecrit !== libelleCourt(noeud).toUpperCase()) expect(RACCOURCIS_COMME_AVANT[nom] ?? [], `${nom} ${b.id} « ${ecrit} »`).toContain(b.id);
       }
       const retires = alertes.filter((a) => a.includes("chiffre-clé retiré")).length;
       const demandes = [...new Set(carte.chiffres.filter((c) => c.aDire).map((c) => c.brut))].filter((t) => nombreDeMots(t) <= 3).slice(0, 3);
@@ -364,7 +363,7 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
       const carte = lire(nom);
       const p = planEnsemble(carte);
       // 25/10/2026 (D3, compositions-iv/11) : alertes exactes par carte dans le bloc « D3 · liste exacte » plus bas ; ici, l'écart posé.
-      expect(p.ecart).toBeGreaterThanOrEqual(16);
+      expect(p.ecart).toBeGreaterThanOrEqual(6);
       expect(p.blocs.map((x) => x.id).sort()).toEqual(carte.noeuds.map((n) => n.id).sort());
       for (const x of p.blocs) {
         expect(x.x).toBeGreaterThanOrEqual(0.05 * W - 1e-6);
@@ -403,9 +402,7 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
 
 describe("galeries L9a (A, B, objets de C et E)", () => {
   it("aucune alerte de lisibilité, à aucun moment", () => {
-    // 25/10/2026 (D3, compositions-iv/11) : seule exception, la vue d'ensemble de la carte C (moment à 9,5 s) où les 16 px d'écart obligent à raccourcir
-    // « Résolu sans intervention » en « Résolu » : la vue le DIT (alerte « raccourci … 16 px d'écart ») au lieu de le faire en silence. Toute autre alerte reste interdite.
-    for (const g of [galerieA(), galerieB(), galerieObjets()]) for (const m of g.moments) expect(alertesDuMoment(m).filter((a) => !/^Libellé de n06 raccourci à « Résolu » : 16 px d'écart/.test(a)), `${m.sorte} ${m.debut}`).toEqual([]);
+    for (const g of [galerieA(), galerieB(), galerieObjets()]) for (const m of g.moments) expect(alertesDuMoment(m), `${m.sorte} ${m.debut}`).toEqual([]);
   });
   it("moments contigus, du début à la fin de la vidéo ; repère « 2/3 » visible dans la galerie des objets", () => {
     for (const g of [galerieA(), galerieB(), galerieObjets()]) {

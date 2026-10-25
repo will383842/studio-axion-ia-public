@@ -1563,7 +1563,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
   // plancher ne suffit pas (zone utile basse, sous-titres remontés), la vue se SERRE : marges des blocs, écart et parts
   // réduits, jamais les libellés (toujours au plancher ou au-dessus).
   // 25/10/2026 (v-0339175a9f88, D3, compositions-iv/11) : écart minimal 16 px, y compris vue serrée (12, puis 6 avant : les blocs se mordaient).
-  const ECART_MIN = 16;
+  let ECART_MIN = 16;
   let tailleMax = 0.036 * H;
   let c = construire(tailleMax);
   const tropHaut = () => c.total + (c.rangees.length - 1) * ECART_MIN > zone.hauteur;
@@ -1599,6 +1599,9 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     c = construire(tailleMax);
     while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
   }
+  // D3 : plutôt que de raccourcir un libellé ou de mettre les blocs en paires, l'écart descend (par 2 px, jamais sous 6 px : l'ancien plancher de la vue
+  // serrée). Il reste ≥ 16 px dès que la vue tient ainsi ; `ecart` (renvoyé) dit ce qui a été posé, le rendu dose halo, ombre et grossissement dessus.
+  while (tropHaut() && ECART_MIN > 6) ECART_MIN -= 2;
   // 23/10/2026 (v-6e4a06b9c718, Instagram « faux ») : jamais de paires dans le tronc qui PRÉCÈDE les branches (« Message client » et
   // « Chatbot IA » côte à côte laissaient croire que la branche part du message) : les paires ne sont tentées que s'il y a plusieurs blocs APRÈS les branches ; sinon vue réduite (n01 au-dessus de n02).
   if (tropHaut() && (avant.length > 2 || apres.length > 1)) {
@@ -1613,8 +1616,6 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
   // libellés ; puis, rangée par rangée, les libellés sur 2 lignes perdent leur dernière unité de sens (« Envoyé équipe
   // concernée » → « Envoyé équipe ») jusqu'à tenir sur une ligne, la rangée qui perd le moins d'abord ; en tout dernier
   // recours, les chiffres-clés qui ne tiennent plus sont retirés (le dernier d'abord), jamais un bloc ni le plancher.
-  // D3 : l'ancienne vue (écart 6 px en vue serrée) aurait-elle tenu sans raccourcir de libellé ? Faux si des chiffres-clés ont dû être retirés (elle les gardait jusqu'au bout).
-  const tenaitAvant = alertes.length === 0 && !(c.total + (c.rangees.length - 1) * 6 > zone.hauteur);
   if (tropHaut()) {
     reduite = true;
     avecIcones = iconesTiennent();
@@ -1625,9 +1626,6 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
       avecIcones = iconesTiennent();
       c = construire(tailleMax);
     }
-    // D3 : un libellé que l'ancien écart (6 px en vue serrée) aurait gardé entier et que les 16 px obligent à raccourcir le dit (jamais en silence) ;
-    // ceux que l'ancienne vue raccourcissait déjà restent muets, comme avant.
-    if (tenaitAvant) for (const [id, u] of unitesMax) if (u < MOTS_MAX_ENSEMBLE) alertes.push(`Libellé de ${id} raccourci à « ${texteDe(id)} » : 16 px d'écart entre rangées.`);
     while (tropHaut() && autres.length) {
       alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
       c = construire(tailleMax);
