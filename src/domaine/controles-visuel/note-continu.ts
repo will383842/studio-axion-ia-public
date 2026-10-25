@@ -32,7 +32,7 @@ export interface MesuresNoteToile {
   chevauchements?: number;
   debordCouture1?: number;
   traitsFinsSurCouture?: number;
-  /** Textes à moins de 100 px d'une couture (zone sûre ramenée à 7/10). Absent : non prouvé, 7/10. */
+  /** Textes à moins de 100 px d'une couture (zone sûre ramenée à 7/10). Absent : non mesuré, non prouvé, 7/10. */
   textesPresCouture?: number;
   /** Plus faible rapport de contraste texte/fond mesuré. */
   contrasteMin?: number;
@@ -119,18 +119,29 @@ export function noterToile(toile: unknown, mesures?: MesuresNoteToile, options: 
   // 5. Zone sûre (10) : marges et coin réservé ; 7/10 si un texte frôle une couture (moins de 100 px), ou si ce n'est pas mesuré.
   const manque5 = absent("textesHorsMarge", "textesCoinReserve");
   const sure = zero(m.textesHorsMarge) && zero(m.textesCoinReserve);
+  const presAbsent = !nombre(m.textesPresCouture);
   const pres = !zero(m.textesPresCouture);
   const c5 = manque5.length
     ? critere(5, "Zone sûre", 10, 0, nonMesure(manque5), { nonMesure: true })
-    : critere(5, "Zone sûre", 10, !sure ? 0 : pres ? 7 : 10, !sure ? "Un texte sort de la marge de 80 px ou entre dans le coin réservé." : pres ? "Un texte est à moins de 100 px d'une couture (ou ce n'est pas mesuré)." : "Marges et coin réservé respectés.");
+    : critere(
+        5,
+        "Zone sûre",
+        10,
+        !sure ? 0 : pres ? 7 : 10,
+        !sure ? "Un texte sort de la marge de 80 px ou entre dans le coin réservé." : presAbsent ? `${nonMesure(["textesPresCouture"])} Distance aux coutures non prouvée : 7/10.` : pres ? "Un texte est à moins de 100 px d'une couture." : "Marges et coin réservé respectés.",
+        { nonMesure: sure && presAbsent },
+      );
 
   // 6. Charte, mots interdits, faits (15, éliminatoire : verdict de la porte) ; polices de la charte.
   const verdict = options.verdictPorte ?? controlerToile(toile, options.ctx ?? { faitsDisponibles: false, interditsDans: interditsParDefaut }).rapport.verdict;
-  const policesHors = (m.polices ?? []).filter((p) => !POLICES_CONTINU.includes(p));
+  const policesAbsentes = !Array.isArray(m.polices);
+  const polices = Array.isArray(m.polices) ? m.polices.filter((p): p is string => typeof p === "string") : [];
+  const policesHors = polices.filter((p) => !POLICES_CONTINU.includes(p));
+  const sansPolices = policesAbsentes ? ` ${nonMesure(["polices"])}` : "";
   const c6 =
     verdict === "rouge"
       ? critere(6, "Charte, mots interdits, faits", 15, 0, "La porte est rouge.", { bloquant: true })
-      : critere(6, "Charte, mots interdits, faits", 15, policesHors.length ? 0 : verdict === "orange" ? 12 : 15, policesHors.length ? `Police hors charte : ${policesHors.join(", ")}.` : verdict === "orange" ? "La porte est orange." : "Porte verte.");
+      : critere(6, "Charte, mots interdits, faits", 15, policesHors.length ? 0 : verdict === "orange" ? 12 : 15, (policesHors.length ? `Police hors charte : ${policesHors.join(", ")}.` : verdict === "orange" ? "La porte est orange." : "Porte verte.") + sansPolices, { nonMesure: policesAbsentes });
 
   // 7. Diversité des familles (8) : les règles de variété de la structure.
   const structure = controlesStructureToile({ pages }, gabarits).map((c) => c.code);
