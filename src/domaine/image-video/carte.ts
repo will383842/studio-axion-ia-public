@@ -86,6 +86,8 @@ export const schemaLienCarte = z.strictObject({
   part: z.number().min(0).max(100).optional(),
   couleur: z.enum(COULEURS_IMAGE),
   style: z.enum(["plein", "pointille"]),
+  /** Vrai → flèche NON dessinée sur l'image, déduite par le code de la mise en page (bloc suivant dans sa branche) : à vérifier. */
+  deduit: z.boolean().optional(),
 });
 
 export const schemaGroupeCarte = z.strictObject({
@@ -396,10 +398,47 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
     if (n.icone && iconeDe(n.icone) === null) alertes.push(`Icône inconnue pour « ${n.libelle} » : choisissez-en une.`);
     if (n.photoPersonnes) alertes.push(`« ${n.libelle} » est une photo de personnes : elle ne sera pas reprise, seul son contenu sera redessiné.`);
   }
+  for (const l of carte.liens) {
+    if (l.deduit) alertes.push(`Lien déduit de la mise en page, à vérifier : ${l.vers} suit ${l.de} dans sa branche (aucune flèche n'est dessinée sur l'image).`);
+  }
   for (const c of coherenceDe(carte)) if (!c.ok) alertes.push(`Calcul à vérifier sur l'image : ${c.calcul}.`);
   for (const f of formulesDeLaCarte(carte)) if (!f.choixWill) alertes.push(`Formule très affirmative : « ${f.texte} ». Version prudente proposée.`);
 
   return { ok: erreurs.length === 0, erreurs, alertes };
+}
+
+// ─── Blocs sans flèche posés dans une branche ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Un bloc sans aucune flèche (pastille sous une branche) que la carte range dans UNE branche est relié au bloc qui le
+ * précède dans cette même branche (ordre de lecture), lien marqué `deduit`. Seulement si c'est sans ambiguïté : une seule
+ * branche, un seul prédécesseur d'ordre strictement inférieur et déjà relié, aucun autre bloc de la branche au même ordre.
+ * Sinon le bloc reste isolé (blocage de `controlerCarte`). Le lien n'a ni étiquette ni part : aucun texte ni chiffre ajouté.
+ */
+export function reparerOrphelinsDeBranche(carte: CarteImage): { carte: CarteImage; deduits: LienCarte[] } {
+  const relies = new Set(carte.liens.flatMap((l) => [l.de, l.vers]));
+  const parId = new Map(carte.noeuds.map((n) => [n.id, n]));
+  const idsLiens = new Set(carte.liens.map((l) => l.id));
+  const isoles = carte.noeuds.filter((n) => !relies.has(n.id) && !n.photoPersonnes).sort((a, b) => a.ordre - b.ordre || (a.id < b.id ? -1 : 1));
+  const deduits: LienCarte[] = [];
+  for (const o of isoles) {
+    const groupes = carte.groupes.filter((g) => g.noeuds.includes(o.id));
+    if (groupes.length !== 1 || groupes[0]!.sorte !== "branche" || (o.groupe && o.groupe !== groupes[0]!.id)) continue;
+    const autres = groupes[0]!.noeuds.filter((id) => id !== o.id).map((id) => parId.get(id)).filter((n): n is NoeudCarte => !!n);
+    if (autres.some((n) => n.ordre === o.ordre)) continue;
+    const avant = autres.filter((n) => n.ordre < o.ordre);
+    if (avant.length === 0) continue;
+    const dernierOrdre = Math.max(...avant.map((n) => n.ordre));
+    const dernier = avant.filter((n) => n.ordre === dernierOrdre);
+    if (dernier.length !== 1 || !relies.has(dernier[0]!.id)) continue;
+    const idLien = `d-${dernier[0]!.id}-${o.id}`.slice(0, 40);
+    if (idsLiens.has(idLien)) continue;
+    const lien: LienCarte = { id: idLien, de: dernier[0]!.id, vers: o.id, couleur: "noir", style: "plein", deduit: true };
+    idsLiens.add(idLien);
+    relies.add(o.id);
+    deduits.push(lien);
+  }
+  return deduits.length === 0 ? { carte, deduits } : { carte: { ...carte, liens: [...carte.liens, ...deduits] }, deduits };
 }
 
 // ─── Carte complétée par le code ─────────────────────────────────────────────────────────────────────────────────────
