@@ -53,6 +53,7 @@ import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
+import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -302,6 +303,8 @@ export interface EtatFabricationIV {
   pistes?: PisteVoixSeuleIV[];
   courtes?: CourteIV[];
   scenes?: { version: string; dureeSec: number; empreinte: string }[];
+  /** 25/10 : écrans passés en scène « titre » par le filet de la mise en scène (défaut de détail Q13/Q14), appliqués à toutes les relectures. */
+  ecransAdaptes?: string[];
   rendus?: Record<string, RenduFaitIV>;
   /** Transcriptions et relectures déjà payées (reprise de la porte sans repayer). */
   controles?: { transcriptions: VerdictPorteIV["transcriptions"]; relectures: VerdictPorteIV["relectures"]; verdict?: ResumePorteIV };
@@ -985,7 +988,7 @@ const nomVersion = (v: Pick<VersionIV, "reseaux" | "courte" | "format">) => `${v
 function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly BruitageValideIV[]): EntreeMiseEnSceneIV {
   return {
     carte: v.courte ? carteSansRetires(e.carte!.carte, v.noeudsRetires ?? []) : e.carte!.carte,
-    fiche: v.fiche,
+    fiche: ficheAdapteeIV(v.fiche, e.ecransAdaptes),
     voix: { mots: v.piste.mots, motsCorps: v.piste.motsCorps, dureeSec: v.piste.dureeSec, finVoixSec: v.piste.finVoixSec },
     fin: v.fin,
     reseaux: v.reseaux,
@@ -1362,8 +1365,13 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   const scenes: NonNullable<EtatFabricationIV["scenes"]> = [];
   const phrases: string[] = [];
   for (const v of versionsDe(e)) {
-    const r = mettreEnSceneIV(sceneDe(e, v, bruitages));
-    if (!r.ok) phrases.push(...r.phrases.map((p) => `${nomVersion(v)} · ${p}`));
+    // 25/10 (zéro blocage, v-b54bb4798246) : un défaut de détail (Q13 chiffre non montré, Q14 rythme) ne refuse plus la vidéo :
+    // les écrans cités passent en texte seul (3 essais au plus) ; s'il persiste, la vidéo continue et le défaut reste au journal.
+    const issue = mettreEnSceneAvecFiletIV((adaptes) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, adaptes) }), e.ecransAdaptes, nomVersion(v));
+    if (issue.adaptes.length) e.ecransAdaptes = [...new Set([...(e.ecransAdaptes ?? []), ...issue.adaptes])];
+    e.journal.push(...issue.journal);
+    const r = issue.resultat;
+    if (issue.refus.length) phrases.push(...issue.refus.map((p) => `${nomVersion(v)} · ${p}`));
     scenes.push({ version: v.id, dureeSec: r.ligne.dureeSec, empreinte: empreinteDe(r.ligne) });
   }
   if (phrases.length) return refuser(e, "mise-en-scene", "IV_MISE_EN_SCENE", `La mise en scène est refusée : ${phrases[0]}`, { phrases, reessayable: false });
