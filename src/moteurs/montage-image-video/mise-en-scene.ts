@@ -56,6 +56,7 @@ import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
 import { sousTitresIV, type MotFort, type SousTitresIV } from "./sous-titres";
 import { appliquerVarieteIV, type RepliVarieteIV } from "./variete";
+import { afficheIV, type AfficheIV } from "./variete/axes/ouverture";
 
 /* ------------------------------------------------------------------ */
 /* Réglages                                                              */
@@ -213,6 +214,11 @@ export interface LigneDeTempsIV {
    * fin (`queue-fin.ts`), dans le dernier bloc : la queue exigée par Q19 n'est plus une image figée hors voix (Q24).
    */
   queue?: QueueFinIV;
+  /**
+   * Affiche de la première image (aperçu des réseaux) : l'accroche écrite en entier, posée par-dessus le premier bloc
+   * pendant `images` image(s) seulement (`variete/axes/ouverture.ts`). Absente si l'accroche n'a aucun texte.
+   */
+  affiche?: AfficheIV;
 }
 
 export interface ResultatMiseEnSceneIV {
@@ -588,6 +594,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
   const chiffresDits = chiffresDitsDesEcrans();
   // 12. Queue de fin : du dernier mot des sous-titres (ce qui « parle » pour l'image figée) à la fin de la vidéo.
   const queue = queueDeFinIV(Math.max(0, ...sousTitres.groupes.flatMap((g) => g.mots.map((m) => m.finSec))), dureeSec);
+  const affiche = afficheIV(carte, fiche);
   const ligne: LigneDeTempsIV = {
     version: entree.fin?.id ?? "corps",
     reseaux: [...entree.reseaux],
@@ -607,6 +614,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
     partCalee: calage.partCalee,
     ...(entree.variete ? { variete: { recette: entree.variete, format, replis } } : {}),
     ...(queue ? { queue } : {}),
+    ...(affiche ? { affiche } : {}),
   };
   const rapport = controlerMiseEnSceneIV(ligne, { carte, fiche, reseaux: entree.reseaux, bruitages: poses, voix: calage.voix });
   return { ok: rapport.bloquants.length === 0, ligne, rapport, phrases: rapport.bloquants.map((b) => b.phrase) };
