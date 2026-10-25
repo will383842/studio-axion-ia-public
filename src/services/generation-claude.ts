@@ -461,9 +461,9 @@ export function plafondAnnonceUsd(g: Pick<GenerationScript, "plafondUsd" | "etap
  * Contrôle du plafond du sujet ET réservation de l'estimation, d'un seul tenant sous le verrou des étapes : deux appels
  * partis ensemble (`Promise.all`) voient chacun la réservation de l'autre. La réservation est rendue quand l'étape
  * « lancée » est écrite (`ajouterEtape(…, true)`) ou quand l'appel ne part pas.
- * `indicatif` (mode budget indicatif, commande de Will) : le plafond ne refuse plus, il prévient ; refus seulement à 5 × le plafond.
+ * `indicatif` (mode budget indicatif, commande de Will) : le plafond ne refuse plus, il prévient ; jamais de refus (le prix ne bloque jamais).
  */
-export async function reserverDansPlafondSujet(generationId: Id, appelId: string, usd: number, indicatif = false): Promise<{ ok: true } | { ok: false; plafondUsd: number; securite?: true }> {
+export async function reserverDansPlafondSujet(generationId: Id, appelId: string, usd: number, indicatif = false): Promise<{ ok: true } | { ok: false; plafondUsd: number }> {
   let depassement: string | null = null;
   const r = await sousVerrouEtapes(async () => {
     const g = await depots().generations.obtenir(generationId);
@@ -645,16 +645,9 @@ export async function executerRoleFacture<S extends z.ZodType>(generationId: Id,
   const place = await reserverDansPlafondSujet(g.id, appelId, estimationRealisteRole(role, entree), indicatif);
   if (!place.ok) {
     await d.generations.modifier(g.id, { statut: "plafond-atteint" });
-    const securite = "securite" in place && place.securite;
-    if (securite) {
-      // L'écran lit cette réserve (`phraseReserveRefusee`) : elle doit dire l'arrêt de sécurité, pas rester « acceptée ».
-      // Seulement si une réserve de chaîne existait déjà : sinon l'écriture « sans réserve » (déjà en route) passerait au régime « réserve ».
-      const avant = await lireReserveChaine(g.id);
-      const depenseUsd = depenseGenerationUsd(g);
-      if (avant) await ecrireParametre(paramReserveChaine(g.id), { ...avant, pireCasUsd: depenseUsd + estimationRealisteRole(role, entree), depenseUsd, plafondUsd: g.plafondUsd, accepte: false, securite: true, le: maintenant() } satisfies ReserveChaine);
-    }
-    await journaliser("generateur", securite ? `Arrêt de sécurité : cette écriture dépasserait ${FACTEUR_SECURITE_BUDGET} fois le plafond du sujet (${plafondAnnonceUsd(g).toFixed(2)} $) : elle s'arrête là` : `Plafond du sujet atteint (${g.plafondUsd.toFixed(2)} $) : l'écriture s'arrête là`, { type: "sujet", id: g.scriptMaitreId });
-    return { ok: false, arret: "plafond-atteint", message: securite ? phraseArretSecuriteEcriture(plafondAnnonceUsd(g)) : "Plafond du sujet atteint : on garde ce qui est écrit." };
+    // Plus d'arrêt de sécurité à 5 × : seul le mode bloquant refuse (les anciennes réserves `securite` restent lues par `phraseReserveRefusee`).
+    await journaliser("generateur", `Plafond du sujet atteint (${g.plafondUsd.toFixed(2)} $) : l'écriture s'arrête là`, { type: "sujet", id: g.scriptMaitreId });
+    return { ok: false, arret: "plafond-atteint", message: "Plafond du sujet atteint : on garde ce qui est écrit." };
   }
 
   let etapeEcrite = false;
@@ -995,7 +988,7 @@ export interface ReserveChaine {
   chaine?: ChaineEcriture;
   /** Réglage à relever pour qu'elle passe : celui de la chaîne (sujet) ou du supplément (relecture A09). */
   reglage?: string;
-  /** Arrêt de sécurité (indicatif) : le pire cas dépasse 5 × le plafond ; l'écran ne propose pas de relever le réglage. */
+  /** ANCIENNE réserve (avant le 25/10) : arrêt de sécurité (indicatif), toujours lue pour les écritures déjà arrêtées ; plus écrite. Le pire cas dépasse 5 × le plafond ; l'écran ne propose pas de relever le réglage. */
   securite?: boolean;
   le: string;
 }

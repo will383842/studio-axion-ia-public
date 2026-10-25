@@ -168,6 +168,19 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     expect(c.appels.length).toBeGreaterThan(0);
     expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
   }, 90_000);
+
+  it("« Reprendre » en indicatif sans relever le plafond (pire/8, bien au-delà de 5 ×) : la reprise reste possible, jamais plafonnée", async () => {
+    const pire = await pireCasDeLaGrandeChaine();
+    await ecrireParametre("budget.mode", "bloquant");
+    await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
+    const r = await lancer(2);
+    if (!r.ok) throw new Error("lancement");
+    await bg.tourBoucleGeneration();
+    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    await ecrireParametre("budget.mode", "indicatif");
+    const e = await bg.etatEcriture(r.scriptMaitreId);
+    expect(e?.reprise.possible).toBe(true);
+  }, 90_000);
 });
 
 describe("écriture en attente de crédit : en indicatif, seul le crédit réel compte", () => {

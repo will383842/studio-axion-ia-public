@@ -140,9 +140,10 @@ describe("cloche : une par vidéo et par jour", () => {
     await dcv.executerRolePourVideo(a.id, roleRelectureFacecam, entree, options());
     await dcv.executerRolePourVideo(b.id, roleRelectureFacecam, entree, options());
     await dcv.executerRolePourVideo(a.id, roleRelectureFacecam, entree, options());
-    const cloches = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const cloches = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(cloches).toHaveLength(2);
-    expect(cloches[0].message).toMatch(/Au-delà du budget indicatif : la fabrication continue, arrêt de sécurité à 5 fois le prix annoncé/);
+    expect(cloches[0].message).not.toMatch(/arrêt de sécurité/);
+    expect(cloches[0].message).toMatch(/Au-delà du budget indicatif : la fabrication continue\./);
   });
   it("bloquant : le plafond des textes refuse, message exact et clair", async () => {
     await ecrireParametre("budget.mode", "bloquant");
@@ -165,7 +166,7 @@ describe("cas concret : voix en indicatif = compteur ET 5 ×", () => {
     const { verifierPartVoix } = await import("@/moteurs/montage-cas-concret/fabriquer");
     const budget = { plafondVoix: { centimes: 10, prixLecture: () => 20 } };
     const payees = [{ prise: "a", coutCentimes: 40 }] as never;
-    expect(() => verifierPartVoix(budget, payees, { prise: "a", texte: "t" })).toThrow();
+    expect(() => verifierPartVoix(budget, payees, { prise: "a", texte: "t" })).toThrow(/dépasserait le prix confirmé de la voix/);
   });
   it("au-dessus du montant mais sous 5 × : la lecture passe (indicatif)", async () => {
     const { verifierPartVoix } = await import("@/moteurs/montage-cas-concret/fabriquer");
@@ -179,7 +180,7 @@ describe("montants et devise de la cloche, origine illisible, sujet de lot", () 
     const { jugerPlafond } = await import("@/services/budget-mensuel");
     await ecrireParametre("budget.mode", "indicatif");
     expect(await jugerPlafond(200, 1.5, true, "Ce texte", "vid-x", { tauxUsdEur: 0.9 })).toBe("ok");
-    const n = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const n = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(n).toHaveLength(1);
     expect(n[0].message).toMatch(/\(1,35\s*€\)/);
     expect(n[0].message).not.toMatch(/\$/);
@@ -187,7 +188,7 @@ describe("montants et devise de la cloche, origine illisible, sujet de lot", () 
   it("face caméra (format sans prix) : aucun montant dans la cloche", async () => {
     const { jugerPlafond } = await import("@/services/budget-mensuel");
     await jugerPlafond(200, 1.5, true, "Monteur", "vid-y", { sansPrix: true });
-    const n = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const n = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(n[0].message).toMatch(/^Monteur : Au-delà du budget indicatif : la fabrication continue/);
   });
   it("origineDeLaVideo : lecture en panne = « usine » (échec fermé) ; vidéo sans version = « studio »", async () => {
@@ -290,7 +291,7 @@ describe("Usine : réservation sur le budget de l'Usine, actions de Will, format
     await depots().depenses.enregistrer({ id: nouvelId("dep"), videoId: v.id, lignes: [ligne], total: ligne.total, date, creeLe: date, modifieLe: date } as never);
     const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Face caméra animée · mise en scène", plafondPropre } as never);
     expect(r.ok).toBe(true);
-    const cloche = (await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre));
+    const cloche = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
     expect(cloche).toHaveLength(1);
     expect(cloche[0].message).not.toMatch(/€|\$/);
     const ligne2 = { ...ligne, total: { centimes: 900, devise: "EUR" as const } };

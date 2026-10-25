@@ -325,7 +325,7 @@ export const LECTURES_VOIX_MAX_INDICATIF = 3;
  * `lecturesVoixMax` lectures payées par texte (prise) et par tentative, sinon arrêt anti-boucle. PUR.
  */
 export function verifierPartVoix(
-  budget: { plafondVoix?: { centimes: number; prixLecture: (texte: string) => number }; indicatif?: { lecturesVoixMax: number; facteurSecurite?: number } },
+  budget: { plafondVoix?: { centimes: number; prixLecture: (texte: string) => number }; indicatif?: { lecturesVoixMax: number; facteurSecurite?: number; signaler?: (message: string) => Promise<void> } },
   payees: readonly PrisePayee[],
   l: { prise: string; texte: string },
 ): void {
@@ -333,6 +333,14 @@ export function verifierPartVoix(
     const deja = payees.filter((p) => p.prise === l.prise).length;
     if (deja >= budget.indicatif.lecturesVoixMax) {
       throw new ErreurFabricationCasConcret("voix", [`Cette voix a déjà été lue ${deja} fois pour ce texte : rien de plus n'est payé. Changez le texte pour le relire.`]);
+    }
+    // Au-delà du prix confirmé : le prix ne bloque jamais, on SIGNALE (journal + au plus une cloche par vidéo et par jour) sans arrêter.
+    const plafondIndicatif = budget.plafondVoix;
+    if (plafondIndicatif && budget.indicatif.signaler) {
+      const dejaPaye = payees.reduce((n, x) => n + x.coutCentimes, 0);
+      if (dejaPaye + plafondIndicatif.prixLecture(l.texte) > plafondIndicatif.centimes) {
+        void budget.indicatif.signaler(`Une lecture de plus dépasse le prix confirmé de la voix (au plus ${formaterMontant(centimes(plafondIndicatif.centimes))}, ${formaterMontant(centimes(dejaPaye))} déjà payés) : la vidéo continue.`).catch(() => undefined);
+      }
     }
     return;
   }

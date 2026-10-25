@@ -83,6 +83,10 @@ export function messageArretSecurite(prixAnnonce?: string): string {
 export function messageAuDelaDuBudgetIndicatif(prixAnnonce?: string): string {
   return `Au-delà du budget indicatif${prixAnnonce ? ` (${prixAnnonce})` : ""} : la fabrication continue, arrêt de sécurité à ${FACTEUR_SECURITE_BUDGET} fois le prix annoncé.`;
 }
+/** Chemins Claude (textes, face caméra, écriture) : le prix ne bloque jamais, plus aucun arrêt de sécurité n'existe. */
+export function messageAuDelaDuBudgetIndicatifClaude(prixAnnonce?: string): string {
+  return `Au-delà du budget indicatif${prixAnnonce ? ` (${prixAnnonce})` : ""} : la fabrication continue.`;
+}
 export const MESSAGE_ARRET_SECURITE = messageArretSecurite();
 
 /**

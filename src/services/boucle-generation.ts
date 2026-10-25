@@ -38,7 +38,7 @@ import { versionsRoles } from "@/generateur/roles";
 import { nouvelId } from "@/lib/ids";
 import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { exigerSession } from "./auth";
-import { effacerRepriseDeWill, limiteSecuriteUsd, marquerRepriseDeWill, plafondAnnonceUsd, phraseArretSecuriteEcriture, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
+import { effacerRepriseDeWill, marquerRepriseDeWill, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
 import { budgetIndicatifPour } from "./mode-budget";
 import { gagnantsDuJour, poidsApprentissage } from "./apprentissage";
 import { controlerSujetCentral, ErreurSujetDejaTraite } from "./sujet-central-controle";
@@ -694,19 +694,16 @@ async function devisReprise(g: GenerationScript, plafondUsd: number, releveUsd =
   const chaine = chaineDe(o);
   const depart = await departDe(g, o, limite);
   const pire = pireCasChaine(chaine, { donnees: z.donnees, options: optionsPireCas(chaine, optionsDeLaChaine(chaine, z), chaine === "courte" && (await memoireCentraleAllumee())), etatDepart: depart ?? undefined }).usd;
-  // Mode indicatif (commande de Will) : le plafond du sujet est un repère, la reprise est possible jusqu'à 5 × ce plafond (même règle que la réserve du tour).
+  // Mode indicatif (commande de Will) : le plafond du sujet est un repère, le prix ne bloque JAMAIS la reprise (aucune limite).
   const indicatif = await budgetIndicatifPour(o.origine);
-  const limiteUsd = indicatif ? Math.max(plafondUsd, limiteSecuriteUsd({ ...g, plafondUsd }, releveUsd)) : plafondUsd;
-  const annonceUsd = plafondAnnonceUsd({ ...g, plafondUsd }, releveUsd);
+  const limiteUsd = indicatif ? Infinity : plafondUsd;
   const reste = Math.max(0, limiteUsd - depenseUsd);
   const reglage = await reglageDe(g, o);
   if (sansReserve) {
     if (reste >= 0.01) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
-    if (indicatif) return { ...base, possible: false, prixUsd: 0, raison: phraseArretSecuriteEcriture(annonceUsd) };
     return { ...base, possible: false, prixUsd: 0, raison: `Plafond de l'écriture atteint (${formaterUsd(depenseUsd)} $ utilisés sur ${formaterUsd(plafondUsd)} $) : elle ne peut pas reprendre.${reglage ? ` Relevez le réglage « ${reglage} » pour la reprendre.` : ""}` };
   }
   if (depenseUsd + pire <= limiteUsd + 1e-9) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
-  if (indicatif) return { ...base, possible: false, prixUsd: 0, raison: phraseArretSecuriteEcriture(annonceUsd) };
   return { ...base, possible: false, prixUsd: 0, raison: await phrasePireCasTropHaut({ pireCasUsd: depenseUsd + pire, plafondUsd, reglage }, "elle ne peut pas reprendre") };
 }
 

@@ -36,7 +36,7 @@ async function generation(plafondUsd = 1.5): Promise<GenerationScript> {
   await depots().generations.enregistrer(g);
   return g;
 }
-const cloches = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget" && /dépassé|Plafond du sujet/.test(x.titre));
+const cloches = async () => (await depots().notifications.lister()).filter((x) => x.type === "credit" && /dépassé|Plafond du sujet/.test(x.titre));
 
 describe("plafond par vidéo (jugerPlafond)", () => {
   it("indicatif : 6 × le plafond ne s'arrête pas, il signale", async () => {
@@ -74,8 +74,15 @@ describe("cas concret : voix", () => {
   it("indicatif : au-delà de 5 × le prix confirmé, la lecture passe", () => {
     expect(() => verifierPartVoix(budget, [{ prise: "a", coutCentimes: 40 }] as never, { prise: "a", texte: "t" })).not.toThrow();
   });
+  it("indicatif, au-delà du prix confirmé : la lecture passe ET le dépassement est signalé", () => {
+    const messages: string[] = [];
+    const avecSignal = { ...budget, indicatif: { ...budget.indicatif, signaler: async (m: string) => void messages.push(m) } };
+    expect(() => verifierPartVoix(avecSignal, [{ prise: "a", coutCentimes: 40 }] as never, { prise: "a", texte: "t" })).not.toThrow();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatch(/dépasse le prix confirmé de la voix/);
+  });
   it("bloquant : le plafond de voix refuse comme avant", () => {
-    expect(() => verifierPartVoix({ plafondVoix: budget.plafondVoix }, [{ prise: "a", coutCentimes: 40 }] as never, { prise: "a", texte: "t" })).toThrow();
+    expect(() => verifierPartVoix({ plafondVoix: budget.plafondVoix }, [{ prise: "a", coutCentimes: 40 }] as never, { prise: "a", texte: "t" })).toThrow(/dépasserait le prix confirmé de la voix/);
   });
   it("l'arrêt anti-boucle (lecturesVoixMax) reste en indicatif", () => {
     const p = (prise: string) => ({ prise, coutCentimes: 1 });
@@ -87,6 +94,31 @@ describe("arrêts qui restent", () => {
   it("le budget du mois de l'Usine reste bloquant même en indicatif", async () => {
     await ecrireParametre("budget.mode", "indicatif");
     const { controlerBudgetDuMois } = await import("@/services/budget-mensuel");
-    await expect(controlerBudgetDuMois(100, { origine: "usine" })).rejects.toMatchObject({ code: expect.stringMatching(/BUDGET_/) });
+    await expect(controlerBudgetDuMois(100, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+  });
+  it("budget de l'Usine présent mais dépassé : BUDGET_MENSUEL_ATTEINT, même en indicatif", async () => {
+    await ecrireParametre("budget.mode", "indicatif");
+    const { controlerBudgetDuMois } = await import("@/services/budget-mensuel");
+    const { moisParis } = await import("@/services/couts");
+    await ecrireParametre(`budget.usine.${moisParis()}`, { budget_mensuel_cents: 50, mois: moisParis(), le: new Date().toISOString() });
+    await expect(controlerBudgetDuMois(100, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
+  });
+});
+
+describe("cloches indicatives : ni push ni e-mail", () => {
+  it("canal « telephone » ou « email » : aucune cloche « indicatif-* » n'envoie de push ni d'e-mail", async () => {
+    const { signalerDepassementIndicatif } = await import("@/services/budget-mensuel");
+    const { canauxPour } = await import("@/services/notifications");
+    await signalerDepassementIndicatif("mois", "Budget indicatif du mois dépassé", "Rien n'est arrêté.");
+    await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", "La vidéo continue.", "vid-x");
+    const cloches = (await depots().notifications.lister()).filter((n) => /dépassé/.test(n.titre));
+    expect(cloches.length).toBeGreaterThanOrEqual(2);
+    for (const n of cloches) {
+      expect(n.type).toBe("credit");
+      expect(n.envoi?.emailForce).toBeUndefined();
+      for (const canal of ["telephone", "email"] as const) {
+        expect(canauxPour(n, { videoPrete: true, echec: true, budget: true, canal }, { push: true })).toEqual({ push: false, email: false, emailSiPushEchoue: false });
+      }
+    }
   });
 });

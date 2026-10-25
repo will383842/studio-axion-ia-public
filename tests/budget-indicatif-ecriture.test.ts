@@ -64,7 +64,7 @@ function brancherClaude() {
   return appels;
 }
 
-const cloches = async (motif: RegExp) => (await depots().notifications.lister()).filter((x) => x.type === "budget" && motif.test(x.titre));
+const cloches = async (motif: RegExp) => (await depots().notifications.lister()).filter((x) => x.type === "credit" && motif.test(x.titre));
 
 describe("plafond du SUJET (réservation par appel)", () => {
   it("mode bloquant : au-dessus du plafond, refus (comme avant)", async () => {
