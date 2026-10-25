@@ -41,6 +41,7 @@ import { CADRES_IV, type BlocVarieteDonnees, type FormatIV, type RecetteVarieteI
 import { TAILLE_LIBELLE_IV } from "@/briques/schema-motion/lisibilite";
 import { proposerMicroObjet, type NomMicroObjet } from "@/briques/schema-motion/micro-objets";
 import { queueDeFinIV, type QueueFinIV } from "@/briques/schema-motion/queue-fin";
+import { planEnsemble } from "@/briques/schema-motion/plan-objets";
 import type { CarteImage, NoeudCarte } from "@/domaine/image-video/carte";
 import { motsDits, type EcranFiche, type FicheImage, type Fond, type Partie, type Scene } from "@/domaine/image-video/fiche";
 import { iconeDe } from "@/domaine/image-video/icones";
@@ -1652,6 +1653,17 @@ function segmentFin(fin: NonNullable<EntreeMiseEnSceneIV["fin"]>, fiche: FicheIm
 /* 6. Plans                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * D3 (compositions-iv/11) : la scène « ensemble » ne déclare comme MONTRÉS que les chiffres-clés réellement posés. Quand la place
+ * manque (16 px d'écart entre rangées), `planEnsemble` en retire avec une alerte : ils ne comptent plus comme montrés ici, pour que
+ * Q12/Q13 voient le retrait au lieu de le supposer.
+ */
+export function chiffresPosesSurEnsemble(carte: CarteImage, chiffresCles: string[], allumes: string[]): string[] {
+  if (!chiffresCles.length) return chiffresCles;
+  const alertes = planEnsemble(schemaDeLaCarte(carte), { chiffresCles, ...(allumes.length ? { allumes } : {}) }).alertes;
+  return chiffresCles.filter((t) => !alertes.some((a) => a.startsWith(`« ${t} » : chiffre-clé retiré`)));
+}
+
 function construirePlans(places: EcranPlace[], carte: CarteImage, dureeSec: number, debutFin: number, finPlans: PlanIV[]): PlanIV[] {
   const plans: PlanIV[] = [];
   let n = 0;
@@ -1671,7 +1683,7 @@ function construirePlans(places: EcranPlace[], carte: CarteImage, dureeSec: numb
         scene: p.insertion.sorte === "recap" ? "recap" : "ensemble",
         sorte: p.insertion.sorte === "recap" ? "recap" : "ensemble",
         fond: "ivoire",
-        textes: p.insertion.chiffresCles,
+        textes: p.insertion.sorte === "ensemble" ? chiffresPosesSurEnsemble(carte, p.insertion.chiffresCles, p.insertion.allumes) : p.insertion.chiffresCles,
         coupe: "insertion",
         marque: MARQUE,
       });

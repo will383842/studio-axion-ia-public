@@ -34,7 +34,7 @@ const LEGENDE_PX = 62;
 const LEGENDE_PX_MIN = 58;
 const RAYON_MIN = 300;
 /** Taille la plus basse du chiffre « reste » quand la légende le pousse vers le bas. */
-const RESTE_PX_MIN = 72;
+const RESTE_PX_MIN = 80;
 const dejaDit = new Set<string>();
 
 /** Coupe `texte` en lignes de `largeur` au plus (mots entiers, coupe gloutonne). */
@@ -56,7 +56,7 @@ function lignesDe(texte: string, taillePx: number, largeur: number): string[] {
  * D1 (compositions-iv/11) : où poser la légende du chiffre focal. Dedans, sous le chiffre, tant que CHAQUE ligne tient dans
  * la corde intérieure de l'anneau (moins 16 px), à l'échelle 1 ET à l'échelle minimale `echelleMin` (la variante rapetisse
  * quand la pile s'ouvre, la légende garde ses 62 px à l'écran). Sinon dessous : une ligne centrée sous l'anneau, qui laisse
- * la place à la pile ; l'anneau garde son haut et perd au plus 30 px de rayon (plancher 300) si la pile l'exige.
+ * la place à la pile ; l'anneau garde son haut et perd au plus 40 px de rayon (de 340 à 300, plancher 300) si la pile l'exige.
  * Dernier recours (rien ne tient) : l'ancienne disposition, avec un avertissement. Fonction PURE.
  */
 export function planLegendeAnneau(d: DonneesEcranChiffresRendu, cadre: CadreChiffres, echelleMin: number): PlanLegendeAnneau {
@@ -78,7 +78,7 @@ export function planLegendeAnneau(d: DonneesEcranChiffresRendu, cadre: CadreChif
   };
   if (!legende || echelles.every(tientDedans)) return dedans;
   // Le « reste » (« 20 % Limite atteinte ») passe sous la légende : on cherche d'abord un anneau assez petit pour qu'il finisse
-  // au-dessus des sous-titres (72 px au plus bas), puis, à défaut, sans lui.
+  // au-dessus des sous-titres (80 px au plus bas), puis, à défaut, sans lui.
   const passes = d.anneau?.reste ? [true, false] : [false];
   for (const avecReste of passes) {
     for (const taillePx of [LEGENDE_PX, LEGENDE_PX_MIN]) {
@@ -119,7 +119,7 @@ export function Anneau({ d, t, t0, cadre, discret = 0, echelle = 1 }: { d: Donne
   const remplissage = doux(progres(t, t0, 1));
   const finOrange = debut + (360 * (valeur / 100) - 2 * ECART) * remplissage;
   const vingt = reste ? doux(progres(t, t0 + 1, 0.45)) : 0;
-  // Le reste passe sous la légende quand elle est posée sous l'anneau ; sa taille se réduit (72 px au plus bas) pour finir au-dessus des sous-titres.
+  // Le reste passe sous la légende quand elle est posée sous l'anneau ; sa taille se réduit (80 px au plus bas) pour finir au-dessus des sous-titres.
   const resteTop = dessous ? plan.top + plan.lignes.length * plan.taillePx * INTERLIGNE_LEGENDE + 12 : g.cy + g.r + g.ep / 2 + 18;
   const resteTaille = dessous ? Math.max(RESTE_PX_MIN, Math.min(100, cadre.sousTitres - 10 - resteTop)) : 100;
   return (

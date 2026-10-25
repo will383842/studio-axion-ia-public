@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { motsBalises } from "@/briques/ecrans-motion";
 import { chevauche, nombreDeMots } from "@/briques/schema-motion";
+import { chiffresPosesSurEnsemble } from "@/moteurs/montage-image-video/mise-en-scene";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { iconeDe } from "@/domaine/image-video/icones";
 import { sceneGalerieC } from "../../studio-rendu/compositions/image-video/donnees-galerie";
@@ -20,6 +21,7 @@ import {
   coupePhraseChoc,
   couperEquilibre,
   etatBenefices,
+  libelleCourt,
   planAlerte,
   planBandeau,
   planCarteBenefice,
@@ -312,15 +314,56 @@ describe("K19 · phrase-choc mot à mot avec lueur", () => {
   });
 });
 
+const RACCOURCIS_COMME_AVANT: Record<string, string[]> = { C: ["n08"], E: ["n06", "n10"], F: ["n01", "n05"] };
+const RETIRE = (t: string) => `« ${t} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`;
+describe("D3 · vue d'ensemble à 16 px d'écart : liste EXACTE des alertes par carte, libellés jamais raccourcis", () => {
+  // Chiffres-clés retirés faute de place (l'ordre est celui des retraits : le dernier d'abord). Aucune autre alerte, sur aucune carte.
+  const attendu: Record<string, string[]> = {
+    A: [RETIRE("1er jour")],
+    B: [],
+    C: [RETIRE("2h"), RETIRE("4 sec"), RETIRE("23h14")],
+    D: [],
+    E: [RETIRE("3 secondes"), RETIRE("23 min")],
+    F: [RETIRE("5 min"), RETIRE("6 min"), RETIRE("8 min")],
+    // Seul cas où les 16 px obligent à raccourcir un libellé que l'ancienne vue (6 px) gardait entier : il le dit. Les libellés que l'ancienne vue
+    // raccourcissait déjà (C n08, E n06 et n10, F n01 et n05) restent muets, comme avant (les galeries exigent « aucune alerte »).
+    "faux-16-noeuds": ["Libellé de n16 raccourci à « Rapport chaque » : 16 px d'écart entre rangées."],
+  };
+  for (const [nom, alertes] of Object.entries(attendu)) {
+    it(`${nom} : alertes exactes, écart ≥ 16, chaque libellé = le libellé court de la carte (aucun mot perdu), chiffres posés = chiffres non retirés`, () => {
+      const carte = lire(nom);
+      const p = planEnsemble(carte);
+      expect(p.alertes).toEqual(alertes);
+      expect(p.ecart).toBeGreaterThanOrEqual(16);
+      for (const b of p.blocs) {
+        const noeud = carte.noeuds.find((n) => n.id === b.id)!;
+        const ecrit = b.libelle.lignes.map((l) => l.join(" ")).join(" ");
+        // Jamais de mot perdu en silence : un libellé plus court que celui de la carte porte une alerte nommant son bloc.
+        const entier = ecrit === libelleCourt(noeud).toUpperCase();
+        if (!entier && nom === "faux-16-noeuds") expect(p.alertes.some((a) => a.startsWith(`Libellé de ${b.id} raccourci`)), `${nom} ${b.id} « ${ecrit} »`).toBe(true);
+        // Cartes C, E, F : les libellés raccourcis le sont comme sur master (même texte), aucun autre ne l'est.
+        if (!entier && nom !== "faux-16-noeuds") expect(RACCOURCIS_COMME_AVANT[nom]).toContain(b.id);
+      }
+      const retires = alertes.filter((a) => a.includes("chiffre-clé retiré")).length;
+      const demandes = [...new Set(carte.chiffres.filter((c) => c.aDire).map((c) => c.brut))].filter((t) => nombreDeMots(t) <= 3).slice(0, 3);
+      expect(p.chiffres.length + retires).toBe(demandes.length);
+    });
+  }
+});
+
+describe("D3 · la scène « ensemble » ne déclare comme montrés que les chiffres réellement posés (Q12/Q13 voient le retrait)", () => {
+  it("carte C : « 23h14 », « 4 sec » et « 2h » retirés de la vue ne sont plus déclarés ; carte D : tous gardés", () => {
+    expect(chiffresPosesSurEnsemble(lire("C"), ["23h14", "4 sec", "2h"], [])).toEqual([]);
+    expect(chiffresPosesSurEnsemble(lire("D"), ["20 e-mails", "80 %", "2 minutes"], [])).toEqual(["20 e-mails", "80 %", "2 minutes"]);
+  });
+});
+
 describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte sous le plancher", () => {
   for (const nom of ["C", "faux-16-noeuds"]) {
     it(`${nom} : chaque nœud a son bloc, dans la zone utile et les marges, sans chevauchement ; libellés ≤ 3 mots et ≥ plancher`, () => {
       const carte = lire(nom);
       const p = planEnsemble(carte);
-      // 25/10/2026 (D3, compositions-iv/11) : l'écart minimal entre rangées passe à 16 px ; quand la rangée des chiffres-clés ne tient plus avec lui
-      // (carte C : « 23h14 », « 4 sec », « 2h »), elle est retirée AVANT de serrer la vue (alerte « chiffre-clé retiré », ils restent montrés quand ils sont dits).
-      // Toute autre alerte reste interdite, et l'écart posé est d'au moins 16 px.
-      expect(p.alertes.filter((a) => !/chiffre-clé retiré de la vue d'ensemble/.test(a))).toEqual([]);
+      // 25/10/2026 (D3, compositions-iv/11) : alertes exactes par carte dans le bloc « D3 · liste exacte » plus bas ; ici, l'écart posé.
       expect(p.ecart).toBeGreaterThanOrEqual(16);
       expect(p.blocs.map((x) => x.id).sort()).toEqual(carte.noeuds.map((n) => n.id).sort());
       for (const x of p.blocs) {
@@ -360,7 +403,9 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
 
 describe("galeries L9a (A, B, objets de C et E)", () => {
   it("aucune alerte de lisibilité, à aucun moment", () => {
-    for (const g of [galerieA(), galerieB(), galerieObjets()]) for (const m of g.moments) expect(alertesDuMoment(m), `${m.sorte} ${m.debut}`).toEqual([]);
+    // 25/10/2026 (D3, compositions-iv/11) : seule exception, la vue d'ensemble de la carte C (moment à 9,5 s) où les 16 px d'écart obligent à raccourcir
+    // « Résolu sans intervention » en « Résolu » : la vue le DIT (alerte « raccourci … 16 px d'écart ») au lieu de le faire en silence. Toute autre alerte reste interdite.
+    for (const g of [galerieA(), galerieB(), galerieObjets()]) for (const m of g.moments) expect(alertesDuMoment(m).filter((a) => !/^Libellé de n06 raccourci à « Résolu » : 16 px d'écart/.test(a)), `${m.sorte} ${m.debut}`).toEqual([]);
   });
   it("moments contigus, du début à la fin de la vidéo ; repère « 2/3 » visible dans la galerie des objets", () => {
     for (const g of [galerieA(), galerieB(), galerieObjets()]) {

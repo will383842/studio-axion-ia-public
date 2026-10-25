@@ -1584,16 +1584,17 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     return meilleur?.ids ?? null;
   };
   while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
-  // D3 : plutôt que d'écraser l'écart, les chiffres-clés qui ne tiennent pas sont retirés AVANT de serrer la vue (même alerte que le dernier recours), puis la taille est cherchée de nouveau.
-  if (tropHaut() && autres.length) {
-    while (autres.length) alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
+  // D3 (compositions-iv/11), ordre : taille des libellés, puis vue SERRÉE (marges réduites) à 16 px d'écart, chiffres-clés GARDÉS ;
+  // seulement ensuite les chiffres-clés sont retirés (alerte), puis paires, puis vue réduite.
+  if (tropHaut()) {
+    serre = true;
+    padY = PAD_BLOC_SERRE.y;
     tailleMax = 0.036 * H;
     c = construire(tailleMax);
     while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
   }
-  if (tropHaut()) {
-    serre = true;
-    padY = PAD_BLOC_SERRE.y;
+  if (tropHaut() && autres.length) {
+    while (autres.length) alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
     tailleMax = 0.036 * H;
     c = construire(tailleMax);
     while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
@@ -1612,6 +1613,8 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
   // libellés ; puis, rangée par rangée, les libellés sur 2 lignes perdent leur dernière unité de sens (« Envoyé équipe
   // concernée » → « Envoyé équipe ») jusqu'à tenir sur une ligne, la rangée qui perd le moins d'abord ; en tout dernier
   // recours, les chiffres-clés qui ne tiennent plus sont retirés (le dernier d'abord), jamais un bloc ni le plancher.
+  // D3 : l'ancienne vue (écart 6 px en vue serrée) aurait-elle tenu sans raccourcir de libellé ? Faux si des chiffres-clés ont dû être retirés (elle les gardait jusqu'au bout).
+  const tenaitAvant = alertes.length === 0 && !(c.total + (c.rangees.length - 1) * 6 > zone.hauteur);
   if (tropHaut()) {
     reduite = true;
     avecIcones = iconesTiennent();
@@ -1622,6 +1625,9 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
       avecIcones = iconesTiennent();
       c = construire(tailleMax);
     }
+    // D3 : un libellé que l'ancien écart (6 px en vue serrée) aurait gardé entier et que les 16 px obligent à raccourcir le dit (jamais en silence) ;
+    // ceux que l'ancienne vue raccourcissait déjà restent muets, comme avant.
+    if (tenaitAvant) for (const [id, u] of unitesMax) if (u < MOTS_MAX_ENSEMBLE) alertes.push(`Libellé de ${id} raccourci à « ${texteDe(id)} » : 16 px d'écart entre rangées.`);
     while (tropHaut() && autres.length) {
       alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
       c = construire(tailleMax);
