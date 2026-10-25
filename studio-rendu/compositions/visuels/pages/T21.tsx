@@ -36,7 +36,8 @@ export function varianteFin(spec: SpecVisuel): VarianteT21 {
 /** Bulle de discussion (viewBox 120 × 104) : rectangle arrondi et queue en bas à gauche ; trois points au centre (« on vous écrit »). */
 const CHEMIN_BULLE = "M22 4 H98 A18 18 0 0 1 116 22 V62 A18 18 0 0 1 98 80 H50 L26 100 L30 80 H22 A18 18 0 0 1 4 62 V22 A18 18 0 0 1 22 4 Z";
 const TROIS_POINTS = [38, 60, 82] as const;
-const LARGEUR_BULLE = 340;
+/** Largeur (px) de la bulle : 480 remplit le bloc entre l'appel et l'invitation (plus haute zone vide 11,9 % au rendu réel, 15,6 % à 340). */
+const LARGEUR_BULLE = 480;
 
 /** Bulle NETTE dessinée sur place : pleine orange (points crème), ou contour crème épais (points orange). */
 function Bulle({ pleine }: { pleine: boolean }) {
