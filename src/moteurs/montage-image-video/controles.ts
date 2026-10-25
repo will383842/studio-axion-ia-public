@@ -23,7 +23,7 @@ import type { MesuresExport } from "@/briques/controle-image";
 import { jetonsDits, occurrences } from "@/briques/coupes/texte";
 import type { PisteVoixSeuleIV } from "./assemblage";
 import { CRETE_IV_DBTP, LOUDNESS_IV_LUFS } from "./assemblage";
-import { DEFAUTS_DE_DETAIL_IV } from "./adaptation-scene";
+import { DEFAUTS_DE_DETAIL_IV, LIGNES_ZERO_BLOCAGE_IV } from "./adaptation-scene";
 import { clesDeLaCarte, controlerToutMontre, type LigneControleSceneIV } from "./controles-scene";
 import { miseEnPageAuxInstantsIV } from "./emprise-ligne";
 import { formeDite, formesComparables, type ConstatControle, type EcouteVersionIV } from "./ecoute";
@@ -44,12 +44,11 @@ export const CODES_CONTROLE_IV = [
 ] as const;
 export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
 
-/** Ordre de Will du 25/10/2026 (« vidéo prête du premier coup ») : ces lignes disent un défaut en REMARQUE, jamais en blocage. */
-const LIGNES_ZERO_BLOCAGE_IV = ["Q12", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q25", "Q27", "SCENE"] as const;
+// Règle du 25/10/2026 (« vidéo prête du premier coup ») : les lignes de `LIGNES_ZERO_BLOCAGE_IV` disent un défaut en REMARQUE, jamais en blocage.
 
 /**
  * Contrôles indicatifs (jamais bloquants : remarque orange à la porte). Q13 et Q14 (chiffre non montré, rythme) sont des défauts de DÉTAIL :
- * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q12, Q15, Q19 à Q23, Q25, Q27 et SCENE le sont aussi (ordre du 25/10/2026). Restent bloquants : CHIFFRES (chiffre faux), la voix (Q16, Q17), le rendu impossible (mesure absente de Q24) et l'image noire ou illisible. Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; relecture impossible = remarque « images finales non relues ». Q11, Q18 et Q24 ne bloquent qu'au-delà de leurs planchers (vidéo inutilisable), en deçà ce sont des remarques ; le cadre et la cadence de Q24 sont des remarques.
+ * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q12, Q15, Q19 à Q23, Q25, Q27 et SCENE le sont aussi (règle du 25/10/2026). Restent bloquants : CHIFFRES (chiffre faux), la voix (Q16, Q17), le rendu impossible (mesure absente de Q24) et l'image noire ou illisible. Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; relecture impossible = remarque « images finales non relues ». Q11, Q18 et Q24 ne bloquent qu'au-delà de leurs planchers (vidéo inutilisable), en deçà ce sont des remarques ; le cadre et la cadence de Q24 sont des remarques.
  */
 export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", ...DEFAUTS_DE_DETAIL_IV, ...LIGNES_ZERO_BLOCAGE_IV]);
 

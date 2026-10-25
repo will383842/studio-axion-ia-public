@@ -845,7 +845,7 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
 
 describe("défauts de détail (Q12 à Q15, Q19 à Q23, Q25, Q27, SCENE) : remarque orange, jamais un refus après le rendu payé", () => {
   const ligne = (code: string, etat: "reussi" | "echoue" | "non-fait") => ({ code, etat, bloquant: !CONTROLES_INDICATIFS.has(code as never) });
-  const INDICATIVES = ["Q12", "Q13", "Q14", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q25", "Q27", "SCENE"];
+  const INDICATIVES = ["Q12", "Q13", "Q14", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q25", "Q27", "SCENE", "FOND", "ORANGE", "FIN"];
   it.each(INDICATIVES)("%s échoué ou non fait ne bloque pas", (c) => {
     expect(bloque(ligne(c, "echoue"))).toBe(false);
     expect(bloque(ligne(c, "non-fait"))).toBe(false);
