@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
 import { BORNES_LISTES, budgetListe, LISTES, MOT_TITRE_MAX } from "../../src/briques/visuels/continu/familles/listes";
@@ -5,9 +7,9 @@ import { NOMS_ICONES } from "../../src/briques/visuels/continu/icones";
 import { ICONES_CONTINU } from "../../studio-rendu/compositions/visuels/continu/commun/icones-continu";
 import { COMPOSANTS_PLAQUETTES } from "../../studio-rendu/compositions/visuels/continu/registre-composants";
 
-/** Table attendue de la maquette v3 (`dk:1` → sombre, `or:1` → orangeFort) : aucune liste n'est sombre ni orange. */
+/** Table attendue de la maquette v3 (`dk:1` → sombre, `or:1` → orangeFort) : aucune liste n'est sombre ; L01 a une grande carte orange (~24 % de la page). */
 const ATTENDU: Record<string, { nom: string; sombre: boolean; orangeFort: boolean; cas?: boolean }> = {
-  L01: { nom: "Bento illustré", sombre: false, orangeFort: false },
+  L01: { nom: "Bento illustré", sombre: false, orangeFort: true },
   L02: { nom: "Liste à gros chiffres", sombre: false, orangeFort: false },
   L03: { nom: "Escalier", sombre: false, orangeFort: false },
   L04: { nom: "Chronologie", sombre: false, orangeFort: false, cas: true },
@@ -74,7 +76,7 @@ describe("continu P3b : registre des listes", () => {
     expect(exemple("L01").accent).toBe("souvent");
     expect((exemple("L02").items as Dict[]).map((i) => i.titre)).toEqual(["Auditer", "Choisir", "Installer", "Suivre"]);
     expect((exemple("L03").etapes as Dict[]).map((i) => i.label)).toEqual(["Écouter", "Choisir", "Installer", "Suivre"]);
-    expect((exemple("L04").etapes as Dict[]).map((i) => i.jour)).toEqual(["Jour 1", "Jour 3", "Jour 7"]);
+    expect((exemple("L04").etapes as Dict[]).map((i) => i.jour)).toEqual([1, 3, 7]);
     expect((exemple("L05").lignes as Dict[]).map((i) => i.coche)).toEqual([true, true, true, true, false]);
     expect((exemple("L06").points as Dict[]).map((i) => i.label)).toEqual(["Relances", "Veille", "Refonte", "Compte rendu"]);
     expect((exemple("L07").items as Dict[]).length).toBe(9);
@@ -150,5 +152,42 @@ describe("continu P3b : icônes (liste fermée)", () => {
 describe("continu P3b : composants", () => {
   it("chaque type du registre a son composant", () => {
     for (const x of LISTES) expect(typeof COMPOSANTS_PLAQUETTES[x.type], x.type).toBe("function");
+  });
+});
+
+describe("continu P3b : alt sans nombre, L04 et mots bornés", () => {
+  it("aucun alt d'exemple ne contient un chiffre ni un nombre en lettres", () => {
+    for (const x of LISTES) expect(String(exemple(x.type).alt), x.type).not.toMatch(/\d|\b(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|premier|première)\b/i);
+  });
+  it("L04 : rubrique imposée « Cas concret », jour numérique", () => {
+    expect(g("L04").schema.safeParse({ ...exemple("L04"), rubrique: "Autre" }).success).toBe(false);
+    expect(g("L04").schema.safeParse(avecChamp("L04", "jour", "Jour 1")).success).toBe(false);
+    expect(g("L04").schema.safeParse(avecChamp("L04", "jour", 1.5)).success).toBe(false);
+    expect(g("L04").schema.safeParse(avecChamp("L04", "jour", 12)).success).toBe(true);
+  });
+  it("un mot trop long est refusé dans le texte de L05 et le label de L06", () => {
+    expect(g("L05").schema.safeParse(avecChamp("L05", "texte", "é".repeat(21))).success).toBe(false);
+    expect(g("L06").schema.safeParse(avecChamp("L06", "label", "é".repeat(13))).success).toBe(false);
+  });
+});
+
+describe("continu P3b : rendu serveur de chaque exemple, aux bornes min et max d'éléments", () => {
+  it("le composant rend tous les textes de la page pour le nombre minimal et maximal d'éléments", () => {
+    for (const x of LISTES) {
+      const [min, max] = BORNES_LISTES[x.type];
+      const base = exemple(x.type)[LISTE[x.type]] as Dict[];
+      for (const n of [min, max]) {
+        const elements = Array.from({ length: n }, (_, i) => (n <= base.length ? base[i] : court(base[i % base.length])));
+        const page = { ...exemple(x.type), [LISTE[x.type]]: elements };
+        expect(x.schema.safeParse(page).success, `${x.type} n=${n}`).toBe(true);
+        for (const hauteur of [1350, 1440]) {
+          const html = renderToStaticMarkup(createElement(COMPOSANTS_PLAQUETTES[x.type], { page: page as never, index: 1, total: 3, hauteur, sombre: false }));
+          expect(html.length, `${x.type} n=${n}`).toBeGreaterThan(500);
+          const textes = [page.titre, page.accent, ...elements.flatMap((e) => Object.entries(e).filter(([k, v]) => typeof v === "string" && k !== "icone").map(([, v]) => v))] as string[];
+          for (const t of textes) expect(html, `${x.type} n=${n} « ${t} »`).toContain(t.replace(/&/g, "&amp;"));
+          if (x.type === "L04") for (const e of elements) expect(html).toContain(`Jour ${e.jour}`);
+        }
+      }
+    }
   });
 });
