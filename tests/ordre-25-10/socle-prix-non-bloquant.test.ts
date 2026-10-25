@@ -85,6 +85,14 @@ describe("mode indicatif : le prix ne bloque pas", () => {
   it("l'Usine garde le sien : accord rendu inchangé, confirmation toujours exigée", async () => {
     expect(await modeBudget.accordAutomatique(false, 2000, { origine: "usine" })).toBe(false);
     await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+  });
+
+  it("l'Usine sans budget du mois : BUDGET_USINE_ABSENT toujours levé", async () => {
+    reinitialiserDepots();
+    reinitialiserRequete();
+    await auth.seConnecter(MDP, false);
+    await ecrireParametre("budget.mensuel", eur(1_000_000));
+    await ecrireParametre(CLE_MODE_BUDGET, "indicatif");
     await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", { videoId: "v-u", travailId: "trv-u" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
   });
 
