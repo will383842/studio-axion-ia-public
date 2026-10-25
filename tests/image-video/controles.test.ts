@@ -458,7 +458,7 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
 describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en dessous du plancher", () => {
   /** Retire `part` des mots de la transcription (hors chiffres), répartis, sans toucher au dernier mot. */
   const retirer = (part: number) => (_d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => {
-    const candidats = mots.map((x, i) => i).filter((i) => i < mots.length - 1 && /^[a-zàâçéèêëîïôûù']{1,5}$/i.test(mots[i].mot));
+    const candidats = mots.map((x, i) => i).filter((i) => i < mots.length - 1 && /^[a-zàâçéèêëîïôûù']{1,5}$/i.test(mots[i].mot) && !/^(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|trente|cent|mille|zéro)$/i.test(mots[i].mot));
     const nb = Math.round(mots.length * part);
     const pas = candidats.length / nb;
     const retires = new Set(Array.from({ length: nb }, (_x, k) => candidats[Math.floor(k * pas)]));
