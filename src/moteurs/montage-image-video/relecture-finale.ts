@@ -12,9 +12,11 @@
  *    isolée manquante est une REMARQUE (détail, la vidéo continue). L'identifiant du travail d'extraction dépend des instants
  *    (`idTravailControleIV`) : l'aligneur garde ses travaux 24 h et rendrait sinon l'ancien résultat pour d'autres instants.
  * 3. RELECTURE par Claude (vision, outil injecté) : l'image source + les images extraites, questions FERMÉES par image
- *    (tout est-il montré ? quelque chose de faux ? d'illisible ? hors charte ?). Sont BLOQUANTS : « faux », « illisible »,
- *    plus de 50 % d'images en « manque », aucune image relue. Un « manque » isolé, un « absent de la vidéo » ou une image
- *    sans réponse sont des REMARQUES (détail, la vidéo continue) ; « hors charte » et les suggestions sont indicatives.
+ *    (tout est-il montré ? quelque chose de faux ? d'illisible ? hors charte ?). Sont BLOQUANTS : un « faux » qui est
+ *    un chiffre faux (`estChiffreFauxIV`), un « illisible » qui dit l'image entière noire ou illisible (`estIllisibleGlobalIV`), plus de
+ *    50 % d'images « illisibles » ou en « manque », aucune image relue. Tout autre « faux » ou « illisible », un « manque » isolé, un
+ *    « absent de la vidéo » ou une image sans réponse sont des REMARQUES (détail, la vidéo continue) ; « hors charte » et les
+ *    suggestions sont indicatives.
  *
  * ARGENT : le pire coût de chaque appel Claude est RÉSERVÉ avant l'appel (`pireCasRole`) ; refus de réservation =
  * aucun appel, contrôle « non fait » (donc bloquant). Une réponse illisible est relancée une fois (réservée elle aussi).
@@ -377,10 +379,45 @@ export interface ResultatRelectureIV {
   appels: number;
 }
 
+const sansAccents = (t: string): string => t.normalize("NFD").replace(/\p{M}/gu, "").replace(/[’‘]/g, "'").toLowerCase();
+
+const NOMBRE_IV = String.raw`(?<![\d.,])(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d+)(?:[.,](\d+))?\s?(?:%|(?:er|ere|re|eme|e)(?!\p{L}))?`;
+const CHIFFRE_FAUX_IV = new RegExp(
+  `${NOMBRE_IV}(?:\\s+[^\\s\\d]+){0,3}\\s+(?:au lieu de|a la place de|remplace(?:e|s|es)? par|est devenue?|et non)\\s+${NOMBRE_IV}`,
+  "giu",
+);
+const valeurNombre = (entier: string, decimales?: string): string => `${entier.replace(/\D/g, "").replace(/^0+(?=\d)/, "")}${decimales ? `.${decimales.replace(/0+$/, "")}` : ""}`.replace(/\.$/, "");
+
+/** Le texte d'un « faux » dit-il un chiffre faux : un nombre, 0 à 3 mots, « au lieu de » (ou équivalent), un AUTRE nombre ? */
+export function estChiffreFauxIV(texte: string): boolean {
+  const t = sansAccents(texte);
+  CHIFFRE_FAUX_IV.lastIndex = 0;
+  for (let m = CHIFFRE_FAUX_IV.exec(t); m; m = CHIFFRE_FAUX_IV.exec(t)) {
+    if (valeurNombre(m[1], m[2]) !== valeurNombre(m[3], m[4])) return true;
+    CHIFFRE_FAUX_IV.lastIndex = m.index + 1;
+  }
+  return false;
+}
+
+const ILLISIBLE_GLOBAL_IV: readonly RegExp[] = [
+  /\b(?:image|ecran|plan|video)s?\s+(?:est\s+|reste\s+)?(?:entierement\s+|totalement\s+|completement\s+)?(?:noire|vide|blanche)s?\b/,
+  /\b(?:entierement|totalement|completement)\s+(?:noire|vide|blanche|floue?|illisible)s?\b/,
+  /\brien n'?est lisible\b/,
+  /\baucun texte(?: n'?est)?(?: lisible)\b/,
+  /\billisible dans son ensemble\b/,
+];
+
+/** Le texte d'un « illisible » dit-il l'image entière noire, vide, floue ou illisible (et pas un détail de texte) ? */
+export function estIllisibleGlobalIV(texte: string): boolean {
+  const t = sansAccents(texte);
+  return ILLISIBLE_GLOBAL_IV.some((re) => re.test(t));
+}
+
 /**
- * Verdict PUR d'une relecture. BLOQUANTS : « faux », « illisible », plus de 50 % d'images en « manque » (ou « tout n'est pas
- * montré »), aucune image relue. REMARQUES (détail, la vidéo continue) : un « manque » isolé, un élément absent de la vidéo,
- * une image sans réponse quand d'autres ont répondu. « hors charte » et suggestions : indications.
+ * Verdict PUR d'une relecture. BLOQUANTS : un « faux » qui est un chiffre faux, un « illisible » qui dit l'image entière illisible,
+ * plus de 50 % d'images « illisibles » ou en « manque » (ou « tout n'est pas montré »), aucune image relue. REMARQUES (détail, la
+ * vidéo continue) : tout autre « faux » ou « illisible », un « manque » isolé, un élément absent de la vidéo, une image sans réponse
+ * quand d'autres ont répondu. « hors charte » et suggestions : indications.
  */
 export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<InstantCleIV, "nom" | "instantSec">[]): { bloquants: string[]; remarques: string[]; indications: string[] } {
   const bloquants: string[] = [];
@@ -392,6 +429,7 @@ export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<Insta
   const sansReponse: string[] = [];
   const manques: string[] = [];
   let relues = 0;
+  let illisibles = 0;
   for (const i of instants) {
     const x = r.images.find((y) => y.nom === i.nom);
     if (!x) {
@@ -402,11 +440,21 @@ export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<Insta
     const manque = x.manque.trim();
     if (manque) manques.push(`${ou(i.nom)}, il manque : ${manque}.`);
     else if (!x.toutMontre) manques.push(`${ou(i.nom)}, ce qui est annoncé n'est pas montré.`);
-    if (x.faux.trim()) bloquants.push(`${ou(i.nom)}, faux : ${x.faux.trim()}.`);
-    if (x.illisible.trim()) bloquants.push(`${ou(i.nom)}, illisible : ${x.illisible.trim()}.`);
+    const faux = x.faux.trim();
+    if (faux) {
+      if (estChiffreFauxIV(faux)) bloquants.push(`${ou(i.nom)}, faux : ${faux}.`);
+      else remarques.push(`${ou(i.nom)}, faux : ${faux}${DETAIL}.`);
+    }
+    const illisible = x.illisible.trim();
+    if (illisible) {
+      illisibles++;
+      if (estIllisibleGlobalIV(illisible)) bloquants.push(`${ou(i.nom)}, illisible : ${illisible}.`);
+      else remarques.push(`${ou(i.nom)}, illisible : ${illisible}${DETAIL}.`);
+    }
     if (x.horsCharte.trim()) indications.push(`${ou(i.nom)}, hors charte : ${x.horsCharte.trim()}.`);
     if (x.suggestion.trim()) indications.push(`${ou(i.nom)} : ${x.suggestion.trim()}.`);
   }
+  if (relues > 0 && illisibles / relues > PART_MANQUES_BLOQUANTE) bloquants.push(`${illisibles} images sur ${relues} sont illisibles : la vidéo est illisible dans son ensemble.`);
   if (instants.length > 0 && relues === 0) bloquants.push("aucune image n'a été relue.");
   else for (const nom of sansReponse) remarques.push(`l'image ${ou(nom)} n'a pas été relue${DETAIL}.`);
   if (relues > 0 && manques.length / relues > PART_MANQUES_BLOQUANTE) bloquants.push(`${manques.length} images sur ${relues} ne montrent pas tout : ${manques.join(" ")}`);

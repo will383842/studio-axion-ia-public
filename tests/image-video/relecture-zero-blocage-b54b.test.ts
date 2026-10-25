@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { BRUITAGES_V4_IV } from "@/moteurs/montage-image-video/fabrication";
 import { miseEnPageAuxInstantsIV } from "@/moteurs/montage-image-video/emprise-ligne";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type ResultatMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
-import { instantsClesIV, jugerRelecture, PART_MANQUES_BLOQUANTE, type RelectureFinale } from "@/moteurs/montage-image-video/relecture-finale";
+import { estChiffreFauxIV, estIllisibleGlobalIV, instantsClesIV, jugerRelecture, PART_MANQUES_BLOQUANTE, type RelectureFinale } from "@/moteurs/montage-image-video/relecture-finale";
 import { recettePourVersion } from "@/moteurs/montage-image-video/variete/tirage";
 
 interface PisteFixture { version: string; reseaux: string[]; dureeSec: number; finVoixSec: number; motsCorps: number; mots: { mot: string; debutSec: number; finSec: number }[] }
@@ -106,15 +106,58 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     expect(j.remarques[0]).toMatch(/il manque : 20 %/);
     expect(j.remarques[0]).toMatch(/\(détail, la vidéo continue\)\.$/);
   });
-  it("« faux » : 1 bloquant", () => {
+  it("les défauts de détail d'une vidéo réelle (trav-dd7a8a2c50d4) : 0 bloquant, des remarques", () => {
+    const defauts = [
+      { faux: "le surtitre SITUATION TYPE est masqué par le bandeau orange" },
+      { illisible: "VALIDE coiffe Autoliquidation" },
+      { illisible: "le texte du bloc est coupé par le bord droit" },
+      { faux: "l'étiquette de la flèche ne correspond pas au bloc annoncé" },
+      { illisible: "la légende est tronquée en bas de l'écran" },
+    ];
+    const j = jugerRelecture(relecture((_, k) => (k < defauts.length ? defauts[k] : {})), INSTANTS);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(5);
+    for (const r of j.remarques) expect(r).toMatch(/\(détail, la vidéo continue\)\.$/);
+  });
+  it("chiffre faux (« 30 % au lieu de 20 % ») : 1 bloquant", () => {
     const j = jugerRelecture(relecture((_, k) => (k === 2 ? { faux: "30 % au lieu de 20 %" } : {})), INSTANTS);
     expect(j.bloquants).toHaveLength(1);
     expect(j.bloquants[0]).toMatch(/faux : 30 % au lieu de 20 %/);
   });
-  it("« illisible » : 1 bloquant", () => {
-    const j = jugerRelecture(relecture((_, k) => (k === 5 ? { illisible: "texte coupé par le bord" } : {})), INSTANTS);
+  it("chiffre ordinal faux (« 1er jour est devenu 2e jour ») : 1 bloquant", () => {
+    const j = jugerRelecture(relecture((_, k) => (k === 2 ? { faux: "le chiffre 1er jour est devenu 2e jour" } : {})), INSTANTS);
     expect(j.bloquants).toHaveLength(1);
-    expect(j.bloquants[0]).toMatch(/illisible : texte coupé par le bord/);
+  });
+  it("« au lieu de » avec deux fois le même nombre : remarque, pas de bloquant", () => {
+    const j = jugerRelecture(relecture((_, k) => (k === 2 ? { faux: "20 % au lieu de 20 euros" } : {})), INSTANTS);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(1);
+  });
+  it("point d'interrogation à la place d'un bloc : remarque", () => {
+    const j = jugerRelecture(relecture((_, k) => (k === 1 ? { faux: "affiche un point d'interrogation à la place de Mission terminée détectée" } : {})), INSTANTS);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(1);
+  });
+  it("« illisible » dans un détail de texte : remarque", () => {
+    const j = jugerRelecture(relecture((_, k) => (k === 5 ? { illisible: "texte coupé par le bord" } : {})), INSTANTS);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(1);
+    expect(j.remarques[0]).toMatch(/illisible : texte coupé par le bord \(détail, la vidéo continue\)\.$/);
+  });
+  it("image entièrement noire : 1 bloquant", () => {
+    const j = jugerRelecture(relecture((_, k) => (k === 5 ? { illisible: "image entièrement noire" } : {})), INSTANTS);
+    expect(j.bloquants).toHaveLength(1);
+    expect(j.bloquants[0]).toMatch(/illisible : image entièrement noire/);
+  });
+  it("6 images illisibles sur 10 : bloquant « illisible dans son ensemble »", () => {
+    const j = jugerRelecture(relecture((_, k) => (k < 6 ? { illisible: "texte coupé" } : {})), INSTANTS);
+    expect(j.bloquants).toHaveLength(1);
+    expect(j.bloquants[0]).toMatch(/illisible dans son ensemble/);
+  });
+  it("5 images illisibles sur 10 : pas bloquant", () => {
+    const j = jugerRelecture(relecture((_, k) => (k < 5 ? { illisible: "texte coupé" } : {})), INSTANTS);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(5);
   });
   it("6 « manque » sur 10 : 1 bloquant (plancher dépassé)", () => {
     const j = jugerRelecture(relecture((_, k) => (k < 6 ? { toutMontre: false, manque: "un bloc" } : {})), INSTANTS);
@@ -159,5 +202,26 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     expect(j.bloquants).toEqual([]);
     expect(j.remarques).toEqual([]);
     expect(j.indications).toHaveLength(2);
+  });
+});
+
+describe("estChiffreFauxIV / estIllisibleGlobalIV", () => {
+  it("chiffre faux : deux nombres différents reliés", () => {
+    expect(estChiffreFauxIV("30 % au lieu de 20 %")).toBe(true);
+    expect(estChiffreFauxIV("1er jour à la place de 2e jour")).toBe(true);
+    expect(estChiffreFauxIV("affiche 45 jours remplacé par 30 jours")).toBe(true);
+    expect(estChiffreFauxIV("1 000 € et non 100 €")).toBe(true);
+  });
+  it("pas un chiffre faux", () => {
+    expect(estChiffreFauxIV("20 % au lieu de 20,0 %")).toBe(false);
+    expect(estChiffreFauxIV("un point d'interrogation à la place de Mission terminée")).toBe(false);
+    expect(estChiffreFauxIV("le bandeau masque 30 % du titre, le titre est coupé et sans rapport au lieu de 20")).toBe(false);
+    expect(estChiffreFauxIV("")).toBe(false);
+  });
+  it("illisible dans son ensemble", () => {
+    for (const t of ["image entièrement noire", "image vide", "image blanche", "rien n'est lisible", "aucun texte lisible", "entièrement floue", "illisible dans son ensemble"]) expect(estIllisibleGlobalIV(t), t).toBe(true);
+  });
+  it("illisible de détail", () => {
+    for (const t of ["texte coupé par le bord", "VALIDE coiffe Autoliquidation", "le titre est flou"]) expect(estIllisibleGlobalIV(t), t).toBe(false);
   });
 });

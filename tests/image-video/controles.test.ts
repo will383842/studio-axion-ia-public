@@ -518,14 +518,24 @@ describe("relecture des images finales (Q26) par l'extraction existante", () => 
     expect(q26.phrase).toMatch(/faux : 30 % au lieu de 20 %/);
   });
 
-  it("une relecture « illisible : texte coupé par le bord » est refusée", async () => {
+  it("une relecture « illisible : texte coupé par le bord » est une remarque : la vidéo continue", async () => {
     const m = monter("C");
     const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, illisible: "texte coupé par le bord" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(true);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(false);
+    expect(q26.phrase).toMatch(/illisible : texte coupé par le bord/);
+  });
+
+  it("une relecture « illisible : image entièrement noire » est refusée", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, illisible: "image entièrement noire" } : x)) }) });
     const v = await porteUniqueIV(m.entree, o);
     expect(v.ok).toBe(false);
     const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
     expect(q26.bloquant).toBe(true);
-    expect(q26.phrase).toMatch(/illisible : texte coupé par le bord/);
+    expect(q26.phrase).toMatch(/illisible : image entièrement noire/);
   });
 
   it("« hors charte » et suggestions restent indicatifs", async () => {

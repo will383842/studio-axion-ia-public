@@ -46,7 +46,7 @@ export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
 
 /**
  * Contrôles indicatifs (jamais bloquants : remarque orange à la porte). Q13 et Q14 (chiffre non montré, rythme) sont des défauts de DÉTAIL :
- * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Restent bloquants SCENE, Q12, CHIFFRES, Q15, Q19 à Q24 ; Q11, Q18 et Q24 ne bloquent qu'au-delà de leurs planchers (vidéo inutilisable), en deçà ce sont des remarques.
+ * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; tout autre défaut relu est une remarque. Q11, Q18 et Q24 ne bloquent qu'au-delà de leurs planchers (vidéo inutilisable), en deçà ce sont des remarques.
  */
 export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", ...DEFAUTS_DE_DETAIL_IV]);
 
