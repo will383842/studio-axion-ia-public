@@ -39,7 +39,7 @@ import { controlerProprietes, proprietesEcrans, type ProprietesEcran } from "@/b
 import { ErreurRenduDefinitifIV, RenduEnCoursIV, VERSION_COMPOSITIONS_IV, type DemandeRenduIV } from "@/moteurs/montage-image-video/fabrication";
 import type { BlocRenduIV, LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { LIGNES_MAX_ECRAN_IV, proprietesEcranIV916 } from "@/moteurs/montage-image-video/ecrans-v4";
-import { BANDE_SOUS_TITRES_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, type FormatEcranIV } from "@/briques/schema-motion/types";
+import { BANDE_SOUS_TITRES_IV, ECRAN_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, type FormatEcranIV } from "@/briques/schema-motion/types";
 import { passagesIvoireIV, segmentsDeBaseIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { figeHorsVoixMaxSec, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
@@ -174,7 +174,9 @@ function repereDuBloc(b: BlocRenduIV, ligne: Pick<LigneDeTempsIV, "repere">) {
 
 /** Écran v4 en 4:5 (PUR) : la brique des écrans dans le cadre 1080 × 1350, zone au-dessus de la bande des sous-titres. */
 function proprietesEcran4x5(ecran: Extract<BlocRenduIV, { sorte: "ecran" }>["ecran"], ligne: Pick<LigneDeTempsIV, "largeur" | "hauteur">): ProprietesEcran {
-  const brutes = proprietesEcrans({ ecrans: [ecran], captures: {}, zoneProtegee: { ...ZONE_ECRAN_IV_4X5 }, bandeSousTitres: 0, largeur: ligne.largeur, hauteur: ligne.hauteur });
+  // 25/10 : la question de fin garde en 4:5 la taille de lettres du 9:16 (niveau « ligne » mesuré sur 1920, pas sur 1350 : ~30 px au lieu de 42).
+  const ecranIV = ecran.type === "question" ? { ...ecran, hauteurLigneRef: ECRAN_IV.hauteur } : ecran;
+  const brutes = proprietesEcrans({ ecrans: [ecranIV], captures: {}, zoneProtegee: { ...ZONE_ECRAN_IV_4X5 }, bandeSousTitres: 0, largeur: ligne.largeur, hauteur: ligne.hauteur });
   return dessinAuDessusDesSousTitres(brutes).map((e) => ({ ...e, basFil: BAS_FIL_IV_4X5 }))[0];
 }
 
