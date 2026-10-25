@@ -9,7 +9,9 @@ import type { NomIconeContinu } from "../commun/icones-continu";
 import { LARGEUR_PAGE } from "../constantes-continu";
 import type { ProprietesParcours } from "../types";
 
-const ROUTE = "M-40 1000 C 300 1000 520 640 1080 640 C 1640 640 1780 780 2160 780 C 2540 780 2700 620 3280 620";
+// La route naît et finit DANS le parcours (à 140 px des bords extérieurs) : jamais un bout coupé par une couture.
+const ROUTE = "M140 1000 C 380 1000 560 640 1080 640 C 1640 640 1780 780 2160 780 C 2540 780 2760 620 3100 620";
+const BOUTS = [[140, 1000], [3100, 620]] as const;
 const ETAPES: { icone: NomIconeContinu; x: number; y: number; carte: number }[] = [
   { icone: "target", x: 560, y: 690, carte: 230 },
   { icone: "layers", x: 1640, y: 650, carte: 870 },
@@ -23,6 +25,7 @@ export function PX({ pages }: ProprietesParcours) {
       <svg data-decor="" width={largeur} height={1350} viewBox={`0 0 ${largeur} 1350`} style={{ position: "absolute", left: 0, top: 0 }} aria-hidden>
         <path d={ROUTE} fill="none" stroke={C.encre} strokeOpacity={0.07} strokeWidth={64} strokeLinecap="round" />
         <path d={ROUTE} fill="none" stroke={C.orange} strokeWidth={20} strokeLinecap="round" />
+        {BOUTS.map(([x, y]) => <circle key={x} cx={x} cy={y} r={22} fill={C.orange} />)}
       </svg>
       {ETAPES.map((e, j) => (
         <Pose key={e.icone} x={e.x - 54} y={e.y - 54}>
