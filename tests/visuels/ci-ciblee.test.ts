@@ -15,6 +15,8 @@ const CHEMINS = [
   "tests/visuels/**",
   // Des tests de tests/visuels importent cette composition : une modification doit relancer la CI ciblée.
   "studio-rendu/compositions/visuels/**",
+  // Opération de la toile continue : ses fonctions pures sont testées dans tests/visuels.
+  "studio-rendu/src/operations/toile-*.ts",
   "tsconfig.visuels.json",
   ".github/workflows/tests-visuels.yml",
 ];
