@@ -56,6 +56,8 @@ export const RAYON_PASTILLE = 46;
 /** Débord des décors d'un nœud hors de sa carte (`Noeud.tsx`) : pastille d'icône à gauche, coche en haut à droite. */
 export const DEBORD_ICONE = 2 * RAYON_PASTILLE - 30;
 export const DEBORD_COCHE = RAYON_PASTILLE - 14;
+/** Débord de l'ombre hachurée d'un nœud (« au feutre », `Noeud.tsx`) : vers la droite et vers le bas, hors de sa carte. */
+export const DEBORD_HACHURES = 26;
 
 /** Débord de chaque nœud d'après ses décors réels (icône, coche). */
 export function debordNoeuds(p: Pick<ProprietesSceneIV, "schema" | "coches">): (id: string) => DebordNoeud {
