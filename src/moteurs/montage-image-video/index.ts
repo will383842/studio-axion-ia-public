@@ -59,6 +59,8 @@ export const PHRASE_FORMAT_MASQUE = "Le format « Image → vidéo » n'est pas 
 export interface EntreesImageVideo {
   imageCle: string;
   empreinte?: string;
+  /** MODE TEXTE (R6b) : description libre de Will à la place d'une image (`imageCle` vaut alors `texte:<empreinte>`). */
+  texte?: string;
   reseaux: ReseauIV[];
   offre?: Offre;
   typeImpose?: TypeImage;
@@ -82,6 +84,7 @@ export function lireEntreesImageVideo(entrees: Record<string, unknown> | undefin
   return {
     imageCle: typeof e.imageCle === "string" ? e.imageCle : "",
     ...(typeof e.empreinte === "string" ? { empreinte: e.empreinte } : {}),
+    ...(typeof e.texte === "string" ? { texte: e.texte } : {}),
     reseaux,
     ...(typeof e.offre === "string" ? { offre: e.offre as Offre } : {}),
     ...(typeof e.typeImpose === "string" ? { typeImpose: e.typeImpose as TypeImage } : {}),
@@ -107,6 +110,7 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
     videoId: commande.videoId,
     versionId,
     image: { cle: e.imageCle, ...(e.empreinte ? { empreinte: e.empreinte } : {}) },
+    ...(e.texte !== undefined ? { texte: e.texte } : {}),
     reseaux: e.reseaux,
     ...(e.offre ? { offre: e.offre } : {}),
     ...(e.typeImpose ? { typeImpose: e.typeImpose } : {}),
