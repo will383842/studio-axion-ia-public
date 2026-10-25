@@ -13,6 +13,13 @@ import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/ne
 import { carteFixe, monde, outilsSimules, type Monde } from "./doubles-fabrication";
 
 vi.setConfig({ testTimeout: 120_000 });
+// Ce test décrit les portes de Will (« en cas de doute ») : le défaut est « automatique » (mode-automatique.test.ts).
+vi.mock("@/formats/image-video", async (orig) => {
+  const v = await orig<typeof import("@/formats/image-video")>();
+  const s = v.schemaReglagesImageVideo;
+  const avec = (x: unknown) => ({ ...(x as object), validationCarte: "si-doute" });
+  return { ...v, schemaReglagesImageVideo: { parse: (x: unknown) => s.parse(avec(x)), safeParse: (x: unknown) => s.safeParse(avec(x)) } };
+});
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
