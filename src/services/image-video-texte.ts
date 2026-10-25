@@ -20,6 +20,7 @@ import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { cleDuTexte, PROVENANCE_TEXTE, refusTexte } from "@/moteurs/montage-image-video/texte/conception";
 import { creerVerrou, ErreurStudio, journaliser, lireParametre } from "./_commun";
+import { accordAutomatique, avecAccordAutomatique } from "./mode-budget";
 import { exigerSession } from "./auth";
 import { BLOCS_SCRIPT_PROVISOIRE_IV, PARAM_ACCORD_ESSAI_IV, PHRASES_IV, prixDuDepot, type DependancesEcranIV } from "./image-video-ecran";
 
@@ -86,7 +87,10 @@ export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: Depend
   if (!voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
   const montant = prixDuDepot(reseaux, await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))());
   return verrouDepotTexte<IssueDepotTexteIV>(async () => {
-    const accord = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
+    // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord ; sinon l'accord reçu, tel quel.
+    const accordBrut = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
+    const accordAuto = await accordAutomatique(accordBrut ?? false, montant);
+    const accord = typeof accordAuto === "number" ? accordAuto : undefined;
     // Accord absent ou plus bas que le prix : rien n'est créé, le prix est redemandé.
     if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo coûte au plus ${(montant / 100).toFixed(2).replace(".", ",")} €. Confirmez ce prix pour lancer.` };
     const accordEssaiReel = await (dep.accordEssai ?? (() => lireParametre<boolean>(PARAM_ACCORD_ESSAI_IV, false)))();
@@ -106,7 +110,7 @@ export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: Depend
     const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees });
     const abandonner = () => (dep.abandonner ?? abandonnerParDefaut)(video.id).catch(() => undefined);
     try {
-      const issue = await (dep.lancer ?? lancerParDefaut)(video.id, accord, montant);
+      const issue = await avecAccordAutomatique((a) => (dep.lancer ?? lancerParDefaut)(video.id, a, montant), accord, { videoId: video.id });
       if (issue.statut === "accord-requis") {
         await abandonner();
         return issue;

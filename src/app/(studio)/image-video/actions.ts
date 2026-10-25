@@ -11,6 +11,7 @@ import type { FicheImage } from "@/domaine/image-video/fiche";
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { ChoixFormule } from "@/moteurs/montage-image-video/regles";
 import { essayer, type Resultat } from "@/services/_commun";
+import { avecAccordAutomatique } from "@/services/mode-budget";
 import type { PastilleControle } from "@/domaine/relecture-script";
 import { controlerScriptImageVideo } from "@/services/image-video-scripts";
 import { arreterLotImageVideo, deposerLotImageVideo, refaireVideoDuLot, reprendreLotImageVideo, type DemandeLotIV, type IssueLotIV } from "@/services/image-video-lot";
@@ -19,7 +20,7 @@ import { deposerImageVideo, validerCarteEtReprendre, validerScriptEtReprendre, t
 
 /** Écran 1 · « Lancer » : l'image déposée, les réseaux, l'offre et le montant confirmé. */
 export async function deposerImageVideoAction(demande: DemandeDepotIV): Promise<Resultat<IssueDepotIV>> {
-  const r = await essayer(() => deposerImageVideo(demande));
+  const r = await essayer(() => avecAccordAutomatique((a) => deposerImageVideo({ ...demande, accordCentimes: a ?? demande.accordCentimes }), typeof demande.accordCentimes === "number" ? demande.accordCentimes : undefined));
   if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
   return r;
 }
@@ -33,7 +34,7 @@ export async function deposerTexteImageVideoAction(demande: DemandeDepotTexteIV)
 
 /** Écran 2 · « Valider la carte » : la carte corrigée (ou rien : la carte proposée), puis la suite. */
 export async function validerCarteImageVideoAction(videoId: string, carte?: CarteImage): Promise<Resultat<IssueRepriseIV>> {
-  const r = await essayer(() => validerCarteEtReprendre(videoId, carte));
+  const r = await essayer(() => avecAccordAutomatique(() => validerCarteEtReprendre(videoId, carte), undefined, { videoId }));
   if (r.ok) revalidatePath(`/image-video/${videoId}`);
   return r;
 }
@@ -44,7 +45,7 @@ export async function validerScriptImageVideoAction(
   decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV> },
   accord?: AccordPrix,
 ): Promise<Resultat<IssueRepriseIV>> {
-  const r = await essayer(() => validerScriptEtReprendre(videoId, decision, accord));
+  const r = await essayer(() => avecAccordAutomatique((a) => validerScriptEtReprendre(videoId, decision, a ?? accord), typeof accord === "number" ? accord : undefined, { videoId }));
   if (r.ok) revalidatePath(`/image-video/${videoId}`);
   return r;
 }
