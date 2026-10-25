@@ -4,7 +4,7 @@ import { Carte, Etincelle, Interrupteur, police, Pose, POLICE_TEXTE, Titre, Tuil
 import type { ProprietesPlaquette } from "../../types";
 import { EtiquetteCas, ZoneCas } from "./commun-cas";
 
-/** Points de la barre de fenêtre : jeton `lin` (#CFC3B1) à la place du #D8CBB8 de la maquette (écart de teinte imperceptible, aucune couleur littérale permise). */
+/** Points de la barre de fenêtre : jeton `lin` à la place de la teinte légèrement plus claire de la maquette (écart de teinte imperceptible, aucune couleur littérale permise). */
 function Point({ couleur }: { couleur: string }) {
   return <b style={{ width: 18, height: 18, borderRadius: "50%", background: couleur, display: "block" }} />;
 }
