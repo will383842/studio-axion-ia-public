@@ -333,7 +333,7 @@ describe("porte unique : une vidéo conforme passe, sur toutes ses versions", ()
 });
 
 describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
-  it("une transcription à laquelle manque la dernière phrase est refusée", async () => {
+  it("une transcription à laquelle manque la dernière phrase : remarques (Q19, Q06), la vidéo sort, relecture lancée", async () => {
     const m = monter("A");
     const { o } = outils(m, {
       transcrire: (_d, mots) => {
@@ -344,15 +344,18 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
       },
     });
     const v = await porteUniqueIV(m.entree, o);
-    // 25/10/2026 : Q19 n'est plus qu'une remarque ; la vidéo reste refusée par la phrase-choc non entendue (Q06 : la voix).
-    expect(v.ok).toBe(false);
+    // 25/10/2026 : Q19 et la phrase-choc non entendue (Q06 : erreur de transcription, la voix existe) ne sont que des remarques.
+    expect(v.ok).toBe(true);
     const q19 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q19" && l.etat === "echoue");
     expect(q19.length).toBeGreaterThan(0);
     expect(q19.every((l) => !l.bloquant)).toBe(true);
     expect(q19[0].phrase).toMatch(/dernière phrase/);
-    expect(v.versions.flatMap((x) => x.lignes).some((l) => l.code === "Q06" && bloque(l))).toBe(true);
-    // La relecture payante n'est pas lancée : la vidéo est déjà refusée.
-    expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q26").every((l) => l.etat === "non-fait")).toBe(true);
+    const q06 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q06" && l.etat === "echoue");
+    expect(q06.length).toBeGreaterThan(0);
+    expect(q06.every((l) => !bloque(l))).toBe(true);
+    expect(v.mentions.join()).toMatch(/phrase-choc/);
+    // La vidéo n'est pas refusée : la relecture payante a lieu.
+    expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q26").every((l) => l.etat !== "non-fait")).toBe(true);
   });
 
   it("« Sous-titres réalisés par… » après la voix n'est PAS refusé (filtré et hors bornes)", async () => {
@@ -429,7 +432,8 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
     const v = await porteUniqueIV(m.entree, o);
     expect(v.ok).toBe(false);
     const lignes = v.versions[0].lignes.filter(bloque).map((l) => l.code);
-    expect(lignes).toContain("Q18");
+    expect(lignes).toContain("CHIFFRES");
+    expect(lignes).not.toContain("Q18");
     expect(v.versions[0].lignes.find((l) => l.code === "Q18")!.phrase).toMatch(/chiffre/);
   });
 
@@ -489,11 +493,12 @@ describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en
     expect(bloque(q18)).toBe(false);
     expect(q18.phrase).toMatch(/des mots du script entendus dans l'ordre/);
   });
-  it("environ 80 % des mots entendus : la voix manque vraiment, la vidéo reste refusée", async () => {
+  it("environ 80 % des mots entendus (sous le plancher) : remarque orange, plus un refus (règle du 25/10/2026)", async () => {
     const q18 = await q18De(0.2);
     expect(Number(/(\d+[.,]\d) %/.exec(q18.phrase)![1].replace(",", "."))).toBeLessThan(90);
-    expect(q18.bloquant).toBe(true);
-    expect(bloque(q18)).toBe(true);
+    expect(q18.etat).toBe("echoue");
+    expect(q18.bloquant).toBe(false);
+    expect(bloque(q18)).toBe(false);
     expect(q18.phrase).toMatch(/90 % au moins/);
   });
 });
@@ -651,13 +656,16 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(v2.phrases.join()).toMatch(/YouTube Shorts \(version courte\).*la cadence/);
   });
 
-  it("une version courte qui retire un chapitre essentiel est refusée (Q11 bis)", async () => {
+  it("une version courte qui retire un chapitre essentiel : remarque Q11 bis, la vidéo sort", async () => {
     const m = monter("faux-16-noeuds");
     const courte = avecVersionCourte(m);
     courte.retires = [m.entree.fiche.chapitres.find((c) => c.essentiel)!.titre];
     const v = await porteUniqueIV(m.entree, outils(m).o);
-    expect(v.ok).toBe(false);
-    expect(v.versions.find((x) => x.courte)!.lignes.find((l) => l.code === "Q11bis")!.phrase).toMatch(/essentiel/);
+    const q11bis = v.versions.find((x) => x.courte)!.lignes.find((l) => l.code === "Q11bis")!;
+    expect(q11bis.phrase).toMatch(/essentiel/);
+    expect(q11bis.etat).toBe("echoue");
+    expect(bloque(q11bis)).toBe(false);
+    expect(v.mentions.join()).toMatch(/essentiel/);
   });
 
   it("le verdict lit toutes les versions : un défaut sur la seule version Facebook refuse la vidéo", async () => {
@@ -707,7 +715,7 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(bloque(court)).toBe(false);
   }, 60_000);
 
-  it("Q11 · corps trop long : remarque ; plafond du réseau dépassé : refus", async () => {
+  it("Q11 · corps trop long : remarque ; plafond du réseau dépassé : remarque aussi", async () => {
     const m = monter("A");
     const p = m.entree.versions[0].piste;
     p.mots = p.mots.map((x, i) => (i === p.motsCorps - 1 ? { ...x, finSec: 500 } : x));
@@ -719,7 +727,26 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     const fb = m2.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
     fb.ligne = { ...fb.ligne, dureeSec: 400 };
     const q11b = (await porteUniqueIV(m2.entree, outils(m2).o)).versions.find((x) => x.version === fb.version)!.lignes.find((l) => l.code === "Q11")!;
-    expect(bloque(q11b)).toBe(true);
+    expect(q11b.etat).toBe("echoue");
+    expect(bloque(q11b)).toBe(false);
+  }, 60_000);
+
+  it("réseau sans fin (plan.sansFin) et version sans fin : remarques, la vidéo sort", async () => {
+    const m = monter("A");
+    const fb = m.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    const v = await porteUniqueIV({ ...m.entree, plan: { ...m.entree.plan, sansFin: [{ reseaux: ["facebook"], raison: "aucune fin pour Facebook : le gabarit manque." }] } }, outils(m).o);
+    expect(v.ok).toBe(true);
+    expect(v.generaux).toEqual([]);
+    expect(v.mentions.join()).toMatch(/Facebook : aucune fin pour Facebook/);
+    const m2 = monter("A");
+    const fb2 = m2.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    (fb2 as { fin: unknown }).fin = null;
+    const v2 = await porteUniqueIV(m2.entree, outils(m2).o);
+    const q08bis = v2.versions.find((x) => x.version === fb2.version)!.lignes.find((l) => l.code === "Q08bis")!;
+    expect(q08bis.etat).toBe("echoue");
+    expect(q08bis.phrase).toMatch(/aucune fin pour/);
+    expect(bloque(q08bis)).toBe(false);
+    expect(fb.version).toBe(fb2.version);
   }, 60_000);
 
   it("une mesure absente du fichier final échoue (non vérifiée), jamais réussie", async () => {

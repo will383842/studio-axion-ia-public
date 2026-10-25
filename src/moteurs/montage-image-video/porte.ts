@@ -96,7 +96,9 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const generaux: string[] = [];
   if (!e.reseaux.length) generaux.push("aucun réseau demandé : la vidéo n'a nulle part où partir.");
   if (!e.versions.length) generaux.push("aucune version de la vidéo n'a été fournie aux contrôles.");
-  for (const s of e.plan.sansFin) if (s.reseaux.some((r) => e.reseaux.includes(r))) generaux.push(`${nomReseaux(s.reseaux)} : ${s.raison}`);
+  // Réseau sans fin : remarque (la vidéo sort sans question de commentaire), jamais un blocage.
+  const remarquesGenerales: string[] = [];
+  for (const s of e.plan.sansFin) if (s.reseaux.some((r) => e.reseaux.includes(r))) remarquesGenerales.push(`${nomReseaux(s.reseaux)} : ${s.raison}`);
   const vus = new Set<string>();
   for (const v of e.versions) {
     if (vus.has(v.version)) generaux.push(`la version ${v.version} est fournie deux fois.`);
@@ -109,7 +111,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const instants = new Map(e.versions.map((v) => [v.version, instantsClesIV(v.ligne, e.carte)]));
   const mesures = (v: VersionAControlerIV, plus: Partial<MesuresDeLaPorteIV> = {}): MesuresDeLaPorteIV => ({ plafonds: verdicts.filter((x) => v.reseaux.includes(x.reseau)), ...plus });
   const dejaRefusee = (lignes: readonly LigneControleIV[]) => lignes.some((l) => bloque(l) && !(l.etat === "non-fait" && CODES_APRES_ECOUTE.has(l.code)));
-  const refusAvant = generaux.length > 0 || verdicts.some((x) => x.bloquant) || e.versions.some((v) => dejaRefusee(controlerVersionIV(v, ctx, mesures(v))));
+  const refusAvant = generaux.length > 0 || e.versions.some((v) => dejaRefusee(controlerVersionIV(v, ctx, mesures(v))));
 
   // 2. Écoute de chaque version (réservée), seulement si rien n'est déjà refusé ; reprise sans repayer sinon.
   const transcriptions: Record<string, MotHorodate[]> = { ...(e.deja?.transcriptions ?? {}) };
@@ -161,11 +163,13 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
 
   const phrases = [
     ...generaux.map((g) => g.charAt(0).toUpperCase() + g.slice(1)),
-    ...verdicts.filter((x) => x.bloquant).map((x) => x.phrase ?? `${x.nom} : non livrée.`),
     ...jugees.flatMap((j) => j.lignes.filter(bloque).map((l) => `${nomReseaux(j.reseaux)}${j.courte ? " (version courte)" : ""} · ${l.phrase}`)),
   ];
   const mentions = [
+    ...remarquesGenerales.map((g) => g.charAt(0).toUpperCase() + g.slice(1)),
     ...verdicts.filter((x) => x.verdict === "mention").map((x) => `${x.nom} : ${x.phrase}`),
+    // Plafond de durée dépassé : remarque (la vidéo sort, Will décide de la publier ou de la raccourcir).
+    ...verdicts.filter((x) => x.bloquant).map((x) => x.phrase ?? `${x.nom} : non livrée.`),
     ...jugees.flatMap((j) => j.lignes.filter((l) => !l.bloquant && l.etat !== "reussi").map((l) => `${nomReseaux(j.reseaux)} · ${l.phrase}`)),
     ...e.versions.flatMap((v) => (relues.get(v.version)?.indications ?? []).map((i) => `${nomReseaux(v.reseaux)} · ${i}`)),
   ];
