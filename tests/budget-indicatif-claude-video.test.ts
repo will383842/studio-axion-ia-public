@@ -83,14 +83,14 @@ describe("plafond du monteur face caméra en mode indicatif", () => {
     expect((await depots().notifications.lister()).filter((x) => x.type === "budget" && /Prix annoncé/.test(x.titre))).toHaveLength(1);
   });
 
-  it("au-delà de 5 × le plafond : arrêt de sécurité, aucun appel", async () => {
-    await ecrireParametre("budget.mode", "indicatif");
+  it("bloquant, au-delà du plafond : refus, aucun appel (en indicatif, plus d'arrêt à 5 ×)", async () => {
+    await ecrireParametre("budget.mode", "bloquant");
     const appels = brancherClaude();
     const v = await video();
     await depenseMonteur(v.id, 800, new Date(Date.now() - 30_000).toISOString());
     const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, options());
     expect(r).toMatchObject({ ok: false, arret: "plafond-video" });
-    expect(!r.ok && r.message).toMatch(/Arrêt de sécurité/);
+    expect(!r.ok && r.message).toMatch(/Version simple/);
     expect(appels).toHaveLength(0);
   });
 
