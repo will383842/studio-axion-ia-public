@@ -141,7 +141,7 @@ export function FeuilleSerie({
             <Icone nom="attention" size={18} className="mt-0.5 shrink-0 text-ambre" />
             <p className="text-sm font-semibold leading-snug text-texte">
               {plan.limite === "claude" ? "Le repère d'écriture du mois est dépassé" : "Le budget indicatif du mois est dépassé"} : tout part quand même.{" "}
-              <span className="font-normal text-texte-doux">Rien n&apos;est bloqué, l&apos;arrêt de sécurité reste à 5 fois le prix annoncé d&apos;un sujet.</span>
+              <span className="font-normal text-texte-doux">Rien n&apos;est bloqué : le prix n&apos;arrête jamais la fabrication.</span>
             </p>
           </div>
         )}
