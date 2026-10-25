@@ -63,6 +63,17 @@ import { appliquerVarieteIV, type RepliVarieteIV } from "./variete";
 const R = REGLES_SCENE_IV;
 const MARQUE = "axion-ia.com" as const;
 
+/**
+ * Étiquette de repli d'un en-tête (aucun groupe, aucune étiquette écrite) : le titre de l'image, sauf s'il redit la marque
+ * (déjà écrite en haut de l'écran) ; alors « Vue d'ensemble » sur l'écran d'ensemble, sinon rien (25/10).
+ */
+function etiquetteDeRepli(carte: Pick<CarteImage, "titre">, scene?: string): string {
+  const net = (t: string) => t.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]/g, "");
+  const t = net(carte.titre);
+  if (t !== net(MARQUE) && t !== net(MARQUE.replace(/\.com$/, ""))) return carte.titre;
+  return scene === "ensemble" ? "Vue d'ensemble" : "";
+}
+
 /* ------------------------------------------------------------------ */
 /* Types publics                                                         */
 /* ------------------------------------------------------------------ */
@@ -483,14 +494,22 @@ interface EcranPlace {
  * (`SCENES_COMMUNES`), mais un écran de bénéfice ne dessine qu'un bloc « bénéfice ». Celui qui n'en cite aucun (et cite
  * des blocs) est mis en scène sur la toile : sinon ses blocs n'apparaissent jamais (Q12), son chiffre dit n'est pas
  * montré (Q13) et rien ne bouge pendant qu'il est dit (Q14).
+ * 25/10 (prod, carte « chatbot ») : même trou pour « dossiers », « sources » et « recherche » qui ne citent AUCUN bloc de la
+ * carte : ils ne posent rien qui compte comme nouveauté (leurs en-têtes de remplissage ne comptent pas), d'où 6 s sans rien
+ * de neuf (Q14). Ils passent en texte seul (« titre »), qui pose ses lignes l'une après l'autre. Les autres moments (email,
+ * alerte...) relancent eux-mêmes le rythme et gardent leurs liens cités : ils ne sont pas touchés.
  */
+const MOMENTS_SANS_RELANCE = new Set<string>(["dossiers", "sources", "recherche"]);
+
 function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheImage {
   const sansBenefice = (e: EcranFiche) => {
     const noeuds = e.refs.map((r) => carte.noeuds.find((n) => n.id === r)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
     return SCENES_BENEFICES.has(e.scene) && noeuds.length > 0 && !noeuds.some((n) => n.role === "benefice");
   };
-  if (!fiche.ecrans.some(sansBenefice)) return fiche;
-  return { ...fiche, ecrans: fiche.ecrans.map((e) => (sansBenefice(e) ? { ...e, scene: "toile" as const } : e)) };
+  const momentVide = (e: EcranFiche) =>
+    MOMENTS_SANS_RELANCE.has(e.scene) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
+  if (!fiche.ecrans.some((e) => sansBenefice(e) || momentVide(e))) return fiche;
+  return { ...fiche, ecrans: fiche.ecrans.map((e) => (sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
 }
 
 /** Met en scène une version. Rend toujours la ligne de temps et le rapport des contrôles (`ok` = aucun bloquant). */
@@ -706,7 +725,7 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   // après…), sinon le titre de l'image.
   const groupe = c.e.refs.map((r) => carte.noeuds.find((n) => n.id === r)?.groupe).find((g) => g);
   const titreGroupe = carte.groupes.find((g) => g.id === groupe)?.titre;
-  const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? carte.titre);
+  const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? etiquetteDeRepli(carte, c.e.scene));
   const parties = partiesDe(c, titre, toutesCles);
   const montreAilleurs = (k: string) => {
     const d = c.chiffres.find((x) => x.cle === k);
@@ -722,7 +741,12 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
     const p = poserTexte(c, autre, toutesCles);
     const dernier = els.filter((x) => x.role === "entete").at(-1)!;
     if (p.couverts.length && p.t - dernier.t >= 1.2) els.push(nouvelEl(c, "entete", p.chiffres.length ? "chiffre" : "objet", p.t, { texte: `${etiquette}|${autre}`, chiffres: p.chiffres, couverts: p.couverts, coupe: true }));
-    else dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
+    // 25/10 : la seconde ligne ne passe en étiquette que si elle PRÉCÈDE le titre ; après lui, « 20 % — Limite atteinte » au-dessus de
+    // « 80 % — Réponse connue » se contredisait.
+    // Après le titre, nommée trop tôt pour relancer, sans chiffre à montrer sur son mot : elle relance l'en-tête 1,2 s après le dernier, s'il reste de la place avant la fin de l'écran.
+    else if (lignes.indexOf(autre) > lignes.indexOf(titre)) {
+      if (p.couverts.length && !p.chiffres.length && dernier.t + 1.2 < c.fin - 0.3) els.push(nouvelEl(c, "entete", "objet", arrondi(dernier.t + 1.2), { texte: `${etiquette}|${autre}`, chiffres: [], couverts: p.couverts, coupe: true }));
+    } else dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
   }
 }
 
@@ -1774,7 +1798,7 @@ function recouper(bornes: number[], p: EcranPlace, precedent: PlanIV | undefined
     const b = res[k + 1];
     const longPrecedent = k === 0 ? (precedent ? precedent.fin - precedent.debut > R.planLong : false) : res[k] - res[k - 1] > R.planLong;
     if (!(b - a > R.planMax || (b - a > R.planLong && longPrecedent))) continue;
-    const dans = (marge: number) => p.els.filter((x) => x.visible && x.t > a + marge && x.t < b - marge && ["ligne", "entete", "micro", "ligne-carte", "objet", "champ", "declencheur", "alerte", "message", "tampon"].includes(x.role));
+    const dans = (marge: number) => p.els.filter((x) => x.visible && x.t > a + marge && x.t < b - marge && ["ligne", "entete", "micro", "ligne-carte", "objet", "champ", "declencheur", "alerte", "message", "tampon", "noeud"].includes(x.role));
     const candidats = dans(1.2).length ? dans(1.2) : dans(0.6);
     if (!candidats.length) continue;
     const milieu = (a + b) / 2;
@@ -2157,7 +2181,8 @@ function entetesDe(lot: EcranPlace[], debut: number, fin: number, carte: CarteIm
   const rel = (t: number) => arrondi(Math.max(0, t - debut));
   const bruts = lot.flatMap((p) => p.els.filter((x) => x.role === "entete")).map((x) => {
     const [etiquette, titre] = (x.texte ?? "").split("|");
-    return { t: rel(x.t), etiquette: etiquette || carte.titre, titre: titre || etiquette };
+    // Texte « étiquette|titre » : l'étiquette est déjà décidée (éventuellement vide, par `etiquetteDeRepli` avec la scène de SON écran) ; le repli ne sert qu'au texte sans « | ».
+    return { t: rel(x.t), etiquette: (x.texte ?? "").includes("|") ? etiquette : etiquette || etiquetteDeRepli(carte, lot[0]?.c.e.scene), titre: titre || etiquette };
   });
   return bruts.map((x, k) => ({ debut: x.t, fin: k + 1 < bruts.length ? bruts[k + 1].t : rel(fin), etiquette: x.etiquette, titre: x.titre }));
 }
@@ -2172,7 +2197,7 @@ function blocMoments(id: string, lot: EcranPlace[], carte: CarteImage, debut: nu
   const ent = els.filter((x) => x.role === "entete");
   const entetes = ent.map((x) => {
     const [etiquette, titre] = (x.texte ?? "").split("|");
-    return { t: x.t, entete: { etiquette: etiquette || carte.titre, titre: titre || etiquette } };
+    return { t: x.t, entete: { etiquette: (x.texte ?? "").includes("|") ? etiquette : etiquette || etiquetteDeRepli(carte, e.scene), titre: titre || etiquette } };
   });
   let corps: MomentIV;
   // Un écran « carte-bénéfice » qui cite plusieurs bénéfices est un récapitulatif (`sorteDe`) : jamais un moment vide.

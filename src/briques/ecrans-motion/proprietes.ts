@@ -146,8 +146,9 @@ export function optionsDe(p: ContenuEcran<unknown>): OptionsBoites {
     case "accroche":
       return { lignes: p.lignes.length, centrer: true };
     case "titre":
-    case "question":
       return { lignes: p.lignes.length };
+    case "question":
+      return { lignes: p.lignes.length, ...(p.hauteurLigneRef ? { hauteurLigneRef: p.hauteurLigneRef } : {}) };
     case "etape":
     case "preuve":
       return { puces: p.puces.length };
