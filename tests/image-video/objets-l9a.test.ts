@@ -36,6 +36,7 @@ import {
   secousseAlerte,
   SIGNES,
 } from "../../studio-rendu/compositions/image-video/plan-objets";
+import { libelleCourt } from "../../src/briques/schema-motion/plan-objets";
 
 /** Zone utile en pixels (haut et bas). */
 const BAS_ZONE = { haut: zoneUtile().y, bas: zoneUtile().y + zoneUtile().hauteur };
@@ -317,7 +318,9 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
     it(`${nom} : chaque nœud a son bloc, dans la zone utile et les marges, sans chevauchement ; libellés ≤ 3 mots et ≥ plancher`, () => {
       const carte = lire(nom);
       const p = planEnsemble(carte);
-      expect(p.alertes).toEqual([]);
+      // 25/10/2026 (D3, compositions-iv/12) : l'écart minimal entre rangées est de 16 px. Ordre des remèdes : vue serrée (chiffres-clés gardés), puis
+      // retrait des chiffres-clés (alerte), puis paires, puis vue réduite (libellés raccourcis, alerte). Voir « D3 · alertes exactes » plus bas.
+      expect(p.ecart).toBeGreaterThanOrEqual(16);
       expect(p.blocs.map((x) => x.id).sort()).toEqual(carte.noeuds.map((n) => n.id).sort());
       for (const x of p.blocs) {
         expect(x.x).toBeGreaterThanOrEqual(0.05 * W - 1e-6);
@@ -335,6 +338,32 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
       }
     });
   }
+  // D3 (25/10/2026, compositions-iv/12) : LISTE EXACTE des alertes de chaque carte (la zone utile fait 605 px : avec 16 px entre rangées, les
+  // chiffres-clés de A, C, E et F ne tiennent pas même en vue serrée ; ils restent montrés quand ils sont dits). Chaque libellé raccourci est signalé.
+  const RETIRE = (t: string) => `« ${t} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`;
+  const RACCOURCI = (id: string, de: string, vers: string) => `Libellé de ${id} raccourci (vue réduite, place) : « ${de} » → « ${vers} ».`;
+  const ATTENDU: Record<string, string[]> = {
+    A: [RETIRE("1er jour")],
+    B: [],
+    C: [RETIRE("2h"), RETIRE("4 sec"), RETIRE("23h14"), RACCOURCI("n08", "Envoyé équipe concernée", "Envoyé équipe")],
+    D: [],
+    E: [RETIRE("3 secondes"), RETIRE("23 min"), RACCOURCI("n06", "Documents en vrac", "Documents"), RACCOURCI("n10", "Bon de commande", "Bon")],
+    F: [RETIRE("5 min"), RETIRE("6 min"), RETIRE("8 min"), RACCOURCI("n01", "Commande reçue", "Commande")],
+  };
+  for (const nom of Object.keys(ATTENDU)) {
+    it(`D3 · carte ${nom} : alertes exactes, écart ≥ 16, libellés identiques au texte de la carte sauf ceux signalés`, () => {
+      const carte = lire(nom);
+      const p = planEnsemble(carte);
+      expect([...p.alertes].sort()).toEqual([...ATTENDU[nom]].sort());
+      expect(p.ecart).toBeGreaterThanOrEqual(16);
+      for (const b of p.blocs) {
+        const attendu = libelleCourt(carte.noeuds.find((n) => n.id === b.id)!).toUpperCase();
+        const pose = b.libelle.lignes.map((l) => l.join(" ")).join(" ");
+        if (pose !== attendu) expect(p.alertes.some((a) => a.startsWith(`Libellé de ${b.id} raccourci`)), `${b.id} raccourci sans alerte`).toBe(true);
+      }
+    });
+  }
+
   it("C : les parts « 80 % » et « 20 % » en tête de leur branche, à sa couleur (orange à gauche)", () => {
     const s = sceneGalerieC();
     const p = planEnsemble(s.schema, { chiffresCles: ["20 %", "80 %"] });
@@ -354,9 +383,12 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
   });
 });
 
+/** Alertes d'INFORMATION de la vue d'ensemble (chiffre-clé retiré, libellé raccourci : listées carte par carte dans « D3 · carte »), pas des défauts de lisibilité. */
+const informative = (a: string) => !/chiffre-clé retiré de la vue d'ensemble|raccourci \(vue réduite/.test(a);
+
 describe("galeries L9a (A, B, objets de C et E)", () => {
   it("aucune alerte de lisibilité, à aucun moment", () => {
-    for (const g of [galerieA(), galerieB(), galerieObjets()]) for (const m of g.moments) expect(alertesDuMoment(m), `${m.sorte} ${m.debut}`).toEqual([]);
+    for (const g of [galerieA(), galerieB(), galerieObjets()]) for (const m of g.moments) expect(alertesDuMoment(m).filter(informative), `${m.sorte} ${m.debut}`).toEqual([]);
   });
   it("moments contigus, du début à la fin de la vidéo ; repère « 2/3 » visible dans la galerie des objets", () => {
     for (const g of [galerieA(), galerieB(), galerieObjets()]) {
