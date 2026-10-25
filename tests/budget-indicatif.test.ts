@@ -148,8 +148,11 @@ describe("confirmation de prix au-dessus du seuil", () => {
     await ecrireParametre("budget.seuilConfirmation", eur(1000));
   });
 
-  it("indicatif : un lancement fait à la main par Will au-dessus du seuil exige TOUJOURS la confirmation", async () => {
+  it("indicatif : un lancement de Will au-dessus du seuil part sans confirmation (le prix ne bloque jamais) ; en bloquant il l'exige toujours", async () => {
     await ecrireParametre("budget.mode", "indicatif");
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo")).resolves.toBeUndefined();
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), 2000, "Cette vidéo")).resolves.toBeUndefined();
+    await ecrireParametre("budget.mode", "bloquant");
     await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
     await expect(credits.verifierBudgetEtCredits(estimation(2000), 2000, "Cette vidéo")).resolves.toBeUndefined();
   });
