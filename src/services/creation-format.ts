@@ -14,6 +14,7 @@ import { nouvelId } from "@/lib/ids";
 import { formaterMontant } from "@/lib/montants";
 import { depots, ErreurStudio, horodatage, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
+import { accordAutomatique } from "./mode-budget";
 
 export interface EntreeBrouillonFormat {
   formatId: string;
@@ -75,7 +76,8 @@ async function lancerCommun(videoId: Id, accord: number): Promise<{ travailId: I
  */
 export async function lancerAvecAccord(videoId: Id, accordBrut: AccordPrix | unknown, montantCentimes: number, dependances: DependancesLancement = {}): Promise<IssueLancement> {
   await exigerSession();
-  const accord = accordPropre(accordBrut);
+  // Règle « le prix ne bloque jamais » : en mode indicatif, le prix du jour vaut accord (journalisé) ; mode bloquant : inchangé.
+  const accord = await accordAutomatique(accordPropre(accordBrut), montantCentimes, { videoId });
   if (typeof accord !== "number" || accord < montantCentimes) {
     return { statut: "accord-requis", centimes: montantCentimes, phrase: `La voix coûte environ ${formaterMontant({ centimes: montantCentimes, devise: "EUR" })}. Confirmez ce prix pour lancer.` };
   }

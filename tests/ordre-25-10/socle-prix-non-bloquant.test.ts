@@ -107,12 +107,12 @@ describe("mode indicatif : le prix ne bloque pas", () => {
     await modeBudget.signalerDepassementIndicatif("v-a", "Prix accepté", "Essai");
     await modeBudget.signalerDepassementIndicatif("v-a", "Prix accepté", "Essai");
     await modeBudget.signalerDepassementIndicatif("v-b", "Prix accepté", "Essai");
-    const cloches = await depots().notifications.lister();
+    const cloches = (await depots().notifications.lister()).filter((n) => n.titre === "Prix accepté");
     expect(cloches).toHaveLength(2);
     const { canauxPour } = await import("@/services/notifications");
     for (const n of cloches) expect(canauxPour(n, { canal: "push" } as never, { push: true })).toEqual({ push: false, email: false, emailSiPushEchoue: false });
     expect(cloches.every((n) => !n.envoi?.emailForce)).toBe(true);
-    expect((await depots().evenements.lister()).filter((e) => e.type === "budget")).toHaveLength(3);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && e.message === "Essai")).toHaveLength(3);
   });
 });
 

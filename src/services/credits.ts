@@ -53,7 +53,7 @@ import type { LecteurCredit, TestConnexion } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
 import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { accordCouvre, accordPropre, type AccordPrix } from "@/domaine/accord";
-import { budgetIndicatif } from "./mode-budget";
+import { accordAutomatique, budgetIndicatif } from "./mode-budget";
 import { partDoubleReel, phraseAvatarParle } from "@/domaine/double-reel";
 import type { Estimation } from "@/moteurs";
 import { depots, ecrireParametre, ErreurStudio, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
@@ -320,10 +320,12 @@ export async function verifierBudgetEtCredits(
   quoi: string,
   options: { doubleDejaConfirme?: boolean; origine?: OrigineLancement; travailId?: Id; automatique?: boolean } = {},
 ): Promise<void> {
-  const confirme = accordPropre(accord);
   // Lot R2 : une ligne `facultative` (textes des réseaux) ne bloque jamais ; elle reste engagée (verifierEtReserver).
   // L1-09 : au centime supérieur (pire cas, aucune fraction dans la somme du mois).
   const bloquant = Math.ceil(centimesBloquants(estimation));
+  // Règle « le prix ne bloque jamais » : en mode indicatif (commande de l'utilisateur), le prix du jour vaut accord, y compris
+  // pour le double réel. Mode bloquant et Usine : l'accord reçu, inchangé.
+  const confirme = await accordAutomatique(accordPropre(accord), bloquant, { origine: options.origine });
   // L1-09 : plafond du mois (réglé dans le studio), puis budget de l'Usine pour une commande de l'Usine ; illisible → refus.
   await controlerBudgetDuMois(bloquant, { origine: options.origine, travailId: options.travailId });
   const budget = await resumeBudget();
