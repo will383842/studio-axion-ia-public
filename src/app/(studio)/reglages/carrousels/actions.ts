@@ -8,7 +8,7 @@ import { definirGenerateur, type FamilleVisuelle } from "@/visuels/interrupteur"
 export async function definirGenerateurAction(famille: unknown, valeur: unknown): Promise<Resultat> {
   await exigerSession();
   return essayer(async () => {
-    if (famille !== "carrousels" && famille !== "infographies") throw new Error("famille inconnue");
+    if (famille !== "carrousels" && famille !== "infographies" && famille !== "carrousels-continus") throw new Error("famille inconnue");
     if (typeof valeur !== "boolean") throw new Error("valeur inconnue");
     await definirGenerateur(famille as FamilleVisuelle, valeur);
     revalidatePath("/reglages/carrousels");
