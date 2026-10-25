@@ -51,9 +51,14 @@ export function cadreAccent(hauteurEcran: number) {
 export const commun = (p: RectRendu, q: RectRendu) => Math.max(0, Math.min(p.x + p.largeur, q.x + q.largeur) - Math.max(p.x, q.x)) * Math.max(0, Math.min(p.y + p.hauteur, q.y + q.hauteur) - Math.max(p.y, q.y));
 
 /** Boîte du nœud et des autres nœuds à l'écran (pixels 1080 × 1920) à l'instant `t`, ou `null` si inconnu. */
-export function boitesEcran(scene: SceneAccents, ac: AccentToileRendu, t: number): { noeud: RectRendu; obstacles: RectRendu[]; vue?: true } | null {
+export function boitesEcran(scene: SceneAccents, ac: AccentToileRendu, t: number, hauteurEcran = ECRAN_IV.hauteur): { noeud: RectRendu; obstacles: RectRendu[]; vue?: true } | null {
   const vue = ac.vues?.find((v) => t >= v.debut && t < v.fin);
-  if (vue) return { noeud: vue, obstacles: vue.obstacles, vue: true };
+  if (vue) {
+    // Les boîtes d'une vue sont mesurées au repère 1920 ; en 4:5 la vue d'ensemble est dessinée remontée de `decalageReference` (`decalageReferenceIV`).
+    const d = miseEnPageDeHauteurIV(hauteurEcran).decalageReference;
+    const monte = (r: RectRendu): RectRendu => ({ ...r, y: r.y - d });
+    return { noeud: monte(vue), obstacles: vue.obstacles.map(monte), vue: true };
+  }
   if (!scene.parId.get(ac.noeud)) return null;
   const pose = cameraA(scene.trajectoire, t);
   const dx = ECRAN_IV.largeur / 2 - pose.cx * pose.zoom;
@@ -72,7 +77,7 @@ export type PlaceAccent = RectRendu & { surimpression?: { noeud: RectRendu; file
  *    marque et l'étiquette de l'en-tête, au-dessus du nœud (réduit à 72 px), avec un filet vers le nœud par la marge.
  */
 export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number, hauteurEcran = ECRAN_IV.hauteur): PlaceAccent | null {
-  const b = boitesEcran(scene, ac, t);
+  const b = boitesEcran(scene, ac, t, hauteurEcran);
   if (!b) return null;
   const n = b.noeud;
   const largeur = largeurBadge(ac.texte, TAILLE_ACCENT);
@@ -111,7 +116,8 @@ export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number
   const droite = Math.max(...tous.map((o) => o.x + o.largeur));
   const gauche = Math.min(...tous.map((o) => o.x));
   const parDroite = droite - (n.x + n.largeur) <= n.x - gauche;
-  const xm = parDroite ? Math.min(ECRAN_IV.largeur - 10, droite + 14) : Math.max(10, gauche - 14);
+  // Hors vue d'ensemble, la marge se prend au-delà des décors (ombre hachurée à droite, pastille d'icône à gauche).
+  const xm = parDroite ? Math.min(ECRAN_IV.largeur - 10, droite + d.droite + 14) : Math.max(10, gauche - d.gauche - 14);
   const ym = n.y + n.hauteur / 2;
   const filet = [
     { x: parDroite ? p.x + p.largeur : p.x, y: p.y + p.hauteur / 2 },

@@ -94,7 +94,7 @@ export function mesurerBoite(n: Pick<NoeudEntree, "libelle" | "detail">, largeur
     hauteur += M.ecartTextes + det.lignes * TAILLE_DETAIL_IV * H * M.interligne;
   }
   return {
-    // Réserve incluse, sans dépasser `largeurMax` (sauf un mot seul plus long, qui garde sa largeur brute comme avant).
+    // Réserve incluse, sans dépasser `largeurMax`. Un mot seul entre intérieur/1,06 et intérieur est accepté sans réserve complète (la boîte plafonne à largeurMax) ; un mot plus long que l'intérieur garde sa largeur brute, comme avant.
     largeur: Math.round(Math.max(M.largeurMin, Math.min(largeur * RESERVE_CHASSE + 2 * M.marge, Math.max(largeurMax, largeur + 2 * M.marge)))),
     hauteur: Math.round(hauteur + 2 * M.marge),
     textes,

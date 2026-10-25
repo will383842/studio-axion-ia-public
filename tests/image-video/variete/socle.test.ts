@@ -51,7 +51,8 @@ function entrees(): { nom: string; entree: EntreeMiseEnSceneIV }[] {
  * Q24) ; rien d'autre ne change (vérifié en neutralisant la queue : `96b05ce0…f82a`). `96b05ce0…f82a` → `059fa6c5…e2b`.
  */
 // 19/10/2026 : TikTok retiré d'Image → vidéo (décision de Will) : la version de référence 9:16 est celle de YouTube Shorts ; empreinte recalculée sur master avec YouTube Shorts à la place de TikTok : même valeur.
-const EMPREINTE_MASTER = "851d5e4cd6f95b2f4a4f463ef494c8e74e153ba50812cf04cac99d7bd84f3d44";
+// 25/10/2026 : réserve de chasse de 6 % sur les boîtes de la toile (PR 42) : deux boîtes 9:16 gagnent une ligne (« L'IA au service de vos résultats » 2 → 3 lignes, « Envoyée en 4 sec » 1 → 2) et les largeurs des boîtes changent ; recalculée, ancienne 851d5e4c… (seule cause : la réserve).
+const EMPREINTE_MASTER = "25be908460642c8595efacb195c254234bdb655dd2a1802eface3dbc336093a5";
 
 describe("socle · sans recette, rien ne change", () => {
   it("la ligne de temps des 6 cartes est identique octet pour octet à celle de master", () => {
