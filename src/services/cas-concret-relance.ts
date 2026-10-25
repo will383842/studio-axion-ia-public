@@ -21,6 +21,7 @@ import { PHRASE_RELANCE_CAS_TRAITE, TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/ca
 import { lireCasRetires } from "./cas-concret-retires";
 import { estCasTraite } from "./cas-concret-traites";
 import { reessayerTravail } from "./travaux";
+import { avecAccordAutomatique } from "./mode-budget";
 
 export type IssueRelanceCasConcret = { statut: "relancee"; travailId: Id } | { statut: "accord-requis"; centimes: number; phrase: string } | { statut: "refusee"; phrase: string };
 
@@ -46,6 +47,14 @@ export function annonceEcriture(centimes: number): string {
  * simple question. Voir l'en-tête.
  */
 export async function relancerEtapeCasConcret(travailId: Id, accord?: number | true, dep: { claudeActif?: () => Promise<boolean>; stockMetiersAllume?: () => Promise<boolean> } = {}): Promise<IssueRelanceCasConcret> {
+  await exigerSession();
+  // Règle « le prix ne bloque jamais » : en mode indicatif, un accord-requis est relancé UNE fois avec le prix du jour ;
+  // bloquant (et Usine) : l'issue d'avant, telle quelle.
+  const videoId = (await depots().travaux.obtenir(travailId))?.cibleId;
+  return avecAccordAutomatique((a) => relancerEtapeSansAuto(travailId, a ?? accord, dep), undefined, videoId ? { videoId } : {});
+}
+
+async function relancerEtapeSansAuto(travailId: Id, accord: number | true | undefined, dep: { claudeActif?: () => Promise<boolean>; stockMetiersAllume?: () => Promise<boolean> }): Promise<IssueRelanceCasConcret> {
   await exigerSession();
   const d = depots();
   const t = await d.travaux.obtenir(travailId);
