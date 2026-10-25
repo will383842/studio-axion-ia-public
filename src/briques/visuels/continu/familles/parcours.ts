@@ -64,7 +64,7 @@ const PARCOURS_SPECS: SpecParcours[] = [
     sombres: [3],
     pages: [
       {
-        champs: [["titre", 12], ["accent", 11], ["suite", 2, true], ["texte", 70], ["pastille", 16]],
+        champs: [["titre", 10], ["accent", 10], ["suite", 1, true], ["texte", 70], ["pastille", 16]],
         exemple: { rubrique: "IA pour les entreprises", titre: "Par où", accent: "commencer", suite: "?", texte: "Les outils se multiplient. Votre temps, non.", pastille: "On vous guide" },
         alt: "Une route orange part de la question « Par où commencer ? », avec la pastille « On vous guide » à cheval sur deux pages.",
         gauche: [[0, 950], [1220, 1440]],
@@ -87,19 +87,19 @@ const PARCOURS_SPECS: SpecParcours[] = [
     sombres: [],
     pages: [
       {
-        champs: [["titre", 14], ["accent", 14], ["texte", 70], ["avant", 18], ["avec", 18]],
+        champs: [["titre", 14], ["accent", 14], ["texte", 56], ["avant", 18], ["avec", 18]],
         exemple: { rubrique: "Cas concret", titre: "Les devis", accent: "sans réponse", texte: "Un devis part, le quotidien reprend, la relance attend.", avant: "Devis envoyé", avec: "Relance prête" },
         alt: "Deux voies parallèles : avant, un devis envoyé ; avec nous, une relance prête. Exemple illustratif.",
         cas: true,
         gauche: [[0, 165], [1085, 1440]],
       },
       {
-        champs: [["avant", 18], ["avec", 18], ["aparte", 40]],
+        champs: [["avant", 11], ["avec", 18], ["aparte", 40]],
         exemple: { avant: "Oublié", avec: "Réponse reçue", aparte: "pendant ce temps, la relance attend…" },
         alt: "Sur la voie d'avant, le devis est oublié ; sur la voie avec nous, la réponse est reçue.",
       },
       {
-        champs: [["avant1", 22], ["avant2", 18], ["titre", 14], ["accent", 12], ["suite", 2, true], ["texte", 50], ["note", 30]],
+        champs: [["avant1", 17], ["avant2", 18], ["titre", 14], ["accent", 12], ["suite", 2, true], ["texte", 50], ["note", 30]],
         exemple: { avant1: "Relance au hasard", avant2: "Réponse ?", titre: "Chaque devis", accent: "est suivi", suite: ".", texte: "Sans y penser, sans oublier.", note: "le temps que vous gardez" },
         alt: "La voie d'avant se perd en relances au hasard ; avec nous, chaque devis est suivi, sans y penser et sans oublier.",
       },
@@ -113,7 +113,7 @@ const PARCOURS_SPECS: SpecParcours[] = [
     sombres: [],
     pages: [
       {
-        champs: [["mot", 3], ["aparte", 34]],
+        champs: [["mot", 3], ["aparte", 30]],
         exemple: { rubrique: "Une idée reçue", mot: "Un", aparte: "pas dix projets d’un coup." },
         alt: "Premier mot d'une promesse en trois mots : « Un », sur une règle graduée, avec une sphère orange.",
         gauche: [[0, 465], [855, 1000], [1160, 1440]],
@@ -135,7 +135,7 @@ const PARCOURS_SPECS: SpecParcours[] = [
     sombres: [],
     pages: [
       {
-        champs: [["titre", 14], ["accent", 14], ["suite", 24, true], ["texte", 70]],
+        champs: [["titre", 12], ["accent", 12], ["suite", 16, true], ["texte", 70]],
         exemple: { rubrique: "Pour démarrer", titre: "3 questions", accent: "pour savoir", suite: "par où commencer", texte: "Trois questions simples, une page chacune. Notez vos réponses." },
         alt: "Trois questions pour savoir par où commencer, avec une loupe posée à cheval sur la page suivante.",
         gauche: [[0, 195], [525, 995], [1190, 1440]],
@@ -168,7 +168,7 @@ const PARCOURS_SPECS: SpecParcours[] = [
         gauche: [[0, 195], [1250, 1440]],
       },
       {
-        champs: [["doc", 26], ["docSous", 24], ["temps", 10], ["validez", 14], ["vue", 34], ["vueSous", 50], ["aparte", 46]],
+        champs: [["doc", 26], ["docSous", 24], ["temps", 8], ["validez", 14], ["vue", 34], ["vueSous", 50], ["aparte", 46]],
         exemple: { doc: "Des comptes rendus clairs", docSous: "Après chaque réunion.", temps: "Du temps", validez: "Vous validez", vue: "Une vue claire de l’activité", vueSous: "Où en sont les dossiers, d’un coup d’oeil.", aparte: "ce que vous gagnez, pas ce qu’on installe." },
         alt: "Tuiles : des comptes rendus clairs, du temps, vous validez, et une vue claire de l'activité.",
       },
@@ -215,7 +215,7 @@ const PARCOURS_SPECS: SpecParcours[] = [
     sombres: [],
     pages: [
       {
-        champs: [["titre", 14], ["accent", 12], ["etape", 14], ["detail", 60]],
+        champs: [["titre", 11], ["accent", 12], ["etape", 14], ["detail", 60]],
         exemple: { rubrique: "Un pas après l’autre", titre: "On avance", accent: "par étapes", etape: "Écouter", detail: "On comprend votre quotidien." },
         alt: "Un escalier dont chaque marche est une étape : on avance par étapes, première marche, écouter.",
         gauche: [[0, 195], [450, 1000]],

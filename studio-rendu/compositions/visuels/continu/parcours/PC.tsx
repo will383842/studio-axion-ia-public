@@ -22,7 +22,7 @@ export function PC({ pages }: ProprietesParcours) {
         <circle cx={3160} cy={1010} r={16} fill={C.orange} />
       </CalqueDecor>
       <Cheval x={900} y={150}>
-        <Sphere rayon={180} />
+        <Sphere rayon={170} />
       </Cheval>
       <Pose x={340} y={250} rotation={-10}>
         <Tuile icone="target" taille={150} variante="k" />
@@ -40,7 +40,7 @@ export function PC({ pages }: ProprietesParcours) {
         <Etincelle taille={40} couleur={C.encre} />
       </Pose>
       <div style={{ position: "absolute", left: 80, top: 470, ...police(800, 420, 0.9, POLICE_TITRE), letterSpacing: "-0.07em", whiteSpace: "nowrap" }}>{champ(p1, "mot")}</div>
-      <div style={{ position: "absolute", left: 1160, top: 430, ...police(400, 460, 0.9, POLICE_SERIF, true), color: C.orange, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>{champ(p2, "mot")}</div>
+      <div style={{ position: "absolute", left: 1250, top: 430, ...police(400, 460, 0.9, POLICE_SERIF, true), color: C.orange, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>{champ(p2, "mot")}</div>
       <div style={{ position: "absolute", left: 2240, top: 470, ...police(800, 390, 0.9, POLICE_TITRE), letterSpacing: "-0.07em", whiteSpace: "nowrap" }}>{champ(p3, "mot")}</div>
       <Aparte x={80} y={1090} taille={60} interligne={1.1}>
         {typo(champ(p1, "aparte"))}
