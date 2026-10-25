@@ -124,6 +124,10 @@ export type OptionsBoites = {
   /** Le contenu est centré verticalement dans la place qu'il a (sous la marque, au-dessus de la bande), au lieu de partir
    * du premier écart du gabarit (accroche de la référence `s1`). */
   centrer?: boolean;
+  /** Question : hauteur de référence (px) à laquelle se mesure la taille du texte « question » (niveau « ligne »), au lieu de
+   * la hauteur de l'image. Posée seulement par Image → vidéo en 4:5 (1920 : la question garde sa taille du 9:16) ; absente :
+   * comportement inchangé (cas concret, 9:16). */
+  hauteurLigneRef?: number;
 };
 
 /** Cadre de l'écran au-delà de la zone utile : la zone de dessin (absente : les objets restent dans la zone utile). */
@@ -342,10 +346,12 @@ export function boites(type: TypeEcran, zone: BoitePx, charte: ChartePlacement, 
   const porte = (o: Objet) => (o.rangees?.length ?? 0) > 0;
 
   /** Taille d'un texte au rapport `r` : l'affiche suit `r`, l'Inter ne descend pas sous 75 %, marque et étiquette fixes. */
-  const tailleTexte = (police: PoliceEcrans, niveau: NiveauDuo, r: number) => {
+  const tailleTexte = (police: PoliceEcrans, niveau: NiveauDuo, r: number, nom?: string) => {
     if (niveau === "marque" || niveau === "etiquette") return nominal(niveau);
     if (police === "anton") return Math.max(Math.min(plancherAffiche, nominal(niveau)), nominal(niveau) * r);
-    return nominal(niveau) * Math.max(r, PLANCHER_TEXTE);
+    // Question d'Image → vidéo en 4:5 : lettres à la taille du 9:16 (référence 1920), pas à celle de la hauteur du cadre.
+    const base = nom === "question" && options.hauteurLigneRef ? charte.tailles[niveau] * options.hauteurLigneRef : nominal(niveau);
+    return base * Math.max(r, PLANCHER_TEXTE);
   };
   // Hauteur minimale d'un objet : celle qui garde l'affiche écrite dedans au plancher (barres, champ, anneau).
   const minimum = (o: Objet) => {
@@ -372,7 +378,7 @@ export function boites(type: TypeEcran, zone: BoitePx, charte: ChartePlacement, 
     elements.forEach((e, i) => {
       y += i === 0 ? premier : e.ecart * echelleImage * r;
       if (e.sorte === "texte") {
-        const taille = tailleTexte(e.police, e.niveau, r);
+        const taille = tailleTexte(e.police, e.niveau, r, e.nom);
         const h = taille * (e.interligne ?? 1.2) * (e.lignesMax ?? 1);
         places.push({ e, y, h, l: zone.largeur, taille });
         y += h;
@@ -447,7 +453,7 @@ export function boites(type: TypeEcran, zone: BoitePx, charte: ChartePlacement, 
         police: e.police,
         niveau: e.niveau,
         taille,
-        plancher: soumis ? plancherAffiche : Math.min(taille, nominal(e.niveau) * PLANCHER_TEXTE),
+        plancher: soumis ? plancherAffiche : Math.min(taille, (e.nom === "question" && options.hauteurLigneRef ? charte.tailles[e.niveau] * options.hauteurLigneRef : nominal(e.niveau)) * PLANCHER_TEXTE),
         soumisAuPlancher: soumis,
         lignesMax: e.lignesMax ?? 1,
         interligne: e.interligne ?? 1.2,

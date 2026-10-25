@@ -4,7 +4,8 @@ import React from "react";
  * le chiffre dit claque en badge à côté de son nœud, à sa position à l'écran (caméra comprise, ou place du nœud dans
  * la vue d'ensemble si elle est ouverte), dans le premier espace libre (dessous, dessus, à droite, à gauche), sans
  * toucher `Toile.tsx`. Le badge ne couvre JAMAIS le libellé d'un nœud : sans espace libre autour, il passe en
- * surimpression hors du schéma (bande de l'en-tête), relié au nœud par un filet. Badge orange vif, texte encre
+ * surimpression hors du schéma (bande de l'en-tête), relié au nœud par un filet, en 9:16 SEULEMENT ; en 4:5 (25/10), sans
+ * espace libre, il n'est pas dessiné (le filet traverserait le titre ; le chiffre est déjà dans le libellé du nœud). Badge orange vif, texte encre
  * (rapport 6,4), Anton 96 px (72 px en surimpression). Il reste 1,6 s puis s'efface.
  */
 import { cameraA, ECRAN_IV, miseEnPageDeHauteurIV, type BoiteNoeud, type TrajectoireCamera } from "../../../../../src/briques/schema-motion";
@@ -42,6 +43,7 @@ export function cadreAccent(hauteurEcran: number) {
     x1: COTES.x1,
     y0: Math.max(269, m.entete.bas * hauteurEcran),
     y1: m.format === "4:5" ? RAIL_45.haut - RAIL_45.marge : 1140,
+    format: m.format,
     margeBas: MARQUE_BAS_REF - decalage,
     etiquetteHaut: ETIQUETTE_HAUT_REF - decalage,
   };
@@ -73,10 +75,17 @@ export type PlaceAccent = RectRendu & { surimpression?: { noeud: RectRendu; file
 /**
  * Rectangle du badge. Règle : il ne recouvre JAMAIS un nœud (ni donc son libellé), ni un chiffre posé, ni l'en-tête.
  * 1. Autour du nœud (dessous, dessus, à droite, à gauche), dans le cadre du texte sous l'en-tête : le premier libre.
- * 2. Sinon (vue d'ensemble dense : aucun espace libre), en surimpression hors du schéma, dans la bande libre entre la
+ * 2. Sinon, en 4:5 : `null` (pas de badge). En 9:16 (vue d'ensemble dense : aucun espace libre), en surimpression hors du schéma, dans la bande libre entre la
  *    marque et l'étiquette de l'en-tête, au-dessus du nœud (réduit à 72 px), avec un filet vers le nœud par la marge.
  */
-export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number, hauteurEcran = ECRAN_IV.hauteur): PlaceAccent | null {
+export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number, hauteurEcran = ECRAN_IV.hauteur, uneSeuleFois = true): PlaceAccent | null {
+  // 4:5 : la décision « badge ou rien » se prend UNE fois pour tout l'accent. La caméra bouge pendant qu'il tient : une place
+  // libre à côté du nœud peut disparaître en cours de route ; sans cela le badge clignoterait (posé sur certaines images, absent sur d'autres).
+  if (uneSeuleFois && miseEnPageDeHauteurIV(hauteurEcran).format === "4:5") {
+    const fin = ac.t + TENUE_SEC + 0.3;
+    for (let s = ac.t; s <= fin + 1e-9; s += 1 / 30) if (!placeAccent(scene, ac, Math.min(s, fin), hauteurEcran, false)) return null;
+    if (!placeAccent(scene, ac, fin, hauteurEcran, false)) return null;
+  }
   const b = boitesEcran(scene, ac, t, hauteurEcran);
   if (!b) return null;
   const n = b.noeud;
@@ -102,6 +111,11 @@ export function placeAccent(scene: SceneAccents, ac: AccentToileRendu, t: number
   ].map(borne);
   const cote = cotes.find(libre);
   if (cote) return cote;
+  // 4:5 (25/10) : jamais de surimpression. Le cadre du texte (410-926) est trop étroit pour un espace libre à côté du nœud,
+  // et le badge en surimpression, relié par un filet, le ferait traverser le titre de l'en-tête (la bande de 115 px entre
+  // la marque et l'étiquette ne contient pas un badge de 92 px). Le chiffre n'est pas perdu : il est déjà écrit dans le
+  // libellé de son nœud. 9:16 : inchangé.
+  if (CADRE.format === "4:5") return null;
   // Surimpression : bande libre de l'en-tête (sous la marque, au-dessus de l'étiquette), au plus près du nœud.
   const lS = largeurBadge(ac.texte, TAILLE_ACCENT_SURIMPRESSION);
   const hS = TAILLE_ACCENT_SURIMPRESSION + 20;
