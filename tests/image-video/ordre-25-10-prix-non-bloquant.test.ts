@@ -38,7 +38,7 @@ describe("machine : la voix part malgré un plafond bas en indicatif", () => {
     const carte = carteFixe("E");
     const m = monde();
     const signaux: string[] = [];
-    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 100 })), outilsIndicatifs(carte, m, signaux));
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 100 })), outilsIndicatifs(carte, m, signaux), { pasMax: 4 });
     expect(e.miseDeCote).toBeUndefined();
     expect(e.etape).not.toBe("script-a-valider");
     expect(e.refus?.code).not.toBe("IV_PLAFOND");
@@ -48,7 +48,7 @@ describe("machine : la voix part malgré un plafond bas en indicatif", () => {
   it("vidéo seule en mode automatique, indicatif : même chose", async () => {
     const carte = carteFixe("E");
     const m = monde();
-    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { validationCarte: "automatique", plafondCentimes: 100 })), outilsIndicatifs(carte, m, []));
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { validationCarte: "automatique", plafondCentimes: 100 })), outilsIndicatifs(carte, m, []), { pasMax: 4 });
     expect(e.miseDeCote).toBeUndefined();
     expect(e.etape).not.toBe("script-a-valider");
     expect(m.lus.length).toBeGreaterThan(0);
@@ -56,7 +56,7 @@ describe("machine : la voix part malgré un plafond bas en indicatif", () => {
   it("même plafond très bas (1 c), jamais d'arrêt de sécurité en indicatif", async () => {
     const carte = carteFixe("E");
     const m = monde();
-    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 1 })), outilsIndicatifs(carte, m, []));
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 1 })), outilsIndicatifs(carte, m, []), { pasMax: 4 });
     expect(e.refus?.code).not.toBe("IV_PLAFOND");
     expect(m.appelsClaude.length).toBeGreaterThan(0);
   });
