@@ -46,7 +46,7 @@ export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
 
 /**
  * Contrôles indicatifs (jamais bloquants : remarque orange à la porte). Q13 et Q14 (chiffre non montré, rythme) sont des défauts de DÉTAIL :
- * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Restent bloquants SCENE, Q12, CHIFFRES, Q15, Q19 à Q24.
+ * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Restent bloquants SCENE, Q12, CHIFFRES, Q15, Q19 à Q24 ; Q11, Q18 et Q24 ne bloquent qu'au-delà de leurs planchers (vidéo inutilisable), en deçà ce sont des remarques.
  */
 export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", ...DEFAUTS_DE_DETAIL_IV]);
 
@@ -172,7 +172,8 @@ function ligneIV(code: CodeControleIV, v: Pick<VersionAControlerIV, "version" | 
 /** Constat « souple » : remarques non bloquantes (écoute bonne dans l'ensemble) ; `souple` vrai quand elles sont seules. */
 type ConstatSouple = ConstatControle & { souple?: boolean };
 function avecRemarques(c: ConstatControle | undefined, remarques: readonly string[] | undefined): ConstatSouple | undefined {
-  if (!c || !remarques?.length || !c.ok) return c;
+  if (!c || !remarques?.length) return c;
+  if (!c.ok) return { ...c, details: [...c.details, ...remarques] };
   return { ok: false, details: [...remarques], souple: true };
 }
 
@@ -324,7 +325,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
     else if (p.bloquant) q11.push(p.phrase ?? `${p.nom} non livré.`);
   }
   // Durée du corps hors fourchette : remarque (la vidéo reste utilisable) ; seuls le plafond du réseau et une durée non mesurée bloquent.
-  L("Q11", [...q11, ...q11Souple], { indicatif: q11.length === 0 });
+  L("Q11", [...q11, ...q11Souple], { indicatif: q11.length === 0 && q11Souple.length > 0 });
 
   // Q11 bis · version courte : chapitres retirés tous non essentiels, script détachable (chapitres de L6).
   const q11bis = [...(regles.get("Q11bis") ?? [])];
@@ -397,21 +398,29 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const q24Souple: string[] = [];
   const absentes: string[] = [];
   const M = MESURES_IV;
-  const verifier = (k: string, nom: string, ok: (x: number) => boolean, ko: (x: number) => string, detail = false) => {
+  /** `detail` : remarque orange ; `plancher` (si donné) : au-delà, la vidéo est inutilisable et la mesure BLOQUE quand même. */
+  const verifier = (k: string, nom: string, ok: (x: number) => boolean, ko: (x: number) => string, detail = false, plancher?: (x: number) => boolean) => {
     const x = lire(k);
     if (x === null) absentes.push(nom);
-    else if (!ok(x)) (detail ? q24Souple : q24).push(ko(x));
+    else if (!ok(x)) (detail && !(plancher && plancher(x)) ? q24Souple : q24).push(ko(x));
   };
-  verifier("lufs", "le volume", (x) => Math.abs(x - M.lufs) <= M.toleranceLufs + 1e-9, (x) => `volume à ${x} LUFS (−14 à 1 près).`, true);
+  // Planchers bloquants (vidéo inutilisable) : en deçà de ces valeurs, une mesure hors seuil reste une remarque.
+  const NOIR_PLANCHER_SEC = 2; // image noire de plus de 2 s
+  const FIGE_PLANCHER_SEC = 5; // image figée de plus de 5 s
+  const LUFS_PLANCHER_ECART = 6; // volume à plus de 6 LUFS de la cible (−14)
+  const horsPlancherLufs = (x: number) => Math.abs(x - M.lufs) > LUFS_PLANCHER_ECART;
+  const noirTropLong = (x: number) => x > NOIR_PLANCHER_SEC;
+  const figeTropLong = (x: number) => x > FIGE_PLANCHER_SEC;
+  verifier("lufs", "le volume", (x) => Math.abs(x - M.lufs) <= M.toleranceLufs + 1e-9, (x) => `volume à ${x} LUFS (−14 à 1 près).`, true, horsPlancherLufs);
   verifier("creteVraieDbtp", "la crête", (x) => x <= M.creteMaxDbtp + 1e-9, (x) => `crête à ${x} dBTP (−1 au plus).`, true);
-  verifier("noirMaxSec", "les images noires", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image noire de ${sec(x)} (0,5 s au plus).`, true);
+  verifier("noirMaxSec", "les images noires", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image noire de ${sec(x)} (0,5 s au plus).`, true, noirTropLong);
   // Image figée (décision de Will du 17/10) : jusqu'à 2,5 s tant que la voix parle (écran tenu le temps d'une phrase),
   // 0,5 s hors voix (silence, fin). Sans la mesure « hors voix », le fichier est jugé comme avant (0,5 s partout).
   const horsVoix = lire("figeHorsVoixMaxSec");
-  if (horsVoix === null) verifier("figeMaxSec", "les images figées", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (0,5 s au plus).`, true);
+  if (horsVoix === null) verifier("figeMaxSec", "les images figées", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (0,5 s au plus).`, true, figeTropLong);
   else {
-    verifier("figeMaxSec", "les images figées", (x) => x <= M.figeSousVoixMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (2,5 s au plus, même pendant que la voix parle).`, true);
-    verifier("figeHorsVoixMaxSec", "les images figées hors voix", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} sans voix (0,5 s au plus hors voix).`, true);
+    verifier("figeMaxSec", "les images figées", (x) => x <= M.figeSousVoixMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (2,5 s au plus, même pendant que la voix parle).`, true, figeTropLong);
+    verifier("figeHorsVoixMaxSec", "les images figées hors voix", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} sans voix (0,5 s au plus hors voix).`, true, figeTropLong);
   }
   // Cadre attendu : celui de la ligne de la version (1080 × 1920 en 9:16, 1080 × 1350 en 4:5).
   const largeur = v.ligne.largeur ?? M.largeur;
@@ -420,7 +429,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   verifier("hauteur", "la hauteur", (x) => x === hauteur, (x) => `hauteur de ${x} px (${hauteur}).`);
   verifier("fps", "la cadence", (x) => Math.abs(x - M.fps) < 1e-6, (x) => `${x} images par seconde (25).`);
   if (absentes.length) L("Q24", [...q24, ...q24Souple, `non mesuré${absentes.length > 1 ? "s" : ""} sur le fichier final : ${absentes.join(", ")}.`], q24.length || q24Souple.length ? {} : { nonFait: true });
-  else L("Q24", [...q24, ...q24Souple], { indicatif: q24.length === 0 });
+  else L("Q24", [...q24, ...q24Souple], { indicatif: q24.length === 0 && q24Souple.length > 0 });
 
   sceneCode("Q25");
   lignes.push(deConstat("Q26", v, m.relecture?.q26, "les images finales n'ont pas été relues."));
