@@ -1,6 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Le CI ne charge que les dépendances racine : `remotion` (atteint par les polices de la toile) est remplacé par des fonctions vides ; le test rend du HTML statique.
+vi.mock("remotion", () => ({ cancelRender: () => undefined, continueRender: () => undefined, delayRender: () => 1 }));
+
 import { GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
 import { BORNES_LISTES, budgetListe, LISTES, MOT_TITRE_MAX } from "../../src/briques/visuels/continu/familles/listes";
 import { NOMS_ICONES } from "../../src/briques/visuels/continu/icones";
