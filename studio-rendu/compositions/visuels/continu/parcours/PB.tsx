@@ -52,7 +52,7 @@ export function PB({ pages }: ProprietesParcours) {
       </Pose>
       <Noeud x={340} y={713} icone="mail" variante="w" libelle={champ(p1, "avant")} />
       <Noeud x={1280} y={713} icone="hourglass" variante="k" libelle={champ(p2, "avant")} />
-      <Noeud x={2400} y={713} icone="x" variante="p" libelle={champ(p3, "avant1")} demi={210} />
+      <Noeud x={2420} y={713} icone="x" variante="p" libelle={champ(p3, "avant1")} demi={210} />
       <Noeud x={3000} y={713} icone="chat" variante="w" libelle={champ(p3, "avant2")} />
       <Noeud x={340} y={1023} icone="mail" variante="w" libelle={champ(p1, "avec")} />
       <Noeud x={1500} y={1023} icone="check" variante="o" libelle={champ(p2, "avec")} />

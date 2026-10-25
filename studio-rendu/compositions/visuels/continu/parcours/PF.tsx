@@ -57,10 +57,10 @@ export function PF({ pages }: ProprietesParcours) {
       <Jalon x={3820} y={150} largeur={360} variante="o">
         {champ(p4, "final")}
       </Jalon>
-      <Aparte x={200} y={1160} taille={50}>
+      <Aparte x={80} y={985} taille={50}>
         {typo(champ(p1, "depart"))}
       </Aparte>
-      <Aparte x={3520} y={1160} taille={50}>
+      <Aparte x={3520} y={1145} taille={50}>
         {typo(champ(p4, "plusTard"))}
       </Aparte>
       <Pose x={1900} y={420}>

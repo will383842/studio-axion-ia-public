@@ -65,9 +65,9 @@ export function PE({ pages }: ProprietesParcours) {
           ))}
         </div>
       </Pose>
-      <Tuilette x={660} y={950} largeur={340} hauteur={250} variante="pl" icone="hourglass" titre={champ(p2, "temps")} texte={280} couleur="k" />
-      <Tuilette x={1120} y={950} largeur={420} hauteur={250} variante="k" icone="shield" titre={champ(p2, "validez")} texte={340} couleur="o" />
-      <Tuilette x={1580} y={560} largeur={880} hauteur={640} variante="" icone="chart" titre={champ(p2, "vue")} sous={champ(p2, "vueSous")} texte={400} couleur="o" aCheval />
+      <Tuilette x={660} y={950} largeur={340} hauteur={250} variante="pl" icone="hourglass" titre={champ(p2, "temps")} texte={280} couleur="k" corps={38} />
+      <Tuilette x={1130} y={950} largeur={410} hauteur={250} variante="k" icone="shield" titre={champ(p2, "validez")} texte={300} couleur="o" />
+      <Tuilette x={1580} y={560} largeur={880} hauteur={640} variante="" icone="chart" titre={champ(p2, "vue")} sous={champ(p2, "vueSous")} texte={330} couleur="o" aCheval />
       <Pose x={2180} y={640}>
         <div style={{ width: 240, display: "flex", gap: 16, alignItems: "flex-end", height: 420 }}>
           {[[44, `linear-gradient(180deg, ${C.brun}, ${C.encre})`], [68, `linear-gradient(180deg, ${C.brun}, ${C.encre})`], [100, `linear-gradient(180deg, ${C.orangeLumiere}, ${C.orange})`]].map(([h, fond]) => (
