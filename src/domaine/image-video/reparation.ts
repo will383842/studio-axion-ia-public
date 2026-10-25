@@ -42,11 +42,37 @@ const unique = <T>(l: readonly T[]) => [...new Set(l)];
 function force(l: LienCarte): [number, number, number, number] {
   return [l.deduit ? 0 : 1, l.part !== undefined ? 1 : 0, l.etiquette ? 1 : 0, l.style === "plein" ? 1 : 0];
 }
-function parForce(a: LienCarte, b: LienCarte): number {
-  const fa = force(a);
-  const fb = force(b);
-  for (let i = 0; i < fa.length; i++) if (fa[i] !== fb[i]) return fa[i]! - fb[i]!;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+/** Dans le même rang de force, une flèche de retour (qui referme la boucle) part avant une flèche du fil principal. */
+function parForce(retour: ReadonlySet<string>) {
+  return (a: LienCarte, b: LienCarte): number => {
+    const fa = force(a);
+    const fb = force(b);
+    for (let i = 0; i < 3; i++) if (fa[i] !== fb[i]) return fa[i]! - fb[i]!;
+    const ra = retour.has(a.id) ? 0 : 1;
+    const rb = retour.has(b.id) ? 0 : 1;
+    if (ra !== rb) return ra - rb;
+    if (fa[3] !== fb[3]) return fa[3]! - fb[3]!;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  };
+}
+
+/** Identifiants des flèches de retour d'un parcours en profondeur (ordre fixe : blocs triés, puis cibles triées). */
+function flechesDeRetour(ids: readonly string[], liens: readonly LienCarte[]): Set<string> {
+  const suivants = new Map<string, LienCarte[]>(ids.map((n) => [n, []]));
+  for (const l of liens) suivants.get(l.de)?.push(l);
+  for (const v of suivants.values()) v.sort((a, b) => (a.vers < b.vers ? -1 : a.vers > b.vers ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const etat = new Map<string, 1 | 2>();
+  const res = new Set<string>();
+  const visiter = (n: string) => {
+    etat.set(n, 1);
+    for (const l of suivants.get(n) ?? []) {
+      if (etat.get(l.vers) === 1) res.add(l.id);
+      else if (!etat.has(l.vers) && suivants.has(l.vers)) visiter(l.vers);
+    }
+    etat.set(n, 2);
+  };
+  for (const n of [...ids].sort()) if (!etat.has(n)) visiter(n);
+  return res;
 }
 
 /** Flèches internes à une composante fortement connexe non triviale (au moins un cycle) : les seules à pouvoir en casser un. */
@@ -179,7 +205,7 @@ export function reparerCarte(entree: CarteImage, options: OptionsReparation = {}
   for (;;) {
     const courant = cycles(listeIds, liens);
     if (courant <= 1) break;
-    const candidates = flechesDeCycle(listeIds, liens).sort(parForce);
+    const candidates = flechesDeCycle(listeIds, liens).sort(parForce(flechesDeRetour(listeIds, liens)));
     const baisse = candidates.filter((c) => cycles(listeIds, liens.filter((l) => l.id !== c.id)) < courant);
     const sansIsole = baisse.filter((c) => isolePar(liens, liens.filter((l) => l.id !== c.id)).length === 0);
     const casse = (sansIsole[0] ?? baisse[0] ?? candidates[0])!;

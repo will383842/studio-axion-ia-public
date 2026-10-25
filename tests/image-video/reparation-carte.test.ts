@@ -127,9 +127,9 @@ describe("réparation de la carte", () => {
     expect(r.carte.liens.map((l) => l.id)).toEqual(["l1", "l2", "l3", "r1"]);
     expect(controlerCarte(r.carte).ok).toBe(true);
     // Seules des flèches étiquetées peuvent casser le cycle : l'étiquette retirée est citée.
-    const seule = { ...base, liens: [...base.liens, lien("r1", "c", "a", { etiquette: "On recommence" }), lien("r2", "c", "b", { etiquette: "Encore" })] };
+    const seule = { ...base, liens: [lien("l1", "a", "b", { etiquette: "Début" }), lien("l2", "b", "c", { etiquette: "Suite" }), lien("r1", "c", "a", { etiquette: "On recommence" }), lien("r2", "c", "b", { etiquette: "Encore" })] };
     const r2 = reparerCarte(seule);
-    expect(r2.reparations[0]!.detail).toMatch(/« (On recommence|Encore) »/);
+    expect(r2.reparations[0]!.detail).toMatch(/« (Début|Suite|On recommence|Encore) »/);
     expect(controlerCarte(r2.carte).erreurs).toEqual([]);
   });
 
