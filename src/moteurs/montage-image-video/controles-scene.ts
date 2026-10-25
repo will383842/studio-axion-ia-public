@@ -12,6 +12,7 @@
 import { controlerCadrage, etatDansCadre, emprise, mesurerTrajectoire, BORNES_CAMERA, cameraA } from "@/briques/schema-motion/camera";
 import { disposerEnsemble } from "@/briques/schema-motion/disposition";
 import { controlerEnsemble, controlerLisibiliteToile } from "@/briques/schema-motion/lisibilite";
+import { debordementsEnsemble, planEnsemble } from "@/briques/schema-motion/plan-objets";
 import type { CadrageCamera } from "@/briques/schema-motion/camera";
 import type { DispositionToile, MotParle, TrajectoireCamera } from "@/briques/schema-motion/types";
 import type { CarteImage } from "@/domaine/image-video/carte";
@@ -241,6 +242,7 @@ export function controlerMiseEnSceneIV(l: LigneDeTempsIV, ctx: ContexteControleS
   // Q21 · textes : longueur tenable au plancher ; Q22 · sous-titres.
   const q21: string[] = [];
   for (const p of l.plans) for (const t of p.textes) if (t.replace(/\*/g, "").length > S.signesMax) q21.push(`« ${t.replace(/\*/g, "")} » (plan ${p.id}) est trop long pour rester lisible.`);
+  for (const b of toiles) for (const e of b.proprietes.ensembles ?? []) q21.push(...debordementsEnsemble(planEnsemble(b.proprietes.schema, { allumes: e.allumes, chiffresCles: e.chiffresCles })).map((x) => `séquence ${b.id}, vue d'ensemble : ${x}`));
   lignes.push(ligne("Q21", q21, "Textes d'écran lisibles.", "Texte trop long :"));
   // Q22 : la bande, puis CHAQUE groupe tel que la composition le dessine (variations Impact / Bandeau comprises), mesuré.
   const q22 = [...controlerSousTitresIV(l.sousTitres, ctx.reseaux), ...controlerVariationsIV(sousTitresVariesIV(l), l)];
