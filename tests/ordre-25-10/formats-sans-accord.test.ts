@@ -11,7 +11,12 @@ import { SUJETS_BANC } from "../generateur/banc/registre-banc-g4";
 import { reponseFlux, fluxReussi } from "../helpers/g0";
 import type { DefinitionRole } from "@/generateur/roles/types";
 import { contexteExemple, ficheDemonstration, AUJOURDHUI_EXEMPLES } from "../tableau/regles/exemples";
+import { repereFiche, repereTexte } from "@/domaine/relecture-tableau";
+import type { EntreeRole } from "@/generateur/roles/types";
+import type { FicheTableau } from "@/moteurs/montage-tableau/fiche";
+import type { OutilsDecoupage } from "@/moteurs/montage-tableau/decoupage";
 import { banc, versOutils } from "../tableau/moteur/doubles";
+import { auStyleDemande, copie, ficheErreurCorrigee, texteScriptDe } from "../tableau/regles/exemples";
 import { banc as bancCas } from "../cas-concret/moteur/doubles";
 
 vi.mock("next/headers", () => mockHeaders);
@@ -345,5 +350,58 @@ describe.each([
     expect(r).toEqual({ statut: "lancee", travailId: "t-retouche" });
     expect(lancerRetouche).toHaveBeenCalledTimes(1);
     expect(lancerRetouche).toHaveBeenCalledWith(VIDEO, [], "Changez le mot à commenter : RDV", expect.objectContaining({ confirme: propose.centimes }));
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Tableau animé : actions de « Nouvelle vidéo · tableau animé » (actions.ts) */
+/* ------------------------------------------------------------------ */
+
+const creationTableau = await import("@/services/tableau-creation");
+const actionsTableau = await import("@/app/(studio)/tableau/nouvelle/actions");
+const ficheEcrite = ficheErreurCorrigee;
+const donneesTableau = { texte: texteScriptDe(ficheEcrite), serieCode: "formation", structure: ficheEcrite.structure, douleur: ficheEcrite.douleur, gesteMinute: ficheEcrite.gesteMinute, finId: "fin-if-abonnement", reseaux: ["verticaux"] };
+const balise = (variable: string, nom: string) => variable.match(new RegExp(`<${nom}>\\n([\\s\\S]*?)\\n</${nom}>`))?.[1] ?? "";
+const appelerDecoupage: OutilsDecoupage["appeler"] = async (_role, entree: EntreeRole) => {
+  const f = copie(ficheEcrite);
+  Object.assign(f, JSON.parse(balise(entree.variable, "fiche_fixe")), { serie: JSON.parse(balise(entree.variable, "serie")) });
+  auStyleDemande(f);
+  return { ok: true, simule: false, donnees: JSON.stringify(f) };
+};
+
+describe.each([
+  ["indicatif", true],
+  ["bloquant", false],
+] as const)("tableau animé, actions de création — mode %s", (mode, indicatif) => {
+  beforeEach(async () => {
+    await ecrireParametre(CLE_MODE_BUDGET, mode);
+    const { texteScript: _s, ...regles } = contexteExemple(ficheEcrite);
+    void _s;
+    for (const p of regles.preuves) await depots().preuves.enregistrer(p as never);
+    for (const m of regles.matieres) await depots().matieres.enregistrer(m as never);
+  });
+
+  it(indicatif ? "« Découper en scènes » sans accord : le découpage part (en-cours), jamais accord-requis" : "témoin : « Découper en scènes » sans accord, accord-requis et rien n'est créé", async () => {
+    const videos = await depots().videos.compter();
+    const r = await actionsTableau.decouperScriptTableauAction(donneesTableau, undefined, undefined, repereTexte(donneesTableau.texte));
+    if (!indicatif) {
+      expect(r).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
+      expect(await depots().videos.compter()).toBe(videos);
+      return;
+    }
+    expect(r).toMatchObject({ ok: true, donnees: { statut: "en-cours" } });
+    expect(await depots().videos.compter()).toBe(videos + 1);
+  });
+
+  it(indicatif ? "« Fabriquer la vidéo » sans accord : la fabrication part, jamais accord-requis" : "témoin : « Fabriquer la vidéo » sans accord, accord-requis", async () => {
+    // Brouillon découpé (fiche valide), case « déjà vu » cochée, avec le prix accepté à la main (service, hors action).
+    const relu = repereTexte(donneesTableau.texte);
+    const prix = await creationTableau.decouperScriptTableau(donneesTableau, { relu, accord: 999_999 }, { aujourdhui: AUJOURDHUI_EXEMPLES });
+    if (prix.statut !== "en-cours") throw new Error(`découpage attendu : ${prix.statut}`);
+    await creationTableau.travaillerTachesTableau({ appeler: appelerDecoupage, aujourdhui: AUJOURDHUI_EXEMPLES });
+    await creationTableau.cocherDejaVuTableau(prix.videoId, true, { aujourdhui: AUJOURDHUI_EXEMPLES });
+    const fiche: FicheTableau = creationTableau.lireBrouillonTableau((await depots().videos.obtenir(prix.videoId))!)!.versions.at(-1)!.fiche;
+    const r = await actionsTableau.fabriquerVideoTableauAction(prix.videoId, undefined, repereFiche(fiche));
+    expect(r).toMatchObject({ ok: true, donnees: { statut: indicatif ? "lancee" : "accord-requis" } });
   });
 });
