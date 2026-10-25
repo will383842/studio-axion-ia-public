@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { disposerToile, type ProprietesSceneIV } from "@/briques/schema-motion";
+import { planEnsemble } from "@/briques/schema-motion/plan-objets";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { motsDits, type FicheImage } from "@/domaine/image-video/fiche";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
@@ -17,7 +18,7 @@ import { calerFiche, ErreurCalageIV, heuresSimulees, pisteSimulee } from "@/mote
 import { compteRythme, controlerCamera, controlerChiffresMontres, controlerRythme, instantsVisibles } from "@/moteurs/montage-image-video/controles-scene";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { planDesFinsIV, type FinIV } from "@/moteurs/montage-image-video/fins";
-import { CADRAGE_TOILE_IV, cadrageToile, mettreEnSceneIV, REGLES_SCENE_IV, type BlocRenduIV, type EntreeMiseEnSceneIV, type EvenementTempsIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
+import { CADRAGE_TOILE_IV, cadrageToile, mettreEnSceneIV, schemaDeLaCarte, REGLES_SCENE_IV, type BlocRenduIV, type EntreeMiseEnSceneIV, type EvenementTempsIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { bandeSousTitres, controlerSousTitresIV, LIMITES_BAS_SOUS_TITRES_IV } from "@/moteurs/montage-image-video/sous-titres";
 import { REGLES_SCENE_IV as REGLES_SOURCE } from "@/moteurs/montage-image-video/regles-scene";
 import { BANDE_SOUS_TITRES_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
@@ -370,6 +371,26 @@ describe("scène « Ensemble », bénéfices, repère", () => {
     expect(ens[0].debut).toBeGreaterThan(dernierBranche.instantSec);
     expect(l.plans[l.plans.indexOf(ens[0]) + 1].scene).toBe("bandeau-chiffres");
     expect(toiles(l).some((b) => b.proprietes.ensembles?.some((x) => x.chiffresCles?.join() === "80 %,20 %"))).toBe(true);
+  });
+
+  it("D3 · une vue d'ensemble ne déclare comme montrés (textes du plan, chiffres-clés du bloc) que les chiffres que planEnsemble pose réellement", () => {
+    let vues = 0;
+    for (const nom of NOMS) {
+      const l = ligneDe(nom);
+      const carte = carteDe(nom);
+      const declares = [
+        ...l.plans.filter((p) => p.sorte === "ensemble").map((p) => p.textes),
+        ...toiles(l).flatMap((b) => b.proprietes.ensembles ?? []).map((x) => x.chiffresCles ?? []),
+        ...l.blocs.flatMap((b) => (b.sorte === "moments" ? b.moments : [])).flatMap((m) => (m.sorte === "ensemble" ? [m.options.chiffresCles ?? []] : [])),
+      ];
+      for (const textes of declares) {
+        if (!textes.length) continue;
+        const poses = planEnsemble(schemaDeLaCarte(carte), { chiffresCles: textes }).chiffres.map((c) => c.texte);
+        expect(poses.sort(), nom).toEqual([...textes].sort());
+        vues++;
+      }
+    }
+    expect(vues).toBeGreaterThan(0);
   });
 
   it("très complexe : une vue d'ensemble (1,5 s au plus) ouvre chacun des 3 chapitres ; repère « 1/3 » → « 3/3 »", () => {

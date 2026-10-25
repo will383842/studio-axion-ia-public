@@ -1382,6 +1382,8 @@ export type PlanEnsemble = {
   /** Rang d'apparition de chaque bloc (ordre de lecture). */
   rang: Map<string, number>;
   chiffres: ChiffreEnsemblePlan[];
+  /** Écart posé entre deux rangées (px, ≥ 16) : le rendu doit doser ombre, halo et grossissement pour que les blocs ne se mordent pas. */
+  ecart: number;
   alertes: string[];
 };
 
@@ -1557,10 +1559,11 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     return { mesures, rangees, total, taillePart };
   };
 
-  // La plus grande taille (pas de 2 px, ≥ plancher) dont les rangées, avec un écart minimal de 12 px, tiennent. Si le
-  // plancher ne suffit pas (zone utile basse, sous-titres remontés), la vue se SERRE : marges des blocs, écart et parts
-  // réduits, jamais les libellés (toujours au plancher ou au-dessus).
-  let ECART_MIN = 12;
+  // La plus grande taille (pas de 2 px, ≥ plancher) dont les rangées, avec un écart minimal de 16 px, tiennent. Si le
+  // plancher ne suffit pas (zone utile basse, sous-titres remontés), la vue se SERRE : marges des blocs et parts
+  // réduits (l'écart reste ≥ 16 px), jamais les libellés (toujours au plancher ou au-dessus).
+  // 25/10/2026 (v-0339175a9f88, D3, compositions-iv/11) : écart minimal 16 px, y compris vue serrée (12, puis 6 avant : les blocs se mordaient).
+  const ECART_MIN = 16;
   let tailleMax = 0.036 * H;
   let c = construire(tailleMax);
   const tropHaut = () => c.total + (c.rangees.length - 1) * ECART_MIN > zone.hauteur;
@@ -1581,10 +1584,17 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     return meilleur?.ids ?? null;
   };
   while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
+  // D3 (25/10/2026, v-0339175a9f88) : ordre des remèdes quand l'écart de 16 px ne tient pas : 1) vue serrée (marges des blocs réduites,
+  // chiffres-clés GARDÉS, libellés intacts), 2) retrait des chiffres-clés (alerte), 3) paires, 4) vue réduite. L'écart ne descend jamais sous 16 px.
   if (tropHaut()) {
     serre = true;
     padY = PAD_BLOC_SERRE.y;
-    ECART_MIN = 6;
+    tailleMax = 0.036 * H;
+    c = construire(tailleMax);
+    while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
+  }
+  if (tropHaut() && autres.length) {
+    while (autres.length) alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
     tailleMax = 0.036 * H;
     c = construire(tailleMax);
     while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
@@ -1602,7 +1612,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
   // utiles où un libellé de 3 mots prend 2 lignes au plancher) : tout au plancher, les chiffres-clés à la taille des
   // libellés ; puis, rangée par rangée, les libellés sur 2 lignes perdent leur dernière unité de sens (« Envoyé équipe
   // concernée » → « Envoyé équipe ») jusqu'à tenir sur une ligne, la rangée qui perd le moins d'abord ; en tout dernier
-  // recours, les chiffres-clés qui ne tiennent plus sont retirés (le dernier d'abord), jamais un bloc ni le plancher.
+  // recours, les chiffres-clés qui ne tiennent plus sont retirés (le dernier d'abord), jamais un bloc ni le plancher. Chaque libellé raccourci est signalé par une alerte.
   if (tropHaut()) {
     reduite = true;
     avecIcones = iconesTiennent();
@@ -1617,6 +1627,8 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
       alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
       c = construire(tailleMax);
     }
+    // D3 : un libellé raccourci par la vue réduite le dit (jamais de coupe silencieuse).
+    for (const id of unitesMax.keys()) if (texteDe(id) !== libelleCourt(parId.get(id)!)) alertes.push(`Libellé de ${id} raccourci (vue réduite, place) : « ${libelleCourt(parId.get(id)!)} » → « ${texteDe(id)} ».`);
   }
   // Une seule taille de libellé pour tous les blocs (la plus petite trouvée) : la vue se lit d'un bloc.
   c = construire(Math.max(PLANCHER_PX, Math.min(...[...c.mesures.values()].map((m) => m.libelle.taille))));
@@ -1681,7 +1693,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
 
   for (const ch of chiffres) if (nombreDeMots(ch.texte) > MOTS_MAX_ENSEMBLE) alertes.push(`« ${ch.texte} » : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
   for (const b of blocs) if (unitesDeSens(texteDe(b.id)).length > MOTS_MAX_ENSEMBLE) alertes.push(`Libellé de ${b.id} : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
-  return { zone, blocs, fleches, rang, chiffres, alertes: [...new Set(alertes)] };
+  return { zone, blocs, fleches, rang, chiffres, ecart, alertes: [...new Set(alertes)] };
 }
 
 type GroupeEntreeIV = SchemaEntree["groupes"][number];

@@ -103,7 +103,8 @@ describe("scène « Ensemble » lisible : un libellé court par bloc, au planche
   it("C : chaque bloc porte son libellé court (exemples de la direction), son icône, aucune en double", () => {
     const c = sceneGalerieC();
     const p = planEnsemble(c.schema, { chiffresCles: ["80 %", "20 %"] });
-    expect(p.alertes).toEqual([]);
+    // 25/10/2026 (D3) : un libellé raccourci par la vue réduite est signalé (alerte d'information « raccourci ») ; aucune autre alerte.
+    expect(p.alertes.filter((a) => !/raccourci \(vue réduite/.test(a))).toEqual([]);
     const libelles = new Map(p.blocs.map((b) => [b.id, b.libelle.lignes.map((l) => l.join(" ")).join(" ")]));
     expect(libelles.get("n03")).toBe("RÉPONSE GÉNÉRÉE");
     expect(libelles.get("n05")).toBe("TICKET CLÔTURÉ");
@@ -128,7 +129,8 @@ describe("scène « Ensemble » lisible : un libellé court par bloc, au planche
   });
   it("faux schéma à 16 nœuds : tous les blocs lisibles dans la zone utile, sans alerte", () => {
     const p = planEnsemble(lire("faux-16-noeuds"));
-    expect(p.alertes).toEqual([]);
+    // 25/10/2026 (D3) : un libellé raccourci par la vue réduite est signalé (alerte d'information « raccourci ») ; aucune autre alerte.
+    expect(p.alertes.filter((a) => !/raccourci \(vue réduite/.test(a))).toEqual([]);
     expect(p.blocs).toHaveLength(16);
     expect(controlerMiseEnPage(empriseEnsemble(p))).toEqual([]);
   });
