@@ -105,4 +105,44 @@ describe("continu P3e : schémas stricts et budgets", () => {
     expect(def("D03").schema.safeParse({ ...b, libelles: ["Saisie", "Relances", "Métier 2"] }).success).toBe(false);
     expect(def("D03").schema.safeParse({ ...b, titre: "Où part 40 %" }).success).toBe(false);
   });
+  it("D03 : libellé de barre accepté à 14 caractères, refusé à 15 (par position)", () => {
+    const b = exemple("D03") as { libelles: string[] };
+    for (let i = 0; i < 3; i++) {
+      const avec = (n: number) => ({ ...b, libelles: b.libelles.map((l, j) => (j === i ? "a".repeat(n) : l)) });
+      expect(def("D03").schema.safeParse(avec(14)).success, `libelles[${i}] à 14`).toBe(true);
+      expect(def("D03").schema.safeParse(avec(15)).success, `libelles[${i}] à 15`).toBe(false);
+    }
+  });
+});
+
+describe("continu P3e : cohérence des exemples", () => {
+  it("D01 : le numérateur ne dépasse pas le dénominateur", () => {
+    const b = exemple("D01");
+    expect(def("D01").schema.safeParse({ ...b, numerateur: "3", denominateur: "3" }).success).toBe(true);
+    expect(def("D01").schema.safeParse({ ...b, numerateur: "5", denominateur: "4" }).success).toBe(false);
+  });
+  it("D01 : l'exemple porte le fait d'exemple F000 (étiquette « chiffre à valider ») et un alt qui ne présente pas le chiffre comme un fait", () => {
+    expect(exemple("D01").faitId).toBe("F000");
+    expect(String(exemple("D01").alt)).toMatch(/^Exemple de mise en page : grand chiffre à valider/);
+  });
+  it("D02 : l'alt d'exemple annonce l'accord écrit requis", () => {
+    expect(String(exemple("D02").alt)).toMatch(/^Exemple de citation \(accord écrit requis\)/);
+  });
+  it("chaque exemple porte sa rubrique (Le chiffre, Ils le disent, Comparer)", () => {
+    expect(exemple("D01").rubrique).toBe("Le chiffre");
+    expect(exemple("D02").rubrique).toBe("Ils le disent");
+    expect(exemple("D03").rubrique).toBe("Comparer");
+  });
+  it("bords libres mesurés : dans le cadre des deux formats (4:5 = 1350, 3:4 = 1440), hors zone de contenu (196 à hauteur − 150)", () => {
+    for (const t of TYPES) {
+      for (const cote of ["gauche", "droite"] as const) {
+        for (const [y1, y2] of def(t).bordsLibres[cote]) {
+          expect(y2, `${t}.${cote}`).toBeLessThanOrEqual(1350);
+          expect(y1 < y2, `${t}.${cote}`).toBe(true);
+          // Pas de recouvrement avec le contenu : [196, 1200] au plus court (4:5).
+          expect(y2 <= 196 || y1 >= 1200, `${t}.${cote} [${y1}, ${y2}]`).toBe(true);
+        }
+      }
+    }
+  });
 });

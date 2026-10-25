@@ -1,5 +1,6 @@
 /** D01 « Grand chiffre » : anneau rempli de n/m, tuile au centre, « n sur m » en très grand, légende et source du fait validé. */
 import { useId } from "react";
+import { FAIT_EXEMPLE } from "../../../../../../src/briques/visuels/continu/familles/donnees";
 import { CHARTE_CONTINU as C } from "../../../../../../src/briques/visuels/charte-carrousel";
 import { Etiquette, police, POLICE_SERIF, POLICE_TEXTE, POLICE_TITRE, Tuile } from "../../commun/Primitives";
 import { MARGE_SURE, TAILLES_CONTINU } from "../../constantes-continu";
@@ -14,7 +15,7 @@ export function D01({ page, hauteur }: ProprietesPlaquette) {
   const circonference = 2 * Math.PI * 150;
   return (
     <div style={{ position: "absolute", left: MARGE_SURE, top: 196, width: 920, height: hauteur - 196 - 150, display: "flex", flexDirection: "column" }}>
-      <Etiquette>{TEXTES_DONNEES.d01Etiquette}</Etiquette>
+      {String(page.faitId) === FAIT_EXEMPLE ? <Etiquette>{TEXTES_DONNEES.d01Etiquette}</Etiquette> : null}
       <div style={{ display: "flex", alignItems: "center", gap: 30, marginTop: 40 }}>
         <div style={{ position: "relative", width: 420, height: 420, flex: "none" }}>
           <svg width={420} height={420} viewBox="0 0 420 420" aria-hidden>
