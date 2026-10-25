@@ -7,8 +7,10 @@
  *    (écran « chiffre », bandeau, phrase-choc), et la fin ; 24 au plus.
  * 2. EXTRACTION par l'opération EXISTANTE du serveur de rendu : `controle` avec `etape: "images"`, la même demande que
  *    `montage-facecam/chaine.ts` (~778 : `soumettre("controle", { source, depots, parametres: { etape: "images",
- *    instants, largeur: 540, cles } })`). Aucune opération nouvelle. Une extraction ratée, ou une image manquante, est
- *    un REFUS (jamais « livrée sans relecture » comme en face caméra).
+ *    instants, largeur: 540, cles } })`). Aucune opération nouvelle. Une extraction ratée (qui lève), ou presque vide (aucune
+ *    image, ou plus de 50 % manquantes), est un REFUS (jamais « livrée sans relecture » comme en face caméra) ; une image
+ *    isolée manquante est une REMARQUE (détail, la vidéo continue). L'identifiant du travail d'extraction dépend des instants
+ *    (`idTravailControleIV`) : l'aligneur garde ses travaux 24 h et rendrait sinon l'ancien résultat pour d'autres instants.
  * 3. RELECTURE par Claude (vision, outil injecté) : l'image source + les images extraites, questions FERMÉES par image
  *    (tout est-il montré ? quelque chose de faux ? d'illisible ? hors charte ?). Sont BLOQUANTS : « faux », « illisible »,
  *    plus de 50 % d'images en « manque », aucune image relue. Un « manque » isolé, un « absent de la vidéo » ou une image
@@ -197,6 +199,34 @@ export function demandeImagesControleIV(videoId: string, version: string, fichie
   };
 }
 
+/**
+ * Identifiant du travail d'extraction sur le serveur de rendu : dépend de la vidéo, du fichier, des instants, de la largeur
+ * et des clés de dépôt. L'aligneur garde ses travaux 24 h et rend l'ancien résultat pour un même id : un id indépendant des
+ * instants rendait, après un changement d'instants, des images déposées pour d'autres instants (clés jamais déposées).
+ */
+export function idTravailControleIV(videoId: string, d: DemandeImagesControleIV): string {
+  const empreinte = createHash("sha256").update(JSON.stringify([videoId, d.source, d.parametres.instants, d.parametres.largeur, d.parametres.cles])).digest("hex").slice(0, 40);
+  return `iv-controle-${empreinte}`;
+}
+
+/**
+ * Images réellement listées par le serveur de rendu, et dont la clé est bien l'une des clés de la demande. Une forme
+ * inattendue rend une liste vide (jamais d'exception, jamais d'image déclarée sans avoir été listée).
+ */
+export function imagesExtraitesIV(resultat: unknown, d: DemandeImagesControleIV): { nom: string; cle: string }[] {
+  const liste = (resultat as { images?: unknown } | null | undefined)?.images;
+  if (!Array.isArray(liste)) return [];
+  const sortie: { nom: string; cle: string }[] = [];
+  for (const x of liste) {
+    const nom = (x as { nom?: unknown } | null)?.nom;
+    const cle = (x as { cle?: unknown } | null)?.cle;
+    if (typeof nom !== "string" || typeof cle !== "string") continue;
+    if (!Object.prototype.hasOwnProperty.call(d.parametres.cles, nom) || d.parametres.cles[nom] !== cle) continue;
+    if (!sortie.some((y) => y.nom === nom)) sortie.push({ nom, cle });
+  }
+  return sortie;
+}
+
 export interface OutilsRelectureIV {
   /** Soumet la demande à l'opération existante et rend les images rangées ; lève (ou rend moins d'images) si raté. */
   extraireImages: (demande: DemandeImagesControleIV) => Promise<{ images: { nom: string; cle: string }[] }>;
@@ -262,7 +292,8 @@ function simulerRelecture(entree: EntreeRole): RelectureFinale {
 
 export const roleRelectureFinale = {
   id: "relecture-finale-iv",
-  version: 2,
+  // 3 (25/10/2026) : extraction par id dépendant des instants, image de contrôle manquante = remarque (relectures reprises invalidées).
+  version: 3,
   consigne: CONSIGNE_RELECTURE_FINALE,
   schema: schemaRelectureFinale,
   modele: MODELE_ECRITURE,
@@ -416,16 +447,25 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
     if (!source) return { q26: { ok: false, details: ["l'image source est introuvable : la relecture ne peut pas la comparer."] }, remarques: [], indications: [], appels: 0 };
     jointes.push({ type: source.type, base64: enBase64(source.octets), legende: "Image source (l'infographie)." });
   }
+  const presents: InstantCleIV[] = [];
+  const remarquesExtraction: string[] = [];
   for (const i of e.instants) {
     const r = images.find((x) => x?.nom === i.nom && typeof x.cle === "string");
     const lue = r ? await o.lireImage(r.cle).catch(() => null) : null;
-    if (!lue) return { q26: { ok: false, details: [`l'image de contrôle à ${i.instantSec.toFixed(1).replace(".", ",")} s n'a pas été extraite : la vidéo n'est jamais livrée sans relecture.`] }, remarques: [], indications: [], appels: 0 };
+    if (!lue) {
+      remarquesExtraction.push(`l'image de contrôle à ${i.instantSec.toFixed(1).replace(".", ",")} s n'a pas été extraite (détail, la vidéo continue).`);
+      continue;
+    }
+    presents.push(i);
     jointes.push({ type: lue.type, base64: enBase64(lue.octets), legende: `${i.nom} · ${i.legende}` });
   }
+  const manquantes = e.instants.length - presents.length;
+  if (presents.length === 0) return { q26: { ok: false, details: ["aucune image de contrôle n'a pu être extraite du fichier final : la vidéo n'est jamais livrée sans relecture."] }, remarques: [], indications: [], appels: 0 };
+  if (manquantes / e.instants.length > PART_MANQUES_BLOQUANTE) return { q26: { ok: false, details: [`${manquantes} images de contrôle sur ${e.instants.length} n'ont pas pu être extraites du fichier final : la vidéo n'est jamais livrée sans relecture. ${remarquesExtraction.join(" ")}`.trim()] }, remarques: [], indications: [], appels: 0 };
 
   // 2. Relecture : réservation du pire coût AVANT chaque appel ; une relance si la réponse est illisible.
   const role = roleRelectureFinale as unknown as DefinitionRole;
-  const entree: EntreeRole = { contexte: {}, variable: variableRelecture(e.carte, e.instants, e.reseaux, modeTexte), images: jointes };
+  const entree: EntreeRole = { contexte: {}, variable: variableRelecture(e.carte, presents, e.reseaux, modeTexte), images: jointes };
   let appels = 0;
   for (let essai = 1; essai <= APPELS_RELECTURE_MAX; essai++) {
     const appelId = o.idAppel(`iv-relecture-${e.videoId}-${e.version}-${cle ?? `sans-empreinte-${createHash("sha256").update(JSON.stringify([e.fichierCle, e.instants])).digest("hex").slice(0, 16)}`}-${essai}`);
@@ -438,8 +478,8 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
     if (!r.ok) return { ...nonFait(`la relecture a été interrompue (${r.message}).`, appels) };
     const lue = lireRelecture(r);
     if (!lue) continue;
-    const j = jugerRelecture(lue, e.instants);
-    return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, remarques: j.remarques, indications: j.indications, relecture: lue, ...(cle ? { cle } : {}), appels };
+    const j = jugerRelecture(lue, presents);
+    return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, remarques: [...remarquesExtraction, ...j.remarques], indications: j.indications, relecture: lue, ...(cle ? { cle } : {}), appels };
   }
   return { q26: { ok: false, details: ["la relecture n'a pas donné de réponse lisible, même après une relance."] }, remarques: [], indications: [], appels };
 }
