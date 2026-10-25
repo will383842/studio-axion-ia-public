@@ -190,7 +190,9 @@ describe("continu P3h : schémas stricts et budgets", () => {
           if (!nom.endsWith("?")) expect(exemple[c], `${t}.${c} absent de l'exemple`).toBeDefined();
           expect(g.schema.safeParse({ ...exemple, [c]: "a".repeat(max) }).success, `${t}.${c} = ${max}`).toBe(true);
           expect(g.schema.safeParse({ ...exemple, [c]: "a".repeat(max + 1) }).success, `${t}.${c} = ${max + 1}`).toBe(false);
-          expect(g.schema.safeParse({ ...exemple, [c]: "" }).success, `${t}.${c} vide`).toBe(nom.endsWith("?") ? true : false);
+          expect(g.schema.safeParse({ ...exemple, [c]: "" }).success, `${t}.${c} vide`).toBe(false);
+          const { [c]: _omis, ...sans } = exemple;
+          expect(g.schema.safeParse(sans).success, `${t}.${c} omis`).toBe(nom.endsWith("?"));
         }
       }
     }

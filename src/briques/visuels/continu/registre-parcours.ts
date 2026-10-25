@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { texteSansLien } from "../../../domaine/visuels/schema";
 import { RUBRIQUE_MAX } from "../../../domaine/visuels/continu/geometrie";
+import { PARCOURS_DEFINITIONS, PARCOURS_PAGES } from "./familles/parcours";
 import type { DefinitionGabarit } from "./registre-gabarits";
 
 export interface DefinitionParcours {
@@ -18,8 +19,8 @@ export interface DefinitionParcours {
   essai?: true;
 }
 
-/** Parcours de production : remplis par les lots P3. */
-export const PARCOURS_PRODUCTION: DefinitionParcours[] = [];
+/** Parcours de production : les huit parcours de la maquette (lot P3h, `familles/parcours.ts`). */
+export const PARCOURS_PRODUCTION: DefinitionParcours[] = PARCOURS_DEFINITIONS;
 
 const TEXTES_PX = [
   ["On avance par étapes", "Chaque étape se vérifie avant la suivante."],
@@ -59,4 +60,4 @@ export const PARCOURS: DefinitionParcours[] = [
 ];
 
 /** Pages des parcours, ajoutées à GABARITS. */
-export const GABARITS_PARCOURS: DefinitionGabarit[] = PAGES_PX;
+export const GABARITS_PARCOURS: DefinitionGabarit[] = [...PARCOURS_PAGES, ...PAGES_PX];
