@@ -19,6 +19,9 @@ const ATTENDU: Record<string, { nom: string; sombre: boolean; orangeFort: boolea
 /** Champ de liste (nom de la liste, champs d'un élément) de chaque gabarit. */
 const LISTE: Record<string, string> = { L01: "items", L02: "items", L03: "etapes", L04: "etapes", L05: "lignes", L06: "points", L07: "items" };
 
+/** Élément réduit à des textes courts (« Ok ») : il passe tous les budgets, quel que soit le nombre d'éléments. */
+const court = (e: Dict): Dict => Object.fromEntries(Object.entries(e).map(([k, v]) => [k, typeof v === "string" && k !== "icone" ? "Ok" : v]));
+
 const g = (type: string) => LISTES.find((x) => x.type === type)!;
 const mot = (n: number) => "é".repeat(n);
 type Dict = Record<string, unknown>;
@@ -87,7 +90,7 @@ describe("continu P3b : registre des listes", () => {
 describe("continu P3b : budgets et bornes", () => {
   it("le titre et l'accent au budget passent, au budget + 1 échouent", () => {
     for (const x of LISTES) {
-      const b = budgetListe(x.type, (exemple(x.type)[LISTE[x.type]] as unknown[]).length);
+      const b = budgetListe(x.type, (exemple(x.type)[LISTE[x.type]] as unknown[]).length).page;
       expect(x.schema.safeParse(avecChamp(x.type, "titre", mot(b.titre), true)).success, `${x.type} titre`).toBe(true);
       expect(x.schema.safeParse(avecChamp(x.type, "titre", mot(b.titre + 1), true)).success, `${x.type} titre+1`).toBe(false);
       expect(x.schema.safeParse(avecChamp(x.type, "accent", mot(b.accent), true)).success, `${x.type} accent`).toBe(true);
@@ -99,9 +102,9 @@ describe("continu P3b : budgets et bornes", () => {
       const [min, max] = BORNES_LISTES[x.type];
       for (let n = min; n <= max; n++) {
         const base = exemple(x.type)[LISTE[x.type]] as Dict[];
-        const elements = Array.from({ length: n }, (_, i) => base[i % base.length]);
-        const b = budgetListe(x.type, n);
-        const cles = Object.keys(b).filter((c) => c !== "titre" && c !== "accent");
+        const elements = Array.from({ length: n }, (_, i) => court(base[i % base.length]));
+        const b = budgetListe(x.type, n).element;
+        const cles = Object.keys(b);
         expect(cles.length, `${x.type} champs`).toBeGreaterThan(0);
         for (const c of cles) {
           const mettre = (v: string) => ({ ...exemple(x.type), [LISTE[x.type]]: elements.map((e, i) => (i === 0 ? { ...e, [c]: v } : e)) });
@@ -115,7 +118,7 @@ describe("continu P3b : budgets et bornes", () => {
     for (const x of LISTES) {
       const [min, max] = BORNES_LISTES[x.type];
       const base = exemple(x.type)[LISTE[x.type]] as Dict[];
-      const faire = (n: number) => ({ ...exemple(x.type), [LISTE[x.type]]: Array.from({ length: n }, (_, i) => base[i % base.length]) });
+      const faire = (n: number) => ({ ...exemple(x.type), [LISTE[x.type]]: Array.from({ length: n }, (_, i) => court(base[i % base.length])) });
       expect(x.schema.safeParse(faire(min)).success, `${x.type} min`).toBe(true);
       expect(x.schema.safeParse(faire(max)).success, `${x.type} max`).toBe(true);
       expect(x.schema.safeParse(faire(min - 1)).success, `${x.type} min-1`).toBe(false);
