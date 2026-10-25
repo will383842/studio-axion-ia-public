@@ -203,6 +203,24 @@ describe("relireVersionIV : une image de contrôle manquante n'arrête plus la v
     expect(suspect.q26.ok).toBe(false);
   });
 
+  it("Claude répond mais aucune image ne correspond : remarque « non relue », pas un bloquant (refus seulement si le rendu est suspect)", async () => {
+    const { o } = monter();
+    const hors = { ...o, appeler: async () => ({ ok: true as const, simule: true, donnees: { images: [{ nom: "inconnue", manque: "", toutMontre: true, faux: "", illisible: "", horsCharte: "", suggestion: "" }], absentDeLaVideo: "" } }) };
+    const r = await relireVersionIV(entreeRelecture(instants24()), hors as unknown as OutilsRelectureIV);
+    expect(r.q26.ok).toBe(true);
+    expect(r.remarques.join(" ")).toMatch(/images finales non relues.*aucune des images/);
+    const suspect = await relireVersionIV({ ...entreeRelecture(instants24()), renduSuspect: true }, hors as unknown as OutilsRelectureIV);
+    expect(suspect.q26.ok).toBe(false);
+  });
+
+  it("aucun instant clé à relire : remarque « non relue », pas un bloquant", async () => {
+    const { o } = monter();
+    const r = await relireVersionIV(entreeRelecture([]), o);
+    expect(r.q26.ok).toBe(true);
+    expect(r.remarques.join(" ")).toMatch(/images finales non relues : aucun instant clé/);
+    expect((await relireVersionIV({ ...entreeRelecture([]), renduSuspect: true }, o)).q26.ok).toBe(false);
+  });
+
   it("panne de Claude après extraction : remarque, la vidéo continue même si le rendu est suspect", async () => {
     const { o } = monter();
     const r = await relireVersionIV({ ...entreeRelecture(instants24()), renduSuspect: true }, { ...o, appeler: async () => ({ ok: false as const, arret: "panne", message: "Claude indisponible" }) });

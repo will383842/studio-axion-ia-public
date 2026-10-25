@@ -439,9 +439,9 @@ export function estIllisibleGlobalIV(texte: string): boolean {
 
 /**
  * Verdict PUR d'une relecture. BLOQUANTS : un « faux » qui est un chiffre faux, un « illisible » qui dit l'image entière illisible,
- * plus de 50 % d'images « illisibles » ou en « manque » (ou « tout n'est pas montré »), aucune image relue. REMARQUES (détail, la
- * vidéo continue) : tout autre « faux » ou « illisible », un « manque » isolé, un élément absent de la vidéo, une image sans réponse
- * quand d'autres ont répondu. « hors charte » et suggestions : indications.
+ * plus de 50 % d'images globalement illisibles (`estIllisibleGlobalIV`). REMARQUES (détail, la vidéo continue) : tout autre « faux »
+ * ou « illisible » (un texte coupé n'est jamais compté dans la part illisible), tout « manque » (« tout n'est pas montré »), quelle
+ * qu'en soit la part, un élément absent de la vidéo, une image sans réponse, aucune image relue. « hors charte » et suggestions : indications.
  */
 export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<InstantCleIV, "nom" | "instantSec">[]): { bloquants: string[]; remarques: string[]; indications: string[] } {
   const bloquants: string[] = [];
@@ -471,19 +471,19 @@ export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<Insta
     }
     const illisible = x.illisible.trim();
     if (illisible) {
-      illisibles++;
-      if (estIllisibleGlobalIV(illisible)) bloquants.push(`${ou(i.nom)}, illisible : ${illisible}.`);
-      else remarques.push(`${ou(i.nom)}, illisible : ${illisible}${DETAIL}.`);
+      if (estIllisibleGlobalIV(illisible)) {
+        illisibles++;
+        bloquants.push(`${ou(i.nom)}, illisible : ${illisible}.`);
+      } else remarques.push(`${ou(i.nom)}, illisible : ${illisible}${DETAIL}.`);
     }
     if (x.horsCharte.trim()) indications.push(`${ou(i.nom)}, hors charte : ${x.horsCharte.trim()}.`);
     if (x.suggestion.trim()) indications.push(`${ou(i.nom)} : ${x.suggestion.trim()}.`);
   }
   if (relues > 0 && illisibles / relues > PART_MANQUES_BLOQUANTE) bloquants.push(`${illisibles} images sur ${relues} sont illisibles : la vidéo est illisible dans son ensemble.`);
-  if (instants.length > 0 && relues === 0) bloquants.push("aucune image n'a été relue.");
+  if (instants.length > 0 && relues === 0) remarques.push(`aucune image n'a été relue${DETAIL}.`);
   else for (const nom of sansReponse) remarques.push(`l'image ${ou(nom)} n'a pas été relue${DETAIL}.`);
-  if (relues > 0 && manques.length / relues > PART_MANQUES_BLOQUANTE) bloquants.push(`${manques.length} images sur ${relues} ne montrent pas tout : ${manques.join(" ")}`);
-  else if (relues > 0 && instants.length > 0 && (manques.length + sansReponse.length) / instants.length > PART_MANQUES_BLOQUANTE) bloquants.push(`${manques.length} images ne montrent pas tout et ${sansReponse.length} n'ont pas été relues, sur ${instants.length} : la relecture est trop incomplète.${manques.length ? " " + manques.join(" ") : ""}`);
-  else for (const m of manques) remarques.push(`${m.replace(/\.$/, "")}${DETAIL}.`);
+  // Un « manque » est un détail, quelle que soit sa part (cohérent avec Q12) : jamais un blocage.
+  for (const m of manques) remarques.push(`${m.replace(/\.$/, "")}${DETAIL}.`);
   if (r.absentDeLaVideo.trim()) remarques.push(`absent de toute la vidéo : ${r.absentDeLaVideo.trim()}${DETAIL}.`);
   return { bloquants, remarques, indications };
 }
@@ -499,21 +499,25 @@ const nonRelue = (message: string, e: Pick<EntreeRelectureIV, "renduSuspect">, a
 
 const nonFait = (message: string, appels = 0): ResultatRelectureIV => ({ q26: { ok: false, nonFait: true, details: [message] }, remarques: [], indications: [], appels });
 
+/** Claude a répondu, mais aucune de ses images ne correspond à un instant relu : rien n'a été relu. */
+const aucuneCorrespondance = (r: RelectureFinale, instants: readonly Pick<InstantCleIV, "nom">[]): boolean => instants.length > 0 && !instants.some((i) => r.images.some((y) => y.nom === i.nom));
+
 /**
- * Q26 d'une version : extraction (opération existante), puis relecture réservée. Ne lève jamais : une panne est un
- * refus motivé.
+ * Q26 d'une version : extraction (opération existante), puis relecture réservée. Ne lève jamais : une panne est la remarque
+ * « images finales non relues » (`nonRelue`).
  */
 export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV): Promise<ResultatRelectureIV> {
-  if (!e.instants.length) return { q26: { ok: false, details: ["aucun instant clé à relire."] }, remarques: [], indications: [], appels: 0 };
+  if (!e.instants.length) return nonRelue("aucun instant clé à relire.", e, true);
   const cle = cleRelectureIV(e.fichierCle, e.empreinteFichier, e.instants) ?? undefined;
   const deja = cle ? e.deja?.[cle] : undefined;
   if (deja) {
+    if (aucuneCorrespondance(deja, e.instants)) return nonRelue("la relecture reprise ne porte sur aucune des images à relire.", e, true);
     const j = jugerRelecture(deja, e.instants);
     return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, remarques: j.remarques, indications: j.indications, relecture: deja, cle, appels: 0 };
   }
   if (!e.depenseAutorisee) return nonFait("relecture non lancée : la vidéo est déjà refusée par un autre contrôle, aucune dépense n'est engagée.");
 
-  // 1. Extraction par l'opération existante ; ratée ou incomplète = refus.
+  // 1. Extraction par l'opération existante ; ratée ou incomplète = remarque « images finales non relues » (refus seulement si rien n'a pu être lu et que le rendu est suspect).
   let images: { nom: string; cle: string }[];
   try {
     images = (await o.extraireImages(demandeImagesControleIV(e.videoId, e.version, e.fichierCle, e.instants))).images ?? [];
@@ -559,6 +563,7 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
     if (!r.ok) return nonRelue(`la relecture a été interrompue (${r.message}).`, e, false, appels);
     const lue = lireRelecture(r);
     if (!lue) continue;
+    if (aucuneCorrespondance(lue, presents)) return nonRelue("la relecture ne porte sur aucune des images à relire.", e, true, appels);
     const j = jugerRelecture(lue, presents);
     return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, remarques: [...remarquesExtraction, ...j.remarques], indications: j.indications, relecture: lue, ...(cle ? { cle } : {}), appels };
   }

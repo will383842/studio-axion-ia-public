@@ -149,20 +149,24 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     expect(j.bloquants).toHaveLength(1);
     expect(j.bloquants[0]).toMatch(/illisible : image entièrement noire/);
   });
-  it("6 images illisibles sur 10 : bloquant « illisible dans son ensemble »", () => {
+  it("6 images globalement illisibles sur 10 : bloquant « illisible dans son ensemble »", () => {
+    const j = jugerRelecture(relecture((_, k) => (k < 6 ? { illisible: "image floue" } : {})), INSTANTS);
+    expect(j.bloquants.some((b) => /illisible dans son ensemble/.test(b))).toBe(true);
+  });
+  it("6 images avec un simple texte coupé sur 10 : aucun bloquant, 6 remarques", () => {
     const j = jugerRelecture(relecture((_, k) => (k < 6 ? { illisible: "texte coupé" } : {})), INSTANTS);
-    expect(j.bloquants).toHaveLength(1);
-    expect(j.bloquants[0]).toMatch(/illisible dans son ensemble/);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(6);
   });
   it("5 images illisibles sur 10 : pas bloquant", () => {
     const j = jugerRelecture(relecture((_, k) => (k < 5 ? { illisible: "texte coupé" } : {})), INSTANTS);
     expect(j.bloquants).toEqual([]);
     expect(j.remarques).toHaveLength(5);
   });
-  it("6 « manque » sur 10 : 1 bloquant (plancher dépassé)", () => {
+  it("6 « manque » sur 10 : des remarques, plus de blocage (comme Q12)", () => {
     const j = jugerRelecture(relecture((_, k) => (k < 6 ? { toutMontre: false, manque: "un bloc" } : {})), INSTANTS);
-    expect(j.bloquants).toHaveLength(1);
-    expect(j.remarques).toEqual([]);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(6);
   });
   it("5 « manque » sur 10 : au plancher, pas encore bloquant", () => {
     const j = jugerRelecture(relecture((_, k) => (k < 5 ? { toutMontre: false, manque: "un bloc" } : {})), INSTANTS);
@@ -182,10 +186,11 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     expect(j.remarques).toHaveLength(1);
     expect(j.remarques[0]).toMatch(/n'a pas été relue/);
   });
-  it("6 sans réponse sur 10 : bloquant (relecture presque vide)", () => {
+  it("6 sans réponse sur 10 : remarques (relecture presque vide)", () => {
     const r = relecture();
     const j = jugerRelecture({ ...r, images: r.images.slice(0, 4) }, INSTANTS);
-    expect(j.bloquants).toHaveLength(1);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(6);
   });
   it("1 sans réponse sur 10 : remarque", () => {
     const r = relecture();
@@ -193,9 +198,10 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     expect(j.bloquants).toEqual([]);
     expect(j.remarques).toHaveLength(1);
   });
-  it("aucune image relue : bloquant", () => {
+  it("aucune image relue : remarque (la relecture elle-même est « non relue »)", () => {
     const j = jugerRelecture({ images: [], absentDeLaVideo: "" }, INSTANTS);
-    expect(j.bloquants).toHaveLength(1);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques.join()).toMatch(/aucune image n'a été relue/);
   });
   it("« hors charte » et suggestions restent des indications", () => {
     const j = jugerRelecture(relecture((_, k) => (k === 0 ? { horsCharte: "orange clair", suggestion: "logo" } : {})), INSTANTS);
