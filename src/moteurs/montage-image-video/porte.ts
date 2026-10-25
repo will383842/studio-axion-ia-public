@@ -134,11 +134,13 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const refusEcoute = refusAvant || e.versions.some((v) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => bloque(l) && l.code !== "Q26"));
 
   // 3. Relecture des images finales (réservée), seulement si tout le reste passe.
+  // Rendu suspect : le fichier final a une anomalie de mesure (Q24) ; sans aucune image lue, la vidéo n'est alors pas livrée.
+  const renduSuspect = (v: VersionAControlerIV) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => l.code === "Q24" && l.etat !== "reussi");
   const relectures: Record<string, RelectureFinale> = { ...(e.deja?.relectures ?? {}) };
   const relues = new Map<string, Awaited<ReturnType<typeof relireVersionIV>>>();
   for (const v of e.versions) {
     const r = await relireVersionIV(
-      { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcoute },
+      { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcoute, renduSuspect: renduSuspect(v) },
       o,
     );
     appelsPayes += r.appels;

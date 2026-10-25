@@ -8,8 +8,9 @@
  * 2. EXTRACTION par l'opération EXISTANTE du serveur de rendu : `controle` avec `etape: "images"`, la même demande que
  *    `montage-facecam/chaine.ts` (~778 : `soumettre("controle", { source, depots, parametres: { etape: "images",
  *    instants, largeur: 540, cles } })`). Aucune opération nouvelle. Une extraction ratée (qui lève), ou presque vide (aucune
- *    image, ou plus de 50 % manquantes), est un REFUS (jamais « livrée sans relecture » comme en face caméra) ; une image
- *    isolée manquante est une REMARQUE (détail, la vidéo continue). L'identifiant du travail d'extraction dépend des instants
+ *    image, ou plus de 50 % manquantes), une panne de Claude ou une dépense non réservée donnent la REMARQUE « images finales non
+ *    relues » : la vidéo est livrée (`nonRelue`), sauf si AUCUNE image n'a pu être lue ET que le rendu est suspect (`renduSuspect`) ;
+ *    une image isolée manquante est une REMARQUE (détail, la vidéo continue). L'identifiant du travail d'extraction dépend des instants
  *    (`idTravailControleIV`) : l'aligneur garde ses travaux 24 h et rendrait sinon l'ancien résultat pour d'autres instants.
  * 3. RELECTURE par Claude (vision, outil injecté) : l'image source + les images extraites, questions FERMÉES par image
  *    (tout est-il montré ? quelque chose de faux ? d'illisible ? hors charte ?). Sont BLOQUANTS : un « faux » qui est
@@ -19,7 +20,7 @@
  *    suggestions sont indicatives.
  *
  * ARGENT : le pire coût de chaque appel Claude est RÉSERVÉ avant l'appel (`pireCasRole`) ; refus de réservation =
- * aucun appel, contrôle « non fait » (donc bloquant). Une réponse illisible est relancée une fois (réservée elle aussi).
+ * aucun appel, remarque « images finales non relues » (la vidéo continue). Une réponse illisible est relancée une fois (réservée elle aussi).
  * Chaque tentative (relance comprise) a son PROPRE identifiant d'appel, donné par l'outil injecté `idAppel` : une
  * reprise après une relecture interrompue ne réutilise jamais la réservation d'un appel déjà parti.
  * Aucun nom de fichier ni aucune clé de stockage ne part vers Claude.
@@ -365,6 +366,8 @@ export interface EntreeRelectureIV {
   /** Relectures déjà obtenues, par `cleRelectureIV` : reprise seulement pour le même fichier et les mêmes instants. */
   deja?: Readonly<Record<string, RelectureFinale>>;
   depenseAutorisee: boolean;
+  /** Le fichier final a déjà une anomalie de mesure (Q24) : sans aucune image lue, la vidéo n'est alors pas livrée sur la foi de rien. */
+  renduSuspect?: boolean;
 }
 
 export interface ResultatRelectureIV {
@@ -464,6 +467,15 @@ export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<Insta
   return { bloquants, remarques, indications };
 }
 
+/**
+ * Relecture impossible (panne, extraction ratée, dépense non réservée) : la vidéo est livrée avec la remarque « images finales non
+ * relues », sauf si AUCUNE image n'a pu être lue ET que le rendu est suspect (alors refus motivé).
+ */
+const nonRelue = (message: string, e: Pick<EntreeRelectureIV, "renduSuspect">, aucuneLue: boolean, appels = 0): ResultatRelectureIV =>
+  aucuneLue && e.renduSuspect
+    ? { q26: { ok: false, details: [`${message} Le rendu est suspect : la vidéo n'est pas livrée sans relecture.`] }, remarques: [], indications: [], appels }
+    : { q26: { ok: true, details: [] }, remarques: [`images finales non relues : ${message.replace(/\.$/, "")} (détail, la vidéo continue).`], indications: [], appels };
+
 const nonFait = (message: string, appels = 0): ResultatRelectureIV => ({ q26: { ok: false, nonFait: true, details: [message] }, remarques: [], indications: [], appels });
 
 /**
@@ -485,14 +497,14 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
   try {
     images = (await o.extraireImages(demandeImagesControleIV(e.videoId, e.version, e.fichierCle, e.instants))).images ?? [];
   } catch (err) {
-    return { q26: { ok: false, details: [`les images de contrôle n'ont pas pu être extraites du fichier final (${(err as Error).message}) : la vidéo n'est jamais livrée sans relecture.`] }, remarques: [], indications: [], appels: 0 };
+    return nonRelue(`les images de contrôle n'ont pas pu être extraites du fichier final (${(err as Error).message}).`, e, true);
   }
   const jointes: ImageClaude[] = [];
   // Mode texte (R6b) : la carte vient d'un texte, aucun fichier image source n'existe ; la relecture compare à la carte.
   const modeTexte = estCleTexte(e.carte.image.cle);
   if (!modeTexte) {
     const source = await o.lireImage(e.carte.image.cle).catch(() => null);
-    if (!source) return { q26: { ok: false, details: ["l'image source est introuvable : la relecture ne peut pas la comparer."] }, remarques: [], indications: [], appels: 0 };
+    if (!source) return nonRelue("l'image source est introuvable : la relecture ne peut pas la comparer.", e, false);
     jointes.push({ type: source.type, base64: enBase64(source.octets), legende: "Image source (l'infographie)." });
   }
   const presents: InstantCleIV[] = [];
@@ -508,8 +520,8 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
     jointes.push({ type: lue.type, base64: enBase64(lue.octets), legende: `${i.nom} · ${i.legende}` });
   }
   const manquantes = e.instants.length - presents.length;
-  if (presents.length === 0) return { q26: { ok: false, details: ["aucune image de contrôle n'a pu être extraite du fichier final : la vidéo n'est jamais livrée sans relecture."] }, remarques: [], indications: [], appels: 0 };
-  if (manquantes / e.instants.length > PART_MANQUES_BLOQUANTE) return { q26: { ok: false, details: [`${manquantes} images de contrôle sur ${e.instants.length} n'ont pas pu être extraites du fichier final : la vidéo n'est jamais livrée sans relecture. ${remarquesExtraction.join(" ")}`.trim()] }, remarques: [], indications: [], appels: 0 };
+  if (presents.length === 0) return nonRelue("aucune image de contrôle n'a pu être extraite du fichier final.", e, true);
+  if (manquantes / e.instants.length > PART_MANQUES_BLOQUANTE) return nonRelue(`${manquantes} images de contrôle sur ${e.instants.length} n'ont pas pu être extraites du fichier final.`, e, false);
 
   // 2. Relecture : réservation du pire coût AVANT chaque appel ; une relance si la réponse est illisible.
   const role = roleRelectureFinale as unknown as DefinitionRole;
@@ -520,14 +532,14 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
     const reservation = await o.budget
       .reserver({ appelId, videoId: e.videoId, etape: ETAPE_RELECTURE, fournisseur: "claude", modele: role.modele, coutEstimeUsd: pireCasRole(role, entree) })
       .catch((err: Error) => ({ ok: false as const, message: err.message }));
-    if (!reservation.ok) return nonFait(`relecture non lancée : la dépense n'a pas pu être réservée (${reservation.message}).`, appels);
+    if (!reservation.ok) return nonRelue(`la dépense n'a pas pu être réservée (${reservation.message}).`, e, false, appels);
     appels++;
     const r = await o.appeler(role, entree).catch((err: Error) => ({ ok: false as const, arret: "panne", message: err.message }));
-    if (!r.ok) return { ...nonFait(`la relecture a été interrompue (${r.message}).`, appels) };
+    if (!r.ok) return nonRelue(`la relecture a été interrompue (${r.message}).`, e, false, appels);
     const lue = lireRelecture(r);
     if (!lue) continue;
     const j = jugerRelecture(lue, presents);
     return { q26: { ok: j.bloquants.length === 0, details: j.bloquants }, remarques: [...remarquesExtraction, ...j.remarques], indications: j.indications, relecture: lue, ...(cle ? { cle } : {}), appels };
   }
-  return { q26: { ok: false, details: ["la relecture n'a pas donné de réponse lisible, même après une relance."] }, remarques: [], indications: [], appels };
+  return nonRelue("la relecture n'a pas donné de réponse lisible, même après une relance.", e, false, appels);
 }

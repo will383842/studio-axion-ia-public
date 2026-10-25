@@ -71,10 +71,11 @@ describe("« Refaire » après un refus des vérifications : la reprise ne repai
     expect(compte(m)).toEqual(avant);
   });
 
-  it("un contrôle gratuit (mise en page, image E) qui échoue bloque avant toute écoute ou relecture, même après « Refaire »", async () => {
+  it("un contrôle gratuit bloquant (mesure du fichier final absente, image E) bloque avant toute écoute ou relecture, même après « Refaire »", async () => {
+    // 25/10/2026 : la mise en page (Q21) n'est plus qu'une remarque ; un rendu dont le cadre n'est pas mesuré reste un refus.
     const carte = carteFixe("E");
     const m = monde();
-    const o = outilsSimules(carte, m);
+    const o = outilsSimules(carte, m, { sansMesureFichier: ["hauteur"] });
     const refuse = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
     expect(refuse.refus).toMatchObject({ etape: "controles", code: "IV_CONTROLES", reessayable: false });
     const avant = compte(m);

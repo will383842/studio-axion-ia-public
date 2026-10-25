@@ -44,11 +44,14 @@ export const CODES_CONTROLE_IV = [
 ] as const;
 export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
 
+/** Ordre de Will du 25/10/2026 (« vidéo prête du premier coup ») : ces lignes disent un défaut en REMARQUE, jamais en blocage. */
+const LIGNES_ZERO_BLOCAGE_IV = ["Q12", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q25", "Q27", "SCENE"] as const;
+
 /**
  * Contrôles indicatifs (jamais bloquants : remarque orange à la porte). Q13 et Q14 (chiffre non montré, rythme) sont des défauts de DÉTAIL :
- * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; tout autre défaut relu est une remarque. Q11, Q18 et Q24 ne bloquent qu'au-delà de leurs planchers (vidéo inutilisable), en deçà ce sont des remarques.
+ * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q12, Q15, Q19 à Q23, Q25, Q27 et SCENE le sont aussi (ordre du 25/10/2026). Restent bloquants : CHIFFRES (chiffre faux), la voix (Q16, Q17), le rendu impossible (mesure absente de Q24) et l'image noire ou illisible. Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; relecture impossible = remarque « images finales non relues ». Q11, Q18 et Q24 ne bloquent qu'au-delà de leurs planchers (vidéo inutilisable), en deçà ce sont des remarques ; le cadre et la cadence de Q24 sont des remarques.
  */
-export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", ...DEFAUTS_DE_DETAIL_IV]);
+export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", ...DEFAUTS_DE_DETAIL_IV, ...LIGNES_ZERO_BLOCAGE_IV]);
 
 /** Libellé de chaque contrôle, en tête de la phrase pour Will. */
 export const LIBELLES_CONTROLE_IV: Readonly<Record<CodeControleIV, string>> = Object.freeze({
@@ -394,7 +397,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const me = v.fichier.mesures;
   const lire = (k: string) => (me && typeof me[k] === "number" && Number.isFinite(me[k]) ? (me[k] as number) : null);
   const q24: string[] = [];
-  /** Mesures de DÉTAIL (volume, crête, image noire ou figée) : remarque orange. Cadre, cadence et mesure absente restent bloquants. */
+  /** Mesures de DÉTAIL (volume, crête, image noire ou figée) : remarque orange. Le cadre et la cadence sont des remarques aussi ; une mesure absente reste bloquante. */
   const q24Souple: string[] = [];
   const absentes: string[] = [];
   const M = MESURES_IV;
@@ -425,9 +428,9 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // Cadre attendu : celui de la ligne de la version (1080 × 1920 en 9:16, 1080 × 1350 en 4:5).
   const largeur = v.ligne.largeur ?? M.largeur;
   const hauteur = v.ligne.hauteur ?? M.hauteur;
-  verifier("largeur", "la largeur", (x) => x === largeur, (x) => `largeur de ${x} px (${largeur}).`);
-  verifier("hauteur", "la hauteur", (x) => x === hauteur, (x) => `hauteur de ${x} px (${hauteur}).`);
-  verifier("fps", "la cadence", (x) => Math.abs(x - M.fps) < 1e-6, (x) => `${x} images par seconde (25).`);
+  verifier("largeur", "la largeur", (x) => x === largeur, (x) => `largeur de ${x} px (${largeur}).`, true);
+  verifier("hauteur", "la hauteur", (x) => x === hauteur, (x) => `hauteur de ${x} px (${hauteur}).`, true);
+  verifier("fps", "la cadence", (x) => Math.abs(x - M.fps) < 1e-6, (x) => `${x} images par seconde (25).`, true);
   if (absentes.length) L("Q24", [...q24, ...q24Souple, `non mesuré${absentes.length > 1 ? "s" : ""} sur le fichier final : ${absentes.join(", ")}.`], q24.length || q24Souple.length ? {} : { nonFait: true });
   else L("Q24", [...q24, ...q24Souple], { indicatif: q24.length === 0 && q24Souple.length > 0 });
 
