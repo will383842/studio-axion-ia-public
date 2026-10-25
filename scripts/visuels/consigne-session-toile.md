@@ -31,4 +31,4 @@ Aucun parcours de production pour l'instant : le registre est vide.
 
 ## Plan proposé
 
-Aucun plan proposé : Aucun parcours de production n'est disponible : le registre des parcours est vide.
+Aucun plan proposé : aucun parcours de production n'est disponible : le registre des parcours est vide.

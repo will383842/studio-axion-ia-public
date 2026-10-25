@@ -36,9 +36,9 @@ function planPropose(registres: RegistresPlan): string {
   try {
     const plan = choisirPlan({ sujet: SUJET_EXEMPLE, version: 1, recents: [], variete: "equilibre", format: "4:5" }, registres);
     const raccords = plan.raccords.map((r) => `${r.type} couture ${r.couture} (y ${r.y})`).join(", ") || "aucun";
-    return `Pour le sujet « ${SUJET_EXEMPLE} » (variété équilibrée, 4:5) : Parcours ${plan.parcours} ; pages ${plan.types.join(" → ")} ; raccords ${raccords}.`;
+    return `Pour le sujet « ${SUJET_EXEMPLE} » (variété équilibrée, 4:5) : parcours ${plan.parcours} ; pages ${plan.types.join(" → ")} ; raccords ${raccords}.`;
   } catch (e) {
-    return `Aucun plan proposé : ${e instanceof Error ? e.message : String(e)}`;
+    return `Aucun plan proposé : ${e instanceof Error ? e.message.charAt(0).toLowerCase() + e.message.slice(1) : String(e)}`;
   }
 }
 
