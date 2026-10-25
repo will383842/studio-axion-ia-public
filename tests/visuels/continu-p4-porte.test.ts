@@ -76,6 +76,7 @@ describe("continu P4 : typographie corrigée", () => {
     expect(specCorrige!.format).toBe("4:5");
   });
   it("aucune correction : pas de specCorrige", () => {
-    expect(controlerToile(toile(), ctx).specCorrige).toBeUndefined();
+    const propre = toile([{ ...exemple("X00"), titre: "Par où commencer", alt: "Par où commencer" }, exemple("X01"), exemple("X02")]);
+    expect(controlerToile(propre, ctx).specCorrige).toBeUndefined();
   });
 });
