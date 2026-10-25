@@ -8,6 +8,8 @@ import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/ne
 import { preparerMotDePasse } from "../helpers/g1a";
 import { CLE_ESSAI_CLAUDE } from "../helpers/g0";
 import { SUJETS_BANC } from "../generateur/banc/registre-banc-g4";
+import { reponseFlux, fluxReussi } from "../helpers/g0";
+import type { DefinitionRole } from "@/generateur/roles/types";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -20,6 +22,10 @@ const gc = await import("@/services/generation-claude");
 const couts = await import("@/services/couts");
 const { ecrireParametre } = await import("@/services/_commun");
 const { CLE_MODE_BUDGET } = await import("@/services/mode-budget");
+const credits = await import("@/services/credits");
+const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
+const { ROLES_ECRITURE } = await import("@/generateur/roles");
+const { jetonsEstimes } = await import("@/fournisseurs/claude/tarifs");
 const { RESEAUX_DECLINAISON } = await import("@/reseaux/codes");
 const serie = await import("@/services/serie-ecriture");
 
@@ -40,6 +46,7 @@ beforeEach(async () => {
   for (const p of SUJETS_BANC.flatMap((s) => s.preuves)) await depots().preuves.enregistrer(p);
 });
 afterEach(() => {
+  credits.injecterLecteursPourEssai(null);
   gc.injecterClaudePourEssai(null);
   bg.arreterBoucleGeneration();
 });
@@ -97,4 +104,71 @@ describe.each([
     if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
     expect((await lancement).crees.sort()).toEqual(["face", "trois-quarts"]);
   });
+});
+
+/* ------------------------------------------------------------------ */
+/* Reprise d'écriture (« Reprendre ≈ X € ») : même harnais que budget-indicatif-ecriture-reprise */
+/* ------------------------------------------------------------------ */
+
+/** Faux Claude facturé au pire. */
+function claudeAuPire(roles: DefinitionRole[]) {
+  const appels: string[] = [];
+  const vus = new Set<string>();
+  const f = (async (_url: string | URL | Request, init?: RequestInit) => {
+    const brut = String(init?.body ?? "{}");
+    const corps = JSON.parse(brut) as { system: { text: string; cache_control?: unknown }[]; messages: { content: string }[] };
+    const consigne = corps.system.at(-1)!.text;
+    const role = roles.find((r) => consigne.startsWith(r.consigne.trim()))!;
+    appels.push(role.id);
+    const bloc = (b: string) => corps.system.find((x) => x.text.startsWith(`<${b}>`))?.text.replace(new RegExp(`^<${b}>\\n|\\n</${b}>$`, "g"), "");
+    const sortie = role.simuler({ contexte: { contexteAxion: bloc("contexte_axion"), styleWill: bloc("style_will"), preuves: bloc("preuves"), gagnants: bloc("gagnants") }, variable: corps.messages[0].content });
+    const total = jetonsEstimes(brut);
+    const socle = vus.has(role.id) ? 0 : jetonsEstimes(corps.system.filter((b) => b.cache_control).map((b) => b.text).join("\n"));
+    vus.add(role.id);
+    return reponseFlux(fluxReussi({ texte: typeof sortie === "string" ? sortie : JSON.stringify(sortie), modele: role.modele, entree: total - socle, cacheEcrit: socle, cacheLu: 0, sortie: role.maxTokens }));
+  }) as typeof fetch;
+  return { fetch: f, appels };
+}
+const claudePire = () => {
+  const c = claudeAuPire(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
+  gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: c.fetch, attenteMs: () => 0 });
+  return c;
+};
+const generation = async (id: string) => (await depots().generations.obtenir(id))!;
+const lancerSujet = (i: number) => bg.lancerGeneration({ idee: SUJETS_BANC[i].idee, reseaux: [...SUJETS_BANC[i].reseaux], formatId: "avocat", pilier: SUJETS_BANC[i].pilier.id, mode: "avatar" as const });
+const entre = (pire: number, diviseur: number) => Math.ceil((pire / diviseur) * 100) / 100;
+
+describe.each([
+  ["indicatif", true],
+  ["bloquant", false],
+] as const)("reprise d'une écriture bloquée — mode %s", (mode, indicatif) => {
+  it(indicatif ? "« Reprendre » sans montant confirmé : l'écriture repart, aucun CONFIRMATION_REQUISE" : "témoin : « Reprendre » sans montant confirmé, CONFIRMATION_REQUISE", async () => {
+    credits.injecterLecteursPourEssai([creerLecteurAnthropic({ ANTHROPIC_API_KEY: CLE_ESSAI_CLAUDE }, fetchInterdit)], ["anthropic"]);
+    await credits.declarerRecharge("anthropic", 100_000);
+    await ecrireParametre("fournisseur.script", "claude");
+    gc.forcerChainePourEssai("grande");
+    // Pire cas de la grande chaîne, lu d'une écriture refusée en mode bloquant (plafond par défaut), puis close.
+    claudePire();
+    await ecrireParametre(CLE_MODE_BUDGET, "bloquant");
+    const sonde = await lancerSujet(0);
+    if (!sonde.ok) throw new Error("lancement");
+    await bg.tourBoucleGeneration();
+    const pire = (await gc.lireReserveChaine(sonde.generationId))!.pireCasUsd;
+    await depots().generations.modifier(sonde.generationId, { statut: "echec" });
+
+    const c = claudePire();
+    await ecrireParametre(CLE_MODE_BUDGET, mode);
+    await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
+    const r = await lancerSujet(2);
+    if (!r.ok) throw new Error("lancement");
+    await bg.tourBoucleGeneration();
+    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, indicatif ? entre(pire, 3) : Math.ceil(pire * 100) / 100 + 1);
+    const reprise = bg.reprendreEcriture(r.scriptMaitreId);
+    if (!indicatif) return void (await expect(reprise).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" }));
+    expect(await reprise).toBe(1);
+    await bg.tourBoucleGeneration();
+    expect(c.appels.length).toBeGreaterThan(0);
+    expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
+  }, 120_000);
 });
