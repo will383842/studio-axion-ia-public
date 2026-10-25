@@ -580,8 +580,8 @@ describe("relecture des images finales (Q26) par l'extraction existante", () => 
     const vs = await porteUniqueIV(ms.entree, outils(ms, { extraction: () => [] }).o);
     expect(vs.ok).toBe(false);
     expect(vs.versions[0].lignes.find((l) => l.code === "Q26")!.phrase).toMatch(/rendu est suspect/);
-    // Un volume ou une crête hors seuil n'est PAS un rendu suspect : la vidéo continue avec la remarque.
-    for (const mesure of [{ lufs: -17 }, { creteVraieDbtp: 0.5 }]) {
+    // Un volume, une crête ou une image figée sous son plancher (5 s) n'est PAS un rendu suspect : la vidéo continue avec la remarque.
+    for (const mesure of [{ lufs: -17 }, { creteVraieDbtp: 0.5 }, { figeMaxSec: 3 }]) {
       const mv = monter("A");
       mv.entree.versions[0].fichier.mesures = { ...mv.entree.versions[0].fichier.mesures, ...mesure };
       const vv = await porteUniqueIV(mv.entree, outils(mv, { extraction: () => [] }).o);
