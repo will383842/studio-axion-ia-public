@@ -42,6 +42,8 @@ beforeEach(async () => {
   await auth.seConnecter(MDP, false);
   await ecrireParametre("budget.mensuel", eur(1_000_000));
   await ecrireParametre("budget.seuilConfirmation", eur(1000));
+  const { moisParis } = await import("@/services/couts");
+  await ecrireParametre(`budget.usine.${moisParis()}`, { budget_mensuel_cents: 1_000_000, mois: moisParis(), le: new Date().toISOString() });
 });
 
 describe("mode indicatif : le prix ne bloque pas", () => {
@@ -82,8 +84,16 @@ describe("mode indicatif : le prix ne bloque pas", () => {
 
   it("l'Usine garde le sien : accord rendu inchangé, confirmation toujours exigée", async () => {
     expect(await modeBudget.accordAutomatique(false, 2000, { origine: "usine" })).toBe(false);
-    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo", { origine: "usine" })).rejects.toBeTruthy();
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
     await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", { videoId: "v-u", travailId: "trv-u" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+  });
+
+  it("sous le seuil, accord false : rien au journal, aucune cloche ; à 0 € non plus", async () => {
+    await credits.verifierBudgetEtCredits(estimation(500), false, "Cette vidéo");
+    await credits.verifierBudgetEtCredits(estimation(0), false, "Cette vidéo", { videoId: "v-zero" });
+    await modeBudget.accordAutomatique(false, 0, { signaler: true });
+    expect(await journalDuPrix()).toHaveLength(0);
+    expect((await depots().notifications.lister()).filter((n) => n.titre === "Prix accepté sans confirmation")).toHaveLength(0);
   });
 
   it("GARDE : un crédit réel insuffisant lève toujours CREDIT_INSUFFISANT", async () => {
@@ -119,6 +129,13 @@ describe("mode indicatif : le prix ne bloque pas", () => {
 describe("TÉMOINS — mode bloquant : comme avant", () => {
   beforeEach(async () => {
     await ecrireParametre(CLE_MODE_BUDGET, "bloquant");
+  });
+
+  it("avecAccordAutomatique n'appelle `appel` qu'une fois : l'accord reste refusé, aucune relance", async () => {
+    const appel = vi.fn(async () => ({ statut: "accord-requis" as const, centimes: 700 }));
+    const issue = await modeBudget.avecAccordAutomatique(appel, undefined);
+    expect(issue.statut).toBe("accord-requis");
+    expect(appel).toHaveBeenCalledTimes(1);
   });
 
   it("verifierBudgetEtCredits lève CONFIRMATION_REQUISE au-dessus du seuil, et pour le double réel", async () => {

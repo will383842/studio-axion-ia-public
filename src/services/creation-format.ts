@@ -7,7 +7,7 @@
  */
 import "server-only";
 import { MENTION_IA_PAR_DEFAUT } from "@/domaine/derivations";
-import { accordPropre, type AccordPrix } from "@/domaine/accord";
+import { accordCouvre, accordPropre, type AccordPrix } from "@/domaine/accord";
 import type { Distribution, Id, MentionIA, Video } from "@/domaine/types";
 import { dureeParDefaut, reglagesParDefaut, trouverFormat } from "@/formats";
 import { nouvelId } from "@/lib/ids";
@@ -77,7 +77,7 @@ async function lancerCommun(videoId: Id, accord: number): Promise<{ travailId: I
 export async function lancerAvecAccord(videoId: Id, accordBrut: AccordPrix | unknown, montantCentimes: number, dependances: DependancesLancement = {}): Promise<IssueLancement> {
   await exigerSession();
   // Règle « le prix ne bloque jamais » : en mode indicatif, le prix du jour vaut accord (journalisé) ; mode bloquant : inchangé.
-  const accord = await accordAutomatique(accordPropre(accordBrut), montantCentimes, { videoId });
+  const accord = await accordAutomatique(accordPropre(accordBrut), montantCentimes, { videoId, signaler: !accordCouvre(accordPropre(accordBrut), montantCentimes, 0) });
   if (typeof accord !== "number" || accord < montantCentimes) {
     return { statut: "accord-requis", centimes: montantCentimes, phrase: `La voix coûte environ ${formaterMontant({ centimes: montantCentimes, devise: "EUR" })}. Confirmez ce prix pour lancer.` };
   }

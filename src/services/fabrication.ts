@@ -851,7 +851,7 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
     // Paquet 4 (D2) : l'accord porte le montant vu ; un prix du jour plus haut redemande l'accord.
     // Seconde relecture (R2) : au-delà du seuil, seul le MONTANT vu couvre ce prix (`true` ne suffit plus).
     // Règle « le prix ne bloque jamais » : en mode indicatif (commande de l'utilisateur), le prix du jour vaut accord.
-    const accordMontage = await accordAutomatique(accordPropre(options.confirme), estimation.total.centimes, { origine: options.origine });
+    const accordMontage = await accordAutomatique(accordPropre(options.confirme), estimation.total.centimes, { origine: options.origine, videoId, signaler: !accordCouvre(accordPropre(options.confirme), estimation.total.centimes, 0) });
     if (!accordCouvre(accordMontage, estimation.total.centimes, (await resumeBudget()).seuilConfirmation.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera montée pour de vrai : ${formaterMontant(estimation.total)}. Confirmez pour continuer.`, estimation.total.centimes);
     // Correcteur R8 n° 1 : un accord donné plus tôt pour un autre moteur (l'essai) ne vaut pas pour le montage réel.
     if (options.confirmationDifferee && options.confirmationDifferee.moteurId !== commande.moteurId && !(await budgetIndicatifPour(options.origine))) {
