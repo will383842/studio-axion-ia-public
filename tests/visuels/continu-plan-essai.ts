@@ -49,6 +49,9 @@ const PLAQUETTES: DefinitionGabarit[] = [
   gabarit("L02", "liste", "contenu", "Ce que ça change", "Au quotidien, pour votre équipe."),
   gabarit("K01", "comparaison", "contenu", "Avant, avec nous", "Le même travail, autrement."),
   gabarit("K02", "comparaison", "contenu", "Ce qui reste à vous", "Vous gardez la main."),
+  // Bords libres disjoints : C01 → L03 (couture 1/2) et L03 → K03 ne peuvent jamais se suivre.
+  gabarit("L03", "liste", "contenu", "Deux gestes à garder", "Les plus simples d’abord.", { bords: { gauche: [[1000, 1300]], droite: [[1200, 1400]] } }),
+  gabarit("K03", "comparaison", "contenu", "Ce qui change vraiment", "Sans rien bouleverser.", { bords: { gauche: [[0, 100]], droite: [[0, 1440]] } }),
   gabarit("S01", "cas", "contenu", "Les devis du lundi", "Un scénario type, pas à pas.", { cas: true }),
   gabarit("S02", "cas", "contenu", "Les relances oubliées", "Un scénario type, pas à pas.", { cas: true }),
   gabarit("S03", "cas", "contenu", "Le tri des demandes", "Un scénario type, pas à pas.", { cas: true, sombre: true }),
@@ -57,6 +60,7 @@ const PLAQUETTES: DefinitionGabarit[] = [
   gabarit("A03", "appel", "appel", "Enregistrez ce carrousel", "Pour le relire au bon moment.", { orangeFort: true }),
   // Inactif ou d'essai : jamais planifié.
   { ...gabarit("D01", "donnees", "contenu", "Un grand chiffre", "Avec sa source."), actif: false },
+  { ...gabarit("D02", "donnees", "contenu", "Un autre chiffre", "Avec sa source."), actif: false },
   { ...gabarit("X09", "essai", "contenu", "Essai", "Essai."), essai: true },
 ];
 

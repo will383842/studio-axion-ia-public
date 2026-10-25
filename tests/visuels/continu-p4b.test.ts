@@ -60,7 +60,7 @@ describe("P4b : choisirPlan", () => {
       expect(p.types.length).toBeGreaterThanOrEqual(3);
       expect(p.types.length).toBeLessThanOrEqual(6);
       expect(new Set(p.types).size).toBe(p.types.length);
-      for (const t of p.types) expect(["D01", "X09"]).not.toContain(t);
+      for (const t of p.types) expect(["D01", "D02", "X09"]).not.toContain(t);
     }
   });
 
@@ -121,6 +121,8 @@ describe("P4b : choisirPlan", () => {
       const r = p.raccords.find((x) => x.couture === 1);
       expect(r, p.types.join(" ")).toBeDefined();
       if (p.types[0] === "C01" && p.types[1] !== "L01") expect(r!.y).toBe(600);
+      // C01 (droite 300-900) → L01 (gauche 500-1300) : intersection 500-900, milieu 700.
+      if (p.types[0] === "C01" && p.types[1] === "L01") expect(r!.y).toBe(700);
     }
     expect(vus).toBeGreaterThan(0);
   });
@@ -152,7 +154,36 @@ describe("P4b : choisirPlan", () => {
   it("dit en une phrase claire quand les familles cochées rendent le plan impossible", () => {
     expect(() => plan({ familles: ["appel"], variete: "varie" })).toThrow(ErreurPlanToile);
     expect(() => plan({ familles: ["appel"], variete: "varie" })).toThrow(/familles cochées/u);
-    expect(() => plan({ pagesCible: 11 })).toThrow(/10 pages au plus/u);
+    expect(() => plan({ pagesCible: 11 })).toThrow(/de 3 à 10 pages/u);
+    expect(() => plan({ pagesCible: 2 })).toThrow(/de 3 à 10 pages/u);
+  });
+
+  it("refuse une version qui n'est pas un entier d'au moins 1", () => {
+    for (const version of [1.5, Number.NaN, 0, -2, Number.POSITIVE_INFINITY])
+      expect(() => plan({ version }), String(version)).toThrow(/version.*entier.*1/u);
+  });
+
+  it("écarte tout plan dont une couture externe n'a pas de raccord possible (bords libres disjoints)", () => {
+    let vus = 0;
+    for (const p of echantillon) {
+      vus += p.types.includes("L03") || p.types.includes("K03") ? 1 : 0;
+      for (let i = 1; i < p.types.length; i++) {
+        expect(`${p.types[i - 1]} ${p.types[i]}`, p.types.join(" ")).not.toBe("C01 L03");
+        expect(`${p.types[i - 1]} ${p.types[i]}`, p.types.join(" ")).not.toBe("L03 K03");
+      }
+    }
+    expect(vus).toBeGreaterThan(0);
+  });
+
+  it("avec un seul plan possible, avancer la version le dit en une phrase", () => {
+    const reglages = { sujet: "Préparer la semaine", familles: ["appel"], variete: "sobre", intention: "eveil" } as const;
+    expect(plan({ ...reglages, version: 1 }).types.length).toBeGreaterThan(0);
+    expect(() => plan({ ...reglages, version: 2 })).toThrow("Un seul plan possible avec ces réglages : cochez une famille de plus ou changez la variété pour en voir un autre.");
+  });
+
+  it("repère à la main deux contenus de même famille à la suite", () => {
+    expect(famillesALaSuite({ parcours: "PB", types: ["C01", "L01", "L02", "A01"], raccords: [] })).toEqual(["L01 L02"]);
+    expect(famillesALaSuite({ parcours: "PB", types: ["C01", "L01", "K01", "A02", "A01"], raccords: [] })).toEqual([]);
   });
 
   it("n'utilise par défaut que les registres de production (vides tant que les lots P3 ne sont pas fusionnés)", () => {
@@ -179,6 +210,15 @@ describe("P4b : simulation des textes", () => {
     const r = ecrireToileSimulation({ ...base, sujet: "Gagner du temps sur les devis" }, REGISTRES_ESSAI);
     expect(r.toile.pages[0].titre).toBe("Gagner du temps sur les devis");
     expect(r.note).toBeUndefined();
+  });
+
+  it("applique au titre du paquet les mêmes contrôles : sujet vide, nombre, mot banni, lien ou trop long", () => {
+    for (const sujet of ["   ", "10 astuces pour gagner du temps", "Je t’explique comment faire", "Voir https://exemple.fr/devis", "x".repeat(121)]) {
+      const r = ecrireToileSimulation({ ...base, sujet }, REGISTRES_ESSAI);
+      expect(r.titre.length, sujet).toBeGreaterThan(0);
+      expect(r.titre, sujet).toBe(String(r.toile.pages[0].titre));
+    }
+    expect(ecrireToileSimulation({ ...base, sujet: "  Gagner du temps  " }, REGISTRES_ESSAI).titre).toBe("Gagner du temps");
   });
 
   it("sinon garde l'exemple et le dit dans une note", () => {
@@ -241,6 +281,6 @@ describe("P4b : consigne de session", () => {
     expect(md).toMatch(/^\| L01 \| liste \| contenu \| titre 40, texte 90, rubrique 28 \(facultatif\) \|$/mu);
     expect(md).toContain("| PA | 4 | oui | non | PA1, PA2, PA3, PA4 |");
     expect(md).toMatch(/## Plan proposé\n\n.*Parcours P[A-H]/u);
-    expect(md).not.toMatch(/\| (D01|X09) \|/u);
+    expect(md).not.toMatch(/\| (D01|D02|X09) \|/u);
   });
 });
