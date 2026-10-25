@@ -385,7 +385,7 @@ export interface ResultatRelectureIV {
 const sansAccents = (t: string): string => t.normalize("NFD").replace(/\p{M}/gu, "").replace(/[’‘]/g, "'").toLowerCase();
 
 const NOMBRE_IV = String.raw`(?<![\d.,])(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d+)(?:[.,](\d+))?\s?(?:%|(?:er|ere|re|eme|e)(?!\p{L}))?`;
-const LIEN_IV = String.raw`(?:au lieu (?:de|des|du|d')|a la place (?:de|des|du|d')|remplace(?:e|s|es)? par|est devenue?|et non|devient|devrait etre|devraient etre|attendu\s*:?|\(\s*(?:image|carte|source)\s*:|alors que (?:l'|la )?(?:image|carte) (?:dit|indique|affiche)(?:nt)?|(?:l'|la )?(?:image|carte)(?:\s*\(source\)|\s+source)?\s+(?:dit|indique|affiche)(?:nt)?)`;
+const LIEN_IV = String.raw`(?:au lieu (?:de|des|du|d')|a la place (?:de|des|du|d')|remplace(?:e|s|es)? par|est devenue?|et non|devient|devrait etre|devraient etre|\(?\s*attendu\s*:?|\(\s*(?:image|carte|source)\s*:|alors que (?:l'|la )?(?:image|carte) (?:dit|indique|affiche)(?:nt)?|\(?\s*(?:l'|la )?(?:image|carte)(?:\s*\(source\)|\s+source)?\s+(?:dit|indique|affiche)(?:nt)?)`;
 /** Un nombre, 0 à 3 mots, un lien (« au lieu de », « contre », « devient »…), un autre nombre ; « passe de N à M » ; « l'image dit N, la vidéo montre M » (ordre inverse). Les groupes 1-2 et 3-4 sont les deux nombres. */
 const CHIFFRE_FAUX_IV: readonly RegExp[] = [
   new RegExp(`${NOMBRE_IV}[,;]?(?:\\s+[^\\s\\d]+){0,3}\\s+${LIEN_IV}\\s*${NOMBRE_IV}`, "gdiu"),
@@ -405,7 +405,8 @@ function nombreHorsChiffre(t: string, debut: number, fin: number): boolean {
 
 /** Le texte d'un « faux » dit-il un chiffre faux : un nombre, un lien (« au lieu de », « à la place de », « contre », « devient », « passe de N à M », « l'image dit N, la vidéo montre M »…), un AUTRE nombre ? */
 export function estChiffreFauxIV(texte: string): boolean {
-  const t = sansAccents(texte);
+  // Les guillemets (français, anglais, droits) ne comptent pas : « 30 % » au lieu de « 20 % » est un chiffre faux.
+  const t = sansAccents(texte).replace(/[«»“”„"]/g, " ").replace(/\s+/g, " ").trim();
   for (const re of CHIFFRE_FAUX_IV) {
     re.lastIndex = 0;
     for (let m = re.exec(t); m; m = re.exec(t)) {
