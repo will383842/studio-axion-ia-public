@@ -266,6 +266,21 @@ describe("refus", () => {
     expect(r.carte.adaptations?.some((x) => /type déduit/.test(x))).toBe(true);
   });
 
+  it("enchaînement R1 puis R2 : type déduit, puis cycle excédentaire réparé, les deux dans carte.adaptations", async () => {
+    const lien = (id: string, de: string, vers: string) => ({ id, de, vers, couleur: "noir" as const, style: "plein" as const });
+    const abimee: CarteImage = { ...cartes.B, liens: [...cartes.B.liens, lien("r1", cartes.B.noeuds[2]!.id, cartes.B.noeuds[0]!.id), lien("r2", cartes.B.noeuds[2]!.id, cartes.B.noeuds[1]!.id), lien("l1", cartes.B.noeuds[0]!.id, cartes.B.noeuds[1]!.id), lien("l2", cartes.B.noeuds[1]!.id, cartes.B.noeuds[2]!.id)] };
+    const inconnu: LectureImage = { ...lectureDeCarte(abimee), type: "inconnu" };
+    const o = outils({ a: inconnu, b: inconnu });
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, o.outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const adaptations = r.carte.adaptations ?? [];
+    expect(adaptations.some((x) => /type déduit/.test(x))).toBe(true);
+    expect(adaptations.some((x) => x.startsWith("Adapté automatiquement : ") && /tournait en rond/.test(x))).toBe(true);
+    expect(r.carte.lecture.alertes.some((x) => x.includes("Réparé"))).toBe(false);
+    expect(r.controle.erreurs).not.toContain("Le schéma tourne en rond plus d'une fois.");
+  });
+
   it("Will peut toujours imposer le type, sans repayer (états anciens « type à choisir »)", async () => {
     const inconnu: LectureImage = { ...lectureDeCarte(cartes.B), type: "inconnu" };
     const o2 = outils({ a: LECTURE_VIDE, b: LECTURE_VIDE });

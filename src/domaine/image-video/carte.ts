@@ -327,7 +327,7 @@ export interface ControleCarte {
 }
 
 /** Nombre de cycles indépendants trouvés par un parcours en profondeur (arêtes de retour). */
-function cycles(noeuds: readonly string[], liens: readonly LienCarte[]): number {
+export function cycles(noeuds: readonly string[], liens: readonly LienCarte[]): number {
   const suivants = new Map<string, string[]>(noeuds.map((n) => [n, []]));
   for (const l of liens) suivants.get(l.de)?.push(l.vers);
   for (const v of suivants.values()) v.sort();
@@ -343,6 +343,27 @@ function cycles(noeuds: readonly string[], liens: readonly LienCarte[]): number 
   };
   for (const n of [...noeuds].sort()) if (!etat.has(n)) visiter(n);
   return retours;
+}
+
+/**
+ * Ce que le type exige de la carte, en une phrase d'erreur ; `null` si la carte le satisfait. Source UNIQUE pour
+ * `controlerCarte` et pour la réparation (`reparation.ts`). Un lien déduit (non dessiné sur l'image) ne satisfait
+ * jamais seul une exigence de forme.
+ */
+export function exigenceDuType(carte: CarteImage, type: TypeImage): string | null {
+  const sortants = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit).length;
+  if (type === "embranchement" && !carte.noeuds.some((n) => sortants(n.id) >= 2)) return "Un embranchement demande un bloc d'où partent au moins deux chemins.";
+  if (type === "entonnoir") {
+    const entree = carte.noeuds.some((n) => (n.quantite ?? 0) >= 2 && sortants(n.id) >= 1);
+    // Tout bloc d'où partent au moins deux chemins peut être le filtre : il suffit qu'UN d'eux ait deux sorties
+    // chiffrées (jamais « le premier de la liste », qui ferait dépendre le verdict de l'ordre reçu).
+    const sortiesChiffrees = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit && carte.chiffres.some((c) => c.dansNoeud === l.vers || c.dansLien === l.id)).length;
+    if (!entree || !carte.noeuds.some((n) => sortiesChiffrees(n.id) >= 2)) return "Un entonnoir demande des objets en nombre à l'entrée et deux sorties chiffrées.";
+  }
+  if (type === "avant-apres" && !(carte.groupes.some((g) => g.sorte === "avant") && carte.groupes.some((g) => g.sorte === "apres"))) {
+    return "Un avant / après demande un groupe « avant » et un groupe « après ».";
+  }
+  return null;
 }
 
 /**
@@ -372,21 +393,9 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
   }
   if (cycles(ids, carte.liens) > 1) erreurs.push("Le schéma tourne en rond plus d'une fois.");
 
-  // Un lien déduit (non dessiné sur l'image) ne satisfait jamais seul une exigence de forme.
-  const sortants = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit).length;
-  if (carte.types.includes("embranchement") && !carte.noeuds.some((n) => sortants(n.id) >= 2)) {
-    erreurs.push("Un embranchement demande un bloc d'où partent au moins deux chemins.");
-  }
-  if (carte.types.includes("entonnoir")) {
-    const entree = carte.noeuds.some((n) => (n.quantite ?? 0) >= 2 && sortants(n.id) >= 1);
-    // Tout bloc d'où partent au moins deux chemins peut être le filtre : il suffit qu'UN d'eux ait deux sorties
-    // chiffrées (jamais « le premier de la liste », qui ferait dépendre le verdict de l'ordre reçu).
-    const sortiesChiffrees = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit && carte.chiffres.some((c) => c.dansNoeud === l.vers || c.dansLien === l.id)).length;
-    const filtre = carte.noeuds.some((n) => sortiesChiffrees(n.id) >= 2);
-    if (!entree || !filtre) erreurs.push("Un entonnoir demande des objets en nombre à l'entrée et deux sorties chiffrées.");
-  }
-  if (carte.types.includes("avant-apres") && !(carte.groupes.some((g) => g.sorte === "avant") && carte.groupes.some((g) => g.sorte === "apres"))) {
-    erreurs.push("Un avant / après demande un groupe « avant » et un groupe « après ».");
+  for (const t of ["embranchement", "entonnoir", "avant-apres"] as const) {
+    const manque = carte.types.includes(t) ? exigenceDuType(carte, t) : null;
+    if (manque) erreurs.push(manque);
   }
 
   const attendus = chiffresDeLaCarte(carte);
