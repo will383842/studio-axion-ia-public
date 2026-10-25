@@ -142,23 +142,16 @@ vi.mock("@/fournisseurs/heygen/inscription", async () => {
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const fabrication = await import("@/services/fabrication");
-const boucle = await import("@/services/boucle");
-const travaux = await import("@/services/travaux");
 const reglages = await import("@/services/reglages");
-const pub = await import("@/services/publications");
 const credits = await import("@/services/credits");
 const gc = await import("@/services/generation-claude");
 const doublesHeygen = await import("@/services/doubles-heygen");
 const { ecrireParametre } = await import("@/services/_commun");
 const renduDouble = await import("@/services/rendu-double");
-const { creerMoteurMontageAvocat } = await import("@/moteurs/montage-avocat");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
-const { formaterMontant } = await import("@/lib/montants");
-const { decisionLancement } = await import("@/assistant/express/logique");
 
 const MDP = "essai-r8-bout-en-bout";
 const VIDEO = "v-03";
-const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
 
 /** Claude doublé : un texte valide par réseau ; une panne passagère (529) si demandée. */
 const claude = { appels: [] as string[] };
