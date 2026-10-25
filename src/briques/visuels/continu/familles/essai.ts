@@ -33,4 +33,9 @@ export const ESSAI: DefinitionGabarit[] = [
   gabaritEssai("X00", "couverture", "Couverture d'essai", "Par où commencer avec l’IA ?", "Un point de départ simple, pas à pas."),
   gabaritEssai("X01", "contenu", "Contenu d'essai", "On avance par étapes", "Chaque étape se vérifie avant la suivante."),
   gabaritEssai("X02", "appel", "Appel d'essai", "Commencez par là", "Dites-nous ce qui vous freine."),
+  // Contenus d'essai supplémentaires (P2) : une toile de 10 pages exige 10 plaquettes différentes.
+  gabaritEssai("X03", "contenu", "Contenu d'essai 3", "Un seul cas pour commencer", "Ce qui revient chaque semaine et vous pèse."),
+  gabaritEssai("X04", "contenu", "Contenu d'essai 4", "On installe chez vous", "À votre façon, avec vos outils actuels."),
+  gabaritEssai("X05", "contenu", "Contenu d'essai 5", "Vous gardez la main", "Chaque envoi se relit avant de partir."),
+  gabaritEssai("X06", "contenu", "Contenu d'essai 6", "Ensuite, on étend", "Un deuxième cas, quand le premier tourne."),
 ];

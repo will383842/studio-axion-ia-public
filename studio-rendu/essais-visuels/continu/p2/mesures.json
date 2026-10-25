@@ -1,0 +1,181 @@
+{
+  "toile-10p-4x5": {
+    "format": "4:5",
+    "pages": 10,
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 69,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 10,
+      "largeur": 10800,
+      "hauteur": 1350,
+      "ecartCoutureMax": 18,
+      "octetsPages": 1176979,
+      "octetsPageMax": 136118,
+      "dureeRenduMs": 11045,
+      "dureeMs": 19110
+    },
+    "octetsParPage": [
+      136118,
+      122818,
+      133387,
+      113177,
+      104701,
+      98263,
+      117095,
+      116913,
+      115478,
+      119029
+    ],
+    "testPixel": {
+      "fautes": [],
+      "octetsComparés": 58320000
+    }
+  },
+  "toile-4p-4x5": {
+    "format": "4:5",
+    "pages": 4,
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 29,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1350,
+      "ecartCoutureMax": 18,
+      "octetsPages": 529040,
+      "octetsPageMax": 139124,
+      "dureeRenduMs": 2218,
+      "dureeMs": 4480
+    },
+    "octetsParPage": [
+      136974,
+      129262,
+      139124,
+      123680
+    ],
+    "testPixel": {
+      "fautes": [],
+      "octetsComparés": 23328000
+    }
+  },
+  "toile-6p-4x5": {
+    "format": "4:5",
+    "pages": 6,
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 41,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 6,
+      "largeur": 6480,
+      "hauteur": 1350,
+      "ecartCoutureMax": 18,
+      "octetsPages": 708974,
+      "octetsPageMax": 136520,
+      "dureeRenduMs": 3221,
+      "dureeMs": 7054
+    },
+    "octetsParPage": [
+      136520,
+      128580,
+      114744,
+      105013,
+      100379,
+      123738
+    ],
+    "testPixel": {
+      "fautes": [],
+      "octetsComparés": 34992000
+    }
+  },
+  "toile-4p-3x4": {
+    "format": "3:4",
+    "pages": 4,
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 29,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 4,
+      "largeur": 4320,
+      "hauteur": 1440,
+      "ecartCoutureMax": 19,
+      "octetsPages": 515845,
+      "octetsPageMax": 136664,
+      "dureeRenduMs": 2258,
+      "dureeMs": 4786
+    },
+    "octetsParPage": [
+      136664,
+      124105,
+      133038,
+      122038
+    ],
+    "testPixel": {
+      "fautes": [],
+      "octetsComparés": 24883200
+    }
+  },
+  "toile-5p-3x4-parcours": {
+    "format": "3:4",
+    "pages": 5,
+    "mesures": {
+      "debordements": 0,
+      "taillePoliceMin": 26,
+      "textesSurCouture": 0,
+      "textesHorsMarge": 0,
+      "textesCoinReserve": 0,
+      "intrusionsMetaP1": 0,
+      "textes": 34,
+      "chevauchements": 0,
+      "debordCouture1": 1,
+      "traitsFinsSurCouture": 0,
+      "pages": 5,
+      "largeur": 5400,
+      "hauteur": 1440,
+      "ecartCoutureMax": 17,
+      "octetsPages": 581172,
+      "octetsPageMax": 136776,
+      "dureeRenduMs": 3140,
+      "dureeMs": 6671
+    },
+    "octetsParPage": [
+      136776,
+      115232,
+      106288,
+      99865,
+      123011
+    ],
+    "testPixel": {
+      "fautes": [],
+      "octetsComparés": 31104000
+    }
+  }
+}
