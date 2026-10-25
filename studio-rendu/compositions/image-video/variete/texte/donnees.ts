@@ -108,7 +108,8 @@ const PART_MIN_UNE_LIGNE = 0.75;
 /**
  * TYP-C : coupe les lignes en rangées (mots entiers, largeur ≤ `largeur`) et choisit la plus grande taille qui fait
  * tenir le tout entre `haut` et `bas` ; le groupe orange a sa propre rangée, plus grande (le point focal). Les rangées
- * sont réparties sur toute la hauteur (pas de trou en bas).
+ * sont centrées dans la hauteur avec au plus `ECART_MAX_RANGEES × taille` d'air de plus entre deux rangées (D4) : le reste de la hauteur
+ * va en haut et en bas, jamais en trous entre rangées ; le total compte le filet sous la dernière rangée (+ 18 px).
  */
 export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: number, largeur: number, tailleMax = 230): Rangee[] {
   const hauteur = bas - haut;
