@@ -70,7 +70,7 @@ export function C05({ page, hauteur }: ProprietesPlaquette) {
       <Pose x={80} y={560}>
         <Fenetre largeur={920} hauteur={620} page={page} />
       </Pose>
-      <Pose x={610} y={965} rotation={3}>
+      <Pose x={610} y={900} rotation={3}>
         <Pastille style={{ fontSize: 30 }}>
           <Tuile icone="send" taille={64} variante="o" />
           {String(page.badge)}
