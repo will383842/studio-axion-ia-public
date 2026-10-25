@@ -317,7 +317,11 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
     it(`${nom} : chaque nœud a son bloc, dans la zone utile et les marges, sans chevauchement ; libellés ≤ 3 mots et ≥ plancher`, () => {
       const carte = lire(nom);
       const p = planEnsemble(carte);
-      expect(p.alertes).toEqual([]);
+      // 25/10/2026 (D3, compositions-iv/11) : l'écart minimal entre rangées passe à 16 px ; quand la rangée des chiffres-clés ne tient plus avec lui
+      // (carte C : « 23h14 », « 4 sec », « 2h »), elle est retirée AVANT de serrer la vue (alerte « chiffre-clé retiré », ils restent montrés quand ils sont dits).
+      // Toute autre alerte reste interdite, et l'écart posé est d'au moins 16 px.
+      expect(p.alertes.filter((a) => !/chiffre-clé retiré de la vue d'ensemble/.test(a))).toEqual([]);
+      expect(p.ecart).toBeGreaterThanOrEqual(16);
       expect(p.blocs.map((x) => x.id).sort()).toEqual(carte.noeuds.map((n) => n.id).sort());
       for (const x of p.blocs) {
         expect(x.x).toBeGreaterThanOrEqual(0.05 * W - 1e-6);

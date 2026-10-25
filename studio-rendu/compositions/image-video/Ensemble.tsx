@@ -32,6 +32,9 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
   const parId = new Map(plan.blocs.map((b) => [b.id, b]));
   const halo = 0.5 + 0.5 * Math.sin(ecoule * 5);
   const tousAllumes = plan.blocs.every((b) => b.allume);
+  // D3 (compositions-iv/11) : quand les rangées sont serrées (écart < 24 px), ni le grossissement d'entrée, ni le halo, ni l'ombre
+  // ne dépassent l'écart : les blocs voisins ne sont plus mordus. Écart large : rendu d'avant.
+  const serre = plan.ecart < 24;
   return (
     <div style={{ position: "absolute", inset: 0, opacity: fondu, transform: `scale(${0.96 + 0.04 * fondu})` }}>
       <svg width={ECRAN_IV.largeur} height={ECRAN_IV.hauteur} style={{ position: "absolute", left: 0, top: 0 }}>
@@ -65,12 +68,14 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
               borderRadius: Math.min(b.hauteur / 2, 44),
               background: fond,
               opacity: s.opacite * (b.allume ? 1 : OPACITE_VU),
-              transform: `scale(${s.echelle})`,
+              transform: `scale(${serre ? Math.min(1, s.echelle) : s.echelle})`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 8,
-              boxShadow: b.allume && !tousAllumes ? `0 0 ${30 + 30 * halo}px ${teinte(COULEURS_DUO.orangeVif, 0.6)}` : `0 10px 26px ${teinte(fond, 0.35)}`,
+              boxShadow: b.allume && !tousAllumes
+                ? `0 0 ${serre ? Math.min(plan.ecart, 18) : 30 + 30 * halo}px ${teinte(COULEURS_DUO.orangeVif, 0.6)}`
+                : `0 ${serre ? Math.min(6, plan.ecart / 3) : 10}px ${serre ? Math.min(14, plan.ecart) : 26}px ${teinte(fond, 0.35)}`,
             }}
           >
             {b.icone && b.badge ? (
