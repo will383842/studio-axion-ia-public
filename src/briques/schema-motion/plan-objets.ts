@@ -621,6 +621,8 @@ export type TexteAjuste = {
   lignes: string[][];
   /** Phrase pour Will si le texte ne tient pas au plancher ; `null` sinon. */
   alerte: string | null;
+  /** Mot(s) abrégé(s) faute de place (libellé de la vue d'ensemble) : texte d'avant et d'après, en capitales. */
+  abrege?: { avant: string; apres: string }[];
 };
 
 export type OptionsAjuster = {
@@ -1408,10 +1410,10 @@ export function libelleCourt(n: Pick<SchemaEntree["noeuds"][number], "libelle" |
   if (unites.length > unitesMax) {
     unites = unites.slice(0, Math.max(1, unitesMax));
     // « IA trie la demande » → « IA trie » ; « Message client entrant — 23h14 » → « Message client ».
-    const finInutile = (u: string) => MOTS_OUTILS.has(u.toLowerCase()) || MOTS_DE_FIN.has(u.toLowerCase()) || /^[—–-]$/u.test(u);
+    const finInutile = (u: string) => MOTS_OUTILS.has(u.toLowerCase()) || MOTS_DE_FIN.has(u.toLowerCase()) || /^[—–+&·\/-]$/u.test(u);
     while (unites.length > 1 && finInutile(unites[unites.length - 1])) unites = unites.slice(0, -1);
   }
-  texte = unites.join(" ").replace(/\s+[—–-]$/u, "");
+  texte = unites.join(" ").replace(/\s+[—–+&·\/-]$/u, "");
   return texte.charAt(0).toUpperCase() + texte.slice(1);
 }
 
@@ -1423,8 +1425,23 @@ export function unitesDeSens(texte: string): string[] {
   return res;
 }
 
-/** Libellé en Anton capitales dans `largeur` : la plus grande taille ≤ `tailleMax` sur 1 ligne, sinon 2 ; jamais sous le plancher. */
-function ajusterAnton(texte: string, largeur: number, tailleMax: number): TexteAjuste {
+/** Voyelles (capitales) pour choisir une coupe d'abréviation après une consonne suivie d'une voyelle. */
+const VOYELLES_ABREGE = "AEIOUYÀÂÄÉÈÊËÎÏÔÖÙÛÜŸ";
+
+/** Plus long préfixe (au moins 4 lettres) + « . » du mot qui tient dans la ligne ; coupe de syllabe préférée. `null` si aucun ne tient. */
+function abregerMot(mot: string, tient: (essai: string) => boolean): string | null {
+  const lettres = [...mot];
+  const tenants: number[] = [];
+  for (let k = lettres.length - 1; k >= 4; k--) if (tient(`${lettres.slice(0, k).join("")}.`)) tenants.push(k);
+  if (!tenants.length) return null;
+  const syllabe = tenants.find((k) => !VOYELLES_ABREGE.includes(lettres[k - 1]) && VOYELLES_ABREGE.includes(lettres[k]));
+  const k = syllabe ?? tenants[0];
+  return `${lettres.slice(0, k).join("")}.`;
+}
+
+/** Libellé en Anton capitales dans `largeur` : la plus grande taille ≤ `tailleMax` sur 1 ligne, sinon 2 ; jamais sous le plancher.
+ *  Si même 2 lignes ne tiennent pas au plancher et que `abreger` est vrai, le mot trop large est abrégé (« AUTOLIQ. »), jamais de texte hors du bloc. */
+function ajusterAnton(texte: string, largeur: number, tailleMax: number, abreger: boolean = false): TexteAjuste {
   const mots = texte.toUpperCase().split(/\s+/).filter(Boolean);
   for (let n = 1; n <= Math.min(2, mots.length); n++) {
     const lignes = couperEquilibre(mots, n);
@@ -1432,7 +1449,44 @@ function ajusterAnton(texte: string, largeur: number, tailleMax: number): TexteA
     const taille = Math.min(tailleMax, largeur / plusLongue);
     if (taille >= PLANCHER_PX - 1e-9) return { taille, lignes, alerte: null };
   }
+  if (abreger) {
+    const tientLigne = (l: readonly string[]) => largeurAnton(l.join(" "), PLANCHER_PX) <= largeur + 1e-9;
+    const essayer = (liste: string[]): string[][] | null => {
+      const lignes = couperEquilibre(liste, Math.min(2, liste.length)).map((l) => [...l]);
+      for (const ligne of lignes) {
+        while (!tientLigne(ligne)) {
+          let i = -1;
+          ligne.forEach((m, j) => {
+            if (!m.endsWith(".") && (i < 0 || largeurAnton(m, 1) > largeurAnton(ligne[i], 1))) i = j;
+          });
+          if (i < 0) return null;
+          const court = abregerMot(ligne[i], (essai) => tientLigne(ligne.map((m, j) => (j === i ? essai : m))));
+          if (!court) return null;
+          ligne[i] = court;
+        }
+      }
+      return lignes;
+    };
+    for (let liste = [...mots]; liste.length; liste = liste.slice(0, -1)) {
+      const lignes = essayer(liste);
+      if (lignes) return { taille: PLANCHER_PX, lignes, alerte: null, abrege: [{ avant: mots.join(" "), apres: lignes.map((l) => l.join(" ")).join(" ") }] };
+    }
+  }
   return { taille: PLANCHER_PX, lignes: couperEquilibre(mots, Math.min(2, mots.length)), alerte: `Libellé « ${texte} » trop long pour son bloc au plancher de lisibilité : à raccourcir.` };
+}
+
+/**
+ * Défauts GÉOMÉTRIQUES de la vue d'ensemble : un libellé dont une ligne dépasse la largeur utile de son bloc (bloc moins ses marges
+ * de 12 px de chaque côté et la pastille d'icône) serait dessiné hors de la pastille. Une phrase par bloc ; vide = conforme.
+ */
+export function debordementsEnsemble(plan: PlanEnsemble): string[] {
+  const defauts: string[] = [];
+  for (const b of plan.blocs) {
+    const dispo = b.largeur - 2 * PAD_BLOC.x - (b.badge ? b.badge + ECART_BADGE : 0);
+    const pire = Math.max(0, ...b.libelle.lignes.map((l) => largeurAnton(l.join(" ").replace(/\*/g, ""), b.libelle.taille)));
+    if (pire > dispo + 0.5) defauts.push(`Libellé de ${b.id} : ${Math.round(pire)} px pour ${Math.round(dispo)} px de place dans son bloc, il déborde.`);
+  }
+  return defauts;
 }
 
 const PAD_BLOC = Object.freeze({ x: 12, y: 8 });
@@ -1518,7 +1572,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     const badge = iconeDe(id) && avecIcones ? BADGE_BLOC : 0;
     // L'icône reste tant que le libellé tient avec elle (2 lignes au plus) ; sinon elle s'efface, le libellé d'abord.
     const avec = badge ? ajusterAnton(texte, interieur - badge - ECART_BADGE, tailleMax) : null;
-    const libelle = avec && !avec.alerte ? avec : ajusterAnton(texte, interieur, tailleMax);
+    const libelle = avec && !avec.alerte ? avec : ajusterAnton(texte, interieur, tailleMax, true);
     return { libelle, badge: avec && !avec.alerte ? badge : 0, hauteur: Math.max(libelle.lignes.length * libelle.taille * INTERLIGNE_BLOC, avec && !avec.alerte ? badge : 0) + 2 * padY };
   };
 
@@ -1646,6 +1700,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     const nd = parId.get(id)!;
     const m = c.mesures.get(id)!;
     if (m.libelle.alerte) alertes.push(m.libelle.alerte);
+    for (const a of m.libelle.abrege ?? []) alertes.push(`Libellé de ${id} abrégé (place) : « ${a.avant} » → « ${a.apres} ».`);
     blocs.push({ id, x, y: yRangee, largeur, hauteur: hRangee, couleur: nd.couleur, allume: allumes.has(id), icone: m.badge ? nd.icone : undefined, libelle: m.libelle, badge: m.badge });
   };
   for (const r of c.rangees) {
