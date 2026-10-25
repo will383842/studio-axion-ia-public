@@ -370,7 +370,8 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
   }
   if (cycles(ids, carte.liens) > 1) erreurs.push("Le schéma tourne en rond plus d'une fois.");
 
-  const sortants = (id: string) => carte.liens.filter((l) => l.de === id).length;
+  // Un lien déduit (non dessiné sur l'image) ne satisfait jamais seul une exigence de forme.
+  const sortants = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit).length;
   if (carte.types.includes("embranchement") && !carte.noeuds.some((n) => sortants(n.id) >= 2)) {
     erreurs.push("Un embranchement demande un bloc d'où partent au moins deux chemins.");
   }
@@ -378,7 +379,7 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
     const entree = carte.noeuds.some((n) => (n.quantite ?? 0) >= 2 && sortants(n.id) >= 1);
     // Tout bloc d'où partent au moins deux chemins peut être le filtre : il suffit qu'UN d'eux ait deux sorties
     // chiffrées (jamais « le premier de la liste », qui ferait dépendre le verdict de l'ordre reçu).
-    const sortiesChiffrees = (id: string) => carte.liens.filter((l) => l.de === id && carte.chiffres.some((c) => c.dansNoeud === l.vers || c.dansLien === l.id)).length;
+    const sortiesChiffrees = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit && carte.chiffres.some((c) => c.dansNoeud === l.vers || c.dansLien === l.id)).length;
     const filtre = carte.noeuds.some((n) => sortiesChiffrees(n.id) >= 2);
     if (!entree || !filtre) erreurs.push("Un entonnoir demande des objets en nombre à l'entrée et deux sorties chiffrées.");
   }
@@ -416,6 +417,7 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
  * Sinon le bloc reste isolé (blocage de `controlerCarte`). Le lien n'a ni étiquette ni part : aucun texte ni chiffre ajouté.
  */
 export function reparerOrphelinsDeBranche(carte: CarteImage): { carte: CarteImage; deduits: LienCarte[] } {
+  if (carte.types[0] === "benefices" || carte.types[0] === "tableau-de-bord") return { carte, deduits: [] };
   const relies = new Set(carte.liens.flatMap((l) => [l.de, l.vers]));
   const parId = new Map(carte.noeuds.map((n) => [n.id, n]));
   const idsLiens = new Set(carte.liens.map((l) => l.id));
@@ -424,7 +426,7 @@ export function reparerOrphelinsDeBranche(carte: CarteImage): { carte: CarteImag
   for (const o of isoles) {
     const groupes = carte.groupes.filter((g) => g.noeuds.includes(o.id));
     if (groupes.length !== 1 || groupes[0]!.sorte !== "branche" || (o.groupe && o.groupe !== groupes[0]!.id)) continue;
-    const autres = groupes[0]!.noeuds.filter((id) => id !== o.id).map((id) => parId.get(id)).filter((n): n is NoeudCarte => !!n);
+    const autres = groupes[0]!.noeuds.filter((id) => id !== o.id).map((id) => parId.get(id)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
     if (autres.some((n) => n.ordre === o.ordre)) continue;
     const avant = autres.filter((n) => n.ordre < o.ordre);
     if (avant.length === 0) continue;

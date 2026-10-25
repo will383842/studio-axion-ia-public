@@ -56,7 +56,6 @@ describe("réparation des blocs orphelins d'une branche", () => {
   });
   it("ordre ambigu (deux blocs de même ordre avant lui) : rien n'est déduit", () => {
     const carte = embranchement();
-    carte.noeuds = carte.noeuds.map((n) => (n.id === "n07" ? n : n));
     carte.noeuds.push(noeud("n07", "A", 3, "g1"), noeud("n08", "B", 3, "g1"));
     carte.groupes[0] = { ...carte.groupes[0]!, noeuds: ["n03", "n07", "n08", "n05"] };
     const { carte: r } = reparerOrphelinsDeBranche(carte);
@@ -68,6 +67,36 @@ describe("réparation des blocs orphelins d'une branche", () => {
     carte.groupes[0] = { ...carte.groupes[0]!, noeuds: ["n03", "n05", "n07"] };
     const { carte: r } = reparerOrphelinsDeBranche(carte);
     expect(r.liens.filter((l) => l.deduit).map((l) => `${l.de}>${l.vers}`).sort()).toEqual(["n03>n05", "n04>n06", "n05>n07"]);
+  });
+});
+
+describe("garde-fous de la réparation", () => {
+  it("double passage : idempotent", () => {
+    const une = reparerOrphelinsDeBranche(embranchement());
+    const deux = reparerOrphelinsDeBranche(une.carte);
+    expect(deux.deduits).toEqual([]);
+    expect(deux.carte).toEqual(une.carte);
+  });
+  it("carte de type bénéfices : inchangée", () => {
+    const carte = { ...embranchement(), types: ["benefices"] as CarteImage["types"] };
+    expect(reparerOrphelinsDeBranche(carte)).toEqual({ carte, deduits: [] });
+  });
+  it("un lien déduit ne satisfait pas seul « embranchement : deux chemins »", () => {
+    const carte = { ...embranchement(), types: ["embranchement"] as CarteImage["types"] };
+    carte.noeuds = carte.noeuds.filter((n) => n.id !== "n04" && n.id !== "n06");
+    carte.liens = carte.liens.filter((l) => l.vers !== "n04");
+    carte.groupes = [carte.groupes[0]!];
+    carte.noeuds.push(noeud("n07", "Pastille", 7, "g1"));
+    carte.groupes[0] = { ...carte.groupes[0]!, noeuds: ["n03", "n05", "n07"] };
+    const { carte: r } = reparerOrphelinsDeBranche(carte);
+    // n03 a un seul chemin dessiné + un déduit : l'embranchement reste refusé.
+    expect(r.liens.some((l) => l.deduit && l.de === "n03")).toBe(true);
+    expect(controlerCarte(r).erreurs).toContain("Un embranchement demande un bloc d'où partent au moins deux chemins.");
+  });
+  it("un bloc photo de personnes n'est jamais prédécesseur", () => {
+    const carte = embranchement();
+    carte.noeuds = carte.noeuds.map((n) => (n.id === "n03" ? { ...n, photoPersonnes: true } : n));
+    expect(reparerOrphelinsDeBranche(carte).deduits.map((l) => l.vers)).not.toContain("n05");
   });
 });
 
@@ -84,7 +113,7 @@ describe("validation de la carte corrigée avec orphelins", () => {
     const apres = validerCarteIV(e, { proposition: "prop-1", carte, le: "2026-10-25T08:00:00.000Z" });
     const l = apres.carte!.carte.liens.filter((x) => x.deduit);
     expect(l.map((x) => `${x.de}>${x.vers}`)).toEqual(["n03>n05", "n04>n06"]);
-    expect(apres.carte!.carte.lecture.alertes.some((a) => a.includes("déduit"))).toBe(true);
+    expect(controlerCarte(apres.carte!.carte).alertes.filter((a) => a.includes("déduit"))).toHaveLength(2);
   });
   it("orphelin hors branche : refus, avec la conduite à tenir", async () => {
     const { e } = await arret();
@@ -95,7 +124,7 @@ describe("validation de la carte corrigée avec orphelins", () => {
       throw new Error("aurait dû refuser");
     } catch (err) {
       expect(err).toBeInstanceOf(ErreurDecisionIV);
-      expect((err as ErreurDecisionIV).phrases.join(" ")).toMatch(/n09 n'est relié à rien.*(retirez|relancez)/i);
+      expect((err as ErreurDecisionIV).phrases.join(" ")).toMatch(/n09 n'est relié à rien.*relancez/i);
     }
   });
 });

@@ -687,10 +687,10 @@ export function validerCarteIV(etat: EtatFabricationIV, d: DecisionCarteIV): Eta
   // Blocs sans flèche rangés dans une branche : lien déduit de la mise en page (marqué, signalé), sinon blocage expliqué.
   const { carte: reliee, deduits } = reparerOrphelinsDeBranche(carte);
   const vusDeduits = new Set(deduits.map((l) => l.vers));
-  carte = deduits.length === 0 ? carte : { ...reliee, lecture: { ...reliee.lecture, alertes: [...reliee.lecture.alertes, ...deduits.map((l) => `Lien déduit de la mise en page, à vérifier : ${l.vers} suit ${l.de} dans sa branche.`)].slice(0, 60) } };
+  carte = reliee;
   const controle = controlerCarte(carte);
   if (!controle.ok) {
-    const aide = " Ce bloc n'a aucune flèche et le code ne peut pas deviner où le relier : retirez-le de la carte, ou relancez la lecture avec une image où il est relié.";
+    const aide = " Ce bloc n'a aucune flèche et le code ne peut pas deviner où le relier : relancez la lecture avec une image où il est relié.";
     throw new ErreurDecisionIV("La carte corrigée a encore un défaut bloquant.", controle.erreurs.map((m) => (m.endsWith("n'est relié à rien.") ? m + aide : m)));
   }
   const validee: CarteImage = { ...carte, validation: { par: "will", le: d.le.slice(0, 40), empreinteCarte: carte.image.empreinte } };
