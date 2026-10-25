@@ -290,6 +290,15 @@ describe("estChiffreFauxIV / estIllisibleGlobalIV", () => {
     "pas un chiffre faux (nouvelles formes) : %s",
     (t) => expect(estChiffreFauxIV(t)).toBe(false),
   );
+  // Un chiffre faux cité entre guillemets ou avec une parenthèse reste un chiffre faux (bloquant).
+  it("guillemets français : « 30 % au lieu de 20 % »", () => expect(estChiffreFauxIV("« 30 % au lieu de 20 % »")).toBe(true));
+  it('guillemets droits : "30 % au lieu de 20 %"', () => expect(estChiffreFauxIV('"30 % au lieu de 20 %"')).toBe(true));
+  it("guillemets : le chiffre « 30 % » devrait être « 20 % »", () => expect(estChiffreFauxIV("le chiffre « 30 % » devrait être « 20 % »")).toBe(true));
+  it("guillemets : la vidéo affiche « 45 jours » alors que l'image indique « 30 jours »", () =>
+    expect(estChiffreFauxIV("la vidéo affiche « 45 jours » alors que l'image indique « 30 jours »")).toBe(true));
+  it("guillemets : l'image indique « 20 % », la vidéo montre « 30 % »", () => expect(estChiffreFauxIV("l'image indique « 20 % », la vidéo montre « 30 % »")).toBe(true));
+  it("parenthèse avant attendu : 30 % (attendu : 20 %)", () => expect(estChiffreFauxIV("30 % (attendu : 20 %)")).toBe(true));
+  it("parenthèse avant l'image source : affiche 30 % (l'image source dit 20 %)", () => expect(estChiffreFauxIV("affiche 30 % (l'image source dit 20 %)")).toBe(true));
   it("illisible de détail", () => {
     for (const t of ["texte coupé par le bord", "VALIDE coiffe Autoliquidation", "le titre est flou"]) expect(estIllisibleGlobalIV(t), t).toBe(false);
   });
