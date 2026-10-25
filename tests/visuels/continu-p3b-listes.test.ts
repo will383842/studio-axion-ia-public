@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
-import { BORNES_LISTES, budgetListe, LISTES } from "../../src/briques/visuels/continu/familles/listes";
+import { BORNES_LISTES, budgetListe, LISTES, MOT_TITRE_MAX } from "../../src/briques/visuels/continu/familles/listes";
 import { NOMS_ICONES } from "../../src/briques/visuels/continu/icones";
 import { ICONES_CONTINU } from "../../studio-rendu/compositions/visuels/continu/commun/icones-continu";
 import { COMPOSANTS_PLAQUETTES } from "../../studio-rendu/compositions/visuels/continu/registre-composants";
@@ -23,7 +23,8 @@ const LISTE: Record<string, string> = { L01: "items", L02: "items", L03: "etapes
 const court = (e: Dict): Dict => Object.fromEntries(Object.entries(e).map(([k, v]) => [k, typeof v === "string" && k !== "icone" ? "Ok" : v]));
 
 const g = (type: string) => LISTES.find((x) => x.type === type)!;
-const mot = (n: number) => "é".repeat(n);
+/** Texte de `n` caractères exactement, en mots de 10 caractères au plus (le titre refuse un mot trop long). */
+const mot = (n: number) => "é".repeat(n).replace(/(.{10})(?=.)/g, "$1 ").slice(0, n).trimEnd().padEnd(n, "é");
 type Dict = Record<string, unknown>;
 const exemple = (type: string) => g(type).exemple as Dict;
 
@@ -125,6 +126,9 @@ describe("continu P3b : budgets et bornes", () => {
       expect(x.schema.safeParse(faire(max + 1)).success, `${x.type} max+1`).toBe(false);
     }
     expect(BORNES_LISTES).toMatchObject({ L01: [3, 3], L02: [3, 4], L03: [3, 4], L04: [3, 4], L05: [4, 5], L06: [3, 4], L07: [6, 9] });
+  });
+  it("un mot de titre trop long est refusé", () => {
+    for (const x of LISTES) expect(x.schema.safeParse(avecChamp(x.type, "titre", "é".repeat(MOT_TITRE_MAX + 1), true)).success, x.type).toBe(false);
   });
   it("un lien dans un texte est refusé", () => {
     for (const x of LISTES) expect(x.schema.safeParse(avecChamp(x.type, "titre", "voir https://exemple.fr", true)).success, x.type).toBe(false);

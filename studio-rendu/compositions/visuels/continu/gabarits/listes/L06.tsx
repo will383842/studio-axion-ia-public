@@ -10,7 +10,7 @@ const CASE_PRIORITE = "Commencez ici";
 
 /** Place de chaque point dans la matrice (x en px depuis la gauche, y en part de la hauteur) : le premier est la cible. */
 const PLACES = [
-  { x: 530, y: 0.396 },
+  { x: 500, y: 0.396 },
   { x: 60, y: 0.36 },
   { x: 70, y: 0.767 },
   { x: 520, y: 0.815 },
