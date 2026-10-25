@@ -18,15 +18,21 @@ const gabarit = (t: string) => GABARITS_PRODUCTION.find((g) => g.type === t)!;
 
 /** Budgets (caractères) de chaque texte visible : le budget passe, budget + 1 échoue. */
 const BUDGETS: [string, (string | number)[], number][] = [
-  ["C01", ["titre"], 18], ["C01", ["accent"], 14], ["C01", ["suite"], 22], ["C01", ["texte"], 60],
-  ["C02", ["titre"], 32], ["C02", ["texte"], 100],
+  ["C01", ["titre"], 12], ["C01", ["accent"], 12], ["C01", ["suite"], 12], ["C01", ["texte"], 48],
+  ["C02", ["titre"], 20], ["C02", ["texte"], 80],
   ["C03", ["titre"], 26], ["C03", ["accent"], 20], ["C03", ["entrees", 0], 30], ["C03", ["entrees", 1], 30], ["C03", ["entrees", 2], 30],
-  ["C04", ["titre"], 14], ["C04", ["accent"], 10], ["C04", ["suite"], 20], ["C04", ["texte"], 40], ["C04", ["cartes", 0], 10], ["C04", ["cartes", 2], 10],
-  ["C05", ["titre"], 32], ["C05", ["accent"], 16], ["C05", ["suite"], 2], ["C05", ["badge"], 20], ["C05", ["etats", 0], 20], ["C05", ["etats", 1], 20],
-  ["C05", ["lignes", 0, "sujet"], 20], ["C05", ["lignes", 1, "detail"], 16],
+  ["C04", ["titre"], 8], ["C04", ["accent"], 8], ["C04", ["suite"], 12], ["C04", ["texte"], 40], ["C04", ["cartes", 0], 8], ["C04", ["cartes", 2], 8],
+  ["C05", ["titre"], 28], ["C05", ["accent"], 12], ["C05", ["suite"], 2], ["C05", ["badge"], 16], ["C05", ["etats", 0], 18], ["C05", ["etats", 1], 18],
+  ["C05", ["lignes", 0, "sujet"], 18], ["C05", ["lignes", 1, "detail"], 14],
   ["C06", ["titre"], 30], ["C06", ["accent"], 20],
-  ["C07", ["titre"], 20], ["C07", ["accent"], 22], ["C07", ["texte"], 56], ["C07", ["notifications", 0, "titre"], 16], ["C07", ["notifications", 3, "detail"], 24],
+  ["C07", ["titre"], 16], ["C07", ["accent"], 18], ["C07", ["texte"], 56], ["C07", ["notifications", 0, "titre"], 16], ["C07", ["notifications", 3, "detail"], 22],
 ];
+
+/** Texte d'exactement `n` caractères en mots de 7 lettres au plus (le plus long mot permis par les schémas est ≥ 7). */
+function remplissage(n: number): string {
+  const s = "abcdefg ".repeat(40).slice(0, n);
+  return s.endsWith(" ") ? `${s.slice(0, -1)}a` : s;
+}
 
 function avec(objet: unknown, chemin: (string | number)[], valeur: unknown): unknown {
   const copie = structuredClone(objet) as Record<string | number, unknown>;
@@ -69,8 +75,8 @@ describe("continu P3a : couvertures", () => {
   });
   it.each(BUDGETS)("%s %j : budget %i passe, budget + 1 échoue", (t, chemin, max) => {
     const g = gabarit(t);
-    expect(g.schema.safeParse(avec(g.exemple, chemin, "a".repeat(max))).success).toBe(true);
-    expect(g.schema.safeParse(avec(g.exemple, chemin, "a".repeat(max + 1))).success).toBe(false);
+    expect(g.schema.safeParse(avec(g.exemple, chemin, remplissage(max))).success).toBe(true);
+    expect(g.schema.safeParse(avec(g.exemple, chemin, remplissage(max + 1))).success).toBe(false);
   });
   it("un champ « étiquette » (texte fixe posé par le code) ou inconnu est refusé", () => {
     for (const t of TYPES) {
@@ -99,6 +105,13 @@ describe("continu P3a : couvertures", () => {
       const g = gabarit(t);
       const e = g.exemple as Record<string, string>;
       expect(g.schema.safeParse({ ...e, titre: "un deux trois quatre cinq six sept huit" }).success, t).toBe(false);
+    }
+  });
+  it("un mot plus long que le plus long mot permis est refusé (il sortirait de sa boîte)", () => {
+    for (const t of TYPES) {
+      const g = gabarit(t);
+      const e = g.exemple as Record<string, unknown>;
+      expect(g.schema.safeParse({ ...e, ...(typeof e.titre === "string" ? { titre: "professionnalisation" } : {}) }).success, t).toBe(false);
     }
   });
   it("bords libres : la droite offre un intervalle d'au moins 260 px (raccord de la couture 1/2)", () => {
