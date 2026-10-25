@@ -100,3 +100,18 @@ describe("Image → vidéo · mode texte · le dépôt", () => {
     expect(lectures).toEqual([]);
   });
 });
+
+describe("Image → vidéo · mode texte · cartes validées", () => {
+  it("une carte conçue depuis un texte ne compte pas parmi les 10 cartes relues", async () => {
+    await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
+    const montant = (await ecran.etatDepotImageVideo()).montantCentimes;
+    const issue = await texte.deposerTexteImageVideo({ texte: TEXTE, reseaux: [...RESEAUX_IV], accordCentimes: montant });
+    if (issue.statut !== "lancee") throw new Error(JSON.stringify(issue));
+    for (let i = 0; i < 6; i++) {
+      await tourDeBoucle();
+      if ((await ecran.vueImageVideo(issue.videoId))?.ecran === "carte") break;
+    }
+    expect(await ecran.validerCarteEtReprendre(issue.videoId, undefined)).toEqual({ statut: "reprise" });
+    expect(await lireParametre<unknown>("imageVideo.cartesValidees", [])).toEqual([]);
+  });
+});

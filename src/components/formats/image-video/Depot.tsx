@@ -60,6 +60,8 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
   const [depasse, setDepasse] = useState(false);
   /** Mode texte (R6b) : décrire l'automatisation avec ses mots au lieu de déposer une image. */
   const [mode, setMode] = useState<"image" | "texte">("image");
+  /** Le texte tapé reste gardé quand on change de mode. */
+  const [texteLibre, setTexteLibre] = useState("");
   /** Image déjà traitée : le refus du serveur, avec ses précédents et son jeton. */
   const [refusImage, setRefusImage] = useState<RefusSujetImageVideo | null>(null);
   const [refaitEnCours, setRefaitEnCours] = useState(false);
@@ -237,7 +239,7 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
   }
 
   return (
-    <section aria-label="Déposer l'image" className="space-y-6">
+    <section aria-label={mode === "texte" && !image ? "Décrire l'automatisation" : "Déposer l'image"} className="space-y-6">
       {!image && (
         <SelecteurPastilles
           libelle="Point de départ"
@@ -251,7 +253,14 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
         />
       )}
       {!image && mode === "texte" ? (
-        <DepotTexte reseaux={reseaux} montant={montant} blocage={blocage} onRefus={setRefus} />
+        <DepotTexte texte={texteLibre} onTexte={setTexteLibre} reseaux={reseaux} montant={montant} blocage={blocage} onRefus={setRefus}>
+          {refus && (
+            <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">
+              {refus}
+            </p>
+          )}
+          <SelecteurPastilles multiple minimum={1} libelle="Les réseaux" options={RESEAUX_ECRAN_IV.map((r) => ({ valeur: r.valeur, libelle: r.libelle }))} valeur={reseaux} onChange={setReseaux} />
+        </DepotTexte>
       ) : !image ? (
         <ZoneDepot libelle="Déposez une ou plusieurs images" detail="PNG, JPEG ou WebP · 800 px de côté au moins" accepte={TYPES_IMAGE_ACCEPTES} multiple icone="image" essai={false} onFichiers={(f) => void recevoir(f)} />
       ) : (
@@ -269,7 +278,7 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
           </div>
         </Carte>
       )}
-      {refus && (
+      {refus && !(mode === "texte") && (
         <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">
           {refus}
         </p>
@@ -297,9 +306,9 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
           </div>
         </section>
       )}
-      <SelecteurPastilles multiple minimum={1} libelle="Les réseaux" options={RESEAUX_ECRAN_IV.map((r) => ({ valeur: r.valeur, libelle: r.libelle }))} valeur={reseaux} onChange={setReseaux} />
+      {mode !== "texte" && <SelecteurPastilles multiple minimum={1} libelle="Les réseaux" options={RESEAUX_ECRAN_IV.map((r) => ({ valeur: r.valeur, libelle: r.libelle }))} valeur={reseaux} onChange={setReseaux} />}
       {mode === "texte" && !image ? null : <SelecteurPastilles libelle="L'offre" options={[{ valeur: "image" as const, libelle: "Selon l'image" }, ...OFFRES_IV]} valeur={offre} onChange={setOffre} />}
-      {blocage && <p className="text-[15px] text-texte-doux">{blocage}</p>}
+      {blocage && mode !== "texte" && <p className="text-[15px] text-texte-doux">{blocage}</p>}
       {!(mode === "texte" && !image) && (
       <BarreActionCollee>
         <BoutonFabriquer montantCentimes={montant} libelle={`Fabriquer la vidéo (au plus ${euros(montant)})`} desactive={!pret} onFabriquer={fabriquer} avantPrix={controlerAvantPrix} message="Au plus ce prix. Seule la lecture de l'image part maintenant : la voix attend votre accord sur le script." />

@@ -3,7 +3,7 @@
  * réparation → écriture → scènes planifiées, SANS fichier image (aucune lecture de stockage) et sans appel payant.
  */
 import { describe, expect, it, vi } from "vitest";
-import { attendWillIV, avancerJusquAArretIV, etatInitialIV, validerCarteIV, validerScriptIV, type DecisionCarteIV, type DecisionScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
+import { attendWillIV, avancerJusquAArretIV, etatInitialIV, reprendreIV, validerCarteIV, validerScriptIV, type DecisionCarteIV, type DecisionScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import { estCleTexte, cleDuTexte, roleConceptionWorkflowIV } from "@/moteurs/montage-image-video/texte/conception";
 import { lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
 import { appelerConceptionEnSimulation, CONCEPTION_DEMO, CONCEPTION_VIDE } from "@/moteurs/montage-image-video/texte/simulation";
@@ -80,7 +80,10 @@ describe("mode texte · la fabrication saute la lecture d'image", () => {
 
   it("de bout en bout : carte validée → script écrit → scènes planifiées, la vidéo est prête, sans image source", async () => {
     // Conception « à la façon de C » : mêmes blocs que l'image C, pour que l'écriture simulée (A à F) ait son script.
-    const { o, lectures } = outilsTexte(lectureDeCarte(carteFixe("C")));
+    const { o: o0, lectures } = outilsTexte(lectureDeCarte(carteFixe("C")));
+    // La relecture finale : on note ce qui part à l'IA (images jointes et consigne).
+    const relectures: { images: number; variable: string }[] = [];
+    const o: OutilsFabricationIV = { ...o0, controles: { ...o0.controles, appeler: async (role, entree) => (role.id.includes("relecture") && relectures.push({ images: entree.images?.length ?? 0, variable: entree.variable }), o0.controles.appeler(role, entree)) } };
     let e = await avancerJusquAArretIV(etatInitialIV(demandeTexte()), o);
     e = await avancerJusquAArretIV(validerCarteIV(e, decisionCarte(e)), o);
     expect(e.refus).toBeUndefined();
@@ -91,6 +94,12 @@ describe("mode texte · la fabrication saute la lecture d'image", () => {
     expect(e.etape).toBe("prete");
     expect(e.scenes?.length ?? 0).toBeGreaterThan(0);
     expect(lectures).toEqual([]);
+    // Aucune image source jointe : toutes les images viennent de la vidéo, et la consigne le dit.
+    expect(relectures.length).toBeGreaterThan(0);
+    for (const r of relectures) {
+      expect(r.images).toBe((r.variable.match(/<image nom=/g) ?? []).length);
+      expect(r.variable).toContain("AUCUNE image source");
+    }
   });
 
   it("texte absurde : refus clair, rien n'est avancé, reformulation possible (non réessayable tel quel)", async () => {
@@ -107,5 +116,25 @@ describe("mode texte · la fabrication saute la lecture d'image", () => {
     const e = await avancerJusquAArretIV(etatInitialIV(demandeTexte()), o);
     expect(e.etape).toBe("refusee");
     expect(e.refus?.reessayable).toBe(true);
+  });
+
+  it("« Refaire » après une panne de conception : nouvelle réservation, et l'arrêt au plafond tient", async () => {
+    const panne = outilsTexte({ ok: false, arret: "panne", message: "Claude ne répond pas" });
+    const e1 = await avancerJusquAArretIV(etatInitialIV(demandeTexte()), panne.o);
+    expect(e1.etape).toBe("refusee");
+    const avant = e1.caisse.reservations.length;
+    // Même texte, l'IA répond cette fois : la reprise relance la conception (compte à part, jamais gratuite).
+    const bon = outilsTexte();
+    const e2 = await avancerJusquAArretIV(reprendreIV(e1), bon.o);
+    expect(e2.refus).toBeUndefined();
+    expect(e2.etape).toBe("carte-a-valider");
+    expect(e2.caisse.reservations.length).toBe(avant + 1);
+    expect(new Set(e2.caisse.reservations.map((r) => r.cle)).size).toBe(e2.caisse.reservations.length);
+    // Plafond trop bas : arrêt au plafond, aucun appel.
+    const bas = outilsTexte();
+    const e3 = await avancerJusquAArretIV(etatInitialIV({ ...demandeTexte(), plafondCentimes: 1 }), bas.o);
+    expect(e3.etape).toBe("refusee");
+    expect(e3.refus?.code).toBe("IV_PLAFOND");
+    expect(bas.m.appelsClaude).toEqual([]);
   });
 });

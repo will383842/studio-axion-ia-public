@@ -26,6 +26,7 @@ import { pireCasRole, type DefinitionRole, type EntreeRole } from "@/generateur/
 import type { CarteImage } from "@/domaine/image-video/carte";
 import type { ReponseAppelLecture } from "./lecture";
 import type { BudgetControlesIV, ConstatControle } from "./ecoute";
+import { estCleTexte } from "./texte/provenance";
 import { sourceEtMessageAlerte, type LigneDeTempsIV } from "./mise-en-scene";
 
 /** 24 images clés au plus par version (plan § 7, Q26). */
@@ -257,10 +258,11 @@ export const roleRelectureFinale = {
 } satisfies DefinitionRole<typeof schemaRelectureFinale>;
 
 /** Partie variable : ce que chaque image doit montrer, et le contenu de la carte (données, jamais une clé). */
-export function variableRelecture(carte: Pick<CarteImage, "titre" | "noeuds" | "chiffres" | "phraseChoc">, instants: readonly InstantCleIV[], reseaux: readonly string[]): string {
+export function variableRelecture(carte: Pick<CarteImage, "titre" | "noeuds" | "chiffres" | "phraseChoc">, instants: readonly InstantCleIV[], reseaux: readonly string[], sansImageSource = false): string {
   const blocs = carte.noeuds.filter((n) => !n.photoPersonnes).map((n) => `- ${n.libelle}${n.detail ? ` (${n.detail})` : ""}`);
   const chiffres = carte.chiffres.filter((c) => c.aDire).map((c) => c.brut);
   return [
+    ...(sansImageSource ? ["Schéma conçu depuis un texte : AUCUNE image source n'est jointe. Toutes les images jointes sont extraites de la vidéo ; compare-les au contenu de <carte> ci-dessous."] : []),
     `<carte titre="${carte.titre.replace(/"/g, "'")}">`,
     "Blocs :",
     ...blocs,
@@ -376,7 +378,8 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
   }
   const jointes: ImageClaude[] = [];
   // Mode texte (R6b) : la carte vient d'un texte, aucun fichier image source n'existe ; la relecture compare à la carte.
-  if (!e.carte.image.cle.startsWith("texte:")) {
+  const modeTexte = estCleTexte(e.carte.image.cle);
+  if (!modeTexte) {
     const source = await o.lireImage(e.carte.image.cle).catch(() => null);
     if (!source) return { q26: { ok: false, details: ["l'image source est introuvable : la relecture ne peut pas la comparer."] }, indications: [], appels: 0 };
     jointes.push({ type: source.type, base64: enBase64(source.octets), legende: "Image source (l'infographie)." });
@@ -390,7 +393,7 @@ export async function relireVersionIV(e: EntreeRelectureIV, o: OutilsRelectureIV
 
   // 2. Relecture : réservation du pire coût AVANT chaque appel ; une relance si la réponse est illisible.
   const role = roleRelectureFinale as unknown as DefinitionRole;
-  const entree: EntreeRole = { contexte: {}, variable: variableRelecture(e.carte, e.instants, e.reseaux), images: jointes };
+  const entree: EntreeRole = { contexte: {}, variable: variableRelecture(e.carte, e.instants, e.reseaux, modeTexte), images: jointes };
   let appels = 0;
   for (let essai = 1; essai <= APPELS_RELECTURE_MAX; essai++) {
     const appelId = o.idAppel(`iv-relecture-${e.videoId}-${e.version}-${cle ?? `sans-empreinte-${createHash("sha256").update(JSON.stringify([e.fichierCle, e.instants])).digest("hex").slice(0, 16)}`}-${essai}`);

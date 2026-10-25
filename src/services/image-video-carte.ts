@@ -14,6 +14,7 @@ import type { Id, Travail } from "@/domaine/types";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { ErreurDecisionIV, ID_MOTEUR_IV, validerCarteIV, type EtatFabricationIV, type PropositionCarteIV } from "@/moteurs/montage-image-video";
 import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
+import { estCleTexte } from "@/moteurs/montage-image-video/texte/provenance";
 import { exigerSession } from "./auth";
 import { avecCarteValidee, nombreCartesValidees, PARAM_CARTES_VALIDEES, PREFIXE_DECISIONS } from "./image-video";
 
@@ -75,7 +76,10 @@ export async function validerCarteImageVideo(videoId: Id, entree: { carte?: Cart
   }
   await garderDecision(videoId, "carte", decision);
   // Une vidéo n'est comptée qu'une fois (deux clics, revalidation après reprise), lecture et écriture sous verrou.
+  // Mode texte : une carte conçue depuis un texte n'est pas une carte « lue » ; elle ne compte pas parmi les 10 cartes
+  // à relire avant le réglage « si-doute » (elle ne prouve pas la fiabilité de la lecture d'image).
   const cartesValidees = await sousVerrouCartes(async () => {
+    if (estCleTexte(etat.propositionCarte!.carte.image.cle)) return nombreCartesValidees(await lireParametre<unknown>(PARAM_CARTES_VALIDEES, []));
     const garde = await lireParametre<unknown>(PARAM_CARTES_VALIDEES, []);
     const suite = avecCarteValidee(garde, videoId);
     if (suite) await ecrireParametre(PARAM_CARTES_VALIDEES, suite);

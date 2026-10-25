@@ -25,7 +25,9 @@ import { roleConceptionWorkflowIV, variableConception } from "./consigne";
 
 export { roleConceptionWorkflowIV } from "./consigne";
 
-export const PROVENANCE_TEXTE = "texte" as const;
+import { estCleTexte, PROVENANCE_TEXTE } from "./provenance";
+
+export { estCleTexte, PROVENANCE_TEXTE };
 /** Étape inscrite sur chaque réservation. */
 export const ETAPE_CONCEPTION = "conception-workflow";
 export const APPELS_CONCEPTION_MAX = 2;
@@ -36,8 +38,6 @@ export const BLOCS_MAX = 16;
 export const MENTION_EXEMPLE = "Exemple de situation type.";
 
 export const idAppelConception = (videoId: string, essai: number) => `iv-conception-${videoId}-${essai}`;
-/** Vrai si la clé d'image d'une carte indique qu'elle vient d'un texte (aucun fichier). */
-export const estCleTexte = (cle: string) => cle.startsWith(`${PROVENANCE_TEXTE}:`);
 /** Empreinte complète (sha256) d'un texte de Will, déjà rogné. */
 export const empreinteDuTexte = (texte: string) => createHash("sha256").update(texte).digest("hex");
 /** Partie de la clé d'image `texte:<…>` d'un texte de Will, déjà rogné (PUR ; même calcul que la carte). */
