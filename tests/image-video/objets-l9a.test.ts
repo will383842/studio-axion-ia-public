@@ -357,7 +357,8 @@ describe("K21 · scène « Ensemble » : tout le schéma, lisible, sans texte so
       expect([...p.alertes].sort()).toEqual([...ATTENDU[nom]].sort());
       expect(p.ecart).toBeGreaterThanOrEqual(16);
       for (const b of p.blocs) {
-        const attendu = libelleCourt(carte.noeuds.find((n) => n.id === b.id)!).toUpperCase();
+        // Un mot abrégé faute de place (compositions-iv/13) est comparé au texte abrégé DÉCLARÉ dans `abrege`.
+        const attendu = b.libelle.abrege?.[0]?.apres ?? libelleCourt(carte.noeuds.find((n) => n.id === b.id)!).toUpperCase();
         const pose = b.libelle.lignes.map((l) => l.join(" ")).join(" ");
         if (pose !== attendu) expect(p.alertes.some((a) => a.startsWith(`Libellé de ${b.id} raccourci`)), `${b.id} raccourci sans alerte`).toBe(true);
       }
