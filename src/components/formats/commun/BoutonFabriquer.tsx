@@ -34,15 +34,17 @@ export function BoutonFabriquer({
 }) {
   const [enCours, setEnCours] = useState(false);
   const verrou = useRef(false);
+  const [phrase, setPhrase] = useState<string | null>(null);
 
   async function cliquer() {
     if (verrou.current) return;
     verrou.current = true;
     setEnCours(true);
+    setPhrase(null);
     try {
       const montant = await montantApresControle(montantCentimes, avantPrix);
       if (montant === null) return;
-      await fabriquerAvecUneRelance(montant, onFabriquer);
+      setPhrase(await fabriquerAvecUneRelance(montant, onFabriquer));
     } finally {
       verrou.current = false;
       setEnCours(false);
@@ -50,8 +52,15 @@ export function BoutonFabriquer({
   }
 
   return (
-    <Bouton icone="film" taille="lg" pleineLargeur chargement={enCours} disabled={desactive || enCours} onClick={() => void cliquer()}>
-      {libelle ?? `Fabriquer la vidéo (≈ ${euros(montantCentimes)})`}
-    </Bouton>
+    <>
+      <Bouton icone="film" taille="lg" pleineLargeur chargement={enCours} disabled={desactive || enCours} onClick={() => void cliquer()}>
+        {libelle ?? `Fabriquer la vidéo (≈ ${euros(montantCentimes)})`}
+      </Bouton>
+      {phrase && (
+        <p role="alert" className="mt-2 text-sm text-brique">
+          {phrase}
+        </p>
+      )}
+    </>
   );
 }

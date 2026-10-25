@@ -20,7 +20,7 @@ import { Carte } from "@/components/ui/Carte";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonArreter } from "@/components/videos/BoutonArreter";
 import type { Montant } from "@/domaine/types";
-import { envoyerReprise, jusquALaReprise } from "./reprise";
+import { refaireCettePartie } from "./reprise";
 import { euros, type VueFabrication } from "./vue";
 import { etatSuiviIV, versSuiviFabricationIV } from "./vues-gabarit";
 
@@ -32,6 +32,7 @@ export function Fabrication({
   vue,
   enCours,
   ecran,
+  plafond,
   arret,
   arretee,
 }: {
@@ -39,7 +40,7 @@ export function Fabrication({
   vue: VueFabrication;
   enCours: boolean;
   ecran: string;
-  /** Gardé pour la page : plus aucun relèvement de plafond n'est proposé ici. */
+  /** Arrêt sur le plafond : « Refaire cette partie » relève au montant proposé puis reprend, sans saisie. */
   plafond?: { proposeCentimes: number; arrete: boolean };
   /** Présent seulement si l'arrêt est tenu (travail du studio en cours, pas le lanceur) : sinon pas de bouton « Arrêter ». */
   arret?: { travailId: string; depense: Montant };
@@ -71,7 +72,7 @@ export function Fabrication({
     setOccupe(true);
     setPhrase(null);
     try {
-      const fin = await jusquALaReprise(videoId, await envoyerReprise(videoId));
+      const fin = await refaireCettePartie(videoId, plafond);
       if (fin) return setPhrase(fin);
       notifier.succes("C'est reparti");
       router.refresh();

@@ -87,3 +87,12 @@ export async function jusquALaReprise(videoId: string, issue: IssueEcranIV): Pro
   if (courante.statut === "reprise") return null;
   return courante.statut === "refusee" ? courante.phrase : PHRASES_REPRISE.annulee;
 }
+
+/**
+ * « Refaire cette partie » : après un arrêt sur le plafond, relancer avec le même plafond ferait revenir l'arrêt ; on relève donc au
+ * montant proposé (sans saisie ni feuille) puis on reprend. Sinon, reprise simple. Rend la phrase finale, ou `null` si reprise.
+ */
+export async function refaireCettePartie(videoId: string, plafond?: { proposeCentimes: number; arrete: boolean }): Promise<string | null> {
+  if (plafond?.arrete) return releverPlafond(videoId, plafond.proposeCentimes, true);
+  return jusquALaReprise(videoId, await envoyerReprise(videoId));
+}

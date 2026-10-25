@@ -6,7 +6,7 @@
  * « Je le relis… », « Je découpe en scènes… »). Fini : la page est rechargée (le résultat s'affiche). Arrêtée (erreur,
  * interruption) : la raison en français et « Réessayer » / « Reprendre », qui ne repaie aucun appel déjà fait.
  * Découpage refusé (règles, réponse coupée ou illisible) : le message et les motifs restent affichés DURABLEMENT, avec
- * « Réessayer » (un découpage neuf, prix confirmé). Le prix est toujours confirmé avant de relancer.
+ * « Réessayer » (un découpage neuf, prix confirmé). Le prix est indicatif : il ne bloque pas et ne demande aucun clic.
  * Une action qui ne répond pas (réseau) n'ouvre jamais l'écran d'erreur générique : on le dit, et on réessaie.
  */
 import { useRouter } from "next/navigation";
@@ -58,7 +58,7 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
     };
   }, [vue, videoId, router]);
 
-  async function reprendre(montant = vue.type === "ecriture" ? coutEcritureCentimes : coutDecoupageCentimes) {
+  async function reprendre(montant = vue.type === "ecriture" ? coutEcritureCentimes : coutDecoupageCentimes, dejaRelance = false) {
     const message =
       vue.type === "ecriture"
         ? "La suite de l'écriture du script (les appels déjà faits ne sont pas repayés)."
@@ -72,7 +72,11 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
       const r = await reprendreTacheTableauAction(videoId, accord).catch(() => null);
       if (!r) return setPhrase("Le studio ne répond pas pour l'instant. Réessayez dans un instant.");
       if (!r.ok) return setPhrase(r.message);
-      if (r.donnees.statut === "accord-requis") return void reprendre(r.donnees.centimes);
+      if (r.donnees.statut === "accord-requis") {
+        // UNE seule relance automatique, jamais de boucle.
+        if (dejaRelance) return setPhrase("Le prix a changé, réessayez.");
+        return void reprendre(r.donnees.centimes, true);
+      }
       if (r.donnees.statut === "refusee") return setPhrase(r.donnees.phrase);
       fini.current = false;
       setVue((v) => ({ ...v, statut: "en-attente", phrase: "Je reprends…" }));
