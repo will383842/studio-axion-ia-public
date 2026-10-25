@@ -84,10 +84,15 @@ describe("machine : la carte en lot", () => {
     expect(e.carte).toBeUndefined();
     expect(reservationsPayees(e).every((x) => x === "lecture")).toBe(true);
   });
-  it("C7 : type inconnu → refus IV_TYPE_A_CHOISIR (porte arrêt côté lot)", async () => {
+  it("C7 : type inconnu → plus de refus (R1) : le code déduit le type, la vidéo continue", async () => {
     const { e } = await fabriquer(carteFixe("E"), true, { lectures: { a: { ...lectureDeCarte(carteFixe("E")), type: "inconnu" }, b: { ...lectureDeCarte(carteFixe("E")), type: "inconnu" } } });
-    expect(e.etape).toBe("refusee");
-    expect(e.refus?.code).toBe("IV_TYPE_A_CHOISIR");
+    expect(e.refus).toBeUndefined();
+    expect(e.etape).not.toBe("refusee");
+    // Le type est celui du code (carte E), l'adaptation est écrite, et la vidéo continue en lot (carte validée ou mise de côté à la porte, pas un arrêt).
+    const proposee = e.propositionCarte?.carte ?? e.carte?.carte;
+    expect(proposee?.types).toEqual(carteFixe("E").types);
+    expect(proposee?.adaptations?.some((x) => /^Adapté automatiquement : type déduit/.test(x))).toBe(true);
+    expect(["carte-a-valider", "ecriture", "script-a-valider"]).toContain(e.etape);
   });
   it("sans lot : comportement actuel exact (la carte attend Will, aucune mise de côté)", async () => {
     const { e } = await fabriquer(carteFixe("E"), false);
