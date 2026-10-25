@@ -45,10 +45,40 @@ describe("P7 : texte du post", () => {
   it("le texte passe par la porte : vert sur l'exemple", () => {
     expect(textePost(toile, "instagram", ctx).interdits).toEqual([]);
   });
-  it("rouge avec « Grenoble »", () => {
+  it("rouge avec « Grenoble » : le libellé est dans le texte et la porte (espion) reçoit ce texte", () => {
     const mauvaise = ToileSpec.parse({ ...toile, pages: [{ ...toile.pages[0], titre: "Par où commencer à Grenoble ?" }, ...toile.pages.slice(1)] });
-    const r = textePost(mauvaise, "instagram", ctx);
-    expect(r.interdits.length).toBeGreaterThan(0);
+    const espion = { interditsDans: (t: string) => (t.includes("Par où") ? ["espion"] : []) };
+    const r = textePost(mauvaise, "instagram", espion);
+    expect(r.texte).toContain("Grenoble");
+    expect(r.interdits).toContain("espion");
+    expect(textePost(mauvaise, "instagram", ctx).interdits.length).toBeGreaterThan(0);
+  });
+  it("un chiffre dans la 1re ligne ou le texte : « chiffre sans fait » signalé", () => {
+    const avecChiffre = ToileSpec.parse({ ...toile, pages: [{ ...toile.pages[0], titre: "3 étapes pour bien démarrer avec l’IA" }, ...toile.pages.slice(1)] });
+    expect(textePost(avecChiffre, "instagram", ctx).interdits).toContain("chiffre sans fait");
+    expect(textePost(toile, "instagram", ctx).interdits).not.toContain("chiffre sans fait");
+  });
+  it("une page dont le 1er texte a un chiffre : le 2e texte sort en point clé, sans chiffre", () => {
+    const mixte = ToileSpec.parse({
+      ...toile,
+      pages: [toile.pages[0], { ...toile.pages[1], titre: "3 étapes", texte: "Chaque étape se vérifie avant la suivante." }, ...toile.pages.slice(2)],
+    });
+    const t = textePost(mixte, "instagram", ctx).texte;
+    expect(t).toContain("Chaque étape se vérifie");
+    expect(t.replace(/#\S+/g, "")).not.toMatch(/\d/);
+  });
+  it("les points clés visent le titre, et la dernière page est l'appel de valeur (pas un point clé)", () => {
+    const t = textePost(toile, "facebook", ctx).texte;
+    expect(t).toContain("On avance par étapes");
+    expect(t).not.toContain("Chaque étape se vérifie");
+    expect(t).not.toContain("Commencez par là");
+    expect(t).not.toContain("Dites-nous");
+  });
+  it("titre de page 1 de 200 signes : 1re ligne < 140, « … » compris", () => {
+    const long = ToileSpec.parse({ ...toile, pages: [{ ...toile.pages[0], titre: `${"mot ".repeat(50)}fin` }, ...toile.pages.slice(1)] });
+    const premiere = textePost(long, "instagram", ctx).texte.split("\n")[0];
+    expect(premiere.length).toBeLessThan(140);
+    expect(premiere.endsWith("…")).toBe(true);
   });
   it("aucun chiffre sans fait validé dans le texte", () => {
     expect(textePost(toile, "instagram", ctx).texte.replace(/#\S+/g, "")).not.toMatch(/\d/);
@@ -60,6 +90,14 @@ describe("P7 : textes alternatifs et premier commentaire", () => {
     const alts = textesAlternatifs(toile);
     expect(alts).toHaveLength(toile.pages.length);
     for (const a of alts) expect(a.length).toBeLessThanOrEqual(125);
+  });
+  it("alt de 130 caractères sans espace : ≤ 125 « … » compris", () => {
+    const a = textesAlternatifs({ pages: [{ alt: "x".repeat(130) }] } as never)[0];
+    expect(a.length).toBeLessThanOrEqual(125);
+  });
+  it("alt avec une espace pile à l'indice 125 : ≤ 125 « … » compris", () => {
+    const a = textesAlternatifs({ pages: [{ alt: `${"a".repeat(125)} bbbb` }] } as never)[0];
+    expect(a.length).toBeLessThanOrEqual(125);
   });
   it("alt vide : construit « Page N sur M : … »", () => {
     const sans = { ...toile, pages: toile.pages.map((p, i) => (i === 1 ? { ...p, alt: "" } : p)) } as never;
