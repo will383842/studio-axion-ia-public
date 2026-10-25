@@ -210,7 +210,7 @@ async function exigerTotalConfirme(plan: PlanSerie, totalConfirme: number | unde
   const memeTaille = partirontConfirme === plan.partiront;
   // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu est rendu inchangé.
   const vu = memeTaille && typeof totalConfirme === "number" && Number.isFinite(totalConfirme) ? totalConfirme : false;
-  const accord = await accordAutomatique(vu, plan.totalPartant.centimes);
+  const accord = await accordAutomatique(vu, plan.totalPartant.centimes, { signaler: vu === false || vu < plan.totalPartant.centimes });
   const confirme = typeof accord === "number" && Number.isFinite(accord) && accord >= plan.totalPartant.centimes;
   if (!confirme) throw new ErreurStudio("CONFIRMATION_REQUISE", `Ces ${plan.partiront} écritures coûtent au plus ${formaterMontant(plan.totalPartant)}, plus que d'habitude. Confirmez ce prix pour continuer.`, plan.totalPartant.centimes);
 }
