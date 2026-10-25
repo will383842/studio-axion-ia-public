@@ -112,6 +112,14 @@ describe.each([
     if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
     expect((await lancement).crees.sort()).toEqual(["face", "trois-quarts"]);
   });
+
+  it(indicatif ? "« Créer un décor depuis une phrase » sans confirmation du coût : le décor est créé" : "témoin : création depuis une phrase sans confirmation, « Confirmez d'abord »", async () => {
+    const lancement = decors.creerDecorDepuisDescription("Un bureau en bois avec une bibliothèque", { confirme: false });
+    if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
+    const r = await lancement;
+    expect(r.decorId).toBeTruthy();
+    expect(r.crees.length).toBeGreaterThan(0);
+  });
 });
 
 /* ------------------------------------------------------------------ */
@@ -182,6 +190,9 @@ describe.each([
     expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
   }, 120_000);
 });
+
+// Reprise d'une écriture ARRÊTÉE sur panne (reprendreEcritureArretee) en indicatif : cas à couvrir plus tard (la panne réseau simulée
+// n'a pas suffi à produire l'état « arrêtée » dans ce banc) ; le code est exercé par les tests de reprise de budget-indicatif-ecriture-reprise.
 
 /* ------------------------------------------------------------------ */
 /* Tableau animé : retouche payante (voix refaite), tableau-vue.ts       */
