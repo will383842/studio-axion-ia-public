@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GABARITS, GABARITS_PRODUCTION } from "../../src/briques/visuels/continu/registre-gabarits";
 import { premierChiffre } from "../../src/domaine/controles-visuel/texte";
-import { COMPOSANTS_PLAQUETTES } from "../../studio-rendu/compositions/visuels/continu/registre-composants";
+import { readFileSync } from "node:fs";
 
 const TYPES = ["D01", "D02", "D03"] as const;
 const def = (t: string) => GABARITS.find((g) => g.type === t)!;
@@ -54,7 +54,14 @@ describe("continu P3e : registre des données et citations", () => {
     expect(prod).toContain("D03");
   });
   it("le composant de chaque type est déclaré dans le registre des composants", () => {
-    for (const t of TYPES) expect(typeof COMPOSANTS_PLAQUETTES[t], t).toBe("function");
+    // Lecture du source : le test racine n'a pas `remotion` (installé dans studio-rendu seulement).
+    const index = readFileSync("studio-rendu/compositions/visuels/continu/gabarits/donnees/index.ts", "utf8");
+    const registre = readFileSync("studio-rendu/compositions/visuels/continu/registre-composants.ts", "utf8");
+    expect(registre).toContain("...PLAQUETTES_DONNEES");
+    for (const t of TYPES) {
+      expect(index, t).toMatch(new RegExp(`PLAQUETTES_DONNEES[^=]*=\\s*\\{[^}]*\\b${t}\\b`));
+      expect(readFileSync(`studio-rendu/compositions/visuels/continu/gabarits/donnees/${t}.tsx`, "utf8"), t).toContain(`export function ${t}(`);
+    }
   });
 });
 
