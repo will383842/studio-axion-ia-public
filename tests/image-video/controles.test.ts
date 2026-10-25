@@ -538,9 +538,17 @@ describe("relecture des images finales (Q26) par l'extraction existante", () => 
     expect(q26.phrase).toMatch(/illisible : texte coupé par le bord/);
   });
 
-  it("une relecture « illisible : image entièrement noire » est refusée", async () => {
+  it("une seule image « entièrement noire » (transition) : remarque, la vidéo continue", async () => {
     const m = monter("C");
     const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, illisible: "image entièrement noire" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(false);
+  });
+
+  it("une relecture « illisible : image entièrement noire » sur toutes les images est refusée", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x) => ({ ...x, illisible: "image entièrement noire" })) }) });
     const v = await porteUniqueIV(m.entree, o);
     expect(v.ok).toBe(false);
     const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;

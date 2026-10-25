@@ -385,10 +385,14 @@ export interface ResultatRelectureIV {
 const sansAccents = (t: string): string => t.normalize("NFD").replace(/\p{M}/gu, "").replace(/[’‘]/g, "'").toLowerCase();
 
 const NOMBRE_IV = String.raw`(?<![\d.,])(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d+)(?:[.,](\d+))?\s?(?:%|(?:er|ere|re|eme|e)(?!\p{L}))?`;
-const LIEN_IV = String.raw`(?:au lieu (?:de|des|du|d')|a la place (?:de|des|du|d')|remplace(?:e|s|es)? par|est devenue?|et non|contre|devient|alors que (?:l'|la )?(?:image|carte) (?:dit|indique|affiche)(?:nt)?)`;
+const LIEN_IV = String.raw`(?:au lieu (?:de|des|du|d')|a la place (?:de|des|du|d')|remplace(?:e|s|es)? par|est devenue?|et non|devient|devrait etre|devraient etre|attendu\s*:?|\(\s*(?:image|carte|source)\s*:|alors que (?:l'|la )?(?:image|carte) (?:dit|indique|affiche)(?:nt)?|(?:l'|la )?(?:image|carte)(?:\s*\(source\)|\s+source)?\s+(?:dit|indique|affiche)(?:nt)?)`;
 /** Un nombre, 0 à 3 mots, un lien (« au lieu de », « contre », « devient »…), un autre nombre ; « passe de N à M » ; « l'image dit N, la vidéo montre M » (ordre inverse). Les groupes 1-2 et 3-4 sont les deux nombres. */
 const CHIFFRE_FAUX_IV: readonly RegExp[] = [
-  new RegExp(`${NOMBRE_IV}(?:\\s+[^\\s\\d]+){0,3}\\s+${LIEN_IV}\\s*${NOMBRE_IV}`, "gdiu"),
+  new RegExp(`${NOMBRE_IV}[,;]?(?:\\s+[^\\s\\d]+){0,3}\\s+${LIEN_IV}\\s*${NOMBRE_IV}`, "gdiu"),
+  // « contre » : un nombre juste avant (au plus un mot d'unité entre) ET juste après (« le 3e bloc est collé contre 2 icônes » n'en est pas un).
+  new RegExp(`${NOMBRE_IV}(?:\\s+[^\\s\\d]+)?\\s+contre\\s+${NOMBRE_IV}`, "gdiu"),
+  // « 30 % affiché, 20 % attendu ».
+  new RegExp(`${NOMBRE_IV}(?:\\s+[^\\s\\d]+){0,3}\\s*[,;]?\\s*${NOMBRE_IV}\\s+attendus?\\b`, "gdiu"),
   new RegExp(String.raw`pass(?:e|ent|ait|aient)\s+de\s+` + `${NOMBRE_IV}\\s+a\\s+${NOMBRE_IV}`, "gdiu"),
   new RegExp(String.raw`(?:image|carte)\s+(?:dit|indique|affiche)\s+` + `${NOMBRE_IV}[^\\d]{0,40}?(?:video|ecran|rendu)\\s+(?:montre|affiche|indique|dit)\\s+${NOMBRE_IV}`, "gdiu"),
 ];
@@ -414,11 +418,16 @@ export function estChiffreFauxIV(texte: string): boolean {
   return false;
 }
 
-const ADJ_GLOBAL_IV = String.raw`(?:noire?|blanche?|vide|floue?|illisible)s?`;
+const ADJ_GLOBAL_IV = String.raw`(?:noire?|blanc(?:he)?|vide|floue?|illisible)s?`;
 const LIEU_IV = String.raw`(?!\s+(?:a\s+(?:droite|gauche)|au\s+(?:centre|milieu|bas|haut|dessus|dessous)|en\s+(?:haut|bas)|du\s+schema|dans\s|sur\s))`;
+/** Le mot image, écran, plan ou vidéo n'est le sujet que s'il n'est pas le complément d'un autre nom (« le texte de l'image », « arrière-plan », « au premier plan »). */
+const PAS_COMPLEMENT_IV = String.raw`(?<!\bde l'|\bde la |\bdu |\bdes |\bd'|\barriere[- ]?|\bpremier |\bsecond )`;
+const ADVERBES_IV = String.raw`(?:\s+(?:entierement|totalement|completement|tout|toute|tres))*`;
 /** Image entière : le sujet est l'image, l'écran, le plan ou la vidéo (un surtitre, un titre ou un « plan vide à droite du schéma » n'en sont pas). Une forme niée ne compte pas. */
 const ILLISIBLE_GLOBAL_IV: readonly { re: RegExp; nie: boolean }[] = [
-  { re: new RegExp(String.raw`\b(?:image|ecran|plan|video)s?\s+(?:(?:est|reste)\s+)?(?:(?:entierement|totalement|completement)\s+)?${ADJ_GLOBAL_IV}\b${LIEU_IV}`, "g"), nie: true },
+  { re: new RegExp(String.raw`${PAS_COMPLEMENT_IV}\b(?:image|ecran|plan|video)s?(?:\s+(?:tout\s+)?entieres?)?(?:\s+(?:est|reste))?${ADVERBES_IV}\s+${ADJ_GLOBAL_IV}\b${LIEU_IV}`, "g"), nie: true },
+  { re: new RegExp(String.raw`\btout(?:\s+(?:est|reste))${ADVERBES_IV}\s+${ADJ_GLOBAL_IV}\b`, "g"), nie: true },
+  { re: /\b(?:noir|blanc)\s+(?:complet|total)\b/g, nie: true },
   { re: /\brien n'?est lisible\b/g, nie: false },
   { re: /\baucun texte(?: n'?est)?(?: lisible)\b/g, nie: false },
   { re: /\billisible dans son ensemble\b/g, nie: true },
@@ -453,7 +462,7 @@ export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<Insta
   const sansReponse: string[] = [];
   const manques: string[] = [];
   let relues = 0;
-  let illisibles = 0;
+  const globaux: string[] = [];
   for (const i of instants) {
     const x = r.images.find((y) => y.nom === i.nom);
     if (!x) {
@@ -471,15 +480,17 @@ export function jugerRelecture(r: RelectureFinale, instants: readonly Pick<Insta
     }
     const illisible = x.illisible.trim();
     if (illisible) {
-      if (estIllisibleGlobalIV(illisible)) {
-        illisibles++;
-        bloquants.push(`${ou(i.nom)}, illisible : ${illisible}.`);
-      } else remarques.push(`${ou(i.nom)}, illisible : ${illisible}${DETAIL}.`);
+      if (estIllisibleGlobalIV(illisible)) globaux.push(`${ou(i.nom)}, illisible : ${illisible}`);
+      else remarques.push(`${ou(i.nom)}, illisible : ${illisible}${DETAIL}.`);
     }
     if (x.horsCharte.trim()) indications.push(`${ou(i.nom)}, hors charte : ${x.horsCharte.trim()}.`);
     if (x.suggestion.trim()) indications.push(`${ou(i.nom)} : ${x.suggestion.trim()}.`);
   }
-  if (relues > 0 && illisibles / relues > PART_MANQUES_BLOQUANTE) bloquants.push(`${illisibles} images sur ${relues} sont illisibles : la vidéo est illisible dans son ensemble.`);
+  // Une image globalement illisible isolée (prise pendant une transition) est une remarque ; le blocage exige plus de la moitié des images relues (donc toutes si une ou deux).
+  if (relues > 0 && globaux.length / relues > PART_MANQUES_BLOQUANTE) {
+    for (const g of globaux) bloquants.push(`${g}.`);
+    bloquants.push(`${globaux.length} images sur ${relues} sont illisibles : la vidéo est illisible dans son ensemble.`);
+  } else for (const g of globaux) remarques.push(`${g}${DETAIL}.`);
   if (instants.length > 0 && relues === 0) remarques.push(`aucune image n'a été relue${DETAIL}.`);
   else for (const nom of sansReponse) remarques.push(`l'image ${ou(nom)} n'a pas été relue${DETAIL}.`);
   // Un « manque » est un détail, quelle que soit sa part (cohérent avec Q12) : jamais un blocage.

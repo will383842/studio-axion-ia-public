@@ -1,5 +1,5 @@
 /**
- * 25/10/2026 : relecture finale « zéro blocage » (règle de Will : jamais d'arrêt pour un défaut de détail ; bloquant seulement
+ * 25/10/2026 : relecture finale « zéro blocage » (Règle du 25/10/2026 : jamais d'arrêt pour un défaut de détail ; bloquant seulement
  * si la vidéo est inutilisable), rejouée sur la vidéo v-b54bb4798246 (fixture de `facturation-j30-scene.test.ts`).
  *
  * Cause : `instantsClesIV` prenait le premier événement visible portant le `ref` d'un bloc, même celui d'un plan « emotion » ou
@@ -116,6 +116,15 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
       { faux: "l'étiquette de la flèche ne correspond pas au bloc annoncé" },
       { illisible: "la légende est tronquée en bas de l'écran" },
     ];
+    const tournures = [
+      { illisible: "le texte de l'image est illisible" },
+      { illisible: "le texte de l'image est flou" },
+      { illisible: "l'écran est masqué par le bandeau orange" },
+    ];
+    for (const d of [...defauts, ...tournures]) {
+      const j2 = jugerRelecture(relecture((_, k) => (k === 0 ? d : {})), INSTANTS);
+      expect(j2.bloquants, JSON.stringify(d)).toEqual([]);
+    }
     const j = jugerRelecture(relecture((_, k) => (k < defauts.length ? defauts[k] : {})), INSTANTS);
     expect(j.bloquants).toEqual([]);
     expect(j.remarques).toHaveLength(5);
@@ -149,10 +158,25 @@ describe("jugerRelecture : seul le inutilisable bloque", () => {
     expect(j.remarques).toHaveLength(1);
     expect(j.remarques[0]).toMatch(/illisible : texte coupé par le bord \(détail, la vidéo continue\)\.$/);
   });
-  it("image entièrement noire : 1 bloquant", () => {
+  it("une seule image entièrement noire sur 10 (prise pendant une transition) : remarque, pas de blocage", () => {
     const j = jugerRelecture(relecture((_, k) => (k === 5 ? { illisible: "image entièrement noire" } : {})), INSTANTS);
-    expect(j.bloquants).toHaveLength(1);
-    expect(j.bloquants[0]).toMatch(/illisible : image entièrement noire/);
+    expect(j.bloquants).toEqual([]);
+    expect(j.remarques).toHaveLength(1);
+    expect(j.remarques[0]).toMatch(/illisible : image entièrement noire/);
+  });
+  it("toutes les images entièrement noires : bloquant", () => {
+    const j = jugerRelecture(relecture(() => ({ illisible: "image entièrement noire" })), INSTANTS);
+    expect(j.bloquants.some((b) => /illisible dans son ensemble/.test(b))).toBe(true);
+    expect(j.bloquants.some((b) => /illisible : image entièrement noire/.test(b))).toBe(true);
+  });
+  it("une ou deux images relues : une seule illisible = remarque, toutes illisibles = bloquant", () => {
+    const deux = INSTANTS.slice(0, 2);
+    const r = (f: (k: number) => object) => ({ images: deux.map((i, k) => ({ nom: i.nom, toutMontre: true, manque: "", faux: "", illisible: "", horsCharte: "", suggestion: "", ...f(k) })), absentDeLaVideo: "" }) as RelectureFinale;
+    expect(jugerRelecture(r((k) => (k === 0 ? { illisible: "écran tout noir" } : {})), deux).bloquants).toEqual([]);
+    expect(jugerRelecture(r(() => ({ illisible: "écran tout noir" })), deux).bloquants.some((b) => /dans son ensemble/.test(b))).toBe(true);
+    const une = INSTANTS.slice(0, 1);
+    const r1 = { images: [{ nom: une[0].nom, toutMontre: true, manque: "", faux: "", illisible: "écran tout noir", horsCharte: "", suggestion: "" }], absentDeLaVideo: "" } as RelectureFinale;
+    expect(jugerRelecture(r1, une).bloquants.some((b) => /dans son ensemble/.test(b))).toBe(true);
   });
   it("6 images globalement illisibles sur 10 : bloquant « illisible dans son ensemble »", () => {
     const j = jugerRelecture(relecture((_, k) => (k < 6 ? { illisible: "image floue" } : {})), INSTANTS);
@@ -249,6 +273,23 @@ describe("estChiffreFauxIV / estIllisibleGlobalIV", () => {
     "le titre apparaît à 3 s au lieu de 2 s", "le titre apparaît à 3 sec au lieu de 2 sec", "3 secondes au lieu de 2 secondes", "largeur 300 px au lieu de 200 px",
     "étape 3 au lieu de étape 2", "bloc 3 à la place du bloc 2", "plan 4 au lieu du plan 3", "image 3 au lieu de l'image 2", "écran 3 au lieu de écran 2",
   ])("durée, pixels ou numéro de bloc : pas un chiffre faux : %s", (t) => expect(estChiffreFauxIV(t)).toBe(false));
+  it.each([
+    "le surtitre de l'image est illisible", "le texte de l'image est flou", "la légende de l'image est illisible", "le titre en haut de l'image est flou",
+    "le bas de l'image est vide", "le haut de l'écran est illisible", "le texte au premier plan est illisible", "le texte du plan est illisible", "arrière-plan flou",
+    "le texte de la vidéo est flou", "le texte des images est flou", "le texte d'écran est illisible", "le texte du second plan est flou",
+  ])("détail, pas une image entière : %s", (t) => expect(estIllisibleGlobalIV(t)).toBe(false));
+  it.each(["écran tout noir", "image très floue", "l'image entière est floue", "noir complet", "tout est flou", "toute l'image est entièrement noire", "l'écran est tout blanc"])(
+    "image entière illisible (adverbes, « entière », « tout ») : %s",
+    (t) => expect(estIllisibleGlobalIV(t)).toBe(true),
+  );
+  it.each(["30 % est faux, l'image indique 20 %", "le chiffre 30 % devrait être 20 %", "30 % affiché, 20 % attendu", "montre 45 jours (image : 30 jours)", "30 %, attendu 20 %", "30 %, l'image (source) dit 20 %"])(
+    "chiffre faux (nouvelles formes) : %s",
+    (t) => expect(estChiffreFauxIV(t)).toBe(true),
+  );
+  it.each(["le 3e bloc est collé contre 2 icônes", "le bloc 3 est collé contre le bord, 2 icônes", "le chiffre 20 % devrait être 20 %", "20 % affiché, 20 % attendu"])(
+    "pas un chiffre faux (nouvelles formes) : %s",
+    (t) => expect(estChiffreFauxIV(t)).toBe(false),
+  );
   it("illisible de détail", () => {
     for (const t of ["texte coupé par le bord", "VALIDE coiffe Autoliquidation", "le titre est flou"]) expect(estIllisibleGlobalIV(t), t).toBe(false);
   });
