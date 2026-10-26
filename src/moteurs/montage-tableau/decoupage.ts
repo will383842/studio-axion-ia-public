@@ -61,7 +61,7 @@ import {
   type FicheTableau,
   type StructureTableau,
 } from "./fiche";
-import { styleTableauDe } from "@/briques/tableau-scene/trois-styles/styles";
+import { styleDuDecoupage, type ChoixStyle } from "./tirage-style";
 import { reparerFormes } from "./formes";
 import { BORNES_BLOC_3, BORNES_GABARIT_3, CONSEIL_GABARIT_3 } from "./gabarit-3";
 import { IDS_VISUELS_3 } from "@/briques/tableau-scene/reference/visuels-3";
@@ -101,7 +101,7 @@ export interface PreuveProposee {
   resume: string;
 }
 
-export interface EntreeDecoupage {
+export interface EntreeDecoupage extends ChoixStyle {
   /** Texte VALIDÉ du script, sans appel : les `texteDit` mis bout à bout doivent le redonner mot pour mot. */
   texteScript: string;
   structure: StructureTableau;
@@ -419,7 +419,7 @@ export function variableDecoupage(e: EntreeDecoupage): string {
     `<fiche_fixe>\n${JSON.stringify({ videoId: e.videoId, versionId: e.versionId, habillage: habillageDe(e), stylo: e.stylo, ratio: e.ratio })}\n</fiche_fixe>`,
     `<structure>\n${e.structure} · ${d.nom} · déroulé : ${d.deroule.join(" → ")} · rôles attendus : ${d.roles.join(", ")} · preuve à l'écran : ${d.preuveEcran}\n</structure>`,
     `<serie>\n${JSON.stringify(e.serie)}\n</serie>`,
-    ...(habillageDe(e) === STYLE_REFERENCE_3 ? [`<style_tableau>\n${styleTableauDe({ serie: e.serie })}\n</style_tableau>`] : []),
+    ...(habillageDe(e) === STYLE_REFERENCE_3 ? [`<style_tableau>\n${styleDuDecoupage(e)}\n</style_tableau>`] : []),
     `<douleur>\n${e.douleur}\n</douleur>`,
     ...(e.controle.motsDouleur?.length ? [`<mots_douleur>\n${e.controle.motsDouleur.join(", ")}\n</mots_douleur>`] : []),
     ...(e.controle.motsInterdits?.length ? [`<mots_interdits>\n${e.controle.motsInterdits.join(", ")}\n</mots_interdits>`] : []),
@@ -639,9 +639,9 @@ export function ficheACorriger(rendue: FicheTableau, e: EntreeDecoupage): FicheT
  * vidéo n'utilise jamais (brouillon v-365dd2ae67ee, 18/10/2026). Il est posé AVANT les remises en forme : la page de plus
  * (densité) est faite dans ce style, comme `pagesDuStyle` (refus du 23/10/2026, série Automatisations). Un style déjà posé est gardé.
  */
-export function avecStyleDeLaSerie<T>(brute: T, e: Pick<EntreeDecoupage, "habillage" | "serie">): T {
+export function avecStyleDeLaSerie<T>(brute: T, e: Pick<EntreeDecoupage, "habillage" | "serie" | "videoId" | "styleImpose" | "tirage">): T {
   if (!estObjet(brute) || habillageDe(e) !== STYLE_REFERENCE_3 || brute.styleTableau !== undefined) return brute;
-  return { ...brute, styleTableau: styleTableauDe({ serie: e.serie }) } as T;
+  return { ...brute, styleTableau: styleDuDecoupage(e) } as T;
 }
 
 /** Juge une réponse lue : contrôles du découpage, puis validation complète de la fiche. */
