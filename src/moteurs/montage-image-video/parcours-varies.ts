@@ -47,7 +47,7 @@ export const PARCOURS_VARIES: Readonly<Record<TypeImage, readonly ParcoursVarie[
   benefices: [
     P("benefices-cas", ["micro-objet", "titre", "carte-benefice", "ensemble"], "accroche en question en « vous » → douleur vécue, posée par un micro-objet → début de réponse qui annonce le nombre quand <annonce> le donne → pour chaque bénéfice, le micro-objet qui le joue vient d'abord, puis la phrase titre, puis la phrase concrète → vue d'ensemble des cartes → résultat → phrase-choc"),
     P("benefices-cartes", ["carte-benefice", "toile", "bandeau-chiffres"], "accroche par un compte ou un chiffre → douleur en deux phrases courtes → début de réponse qui annonce le nombre quand <annonce> le donne → les cartes se posent une à une, chacune dite en une seule phrase concrète, sans reprendre le titre → toile qui les relie → bandeau de chiffres → phrase-choc"),
-    P("benefices-avant", ["alerte", "email", "carte-benefice", "micro-objet"], "accroche d'alerte qui montre le problème → douleur → début de réponse qui annonce le nombre quand <annonce> le donne → chaque bénéfice dit en deux temps : ce qui se passait avant, puis ce qui se passe maintenant, avec un micro-objet pour appuyer → résultat → phrase-choc"),
+    P("benefices-avant", ["alerte", "email", "carte-benefice", "micro-objet"], "accroche d'alerte qui montre le problème → douleur → début de réponse qui annonce le nombre quand <annonce> le donne → chaque bénéfice dit en deux temps : ce qui se passait avant, puis ce qui se passe maintenant (seulement si l'image le montre), avec un micro-objet pour appuyer → résultat → phrase-choc"),
   ],
   chaine: [
     P("chaine-fil", ["toile", "micro-objet", "titre"], "accroche par une situation précise → douleur → début de réponse qui annonce le nombre d'étapes quand <annonce> le donne → le fil avance d'étape en étape, chaque étape ouverte par un micro-objet, le repère en haut → résultat chiffré → phrase-choc"),
@@ -55,14 +55,14 @@ export const PARCOURS_VARIES: Readonly<Record<TypeImage, readonly ParcoursVarie[
     P("chaine-titres", ["titre", "chiffre", "ensemble"], "accroche en question → douleur dite sur fond ivoire → début de réponse qui annonce le nombre d'étapes quand <annonce> le donne → chaque étape ouvre sur son titre court, puis une phrase qui dit ce qui se passe, jamais deux étapes dans le même écran → vue d'ensemble → résultat → phrase-choc"),
   ],
   embranchement: [
-    P("embranchement-decision", ["embranchement", "micro-objet", "titre"], "accroche par une situation → douleur → entrée, puis décision posée seule sur l'écran → début de réponse qui annonce les chemins quand <annonce> le donne, avant la première branche → branche majoritaire jusqu'au bout, retour visible au nœud de décision, puis branche minoritaire → vue d'ensemble → bandeau de chiffres → phrase-choc"),
+    P("embranchement-decision", ["embranchement", "micro-objet", "titre"], "accroche par une situation → douleur → début de réponse : l'entrée et la décision, puis l'annonce des chemins quand <annonce> le donne, avant la première branche → branche majoritaire jusqu'au bout, retour visible au nœud de décision, puis branche minoritaire → vue d'ensemble → bandeau de chiffres → phrase-choc"),
     P("embranchement-cas", ["email", "alerte", "embranchement", "dossiers"], "accroche par une heure ou un message → douleur → début de réponse qui annonce les chemins quand <annonce> le donne → on suit un message qui arrive (écran e-mail ou alerte), il atteint la décision, puis chaque branche se joue avec ses dossiers ; la branche majoritaire passe d'abord → résultat → phrase-choc"),
     P("embranchement-ensemble", ["ensemble", "embranchement", "toile", "bandeau-chiffres"], "accroche par un chiffre → douleur → début de réponse qui annonce les chemins quand <annonce> le donne, avant la première branche → branche majoritaire en gros plan, retour au nœud de décision, puis branche minoritaire → vue d'ensemble de l'arbre en toile → bandeau de chiffres → phrase-choc"),
   ],
   entonnoir: [
     P("entonnoir-pluie", ["nuee", "entonnoir", "bandeau-chiffres"], "accroche par le volume → douleur → « et si l'IA faisait le tri ? » → les objets tombent en nuée au rythme de la voix, puis l'entonnoir les range → chaque sortie dite avec son compte et son pourcentage → bandeau → phrase-choc"),
     P("entonnoir-tri", ["recherche", "entonnoir", "dossiers", "micro-objet"], "accroche par une recherche qui n'aboutit pas → douleur → début de réponse : l'IA fait le tri → un objet à la fois passe dans l'entonnoir sous les yeux, chaque sortie finit dans son dossier avec son compte et son pourcentage → bandeau → phrase-choc"),
-    P("entonnoir-sorties", ["entonnoir", "titre", "chiffre", "ensemble"], "accroche en question → douleur → début de réponse : le tri → l'entonnoir d'abord entier et muet, puis chaque sortie ouvre sur son titre, son compte et son pourcentage dits dans cet ordre → vue d'ensemble des sorties → phrase-choc"),
+    P("entonnoir-sorties", ["entonnoir", "titre", "chiffre", "ensemble"], "accroche en question → douleur → début de réponse : le tri → l'entonnoir d'abord entier, montré en une phrase courte, puis chaque sortie ouvre sur son titre, son compte et son pourcentage dits dans cet ordre → vue d'ensemble des sorties → phrase-choc"),
   ],
   "avant-apres": [
     P("avant-apres-partage", ["ecran-partage", "additionneur", "bandeau-chiffres"], "accroche par le chiffre avant le plus douloureux → avant entier, chiffres qui s'additionnent → bascule « Maintenant… » → après entier → écran partagé : les deux côtés face à face → duel de chiffres → phrase-choc"),
@@ -77,12 +77,12 @@ export const PARCOURS_VARIES: Readonly<Record<TypeImage, readonly ParcoursVarie[
   "tableau-de-bord": [
     P("tableau-focus", ["chiffre", "bandeau-chiffres", "alerte"], "accroche par l'indicateur le plus parlant → douleur → deux ou trois indicateurs dits un à un, chacun plein écran, les autres seulement affichés → le point d'attention en alerte → résultat → phrase-choc"),
     P("tableau-recherche", ["recherche", "toile", "ensemble"], "accroche par une question que le tableau tranche → douleur → la recherche dans le tableau, la toile qui montre où regarder → deux ou trois indicateurs dits, les autres affichés → vue d'ensemble → phrase-choc"),
-    P("tableau-comparaison", ["titre", "chiffre", "bandeau-chiffres"], "accroche par un écart entre deux indicateurs → douleur → les indicateurs dits par paires, titre court puis chiffre, les autres seulement affichés → point d'attention → résultat → phrase-choc"),
+    P("tableau-comparaison", ["titre", "chiffre", "bandeau-chiffres"], "accroche par l'indicateur qui tranche avec un autre → douleur → deux ou trois indicateurs dits, par paire ou seuls, titre court puis chiffre, les autres seulement affichés → point d'attention → résultat → phrase-choc"),
   ],
   chronologie: [
     P("chronologie-frise", ["toile", "chiffre", "titre"], "accroche par une heure → douleur → la frise avance, chaque heure dite dans l'ordre avec son titre court → résultat → phrase-choc"),
     P("chronologie-journee", ["micro-objet", "email", "alerte", "ensemble"], "accroche par la première heure de la journée → douleur → chaque heure est jouée par un micro-objet, un e-mail ou une alerte, dans l'ordre réel → vue d'ensemble de la journée → résultat → phrase-choc"),
-    P("chronologie-avant-apres", ["chiffre", "bandeau-chiffres", "ensemble"], "accroche par la durée totale → douleur → les heures défilent dans l'ordre, chacune dite avec un seul chiffre à l'écran → la frise entière → bandeau de chiffres → phrase-choc"),
+    P("chronologie-avant-apres", ["chiffre", "bandeau-chiffres", "ensemble"], "accroche par l'heure la plus parlante → douleur → les heures défilent dans l'ordre, chacune dite avec un seul chiffre à l'écran → la frise entière → bandeau de chiffres → phrase-choc"),
   ],
 });
 
@@ -129,14 +129,14 @@ export const squeletteDe = (fiche: Pick<FicheImage, "ecrans">): Scene[] => fiche
 
 /**
  * Scènes à ne pas reprendre : celles déjà employées dans au moins deux des trois derniers squelettes (une seule s'il
- * n'en existe qu'un), parmi les scènes COMMUNES permises. Jamais la phrase-choc ni les scènes propres au type ; il reste
+ * n'en existe qu'un), parmi les scènes COMMUNES permises. Jamais l'accroche, la phrase-choc, les scènes propres au type ni celles du parcours tiré ; il reste
  * au moins `SCENES_LIBRES_MIN` scènes libres. `historique` : la plus récente d'abord.
  */
-export function scenesAEviter(o: { types: readonly TypeImage[]; historique: readonly Pick<SqueletteRecent, "scenes">[] }): Scene[] {
+export function scenesAEviter(o: { types: readonly TypeImage[]; parcoursScenes?: readonly Scene[]; historique: readonly Pick<SqueletteRecent, "scenes">[] }): Scene[] {
   const recents = o.historique.slice(0, VIDEOS_RECENTES_PARCOURS);
   if (!recents.length) return [];
   const seuil = Math.min(2, recents.length);
-  const protegees = new Set<Scene>(["phrase-choc", ...o.types.flatMap((t) => RECETTES[t].scenes)]);
+  const protegees = new Set<Scene>(["phrase-choc", "accroche", ...o.types.flatMap((t) => RECETTES[t].scenes), ...(o.parcoursScenes ?? [])]);
   const permises = scenesPermises(o.types);
   const compte = new Map<Scene, number>();
   for (const s of recents) for (const sc of new Set(s.scenes)) compte.set(sc, (compte.get(sc) ?? 0) + 1);
@@ -183,8 +183,7 @@ export interface ChoixParcoursIV {
 
 export function choisirParcoursIV(o: { graine: string; carte: Pick<CarteImage, "types">; historique?: readonly SqueletteRecent[] }): ChoixParcoursIV {
   const historique = o.historique ?? [];
-  return {
-    code: tirerParcoursIV({ graine: o.graine, type: o.carte.types[0], historique }),
-    aEviter: scenesAEviter({ types: o.carte.types, historique }),
-  };
+  const code = tirerParcoursIV({ graine: o.graine, type: o.carte.types[0], historique });
+  const tire = candidatsParcours(o.carte.types[0]).find((c) => c.code === code);
+  return { code, aEviter: scenesAEviter({ types: o.carte.types, parcoursScenes: tire?.scenes ?? [], historique }) };
 }

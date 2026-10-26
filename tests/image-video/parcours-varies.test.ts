@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import type { CarteImage, TypeImage } from "@/domaine/image-video/carte";
 import { TYPES_IMAGE } from "@/domaine/image-video/carte";
 import { complexiteDe } from "@/domaine/image-video/complexite";
-import type { FicheImage, Scene } from "@/domaine/image-video/fiche";
+import { PARTIES, type FicheImage, type Scene } from "@/domaine/image-video/fiche";
 import { variableEcritureIV } from "@/moteurs/montage-image-video/ecriture";
 import { ficheSimulee } from "@/moteurs/montage-image-video/ecriture.simulation";
 import {
@@ -76,6 +76,40 @@ describe("parcours variés : validité", () => {
         expect(fiche.ecrans.some((e) => p.scenes.includes(e.scene))).toBe(true);
       }
     });
+
+    it(`${type} : chaque parcours garde les six parties dans l'ordre, sans texte qui force un refus`, () => {
+      const carte = carteDe(type);
+      for (const p of PARCOURS_VARIES[type]) {
+        const t = p.parcours;
+        // Ordre du texte : accroche d'abord, phrase-choc à la fin, annonce après le début de réponse et avant les éléments.
+        expect(t.indexOf("accroche"), p.code).toBe(0);
+        expect(t.trim().endsWith("phrase-choc"), p.code).toBe(true);
+        expect(t.indexOf("phrase-choc"), p.code).toBe(t.lastIndexOf("phrase-choc"));
+        if (RECETTES[type].annonceNombre) {
+          const a = t.indexOf("<annonce>");
+          expect(a, p.code).toBeGreaterThan(t.indexOf("→"));
+          expect(t.slice(0, a), p.code).toContain("début de réponse");
+          expect(t.slice(a), p.code).not.toMatch(/début de réponse/);
+        }
+        if (t.includes("douleur")) expect(t.indexOf("douleur"), p.code).toBeGreaterThan(t.indexOf("accroche"));
+        // Fiche factice : parties dans l'ordre (accroche première, phrase-choc dernière), mêmes refus de forme et d'ordre que la base.
+        const fiche = ficheDuParcours(carte, p.scenes);
+        const rangs = fiche.ecrans.map((e) => PARTIES.indexOf(e.partie));
+        expect(rangs[0], p.code).toBe(0);
+        expect(rangs[rangs.length - 1], p.code).toBe(PARTIES.length - 1);
+        expect([...rangs].sort((x, y) => x - y), p.code).toEqual(rangs);
+        const ordre = (f: FicheImage) => aCorrigerParClaude(verifierScript(f, { carte, choixFormules: GARDER })).filter((m) => m.regle === "FORME" || m.regle === "Q07").map((m) => m.message);
+        expect(ordre(fiche), p.code).toEqual(ordre(ficheDuParcours(carte, ["titre"])));
+      }
+    });
+
+    it(`${type} : aucun texte de parcours ne demande un écran muet, un écart, une durée totale ni un chiffre`, () => {
+      for (const p of PARCOURS_VARIES[type]) {
+        const t = p.parcours.toLowerCase();
+        for (const mot of ["muet", "écart", "ecart", "durée totale", "duree totale"]) expect(t, p.code).not.toContain(mot);
+        expect(p.parcours, p.code).not.toMatch(/\d/);
+      }
+    });
   }
 });
 
@@ -129,13 +163,20 @@ describe("scènes à éviter", () => {
 
   it("rien sans historique", () => expect(scenesAEviter({ types: type, historique: [] })).toEqual([]));
 
-  it("reprend les scènes communes des squelettes récents, jamais la phrase-choc ni celles du type", () => {
+  it("reprend les scènes communes des squelettes récents, jamais l'accroche, la phrase-choc ni celles du type", () => {
     const s = sq("accroche", "micro-objet", "titre", "entonnoir", "nuee", "ensemble", "phrase-choc");
     const evite = scenesAEviter({ types: type, historique: [s, s, s] });
-    expect(evite).toEqual(expect.arrayContaining(["accroche", "micro-objet", "titre", "ensemble"]));
+    expect(evite).toEqual(expect.arrayContaining(["micro-objet", "titre", "ensemble"]));
+    expect(evite).not.toContain("accroche");
     expect(evite).not.toContain("phrase-choc");
     expect(evite).not.toContain("entonnoir");
     expect(evite).not.toContain("nuee");
+  });
+
+  it("ne contredit pas le parcours tiré : ses scènes ne sont jamais à éviter", () => {
+    const s = sq("accroche", "micro-objet", "titre", "ensemble", "bandeau-chiffres", "phrase-choc");
+    const evite = scenesAEviter({ types: type, parcoursScenes: ["titre", "ensemble", "bandeau-chiffres"], historique: [s, s, s] });
+    expect(evite).toEqual(["micro-objet"]);
   });
 
   it("une scène dans un seul des trois squelettes n'est pas évitée", () => {

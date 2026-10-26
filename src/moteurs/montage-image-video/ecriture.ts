@@ -62,6 +62,7 @@ OSSATURE (6 parties, dans l'ordre, chaque écran porte sa partie) : ${liste(PART
 - accroche : ${ACCROCHE_IV_MOTS_MAX} mots dits au plus, finie avant 3 s ; deux accroches de familles différentes (${liste(FAMILLES_ACCROCHE)}) dans "accroches" ; le premier écran dit la première.
 - douleur : ce que vit le public sans la solution.
 - début de réponse : la bascule ; il annonce le nombre quand <annonce> le donne (« deux chemins », « cinq choses »), avant le premier élément.
+- <a_eviter>, si elle est présente (partie variable), liste des scènes à éviter d'employer, sauf si l'ossature ou le contenu l'oblige.
 - explication : l'image de bout en bout, en suivant <recette>. Image d'automatisation (<situation_type> = oui) : le premier écran de l'explication commence par « ${ANNONCE_SITUATION_TYPE} » et affiche « ${ETIQUETTE_SITUATION_TYPE} » ; jamais un vrai client.
 - résultat : les chiffres du bandeau, dits tels qu'écrits.
 - phrase-choc : <phrase_choc>, MOT POUR MOT, en dernier.
