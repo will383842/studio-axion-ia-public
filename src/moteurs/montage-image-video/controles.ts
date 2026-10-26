@@ -372,7 +372,9 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   }
   // « Les chiffres dits ne sont pas confirmés » : une remarque seulement si la carte n'a AUCUN chiffre à dire ; sinon un chiffre dit pourrait être faux, la ligne bloque.
   const aDesChiffresADire = (v.courte ? carteSansRetires(carte, v.noeudsRetires ?? []) : carte).chiffres.some((c) => c.aDire);
-  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? { indicatif: true } : { nonFait: true, indicatif: !aDesChiffresADire });
+  const chiffresNonConfirmes = "l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés.";
+  if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [...chiffres, chiffresNonConfirmes], { nonFait: true });
+  else if (sansEcoute) L("CHIFFRES", [chiffresNonConfirmes], { nonFait: true, indicatif: true });
   else L("CHIFFRES", chiffres, { indicatif: true });
 
   sceneCode("Q14");
@@ -388,7 +390,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // Voix absente (transcription vide, ou moins de 50 % des mots entendus) : blocage voulu.
   const q18 = avecRemarques(ecoute?.q18, ecoute?.q18Remarques);
   const voixAbsente = !ecoute?.comparaison || ecoute.comparaison.part < SEUILS_ECOUTE_IV.retrouvesAbsente - 1e-9;
-  const q18Panne = remarqueEcoute && q18 ? { ...q18, details: q18.details.map((d, i) => (i === 0 ? `${d} Les mots interdits dits (Q08) et la question entendue (Q08bis) n'ont été vérifiés que sur le script, pas sur la voix.` : d)) } : q18;
+  const q18Panne = remarqueEcoute && q18 ? { ...q18, details: q18.details.map((d, i) => (i === 0 ? `${d} Les mots interdits dits (Q08), les chiffres dits (Q05) et la question entendue (Q08bis) n'ont été vérifiés que sur le script, pas sur la voix.` : d)) } : q18;
   lignes.push(deConstat("Q18", v, q18Panne && !q18Panne.ok && !q18Panne.nonFait && !voixAbsente ? { ...q18Panne, souple: true } : q18Panne, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined, remarqueEcoute));
   const q19 = ecoute?.q19;
   const q19Ligne = sceneDe("Q19");

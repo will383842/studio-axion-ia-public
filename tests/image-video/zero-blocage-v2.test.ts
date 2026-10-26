@@ -8,10 +8,9 @@
  *  5. « chiffres dits non confirmés » : remarque seulement si la carte n'a aucun chiffre à dire.
  */
 import { describe, expect, it, vi } from "vitest";
-import { attendWillIV, avancerJusquAArretIV, ecransAAdapterIV, ErreurRenduDefinitifIV, estAttenteIV, etatInitialIV, RenduEnCoursIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
+import { attendWillIV, avancerJusquAArretIV, ecransAAdapterIV, choisirEcransAAdapterIV, ErreurRenduDefinitifIV, pasMiseEnScene, estAttenteIV, etatInitialIV, RenduEnCoursIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import { ecouterVersionIV, rmsSurLesMotsIV, type OutilsEcouteIV } from "@/moteurs/montage-image-video/ecoute";
 import { empreinteSon } from "@/moteurs/montage-image-video/assemblage";
-import { porteUniqueIV } from "@/moteurs/montage-image-video/porte";
 import type { MotHorodate } from "@/domaine/types";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
@@ -53,6 +52,7 @@ describe("rendu : écran irrendable", () => {
   });
 
   it("1er échec : texte seul imposé (champ à part), vidéo prête, remarque dans les mentions ; ecransAdaptes non touché", async () => {
+    const reference = await jusquAuBout(etatInitialIV(demande(carteA)), outilsSimules(carteA, monde()));
     const o = outilsSimules(carteA, monde());
     const rendre = o.rendre;
     let n = 0;
@@ -66,6 +66,7 @@ describe("rendu : écran irrendable", () => {
     expect(Object.values(e.ecransImposesRendu ?? {})[0]).toContain("e02");
     expect(e.remarques?.[0]).toMatch(/texte seul/);
     expect(e.controles?.verdict?.mentions.join(" ")).toMatch(/texte seul/);
+    expect(e.ecransAdaptes).toEqual(reference.ecransAdaptes);
   });
 
   it("anti-boucle : un rendu toujours irrendable = IV_RENDU, 2 échecs au plus par version, pas de boucle jusqu'au maximum de pas", async () => {
@@ -91,7 +92,75 @@ describe("rendu : écran irrendable", () => {
     };
     const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
     expect(e.etape).toBe("prete");
-    expect(e.remarques).toHaveLength(Object.keys(e.ecransImposesRendu ?? {}).length);
+    const versions = Object.keys(e.ecransImposesRendu ?? {}).length;
+    expect(versions).toBeGreaterThan(0);
+    for (let passage = 1; passage <= 2; passage++) {
+      delete e.scenes;
+      await pasMiseEnScene(e, o);
+      expect(e.ecransImposesRendu && Object.keys(e.ecransImposesRendu)).toHaveLength(versions);
+      expect(e.remarques, `passage ${passage}`).toHaveLength(versions);
+    }
+  });
+
+  it("repli : un rendu qui ne nomme aucun écran retrouvé passe tous les écrans à texte en texte seul, et la remarque le dit", async () => {
+    const o = outilsSimules(carteA, monde());
+    const rendre = o.rendre;
+    let n = 0;
+    o.rendre = async (d) => {
+      if (++n === 1) throw new ErreurRenduDefinitifIV("Un écran ne tient pas.", ["écran n° 1"]);
+      return rendre(d);
+    };
+    const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
+    expect(e.etape).toBe("prete");
+    expect(e.remarques?.[0]).toMatch(/repli sur tous les écrans/);
+    expect(e.controles?.verdict?.mentions.join(" ")).toMatch(/repli sur tous les écrans/);
+    const f = e.script!.fiche;
+    expect(choisirEcransAAdapterIV(f, { blocs: [], plans: [] } as never, ["inconnu"])).toMatchObject({ repli: true });
+  });
+
+  it("panne passagère au 1er rendu puis écran irrendable à la relance : texte seul, pas IV_RENDU ; au 2e échec définitif : IV_RENDU", async () => {
+    const o = outilsSimules(carteA, monde());
+    const rendre = o.rendre;
+    let n = 0;
+    o.rendre = async (d) => {
+      if (++n === 1) throw new Error("rendu en panne");
+      if (n === 2) throw new ErreurRenduDefinitifIV("Un écran ne tient pas.", [], ["e02"]);
+      return rendre(d);
+    };
+    const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
+    expect(e.refus).toBeUndefined();
+    expect(e.etape).toBe("prete");
+    expect(e.remarques?.[0]).toMatch(/texte seul/);
+
+    const o2 = outilsSimules(carteA, monde());
+    let m = 0;
+    o2.rendre = async () => {
+      m++;
+      if (m === 1) throw new Error("rendu en panne");
+      throw new ErreurRenduDefinitifIV("Un écran ne tient pas.", [], ["e02"]);
+    };
+    const e2 = await jusquAuBout(etatInitialIV(demande(carteA)), o2);
+    expect(e2.refus).toMatchObject({ etape: "rendu", code: "IV_RENDU" });
+  });
+
+  it("RenduEnCoursIV levé à la relance (-reprise) puis reprise : la relance repart au bon essai, le 1er appel en échec n'est pas relancé", async () => {
+    const o = outilsSimules(carteA, monde());
+    const rendre = o.rendre;
+    const essais: number[] = [];
+    let n = 0;
+    o.rendre = async (d) => {
+      essais.push(d.essai ?? 1);
+      if (++n === 1) throw new Error("rendu en panne");
+      if (n === 2) throw new RenduEnCoursIV("Le rendu");
+      return rendre(d);
+    };
+    let e = await avancerJusquAArretIV(etatInitialIV(demande(carteA)), o);
+    e = await jusquAuBout(e, o);
+    expect(e.attente ?? "").toBe("");
+    expect(essais.slice(0, 3)).toEqual([1, 2, 2]);
+    expect(essais.filter((x) => x === 1)).toHaveLength(1);
+    expect(essais.filter((x) => x === 3)).toHaveLength(0);
+    expect(e.etape).toBe("prete");
   });
 
   it("correspondance : un bloc de la ligne de temps nommé par le rendu devient l'écran de la fiche qu'il montre ; sans nom, tous les écrans à texte", async () => {
@@ -174,7 +243,7 @@ describe("transcription en panne (fabrication complète)", () => {
     const relances = m.transcriptions.filter((x) => x.endsWith("-reprise")).length;
     expect(relances).toBeGreaterThan(0);
     expect(relances).toBe(m.transcriptions.length - relances);
-    expect(e.controles?.verdict?.mentions.join(" ")).toMatch(/Q08.*Q08bis.*script/);
+    expect(e.controles?.verdict?.mentions.join(" ")).toMatch(/Q08.*Q05.*Q08bis.*script/);
   });
 
   it("carte AVEC chiffre à dire : les chiffres dits ne sont pas confirmés, refusée", async () => {
@@ -185,6 +254,16 @@ describe("transcription en panne (fabrication complète)", () => {
     expect(e.etape).toBe("refusee");
     expect(e.refus?.code).toBe("IV_CONTROLES");
     expect(e.refus?.phrases?.join(" ")).toMatch(/chiffres/i);
+  });
+
+  it("carte avec un chiffre à dire jamais affiché + panne de transcription : refusée en IV_CONTROLES (ligne CHIFFRES bloquante)", async () => {
+    const m = monde();
+    const o = outilsSimules(carteA, m);
+    panneTranscription(o, m);
+    const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
+    expect(e.etape).toBe("refusee");
+    expect(e.refus).toMatchObject({ etape: "controles", code: "IV_CONTROLES" });
+    expect(e.refus?.phrases?.join(" ")).toMatch(/chiffres dits ne sont pas confirmés/);
   });
 
   it("transcription vide : refusée (voix absente)", async () => {
@@ -387,21 +466,6 @@ describe("écoute : panne de transcription", () => {
     const err = await ecouterVersionIV(entree(p), o).catch((x) => x);
     expect(estAttenteIV(err)).toBe(true);
     expect(o.reservations).toHaveLength(1);
-  });
-
-  it("la porte laisse remonter l'attente de la transcription", async () => {
-    const m = monde();
-    const o = outilsSimules(carteB, m);
-    o.controles = {
-      ...o.controles,
-      transcrire: async () => {
-        throw new RenduEnCoursIV("La transcription");
-      },
-    };
-    const e = await jusquAuBout(etatInitialIV(demande(carteB)), o);
-    expect(estAttenteIV(new RenduEnCoursIV("x"))).toBe(true);
-    expect(e.etape).toBe("controles");
-    expect(porteUniqueIV).toBeTypeOf("function");
   });
 });
 
