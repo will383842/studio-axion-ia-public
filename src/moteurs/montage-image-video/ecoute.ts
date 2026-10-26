@@ -322,7 +322,9 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
     // Un chiffre écrit, ou un trou du script qui porte déjà un nombre, n'est jamais pris pour une substitution sonore. Un MOT de nombre
     // entendu (« deux vies » pour « devis ») l'est, tant que le passage du script remplacé n'en contient aucun : la transcription a
     // entendu des sons, pas un chiffre (27/10/2026, vidéo refusée pour « la voix dit 2 »).
-    if (porteUnChiffre(trou) || entendu.some((m) => /\d/.test(m))) return undefined;
+    // Un nombre au MILIEU de la suite entendue (« chat deux bot ») reste refusé ; en tête ou en fin (« deux vies »), c'est un son.
+    const nombreAuMilieu = entendu.slice(1, -1).some((m) => /\d/.test(m) || MOT_DE_NOMBRE.test(cleAccents(m)));
+    if (porteUnChiffre(trou) || nombreAuMilieu || entendu.some((m) => /\d/.test(m))) return undefined;
     const cleScript = cleSonore(trou.join(""));
     // Un mot de nombre entendu pour un mot court du script (« deux vies » / « devis ») : clé de 4 lettres acceptée.
     if (cleScript.length < (entendu.some((m) => MOT_DE_NOMBRE.test(cleAccents(m))) ? CLE_SONORE_MIN - 1 : CLE_SONORE_MIN)) return undefined;
