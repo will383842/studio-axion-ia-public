@@ -222,7 +222,7 @@ describe("Q05 · rien d'inventé (priorité 4) et ajouts de Will", () => {
     const f = copie(fiches.D);
     f.accroches[1].texteDit = "Trente e-mails ce matin.";
     f.questionCommentaire.texteDit = "Et vous, combien en recevez-vous, cinquante ?";
-    f.ecrans[0]!.textesEcran = ["25 e-mails"];
+    f.ecrans[0]!.textesEcran = ["*25* e-mails"];
     const v = verifierScript(f, ctx("D"));
     const q05 = v.manquements.filter((m) => m.regle === "Q05").map((m) => m.message);
     expect(q05).toEqual(["Écran e01 : « 25 » n'est pas sur l'image.", "Accroche B : « 30 » n'est pas sur l'image.", "Question de commentaire : « 50 » n'est pas sur l'image."]);
@@ -647,7 +647,7 @@ describe("écriture sans impasse : chiffre hors image retiré sans appel", () =>
     if (!r.ok) return;
     expect(j.appels).toHaveLength(APPELS_ECRITURE_MAX);
     expect(r.appels).toBe(APPELS_ECRITURE_MAX);
-    expect(e14(r.fiche).texteDit).toBe("Deux heures récupérées par jour. e-mails en moins.");
+    expect(e14(r.fiche).texteDit).toBe("Deux heures récupérées par jour.");
     expect(e14(r.fiche).textesEcran.join(" ")).not.toMatch(/25/);
     expect(r.verdict.ok).toBe(true);
     expect(r.verdict.marques.some((m) => m.includes("Chiffres retirés") && m.includes("25") && m.includes("e14"))).toBe(true);
@@ -659,19 +659,121 @@ describe("écriture sans impasse : chiffre hors image retiré sans appel", () =>
     const r = await ecrireScriptIV(entree("D"), o);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(e14(r.fiche).texteDit).toBe("Deux heures récupérées par jour. de retard en moins.");
+    expect(e14(r.fiche).texteDit).toBe("Deux heures récupérées par jour.");
     expect(e14(r.fiche).textesEcran.join(" ")).not.toMatch(/25|jours/);
   });
 
-  it("un chiffre présent sur l'image n'est pas touché : script accepté tel quel", async () => {
-    const { o, j } = outils(["simulation"]);
+  it("un chiffre présent sur l'image n'est pas touché : la réparation ne retire que le refusé", async () => {
+    const f = fautif("Vingt-cinq e-mails en moins.", "25 e-mails");
+    const { o, j } = deuxFois(f);
     const r = await ecrireScriptIV(entree("D"), o);
     expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.fiche).toEqual(FICHES_SIMULEES["essai-d"]);
-      expect(r.verdict.marques.some((m) => m.includes("Chiffres retirés"))).toBe(false);
-    }
-    expect(j.appels).toHaveLength(1);
+    if (!r.ok) return;
+    expect(j.appels).toHaveLength(APPELS_ECRITURE_MAX);
+    expect(e14(r.fiche).texteDit).toContain("Deux heures récupérées par jour.");
+    expect(e14(r.fiche).textesEcran).toEqual(e14(fiches.D).textesEcran);
+    expect(r.fiche.ecrans.filter((e) => e.id !== "e14")).toEqual(fiches.D.ecrans.filter((e) => e.id !== "e14"));
+    expect(r.verdict.marques).toHaveLength(1);
+    // Sans chiffre refusé, le script simulé est accepté tel quel, sans réparation.
+    const sim = outils(["simulation"]);
+    const s = await ecrireScriptIV(entree("D"), sim.o);
+    expect(s.ok && s.fiche).toEqual(FICHES_SIMULEES["essai-d"]);
+    expect(s.ok && s.verdict.marques.some((m) => m.includes("Chiffres retirés"))).toBe(false);
+    expect(sim.j.appels).toHaveLength(1);
+  });
+
+  describe("phrase entière retirée, chiffre de l'image jamais touché", () => {
+    const carteJours: CarteImage = { ...cartes.D, chiffres: [...cartes.D.chiffres, { id: "c99", brut: "37 jours", valeur: 37, unite: "jour", dansNoeud: "n01", aDire: false, lu: "les-deux" }] };
+    const lance = async (f: FicheImage, extra: Record<string, unknown> = {}) => ecrireScriptIV(entree("D", extra), deuxFois(f).o);
+    const D14 = "Deux heures récupérées par jour.";
+    const avecSurMot = (dit: string, lignes: string[], surMot?: FicheImage["ecrans"][number]["surMot"]) => {
+      const f = avecTexte(fiches.D, "e14", dit, lignes);
+      if (surMot) e14(f).surMot = surMot;
+      return f;
+    };
+
+    it("37 refusé et « 37 jours » de l'image sur le même écran : « 37 jours » reste intact", async () => {
+      const f = avecSurMot(`${D14} Trente-sept jours de retard en moins. Trente-sept e-mails en moins.`, ["37 jours de retard", "37 e-mails"]);
+      const r = await lance(f, { carte: carteJours });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(e14(r.fiche).texteDit).toBe(`${D14} Trente-sept jours de retard en moins.`);
+      expect(e14(r.fiche).textesEcran).toEqual(["37 jours de retard"]);
+    });
+
+    it("« Douze jours » et « 12 jours » de l'image restent, le 12 seul part avec sa phrase", async () => {
+      const carte12: CarteImage = { ...carteJours, chiffres: [...cartes.D.chiffres, { ...carteJours.chiffres.at(-1)!, brut: "12 jours", valeur: 12 }] };
+      const f = avecSurMot(`${D14} Douze jours de retard en moins. Douze e-mails en moins.`, ["12 jours", "12 e-mails"]);
+      const r = await lance(f, { carte: carte12 });
+      // 12 sans unité est permis tant que l'image compte 12 blocs ; on exige seulement que rien de l'image ne soit retiré.
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(e14(r.fiche).texteDit).toContain("Douze jours de retard en moins.");
+      expect(e14(r.fiche).textesEcran).toContain("12 jours");
+    });
+
+    it("décimal « 2,5 h » : toute la phrase part, « Avant : 2 h » et « Pourquoi ? » ne bougent pas", async () => {
+      const f = avecSurMot(D14, ["Avant : 2 h", "Gain : 2,5 h", "Pourquoi ?"]);
+      const r = await lance(f);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(e14(r.fiche).texteDit).toBe(D14);
+      expect(e14(r.fiche).textesEcran).toEqual(["Avant : 2 h", "Pourquoi ?"]);
+    });
+
+    it("pourcentage : « 30 % » et « trente pour cent » partent, « 80 % » de l'image reste", async () => {
+      const f = avecSurMot(`${D14} Trente pour cent de temps gagné. Quatre-vingts pour cent de réponses.`, ["30 %", "80 % de réponses"]);
+      const r = await lance(f);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(e14(r.fiche).texteDit).toBe(`${D14} Quatre-vingts pour cent de réponses.`);
+      expect(e14(r.fiche).textesEcran).toEqual(["80 % de réponses"]);
+    });
+
+    it("un nombre dans un mot (B2B, e14) reste intact", async () => {
+      const f = avecSurMot(`${D14} Vingt-cinq e-mails en moins.`, ["Cas B2B e14", "25 e-mails"]);
+      const r = await lance(f);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(e14(r.fiche).texteDit).toBe(D14);
+      expect(e14(r.fiche).textesEcran).toEqual(["Cas B2B e14"]);
+    });
+
+    it("opérande de calcul refusé : la phrase du calcul part en entier, jamais « 16 + = 20 »", async () => {
+      const f = avecSurMot(D14, ["9 + 11 = *20* e-mails", "16 + 4 = 20 e-mails"]);
+      const r = await lance(f);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(e14(r.fiche).textesEcran).toEqual(["16 + 4 = 20 e-mails"]);
+      expect(e14(r.fiche).textesEcran.join(" ")).not.toMatch(/\+\s*=|=\s*\*?\s*$/);
+    });
+
+    it("l'animation sur un mot (surMot) est décalée après le retrait, celle d'un mot retiré tombe", async () => {
+      const f = avecSurMot(`${D14} Vingt-cinq e-mails en moins. Vous gardez le temps.`, ["Temps *gardé*"], [
+        { mot: 0, action: "apparait" },
+        { mot: 6, action: "apparait" },
+        { mot: 9, action: "apparait" },
+      ]);
+      const r = await lance(f);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(e14(r.fiche).texteDit).toBe(`${D14} Vous gardez le temps.`);
+      expect(e14(r.fiche).surMot.map((s) => s.mot)).toEqual([0, 5]);
+    });
+
+    it("un écran sans texte dit après retrait n'est pas réparé : le refus reste", async () => {
+      const f = avecSurMot("Vingt-cinq e-mails en moins.", ["25 e-mails"]);
+      expect(await lance(f)).toMatchObject({ ok: false, motif: "refusee" });
+    });
+
+    it("le simulé de la dernière réponse est gardé", async () => {
+      const f = fautif("Vingt-cinq e-mails en moins.", "25 e-mails");
+      for (const simule of [true, false]) {
+        const rep: ReponseAppelIV = { ok: true, simule, donnees: f };
+        const r = await ecrireScriptIV(entree("D"), outils([rep, rep]).o);
+        expect(r.ok && r.simule).toBe(simule);
+      }
+    });
   });
 
   it("un refus d'une autre règle reste refusé", async () => {

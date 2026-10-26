@@ -14,10 +14,11 @@
  */
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, DEBIT_MOTS_PAR_SEC, type ComplexiteCarte } from "@/domaine/image-video/complexite";
+import { chiffresDe } from "@/domaine/image-video/chiffres";
 import { FAMILLES_ACCROCHE, PARTIES, SCENES, motsDits, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
-import { APPELS_ECRITURE_MAX, MAX_TOKENS_ECRITURE, texteAvecNombres } from "./emprunts";
+import { APPELS_ECRITURE_MAX, MAX_TOKENS_ECRITURE } from "./emprunts";
 import { ficheSimulee, ficheSimuleeRecit } from "./ecriture.simulation";
 import { ANNONCE_SITUATION_TYPE, ETIQUETTE_SITUATION_TYPE, PARCOURS_RECIT, RECETTES, annonceAttendue, lireDecoupage, scenesPermises, type CodeRecit } from "./recettes";
 import {
@@ -29,8 +30,10 @@ import {
   aCorrigerParClaude,
   aTrancherParWill,
   empreinteDeCarte,
+  lectureChiffres,
   phraseChocAttendue,
   verifierScript,
+  type ChiffreDit,
   type ContexteRegles,
   type Manquement,
   type VerdictScript,
@@ -233,68 +236,52 @@ export function jugerFicheIV(brute: unknown, ctx: ContexteRegles): { ok: true; f
 
 // ─── Réparation sans appel : chiffre refusé hors image (Q05) ───────────────────────────────────────────────────────────
 
-const ECHAPPE = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** L'unité telle que `regles.ts` la rend dans son message → ce qu'on lit vraiment dans le texte (« 12 jour » ↔ « 12 jours »). */
-const UNITES_LUES: ReadonlyArray<[string, string]> = [
-  [" jour", "\\s*jours?"],
-  [" min", "\\s*min\\p{L}*"],
-  [" h", "\\s*(?:h|heures?)"],
-  [" s", "\\s*(?:s|sec\\p{L}*)"],
-  [" €", "\\s*(?:€|euros?)"],
-  [" %", "\\s*%"],
-];
+/** Clé « valeur|unité » comme `regles.ts` la compare (Q05 : valeur ET unité, jamais la valeur seule). */
+const cleDe = (c: Pick<ChiffreDit, "valeur" | "unite">) => `${c.valeur}|${c.unite}`;
 
-/** Motif d'un chiffre refusé (« 12 », « 3 jour », « 2,5 h »), ou null s'il n'est pas lisible comme un nombre. */
-function motifChiffre(brut: string): RegExp | null {
-  if (!/^\d/.test(brut)) return null;
-  const unite = UNITES_LUES.find(([u]) => brut.endsWith(u));
-  const nombre = unite ? brut.slice(0, -unite[0].length) : brut;
-  const corps = ECHAPPE(nombre).replace(/\\[,.]|[,.]/g, "[.,]").replace(/ /g, "\\s*");
-  return new RegExp(`(?<![\\p{L}\\p{N}.,])${corps}${unite ? unite[1] : ""}(?![\\p{L}\\p{N}])`, "gu");
+/** Clés des chiffres cités par un refus Q05 (« Écran e03 : « 12 », « 3 jour » ne sont pas sur l'image. »), ou null s'ils ne se relisent pas. */
+function clesRefusees(message: string): Set<string> | null {
+  const bruts = [...message.matchAll(/«\s*([^»]+?)\s*»/g)].map((m) => m[1]!.replace(/\u00a0/g, " "));
+  const cles = new Set<string>();
+  for (const b of bruts) {
+    const lu = chiffresDe(b)[0];
+    if (!lu || lu.valeur === null) return null;
+    cles.add(cleDe(lu));
+  }
+  return cles.size ? cles : null;
 }
 
-/** Chiffres cités par un refus Q05 (« Écran e03 : « 12 », « 3 jour » ne sont pas sur l'image. »). */
-const chiffresRefuses = (message: string): string[] => [...message.matchAll(/«\s*([^»]+?)\s*»/g)].map((m) => m[1]!.replace(/\u00a0/g, " "));
+/** Phrases d'un texte, ponctuation et espaces conservés (coupe sur . ! ? … suivis d'une espace : « 2,5 h », « Pourquoi ? » ne sont pas coupés). */
+const phrasesGardees = (texte: string): string[] => texte.split(/(?<=[.!?…][*»)"']*)\s+(?=\S)/u).filter((p) => p.trim());
 
-/** Mots d'un texte sans les chiffres refusés (en chiffres ou en lettres), et rang (avant retrait) des mots disparus. */
-function sansChiffres(texte: string, motifs: RegExp[]): { texte: string; disparus: Set<number>; change: boolean } {
-  const entiers = motifs.map((m) => new RegExp(`^(?:${m.source})$`, "u"));
-  const jetons = texte.split(/\s+/).filter(Boolean);
-  const sortie: string[] = [];
+/**
+ * Texte sans les phrases qui portent un chiffre refusé (même clé valeur + unité, ou opérande d'un calcul) : la phrase entière
+ * part, jamais le nombre seul. `null` si une phrase à retirer (hors calcul) porte aussi un autre chiffre (il pourrait être de l'image) ou si
+ * le retrait casse une mise en valeur. `disparus` : rang (avant retrait) des mots dits retirés.
+ */
+function sansPhrases(texte: string, refusees: Set<string>): { texte: string; disparus: Set<number>; change: boolean } | null {
+  const phrases = phrasesGardees(texte);
+  const garde: string[] = [];
   const disparus = new Set<number>();
-  const rangDe = jetons.map((j, i) => jetons.slice(0, i).filter((x) => /[\p{L}\p{N}]/u.test(x)).length);
-  let change = false;
-  for (let i = 0; i < jetons.length; ) {
-    let pris = 0;
-    let fin = "";
-    for (let n = Math.min(6, jetons.length - i); n >= 1 && !pris; n--) {
-      const dernier = jetons[i + n - 1]!;
-      const queue = /[*,.;:!?…»)"']+$/.exec(dernier)?.[0] ?? "";
-      const span = [...jetons.slice(i, i + n - 1), dernier.slice(0, dernier.length - queue.length)].join(" ").replace(/^[*(«"']+/, "");
-      if (!span || !/[\p{L}\p{N}]/u.test(span)) continue;
-      const lu = texteAvecNombres(span).trim();
-      if (entiers.some((e) => e.test(span) || e.test(lu))) {
-        pris = n;
-        fin = queue.replace(/[^,.;:!?…]/g, "");
-      }
-    }
-    if (!pris) {
-      sortie.push(jetons[i]!);
-      i++;
-      continue;
-    }
-    change = true;
-    for (let k = i; k < i + pris; k++) if (/[\p{L}\p{N}]/u.test(jetons[k]!)) disparus.add(rangDe[k]!);
-    if (fin && sortie.length) sortie[sortie.length - 1] += fin;
-    i += pris;
+  let rang = 0;
+  for (const phrase of phrases) {
+    const mots = motsDits(phrase).length;
+    const { chiffres, calculs } = lectureChiffres(phrase);
+    // Opérande refusé d'un calcul : la phrase du calcul part en entier (jamais « 16 + = 20 »).
+    const calcul = calculs.some((v) => refusees.has(cleDe({ valeur: v, unite: "nombre" })));
+    const refusee = calcul || chiffres.some((c) => refusees.has(cleDe(c)));
+    // La lecture de « 2,5 h » rend « 2 » puis « 5 h » : l'entier d'un décimal ne compte pas comme un chiffre à part.
+    const entiersDecimaux = new Set([...phrase.matchAll(/(?<![\d.,])(\d+)[.,]\d/g)].map((m) => Number(m[1])));
+    const autres = chiffres.some((c) => !refusees.has(cleDe(c)) && !(c.unite === "nombre" && entiersDecimaux.has(c.valeur!)));
+    if (refusee && !calcul && autres) return null;
+    if (refusee) for (let k = 0; k < mots; k++) disparus.add(rang + k);
+    else garde.push(phrase);
+    rang += mots;
   }
-  const propre = sortie
-    .join(" ")
-    .replace(/\*\s*\*/g, "")
-    .replace(/\s+([,.;:!?…])/g, "$1")
-    .replace(/^[\s,;:]+/, "")
-    .trim();
-  return { texte: propre, disparus, change };
+  if (!disparus.size) return { texte, disparus, change: false };
+  const propre = garde.join(" ");
+  if ((propre.match(/\*/g) ?? []).length % 2) return null;
+  return { texte: propre, disparus, change: true };
 }
 
 /**
@@ -311,21 +298,23 @@ function reparerChiffresHorsImage(brute: unknown, ctx: ContexteRegles): { fiche:
   const retires: string[] = [];
   for (const m of refusees) {
     const ecran = fiche.ecrans.find((e) => e.id === m.ecranId);
-    const bruts = chiffresRefuses(m.message);
-    const motifs = bruts.map(motifChiffre);
-    if (!ecran || !bruts.length || motifs.some((x) => !x)) return null;
-    const re = motifs as RegExp[];
-    const dit = sansChiffres(ecran.texteDit, re);
-    ecran.texteDit = dit.texte;
+    const cles = clesRefusees(m.message);
+    if (!ecran || !cles) return null;
+    const dit = sansPhrases(ecran.texteDit, cles);
+    if (!dit) return null;
+    const lignes = ecran.textesEcran.map((t) => sansPhrases(t, cles));
+    if (lignes.some((l) => !l)) return null;
+    if (!dit.change && !lignes.some((l) => l!.change)) return null;
+    // Un écran ne reste jamais sans texte dit : on ne répare pas, le refus actuel s'applique.
+    if (dit.change && !motsDits(dit.texte).length) return null;
     // Les mots restants gardent leur animation, décalée du nombre de mots retirés avant eux ; celle d'un mot retiré tombe.
-    const total = motsDits(forme.data.ecrans.find((e) => e.id === m.ecranId)!.texteDit).length;
+    const total = motsDits(ecran.texteDit).length;
     const rang = new Map<number, number>();
     for (let i = 0, j = 0; i < total; i++) if (!dit.disparus.has(i)) rang.set(i, j++);
     ecran.surMot = ecran.surMot.filter((s) => rang.has(s.mot)).map((s) => ({ ...s, mot: rang.get(s.mot)! }));
-    ecran.textesEcran = ecran.textesEcran.map((t) => sansChiffres(t, re).texte).filter((t) => /[\p{L}\p{N}]/u.test(t));
-    const ecrits = forme.data.ecrans.find((e) => e.id === m.ecranId)!.textesEcran;
-    if (!dit.change && !ecrits.some((t, i) => ecran.textesEcran[i] !== t)) return null;
-    for (const b of bruts) retires.push(`${b} (écran ${ecran.id})`);
+    ecran.texteDit = dit.texte;
+    ecran.textesEcran = lignes.map((l) => l!.texte).filter((t) => /[\p{L}\p{N}]/u.test(t));
+    for (const c of cles) retires.push(`${c.split("|")[0]} (écran ${ecran.id})`);
   }
   const jugement = jugerFicheIV(fiche, ctx);
   return jugement.ok ? { fiche: jugement.fiche, verdict: jugement.verdict, retires } : null;
@@ -355,6 +344,8 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
   /** Dernière fiche lue mais refusée : gardée pour la réparation sans appel après le dernier essai. */
   let derniere: unknown;
   let appels = 0;
+  /** Simulation de la dernière réponse reçue (la réparation sans appel la garde). */
+  let simule = false;
   let coutUsd: number | undefined;
   for (let essai = 1; essai <= APPELS_ECRITURE_MAX; essai++) {
     const entreeRole: EntreeRole = { contexte, variable };
@@ -365,6 +356,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
     appels++;
     const reponse = await outils.appeler(role, entreeRole);
     if (!reponse.ok) return { ok: false, motif: "appel", message: `Écriture interrompue : ${reponse.message}`, refus, appels };
+    simule = reponse.simule;
     if (reponse.coutUsd !== undefined) coutUsd = (coutUsd ?? 0) + reponse.coutUsd;
 
     if (reponse.stopReason === "max_tokens") {
@@ -395,7 +387,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
     const remarque = `Chiffres retirés (hors de l'image) : ${reparee.retires.join(", ")}.`;
     const verdict = { ...reparee.verdict, marques: [...reparee.verdict.marques, remarque] };
     const aTrancher = aTrancherParWill(verdict);
-    const commun = { fiche: reparee.fiche, verdict, aTrancher, appels, relance: appels > 1, simule: false, ...(coutUsd !== undefined ? { coutUsd } : {}) };
+    const commun = { fiche: reparee.fiche, verdict, aTrancher, appels, relance: appels > 1, simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
     if (!verdict.ok) {
       const refusWill = verdict.manquements.map((m) => m.message);
       return { ok: false, motif: "a-trancher", message: `Script écrit : ${refusWill.length} point(s) à trancher par Will avant validation.`, refus: refusWill, ...commun };
