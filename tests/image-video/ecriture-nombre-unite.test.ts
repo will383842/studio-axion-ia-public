@@ -30,8 +30,7 @@ describe("nombre sans unité sur l'image", () => {
     f.ecrans[0]!.surMot = [{ mot: 0, action: "apparait" }];
     return f;
   };
-  const q05 = (f: FicheImage) => verifierScript(normaliserNombresUnite(f, carte), { carte }).manquements.filter((m) => m.regle === "Q05").map((m) => m.message);
-  const ecran1 = "Écran e01 : « 45 jour » n'est pas sur l'image.";
+  const q05 = (f: FicheImage) => verifierScript(normaliserNombresUnite(f, { carte }), { carte }).manquements.filter((m) => m.regle === "Q05").map((m) => m.message);
 
   it("règle Q05 : 45 jours accepté, 46 jours refusé, 25 personnes accepté", () => {
     expect(q05(avec("Facturer en douze jours, au lieu de 45 jours.")).filter((m) => m.startsWith("Écran e01"))).toEqual([]);
@@ -40,18 +39,47 @@ describe("nombre sans unité sur l'image", () => {
     // sans la normalisation, le refus de production est bien reproduit
     const brut = verifierScript(avec("Facturer en douze jours, au lieu de 45 jours."), { carte }).manquements.map((m) => m.message);
     expect(brut.some((m) => m.includes("45 jour"))).toBe(true);
-    expect(ecran1).toContain("45 jour");
   });
 
   it("le rang des mots surlignés est recalé", () => {
     const f = avec("Avant 45 jours encore payer");
     f.ecrans[0]!.surMot = [{ mot: 3, action: "apparait" }];
-    expect(normaliserNombresUnite(f, carte).ecrans[0]!.surMot[0]!.mot).toBe(2);
+    expect(normaliserNombresUnite(f, { carte }).ecrans[0]!.surMot[0]!.mot).toBe(2);
   });
 
   it("jugerFicheIV renvoie la fiche normalisée", () => {
     const r = jugerFicheIV(avec("Avant, 45 jours."), { carte });
-    const dit = r.ok ? r.fiche.ecrans[0]!.texteDit : (r.refus.join("|"));
-    expect(dit.includes("45 jours") || dit.includes("45 jour")).toBe(false);
+    if (r.ok) expect(r.fiche.ecrans[0]!.texteDit).toContain("Avant, 45.");
+    else expect(r.refus.filter((m) => m.includes("Q05") && m.includes("e01"))).toEqual([]);
+  });
+
+  const refusE01 = (c: CarteImage, dit: string) => verifierScript(normaliserNombresUnite(avec(dit), { carte: c }), { carte: c }).manquements.filter((m) => m.regle === "Q05" && m.message.startsWith("Écran e01"));
+
+  it("un nombre seul n'efface l'unité que si le titre porte une autre unité de temps", () => {
+    const clients: CarteImage = { ...carteD, titre: "45 clients relancés chaque mois", sousTitre: "Une PME de 25 personnes." };
+    expect(sansUniteAbsenteDeLImage("Relances en 45 jours.", clients).texte).toBe("Relances en 45 jours.");
+    expect(refusE01(clients, "Relances en 45 jours.")).toHaveLength(1);
+    const heures: CarteImage = { ...carteD, titre: "45 heures gagnées", sousTitre: "Une PME de 45 salariés." };
+    expect(sansUniteAbsenteDeLImage("En 45 jours tout change.", heures).texte).toBe("En 45 jours tout change.");
+  });
+
+  it("le mot retiré est celui de l'unité du chiffre", () => {
+    expect(sansUniteAbsenteDeLImage("Avant, 12 jours au lieu de 45 heures.", carte).texte).toBe("Avant, 12 jours au lieu de 45 heures.");
+    expect(refusE01(carte, "Facturer en 12 jours au lieu de 45 heures.")).toHaveLength(1);
+    const minutes: CarteImage = { ...carteD, titre: "Facturer en 12 jours au lieu de 45", sousTitre: "" };
+    expect(refusE01(minutes, "Facturer en 45 minutes au lieu de 12 jours.").length).toBeGreaterThan(0);
+    expect(sansUniteAbsenteDeLImage("45 minutes au lieu de 12 jours", minutes).texte).toBe("45 minutes au lieu de 12 jours");
+  });
+
+  it("le cas exact « 12 jours au lieu de 45 jours » reste accepté, 46 jours refusé", () => {
+    expect(sansUniteAbsenteDeLImage("Facturer en 12 jours au lieu de 45 jours.", carte).texte).toBe("Facturer en 12 jours au lieu de 45.");
+    expect(refusE01(carte, "Facturer en 12 jours au lieu de 45 jours.")).toEqual([]);
+    expect(refusE01(carte, "Facturer en 12 jours au lieu de 46 jours.")).toHaveLength(1);
+  });
+
+  it("un « 45 jours » ajouté par Will reste tel quel", () => {
+    expect(sansUniteAbsenteDeLImage("Avant, 45 jours.", carte, ["45 jours"]).texte).toBe("Avant, 45 jours.");
+    const f = normaliserNombresUnite(avec("Avant, 45 jours."), { carte, ajoutsWill: ["45 jours"] });
+    expect(f.ecrans[0]!.texteDit).toBe("Avant, 45 jours.");
   });
 });
