@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { FicheImage } from "@/domaine/image-video/fiche";
-import { ecransEnDefautIV, ESSAIS_ADAPTATION_IV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "@/moteurs/montage-image-video/adaptation-scene";
+import { ecransEnDefautIV, ESSAIS_ADAPTATION_IV, ficheAdapteeIV, LIGNES_ZERO_BLOCAGE_IV, mettreEnSceneAvecFiletIV } from "@/moteurs/montage-image-video/adaptation-scene";
 import type { ResultatMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 
 const bloquant = (code: string, phrase: string) => ({ code, ok: false, bloquant: true, phrase, details: [phrase] });
@@ -73,10 +73,27 @@ describe("filet zéro blocage de la mise en scène", () => {
     expect(issue.journal.at(-1)).toMatch(/la vidéo continue/);
   });
 
-  it("un défaut Q12 (bloc dessiné manquant) garde le refus, même mêlé à un défaut de détail", () => {
-    const issue = mettreEnSceneAvecFiletIV(() => resultat([["Q12", "Il manque quelque chose à l'écran : le bloc « A » n'apparaît jamais."], ["Q13", "Chiffre dit mais pas montré"]]));
+  it("un défaut hors liste zéro blocage garde le refus, même mêlé à un défaut de détail", () => {
+    const issue = mettreEnSceneAvecFiletIV(() => resultat([["Q01", "Défaut hors liste."], ["Q13", "Chiffre dit mais pas montré"]]));
     expect(issue.refus).toHaveLength(2);
     expect(issue.adaptes).toEqual([]);
+  });
+
+  it.each(["Q12", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q25", "Q27", "FOND", "ORANGE", "FIN", "SCENE"])("un défaut %s à la mise en scène : la vidéo continue (défaut gardé), aucun refus", (code) => {
+    const issue = mettreEnSceneAvecFiletIV(() => resultat([[code, `Défaut ${code}`], ["Q13", "Chiffre dit mais pas montré"]]));
+    expect(issue.refus).toEqual([]);
+    expect(issue.gardes).toEqual([`Défaut ${code}`, "Chiffre dit mais pas montré"]);
+    expect(LIGNES_ZERO_BLOCAGE_IV).toContain(code);
+  });
+
+  it("un défaut Q21 seul ou FOND seul : vidéo prête, la boucle d'adaptation ne touche aucun écran (la ligne de temps ne change pas)", () => {
+    for (const code of ["Q21", "FOND"]) {
+      const appels: (readonly string[])[] = [];
+      const issue = mettreEnSceneAvecFiletIV((a) => { appels.push(a); return resultat([[code, `Défaut ${code}`]]); });
+      expect(issue.refus).toEqual([]);
+      expect(issue.adaptes).toEqual([]);
+      expect(appels).toHaveLength(1);
+    }
   });
 
   it("une adaptation qui FAIT APPARAÎTRE un Q12 est annulée : la vidéo continue avec le résultat d'avant", () => {

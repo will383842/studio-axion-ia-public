@@ -141,6 +141,8 @@ export interface OptionsMonde {
   /** Le n-ième rendu soumis (à partir de 1) est encore en cours. */
   rendusEnCours?: number[];
   cartesValidees?: number;
+  /** Mesures du fichier final que le rendu NE rend PAS (rendu impossible à juger : Q24 « non mesuré », bloquant). */
+  sansMesureFichier?: string[];
   /** Voix plus lente (0,30 s par mot, 0,45 s après une phrase) : les vidéos longues dépassent les plafonds courts. */
   voixLente?: boolean;
   /** Mesure de ressemblance rendue pour la n-ième mesure (à partir de 1) ; défaut : la référence, mesure version 2. */
@@ -287,7 +289,7 @@ export function outilsSimules(carte: CarteImage, m: Monde, o: OptionsMonde = {})
       if (o.rendusEnCours?.includes(rendu)) throw new RenduEnCoursIV("Le rendu");
       m.rendus.push(d);
       // Cadre du fichier : celui de la ligne (1080 × 1350 pour une version 4:5).
-      return { cle: `final/${d.version}.mp4`, empreinte: `octets-${d.id}`, dureeSec: d.ligne.dureeSec, mesures: { ...MESURES_FICHIER, largeur: d.ligne.largeur, hauteur: d.ligne.hauteur } };
+      return { cle: `final/${d.version}.mp4`, empreinte: `octets-${d.id}`, dureeSec: d.ligne.dureeSec, mesures: Object.fromEntries(Object.entries({ ...MESURES_FICHIER, largeur: d.ligne.largeur, hauteur: d.ligne.hauteur }).filter(([k]) => !o.sansMesureFichier?.includes(k))) };
     },
     controles: {
       lireSon: async (cle) => m.sons.get(cle) ?? null,

@@ -153,17 +153,17 @@ describe("bout en bout en simulation, avec les arrêts « carte » et « script 
   }
 
   for (const [nom, defaut] of Object.entries(REFUS_Q21) as [(typeof IMAGES)[number], RegExp][]) {
-    it(`${nom} : refusée par la mise en page (Q21) avant toute écoute ou relecture, chaque appel payant réservé, plafond tenu`, async () => {
+    // 25/10/2026 : la mise en page (Q21) n'est plus qu'une remarque ; la vidéo sort prête, écoute et relecture faites.
+    it(`${nom} : prête avec une remarque de mise en page (Q21), chaque appel payant réservé, plafond tenu`, async () => {
       const { m, o, e } = demarrer(nom);
       const { etat, arrets } = await jusquAuBout(e, o);
       expect(arrets).toEqual(["carte", "script"]);
-      expect(etat.etape).toBe("refusee");
-      expect(etat.refus?.code).toBe("IV_CONTROLES");
-      const phrases = etat.refus?.phrases ?? [];
-      expect(phrases.some((p) => defaut.test(p))).toBe(true);
-      // Les seuls défauts constatés sont de mise en page ; le reste attend l'écoute (non lancée : rien de payé pour rien).
-      expect(phrases.filter((p) => !/\(non vérifié\)/.test(p) && !/Mise en page/.test(p))).toEqual([]);
-      expect(m.ordre.filter((x) => x === "transcription" || /relecture/.test(x))).toEqual([]);
+      expect(etat.refus).toBeUndefined();
+      expect(etat.etape).toBe("prete");
+      const mentions = etat.controles?.verdict.mentions ?? [];
+      expect(mentions.some((p) => defaut.test(p))).toBe(true);
+      expect(mentions.some((p) => /Mise en page/.test(p))).toBe(true);
+      expect(m.appelsClaude.some((a) => a.role === "relecture-finale-iv")).toBe(true);
       chaqueAppelReserve(m);
       expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
     });
