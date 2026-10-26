@@ -19,8 +19,14 @@ describe("consigne API · variété L7", () => {
     const e = ["a", "b"].map((x, k) => ({ suite: `T01 T0${k} T21`, couverture: `T01${k ? "B" : ""}:${x}` }));
     const c = consigneApi("preuve", e);
     expect(c).toContain(consigneTrame("preuve"));
-    expect(c).toContain("modèle de couverture (T01, T01B)");
+    expect(c).toContain("modèle de couverture des derniers carrousels (T01, T01B)");
     expect(c).not.toContain("suite de pages");
     expect(c).not.toContain("T01 T00 T21");
+  });
+  it("intention eveil : T01 imposé par la trame n'est pas à éviter", () => {
+    const c = consigneApi("eveil", [{ suite: "T01 T02 T21", couverture: "T01:x" }]);
+    expect(c).toBe(consigneApi("eveil"));
+    expect(c).not.toContain("couverture (T01");
+    expect(c).not.toContain("Variété");
   });
 });
