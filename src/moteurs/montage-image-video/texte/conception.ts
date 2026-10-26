@@ -130,7 +130,9 @@ export function carteDeConception(l: LectureImage, texte: string): CarteImage {
       ...(n.groupe ? { groupe: n.groupe } : {}),
       ...(n.quantite !== null && n.quantite > 0 ? { quantite: n.quantite } : {}),
       ...(n.sousElements.length ? { sousElements: n.sousElements.map(net).filter(Boolean) } : {}),
-      ...(n.exemple ? { exemple: true } : {}),
+      // Pas de drapeau « exemple » par nœud en mode texte : la garde « nom d'exemple » (regles.ts) prenait les mots
+      // à majuscule d'un texte libre (« Un », « Le »…) pour des noms propres et arrêtait toute vidéo en IV_ECRITURE
+      // (27/10). La mention « exemple » du pied et le contrôle du faux client (Q08) restent en place.
     })),
     liens: l.liens.map((x) => ({ id: x.id, de: x.de, vers: x.vers, couleur: x.couleur, style: x.style, ...(net(x.etiquette) ? { etiquette: net(x.etiquette) } : {}), ...(x.part !== null && x.part > 0 ? { part: x.part } : {}) })),
     groupes: l.groupes.map((g) => ({ id: g.id, sorte: g.sorte, noeuds: [...g.noeuds], ...(net(g.titre) ? { titre: net(g.titre) } : {}), ...(g.majoritaire ? { majoritaire: true } : {}) })),
