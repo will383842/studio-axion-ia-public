@@ -14,10 +14,10 @@
  */
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, DEBIT_MOTS_PAR_SEC, type ComplexiteCarte } from "@/domaine/image-video/complexite";
-import { FAMILLES_ACCROCHE, PARTIES, SCENES, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
+import { FAMILLES_ACCROCHE, PARTIES, SCENES, motsDits, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
-import { APPELS_ECRITURE_MAX, MAX_TOKENS_ECRITURE } from "./emprunts";
+import { APPELS_ECRITURE_MAX, MAX_TOKENS_ECRITURE, texteAvecNombres } from "./emprunts";
 import { ficheSimulee, ficheSimuleeRecit } from "./ecriture.simulation";
 import { ANNONCE_SITUATION_TYPE, ETIQUETTE_SITUATION_TYPE, PARCOURS_RECIT, RECETTES, annonceAttendue, lireDecoupage, scenesPermises, type CodeRecit } from "./recettes";
 import {
@@ -231,6 +231,106 @@ export function jugerFicheIV(brute: unknown, ctx: ContexteRegles): { ok: true; f
   return aCorriger.length ? { ok: false, refus: aCorriger.map((m) => m.message) } : { ok: true, fiche: forme.data, verdict };
 }
 
+// ─── Réparation sans appel : chiffre refusé hors image (Q05) ───────────────────────────────────────────────────────────
+
+const ECHAPPE = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** L'unité telle que `regles.ts` la rend dans son message → ce qu'on lit vraiment dans le texte (« 12 jour » ↔ « 12 jours »). */
+const UNITES_LUES: ReadonlyArray<[string, string]> = [
+  [" jour", "\\s*jours?"],
+  [" min", "\\s*min\\p{L}*"],
+  [" h", "\\s*(?:h|heures?)"],
+  [" s", "\\s*(?:s|sec\\p{L}*)"],
+  [" €", "\\s*(?:€|euros?)"],
+  [" %", "\\s*%"],
+];
+
+/** Motif d'un chiffre refusé (« 12 », « 3 jour », « 2,5 h »), ou null s'il n'est pas lisible comme un nombre. */
+function motifChiffre(brut: string): RegExp | null {
+  if (!/^\d/.test(brut)) return null;
+  const unite = UNITES_LUES.find(([u]) => brut.endsWith(u));
+  const nombre = unite ? brut.slice(0, -unite[0].length) : brut;
+  const corps = ECHAPPE(nombre).replace(/\\[,.]|[,.]/g, "[.,]").replace(/ /g, "\\s*");
+  return new RegExp(`(?<![\\p{L}\\p{N}.,])${corps}${unite ? unite[1] : ""}(?![\\p{L}\\p{N}])`, "gu");
+}
+
+/** Chiffres cités par un refus Q05 (« Écran e03 : « 12 », « 3 jour » ne sont pas sur l'image. »). */
+const chiffresRefuses = (message: string): string[] => [...message.matchAll(/«\s*([^»]+?)\s*»/g)].map((m) => m[1]!.replace(/\u00a0/g, " "));
+
+/** Mots d'un texte sans les chiffres refusés (en chiffres ou en lettres), et rang (avant retrait) des mots disparus. */
+function sansChiffres(texte: string, motifs: RegExp[]): { texte: string; disparus: Set<number>; change: boolean } {
+  const entiers = motifs.map((m) => new RegExp(`^(?:${m.source})$`, "u"));
+  const jetons = texte.split(/\s+/).filter(Boolean);
+  const sortie: string[] = [];
+  const disparus = new Set<number>();
+  const rangDe = jetons.map((j, i) => jetons.slice(0, i).filter((x) => /[\p{L}\p{N}]/u.test(x)).length);
+  let change = false;
+  for (let i = 0; i < jetons.length; ) {
+    let pris = 0;
+    let fin = "";
+    for (let n = Math.min(6, jetons.length - i); n >= 1 && !pris; n--) {
+      const dernier = jetons[i + n - 1]!;
+      const queue = /[*,.;:!?…»)"']+$/.exec(dernier)?.[0] ?? "";
+      const span = [...jetons.slice(i, i + n - 1), dernier.slice(0, dernier.length - queue.length)].join(" ").replace(/^[*(«"']+/, "");
+      if (!span || !/[\p{L}\p{N}]/u.test(span)) continue;
+      const lu = texteAvecNombres(span).trim();
+      if (entiers.some((e) => e.test(span) || e.test(lu))) {
+        pris = n;
+        fin = queue.replace(/[^,.;:!?…]/g, "");
+      }
+    }
+    if (!pris) {
+      sortie.push(jetons[i]!);
+      i++;
+      continue;
+    }
+    change = true;
+    for (let k = i; k < i + pris; k++) if (/[\p{L}\p{N}]/u.test(jetons[k]!)) disparus.add(rangDe[k]!);
+    if (fin && sortie.length) sortie[sortie.length - 1] += fin;
+    i += pris;
+  }
+  const propre = sortie
+    .join(" ")
+    .replace(/\*\s*\*/g, "")
+    .replace(/\s+([,.;:!?…])/g, "$1")
+    .replace(/^[\s,;:]+/, "")
+    .trim();
+  return { texte: propre, disparus, change };
+}
+
+/**
+ * Tous les refus restants sont des chiffres hors image (Q05) sur des écrans : on les retire de la fiche, sans appel payant,
+ * puis on rejuge. `null` si les refus sont d'une autre nature ou si la fiche réparée ne passe pas.
+ */
+function reparerChiffresHorsImage(brute: unknown, ctx: ContexteRegles): { fiche: FicheImage; verdict: VerdictScript; retires: string[] } | null {
+  const forme = schemaFicheImage.safeParse(brute);
+  if (!forme.success) return null;
+  const refusees = aCorrigerParClaude(verifierScript(forme.data, ctx));
+  if (!refusees.length || !refusees.every((m) => m.regle === "Q05" && m.ecranId && m.message.includes("pas sur l'image"))) return null;
+
+  const fiche = structuredClone(forme.data);
+  const retires: string[] = [];
+  for (const m of refusees) {
+    const ecran = fiche.ecrans.find((e) => e.id === m.ecranId);
+    const bruts = chiffresRefuses(m.message);
+    const motifs = bruts.map(motifChiffre);
+    if (!ecran || !bruts.length || motifs.some((x) => !x)) return null;
+    const re = motifs as RegExp[];
+    const dit = sansChiffres(ecran.texteDit, re);
+    ecran.texteDit = dit.texte;
+    // Les mots restants gardent leur animation, décalée du nombre de mots retirés avant eux ; celle d'un mot retiré tombe.
+    const total = motsDits(forme.data.ecrans.find((e) => e.id === m.ecranId)!.texteDit).length;
+    const rang = new Map<number, number>();
+    for (let i = 0, j = 0; i < total; i++) if (!dit.disparus.has(i)) rang.set(i, j++);
+    ecran.surMot = ecran.surMot.filter((s) => rang.has(s.mot)).map((s) => ({ ...s, mot: rang.get(s.mot)! }));
+    ecran.textesEcran = ecran.textesEcran.map((t) => sansChiffres(t, re).texte).filter((t) => /[\p{L}\p{N}]/u.test(t));
+    const ecrits = forme.data.ecrans.find((e) => e.id === m.ecranId)!.textesEcran;
+    if (!dit.change && !ecrits.some((t, i) => ecran.textesEcran[i] !== t)) return null;
+    for (const b of bruts) retires.push(`${b} (écran ${ecran.id})`);
+  }
+  const jugement = jugerFicheIV(fiche, ctx);
+  return jugement.ok ? { fiche: jugement.fiche, verdict: jugement.verdict, retires } : null;
+}
+
 /**
  * Écrit le script d'une carte validée. Au plus 2 appels, chacun précédé de sa réservation. `ok: false` : la main
  * revient à Will avec les refus en français ; aucun appel si le réglage est refusé.
@@ -252,6 +352,8 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
 
   let variable = base;
   let refus: string[] = [];
+  /** Dernière fiche lue mais refusée : gardée pour la réparation sans appel après le dernier essai. */
+  let derniere: unknown;
   let appels = 0;
   let coutUsd: number | undefined;
   for (let essai = 1; essai <= APPELS_ECRITURE_MAX; essai++) {
@@ -267,6 +369,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
 
     if (reponse.stopReason === "max_tokens") {
       refus = [REPONSE_COUPEE];
+      derniere = undefined;
       variable = variableRelanceIV(base, "(réponse coupée, non reprise)", refus);
       continue;
     }
@@ -283,7 +386,21 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
       return { ok: true, ...commun };
     }
     refus = jugement.refus;
+    derniere = lecture.ok ? lecture.brute : undefined;
     variable = variableRelanceIV(base, lecture.texte, refus);
+  }
+  // Jamais d'impasse : chiffres hors image seuls en cause → on les retire (sans appel) et on rejuge.
+  const reparee = derniere === undefined ? null : reparerChiffresHorsImage(derniere, ctx);
+  if (reparee) {
+    const remarque = `Chiffres retirés (hors de l'image) : ${reparee.retires.join(", ")}.`;
+    const verdict = { ...reparee.verdict, marques: [...reparee.verdict.marques, remarque] };
+    const aTrancher = aTrancherParWill(verdict);
+    const commun = { fiche: reparee.fiche, verdict, aTrancher, appels, relance: appels > 1, simule: false, ...(coutUsd !== undefined ? { coutUsd } : {}) };
+    if (!verdict.ok) {
+      const refusWill = verdict.manquements.map((m) => m.message);
+      return { ok: false, motif: "a-trancher", message: `Script écrit : ${refusWill.length} point(s) à trancher par Will avant validation.`, refus: refusWill, ...commun };
+    }
+    return { ok: true, ...commun };
   }
   return { ok: false, motif: "refusee", message: `${DEBUT_REFUS_ECRITURE} après ${APPELS_ECRITURE_MAX} essais (${refus.length} refus) : à reprendre à la main.`, refus, appels };
 }

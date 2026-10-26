@@ -222,7 +222,7 @@ describe("Q05 · rien d'inventé (priorité 4) et ajouts de Will", () => {
     const f = copie(fiches.D);
     f.accroches[1].texteDit = "Trente e-mails ce matin.";
     f.questionCommentaire.texteDit = "Et vous, combien en recevez-vous, cinquante ?";
-    f.ecrans[0]!.textesEcran = ["*25* e-mails"];
+    f.ecrans[0]!.textesEcran = ["25 e-mails"];
     const v = verifierScript(f, ctx("D"));
     const q05 = v.manquements.filter((m) => m.regle === "Q05").map((m) => m.message);
     expect(q05).toEqual(["Écran e01 : « 25 » n'est pas sur l'image.", "Accroche B : « 30 » n'est pas sur l'image.", "Question de commentaire : « 50 » n'est pas sur l'image."]);
@@ -627,5 +627,61 @@ describe("écriture (simulation)", () => {
     await ecrireScriptIV(entree("B"), o);
     expect(espion).not.toHaveBeenCalled();
     espion.mockRestore();
+  });
+});
+
+describe("écriture sans impasse : chiffre hors image retiré sans appel", () => {
+  const refusee = (f: FicheImage): ReponseAppelIV => ({ ok: true, simule: true, donnees: f });
+  const deuxFois = (f: FicheImage) => outils([refusee(f), refusee(f)]);
+  const verifier = (f: FicheImage) => verifierScript(f, ctx("D")).manquements.filter((m) => m.regle === "Q05").length;
+
+  const e14 = (f: FicheImage) => f.ecrans.find((x) => x.id === "e14")!;
+  const fautif = (dit: string, ecran: string) => avecTexte(fiches.D, "e14", `Deux heures récupérées par jour. ${dit}`, [...e14(fiches.D).textesEcran, ecran]);
+
+  it("un chiffre nu hors image (dit en lettres, écrit en chiffres) est retiré, le script passe, sans appel de plus", async () => {
+    const f = fautif("Vingt-cinq e-mails en moins.", "25 e-mails");
+    expect(verifier(f)).toBe(1);
+    const { o, j } = deuxFois(f);
+    const r = await ecrireScriptIV(entree("D"), o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(j.appels).toHaveLength(APPELS_ECRITURE_MAX);
+    expect(r.appels).toBe(APPELS_ECRITURE_MAX);
+    expect(e14(r.fiche).texteDit).toBe("Deux heures récupérées par jour. e-mails en moins.");
+    expect(e14(r.fiche).textesEcran.join(" ")).not.toMatch(/25/);
+    expect(r.verdict.ok).toBe(true);
+    expect(r.verdict.marques.some((m) => m.includes("Chiffres retirés") && m.includes("25") && m.includes("e14"))).toBe(true);
+  });
+
+  it("un chiffre avec unité (« 25 jours ») est retiré avec son unité", async () => {
+    const f = fautif("Vingt-cinq jours de retard en moins.", "25 jours de retard");
+    const { o } = deuxFois(f);
+    const r = await ecrireScriptIV(entree("D"), o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(e14(r.fiche).texteDit).toBe("Deux heures récupérées par jour. de retard en moins.");
+    expect(e14(r.fiche).textesEcran.join(" ")).not.toMatch(/25|jours/);
+  });
+
+  it("un chiffre présent sur l'image n'est pas touché : script accepté tel quel", async () => {
+    const { o, j } = outils(["simulation"]);
+    const r = await ecrireScriptIV(entree("D"), o);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.fiche).toEqual(FICHES_SIMULEES["essai-d"]);
+      expect(r.verdict.marques.some((m) => m.includes("Chiffres retirés"))).toBe(false);
+    }
+    expect(j.appels).toHaveLength(1);
+  });
+
+  it("un refus d'une autre règle reste refusé", async () => {
+    const f = fautif("Vingt-cinq e-mails en moins.", "25 e-mails");
+    f.questionCommentaire.texteDit = "Et vous, combien en recevez-vous, cinquante ?";
+    const mixte = outils([refusee(f), refusee(f)]);
+    expect(await ecrireScriptIV(entree("D"), mixte.o)).toMatchObject({ ok: false, motif: "refusee", appels: APPELS_ECRITURE_MAX });
+    const autre = avecTexte(fiches.C, "e08", "Il l'écrit, il l'envoie tout de suite.");
+    const { o, j } = outils([refusee(autre), refusee(autre)]);
+    expect(await ecrireScriptIV(entree("C"), o)).toMatchObject({ ok: false, motif: "refusee", appels: APPELS_ECRITURE_MAX });
+    expect(j.appels).toHaveLength(APPELS_ECRITURE_MAX);
   });
 });
