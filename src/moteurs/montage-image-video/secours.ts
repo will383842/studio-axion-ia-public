@@ -36,6 +36,8 @@ import type { EtatVoixIV, SegmentFinIV } from "./voix";
 /** Chaîne de secours d'un réseau : la ligne habituelle, ses remplaçantes dans l'ordre (banque commune), puis le repli. */
 export interface ChaineDeSecoursIV {
   remplace: string;
+  /** Lignes de la fin du 26/10/2026 qui disent la même phrase habituelle : la chaîne s'y applique aussi. */
+  aussi?: readonly string[];
   chaine: readonly string[];
   /** Réseau dont la version est reprise, sans lecture, quand toute la chaîne a été refusée. */
   repli?: ReseauIV;
@@ -49,7 +51,7 @@ export interface ChaineDeSecoursIV {
 export const FINS_DE_SECOURS_IV: Readonly<Partial<Record<ReseauIV, Readonly<ChaineDeSecoursIV>>>> = Object.freeze({
   facebook: Object.freeze({ remplace: "fin-fb-lien-commentaire", chaine: Object.freeze(["fin-fb-lien-premier-commentaire", "fin-fb-lien-sous-video"]), repli: "instagram" as const, lien: "premier-commentaire" as const }),
   // 19/10 : Instagram et Shorts disent la même fin (même lecture) ; chacun a sa ligne (écran propre), sans repli.
-  instagram: Object.freeze({ remplace: "fin-ig-lien-profil", chaine: Object.freeze(["fin-ig-lien-profil-secours"]), lien: "profil" as const }),
+  instagram: Object.freeze({ remplace: "fin-ig-lien-profil", aussi: Object.freeze(["fin-iv-lien-profil"]), chaine: Object.freeze(["fin-ig-lien-profil-secours"]), lien: "profil" as const }),
   "youtube-shorts": Object.freeze({ remplace: "fin-ty-lien-profil", chaine: Object.freeze(["fin-ys-lien-profil-secours"]), lien: "profil" as const }),
 });
 
@@ -118,10 +120,10 @@ export function etapeDeSecoursIV(plan: Pick<PlanDesFinsIV, "fins">, finId: strin
   if (!f || f.muet || f.repli || !f.reseaux.length) return null;
   const s = FINS_DE_SECOURS_IV[f.reseaux[0]];
   if (!s || f.reseaux.some((r) => FINS_DE_SECOURS_IV[r] !== s)) return null;
-  const i = f.appels.findIndex((a) => a.id === s.remplace || s.chaine.includes(a.id));
+  const i = f.appels.findIndex((a) => a.id === s.remplace || s.aussi?.includes(a.id) || s.chaine.includes(a.id));
   if (i < 0) return null;
   // Rang dans la chaîne : 0 = fin habituelle ; k = k-ième fin de secours (déjà posée, donc déjà lue ou à lire).
-  const rang = f.appels[i].id === s.remplace ? 0 : s.chaine.indexOf(f.appels[i].id) + 1;
+  const rang = f.appels[i].id === s.remplace || s.aussi?.includes(f.appels[i].id) ? 0 : s.chaine.indexOf(f.appels[i].id) + 1;
   if (rang > 0 !== !!f.secours) return null;
   if (rang < s.chaine.length) {
     const par = s.chaine[rang];

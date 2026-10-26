@@ -2,8 +2,9 @@
  * IMAGE → VIDÉO · Textes de publication des 5 réseaux (plan 50 § 6). PUR.
  *
  * Facebook, Instagram, TikTok, YouTube Shorts : adaptateur vers `textesDePublication` du cas concret (emprunté).
- * LinkedIn : la vidéo est muette à la fin, donc la question propre à l'image ET la phrase du lien sont dans le texte du
- * post, le lien dans le premier commentaire (posé à la main), jamais de « commentez ».
+ * LinkedIn (depuis le 26/10/2026) : la vidéo dit et affiche la fin comme les autres réseaux ; le texte du post la reprend
+ * et le lien est dans le premier commentaire (posé à la main), jamais de « commentez ». Seul le plan d'une vidéo faite avant
+ * (LinkedIn muet) garde l'ancien texte, où la question propre à l'image ET la phrase du lien sont dans le post.
  * Les interdits sont contrôlés sur le texte du post ET sur le premier commentaire.
  */
 import {
@@ -17,10 +18,12 @@ import {
   type PlanDesFins,
 } from "./emprunts";
 import { RESEAUX_IV_HISTORIQUE, type ReseauIV } from "@/domaine/image-video/plafonds";
-import type { PlanDesFinsIV } from "./fins";
+import { sorteDuPlanIV, type PlanDesFinsIV } from "./fins";
 import { FINS_DE_SECOURS_IV, phraseDeRepliIV } from "./secours";
 
 export const TITRE_SHORTS_MAX = 60;
+/** Premier commentaire de la fin « Tour de France IA » (le lien suivi mène à la page du Tour). */
+export const premierCommentaireTour = (lien: string): string => `Le Tour de France IA : ${lien}`;
 const PHRASE_LIEN_LINKEDIN_REPLI = "Le lien du diagnostic gratuit est en premier commentaire.";
 
 export interface ContenuPublicationIV {
@@ -102,7 +105,9 @@ export function textesDePublicationIV(
   const question = contenu.questionCommentaire?.trim();
   const textes: TextePublicationIV[] = [];
 
-  // 1. Quatre réseaux vidéo : le texte est bâti par `textesDePublication` (cas concret), sur une fiche réduite.
+  // 1. Les réseaux de la fin : le texte est bâti par `textesDePublication` (cas concret), sur une fiche réduite. LinkedIn
+  // en fait partie dès qu'il dit la fin (non muet) ; la fin « Tour » a son propre premier commentaire.
+  const tour = sorteDuPlanIV(plan) === "tour";
   const fiche = {
     ecrans: [
       { type: "accroche", lignes: [contenu.accroche] },
@@ -120,7 +125,7 @@ export function textesDePublicationIV(
     textes.push({
       reseau,
       texte: t.texte,
-      ...(t.premierCommentaire ? { premierCommentaire: t.premierCommentaire } : {}),
+      ...(t.premierCommentaire ? { premierCommentaire: tour && liens[reseau] ? premierCommentaireTour(liens[reseau]) : t.premierCommentaire } : {}),
       ouPoserLeLien: t.ouPoserLeLien,
       consigneLien: t.consigneLien,
       ...(reseau === "youtube-shorts" ? { titre: titreShorts(contenu.accroche) } : {}),
@@ -128,7 +133,7 @@ export function textesDePublicationIV(
     });
   }
 
-  // 2. LinkedIn : rien n'est dit dans la vidéo, tout est dans le texte du post.
+  // 2. LinkedIn d'une vidéo faite avant le 26/10 (plan muet) : rien n'est dit dans la vidéo, tout est dans le texte du post.
   if (plan.fins.some((f) => f.muet) && liens.linkedin) {
     const phraseLien = appelDeLaBanque("fin-li-rdv-texte")?.legende || PHRASE_LIEN_LINKEDIN_REPLI;
     const lignes = [phrase(contenu.accroche), phrase(contenu.resultat), ...(question ? [question] : []), phraseLien];
