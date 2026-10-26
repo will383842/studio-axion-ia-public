@@ -3,7 +3,7 @@
  * Seul un rendu vraiment impossible (ErreurRenduDefinitifIV) arrête encore la fabrication.
  */
 import { describe, expect, it, vi } from "vitest";
-import { avancerIV, attendWillIV, avancerJusquAArretIV, ErreurRenduDefinitifIV, etatInitialIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
+import { avancerIV, attendWillIV, avancerJusquAArretIV, ErreurRenduDefinitifIV, etatInitialIV, reprendreIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import type { EntreeMiseEnSceneIV, ResultatMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
@@ -27,10 +27,10 @@ vi.mock("@/moteurs/montage-image-video/mise-en-scene", async (orig) => {
   };
 });
 
-async function prete(): Promise<{ fini: EtatFabricationIV; o: OutilsFabricationIV }> {
+async function prete(formats: Record<string, unknown> = {}): Promise<{ fini: EtatFabricationIV; o: OutilsFabricationIV }> {
   const carte = carteFixe("C");
   const o = outilsSimules(carte, monde());
-  let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { formats: {} })), o);
+  let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { formats } as never)), o);
   for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee"; i++) {
     if (e.attente) e = await avancerJusquAArretIV(e, o);
     else if (attendWillIV(e) === "carte") e = await avancerJusquAArretIV(validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-15T08:00:00.000Z" }), o);
@@ -208,9 +208,9 @@ describe("livraison : un réseau sans fichier ne bloque pas les autres", () => {
   });
 
   it("seul le fil Facebook 4:5 manque → le Reel 9:16 est livré avec une remarque", async () => {
-    const { fini, o } = await prete();
+    const { fini, o } = await prete({ facebook: ["9:16", "4:5"] });
     const fb = fini.livraison!.find((l) => l.reseau === "facebook" && l.version !== "aucune" && l.fichierCleFil);
-    if (!fb) return; // le scénario d'essai n'a pas de fil Facebook
+    expect(fb).toBeTruthy();
     const base = JSON.parse(JSON.stringify(fini)) as EtatFabricationIV;
     base.etape = "livraison";
     base.livraison = base.livraison!.map((l) => (l.reseau === "facebook" ? { ...l, fichierCleFil: undefined } : l));
@@ -220,5 +220,23 @@ describe("livraison : un réseau sans fichier ne bloque pas les autres", () => {
     expect(l.version).not.toBe("aucune");
     expect(l.fichierCle).toBeTruthy();
     expect(l.mention).toContain("fil 4:5");
+  });
+
+  it("refus IV_RENDU tous réseaux → la reprise repart du rendu, rendus vidés, livraison effacée", async () => {
+    const { fini, o } = await prete();
+    const base = JSON.parse(JSON.stringify(fini)) as EtatFabricationIV;
+    base.etape = "livraison";
+    base.tentatives.livraison = 2;
+    base.livraison = base.livraison!.map((l) => ({ ...l, fichierCle: undefined }));
+    const refuse = await avancerIV(base, o);
+    expect(refuse.refus?.code).toBe("IV_RENDU");
+    const avant = refuse.tentatives.rendu ?? 1;
+    const repris = reprendreIV(refuse);
+    expect(repris.etape).toBe("rendu");
+    expect(repris.refus).toBeUndefined();
+    expect(repris.rendus).toBeUndefined();
+    expect(repris.livraison).toBeUndefined();
+    expect(repris.tentatives.rendu).toBe(avant + 1);
+    expect(repris.tentatives.livraison).toBeUndefined();
   });
 });

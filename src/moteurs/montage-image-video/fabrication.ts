@@ -53,7 +53,7 @@ import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
-import { DEFAUTS_DE_DETAIL_IV, LIGNES_ZERO_BLOCAGE_IV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
+import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -1398,7 +1398,7 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
       panne = raisonDe(err);
     }
     // Zéro blocage : une mise en scène refusée (ou en panne) retombe sur une composition sûre de la même scène (tous les
-    // écrans en texte seul), sinon sur la version précédente ; la raison reste en remarque. Le refus ne sort qu'en dernier.
+    // écrans en texte seul) ; la raison reste en remarque. Le refus ne sort qu'en dernier.
     if (!issue || issue.refus.length) {
       const motif = panne ?? issue!.refus[0];
       const sures = v.fiche.ecrans.filter((x) => x.scene !== "titre" && x.textesEcran.length > 0).map((x) => x.id);
@@ -1411,12 +1411,6 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
       if (sure && !sure.refus.length) {
         e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple (texte seul) utilisée.`);
         sure.adaptes.unshift(...sures);
-        issue = sure;
-      } else if (sure && sure.resultat.rapport.bloquants.every((b) => estDefautLaisseIV(b.code))) {
-        // Seuls des défauts de détail que le filet laisse déjà passer : la composition simple est utilisée.
-        e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple utilisée malgré ${sure.refus[0]}`);
-        sure.adaptes.unshift(...sures);
-        sure.refus = [];
         issue = sure;
       } else if (sure) {
         // Un refus d'une autre nature (chiffre faux, etc.) n'est jamais effacé.
@@ -1440,9 +1434,6 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   e.journal.push(`Mise en scène : ${scenes.length} version(s).`);
   return passerA(e, "rendu");
 }
-
-/** Défauts de détail que le filet laisse déjà passer (`adaptation-scene.ts`) : les seuls refus qu'une composition de repli peut effacer. */
-const estDefautLaisseIV = (code: string) => (DEFAUTS_DE_DETAIL_IV as readonly string[]).includes(code) || (LIGNES_ZERO_BLOCAGE_IV as readonly string[]).includes(code);
 
 /**
  * Version des compositions de rendu (studio-rendu/compositions/image-video). À CHANGER à chaque correction de ces compositions :
