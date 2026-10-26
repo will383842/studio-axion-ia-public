@@ -91,6 +91,12 @@ export const LIEN_FIN_IV: Readonly<Record<ReseauIV, string>> = Object.freeze({
   linkedin: "fin-iv-lien-commentaire",
 });
 
+/**
+ * Tour activé : un quart des vidéos au Tour (n ≡ 0 mod 4), un tiers à l'accompagnement (quatre restes sur douze, hors Tour),
+ * le reste (cinq sur douze) au diagnostic.
+ */
+const RESIDUS_ACCOMPAGNEMENT_TOUR: readonly number[] = Object.freeze([2, 5, 7, 10]);
+
 /** Une vidéo sur `TOUR_UN_SUR` prend la fin « Tour de France IA » (quand elle est activée). */
 export const TOUR_UN_SUR = 4;
 
@@ -117,7 +123,8 @@ export interface ChoixFinIV {
 /**
  * Fin d'une vidéo, choisie à partir de son numéro de version seul (PUR, déterministe) :
  * - `n` multiple de quatre : fin « Tour » (si activée) ;
- * - sinon `n` ≡ 2 (mod 3) : appel « accompagnement » (un sur trois), les autres « diagnostic » (deux sur trois) ;
+ * - sinon appel « accompagnement » (Tour désactivé : `n` ≡ 2 mod 3, un sur trois ; Tour activé : `n` mod 12 dans
+ *   `RESIDUS_ACCOMPAGNEMENT_TOUR`, soit un tiers de toutes les vidéos), les autres « diagnostic » ;
  * `options.tourActif` (tests) force l'activation ; sans lui, elle suit `finsTourActivesIV()`.
  * - l'accroche tourne sur son propre jeu (`n` mod 13 pour les appels, le rang du Tour mod 6) : deux numéros
  *   consécutifs n'ont jamais la même accroche (jeux séparés entre Tour et appels, pas de répétition dans un jeu).
@@ -132,7 +139,8 @@ export function choixDeFinIV(numeroVersion: number, options: { tourActif?: boole
     return { sorte: "tour", accroche: ACCROCHES_TOUR_IV[rang % ACCROCHES_TOUR_IV.length], appel: INVITATIONS_TOUR_IV[rang % INVITATIONS_TOUR_IV.length] };
   }
   const accroche = ACCROCHES_APPEL_IV[n % ACCROCHES_APPEL_IV.length];
-  if (n % 3 === 2) return { sorte: "accompagnement", accroche, appel: APPELS_ACCOMPAGNEMENT_IV[Math.floor(n / 3) % APPELS_ACCOMPAGNEMENT_IV.length] };
+  const accompagnement = (options.tourActif ?? finsTourActivesIV()) ? RESIDUS_ACCOMPAGNEMENT_TOUR.includes(n % 12) : n % 3 === 2;
+  if (accompagnement) return { sorte: "accompagnement", accroche, appel: APPELS_ACCOMPAGNEMENT_IV[Math.floor(n / 3) % APPELS_ACCOMPAGNEMENT_IV.length] };
   return { sorte: "diagnostic", accroche, appel: APPELS_DIAGNOSTIC_IV[(n + Math.floor(n / TOUR_UN_SUR)) % APPELS_DIAGNOSTIC_IV.length] };
 }
 

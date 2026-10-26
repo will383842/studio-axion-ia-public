@@ -30,6 +30,7 @@ import {
   sorteDuPlanIV,
   type PlanDesFinsIV,
 } from "@/moteurs/montage-image-video/fins";
+import { FINS_DE_SECOURS_IV, etapeDeSecoursIV, peutRelireIV } from "@/moteurs/montage-image-video/secours";
 import { MOTS_INTERDITS_FORMAT } from "@/moteurs/montage-image-video/emprunts";
 import { textesDePublicationIV } from "@/moteurs/montage-image-video/publication";
 import { verdictReseau } from "@/moteurs/montage-image-video/reseaux";
@@ -147,11 +148,11 @@ describe("choix de la fin par numéro de version (pur)", () => {
     expect(sortes.filter((s) => s === "accompagnement")).toHaveLength(400);
   });
 
-  it("Tour activé : une vidéo sur quatre ; les autres, deux tiers diagnostic et un tiers accompagnement", () => {
+  it("Tour activé : un quart Tour, un tiers accompagnement, le reste (cinq douzièmes) diagnostic", () => {
     const sortes = Array.from({ length: 1200 }, (_, i) => de(i + 1, true).sorte);
     expect(sortes.filter((s) => s === "tour")).toHaveLength(300);
-    expect(sortes.filter((s) => s === "diagnostic")).toHaveLength(600);
-    expect(sortes.filter((s) => s === "accompagnement")).toHaveLength(300);
+    expect(sortes.filter((s) => s === "diagnostic")).toHaveLength(500);
+    expect(sortes.filter((s) => s === "accompagnement")).toHaveLength(400);
   });
 
   it("chaque sorte tire ses propres lignes, et toutes les lignes tournent", () => {
@@ -298,11 +299,37 @@ describe("publication", () => {
   });
 });
 
-describe("plafonds de durée avec une fin de 8 à 9 secondes", () => {
-  it("chaque réseau tient sous son plafond conseillé tant que le corps laisse la place à la fin", () => {
+describe("plafonds de durée avec la fin (accroche + appel + lien)", () => {
+  /** Débit prudent (mots par seconde) pour borner la fin dite : plus lent que le débit simulé (`DEBIT_MOTS_PAR_SEC`). */
+  const MOTS_PAR_SEC_PRUDENT = 2.7;
+  /** Borne réaliste d'une fin (accroche + appel + lien) à ce débit : la plus longue combinaison de la banque fait ~13 s. */
+  const BORNE_FIN_SEC = 13;
+  const dureeFin = (codes: readonly string[]) => codes.reduce((n, c) => n + nombreMots(appelDeLaBanque(c)!.dit), 0) / MOTS_PAR_SEC_PRUDENT;
+  const combinaisons = (): { codes: string[]; sec: number }[] => {
+    const jeux: [readonly string[], readonly string[]][] = [
+      [ACCROCHES_APPEL_IV, APPELS_DIAGNOSTIC_IV],
+      [ACCROCHES_APPEL_IV, APPELS_ACCOMPAGNEMENT_IV],
+      [ACCROCHES_TOUR_IV, INVITATIONS_TOUR_IV],
+    ];
+    const liens = [...new Set(Object.values(LIEN_FIN_IV))];
+    return jeux.flatMap(([accroches, appels]) => accroches.flatMap((a) => appels.flatMap((p) => liens.map((l) => ({ codes: [a, p, l], sec: dureeFin([a, p, l]) })))));
+  };
+
+  it("chaque combinaison accroche + appel + lien dure au plus la borne (somme des mots / 2,7 mots par seconde), et la borne est atteinte de près", () => {
+    const toutes = combinaisons();
+    expect(toutes).toHaveLength(121 * 3);
+    const trop = toutes.filter((c) => c.sec > BORNE_FIN_SEC + 1e-6).map((c) => `${c.codes.join(" + ")} : ${c.sec.toFixed(1)} s`);
+    expect(trop).toEqual([]);
+    expect(BORNE_FIN_SEC).toBeLessThanOrEqual(13);
+    expect(Math.max(...toutes.map((c) => c.sec))).toBeGreaterThan(BORNE_FIN_SEC - 1);
+  });
+
+  it("chaque réseau reste livré quand le corps laisse à la fin la plus longue la place sous le plafond conseillé", () => {
+    const fin = Math.max(...combinaisons().map((c) => c.sec));
     for (const r of TOUS_RESEAUX) {
       const p = PLAFONDS_IV[r].conseilleSec;
-      for (const fin of [8, 9]) expect(verdictReseau(r, p - fin + fin).verdict, `${r} ${fin}`).toBe("livree");
+      if (p <= fin) continue;
+      expect(verdictReseau(r, p - fin).verdict, `${r} ${fin.toFixed(1)}`).toBe("livree");
     }
   });
 
@@ -366,4 +393,53 @@ describe("mise en scène de la fin : toutes les combinaisons passent les contrô
     }
     expect(defauts).toEqual([]);
   }, 180_000);
+});
+
+describe("fins de secours des fins du 26/10/2026 (refus Q16 de la voix)", () => {
+  const plan = planDesFinsIV({ reseaux: RESEAUX_IV, offre: "integration", numeroVersion: 1 });
+  const finDe = (r: ReseauIV) => plan.fins.find((f) => f.reseaux.includes(r))!;
+  const lien = (f: PlanDesFinsIV["fins"][number]) => f.appels.at(-1)!;
+  const poser = (p: PlanDesFinsIV, id: string, fin: PlanDesFinsIV["fins"][number]): PlanDesFinsIV => ({ ...p, fins: p.fins.map((f) => (f.id === id ? fin : f)) });
+
+  it("les groupes de réseaux qui disent la même fin partagent LE MÊME objet de chaîne", () => {
+    expect(FINS_DE_SECOURS_IV.facebook).toBe(FINS_DE_SECOURS_IV.linkedin);
+    expect(FINS_DE_SECOURS_IV.instagram).toBe(FINS_DE_SECOURS_IV.tiktok);
+    expect(FINS_DE_SECOURS_IV["youtube-shorts"]).not.toBe(FINS_DE_SECOURS_IV.instagram);
+  });
+
+  it("Facebook + LinkedIn : secours 1 puis 2 (écran neutre, jamais « profil » ni « Diagnostic gratuit »), aucun repli Instagram", () => {
+    const f = finDe("facebook");
+    expect(f.reseaux).toEqual(expect.arrayContaining(["facebook", "linkedin"]));
+    const e1 = etapeDeSecoursIV(plan, f.id)!;
+    expect(e1).toMatchObject({ lecture: true, phrase: "Le lien est dans le premier commentaire." });
+    expect(lien(e1.fin)).toMatchObject({ id: "fin-iv-lien-commentaire-secours", ecran: "Le lien est en premier commentaire" });
+    const e2 = etapeDeSecoursIV(poser(plan, f.id, e1.fin), f.id)!;
+    expect(e2).toMatchObject({ lecture: true, phrase: "Le lien est juste sous la vidéo." });
+    expect(e2.fin.appels.map((a) => a.id)).not.toContain("fin-iv-lien-commentaire-secours");
+    for (const e of [e1, e2]) for (const a of e.fin.appels) expect(`${a.dit} ${a.ecran}`, a.id).not.toMatch(/profil|diagnostic gratuit/i);
+    // Chaîne épuisée : pas de repli (il ferait dire « dans mon profil » à Facebook et LinkedIn).
+    const p2 = poser(plan, f.id, e2.fin);
+    expect(etapeDeSecoursIV(p2, f.id)).toBeNull();
+    expect(peutRelireIV(p2, f.id)).toBe(true);
+  });
+
+  it("Instagram (TikTok partage sa chaîne) : « Le lien est dans mon profil » ; Shorts : « sur ma chaîne » ; une seule étape, sans repli", () => {
+    const ig = finDe("instagram");
+    expect(etapeDeSecoursIV(plan, ig.id)).toMatchObject({ lecture: true, phrase: "Vous trouverez le lien juste en haut de mon profil." });
+    expect(lien(etapeDeSecoursIV(plan, ig.id)!.fin)).toMatchObject({ ecran: "Le lien est dans mon profil" });
+    const ys = finDe("youtube-shorts");
+    const e = etapeDeSecoursIV(plan, ys.id)!;
+    expect(lien(e.fin)).toMatchObject({ id: "fin-iv-lien-chaine-secours", ecran: "Le lien est sur ma chaîne" });
+    for (const f of [ig, ys]) {
+      const p1 = poser(plan, f.id, etapeDeSecoursIV(plan, f.id)!.fin);
+      expect(etapeDeSecoursIV(p1, f.id)).toBeNull();
+      expect(peutRelireIV(p1, f.id)).toBe(true);
+    }
+  });
+
+  it("l'accompagnement ne dit jamais « Diagnostic gratuit » dans sa fin de secours", () => {
+    const acc = planDesFinsIV({ reseaux: ["instagram", "facebook"], offre: "integration", numeroVersion: 2 });
+    expect(sorteDuPlanIV(acc)).toBe("accompagnement");
+    for (const f of acc.fins) for (const a of etapeDeSecoursIV(acc, f.id)!.fin.appels) expect(a.ecran, a.id).not.toMatch(/diagnostic gratuit/i);
+  });
 });

@@ -309,7 +309,8 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const q08bisSouple: string[] = [];
   const finDite = !!v.fin && !v.fin.muet;
   const reglage = ctx.appelCommentaire ?? "fin-seule";
-  if (!finDite && v.reseaux.includes("linkedin")) {
+  const pisteMuette = v.piste.mots.length === v.piste.motsCorps && v.piste.raccordSec === undefined;
+  if (!finDite && v.reseaux.includes("linkedin") && (v.fin?.muet || pisteMuette)) {
     if (v.piste.mots.length !== v.piste.motsCorps || v.piste.raccordSec !== undefined) q08bis.push("la voix LinkedIn dit quelque chose après la phrase-choc.");
     if (v.reseaux.some((r) => r !== "linkedin")) q08bis.push(`la version muette de LinkedIn sert aussi ${v.reseaux.filter((r) => r !== "linkedin").join(", ")}.`);
   } else if (!v.fin || !finDite) q08bisSouple.push(`aucune fin pour ${v.reseaux.join(", ")} : la fin du réseau manque.`);

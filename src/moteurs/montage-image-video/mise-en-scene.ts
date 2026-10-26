@@ -1508,8 +1508,9 @@ function couperLigne(p: EcranPlace, trou: { a: number; b: number }, milieu: numb
       if (k === null) continue;
       apres = k;
       const t = heureMot(c, k);
-      // Jamais de coupe juste après un mot de liaison (« … ce qu'on | peut automatiser ») : le début resterait seul à l'écran, coupé.
-      const debutPropre = j > 0 && !FINS_INTERDITES.test(sansBalises(mots[j - 1]).replace(/[.,!?:;…]+$/u, ""));
+      // Écrans de FIN seulement (le corps des vidéos garde sa règle d'avant) : jamais de coupe juste après un mot de liaison
+      // (« … ce qu'on | peut automatiser »), le début resterait seul à l'écran, coupé.
+      const debutPropre = j > 0 && (p.sorte !== "fin" || !FINS_INTERDITES.test(sansBalises(mots[j - 1]).replace(/[.,!?:;…]+$/u, "")));
       if (debutPropre && t > trou.a + 0.5 && t < trou.b - 0.5 && (!meilleur || Math.abs(t - milieu) < Math.abs(meilleur.t - milieu))) meilleur = { j, t };
     }
     if (!meilleur) continue;
