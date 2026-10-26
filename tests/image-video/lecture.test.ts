@@ -256,6 +256,30 @@ describe("refus", () => {
     expect(!r.ok && r.message).toMatch(/^Je ne lis presque aucun texte/);
   });
 
+  it("image sans phrase du bas : la lecture réussit, la phrase du bas vaut le titre, alerte non bloquante", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), phraseChoc: "", sousTitre: "" };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.phraseChoc).toBe(r.carte.titre);
+    expect(r.carte.lecture.alertes.some((x) => /phrase du bas/.test(x))).toBe(true);
+  });
+
+  it("image sans titre : le titre est déduit (sous-titre, sinon premier bloc)", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), titre: "", sousTitre: "" };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.titre).toBe(r.carte.noeuds[0]!.libelle);
+    expect(r.carte.lecture.alertes.some((x) => /titre/.test(x))).toBe(true);
+  });
+
+  it("image sans aucun bloc : refus « incomplete »", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), noeuds: [], liens: [], bandeau: ["a", "b", "c", "d"] };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r).toMatchObject({ ok: false, motif: "incomplete" });
+  });
+
   it("type reconnu par aucune des deux lectures (R1) : plus de refus, le type vient du code avec l'adaptation « type déduit »", async () => {
     const inconnu: LectureImage = { ...lectureDeCarte(cartes.B), type: "inconnu" };
     const o = outils({ a: inconnu, b: inconnu });
