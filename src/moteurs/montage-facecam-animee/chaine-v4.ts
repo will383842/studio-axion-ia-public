@@ -241,6 +241,7 @@ export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes
     mots: c.mots,
     dureeSec: c.dureeSec,
     ...(etat.demande.titre ? { titre: etat.demande.titre } : {}),
+    ...(etat.demande.videoId ? { videoId: etat.demande.videoId } : {}),
     ...(options.historique?.length ? { historique: options.historique } : {}),
     ...(options.plafondAtteint ? { plafondAtteint: true } : {}),
     prise: {
