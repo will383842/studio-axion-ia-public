@@ -428,9 +428,18 @@ function regleInterdits(fiche: FicheImage, ctx: ContexteRegles, dejaSignales: re
   const res: Manquement[] = [];
   const tous = [...INTERDITS_PERMANENTS, ...(ctx.interdits ?? [])];
   let interdits = tous;
-  const noms = ctx.carte.noeuds
-    .filter((n) => n.exemple)
-    .flatMap((n) => [n.libelle, n.detail ?? ""].join(" ").split(/\s+/).filter((w, i) => i > 0 && /^\p{Lu}\p{Ll}+$/u.test(w)))
+  // Noms propres d'exemple : un mot à majuscule n'en est un que s'il ne débute pas une phrase (« Le devis part. Le
+  // client… » ne désigne personne) et s'il n'apparaît jamais en minuscule dans les mêmes textes.
+  const sourcesNoms = ctx.carte.noeuds.filter((n) => n.exemple).flatMap((n) => [n.libelle, n.detail ?? ""]);
+  const enMinuscule = new Set(
+    sourcesNoms.flatMap((s) => s.split(/\s+/).map((w) => w.replace(/[^\p{L}]/gu, "")).filter((w) => /^\p{Ll}+$/u.test(w))),
+  );
+  const noms = sourcesNoms
+    .flatMap((s) => {
+      const mots = s.split(/\s+/);
+      return mots.filter((w, i) => i > 0 && /^\p{Lu}\p{Ll}+$/u.test(w) && !/[.!?:;…]$/.test(mots[i - 1] ?? ""));
+    })
+    .filter((w) => !enMinuscule.has(w.toLowerCase()))
     .filter((w, i, a) => a.indexOf(w) === i);
   const controler = (t: string, ou: string, corps: boolean, ecranId?: string) => {
     const avec = (message: string, extra: Partial<Manquement> = {}): Manquement => ({ regle: "Q08", priorite: 1, message, ...(ecranId ? { ecranId } : {}), ...extra });
