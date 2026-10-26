@@ -222,6 +222,61 @@ function lire(reponse: Extract<ReponseAppelIV, { ok: true }>): { ok: true; brute
   }
 }
 
+const MOTS_DE_LIAISON = new Set(["et", "mais", "donc", "car", "pour", "puis", "sans", "avec"]);
+const estMot = (t: string) => /[\p{L}\p{N}]/u.test(t);
+const nbMots = (jetons: readonly string[]) => jetons.filter(estMot).length;
+const FIN_FORTE = /[.!?:;…]$/u;
+
+/** Majuscule sur la première lettre du jeton (guillemets ou parenthèses d'ouverture ignorés). */
+function majuscule(jeton: string): string {
+  return jeton.replace(/\p{L}/u, (l) => l.toLocaleUpperCase("fr"));
+}
+
+/** Ferme la première moitié : la virgule finale devient un point, sinon un point est ajouté. */
+const fermer = (jeton: string) => (FIN_FORTE.test(jeton) ? jeton : `${jeton.replace(/,$/, "")}.`);
+
+/**
+ * Scinde une phrase (sans ponctuation forte interne) de plus de MOTS_PAR_PHRASE_MAX mots : au plus près du milieu,
+ * une virgule d'abord, sinon un mot de liaison, sinon le milieu des mots. Seuls le point et la majuscule changent.
+ */
+function scinderPhrase(phrase: string): string {
+  const jetons = phrase.split(/\s+/).filter(Boolean);
+  if (nbMots(jetons) <= MOTS_PAR_PHRASE_MAX) return phrase;
+  const milieu = jetons.length / 2;
+  const valides = (k: number) => nbMots(jetons.slice(0, k)) > 0 && nbMots(jetons.slice(k)) > 0;
+  const plusProche = (ks: number[]) => ks.filter(valides).sort((a, b) => Math.abs(a - milieu) - Math.abs(b - milieu))[0];
+  const rang = Array.from({ length: jetons.length - 1 }, (_, i) => i + 1);
+  const k =
+    plusProche(rang.filter((i) => jetons[i - 1]!.endsWith(","))) ??
+    plusProche(rang.filter((i) => MOTS_DE_LIAISON.has(jetons[i]!.toLowerCase()))) ??
+    plusProche(rang) ??
+    1;
+  const gauche = jetons.slice(0, k);
+  const droite = jetons.slice(k);
+  gauche[gauche.length - 1] = fermer(gauche[gauche.length - 1]!);
+  droite[0] = majuscule(droite[0]!);
+  return `${scinderPhrase(gauche.join(" "))} ${scinderPhrase(droite.join(" "))}`;
+}
+
+/** Scinde chaque phrase trop longue d'un texte dit, sans changer un mot ni un chiffre. */
+export function scinderPhrasesLongues(texte: string): string {
+  return texte.replace(/[^.!?:;…]+[.!?:;…]*/gu, (p) => {
+    const nu = p.trim();
+    return nu && nbMots(nu.split(/\s+/)) > MOTS_PAR_PHRASE_MAX ? p.replace(nu, () => scinderPhrase(nu)) : p;
+  });
+}
+
+/** Réparation mécanique (sans Claude) : scinde les phrases trop longues des textes dits de la fiche. */
+export function reparerPhrasesLongues(fiche: FicheImage): FicheImage {
+  const f = structuredClone(fiche);
+  for (const e of f.ecrans) e.texteDit = scinderPhrasesLongues(e.texteDit);
+  for (const a of f.accroches) a.texteDit = scinderPhrasesLongues(a.texteDit);
+  f.questionCommentaire.texteDit = scinderPhrasesLongues(f.questionCommentaire.texteDit);
+  return f;
+}
+
+const EST_REFUS_PHRASE_LONGUE = /: phrase de \d+ mots \(/;
+
 /** Juge une réponse lue : forme (zod), puis règles. */
 export function jugerFicheIV(brute: unknown, ctx: ContexteRegles): { ok: true; fiche: FicheImage; verdict: VerdictScript } | { ok: false; refus: string[] } {
   const forme = schemaFicheImage.safeParse(brute);
@@ -282,7 +337,26 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
       }
       return { ok: true, ...commun };
     }
-    refus = jugement.refus;
+    let refusRestants = jugement.refus;
+    // Zéro blocage : si le seul défaut est une phrase trop longue, on la scinde sans rappeler Claude.
+    if (lecture.ok && refusRestants.length && refusRestants.every((r) => EST_REFUS_PHRASE_LONGUE.test(r))) {
+      const forme = schemaFicheImage.safeParse(lecture.brute);
+      if (forme.success) {
+        const repare = reparerPhrasesLongues(forme.data);
+        const rejuge = jugerFicheIV(repare, ctx);
+        if (rejuge.ok) {
+          const aTrancher = aTrancherParWill(rejuge.verdict);
+          const commun = { fiche: rejuge.fiche, verdict: rejuge.verdict, aTrancher, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
+          if (!rejuge.verdict.ok) {
+            const refusWill = rejuge.verdict.manquements.map((m) => m.message);
+            return { ok: false, motif: "a-trancher", message: `Script écrit : ${refusWill.length} point(s) à trancher par Will avant validation.`, refus: refusWill, ...commun };
+          }
+          return { ok: true, ...commun };
+        }
+        refusRestants = rejuge.refus;
+      }
+    }
+    refus = refusRestants;
     variable = variableRelanceIV(base, lecture.texte, refus);
   }
   return { ok: false, motif: "refusee", message: `${DEBUT_REFUS_ECRITURE} après ${APPELS_ECRITURE_MAX} essais (${refus.length} refus) : à reprendre à la main.`, refus, appels };
