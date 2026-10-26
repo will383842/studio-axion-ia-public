@@ -731,6 +731,15 @@ function elementsDe(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>, c
   return trier(els);
 }
 
+/**
+ * Étiquette tirée d'une ligne « X · Y » : seulement X. L'étiquette est une ligne d'interlettrage large qui ne tient pas sur
+ * une ligne avec la paire entière : elle passait à la ligne et recouvrait le titre (« OUI · Autoliquidation » sur « VALIDÉ … »).
+ * Y reste dit et montré par le bloc qu'il nomme.
+ */
+function etiquetteDePaire(texte: string): string {
+  return sansBalises(texte.split(/\s+·\s+/)[0]!);
+}
+
 function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]): void {
   const lignes = c.e.textesEcran;
   const titre = lignes.find((t) => t.includes("*")) ?? lignes[0];
@@ -771,7 +780,7 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
     // Après le titre, nommée trop tôt pour relancer, sans chiffre à montrer sur son mot : elle relance l'en-tête 1,2 s après le dernier, s'il reste de la place avant la fin de l'écran.
     else if (lignes.indexOf(autre) > lignes.indexOf(titre)) {
       if (p.couverts.length && !p.chiffres.length && dernier.t + 1.2 < c.fin - 0.3) els.push(nouvelEl(c, "entete", "objet", arrondi(dernier.t + 1.2), { texte: `${etiquette}|${autre}`, chiffres: [], couverts: p.couverts, coupe: true }));
-    } else dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
+    } else dernier.texte = `${etiquetteDePaire(autre)}|${dernier.texte!.split("|")[1]}`;
   }
 }
 

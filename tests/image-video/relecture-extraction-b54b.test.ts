@@ -230,7 +230,7 @@ describe("relireVersionIV : une image de contrôle manquante n'arrête plus la v
 });
 
 describe("rôle de relecture", () => {
-  it("version 3 (les relectures reprises de la version 2 sont invalidées)", () => {
-    expect(roleRelectureFinale.version).toBe(3);
+  it("version 4 (les relectures reprises de la version 3 sont invalidées : instants clés changés)", () => {
+    expect(roleRelectureFinale.version).toBe(4);
   });
 });
