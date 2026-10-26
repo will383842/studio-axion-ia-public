@@ -63,6 +63,17 @@ describe("Habillage · plan pur", () => {
     }
   });
 
+  it("toutes les paires entrée × caméra : l'échelle cumulée ne dépasse jamais le plafond", () => {
+    for (const entree of VARIANTES_RENDUES.entree ?? []) {
+      for (const camera of VARIANTES_RENDUES.camera ?? []) {
+        for (let i = 0; i <= 75; i++) {
+          const h = planHabillage({ ...base, jeu: { entree, camera } }, i / 25, 3);
+          expect(h.echelle * (h.camera?.echelle ?? 1)).toBeLessThanOrEqual(ECHELLE_CAMERA_MAX + 1e-9);
+        }
+      }
+    }
+  });
+
   it("toutes les variantes rendues : valeurs bornées à toutes les images, et état final = écran posé", () => {
     for (const [dim, valeurs] of Object.entries(VARIANTES_RENDUES)) {
       if (dim === "motParMot") continue;

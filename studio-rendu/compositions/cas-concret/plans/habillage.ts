@@ -109,13 +109,15 @@ export function planHabillage(p: Pick<ProprietesEcran, "jeu" | "debutMs">, t: nu
     else if (cam === "punch-in") h = { ...h, camera: { echelle: 1 + e * doux(progres(t, 0, 0.45)), dx: 0 } };
     else if (cam === "zoom-arriere") h = { ...h, camera: { echelle: 1 + e * (1 - x), dx: 0 } };
   }
+  // Entrée « zoom-avant » (enveloppe intérieure) × caméra (extérieure) se multiplient à l'écran : le produit reste ≤ plafond.
+  if (h.camera && h.echelle * h.camera.echelle > ECHELLE_CAMERA_MAX) h = { ...h, echelle: ECHELLE_CAMERA_MAX / h.camera.echelle };
   return h;
 }
 
-/** Style du mot par mot d'un jeu (`motParMot` : « cascade », « souffle ») ; absent ou v4 : la v4. */
 /** Montée du mot par mot « cascade » (px) : la v4 monte de 60 ; plafonnée pour que les mots ne passent pas dans la bande des sous-titres. */
 export const MONTEE_CASCADE_PX = 80;
 export type StyleMotParMot = { monteePx: number; flouPx: number } | null;
+/** Style du mot par mot d'un jeu (`motParMot` : « cascade », « souffle ») ; absent ou v4 : la v4. */
 export function styleMotParMot(jeu: ProprietesEcran["jeu"]): StyleMotParMot {
   const v = lire(jeu?.motParMot);
   if (v === "cascade") return { monteePx: MONTEE_CASCADE_PX, flouPx: 12 };
