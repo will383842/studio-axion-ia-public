@@ -26,6 +26,13 @@ COPY . .
 # cette étape ; Next la recopie dans .next/server/server-reference-manifest.json (comme la clé aléatoire d'avant).
 ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=
 RUN pnpm build
+# Répétition générale hors ligne des contrôles « Image → vidéo » (scripts/image-video/repetition-controles.mts) : un seul
+# fichier, sans pnpm ni tsx dans l'image d'exécution. Lancé sur le serveur : node /app/outils/repetition-controles.mjs trav-… | --tous
+# (lecture seule : transaction READ ONLY, aucun appel payant). Les modules natifs (@node-rs/*) ne sont pas embarqués.
+RUN pnpm exec esbuild scripts/image-video/repetition-controles.mts --bundle --platform=node --format=esm --target=node22 \
+      --external:pg-native --external:@node-rs/* \
+      --banner:js="import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);" \
+      --outfile=/app/outils/repetition-controles.mjs
 
 FROM node:22-bookworm-slim AS run
 WORKDIR /app
@@ -41,6 +48,7 @@ RUN useradd --uid 1001 --create-home studio
 COPY --from=build --chown=studio:studio /app/.next/standalone ./
 COPY --from=build --chown=studio:studio /app/.next/static ./.next/static
 COPY --from=build --chown=studio:studio /app/public ./public
+COPY --from=build --chown=studio:studio /app/outils ./outils
 # Contrôle des commandes FFmpeg du format « Image → vidéo », exécuté par deploiement/verifier-outils-video.sh avant toute
 # mise en ligne. Il garde la disposition du dépôt (chemins relatifs) : le contrôle et les deux fichiers PURS qu'il lit.
 COPY deploiement/studio/controle-ffmpeg-iv.mjs /app/controle-iv/deploiement/studio/
