@@ -277,6 +277,14 @@ export class ErreurReservationIV extends Error {
   }
 }
 
+/** Plafond de lectures supplémentaires de la vidéo atteint : ce n'est pas un refus d'argent (la voix existe, rien n'est payé en plus). */
+export class ErreurPlafondLecturesIV extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ErreurPlafondLecturesIV";
+  }
+}
+
 /** Coût maximal d'une lecture de `texte` au tarif donné. */
 export function coutMaxLectureIV(texte: string, tarifCentimesParCaractere: number): number {
   return Math.ceil(texte.length * tarifCentimesParCaractere - 1e-9);
@@ -426,7 +434,7 @@ export function repriseVoixIV(precedent: EtatVoixIV | undefined, segments: Segme
     if (!usee) continue;
     const ctl = usee.prise!.controle as Extract<NonNullable<PriseVoix["controle"]>, { rejet: unknown }>;
     const message = `La fin pour ${nomsReseaux(s.reseaux)} a été rejetée après ${usee.lectures ?? 1} lectures (${ctl.detail}) : « ${ctl.phrase} ».`;
-    if (s.reseaux.some((r) => FINS_DE_SECOURS_IV[r])) return { ...repris, issue: { statut: "refus", controle: "Q16", message: `${message} Elle n'est pas reprise telle quelle ; une nouvelle lecture payante demande l'accord de Will.` } };
+    if (s.reseaux.some((r) => FINS_DE_SECOURS_IV[r])) return { ...repris, issue: { statut: "refus", controle: "Q16", message: `${message} Elle n'est pas reprise telle quelle.` } };
     return reparerRefusQ16(repris, o, message, usee.id);
   }
   return repris;
@@ -457,7 +465,7 @@ function refusVoixFaite(etat: EtatVoixIV): { message: string; cible: string } | 
 /** Verdict IV d'une voix finie : toute prise encore rejetée, ou hors référence, est un refus (Q16). */
 export function verdictVoixFaite(etat: EtatVoixIV): EtatVoixIV["issue"] {
   const r = refusVoixFaite(etat);
-  return r ? { statut: "refus", controle: "Q16", message: `${r.message} Rien n'est gardé en silence : demandez l'accord de Will avant une nouvelle lecture payante.` } : { statut: "faite" };
+  return r ? { statut: "refus", controle: "Q16", message: `${r.message} Rien n'est gardé en silence.` } : { statut: "faite" };
 }
 
 /** Prise neuve (lecture neuve du même texte) d'une fin : empreinte, clés de mesure et rendu neufs. */
@@ -545,6 +553,17 @@ export async function avancerVoixIV(entree: EtatVoixIV, o: OutilsVoixIV): Promis
       return refus ? { ...suivant, issue: { statut: "refus", controle: "Q16", message: refus } } : suivant;
     } catch (err) {
       // Réservation refusée : levée AVANT l'appel HeyGen, rien n'a été payé dans ce tour ; l'état d'entrée reste juste.
+      if (err instanceof ErreurPlafondLecturesIV) {
+        // Comme des réparations épuisées : la dernière prise finie est gardée avec une remarque ; sans prise finie, refus.
+        const voix = structuredClone(entree.voix);
+        delete voix.issue;
+        const finies = voix.corps.prise?.etat.phase === "faite" && voix.fins.every((f) => f.prise?.etat.phase === "faite");
+        if (finies) {
+          voix.corps.retenu = true;
+          return { ...entree, voix, issue: { statut: "faite" }, remarques: avecRemarque(entree, `Voix gardée malgré une remarque : ${err.message}`) };
+        }
+        return { ...entree, issue: { statut: "refus", controle: "budget", message: err.message } };
+      }
       if (err instanceof ErreurReservationIV) return { ...entree, issue: { statut: "refus", controle: "budget", message: err.message } };
       throw err;
     }

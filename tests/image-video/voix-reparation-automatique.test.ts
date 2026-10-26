@@ -10,6 +10,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
 import { empreintePriseVoix } from "@/moteurs/montage-image-video/emprunts";
+import type { PriseVoix } from "@/moteurs/montage-image-video/emprunts";
 import { ErreurVoixIV } from "@/moteurs/montage-image-video/voix";
 import {
   avancerVoixIV,
@@ -55,7 +56,7 @@ const priseFaite = (ecarts?: string[]) =>
     empreinte: "e",
     etat: { phase: "faite", audio: { fichierCle: "k", dureeSec: 1, mots: [], ...(ecarts ? { ressemblance: { ressemblante: false, retenue: 0, prises: [{ ecarts, versionMesure: VERSION_MESURE_VOIX }] } } : {}) } },
     controle: { ok: true },
-  }) as never;
+  }) as unknown as PriseVoix;
 
 const etatCorps = (segments = segmentsVoixIV(fiche, planAvec([fin("fin-tiktok", ["tiktok"], "Dis-moi tout.")]))): EtatVoixIV => etatInitialVoixIV(segments);
 
@@ -165,7 +166,7 @@ describe("voix · refus Q16 réparé par une lecture neuve, puis gardé avec rem
     const e = etatCorps();
     e.voix.corps.prise = priseFaite();
     e.voix.corps.retenu = true;
-    e.voix.fins[0].prise = { ...(priseFaite() as object), controle: { rejet: "son", phrase: "Dis-moi tout.", detail: "euh" } } as never;
+    e.voix.fins[0].prise = { ...priseFaite(), controle: { rejet: "son", phrase: "Dis-moi tout.", detail: "euh" } } as never;
     e.voix.fins[0].lectures = 2;
     e.voix.issue = { statut: "faite" };
     const r = await avancerVoixIV(e, outils());

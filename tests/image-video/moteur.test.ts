@@ -463,6 +463,18 @@ describe("reprise après erreur, sans repayer", () => {
       expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
     });
 
+    it("fin habituelle ET fin de secours hors référence : les réservations de la voix restent à 1 + 3 au plus, un texte neuf ne contourne pas le plafond", async () => {
+      const ref: { m?: Monde } = {};
+      const d = demarrer("C", { mesureVoix: () => (ref.m!.lus.at(-1)!.endsWith(FIN_FB) || ref.m!.lus.at(-1)!.endsWith(SECOURS) ? HORS_REFERENCE : MESURE_REFERENCE) });
+      ref.m = d.m;
+      const { etat } = await jusquAuBout(d.e, d.o, { auto: true });
+      const voix = etat.caisse.reservations.filter((r) => r.etape === "voix");
+      // Premières lectures du plan de départ (corps + fins lues à part), puis 3 lectures de plus au plus.
+      expect(voix.length - (1 + etat.voix!.segments.fins.length)).toBeLessThanOrEqual(3);
+      expect(d.m.lus.length).toBe(voix.length);
+      expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
+    });
+
     /** Enveloppe la lecture simulée : un « euh » est inséré (après le 2ᵉ mot) quand le texte finit par `fin`. */
     function hesiterSur(d: ReturnType<typeof demarrer>, fin: string): void {
       const voix = d.o.voix.voix() as unknown as { lire: (x: { texte: string }) => Promise<{ mots: { mot: string; debutSec: number; finSec: number }[] }> };

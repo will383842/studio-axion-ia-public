@@ -63,7 +63,7 @@ import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
-import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, REPARATIONS_VOIX_MAX_IV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
+import { avancerVoixIV, ErreurPlafondLecturesIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, REPARATIONS_VOIX_MAX_IV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
 /* ------------------------------------------------------------------ */
 /* Étapes                                                                */
@@ -1270,16 +1270,11 @@ const DELAI_ESSAI_WAV_MS = 250;
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { script, plan } = e;
   const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: lectureUniqueDe(e.voix) });
-  // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation au-delà de la première d'un même texte lu.
-  const lecturesSupplementairesRestantes = () => {
-    const parTexte = new Map<string, number>();
-    for (const x of e.caisse.reservations) {
-      if (!x.cle.startsWith(`voix#${e.tentatives.voix ?? 1}:`)) continue;
-      const texte = x.cle.replace(/-\d+$/, "");
-      parTexte.set(texte, (parTexte.get(texte) ?? 0) + 1);
-    }
-    return REPARATIONS_VOIX_MAX_IV - [...parTexte.values()].reduce((n, c) => n + c - 1, 0);
-  };
+  // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation voix au-delà des premières lectures du
+  // plan de départ (le corps + chaque fin lue à part), quel que soit le texte (une fin de secours a un texte neuf).
+  const premieresLectures = 1 + segments.fins.length;
+  const reservationsVoix = () => e.caisse.reservations.filter((x) => x.cle.startsWith(`voix#${e.tentatives.voix ?? 1}:`)).length;
+  const lecturesSupplementairesRestantes = () => REPARATIONS_VOIX_MAX_IV - Math.max(0, reservationsVoix() - premieresLectures);
   const voixOutils: OutilsVoixIV = {
     ...o.voix,
     lecturesSupplementairesRestantes,
@@ -1294,7 +1289,7 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
       const deja = e.caisse.reservations.filter((x) => x.cle.startsWith(cle)).length;
       // Plafond GLOBAL de la vidéo : 3 lectures payantes de plus que les premières lectures (relances de ressemblance comprises).
       // Filet : les décisions de la voix s'y arrêtent avant ; ici une lecture de trop n'est jamais réservée ni payée.
-      if (deja > 0 && lecturesSupplementairesRestantes() <= 0) throw new Error(`Plafond de ${REPARATIONS_VOIX_MAX_IV} lectures supplémentaires atteint pour cette vidéo : aucune lecture de plus n'est payée.`);
+      if ((deja > 0 || reservationsVoix() >= premieresLectures) && lecturesSupplementairesRestantes() <= 0) throw new ErreurPlafondLecturesIV(`Plafond de ${REPARATIONS_VOIX_MAX_IV} lectures supplémentaires atteint pour cette vidéo : aucune lecture de plus n'est payée.`);
       const r = await caisse.reserver({ appelId: `${prefixe}${deja + 1}`, etape: "voix", fournisseur: "heygen", centimes: l.coutMaxCentimes, caracteres: l.caracteres });
       if (!r.ok) throw new Error(r.message);
     },
