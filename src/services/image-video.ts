@@ -27,6 +27,7 @@ import { join } from "node:path";
 import type { CommandeFabrication, Id, LigneCout, MotHorodate } from "@/domaine/types";
 import type { DemandeRendu, EtatRendu, ServiceRendu, StockageFichiers } from "@/fournisseurs/types";
 import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
+import { squelettesRecentsIV } from "@/moteurs/montage-image-video/parcours-varies";
 import { BRUITAGES_V4_IV, historiqueVarieteIV, RenduEnCoursIV, tarifVoixCentimesEur, type DemandeDepenseIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import type { ConvertirEnPng } from "@/moteurs/montage-image-video/lecture/preparation";
 import { idTravailControleIV, imagesExtraitesIV } from "@/moteurs/montage-image-video/relecture-finale";
@@ -487,6 +488,12 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         travaux.sort((a, b) => (b.termineLe ?? b.creeLe).localeCompare(a.termineLe ?? a.creeLe));
         return historiqueVarieteIV(travaux.map((t) => (t.parametres as { imageVideo: EtatFabricationIV }).imageVideo), String(dep.videoId));
       }),
+    // Parcours varié : les squelettes de scènes des trois dernières fabrications prêtes (même lecture que la variété).
+    historiqueSquelettes: async () => {
+      const travaux = await commun.depots().travaux.lister((t) => (t.parametres as { imageVideo?: { etape?: unknown } } | undefined)?.imageVideo?.etape === "prete");
+      travaux.sort((a, b) => (b.termineLe ?? b.creeLe).localeCompare(a.termineLe ?? a.creeLe));
+      return squelettesRecentsIV(travaux.map((t) => (t.parametres as { imageVideo: EtatFabricationIV }).imageVideo), String(dep.videoId));
+    },
     decisions,
     maintenant: () => new Date().toISOString(),
   };
