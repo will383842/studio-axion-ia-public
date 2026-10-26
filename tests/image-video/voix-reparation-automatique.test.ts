@@ -165,7 +165,7 @@ describe("voix · refus Q16 réparé par une lecture neuve, puis gardé avec rem
     const e = etatCorps();
     e.voix.corps.prise = priseFaite();
     e.voix.corps.retenu = true;
-    e.voix.fins[0].prise = { ...priseFaite(), controle: { rejet: "son", phrase: "Dis-moi tout.", detail: "euh" } } as never;
+    e.voix.fins[0].prise = { ...(priseFaite() as object), controle: { rejet: "son", phrase: "Dis-moi tout.", detail: "euh" } } as never;
     e.voix.fins[0].lectures = 2;
     e.voix.issue = { statut: "faite" };
     const r = await avancerVoixIV(e, outils());
