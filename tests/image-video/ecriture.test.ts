@@ -808,3 +808,57 @@ describe("écriture sans impasse : chiffre hors image retiré sans appel", () =>
     expect(j.appels).toHaveLength(APPELS_ECRITURE_MAX);
   });
 });
+
+describe("écriture sans impasse : phrase trop longue coupée sans appel", () => {
+  const lue = (f: FicheImage): ReponseAppelIV => ({ ok: true, simule: true, donnees: f });
+  const LONGUE = "Moins de tâches répétitives, plus de temps pour vos clients et votre croissance";
+  const douleur = (f: FicheImage) => f.ecrans.find((e) => e.partie === "douleur")!;
+  const e14 = (f: FicheImage) => f.ecrans.find((x) => x.id === "e14")!;
+  const q09 = (f: FicheImage) => verifierScript(f, ctx("D")).manquements.filter((m) => m.regle === "Q09");
+
+  it("seule la phrase est trop longue : fiche rendue, ok vrai, UN seul appel, marque posée", async () => {
+    const f = avecTexte(fiches.D, douleur(fiches.D).id, LONGUE);
+    expect(q09(f)).toHaveLength(1);
+    const { o, j } = outils([lue(f), lue(f)]);
+    const r = await ecrireScriptIV(entree("D"), o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.appels).toBe(1);
+    expect(j.appels).toHaveLength(1);
+    expect(r.relance).toBe(false);
+    expect(douleur(r.fiche).texteDit).toBe("Moins de tâches répétitives. Plus de temps pour vos clients et votre croissance");
+    expect(q09(r.fiche)).toHaveLength(0);
+    expect(r.verdict.marques).toContain(`Réparée sans appel : phrase coupée (écran ${douleur(f).id}).`);
+  });
+
+  it("mélange Q09 + Q05 : coupe d'abord, puis le chiffre hors image est retiré au dernier essai", async () => {
+    const f = avecTexte(fiches.D, douleur(fiches.D).id, LONGUE);
+    const g = avecTexte(f, "e14", "Deux heures récupérées par jour. Vingt-cinq e-mails en moins.", [...e14(f).textesEcran, "25 e-mails"]);
+    expect(q09(g)).toHaveLength(1);
+    const { o, j } = outils([lue(g), lue(g)]);
+    const r = await ecrireScriptIV(entree("D"), o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(j.appels).toHaveLength(APPELS_ECRITURE_MAX);
+    expect(douleur(r.fiche).texteDit).toBe("Moins de tâches répétitives. Plus de temps pour vos clients et votre croissance");
+    expect(e14(r.fiche).texteDit).toBe("Deux heures récupérées par jour.");
+    expect(q09(r.fiche)).toHaveLength(0);
+    expect(r.verdict.marques.some((m) => m.includes("Chiffres retirés") && m.includes("25"))).toBe(true);
+    // La relance ne cite plus la phrase trop longue : elle ne porte que sur le chiffre.
+    expect(j.appels[1]!.variable).not.toContain("phrase de 13 mots");
+    expect(j.appels[1]!.variable).toContain("pas sur l'image");
+  });
+
+  it("un Q08 reste bloquant : la coupe n'efface pas le refus, Claude est relancé, la fiche est refusée", async () => {
+    const f = avecTexte(fiches.D, douleur(fiches.D).id, LONGUE);
+    const g = avecTexte(f, "e14", "Deux heures récupérées par jour. Une machine fait le reste.");
+    expect(verifierScript(g, ctx("D")).manquements.some((m) => m.regle === "Q08")).toBe(true);
+    const { o, j } = outils([lue(g), lue(g)]);
+    const r = await ecrireScriptIV(entree("D"), o);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r).toMatchObject({ motif: "refusee", appels: 2 });
+    expect(j.appels).toHaveLength(2);
+    expect(r.refus.some((m) => m.includes("machine"))).toBe(true);
+  });
+});
