@@ -307,6 +307,14 @@ export interface EtatFabricationIV {
   scenes?: { version: string; dureeSec: number; empreinte: string }[];
   /** 25/10 : écrans passés en scène « titre » par le filet de la mise en scène (défaut de détail Q13/Q14), PAR VERSION (id de version) ; rendu et contrôles relisent la même fiche. */
   ecransAdaptes?: Record<string, string[]>;
+  /**
+   * Écrans de la fiche (ids « e01 »…) passés en TEXTE SEUL parce que le rendu ne savait pas les montrer, PAR VERSION. Champ à part
+   * (`ecransAdaptes` est recalculé de zéro à chaque mise en scène) : la mise en scène le fusionne aux écrans du filet. Posé au 1er
+   * échec de rendu d'une version ; s'il existe déjà, un 2e échec est `IV_RENDU`. Effacé avec `ecransAdaptes`.
+   */
+  ecransImposesRendu?: Record<string, string[]>;
+  /** Remarques pour Will (non bloquantes) nées de la fabrication, reprises dans les mentions de la livraison ; recalculées à chaque mise en scène. */
+  remarques?: string[];
   rendus?: Record<string, RenduFaitIV>;
   /** Transcriptions et relectures déjà payées (reprise de la porte sans repayer). */
   controles?: { transcriptions: VerdictPorteIV["transcriptions"]; relectures: VerdictPorteIV["relectures"]; verdict?: ResumePorteIV };
@@ -380,6 +388,8 @@ export class ErreurRenduDefinitifIV extends Error {
   constructor(
     message: string,
     readonly phrases: string[] = [],
+    /** Identifiants (bloc de la ligne de temps, ou écran de la fiche) des écrans irrendables, quand on les connaît. */
+    readonly ecransIrrendables?: string[],
   ) {
     super(message);
     this.name = "ErreurRenduDefinitifIV";
@@ -773,6 +783,8 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   delete e.courtes;
   delete e.scenes;
   delete e.ecransAdaptes;
+  delete e.ecransImposesRendu;
+  delete e.remarques;
   e.journal.push(`Script validé par Will${d.fiche ? " (modifié)" : ""} : la voix peut être payée.`);
   return passerA(e, "voix");
 }
@@ -809,6 +821,8 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     delete e.attente;
     delete e.scenes;
     delete e.ecransAdaptes;
+    delete e.ecransImposesRendu;
+    delete e.remarques;
     if (avantVariete) delete e.rendus;
     e.etape = "mise-en-scene";
     delete e.tentatives.livraison;
@@ -853,6 +867,8 @@ function poserSecoursIV(e: EtatFabricationIV, secours: SecoursIV): void {
   delete e.courtes;
   delete e.scenes;
   delete e.ecransAdaptes;
+  delete e.ecransImposesRendu;
+  delete e.remarques;
   delete e.tentatives.livraison;
   if (secours.phrases.length) e.journal.push(`Fin de secours pour ${secours.reseaux.join(", ")} : « ${secours.phrases.join(" ")} » (validée par Will).`);
   // 19/10 (v-6a3b74364711) : relecture de la seule fin de secours refusée (une lecture neuve du même texte, une seule fois) ;
@@ -1019,7 +1035,7 @@ const nomVersion = (v: Pick<VersionIV, "reseaux" | "courte" | "format">) => `${v
 function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly BruitageValideIV[]): EntreeMiseEnSceneIV {
   return {
     carte: v.courte ? carteSansRetires(e.carte!.carte, v.noeudsRetires ?? []) : e.carte!.carte,
-    fiche: ficheAdapteeIV(v.fiche, e.ecransAdaptes?.[v.id]),
+    fiche: ficheAdapteeIV(v.fiche, [...(e.ecransAdaptes?.[v.id] ?? []), ...(e.ecransImposesRendu?.[v.id] ?? [])]),
     voix: { mots: v.piste.mots, motsCorps: v.piste.motsCorps, dureeSec: v.piste.dureeSec, finVoixSec: v.piste.finVoixSec },
     fin: v.fin,
     reseaux: v.reseaux,
@@ -1160,7 +1176,9 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
     if (r.lectures && Object.keys(r.lectures).length) e.lectures = r.lectures;
     if (r.motif === "type-inconnu") return refuser(e, "lecture", "IV_TYPE_A_CHOISIR", PHRASE_TYPE_INCONNU, { reessayable: false });
     if (r.motif === "budget") return refuser(e, "lecture", plafond(), r.message);
-    const reessayable = r.motif === "appel" || r.motif === "illisible" || r.motif === "conversion" || r.motif === "incomplete";
+    // Panne de Claude (appel) : passagère, code « panne » relancé une fois seul par `avancerIV` ; image illisible : « image ».
+    if (r.motif === "appel") return refuser(e, "lecture", "IV_PANNE", r.message);
+    const reessayable = r.motif === "illisible" || r.motif === "conversion" || r.motif === "incomplete";
     return refuser(e, "lecture", "IV_IMAGE", r.message, { reessayable });
   }
   // Lectures gardées : une correction de type ou une reprise ne relit jamais l'image.
@@ -1180,7 +1198,8 @@ async function pasConceptionTexte(e: EtatFabricationIV, o: OutilsFabricationIV, 
   if (!t.ok) {
     if (t.motif === "budget" || t.motif === "plafond") return refuser(e, "lecture", plafond(), t.message);
     // Texte à reformuler : relancer le même texte donnerait le même refus ; panne ou sortie illisible : « Refaire » réessaie.
-    return refuser(e, "lecture", "IV_IMAGE", t.message, { reessayable: t.motif === "appel" || t.motif === "illisible" });
+    if (t.motif === "appel") return refuser(e, "lecture", "IV_PANNE", t.message);
+    return refuser(e, "lecture", "IV_IMAGE", t.message, { reessayable: t.motif === "illisible" });
   }
   // Même réparation automatique que pour une image lue (R2).
   const carte = reparerEtSignaler(t.carte, { typeChoisi: false }).carte;
@@ -1496,14 +1515,18 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   const scenes: NonNullable<EtatFabricationIV["scenes"]> = [];
   const phrases: string[] = [];
+  // Remarques recalculées à chaque mise en scène : celles que le rendu a imposées (texte seul) sont redites d'après `ecransImposesRendu`.
+  delete e.remarques;
   for (const v of versionsDe(e)) {
+    const imposes = e.ecransImposesRendu?.[v.id] ?? [];
+    if (imposes.length) (e.remarques ??= []).push(`${nomVersion(v)} : ${imposes.length} écran(s) que la vidéo ne savait pas montrer tels quels sont passés en texte seul (${imposes.join(", ")}).`);
     // 25/10 (zéro blocage, v-b54bb4798246) : un défaut de détail (Q13 chiffre non montré, Q14 rythme) ne refuse plus la vidéo :
     // les écrans cités passent en texte seul (3 essais au plus) ; s'il persiste, la vidéo continue et le défaut reste au journal.
-    const mettre = (adaptes: readonly string[]) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, adaptes) });
+    const mettre = (adaptes: readonly string[]) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, [...imposes, ...adaptes]) });
     let issue: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
     let panne: string | undefined;
     try {
-      issue = mettreEnSceneAvecFiletIV(mettre, [], nomVersion(v), v.fiche);
+      issue = mettreEnSceneAvecFiletIV(mettre, [], nomVersion(v), ficheAdapteeIV(v.fiche, imposes));
     } catch (err) {
       panne = raisonDe(err);
     }
@@ -1552,6 +1575,21 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
  */
 export const VERSION_COMPOSITIONS_IV = "compositions-iv/14"; // /14 (26/10/2026) : en-tête d'une paire « X · Y » avant le titre = étiquette X seule (elle ne recouvre plus le titre) ; /13 (25/10/2026, v-b54bb4798246) : vue d'ensemble, mot trop large abrégé, jamais de texte blanc hors pastille ; libellés courts sans « + » final ; /12 (25/10/2026, vidéo v-0339175a9f88) : pile des chiffres centrée sur la page, légende de l'anneau jamais sur le trait (dedans si elle tient dans la corde, sinon dessous), écrans de texte TYP-C sans trou entre rangées et « Au matin » gardé entier, vue d'ensemble avec 16 px au moins entre rangées (chiffres-clés retirés avant les paires, libellés raccourcis signalés, rendu dosé sur l'écart) ; /11 (25/10/2026) : affiche de la première image (l'accroche écrite en entier, posée 1 image sur le premier bloc, `affiche` dans les propriétés de la première scène) ; /10 (25/10/2026) : 4:5 sans surimpression d'accent (le badge sans place à côté du nœud n'est plus dessiné, son chiffre est déjà dans le libellé), 2e ligne de l'en-tête en étiquette seulement si elle précède le titre, étiquette de repli jamais égale à la marque, question de fin 4:5 à la taille du 9:16 ; /9 (25/10/2026) : badge d'accent dans le cadre 4:5 (au-dessus du rail, sous l'en-tête), décors et ombre hachurée évités, réserve de chasse 6 % des boîtes de la toile ; /8 (24/10/2026) : écran CHI-E centré avec écart sous la légende, pile des chiffres « 0 » + « demande perdue » ; /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
 
+/**
+ * Écrans de la fiche à passer en texte seul : ceux que le rendu a nommés (identifiant d'écran de la fiche, ou bloc de la ligne de
+ * temps retrouvé par ses plans) ; à défaut, tous ceux qui ont un texte d'écran. PUR.
+ */
+export function ecransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nommes: readonly string[] | undefined): string[] {
+  const avecTexte = fiche.ecrans.filter((x) => x.textesEcran.length).map((x) => x.id);
+  const trouves = new Set<string>();
+  for (const id of nommes ?? []) {
+    if (avecTexte.includes(id)) trouves.add(id);
+    const bloc = ligne.blocs.find((b) => b.id === id);
+    if (bloc) for (const p of ligne.plans) if (p.ecran && avecTexte.includes(p.ecran) && p.debut < bloc.fin - 1e-6 && p.fin > bloc.debut + 1e-6) trouves.add(p.ecran);
+  }
+  return trouves.size ? avecTexte.filter((x) => trouves.has(x)) : avecTexte;
+}
+
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   e.rendus ??= {};
@@ -1565,8 +1603,17 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     try {
       r = await o.rendre(demandeRendu);
     } catch (err) {
-      // Zéro blocage : une panne passagère du rendu est refaite une fois toute seule ; l'attente et l'impossible repartent tels quels.
-      if (estAttenteIV(err) || err instanceof ErreurRenduDefinitifIV) throw err;
+      if (estAttenteIV(err)) throw err;
+      if (err instanceof ErreurRenduDefinitifIV) {
+        // Écran irrendable : au 1er échec de la version, ses écrans passent en texte seul et la mise en scène est refaite ; au 2e : IV_RENDU.
+        const ids = ecransAAdapterIV(v.fiche, ligne, err.ecransIrrendables);
+        if (e.ecransImposesRendu?.[v.id] || !ids.length) throw err;
+        e.ecransImposesRendu = { ...(e.ecransImposesRendu ?? {}), [v.id]: ids };
+        e.journal.push(`Remarque · ${nomVersion(v)} : écran(s) irrendable(s) passé(s) en texte seul (${ids.join(", ")}) ; la mise en scène est refaite.`);
+        delete e.scenes;
+        return passerA(e, "mise-en-scene");
+      }
+      // Zéro blocage : une panne passagère du rendu est refaite une fois toute seule ; l'attente repart telle quelle.
       if ((e.tentatives.rendu ?? 1) >= 2) throw err;
       e.journal.push(`Remarque · rendu de ${nomVersion(v)} en panne (${raisonDe(err)}) : refait automatiquement une fois.`);
       // L'essai est noté avant de relancer : si le serveur répond « rendu en cours », la reprise demande directement le bon essai.
@@ -1630,7 +1677,7 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
   );
   // 15/10 : une version reprise d'un autre réseau (repli de secours) est dite dans le rapport.
   const replis = e.plan!.fins.flatMap((f) => (f.repli ? [phraseDeRepliIV(f.reseaux, f.repli)] : []));
-  const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis] };
+  const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis, ...(e.remarques ?? [])] };
   e.controles = { transcriptions: verdict.transcriptions, relectures: verdict.relectures, verdict: resume };
   e.journal.push(verdict.phrase);
   if (!verdict.ok) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });

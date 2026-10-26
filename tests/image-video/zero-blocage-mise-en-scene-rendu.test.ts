@@ -166,7 +166,12 @@ describe("rendu : une panne est refaite, seul l'impossible arrête", () => {
   it("rendu vraiment impossible → IV_RENDU, non réessayable", async () => {
     const { fini, o } = await prete();
     const outils: OutilsFabricationIV = { ...o, rendre: async () => Promise.reject(new ErreurRenduDefinitifIV("Irrendable.", ["écran trop long"])) };
-    const e = await avancerIV(depuis(fini, "rendu"), outils);
+    // 1er échec : les écrans passent en texte seul et la mise en scène est refaite (zéro blocage v2) ; 2e échec : IV_RENDU.
+    const premier = await avancerIV(depuis(fini, "rendu"), outils);
+    expect(premier.refus).toBeUndefined();
+    expect(premier.etape).toBe("mise-en-scene");
+    expect(Object.keys(premier.ecransImposesRendu ?? {}).length).toBeGreaterThan(0);
+    const e = await avancerJusquAArretIV(premier, outils);
     expect(e.refus?.code).toBe("IV_RENDU");
     expect(e.refus?.reessayable).toBe(false);
   });
