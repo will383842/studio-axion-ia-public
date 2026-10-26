@@ -607,8 +607,6 @@ export function recettesDesVersionsIV(e: EtatFabricationIV): { version: string; 
 /* ------------------------------------------------------------------ */
 
 class Caisse {
-  /** Resté faux : le prix annoncé ne bloque plus jamais (seul le crédit réel refuse). Gardé pour `plafond()` des anciens refus. */
-  arretPlafond: string | null = null;
   constructor(
     private readonly etat: EtatFabricationIV,
     private readonly outils: OutilsFabricationIV,
@@ -625,16 +623,18 @@ class Caisse {
     if (this.etat.caisse.reservations.some((r) => r.cle === cle)) return { ok: true };
     const engage = engageCentimes(this.etat);
     const centimes = Math.max(0, Math.ceil(d.centimes));
-    const prevenir = this.outils.budget.indicatif?.signaler ?? this.outils.budget.avertir;
     const plafond = this.etat.caisse.plafondCentimes;
     const depasse = engage + centimes > plafond;
     const phrase = `Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`;
-    // Règle du 25/10 : le prix ne bloque jamais. Repère dépassé : Will est prévenu (même canal avec ou sans outil indicatif), la fabrication continue.
-    if (depasse && prevenir) await prevenir(phrase).catch(() => undefined);
+    // Règle du 25/10 : le prix ne bloque jamais. Mode indicatif : le repère dépassé est signalé avant la réservation ; sinon Will est prévenu seulement après une réservation acceptée.
+    if (depasse && this.outils.budget.indicatif?.signaler) await this.outils.budget.indicatif.signaler(phrase).catch(() => undefined);
     const r = await this.outils.budget.reserver({ ...d, videoId: this.etat.demande.videoId, centimes });
     if (!r.ok) return r;
     // Seul le crédit réel du studio peut refuser ; le journal garde la trace du dépassement une fois la réservation acceptée.
-    if (depasse && !this.outils.budget.indicatif) this.etat.journal.push(`Avertissement : ${phrase} Le crédit réel suffit, la fabrication continue.`);
+    if (depasse && !this.outils.budget.indicatif) {
+      this.etat.journal.push(`Avertissement : ${phrase} Le crédit réel suffit, la fabrication continue.`);
+      if (this.outils.budget.avertir) await this.outils.budget.avertir(phrase).catch(() => undefined);
+    }
     this.etat.caisse.reservations.push({ cle, etape: d.etape, fournisseur: d.fournisseur, centimes });
     return { ok: true };
   }
@@ -1040,7 +1040,7 @@ export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabrica
   let e = await avancerUnPasIV(entree, outils);
   if (outils.relancesAuto === false || !e.refus || e.etape !== "refusee" || !e.refus.reessayable) return e;
   const { etape, code } = e.refus;
-  // Filet : UNE seule relance par tour, pause courte ; l'espacement des essais suivants est celui de la boucle de fond (`apresPanne`).
+  // Filet : UNE seule relance par tour, pause courte ; un refus IV_PANNE met le travail en échec (`apresPanne` ne sert qu'aux exceptions) : après cette relance unique, il faut « Refaire » à la main.
   // Chaque relance réserve de nouveau (`relances` entre dans la clé de la caisse) : un appel qui repart est toujours un appel réservé.
   // Les contrôles ne sont jamais relancés ici : leurs transcriptions et relectures payées ne remontent à l'état qu'au retour de la porte.
   // Pas de « mode réparé » : l'écriture rejoue déjà ses refus de forme dans sa consigne ; relancer un refus d'écriture est un simple nouvel essai.
@@ -1063,7 +1063,7 @@ export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabrica
   return e;
 }
 
-/** Pause avant l'unique relance automatique (courte : le tour de la boucle reste sous son délai ; le reste de l'espacement est celui de `apresPanne`). */
+/** Pause avant l'unique relance automatique (courte : le tour de la boucle reste sous son délai ; au-delà, c'est « Refaire » à la main ; `apresPanne` ne sert qu'aux exceptions). */
 const PAUSE_RELANCE_IV_MS = 1500;
 /** Refus relancés automatiquement une fois : une panne passagère, ou une écriture refusée sur la forme (les autres refus de forme ne sont pas réessayables). */
 const CODES_RELANCABLES_IV: readonly CodeRefusIV[] = ["IV_PANNE", "IV_ECRITURE"];
@@ -1086,7 +1086,7 @@ async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricati
   delete e.attente;
   const etape = e.etape as EtapeChaineIV;
   const caisse = new Caisse(e, outils, etape);
-  const plafond = (code: CodeRefusIV = "IV_BUDGET"): CodeRefusIV => (caisse.arretPlafond ? "IV_PLAFOND" : code);
+  const plafond = (code: CodeRefusIV = "IV_BUDGET"): CodeRefusIV => code;
   try {
     switch (etape) {
       case "lecture":
@@ -1117,7 +1117,6 @@ async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricati
       garde.attente = raisonDe(err);
       return garde;
     }
-    if (caisse.arretPlafond) return refuser(e, etape, "IV_PLAFOND", caisse.arretPlafond);
     // Q17 (son brut pas lisible en WAV) : « Refaire » relance la conversion, gratuite, sans relire la voix.
     if (err instanceof ErreurVoixIV) return refuser(e, etape, err.controle === "budget" ? plafond() : "IV_VOIX", err.message, { reessayable: err.controle === "budget" || err.controle === "Q17" });
     if (err instanceof ErreurRenduDefinitifIV) return refuser(e, etape, "IV_RENDU", err.message, { phrases: err.phrases, reessayable: false });
@@ -1508,7 +1507,6 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
   const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis] };
   e.controles = { transcriptions: verdict.transcriptions, relectures: verdict.relectures, verdict: resume };
   e.journal.push(verdict.phrase);
-  if (caisse.arretPlafond && !verdict.ok) return refuser(e, "controles", "IV_PLAFOND", caisse.arretPlafond, { phrases: verdict.phrases });
   if (!verdict.ok) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });
   e.livraison = livraisonDe(e, verdict, publication, liens);
   return passerA(e, "livraison");

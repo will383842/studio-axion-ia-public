@@ -1,6 +1,7 @@
 /**
  * Reprise automatique · Image → vidéo. La génération ne bloque jamais et ne demande pas à Will de reprendre à la main :
- * 1) panne passagère → UNE relance de la même étape par tour (pause courte, l'espacement suivant est celui de la boucle de fond) ;
+ * 1) panne passagère → UNE relance de la même étape par tour (pause courte) ; un refus IV_PANNE met le travail en échec
+ *    (`apresPanne` ne sert qu'aux exceptions) : après cette relance unique, « Refaire » à la main ;
  *    chaque relance réserve de nouveau : les appels réels sont toujours égaux aux réservations ;
  * 2) écriture refusée sur la forme → un nouvel essai (pas de « mode réparé » : l'écriture rejoue déjà ses refus dans sa consigne) ;
  * 3) échec réel → cause en français simple + ce qui a été essayé, « Refaire cette partie » seulement si c'est réessayable ;
