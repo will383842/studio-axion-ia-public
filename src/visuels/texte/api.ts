@@ -1,5 +1,5 @@
 import { PAGES, TYPES_PAGE } from "../../briques/visuels/registre-pages";
-import { consigneTrame, type Intention } from "../../briques/visuels/trames";
+import { consigneTrame, typesDeLaTrame, type Intention } from "../../briques/visuels/trames";
 import type { DemandeTexteCarrousel, EmpreinteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
 import { lirePaquetSession } from "./session";
 import { ErreurTexteCarrousel, exigerApiDeverrouillee } from "./verrou-api";
@@ -26,7 +26,10 @@ export function consigneApi(intention?: Intention, eviter: readonly EmpreinteCar
   if (!suites.length) return base;
   const couvertures = [...new Set(recents.map((e) => e.couverture.split(":")[0]).filter(Boolean))];
   const couv = couvertures.length ? `ni leur modèle de couverture (${couvertures.join(", ")}) quand un autre convient` : "";
-  if (intention) return couv ? `${base}\nVariété : ne pas reprendre ${couv.replace(/^ni /, "")}.` : base;
+  if (intention) {
+    const autres = couvertures.filter((c) => c !== typesDeLaTrame(intention)[0]);
+    return autres.length ? `${base}\nVariété : ne pas reprendre le modèle de couverture des derniers carrousels (${autres.join(", ")}) quand un autre convient.` : base;
+  }
   return `${base}\nVariété : ne pas reprendre la suite de pages d'un des derniers carrousels (${suites.join(" | ")})${couv ? ` ${couv}` : ""}.`;
 }
 
