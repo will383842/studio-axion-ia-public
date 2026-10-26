@@ -58,7 +58,8 @@ describe("L3c · la mise (variete.ts)", () => {
       );
       return { ...m, ecrans };
     });
-    expect(empreinte(mises)).toBe("9d6f9d17cbb83aa2");
+    // Empreinte mise à jour par le lot « variantes visibles » : poids de tirage rééquilibrés (sortie, mot par mot, fond fort), maquette d'ouverture et maquettes rares, pas de sortie sur le dernier écran, `habille`.
+    expect(empreinte(mises)).toBe("271b09a100358c6b");
   });
 
   it("particules recopiées du tirage sur chaque écran, seulement hors v4 ; barres proportionnelles sur le résultat dès que le tirage n'est pas la v4", () => {
