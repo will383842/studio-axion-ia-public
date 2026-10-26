@@ -9,7 +9,7 @@ import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrica
 
 vi.setConfig({ testTimeout: 120_000 });
 
-const mode = vi.hoisted(() => ({ v: "normal" as "normal" | "refus-sauf-texte-seul" | "refus-toujours" | "panne-sauf-texte-seul" }));
+const mode = vi.hoisted(() => ({ v: "normal" as "normal" | "refus-sauf-texte-seul" | "refus-toujours" | "refus-detail-toujours" | "panne-sauf-texte-seul" }));
 
 vi.mock("@/moteurs/montage-image-video/mise-en-scene", async (orig) => {
   const reel = await orig<typeof import("@/moteurs/montage-image-video/mise-en-scene")>();
@@ -19,8 +19,10 @@ vi.mock("@/moteurs/montage-image-video/mise-en-scene", async (orig) => {
       const complexe = entree.fiche.ecrans.some((e) => e.scene !== "titre");
       if (mode.v === "panne-sauf-texte-seul" && complexe) throw new Error("panne factice");
       const r = reel.mettreEnSceneIV(entree);
-      const refuse = mode.v === "refus-toujours" || (mode.v === "refus-sauf-texte-seul" && complexe);
-      return refuse ? { ...r, ok: false, rapport: { ...r.rapport, bloquants: [{ code: "Q99", phrase: "refus factice" } as never] }, phrases: ["refus factice"] } : r;
+      const refuse = mode.v === "refus-toujours" || mode.v === "refus-detail-toujours" || (mode.v === "refus-sauf-texte-seul" && complexe);
+      // Codes réels : Q16 n'est pas une ligne que le filet laisse passer ; Q12 en est une.
+      const code = mode.v === "refus-detail-toujours" ? "Q12" : "Q16";
+      return refuse ? { ...r, ok: false, rapport: { ...r.rapport, bloquants: [{ code, phrase: "refus factice" } as never] }, phrases: ["refus factice"] } : r;
     },
   };
 });
@@ -72,24 +74,48 @@ describe("mise en scène : jamais d'arrêt sur un refus", () => {
     expect(e.journal.some((j) => j.includes("panne factice"))).toBe(true);
   });
 
-  it("refus même en texte seul, avec une version précédente → la précédente est gardée", async () => {
+  it("refus d'une autre nature même en texte seul → jamais effacé, IV_MISE_EN_SCENE", async () => {
     const { fini, o } = await prete();
     mode.v = "refus-toujours";
     const e = await avancerIV({ ...depuis(fini, "mise-en-scene"), scenes: fini.scenes }, o);
     mode.v = "normal";
-    expect(e.etape).toBe("rendu");
-    expect(e.scenes).toEqual(fini.scenes);
-    expect(e.journal.some((j) => j.includes("version précédente gardée"))).toBe(true);
+    expect(e.etape).toBe("refusee");
+    expect(e.refus?.code).toBe("IV_MISE_EN_SCENE");
+    expect(e.refus?.message).toContain("refus factice");
   });
 
-  it("refus même en texte seul, sans version précédente → la composition simple continue avec une remarque", async () => {
+  it("défaut de détail seul même en texte seul → composition simple, remarque, la fabrication continue", async () => {
     const { fini, o } = await prete();
-    mode.v = "refus-toujours";
+    mode.v = "refus-detail-toujours";
     const e = await avancerIV(depuis(fini, "mise-en-scene"), o);
     mode.v = "normal";
     expect(e.etape).toBe("rendu");
     expect(e.refus).toBeUndefined();
-    expect(e.journal.some((j) => j.startsWith("Remarque · mise en scène"))).toBe(true);
+    expect(e.journal.some((j) => j.includes("défaut de détail gardé"))).toBe(true);
+  });
+
+  it("trajet réel : repli → rendu (composition de repli réellement rendue, chiffres gardés) → contrôles → livraison", async () => {
+    const { fini, o } = await prete();
+    const rendus: Parameters<OutilsFabricationIV["rendre"]>[0][] = [];
+    const outils: OutilsFabricationIV = { ...o, rendre: async (d) => (rendus.push(d), o.rendre(d)) };
+    mode.v = "refus-sauf-texte-seul";
+    let e = await avancerIV(depuis(fini, "mise-en-scene"), outils);
+    mode.v = "normal";
+    expect(e.etape).toBe("rendu");
+    e = await avancerJusquAArretIV(e, outils);
+    expect(e.etape).toBe("prete");
+    expect(e.refus).toBeUndefined();
+    expect(rendus.length).toBeGreaterThan(0);
+    // Ce qui est réellement rendu : les écrans adaptés sont en texte seul dans la demande de rendu, et leurs chiffres y restent.
+    const ecrans = Object.values(e.ecransAdaptes ?? {}).flat();
+    expect(ecrans.length).toBeGreaterThan(0);
+    for (const d of rendus) {
+      const texte = JSON.stringify(d.ligne);
+      const adaptes = e.ecransAdaptes?.[d.version] ?? [];
+      const version = (e.script!.fiche.ecrans ?? []).filter((x) => adaptes.includes(x.id));
+      for (const ecran of version) for (const chiffre of ecran.textesEcran.join(" ").match(/\d+/g) ?? []) expect(texte).toContain(chiffre);
+    }
+    expect(e.livraison!.some((l) => l.version !== "aucune" && l.fichierCle)).toBe(true);
   });
 });
 
@@ -102,6 +128,39 @@ describe("rendu : une panne est refaite, seul l'impossible arrête", () => {
     expect(e.refus).toBeUndefined();
     expect(appels).toBe(2);
     expect(e.journal.some((j) => j.includes("refait automatiquement une fois"))).toBe(true);
+  });
+
+  it("nouvel essai qui répond « rendu en cours » → l'essai est gardé, la remarque reste, la reprise demande le bon essai", async () => {
+    const { fini, o } = await prete();
+    const essais: number[] = [];
+    const enCours = Object.assign(new Error("rendu en cours"), { enCours: true });
+    const outils: OutilsFabricationIV = {
+      ...o,
+      rendre: async (d) => {
+        essais.push(d.essai ?? 1);
+        if (essais.length === 1) throw new Error("serveur de rendu coupé");
+        if (essais.length === 2) throw enCours;
+        return o.rendre(d);
+      },
+    };
+    const attente = await avancerIV(depuis(fini, "rendu"), outils);
+    expect(attente.attente).toBeTruthy();
+    expect(attente.refus).toBeUndefined();
+    expect(attente.tentatives.rendu).toBe(2);
+    expect(attente.journal.some((j) => j.includes("refait automatiquement une fois"))).toBe(true);
+    const suite = await avancerIV({ ...attente, attente: undefined }, outils);
+    expect(essais[2]).toBe(2);
+    expect(suite.refus).toBeUndefined();
+  });
+
+  it("second échec du rendu → IV_PANNE", async () => {
+    const { fini, o } = await prete();
+    let appels = 0;
+    const outils: OutilsFabricationIV = { ...o, rendre: async () => Promise.reject(new Error(`coupé ${++appels}`)) };
+    const e = await avancerIV(depuis(fini, "rendu"), outils);
+    expect(appels).toBe(2);
+    expect(e.etape).toBe("refusee");
+    expect(e.refus?.code).toBe("IV_PANNE");
   });
 
   it("rendu vraiment impossible → IV_RENDU, non réessayable", async () => {
@@ -120,10 +179,11 @@ describe("livraison : un réseau sans fichier ne bloque pas les autres", () => {
     const base = JSON.parse(JSON.stringify(fini)) as EtatFabricationIV;
     base.etape = "livraison";
     base.livraison = base.livraison!.map((l) => (l.reseau === cible ? { ...l, fichierCle: undefined } : l));
-    // 1) premier passage : retour au rendu, une seule fois.
+    // 1) premier passage : retour au rendu, une seule fois, avec un essai de rendu neuf.
     const retour = await avancerIV(base, o);
     expect(retour.etape).toBe("rendu");
     expect(retour.tentatives.livraison).toBe(2);
+    expect(retour.tentatives.rendu).toBe((base.tentatives.rendu ?? 1) + 1);
     // 2) toujours sans fichier au second passage : les autres partent, le réseau est noté « aucune ».
     const encore = JSON.parse(JSON.stringify(base)) as EtatFabricationIV;
     encore.tentatives.livraison = 2;
@@ -133,5 +193,32 @@ describe("livraison : un réseau sans fichier ne bloque pas les autres", () => {
     expect(e.livraison!.find((l) => l.reseau === cible)!.version).toBe("aucune");
     expect(e.livraison!.filter((l) => l.version !== "aucune").length).toBeGreaterThan(0);
     expect(e.journal.some((j) => j.startsWith("Remarque · aucun fichier"))).toBe(true);
+  });
+
+  it("tous les réseaux sans fichier au second passage → IV_RENDU, jamais une vidéo prête à 0 réseau", async () => {
+    const { fini, o } = await prete();
+    const base = JSON.parse(JSON.stringify(fini)) as EtatFabricationIV;
+    base.etape = "livraison";
+    base.tentatives.livraison = 2;
+    base.livraison = base.livraison!.map((l) => ({ ...l, fichierCle: undefined }));
+    const e = await avancerIV(base, o);
+    expect(e.etape).toBe("refusee");
+    expect(e.refus?.code).toBe("IV_RENDU");
+    expect(e.refus?.reessayable).toBe(true);
+  });
+
+  it("seul le fil Facebook 4:5 manque → le Reel 9:16 est livré avec une remarque", async () => {
+    const { fini, o } = await prete();
+    const fb = fini.livraison!.find((l) => l.reseau === "facebook" && l.version !== "aucune" && l.fichierCleFil);
+    if (!fb) return; // le scénario d'essai n'a pas de fil Facebook
+    const base = JSON.parse(JSON.stringify(fini)) as EtatFabricationIV;
+    base.etape = "livraison";
+    base.livraison = base.livraison!.map((l) => (l.reseau === "facebook" ? { ...l, fichierCleFil: undefined } : l));
+    const e = await avancerIV(base, o);
+    expect(e.etape).toBe("prete");
+    const l = e.livraison!.find((x) => x.reseau === "facebook")!;
+    expect(l.version).not.toBe("aucune");
+    expect(l.fichierCle).toBeTruthy();
+    expect(l.mention).toContain("fil 4:5");
   });
 });

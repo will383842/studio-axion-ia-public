@@ -53,7 +53,7 @@ import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
-import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
+import { DEFAUTS_DE_DETAIL_IV, LIGNES_ZERO_BLOCAGE_IV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -797,12 +797,25 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     delete e.ecransAdaptes;
     if (avantVariete) delete e.rendus;
     e.etape = "mise-en-scene";
+    delete e.tentatives.livraison;
     e.tentatives["mise-en-scene"] = (e.tentatives["mise-en-scene"] ?? 1) + 1;
     e.journal.push(
       avantVariete
         ? "Reprise à la mise en scène : la vidéo a été montée avant la variété, elle est refaite avec la variété (script et voix gardés, rien de repayé)."
         : "Reprise à la mise en scène : les contrôles ont refusé la vidéo, elle est remontée avec les règles à jour (script, voix et lectures payées gardés, rien de repayé).",
     );
+    return e;
+  }
+  // Aucun fichier rendu pour aucun réseau : la livraison ne se rejoue pas à vide, on repart du rendu.
+  if (e.refus.etape === "livraison" && e.refus.code === "IV_RENDU") {
+    delete e.refus;
+    delete e.attente;
+    delete e.livraison;
+    delete e.rendus;
+    delete e.tentatives.livraison;
+    e.etape = "rendu";
+    e.tentatives.rendu = (e.tentatives.rendu ?? 1) + 1;
+    e.journal.push("Reprise du rendu : aucun fichier n'avait été rendu pour aucun réseau.");
     return e;
   }
   const etape = e.refus.etape;
@@ -826,6 +839,7 @@ function poserSecoursIV(e: EtatFabricationIV, secours: SecoursIV): void {
   delete e.courtes;
   delete e.scenes;
   delete e.ecransAdaptes;
+  delete e.tentatives.livraison;
   if (secours.phrases.length) e.journal.push(`Fin de secours pour ${secours.reseaux.join(", ")} : « ${secours.phrases.join(" ")} » (validée par Will).`);
   // 19/10 (v-6a3b74364711) : relecture de la seule fin de secours refusée (une lecture neuve du même texte, une seule fois) ;
   // la voix la prépare au tour suivant AVANT toute lecture, le corps et les autres fins payés sont gardés.
@@ -1059,6 +1073,11 @@ export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabrica
       garde.caisse = e.caisse;
       if (e.compteurAppels !== undefined) garde.compteurAppels = e.compteurAppels;
       garde.attente = raisonDe(err);
+      // Le nouvel essai du rendu et sa remarque survivent à l'attente.
+      if (etape === "rendu") {
+        garde.tentatives = e.tentatives;
+        garde.journal = e.journal;
+      }
       return garde;
     }
     if (caisse.arretPlafond) return refuser(e, etape, "IV_PLAFOND", caisse.arretPlafond);
@@ -1389,20 +1408,20 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
       } catch {
         sure = undefined;
       }
-      const precedente = e.scenes?.find((x) => x.version === v.id);
       if (sure && !sure.refus.length) {
         e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple (texte seul) utilisée.`);
         sure.adaptes.unshift(...sures);
         issue = sure;
-      } else if (precedente) {
-        e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : version précédente gardée.`);
-        scenes.push(precedente);
-        continue;
-      } else if (sure) {
+      } else if (sure && sure.resultat.rapport.bloquants.every((b) => estDefautLaisseIV(b.code))) {
+        // Seuls des défauts de détail que le filet laisse déjà passer : la composition simple est utilisée.
         e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple utilisée malgré ${sure.refus[0]}`);
         sure.adaptes.unshift(...sures);
         sure.refus = [];
         issue = sure;
+      } else if (sure) {
+        // Un refus d'une autre nature (chiffre faux, etc.) n'est jamais effacé.
+        phrases.push(...sure.refus.map((p) => `${nomVersion(v)} · ${p}`));
+        continue;
       } else if (!issue) {
         phrases.push(`${nomVersion(v)} · ${motif}`);
         continue;
@@ -1421,6 +1440,9 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   e.journal.push(`Mise en scène : ${scenes.length} version(s).`);
   return passerA(e, "rendu");
 }
+
+/** Défauts de détail que le filet laisse déjà passer (`adaptation-scene.ts`) : les seuls refus qu'une composition de repli peut effacer. */
+const estDefautLaisseIV = (code: string) => (DEFAUTS_DE_DETAIL_IV as readonly string[]).includes(code) || (LIGNES_ZERO_BLOCAGE_IV as readonly string[]).includes(code);
 
 /**
  * Version des compositions de rendu (studio-rendu/compositions/image-video). À CHANGER à chaque correction de ces compositions :
@@ -1444,7 +1466,10 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     } catch (err) {
       // Zéro blocage : une panne passagère du rendu est refaite une fois toute seule ; l'attente et l'impossible repartent tels quels.
       if (estAttenteIV(err) || err instanceof ErreurRenduDefinitifIV) throw err;
+      if ((e.tentatives.rendu ?? 1) >= 2) throw err;
       e.journal.push(`Remarque · rendu de ${nomVersion(v)} en panne (${raisonDe(err)}) : refait automatiquement une fois.`);
+      // L'essai est noté avant de relancer : si le serveur répond « rendu en cours », la reprise demande directement le bon essai.
+      e.tentatives.rendu = demandeRendu.essai + 1;
       r = await o.rendre({ ...demandeRendu, essai: demandeRendu.essai + 1 });
     }
     e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };
@@ -1539,14 +1564,14 @@ function textesDuFil(publication: PublicationIV): Pick<LivraisonReseauIV, "texte
 }
 
 function pasLivraison(e: EtatFabricationIV): EtatFabricationIV {
-  // Facebook livré : ses DEUX fichiers (Reel 9:16 et fil 4:5) ; un seul manquant = ce réseau ne part pas.
-  const filAttendu = (l: LivraisonReseauIV) => l.reseau === "facebook" && formatsDe(e.demande, "facebook").includes("9:16") && formatsDe(e.demande, "facebook").includes("4:5");
-  const manque = (e.livraison ?? []).filter((l) => l.version !== "aucune" && (!l.fichierCle || (filAttendu(l) && !l.fichierCleFil)));
+  // Zéro blocage : un réseau sans fichier principal est rendu à nouveau, une seule fois ; ensuite les autres partent avec une remarque.
+  const manque = (e.livraison ?? []).filter((l) => l.version !== "aucune" && !l.fichierCle);
   if (manque.length) {
     const noms = manque.map((l) => l.reseau).join(", ");
-    // Zéro blocage : un réseau sans fichier est rendu à nouveau, une seule fois ; ensuite les autres partent avec une remarque.
     if ((e.tentatives.livraison ?? 1) < 2) {
       e.tentatives.livraison = 2;
+      // Même identifiant, même essai = rien de refait côté serveur : l'essai passe à +1 pour les versions concernées.
+      e.tentatives.rendu = (e.tentatives.rendu ?? 1) + 1;
       const concernees = versionsDe(e).filter((v) => v.reseaux.some((r) => manque.some((l) => l.reseau === r)));
       for (const v of concernees) delete e.rendus?.[v.id];
       e.journal.push(`Remarque · aucun fichier pour ${noms} : rendu refait automatiquement une fois.`);
@@ -1555,7 +1580,16 @@ function pasLivraison(e: EtatFabricationIV): EtatFabricationIV {
     }
     e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => (manque.includes(l) ? { reseau: l.reseau, version: "aucune", mention: `Aucun fichier pour ${l.reseau} après un second rendu : à refaire.` } : l));
     e.journal.push(`Remarque · aucun fichier pour ${noms} après un second rendu : les autres réseaux sont livrés.`);
+    if (!e.livraison.some((l) => l.version !== "aucune")) return refuser(e, "livraison", "IV_RENDU", "Aucun fichier rendu pour aucun réseau, relancez le rendu.", { reessayable: true });
   }
+  // Facebook : si seul le fil 4:5 manque, le Reel 9:16 qui existe est livré, avec une remarque sur le fil.
+  const formatsFb = formatsDe(e.demande, "facebook");
+  e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => {
+    if (l.reseau !== "facebook" || l.version === "aucune" || !l.fichierCle || l.fichierCleFil || !formatsFb.includes("9:16") || !formatsFb.includes("4:5")) return l;
+    const remarque = "Le fil 4:5 n'a pas été rendu : le Reel 9:16 est livré, le fil est à refaire.";
+    e.journal.push(`Remarque · Facebook : ${remarque}`);
+    return { ...l, mention: [l.mention, remarque].filter(Boolean).join(" ") };
+  });
   e.journal.push(`Vidéo prête : ${(e.livraison ?? []).filter((l) => l.version !== "aucune").length} réseau(x).`);
   return passerA(e, "prete");
 }
