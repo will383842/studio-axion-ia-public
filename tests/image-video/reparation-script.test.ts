@@ -132,6 +132,11 @@ describe("couperPhrasesLongues · le sens ne casse jamais", () => {
     "Votre assistant répond à chaque client de votre cabinet chaque matin, avant même que vous soyez arrivé au bureau",
     "Vous ne payez pas de frais cachés chaque mois, vous gardez le contrôle de votre budget et de vos dépenses",
     "Vous ne payez rien de caché chaque mois, vous gardez le contrôle de votre budget et de vos dépenses",
+    "Si vous automatisez enfin toutes vos relances clients, vous gagnez du temps chaque semaine",
+    "Avec un assistant IA bien réglé, vous répondez à chaque client en moins d'une minute",
+    "Ce que vos clients attendent vraiment chaque matin, c'est une réponse rapide et claire",
+    "Vous travaillez tard chaque soir au bureau, alors que vos concurrents dorment déjà tranquillement",
+    "Vous automatisez vos relances clients, ce qui libère du temps pour toute votre équipe",
   ])("liste blanche : coupe refusée, texte INCHANGÉ (%#)", (t) => {
     expect(motsDits(t).length).toBeGreaterThan(12);
     const r = couperPhrasesLongues(t);
