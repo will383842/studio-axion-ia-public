@@ -48,6 +48,18 @@ describe("répétition générale des contrôles (hors ligne)", () => {
     expect(r.versions.length).toBeGreaterThan(0);
   });
 
+  it("sans lecture de la piste voix : Q17, Q18 et Q19 sont ignorés dans l'écart, et ecouteRejouee est faux", async () => {
+    const { etat } = await etatPret();
+    const r = await repeterControlesIV(etat);
+    expect(r.applicable).toBe(true);
+    if (!r.applicable) return;
+    expect(r.ecouteRejouee).toBe(false);
+    expect(r.verdict.ok).toBe(false); // la piste « introuvable » refuse la porte rejouée...
+    expect(r.ecart).toEqual([]); // ...mais cet écart n'en est pas un : l'écoute n'a pas été rejouée.
+    const avec = await repeterControlesIV(etat, { lireSon: (await etatPret()).o.controles.lireSon });
+    if (avec.applicable) expect(avec.ecouteRejouee).toBe(true);
+  });
+
   it("ne modifie pas l'état reçu", async () => {
     const { etat, o } = await etatPret();
     const avant = JSON.stringify(etat);
