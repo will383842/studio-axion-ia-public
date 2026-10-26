@@ -1,8 +1,8 @@
 /**
  * IMAGE → VIDÉO · Réparation sans appel d'une phrase trop longue (Q09 : 12 mots au plus).
  *
- * Module PUR. On ne change JAMAIS un mot : on ajoute un point à une frontière sûre (après une virgule seule, jamais devant
- * « qui », « que », « sans »…, ni devant une préposition) et on met la lettre suivante en majuscule. Jamais au milieu d'un nombre dit (« vingt et un dossiers », « trois
+ * Module PUR. On ne change JAMAIS un mot : on ajoute un point à une frontière sûre, en LISTE BLANCHE : après une virgule seulement, devant un sujet ou une
+ * liaison de suite (je, il, nous, c'est, puis, mais, donc…), jamais dans une incise ouverte ni avant le second mot d'une négation et on met la lettre suivante en majuscule. Jamais au milieu d'un nombre dit (« vingt et un dossiers », « trois
  * heures et demie »), ni contre une unité, ni après un déterminant ou une préposition. Une garde finale, champ par champ,
  * refuse toute coupe qui changerait les mots, leur nombre ou la lecture des chiffres (valeur ET unité). La phrase-choc
  * validée par Will et la question de commentaire ne sont jamais touchées.
@@ -11,11 +11,14 @@ import { MOTS_PAR_PHRASE_MAX, aCorrigerParClaude, lectureChiffres, verifierScrip
 import { motsDits, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 
 const MORCEAU_MIN = 3;
-/** Le morceau de droite ne commence jamais par une préposition, un complément détaché ni un mot de liaison qui casse le sens. */
-const DEBUTS_INTERDITS = new Set([
-  "au", "aux", "a", "de", "du", "des", "en", "contre", "pour", "par", "sur", "dans", "avec", "sans", "sous", "chez", "vers",
-  "qui", "que", "ou", "quand", "parce", "puisque", "sinon", "et", "ni",
+/** Liste blanche : seul un de ces débuts à droite d'une virgule autorise une coupe (sujet, liaison de suite). */
+const DEBUTS_PERMIS = new Set([
+  "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "c'est", "ce", "cela", "ca", "puis", "mais", "donc", "car", "alors", "ensuite", "enfin",
 ]);
+/** Parallèle « Moins de…, plus de… » : permis seulement si le morceau de gauche commence lui aussi par plus / moins. */
+const PARALLELE = new Set(["plus", "moins"]);
+/** Second mot d'une négation : « ne » ou « n' » doit l'avoir avant la coupe. */
+const NEGATION_SECONDE = new Set(["pas", "plus", "jamais", "que", "rien", "personne", "aucun", "aucune", "guere"]);
 const NOMBRES = new Set([
   "zero", "un", "une", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize",
   "vingt", "vingts", "trente", "quarante", "cinquante", "soixante", "septante", "huitante", "nonante", "cent", "cents", "mille", "million", "millions",
@@ -50,15 +53,35 @@ interface Jeton {
   estMot: boolean;
 }
 
-/** Frontière sûre entre le jeton `i` et le suivant. */
-function frontiereSure(a: Jeton, b: Jeton): boolean {
+/** Une négation ouverte (« ne » / « n' » sans son second mot) dans les jetons `debut`..`i` ? */
+function negationOuverte(jetons: Jeton[], debut: number, i: number): boolean {
+  for (let k = debut; k <= i; k++) {
+    const m = mot(jetons[k]!.texte);
+    if (m !== "ne" && !m.startsWith("n'")) continue;
+    let ferme = false;
+    for (let j = k + 1; j <= i && !ferme; j++) ferme = NEGATION_SECONDE.has(mot(jetons[j]!.texte));
+    if (!ferme) return true;
+  }
+  return false;
+}
+
+/** Frontière sûre entre le jeton `i` et le suivant, dans le morceau qui commence au jeton `debut` : liste blanche stricte. */
+function frontiereSure(jetons: Jeton[], debut: number, i: number): boolean {
+  const a = jetons[i]!;
+  const b = jetons[i + 1]!;
   if (!a.estMot || !b.estMot) return false;
-  // Pas de virgule, pas de coupe : jamais devant un mot de liaison seul (« ne… que », « qui », « sans »… changent le sens).
+  // Pas de virgule, pas de coupe.
   if (!a.texte.endsWith(",")) return false;
-  if (DEBUTS_INTERDITS.has(mot(b.texte).split("'")[0]!)) return false;
+  const droite = mot(b.texte);
+  const gauche0 = mot(jetons[debut]!.texte);
+  if (!(DEBUTS_PERMIS.has(droite) || (PARALLELE.has(droite) && PARALLELE.has(gauche0)))) return false;
   if (estNombreOuUnite(a.texte) || estNombreOuUnite(b.texte)) return false;
   if (DETERMINANTS.has(mot(a.texte))) return false;
-  return true;
+  // Nombre impair de virgules avant la coupe : une incise est encore ouverte.
+  let virgules = 0;
+  for (let k = debut; k < i; k++) if (jetons[k]!.texte.endsWith(",")) virgules++;
+  if (virgules % 2 !== 0) return false;
+  return !negationOuverte(jetons, debut, i);
 }
 
 /** Positions (jeton avant la coupe) qui ramènent chaque morceau à 12 mots au plus, 3 au moins, ou `null` (aucune coupe sûre). */
@@ -69,7 +92,7 @@ function coupes(jetons: Jeton[], debut: number, fin: number): number[] | null {
   let gauche = 0;
   for (let i = debut; i < fin; i++) {
     if (jetons[i]!.estMot) gauche++;
-    if (gauche >= MORCEAU_MIN && mots - gauche >= MORCEAU_MIN && frontiereSure(jetons[i]!, jetons[i + 1]!)) candidats.push({ i, gauche });
+    if (gauche >= MORCEAU_MIN && mots - gauche >= MORCEAU_MIN && frontiereSure(jetons, debut, i)) candidats.push({ i, gauche });
   }
   candidats.sort((x, y) => Math.abs(x.gauche - mots / 2) - Math.abs(y.gauche - mots / 2) || x.i - y.i);
   for (const { i } of candidats) {
