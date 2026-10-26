@@ -117,10 +117,52 @@ describe("couperPhrasesLongues · le sens ne casse jamais", () => {
     "Plus jamais un seul client important de votre entreprise, sans réponse rapide le soir ou le week-end",
     "Les clients de votre cabinet, qui paient en retard, reçoivent un rappel poli et automatique tous les matins",
     "Votre équipe devient deux fois plus rapide, que la concurrence pour répondre à chaque demande entrante du jour",
-  ])("avec virgule mais devant qui, que, sans : jamais coupée devant ce mot (%#)", (t) => {
+    "Notre assistant, disponible jour et nuit, répond à toutes vos questions en quelques secondes",
+    "Vous ne laissez, désormais, plus aucun client sans réponse le soir ou le week-end",
+    "Vous gérez les devis, les factures, les relances clients et les rendez-vous de toute votre équipe",
+    "Votre équipe répond à chaque client, plus vite que la concurrence et sans effort",
+    "Vous suivez toutes vos relances, c'est-à-dire les e-mails que vos clients attendent chaque matin",
+    "Vous gagnez du temps sur vos échanges clients, grâce à notre assistant qui répond la nuit",
+    "Votre assistant répond à chaque client de votre cabinet chaque matin, dont les plus pressés et les plus exigeants",
+    "Votre assistant répond à chaque client de votre cabinet chaque matin, comme le ferait un vrai collaborateur humain",
+    "Votre assistant répond à chaque client de votre cabinet chaque matin, si vous le souhaitez vraiment ainsi",
+    "Votre assistant répond à chaque client de votre cabinet chaque matin, lorsque vous êtes absent du bureau",
+    "Votre assistant répond à chaque client de votre cabinet chaque matin, afin que personne n'attende trop longtemps",
+    "Votre assistant répond à chaque client de votre cabinet chaque matin, après avoir lu tout le courrier reçu",
+    "Votre assistant répond à chaque client de votre cabinet chaque matin, avant même que vous soyez arrivé au bureau",
+    "Vous ne payez pas de frais cachés chaque mois, vous gardez le contrôle de votre budget et de vos dépenses",
+    "Vous ne payez rien de caché chaque mois, vous gardez le contrôle de votre budget et de vos dépenses",
+  ])("liste blanche : coupe refusée, texte INCHANGÉ (%#)", (t) => {
+    expect(motsDits(t).length).toBeGreaterThan(12);
     const r = couperPhrasesLongues(t);
-    expect(r).not.toMatch(/\. (Qui|Que|Sans)\b/);
-    invariants(t, r);
+    expect(r).toBe(t);
+  });
+
+  it("négation ouverte à gauche : jamais coupée ; négation fermée : coupée", () => {
+    const ouverte = "Vous ne gérez, seul, chaque dossier de vos clients ce matin, nous le faisons avec vous chaque jour";
+    expect(couperPhrasesLongues(ouverte)).toBe(ouverte);
+    const ferme = "Vous ne perdez jamais un seul message de vos clients ce matin, nous le gérons pour vous chaque jour";
+    expect(couperPhrasesLongues(ferme)).toBe("Vous ne perdez jamais un seul message de vos clients ce matin. Nous le gérons pour vous chaque jour");
+  });
+
+  it.each([
+    [
+      "Moins de tâches répétitives, plus de temps pour vos clients et votre croissance",
+      "Moins de tâches répétitives. Plus de temps pour vos clients et votre croissance",
+    ],
+    [
+      "Vous gagnez du temps chaque jour sur vos tâches, mais vous gardez le contrôle de chaque étape importante",
+      "Vous gagnez du temps chaque jour sur vos tâches. Mais vous gardez le contrôle de chaque étape importante",
+    ],
+    [
+      "Votre assistant lit chaque message reçu dans la journée, il propose ensuite une réponse claire à valider",
+      "Votre assistant lit chaque message reçu dans la journée. Il propose ensuite une réponse claire à valider",
+    ],
+  ])("cas positifs : coupée devant le bon mot, mots et chiffres identiques (%#)", (t, attendu) => {
+    const r = couperPhrasesLongues(t);
+    expect(r).toBe(attendu);
+    expect(motsNus(r)).toEqual(motsNus(t));
+    expect(lecture(r)).toEqual(lecture(t));
   });
 
   it("devant mais, donc, car, puis, alors : coupe permise après la virgule", () => {
