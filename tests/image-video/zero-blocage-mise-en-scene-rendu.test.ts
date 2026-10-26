@@ -156,7 +156,7 @@ describe("rendu : une panne est refaite, seul l'impossible arrête", () => {
   it("second échec du rendu → IV_PANNE", async () => {
     const { fini, o } = await prete();
     let appels = 0;
-    const outils: OutilsFabricationIV = { ...o, rendre: async () => Promise.reject(new Error(`coupé ${++appels}`)) };
+    const outils: OutilsFabricationIV = { ...o, relancesAuto: false, rendre: async () => Promise.reject(new Error(`coupé ${++appels}`)) };
     const e = await avancerIV(depuis(fini, "rendu"), outils);
     expect(appels).toBe(2);
     expect(e.etape).toBe("refusee");

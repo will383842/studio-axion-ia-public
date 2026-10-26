@@ -38,6 +38,8 @@ type EtatIV = import("@/moteurs/montage-image-video").EtatFabricationIV;
 const MDP = "image-video-plafond-confirme";
 const carte = carteFixe("C");
 let m: Monde;
+/** Crédit réel épuisé chez le fournisseur de voix (le prix annoncé, lui, ne bloque plus : seul le crédit réel peut arrêter). */
+let creditEpuise = false;
 
 beforeAll(async () => {
   process.env.SESSION_SECRET = "t".repeat(48);
@@ -50,10 +52,11 @@ beforeEach(async () => {
   reinitialiserRequete();
   await auth.seConnecter(MDP, false);
   m = monde();
+  creditEpuise = false;
   brancherServicesImageVideo({
     outils: async (commande) => {
       const gardees = async () => lireParametre<Record<string, unknown> | null>(`${PREFIXE_DECISIONS}${commande.videoId}`, null);
-      return { ...outilsSimules(carte, m), decisions: { carte: async () => ((await gardees())?.carte ?? null) as never, script: async () => ((await gardees())?.script ?? null) as never } };
+      return { ...outilsSimules(carte, m, { refuserDepense: (d) => (creditEpuise && d.fournisseur === "heygen" ? "Crédit insuffisant." : null) }), decisions: { carte: async () => ((await gardees())?.carte ?? null) as never, script: async () => ((await gardees())?.script ?? null) as never } };
     },
   });
 });
@@ -96,6 +99,21 @@ async function plafondGarde(videoId: string, centimes: number) {
   const t = (await travailDe(videoId))!;
   const e = etatDe(t)!;
   await depots().travaux.enregistrer({ ...t, parametres: { ...t.parametres, imageVideo: { ...e, caisse: { ...e.caisse, plafondCentimes: centimes }, demande: { ...e.demande, plafondCentimes: centimes } } } });
+}
+
+/**
+ * Voix arrêtée comme avant l'ordre « le prix ne bloque jamais » : le moteur ne produit plus IV_PLAFOND, il est donc FABRIQUÉ ici
+ * (refus IV_BUDGET réécrit en IV_PLAFOND) pour les anciens états déjà gardés, dont « Relever le plafond » doit rester capable. Rien de lu.
+ */
+async function arreterSurPlafond(videoId: string, prix: number, formules: { cle: string }[]) {
+  creditEpuise = true;
+  await ecran.validerScriptEtReprendre(videoId, { choixFormules: Object.fromEntries(formules.map((f) => [f.cle, "garder" as const])), ajoutsWill: [] }, prix);
+  const arrete = (await boucleJusqua(videoId, (t) => t?.statut === "echec"))!;
+  creditEpuise = false;
+  const e = etatDe(arrete)!;
+  expect(e.refus).toMatchObject({ code: "IV_BUDGET", etape: "voix" });
+  await depots().travaux.enregistrer({ ...arrete, parametres: { ...arrete.parametres, imageVideo: { ...e, refus: { ...e.refus!, code: "IV_PLAFOND" } } } });
+  return (await travailDe(videoId))!;
 }
 
 describe("Image → vidéo · plafond = prix confirmé au dépôt", () => {
@@ -156,12 +174,9 @@ describe("Image → vidéo · « Relever le plafond »", () => {
     // Ancien plafond trop bas pour la voix (ce qui arrêtait les vidéos à 5 réseaux).
     const engage = engageCentimes(etatDe(await travailDe(videoId))!);
     await plafondGarde(videoId, engage);
-    const choix = Object.fromEntries(vueScript.script!.formules.map((f) => [f.cle, "garder" as const]));
     const prix = Math.max(vueScript.script!.prix.auPlusCentimes, vueScript.script!.prix.habituelCentimes);
-    const valide = await ecran.validerScriptEtReprendre(videoId, { choixFormules: choix, ajoutsWill: [] }, prix);
-    expect(valide, JSON.stringify(valide)).toEqual({ statut: "reprise" });
-    const arrete = await boucleJusqua(videoId, (t) => t?.statut === "echec" || t?.statut === "termine");
-    expect(etatDe(arrete)?.refus?.code, JSON.stringify(arrete?.erreur)).toBe("IV_PLAFOND");
+    const arrete = await arreterSurPlafond(videoId, prix, vueScript.script!.formules);
+    expect(etatDe(arrete)?.refus?.code).toBe("IV_PLAFOND");
     expect(m.lus).toEqual([]);
 
     const vue = (await ecran.vueImageVideo(videoId))!;
@@ -206,8 +221,7 @@ describe("Image → vidéo · « Relever le plafond »", () => {
     const vueScript = await jusquAuScript(videoId);
     await plafondGarde(videoId, engageCentimes(etatDe(await travailDe(videoId))!));
     const prix = Math.max(vueScript.script!.prix.auPlusCentimes, vueScript.script!.prix.habituelCentimes);
-    await ecran.validerScriptEtReprendre(videoId, { choixFormules: Object.fromEntries(vueScript.script!.formules.map((f) => [f.cle, "garder" as const])), ajoutsWill: [] }, prix);
-    await boucleJusqua(videoId, (t) => t?.statut === "echec");
+    await arreterSurPlafond(videoId, prix, vueScript.script!.formules);
     const propose = (await ecran.vueImageVideo(videoId))!.plafond!.proposeCentimes;
     const issue = await ecran.releverPlafondImageVideo(videoId, { montantCentimes: propose, accordCentimes: propose, reprendre: true });
     expect(issue.statut).toBe("releve");
@@ -222,8 +236,7 @@ describe("Image → vidéo · « Relever le plafond »", () => {
     const vueScript = await jusquAuScript(videoId);
     await plafondGarde(videoId, engageCentimes(etatDe(await travailDe(videoId))!));
     const prix = Math.max(vueScript.script!.prix.auPlusCentimes, vueScript.script!.prix.habituelCentimes);
-    await ecran.validerScriptEtReprendre(videoId, { choixFormules: Object.fromEntries(vueScript.script!.formules.map((f) => [f.cle, "garder" as const])), ajoutsWill: [] }, prix);
-    const arrete = await boucleJusqua(videoId, (t) => t?.statut === "echec");
+    const arrete = await arreterSurPlafond(videoId, prix, vueScript.script!.formules);
     expect(etatDe(arrete)?.refus?.code).toBe("IV_PLAFOND");
     expect(m.lus).toEqual([]);
     const propose = (await ecran.vueImageVideo(videoId))!.plafond!.proposeCentimes;
