@@ -143,6 +143,14 @@ export const schemaTirage = z.strictObject({
   relache: entier(0, 3),
   /** L6 · combinaison des mises en page et raccords posés (`misesEnPageL6`), gardée dans l'historique ; absente : aucune. */
   misesEnPage: z.string().max(2000).optional(),
+  /** Mises en page (v4 comprise) des écrans résultat et question, « type:code » séparés par des virgules : sert à ne pas les répéter sur 3 vidéos (`FENETRE_MAQUETTES`) ; absente : inconnues. */
+  misesTypes: z.string().max(500).optional(),
+  /**
+   * Posé sur les tirages faits depuis le lot « variantes visibles » : seuls ces tirages font DESSINER l'entrée, la sortie, la
+   * caméra, la transition et le mot par mot (`DIMENSIONS_HABILLAGE`). Une vidéo déjà faite (tirage écrit sans ce champ) garde
+   * son rendu : ces dimensions y sont tirées mais n'ont jamais été dessinées, elles ne le sont pas après coup.
+   */
+  habille: z.literal(true).optional(),
 });
 export type Tirage = z.infer<typeof schemaTirage>;
 
@@ -199,15 +207,45 @@ export function lireMise(brut: unknown): Mise | null {
  * la même PR que sa lecture. Une valeur v4 n'est jamais posée sur l'écran : un écran sans aucune valeur ≠ v4 n'a pas de
  * `jeu` (propriétés et empreinte de rendu de la v4).
  */
-export const DIMENSIONS_ACTIVES: readonly DimensionEcran[] = Object.freeze(["fondFort", "groupeParticules", "densiteParticules", "barres", "miseEnPage", "fondAlterne", "raccordEntree", "raccordSortie", "animObjet"]);
+export const DIMENSIONS_ACTIVES: readonly DimensionEcran[] = Object.freeze(["fondFort", "groupeParticules", "densiteParticules", "barres", "miseEnPage", "fondAlterne", "raccordEntree", "raccordSortie", "animObjet", "entree", "sortie", "camera", "transition", "motParMot"]);
+
+/**
+ * GARDE-FOU des variantes dessinées depuis le lot « variantes visibles » : pour chaque dimension, les valeurs que les
+ * compositions savent rendre ET dont les tests de rendu passent (`tests/cas-concret/variete/habillage.test.ts`). Une valeur
+ * absente de cette liste n'est jamais posée sur l'écran (la v4 est rendue) ; pour désactiver une variante qui échoue à ses
+ * tests, la retirer d'ici. Une dimension non listée n'a pas de garde (toutes ses valeurs hors v4 passent).
+ */
+export const VARIANTES_RENDUES: Readonly<Partial<Record<DimensionEcran, readonly string[]>>> = Object.freeze({
+  entree: ["glissement", "volet-masque", "zoom-avant", "rideau"],
+  sortie: ["poussee", "flou"],
+  camera: ["zoom-lent", "derive-laterale", "punch-in", "zoom-arriere"],
+  // « raccord-objet » est le raccord L6 (`raccordEntree`) : non dessiné comme transition.
+  transition: ["volet-terracotta", "poussee", "eclair"],
+  motParMot: ["cascade", "souffle"],
+});
+
+/** Dimensions dessinées par `Habillage` : posées seulement si le tirage porte `habille` (vidéos faites avant : rendu inchangé). */
+export const DIMENSIONS_HABILLAGE: readonly DimensionEcran[] = Object.freeze(["entree", "sortie", "camera", "transition", "motParMot"]);
+
+/** Valeur v4 de chaque dimension à choix fermé : jamais posée sur l'écran (propriétés et empreinte de rendu de la v4). */
+const VALEUR_V4_ECRAN: Readonly<Partial<Record<DimensionEcran, string>>> = Object.freeze({ entree: "fondu-recul-v4", sortie: "aucune-v4", camera: "aucun", motParMot: "v4" });
 
 /** Réglages transmis aux propriétés d'un écran (`jeu`) : les seules dimensions actives ; `undefined` si aucune. */
-export function jeuDeLEcran(mise: Pick<Mise, "ecrans"> | null | undefined, ecranId: string, actives: readonly DimensionEcran[] = DIMENSIONS_ACTIVES): Record<string, string | number | boolean> | undefined {
+export function jeuDeLEcran(mise: (Pick<Mise, "ecrans"> & { tirage?: Pick<Tirage, "habille"> }) | null | undefined, ecranId: string, actives: readonly DimensionEcran[] = DIMENSIONS_ACTIVES): Record<string, string | number | boolean> | undefined {
   const t = mise?.ecrans[ecranId];
   if (!t || !actives.length) return undefined;
   const jeu: Record<string, string | number | boolean> = {};
   // L6 : une mise en page de L2 (« v4-centree », « gauche », « plein-cadre ») n'a jamais été rendue : elle n'est pas posée.
-  for (const d of actives) if (t[d] !== undefined && !(d === "miseEnPage" && (MISES_EN_PAGE as readonly string[]).includes(t[d] as string))) jeu[d] = t[d]!;
+  for (const d of actives) {
+    const v = t[d];
+    if (v === undefined) continue;
+    if (DIMENSIONS_HABILLAGE.includes(d) && mise?.tirage?.habille !== true) continue;
+    if (d === "miseEnPage" && (MISES_EN_PAGE as readonly string[]).includes(v as string)) continue;
+    if (VALEUR_V4_ECRAN[d] === v) continue;
+    const rendues = VARIANTES_RENDUES[d];
+    if (rendues && !rendues.includes(v as string)) continue;
+    jeu[d] = v;
+  }
   return Object.keys(jeu).length ? jeu : undefined;
 }
 
@@ -287,7 +325,7 @@ export const TIRAGE_V4: Tirage = Object.freeze({
 }) as Tirage;
 
 /** Dimensions du tirage qui ne sont pas des réglages (identité et compte rendu) : ignorées par `estV4`. */
-const HORS_DIMENSIONS = ["graine", "sel", "relache", "misesEnPage"] as const;
+const HORS_DIMENSIONS = ["graine", "sel", "relache", "misesEnPage", "misesTypes", "habille"] as const;
 
 /**
  * Vrai si le tirage est la v4 exacte : chaque dimension vaut sa variante n° 0 (`TIRAGE_V4`), quels que soient la graine,
@@ -304,6 +342,8 @@ export function estV4(t: Tirage): boolean {
 /** Un candidat tiré au hasard semé (sans contrainte). */
 function candidat(r: () => number, graine: number, sel: number): Tirage {
   const v4Majoritaire = [0.6, 0.2, 0.2];
+  // Mot par mot : plus aucune variante au-dessus de 40 % (la v4 était à 60 % quand le tirage n'était pas dessiné).
+  const motParMotEquilibre = [0.36, 0.32, 0.32];
   const camera = pondere(r, STYLES_CAMERA, [0.25, 0.25, 0.25, 0.25]);
   const nbTransitions = pondere(r, [0, 2, 3, 4], [0.2, 0.35, 0.3, 0.15]);
   return {
@@ -313,20 +353,21 @@ function candidat(r: () => number, graine: number, sel: number): Tirage {
     ouverture: dans(r, OUVERTURES),
     structure: pondere(r, STRUCTURES, [0.35, 0.25, 0.2, 0.2]),
     jeuAnimation: dans(r, JEUX_ANIMATION),
-    sortie: pondere(r, SORTIES, [0.4, 0.3, 0.3]),
-    motParMot: pondere(r, MOTS_PAR_MOT, v4Majoritaire),
+    sortie: pondere(r, SORTIES, [0.34, 0.33, 0.33]),
+    motParMot: pondere(r, MOTS_PAR_MOT, motParMotEquilibre),
     miseEnPage: Object.fromEntries(TYPES_MIS_EN_PAGE.map((t) => [t, pondere(r, MISES_EN_PAGE, [0.4, 0.3, 0.3])])) as Tirage["miseEnPage"],
     transitions: melange(r, MOMENTS_CLES)
       .slice(0, nbTransitions)
       .sort((a, b) => MOMENTS_CLES.indexOf(a) - MOMENTS_CLES.indexOf(b))
       .map((moment) => ({ moment, type: dans(r, TRANSITIONS) })),
     camera: { style: camera, part: camera === "aucune-v4" ? 0 : +(PART_CAMERA.min + r() * (PART_CAMERA.max - PART_CAMERA.min)).toFixed(2) },
-    fondFort: pondere(r, FONDS_FORTS, [0.4, 0.4, 0.2]),
+    fondFort: pondere(r, FONDS_FORTS, [0.34, 0.36, 0.3]),
     particules: { groupe: entierDans(r, GROUPES_PARTICULES), densite: dans(r, DENSITES_PARTICULES) },
     sousTitres: { inclinaison: dans(r, INCLINAISONS), intensite: pondere(r, INTENSITES, v4Majoritaire), accent: dans(r, ACCENTS), hauteur: dans(r, HAUTEURS_SOUS_TITRES) },
     bruitages: { depart: entierDans(r, DEPARTS_BRUITAGES) },
     fin: { phrase: entierDans(r, PHRASES_FIN), composition: entierDans(r, 2), animation: entierDans(r, 2) },
     relache: 0,
+    habille: true,
   };
 }
 
@@ -521,7 +562,8 @@ export function miseDesEcrans(t: Tirage, ecrans: readonly EcranAMettre[]): Mise[
       const te: TirageEcran = {
         miseEnPage: (TYPES_MIS_EN_PAGE as readonly string[]).includes(e.type) ? t.miseEnPage[e.type as TypeMisEnPage] : MISES_EN_PAGE[0],
         entree,
-        sortie: t.sortie,
+        // Jamais de sortie sur le dernier écran (l'écran final reste affiché) ni sur l'écran de lien.
+        sortie: i === ecrans.length - 1 || e.type === ("lien" as TypeEcran) ? SORTIES[0] : t.sortie,
         motParMot: t.motParMot,
         camera: camera.has(i) ? dans(r, mouvements) : "aucun",
         ...(transitions.has(i) ? { transition: transitions.get(i)! } : {}),
@@ -556,10 +598,11 @@ export function animObjetDe(t: Pick<Tirage, "graine" | "sel">, e: EcranAMettre):
  * raccords (`misesEnPageL6`) sont posés sur la déclinaison, et leur combinaison est notée dans le tirage.
  */
 export function mettre(t: Tirage, ecrans: readonly EcranAMettre[], historique: readonly EntreeHistorique[] = [], canaux: readonly string[] = []): Mise {
-  const { misesEnPage: _ancienne, ...tirage } = t;
+  const { misesEnPage: _ancienne, misesTypes: _anciennes, ...tirage } = t;
   void _ancienne;
+  void _anciennes;
   const l6 = misesEnPageL6(tirage, ecrans, miseDesEcrans(tirage, ecrans), historique, canaux);
-  return { version: VERSION_VARIETE, tirage: l6.combinaison ? { ...tirage, misesEnPage: l6.combinaison } : tirage, ecrans: l6.ecrans };
+  return { version: VERSION_VARIETE, tirage: l6.combinaison ? { ...tirage, misesEnPage: l6.combinaison, ...(l6.misesTypes ? { misesTypes: l6.misesTypes } : {}) } : tirage, ecrans: l6.ecrans };
 }
 
 /** Ligne d'historique d'une mise. */
@@ -580,6 +623,56 @@ export const RACCORDS_MAX = 2;
 /** L6 · poids du tirage : la v4 reste une option, beaucoup moins souvent (lot B : 0,25 contre 2). */
 const POIDS_V4 = 0.25;
 const POIDS_L6 = 2;
+
+/** Poids de la maquette préférée par l'ouverture tirée, sur l'écran d'accroche (4 fois une maquette ordinaire). */
+const POIDS_OUVERTURE = 4;
+/** Maquettes rares (données exigeantes) : tirées 2 fois plus souvent dès que leurs données sont là, pour qu'elles se voient. */
+export const MAQUETTES_RARES: readonly string[] = Object.freeze(["acc-duel-tailles", "ava-cadran", "res-mois-rempli"]);
+/**
+ * L'ouverture tirée est DESSINÉE par l'accroche : chaque ouverture préfère une maquette d'accroche (son poids pèse
+ * `POIDS_OUVERTURE`) ; l'accroche n'est jamais l'affiche v4 (règle du lot A). Si la maquette préférée n'est pas tirable
+ * (données absentes), le tirage ordinaire s'applique.
+ */
+export const MAQUETTE_DE_L_OUVERTURE: Readonly<Record<Ouverture, string>> = Object.freeze({
+  // Règle du lot A (jamais l'affiche v4 sur l'accroche hors tirage v4) : « affiche-v4 » prend une maquette de page.
+  "affiche-v4": "acc-page-ecrite",
+  "chiffre-choc": "acc-duel-tailles",
+  "compteur-emballe": "acc-duel-tailles",
+  "question-plein-cadre": "acc-page-ecrite",
+  "phrase-deux-temps": "acc-detail-recul",
+  "titre-geant-gauche": "acc-detail-recul",
+  "objet-zoom-arriere": "acc-detail-recul",
+  "avant-apres-eclair": "acc-page-ecrite",
+});
+/** Écrans dont la maquette ne se répète pas sur les 3 dernières vidéos (tous canaux). */
+export const TYPES_SANS_REPETITION: readonly string[] = Object.freeze(["resultat", "question"]);
+export const FENETRE_MAQUETTES = 3;
+
+/**
+ * Maquettes (v4 comprise) déjà posées par type sur les `FENETRE_MAQUETTES` dernières vidéos (autres que ce tirage de cette
+ * vidéo), de la plus ancienne à la plus récente : par type, une liste d'ensembles (un par vidéo qui l'a noté).
+ */
+export function maquettesRecentes(t: Pick<Tirage, "graine">, historique: readonly EntreeHistorique[]): Record<string, Set<string>[]> {
+  const sortie: Record<string, Set<string>[]> = {};
+  for (const e of historique.filter((x) => x.tirage.graine !== t.graine).slice(-FENETRE_MAQUETTES)) {
+    const de = new Map<string, Set<string>>();
+    const noter = (type: string, code: string) => (de.get(type) ?? de.set(type, new Set()).get(type)!).add(code);
+    // Vidéos notées depuis ce lot : le type et le code, v4 compris.
+    for (const m of e.tirage.misesTypes?.split(",") ?? []) {
+      const [type, code] = m.split(":");
+      if (type && code) noter(type, code);
+    }
+    // Vidéos plus anciennes : les codes L6 de la combinaison (le type vient du code).
+    if (!e.tirage.misesTypes)
+      for (const morceau of e.tirage.misesEnPage?.split(",") ?? []) {
+        const code = morceau.split("+")[0]!.trim();
+        const type = TYPE_DU_CODE.get(code);
+        if (type && TYPES_SANS_REPETITION.includes(type)) noter(type, code);
+      }
+    for (const [type, codes] of de) (sortie[type] ??= []).push(codes);
+  }
+  return sortie;
+}
 
 /** Identité d'une mise en page (deux types ont chacun leur v4). */
 const identite = (type: string, code: string) => `${type}:${code}`;
@@ -645,12 +738,13 @@ function combinaisonsVues(t: Tirage, historique: readonly EntreeHistorique[]): S
  *  - l'écran d'accroche n'est jamais en v4 tant qu'une maquette L6 est possible (c'est l'ouverture visible de la vidéo) ;
  *  - tirage v4 : rien n'est posé (la v4 exacte).
  */
-export function misesEnPageL6(t: Tirage, ecrans: readonly EcranAMettre[], declinaison: Mise["ecrans"], historique: readonly EntreeHistorique[] = [], canaux: readonly string[] = []): { ecrans: Mise["ecrans"]; combinaison?: string } {
+export function misesEnPageL6(t: Tirage, ecrans: readonly EcranAMettre[], declinaison: Mise["ecrans"], historique: readonly EntreeHistorique[] = [], canaux: readonly string[] = []): { ecrans: Mise["ecrans"]; combinaison?: string; misesTypes?: string } {
   // Sans aucun contenu d'écran (déclinaison seule), rien n'est posé : la déclinaison reste celle d'avant L6.
   if (estV4(t) || !ecrans.some((e) => e.contenu)) return { ecrans: declinaison };
   const r = hasardSeme(hacher32(`${t.graine}#${t.sel}#l6`));
   const vues = combinaisonsVues(t, historique);
   const precedentes = maquettesPrecedentes(t, historique, canaux);
+  const recentes = maquettesRecentes(t, historique);
   const forts = ecrans.map((e) => declinaison[e.id]?.fondFort === true);
   const tirerUne = () => {
     let aplats = forts.filter(Boolean).length;
@@ -666,12 +760,30 @@ export function misesEnPageL6(t: Tirage, ecrans: readonly EcranAMettre[], declin
       const toutes = horsCanal.some((c) => c !== MISES_EN_PAGE[0]) ? horsCanal : eligibles;
       const precedente = i > 0 ? identite(ecrans[i - 1]!.type, codes[i - 1]!) : "";
       const permises = toutes.filter((c) => identite(e.type, c) !== precedente);
-      const choix = permises.length ? permises : toutes;
+      const sansRepetition = permises.length ? permises : toutes;
+      // Résultat et question : jamais la même maquette (v4 comprise) que sur les 3 dernières vidéos, tant qu'il en reste une autre.
+      // S'il n'en reste aucune, la fenêtre se réduit (3, puis 2, puis la seule vidéo précédente) : jamais deux fois de suite si un autre choix existe.
+      const choix = (() => {
+        if (!TYPES_SANS_REPETITION.includes(e.type)) return sansRepetition;
+        const vues = recentes[e.type] ?? [];
+        for (let k = vues.length; k >= 1; k--) {
+          const exclues = new Set(vues.slice(-k).flatMap((x) => [...x]));
+          const fraiches = sansRepetition.filter((c) => !exclues.has(c));
+          if (fraiches.length) return fraiches;
+        }
+        return sansRepetition;
+      })();
       // Une L6 déjà posée pèse 2 fois moins à chaque reprise, la v4 4 fois moins (diversité dans la vidéo elle-même).
       const deja = (c: string) => codes.filter((x, j) => ecrans[j]!.type === e.type && x === c).length;
       // Accroche : la v4 ne sort que s'il n'y a aucune autre maquette (l'ouverture visible de la vidéo est cet écran).
       const sansV4 = e.type === "accroche" && choix.some((c) => c !== MISES_EN_PAGE[0]);
-      const code = pondere(r, choix, choix.map((c) => (c === MISES_EN_PAGE[0] ? (sansV4 ? 0 : POIDS_V4) / Math.pow(4, deja(c)) : POIDS_L6 / Math.pow(2, deja(c)))));
+      // L'ouverture tirée choisit la maquette de l'accroche (`MAQUETTE_DE_L_OUVERTURE`) ; 
+      const voulue = e.type === "accroche" && i === 0 ? MAQUETTE_DE_L_OUVERTURE[t.ouverture] : undefined;
+      const poids = (c: string) => {
+        if (c === MISES_EN_PAGE[0]) return (sansV4 ? 0 : POIDS_V4) / Math.pow(4, deja(c));
+        return ((voulue === c ? POIDS_OUVERTURE : MAQUETTES_RARES.includes(c) ? 2 : 1) * POIDS_L6) / Math.pow(2, deja(c));
+      };
+      const code = pondere(r, choix, choix.map(poids));
       if ((APLATS_ORANGE as readonly string[]).includes(code)) aplats++;
       codes.push(code);
     });
@@ -697,7 +809,9 @@ export function misesEnPageL6(t: Tirage, ecrans: readonly EcranAMettre[], declin
       raccords.set(c.i, c.type);
     }
     const combinaison = ecrans.map((e, i) => `${codes[i]}${raccords.has(i) ? `+${raccords.get(i)}` : ""}`).join(",");
-    return { codes, fonds, raccords, combinaison };
+    // Un écran au fond fort garde la v4 (contrainte, pas un choix) : il n'est pas noté.
+    const misesTypes = ecrans.flatMap((e, i) => (TYPES_SANS_REPETITION.includes(e.type) && !forts[i] && e.contenu ? [`${e.type}:${codes[i]}`] : [])).join(",");
+    return { codes, fonds, raccords, combinaison, misesTypes };
   };
   let choix = tirerUne();
   for (let essai = 1; essai < ESSAIS_MISES_EN_PAGE && vues.has(choix.combinaison); essai++) choix = tirerUne();
@@ -718,6 +832,6 @@ export function misesEnPageL6(t: Tirage, ecrans: readonly EcranAMettre[], declin
     };
   });
   for (const [k, v] of Object.entries(declinaison)) if (!sortie[k]) sortie[k] = v;
-  return { ecrans: sortie, combinaison: choix.combinaison };
+  return { ecrans: sortie, combinaison: choix.combinaison, ...(choix.misesTypes ? { misesTypes: choix.misesTypes } : {}) };
 }
 /* Fin du bloc L6 ------------------------------------------------------------------------------------------------- */
