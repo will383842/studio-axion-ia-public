@@ -9,8 +9,8 @@
  *
  * - Par défaut : SIMULATION (Claude, voix et rendu simulés, rien de payant). `--reel` branche les vrais outils du studio
  *   (`src/services/image-video.ts`) : Claude, voix HeyGen, stockage, serveur de rendu, budget et réservations.
- * - `--plafond` est OBLIGATOIRE : c'est le plafond de dépense de CETTE vidéo (en euros). Le studio s'arrête net avant
- *   tout appel qui le dépasserait ; il ne le dépasse jamais.
+ * - `--plafond` est OBLIGATOIRE : c'est le plafond de dépense de CETTE vidéo (en euros). C'est un repère de prix : s'il est
+ *   dépassé, Will est prévenu et la fabrication continue ; seul le crédit réel du studio arrête un appel.
  * - L'état de la fabrication est gardé après chaque pas dans `<dossier>/etat.json` : relancer la même commande REPREND
  *   sans rien repayer (lectures, carte, script, voix, pistes, rendus, contrôles déjà faits).
  * - Les deux portes de Will arrêtent le lanceur (code 5) : `carte.json` (ce que le studio a compris) puis `script.json`
@@ -30,7 +30,7 @@
  *   vidéo), les textes de publication (`<réseau>.txt`) et `resume.json` (dépense réelle, pire coût engagé, verdicts).
  *
  * N'importe rien de `tests/`, `outils/`, `docs/` ni `studio-rendu/`.
- * Codes de sortie : 0 prête · 1 arguments · 3 déjà en cours ailleurs · 4 arrêtée (refus, plafond) · 5 attend Will ·
+ * Codes de sortie : 0 prête · 1 arguments · 3 déjà en cours ailleurs · 4 arrêtée (refus, crédit réel insuffisant) · 5 attend Will ·
  * 6 attente trop longue.
  */
 import { createHash } from "node:crypto";
@@ -338,7 +338,7 @@ export async function lancer(args: ArgumentsIV, deps: DependancesLanceurIV): Pro
     numeroVersion: NUMERO_VERSION_LANCEUR,
   };
 
-  ecrire(args.reel ? `Mode RÉEL : plafond de cette vidéo ${euros(args.plafondCentimes)} (jamais dépassé).` : "Mode SIMULATION : rien de payant n'est appelé (--reel pour l'essai réel).");
+  ecrire(args.reel ? `Mode RÉEL : plafond de cette vidéo ${euros(args.plafondCentimes)} (repère : Will est prévenu s'il est dépassé).` : "Mode SIMULATION : rien de payant n'est appelé (--reel pour l'essai réel).");
   const b = deps.branchements ? await deps.branchements(demande, octets) : args.reel ? await branchementsReels(demande, octets, MIME[ext] ?? "image/png") : branchementsSimules(octets);
   if (b.publier && (args.validerCarte || args.validerScript)) {
     ecrire(PHRASES_LANCEUR_IV.validerEnReel);

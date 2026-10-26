@@ -324,6 +324,8 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         throw err;
       }
     },
+    // Hors mode indicatif aussi, le prix annoncé ne bloque pas : même cloche que `indicatif.signaler`.
+    avertir: async (message: string) => signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", message, await sujetDeCloche(String(dep.videoId))),
     // Mode indicatif : le plafond de la vidéo est un repère (cloche) ; le prix n'arrête plus rien (ordre du 25/10).
     ...(indicatifIV
       ? { indicatif: { facteurSecurite: FACTEUR_SECURITE_BUDGET, signaler: async (message: string) => signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", message, await sujetDeCloche(String(dep.videoId))) } }

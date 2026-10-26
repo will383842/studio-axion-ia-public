@@ -250,7 +250,7 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
   });
 
   it("reprise : la recette reste la même après un arrêt (jamais retirée), même avec un autre historique", async () => {
-    const { outils, e } = demarrer({ monde: { pannesVoix: [1] } });
+    const { outils, e } = demarrer({ monde: { pannesVoix: [1, 2] } });
     const arret = await jusquAuBout(e, outils);
     expect(arret.etape).toBe("refusee");
     expect(arret.refus?.etape).toBe("voix");
