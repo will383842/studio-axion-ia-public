@@ -828,17 +828,12 @@ describe("reprise après erreur, sans repayer", () => {
         expect(b.m.lus.filter((t) => t.endsWith(IG_S))).toHaveLength(2);
       });
 
-      it("(d) plafond trop bas pour la relecture : refus « budget » réessayable, rien n'est lu ; une fois le plafond relevé, UNE seule lecture", async () => {
+      it("(d) plafond trop bas pour la relecture : le prix ne bloque plus, UNE seule lecture neuve, la vidéo va au bout", async () => {
         const b = monter({ [IG]: "hors", [IG_S]: ["hors", "ok"] });
         const e2 = await reprendre(b, await partir(b));
         const lus = b.m.lus.length;
         const e3 = await reprendre(b, e2, { plafondCentimes: engageCentimes(e2) });
-        expect(e3.etape).toBe("refusee");
-        expect(e3.refus).toMatchObject({ etape: "voix", reessayable: true });
-        expect(e3.refus!.code).toMatch(/IV_PLAFOND|IV_BUDGET/);
-        expect(b.m.lus).toHaveLength(lus);
-        const e4 = await reprendre(b, e3, { plafondCentimes: engageCentimes(e3) + 500 });
-        expect(e4.etape).toBe("prete");
+        expect(e3.etape).toBe("prete");
         expect(b.m.lus).toHaveLength(lus + 1);
         expect(b.m.lus.at(-1)).toMatch(/Vous trouverez le lien juste en haut de mon profil\.$/);
       });
@@ -931,18 +926,14 @@ describe("reprise après erreur, sans repayer", () => {
     });
   });
 
-  it("panne de HeyGen sur une fin : refus réessayable ; la reprise ne relit pas le corps payé", async () => {
+  it("panne de HeyGen sur une fin : relancée seule, le corps payé n'est pas relu", async () => {
     const { m, o, e } = demarrer("C", { pannesVoix: [2] });
     const { etat } = await jusquAuBout(e, o);
-    expect(etat.etape).toBe("refusee");
-    expect(etat.refus).toMatchObject({ etape: "voix", code: "IV_PANNE", reessayable: true });
-    const corps = m.lus.length;
-    expect(corps).toBe(1);
-    const fin = await jusquAuBout(reprendreIV(etat), o);
-    expect(fin.etat.etape).toBe("prete");
-    // Le corps n'est jamais relu : seules les fins sont lues après la reprise.
+    expect(etat.etape).toBe("prete");
+    // Le corps n'est jamais relu : seules les fins sont lues après la relance automatique (même tentative).
     expect(m.lus.filter((t) => t === m.lus[0]).length).toBe(1);
-    expect(fin.etat.tentatives.voix).toBe(2);
+    expect(etat.tentatives.voix).toBe(1);
+    expect(etat.journal.some((l) => /panne passagère, un nouvel essai automatique de la voix/.test(l))).toBe(true);
   });
 
   it("rendu en cours : attente, rien n'est perdu ni compté deux fois, le pas suivant reprend", async () => {
@@ -967,7 +958,8 @@ describe("reprise après erreur, sans repayer", () => {
     const m = monde();
     const base = outilsSimules(carte, m);
     let vide = true;
-    const o: OutilsFabricationIV = { ...base, ecriture: { appeler: async (role, entree) => (vide ? { ok: true, simule: true, texte: "" } : base.ecriture.appeler(role, entree)) } };
+    // Relance automatique coupée : on compte ici les seuls appels d'écriture du moteur et de la reprise de Will.
+    const o: OutilsFabricationIV = { ...base, relancesAuto: false, ecriture: { appeler: async (role, entree) => (vide ? { ok: true, simule: true, texte: "" } : base.ecriture.appeler(role, entree)) } };
     let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte)), o);
     e = await avancerJusquAArretIV(validerCarteIV(e, decisionCarte(e)), o);
     expect(e.refus).toMatchObject({ etape: "ecriture", code: "IV_ECRITURE", reessayable: true });
@@ -1001,48 +993,24 @@ async function auScriptDe(x: ReturnType<typeof demarrer>): Promise<EtatFabricati
 /* Plafond par vidéo et budget                                           */
 /* ------------------------------------------------------------------ */
 
-describe("plafond par vidéo : arrêt net, jamais dépassé", () => {
-  it("plafond trop bas pour la lecture : aucun appel, refus « plafond »", async () => {
+describe("plafond par vidéo : un avertissement, jamais un arrêt tant que le crédit réel suffit", () => {
+  it("plafond trop bas pour la lecture : la lecture part, avertissement au journal", async () => {
     const { m, o, e } = demarrer("C", {}, { plafondCentimes: 10 });
     const apres = await avancerJusquAArretIV(e, o);
-    expect(apres.refus).toMatchObject({ code: "IV_PLAFOND", etape: "lecture" });
-    expect(apres.refus?.message).toMatch(/Plafond de cette vidéo atteint \(0,10 €/);
-    expect(m.appelsClaude).toEqual([]);
-    expect(m.depenses).toEqual([]);
+    expect(apres.refus).toBeUndefined();
+    expect(m.appelsClaude.length).toBeGreaterThan(0);
+    expect(apres.journal.some((l) => /Avertissement : Cette vidéo dépasse son prix annoncé/.test(l))).toBe(true);
   });
 
-  it("plafond atteint à la voix : aucune lecture HeyGen ; relevé par Will, la fabrication reprend sans rien repayer", async () => {
-    // Depuis #248, l'écriture réserve plus : le plafond bas se pose une fois le script écrit, comme le ferait Will.
+  it("plafond atteint à la voix : la voix est lue quand même, la vidéo va au bout sans rien repayer", async () => {
     const x = demarrer("C", {}, { plafondCentimes: 500 });
     let e = await auScriptDe(x);
     e = reprendreIV(e, { plafondCentimes: engageCentimes(e) });
-    expect(e.etape).toBe("script-a-valider");
-    e = await avancerJusquAArretIV(validerScriptIV(e, decisionScript(e)), x.o);
-    expect(e.refus).toMatchObject({ code: "IV_PLAFOND", etape: "voix", reessayable: true });
-    expect(x.m.lus).toEqual([]);
-    const appels = x.m.appelsClaude.length;
-    const fin = await jusquAuBout(reprendreIV(e, { plafondCentimes: 500 }), x.o);
+    const fin = await jusquAuBout(validerScriptIV(e, decisionScript(e)), x.o);
     expect(fin.etat.etape).toBe("prete");
-    // Lecture et écriture ne sont jamais refaites ; seule la relecture finale appelle Claude ensuite.
-    expect(x.m.appelsClaude.slice(appels).every((a) => a.role === "relecture-finale-iv")).toBe(true);
-  });
-
-  it("plafond atteint au milieu de la voix : le corps payé est gardé, jamais relu", async () => {
-    const x = demarrer("C", {}, { plafondCentimes: 500 });
-    let e = await auScriptDe(x);
-    e = validerScriptIV(e, decisionScript(e));
-    // Un pas : le corps est lu (et payé).
-    e = await avancerIV(e, x.o);
-    expect(x.m.lus.length).toBe(1);
-    // Will baisse le plafond à ce qui est déjà engagé : la première fin ne peut plus être réservée.
-    e = reprendreIV(e, { plafondCentimes: engageCentimes(e) });
-    e = await avancerJusquAArretIV(e, x.o);
-    expect(e.refus?.code).toBe("IV_PLAFOND");
-    expect(x.m.lus.length).toBe(1);
-    expect(engageCentimes(e)).toBeLessThanOrEqual(e.caisse.plafondCentimes);
-    const fin = await jusquAuBout(reprendreIV(e, { plafondCentimes: 500 }), x.o);
-    expect(fin.etat.etape).toBe("prete");
-    expect(x.m.lus.filter((t) => t === x.m.lus[0]).length).toBe(1);
+    expect(x.m.lus.length).toBeGreaterThan(0);
+    expect(engageCentimes(fin.etat)).toBeGreaterThan(fin.etat.caisse.plafondCentimes);
+    expect(fin.etat.journal.some((l) => /Avertissement/.test(l))).toBe(true);
   });
 
   it("budget du studio refusé (crédit) : refus « budget », rien n'est lu", async () => {
