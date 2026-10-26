@@ -1129,6 +1129,8 @@ export interface PisteVoixSeuleIV {
   finVoixSec: number;
   coupesDeplacees: number;
   tempo: number;
+  /** Écart de forme noté sans arrêter la vidéo (fin de voix serrée, dernière phrase peut-être coupée). */
+  remarque?: string;
 }
 
 interface EntreePiste {
@@ -1163,19 +1165,22 @@ async function mesureDe(cle: string, nom: string, o: OutilsAssemblageIV, cache: 
 
 const silencesDe = async (cle: string, nom: string, o: OutilsAssemblageIV, cache: CacheSons) => (await mesureDe(cle, nom, o, cache)).silences;
 
-/** Contrôle bloquant de la piste produite : dernière phrase dite en entier, puis 300 ms de silence mesuré. */
-function controlerPiste(son: Son, mots: readonly MotHorodate[], nom: string): number {
+/**
+ * Contrôle de la piste produite : dernière phrase dite en entier, puis 300 ms de silence mesuré. Un écart est une
+ * REMARQUE (la vidéo continue, Q19 est relu à l'écoute) ; seule une piste sans aucun mot (voix absente) arrête.
+ */
+function controlerPiste(son: Son, mots: readonly MotHorodate[], nom: string): { finSonoreSec: number; remarque?: string } {
   const dernier = mots.at(-1);
   if (!dernier) throw new ErreurVoixIV("Q19", `La piste voix seule ${nom} n'a aucun mot : la fin ne peut pas être contrôlée.`);
   const verdict = controlerFinDeVoix(son, dernier.finSec, REGLES_FIN_DE_VOIX_IV);
-  if (!verdict.ok) throw new ErreurVoixIV("Q19", `Piste voix seule ${nom} · ${verdict.raison}`);
+  if (!verdict.ok) return { finSonoreSec: dernier.finSec, remarque: `Piste voix seule ${nom} · ${verdict.raison}` };
   const duree = son.echantillons.length / son.frequence;
   const final = silencesMesures(son).at(-1);
   const silenceApres = final && final.finSec >= duree - REGLES_FIN_DE_VOIX.fenetreSec - EPS_INSTANT ? final.finSec - Math.max(final.debutSec, dernier.finSec) : 0;
   if (silenceApres < SILENCE_FIN_MIN_SEC - EPS_INSTANT) {
-    throw new ErreurVoixIV("Q19", `Piste voix seule ${nom} · après le dernier mot (« ${dernier.mot} »), le silence mesuré dure ${sec(Math.max(0, silenceApres))} (300 ms au moins) : la dernière phrase risque d'être coupée.`);
+    return { finSonoreSec: verdict.finSonoreSec, remarque: `Piste voix seule ${nom} · après le dernier mot (« ${dernier.mot} »), le silence mesuré dure ${sec(Math.max(0, silenceApres))} (300 ms au moins) : la dernière phrase risque d'être coupée.` };
   }
-  return verdict.finSonoreSec;
+  return { finSonoreSec: verdict.finSonoreSec };
 }
 
 /**
@@ -1248,7 +1253,7 @@ async function assemblerPiste(e: EntreePiste, o: OutilsAssemblageIV, cache: Cach
   });
   const octets = await o.lireSon(fait.cle);
   const son = exigerWav(octets, `de la piste voix seule ${nom}`);
-  const finVoixSec = controlerPiste(son, plan.mots, nom);
+  const { finSonoreSec: finVoixSec, remarque } = controlerPiste(son, plan.mots, nom);
   return {
     version: e.courte ? `${e.version}-courte` : e.version,
     reseaux: [...e.reseaux],
@@ -1263,6 +1268,7 @@ async function assemblerPiste(e: EntreePiste, o: OutilsAssemblageIV, cache: Cach
     finVoixSec,
     coupesDeplacees,
     tempo: TEMPO_IV,
+    ...(remarque ? { remarque } : {}),
   };
 }
 
@@ -1340,7 +1346,7 @@ export async function assemblerVersionCourteIV(
   // Rang du premier mot de chaque écran dans les mots lus du corps.
   const comptes = e.fiche.ecrans.map((x) => motsDits(x.texteDit).length);
   const total = comptes.reduce((a, b) => a + b, 0);
-  if (total !== mots.length) throw new ErreurVoixIV("entree", `Les mots de la voix du corps (${mots.length}) ne correspondent pas au script (${total}) : la version courte ne peut pas être taillée.`);
+  if (total !== mots.length) throw new ErreurVoixIV("entree", `Les mots de la voix du corps (${mots.length}) ne correspondent pas au script (${total}) : la version courte ne peut pas être taillée.`, true);
   const gardes = new Set(courte.ecrans.map((x) => x.id));
   const motsGardes: number[] = [];
   let rang = 0;

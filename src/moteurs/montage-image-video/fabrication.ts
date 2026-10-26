@@ -63,7 +63,7 @@ import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
-import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, repriseVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
+import { avancerVoixIV, ErreurPlafondLecturesIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, REPARATIONS_VOIX_MAX_IV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
 /* ------------------------------------------------------------------ */
 /* Étapes                                                                */
@@ -413,6 +413,8 @@ export interface OutilsFabricationIV {
   ecriture: Omit<OutilsEcritureIV, "budget">;
   /** Voix : tout sauf la réservation, posée par la caisse. */
   voix: Omit<OutilsVoixIV, "avantLecture">;
+  /** Faux : la fin de secours à lire n'est pas posée automatiquement, elle attend « Refaire cette partie » (parcours des tests d'avant). Défaut : vrai. */
+  secoursAutomatique?: boolean;
   assemblage: OutilsAssemblageIV;
   /** Rendu du fichier final d'une version (opération existante du serveur) ; pas fini : lève une attente. */
   rendre: (d: DemandeRenduIV) => Promise<{ cle: string; empreinte?: string; dureeSec: number; mesures?: MesuresExport }>;
@@ -1281,11 +1283,20 @@ async function pasScript(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<
   }
 }
 
+/** Délai de base entre deux essais de conversion WAV (Q17) ; l'essai k attend k fois ce délai. */
+const DELAI_ESSAI_WAV_MS = 250;
+
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { script, plan } = e;
   const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: lectureUniqueDe(e.voix) });
+  // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation voix au-delà des premières lectures du
+  // plan de départ (le corps + chaque fin lue à part), quel que soit le texte (une fin de secours a un texte neuf).
+  const premieresLectures = 1 + segments.fins.length;
+  const reservationsVoix = () => e.caisse.reservations.filter((x) => x.cle.startsWith(`voix#${e.tentatives.voix ?? 1}:`)).length;
+  const lecturesSupplementairesRestantes = () => REPARATIONS_VOIX_MAX_IV - Math.max(0, reservationsVoix() - premieresLectures);
   const voixOutils: OutilsVoixIV = {
     ...o.voix,
+    lecturesSupplementairesRestantes,
     avantLecture: async (l) => {
       // Le numéro de la lecture se compte sur la CAISSE, jamais sur les lectures payées de l'état : une reprise neuve (texte
       // modifié puis remis comme avant : A → B → A) a `payees` vide, et la clé `…-1` du texte A existe déjà dans la caisse, qui
@@ -1295,6 +1306,9 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
       const prefixe = `iv-voix-${l.prise}-${marque}-`;
       const cle = `voix#${e.tentatives.voix ?? 1}:${prefixe}`;
       const deja = e.caisse.reservations.filter((x) => x.cle.startsWith(cle)).length;
+      // Plafond GLOBAL de la vidéo : 3 lectures payantes de plus que les premières lectures (relances de ressemblance comprises).
+      // Filet : les décisions de la voix s'y arrêtent avant ; ici une lecture de trop n'est jamais réservée ni payée.
+      if ((deja > 0 || reservationsVoix() >= premieresLectures) && lecturesSupplementairesRestantes() <= 0) throw new ErreurPlafondLecturesIV(`Plafond de ${REPARATIONS_VOIX_MAX_IV} lectures supplémentaires atteint pour cette vidéo : aucune lecture de plus n'est payée.`);
       const r = await caisse.reserver({ appelId: `${prefixe}${deja + 1}`, etape: "voix", fournisseur: "heygen", centimes: l.coutMaxCentimes, caracteres: l.caracteres });
       if (!r.ok) throw new Error(r.message);
     },
@@ -1304,18 +1318,33 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
   // 1. La voix : un tour (une lecture payée au plus).
   if (!e.voix.issue) {
     e.voix = await avancerVoixIV(e.voix, voixOutils);
-    if (e.voix.issue?.statut === "faite") e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+    if (e.voix.issue?.statut === "faite") {
+      e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+      for (const r of e.voix.remarques ?? []) e.journal.push(r);
+    }
     // Un refus se dit dans le même pas : la caisse sait encore si c'est le plafond.
     if (e.voix.issue?.statut !== "refus") return e;
   }
   if (e.voix.issue.statut === "refus") {
     // 15/10 : dernière fin de secours refusée et repli prévu (Facebook reprend Instagram) : posé dans le même passage,
-    // sans lecture ni accord (rien n'est payé) ; la vidéo continue. Une fin de secours à LIRE attend « Refaire ».
+    // sans lecture ni accord (rien n'est payé) ; la vidéo continue. Une fin de secours à LIRE est posée plus bas, automatiquement.
     const repli = e.voix.issue.controle === "Q16" ? secoursApresArretIV(e.voix, e.plan!) : null;
     if (repli && !repli.lecture) {
       e.journal.push(`Fin de secours refusée : ${e.voix.issue.message}`);
       delete e.voix.issue;
       poserSecoursIV(e, repli);
+      return e;
+    }
+    // La fin de secours (ou la relecture de la seule fin) à LIRE est posée sans attendre « Refaire » : même réservation avant
+    // la lecture, dans le plafond GLOBAL de réparations de la vidéo. Épuisé : l'arrêt reste (voix refusée, jamais gardée en silence).
+    const faites = e.voix.reparations ?? 0;
+    if (repli && o.secoursAutomatique !== false && faites < REPARATIONS_VOIX_MAX_IV && lecturesSupplementairesRestantes() > 0) {
+      const raison = e.voix.issue.message;
+      e.journal.push(`Fin de secours refusée : ${raison} Lecture de secours posée automatiquement (${faites + 1}/${REPARATIONS_VOIX_MAX_IV}).`);
+      delete e.voix.issue;
+      poserSecoursIV(e, repli);
+      e.voix.reparations = faites + 1;
+      e.voix.remarques = [...(e.voix.remarques ?? []), `Fin de secours lue automatiquement (${faites + 1}/${REPARATIONS_VOIX_MAX_IV}) : ${raison}`];
       return e;
     }
     const code = e.voix.issue.controle === "budget" ? plafond() : "IV_VOIX";
@@ -1328,8 +1357,33 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
 
   // 2. Une piste voix seule par version (aucune lecture).
   if (!e.pistes) {
-    e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+    // Réparation sans validation : conversion WAV (Q17, gratuite) retentée 3 fois ; coupe ou mots qui ne collent pas :
+    // voix relue en lecture neuve (3 fois au plus). Seul un échec après ces essais reste un arrêt.
+    for (let essai = 1; !e.pistes; essai++) {
+      try {
+        e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+      } catch (err) {
+        if (!(err instanceof ErreurVoixIV) || err.controle === "budget" || err.controle === "musique" || err.controle === "Q11bis") throw err;
+        if (err.controle === "Q17") {
+          if (essai >= 3) throw err;
+          e.journal.push(`Son de la voix non converti en WAV (essai ${essai}/3) : nouvel essai automatique.`);
+          // Court délai croissant : le rangement ou la conversion lente a le temps de finir (gratuit, aucune lecture).
+          await new Promise((r) => setTimeout(r, DELAI_ESSAI_WAV_MS * essai));
+          continue;
+        }
+        // Une lecture neuve (payante) ne règle que la coupe, la piste sans mot (Q19) et le décompte de mots différent ;
+        // une erreur d'entrée qui ne dépend pas de la lecture (son d'une version absent…) est levée sans rien payer.
+        if (err.controle !== "coupe" && err.controle !== "Q19" && !err.relire) throw err;
+        const refaite = relireLaVoixIV(e.voix, voixOutils, err.message);
+        if (!refaite) throw err;
+        e.voix = refaite;
+        delete e.pistes;
+        e.journal.push(`Piste voix refusée : ${err.message} La voix est relue automatiquement (${refaite.reparations}/3).`);
+        return e;
+      }
+    }
     e.journal.push(`Pistes voix seule : ${e.pistes.length}.`);
+    for (const p of e.pistes) if (p.remarque) e.journal.push(p.remarque);
     return e;
   }
 
