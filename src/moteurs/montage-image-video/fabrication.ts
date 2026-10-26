@@ -47,6 +47,7 @@ import { cleBruitage, idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages
 import { assemblerVersionCourteIV, assemblerVersionsIV, planMixageIV, type DemandeMixageIV, type OutilsAssemblageIV, type PisteVoixSeuleIV, type VersionCourteIV } from "./assemblage";
 import type { BruitageValideIV } from "./bruitages";
 import { carteSansRetires, type VersionAControlerIV } from "./controles";
+import { choisirParcoursIV, type ChoixParcoursIV, type SqueletteRecent } from "./parcours-varies";
 import { ecrireScriptIV, type OutilsEcritureIV } from "./ecriture";
 import type { DemandeReservationControleIV } from "./ecoute";
 import type { Offre } from "./emprunts";
@@ -298,6 +299,8 @@ export interface EtatFabricationIV {
    * de référence.
    */
   variete?: { recette: RecetteVarieteIV; par: "tirage" | "will"; historique: number };
+  /** Parcours varié et scènes à éviter, tirés avant la première écriture (absent : le parcours de `recettes.ts`). */
+  parcours?: ChoixParcoursIV;
   propositionScript?: PropositionScriptIV;
   script?: { fiche: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[] };
   plan?: PlanDesFinsIV;
@@ -441,6 +444,8 @@ export interface OutilsFabricationIV {
   cartesValidees: () => Promise<number>;
   /** Recettes des dernières vidéos IV prêtes, la plus récente d'abord (absent : aucun historique). */
   historiqueVariete?: () => Promise<readonly RecetteVarieteIV[]>;
+  /** Squelettes de scènes des dernières vidéos IV prêtes, la plus récente d'abord (absent : aucun historique). */
+  historiqueSquelettes?: () => Promise<readonly SqueletteRecent[]>;
   /** Décisions de Will en attente (services : gardées hors du travail) ; absentes : seules les fonctions pures s'appliquent. */
   decisions?: { carte?: () => Promise<DecisionCarteIV | null>; script?: () => Promise<DecisionScriptIV | null> };
   /** Heure ISO (validation automatique de la carte en « si-doute »). */
@@ -1272,9 +1277,11 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
     e.variete = { recette, par: "tirage", historique: historique.length };
     e.journal.push(`Variété tirée (${historique.length} vidéo(s) d'historique) : ${ligneRecette(recette)}.`);
   }
+  // Parcours varié : tiré une seule fois, avec la graine de la vidéo et les squelettes des trois dernières.
+  e.parcours ??= choisirParcoursIV({ graine: e.demande.videoId, carte, historique: (await o.historiqueSquelettes?.()) ?? [] });
   const r = await ecrireScriptIV(
     // L'identifiant des appels porte la tentative : un nouvel essai après un refus est compté à part.
-    { videoId: e.demande.videoId, versionId: tentative > 1 ? `${e.demande.versionId}-t${tentative}` : e.demande.versionId, carte, interdits: e.demande.interdits ?? [], decoupage: "chapitres", ...recitDe(e) },
+    { videoId: e.demande.videoId, versionId: tentative > 1 ? `${e.demande.versionId}-t${tentative}` : e.demande.versionId, carte, interdits: e.demande.interdits ?? [], decoupage: "chapitres", ...recitDe(e), parcours: e.parcours },
     { ...o.ecriture, budget: caisse.claude("ecriture") },
   );
   if (r.ok || r.motif === "a-trancher") {
