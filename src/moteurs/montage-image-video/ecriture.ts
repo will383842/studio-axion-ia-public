@@ -21,6 +21,7 @@ import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generate
 import { APPELS_ECRITURE_MAX, MAX_TOKENS_ECRITURE } from "./emprunts";
 import { ficheSimulee, ficheSimuleeRecit } from "./ecriture.simulation";
 import { consigneAEviter, parcoursDeCode, type ChoixParcoursIV } from "./parcours-varies";
+import { reparerPhrasesLonguesIV } from "./reparation-script";
 import { ANNONCE_SITUATION_TYPE, ETIQUETTE_SITUATION_TYPE, PARCOURS_RECIT, RECETTES, annonceAttendue, lireDecoupage, scenesPermises, type CodeRecit } from "./recettes";
 import {
   ACCROCHE_IV_MOTS_MAX,
@@ -418,6 +419,24 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
     refus = jugement.refus;
     derniere = lecture.ok ? lecture.brute : undefined;
     variable = variableRelanceIV(base, lecture.texte, refus);
+    // Phrase trop longue (Q09) : coupée sans appel, sans changer un mot ni la lecture d'un chiffre (`reparation-script.ts`).
+    const coupee = lecture.ok ? reparerPhrasesLonguesIV(lecture.brute, ctx) : null;
+    if (coupee) {
+      if (!coupee.refus.length) {
+        const verdict = { ...coupee.verdict, marques: [...coupee.verdict.marques, `Réparée sans appel : phrase coupée (${coupee.coupes.join(", ")}).`] };
+        const aTrancher = aTrancherParWill(verdict);
+        const commun = { fiche: coupee.fiche, verdict, aTrancher, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
+        if (!verdict.ok) {
+          const refusWill = verdict.manquements.map((m) => m.message);
+          return { ok: false, motif: "a-trancher", message: `Script écrit : ${refusWill.length} point(s) à trancher par Will avant validation.`, refus: refusWill, ...commun };
+        }
+        return { ok: true, ...commun };
+      }
+      // Un autre refus reste : chemin normal, sur la fiche coupée (la coupe est gardée pour la réparation des chiffres).
+      refus = coupee.refus;
+      derniere = coupee.fiche;
+      variable = variableRelanceIV(base, JSON.stringify(coupee.fiche), refus);
+    }
   }
   // Jamais d'impasse : chiffres hors image seuls en cause → on les retire (sans appel) et on rejuge.
   const reparee = derniere === undefined ? null : reparerChiffresHorsImage(derniere, ctx);
