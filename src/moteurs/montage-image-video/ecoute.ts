@@ -339,7 +339,9 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
   const attendus = clesChiffresDits(script);
   const entendusCles = clesChiffresDits(entendus.map((m) => m.mot).join(" "));
   const chiffresNonEntendus = [...new Set(attendus.filter((c) => !entendusCles.includes(c)))].map(lisible);
-  const chiffresInventes = [...new Set(entendusCles.filter((c) => !attendus.includes(c)))].map(lisible);
+  // La voix écrit « un » / « une » (article ou nombre) en « 1 » : il n'est inventé que si le script n'a ni un/une/premier ni 1.
+  const scriptPorteUn = /(?:^|[^\p{L}\p{N}])(?:un|une|premier|première|premiere|1)(?![\p{L}\p{N}])/iu.test(script);
+  const chiffresInventes = [...new Set(entendusCles.filter((c) => !attendus.includes(c) && !(c === "1|nombre" && scriptPorteUn)))].map(lisible);
 
   // Dernière phrase entière, et rien d'entendu après elle.
   const phrases = phrasesDuTexte(script);
