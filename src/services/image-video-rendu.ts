@@ -216,7 +216,12 @@ export { LIGNES_MAX_ECRAN_IV };
  * découpe déjà un écran trop chargé avec la même règle.
  */
 export function ecransIrrendables(scenes: readonly SceneIV[]): string[] {
-  const phrases: string[] = [];
+  return ecransIrrendablesDetail(scenes).map((x) => x.phrase);
+}
+
+/** Les mêmes écrans irrendables avec l'identifiant de leur scène (bloc de la ligne de temps) : sert à les passer en texte seul. PUR. */
+export function ecransIrrendablesDetail(scenes: readonly SceneIV[]): { id: string; phrase: string }[] {
+  const irrendables: { id: string; phrase: string }[] = [];
   let rang = 0;
   for (const s of scenes) {
     if (s.sorte !== "ecran") continue;
@@ -225,11 +230,11 @@ export function ecransIrrendables(scenes: readonly SceneIV[]): string[] {
     const lignes = "lignes" in p && Array.isArray(p.lignes) ? p.lignes.length : 0;
     const max = LIGNES_MAX_ECRAN_IV[p.type];
     const defauts = controlerProprietes(p);
-    if (max !== undefined && lignes > max) phrases.push(`écran n° ${rang} : ${lignes} lignes de texte, ${max} au plus pour ce genre d'écran.`);
-    else if (defauts.length) phrases.push(`écran n° ${rang} : un texte ne tient pas à sa place.`);
+    if (max !== undefined && lignes > max) irrendables.push({ id: s.id, phrase: `écran n° ${rang} : ${lignes} lignes de texte, ${max} au plus pour ce genre d'écran.` });
+    else if (defauts.length) irrendables.push({ id: s.id, phrase: `écran n° ${rang} : un texte ne tient pas à sa place.` });
     if (defauts.length || (max !== undefined && lignes > max)) console.warn(`[image-video] écran ${s.id} irrendable : ${[`${p.type} de ${lignes} ligne(s)`, ...defauts].join(" ; ")}`);
   }
-  return phrases;
+  return irrendables;
 }
 
 /** Une version dite pour Will : « pour TikTok, YouTube Shorts ». */
@@ -336,8 +341,8 @@ export async function rendreVersionIV(d: DemandeRenduIV, o: OutilsRenduIV): Prom
   const quoi = pourQui(d.reseaux);
   const scenes = scenesDeLaLigne(d.ligne, { env: o.env, videoId: d.videoId });
   // 0. Un écran que la composition ne sait pas montrer : refus AVANT tout envoi (relancer donnerait le même refus).
-  const irrendables = ecransIrrendables(scenes);
-  if (irrendables.length) throw new ErreurRenduDefinitifIV(PHRASES_RENDU_IV.irrendable(quoi, irrendables.length), irrendables);
+  const irrendables = ecransIrrendablesDetail(scenes);
+  if (irrendables.length) throw new ErreurRenduDefinitifIV(PHRASES_RENDU_IV.irrendable(quoi, irrendables.length), irrendables.map((x) => x.phrase), irrendables.map((x) => x.id));
 
   // 1. Scènes : déposées → faites ; sinon relues (soumises si le serveur ne les connaît pas).
   let faites = 0;

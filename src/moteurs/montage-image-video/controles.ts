@@ -179,8 +179,8 @@ function avecRemarques(c: ConstatControle | undefined, remarques: readonly strin
   return { ok: false, details: [...remarques], souple: true };
 }
 
-const deConstat = (code: CodeControleIV, v: VersionAControlerIV, c: ConstatSouple | undefined, absent: string, phraseOk?: string) =>
-  c ? ligneIV(code, v, c.details.length || c.ok ? c.details : [absent], { ...(c.nonFait ? { nonFait: true } : {}), ...(phraseOk ? { phraseOk } : {}), ...(c.souple ? { indicatif: true } : {}) }) : ligneIV(code, v, [absent], { nonFait: true });
+const deConstat = (code: CodeControleIV, v: VersionAControlerIV, c: ConstatSouple | undefined, absent: string, phraseOk?: string, indicatif = false) =>
+  c ? ligneIV(code, v, c.details.length || c.ok ? c.details : [absent], { ...(c.nonFait ? { nonFait: true } : {}), ...(phraseOk ? { phraseOk } : {}), ...(c.souple || indicatif ? { indicatif: true } : {}) }) : ligneIV(code, v, [absent], { nonFait: true });
 
 /** Empreinte stable d'une ligne de temps (sa forme JSON). */
 export function empreinteLigne(l: LigneDeTempsIV): string {
@@ -266,6 +266,8 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const ecoute = m.ecoute;
   const entendu = ecoute?.texteEntendu ?? "";
   const sansEcoute = !ecoute || !ecoute.q18.ok && !!ecoute.q18.nonFait;
+  // Transcription en panne (relancée en vain) alors que la voix existe (piste lue, mots horodatés, du son) : l'écoute non faite est une remarque.
+  const remarqueEcoute = !!ecoute?.panneTranscription;
 
   L("Q04", regles.get("Q04") ?? []);
   L("Q05", [...(regles.get("Q05") ?? []), ...(ecoute?.comparaison?.chiffresInventes ?? []).map((c) => `la voix dit « ${c} », absent du script et de l'image.`)]);
@@ -276,7 +278,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const choc = phraseChocAttendue(carte, ctx.regles?.choixFormules);
   // Phrase-choc pas entendue en entier = erreur de transcription probable (la voix, elle, existe) : remarque.
   const q06Souple = ecoute && !sansEcoute && !entendue(choc, entendu) ? [`la phrase-choc (« ${choc} ») n'est pas entendue en entier.`] : [];
-  if (sansEcoute && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true });
+  if (sansEcoute && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true, ...(remarqueEcoute ? { indicatif: true } : {}) });
   else L("Q06", [...q06, ...q06Souple], { indicatif: q06.length === 0 && q06Souple.length > 0 });
 
   // Q07 · ossature, et accroche finie avant 3 s sur la voix.
@@ -368,7 +370,9 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
     if (!sansEcoute && !ecoute!.chiffresEntendus.includes(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est pas entendu (valeur et unité).`);
     if (!montres.has(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est jamais affiché.`);
   }
-  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? { indicatif: true } : { nonFait: true, indicatif: true });
+  // « Les chiffres dits ne sont pas confirmés » : une remarque seulement si la carte n'a AUCUN chiffre à dire ; sinon un chiffre dit pourrait être faux, la ligne bloque.
+  const aDesChiffresADire = (v.courte ? carteSansRetires(carte, v.noeudsRetires ?? []) : carte).chiffres.some((c) => c.aDire);
+  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? { indicatif: true } : { nonFait: true, indicatif: !aDesChiffresADire });
   else L("CHIFFRES", chiffres, { indicatif: true });
 
   sceneCode("Q14");
@@ -384,7 +388,8 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // Voix absente (transcription vide, ou moins de 50 % des mots entendus) : blocage voulu.
   const q18 = avecRemarques(ecoute?.q18, ecoute?.q18Remarques);
   const voixAbsente = !ecoute?.comparaison || ecoute.comparaison.part < SEUILS_ECOUTE_IV.retrouvesAbsente - 1e-9;
-  lignes.push(deConstat("Q18", v, q18 && !q18.ok && !q18.nonFait && !voixAbsente ? { ...q18, souple: true } : q18, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined));
+  const q18Panne = remarqueEcoute && q18 ? { ...q18, details: q18.details.map((d, i) => (i === 0 ? `${d} Les mots interdits dits (Q08) et la question entendue (Q08bis) n'ont été vérifiés que sur le script, pas sur la voix.` : d)) } : q18;
+  lignes.push(deConstat("Q18", v, q18Panne && !q18Panne.ok && !q18Panne.nonFait && !voixAbsente ? { ...q18Panne, souple: true } : q18Panne, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined, remarqueEcoute));
   const q19 = ecoute?.q19;
   const q19Ligne = sceneDe("Q19");
   lignes.push(deConstat("Q19", v, q19 ? { ...q19, ok: q19.ok && q19Ligne.length === 0, details: [...q19.details, ...q19Ligne] } : undefined, "la fin n'a pas été mesurée sur la voix seule."));
