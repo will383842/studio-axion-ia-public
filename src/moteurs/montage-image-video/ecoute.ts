@@ -347,7 +347,28 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
 
   // Chiffres : valeur ET unité, lus de la même façon des deux côtés.
   const attendus = clesChiffresDits(script);
-  const entendusCles = clesChiffresDits(entendus.map((m) => m.mot).join(" "));
+  // La voix écrit « un » / « une » / « premier » en « 1 » / « 1er » : ce « 1 » n'est pas inventé, mais seulement s'il est apparié, à sa
+  // place, à un de ces mots du script. Un « 1 » seul, ou suivi d'une unité, de mille/million/milliard, ou « 11 », « 21 » reste contrôlé.
+  const uneEnUn = (f: string) => (f === "une" ? "un" : f);
+  const pairesUn = apparier(formes.map(uneEnUn), dits.map((d) => ({ ...d, forme: uneEnUn(d.forme) })));
+  const exemptes = new Set<number>();
+  formes.forEach((f, i) => {
+    if (!/^(?:un|une|premier|premiere|première)$/.test(f) || pairesUn[i] < 0 || attendus.includes("1|nombre")) return;
+    const k = dits[pairesUn[i]].mot;
+    if (exemptes.has(k) || /^(?:mille|milliers?|millions?|milliards?|dizaines?|douzaines?|centaines?|k|m|md|mds|k€|m€|md€)$/.test(cleAccents(entendus[k + 1]?.mot.replace(/[^\p{L}€]/gu, "") ?? ""))) return;
+    const reste = entendus.filter((_, n) => !exemptes.has(n) && n !== k).map((m) => m.mot).join(" ");
+    const avec = entendus.filter((_, n) => !exemptes.has(n)).map((m) => m.mot).join(" ");
+    // Le mot retiré ne doit valoir que « 1 » nombre : toute autre valeur ou unité (1 %, 1 heure, 1 million, 21) change les clés autrement.
+    const clesAvec = clesChiffresDits(avec);
+    const clesReste = clesChiffresDits(reste);
+    const retire = [...clesAvec];
+    for (const c of clesReste) {
+      const x = retire.indexOf(c);
+      if (x >= 0) retire.splice(x, 1);
+    }
+    if (retire.length === 1 && retire[0] === "1|nombre") exemptes.add(k);
+  });
+  const entendusCles = clesChiffresDits(entendus.filter((_, k) => !exemptes.has(k)).map((m) => m.mot).join(" "));
   const chiffresNonEntendus = [...new Set(attendus.filter((c) => !entendusCles.includes(c)))].map(lisible);
   const chiffresInventes = [...new Set(entendusCles.filter((c) => !attendus.includes(c)))].map(lisible);
 
