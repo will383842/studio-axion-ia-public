@@ -562,8 +562,8 @@ export function miseDesEcrans(t: Tirage, ecrans: readonly EcranAMettre[]): Mise[
       const te: TirageEcran = {
         miseEnPage: (TYPES_MIS_EN_PAGE as readonly string[]).includes(e.type) ? t.miseEnPage[e.type as TypeMisEnPage] : MISES_EN_PAGE[0],
         entree,
-        // Jamais de sortie sur le dernier écran (l'écran final reste affiché) ni sur l'écran de lien.
-        sortie: i === ecrans.length - 1 || e.type === ("lien" as TypeEcran) ? SORTIES[0] : t.sortie,
+        // Jamais de sortie sur le dernier écran : il reste affiché.
+        sortie: i === ecrans.length - 1 ? SORTIES[0] : t.sortie,
         motParMot: t.motParMot,
         camera: camera.has(i) ? dans(r, mouvements) : "aucun",
         ...(transitions.has(i) ? { transition: transitions.get(i)! } : {}),
@@ -762,22 +762,25 @@ export function misesEnPageL6(t: Tirage, ecrans: readonly EcranAMettre[], declin
       const permises = toutes.filter((c) => identite(e.type, c) !== precedente);
       const sansRepetition = permises.length ? permises : toutes;
       // Résultat et question : jamais la même maquette (v4 comprise) que sur les 3 dernières vidéos, tant qu'il en reste une autre.
-      // S'il n'en reste aucune, la fenêtre se réduit (3, puis 2, puis la seule vidéo précédente) : jamais deux fois de suite si un autre choix existe.
+      // S'il n'en reste aucune, la fenêtre se réduit (3, puis 2, puis la seule vidéo précédente) en gardant une maquette L6 (de la
+      // vidéo n-2 ou n-3 plutôt que la v4). Si même la vidéo précédente les a toutes prises, la L6 se répète plutôt que de laisser la v4
+      // prendre la place (une seule L6 éligible : la v4 y serait une vidéo sur deux) ; la v4 seule n'est tirée que s'il n'y a aucune L6.
       const choix = (() => {
         if (!TYPES_SANS_REPETITION.includes(e.type)) return sansRepetition;
         const vues = recentes[e.type] ?? [];
+        const l6 = sansRepetition.filter((c) => c !== MISES_EN_PAGE[0]);
         for (let k = vues.length; k >= 1; k--) {
           const exclues = new Set(vues.slice(-k).flatMap((x) => [...x]));
-          const fraiches = sansRepetition.filter((c) => !exclues.has(c));
+          const fraiches = l6.filter((c) => !exclues.has(c));
           if (fraiches.length) return fraiches;
         }
-        return sansRepetition;
+        return l6.length ? l6 : sansRepetition;
       })();
       // Une L6 déjà posée pèse 2 fois moins à chaque reprise, la v4 4 fois moins (diversité dans la vidéo elle-même).
       const deja = (c: string) => codes.filter((x, j) => ecrans[j]!.type === e.type && x === c).length;
       // Accroche : la v4 ne sort que s'il n'y a aucune autre maquette (l'ouverture visible de la vidéo est cet écran).
       const sansV4 = e.type === "accroche" && choix.some((c) => c !== MISES_EN_PAGE[0]);
-      // L'ouverture tirée choisit la maquette de l'accroche (`MAQUETTE_DE_L_OUVERTURE`) ; 
+      // L'ouverture tirée choisit la maquette de l'accroche (`MAQUETTE_DE_L_OUVERTURE`), son poids pèse `POIDS_OUVERTURE` ; les autres restent tirables.
       const voulue = e.type === "accroche" && i === 0 ? MAQUETTE_DE_L_OUVERTURE[t.ouverture] : undefined;
       const poids = (c: string) => {
         if (c === MISES_EN_PAGE[0]) return (sansV4 ? 0 : POIDS_V4) / Math.pow(4, deja(c));

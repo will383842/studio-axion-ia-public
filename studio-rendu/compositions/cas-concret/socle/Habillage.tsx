@@ -29,6 +29,7 @@ export function Habillage({ p, children }: { p: ProprietesEcran; children: React
         <AbsoluteFill
           style={{
             opacity: h.opacite,
+            transformOrigin: `${cx}px ${cy}px`,
             transform: h.dx || h.echelle !== 1 ? `translateX(${h.dx * k}px) scale(${h.echelle})` : undefined,
             filter: h.flou ? `blur(${h.flou * k}px)` : undefined,
             clipPath: r ? `inset(${r.haut}% ${r.droite}% ${r.bas}% ${r.gauche}%)` : undefined,

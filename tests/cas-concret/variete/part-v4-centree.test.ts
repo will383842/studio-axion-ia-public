@@ -93,8 +93,7 @@ describe("Lot B · mesure de la part de v4-centree", () => {
     // Part RÉELLE de v4-centree (hors fond fort, hors tirage v4, hors écrans sans maquette éligible) : mesuré 11,8 % (12,0 % avec les tirages du lot C),
     // plafond 12,5 %. La cible de 10 % du plan n'est pas atteinte : il reste des écrans dont l'unique maquette éligible
     // est exclue (même type de suite, ou vidéo précédente du canal).
-    // 12,5 % avant le lot « variantes visibles » ; 15 % depuis : le résultat et la question ne se répètent plus sur 3 vidéos, la v4 y sert de maquette de relais quand aucune autre n'est tirable.
-    expect((total.v4 - total.aucune) / (total.ecrans - total.aucune)).toBeLessThanOrEqual(0.15);
+    expect((total.v4 - total.aucune) / (total.ecrans - total.aucune)).toBeLessThanOrEqual(0.125);
     // Maximum de v4-centree dans une vidéo : mesuré 6.
     expect(total.maxParVideo).toBeLessThanOrEqual(6);
   });
