@@ -263,6 +263,7 @@ export function cleSonore(texte: string): string {
     .replace(/ph/g, "f")
     .replace(/v/g, "b")
     .replace(/y/g, "i")
+    .replace(/x/g, "")
     .replace(/eau|au/g, "o")
     .replace(/h/g, "")
     .replace(/e/g, "")
@@ -323,7 +324,8 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
     // entendu des sons, pas un chiffre (27/10/2026, vidéo refusée pour « la voix dit 2 »).
     if (porteUnChiffre(trou) || entendu.some((m) => /\d/.test(m))) return undefined;
     const cleScript = cleSonore(trou.join(""));
-    if (cleScript.length < CLE_SONORE_MIN) return undefined;
+    // Un mot de nombre entendu pour un mot court du script (« deux vies » / « devis ») : clé de 4 lettres acceptée.
+    if (cleScript.length < (entendu.some((m) => MOT_DE_NOMBRE.test(cleAccents(m))) ? CLE_SONORE_MIN - 1 : CLE_SONORE_MIN)) return undefined;
     return ecartNormalise(cleScript, cleSonore(entendu.join(""))) <= ECART_SONORE_MAX ? trou.join(" ") : undefined;
   };
   /** Mots entendus (dont des mots de nombre) qui remplacent à l'oreille un passage du script sans nombre : jamais un chiffre inventé. */
