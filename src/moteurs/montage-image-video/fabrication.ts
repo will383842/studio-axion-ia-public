@@ -55,7 +55,7 @@ import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, typ
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
 import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
-import { porteUniqueIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
+import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
 import { chapitresDetachables } from "./recettes";
 import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type ChoixFormule, type Manquement } from "./regles";
@@ -63,7 +63,7 @@ import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
-import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, repriseVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
+import { avancerVoixIV, ErreurPlafondLecturesIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, REPARATIONS_VOIX_MAX_IV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
 /* ------------------------------------------------------------------ */
 /* Étapes                                                                */
@@ -415,6 +415,8 @@ export interface OutilsFabricationIV {
   ecriture: Omit<OutilsEcritureIV, "budget">;
   /** Voix : tout sauf la réservation, posée par la caisse. */
   voix: Omit<OutilsVoixIV, "avantLecture">;
+  /** Faux : la fin de secours à lire n'est pas posée automatiquement, elle attend « Refaire cette partie » (parcours des tests d'avant). Défaut : vrai. */
+  secoursAutomatique?: boolean;
   assemblage: OutilsAssemblageIV;
   /** Rendu du fichier final d'une version (opération existante du serveur) ; pas fini : lève une attente. */
   rendre: (d: DemandeRenduIV) => Promise<{ cle: string; empreinte?: string; dureeSec: number; mesures?: MesuresExport }>;
@@ -809,12 +811,25 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     delete e.ecransAdaptes;
     if (avantVariete) delete e.rendus;
     e.etape = "mise-en-scene";
+    delete e.tentatives.livraison;
     e.tentatives["mise-en-scene"] = (e.tentatives["mise-en-scene"] ?? 1) + 1;
     e.journal.push(
       avantVariete
         ? "Reprise à la mise en scène : la vidéo a été montée avant la variété, elle est refaite avec la variété (script et voix gardés, rien de repayé)."
         : "Reprise à la mise en scène : les contrôles ont refusé la vidéo, elle est remontée avec les règles à jour (script, voix et lectures payées gardés, rien de repayé).",
     );
+    return e;
+  }
+  // Aucun fichier rendu pour aucun réseau : la livraison ne se rejoue pas à vide, on repart du rendu.
+  if (e.refus.etape === "livraison" && e.refus.code === "IV_RENDU") {
+    delete e.refus;
+    delete e.attente;
+    delete e.livraison;
+    delete e.rendus;
+    delete e.tentatives.livraison;
+    e.etape = "rendu";
+    e.tentatives.rendu = (e.tentatives.rendu ?? 1) + 1;
+    e.journal.push("Reprise du rendu : aucun fichier n'avait été rendu pour aucun réseau.");
     return e;
   }
   const etape = e.refus.etape;
@@ -838,6 +853,7 @@ function poserSecoursIV(e: EtatFabricationIV, secours: SecoursIV): void {
   delete e.courtes;
   delete e.scenes;
   delete e.ecransAdaptes;
+  delete e.tentatives.livraison;
   if (secours.phrases.length) e.journal.push(`Fin de secours pour ${secours.reseaux.join(", ")} : « ${secours.phrases.join(" ")} » (validée par Will).`);
   // 19/10 (v-6a3b74364711) : relecture de la seule fin de secours refusée (une lecture neuve du même texte, une seule fois) ;
   // la voix la prépare au tour suivant AVANT toute lecture, le corps et les autres fins payés sont gardés.
@@ -1115,6 +1131,11 @@ async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricati
       garde.caisse = e.caisse;
       if (e.compteurAppels !== undefined) garde.compteurAppels = e.compteurAppels;
       garde.attente = raisonDe(err);
+      // Le nouvel essai du rendu et sa remarque survivent à l'attente.
+      if (etape === "rendu") {
+        garde.tentatives = e.tentatives;
+        garde.journal = e.journal;
+      }
       return garde;
     }
     // Q17 (son brut pas lisible en WAV) : « Refaire » relance la conversion, gratuite, sans relire la voix.
@@ -1317,11 +1338,20 @@ async function pasScript(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<
   }
 }
 
+/** Délai de base entre deux essais de conversion WAV (Q17) ; l'essai k attend k fois ce délai. */
+const DELAI_ESSAI_WAV_MS = 250;
+
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { script, plan } = e;
   const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: lectureUniqueDe(e.voix) });
+  // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation voix au-delà des premières lectures du
+  // plan de départ (le corps + chaque fin lue à part), quel que soit le texte (une fin de secours a un texte neuf).
+  const premieresLectures = 1 + segments.fins.length;
+  const reservationsVoix = () => e.caisse.reservations.filter((x) => x.cle.startsWith(`voix#${e.tentatives.voix ?? 1}:`) || x.cle.startsWith(`voix#${e.tentatives.voix ?? 1}.r`)).length;
+  const lecturesSupplementairesRestantes = () => REPARATIONS_VOIX_MAX_IV - Math.max(0, reservationsVoix() - premieresLectures);
   const voixOutils: OutilsVoixIV = {
     ...o.voix,
+    lecturesSupplementairesRestantes,
     avantLecture: async (l) => {
       // Le numéro de la lecture se compte sur la CAISSE, jamais sur les lectures payées de l'état : une reprise neuve (texte
       // modifié puis remis comme avant : A → B → A) a `payees` vide, et la clé `…-1` du texte A existe déjà dans la caisse, qui
@@ -1332,6 +1362,9 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
       // Les relances automatiques (`.rN`) comptent aussi : une même série de clés ne revient jamais.
       const serie = `voix#${e.tentatives.voix ?? 1}`;
       const deja = e.caisse.reservations.filter((x) => (x.cle.startsWith(`${serie}:`) || x.cle.startsWith(`${serie}.r`)) && x.cle.includes(`:${prefixe}`)).length;
+      // Plafond GLOBAL de la vidéo : 3 lectures payantes de plus que les premières lectures (relances de ressemblance comprises).
+      // Filet : les décisions de la voix s'y arrêtent avant ; ici une lecture de trop n'est jamais réservée ni payée.
+      if ((deja > 0 || reservationsVoix() >= premieresLectures) && lecturesSupplementairesRestantes() <= 0) throw new ErreurPlafondLecturesIV(`Plafond de ${REPARATIONS_VOIX_MAX_IV} lectures supplémentaires atteint pour cette vidéo : aucune lecture de plus n'est payée.`);
       const r = await caisse.reserver({ appelId: `${prefixe}${deja + 1}`, etape: "voix", fournisseur: "heygen", centimes: l.coutMaxCentimes, caracteres: l.caracteres });
       if (!r.ok) throw new Error(r.message);
     },
@@ -1341,18 +1374,33 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
   // 1. La voix : un tour (une lecture payée au plus).
   if (!e.voix.issue) {
     e.voix = await avancerVoixIV(e.voix, voixOutils);
-    if (e.voix.issue?.statut === "faite") e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+    if (e.voix.issue?.statut === "faite") {
+      e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+      for (const r of e.voix.remarques ?? []) e.journal.push(r);
+    }
     // Un refus se dit dans le même pas : la caisse sait encore si c'est le plafond.
     if (e.voix.issue?.statut !== "refus") return e;
   }
   if (e.voix.issue.statut === "refus") {
     // 15/10 : dernière fin de secours refusée et repli prévu (Facebook reprend Instagram) : posé dans le même passage,
-    // sans lecture ni accord (rien n'est payé) ; la vidéo continue. Une fin de secours à LIRE attend « Refaire ».
+    // sans lecture ni accord (rien n'est payé) ; la vidéo continue. Une fin de secours à LIRE est posée plus bas, automatiquement.
     const repli = e.voix.issue.controle === "Q16" ? secoursApresArretIV(e.voix, e.plan!) : null;
     if (repli && !repli.lecture) {
       e.journal.push(`Fin de secours refusée : ${e.voix.issue.message}`);
       delete e.voix.issue;
       poserSecoursIV(e, repli);
+      return e;
+    }
+    // La fin de secours (ou la relecture de la seule fin) à LIRE est posée sans attendre « Refaire » : même réservation avant
+    // la lecture, dans le plafond GLOBAL de réparations de la vidéo. Épuisé : l'arrêt reste (voix refusée, jamais gardée en silence).
+    const faites = e.voix.reparations ?? 0;
+    if (repli && o.secoursAutomatique !== false && faites < REPARATIONS_VOIX_MAX_IV && lecturesSupplementairesRestantes() > 0) {
+      const raison = e.voix.issue.message;
+      e.journal.push(`Fin de secours refusée : ${raison} Lecture de secours posée automatiquement (${faites + 1}/${REPARATIONS_VOIX_MAX_IV}).`);
+      delete e.voix.issue;
+      poserSecoursIV(e, repli);
+      e.voix.reparations = faites + 1;
+      e.voix.remarques = [...(e.voix.remarques ?? []), `Fin de secours lue automatiquement (${faites + 1}/${REPARATIONS_VOIX_MAX_IV}) : ${raison}`];
       return e;
     }
     const code = e.voix.issue.controle === "budget" ? plafond() : "IV_VOIX";
@@ -1365,8 +1413,33 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
 
   // 2. Une piste voix seule par version (aucune lecture).
   if (!e.pistes) {
-    e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+    // Réparation sans validation : conversion WAV (Q17, gratuite) retentée 3 fois ; coupe ou mots qui ne collent pas :
+    // voix relue en lecture neuve (3 fois au plus). Seul un échec après ces essais reste un arrêt.
+    for (let essai = 1; !e.pistes; essai++) {
+      try {
+        e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+      } catch (err) {
+        if (!(err instanceof ErreurVoixIV) || err.controle === "budget" || err.controle === "musique" || err.controle === "Q11bis") throw err;
+        if (err.controle === "Q17") {
+          if (essai >= 3) throw err;
+          e.journal.push(`Son de la voix non converti en WAV (essai ${essai}/3) : nouvel essai automatique.`);
+          // Court délai croissant : le rangement ou la conversion lente a le temps de finir (gratuit, aucune lecture).
+          await new Promise((r) => setTimeout(r, DELAI_ESSAI_WAV_MS * essai));
+          continue;
+        }
+        // Une lecture neuve (payante) ne règle que la coupe, la piste sans mot (Q19) et le décompte de mots différent ;
+        // une erreur d'entrée qui ne dépend pas de la lecture (son d'une version absent…) est levée sans rien payer.
+        if (err.controle !== "coupe" && err.controle !== "Q19" && !err.relire) throw err;
+        const refaite = relireLaVoixIV(e.voix, voixOutils, err.message);
+        if (!refaite) throw err;
+        e.voix = refaite;
+        delete e.pistes;
+        e.journal.push(`Piste voix refusée : ${err.message} La voix est relue automatiquement (${refaite.reparations}/3).`);
+        return e;
+      }
+    }
     e.journal.push(`Pistes voix seule : ${e.pistes.length}.`);
+    for (const p of e.pistes) if (p.remarque) e.journal.push(p.remarque);
     return e;
   }
 
@@ -1426,7 +1499,38 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   for (const v of versionsDe(e)) {
     // 25/10 (zéro blocage, v-b54bb4798246) : un défaut de détail (Q13 chiffre non montré, Q14 rythme) ne refuse plus la vidéo :
     // les écrans cités passent en texte seul (3 essais au plus) ; s'il persiste, la vidéo continue et le défaut reste au journal.
-    const issue = mettreEnSceneAvecFiletIV((adaptes) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, adaptes) }), [], nomVersion(v), v.fiche);
+    const mettre = (adaptes: readonly string[]) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, adaptes) });
+    let issue: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
+    let panne: string | undefined;
+    try {
+      issue = mettreEnSceneAvecFiletIV(mettre, [], nomVersion(v), v.fiche);
+    } catch (err) {
+      panne = raisonDe(err);
+    }
+    // Zéro blocage : une mise en scène refusée (ou en panne) retombe sur une composition sûre de la même scène (tous les
+    // écrans en texte seul) ; la raison reste en remarque. Le refus ne sort qu'en dernier.
+    if (!issue || issue.refus.length) {
+      const motif = panne ?? issue!.refus[0];
+      const sures = v.fiche.ecrans.filter((x) => x.scene !== "titre" && x.textesEcran.length > 0).map((x) => x.id);
+      let sure: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
+      try {
+        sure = mettreEnSceneAvecFiletIV(mettre, sures, nomVersion(v), v.fiche);
+      } catch {
+        sure = undefined;
+      }
+      if (sure && !sure.refus.length) {
+        e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple (texte seul) utilisée.`);
+        sure.adaptes.unshift(...sures);
+        issue = sure;
+      } else if (sure) {
+        // Un refus d'une autre nature (chiffre faux, etc.) n'est jamais effacé.
+        phrases.push(...sure.refus.map((p) => `${nomVersion(v)} · ${p}`));
+        continue;
+      } else if (!issue) {
+        phrases.push(`${nomVersion(v)} · ${motif}`);
+        continue;
+      }
+    }
     // Recalculé de zéro à chaque passage ; un état par version (chaque version est vérifiée séparément).
     if (issue.adaptes.length) (e.ecransAdaptes ??= {})[v.id] = issue.adaptes;
     else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
@@ -1446,7 +1550,7 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
  * sans elle, une correction qui ne touche que l'affichage ne change ni la ligne de temps ni l'identifiant de rendu, et « Refaire
  * cette partie » reprend les anciens rendus (même refus, à 0 €). 23/10/2026 : bulle du récit, légende du chiffre, phrase de la fin.
  */
-export const VERSION_COMPOSITIONS_IV = "compositions-iv/13"; // /13 (25/10/2026, v-b54bb4798246) : vue d'ensemble, mot trop large abrégé, jamais de texte blanc hors pastille ; libellés courts sans « + » final ; /12 (25/10/2026, vidéo v-0339175a9f88) : pile des chiffres centrée sur la page, légende de l'anneau jamais sur le trait (dedans si elle tient dans la corde, sinon dessous), écrans de texte TYP-C sans trou entre rangées et « Au matin » gardé entier, vue d'ensemble avec 16 px au moins entre rangées (chiffres-clés retirés avant les paires, libellés raccourcis signalés, rendu dosé sur l'écart) ; /11 (25/10/2026) : affiche de la première image (l'accroche écrite en entier, posée 1 image sur le premier bloc, `affiche` dans les propriétés de la première scène) ; /10 (25/10/2026) : 4:5 sans surimpression d'accent (le badge sans place à côté du nœud n'est plus dessiné, son chiffre est déjà dans le libellé), 2e ligne de l'en-tête en étiquette seulement si elle précède le titre, étiquette de repli jamais égale à la marque, question de fin 4:5 à la taille du 9:16 ; /9 (25/10/2026) : badge d'accent dans le cadre 4:5 (au-dessus du rail, sous l'en-tête), décors et ombre hachurée évités, réserve de chasse 6 % des boîtes de la toile ; /8 (24/10/2026) : écran CHI-E centré avec écart sous la légende, pile des chiffres « 0 » + « demande perdue » ; /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
+export const VERSION_COMPOSITIONS_IV = "compositions-iv/14"; // /14 (26/10/2026) : en-tête d'une paire « X · Y » avant le titre = étiquette X seule (elle ne recouvre plus le titre) ; /13 (25/10/2026, v-b54bb4798246) : vue d'ensemble, mot trop large abrégé, jamais de texte blanc hors pastille ; libellés courts sans « + » final ; /12 (25/10/2026, vidéo v-0339175a9f88) : pile des chiffres centrée sur la page, légende de l'anneau jamais sur le trait (dedans si elle tient dans la corde, sinon dessous), écrans de texte TYP-C sans trou entre rangées et « Au matin » gardé entier, vue d'ensemble avec 16 px au moins entre rangées (chiffres-clés retirés avant les paires, libellés raccourcis signalés, rendu dosé sur l'écart) ; /11 (25/10/2026) : affiche de la première image (l'accroche écrite en entier, posée 1 image sur le premier bloc, `affiche` dans les propriétés de la première scène) ; /10 (25/10/2026) : 4:5 sans surimpression d'accent (le badge sans place à côté du nœud n'est plus dessiné, son chiffre est déjà dans le libellé), 2e ligne de l'en-tête en étiquette seulement si elle précède le titre, étiquette de repli jamais égale à la marque, question de fin 4:5 à la taille du 9:16 ; /9 (25/10/2026) : badge d'accent dans le cadre 4:5 (au-dessus du rail, sous l'en-tête), décors et ombre hachurée évités, réserve de chasse 6 % des boîtes de la toile ; /8 (24/10/2026) : écran CHI-E centré avec écart sous la légende, pile des chiffres « 0 » + « demande perdue » ; /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
 
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
@@ -1456,7 +1560,19 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     const mixage = planMixageIV(v.piste, ligne.bruitages, ligne.dureeSec);
     const id = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id, VERSION_COMPOSITIONS_IV])}`;
     if (e.rendus[v.id]?.demande === id) continue;
-    const r = await o.rendre({ id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 });
+    const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 };
+    let r: Awaited<ReturnType<OutilsFabricationIV["rendre"]>>;
+    try {
+      r = await o.rendre(demandeRendu);
+    } catch (err) {
+      // Zéro blocage : une panne passagère du rendu est refaite une fois toute seule ; l'attente et l'impossible repartent tels quels.
+      if (estAttenteIV(err) || err instanceof ErreurRenduDefinitifIV) throw err;
+      if ((e.tentatives.rendu ?? 1) >= 2) throw err;
+      e.journal.push(`Remarque · rendu de ${nomVersion(v)} en panne (${raisonDe(err)}) : refait automatiquement une fois.`);
+      // L'essai est noté avant de relancer : si le serveur répond « rendu en cours », la reprise demande directement le bon essai.
+      e.tentatives.rendu = demandeRendu.essai + 1;
+      r = await o.rendre({ ...demandeRendu, essai: demandeRendu.essai + 1 });
+    }
     e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };
     e.journal.push(`Rendu de ${nomVersion(v)}.`);
     return e;
@@ -1464,10 +1580,9 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
   return passerA(e, "controles");
 }
 
-async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
-  const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
-  const { publication, liens } = publicationDe(e);
-  const versions: VersionAControlerIV[] = versionsDe(e).map((v) => {
+/** Versions à contrôler, telles que la porte les reçoit : mise en scène recalculée, piste, fichier rendu et mesures (PUR). */
+export function miseEnSceneDesVersionsIV(e: EtatFabricationIV, bruitages: readonly BruitageValideIV[] = BRUITAGES_V4_IV): VersionAControlerIV[] {
+  return versionsDe(e).map((v) => {
     const scene = sceneDe(e, v, bruitages);
     const ligne = mettreEnSceneIV(scene).ligne;
     const rendu = e.rendus?.[v.id];
@@ -1485,20 +1600,31 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
       fichier: { cle: rendu?.cle ?? "", ...(rendu?.empreinte ? { empreinte: rendu.empreinte } : {}), ...(rendu?.mesures ? { mesures: rendu.mesures } : {}) },
     };
   });
+}
+
+/** Entrée de la porte unique pour l'état (PUR), avec la publication et les liens qu'elle contrôle. */
+export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly BruitageValideIV[] = BRUITAGES_V4_IV): { entree: EntreePorteIV; publication: PublicationIV; liens: Record<string, string> } {
+  const { publication, liens } = publicationDe(e);
+  const entree: EntreePorteIV = {
+    videoId: e.demande.videoId,
+    carte: e.carte!.carte,
+    fiche: e.script!.fiche,
+    reseaux: e.demande.reseaux,
+    plan: e.plan!,
+    versions: miseEnSceneDesVersionsIV(e, bruitages),
+    regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
+    voix: { issue: e.voix?.issue ?? { statut: "faite" } },
+    publication,
+    liens,
+    ...(e.controles ? { deja: { transcriptions: e.controles.transcriptions, relectures: e.controles.relectures } } : {}),
+  };
+  return { entree, publication, liens };
+}
+
+async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
+  const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
   const verdict = await porteUniqueIV(
-    {
-      videoId: e.demande.videoId,
-      carte: e.carte!.carte,
-      fiche: e.script!.fiche,
-      reseaux: e.demande.reseaux,
-      plan: e.plan!,
-      versions,
-      regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
-      voix: { issue: e.voix?.issue ?? { statut: "faite" } },
-      publication,
-      liens,
-      ...(e.controles ? { deja: { transcriptions: e.controles.transcriptions, relectures: e.controles.relectures } } : {}),
-    },
+    entree,
     // Chaque tentative d'appel a son propre identifiant (compteur gardé dans l'état) : jamais la réservation d'un appel parti.
     { ...o.controles, budget: caisse.controles(), idAppel: (prefixe) => `${prefixe}-n${(e.compteurAppels = (e.compteurAppels ?? 0) + 1)}` },
   );
@@ -1548,10 +1674,32 @@ function textesDuFil(publication: PublicationIV): Pick<LivraisonReseauIV, "texte
 }
 
 function pasLivraison(e: EtatFabricationIV): EtatFabricationIV {
-  // Facebook livré : ses DEUX fichiers (Reel 9:16 et fil 4:5) ; un seul manquant = rien ne part.
-  const filAttendu = (l: LivraisonReseauIV) => l.reseau === "facebook" && formatsDe(e.demande, "facebook").includes("9:16") && formatsDe(e.demande, "facebook").includes("4:5");
-  const manque = (e.livraison ?? []).filter((l) => l.version !== "aucune" && (!l.fichierCle || (filAttendu(l) && !l.fichierCleFil)));
-  if (manque.length) return refuser(e, "livraison", "IV_RENDU", `Aucun fichier pour ${manque.map((l) => l.reseau).join(", ")} : relancez le rendu.`);
+  // Zéro blocage : un réseau sans fichier principal est rendu à nouveau, une seule fois ; ensuite les autres partent avec une remarque.
+  const manque = (e.livraison ?? []).filter((l) => l.version !== "aucune" && !l.fichierCle);
+  if (manque.length) {
+    const noms = manque.map((l) => l.reseau).join(", ");
+    if ((e.tentatives.livraison ?? 1) < 2) {
+      e.tentatives.livraison = 2;
+      // Même identifiant, même essai = rien de refait côté serveur : l'essai passe à +1 pour les versions concernées.
+      e.tentatives.rendu = (e.tentatives.rendu ?? 1) + 1;
+      const concernees = versionsDe(e).filter((v) => v.reseaux.some((r) => manque.some((l) => l.reseau === r)));
+      for (const v of concernees) delete e.rendus?.[v.id];
+      e.journal.push(`Remarque · aucun fichier pour ${noms} : rendu refait automatiquement une fois.`);
+      delete e.livraison;
+      return passerA(e, "rendu");
+    }
+    e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => (manque.includes(l) ? { reseau: l.reseau, version: "aucune", mention: `Aucun fichier pour ${l.reseau} après un second rendu : à refaire.` } : l));
+    e.journal.push(`Remarque · aucun fichier pour ${noms} après un second rendu : les autres réseaux sont livrés.`);
+    if (!e.livraison.some((l) => l.version !== "aucune")) return refuser(e, "livraison", "IV_RENDU", "Aucun fichier rendu pour aucun réseau, relancez le rendu.", { reessayable: true });
+  }
+  // Facebook : si seul le fil 4:5 manque, le Reel 9:16 qui existe est livré, avec une remarque sur le fil.
+  const formatsFb = formatsDe(e.demande, "facebook");
+  e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => {
+    if (l.reseau !== "facebook" || l.version === "aucune" || !l.fichierCle || l.fichierCleFil || !formatsFb.includes("9:16") || !formatsFb.includes("4:5")) return l;
+    const remarque = "Le fil 4:5 n'a pas été rendu : le Reel 9:16 est livré, le fil est à refaire.";
+    e.journal.push(`Remarque · Facebook : ${remarque}`);
+    return { ...l, mention: [l.mention, remarque].filter(Boolean).join(" ") };
+  });
   e.journal.push(`Vidéo prête : ${(e.livraison ?? []).filter((l) => l.version !== "aucune").length} réseau(x).`);
   return passerA(e, "prete");
 }

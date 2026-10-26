@@ -69,13 +69,16 @@ const OUVERTURE_FIN_SEC = 1.0;
 const APRES_DERNIER_FIN_SEC = 0.5;
 /** Bloc : marge avant la fin de son écran, pour ne pas tomber dans le fondu de sortie de l'en-tête (0,15 s). */
 const MARGE_FIN_PLAN_BLOC = 0.2;
+/** Marge entre un instant clé et le bord d'une fenêtre de transition. */
+const MARGE_TRANSITION_SEC = 0.05;
 
 /**
  * Instants clés d'une version (PUR, déterministe). Priorité quand il y en a plus de 24 : la fin, la phrase-choc, les
  * chiffres-chocs, les blocs (dans l'ordre d'apparition), puis les charnières.
  */
 export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | "dureeSec" | "segmentFin"> & Partial<Pick<LigneDeTempsIV, "blocs">>, carte: Pick<CarteImage, "noeuds">): InstantCleIV[] {
-  const brut: Omit<InstantCleIV, "nom">[] = [];
+  /** `bas` : plancher de l'instant (jamais avant) ; absent = début de son écran. */
+  const brut: (Omit<InstantCleIV, "nom"> & { bas?: number })[] = [];
   const dansPlan = (t: number) => {
     const p = l.plans.find((x) => t >= x.debut - 1e-9 && t < x.fin - 1e-9);
     return p ? Math.min(t, p.fin - 0.05) : t;
@@ -142,14 +145,14 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
       : dessine(e)
         ? `Le bloc « ${n.libelle} » est à l'écran, entier et lisible.`
         : `Le texte « ${n.libelle.replace(/\*/g, "")} » est à l'écran, lisible.`;
-    brut.push({ instantSec: pE ? Math.max(pE.debut, e.instantSec, plancher, vise) : dansPlan(dernierDuBloc + 0.6), sorte: "bloc", legende, ref: n.id });
+    brut.push({ instantSec: pE ? Math.max(pE.debut, e.instantSec, plancher, vise) : dansPlan(dernierDuBloc + 0.6), sorte: "bloc", legende, ref: n.id, bas: pE ? Math.max(pE.debut, e.instantSec, plancher) : undefined });
   }
   for (const p of l.plans) {
     const apres = p.scene === "phrase-choc" || p.scene === "chiffre" || p.scene === "bandeau-chiffres" ? apresDernier(p, 0.5) : null;
     if (p.scene === "phrase-choc") {
-      if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "phrase-choc", legende: "La phrase-choc de l'image, en entier." });
+      if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "phrase-choc", legende: "La phrase-choc de l'image, en entier.", bas: Math.min(apres, (dernierElement(p) ?? p.debut) + 0.5) });
     } else if (p.scene === "chiffre" || p.scene === "bandeau-chiffres") {
-      if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "chiffre", legende: `Chiffre-choc : ${p.textes.map((t) => t.replace(/\*/g, "")).join(" · ") || "le chiffre de l'écran"}.` });
+      if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "chiffre", legende: `Chiffre-choc : ${p.textes.map((t) => t.replace(/\*/g, "")).join(" · ") || "le chiffre de l'écran"}.`, bas: Math.min(apres, (dernierElement(p) ?? p.debut) + 0.5) });
     } else if (p.sorte === "ensemble" || p.sorte === "recap") brut.push({ instantSec: milieu(p), sorte: "charniere", legende: p.sorte === "ensemble" ? "Vue d'ensemble du schéma (sans texte à lire)." : "Récapitulatif." });
   }
   const pF = l.plans.find((x) => l.segmentFin.debut >= x.debut - 1e-6 && l.segmentFin.debut < x.fin - 1e-6);
@@ -163,7 +166,43 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
   // L'écran d'ouverture remplace les blocs de la 1re phrase : une image juste avant sa fin montre l'accroche entière.
   if (ouv) brut.push({ instantSec: ouv.fin - 0.3, sorte: "charniere", legende: "Ouverture : l'accroche (et son chiffre s'il y en a un), entière et lisible." });
 
-  const bornes = brut.map((b) => ({ ...b, instantSec: arrondi(Math.min(Math.max(0, b.instantSec), Math.max(0, l.dureeSec - 0.04))) }));
+  // Fenêtres de transition (variete/axes/transitions.ts) : sortie = les `duree` dernières secondes du bloc A, entrée = les `duree` premières du bloc B.
+  // Au milieu du balayage le surtitre est masqué : un instant qui y tombe est décalé juste avant la sortie ou juste après l'entrée.
+  const fenetres = (l.blocs ?? []).flatMap((b) => {
+    const t = (b.variete?.donnees?.transitions as { duree?: number; sortie?: unknown; entree?: unknown } | undefined) ?? undefined;
+    if (!t) return [];
+    const d = t.duree ?? 0.4;
+    return [...(t.sortie ? [{ de: b.fin - d, a: b.fin, avant: true }] : []), ...(t.entree ? [{ de: b.debut, a: b.debut + d, avant: false }] : [])];
+  });
+  // Un instant qui tombe dans une fenêtre y est décalé, sans jamais passer sous sa borne basse (`bas`, plancher : dernier élément +
+  // 0,3 s, ou dernier mot + 0,5 s) : sous la borne, il avance après l'entrée du bloc suivant tant qu'il reste sur le même écran, avant
+  // fin − 0,2 s et avant le départ de la caméra ; sinon il est retiré (mieux vaut pas d'image qu'une image trop tôt).
+  const horsTransition = (t: number, basBrut?: number): number | null => {
+    const ecran = planDe(t);
+    const bas = basBrut ?? ecran?.debut ?? 0;
+    const depart = l.evenements.find((x) => x.genre === "camera" && x.instantSec > bas + 1e-6)?.instantSec ?? Infinity;
+    const haut = Math.min(ecran ? ecran.fin - MARGE_FIN_PLAN_BLOC : Infinity, depart - 0.05);
+    let x = t;
+    for (let tour = 0; tour <= 2 * fenetres.length + 1; tour++) {
+      const w = fenetres.find((f) => x >= f.de - 1e-9 && x < f.a - 1e-9);
+      if (!w) return x;
+      const recul = w.de - MARGE_TRANSITION_SEC;
+      if (w.avant && recul >= bas - 1e-9) { x = recul; continue; }
+      const avance = w.a + MARGE_TRANSITION_SEC;
+      if (!w.avant || (ecran && planDe(avance) === ecran)) {
+        if (avance > haut + 1e-9 || (ecran && planDe(avance) !== ecran)) return null;
+        x = avance;
+        continue;
+      }
+      return null;
+    }
+    return null;
+  };
+  const bornes = brut.flatMap(({ bas, ...b }) => {
+    const t = Math.min(Math.max(0, b.instantSec), Math.max(0, l.dureeSec - 0.04));
+    const x = horsTransition(t, bas);
+    return x === null ? [] : [{ ...b, instantSec: arrondi(x) }];
+  });
   const choisis: Omit<InstantCleIV, "nom">[] = [];
   const ordre = bornes.map((b, i) => ({ b, i })).sort((x, y) => PRIORITE[x.b.sorte] - PRIORITE[y.b.sorte] || x.i - y.i);
   for (const { b } of ordre) {
@@ -295,8 +334,9 @@ function simulerRelecture(entree: EntreeRole): RelectureFinale {
 
 export const roleRelectureFinale = {
   id: "relecture-finale-iv",
+  // 4 (26/10/2026) : instants clés hors des fenêtres de transition TRA-C, sans jamais passer sous le plancher (relectures reprises invalidées).
   // 3 (25/10/2026) : extraction par id dépendant des instants, image de contrôle manquante = remarque (relectures reprises invalidées).
-  version: 3,
+  version: 4,
   consigne: CONSIGNE_RELECTURE_FINALE,
   schema: schemaRelectureFinale,
   modele: MODELE_ECRITURE,

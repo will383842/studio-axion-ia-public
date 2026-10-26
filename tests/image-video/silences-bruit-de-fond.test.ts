@@ -372,7 +372,8 @@ describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE : bruts MP3 bruités, 
     const carte = carteFixe("C");
     const compte = { conversions: 0 };
     const serveur = new ServeurDouble({ enCours: 1 });
-    const o = outilsAvecRendu(m, serveur, outilsSimules(carte, m, bruite({ mesureVoix: mesure, assemblage: assemblageReel(m, compte) })));
+    // Parcours où chaque fin de secours attend « Refaire cette partie » (le parcours automatique est testé ailleurs).
+    const o = { ...outilsAvecRendu(m, serveur, outilsSimules(carte, m, bruite({ mesureVoix: mesure, assemblage: assemblageReel(m, compte) }))), secoursAutomatique: false };
 
     let etat = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
     const arrets: string[] = [];
