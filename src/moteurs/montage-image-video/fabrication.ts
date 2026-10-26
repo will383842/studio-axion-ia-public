@@ -1370,7 +1370,44 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   for (const v of versionsDe(e)) {
     // 25/10 (zéro blocage, v-b54bb4798246) : un défaut de détail (Q13 chiffre non montré, Q14 rythme) ne refuse plus la vidéo :
     // les écrans cités passent en texte seul (3 essais au plus) ; s'il persiste, la vidéo continue et le défaut reste au journal.
-    const issue = mettreEnSceneAvecFiletIV((adaptes) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, adaptes) }), [], nomVersion(v), v.fiche);
+    const mettre = (adaptes: readonly string[]) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, adaptes) });
+    let issue: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
+    let panne: string | undefined;
+    try {
+      issue = mettreEnSceneAvecFiletIV(mettre, [], nomVersion(v), v.fiche);
+    } catch (err) {
+      panne = raisonDe(err);
+    }
+    // Zéro blocage : une mise en scène refusée (ou en panne) retombe sur une composition sûre de la même scène (tous les
+    // écrans en texte seul), sinon sur la version précédente ; la raison reste en remarque. Le refus ne sort qu'en dernier.
+    if (!issue || issue.refus.length) {
+      const motif = panne ?? issue!.refus[0];
+      const sures = v.fiche.ecrans.filter((x) => x.scene !== "titre" && x.textesEcran.length > 0).map((x) => x.id);
+      let sure: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
+      try {
+        sure = mettreEnSceneAvecFiletIV(mettre, sures, nomVersion(v), v.fiche);
+      } catch {
+        sure = undefined;
+      }
+      const precedente = e.scenes?.find((x) => x.version === v.id);
+      if (sure && !sure.refus.length) {
+        e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple (texte seul) utilisée.`);
+        sure.adaptes.unshift(...sures);
+        issue = sure;
+      } else if (precedente) {
+        e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : version précédente gardée.`);
+        scenes.push(precedente);
+        continue;
+      } else if (sure) {
+        e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple utilisée malgré ${sure.refus[0]}`);
+        sure.adaptes.unshift(...sures);
+        sure.refus = [];
+        issue = sure;
+      } else if (!issue) {
+        phrases.push(`${nomVersion(v)} · ${motif}`);
+        continue;
+      }
+    }
     // Recalculé de zéro à chaque passage ; un état par version (chaque version est vérifiée séparément).
     if (issue.adaptes.length) (e.ecransAdaptes ??= {})[v.id] = issue.adaptes;
     else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
@@ -1400,7 +1437,16 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     const mixage = planMixageIV(v.piste, ligne.bruitages, ligne.dureeSec);
     const id = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id, VERSION_COMPOSITIONS_IV])}`;
     if (e.rendus[v.id]?.demande === id) continue;
-    const r = await o.rendre({ id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 });
+    const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 };
+    let r: Awaited<ReturnType<OutilsFabricationIV["rendre"]>>;
+    try {
+      r = await o.rendre(demandeRendu);
+    } catch (err) {
+      // Zéro blocage : une panne passagère du rendu est refaite une fois toute seule ; l'attente et l'impossible repartent tels quels.
+      if (estAttenteIV(err) || err instanceof ErreurRenduDefinitifIV) throw err;
+      e.journal.push(`Remarque · rendu de ${nomVersion(v)} en panne (${raisonDe(err)}) : refait automatiquement une fois.`);
+      r = await o.rendre({ ...demandeRendu, essai: demandeRendu.essai + 1 });
+    }
     e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };
     e.journal.push(`Rendu de ${nomVersion(v)}.`);
     return e;
@@ -1493,10 +1539,23 @@ function textesDuFil(publication: PublicationIV): Pick<LivraisonReseauIV, "texte
 }
 
 function pasLivraison(e: EtatFabricationIV): EtatFabricationIV {
-  // Facebook livré : ses DEUX fichiers (Reel 9:16 et fil 4:5) ; un seul manquant = rien ne part.
+  // Facebook livré : ses DEUX fichiers (Reel 9:16 et fil 4:5) ; un seul manquant = ce réseau ne part pas.
   const filAttendu = (l: LivraisonReseauIV) => l.reseau === "facebook" && formatsDe(e.demande, "facebook").includes("9:16") && formatsDe(e.demande, "facebook").includes("4:5");
   const manque = (e.livraison ?? []).filter((l) => l.version !== "aucune" && (!l.fichierCle || (filAttendu(l) && !l.fichierCleFil)));
-  if (manque.length) return refuser(e, "livraison", "IV_RENDU", `Aucun fichier pour ${manque.map((l) => l.reseau).join(", ")} : relancez le rendu.`);
+  if (manque.length) {
+    const noms = manque.map((l) => l.reseau).join(", ");
+    // Zéro blocage : un réseau sans fichier est rendu à nouveau, une seule fois ; ensuite les autres partent avec une remarque.
+    if ((e.tentatives.livraison ?? 1) < 2) {
+      e.tentatives.livraison = 2;
+      const concernees = versionsDe(e).filter((v) => v.reseaux.some((r) => manque.some((l) => l.reseau === r)));
+      for (const v of concernees) delete e.rendus?.[v.id];
+      e.journal.push(`Remarque · aucun fichier pour ${noms} : rendu refait automatiquement une fois.`);
+      delete e.livraison;
+      return passerA(e, "rendu");
+    }
+    e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => (manque.includes(l) ? { reseau: l.reseau, version: "aucune", mention: `Aucun fichier pour ${l.reseau} après un second rendu : à refaire.` } : l));
+    e.journal.push(`Remarque · aucun fichier pour ${noms} après un second rendu : les autres réseaux sont livrés.`);
+  }
   e.journal.push(`Vidéo prête : ${(e.livraison ?? []).filter((l) => l.version !== "aucune").length} réseau(x).`);
   return passerA(e, "prete");
 }
