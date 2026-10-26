@@ -1,18 +1,21 @@
 /**
  * IMAGE → VIDÉO · Réparation sans appel d'une phrase trop longue (Q09 : 12 mots au plus).
  *
- * Module PUR. On ne change JAMAIS un mot : on ajoute un point à une frontière sûre (après une virgule, ou avant un mot de
- * liaison) et on met la lettre suivante en majuscule. Jamais au milieu d'un nombre dit (« vingt et un dossiers », « trois
+ * Module PUR. On ne change JAMAIS un mot : on ajoute un point à une frontière sûre (après une virgule seule, jamais devant
+ * « qui », « que », « sans »…, ni devant une préposition) et on met la lettre suivante en majuscule. Jamais au milieu d'un nombre dit (« vingt et un dossiers », « trois
  * heures et demie »), ni contre une unité, ni après un déterminant ou une préposition. Une garde finale, champ par champ,
  * refuse toute coupe qui changerait les mots, leur nombre ou la lecture des chiffres (valeur ET unité). La phrase-choc
  * validée par Will et la question de commentaire ne sont jamais touchées.
  */
-import { MOTS_PAR_PHRASE_MAX, aCorrigerParClaude, lectureChiffres, verifierScript, type ContexteRegles, type VerdictScript } from "./regles";
+import { MOTS_PAR_PHRASE_MAX, aCorrigerParClaude, lectureChiffres, verifierScript, type ContexteRegles, type Manquement, type VerdictScript } from "./regles";
 import { motsDits, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 
 const MORCEAU_MIN = 3;
-/** Mots de liaison devant lesquels on peut couper (« et » et « pour » sont ambigus avec les nombres : exclus). */
-const LIAISONS = new Set(["mais", "donc", "car", "puis", "alors", "qui", "que", "ou", "sans", "avec", "parce", "quand", "puisque", "sinon"]);
+/** Le morceau de droite ne commence jamais par une préposition, un complément détaché ni un mot de liaison qui casse le sens. */
+const DEBUTS_INTERDITS = new Set([
+  "au", "aux", "a", "de", "du", "des", "en", "contre", "pour", "par", "sur", "dans", "avec", "sans", "sous", "chez", "vers",
+  "qui", "que", "ou", "quand", "parce", "puisque", "sinon", "et", "ni",
+]);
 const NOMBRES = new Set([
   "zero", "un", "une", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize",
   "vingt", "vingts", "trente", "quarante", "cinquante", "soixante", "septante", "huitante", "nonante", "cent", "cents", "mille", "million", "millions",
@@ -50,12 +53,11 @@ interface Jeton {
 /** Frontière sûre entre le jeton `i` et le suivant. */
 function frontiereSure(a: Jeton, b: Jeton): boolean {
   if (!a.estMot || !b.estMot) return false;
-  const virgule = a.texte.endsWith(",");
-  const liaison = LIAISONS.has(mot(b.texte));
-  if (!virgule && !liaison) return false;
+  // Pas de virgule, pas de coupe : jamais devant un mot de liaison seul (« ne… que », « qui », « sans »… changent le sens).
+  if (!a.texte.endsWith(",")) return false;
+  if (DEBUTS_INTERDITS.has(mot(b.texte).split("'")[0]!)) return false;
   if (estNombreOuUnite(a.texte) || estNombreOuUnite(b.texte)) return false;
-  if (DETERMINANTS.has(mot(a.texte)) || LIAISONS.has(mot(a.texte))) return false;
-  // « pour cent » : « pour » ne se sépare pas de « cent » (couvert par le nombre), « pourcent » est une unité.
+  if (DETERMINANTS.has(mot(a.texte))) return false;
   return true;
 }
 
@@ -135,6 +137,8 @@ export function couperPhrasesLongues(texteDit: string): string {
   // une coupe que la garde refuse n'est pas gardée.
   const morceaux = texteDit.split(/([.!?:;…]+)/u);
   for (let i = 0; i < morceaux.length; i += 2) {
+    // Une question n'est jamais coupée.
+    if ((morceaux[i + 1] ?? "").includes("?")) continue;
     const coupee = couperPhrase(morceaux[i]!);
     if (coupee === morceaux[i]) continue;
     const essai = [...morceaux.slice(0, i), coupee, ...morceaux.slice(i + 1)].join("");
@@ -142,6 +146,8 @@ export function couperPhrasesLongues(texteDit: string): string {
   }
   return morceaux.join("");
 }
+
+const cleRefus = (m: Manquement) => `${m.regle}|${m.ecranId ?? ""}`;
 
 export interface ReparationLongues {
   fiche: FicheImage;
@@ -159,7 +165,7 @@ export interface ReparationLongues {
 export function reparerPhrasesLonguesIV(brute: unknown, ctx: ContexteRegles): ReparationLongues | null {
   const forme = schemaFicheImage.safeParse(brute);
   if (!forme.success) return null;
-  const avant = aCorrigerParClaude(verifierScript(forme.data, ctx)).map((m) => m.message);
+  const avant = aCorrigerParClaude(verifierScript(forme.data, ctx)).map(cleRefus);
   if (!avant.length) return null;
 
   const fiche = structuredClone(forme.data);
@@ -184,7 +190,13 @@ export function reparerPhrasesLonguesIV(brute: unknown, ctx: ContexteRegles): Re
   const rejuge = schemaFicheImage.safeParse(fiche);
   if (!rejuge.success) return null;
   const verdict = verifierScript(rejuge.data, ctx);
-  const refus = aCorrigerParClaude(verdict).map((m) => m.message);
-  if (refus.some((m) => !avant.includes(m))) return null;
-  return { fiche: rejuge.data, verdict, refus, coupes: faits };
+  const manquements = aCorrigerParClaude(verdict);
+  // Comparaison par règle + écran (le message cite le texte dit, qui vient de changer) : un refus en plus est nouveau.
+  const restant = [...avant];
+  for (const m of manquements) {
+    const k = restant.indexOf(cleRefus(m));
+    if (k < 0) return null;
+    restant.splice(k, 1);
+  }
+  return { fiche: rejuge.data, verdict, refus: manquements.map((m) => m.message), coupes: faits };
 }

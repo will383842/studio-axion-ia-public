@@ -56,13 +56,13 @@ describe("couperPhrasesLongues · coupes", () => {
   });
 
   it("phrase de 30 mots avec une virgule et un mot de liaison : trois morceaux de 12 mots au plus", () => {
-    const t = "Chaque matin vous ouvrez votre boîte, vous triez les messages reçus pendant la nuit, puis vous répondez à chaque personne quand vous passez enfin à votre vraie tâche du jour";
+    const t = "Chaque matin vous ouvrez votre boîte, vous triez les messages reçus pendant la nuit, puis vous répondez à chaque personne, vous passez enfin à votre vraie tâche du jour";
     expect(motsDits(t).length).toBeGreaterThan(28);
     const r = couperPhrasesLongues(t);
     expect(r).not.toBe(t);
     invariants(t, r);
     expect(toutesCourtes(r)).toBe(true);
-    expect(r).toBe("Chaque matin vous ouvrez votre boîte. Vous triez les messages reçus pendant la nuit. Puis vous répondez à chaque personne. Quand vous passez enfin à votre vraie tâche du jour");
+    expect(r).toBe("Chaque matin vous ouvrez votre boîte. Vous triez les messages reçus pendant la nuit. Puis vous répondez à chaque personne. Vous passez enfin à votre vraie tâche du jour");
   });
 
   it("phrase de 30 mots sans aucune frontière sûre : NON modifiée", () => {
@@ -98,6 +98,47 @@ describe("couperPhrasesLongues · coupes", () => {
     const r = couperPhrasesLongues(t);
     expect(toutesCourtes(r)).toBe(true);
     invariants(t, r);
+  });
+});
+
+describe("couperPhrasesLongues · le sens ne casse jamais", () => {
+  it.each([
+    "Avec notre assistant vous ne payez que ce que vous utilisez vraiment chaque mois sans aucun engagement de votre part",
+    "Plus jamais un seul client important de votre entreprise sans réponse rapide le soir ou le week-end",
+    "Les clients de votre cabinet qui paient en retard reçoivent un rappel poli et automatique tous les matins",
+    "Votre équipe devient deux fois plus rapide que la concurrence pour répondre à chaque demande entrante du jour",
+    "Vous gagnez du temps grâce à notre assistant qui répond à vos clients à toute heure de la journée",
+  ])("sans virgule, devant qui, que, sans, ne… que : NON modifiée (%#)", (t) => {
+    expect(motsDits(t).length).toBeGreaterThan(12);
+    expect(couperPhrasesLongues(t)).toBe(t);
+  });
+
+  it.each([
+    "Plus jamais un seul client important de votre entreprise, sans réponse rapide le soir ou le week-end",
+    "Les clients de votre cabinet, qui paient en retard, reçoivent un rappel poli et automatique tous les matins",
+    "Votre équipe devient deux fois plus rapide, que la concurrence pour répondre à chaque demande entrante du jour",
+  ])("avec virgule mais devant qui, que, sans : jamais coupée devant ce mot (%#)", (t) => {
+    const r = couperPhrasesLongues(t);
+    expect(r).not.toMatch(/\. (Qui|Que|Sans)\b/);
+    invariants(t, r);
+  });
+
+  it("devant mais, donc, car, puis, alors : coupe permise après la virgule", () => {
+    const t = "Vous ouvrez votre boîte chaque matin tôt, puis vous répondez calmement à chaque personne qui vous écrit";
+    expect(couperPhrasesLongues(t)).toBe("Vous ouvrez votre boîte chaque matin tôt. Puis vous répondez calmement à chaque personne qui vous écrit");
+  });
+
+  it("une question n'est jamais coupée", () => {
+    const t = "Combien de temps perdez-vous chaque semaine, à trier vos messages, puis à répondre à tout le monde ?";
+    expect(motsDits(t).length).toBeGreaterThan(12);
+    expect(couperPhrasesLongues(t)).toBe(t);
+    const m = `${TREIZE}. ${t}`;
+    expect(couperPhrasesLongues(m)).toBe(`Moins de tâches répétitives. Plus de temps pour vos clients et votre croissance. ${t}`);
+  });
+
+  it.each(["au lieu de douze heures", "contre trois jours", "chez vos clients actuels", "pour vos clients"])("morceau de droite en « %s » : pas de coupe", (g) => {
+    const t = `Vous traitez maintenant chaque demande reçue en une matinée, ${g} de travail manuel pénible et lent`;
+    expect(couperPhrasesLongues(t)).toBe(t);
   });
 });
 
@@ -191,6 +232,17 @@ describe("reparerPhrasesLonguesIV · fiche", () => {
   it("une fiche déjà bonne, ou illisible, n'est pas touchée", () => {
     expect(reparerPhrasesLonguesIV(fiche(), ctx)).toBeNull();
     expect(reparerPhrasesLonguesIV({ n: 1 }, ctx)).toBeNull();
+  });
+
+  it("un refus Q09 dont le message cite le texte (chiffres en lettres) ne bloque pas : comparaison par règle + écran", () => {
+    const f = fiche();
+    const e = cible(f);
+    e.texteDit = `${TREIZE}. Nous gardons 3 clients`;
+    const r = reparerPhrasesLonguesIV(f, ctx);
+    expect(r).not.toBeNull();
+    expect(r!.coupes).toEqual([`écran ${e.id}`]);
+    expect(cible(r!.fiche).texteDit).toContain("répétitives. Plus de temps");
+    expect(r!.refus.some((m) => m.includes("chiffres se disent en lettres"))).toBe(true);
   });
 
   it("un refus NOUVEAU après la coupe : la réparation est jetée", () => {
