@@ -346,16 +346,15 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
       },
     });
     const v = await porteUniqueIV(m.entree, o);
-    // 25/10/2026 : Q19 et la phrase-choc non entendue (Q06 : erreur de transcription, la voix existe) ne sont que des remarques.
+    // 25/10/2026 : Q19 n'est qu'une remarque. Depuis le 26/10, chaque version (LinkedIn comprise) dit sa fin : la phrase retirée est
+    // celle de la fin, la phrase-choc reste entendue (Q06 réussie).
     expect(v.ok).toBe(true);
     const q19 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q19" && l.etat === "echoue");
     expect(q19.length).toBeGreaterThan(0);
     expect(q19.every((l) => !l.bloquant)).toBe(true);
     expect(q19[0].phrase).toMatch(/dernière phrase/);
-    const q06 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q06" && l.etat === "echoue");
-    expect(q06.length).toBeGreaterThan(0);
-    expect(q06.every((l) => !bloque(l))).toBe(true);
-    expect(v.mentions.join()).toMatch(/phrase-choc/);
+    expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q06" && bloque(l))).toEqual([]);
+    expect(v.mentions.join()).toMatch(/dernière phrase/);
     // La vidéo n'est pas refusée : la relecture payante a lieu.
     expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q26").every((l) => l.etat !== "non-fait")).toBe(true);
   });
@@ -913,12 +912,32 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(refus.map((l) => l.code)).toContain("Q08bis");
   });
 
-  it("une version Facebook ou LinkedIn sans fin est refusée (la fin du réseau manque)", async () => {
+  it("une version Facebook sans fin n'est plus refusée : remarque (Q08 bis), la vidéo sort", async () => {
     const m = monter("A", ["facebook"]);
     const sansFin = versionDe(m.entree.carte, m.entree.fiche, { id: "fin-facebook", reseaux: ["facebook"], muet: true, appels: [] }, m.sons);
     const { o } = outils({ ...m, entree: { ...m.entree, versions: [sansFin] } });
     const r = await porteUniqueIV({ ...m.entree, versions: [sansFin] }, o);
-    expect(r.versions[0].lignes.filter(bloque).map((l) => l.code)).toContain("Q08bis");
+    const q08bis = r.versions[0].lignes.find((l) => l.code === "Q08bis")!;
+    expect(q08bis.etat).toBe("echoue");
+    expect(bloque(q08bis)).toBe(false);
+    expect(q08bis.phrase).toMatch(/aucune fin pour facebook/);
+  });
+
+  it("réglage question-puis-fin : une fin sans question est signalée (remarque, jamais un blocage) ; en fin-seule, rien", async () => {
+    const m = monter("A", ["facebook"]);
+    const v = m.entree.versions[0];
+    expect(v.fin && !v.fin.muet && !v.fin.question).toBe(true);
+    const q08bis = async (appelCommentaire?: "question-puis-fin" | "fin-seule") => {
+      const { o } = outils(m);
+      const r = await porteUniqueIV({ ...m.entree, ...(appelCommentaire ? { appelCommentaire } : {}) }, o);
+      return r.versions[0].lignes.find((l) => l.code === "Q08bis")!;
+    };
+    const avec = await q08bis("question-puis-fin");
+    expect(avec.etat).toBe("echoue");
+    expect(avec.phrase).toMatch(/question de commentaire manque/);
+    expect(bloque(avec)).toBe(false);
+    expect((await q08bis("fin-seule")).etat).not.toBe("echoue");
+    expect((await q08bis()).etat).not.toBe("echoue");
   });
 
   it("aucune version : refus clair", async () => {

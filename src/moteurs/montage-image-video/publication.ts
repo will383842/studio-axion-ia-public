@@ -22,6 +22,9 @@ import { sorteDuPlanIV, type PlanDesFinsIV } from "./fins";
 import { FINS_DE_SECOURS_IV, phraseDeRepliIV } from "./secours";
 
 export const TITRE_SHORTS_MAX = 60;
+// À TRAITER AVANT D'ACTIVER LE TOUR (`PAGE_TOUR_DE_FRANCE_IA` reste `null`) : le texte du post (ci-dessous, il vient encore de
+// la fin « diagnostic ») et le chemin de secours d'une fin Tour (`secours.ts`, lignes `fin-iv-…` pensées pour le lien suivi
+// du diagnostic) ne sont pas encore prévus pour le Tour.
 /** Premier commentaire de la fin « Tour de France IA » (le lien suivi mène à la page du Tour). */
 export const premierCommentaireTour = (lien: string): string => `Le Tour de France IA : ${lien}`;
 const PHRASE_LIEN_LINKEDIN_REPLI = "Le lien du diagnostic gratuit est en premier commentaire.";

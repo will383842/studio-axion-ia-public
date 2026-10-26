@@ -49,7 +49,7 @@ describe("base 7 de l'Usine, recopiée telle quelle", () => {
   it("phrases mot pour mot (échantillon des lignes que le studio reprend)", () => {
     expect(appelDeLaBanque("fin-if-mot-envoi")).toMatchObject({ reseaux: ["facebook"], dit: "Écrivez {MOT} en commentaire. Je vous l'envoie.", ecran: "Écrivez {MOT} en commentaire", objectif: "MOT_CADEAU" });
     expect(appelDeLaBanque("fin-ig-mot-abonnement")).toMatchObject({ dit: "Abonnez-vous et écrivez {MOT} en commentaire : je vous l'envoie.", ecran: "Abonnez-vous et écrivez {MOT}", objectif: "MOT_CADEAU" });
-    expect(appelDeLaBanque("fin-ig-rdv-seul")).toMatchObject({ dit: "Réservez votre diagnostic gratuit.", lien: "https://axion-ia.com/fr/appel?depuis=entete", objectif: "RENDEZ_VOUS" });
+    expect(appelDeLaBanque("fin-ig-rdv-seul")).toMatchObject({ dit: "Réservez votre diagnostic gratuit.", lien: "https://axion-ia.com/fr/appel", objectif: "RENDEZ_VOUS" });
     expect(appelDeLaBanque("fin-ig-carrousel-mot")?.etat).toBe("retire");
     expect(appelDeLaBanque("fin-li-post-mot")?.typeContenu).toBe("texte");
   });

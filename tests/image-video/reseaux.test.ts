@@ -174,11 +174,11 @@ describe("textes de publication", () => {
   });
 
   it("19/10 · fin de secours d'Instagram et de Shorts : publication normale du réseau (lien dans le profil, jamais en premier commentaire) ; Facebook en secours : premier commentaire", () => {
-    // 26/10 : la fin d'Instagram (« Le lien est dans mon profil. », ligne neuve) garde sa chaîne ; Shorts (« sur ma chaîne ») et
-    // Facebook (groupé avec LinkedIn, « premier commentaire ») n'ont plus de secours : rien à poser. Le secours de Facebook
-    // reste vérifié sur le plan d'une vidéo d'AVANT (fin « diagnostic » écrite dans l'état), qui ne change pas.
-    expect(etapeDeSecoursIV(plan, finDe("youtube-shorts").id)).toBeNull();
-    expect(etapeDeSecoursIV(plan, finDe("facebook").id)).toBeNull();
+    // 26/10 : Instagram, Shorts (« sur ma chaîne ») et Facebook (groupé avec LinkedIn, « premier commentaire ») ont chacun une
+    // chaîne de secours propre aux fins `fin-iv-…` (écran neutre, sans repli). Le secours de Facebook reste aussi vérifié sur
+    // le plan d'une vidéo d'AVANT (fin « diagnostic » écrite dans l'état), qui ne change pas.
+    expect(etapeDeSecoursIV(plan, finDe("youtube-shorts").id)).toMatchObject({ lecture: true });
+    expect(etapeDeSecoursIV(plan, finDe("facebook").id)).toMatchObject({ lecture: true, phrase: "Le lien est dans le premier commentaire." });
     const avant = (r: "facebook"): PlanDesFinsIV["fins"][number] => ({
       id: "fin-facebook",
       reseaux: [r],

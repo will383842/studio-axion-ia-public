@@ -24,7 +24,8 @@
  *   est refusée. Au-delà, plus aucune lecture payante, même après « Relever le plafond ».
  */
 import { comparerAReference, TOLERANCES_VOIX, VERSION_MESURE_VOIX, verdictSurMesureAncienne } from "@/briques/voix-maitre/reference";
-import { ErreurFin, suiteDeFins, TABLE_FINS_DIAGNOSTIC, type FinChoisie } from "@/briques/fins";
+import { ErreurFin, groupeDe, suiteDeFins, TABLE_FINS_DIAGNOSTIC, type FinChoisie, type FinTable } from "@/briques/fins";
+import { VALIDATION_WILL_SECOURS, VALIDATION_WILL_SECOURS_2, VALIDATION_WILL_SECOURS_IG } from "@/briques/fins/banque";
 import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { PLAFONDS_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { EtatFabricationIV } from "./fabrication";
@@ -39,6 +40,12 @@ export interface ChaineDeSecoursIV {
   /** Lignes de la fin du 26/10/2026 qui disent la même phrase habituelle : la chaîne s'y applique aussi. */
   aussi?: readonly string[];
   chaine: readonly string[];
+  /**
+   * Chaîne des fins du 26/10/2026 (`fin-iv-…`) : lignes de secours PROPRES à ces fins (`LIGNES_SECOURS_IV`, écran neutre :
+   * ni « Diagnostic gratuit », ni « profil » pour Facebook, LinkedIn ou Shorts). Sans repli : reprendre Instagram ferait dire
+   * « dans mon profil » à Facebook et à LinkedIn.
+   */
+  chaineIV?: readonly string[];
   /** Réseau dont la version est reprise, sans lecture, quand toute la chaîne a été refusée. */
   repli?: ReseauIV;
   /**
@@ -48,12 +55,66 @@ export interface ChaineDeSecoursIV {
   lien: "premier-commentaire" | "profil";
 }
 
-export const FINS_DE_SECOURS_IV: Readonly<Partial<Record<ReseauIV, Readonly<ChaineDeSecoursIV>>>> = Object.freeze({
-  facebook: Object.freeze({ remplace: "fin-fb-lien-commentaire", chaine: Object.freeze(["fin-fb-lien-premier-commentaire", "fin-fb-lien-sous-video"]), repli: "instagram" as const, lien: "premier-commentaire" as const }),
-  // 19/10 : Instagram et Shorts disent la même fin (même lecture) ; chacun a sa ligne (écran propre), sans repli.
-  instagram: Object.freeze({ remplace: "fin-ig-lien-profil", aussi: Object.freeze(["fin-iv-lien-profil"]), chaine: Object.freeze(["fin-ig-lien-profil-secours"]), lien: "profil" as const }),
-  "youtube-shorts": Object.freeze({ remplace: "fin-ty-lien-profil", chaine: Object.freeze(["fin-ys-lien-profil-secours"]), lien: "profil" as const }),
+/**
+ * Lignes de secours des fins `fin-iv-…` (26/10/2026). Phrases dites : celles déjà validées par Will pour les fins de
+ * secours (15/10 et 19/10), sauf celle de Shorts (« chaîne » au lieu de « profil », à valider) ; écrans NEUTRES, sans
+ * « Diagnostic gratuit » (la fin peut être un accompagnement ou le Tour).
+ */
+const LIGNES_SECOURS_IV: readonly Omit<FinTable, "groupe" | "reseaux">[] = Object.freeze([
+  { id: "fin-iv-lien-commentaire-secours", type: "lien", dit: "Le lien est dans le premier commentaire.", ecran: "Le lien est en premier commentaire", validee: true, validation: VALIDATION_WILL_SECOURS },
+  { id: "fin-iv-lien-sous-video-secours", type: "lien", dit: "Le lien est juste sous la vidéo.", ecran: "Le lien est juste sous la vidéo", validee: true, validation: VALIDATION_WILL_SECOURS_2 },
+  { id: "fin-iv-lien-profil-secours", type: "lien", dit: "Vous trouverez le lien juste en haut de mon profil.", ecran: "Le lien est dans mon profil", validee: true, validation: VALIDATION_WILL_SECOURS_IG },
+  { id: "fin-iv-lien-chaine-secours", type: "lien", dit: "Vous trouverez le lien juste en haut de ma chaîne.", ecran: "Le lien est sur ma chaîne", validee: true, validation: VALIDATION_WILL_SECOURS_IG },
+]);
+
+/** Ligne de secours `fin-iv-…` lue pour un réseau (son groupe est celui du réseau : Facebook, LinkedIn, Instagram et TikTok les partagent). */
+const ligneSecoursIV = (id: string, reseau: ReseauIV): FinTable => {
+  const l = LIGNES_SECOURS_IV.find((x) => x.id === id);
+  if (!l) throw new ErreurFin(`La fin de secours « ${id} » est absente.`);
+  return { ...l, groupe: groupeDe(reseau), reseaux: [reseau] };
+};
+
+// Une SEULE chaîne par groupe de réseaux qui disent la même fin : Facebook et LinkedIn, Instagram et TikTok partagent leur objet.
+const CHAINE_FACEBOOK_LINKEDIN: Readonly<ChaineDeSecoursIV> = Object.freeze({
+  remplace: "fin-fb-lien-commentaire",
+  aussi: Object.freeze(["fin-iv-lien-commentaire"]),
+  chaine: Object.freeze(["fin-fb-lien-premier-commentaire", "fin-fb-lien-sous-video"]),
+  chaineIV: Object.freeze(["fin-iv-lien-commentaire-secours", "fin-iv-lien-sous-video-secours"]),
+  repli: "instagram" as const,
+  lien: "premier-commentaire" as const,
 });
+const CHAINE_INSTAGRAM_TIKTOK: Readonly<ChaineDeSecoursIV> = Object.freeze({
+  remplace: "fin-ig-lien-profil",
+  aussi: Object.freeze(["fin-iv-lien-profil"]),
+  chaine: Object.freeze(["fin-ig-lien-profil-secours"]),
+  chaineIV: Object.freeze(["fin-iv-lien-profil-secours"]),
+  lien: "profil" as const,
+});
+const CHAINE_SHORTS: Readonly<ChaineDeSecoursIV> = Object.freeze({
+  remplace: "fin-ty-lien-profil",
+  aussi: Object.freeze(["fin-iv-lien-chaine"]),
+  chaine: Object.freeze(["fin-ys-lien-profil-secours"]),
+  chaineIV: Object.freeze(["fin-iv-lien-chaine-secours"]),
+  lien: "profil" as const,
+});
+
+export const FINS_DE_SECOURS_IV: Readonly<Partial<Record<ReseauIV, Readonly<ChaineDeSecoursIV>>>> = Object.freeze({
+  facebook: CHAINE_FACEBOOK_LINKEDIN,
+  linkedin: CHAINE_FACEBOOK_LINKEDIN,
+  // 19/10 : Instagram et Shorts disent la même fin (même lecture) ; chacun a sa ligne (écran propre), sans repli.
+  instagram: CHAINE_INSTAGRAM_TIKTOK,
+  tiktok: CHAINE_INSTAGRAM_TIKTOK,
+  "youtube-shorts": CHAINE_SHORTS,
+});
+
+/** Vrai quand la ligne de lien du plan est une ligne `fin-iv-…` : la chaîne propre aux fins du 26/10/2026 s'applique. */
+const estLigneIV = (appels: readonly Pick<FinChoisie, "id">[]): boolean => appels.some((a) => a.id.startsWith("fin-iv-"));
+
+/** Chaîne de secours (lignes à lire dans l'ordre) et repli de la fin `f` : ceux des fins `fin-iv-…`, ou les anciens. */
+function chaineDeLaFin(s: Readonly<ChaineDeSecoursIV>, f: Pick<FinIV, "appels">): { chaine: readonly string[]; repli?: ReseauIV; iv: boolean } {
+  if (estLigneIV(f.appels) && s.chaineIV) return { chaine: s.chaineIV, iv: true };
+  return { chaine: s.chaine, ...(s.repli ? { repli: s.repli } : {}), iv: false };
+}
 
 /** Phrase de l'écran et du rapport quand une version reprend celle d'un autre réseau. */
 export function phraseDeRepliIV(reseaux: readonly ReseauIV[], repli: ReseauIV): string {
@@ -120,18 +181,19 @@ export function etapeDeSecoursIV(plan: Pick<PlanDesFinsIV, "fins">, finId: strin
   if (!f || f.muet || f.repli || !f.reseaux.length) return null;
   const s = FINS_DE_SECOURS_IV[f.reseaux[0]];
   if (!s || f.reseaux.some((r) => FINS_DE_SECOURS_IV[r] !== s)) return null;
-  const i = f.appels.findIndex((a) => a.id === s.remplace || s.aussi?.includes(a.id) || s.chaine.includes(a.id));
+  const { chaine, repli, iv } = chaineDeLaFin(s, f);
+  const i = f.appels.findIndex((a) => a.id === s.remplace || s.aussi?.includes(a.id) || chaine.includes(a.id));
   if (i < 0) return null;
   // Rang dans la chaîne : 0 = fin habituelle ; k = k-ième fin de secours (déjà posée, donc déjà lue ou à lire).
-  const rang = f.appels[i].id === s.remplace || s.aussi?.includes(f.appels[i].id) ? 0 : s.chaine.indexOf(f.appels[i].id) + 1;
+  const rang = f.appels[i].id === s.remplace || s.aussi?.includes(f.appels[i].id) ? 0 : chaine.indexOf(f.appels[i].id) + 1;
   if (rang > 0 !== !!f.secours) return null;
-  if (rang < s.chaine.length) {
-    const par = s.chaine[rang];
-    if (!TABLE_FINS_DIAGNOSTIC.find((l) => l.id === par)?.secours) return null;
+  if (rang < chaine.length) {
+    const par = chaine[rang];
+    if (!iv && !TABLE_FINS_DIAGNOSTIC.find((l) => l.id === par)?.secours) return null;
     let appel: FinChoisie;
     try {
       // Contrôlée pour chaque réseau de la fin (validée, longueurs, réseau couvert).
-      [appel] = f.reseaux.map((r) => suiteDeFins(r, [par], {}, TABLE_FINS_DIAGNOSTIC)[0]);
+      [appel] = f.reseaux.map((r) => suiteDeFins(r, [par], {}, iv ? [ligneSecoursIV(par, r)] : TABLE_FINS_DIAGNOSTIC)[0]);
     } catch (e) {
       if (e instanceof ErreurFin) return null;
       throw e;
@@ -140,14 +202,14 @@ export function etapeDeSecoursIV(plan: Pick<PlanDesFinsIV, "fins">, finId: strin
     appels[i] = appel;
     return { fin: { ...f, appels, secours: true }, lecture: true, phrase: appel.dit };
   }
-  if (!s.repli) return null;
+  if (!repli) return null;
   // Repli : la version du réseau nommé, telle qu'elle est (question et fin dites, écrans) ; son segment est déjà lu.
   // 19/10 : cette version peut être elle-même en fin de secours (Instagram), sa voix acceptée.
-  const source = plan.fins.find((x) => !x.muet && !x.repli && x.reseaux.includes(s.repli!));
+  const source = plan.fins.find((x) => !x.muet && !x.repli && x.reseaux.includes(repli));
   if (!source) return null;
   const { secours: _secours, question: _question, ...reste } = f;
-  const fin: FinIV = { ...reste, ...(source.question ? { question: structuredClone(source.question) } : {}), appels: structuredClone(source.appels), repli: s.repli };
-  return { fin, lecture: false, phrase: phraseDeRepliIV(f.reseaux, s.repli), source: source.id };
+  const fin: FinIV = { ...reste, ...(source.question ? { question: structuredClone(source.question) } : {}), appels: structuredClone(source.appels), repli };
+  return { fin, lecture: false, phrase: phraseDeRepliIV(f.reseaux, repli), source: source.id };
 }
 
 /**
@@ -159,8 +221,10 @@ export function peutRelireIV(plan: Pick<PlanDesFinsIV, "fins">, finId: string): 
   const f = plan.fins.find((x) => x.id === finId);
   if (!f || f.muet || f.repli || !f.secours || !f.reseaux.length) return false;
   const s = FINS_DE_SECOURS_IV[f.reseaux[0]];
-  if (!s || s.repli || f.reseaux.some((r) => FINS_DE_SECOURS_IV[r] !== s)) return false;
-  const derniere = s.chaine.at(-1);
+  if (!s || f.reseaux.some((r) => FINS_DE_SECOURS_IV[r] !== s)) return false;
+  const { chaine, repli } = chaineDeLaFin(s, f);
+  if (repli) return false;
+  const derniere = chaine.at(-1);
   return !!derniere && f.appels.some((a) => a.id === derniere);
 }
 
