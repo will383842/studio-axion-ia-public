@@ -466,8 +466,19 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
 
   const f = fusionnerLectures(a, b);
   if (textesLus(f.brouillon) < TEXTES_MIN) return refus("sans-texte", "Je ne lis presque aucun texte sur cette image (moins de 3) : déposez une image plus nette, avec son texte.");
-  if (!f.brouillon.titre || !f.brouillon.phraseChoc || !f.brouillon.noeuds.length) {
-    return refus("incomplete", "Je ne trouve pas le titre, les blocs ou la phrase du bas de l'image : vérifiez qu'elle est entière.");
+  if (!f.brouillon.noeuds.length) {
+    return refus("incomplete", "Je ne trouve aucun bloc dans l'image : vérifiez qu'elle est entière.");
+  }
+  // Zéro blocage : un titre ou une phrase du bas manquants sont déduits par le code, et dits dans les alertes.
+  if (!f.brouillon.titre) {
+    const sousTitre = net(f.brouillon.sousTitre ?? "");
+    f.brouillon.titre = sousTitre || net(f.brouillon.noeuds[0]!.libelle);
+    f.alertes.push(`Titre non lu : j'ai pris ${sousTitre ? "le sous-titre" : "le premier bloc"} (« ${f.brouillon.titre} »).`);
+  }
+  if (!f.brouillon.phraseChoc) {
+    const sousTitre = net(f.brouillon.sousTitre ?? "");
+    f.brouillon.phraseChoc = sousTitre || f.brouillon.titre;
+    f.alertes.push(`Phrase du bas non lue : j'ai pris ${sousTitre ? "le sous-titre" : "le titre"} (« ${f.brouillon.phraseChoc} »).`);
   }
 
   const brouillon0: BrouillonCarte = {

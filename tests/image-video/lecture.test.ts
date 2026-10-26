@@ -262,7 +262,7 @@ describe("refus", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.carte.phraseChoc).toBe(r.carte.titre);
-    expect(r.carte.lecture.alertes.some((x) => /phrase du bas/.test(x))).toBe(true);
+expect(r.carte.lecture.alertes.some((x) => /phrase du bas/i.test(x))).toBe(true);
   });
 
   it("image sans titre : le titre est déduit (sous-titre, sinon premier bloc)", async () => {
@@ -271,7 +271,7 @@ describe("refus", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.carte.titre).toBe(r.carte.noeuds[0]!.libelle);
-    expect(r.carte.lecture.alertes.some((x) => /titre/.test(x))).toBe(true);
+    expect(r.carte.lecture.alertes.some((x) => /titre non lu/i.test(x))).toBe(true);
   });
 
   it("image sans aucun bloc : refus « incomplete »", async () => {
