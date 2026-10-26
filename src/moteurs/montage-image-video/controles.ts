@@ -373,7 +373,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // « Les chiffres dits ne sont pas confirmés » : une remarque seulement si la carte n'a AUCUN chiffre à dire ; sinon un chiffre dit pourrait être faux, la ligne bloque.
   const aDesChiffresADire = (v.courte ? carteSansRetires(carte, v.noeudsRetires ?? []) : carte).chiffres.some((c) => c.aDire);
   const chiffresNonConfirmes = "l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés.";
-  if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [...chiffres, chiffresNonConfirmes], { nonFait: true });
+  if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [chiffresNonConfirmes, ...chiffres], { nonFait: true });
   else if (sansEcoute) L("CHIFFRES", [chiffresNonConfirmes], { nonFait: true, indicatif: true });
   else L("CHIFFRES", chiffres, { indicatif: true });
 
