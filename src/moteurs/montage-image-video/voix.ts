@@ -11,9 +11,10 @@
  *   douteuse gardée en silence (le cas concret, lui, garde une fin rejetée).
  * - Une voix payée n'est jamais relue : l'état est sérialisable, et la reprise garde toute prise déjà payée (y compris
  *   une lecture neuve, dont l'empreinte porte son numéro d'essai).
- * - ARGENT : la réservation `avantLecture` est OBLIGATOIRE (type et exécution). Elle est appelée avec le coût maximal
- *   juste avant CHAQUE lecture HeyGen (corps, fins, lectures neuves, relances de ressemblance) ; un refus empêche
- *   l'appel et rend un refus propre (`budget`), jamais une lecture sans réservation.
+ * - ARGENT : la réservation `avantLecture` est OBLIGATOIRE (type et exécution) : sans elle, la voix lève
+ *   `ErreurReservationIV` avant toute lecture (aucune dépense). Elle est appelée avec le coût maximal juste avant CHAQUE
+ *   lecture HeyGen (corps, fins, lectures neuves, relances de ressemblance) ; un refus empêche l'appel et rend un refus
+ *   propre (`budget`), jamais une lecture sans réservation. Le tarif absent, lui, ne bloque pas (repli `TARIF_VOIX_REPLI_IV`).
  * - Le contrôle de ressemblance est celui de référence (`RESSEMBLANCE_VOIX_PAR_DEFAUT`) : ni coupé, ni assoupli.
  * - 15/10 (v-dd3049053f88, mesure version 2) : une prise payée mesurée par une version antérieure de la mesure est
  *   RE-MESURÉE (studio-rendu, gratuit) avant son verdict, jamais relue chez HeyGen (`remesurerVoixIV`).
@@ -39,7 +40,7 @@ import {
   type PriseVoix,
 } from "./emprunts";
 import { texteDeFinIV, type PlanDesFinsIV } from "./fins";
-import { ecartFinHorsReference, ecartHorsReference, refusFinDeSecoursIV } from "./secours";
+import { ecartFinHorsReference, ecartHorsReference, FINS_DE_SECOURS_IV, refusFinDeSecoursIV } from "./secours";
 
 /** La seule voix du format : clone HeyGen de Will, réglages de la recette v4 (starfish, 1,1, fr-FR). */
 export const VOIX_IV = Object.freeze({ ...RECETTE_VOIX_CAS_CONCRET.synthese, idVoix: VOIX_MAITRE_HEYGEN_ID });
@@ -69,6 +70,8 @@ export class ErreurVoixIV extends Error {
   constructor(
     public readonly controle: ControleVoixIV,
     message: string,
+    /** Vrai : une lecture neuve de la voix peut régler ce refus (coupe, Q19, décompte de mots différent) ; faux : erreur d'entrée, relire ne change rien. */
+    public readonly relire = false,
   ) {
     super(message);
     this.name = "ErreurVoixIV";
@@ -114,6 +117,8 @@ export interface SegmentsVoixIV {
   versions: VersionVoixIV[];
   /** Présent seulement en lecture unique : `fins` est alors vide (rien n'est lu à part). */
   lecture?: LectureUniqueIV;
+  /** Signes retirés du texte lu (la voix ne les compte pas comme mots) : dits dans le journal, jamais un arrêt. */
+  remarques?: string[];
 }
 
 /**
@@ -124,7 +129,7 @@ export interface SegmentsVoixIV {
  * `LECTURE_UNIQUE_IV`. Sans fin à dire (LinkedIn seul), rien ne change.
  */
 export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<PlanDesFinsIV, "fins">, o: { lectureUnique?: boolean } = {}): SegmentsVoixIV {
-  const corps = texteDuCorps(fiche).trim();
+  const corps = lettresLisibles(texteDuCorps(fiche).trim());
   if (!corps) throw new ErreurVoixIV("entree", "Le script n'a aucun texte à dire.");
   const fins: SegmentFinIV[] = [];
   const versions: VersionVoixIV[] = [];
@@ -134,7 +139,11 @@ export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<Pla
       continue;
     }
     const texte = texteDeFinIV(f);
-    if (!texte) throw new ErreurVoixIV("entree", `La fin pour ${f.reseaux.join(", ")} n'a rien à dire alors qu'elle n'est pas muette.`);
+    // Réparation : une fin qui n'a rien à dire est lue comme une fin muette (corps seul) ; la vidéo ne s'arrête pas.
+    if (!texte) {
+      versions.push({ id: f.id, reseaux: [...f.reseaux], segment: null });
+      continue;
+    }
     let s = fins.find((x) => x.texte === texte);
     if (s) s.reseaux.push(...f.reseaux);
     else fins.push((s = { id: f.id, texte, reseaux: [...f.reseaux] }));
@@ -142,7 +151,12 @@ export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<Pla
     versions.push({ id: f.id, reseaux: [...f.reseaux], segment: s.id });
   }
   if (o.lectureUnique && fins.length) return lectureUniqueDe(fiche, corps, fins, versions);
-  return { corps, fins, versions };
+  // Sans lecture d'un trait : mêmes lettres réécrites (« œ » → « oe ») et mêmes signes retirés que dans la lecture unique.
+  const remarques: string[] = [];
+  const nettoyer = (t: string) => sansSignesMuets(t, remarques);
+  const finsLues = fins.map((f) => ({ ...f, texte: nettoyer(lettresLisibles(f.texte)) }));
+  const corpsLu = nettoyer(corps);
+  return { corps: corpsLu, fins: finsLues, versions, ...(remarques.length ? { remarques: [...new Set(remarques)] } : {}) };
 }
 
 /** Phrases d'un texte dit (fin de phrase : . ! ? …, avec ou sans guillemet) ; un morceau sans lettre se rattache à la précédente. */
@@ -165,6 +179,28 @@ function phrasesDeFin(texte: string): string[] {
   return res.map((p) => p.join(" "));
 }
 
+/** Ligatures et lettres que la voix ne décompose pas en a-z : réécrites comme elles se disent (même nombre de mots). */
+const LETTRES_DITES: Record<string, string> = { œ: "oe", Œ: "Oe", æ: "ae", Æ: "Ae", ß: "ss", ø: "o", Ø: "O", ł: "l", Ł: "L", đ: "d", Đ: "D", þ: "th", Þ: "Th" };
+export const lettresLisibles = (t: string) => t.replace(/[œŒæÆßøØłŁđĐþÞ]/gu, (c) => LETTRES_DITES[c] ?? c);
+
+/** Mot que la voix compte (`controlerPrise`) : une lettre ou un chiffre de a à z après retrait des accents. */
+const compteChezLaVoix = (jeton: string) => jeton.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").length > 0;
+
+/**
+ * Retire du texte lu les signes que nous comptons comme mots (une lettre Unicode) mais pas la voix (« Ω », lettre isolée d'un
+ * autre alphabet) : la vidéo ne s'arrête pas, le signe est dit dans `remarques`. Le script, lui, n'est pas réécrit.
+ */
+function sansSignesMuets(texte: string, remarques: string[]): string {
+  const retires: string[] = [];
+  const garde = texte.split(/(\s+)/).filter((j) => {
+    if (/^\s*$/.test(j) || compteChezLaVoix(j) || !motsDits(j).length) return true;
+    retires.push(j);
+    return false;
+  });
+  if (retires.length) remarques.push(`Signe(s) retiré(s) du texte lu, que la voix ne compte pas comme mot : ${retires.map((r) => `« ${r} »`).join(", ")}.`);
+  return garde.join("").replace(/\s{2,}/g, " ").trim();
+}
+
 /**
  * Le texte lu d'un trait et la plage de mots que garde chaque version : le corps, la partie COMMUNE des fins (plus long
  * préfixe de phrases que partagent toutes les fins distinctes), puis la phrase propre à chaque fin, dans l'ordre du plan.
@@ -173,8 +209,10 @@ function lectureUniqueDe(fiche: Pick<FicheImage, "ecrans">, corps: string, fins:
   const phrases = fins.map((f) => phrasesDeFin(f.texte));
   let commun = 0;
   while (phrases.every((p) => p.length > commun && p[commun] === phrases[0][commun])) commun++;
-  const nombre = (t: string[]) => motsDits(t.join(" ")).length;
-  const motsCorps = fiche.ecrans.reduce((n, e) => n + motsDits(e.texteDit).length, 0);
+  const remarques: string[] = [];
+  // Comptes faits sur le texte tel que la voix le lira (signes muets retirés) : les plages restent justes.
+  const nombre = (t: string[]) => motsDits(sansSignesMuets(lettresLisibles(t.join(" ")), [])).length;
+  const motsCorps = fiche.ecrans.reduce((n, e) => n + nombre([e.texteDit]), 0);
   const finCommun = motsCorps + nombre(phrases[0].slice(0, commun));
   const parSegment = new Map<string, [number, number][]>();
   let pos = finCommun;
@@ -192,13 +230,8 @@ function lectureUniqueDe(fiche: Pick<FicheImage, "ecrans">, corps: string, fins:
   });
   const fait: Record<string, [number, number][]> = {};
   for (const v of versions) if (v.segment) fait[v.id] = (parSegment.get(v.segment) ?? []).map(([a, b]) => [a, b]);
-  const lu = [corps, ...phrases[0].slice(0, commun), ...phrases.flatMap((p) => p.slice(commun))].join(" ");
-  // Contrôle GRATUIT avant toute lecture payante : la voix (`controlerPrise`) ne compte comme mot que ce qui garde une lettre
-  // ou un chiffre de a à z après retrait des accents (`cleMot`) ; nous, toute lettre ou chiffre Unicode (`motsDits`). Si les deux
-  // comptes diffèrent (jeton « Ω », « œ » seul…), la vidéo ne pourrait pas être taillée après coup : refus avant de payer.
-  const parLaVoix = lu.split(/\s+/).filter((t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").length > 0).length;
-  if (parLaVoix !== motsDits(lu).length) throw new ErreurVoixIV("entree", `Le texte à lire d'un trait ne se découpe pas en mots comme la voix les compte (${motsDits(lu).length} mots pour nous, ${parLaVoix} pour la voix) : corrigez le script (un signe ou une lettre isolée) ; rien n'a été lu ni payé.`);
-  return { corps: lu, fins: [], versions, lecture: { motsCorps, fins: fait } };
+  const lu = sansSignesMuets(lettresLisibles([corps, ...phrases[0].slice(0, commun), ...phrases.flatMap((p) => p.slice(commun))].join(" ")), remarques);
+  return { corps: lu, fins: [], versions, lecture: { motsCorps, fins: fait }, ...(remarques.length ? { remarques: [...new Set(remarques)] } : {}) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -218,15 +251,22 @@ export interface ReservationLectureIV {
 /**
  * Outils fournis par l'appelant (services, ou doubles de simulation) : tout ce qu'attend la voix du cas concret, SAUF
  * la voix, ses réglages et ses règles, posés ici (voix unique), et la reformulation (un script validé n'est jamais
- * réécrit). La réservation de dépense et le tarif sont OBLIGATOIRES : aucune valeur par défaut ne laisse lire.
+ * réécrit). La réservation de dépense est OBLIGATOIRE : sans elle, aucune lecture (`ErreurReservationIV`, rien n'est
+ * dépensé). Le tarif absent ou nul ne bloque pas : le repli `TARIF_VOIX_REPLI_IV` sert à calculer le coût réservé.
  */
 export type OutilsVoixIV = Omit<OutilsAvancerVoix, "idVoix" | "fournisseurVoix" | "regles" | "faits" | "texteFige" | "reformuler" | "assembler" | "lireSon" | "avantLecture" | "ressemblance" | "mesureVoix" | "reference"> & {
-  /** Tarif de la voix (centimes par caractère), strictement positif : sert au coût maximal réservé. */
+  /** Tarif de la voix (centimes par caractère), strictement positif : sert au coût maximal réservé (repli si absent ou nul). */
   tarifCentimesParCaractere: number;
   /** Réservation AVANT chaque lecture payante ; lever une erreur l'interdit (aucun appel HeyGen). */
   avantLecture: (lecture: ReservationLectureIV) => void | Promise<void>;
-  /** Accepté seulement s'il est égal au réglage de référence (ni coupé, ni assoupli) ; sinon refus Q16. */
+  /** Ignoré : le réglage de référence (ni coupé, ni assoupli) est toujours appliqué. */
   ressemblance?: ReglageRessemblanceVoix;
+  /**
+   * Lectures payantes SUPPLÉMENTAIRES qu'il reste à la vidéo (plafond global `REPARATIONS_VOIX_MAX_IV`, relances de ressemblance
+   * COMPRISES : une relance et une réparation se paient sur le même plafond). Absent : seul le compteur de réparations borne.
+   * Épuisé : plus de relance, plus de réparation, la prise la plus proche est gardée avec une remarque.
+   */
+  lecturesSupplementairesRestantes?: () => number;
 };
 
 /** Refus de la réservation : levé avant l'appel HeyGen, rendu en refus propre par `avancerVoixIV`. */
@@ -237,21 +277,24 @@ export class ErreurReservationIV extends Error {
   }
 }
 
+/** Plafond de lectures supplémentaires de la vidéo atteint : ce n'est pas un refus d'argent (la voix existe, rien n'est payé en plus). */
+export class ErreurPlafondLecturesIV extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ErreurPlafondLecturesIV";
+  }
+}
+
 /** Coût maximal d'une lecture de `texte` au tarif donné. */
 export function coutMaxLectureIV(texte: string, tarifCentimesParCaractere: number): number {
   return Math.ceil(texte.length * tarifCentimesParCaractere - 1e-9);
 }
 
-/** Outils incomplets ou réglage de ressemblance différent de la référence : message de refus, sinon `null`. */
-function outilsRefuses(o: OutilsVoixIV): { controle: ControleVoixIV; message: string } | null {
-  if (typeof o.avantLecture !== "function") return { controle: "budget", message: "Aucune réservation de dépense n'est branchée : la voix n'est pas lue (aucun appel payant)." };
-  if (!Number.isFinite(o.tarifCentimesParCaractere) || o.tarifCentimesParCaractere <= 0) return { controle: "budget", message: "Le tarif de la voix est absent ou nul : la dépense ne peut pas être réservée, la voix n'est pas lue." };
-  const r = o.ressemblance;
-  if (r && (r.actif !== RESSEMBLANCE_VOIX_PAR_DEFAUT.actif || r.relancesMax !== RESSEMBLANCE_VOIX_PAR_DEFAUT.relancesMax)) {
-    return { controle: "Q16", message: r.actif ? "Le contrôle de ressemblance à la voix de référence v4 ne se règle pas pour ce format : il garde ses tolérances de référence." : "Le contrôle de ressemblance à la voix de référence v4 ne se coupe pas pour ce format." };
-  }
-  return null;
-}
+/** Tarif de repli (centimes par caractère) quand celui des outils manque : le prix ne bloque jamais la voix, il ne sert qu'à réserver. */
+export const TARIF_VOIX_REPLI_IV = 0.1;
+
+/** Nombre de réparations automatiques de la voix (nouvelle lecture) avant de la garder avec une remarque. */
+export const REPARATIONS_VOIX_MAX_IV = 3;
 
 export interface EtatVoixIV {
   /** « voix-iv/2 » : lecture unique (20/10). Un état « voix-iv/1 » garde ses segments séparés, jamais relus. */
@@ -266,19 +309,28 @@ export interface EtatVoixIV {
   relire?: string[];
   /** 19/10 : textes de fin de secours déjà relus une fois ; jamais une 2ᵉ relecture. */
   relues?: string[];
+  /** Réparations automatiques faites (nouvelle lecture d'une prise refusée), au plus `REPARATIONS_VOIX_MAX_IV`. */
+  reparations?: number;
+  /** Ce qui a été réparé ou gardé tel quel, dit sans arrêter la vidéo (ajouté au journal). */
+  remarques?: string[];
 }
 
 /** Outils complets de la voix du cas concret : voix unique, script figé, ressemblance v4 de référence, réservation. */
 export function outilsVoixCasConcretIV(o: OutilsVoixIV): OutilsAvancerVoix {
-  const refus = outilsRefuses(o);
-  const { avantLecture: reserver, tarifCentimesParCaractere: tarif, ...reste } = o;
+  const { avantLecture: reserver, tarifCentimesParCaractere: tarifBrut, lecturesSupplementairesRestantes: restantes, ...reste } = o;
+  const tarif = Number.isFinite(tarifBrut) && tarifBrut > 0 ? tarifBrut : TARIF_VOIX_REPLI_IV;
   return {
     ...reste,
     idVoix: VOIX_IV.idVoix,
     fournisseurVoix: VOIX_IV.fournisseur,
     reglages: { ...(o.reglages ?? REGLAGES_PAR_DEFAUT), vitesse: VOIX_IV.vitesse },
     regles: REGLES_BLANCS_CAS_CONCRET,
-    ressemblance: { ...RESSEMBLANCE_VOIX_PAR_DEFAUT },
+    // Un réglage de ressemblance différent n'arrête pas la voix : celui de référence est toujours appliqué. Les relances
+    // se paient sur le plafond global de lectures supplémentaires (relu à chaque décision de la voix maître) : plus aucune
+    // quand il est épuisé, la prise la plus proche est gardée.
+    ressemblance: Object.defineProperties({ actif: RESSEMBLANCE_VOIX_PAR_DEFAUT.actif } as ReglageRessemblanceVoix, {
+      relancesMax: { enumerable: true, get: () => (restantes ? Math.max(0, Math.min(RESSEMBLANCE_VOIX_PAR_DEFAUT.relancesMax, restantes())) : RESSEMBLANCE_VOIX_PAR_DEFAUT.relancesMax) },
+    }),
     // 19/10 : la voix de référence v4 est un extrait de vidéo finie ; le corps est mesuré comme tel. Jamais dans l'empreinte.
     mesureVoix: "video-finie",
     // 20/10 : hauteur de référence = la v4 entière (158,4 Hz), pour Image → vidéo seulement. Jamais dans l'empreinte.
@@ -286,7 +338,8 @@ export function outilsVoixCasConcretIV(o: OutilsVoixIV): OutilsAvancerVoix {
     faits: [],
     // Appelée par la voix maître juste avant CHAQUE `voix.lire` (première lecture, lecture neuve, relance).
     avantLecture: async (l) => {
-      if (refus) throw new ErreurReservationIV(refus.message);
+      // Sans réservation branchée, aucune lecture payante ne part : rien n'est dépensé (ce n'est pas un refus de prix).
+      if (typeof reserver !== "function") throw new ErreurReservationIV(`Aucune réservation de dépense n'est branchée pour la voix (${l.prise === "corps" ? "corps" : `fin ${l.prise}`}) : aucune lecture n'a été faite ni payée.`);
       try {
         await reserver({ prise: l.prise, texte: l.texte, caracteres: l.caracteres, coutMaxCentimes: coutMaxLectureIV(l.texte, tarif) });
       } catch (err) {
@@ -309,7 +362,12 @@ function empreinteAttendue(o: OutilsVoixIV, texte: string, essai?: number): stri
 }
 
 export function etatInitialVoixIV(segments: SegmentsVoixIV): EtatVoixIV {
-  return { version: segments.lecture ? "voix-iv/2" : "voix-iv/1", segments, voix: etatInitialVoixCasConcret({ corps: segments.corps, fins: segments.fins.map((f) => ({ id: f.id, texte: f.texte })) }) };
+  return {
+    version: segments.lecture ? "voix-iv/2" : "voix-iv/1",
+    segments,
+    voix: etatInitialVoixCasConcret({ corps: segments.corps, fins: segments.fins.map((f) => ({ id: f.id, texte: f.texte })) }),
+    ...(segments.remarques?.length ? { remarques: [...segments.remarques] } : {}),
+  };
 }
 
 /** Prise payée et finie (son maître fait, ou en re-mesure gratuite : 15/10). */
@@ -348,26 +406,38 @@ export function remesurerVoixIV(v: EtatVoixCasConcret): EtatVoixCasConcret | nul
  */
 export function repriseVoixIV(precedent: EtatVoixIV | undefined, segments: SegmentsVoixIV, o: OutilsVoixIV): EtatVoixIV {
   const neuf = etatInitialVoixIV(segments);
+  // Le plafond de réparations est GLOBAL à la vidéo : la reprise le recopie (avec les remarques déjà dites), elle ne le remet pas à zéro.
+  const remarques = [...new Set([...(precedent?.remarques ?? []), ...(neuf.remarques ?? [])])];
+  const suite: Pick<EtatVoixIV, "reparations" | "remarques"> = {
+    ...(precedent?.reparations ? { reparations: precedent.reparations } : {}),
+    ...(remarques.length ? { remarques } : {}),
+  };
   const c = precedent?.voix.corps;
-  if (!precedent || !c?.retenu || c.texte !== segments.corps || !priseGardable(o, c.prise, c.texte)) return neuf;
-  // Une fin déjà rejetée à sa dernière lecture permise n'est ni reprise telle quelle, ni relue en silence : refus.
-  for (const s of segments.fins) {
-    const usee = precedent.voix.fins.find((x) => x.texte === s.texte && x.prise?.controle && "rejet" in x.prise.controle && (x.lectures ?? 1) >= LECTURES_FIN_MAX);
-    if (!usee) continue;
-    const ctl = usee.prise!.controle as Extract<NonNullable<PriseVoix["controle"]>, { rejet: unknown }>;
-    return { ...neuf, issue: { statut: "refus", controle: "Q16", message: `La fin pour ${nomsReseaux(s.reseaux)} a été rejetée après ${usee.lectures ?? 1} lectures (${ctl.detail}) : « ${ctl.phrase} ». Elle n'est pas reprise telle quelle ; une nouvelle lecture payante demande l'accord de Will.` } };
-  }
+  if (!precedent || !c?.retenu || c.texte !== segments.corps || !priseGardable(o, c.prise, c.texte)) return { ...neuf, ...suite };
   const fins = neuf.voix.fins.map((f) => {
     const avant = precedent.voix.fins.find((x) => x.texte === f.texte && priseGardable(o, x.prise, x.texte));
     return avant ? { ...structuredClone(avant), id: f.id } : f;
   });
-  return {
+  const repris: EtatVoixIV = {
     ...neuf,
+    ...suite,
     voix: { ...neuf.voix, corps: structuredClone(c), fins, payees: structuredClone(precedent.voix.payees), reformulations: structuredClone(precedent.voix.reformulations) },
     // 19/10 : la relecture demandée et celles déjà faites survivent à un changement de plan.
     ...(precedent.relire?.length ? { relire: [...precedent.relire] } : {}),
     ...(precedent.relues?.length ? { relues: [...precedent.relues] } : {}),
   };
+  // Une fin déjà rejetée à sa dernière lecture permise n'est pas reprise telle quelle : elle passe par la réparation
+  // automatique (lecture neuve, dans le plafond global), jamais un arrêt. Une fin de la chaîne de secours garde son refus
+  // Q16 (la chaîne `secours.ts` la répare, sans relecture silencieuse).
+  for (const s of segments.fins) {
+    const usee = repris.voix.fins.find((x) => x.texte === s.texte && x.prise?.controle && "rejet" in x.prise.controle && (x.lectures ?? 1) >= LECTURES_FIN_MAX);
+    if (!usee) continue;
+    const ctl = usee.prise!.controle as Extract<NonNullable<PriseVoix["controle"]>, { rejet: unknown }>;
+    const message = `La fin pour ${nomsReseaux(s.reseaux)} a été rejetée après ${usee.lectures ?? 1} lectures (${ctl.detail}) : « ${ctl.phrase} ».`;
+    if (s.reseaux.some((r) => FINS_DE_SECOURS_IV[r])) return { ...repris, issue: { statut: "refus", controle: "Q16", message: `${message} Elle n'est pas reprise telle quelle.` } };
+    return reparerRefusQ16(repris, o, message, usee.id);
+  }
+  return repris;
 }
 
 const nomsReseaux = (r: readonly ReseauIV[]) => r.join(", ");
@@ -375,21 +445,92 @@ const nomsReseaux = (r: readonly ReseauIV[]) => r.join(", ");
 /** Prise qui s'écarte encore de la référence v4 après ses relances (rapport de la voix maître). */
 const horsReference = ecartHorsReference;
 
-/** Verdict IV d'une voix finie : toute prise encore rejetée, ou hors référence, est un refus (Q16). */
-export function verdictVoixFaite(etat: EtatVoixIV): EtatVoixIV["issue"] {
+/** Refus Q16 d'une voix finie et la prise fautive (« corps » ou l'identifiant de la fin), sinon `null`. */
+function refusVoixFaite(etat: EtatVoixIV): { message: string; cible: string } | null {
   const v = etat.voix;
   const ecartCorps = horsReference(v.corps.prise);
-  if (ecartCorps) return { statut: "refus", controle: "Q16", message: `La voix du corps ne ressemble pas assez à la voix de référence (${ecartCorps}), même après ses relectures. Rien n'est gardé en silence : demandez l'accord de Will avant une nouvelle lecture payante.` };
+  if (ecartCorps) return { cible: "corps", message: `La voix du corps ne ressemble pas assez à la voix de référence (${ecartCorps}), même après ses relectures.` };
   for (const f of v.fins) {
     const s = etat.segments.fins.find((x) => x.id === f.id);
     const nom = s ? nomsReseaux(s.reseaux) : f.id;
     const c = f.prise?.controle;
-    if (!c) return { statut: "refus", controle: "Q16", message: `La fin pour ${nom} n'a pas été contrôlée.` };
-    if ("rejet" in c) return { statut: "refus", controle: "Q16", message: `La fin pour ${nom} hésite encore après ${f.lectures ?? 1} lecture(s) (${c.detail}) : « ${c.phrase} ». Relancez la voix de cette fin avec l'accord de Will.` };
+    if (!c) return { cible: f.id, message: `La fin pour ${nom} n'a pas été contrôlée.` };
+    if ("rejet" in c) return { cible: f.id, message: `La fin pour ${nom} hésite encore après ${f.lectures ?? 1} lecture(s) (${c.detail}) : « ${c.phrase} ».` };
     const ecart = ecartFinHorsReference(f.prise, v.corps.prise);
-    if (ecart) return { statut: "refus", controle: "Q16", message: `La voix de la fin pour ${nom} ne ressemble pas assez à la voix de référence (${ecart}).` };
+    if (ecart) return { cible: f.id, message: `La voix de la fin pour ${nom} ne ressemble pas assez à la voix de référence (${ecart}).` };
   }
-  return { statut: "faite" };
+  return null;
+}
+
+/** Verdict IV d'une voix finie : toute prise encore rejetée, ou hors référence, est un refus (Q16). */
+export function verdictVoixFaite(etat: EtatVoixIV): EtatVoixIV["issue"] {
+  const r = refusVoixFaite(etat);
+  return r ? { statut: "refus", controle: "Q16", message: `${r.message} Rien n'est gardé en silence.` } : { statut: "faite" };
+}
+
+/** Prise neuve (lecture neuve du même texte) d'une fin : empreinte, clés de mesure et rendu neufs. */
+function priseNeuveDeFin(f: EtatVoixCasConcret["fins"][number], o: OutilsVoixIV): void {
+  f.lectures = (f.lectures ?? 1) + 1;
+  f.prise = { texte: f.texte, empreinte: empreinteAttendue(o, f.texte, f.lectures), etat: { phase: "a-lire" }, essai: f.lectures };
+}
+
+/** Le corps est relu au tour suivant, en lecture neuve (numéro d'essai = nombre de lectures). */
+function relireLeCorps(v: EtatVoixCasConcret): void {
+  delete v.corps.retenu;
+  delete v.corps.prise;
+  v.corps.relireTel = true;
+}
+
+/** Reste-t-il à la vidéo `n` lectures supplémentaires (plafond global, relances comprises) ? */
+const lecturesPermises = (o: OutilsVoixIV, n = 1) => !o.lecturesSupplementairesRestantes || o.lecturesSupplementairesRestantes() >= n;
+
+const avecRemarque = (e: EtatVoixIV, texte: string): string[] => [...(e.remarques ?? []), texte];
+
+/**
+ * Réparation automatique d'un refus Q16 (hésitation, ressemblance) : la prise fautive est relue en lecture neuve, sans
+ * attendre personne, jusqu'à `REPARATIONS_VOIX_MAX_IV` fois pour toute la voix ; ensuite elle est GARDÉE avec une remarque
+ * (la voix existe : ce n'est pas une voix absente). Le prix ne l'arrête pas (la réservation reste posée avant chaque lecture).
+ */
+function reparerRefusQ16(entree: EtatVoixIV, o: OutilsVoixIV, message: string, cible: string): EtatVoixIV {
+  const n = entree.reparations ?? 0;
+  const voix = structuredClone(entree.voix);
+  delete voix.issue;
+  if (n >= REPARATIONS_VOIX_MAX_IV || !lecturesPermises(o)) {
+    const remarques = avecRemarque(entree, `Voix gardée malgré une remarque après ${n} réparation(s) automatique(s) : ${message}`);
+    // Corps arrêté sur sa dernière prise : retenu, les fins suivent. Sinon la voix est finie : gardée telle quelle.
+    if (!voix.corps.retenu && voix.corps.prise?.etat.phase === "faite") {
+      voix.corps.retenu = true;
+      return { ...entree, voix, remarques };
+    }
+    return { ...entree, issue: { statut: "faite" }, remarques };
+  }
+  if (cible === "corps") relireLeCorps(voix);
+  else {
+    const f = voix.fins.find((x) => x.id === cible);
+    if (!f) relireLeCorps(voix);
+    else priseNeuveDeFin(f, o);
+  }
+  const { issue: _issue, ...reste } = entree;
+  void _issue;
+  return { ...reste, voix, reparations: n + 1, remarques: avecRemarque(entree, `Voix relue automatiquement (${n + 1}/${REPARATIONS_VOIX_MAX_IV}) : ${message}`) };
+}
+
+/**
+ * Réparation d'un refus de l'ASSEMBLAGE (coupe en plein son, parole retirée, mots qui ne collent pas au texte, son
+ * manquant) : toute la voix est relue en lecture neuve, au plus `REPARATIONS_VOIX_MAX_IV` fois. Rend `null` quand les
+ * réparations sont épuisées (le refus reste alors, la voix existe mais le rendu est impossible). PUR.
+ */
+export function relireLaVoixIV(etat: EtatVoixIV, o: OutilsVoixIV, raison: string): EtatVoixIV | null {
+  const n = etat.reparations ?? 0;
+  // Relire toute la voix coûte une lecture par texte lu (corps + chaque fin en lectures séparées) : tout ou rien.
+  if (n >= REPARATIONS_VOIX_MAX_IV || !lecturesPermises(o, 1 + etat.voix.fins.length)) return null;
+  const voix = structuredClone(etat.voix);
+  delete voix.issue;
+  relireLeCorps(voix);
+  for (const f of voix.fins) priseNeuveDeFin(f, o);
+  const { issue: _issue, ...reste } = etat;
+  void _issue;
+  return { ...reste, voix, reparations: n + 1, remarques: avecRemarque(etat, `Voix relue automatiquement (${n + 1}/${REPARATIONS_VOIX_MAX_IV}) : ${raison}`) };
 }
 
 /**
@@ -398,8 +539,6 @@ export function verdictVoixFaite(etat: EtatVoixIV): EtatVoixIV["issue"] {
  */
 export async function avancerVoixIV(entree: EtatVoixIV, o: OutilsVoixIV): Promise<EtatVoixIV> {
   if (entree.issue) return entree;
-  const refus = outilsRefuses(o);
-  if (refus) return { ...entree, issue: { statut: "refus", ...refus } };
   // 19/10 : relecture de la seule fin demandée : la prise est préparée et l'état rendu SANS AUCUNE LECTURE (il est gardé
   // avant de payer ; la lecture a lieu au tour suivant, avec sa réservation).
   if (entree.relire?.length) return preparerRelectureIV(entree, o);
@@ -414,12 +553,29 @@ export async function avancerVoixIV(entree: EtatVoixIV, o: OutilsVoixIV): Promis
       return refus ? { ...suivant, issue: { statut: "refus", controle: "Q16", message: refus } } : suivant;
     } catch (err) {
       // Réservation refusée : levée AVANT l'appel HeyGen, rien n'a été payé dans ce tour ; l'état d'entrée reste juste.
+      if (err instanceof ErreurPlafondLecturesIV) {
+        // Comme des réparations épuisées : la dernière prise finie est gardée avec une remarque ; sans prise finie, refus.
+        const voix = structuredClone(entree.voix);
+        delete voix.issue;
+        const finies = voix.corps.prise?.etat.phase === "faite" && voix.fins.every((f) => f.prise?.etat.phase === "faite");
+        if (finies) {
+          voix.corps.retenu = true;
+          return { ...entree, voix, issue: { statut: "faite" }, remarques: avecRemarque(entree, `Voix gardée malgré une remarque : ${err.message}`) };
+        }
+        return { ...entree, issue: { statut: "refus", controle: "budget", message: err.message } };
+      }
       if (err instanceof ErreurReservationIV) return { ...entree, issue: { statut: "refus", controle: "budget", message: err.message } };
       throw err;
     }
   }
-  if (v.issue.statut === "arret") return { ...entree, issue: { statut: "refus", controle: "Q16", message: v.issue.message } };
-  return { ...entree, issue: verdictVoixFaite(entree) };
+  // Arrêt du corps (hésitation relue en vain) : relu en lecture neuve, puis gardé avec une remarque.
+  if (v.issue.statut === "arret") return reparerRefusQ16({ ...entree, voix: v }, o, v.issue.message, "corps");
+  const refus = refusVoixFaite(entree);
+  if (!refus) return { ...entree, issue: { statut: "faite" } };
+  // Une fin qui a sa chaîne de secours (Facebook, Instagram, Shorts) se répare par cette chaîne (`pasVoix`), pas ici.
+  const segment = entree.segments.fins.find((x) => x.id === refus.cible);
+  if (segment?.reseaux.some((r) => FINS_DE_SECOURS_IV[r])) return { ...entree, issue: verdictVoixFaite(entree) };
+  return reparerRefusQ16(entree, o, refus.message, refus.cible);
 }
 
 /**
@@ -481,7 +637,7 @@ function sonsDeLecture(etat: EtatVoixIV, lecture: LectureUniqueIV): { corps: Son
   const brut = brutDe(etat.voix.corps.prise, "lue d'un trait");
   const lettres = brut.mots.filter(porteUneLettre);
   const attendus = motsDits(etat.voix.corps.texte).length;
-  if (lettres.length !== attendus) throw new ErreurVoixIV("entree", `Les mots de la voix lue d'un trait (${lettres.length}) ne correspondent pas au texte lu (${attendus}) : la vidéo ne peut pas être taillée.`);
+  if (lettres.length !== attendus) throw new ErreurVoixIV("entree", `Les mots de la voix lue d'un trait (${lettres.length}) ne correspondent pas au texte lu (${attendus}) : la vidéo ne peut pas être taillée.`, true);
   if (lecture.motsCorps < 1 || lecture.motsCorps > lettres.length) throw new ErreurVoixIV("entree", "Le corps du script n'a aucun mot dans la voix lue d'un trait.");
   const taille = (gardes: number[]): SonLectureIV => {
     const dernier = gardes[gardes.length - 1];

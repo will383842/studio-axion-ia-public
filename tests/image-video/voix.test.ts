@@ -26,12 +26,15 @@ import { RECETTE_VOIX_CAS_CONCRET } from "@/moteurs/montage-image-video/emprunts
 import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import {
   avancerVoixIV,
+  coutMaxLectureIV,
+  ErreurReservationIV,
   ErreurVoixIV,
   etatInitialVoixIV,
   outilsVoixCasConcretIV,
   rapportVoixIV,
   repriseVoixIV,
   segmentsVoixIV,
+  TARIF_VOIX_REPLI_IV,
   VOIX_IV,
   voixARemesurerIV,
   type EtatVoixIV,
@@ -291,21 +294,19 @@ describe("L12 · voix unique (clone HeyGen de Will, starfish, 1,1, recette v4)",
 
   it("le contrôle de ressemblance à la voix v4 ne se coupe pas", async () => {
     const m = monde();
-    const fin = await avancerVoixIV(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: false, relancesMax: 0 } });
-    expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-    expect(m.lus).toEqual([]);
+    const o = outilsVoixCasConcretIV({ ...outilsVoix(m), ressemblance: { actif: false, relancesMax: 0 } });
+    expect(o.ressemblance).toEqual({ actif: true, relancesMax: 1 });
+    // Le réglage de référence est appliqué, la voix n'est pas refusée d'avance : elle lit.
+    const fin = await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: false, relancesMax: 0 } });
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(m.lus.length).toBeGreaterThan(0);
   });
 
   it("le contrôle de ressemblance ne s'assouplit pas : des relances autres que la référence sont refusées (Q16)", async () => {
+    // Un autre réglage n'arrête pas la voix : les outils complets posent toujours la référence (1 relance).
     for (const relancesMax of [0, 2]) {
-      const m = monde();
-      const fin = await avancerVoixIV(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: true, relancesMax } });
-      expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-      if (fin.issue?.statut === "refus") expect(fin.issue.message).toMatch(/tolérances de référence/);
-      expect(m.lus).toEqual([]);
-      expect(m.reservations).toEqual([]);
+      expect(outilsVoixCasConcretIV({ ...outilsVoix(monde()), ressemblance: { actif: true, relancesMax } }).ressemblance).toEqual({ actif: true, relancesMax: 1 });
     }
-    // Le réglage de référence est accepté ; les outils complets posent toujours la référence.
     const m = monde();
     expect((await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: true, relancesMax: 1 } })).issue).toEqual({ statut: "faite" });
     expect(outilsVoixCasConcretIV({ ...outilsVoix(monde()), ressemblance: { actif: true, relancesMax: 2 } }).ressemblance).toEqual({ actif: true, relancesMax: 1 });
@@ -357,12 +358,22 @@ describe("L12 · argent : réservation obligatoire avant chaque lecture HeyGen",
     expect(m.reservations.map((r) => r.prise)).toEqual(m.lus.map((t) => (t === PETIT.corps ? "corps" : "fin-youtube-shorts")));
   });
 
-  it("sans réservation ni tarif (appelant non typé) : refus « budget », aucune lecture", async () => {
-    for (const manque of [{ avantLecture: undefined }, { tarifCentimesParCaractere: 0 }, { tarifCentimesParCaractere: Number.NaN }]) {
+  it("sans réservation (appelant non typé) : ErreurReservationIV, aucune lecture, rien de dépensé", async () => {
+    const m = monde();
+    const sans = { ...outilsVoix(m), avantLecture: undefined } as unknown as OutilsVoixIV;
+    await expect(outilsVoixCasConcretIV(sans).avantLecture!({ prise: "corps", texte: "x", caracteres: 1 })).rejects.toBeInstanceOf(ErreurReservationIV);
+    const fin = await jusquAuBout(etatInitialVoixIV(PETIT), sans);
+    expect(fin.issue).toMatchObject({ statut: "refus", controle: "budget", message: expect.stringMatching(/aucune lecture n'a été faite ni payée/) });
+    expect(m.lus).toEqual([]);
+  });
+
+  it("tarif absent, nul ou NaN : la voix lit avec le tarif de repli, la réservation reste posée avant chaque lecture", async () => {
+    for (const tarif of [0, Number.NaN, undefined]) {
       const m = monde();
-      const fin = await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ...manque } as unknown as OutilsVoixIV);
-      expect(fin.issue).toMatchObject({ statut: "refus", controle: "budget" });
-      expect(m.lus).toEqual([]);
+      const fin = await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), tarifCentimesParCaractere: tarif } as unknown as OutilsVoixIV);
+      expect(fin.issue).toEqual({ statut: "faite" });
+      expect(m.reservations).toHaveLength(m.lus.length);
+      for (const r of m.reservations) expect(r.coutMaxCentimes).toBe(coutMaxLectureIV(r.texte, TARIF_VOIX_REPLI_IV));
     }
   });
 });
@@ -440,8 +451,11 @@ describe("L12 · hésitation détectée → lecture neuve, 3 au plus pour le cor
   it("3 lectures du corps qui hésitent : refus Q16, jamais une 4ᵉ lecture", async () => {
     const m = monde({ motsPour: (t) => motsDuTexte(t, t === PETIT.corps ? { insertions: { 1: "euh" } } : {}) });
     const fin = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
-    expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-    expect(m.lus).toEqual([PETIT.corps, PETIT.corps, PETIT.corps]);
+    // Plus d'arrêt : le corps est relu en lecture neuve (3 réparations au plus), puis gardé avec une remarque.
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(fin.reparations).toBe(3);
+    expect(fin.remarques?.some((r) => r.includes("gardée"))).toBe(true);
+    expect(m.lus.filter((t) => t === PETIT.corps)).toHaveLength(6);
   });
 
   it("une fin qui hésite deux fois : refus Q16 (jamais gardée en silence), 2 lectures de la fin", async () => {
@@ -455,9 +469,10 @@ describe("L12 · hésitation détectée → lecture neuve, 3 au plus pour le cor
   it("voix toujours hors de la référence v4 après sa relance : refus Q16", async () => {
     const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 }) });
     const fin = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
-    expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-    if (fin.issue?.statut === "refus") expect(fin.issue.message).toMatch(/hauteur/);
-    expect(m.lus.filter((t) => t === PETIT.corps)).toHaveLength(2);
+    // Hors référence : relancée, réparée, puis gardée avec une remarque (jamais un arrêt).
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(fin.remarques?.some((r) => /hauteur/.test(r))).toBe(true);
+    expect(m.lus.filter((t) => t === PETIT.corps).length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -585,7 +600,8 @@ describe("15/10 · mesure version 2 : une fin refusée sur l'ancienne mesure est
   it("une voix mesurée à la version courante n'est jamais re-mesurée", async () => {
     const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 }) });
     const arrete = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
-    expect(arrete.issue).toMatchObject({ statut: "refus", controle: "Q16" });
+    expect(arrete.issue).toEqual({ statut: "faite" });
+    expect(arrete.remarques?.some((r) => /hauteur/.test(r))).toBe(true);
     expect(voixARemesurerIV(arrete)).toBe(false);
   });
 });
@@ -672,10 +688,11 @@ describe("L12 · assemblage : WAV obligatoire, coupes dans les silences mesurés
     ]);
   });
 
-  it("dernière phrase coupée net dans la piste voix seule : refus Q19 bloquant", async () => {
+  it("dernière phrase coupée net dans la piste voix seule : REMARQUE Q19 (la vidéo continue)", async () => {
     const m = monde();
     const etat = await voixFaite(PETIT, m);
-    await expect(assemblerVersionsIV(etat, outilsAssemblage(m, { couperAvantFin: 0.6 }))).rejects.toMatchObject({ controle: "Q19", message: expect.stringMatching(/dernière phrase/) });
+    const pistes = await assemblerVersionsIV(etat, outilsAssemblage(m, { couperAvantFin: 0.6 }));
+    expect(pistes.some((p) => /dernière phrase/.test(p.remarque ?? ""))).toBe(true);
   });
 
   it("voix pas finie : rien à assembler", async () => {
