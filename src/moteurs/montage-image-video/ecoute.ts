@@ -345,7 +345,7 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
   formes.forEach((f, i) => {
     if (!/^(?:un|une|premier|premiere|première)$/.test(f) || pairesUn[i] < 0 || attendus.includes("1|nombre")) return;
     const k = dits[pairesUn[i]].mot;
-    if (exemptes.has(k) || /^(?:mille|millions?|milliards?)$/.test(cleAccents(entendus[k + 1]?.mot.replace(/[^\p{L}]/gu, "") ?? ""))) return;
+    if (exemptes.has(k) || /^(?:mille|milliers?|millions?|milliards?|dizaines?|douzaines?|centaines?|k|m|md|mds|k€|m€|md€)$/.test(cleAccents(entendus[k + 1]?.mot.replace(/[^\p{L}€]/gu, "") ?? ""))) return;
     const reste = entendus.filter((_, n) => !exemptes.has(n) && n !== k).map((m) => m.mot).join(" ");
     const avec = entendus.filter((_, n) => !exemptes.has(n)).map((m) => m.mot).join(" ");
     // Le mot retiré ne doit valoir que « 1 » nombre : toute autre valeur ou unité (1 %, 1 heure, 1 million, 21) change les clés autrement.

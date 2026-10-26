@@ -41,6 +41,11 @@ describe("chiffres inventés : « 1 » dit pour « un » / « une »", () => {
     expect(inv("Je vous montre un outil pour vos clients.", "Je vous montre 1 % outil pour vos clients.")).not.toEqual([]);
     expect(inv("Je vous montre un outil pour vos clients.", "Je vous montre 1 heure outil pour vos clients.")).not.toEqual([]);
   });
+  it("refuse « 1 millier / centaine / dizaine / k / M€ » quand le script n'a qu'un « un outil »", () => {
+    for (const unite of ["millier d'outils", "centaine d'outils", "dizaine d'outils", "k outils", "M€ outils"]) {
+      expect(inv("Je vous montre un outil pour vos clients.", `Je vous montre 1 ${unite} pour vos clients.`)).not.toEqual([]);
+    }
+  });
   it("refuse 11 puis 21 quand le script n'a qu'un « un »", () => {
     expect(inv("Je vous montre un outil pour vos clients.", "Je vous montre 11 outil pour vos clients.")).toEqual(["11"]);
     expect(inv("Je vous montre un outil pour vos clients.", "Je vous montre 21 outil pour vos clients.")).toEqual(["21"]);
