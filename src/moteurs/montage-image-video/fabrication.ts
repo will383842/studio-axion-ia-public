@@ -1633,7 +1633,11 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
       try {
         r = await o.rendre({ ...demandeRendu, essai: demandeRendu.essai + 1 });
       } catch (err2) {
-        if (err2 instanceof ErreurRenduDefinitifIV) return textesSeuls(err2);
+        if (err2 instanceof ErreurRenduDefinitifIV) {
+          // La mise en scène refaite repart avec le compteur d'avant la relance : une simple panne passagère ensuite est encore refaite.
+          e.tentatives.rendu = demandeRendu.essai;
+          return textesSeuls(err2);
+        }
         throw err2;
       }
     }
