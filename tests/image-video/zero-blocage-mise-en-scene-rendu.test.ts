@@ -163,10 +163,52 @@ describe("rendu : une panne est refaite, seul l'impossible arrête", () => {
     expect(e.refus?.code).toBe("IV_PANNE");
   });
 
+  it("panne puis irrendable → textes seuls : le compteur d'essais revient, une panne passagère ensuite est encore refaite", async () => {
+    const { fini, o } = await prete();
+    let appels = 0;
+    const outils: OutilsFabricationIV = {
+      ...o,
+      rendre: async (d) => {
+        appels++;
+        if (appels === 1) throw new Error("serveur de rendu coupé");
+        if (appels === 2) throw new ErreurRenduDefinitifIV("Irrendable.", ["écran trop long"]);
+        if (appels === 3) throw new Error("serveur de rendu coupé de nouveau");
+        return o.rendre(d);
+      },
+    };
+    const premier = await avancerIV(depuis(fini, "rendu"), outils);
+    expect(premier.etape).toBe("mise-en-scene");
+    expect(premier.tentatives.rendu ?? 1).toBe(1);
+    const e = await avancerJusquAArretIV(premier, outils);
+    expect(e.refus).toBeUndefined();
+    expect(appels).toBeGreaterThanOrEqual(4);
+  });
+
+  it("panne, textes seuls, puis second échec DÉFINITIF → IV_RENDU (anti-boucle conservé)", async () => {
+    const { fini, o } = await prete();
+    let appels = 0;
+    const outils: OutilsFabricationIV = {
+      ...o,
+      rendre: async () => {
+        if (++appels === 1) throw new Error("serveur de rendu coupé");
+        throw new ErreurRenduDefinitifIV("Irrendable.", ["écran trop long"]);
+      },
+    };
+    const premier = await avancerIV(depuis(fini, "rendu"), outils);
+    expect(premier.etape).toBe("mise-en-scene");
+    const e = await avancerJusquAArretIV(premier, outils);
+    expect(e.refus?.code).toBe("IV_RENDU");
+  });
+
   it("rendu vraiment impossible → IV_RENDU, non réessayable", async () => {
     const { fini, o } = await prete();
     const outils: OutilsFabricationIV = { ...o, rendre: async () => Promise.reject(new ErreurRenduDefinitifIV("Irrendable.", ["écran trop long"])) };
-    const e = await avancerIV(depuis(fini, "rendu"), outils);
+    // 1er échec : les écrans passent en texte seul et la mise en scène est refaite (zéro blocage v2) ; 2e échec : IV_RENDU.
+    const premier = await avancerIV(depuis(fini, "rendu"), outils);
+    expect(premier.refus).toBeUndefined();
+    expect(premier.etape).toBe("mise-en-scene");
+    expect(Object.keys(premier.ecransImposesRendu ?? {}).length).toBeGreaterThan(0);
+    const e = await avancerJusquAArretIV(premier, outils);
     expect(e.refus?.code).toBe("IV_RENDU");
     expect(e.refus?.reessayable).toBe(false);
   });
