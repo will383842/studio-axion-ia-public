@@ -15,8 +15,15 @@ const MORCEAU_MIN = 3;
 const DEBUTS_PERMIS = new Set([
   "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "c'est", "ce", "cela", "ca", "puis", "mais", "donc", "car", "alors", "ensuite", "enfin",
 ]);
-/** Parallèle « Moins de…, plus de… » : permis seulement si le morceau de gauche commence lui aussi par plus / moins. */
+/** Parallèle « Moins de…, plus de… » : permis seulement si le morceau de gauche commence lui aussi par plus / moins, et si « de » / « d' » suit des deux côtés. */
 const PARALLELE = new Set(["plus", "moins"]);
+/** Débuts de morceau à gauche qui annoncent une subordonnée, un complément ou un sujet à rallonge : la virgule n'y ferme pas la phrase. */
+const OUVRANTS_GAUCHE = new Set([
+  "si", "s'", "quand", "lorsque", "lorsqu'", "des", "meme", "avec", "sans", "grace", "pour", "en", "apres", "avant", "depuis", "comme", "parce", "puisque", "bien",
+  "tandis", "malgre", "selon", "chez", "a", "au", "aux", "face", "contrairement", "plutot", "une", "tout", "ce", "cela", "ca",
+]);
+/** « alors » et « ce » ne sont permis que si le mot suivant n'est pas un relatif (« alors que », « ce qui »). */
+const RELATIFS = new Set(["que", "qu'", "qui", "quoi"]);
 /** Second mot d'une négation : « ne » ou « n' » doit l'avoir avant la coupe. */
 const NEGATION_SECONDE = new Set(["pas", "plus", "jamais", "que", "rien", "personne", "aucun", "aucune", "guere"]);
 const NOMBRES = new Set([
@@ -74,7 +81,11 @@ function frontiereSure(jetons: Jeton[], debut: number, i: number): boolean {
   if (!a.texte.endsWith(",")) return false;
   const droite = mot(b.texte);
   const gauche0 = mot(jetons[debut]!.texte);
-  if (!(DEBUTS_PERMIS.has(droite) || (PARALLELE.has(droite) && PARALLELE.has(gauche0)))) return false;
+  const deD = (j?: Jeton) => !!j && (mot(j.texte) === "de" || mot(j.texte).startsWith("d'"));
+  const parallele = PARALLELE.has(droite) && PARALLELE.has(gauche0) && deD(jetons[debut + 1]) && deD(jetons[i + 2]);
+  if (!(DEBUTS_PERMIS.has(droite) || parallele)) return false;
+  if (OUVRANTS_GAUCHE.has(gauche0) && !parallele) return false;
+  if ((droite === "alors" || droite === "ce") && jetons[i + 2] && RELATIFS.has(mot(jetons[i + 2]!.texte))) return false;
   if (estNombreOuUnite(a.texte) || estNombreOuUnite(b.texte)) return false;
   if (DETERMINANTS.has(mot(a.texte))) return false;
   // Nombre impair de virgules avant la coupe : une incise est encore ouverte.
