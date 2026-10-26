@@ -89,7 +89,7 @@ describe("répétition générale des contrôles (hors ligne)", () => {
     const { etat } = await etatPret();
     const { entree } = entreePorteIV(etat);
     const versions = miseEnSceneDesVersionsIV(etat);
-    expect(entree.versions).toEqual(versions);
+    expect(JSON.stringify(entree.versions)).toBe(JSON.stringify(versions));
     expect(versions.map((v) => v.version)).toEqual(etat.rendus ? Object.keys(etat.rendus) : []);
   });
 });

@@ -55,7 +55,7 @@ import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, typ
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
 import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
-import { porteUniqueIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
+import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
 import { chapitresDetachables } from "./recettes";
 import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type ChoixFormule, type Manquement } from "./regles";
@@ -1408,10 +1408,9 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
   return passerA(e, "controles");
 }
 
-async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
-  const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
-  const { publication, liens } = publicationDe(e);
-  const versions: VersionAControlerIV[] = versionsDe(e).map((v) => {
+/** Versions à contrôler, telles que la porte les reçoit : mise en scène recalculée, piste, fichier rendu et mesures (PUR). */
+export function miseEnSceneDesVersionsIV(e: EtatFabricationIV, bruitages: readonly BruitageValideIV[] = BRUITAGES_V4_IV): VersionAControlerIV[] {
+  return versionsDe(e).map((v) => {
     const scene = sceneDe(e, v, bruitages);
     const ligne = mettreEnSceneIV(scene).ligne;
     const rendu = e.rendus?.[v.id];
@@ -1429,20 +1428,31 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
       fichier: { cle: rendu?.cle ?? "", ...(rendu?.empreinte ? { empreinte: rendu.empreinte } : {}), ...(rendu?.mesures ? { mesures: rendu.mesures } : {}) },
     };
   });
+}
+
+/** Entrée de la porte unique pour l'état (PUR), avec la publication et les liens qu'elle contrôle. */
+export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly BruitageValideIV[] = BRUITAGES_V4_IV): { entree: EntreePorteIV; publication: PublicationIV; liens: Record<string, string> } {
+  const { publication, liens } = publicationDe(e);
+  const entree: EntreePorteIV = {
+    videoId: e.demande.videoId,
+    carte: e.carte!.carte,
+    fiche: e.script!.fiche,
+    reseaux: e.demande.reseaux,
+    plan: e.plan!,
+    versions: miseEnSceneDesVersionsIV(e, bruitages),
+    regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
+    voix: { issue: e.voix?.issue ?? { statut: "faite" } },
+    publication,
+    liens,
+    ...(e.controles ? { deja: { transcriptions: e.controles.transcriptions, relectures: e.controles.relectures } } : {}),
+  };
+  return { entree, publication, liens };
+}
+
+async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
+  const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
   const verdict = await porteUniqueIV(
-    {
-      videoId: e.demande.videoId,
-      carte: e.carte!.carte,
-      fiche: e.script!.fiche,
-      reseaux: e.demande.reseaux,
-      plan: e.plan!,
-      versions,
-      regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
-      voix: { issue: e.voix?.issue ?? { statut: "faite" } },
-      publication,
-      liens,
-      ...(e.controles ? { deja: { transcriptions: e.controles.transcriptions, relectures: e.controles.relectures } } : {}),
-    },
+    entree,
     // Chaque tentative d'appel a son propre identifiant (compteur gardé dans l'état) : jamais la réservation d'un appel parti.
     { ...o.controles, budget: caisse.controles(), idAppel: (prefixe) => `${prefixe}-n${(e.compteurAppels = (e.compteurAppels ?? 0) + 1)}` },
   );
