@@ -12,7 +12,7 @@
  * que seul Will tranche (formules absolues, phrase-choc de l'image à reformuler) part avec le script, surligné.
  * Simulation (aucune clé) : `ecriture.simulation.ts` rend les scripts A-F de `40` d'après l'empreinte de l'image.
  */
-import { textesDeLaCarte, type CarteImage } from "@/domaine/image-video/carte";
+import type { CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, DEBIT_MOTS_PAR_SEC, type ComplexiteCarte } from "@/domaine/image-video/complexite";
 import { FAMILLES_ACCROCHE, PARTIES, SCENES, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
@@ -28,9 +28,7 @@ import {
   TOLERANCE_DUREE_IV,
   aCorrigerParClaude,
   aTrancherParWill,
-  chiffresDuTexte,
   empreinteDeCarte,
-  nombresDuTexte,
   phraseChocAttendue,
   verifierScript,
   type ContexteRegles,
@@ -70,6 +68,7 @@ RÈGLES (le script est refusé sinon) :
 - Rien d'oublié : chaque chiffre de la carte marqué à dire est dit ; chaque bloc est cité dans les "refs" d'un écran (sauf une photo de personnes, jamais reprise).
 - Rien d'inventé : aucun nombre hors de la carte (la numérotation « un… cinq » et les comptes visibles sont permis) ; aucune promesse absente de l'image.
 - Interdits, prioritaires même sur le mot pour mot : ${liste(INTERDITS_PERMANENTS)}, faux client (« un client a… »), nom d'exemple sans « par exemple », toute phrase d'appel (commentaire, lien, abonnement, diagnostic) dans le corps : la fin vient d'ailleurs.
+- Un nombre SEUL sur l'image (ex. « au lieu de 45 » dans « Facturer en 12 jours au lieu de 45 ») s'écrit dans le script EXACTEMENT comme sur l'image, SANS unité que l'image ne lui donne pas : écris « au lieu de 45 », jamais « 45 jours ». Ne recopie jamais l'unité d'un nombre sur son voisin, et n'inverse jamais deux nombres.
 - Formules très affirmatives (« zéro erreur », « toujours », « dès le premier jour »…) : reprends-les telles qu'écrites sur l'image ou selon <choix_formules> ; Will tranche.
 - Phrases de ${MOTS_PAR_PHRASE_MAX} mots au plus ; chiffres EN LETTRES dans "texteDit", en chiffres dans "textesEcran" (recopie exactement l'écriture de la carte) ; plages en toutes lettres dans "texteDit" (« vingt-quatre heures sur vingt-quatre », « sept jours sur sept »), jamais « H24 », « 24/7 » ni « 24/24 » ; un seul mot orange par écran (« *mot* »).
 - Durée : le corps tient dans <duree> au débit de ${String(DEBIT_MOTS_PAR_SEC).replace(".", ",")} mots par seconde (±${TOLERANCE_DUREE_IV * 100} %).
@@ -103,7 +102,25 @@ export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCart
 
 /** Relance guidée : la même demande, la réponse précédente et ses refus exacts. */
 export function variableRelanceIV(base: string, precedente: string, refus: readonly string[]): string {
-  return `${base}\n<reponse_precedente>${precedente}</reponse_precedente>\n<refus>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus>\nCorrige chacun de ces refus et rends la fiche entière.`;
+  const seuls = nombresSeulsDeLaCarte(base);
+  const precisions = new Set<string>();
+  for (const r of refus)
+    for (const m of r.matchAll(/«\s*(\d+(?:[.,]\d+)?)\s+[^»\s]+\s*»[^«]*?n'est pas sur l'image/g)) {
+      const x = m[1]!;
+      if (seuls.has(Number(x.replace(",", ".")))) precisions.add(`Écris ${x} tel quel, sans unité (comme sur l'image).`);
+    }
+  const precision = precisions.size ? `\n${[...precisions].join(" ")}` : "";
+  return `${base}\n<reponse_precedente>${precedente}</reponse_precedente>\n<refus>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus>${precision}\nCorrige chacun de ces refus et rends la fiche entière.`;
+}
+
+/** Nombres écrits SANS unité dans les chiffres de la carte (lue dans `<carte>` de la partie variable). */
+function nombresSeulsDeLaCarte(base: string): Set<number> {
+  try {
+    const carte = JSON.parse(/<carte>([\s\S]*?)<\/carte>/.exec(base)?.[1] ?? "") as { chiffres?: { valeur: number | null; unite: string }[] };
+    return new Set((carte.chiffres ?? []).filter((c) => c.valeur !== null && c.unite === "nombre").map((c) => c.valeur as number));
+  } catch {
+    return new Set();
+  }
 }
 
 /** Lit `<balise>` dans la partie variable (simulation). */
@@ -224,94 +241,13 @@ function lire(reponse: Extract<ReponseAppelIV, { ok: true }>): { ok: true; brute
   }
 }
 
-/** Mot d'unité accepté pour chaque unité de temps (singulier ou pluriel, forme écrite ou parlée). */
-const MOT_DE_L_UNITE: Readonly<Record<string, RegExp>> = {
-  jour: /^jours?$/iu,
-  h: /^(?:heures?|h)$/iu,
-  min: /^(?:minutes?|min)$/iu,
-  sec: /^(?:secondes?|sec)$/iu,
-};
-
-/**
- * Nombre que l'image écrit SEUL (« au lieu de 45 ») alors que le script le dit avec une unité qu'elle ne lui donne pas
- * (« 45 jours ») : l'unité est retirée du texte, le nombre reste tel qu'écrit sur l'image. Aucun chiffre n'est inventé
- * ni changé. Un nombre seul n'entre dans la table que si le MÊME texte (titre ou sous-titre) porte un autre chiffre avec une
- * unité de temps ; seule cette unité lui est associée. Un nombre absent de l'image, déjà permis avec son unité, ou tapé
- * par Will (`ajoutsWill`) n'est jamais touché. Rend le texte et le rang (dans le texte dit) des mots retirés.
- */
-export function sansUniteAbsenteDeLImage(texte: string, carte: CarteImage, ajoutsWill: readonly string[] = []): { texte: string; retires: number[] } {
-  const textes = textesDeLaCarte(carte);
-  const cle = (c: { valeur: number | null; unite: string }) => `${c.valeur}|${c.unite}`;
-  const permis = new Set<string>();
-  for (const t of textes) for (const c of chiffresDuTexte(t.texte)) permis.add(cle(c));
-  for (const c of carte.chiffres) if (c.valeur !== null) permis.add(cle(c));
-  for (const t of ajoutsWill) for (const c of chiffresDuTexte(t)) permis.add(cle(c));
-  // nombre seul → unités de temps des autres chiffres du même titre ou sous-titre
-  const seuls = new Map<number, Set<string>>();
-  for (const t of textes) {
-    if (t.ou !== "titre" && t.ou !== "sousTitre") continue;
-    const lus = chiffresDuTexte(t.texte);
-    const unites = lus.filter((c) => c.valeur !== null && c.unite in MOT_DE_L_UNITE);
-    for (const c of lus) {
-      if (c.valeur === null || c.unite !== "nombre") continue;
-      const autres = unites.filter((u) => u.valeur !== c.valeur).map((u) => u.unite);
-      if (!autres.length) continue;
-      const deja = seuls.get(c.valeur) ?? new Set<string>();
-      for (const u of autres) deja.add(u);
-      seuls.set(c.valeur, deja);
-    }
-  }
-  const retires: number[] = [];
-  let mots = texte.split(/(\s+)/); // mots et séparateurs alternés
-  for (const c of chiffresDuTexte(texte)) {
-    if (c.valeur === null || permis.has(cle(c)) || !seuls.get(c.valeur)?.has(c.unite)) continue;
-    const motUnite = MOT_DE_L_UNITE[c.unite];
-    if (!motUnite) continue;
-    for (let j = 2; j < mots.length; j += 2) {
-      const unite = mots[j]!.replace(/[^\p{L}]+$/u, "");
-      if (!motUnite.test(unite)) continue;
-      if (nombresDuTexte(mots[j - 2]!).length === 0) continue; // le mot d'unité est accolé au nombre
-      const fin = mots[j]!.slice(unite.length);
-      const k = [5, 4, 3, 2, 1].find((n) => {
-        const avant = mots.filter((_, i) => i % 2 === 0).slice(Math.max(0, j / 2 - n), j / 2).join(" ");
-        const lu = nombresDuTexte(avant);
-        return j / 2 - n >= 0 && lu.length === 1 && lu[0] === c.valeur;
-      });
-      if (k === undefined) continue;
-      retires.push(j / 2);
-      mots = [...mots.slice(0, j - 2), mots[j - 2]! + fin, ...mots.slice(j + 1)];
-      break;
-    }
-  }
-  return { texte: mots.join(""), retires };
-}
-
-/** Applique `sansUniteAbsenteDeLImage` aux textes dits et écrits de la fiche (copie) ; recale les rangs des mots surlignés. */
-export function normaliserNombresUnite(fiche: FicheImage, ctx: Pick<ContexteRegles, "carte" | "ajoutsWill">): FicheImage {
-  const f = structuredClone(fiche);
-  const net = (t: string) => sansUniteAbsenteDeLImage(t, ctx.carte, ctx.ajoutsWill);
-  for (const e of f.ecrans) {
-    const dit = net(e.texteDit);
-    e.texteDit = dit.texte;
-    for (const r of dit.retires) for (const s of e.surMot) if (s.mot >= r) s.mot = Math.max(0, s.mot - 1);
-    e.textesEcran = e.textesEcran.map((t) => net(t).texte);
-  }
-  for (const a of f.accroches) {
-    a.texteDit = net(a.texteDit).texte;
-    a.textesEcran = a.textesEcran.map((t) => net(t).texte);
-  }
-  f.questionCommentaire = { texteDit: net(f.questionCommentaire.texteDit).texte, texteEcran: net(f.questionCommentaire.texteEcran).texte };
-  return f;
-}
-
-/** Juge une réponse lue : forme (zod), nombres sans unité propre à l'image, puis règles. */
+/** Juge une réponse lue : forme (zod), puis règles. */
 export function jugerFicheIV(brute: unknown, ctx: ContexteRegles): { ok: true; fiche: FicheImage; verdict: VerdictScript } | { ok: false; refus: string[] } {
   const forme = schemaFicheImage.safeParse(brute);
   if (!forme.success) return { ok: false, refus: forme.error.issues.slice(0, 20).map((i) => `Champ « ${i.path.join(".") || "fiche"} » : ${i.message}`) };
-  const fiche = normaliserNombresUnite(forme.data, ctx);
-  const verdict = verifierScript(fiche, ctx);
+  const verdict = verifierScript(forme.data, ctx);
   const aCorriger = aCorrigerParClaude(verdict);
-  return aCorriger.length ? { ok: false, refus: aCorriger.map((m) => m.message) } : { ok: true, fiche, verdict };
+  return aCorriger.length ? { ok: false, refus: aCorriger.map((m) => m.message) } : { ok: true, fiche: forme.data, verdict };
 }
 
 /**
