@@ -69,6 +69,8 @@ const OUVERTURE_FIN_SEC = 1.0;
 const APRES_DERNIER_FIN_SEC = 0.5;
 /** Bloc : marge avant la fin de son écran, pour ne pas tomber dans le fondu de sortie de l'en-tête (0,15 s). */
 const MARGE_FIN_PLAN_BLOC = 0.2;
+/** Marge entre un instant clé et le bord d'une fenêtre de transition. */
+const MARGE_TRANSITION_SEC = 0.05;
 
 /**
  * Instants clés d'une version (PUR, déterministe). Priorité quand il y en a plus de 24 : la fin, la phrase-choc, les
@@ -163,7 +165,24 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
   // L'écran d'ouverture remplace les blocs de la 1re phrase : une image juste avant sa fin montre l'accroche entière.
   if (ouv) brut.push({ instantSec: ouv.fin - 0.3, sorte: "charniere", legende: "Ouverture : l'accroche (et son chiffre s'il y en a un), entière et lisible." });
 
-  const bornes = brut.map((b) => ({ ...b, instantSec: arrondi(Math.min(Math.max(0, b.instantSec), Math.max(0, l.dureeSec - 0.04))) }));
+  // Fenêtres de transition (variete/axes/transitions.ts) : sortie = les `duree` dernières secondes du bloc A, entrée = les `duree` premières du bloc B.
+  // Au milieu du balayage le surtitre est masqué : un instant qui y tombe est décalé juste avant la sortie ou juste après l'entrée.
+  const fenetres = (l.blocs ?? []).flatMap((b) => {
+    const t = (b.variete?.donnees?.transitions as { duree?: number; sortie?: unknown; entree?: unknown } | undefined) ?? undefined;
+    if (!t) return [];
+    const d = t.duree ?? 0.4;
+    return [...(t.sortie ? [{ de: b.fin - d, a: b.fin, avant: true }] : []), ...(t.entree ? [{ de: b.debut, a: b.debut + d, avant: false }] : [])];
+  });
+  const horsTransition = (t: number): number => {
+    let x = t;
+    for (let tour = 0; tour <= fenetres.length; tour++) {
+      const w = fenetres.find((f) => x >= f.de - 1e-9 && x < f.a - 1e-9);
+      if (!w) return x;
+      x = w.avant ? w.de - MARGE_TRANSITION_SEC : w.a + MARGE_TRANSITION_SEC;
+    }
+    return x;
+  };
+  const bornes = brut.map((b) => ({ ...b, instantSec: arrondi(horsTransition(Math.min(Math.max(0, b.instantSec), Math.max(0, l.dureeSec - 0.04)))) }));
   const choisis: Omit<InstantCleIV, "nom">[] = [];
   const ordre = bornes.map((b, i) => ({ b, i })).sort((x, y) => PRIORITE[x.b.sorte] - PRIORITE[y.b.sorte] || x.i - y.i);
   for (const { b } of ordre) {
