@@ -345,11 +345,11 @@ describe("F45 · livraison Facebook en deux fichiers", () => {
     expect(l.find((x) => x.reseau === "facebook")).toMatchObject({ fichierCle: "final/fb-916.mp4", fichierCleFil: "final/fb-45.mp4", dureeSecFil: 52, texte: "Texte du Reel.", texteFil: "Texte du Reel.", consigneLienFil: CONSIGNE_FIL_FACEBOOK });
     expect(l.find((x) => x.reseau === "facebook")).not.toHaveProperty("format");
 
-    // Le fil manque : rien ne part (« relancez le rendu »).
+    // Le fil manque : le Reel 9:16 part quand même (livraison sans blocage), le fil est signalé en remarque.
     const sansFil = l.map((x) => (x.reseau === "facebook" ? { ...x, fichierCleFil: undefined } : x));
     const r = await avancerIV({ ...etat, etape: "livraison", livraison: sansFil }, outilsSimules(carteFixe("C"), monde()));
-    expect(r.etape).toBe("refusee");
-    expect(r.refus?.message).toMatch(/facebook/);
+    expect(r.etape).toBe("prete");
+    expect(r.livraison?.find((x) => x.reseau === "facebook")?.fichierCle).toBe("final/fb-916.mp4");
     const ok = await avancerIV({ ...etat, etape: "livraison", livraison: l }, outilsSimules(carteFixe("C"), monde()));
     expect(ok.etape).toBe("prete");
   });
