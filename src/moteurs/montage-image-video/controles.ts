@@ -155,8 +155,8 @@ export interface ContexteControlesIV {
 
 const sec = (s: number) => `${s.toFixed(1).replace(".", ",")} s`;
 
-function ligneIV(code: CodeControleIV, v: Pick<VersionAControlerIV, "version" | "reseaux">, details: readonly string[], o: { nonFait?: boolean; phraseOk?: string } = {}): LigneControleIV {
-  const bloquant = !CONTROLES_INDICATIFS.has(code);
+function ligneIV(code: CodeControleIV, v: Pick<VersionAControlerIV, "version" | "reseaux">, details: readonly string[], o: { nonFait?: boolean; phraseOk?: string; indicatif?: boolean } = {}): LigneControleIV {
+  const bloquant = !o.indicatif && !CONTROLES_INDICATIFS.has(code);
   const etat: EtatLigneIV = o.nonFait ? "non-fait" : details.length ? "echoue" : "reussi";
   const libelle = LIBELLES_CONTROLE_IV[code];
   const suite = details.length > 1 ? ` (et ${details.length - 1} autre${details.length > 2 ? "s" : ""})` : "";
@@ -165,8 +165,8 @@ function ligneIV(code: CodeControleIV, v: Pick<VersionAControlerIV, "version" | 
   return { code, version: v.version, reseaux: [...v.reseaux], etat, bloquant, phrase, details: [...details] };
 }
 
-const deConstat = (code: CodeControleIV, v: VersionAControlerIV, c: ConstatControle | undefined, absent: string, phraseOk?: string) =>
-  c ? ligneIV(code, v, c.details.length || c.ok ? c.details : [absent], { ...(c.nonFait ? { nonFait: true } : {}), ...(phraseOk ? { phraseOk } : {}) }) : ligneIV(code, v, [absent], { nonFait: true });
+const deConstat = (code: CodeControleIV, v: VersionAControlerIV, c: ConstatControle | undefined, absent: string, phraseOk?: string, indicatif = false) =>
+  c ? ligneIV(code, v, c.details.length || c.ok ? c.details : [absent], { ...(c.nonFait ? { nonFait: true } : {}), ...(phraseOk ? { phraseOk } : {}), ...(indicatif ? { indicatif } : {}) }) : ligneIV(code, v, [absent], { nonFait: true });
 
 /** Empreinte stable d'une ligne de temps (sa forme JSON). */
 export function empreinteLigne(l: LigneDeTempsIV): string {
@@ -252,6 +252,8 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const ecoute = m.ecoute;
   const entendu = ecoute?.texteEntendu ?? "";
   const sansEcoute = !ecoute || !ecoute.q18.ok && !!ecoute.q18.nonFait;
+  // Transcription en panne (relancée en vain) alors que la voix est lue : l'écoute non faite est une remarque, pas un blocage.
+  const remarqueEcoute = !!ecoute?.panneTranscription && ecoute.q17.ok;
 
   L("Q04", regles.get("Q04") ?? []);
   L("Q05", [...(regles.get("Q05") ?? []), ...(ecoute?.comparaison?.chiffresInventes ?? []).map((c) => `la voix dit « ${c} », absent du script et de l'image.`)]);
@@ -261,7 +263,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const q06 = [...(regles.get("Q06") ?? [])];
   const choc = phraseChocAttendue(carte, ctx.regles?.choixFormules);
   if (ecoute && !sansEcoute && !entendue(choc, entendu)) q06.push(`la phrase-choc (« ${choc} ») n'est pas entendue en entier.`);
-  if (sansEcoute && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true });
+  if (sansEcoute && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true, ...(remarqueEcoute ? { indicatif: true } : {}) });
   else L("Q06", q06);
 
   // Q07 · ossature, et accroche finie avant 3 s sur la voix.
@@ -348,7 +350,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
     if (!sansEcoute && !ecoute!.chiffresEntendus.includes(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est pas entendu (valeur et unité).`);
     if (!montres.has(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est jamais affiché.`);
   }
-  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? {} : { nonFait: true });
+  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? {} : { nonFait: true, ...(remarqueEcoute ? { indicatif: true } : {}) });
   else L("CHIFFRES", chiffres);
 
   sceneCode("Q14");
@@ -360,7 +362,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
 
   // Q17-Q19 · écoute (piste voix seule) ; Q19 reprend aussi la ligne de temps.
   lignes.push(deConstat("Q17", v, ecoute?.q17, "la piste voix seule n'a pas été lue."));
-  lignes.push(deConstat("Q18", v, ecoute?.q18, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined));
+  lignes.push(deConstat("Q18", v, ecoute?.q18, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined, remarqueEcoute));
   const q19 = ecoute?.q19;
   const q19Ligne = sceneDe("Q19");
   lignes.push(deConstat("Q19", v, q19 ? { ...q19, ok: q19.ok && q19Ligne.length === 0, details: [...q19.details, ...q19Ligne] } : undefined, "la fin n'a pas été mesurée sur la voix seule."));
