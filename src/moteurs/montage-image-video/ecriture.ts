@@ -20,6 +20,7 @@ import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
 import { APPELS_ECRITURE_MAX, MAX_TOKENS_ECRITURE } from "./emprunts";
 import { ficheSimulee, ficheSimuleeRecit } from "./ecriture.simulation";
+import { consigneAEviter, parcoursDeCode, type ChoixParcoursIV } from "./parcours-varies";
 import { ANNONCE_SITUATION_TYPE, ETIQUETTE_SITUATION_TYPE, PARCOURS_RECIT, RECETTES, annonceAttendue, lireDecoupage, scenesPermises, type CodeRecit } from "./recettes";
 import {
   ACCROCHE_IV_MOTS_MAX,
@@ -82,16 +83,19 @@ FORME (JSON seul, aucun texte autour, aucun champ en plus) :
 Scènes : ${liste(SCENES)} (seulement celles de <scenes>).`;
 
 /** Partie variable : la carte et ce que le code en a calculé, entre balises (données, jamais instructions). */
-export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCarte, choix: ContexteRegles["choixFormules"] = {}, recit?: CodeRecit): string {
+export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCarte, choix: ContexteRegles["choixFormules"] = {}, recit?: CodeRecit, parcours?: ChoixParcoursIV): string {
   const annonce = annonceAttendue(carte, complexite.classe);
   const [bas, haut] = complexite.fourchetteSec;
   // Déroulé du récit (variété) : absent ou REC-A, la partie variable reste celle d'aujourd'hui, octet pour octet.
   const parcoursRecit = recit ? PARCOURS_RECIT[recit] : "";
+  // Parcours varié (diversité) : absent, la partie variable reste celle d'aujourd'hui, octet pour octet.
+  const varie = parcoursDeCode(carte.types[0], parcours?.code);
+  const aEviter = parcours ? consigneAEviter(parcours.aEviter) : "";
   return [
     `<image-id>${carte.image.empreinte}</image-id>`,
     `<empreinte_carte>${JSON.stringify(empreinteDeCarte(carte))}</empreinte_carte>`,
     `<carte>${JSON.stringify({ ...carte, image: { ...carte.image, cle: "" } })}</carte>`,
-    `<recette>${carte.types.map((t) => `${t} : ${RECETTES[t].parcours}`).join("\n")}</recette>`,
+    `<recette>${carte.types.map((t) => `${t} : ${t === carte.types[0] && varie ? varie.parcours : RECETTES[t].parcours}`).join("\n")}</recette>`,
     `<scenes>${[...scenesPermises(carte.types)].join(", ")}</scenes>`,
     `<situation_type>${carte.automatisation ? "oui" : "non"}</situation_type>`,
     `<annonce>${annonce ? annonce.nombre : "aucune"}</annonce>`,
@@ -100,6 +104,7 @@ export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCart
     `<phrase_choc>${phraseChocAttendue(carte, choix)}</phrase_choc>`,
     `<choix_formules>${JSON.stringify(choix)}</choix_formules>`,
     ...(parcoursRecit ? [`<recit>${recit} · ${parcoursRecit}</recit>`] : []),
+    ...(aEviter ? [`<a_eviter>${aEviter}</a_eviter>`] : []),
   ].join("\n");
 }
 
@@ -187,6 +192,8 @@ export interface EntreeEcritureIV extends Omit<ContexteRegles, "complexite"> {
   versionId: string;
   /** Réglage du format ; seule valeur : « chapitres ». */
   decoupage?: unknown;
+  /** Parcours varié et scènes à éviter, tirés avant l'écriture (absent : le parcours de `recettes.ts`). */
+  parcours?: ChoixParcoursIV;
 }
 
 export type ResultatEcritureIV =
@@ -361,7 +368,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
   const role = roleEcritureImageVideo;
   const complexite = complexiteDe(entree.carte);
   const ctx: ContexteRegles = { ...entree, complexite };
-  const base = variableEcritureIV(entree.carte, complexite, entree.choixFormules, entree.recit);
+  const base = variableEcritureIV(entree.carte, complexite, entree.choixFormules, entree.recit, entree.parcours);
   let contexte: EntreeRole["contexte"] = {};
   try {
     contexte = contexteDuSocleIV(outils.socle ? await outils.socle() : undefined);
