@@ -12,8 +12,8 @@
  *    gardée est celle de la lecture A (ou celle qui existe). Un bloc ou une flèche vu par une seule lecture est gardé
  *    avec une ALERTE ; un chiffre écrit dans une seule lecture porte `lu: "une-seule"`. Une photo de personnes vue par
  *    l'une des deux lectures est marquée (jamais reprise).
- * 4. Refus en une phrase : moins de 3 textes lus, type reconnu par aucune lecture (« Je ne reconnais pas ce type
- *    d'image : choisissez-le » ; Will peut imposer le type), titre ou phrase de fin introuvables.
+ * 4. Refus en une phrase : moins de 3 textes lus, aucun bloc lu. Le type reconnu par aucune lecture est déduit par le code
+ *    (Will peut l'imposer) ; un titre ou une phrase du bas absents sont déduits, avec une alerte (jamais de refus).
  * 5. Carte complétée par le code (`completerCarte`, L1 : chiffres, formules, cohérence, type), puis contrôlée
  *    (`controlerCarte`) ; le contrôle est rendu avec la carte, jamais caché.
  *
@@ -469,17 +469,39 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
   if (!f.brouillon.noeuds.length) {
     return refus("incomplete", "Je ne trouve aucun bloc dans l'image : vérifiez qu'elle est entière.");
   }
-  // Zéro blocage : un titre ou une phrase du bas manquants sont déduits par le code, et dits dans les alertes.
+  // Zéro blocage : un titre ou une phrase du bas manquants sont déduits par le code (jamais vides, jamais un texte déjà
+  // utilisé si un autre existe, de préférence sans chiffre : l'inventaire des chiffres ne doit pas être dupliqué), et
+  // dits dans les alertes, placées en tête pour survivre à la coupe à 60.
+  const deductions: string[] = [];
+  const parOrdre = [...f.brouillon.noeuds].sort((x, y) => x.ordre - y.ordre || x.id.localeCompare(y.id));
+  const choisir = (candidats: string[], deja: string[]): string => {
+    const textes = candidats.map(net).filter(Boolean);
+    const neufs = textes.filter((t) => !deja.includes(t));
+    return neufs.find((t) => !chiffresDe(t).length) ?? neufs[0] ?? textes[0] ?? "";
+  };
   if (!f.brouillon.titre) {
     const sousTitre = net(f.brouillon.sousTitre ?? "");
-    f.brouillon.titre = sousTitre || net(f.brouillon.noeuds[0]!.libelle);
-    f.alertes.push(`Titre non lu : j'ai pris ${sousTitre ? "le sous-titre" : "le premier bloc"} (« ${f.brouillon.titre} »).`);
+    const deNoeuds = parOrdre.flatMap((n) => [n.libelle, n.detail ?? "", ...(n.sousElements ?? [])]);
+    if (sousTitre) {
+      f.brouillon.titre = sousTitre;
+      delete f.brouillon.sousTitre;
+    } else {
+      f.brouillon.titre = choisir(deNoeuds, []) || "Image sans titre";
+    }
+    deductions.push(`Titre non lu : j'ai pris ${sousTitre ? "le sous-titre" : "le premier bloc"} (« ${f.brouillon.titre} »).`);
   }
   if (!f.brouillon.phraseChoc) {
-    const sousTitre = net(f.brouillon.sousTitre ?? "");
-    f.brouillon.phraseChoc = sousTitre || f.brouillon.titre;
-    f.alertes.push(`Phrase du bas non lue : j'ai pris ${sousTitre ? "le sous-titre" : "le titre"} (« ${f.brouillon.phraseChoc} »).`);
+    const dernierBloc = parOrdre.length ? [parOrdre[parOrdre.length - 1]!.libelle, parOrdre[parOrdre.length - 1]!.detail ?? ""] : [];
+    const source = [
+      f.brouillon.signature ?? "",
+      ...[...f.brouillon.pied].reverse(),
+      ...dernierBloc,
+    ];
+    const reprise = choisir(source, [net(f.brouillon.titre)]);
+    f.brouillon.phraseChoc = reprise || f.brouillon.titre;
+    deductions.push(`Phrase du bas non lue : j'ai pris ${reprise ? "un texte déjà lu en bas de l'image" : "le titre"} (« ${f.brouillon.phraseChoc} »).`);
   }
+  f.alertes.unshift(...deductions);
 
   const brouillon0: BrouillonCarte = {
     ...f.brouillon,
