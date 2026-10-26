@@ -67,6 +67,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      # habillage.test.ts rend les compositions avec le React de studio-rendu.
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: studio-rendu
       - name: Tests ciblés (liste fixe)
         run: |
           pnpm exec vitest run \
@@ -76,6 +79,7 @@ jobs:
             tests/cas-concret/variete/part-v4-centree.test.ts \
             tests/cas-concret/variete/structure-chaine.test.ts \
             tests/cas-concret/variete/fiche-et-chaine.test.ts \
+            tests/cas-concret/variete/habillage.test.ts \
             tests/cas-concret/variete-scripts \
             tests/cas-concret/script-valide \
             tests/cas-concret/ecriture/ecriture.test.ts \

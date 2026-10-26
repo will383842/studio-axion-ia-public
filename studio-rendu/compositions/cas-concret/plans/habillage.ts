@@ -4,8 +4,9 @@
  * l'habillage est neutre (`NEUTRE`) et le composant ne pose aucune enveloppe : l'arbre rendu est celui de la v4.
  *
  * Gardes-fous : la caméra ne dépasse jamais `ECHELLE_CAMERA_MAX` (centrée sur la zone utile, donc les textes restent hors
- * de la bande des sous-titres, mesuré par `tests/cas-concret/variete/habillage.test.ts`) ; rien ne se pose sur le premier
- * écran de la vidéo (`debutMs <= 50` : elle démarre sur un écran vivant) ; entrée et transition ne sont jamais posées en
+ * de la bande des sous-titres, mesuré par `tests/cas-concret/variete/habillage.test.ts`) ; l'entrée et la transition ne se
+ * posent pas sur le premier écran de la vidéo (`debutMs <= 50` : elle démarre sur un écran vivant ; la caméra et la sortie
+ * y restent permises) ; entrée et transition ne sont jamais posées en
  * même temps (la transition l'emporte) ; un raccord L6 l'emporte sur l'entrée, la transition et la sortie.
  */
 import type { ProprietesEcran } from "../../../../src/briques/ecrans-motion";
@@ -82,8 +83,8 @@ export function planHabillage(p: Pick<ProprietesEcran, "jeu" | "debutMs">, t: nu
     h = { ...h, rognage: x < 1 ? { haut: 0, droite: (1 - x) * 100, bas: 0, gauche: 0 } : null };
   } else if (entree === "zoom-avant") {
     const x = doux(progres(t, 0, DUREE_ENTREE_S));
-    // Part de plus près (jamais plus petit que le cadre : pas de bord vide) et se pose.
-    h = { ...h, echelle: 1.09 - 0.09 * x, opacite: c01(x * 2.5) };
+    // Part de plus près (jamais plus petit que le cadre : pas de bord vide) et se pose ; même plafond que la caméra, origine au centre de la zone utile.
+    h = { ...h, echelle: ECHELLE_CAMERA_MAX - (ECHELLE_CAMERA_MAX - 1) * x, opacite: c01(x * 2.5) };
   } else if (entree === "rideau") {
     const x = doux(progres(t, 0, DUREE_ENTREE_S));
     h = { ...h, rognage: x < 1 ? { haut: 0, droite: (1 - x) * 50, bas: 0, gauche: (1 - x) * 50 } : null };
@@ -112,10 +113,12 @@ export function planHabillage(p: Pick<ProprietesEcran, "jeu" | "debutMs">, t: nu
 }
 
 /** Style du mot par mot d'un jeu (`motParMot` : « cascade », « souffle ») ; absent ou v4 : la v4. */
+/** Montée du mot par mot « cascade » (px) : la v4 monte de 60 ; plafonnée pour que les mots ne passent pas dans la bande des sous-titres. */
+export const MONTEE_CASCADE_PX = 80;
 export type StyleMotParMot = { monteePx: number; flouPx: number } | null;
 export function styleMotParMot(jeu: ProprietesEcran["jeu"]): StyleMotParMot {
   const v = lire(jeu?.motParMot);
-  if (v === "cascade") return { monteePx: 110, flouPx: 12 };
+  if (v === "cascade") return { monteePx: MONTEE_CASCADE_PX, flouPx: 12 };
   if (v === "souffle") return { monteePx: 0, flouPx: 26 };
   return null;
 }

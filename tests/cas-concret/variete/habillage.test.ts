@@ -4,6 +4,7 @@
  * déjà faites inchangées. Le rendu est réel (HTML de `Ecran`, horloge de Remotion remplacée) ; aucun appel.
  */
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { BANDE_SOUS_TITRES_CAS_CONCRET, ZONE_PLEINE_IMAGE_CAS_CONCRET } from "@/formats/cas-concret";
 import { disposer, imagesEcran, proprietesEcrans, type EcranCale, type ProprietesEcran } from "@/briques/ecrans-motion";
@@ -22,8 +23,9 @@ import {
   type EntreeHistorique,
   type Mise,
 } from "@/moteurs/montage-cas-concret/variete";
+import { MISES_EN_PAGE_L6 } from "@/briques/ecrans-motion/mises-en-page";
 import { exemplesEcrans } from "../../../studio-rendu/compositions/cas-concret/exemples";
-import { DERIVE_MAX_PX, ECHELLE_CAMERA_MAX, habille, NEUTRE, planHabillage, styleMotParMot } from "../../../studio-rendu/compositions/cas-concret/plans/habillage";
+import { DERIVE_MAX_PX, ECHELLE_CAMERA_MAX, habille, MONTEE_CASCADE_PX, NEUTRE, planHabillage, styleMotParMot } from "../../../studio-rendu/compositions/cas-concret/plans/habillage";
 
 const horloge = vi.hoisted(() => ({ image: 0 }));
 vi.mock("../../../studio-rendu/node_modules/remotion/dist/esm/index.mjs", async (origine) => {
@@ -129,6 +131,25 @@ describe("Habillage · garde-fou de cadre : la caméra ne déborde ni du cadre n
         expect(gauche, `${p.type}/${t.nom} gauche`).toBeGreaterThanOrEqual(0);
         expect(droite, `${p.type}/${t.nom} droite`).toBeLessThanOrEqual(p.largeur);
         expect(bas, `${p.type}/${t.nom} bas`).toBeLessThanOrEqual(bandeHaut);
+        mesures++;
+      }
+    }
+    expect(mesures).toBeGreaterThan(20);
+  });
+
+  it("entrée « zoom-avant » : jamais au-dessus du plafond de la caméra, donc même cadre que le test précédent", () => {
+    for (let i = 0; i <= 30; i++) expect(planHabillage({ debutMs: 3000, jeu: { entree: "zoom-avant" } }, i / 60, 3).echelle).toBeLessThanOrEqual(ECHELLE_CAMERA_MAX + 1e-9);
+  });
+
+  it("mot par mot « cascade » : un mot encore à sa montée maximale reste au-dessus de la bande des sous-titres", () => {
+    const bandeHaut = 1920 * (1 - BANDE_SOUS_TITRES_CAS_CONCRET);
+    const montee = styleMotParMot({ motParMot: "cascade" })!.monteePx;
+    expect(montee).toBe(MONTEE_CASCADE_PX);
+    let mesures = 0;
+    for (const p of pleins()) {
+      if (p.type === "liste-avant") continue;
+      for (const t of disposer(p).textes) {
+        expect(t.boite.y + t.boite.hauteur + montee, `${p.type}/${t.nom} bas`).toBeLessThanOrEqual(bandeHaut);
         mesures++;
       }
     }
@@ -259,6 +280,13 @@ describe("Variété · 300 identifiants simulés", () => {
     }
     // Les trois maquettes qui n'étaient jamais vues, et toutes les autres.
     for (const c of ["res-mois-rempli", "acc-duel-tailles", "ava-cadran", "que-champ-reponse", "que-geante", "res-coupe-deux"]) expect(vus.has(c), c).toBe(true);
+    // Types à 3 maquettes L6 (accroche comprise, malgré le poids de l'ouverture) : aucune n'étouffe les autres.
+    for (const [type, codes] of Object.entries(MISES_EN_PAGE_L6)) {
+      if (codes.length !== 3) continue;
+      const p = parts(parType.get(type)!);
+      for (const c of codes) expect(p.find(([k]) => k === c)?.[1] ?? 0, `${type}:${c} tirée`).toBeGreaterThan(0.05);
+      for (const [k, part] of p) expect(part, `${type}:${k}`).toBeLessThanOrEqual(0.5);
+    }
     console.info("répartition des maquettes par type (300 vidéos) :", JSON.stringify(rapport));
   });
 
@@ -280,22 +308,28 @@ describe("Variété · 300 identifiants simulés", () => {
     for (const { mise } of a) expect(schemaMise.safeParse(mise).success).toBe(true);
   });
 
-  it("anti-répétition : l'écran résultat et la mise en page des questions ne se répètent pas sur 3 vidéos de suite (fenêtre réduite seulement si les options manquent)", () => {
+  it("anti-répétition : résultat et question ne portent jamais la même maquette que la vidéo précédente (deux maquettes L6 au moins), et la v4 n'y sert pas de relais", () => {
     const ecransMis = videoRiche();
     const idResultat = ecransMis.find((e) => e.type === "resultat")!.id;
     const idQuestion = ecransMis.find((e) => e.type === "question")!.id;
     for (const id of [idResultat, idQuestion]) {
-      for (let i = 3; i < SERIE300.length; i++) {
-        // Trois options (v4 comprise) au moins : trois vidéos de suite portent trois maquettes différentes.
-        const ecransFenetre = [0, 1, 2].map((k) => SERIE300[i - k]!.mise.ecrans[id]!);
-        // Un écran au fond fort garde la v4 (contrainte, pas un choix de maquette) : la fenêtre n'est pas jugée.
-        if (ecransFenetre.some((x) => x.fondFort)) continue;
-        const fenetre = ecransFenetre.map((x) => x.miseEnPage);
-        expect(new Set(fenetre).size, `${id}@${i} ${fenetre.join(",")}`).toBe(3);
+      let v4 = 0;
+      let n = 0;
+      for (let i = 1; i < SERIE300.length; i++) {
+        const [avant, ici] = [SERIE300[i - 1]!.mise.ecrans[id]!, SERIE300[i]!.mise.ecrans[id]!];
+        // Un écran au fond fort garde la v4 (contrainte, pas un choix de maquette) : non jugé.
+        if (avant.fondFort || ici.fondFort) continue;
+        n++;
+        if (ici.miseEnPage === "v4-centree") v4++;
+        expect(ici.miseEnPage, `${id}@${i}`).not.toBe(avant.miseEnPage);
       }
+      expect(v4 / n, `${id} part de v4`).toBeLessThanOrEqual(0.1);
     }
   });
 });
+
+/** `jeuDeLEcran` de la mise de la fixture, tel que calculé par master avant ce lot (valeurs relevées, jamais recalculées ici). */
+const JEUX_DE_MASTER = [{"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "acc-duel-tailles"}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "ava-cartes-tombent"}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "tit-mot-objet"}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "eta-entrer-dedans", "animObjet": 1}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "eta-schema-feutre", "raccordEntree": "dedans-ivoire", "animObjet": 2}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "obj-etiquette-pend"}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "chi-aplat-orange"}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "pre-compter-objets", "raccordSortie": "objet"}, {"groupeParticules": 4, "densiteParticules": "dense", "barres": "proportionnelles", "miseEnPage": "res-mois-rempli", "raccordEntree": "objet"}, {"groupeParticules": 4, "densiteParticules": "dense", "miseEnPage": "que-geante"}];
 
 describe("Vidéos déjà faites : rendu inchangé", () => {
   it("un tirage écrit avant ce lot (sans `habille`) ne pose aucune des cinq dimensions d'habillage", () => {
@@ -312,18 +346,11 @@ describe("Vidéos déjà faites : rendu inchangé", () => {
     expect(poses.length).toBeGreaterThan(0);
   });
 
-  it("le jeu d'une vidéo faite avant (valeurs hors habillage) est identique à celui de maintenant : empreinte épinglée", () => {
-    const { mise } = chaine(1, "v-ancienne")[0]!;
-    const { habille: _h, ...ancien } = mise.tirage;
-    void _h;
-    const vieille: Mise = { ...mise, tirage: ancien };
-    const jeux = Object.keys(vieille.ecrans).map((id) => jeuDeLEcran(vieille, id) ?? null);
-    const horsHabillage = Object.keys(mise.ecrans).map((id) => {
-      const j = { ...(jeuDeLEcran(mise, id) ?? {}) } as Record<string, unknown>;
-      for (const d of DIMENSIONS_HABILLAGE) delete j[d];
-      return Object.keys(j).length ? j : null;
-    });
-    expect(jeux).toEqual(horsHabillage);
+  it("mise réelle écrite par master (avant ce lot, fixture figée) : le jeu de chaque écran est celui, fixe, que master en tirait", () => {
+    const mise = schemaMise.parse(JSON.parse(readFileSync(new URL("./fixtures/mise-ecrite-par-master.json", import.meta.url), "utf8")));
+    expect(mise.tirage.habille).toBeUndefined();
+    const ids = Object.keys(mise.ecrans);
+    expect(ids.map((id) => jeuDeLEcran(mise, id) ?? null)).toEqual(JEUX_DE_MASTER);
   });
 
   it("valeurs v4 et variantes non rendues jamais posées ; tirage v4 : aucun jeu", () => {
