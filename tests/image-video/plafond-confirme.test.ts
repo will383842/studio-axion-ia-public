@@ -101,7 +101,10 @@ async function plafondGarde(videoId: string, centimes: number) {
   await depots().travaux.enregistrer({ ...t, parametres: { ...t.parametres, imageVideo: { ...e, caisse: { ...e.caisse, plafondCentimes: centimes }, demande: { ...e.demande, plafondCentimes: centimes } } } });
 }
 
-/** Voix arrêtée comme avant l'ordre « le prix ne bloque jamais » (états déjà gardés) : refus IV_PLAFOND réessayable, rien de lu. */
+/**
+ * Voix arrêtée comme avant l'ordre « le prix ne bloque jamais » : le moteur ne produit plus IV_PLAFOND, il est donc FABRIQUÉ ici
+ * (refus IV_BUDGET réécrit en IV_PLAFOND) pour les anciens états déjà gardés, dont « Relever le plafond » doit rester capable. Rien de lu.
+ */
 async function arreterSurPlafond(videoId: string, prix: number, formules: { cle: string }[]) {
   creditEpuise = true;
   await ecran.validerScriptEtReprendre(videoId, { choixFormules: Object.fromEntries(formules.map((f) => [f.cle, "garder" as const])), ajoutsWill: [] }, prix);

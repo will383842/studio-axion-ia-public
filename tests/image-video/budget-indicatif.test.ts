@@ -25,7 +25,7 @@ describe("caisse Image → vidéo en mode indicatif", () => {
   it("sans outil indicatif : plafond trop bas → simple avertissement au journal, la lecture part (le crédit réel suffit)", async () => {
     const x = demarrer(10);
     const apres = await avancerJusquAArretIV(x.e, x.o);
-    expect(apres.refus?.code).not.toBe("IV_PLAFOND");
+    expect(apres.refus).toBeUndefined();
     expect(x.m.appelsClaude.length).toBeGreaterThan(0);
     expect(apres.journal.some((l) => l.startsWith("Avertissement"))).toBe(true);
   });
@@ -42,7 +42,7 @@ describe("caisse Image → vidéo en mode indicatif", () => {
   it("indicatif : même au-delà de 5 × le plafond, plus d'arrêt de sécurité (ordre du 25/10) : Will est prévenu, la lecture part", async () => {
     const x = demarrer(1, { facteurSecurite: 5 });
     const apres = await avancerJusquAArretIV(x.e, x.o);
-    expect(apres.refus?.code).not.toBe("IV_PLAFOND");
+    expect(apres.refus).toBeUndefined();
     expect(x.signaux.length).toBeGreaterThan(0);
     expect(x.m.appelsClaude.length).toBeGreaterThan(0);
   });
@@ -50,7 +50,7 @@ describe("caisse Image → vidéo en mode indicatif", () => {
   it("sans outil indicatif : plafond 1 c, jamais d'arrêt IV_PLAFOND", async () => {
     const x = demarrer(1);
     const apres = await avancerJusquAArretIV(x.e, x.o);
-    expect(apres.refus?.code).not.toBe("IV_PLAFOND");
+    expect(apres.refus).toBeUndefined();
     expect(x.m.appelsClaude.length).toBeGreaterThan(0);
   });
 

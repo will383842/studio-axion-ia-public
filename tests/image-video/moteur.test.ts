@@ -898,7 +898,7 @@ describe("reprise après erreur, sans repayer", () => {
     // Le corps n'est jamais relu : seules les fins sont lues après la relance automatique (même tentative).
     expect(m.lus.filter((t) => t === m.lus[0]).length).toBe(1);
     expect(etat.tentatives.voix).toBe(1);
-    expect(etat.journal.some((l) => /Panne passagère : étape « voix » relancée automatiquement \(1\/3/.test(l))).toBe(true);
+    expect(etat.journal.some((l) => /panne passagère, un nouvel essai automatique de la voix/.test(l))).toBe(true);
   });
 
   it("rendu en cours : attente, rien n'est perdu ni compté deux fois, le pas suivant reprend", async () => {
@@ -923,16 +923,16 @@ describe("reprise après erreur, sans repayer", () => {
     const m = monde();
     const base = outilsSimules(carte, m);
     let vide = true;
-    const o: OutilsFabricationIV = { ...base, ecriture: { appeler: async (role, entree) => (vide ? { ok: true, simule: true, texte: "" } : base.ecriture.appeler(role, entree)) } };
+    // Relance automatique coupée : on compte ici les seuls appels d'écriture du moteur et de la reprise de Will.
+    const o: OutilsFabricationIV = { ...base, relancesAuto: false, ecriture: { appeler: async (role, entree) => (vide ? { ok: true, simule: true, texte: "" } : base.ecriture.appeler(role, entree)) } };
     let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte)), o);
     e = await avancerJusquAArretIV(validerCarteIV(e, decisionCarte(e)), o);
     expect(e.refus).toMatchObject({ etape: "ecriture", code: "IV_ECRITURE", reessayable: true });
-    // Refus de forme : refait une fois seul en mode réparé (2e tentative, comptée à part), puis refus rendu à Will.
-    expect(e.caisse.reservations.filter((r) => r.etape === "ecriture")).toHaveLength(4);
+    expect(e.caisse.reservations.filter((r) => r.etape === "ecriture")).toHaveLength(2);
     vide = false;
     e = await avancerJusquAArretIV(reprendreIV(e), o);
     expect(e.etape).toBe("script-a-valider");
-    expect(e.caisse.reservations.filter((r) => r.etape === "ecriture")).toHaveLength(5);
+    expect(e.caisse.reservations.filter((r) => r.etape === "ecriture")).toHaveLength(3);
   });
 
   it("contrôles refusés puis repris : transcriptions et relectures déjà payées ne sont pas redemandées", async () => {
@@ -962,9 +962,9 @@ describe("plafond par vidéo : un avertissement, jamais un arrêt tant que le cr
   it("plafond trop bas pour la lecture : la lecture part, avertissement au journal", async () => {
     const { m, o, e } = demarrer("C", {}, { plafondCentimes: 10 });
     const apres = await avancerJusquAArretIV(e, o);
-    expect(apres.refus?.code).not.toBe("IV_PLAFOND");
+    expect(apres.refus).toBeUndefined();
     expect(m.appelsClaude.length).toBeGreaterThan(0);
-    expect(apres.journal.some((l) => /Avertissement : cette vidéo dépasse son prix annoncé/.test(l))).toBe(true);
+    expect(apres.journal.some((l) => /Avertissement : Cette vidéo dépasse son prix annoncé/.test(l))).toBe(true);
   });
 
   it("plafond atteint à la voix : la voix est lue quand même, la vidéo va au bout sans rien repayer", async () => {

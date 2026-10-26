@@ -284,6 +284,8 @@ export interface EtatFabricationIV {
   caisse: { plafondCentimes: number; reservations: ReservationIV[] };
   /** Nombre de passages de chaque étape (une reprise en ouvre un nouveau : ses appels sont comptés à part). */
   tentatives: Partial<Record<EtapeChaineIV, number>>;
+  /** Relances automatiques de chaque étape dans la tentative en cours : chacune réserve de nouveau (l'appel qui repart est un appel réel de plus). */
+  relances?: Partial<Record<EtapeChaineIV, number>>;
   /** Compteur des identifiants d'appel donnés aux contrôles (jamais deux fois le même, d'une exécution à l'autre). */
   compteurAppels?: number;
   /** Lectures payées, gardées même après un refus (reprise sans relire). */
@@ -428,6 +430,8 @@ export interface OutilsFabricationIV {
      * Absent : mode bloquant, comportement d'avant.
      */
     indicatif?: { facteurSecurite: number; signaler: (message: string) => Promise<void> };
+    /** Prévient Will d'un prix annoncé dépassé quand il n'y a pas d'outil indicatif (même canal que `indicatif.signaler`). */
+    avertir?: (message: string) => Promise<void>;
   };
   /** Sons validés (défaut : ceux de la v4, `BRUITAGES_V4_IV`). */
   bruitagesValides?: readonly BruitageValideIV[];
@@ -439,8 +443,10 @@ export interface OutilsFabricationIV {
   decisions?: { carte?: () => Promise<DecisionCarteIV | null>; script?: () => Promise<DecisionScriptIV | null> };
   /** Heure ISO (validation automatique de la carte en « si-doute »). */
   maintenant: () => string;
-  /** Attente entre deux relances automatiques d'une panne (défaut : attente réelle ; les essais injectent une attente vide). */
+  /** Attente avant l'unique relance automatique d'une panne (défaut : attente réelle ; les essais injectent une attente vide). */
   pause?: (ms: number) => Promise<void>;
+  /** Faux : aucune relance automatique (défaut : vrai). Les essais qui comptent chaque appel payé le coupent. */
+  relancesAuto?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -601,6 +607,7 @@ export function recettesDesVersionsIV(e: EtatFabricationIV): { version: string; 
 /* ------------------------------------------------------------------ */
 
 class Caisse {
+  /** Resté faux : le prix annoncé ne bloque plus jamais (seul le crédit réel refuse). Gardé pour `plafond()` des anciens refus. */
   arretPlafond: string | null = null;
   constructor(
     private readonly etat: EtatFabricationIV,
@@ -610,20 +617,24 @@ class Caisse {
 
   /** Réserve un appel ; refus (plafond ou budget du studio) : rien ne part. Idempotent par appel et par tentative. */
   async reserver(d: Omit<DemandeDepenseIV, "videoId">): Promise<{ ok: true } | { ok: false; message: string }> {
-    const cle = `${this.etape}#${this.etat.tentatives[this.etape] ?? 1}:${d.appelId}`;
+    // Une relance automatique (même tentative) ouvre une série de clés neuve : l'appel qui repart est réservé de nouveau, jamais « déjà fait ».
+    const relance = this.etat.relances?.[this.etape] ?? 0;
+    const serie = `${this.etape}#${this.etat.tentatives[this.etape] ?? 1}${relance ? `.r${relance}` : ""}`;
+    const cle = `${serie}:${d.appelId}`;
+    if (relance) d = { ...d, appelId: `${d.appelId}.r${relance}` };
     if (this.etat.caisse.reservations.some((r) => r.cle === cle)) return { ok: true };
     const engage = engageCentimes(this.etat);
     const centimes = Math.max(0, Math.ceil(d.centimes));
-    const ind = this.outils.budget.indicatif;
+    const prevenir = this.outils.budget.indicatif?.signaler ?? this.outils.budget.avertir;
     const plafond = this.etat.caisse.plafondCentimes;
-    if (ind && engage + centimes > plafond) {
-      // Règle du 25/10 : en indicatif le prix ne bloque jamais. Repère dépassé : Will est prévenu, la fabrication continue (la réservation reste posée).
-      await ind.signaler(`Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`).catch(() => undefined);
-    }
+    const depasse = engage + centimes > plafond;
+    const phrase = `Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`;
+    // Règle du 25/10 : le prix ne bloque jamais. Repère dépassé : Will est prévenu (même canal avec ou sans outil indicatif), la fabrication continue.
+    if (depasse && prevenir) await prevenir(phrase).catch(() => undefined);
     const r = await this.outils.budget.reserver({ ...d, videoId: this.etat.demande.videoId, centimes });
     if (!r.ok) return r;
-    // Le prix annoncé ne bloque jamais : le crédit réel du studio a accepté la réservation, Will est seulement prévenu.
-    if (!ind && engage + centimes > plafond) this.etat.journal.push(`Avertissement : cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus) ; le crédit réel suffit, la fabrication continue.`);
+    // Seul le crédit réel du studio peut refuser ; le journal garde la trace du dépassement une fois la réservation acceptée.
+    if (depasse && !this.outils.budget.indicatif) this.etat.journal.push(`Avertissement : ${phrase} Le crédit réel suffit, la fabrication continue.`);
     this.etat.caisse.reservations.push({ cle, etape: d.etape, fournisseur: d.fournisseur, centimes });
     return { ok: true };
   }
@@ -1027,40 +1038,47 @@ function publicationDe(e: EtatFabricationIV): { publication: PublicationIV; lien
  */
 export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabricationIV): Promise<EtatFabricationIV> {
   let e = await avancerUnPasIV(entree, outils);
-  const essais: string[] = [];
-  let repare = false;
-  let pannes = 0;
-  // Filet général : une panne passagère relance la MÊME étape (même tentative : la caisse ne repaie rien) jusqu'à 3 fois, avec
-  // une attente croissante ; un refus de forme réessayable est relancé une fois en mode réparé (nouvelle tentative, payé gardé).
-  while (e.refus && e.etape === "refusee" && e.refus.reessayable) {
-    const { etape, code } = e.refus;
-    if (code === "IV_PANNE" && pannes < PAUSES_PANNE_IV.length) {
-      const ms = PAUSES_PANNE_IV[pannes++];
-      await (outils.pause ?? ((t) => new Promise<void>((ok) => setTimeout(ok, t))))(ms);
-      essais.push(`étape « ${etape} » relancée automatiquement (${pannes}/${PAUSES_PANNE_IV.length}, après ${ms / 1000} s)`);
-      e = structuredClone(e);
-      delete e.refus;
-      e.etape = etape;
-      e.journal.push(`Panne passagère : ${essais[essais.length - 1]}.`);
-      e = await avancerUnPasIV(e, outils);
-    } else if (!repare && CODES_DE_FORME_IV.includes(code)) {
-      repare = true;
-      essais.push(`étape « ${etape} » refaite une fois en mode réparé`);
-      e.journal.push(`Refus de forme : ${essais[essais.length - 1]}.`);
-      e = await avancerUnPasIV(reprendreIV(e), outils);
-    } else break;
-  }
-  if (e.refus && e.etape === "refusee" && essais.length) {
-    e.refus.message = `${e.refus.message} Essayé automatiquement : ${essais.join(" ; ")}. Le bouton « Refaire cette partie » reste disponible.`;
-    e.journal.push(`Essais automatiques sans succès : ${essais.join(" ; ")}.`);
+  if (outils.relancesAuto === false || !e.refus || e.etape !== "refusee" || !e.refus.reessayable) return e;
+  const { etape, code } = e.refus;
+  // Filet : UNE seule relance par tour, pause courte ; l'espacement des essais suivants est celui de la boucle de fond (`apresPanne`).
+  // Chaque relance réserve de nouveau (`relances` entre dans la clé de la caisse) : un appel qui repart est toujours un appel réservé.
+  // Les contrôles ne sont jamais relancés ici : leurs transcriptions et relectures payées ne remontent à l'état qu'au retour de la porte.
+  // Pas de « mode réparé » : l'écriture rejoue déjà ses refus de forme dans sa consigne ; relancer un refus d'écriture est un simple nouvel essai.
+  if (!(CODES_RELANCABLES_IV.includes(code) && !(code === "IV_PANNE" && etape === "controles"))) return e;
+  await (outils.pause ?? ((t) => new Promise<void>((ok) => setTimeout(ok, t))))(PAUSE_RELANCE_IV_MS);
+  const quoi = code === "IV_PANNE" ? "panne passagère" : "refus de forme";
+  const phrase = `${quoi}, un nouvel essai automatique de ${NOMS_ETAPES_IV[etape]}`;
+  const relance = structuredClone(e);
+  delete relance.refus;
+  relance.etape = etape;
+  relance.journal.push(`${phrase}.`);
+  // Panne : même tentative, nouvelle série de clés de caisse. Écriture refusée : nouvelle tentative (ses appels sont comptés à part).
+  if (code === "IV_PANNE") relance.relances = { ...relance.relances, [etape]: (relance.relances?.[etape] ?? 0) + 1 };
+  else relance.tentatives[etape] = (relance.tentatives[etape] ?? 1) + 1;
+  e = await avancerUnPasIV(relance, outils);
+  if (e.refus && e.etape === "refusee") {
+    e.refus.message = `${e.refus.message} Essayé automatiquement : ${phrase}.${e.refus.reessayable ? " Vous pouvez aussi « Refaire cette partie »." : ""}`;
+    e.journal.push(`Essai automatique sans succès : ${phrase}.`);
   }
   return e;
 }
 
-/** Attentes (ms) avant chacune des 3 relances automatiques d'une panne passagère. */
-const PAUSES_PANNE_IV = [2000, 5000, 10000] as const;
-/** Refus dont la cause est une règle de forme (jamais les vraies causes : voix absente, rendu impossible, image illisible, chiffre faux). */
-const CODES_DE_FORME_IV: readonly CodeRefusIV[] = ["IV_ECRITURE", "IV_MISE_EN_SCENE", "IV_CONTROLES"];
+/** Pause avant l'unique relance automatique (courte : le tour de la boucle reste sous son délai ; le reste de l'espacement est celui de `apresPanne`). */
+const PAUSE_RELANCE_IV_MS = 1500;
+/** Refus relancés automatiquement une fois : une panne passagère, ou une écriture refusée sur la forme (les autres refus de forme ne sont pas réessayables). */
+const CODES_RELANCABLES_IV: readonly CodeRefusIV[] = ["IV_PANNE", "IV_ECRITURE"];
+/** Noms des étapes pour Will (jamais l'identifiant interne). */
+const NOMS_ETAPES_IV: Record<EtapeChaineIV, string> = {
+  lecture: "la lecture de l'image",
+  "carte-a-valider": "la validation de ce que j'ai compris",
+  ecriture: "l'écriture du script",
+  "script-a-valider": "la validation du script",
+  voix: "la voix",
+  "mise-en-scene": "la mise en scène",
+  rendu: "le montage de la vidéo",
+  controles: "les vérifications finales",
+  livraison: "la livraison",
+};
 
 async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricationIV): Promise<EtatFabricationIV> {
   if (estFinieIV(entree)) return entree;
@@ -1103,7 +1121,7 @@ async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricati
     // Q17 (son brut pas lisible en WAV) : « Refaire » relance la conversion, gratuite, sans relire la voix.
     if (err instanceof ErreurVoixIV) return refuser(e, etape, err.controle === "budget" ? plafond() : "IV_VOIX", err.message, { reessayable: err.controle === "budget" || err.controle === "Q17" });
     if (err instanceof ErreurRenduDefinitifIV) return refuser(e, etape, "IV_RENDU", err.message, { phrases: err.phrases, reessayable: false });
-    return refuser(e, etape, "IV_PANNE", `Panne pendant l'étape « ${etape} » : ${raisonDe(err)} Rien de ce qui est payé n'est perdu ; réessayez.`);
+    return refuser(e, etape, "IV_PANNE", `Panne pendant ${NOMS_ETAPES_IV[etape]} : ${raisonDe(err)} Rien de ce qui est payé n'est perdu ; réessayez.`);
   }
   return e;
 }
@@ -1312,8 +1330,9 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
       // Revers accepté : après une panne entre la réservation et la lecture, on réserve une fois de plus (sans risque).
       const marque = createHash("sha256").update(l.texte).digest("hex").slice(0, 10);
       const prefixe = `iv-voix-${l.prise}-${marque}-`;
-      const cle = `voix#${e.tentatives.voix ?? 1}:${prefixe}`;
-      const deja = e.caisse.reservations.filter((x) => x.cle.startsWith(cle)).length;
+      // Les relances automatiques (`.rN`) comptent aussi : une même série de clés ne revient jamais.
+      const serie = `voix#${e.tentatives.voix ?? 1}`;
+      const deja = e.caisse.reservations.filter((x) => (x.cle.startsWith(`${serie}:`) || x.cle.startsWith(`${serie}.r`)) && x.cle.includes(`:${prefixe}`)).length;
       const r = await caisse.reserver({ appelId: `${prefixe}${deja + 1}`, etape: "voix", fournisseur: "heygen", centimes: l.coutMaxCentimes, caracteres: l.caracteres });
       if (!r.ok) throw new Error(r.message);
     },

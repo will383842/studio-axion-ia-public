@@ -133,7 +133,7 @@ describe("mode texte · la fabrication saute la lecture d'image", () => {
     // Plafond trop bas : avertissement seulement, la conception part.
     const bas = outilsTexte();
     const e3 = await avancerJusquAArretIV(etatInitialIV({ ...demandeTexte(), plafondCentimes: 1 }), bas.o);
-    expect(e3.refus?.code).not.toBe("IV_PLAFOND");
+    expect(e3.refus).toBeUndefined();
     expect(bas.m.appelsClaude.length).toBeGreaterThan(0);
   });
 });

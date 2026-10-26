@@ -45,7 +45,7 @@ describe("machine : la voix part malgré un plafond bas en indicatif", () => {
     const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 100 })), outilsIndicatifs(carte, m, signaux), { pasMax: 4 });
     expect(e.miseDeCote).toBeUndefined();
     expect(e.etape).not.toBe("script-a-valider");
-    expect(e.refus?.code).not.toBe("IV_PLAFOND");
+    expect(e.refus).toBeUndefined();
     expect(m.lus.length).toBeGreaterThan(0);
     expect(signaux.length).toBeGreaterThan(0);
   });
@@ -61,7 +61,7 @@ describe("machine : la voix part malgré un plafond bas en indicatif", () => {
     const carte = carteFixe("E");
     const m = monde();
     const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 1 })), outilsIndicatifs(carte, m, []), { pasMax: 4 });
-    expect(e.refus?.code).not.toBe("IV_PLAFOND");
+    expect(e.refus).toBeUndefined();
     expect(m.appelsClaude.length).toBeGreaterThan(0);
   });
   it("témoin bloquant : plafond 100 c, le script est mis de côté, aucune voix", async () => {
@@ -75,7 +75,7 @@ describe("machine : la voix part malgré un plafond bas en indicatif", () => {
     const carte = carteFixe("E");
     const m = monde();
     const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 1 })), outilsSimules(carte, m, { cartesValidees: 0 }));
-    expect(e.refus?.code).not.toBe("IV_PLAFOND");
+    expect(e.refus).toBeUndefined();
   });
 });
 
