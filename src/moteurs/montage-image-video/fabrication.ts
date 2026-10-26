@@ -313,6 +313,8 @@ export interface EtatFabricationIV {
    * échec de rendu d'une version ; s'il existe déjà, un 2e échec est `IV_RENDU`. Effacé avec `ecransAdaptes`.
    */
   ecransImposesRendu?: Record<string, string[]>;
+  /** Versions dont l'imposition du texte seul est un repli « tous les écrans » (le rendu n'a nommé aucun écran retrouvé). */
+  ecransImposesRepli?: Record<string, true>;
   /** Remarques pour Will (non bloquantes) nées de la fabrication, reprises dans les mentions de la livraison ; recalculées à chaque mise en scène. */
   remarques?: string[];
   rendus?: Record<string, RenduFaitIV>;
@@ -784,6 +786,7 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   delete e.scenes;
   delete e.ecransAdaptes;
   delete e.ecransImposesRendu;
+  delete e.ecransImposesRepli;
   delete e.remarques;
   e.journal.push(`Script validé par Will${d.fiche ? " (modifié)" : ""} : la voix peut être payée.`);
   return passerA(e, "voix");
@@ -822,6 +825,7 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     delete e.scenes;
     delete e.ecransAdaptes;
     delete e.ecransImposesRendu;
+    delete e.ecransImposesRepli;
     delete e.remarques;
     if (avantVariete) delete e.rendus;
     e.etape = "mise-en-scene";
@@ -868,6 +872,7 @@ function poserSecoursIV(e: EtatFabricationIV, secours: SecoursIV): void {
   delete e.scenes;
   delete e.ecransAdaptes;
   delete e.ecransImposesRendu;
+  delete e.ecransImposesRepli;
   delete e.remarques;
   delete e.tentatives.livraison;
   if (secours.phrases.length) e.journal.push(`Fin de secours pour ${secours.reseaux.join(", ")} : « ${secours.phrases.join(" ")} » (validée par Will).`);
@@ -1502,7 +1507,7 @@ async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Pr
   return res;
 }
 
-async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
+export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   // Reprise d'un travail dont le script a été écrit avant la variété : recette tirée ici, une seule fois, sans rien
   // réécrire ni refaire la voix. Le script a été écrit sans recette, donc avec le récit de référence : le récit est
   // forcé à REC-A (les autres axes ne lisent que la carte et se replient d'eux-mêmes si le script ne s'y prête pas).
@@ -1519,7 +1524,7 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   delete e.remarques;
   for (const v of versionsDe(e)) {
     const imposes = e.ecransImposesRendu?.[v.id] ?? [];
-    if (imposes.length) (e.remarques ??= []).push(`${nomVersion(v)} : ${imposes.length} écran(s) que la vidéo ne savait pas montrer tels quels sont passés en texte seul (${imposes.join(", ")}).`);
+    if (imposes.length) (e.remarques ??= []).push(`${nomVersion(v)} : ${imposes.length} écran(s) que la vidéo ne savait pas montrer tels quels sont passés en texte seul (${imposes.join(", ")})${e.ecransImposesRepli?.[v.id] ? " : repli sur tous les écrans, le rendu n'en a nommé aucun retrouvé" : ""}.`);
     // 25/10 (zéro blocage, v-b54bb4798246) : un défaut de détail (Q13 chiffre non montré, Q14 rythme) ne refuse plus la vidéo :
     // les écrans cités passent en texte seul (3 essais au plus) ; s'il persiste, la vidéo continue et le défaut reste au journal.
     const mettre = (adaptes: readonly string[]) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, [...imposes, ...adaptes]) });
@@ -1580,6 +1585,11 @@ export const VERSION_COMPOSITIONS_IV = "compositions-iv/14"; // /14 (26/10/2026)
  * temps retrouvé par ses plans) ; à défaut, tous ceux qui ont un texte d'écran. PUR.
  */
 export function ecransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nommes: readonly string[] | undefined): string[] {
+  return choisirEcransAAdapterIV(fiche, ligne, nommes).ids;
+}
+
+/** Idem `ecransAAdapterIV`, et dit si c'est un repli « tous les écrans » (le rendu n'a nommé aucun écran retrouvé). PUR. */
+export function choisirEcransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nommes: readonly string[] | undefined): { ids: string[]; repli: boolean } {
   const avecTexte = fiche.ecrans.filter((x) => x.textesEcran.length).map((x) => x.id);
   const trouves = new Set<string>();
   for (const id of nommes ?? []) {
@@ -1587,7 +1597,7 @@ export function ecransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nomme
     const bloc = ligne.blocs.find((b) => b.id === id);
     if (bloc) for (const p of ligne.plans) if (p.ecran && avecTexte.includes(p.ecran) && p.debut < bloc.fin - 1e-6 && p.fin > bloc.debut + 1e-6) trouves.add(p.ecran);
   }
-  return trouves.size ? avecTexte.filter((x) => trouves.has(x)) : avecTexte;
+  return trouves.size ? { ids: avecTexte.filter((x) => trouves.has(x)), repli: false } : { ids: avecTexte, repli: true };
 }
 
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
@@ -1600,25 +1610,32 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     if (e.rendus[v.id]?.demande === id) continue;
     const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 };
     let r: Awaited<ReturnType<OutilsFabricationIV["rendre"]>>;
+    /** Écran irrendable : au 1er échec de la version, ses écrans passent en texte seul et la mise en scène est refaite ; au 2e : IV_RENDU. */
+    const textesSeuls = (err: ErreurRenduDefinitifIV): EtatFabricationIV => {
+      const { ids, repli } = choisirEcransAAdapterIV(v.fiche, ligne, err.ecransIrrendables);
+      if (e.ecransImposesRendu?.[v.id] || !ids.length) throw err;
+      e.ecransImposesRendu = { ...(e.ecransImposesRendu ?? {}), [v.id]: ids };
+      if (repli) e.ecransImposesRepli = { ...(e.ecransImposesRepli ?? {}), [v.id]: true };
+      e.journal.push(`Remarque · ${nomVersion(v)} : écran(s) irrendable(s) passé(s) en texte seul (${ids.join(", ")}${repli ? " : repli sur tous les écrans, le rendu n'en a nommé aucun retrouvé" : ""}) ; la mise en scène est refaite.`);
+      delete e.scenes;
+      return passerA(e, "mise-en-scene");
+    };
     try {
       r = await o.rendre(demandeRendu);
     } catch (err) {
       if (estAttenteIV(err)) throw err;
-      if (err instanceof ErreurRenduDefinitifIV) {
-        // Écran irrendable : au 1er échec de la version, ses écrans passent en texte seul et la mise en scène est refaite ; au 2e : IV_RENDU.
-        const ids = ecransAAdapterIV(v.fiche, ligne, err.ecransIrrendables);
-        if (e.ecransImposesRendu?.[v.id] || !ids.length) throw err;
-        e.ecransImposesRendu = { ...(e.ecransImposesRendu ?? {}), [v.id]: ids };
-        e.journal.push(`Remarque · ${nomVersion(v)} : écran(s) irrendable(s) passé(s) en texte seul (${ids.join(", ")}) ; la mise en scène est refaite.`);
-        delete e.scenes;
-        return passerA(e, "mise-en-scene");
-      }
+      if (err instanceof ErreurRenduDefinitifIV) return textesSeuls(err);
       // Zéro blocage : une panne passagère du rendu est refaite une fois toute seule ; l'attente repart telle quelle.
       if ((e.tentatives.rendu ?? 1) >= 2) throw err;
       e.journal.push(`Remarque · rendu de ${nomVersion(v)} en panne (${raisonDe(err)}) : refait automatiquement une fois.`);
       // L'essai est noté avant de relancer : si le serveur répond « rendu en cours », la reprise demande directement le bon essai.
       e.tentatives.rendu = demandeRendu.essai + 1;
-      r = await o.rendre({ ...demandeRendu, essai: demandeRendu.essai + 1 });
+      try {
+        r = await o.rendre({ ...demandeRendu, essai: demandeRendu.essai + 1 });
+      } catch (err2) {
+        if (err2 instanceof ErreurRenduDefinitifIV) return textesSeuls(err2);
+        throw err2;
+      }
     }
     e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };
     e.journal.push(`Rendu de ${nomVersion(v)}.`);
