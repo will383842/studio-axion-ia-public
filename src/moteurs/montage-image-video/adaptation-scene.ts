@@ -58,6 +58,10 @@ export interface IssueAdaptationIV {
 export const DEFAUTS_DE_DETAIL_IV = ["Q13", "Q14"] as const;
 const estDetail = (code: string) => (DEFAUTS_DE_DETAIL_IV as readonly string[]).includes(code);
 
+/** Lignes « zéro blocage » (règle du 25/10/2026) : un défaut de ces lignes est une remarque, jamais un blocage. Q13 et Q14 (la boucle d'adaptation) n'y figurent pas : ils sont dans `DEFAUTS_DE_DETAIL_IV`. */
+export const LIGNES_ZERO_BLOCAGE_IV = ["Q12", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q25", "Q27", "FOND", "ORANGE", "FIN", "SCENE"] as const;
+const estZeroBlocage = (code: string) => estDetail(code) || (LIGNES_ZERO_BLOCAGE_IV as readonly string[]).includes(code);
+
 /**
  * Met en scène une version avec le filet. `mettre(adaptes)` rend la mise en scène avec les écrans déjà adaptés
  * (les `deja` d'abord, puis ceux de cet appel). `fiche` (facultative) limite les écrans désignés à ceux qui ne sont pas
@@ -93,7 +97,7 @@ export function mettreEnSceneAvecFiletIV(mettre: (adaptes: readonly string[]) =>
     }
   }
   if (resultat.ok) return { resultat, adaptes, refus: [], gardes: [], journal };
-  if (detailSeul(resultat)) {
+  if (!resultat.ok && resultat.rapport.bloquants.every((b) => estZeroBlocage(b.code))) {
     const gardes = resultat.phrases;
     journal.push(`Mise en scène (${nom}) : défaut de détail gardé après ${adaptes.length ? "adaptation" : "analyse"}, la vidéo continue : ${gardes.join(" ; ")}`);
     return { resultat, adaptes, refus: [], gardes, journal };
