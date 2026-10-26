@@ -14,6 +14,7 @@
  * design, `familles.ts`) et le contrôle applique les règles de diversité R1 à R7 ; `rendable` est faux si le plan livré
  * échoue sur R1, R3a, R4a ou R5a (il ne doit pas être rendu).
  */
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { schemaCalque, schemaCarte, schemaElementV3, schemaElementV4, schemaFenetre, schemaMotionTypee, schemaMouvement, VERSION_PLAN_FACECAM_ANIMEE, type ElementV3Plan, type ElementV4Plan, type MotionPlan, type PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
 import { schemaJson } from "@/generateur/roles/types";
@@ -87,6 +88,8 @@ export interface EntreeRealisateur {
   /** Durée totale de la vidéo, écran de fin compris. */
   dureeSec: number;
   titre?: string;
+  /** Identifiant de la vidéo : graine du repli (sha256), même vidéo → même plan. Absent : empreinte de la prise. */
+  videoId?: string;
   /** Les 5 dernières vidéos (la plus récente en premier). */
   historique?: HistoriqueVideo[];
   /** Plafond Claude du mois atteint (lu par le service AVANT tout appel). */
@@ -219,12 +222,21 @@ export function graineDe(src: string, mots: readonly MotTranscrit[]): number {
   return h % 1000;
 }
 
+/** Graine du repli d'après l'identifiant de la vidéo (sha256, jamais l'heure) : entre 0 et 999. */
+export function graineVideo(videoId: string): number {
+  return parseInt(createHash("sha256").update(videoId).digest("hex").slice(0, 12), 16) % 1000;
+}
+
+/** Plaquettes d'ouverture des 3 dernières vidéos (la plus récente en premier) : la nouvelle vidéo n'ouvre pas sur l'une d'elles. */
+export const ouverturesRecentes = (historique: readonly HistoriqueVideo[] | undefined): string[] =>
+  (historique ?? []).slice(0, 3).flatMap((h) => (h.ouvertureV4 ? [h.ouvertureV4] : []));
+
 /**
  * VERSION SIMPLE (repli sans Claude, Lot I du 17/10) : le plan v4 MINIMAL (`plan-minimal-v4.ts`, plaquettes simples en rotation sur les mots
  * dits), contrôlé par `verifierPlan`. L'ancienne version par règles fixes (`realiserParRegles`, ancien catalogue) n'est plus appelée ici.
  */
 function versionSimple(entree: EntreeRealisateur, essais: number, phrase?: string, erreursClaude?: string[]): ResultatRealisateur {
-  const elementsV4 = planMinimalV4({ mots: entree.mots, horizon: debutFin(entree), graine: graineDe(entree.prise.src, entree.mots) });
+  const elementsV4 = planMinimalV4({ mots: entree.mots, horizon: debutFin(entree), graine: entree.videoId ? graineVideo(entree.videoId) : graineDe(entree.prise.src, entree.mots), eviterOuvertures: ouverturesRecentes(entree.historique) });
   const plan = assemblerPlan(entree, { cartes: [], fenetres: [], calques: [], zooms: [], elementsV4 });
   const v = verifierPlan(plan, entree.mots, { historique: entree.historique });
   const erreurs = erreursClaude ?? (v.erreurs.length ? v.erreurs : undefined);
