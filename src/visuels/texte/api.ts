@@ -1,6 +1,6 @@
 import { PAGES, TYPES_PAGE } from "../../briques/visuels/registre-pages";
 import { consigneTrame, type Intention } from "../../briques/visuels/trames";
-import type { DemandeTexteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
+import type { DemandeTexteCarrousel, EmpreinteCarrousel, FournisseurTexteCarrousel, ReponseTexteCarrousel } from "../../domaine/visuels/contrats";
 import { lirePaquetSession } from "./session";
 import { ErreurTexteCarrousel, exigerApiDeverrouillee } from "./verrou-api";
 
@@ -17,8 +17,13 @@ export const CONSIGNE_API = [
 ].join("\n");
 
 /** Consigne de l'API, suivie du plan et des consignes d'écriture de la trame quand le carrousel a une intention (L12). */
-export function consigneApi(intention?: Intention): string {
-  return intention ? `${CONSIGNE_API}\n${consigneTrame(intention)}` : CONSIGNE_API;
+export function consigneApi(intention?: Intention, eviter: readonly EmpreinteCarrousel[] = []): string {
+  const base = intention ? `${CONSIGNE_API}\n${consigneTrame(intention)}` : CONSIGNE_API;
+  const suites = [...new Set(eviter.map((e) => e.suite))].slice(0, 3);
+  // Anti-répétition (L7) dite au rédacteur AVANT l'écriture : les 3 dernières suites de pages et leurs couvertures ne sont pas reprises.
+  if (!suites.length) return base;
+  const couvertures = [...new Set(eviter.slice(0, 3).map((e) => e.couverture.split(":")[0]).filter(Boolean))];
+  return `${base}\nVariété : ne pas reprendre la suite de pages d'un des derniers carrousels (${suites.join(" | ")})${couvertures.length ? ` ni leur modèle de couverture (${couvertures.join(", ")}) quand un autre convient` : ""}.`;
 }
 
 /** Fournisseur « api » : verrouillé. La première instruction d'`ecrire` refuse tant que le verrou n'est pas levé par Will. */
@@ -28,7 +33,7 @@ export function creerFournisseurApi(deps: DependancesApi): FournisseurTexteCarro
     async ecrire(demande: DemandeTexteCarrousel): Promise<ReponseTexteCarrousel> {
       exigerApiDeverrouillee();
       if (demande.type !== "sujet") throw new ErreurTexteCarrousel("SUJET_INVALIDE", "Le fournisseur API attend un sujet.");
-      const sortie = await deps.appeler(consigneApi(demande.intention), demande.sujet);
+      const sortie = await deps.appeler(consigneApi(demande.intention, demande.eviter), demande.sujet);
       return { ...lirePaquetSession(sortie), mode: "api" };
     },
   };
