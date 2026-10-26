@@ -71,6 +71,7 @@ RÈGLES (le script est refusé sinon) :
 - Rien d'oublié : chaque chiffre de la carte marqué à dire est dit ; chaque bloc est cité dans les "refs" d'un écran (sauf une photo de personnes, jamais reprise).
 - Rien d'inventé : aucun nombre hors de la carte (la numérotation « un… cinq » et les comptes visibles sont permis) ; aucune promesse absente de l'image.
 - Interdits, prioritaires même sur le mot pour mot : ${liste(INTERDITS_PERMANENTS)}, faux client (« un client a… »), nom d'exemple sans « par exemple », toute phrase d'appel (commentaire, lien, abonnement, diagnostic) dans le corps : la fin vient d'ailleurs.
+- Un nombre SEUL sur l'image (ex. « au lieu de 45 » dans « Facturer en 12 jours au lieu de 45 ») s'écrit dans le script EXACTEMENT comme sur l'image, SANS unité que l'image ne lui donne pas : écris « au lieu de 45 », jamais « 45 jours ». Ne recopie jamais l'unité d'un nombre sur son voisin, et n'inverse jamais deux nombres.
 - Formules très affirmatives (« zéro erreur », « toujours », « dès le premier jour »…) : reprends-les telles qu'écrites sur l'image ou selon <choix_formules> ; Will tranche.
 - Phrases de ${MOTS_PAR_PHRASE_MAX} mots au plus ; chiffres EN LETTRES dans "texteDit", en chiffres dans "textesEcran" (recopie exactement l'écriture de la carte) ; plages en toutes lettres dans "texteDit" (« vingt-quatre heures sur vingt-quatre », « sept jours sur sept »), jamais « H24 », « 24/7 » ni « 24/24 » ; un seul mot orange par écran (« *mot* »).
 - Durée : le corps tient dans <duree> au débit de ${String(DEBIT_MOTS_PAR_SEC).replace(".", ",")} mots par seconde (±${TOLERANCE_DUREE_IV * 100} %).
@@ -104,7 +105,25 @@ export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCart
 
 /** Relance guidée : la même demande, la réponse précédente et ses refus exacts. */
 export function variableRelanceIV(base: string, precedente: string, refus: readonly string[]): string {
-  return `${base}\n<reponse_precedente>${precedente}</reponse_precedente>\n<refus>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus>\nCorrige chacun de ces refus et rends la fiche entière.`;
+  const seuls = nombresSeulsDeLaCarte(base);
+  const precisions = new Set<string>();
+  for (const r of refus)
+    for (const m of r.matchAll(/«\s*(\d+(?:[.,]\d+)?)\s+[^»\s]+\s*»[^«]*?n'est pas sur l'image/g)) {
+      const x = m[1]!;
+      if (seuls.has(Number(x.replace(",", ".")))) precisions.add(`Écris ${x} tel quel, sans unité (comme sur l'image).`);
+    }
+  const precision = precisions.size ? `\n${[...precisions].join(" ")}` : "";
+  return `${base}\n<reponse_precedente>${precedente}</reponse_precedente>\n<refus>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus>${precision}\nCorrige chacun de ces refus et rends la fiche entière.`;
+}
+
+/** Nombres écrits SANS unité dans les chiffres de la carte (lue dans `<carte>` de la partie variable). */
+function nombresSeulsDeLaCarte(base: string): Set<number> {
+  try {
+    const carte = JSON.parse(/<carte>([\s\S]*?)<\/carte>/.exec(base)?.[1] ?? "") as { chiffres?: { valeur: number | null; unite: string }[] };
+    return new Set((carte.chiffres ?? []).filter((c) => c.valeur !== null && c.unite === "nombre").map((c) => c.valeur as number));
+  } catch {
+    return new Set();
+  }
 }
 
 /** Lit `<balise>` dans la partie variable (simulation). */
