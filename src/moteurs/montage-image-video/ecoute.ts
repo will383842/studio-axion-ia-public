@@ -318,14 +318,20 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
     const trou = formes.slice(avant + 1, apres);
     if (trou.length === 0 || suite.length > trou.length + 2) return undefined;
     const entendu = suite.map((k) => entendus[k].mot);
-    if (porteUnChiffre(trou) || porteUnChiffre(formesComparables(entendu.join(" ")))) return undefined;
+    // Un chiffre écrit, ou un trou du script qui porte déjà un nombre, n'est jamais pris pour une substitution sonore. Un MOT de nombre
+    // entendu (« deux vies » pour « devis ») l'est, tant que le passage du script remplacé n'en contient aucun : la transcription a
+    // entendu des sons, pas un chiffre (27/10/2026, vidéo refusée pour « la voix dit 2 »).
+    if (porteUnChiffre(trou) || entendu.some((m) => /\d/.test(m))) return undefined;
     const cleScript = cleSonore(trou.join(""));
     if (cleScript.length < CLE_SONORE_MIN) return undefined;
     return ecartNormalise(cleScript, cleSonore(entendu.join(""))) <= ECART_SONORE_MAX ? trou.join(" ") : undefined;
   };
+  /** Mots entendus (dont des mots de nombre) qui remplacent à l'oreille un passage du script sans nombre : jamais un chiffre inventé. */
+  const remplaces = new Set<number>();
   const fermer = () => {
     if (courant.length) {
       const remplace = remplacement(courant);
+      if (remplace) courant.forEach((k) => remplaces.add(k));
       ajouts.push({ texte: courant.map((k) => entendus[k].mot).join(" "), mots: courant.length, debutSec: entendus[courant[0]].debutSec, ...(remplace ? { remplace } : {}) });
     }
     courant = [];
@@ -368,7 +374,7 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
     }
     if (retire.length === 1 && retire[0] === "1|nombre") exemptes.add(k);
   });
-  const entendusCles = clesChiffresDits(entendus.filter((_, k) => !exemptes.has(k)).map((m) => m.mot).join(" "));
+  const entendusCles = clesChiffresDits(entendus.filter((_, k) => !exemptes.has(k) && !remplaces.has(k)).map((m) => m.mot).join(" "));
   const chiffresNonEntendus = [...new Set(attendus.filter((c) => !entendusCles.includes(c)))].map(lisible);
   const chiffresInventes = [...new Set(entendusCles.filter((c) => !attendus.includes(c)))].map(lisible);
 
