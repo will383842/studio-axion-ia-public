@@ -239,6 +239,13 @@ export function jugerFicheIV(brute: unknown, ctx: ContexteRegles): { ok: true; f
 /** Clé « valeur|unité » comme `regles.ts` la compare (Q05 : valeur ET unité, jamais la valeur seule). */
 const cleDe = (c: Pick<ChiffreDit, "valeur" | "unite">) => `${c.valeur}|${c.unite}`;
 
+/** Réécriture d'un chiffre comme `regles.ts` l'écrit dans ses refus (« 2 h », « 80 % », « 3h » pour une heure d'horloge). */
+function ecritureRelue(c: Pick<ChiffreDit, "valeur" | "unite">): string {
+  if (c.unite === "heure") return `${Math.floor(c.valeur! / 60)}h${c.valeur! % 60 ? String(c.valeur! % 60).padStart(2, "0") : ""}`;
+  const unites: Partial<Record<ChiffreDit["unite"], string>> = { "%": " %", "€": " €", sec: " s", min: " min", h: " h", jour: " jour" };
+  return `${String(c.valeur).replace(".", ",")}${unites[c.unite] ?? ""}`;
+}
+
 /** Clés des chiffres cités par un refus Q05 (« Écran e03 : « 12 », « 3 jour » ne sont pas sur l'image. »), ou null s'ils ne se relisent pas. */
 function clesRefusees(message: string): Set<string> | null {
   const bruts = [...message.matchAll(/«\s*([^»]+?)\s*»/g)].map((m) => m[1]!.replace(/\u00a0/g, " "));
@@ -246,6 +253,8 @@ function clesRefusees(message: string): Set<string> | null {
   for (const b of bruts) {
     const lu = chiffresDe(b)[0];
     if (!lu || lu.valeur === null) return null;
+    // Une heure pile « 3h » se relit comme une durée « 3 h » : si le chiffre relu ne réécrit pas le texte cité, pas de réparation.
+    if (ecritureRelue(lu) !== b) return null;
     cles.add(cleDe(lu));
   }
   return cles.size ? cles : null;
@@ -266,12 +275,14 @@ function sansPhrases(texte: string, refusees: Set<string>): { texte: string; dis
   let rang = 0;
   for (const phrase of phrases) {
     const mots = motsDits(phrase).length;
-    const { chiffres, calculs } = lectureChiffres(phrase);
+    // Q05 lit l'écran sans ses astérisques (« *25* jours » = « 25 jours ») : la réparation lit pareil.
+    const nue = phrase.replace(/\*/g, "");
+    const { chiffres, calculs } = lectureChiffres(nue);
     // Opérande refusé d'un calcul : la phrase du calcul part en entier (jamais « 16 + = 20 »).
     const calcul = calculs.some((v) => refusees.has(cleDe({ valeur: v, unite: "nombre" })));
     const refusee = calcul || chiffres.some((c) => refusees.has(cleDe(c)));
     // La lecture de « 2,5 h » rend « 2 » puis « 5 h » : l'entier d'un décimal ne compte pas comme un chiffre à part.
-    const entiersDecimaux = new Set([...phrase.matchAll(/(?<![\d.,])(\d+)[.,]\d/g)].map((m) => Number(m[1])));
+    const entiersDecimaux = new Set([...nue.matchAll(/(?<![\d.,])(\d+)[.,]\d/g)].map((m) => Number(m[1])));
     const autres = chiffres.some((c) => !refusees.has(cleDe(c)) && !(c.unite === "nombre" && entiersDecimaux.has(c.valeur!)));
     if (refusee && !calcul && autres) return null;
     if (refusee) for (let k = 0; k < mots; k++) disparus.add(rang + k);

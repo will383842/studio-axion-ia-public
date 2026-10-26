@@ -701,15 +701,36 @@ describe("écriture sans impasse : chiffre hors image retiré sans appel", () =>
       expect(e14(r.fiche).textesEcran).toEqual(["37 jours de retard"]);
     });
 
-    it("« Douze jours » et « 12 jours » de l'image restent, le 12 seul part avec sa phrase", async () => {
-      const carte12: CarteImage = { ...carteJours, chiffres: [...cartes.D.chiffres, { ...carteJours.chiffres.at(-1)!, brut: "12 jours", valeur: 12 }] };
-      const f = avecSurMot(`${D14} Douze jours de retard en moins. Douze e-mails en moins.`, ["12 jours", "12 e-mails"]);
-      const r = await lance(f, { carte: carte12 });
-      // 12 sans unité est permis tant que l'image compte 12 blocs ; on exige seulement que rien de l'image ne soit retiré.
+    it("« Quinze jours » et « 15 jours » de l'image restent, « Douze e-mails » et « 12 e-mails » partent avec leur phrase", async () => {
+      const carte15: CarteImage = { ...carteJours, chiffres: [...cartes.D.chiffres, { ...carteJours.chiffres.at(-1)!, brut: "15 jours", valeur: 15 }] };
+      const f = avecSurMot(`${D14} Quinze jours de retard en moins. Douze e-mails en moins.`, ["15 jours", "12 e-mails"]);
+      expect(verifier(f)).toBe(1);
+      const r = await lance(f, { carte: carte15 });
       expect(r.ok).toBe(true);
       if (!r.ok) return;
-      expect(e14(r.fiche).texteDit).toContain("Douze jours de retard en moins.");
-      expect(e14(r.fiche).textesEcran).toContain("12 jours");
+      expect(e14(r.fiche).texteDit).toBe(`${D14} Quinze jours de retard en moins.`);
+      expect(e14(r.fiche).textesEcran).toEqual(["15 jours"]);
+    });
+
+    it("mise en valeur : « *25* e-mails » part, « *25* jours de retard » aussi (Q05 lit sans astérisques)", async () => {
+      for (const [dit, ecran] of [["Vingt-cinq e-mails en moins.", "*25* e-mails"], ["Vingt-cinq jours de retard en moins.", "*25* jours de retard"]] as const) {
+        // Un seul mot orange par écran : les lignes d'origine perdent leurs astérisques, la ligne ajoutée porte le mot orange.
+        const sans = e14(fiches.D).textesEcran.map((t) => t.replace(/\*/g, ""));
+        const f = avecTexte(fiches.D, "e14", `${D14} ${dit}`, [...sans, ecran]);
+        expect(verifier(f)).toBe(1);
+        const r = await lance(f);
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(e14(r.fiche).texteDit).toBe(D14);
+        expect(e14(r.fiche).textesEcran).toEqual(sans);
+      }
+    });
+
+    it("heure pile refusée (« 3h ») : relue comme une durée, pas de réparation, le refus reste", async () => {
+      const f = fautif("Il part à trois heures du matin.", "3h du matin");
+      const refus = verifierScript(f, ctx("D")).manquements.filter((m) => m.regle === "Q05");
+      expect(refus.some((m) => m.message.includes("« 3h »"))).toBe(true);
+      expect(await lance(f)).toMatchObject({ ok: false, motif: "refusee" });
     });
 
     it("décimal « 2,5 h » : toute la phrase part, « Avant : 2 h » et « Pourquoi ? » ne bougent pas", async () => {
