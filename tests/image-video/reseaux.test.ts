@@ -1,17 +1,19 @@
 /**
- * L14 : plan des fins à 5 réseaux, LinkedIn muet, liens suivis, textes de publication, plafonds par réseau.
+ * L14 : plan des fins, liens suivis, textes de publication, plafonds par réseau.
+ * Adapté le 26/10/2026 (fins « accroche + appel + lien », LinkedIn non muet) : le réglage `question-puis-fin` est posé
+ * explicitement dans `base` (le défaut est maintenant `fin-seule`) pour garder la question testée ; les nouvelles fins sont
+ * testées dans `fins-accroche-appel-lien.test.ts`.
  * Déterministe : aucune date, aucun hasard, aucun appel réseau.
  */
 import { describe, expect, it } from "vitest";
-import { appelDeLaBanque } from "@/briques/fins";
 import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
-import { CODE_FORMAT_IV, codeVersionIV, liensSuivisIV, planDesFinsIV, refusQuestion } from "@/moteurs/montage-image-video/fins";
+import { CODE_FORMAT_IV, codeVersionIV, liensSuivisIV, planDesFinsIV, refusQuestion, type PlanDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { textesDePublicationIV, titreShorts, interditsDans } from "@/moteurs/montage-image-video/publication";
 import { etapeDeSecoursIV } from "@/moteurs/montage-image-video/secours";
 import { dureeTotaleIV, verdictReseau, verdictsParReseau, versionsPourDuree } from "@/moteurs/montage-image-video/reseaux";
 
 const QUESTION = "Et chez vous, combien de messages attendent jusqu'au lendemain ?";
-const base = { reseaux: RESEAUX_IV, offre: "integration" as const, questionCommentaire: QUESTION };
+const base = { reseaux: RESEAUX_IV, offre: "integration" as const, questionCommentaire: QUESTION, appelCommentaire: "question-puis-fin" as const, numeroVersion: 1 };
 const plan = planDesFinsIV(base);
 const finDe = (r: string) => plan.fins.find((f) => f.reseaux.includes(r as never))!;
 const dits = (r: string) => finDe(r).appels.map((a) => a.dit);
@@ -23,11 +25,11 @@ describe("planDesFinsIV · 4 réseaux", () => {
     expect(plan.fins.flatMap((f) => f.reseaux).sort()).toEqual([...RESEAUX_IV].sort());
   });
 
-  it("YouTube Shorts a une fin complète : diagnostic + lien dans le profil", () => {
+  it("YouTube Shorts a une fin complète : accroche + appel diagnostic + lien sur la chaîne", () => {
     const f = finDe("youtube-shorts");
-    expect(f.appels.map((a) => a.id)).toEqual(["fin-ty-diagnostic-gratuit", "fin-ty-lien-profil"]);
-    expect(f.appels.map((a) => a.type)).toEqual(["rendez-vous", "lien"]);
-    expect(dits("youtube-shorts")).toEqual(["Faites votre diagnostic gratuit en quelques minutes.", "Le lien est dans mon profil."]);
+    expect(f.appels.map((a) => a.id)).toEqual(["fin-iv-accroche-02", "fin-iv-appel-diagnostic-02", "fin-iv-lien-chaine"]);
+    expect(f.appels.map((a) => a.type)).toEqual(["question", "rendez-vous", "lien"]);
+    expect(dits("youtube-shorts")).toEqual(["Automatiser, oui. Mais quoi en premier ?", "Réservez un appel : un diagnostic de ce qu'on peut automatiser chez vous.", "Le lien est sur ma chaîne."]);
   });
 
   it("TikTok n'est plus proposé pour Image → vidéo (décision de Will du 19/10/2026) : jamais planifié, même demandé", () => {
@@ -36,23 +38,23 @@ describe("planDesFinsIV · 4 réseaux", () => {
     expect(p.fins.flatMap((f) => f.reseaux)).toEqual(["youtube-shorts"]);
   });
 
-  it("LinkedIn : rien dit, rien affiché, aucune question dans la vidéo", () => {
+  it("LinkedIn n'est plus muet : il dit et affiche la fin (et la question, dans ce réglage), dans le même fichier que Facebook", () => {
     const f = finDe("linkedin");
-    expect(f.muet).toBe(true);
-    expect(f.appels).toEqual([]);
-    expect(f.question).toBeUndefined();
-    expect(f.reseaux).toEqual(["linkedin"]);
+    expect(f.muet).toBe(false);
+    expect(f.appels).toHaveLength(3);
+    expect(f.question).toMatchObject({ dit: QUESTION });
+    expect(f.reseaux).toEqual(["linkedin", "facebook"]);
   });
 
-  it("question de commentaire sur Instagram, Facebook, Shorts : la phrase de l'image", () => {
-    for (const r of ["instagram", "facebook", "youtube-shorts"]) {
+  it("question de commentaire (réglage `question-puis-fin`) sur tous les réseaux : la phrase de l'image", () => {
+    for (const r of ["instagram", "facebook", "youtube-shorts", "linkedin"]) {
       expect(finDe(r).question).toMatchObject({ dit: QUESTION, origine: "image" });
     }
   });
 
   it("Instagram et Facebook se séparent (lien différent) ; les liens viennent de la banque", () => {
-    expect(finDe("instagram").appels.at(-1)!.id).toBe("fin-ig-lien-profil");
-    expect(finDe("facebook").appels.at(-1)!.id).toBe("fin-fb-lien-commentaire");
+    expect(finDe("instagram").appels.at(-1)!.id).toBe("fin-iv-lien-profil");
+    expect(finDe("facebook").appels.at(-1)!.id).toBe("fin-iv-lien-commentaire");
     expect(finDe("facebook")).not.toBe(finDe("instagram"));
   });
 
@@ -61,9 +63,10 @@ describe("planDesFinsIV · 4 réseaux", () => {
     expect(p.fins.find((f) => f.reseaux.includes("youtube-shorts"))!.question).toMatchObject({ origine: "banque", ligne: "fin-ty-question-tache" });
   });
 
-  it("réglage « fin-seule » : plus aucune question", () => {
+  it("réglage « fin-seule » : plus aucune question ; c'est le défaut depuis le 26/10/2026", () => {
     const p = planDesFinsIV({ ...base, appelCommentaire: "fin-seule" });
     expect(p.fins.every((f) => f.question === undefined)).toBe(true);
+    expect(planDesFinsIV({ reseaux: RESEAUX_IV, offre: "integration", numeroVersion: 1 }).fins.every((f) => f.question === undefined)).toBe(true);
   });
 
   it("un sous-ensemble de réseaux ne produit que ces réseaux, dans l'ordre fixe", () => {
@@ -101,7 +104,8 @@ describe("fin « diagnostic » tant que rien n'est branché : aucune promesse d'
     expect(ig.appels.map((a) => a.id)).toEqual(["fin-ig-mot-abonnement"]);
     expect(p.fins.find((f) => f.reseaux.includes("facebook"))!.appels.map((a) => a.id)).toEqual(["fin-if-mot", "fin-if-envoi-structure"]);
     expect(p.fins.find((f) => f.reseaux.includes("youtube-shorts"))!.appels.every((a) => a.type !== "commentaire")).toBe(true);
-    expect(p.fins.find((f) => f.reseaux.includes("linkedin"))!.appels).toEqual([]);
+    // LinkedIn n'a jamais de fin au mot : il garde la fin habituelle (accroche, appel, lien).
+    expect(p.fins.find((f) => f.reseaux.includes("linkedin"))!.appels.map((a) => a.id)).toEqual(["fin-iv-accroche-02", "fin-iv-appel-diagnostic-02", "fin-iv-lien-commentaire"]);
   });
 });
 
@@ -154,10 +158,10 @@ describe("textes de publication", () => {
     expect(pub.manquements).toEqual([]);
   });
 
-  it("LinkedIn : question + phrase du lien dans le post, lien en premier commentaire, jamais « commentez »", () => {
+  it("LinkedIn (non muet) : question, appel et phrase du lien dans le post, lien en premier commentaire, jamais « commentez »", () => {
     const t = de("linkedin");
     expect(t.texte).toContain(QUESTION);
-    expect(t.texte).toContain(appelDeLaBanque("fin-li-rdv-texte")!.legende);
+    expect(t.texte).toContain("Réservez un appel : un diagnostic de ce qu'on peut automatiser chez vous. Le lien est en premier commentaire.");
     expect(t.texte).not.toMatch(/commentez/i);
     expect(t.ouPoserLeLien).toBe("premier-commentaire");
     expect(t.premierCommentaire).toContain(liens.linkedin);
@@ -170,14 +174,28 @@ describe("textes de publication", () => {
   });
 
   it("19/10 · fin de secours d'Instagram et de Shorts : publication normale du réseau (lien dans le profil, jamais en premier commentaire) ; Facebook en secours : premier commentaire", () => {
-    let p = plan;
-    for (const r of ["instagram", "youtube-shorts", "facebook"] as const) {
-      const f = finDe(r);
+    // 26/10 : la fin d'Instagram (« Le lien est dans mon profil. », ligne neuve) garde sa chaîne ; Shorts (« sur ma chaîne ») et
+    // Facebook (groupé avec LinkedIn, « premier commentaire ») n'ont plus de secours : rien à poser. Le secours de Facebook
+    // reste vérifié sur le plan d'une vidéo d'AVANT (fin « diagnostic » écrite dans l'état), qui ne change pas.
+    expect(etapeDeSecoursIV(plan, finDe("youtube-shorts").id)).toBeNull();
+    expect(etapeDeSecoursIV(plan, finDe("facebook").id)).toBeNull();
+    const avant = (r: "facebook"): PlanDesFinsIV["fins"][number] => ({
+      id: "fin-facebook",
+      reseaux: [r],
+      muet: false,
+      appels: [
+        { id: "fin-if-diagnostic-gratuit", groupe: "instagram-facebook", type: "rendez-vous", dit: "Faites votre diagnostic gratuit en quelques minutes.", ecran: "Faites votre diagnostic gratuit" },
+        { id: "fin-fb-lien-commentaire", groupe: "instagram-facebook", type: "lien", dit: "Le lien est en commentaire.", ecran: "Diagnostic gratuit · lien en commentaire" },
+      ],
+    });
+    let p: PlanDesFinsIV = { ...plan, fins: [...plan.fins.filter((x) => !x.reseaux.includes("facebook")), avant("facebook")] };
+    for (const r of ["instagram", "facebook"] as const) {
+      const f = p.fins.find((x) => x.reseaux.includes(r))!;
       p = { ...p, fins: p.fins.map((x) => (x.id === f.id ? etapeDeSecoursIV(p, f.id)!.fin : x)) };
     }
     const sec = textesDePublicationIV(contenu, p, liens);
     const t = (r: string) => sec.textes.find((x) => x.reseau === r)!;
-    for (const r of ["instagram", "youtube-shorts"]) {
+    for (const r of ["instagram"]) {
       expect(t(r).ouPoserLeLien, r).toBe("profil");
       expect(t(r).premierCommentaire, r).toBeUndefined();
       expect(t(r).consigneLien, r).not.toMatch(/commentaire/);
@@ -255,10 +273,12 @@ describe("plafonds de durée par réseau", () => {
     }
   });
 
-  it("durée totale : LinkedIn ne compte ni question ni fin", () => {
+  it("durée totale : LinkedIn compte le corps, la question et la fin, comme les autres (depuis le 26/10/2026)", () => {
     const d = { corpsSec: 55, questionSec: 3, finSec: 4 };
-    expect(dureeTotaleIV("linkedin", d)).toBe(55);
+    expect(dureeTotaleIV("linkedin", d)).toBe(62);
     expect(dureeTotaleIV("tiktok", d)).toBe(62);
+    // Une vidéo LinkedIn d'avant (muette) passe 0 pour la question et la fin : sa durée reste celle du corps.
+    expect(dureeTotaleIV("linkedin", { corpsSec: 55, questionSec: 0, finSec: 0 })).toBe(55);
   });
 
   it("verdicts dans l'ordre fixe des réseaux", () => {

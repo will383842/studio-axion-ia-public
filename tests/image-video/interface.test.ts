@@ -200,7 +200,11 @@ describe("L16 · écran 3 « Le script »", () => {
     const { e, m } = await jusquAuScript("C");
     expect(e.etape).toBe("script-a-valider");
     expect(m.lus).toHaveLength(0);
-    const v = ecran.construireVueImageVideo(VIDEO, travailDe(e, "echec"), null);
+    // 26/10/2026 : la question de commentaire n'est plus posée par défaut ; l'écran la montre seulement dans le réglage « question puis fin ».
+    const parDefaut = ecran.construireVueImageVideo(VIDEO, travailDe(e, "echec"), null).script!;
+    expect(texte(renderToStaticMarkup(createElement(ScriptEcrans, { videoId: "v-1", ...parDefaut })))).not.toContain("La question pour faire commenter");
+    const avecQuestion = { ...e, demande: { ...e.demande, appelCommentaire: "question-puis-fin" as const } };
+    const v = ecran.construireVueImageVideo(VIDEO, travailDe(avecQuestion, "echec"), null);
     expect(v.ecran).toBe("script");
     const s = v.script!;
     expect(s.prix.auPlusCentimes).toBeGreaterThan(0);

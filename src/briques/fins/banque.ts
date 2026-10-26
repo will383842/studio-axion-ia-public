@@ -73,9 +73,16 @@ export function appelDeLaBanque(code: string): AppelBanque | null {
   return BANQUE_APPELS.find((a) => a.code === code) ?? null;
 }
 
-/** Les lignes VALIDÉES de la base 7 pour un réseau, un public et une sorte de contenu (ordre de la base). */
+/**
+ * Préfixe des lignes propres aux fins Image → vidéo (26/10/2026 : accroche, appel, lien, Tour de France IA). Elles ne se
+ * lisent QU'ENSEMBLE, par code (`appelDeLaBanque`), dans l'ordre accroche + appel + lien : jamais tirées une à une par
+ * filtre, sinon le tableau animé et l'équipe du générateur y piocheraient une phrase seule.
+ */
+export const PREFIXE_FINS_IMAGE_VIDEO = "fin-iv-";
+
+/** Les lignes VALIDÉES de la base 7 pour un réseau, un public et une sorte de contenu (ordre de la base), hors lignes réservées à Image → vidéo. */
 export function appelsDeLaBanque(filtre: { reseau: ReseauFin; public: PublicAppel; typeContenu: TypeContenu }): AppelBanque[] {
-  return BANQUE_APPELS.filter((a) => a.etat === "valide" && a.reseaux.includes(filtre.reseau) && a.public === filtre.public && a.typeContenu === filtre.typeContenu);
+  return BANQUE_APPELS.filter((a) => a.etat === "valide" && !a.code.startsWith(PREFIXE_FINS_IMAGE_VIDEO) && a.reseaux.includes(filtre.reseau) && a.public === filtre.public && a.typeContenu === filtre.typeContenu);
 }
 
 /** Phrases dite et écrite d'un code de la base 7, pour une table du studio : jamais recopiées à la main. */
