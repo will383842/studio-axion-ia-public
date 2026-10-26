@@ -63,7 +63,7 @@ import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
-import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, repriseVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
+import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
 /* ------------------------------------------------------------------ */
 /* Étapes                                                                */
@@ -1285,7 +1285,10 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
   // 1. La voix : un tour (une lecture payée au plus).
   if (!e.voix.issue) {
     e.voix = await avancerVoixIV(e.voix, voixOutils);
-    if (e.voix.issue?.statut === "faite") e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+    if (e.voix.issue?.statut === "faite") {
+      e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+      for (const r of e.voix.remarques ?? []) e.journal.push(r);
+    }
     // Un refus se dit dans le même pas : la caisse sait encore si c'est le plafond.
     if (e.voix.issue?.statut !== "refus") return e;
   }
@@ -1309,8 +1312,28 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
 
   // 2. Une piste voix seule par version (aucune lecture).
   if (!e.pistes) {
-    e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+    // Réparation sans validation : conversion WAV (Q17, gratuite) retentée 3 fois ; coupe ou mots qui ne collent pas :
+    // voix relue en lecture neuve (3 fois au plus). Seul un échec après ces essais reste un arrêt.
+    for (let essai = 1; !e.pistes; essai++) {
+      try {
+        e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+      } catch (err) {
+        if (!(err instanceof ErreurVoixIV) || err.controle === "budget" || err.controle === "musique" || err.controle === "Q11bis") throw err;
+        if (err.controle === "Q17") {
+          if (essai >= 3) throw err;
+          e.journal.push(`Son de la voix non converti en WAV (essai ${essai}/3) : nouvel essai automatique.`);
+          continue;
+        }
+        const refaite = relireLaVoixIV(e.voix, voixOutils, err.message);
+        if (!refaite) throw err;
+        e.voix = refaite;
+        delete e.pistes;
+        e.journal.push(`Piste voix refusée : ${err.message} La voix est relue automatiquement (${refaite.reparations}/3).`);
+        return e;
+      }
+    }
     e.journal.push(`Pistes voix seule : ${e.pistes.length}.`);
+    for (const p of e.pistes) if (p.remarque) e.journal.push(p.remarque);
     return e;
   }
 
