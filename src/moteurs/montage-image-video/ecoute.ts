@@ -436,6 +436,29 @@ export interface OutilsEcouteIV {
   lireSon: (cle: string) => Promise<Uint8Array | null>;
   transcrire: (demande: DemandeTranscriptionIV) => Promise<{ mots: MotHorodate[] }>;
   budget: BudgetControlesIV;
+  /** Pause entre deux relectures de la piste voix seule (Q17), en millisecondes (150 par défaut ; 0 dans les tests). */
+  pauseRelectureMs?: number;
+}
+
+/** Relectures gratuites de la piste voix seule avant de conclure qu'elle est introuvable ou illisible (Q17). */
+const RELECTURES_PISTE_IV = 3;
+/** Énergie (RMS) moyenne, sur les mots horodatés, au-dessous de laquelle la piste est tenue pour muette (environ -46 dBFS). */
+const RMS_MIN_MOTS_IV = 0.005;
+
+/** Une attente de fournisseur (transcription lente) : jamais une panne, jamais un 2e travail payé. Même test que `estAttenteIV`. */
+const estAttenteEcoute = (err: unknown) => !!err && typeof err === "object" && ((err as { enCours?: unknown }).enCours === true || ["RenduEnCoursIV", "RenduEnCours"].includes((err as { name?: unknown }).name as string));
+
+/** Énergie RMS moyenne du son sur les mots horodatés (0 si aucun mot ne tombe dans le son). PUR. */
+export function rmsSurLesMotsIV(son: Son, mots: readonly Pick<MotHorodate, "debutSec" | "finSec">[]): number {
+  let somme = 0;
+  let n = 0;
+  for (const m of mots) {
+    const a = Math.max(0, Math.round(m.debutSec * son.frequence));
+    const b = Math.min(son.echantillons.length, Math.round(m.finSec * son.frequence));
+    for (let i = a; i < b; i++) somme += son.echantillons[i] * son.echantillons[i];
+    n += Math.max(0, b - a);
+  }
+  return n ? Math.sqrt(somme / n) : 0;
 }
 
 export const idAppelEcoute = (videoId: string, empreinte: string) => `iv-ecoute-${videoId}-${empreinte}`;
@@ -471,6 +494,11 @@ export interface EcouteVersionIV {
   /** Transcription brute obtenue (gardée pour une reprise sans repayer). */
   transcription?: MotHorodate[];
   appelPaye: boolean;
+  /**
+   * Vrai : la transcription est restée en panne après une relance, alors que la piste voix seule est lue (Q17 bon), porte des mots
+   * horodatés et contient du son. L'écoute (Q06, Q18) devient une remarque ; une transcription vide, muette ou un refus volontaire n'y sont jamais.
+   */
+  panneTranscription?: true;
 }
 
 export interface EntreeEcouteIV {
@@ -505,7 +533,7 @@ export function finSurLaVoixSeule(son: Son, dernierMotFinSec: number): string[] 
 
 /**
  * Q17 (relu), Q18 et Q19 d'une version. Lit la piste voix seule (WAV, empreinte), la fait transcrire (réservation
- * d'abord), puis compare. Ne lève jamais : toute panne devient un échec motivé.
+ * d'abord), puis compare. Toute panne devient un échec motivé ; seule une ATTENTE (transcription lente) est levée telle quelle.
  */
 export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Promise<EcouteVersionIV> {
   const vide = { chiffresEntendus: [] as string[], texteEntendu: "", appelPaye: false };
@@ -513,11 +541,20 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
   let son: Son | null = null;
   const q17: string[] = [];
   let octets: Uint8Array | null = null;
-  try {
-    octets = await o.lireSon(e.piste.cle);
-  } catch (err) {
-    q17.push(`la piste voix seule n'a pas pu être lue (${(err as Error).message}).`);
+  // Introuvable, illisible ou d'empreinte différente : relue jusqu'à 3 fois, avec un court délai, sans rien payer, avant de conclure.
+  let derniereErreur: Error | null = null;
+  for (let essai = 0; essai <= RELECTURES_PISTE_IV; essai++) {
+    if (essai > 0) await new Promise((r) => setTimeout(r, o.pauseRelectureMs ?? 150));
+    octets = null;
+    derniereErreur = null;
+    try {
+      octets = await o.lireSon(e.piste.cle);
+    } catch (err) {
+      derniereErreur = err as Error;
+    }
+    if (octets && empreinteSon(octets) === e.piste.empreinte) break;
   }
+  if (derniereErreur) q17.push(`la piste voix seule n'a pas pu être lue (${derniereErreur.message}).`);
   if (!octets && !q17.length) q17.push("la piste voix seule est introuvable : l'écoute et la fin ne peuvent pas être contrôlées.");
   if (octets) {
     try {
@@ -547,14 +584,25 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
     if (!e.depenseAutorisee) {
       return { ...vide, q17: constat([]), q18: echec(["écoute non lancée : la vidéo est déjà refusée par un autre contrôle, aucune dépense n'est engagée."], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
     }
-    const appelId = idAppelEcoute(e.videoId, e.piste.empreinte);
-    const r = await o.budget.reserver({ appelId, videoId: e.videoId, etape: ETAPE_ECOUTE, fournisseur: "transcription", coutEstimeUsd: coutTranscriptionUsd(e.piste.dureeSec) }).catch((err: Error) => ({ ok: false as const, message: err.message }));
-    if (!r.ok) return { ...vide, q17: constat([]), q18: echec([`écoute non lancée : la dépense n'a pas pu être réservée (${r.message}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
-    try {
-      appelPaye = true;
-      transcription = (await o.transcrire({ appelId, cle: e.piste.cle, empreinte: e.piste.empreinte, langue: "fr", jusquaSec: +(e.piste.finVoixSec + SEUILS_ECOUTE_IV.margeBorneSec).toFixed(3) })).mots;
-    } catch (err) {
-      return { ...vide, appelPaye, q17: constat([]), q18: echec([`la transcription a échoué (${(err as Error).message}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
+    // Panne de transcription : relancée UNE fois, sous une réservation neuve. Une attente (transcription lente) remonte telle quelle.
+    let derniere = "";
+    for (let essai = 1; essai <= 2 && !transcription; essai++) {
+      const appelId = essai === 1 ? idAppelEcoute(e.videoId, e.piste.empreinte) : `${idAppelEcoute(e.videoId, e.piste.empreinte)}-reprise`;
+      const r = await o.budget.reserver({ appelId, videoId: e.videoId, etape: ETAPE_ECOUTE, fournisseur: "transcription", coutEstimeUsd: coutTranscriptionUsd(e.piste.dureeSec) }).catch((err: Error) => ({ ok: false as const, message: err.message }));
+      // Réservation refusée : jamais une remarque.
+      if (!r.ok) return { ...vide, appelPaye, q17: constat([]), q18: echec([`écoute non lancée : la dépense n'a pas pu être réservée (${r.message}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
+      try {
+        appelPaye = true;
+        transcription = (await o.transcrire({ appelId, cle: e.piste.cle, empreinte: e.piste.empreinte, langue: "fr", jusquaSec: +(e.piste.finVoixSec + SEUILS_ECOUTE_IV.margeBorneSec).toFixed(3) })).mots;
+      } catch (err) {
+        if (estAttenteEcoute(err)) throw err;
+        derniere = (err as Error).message;
+      }
+    }
+    if (!transcription) {
+      // Remarque seulement si la voix existe bel et bien : mots horodatés ET du son sur ces mots. Sinon : blocage comme avant.
+      const panne = e.piste.mots.length > 0 && rmsSurLesMotsIV(son, e.piste.mots) >= RMS_MIN_MOTS_IV;
+      return { ...vide, appelPaye, ...(panne ? { panneTranscription: true as const } : {}), q17: constat([]), q18: echec([`la transcription a échoué (${derniere}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
     }
   }
   if (!Array.isArray(transcription) || transcription.length === 0) {
