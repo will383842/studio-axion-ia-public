@@ -439,6 +439,8 @@ export interface OutilsFabricationIV {
   decisions?: { carte?: () => Promise<DecisionCarteIV | null>; script?: () => Promise<DecisionScriptIV | null> };
   /** Heure ISO (validation automatique de la carte en « si-doute »). */
   maintenant: () => string;
+  /** Attente entre deux relances automatiques d'une panne (défaut : attente réelle ; les essais injectent une attente vide). */
+  pause?: (ms: number) => Promise<void>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -617,12 +619,11 @@ class Caisse {
     if (ind && engage + centimes > plafond) {
       // Règle du 25/10 : en indicatif le prix ne bloque jamais. Repère dépassé : Will est prévenu, la fabrication continue (la réservation reste posée).
       await ind.signaler(`Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`).catch(() => undefined);
-    } else if (engage + centimes > plafond) {
-      this.arretPlafond = `Plafond de cette vidéo atteint (${euros(this.etat.caisse.plafondCentimes)}, déjà engagé ${euros(engage)}, il faudrait ${euros(centimes)} de plus) : rien n'a été payé pour cette étape.`;
-      return { ok: false, message: this.arretPlafond };
     }
     const r = await this.outils.budget.reserver({ ...d, videoId: this.etat.demande.videoId, centimes });
     if (!r.ok) return r;
+    // Le prix annoncé ne bloque jamais : le crédit réel du studio a accepté la réservation, Will est seulement prévenu.
+    if (!ind && engage + centimes > plafond) this.etat.journal.push(`Avertissement : cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus) ; le crédit réel suffit, la fabrication continue.`);
     this.etat.caisse.reservations.push({ cle, etape: d.etape, fournisseur: d.fournisseur, centimes });
     return { ok: true };
   }
@@ -1025,6 +1026,43 @@ function publicationDe(e: EtatFabricationIV): { publication: PublicationIV; lien
  * devient un refus réessayable (phrase simple), une attente de rendu devient `attente`.
  */
 export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabricationIV): Promise<EtatFabricationIV> {
+  let e = await avancerUnPasIV(entree, outils);
+  const essais: string[] = [];
+  let repare = false;
+  let pannes = 0;
+  // Filet général : une panne passagère relance la MÊME étape (même tentative : la caisse ne repaie rien) jusqu'à 3 fois, avec
+  // une attente croissante ; un refus de forme réessayable est relancé une fois en mode réparé (nouvelle tentative, payé gardé).
+  while (e.refus && e.etape === "refusee" && e.refus.reessayable) {
+    const { etape, code } = e.refus;
+    if (code === "IV_PANNE" && pannes < PAUSES_PANNE_IV.length) {
+      const ms = PAUSES_PANNE_IV[pannes++];
+      await (outils.pause ?? ((t) => new Promise<void>((ok) => setTimeout(ok, t))))(ms);
+      essais.push(`étape « ${etape} » relancée automatiquement (${pannes}/${PAUSES_PANNE_IV.length}, après ${ms / 1000} s)`);
+      e = structuredClone(e);
+      delete e.refus;
+      e.etape = etape;
+      e.journal.push(`Panne passagère : ${essais[essais.length - 1]}.`);
+      e = await avancerUnPasIV(e, outils);
+    } else if (!repare && CODES_DE_FORME_IV.includes(code)) {
+      repare = true;
+      essais.push(`étape « ${etape} » refaite une fois en mode réparé`);
+      e.journal.push(`Refus de forme : ${essais[essais.length - 1]}.`);
+      e = await avancerUnPasIV(reprendreIV(e), outils);
+    } else break;
+  }
+  if (e.refus && e.etape === "refusee" && essais.length) {
+    e.refus.message = `${e.refus.message} Essayé automatiquement : ${essais.join(" ; ")}. Le bouton « Refaire cette partie » reste disponible.`;
+    e.journal.push(`Essais automatiques sans succès : ${essais.join(" ; ")}.`);
+  }
+  return e;
+}
+
+/** Attentes (ms) avant chacune des 3 relances automatiques d'une panne passagère. */
+const PAUSES_PANNE_IV = [2000, 5000, 10000] as const;
+/** Refus dont la cause est une règle de forme (jamais les vraies causes : voix absente, rendu impossible, image illisible, chiffre faux). */
+const CODES_DE_FORME_IV: readonly CodeRefusIV[] = ["IV_ECRITURE", "IV_MISE_EN_SCENE", "IV_CONTROLES"];
+
+async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricationIV): Promise<EtatFabricationIV> {
   if (estFinieIV(entree)) return entree;
   const e = structuredClone(entree);
   delete e.attente;

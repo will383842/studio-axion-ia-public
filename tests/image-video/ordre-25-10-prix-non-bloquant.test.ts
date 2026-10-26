@@ -71,11 +71,11 @@ describe("machine : la voix part malgré un plafond bas en indicatif", () => {
     expect(e.miseDeCote?.porte).toBe("script");
     expect(m.lus).toHaveLength(0);
   });
-  it("témoin bloquant : plafond 1 c, arrêt net IV_PLAFOND", async () => {
+  it("sans outil indicatif : plafond 1 c, plus d'arrêt IV_PLAFOND (le crédit réel décide)", async () => {
     const carte = carteFixe("E");
     const m = monde();
     const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 1 })), outilsSimules(carte, m, { cartesValidees: 0 }));
-    expect(e.refus).toMatchObject({ code: "IV_PLAFOND" });
+    expect(e.refus?.code).not.toBe("IV_PLAFOND");
   });
 });
 

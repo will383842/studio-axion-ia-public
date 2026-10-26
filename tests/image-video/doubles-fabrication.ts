@@ -317,6 +317,7 @@ export function outilsSimules(carte: CarteImage, m: Monde, o: OptionsMonde = {})
     },
     cartesValidees: async () => o.cartesValidees ?? 0,
     maintenant: () => "2026-10-15T08:00:00.000Z",
+    pause: async () => undefined,
   };
 }
 

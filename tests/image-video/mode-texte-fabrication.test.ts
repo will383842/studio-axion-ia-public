@@ -118,7 +118,7 @@ describe("mode texte · la fabrication saute la lecture d'image", () => {
     expect(e.refus?.reessayable).toBe(true);
   });
 
-  it("« Refaire » après une panne de conception : nouvelle réservation, et l'arrêt au plafond tient", async () => {
+  it("« Refaire » après une panne de conception : nouvelle réservation, et le plafond bas ne bloque plus", async () => {
     const panne = outilsTexte({ ok: false, arret: "panne", message: "Claude ne répond pas" });
     const e1 = await avancerJusquAArretIV(etatInitialIV(demandeTexte()), panne.o);
     expect(e1.etape).toBe("refusee");
@@ -130,11 +130,10 @@ describe("mode texte · la fabrication saute la lecture d'image", () => {
     expect(e2.etape).toBe("carte-a-valider");
     expect(e2.caisse.reservations.length).toBe(avant + 1);
     expect(new Set(e2.caisse.reservations.map((r) => r.cle)).size).toBe(e2.caisse.reservations.length);
-    // Plafond trop bas : arrêt au plafond, aucun appel.
+    // Plafond trop bas : avertissement seulement, la conception part.
     const bas = outilsTexte();
     const e3 = await avancerJusquAArretIV(etatInitialIV({ ...demandeTexte(), plafondCentimes: 1 }), bas.o);
-    expect(e3.etape).toBe("refusee");
-    expect(e3.refus?.code).toBe("IV_PLAFOND");
-    expect(bas.m.appelsClaude).toEqual([]);
+    expect(e3.refus?.code).not.toBe("IV_PLAFOND");
+    expect(bas.m.appelsClaude.length).toBeGreaterThan(0);
   });
 });
