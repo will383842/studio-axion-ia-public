@@ -72,7 +72,10 @@ const decisionScript = (e: EtatFabricationIV, plus: Partial<DecisionScriptIV> = 
 });
 
 /** Jusqu'à la vidéo prête : carte validée telle quelle, script validé (formules gardées). */
-async function jusquAuBout(e0: EtatFabricationIV, o: OutilsFabricationIV): Promise<{ etat: EtatFabricationIV; arrets: string[] }> {
+// Ces tests suivent le parcours où la fin de secours attend « Refaire cette partie » (`secoursAutomatique: false`) ; le
+// parcours automatique est dans `voix-reparation-automatique.test.ts`.
+async function jusquAuBout(e0: EtatFabricationIV, o0: OutilsFabricationIV, plus: { auto?: boolean } = {}): Promise<{ etat: EtatFabricationIV; arrets: string[] }> {
+  const o: OutilsFabricationIV = plus.auto ? o0 : { ...o0, secoursAutomatique: false };
   const arrets: string[] = [];
   let e = await avancerJusquAArretIV(e0, o);
   for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee"; i++) {
@@ -438,6 +441,26 @@ describe("reprise après erreur, sans repayer", () => {
       expect(rendu.piste.mots.map((x) => x.mot).join(" ")).toMatch(/Le lien est dans le premier commentaire\.?$/);
       expect(fin.etat.livraison?.find((l) => l.reseau === "facebook")?.premierCommentaire).toBeTruthy();
       expect(fin.etat.journal.join(" ")).toMatch(/Fin de secours pour facebook/);
+    });
+
+    it("fin de secours à lire posée AUTOMATIQUEMENT : même réservation, comptée dans les 3 réparations, vidéo prête sans « Refaire »", async () => {
+      const ref: { m?: Monde } = {};
+      const d = demarrer("C", { mesureVoix: () => (ref.m!.lus.at(-1)!.endsWith(FIN_FB) ? HORS_REFERENCE : MESURE_REFERENCE) });
+      ref.m = d.m;
+      const { etat } = await jusquAuBout(d.e, d.o, { auto: true });
+      expect(etat.refus).toBeUndefined();
+      expect(etat.etape).toBe("prete");
+      // Fin habituelle lue 2 fois (relance de ressemblance), puis UNE lecture de secours, réservée comme les autres.
+      expect(d.m.lus.filter((t) => t.endsWith(FIN_FB))).toHaveLength(2);
+      const secours = d.m.lus.filter((t) => t.endsWith(SECOURS));
+      expect(secours).toHaveLength(1);
+      expect(etat.voix?.reparations).toBe(1);
+      const voix = etat.caisse.reservations.filter((r) => r.etape === "voix");
+      expect(new Set(voix.map((r) => r.cle)).size).toBe(voix.length);
+      expect(voix).toHaveLength(d.m.lus.length);
+      expect(voix.at(-1)!.cle).toMatch(/iv-voix-fin-facebook-[0-9a-f]{10}-\d+$/);
+      expect(etat.journal.join(" ")).toMatch(/Lecture de secours posée automatiquement \(1\/3\)/);
+      expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
     });
 
     /** Enveloppe la lecture simulée : un « euh » est inséré (après le 2ᵉ mot) quand le texte finit par `fin`. */

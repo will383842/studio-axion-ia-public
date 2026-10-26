@@ -328,17 +328,20 @@ describe("lecture unique · ce que la voix lit", () => {
     expect(s.lecture!.fins).toEqual({ "fin-instagram": [[13, 31]], "fin-autre": [[31, 35]] });
   });
 
-  it("texte que la voix ne compte pas comme nous (un jeton « Ω » que la voix ignore) : refus « entree » AVANT toute lecture payante", () => {
+  it("texte que la voix ne compte pas comme nous (un jeton « Ω » que la voix ignore) : signe retiré avec une remarque, jamais d'arrêt", () => {
     const fiche = { ecrans: [{ texteDit: "La version 2.0 répond 24/7 sans pause Ω." }] } as unknown as Pick<FicheImage, "ecrans">;
-    expect(() => segmentsVoixIV(fiche, PLAN_3, { lectureUnique: true })).toThrowError(/ne se découpe pas en mots/);
-    try {
-      segmentsVoixIV(fiche, PLAN_3, { lectureUnique: true });
-    } catch (err) {
-      expect((err as ErreurVoixIV).controle).toBe("entree");
-    }
-    // Sans lecture unique (ou sans fin à dire), le calcul d'avant n'est pas touché.
-    expect(() => segmentsVoixIV(fiche, PLAN_3)).not.toThrow();
+    const s = segmentsVoixIV(fiche, PLAN_3, { lectureUnique: true });
+    expect(s.corps).not.toContain("Ω");
+    expect(s.remarques?.[0]).toMatch(/Ω/);
+    // Les plages de mots suivent le texte tel que la voix le lira (sans le signe).
+    expect(s.lecture!.motsCorps).toBe(motsDits("La version 2.0 répond 24/7 sans pause").length);
+    expect(etatInitialVoixIV(s).remarques).toEqual(s.remarques);
+    // Sans lecture unique, le corps est nettoyé de la même façon ; sans signe, aucune remarque.
+    const seul = segmentsVoixIV(fiche, PLAN_3);
+    expect(seul.corps).not.toContain("Ω");
+    expect(seul.remarques).toHaveLength(1);
     expect(() => segmentsVoixIV(fiche, plan(LI), { lectureUnique: true })).not.toThrow();
+    expect(segmentsVoixIV(FICHE_TEST, PLAN_3).remarques).toBeUndefined();
   });
 
   it("vrai plan à 4 réseaux : chaque version garde exactement les mots de SA fin d'avant", () => {

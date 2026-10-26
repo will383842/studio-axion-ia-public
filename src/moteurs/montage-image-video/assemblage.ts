@@ -1346,7 +1346,7 @@ export async function assemblerVersionCourteIV(
   // Rang du premier mot de chaque écran dans les mots lus du corps.
   const comptes = e.fiche.ecrans.map((x) => motsDits(x.texteDit).length);
   const total = comptes.reduce((a, b) => a + b, 0);
-  if (total !== mots.length) throw new ErreurVoixIV("entree", `Les mots de la voix du corps (${mots.length}) ne correspondent pas au script (${total}) : la version courte ne peut pas être taillée.`);
+  if (total !== mots.length) throw new ErreurVoixIV("entree", `Les mots de la voix du corps (${mots.length}) ne correspondent pas au script (${total}) : la version courte ne peut pas être taillée.`, true);
   const gardes = new Set(courte.ecrans.map((x) => x.id));
   const motsGardes: number[] = [];
   let rang = 0;
