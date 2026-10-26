@@ -12,7 +12,7 @@
  * que seul Will tranche (formules absolues, phrase-choc de l'image à reformuler) part avec le script, surligné.
  * Simulation (aucune clé) : `ecriture.simulation.ts` rend les scripts A-F de `40` d'après l'empreinte de l'image.
  */
-import type { CarteImage } from "@/domaine/image-video/carte";
+import { textesDeLaCarte, type CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, DEBIT_MOTS_PAR_SEC, type ComplexiteCarte } from "@/domaine/image-video/complexite";
 import { FAMILLES_ACCROCHE, PARTIES, SCENES, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
@@ -28,7 +28,9 @@ import {
   TOLERANCE_DUREE_IV,
   aCorrigerParClaude,
   aTrancherParWill,
+  chiffresDuTexte,
   empreinteDeCarte,
+  nombresDuTexte,
   phraseChocAttendue,
   verifierScript,
   type ContexteRegles,
@@ -222,13 +224,71 @@ function lire(reponse: Extract<ReponseAppelIV, { ok: true }>): { ok: true; brute
   }
 }
 
-/** Juge une réponse lue : forme (zod), puis règles. */
+const UNITES_MOT = new Set(["jour", "h", "min", "sec"]);
+/** Mot d'unité (singulier ou pluriel) : « jour(s) », « heure(s) », « minute(s) », « seconde(s) ». */
+const MOT_UNITE = /^(?:jours?|heures?|minutes?|secondes?)$/iu;
+
+/**
+ * Nombre que l'image écrit SEUL (« au lieu de 45 », « 45 contre 12 ») alors que le script le dit avec une unité qu'elle
+ * ne lui donne pas (« 45 jours ») : l'unité est retirée du texte, le nombre reste tel qu'écrit sur l'image. Aucun chiffre
+ * n'est inventé ni changé ; un nombre absent de l'image (ou déjà permis avec son unité) n'est jamais touché.
+ * Rend le texte et le rang (dans le texte dit) des mots retirés.
+ */
+export function sansUniteAbsenteDeLImage(texte: string, carte: CarteImage): { texte: string; retires: number[] } {
+  const textes = textesDeLaCarte(carte);
+  const permis = new Set<string>();
+  for (const t of textes) for (const c of chiffresDuTexte(t.texte)) permis.add(`${c.valeur}|${c.unite}`);
+  for (const c of carte.chiffres) if (c.valeur !== null) permis.add(`${c.valeur}|${c.unite}`);
+  const seuls = new Set<number>();
+  for (const t of textes) if (t.ou === "titre" || t.ou === "sousTitre") for (const c of chiffresDuTexte(t.texte)) if (c.valeur !== null && c.unite === "nombre") seuls.add(c.valeur);
+  const retires: number[] = [];
+  let mots = texte.split(/(\s+)/); // mots et séparateurs alternés
+  for (const c of chiffresDuTexte(texte)) {
+    if (c.valeur === null || !UNITES_MOT.has(c.unite) || permis.has(`${c.valeur}|${c.unite}`) || !seuls.has(c.valeur)) continue;
+    for (let j = 2; j < mots.length; j += 2) {
+      const unite = mots[j]!.replace(/[^\p{L}]+$/u, "");
+      if (!MOT_UNITE.test(unite) && !/^(?:h|min|sec)$/iu.test(unite)) continue;
+      const fin = mots[j]!.slice(unite.length);
+      const k = [5, 4, 3, 2, 1].find((n) => {
+        const avant = mots.filter((_, i) => i % 2 === 0).slice(Math.max(0, j / 2 - n), j / 2).join(" ");
+        const lu = nombresDuTexte(avant);
+        return j / 2 - n >= 0 && lu.length === 1 && lu[0] === c.valeur;
+      });
+      if (k === undefined) continue;
+      retires.push(j / 2);
+      mots = [...mots.slice(0, j - 2), mots[j - 2]! + fin, ...mots.slice(j + 1)];
+      break;
+    }
+  }
+  return { texte: mots.join(""), retires };
+}
+
+/** Applique `sansUniteAbsenteDeLImage` aux textes dits et écrits de la fiche (copie) ; recale les rangs des mots surlignés. */
+export function normaliserNombresUnite(fiche: FicheImage, carte: CarteImage): FicheImage {
+  const f = structuredClone(fiche);
+  const net = (t: string) => sansUniteAbsenteDeLImage(t, carte);
+  for (const e of f.ecrans) {
+    const dit = net(e.texteDit);
+    e.texteDit = dit.texte;
+    for (const r of dit.retires) for (const s of e.surMot) if (s.mot >= r) s.mot = Math.max(0, s.mot - 1);
+    e.textesEcran = e.textesEcran.map((t) => net(t).texte);
+  }
+  for (const a of f.accroches) {
+    a.texteDit = net(a.texteDit).texte;
+    a.textesEcran = a.textesEcran.map((t) => net(t).texte);
+  }
+  f.questionCommentaire = { texteDit: net(f.questionCommentaire.texteDit).texte, texteEcran: net(f.questionCommentaire.texteEcran).texte };
+  return f;
+}
+
+/** Juge une réponse lue : forme (zod), nombres sans unité propre à l'image, puis règles. */
 export function jugerFicheIV(brute: unknown, ctx: ContexteRegles): { ok: true; fiche: FicheImage; verdict: VerdictScript } | { ok: false; refus: string[] } {
   const forme = schemaFicheImage.safeParse(brute);
   if (!forme.success) return { ok: false, refus: forme.error.issues.slice(0, 20).map((i) => `Champ « ${i.path.join(".") || "fiche"} » : ${i.message}`) };
-  const verdict = verifierScript(forme.data, ctx);
+  const fiche = normaliserNombresUnite(forme.data, ctx.carte);
+  const verdict = verifierScript(fiche, ctx);
   const aCorriger = aCorrigerParClaude(verdict);
-  return aCorriger.length ? { ok: false, refus: aCorriger.map((m) => m.message) } : { ok: true, fiche: forme.data, verdict };
+  return aCorriger.length ? { ok: false, refus: aCorriger.map((m) => m.message) } : { ok: true, fiche, verdict };
 }
 
 /**
