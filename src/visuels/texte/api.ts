@@ -19,11 +19,15 @@ export const CONSIGNE_API = [
 /** Consigne de l'API, suivie du plan et des consignes d'écriture de la trame quand le carrousel a une intention (L12). */
 export function consigneApi(intention?: Intention, eviter: readonly EmpreinteCarrousel[] = []): string {
   const base = intention ? `${CONSIGNE_API}\n${consigneTrame(intention)}` : CONSIGNE_API;
-  const suites = [...new Set(eviter.map((e) => e.suite))].slice(0, 3);
-  // Anti-répétition (L7) dite au rédacteur AVANT l'écriture : les 3 dernières suites de pages et leurs couvertures ne sont pas reprises.
+  // Suites et couvertures viennent des mêmes 3 derniers carrousels.
+  const recents = eviter.slice(0, 3);
+  const suites = [...new Set(recents.map((e) => e.suite))];
+  // Anti-répétition (L7) dite au rédacteur AVANT l'écriture. Avec une intention, la trame impose déjà l'ordre des pages : seul le modèle de couverture est évoqué.
   if (!suites.length) return base;
-  const couvertures = [...new Set(eviter.slice(0, 3).map((e) => e.couverture.split(":")[0]).filter(Boolean))];
-  return `${base}\nVariété : ne pas reprendre la suite de pages d'un des derniers carrousels (${suites.join(" | ")})${couvertures.length ? ` ni leur modèle de couverture (${couvertures.join(", ")}) quand un autre convient` : ""}.`;
+  const couvertures = [...new Set(recents.map((e) => e.couverture.split(":")[0]).filter(Boolean))];
+  const couv = couvertures.length ? `ni leur modèle de couverture (${couvertures.join(", ")}) quand un autre convient` : "";
+  if (intention) return couv ? `${base}\nVariété : ne pas reprendre ${couv.replace(/^ni /, "")}.` : base;
+  return `${base}\nVariété : ne pas reprendre la suite de pages d'un des derniers carrousels (${suites.join(" | ")})${couv ? ` ${couv}` : ""}.`;
 }
 
 /** Fournisseur « api » : verrouillé. La première instruction d'`ecrire` refuse tant que le verrou n'est pas levé par Will. */

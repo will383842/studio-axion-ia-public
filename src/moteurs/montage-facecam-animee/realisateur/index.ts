@@ -88,7 +88,7 @@ export interface EntreeRealisateur {
   /** Durée totale de la vidéo, écran de fin compris. */
   dureeSec: number;
   titre?: string;
-  /** Identifiant de la vidéo : graine du repli (sha256), même vidéo → même plan. Absent : empreinte de la prise. */
+  /** Identifiant de la vidéo : graine du repli (sha256), même vidéo → même graine (le plan dépend aussi de `historique` : un Refaire peut changer l'ouverture si la version précédente est dans les 3 dernières). Absent : empreinte de la prise. */
   videoId?: string;
   /** Les 5 dernières vidéos (la plus récente en premier). */
   historique?: HistoriqueVideo[];

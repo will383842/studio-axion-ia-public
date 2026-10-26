@@ -3,7 +3,7 @@
  * répartition sur 300 ids, aucun zoom, plan inchangé sans id.
  */
 import { describe, expect, it } from "vitest";
-import { graineVideo, ouverturesRecentes, realiser, type EntreeRealisateur, type MotTranscrit } from "@/moteurs/montage-facecam-animee/realisateur";
+import { graineDe, graineVideo, ouverturesRecentes, realiser, ROTATION_PLAN_MINIMAL_V4, type EntreeRealisateur, type MotTranscrit } from "@/moteurs/montage-facecam-animee/realisateur";
 import { planMinimalV4 } from "@/moteurs/montage-facecam-animee/realisateur/plan-minimal-v4";
 import { historiqueV4 } from "@/moteurs/montage-facecam-animee/realisateur/historique-v4";
 
@@ -36,7 +36,7 @@ describe("diversité v4 · graine de l'id vidéo", () => {
   it("même id → même plan", async () => {
     expect((await realiser(entree("video-7"))).plan).toEqual((await realiser(entree("video-7"))).plan);
   });
-  it("aucun zoom ni mouvement de cadrage dans les 300 plans", async () => {
+  it("aucun zoom ni mouvement de cadrage dans les 60 premiers plans", async () => {
     for (const id of ids.slice(0, 60)) {
       const { plan } = await realiser(entree(id));
       expect(plan.zooms).toEqual([]);
@@ -45,7 +45,9 @@ describe("diversité v4 · graine de l'id vidéo", () => {
     }
   });
   it("sans id : le repli d'avant (empreinte de la prise)", async () => {
-    expect((await realiser(entree())).plan).toEqual((await realiser(entree())).plan);
+    const mots = parole(60);
+    const attendu = planMinimalV4({ mots, horizon: 60, graine: graineDe("prise-montee.mp4", mots) });
+    expect((await realiser(entree())).plan.elementsV4).toEqual(attendu);
   });
 });
 
@@ -63,7 +65,7 @@ describe("diversité v4 · anti-répétition de l'ouverture", () => {
     expect(new Set(ouvertures).size).toBeGreaterThanOrEqual(5);
   });
   it("sans alternative possible, l'ouverture évitée reste permise (jamais de blocage)", () => {
-    const tout = ["EtiquetteTete", "MotSaute", "element-barre", "BadgeProfil", "Interjection", "RangeePastilles", "CarteCalendrier", "CarteChecklist", "CarteCommentaire", "GraphiqueBarres", "CarteStatuts", "CarteCommande", "PileNotifications"];
+    const tout = Object.values(ROTATION_PLAN_MINIMAL_V4).flat();
     const el = planMinimalV4({ mots: parole(30), horizon: 30, graine: 2, eviterOuvertures: tout });
     expect(el.length).toBeGreaterThan(3);
   });
