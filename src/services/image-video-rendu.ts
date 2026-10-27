@@ -40,7 +40,7 @@ import { ErreurRenduDefinitifIV, RenduEnCoursIV, VERSION_COMPOSITIONS_IV, type D
 import type { BlocRenduIV, LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { LIGNES_MAX_ECRAN_IV, proprietesEcranIV916 } from "@/moteurs/montage-image-video/ecrans-v4";
 import { BANDE_SOUS_TITRES_IV, ECRAN_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, type FormatEcranIV } from "@/briques/schema-motion/types";
-import { passagesIvoireIV, segmentsDeBaseIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV } from "@/moteurs/montage-image-video/sous-titres-varies";
+import { passagesIvoireIV, segmentsDeBaseIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV, surlignageSousTitresIV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { figeHorsVoixMaxSec, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -288,7 +288,7 @@ export class ErreurRenduIV extends Error {
 /** Commande minimale de la composition finale d'une version (PUR). */
 export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" | "mixage" | "piste">, scenes: readonly ScenePosee[], sons: readonly SonValideIV[]): CommandeFabrication {
   const format = ratioDeLaLigneIV(d.ligne);
-  const style = { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_IV, ...(format === "4:5" ? { positionPct: CENTRE_SOUS_TITRES_IV_4X5_PCT } : {}) } };
+  const style = { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_IV, ...(format === "4:5" ? { positionPct: CENTRE_SOUS_TITRES_IV_4X5_PCT } : {}), ...surlignageSousTitresIV(d.ligne) } };
   const c = commandeMinimale({
     moteurId: MOTEUR_IV,
     formatId: FORMAT_IV,
