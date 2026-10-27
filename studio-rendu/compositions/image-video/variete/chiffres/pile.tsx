@@ -1,7 +1,7 @@
 import React from "react";
 /**
  * Pile des AUTRES chiffres du bandeau, sous la variante (qui a rapetissé vers le haut) : chacun claque sur son mot,
- * avec sa légende, comme le compteur de référence (« 80 % » compte de 0 à 80, « 24h/24 » claque tel quel). Couleur
+ * avec sa légende, le chiffre claque tel quel, sans compter (27/10/2026 : un « 44 » relu pour « 45 » à la fin de la vidéo). Couleur
  * du texte de la charte : le seul mot orange de l'écran reste le chiffre de la variante.
  */
 import { largeurTexte } from "../../../../../src/briques/ecrans-motion/mesure";
@@ -60,15 +60,6 @@ export function planPile(d: DonneesEcranChiffresRendu, cadre: CadreChiffres, t: 
   return rangees.map((x) => ({ ...x, x0, colChiffre, colLegende }));
 }
 
-/** « 80 % » compte de 0 à 80 ; un chiffre composé (« 24h/24 ») claque tel quel. */
-function compte(texte: string, avance: number): string {
-  const m = /^(\D*?)(\d+)(\D*)$/.exec(texte);
-  if (!m) return texte;
-  const v = Number(m[2]);
-  if (!(v > 1)) return texte;
-  return `${m[1]}${Math.round(v * (1 - Math.pow(1 - c01(avance), 3)))}${m[3]}`;
-}
-
 export function Pile({ d, t, cadre, tailleFocale }: { d: DonneesEcranChiffresRendu; t: number; cadre: CadreChiffres; tailleFocale: number }) {
   return (
     <>
@@ -80,7 +71,7 @@ export function Pile({ d, t, cadre, tailleFocale }: { d: DonneesEcranChiffresRen
         return (
           <div key={i} style={{ position: "absolute", left: x0, top: y, width: colChiffre + (colLegende > 0 ? ECART_RANGEE + colLegende : 0), height: hauteur, display: "flex", alignItems: "center", gap: ECART_RANGEE }}>
             <div style={{ width: colChiffre, flex: "none", display: "flex", justifyContent: "flex-end" }}>
-              <div style={{ ...ANTON, fontSize: taille, color: encre(d.fond), whiteSpace: "nowrap", opacity: opacite, transform: `scale(${1.6 - 0.6 * rebond(x)})`, transformOrigin: "100% 50%" }}>{compte(texte, progres(t, c.t, 0.2))}</div>
+              <div style={{ ...ANTON, fontSize: taille, color: encre(d.fond), whiteSpace: "nowrap", opacity: opacite, transform: `scale(${1.6 - 0.6 * rebond(x)})`, transformOrigin: "100% 50%" }}>{texte}</div>
             </div>
             {legende ? <div style={{ ...INTER, lineHeight: 1.05, fontSize: 60, color: encre(d.fond), opacity: progres(t, c.t + 0.15, 0.35), maxWidth: colLegende }}>{legende}</div> : null}
           </div>
