@@ -64,14 +64,15 @@ describe("L16 · écran 1 « Déposer »", () => {
     expect(vue.refusFichier({ type: "image/webp", size: 10 })).toBeNull();
   });
 
-  it("montre la zone de dépôt, les 4 réseaux, l'offre et le prix SUR le bouton", () => {
+  it("montre les 2 entrées (texte par défaut), les 4 réseaux et le prix SUR le bouton ; aucune zone de dépôt d'image", () => {
     const montants = { 1: 120, 2: 180, 3: 240, 4: 300 };
     const html = texte(renderToStaticMarkup(createElement(Depot, { montants })));
-    expect(html).toContain("Déposez une ou plusieurs images");
-    expect(html).toContain("800 px de côté au moins");
+    expect(html).toContain("Décrire avec mes mots");
+    expect(html).toContain("Coller mon script complet");
+    expect(html).not.toContain("Déposer une image");
+    expect(html).not.toContain("Déposez une ou plusieurs images");
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
-    expect(html).toContain("Selon l'image");
-    expect(html).toMatch(/Fabriquer la vidéo \(au plus 3,00\s?€\)/);
+    expect(html).toMatch(/\(au plus 3,00\s?€\)/);
     expect(html).not.toMatch(TECHNIQUE);
   });
 

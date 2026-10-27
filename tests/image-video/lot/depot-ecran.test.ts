@@ -14,6 +14,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: (
 
 const vue = await import("@/components/formats/image-video/vue");
 const { Depot } = await import("@/components/formats/image-video/Depot");
+const { ENTREE_IMAGE_VISIBLE, ENTREE_PAR_DEFAUT, ENTREES_VISIBLES } = await import("@/components/formats/image-video/entrees");
 const { DepotLot } = await import("@/components/formats/image-video/DepotLot");
 
 const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/\s+/g, " ");
@@ -23,11 +24,15 @@ const rendre = (items: ReturnType<typeof item>[], plus: Record<string, unknown> 
   renderToStaticMarkup(createElement(DepotLot, { items, montantParVideoCentimes: 360, reseaux: ["linkedin"], offre: "image", onReseaux: () => undefined, onOffre: () => undefined, onRetirer: () => undefined, onFabriquer: async () => undefined, ...plus } as never));
 
 describe("1 image : l'écran actuel", () => {
-  it("la zone accepte plusieurs images mais l'écran vide garde son texte et son bouton à une vidéo", () => {
+  it("l'entrée image est masquée : seules 2 entrées, « texte » par défaut, aucune zone de dépôt d'image", () => {
     const html = texte(renderToStaticMarkup(createElement(Depot, { montants: MONTANTS })));
-    expect(html).toContain("Déposez une ou plusieurs images");
-    expect(html).toContain("800 px de côté au moins");
-    expect(html).toMatch(/Fabriquer la vidéo \(au plus 3,00\s?€\)/);
+    expect(ENTREE_IMAGE_VISIBLE).toBe(false);
+    expect(ENTREES_VISIBLES.map((e) => e.valeur)).toEqual(["texte", "script"]);
+    expect(ENTREE_PAR_DEFAUT).toBe("texte");
+    expect(html).toContain("Décrire avec mes mots");
+    expect(html).toContain("Coller mon script complet");
+    expect(html).not.toContain("Déposer une image");
+    expect(html).not.toContain("Déposez une ou plusieurs images");
     expect(html).not.toContain("Fabriquer les");
   });
 });
