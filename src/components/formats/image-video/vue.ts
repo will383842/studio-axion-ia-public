@@ -613,7 +613,7 @@ export function barreDe(etat: Pick<EtatFabricationIV, "etape" | "refus">): Ecran
 }
 
 export const ETAPES_ECRANS: readonly { ecran: EcranIV | "depot"; nom: string }[] = [
-  { ecran: "depot", nom: "L'image" },
+  { ecran: "depot", nom: "Le départ" },
   { ecran: "carte", nom: "Ce que j'ai compris" },
   { ecran: "script", nom: "Le script" },
   { ecran: "fabrication", nom: "Fabrication" },
