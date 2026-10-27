@@ -11,7 +11,7 @@ import { Icone } from "../../../interface-claire/elements";
 import { etatNoeud, railSuite, type SceneCalculee } from "../../plan";
 import { COULEURS_MUET, RailSuite } from "../../Toile";
 import { useVariete } from "../ContexteVariete";
-import { geometrieRail, POINT_RAIL, type CodeRail, type ElementRail } from "./geometrie";
+import { geometrieRail, type CodeRail, type ElementRail } from "./geometrie";
 
 type Props = { scene: SceneCalculee; schema: SchemaEntree; t: number; fond: "ivoire" | "sombre"; place: { haut: number; hauteur: number }; opacite: number };
 
@@ -35,12 +35,12 @@ function RailAutre({ scene, schema, t, fond, place, opacite, code }: Props & { c
         let corps: React.ReactNode;
         if (e.genre === "ligne") corps = <div style={{ ...base, borderRadius: 2, background: dit ? COULEURS_DUO.orange : gris, opacity: dit ? 1 : 0.6 }} />;
         else if (e.genre === "point")
-          corps = <div style={{ ...base, width: POINT_RAIL, height: POINT_RAIL, borderRadius: "50%", boxSizing: "border-box", background: dit ? COULEURS_DUO.orange : "transparent", border: dit ? "none" : `3px solid ${gris}` }} />;
+          corps = <div style={{ ...base, borderRadius: "50%", boxSizing: "border-box", background: dit ? COULEURS_DUO.orange : "transparent", border: dit ? "none" : `3px solid ${gris}` }} />;
         else if (e.genre === "pastille") {
           const nom = icones.get(dedans(e));
           corps = (
             <div style={{ ...base, borderRadius: "50%", boxSizing: "border-box", background: dit ? COULEURS_DUO.encre : "transparent", border: dit ? "none" : `3px solid ${COULEURS_DUO.orange}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {nom ? <Icone nom={nom} taille={e.largeur * 0.5} couleur={dit ? COULEURS_DUO.blanc : COULEURS_DUO.orange} epaisseur={2.6} /> : null}
+              {nom ? <Icone nom={nom} taille={e.hauteur * 0.5} couleur={dit ? COULEURS_DUO.blanc : COULEURS_DUO.orange} epaisseur={2.6} /> : null}
             </div>
           );
         } else
