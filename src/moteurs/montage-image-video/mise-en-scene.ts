@@ -13,7 +13,7 @@
  *  - sous-titres mot à mot dans la bande de la mise en page (#224) ; bruitages posés par L4 sur les changements visibles ;
  *  - rythme : un trou de plus de 2,4 s est relancé par un VRAI changement (bascule de fond d'un écran v4, vue
  *    d'ensemble sur une toile) ; un en-tête ou un texte de comblement ne compte jamais ;
- *  - segment de fin du réseau (question de commentaire puis fin de la banque ; rien sur LinkedIn).
+ *  - segment de fin du réseau (question de commentaire quand la fin en porte une, puis la fin de la banque ; rien seulement dans le plan d'une vidéo d'avant le 26/10/2026, LinkedIn muet).
  * Puis les contrôles BLOQUANTS (`controles-scene.ts`) : une ligne de temps qui ne les passe pas est refusée, avec une
  * phrase pour Will. Rien n'est tiré au hasard : mêmes entrées = même ligne de temps.
  */
@@ -202,7 +202,7 @@ export interface LigneDeTempsIV {
   sousTitres: SousTitresIV;
   repere: RepereIV | null;
   bruitages: BruitagePlace[];
-  /** Segment de fin : début, question dite ou non, version muette (LinkedIn). */
+  /** Segment de fin : début, question dite ou non, version muette (plan d'avant le 26/10/2026 : LinkedIn seul). */
   segmentFin: { debut: number; question: boolean; muet: boolean };
   /** Clés des chiffres de la carte (Q12/Q13) et chiffres dits avec leur heure. */
   chiffresDits: { cle: string; brut: string; t: number; ecran: string }[];
@@ -1508,7 +1508,10 @@ function couperLigne(p: EcranPlace, trou: { a: number; b: number }, milieu: numb
       if (k === null) continue;
       apres = k;
       const t = heureMot(c, k);
-      if (j > 0 && t > trou.a + 0.5 && t < trou.b - 0.5 && (!meilleur || Math.abs(t - milieu) < Math.abs(meilleur.t - milieu))) meilleur = { j, t };
+      // Écrans de FIN seulement (le corps des vidéos garde sa règle d'avant) : jamais de coupe juste après un mot de liaison
+      // (« … ce qu'on | peut automatiser »), le début resterait seul à l'écran, coupé.
+      const debutPropre = j > 0 && (p.sorte !== "fin" || !FINS_INTERDITES.test(sansBalises(mots[j - 1]).replace(/[.,!?:;…]+$/u, "")));
+      if (debutPropre && t > trou.a + 0.5 && t < trou.b - 0.5 && (!meilleur || Math.abs(t - milieu) < Math.abs(meilleur.t - milieu))) meilleur = { j, t };
     }
     if (!meilleur) continue;
     const debutTexte = equilibrer(mots.slice(0, meilleur.j).join(" "), titre);
@@ -1646,7 +1649,7 @@ function repartirEcran(p: EcranPlace): void {
 /* ------------------------------------------------------------------ */
 
 /**
- * Segment de fin d'un réseau (jamais sur LinkedIn) : la question de commentaire (texte d'écran de la fiche quand la
+ * Segment de fin d'un réseau (LinkedIn compris ; sauf dans le plan d'une vidéo d'avant le 26/10/2026) : la question de commentaire (texte d'écran de la fiche quand la
  * question est celle de l'image), puis chaque phrase de la banque, chacune sur son écran v4 sombre.
  */
 function segmentFin(fin: NonNullable<EntreeMiseEnSceneIV["fin"]>, fiche: FicheImage, calage: CalageIV, debutFin: number, dureeSec: number, els: El[], plans: PlanIV[]): void {
