@@ -209,7 +209,7 @@ export function textesDeLaCarte(carte: Pick<CarteImage, "titre" | "sousTitre" | 
 /**
  * Inventaire des chiffres recalculé par le code : un chiffre par occurrence, ids « c01 », « c02 »… dans l'ordre des
  * textes. `aDire` et `lu` sont repris de l'inventaire précédent quand le même chiffre (même écriture, même endroit) y
- * était (choix de Will, concordance des lectures) ; sinon `aDire: true`, `lu: "les-deux"`.
+ * était (choix de Will, concordance des lectures) ; sinon `aDire: true`, `lu: "les-deux"` ; sauf « 1 rappel » (un nombre 1 sans unité : « un » est un article, le script le dit sans le chiffre), affiché seulement.
  */
 export function chiffresDeLaCarte(carte: Pick<CarteImage, "titre" | "sousTitre" | "phraseChoc" | "signature" | "noeuds" | "liens" | "bandeau" | "pied"> & { chiffres?: ChiffreCarte[] }): ChiffreCarte[] {
   const precedents = carte.chiffres ?? [];
@@ -220,7 +220,7 @@ export function chiffresDeLaCarte(carte: Pick<CarteImage, "titre" | "sousTitre" 
       const avant = precedents.find(
         (p) => cleChiffre(p.brut) === cleChiffre(c.brut) && p.dansNoeud === t.dansNoeud && p.dansLien === t.dansLien && !!p.dansBandeau === !!t.dansBandeau,
       );
-      const chiffre: ChiffreCarte = { id: `c${String(res.length + 1).padStart(2, "0")}`, brut: c.brut, valeur: c.valeur, unite: c.unite, aDire: avant?.aDire ?? true, lu: avant?.lu ?? "les-deux" };
+      const chiffre: ChiffreCarte = { id: `c${String(res.length + 1).padStart(2, "0")}`, brut: c.brut, valeur: c.valeur, unite: c.unite, aDire: avant?.aDire ?? !(c.valeur === 1 && c.unite === "nombre"), lu: avant?.lu ?? "les-deux" };
       if (t.dansNoeud) chiffre.dansNoeud = t.dansNoeud;
       if (t.dansLien) chiffre.dansLien = t.dansLien;
       if (t.dansBandeau) chiffre.dansBandeau = true;
