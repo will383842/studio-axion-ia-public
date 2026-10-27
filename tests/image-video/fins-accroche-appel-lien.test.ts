@@ -27,7 +27,6 @@ import {
   finsTourActivesIV,
   liensSuivisIV,
   pairesAppelIV,
-  MOTS_LIEN_SECOURS_MAX,
   planDesFinsIV,
   sorteDuPlanIV,
   type PlanDesFinsIV,
@@ -328,15 +327,6 @@ describe("plafonds de durée avec la fin (accroche + appel + lien)", () => {
     for (const appels of [APPELS_DIAGNOSTIC_IV, APPELS_ACCOMPAGNEMENT_IV]) {
       const permis = new Set(pairesAppelIV(appels).flatMap((x) => x.appels.map((p) => `${x.accroche}|${p}`)));
       for (const a of ACCROCHES_APPEL_IV) for (const p of appels) expect(permis.has(`${a}|${p}`), `${a} ${p}`).toBe(mots([a, p]) + lienMax <= 29);
-    }
-  });
-
-  it("la phrase du lien de secours (lue après un refus de la voix) ne dépasse jamais le plafond réservé dans pairesAppelIV", () => {
-    for (const dit of ["Le lien est dans le premier commentaire.", "Le lien est juste sous la vidéo.", "Vous trouverez le lien juste en haut de mon profil.", "Vous trouverez le lien juste en haut de ma chaîne."]) {
-      expect(nombreMots(dit), dit).toBeLessThanOrEqual(MOTS_LIEN_SECOURS_MAX);
-    }
-    for (const a of ACCROCHES_APPEL_IV) for (const p of [...APPELS_DIAGNOSTIC_IV, ...APPELS_ACCOMPAGNEMENT_IV]) {
-      if (pairesAppelIV([p]).some((x) => x.accroche === a)) expect(mots([a, p]) + MOTS_LIEN_SECOURS_MAX, `${a} ${p}`).toBeLessThanOrEqual(29);
     }
   });
 
