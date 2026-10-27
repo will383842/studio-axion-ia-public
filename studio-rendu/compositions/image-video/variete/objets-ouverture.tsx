@@ -7,7 +7,7 @@ import React from "react";
  */
 import { AbsoluteFill } from "remotion";
 import { COULEURS_DUO } from "../../../../src/briques/habillage/charte-duo";
-import { Fond } from "../../cas-concret/socle/Fond";
+import { FondIV } from "./fond/FondVarie";
 import { famille, graisse } from "../../cas-concret/plans/commun";
 import { Icone } from "../../interface-claire/elements";
 import { Entete } from "../Entete";
@@ -58,7 +58,7 @@ export function Ecran({ fond, largeur, hauteur, children, cadre45, bandeNuit }: 
   const haut = cadre45 ? 1050 : 1160;
   return (
     <AbsoluteFill style={{ overflow: "hidden" }}>
-      <Fond fond={fond} largeur={largeur} hauteur={hauteur} />
+      <FondIV fond={fond} largeur={largeur} hauteur={hauteur} />
       {cadre45 ? (
         <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, transform: `translate(${540 * (1 - s)}px, ${170 - 262 * s}px) scale(${s})`, transformOrigin: "0 0" }}>{children}</div>
       ) : (

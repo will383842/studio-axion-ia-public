@@ -11,7 +11,7 @@ import React from "react";
 import type { ReactNode } from "react";
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { cameraA, ECRAN_IV, FONDU_CADRE, type PoseCamera } from "../../../../../src/briques/schema-motion";
-import { Fond } from "../../../cas-concret/socle/Fond";
+import { FondIV } from "../fond/FondVarie";
 import { EnteteVarie } from "../entete/EnteteVarie";
 import { enteteA, fondSceneA, hautCadreDe, type SceneCalculee } from "../../plan";
 import { useVariete } from "../ContexteVariete";
@@ -52,7 +52,7 @@ export function CalqueCamera({ children }: { children: ReactNode }) {
         children
       ) : (
         <>
-          <Fond fond={fondCam} largeur={width} hauteur={height} />
+          <FondIV fond={fondCam} largeur={width} hauteur={height} />
           <AbsoluteFill style={{ maskImage: masque, WebkitMaskImage: masque }}>
             <AbsoluteFill style={{ transform: `translate(${r.tx * echelle}px, ${r.ty * echelle}px) scale(${r.s})`, transformOrigin: "0 0" }}>{children}</AbsoluteFill>
           </AbsoluteFill>
