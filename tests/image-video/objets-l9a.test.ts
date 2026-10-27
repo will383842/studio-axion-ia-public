@@ -163,7 +163,7 @@ describe("K12 · bandeau des chiffres", () => {
     expect(avant.rangees.map((r) => r.claque.opacite)).toEqual([0, 0, 0]);
     const milieu = planBandeau(chiffres, 1.2);
     expect(milieu.rangees[0].claque.opacite).toBeGreaterThan(0);
-    expect(Number(milieu.rangees[0].texte.replace(/\D/g, ""))).toBeLessThan(80);
+    expect(milieu.rangees[0].texte).toBe("80 %");
     expect(milieu.rangees[1].claque.opacite).toBe(0);
     const fin = planBandeau(chiffres, 5);
     expect(fin.rangees.map((r) => r.texte)).toEqual(["80 %", "0", "24H/24"]);
