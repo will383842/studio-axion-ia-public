@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { cameraA, ECRAN_IV, FONDU_CADRE, type PoseCamera } from "../../../../../src/briques/schema-motion";
 import { Fond } from "../../../cas-concret/socle/Fond";
-import { Entete } from "../../Entete";
+import { EnteteVarie } from "../entete/EnteteVarie";
 import { enteteA, fondSceneA, hautCadreDe, type SceneCalculee } from "../../plan";
 import { useVariete } from "../ContexteVariete";
 import { donneesToile } from "./donnees";
@@ -62,7 +62,7 @@ export function CalqueCamera({ children }: { children: ReactNode }) {
       {d.code === "CAM-C" ? <PointSurLeFil scene={scene} courses={d.courses ?? []} pose={pose} t={t} largeur={width} /> : null}
       {vue ? <VueSilhouette scene={scene} noeud={vue.noeud} icone={vue.icone} fin={vue.fin} t={t} haut={entete ? hautCadreDe(ECRAN_IV.hauteur) * ECRAN_IV.hauteur : 260} largeur={width} hauteur={height} /> : null}
       {/* Toujours posé ici : la scène filmée par CAM-B ou CAM-C n'a pas d'en-tête à elle (un seul titre à l'écran). */}
-      <Entete entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={opaciteVue > 0.5 ? "sombre" : fondCam} marque="axion-ia.com" largeur={width} hauteur={height} />
+      <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={opaciteVue > 0.5 ? "sombre" : fondCam} marque="axion-ia.com" largeur={width} hauteur={height} />
     </AbsoluteFill>
   );
 }
