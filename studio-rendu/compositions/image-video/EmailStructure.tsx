@@ -10,6 +10,9 @@ import type { Fond } from "../../../src/briques/ecrans-motion";
 import { COULEURS_DUO, TAILLES_DUO } from "../../../src/briques/habillage/charte-duo";
 import { famille, graisse, planEntreeObjet, teinte } from "../cas-concret/plans/commun";
 import { Icone } from "../interface-claire/elements";
+import { useVariete } from "./variete/ContexteVariete";
+import { habillageObjet } from "./variete/objets/habillage";
+import { codeDe } from "../../../src/briques/schema-motion/variete";
 import { ECART_NOM_EMAIL, ICONE_LIBRE_EMAIL, planEmail, type ChampEmail, type TamponIV } from "./plan-objets";
 
 export function EmailStructure({ champs, debut, t, fond, tampon, titre = "Nouveau message" }: { champs: ChampEmail[]; debut: number; t: number; fond: Fond; tampon?: TamponIV; titre?: string }) {
@@ -17,6 +20,7 @@ export function EmailStructure({ champs, debut, t, fond, tampon, titre = "Nouvea
   if (m.entree <= 0) return null;
   const e = planEntreeObjet(m.entree);
   const sombre = fond === "sombre";
+  const h = habillageObjet(codeDe(useVariete()?.recette, "objets"), fond);
   return (
     <div
       style={{
@@ -25,17 +29,19 @@ export function EmailStructure({ champs, debut, t, fond, tampon, titre = "Nouvea
         top: m.boite.y,
         width: m.boite.largeur,
         height: m.boite.hauteur,
-        borderRadius: 40,
+        borderRadius: h.rayon,
         background: COULEURS_DUO.blanc,
-        boxShadow: `0 28px 64px ${teinte(COULEURS_DUO.encre, sombre ? 0.5 : 0.14)}`,
+        boxShadow: `0 ${h.ombre.decalageY}px ${h.ombre.flou}px ${teinte(COULEURS_DUO.encre, sombre ? h.ombre.alphaSombre : h.ombre.alphaClair)}`,
         overflow: "hidden",
         opacity: e.opacite,
         transform: `translateY(${e.decalageY}px) scale(${e.echelle})`,
       }}
     >
-      <div style={{ height: m.enTete, background: COULEURS_DUO.encre, display: "flex", alignItems: "center", gap: 24, padding: "0 44px" }}>
-        <Icone nom="mail" taille={60} couleur={COULEURS_DUO.orangeVif} epaisseur={2.8} />
-        <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLES_DUO.etiquette * 1920, letterSpacing: "0.24em", textTransform: "uppercase", color: COULEURS_DUO.blanc }}>{titre}</div>
+      <div style={{ ...(h.enTete.filetGauche ? { position: "relative" as const } : {}), height: m.enTete, background: h.enTete.fond, display: "flex", alignItems: "center", gap: 24, padding: "0 44px" }}>
+        {h.enTete.filetGauche ? <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 12, background: h.enTete.filetGauche }} /> : null}
+        <Icone nom="mail" taille={60} couleur={h.enTete.icone} epaisseur={h.enTete.epaisseurIcone} />
+        {h.enTete.point ? <div style={{ width: 18, height: 18, borderRadius: "50%", background: h.enTete.point, flex: "none" }} /> : null}
+        <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLES_DUO.etiquette * 1920, letterSpacing: h.enTete.majuscules ? "0.24em" : "0.02em", textTransform: h.enTete.majuscules ? "uppercase" : "none", color: h.enTete.texte }}>{titre}</div>
         {m.tampon && m.tampon.opacite > 0 ? (
           <div
             style={{
@@ -43,22 +49,23 @@ export function EmailStructure({ champs, debut, t, fond, tampon, titre = "Nouvea
               display: "flex",
               alignItems: "center",
               gap: 12,
-              padding: "10px 22px",
-              borderRadius: 40,
-              background: COULEURS_DUO.orangeVif,
+              padding: `${h.tampon.paddingV}px ${h.tampon.paddingH}px`,
+              borderRadius: h.tampon.rayon,
+              background: h.tampon.fond ?? "transparent",
+              border: h.tampon.contour ? `3px solid ${h.tampon.contour}` : undefined,
               fontFamily: famille("inter-gras"),
               fontWeight: graisse("inter-gras"),
               fontSize: TAILLES_DUO.etiquette * 1920,
               letterSpacing: "0.16em",
               textTransform: "uppercase",
-              color: COULEURS_DUO.blanc,
+              color: h.tampon.texte,
               opacity: m.tampon.opacite,
-              transform: `scale(${m.tampon.echelle})`,
+              transform: `${h.tampon.angle ? `rotate(${h.tampon.angle}deg) ` : ""}scale(${m.tampon.echelle})`,
               transformOrigin: "100% 50%",
             }}
           >
             {m.tampon.texte}
-            <Icone nom="coche" taille={TAILLES_DUO.etiquette * 1920 * 1.2} couleur={COULEURS_DUO.blanc} epaisseur={3.2} />
+            <Icone nom="coche" taille={TAILLES_DUO.etiquette * 1920 * 1.2} couleur={h.tampon.texte} epaisseur={3.2} />
           </div>
         ) : null}
       </div>
