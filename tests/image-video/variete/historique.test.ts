@@ -62,7 +62,7 @@ describe("accepteHistoriqueIV (doc 72 § 5)", () => {
     const meme = R({ ouverture: "OUV-C", recit: "REC-C", camera: "CAM-C", apparition: "APP-C", chiffres: "CHI-C", transitions: "TRA-C", texte: "TYP-C", fin: "FIN-C", matiere: "MAT-C", sousTitres: "SOU-B" });
     expect(accepteHistoriqueIV(meme, h)).toBe(false);
   });
-  it("ressemblance ≥ 60 % avec l'une des 10 dernières : refusée ; au-delà des 10 : ignorée", () => {
+  it("ressemblance ≥ 50 % avec l'une des 10 dernières : refusée ; au-delà des 10 : ignorée", () => {
     const proche = R({ ouverture: "OUV-B" }); // 12,5 / 15,5 avec la référence
     expect(accepteHistoriqueIV(proche, [AUTRE, AUTRE, AUTRE, R({})])).toBe(false);
     expect(accepteHistoriqueIV(proche, [...Array(10).fill(AUTRE), R({})])).toBe(true);
@@ -81,7 +81,7 @@ describe("tirage avec historique : garanti", () => {
     const h = (["REC-A", "REC-B", "REC-C"] as const).map((recit) => R({ ouverture: "OUV-A", recit }));
     for (let i = 0; i < 40; i++) expect(tirerVarieteIV({ graine: `g${i}`, carte, format: "9:16", historique: h }).ouverture).not.toBe("OUV-A");
   });
-  it("30 tirages enchaînés : ouverture jamais sur 3, jamais ≥ 60 % sur 10, jamais la même combinaison forte", () => {
+  it("30 tirages enchaînés : ouverture jamais sur 3, jamais ≥ 50 % sur 10, jamais la même combinaison forte", () => {
     const hist: RecetteVarieteIV[] = []; // la plus récente d'abord
     for (let i = 0; i < 30; i++) {
       const r = tirerVarieteIV({ graine: `video-${i}`, carte, format: "9:16", historique: hist });

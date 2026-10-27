@@ -50,8 +50,12 @@ export function meilleurRepliIV(tous: readonly RecetteVarieteIV[], historique: r
  * Recette réellement posée à l'écran d'une vidéo dont certains axes ont été repliés (typographie, fin, chiffres…) : le
  * texte replié donne TYP-C, l'ouverture repliée OUV-D, les autres axes repliés leur référence.
  */
-export function recetteEffectiveIV(recette: RecetteVarieteIV, replis: readonly { readonly axe: AxeVariete }[] | undefined): RecetteVarieteIV {
+export function recetteEffectiveIV(recette: RecetteVarieteIV, replis: readonly { readonly axe: AxeVariete; readonly code?: string }[] | undefined): RecetteVarieteIV {
   const r: Record<string, string> = { ...recette };
-  for (const { axe } of replis ?? []) r[axe] = axe === "texte" ? "TYP-C" : axe === "ouverture" ? "OUV-D" : (REFERENCES[axe] as string);
+  for (const { axe, code } of replis ?? []) {
+    // Un repli de TYP-B ne touche qu'un bloc trop long : les autres restent en TYP-B, la vidéo n'est pas en TYP-C.
+    if (axe === "texte" && code === "TYP-B") continue;
+    r[axe] = axe === "texte" ? "TYP-C" : axe === "ouverture" ? "OUV-D" : (REFERENCES[axe] as string);
+  }
   return r as RecetteVarieteIV;
 }
