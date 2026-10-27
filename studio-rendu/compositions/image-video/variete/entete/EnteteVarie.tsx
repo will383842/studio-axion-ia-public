@@ -14,7 +14,7 @@ export function EnteteVarie(p: Proprietes) {
   const variete = useVariete();
   const code = codeDe(variete?.recette, "entete");
   if (code === "ENT-A" || !p.entete || !variete) return <Entete {...p} />;
-  const g = geometrieEntete(code, p.entete.titre, variete.format, p.fond === "sombre" ? "sombre" : "ivoire");
+  const g = geometrieEntete(code, p.entete.titre, variete.format, p.fond === "sombre" ? "sombre" : "ivoire", p.entete.etiquette);
   const b = g.boite;
   return (
     <>
@@ -34,7 +34,7 @@ export function EnteteVarie(p: Proprietes) {
           }}
         />
       ) : null}
-      <Entete {...p} couleursTitre={g.forme === "filet" ? undefined : { texte: g.couleurTitre, accent: g.couleurAccent }} />
+      <Entete {...p} tailleTitre={g.tailleTitre} couleursTitre={g.forme === "filet" ? undefined : { texte: g.couleurTitre, accent: g.couleurAccent }} />
     </>
   );
 }
