@@ -58,7 +58,7 @@ export const VARIANTES_GARDEES: { readonly [A in AxeVariete]: readonly CodesParA
   // objets
   objets: [],
   // entete
-  entete: [],
+  entete: ["ENT-B", "ENT-C", "ENT-D"],
 });
 
 /** Référence de chaque axe (le rendu d'aujourd'hui) : sans recette, ou repli. L'ouverture n'en a pas (l'écran actuel ≈ OUV-D). */
