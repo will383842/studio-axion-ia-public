@@ -15,6 +15,7 @@
  * PUR, sans alias « @/ ».
  */
 import { LIGNES_BASE_7 } from "./banque-base7.generee";
+import { LIGNES_FINS_IV } from "./banque-fins-iv";
 import type { FinTable, ReseauFin, TypeFin } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -60,7 +61,7 @@ export interface AppelBanque {
   valideLe: string;
 }
 
-export const BANQUE_APPELS: readonly AppelBanque[] = Object.freeze(LIGNES_BASE_7.map((a) => Object.freeze(a)));
+export const BANQUE_APPELS: readonly AppelBanque[] = Object.freeze([...LIGNES_BASE_7, ...LIGNES_FINS_IV].map((a) => Object.freeze(a)));
 
 /**
  * Les phrases de la banque des fins (dites et écrites), pour la mémoire commune : le script enregistré les contient mot pour mot (la fin est imposée
