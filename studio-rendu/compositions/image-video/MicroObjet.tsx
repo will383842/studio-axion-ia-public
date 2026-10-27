@@ -16,7 +16,7 @@ import { MICRO_OBJETS, microObjet, type NomMicroObjet } from "../../../src/briqu
 import { chargerPoliceAnton, chargerPoliceTitre } from "../commune/polices";
 import { Fond } from "../cas-concret/socle/Fond";
 import { couleursDuFond, doux, famille, graisse, progres, teinte } from "../cas-concret/plans/commun";
-import { Entete } from "./Entete";
+import { EnteteVarie } from "./variete/entete/EnteteVarie";
 import { TemoinSousTitres } from "./TemoinSousTitres";
 import { beneficesGalerie, COMPOSITIONS_MICRO_OBJETS, metaGalerieMicro, planBanqueMicro, planListeMicro, proprietesGalerieMicro, RYTHME_GALERIE_MICRO, type ProprietesGalerieMicro } from "./donnees-galerie-micro";
 import type { ProprietesMicroObjet } from "./micro-objets/commun";
@@ -90,7 +90,7 @@ export function GalerieMicroObjets(p: ProprietesGalerieMicro) {
       <AbsoluteFill style={{ transform: `scale(${p.largeur / 1080})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
         {p.liste === "banque" ? <GrilleBanque t={t} fond={p.fond} /> : <ListeBenefices liste={p.liste} t={t} fond={p.fond} />}
       </AbsoluteFill>
-      <Entete entete={entete} ecoule={t} sortie={0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
+      <EnteteVarie entete={entete} ecoule={t} sortie={0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
       <AbsoluteFill style={{ transform: `scale(${p.largeur / 1080})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
         <TemoinSousTitres texte={entete.titre} fond={p.fond} />
       </AbsoluteFill>

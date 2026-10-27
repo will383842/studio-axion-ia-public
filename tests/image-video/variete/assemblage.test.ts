@@ -113,7 +113,7 @@ describe("assemblage · écarts entre lots", () => {
 
   it("(q) CAM-B / CAM-C : un seul en-tête (la scène ne pose pas le sien sous le calque caméra)", () => {
     const scene = readFileSync(join(process.cwd(), "studio-rendu/compositions/image-video/Compositions.tsx"), "utf8");
-    expect(scene).toMatch(/\{camC \? null : <Entete /);
+    expect(scene).toMatch(/\{camC \? null : <EnteteVarie /);
     const calque = readFileSync(join(process.cwd(), "studio-rendu/compositions/image-video/variete/camera/calque.tsx"), "utf8");
     expect(calque).not.toMatch(/!identique \|\| vue \? <Entete/);
     expect(calque).toMatch(/hautCadreDe\(height\)/);
