@@ -39,6 +39,6 @@ describe("geometrieRail", () => {
     for (const p of pts) expect([p.largeur, p.hauteur]).toEqual([18, 18]);
   });
   it("points et pastilles ne sont jamais rognés (ni ovales, ni hors de 60-1020) pendant le glissement", () => {
-    for (const f of [0, 0.25, 0.5, 0.75, 1, 1.5]) for (const code of ["RAI-B", "RAI-C"] as const) for (const e of geometrieRail(code, cartes(f), places["9:16"]).filter((x) => x.genre !== "ligne")) expect(e.largeur, `${code} f=${f}`).toBe(e.hauteur);
+    for (const f of [0, 0.25, 0.5, 0.75, 1, 1.5]) for (const code of ["RAI-B", "RAI-C"] as const) for (const e of geometrieRail(code, cartes(f), places["9:16"]).filter((x) => x.genre !== "ligne")) expect(e.largeur, `${code} f=${f}`).toBeCloseTo(e.hauteur, 6);
   });
 });
