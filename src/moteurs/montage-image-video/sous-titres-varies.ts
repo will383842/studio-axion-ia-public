@@ -42,7 +42,7 @@ type CodeSousTitres = NonNullable<LigneDeTempsIV["variete"]>["recette"]["sousTit
  */
 export function codeSousTitresIV(ligne: LigneSousTitres): CodeSousTitres | undefined {
   const code = ligne.variete?.recette.sousTitres;
-  if ((code === "SOU-D" || code === "SOU-E") && formatDeHauteurIV(ligne.hauteur) === "4:5" && controlerVariationsIV(melangeIV(ligne, code), ligne).length) return "SOU-B";
+  if ((code === "SOU-D" || code === "SOU-E") && formatDeHauteurIV(ligne.hauteur) === "4:5" && controlerVariationsIV(melangeIV(ligne, code), ligne, code === "SOU-D" ? SURLIGNAGE_CAS_CONCRET : undefined).length) return "SOU-B";
   return code;
 }
 
@@ -116,11 +116,12 @@ export function passagesIvoireIV(ligne: Pick<LigneDeTempsIV, "plans"> & Partial<
 }
 
 /** Calque de mesure : celui que la composition dessine (charte duo, bande du format, 9:16, écrans ivoire). */
-function calqueIV(segments: SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>): DonneesCalque {
+function calqueIV(segments: SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>, surlignage?: SurlignageSousTitres): DonneesCalque {
   // 4:5 (lot F45) : le calque du ratio 4:5, centré dans la bande du 4:5 ; le 9:16 est inchangé.
   const format = formatDeHauteurIV(ligne.hauteur);
   const b = MISE_EN_PAGE_IV[format].bandeSousTitres;
-  const style = format === "4:5" ? { ...STYLE_SOUS_TITRES_IV, positionPct: +(((b.haut + b.bas) / 2) * 100).toFixed(2) } : STYLE_SOUS_TITRES_IV;
+  const base = format === "4:5" ? { ...STYLE_SOUS_TITRES_IV, positionPct: +(((b.haut + b.bas) / 2) * 100).toFixed(2) } : STYLE_SOUS_TITRES_IV;
+  const style = surlignage ? { ...base, surlignage } : base; // SOU-D : on mesure avec la marge du surlignage
   const d = donneesCalque({ segments, base: "minimal", ratio: format, style });
   const clairs = passagesIvoireIV(ligne);
   return clairs.length ? { ...d, passagesClairs: clairs } : d;
@@ -224,8 +225,8 @@ const NOMS = { impact: "Impact", bandeau: "Bandeau", base: "base" } as const;
  * accents collés ; aucun accent pendant la question à commenter. Une phrase par défaut, sans identifiant (vide =
  * conforme).
  */
-export function controlerVariationsIV(segments: readonly SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>): string[] {
-  const d = calqueIV([...segments], ligne);
+export function controlerVariationsIV(segments: readonly SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>, surlignage?: SurlignageSousTitres): string[] {
+  const d = calqueIV([...segments], ligne, surlignage);
   const defauts: string[] = [];
   const texte = (s: SegmentSousTitres) => `« ${s.mots.map((m) => m.mot).join(" ")} »`;
   segments.forEach((s, i) => {

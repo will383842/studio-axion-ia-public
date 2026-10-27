@@ -17,7 +17,7 @@ import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulati
 // elles prouvent que le rendu ne change pas pour un plan inchangé, quelles que soient les fins posées aujourd'hui.
 import { planDesFinsAvant as planDesFinsIV } from "../plan-des-fins-avant";
 import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
-import { controlerVariationsIV, intensiteSousTitresIV, sousTitresVariesIV, surlignageSousTitresIV } from "@/moteurs/montage-image-video/sous-titres-varies";
+import { codeSousTitresIV, controlerVariationsIV, intensiteSousTitresIV, sousTitresVariesIV, surlignageSousTitresIV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import type { SegmentSousTitres } from "@/domaine/types";
 
@@ -112,15 +112,20 @@ describe("sous-titres · SOU-D (surlignage) et SOU-E (calme, à l'envers)", () =
 
   for (const format of [undefined, "4:5"] as const) {
     it(`6 cartes × 5 réseaux en ${format ?? "9:16"} : Q22 vert pour SOU-D et SOU-E`, { timeout: 60_000 }, () => {
+      let retours = 0; // versions retombées sur SOU-B parce que Q22 échouait
       for (const code of ["SOU-D", "SOU-E"] as const) {
         for (const nom of NOMS) {
           for (const r of RESEAUX_IV) {
             const res = miseEnScene(nom, r, code, format);
             expect(controlerVariationsIV(sousTitresVariesIV(res.ligne), res.ligne), `${code} ${nom} ${r}`).toEqual([]);
             for (const s of accents(sousTitresVariesIV(res.ligne))) expect(s.position).toBe("milieu");
+            if (codeSousTitresIV(res.ligne) !== code) retours++;
           }
         }
       }
+      // Jamais de retour en 9:16 ; en 4:5 le retour est un repli rare, pas la règle.
+      if (!format) expect(retours).toBe(0);
+      else expect(retours).toBeLessThanOrEqual(30);
     });
   }
 });
