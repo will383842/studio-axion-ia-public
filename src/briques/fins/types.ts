@@ -39,7 +39,7 @@ export interface FinTable {
    */
   parPhrase?: true;
   /** Trace de la validation par Will : qui, quand, d'après quoi. */
-  validation?: { par: "will"; le: string; source: string };
+  validation?: { par: "will" | "proposition"; le: string; source: string };
 }
 
 /** Fin choisie, prête pour la composition (emplacement du mot rempli). */
