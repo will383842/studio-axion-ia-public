@@ -32,7 +32,7 @@ import { galerieA, galerieB, galerieObjets, type MomentGalerie, type ProprietesG
 import { Dossiers } from "./Dossiers";
 import { EmailStructure } from "./EmailStructure";
 import { Ensemble } from "./Ensemble";
-import { Entete } from "./Entete";
+import { EnteteVarie } from "./variete/entete/EnteteVarie";
 import { PhraseChoc } from "./PhraseChoc";
 import { Affiche } from "./Affiche";
 import { QueueFin } from "./QueueFin";
@@ -171,7 +171,7 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
             </AbsoluteFill>
           ) : null}
           {/* CAM-B, CAM-C : le calque caméra repose la marque et l'en-tête, fixes, au-dessus de la scène recadrée (jamais deux titres). */}
-          {camC ? null : <Entete entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={fondVu} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />}
+          {camC ? null : <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={fondVu} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />}
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
           <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
@@ -245,7 +245,7 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
               </AbsoluteFill>
             ))}
           </AbsoluteFill>
-          <Entete entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
+          <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           {temoin ? <TemoinEntete p={p} t={t} /> : null}
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
           <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
@@ -325,7 +325,7 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & 
             {p.repere ? <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={m.fond} /> : null}
             {temoin && (m.sousTitre ?? m.entete?.titre) ? <TemoinSousTitres texte={(m.sousTitre ?? m.entete?.titre)!} fond={m.fond} /> : null}
           </AbsoluteFill>
-          <Entete entete={entete} ecoule={t - m.debut} sortie={entete ? Math.max(0, Math.min(1, (t - (m.fin - 0.15)) / 0.15)) : 0} fond={m.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
+          <EnteteVarie entete={entete} ecoule={t - m.debut} sortie={entete ? Math.max(0, Math.min(1, (t - (m.fin - 0.15)) / 0.15)) : 0} fond={m.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
           <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>

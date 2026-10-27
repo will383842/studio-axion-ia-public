@@ -14,7 +14,7 @@ import { RECETTE_REFERENCE_IV, tirerVarieteIV } from "@/moteurs/montage-image-vi
 const carteDe = (nom: string): CarteImage => JSON.parse(readFileSync(join(process.cwd(), "tests/image-video/fixtures/cartes", `${nom}.json`), "utf8"));
 const R = (sur: Partial<RecetteVarieteIV>): RecetteVarieteIV => ({ ...RECETTE_REFERENCE_IV, ...sur });
 /** Une recette dont TOUS les axes diffèrent de la référence. */
-const AUTRE: RecetteVarieteIV = { ouverture: "OUV-A", recit: "REC-B", chiffres: "CHI-B", camera: "CAM-B", texte: "TYP-B", apparition: "APP-B", transitions: "TRA-B", fin: "FIN-B", matiere: "MAT-B", sousTitres: "SOU-A", fond: "FON-A", rail: "RAI-A", objets: "OBJ-A", entete: "ENT-A" };
+const AUTRE: RecetteVarieteIV = { ouverture: "OUV-A", recit: "REC-B", chiffres: "CHI-B", camera: "CAM-B", texte: "TYP-B", apparition: "APP-B", transitions: "TRA-B", fin: "FIN-B", matiere: "MAT-B", sousTitres: "SOU-A", fond: "FON-A", rail: "RAI-A", objets: "OBJ-A", entete: "ENT-B" };
 
 describe("ressemblance de recette (doc 72 § 6.1)", () => {
   it("les poids valent 22 au total (somme calculée)", () => {
@@ -23,15 +23,15 @@ describe("ressemblance de recette (doc 72 § 6.1)", () => {
     expect(POIDS_AXES).toMatchObject({ ouverture: 3, recit: 2, camera: 2, apparition: 2, fond: 2, chiffres: 1.5, transitions: 1.5, rail: 1.5, objets: 1.5, texte: 1, fin: 1, matiere: 1, entete: 1, sousTitres: 1 });
   });
   it("le seuil est de 50 %", () => expect(SEUIL_RESSEMBLANCE).toBe(0.5));
-  it("caméra + matière seulement : 3 ÷ 16 (axes à un seul code tirable ignorés)", () => {
+  it("caméra + matière seulement : 3 ÷ 17 (axes à un seul code tirable ignorés ; l'en-tête compte, il a 4 codes tirables)", () => {
     const s = ressemblanceRecette(R({}), { ...AUTRE, camera: "CAM-A", matiere: "MAT-A" });
-    expect(s).toBeCloseTo(3 / 16, 10);
-    expect(Math.round(s * 100)).toBe(19);
+    expect(s).toBeCloseTo(3 / 17, 10);
+    expect(Math.round(s * 100)).toBe(18);
   });
-  it("ne diffèrent que par la fin et les sous-titres : 10,5 ÷ 12,5 (CHI-A et APP-A communs, neutres, hors compte)", () => {
+  it("ne diffèrent que par la fin et les sous-titres : 11,5 ÷ 13,5 (CHI-A et APP-A communs, neutres, hors compte ; l'en-tête commun compte)", () => {
     const s = ressemblanceRecette(R({}), R({ fin: "FIN-B", sousTitres: "SOU-A" }));
-    expect(s).toBeCloseTo(10.5 / 12.5, 10);
-    expect(Math.round(s * 100)).toBe(84);
+    expect(s).toBeCloseTo(11.5 / 13.5, 10);
+    expect(Math.round(s * 100)).toBe(85);
   });
   it("les axes ajoutés (un seul code tirable) ne comptent pas ; une recette ancienne sans eux se compare", () => {
     expect(ressemblanceRecette(R({ fond: "FON-B" }), R({}))).toBe(ressemblanceRecette(R({}), R({})));
