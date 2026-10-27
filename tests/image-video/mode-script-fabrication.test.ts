@@ -64,6 +64,13 @@ describe("script complet · découpage en écrans, mots inchangés", () => {
     for (const n of carteFixe("C").noeuds) expect(montres.has(n.id), n.id).toBe(true);
   });
 
+  it("un signe seul (« … », emoji) ne fait jamais un écran muet", () => {
+    const t = "Vous dormez. … Lui attend. Il relance chaque semaine sans y penser. Le client paie plus vite maintenant. Vous gagnez du temps chaque jour. Merci. 🚀";
+    const ecrans = ecransDuScript(t);
+    for (const e of ecrans) expect(e.some((j) => /[\p{L}\p{N}]/u.test(j)), e.join(" ")).toBe(true);
+    expect(mots(ecrans.map((x) => x.join(" ")).join(" "))).toEqual(mots(t));
+  });
+
   it("un script très court ou très long garde ses mots (six écrans au moins, soixante au plus)", () => {
     const court = "Un deux trois quatre cinq six sept.";
     expect(ecransDuScript(court).length).toBeGreaterThanOrEqual(6);

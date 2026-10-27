@@ -38,6 +38,11 @@ function phrases(script: string): string[][] {
   const res: string[][] = [];
   let cur: string[] = [];
   for (const j of script.normalize("NFC").split(/\s+/).filter(Boolean)) {
+    // Un signe seul (« … », emoji, « » ») ne fait pas une phrase : il se rattache à la précédente, sinon l'écran serait muet.
+    if (!cur.length && res.length && !/[\p{L}\p{N}]/u.test(j)) {
+      res[res.length - 1]!.push(j);
+      continue;
+    }
     cur.push(j);
     if (finDePhrase.test(j)) {
       res.push(cur);
