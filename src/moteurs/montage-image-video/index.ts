@@ -61,6 +61,8 @@ export interface EntreesImageVideo {
   empreinte?: string;
   /** MODE TEXTE (R6b) : description libre de Will à la place d'une image (`imageCle` vaut alors `texte:<empreinte>`). */
   texte?: string;
+  /** MODE « SCRIPT COMPLET » : `texte` est le script de Will, dit tel quel (aucune écriture par l'IA). */
+  scriptColle?: boolean;
   reseaux: ReseauIV[];
   offre?: Offre;
   typeImpose?: TypeImage;
@@ -85,6 +87,7 @@ export function lireEntreesImageVideo(entrees: Record<string, unknown> | undefin
     imageCle: typeof e.imageCle === "string" ? e.imageCle : "",
     ...(typeof e.empreinte === "string" ? { empreinte: e.empreinte } : {}),
     ...(typeof e.texte === "string" ? { texte: e.texte } : {}),
+    ...(e.scriptColle === true && typeof e.texte === "string" ? { scriptColle: true } : {}),
     reseaux,
     ...(typeof e.offre === "string" ? { offre: e.offre as Offre } : {}),
     ...(typeof e.typeImpose === "string" ? { typeImpose: e.typeImpose as TypeImage } : {}),
@@ -114,6 +117,7 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
     versionId,
     image: { cle: e.imageCle, ...(e.empreinte ? { empreinte: e.empreinte } : {}) },
     ...(e.texte !== undefined ? { texte: e.texte } : {}),
+    ...(e.scriptColle ? { scriptColle: true } : {}),
     reseaux: e.reseaux,
     ...(e.offre ? { offre: e.offre } : {}),
     ...(e.typeImpose ? { typeImpose: e.typeImpose } : {}),
