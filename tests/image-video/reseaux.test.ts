@@ -27,9 +27,9 @@ describe("planDesFinsIV · 4 réseaux", () => {
 
   it("YouTube Shorts a une fin complète : accroche + appel diagnostic + lien sur la chaîne", () => {
     const f = finDe("youtube-shorts");
-    expect(f.appels.map((a) => a.id)).toEqual(["fin-iv-accroche-02", "fin-iv-appel-diagnostic-02", "fin-iv-lien-chaine"]);
+    expect(f.appels.map((a) => a.id)).toEqual(["fin-iv-accroche-01", "fin-iv-appel-diagnostic-03", "fin-iv-lien-chaine"]);
     expect(f.appels.map((a) => a.type)).toEqual(["question", "rendez-vous", "lien"]);
-    expect(dits("youtube-shorts")).toEqual(["Automatiser, oui. Mais quoi en premier ?", "Réservez un appel : un diagnostic de ce qu'on peut automatiser chez vous.", "Le lien est sur ma chaîne."]);
+    expect(dits("youtube-shorts")).toEqual(["Vous savez qu'il faut automatiser, mais pas par où commencer ?", "Réservez un appel gratuit : on regarde ensemble par où commencer.", "Le lien est sur ma chaîne."]);
   });
 
   it("TikTok n'est plus proposé pour Image → vidéo (décision de Will du 19/10/2026) : jamais planifié, même demandé", () => {
@@ -105,7 +105,7 @@ describe("fin « diagnostic » tant que rien n'est branché : aucune promesse d'
     expect(p.fins.find((f) => f.reseaux.includes("facebook"))!.appels.map((a) => a.id)).toEqual(["fin-if-mot", "fin-if-envoi-structure"]);
     expect(p.fins.find((f) => f.reseaux.includes("youtube-shorts"))!.appels.every((a) => a.type !== "commentaire")).toBe(true);
     // LinkedIn n'a jamais de fin au mot : il garde la fin habituelle (accroche, appel, lien).
-    expect(p.fins.find((f) => f.reseaux.includes("linkedin"))!.appels.map((a) => a.id)).toEqual(["fin-iv-accroche-02", "fin-iv-appel-diagnostic-02", "fin-iv-lien-commentaire"]);
+    expect(p.fins.find((f) => f.reseaux.includes("linkedin"))!.appels.map((a) => a.id)).toEqual(["fin-iv-accroche-01", "fin-iv-appel-diagnostic-03", "fin-iv-lien-commentaire"]);
   });
 });
 
@@ -161,7 +161,7 @@ describe("textes de publication", () => {
   it("LinkedIn (non muet) : question, appel et phrase du lien dans le post, lien en premier commentaire, jamais « commentez »", () => {
     const t = de("linkedin");
     expect(t.texte).toContain(QUESTION);
-    expect(t.texte).toContain("Réservez un appel : un diagnostic de ce qu'on peut automatiser chez vous. Le lien est en premier commentaire.");
+    expect(t.texte).toContain("Réservez un appel gratuit : on regarde ensemble par où commencer. Le lien est en premier commentaire.");
     expect(t.texte).not.toMatch(/commentez/i);
     expect(t.ouPoserLeLien).toBe("premier-commentaire");
     expect(t.premierCommentaire).toContain(liens.linkedin);

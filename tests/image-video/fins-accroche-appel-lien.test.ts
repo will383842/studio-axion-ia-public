@@ -26,6 +26,7 @@ import {
   finDuReseauIV,
   finsTourActivesIV,
   liensSuivisIV,
+  pairesAppelIV,
   planDesFinsIV,
   sorteDuPlanIV,
   type PlanDesFinsIV,
@@ -33,7 +34,7 @@ import {
 import { FINS_DE_SECOURS_IV, etapeDeSecoursIV, peutRelireIV } from "@/moteurs/montage-image-video/secours";
 import { MOTS_INTERDITS_FORMAT } from "@/moteurs/montage-image-video/emprunts";
 import { textesDePublicationIV } from "@/moteurs/montage-image-video/publication";
-import { verdictReseau } from "@/moteurs/montage-image-video/reseaux";
+import { verdictReseau, versionsPourDuree } from "@/moteurs/montage-image-video/reseaux";
 import { texteDeFinIV } from "@/moteurs/montage-image-video/texte-fin";
 
 const LIGNES_IV = BANQUE_APPELS.filter((a) => a.code.startsWith("fin-iv-"));
@@ -169,7 +170,10 @@ describe("choix de la fin par numéro de version (pur)", () => {
         expect((c.sorte === "diagnostic" ? APPELS_DIAGNOSTIC_IV : APPELS_ACCOMPAGNEMENT_IV)).toContain(c.appel);
       }
     }
-    for (const c of [...ACCROCHES_APPEL_IV, ...APPELS_DIAGNOSTIC_IV, ...APPELS_ACCOMPAGNEMENT_IV, ...ACCROCHES_TOUR_IV, ...INVITATIONS_TOUR_IV]) expect(vues.has(c), c).toBe(true);
+    // Toutes les lignes tournent, sauf celles qu'aucune paire ne garde sous 29 mots (accroche 11 : 13 mots, 30 au minimum avec un appel et le lien).
+    const gardees = new Set([APPELS_DIAGNOSTIC_IV, APPELS_ACCOMPAGNEMENT_IV].flatMap((a) => pairesAppelIV(a).flatMap((x) => [x.accroche, ...x.appels])));
+    expect(ACCROCHES_APPEL_IV.filter((c) => !gardees.has(c))).toEqual(["fin-iv-accroche-11"]);
+    for (const c of [...ACCROCHES_APPEL_IV, ...APPELS_DIAGNOSTIC_IV, ...APPELS_ACCOMPAGNEMENT_IV].filter((c) => gardees.has(c)).concat(ACCROCHES_TOUR_IV, INVITATIONS_TOUR_IV)) expect(vues.has(c), c).toBe(true);
   });
 });
 
@@ -300,32 +304,67 @@ describe("publication", () => {
 });
 
 describe("plafonds de durée avec la fin (accroche + appel + lien)", () => {
-  /** Débit prudent (mots par seconde) pour borner la fin dite : plus lent que le débit simulé (`DEBIT_MOTS_PAR_SEC`). */
-  const MOTS_PAR_SEC_PRUDENT = 2.7;
-  /** Borne réaliste d'une fin (accroche + appel + lien) à ce débit : la plus longue combinaison de la banque fait ~13 s. */
-  const BORNE_FIN_SEC = 13;
-  const dureeFin = (codes: readonly string[]) => codes.reduce((n, c) => n + nombreMots(appelDeLaBanque(c)!.dit), 0) / MOTS_PAR_SEC_PRUDENT;
-  const combinaisons = (): { codes: string[]; sec: number }[] => {
+  /** Débit réel mesuré des voix (mots par seconde) : une fin de 29 mots dure 8,8 s sur les mots seuls. */
+  const MOTS_PAR_SEC_REEL = 3.3;
+  const mots = (codes: readonly string[]) => codes.reduce((n, c) => n + nombreMots(appelDeLaBanque(c)!.dit), 0);
+  const liens = [...new Set(Object.values(LIEN_FIN_IV))];
+  /** Toutes les fins tirables : paires accroche + appel autorisées (appels), invitations du Tour, avec chacune des phrases du lien. */
+  const finsTirables = (): { codes: string[]; mots: number; sec: number }[] => {
     const jeux: [readonly string[], readonly string[]][] = [
-      [ACCROCHES_APPEL_IV, APPELS_DIAGNOSTIC_IV],
-      [ACCROCHES_APPEL_IV, APPELS_ACCOMPAGNEMENT_IV],
+      ...[APPELS_DIAGNOSTIC_IV, APPELS_ACCOMPAGNEMENT_IV].flatMap((appels) => pairesAppelIV(appels).map((x): [string[], string[]] => [[x.accroche], x.appels])),
       [ACCROCHES_TOUR_IV, INVITATIONS_TOUR_IV],
     ];
-    const liens = [...new Set(Object.values(LIEN_FIN_IV))];
-    return jeux.flatMap(([accroches, appels]) => accroches.flatMap((a) => appels.flatMap((p) => liens.map((l) => ({ codes: [a, p, l], sec: dureeFin([a, p, l]) })))));
+    return jeux.flatMap(([accroches, appels]) => accroches.flatMap((a) => appels.flatMap((p) => liens.map((l) => ({ codes: [a, p, l], mots: mots([a, p, l]), sec: mots([a, p, l]) / MOTS_PAR_SEC_REEL })))));
   };
 
-  it("chaque combinaison accroche + appel + lien dure au plus la borne (somme des mots / 2,7 mots par seconde), et la borne est atteinte de près", () => {
-    const toutes = combinaisons();
-    expect(toutes).toHaveLength(121 * 3);
-    const trop = toutes.filter((c) => c.sec > BORNE_FIN_SEC + 1e-6).map((c) => `${c.codes.join(" + ")} : ${c.sec.toFixed(1)} s`);
-    expect(trop).toEqual([]);
-    expect(BORNE_FIN_SEC).toBeLessThanOrEqual(13);
-    expect(Math.max(...toutes.map((c) => c.sec))).toBeGreaterThan(BORNE_FIN_SEC - 1);
+  it("toute fin tirable (accroche + appel + lien) tient en 29 mots et 9 s à 3,3 mots/s, mots seuls", () => {
+    const toutes = finsTirables();
+    expect(toutes.length).toBeGreaterThan(0);
+    expect(toutes.filter((c) => c.mots > 29).map((c) => `${c.codes.join(" + ")} : ${c.mots} mots`)).toEqual([]);
+    expect(toutes.filter((c) => c.sec > 9).map((c) => `${c.codes.join(" + ")} : ${c.sec.toFixed(1)} s`)).toEqual([]);
+    // Les fins écartées sont bien celles qui dépassent : avec la phrase du lien, 29 mots au plus ; au-delà, jamais tirées.
+    const lienMax = Math.max(...liens.map((l) => mots([l])));
+    for (const appels of [APPELS_DIAGNOSTIC_IV, APPELS_ACCOMPAGNEMENT_IV]) {
+      const permis = new Set(pairesAppelIV(appels).flatMap((x) => x.appels.map((p) => `${x.accroche}|${p}`)));
+      for (const a of ACCROCHES_APPEL_IV) for (const p of appels) expect(permis.has(`${a}|${p}`), `${a} ${p}`).toBe(mots([a, p]) + lienMax <= 29);
+    }
+  });
+
+  it("choixDeFinIV ne sort que des fins sous 29 mots, avec ou sans Tour, sans jamais répéter l'accroche d'un numéro au suivant", () => {
+    for (const tourActif of [false, true]) {
+      let precedente = "";
+      for (let n = 1; n <= 400; n++) {
+        const c = choixDeFinIV(n, { tourActif });
+        for (const l of liens) expect(mots([c.accroche, c.appel, l]), `${n} ${c.accroche} ${c.appel}`).toBeLessThanOrEqual(29);
+        expect(c.accroche, `${n} (Tour ${tourActif})`).not.toBe(precedente);
+        precedente = c.accroche;
+      }
+    }
+  });
+
+  it("Tour désactivé : deux tiers de diagnostic, un tiers d'accompagnement", () => {
+    const sortes = Array.from({ length: 300 }, (_, i) => choixDeFinIV(i + 1, { tourActif: false }).sorte);
+    expect(sortes.filter((s) => s === "diagnostic")).toHaveLength(200);
+    expect(sortes.filter((s) => s === "accompagnement")).toHaveLength(100);
+  });
+
+  it("LinkedIn en version courte pendant que le fil Facebook 4:5 reste en version longue (même corps, même fin)", () => {
+    const fin = Math.max(...finsTirables().map((c) => c.sec));
+    // Un corps qui, avec la fin, dépasse le plafond conseillé de LinkedIn (60 s) mais tient sous celui de Facebook (90 s).
+    const corps = PLAFONDS_IV.linkedin.conseilleSec + 10 - fin;
+    const total = corps + fin;
+    expect(total).toBeLessThan(PLAFONDS_IV.facebook.conseilleSec);
+    expect(verdictReseau("linkedin", total)).toMatchObject({ verdict: "version-courte", version: "courte", bloquant: false });
+    expect(verdictReseau("facebook", total)).toMatchObject({ version: "longue", bloquant: false });
+    expect(versionsPourDuree(total, ["linkedin", "facebook"])).toEqual({ linkedin: "courte", facebook: "longue" });
+  });
+
+  it("garde : chaque phrase du lien du plan existe dans la banque (jamais null)", () => {
+    for (const r of RESEAUX_IV) expect(appelDeLaBanque(LIEN_FIN_IV[r]), `${r} ${LIEN_FIN_IV[r]}`).not.toBeNull();
   });
 
   it("chaque réseau reste livré quand le corps laisse à la fin la plus longue la place sous le plafond conseillé", () => {
-    const fin = Math.max(...combinaisons().map((c) => c.sec));
+    const fin = Math.max(...finsTirables().map((c) => c.sec));
     for (const r of TOUS_RESEAUX) {
       const p = PLAFONDS_IV[r].conseilleSec;
       if (p <= fin) continue;

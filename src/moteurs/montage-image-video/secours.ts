@@ -25,7 +25,7 @@
  */
 import { comparerAReference, TOLERANCES_VOIX, VERSION_MESURE_VOIX, verdictSurMesureAncienne } from "@/briques/voix-maitre/reference";
 import { ErreurFin, groupeDe, suiteDeFins, TABLE_FINS_DIAGNOSTIC, type FinChoisie, type FinTable } from "@/briques/fins";
-import { VALIDATION_WILL_SECOURS, VALIDATION_WILL_SECOURS_2, VALIDATION_WILL_SECOURS_IG } from "@/briques/fins/banque";
+import { VALIDATION_WILL_SECOURS, VALIDATION_WILL_SECOURS_2, VALIDATION_WILL_SECOURS_IG, VALIDATION_SECOURS_CHAINE_IV } from "@/briques/fins/banque";
 import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
 import { PLAFONDS_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { EtatFabricationIV } from "./fabrication";
@@ -64,7 +64,7 @@ const LIGNES_SECOURS_IV: readonly Omit<FinTable, "groupe" | "reseaux">[] = Objec
   { id: "fin-iv-lien-commentaire-secours", type: "lien", dit: "Le lien est dans le premier commentaire.", ecran: "Le lien est en premier commentaire", validee: true, validation: VALIDATION_WILL_SECOURS },
   { id: "fin-iv-lien-sous-video-secours", type: "lien", dit: "Le lien est juste sous la vidéo.", ecran: "Le lien est juste sous la vidéo", validee: true, validation: VALIDATION_WILL_SECOURS_2 },
   { id: "fin-iv-lien-profil-secours", type: "lien", dit: "Vous trouverez le lien juste en haut de mon profil.", ecran: "Le lien est dans mon profil", validee: true, validation: VALIDATION_WILL_SECOURS_IG },
-  { id: "fin-iv-lien-chaine-secours", type: "lien", dit: "Vous trouverez le lien juste en haut de ma chaîne.", ecran: "Le lien est sur ma chaîne", validee: true, validation: VALIDATION_WILL_SECOURS_IG },
+  { id: "fin-iv-lien-chaine-secours", type: "lien", dit: "Vous trouverez le lien juste en haut de ma chaîne.", ecran: "Le lien est sur ma chaîne", validee: true, validation: VALIDATION_SECOURS_CHAINE_IV },
 ]);
 
 /** Ligne de secours `fin-iv-…` lue pour un réseau (son groupe est celui du réseau : Facebook, LinkedIn, Instagram et TikTok les partagent). */
