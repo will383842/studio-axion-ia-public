@@ -23,10 +23,10 @@ describe("ressemblance de recette (doc 72 § 6.1)", () => {
     expect(POIDS_AXES).toMatchObject({ ouverture: 3, recit: 2, camera: 2, apparition: 2, fond: 2, chiffres: 1.5, transitions: 1.5, rail: 1.5, objets: 1.5, texte: 1, fin: 1, matiere: 1, entete: 1, sousTitres: 1 });
   });
   it("le seuil est de 50 %", () => expect(SEUIL_RESSEMBLANCE).toBe(0.5));
-  it("caméra + matière seulement : 5 ÷ 19 (axes à un seul code tirable ignorés ; le fond et l'en-tête comptent)", () => {
+  it("caméra + matière seulement : 3 ÷ 19 (axes à un seul code tirable ignorés ; le fond et l'en-tête comptent)", () => {
     const s = ressemblanceRecette(R({}), { ...AUTRE, camera: "CAM-A", matiere: "MAT-A" });
-    expect(s).toBeCloseTo(5 / 19, 10);
-    expect(Math.round(s * 100)).toBe(26);
+    expect(s).toBeCloseTo(3 / 19, 10);
+    expect(Math.round(s * 100)).toBe(16);
   });
   it("ne diffèrent que par la fin et les sous-titres : 13,5 ÷ 15,5 (CHI-A et APP-A communs, neutres, hors compte ; l'en-tête commun compte)", () => {
     const s = ressemblanceRecette(R({}), R({ fin: "FIN-B", sousTitres: "SOU-A" }));
@@ -51,7 +51,7 @@ describe("accepteHistoriqueIV (doc 72 § 5)", () => {
   it("historique vide : tout passe", () => expect(accepteHistoriqueIV(AUTRE, [])).toBe(true));
   it("ouverture égale à l'une des 3 dernières : refusée ; à la 4ᵉ : permise", () => {
     const h = (["REC-A", "REC-B", "REC-C"] as const).map((recit) => ({ ...AUTRE, ouverture: "OUV-A" as const, recit }));
-    const cand = { ...AUTRE, ouverture: "OUV-A" as const, recit: "REC-D" as const, camera: "CAM-D" as const, apparition: "APP-C" as const, chiffres: "CHI-C" as const, transitions: "TRA-C" as const };
+    const cand = { ...AUTRE, ouverture: "OUV-A" as const, recit: "REC-D" as const, camera: "CAM-D" as const, apparition: "APP-C" as const, chiffres: "CHI-C" as const, transitions: "TRA-C" as const, fond: "FON-C" as const };
     expect(accepteHistoriqueIV(cand, h)).toBe(false);
     const h4 = [{ ...h[0], ouverture: "OUV-B" as const }, h[1], h[2], { ...h[2], ouverture: "OUV-C" as const }];
     expect(accepteHistoriqueIV({ ...cand, ouverture: "OUV-C" }, h4)).toBe(true);
