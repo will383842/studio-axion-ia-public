@@ -13,7 +13,7 @@ export interface DureesSegments {
   corpsSec: number;
   /** 0 sans question de commentaire (réglage `fin-seule`, défaut). */
   questionSec: number;
-  /** Fin dite et affichée (accroche, appel, lien), 8 à 9 s ; 0 pour une vidéo LinkedIn d'avant le 26/10 (muette). */
+  /** Fin dite et affichée (accroche, appel, lien), au plus 29 mots, soit 8 à 9 s à 3,3 mots/s ; 0 pour une vidéo LinkedIn d'avant le 26/10 (muette). */
   finSec: number;
 }
 

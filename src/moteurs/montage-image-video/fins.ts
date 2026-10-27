@@ -33,7 +33,7 @@ import {
   type FinChoisie,
   type Offre,
 } from "./emprunts";
-import type { FinTable } from "@/briques/fins";
+import { nombreMots, type FinTable } from "@/briques/fins";
 
 export { RESEAUX_IV };
 export type { ReseauIV };
@@ -120,28 +120,77 @@ export interface ChoixFinIV {
   appel: string;
 }
 
+/** Plafond de mots d'une fin « appel » (accroche + appel + phrase du lien) : 29 mots, soit 8 à 9 s au débit réel de 3,3 mots/s. */
+export const MOTS_FIN_APPEL_MAX = 29;
+
+const motsDeLigne = (code: string): number => {
+  const l = appelDeLaBanque(code);
+  if (!l) throw new ErreurFin(`La fin « ${code} » est absente de la banque.`);
+  return nombreMots(l.dit);
+};
+
+/** Paires (accroche, appel) d'une sorte qui tiennent sous le plafond, phrase du lien la plus longue comprise. */
+export function pairesAppelIV(appels: readonly string[]): { accroche: string; appels: string[] }[] {
+  const lien = Math.max(...Object.values(LIEN_FIN_IV).map(motsDeLigne));
+  return ACCROCHES_APPEL_IV.map((accroche) => ({ accroche, appels: appels.filter((p) => motsDeLigne(accroche) + motsDeLigne(p) + lien <= MOTS_FIN_APPEL_MAX) })).filter((x) => x.appels.length > 0);
+}
+
+/** Sorte d'un numéro hors Tour : accompagnement un sur trois (Tour désactivé : n ≡ 2 mod 3 ; activé : `RESIDUS_ACCOMPAGNEMENT_TOUR`). */
+const estAccompagnement = (n: number, tourActif: boolean): boolean => (tourActif ? RESIDUS_ACCOMPAGNEMENT_TOUR.includes(n % 12) : n % 3 === 2);
+
+/**
+ * Accroche et appel de chaque numéro hors Tour (1 à 9999), calculés une fois par réglage : chaque sorte parcourt ses
+ * accroches utilisables (celles qui ont au moins un appel sous le plafond) dans l'ordre, en sautant celle du numéro
+ * précédent ; l'appel tourne parmi ceux que son accroche permet, à chaque retour de cette accroche.
+ */
+const FINS_MEMO = new Map<boolean, { accroche: string; appel: string }[]>();
+function tableDesFinsIV(tourActif: boolean): { accroche: string; appel: string }[] {
+  const memo = FINS_MEMO.get(tourActif);
+  if (memo) return memo;
+  const paires = { diagnostic: pairesAppelIV(APPELS_DIAGNOSTIC_IV), accompagnement: pairesAppelIV(APPELS_ACCOMPAGNEMENT_IV) };
+  const vus = { diagnostic: 0, accompagnement: 0 };
+  const retours = new Map<string, number>();
+  const table: { accroche: string; appel: string }[] = [{ accroche: "", appel: "" }];
+  for (let n = 1; n <= 9999; n++) {
+    if (tourActif && n % TOUR_UN_SUR === 0) {
+      table.push({ accroche: "", appel: "" });
+      continue;
+    }
+    const sorte = estAccompagnement(n, tourActif) ? "accompagnement" : "diagnostic";
+    const pool = paires[sorte];
+    let paire = pool[vus[sorte]++ % pool.length];
+    if (paire.accroche === table[n - 1].accroche) paire = pool[vus[sorte]++ % pool.length];
+    const cle = `${sorte}|${paire.accroche}`;
+    const k = retours.get(cle) ?? 0;
+    retours.set(cle, k + 1);
+    table.push({ accroche: paire.accroche, appel: paire.appels[k % paire.appels.length] });
+  }
+  FINS_MEMO.set(tourActif, table);
+  return table;
+}
+
 /**
  * Fin d'une vidéo, choisie à partir de son numéro de version seul (PUR, déterministe) :
  * - `n` multiple de quatre : fin « Tour » (si activée) ;
  * - sinon appel « accompagnement » (Tour désactivé : `n` ≡ 2 mod 3, un sur trois ; Tour activé : `n` mod 12 dans
  *   `RESIDUS_ACCOMPAGNEMENT_TOUR`, soit un tiers de toutes les vidéos), les autres « diagnostic » ;
  * `options.tourActif` (tests) force l'activation ; sans lui, elle suit `finsTourActivesIV()`.
- * - l'accroche tourne sur son propre jeu (`n` mod 13 pour les appels, le rang du Tour mod 6) : deux numéros
- *   consécutifs n'ont jamais la même accroche (jeux séparés entre Tour et appels, pas de répétition dans un jeu).
+ * - seules les paires accroche + appel qui tiennent en 29 mots avec la phrase du lien sont tirées (`pairesAppelIV`) ;
+ * - l'accroche tourne sur le jeu de sa sorte et saute celle du numéro précédent : deux numéros consécutifs n'ont jamais
+ *   la même accroche (jeux séparés entre Tour et appels).
  */
 export function choixDeFinIV(numeroVersion: number, options: { tourActif?: boolean } = {}): ChoixFinIV {
   if (!Number.isInteger(numeroVersion) || numeroVersion < 1 || numeroVersion > 9999) {
     throw new ErreurFin("Le numéro de version doit être un entier entre 1 et 9999.");
   }
   const n = numeroVersion;
-  if ((options.tourActif ?? finsTourActivesIV()) && n % TOUR_UN_SUR === 0) {
+  const tourActif = options.tourActif ?? finsTourActivesIV();
+  if (tourActif && n % TOUR_UN_SUR === 0) {
     const rang = n / TOUR_UN_SUR - 1;
     return { sorte: "tour", accroche: ACCROCHES_TOUR_IV[rang % ACCROCHES_TOUR_IV.length], appel: INVITATIONS_TOUR_IV[rang % INVITATIONS_TOUR_IV.length] };
   }
-  const accroche = ACCROCHES_APPEL_IV[n % ACCROCHES_APPEL_IV.length];
-  const accompagnement = (options.tourActif ?? finsTourActivesIV()) ? RESIDUS_ACCOMPAGNEMENT_TOUR.includes(n % 12) : n % 3 === 2;
-  if (accompagnement) return { sorte: "accompagnement", accroche, appel: APPELS_ACCOMPAGNEMENT_IV[Math.floor(n / 3) % APPELS_ACCOMPAGNEMENT_IV.length] };
-  return { sorte: "diagnostic", accroche, appel: APPELS_DIAGNOSTIC_IV[(n + Math.floor(n / TOUR_UN_SUR)) % APPELS_DIAGNOSTIC_IV.length] };
+  const { accroche, appel } = tableDesFinsIV(tourActif)[n];
+  return { sorte: estAccompagnement(n, tourActif) ? "accompagnement" : "diagnostic", accroche, appel };
 }
 
 /** Sorte de fin d'un plan, lue sur les lignes de banque de ses fins ; « diagnostic » par défaut (fin au mot comprise). */
