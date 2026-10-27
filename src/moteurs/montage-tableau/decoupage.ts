@@ -61,6 +61,7 @@ import {
   type FicheTableau,
   type StructureTableau,
 } from "./fiche";
+import { estStyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 import { styleDuDecoupage, type ChoixStyle } from "./tirage-style";
 import { reparerFormes } from "./formes";
 import { BORNES_BLOC_3, BORNES_GABARIT_3, CONSEIL_GABARIT_3 } from "./gabarit-3";
@@ -662,8 +663,9 @@ export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fic
   const dejaTraitees = new Set<number>();
   const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message + conseilDe(p.regle) + raisonPageDePlus(p, brute, dejaTraitees)))];
   if (refus.length || !v.ok) return { ok: false, refus };
-  // Le style n'a servi qu'à juger : la fiche rendue reste celle d'avant (la fabrication le pose à son tour).
-  if (jugee === lue) return { ok: true, fiche: v.fiche, retraits };
+  // Style tiré ou imposé : il reste dans la fiche (la fabrication le relit via `styleTableauDe`, sinon elle retomberait sur
+  // le style de la série). Sinon le style de la série n'a servi qu'à juger : la fabrication le pose à son tour.
+  if (jugee === lue || e.tirage || estStyleTableau(e.styleImpose)) return { ok: true, fiche: v.fiche, retraits };
   const fiche = { ...v.fiche };
   delete fiche.styleTableau;
   return { ok: true, fiche, retraits };

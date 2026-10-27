@@ -14,7 +14,12 @@ export async function historiqueStylesTableau(): Promise<EntreeHistoriqueStyle[]
   return lireHistoriqueStyles(await lireParametre<unknown>(CLE_HISTORIQUE_STYLES, []));
 }
 
-/** Note le style d'une vidéo (remplace sa ligne précédente). */
+/**
+ * Note le style d'une vidéo (remplace sa ligne précédente). Lecture puis écriture sans verrou : l'historique est relu
+ * juste avant d'écrire pour fusionner, mais deux découpages strictement simultanés peuvent encore perdre une ligne
+ * (limite connue : la rotation n'est qu'une préférence, jamais une garantie).
+ */
 export async function noterStyleTableau(entree: EntreeHistoriqueStyle): Promise<void> {
-  await ecrireParametre(CLE_HISTORIQUE_STYLES, ajouterAHistoriqueStyles(await historiqueStylesTableau(), entree));
+  const frais = await historiqueStylesTableau(); // relu au dernier moment, pas avant les appels longs
+  await ecrireParametre(CLE_HISTORIQUE_STYLES, ajouterAHistoriqueStyles(frais, entree));
 }
