@@ -80,7 +80,7 @@ export function Pile({ d, t, cadre, tailleFocale }: { d: DonneesEcranChiffresRen
         return (
           <div key={i} style={{ position: "absolute", left: x0, top: y, width: colChiffre + (colLegende > 0 ? ECART_RANGEE + colLegende : 0), height: hauteur, display: "flex", alignItems: "center", gap: ECART_RANGEE }}>
             <div style={{ width: colChiffre, flex: "none", display: "flex", justifyContent: "flex-end" }}>
-              <div style={{ ...ANTON, fontSize: taille, color: encre(d.fond), whiteSpace: "nowrap", opacity: opacite, transform: `scale(${1.6 - 0.6 * rebond(x)})`, transformOrigin: "100% 50%" }}>{compte(texte, progres(t, c.t, 0.4))}</div>
+              <div style={{ ...ANTON, fontSize: taille, color: encre(d.fond), whiteSpace: "nowrap", opacity: opacite, transform: `scale(${1.6 - 0.6 * rebond(x)})`, transformOrigin: "100% 50%" }}>{compte(texte, progres(t, c.t, 0.2))}</div>
             </div>
             {legende ? <div style={{ ...INTER, lineHeight: 1.05, fontSize: 60, color: encre(d.fond), opacity: progres(t, c.t + 0.15, 0.35), maxWidth: colLegende }}>{legende}</div> : null}
           </div>
