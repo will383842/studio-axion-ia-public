@@ -269,12 +269,12 @@ export function controlerMiseEnSceneIV(l: LigneDeTempsIV, ctx: ContexteControleS
   // Un seul mot orange par plan.
   lignes.push(ligne("ORANGE", l.plans.filter((p) => p.textes.reduce((n, t) => n + (t.match(/\*[^*]+\*/g)?.length ?? 0), 0) > 1).map((p) => `le plan ${p.id} a plus d'un mot orange.`), "Un mot orange au plus par plan.", "Mot orange :"));
 
-  // Segment de fin : question dite (sauf LinkedIn), rien après la phrase-choc sur LinkedIn.
+  // Segment de fin : question dite quand la fin en porte une ; LinkedIn dit la fin comme les autres depuis le 26/10/2026.
+  // Seule une version muette d'AVANT (LinkedIn seul) n'a rien après la phrase-choc.
   const finPlans = l.plans.filter((p) => p.partie === "fin");
   const fin: string[] = [];
   if (l.segmentFin.muet && finPlans.length) fin.push("la version LinkedIn montre une fin : rien ne doit suivre la phrase-choc.");
   if (l.segmentFin.muet && l.reseaux.some((r) => r !== "linkedin")) fin.push(`une version sans fin vise ${l.reseaux.filter((r) => r !== "linkedin").join(", ")}.`);
-  if (!l.segmentFin.muet && l.reseaux.includes("linkedin")) fin.push("la version LinkedIn porte un segment de fin.");
   if (l.segmentFin.question && !finPlans.some((p) => p.scene === "question")) fin.push("la question de commentaire n'est pas à l'écran.");
   if (l.segmentFin.question && finPlans.length && finPlans[0].scene !== "question") fin.push("la question de commentaire doit ouvrir le segment de fin.");
   lignes.push(ligne("FIN", fin, "Segment de fin conforme au réseau.", "Segment de fin :"));

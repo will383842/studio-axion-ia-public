@@ -73,6 +73,13 @@ function lireEchantillons(b: Uint8Array): Float32Array {
 export const NIVEAUX_PAROLE_DB = [-12, -16, -20, -25, -14, -18, -22] as const;
 const amplitudeSinus = (db: number) => Math.SQRT2 * 10 ** (db / 20);
 
+/**
+ * Fréquence propre au MOT (200 à 239 Hz). Depuis le 26/10/2026 plusieurs fins ont les mêmes comptes de mots et la même
+ * ponctuation, donc les mêmes horodatages simulés : sans elle, deux textes différents donnaient les MÊMES octets, et le
+ * contrôle d'écoute (qui retrouve la transcription par l'empreinte du son) les confondait. Les vraies voix diffèrent.
+ */
+const frequenceDuMot = (mot: string) => 200 + ([...mot].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) % 40);
+
 function sonDesMots(mots: readonly MotHorodate[], dureeSec: number, naturel = false, niveauxVaries = false): Uint8Array {
   const e = new Float32Array(Math.round(dureeSec * FREQ));
   if (naturel) {
@@ -82,7 +89,7 @@ function sonDesMots(mots: readonly MotHorodate[], dureeSec: number, naturel = fa
       for (let i = Math.round(m.debutSec * FREQ); i < fin; i++) {
         const t = i / FREQ;
         const env = a * Math.min(1, (t - m.debutSec) / 0.02) * (t <= m.finSec ? 1 : Math.exp(-(t - m.finSec) / 0.015));
-        e[i] = env * Math.sin(2 * Math.PI * 220 * t);
+        e[i] = env * Math.sin(2 * Math.PI * frequenceDuMot(m.mot) * t);
       }
     });
     return wav(e);
@@ -91,7 +98,7 @@ function sonDesMots(mots: readonly MotHorodate[], dureeSec: number, naturel = fa
     for (let i = Math.round(m.debutSec * FREQ); i < Math.round(m.finSec * FREQ) && i < e.length; i++) {
       const t = i / FREQ;
       const env = 0.3 * Math.min(1, (t - m.debutSec) / 0.02) * Math.min(1, (m.finSec - t) / 0.15);
-      e[i] = env * Math.sin(2 * Math.PI * 220 * t);
+      e[i] = env * Math.sin(2 * Math.PI * frequenceDuMot(m.mot) * t);
     }
   }
   return wav(e);
@@ -103,7 +110,10 @@ function sonDesMots(mots: readonly MotHorodate[], dureeSec: number, naturel = fa
  */
 function motsDuTexte(texte: string, lent = false): MotHorodate[] {
   const res: MotHorodate[] = [];
-  const mot0 = lent ? 30 : 26; // 26 (et non 27) depuis le tempo ×1,05 : le script fixe des doubles dure autant qu'avant à l'écoute
+  // 26 (et non 27) depuis le tempo ×1,05 : le script fixe des doubles dure autant qu'avant à l'écoute. 24 depuis le 26/10/2026 : les fins
+  // « accroche + appel + lien » (LinkedIn compris) durent ≈ 2 s de plus que l'ancienne fin ; à 26 le corps de la carte C tenait à peine
+  // sous les plafonds de 60 s (voix simulée 2,75 mots/s, la voix réelle va à 3,3) : le débit simulé se rapproche du réel.
+  const mot0 = lent ? 30 : 24;
   let t = 30;
   for (const mot of texte.split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m))) {
     res.push({ mot, debutSec: t / 100, finSec: (t + mot0) / 100 });
@@ -329,7 +339,8 @@ export function demandeEssai(carte: CarteImage, plus: Partial<DemandeFabrication
     image: { cle: carte.image.cle, empreinte: carte.image.empreinte },
     reseaux: [...RESEAUX_IV],
     validationCarte: "si-doute",
-    appelCommentaire: "question-puis-fin",
+    // 26/10/2026 : « fin seule » est le défaut (une seule demande par fin, fin = accroche + appel + lien).
+    appelCommentaire: "fin-seule",
     plafondCentimes: 500,
     tauxUsdEur: 0.9,
     numeroVersion: 42,
