@@ -24,6 +24,7 @@ import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { Precedent } from "@/domaine/sujets-traites";
 import type { RefusSujetImageVideo } from "@/services/image-video-ecran";
 import { DepotLot, type ItemLotIV } from "./DepotLot";
+import { DepotScript } from "./DepotScript";
 import { DepotTexte } from "./DepotTexte";
 import { clicIgnore, controleServeurAvantPrix, PHRASE_PRIX_CHANGE, prixRedemandable } from "./sujet-deja-traite";
 import { euros, garderLeLot, OFFRES_IV, refusDimensions, refusFichier, RESEAUX_ECRAN_IV, TYPES_IMAGE_ACCEPTES } from "./vue";
@@ -59,9 +60,11 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
   const [lot, setLot] = useState<ItemLotIV[]>([]);
   const [depasse, setDepasse] = useState(false);
   /** Mode texte (R6b) : décrire l'automatisation avec ses mots au lieu de déposer une image. */
-  const [mode, setMode] = useState<"image" | "texte">("image");
+  const [mode, setMode] = useState<"image" | "texte" | "script">("image");
   /** Le texte tapé reste gardé quand on change de mode. */
   const [texteLibre, setTexteLibre] = useState("");
+  /** Mode script complet : le script collé, gardé lui aussi quand on change de mode. */
+  const [scriptColle, setScriptColle] = useState("");
   /** Image déjà traitée : le refus du serveur, avec ses précédents et son jeton. */
   const [refusImage, setRefusImage] = useState<RefusSujetImageVideo | null>(null);
   const [refaitEnCours, setRefaitEnCours] = useState(false);
@@ -239,7 +242,7 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
   }
 
   return (
-    <section aria-label={mode === "texte" && !image ? "Décrire l'automatisation" : "Déposer l'image"} className="space-y-6">
+    <section aria-label={mode === "script" && !image ? "Coller le script complet" : mode === "texte" && !image ? "Décrire l'automatisation" : "Déposer l'image"} className="space-y-6">
       {!image && (
         <SelecteurPastilles
           libelle="Point de départ"
@@ -247,12 +250,22 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
           options={[
             { valeur: "image" as const, libelle: "Déposer une image", icone: "image" },
             { valeur: "texte" as const, libelle: "Décrire avec mes mots" },
+            { valeur: "script" as const, libelle: "Coller mon script complet" },
           ]}
           valeur={mode}
           onChange={(m) => (setRefus(null), setMode(m))}
         />
       )}
-      {!image && mode === "texte" ? (
+      {!image && mode === "script" ? (
+        <DepotScript script={scriptColle} onScript={setScriptColle} reseaux={reseaux} montant={montant} blocage={blocage} onRefus={setRefus}>
+          {refus && (
+            <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">
+              {refus}
+            </p>
+          )}
+          <SelecteurPastilles multiple minimum={1} libelle="Les réseaux" options={RESEAUX_ECRAN_IV.map((r) => ({ valeur: r.valeur, libelle: r.libelle }))} valeur={reseaux} onChange={setReseaux} />
+        </DepotScript>
+      ) : !image && mode === "texte" ? (
         <DepotTexte texte={texteLibre} onTexte={setTexteLibre} reseaux={reseaux} montant={montant} blocage={blocage} onRefus={setRefus}>
           {refus && (
             <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">
@@ -278,7 +291,7 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
           </div>
         </Carte>
       )}
-      {refus && !(mode === "texte") && (
+      {refus && mode === "image" && (
         <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">
           {refus}
         </p>
@@ -306,10 +319,10 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
           </div>
         </section>
       )}
-      {mode !== "texte" && <SelecteurPastilles multiple minimum={1} libelle="Les réseaux" options={RESEAUX_ECRAN_IV.map((r) => ({ valeur: r.valeur, libelle: r.libelle }))} valeur={reseaux} onChange={setReseaux} />}
-      {mode === "texte" && !image ? null : <SelecteurPastilles libelle="L'offre" options={[{ valeur: "image" as const, libelle: "Selon l'image" }, ...OFFRES_IV]} valeur={offre} onChange={setOffre} />}
-      {blocage && mode !== "texte" && <p className="text-[15px] text-texte-doux">{blocage}</p>}
-      {!(mode === "texte" && !image) && (
+      {mode === "image" && <SelecteurPastilles multiple minimum={1} libelle="Les réseaux" options={RESEAUX_ECRAN_IV.map((r) => ({ valeur: r.valeur, libelle: r.libelle }))} valeur={reseaux} onChange={setReseaux} />}
+      {mode !== "image" && !image ? null : <SelecteurPastilles libelle="L'offre" options={[{ valeur: "image" as const, libelle: "Selon l'image" }, ...OFFRES_IV]} valeur={offre} onChange={setOffre} />}
+      {blocage && mode === "image" && <p className="text-[15px] text-texte-doux">{blocage}</p>}
+      {!(mode !== "image" && !image) && (
       <BarreActionCollee>
         <BoutonFabriquer montantCentimes={montant} libelle={`Fabriquer la vidéo (au plus ${euros(montant)})`} desactive={!pret} onFabriquer={fabriquer} avantPrix={controlerAvantPrix} message="Au plus ce prix. Seule la lecture de l'image part maintenant : la voix attend votre accord sur le script." />
       </BarreActionCollee>

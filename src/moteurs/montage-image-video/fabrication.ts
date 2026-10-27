@@ -59,6 +59,7 @@ import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "
 import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
 import { chapitresDetachables } from "./recettes";
+import { ecrireScriptColleIV, manquementsDuScriptColle } from "./script-colle";
 import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type ChoixFormule, type Manquement } from "./regles";
 import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
@@ -114,6 +115,11 @@ export interface DemandeFabricationIV {
    * aucun fichier n'existe). L'étape « lecture » conçoit le workflow depuis ce texte au lieu de lire une image.
    */
   texte?: string;
+  /**
+   * MODE « SCRIPT COMPLET » : `texte` est le script de Will, dit tel quel. Il sert à concevoir le schéma (comme le mode
+   * texte), puis REMPLACE l'écriture : aucun appel d'écriture, aucun mot changé (`script-colle.ts`).
+   */
+  scriptColle?: boolean;
   /** Réseaux cochés (tous les quatre par défaut). */
   reseaux: ReseauIV[];
   /** Offre corrigée par Will au dépôt ; absente : déduite du type de l'image. */
@@ -768,7 +774,9 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   const choixFormules = { ...(d.choixFormules ?? {}) };
   const ajoutsWill = [...(d.ajoutsWill ?? [])];
   const verdict = verifierScript(fiche, { carte, choixFormules, ajoutsWill, interdits: etat.demande.interdits ?? [], ...recitDe(etat) });
-  if (!verdict.ok) throw new ErreurDecisionIV(`Le script ne passe pas encore les contrôles (${verdict.manquements.length} point(s)).`, verdict.manquements.map((m) => m.message));
+  // Script collé : seuls les points qui le bloquent comptent (chiffre hors schéma, interdit, phrase affirmative non tranchée).
+  const manquements = etat.demande.scriptColle ? manquementsDuScriptColle(verdict) : verdict.manquements;
+  if (manquements.length) throw new ErreurDecisionIV(`Le script ne passe pas encore les contrôles (${manquements.length} point(s)).`, manquements.map((m) => m.message));
   const question = etat.demande.appelCommentaire === "question-puis-fin" ? fiche.questionCommentaire.texteDit : undefined;
   if (question) {
     const refus = refusQuestion(question);
@@ -1303,20 +1311,25 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
   }
   // Parcours varié : tiré une seule fois, avec la graine de la vidéo et les squelettes des trois dernières.
   e.parcours ??= choisirParcoursIV({ graine: e.demande.videoId, carte, historique: (await o.historiqueSquelettes?.()) ?? [] });
-  const r = await ecrireScriptIV(
-    // L'identifiant des appels porte la tentative : un nouvel essai après un refus est compté à part.
-    { videoId: e.demande.videoId, versionId: tentative > 1 ? `${e.demande.versionId}-t${tentative}` : e.demande.versionId, carte, interdits: e.demande.interdits ?? [], decoupage: "chapitres", ...recitDe(e), parcours: e.parcours },
-    { ...o.ecriture, budget: caisse.claude("ecriture") },
-  );
+  const colle = e.demande.scriptColle === true;
+  // Script collé : l'écriture est remplacée, sans appel ni réservation ; la suite de la chaîne est la même.
+  const r = colle
+    ? ecrireScriptColleIV({ script: e.demande.texte ?? "", carte, interdits: e.demande.interdits ?? [], ...recitDe(e) })
+    : await ecrireScriptIV(
+        // L'identifiant des appels porte la tentative : un nouvel essai après un refus est compté à part.
+        { videoId: e.demande.videoId, versionId: tentative > 1 ? `${e.demande.versionId}-t${tentative}` : e.demande.versionId, carte, interdits: e.demande.interdits ?? [], decoupage: "chapitres", ...recitDe(e), parcours: e.parcours },
+        { ...o.ecriture, budget: caisse.claude("ecriture") },
+      );
   if (r.ok || r.motif === "a-trancher") {
     e.propositionScript = propositionScript(e, r.fiche, r.aTrancher, o.voix.tarifCentimesParCaractere);
-    e.journal.push(`Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
+    e.journal.push(colle ? `Script collé découpé en ${r.fiche.ecrans.length} écrans, mots inchangés (aucun appel d'écriture)${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.` : `Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
     passerA(e, "script-a-valider");
     // Lot : aucune porte n'attend Will ; contrôle automatique avant de payer la voix.
     return e.demande.lot || e.demande.validationCarte === "automatique" ? controleAutomatiqueScriptIV(e, e.demande.lot ? o.budget.indicatif?.facteurSecurite : undefined, { prixIndicatif: !!o.budget.indicatif }) : e;
   }
   if (r.motif === "budget") return refuser(e, "ecriture", plafond(), r.message);
-  return refuser(e, "ecriture", "IV_ECRITURE", r.message, { phrases: r.refus, reessayable: r.motif !== "reglage" });
+  // Script collé : le relancer tel quel donnerait le même refus ; Will corrige son texte et le dépose de nouveau.
+  return refuser(e, "ecriture", "IV_ECRITURE", r.message, { phrases: r.refus, reessayable: r.motif !== "reglage" && !colle });
 }
 
 /**
@@ -1688,6 +1701,7 @@ export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly Bruitage
     plan: e.plan!,
     versions: miseEnSceneDesVersionsIV(e, bruitages),
     regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
+    ...(e.demande.scriptColle ? { scriptColle: true } : {}),
     voix: { issue: e.voix?.issue ?? { statut: "faite" } },
     publication,
     liens,

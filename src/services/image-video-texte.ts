@@ -19,6 +19,7 @@ import type { Distribution, Id } from "@/domaine/types";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { cleDuTexte, PROVENANCE_TEXTE, refusTexte } from "@/moteurs/montage-image-video/texte/conception";
+import { refusScriptColle } from "@/moteurs/montage-image-video/texte/script-limites";
 import { creerVerrou, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import { accordAutomatique, avecAccordAutomatique } from "./mode-budget";
 import { exigerSession } from "./auth";
@@ -27,6 +28,14 @@ import { BLOCS_SCRIPT_PROVISOIRE_IV, PARAM_ACCORD_ESSAI_IV, PHRASES_IV, prixDuDe
 export interface DemandeDepotTexteIV {
   /** Description libre de l'automatisation (comme dans une conversation). */
   texte: string;
+  reseaux: string[];
+  /** Montant affiché et confirmé (centimes d'euro). */
+  accordCentimes?: AccordPrix;
+}
+
+/** MODE « SCRIPT COMPLET » : le script de Will, dit tel quel (aucune écriture par l'IA). */
+export interface DemandeDepotScriptIV {
+  script: string;
   reseaux: string[];
   /** Montant affiché et confirmé (centimes d'euro). */
   accordCentimes?: AccordPrix;
@@ -76,8 +85,20 @@ async function lancerParDefaut(videoId: Id, accord: AccordPrix | undefined, mont
 
 /** « Fabriquer la vidéo » depuis un texte : voir l'en-tête. Rien n'est créé tant que l'accord manque. */
 export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: DependancesTexteIV = {}): Promise<IssueDepotTexteIV> {
+  return deposer(d, dep, false);
+}
+
+/**
+ * « Fabriquer la vidéo » depuis un script complet : même prix « au plus », mêmes réseaux, même lancement. Le schéma est
+ * conçu depuis le script (comme le mode texte) ; seule l'écriture est remplacée, les mots du script sont dits à l'identique.
+ */
+export async function deposerScriptImageVideo(d: DemandeDepotScriptIV, dep: DependancesTexteIV = {}): Promise<IssueDepotTexteIV> {
+  return deposer({ texte: d.script, reseaux: d.reseaux, ...(d.accordCentimes !== undefined ? { accordCentimes: d.accordCentimes } : {}) }, dep, true);
+}
+
+async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptColle: boolean): Promise<IssueDepotTexteIV> {
   await exigerSession();
-  const refus = refusTexte(d.texte);
+  const refus = scriptColle ? refusScriptColle(d.texte) : refusTexte(d.texte);
   if (refus) return { statut: "refusee", phrase: refus.message };
   const texte = d.texte.normalize("NFC").trim();
   const reseaux = RESEAUX_IV.filter((r) => (d.reseaux as readonly string[]).includes(r)) as ReseauIV[];
@@ -100,6 +121,7 @@ export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: Depend
         // Aucun fichier : la « clé d'image » ne sert qu'à reconnaître un texte (`estCleTexte`).
         imageCle: `${PROVENANCE_TEXTE}:${cleDuTexte(texte)}`,
         texte,
+        ...(scriptColle ? { scriptColle: true } : {}),
         reseaux,
         // Le plafond de la caisse est le prix « au plus » affiché et confirmé, comme pour une image.
         plafondCentimes: montant,
@@ -115,7 +137,7 @@ export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: Depend
         await abandonner();
         return issue;
       }
-      await journaliser("video", "Texte décrit : « Image → vidéo » lancée (mode texte)", { type: "video", id: video.id }).catch(() => undefined);
+      await journaliser("video", scriptColle ? "Script collé : « Image → vidéo » lancée (mode script complet)" : "Texte décrit : « Image → vidéo » lancée (mode texte)", { type: "video", id: video.id }).catch(() => undefined);
       return { statut: "lancee", videoId: video.id };
     } catch (e) {
       if (e instanceof ErreurStudio) await abandonner();
