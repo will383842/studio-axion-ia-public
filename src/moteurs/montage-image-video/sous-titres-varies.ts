@@ -15,10 +15,11 @@
  *  - aucun bandeau sur un écran ivoire (bandeau ivoire sur ivoire : il ne se verrait pas).
  * Q22 (`controlerVariationsIV`) refait la même mesure groupe par groupe, à chaque instant d'entrée.
  */
-import { donneesCalque, elementDe, largeurElement, melanger, type DonneesCalque, type ElementDessine } from "@/briques/sous-titres";
+import { donneesCalque, elementDe, largeurElement, melanger, type DonneesCalque, type ElementDessine, type SurlignageSousTitres, type VariationSousTitres } from "@/briques/sous-titres";
 import { BANDE_SOUS_TITRES_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
 import type { IntensiteSousTitres, SegmentSousTitres } from "@/domaine/types";
 import { ENCRE_SOUS_TITRES_IVOIRE, LARGEUR_SOUS_TITRES_PCT, STYLE_SOUS_TITRES_DUO } from "./emprunts";
+import { REGLAGES_SOUS_TITRES_CAS_CONCRET, SURLIGNAGE_CAS_CONCRET } from "@/moteurs/montage-cas-concret/sous-titres-variete";
 import { chiffresDitsDe, type LigneDeTempsIV } from "./mise-en-scene";
 
 /** Intensité du mélange : celle par défaut du studio et des autres formats (SOU-B, la référence). */
@@ -31,6 +32,27 @@ export const INTENSITE_SOUS_TITRES_IV: IntensiteSousTitres = "equilibre";
 export function intensiteSousTitresIV(ligne: Pick<LigneDeTempsIV, "variete">): IntensiteSousTitres {
   return ligne.variete?.recette.sousTitres === "SOU-C" ? "tres-dynamique" : INTENSITE_SOUS_TITRES_IV;
 }
+
+type CodeSousTitres = NonNullable<LigneDeTempsIV["variete"]>["recette"]["sousTitres"];
+
+/**
+ * Code de sous-titres EFFECTIF d'une version. SOU-D (surlignage) et SOU-E (calme, premier Impact incliné à l'envers)
+ * gardent le mélange et la bande de SOU-B ; en 4:5 (bande plus étroite) ils ne sont gardés que si Q22 passe sur leur
+ * rendu, sinon la version retombe sur SOU-B. Sans recette : `undefined`.
+ */
+export function codeSousTitresIV(ligne: LigneSousTitres): CodeSousTitres | undefined {
+  const code = ligne.variete?.recette.sousTitres;
+  if ((code === "SOU-D" || code === "SOU-E") && formatDeHauteurIV(ligne.hauteur) === "4:5" && controlerVariationsIV(melangeIV(ligne, code), ligne).length) return "SOU-B";
+  return code;
+}
+
+/** Surlignage de la charte pour le style de la composition : SOU-D seulement (la position ne change jamais). */
+export function surlignageSousTitresIV(ligne: LigneSousTitres): { surlignage?: SurlignageSousTitres } {
+  return codeSousTitresIV(ligne) === "SOU-D" ? { surlignage: SURLIGNAGE_CAS_CONCRET } : {};
+}
+
+/** Variation du mélange : SOU-E, réglages « calme » et premier Impact incliné à l'envers (comme le cas concret). */
+const VARIATION_SOU_E: VariationSousTitres = Object.freeze({ sensPremierImpact: -1 as const, reglages: { ...REGLAGES_SOUS_TITRES_CAS_CONCRET.calme } });
 
 /** Centre de la bande, en % de la hauteur (seule source : `BANDE_SOUS_TITRES_IV`). */
 const CENTRE_PCT = +(((BANDE_SOUS_TITRES_IV.haut + BANDE_SOUS_TITRES_IV.bas) / 2) * 100).toFixed(2);
@@ -146,6 +168,10 @@ function essais(s: SegmentSousTitres): SegmentSousTitres[] {
  * même résultat est envoyé à la composition et contrôlé par Q22.
  */
 export function sousTitresVariesIV(ligne: LigneSousTitres): SegmentSousTitres[] {
+  return melangeIV(ligne, codeSousTitresIV(ligne));
+}
+
+function melangeIV(ligne: LigneSousTitres, code: CodeSousTitres | undefined): SegmentSousTitres[] {
   const base = segmentsDeBaseIV(ligne);
   const mots = base.flatMap((s) => s.mots);
   // Chiffres de la carte DITS en lettres (« quatre-vingts pour cent », « trois heures ») : la brique ne reconnaît que les
@@ -163,7 +189,7 @@ export function sousTitresVariesIV(ligne: LigneSousTitres): SegmentSousTitres[] 
   let rang = 0;
   const signales = base.map((s) => ({ ...s, mots: s.mots.map((m) => (chiffres.has(rang++) ? { ...m, enValeur: true } : m)) }));
   const coupesSec = [...new Set(ligne.plans.map((p) => p.debut).filter((t) => t > 0))];
-  const ctx = { intensite: intensiteSousTitresIV(ligne), coupesSec, ancres, dureeSec: ligne.dureeSec };
+  const ctx = { intensite: intensiteSousTitresIV(ligne), ...(code === "SOU-E" ? { variation: VARIATION_SOU_E } : {}), coupesSec, ancres, dureeSec: ligne.dureeSec };
 
   // Contraintes du format = groupes VERROUILLÉS en base (la brique ne les réécrit jamais et place ses accents ailleurs) :
   // la question à commenter d'abord, puis chaque accent qui ne tient pas dans la bande ; le mélange est alors refait.

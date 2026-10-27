@@ -103,10 +103,10 @@ describe("socle · tirage déterministe", () => {
     }
   });
 
-  it("recettePourVersion : substitutions 4:5 (TYP-B → TYP-C, SOU-C → SOU-B, FIN-C → FIN-D, CAM-E → CAM-B) et ouverture du réseau", () => {
+  it("recettePourVersion : substitutions 4:5 (TYP-B → TYP-C, SOU-C → SOU-D, FIN-C → FIN-D, CAM-E → CAM-B) et ouverture du réseau", () => {
     const r: RecetteVarieteIV = { ...RECETTE_REFERENCE_IV, texte: "TYP-B", sousTitres: "SOU-C", fin: "FIN-C", camera: "CAM-E", ouverture: "OUV-D" };
     const v = recettePourVersion(r, ["linkedin"], "4:5");
-    expect(v).toMatchObject({ texte: "TYP-C", sousTitres: "SOU-B", fin: "FIN-D", camera: "CAM-B" });
+    expect(v).toMatchObject({ texte: "TYP-C", sousTitres: "SOU-D", fin: "FIN-D", camera: "CAM-B" });
     expect(["OUV-B", "OUV-E", "OUV-A"]).toContain(v.ouverture);
     expect(recettePourVersion(r, ["linkedin"], "4:5")).toEqual(v);
     // 9:16 : rien ne change si l'ouverture convient.

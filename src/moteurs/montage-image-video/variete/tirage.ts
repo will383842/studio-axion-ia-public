@@ -39,8 +39,8 @@ export const OUVERTURES_PAR_FORMAT: { readonly [F in FormatIV]: readonly CodesPa
   "4:5": ["OUV-B", "OUV-E", "OUV-A"],
 });
 
-/** Substitutions d'une version 4:5 (LinkedIn, fil Facebook) : ce qui ne tient pas dans le cadre bas. */
-const SUBSTITUTIONS_4_5: Partial<Record<string, string>> = Object.freeze({ "TYP-B": "TYP-C", "SOU-C": "SOU-B", "FIN-C": "FIN-D", "CAM-E": "CAM-B" });
+/** Substitutions d'une version 4:5 (LinkedIn, fil Facebook) : ce qui ne tient pas dans le cadre bas. SOU-D retombe sur SOU-B au rendu si Q22 4:5 échoue (`codeSousTitresIV`). */
+const SUBSTITUTIONS_4_5: Partial<Record<string, string>> = Object.freeze({ "TYP-B": "TYP-C", "SOU-C": "SOU-D", "FIN-C": "FIN-D", "CAM-E": "CAM-B" });
 
 const rang = (cle: string, n: number) => parseInt(createHash("sha256").update(cle).digest("hex").slice(0, 12), 16) % n;
 
