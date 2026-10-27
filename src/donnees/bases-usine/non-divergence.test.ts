@@ -10,13 +10,14 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BANQUE_APPELS } from "@/briques/fins/banque";
+import { LIGNES_FINS_IV } from "@/briques/fins/banque-fins-iv";
 import { ecartsInternes } from "./empreintes";
 import { ligneDeBanque } from "./rendu-banque";
 import { ETATS_BASE, sourceDesBases, tousLesAppels } from "./index";
 
 function ecarts(): string[] {
   const base = new Map(tousLesAppels({ etats: ETATS_BASE }).map((a) => [a.code, ligneDeBanque(a) as unknown as Record<string, unknown>]));
-  const banque = new Map(BANQUE_APPELS.map((a) => [a.code, a as unknown as Record<string, unknown>]));
+  const banque = new Map(BANQUE_APPELS.filter((a) => !LIGNES_FINS_IV.some((f) => f.code === a.code)).map((a) => [a.code, a as unknown as Record<string, unknown>])); // les fins `fin-iv-*` vivent hors de la base 7 (banque-fins-iv.ts)
   const liste: string[] = [];
   for (const code of base.keys()) if (!banque.has(code)) liste.push(`${code} : dans la base 7, absent de banque.ts`);
   for (const code of banque.keys()) if (!base.has(code)) liste.push(`${code} : dans banque.ts, absent de la base 7`);
