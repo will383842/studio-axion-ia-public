@@ -28,6 +28,7 @@ import { DepotScript } from "./DepotScript";
 import { DepotTexte } from "./DepotTexte";
 import { clicIgnore, controleServeurAvantPrix, PHRASE_PRIX_CHANGE, prixRedemandable } from "./sujet-deja-traite";
 import { euros, garderLeLot, OFFRES_IV, refusDimensions, refusFichier, RESEAUX_ECRAN_IV, TYPES_IMAGE_ACCEPTES } from "./vue";
+import { ENTREE_IMAGE_VISIBLE, ENTREE_PAR_DEFAUT, ENTREES_VISIBLES, type EntreeDepot } from "./entrees";
 
 /** Destination du dépôt (dossier des entrées du studio). */
 const CIBLE_DEPOT = { typeEntite: "entree", entiteId: "image-video" };
@@ -60,7 +61,7 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
   const [lot, setLot] = useState<ItemLotIV[]>([]);
   const [depasse, setDepasse] = useState(false);
   /** Mode texte (R6b) : décrire l'automatisation avec ses mots au lieu de déposer une image. */
-  const [mode, setMode] = useState<"image" | "texte" | "script">("image");
+  const [mode, setMode] = useState<EntreeDepot>(ENTREE_PAR_DEFAUT);
   /** Le texte tapé reste gardé quand on change de mode. */
   const [texteLibre, setTexteLibre] = useState("");
   /** Mode script complet : le script collé, gardé lui aussi quand on change de mode. */
@@ -242,16 +243,12 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
   }
 
   return (
-    <section aria-label={mode === "script" && !image ? "Coller le script complet" : mode === "texte" && !image ? "Décrire l'automatisation" : "Déposer l'image"} className="space-y-6">
+    <section aria-label={mode === "script" && !image ? "Coller le script complet" : mode === "texte" && !image ? "Décrire l'automatisation" : ENTREE_IMAGE_VISIBLE ? "Déposer l'image" : "Choisir comment commencer"} className="space-y-6">
       {!image && (
         <SelecteurPastilles
           libelle="Point de départ"
           libelleMasque
-          options={[
-            { valeur: "image" as const, libelle: "Déposer une image", icone: "image" },
-            { valeur: "texte" as const, libelle: "Décrire avec mes mots" },
-            { valeur: "script" as const, libelle: "Coller mon script complet" },
-          ]}
+          options={ENTREES_VISIBLES}
           valeur={mode}
           onChange={(m) => (setRefus(null), setMode(m))}
         />
