@@ -57,6 +57,18 @@ vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {
   };
 });
 
+/**
+ * 26/10/2026 : `planDesFinsIV` pose les fins « accroche + appel + lien » (LinkedIn non muet). Les chaînes de secours de
+ * Facebook, d'Instagram et de Shorts ont été construites sur l'ancien plan (fin « diagnostic », LinkedIn muet), qui reste
+ * GARDÉ dans l'état des vidéos faites ou arrêtées avant : le bloc « reprise après erreur » le rejoue (`planDesFinsAvant`).
+ */
+const reglageFins = vi.hoisted(() => ({ avant: false }));
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  const { planDesFinsAvant } = await import("./plan-des-fins-avant");
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => (reglageFins.avant ? planDesFinsAvant(d) : vrai.planDesFinsIV(d)) };
+});
+
 vi.setConfig({ testTimeout: 120_000 });
 
 /* ------------------------------------------------------------------ */
@@ -94,7 +106,7 @@ async function jusquAuBout(e0: EtatFabricationIV, o0: OutilsFabricationIV, plus:
 function demarrer(nom: (typeof IMAGES)[number], o: OptionsMonde = {}, plus: Parameters<typeof demandeEssai>[1] = {}) {
   const carte = carteFixe(nom);
   const m = monde();
-  return { carte, m, o: outilsSimules(carte, m, o), e: etatInitialIV(demandeEssai(carte, plus)) };
+  return { carte, m, o: outilsSimules(carte, m, o), e: etatInitialIV(demandeEssai(carte, { ...(reglageFins.avant ? { appelCommentaire: "question-puis-fin" as const } : {}), ...plus })) };
 }
 
 /** Chaque appel payant (Claude, HeyGen) est précédé, dans l'ordre, d'une réservation. */
@@ -345,7 +357,8 @@ describe("porte « script » : rien de plus n'est payé avant la validation", ()
     const { o, m, e } = await auScript();
     const v = validerScriptIV(e, decisionScript(e));
     expect(v.etape).toBe("voix");
-    expect(v.plan?.fins.find((f) => f.reseaux.includes("linkedin"))?.muet).toBe(true);
+    // 26/10/2026 : LinkedIn dit la fin comme les autres (même fichier que Facebook).
+    expect(v.plan?.fins.find((f) => f.reseaux.includes("linkedin"))).toMatchObject({ muet: false, reseaux: ["linkedin", "facebook"] });
     await avancerIV(v, o);
     expect(m.lus.length).toBe(1);
   });
@@ -359,9 +372,11 @@ describe("reprise après erreur, sans repayer", () => {
   // Voix payée en segments séparés (« voix-iv/1 ») : corps puis une lecture par fin, secours et replis.
   beforeAll(() => {
     reglageVoix.lectureUnique = false;
+    reglageFins.avant = true;
   });
   afterAll(() => {
     reglageVoix.lectureUnique = true;
+    reglageFins.avant = false;
   });
 
   it("15/10 · arrêt Q16 « part de parole −14 % » sur l'ancienne mesure (v-dd3049053f88) : « Refaire cette partie » re-mesure, aucune voix relue ni réservée", async () => {
@@ -1148,7 +1163,7 @@ describe("fiche du format « image-video » (code IV)", () => {
   it("masquée, code IV, sans musique, 9:16, moteur montage-image-video, réglages par défaut", () => {
     expect(formatImageVideo).toMatchObject({ id: "image-video", statut: "masque", codeClassement: "IV", musique: "interdite", moteur: "montage-image-video", ratios: ["9:16"] });
     expect(formatImageVideo.reseauxConseilles).toEqual(["youtube-shorts", "linkedin", "instagram", "facebook"]);
-    expect(schemaReglagesImageVideo.parse({})).toEqual({ decoupage: "chapitres", appelCommentaire: "question-puis-fin", validationCarte: "automatique", bruitages: "discrets" });
+    expect(schemaReglagesImageVideo.parse({})).toEqual({ decoupage: "chapitres", appelCommentaire: "fin-seule", validationCarte: "automatique", bruitages: "discrets" });
     expect(schemaReglagesImageVideo.safeParse({ decoupage: "deux-videos" }).success).toBe(false);
     expect(schemaReglagesImageVideo.safeParse({ bruitages: "forts" }).success).toBe(false);
   });

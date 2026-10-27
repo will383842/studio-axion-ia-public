@@ -4,7 +4,7 @@
  * - Voix UNIQUE : le clone HeyGen de Will (`VOIX_IV.idVoix`), moteur starfish, vitesse 1,1 — les valeurs de la recette
  *   v4 (`RECETTE_VOIX_CAS_CONCRET.synthese`, lue seulement). Aucun appelant ne peut choisir une autre voix.
  * - Le CORPS (accroche → phrase-choc) est lu UNE fois ; chaque segment de fin DISTINCT (question de commentaire + fin
- *   de la banque) est lu une fois, quel que soit le nombre de réseaux qui le partagent. LinkedIn est muet : rien à lire.
+ *   de la banque) est lu une fois, quel que soit le nombre de réseaux qui le partagent. LinkedIn lit sa fin comme les autres depuis le 26/10/2026 (seul le plan d'une vidéo d'avant, muet, ne lit rien).
  * - Le script est validé par Will : jamais réécrit (`texteFige`). Une prise qui hésite (« euh », souffle, mot en trop
  *   ou manquant, long blanc) est relue en lecture NEUVE (cache du fournisseur ignoré) : 3 lectures au plus pour le
  *   corps, 2 par fin. Au-delà, ou si la voix s'écarte encore de la référence v4 : REFUS (Q16), jamais une prise
@@ -92,7 +92,7 @@ export interface SegmentFinIV {
   secours?: true;
 }
 
-/** Une version de la vidéo (un fichier) : corps + un segment de fin, ou le corps seul (LinkedIn, muet). */
+/** Une version de la vidéo (un fichier) : corps + un segment de fin, ou le corps seul (plan d'avant le 26/10/2026 : LinkedIn muet). */
 export interface VersionVoixIV {
   /** Identifiant de la fin du plan (`fin-tiktok-youtube-shorts`, `fin-linkedin`…). */
   id: string;

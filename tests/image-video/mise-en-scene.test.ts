@@ -39,7 +39,8 @@ const NOMS = Object.keys(IMAGES) as Image[];
 function finsDe(nom: Image): FinIV[] {
   const carte = carteDe(nom);
   const fiche = FICHES_SIMULEES[IMAGES[nom]];
-  return planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
+  // 26/10/2026 : la question est posée explicitement (le défaut est « fin seule ») ; LinkedIn dit la fin comme les autres.
+  return planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, numeroVersion: 1, appelCommentaire: "question-puis-fin", questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
 }
 
 function entreeDe(nom: Image, reseau: ReseauIV = "youtube-shorts", fiche: FicheImage = FICHES_SIMULEES[IMAGES[nom]]): EntreeMiseEnSceneIV {
@@ -505,9 +506,9 @@ describe("fonds, mot orange, sous-titres, bruitages", () => {
   });
 });
 
-describe("segment de fin : question de commentaire, rien sur LinkedIn", () => {
-  it("IG, FB, YS : la question propre à l'image ouvre le segment de fin, puis la fin de la banque", () => {
-    for (const r of ["instagram", "facebook", "youtube-shorts"] as const) {
+describe("segment de fin : question de commentaire, LinkedIn compris (muet seulement dans un plan d'avant le 26/10)", () => {
+  it("IG, FB, YS, LinkedIn : la question propre à l'image ouvre le segment de fin, puis la fin de la banque", () => {
+    for (const r of ["instagram", "facebook", "youtube-shorts", "linkedin"] as const) {
       const l = ligneDe("C", r);
       const fin = l.plans.filter((p) => p.partie === "fin");
       expect(fin[0].scene, r).toBe("question");
@@ -518,9 +519,11 @@ describe("segment de fin : question de commentaire, rien sur LinkedIn", () => {
     }
   });
 
-  it("LinkedIn : ni question ni fin, la vidéo s'arrête sur la phrase-choc et la marque", () => {
+  it("plan d'une vidéo faite avant (LinkedIn muet) : ni question ni fin, la vidéo s'arrête sur la phrase-choc et la marque", () => {
     for (const nom of NOMS) {
-      const l = ligneDe(nom, "linkedin");
+      const fiche = FICHES_SIMULEES[IMAGES[nom]];
+      const muette = { id: "fin-linkedin", reseaux: ["linkedin" as const], muet: true, appels: [] };
+      const l = mettreEnSceneIV({ carte: carteDe(nom), fiche, voix: pisteSimulee(fiche, null), fin: muette, reseaux: muette.reseaux, bruitagesValides: VALIDES }).ligne;
       expect(l.segmentFin.muet).toBe(true);
       expect(l.plans.some((p) => p.partie === "fin")).toBe(false);
       expect(JSON.stringify(l.plans)).not.toContain(FICHES_SIMULEES[IMAGES[nom]].questionCommentaire.texteEcran);
