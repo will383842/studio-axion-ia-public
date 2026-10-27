@@ -70,7 +70,7 @@ describe("cas d'usage", () => {
 describe("appels", () => {
   it("lit la base 7 : réseaux, publics, linkedin_page, post_texte", () => {
     const tous = tousLesAppels({ etats: ["brouillon", "propose", "valide", "retire"] });
-    expect(tous).toHaveLength(124);
+    expect(tous).toHaveLength(90);
     const li = tous.find((a) => a.code === "fin-li-question")!;
     expect(li.reseaux).toEqual(["linkedin"]);
     expect(li.naturesLinkedin).toEqual(["profil", "page"]);

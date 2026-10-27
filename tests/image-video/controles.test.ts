@@ -91,9 +91,7 @@ interface Montage {
 
 function versionDe(carte: CarteImage, fiche: FicheImage, fin: FinIV, sons: Map<string, Uint8Array>, o: { courte?: boolean; retires?: string[]; noeudsRetires?: string[] } = {}): VersionAControlerIV {
   const segment = fin.muet ? null : fin;
-  // Départ décalé d'un centième par version déjà posée : depuis le 26/10/2026 plusieurs fins ont le même nombre de mots, donc
-  // le même son simulé, et l'écoute (mise en cache par empreinte) confondrait leurs transcriptions ; les vraies voix diffèrent.
-  const voix = pisteSimulee(fiche, segment, { departSec: 0.1 + 0.01 * sons.size });
+  const voix = pisteSimulee(fiche, segment, { departSec: 0.1 });
   const id = `${fin.id}${o.courte ? "-courte" : ""}`;
   const cle = `voix/${id}.wav`;
   const octets = sonDesMots(voix.mots, voix.dureeSec);
@@ -346,15 +344,16 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
       },
     });
     const v = await porteUniqueIV(m.entree, o);
-    // 25/10/2026 : Q19 n'est qu'une remarque. Depuis le 26/10, chaque version (LinkedIn comprise) dit sa fin : la phrase retirée est
-    // celle de la fin, la phrase-choc reste entendue (Q06 réussie).
+    // 25/10/2026 : Q19 et la phrase-choc non entendue (Q06 : erreur de transcription, la voix existe) ne sont que des remarques.
     expect(v.ok).toBe(true);
     const q19 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q19" && l.etat === "echoue");
     expect(q19.length).toBeGreaterThan(0);
     expect(q19.every((l) => !l.bloquant)).toBe(true);
     expect(q19[0].phrase).toMatch(/dernière phrase/);
-    expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q06" && bloque(l))).toEqual([]);
-    expect(v.mentions.join()).toMatch(/dernière phrase/);
+    const q06 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q06" && l.etat === "echoue");
+    expect(q06.length).toBeGreaterThan(0);
+    expect(q06.every((l) => !bloque(l))).toBe(true);
+    expect(v.mentions.join()).toMatch(/phrase-choc/);
     // La vidéo n'est pas refusée : la relecture payante a lieu.
     expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q26").every((l) => l.etat !== "non-fait")).toBe(true);
   });
@@ -886,58 +885,24 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(scene.phrase).toMatch(/n'est pas celle/);
   });
 
-  it("un réseau demandé sans version est refusé ; LinkedIn dit la fin comme les autres (26/10/2026)", async () => {
+  it("un réseau demandé sans version est refusé ; LinkedIn reste muet (rien dit après la phrase-choc)", async () => {
     const m = monter("A");
     const li = m.entree.versions.find((x) => x.reseaux.includes("linkedin"))!;
-    expect(li.fin).not.toBeNull();
-    expect(li.fin!.muet).toBe(false);
-    expect(li.piste.mots.length).toBeGreaterThan(li.piste.motsCorps);
+    expect(li.fin).toBeNull();
+    expect(li.piste.mots.length).toBe(li.piste.motsCorps);
     const { o } = outils(m);
     const v = await porteUniqueIV({ ...m.entree, versions: m.entree.versions.filter((x) => x !== li) }, o);
     expect(v.ok).toBe(false);
     expect(v.generaux.join()).toMatch(/LinkedIn : aucune version/);
-  });
 
-  it("une version LinkedIn sans fin ni voix après la phrase-choc (vidéo faite avant le 26/10) reste acceptée par Q08 bis ; si elle sert aussi un autre réseau, elle est refusée", async () => {
-    const m = monter("A", ["linkedin"]);
-    const ancienne = (reseaux: ReseauIV[]) => versionDe(m.entree.carte, m.entree.fiche, { id: "fin-linkedin", reseaux, muet: true, appels: [] }, m.sons);
-    const q08 = async (version: ReturnType<typeof versionDe>) => {
-      const { o } = outils({ ...m, entree: { ...m.entree, versions: [version] } });
-      const r = await porteUniqueIV({ ...m.entree, versions: [version] }, o);
-      return r.versions[0].lignes.filter((l) => l.code === "Q08bis");
-    };
-    expect((await q08(ancienne(["linkedin"]))).filter(bloque)).toEqual([]);
-    const partagee = ancienne(["linkedin", "facebook"]);
-    const refus = (await q08(partagee)).filter(bloque);
-    expect(refus.map((l) => l.code)).toContain("Q08bis");
-  });
-
-  it("une version Facebook sans fin n'est plus refusée : remarque (Q08 bis), la vidéo sort", async () => {
-    const m = monter("A", ["facebook"]);
-    const sansFin = versionDe(m.entree.carte, m.entree.fiche, { id: "fin-facebook", reseaux: ["facebook"], muet: true, appels: [] }, m.sons);
-    const { o } = outils({ ...m, entree: { ...m.entree, versions: [sansFin] } });
-    const r = await porteUniqueIV({ ...m.entree, versions: [sansFin] }, o);
-    const q08bis = r.versions[0].lignes.find((l) => l.code === "Q08bis")!;
-    expect(q08bis.etat).toBe("echoue");
-    expect(bloque(q08bis)).toBe(false);
-    expect(q08bis.phrase).toMatch(/aucune fin pour facebook/);
-  });
-
-  it("réglage question-puis-fin : une fin sans question est signalée (remarque, jamais un blocage) ; en fin-seule, rien", async () => {
-    const m = monter("A", ["facebook"]);
-    const v = m.entree.versions[0];
-    expect(v.fin && !v.fin.muet && !v.fin.question).toBe(true);
-    const q08bis = async (appelCommentaire?: "question-puis-fin" | "fin-seule") => {
-      const { o } = outils(m);
-      const r = await porteUniqueIV({ ...m.entree, ...(appelCommentaire ? { appelCommentaire } : {}) }, o);
-      return r.versions[0].lignes.find((l) => l.code === "Q08bis")!;
-    };
-    const avec = await q08bis("question-puis-fin");
-    expect(avec.etat).toBe("echoue");
-    expect(avec.phrase).toMatch(/question de commentaire manque/);
-    expect(bloque(avec)).toBe(false);
-    expect((await q08bis("fin-seule")).etat).not.toBe("echoue");
-    expect((await q08bis()).etat).not.toBe("echoue");
+    // Une version LinkedIn qui dit la fin d'un autre réseau est refusée (Q08 bis).
+    const m2 = monter("A");
+    const fin = m2.plan.fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+    const fausse = versionDe(m2.entree.carte, m2.entree.fiche, { ...fin, id: "fin-linkedin", reseaux: ["linkedin"] }, m2.sons);
+    const { o: o2 } = outils(m2);
+    const v2 = await porteUniqueIV({ ...m2.entree, versions: m2.entree.versions.map((x) => (x.reseaux.includes("linkedin") ? fausse : x)) }, o2);
+    expect(v2.ok).toBe(false);
+    expect(v2.versions.find((x) => x.reseaux.includes("linkedin"))!.lignes.filter(bloque).map((l) => l.code)).toContain("Q08bis");
   });
 
   it("aucune version : refus clair", async () => {

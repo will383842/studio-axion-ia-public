@@ -211,17 +211,15 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
     // Rouge sans le lot : l'état de fabrication porte la recette tirée (avant le lot F, aucune).
     expect(fin.variete?.par).toBe("tirage");
     expect(Object.keys(fin.variete!.recette).sort()).toEqual([...AXES_VARIETE].sort());
-    // 4 fichiers rendus (26/10/2026 : Facebook et LinkedIn disent la même fin, le 4:5 est UN fichier commun) : Shorts et
-    // Instagram en 9:16, Facebook en Reel 9:16, et le 4:5 de LinkedIn qui est aussi le fil de Facebook.
+    // 5 fichiers rendus : 4 réseaux, Facebook deux fois (Reel 9:16 et fil 4:5), LinkedIn en 4:5.
     const fichiers = new Set(m.rendus.map((r) => r.version));
-    expect(fichiers.size).toBe(4);
+    expect(fichiers.size).toBe(5);
     const fb = fin.livraison!.find((l) => l.reseau === "facebook")!;
     expect(fb.fichierCle).toBeTruthy();
     expect(fb.fichierCleFil).toBeTruthy();
     expect(fb.fichierCleFil).not.toBe(fb.fichierCle);
     expect(fin.livraison!.find((l) => l.reseau === "linkedin")!.format).toBe("4:5");
-    expect(fin.livraison!.find((l) => l.reseau === "linkedin")!.fichierCle).toBe(fb.fichierCleFil);
-    expect(m.rendus.filter((r) => r.ligne.hauteur === 1350).length).toBe(1);
+    expect(m.rendus.filter((r) => r.ligne.hauteur === 1350).length).toBe(2);
     // Une seule voix : autant de lectures (et de réservations HeyGen) que sans le 4:5 ; les versions 4:5 reprennent
     // les pistes du 9:16.
     const seul916 = demarrer();
@@ -234,7 +232,7 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
     // Chaque version reçoit sa recette (4:5 : substitutions du cadre bas, ouverture de son format).
     const lignes = lignesDesVersionsIV(fin);
     const recettes = recettesDesVersionsIV(fin);
-    expect(lignes.length).toBe(4);
+    expect(lignes.length).toBe(5);
     for (const l of lignes) {
       const r = recettes.find((x) => x.version === l.version)!;
       expect(l.ligne.variete?.recette, l.version).toEqual(r.recette);
