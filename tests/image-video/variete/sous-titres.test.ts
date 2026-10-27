@@ -17,7 +17,7 @@ import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulati
 // elles prouvent que le rendu ne change pas pour un plan inchangé, quelles que soient les fins posées aujourd'hui.
 import { planDesFinsAvant as planDesFinsIV } from "../plan-des-fins-avant";
 import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
-import { controlerVariationsIV, intensiteSousTitresIV, sousTitresVariesIV } from "@/moteurs/montage-image-video/sous-titres-varies";
+import { codeSousTitresIV, controlerVariationsIV, intensiteSousTitresIV, sousTitresVariesIV, surlignageSousTitresIV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import type { SegmentSousTitres } from "@/domaine/types";
 
@@ -26,11 +26,11 @@ const carteDe = (nom: string): CarteImage => JSON.parse(readFileSync(join(DOSSIE
 const VALIDES: BruitageValideIV[] = SONS_BANQUE.map((s) => ({ elementId: idElementBruitage(s), declencheur: s.declencheur, variante: s.variante, dureeSec: s.dureeSec }));
 const NOMS = ["A", "B", "C", "D", "E", "F"];
 
-function miseEnScene(nom: string, reseau: ReseauIV, sousTitres?: RecetteVarieteIV["sousTitres"]) {
+function miseEnScene(nom: string, reseau: ReseauIV, sousTitres?: RecetteVarieteIV["sousTitres"], format?: "4:5") {
   const carte = carteDe(nom);
   const fiche = FICHES_SIMULEES[`essai-${nom.toLowerCase()}` as keyof typeof FICHES_SIMULEES];
   const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes(reseau))!;
-  return mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, ...(sousTitres ? { variete: { ...RECETTE_REFERENCE_IV, sousTitres } } : {}) });
+  return mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, ...(format ? { format } : {}), ...(sousTitres ? { variete: { ...RECETTE_REFERENCE_IV, sousTitres } } : {}) });
 }
 
 const accents = (s: readonly SegmentSousTitres[]) => s.filter((x) => x.style === "impact" || x.style === "bandeau");
@@ -95,4 +95,37 @@ describe("sous-titres · SOU-C appuyés", () => {
       }
     }
   });
+});
+
+describe("sous-titres · SOU-D (surlignage) et SOU-E (calme, à l'envers)", () => {
+  it("SOU-D : surlignage dans le style, mélange de SOU-B ; SOU-E : mots et heures inchangés, pas de surlignage", () => {
+    const b = miseEnScene("C", "youtube-shorts", "SOU-B").ligne;
+    const d = miseEnScene("C", "youtube-shorts", "SOU-D").ligne;
+    const e = miseEnScene("C", "youtube-shorts", "SOU-E").ligne;
+    expect(surlignageSousTitresIV(d)).toHaveProperty("surlignage");
+    expect(surlignageSousTitresIV(e)).toEqual({});
+    expect(surlignageSousTitresIV(b)).toEqual({});
+    expect(JSON.stringify(sousTitresVariesIV(d))).toBe(JSON.stringify(sousTitresVariesIV(b)));
+    const mots = (l: SegmentSousTitres[]) => l.map((x) => x.mots.map((m) => [m.mot, m.debutSec, m.finSec]));
+    expect(mots(sousTitresVariesIV(e))).toEqual(mots(sousTitresVariesIV(b)));
+  });
+
+  for (const format of [undefined, "4:5"] as const) {
+    it(`6 cartes × 5 réseaux en ${format ?? "9:16"} : Q22 vert pour SOU-D et SOU-E`, { timeout: 60_000 }, () => {
+      let retours = 0; // versions retombées sur SOU-B parce que Q22 échouait
+      for (const code of ["SOU-D", "SOU-E"] as const) {
+        for (const nom of NOMS) {
+          for (const r of RESEAUX_IV) {
+            const res = miseEnScene(nom, r, code, format);
+            expect(controlerVariationsIV(sousTitresVariesIV(res.ligne), res.ligne), `${code} ${nom} ${r}`).toEqual([]);
+            for (const s of accents(sousTitresVariesIV(res.ligne))) expect(s.position).toBe("milieu");
+            if (codeSousTitresIV(res.ligne) !== code) retours++;
+          }
+        }
+      }
+      // Jamais de retour en 9:16 ; en 4:5 le retour est un repli rare, pas la règle.
+      if (!format) expect(retours).toBe(0);
+      else expect(retours).toBeLessThanOrEqual(30);
+    });
+  }
 });

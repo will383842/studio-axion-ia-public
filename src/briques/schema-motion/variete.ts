@@ -50,7 +50,7 @@ export const VARIANTES_GARDEES: { readonly [A in AxeVariete]: readonly CodesParA
   transitions: ["TRA-B", "TRA-C", "TRA-D"],
   fin: ["FIN-C", "FIN-D"],
   matiere: ["MAT-B", "MAT-C", "MAT-D"],
-  sousTitres: ["SOU-C"],
+  sousTitres: ["SOU-C", "SOU-D", "SOU-E"],
   // fond
   fond: [],
   // rail
