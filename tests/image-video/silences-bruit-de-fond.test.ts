@@ -43,6 +43,16 @@ import { outilsAvecRendu, ServeurDouble } from "./doubles-rendu";
  * payée en segments SÉPARÉS (arrêts de fin, fins de secours, replis : « voix-iv/1 », qui existe encore en prod) la
  * remettent à `false` le temps du bloc ; la lecture unique a ses propres tests (`fabrication-lecture-unique.test.ts`).
  */
+/**
+ * 26/10/2026 : `planDesFinsIV` pose les fins « accroche + appel + lien ». La répétition générale des fins de secours de
+ * Facebook rejoue l'ancien plan (fin « diagnostic », question), toujours GARDÉ dans l'état des vidéos faites avant.
+ */
+const reglageFins = vi.hoisted(() => ({ avant: false }));
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  const { planDesFinsAvant } = await import("./plan-des-fins-avant");
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => (reglageFins.avant ? planDesFinsAvant(d) : vrai.planDesFinsIV(d)) };
+});
 const reglageVoix = vi.hoisted(() => ({ lectureUnique: true }));
 vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {
   const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/voix")>();
@@ -350,9 +360,11 @@ describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE : bruts MP3 bruités, 
   // Fins de secours et replis : voix payée en segments séparés (« voix-iv/1 »).
   beforeAll(() => {
     reglageVoix.lectureUnique = false;
+    reglageFins.avant = true;
   });
   afterAll(() => {
     reglageVoix.lectureUnique = true;
+    reglageFins.avant = false;
   });
   const HORS = (facteur: number, dyn = 1) => ({ ...Object.fromEntries(Object.entries({ ...REFERENCE_V4_IV, hauteurHz: REFERENCE_V4_IV.hauteurHz * facteur, dynamique: REFERENCE_V4_IV.dynamique * dyn }).map(([k, v]) => [`voix.${k}`, v])), "voix.versionMesure": VERSION_MESURE_VOIX });
   const FIN_FB = "Le lien est en commentaire.";
@@ -375,7 +387,7 @@ describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE : bruts MP3 bruités, 
     // Parcours où chaque fin de secours attend « Refaire cette partie » (le parcours automatique est testé ailleurs).
     const o = { ...outilsAvecRendu(m, serveur, outilsSimules(carte, m, bruite({ mesureVoix: mesure, assemblage: assemblageReel(m, compte) }))), secoursAutomatique: false };
 
-    let etat = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
+    let etat = await jusquAuBout(etatInitialIV(demandeEssai(carte, { appelCommentaire: "question-puis-fin" })), o);
     const arrets: string[] = [];
     for (let i = 0; i < 4 && etat.etape === "refusee"; i++) {
       arrets.push(etat.refus!.message);
@@ -415,7 +427,7 @@ describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE : bruts MP3 bruités, 
 /* ------------------------------------------------------------------ */
 
 describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE · lecture unique : bruts MP3 bruités, vraie recette, une seule lecture, versions taillées", () => {
-  it("LinkedIn = corps seul, Instagram = corps + partie commune + phrase Instagram, Facebook = sans la phrase Instagram ; coupes, durées, mots, aucun son abîmé", async () => {
+  it("Shorts, Facebook + LinkedIn, Instagram : corps + partie commune + SA phrase du lien (les autres phrases sautées) ; coupes, durées, mots, aucun son abîmé", async () => {
     const m = monde();
     const carte = carteFixe("C");
     const compte = { conversions: 0 };
@@ -455,10 +467,10 @@ describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE · lecture unique : br
     const [li] = pistes.filter((p) => p.reseaux.includes("linkedin"));
     const [ig] = pistes.filter((p) => p.reseaux.includes("instagram"));
     const [fb] = pistes.filter((p) => p.reseaux.includes("facebook"));
-    // LinkedIn : corps seul, rien après la phrase-choc.
-    expect(li.mots).toHaveLength(li.motsCorps);
-    expect(li.raccordSec).toBeUndefined();
-    expect(li.dureeSec).toBeLessThan(ig.dureeSec);
+    // LinkedIn dit la fin comme les autres (26/10/2026) et partage la version de Facebook (même phrase du lien).
+    expect(li.mots.length).toBeGreaterThan(li.motsCorps);
+    expect(li.raccordSec).toBeDefined();
+    expect(li.version).toBe(fb.version);
     // Instagram : le corps, la partie commune, sa phrase.
     expect(ig.mots.length).toBeGreaterThan(ig.motsCorps);
     // Facebook : sa phrase propre à la place de celle d'Instagram ; le blanc laissé par la phrase sautée est silencieux.
