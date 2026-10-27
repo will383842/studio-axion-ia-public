@@ -54,7 +54,7 @@ export const VARIANTES_GARDEES: { readonly [A in AxeVariete]: readonly CodesParA
   // fond
   fond: ["FON-B", "FON-C", "FON-D", "FON-E"],
   // rail
-  rail: [],
+  rail: ["RAI-B", "RAI-C", "RAI-D"],
   // objets
   objets: [],
   // entete
