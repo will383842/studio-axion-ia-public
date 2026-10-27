@@ -18,7 +18,7 @@
  *
  * PUR, sans alias « @/ ».
  */
-import { BANQUE_APPELS, PREFIXE_FINS_IMAGE_VIDEO, type AppelBanque, type ObjectifAppel, type PublicAppel } from "./banque";
+import { BANQUE_APPELS, type AppelBanque, type ObjectifAppel, type PublicAppel } from "./banque";
 import { EMPLACEMENT_MOT, MOTS_DIT_MAX, MOTS_ECRAN_MAX, type TypeFin } from "./types";
 
 /** Objectifs permis sur TikTok et Shorts (base 7, règles de tirage). */
@@ -86,7 +86,6 @@ export function finsLiensDeLaBanque(publicCible: PublicAppel = "public.clients")
   return BANQUE_APPELS.filter(
     (a) =>
       a.etat === "valide" &&
-      !a.code.startsWith(PREFIXE_FINS_IMAGE_VIDEO) &&
       a.typeContenu === "video" &&
       a.public === publicCible &&
       a.reseaux.includes("tiktok") &&
