@@ -1,6 +1,7 @@
 /**
  * Un écran du format, rendu seul : aiguille sur son `type` vers la composition du type. L6 : une mise en page tirée
- * (`jeu.miseEnPage`, données présentes) remplace la composition v4 du type ; raccords modernes autour (`Raccorde`).
+ * (`jeu.miseEnPage`, données présentes) remplace la composition v4 du type ; raccords modernes autour (`Raccorde`) ;
+ * entrée, sortie, caméra, transition et mot par mot du jeu autour de tout (`Habillage`).
  * Sans `jeu`, l'arbre rendu est celui de la v4.
  */
 import React from "react";
@@ -19,13 +20,18 @@ import { AppelMot } from "./types/AppelMot";
 import { Promesse } from "./types/Promesse";
 import { Lien } from "./types/Lien";
 import { codeL6, EcranL6, Raccorde } from "./mises-en-page/MiseEnPage";
+import { Habillage } from "./socle/Habillage";
 
 export function Ecran(p: ProprietesEcran) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   if (!p.jeu) return ecranV4(p);
   const code = codeL6(p);
-  return <Raccorde p={p}>{code ? <EcranL6 p={p} code={code} /> : ecranV4(p)}</Raccorde>;
+  return (
+    <Habillage p={p}>
+      <Raccorde p={p}>{code ? <EcranL6 p={p} code={code} /> : ecranV4(p)}</Raccorde>
+    </Habillage>
+  );
 }
 
 /** La composition v4 du type. */

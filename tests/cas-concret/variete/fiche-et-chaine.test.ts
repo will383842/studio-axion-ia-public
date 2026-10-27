@@ -15,8 +15,8 @@ import { doubles, type Doubles } from "../fabriquer/doubles";
 
 /** Une mise sans ce que pose L6 (mises en page, fonds alternés, raccords, combinaison). */
 function sansL6(m: Mise): Mise {
-  const { misesEnPage: _c, ...tirage } = m.tirage;
-  void _c;
+  const { misesEnPage: _c, misesTypes: _t, ...tirage } = m.tirage;
+  void [_c, _t];
   const ecrans = Object.fromEntries(
     Object.entries(m.ecrans).map(([k, v]) => {
       const { miseEnPage: _m, fondAlterne: _f, raccordEntree: _e, raccordSortie: _s, ...reste } = v;
@@ -113,7 +113,8 @@ describe("L2 · chaîne", () => {
     expect(schemaMise.safeParse(cr.fiche.mise).success).toBe(true);
     expect(Object.keys(cr.fiche.mise!.ecrans)).toEqual(cr.fiche.ecrans.map((e) => e.id));
     // L6 : le tirage porte en plus sa combinaison de mises en page (notée dans l'historique).
-    const { misesEnPage, ...tirage } = cr.fiche.mise!.tirage;
+    const { misesEnPage, misesTypes: _misesTypes, ...tirage } = cr.fiche.mise!.tirage;
+    void _misesTypes;
     expect(tirage).toEqual(tirer({ videoId: d.options.videoId, canaux: ["facebook", "instagram", "tiktok", "linkedin"], historique: [] }));
     expect(typeof misesEnPage).toBe("string");
     expect(v.ajouts).toBe(2);
