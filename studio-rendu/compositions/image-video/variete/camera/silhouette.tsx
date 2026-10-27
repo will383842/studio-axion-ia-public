@@ -9,7 +9,7 @@ import { AbsoluteFill } from "remotion";
 import { COULEURS_DUO } from "../../../../../src/briques/habillage/charte-duo";
 import { ECRAN_IV, type BoiteNoeud } from "../../../../../src/briques/schema-motion";
 import { famille, graisse, teinte } from "../../../cas-concret/plans/commun";
-import { Fond } from "../../../cas-concret/socle/Fond";
+import { FondIV } from "../fond/FondVarie";
 import { Icone } from "../../../interface-claire/elements";
 import type { SceneCalculee } from "../../plan";
 
@@ -51,7 +51,7 @@ export function VueSilhouette({ scene, noeud, icone, fin, t, haut, largeur, haut
   const fil = teinte(C.grisClair, 0.45);
   return (
     <AbsoluteFill style={{ opacity: 1 - fondu }}>
-      <Fond fond="sombre" largeur={largeur} hauteur={hauteur} />
+      <FondIV fond="sombre" largeur={largeur} hauteur={hauteur} />
       <div style={{ position: "absolute", left: 0, top: 0, width: ECRAN_IV.largeur, height: ECRAN_IV.hauteur, transform: `scale(${largeur / ECRAN_IV.largeur}) translate(${cx}px, ${cy}px) scale(${1 + 0.5 * plongee * plongee * (3 - 2 * plongee)}) translate(${-cx}px, ${-cy}px)`, transformOrigin: "0 0" }}>
         <div style={{ position: "absolute", inset: 0, maskImage: MASQUE, WebkitMaskImage: MASQUE }}>
           <svg width={ECRAN_IV.largeur} height={ECRAN_IV.hauteur} style={{ position: "absolute", left: 0, top: 0 }}>

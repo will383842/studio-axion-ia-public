@@ -52,7 +52,7 @@ export const VARIANTES_GARDEES: { readonly [A in AxeVariete]: readonly CodesParA
   matiere: ["MAT-B", "MAT-C", "MAT-D"],
   sousTitres: ["SOU-C", "SOU-D", "SOU-E"],
   // fond
-  fond: [],
+  fond: ["FON-B", "FON-C", "FON-D", "FON-E"],
   // rail
   rail: [],
   // objets

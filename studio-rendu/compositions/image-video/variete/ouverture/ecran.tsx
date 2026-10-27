@@ -5,7 +5,7 @@ import React from "react";
  */
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
-import { Fond } from "../../../cas-concret/socle/Fond";
+import { FondIV } from "../fond/FondVarie";
 import { Entete } from "../../Entete";
 import type { ProprietesEcranVariete } from "../CompositionVariete";
 import type { DonneesOuverture } from "./donnees";
@@ -38,7 +38,7 @@ export function EcranOuverture(p: ProprietesEcranVariete) {
   if (!d) {
     return (
       <AbsoluteFill>
-        <Fond fond="ivoire" largeur={p.largeur} hauteur={p.hauteur} />
+        <FondIV fond="ivoire" largeur={p.largeur} hauteur={p.hauteur} />
         <Entete entete={null} ecoule={0} sortie={0} fond="ivoire" marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
       </AbsoluteFill>
     );
