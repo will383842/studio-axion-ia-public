@@ -44,7 +44,8 @@ import { Recherche } from "./Recherche";
 import { RepereChapitre } from "./RepereChapitre";
 import { Sources } from "./Sources";
 import { TemoinSousTitres } from "./TemoinSousTitres";
-import { RailSuite, SchemaMuet, Toile } from "./Toile";
+import { SchemaMuet, Toile } from "./Toile";
+import { RailVarie } from "./variete/rail/RailVarie";
 import { COMPOSITION_VARIETE_IV, metaVarieteIV, proprietesVarieteDefaut, SceneVarieteIV } from "./variete/CompositionVariete";
 import { recadrage } from "./variete/camera/calque";
 import { donneesToile } from "./variete/camera/donnees";
@@ -163,7 +164,7 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
             </AbsoluteFill>
           ) : null}
           <AbsoluteFill style={{ transform: `${fixe}scale(${echelle})`, transformOrigin: "0 0" }}>
-            <RailSuite scene={scene} schema={p.schema} t={t} fond={fondVu} place={placeDuRail} opacite={rail} />
+            <RailVarie scene={scene} schema={p.schema} t={t} fond={fondVu} place={placeDuRail} opacite={rail} />
           </AbsoluteFill>
           {ensemble && vue ? (
             <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
