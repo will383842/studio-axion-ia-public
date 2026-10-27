@@ -229,7 +229,9 @@ export function ecransIrrendablesDetail(scenes: readonly SceneIV[]): { id: strin
     const p = s.parametres.proprietes as unknown as ProprietesEcran;
     const lignes = "lignes" in p && Array.isArray(p.lignes) ? p.lignes.length : 0;
     const max = LIGNES_MAX_ECRAN_IV[p.type];
-    const defauts = controlerProprietes(p);
+    // Un chiffre sans unité (« au lieu de 45 ») a sa boîte d'unité vide : le composant ne dessine rien, ce n'est pas un écran irrendable
+    // (27/10/2026, vidéo v-218d8e98ceef arrêtée en IV_PANNE pour « texte vide (unite) »).
+    const defauts = controlerProprietes(p).filter((d) => !/· texte vide \(unite\)\./.test(d));
     if (max !== undefined && lignes > max) irrendables.push({ id: s.id, phrase: `écran n° ${rang} : ${lignes} lignes de texte, ${max} au plus pour ce genre d'écran.` });
     else if (defauts.length) irrendables.push({ id: s.id, phrase: `écran n° ${rang} : un texte ne tient pas à sa place.` });
     if (defauts.length || (max !== undefined && lignes > max)) console.warn(`[image-video] écran ${s.id} irrendable : ${[`${p.type} de ${lignes} ligne(s)`, ...defauts].join(" ; ")}`);
