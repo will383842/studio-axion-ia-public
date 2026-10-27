@@ -28,7 +28,7 @@ import { clesDeLaCarte, controlerToutMontre, type LigneControleSceneIV } from ".
 import { miseEnPageAuxInstantsIV } from "./emprise-ligne";
 import { formeDite, formesComparables, SEUILS_ECOUTE_IV, type ConstatControle, type EcouteVersionIV } from "./ecoute";
 import { FIGE_IV } from "./commandes-ffmpeg";
-import type { FinIV } from "./fins";
+import type { AppelCommentaire, FinIV } from "./fins";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV, type ResultatMiseEnSceneIV } from "./mise-en-scene";
 import { interditsDans, type PublicationIV } from "./publication";
 import { instantsClesIV } from "./relecture-finale";
@@ -153,6 +153,8 @@ export interface ContexteControlesIV {
   voix: Pick<EtatVoixIV, "issue">;
   publication: PublicationIV;
   liens: Readonly<Record<string, string>>;
+  /** Réglage de la question de commentaire (défaut `fin-seule`) : en `question-puis-fin`, une fin sans question est signalée (remarque). */
+  appelCommentaire?: AppelCommentaire;
 }
 
 /* ------------------------------------------------------------------ */
@@ -299,18 +301,21 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   ];
   L("Q08", q08);
 
-  // Q08 bis · question présente hors LinkedIn (et entendue), absente de LinkedIn ; aucune fin dite sur LinkedIn.
+  // Q08 bis · la fin du réseau est présente, LinkedIn compris (il la dit comme les autres depuis le 26/10/2026) ; la
+  // question de commentaire, quand la fin en porte une (réglage `question-puis-fin`), est entendue en entier. Seule une
+  // version LinkedIn d'AVANT le 26/10 (fin absente : plan muet) reste jugée muette : rien dit après la phrase-choc.
   const q08bis = [...(regles.get("Q08bis") ?? [])];
-  /** Fin ou question absente, question mal entendue (transcription) : remarque ; les règles du texte et de LinkedIn restent bloquantes. */
+  /** Fin ou question absente, question mal entendue (transcription) : remarque ; les règles du texte et de l'ancienne version muette de LinkedIn restent bloquantes. */
   const q08bisSouple: string[] = [];
-  const linkedin = v.reseaux.includes("linkedin");
-  if (linkedin) {
-    if (v.fin && !v.fin.muet) q08bis.push("la version LinkedIn porte un segment de fin : rien ne doit être dit ni affiché après la phrase-choc.");
+  const finDite = !!v.fin && !v.fin.muet;
+  const reglage = ctx.appelCommentaire ?? "fin-seule";
+  const pisteMuette = v.piste.mots.length === v.piste.motsCorps && v.piste.raccordSec === undefined;
+  if (!finDite && v.reseaux.includes("linkedin") && (v.fin?.muet || pisteMuette)) {
     if (v.piste.mots.length !== v.piste.motsCorps || v.piste.raccordSec !== undefined) q08bis.push("la voix LinkedIn dit quelque chose après la phrase-choc.");
     if (v.reseaux.some((r) => r !== "linkedin")) q08bis.push(`la version muette de LinkedIn sert aussi ${v.reseaux.filter((r) => r !== "linkedin").join(", ")}.`);
-  } else if (!v.fin || v.fin.muet) q08bisSouple.push(`aucune fin pour ${v.reseaux.join(", ")} : la question de commentaire et la fin du réseau manquent.`);
-  else if (!v.fin.question) q08bisSouple.push(`la question de commentaire manque pour ${v.reseaux.join(", ")}.`);
-  else if (ecoute && !sansEcoute && !entendue(v.fin.question.dit, entendu)) q08bisSouple.push(`la question (« ${v.fin.question.dit} ») n'est pas entendue en entier.`);
+  } else if (!v.fin || !finDite) q08bisSouple.push(`aucune fin pour ${v.reseaux.join(", ")} : la fin du réseau manque.`);
+  else if (reglage === "question-puis-fin" && !v.fin.question) q08bisSouple.push(`la question de commentaire manque pour ${v.reseaux.join(", ")}.`);
+  else if (v.fin.question && ecoute && !sansEcoute && !entendue(v.fin.question.dit, entendu)) q08bisSouple.push(`la question (« ${v.fin.question.dit} ») n'est pas entendue en entier.`);
   L("Q08bis", [...q08bis, ...q08bisSouple], { indicatif: q08bis.length === 0 && q08bisSouple.length > 0 });
 
   L("Q09", regles.get("Q09") ?? []);

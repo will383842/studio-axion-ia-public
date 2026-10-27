@@ -25,7 +25,7 @@ export const RESEAUX_IMAGE_VIDEO = ["youtube-shorts", "linkedin", "instagram", "
 /**
  * Réglages du format :
  * - `decoupage` : une seule valeur (« chapitres ») ; le mode « deux vidéos » n'existe pas dans cette version (B1) ;
- * - `appelCommentaire` : question propre à l'image puis la fin du réseau (défaut), ou la fin seule (B3) ;
+ * - `appelCommentaire` : la fin seule (défaut depuis le 26/10/2026 : une seule demande par fin), ou la question propre à l'image puis la fin du réseau ;
  * - `validationCarte` : « automatique » (défaut : le code répare et adapte la carte, la carte et le script sont validés par
  *   le réglage, rien n'attend Will), « si-doute » (la carte ne s'affiche qu'en cas de doute, obligatoire pour les 10
  *   premières) ou « toujours » ;
@@ -33,7 +33,7 @@ export const RESEAUX_IMAGE_VIDEO = ["youtube-shorts", "linkedin", "instagram", "
  */
 export const schemaReglagesImageVideo = z.object({
   decoupage: z.literal("chapitres").default("chapitres"),
-  appelCommentaire: z.enum(["question-puis-fin", "fin-seule"]).default("question-puis-fin"),
+  appelCommentaire: z.enum(["question-puis-fin", "fin-seule"]).default("fin-seule"),
   validationCarte: z.enum(["automatique", "toujours", "si-doute"]).default("automatique"),
   bruitages: z.literal("discrets").default("discrets"),
 });

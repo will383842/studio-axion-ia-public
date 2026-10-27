@@ -14,7 +14,9 @@ import { idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
 import type { BruitageValideIV } from "@/moteurs/montage-image-video/bruitages";
 import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
-import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
+// 26/10/2026 : valeurs de référence (octet pour octet) calculées sur le plan des fins d'AVANT (fin « diagnostic », LinkedIn muet) :
+// elles prouvent que le rendu ne change pas pour un plan inchangé, quelles que soient les fins posées aujourd'hui.
+import { planDesFinsAvant as planDesFinsIV } from "../plan-des-fins-avant";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { AXES_APPLIQUES_IV } from "@/moteurs/montage-image-video/variete";
 import { recettePourVersion, RECETTE_REFERENCE_IV, tirablesDe, tirerVarieteIV } from "@/moteurs/montage-image-video/variete/tirage";

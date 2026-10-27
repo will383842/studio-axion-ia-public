@@ -16,7 +16,9 @@ import { DIMENSIONS_SCENE } from "@/briques/composition/scene";
 import { BANDE_SOUS_TITRES_IV } from "@/briques/schema-motion/types";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { RESEAUX_IV, RESEAUX_IV_HISTORIQUE } from "@/domaine/image-video/plafonds";
-import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
+// 26/10/2026 : valeurs de référence (octet pour octet) calculées sur le plan des fins d'AVANT (fin « diagnostic », LinkedIn muet) :
+// elles prouvent que le rendu ne change pas pour un plan inchangé, quelles que soient les fins posées aujourd'hui.
+import { planDesFinsAvant as planDesFinsIV } from "./plan-des-fins-avant";
 import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
