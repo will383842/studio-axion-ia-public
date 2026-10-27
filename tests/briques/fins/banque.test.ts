@@ -22,10 +22,9 @@ import {
 import { RESEAUX_FIN } from "../../../src/briques/fins/types";
 
 describe("base 7 de l'Usine, recopiée telle quelle", () => {
-  // 26/10/2026 : 90 + 34 lignes `fin-iv-…` (fins Image → vidéo : accroches, appels, liens, Tour de France IA).
-  it("124 lignes, codes uniques de forme « fin-<groupe>-<slug> », table gelée", () => {
-    expect(BANQUE_APPELS).toHaveLength(124);
-    expect(new Set(BANQUE_APPELS.map((a) => a.code)).size).toBe(124);
+  it("90 lignes, codes uniques de forme « fin-<groupe>-<slug> », table gelée", () => {
+    expect(BANQUE_APPELS).toHaveLength(90);
+    expect(new Set(BANQUE_APPELS.map((a) => a.code)).size).toBe(90);
     for (const a of BANQUE_APPELS) expect(a.code).toMatch(/^fin-[a-z]+-[a-z0-9-]+$/);
     expect(Object.isFrozen(BANQUE_APPELS)).toBe(true);
     for (const a of BANQUE_APPELS) expect(Object.isFrozen(a), a.code).toBe(true);
@@ -38,7 +37,7 @@ describe("base 7 de l'Usine, recopiée telle quelle", () => {
       expect(TYPES_CONTENU, a.code).toContain(a.typeContenu);
       for (const r of a.reseaux) expect(RESEAUX_FIN, a.code).toContain(r);
     }
-    expect(BANQUE_APPELS.filter((a) => a.public === "public.clients")).toHaveLength(78);
+    expect(BANQUE_APPELS.filter((a) => a.public === "public.clients")).toHaveLength(44);
     expect(BANQUE_APPELS.filter((a) => a.public === "public.apporteurs")).toHaveLength(23);
     expect(BANQUE_APPELS.filter((a) => a.public === "public.formateurs")).toHaveLength(23);
     // « linkedin_page » des bases = réseau linkedin, compte de nature « page ».
@@ -49,20 +48,15 @@ describe("base 7 de l'Usine, recopiée telle quelle", () => {
   it("phrases mot pour mot (échantillon des lignes que le studio reprend)", () => {
     expect(appelDeLaBanque("fin-if-mot-envoi")).toMatchObject({ reseaux: ["facebook"], dit: "Écrivez {MOT} en commentaire. Je vous l'envoie.", ecran: "Écrivez {MOT} en commentaire", objectif: "MOT_CADEAU" });
     expect(appelDeLaBanque("fin-ig-mot-abonnement")).toMatchObject({ dit: "Abonnez-vous et écrivez {MOT} en commentaire : je vous l'envoie.", ecran: "Abonnez-vous et écrivez {MOT}", objectif: "MOT_CADEAU" });
-    expect(appelDeLaBanque("fin-ig-rdv-seul")).toMatchObject({ dit: "Réservez votre diagnostic gratuit.", lien: "https://axion-ia.com/fr/appel", objectif: "RENDEZ_VOUS" });
+    expect(appelDeLaBanque("fin-ig-rdv-seul")).toMatchObject({ dit: "Réservez votre diagnostic gratuit.", lien: "https://axion-ia.com/fr/appel?depuis=entete", objectif: "RENDEZ_VOUS" });
     expect(appelDeLaBanque("fin-ig-carrousel-mot")?.etat).toBe("retire");
     expect(appelDeLaBanque("fin-li-post-mot")?.typeContenu).toBe("texte");
   });
 
-  it("règles de la base 7 : rien de dit ni d'affiché sur LinkedIn, sauf les fins Image → vidéo `fin-iv-…` (LinkedIn les dit depuis le 26/10/2026, sans appel à commenter) ; « Écrivez {MOT} » dit seulement sur Instagram et Facebook", () => {
-    for (const a of BANQUE_APPELS.filter((x) => x.reseaux.includes("linkedin") && !x.code.startsWith("fin-iv-"))) {
+  it("règles de la base 7 : rien de dit ni d'affiché sur LinkedIn ; « Écrivez {MOT} » dit seulement sur Instagram et Facebook", () => {
+    for (const a of BANQUE_APPELS.filter((x) => x.reseaux.includes("linkedin"))) {
       expect(a.dit, a.code).toBe("");
       expect(a.ecran, a.code).toBe("");
-    }
-    for (const a of BANQUE_APPELS.filter((x) => x.reseaux.includes("linkedin") && x.code.startsWith("fin-iv-"))) {
-      expect(a.dit, a.code).not.toBe("");
-      expect(a.ecran, a.code).not.toBe("");
-      expect(estAppelACommenter(a), a.code).toBe(false);
     }
     for (const a of BANQUE_APPELS.filter((x) => x.dit.includes("{MOT}"))) {
       expect(a.reseaux.every((r) => r === "instagram" || r === "facebook"), a.code).toBe(true);

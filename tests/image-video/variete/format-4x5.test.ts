@@ -36,9 +36,7 @@ import {
   validerScriptIV,
   type EtatFabricationIV,
 } from "@/moteurs/montage-image-video/fabrication";
-// 26/10/2026 : les valeurs de référence (octet pour octet) des deux fonctions ci-dessous sont celles du plan des fins d'AVANT
-// (fin « diagnostic », LinkedIn muet) : le rendu 9:16 ne change pas pour un plan inchangé.
-import { planDesFinsAvant } from "../plan-des-fins-avant";
+import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { mettreEnSceneIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { estimerImageVideo, PRIX_AU_PIRE_USD, resultatDe } from "@/moteurs/montage-image-video";
 import { CONSIGNE_FIL_FACEBOOK, texteFilFacebookIV, type PublicationIV } from "@/moteurs/montage-image-video/publication";
@@ -59,7 +57,7 @@ function lignes916(): LigneDeTempsIV[] {
   return Object.entries(IMAGES).flatMap(([nom, id]) => {
     const carte = carteDe(nom);
     const fiche = FICHES_SIMULEES[id];
-    const fins = planDesFinsAvant({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
+    const fins = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
     return fins.map((fin) => mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES }).ligne);
   });
 }
@@ -68,7 +66,7 @@ function lignes916(): LigneDeTempsIV[] {
 function ligneC45(): LigneDeTempsIV {
   const carte = carteDe("C");
   const fiche = FICHES_SIMULEES["essai-c"];
-  const fin = planDesFinsAvant({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("linkedin"))!;
+  const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("linkedin"))!;
   return mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, format: "4:5" }).ligne;
 }
 
@@ -231,38 +229,40 @@ describe("F45 · une version par (groupe de fins × format), une seule voix", ()
     expect([idVersionFormatIV("fin-facebook", "9:16"), idVersionFormatIV("fin-facebook", "4:5")]).toEqual(["fin-facebook", "fin-facebook-4x5"]);
   });
 
-  // 26/10/2026 : Facebook et LinkedIn disent la même fin (même phrase du lien) : un seul fichier de fin, donc le 4:5 est commun.
-  it("carte C, LinkedIn + Facebook : 2 versions (Facebook 9:16 ; LinkedIn et Facebook 4:5, même fichier), UNE voix, une piste", async () => {
+  it("carte C, LinkedIn + Facebook : 3 versions (LinkedIn 4:5, Facebook 9:16, Facebook 4:5), UNE voix, une piste par fin", async () => {
     const { e, m } = await jusquALaMiseEnScene(true, ["linkedin", "facebook"]);
     expect(e.etape).toBe("mise-en-scene");
     const v = lignesDesVersionsIV(e);
     expect(v.map((x) => [x.version, x.reseaux, x.format, x.ligne.largeur, x.ligne.hauteur])).toEqual([
-      ["fin-linkedin-facebook", ["facebook"], "9:16", 1080, 1920],
-      ["fin-linkedin-facebook-4x5", ["linkedin", "facebook"], "4:5", 1080, 1350],
+      ["fin-linkedin-4x5", ["linkedin"], "4:5", 1080, 1350],
+      ["fin-facebook", ["facebook"], "9:16", 1080, 1920],
+      ["fin-facebook-4x5", ["facebook"], "4:5", 1080, 1350],
     ]);
-    // Une seule voix payée : le corps lu une fois, une lecture par fin dite ; le 9:16 et le 4:5 ont la même piste.
+    // Une seule voix payée : le corps lu une fois, une lecture par fin dite (LinkedIn muet) ; les deux Facebook ont la même piste.
     expect(m.lus.length).toBe((e.voix?.segments.fins.length ?? 0) + 1);
-    expect(e.pistes?.map((p) => p.version)).toEqual(["fin-linkedin-facebook"]);
-    expect(v[0].piste).toBe(v[1].piste);
+    expect(e.pistes?.map((p) => p.version)).toEqual(["fin-linkedin", "fin-facebook"]);
+    expect(v[1].piste).toBe(v[2].piste);
     // Même voix, mêmes mots, même durée : seule la mise en page change.
-    expect(v[1].ligne.dureeSec).toBe(v[0].ligne.dureeSec);
-    expect(v[1].ligne.sousTitres.groupes).toEqual(v[0].ligne.sousTitres.groupes);
+    expect(v[2].ligne.dureeSec).toBe(v[1].ligne.dureeSec);
+    expect(v[2].ligne.sousTitres.groupes).toEqual(v[1].ligne.sousTitres.groupes);
   });
 
-  it("SANS formats imposés (défaut du 24/10) : versions fin-linkedin-facebook (9:16), fin-linkedin-facebook-4x5 (4:5) et fin-instagram", async () => {
+  it("SANS formats imposés (défaut du 24/10) : versions fin-linkedin-4x5 (4:5), fin-instagram, fin-facebook et fin-facebook-4x5", async () => {
     const { e } = await jusquALaMiseEnScene("defaut", ["linkedin", "instagram", "facebook"]);
     expect(e.etape).toBe("mise-en-scene");
     expect(lignesDesVersionsIV(e).map((x) => [x.version, x.format, x.ligne.largeur, x.ligne.hauteur])).toEqual([
-      ["fin-linkedin-facebook", "9:16", 1080, 1920],
-      ["fin-linkedin-facebook-4x5", "4:5", 1080, 1350],
+      ["fin-linkedin-4x5", "4:5", 1080, 1350],
       ["fin-instagram", "9:16", 1080, 1920],
+      ["fin-facebook", "9:16", 1080, 1920],
+      ["fin-facebook-4x5", "4:5", 1080, 1350],
     ]);
   });
 
   it("formats explicitement vides (anciennes demandes) : la version LinkedIn reste en 1080 × 1920, Facebook n'a qu'un fichier", async () => {
     const { e } = await jusquALaMiseEnScene(false, ["linkedin", "facebook"]);
     expect(lignesDesVersionsIV(e).map((x) => [x.version, x.ligne.hauteur])).toEqual([
-      ["fin-linkedin-facebook", 1920],
+      ["fin-linkedin", 1920],
+      ["fin-facebook", 1920],
     ]);
   });
 
@@ -295,7 +295,7 @@ describe("F45 · prix au pire, états d'avant et parcours par défaut", () => {
     delete (ancien.demande as { formats?: unknown }).formats;
     const repris = reprendreIV({ ...ancien, etape: "refusee", refus: { etape: "mise-en-scene", code: "IV_MISE_EN_SCENE", message: "x", reessayable: true } } as EtatFabricationIV);
     expect(repris.demande).not.toHaveProperty("formats");
-    expect(lignesDesVersionsIV(repris).map((x) => x.version)).toEqual(["fin-linkedin-facebook"]);
+    expect(lignesDesVersionsIV(repris).map((x) => x.version)).toEqual(["fin-linkedin", "fin-facebook"]);
   });
 
   it("parcours par défaut (sans `formats`) jusqu'à « prête » : LinkedIn 4:5, Facebook Reel 9:16 + fil 4:5", async () => {
@@ -333,15 +333,16 @@ describe("F45 · livraison Facebook en deux fichiers", () => {
     const etat: EtatFabricationIV = {
       ...e,
       rendus: {
-        "fin-linkedin-facebook": { cle: "final/fb-916.mp4", dureeSec: 52, demande: "b" },
-        "fin-linkedin-facebook-4x5": { cle: "final/45.mp4", dureeSec: 52, demande: "c" },
+        "fin-linkedin-4x5": { cle: "final/li-45.mp4", dureeSec: 50, demande: "a" },
+        "fin-facebook": { cle: "final/fb-916.mp4", dureeSec: 52, demande: "b" },
+        "fin-facebook-4x5": { cle: "final/fb-45.mp4", dureeSec: 52, demande: "c" },
       },
     };
     const publication: PublicationIV = { textes: [{ reseau: "facebook", texte: "Texte du Reel.", premierCommentaire: "Le lien : x", ouPoserLeLien: "premier-commentaire", consigneLien: "Poser ce lien." }], manquements: [] };
     const l = livraisonDe(etat, { reseaux: [{ reseau: "linkedin", version: "longue" }, { reseau: "facebook", version: "longue" }] as never }, publication, {});
-    expect(l.find((x) => x.reseau === "linkedin")).toMatchObject({ fichierCle: "final/45.mp4", format: "4:5" });
+    expect(l.find((x) => x.reseau === "linkedin")).toMatchObject({ fichierCle: "final/li-45.mp4", format: "4:5" });
     expect(l.find((x) => x.reseau === "linkedin")).not.toHaveProperty("fichierCleFil");
-    expect(l.find((x) => x.reseau === "facebook")).toMatchObject({ fichierCle: "final/fb-916.mp4", fichierCleFil: "final/45.mp4", dureeSecFil: 52, texte: "Texte du Reel.", texteFil: "Texte du Reel.", consigneLienFil: CONSIGNE_FIL_FACEBOOK });
+    expect(l.find((x) => x.reseau === "facebook")).toMatchObject({ fichierCle: "final/fb-916.mp4", fichierCleFil: "final/fb-45.mp4", dureeSecFil: 52, texte: "Texte du Reel.", texteFil: "Texte du Reel.", consigneLienFil: CONSIGNE_FIL_FACEBOOK });
     expect(l.find((x) => x.reseau === "facebook")).not.toHaveProperty("format");
 
     // Le fil manque : le Reel 9:16 part quand même (livraison sans blocage), le fil est signalé en remarque.

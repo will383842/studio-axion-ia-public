@@ -47,12 +47,11 @@ const decisionScript = (e: EtatFabricationIV): DecisionScriptIV => ({
 });
 
 /** Jusqu'à l'arrêt « script à valider » (rien de la voix n'a encore été lu). */
-// 26/10/2026 : la question de commentaire n'est plus posée par défaut ; les tests qui modifient la question la demandent.
-async function auScript(nom: "A" | "C" = "C", plus: Parameters<typeof demandeEssai>[1] = {}) {
+async function auScript(nom: "A" | "C" = "C") {
   const carte = carteFixe(nom);
   const m = monde();
   const o = outilsSimules(carte, m);
-  let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { plafondCentimes: 5000, ...plus })), o);
+  let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { plafondCentimes: 5000 })), o);
   if (attendWillIV(e) === "carte") e = await avancerJusquAArretIV(validerCarteIV(e, decisionCarte(e)), o);
   expect(attendWillIV(e)).toBe("script");
   return { carte, m, o, e };
@@ -90,10 +89,11 @@ describe("lecture unique · fabrication bout en bout", () => {
     // Une seule réservation de voix, pour ce texte-là.
     expect(reservationsVoix(etat)).toHaveLength(1);
     expect(reservationsVoix(etat)[0].centimes).toBe(Math.ceil(voix.segments.corps.length * TARIF_SIMULE - 1e-9));
-    // Chaque version a été taillée avec sa fin, LinkedIn compris (il la dit depuis le 26/10/2026).
+    // Chaque version a été taillée : LinkedIn muet (corps seul), les autres avec leur fin.
     const li = etat.pistes!.find((p) => p.reseaux.includes("linkedin"))!;
-    expect(li.raccordSec).toBeDefined();
-    for (const p of etat.pistes!) expect(p.mots.length).toBeGreaterThan(p.motsCorps);
+    expect(li.mots).toHaveLength(li.motsCorps);
+    expect(li.raccordSec).toBeUndefined();
+    for (const p of etat.pistes!.filter((x) => !x.reseaux.includes("linkedin"))) expect(p.mots.length).toBeGreaterThan(p.motsCorps);
     // Les mots du corps sont ceux du script, jamais ceux de la fin.
     const motsScript = etat.script!.fiche.ecrans.reduce((n, x) => n + motsDits(x.texteDit).length, 0);
     for (const p of etat.pistes!) expect(p.motsCorps).toBe(motsScript);
@@ -150,7 +150,7 @@ describe("lecture unique · fabrication bout en bout", () => {
   });
 
   it("texte lu changé après coup (question modifiée) : la relecture complète est RÉSERVÉE de nouveau, jamais payée sans réservation", async () => {
-    const { o, e } = await auScript("C", { appelCommentaire: "question-puis-fin" });
+    const { o, e } = await auScript();
     const etat = await jusquAuBout(validerScriptIV(e, decisionScript(e)), o);
     expect(etat.etape).toBe("prete");
     const avant = reservationsVoix(etat);
@@ -172,7 +172,7 @@ describe("lecture unique · fabrication bout en bout", () => {
   ] as const) {
     it(`A → B → A, ${nom} : chaque lecture a sa PROPRE réservation, jamais une lecture sans réservation (clé déjà prise)`, async () => {
       reglageVoix.lectureUnique = lectureUnique;
-      const { m, o, e } = await auScript("C", { appelCommentaire: "question-puis-fin" });
+      const { m, o, e } = await auScript();
       const a = await jusquAuBout(validerScriptIV(e, decisionScript(e)), o);
       expect(a.etape).toBe("prete");
       const ficheA = structuredClone(a.script!.fiche);

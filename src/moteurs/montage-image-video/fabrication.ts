@@ -52,7 +52,7 @@ import { ecrireScriptIV, type OutilsEcritureIV } from "./ecriture";
 import type { DemandeReservationControleIV } from "./ecoute";
 import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
-import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
+import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
 import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
@@ -774,7 +774,7 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
     const refus = refusQuestion(question);
     if (refus) throw new ErreurDecisionIV(refus, [refus]);
   }
-  const plan = planDesFinsIV({ reseaux: etat.demande.reseaux, offre: carte.offre, appelCommentaire: etat.demande.appelCommentaire, ...(etat.demande.numeroVersion !== undefined ? { numeroVersion: etat.demande.numeroVersion } : {}), ...(question ? { questionCommentaire: question } : {}) });
+  const plan = planDesFinsIV({ reseaux: etat.demande.reseaux, offre: carte.offre, appelCommentaire: etat.demande.appelCommentaire, ...(question ? { questionCommentaire: question } : {}) });
   const variete = etat.variete && d.variete ? changerVarieteIV(etat.variete.recette, d.variete, carte) : etat.variete?.recette;
   const e = structuredClone(etat);
   delete e.propositionScript;
@@ -984,7 +984,7 @@ function propositionScript(e: EtatFabricationIV, fiche: FicheImage, aTrancher: M
   const question = e.demande.appelCommentaire === "question-puis-fin" ? fiche.questionCommentaire.texteDit : undefined;
   let prix: PrixIV = { engageCentimes: engageCentimes(e), habituelCentimes: 0, auPlusCentimes: 0, plafondCentimes: e.caisse.plafondCentimes };
   try {
-    const plan = planDesFinsIV({ reseaux: e.demande.reseaux, offre: e.carte!.carte.offre, appelCommentaire: e.demande.appelCommentaire, ...(e.demande.numeroVersion !== undefined ? { numeroVersion: e.demande.numeroVersion } : {}), ...(question && !refusQuestion(question) ? { questionCommentaire: question } : {}) });
+    const plan = planDesFinsIV({ reseaux: e.demande.reseaux, offre: e.carte!.carte.offre, appelCommentaire: e.demande.appelCommentaire, ...(question && !refusQuestion(question) ? { questionCommentaire: question } : {}) });
     if (tarif !== undefined) prix = prixSuiteIV(e, fiche, plan, tarif);
   } catch {
     // Prix inconnu tant que la question n'est pas corrigée : Will la corrige avant de valider.
@@ -1063,7 +1063,7 @@ export function entreesMiseEnSceneIV(e: EtatFabricationIV, bruitages: readonly B
 
 function publicationDe(e: EtatFabricationIV): { publication: PublicationIV; liens: Record<string, string> } {
   const { script, plan, carte, demande } = e;
-  const liens = liensSuivisIV(demande.reseaux, demande.numeroVersion, demande.activite, plan ? sorteDuPlanIV(plan) : "diagnostic");
+  const liens = liensSuivisIV(demande.reseaux, demande.numeroVersion, demande.activite);
   const question = demande.appelCommentaire === "question-puis-fin" ? script!.fiche.questionCommentaire.texteDit : undefined;
   const publication = textesDePublicationIV(
     { accroche: script!.fiche.accroches[0].texteDit, resultat: phraseChocAttendue(carte!.carte, script!.choixFormules), ...(question ? { questionCommentaire: question } : {}) },
@@ -1691,7 +1691,6 @@ export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly Bruitage
     voix: { issue: e.voix?.issue ?? { statut: "faite" } },
     publication,
     liens,
-    ...(e.demande.appelCommentaire ? { appelCommentaire: e.demande.appelCommentaire } : {}),
     ...(e.controles ? { deja: { transcriptions: e.controles.transcriptions, relectures: e.controles.relectures } } : {}),
   };
   return { entree, publication, liens };
