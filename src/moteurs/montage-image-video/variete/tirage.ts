@@ -24,6 +24,10 @@ export const RECETTE_REFERENCE_IV: RecetteVarieteIV = Object.freeze({
   fin: "FIN-A",
   matiere: "MAT-A",
   sousTitres: "SOU-B",
+  fond: "FON-A",
+  rail: "RAI-A",
+  objets: "OBJ-A",
+  entete: "ENT-A",
 });
 
 /** Essais au plus avant de garder la première recette (historique trop exigeant). */

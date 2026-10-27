@@ -444,6 +444,10 @@ const NOMS_AXES: Readonly<Record<AxeVariete, string>> = {
   fin: "Fin",
   matiere: "Matière",
   sousTitres: "Sous-titres",
+  fond: "Fond",
+  rail: "Repères d'étapes",
+  objets: "Objets",
+  entete: "Titres",
 };
 
 /** Libellé de chaque variante (doc 72) : jamais le code à l'écran. */
@@ -491,6 +495,25 @@ export const LIBELLES_VARIANTES: Readonly<Record<string, string>> = {
   "SOU-A": "Calmes",
   "SOU-B": "Équilibrés",
   "SOU-C": "Appuyés",
+  "SOU-D": "Discrets",
+  "SOU-E": "En grand",
+  "FON-A": "Fond d'aujourd'hui",
+  "FON-B": "Fond quadrillé",
+  "FON-C": "Fond en dégradé",
+  "FON-D": "Fond à motifs",
+  "FON-E": "Fond sombre",
+  "RAI-A": "Repères d'aujourd'hui",
+  "RAI-B": "Repères en points",
+  "RAI-C": "Repères en barre",
+  "RAI-D": "Repères numérotés",
+  "OBJ-A": "Objets d'aujourd'hui",
+  "OBJ-B": "Objets arrondis",
+  "OBJ-C": "Objets en aplat",
+  "OBJ-D": "Objets cernés",
+  "ENT-A": "Titres d'aujourd'hui",
+  "ENT-B": "Titres sur bandeau",
+  "ENT-C": "Titres soulignés",
+  "ENT-D": "Titres en étiquette",
 };
 export const libelleVariante = (code: string): string => LIBELLES_VARIANTES[code] ?? "Variante";
 
