@@ -119,8 +119,27 @@ export function variableRelanceIV(base: string, precedente: string, refus: reado
       const x = m[1]!;
       if (seuls.has(Number(x.replace(",", ".")))) precisions.add(`Écris ${x} tel quel, sans unité (comme sur l'image).`);
     }
+  // Un nombre cité seul par un refus alors que l'image le donne avec une unité (« 12 » pour « 12 jours ») : on redit l'unité de l'image.
+  const avecUnite = nombresAvecUniteDeLaCarte(base);
+  for (const r of refus)
+    for (const m of r.matchAll(/«\s*(\d+(?:[.,]\d+)?)\s*»[^«]*?n'est pas sur l'image/g)) {
+      const u = avecUnite.get(Number(m[1]!.replace(",", ".")));
+      if (u) precisions.add(`N'écris jamais ${m[1]} seul : l'image dit « ${u} », écris « ${u} » avec son unité.`);
+    }
   const precision = precisions.size ? `\n${[...precisions].join(" ")}` : "";
   return `${base}\n<reponse_precedente>${precedente}</reponse_precedente>\n<refus>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus>${precision}\nCorrige chacun de ces refus et rends la fiche entière.`;
+}
+
+/** Nombres de la carte écrits AVEC une unité (valeur → « 12 jour »), pour redire l'unité de l'image dans une relance. */
+function nombresAvecUniteDeLaCarte(base: string): Map<number, string> {
+  const res = new Map<number, string>();
+  try {
+    const carte = JSON.parse(/<carte>([\s\S]*?)<\/carte>/.exec(base)?.[1] ?? "") as { chiffres?: { valeur: number | null; unite: ChiffreDit["unite"] }[] };
+    for (const c of carte.chiffres ?? []) if (c.valeur !== null && c.unite !== "nombre" && !res.has(c.valeur)) res.set(c.valeur, ecritureRelue({ valeur: c.valeur, unite: c.unite }));
+  } catch {
+    /* carte illisible : aucune précision */
+  }
+  return res;
 }
 
 /** Nombres écrits SANS unité dans les chiffres de la carte (lue dans `<carte>` de la partie variable). */
@@ -360,6 +379,22 @@ function reparerChiffresHorsImage(brute: unknown, ctx: ContexteRegles): { fiche:
 }
 
 /**
+ * Une animation calée sur un mot qui n'est pas dit (rang au-delà du texte dit) n'est qu'un décor : on la retire de la fiche lue,
+ * sans appel ni changement d'un mot dit, plutôt que de refuser le script (ordre de Will, 27/10/2026 : contrôles plus souples).
+ */
+function sansAnimationsHorsMots(brute: unknown): unknown {
+  const ecrans = (brute as { ecrans?: unknown } | null)?.ecrans;
+  if (!Array.isArray(ecrans)) return brute;
+  const copie = structuredClone(brute) as { ecrans: { texteDit?: unknown; surMot?: { mot?: unknown }[] }[] };
+  for (const e of copie.ecrans) {
+    if (typeof e?.texteDit !== "string" || !Array.isArray(e.surMot)) continue;
+    const n = motsDits(e.texteDit).length;
+    e.surMot = e.surMot.filter((s) => typeof s?.mot !== "number" || s.mot < n);
+  }
+  return copie;
+}
+
+/**
  * Écrit le script d'une carte validée. Au plus 2 appels, chacun précédé de sa réservation. `ok: false` : la main
  * revient à Will avec les refus en français ; aucun appel si le réglage est refusé.
  */
@@ -405,6 +440,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
       continue;
     }
     const lecture = lire(reponse);
+    if (lecture.ok) lecture.brute = sansAnimationsHorsMots(lecture.brute);
     const jugement = lecture.ok ? jugerFicheIV(lecture.brute, ctx) : { ok: false as const, refus: [lecture.refus] };
     if (jugement.ok) {
       const aTrancher = aTrancherParWill(jugement.verdict);
