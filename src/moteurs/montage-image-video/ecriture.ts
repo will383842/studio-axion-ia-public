@@ -528,7 +528,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
   const reparee = derniere === undefined ? null : reparerChiffresHorsImage(derniere, ctx);
   if (reparee) {
     const remarque = `Chiffres retirés (hors de l'image) : ${reparee.retires.join(", ")}.`;
-    const verdict = { ...reparee.verdict, marques: [...reparee.verdict.marques, remarque] };
+    const verdict = { ...reparee.verdict, marques: [...reparee.verdict.marques, ...marqueRefs(refsRetirees), remarque] };
     const aTrancher = aTrancherParWill(verdict);
     const commun = { fiche: reparee.fiche, verdict, aTrancher, appels, relance: appels > 1, simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
     if (!verdict.ok) {
