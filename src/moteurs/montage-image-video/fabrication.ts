@@ -63,6 +63,7 @@ import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type 
 import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
+import { recetteEffectiveIV } from "./variete/historique";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
 import { avancerVoixIV, ErreurPlafondLecturesIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, REPARATIONS_VOIX_MAX_IV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
@@ -296,9 +297,10 @@ export interface EtatFabricationIV {
   /**
    * Recette de variété de la vidéo : tirée avant l'écriture (`par: "tirage"`), changée par Will avant la voix
    * (`par: "will"`) ; `historique` : nombre de recettes passées vues au tirage. Absente (fabrication d'avant) : le rendu
-   * de référence.
+   * de référence. `effective` : la recette réellement posée à l'écran une fois les replis de la mise en scène appliqués
+   * (celle que l'historique compare) ; absente : `recette`.
    */
-  variete?: { recette: RecetteVarieteIV; par: "tirage" | "will"; historique: number };
+  variete?: { recette: RecetteVarieteIV; par: "tirage" | "will"; historique: number; effective?: RecetteVarieteIV };
   /** Parcours varié et scènes à éviter, tirés avant la première écriture (absent : le parcours de `recettes.ts`). */
   parcours?: ChoixParcoursIV;
   propositionScript?: PropositionScriptIV;
@@ -577,11 +579,11 @@ export const estFinieIV = (e: Pick<EtatFabricationIV, "etape">) => e.etape === "
 export const HISTORIQUE_VARIETE_IV = 10;
 
 /**
- * Historique du tirage (PUR) : les recettes des fabrications IV PRÊTES, dans l'ordre reçu (la plus récente d'abord),
+ * Historique du tirage (PUR) : les recettes (effectives si connues) des fabrications IV qui ont une recette (hors refusées), dans l'ordre reçu (la plus récente d'abord),
  * sans la vidéo en cours, au plus `HISTORIQUE_VARIETE_IV`. Une fabrication sans recette (d'avant la variété) est sautée.
  */
 export function historiqueVarieteIV(etats: readonly (Pick<EtatFabricationIV, "etape" | "variete"> & { demande: Pick<DemandeFabricationIV, "videoId"> })[], videoId?: string): RecetteVarieteIV[] {
-  return etats.filter((e) => e.etape === "prete" && e.variete && e.demande.videoId !== videoId).slice(0, HISTORIQUE_VARIETE_IV).map((e) => e.variete!.recette);
+  return etats.filter((e) => e.etape !== "refusee" && e.variete && e.demande.videoId !== videoId).slice(0, HISTORIQUE_VARIETE_IV).map((e) => e.variete!.effective ?? e.variete!.recette);
 }
 
 /** Codes que Will peut choisir sur cette image, axe par axe (PUR) : les tirables que l'image permet (9:16), sinon la référence. */
@@ -1527,6 +1529,7 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   const scenes: NonNullable<EtatFabricationIV["scenes"]> = [];
   const phrases: string[] = [];
+  let ligne916: LigneDeTempsIV | undefined;
   // Remarques recalculées à chaque mise en scène : celles que le rendu a imposées (texte seul) sont redites d'après `ecransImposesRendu`.
   delete e.remarques;
   for (const v of versionsDe(e)) {
@@ -1571,11 +1574,13 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
     else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
     e.journal.push(...issue.journal);
     const r = issue.resultat;
+    if (!ligne916 && (v.format ?? "9:16") === "9:16") ligne916 = r.ligne;
     if (issue.refus.length) phrases.push(...issue.refus.map((p) => `${nomVersion(v)} · ${p}`));
     scenes.push({ version: v.id, dureeSec: r.ligne.dureeSec, empreinte: empreinteDe(r.ligne) });
   }
   if (phrases.length) return refuser(e, "mise-en-scene", "IV_MISE_EN_SCENE", `La mise en scène est refusée : ${phrases[0]}`, { phrases, reessayable: false });
   e.scenes = scenes;
+  if (e.variete && ligne916?.variete) e.variete.effective = recetteEffectiveIV(e.variete.recette, ligne916.variete.replis);
   e.journal.push(`Mise en scène : ${scenes.length} version(s).`);
   return passerA(e, "rendu");
 }
