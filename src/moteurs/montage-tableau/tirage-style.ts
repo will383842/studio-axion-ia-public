@@ -43,10 +43,13 @@ export function graineStyle(videoId: string): number {
 
 /**
  * Tire le style d'une vidéo. Déterministe : même identifiant, même historique → même style. Les styles des
- * `STYLES_RECENTS_EVITES` dernières autres vidéos sont écartés (la ligne de la vidéo elle-même est ignorée : un re-tirage
- * ne dépend pas d'elle) ; s'il n'en reste aucun, tous reviennent.
+ * `STYLES_RECENTS_EVITES` dernières autres vidéos sont écartés (si la vidéo est déjà dans l'historique, son style noté est
+ * rendu tel quel) ; s'il n'en reste aucun, tous reviennent.
  */
 export function tirerStyleTableau(videoId: string, historique: readonly EntreeHistoriqueStyle[] = []): StyleTableau {
+  // Une vidéo déjà notée garde son style : un nouveau découpage (« Corriger la fiche », nouvelle version) ne le change pas.
+  const note = historique.find((e) => e.videoId === videoId);
+  if (note) return note.style;
   const recents = new Set(historique.filter((e) => e.videoId !== videoId).slice(-STYLES_RECENTS_EVITES).map((e) => e.style));
   const permis = STYLES_TABLEAU.filter((s) => !recents.has(s));
   const liste = permis.length ? permis : STYLES_TABLEAU;
@@ -64,5 +67,7 @@ export interface ChoixStyle {
 /** Style d'une vidéo au découpage : imposé, sinon tiré (si demandé), sinon celui de la série (comportement d'avant). */
 export function styleDuDecoupage(e: ChoixStyle & { videoId: string; serie: { code?: string } }): StyleTableau {
   if (estStyleTableau(e.styleImpose)) return e.styleImpose;
+  // Un style imposé inconnu (faute de frappe, ancien nom) ne bloque rien mais ne passe pas inaperçu (aucune donnée privée).
+  if (e.styleImpose !== undefined) console.warn("[tableau] styleImpose inconnu, ignoré : retour au tirage ou au style de la série");
   return e.tirage ? tirerStyleTableau(e.videoId, e.tirage.historique) : styleTableauDe({ serie: e.serie });
 }
