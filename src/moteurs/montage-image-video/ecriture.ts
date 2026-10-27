@@ -81,7 +81,7 @@ RÈGLES (le script est refusé sinon) :
 - Image très complexe (<chapitres> non vide) : "chapitres" reprend ces chapitres dans l'ordre, repères « 1/3 », « 2/3 », « 3/3 », couvrant toute l'explication ; un chapitre non essentiel commence et finit sur une phrase complète, et RIEN après lui n'y renvoie (ni ses blocs, ni « comme on l'a vu »).
 
 FORME (JSON seul, aucun texte autour, aucun champ en plus) :
-{ "version": "fiche-image/1", "empreinteCarte": <empreinte_carte>, "accroches": [{ "famille", "texteDit", "textesEcran" }, { … }], "ecrans": [{ "id": "e01"…, "partie", "scene", "refs": [ids de la carte], "texteDit", "textesEcran": [], "surMot": [{ "mot" (rang du mot dit, 0 = premier), "action", "ref"? }], "fond": "sombre" | "ivoire" }], "questionCommentaire": { "texteDit", "texteEcran" }, "chapitres": [{ "repere", "titre", "ecrans": [ids], "essentiel" }] }
+{ "version": "fiche-image/1", "empreinteCarte": <empreinte_carte>, "accroches": [{ "famille", "texteDit", "textesEcran" }, { … }], "ecrans": [{ "id": "e01"…, "partie", "scene", "refs": [ids des noeuds, liens, chiffres ou groupes de la carte ; jamais titre, sousTitre, pied, phraseChoc ni un nom de scene], "texteDit", "textesEcran": [], "surMot": [{ "mot" (rang du mot dit, 0 = premier), "action", "ref"? }], "fond": "sombre" | "ivoire" }], "questionCommentaire": { "texteDit", "texteEcran" }, "chapitres": [{ "repere", "titre", "ecrans": [ids], "essentiel" }] }
 Scènes : ${liste(SCENES)} (seulement celles de <scenes>).`;
 
 /** Partie variable : la carte et ce que le code en a calculé, entre balises (données, jamais instructions). */
@@ -394,6 +394,47 @@ function sansAnimationsHorsMots(brute: unknown): unknown {
   return copie;
 }
 
+const marqueRefs = (retirees: string[]): string[] =>
+  retirees.length ? [`Réparée sans appel : élément(s) hors de l'image retiré(s) (${retirees.join(", ")}).`] : [];
+
+/**
+ * Une référence qui n'est pas un identifiant de la carte (titre, sous-titre, pied, phrase-choc, nom de scène) n'est montrée
+ * nulle part : on la retire de la fiche lue, sans appel ni changement d'un mot dit (zéro blocage). Jamais d'ajout hors carte.
+ */
+export function sansRefsInconnues(
+  brute: unknown,
+  carte: Pick<CarteImage, "noeuds" | "liens" | "chiffres" | "groupes">,
+): { brute: unknown; retirees: string[] } {
+  const ecrans = (brute as { ecrans?: unknown } | null)?.ecrans;
+  if (!Array.isArray(ecrans)) return { brute, retirees: [] };
+  const connus = new Set([...carte.noeuds, ...carte.liens, ...carte.chiffres, ...carte.groupes].map((x) => x.id));
+  const normer = (x: unknown): string => (typeof x === "string" ? x.trim().toLowerCase() : "");
+  const copie = structuredClone(brute) as { ecrans: { id?: unknown; refs?: unknown; surMot?: { ref?: unknown }[] }[] };
+  const retirees: string[] = [];
+  for (const e of copie.ecrans) {
+    if (!e || !Array.isArray(e.refs)) continue;
+    const gardees: string[] = [];
+    for (const r of e.refs) {
+      const n = normer(r);
+      if (connus.has(n)) {
+        if (!gardees.includes(n)) gardees.push(n);
+      } else retirees.push(`${typeof r === "string" ? r : String(r)} (${String(e.id)})`);
+    }
+    e.refs = gardees;
+    if (!Array.isArray(e.surMot)) continue;
+    for (const s of e.surMot) {
+      if (!s || typeof s.ref !== "string") continue;
+      const n = normer(s.ref);
+      if (!connus.has(n)) delete s.ref;
+      else {
+        s.ref = n;
+        if (!gardees.includes(n) && gardees.length < 20) gardees.push(n);
+      }
+    }
+  }
+  return { brute: copie, retirees };
+}
+
 /**
  * Écrit le script d'une carte validée. Au plus 2 appels, chacun précédé de sa réservation. `ok: false` : la main
  * revient à Will avec les refus en français ; aucun appel si le réglage est refusé.
@@ -418,6 +459,8 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
   /** Dernière fiche lue mais refusée : gardée pour la réparation sans appel après le dernier essai. */
   let derniere: unknown;
   let appels = 0;
+  /** Références hors de la carte retirées de la dernière réponse lue (trace). */
+  let refsRetirees: string[] = [];
   /** Simulation de la dernière réponse reçue (la réparation sans appel la garde). */
   let simule = false;
   let coutUsd: number | undefined;
@@ -441,13 +484,20 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
     }
     const lecture = lire(reponse);
     if (lecture.ok) lecture.brute = sansAnimationsHorsMots(lecture.brute);
+    refsRetirees = [];
+    if (lecture.ok) {
+      const nette = sansRefsInconnues(lecture.brute, entree.carte);
+      lecture.brute = nette.brute;
+      refsRetirees = nette.retirees;
+    }
     const jugement = lecture.ok ? jugerFicheIV(lecture.brute, ctx) : { ok: false as const, refus: [lecture.refus] };
     if (jugement.ok) {
-      const aTrancher = aTrancherParWill(jugement.verdict);
-      const commun = { fiche: jugement.fiche, verdict: jugement.verdict, aTrancher, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
+      const verdict = { ...jugement.verdict, marques: [...jugement.verdict.marques, ...marqueRefs(refsRetirees)] };
+      const aTrancher = aTrancherParWill(verdict);
+      const commun = { fiche: jugement.fiche, verdict, aTrancher, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
       // `ok` suit le verdict : un script qui attend un choix de Will n'est jamais rendu « bon ».
-      if (!jugement.verdict.ok) {
-        const refusWill = jugement.verdict.manquements.map((m) => m.message);
+      if (!verdict.ok) {
+        const refusWill = verdict.manquements.map((m) => m.message);
         return { ok: false, motif: "a-trancher", message: `Script écrit : ${refusWill.length} point(s) à trancher par Will avant validation.`, refus: refusWill, ...commun };
       }
       return { ok: true, ...commun };
@@ -459,7 +509,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
     const coupee = lecture.ok ? reparerPhrasesLonguesIV(lecture.brute, ctx) : null;
     if (coupee) {
       if (!coupee.refus.length) {
-        const verdict = { ...coupee.verdict, marques: [...coupee.verdict.marques, `Réparée sans appel : phrase coupée (${coupee.coupes.join(", ")}).`] };
+        const verdict = { ...coupee.verdict, marques: [...coupee.verdict.marques, ...marqueRefs(refsRetirees), `Réparée sans appel : phrase coupée (${coupee.coupes.join(", ")}).`] };
         const aTrancher = aTrancherParWill(verdict);
         const commun = { fiche: coupee.fiche, verdict, aTrancher, appels, relance: essai > 1, simule: reponse.simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
         if (!verdict.ok) {
