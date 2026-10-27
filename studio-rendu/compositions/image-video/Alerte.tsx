@@ -12,6 +12,9 @@ import { COULEURS_DUO, TAILLES_DUO } from "../../../src/briques/habillage/charte
 import { famille, graisse, teinte } from "../cas-concret/plans/commun";
 import { Icone } from "../interface-claire/elements";
 import { Lignes } from "./CarteBenefice";
+import { codeDe } from "../../../src/briques/schema-motion/variete";
+import { useVariete } from "./variete/ContexteVariete";
+import { habillageObjet } from "./variete/objets/habillage";
 import { PUCE_DECLENCHEUR, planAlerte, type DeclencheurAlerte, type TamponIV } from "./plan-objets";
 
 /** Bleu de la pastille d'envoi (messagerie), comme la maquette. */
@@ -20,6 +23,7 @@ const BLEU_MESSAGERIE = "#2AABEE";
 export function Alerte({ source, moment, message, t0, frappe, t, declencheurs, tampon, icone = "envoyer" }: { source: string; moment?: string; message: string; t0: number; frappe?: number; t: number; declencheurs?: DeclencheurAlerte[]; tampon?: TamponIV; icone?: string }) {
   const a = planAlerte({ source, moment, message, t: t0, declencheurs, tampon, frappe }, t);
   const tel = a.telephone;
+  const h = habillageObjet(codeDe(useVariete()?.recette, "objets"), "sombre");
   const premier = Math.min(t0, ...(declencheurs ?? []).map((d) => d.t));
   const entreeTel = Math.min(1, Math.max(0, (t - (premier - 0.6)) / 0.4));
   return (
@@ -89,9 +93,10 @@ export function Alerte({ source, moment, message, t0, frappe, t, declencheurs, t
             width: a.largeur,
             boxSizing: "border-box",
             padding: "30px 32px",
-            borderRadius: 40,
-            background: COULEURS_DUO.blanc,
-            border: `6px solid ${COULEURS_DUO.encre}`,
+            borderRadius: h.alerte.rayon,
+            background: h.alerte.fond,
+            border: `${h.alerte.epaisseurBordure}px solid ${h.alerte.bordure}`,
+            borderLeft: h.alerte.filetGauche ? `18px solid ${h.alerte.filetGauche}` : undefined,
             display: "flex",
             alignItems: "center",
             gap: 30,
@@ -131,14 +136,14 @@ export function Alerte({ source, moment, message, t0, frappe, t, declencheurs, t
                 fontSize: TAILLES_DUO.etiquette * 1920,
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
-                color: BLEU_MESSAGERIE,
+                color: h.alerte.tamponTexte,
                 opacity: a.tampon.opacite,
-                transform: `scale(${a.tampon.echelle})`,
+                transform: `${h.tampon.angle ? `rotate(${h.tampon.angle}deg) ` : ""}scale(${a.tampon.echelle})`,
                 transformOrigin: "100% 50%",
               }}
             >
               {a.tampon.texte}
-              <Icone nom="coche" taille={TAILLES_DUO.etiquette * 1920 * 1.2} couleur={BLEU_MESSAGERIE} epaisseur={3.2} />
+              <Icone nom="coche" taille={TAILLES_DUO.etiquette * 1920 * 1.2} couleur={h.alerte.tamponTexte} epaisseur={3.2} />
             </div>
           ) : null}
         </div>
