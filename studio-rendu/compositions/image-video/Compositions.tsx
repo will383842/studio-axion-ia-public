@@ -17,7 +17,7 @@ import { imagesEcran, type ProprietesEcran } from "../../../src/briques/ecrans-m
 import { exempleEcran } from "../cas-concret/exemples";
 import { Ecran } from "../cas-concret/Ecran";
 import { chargerPoliceAnton, chargerPoliceTitre } from "../commune/polices";
-import { Fond } from "../cas-concret/socle/Fond";
+import { FondIV } from "./variete/fond/FondVarie";
 import { Camera } from "./Camera";
 import { sceneGalerieC } from "./donnees-galerie";
 import { SCENES_GALERIE_OBJETS } from "./donnees-galerie-objets";
@@ -140,7 +140,7 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
     <ContexteVariete variete={p.variete} scene={scene} ensembles={p.ensembles}>
       <HabillageVariete>
         <AbsoluteFill>
-          <Fond fond={fondVu} largeur={p.largeur} hauteur={p.hauteur} />
+          <FondIV fond={fondVu} largeur={p.largeur} hauteur={p.hauteur} />
           {fonduToile > 0 ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: muetFuturs, WebkitMaskImage: muetFuturs }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
@@ -237,7 +237,7 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
     <ContexteVariete variete={p.variete}>
       <HabillageVariete>
         <AbsoluteFill>
-          <Fond fond={p.fond} largeur={p.largeur} hauteur={p.hauteur} />
+          <FondIV fond={p.fond} largeur={p.largeur} hauteur={p.hauteur} />
           <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
             {objetsA(p, t).map(({ objet, opacite }, i) => (
               <AbsoluteFill key={`${objet.sorte}-${i}`} style={{ opacity: opacite }}>
@@ -318,7 +318,7 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & 
     <ContexteVariete variete={p.variete}>
       <HabillageVariete>
         <AbsoluteFill>
-          <Fond fond={m.fond} largeur={p.largeur} hauteur={p.hauteur} />
+          <FondIV fond={m.fond} largeur={p.largeur} hauteur={p.hauteur} />
           {/* Seul le contenu tremble à l'arrivée d'une alerte : le fond reste, aucun bord découvert. */}
           <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} translate(${secousse.x * echelle}px, ${secousse.y * echelle}px) scale(${echelle})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
             <ObjetDuMoment m={m} t={t} />
