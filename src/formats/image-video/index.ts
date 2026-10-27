@@ -44,8 +44,8 @@ export const formatImageVideo: DefinitionFormat = {
   version: 1,
   nom: "Image → vidéo",
   nomCourt: "Image → vidéo",
-  accroche: "Votre image prend vie.",
-  description: "Déposez une infographie : le studio la comprend, écrit le script, puis l'anime bloc par bloc sur votre voix, une version par réseau.",
+  accroche: "Votre idée prend vie.",
+  description: "Décrivez votre idée ou collez votre script : le studio écrit le script, puis l'anime bloc par bloc sur votre voix, une version par réseau.",
   icone: "images",
   statut: "masque",
   /** Vidéos sur le site (lot S1) : conseil du plan, la décision est le réglage `siteGenerateurs.image-video`. */
