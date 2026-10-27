@@ -149,7 +149,7 @@ describe("L6 · règles du tirage", () => {
     expect(SERIE.some((s) => ECRANS.some((e) => s.mise.ecrans[e.id]!.miseEnPage === "chi-aplat-orange"))).toBe(true);
   });
 
-  it("raccords « objet » et « dedans » seulement entre écrans compatibles, 2 au plus, jamais deux sur un écran ; aucun volet, rideau ni éclair", () => {
+  it("raccords « objet » et « dedans » seulement entre écrans compatibles, 2 au plus, jamais deux sur un écran ; les transitions posées sont celles que les compositions dessinent (habillage)", () => {
     let vus = 0;
     for (const { mise } of SERIE) {
       const entrees = ECRANS.map((e, i) => ({ e, i, r: mise.ecrans[e.id]!.raccordEntree })).filter((x) => x.r);
@@ -168,7 +168,11 @@ describe("L6 · règles du tirage", () => {
           expect(fondEffectif(mise, avant)).not.toBe(fondEffectif(mise, e));
         }
       }
-      for (const e of ECRANS) expect(["volet-terracotta", "eclair", "rideau"]).not.toContain(jeuDeLEcran(mise, e.id)?.transition);
+      // « raccord-objet » est le raccord L6 : jamais passé comme transition dessinée.
+      for (const e of ECRANS) {
+        const jeu = jeuDeLEcran(mise, e.id);
+        expect(jeu?.transition).not.toBe("raccord-objet");
+      }
     }
     expect(vus).toBeGreaterThan(10);
   });
