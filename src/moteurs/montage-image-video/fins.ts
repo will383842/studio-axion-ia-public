@@ -123,8 +123,7 @@ export interface ChoixFinIV {
 /** Plafond de mots d'une fin « appel » (accroche + appel + phrase du lien) : 29 mots, soit 8 à 9 s au débit réel de 3,3 mots/s. */
 export const MOTS_FIN_APPEL_MAX = 29;
 
-/** Mots de la plus longue phrase de lien de secours (`secours.ts`, « Vous trouverez le lien juste en haut de ma chaîne. ») : lue à la place de la phrase du lien après un refus de la voix. */
-export const MOTS_LIEN_SECOURS_MAX = 10;
+/** Exception assumée : après un refus de la voix, la phrase du lien de secours (jusqu'à 10 mots) remplace celle du lien (6 mots) ; la fin peut alors dépasser 29 mots de 4 au plus (≈ 1 s), voie de réparation rare. */
 
 const motsDeLigne = (code: string): number => {
   const l = appelDeLaBanque(code);
@@ -134,7 +133,7 @@ const motsDeLigne = (code: string): number => {
 
 /** Paires (accroche, appel) d'une sorte qui tiennent sous le plafond, phrase du lien la plus longue comprise. */
 export function pairesAppelIV(appels: readonly string[]): { accroche: string; appels: string[] }[] {
-  const lien = Math.max(MOTS_LIEN_SECOURS_MAX, ...Object.values(LIEN_FIN_IV).map(motsDeLigne));
+  const lien = Math.max(...Object.values(LIEN_FIN_IV).map(motsDeLigne));
   return ACCROCHES_APPEL_IV.map((accroche) => ({ accroche, appels: appels.filter((p) => motsDeLigne(accroche) + motsDeLigne(p) + lien <= MOTS_FIN_APPEL_MAX) })).filter((x) => x.appels.length > 0);
 }
 
