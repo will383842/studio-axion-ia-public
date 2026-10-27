@@ -988,7 +988,8 @@ export function planBandeau(chiffres: readonly ChiffreBandeau[], t: number) {
       hauteur: rang,
       chiffre,
       legende,
-      texte: chiffreCompte(c.texte.toUpperCase(), progres(t, c.t, 0.7)),
+      // Le chiffre claque tel quel : un compteur montre une valeur intermédiaire (« 44 » pour « 45 ») que la relecture lit comme fausse.
+      texte: c.texte.toUpperCase(),
       claque,
       legendeEntree: progres(t, c.t + 0.15, 0.35),
       orange: i === 0,
