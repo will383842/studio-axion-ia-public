@@ -92,7 +92,7 @@ export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: reado
  * remontent.
  */
 export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise<VerdictPorteIV> {
-  const ctx: ContexteControlesIV = { carte: e.carte, ficheValidee: e.fiche, ...(e.regles ? { regles: e.regles } : {}), voix: e.voix, publication: e.publication, liens: e.liens, ...(e.appelCommentaire ? { appelCommentaire: e.appelCommentaire } : {}) };
+  const ctx: ContexteControlesIV = { carte: e.carte, ficheValidee: e.fiche, ...(e.regles ? { regles: e.regles } : {}), voix: e.voix, publication: e.publication, liens: e.liens, ...(e.appelCommentaire ? { appelCommentaire: e.appelCommentaire } : {}), ...(e.scriptColle ? { scriptColle: true } : {}) };
   const generaux: string[] = [];
   if (!e.reseaux.length) generaux.push("aucun réseau demandé : la vidéo n'a nulle part où partir.");
   if (!e.versions.length) generaux.push("aucune version de la vidéo n'a été fournie aux contrôles.");

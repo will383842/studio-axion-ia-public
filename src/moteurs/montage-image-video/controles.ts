@@ -32,6 +32,7 @@ import type { AppelCommentaire, FinIV } from "./fins";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV, type ResultatMiseEnSceneIV } from "./mise-en-scene";
 import { interditsDans, type PublicationIV } from "./publication";
 import { instantsClesIV } from "./relecture-finale";
+import { manquementsDuScriptColle } from "./script-colle";
 import { INTERDITS_PERMANENTS, empreinteDeCarte, phraseChocAttendue, verifierScript, type ContexteRegles, type Manquement } from "./regles";
 import type { VerdictReseauIV } from "./reseaux";
 import type { EtatVoixIV } from "./voix";
@@ -155,6 +156,8 @@ export interface ContexteControlesIV {
   liens: Readonly<Record<string, string>>;
   /** Réglage de la question de commentaire (défaut `fin-seule`) : en `question-puis-fin`, une fin sans question est signalée (remarque). */
   appelCommentaire?: AppelCommentaire;
+  /** Script collé par Will : les points d'ossature d'un script écrit par l'IA ne le bloquent pas (`script-colle.ts`). */
+  scriptColle?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -264,7 +267,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
 
   // Q04-Q10 · le script de la version (fiche courte et nœuds retirés pour une version courte).
   const verdict = verifierScript(v.fiche, { ...(ctx.regles ?? {}), carte, ...(v.courte ? { noeudsRetires: v.noeudsRetires ?? [] } : {}) });
-  const regles = parRegle(verdict.manquements);
+  const regles = parRegle(ctx.scriptColle ? manquementsDuScriptColle(verdict) : verdict.manquements);
   const ecoute = m.ecoute;
   const entendu = ecoute?.texteEntendu ?? "";
   const sansEcoute = !ecoute || !ecoute.q18.ok && !!ecoute.q18.nonFait;
