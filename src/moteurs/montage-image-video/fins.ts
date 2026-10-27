@@ -4,7 +4,7 @@
  * `planDesFins` du cas concret n'est pas emprunté (4 réseaux, `offre` obligatoire, code « CC »). Celui-ci lit la banque
  * de fins EN LECTURE SEULE (jamais modifiée) et regroupe les réseaux dont la suite est identique : un fichier par segment.
  *
- * FINS DE 26/10/2026 (validées par Will) : une fin = ACCROCHE + APPEL + PHRASE DU LIEN, dits à la suite, IDENTIQUES sur
+ * FINS DU 26/10/2026 (proposées, à valider par Will) : une fin = ACCROCHE + APPEL + PHRASE DU LIEN, dits à la suite, IDENTIQUES sur
  * tous les réseaux d'une même vidéo ; seule la phrase du lien change selon le réseau (Instagram et TikTok : « dans mon
  * profil » ; Shorts : « sur ma chaîne » ; Facebook et LinkedIn : « en premier commentaire »). Une seule demande par fin :
  * la question de commentaire n'est plus posée par défaut (`appelCommentaire` = `fin-seule`) ; le réglage
@@ -75,7 +75,7 @@ const QUESTION_BANQUE: Readonly<Record<ReseauIV, string>> = Object.freeze({
 
 export type SorteFinIV = "diagnostic" | "accompagnement" | "tour";
 
-/** Accroches des fins « appel » (treize phrases validées), dans l'ordre de la banque. */
+/** Accroches des fins « appel » (treize phrases proposées le 26/10/2026), dans l'ordre de la banque. */
 export const ACCROCHES_APPEL_IV: readonly string[] = Object.freeze(Array.from({ length: 13 }, (_, i) => `fin-iv-accroche-${String(i + 1).padStart(2, "0")}`));
 export const APPELS_DIAGNOSTIC_IV: readonly string[] = Object.freeze([1, 2, 3, 4].map((i) => `fin-iv-appel-diagnostic-0${i}`));
 export const APPELS_ACCOMPAGNEMENT_IV: readonly string[] = Object.freeze([1, 2, 3].map((i) => `fin-iv-appel-accompagnement-0${i}`));
@@ -123,6 +123,9 @@ export interface ChoixFinIV {
 /** Plafond de mots d'une fin « appel » (accroche + appel + phrase du lien) : 29 mots, soit 8 à 9 s au débit réel de 3,3 mots/s. */
 export const MOTS_FIN_APPEL_MAX = 29;
 
+/** Mots de la plus longue phrase de lien de secours (`secours.ts`, « Vous trouverez le lien juste en haut de ma chaîne. ») : lue à la place de la phrase du lien après un refus de la voix. */
+export const MOTS_LIEN_SECOURS_MAX = 10;
+
 const motsDeLigne = (code: string): number => {
   const l = appelDeLaBanque(code);
   if (!l) throw new ErreurFin(`La fin « ${code} » est absente de la banque.`);
@@ -131,7 +134,7 @@ const motsDeLigne = (code: string): number => {
 
 /** Paires (accroche, appel) d'une sorte qui tiennent sous le plafond, phrase du lien la plus longue comprise. */
 export function pairesAppelIV(appels: readonly string[]): { accroche: string; appels: string[] }[] {
-  const lien = Math.max(...Object.values(LIEN_FIN_IV).map(motsDeLigne));
+  const lien = Math.max(MOTS_LIEN_SECOURS_MAX, ...Object.values(LIEN_FIN_IV).map(motsDeLigne));
   return ACCROCHES_APPEL_IV.map((accroche) => ({ accroche, appels: appels.filter((p) => motsDeLigne(accroche) + motsDeLigne(p) + lien <= MOTS_FIN_APPEL_MAX) })).filter((x) => x.appels.length > 0);
 }
 

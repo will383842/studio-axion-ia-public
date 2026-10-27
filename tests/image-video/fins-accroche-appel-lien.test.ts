@@ -27,6 +27,7 @@ import {
   finsTourActivesIV,
   liensSuivisIV,
   pairesAppelIV,
+  MOTS_LIEN_SECOURS_MAX,
   planDesFinsIV,
   sorteDuPlanIV,
   type PlanDesFinsIV,
@@ -41,8 +42,8 @@ const LIGNES_IV = BANQUE_APPELS.filter((a) => a.code.startsWith("fin-iv-"));
 const TOUS_RESEAUX: readonly ReseauIV[] = ["tiktok", ...RESEAUX_IV];
 const contenu = { accroche: "Vos clients écrivent à 23 h 14 et personne ne répond.", resultat: "Une réponse en quatre secondes." };
 
-describe("banque : les phrases validées", () => {
-  it("trente-quatre lignes neuves, toutes validées, pour la vidéo, au public « clients »", () => {
+describe("banque : les phrases proposées", () => {
+  it("trente-quatre lignes neuves, toutes proposées, pour la vidéo, au public « clients »", () => {
     expect(LIGNES_IV).toHaveLength(34);
     for (const a of LIGNES_IV) {
       expect(a.etat, a.code).toBe("valide");
@@ -327,6 +328,15 @@ describe("plafonds de durée avec la fin (accroche + appel + lien)", () => {
     for (const appels of [APPELS_DIAGNOSTIC_IV, APPELS_ACCOMPAGNEMENT_IV]) {
       const permis = new Set(pairesAppelIV(appels).flatMap((x) => x.appels.map((p) => `${x.accroche}|${p}`)));
       for (const a of ACCROCHES_APPEL_IV) for (const p of appels) expect(permis.has(`${a}|${p}`), `${a} ${p}`).toBe(mots([a, p]) + lienMax <= 29);
+    }
+  });
+
+  it("la phrase du lien de secours (lue après un refus de la voix) ne dépasse jamais le plafond réservé dans pairesAppelIV", () => {
+    for (const dit of ["Le lien est dans le premier commentaire.", "Le lien est juste sous la vidéo.", "Vous trouverez le lien juste en haut de mon profil.", "Vous trouverez le lien juste en haut de ma chaîne."]) {
+      expect(nombreMots(dit), dit).toBeLessThanOrEqual(MOTS_LIEN_SECOURS_MAX);
+    }
+    for (const a of ACCROCHES_APPEL_IV) for (const p of [...APPELS_DIAGNOSTIC_IV, ...APPELS_ACCOMPAGNEMENT_IV]) {
+      if (pairesAppelIV([p]).some((x) => x.accroche === a)) expect(mots([a, p]) + MOTS_LIEN_SECOURS_MAX, `${a} ${p}`).toBeLessThanOrEqual(29);
     }
   });
 

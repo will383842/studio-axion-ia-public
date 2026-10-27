@@ -132,7 +132,10 @@ export const VALIDATION_WILL_SECOURS_2 = Object.freeze({ par: "will" as const, l
 /** Fin de secours d'Instagram et de YouTube Shorts : variante B validée par Will le 19/10/2026 (vidéo v-6a3b74364711). */
 export const VALIDATION_WILL_SECOURS_IG = Object.freeze({ par: "will" as const, le: "2026-10-19", source: "fin de secours d'Instagram et de YouTube Shorts : variante B validée par Will le 19/10/2026 (v-6a3b74364711), avec la relecture de la seule fin" });
 /** Fin de secours de Shorts « … en haut de ma chaîne » : variante de la phrase validée le 19/10 (« profil » → « chaîne »), PAS encore validée. */
-export const VALIDATION_SECOURS_CHAINE_IV = Object.freeze({ par: "will" as const, le: "2026-10-26", source: "proposée le 26/10/2026, à valider par Will (variante « chaîne » de la phrase de secours validée le 19/10/2026)" });
+export const VALIDATION_SECOURS_CHAINE_IV = Object.freeze({ par: "proposition" as const, le: "2026-10-26", source: "proposée le 26/10/2026, à valider par Will (variante « chaîne » de la phrase de secours validée le 19/10/2026)" });
+
+/** Fins de secours `fin-iv-…` communes (commentaire, sous la vidéo, profil) : phrases dites validées le 15/10 et le 19/10, écrans neutres NOUVEAUX, à valider par Will. */
+export const VALIDATION_SECOURS_NEUTRE_IV = Object.freeze({ par: "proposition" as const, le: "2026-10-26", source: "proposée le 26/10/2026, à valider par Will : phrase dite déjà validée (15/10 ou 19/10), écran neutre nouveau, aussi lu par LinkedIn et TikTok" });
 
 export const MOTIF_REMPLACEE = "remplacée le 12/10/2026";
 /** Motif des deux lignes « Réservez… » qui restent désactivées. */
