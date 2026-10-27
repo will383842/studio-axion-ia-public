@@ -51,6 +51,8 @@ export function geometrieRail(code: CodeRail, cartes: readonly CarteGeo[], place
   const pose = (c: CarteGeo, genre: ElementRail["genre"], x: number, largeur: number, hauteur: number, suffixe: string) => {
     const k = caler(x, largeur);
     if (!k) return;
+    // Un point ou une pastille ne se rogne pas (il deviendrait un ovale) : il paraît entier ou pas du tout.
+    if ((genre === "point" || genre === "pastille") && k.largeur < largeur - 1e-6) return;
     const y = Math.max(0, Math.min(h - hauteur, milieu - hauteur / 2));
     sortie.push({ id: `${c.id}${suffixe}`, genre, x: k.x, y, largeur: k.largeur, hauteur, opacite: c.opacite, etat: c.etat, remplissage: c.remplissage ?? (c.etat === "vu" ? 1 : 0) });
   };
