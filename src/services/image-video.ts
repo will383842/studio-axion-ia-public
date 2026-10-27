@@ -480,11 +480,11 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
     budget,
     bruitagesValides: BRUITAGES_V4_IV,
     cartesValidees: dep.cartesValidees ?? (async () => nombreCartesValidees(await lireParametre<unknown>(PARAM_CARTES_VALIDEES, []))),
-    // Variété : les recettes des fabrications IV prêtes, la plus récente d'abord (aucune table : l'état du travail les garde).
+    // Variété : les recettes des fabrications IV qui en ont une (hors refusées, le tri d'historiqueVarieteIV), la plus récente d'abord (aucune table : l'état du travail les garde).
     historiqueVariete:
       dep.historiqueVariete ??
       (async () => {
-        const travaux = await commun.depots().travaux.lister((t) => (t.parametres as { imageVideo?: { etape?: unknown } } | undefined)?.imageVideo?.etape === "prete");
+        const travaux = await commun.depots().travaux.lister((t) => !!(t.parametres as { imageVideo?: { variete?: unknown } } | undefined)?.imageVideo?.variete);
         travaux.sort((a, b) => (b.termineLe ?? b.creeLe).localeCompare(a.termineLe ?? a.creeLe));
         return historiqueVarieteIV(travaux.map((t) => (t.parametres as { imageVideo: EtatFabricationIV }).imageVideo), String(dep.videoId));
       }),
