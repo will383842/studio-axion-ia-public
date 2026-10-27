@@ -344,7 +344,7 @@ describe("lecture unique · ce que la voix lit", () => {
     expect(segmentsVoixIV(FICHE_TEST, PLAN_3).remarques).toBeUndefined();
   });
 
-  it("vrai plan à 4 réseaux : chaque version garde exactement les mots de SA fin d'avant", () => {
+  it("vrai plan à 4 réseaux (fins du 26/10/2026) : chaque version garde exactement les mots de SA fin d'avant", () => {
     const vrai = planDesFinsIV({ reseaux: TOUS, offre: "integration", questionCommentaire: FICHE_C.questionCommentaire.texteDit });
     const avant = segmentsVoixIV(FICHE_C, vrai);
     const s = segmentsVoixIV(FICHE_C, vrai, { lectureUnique: true });
@@ -357,7 +357,9 @@ describe("lecture unique · ce que la voix lit", () => {
       const attendu = v.segment ? motsDits(avant.fins.find((f) => f.id === v.segment)!.texte) : [];
       expect(garde, v.id).toEqual(attendu);
     }
-    expect(Object.keys(s.lecture!.fins)).not.toContain(avant.versions.find((v) => v.reseaux.includes("linkedin"))!.id);
+    // 26/10/2026 : LinkedIn dit la fin comme les autres : toutes les versions ont leur part de fin dans la lecture.
+    expect(Object.keys(s.lecture!.fins).sort()).toEqual(avant.versions.map((v) => v.id).sort());
+    expect(avant.versions.every((v) => v.segment !== null)).toBe(true);
   });
 });
 

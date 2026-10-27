@@ -257,7 +257,8 @@ const FICHE_FAUX = FICHES_SIMULEES["essai-faux16"] as FicheImage;
 const TOUS = ["youtube-shorts", "linkedin", "instagram", "facebook"] as const;
 
 function segmentsDe(fiche: FicheImage, reseaux: readonly (typeof TOUS)[number][] = TOUS): SegmentsVoixIV {
-  return segmentsVoixIV(fiche, planDesFinsIV({ reseaux, offre: "integration", questionCommentaire: fiche.questionCommentaire.texteDit }));
+  // Adapté le 26/10/2026 : question + fin posées explicitement (le défaut est « fin seule ») ; fins « accroche + appel + lien », LinkedIn non muet.
+  return segmentsVoixIV(fiche, planDesFinsIV({ reseaux, offre: "integration", numeroVersion: 1, appelCommentaire: "question-puis-fin", questionCommentaire: fiche.questionCommentaire.texteDit }));
 }
 
 /** Petit script (corps de deux phrases) pour les essais d'hésitation. */
@@ -383,17 +384,16 @@ describe("L12 · argent : réservation obligatoire avant chaque lecture HeyGen",
 /* ------------------------------------------------------------------ */
 
 describe("L12 · corps lu une fois, une lecture par segment de fin distinct", () => {
-  it("4 réseaux : 1 lecture du corps + 2 fins (Shorts et Instagram disent la même chose ; LinkedIn muet)", async () => {
+  it("4 réseaux : 1 lecture du corps + 3 fins (seule la phrase du lien change : Facebook et LinkedIn partagent la leur)", async () => {
     const s = segmentsDe(FICHE_C);
     expect(s.corps).toBe(FICHE_C.ecrans.map((e) => e.texteDit).join(" "));
-    // Instagram dit la même chose que Shorts (« Le lien est dans mon profil. ») : même lecture.
-    expect(s.fins.map((f) => f.reseaux)).toEqual([["youtube-shorts", "instagram"], ["facebook"]]);
+    // Facebook et LinkedIn disent la même chose (« Le lien est en premier commentaire. ») : même lecture ; Shorts et Instagram, chacun la leur.
+    expect(s.fins.map((f) => f.reseaux)).toEqual([["youtube-shorts"], ["linkedin", "facebook"], ["instagram"]]);
     expect(s.fins.every((f) => f.texte.startsWith(FICHE_C.questionCommentaire.texteDit))).toBe(true);
     expect(s.versions.map((v) => [v.reseaux.join("+"), v.segment])).toEqual([
       ["youtube-shorts", "fin-youtube-shorts"],
-      ["linkedin", null],
-      ["instagram", "fin-youtube-shorts"],
-      ["facebook", "fin-facebook"],
+      ["linkedin+facebook", "fin-linkedin-facebook"],
+      ["instagram", "fin-instagram"],
     ]);
 
     const m = monde();
@@ -401,15 +401,22 @@ describe("L12 · corps lu une fois, une lecture par segment de fin distinct", ()
     expect(fin.issue).toEqual({ statut: "faite" });
     expect(m.lus).toEqual([s.corps, ...s.fins.map((f) => f.texte)]);
     expect(m.lus.filter((t) => t === s.corps)).toHaveLength(1);
-    expect(rapportVoixIV(fin)).toEqual({ lecturesCorps: 1, lecturesFins: { "fin-youtube-shorts": 1, "fin-facebook": 1 }, payees: 3, coutCentimes: 6 });
+    expect(rapportVoixIV(fin)).toEqual({ lecturesCorps: 1, lecturesFins: { "fin-youtube-shorts": 1, "fin-linkedin-facebook": 1, "fin-instagram": 1 }, payees: 4, coutCentimes: 8 });
   });
 
-  it("LinkedIn seul : seul le corps est lu", async () => {
+  it("LinkedIn seul : le corps et sa fin sont lus (LinkedIn n'est plus muet depuis le 26/10/2026)", async () => {
     const s = segmentsDe(FICHE_C, ["linkedin"]);
-    expect(s.fins).toEqual([]);
+    expect(s.fins.map((f) => f.reseaux)).toEqual([["linkedin"]]);
     const m = monde();
     expect((await jusquAuBout(etatInitialVoixIV(s), outilsVoix(m))).issue).toEqual({ statut: "faite" });
-    expect(m.lus).toEqual([s.corps]);
+    expect(m.lus).toEqual([s.corps, s.fins[0].texte]);
+  });
+
+  it("le plan d'une vidéo faite avant (LinkedIn muet) se lit toujours : le corps seul, aucune fin", async () => {
+    const plan = { fins: [{ id: "fin-linkedin", reseaux: ["linkedin"] as const, muet: true, appels: [] }] };
+    const s = segmentsVoixIV(FICHE_C, plan as never);
+    expect(s.fins).toEqual([]);
+    expect(s.versions).toEqual([{ id: "fin-linkedin", reseaux: ["linkedin"], segment: null }]);
   });
 });
 
@@ -629,14 +636,14 @@ describe("L12 · assemblage : WAV obligatoire, coupes dans les silences mesurés
     expect(pistes.every((p) => /^voix-seule-[0-9a-f]{32}$/.test(p.empreinte) && p.tempo === 1.05)).toBe(true);
     expect(a.demandes.every((d) => d.tempo === 1.05)).toBe(true);
     expect(a.demandes.every((d) => String(d.recette.parametres.filtres).startsWith("atempo=1.05,"))).toBe(true);
-    // LinkedIn : corps seul, aucun raccord ; les autres : corps + fin.
+    // Tous les réseaux, LinkedIn compris (26/10/2026) : corps + fin.
     const li = pistes.find((p) => p.reseaux.includes("linkedin"))!;
-    expect(li.raccordSec).toBeUndefined();
-    expect(li.mots).toHaveLength(li.motsCorps);
+    expect(li.mots.length).toBeGreaterThan(li.motsCorps);
     const tt = pistes.find((p) => p.reseaux.includes("youtube-shorts"))!;
     expect(tt.mots.length).toBeGreaterThan(tt.motsCorps);
-    // Même son pour les versions qui partagent leur fin ; trois pistes distinctes (corps seul, deux fins).
-    expect(new Set(pistes.map((p) => p.empreinte)).size).toBe(3);
+    // Trois versions (trois fins : la phrase du lien change ; Facebook et LinkedIn partagent la leur). Leurs sons de test
+    // ont le même nombre de mots, donc les mêmes octets : on ne compte plus d'empreintes distinctes.
+    expect(pistes).toHaveLength(3);
     // Le dernier mot est suivi de la fin sonore mesurée, avant la fin du fichier.
     for (const p of pistes) expect(p.finVoixSec).toBeLessThanOrEqual(p.dureeSec);
     // Déterministe : deux assemblages identiques donnent les mêmes empreintes.
