@@ -7,30 +7,37 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { AXES_VARIETE, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { CarteImage } from "@/domaine/image-video/carte";
-import { POIDS_AXES, POIDS_TOTAL, ressemblanceRecette } from "@/moteurs/montage-image-video/variete/ressemblance";
+import { POIDS_AXES, POIDS_TOTAL, ressemblanceRecette, SEUIL_RESSEMBLANCE } from "@/moteurs/montage-image-video/variete/ressemblance";
 import { accepteHistoriqueIV, meilleurRepliIV, ressemblanceMaxIV } from "@/moteurs/montage-image-video/variete/historique";
 import { RECETTE_REFERENCE_IV, tirerVarieteIV } from "@/moteurs/montage-image-video/variete/tirage";
 
 const carteDe = (nom: string): CarteImage => JSON.parse(readFileSync(join(process.cwd(), "tests/image-video/fixtures/cartes", `${nom}.json`), "utf8"));
 const R = (sur: Partial<RecetteVarieteIV>): RecetteVarieteIV => ({ ...RECETTE_REFERENCE_IV, ...sur });
 /** Une recette dont TOUS les axes diffèrent de la référence. */
-const AUTRE: RecetteVarieteIV = { ouverture: "OUV-A", recit: "REC-B", chiffres: "CHI-B", camera: "CAM-B", texte: "TYP-B", apparition: "APP-B", transitions: "TRA-B", fin: "FIN-B", matiere: "MAT-B", sousTitres: "SOU-A" };
+const AUTRE: RecetteVarieteIV = { ouverture: "OUV-A", recit: "REC-B", chiffres: "CHI-B", camera: "CAM-B", texte: "TYP-B", apparition: "APP-B", transitions: "TRA-B", fin: "FIN-B", matiere: "MAT-B", sousTitres: "SOU-A", fond: "FON-A", rail: "RAI-A", objets: "OBJ-A", entete: "ENT-A" };
 
 describe("ressemblance de recette (doc 72 § 6.1)", () => {
-  it("les poids valent 15,5 au total", () => {
-    expect(POIDS_TOTAL).toBe(15.5);
-    expect(AXES_VARIETE.reduce((s, a) => s + POIDS_AXES[a], 0)).toBe(15.5);
-    expect(POIDS_AXES).toMatchObject({ ouverture: 3, recit: 2, camera: 2, apparition: 2, chiffres: 1.5, transitions: 1.5, texte: 1, fin: 1, matiere: 1, sousTitres: 0.5 });
+  it("les poids valent 22 au total (somme calculée)", () => {
+    expect(POIDS_TOTAL).toBe(22);
+    expect(AXES_VARIETE.reduce((s, a) => s + POIDS_AXES[a], 0)).toBe(22);
+    expect(POIDS_AXES).toMatchObject({ ouverture: 3, recit: 2, camera: 2, apparition: 2, fond: 2, chiffres: 1.5, transitions: 1.5, rail: 1.5, objets: 1.5, texte: 1, fin: 1, matiere: 1, entete: 1, sousTitres: 1 });
   });
-  it("caméra + matière seulement : 19 %", () => {
+  it("le seuil est de 50 %", () => expect(SEUIL_RESSEMBLANCE).toBe(0.5));
+  it("caméra + matière seulement : 3 ÷ 16 (axes à un seul code tirable ignorés)", () => {
     const s = ressemblanceRecette(R({}), { ...AUTRE, camera: "CAM-A", matiere: "MAT-A" });
-    expect(s).toBeCloseTo(3 / 15.5, 10);
+    expect(s).toBeCloseTo(3 / 16, 10);
     expect(Math.round(s * 100)).toBe(19);
   });
-  it("ne diffèrent que par la fin et les sous-titres : 90 %", () => {
+  it("ne diffèrent que par la fin et les sous-titres : 10,5 ÷ 12,5 (CHI-A et APP-A communs, neutres, hors compte)", () => {
     const s = ressemblanceRecette(R({}), R({ fin: "FIN-B", sousTitres: "SOU-A" }));
-    expect(s).toBeCloseTo(14 / 15.5, 10);
-    expect(Math.round(s * 100)).toBe(90);
+    expect(s).toBeCloseTo(10.5 / 12.5, 10);
+    expect(Math.round(s * 100)).toBe(84);
+  });
+  it("les axes ajoutés (un seul code tirable) ne comptent pas ; une recette ancienne sans eux se compare", () => {
+    expect(ressemblanceRecette(R({ fond: "FON-B" }), R({}))).toBe(ressemblanceRecette(R({}), R({})));
+    const ancienne = { ...R({}) } as Partial<RecetteVarieteIV>;
+    for (const a of ["fond", "rail", "objets", "entete"] as const) delete ancienne[a];
+    expect(ressemblanceRecette(ancienne as RecetteVarieteIV, R({}))).toBe(1);
   });
   it("identiques 1, tout différent 0, symétrique", () => {
     expect(ressemblanceRecette(AUTRE, AUTRE)).toBe(1);
@@ -55,7 +62,7 @@ describe("accepteHistoriqueIV (doc 72 § 5)", () => {
     const meme = R({ ouverture: "OUV-C", recit: "REC-C", camera: "CAM-C", apparition: "APP-C", chiffres: "CHI-C", transitions: "TRA-C", texte: "TYP-C", fin: "FIN-C", matiere: "MAT-C", sousTitres: "SOU-B" });
     expect(accepteHistoriqueIV(meme, h)).toBe(false);
   });
-  it("ressemblance ≥ 60 % avec l'une des 10 dernières : refusée ; au-delà des 10 : ignorée", () => {
+  it("ressemblance ≥ 50 % avec l'une des 10 dernières : refusée ; au-delà des 10 : ignorée", () => {
     const proche = R({ ouverture: "OUV-B" }); // 12,5 / 15,5 avec la référence
     expect(accepteHistoriqueIV(proche, [AUTRE, AUTRE, AUTRE, R({})])).toBe(false);
     expect(accepteHistoriqueIV(proche, [...Array(10).fill(AUTRE), R({})])).toBe(true);
@@ -74,7 +81,7 @@ describe("tirage avec historique : garanti", () => {
     const h = (["REC-A", "REC-B", "REC-C"] as const).map((recit) => R({ ouverture: "OUV-A", recit }));
     for (let i = 0; i < 40; i++) expect(tirerVarieteIV({ graine: `g${i}`, carte, format: "9:16", historique: h }).ouverture).not.toBe("OUV-A");
   });
-  it("30 tirages enchaînés : ouverture jamais sur 3, jamais ≥ 60 % sur 10, jamais la même combinaison forte", () => {
+  it("30 tirages enchaînés : ouverture jamais sur 3, jamais ≥ 50 % sur 10, jamais la même combinaison forte", () => {
     const hist: RecetteVarieteIV[] = []; // la plus récente d'abord
     for (let i = 0; i < 30; i++) {
       const r = tirerVarieteIV({ graine: `video-${i}`, carte, format: "9:16", historique: hist });

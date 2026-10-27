@@ -260,7 +260,9 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
     const autre = { ...outils, historiqueVariete: async () => [avant.recette, avant.recette] };
     const fin = await jusquAuBout(JSON.parse(JSON.stringify(reprendreIV(arret))), autre);
     expect(fin.etape).toBe("prete");
-    expect(fin.variete).toEqual(avant);
+    // `effective` (recette après replis) est posée à la mise en scène, après l'arrêt : le tirage, lui, ne bouge pas.
+    const { effective: _effective, ...tirage } = fin.variete!;
+    expect(tirage).toEqual(avant);
     expect(fin.journal.filter((x) => x.startsWith("Variété tirée")).length).toBe(1);
   });
 

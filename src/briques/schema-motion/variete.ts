@@ -4,8 +4,8 @@
  * Codes et verdicts : `docs/formats/image-video/variete/planche/verdict-critique.json` ; plan : `80-PLAN-INTEGRATION.md`.
  */
 
-/** Les 10 axes de variété (ordre d'affichage). */
-export const AXES_VARIETE = ["ouverture", "recit", "chiffres", "camera", "texte", "apparition", "transitions", "fin", "matiere", "sousTitres"] as const;
+/** Les 14 axes de variété (ordre d'affichage). */
+export const AXES_VARIETE = ["ouverture", "recit", "chiffres", "camera", "texte", "apparition", "transitions", "fin", "matiere", "sousTitres", "fond", "rail", "objets", "entete"] as const;
 export type AxeVariete = (typeof AXES_VARIETE)[number];
 
 /** Les codes de chaque axe (gardés, référence et retirés). */
@@ -19,7 +19,11 @@ export type CodesParAxe = {
   transitions: "TRA-A" | "TRA-B" | "TRA-C" | "TRA-D" | "TRA-E";
   fin: "FIN-A" | "FIN-B" | "FIN-C" | "FIN-D";
   matiere: "MAT-A" | "MAT-B" | "MAT-C" | "MAT-D";
-  sousTitres: "SOU-A" | "SOU-B" | "SOU-C";
+  sousTitres: "SOU-A" | "SOU-B" | "SOU-C" | "SOU-D" | "SOU-E";
+  fond: "FON-A" | "FON-B" | "FON-C" | "FON-D" | "FON-E";
+  rail: "RAI-A" | "RAI-B" | "RAI-C" | "RAI-D";
+  objets: "OBJ-A" | "OBJ-B" | "OBJ-C" | "OBJ-D";
+  entete: "ENT-A" | "ENT-B" | "ENT-C" | "ENT-D";
 };
 export type CodeVariante<A extends AxeVariete = AxeVariete> = CodesParAxe[A];
 
@@ -47,6 +51,14 @@ export const VARIANTES_GARDEES: { readonly [A in AxeVariete]: readonly CodesParA
   fin: ["FIN-C", "FIN-D"],
   matiere: ["MAT-B", "MAT-C", "MAT-D"],
   sousTitres: ["SOU-C"],
+  // fond
+  fond: [],
+  // rail
+  rail: [],
+  // objets
+  objets: [],
+  // entete
+  entete: [],
 });
 
 /** Référence de chaque axe (le rendu d'aujourd'hui) : sans recette, ou repli. L'ouverture n'en a pas (l'écran actuel ≈ OUV-D). */
@@ -61,10 +73,18 @@ export const REFERENCES: { readonly [A in AxeVariete]: CodesParAxe[A] | null } =
   fin: "FIN-A",
   matiere: "MAT-A",
   sousTitres: "SOU-B",
+  // fond
+  fond: "FON-A",
+  // rail
+  rail: "RAI-A",
+  // objets
+  objets: "OBJ-A",
+  // entete
+  entete: "ENT-A",
 });
 
 /** Axes dont la référence est AUSSI tirable (trop peu de variantes gardées, sinon toutes les vidéos se ressembleraient). */
-export const REFERENCES_TIRABLES: readonly AxeVariete[] = Object.freeze(["fin", "sousTitres"]);
+export const REFERENCES_TIRABLES: readonly AxeVariete[] = Object.freeze(["fin", "sousTitres", "fond", "rail", "objets", "entete"]);
 
 /** Variantes retirées : jamais tirées. */
 export const RETIREES: { readonly [A in AxeVariete]: readonly CodesParAxe[A][] } = Object.freeze({
@@ -78,6 +98,14 @@ export const RETIREES: { readonly [A in AxeVariete]: readonly CodesParAxe[A][] }
   fin: ["FIN-B"],
   matiere: [],
   sousTitres: ["SOU-A"],
+  // fond
+  fond: [],
+  // rail
+  rail: [],
+  // objets
+  objets: [],
+  // entete
+  entete: [],
 });
 
 /** Axes qui peuvent poser un écran propre (bloc `sorte: "variete"`, composition `ImageVideoVariete`). */
@@ -101,4 +129,9 @@ export type AvecVarieteIV = { variete?: VarieteBlocIV };
 export function tirablesDe<A extends AxeVariete>(axe: A): CodesParAxe[A][] {
   const ref = REFERENCES[axe];
   return [...(ref && REFERENCES_TIRABLES.includes(axe) ? [ref] : []), ...VARIANTES_GARDEES[axe]];
+}
+
+/** Code d'un axe dans une recette, qui peut être ancienne (sans les axes ajoutés depuis) : à défaut, la référence de l'axe. */
+export function codeDe<A extends AxeVariete>(r: Partial<RecetteVarieteIV> | undefined, axe: A): CodesParAxe[A] {
+  return (r?.[axe] ?? REFERENCES[axe]) as CodesParAxe[A];
 }

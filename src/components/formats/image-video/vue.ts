@@ -13,7 +13,7 @@ import { LOT_MAX_IV } from "@/domaine/image-video/lot";
 import { PLAFONDS_IV, RESEAUX_IV, RESEAUX_IV_HISTORIQUE, type ReseauIV } from "@/domaine/image-video/plafonds";
 import { verdictSurMesureAncienne } from "@/briques/voix-maitre/reference";
 import type { Offre } from "@/formats/cas-concret/cas";
-import { AXES_VARIETE, type AxeVariete, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
+import { AXES_VARIETE, codeDe, type AxeVariete, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { EtapeChaineIV, EtatFabricationIV, FormuleATrancherIV, LivraisonReseauIV, PrixIV } from "@/moteurs/montage-image-video/fabrication";
 import { COUPE_EN_PLEIN_SON_IV, SUITE_REFUS_WAV_IV } from "@/moteurs/montage-image-video/phrases-assemblage";
 import { texteDeFinIV } from "@/moteurs/montage-image-video/texte-fin";
@@ -444,6 +444,10 @@ const NOMS_AXES: Readonly<Record<AxeVariete, string>> = {
   fin: "Fin",
   matiere: "Matière",
   sousTitres: "Sous-titres",
+  fond: "Fond",
+  rail: "Repères d'étapes",
+  objets: "Objets",
+  entete: "Titres",
 };
 
 /** Libellé de chaque variante (doc 72) : jamais le code à l'écran. */
@@ -491,6 +495,25 @@ export const LIBELLES_VARIANTES: Readonly<Record<string, string>> = {
   "SOU-A": "Calmes",
   "SOU-B": "Équilibrés",
   "SOU-C": "Appuyés",
+  "SOU-D": "Discrets",
+  "SOU-E": "En grand",
+  "FON-A": "Fond d'aujourd'hui",
+  "FON-B": "Fond quadrillé",
+  "FON-C": "Fond en dégradé",
+  "FON-D": "Fond à motifs",
+  "FON-E": "Fond sombre",
+  "RAI-A": "Repères d'aujourd'hui",
+  "RAI-B": "Repères en points",
+  "RAI-C": "Repères en barre",
+  "RAI-D": "Repères numérotés",
+  "OBJ-A": "Objets d'aujourd'hui",
+  "OBJ-B": "Objets arrondis",
+  "OBJ-C": "Objets en aplat",
+  "OBJ-D": "Objets cernés",
+  "ENT-A": "Titres d'aujourd'hui",
+  "ENT-B": "Titres sur bandeau",
+  "ENT-C": "Titres soulignés",
+  "ENT-D": "Titres en étiquette",
 };
 export const libelleVariante = (code: string): string => LIBELLES_VARIANTES[code] ?? "Variante";
 
@@ -509,16 +532,16 @@ export interface LigneVarieteIV {
 /** La recette de la vidéo, axe par axe (PUR) : `possibles` = les variantes que l'image permet (moteur). */
 export function lignesVarieteIV(recette: RecetteVarieteIV, possibles: Readonly<Record<AxeVariete, readonly string[]>>, changes: Partial<RecetteVarieteIV> = {}): LigneVarieteIV[] {
   return AXES_VARIETE.map((axe) => {
-    const code = changes[axe] ?? recette[axe];
+    const code = changes[axe] ?? codeDe(recette, axe);
     const modifiable = axe !== "recit";
-    const codes = modifiable ? [...new Set([recette[axe], ...possibles[axe]])] : [recette[axe]];
+    const codes = modifiable ? [...new Set([codeDe(recette, axe), ...possibles[axe]])] : [codeDe(recette, axe)];
     return { axe, nom: NOMS_AXES[axe], code, libelle: libelleVariante(code), choix: codes.length > 1 ? codes.map((c) => ({ code: c, libelle: libelleVariante(c) })) : [], modifiable };
   });
 }
 
 /** Changements de Will à envoyer avec le script (seulement ce qui diffère de la recette tirée). PUR. */
 export function changementsVarieteIV(recette: RecetteVarieteIV, changes: Partial<RecetteVarieteIV>): Partial<RecetteVarieteIV> | undefined {
-  const d = Object.fromEntries(AXES_VARIETE.filter((a) => a !== "recit" && changes[a] !== undefined && changes[a] !== recette[a]).map((a) => [a, changes[a]]));
+  const d = Object.fromEntries(AXES_VARIETE.filter((a) => a !== "recit" && changes[a] !== undefined && changes[a] !== codeDe(recette, a)).map((a) => [a, changes[a]]));
   return Object.keys(d).length ? (d as Partial<RecetteVarieteIV>) : undefined;
 }
 

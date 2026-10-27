@@ -41,7 +41,7 @@ import { schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { DeclencheurBruitage } from "@/domaine/types";
-import { AXES_VARIETE, tirablesDe, type AxeVariete, type FormatIV, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
+import { AXES_VARIETE, codeDe, tirablesDe, type AxeVariete, type FormatIV, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { MesuresExport } from "@/briques/controle-image";
 import { cleBruitage, idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
 import { assemblerVersionCourteIV, assemblerVersionsIV, planMixageIV, type DemandeMixageIV, type OutilsAssemblageIV, type PisteVoixSeuleIV, type VersionCourteIV } from "./assemblage";
@@ -63,6 +63,7 @@ import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type 
 import { verdictReseau } from "./reseaux";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
+import { recetteEffectiveIV } from "./variete/historique";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
 import { avancerVoixIV, ErreurPlafondLecturesIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, REPARATIONS_VOIX_MAX_IV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
@@ -296,9 +297,10 @@ export interface EtatFabricationIV {
   /**
    * Recette de variété de la vidéo : tirée avant l'écriture (`par: "tirage"`), changée par Will avant la voix
    * (`par: "will"`) ; `historique` : nombre de recettes passées vues au tirage. Absente (fabrication d'avant) : le rendu
-   * de référence.
+   * de référence. `effective` : la recette réellement posée à l'écran une fois les replis de la mise en scène appliqués
+   * (celle que l'historique compare) ; absente : `recette`.
    */
-  variete?: { recette: RecetteVarieteIV; par: "tirage" | "will"; historique: number };
+  variete?: { recette: RecetteVarieteIV; par: "tirage" | "will"; historique: number; effective?: RecetteVarieteIV };
   /** Parcours varié et scènes à éviter, tirés avant la première écriture (absent : le parcours de `recettes.ts`). */
   parcours?: ChoixParcoursIV;
   propositionScript?: PropositionScriptIV;
@@ -577,11 +579,11 @@ export const estFinieIV = (e: Pick<EtatFabricationIV, "etape">) => e.etape === "
 export const HISTORIQUE_VARIETE_IV = 10;
 
 /**
- * Historique du tirage (PUR) : les recettes des fabrications IV PRÊTES, dans l'ordre reçu (la plus récente d'abord),
+ * Historique du tirage (PUR) : les recettes (effectives si connues) des fabrications IV qui ont une recette (hors refusées), dans l'ordre reçu (la plus récente d'abord),
  * sans la vidéo en cours, au plus `HISTORIQUE_VARIETE_IV`. Une fabrication sans recette (d'avant la variété) est sautée.
  */
 export function historiqueVarieteIV(etats: readonly (Pick<EtatFabricationIV, "etape" | "variete"> & { demande: Pick<DemandeFabricationIV, "videoId"> })[], videoId?: string): RecetteVarieteIV[] {
-  return etats.filter((e) => e.etape === "prete" && e.variete && e.demande.videoId !== videoId).slice(0, HISTORIQUE_VARIETE_IV).map((e) => e.variete!.recette);
+  return etats.filter((e) => e.etape !== "refusee" && e.variete && e.demande.videoId !== videoId).slice(0, HISTORIQUE_VARIETE_IV).map((e) => e.variete!.effective ?? e.variete!.recette);
 }
 
 /** Codes que Will peut choisir sur cette image, axe par axe (PUR) : les tirables que l'image permet (9:16), sinon la référence. */
@@ -603,7 +605,7 @@ export function changerVarieteIV(recette: RecetteVarieteIV, changes: Partial<Rec
   const r: Record<string, string> = { ...recette };
   for (const axe of AXES_VARIETE) {
     const code = changes[axe];
-    if (code === undefined || code === recette[axe]) continue;
+    if (code === undefined || code === codeDe(recette, axe)) continue;
     if (axe === "recit") phrases.push("Le déroulé du récit est déjà dans le script : il ne change plus après l'écriture.");
     else if (!possibles[axe].includes(code)) phrases.push(`La variante ${code} n'est pas possible sur cette image.`);
     else r[axe] = code;
@@ -613,7 +615,7 @@ export function changerVarieteIV(recette: RecetteVarieteIV, changes: Partial<Rec
 }
 
 /** La recette en une ligne pour le journal (« OUV-A · REC-B · … »). */
-const ligneRecette = (r: RecetteVarieteIV) => AXES_VARIETE.map((a) => r[a]).join(" · ");
+const ligneRecette = (r: RecetteVarieteIV) => AXES_VARIETE.map((a) => codeDe(r, a)).join(" · ");
 
 /** Recette de chaque version à fabriquer (PUR) : `recettePourVersion` (format, ouverture des réseaux) ; vide sans recette. */
 export function recettesDesVersionsIV(e: EtatFabricationIV): { version: string; reseaux: ReseauIV[]; format: FormatIV; recette: RecetteVarieteIV }[] {
@@ -782,6 +784,7 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   e.script = { fiche, choixFormules, ajoutsWill };
   if (e.variete && variete && JSON.stringify(variete) !== JSON.stringify(e.variete.recette)) {
     e.variete = { ...e.variete, recette: variete, par: "will" };
+    delete e.variete.effective;
     e.journal.push(`Variété changée par Will : ${ligneRecette(variete)}.`);
   }
   e.plan = plan;
@@ -1527,6 +1530,7 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   const scenes: NonNullable<EtatFabricationIV["scenes"]> = [];
   const phrases: string[] = [];
+  let ligne916: LigneDeTempsIV | undefined;
   // Remarques recalculées à chaque mise en scène : celles que le rendu a imposées (texte seul) sont redites d'après `ecransImposesRendu`.
   delete e.remarques;
   for (const v of versionsDe(e)) {
@@ -1571,11 +1575,13 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
     else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
     e.journal.push(...issue.journal);
     const r = issue.resultat;
+    if (!ligne916 && (v.format ?? "9:16") === "9:16") ligne916 = r.ligne;
     if (issue.refus.length) phrases.push(...issue.refus.map((p) => `${nomVersion(v)} · ${p}`));
     scenes.push({ version: v.id, dureeSec: r.ligne.dureeSec, empreinte: empreinteDe(r.ligne) });
   }
   if (phrases.length) return refuser(e, "mise-en-scene", "IV_MISE_EN_SCENE", `La mise en scène est refusée : ${phrases[0]}`, { phrases, reessayable: false });
   e.scenes = scenes;
+  if (e.variete && ligne916?.variete) e.variete.effective = recetteEffectiveIV(ligne916.variete.recette, ligne916.variete.replis);
   e.journal.push(`Mise en scène : ${scenes.length} version(s).`);
   return passerA(e, "rendu");
 }
