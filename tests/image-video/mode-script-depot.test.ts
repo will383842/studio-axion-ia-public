@@ -122,9 +122,9 @@ describe("Image → vidéo · script complet · le dépôt", () => {
 });
 
 describe("Image → vidéo · script complet · l'écran de dépôt", () => {
-  it("les TROIS entrées sont visibles : « Déposer une image », « Décrire avec mes mots », « Coller mon script complet »", () => {
+  it("seules DEUX entrées sont visibles : « Décrire avec mes mots » et « Coller mon script complet » (l'entrée image est masquée)", () => {
     const html = renderToStaticMarkup(createElement(Depot, { montants: { 4: 250 } }));
-    expect(html).toContain("Déposer une image");
+    expect(html).not.toContain("Déposer une image");
     expect(html).toContain("Décrire avec mes mots");
     expect(html).toContain("Coller mon script complet");
   });
