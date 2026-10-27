@@ -42,7 +42,8 @@ describe("30 tirages enchaînés (historique nourri à chaque tour)", () => {
 describe("recetteEffectiveIV", () => {
   const R: RecetteVarieteIV = { ...RECETTE_REFERENCE_IV, ouverture: "OUV-A", recit: "REC-B", chiffres: "CHI-D", texte: "TYP-B", fin: "FIN-C", camera: "CAM-B" };
   it("sans repli : la recette telle quelle", () => expect(recetteEffectiveIV(R, [])).toEqual(R));
-  it("repli typo : TYP-C", () => expect(recetteEffectiveIV(R, [{ axe: "texte" }]).texte).toBe("TYP-C"));
+  it("repli typo global (TYP-D) : TYP-C", () => expect(recetteEffectiveIV(R, [{ axe: "texte", code: "TYP-D" }]).texte).toBe("TYP-C"));
+  it("repli d'un seul bloc TYP-B : la vidéo reste en TYP-B", () => expect(recetteEffectiveIV({ ...R, texte: "TYP-B" }, [{ axe: "texte", code: "TYP-B" }]).texte).toBe("TYP-B"));
   it("repli fin : la référence de la fin", () => expect(recetteEffectiveIV(R, [{ axe: "fin" }]).fin).toBe(REFERENCES.fin));
   it("repli chiffres : la référence des chiffres, le reste ne bouge pas", () => {
     expect(recetteEffectiveIV(R, [{ axe: "chiffres" }])).toEqual({ ...R, chiffres: "CHI-A" });
