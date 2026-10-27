@@ -15,7 +15,7 @@ import { avecAccordAutomatique } from "@/services/mode-budget";
 import type { PastilleControle } from "@/domaine/relecture-script";
 import { controlerScriptImageVideo } from "@/services/image-video-scripts";
 import { arreterLotImageVideo, deposerLotImageVideo, refaireVideoDuLot, reprendreLotImageVideo, type DemandeLotIV, type IssueLotIV } from "@/services/image-video-lot";
-import { deposerTexteImageVideo, type DemandeDepotTexteIV, type IssueDepotTexteIV } from "@/services/image-video-texte";
+import { deposerScriptImageVideo, deposerTexteImageVideo, type DemandeDepotScriptIV, type DemandeDepotTexteIV, type IssueDepotTexteIV } from "@/services/image-video-texte";
 import { deposerImageVideo, validerCarteEtReprendre, validerScriptEtReprendre, type DemandeDepotIV, type IssueDepotIV, type IssueRepriseIV } from "@/services/image-video-ecran";
 
 /** Écran 1 · « Lancer » : l'image déposée, les réseaux, l'offre et le montant confirmé. */
@@ -28,6 +28,13 @@ export async function deposerImageVideoAction(demande: DemandeDepotIV): Promise<
 /** Écran 1 · mode texte : « Décrivez-la avec vos mots » ; mêmes réseaux, même prix confirmé, aucune image. */
 export async function deposerTexteImageVideoAction(demande: DemandeDepotTexteIV): Promise<Resultat<IssueDepotTexteIV>> {
   const r = await essayer(() => deposerTexteImageVideo(demande));
+  if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
+  return r;
+}
+
+/** Écran 1 · mode script complet : « Coller mon script complet » ; mêmes réseaux, même prix confirmé, aucune écriture par l'IA. */
+export async function deposerScriptImageVideoAction(demande: DemandeDepotScriptIV): Promise<Resultat<IssueDepotTexteIV>> {
+  const r = await essayer(() => deposerScriptImageVideo(demande));
   if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
   return r;
 }
