@@ -23,10 +23,6 @@ export class ErreurFin extends Error {
 
 export const nombreMots = (t: string): number => t.split(/\s+/).filter(Boolean).length;
 
-/** Mots de la plus longue phrase d'un texte dit (coupé sur « . ? ! : ; … »), la ponctuation seule ne comptant pas. */
-export const motsDeLaPlusLonguePhrase = (t: string): number =>
-  Math.max(0, ...t.split(/[.?!:;…]+/).map((p) => p.split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m)).length));
-
 /** Groupe d'un réseau : Instagram/Facebook, TikTok/YouTube (Shorts compris), LinkedIn. */
 export function groupeDe(reseau: ReseauFin): GroupeFin {
   switch (reseau) {
@@ -75,8 +71,7 @@ export function choisir(fin: FinTable, reseau: ReseauFin, options: OptionsFin = 
     dit = dit.split(EMPLACEMENT_MOT).join((options.motDit?.trim() || mot).toUpperCase());
     ecran = ecran.split(EMPLACEMENT_MOT).join(mot.toUpperCase());
   }
-  const motsDits = fin.parPhrase ? motsDeLaPlusLonguePhrase(dit) : nombreMots(dit);
-  if (motsDits > MOTS_DIT_MAX) throw new ErreurFin(`La fin « ${fin.ecran} » dit ${motsDits} mots${fin.parPhrase ? " dans une phrase" : ""} (${MOTS_DIT_MAX} au plus).`);
+  if (nombreMots(dit) > MOTS_DIT_MAX) throw new ErreurFin(`La fin « ${fin.ecran} » dit ${nombreMots(dit)} mots (${MOTS_DIT_MAX} au plus).`);
   if (nombreMots(ecran) > MOTS_ECRAN_MAX) throw new ErreurFin(`La fin « ${fin.ecran} » écrit ${nombreMots(ecran)} mots à l'écran (${MOTS_ECRAN_MAX} au plus).`);
   return { id: fin.id, groupe: fin.groupe, type: fin.type, dit, ecran };
 }

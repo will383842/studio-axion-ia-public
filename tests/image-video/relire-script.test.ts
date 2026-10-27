@@ -59,8 +59,7 @@ describe("Image → vidéo : réglage `imageVideo.relireScript`", () => {
     const html = renderToStaticMarkup(createElement(ScriptRelireIV, { videoId: "v-1", ...s }));
     const t = texte(html);
     expect(html).toContain('aria-label="Relire le script"');
-    // Une phrase par écran, plus celle de la question de commentaire seulement dans le réglage « question puis fin » (le défaut depuis le 26/10/2026 est « fin seule »).
-    expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(s.fiche.ecrans.length);
+    expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(s.fiche.ecrans.length + 1);
     const auPlus = vue.euros(Math.max(s.prix.auPlusCentimes, s.prix.habituelCentimes));
     expect(t).toContain(`Valider et fabriquer (au plus ${auPlus})`);
     for (const ec of s.fiche.ecrans) expect(t).toContain(ec.texteDit.slice(0, 20));
