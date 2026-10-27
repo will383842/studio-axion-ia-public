@@ -6,7 +6,7 @@ import React from "react";
  */
 import { AbsoluteFill } from "remotion";
 import { COULEURS_DUO } from "../../../../../src/briques/habillage/charte-duo";
-import { Fond } from "../../../cas-concret/socle/Fond";
+import { FondIV } from "../fond/FondVarie";
 import { FAMILLE_ANTON } from "../../../commune/polices";
 import { Icone } from "../../../interface-claire/elements";
 import { Entete } from "../../Entete";
@@ -27,7 +27,7 @@ export const styleAnton = (taille: number, couleur: string): React.CSSProperties
 export function CadreTexte({ fond, largeur, hauteur, marque, children }: { fond: FondTexte; largeur: number; hauteur: number; marque: "axion-ia.com"; children?: React.ReactNode }) {
   return (
     <AbsoluteFill style={{ overflow: "hidden" }}>
-      <Fond fond={fond} largeur={largeur} hauteur={hauteur} />
+      <FondIV fond={fond} largeur={largeur} hauteur={hauteur} />
       {children}
       <Entete entete={null} ecoule={0} sortie={0} fond={fond} marque={marque} largeur={largeur} hauteur={hauteur} />
     </AbsoluteFill>
