@@ -163,10 +163,14 @@ describe("À publier — petits défauts de la relecture", () => {
     expect(t).toContain("Facebook : Échec");
   });
 
-  it("le bouton d'envoi est désactivé pendant l'écriture des cases", async () => {
-    const src = (await import("node:fs")).readFileSync("src/components/publication/LignesAPublier.tsx", "utf8");
-    expect(src).toMatch(/disabled=\{!peutEnvoyer \|\| enCoursCases\}/);
+  it("le bouton d'envoi du réseau ouvert est désactivé tant que les cases sont décochées, actif une fois cochées", () => {
+    const rendre = (coches: Record<string, boolean>) =>
+      renderToStaticMarkup(createElement(LignesAPublier, { vue: vue([ligne("v-1", "instagram", { coches })]), reseauOuvert: "instagram" }));
+    const bouton = (h: string) => h.match(/<button[^>]*>(?:(?!<\/button>)[\s\S])*Mettre en brouillon dans Buffer/)![0].match(/<button[^>]*>/)![0];
+    expect(bouton(rendre({ ...AUCUNE }))).toContain('disabled=""');
+    expect(bouton(rendre(Object.fromEntries(CASES.map((c) => [c, true]))))).not.toContain('disabled=""');
   });
+
 });
 
 describe("À publier — lecteur sans rognage", () => {
