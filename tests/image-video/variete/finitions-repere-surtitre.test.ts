@@ -3,9 +3,10 @@
  * d'un écran est cohérent avec le texte d'écran lisible (`signesMax`), sans changer un mot dit.
  */
 import { describe, expect, it } from "vitest";
-import { REGLES_SCENE_IV } from "@/moteurs/montage-image-video/regles-scene";
-import { ecransDuScript, ficheDuScriptColle } from "@/moteurs/montage-image-video/script-colle";
+import "@/moteurs/montage-image-video/fabrication";
 import { carteFixe } from "../doubles-fabrication";
+import { ecransDuScript, ficheDuScriptColle } from "@/moteurs/montage-image-video/script-colle";
+import { REGLES_SCENE_IV } from "@/moteurs/montage-image-video/regles-scene";
 import { boiteRepere45, boiteSurtitreChiffres, decalageRepereSurtitre } from "../../../studio-rendu/compositions/image-video/variete/repere-place";
 
 const CHANGEMENTS = [{ t: 0, numero: 1 }];
@@ -56,5 +57,34 @@ describe("script collé : seuil de mots d'un écran cohérent avec signesMax", (
     const fiche = ficheDuScriptColle(script, carteFixe("C"));
     for (const e of fiche.ecrans) for (const t of e.textesEcran) expect(t.length, t).toBeLessThanOrEqual(REGLES_SCENE_IV.signesMax);
     expect(mots(fiche.ecrans.map((e) => e.texteDit).join(" "))).toEqual(mots(script));
+  });
+});
+
+describe("script collé : cas qui échouent avec l'ancien code", () => {
+  const corps = "Votre équipe administrative ressaisit encore les mêmes données chaque semaine sans aucune raison.";
+  const choc = "Vos relances automatiques fonctionnent désormais pendant votre sommeil.";
+
+  it("une phrase de 13 mots sans virgule est coupée (seuil 12, l'ancien seuil 16 la gardait entière)", () => {
+    const e = ecransDuScript(`Un début. ${corps} Un. Deux. Trois. Quatre. Cinq. Six. Sept.`);
+    const trouve = e.find((x) => x.join(" ").startsWith("Votre équipe"));
+    expect(trouve).toBeDefined();
+    expect(trouve!.filter((j) => /[\p{L}\p{N}]/u.test(j)).length).toBeLessThanOrEqual(12);
+  });
+
+  it("la phrase-choc de 71 à 80 signes n'est jamais tronquée à l'écran : le dernier mot reste affiché", () => {
+    expect(choc.length).toBeGreaterThan(70);
+    expect(choc.length).toBeLessThanOrEqual(80);
+    const fiche = ficheDuScriptColle(`Vous relancez. Un. Deux. Trois. Quatre. Cinq. ${choc}`, carteFixe("C"));
+    const dernier = fiche.ecrans.at(-1)!;
+    expect(dernier.textesEcran[0]!.length).toBeLessThanOrEqual(REGLES_SCENE_IV.signesMax);
+    expect(dernier.textesEcran[0]).toBe(dernier.texteDit);
+    expect(dernier.texteDit.endsWith("sommeil.")).toBe(true);
+  });
+
+  it("un écran de corps de plus de 70 signes est coupé à la source, pas à l'affichage", () => {
+    const longue = "Vos équipes commerciales ressaisissent manuellement les mêmes informations dans trois logiciels différents.";
+    const fiche = ficheDuScriptColle(`Vous relancez. Un. Deux. Trois. ${longue} Quatre. Cinq. Six.`, carteFixe("C"));
+    for (const e of fiche.ecrans.slice(1, -1)) expect(e.texteDit.length, e.texteDit).toBeLessThanOrEqual(REGLES_SCENE_IV.signesMax);
+    expect(mots(fiche.ecrans.map((e) => e.texteDit).join(" "))).toContain("différents.");
   });
 });
