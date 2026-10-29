@@ -815,8 +815,6 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     return out;
   });
 
-  // « À la main » ne concerne que les réseaux réellement envoyés ici (ni rejeu, ni refus « déjà dans Buffer »).
-  const commentairesALaMain = [...aPoserALaMain].filter((reseau) => decisions.some((dec) => "nouvelle" in dec && dec.p.reseau === reseau));
   const publications: Publication[] = [];
   const problemes: ProblemeEnvoi[] = [];
   try {
@@ -868,6 +866,8 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
   }
   // Rien n'est parti ni en attente : la raison telle quelle, ou, pour plusieurs comptes, toutes les raisons.
   if (!publications.length && problemes.length) throw new ErreurStudio(problemes[0].code, resumeRefus(problemes));
+  // Seuls les réseaux que Buffer a confirmés : jamais « à poser à la main » pour un réseau qu'il a refusé.
+  const commentairesALaMain = [...aPoserALaMain].filter((reseau) => publications.some((x) => x.reseau === reseau && x.etatEnvoi === "envoye" && decisions.some((dec) => "nouvelle" in dec && dec.nouvelle.id === x.id)));
   return { simulation: false, publications, mode, problemes, ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
 }
 
