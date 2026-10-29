@@ -10,7 +10,9 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import {
+  NOTE_A_RELIRE_IV,
   ORPHELIN_APRES_MS_IV,
+  PHRASES_RESERVE_IV,
   ajouterIV,
   appliquerIssueReserveIV,
   lierVideoIV,
@@ -29,7 +31,7 @@ import { PHRASE_TIKTOK_RETIRE_IV, RESEAUX_IV, type ReseauIV } from "@/domaine/im
 import type { Id } from "@/domaine/types";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
-import { depots, ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
+import { ErreurStudio, depots, ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
 import { PHRASES_IV, prixDuDepot } from "./image-video-ecran";
 import { dernierTravail, issueDuTravail, videoEcartee } from "./image-video-lot";
@@ -177,8 +179,17 @@ export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}):
     element.nature === "script"
       ? deposerScriptImageVideo({ script: element.texte, reserveId: element.id, reseaux, accordCentimes }, dep.depot)
       : deposerTexteImageVideo({ texte: element.texte, reserveId: element.id, reseaux, accordCentimes }, dep.depot);
-  let issue = await deposer(prixDuDepot(reseaux, taux));
-  if (issue.statut === "accord-requis") issue = await deposer(issue.centimes);
+  let issue: IssueDepotTexteIV;
+  try {
+    issue = await deposer(prixDuDepot(reseaux, taux));
+    if (issue.statut === "accord-requis") issue = await deposer(issue.centimes);
+  } catch (e) {
+    if (e instanceof ErreurStudio) throw e;
+    // Panne imprévue : l'élément ne reste pas « en cours » sans vidéo ; il revient à faire, à relire.
+    console.error(e);
+    await modifier((r) => ({ reserve: remettreAFaireIV(r, element.id, NOTE_A_RELIRE_IV), sortie: null }));
+    return { statut: "refusee", id: element.id, phrase: PHRASES_RESERVE_IV.panne };
+  }
 
   if (issue.statut === "lancee") {
     const videoId = issue.videoId;
