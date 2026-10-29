@@ -235,6 +235,9 @@ export interface ResultatMiseEnSceneIV {
 /* ------------------------------------------------------------------ */
 
 const arrondi = (x: number) => Math.round(x * 1000) / 1000;
+
+/** Une nuée paraît au plus tard 2 s après le début de son écran (issue 119). */
+export const APPARITION_NUEE_MAX_SEC = 2;
 const sansBalises = (t: string) => t.replace(/\*/g, "");
 
 /** Mots vides : jamais un mot qui « nomme ». */
@@ -723,7 +726,7 @@ function elementsDe(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>, c
   else if (sorte === "recap") {
     const ids = noeudsRefs.filter((n) => n.role === "benefice");
     els.push(nouvelEl(c, "recap", "objet", c.debut, { texte: ids.map((n) => n.libelle).join(" · "), ref: ids[0]?.id }));
-  } else els.push(...elementsMoment(c, carte, noeudsRefs, clesCarte, dits, etat));
+  } else els.push(...elementsMomentAvecRappel(c, carte, noeudsRefs, clesCarte, dits, etat));
 
   // En-têtes (toile, objets, moments) : l'étiquette et le titre de la fiche. Au début de l'écran, sauf si son chiffre
   // dit n'est montré par rien d'autre sur son mot (il apparaît alors avec lui, Q13).
@@ -1131,6 +1134,25 @@ function ecransADessiner(places: EcranPlace[], parId: Map<string, NoeudCarte>): 
     }
   }
   return res;
+}
+
+/**
+ * Grands vides (issue 119) : un moment dont les blocs cités ont tous DÉJÀ été montrés ailleurs (`etat.montres`) ne posait
+ * aucun contenu, il ne restait que l'en-tête. Il les reprend alors, sans tenir compte de `montres`, comme un rappel posé
+ * au début de l'écran (les éléments qui portent un chiffre gardent l'heure de leur mot : Q13). L'état réel n'est pas touché.
+ */
+function elementsMomentAvecRappel(c: Ctx, carte: CarteImage, refs: NoeudCarte[], clesCarte: Map<string, string>, dits: Ctx["chiffres"], etat: EtatScene): El[] {
+  const pose = elementsMoment(c, carte, refs, clesCarte, dits, etat);
+  if (!refs.length || pose.some((x) => x.visible && !x.remplissage && x.role !== "entete" && x.role !== "mention")) return pose;
+  const rappel = elementsMoment(c, carte, refs, clesCarte, dits, { ...etat, montres: new Set<string>(), cartes: [] });
+  if (!rappel.length) return pose;
+  const t0 = Math.min(...rappel.map((x) => x.t));
+  const decale = (x: El): El => {
+    if (x.chiffres.length || x.t <= c.debut) return x;
+    const t = arrondi(x.t - (t0 - c.debut));
+    return { ...x, t, id: `${x.id}-rappel${Math.round(t * 1000)}` };
+  };
+  return trier([...pose, ...rappel.map(decale)]);
 }
 
 /** Moments de L9a : bénéfices, bandeau, recherche, alerte, e-mail, dossiers, sources, phrase-choc. */
@@ -2161,7 +2183,8 @@ function blocObjets(id: string, lot: EcranPlace[], carte: CarteImage, debut: num
     } else if (scene === "nuee") {
       const source = sourceEnNombre(carte);
       const coches = els.filter((x) => x.role === "coche-nuee").map((x) => x.t);
-      // La nuée apparaît sur le mot qui la dit (la source, ou sa quantité : « 20 »), s'il tombe avant la première coche.
+      // La nuée apparaît sur le mot qui la dit (la source, ou sa quantité : « 20 »), s'il tombe avant la première coche, et au plus
+      // tard 2 s après le début de l'écran (issue 119) : sinon seul l'en-tête est visible tant que le mot n'est pas dit.
       const quantite = source?.quantite ?? 2;
       const dite = els.find((x) => (x.ref === source?.id || (x.role === "accent" && x.chiffres.some((k) => k.split("|")[0] === String(quantite)))) && x.t < (coches[0] ?? b));
       const distinctions = els.filter((x) => x.role === "distinction").map((x) => rel(x.t));
@@ -2173,7 +2196,7 @@ function blocObjets(id: string, lot: EcranPlace[], carte: CarteImage, debut: num
           quantite,
           cochees: coches.length,
           icone: (source?.icone && iconeDe(source.icone)) || "document",
-          apparition: rel(dite?.t ?? a),
+          apparition: rel(dite ? Math.min(dite.t, a + APPARITION_NUEE_MAX_SEC) : a),
           debutCoches: rel(coches[0] ?? a),
           finCoches: rel(coches[coches.length - 1] ?? a),
           ...(distinctions.length ? { distinctions } : {}),

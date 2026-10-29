@@ -35,6 +35,25 @@ export function ecransEnDefautIV(l: Pick<LigneDeTempsIV, "evenements" | "plans" 
   return { q13: [...q13], q14: [...q14] };
 }
 
+/** Image figée acceptée tant que la voix parle (`controles.ts`, décision du 17/10) : 2,5 s. */
+export const VIDE_MAX_SOUS_VOIX_IV = 2.5;
+
+/**
+ * Vrai si le plan de l'écran reçoit un changement visible au moins toutes les 2,5 s tant que la voix parle
+ * (début du plan, changements visibles de la ligne, fin du plan ou de la voix). Un écran sans plan est vivant. PUR.
+ */
+export function ecranVivantIV(l: Pick<LigneDeTempsIV, "evenements" | "plans" | "finVoixSec">, ecran: string): boolean {
+  const visibles = instantsVisibles(l.evenements, l.finVoixSec);
+  for (const p of l.plans) {
+    if (p.ecran !== ecran) continue;
+    const fin = Math.min(p.fin, l.finVoixSec);
+    if (fin <= p.debut) continue;
+    const pts = [p.debut, ...visibles.filter((t) => t > p.debut && t < fin), fin];
+    for (let k = 1; k < pts.length; k++) if (pts[k] - pts[k - 1] > VIDE_MAX_SOUS_VOIX_IV + 1e-6) return false;
+  }
+  return true;
+}
+
 /** La fiche dont les écrans cités passent en scène « titre » (texte seul). */
 export function ficheAdapteeIV(fiche: FicheImage, ecrans: readonly string[] | undefined): FicheImage {
   if (!ecrans?.length) return fiche;
@@ -87,10 +106,17 @@ export function mettreEnSceneAvecFiletIV(mettre: (adaptes: readonly string[]) =>
     const ids = [...new Set([...d.q13, ...d.q14])].filter((id) => !essayes.has(id) && adaptable(id));
     if (!ids.length) break;
     ids.forEach((id) => essayes.add(id));
-    const candidat = mettre([...tous(), ...ids]);
-    if (candidat.ok || (detailSeul(candidat) && nbDetails(candidat) < nbDetails(resultat))) {
-      adaptes.push(...ids);
-      journal.push(`Mise en scène (${nom}), essai ${essai}/${ESSAIS_ADAPTATION_IV} : défaut de détail (${resultat.phrases[0]}) ; écran(s) ${ids.join(", ")} passé(s) en texte seul (« titre »).`);
+    let candidat = mettre([...tous(), ...ids]);
+    // Grands vides (issue 119) : un écran passé en « titre » n'est gardé que si son plan reçoit un changement visible au moins
+    // toutes les 2,5 s tant que la voix parle ; sinon l'adaptation est annulée pour cet écran (la remarque Q14 reste).
+    let gardesIds = ids.filter((id) => ecranVivantIV(candidat.ligne, id));
+    if (gardesIds.length < ids.length) {
+      journal.push(`Mise en scène (${nom}), essai ${essai}/${ESSAIS_ADAPTATION_IV} : le texte seul laisserait l'écran ${ids.filter((id) => !gardesIds.includes(id)).join(", ")} sans rien de nouveau pendant plus de 2,5 s, annulé pour cet écran.`);
+      if (gardesIds.length) candidat = mettre([...tous(), ...gardesIds]);
+    }
+    if (gardesIds.length && (candidat.ok || (detailSeul(candidat) && nbDetails(candidat) < nbDetails(resultat)))) {
+      adaptes.push(...gardesIds);
+      journal.push(`Mise en scène (${nom}), essai ${essai}/${ESSAIS_ADAPTATION_IV} : défaut de détail (${resultat.phrases[0]}) ; écran(s) ${gardesIds.join(", ")} passé(s) en texte seul (« titre »).`);
       resultat = candidat;
     } else {
       journal.push(`Mise en scène (${nom}), essai ${essai}/${ESSAIS_ADAPTATION_IV} : le texte seul pour ${ids.join(", ")} n'améliore rien, annulé.`);

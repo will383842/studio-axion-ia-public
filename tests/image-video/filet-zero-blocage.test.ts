@@ -5,13 +5,13 @@
  */
 import { describe, expect, it } from "vitest";
 import type { FicheImage } from "@/domaine/image-video/fiche";
-import { ecransEnDefautIV, ESSAIS_ADAPTATION_IV, ficheAdapteeIV, LIGNES_ZERO_BLOCAGE_IV, mettreEnSceneAvecFiletIV } from "@/moteurs/montage-image-video/adaptation-scene";
+import { ecranVivantIV, ecransEnDefautIV, ESSAIS_ADAPTATION_IV, ficheAdapteeIV, LIGNES_ZERO_BLOCAGE_IV, mettreEnSceneAvecFiletIV } from "@/moteurs/montage-image-video/adaptation-scene";
 import type { ResultatMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 
 const bloquant = (code: string, phrase: string) => ({ code, ok: false, bloquant: true, phrase, details: [phrase] });
 
 /** Résultat simulé : ligne avec un chiffre « 30 » dit à 40,4 s (écran e12) et jamais montré, tant que e12 n'est pas adapté. */
-function resultat(codes: [string, string][], ecranEnDefaut = "e12"): ResultatMiseEnSceneIV {
+function resultat(codes: [string, string][], ecranEnDefaut = "e12", vivant = false): ResultatMiseEnSceneIV {
   const bloquants = codes.map(([c, p]) => bloquant(c, p));
   return {
     ok: bloquants.length === 0,
@@ -20,7 +20,7 @@ function resultat(codes: [string, string][], ecranEnDefaut = "e12"): ResultatMis
     ligne: {
       finVoixSec: 50,
       plans: [{ id: "p1", debut: 0, fin: 3, ecran: "e01" }, { id: "p2", debut: 3, fin: 50, ecran: ecranEnDefaut }],
-      evenements: [1, 3].map((instantSec) => ({ instantSec, visible: true, genre: "bloc", chiffres: [], remplissage: false })),
+      evenements: (vivant ? Array.from({ length: 26 }, (_, k) => 2 * k) : [1, 3]).map((instantSec) => ({ instantSec, visible: true, genre: "bloc", chiffres: [], remplissage: false })),
       chiffresDits: [{ cle: "30", brut: "30", t: 40.4, ecran: ecranEnDefaut }],
     },
   } as unknown as ResultatMiseEnSceneIV;
@@ -46,7 +46,7 @@ describe("filet zéro blocage de la mise en scène", () => {
     const appels: (readonly string[])[] = [];
     const issue = mettreEnSceneAvecFiletIV((adaptes) => {
       appels.push(adaptes);
-      return adaptes.includes("e12") ? resultat([]) : resultat([["Q13", "Chiffre dit mais pas montré : « 30 »"]]);
+      return adaptes.includes("e12") ? resultat([], "e12", true) : resultat([["Q13", "Chiffre dit mais pas montré : « 30 »"]]);
     });
     expect(issue.refus).toEqual([]);
     expect(issue.gardes).toEqual([]);
@@ -106,7 +106,7 @@ describe("filet zéro blocage de la mise en scène", () => {
   it("une adaptation qui réduit les défauts de détail est gardée ; un écran déjà en « titre » ou sans texte n'est jamais désigné", () => {
     const f = { ecrans: [{ id: "e01", scene: "toile", textesEcran: [{}] }, { id: "e12", scene: "alerte", textesEcran: [{}] }, { id: "e13", scene: "titre", textesEcran: [{}] }, { id: "e14", scene: "alerte", textesEcran: [] }] } as unknown as FicheImage;
     const vus: (readonly string[])[] = [];
-    const issue = mettreEnSceneAvecFiletIV((a) => { vus.push(a); return a.includes("e12") ? resultat([["Q13", "un seul"]]) : resultat([["Q13", "un"], ["Q14", "deux"]]); }, [], "A", f);
+    const issue = mettreEnSceneAvecFiletIV((a) => { vus.push(a); return a.includes("e12") ? resultat([["Q13", "un seul"]], "e12", true) : resultat([["Q13", "un"], ["Q14", "deux"]]); }, [], "A", f);
     expect(issue.adaptes).toEqual(["e12"]);
     expect(vus.flat().some((id) => id === "e13" || id === "e14")).toBe(false);
   });
@@ -119,5 +119,20 @@ describe("filet zéro blocage de la mise en scène", () => {
     const premier: (readonly string[])[] = [];
     mettreEnSceneAvecFiletIV((a) => { premier.push(a); return resultat([]); }, ["e12"]);
     expect(premier[0]).toEqual(["e12"]);
+  });
+
+  it("grands vides (issue 119) : un écran en texte seul qui laisse plus de 2,5 s sans rien de nouveau n'est pas gardé", () => {
+    const l = resultat([]).ligne; // e12 : plan 3-50 s, aucun changement après 3 s
+    expect(ecranVivantIV(l, "e12")).toBe(false);
+    const dense = { ...l, evenements: Array.from({ length: 26 }, (_, k) => ({ instantSec: 2 * k, visible: true, genre: "bloc", chiffres: [], remplissage: false })) } as never;
+    expect(ecranVivantIV(dense, "e12")).toBe(true);
+    const adaptes: (readonly string[])[] = [];
+    const issue = mettreEnSceneAvecFiletIV((a) => {
+      adaptes.push(a);
+      return a.includes("e12") ? resultat([["Q14", "Rythme trop lent"]]) : resultat([["Q13", "x"], ["Q14", "y"]]);
+    });
+    expect(issue.adaptes).toEqual([]);
+    expect(issue.refus).toEqual([]);
+    expect(issue.journal.join("\n")).toMatch(/annulé pour cet écran/);
   });
 });

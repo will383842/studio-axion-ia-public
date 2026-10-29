@@ -102,20 +102,16 @@ describe("rendu : écran irrendable", () => {
     }
   });
 
-  it("repli : un rendu qui ne nomme aucun écran retrouvé passe tous les écrans à texte en texte seul, et la remarque le dit", async () => {
+  it("repli : un rendu qui ne nomme aucun écran retrouvé ne passe PAS toute la vidéo en texte seul (issue 119) : IV_RENDU, aucun écran imposé", async () => {
     const o = outilsSimules(carteA, monde());
-    const rendre = o.rendre;
-    let n = 0;
-    o.rendre = async (d) => {
-      if (++n === 1) throw new ErreurRenduDefinitifIV("Un écran ne tient pas.", ["écran n° 1"]);
-      return rendre(d);
+    o.rendre = async () => {
+      throw new ErreurRenduDefinitifIV("Un écran ne tient pas.", ["écran n° 1"]);
     };
     const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
-    expect(e.etape).toBe("prete");
-    expect(e.remarques?.[0]).toMatch(/repli sur tous les écrans/);
-    expect(e.controles?.verdict?.mentions.join(" ")).toMatch(/repli sur tous les écrans/);
+    expect(e.ecransImposesRendu).toBeUndefined();
+    expect(e.refus).toMatchObject({ code: "IV_RENDU" });
     const f = e.script!.fiche;
-    expect(choisirEcransAAdapterIV(f, { blocs: [], plans: [] } as never, ["inconnu"])).toMatchObject({ repli: true });
+    expect(choisirEcransAAdapterIV(f, { blocs: [], plans: [] } as never, ["inconnu"])).toEqual({ ids: [], repli: true });
   });
 
   it("panne passagère au 1er rendu puis écran irrendable à la relance : texte seul, pas IV_RENDU ; au 2e échec définitif : IV_RENDU", async () => {
@@ -182,8 +178,8 @@ describe("rendu : écran irrendable", () => {
     const trouves = ecransAAdapterIV(fiche, ligne, [bloc!.id]);
     expect(trouves.length).toBeGreaterThan(0);
     expect(trouves).toEqual(avecTexte.filter((x) => attendus.includes(x)));
-    expect(ecransAAdapterIV(fiche, ligne, undefined)).toEqual(avecTexte);
-    expect(ecransAAdapterIV(fiche, ligne, ["inconnu"])).toEqual(avecTexte);
+    expect(ecransAAdapterIV(fiche, ligne, undefined)).toEqual([]);
+    expect(ecransAAdapterIV(fiche, ligne, ["inconnu"])).toEqual([]);
   });
 });
 
@@ -472,17 +468,13 @@ describe("écoute : panne de transcription", () => {
 });
 
 describe("étapes de fabrication prêtes sans identifiant", () => {
-  it("un rendu irrendable sans identifiant : texte seul pour tous les écrans à texte, vidéo prête", async () => {
+  it("un rendu irrendable sans identifiant : aucun écran n'est inventé, pas de texte seul pour toute la vidéo (issue 119)", async () => {
     const o = outilsSimules(carteA, monde());
-    const rendre = o.rendre;
-    let n = 0;
-    o.rendre = async (d) => {
-      if (++n === 1) throw new ErreurRenduDefinitifIV("Un écran ne tient pas.", ["écran n° 1"]);
-      return rendre(d);
+    o.rendre = async () => {
+      throw new ErreurRenduDefinitifIV("Un écran ne tient pas.", ["écran n° 1"]);
     };
     const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
-    expect(e.etape).toBe("prete");
-    const imposes = Object.values(e.ecransImposesRendu ?? {})[0]!;
-    expect(imposes).toEqual(e.script!.fiche.ecrans.filter((x) => x.textesEcran.length).map((x) => x.id));
+    expect(e.ecransImposesRendu).toBeUndefined();
+    expect(e.refus).toMatchObject({ code: "IV_RENDU" });
   });
 });

@@ -54,7 +54,7 @@ import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
-import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
+import { ecransEnDefautIV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -1563,10 +1563,12 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
     // écrans en texte seul) ; la raison reste en remarque. Le refus ne sort qu'en dernier.
     if (!issue || issue.refus.length) {
       const motif = panne ?? issue!.refus[0];
-      const sures = v.fiche.ecrans.filter((x) => x.scene !== "titre" && x.textesEcran.length > 0).map((x) => x.id);
+      // Grands vides (issue 119) : seuls les écrans NOMMÉS en défaut (Q13, Q14) passent en texte seul, jamais toute la vidéo.
+      const nommes = issue ? ecransEnDefautIV(issue.resultat.ligne) : { q13: [], q14: [] };
+      const sures = [...new Set([...nommes.q13, ...nommes.q14])].filter((id) => v.fiche.ecrans.some((x) => x.id === id && x.scene !== "titre" && x.textesEcran.length > 0));
       let sure: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
       try {
-        sure = mettreEnSceneAvecFiletIV(mettre, sures, nomVersion(v), v.fiche);
+        sure = sures.length ? mettreEnSceneAvecFiletIV(mettre, sures, nomVersion(v), v.fiche) : undefined;
       } catch {
         sure = undefined;
       }
@@ -1608,7 +1610,7 @@ export const VERSION_COMPOSITIONS_IV = "compositions-iv/14"; // /14 (26/10/2026)
 
 /**
  * Écrans de la fiche à passer en texte seul : ceux que le rendu a nommés (identifiant d'écran de la fiche, ou bloc de la ligne de
- * temps retrouvé par ses plans) ; à défaut, tous ceux qui ont un texte d'écran. PUR.
+ * temps retrouvé par ses plans) ; à défaut, aucun (jamais toute la vidéo). PUR.
  */
 export function ecransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nommes: readonly string[] | undefined): string[] {
   return choisirEcransAAdapterIV(fiche, ligne, nommes).ids;
@@ -1623,7 +1625,8 @@ export function choisirEcransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV
     const bloc = ligne.blocs.find((b) => b.id === id);
     if (bloc) for (const p of ligne.plans) if (p.ecran && avecTexte.includes(p.ecran) && p.debut < bloc.fin - 1e-6 && p.fin > bloc.debut + 1e-6) trouves.add(p.ecran);
   }
-  return trouves.size ? { ids: avecTexte.filter((x) => trouves.has(x)), repli: false } : { ids: avecTexte, repli: true };
+  // Grands vides (issue 119) : si le rendu n'en nomme aucun retrouvé, on ne passe pas toute la vidéo en texte seul (`repli`, aucun écran).
+  return trouves.size ? { ids: avecTexte.filter((x) => trouves.has(x)), repli: false } : { ids: [], repli: true };
 }
 
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
