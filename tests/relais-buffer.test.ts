@@ -172,7 +172,7 @@ describe("relais : durcissements", () => {
     expect((await GET(requete("GET", "bytes=0-4"), ctx(jeton))).status).toBe(206);
     expect((await GET(requete("GET"), ctx(creerJetonMediaBuffer("f-reel", Date.now() + 1000)))).status).toBe(200);
   });
-  it("au plus 3 flux GET simultanés par jeton : le 4e est refusé (429), accepté après fermeture d'un flux", async () => {
+  it("au plus 8 flux GET simultanés par jeton : le 9e est refusé (429), accepté après fermeture d'un flux", async () => {
     const jeton = creerJetonMediaBuffer("f-reel");
     const ouverts: Response[] = [];
     for (let i = 0; i < LIMITE_FLUX_SIMULTANES; i++) {

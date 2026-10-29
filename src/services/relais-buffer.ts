@@ -17,12 +17,12 @@ const ADRESSE_PAR_DEFAUT = "https://studio.axion-ia.com";
  * Limites de débit par jeton (compteurs EN MÉMOIRE du processus : remis à zéro au redémarrage, non partagés entre instances) :
  * - HEAD et GET avec Range : au plus 600 requêtes par minute ;
  * - GET SANS Range (fichier entier) : au plus 30 par minute ;
- * - au plus 3 flux GET simultanés (compteur augmenté à l'ouverture, diminué à la fin, à l'abandon, à l'annulation ou en cas d'erreur).
+ * - au plus 8 flux GET simultanés (un même jeton est partagé par tous les comptes d'un même envoi ; Buffer peut télécharger en parallèle ou par plusieurs Range ; compteur augmenté à l'ouverture, diminué à la fin, à l'abandon, à l'annulation ou en cas d'erreur).
  * Dépassement : 429.
  */
 export const LIMITE_REQUETES_PAR_MINUTE = 600;
 export const LIMITE_GET_ENTIERS_PAR_MINUTE = 30;
-export const LIMITE_FLUX_SIMULTANES = 3;
+export const LIMITE_FLUX_SIMULTANES = 8;
 const FENETRE_MS = 60_000;
 const DELAI_ENTETES_R2_MS = 30_000;
 const ENTETES_COMMUNS = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" } as const;
@@ -52,7 +52,7 @@ function depasse(compteurs: Map<string, number[]>, jeton: string, maintenantMs: 
   return recents.length > limite;
 }
 
-/** Ouvre un flux pour ce jeton ; rend la fonction qui le ferme (une seule fois), ou null si 3 flux sont déjà ouverts. */
+/** Ouvre un flux pour ce jeton ; rend la fonction qui le ferme (une seule fois), ou null si 8 flux sont déjà ouverts. */
 function ouvrirFlux(jeton: string): (() => void) | null {
   const n = fluxOuverts.get(jeton) ?? 0;
   if (n >= LIMITE_FLUX_SIMULTANES) return null;
