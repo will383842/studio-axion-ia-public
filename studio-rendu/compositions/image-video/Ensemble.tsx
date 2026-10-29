@@ -13,7 +13,7 @@ import { COULEURS_DUO } from "../../../src/briques/habillage/charte-duo";
 import { doux, famille, graisse, planSurgir, progres, teinte } from "../cas-concret/plans/commun";
 import { Icone } from "../interface-claire/elements";
 import { couleurTrait, OPACITE_VU } from "./plan";
-import { entreePastille, type PlanEnsemble } from "./plan-objets";
+import { cheminContourne, entreePastille, type PlanEnsemble } from "./plan-objets";
 
 export type ImageSourceEnsemble = { src: string; photoPersonnes: boolean };
 
@@ -48,9 +48,9 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
           const trace = doux(Math.min(entree(de), progres(entree(vers), 0.2, 0.8)));
           if (trace <= 0) return null;
           const k = Math.max(10, (f.vers.y - f.de.y) / 2);
-          const chemin = `M ${f.de.x} ${f.de.y} C ${f.de.x} ${f.de.y + k}, ${f.vers.x} ${f.vers.y - k}, ${f.vers.x} ${f.vers.y}`;
+          const chemin = f.via ? cheminContourne(f.de, f.vers, f.via) : `M ${f.de.x} ${f.de.y} C ${f.de.x} ${f.de.y + k}, ${f.vers.x} ${f.vers.y - k}, ${f.vers.x} ${f.vers.y}`;
           const allume = parId.get(de)?.allume && parId.get(vers)?.allume;
-          return <path key={f.id} d={chemin} pathLength={1} fill="none" stroke={couleurTrait(f.couleur)} strokeWidth={7} strokeLinecap="round" strokeDasharray="1 1" strokeDashoffset={1 - trace} opacity={allume ? 1 : OPACITE_VU} />;
+          return <path key={f.id} d={chemin} pathLength={1} fill="none" stroke={couleurTrait(f.couleur)} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 1" strokeDashoffset={1 - trace} opacity={allume ? 1 : OPACITE_VU} />;
         })}
       </svg>
       {plan.blocs.map((b) => {
