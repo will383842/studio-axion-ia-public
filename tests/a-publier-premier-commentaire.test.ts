@@ -125,4 +125,12 @@ describe("premier commentaire dans l'envoi réel", () => {
     expect(a.commentairesALaMain).toEqual(["tiktok"]);
     expect(b.commentairesALaMain).toBeUndefined();
   });
+
+  it("déjà dans Buffer (brouillon ou programmée) : le serveur refuse un second envoi (DEJA_DANS_BUFFER)", async () => {
+    await cocherTout();
+    await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
+    const autreDate = new Date(Date.parse(DEMAIN) + 3600_000).toISOString();
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], autreDate)).rejects.toMatchObject({ code: "DEJA_DANS_BUFFER" });
+    expect(buffer.mutations()).toHaveLength(1);
+  });
 });
