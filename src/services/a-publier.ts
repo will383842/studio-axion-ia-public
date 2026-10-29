@@ -5,7 +5,7 @@
  * L'interrupteur de la page est éteint par défaut ; seul le booléen exact `true` l'allume.
  */
 import "server-only";
-import { libellePublication } from "@/domaine/buffer";
+import { libellePublication, occupeBuffer } from "@/domaine/buffer";
 import type { ComptesReseauEnvoi } from "@/domaine/comptes-envoi";
 import type { IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
 import type { Tonalite } from "@/domaine/libelles";
@@ -94,10 +94,10 @@ export interface VueAPublier {
   lignes: LigneAPublier[];
 }
 
-function etatDe(p: Publication | undefined): EtatLigneAPublier | undefined {
+/** `envoye` : une publication de ce réseau occupe déjà Buffer (pas seulement la dernière), donc plus d'envoi d'ici. */
+function etatDe(p: Publication | undefined, envoye: boolean): EtatLigneAPublier | undefined {
   if (!p) return undefined;
   const { libelle, ton } = libellePublication(p);
-  const envoye = p.via === "buffer" ? p.etatEnvoi !== "refuse" && p.etatEnvoi !== "absent" && p.statut !== "echec" : false;
   return { libelle, ton, envoye, ...(p.statut === "publiee" && p.urlPubliee ? { lien: p.urlPubliee } : {}), ...(p.erreur ? { detail: p.erreur } : {}) };
 }
 
@@ -131,7 +131,8 @@ export async function vueAPublier(): Promise<VueAPublier> {
     for (const reseau of voulus) {
       const r = kit.reseaux.find((x) => x.reseau === reseau);
       if (!r) continue;
-      const derniere = pubs.filter((p) => p.reseau === reseau).sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0];
+      const deCeReseau = pubs.filter((p) => p.reseau === reseau);
+      const derniere = [...deCeReseau].sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0];
       const commentaire = await premierCommentaireDeVideo(carte.id, reseau, kit.variante);
       let blocage: string | undefined;
       if (kit.videoEssai) blocage = "Vidéo d'essai : elle ne part pas sur vos réseaux.";
@@ -159,7 +160,7 @@ export async function vueAPublier(): Promise<VueAPublier> {
         coches: kit.avantDePublier,
         ...(blocage ? { blocage } : {}),
         ...(kit.variante?.sujetId ? { sujetId: kit.variante.sujetId } : {}),
-        etat: etatDe(derniere),
+        etat: etatDe(derniere, deCeReseau.some(occupeBuffer)),
       });
     }
   }
