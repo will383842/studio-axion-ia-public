@@ -191,6 +191,9 @@ describe("À publier par réseau — vue Tous et tranches de 20", () => {
     // Vue Tous : 20 au plus PAR section, LinkedIn n'est pas écrasé par Facebook.
     const tous = liste(l);
     expect(lignesLi(tous)).toBe(25);
+    // Le lien de la section Facebook ouvre l'onglet Facebook (40 vidéos) et n'agrandit pas LinkedIn.
+    expect(tous).toContain('href="/a-publier?reseau=facebook&amp;n=40"');
+    expect(tous).not.toContain("reseau=linkedin&amp;n=");
     expect(tous.split("<section").slice(1).map(lignesLi)).toEqual([5, 20]);
   });
 });

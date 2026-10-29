@@ -106,7 +106,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                   <p className="text-xs text-texte-faible">
                     {montrees.length} vidéos sur {s.lignes.length}
                   </p>
-                  <Link href={lienListeReseau(reseau, filtre, affichees + TRANCHE)} className="inline-flex min-h-11 items-center rounded-full border border-trait px-5 text-sm font-semibold text-texte hover:border-orange">
+                  <Link href={lienListeReseau(s.reseau, filtre, affichees + TRANCHE)} className="inline-flex min-h-11 items-center rounded-full border border-trait px-5 text-sm font-semibold text-texte hover:border-orange">
                     Voir 20 de plus
                   </Link>
                 </div>
