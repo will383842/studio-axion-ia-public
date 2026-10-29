@@ -8,16 +8,6 @@ import { obtenirReseau } from "@/reseaux";
 import type { LigneAPublier } from "@/services/a-publier";
 import { FILTRES, nombreAffichees, TRANCHE, tranche, type FiltreListe } from "./liste-a-publier";
 import { compteursParReseau, deCeReseau, filtrerReseau, lienDetailReseau, lienListeReseau, lignesParReseau, reseauDepuis, reseauxPresents, sectionsParReseau, type ReseauListe } from "./liste-par-reseau";
-
-import Image from "next/image";
-import Link from "next/link";
-import { Icone } from "@/components/ui/Icone";
-import { Pastille } from "@/components/ui/Pastille";
-import { cn } from "@/lib/cn";
-import { compter, filtrerListe, FILTRES, lienDetail, lienListe, nombreAffichees, tranche, trierListe, type FiltreListe } from "./liste-a-publier";
-import { regrouperParVideo } from "./regrouper-a-publier";
-import type { LigneAPublier } from "@/services/a-publier";
-
 /**
  * La liste compacte, séparée par réseau : une ligne par vidéo POUR CE RÉSEAU (miniature, titre, état de ce réseau, format).
  * Une vidéo prévue pour deux réseaux apparaît dans les deux. Composant sans état : réseau, filtre et nombre de vidéos viennent de l'adresse.
