@@ -19,7 +19,8 @@ import { mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV, type Resul
 import { AXE_OUVERTURE, DUREE_MAX_OUVERTURE_SEC, type DonneesOuvertureIV } from "@/moteurs/montage-image-video/variete/axes/ouverture";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import { COMPOSITIONS_RENDU_IV, parametresDuBloc } from "@/services/image-video-rendu";
-import type { DonneesOuverture } from "../../../studio-rendu/compositions/image-video/variete/ouverture/donnees";
+import { libelleRecul, type DonneesOuverture } from "../../../studio-rendu/compositions/image-video/variete/ouverture/donnees";
+import { largeurAnton } from "@/briques/schema-motion/chasse-anton";
 import { invariantsVarieteIV } from "./invariants";
 
 const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
@@ -215,5 +216,39 @@ describe("ouverture · contrat moteur ↔ composition", () => {
   it("les données du moteur s'assignent au type lu par la composition", () => {
     const d: DonneesOuverture = donnees(premier(avec("C", "OUV-B")))!;
     expect(d.code).toBe("OUV-B");
+  });
+});
+
+describe("ouverture · OUV-E recul : le libellé de la carte centrale ne passe plus sous la pastille", () => {
+  const largeur = (l: string, taille: number) => largeurAnton(l, 1) * taille;
+
+  it("« Kine prévenu de la réponse » : chaque ligne tient dans la carte (lc − 90), taille 58 px au moins", () => {
+    const r = libelleRecul("Kine prévenu de la réponse");
+    expect(r.lignes.join(" ")).toBe("Kine prévenu de la réponse");
+    expect(r.lignes.length).toBeGreaterThan(1);
+    expect(r.taille).toBeGreaterThanOrEqual(58);
+    for (const l of r.lignes) expect(largeur(l, r.taille)).toBeLessThanOrEqual(r.lc - 90);
+  });
+
+  it("« Alerte Telegram » : une ligne, taille de l'ancienne formule, lc 530 (le 9:16 court est inchangé)", () => {
+    const r = libelleRecul("Alerte Telegram");
+    const ancienne = Math.max(58, Math.min(64, Math.floor(440 / Math.max(0.01, largeurAnton("Alerte Telegram", 1)))));
+    expect(r).toEqual({ lignes: ["Alerte Telegram"], taille: ancienne, lc: 530 });
+  });
+
+  it("jamais de blocage : un libellé démesuré rend des lignes et une remarque", () => {
+    const long = "Réponse envoyée automatiquement au patient concerné par le cabinet";
+    const r = libelleRecul(long);
+    expect(r.lignes.join(" ")).toBe(long);
+    expect(r.lc).toBeLessThanOrEqual(900);
+  });
+
+  it("balisage figé du libellé court : la div d'une ligne est celle d'avant, la colonne n'existe que pour 2 lignes", () => {
+    const src = readFileSync(join(__dirname, "../../../studio-rendu/compositions/image-video/variete/ouverture/ouv-e.tsx"), "utf8");
+    const une = '<div style={{ position: "absolute", left: 50, top: 0, width: lc - 70, height: 140, display: "flex", alignItems: "center", justifyContent: "center", ...ANTON, textTransform: "none", fontSize: tailleQuiTient(libelle, 64, lc - 90, 58), color: C.encre, whiteSpace: "nowrap" }}>{libelle}</div>';
+    expect(src).toContain(`{r.lignes.length === 1 ? (\n          ${une}\n        ) : (`);
+    expect(src).toContain('flexDirection: "column"');
+    expect(src).toContain("lineHeight: 1");
+    expect(src).toContain("const lc = r.lc;");
   });
 });

@@ -4,6 +4,7 @@
  * données du moteur s'y assignent.
  */
 import { largeurAnton } from "../../../../../src/briques/schema-motion/chasse-anton";
+import { couperEquilibre } from "../../../../../src/briques/schema-motion/plan-objets";
 export type CouleurNoeudOuverture = "orange" | "noir" | "vert" | "neutre";
 export type ChiffreOuverture = { texte: string; nombre: string; unite: string; cle: string };
 export type CoteOuverture = { chiffre: ChiffreOuverture; libelle: string | null; icone: string | null };
@@ -54,3 +55,25 @@ export function grosPlanOuvE(libelle: string, format: "9:16" | "4:5") {
 export type AfficheIV = { donnees: Extract<DonneesOuverture, { code: "OUV-D" }>; fond: "ivoire" | "sombre"; images: number };
 /** Propriétés d'une composition dont la première image est l'affiche (absente ou `null` : rien de posé). */
 export type AvecAfficheIV = { affiche?: AfficheIV | null };
+
+/**
+ * OUV-E · recul : le libellé de la carte centrale (460 px). Une ligne tant qu'elle tient à 58 px au moins (code d'avant,
+ * `lc` 530) ; sinon 2 lignes équilibrées à 64 px au plus ; sinon la carte s'élargit (900 px au plus, `lc` = ligne la plus
+ * large à 58 px + 90) ; sinon la taille qui tient, sous 58 px, avec une remarque (jamais un blocage).
+ */
+export function libelleRecul(libelle: string): { lignes: string[]; taille: number; lc: number } {
+  const dispo = 440;
+  const tient = (l: string, largeur: number) => Math.floor(largeur / Math.max(0.01, largeurAnton(l, 1)));
+  const une = tient(libelle, dispo);
+  if (une >= 58) return { lignes: [libelle], taille: Math.min(64, une), lc: 530 };
+  const mots = libelle.split(/\s+/).filter(Boolean);
+  const lignes = couperEquilibre(mots, 2).map((m) => m.join(" "));
+  const large = Math.max(0.01, ...lignes.map((l) => largeurAnton(l, 1)));
+  const deux = Math.floor(Math.min(64, dispo / large));
+  if (deux >= 58) return { lignes, taille: deux, lc: 530 };
+  const lc = Math.min(900, Math.ceil(large * 58) + 90);
+  const taille = Math.floor(Math.min(64, (lc - 90) / large));
+  if (taille >= 58) return { lignes, taille, lc };
+  console.warn(`OUV-E recul : le libellé « ${libelle} » ne tient pas à 58 px (${taille} px)`);
+  return { lignes, taille, lc };
+}
