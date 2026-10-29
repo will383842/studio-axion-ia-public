@@ -6,7 +6,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { NOM_COOKIE_SESSION, verifierJeton } from "@/lib/jeton-session";
-import { jetonAccepte, jetonDeLEntete, porteAllumee, type Env as EnvPorte } from "@/usine/jeton-porte";
+import { jetonAccepte, jetonDeLEntete, porteAllumee, secretsEnConflit, type Env as EnvPorte } from "@/usine/jeton-porte";
 
 const PUBLICS = [/^\/connexion(\/|$)/, /^\/v\//, /^\/api\/sante$/, /^\/api\/crochets\//, /^\/api\/partages\/[^/]+$/, /^\/hors-ligne$/];
 
@@ -126,9 +126,36 @@ export function gardeUsine(requete: Request, env: EnvPorte = process.env as EnvP
   return null;
 }
 
+/** Alerte déjà émise dans ce processus (un inconnu qui martèle la porte ne doit pas remplir le journal). */
+let conflitSignale = false;
+
+/** Remet le drapeau d'alerte à zéro (tests seulement). */
+export function reinitialiserAlerteConflitPourEssai(): void {
+  conflitSignale = false;
+}
+
+/**
+ * Porte éteinte parce que la configuration réutilise USINE_PORTE_SECRET : le proxy répond 404 avant tout handler, donc c'est
+ * ICI que l'alerte doit partir. Une seule fois par processus ; jamais de secret dans le message.
+ */
+export async function alerterConflitPorte(env: EnvPorte = process.env as EnvPorte): Promise<void> {
+  if (conflitSignale || !secretsEnConflit(env)) return;
+  conflitSignale = true;
+  console.error("[porte-usine] ALERTE : un secret de la porte est identique à USINE_PORTE_SECRET ; porte éteinte (404). Un secret par sens.");
+  try {
+    const { journaliser } = await import("@/services/_commun");
+    await journaliser("porte", "Porte usine /api/usine → 404 : ALERTE configuration : secret de la porte identique à celui de l'autre sens, porte éteinte");
+  } catch {
+    /* le journal ne change jamais la réponse */
+  }
+}
+
 export async function proxy(requete: NextRequest) {
   const { pathname, search } = requete.nextUrl;
-  if (/^\/api\/usine(\/|$)/.test(pathname)) return gardeUsine(requete) ?? NextResponse.next();
+  if (/^\/api\/usine(\/|$)/.test(pathname)) {
+    await alerterConflitPorte();
+    return gardeUsine(requete) ?? NextResponse.next();
+  }
   const partage = /^\/v\/([^/]+)\/?$/.exec(pathname);
   if (partage) return lienPrive(requete, partage[1]);
   if (PUBLICS.some((r) => r.test(pathname))) return NextResponse.next();
