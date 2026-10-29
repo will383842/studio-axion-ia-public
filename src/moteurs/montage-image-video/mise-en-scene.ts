@@ -1579,16 +1579,17 @@ const ESSAI_ECRAN = { id: "essai", debutMs: 0, finMs: 3000, evenements: [] } as 
 const ROLES_LIGNE: ReadonlySet<RoleEl> = new Set<RoleEl>(["ligne", "question", "appel"]);
 
 /** Contenu d'un écran v4 d'émotion (accroche, chiffre, titre) qui montre ces lignes : seule règle, lue par `blocsEcran`. */
-function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: string[]): EcranCale {
+export function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: string[]): EcranCale {
   const orange = lignes.find((t) => t.includes("*"));
   const lu = scene === "chiffre" && orange ? chiffresDuTexte(sansBalises(orange))[0] : undefined;
   if (lu && lu.valeur !== null && orange) {
     const ligne = sansBalises(orange).trim();
     const apresChiffre = (x: string) => x.replace(/^\s*[\d\s,.:h]+/u, "").trim();
-    // Ligne qui ne commence pas par le nombre (« Relance à *3 jours* ») : l'unité est le mot qui suit le nombre, la légende ce qui se lit avant.
-    const enFin = !/^\s*\d/u.test(ligne) && lu.unite !== "heure" && ligne.includes(lu.brut);
+    // Ligne qui finit par le nombre (« Relance à *3 jours* ») : `lu.brut` porte déjà l'unité (« 3 jours »), l'unité est ce qui reste du brut
+    // une fois le nombre ôté ; la légende est ce qui se lit avant. Chiffre au milieu : l'ancien chemin, sortie inchangée.
+    const enFin = !/^\s*\d/u.test(ligne) && lu.unite !== "heure" && ligne.trimEnd().endsWith(lu.brut);
     if (enFin) {
-      const unite = ligne.slice(ligne.indexOf(lu.brut) + lu.brut.length).trim().split(/\s+/u)[0] ?? "";
+      const unite = lu.brut.replace(/^[\d\s\u00a0\u202f,.]+/u, "").trim();
       const legende = legendeDuChiffre(ligne, lu.brut);
       return { ...base, type: "chiffre", nombre: lu.valeur, unite, pastilles: [...(legende ? [legende] : []), ...lignes.filter((x) => x !== orange).map(sansBalises)], compteur: true } as EcranCale;
     }

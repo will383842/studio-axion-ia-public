@@ -10,8 +10,11 @@
 
 const SEPARATEURS = "\\s=·:—–\\-";
 /** Mots-outils qui ne se lisent plus une fois le chiffre parti : « Relance à ». */
-const MOT_OUTIL = new RegExp(`(?:^|[${SEPARATEURS}'’])(?:à|a|au|aux|de|du|des|d|en|dans|sous|sur|par|pour|après|apres|chaque)['’]?$`, "iu");
-const COMPARATIF = /(?:^|[\s'’])(?:moins d(?:e|u|es)?|plus d(?:e|u|es)?|jusqu['’]?(?:à|a|au|aux)|environ)['’]?$/iu;
+const MOT_OUTIL = new RegExp(`(?:^|[${SEPARATEURS}'’])(?:à|au|aux|de|du|d|en|dans|sous|pour|après|apres|chaque)['’]?$`, "iu");
+/** « A » majuscule seul (« RELANCE A 3 JOURS », accents perdus) : un mot-outil, sauf après « y » (« IL Y A »). */
+const A_MAJUSCULE = new RegExp(`(?:^|(?<![yY][${SEPARATEURS}'’]*)[${SEPARATEURS}'’])A$`, "u");
+const COMPARATIF =
+  /(?:^|[\s'’])(?:moins d(?:e|u|es)?|plus d(?:e|u|es)?|pas plus|jusqu['’]?(?:à|a|au|aux)|environ|pr[èe]s d(?:e|u|es)?|au moins|au plus|à peine|a peine|presque|d[èe]s|sur|par)['’]?$/iu;
 const SEPARATEURS_FIN = new RegExp(`[${SEPARATEURS}]+$`, "u");
 
 const nettoye = (t: string) => t.replace(SEPARATEURS_FIN, "").trimEnd();
@@ -28,7 +31,9 @@ export function legendeDuChiffre(phrase: string, chiffre: string): string {
   const tete = nettoye(avant);
   if (COMPARATIF.test(tete)) return phrase.trim();
   let legende = tete;
-  while (MOT_OUTIL.test(legende)) legende = nettoye(legende.replace(MOT_OUTIL, ""));
+  while (MOT_OUTIL.test(legende) || A_MAJUSCULE.test(legende)) legende = nettoye(legende.replace(MOT_OUTIL.test(legende) ? MOT_OUTIL : A_MAJUSCULE, ""));
   // Un comparatif resté en route (« jusqu'à environ ») : la phrase entière.
-  return COMPARATIF.test(legende) ? phrase.trim() : legende;
+  if (COMPARATIF.test(legende)) return phrase.trim();
+  // Plus rien après les mots-outils (« En 3 jours ») : la tête, comme avant.
+  return legende || tete;
 }
