@@ -73,12 +73,15 @@ describe("Réserve · le prix informe, il ne bloque jamais", () => {
   const fabriquer = (html: string) => [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].map((m) => m[0]).find((b) => b.includes("Fabriquer le suivant"))!;
   const desactive = (bouton: string) => /^<button\b[^>]*\sdisabled(=""|\s|>)/.test(bouton);
 
-  it("le prix au plus est affiché sur le bouton, qui n'est pas désactivé, même à prix énorme, nul ou absent", () => {
-    for (const prix of [120, 9_999_999, 0]) {
+  it("le prix au plus est affiché sur le bouton, qui n'est pas désactivé, même à prix énorme ; à prix nul, le bouton n'affiche aucun prix", () => {
+    for (const prix of [120, 9_999_999]) {
       const html = rendre(reserve(el("a1", {})), prix);
       expect(texte(html)).toContain("Fabriquer le suivant (au plus");
       expect(desactive(fabriquer(html))).toBe(false);
     }
+    const nul = rendre(reserve(el("a1", {})), 0);
+    expect(texte(nul)).not.toContain("au plus");
+    expect(desactive(fabriquer(nul))).toBe(false);
     // Contrôle du contrôle : un bouton réellement désactivé est bien reconnu (« Ajouter » l'est quand la zone est vide).
     expect(desactive('<button type="button" disabled="" class="x">Ajouter</button>')).toBe(true);
     expect(texte(rendre(reserve(el("a1", {}))))).toMatch(/au plus 1,20\s?€/);

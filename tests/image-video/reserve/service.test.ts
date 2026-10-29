@@ -161,6 +161,24 @@ describe("fabriquerSuivantReserveIV", () => {
     expect(await el(id)).toMatchObject({ etat: "a-faire", essais: 1, note: "à relire" });
   });
 
+  it("élément remis à faire avec un ancien brouillon annulé : la vidéo neuve est reliée, pas l'ancienne", async () => {
+    const id = await ajouter("idee", IDEE);
+    const { ajouteLe } = await el(id);
+    await depots().videos.enregistrer({ id: "v-vieux", titre: "x", formatId: ID_FORMAT_IMAGE_VIDEO, statut: "brouillon", entrees: { imageVideo: { texte: IDEE, reserveId: id } }, creeLe: ajouteLe, modifieLe: ajouteLe } as unknown as Video);
+    await travail("v-vieux", "annule");
+    await new Promise((fin) => setTimeout(fin, 5));
+    depotTexte.mockImplementationOnce(async () => {
+      const plusTard = new Date(Date.now() + 5000).toISOString();
+      await depots().videos.enregistrer({ id: "v-neuf", titre: "x", formatId: ID_FORMAT_IMAGE_VIDEO, statut: "brouillon", entrees: { imageVideo: { texte: IDEE, reserveId: id } }, creeLe: plusTard, modifieLe: plusTard } as unknown as Video);
+      await travail("v-neuf", "en_cours", etat("lecture"));
+      throw new Error("coupure après création");
+    });
+    const bruit = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await reserve.fabriquerSuivantReserveIV()).toEqual({ statut: "lancee", id, videoId: "v-neuf", reprise: true });
+    bruit.mockRestore();
+    expect(await el(id)).toMatchObject({ etat: "en-cours", videoId: "v-neuf" });
+  });
+
   it("double clic simultané : un seul dépôt, l'autre clic est « occupé »", async () => {
     await ajouter("idee", IDEE);
     await ajouter("idee", IDEE);

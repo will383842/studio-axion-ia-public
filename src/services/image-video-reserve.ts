@@ -152,7 +152,7 @@ export function apercuSuivantReserveIV(r: ReserveIV, tauxUsdEur: number): { rese
  */
 export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}): Promise<IssueFabricationReserveIV> {
   await exigerSession();
-  const choix = await sousVerrou<"occupe" | { element: ElementReserveIV } | { repris: ElementReserveIV; videoId: Id } | null>(async () => {
+  const choix = await sousVerrou<"occupe" | { element: ElementReserveIV; lancee: string } | { repris: ElementReserveIV; videoId: Id } | null>(async () => {
     const r = await lireReserveIV();
     const t = Date.parse(maintenant());
     // Un lancement récent, sans vidéo : un autre clic est déjà en route (pas d'orphelin avant le délai).
@@ -173,14 +173,15 @@ export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}):
     }
     const element = orphelin ?? prochainIV(r);
     if (!element) return null;
-    await ecrireBrut(marquerLancementIV(r, element.id, maintenant()));
-    return { element };
+    const lancee = maintenant();
+    await ecrireBrut(marquerLancementIV(r, element.id, lancee));
+    return { element, lancee };
   });
   if (!choix) return { statut: "vide" };
   if (choix === "occupe") return { statut: "occupe" };
   if ("repris" in choix) return { statut: "lancee", id: choix.repris.id, videoId: choix.videoId, reprise: true };
 
-  const { element } = choix;
+  const { element, lancee } = choix;
   const reseaux = RESEAUX_IV.filter((r) => element.reseaux.includes(r)) as ReseauIV[];
   const taux = await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))();
   const deposer = (accordCentimes: number): Promise<IssueDepotTexteIV> =>
@@ -193,7 +194,8 @@ export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}):
     if (issue.statut === "accord-requis") issue = await deposer(issue.centimes);
   } catch (e) {
     // Le dépôt a pu créer le brouillon avant de tomber : on le retrouve (reserveId) avant toute remise à faire.
-    const brouillon = await brouillonDeLOrphelin(element, await lireReserveIV());
+    // `element` date d'avant le lancement : lanceeLe y manque peut-être, la recherche partirait de l'ancienne vidéo.
+    const brouillon = await brouillonDeLOrphelin({ ...element, lanceeLe: lancee }, await lireReserveIV());
     if (brouillon) {
       if (await dernierTravail(brouillon)) {
         await modifier((r) => ({ reserve: lierVideoIV(r, element.id, brouillon), sortie: null }));

@@ -173,7 +173,7 @@ export function Reserve({ reserve, suivantReseaux, prix }: { reserve: ReserveIV;
       <div className="space-y-2">
         {/* Le prix informe seulement : le bouton n'est jamais désactivé par lui. */}
         <Bouton icone="film" taille="lg" pleineLargeur chargement={occupe} disabled={occupe} onClick={() => void fabriquer()}>
-          {suivantReseaux > 0 ? `Fabriquer le suivant (au plus ${euros(prix)})` : "Fabriquer le suivant"}
+          {suivantReseaux > 0 && prix > 0 ? `Fabriquer le suivant (au plus ${euros(prix)})` : "Fabriquer le suivant"}
         </Bouton>
         {phrase && (
           <p role="alert" className="text-sm text-brique">
