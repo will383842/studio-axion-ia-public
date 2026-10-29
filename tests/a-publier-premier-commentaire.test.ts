@@ -133,4 +133,21 @@ describe("premier commentaire dans l'envoi réel", () => {
     await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], autreDate)).rejects.toMatchObject({ code: "DEJA_DANS_BUFFER" });
     expect(buffer.mutations()).toHaveLength(1);
   });
+
+  it("deux comptes LinkedIn : un envoi vers A laisse la ligne envoyable vers B, et le serveur refuse A (DEJA_DANS_BUFFER)", async () => {
+    await cocherTout();
+    await depots().videos.modifier(VIDEO, { etapeEditoriale: "validee" });
+    await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } });
+    const ligne = (await (await import("@/services/a-publier")).vueAPublier()).lignes.find((l) => l.cle === `${VIDEO}:linkedin`);
+    expect(ligne?.compte.choix?.length).toBe(2);
+    // Pris : A seul. La ligne n'est pas bloquée pour tout le réseau : B reste à cocher et à envoyer.
+    expect(ligne?.etat).toMatchObject({ envoye: false, comptesPris: [CANAUX.linkedinPage], sansCompte: false });
+    const apres = new Date(Date.parse(DEMAIN) + 3600_000).toISOString();
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], apres, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toMatchObject({ code: "DEJA_DANS_BUFFER" });
+    const r = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], apres, { comptes: { linkedin: [CANAUX.linkedinProfil] } });
+    expect(r.publications[0]).toMatchObject({ canalId: CANAUX.linkedinProfil, etatEnvoi: "envoye" });
+    // Les deux comptes pris : la ligne est bloquée.
+    const finale = (await (await import("@/services/a-publier")).vueAPublier()).lignes.find((l) => l.cle === `${VIDEO}:linkedin`);
+    expect(finale?.etat).toMatchObject({ envoye: true });
+  });
 });

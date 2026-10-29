@@ -62,7 +62,9 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
   const [pourSujet, setPourSujet] = useState(false);
   const manque = l.casesRequises.filter((c) => !coches[c]);
   const avecChoix = !!l.compte.choix?.length;
-  const raison = l.blocage ?? l.compte.probleme ?? (avecChoix && !comptes.length ? "Cochez le compte où envoyer." : undefined) ?? (manque.length ? `Avant de publier : ${manque.map((c) => LIBELLES_CASES[c]).join(", ")}.` : undefined) ?? (l.etat?.envoye ? "Déjà envoyée pour ce réseau." : undefined);
+  // Par compte, comme le serveur : seuls les comptes cochés déjà pris bloquent ; les autres restent envoyables.
+  const dejaPris = !!l.etat && (avecChoix ? l.etat.sansCompte || (comptes.length > 0 && comptes.every((c) => l.etat!.comptesPris.includes(c))) : l.etat.envoye);
+  const raison = l.blocage ?? l.compte.probleme ?? (avecChoix && !comptes.length ? "Cochez le compte où envoyer." : undefined) ?? (manque.length ? `Avant de publier : ${manque.map((c) => LIBELLES_CASES[c]).join(", ")}.` : undefined) ?? (dejaPris ? (avecChoix ? `Déjà envoyée vers ${comptes.filter((c) => l.etat!.comptesPris.includes(c)).map((c) => l.compte.choix!.find((x) => x.id === c)?.nom ?? c).join(", ") || "ce réseau"}.` : "Déjà envoyée pour ce réseau.") : undefined);
   const peutEnvoyer = !raison && !envoiSimule;
   const modifie = texte !== l.texte;
 
