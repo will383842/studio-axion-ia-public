@@ -48,6 +48,13 @@ describe("garde : secret", () => {
     }
   });
 
+  it("secret faible (un caractère répété, préfixe dev- ou test-, espace) → 404 comme éteinte", async () => {
+    for (const v of ["a".repeat(40), "dev-" + SECRET, "TEST-" + SECRET, SECRET.slice(0, 20) + " " + SECRET.slice(20)]) {
+      vi.stubEnv("STUDIO_PORTE_SECRET", v);
+      expect((await PUT(appel(ok(), {}, v))).status, v.slice(0, 6)).toBe(404);
+    }
+  });
+
   it("mauvais secret ou en-tête absent → 401 sans détail", async () => {
     for (const s of ["x".repeat(40), SECRET.slice(0, -1), null]) {
       const r = await PUT(appel(ok(), {}, s));

@@ -10,10 +10,11 @@ export type Env = { STUDIO_PORTE_SECRET?: string; STUDIO_PORTE_SECRET_PRECEDENT?
 
 const empreinte = (s: string) => createHash("sha256").update(s).digest();
 
-/** Secret lisible seulement s'il a 32 caractères au moins. */
+/** Secret lisible seulement s'il a 32 caractères au moins, sans espace, ni un seul caractère répété, ni préfixe « dev- » ou « test- ». */
 export function secretValide(v: string | undefined): string | null {
   const s = v?.trim() ?? "";
-  return s.length >= LONGUEUR_MIN_SECRET_PORTE ? s : null;
+  if (s.length < LONGUEUR_MIN_SECRET_PORTE || /\s/.test(s) || /^(.)\1*$/.test(s) || /^(dev|test)-/i.test(s)) return null;
+  return s;
 }
 
 /** Égalité à temps constant de deux secrets (empreintes SHA-256 de même longueur). */
