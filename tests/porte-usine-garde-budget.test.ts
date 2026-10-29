@@ -12,7 +12,7 @@ const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const { moisParis, decalerMois } = await import("@/services/couts");
 const { reinitialiserGardePourEssai } = await import("@/usine/garde-porte");
 const { PUT } = await import("@/app/api/usine/reglages/budget/route");
-const { proxy } = await import("@/proxy");
+const { proxy, reinitialiserAlerteConflitPourEssai } = await import("@/proxy");
 
 const SECRET = "s".repeat(24) + "SECRET-ESSAI-porte-1234567";
 const ANCIEN = "a".repeat(24) + "ANCIEN-ESSAI-porte-1234567";
@@ -31,6 +31,7 @@ const ok = (extra: Record<string, unknown> = {}) => ({ contrat: 2, budget_mensue
 beforeEach(async () => {
   reinitialiserDepots();
   reinitialiserGardePourEssai();
+  reinitialiserAlerteConflitPourEssai();
   vi.stubEnv("STUDIO_PORTE_SECRET", SECRET);
   vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", "");
   vi.stubEnv("USINE_PORTE_SECRET", "");
@@ -111,6 +112,19 @@ describe("garde : un secret par sens", () => {
     vi.stubEnv("USINE_PORTE_SECRET", SORTANT);
     expect((await PUT(appel(ok(), {}, SECRET))).status).toBe(404);
     vi.mocked(console.error).mockRestore();
+  });
+
+  it("par le proxy (le chemin réel) : 404 ET une seule alerte par processus, sans secret", async () => {
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("STUDIO_PORTE_SECRET", SORTANT);
+    vi.stubEnv("USINE_PORTE_SECRET", SORTANT);
+    for (let i = 0; i < 3; i++) expect((await proxy(appel(ok(), {}, SORTANT))).status).toBe(404);
+    expect((await proxy(appel(ok(), {}, null))).status).toBe(404);
+    expect(erreurs).toHaveBeenCalledTimes(1);
+    const journal = (await depots().evenements.lister()).filter((e) => JSON.stringify(e).includes("ALERTE"));
+    expect(journal).toHaveLength(1);
+    for (const sortie of [JSON.stringify(journal), JSON.stringify(erreurs.mock.calls)]) expect(sortie).not.toContain(SORTANT);
+    erreurs.mockRestore();
   });
 
   it("secrets distincts → la porte reste ouverte", async () => {
