@@ -360,7 +360,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
 // ─── Séquenceur ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Le travail le plus récent d'une vidéo. */
-async function dernierTravail(videoId: Id): Promise<Travail | null> {
+export async function dernierTravail(videoId: Id): Promise<Travail | null> {
   const liste = await depots().travaux.lister((t) => t.cibleId === videoId);
   return liste.sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0] ?? null;
 }
@@ -412,7 +412,7 @@ async function recalculerStatuts(lot: LotIV): Promise<LotIV> {
  * Statut d'une vidéo d'après son dernier travail. Un travail refusé par le moteur AVANT tout pas de la machine
  * (`travailRefuse` : en échec, sans état) est un arrêt, pas un brouillon : sinon la vidéo serait relancée à chaque tour.
  */
-function issueDuTravail(travail: Travail) {
+export function issueDuTravail(travail: Travail) {
   const e = etatDe(travail);
   if (e) return statutDepuisEtatIV(e, travail.statut);
   if (travail.statut === "echec") {
