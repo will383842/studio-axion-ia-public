@@ -675,9 +675,16 @@ function poserTexte(c: Ctx, texte: string, toutesCles: Set<string>, apres = 0): 
   return { t: heureMot(c, rang), texte, chiffres: cles, couverts: [...new Set(couverts)].sort((x, y) => x - y) };
 }
 
-/** Parties d'un texte « A · B · C » révélées l'une après l'autre (au moins 0,6 s d'écart), sinon le texte entier. */
-function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>): TextePose[] {
-  const morceaux = texte.split(/\s+·\s+/);
+/**
+ * Parties d'un texte « A · B · C » révélées l'une après l'autre (au moins 0,6 s d'écart), sinon le texte entier.
+ * `virgules` (titre d'en-tête) : une liste « A, B, C » se révèle de même, au bloc dont le libellé est dit (30/10) ; la virgule
+ * décimale (« 2,5 ») ne coupe jamais.
+ */
+function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>, virgules = false): TextePose[] {
+  const coupes = texte.split(virgules ? /(\s+·\s+|,\s+)/ : /(\s+·\s+)/);
+  const morceaux = coupes.filter((_, i) => i % 2 === 0);
+  const liens = coupes.filter((_, i) => i % 2 === 1).map((l) => (l.trim() === "·" ? " · " : ", "));
+  const jusquA = (k: number) => morceaux.slice(0, k + 1).map((m, i) => (i ? liens[i - 1] : "") + m).join("");
   const entier = poserTexte(c, texte, toutesCles);
   if (morceaux.length < 2) return [entier];
   const poses = morceaux.map((m) => poserTexte(c, m, toutesCles));
@@ -689,7 +696,7 @@ function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>): TextePose[] 
   // Révélation cumulée : chaque étape montre les morceaux déjà dits.
   const res: TextePose[] = [];
   poses.forEach((p, k) => {
-    const cumul = morceaux.slice(0, k + 1).join(" · ");
+    const cumul = jusquA(k);
     if (res.length && res[res.length - 1].t === p.t) res[res.length - 1] = { ...p, texte: cumul, chiffres: clesDuTexte(cumul), couverts: [...res[res.length - 1].couverts, ...p.couverts] };
     else res.push({ ...p, texte: cumul, chiffres: clesDuTexte(cumul), couverts: [...(res.at(-1)?.couverts ?? []), ...p.couverts] });
   });
@@ -754,7 +761,7 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   const groupe = c.e.refs.map((r) => carte.noeuds.find((n) => n.id === r)?.groupe).find((g) => g);
   const titreGroupe = carte.groupes.find((g) => g.id === groupe)?.titre;
   const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? etiquetteDeRepli(carte, c.e.scene));
-  const parties = partiesDe(c, titre, toutesCles);
+  const parties = partiesDe(c, titre, toutesCles, true);
   const montreAilleurs = (k: string) => {
     const d = c.chiffres.find((x) => x.cle === k);
     return !d || els.some((x) => x.chiffres.includes(k) && Math.abs(x.t - heureMot(c, d.rang)) <= R.chiffreApres - 0.05);
