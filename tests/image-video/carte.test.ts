@@ -226,6 +226,15 @@ describe("plafonds de durée par réseau (§ 3)", () => {
     expect(v.verdict).toBe("mention");
     expect(v.cas).toBe(2);
   });
+  it("LinkedIn : 67 s (essai dentaire) → livrée avec la mention « un peu longue » ; seuil conseillé 60 s, tolérance 15 % = 69 s, jamais de blocage", () => {
+    const v = verdictPlafond("linkedin", 67);
+    expect(v.cas).toBe(2);
+    expect(v.verdict).toBe("mention");
+    expect(verdictPlafond("linkedin", 60).verdict).toBe("livree");
+    expect(verdictPlafond("linkedin", 69).verdict).toBe("mention");
+    expect(verdictPlafond("linkedin", 70).verdict).toBe("version-courte");
+    expect(depasseLimiteDure("linkedin", 300)).toBe(false);
+  });
   it("74 s TikTok → version courte demandée", () => {
     expect(verdictPlafond("tiktok", 74).verdict).toBe("version-courte");
   });

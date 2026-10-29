@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LignesAPublier } from "@/components/publication/LignesAPublier";
+import { ListeAPublier } from "@/components/publication/ListeAPublier";
+import { filtreDepuis, nombreAffichees } from "@/components/publication/liste-a-publier";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { exigerSession } from "@/services/auth";
@@ -10,18 +11,19 @@ export const metadata: Metadata = { title: "À publier" };
 export const dynamic = "force-dynamic";
 
 /**
- * À PUBLIER (vidéos) : les vidéos validées, une carte par vidéo, ses réseaux prêts dessous, jusqu'à Buffer. Page protégée comme les autres écrans,
- * derrière un réglage éteint par défaut. Elle ne fait que montrer et appeler les envois existants.
+ * À PUBLIER (vidéos) : la liste compacte des vidéos validées, une ligne par vidéo. Un clic ouvre le détail (/a-publier/[id]).
+ * Page protégée comme les autres écrans, derrière un réglage éteint par défaut. Elle ne fait que montrer.
  */
-export default async function PageAPublier() {
+export default async function PageAPublier({ searchParams }: { searchParams: Promise<{ filtre?: string; n?: string }> }) {
   await exigerSession();
   if (!(await pageAPublierAllumee())) notFound();
+  const sp = await searchParams;
   const vue = await vueAPublier();
   return (
     <div>
       <EnTetePage titre="À publier" />
       {vue.lignes.length ? (
-        <LignesAPublier vue={vue} />
+        <ListeAPublier lignes={vue.lignes} filtre={filtreDepuis(sp.filtre)} affichees={nombreAffichees(sp.n)} />
       ) : (
         <EtatVide compact icone="envoyer" titre="Rien à publier" phrase="Les vidéos validées arrivent ici." />
       )}

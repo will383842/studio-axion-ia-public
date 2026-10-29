@@ -19,7 +19,7 @@ import { mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV, type Resul
 import { AXE_OUVERTURE, DUREE_MAX_OUVERTURE_SEC, type DonneesOuvertureIV } from "@/moteurs/montage-image-video/variete/axes/ouverture";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import { COMPOSITIONS_RENDU_IV, parametresDuBloc } from "@/services/image-video-rendu";
-import { libelleRecul, type DonneesOuverture } from "../../../studio-rendu/compositions/image-video/variete/ouverture/donnees";
+import { libelleRecul, xCarteRecul, type DonneesOuverture } from "../../../studio-rendu/compositions/image-video/variete/ouverture/donnees";
 import { largeurAnton } from "@/briques/schema-motion/chasse-anton";
 import { invariantsVarieteIV } from "./invariants";
 
@@ -250,5 +250,35 @@ describe("ouverture · OUV-E recul : le libellé de la carte centrale ne passe p
     expect(src).toContain('flexDirection: "column"');
     expect(src).toContain("lineHeight: 1");
     expect(src).toContain("const lc = r.lc;");
+  });
+});
+
+describe("ouverture · OUV-E recul : le cadre pointillé et les coins restent dans l'écran (nœud en colonne de gauche)", () => {
+  const ancienne = (cx: number, lc: number) => Math.max(60, Math.min(1020 - lc, cx - lc / 2));
+
+  it("nœud à cx 180 : avant, le cadre sortait à gauche ; maintenant cadre et coins sont dans [0, 1080]", () => {
+    for (const lc of [530, 700, 900]) {
+      expect(ancienne(180, 530) - 102).toBeLessThan(0);
+      const xc = xCarteRecul(180, lc);
+      expect(xc - 102, `cadre gauche lc ${lc}`).toBeGreaterThanOrEqual(0);
+      expect(xc - 70 - 5, `coin gauche lc ${lc}`).toBeGreaterThanOrEqual(0);
+      expect(xc + lc + 38, `cadre droit lc ${lc}`).toBeLessThanOrEqual(1080);
+      expect(xc + lc + 28 + 5, `coin droit lc ${lc}`).toBeLessThanOrEqual(1080);
+    }
+  });
+
+  it("la ligne du schéma (cx 180) tombe toujours sous la carte décalée ; le centre et la droite sont inchangés", () => {
+    const xc = xCarteRecul(180, 530);
+    expect(xc).toBeLessThanOrEqual(180);
+    expect(xc + 530).toBeGreaterThanOrEqual(180);
+    for (const cx of [540, 900]) for (const lc of [530, 700]) expect(xCarteRecul(cx, lc)).toBe(ancienne(cx, lc));
+  });
+
+  it("la lecture du libellé sur 2 lignes ne change pas (libelleRecul intact) et ouv-e.tsx utilise le placement", () => {
+    const r = libelleRecul("Kine prévenu de la réponse");
+    expect(r.lignes).toHaveLength(2);
+    expect(r.lc).toBe(530);
+    const src = readFileSync(join(__dirname, "../../../studio-rendu/compositions/image-video/variete/ouverture/ouv-e.tsx"), "utf8");
+    expect(src).toContain("const xc = xCarteRecul(cible.cx, lc);");
   });
 });
