@@ -6,6 +6,8 @@ import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Budget } from "@/components/reglages/Budget";
 import { CarteSection } from "@/components/reglages/CarteSection";
 import { BlocBuffer } from "@/components/reglages/BlocBuffer";
+import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier";
+import { pageAPublierAllumee } from "@/services/a-publier";
 import { Connexions } from "@/components/reglages/Connexions";
 import { Credits } from "@/components/reglages/Credits";
 import { CreditClaude } from "@/components/reglages/CreditClaude";
@@ -119,6 +121,7 @@ export default async function PageReglages() {
   const decorIa = avecMonteur ? await lireReglageDecorIa() : null;
   const coupees = await optionsPayantesCoupees();
   const lignesSite = await lireReglagesSite();
+  const aPublierAllumee = await pageAPublierAllumee();
   const chaine = await lireChaineReglee();
   const plafondSujet = await lirePlafondSujet();
   const gardeSujets = await lireGardeSujets();
@@ -257,6 +260,7 @@ export default async function PageReglages() {
               <ReglagesReseaux initiaux={reglages.reseauxParDefaut} />
               {/* Équipe 7 : la famille de mots-dièse de chaque réseau (TikTok préremplie). */}
               <VosHashtags initiales={reglages.hashtags} />
+              <InterrupteurAPublier key={String(aPublierAllumee)} initial={aPublierAllumee} />
             </CarteSection>
             <CarteSection id="exemples" icone="film" titre="Exemples">
               <InterrupteurExemples initial={reglages.afficherExemples} />

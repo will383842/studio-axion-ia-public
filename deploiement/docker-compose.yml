@@ -134,13 +134,13 @@ services:
       STUDIO_TABLEAU_GARDE_MIN: ${STUDIO_TABLEAU_GARDE_MIN:-}
       # Plafond de dépense fal.ai du processus, en dollars (facultatif ; vide = pas de plafond propre, le budget du studio reste).
       FAL_PLAFOND_USD: ${FAL_PLAFOND_USD:-}
-      # --- Mesures (lot G7, « Mettre à jour les mesures ») : LECTURE SEULE. Vide = mode essai, rien n'est lu. ---
+      # --- Mesures (lot G7, « Mettre à jour les mesures ») : lecture seule, sauf Buffer (voir plus bas). Vide = mode essai, rien n'est lu. ---
       # Plausible : clé de LECTURE des statistiques (visites par lien suivi). Adresse et site : défauts du code si vides
       # (https://plausible.axion-ia.com, axion-ia.com).
       PLAUSIBLE_KEY: ${PLAUSIBLE_KEY:-}
       PLAUSIBLE_URL: ${PLAUSIBLE_URL:-}
       PLAUSIBLE_SITE: ${PLAUSIBLE_SITE:-}
-      # Buffer : lecture des statistiques des publications (jamais de publication). Vide = saisie à la main.
+      # Buffer : clé d'accès. Elle sert à lire les statistiques et à PUBLIER en brouillon (jamais publié tout seul : tout reste en brouillon dans Buffer tant que le réglage ne passe pas à « Programmer »). Vide : essai, rien n'est envoyé, statistiques saisies à la main.
       BUFFER_API_KEY: ${BUFFER_API_KEY:-}
       # Adresse publique du studio dans les e-mails de secours (vide = https://studio.axion-ia.com).
       STUDIO_ADRESSE: ${STUDIO_ADRESSE:-}
