@@ -309,7 +309,7 @@ describe("typo · TYP-C : ponctuation isolée rattachée au mot précédent", ()
   const textesRangees = (l: LigneEcrite[]) => rangeesTexte(l, z.haut, z.bas, 920, 280).map((r) => r.mots.map((k) => l[r.ligne].mots[k].mot));
 
   it("reconnaît ? ! : ; % … et ..., avec ou sans espace (normale, insécable fine ou non), jamais un vrai mot", () => {
-    for (const p of ["?", "!", ":", ";", "%", "…", "...", "\u00a0?", " ?", "\u202f!", "?!"]) expect(estPonctuationIsolee(p), JSON.stringify(p)).toBe(true);
+    for (const p of ["?", "!", ":", ";", "%", "…", "...", "\u00a0?", " ?", "\u202f!", "?!", "»", "\u00a0»", ")", "”", "’"]) expect(estPonctuationIsolee(p), JSON.stringify(p)).toBe(true);
     for (const p of ["oui?", "80", "%a", "a", ""]) expect(estPonctuationIsolee(p), JSON.stringify(p)).toBe(false);
   });
 
@@ -325,6 +325,22 @@ describe("typo · TYP-C : ponctuation isolée rattachée au mot précédent", ()
       for (const r of textesRangees(l)) expect(estPonctuationIsolee(r[0]), r.join(" ")).toBe(false);
     });
   }
+
+  it("guillemet fermant après un mot orange : même rangée que lui, jamais seul", () => {
+    const l: LigneEcrite[] = [{ texte: "Quoi ? »", t: 0, mots: [mot("Quoi", 0), mot("neuf", 1, true), mot("?", 2, true), mot("»", 3)] }];
+    const rs = textesRangees(l);
+    expect(rs.some((r) => r.every((m) => estPonctuationIsolee(m)))).toBe(false);
+    expect(rs.find((r) => r.includes("»"))).toContain("neuf");
+  });
+
+  it("ponctuation en tête de ligne suivie d'un mot orange : pas de rangée de ponctuation seule", () => {
+    for (const p of ["…", "?", "«"]) {
+      const l: LigneEcrite[] = [{ texte: `${p} neuf`, t: 0, mots: [mot(p, 0), mot("neuf", 1, true), mot("tôt", 2)] }];
+      const rs = textesRangees(l);
+      expect(rs.some((r) => r.every((m) => estPonctuationIsolee(m))), p).toBe(false);
+      expect(rs.flat()).toEqual([p, "neuf", "tôt"]);
+    }
+  });
 
   it("point d'exclamation et deux-points isolés : le texte affiché garde l'ordre et tous les mots", () => {
     const l: LigneEcrite[] = [{ texte: "Attention : stop !", t: 0, mots: [mot("Attention", 0), mot(":", 1), mot("stop", 2, true), mot("!", 3)] }];
