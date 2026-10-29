@@ -947,7 +947,7 @@ export async function listerAPublier(): Promise<(VueVideoCarte & { famille: Fami
   return Promise.all(videos.map(async (v) => ({ ...(await versCarte(v)), famille: "video" as const })));
 }
 
-/** « À programmer » : vidéos validées sans publication programmée. */
+/** « À programmer » : les vidéos validées (étape éditoriale « validée »), sans regarder leurs publications. */
 export async function listerAProgrammer(): Promise<VueVideoCarte[]> {
   return (await listerAPublier()).map(({ famille, ...carte }) => (void famille, carte));
 }
