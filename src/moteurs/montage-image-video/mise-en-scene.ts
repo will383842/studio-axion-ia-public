@@ -54,6 +54,7 @@ import { calerFiche, cleMot, type CalageIV, type MotCale } from "./calage";
 import { ecranV4Tient } from "./ecrans-v4";
 import { cleChiffre, clesDeLaCarte, clesDuTexte, controlerMiseEnSceneIV, instantsVisibles, type RapportMiseEnSceneIV } from "./controles-scene";
 import type { FinIV } from "./fins";
+import { legendeDuChiffre } from "./legende-chiffre";
 import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
 import { sousTitresIV, type MotFort, type SousTitresIV } from "./sous-titres";
@@ -1578,12 +1579,20 @@ const ESSAI_ECRAN = { id: "essai", debutMs: 0, finMs: 3000, evenements: [] } as 
 const ROLES_LIGNE: ReadonlySet<RoleEl> = new Set<RoleEl>(["ligne", "question", "appel"]);
 
 /** Contenu d'un écran v4 d'émotion (accroche, chiffre, titre) qui montre ces lignes : seule règle, lue par `blocsEcran`. */
-function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: string[]): EcranCale {
+export function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: string[]): EcranCale {
   const orange = lignes.find((t) => t.includes("*"));
   const lu = scene === "chiffre" && orange ? chiffresDuTexte(sansBalises(orange))[0] : undefined;
   if (lu && lu.valeur !== null && orange) {
     const ligne = sansBalises(orange).trim();
     const apresChiffre = (x: string) => x.replace(/^\s*[\d\s,.:h]+/u, "").trim();
+    // Ligne qui finit par le nombre (« Relance à *3 jours* ») : `lu.brut` porte déjà l'unité (« 3 jours »), l'unité est ce qui reste du brut
+    // une fois le nombre ôté ; la légende est ce qui se lit avant. Chiffre au milieu : l'ancien chemin, sortie inchangée.
+    const enFin = !/^\s*\d/u.test(ligne) && lu.unite !== "heure" && ligne.trimEnd().endsWith(lu.brut);
+    if (enFin) {
+      const unite = lu.brut.replace(/^[\d\s\u00a0\u202f,.]+/u, "").trim();
+      const legende = legendeDuChiffre(ligne, lu.brut);
+      return { ...base, type: "chiffre", nombre: lu.valeur, unite, pastilles: [...(legende ? [legende] : []), ...lignes.filter((x) => x !== orange).map(sansBalises)], compteur: true } as EcranCale;
+    }
     // Heure (« 23h14 ») : la ligne se lit comme avant. Sinon l'unité s'arrête au tiret de séparation (« *80%* — Réponse connue » donne
     // « % ») et ce qui suit le tiret devient la première pastille (« Réponse connue »), sans tiret : l'unité n'est plus toute la fin de ligne.
     const [unitePartie, ...suite] = lu.unite === "heure" ? [apresChiffre(ligne)] : apresChiffre(ligne).split(/\s+[—–-]\s+/u);
@@ -2308,7 +2317,8 @@ function blocMoments(id: string, lot: EcranPlace[], carte: CarteImage, debut: nu
       sorte: "bandeau",
       etiquette: "Résultat",
       chiffres: els.filter((x) => x.role === "bandeau").map((x) => {
-        const legende = carte.bandeau.find((b) => b.includes(x.texte ?? "\u0000"))?.replace(x.texte ?? "", "").replace(/^[\s=·:]+|[\s=·:]+$/g, "").trim();
+        const phrase = carte.bandeau.find((b) => b.includes(x.texte ?? "\u0000"));
+        const legende = phrase === undefined ? undefined : legendeDuChiffre(phrase, x.texte ?? "").replace(/^[\s=·:]+|[\s=·:]+$/g, "").trim();
         return { texte: x.texte ?? "", ...(legende ? { legende } : {}), t: rel(x.t) };
       }),
     };
