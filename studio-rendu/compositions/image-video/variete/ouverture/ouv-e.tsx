@@ -6,7 +6,7 @@ import React from "react";
  */
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
 import { a, ANTON, avance, C, Carte, CarteIcone, couleursNoeud, Ecran, Etiquette, Icone, INTER, T, tailleQuiTient, Vibration } from "../objets-ouverture";
-import { grosPlanOuvE, libelleRecul, type DonneesOuverture, type NoeudSchemaOuverture } from "./donnees";
+import { grosPlanOuvE, libelleRecul, xCarteRecul, type DonneesOuverture, type NoeudSchemaOuverture } from "./donnees";
 import { PhraseChoc, zonePhrase, type PhraseBoucle } from "./phrase-choc";
 
 type D = Extract<DonneesOuverture, { code: "OUV-E" }>;
@@ -88,7 +88,7 @@ function Recul({ d, t, appoint }: { d: D; t: number; appoint: boolean }) {
   const libelle = d.detail.libelle;
   const r = libelleRecul(libelle);
   const lc = r.lc;
-  const xc = Math.max(60, Math.min(1020 - lc, cible.cx - lc / 2));
+  const xc = xCarteRecul(cible.cx, lc);
   return (
     <div style={{ position: "absolute", inset: 0, clipPath: "inset(190px 0 0 0)" }}>
     <div style={{ position: "absolute", inset: 0, transform: `scale(${zoom})`, transformOrigin: `${cible.cx}px ${cible.cy}px` }}>

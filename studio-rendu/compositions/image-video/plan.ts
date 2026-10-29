@@ -340,7 +340,7 @@ export function calculerScene(p: Pick<ProprietesSceneIV, "schema" | "mots" | "du
 export const LISSAGE_CADRE = Object.freeze([0, 0.05, 0.1, 0.15]);
 
 /** La caméra est-elle posée à l'instant `t` (hors d'un panoramique entre deux poses différentes) ? */
-function cameraPosee(images: TrajectoireCamera["images"], t: number): boolean {
+export function cameraPosee(images: TrajectoireCamera["images"], t: number): boolean {
   for (let i = 1; i < images.length; i++) {
     const a = images[i - 1];
     const b = images[i];
@@ -665,6 +665,22 @@ export function ensembleA(
   const bande45 = { haut: (avecEntete ? m.zoneUtile.haut : m.zoneContenu.haut) * k, bas: m.zoneUtile.bas * k };
   const options = { allumes: e.allumes, chiffresCles: e.chiffresCles, bande: m.format === "4:5" ? bande45 : avecEntete ? { haut: BAS_ENTETE + 0.02, bas: ZONE_UTILE_IV.bas } : undefined };
   return { fondu, ecoule: t - e.debut + TEMPS_IV.fondu, disposition: disposerEnsemble(s.toile, p.schema, options), options };
+}
+
+/**
+ * Fondus de la toile et de la vue d'ensemble pendant leur transition. 4:5 (`sequentiel`) : l'un après l'autre, jamais
+ * ensemble : la toile s'éteint dans la première moitié du fondu, la vue d'ensemble ne paraît que dans la seconde (et
+ * inversement à la sortie) ; ainsi la carte de la toile n'est jamais estompée sous des blocs du schéma, et la vue
+ * d'ensemble vaut exactement 0 dès la mi-fondu de sortie (aucun fantôme flou à la jointure). 9:16 : fondu enchaîné d'origine.
+ */
+export function fondusEnsemble(fondu: number, sequentiel: boolean): { toile: number; ensemble: number } {
+  if (!sequentiel) return { toile: 1 - fondu, ensemble: fondu };
+  return { toile: c01(1 - 2 * fondu), ensemble: c01(2 * fondu - 1) };
+}
+
+/** Fondus de la scène d'ensemble selon la hauteur de la vidéo : séquentiel en 4:5, fondu enchaîné d'origine en 9:16. */
+export function fondusDeScene(hauteur: number, fondu: number): { toile: number; ensemble: number } {
+  return fondusEnsemble(fondu, miseEnPageDeHauteurIV(hauteur).format === "4:5");
 }
 
 /** En-tête affiché à l'instant `t` et son ouverture (0 à 1) / sa fermeture. */
