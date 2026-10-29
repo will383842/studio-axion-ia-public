@@ -215,7 +215,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
           {envoiSimule && <p className="text-sm text-texte-doux">Essai : aucun envoi tant que Buffer n&apos;est pas relié.</p>}
           {!l.sujetId && <p className="text-xs text-texte-faible">« Programmer » programme les versions d&apos;un sujet : cette vidéo n&apos;en vient pas, utilisez le brouillon.</p>}
           {l.sujetId && <p className="text-xs text-texte-faible">
-              {modeBuffer === "programmer" ? "« Programmer le sujet »" : "« Mettre le sujet en brouillon »"} envoie toutes les versions prêtes du sujet, chacune à son créneau et avec le premier commentaire de sa vidéo : la date et le commentaire saisis ici ne servent qu&apos;au bouton de gauche.
+              {modeBuffer === "programmer" ? "« Programmer le sujet »" : "« Mettre le sujet en brouillon »"} envoie toutes les versions prêtes du sujet, chacune à son créneau, sans premier commentaire : la date et le commentaire saisis ici ne servent qu&apos;au bouton de gauche.
               {modeBuffer === "programmer" ? "" : " En mode brouillon, rien n'est programmé : relisez et programmez dans Buffer."}
             </p>}
         </div>
