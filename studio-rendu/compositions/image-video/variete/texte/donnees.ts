@@ -105,6 +105,11 @@ export const ECART_MAX_RANGEES = 0.1;
 /** Un morceau de plusieurs mots n'est coupé que s'il faudrait le réduire sous cette part de sa taille pour qu'il tienne sur une ligne (D5). */
 const PART_MIN_UNE_LIGNE = 0.75;
 
+/** Ponctuation isolée (« ? », « ! », « : », « ; », « % », « … »), même précédée d'une espace insécable : elle se rattache toujours au mot qui précède. */
+export function estPonctuationIsolee(mot: string): boolean {
+  return /^[\s\u00a0\u202f]*(?:[?!:;%…]+|\.{2,})[\s\u00a0\u202f]*$/u.test(mot);
+}
+
 /**
  * TYP-C : coupe les lignes en rangées (mots entiers, largeur ≤ `largeur`) et choisit la plus grande taille qui fait
  * tenir le tout entre `haut` et `bas` ; le groupe orange a sa propre rangée, plus grande (le point focal). Les rangées
@@ -120,8 +125,9 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
       const morceaux: number[][] = [];
       l.mots.forEach((m, i) => {
         const dernier = morceaux.at(-1);
-        const orangePrec = i > 0 && !!l.mots[i - 1].orange;
-        if (!dernier || orangePrec !== !!m.orange) morceaux.push([i]);
+        const orangeMorceau = !!dernier && !!l.mots[dernier[0]].orange;
+        // Une ponctuation isolée reste avec le mot qui précède, orange ou non : jamais un morceau (donc une rangée) à elle seule.
+        if (!dernier || (orangeMorceau !== !!m.orange && !estPonctuationIsolee(m.mot))) morceaux.push([i]);
         else dernier.push(i);
       });
       for (const morceau of morceaux) {
@@ -133,7 +139,7 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
           let courante: number[] = [];
           for (const i of morceau) {
             const essai = [...courante, i];
-            if (courante.length && larg(essai.map((k) => l.mots[k].mot), t) > l0) {
+            if (courante.length && !estPonctuationIsolee(l.mots[i].mot) && larg(essai.map((k) => l.mots[k].mot), t) > l0) {
               rs.push(courante);
               courante = [i];
             } else courante = essai;
