@@ -14,7 +14,7 @@ const texteNonVide = (v: unknown): v is string => typeof v === "string" && v.tri
 async function deCasConcret(videoId: Id, reseau: IdReseau): Promise<string | undefined> {
   const video = await depots().videos.obtenir(videoId);
   const version = video?.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null;
-  if (!version || version.commande.moteurId !== ID_MOTEUR_CAS_CONCRET) return undefined;
+  if (!version || version.commande?.moteurId !== ID_MOTEUR_CAS_CONCRET) return undefined;
   // Une vidéo d'essai n'a pas de texte de publication à elle.
   if (lireEntreesCasConcret(version.commande.entrees).essai) return undefined;
   const publication = objet(objet(version.projetMontage)?.casConcret)?.publication;
@@ -39,5 +39,5 @@ export function deLaVersion(variante: { reseau: IdReseau; champs: { sources: str
 }
 
 export async function premierCommentaireDeVideo(videoId: Id, reseau: IdReseau, variante?: Parameters<typeof deLaVersion>[0]): Promise<string | undefined> {
-  return (await deCasConcret(videoId, reseau)) ?? (await deImageVideo(videoId, reseau).catch(() => undefined)) ?? deLaVersion(variante, reseau);
+  return (await deCasConcret(videoId, reseau).catch(() => undefined)) ?? (await deImageVideo(videoId, reseau).catch(() => undefined)) ?? deLaVersion(variante, reseau);
 }
