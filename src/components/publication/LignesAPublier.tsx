@@ -59,6 +59,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
   const [date, setDate] = useState(() => versLocal(demainNeufHeures()));
   const [comptes, setComptes] = useState<string[]>(l.compte.memorises ?? []);
   const [enCours, demarrer] = useTransition();
+  const [pourSujet, setPourSujet] = useState(false);
   const manque = l.casesRequises.filter((c) => !coches[c]);
   const avecChoix = !!l.compte.choix?.length;
   const raison = l.blocage ?? l.compte.probleme ?? (avecChoix && !comptes.length ? "Cochez le compte où envoyer." : undefined) ?? (manque.length ? `Avant de publier : ${manque.map((c) => LIBELLES_CASES[c]).join(", ")}.` : undefined) ?? (l.etat?.envoye ? "Déjà envoyée pour ce réseau." : undefined);
@@ -89,7 +90,12 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
 
   function brouillon() {
     demarrer(async () => {
-      const iso = new Date(date).toISOString();
+      const quand = new Date(date);
+      if (!date || Number.isNaN(quand.getTime())) {
+        notifier.erreur("Choisissez une date valide.");
+        return;
+      }
+      const iso = quand.toISOString();
       const r = await envoyerVersBufferAction(l.videoId, [l.reseau], iso, false, avecChoix ? { [l.reseau]: comptes } : {}, { [l.reseau]: commentaire });
       if (!r.ok) {
         notifier.erreur(r.message);
@@ -106,14 +112,16 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
 
   function programmer() {
     if (!l.sujetId) return;
+    setPourSujet(true);
     demarrer(async () => {
       const r = await programmerSujetAction(l.sujetId!);
+      setPourSujet(false);
       if (!r.ok) {
         notifier.erreur(r.message);
         return;
       }
-      const { programmees, ignorees, modeBuffer } = r.donnees;
-      if (programmees.length) notifier.succes(modeBuffer === "brouillon" ? `Brouillon dans Buffer · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
+      const { programmees, ignorees, modeBuffer: mode } = r.donnees;
+      if (programmees.length) notifier.succes(mode === "brouillon" ? `Brouillon dans Buffer · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
       if (ignorees.length) notifier.erreur(ignorees[0].message);
       router.refresh();
     });
@@ -169,7 +177,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-texte-doux">Premier commentaire</span>
-            <textarea value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={2} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-orange" />
+            <textarea value={commentaire} disabled={pourSujet} onChange={(e) => setCommentaire(e.target.value)} rows={2} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-orange" />
           </label>
           {commentaire.trim() && !l.commentaireTransmissible && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par Buffer : rien ne sera envoyé, posez-le à la main.</p>}
 
@@ -192,7 +200,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-texte-doux">Date</span>
-            <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className="min-h-12 rounded-champ border border-trait bg-surface-1 px-3.5 text-[15px] text-texte outline-none [color-scheme:light] focus:border-orange" />
+            <input type="datetime-local" value={date} disabled={pourSujet} onChange={(e) => setDate(e.target.value)} className="min-h-12 rounded-champ border border-trait bg-surface-1 px-3.5 text-[15px] text-texte outline-none [color-scheme:light] focus:border-orange" />
           </label>
 
           <div className="flex flex-wrap gap-2">
@@ -200,13 +208,16 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
               {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
             </Bouton>
             <Bouton variante="secondaire" icone="calendrier" disabled={!peutEnvoyer || !l.sujetId} chargement={enCours} onClick={programmer}>
-              Programmer
+              {modeBuffer === "programmer" ? "Programmer le sujet" : "Mettre le sujet en brouillon"}
             </Bouton>
           </div>
           {raison && <p className="text-sm text-texte-doux">{raison}</p>}
           {envoiSimule && <p className="text-sm text-texte-doux">Essai : aucun envoi tant que Buffer n&apos;est pas relié.</p>}
           {!l.sujetId && <p className="text-xs text-texte-faible">« Programmer » programme les versions d&apos;un sujet : cette vidéo n&apos;en vient pas, utilisez le brouillon.</p>}
-          {l.sujetId && <p className="text-xs text-texte-faible">« Programmer » envoie toutes les versions prêtes du sujet, chacune à son créneau.</p>}
+          {l.sujetId && <p className="text-xs text-texte-faible">
+              {modeBuffer === "programmer" ? "« Programmer le sujet »" : "« Mettre le sujet en brouillon »"} envoie toutes les versions prêtes du sujet, chacune à son créneau et avec le premier commentaire de sa vidéo : la date et le commentaire saisis ici ne servent qu&apos;au bouton de gauche.
+              {modeBuffer === "programmer" ? "" : " En mode brouillon, rien n'est programmé : relisez et programmez dans Buffer."}
+            </p>}
         </div>
       </div>
     </li>
