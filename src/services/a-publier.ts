@@ -86,6 +86,8 @@ export interface LigneAPublier {
   coches: Record<string, boolean>;
   /** Pourquoi cette ligne ne peut pas partir (essai, exemple, licence, fichier absent…). */
   blocage?: string;
+  /** Le blocage vaut pour toute la vidéo (essai, exemple), pas pour ce seul réseau. */
+  blocageVideo?: boolean;
   /** Sujet de la version (pour « Programmer »). */
   sujetId?: string;
   etat?: EtatLigneAPublier;
@@ -142,8 +144,9 @@ export async function vueAPublier(): Promise<VueAPublier> {
       const derniere = [...deCeReseau].sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0];
       const commentaire = await premierCommentaireDeVideo(carte.id, reseau, kit.variante);
       let blocage: string | undefined;
-      if (kit.videoEssai) blocage = "Vidéo d'essai : elle ne part pas sur vos réseaux.";
-      else if (video?.estDemo) blocage = "Vidéo d'exemple : elle ne part pas sur vos réseaux.";
+      let blocageVideo = false;
+      if (kit.videoEssai) [blocage, blocageVideo] = ["Vidéo d'essai : elle ne part pas sur vos réseaux.", true];
+      else if (video?.estDemo) [blocage, blocageVideo] = ["Vidéo d'exemple : elle ne part pas sur vos réseaux.", true];
       else if (!r.sortieConseillee) blocage = `Aucun fichier au bon format pour ${r.nom}.`;
       else blocage = r.avertissements.find((a) => a.code === "trop-longue" || a.code === "ratio-absent")?.message;
       lignes.push({
@@ -166,6 +169,7 @@ export async function vueAPublier(): Promise<VueAPublier> {
         casesRequises: casesRequises(kit.mentionIAActive),
         coches: kit.avantDePublier,
         ...(blocage ? { blocage } : {}),
+        ...(blocageVideo ? { blocageVideo } : {}),
         ...(kit.variante?.sujetId ? { sujetId: kit.variante.sujetId } : {}),
         etat: etatDe(derniere, deCeReseau.filter(occupeBuffer), envoi?.comptes[reseau]?.choix),
       });
