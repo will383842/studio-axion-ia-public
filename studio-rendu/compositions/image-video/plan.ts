@@ -9,6 +9,8 @@ import {
   cameraA,
   disposerEtCadrer,
   ECRAN_IV,
+  emprise,
+  etatDansCadre,
   FONDU_CADRE,
   MARGE_CADRE,
   TAILLE_LIBELLE_IV,
@@ -332,6 +334,28 @@ export function calculerScene(p: Pick<ProprietesSceneIV, "schema" | "mots" | "du
     coche: new Map(trier(p.coches ?? []).map((s) => [s.noeud, s.t])),
     part: new Map(p.schema.liens.filter((l) => typeof l.part === "number" && l.part > 0).map((l) => [l.id, l.part!])),
   };
+}
+
+/** Instants (avant `t`, en secondes) dont la moyenne lisse l'opacité de `opaciteCadre` : 0,15 s de fondu au franchissement d'un bord. */
+export const LISSAGE_CADRE = Object.freeze([0, 0.05, 0.1, 0.15]);
+
+/**
+ * FILET « jamais un bloc coupé à l'écran » (PUR) : opacité d'un bloc de la toile (`id` d'un nœud, ou `part-…` d'une
+ * pastille de part) à l'instant `t`, pour la caméra `images` réellement vue (celle de la scène, ou celle de la variété
+ * CAM-B/CAM-C). Moyenne, sur `t`, `t − 0,05`, `t − 0,10` et `t − 0,15`, de l'indicateur « l'emprise du bloc n'est pas
+ * coupée par un bord du cadre » : 1 s'il est entier ou hors cadre, 0 s'il est coupé. Un bloc qui traverse un bord pendant
+ * un panoramique s'efface donc en 0,15 s avant d'être coupé et reparaît entier ; aux poses tenues (propres), l'opacité
+ * vaut 1. Le bloc du dernier mot dit garde toujours 1 (jamais caché : la remarque Q15 signale son défaut).
+ */
+export function opaciteCadre(s: SceneCalculee, images: TrajectoireCamera["images"], id: string, t: number): number {
+  if (noeudCourant(s, t) === id) return 1;
+  const boite = s.parId.get(id);
+  const etiquette = boite ? undefined : (s.cadrage.etiquettes ?? []).find((e) => e.id === id);
+  if (!boite && !etiquette) return 1;
+  const zone = boite ? emprise(boite, s.cadrage) : etiquette!;
+  let entier = 0;
+  for (const retard of LISSAGE_CADRE) entier += etatDansCadre(zone, cameraA({ images }, t - retard), s.cadrage) === "coupe" ? 0 : 1;
+  return entier / LISSAGE_CADRE.length;
 }
 
 /** Nœud dont on parle à l'instant `t` (dernier mot commencé), ou `null` avant le premier. */

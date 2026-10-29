@@ -8,14 +8,14 @@ import React from "react";
  * APP-B/APP-D posent la place de la carte suivante ; APP-C montre tout le schéma éteint dès le début (cartes et fils
  * pâles) ; MAT-C fait trembler les fils ; MAT-D pose les cartes sur des plateaux en relief.
  */
-import type { SchemaEntree } from "../../../src/briques/schema-motion";
+import type { SchemaEntree, TrajectoireCamera } from "../../../src/briques/schema-motion";
 import { COULEURS_DUO } from "../../../src/briques/habillage/charte-duo";
 import { teinte } from "../cas-concret/plans/commun";
 import { Icone } from "../interface-claire/elements";
 import { Embranchement } from "./Embranchement";
 import { FlecheCourbe } from "./FlecheCourbe";
 import { Noeud } from "./Noeud";
-import { cheminDe, etatFleche, etatNoeud, partsEmbranchement, railSuite, RAYON_PASTILLE, TEMPS_IV, type EtatNoeud, type SceneCalculee } from "./plan";
+import { cheminDe, etatFleche, etatNoeud, opaciteCadre, partsEmbranchement, railSuite, RAYON_PASTILLE, TEMPS_IV, type EtatNoeud, type SceneCalculee } from "./plan";
 import { apparitionDe, progresDe, type ApparitionIV } from "./variete/apparition/apparition";
 import { FilsEteints, Place } from "./variete/apparition/Place";
 import { useVariete } from "./variete/ContexteVariete";
@@ -41,10 +41,13 @@ function placeSuivante(scene: SceneCalculee, t: number): { id: string; opacite: 
 }
 
 /**
+ * `trajectoireVue` : la caméra réellement vue (celle de la variété CAM-B/CAM-C si elle existe, sinon celle de la scène) ;
+ * chaque bloc (et chaque pastille de part) est multiplié par `opaciteCadre` : jamais un bloc coupé par un bord à l'écran.
+ *
  * `dejaVus` (issue 119) : blocs posés dans une séquence précédente ; ils sont montrés « vus » (posés, grisés) quel que soit
  * le code d'apparition, au lieu de rester absents (APP-A, B, D) ou de ne laisser que le schéma muet.
  */
-export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; schema: SchemaEntree; t: number; dejaVus?: readonly string[] }) {
+export function Toile({ scene, schema, t, dejaVus, trajectoireVue }: { scene: SceneCalculee; schema: SchemaEntree; t: number; dejaVus?: readonly string[]; trajectoireVue?: TrajectoireCamera["images"] }) {
   const variete = useVariete();
   const app: ApparitionIV | null = apparitionDe(variete);
   const mat = matiereDe(variete);
@@ -60,6 +63,7 @@ export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; sch
     const etiquette = scene.separation.has(f.de) && scene.colonne.get(f.vers) ? undefined : etiquettes.get(f.id);
     return <FlecheCourbe key={f.id} id={f.id} chemin={chemin} couleur={f.couleur} style={f.style} etat={etatFleche(scene, f, t)} etiquette={etiquette} />;
   });
+  const images = trajectoireVue ?? scene.trajectoire.images;
   const place = app && app.code !== "APP-C" ? placeSuivante(scene, t) : null;
   const boitePlace = place ? parId.get(place.id) : undefined;
   // MAT-D : un plateau paraît avec la première carte de sa colonne (fondu le temps qu'elle surgisse).
@@ -77,7 +81,8 @@ export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; sch
       {toile.boites.map((b) => {
         const t0 = scene.premierMot.get(b.id);
         const vu = t0 === undefined && (dejaVusSet.has(b.id) || (app?.code === "APP-C" && app.vus.has(b.id)));
-        return (
+        const filet = opaciteCadre(scene, images, b.id, t);
+        const noeud = (
           <Noeud
             key={b.id}
             boite={b}
@@ -87,9 +92,17 @@ export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; sch
             fantome={app?.code === "APP-C" && app.fantomes.has(b.id)}
           />
         );
+        // Opacité 1 : rien n'est ajouté (même arbre qu'avant le filet).
+        return filet < 1 ? (
+          <div key={b.id} style={{ opacity: filet }}>
+            {noeud}
+          </div>
+        ) : (
+          noeud
+        );
       })}
       {decisions.map((d) => (
-        <Embranchement key={d} decision={parId.get(d)!} parts={partsEmbranchement(scene, d, t)} />
+        <Embranchement key={d} decision={parId.get(d)!} parts={partsEmbranchement(scene, d, t)} opacites={(fleche) => opaciteCadre(scene, images, `part-${fleche}`, t)} />
       ))}
     </div>
   );
