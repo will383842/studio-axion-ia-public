@@ -25,6 +25,7 @@ import {
   BAS_ENTETE_IV,
   ZONE_UTILE_IV,
   ECRAN_IV,
+  miseEnPageDeHauteurIV,
   VITESSE_FRAPPE,
   disposerEtCadrer,
   type BoiteNoeud,
@@ -578,7 +579,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
   for (let tour = 0; tour <= 40; tour++) {
     plans = construirePlans(places, carte, dureeSec, debutFin, finPlans);
     const caches = new Set<string>();
-    blocs = construireBlocs(places, plans, carte, dureeSec, debutFin, finPlans, finEls, caches);
+    blocs = construireBlocs(places, plans, carte, dureeSec, debutFin, finPlans, finEls, caches, format);
     if (entree.variete) {
       ({ blocs, replis } = appliquerVarieteIV({ blocs, plans, recette: entree.variete, format, carte, fiche, chiffresDits: chiffresDitsDesEcrans(), reseaux: entree.reseaux, replis: [], mots: calage.voix }));
     }
@@ -1905,7 +1906,7 @@ function lignesVisibles(els: readonly El[], a: number, b: number): El[] {
 /* ------------------------------------------------------------------ */
 
 /** `caches` reçoit les éléments qu'aucun bloc ne montre (étape d'une ligne révélée remplacée dans le même plan). */
-function construireBlocs(places: EcranPlace[], plans: PlanIV[], carte: CarteImage, dureeSec: number, debutFin: number, finPlans: PlanIV[], finEls: El[], caches: Set<string>): BlocRenduIV[] {
+function construireBlocs(places: EcranPlace[], plans: PlanIV[], carte: CarteImage, dureeSec: number, debutFin: number, finPlans: PlanIV[], finEls: El[], caches: Set<string>, format: FormatIV): BlocRenduIV[] {
   const blocs: BlocRenduIV[] = [];
   const schema = schemaDeLaCarte(carte);
   const dejaPoses = new Set<string>();
@@ -1933,7 +1934,7 @@ function construireBlocs(places: EcranPlace[], plans: PlanIV[], carte: CarteImag
     if (g === "toile") {
       const suivant = places[j + 1];
       const ensembleApres = suivant?.insertion?.sorte === "ensemble" && suivant.sorte !== "toile" ? suivant.insertion : null;
-      blocs.push(blocToile(nomBloc(), lot, schema, carte, debut, ensembleApres ? ensembleApres.fin : fin, ensembleApres, dejaPoses));
+      blocs.push(blocToile(nomBloc(), lot, schema, carte, debut, ensembleApres ? ensembleApres.fin : fin, ensembleApres, dejaPoses, format));
     } else if (g === "objets") blocs.push(blocObjets(nomBloc(), lot, carte, debut, fin));
     else if (g === "moments") blocs.push(blocMoments(nomBloc(), lot, carte, debut, fin, schema));
     else for (const b of blocsEcran(p, debut, fin, plans, caches)) blocs.push({ ...b, id: nomBloc() });
@@ -2007,6 +2008,7 @@ function blocToile(
   fin: number,
   ensembleApres: EcranPlace["insertion"] | null,
   dejaPoses: Set<string>,
+  format: FormatIV,
 ): BlocRenduIV {
   const rel = (t: number) => arrondi(Math.max(0, t - debut));
   const els = lot.flatMap((p) => p.els);
@@ -2025,7 +2027,7 @@ function blocToile(
   const dejaVus = [...dejaPoses].filter((n) => schema.noeuds.some((x) => x.id === n) && !mots.some((m) => m.noeud === n)).sort();
   const proprietes: ProprietesToileIV = {
     largeur: ECRAN_IV.largeur,
-    hauteur: ECRAN_IV.hauteur,
+    hauteur: CADRES_IV[format].hauteur,
     fps: R.fps,
     dureeSec,
     fond,
@@ -2087,7 +2089,7 @@ export const CADRAGE_TOILE_IV = Object.freeze({
   pastille: { padX: 34, padHaut: 6, padBas: 2, signe: 0.6 },
 });
 
-export function cadrageToile(p: Pick<ProprietesSceneIV, "schema" | "coches" | "entetes" | "separations" | "coupeFranche">, toile?: DispositionToile): CadrageCamera {
+export function cadrageToile(p: Pick<ProprietesSceneIV, "schema" | "coches" | "entetes" | "separations" | "coupeFranche"> & { hauteur?: number }, toile?: DispositionToile): CadrageCamera {
   const K = CADRAGE_TOILE_IV;
   const icones = new Set(p.schema.noeuds.filter((n) => n.icone).map((n) => n.id));
   const coches = new Set((p.coches ?? []).map((c) => c.noeud));
@@ -2095,12 +2097,22 @@ export function cadrageToile(p: Pick<ProprietesSceneIV, "schema" | "coches" | "e
   const debordCoche = K.rayonPastille - 14;
   const marge = (MARGE_CADRE * ECRAN_IV.largeur) / ECRAN_IV.hauteur;
   const avecEntete = (p.entetes ?? []).length > 0;
-  return {
+  const base = {
     zoomPrefere: K.zoomPrefere,
-    debord: (id) => ({ gauche: icones.has(id) ? debordIcone : 0, droite: coches.has(id) ? debordCoche : 0, haut: coches.has(id) ? debordCoche : 0, bas: 0 }),
+    debord: (id: string) => ({ gauche: icones.has(id) ? debordIcone : 0, droite: coches.has(id) ? debordCoche : 0, haut: coches.has(id) ? debordCoche : 0, bas: 0 }),
     apparition: K.apparition,
     etiquettes: toile ? pastillesDePart(toile, p) : [],
     ...(p.coupeFranche ? { coupeFranche: true } : {}),
+  };
+  const m = miseEnPageDeHauteurIV(p.hauteur ?? ECRAN_IV.hauteur);
+  if (m.format === "4:5") {
+    // Comme `cadrageScene` (plan.ts, L7) : bandes de la mise en page du 4:5 ramenées en fractions de 1920 (k = 1350 / 1920).
+    const k = m.hauteur / ECRAN_IV.hauteur;
+    const haut = avecEntete ? (m.entete.bas + 0.03) * k : 0;
+    return { ...base, bande: { haut: avecEntete ? haut + marge : m.zoneContenu.haut * k, bas: m.zoneUtile.bas * k }, cadre: { haut, bas: m.zoneUtile.bas * k } };
+  }
+  return {
+    ...base,
     ...(avecEntete ? { bande: { haut: K.hautCadre + marge, bas: K.basBande }, cadre: { haut: K.hautCadre, bas: 1 } } : {}),
   };
 }
