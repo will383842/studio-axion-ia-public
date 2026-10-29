@@ -30,7 +30,8 @@ const retardAbsorbable = (alerte: string) => {
   return !!m && Number(m[1]) + 0.05 <= RETARD_ABSORBABLE_SEC;
 };
 
-const propre = (r: ToileCadree) => r.defauts.length === 0 && !r.trajectoire.alertes.some((a) => a.includes("aucun cadrage"));
+// Cadre court (4:5) : une alerte « trop grand » (bloc plus grand que le cadre) n'est pas un cadrage propre ; en 9:16 elle ne compte pas.
+const propre = (r: ToileCadree, court: boolean) => r.defauts.length === 0 && !r.trajectoire.alertes.some((a) => a.includes("aucun cadrage") || (court && a.includes("trop grand")));
 
 /**
  * Dispose le schéma et calcule la trajectoire de la caméra, en changeant de disposition tant qu'un bloc lisible serait
@@ -56,7 +57,7 @@ export function disposerEtCadrer(
     const trajectoire = trajectoireCamera(toile, mots, dureeSec, cadrage);
     const defauts = controlerCadrage(toile, trajectoire, mots, cadrage);
     dernier = { toile, trajectoire, cadrage, variante, defauts };
-    if (propre(dernier)) return dernier;
+    if (propre(dernier, court)) return dernier;
     essais.push(dernier);
   }
   if (court && essais.length > 0) {

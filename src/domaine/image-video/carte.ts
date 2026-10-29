@@ -12,7 +12,7 @@ import { OFFRES, type Offre } from "../../formats/cas-concret/cas";
 import { chiffresDe, cleChiffre, UNITES_CHIFFRE } from "./chiffres";
 import { typesDeLaCarte } from "./complexite";
 import { formulesAbsoluesDe } from "./formules";
-import { iconeDe } from "./icones";
+import { iconeDe, iconeOuRepli } from "./icones";
 
 export const VERSION_CARTE_IMAGE = "carte-image/1";
 
@@ -407,7 +407,6 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
   for (const c of carte.chiffres) if (c.lu === "une-seule") alertes.push(`Le chiffre « ${c.brut} » n'a été lu qu'une fois : vérifiez-le.`);
 
   for (const n of carte.noeuds) {
-    if (n.icone && iconeDe(n.icone) === null) alertes.push(`Icône inconnue pour « ${n.libelle} » : choisissez-en une.`);
     if (n.photoPersonnes) alertes.push(`« ${n.libelle} » est une photo de personnes : elle ne sera pas reprise, seul son contenu sera redessiné.`);
   }
   for (const l of carte.liens) {
@@ -469,6 +468,8 @@ export function completerCarte(brouillon: BrouillonCarte): CarteImage {
   const types = typesDeLaCarte({ ...brouillon, chiffres });
   return schemaCarteImage.parse({
     ...brouillon,
+    // Une icône que la table ne connaît pas est remplacée d'office (mots-clés proches, sinon icône neutre) : ni remarque ni question.
+    noeuds: brouillon.noeuds.map((n) => (n.icone && iconeDe(n.icone) === null ? { ...n, icone: iconeOuRepli(n.icone, n.libelle) } : n)),
     types,
     offre: brouillon.offre ?? offreDeduite(types),
     automatisation: brouillon.automatisation ?? estAutomatisation(types),
