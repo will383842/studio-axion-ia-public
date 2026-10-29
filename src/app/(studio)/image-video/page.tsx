@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
 import { RecentsGenerateur } from "@/components/creation/RecentsGenerateur";
 import { Depot } from "@/components/formats/image-video/Depot";
@@ -26,6 +27,11 @@ export default async function PageImageVideo() {
       recents={<RecentsGenerateur groupes={versRecentsImageVideo(lots, dernieres)} deuxColonnes vide={{ titre: "Aucune vidéo pour le moment", phrase: PHRASE_ECRAN_VIDE }} />}
     >
       <Depot montants={montants} blocage={etat.blocage} />
+      <p className="mt-6 text-center text-[15px]">
+        <Link href="/image-video/reserve" className="underline">
+          Ma réserve
+        </Link>
+      </p>
     </GabaritCreation>
   );
 }
