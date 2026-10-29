@@ -3,8 +3,8 @@
  * Deux couches voulues, à ne retirer ni l'une ni l'autre : /api/usine/* est public pour la session (pas de cookie), mais le
  * jeton est vérifié d'abord dans le proxy (src/proxy.ts, `gardeUsine`), puis de nouveau DANS chaque handler, qui appelle
  * LUI-MÊME `garderPorte`. Ordre des contrôles :
- *  1. secret `STUDIO_PORTE_SECRET` absent, de moins de 32 caractères, ou égal à `USINE_PORTE_SECRET` (un secret par sens ; alerte au
- *     journal, sans secret) → 404 sans détail (porte éteinte) ;
+ *  1. secret `STUDIO_PORTE_SECRET` absent, de moins de 32 caractères, ou égal à `USINE_PORTE_SECRET` (un secret par sens ; alerte console depuis le
+ *     proxy, une ligne de journal depuis le handler, chacune une fois par processus, sans secret) → 404 sans détail (porte éteinte) ;
  *  2. `Authorization: Bearer …` comparé à temps constant (empreintes SHA-256, `timingSafeEqual`) au secret et, pendant une
  *     rotation, à `STUDIO_PORTE_SECRET_PRECEDENT` (seulement jusqu'à `STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A`, date ISO ; sans échéance valide il est ignoré) → sinon 401 sans détail ;
  *  3. 60 appels par minute au plus (appels authentifiés seulement, sinon un inconnu bloquerait l'Usine) → 429 ;
@@ -52,10 +52,13 @@ export function reponseJson(statut: number, corps: unknown): NextResponse {
 
 /* --- Compteur d'appels (mémoire du processus) ---------------------------- */
 let fenetre = { debut: 0, n: 0 };
+/** Ligne de journal d'alerte déjà écrite dans ce processus (une seule, même si la porte est martelée). */
+let conflitJournalise = false;
 
 /** Remet le compteur à zéro (tests seulement). */
 export function reinitialiserGardePourEssai(): void {
   fenetre = { debut: 0, n: 0 };
+  conflitJournalise = false;
 }
 
 function compterAppel(maintenantMs: number): boolean {
@@ -125,9 +128,10 @@ export async function garderPorte(requete: Request, o: OptionsGarde): Promise<Po
   };
 
   if (!porteAllumee(env)) {
-    // Éteinte parce que la configuration réutilise le même secret dans les deux sens : alerte (jamais de secret), réponse 404.
-    if (secretsEnConflit(env)) {
-      console.error("[porte-usine] ALERTE : un secret de la porte est identique à USINE_PORTE_SECRET ; porte éteinte (404). Un secret par sens.");
+    // Éteinte parce que la configuration réutilise le même secret dans les deux sens : une seule alerte par processus
+    // (jamais de secret), réponse 404. Le console.error part du proxy ; ici seulement la ligne de journal.
+    if (secretsEnConflit(env) && !conflitJournalise) {
+      conflitJournalise = true;
       await ecrireJournal(o.route, 404, debut, undefined, "ALERTE configuration : secret de la porte identique à celui de l'autre sens, porte éteinte");
     }
     return refus(404, "Introuvable.", "introuvable", null, false);
