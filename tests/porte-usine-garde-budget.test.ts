@@ -90,7 +90,7 @@ describe("garde : secret", () => {
       vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", v);
       return (await PUT(appel(ok(), {}, ANCIEN))).status;
     };
-    expect(await essai(iso(1).replace("Z", ""))).toBe(401);
+    expect(await essai(iso(23).replace("Z", ""))).toBe(401);
     expect(await essai(iso(25))).toBe(401);
     expect(await essai(iso(1))).toBe(200);
     expect(await essai(iso(-1))).toBe(401);
@@ -112,10 +112,12 @@ describe("garde : un secret par sens", () => {
     vi.stubEnv("USINE_PORTE_SECRET", SORTANT);
     const r = await PUT(appel(ok(), {}, SORTANT));
     expect(r.status).toBe(404);
+    expect((await PUT(appel(ok(), {}, SORTANT))).status).toBe(404);
     expect(await r.json()).toEqual({ erreur: "Introuvable.", code: "introuvable" });
     expect((await proxy(appel(ok(), {}, SORTANT))).status).toBe(404);
     const journal = JSON.stringify(await depots().evenements.lister());
     expect(journal).toContain("ALERTE");
+    expect((journal.match(/ALERTE/g) ?? []).length).toBe(1); // une seule ligne de journal par processus, pas une par requête
     for (const sortie of [journal, JSON.stringify(erreurs.mock.calls)]) expect(sortie).not.toContain(SORTANT);
     erreurs.mockRestore();
   });
@@ -128,16 +130,15 @@ describe("garde : un secret par sens", () => {
     vi.mocked(console.error).mockRestore();
   });
 
-  it("par le proxy (le chemin réel) : 404 ET une seule alerte par processus, sans secret", async () => {
+  it("par le proxy (le chemin réel) : 404 ET une seule alerte console par processus, sans secret, sans écriture en base", async () => {
     const erreurs = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubEnv("STUDIO_PORTE_SECRET", SORTANT);
     vi.stubEnv("USINE_PORTE_SECRET", SORTANT);
     for (let i = 0; i < 3; i++) expect((await proxy(appel(ok(), {}, SORTANT))).status).toBe(404);
     expect((await proxy(appel(ok(), {}, null))).status).toBe(404);
     expect(erreurs).toHaveBeenCalledTimes(1);
-    const journal = (await depots().evenements.lister()).filter((e) => JSON.stringify(e).includes("ALERTE"));
-    expect(journal).toHaveLength(1);
-    for (const sortie of [JSON.stringify(journal), JSON.stringify(erreurs.mock.calls)]) expect(sortie).not.toContain(SORTANT);
+    expect((await depots().evenements.lister()).filter((e) => JSON.stringify(e).includes("ALERTE"))).toHaveLength(0);
+    expect(JSON.stringify(erreurs.mock.calls)).not.toContain(SORTANT);
     erreurs.mockRestore();
   });
 
