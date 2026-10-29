@@ -12,7 +12,7 @@ import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
 import { libelleComptes } from "@/domaine/comptes-envoi";
 import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
-import { casesAChanger, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
+import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
 
 /** Valeur d'un <input type="datetime-local"> (heure locale). */
 function versLocal(d: Date): string {
@@ -110,9 +110,16 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
         </div>
 
         {carte.lecture ? (
-          <video controls preload="none" poster={carte.jaquette ?? undefined} src={carte.lecture} className="mx-auto aspect-[9/16] max-h-[28rem] w-full max-w-xs rounded-xl bg-surface-2 object-cover" />
+          <video
+            controls
+            preload="none"
+            poster={carte.jaquette ?? undefined}
+            src={carte.lecture}
+            style={{ aspectRatio: rapportLecteur(carte.dimensions) }}
+            className="mx-auto max-h-[28rem] min-h-40 w-full max-w-sm rounded-xl bg-surface-2 object-contain"
+          />
         ) : (
-          <div className="mx-auto grid aspect-[9/16] max-h-[28rem] w-full max-w-xs place-items-center rounded-xl bg-surface-2 text-sm text-texte-faible">Pas de fichier</div>
+          <div className="mx-auto grid min-h-40 w-full max-w-sm place-items-center rounded-xl bg-surface-2 text-sm text-texte-faible">Pas de fichier</div>
         )}
 
         {carte.blocageVideo && <p className="text-sm text-texte-doux">{carte.blocageVideo}</p>}
