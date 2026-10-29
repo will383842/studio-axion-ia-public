@@ -340,7 +340,7 @@ export function calculerScene(p: Pick<ProprietesSceneIV, "schema" | "mots" | "du
 export const LISSAGE_CADRE = Object.freeze([0, 0.05, 0.1, 0.15]);
 
 /** La caméra est-elle posée à l'instant `t` (hors d'un panoramique entre deux poses différentes) ? */
-function cameraPosee(images: TrajectoireCamera["images"], t: number): boolean {
+export function cameraPosee(images: TrajectoireCamera["images"], t: number): boolean {
   for (let i = 1; i < images.length; i++) {
     const a = images[i - 1];
     const b = images[i];
