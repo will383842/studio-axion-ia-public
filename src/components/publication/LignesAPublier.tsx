@@ -29,7 +29,8 @@ function demainNeufHeures(): Date {
 
 const LIBELLES_CASES: Record<string, string> = { image: "Image", son: "Son", sousTitres: "Sous-titres", mentionIA: "Mention IA", droits: "Droits" };
 
-export function LignesAPublier({ vue }: { vue: VueAPublier }) {
+/** Détail d'une vidéo : la carte (lecteur entier, case unique, un bouton par réseau prêt, détail replié). `retour` : la liste où revenir après un envoi réussi. */
+export function LignesAPublier({ vue, retour }: { vue: VueAPublier; retour?: string }) {
   const cartes = regrouperParVideo(vue.lignes);
   return (
     <div className="space-y-4">
@@ -46,14 +47,14 @@ export function LignesAPublier({ vue }: { vue: VueAPublier }) {
       </p>
       <ul className="space-y-4">
         {cartes.map((c) => (
-          <CarteDeVideo key={c.videoId} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} />
+          <CarteDeVideo key={c.videoId} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} />
         ))}
       </ul>
     </div>
   );
 }
 
-function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"] }) {
+function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string }) {
   const router = useRouter();
   const [coches, setCoches] = useState<Record<string, boolean>>(carte.coches);
   const [ouvert, setOuvert] = useState<string | null>(null);
@@ -89,7 +90,8 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
       const { programmees, ignorees, modeBuffer: mode } = r.donnees;
       if (programmees.length) notifier.succes(mode === "brouillon" ? `Brouillon dans Buffer · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
       if (ignorees.length) notifier.erreur(ignorees[0].message);
-      router.refresh();
+      if (programmees.length && retour) router.push(retour);
+      else router.refresh();
     });
   }
 
@@ -158,6 +160,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
                 cocher={(cle, v) => ecrire([cle], v)}
                 envoiSimule={envoiSimule}
                 modeBuffer={modeBuffer}
+                retour={retour}
               />
             ))}
 
@@ -214,6 +217,7 @@ function PanneauReseau({
   cocher,
   envoiSimule,
   modeBuffer,
+  retour,
 }: {
   ligne: LigneAPublier;
   visible: boolean;
@@ -223,6 +227,7 @@ function PanneauReseau({
   cocher: (cle: string, v: boolean) => void;
   envoiSimule: boolean;
   modeBuffer: VueAPublier["modeBuffer"];
+  retour?: string;
 }) {
   const router = useRouter();
   const [texte, setTexte] = useState(l.texte);
@@ -270,7 +275,9 @@ function PanneauReseau({
       else if (n) notifier.succes(`Programmée sur ${libelleComptes(n)}`);
       if (r.donnees.problemes.length) notifier.erreur(r.donnees.problemes[0]);
       if (r.donnees.commentairesALaMain.length) notifier.erreur("Le premier commentaire n'est pas transmis à ce réseau : posez-le à la main.");
-      router.refresh();
+      // Envoi réussi : on revient à la liste (même filtre).
+      if (n && retour) router.push(retour);
+      else router.refresh();
     });
   }
 
