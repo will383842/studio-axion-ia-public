@@ -31,7 +31,7 @@ function ligne(videoId: string, reseau: "instagram" | "facebook" | "linkedin" | 
   } as LigneAPublier;
 }
 const vue = (lignes: LigneAPublier[]) => ({ envoiSimule: false, modeBuffer: "brouillon" as const, lignes });
-const liste = (lignes: LigneAPublier[], filtre: Parameters<typeof ListeAPublier>[0]["filtre"] = "a-envoyer", affichees?: number) => renderToStaticMarkup(createElement(ListeAPublier, { lignes, filtre, affichees }));
+const liste = (lignes: LigneAPublier[], filtre: Parameters<typeof ListeAPublier>[0]["filtre"] = "a-envoyer", affichees?: number, reseau?: string) => renderToStaticMarkup(createElement(ListeAPublier, { lignes, filtre, affichees, reseau }));
 const texte = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, " ");
 
 /** Une vidéo dans chaque état. */
@@ -50,20 +50,19 @@ describe("À publier — la liste", () => {
     expect(texte(h)).not.toMatch(/J'ai regardé|Mettre en brouillon|Programmer dans Buffer|Phrase du post/);
   });
 
-  it("une ligne par vidéo, avec titre, type, nombre de réseaux prêts et pastille d'état", () => {
+  it("une ligne par vidéo ET par réseau, avec titre, type et pastille d'état de ce réseau", () => {
     const h = liste([ligne("v-1", "instagram"), ligne("v-1", "facebook"), ligne("v-1", "tiktok", { blocage: "Pas de fichier." })]);
-    expect(h.match(/<li[ >]/g)?.length).toBe(1);
+    expect(h.match(/<li[ >]/g)?.length).toBe(2);
     const t = texte(h);
     expect(t).toContain("Titre v-1");
     expect(t).toContain("Cas concret");
-    expect(t).toContain("2 réseaux prêts");
     expect(t).toContain("À envoyer");
   });
 
   it("un clic = le détail : chaque ligne est un lien vers /a-publier/[id], qui garde le filtre", () => {
     const h = liste(jeu(), "publiees");
-    expect(h).toContain('href="/a-publier/v-pub?filtre=publiees"');
-    expect(liste(jeu())).toContain('href="/a-publier/v-envoyer"');
+    expect(h).toContain('href="/a-publier/v-pub?reseau=instagram&amp;liste=tous&amp;filtre=publiees"');
+    expect(liste(jeu(), "a-envoyer", undefined, "instagram")).toContain('href="/a-publier/v-envoyer?reseau=instagram"');
     expect(L.lienDetail("v-1", "envoyees")).toBe("/a-publier/v-1?filtre=envoyees");
   });
 
@@ -133,7 +132,7 @@ describe("À publier — le détail et le retour à la liste", () => {
     expect(src).toMatch(/if \(n && retour\) router\.push\(retour\)/);
     expect(src).toMatch(/if \(programmees\.length && retour\) router\.push\(retour\)/);
     const page = readFileSync("src/app/(studio)/a-publier/[id]/page.tsx", "utf8");
-    expect(page).toContain("lienListe(filtreDepuis(sp.filtre)");
+    expect(page).toContain("retourDetail(sp, presents, filtreDepuis(sp.filtre)");
     expect(page).toContain("notFound()");
   });
 
