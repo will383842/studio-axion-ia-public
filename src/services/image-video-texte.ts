@@ -29,6 +29,8 @@ export interface DemandeDepotTexteIV {
   /** Description libre de l'automatisation (comme dans une conversation). */
   texte: string;
   reseaux: string[];
+  /** Élément de la réserve à l'origine du dépôt (retrouver son brouillon sans doute). */
+  reserveId?: string;
   /** Montant affiché et confirmé (centimes d'euro). */
   accordCentimes?: AccordPrix;
 }
@@ -37,6 +39,8 @@ export interface DemandeDepotTexteIV {
 export interface DemandeDepotScriptIV {
   script: string;
   reseaux: string[];
+  /** Élément de la réserve à l'origine du dépôt (retrouver son brouillon sans doute). */
+  reserveId?: string;
   /** Montant affiché et confirmé (centimes d'euro). */
   accordCentimes?: AccordPrix;
 }
@@ -93,7 +97,7 @@ export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: Depend
  * conçu depuis le script (comme le mode texte) ; seule l'écriture est remplacée, les mots du script sont dits à l'identique.
  */
 export async function deposerScriptImageVideo(d: DemandeDepotScriptIV, dep: DependancesTexteIV = {}): Promise<IssueDepotTexteIV> {
-  return deposer({ texte: d.script, reseaux: d.reseaux, ...(d.accordCentimes !== undefined ? { accordCentimes: d.accordCentimes } : {}) }, dep, true);
+  return deposer({ texte: d.script, reseaux: d.reseaux, ...(d.reserveId ? { reserveId: d.reserveId } : {}), ...(d.accordCentimes !== undefined ? { accordCentimes: d.accordCentimes } : {}) }, dep, true);
 }
 
 async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptColle: boolean): Promise<IssueDepotTexteIV> {
@@ -122,6 +126,7 @@ async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptCo
         imageCle: `${PROVENANCE_TEXTE}:${cleDuTexte(texte)}`,
         texte,
         ...(scriptColle ? { scriptColle: true } : {}),
+        ...(d.reserveId ? { reserveId: d.reserveId } : {}),
         reseaux,
         // Le plafond de la caisse est le prix « au plus » affiché et confirmé, comme pour une image.
         plafondCentimes: montant,
