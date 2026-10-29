@@ -39,7 +39,7 @@ export function EnteteVarie(p: Proprietes) {
           }}
         />
       ) : null}
-      <Entete {...p} tailleTitre={g.tailleTitre} couleursTitre={g.forme === "filet" ? undefined : { texte: g.couleurTitre, accent: g.couleurAccent }} />
+      <Entete {...p} tailleTitre={g.tailleTitre} hauteurEtiquetteMin={g.hauteurEtiquette} couleursTitre={g.forme === "filet" ? undefined : { texte: g.couleurTitre, accent: g.couleurAccent }} />
     </>
   );
 }
