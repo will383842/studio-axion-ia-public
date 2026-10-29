@@ -7,7 +7,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { boiteALEcran, cameraA, emprise, etatDansCadre } from "@/briques/schema-motion/camera";
+import { boiteALEcran, cameraA, emprise, etatDansCadre, trajectoireCamera } from "@/briques/schema-motion/camera";
+import { disposerToile, VARIANTES_DISPOSITION_4X5 } from "@/briques/schema-motion/disposition";
 import { CADRES_IV, type CodeVariante, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import { controlerCadrage, disposerEtCadrer, ECRAN_IV, type CadrageCamera, type ProprietesSceneIV, type SchemaEntree } from "@/briques/schema-motion";
 import type { CarteImage } from "@/domaine/image-video/carte";
@@ -20,7 +21,7 @@ import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "@/moteurs/montage-image-video/adaptation-scene";
 import { cadrageToile, mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
-import { cadrageDeToile, calculerScene, noeudCourant, opaciteCadre } from "../../studio-rendu/compositions/image-video/plan";
+import { cadrageDeToile, calculerScene, cameraPosee, noeudCourant, opaciteCadre } from "../../studio-rendu/compositions/image-video/plan";
 import { motsSimules } from "./mots-simules";
 
 const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
@@ -147,11 +148,11 @@ describe("4:5 : le filet cache le bloc coupé de la carte F (sans refuser la vid
         // Le bloc parlé reste plein tant qu'il est le courant et que la caméra est posée autour de l'instant ; s'il part
         // (mot suivant, panoramique), il s'efface avec les autres.
         const fenetre = [-0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15].map((r) => d.t + r);
-        const pose = cameraA(scene.trajectoire, fenetre[0]);
-        const pose1 = cameraA(scene.trajectoire, fenetre[6]);
-        const pose2 = cameraA(scene.trajectoire, d.t);
-        const tenue = fenetre.every((x) => noeudCourant(scene, x) === d.id) && [pose1, pose2].every((q) => q.cx === pose.cx && q.cy === pose.cy && q.zoom === pose.zoom);
+        const tenue = fenetre.every((x) => noeudCourant(scene, x) === d.id && cameraPosee(scene.trajectoire.images, x));
         if (tenue) expect(o, `${d.id} ${d.t}`).toBe(1);
+        // Non tenu : le bloc parlé n'est jamais plein (0 si la caméra est en route à cet instant, sinon en fondu).
+        else if (!cameraPosee(scene.trajectoire.images, d.t)) expect(o, `${d.id} ${d.t}`).toBe(0);
+        else expect(o, `${d.id} ${d.t}`).toBeLessThan(1);
       } else {
         // Le bloc est tout à fait caché à chaque instant où il est coupé (le fondu vient avant la coupe et après elle).
         expect(o, `${d.id} ${d.t}`).toBe(0);
@@ -227,6 +228,42 @@ describe("4:5 : cadre court, disposition large", () => {
     const p = scene(ECRAN_IV.hauteur);
     const r = disposerEtCadrer(p.schema, mots, p.dureeSec, (toile) => cadrageToile(p, toile));
     expect(r.variante).not.toBe("large");
+  });
+});
+
+describe("4:5 : aucune variante propre", () => {
+  const long = "Un libellé démesuré qui occupe toute la largeur du cadre et dépasse largement ce que le cadre court peut montrer sans rien couper ni réduire";
+  const schema: SchemaEntree = {
+    noeuds: [
+      { id: "n01", libelle: long, detail: long + " " + long, role: "source", couleur: "noir", ordre: 1 },
+      { id: "n02", libelle: long, detail: long + " " + long, role: "etape", couleur: "noir", ordre: 2 },
+      { id: "n03", libelle: long, detail: long + " " + long, role: "resultat", couleur: "orange", ordre: 3 },
+    ],
+    liens: [
+      { id: "l1", de: "n01", vers: "n02", couleur: "noir" },
+      { id: "l2", de: "n02", vers: "n03", couleur: "noir" },
+    ],
+    groupes: [],
+  };
+  const mots = [
+    { noeud: "n01", t: 1 },
+    { noeud: "n02", t: 4 },
+    { noeud: "n03", t: 7 },
+  ];
+  const p: ProprietesSceneIV = { largeur: 1080, hauteur: H45, fps: 25, dureeSec: 10, fond: "ivoire", marque: "axion-ia.com", schema, mots, separations: [], coches: [], entetes: [] };
+  const mal = (r: { defauts: unknown[]; trajectoire: { alertes: string[] } }) => r.defauts.length + r.trajectoire.alertes.filter((a) => a.includes("trop grand") || a.includes("aucun cadrage")).length;
+
+  it("la variante rendue est celle qui a le moins de défauts, sans erreur", () => {
+    const r = disposerEtCadrer(p.schema, mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    const essais = VARIANTES_DISPOSITION_4X5.filter((v) => v !== "branche-centree").map((v) => {
+      const toile = disposerToile(p.schema, v);
+      const cadrage = cadrageToile(p, toile);
+      const trajectoire = trajectoireCamera(toile, mots, p.dureeSec, cadrage);
+      return { defauts: controlerCadrage(toile, trajectoire, mots, cadrage), trajectoire };
+    });
+    expect(Math.min(...essais.map(mal))).toBeGreaterThan(0);
+    expect(mal(r)).toBeLessThanOrEqual(Math.min(...essais.map(mal)));
+    expect(r.toile.boites.length).toBe(3);
   });
 });
 

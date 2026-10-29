@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { completerCarte, controlerCarte, schemaCarteImage, textesDeLaCarte, type CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, dureeScriptAcceptable, type ClasseImage } from "@/domaine/image-video/complexite";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
-import { iconeDe, NOMS_ICONES_IV, TABLE_ICONES } from "@/domaine/image-video/icones";
+import { ICONE_NEUTRE, iconeDe, iconeOuRepli, NOMS_ICONES_IV, TABLE_ICONES } from "@/domaine/image-video/icones";
 import { depasseLimiteDure, verdictPlafond } from "@/domaine/image-video/plafonds";
 
 const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
@@ -259,6 +259,38 @@ describe("table d'icônes", () => {
   it("un mot inconnu est refusé, jamais remplacé par un rond", () => {
     expect(iconeDe("licorne")).toBeNull();
     expect(iconeDe("constructor")).toBeNull();
+  });
+  it("repli automatique : mots-clés proches puis icône neutre, toujours une icône connue de la table", () => {
+    expect(iconeOuRepli("licorne", "Rappel la veille")).toBe("cloche");
+    expect(iconeOuRepli("reponse-patient", "Réponse du patient ?")).toBe("message");
+    expect(iconeOuRepli("presence", "Patient présent au rendez-vous")).toBe("calendrier");
+    expect(iconeOuRepli("licorne", "Patient confirmé")).toBe("coche");
+    expect(iconeOuRepli("licorne", "Un mot sans rapport")).toBe(ICONE_NEUTRE);
+    expect(iconeOuRepli("licorne")).toBe(ICONE_NEUTRE);
+    expect(iconeOuRepli("Enveloppe", "Rappel")).toBe("mail");
+    for (const nom of NOMS_ICONES_IV) expect(iconeDe(nom), nom).toBe(nom);
+    expect(iconeDe(iconeOuRepli("licorne", "Envoi du devis"))).not.toBeNull();
+    expect(iconeOuRepli("licorne", "Envoi du devis")).toBe("envoyer");
+    // Mots-clés ancrés (limites de mot, négation) : pas de coche/euro/cible trouvés au milieu d'un autre mot.
+    for (const l of ["Dossier invalide", "Presentation du projet", "Resultat indetermine", "Écoute active", "Début de journée", "Neurologue"]) {
+      const icone = iconeOuRepli("licorne", l);
+      expect(["coche", "euro"], l).not.toContain(icone);
+      expect(icone, l).not.toBe(l === "Début de journée" ? "cible" : "coche");
+    }
+    expect(iconeOuRepli("licorne", "Dossier invalide")).toBe(ICONE_NEUTRE);
+    expect(iconeOuRepli("licorne", "Écoute active")).toBe(ICONE_NEUTRE);
+    expect(iconeOuRepli("licorne", "Début de journée")).toBe(ICONE_NEUTRE);
+    for (const mot of ["licorne", "rappel", "patient", "rendez-vous", "reponse", "presence", "confirmation", "x"]) expect(iconeDe(iconeOuRepli(mot)), mot).not.toBeNull();
+  });
+  it("la remarque « Icône inconnue » ne sort plus : Réponse du patient ?, Rappel la veille, Patient présent au rendez-vous", () => {
+    const libelles = ["Réponse du patient ?", "Rappel la veille", "Patient présent au rendez-vous"];
+    const noeuds = cartes.A.noeuds.map((n, i) => (i < libelles.length ? { ...n, libelle: libelles[i]!, icone: "pictogramme-inconnu" } : n));
+    const brute = { ...cartes.A, noeuds };
+    expect(controlerCarte(brute).alertes.some((a) => a.includes("Icône inconnue"))).toBe(false);
+    const carte = completerCarte(brute);
+    expect(controlerCarte(carte).alertes.some((a) => a.includes("Icône inconnue"))).toBe(false);
+    expect(carte.noeuds.slice(0, 3).map((n) => iconeDe(n.icone!))).toEqual(["message", "cloche", "calendrier"]);
+    expect(completerCarte(carte)).toEqual(carte);
   });
   it("accents, majuscules et pluriel sont tolérés", () => {
     expect(iconeDe("Enveloppes")).toBe("mail");
