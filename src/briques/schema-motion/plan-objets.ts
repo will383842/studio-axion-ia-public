@@ -1838,11 +1838,13 @@ export function contournement(f: Pick<FlecheEnsemble, "de" | "vers">, obstacles:
   return { x, yHaut: f.de.y + demi, yBas: f.vers.y - demi };
 }
 
-/** Flèche qui saute une rangée : elle descend dans l'écart sous son départ, longe les blocs à `via.x`, et arrive par l'écart au-dessus de son but. */
+/**
+ * Flèche qui saute une rangée : elle descend tout droit jusqu'au milieu de l'écart sous son départ (`via.yHaut`), longe
+ * l'écart à cette hauteur (jamais contre le bloc ni dans son ombre) jusqu'à `via.x`, descend le long des blocs, puis
+ * rejoint l'écart au-dessus de son but (`via.yBas`) et remonte tout droit jusqu'au bord du bloc d'arrivée.
+ */
 export function cheminContourne(de: { x: number; y: number }, vers: { x: number; y: number }, via: { x: number; yHaut: number; yBas: number }): string {
-  const a = (de.y + via.yHaut) / 2;
-  const b = (via.yBas + vers.y) / 2;
-  return `M ${de.x} ${de.y} C ${de.x} ${a}, ${via.x} ${a}, ${via.x} ${via.yHaut} L ${via.x} ${via.yBas} C ${via.x} ${b}, ${vers.x} ${b}, ${vers.x} ${vers.y}`;
+  return `M ${de.x} ${de.y} L ${de.x} ${via.yHaut} L ${via.x} ${via.yHaut} L ${via.x} ${via.yBas} L ${vers.x} ${via.yBas} L ${vers.x} ${vers.y}`;
 }
 
 type GroupeEntreeIV = SchemaEntree["groupes"][number];

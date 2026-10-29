@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { SchemaEntree } from "@/briques/schema-motion";
-import { fondusEnsemble } from "../../studio-rendu/compositions/image-video/plan";
+import { fondusDeScene, fondusEnsemble } from "../../studio-rendu/compositions/image-video/plan";
 import { cheminContourne, planEnsemble } from "../../studio-rendu/compositions/image-video/plan-objets";
 
 const FONDUS = Array.from({ length: 21 }, (_, i) => i / 20);
@@ -37,6 +37,16 @@ describe("fondu toile / vue d'ensemble", () => {
 
   it("9:16 : fondu enchaîné d'origine, inchangé", () => {
     for (const f of FONDUS) expect(fondusEnsemble(f, false)).toEqual({ toile: 1 - f, ensemble: f });
+  });
+});
+
+describe("fondus de la scène selon la hauteur", () => {
+  it("4:5 (1350) : séquentiel ; 9:16 (1920) : formule d'origine strictement identique", () => {
+    for (const f of FONDUS) {
+      expect(fondusDeScene(1350, f)).toEqual(fondusEnsemble(f, true));
+      expect(fondusDeScene(1920, f)).toEqual({ toile: 1 - f, ensemble: f });
+    }
+    expect(fondusDeScene(1350, 0.5)).toEqual({ toile: 0, ensemble: 0 });
   });
 });
 
@@ -79,7 +89,32 @@ describe("trait vertical de la vue d'ensemble", () => {
     const saut = plan.fleches.find((f) => f.id === "l3")!;
     const d = cheminContourne(saut.de, saut.vers, saut.via!);
     expect(d).toContain(`L ${saut.via!.x} ${saut.via!.yBas}`);
+    expect(d).toContain(`L ${saut.de.x} ${saut.via!.yHaut} L ${saut.via!.x} ${saut.via!.yHaut}`);
     expect(d.startsWith(`M ${saut.de.x} ${saut.de.y}`)).toBe(true);
     expect(d.trim().endsWith(`${saut.vers.x} ${saut.vers.y}`)).toBe(true);
+  });
+
+  it("le trajet horizontal reste à plus d'un demi-trait des blocs de départ et d'arrivée, et ne touche aucun autre bloc", () => {
+    const saut = plan.fleches.find((f) => f.id === "l3")!;
+    const { x, yHaut, yBas } = saut.via!;
+    const DEMI_TRAIT = 3.5;
+    const depart = plan.blocs.find((b) => b.id === "a")!;
+    const arrivee = plan.blocs.find((b) => b.id === "c")!;
+    // Départ : le trajet horizontal est sous le bas du bloc de départ d'au moins un demi-trait ; arrivée : au-dessus du haut.
+    expect(yHaut - (depart.y + depart.hauteur)).toBeGreaterThanOrEqual(DEMI_TRAIT);
+    expect(arrivee.y - yBas).toBeGreaterThanOrEqual(DEMI_TRAIT);
+    // La seule descente le long du bloc est à l'abscisse du départ (resp. de l'arrivée), pas sur le tracé horizontal.
+    const d = cheminContourne(saut.de, saut.vers, saut.via!);
+    const pts = [...d.matchAll(/[ML] (\S+) (\S+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+    for (let i = 1; i < pts.length; i++) {
+      const [p, q] = [pts[i - 1], pts[i]];
+      if (p.y !== q.y) continue; // segment horizontal
+      for (const b of plan.blocs) {
+        const recouvreX = Math.max(p.x, q.x) > b.x - DEMI_TRAIT && Math.min(p.x, q.x) < b.x + b.largeur + DEMI_TRAIT;
+        const recouvreY = p.y > b.y - DEMI_TRAIT && p.y < b.y + b.hauteur + DEMI_TRAIT;
+        expect(recouvreX && recouvreY, `segment horizontal à y=${p.y} touche ${b.id}`).toBe(false);
+      }
+    }
+    expect(x).toBeDefined();
   });
 });

@@ -37,8 +37,8 @@ import { PhraseChoc } from "./PhraseChoc";
 import { Affiche } from "./Affiche";
 import { QueueFin } from "./QueueFin";
 import type { AvecAfficheIV } from "./variete/ouverture/donnees";
-import { decalageReferenceIV, miseEnPageDeHauteurIV } from "./mise-en-page";
-import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, fondusEnsemble, masqueToile, noeudCourant, opaciteRail, placeRail } from "./plan";
+import { decalageReferenceIV } from "./mise-en-page";
+import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, fondusDeScene, masqueToile, noeudCourant, opaciteRail, placeRail } from "./plan";
 import { objetsA, planEnsemble, secousseAlerte, type ObjetSceneIV, type ProprietesSceneObjetsIV } from "./plan-objets";
 import { Recherche } from "./Recherche";
 import { RepereChapitre } from "./RepereChapitre";
@@ -122,7 +122,7 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
   const ensemble = ensembleA(p, scene, t);
   // Calcul léger, refait à chaque image comme `ensembleA` : le schéma lisible dans la zone utile (sous l'en-tête).
   const vue = ensemble ? planEnsemble(p.schema, { allumes: ensemble.options.allumes, chiffresCles: ensemble.options.chiffresCles }) : null;
-  const fondus = ensemble ? fondusEnsemble(ensemble.fondu, miseEnPageDeHauteurIV(p.hauteur).format === "4:5") : null;
+  const fondus = ensemble ? fondusDeScene(p.hauteur, ensemble.fondu) : null;
   const fonduToile = fondus ? fondus.toile : 1;
   // Sous l'en-tête, la toile s'efface en douceur : un nœud vu reste deviné, jamais mêlé au titre ; en bas, avant les sous-titres.
   const masque = masqueToile(p.hauteur, !!entete);

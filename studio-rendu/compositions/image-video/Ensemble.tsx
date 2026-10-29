@@ -50,7 +50,7 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
           const k = Math.max(10, (f.vers.y - f.de.y) / 2);
           const chemin = f.via ? cheminContourne(f.de, f.vers, f.via) : `M ${f.de.x} ${f.de.y} C ${f.de.x} ${f.de.y + k}, ${f.vers.x} ${f.vers.y - k}, ${f.vers.x} ${f.vers.y}`;
           const allume = parId.get(de)?.allume && parId.get(vers)?.allume;
-          return <path key={f.id} d={chemin} pathLength={1} fill="none" stroke={couleurTrait(f.couleur)} strokeWidth={7} strokeLinecap="round" strokeDasharray="1 1" strokeDashoffset={1 - trace} opacity={allume ? 1 : OPACITE_VU} />;
+          return <path key={f.id} d={chemin} pathLength={1} fill="none" stroke={couleurTrait(f.couleur)} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 1" strokeDashoffset={1 - trace} opacity={allume ? 1 : OPACITE_VU} />;
         })}
       </svg>
       {plan.blocs.map((b) => {

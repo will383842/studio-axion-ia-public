@@ -678,6 +678,11 @@ export function fondusEnsemble(fondu: number, sequentiel: boolean): { toile: num
   return { toile: c01(1 - 2 * fondu), ensemble: c01(2 * fondu - 1) };
 }
 
+/** Fondus de la scène d'ensemble selon la hauteur de la vidéo : séquentiel en 4:5, fondu enchaîné d'origine en 9:16. */
+export function fondusDeScene(hauteur: number, fondu: number): { toile: number; ensemble: number } {
+  return fondusEnsemble(fondu, miseEnPageDeHauteurIV(hauteur).format === "4:5");
+}
+
 /** En-tête affiché à l'instant `t` et son ouverture (0 à 1) / sa fermeture. */
 export function enteteA(p: Pick<ProprietesSceneIV, "entetes">, t: number) {
   const e = (p.entetes ?? []).find((x) => t >= x.debut && t < x.fin);
