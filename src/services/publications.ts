@@ -25,7 +25,7 @@ import { listerReseaux, obtenirReseau, verifierPourReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
 import { occupeBuffer } from "@/domaine/buffer";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
-import { ErreurBuffer, PHRASES_BUFFER } from "@/fournisseurs/publication/buffer";
+import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
@@ -39,6 +39,7 @@ import type { VueKit, VueKitReseau, VueVideoCarte } from "./vues";
 import { lireFamilles } from "./hashtags";
 import { listerSeries, serieDeVideo, votreMarqueDeVideo } from "./series";
 import { creerNotification } from "./notifications";
+import { premierCommentaireDeVideo } from "./premier-commentaire";
 import { liensSousTitresParReseau } from "./sous-titres-par-reseau";
 import { sousVerrouKit } from "./verrou-kit";
 import { construirePasseportDEssai, pagePourYoutube, passeportDeLaVideo } from "./site-videos";
@@ -596,8 +597,10 @@ export async function envoyerVersBuffer(
     autreReseauConfirme?: boolean;
     /** Lot R1b : comptes Buffer cochés par Will, par réseau (sinon : dernier choix mémorisé, ou le seul compte). */
     comptes?: Partial<Record<IdReseau, string[]>>;
+    /** Premier commentaire modifié à l'écran, par réseau (sinon : celui que la vidéo porte déjà). */
+    premiersCommentaires?: Partial<Record<IdReseau, string>>;
   } = {},
-): Promise<{ simulation: boolean; publications: Publication[]; mode?: ModeEnvoiPublication; problemes?: ProblemeEnvoi[] }> {
+): Promise<{ simulation: boolean; publications: Publication[]; mode?: ModeEnvoiPublication; problemes?: ProblemeEnvoi[]; commentairesALaMain?: IdReseau[] }> {
   await exigerSession();
   const kitVue = await obtenirKit(videoId);
   if (!kitVue) throw new ErreurStudio("PAS_PRETE", "La vidéo n'est pas prête.");
@@ -617,16 +620,19 @@ export async function envoyerVersBuffer(
     if ((video && (await videoEnEssai(video))) || fichiers.some((f) => estCleDemo(f?.cleStockage))) {
       throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
     }
-    return envoyerVersBufferReel(service, kitVue, [...new Set(reseaux)], dateIso, options.comptes ?? {});
+    return envoyerVersBufferReel(service, kitVue, [...new Set(reseaux)], dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {});
   }
   const d = depots();
   const publications: Publication[] = [];
+  const commentairesALaMain: IdReseau[] = [];
   for (const reseau of reseaux) {
     const r = kitVue.reseaux.find((x) => x.reseau === reseau);
     if (!r) continue;
     const texte = texteAEnvoyer(r, kitVue.serie?.entete);
     const marque = reseau === "tiktok" && kitVue.votreMarque.cochee;
-    const envoi = await service.envoyer({ reseau, texte, date: dateIso, fichierCle: r.sortieConseillee?.url ?? "", ...(marque ? { votreMarque: true } : {}) });
+    const commentaire = await commentairePour(kitVue, reseau, options.premiersCommentaires?.[reseau]);
+    if (commentaire.aLaMain) commentairesALaMain.push(reseau);
+    const envoi = await service.envoyer({ reseau, texte, date: dateIso, fichierCle: r.sortieConseillee?.url ?? "", ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), ...(marque ? { votreMarque: true } : {}) });
     const pub: Publication = {
       id: nouvelId("pub"),
       videoId,
@@ -650,7 +656,17 @@ export async function envoyerVersBuffer(
   if (!simulation) await passerProgrammee(videoId);
   if (kitVue.variante) await synchroniserEtats(kitVue.variante.id);
   await journaliser("publication", simulation ? `Essai d'envoi vers Buffer (${libelleReseaux(reseaux.length)})` : `Programmée sur ${libelleReseaux(reseaux.length)}`, { type: "video", id: videoId });
-  return { simulation, publications };
+  return { simulation, publications, ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
+}
+
+/**
+ * Premier commentaire d'un réseau : celui de l'écran, sinon celui que la vidéo porte déjà. Seuls Instagram, Facebook et
+ * LinkedIn le reçoivent par Buffer ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
+ */
+async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined): Promise<{ texte?: string; aLaMain: boolean }> {
+  const texte = (surcharge ?? (await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante)))?.trim();
+  if (!texte) return { aLaMain: false };
+  return premierCommentaireTransmissible(reseau) ? { texte, aLaMain: false } : { aLaMain: true };
 }
 
 /**
@@ -707,7 +723,7 @@ export interface ProblemeEnvoi {
  *     (le détail, nettoyé, au journal) ;
  *  6. le journal, l'étape de la vidéo et la version sont toujours mis à jour pour ce qui est parti.
  */
-async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>) {
+async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>) {
   const d = depots();
   const videoId = kitVue.videoId;
   const mode = await lireModeBuffer();
@@ -716,9 +732,10 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     throw new ErreurStudio("TROP_LOIN", "Programmez à moins de 7 jours, ou passez par un brouillon dans Buffer.");
   }
   // 1. Préparation complète avant le moindre envoi : un envoi par compte (un seul texte par réseau, pour tous ses comptes).
-  const prets: { reseau: IdReseau; nom: string; texte: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean }[] = [];
+  const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean }[] = [];
   // Seuls les comptes cochés ET validés (réseau envoyé, compte connu de ce réseau) sont mémorisés.
   const valides: Partial<Record<IdReseau, string[]>> = {};
+  const commentairesALaMain: IdReseau[] = [];
   for (const reseau of reseaux) {
     const r = kitVue.reseaux.find((x) => x.reseau === reseau);
     if (!r) continue;
@@ -728,10 +745,12 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     if (!r.sortieConseillee) throw new ErreurStudio("RESEAU", `Aucun fichier au bon format pour ${r.nom}.`);
     const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
     const nomReseau = obtenirReseau(reseau).nom;
+    const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau]);
+    if (commentaire.aLaMain) commentairesALaMain.push(reseau);
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
       const nom = comptes.source === "auto" ? nomReseau : `${nomReseau} (${canal.nom})`;
-      prets.push({ reseau, nom, texte: texteAEnvoyer(r, kitVue.serie?.entete), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}) });
+      prets.push({ reseau, nom, texte: texteAEnvoyer(r, kitVue.serie?.entete), ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}) });
     }
   }
   // Le choix de Will est proposé la fois suivante (et sert à « Programmer les N »).
@@ -808,7 +827,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
       const { p, cleEnvoi, nouvelle: pub } = dec;
       // 3. Appel HORS verrou.
       try {
-        const envoi = await service.envoyer({ reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi, ...(p.votreMarque ? { votreMarque: true } : {}) });
+        const envoi = await service.envoyer({ reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi, ...(p.premierCommentaire ? { premierCommentaire: p.premierCommentaire } : {}), ...(p.votreMarque ? { votreMarque: true } : {}) });
         if (envoi.via !== "buffer") throw new ErreurBuffer("illisible", PHRASES_BUFFER.incomprehensibleEnvoi, true, "réponse sans confirmation");
         publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: envoi.idExterne, statut: envoi.statut ?? "brouillon", etatLuLe: maintenant() })));
       } catch (e) {
@@ -844,7 +863,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
   }
   // Rien n'est parti ni en attente : la raison telle quelle, ou, pour plusieurs comptes, toutes les raisons.
   if (!publications.length && problemes.length) throw new ErreurStudio(problemes[0].code, resumeRefus(problemes));
-  return { simulation: false, publications, mode, problemes };
+  return { simulation: false, publications, mode, problemes, ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
 }
 
 /** Tous les refus en une phrase : la raison seule, ou « Aucun des 2 comptes n'est parti : … » suivi de chacune. */
