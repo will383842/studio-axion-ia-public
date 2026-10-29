@@ -26,6 +26,7 @@ import { TEMPS_IV } from "@/briques/schema-motion/temps";
 import type { CodesParAxe, FormatIV } from "@/briques/schema-motion/variete";
 import type { CarteImage, ChiffreCarte } from "@/domaine/image-video/carte";
 import { iconeDe } from "@/domaine/image-video/icones";
+import { legendeDuChiffre } from "../../legende-chiffre";
 import type { BlocRenduIV, MomentPlanIV } from "../../mise-en-scene";
 import type { AxeVarieteIV, EtapeVarieteIV } from "../index";
 
@@ -301,7 +302,7 @@ function duelDeLEcranPartage(b: Extract<BlocRenduIV, { sorte: "objets" }>, etape
     // Le duel va du mot de l'ancienne à la fin de l'écran : assez long pour être lu.
     if (o.fin - la.t < FENETRE_MIN_CHIFFRE_SEC || ln.t < la.t) continue;
     // « Recherche : 23 min » → légende « Recherche » ; « Trouvé » reste la légende de la nouvelle.
-    const legende = (texte: string | undefined, valeur: string) => texte?.replace(valeur, "").replace(/[\s:—–-]+$/u, "").trim() || undefined;
+    const legende = (texte: string | undefined, valeur: string) => (texte === undefined ? undefined : legendeDuChiffre(texte, valeur).replace(/[\s:—–-]+$/u, "").trim() || undefined);
     const lAncien = legende(la.texte, la.valeur!);
     const lNouveau = legende(ln.texte, ln.valeur!);
     const etiquette = b.entetes.find((e) => e.debut <= o.debut + 1e-6)?.etiquette;
