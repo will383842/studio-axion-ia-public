@@ -179,6 +179,48 @@ describe("script collé : la phrase-choc finale reste dite mot pour mot et fait 
     expect(mots(bout(e))).toEqual(mots(t));
   });
 
+  const SIX = "Un deux trois quatre cinq six. Sept huit neuf dix onze douze. Le client attend. Vous gagnez du temps. Votre équipe respire. ";
+
+  it("script de 6 phrases ou plus finissant par une phrase de 9 à 16 mots avec une virgule : coupée à la virgule, mots identiques", () => {
+    const t = `${SIX}Vous perdez du temps chaque jour, alors que tout est fait pour vous.`;
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("alors que tout est fait pour vous.");
+    expect(e.at(-2)!.join(" ")).toBe("Vous perdez du temps chaque jour,");
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("garde le PREMIER signe dont la suite fait 8 mots ou moins (fin la plus longue possible)", () => {
+    const t = `${SIX}Vous perdez du temps, chaque jour, tout est fait pour vous.`;
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("chaque jour, tout est fait pour vous.");
+    expect(mots(e.at(-1)!.join(" ")).length).toBeLessThanOrEqual(8);
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("une fin qui dépasserait 80 caractères (texte affiché tronqué) est coupée plus loin, mots intacts", () => {
+    const t = `${SIX}Vous perdez du temps, alors qu'automatiquement institutionnalisation extraordinairement incompréhensiblement anticonstitutionnellement.`;
+    const e = ecransDuScript(t);
+    const fin = e.at(-1)!.join(" ");
+    expect(fin.length).toBeLessThanOrEqual(80);
+    expect(fin.length).toBeGreaterThan(0);
+    expect(t.endsWith(fin)).toBe(true);
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("au-delà de 60 écrans après la coupe, deux écrans du corps sont fondus : 60 écrans, tête et fin intactes, mots identiques", () => {
+    const court = Array.from({ length: 59 }, (_, i) => `Écran numéro ${i + 1}.`).join(" ");
+    const t = `${court} Vous perdez du temps chaque jour, alors que tout est fait pour vous.`;
+    const e = ecransDuScript(t);
+    expect(e).toHaveLength(60);
+    expect(e[0]!.join(" ")).toBe("Écran numéro 1.");
+    expect(e.at(-1)!.join(" ")).toBe("alors que tout est fait pour vous.");
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("script sans aucun mot : aucun écran, pas d'erreur", () => {
+    expect(ecransDuScript("   ")).toEqual([]);
+  });
+
   it("une phrase finale de 8 mots ou moins reste telle quelle ; la tête est le résultat", () => {
     const t = "Un deux trois quatre cinq six sept. Huit neuf dix onze douze treize. Le client attend. Vous gagnez du temps. Votre client a toujours une réponse.";
     const e = ecransDuScript(t);

@@ -230,7 +230,7 @@ describe("FIN-C · le dessin réel avec les vraies données du moteur (carte C)"
  * script fictif) tient dans sa zone, au-dessus de la bande des sous-titres, sans ligne plus large que le cadre.
  */
 describe("phrase-choc de la galerie · zone, sous-titres et largeur", () => {
-  const SCRIPT = "Vous gérez une petite entreprise et vous perdez du temps sur des tâches répétitives ? Réservez un appel, nous regardons ensemble ce qui peut être automatisé chez vous.";
+  const SCRIPT = "Vous gérez une petite entreprise. Vous perdez du temps sur des tâches répétitives. Le client attend. Vous gagnez du temps. Votre équipe respire. Merci. Vous perdez du temps chaque jour, alors que tout est fait pour vous.";
   const fin = ecransDuScript(SCRIPT).at(-1)!.join(" ");
   const mots = fin.split(/\s+/);
   const CAS = [
@@ -238,7 +238,11 @@ describe("phrase-choc de la galerie · zone, sous-titres et largeur", () => {
     { nom: "4:5", hauteur: 1350, decalage: DECALAGE_REFERENCE_4X5_PX, bande: MISE_EN_PAGE_IV["4:5"].bandeSousTitres.haut * 1350 },
   ];
 
-  it("la phrase finale fait 8 mots au plus", () => expect(mots.length).toBeLessThanOrEqual(8));
+  it("la phrase finale fait 8 mots au plus, coupée à la virgule, tous les mots du script gardés", () => {
+    expect(mots.length).toBeLessThanOrEqual(8);
+    expect(fin).toBe("alors que tout est fait pour vous.");
+    expect(ecransDuScript(SCRIPT).flat().join(" ")).toBe(SCRIPT);
+  });
 
   for (const c of CAS) {
     it(`${c.nom} : le bas du texte et de la marque est sous le haut de la bande des sous-titres, chaque ligne tient entre les marges, la marque reste dans la zone`, () => {
@@ -260,5 +264,28 @@ describe("phrase-choc de la galerie · zone, sous-titres et largeur", () => {
     const zone = zonePhraseChocIV(1350);
     const a = coupePhraseChoc("UN DEUX TROIS QUATRE CINQ SIX SEPT HUIT NEUF DIX ONZE DOUZE TREIZE QUATORZE QUINZE SEIZE".split(" "), zone);
     expect(a.lignes.length * a.taille * INTERLIGNE_IV).toBeLessThanOrEqual(zone.bas - zone.haut - RESERVE_MARQUE_PHRASE_CHOC + 1e-6);
+  });
+
+  it("une zone étroite {haut: 400, bas: 900} contraint vraiment : texte plus 110 px de marque dans la zone, plus bas que sans zone", () => {
+    const mots16 = "UN DEUX TROIS QUATRE CINQ SIX SEPT HUIT NEUF DIX ONZE DOUZE TREIZE QUATORZE QUINZE SEIZE".split(" ");
+    const etroite = { haut: 400, bas: 900 };
+    const libre = coupePhraseChoc(mots16);
+    const a = coupePhraseChoc(mots16, etroite);
+    const hauteurLibre = libre.lignes.length * libre.taille * INTERLIGNE_IV;
+    expect(hauteurLibre).toBeGreaterThan(etroite.bas - etroite.haut - RESERVE_MARQUE_PHRASE_CHOC);
+    expect(a.lignes.length * a.taille * INTERLIGNE_IV).toBeLessThanOrEqual(etroite.bas - etroite.haut - RESERVE_MARQUE_PHRASE_CHOC + 1e-6);
+    expect(a.taille).toBeLessThan(libre.taille);
+  });
+
+  it("zonePhraseChocIV(1350) reste calculée depuis la mise en page 4:5 : 180 → 1075", () => {
+    const z = zonePhraseChocIV(1350);
+    expect(z.haut).toBeCloseTo(180, 6);
+    expect(z.bas).toBeCloseTo(1075, 6);
+  });
+
+  it("aucun mot : pas d'alerte, pas de ligne", () => {
+    const a = coupePhraseChoc([]);
+    expect(a.alerte).toBeNull();
+    expect(a.lignes).toEqual([]);
   });
 });

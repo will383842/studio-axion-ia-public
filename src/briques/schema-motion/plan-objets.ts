@@ -14,8 +14,10 @@ import { motsBalises } from "../ecrans-motion";
 import { COULEURS_DUO, TAILLES_DUO } from "../habillage/charte-duo";
 import {
   ECRAN_IV,
+  DECALAGE_REFERENCE_4X5_PX,
   formatDeHauteurIV,
   MESURES_TOILE,
+  MISE_EN_PAGE_IV,
   MOTS_MAX_ENSEMBLE,
   nombreDeMots,
   PLANCHER_IV,
@@ -1322,9 +1324,13 @@ export const RESERVE_MARQUE_PHRASE_CHOC = 110;
 /** Zone verticale (px de l'écran de référence 1080 × 1920) où la phrase-choc et sa marque doivent tenir. */
 export type ZonePhraseChoc = { haut: number; bas: number };
 
-/** Zone de la phrase-choc d'un cadre de hauteur donnée : 9:16 du haut du contenu à la zone utile, 4:5 de 180 à 1075 (au-dessus des sous-titres). */
+/** Zone de la phrase-choc d'un cadre de hauteur donnée : 9:16 du haut du contenu à la zone utile, 4:5 la zone de contenu du cadre remontée du décalage de référence (≈ 180 à 1075, au-dessus des sous-titres). */
 export function zonePhraseChocIV(hauteur: number): ZonePhraseChoc {
-  return formatDeHauteurIV(hauteur) === "4:5" ? { haut: 180, bas: 1075 } : { haut: ZONE_CONTENU_IV.haut * H, bas: ZONE_UTILE_IV.bas * H };
+  if (formatDeHauteurIV(hauteur) === "4:5") {
+    const { zoneContenu, hauteur: h45 } = MISE_EN_PAGE_IV["4:5"];
+    return { haut: zoneContenu.haut * h45 + DECALAGE_REFERENCE_4X5_PX, bas: zoneContenu.bas * h45 + DECALAGE_REFERENCE_4X5_PX };
+  }
+  return { haut: ZONE_CONTENU_IV.haut * H, bas: ZONE_UTILE_IV.bas * H };
 }
 
 /** Hauteur maximale du texte d'une phrase-choc : 36 % de la hauteur, et la zone moins la place de la marque. */
@@ -1343,6 +1349,7 @@ function taillePhraseChoc(lignes: readonly (readonly string[])[], hauteurMax: nu
 
 /** La coupe de 1 à 4 lignes qui donne la plus grande taille ; sous le plancher : plancher, 4 lignes et une alerte. */
 function ajusterPhraseChoc(mots: readonly string[], hauteurMax: number): TexteAjuste {
+  if (mots.length === 0) return { taille: PLANCHER_PX, lignes: [], alerte: null };
   let meilleur: TexteAjuste | null = null;
   for (let n = 1; n <= Math.min(OPTIONS_PHRASE_CHOC.lignesMax, mots.length); n++) {
     const lignes = couperEquilibre(mots, n);
