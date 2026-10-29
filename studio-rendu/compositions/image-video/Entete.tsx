@@ -17,7 +17,7 @@ import { miseEnPageDeHauteurIV } from "./mise-en-page";
 
 export { TAILLE_TITRE_IV } from "./plan-objets";
 
-export function Entete({ entete, ecoule, sortie, fond, marque, largeur, hauteur, couleursTitre, tailleTitre }: { tailleTitre?: number; couleursTitre?: { texte: string; accent: string }; entete: EnteteSceneIV | null; ecoule: number; sortie: number; fond: Fond; marque: ProprietesSceneIV["marque"]; largeur: number; hauteur: number }) {
+export function Entete({ entete, ecoule, sortie, fond, marque, largeur, hauteur, couleursTitre, tailleTitre, hauteurEtiquetteMin }: { hauteurEtiquetteMin?: number; tailleTitre?: number; couleursTitre?: { texte: string; accent: string }; entete: EnteteSceneIV | null; ecoule: number; sortie: number; fond: Fond; marque: ProprietesSceneIV["marque"]; largeur: number; hauteur: number }) {
   const c = couleursDuFond(fond);
   const m = miseEnPageDeHauteurIV(hauteur);
   // Hauteur de référence des textes (1920 dans les deux formats) et haut de l'en-tête (9:16 : `HAUT_ENTETE`, inchangé).
@@ -35,7 +35,7 @@ export function Entete({ entete, ecoule, sortie, fond, marque, largeur, hauteur,
       <MarqueIV marque={marque} fond={fond} largeur={largeur} hauteur={hauteur} haut={m.hautMarque * hauteur} accent={accent} />
       {entete && titre ? (
         <div style={{ position: "absolute", left: 0, top: haut, width: largeur, textAlign: "center", opacity: 1 - sortie }}>
-          <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLES_DUO.etiquette * ht, letterSpacing: "0.32em", textTransform: "uppercase", color: c.accent, opacity: Math.min(1, ecoule / 0.2) }}>
+          <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLES_DUO.etiquette * ht, letterSpacing: m.format === "4:5" ? "0.24em" : "0.32em", minHeight: hauteurEtiquetteMin, textTransform: "uppercase", color: c.accent, opacity: Math.min(1, ecoule / 0.2) }}>
             {/* Étiquette vide : l'espace insécable garde la hauteur de la ligne (le titre ne remonte pas d'une ligne). */}
             {entete.etiquette || "\u00a0"}
           </div>
