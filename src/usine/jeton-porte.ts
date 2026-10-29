@@ -6,7 +6,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 export const LONGUEUR_MIN_SECRET_PORTE = 32;
 
-export type Env = { STUDIO_PORTE_SECRET?: string; STUDIO_PORTE_SECRET_PRECEDENT?: string; USINE_PORTE_SECRET?: string };
+export type Env = { STUDIO_PORTE_SECRET?: string; STUDIO_PORTE_SECRET_PRECEDENT?: string; USINE_PORTE_SECRET?: string; STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A?: string };
 
 const empreinte = (s: string) => createHash("sha256").update(s).digest();
 
@@ -43,11 +43,22 @@ export function porteAllumee(env: Env): boolean {
   return secretValide(env.STUDIO_PORTE_SECRET) !== null && !secretsEnConflit(env);
 }
 
+/**
+ * L'ancien secret (rotation) ne vaut que jusqu'à `STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A` (date ISO, 24 h au plus après la
+ * rotation) : échéance absente, illisible ou dépassée → l'ancien secret est ignoré.
+ */
+export function precedentEnVigueur(env: Env, maintenantMs: number = Date.now()): boolean {
+  const brut = env.STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A?.trim() ?? "";
+  if (brut === "") return false;
+  const echeance = Date.parse(brut);
+  return Number.isFinite(echeance) && maintenantMs <= echeance;
+}
+
 /** Comparaison à temps constant : empreintes de même longueur, et les deux secrets sont toujours évalués. */
-export function jetonAccepte(jeton: string, env: Env): boolean {
+export function jetonAccepte(jeton: string, env: Env, maintenantMs: number = Date.now()): boolean {
   const e = empreinte(jeton);
   const courant = secretValide(env.STUDIO_PORTE_SECRET);
-  const precedent = secretValide(env.STUDIO_PORTE_SECRET_PRECEDENT);
+  const precedent = precedentEnVigueur(env, maintenantMs) ? secretValide(env.STUDIO_PORTE_SECRET_PRECEDENT) : null;
   const okCourant = courant !== null && timingSafeEqual(e, empreinte(courant));
   const okPrecedent = precedent !== null && timingSafeEqual(e, empreinte(precedent));
   return okCourant || okPrecedent;

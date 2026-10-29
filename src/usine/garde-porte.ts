@@ -5,7 +5,7 @@
  *  1. secret `STUDIO_PORTE_SECRET` absent, de moins de 32 caractères, ou égal à `USINE_PORTE_SECRET` (un secret par sens ; alerte au
  *     journal, sans secret) → 404 sans détail (porte éteinte) ;
  *  2. `Authorization: Bearer …` comparé à temps constant (empreintes SHA-256, `timingSafeEqual`) au secret et, pendant une
- *     rotation, à `STUDIO_PORTE_SECRET_PRECEDENT` → sinon 401 sans détail ;
+ *     rotation, à `STUDIO_PORTE_SECRET_PRECEDENT` (seulement jusqu'à `STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A`, date ISO ; sans échéance valide il est ignoré) → sinon 401 sans détail ;
  *  3. 60 appels par minute au plus (appels authentifiés seulement, sinon un inconnu bloquerait l'Usine) → 429 ;
  *  4. `Content-Type` JSON → 415 ; corps de 16 Ko au plus → 413 ; JSON objet → 400 ;
  *  5. `contrat: 2` obligatoire → 426 `contrat_inconnu` ; champs inconnus refusés → 400 `champ_invalide`.
@@ -128,7 +128,7 @@ export async function garderPorte(requete: Request, o: OptionsGarde): Promise<Po
     return refus(404, "Introuvable.", "introuvable", null, false);
   }
   const jeton = jetonDeLEntete(requete);
-  if (jeton === null || !jetonAccepte(jeton, env)) {
+  if (jeton === null || !jetonAccepte(jeton, env, o.maintenantMs)) {
     console.warn(`[porte-usine] ${o.route} → 401`);
     return refus(401, "Non autorisé.", "non_autorise", null, false);
   }
