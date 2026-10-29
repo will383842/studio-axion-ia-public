@@ -20,7 +20,7 @@ const DELAI_ENTETES_R2_MS = 30_000;
 const ENTETES_COMMUNS = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" } as const;
 
 /** Adresse publique du Studio (https), sans barre finale. */
-export function adressePubliqueStudio(env: { STUDIO_ADRESSE?: string } = process.env): string {
+export function adressePubliqueStudio(env: Record<string, string | undefined> = process.env): string {
   return (env.STUDIO_ADRESSE?.trim() || ADRESSE_PAR_DEFAUT).replace(/\/+$/, "");
 }
 

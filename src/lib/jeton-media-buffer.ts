@@ -12,25 +12,25 @@ export const LIBELLE_CLE_MEDIA_BUFFER = "buffer-media-v1";
 /** Durée de vie d'un jeton : 30 jours. Buffer relit la vidéo jusqu'à la publication ; un jeton fuité cesse de servir ensuite. */
 export const DUREE_JETON_MEDIA_BUFFER_SEC = 30 * 24 * 3600;
 
-function cleDerivee(env: { SESSION_SECRET?: string }): Buffer {
+function cleDerivee(env: Record<string, string | undefined>): Buffer {
   const secret = env.SESSION_SECRET;
   if (!secret || secret.length < 32) throw new Error("SESSION_SECRET absent ou trop court (32 caractères au moins).");
   return createHmac("sha256", secret).update(LIBELLE_CLE_MEDIA_BUFFER).digest();
 }
 
-function signer(charge: string, env: { SESSION_SECRET?: string }): string {
+function signer(charge: string, env: Record<string, string | undefined>): string {
   return createHmac("sha256", cleDerivee(env)).update(charge).digest("base64url");
 }
 
 /** Jeton pour ce fichier, valable `DUREE_JETON_MEDIA_BUFFER_SEC` à partir de `maintenantMs`. */
-export function creerJetonMediaBuffer(fichierId: string, maintenantMs: number = Date.now(), env: { SESSION_SECRET?: string } = process.env): string {
+export function creerJetonMediaBuffer(fichierId: string, maintenantMs: number = Date.now(), env: Record<string, string | undefined> = process.env): string {
   const exp = Math.floor(maintenantMs / 1000) + DUREE_JETON_MEDIA_BUFFER_SEC;
   const charge = Buffer.from(JSON.stringify({ fichierId, exp })).toString("base64url");
   return `${charge}.${signer(charge, env)}`;
 }
 
 /** L'identifiant du fichier si le jeton est authentique et non expiré ; sinon null (aucune raison donnée : falsifié, expiré, illisible = même résultat). */
-export function verifierJetonMediaBuffer(jeton: string, maintenantMs: number = Date.now(), env: { SESSION_SECRET?: string } = process.env): string | null {
+export function verifierJetonMediaBuffer(jeton: string, maintenantMs: number = Date.now(), env: Record<string, string | undefined> = process.env): string | null {
   try {
     const morceaux = jeton.split(".");
     if (morceaux.length !== 2 || !/^[A-Za-z0-9_-]+$/.test(morceaux[0]) || !/^[A-Za-z0-9_-]+$/.test(morceaux[1])) return null;
