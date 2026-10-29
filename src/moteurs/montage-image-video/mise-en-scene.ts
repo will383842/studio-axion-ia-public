@@ -54,6 +54,7 @@ import { calerFiche, cleMot, type CalageIV, type MotCale } from "./calage";
 import { ecranV4Tient } from "./ecrans-v4";
 import { cleChiffre, clesDeLaCarte, clesDuTexte, controlerMiseEnSceneIV, instantsVisibles, type RapportMiseEnSceneIV } from "./controles-scene";
 import type { FinIV } from "./fins";
+import { legendeDuChiffre } from "./legende-chiffre";
 import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
 import { sousTitresIV, type MotFort, type SousTitresIV } from "./sous-titres";
@@ -1584,6 +1585,13 @@ function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: st
   if (lu && lu.valeur !== null && orange) {
     const ligne = sansBalises(orange).trim();
     const apresChiffre = (x: string) => x.replace(/^\s*[\d\s,.:h]+/u, "").trim();
+    // Ligne qui ne commence pas par le nombre (« Relance à *3 jours* ») : l'unité est le mot qui suit le nombre, la légende ce qui se lit avant.
+    const enFin = !/^\s*\d/u.test(ligne) && lu.unite !== "heure" && ligne.includes(lu.brut);
+    if (enFin) {
+      const unite = ligne.slice(ligne.indexOf(lu.brut) + lu.brut.length).trim().split(/\s+/u)[0] ?? "";
+      const legende = legendeDuChiffre(ligne, lu.brut);
+      return { ...base, type: "chiffre", nombre: lu.valeur, unite, pastilles: [...(legende ? [legende] : []), ...lignes.filter((x) => x !== orange).map(sansBalises)], compteur: true } as EcranCale;
+    }
     // Heure (« 23h14 ») : la ligne se lit comme avant. Sinon l'unité s'arrête au tiret de séparation (« *80%* — Réponse connue » donne
     // « % ») et ce qui suit le tiret devient la première pastille (« Réponse connue »), sans tiret : l'unité n'est plus toute la fin de ligne.
     const [unitePartie, ...suite] = lu.unite === "heure" ? [apresChiffre(ligne)] : apresChiffre(ligne).split(/\s+[—–-]\s+/u);
@@ -2308,7 +2316,8 @@ function blocMoments(id: string, lot: EcranPlace[], carte: CarteImage, debut: nu
       sorte: "bandeau",
       etiquette: "Résultat",
       chiffres: els.filter((x) => x.role === "bandeau").map((x) => {
-        const legende = carte.bandeau.find((b) => b.includes(x.texte ?? "\u0000"))?.replace(x.texte ?? "", "").replace(/^[\s=·:]+|[\s=·:]+$/g, "").trim();
+        const phrase = carte.bandeau.find((b) => b.includes(x.texte ?? "\u0000"));
+        const legende = phrase === undefined ? undefined : legendeDuChiffre(phrase, x.texte ?? "").replace(/^[\s=·:]+|[\s=·:]+$/g, "").trim();
         return { texte: x.texte ?? "", ...(legende ? { legende } : {}), t: rel(x.t) };
       }),
     };
