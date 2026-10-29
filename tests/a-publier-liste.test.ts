@@ -107,7 +107,8 @@ describe("À publier — la liste", () => {
     const h = liste(cinquante);
     expect(h.match(/<li[ >]/g)?.length).toBe(20);
     expect(texte(h)).toContain("50 à envoyer");
-    expect(h).toContain('href="/a-publier?n=40"');
+    // Vue Tous : le lien de la section ouvre l'onglet de CE réseau.
+    expect(h).toContain('href="/a-publier?reseau=instagram&amp;n=40"');
     expect(liste(cinquante, "a-envoyer", 40).match(/<li[ >]/g)?.length).toBe(40);
     expect(liste(cinquante, "a-envoyer", 60)).not.toContain("Voir 20 de plus");
     expect(L.lienListe("envoyees", 40)).toBe("/a-publier?filtre=envoyees&n=40");
