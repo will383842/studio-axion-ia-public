@@ -7,7 +7,7 @@
  * est gardée ; sinon la dernière, avec ses alertes (ou sa version à caméra à coupe franche si elle a moins de défauts).
  */
 import { controlerCadrage, trajectoireCamera, type CadrageCamera, type DefautCadrage } from "./camera";
-import { disposerToile, VARIANTES_DISPOSITION, type VarianteDisposition } from "./disposition";
+import { disposerToile, VARIANTES_DISPOSITION, VARIANTES_DISPOSITION_4X5, type VarianteDisposition } from "./disposition";
 import type { DispositionToile, MotParle, SchemaEntree, TrajectoireCamera } from "./types";
 
 export type ToileCadree = {
@@ -43,15 +43,26 @@ export function disposerEtCadrer(
   cadragePour: (toile: DispositionToile) => CadrageCamera = () => ({}),
 ): ToileCadree {
   let dernier: ToileCadree | null = null;
-  for (const variante of VARIANTES_DISPOSITION) {
+  // Cadre lisible court (4:5) : une variante de plus (boîtes larges) et choix de la moins mauvaise ; le 9:16 (cadre.bas 1
+  // ou absent) garde sa liste et son comportement.
+  const court = (cadragePour(disposerToile(schema)).cadre?.bas ?? 1) < 0.999;
+  const liste: readonly VarianteDisposition[] = court ? VARIANTES_DISPOSITION_4X5 : VARIANTES_DISPOSITION;
+  const essais: ToileCadree[] = [];
+  for (const variante of liste) {
     const toile = disposerToile(schema, variante);
     // Sans embranchement, « branche centrée » ne change rien à « serrée ».
-    if (variante === "branche-centree" && toile.branches.length < 2) break;
+    if (variante === "branche-centree" && toile.branches.length < 2) continue;
     const cadrage = cadragePour(toile);
     const trajectoire = trajectoireCamera(toile, mots, dureeSec, cadrage);
     const defauts = controlerCadrage(toile, trajectoire, mots, cadrage);
     dernier = { toile, trajectoire, cadrage, variante, defauts };
     if (propre(dernier)) return dernier;
+    essais.push(dernier);
+  }
+  if (court && essais.length > 0) {
+    // Aucune variante propre : la moins mauvaise (défauts plus alertes « trop grand » ou « aucun cadrage »), à égalité la première.
+    const mal = (r: ToileCadree) => r.defauts.length + r.trajectoire.alertes.filter((a) => a.includes("trop grand") || a.includes("aucun cadrage")).length;
+    dernier = essais.reduce((m, r) => (mal(r) < mal(m) ? r : m));
   }
   // Filet : toutes les variantes échouent. La dernière est retentée caméra à coupe franche (pas de panoramique en retard
   // ni en travers d'un bloc) ; on garde celle qui a le moins de défauts (à égalité, l'originale : rien ne change).
