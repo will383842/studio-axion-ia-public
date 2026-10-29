@@ -44,14 +44,14 @@ export function LignesAPublier({ vue }: { vue: VueAPublier }) {
       </p>
       <ul className="space-y-4">
         {vue.lignes.map((l) => (
-          <LigneCarte key={l.cle} ligne={l} envoiSimule={vue.envoiSimule} />
+          <LigneCarte key={l.cle} ligne={l} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} />
         ))}
       </ul>
     </div>
   );
 }
 
-function LigneCarte({ ligne: l, envoiSimule }: { ligne: LigneAPublier; envoiSimule: boolean }) {
+function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublier; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"] }) {
   const router = useRouter();
   const [texte, setTexte] = useState(l.texte);
   const [commentaire, setCommentaire] = useState(l.premierCommentaire ?? "");
@@ -197,7 +197,7 @@ function LigneCarte({ ligne: l, envoiSimule }: { ligne: LigneAPublier; envoiSimu
 
           <div className="flex flex-wrap gap-2">
             <Bouton icone="envoyer" disabled={!peutEnvoyer} chargement={enCours} onClick={brouillon}>
-              Mettre en brouillon dans Buffer
+              {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
             </Bouton>
             <Bouton variante="secondaire" icone="calendrier" disabled={!peutEnvoyer || !l.sujetId} chargement={enCours} onClick={programmer}>
               Programmer
