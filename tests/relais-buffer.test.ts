@@ -183,6 +183,33 @@ describe("relais : durcissements", () => {
     expect(apres.status).toBe(200);
     await apres.body!.cancel();
   });
+  it("client déjà parti (signal déjà interrompu) : 502, R2 non appelé, la place est rendue", async () => {
+    const jeton = creerJetonMediaBuffer("f-reel");
+    const parti = new AbortController();
+    parti.abort();
+    for (let i = 0; i < LIMITE_FLUX_SIMULTANES + 2; i++) {
+      const r = await servirRelaisBuffer("GET", jeton, "video.mp4", "bytes=0-4", parti.signal);
+      expect(r.status).toBe(502);
+    }
+    expect(r2).not.toHaveBeenCalled();
+    for (let i = 0; i < LIMITE_FLUX_SIMULTANES; i++) expect((await servirRelaisBuffer("GET", jeton, "video.mp4", "bytes=0-4")).status).toBe(206);
+  });
+  it("abandon du client en cours de flux : abort() rend la place, le flux suivant est accepté", async () => {
+    const jeton = creerJetonMediaBuffer("f-reel");
+    const controles = Array.from({ length: LIMITE_FLUX_SIMULTANES }, () => new AbortController());
+    const ouverts: Response[] = [];
+    for (const c of controles) {
+      const r = await servirRelaisBuffer("GET", jeton, "video.mp4", null, c.signal);
+      expect(r.status).toBe(200);
+      ouverts.push(r);
+    }
+    expect((await servirRelaisBuffer("GET", jeton, "video.mp4", null)).status).toBe(429);
+    controles[0].abort(); // le client coupe pendant la lecture
+    const apres = await servirRelaisBuffer("GET", jeton, "video.mp4", null);
+    expect(apres.status).toBe(200);
+    await apres.body!.cancel();
+    for (const r of ouverts) await r.body!.cancel().catch(() => undefined);
+  });
   it("au plus 8 flux GET simultanés par jeton : le 9e est refusé (429), accepté après fermeture d'un flux", async () => {
     const jeton = creerJetonMediaBuffer("f-reel");
     const ouverts: Response[] = [];

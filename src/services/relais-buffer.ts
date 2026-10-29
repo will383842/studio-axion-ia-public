@@ -142,6 +142,8 @@ export async function servirRelaisBuffer(methode: "GET" | "HEAD", jeton: string,
 
     fermerFlux = ouvrirFlux(jeton);
     if (!fermerFlux) return tropDeRequetes();
+    // Client déjà parti : l'écouteur d'abandon ci-dessous ne se déclencherait jamais ; la place est rendue par le finally.
+    if (signalClient?.aborted) return indisponible();
     const signee = stockage.urlLectureDuree ? await stockage.urlLectureDuree(fichier.cleStockage, 300) : "";
     if (!/^https:\/\//.test(signee)) return indisponible();
     const controle = new AbortController();
