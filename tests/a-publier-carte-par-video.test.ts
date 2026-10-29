@@ -19,7 +19,7 @@ vi.mock("@/app/(studio)/videos/actions", () => new Proxy({}, { get: (_c, nom) =>
 vi.mock("@/app/(studio)/mesures/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 
 const { LignesAPublier } = await import("@/components/publication/LignesAPublier");
-const { casesAChanger, regrouperParVideo, toutesCochees } = await import("@/components/publication/regrouper-a-publier");
+const { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees } = await import("@/components/publication/regrouper-a-publier");
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const pub = await import("@/services/publications");
@@ -140,5 +140,50 @@ describe("À publier simplifiée — le serveur garde ses gardes", () => {
     await pub.cocherAvantDePublier(VIDEO, "droits", true);
     const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], demain());
     expect(r.simulation).toBe(true);
+  });
+});
+
+describe("À publier — petits défauts de la relecture", () => {
+  const publiee = { libelle: "Publiée", ton: "sauge" as const, lien: "https://exemple.test/p/1", envoye: true, comptesPris: [], sansCompte: false };
+  const echec = { libelle: "Échec", ton: "brique" as const, detail: "Refusé par Buffer", envoye: false, comptesPris: [], sansCompte: false };
+
+  it("un réseau pas prêt garde son état (Publiée + lien, échec) dans la ligne repliable", () => {
+    const lignes = [ligne("v-1", "instagram"), ligne("v-1", "facebook", { blocage: "Aucun fichier au bon format pour Facebook.", etat: publiee }), ligne("v-1", "linkedin", { compte: { probleme: "Aucun compte LinkedIn." }, etat: echec })];
+    const c = regrouperParVideo(lignes)[0];
+    expect(c.pasPretes.map((p) => p.etat?.libelle)).toEqual(["Publiée", "Échec"]);
+    const h = html(vue(lignes));
+    expect(h).toContain('href="https://exemple.test/p/1"');
+    expect(texte(h)).toContain("Voir la publication");
+    expect(texte(h)).toContain("Refusé par Buffer");
+  });
+
+  it("les pastilles d'état disent à quel réseau elles s'appliquent", () => {
+    const t = texte(html(vue([ligne("v-1", "instagram", { etat: publiee }), ligne("v-1", "facebook", { etat: echec })])));
+    expect(t).toContain("Instagram : Publiée");
+    expect(t).toContain("Facebook : Échec");
+  });
+
+  it("le bouton d'envoi est désactivé pendant l'écriture des cases", async () => {
+    const src = (await import("node:fs")).readFileSync("src/components/publication/LignesAPublier.tsx", "utf8");
+    expect(src).toMatch(/disabled=\{!peutEnvoyer \|\| enCoursCases\}/);
+  });
+});
+
+describe("À publier — lecteur sans rognage", () => {
+  it("montre la vidéo entière : jamais de cadre 9:16 forcé ni de object-cover", () => {
+    const h = html(vue([ligne("v-1", "instagram", { dimensions: { largeur: 1080, hauteur: 1350 } })]));
+    const lecteur = h.match(/<video[^>]*>/)![0];
+    expect(lecteur).toContain("object-contain");
+    expect(lecteur).not.toContain("object-cover");
+    expect(lecteur).not.toContain("aspect-[9/16]");
+    expect(h).not.toContain("aspect-[9/16]");
+  });
+
+  it("le cadre suit le vrai rapport de la vidéo (4:5, 16:9, 9:16), sinon aucun cadre imposé", () => {
+    expect(html(vue([ligne("v-1", "linkedin", { dimensions: { largeur: 1080, hauteur: 1350 } })]))).toMatch(/aspect-ratio:\s*1080 \/ 1350/);
+    expect(html(vue([ligne("v-2", "facebook", { dimensions: { largeur: 1920, hauteur: 1080 } })]))).toMatch(/aspect-ratio:\s*1920 \/ 1080/);
+    expect(rapportLecteur({ largeur: 1080, hauteur: 1920 })).toBe("1080 / 1920");
+    expect(rapportLecteur(null)).toBeUndefined();
+    expect(html(vue([ligne("v-3", "instagram")]))).not.toContain("aspect-ratio");
   });
 });

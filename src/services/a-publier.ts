@@ -67,6 +67,12 @@ export interface LigneAPublier {
   jaquette: string | null;
   /** Lecture sur place (fichier du réseau, sinon vidéo principale). */
   lecture: string | null;
+  /** Taille réelle du fichier lu (ex. 1080x1350), quand elle est connue : le lecteur montre la vidéo entière. */
+  dimensions?: { largeur: number; hauteur: number };
+  /** Type de la vidéo (nom du format), pour la liste. */
+  typeVideo?: string;
+  /** Date de création de la vidéo, pour trier les plus récentes d'abord. */
+  creeLe?: string;
   reseau: IdReseau;
   reseauNom: string;
   /** Texte du post tel que le kit l'écrit (modifiable), sans les mots-dièse. */
@@ -98,6 +104,12 @@ export interface VueAPublier {
   envoiSimule: boolean;
   modeBuffer: ModeEnvoiPublication | null;
   lignes: LigneAPublier[];
+}
+
+/** « 1080x1350 » -> taille ; rien si la valeur est absente ou illisible. */
+export function dimensionsDe(resolution: string | undefined): { largeur: number; hauteur: number } | undefined {
+  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec(resolution ?? "");
+  return m && +m[1] > 0 && +m[2] > 0 ? { largeur: +m[1], hauteur: +m[2] } : undefined;
 }
 
 /** `occupees` : les publications de ce réseau qui occupent déjà Buffer (pas seulement la dernière). Le blocage se fait par compte. */
@@ -156,6 +168,9 @@ export async function vueAPublier(): Promise<VueAPublier> {
         titre: carte.titre,
         jaquette: carte.vignette,
         lecture: r.sortieConseillee?.url ?? carte.video,
+        ...(dimensionsDe(r.sortieConseillee?.resolution) ? { dimensions: dimensionsDe(r.sortieConseillee?.resolution) } : {}),
+        typeVideo: carte.format.nom,
+        creeLe: carte.creeLe,
         reseau,
         reseauNom: r.nom,
         texte: r.texte,
