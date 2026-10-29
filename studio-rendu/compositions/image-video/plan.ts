@@ -9,6 +9,8 @@ import {
   cameraA,
   disposerEtCadrer,
   ECRAN_IV,
+  emprise,
+  etatDansCadre,
   FONDU_CADRE,
   MARGE_CADRE,
   TAILLE_LIBELLE_IV,
@@ -332,6 +334,50 @@ export function calculerScene(p: Pick<ProprietesSceneIV, "schema" | "mots" | "du
     coche: new Map(trier(p.coches ?? []).map((s) => [s.noeud, s.t])),
     part: new Map(p.schema.liens.filter((l) => typeof l.part === "number" && l.part > 0).map((l) => [l.id, l.part!])),
   };
+}
+
+/** Décalages (en secondes) dont les moyennes, passée (`t − r`) et future (`t + r`), lissent l'opacité de `opaciteCadre` : 0,15 s de fondu de chaque côté d'une coupe. */
+export const LISSAGE_CADRE = Object.freeze([0, 0.05, 0.1, 0.15]);
+
+/** La caméra est-elle posée à l'instant `t` (hors d'un panoramique entre deux poses différentes) ? */
+function cameraPosee(images: TrajectoireCamera["images"], t: number): boolean {
+  for (let i = 1; i < images.length; i++) {
+    const a = images[i - 1];
+    const b = images[i];
+    if (t > a.t && t < b.t) return a.cx === b.cx && a.cy === b.cy && a.zoom === b.zoom;
+  }
+  return true;
+}
+
+/**
+ * FILET « jamais un bloc coupé à l'écran » (PUR) : opacité d'un bloc de la toile (`id` d'un nœud, ou `part-…` d'une
+ * pastille de part) à l'instant `t`, pour la caméra `images` réellement vue (celle de la scène, ou celle de la variété
+ * CAM-B/CAM-C). La trajectoire étant connue d'avance, le fondu se fait de CHAQUE côté de la coupe : 0 si le bloc est coupé
+ * par un bord du cadre à `t` ; sinon le MINIMUM de la moyenne passée (`t`, `t − 0,05`, `t − 0,10`, `t − 0,15`) et de la
+ * moyenne future (`t`, `t + 0,05`, `t + 0,10`, `t + 0,15`) de l'indicateur « le bloc n'est pas coupé » (1 s'il est entier
+ * ou hors cadre, 0 s'il est coupé). Le bloc vaut donc 0 sur toute la coupe, avec un fondu avant et un fondu après ; aux
+ * poses tenues (propres), l'opacité vaut 1.
+ * Le bloc dont on parle n'est jamais caché (remarque Q15), mais seulement aux échantillons où il est le nœud courant ET où
+ * la caméra est posée : pendant un panoramique vers le mot suivant, le courant garde son rang mais la caméra le coupe, il
+ * s'efface avec les autres. `courant` : `noeudCourant(s, t)`, calculé une fois par image par l'appelant.
+ */
+export function opaciteCadre(s: SceneCalculee, images: TrajectoireCamera["images"], id: string, t: number, courant: string | null = noeudCourant(s, t)): number {
+  const boite = s.parId.get(id);
+  const etiquette = boite ? undefined : (s.cadrage.etiquettes ?? []).find((e) => e.id === id);
+  if (!boite && !etiquette) return 1;
+  const zone = boite ? emprise(boite, s.cadrage) : etiquette!;
+  const coupe = (tau: number) => {
+    if ((tau === t ? courant : noeudCourant(s, tau)) === id && cameraPosee(images, tau)) return false;
+    return etatDansCadre(zone, cameraA({ images }, tau), s.cadrage) === "coupe";
+  };
+  if (coupe(t)) return 0;
+  let passe = 0;
+  let futur = 0;
+  for (const r of LISSAGE_CADRE) {
+    passe += coupe(t - r) ? 0 : 1;
+    futur += coupe(t + r) ? 0 : 1;
+  }
+  return Math.min(passe, futur) / LISSAGE_CADRE.length;
 }
 
 /** Nœud dont on parle à l'instant `t` (dernier mot commencé), ou `null` avant le premier. */
