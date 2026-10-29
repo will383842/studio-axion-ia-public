@@ -61,6 +61,10 @@ on:
       - "tests/a-publier*.test.ts"
       - "tests/l1-10-buffer-premier-commentaire.test.ts"
       - "tests/r1-ecrans-buffer.test.ts"
+      - "src/services/relais-buffer.ts"
+      - "src/lib/jeton-media-buffer.ts"
+      - "src/app/api/media-buffer/**"
+      - "tests/relais-buffer.test.ts"
       - ".github/workflows/tests-cibles.yml"
 
 permissions:
@@ -121,4 +125,5 @@ jobs:
             tests/r1-ecrans-buffer.test.ts \
             tests/a-publier-carte-par-video.test.ts \
             tests/a-publier-liste.test.ts \
-            tests/a-publier-par-reseau.test.ts
+            tests/a-publier-par-reseau.test.ts \
+            tests/relais-buffer.test.ts
