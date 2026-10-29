@@ -18,7 +18,7 @@ import { mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV, type Ligne
 import { AXE_TYPO, formeMot, objetDuMot, type DonneesTexteIV } from "@/moteurs/montage-image-video/variete/axes/typo";
 import { recettePourVersion, RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import { parametresDuBloc } from "@/services/image-video-rendu";
-import { rangeesTexte, tailleMotGeant, zonesTexte, type DonneesTexte, type LigneEcrite } from "../../../studio-rendu/compositions/image-video/variete/texte/donnees";
+import { estPonctuationIsolee, rangeesTexte, tailleMotGeant, zonesTexte, type DonneesTexte, type LigneEcrite } from "../../../studio-rendu/compositions/image-video/variete/texte/donnees";
 import { invariantsVarieteIV } from "./invariants";
 
 const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
@@ -301,4 +301,54 @@ describe("typo · TYP-C : rangées serrées, expression gardée d'un bloc (D4, D
       });
     }
   }
+});
+
+describe("typo · TYP-C : ponctuation isolée rattachée au mot précédent", () => {
+  const mot = (m: string, i: number, orange = false) => ({ mot: m, t: i * 0.3, dit: true, ...(orange ? { orange: true as const } : {}) });
+  const z = zonesTexte(1350);
+  const textesRangees = (l: LigneEcrite[]) => rangeesTexte(l, z.haut, z.bas, 920, 280).map((r) => r.mots.map((k) => l[r.ligne].mots[k].mot));
+
+  it("reconnaît ? ! : ; % … et ..., avec ou sans espace (normale, insécable fine ou non), jamais un vrai mot", () => {
+    for (const p of ["?", "!", ":", ";", "%", "…", "...", "\u00a0?", " ?", "\u202f!", "?!", "»", "\u00a0»", ")", "”", "’"]) expect(estPonctuationIsolee(p), JSON.stringify(p)).toBe(true);
+    for (const p of ["oui?", "80", "%a", "a", ""]) expect(estPonctuationIsolee(p), JSON.stringify(p)).toBe(false);
+  });
+
+  for (const p of ["?", "!", ":", ";", "%", "…"]) {
+    it(`« ${p} » après un mot orange : même rangée que lui, jamais seul`, () => {
+      const l: LigneEcrite[] = [{ texte: `Quoi ${p}`, t: 0, mots: [mot("Quoi", 0), mot("neuf", 1, true), mot(p, 2)] }];
+      const rs = textesRangees(l);
+      expect(rs.some((r) => r.length === 1 && r[0] === p)).toBe(false);
+      expect(rs.find((r) => r.includes(p))).toContain("neuf");
+    });
+    it(`« ${p} » en fin de phrase longue : jamais en tête de rangée`, () => {
+      const l: LigneEcrite[] = [{ texte: "x", t: 0, mots: ["Pourquoi", "personne", "ne", "vous", "rappelle", "jamais", "après", "la", "séance", p].map((m, i) => mot(m, i)) }];
+      for (const r of textesRangees(l)) expect(estPonctuationIsolee(r[0]), r.join(" ")).toBe(false);
+    });
+  }
+
+  it("guillemet fermant après un mot orange : même rangée que lui, jamais seul", () => {
+    const l: LigneEcrite[] = [{ texte: "Quoi ? »", t: 0, mots: [mot("Quoi", 0), mot("neuf", 1, true), mot("?", 2, true), mot("»", 3)] }];
+    const rs = textesRangees(l);
+    expect(rs.some((r) => r.every((m) => estPonctuationIsolee(m)))).toBe(false);
+    expect(rs.find((r) => r.includes("»"))).toContain("neuf");
+  });
+
+  it("ponctuation en tête de ligne suivie d'un mot orange : pas de rangée de ponctuation seule", () => {
+    for (const p of ["…", "?", "«"]) {
+      const l: LigneEcrite[] = [{ texte: `${p} neuf`, t: 0, mots: [mot(p, 0), mot("neuf", 1, true), mot("tôt", 2)] }];
+      const rs = textesRangees(l);
+      expect(rs.some((r) => r.every((m) => estPonctuationIsolee(m))), p).toBe(false);
+      expect(rs.flat()).toEqual([p, "neuf", "tôt"]);
+    }
+  });
+
+  it("point d'exclamation et deux-points isolés : le texte affiché garde l'ordre et tous les mots", () => {
+    const l: LigneEcrite[] = [{ texte: "Attention : stop !", t: 0, mots: [mot("Attention", 0), mot(":", 1), mot("stop", 2, true), mot("!", 3)] }];
+    expect(textesRangees(l).flat()).toEqual(["Attention", ":", "stop", "!"]);
+  });
+
+  it("un texte sans ponctuation isolée est coupé comme avant", () => {
+    const l: LigneEcrite[] = [{ texte: "x", t: 0, mots: [mot("Au", 0), mot("matin", 1, true), mot("tôt", 2)] }];
+    expect(textesRangees(l)).toEqual([["Au"], ["matin"], ["tôt"]]);
+  });
 });
