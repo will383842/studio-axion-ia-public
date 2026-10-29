@@ -209,7 +209,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
             <Bouton icone="envoyer" disabled={!peutEnvoyer} chargement={enCours} onClick={brouillon}>
               {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
             </Bouton>
-            <Bouton variante="secondaire" icone="calendrier" disabled={!peutEnvoyer || !l.sujetId} chargement={enCours} onClick={programmer}>
+            <Bouton variante="secondaire" icone="calendrier" disabled={envoiSimule || !l.sujetId} chargement={enCours} onClick={programmer}>
               {modeBuffer === "programmer" ? "Programmer le sujet" : "Mettre le sujet en brouillon"}
             </Bouton>
           </div>
