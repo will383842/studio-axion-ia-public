@@ -7,7 +7,6 @@ import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/nex
 import { exemplesCommeVraies } from "./helpers/videos-reelles";
 import { preparerMotDePasse } from "./helpers/g1a";
 
-const CLE = "cle-buffer-de-test-QUI-NE-DOIT-JAMAIS-SORTIR-9f8e";
 delete process.env.BUFFER_API_KEY;
 process.env.FOURNISSEUR_PUBLICATION = "simulation";
 // Stockage R2 configuré (signature locale, aucun appel) : l'adresse donnée à Buffer est une adresse signée.
