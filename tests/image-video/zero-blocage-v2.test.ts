@@ -112,6 +112,7 @@ describe("rendu : écran irrendable", () => {
     };
     const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
     expect(e.etape).toBe("prete");
+    expect(e.refus).toBeUndefined();
     expect(e.remarques?.[0]).toMatch(/repli sur tous les écrans/);
     expect(e.controles?.verdict?.mentions.join(" ")).toMatch(/repli sur tous les écrans/);
     const f = e.script!.fiche;

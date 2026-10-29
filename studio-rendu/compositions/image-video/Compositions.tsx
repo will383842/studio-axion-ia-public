@@ -159,7 +159,7 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
           {fonduToile > 0 ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: masque, WebkitMaskImage: masque }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
-                <Toile scene={scene} schema={p.schema} t={t} />
+                <Toile scene={scene} schema={p.schema} t={t} dejaVus={(p as { dejaVus?: string[] }).dejaVus} />
               </Camera>
             </AbsoluteFill>
           ) : null}

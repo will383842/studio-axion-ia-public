@@ -54,7 +54,7 @@ import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
-import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
+import { ecranVivantIV, ecransEnDefautIV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -1563,13 +1563,31 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
     // écrans en texte seul) ; la raison reste en remarque. Le refus ne sort qu'en dernier.
     if (!issue || issue.refus.length) {
       const motif = panne ?? issue!.refus[0];
-      const sures = v.fiche.ecrans.filter((x) => x.scene !== "titre" && x.textesEcran.length > 0).map((x) => x.id);
-      let sure: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
-      try {
-        sure = mettreEnSceneAvecFiletIV(mettre, sures, nomVersion(v), v.fiche);
-      } catch {
-        sure = undefined;
-      }
+      // Grands vides (issue 119) : on essaie d'abord les seuls écrans NOMMÉS en défaut (Q13, Q14) ; si la liste est vide, ou si cet
+      // essai est en panne ou refusé, on retombe sur l'ancienne composition sûre (tous les écrans à texte) avant de refuser.
+      // Dans les deux cas, un écran n'est gardé en texte seul que s'il reste vivant (`ecranVivantIV`) : pas de nouveau grand vide.
+      const nommes = issue ? ecransEnDefautIV(issue.resultat.ligne) : { q13: [], q14: [] };
+      const aAdapter = (id: string) => v.fiche.ecrans.some((x) => x.id === id && x.scene !== "titre" && x.textesEcran.length > 0);
+      const listeNommee = [...new Set([...nommes.q13, ...nommes.q14])].filter(aAdapter);
+      const listeTous = v.fiche.ecrans.filter((x) => aAdapter(x.id)).map((x) => x.id);
+      type Essai = { sure: ReturnType<typeof mettreEnSceneAvecFiletIV>; sures: string[]; vide: boolean };
+      const essayer = (ids: string[]): Essai | undefined => {
+        if (!ids.length) return undefined;
+        try {
+          const r = mettreEnSceneAvecFiletIV(mettre, ids, nomVersion(v), v.fiche);
+          const gardes = ids.filter((id) => ecranVivantIV(r.resultat.ligne, id));
+          if (gardes.length === ids.length) return { sure: r, sures: ids, vide: false };
+          const r2 = gardes.length ? mettreEnSceneAvecFiletIV(mettre, gardes, nomVersion(v), v.fiche) : undefined;
+          // Aucun écran vivant : la composition complète reste le dernier recours (un vide vaut mieux qu'un refus).
+          return r2 ? { sure: r2, sures: gardes, vide: false } : { sure: r, sures: ids, vide: true };
+        } catch {
+          return undefined;
+        }
+      };
+      const essais = [essayer(listeNommee), listeTous.join() !== listeNommee.join() ? essayer(listeTous) : undefined].filter((x): x is Essai => !!x);
+      const essai = essais.find((x) => !x.sure.refus.length && !x.vide) ?? essais.find((x) => !x.sure.refus.length) ?? essais[essais.length - 1];
+      const sure = essai?.sure;
+      const sures = essai?.sures ?? [];
       if (sure && !sure.refus.length) {
         e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple (texte seul) utilisée.`);
         sure.adaptes.unshift(...sures);
@@ -1604,11 +1622,11 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
  * sans elle, une correction qui ne touche que l'affichage ne change ni la ligne de temps ni l'identifiant de rendu, et « Refaire
  * cette partie » reprend les anciens rendus (même refus, à 0 €). 23/10/2026 : bulle du récit, légende du chiffre, phrase de la fin.
  */
-export const VERSION_COMPOSITIONS_IV = "compositions-iv/14"; // /14 (26/10/2026) : en-tête d'une paire « X · Y » avant le titre = étiquette X seule (elle ne recouvre plus le titre) ; /13 (25/10/2026, v-b54bb4798246) : vue d'ensemble, mot trop large abrégé, jamais de texte blanc hors pastille ; libellés courts sans « + » final ; /12 (25/10/2026, vidéo v-0339175a9f88) : pile des chiffres centrée sur la page, légende de l'anneau jamais sur le trait (dedans si elle tient dans la corde, sinon dessous), écrans de texte TYP-C sans trou entre rangées et « Au matin » gardé entier, vue d'ensemble avec 16 px au moins entre rangées (chiffres-clés retirés avant les paires, libellés raccourcis signalés, rendu dosé sur l'écart) ; /11 (25/10/2026) : affiche de la première image (l'accroche écrite en entier, posée 1 image sur le premier bloc, `affiche` dans les propriétés de la première scène) ; /10 (25/10/2026) : 4:5 sans surimpression d'accent (le badge sans place à côté du nœud n'est plus dessiné, son chiffre est déjà dans le libellé), 2e ligne de l'en-tête en étiquette seulement si elle précède le titre, étiquette de repli jamais égale à la marque, question de fin 4:5 à la taille du 9:16 ; /9 (25/10/2026) : badge d'accent dans le cadre 4:5 (au-dessus du rail, sous l'en-tête), décors et ombre hachurée évités, réserve de chasse 6 % des boîtes de la toile ; /8 (24/10/2026) : écran CHI-E centré avec écart sous la légende, pile des chiffres « 0 » + « demande perdue » ; /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
+export const VERSION_COMPOSITIONS_IV = "compositions-iv/15"; // /15 (29/10/2026, issue 119) : blocs déjà vus montrés quel que soit APP (Toile), rappel des blocs déjà montrés, mention au mot 0 ; /14 (26/10/2026) : en-tête d'une paire « X · Y » avant le titre = étiquette X seule (elle ne recouvre plus le titre) ; /13 (25/10/2026, v-b54bb4798246) : vue d'ensemble, mot trop large abrégé, jamais de texte blanc hors pastille ; libellés courts sans « + » final ; /12 (25/10/2026, vidéo v-0339175a9f88) : pile des chiffres centrée sur la page, légende de l'anneau jamais sur le trait (dedans si elle tient dans la corde, sinon dessous), écrans de texte TYP-C sans trou entre rangées et « Au matin » gardé entier, vue d'ensemble avec 16 px au moins entre rangées (chiffres-clés retirés avant les paires, libellés raccourcis signalés, rendu dosé sur l'écart) ; /11 (25/10/2026) : affiche de la première image (l'accroche écrite en entier, posée 1 image sur le premier bloc, `affiche` dans les propriétés de la première scène) ; /10 (25/10/2026) : 4:5 sans surimpression d'accent (le badge sans place à côté du nœud n'est plus dessiné, son chiffre est déjà dans le libellé), 2e ligne de l'en-tête en étiquette seulement si elle précède le titre, étiquette de repli jamais égale à la marque, question de fin 4:5 à la taille du 9:16 ; /9 (25/10/2026) : badge d'accent dans le cadre 4:5 (au-dessus du rail, sous l'en-tête), décors et ombre hachurée évités, réserve de chasse 6 % des boîtes de la toile ; /8 (24/10/2026) : écran CHI-E centré avec écart sous la légende, pile des chiffres « 0 » + « demande perdue » ; /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
 
 /**
  * Écrans de la fiche à passer en texte seul : ceux que le rendu a nommés (identifiant d'écran de la fiche, ou bloc de la ligne de
- * temps retrouvé par ses plans) ; à défaut, tous ceux qui ont un texte d'écran. PUR.
+ * temps retrouvé par ses plans) ; à défaut, tous ceux qui ont un texte d'écran (repli signalé en remarque). PUR.
  */
 export function ecransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nommes: readonly string[] | undefined): string[] {
   return choisirEcransAAdapterIV(fiche, ligne, nommes).ids;
@@ -1623,6 +1641,7 @@ export function choisirEcransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV
     const bloc = ligne.blocs.find((b) => b.id === id);
     if (bloc) for (const p of ligne.plans) if (p.ecran && avecTexte.includes(p.ecran) && p.debut < bloc.fin - 1e-6 && p.fin > bloc.debut + 1e-6) trouves.add(p.ecran);
   }
+  // Zéro blocage : si le rendu n'en nomme aucun retrouvé, repli sur tous les écrans à texte (`repli`), remarque au journal ; jamais IV_RENDU pour cela.
   return trouves.size ? { ids: avecTexte.filter((x) => trouves.has(x)), repli: false } : { ids: avecTexte, repli: true };
 }
 

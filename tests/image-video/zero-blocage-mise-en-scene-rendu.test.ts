@@ -72,6 +72,21 @@ describe("mise en scène : jamais d'arrêt sur un refus", () => {
     mode.v = "normal";
     expect(e.etape).toBe("rendu");
     expect(e.journal.some((j) => j.includes("panne factice"))).toBe(true);
+    // Panne : aucune ligne de temps, donc aucun écran nommé → retombée sur la composition sûre de tous les écrans à texte (grands vides, issue 119).
+    expect(Object.values(e.ecransAdaptes ?? {}).flat().length).toBeGreaterThan(0);
+  });
+
+  it("refus sans aucun écran nommé (Q16) → retombée sur tous les écrans à texte avant de refuser (issue 119)", async () => {
+    const { fini, o } = await prete();
+    mode.v = "refus-sauf-texte-seul";
+    const e = await avancerIV(depuis(fini, "mise-en-scene"), o);
+    mode.v = "normal";
+    expect(e.etape).toBe("rendu");
+    expect(e.refus).toBeUndefined();
+    const adaptes = Object.values(e.ecransAdaptes ?? {})[0] ?? [];
+    expect(adaptes.length).toBeGreaterThan(0);
+    const texte = e.script!.fiche.ecrans.filter((x) => x.textesEcran.length).map((x) => x.id);
+    expect(adaptes.every((id) => texte.includes(id))).toBe(true);
   });
 
   it("refus d'une autre nature même en texte seul → jamais effacé, IV_MISE_EN_SCENE", async () => {
