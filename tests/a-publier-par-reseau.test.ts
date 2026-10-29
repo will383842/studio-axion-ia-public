@@ -124,6 +124,10 @@ describe("À publier par réseau — onglets et compteurs", () => {
     const h = texte(liste(jeu()));
     expect(h).toMatch(/Facebook 1 à envoyer/);
     expect(h).toMatch(/LinkedIn 2 à envoyer/);
+    // Rien à envoyer : « N vidéos », jamais un nombre seul.
+    const rien = texte(liste([ligne("p-1", "facebook", { etat: etat("Publiée", "sauge") }), ligne("p-2", "facebook", { etat: etat("Publiée", "sauge") }), ligne("p-3", "linkedin", { etat: etat("Publiée", "sauge") })]));
+    expect(rien).toMatch(/Facebook 2 vidéos/);
+    expect(rien).toMatch(/LinkedIn 1 vidéo(?!s)/);
   });
 
   it("les onglets défilent horizontalement sur téléphone, avec le logo du réseau", () => {
