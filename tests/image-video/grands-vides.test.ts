@@ -53,6 +53,11 @@ describe("correctif 3 : la toile montre les blocs déjà vus quel que soit le co
     const scene = calculerScene(b.proprietes);
     const html = (dejaVus?: string[]) => renderToStaticMarkup(createElement(Toile, { scene, schema: b.proprietes.schema, t: 0, ...(dejaVus ? { dejaVus } : {}) }));
     expect(html(b.proprietes.dejaVus)).not.toBe(html());
+    // L'état « vu » est porté par le bloc concerné : un seul `dejaVus` change le dessin, et il n'y change que ce bloc.
+    const id = b.proprietes.dejaVus![0];
+    const un = html([id]);
+    expect(un).not.toBe(html());
+    expect(un).not.toBe(html(b.proprietes.dejaVus!.filter((x) => x !== id)));
   });
 });
 

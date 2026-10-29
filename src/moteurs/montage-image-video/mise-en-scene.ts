@@ -808,10 +808,10 @@ function elementsToile(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>
   for (const n of noeudsRefs) {
     if (els.some((x) => x.ref === n.id)) continue;
     if (etat.montres.has(n.id)) {
-      // Déjà posé : la caméra y revient s'il est nommé (ou retour au nœud de décision quand l'écran cite une de ses flèches).
+      // Déjà posé : la caméra y revient au mot qui le nomme (à défaut, au mot 0).
       const k = rangQuiNomme(c, n.libelle);
-      const retour = n.role === "decision" && e.refs.some((r) => carte.liens.some((l) => l.id === r && l.de === n.id));
-      if (k !== null || retour) els.push(nouvelEl(c, "mention", "noeud", heureMot(c, k ?? 0), { ref: n.id, visible: false }));
+      // Grands vides (issue 119) : cité mais jamais nommé, il reçoit quand même sa mention au mot 0 (la caméra a une trajectoire).
+      els.push(nouvelEl(c, "mention", "noeud", heureMot(c, k ?? 0), { ref: n.id, visible: false }));
       continue;
     }
     const cles = clesDuNoeud(n, carte, clesCarte);
@@ -1148,7 +1148,8 @@ function elementsMomentAvecRappel(c: Ctx, carte: CarteImage, refs: NoeudCarte[],
   if (!rappel.length) return pose;
   const t0 = Math.min(...rappel.map((x) => x.t));
   const decale = (x: El): El => {
-    if (x.chiffres.length || x.t <= c.debut) return x;
+    // Toujours suffixé : un élément rappelé ne prend jamais l'identifiant (donc la place) d'un élément posé.
+    if (x.chiffres.length || x.t <= c.debut) return { ...x, id: `${x.id}-rappel` };
     const t = arrondi(x.t - (t0 - c.debut));
     return { ...x, t, id: `${x.id}-rappel${Math.round(t * 1000)}` };
   };
