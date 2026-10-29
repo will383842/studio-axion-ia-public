@@ -1442,7 +1442,7 @@ export type PlanEnsemble = {
 };
 
 /** Mots outils sur lesquels une coupe ne s'arrête pas. */
-const MOTS_OUTILS = new Set(["le", "la", "les", "l'", "un", "une", "des", "de", "du", "d'", "à", "au", "aux", "en", "et", "ou", "sur", "pour", "par", "avec", "sans", "dans"]);
+const MOTS_OUTILS = new Set(["le", "la", "les", "l'", "un", "une", "des", "de", "du", "d'", "à", "au", "aux", "en", "et", "ou", "sur", "pour", "par", "avec", "sans", "dans", "entre", "chez", "vers", "sous", "depuis", "contre", "avant", "après", "apres", "selon", "que", "qui"]);
 
 /** Mots de fin sans valeur pour un libellé court (« Ticket clôturé auto » → « Ticket clôturé »). */
 const MOTS_DE_FIN = new Set(["auto", "automatique", "automatiquement", "entrant", "entrante"]);

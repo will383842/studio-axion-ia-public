@@ -127,6 +127,19 @@ describe("scène « Ensemble » lisible : un libellé court par bloc, au planche
     expect(libelleCourt({ libelle: "IA trie la demande" })).toBe("IA trie");
     expect(libelleCourt({ libelle: "Résolu sans intervention humaine", court: "Résolu sans humain" })).toBe("Résolu sans humain");
   });
+  it("libellé court : jamais coupé sur entre, chez, vers, sous, depuis, contre, avant, après, selon, que, qui ; un libellé court reste inchangé", () => {
+    for (const mot of ["entre", "chez", "vers", "sous", "depuis", "contre", "avant", "après", "apres", "selon", "que", "qui"]) {
+      expect(libelleCourt({ libelle: `Patients suivis ${mot} séances` }), mot).toBe("Patients suivis");
+      expect(libelleCourt({ libelle: `Patients suivis ${mot.toUpperCase()} séances` }), mot).toBe("Patients suivis");
+    }
+    expect(libelleCourt({ libelle: "Patients suivis entre séances" })).toBe("Patients suivis");
+    // Déjà court (≤ 3 unités) ou un seul mot : inchangé, même s'il finit sur l'un de ces mots.
+    expect(libelleCourt({ libelle: "Suivi entre" })).toBe("Suivi entre");
+    expect(libelleCourt({ libelle: "Suivi chez nous" })).toBe("Suivi chez nous");
+    expect(libelleCourt({ libelle: "Avant" })).toBe("Avant");
+    expect(libelleCourt({ libelle: "Après" })).toBe("Après");
+    expect(libelleCourt({ libelle: "Rappel", court: "Rappel qui" })).toBe("Rappel qui");
+  });
   it("faux schéma à 16 nœuds : tous les blocs lisibles dans la zone utile, sans alerte", () => {
     const p = planEnsemble(lire("faux-16-noeuds"));
     // 25/10/2026 (D3) : un libellé raccourci par la vue réduite est signalé (alerte d'information « raccourci ») ; aucune autre alerte.
