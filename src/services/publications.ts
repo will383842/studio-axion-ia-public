@@ -599,6 +599,8 @@ export async function envoyerVersBuffer(
     comptes?: Partial<Record<IdReseau, string[]>>;
     /** Premier commentaire modifié à l'écran, par réseau (sinon : celui que la vidéo porte déjà). */
     premiersCommentaires?: Partial<Record<IdReseau, string>>;
+    /** Lire aussi le premier commentaire que la vidéo porte déjà (sinon : seulement celui de l'écran). Posé par la page « À publier », qui le montre. */
+    avecPremierCommentaire?: boolean;
   } = {},
 ): Promise<{ simulation: boolean; publications: Publication[]; mode?: ModeEnvoiPublication; problemes?: ProblemeEnvoi[]; commentairesALaMain?: IdReseau[] }> {
   await exigerSession();
@@ -620,7 +622,7 @@ export async function envoyerVersBuffer(
     if ((video && (await videoEnEssai(video))) || fichiers.some((f) => estCleDemo(f?.cleStockage))) {
       throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
     }
-    return envoyerVersBufferReel(service, kitVue, [...new Set(reseaux)], dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {});
+    return envoyerVersBufferReel(service, kitVue, [...new Set(reseaux)], dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire);
   }
   const d = depots();
   const publications: Publication[] = [];
@@ -630,7 +632,7 @@ export async function envoyerVersBuffer(
     if (!r) continue;
     const texte = texteAEnvoyer(r, kitVue.serie?.entete);
     const marque = reseau === "tiktok" && kitVue.votreMarque.cochee;
-    const commentaire = await commentairePour(kitVue, reseau, options.premiersCommentaires?.[reseau]);
+    const commentaire = await commentairePour(kitVue, reseau, options.premiersCommentaires?.[reseau], !!options.avecPremierCommentaire);
     if (commentaire.aLaMain) commentairesALaMain.push(reseau);
     const envoi = await service.envoyer({ reseau, texte, date: dateIso, fichierCle: r.sortieConseillee?.url ?? "", ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), ...(marque ? { votreMarque: true } : {}) });
     const pub: Publication = {
@@ -660,11 +662,12 @@ export async function envoyerVersBuffer(
 }
 
 /**
- * Premier commentaire d'un réseau : celui de l'écran, sinon celui que la vidéo porte déjà. Seuls Instagram, Facebook et
+ * Premier commentaire d'un réseau : celui de l'écran ; celui que la vidéo porte déjà n'est lu que si l'appelant le demande
+ * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Seuls Instagram, Facebook et
  * LinkedIn le reçoivent par Buffer ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
  */
-async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined): Promise<{ texte?: string; aLaMain: boolean }> {
-  const texte = (surcharge ?? (await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante)))?.trim();
+async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean): Promise<{ texte?: string; aLaMain: boolean }> {
+  const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
   return premierCommentaireTransmissible(reseau) ? { texte, aLaMain: false } : { aLaMain: true };
 }
@@ -723,7 +726,7 @@ export interface ProblemeEnvoi {
  *     (le détail, nettoyé, au journal) ;
  *  6. le journal, l'étape de la vidéo et la version sont toujours mis à jour pour ce qui est parti.
  */
-async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>) {
+async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean) {
   const d = depots();
   const videoId = kitVue.videoId;
   const mode = await lireModeBuffer();
@@ -745,7 +748,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     if (!r.sortieConseillee) throw new ErreurStudio("RESEAU", `Aucun fichier au bon format pour ${r.nom}.`);
     const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
     const nomReseau = obtenirReseau(reseau).nom;
-    const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau]);
+    const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau], avecVideo);
     if (commentaire.aLaMain) commentairesALaMain.push(reseau);
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
