@@ -19,7 +19,7 @@ export interface GeometrieEntete {
   texte: BoiteEntete;
   /** Taille (px) du titre : celle de `planTitre`, réduite si l'étiquette sur plusieurs lignes laisse moins de place, jamais sous `PLANCHER_PX`. */
   tailleTitre: number;
-  /** Alerte bloquante (null : rien à signaler) : étiquette trop longue, ou titre qui ne tient pas au plancher de lisibilité. */
+  /** Alerte signalée non bloquante (null : rien à signaler) : étiquette trop longue, ou titre qui ne tient pas au plancher de lisibilité. */
   alerte: string | null;
   /** Nombre de lignes de l'étiquette (estimé), le titre se pose dessous. */
   lignesEtiquette: number;
@@ -39,12 +39,16 @@ const INTERLIGNE = 1.05;
 const HAUTEUR_LIGNE_ETIQUETTE = 1.21;
 /**
  * Chasse d'une capitale Inter gras + espacement 0,32em, en em. Non mesurée au rendu : ~0,7 em de chasse moyenne + 0,32 em
- * d'espacement ≈ 1,02 em, et les larges (M, W) montent à ~1,27 em. 1,15 sur-estime la moyenne pour qu'une étiquette de
+ * d'espacement ≈ 1,02 em, et les larges (M, W) montent à ~1,27 em. 1,27 (le pire cas) garantit qu'une étiquette de
  * lettres larges ne passe pas sur une ligne de plus que prévu (plutôt trop de lignes que trop peu).
  */
-const CHASSE_ETIQUETTE_EM = 1.15;
-/** Au-delà, le titre ne tient plus dans la zone : alerte bloquante. */
+const CHASSE_ETIQUETTE_EM = 1.27;
+/** Au-delà, le titre ne tient plus dans la zone : alerte signalée non bloquante. */
 export const LIGNES_ETIQUETTE_MAX = 2;
+/** Vrai si l'habillage (capsule, bandeau, filet) se pose : jamais en cas d'alerte, l'en-tête simple prend le relais (zéro blocage, on signale seulement). */
+export function habillageApplique(g: GeometrieEntete): boolean {
+  return g.alerte === null && g.boite !== null && g.couleurHabillage !== null;
+}
 /** Marge de sécurité sur la largeur estimée du titre (chasse réelle d'Anton). */
 const MARGE_LARGEUR_TITRE = 1.04;
 
@@ -76,7 +80,7 @@ export function geometrieEntete(code: CodeEntete, texte: string, format: FormatI
   const yTitre = haut + lignesEtiquette * HAUTEUR_LIGNE_ETIQUETTE * TAILLES_DUO.etiquette * ht + ECART_ETIQUETTE * ht;
   const [px, py] = code === "ENT-B" ? [32, 10] : [26, 8];
   // Le titre (et son habillage) tient sous l'étiquette, dans la zone, avec la marge basse de l'habillage : il se réduit au besoin,
-  // mais jamais sous le plancher de lisibilité (B3/Q21) ; s'il ne tient pas à ce plancher, c'est une alerte bloquante.
+  // mais jamais sous le plancher de lisibilité (B3/Q21) ; s'il ne tient pas à ce plancher, c'est une alerte signalée non bloquante.
   const reserve = code === "ENT-B" || code === "ENT-D" ? py : 0;
   const tailleDispo = (bas - yTitre - reserve) / (titre.lignes.length * INTERLIGNE);
   const tailleTitre = Math.min(titre.taille, Math.max(PLANCHER_PX, tailleDispo));

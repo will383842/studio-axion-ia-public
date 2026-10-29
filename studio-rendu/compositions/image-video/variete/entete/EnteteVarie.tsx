@@ -6,7 +6,7 @@ import React from "react";
 import { codeDe } from "../../../../../src/briques/schema-motion/variete";
 import { Entete } from "../../Entete";
 import { useVariete } from "../ContexteVariete";
-import { geometrieEntete } from "./geometrie";
+import { geometrieEntete, habillageApplique } from "./geometrie";
 
 type Proprietes = React.ComponentProps<typeof Entete>;
 
@@ -15,7 +15,12 @@ export function EnteteVarie(p: Proprietes) {
   const code = codeDe(variete?.recette, "entete");
   if (code === "ENT-A" || !p.entete || !variete) return <Entete {...p} />;
   const g = geometrieEntete(code, p.entete.titre, variete.format, p.fond === "sombre" ? "sombre" : "ivoire", p.entete.etiquette);
-  const b = g.boite;
+  if (!habillageApplique(g)) {
+    // Alerte signalée, jamais bloquante : en-tête simple, sans habillage ni capsule.
+    console.warn(`[EnteteVarie] ${code} : repli sur l'en-tête simple. ${g.alerte}`);
+    return <Entete {...p} />;
+  }
+  const b = g.boite!;
   return (
     <>
       {b && g.couleurHabillage ? (

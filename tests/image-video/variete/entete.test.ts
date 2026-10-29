@@ -7,7 +7,7 @@ import { CADRES_IV, VARIANTES_GARDEES, tirablesDe } from "@/briques/schema-motio
 import { PLANCHER_PX } from "@/briques/schema-motion/plan-objets";
 import { TAILLES_DUO } from "@/briques/habillage/charte-duo";
 import { miseEnPageDeHauteurIV } from "@/briques/schema-motion/types";
-import { LIGNES_ETIQUETTE_MAX, geometrieEntete, lignesEtiquetteEstimees, type CodeEntete } from "../../../studio-rendu/compositions/image-video/variete/entete/geometrie";
+import { LIGNES_ETIQUETTE_MAX, geometrieEntete, habillageApplique, lignesEtiquetteEstimees, type CodeEntete } from "../../../studio-rendu/compositions/image-video/variete/entete/geometrie";
 
 const CODES: CodeEntete[] = ["ENT-A", "ENT-B", "ENT-C", "ENT-D"];
 const TITRES = ["Vos relances partent seules", "Un devis envoyé en deux minutes chrono", "BON DE COMMANDE MARTIN", "Gagnez du temps"];
@@ -64,7 +64,7 @@ describe("axe entete", () => {
   }
   for (const format of ["9:16", "4:5"] as const) {
     for (const code of ["ENT-B", "ENT-C", "ENT-D"] as const) {
-      it(`${code} · ${format} · étiquette longue (2 lignes) : titre jamais sous le plancher ; sinon alerte bloquante`, () => {
+      it(`${code} · ${format} · étiquette longue (2 lignes) : titre jamais sous le plancher ; sinon alerte signalée non bloquante`, () => {
         const hauteurFormat = format === "9:16" ? 1920 : 1350;
         const m = miseEnPageDeHauteurIV(hauteurFormat);
         for (const etiquette of ETIQUETTES_LONGUES) {
@@ -101,19 +101,29 @@ describe("axe entete", () => {
               // L'alerte est vraie : soit l'étiquette est trop longue, soit le titre ne tient pas à son plancher.
               const depasse = g.texte.y + g.texte.hauteur > bas + 1e-6;
               expect(g.lignesEtiquette > LIGNES_ETIQUETTE_MAX || depasse).toBe(true);
+              // Repli : en cas d'alerte, aucun habillage n'est rendu (en-tête simple).
+              expect(habillageApplique(g)).toBe(false);
             }
           }
         }
       });
     }
   }
-  it("étiquette de plus de 2 lignes : alerte bloquante", () => {
+  it("étiquette de plus de 2 lignes : alerte signalée non bloquante", () => {
     const g = geometrieEntete("ENT-B", "Gagnez du temps", "9:16", "ivoire", "Chaque pièce reçue est lue, rangée, classée, archivée, rapprochée et envoyée au comptable sans aucun effort de votre part");
     expect(g.lignesEtiquette).toBeGreaterThan(LIGNES_ETIQUETTE_MAX);
     expect(g.alerte).toMatch(/Étiquette trop longue/);
   });
   it("étiquette de lettres larges (36 signes) : estimée sur 2 lignes, pas 1", () => {
     expect(lignesEtiquetteEstimees("MMMMM WWWWW MMMMM WWWWW MMMMM WWWWW", 1920)).toBe(2);
+  });
+  it("étiquette de 32 signes en M et W : l'estimation ne sous-compte pas les lignes du pire cas", () => {
+    const e32 = "MWMWMWMW MWMWMWMW MWMWMWMW MWMWM";
+    expect(e32.length).toBe(32);
+    for (const ht of [1920, 1350]) {
+      const m = miseEnPageDeHauteurIV(ht);
+      expect(lignesEtiquetteEstimees(e32, m.hauteurTexte)).toBeGreaterThanOrEqual(lignesPireCas(e32, m.hauteurTexte));
+    }
   });
   it("étiquette courte : une ligne ; étiquette longue : deux", () => {
     expect(lignesEtiquetteEstimees("Étape 1", 1920)).toBe(1);
