@@ -26,13 +26,14 @@ export function recadrage(ref: PoseCamera, pose: PoseCamera): { s: number; tx: n
   return { s, tx: (ECRAN_IV.largeur / 2) * (1 - s) + (ref.cx - pose.cx) * pose.zoom, ty: (ECRAN_IV.hauteur / 2) * (1 - s) + (ref.cy - pose.cy) * pose.zoom };
 }
 
-export function CalqueCamera({ children }: { children: ReactNode }) {
+/** `horsCamera` : rendu juste après la scène recadrée (jamais recadré ni masqué), avant le point, la vue et l'en-tête. */
+export function CalqueCamera({ children, horsCamera }: { children: ReactNode; horsCamera?: ReactNode }) {
   const variete = useVariete();
   const d = donneesToile(variete?.donnees.camera);
   const scene = variete?.scene as SceneCalculee | undefined;
   const { fps, width, height } = useVideoConfig();
   const t = useCurrentFrame() / fps;
-  if (!d || !scene) return <>{children}</>;
+  if (!d || !scene) return <>{children}{horsCamera}</>;
   const pose = cameraA({ images: d.trajectoire }, t);
   const r = recadrage(cameraA(scene.trajectoire, t), pose);
   const identique = Math.abs(r.s - 1) < 1e-6 && Math.abs(r.tx) < 0.05 && Math.abs(r.ty) < 0.05;
@@ -62,6 +63,7 @@ export function CalqueCamera({ children }: { children: ReactNode }) {
           </AbsoluteFill>
         </>
       )}
+      {horsCamera}
       {d.code === "CAM-C" ? <CartesEnAttente scene={scene} icones={d.icones ?? {}} ensembles={d.ensembles ?? []} t={t} largeur={width} /> : null}
       {d.code === "CAM-C" ? <PointSurLeFil scene={scene} courses={d.courses ?? []} pose={pose} t={t} largeur={width} /> : null}
       {vue ? <VueSilhouette scene={scene} noeud={vue.noeud} icone={vue.icone} fin={vue.fin} t={t} haut={entete ? hautCadreDe(ECRAN_IV.hauteur) * ECRAN_IV.hauteur : 260} largeur={width} hauteur={height} /> : null}

@@ -137,9 +137,17 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
   const r = camC ? recadrage(cameraA(scene.trajectoire, t), cameraA({ images: camC.trajectoire }, t)) : { s: 1, tx: 0, ty: 0 };
   const echelle = p.largeur / 1080;
   const fixe = r.s === 1 && r.tx === 0 && r.ty === 0 ? "" : `translate(${(-r.tx * echelle) / r.s}px, ${(-r.ty * echelle) / r.s}px) scale(${1 / r.s}) `;
+  // Place de master : après l'en-tête, dans la scène. Filmée par CAM-B ou CAM-C, la queue et l'affiche passent dans
+  // `horsCamera` : le calque caméra les pose après la scène recadrée, jamais recadrées, et toujours sous la matière et les transitions.
+  const finDeScene = (
+    <>
+      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
+    </>
+  );
   return (
     <ContexteVariete variete={p.variete} scene={scene} ensembles={p.ensembles}>
-      <HabillageVariete>
+      <HabillageVariete horsCamera={camC ? finDeScene : undefined}>
         <AbsoluteFill>
           <FondIV fond={fondVu} largeur={p.largeur} hauteur={p.hauteur} />
           {fonduToile > 0 ? (
@@ -173,11 +181,9 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
           ) : null}
           {/* CAM-B, CAM-C : le calque caméra repose la marque et l'en-tête, fixes, au-dessus de la scène recadrée (jamais deux titres). */}
           {camC ? null : <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={fondVu} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />}
+          {camC ? null : finDeScene}
         </AbsoluteFill>
       </HabillageVariete>
-      {/* Hors du calque caméra (déjà dites hors caméra) : le trait de fin n'est jamais recadré ni masqué. */}
-      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
-      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </ContexteVariete>
   );
 }
@@ -249,11 +255,10 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
           </AbsoluteFill>
           <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           {temoin ? <TemoinEntete p={p} t={t} /> : null}
+          <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
-      {/* Hors du calque caméra (déjà dites hors caméra) : le trait de fin n'est jamais recadré ni masqué. */}
-      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
-      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </ContexteVariete>
   );
 }
@@ -329,11 +334,10 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & 
             {temoin && (m.sousTitre ?? m.entete?.titre) ? <TemoinSousTitres texte={(m.sousTitre ?? m.entete?.titre)!} fond={m.fond} /> : null}
           </AbsoluteFill>
           <EnteteVarie entete={entete} ecoule={t - m.debut} sortie={entete ? Math.max(0, Math.min(1, (t - (m.fin - 0.15)) / 0.15)) : 0} fond={m.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
+          <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
-      {/* Hors du calque caméra (déjà dites hors caméra) : le trait de fin n'est jamais recadré ni masqué. */}
-      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
-      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </ContexteVariete>
   );
 }
