@@ -667,6 +667,17 @@ export function ensembleA(
   return { fondu, ecoule: t - e.debut + TEMPS_IV.fondu, disposition: disposerEnsemble(s.toile, p.schema, options), options };
 }
 
+/**
+ * Fondus de la toile et de la vue d'ensemble pendant leur transition. 4:5 (`sequentiel`) : l'un après l'autre, jamais
+ * ensemble : la toile s'éteint dans la première moitié du fondu, la vue d'ensemble ne paraît que dans la seconde (et
+ * inversement à la sortie) ; ainsi la carte de la toile n'est jamais estompée sous des blocs du schéma, et la vue
+ * d'ensemble vaut exactement 0 dès la mi-fondu de sortie (aucun fantôme flou à la jointure). 9:16 : fondu enchaîné d'origine.
+ */
+export function fondusEnsemble(fondu: number, sequentiel: boolean): { toile: number; ensemble: number } {
+  if (!sequentiel) return { toile: 1 - fondu, ensemble: fondu };
+  return { toile: c01(1 - 2 * fondu), ensemble: c01(2 * fondu - 1) };
+}
+
 /** En-tête affiché à l'instant `t` et son ouverture (0 à 1) / sa fermeture. */
 export function enteteA(p: Pick<ProprietesSceneIV, "entetes">, t: number) {
   const e = (p.entetes ?? []).find((x) => t >= x.debut && t < x.fin);

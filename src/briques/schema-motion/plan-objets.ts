@@ -1427,7 +1427,14 @@ export type ChiffreEnsemblePlan = { texte: string; x: number; y: number; largeur
 /** Un bloc de la vue d'ensemble : pastille en forme de carte, icône lue sur l'image, LIBELLÉ COURT lisible. */
 export type BlocEnsemble = ZoneIV & { id: string; couleur: CouleurSchema; allume: boolean; icone?: string; libelle: TexteAjuste; badge: number };
 
-export type FlecheEnsemble = { id: string; de: { x: number; y: number }; vers: { x: number; y: number }; couleur: CouleurSchema; extremites: [string, string] };
+/**
+ * `via` : la flèche saute une rangée dont un bloc est sur son passage ; elle descend alors dans l'écart sous son départ,
+ * longe ces blocs à l'abscisse `x`, et rejoint son arrivée par l'écart au-dessus (jamais un trait qui traverse un bloc).
+ */
+export type FlecheEnsemble = { id: string; de: { x: number; y: number }; vers: { x: number; y: number }; couleur: CouleurSchema; extremites: [string, string]; via?: { x: number; yHaut: number; yBas: number } };
+
+/** Marge (px) entre un trait contourné et le flanc du bloc qu'il longe. */
+export const MARGE_CONTOURNEMENT = 16;
 
 export type PlanEnsemble = {
   zone: ZoneIV;
@@ -1798,9 +1805,44 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     } else fleches.push({ id: l.id, de: bas(a), vers: haut(b), couleur: l.couleur, extremites: [l.de, l.vers] });
   }
 
+  // Un trait vertical ne traverse jamais un bloc : si une rangée intermédiaire en pose un sur son passage, il passe à côté.
+  for (const f of fleches) {
+    const via = contournement(f, [...blocs, ...chiffres], ecart);
+    if (via) f.via = via;
+  }
+
   for (const ch of chiffres) if (nombreDeMots(ch.texte) > MOTS_MAX_ENSEMBLE) alertes.push(`« ${ch.texte} » : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
   for (const b of blocs) if (unitesDeSens(texteDe(b.id)).length > MOTS_MAX_ENSEMBLE) alertes.push(`Libellé de ${b.id} : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
   return { zone, blocs, fleches, rang, chiffres, ecart, alertes: [...new Set(alertes)] };
+}
+
+/**
+ * Contournement (PUR) d'une flèche de la vue d'ensemble qui descendrait sur un bloc ou une pastille d'une rangée
+ * intermédiaire : abscisse à droite de ces blocs, sinon à gauche, dans l'écran et sans toucher d'autre bloc de l'intervalle ;
+ * `undefined` si rien ne gêne (ou si aucun côté n'est libre : le trait reste droit).
+ */
+export function contournement(f: Pick<FlecheEnsemble, "de" | "vers">, obstacles: readonly ZoneIV[], ecart: number): FlecheEnsemble["via"] {
+  if (f.vers.y <= f.de.y) return undefined;
+  const m = MARGE_CONTOURNEMENT;
+  const g = Math.min(f.de.x, f.vers.x) - m;
+  const d = Math.max(f.de.x, f.vers.x) + m;
+  const entre = obstacles.filter((o) => o.y >= f.de.y - 1e-6 && o.y + o.hauteur <= f.vers.y + 1e-6);
+  const gene = entre.filter((o) => o.x < d && o.x + o.largeur > g);
+  if (gene.length === 0) return undefined;
+  const droite = Math.max(...gene.map((o) => o.x + o.largeur)) + m;
+  const gauche = Math.min(...gene.map((o) => o.x)) - m;
+  const libre = (x: number) => x >= m && x <= ECRAN_IV.largeur - m && !entre.some((o) => o.x < x + m && o.x + o.largeur > x - m);
+  const x = [droite, gauche].find(libre);
+  if (x === undefined) return undefined;
+  const demi = Math.max(8, ecart) / 2;
+  return { x, yHaut: f.de.y + demi, yBas: f.vers.y - demi };
+}
+
+/** Flèche qui saute une rangée : elle descend dans l'écart sous son départ, longe les blocs à `via.x`, et arrive par l'écart au-dessus de son but. */
+export function cheminContourne(de: { x: number; y: number }, vers: { x: number; y: number }, via: { x: number; yHaut: number; yBas: number }): string {
+  const a = (de.y + via.yHaut) / 2;
+  const b = (via.yBas + vers.y) / 2;
+  return `M ${de.x} ${de.y} C ${de.x} ${a}, ${via.x} ${a}, ${via.x} ${via.yHaut} L ${via.x} ${via.yBas} C ${via.x} ${b}, ${vers.x} ${b}, ${vers.x} ${vers.y}`;
 }
 
 type GroupeEntreeIV = SchemaEntree["groupes"][number];
