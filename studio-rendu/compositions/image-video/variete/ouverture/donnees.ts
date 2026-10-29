@@ -77,3 +77,20 @@ export function libelleRecul(libelle: string): { lignes: string[]; taille: numbe
   console.warn(`OUV-E recul : le libellé « ${libelle} » ne tient pas à 58 px (${taille} px)`);
   return { lignes, taille, lc };
 }
+
+/** Marge de sécurité (px) entre le cadre pointillé du recul et le bord gauche de l'écran. */
+const MARGE_CADRE_RECUL = 24;
+/** Le cadre dépasse la carte de 102 px à gauche, les coins de 70 px (voir `ouv-e.tsx`). */
+const DEBORD_GAUCHE_CADRE_RECUL = 102;
+
+/**
+ * Où pose-t-on la carte centrale du recul (OUV-E) : centrée sur le nœud, mais assez à droite pour que son cadre pointillé
+ * et ses coins restent dans l'écran (le nœud d'une colonne de gauche est à cx ≈ 180). Sans débord, le résultat est celui
+ * d'avant ; sinon la carte est décalée (la ligne du schéma tombe toujours sous la carte). Jamais un blocage : si la carte
+ * est si large que les deux bords ne tiennent pas, le bord droit prime.
+ */
+export function xCarteRecul(cx: number, lc: number): number {
+  const droite = 1020 - lc;
+  const gauche = MARGE_CADRE_RECUL + DEBORD_GAUCHE_CADRE_RECUL;
+  return Math.min(droite, Math.max(gauche, 60, cx - lc / 2));
+}
