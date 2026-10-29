@@ -43,13 +43,17 @@ const appels = new Map<string, number[]>();
 const appelsEntiers = new Map<string, number[]>();
 const fluxOuverts = new Map<string, number>();
 
-/** Enregistre un appel dans la fenêtre glissante de `compteurs` et dit si `limite` est dépassée (jetons déjà vérifiés : pas de croissance par des jetons faux). */
+/** Dit si `limite` est atteinte dans la fenêtre glissante de `compteurs` ; n'enregistre l'appel que s'il est accepté (un client refusé qui réessaie ne prolonge pas son blocage). Jetons déjà vérifiés : pas de croissance par des jetons faux. */
 function depasse(compteurs: Map<string, number[]>, jeton: string, maintenantMs: number, limite: number): boolean {
   const recents = (compteurs.get(jeton) ?? []).filter((t) => t > maintenantMs - FENETRE_MS);
+  if (recents.length >= limite) {
+    compteurs.set(jeton, recents);
+    return true;
+  }
   recents.push(maintenantMs);
   compteurs.set(jeton, recents);
   if (compteurs.size > 1000) for (const [k, v] of compteurs) if (!v.some((t) => t > maintenantMs - FENETRE_MS)) compteurs.delete(k);
-  return recents.length > limite;
+  return false;
 }
 
 /** Ouvre un flux pour ce jeton ; rend la fonction qui le ferme (une seule fois), ou null si 8 flux sont déjà ouverts. */

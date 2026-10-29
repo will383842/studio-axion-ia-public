@@ -15,7 +15,7 @@ process.env.STUDIO_ADRESSE = "https://studio.essai.example/";
 
 const { creerJetonMediaBuffer, verifierJetonMediaBuffer, DUREE_JETON_MEDIA_BUFFER_SEC } = await import("@/lib/jeton-media-buffer");
 const { GET, HEAD } = await import("@/app/api/media-buffer/[jeton]/[nom]/route");
-const { reinitialiserLimitePourEssai, LIMITE_REQUETES_PAR_MINUTE, LIMITE_GET_ENTIERS_PAR_MINUTE, LIMITE_FLUX_SIMULTANES } = await import("@/services/relais-buffer");
+const { servirRelaisBuffer, reinitialiserLimitePourEssai, LIMITE_REQUETES_PAR_MINUTE, LIMITE_GET_ENTIERS_PAR_MINUTE, LIMITE_FLUX_SIMULTANES } = await import("@/services/relais-buffer");
 const { urlVideoPourBuffer } = await import("@/services/publications");
 const { depots } = await import("@/services/_commun");
 
@@ -171,6 +171,17 @@ describe("relais : durcissements", () => {
     expect((await HEAD(requete("HEAD"), ctx(jeton))).status).toBe(200);
     expect((await GET(requete("GET", "bytes=0-4"), ctx(jeton))).status).toBe(206);
     expect((await GET(requete("GET"), ctx(creerJetonMediaBuffer("f-reel", Date.now() + 1000)))).status).toBe(200);
+  });
+  it("un client refusé qui réessaie ne prolonge pas son blocage : les appels refusés ne comptent pas dans la fenêtre", async () => {
+    const t0 = Date.now();
+    const jeton = creerJetonMediaBuffer("f-reel", t0);
+    const entier = (t: number) => servirRelaisBuffer("GET", jeton, "video.mp4", null, undefined, t);
+    for (let i = 0; i < LIMITE_GET_ENTIERS_PAR_MINUTE; i++) await (await entier(t0)).body!.cancel();
+    for (const dt of [1_000, 20_000, 40_000, 59_000]) expect((await entier(t0 + dt)).status).toBe(429);
+    // les 30 premiers appels sont sortis de la fenêtre : si les refus comptaient, celui-ci serait encore refusé.
+    const apres = await entier(t0 + 61_000);
+    expect(apres.status).toBe(200);
+    await apres.body!.cancel();
   });
   it("au plus 8 flux GET simultanés par jeton : le 9e est refusé (429), accepté après fermeture d'un flux", async () => {
     const jeton = creerJetonMediaBuffer("f-reel");
