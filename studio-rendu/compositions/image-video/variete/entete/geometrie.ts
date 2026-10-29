@@ -23,6 +23,8 @@ export interface GeometrieEntete {
   alerte: string | null;
   /** Nombre de lignes de l'étiquette (estimé), le titre se pose dessous. */
   lignesEtiquette: number;
+  /** Hauteur (px) réservée à l'étiquette (lignes estimées × interligne) : `Entete` la prend pour hauteur minimale, le titre se pose donc là où la géométrie l'a compté. */
+  hauteurEtiquette: number;
   forme: "aucune" | "capsule" | "filet" | "bandeau";
   /** Couleur du titre et du fond qui est directement derrière lui. */
   couleurTitre: string;
@@ -77,7 +79,8 @@ export function geometrieEntete(code: CodeEntete, texte: string, format: FormatI
   const zone = { x: 0, y: haut, largeur: LARGEUR, hauteur: bas - haut };
   const titre = planTitre(texte, LARGEUR, ht);
   const lignesEtiquette = lignesEtiquetteEstimees(etiquette, ht);
-  const yTitre = haut + lignesEtiquette * HAUTEUR_LIGNE_ETIQUETTE * TAILLES_DUO.etiquette * ht + ECART_ETIQUETTE * ht;
+  const hauteurEtiquette = lignesEtiquette * HAUTEUR_LIGNE_ETIQUETTE * TAILLES_DUO.etiquette * ht;
+  const yTitre = haut + hauteurEtiquette + ECART_ETIQUETTE * ht;
   const [px, py] = code === "ENT-B" ? [32, 10] : [26, 8];
   // Le titre (et son habillage) tient sous l'étiquette, dans la zone, avec la marge basse de l'habillage : il se réduit au besoin,
   // mais jamais sous le plancher de lisibilité (B3/Q21) ; s'il ne tient pas à ce plancher, c'est une alerte signalée non bloquante.
@@ -92,7 +95,7 @@ export function geometrieEntete(code: CodeEntete, texte: string, format: FormatI
   const lTitre = Math.min(0.94 * LARGEUR, Math.max(0, ...titre.lignes.map((l) => largeurLigneTitre(l, tailleTitre))));
   const boiteTexte = { x: (LARGEUR - lTitre) / 2, y: yTitre, largeur: lTitre, hauteur: hTitre };
   const sombre = fond === "sombre";
-  const base = { zone, texte: boiteTexte, tailleTitre, alerte, lignesEtiquette, couleurTitre: sombre ? COULEURS_DUO.ivoire : COULEURS_DUO.encre, couleurAccent: sombre ? COULEURS_DUO.orangeVif : COULEURS_DUO.orange, fondDuTitre: sombre ? COULEURS_DUO.nuit : COULEURS_DUO.ivoire, couleurHabillage: null, bordure: null };
+  const base = { zone, texte: boiteTexte, tailleTitre, alerte, lignesEtiquette, hauteurEtiquette, couleurTitre: sombre ? COULEURS_DUO.ivoire : COULEURS_DUO.encre, couleurAccent: sombre ? COULEURS_DUO.orangeVif : COULEURS_DUO.orange, fondDuTitre: sombre ? COULEURS_DUO.nuit : COULEURS_DUO.ivoire, couleurHabillage: null, bordure: null };
   if (code === "ENT-A") return { ...base, boite: null, forme: "aucune" };
   if (code === "ENT-C") {
     const l = Math.min(lTitre, 220);
