@@ -8,13 +8,14 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import type { QueueFinIV } from "../../../../src/briques/schema-motion/queue-fin";
 import type { BlocVarieteDonnees, VarieteBlocIV } from "../../../../src/briques/schema-motion/variete";
 import { chargerPoliceAnton, chargerPoliceTitre } from "../../commune/polices";
-import type { ChangementRepere } from "../plan-objets";
-import { decalageReferenceIV } from "../mise-en-page";
+import { decalageRepereSurEtiquette, HAUT_REPERE, type ChangementRepere } from "../plan-objets";
+import { decalageReferenceIV, miseEnPageDeHauteurIV } from "../mise-en-page";
 import { Affiche } from "../Affiche";
 import { QueueFin } from "../QueueFin";
 import { RepereChapitre } from "../RepereChapitre";
 import { EcranCamera } from "./camera/ecran";
 import { EcranChiffres } from "./chiffres/ecran";
+import { cadreChiffres } from "./chiffres/outils";
 import { ContexteVariete } from "./ContexteVariete";
 import { EcranFin } from "./fin/ecran";
 import { HabillageVariete } from "./HabillageVariete";
@@ -47,12 +48,29 @@ function fondDuBloc(bloc: BlocVarieteDonnees): "ivoire" | "sombre" {
   return d.fond === "ivoire" || (d.fond === undefined && d.nuit === false) ? "ivoire" : "sombre";
 }
 
+/** 4:5, écran « chiffres » : son étiquette est sur la ligne du repère ; le repère se décale pour ne pas la recouvrir (9:16 inchangé). */
+export function decalageRepere(p: Pick<ProprietesEcranVariete, "bloc" | "hauteur" | "repere">): { dx: number; dy: number } {
+  if (!p.repere || p.bloc.axe !== "chiffres" || miseEnPageDeHauteurIV(p.hauteur).format !== "4:5") return { dx: 0, dy: 0 };
+  const d = (p.bloc.donnees ?? {}) as { etiquette?: unknown; code?: unknown };
+  const cadre = cadreChiffres(p.hauteur);
+  return decalageRepereSurEtiquette({
+    etiquette: typeof d.etiquette === "string" && d.etiquette && p.bloc.code !== "CHI-D" ? d.etiquette : undefined,
+    yEtiquette: cadre.etiquetteY,
+    hautRepere: HAUT_REPERE * 1920 - miseEnPageDeHauteurIV(p.hauteur).decalageReference,
+    total: p.repere.total,
+    prefixe: p.repere.prefixe,
+  });
+}
+
 function Repere({ p }: { p: ProprietesEcranVariete }) {
   const t = useCurrentFrame() / p.fps;
   if (!p.repere) return null;
+  const d = decalageRepere(p);
   return (
     <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
-      <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={fondDuBloc(p.bloc)} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, transform: d.dx || d.dy ? `translate(${d.dx}px, ${d.dy}px)` : undefined }}>
+        <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={fondDuBloc(p.bloc)} />
+      </div>
     </AbsoluteFill>
   );
 }

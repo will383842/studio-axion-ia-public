@@ -1040,6 +1040,38 @@ export function planRepere(changements: readonly ChangementRepere[], total: numb
   };
 }
 
+/** Marge latérale (px) du repère décalé et de l'étiquette des écrans « chiffres » en 4:5. */
+const MARGE_REPERE_PX = 72;
+/** Chasse estimée (en tailles de police) d'une capitale d'étiquette : Inter gras ≈ 0,68 + espacement 0,32 : on compte large. */
+const CHASSE_ETIQUETTE_REPERE = 1;
+
+/** Largeur (px) du repère « k/total » (avec préfixe) : celle de `RepereChapitre`, la même pour tous les `k` (même nombre de signes). */
+export function largeurRepereIV(total: number, prefixe?: string): number {
+  const signes = `${prefixe ? `${prefixe} ` : ""}${total}/${total}`.length;
+  return signes * 0.5 * PLANCHER_PX + 2 * 34 + 28 + total * 34 + (total - 1) * 10 + 34;
+}
+
+/**
+ * Décalage (px) du repère centré en haut d'un écran « chiffres » 4:5, dont l'étiquette (le surtitre : 28 px, capitales
+ * espacées, x = 72, y = `etiquette.y`) est sur la même ligne que lui : le repère va contre la marge droite s'il y reste
+ * de la place après l'étiquette ; sinon il descend sous elle. Jamais de recouvrement du surtitre. Sans étiquette : aucun décalage.
+ * `hautRepere` : haut du repère centré, tel que dessiné (déjà remonté du décalage du 4:5).
+ */
+export function decalageRepereSurEtiquette(o: { etiquette?: string; yEtiquette: number; hautRepere: number; total: number; prefixe?: string }): { dx: number; dy: number } {
+  const { etiquette, yEtiquette, hautRepere } = o;
+  if (!etiquette) return { dx: 0, dy: 0 };
+  const largeur = largeurRepereIV(o.total, o.prefixe);
+  const hauteur = PLANCHER_PX * 1.3;
+  const tailleEtiquette = 28;
+  const bas = yEtiquette + tailleEtiquette * 1.15;
+  // Pas de chevauchement vertical : rien à faire.
+  if (hautRepere >= bas + 8 || hautRepere + hauteur <= yEtiquette - 8) return { dx: 0, dy: 0 };
+  const finEtiquette = MARGE_REPERE_PX + etiquette.length * tailleEtiquette * CHASSE_ETIQUETTE_REPERE;
+  const gauche = 1080 - MARGE_REPERE_PX - largeur;
+  if (gauche >= finEtiquette + 24) return { dx: gauche - (1080 - largeur) / 2, dy: 0 };
+  return { dx: 0, dy: Math.max(0, bas + 8 - hautRepere) };
+}
+
 /* ------------------------------------------------------------------ */
 /* K14 · Recherche                                                      */
 /* ------------------------------------------------------------------ */

@@ -16,6 +16,7 @@ import { motsDits, schemaFicheImage, VERSION_FICHE_IMAGE, type AccrocheFiche, ty
 import { DEBUT_REFUS_ECRITURE, type ResultatEcritureIV } from "./ecriture";
 import { FOND_PAR_PARTIE } from "./recettes";
 import { aTrancherParWill, empreinteDeCarte, verifierScript, type ContexteRegles, type Manquement, type VerdictScript } from "./regles";
+import { REGLES_SCENE_IV } from "./regles-scene";
 import { refusScriptColle } from "./texte/script-limites";
 
 export { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_MOTS_MAX } from "./texte/script-limites";
@@ -24,9 +25,13 @@ export { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_M
 const ACCROCHE_MOTS = 8;
 /** Mots de la phrase-choc au plus : elle est affichée en très grand, centrée, mot à mot. */
 const PHRASE_CHOC_MOTS = 8;
-/** Au-delà, un écran est coupé en deux (mots) ; l'écran est un confort de lecture, pas une règle. */
-const ECRAN_MOTS_MAX = 16;
-const ECRAN_CARACTERES_MAX = 380;
+/**
+ * Au-delà, un écran est coupé en deux (mots) ; l'écran est un confort de lecture, pas une règle.
+ * Les deux seuils visent le même plafond : le contrôle de lisibilité (Q21) refuse un texte d'écran de plus de
+ * `signesMax` signes ; 12 mots (≈ 5,8 signes le mot, espace comprise) tiennent dans ce plafond, et les signes, eux, le garantissent.
+ */
+export const ECRAN_CARACTERES_MAX = REGLES_SCENE_IV.signesMax;
+export const ECRAN_MOTS_MAX = 12;
 const ECRANS_MIN = 6;
 const ECRANS_MAX = 60;
 
