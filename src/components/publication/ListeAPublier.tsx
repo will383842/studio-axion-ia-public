@@ -21,7 +21,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
   const choisies = deCeReseau(toutes, reseau);
   const c = parReseau[reseau];
   const filtrees = filtrerReseau(choisies, filtre);
-  const nombres: Record<FiltreListe, number> = { "a-envoyer": c.aEnvoyer, envoyees: c.envoyees, publiees: c.publiees, toutes: c.toutes };
+  const nombres: Record<FiltreListe, number> = { "a-envoyer": c.aEnvoyer, envoyees: c.envoyees, publiees: c.publiees, problemes: c.problemes, toutes: c.toutes };
   const sections = reseau === "tous" ? sectionsParReseau(filtrees, presents) : [{ reseau, lignes: filtrees }];
 
   return (
@@ -29,7 +29,14 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
       <p className="text-sm font-semibold text-texte">
         {c.aEnvoyer} à envoyer
         {reseau !== "tous" && <span className="text-texte-doux"> sur {obtenirReseau(reseau).nom}</span>}
-        {c.problemes > 0 && <span className="text-texte-doux"> · {c.problemes === 1 ? "1 problème" : `${c.problemes} problèmes`}</span>}
+        {c.problemes > 0 && (
+          <span className="text-texte-doux">
+            {" · "}
+            <Link href={lienListeReseau(reseau, "problemes")} className="font-semibold text-orange-vif">
+              {c.problemes === 1 ? "1 problème" : `${c.problemes} problèmes`}
+            </Link>
+          </span>
+        )}
       </p>
 
       <nav aria-label="Choisir un réseau" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
