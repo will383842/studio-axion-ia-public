@@ -96,7 +96,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
         return;
       }
       const iso = quand.toISOString();
-      const r = await envoyerVersBufferAction(l.videoId, [l.reseau], iso, false, avecChoix ? { [l.reseau]: comptes } : {}, { [l.reseau]: commentaire });
+      const r = await envoyerVersBufferAction(l.videoId, [l.reseau], iso, false, avecChoix ? { [l.reseau]: comptes } : {}, { [l.reseau]: commentaire }, true);
       if (!r.ok) {
         notifier.erreur(r.message);
         return;

@@ -100,4 +100,18 @@ describe("premier commentaire dans l'envoi réel", () => {
     expect(JSON.stringify(buffer.mutations()[0].variables)).not.toContain("firstComment");
     expect(JSON.stringify(buffer.mutations()[0].variables)).not.toContain("Celui de la vidéo");
   });
+
+  it("sans surcharge : le commentaire de la vidéo ne part que si l'appelant le demande", async () => {
+    await cocherTout();
+    lire.commentaireDeLaVideo = "Celui de la vidéo";
+    await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
+    expect(entree(0).metadata?.instagram).toEqual({ type: "reel", shouldShareToFeed: true });
+  });
+
+  it("avecPremierCommentaire : le commentaire de la vidéo part", async () => {
+    await cocherTout();
+    lire.commentaireDeLaVideo = "Celui de la vidéo";
+    await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { avecPremierCommentaire: true });
+    expect(entree(0).metadata?.instagram).toEqual({ type: "reel", shouldShareToFeed: true, firstComment: "Celui de la vidéo" });
+  });
 });

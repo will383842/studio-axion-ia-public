@@ -351,10 +351,12 @@ export async function envoyerVersBufferAction(
   comptes: Partial<Record<IdReseau, string[]>> = {},
   /** Premier commentaire modifié à l'écran, par réseau (sinon : celui que la vidéo porte déjà). */
   premiersCommentaires: Partial<Record<IdReseau, string>> = {},
+  /** Page « À publier » : le premier commentaire de la vidéo est montré à l'écran, donc il peut partir. */
+  avecPremierCommentaire = false,
 ): Promise<Resultat<{ simulation: boolean; nombre: number; mode?: ModeEnvoiPublication; problemes: string[]; commentairesALaMain: IdReseau[] }>> {
   await exigerSession();
   return essayer(async () => {
-    const r = await envoyerVersBuffer(videoId, reseaux, dateIso, { autreReseauConfirme, comptes, premiersCommentaires });
+    const r = await envoyerVersBuffer(videoId, reseaux, dateIso, { autreReseauConfirme, comptes, premiersCommentaires, avecPremierCommentaire });
     rafraichir(videoId);
     revalidatePath("/calendrier");
     revalidatePath("/a-publier");
