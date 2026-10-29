@@ -18,7 +18,7 @@ import { contourBas, Feutre, pointContourBas } from "./variete/apparition/Feutre
 import { useVariete } from "./variete/ContexteVariete";
 import { hachures, matiereDe, rectMain } from "./variete/matiere/trait";
 
-export function Noeud({ boite, icone, etat, ecoule = 0, fantome = false }: { boite: BoiteNoeud; icone?: string; etat: EtatNoeud; ecoule?: number; fantome?: boolean }) {
+export function Noeud({ boite, icone, etat, ecoule = 0, fantome = false, filet = 1 }: { boite: BoiteNoeud; icone?: string; etat: EtatNoeud; ecoule?: number; fantome?: boolean; filet?: number }) {
   const variete = useVariete();
   const app = apparitionDe(variete);
   const mat = matiereDe(variete);
@@ -81,6 +81,7 @@ export function Noeud({ boite, icone, etat, ecoule = 0, fantome = false }: { boi
             background: teinte(COULEURS_DUO.encre, chute.ombre.opacite),
             filter: `blur(${chute.ombre.flou.toFixed(1)}px)`,
             transform: `scale(${chute.ombre.echelle.toFixed(3)})`,
+            opacity: filet < 1 ? filet : undefined,
           }}
         />
       ) : null}
@@ -93,7 +94,7 @@ export function Noeud({ boite, icone, etat, ecoule = 0, fantome = false }: { boi
           top: boite.y,
           width: boite.largeur,
           height: boite.hauteur,
-          opacity: opacite,
+          opacity: opacite * filet,
           transform,
           transformOrigin: "50% 50%",
         }}

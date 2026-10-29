@@ -8,14 +8,14 @@ import React from "react";
  * APP-B/APP-D posent la place de la carte suivante ; APP-C montre tout le schéma éteint dès le début (cartes et fils
  * pâles) ; MAT-C fait trembler les fils ; MAT-D pose les cartes sur des plateaux en relief.
  */
-import type { SchemaEntree } from "../../../src/briques/schema-motion";
+import type { SchemaEntree, TrajectoireCamera } from "../../../src/briques/schema-motion";
 import { COULEURS_DUO } from "../../../src/briques/habillage/charte-duo";
 import { teinte } from "../cas-concret/plans/commun";
 import { Icone } from "../interface-claire/elements";
 import { Embranchement } from "./Embranchement";
 import { FlecheCourbe } from "./FlecheCourbe";
 import { Noeud } from "./Noeud";
-import { cheminDe, etatFleche, etatNoeud, partsEmbranchement, railSuite, RAYON_PASTILLE, TEMPS_IV, type EtatNoeud, type SceneCalculee } from "./plan";
+import { cheminDe, etatFleche, etatNoeud, noeudCourant, opaciteCadre, partsEmbranchement, railSuite, RAYON_PASTILLE, TEMPS_IV, type EtatNoeud, type SceneCalculee } from "./plan";
 import { apparitionDe, progresDe, type ApparitionIV } from "./variete/apparition/apparition";
 import { FilsEteints, Place } from "./variete/apparition/Place";
 import { useVariete } from "./variete/ContexteVariete";
@@ -41,10 +41,15 @@ function placeSuivante(scene: SceneCalculee, t: number): { id: string; opacite: 
 }
 
 /**
+ * `trajectoireVue` : la caméra réellement vue (celle de la variété CAM-B/CAM-C si elle existe, sinon celle de la scène) ;
+ * chaque bloc (et chaque pastille de part) est multiplié par `opaciteCadre` : jamais un bloc coupé par un bord à l'écran.
+ *
  * `dejaVus` (issue 119) : blocs posés dans une séquence précédente ; ils sont montrés « vus » (posés, grisés) quel que soit
  * le code d'apparition, au lieu de rester absents (APP-A, B, D) ou de ne laisser que le schéma muet.
+ *
+ * `courant` : `noeudCourant(scene, t)`, calculé une fois par image par l'appelant (sinon recalculé ici).
  */
-export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; schema: SchemaEntree; t: number; dejaVus?: readonly string[] }) {
+export function Toile({ scene, schema, t, dejaVus, trajectoireVue, courant }: { scene: SceneCalculee; schema: SchemaEntree; t: number; dejaVus?: readonly string[]; trajectoireVue?: TrajectoireCamera["images"]; courant?: string | null }) {
   const variete = useVariete();
   const app: ApparitionIV | null = apparitionDe(variete);
   const mat = matiereDe(variete);
@@ -53,12 +58,17 @@ export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; sch
   const etiquettes = new Map(schema.liens.map((l) => [l.id, l.etiquette]));
   const dejaVusSet = new Set(dejaVus ?? []);
   const decisions = [...scene.separation.keys()].filter((id) => parId.has(id)).sort();
+  const images = trajectoireVue ?? scene.trajectoire.images;
+  const noeudDit = courant === undefined ? noeudCourant(scene, t) : courant;
+  const filetDe = (id: string) => opaciteCadre(scene, images, id, t, noeudDit);
   const fleches = toile.fleches.map((f) => {
     const chemin = cheminDe(scene, f);
     if (!chemin) return null;
     // Les parts d'un embranchement sont portées par ses pastilles, pas par une étiquette sur la flèche.
     const etiquette = scene.separation.has(f.de) && scene.colonne.get(f.vers) ? undefined : etiquettes.get(f.id);
-    return <FlecheCourbe key={f.id} id={f.id} chemin={chemin} couleur={f.couleur} style={f.style} etat={etatFleche(scene, f, t)} etiquette={etiquette} />;
+    // L'étiquette d'une flèche qui touche un bloc caché par le filet s'efface avec lui.
+    const opaciteEtiquette = etiquette ? Math.min(filetDe(f.de), filetDe(f.vers)) : 1;
+    return <FlecheCourbe key={f.id} id={f.id} chemin={chemin} couleur={f.couleur} style={f.style} etat={etatFleche(scene, f, t)} etiquette={etiquette} opaciteEtiquette={opaciteEtiquette} />;
   });
   const place = app && app.code !== "APP-C" ? placeSuivante(scene, t) : null;
   const boitePlace = place ? parId.get(place.id) : undefined;
@@ -77,6 +87,7 @@ export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; sch
       {toile.boites.map((b) => {
         const t0 = scene.premierMot.get(b.id);
         const vu = t0 === undefined && (dejaVusSet.has(b.id) || (app?.code === "APP-C" && app.vus.has(b.id)));
+        // Le Noeud garde sa place dans l'arbre : l'opacité du filet est la sienne (jamais de démontage au franchissement d'un bord).
         return (
           <Noeud
             key={b.id}
@@ -85,11 +96,12 @@ export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; sch
             etat={vu ? ETAT_VU : etatNoeud(scene, b.id, t)}
             ecoule={t0 === undefined ? 99 : t - (t0 - TEMPS_IV.avanceNoeud)}
             fantome={app?.code === "APP-C" && app.fantomes.has(b.id)}
+            filet={filetDe(b.id)}
           />
         );
       })}
       {decisions.map((d) => (
-        <Embranchement key={d} decision={parId.get(d)!} parts={partsEmbranchement(scene, d, t)} />
+        <Embranchement key={d} decision={parId.get(d)!} parts={partsEmbranchement(scene, d, t)} opacites={(fleche) => filetDe(`part-${fleche}`)} />
       ))}
     </div>
   );
@@ -110,11 +122,14 @@ export const COULEURS_MUET = Object.freeze({
  * et les fils qui y mènent ; `dits` : les cartes déjà dites, en silhouette (au-dessus de la toile, sous l'en-tête, où
  * leur texte serait coupé). Pixels de toile, dans la même caméra que la toile.
  */
-export function SchemaMuet({ scene, schema, t, fond, mode }: { scene: SceneCalculee; schema: SchemaEntree; t: number; fond: "ivoire" | "sombre"; mode: "futurs" | "dits" }) {
+export function SchemaMuet({ scene, schema, t, fond, mode, trajectoireVue, courant }: { scene: SceneCalculee; schema: SchemaEntree; t: number; fond: "ivoire" | "sombre"; mode: "futurs" | "dits"; trajectoireVue?: TrajectoireCamera["images"]; courant?: string | null }) {
   const { toile, parId } = scene;
   const c = COULEURS_MUET[fond];
   const icones = new Map(schema.noeuds.map((n) => [n.id, n.icone]));
-  const visible = (id: string) => (mode === "dits" ? etatNoeud(scene, id, t).entree : 1 - etatNoeud(scene, id, t).entree);
+  const images = trajectoireVue ?? scene.trajectoire.images;
+  const noeudDit = courant === undefined ? noeudCourant(scene, t) : courant;
+  // Les silhouettes suivent le filet de la toile : une carte coupée par un bord n'est pas devinée non plus.
+  const visible = (id: string) => (mode === "dits" ? etatNoeud(scene, id, t).entree : 1 - etatNoeud(scene, id, t).entree) * opaciteCadre(scene, images, id, t, noeudDit);
   const fils = toile.fleches.flatMap((f) => {
     const ch = parId.has(f.de) && parId.has(f.vers) ? cheminDe(scene, f) : null;
     const o = visible(f.vers);
