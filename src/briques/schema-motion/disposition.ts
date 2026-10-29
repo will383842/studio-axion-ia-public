@@ -154,19 +154,32 @@ function profondeurs(noeuds: NoeudEntree[], schema: SchemaEntree, colonneDe: Map
  *   colonnes s'en écartent, à droite puis à gauche, assez loin pour rester hors cadre quand on suit l'une d'elles.
  */
 export const VARIANTES_DISPOSITION = Object.freeze(["normale", "serree", "branche-centree"] as const);
-export type VarianteDisposition = (typeof VARIANTES_DISPOSITION)[number];
+/**
+ * Variantes du 4:5, dont le cadre lisible est court (`cadre.bas` < 1) : `large` pose des boîtes de 960 px (moins de
+ * lignes, donc moins hautes) ; `disposerEtCadrer` n'utilise cette liste que si le cadre est court.
+ */
+export const VARIANTES_DISPOSITION_4X5 = Object.freeze(["normale", "large", "serree", "branche-centree"] as const);
+export type VarianteDisposition = (typeof VARIANTES_DISPOSITION_4X5)[number];
 
 /**
  * Réglages de chaque variante : largeur max d'une boîte de branche, écart entre deux colonnes de branche (pour
  * `branche-centree` : marge ajoutée à une demi-largeur d'écran entre le bord d'une colonne et le centre de sa voisine),
  * largeur max d'une boîte posée dans une rangée de plusieurs, largeur max d'une rangée (au-delà, elle est coupée).
  */
-type ReglageVariante = { largeurMaxBranche: number; ecartBranches: number; largeurMaxRangee: number; rangeeMax: number };
+type ReglageVariante = {
+  largeurMaxBranche: number;
+  ecartBranches: number;
+  largeurMaxRangee: number;
+  rangeeMax: number;
+  /** Largeur max d'une boîte seule sur sa couche (hors branche). */
+  largeurMaxSeule: number;
+};
 const RANGEE_SERREE = { largeurMaxRangee: 520, rangeeMax: 1120 };
 const REGLAGES_VARIANTE: Record<VarianteDisposition, ReglageVariante> = {
-  normale: { largeurMaxBranche: MESURES_TOILE.largeurMax, ecartBranches: MESURES_TOILE.ecartX, largeurMaxRangee: MESURES_TOILE.largeurMax, rangeeMax: Infinity },
-  serree: { largeurMaxBranche: 520, ecartBranches: 170, ...RANGEE_SERREE },
-  "branche-centree": { largeurMaxBranche: MESURES_TOILE.largeurMax, ecartBranches: 120, ...RANGEE_SERREE },
+  normale: { largeurMaxBranche: MESURES_TOILE.largeurMax, ecartBranches: MESURES_TOILE.ecartX, largeurMaxRangee: MESURES_TOILE.largeurMax, rangeeMax: Infinity, largeurMaxSeule: MESURES_TOILE.largeurMax },
+  large: { largeurMaxBranche: 960, ecartBranches: 170, largeurMaxRangee: 560, rangeeMax: 1200, largeurMaxSeule: 960 },
+  serree: { largeurMaxBranche: 520, ecartBranches: 170, ...RANGEE_SERREE, largeurMaxSeule: MESURES_TOILE.largeurMax },
+  "branche-centree": { largeurMaxBranche: MESURES_TOILE.largeurMax, ecartBranches: 120, ...RANGEE_SERREE, largeurMaxSeule: MESURES_TOILE.largeurMax },
 };
 
 /**
@@ -222,7 +235,7 @@ export function disposerToile(schema: SchemaEntree, variante: VarianteDispositio
   const cles = [...new Set(noeuds.map((n) => cle(n.id)))].sort();
   // Boîte posée à plusieurs sur une couche d'une même colonne : largeur des rangées de la variante.
   const aPlusieurs = (id: string) => dansCleEtCouche(cle(id), prof.get(id)!).length > 1;
-  const largeurMaxDe = (id: string) => (enBranche(id) ? reglage.largeurMaxBranche : aPlusieurs(id) ? reglage.largeurMaxRangee : M.largeurMax);
+  const largeurMaxDe = (id: string) => (enBranche(id) ? reglage.largeurMaxBranche : aPlusieurs(id) ? reglage.largeurMaxRangee : reglage.largeurMaxSeule);
   const mesures = new Map(noeuds.map((n) => [n.id, mesurerBoite(n, largeurMaxDe(n.id))]));
   /** Largeur d'une rangée de boîtes posées côte à côte. */
   const largeurRangee = (liste: NoeudEntree[]) => liste.reduce((s, n) => s + mesures.get(n.id)!.largeur, 0) + Math.max(0, liste.length - 1) * M.ecartX;
