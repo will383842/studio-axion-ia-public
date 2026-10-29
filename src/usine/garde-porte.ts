@@ -2,7 +2,8 @@
  * GARDE COMMUNE des routes /api/usine/* (porte v2 : l'Usine commande le studio). SERVEUR UNIQUEMENT.
  * Chaque handler l'appelle LUI-MÊME (`garderPorte`) : /api/usine/* est public pour le proxy (pas de session), donc le proxy ne
  * protège rien ici. Ordre des contrôles :
- *  1. secret `STUDIO_PORTE_SECRET` absent ou de moins de 32 caractères → 404 sans détail (porte éteinte) ;
+ *  1. secret `STUDIO_PORTE_SECRET` absent, de moins de 32 caractères, ou égal à `USINE_PORTE_SECRET` (un secret par sens ; alerte au
+ *     journal, sans secret) → 404 sans détail (porte éteinte) ;
  *  2. `Authorization: Bearer …` comparé à temps constant (empreintes SHA-256, `timingSafeEqual`) au secret et, pendant une
  *     rotation, à `STUDIO_PORTE_SECRET_PRECEDENT` → sinon 401 sans détail ;
  *  3. 60 appels par minute au plus (appels authentifiés seulement, sinon un inconnu bloquerait l'Usine) → 429 ;
@@ -16,7 +17,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { journaliser } from "@/services/_commun";
-import { jetonAccepte, jetonDeLEntete, LONGUEUR_MIN_SECRET_PORTE, porteAllumee, type Env } from "@/usine/jeton-porte";
+import { jetonAccepte, jetonDeLEntete, LONGUEUR_MIN_SECRET_PORTE, porteAllumee, secretsEnConflit, type Env } from "@/usine/jeton-porte";
 
 export { jetonAccepte, LONGUEUR_MIN_SECRET_PORTE };
 
@@ -89,9 +90,9 @@ function repereDe(corps: CorpsPorte | null): string | undefined {
   return typeof r === "string" ? r.replace(/[^\w:.\-]/g, "").slice(0, 60) || undefined : undefined;
 }
 
-async function ecrireJournal(route: string, statut: number, debut: number, repere?: string): Promise<void> {
+async function ecrireJournal(route: string, statut: number, debut: number, repere?: string, alerte?: string): Promise<void> {
   try {
-    await journaliser("porte", `Porte usine ${route} → ${statut} (${Date.now() - debut} ms)${repere ? ` repère ${repere}` : ""}`);
+    await journaliser("porte", alerte ? `Porte usine ${route} → ${statut} : ${alerte}` : `Porte usine ${route} → ${statut} (${Date.now() - debut} ms)${repere ? ` repère ${repere}` : ""}`);
   } catch {
     /* le journal ne change jamais la réponse */
   }
@@ -118,7 +119,14 @@ export async function garderPorte(requete: Request, o: OptionsGarde): Promise<Po
     return { ok: false, reponse: reponseErreur(statut, erreur, code) };
   };
 
-  if (!porteAllumee(env)) return refus(404, "Introuvable.", "introuvable", null, false);
+  if (!porteAllumee(env)) {
+    // Éteinte parce que la configuration réutilise le même secret dans les deux sens : alerte (jamais de secret), réponse 404.
+    if (secretsEnConflit(env)) {
+      console.error("[porte-usine] ALERTE : un secret de la porte est identique à USINE_PORTE_SECRET ; porte éteinte (404). Un secret par sens.");
+      await ecrireJournal(o.route, 404, debut, undefined, "ALERTE configuration : secret de la porte identique à celui de l'autre sens, porte éteinte");
+    }
+    return refus(404, "Introuvable.", "introuvable", null, false);
+  }
   const jeton = jetonDeLEntete(requete);
   if (jeton === null || !jetonAccepte(jeton, env)) {
     console.warn(`[porte-usine] ${o.route} → 401`);

@@ -33,6 +33,7 @@ beforeEach(async () => {
   reinitialiserGardePourEssai();
   vi.stubEnv("STUDIO_PORTE_SECRET", SECRET);
   vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", "");
+  vi.stubEnv("USINE_PORTE_SECRET", "");
   await ecrireParametre("budget.mensuel", { centimes: 10000, devise: "EUR" });
 });
 
@@ -65,6 +66,37 @@ describe("garde : secret", () => {
   it("un ancien secret trop court n'ouvre rien", async () => {
     vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", "court");
     expect((await PUT(appel(ok(), {}, "court"))).status).toBe(401);
+  });
+});
+
+describe("garde : un secret par sens", () => {
+  const SORTANT = "o".repeat(20) + "SORTANT-ESSAI-porte-1234567";
+
+  it("STUDIO_PORTE_SECRET égal à USINE_PORTE_SECRET → 404 comme éteinte, alerte au journal sans secret", async () => {
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("STUDIO_PORTE_SECRET", SORTANT);
+    vi.stubEnv("USINE_PORTE_SECRET", SORTANT);
+    const r = await PUT(appel(ok(), {}, SORTANT));
+    expect(r.status).toBe(404);
+    expect(await r.json()).toEqual({ erreur: "Introuvable.", code: "introuvable" });
+    expect((await proxy(appel(ok(), {}, SORTANT))).status).toBe(404);
+    const journal = JSON.stringify(await depots().evenements.lister());
+    expect(journal).toContain("ALERTE");
+    for (const sortie of [journal, JSON.stringify(erreurs.mock.calls)]) expect(sortie).not.toContain(SORTANT);
+    erreurs.mockRestore();
+  });
+
+  it("STUDIO_PORTE_SECRET_PRECEDENT égal à USINE_PORTE_SECRET → 404 aussi, même avec le bon secret courant", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", SORTANT);
+    vi.stubEnv("USINE_PORTE_SECRET", SORTANT);
+    expect((await PUT(appel(ok(), {}, SECRET))).status).toBe(404);
+    vi.mocked(console.error).mockRestore();
+  });
+
+  it("secrets distincts → la porte reste ouverte", async () => {
+    vi.stubEnv("USINE_PORTE_SECRET", SORTANT);
+    expect((await PUT(appel(ok()))).status).toBe(200);
   });
 });
 
