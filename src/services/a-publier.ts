@@ -13,6 +13,7 @@ import { premierCommentaireTransmissible } from "@/fournisseurs/publication/buff
 import { depots, ecrireParametre, ErreurStudio, filtreExemples, journaliser, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { vueEnvoiBuffer } from "./buffer";
+import { commentaireALaMain, commentaireParBuffer } from "@/domaine/commentaire-a-la-main";
 import { premierCommentaireDeVideo } from "./premier-commentaire";
 import { casesRequises } from "@/formats";
 import { LIBELLES_VERIFICATIONS, listerAPublier, obtenirKit, reseauxParDefaut, texteAEnvoyer, verificationsManquantes } from "./publications";
@@ -76,8 +77,10 @@ export interface LigneAPublier {
   /** Ce qui partira vraiment (série, texte, mots-dièse). */
   apercu: string;
   premierCommentaire?: string;
-  /** Instagram, Facebook, LinkedIn : transmis par Buffer ; les autres : à poser à la main. */
+  /** Instagram, Facebook : transmis par Buffer ; LinkedIn et les autres : à poser à la main. */
   commentaireTransmissible: boolean;
+  /** Posé par Will à la main (LinkedIn) : la page montre le texte à copier, Buffer n'en reçoit rien. */
+  commentaireAPoserParWill: boolean;
   /** Compte Buffer : celui mémorisé, les comptes à cocher, ou ce qui manque. Jamais deviné. */
   compte: ComptesReseauEnvoi;
   /** Vérifications « Avant de publier » encore à cocher. */
@@ -160,7 +163,8 @@ export async function vueAPublier(): Promise<VueAPublier> {
         ...(r.titre ? { titreReseau: r.titre } : {}),
         apercu: texteAEnvoyer(r, kit.serie?.entete),
         ...(commentaire ? { premierCommentaire: commentaire } : {}),
-        commentaireTransmissible: premierCommentaireTransmissible(reseau),
+        commentaireAPoserParWill: commentaireALaMain(reseau),
+        commentaireTransmissible: commentaireParBuffer(reseau, premierCommentaireTransmissible(reseau)),
         compte: envoi?.comptes[reseau] ?? {},
         manquantes: manquantes.map((cle) => ({ cle, libelle: LIBELLES_VERIFICATIONS[cle] })),
         casesRequises: casesRequises(kit.mentionIAActive),
