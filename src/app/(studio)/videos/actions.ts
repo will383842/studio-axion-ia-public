@@ -349,15 +349,18 @@ export async function envoyerVersBufferAction(
   autreReseauConfirme = false,
   /** Lot R1b : comptes Buffer cochés, par réseau (réseaux à plusieurs comptes). */
   comptes: Partial<Record<IdReseau, string[]>> = {},
-): Promise<Resultat<{ simulation: boolean; nombre: number; mode?: ModeEnvoiPublication; problemes: string[] }>> {
+  /** Premier commentaire modifié à l'écran, par réseau (sinon : celui que la vidéo porte déjà). */
+  premiersCommentaires: Partial<Record<IdReseau, string>> = {},
+): Promise<Resultat<{ simulation: boolean; nombre: number; mode?: ModeEnvoiPublication; problemes: string[]; commentairesALaMain: IdReseau[] }>> {
   await exigerSession();
   return essayer(async () => {
-    const r = await envoyerVersBuffer(videoId, reseaux, dateIso, { autreReseauConfirme, comptes });
+    const r = await envoyerVersBuffer(videoId, reseaux, dateIso, { autreReseauConfirme, comptes, premiersCommentaires });
     rafraichir(videoId);
     revalidatePath("/calendrier");
+    revalidatePath("/a-publier");
     // Lot R1 : seuls les envois que Buffer a CONFIRMÉS sont comptés ; le reste est dit (à vérifier, refusé).
     const confirmes = r.simulation ? r.publications.length : r.publications.filter((p) => p.etatEnvoi === "envoye").length;
-    return { simulation: r.simulation, nombre: confirmes, mode: r.mode, problemes: (r.problemes ?? []).map((p) => p.message) };
+    return { simulation: r.simulation, nombre: confirmes, mode: r.mode, problemes: (r.problemes ?? []).map((p) => p.message), commentairesALaMain: r.commentairesALaMain ?? [] };
   });
 }
 
