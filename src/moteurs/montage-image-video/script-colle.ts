@@ -111,6 +111,8 @@ function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
     // Un mot seul de plus de 80 caractères (adresse web) est gardé en entier : la fin n'est jamais vide.
     while (nbMots(jetons.slice(coupe + 2)) >= 1 && texteDe(jetons.slice(coupe + 1)).length > PHRASE_CHOC_CARACTERES) coupe++;
   }
+  // Un morceau d'un seul mot (adresse web) reste tel quel : la fin ne serait que vide.
+  if (coupe + 1 >= jetons.length) return null;
   return [jetons.slice(0, coupe + 1), jetons.slice(coupe + 1)];
 }
 
