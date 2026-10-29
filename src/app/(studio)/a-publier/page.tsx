@@ -11,10 +11,10 @@ export const metadata: Metadata = { title: "À publier" };
 export const dynamic = "force-dynamic";
 
 /**
- * À PUBLIER (vidéos) : la liste compacte des vidéos validées, une ligne par vidéo. Un clic ouvre le détail (/a-publier/[id]).
+ * À PUBLIER (vidéos) : la liste compacte des vidéos validées, séparée par réseau (une ligne par vidéo et par réseau). Un clic ouvre le détail (/a-publier/[id]).
  * Page protégée comme les autres écrans, derrière un réglage éteint par défaut. Elle ne fait que montrer.
  */
-export default async function PageAPublier({ searchParams }: { searchParams: Promise<{ filtre?: string; n?: string }> }) {
+export default async function PageAPublier({ searchParams }: { searchParams: Promise<{ reseau?: string; filtre?: string; n?: string }> }) {
   await exigerSession();
   if (!(await pageAPublierAllumee())) notFound();
   const sp = await searchParams;
@@ -23,7 +23,7 @@ export default async function PageAPublier({ searchParams }: { searchParams: Pro
     <div>
       <EnTetePage titre="À publier" />
       {vue.lignes.length ? (
-        <ListeAPublier lignes={vue.lignes} filtre={filtreDepuis(sp.filtre)} affichees={nombreAffichees(sp.n)} />
+        <ListeAPublier lignes={vue.lignes} filtre={filtreDepuis(sp.filtre)} affichees={nombreAffichees(sp.n)} reseau={sp.reseau} />
       ) : (
         <EtatVide compact icone="envoyer" titre="Rien à publier" phrase="Les vidéos validées arrivent ici." />
       )}

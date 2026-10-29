@@ -30,7 +30,7 @@ function demainNeufHeures(): Date {
 const LIBELLES_CASES: Record<string, string> = { image: "Image", son: "Son", sousTitres: "Sous-titres", mentionIA: "Mention IA", droits: "Droits" };
 
 /** Détail d'une vidéo : la carte (lecteur entier, case unique, un bouton par réseau prêt, détail replié). `retour` : la liste où revenir après un envoi réussi. */
-export function LignesAPublier({ vue, retour }: { vue: VueAPublier; retour?: string }) {
+export function LignesAPublier({ vue, retour, reseauOuvert }: { vue: VueAPublier; retour?: string; reseauOuvert?: string }) {
   const cartes = regrouperParVideo(vue.lignes);
   return (
     <div className="space-y-4">
@@ -47,17 +47,17 @@ export function LignesAPublier({ vue, retour }: { vue: VueAPublier; retour?: str
       </p>
       <ul className="space-y-4">
         {cartes.map((c) => (
-          <CarteDeVideo key={c.videoId} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} />
+          <CarteDeVideo key={`${c.videoId}:${reseauOuvert ?? ""}`} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} reseauOuvert={reseauOuvert} />
         ))}
       </ul>
     </div>
   );
 }
 
-function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string }) {
+function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string; reseauOuvert?: string }) {
   const router = useRouter();
   const [coches, setCoches] = useState<Record<string, boolean>>(carte.coches);
-  const [ouvert, setOuvert] = useState<string | null>(null);
+  const [ouvert, setOuvert] = useState<string | null>(carte.pretes.some((l) => l.reseau === reseauOuvert) ? (reseauOuvert ?? null) : null);
   const [enCours, demarrer] = useTransition();
   const [pourSujet, demarrerSujet] = useTransition();
   const toutOk = toutesCochees(carte.casesRequises, coches);
