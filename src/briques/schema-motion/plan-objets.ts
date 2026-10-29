@@ -14,11 +14,16 @@ import { motsBalises } from "../ecrans-motion";
 import { COULEURS_DUO, TAILLES_DUO } from "../habillage/charte-duo";
 import {
   ECRAN_IV,
+  DECALAGE_REFERENCE_4X5_PX,
+  formatDeHauteurIV,
   MESURES_TOILE,
+  MISE_EN_PAGE_IV,
   MOTS_MAX_ENSEMBLE,
   nombreDeMots,
   PLANCHER_IV,
   VITESSE_FRAPPE,
+  ZONE_CONTENU_IV,
+  ZONE_UTILE_IV,
   type CouleurSchema,
   type EnteteSceneIV,
   type SchemaEntree,
@@ -1310,14 +1315,61 @@ export function planSources(p: { sources: readonly SourceIV[]; cible: { icone: s
 /* K19 · Phrase-choc                                                    */
 /* ------------------------------------------------------------------ */
 
-const OPTIONS_PHRASE_CHOC = { largeur: W - 2 * MARGE_IV, tailleMax: 0.1 * H, signe: SIGNES.anton, lignesMax: 4, hauteurMax: 0.36 * H, plusGrand: true };
+const OPTIONS_PHRASE_CHOC = { largeur: W - 2 * MARGE_IV, tailleMax: 0.1 * H, lignesMax: 4, hauteurMax: 0.36 * H };
+/** Marge de chaque mot rendu (`margin: 0 0.12em`, PhraseChoc.tsx) : deux fois 0,12 em par mot. */
+const MARGE_MOT_PHRASE_CHOC = 0.24;
+/** Place gardée sous le texte pour la marque (px de référence). */
+export const RESERVE_MARQUE_PHRASE_CHOC = 110;
+
+/** Zone verticale (px de l'écran de référence 1080 × 1920) où la phrase-choc et sa marque doivent tenir. */
+export type ZonePhraseChoc = { haut: number; bas: number };
+
+/** Zone de la phrase-choc d'un cadre de hauteur donnée : 9:16 du haut du contenu à la zone utile, 4:5 la zone de contenu du cadre remontée du décalage de référence (≈ 180 à 1075, au-dessus des sous-titres). */
+export function zonePhraseChocIV(hauteur: number): ZonePhraseChoc {
+  if (formatDeHauteurIV(hauteur) === "4:5") {
+    const { zoneContenu, hauteur: h45 } = MISE_EN_PAGE_IV["4:5"];
+    return { haut: zoneContenu.haut * h45 + DECALAGE_REFERENCE_4X5_PX, bas: zoneContenu.bas * h45 + DECALAGE_REFERENCE_4X5_PX };
+  }
+  return { haut: ZONE_CONTENU_IV.haut * H, bas: ZONE_UTILE_IV.bas * H };
+}
+
+/** Hauteur maximale du texte d'une phrase-choc : 36 % de la hauteur, et la zone moins la place de la marque. */
+const hauteurMaxPhraseChoc = (zone?: ZonePhraseChoc) => Math.min(OPTIONS_PHRASE_CHOC.hauteurMax, zone ? zone.bas - zone.haut - RESERVE_MARQUE_PHRASE_CHOC : Infinity);
+
+/** Largeur réelle (px) d'une ligne de phrase-choc à la taille `taille` : chasse d'Anton par mot + marges des mots. */
+export function largeurLignePhraseChoc(mots: readonly string[], taille: number): number {
+  return mots.reduce((s, m) => s + largeurAnton(m.replace(/\*/g, ""), taille) + MARGE_MOT_PHRASE_CHOC * taille, 0);
+}
+
+/** Taille qui tient dans la largeur, la hauteur et le plafond pour ces lignes (chasse réelle d'Anton). */
+function taillePhraseChoc(lignes: readonly (readonly string[])[], hauteurMax: number): number {
+  const large = Math.max(...lignes.map((l) => largeurLignePhraseChoc(l, 1)));
+  return Math.min(OPTIONS_PHRASE_CHOC.tailleMax, hauteurMax / (lignes.length * INTERLIGNE_IV), OPTIONS_PHRASE_CHOC.largeur / large);
+}
+
+/** La coupe de 1 à 4 lignes qui donne la plus grande taille ; sous le plancher : plancher, 4 lignes et une alerte. */
+function ajusterPhraseChoc(mots: readonly string[], hauteurMax: number): TexteAjuste {
+  if (mots.length === 0) return { taille: PLANCHER_PX, lignes: [], alerte: null };
+  let meilleur: TexteAjuste | null = null;
+  for (let n = 1; n <= Math.min(OPTIONS_PHRASE_CHOC.lignesMax, mots.length); n++) {
+    const lignes = couperEquilibre(mots, n);
+    const taille = taillePhraseChoc(lignes, hauteurMax);
+    if (taille < PLANCHER_PX - 1e-9) continue;
+    if (!meilleur || taille > meilleur.taille + 1e-9) meilleur = { taille, lignes, alerte: null };
+  }
+  if (meilleur) return meilleur;
+  const texte = mots.join(" ").replace(/\*/g, "");
+  return { taille: PLANCHER_PX, lignes: couperEquilibre(mots, Math.min(OPTIONS_PHRASE_CHOC.lignesMax, mots.length)), alerte: `« ${texte} » ne tient pas sur ${OPTIONS_PHRASE_CHOC.lignesMax} lignes au plancher de lisibilité : à raccourcir.` };
+}
 
 /**
  * Lignes de la phrase-choc : la coupe la plus grande (4 lignes au plus), sauf si une coupe qui fait commencer chaque
  * proposition (après « . , ; : ! ? ») sur une nouvelle ligne garde au moins 60 % de cette taille — elle se lit mieux.
+ * `zone` (px de référence) borne la hauteur : le texte plus 110 px pour la marque tient entre `haut` et `bas`.
  */
-export function coupePhraseChoc(mots: readonly string[]): TexteAjuste {
-  const libre = ajusterTexte(mots.join(" "), OPTIONS_PHRASE_CHOC);
+export function coupePhraseChoc(mots: readonly string[], zone?: ZonePhraseChoc): TexteAjuste {
+  const hauteurMax = hauteurMaxPhraseChoc(zone);
+  const libre = ajusterPhraseChoc(mots, hauteurMax);
   const propositions: string[][] = [];
   for (const m of mots) {
     if (propositions.length === 0 || /[.,;:!?]$/.test(propositions[propositions.length - 1].slice(-1)[0] ?? "")) propositions.push([]);
@@ -1329,8 +1381,7 @@ export function coupePhraseChoc(mots: readonly string[]): TexteAjuste {
   const repartir = (i: number, reste: number, parts: number[]) => {
     if (i === propositions.length) {
       const lignes = propositions.flatMap((pr, k) => couperEquilibre(pr, parts[k]));
-      const plusLongue = Math.max(...lignes.map(signesDe));
-      const taille = Math.min(OPTIONS_PHRASE_CHOC.tailleMax, OPTIONS_PHRASE_CHOC.hauteurMax / (lignes.length * INTERLIGNE_IV), OPTIONS_PHRASE_CHOC.largeur / (plusLongue * OPTIONS_PHRASE_CHOC.signe));
+      const taille = taillePhraseChoc(lignes, hauteurMax);
       if (!meilleur || taille > meilleur.taille + 1e-9) meilleur = { taille, lignes, alerte: null };
       return;
     }
@@ -1345,9 +1396,9 @@ export function coupePhraseChoc(mots: readonly string[]): TexteAjuste {
  * Phrase-choc mot à mot (`*mot*` = l'accent orange) : chaque mot entre à son heure (`heures[i]`, sinon `debut` + i × pas),
  * le dernier s'allume (lueur), puis la marque apparaît. Lignes équilibrées, le plus grand possible, 4 lignes au plus.
  */
-export function planPhraseChoc(p: { phrase: string; debut: number; heures?: readonly number[] }, t: number) {
+export function planPhraseChoc(p: { phrase: string; debut: number; heures?: readonly number[]; zone?: ZonePhraseChoc }, t: number) {
   const mots = motsBalises(p.phrase);
-  const ajuste = coupePhraseChoc(mots.map((m) => m.mot.toUpperCase()));
+  const ajuste = coupePhraseChoc(mots.map((m) => m.mot.toUpperCase()), p.zone);
   const heure = (i: number) => p.heures?.[i] ?? p.debut + i * 0.32;
   let k = 0;
   const lignes = ajuste.lignes.map((l) =>
