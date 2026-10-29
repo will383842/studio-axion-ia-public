@@ -14,7 +14,7 @@ export const RESEAU_PAR_DEFAUT: ReseauListe = "tous";
 
 /** L'état d'UNE vidéo sur UN réseau, avec la raison courte quand elle n'est pas prête. */
 export interface EtatReseau extends Omit<EtatListe, "categorie"> {
-  categorie: CategorieEtat | "pas-pret";
+  categorie: CategorieEtat | "pas-pret" | "essai";
   raison?: string;
 }
 
@@ -33,6 +33,8 @@ export function etatDeLigne(l: LigneAPublier): EtatReseau {
   if (!raison) {
     if (!l.etat || !l.etat.envoye) return { categorie: "a-envoyer", libelle: "À envoyer", ton: "orange" };
   } else if (!l.etat) {
+    // Vidéo d'essai ou d'exemple : sa propre catégorie, jamais comptée comme problème ni mêlée aux « Pas prêt ».
+    if (l.blocageVideo) return { categorie: "essai", libelle: /exemple/i.test(raison) ? "Exemple" : "Essai", ton: "neutre", raison };
     return { categorie: "pas-pret", libelle: "Pas prêt", ton: "neutre", raison };
   }
   const e = l.etat!;
@@ -52,7 +54,7 @@ export function formatDe(d: LigneAPublier["dimensions"] | undefined | null): str
   return Math.abs(cible - r) / cible <= 0.03 ? nom : null;
 }
 
-const RANG: Record<EtatReseau["categorie"], number> = { "a-envoyer": 0, probleme: 1, "pas-pret": 2, envoyee: 3, publiee: 4 };
+const RANG: Record<EtatReseau["categorie"], number> = { "a-envoyer": 0, probleme: 1, "pas-pret": 2, essai: 3, envoyee: 4, publiee: 5 };
 
 export function lignesParReseau(lignes: LigneAPublier[]): LigneReseau[] {
   return lignes
@@ -76,7 +78,7 @@ export function deCeReseau(lignes: LigneReseau[], reseau: ReseauListe): LigneRes
 
 export function filtrerReseau(lignes: LigneReseau[], filtre: FiltreListe): LigneReseau[] {
   if (filtre === "toutes") return lignes;
-  const voulue = filtre === "a-envoyer" ? "a-envoyer" : filtre === "envoyees" ? "envoyee" : "publiee";
+  const voulue = filtre === "a-envoyer" ? "a-envoyer" : filtre === "envoyees" ? "envoyee" : filtre === "problemes" ? "probleme" : "publiee";
   return lignes.filter((l) => l.etat.categorie === voulue);
 }
 
@@ -85,12 +87,13 @@ export interface CompteursReseau {
   envoyees: number;
   publiees: number;
   problemes: number;
+  essais: number;
   toutes: number;
 }
 
 export function compterReseau(lignes: LigneReseau[]): CompteursReseau {
   const n = (c: EtatReseau["categorie"]) => lignes.filter((l) => l.etat.categorie === c).length;
-  return { aEnvoyer: n("a-envoyer"), envoyees: n("envoyee"), publiees: n("publiee"), problemes: n("probleme"), toutes: lignes.length };
+  return { aEnvoyer: n("a-envoyer"), envoyees: n("envoyee"), publiees: n("publiee"), problemes: n("probleme"), essais: n("essai"), toutes: lignes.length };
 }
 
 /** Un compteur par réseau, pour les onglets (plus « Tous »). */

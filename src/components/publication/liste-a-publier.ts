@@ -5,13 +5,14 @@
 import type { Tonalite } from "@/domaine/libelles";
 import type { CarteVideo } from "./regrouper-a-publier";
 
-export type FiltreListe = "a-envoyer" | "envoyees" | "publiees" | "toutes";
+export type FiltreListe = "a-envoyer" | "envoyees" | "publiees" | "problemes" | "toutes";
 export type CategorieEtat = "a-envoyer" | "envoyee" | "publiee" | "probleme";
 
 export const FILTRES: { id: FiltreListe; libelle: string }[] = [
   { id: "a-envoyer", libelle: "À envoyer" },
   { id: "envoyees", libelle: "Envoyées" },
   { id: "publiees", libelle: "Publiées" },
+  { id: "problemes", libelle: "Problèmes" },
   { id: "toutes", libelle: "Toutes" },
 ];
 
@@ -61,7 +62,7 @@ export function trierListe(cartes: CarteVideo[]): LigneListe[] {
 
 export function filtrerListe(lignes: LigneListe[], filtre: FiltreListe): LigneListe[] {
   if (filtre === "toutes") return lignes;
-  const voulue: CategorieEtat = filtre === "a-envoyer" ? "a-envoyer" : filtre === "envoyees" ? "envoyee" : "publiee";
+  const voulue: CategorieEtat = filtre === "a-envoyer" ? "a-envoyer" : filtre === "envoyees" ? "envoyee" : filtre === "problemes" ? "probleme" : "publiee";
   return lignes.filter((l) => l.etat.categorie === voulue);
 }
 

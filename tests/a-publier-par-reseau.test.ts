@@ -30,7 +30,7 @@ function ligne(videoId: string, reseau: keyof typeof NOMS, x: Partial<LigneAPubl
     texte: "Phrase", motsDiese: [], apercu: "Phrase", commentaireTransmissible: true, compte: { nom: "Axion", memorises: ["c1"] }, manquantes: [], casesRequises: [...CASES], coches: { ...AUCUNE }, creeLe: "2026-01-01T10:00:00.000Z", typeVideo: "Cas concret", ...x,
   } as LigneAPublier;
 }
-const liste = (lignes: LigneAPublier[], filtre: "a-envoyer" | "envoyees" | "publiees" | "toutes" = "a-envoyer", reseau?: string, affichees?: number) =>
+const liste = (lignes: LigneAPublier[], filtre: "a-envoyer" | "envoyees" | "publiees" | "problemes" | "toutes" = "a-envoyer", reseau?: string, affichees?: number) =>
   renderToStaticMarkup(createElement(ListeAPublier, { lignes, filtre, reseau, affichees }));
 const texte = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, " ");
 const lignesLi = (h: string) => h.match(/<li[ >]/g)?.length ?? 0;
@@ -72,9 +72,22 @@ describe("À publier par réseau — la liste d'un réseau", () => {
     expect(R.formatDe(undefined)).toBeNull();
   });
 
-  it("une vidéo d'essai ou d'exemple est « Pas prêt » avec sa raison, sur chacun de ses réseaux", () => {
-    const l = [ligne("v-e", "facebook", { blocage: "Vidéo d'essai.", blocageVideo: true }), ligne("v-e", "linkedin", { blocage: "Vidéo d'essai.", blocageVideo: true })];
-    expect(R.lignesParReseau(l).map((x) => x.etat.libelle)).toEqual(["Pas prêt", "Pas prêt"]);
+  it("une vidéo d'essai ou d'exemple a sa propre catégorie (pastille Essai ou Exemple), sans être un problème ni « Pas prêt »", () => {
+    const l = [ligne("v-e", "facebook", { blocage: "Vidéo d'essai : elle ne part pas.", blocageVideo: true }), ligne("v-x", "linkedin", { blocage: "Vidéo d'exemple : elle ne part pas.", blocageVideo: true }), ligne("v-p", "linkedin", { blocage: "Pas de fichier." })];
+    const r = R.lignesParReseau(l);
+    expect(r.map((x) => `${x.etat.categorie}:${x.etat.libelle}`)).toEqual(["pas-pret:Pas prêt", "essai:Essai", "essai:Exemple"]);
+    expect(r.find((x) => x.etat.libelle === "Essai")!.etat.raison).toContain("essai");
+    expect(R.compterReseau(r)).toMatchObject({ essais: 2, problemes: 0 });
+    expect(R.filtrerReseau(r, "problemes")).toHaveLength(0);
+  });
+
+  it("le filtre Problèmes liste les problèmes, et « N problèmes » est un lien vers lui", () => {
+    const l = [ligne("v-pb", "facebook", { blocage: "Pas de fichier.", etat: etat("Échec", "brique") }), ligne("v-pb2", "facebook", { etat: etat("À vérifier", "brique") }), ligne("v-ok", "facebook")];
+    expect(R.filtrerReseau(R.lignesParReseau(l), "problemes").map((x) => x.ligne.videoId).sort()).toEqual(["v-pb", "v-pb2"]);
+    const h = liste(l, "a-envoyer", "facebook");
+    expect(h).toMatch(/href="\/a-publier\?reseau=facebook&amp;filtre=problemes"[^>]*>2 problèmes</);
+    expect(lignesLi(liste(l, "problemes", "facebook"))).toBe(2);
+    expect(texte(h)).toMatch(/Problèmes 2/);
   });
 
   it("un réseau pas prêt garde son état réel (Publiée, Problème)", () => {
