@@ -51,6 +51,8 @@ on:
       - "src/components/reglages/InterrupteurAPublier.tsx"
       - "tests/a-publier*.test.ts"
       - "tests/l1-10-buffer-premier-commentaire.test.ts"
+      - "tests/a-publier-linkedin-a-la-main.test.ts"
+      - "src/domaine/commentaire-a-la-main.ts"
       - "tests/r1-ecrans-buffer.test.ts"
       - ".github/workflows/tests-cibles.yml"
 
@@ -108,4 +110,5 @@ jobs:
             tests/a-publier.test.ts \
             tests/a-publier-premier-commentaire.test.ts \
             tests/l1-10-buffer-premier-commentaire.test.ts \
-            tests/r1-ecrans-buffer.test.ts
+            tests/r1-ecrans-buffer.test.ts \
+            tests/a-publier-linkedin-a-la-main.test.ts
