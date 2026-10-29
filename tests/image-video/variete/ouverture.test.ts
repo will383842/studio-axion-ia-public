@@ -262,9 +262,15 @@ describe("ouverture · OUV-E recul : le cadre pointillé et les coins restent da
       const xc = xCarteRecul(180, lc);
       expect(xc - 102, `cadre gauche lc ${lc}`).toBeGreaterThanOrEqual(0);
       expect(xc - 70 - 5, `coin gauche lc ${lc}`).toBeGreaterThanOrEqual(0);
-      expect(xc + lc + 38, `cadre droit lc ${lc}`).toBeLessThanOrEqual(1080);
+      expect(xc + lc + 46, `cadre droit lc ${lc} (bordure 4 px)`).toBeLessThanOrEqual(1080);
       expect(xc + lc + 28 + 5, `coin droit lc ${lc}`).toBeLessThanOrEqual(1080);
     }
+  });
+
+  it("cas (540, 900) : cadre droit (bordure 4 px) et coins restent dans [0, 1080]", () => {
+    const xc = xCarteRecul(540, 900);
+    expect(xc - 102, "cadre gauche").toBeGreaterThanOrEqual(0);
+    expect(xc + 900 + 46, "cadre droit").toBeLessThanOrEqual(1080);
   });
 
   it("la ligne du schéma (cx 180) tombe toujours sous la carte décalée ; le centre et la droite sont inchangés", () => {
