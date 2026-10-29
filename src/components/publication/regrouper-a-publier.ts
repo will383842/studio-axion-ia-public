@@ -8,6 +8,8 @@ export interface ReseauPasPret {
   reseau: LigneAPublier["reseau"];
   reseauNom: string;
   raison: string;
+  /** Ce qui s'est déjà passé pour ce réseau (Publiée + lien, échec…) : un réseau pas prêt garde son état. */
+  etat?: LigneAPublier["etat"];
 }
 
 export interface CarteVideo {
@@ -16,6 +18,10 @@ export interface CarteVideo {
   jaquette: string | null;
   /** Lecture sur place : le fichier d'un réseau prêt, sinon n'importe lequel. */
   lecture: string | null;
+  /** Taille réelle du fichier lu, si connue. */
+  dimensions: LigneAPublier["dimensions"] | null;
+  type: string | null;
+  creeLe: string;
   sujetId?: string;
   /** Vidéo d'essai ou d'exemple : elle ne part nulle part, une seule phrase pour toute la carte. */
   blocageVideo?: string;
@@ -45,13 +51,16 @@ export function regrouperParVideo(lignes: LigneAPublier[]): CarteVideo[] {
     const premiere = toutes[0];
     const video = toutes.find((l) => l.blocageVideo);
     const pretes = video ? [] : toutes.filter((l) => !raisonPasPret(l));
-    const pasPretes = video ? [] : toutes.filter((l) => raisonPasPret(l)).map((l) => ({ reseau: l.reseau, reseauNom: l.reseauNom, raison: raisonPasPret(l)! }));
+    const pasPretes = video ? [] : toutes.filter((l) => raisonPasPret(l)).map((l) => ({ reseau: l.reseau, reseauNom: l.reseauNom, raison: raisonPasPret(l)!, ...(l.etat ? { etat: l.etat } : {}) }));
     const sujetId = toutes.find((l) => l.sujetId)?.sujetId;
     return {
       videoId: id,
       titre: premiere.titre,
       jaquette: premiere.jaquette,
       lecture: (pretes[0] ?? premiere).lecture,
+      dimensions: (pretes[0] ?? premiere).dimensions ?? null,
+      type: premiere.typeVideo ?? null,
+      creeLe: premiere.creeLe ?? "",
       ...(sujetId ? { sujetId } : {}),
       ...(video?.blocage ? { blocageVideo: video.blocage } : {}),
       casesRequises: premiere.casesRequises,
@@ -70,4 +79,12 @@ export function casesAChanger(requises: readonly string[], coches: Record<string
 /** La case unique est cochée quand TOUTES les vérifications requises le sont. */
 export function toutesCochees(requises: readonly string[], coches: Record<string, boolean>): boolean {
   return requises.length > 0 && requises.every((c) => !!coches[c]);
+}
+
+/**
+ * Cadre du lecteur : le vrai rapport largeur/hauteur de la vidéo quand il est connu (la vidéo est montrée ENTIÈRE, jamais
+ * rognée), sinon aucun cadre imposé. Le fichier vidéo n'est jamais modifié.
+ */
+export function rapportLecteur(dimensions: CarteVideo["dimensions"]): string | undefined {
+  return dimensions && dimensions.largeur > 0 && dimensions.hauteur > 0 ? `${dimensions.largeur} / ${dimensions.hauteur}` : undefined;
 }

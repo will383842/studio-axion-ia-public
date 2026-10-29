@@ -12,7 +12,7 @@ import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
 import { libelleComptes } from "@/domaine/comptes-envoi";
 import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
-import { casesAChanger, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
+import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
 
 /** Valeur d'un <input type="datetime-local"> (heure locale). */
 function versLocal(d: Date): string {
@@ -29,7 +29,8 @@ function demainNeufHeures(): Date {
 
 const LIBELLES_CASES: Record<string, string> = { image: "Image", son: "Son", sousTitres: "Sous-titres", mentionIA: "Mention IA", droits: "Droits" };
 
-export function LignesAPublier({ vue }: { vue: VueAPublier }) {
+/** Détail d'une vidéo : la carte (lecteur entier, case unique, un bouton par réseau prêt, détail replié). `retour` : la liste où revenir après un envoi réussi. */
+export function LignesAPublier({ vue, retour }: { vue: VueAPublier; retour?: string }) {
   const cartes = regrouperParVideo(vue.lignes);
   return (
     <div className="space-y-4">
@@ -46,21 +47,21 @@ export function LignesAPublier({ vue }: { vue: VueAPublier }) {
       </p>
       <ul className="space-y-4">
         {cartes.map((c) => (
-          <CarteDeVideo key={c.videoId} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} />
+          <CarteDeVideo key={c.videoId} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} />
         ))}
       </ul>
     </div>
   );
 }
 
-function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"] }) {
+function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string }) {
   const router = useRouter();
   const [coches, setCoches] = useState<Record<string, boolean>>(carte.coches);
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
   const [pourSujet, demarrerSujet] = useTransition();
   const toutOk = toutesCochees(carte.casesRequises, coches);
-  const etats = [...new Map(carte.pretes.flatMap((l) => (l.etat ? [[l.etat.libelle, l.etat] as const] : []))).values()];
+  const etats = [...carte.pretes, ...carte.pasPretes].flatMap((l) => (l.etat ? [{ cle: l.reseau, reseauNom: l.reseauNom, ...l.etat }] : []));
 
   /** Une ou plusieurs vérifications d'un coup : le serveur reçoit une écriture par case, comme avant. */
   function ecrire(cles: string[], v: boolean) {
@@ -89,7 +90,8 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
       const { programmees, ignorees, modeBuffer: mode } = r.donnees;
       if (programmees.length) notifier.succes(mode === "brouillon" ? `Brouillon dans Buffer · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
       if (ignorees.length) notifier.erreur(ignorees[0].message);
-      router.refresh();
+      if (programmees.length && retour) router.push(retour);
+      else router.refresh();
     });
   }
 
@@ -103,16 +105,23 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
             {carte.titre}
           </Link>
           {etats.map((e) => (
-            <Pastille key={e.libelle} ton={e.ton}>
-              {e.libelle}
+            <Pastille key={e.cle} ton={e.ton}>
+              {e.reseauNom} : {e.libelle}
             </Pastille>
           ))}
         </div>
 
         {carte.lecture ? (
-          <video controls preload="none" poster={carte.jaquette ?? undefined} src={carte.lecture} className="mx-auto aspect-[9/16] max-h-[28rem] w-full max-w-xs rounded-xl bg-surface-2 object-cover" />
+          <video
+            controls
+            preload="none"
+            poster={carte.jaquette ?? undefined}
+            src={carte.lecture}
+            style={{ aspectRatio: rapportLecteur(carte.dimensions) }}
+            className="mx-auto max-h-[28rem] min-h-40 w-full max-w-sm rounded-xl bg-surface-2 object-contain"
+          />
         ) : (
-          <div className="mx-auto grid aspect-[9/16] max-h-[28rem] w-full max-w-xs place-items-center rounded-xl bg-surface-2 text-sm text-texte-faible">Pas de fichier</div>
+          <div className="mx-auto grid min-h-40 w-full max-w-sm place-items-center rounded-xl bg-surface-2 text-sm text-texte-faible">Pas de fichier</div>
         )}
 
         {carte.blocageVideo && <p className="text-sm text-texte-doux">{carte.blocageVideo}</p>}
@@ -151,6 +160,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
                 cocher={(cle, v) => ecrire([cle], v)}
                 envoiSimule={envoiSimule}
                 modeBuffer={modeBuffer}
+                retour={retour}
               />
             ))}
 
@@ -177,6 +187,17 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
               {carte.pasPretes.map((p) => (
                 <li key={p.reseau}>
                   <span className="font-semibold text-texte">{p.reseauNom}</span> : {p.raison}
+                  {p.etat && (
+                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                      <Pastille ton={p.etat.ton}>{p.etat.libelle}</Pastille>
+                      {p.etat.lien && (
+                        <a href={p.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-orange-vif">
+                          Voir la publication
+                        </a>
+                      )}
+                      {p.etat.detail}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -196,6 +217,7 @@ function PanneauReseau({
   cocher,
   envoiSimule,
   modeBuffer,
+  retour,
 }: {
   ligne: LigneAPublier;
   visible: boolean;
@@ -205,6 +227,7 @@ function PanneauReseau({
   cocher: (cle: string, v: boolean) => void;
   envoiSimule: boolean;
   modeBuffer: VueAPublier["modeBuffer"];
+  retour?: string;
 }) {
   const router = useRouter();
   const [texte, setTexte] = useState(l.texte);
@@ -252,7 +275,9 @@ function PanneauReseau({
       else if (n) notifier.succes(`Programmée sur ${libelleComptes(n)}`);
       if (r.donnees.problemes.length) notifier.erreur(r.donnees.problemes[0]);
       if (r.donnees.commentairesALaMain.length) notifier.erreur("Le premier commentaire n'est pas transmis à ce réseau : posez-le à la main.");
-      router.refresh();
+      // Envoi réussi : on revient à la liste (même filtre).
+      if (n && retour) router.push(retour);
+      else router.refresh();
     });
   }
 
@@ -270,7 +295,7 @@ function PanneauReseau({
         </p>
       )}
 
-      <Bouton icone="envoyer" pleineLargeur disabled={!peutEnvoyer} chargement={enCours} onClick={brouillon}>
+      <Bouton icone="envoyer" pleineLargeur disabled={!peutEnvoyer || enCoursCases} chargement={enCours} onClick={brouillon}>
         {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
       </Bouton>
       {raison && <p className="text-sm text-texte-doux">{raison}</p>}
