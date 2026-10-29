@@ -61,3 +61,13 @@ export function regrouperParVideo(lignes: LigneAPublier[]): CarteVideo[] {
     };
   });
 }
+
+/** Les vérifications « Avant de publier » à écrire pour que la case unique dise `valeur` : seulement celles qui diffèrent. */
+export function casesAChanger(requises: readonly string[], coches: Record<string, boolean>, valeur: boolean): string[] {
+  return requises.filter((c) => !!coches[c] !== valeur);
+}
+
+/** La case unique est cochée quand TOUTES les vérifications requises le sont. */
+export function toutesCochees(requises: readonly string[], coches: Record<string, boolean>): boolean {
+  return requises.length > 0 && requises.every((c) => !!coches[c]);
+}
