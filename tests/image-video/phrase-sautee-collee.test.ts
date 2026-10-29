@@ -197,23 +197,23 @@ describe("script collé : la phrase-choc finale reste dite mot pour mot et fait 
     expect(mots(bout(e))).toEqual(mots(t));
   });
 
-  it("une fin qui dépasserait 80 caractères (texte affiché tronqué) est coupée plus loin, mots intacts", () => {
+  it("une fin qui dépasserait 70 caractères (texte affiché tronqué) est coupée plus loin, mots intacts", () => {
     const t = `${SIX}Vous perdez du temps, alors qu'automatiquement institutionnalisation extraordinairement incompréhensiblement anticonstitutionnellement.`;
     const e = ecransDuScript(t);
     const fin = e.at(-1)!.join(" ");
-    expect(fin.length).toBeLessThanOrEqual(80);
+    expect(fin.length).toBeLessThanOrEqual(70);
     expect(fin.length).toBeGreaterThan(0);
     expect(t.endsWith(fin)).toBe(true);
     expect(mots(bout(e))).toEqual(mots(t));
   });
 
-  it("une fin de 5 mots de plus de 80 caractères est coupée plus tôt ou gardée sans troncature à l'écran", () => {
+  it("une fin de 5 mots de plus de 70 caractères est coupée plus tôt ou gardée sans troncature à l'écran", () => {
     const longs = "automatiquement institutionnalisation extraordinairement incompréhensiblement anticonstitutionnellement";
     const t = `${SIX}Vous perdez du temps ${longs}.`;
     const e = ecransDuScript(t);
     const fin = e.at(-1)!.join(" ");
     expect(fin.length).toBeGreaterThan(0);
-    expect(fin.length <= 80 || mots(fin).length === 1).toBe(true);
+    expect(fin.length <= 70 || mots(fin).length === 1).toBe(true);
     expect(t.endsWith(fin)).toBe(true);
     expect(mots(bout(e))).toEqual(mots(t));
   });

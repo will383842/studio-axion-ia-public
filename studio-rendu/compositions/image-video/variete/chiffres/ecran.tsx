@@ -7,6 +7,7 @@ import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { FondIV } from "../fond/FondVarie";
 import { Entete } from "../../Entete";
 import type { ProprietesEcranVariete } from "../CompositionVariete";
+import { decalageRepere } from "../decalage-repere";
 import { CorpsChiffres } from "./corps";
 import type { DonneesEcranChiffresRendu } from "./donnees";
 
@@ -25,7 +26,7 @@ export function EcranChiffres(p: ProprietesEcranVariete) {
   const echelle = p.largeur / 1080;
   return (
     <AbsoluteFill style={{ transform: `scale(${echelle})`, transformOrigin: "0 0", width: 1080, height: p.hauteur / echelle }}>
-      <CorpsChiffres d={d} t={frame / fps} hauteur={p.hauteur / echelle} marque={p.marque} />
+      <CorpsChiffres d={d} t={frame / fps} hauteur={p.hauteur / echelle} marque={p.marque} largeurEtiquette={decalageRepere(p).largeurEtiquette} />
     </AbsoluteFill>
   );
 }

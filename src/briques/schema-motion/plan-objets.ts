@@ -1044,6 +1044,8 @@ export function planRepere(changements: readonly ChangementRepere[], total: numb
 const MARGE_REPERE_PX = 72;
 /** Chasse estimée (en tailles de police) d'une capitale d'étiquette : Inter gras ≈ 0,68 + espacement 0,32 : on compte large. */
 const CHASSE_ETIQUETTE_REPERE = 1;
+/** Largeur (px) sous laquelle l'étiquette n'est plus réduite (une dizaine de capitales restent lisibles). */
+const LARGEUR_ETIQUETTE_MIN_PX = 280;
 
 /** Largeur (px) du repère « k/total » (avec préfixe) : celle de `RepereChapitre`, la même pour tous les `k` (même nombre de signes). */
 export function largeurRepereIV(total: number, prefixe?: string): number {
@@ -1054,10 +1056,12 @@ export function largeurRepereIV(total: number, prefixe?: string): number {
 /**
  * Décalage (px) du repère centré en haut d'un écran « chiffres » 4:5, dont l'étiquette (le surtitre : 28 px, capitales
  * espacées, x = 72, y = `etiquette.y`) est sur la même ligne que lui : le repère va contre la marge droite s'il y reste
- * de la place après l'étiquette ; sinon il descend sous elle. Jamais de recouvrement du surtitre. Sans étiquette : aucun décalage.
+ * de la place après l'étiquette ; sinon il y va quand même et c'est l'ÉTIQUETTE qui se réduit (`largeurEtiquette` : largeur
+ * maximale en px, coupée par une ellipse CSS, le texte dit ne change pas). Le repère ne descend jamais : sous la ligne du
+ * surtitre commence le contenu des chiffres. Sans étiquette : aucun décalage. Jamais de blocage.
  * `hautRepere` : haut du repère centré, tel que dessiné (déjà remonté du décalage du 4:5).
  */
-export function decalageRepereSurEtiquette(o: { etiquette?: string; yEtiquette: number; hautRepere: number; total: number; prefixe?: string }): { dx: number; dy: number } {
+export function decalageRepereSurEtiquette(o: { etiquette?: string; yEtiquette: number; hautRepere: number; total: number; prefixe?: string }): { dx: number; dy: number; largeurEtiquette?: number } {
   const { etiquette, yEtiquette, hautRepere } = o;
   if (!etiquette) return { dx: 0, dy: 0 };
   const largeur = largeurRepereIV(o.total, o.prefixe);
@@ -1068,8 +1072,9 @@ export function decalageRepereSurEtiquette(o: { etiquette?: string; yEtiquette: 
   if (hautRepere >= bas + 8 || hautRepere + hauteur <= yEtiquette - 8) return { dx: 0, dy: 0 };
   const finEtiquette = MARGE_REPERE_PX + etiquette.length * tailleEtiquette * CHASSE_ETIQUETTE_REPERE;
   const gauche = 1080 - MARGE_REPERE_PX - largeur;
-  if (gauche >= finEtiquette + 24) return { dx: gauche - (1080 - largeur) / 2, dy: 0 };
-  return { dx: 0, dy: Math.max(0, bas + 8 - hautRepere) };
+  const dx = gauche - (1080 - largeur) / 2;
+  if (gauche >= finEtiquette + 24) return { dx, dy: 0 };
+  return { dx, dy: 0, largeurEtiquette: Math.max(LARGEUR_ETIQUETTE_MIN_PX, gauche - 24 - MARGE_REPERE_PX) };
 }
 
 /* ------------------------------------------------------------------ */

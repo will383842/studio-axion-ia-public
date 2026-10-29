@@ -33,13 +33,8 @@ export const rebond = (u: number) => {
   return 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
 };
 
-/** Cadre d'un format : contenu au-dessus des sous-titres, zone d'appoint dessous (9:16 seulement). */
-export type CadreChiffres = { hauteur: number; etiquetteY: number; haut: number; bas: number; sousTitres: number; appoint: { haut: number; bas: number } | null };
-export function cadreChiffres(hauteur: number): CadreChiffres {
-  return hauteur < 1600
-    ? { hauteur, etiquetteY: 96, haut: 130, bas: 1020, sousTitres: 1042, appoint: null }
-    : { hauteur, etiquetteY: 250, haut: 300, bas: 1120, sousTitres: 1152, appoint: { haut: 1300, bas: 1536 } };
-}
+import type { CadreChiffres } from "./cadre";
+export { cadreChiffres, type CadreChiffres } from "./cadre";
 
 /** Largeur d'un texte Anton en capitales, en tailles de police (chasse mesurée large : chiffres et lettres 0,56). */
 export function chasseAnton(texte: string): number {
@@ -66,8 +61,10 @@ export function contreEchelle(echelle: number, origine: string): CSSProperties {
 export const surplusLegende = (px: number, echelle: number) => Math.round(px * (1 / Math.max(0.05, Math.min(1, echelle)) - 1));
 
 /** Étiquette en capitales espacées (28 px, ≤ 4 mots) : la seule exception sous 58 px. */
-export function Etiquette({ t, fond, y, x = 72 }: { t: string; fond: NomFondChiffres; y: number; x?: number }) {
-  return <div style={{ position: "absolute", left: x, top: y, ...INTER, fontSize: 28, letterSpacing: "0.32em", textTransform: "uppercase", color: fond === "ivoire" ? C.encre : C.grisClair }}>{t}</div>;
+export function Etiquette({ t, fond, y, x = 72, largeurMax }: { t: string; fond: NomFondChiffres; y: number; x?: number; largeurMax?: number }) {
+  // `largeurMax` (4:5, pastille de rang à droite) : l'étiquette tient sur une ligne et finit par une ellipse ; le texte dit ne change pas.
+  const reduite: CSSProperties = largeurMax === undefined ? {} : { maxWidth: largeurMax, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+  return <div style={{ position: "absolute", left: x, top: y, ...INTER, fontSize: 28, letterSpacing: "0.32em", textTransform: "uppercase", color: fond === "ivoire" ? C.encre : C.grisClair, ...reduite }}>{t}</div>;
 }
 
 /** Mots qui restent collés au nombre : des unités (« 4 sec », « 12 h »), jamais un nom commun (« 0 demande »). */

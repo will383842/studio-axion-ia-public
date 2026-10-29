@@ -30,7 +30,7 @@ function tailleFocale(d: DonneesEcranChiffresRendu, cadre: ReturnType<typeof cad
   }
 }
 
-export function CorpsChiffres({ d, t, hauteur, marque }: { d: DonneesEcranChiffresRendu; t: number; hauteur: number; marque: "axion-ia.com" }) {
+export function CorpsChiffres({ d, t, hauteur, marque, largeurEtiquette }: { d: DonneesEcranChiffresRendu; t: number; hauteur: number; marque: "axion-ia.com"; largeurEtiquette?: number }) {
   const cadre = cadreChiffres(hauteur);
   const t0 = Math.max(d.debut, d.chiffres[d.focal]?.t ?? d.debut);
   const k = rangeesOuvertes(d, t);
@@ -44,7 +44,7 @@ export function CorpsChiffres({ d, t, hauteur, marque }: { d: DonneesEcranChiffr
   return (
     <AbsoluteFill style={{ width: 1080, height: hauteur, overflow: "hidden" }}>
       <FondIV fond={d.fond} largeur={1080} hauteur={hauteur} />
-      {avecEtiquette ? <Etiquette t={d.etiquette!} fond={d.fond} y={cadre.etiquetteY} /> : null}
+      {avecEtiquette ? <Etiquette t={d.etiquette!} fond={d.fond} y={cadre.etiquetteY} largeurMax={largeurEtiquette} /> : null}
       <AbsoluteFill style={{ transform: `scale(${echelle})`, transformOrigin: `540px ${cadre.haut}px` }}>
         {d.code === "CHI-B" ? <Anneau d={d} t={t} t0={t0} cadre={cadre} discret={discret} echelle={echelle} /> : null}
         {d.code === "CHI-C" ? <Duel d={d} t={t} t0={t0} cadre={cadre} discret={discret} echelle={echelle} /> : null}

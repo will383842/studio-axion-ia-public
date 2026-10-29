@@ -8,20 +8,22 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import type { QueueFinIV } from "../../../../src/briques/schema-motion/queue-fin";
 import type { BlocVarieteDonnees, VarieteBlocIV } from "../../../../src/briques/schema-motion/variete";
 import { chargerPoliceAnton, chargerPoliceTitre } from "../../commune/polices";
-import { decalageRepereSurEtiquette, HAUT_REPERE, type ChangementRepere } from "../plan-objets";
-import { decalageReferenceIV, miseEnPageDeHauteurIV } from "../mise-en-page";
+import type { ChangementRepere } from "../plan-objets";
+import { decalageReferenceIV } from "../mise-en-page";
 import { Affiche } from "../Affiche";
 import { QueueFin } from "../QueueFin";
 import { RepereChapitre } from "../RepereChapitre";
 import { EcranCamera } from "./camera/ecran";
 import { EcranChiffres } from "./chiffres/ecran";
-import { cadreChiffres } from "./chiffres/outils";
+import { decalageRepere } from "./decalage-repere";
 import { ContexteVariete } from "./ContexteVariete";
 import { EcranFin } from "./fin/ecran";
 import { HabillageVariete } from "./HabillageVariete";
 import type { AfficheIV } from "./ouverture/donnees";
 import { EcranOuverture } from "./ouverture/ecran";
 import { EcranTexte } from "./texte/ecran";
+
+export { decalageRepere };
 
 export const COMPOSITION_VARIETE_IV = "ImageVideoVariete";
 
@@ -46,20 +48,6 @@ export type ProprietesEcranVariete = {
 function fondDuBloc(bloc: BlocVarieteDonnees): "ivoire" | "sombre" {
   const d = (bloc.donnees ?? {}) as { fond?: unknown; nuit?: unknown };
   return d.fond === "ivoire" || (d.fond === undefined && d.nuit === false) ? "ivoire" : "sombre";
-}
-
-/** 4:5, écran « chiffres » : son étiquette est sur la ligne du repère ; le repère se décale pour ne pas la recouvrir (9:16 inchangé). */
-export function decalageRepere(p: Pick<ProprietesEcranVariete, "bloc" | "hauteur" | "repere">): { dx: number; dy: number } {
-  if (!p.repere || p.bloc.axe !== "chiffres" || miseEnPageDeHauteurIV(p.hauteur).format !== "4:5") return { dx: 0, dy: 0 };
-  const d = (p.bloc.donnees ?? {}) as { etiquette?: unknown; code?: unknown };
-  const cadre = cadreChiffres(p.hauteur);
-  return decalageRepereSurEtiquette({
-    etiquette: typeof d.etiquette === "string" && d.etiquette && p.bloc.code !== "CHI-D" ? d.etiquette : undefined,
-    yEtiquette: cadre.etiquetteY,
-    hautRepere: HAUT_REPERE * 1920 - miseEnPageDeHauteurIV(p.hauteur).decalageReference,
-    total: p.repere.total,
-    prefixe: p.repere.prefixe,
-  });
 }
 
 function Repere({ p }: { p: ProprietesEcranVariete }) {

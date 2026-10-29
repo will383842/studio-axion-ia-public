@@ -87,13 +87,13 @@ function couper(jetons: readonly string[], max = Infinity): [string[], string[]]
   return [jetons.slice(0, meilleur + 1), jetons.slice(meilleur + 1)];
 }
 
-/** Caractères de la phrase-choc au plus : le texte affiché est tronqué à 80, la voix dit tout. */
-const PHRASE_CHOC_CARACTERES = 80;
+/** Caractères de la phrase-choc au plus : le même plafond que tout écran (`signesMax`) ; le texte affiché est tronqué, la voix dit tout. */
+const PHRASE_CHOC_CARACTERES = ECRAN_CARACTERES_MAX;
 
 /**
  * Le dernier morceau devient la phrase-choc : s'il dépasse `PHRASE_CHOC_MOTS` mots, on le coupe au PREMIER signe de
- * ponctuation dont la suite fait 8 mots ou moins et 80 caractères au plus (la fin la plus longue possible), sinon on garde
- * ses derniers mots (8 au plus, 80 caractères au plus). La tête devient le résultat.
+ * ponctuation dont la suite fait 8 mots ou moins et `signesMax` caractères au plus (la fin la plus longue possible), sinon on garde
+ * ses derniers mots (8 au plus, `signesMax` caractères au plus). La tête devient le résultat.
  */
 function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
   const total = nbMots(jetons);
@@ -105,20 +105,48 @@ function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
     if ((finDeMembre.test(jetons[i]!) || finDePhrase.test(jetons[i]!)) && vus >= 1 && total - vus >= 1 && total - vus <= PHRASE_CHOC_MOTS && texteDe(jetons.slice(i + 1)).length <= PHRASE_CHOC_CARACTERES) coupe = i;
   }
   if (coupe < 0) {
-    // Pas de signe qui convienne : les derniers mots, retirés un à un du début tant que la fin dépasse 80 caractères.
+    // Pas de signe qui convienne : les derniers mots, retirés un à un du début tant que la fin dépasse `signesMax` caractères.
     vus = 0;
     coupe = jetons.findIndex((j) => /[\p{L}\p{N}]/u.test(j) && ++vus >= total - PHRASE_CHOC_MOTS);
-    // Un mot seul de plus de 80 caractères (adresse web) est gardé en entier : la fin n'est jamais vide.
+    // Un mot seul de plus de `signesMax` caractères (adresse web) est gardé en entier : la fin n'est jamais vide.
     while (nbMots(jetons.slice(coupe + 2)) >= 1 && texteDe(jetons.slice(coupe + 1)).length > PHRASE_CHOC_CARACTERES) coupe++;
   }
-  return [jetons.slice(0, coupe + 1), jetons.slice(coupe + 1)];
+  const fin = jetons.slice(coupe + 1);
+  // Un seul mot (adresse web plus longue que le plafond) : il reste entier, la fin n'est jamais vide.
+  return nbMots(fin) >= 1 && nbMots(jetons.slice(0, coupe + 1)) >= 1 ? [jetons.slice(0, coupe + 1), fin] : null;
+}
+
+/**
+ * Fond deux écrans voisins (rang ≥ 1, le second avant `finExclue`) : la paire la plus courte, de préférence celle qui reste
+ * sous `signesMax` signes ; si aucune ne tient, la plus courte quand même (le plafond de soixante écrans est dur, le texte
+ * affiché sera tronqué par `texteAffiche`, les mots dits restent entiers).
+ */
+function fondreDeuxEcrans(morceaux: string[][], finExclue: number): string[][] {
+  let rang = -1;
+  let rangTient = -1;
+  const mots = (i: number) => nbMots(morceaux[i]!) + nbMots(morceaux[i + 1]!);
+  for (let i = 1; i < finExclue; i++) {
+    if (rang < 0 || mots(i) < mots(rang)) rang = i;
+    if (texteDe([...morceaux[i]!, ...morceaux[i + 1]!]).length <= ECRAN_CARACTERES_MAX && (rangTient < 0 || mots(i) < mots(rangTient))) rangTient = i;
+  }
+  const r = rangTient >= 0 ? rangTient : Math.max(1, rang);
+  return [...morceaux.slice(0, r), [...morceaux[r]!, ...morceaux[r + 1]!], ...morceaux.slice(r + 2)];
 }
 
 /** Les écrans : une phrase chacun, trop longue coupée, six au moins, soixante au plus ; la première fait 8 mots au plus, la dernière aussi (phrase-choc). */
 export function ecransDuScript(script: string): string[][] {
   let morceaux = phrases(script);
   if (!morceaux.length) return morceaux;
-  if (morceaux.length && nbMots(morceaux[0]!) > ACCROCHE_MOTS) morceaux.splice(0, 1, ...couper(morceaux[0]!, ACCROCHE_MOTS));
+  // L'accroche : 8 mots au plus ET `signesMax` signes au plus ; ce qui dépasse devient les écrans suivants (mots inchangés).
+  const tropAccroche = (m: readonly string[]) => nbMots(m) > ACCROCHE_MOTS || texteDe(m).length > ECRAN_CARACTERES_MAX;
+  let tete = morceaux[0]!;
+  const suite: string[][] = [];
+  while (tropAccroche(tete) && nbMots(tete) > 1) {
+    const [a, b] = couper(tete, ACCROCHE_MOTS);
+    tete = a;
+    suite.unshift(b);
+  }
+  morceaux.splice(0, 1, tete, ...suite);
   const trop = (m: readonly string[]) => nbMots(m) > ECRAN_MOTS_MAX || texteDe(m).length > ECRAN_CARACTERES_MAX;
   for (let i = 1; i < morceaux.length; i++) {
     if (trop(morceaux[i]!) && nbMots(morceaux[i]!) > 1) {
@@ -134,20 +162,12 @@ export function ecransDuScript(script: string): string[][] {
     if (rang < 0) break;
     morceaux.splice(rang, 1, ...couper(morceaux[rang]!, rang === 0 ? ACCROCHE_MOTS : Infinity));
   }
-  while (morceaux.length > ECRANS_MAX) {
-    let rang = 1;
-    for (let i = 1; i < morceaux.length - 1; i++) if (nbMots(morceaux[i]!) + nbMots(morceaux[i + 1]!) < nbMots(morceaux[rang]!) + nbMots(morceaux[rang + 1]!)) rang = i;
-    morceaux = [...morceaux.slice(0, rang), [...morceaux[rang]!, ...morceaux[rang + 1]!], ...morceaux.slice(rang + 2)];
-  }
+  while (morceaux.length > ECRANS_MAX) morceaux = fondreDeuxEcrans(morceaux, morceaux.length - 1);
   const fin = coupeFin(morceaux[morceaux.length - 1]!);
   if (fin) {
     morceaux.splice(morceaux.length - 1, 1, ...fin);
     // Au-delà de soixante écrans, on fond deux écrans du corps (jamais la tête ni la phrase-choc).
-    while (morceaux.length > ECRANS_MAX && morceaux.length > 4) {
-      let rang = 1;
-      for (let i = 1; i < morceaux.length - 3; i++) if (nbMots(morceaux[i]!) + nbMots(morceaux[i + 1]!) < nbMots(morceaux[rang]!) + nbMots(morceaux[rang + 1]!)) rang = i;
-      morceaux = [...morceaux.slice(0, rang), [...morceaux[rang]!, ...morceaux[rang + 1]!], ...morceaux.slice(rang + 2)];
-    }
+    while (morceaux.length > ECRANS_MAX && morceaux.length > 4) morceaux = fondreDeuxEcrans(morceaux, morceaux.length - 3);
   }
   return morceaux;
 }
@@ -156,17 +176,20 @@ export function ecransDuScript(script: string): string[][] {
 function premiersMots(jetons: readonly string[], max: number): string[] {
   let vus = 0;
   const fin = jetons.findIndex((j) => /[\p{L}\p{N}]/u.test(j) && ++vus >= max);
-  return fin < 0 ? [...jetons] : jetons.slice(0, fin + 1);
+  let res = fin < 0 ? [...jetons] : jetons.slice(0, fin + 1);
+  // Au plus `signesMax` signes aussi : on retire des mots par la fin (le premier reste toujours).
+  while (nbMots(res) > 1 && texteDe(res).length > ECRAN_CARACTERES_MAX) res = res.slice(0, res.length - 1);
+  return res;
 }
 
 const idEcran = (i: number) => `e${String(i + 1).padStart(2, "0")}`;
 const sansAccents = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const racines = (t: string) => new Set(sansAccents(t).split(/[^a-z0-9]+/).filter((m) => m.length >= 4));
 
-/** Texte affiché : le début de ce qui est dit, 80 caractères au plus, coupé entre deux mots. */
+/** Texte affiché : le début de ce qui est dit, `signesMax` caractères au plus (plafond unique de la lisibilité, Q21), coupé entre deux mots. */
 function texteAffiche(t: string): string {
-  if (t.length <= 80) return t;
-  return t.slice(0, 80).replace(/\s+\S*$/, "");
+  if (t.length <= ECRAN_CARACTERES_MAX) return t;
+  return t.slice(0, ECRAN_CARACTERES_MAX).replace(/\s+\S*$/, "");
 }
 
 function partieDe(i: number, n: number): Partie {
