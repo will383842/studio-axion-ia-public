@@ -616,6 +616,8 @@ export interface StockageFichiers extends FournisseurBase {
   /* --- Lot R7 (corrections sécurité) --- */
   /** Les `octets` premiers octets de l'objet stocké (lecture partielle), pour reconnaître le type réel du fichier. */
   lireDebut?(cleStockage: string, octets: number): Promise<Uint8Array>;
+  /** Taille réelle de l'objet stocké (HEAD signé en interne, contenu non lu) ; `null` si l'objet n'existe plus ou si R2 ne répond pas. */
+  tailleObjet?(cleStockage: string): Promise<number | null>;
   /** Efface un objet déposé qui ne sera pas gardé (aucun objet orphelin). */
   supprimer?(cleStockage: string): Promise<void>;
   /**

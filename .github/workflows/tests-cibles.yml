@@ -65,6 +65,7 @@ on:
       - "src/lib/jeton-media-buffer.ts"
       - "src/app/api/media-buffer/**"
       - "tests/relais-buffer.test.ts"
+      - "tests/relais-buffer-proxy.test.ts"
       - ".github/workflows/tests-cibles.yml"
 
 permissions:
@@ -126,4 +127,5 @@ jobs:
             tests/a-publier-carte-par-video.test.ts \
             tests/a-publier-liste.test.ts \
             tests/a-publier-par-reseau.test.ts \
-            tests/relais-buffer.test.ts
+            tests/relais-buffer.test.ts \
+            tests/relais-buffer-proxy.test.ts

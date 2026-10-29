@@ -15,7 +15,7 @@ process.env.STUDIO_ADRESSE = "https://studio.essai.example/";
 
 const { creerJetonMediaBuffer, verifierJetonMediaBuffer, DUREE_JETON_MEDIA_BUFFER_SEC } = await import("@/lib/jeton-media-buffer");
 const { GET, HEAD } = await import("@/app/api/media-buffer/[jeton]/[nom]/route");
-const { reinitialiserLimitePourEssai, LIMITE_REQUETES_PAR_MINUTE } = await import("@/services/relais-buffer");
+const { reinitialiserLimitePourEssai, LIMITE_REQUETES_PAR_MINUTE, LIMITE_GET_ENTIERS_PAR_MINUTE, LIMITE_FLUX_SIMULTANES } = await import("@/services/relais-buffer");
 const { urlVideoPourBuffer } = await import("@/services/publications");
 const { depots } = await import("@/services/_commun");
 
@@ -38,6 +38,7 @@ beforeEach(async () => {
   await enregistrer("f-demo", "/demo/avocat-1.mp4");
   // R2 doublé : GET seulement (comme l'adresse signée) ; Range géré comme R2.
   r2 = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+    if (init?.method === "HEAD") return new Response(null, { status: 200, headers: { "content-length": String(OCTETS.length) } });
     const plage = new Headers(init?.headers).get("range");
     const m = plage ? /^bytes=(\d+)-(\d*)$/.exec(plage) : null;
     if (m) {
@@ -78,7 +79,7 @@ describe("jeton du relais", () => {
 });
 
 describe("relais : HEAD et GET", () => {
-  it("HEAD : 200 avec les bons en-têtes, SANS lire le fichier", async () => {
+  it("HEAD : 200 avec les bons en-têtes, la taille vient de R2 (HEAD signé), le contenu n'est PAS lu", async () => {
     const r = await HEAD(requete("HEAD"), ctx(creerJetonMediaBuffer("f-reel")));
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("video/mp4");
@@ -86,7 +87,9 @@ describe("relais : HEAD et GET", () => {
     expect(r.headers.get("accept-ranges")).toBe("bytes");
     expect(r.headers.get("cache-control")).toBe("private, no-store");
     expect(await lire(r)).toBe("");
-    expect(r2).not.toHaveBeenCalled();
+    expect(r2).toHaveBeenCalledTimes(1);
+    expect(r2.mock.calls[0][1].method).toBe("HEAD");
+    expect(String(r2.mock.calls[0][0])).toContain("X-Amz-Signature");
   });
   it("GET : le fichier entier en flux, l'adresse signée n'est utilisée qu'en interne", async () => {
     const r = await GET(requete("GET"), ctx(creerJetonMediaBuffer("f-reel")));
@@ -155,6 +158,98 @@ describe("relais : refus", () => {
     expect((await GET(requete("GET"), ctx(jeton))).status).toBe(404);
     expect((await HEAD(requete("HEAD"), ctx(jeton))).status).toBe(404);
     expect(r2).not.toHaveBeenCalled();
+  });
+});
+
+describe("relais : durcissements", () => {
+  it("GET sans Range : 429 au 31e appel ; HEAD et GET avec Range gardent la limite de 600", async () => {
+    const jeton = creerJetonMediaBuffer("f-reel");
+    for (let i = 0; i < LIMITE_GET_ENTIERS_PAR_MINUTE; i++) expect((await (await GET(requete("GET"), ctx(jeton))).arrayBuffer()).byteLength).toBe(20);
+    const refuse = await GET(requete("GET"), ctx(jeton));
+    expect(refuse.status).toBe(429);
+    expect(refuse.headers.get("retry-after")).toBe("60");
+    expect((await HEAD(requete("HEAD"), ctx(jeton))).status).toBe(200);
+    expect((await GET(requete("GET", "bytes=0-4"), ctx(jeton))).status).toBe(206);
+    expect((await GET(requete("GET"), ctx(creerJetonMediaBuffer("f-reel", Date.now() + 1000)))).status).toBe(200);
+  });
+  it("au plus 3 flux GET simultanés par jeton : le 4e est refusé (429), accepté après fermeture d'un flux", async () => {
+    const jeton = creerJetonMediaBuffer("f-reel");
+    const ouverts: Response[] = [];
+    for (let i = 0; i < LIMITE_FLUX_SIMULTANES; i++) {
+      const r = await GET(requete("GET"), ctx(jeton));
+      expect(r.status).toBe(200);
+      ouverts.push(r);
+    }
+    expect((await GET(requete("GET"), ctx(jeton))).status).toBe(429);
+    await ouverts[0].body!.cancel(); // abandon du lecteur
+    const apres = await GET(requete("GET"), ctx(jeton));
+    expect(apres.status).toBe(200);
+    expect((await GET(requete("GET"), ctx(jeton))).status).toBe(429);
+    await lire(ouverts[1]); // lu jusqu'au bout
+    expect((await GET(requete("GET"), ctx(jeton))).status).toBe(200);
+  });
+  it("un flux en erreur ou une réponse R2 en échec rend aussi sa place", async () => {
+    const jeton = creerJetonMediaBuffer("f-reel");
+    for (let i = 0; i < 6; i++) {
+      r2.mockResolvedValueOnce(new Response("<Error/>", { status: 403 }));
+      expect((await GET(requete("GET"), ctx(jeton))).status).toBe(502);
+    }
+    r2.mockRejectedValueOnce(new Error("coupé"));
+    expect((await GET(requete("GET"), ctx(jeton))).status).toBe(502);
+    const casse = new ReadableStream({ pull: (c) => c.error(new Error("flux cassé")) });
+    r2.mockResolvedValueOnce(new Response(casse, { status: 200 }));
+    const r = await GET(requete("GET", "bytes=0-"), ctx(jeton));
+    await expect(r.arrayBuffer()).rejects.toThrow();
+    for (let i = 0; i < LIMITE_FLUX_SIMULTANES; i++) expect((await GET(requete("GET", "bytes=0-4"), ctx(jeton))).status).toBe(206);
+  });
+  it("fichier non prêt ou de type non vidéo : même 404 neutre, R2 non touché", async () => {
+    await depots().fichiers.enregistrer({ id: "f-attente", cleStockage: "studio/prod/videos/v1/a.mp4", nom: "a.mp4", taille: 20, mime: "video/mp4", origine: "genere", statut: "en_attente", ...horo } as never);
+    await depots().fichiers.enregistrer({ id: "f-refuse", cleStockage: "studio/prod/videos/v1/b.mp4", nom: "b.mp4", taille: 20, mime: "video/mp4", origine: "genere", statut: "refuse", ...horo } as never);
+    await depots().fichiers.enregistrer({ id: "f-texte", cleStockage: "studio/prod/videos/v1/c.txt", nom: "c.txt", taille: 20, mime: "text/html", origine: "genere", statut: "pret", ...horo } as never);
+    const modele = await lire(await GET(requete("GET"), ctx(creerJetonMediaBuffer("f-inconnu"))));
+    for (const id of ["f-attente", "f-refuse", "f-texte"]) {
+      const g = await GET(requete("GET"), ctx(creerJetonMediaBuffer(id)));
+      const h = await HEAD(requete("HEAD"), ctx(creerJetonMediaBuffer(id)));
+      expect([g.status, h.status]).toEqual([404, 404]);
+      expect(await lire(g)).toBe(modele);
+    }
+    expect(r2).not.toHaveBeenCalled();
+  });
+  it("HEAD : Content-Length = taille réelle de R2, pas celle de la base", async () => {
+    r2.mockImplementation(async () => new Response(null, { status: 200, headers: { "content-length": "777" } }));
+    const r = await HEAD(requete("HEAD"), ctx(creerJetonMediaBuffer("f-reel")));
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-length")).toBe("777");
+  });
+  it("HEAD : objet disparu de R2, taille absente ou nulle : 502, jamais la taille de la base", async () => {
+    const jeton = creerJetonMediaBuffer("f-reel");
+    r2.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    expect((await HEAD(requete("HEAD"), ctx(jeton))).status).toBe(502);
+    r2.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    expect((await HEAD(requete("HEAD"), ctx(jeton))).status).toBe(502);
+    r2.mockResolvedValueOnce(new Response(null, { status: 200, headers: { "content-length": "0" } }));
+    expect((await HEAD(requete("HEAD"), ctx(jeton))).status).toBe(502);
+    r2.mockRejectedValueOnce(new Error("réseau"));
+    expect((await HEAD(requete("HEAD"), ctx(jeton))).status).toBe(502);
+  });
+  it("R2 répond 206 sans Content-Range : 502 (pas un 200 au contenu partiel)", async () => {
+    r2.mockResolvedValueOnce(new Response(OCTETS.slice(0, 5), { status: 206, headers: { "content-length": "5" } }));
+    const r = await GET(requete("GET", "bytes=0-4"), ctx(creerJetonMediaBuffer("f-reel")));
+    expect(r.status).toBe(502);
+    expect(r.headers.get("content-range")).toBeNull();
+  });
+  it("panne de la base : 502 générique, sans fuite, et la place de flux n'est pas perdue", async () => {
+    const jeton = creerJetonMediaBuffer("f-reel");
+    const base = depots().fichiers;
+    const espion = vi.spyOn(base, "obtenir").mockRejectedValue(new Error("connexion postgres://u:motdepasse@hote/base refusée"));
+    for (const m of ["GET", "HEAD"] as const) {
+      const r = await (m === "GET" ? GET : HEAD)(requete(m), ctx(jeton));
+      expect(r.status).toBe(502);
+      expect(await lire(r)).not.toMatch(/postgres|motdepasse/);
+    }
+    for (const j of journaux) expect(j).not.toMatch(/postgres|motdepasse/);
+    espion.mockRestore();
+    expect((await GET(requete("GET"), ctx(jeton))).status).toBe(200);
   });
 });
 
