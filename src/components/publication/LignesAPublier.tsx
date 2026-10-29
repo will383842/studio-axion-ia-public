@@ -47,7 +47,7 @@ export function LignesAPublier({ vue, retour, reseauOuvert }: { vue: VueAPublier
       </p>
       <ul className="space-y-4">
         {cartes.map((c) => (
-          <CarteDeVideo key={c.videoId} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} reseauOuvert={reseauOuvert} />
+          <CarteDeVideo key={`${c.videoId}:${reseauOuvert ?? ""}`} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} reseauOuvert={reseauOuvert} />
         ))}
       </ul>
     </div>
