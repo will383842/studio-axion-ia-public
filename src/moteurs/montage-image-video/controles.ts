@@ -4,7 +4,7 @@
  *
  * Une LIGNE par contrôle et par version, avec une phrase simple pour Will. Règle d'or : aucun contrôle ne se saute en
  * silence. Une donnée absente rend la ligne « non faite », et une ligne bloquante non faite BLOQUE comme un échec.
- * Seuls Q02 (cohérence arithmétique, dite telle qu'écrite) et Q28 (débit, sert à recalibrer) sont indicatifs.
+ * Seuls Q02 (cohérence arithmétique, dite telle qu'écrite), Q28 (débit, sert à recalibrer) et la part « voix » de Q05 (chiffre entendu hors script : remarque) sont indicatifs.
  *
  * Ce qui est relu ici, sans rien recalculer en confiance :
  *  - carte (Q01-Q03) et script (Q04-Q10, Q05 bis, Q08 bis, chapitres) par `verifierScript` (L6), sur la fiche de la
@@ -49,7 +49,7 @@ export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
 
 /**
  * Contrôles indicatifs (jamais bloquants : remarque orange à la porte). Q13 et Q14 (chiffre non montré, rythme) sont des défauts de DÉTAIL :
- * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q12, Q15, Q19 à Q23, Q25, Q27 et SCENE le sont aussi (règle du 25/10/2026). Restent bloquants : CHIFFRES (chiffre faux), la voix (Q16, Q17), le rendu impossible (mesure absente de Q24) et l'image noire ou illisible. Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; relecture impossible = remarque « images finales non relues ». Q11 (plafond de durée), Q11bis, Q18 (sous ses planchers), l'accroche de Q07 après 3 s, la phrase-choc ou la question pas entendue en entier (Q06, Q08bis) et l'absence de fin sont des remarques ; Q24 ne bloque qu'au-delà de ses planchers (image noire ou figée très longue, volume très éloigné) ou si une mesure manque ; le cadre et la cadence de Q24 sont des remarques.
+ * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q12, Q15, Q19 à Q23, Q25, Q27 et SCENE le sont aussi (règle du 25/10/2026). Restent bloquants : CHIFFRES (chiffre faux), la voix (Q16, Q17), le rendu impossible (mesure absente de Q24) et l'image noire ou illisible. Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; relecture impossible = remarque « images finales non relues ». Q11 (plafond de durée), Q05 côté voix (chiffre entendu hors script : transcription probablement fautive ; côté script il reste bloquant), Q11bis, Q18 (sous ses planchers), l'accroche de Q07 après 3 s, la phrase-choc ou la question pas entendue en entier (Q06, Q08bis) et l'absence de fin sont des remarques ; Q24 ne bloque qu'au-delà de ses planchers (image noire ou figée très longue, volume très éloigné) ou si une mesure manque ; le cadre et la cadence de Q24 sont des remarques.
  */
 export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", ...DEFAUTS_DE_DETAIL_IV, ...LIGNES_ZERO_BLOCAGE_IV]);
 
@@ -275,7 +275,11 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const remarqueEcoute = !!ecoute?.panneTranscription;
 
   L("Q04", regles.get("Q04") ?? []);
-  L("Q05", [...(regles.get("Q05") ?? []), ...(ecoute?.comparaison?.chiffresInventes ?? []).map((c) => `la voix dit « ${c} », absent du script et de l'image.`)]);
+  // Q05 · rien d'inventé. Côté script (chiffre écrit absent de l'image) : bloquant. Côté voix : le script est lu tel quel, un chiffre entendu hors script
+  // (« 8 séances » transcrit « 8 sec ») est une erreur de transcription probable : remarque.
+  const q05 = regles.get("Q05") ?? [];
+  const q05Souple = (ecoute?.comparaison?.chiffresInventes ?? []).map((c) => `la voix dit « ${c} », absent du script (probablement la transcription : le script est lu tel quel).`);
+  L("Q05", [...q05, ...q05Souple], { indicatif: q05.length === 0 && q05Souple.length > 0 });
   L("Q05bis", regles.get("Q05bis") ?? []);
 
   // Q06 · phrase-choc mot pour mot, et entendue.
