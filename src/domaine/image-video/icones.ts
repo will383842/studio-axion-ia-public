@@ -3,8 +3,8 @@
  *
  * Les noms sont ceux de la bibliothèque « interface claire » (`NOMS_ICONES` de
  * `studio-rendu/compositions/interface-claire/elements.tsx`, recopiés ici car `src/` n'importe jamais `studio-rendu/` ;
- * un test vérifie que chaque nom existe toujours là-bas). Un mot inconnu rend `null` : il est refusé à l'écriture,
- * jamais remplacé par un rond par défaut.
+ * un test vérifie que chaque nom existe toujours là-bas). `iconeDe` rend `null` pour un mot inconnu ; `iconeOuRepli`
+ * choisit alors seule une icône (mots-clés proches, sinon icône neutre) : jamais de blocage ni de question.
  */
 
 /** Noms d'icônes disponibles (sous-ensemble fermé de `NOMS_ICONES`). */
@@ -148,4 +148,35 @@ export function iconeDe(vu: string): NomIconeIV | null {
   if (Object.hasOwn(TABLE_ICONES, s)) return TABLE_ICONES[s];
   const singulier = s.replace(/(s|x)$/, "");
   return Object.hasOwn(TABLE_ICONES, singulier) ? TABLE_ICONES[singulier] : null;
+}
+
+/** Icône neutre quand ni le mot vu ni le libellé ne rappellent rien de connu. */
+export const ICONE_NEUTRE: NomIconeIV = "document";
+
+/** Mots-clés (sans accent, minuscules) → icône, du plus précis au plus général : le premier qui apparaît dans le texte gagne. */
+const REPLIS_ICONES: readonly (readonly [RegExp, NomIconeIV])[] = [
+  [/rappel|relance|alerte|sms|notif/, "cloche"],
+  [/rendez-?\s?vous|\brdv\b|calendrier|agenda|planning|creneau|\bdate\b|veille|semaine/, "calendrier"],
+  [/reponse|repond|message|question|echange|discussion|avis/, "message"],
+  [/presen|confirm|valid|accept|arrive|honore|termin/, "coche"],
+  [/mail|courrier|courriel/, "mail"],
+  [/envoi|envoy|transmis/, "envoyer"],
+  [/heure|delai|attente|duree|minute|retard/, "horloge"],
+  [/patient|client|personne|contact|prospect|visiteur|eleve|usager/, "utilisateur"],
+  [/equipe|groupe|cabinet/, "utilisateurs"],
+  [/dossier|document|fiche|compte|rapport|facture/, "document"],
+  [/prix|tarif|paiement|cout|euro/, "euro"],
+  [/objectif|resultat|but\b/, "cible"],
+];
+
+/**
+ * Icône pour un mot vu, toujours une réponse : la table d'abord (`iconeDe`), sinon les mots-clés proches du mot vu puis du
+ * libellé du bloc (« Rappel la veille » → cloche, « Patient présent au rendez-vous » → calendrier), sinon `ICONE_NEUTRE`.
+ */
+export function iconeOuRepli(vu: string, libelle = ""): NomIconeIV {
+  const connue = iconeDe(vu);
+  if (connue) return connue;
+  const texte = normalise(`${vu} ${libelle}`);
+  for (const [motif, icone] of REPLIS_ICONES) if (motif.test(texte)) return icone;
+  return ICONE_NEUTRE;
 }
