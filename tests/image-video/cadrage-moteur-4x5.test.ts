@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { boiteALEcran, cameraA, emprise, etatDansCadre, trajectoireCamera } from "@/briques/schema-motion/camera";
-import { disposerToile, VARIANTES_DISPOSITION_4X5 } from "@/briques/schema-motion/disposition";
+import { disposerToile, VARIANTES_DISPOSITION, VARIANTES_DISPOSITION_4X5 } from "@/briques/schema-motion/disposition";
 import { CADRES_IV, type CodeVariante, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import { controlerCadrage, disposerEtCadrer, ECRAN_IV, type CadrageCamera, type ProprietesSceneIV, type SchemaEntree } from "@/briques/schema-motion";
 import type { CarteImage } from "@/domaine/image-video/carte";
@@ -264,6 +264,58 @@ describe("4:5 : aucune variante propre", () => {
     expect(Math.min(...essais.map(mal))).toBeGreaterThan(0);
     expect(mal(r)).toBeLessThanOrEqual(Math.min(...essais.map(mal)));
     expect(r.toile.boites.length).toBe(3);
+  });
+});
+
+describe("4:5 : carte F, variante « etroite » (trois cartes dites à moins d'une demi-seconde)", () => {
+  /** Toile b05 (l'avant / après) de la carte F, à l'état rendu, dans le format donné. */
+  const toileF = (format: "4:5" | "9:16") => {
+    const carte = lire("F");
+    const fiche = FICHES_SIMULEES[IMAGES.F];
+    const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes(format === "4:5" ? "linkedin" : "youtube-shorts"))!;
+    const { ligne } = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, ...(format === "4:5" ? { format } : {}) });
+    const b = ligne.blocs.find((x): x is Extract<BlocRenduIV, { sorte: "toile" }> => x.sorte === "toile" && x.id === "b05")!;
+    const s = calculerScene(b.proprietes);
+    return { b, s, defauts: controlerCadrage(s.toile, s.trajectoire, s.mots, s.cadrage) };
+  };
+
+  it("F en 4:5 : les deux cartes « CRM » et « Compta » ne sont plus côte à côte (elles ne tenaient pas ensemble dans 1080 px), plus d'alerte « aucun cadrage »", () => {
+    const { s, defauts } = toileF("4:5");
+    expect(s.variante).toBe("etroite");
+    const [n08, n09] = ["n08", "n09"].map((id) => s.toile.boites.find((x) => x.id === id)!);
+    expect(Math.abs(n08.y - n09.y)).toBeGreaterThan(Math.min(n08.hauteur, n09.hauteur) / 2);
+    expect(s.trajectoire.alertes.filter((a) => a.includes("aucun cadrage") || a.includes("trop grand"))).toEqual([]);
+    // Avant (variante « large ») : 10 défauts de cadrage ; il en reste 4 (trois mots à 12,9 s, cadre lisible de 564 px), jamais un refus.
+    expect(defauts.length).toBeLessThanOrEqual(4);
+    const { b } = toileF("4:5");
+    const large = disposerToile(b.proprietes.schema, "large");
+    const cadrage = cadrageDeToile(large, b.proprietes);
+    const tr = trajectoireCamera(large, s.mots, b.proprietes.dureeSec, cadrage);
+    expect(controlerCadrage(large, tr, s.mots, cadrage).length).toBeGreaterThan(defauts.length);
+  });
+
+  it("le texte reste à la même taille qu'en 9:16 (la variante ne réduit aucune police) et chaque carte est entière dans la toile", () => {
+    const { s, b } = toileF("4:5");
+    const plus = toileF("9:16");
+    const tailles = (t: typeof s.toile) => new Set(t.boites.flatMap((x) => x.textes.map((y) => `${y.role}:${y.taille}`)));
+    expect(tailles(s.toile)).toEqual(tailles(plus.s.toile));
+    for (const x of s.toile.boites) {
+      expect(x.x, x.id).toBeGreaterThanOrEqual(0);
+      expect(x.x + x.largeur, x.id).toBeLessThanOrEqual(s.toile.largeur);
+    }
+    expect(b.proprietes.hauteur).toBe(H45);
+  });
+
+  it("9:16 inchangé : liste des variantes de toujours, F b05 garde « serree », et seule la carte F choisit « etroite » en 4:5", () => {
+    expect(VARIANTES_DISPOSITION).toEqual(["normale", "serree", "branche-centree"]);
+    expect(toileF("9:16").s.variante).toBe("serree");
+    for (const nom of ["A", "B", "C", "D", "E"] as const) {
+      const carte = lire(nom);
+      const fiche = FICHES_SIMULEES[IMAGES[nom]];
+      const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("linkedin"))!;
+      const { ligne } = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, format: "4:5" });
+      for (const b of ligne.blocs.filter((x): x is Extract<BlocRenduIV, { sorte: "toile" }> => x.sorte === "toile")) expect(calculerScene(b.proprietes).variante, `${nom} ${b.id}`).not.toBe("etroite");
+    }
   });
 });
 
