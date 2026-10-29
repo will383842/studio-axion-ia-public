@@ -55,18 +55,23 @@ export const TUILES_PLUS: EntreeNavigation[] = [
  * Barre latérale. 18/10 : plus de raccourci de création ; tout passe par « Nouvelle vidéo ». Le nom et la signature restent
  * (les appelants ne bougent pas) ; la liste des formats sous « Mes vidéos » vient de `formats`, pas de cette fonction.
  */
-export function navigationLaterale(formats: readonly Pick<FormatNavigation, "id" | "statut">[], avecSurLeSite = false): EntreeNavigation[] {
+export function navigationLaterale(formats: readonly Pick<FormatNavigation, "id" | "statut">[], avecSurLeSite = false, avecAPublier = false): EntreeNavigation[] {
   void formats; // 18/10 : plus de raccourci de création ; tout passe par Nouvelle vidéo
   // Vidéos sur le site (lot S3) : l'entrée n'existe que si au moins un type de vidéo est autorisé sur le site.
-  return avecSurLeSite ? NAV_LATERALE.flatMap((e) => (e.href === "/mesures" ? [e, ENTREE_SUR_LE_SITE] : [e])) : NAV_LATERALE;
+  const base = avecAPublier ? NAV_LATERALE.flatMap((e) => (e.href === "/calendrier" ? [e, ENTREE_A_PUBLIER] : [e])) : NAV_LATERALE;
+  return avecSurLeSite ? base.flatMap((e) => (e.href === "/mesures" ? [e, ENTREE_SUR_LE_SITE] : [e])) : base;
 }
+
+/** « À publier » : les vidéos validées jusqu'à Buffer (visible seulement quand le réglage est allumé). */
+export const ENTREE_A_PUBLIER: EntreeNavigation = { href: "/a-publier", libelle: "À publier", icone: "envoyer" };
 
 /** « Sur le site » : la liste de ce qui est en ligne (visible seulement si un générateur est autorisé). */
 export const ENTREE_SUR_LE_SITE: EntreeNavigation = { href: "/sur-le-site", libelle: "Sur le site", icone: "lien" };
 
 /** Tuiles de la feuille « Plus » (mobile), avec « Sur le site » seulement quand il est visible. */
-export function tuilesPlusMobile(avecSurLeSite = false): EntreeNavigation[] {
-  return avecSurLeSite ? TUILES_PLUS.flatMap((t) => (t.href === "/mesures" ? [t, ENTREE_SUR_LE_SITE] : [t])) : TUILES_PLUS;
+export function tuilesPlusMobile(avecSurLeSite = false, avecAPublier = false): EntreeNavigation[] {
+  const base = avecAPublier ? TUILES_PLUS.flatMap((t) => (t.href === "/calendrier" ? [t, ENTREE_A_PUBLIER] : [t])) : TUILES_PLUS;
+  return avecSurLeSite ? base.flatMap((t) => (t.href === "/mesures" ? [t, ENTREE_SUR_LE_SITE] : [t])) : base;
 }
 
 export function estActif(chemin: string, e: EntreeNavigation): boolean {
