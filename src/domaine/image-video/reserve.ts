@@ -6,7 +6,7 @@
  * États : à faire → en cours → fait. Un élément retiré passe à « retiré » : il est CONSERVÉ, jamais supprimé, et les
  * faits ne sont jamais purgés. Le plafond de 300 compte ce qui reste à fabriquer (à faire + en cours).
  */
-import { refusTexte } from "@/moteurs/montage-image-video/texte/conception";
+import { CARACTERES_MAX, refusTexte } from "@/moteurs/montage-image-video/texte/conception";
 import { refusScriptColle } from "@/moteurs/montage-image-video/texte/script-limites";
 
 export const RESERVE_MAX_IV = 300;
@@ -66,14 +66,22 @@ function changer(r: ReserveIV, id: string, f: (e: ElementReserveIV) => ElementRe
 
 /**
  * Ajoute un script ou une idée à la fin de la file. Un script que les bornes du script refusent mais que les bornes du
- * texte acceptent devient une idée (`resserre`) ; seul un texte vide est refusé. `id` et `ajouteLe` viennent de l'appelant.
+ * texte acceptent devient une idée (`resserre`) ; un texte de plus de CARACTERES_MAX est coupé (un script devient alors une idée) ; seul un texte vide est refusé. `id` et `ajouteLe` viennent de l'appelant.
  */
 export function ajouterIV(r: ReserveIV, e: { nature: NatureReserveIV; texte: string; reseaux: readonly string[] }, id: string, ajouteLe: string): IssueAjoutIV {
-  const texte = net(typeof e.texte === "string" ? e.texte : "");
+  let texte = net(typeof e.texte === "string" ? e.texte : "");
   if (!texte) return { ok: false, phrase: PHRASES_RESERVE_IV.videVide };
   if (nbAFabriquer(r) >= RESERVE_MAX_IV) return { ok: false, phrase: PHRASES_RESERVE_IV.pleine };
   let nature = e.nature;
   let resserre = false;
+  // Au-delà de la borne du texte, rien ne partirait : on coupe, et un script devient une idée resserrée.
+  if (texte.length > CARACTERES_MAX) {
+    texte = net(texte.slice(0, CARACTERES_MAX));
+    if (nature === "script") {
+      nature = "idee";
+      resserre = true;
+    }
+  }
   if (nature === "script" && refusScriptColle(texte) && !refusTexte(texte)) {
     nature = "idee";
     resserre = true;

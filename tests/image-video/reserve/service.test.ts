@@ -55,6 +55,9 @@ describe("réserve · lecture, ajout, retrait", () => {
 
   it("refuse un texte vide ; retire seulement un à-faire, en le conservant", async () => {
     expect(await reserve.ajouterReserveIV({ nature: "idee", texte: "  " })).toMatchObject({ statut: "refuse" });
+    expect(await reserve.ajouterReserveIV({ nature: "idee", texte: IDEE, reseaux: ["inconnu"] })).toEqual({ statut: "refuse", phrase: "Cochez au moins un réseau." });
+    expect(await reserve.ajouterReserveIV({ nature: "idee", texte: IDEE, reseaux: [] })).toMatchObject({ statut: "refuse" });
+    expect((await reserve.lireReserveIV()).elements).toEqual([]);
     const a = await ajouter("idee", IDEE);
     const b = await ajouter("idee", IDEE);
     await ecrireParametre("imageVideo.reserve", marquerLancementIV(await reserve.lireReserveIV(), b, new Date().toISOString()));
@@ -78,11 +81,11 @@ describe("fabriquerSuivantReserveIV", () => {
     depotTexte.mockResolvedValueOnce({ statut: "lancee", videoId: "v-i" });
     const prix = prixDuDepot(["linkedin"], 0.92);
     expect(await reserve.fabriquerSuivantReserveIV({ taux: async () => 0.92 })).toMatchObject({ statut: "lancee", id: s, videoId: "v-s" });
-    expect(depotScript).toHaveBeenCalledWith({ script: SCRIPT, reseaux: ["linkedin"], accordCentimes: prix }, undefined);
+    expect(depotScript).toHaveBeenCalledWith({ script: SCRIPT, reserveId: s, reseaux: ["linkedin"], accordCentimes: prix }, undefined);
     expect(depotTexte).not.toHaveBeenCalled();
     expect(await el(s)).toMatchObject({ etat: "en-cours", videoId: "v-s" });
     expect(await reserve.fabriquerSuivantReserveIV({ taux: async () => 0.92 })).toMatchObject({ id: i, videoId: "v-i" });
-    expect(depotTexte).toHaveBeenCalledWith({ texte: IDEE, reseaux: ["linkedin"], accordCentimes: prix }, undefined);
+    expect(depotTexte).toHaveBeenCalledWith({ texte: IDEE, reserveId: i, reseaux: ["linkedin"], accordCentimes: prix }, undefined);
   });
 
   it("accord-requis : un seul nouvel essai avec le montant renvoyé, sans validation manuelle", async () => {
@@ -110,6 +113,19 @@ describe("fabriquerSuivantReserveIV", () => {
     expect((await reserve.lireReserveIV()).elements.find((e) => e.etat === "a-faire" && e.rang === 2)?.id).toBe(b);
   });
 
+  it("double clic simultané : un seul dépôt, l'autre clic est « occupé »", async () => {
+    await ajouter("idee", IDEE);
+    await ajouter("idee", IDEE);
+    depotTexte.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+      return { statut: "lancee", videoId: "v" };
+    });
+    const issues = await Promise.all([reserve.fabriquerSuivantReserveIV(), reserve.fabriquerSuivantReserveIV()]);
+    expect(depotTexte).toHaveBeenCalledTimes(1);
+    expect(issues.map((i) => i.statut).sort()).toEqual(["lancee", "occupe"]);
+    expect((await reserve.lireReserveIV()).elements.filter((e) => e.etat === "en-cours")).toHaveLength(1);
+  });
+
   it("un seul dépôt par clic", async () => {
     await ajouter("idee", IDEE);
     await ajouter("idee", IDEE);
@@ -132,9 +148,38 @@ describe("orphelin : jamais de doublon", () => {
     await video("v-autre", "Autre texte", "2020-01-01T10:01:00.000Z");
     await video("v-avant", IDEE, "2019-12-31T10:00:00.000Z");
     await video("v-ok", IDEE, "2020-01-01T10:02:00.000Z");
+    await travail("v-ok", "en_cours", etat("lecture"));
     expect(await reserve.fabriquerSuivantReserveIV()).toEqual({ statut: "lancee", id, videoId: "v-ok", reprise: true });
     expect(depotTexte).not.toHaveBeenCalled();
     expect(await el(id)).toMatchObject({ etat: "en-cours", videoId: "v-ok" });
+  });
+
+  it("un brouillon sans travail est archivé (conservé), puis l'orphelin est relancé", async () => {
+    const id = await orphelin();
+    await video("v-nu", IDEE, "2020-01-01T10:02:00.000Z");
+    depotTexte.mockResolvedValueOnce({ statut: "lancee", videoId: "v-neuf" });
+    expect(await reserve.fabriquerSuivantReserveIV()).toMatchObject({ statut: "lancee", id, videoId: "v-neuf" });
+    expect(depotTexte).toHaveBeenCalledTimes(1);
+    expect((await depots().videos.obtenir("v-nu"))?.statut).toBe("archivee");
+  });
+
+  it("le brouillon d'un autre élément (déjà lié) ou d'une autre nature n'est pas pris", async () => {
+    const id = await orphelin();
+    const autre = await ajouter("idee", IDEE);
+    await video("v-lie", IDEE, "2020-01-01T10:02:00.000Z");
+    await travail("v-lie", "en_cours", etat("lecture"));
+    await ecrireParametre("imageVideo.reserve", (await import("@/domaine/image-video/reserve")).lierVideoIV(marquerLancementIV(await reserve.lireReserveIV(), autre, "2020-01-01T10:00:00.000Z"), autre, "v-lie"));
+    await depots().videos.enregistrer({ id: "v-script", titre: "x", formatId: ID_FORMAT_IMAGE_VIDEO, statut: "brouillon", entrees: { imageVideo: { texte: IDEE, scriptColle: true } }, creeLe: "2020-01-01T10:03:00.000Z", modifieLe: "2020-01-01T10:03:00.000Z" } as unknown as Video);
+    await travail("v-script", "en_cours", etat("lecture"));
+    depotTexte.mockResolvedValueOnce({ statut: "lancee", videoId: "v-neuf" });
+    expect(await reserve.fabriquerSuivantReserveIV()).toMatchObject({ id, videoId: "v-neuf" });
+  });
+
+  it("un brouillon portant la reserveId de l'orphelin est retrouvé", async () => {
+    const id = await orphelin();
+    await depots().videos.enregistrer({ id: "v-cle", titre: "x", formatId: ID_FORMAT_IMAGE_VIDEO, statut: "brouillon", entrees: { imageVideo: { texte: "texte normalisé autrement", reserveId: id } }, creeLe: "2020-01-01T10:03:00.000Z", modifieLe: "2020-01-01T10:03:00.000Z" } as unknown as Video);
+    await travail("v-cle", "en_cours", etat("lecture"));
+    expect(await reserve.fabriquerSuivantReserveIV()).toMatchObject({ id, videoId: "v-cle", reprise: true });
   });
 
   it("sans brouillon, l'orphelin est relancé (avant un nouvel élément)", async () => {
@@ -147,7 +192,8 @@ describe("orphelin : jamais de doublon", () => {
   it("un lancement récent (moins de 15 minutes) n'est pas un orphelin", async () => {
     const id = await ajouter("idee", IDEE);
     await ecrireParametre("imageVideo.reserve", marquerLancementIV(await reserve.lireReserveIV(), id, new Date().toISOString()));
-    expect(await reserve.fabriquerSuivantReserveIV()).toEqual({ statut: "vide" });
+    expect(await reserve.fabriquerSuivantReserveIV()).toEqual({ statut: "occupe" });
+    expect(depotTexte).not.toHaveBeenCalled();
   });
 });
 
@@ -185,9 +231,16 @@ describe("vueReserveIV : recalcul depuis les travaux", () => {
     expect(await el(id2)).toMatchObject({ etat: "a-faire", essais: 1 });
   });
 
-  it("vidéo supprimée ou archivée : à faire, un essai de plus", async () => {
+  it("vidéo supprimée : à faire, un essai de plus", async () => {
     const id = await liee();
     await depots().videos.supprimer("v1");
+    await reserve.vueReserveIV();
+    expect(await el(id)).toMatchObject({ etat: "a-faire", essais: 1 });
+  });
+
+  it("vidéo archivée : à faire, un essai de plus", async () => {
+    const id = await liee();
+    await depots().videos.modifier("v1", { statut: "archivee" });
     await reserve.vueReserveIV();
     expect(await el(id)).toMatchObject({ etat: "a-faire", essais: 1 });
   });

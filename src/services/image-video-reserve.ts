@@ -10,6 +10,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import {
+  ORPHELIN_APRES_MS_IV,
   ajouterIV,
   appliquerIssueReserveIV,
   lierVideoIV,
@@ -24,13 +25,13 @@ import {
   type NatureReserveIV,
   type ReserveIV,
 } from "@/domaine/image-video/reserve";
-import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
+import { PHRASE_TIKTOK_RETIRE_IV, RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { Id } from "@/domaine/types";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { depots, ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
-import { prixDuDepot } from "./image-video-ecran";
+import { PHRASES_IV, prixDuDepot } from "./image-video-ecran";
 import { dernierTravail, issueDuTravail, videoEcartee } from "./image-video-lot";
 import { deposerScriptImageVideo, deposerTexteImageVideo, type DependancesTexteIV, type IssueDepotTexteIV } from "./image-video-texte";
 
@@ -88,6 +89,7 @@ export type IssueAjoutReserveIV = { statut: "ajoute"; element: ElementReserveIV 
 export async function ajouterReserveIV(e: { nature: NatureReserveIV; texte: string; reseaux?: readonly string[] }): Promise<IssueAjoutReserveIV> {
   await exigerSession();
   const reseaux = RESEAUX_IV.filter((r) => (e.reseaux ?? RESEAUX_IV).includes(r));
+  if (!reseaux.length) return { statut: "refuse", phrase: (e.reseaux ?? []).includes("tiktok") ? PHRASE_TIKTOK_RETIRE_IV : PHRASES_IV.sansReseau };
   const id = `res-${randomUUID().slice(0, 12)}`;
   const a = maintenant();
   return modifier<IssueAjoutReserveIV>((r) => {
@@ -107,6 +109,8 @@ export async function retirerReserveIV(id: string): Promise<boolean> {
 
 export type IssueFabricationReserveIV =
   | { statut: "vide" }
+  /** Un lancement est déjà en route (double clic) : rien n'est déposé. */
+  | { statut: "occupe" }
   | { statut: "lancee"; id: string; videoId: Id; reprise?: true }
   | { statut: "refusee"; id: string; phrase: string };
 
@@ -116,13 +120,18 @@ export interface DependancesReserveIV {
   taux?: () => Promise<number>;
 }
 
-/** Brouillon Image → vidéo de même texte, créé après le lancement interrompu : le lancement avait donc abouti. */
-async function brouillonDeLOrphelin(e: ElementReserveIV): Promise<Id | null> {
+/**
+ * Brouillon Image → vidéo de l'orphelin : posé avec sa `reserveId` ; à défaut (ancien dépôt) même texte, même nature
+ * (`scriptColle`), créé après le lancement interrompu et pas déjà lié à un autre élément de la réserve.
+ */
+async function brouillonDeLOrphelin(e: ElementReserveIV, r: ReserveIV): Promise<Id | null> {
   const depuis = e.lanceeLe ?? e.ajouteLe;
+  const liees = new Set(r.elements.map((x) => x.videoId).filter((v): v is string => !!v));
   const liste = await depots().videos.lister((v) => {
-    if (v.formatId !== ID_FORMAT_IMAGE_VIDEO || v.statut === "archivee" || v.creeLe < depuis) return false;
-    const iv = (v.entrees?.imageVideo ?? {}) as { texte?: unknown };
-    return typeof iv.texte === "string" && iv.texte.normalize("NFC").trim() === e.texte;
+    if (v.formatId !== ID_FORMAT_IMAGE_VIDEO || v.statut === "archivee" || v.creeLe < depuis || liees.has(v.id)) return false;
+    const iv = (v.entrees?.imageVideo ?? {}) as { texte?: unknown; scriptColle?: unknown; reserveId?: unknown };
+    if (typeof iv.reserveId === "string") return iv.reserveId === e.id;
+    return typeof iv.texte === "string" && iv.texte.normalize("NFC").trim() === e.texte && (iv.scriptColle === true) === (e.nature === "script");
   });
   return liste.sort((a, b) => a.creeLe.localeCompare(b.creeLe))[0]?.id ?? null;
 }
@@ -133,14 +142,23 @@ async function brouillonDeLOrphelin(e: ElementReserveIV): Promise<Id | null> {
  */
 export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}): Promise<IssueFabricationReserveIV> {
   await exigerSession();
-  const choix = await sousVerrou<{ element: ElementReserveIV } | { repris: ElementReserveIV; videoId: Id } | null>(async () => {
+  const choix = await sousVerrou<"occupe" | { element: ElementReserveIV } | { repris: ElementReserveIV; videoId: Id } | null>(async () => {
     const r = await lireReserveIV();
+    const t = Date.parse(maintenant());
+    // Un lancement récent, sans vidéo : un autre clic est déjà en route (pas d'orphelin avant le délai).
+    const enRoute = r.elements.some((e) => e.etat === "en-cours" && !e.videoId && e.lanceeLe && t - Date.parse(e.lanceeLe) <= ORPHELIN_APRES_MS_IV);
+    if (enRoute) return "occupe";
     const orphelin = orphelinIV(r, maintenant());
     if (orphelin) {
-      const videoId = await brouillonDeLOrphelin(orphelin);
+      const videoId = await brouillonDeLOrphelin(orphelin, r);
       if (videoId) {
-        await ecrireBrut(lierVideoIV(r, orphelin.id, videoId));
-        return { repris: orphelin, videoId };
+        // Un brouillon sans travail n'a jamais été lancé : on l'archive (conservé) et on relance normalement.
+        if (await dernierTravail(videoId)) {
+          await ecrireBrut(lierVideoIV(r, orphelin.id, videoId));
+          return { repris: orphelin, videoId };
+        }
+        const { abandonnerBrouillon } = await import("./videos");
+        await abandonnerBrouillon(videoId);
       }
     }
     const element = orphelin ?? prochainIV(r);
@@ -149,6 +167,7 @@ export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}):
     return { element };
   });
   if (!choix) return { statut: "vide" };
+  if (choix === "occupe") return { statut: "occupe" };
   if ("repris" in choix) return { statut: "lancee", id: choix.repris.id, videoId: choix.videoId, reprise: true };
 
   const { element } = choix;
@@ -156,8 +175,8 @@ export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}):
   const taux = await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))();
   const deposer = (accordCentimes: number): Promise<IssueDepotTexteIV> =>
     element.nature === "script"
-      ? deposerScriptImageVideo({ script: element.texte, reseaux, accordCentimes }, dep.depot)
-      : deposerTexteImageVideo({ texte: element.texte, reseaux, accordCentimes }, dep.depot);
+      ? deposerScriptImageVideo({ script: element.texte, reserveId: element.id, reseaux, accordCentimes }, dep.depot)
+      : deposerTexteImageVideo({ texte: element.texte, reserveId: element.id, reseaux, accordCentimes }, dep.depot);
   let issue = await deposer(prixDuDepot(reseaux, taux));
   if (issue.statut === "accord-requis") issue = await deposer(issue.centimes);
 

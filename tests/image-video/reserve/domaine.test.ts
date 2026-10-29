@@ -3,6 +3,7 @@
  * idempotentes, retrait conservé, orphelin. Textes fictifs.
  */
 import { describe, expect, it } from "vitest";
+import { refusTexte } from "@/moteurs/montage-image-video/texte/conception";
 import {
   ajouterIV,
   appliquerIssueReserveIV,
@@ -38,6 +39,23 @@ describe("ajouterIV", () => {
     const a = ajouterIV(avec(IDEE), { nature: "script", texte: SCRIPT, reseaux: ["linkedin"] }, "s", T0);
     expect(a.ok && a.element).toMatchObject({ id: "s", nature: "script", etat: "a-faire", rang: 2, essais: 0, ajouteLe: T0 });
     expect(a.ok && a.element.resserre).toBeUndefined();
+  });
+
+  it("301 mots : le script devient une idée resserrée (texte gardé)", () => {
+    const t = Array.from({ length: 301 }, () => "mot").join(" ");
+    const a = ajouterIV(reserveVideIV(), { nature: "script", texte: t, reseaux: [] }, "s", T0);
+    expect(a.ok && a.element).toMatchObject({ nature: "idee", resserre: true, texte: t });
+  });
+
+  it("plus de 4000 caractères : texte coupé à 4000, script devenu idée resserrée", () => {
+    const t = Array.from({ length: 700 }, () => "abcde").join(" ");
+    expect(t.length).toBeGreaterThan(4000);
+    const a = ajouterIV(reserveVideIV(), { nature: "script", texte: t, reseaux: [] }, "s", T0);
+    expect(a.ok && a.element.nature).toBe("idee");
+    expect(a.ok && a.element.resserre).toBe(true);
+    expect(a.ok && a.element.texte.length).toBeLessThanOrEqual(4000);
+    expect(a.ok && a.element.texte.length).toBeGreaterThan(3990);
+    expect(a.ok && refusTexte(a.element.texte)).toBeNull();
   });
 
   it("un script refusé comme script mais accepté comme texte devient une idée resserrée", () => {
