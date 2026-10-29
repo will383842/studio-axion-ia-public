@@ -738,7 +738,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
   const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean }[] = [];
   // Seuls les comptes cochés ET validés (réseau envoyé, compte connu de ce réseau) sont mémorisés.
   const valides: Partial<Record<IdReseau, string[]>> = {};
-  const commentairesALaMain: IdReseau[] = [];
+  const aPoserALaMain = new Set<IdReseau>();
   for (const reseau of reseaux) {
     const r = kitVue.reseaux.find((x) => x.reseau === reseau);
     if (!r) continue;
@@ -749,7 +749,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
     const nomReseau = obtenirReseau(reseau).nom;
     const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau], avecVideo);
-    if (commentaire.aLaMain) commentairesALaMain.push(reseau);
+    if (commentaire.aLaMain) aPoserALaMain.add(reseau);
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
       const nom = comptes.source === "auto" ? nomReseau : `${nomReseau} (${canal.nom})`;
@@ -815,6 +815,8 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     return out;
   });
 
+  // « À la main » ne concerne que les réseaux réellement envoyés ici (ni rejeu, ni refus « déjà dans Buffer »).
+  const commentairesALaMain = [...aPoserALaMain].filter((reseau) => decisions.some((dec) => "nouvelle" in dec && dec.p.reseau === reseau));
   const publications: Publication[] = [];
   const problemes: ProblemeEnvoi[] = [];
   try {

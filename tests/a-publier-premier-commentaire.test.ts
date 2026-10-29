@@ -114,4 +114,15 @@ describe("premier commentaire dans l'envoi réel", () => {
     await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { avecPremierCommentaire: true });
     expect(entree(0).metadata?.instagram).toEqual({ type: "reel", shouldShareToFeed: true, firstComment: "Celui de la vidéo" });
   });
+
+  it("TikTok rejoué : « à poser à la main » n'est dit qu'une fois, pas sur le rejeu", async () => {
+    await cocherTout();
+    buffer = fauxBuffer({ canauxEnPlus: [{ id: "e00090000000000000000000", name: "Exemple name", displayName: "Exemple TikTok", service: "tiktok", type: "business", avatar: "https://exemple.invalid/fichier", isDisconnected: false, isLocked: false, isQueuePaused: false, timezone: "Europe/Paris" }] });
+    vi.stubGlobal("fetch", buffer.appeler);
+    const options = { premiersCommentaires: { tiktok: COMMENTAIRE } };
+    const a = await pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN, options);
+    const b = await pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN, options);
+    expect(a.commentairesALaMain).toEqual(["tiktok"]);
+    expect(b.commentairesALaMain).toBeUndefined();
+  });
 });
