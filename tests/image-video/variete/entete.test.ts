@@ -129,6 +129,32 @@ describe("axe entete", () => {
     expect(lignesEtiquetteEstimees("Étape 1", 1920)).toBe(1);
     expect(lignesEtiquetteEstimees("Les justificatifs clients triés et classés par l'IA", 1920)).toBe(2);
   });
+  describe("filet et habillage posés d'après la hauteur d'étiquette réservée", () => {
+    for (const format of ["9:16", "4:5"] as const) {
+      for (const code of ["ENT-B", "ENT-C", "ENT-D"] as const) {
+        it(`${code} · ${format} : étiquettes de 7, 32, 36 et 38 signes`, () => {
+          const etiquettes = ["ÉTAPE 1", "SUIVI LE JOUR MÊME DES RELANCES.", "PRÉVENU DE CHAQUE RETARD DE PAIEMENT", "SUIVIS AUTOMATIQUEMENT SANS RELANCERAB"];
+          expect(etiquettes.map((e) => e.length)).toEqual([7, 32, 36, 38]);
+          for (const e of etiquettes) for (const titre of TITRES) {
+            const g = geometrieEntete(code, titre, format, "ivoire", e);
+            const haut = g.zone.y;
+            expect(g.hauteurEtiquette).toBeCloseTo(g.lignesEtiquette * 1.21 * TAILLES_DUO.etiquette * miseEnPageDeHauteurIV(format === "9:16" ? 1920 : 1350).hauteurTexte, 6);
+            if (g.alerte !== null) continue;
+            const b = g.boite!;
+            if (code === "ENT-C") {
+              // Le filet est entre l'étiquette et le titre, jamais dans la boîte du texte.
+              expect(b.y).toBeGreaterThanOrEqual(haut + g.hauteurEtiquette - 1e-6);
+              expect(b.y + b.hauteur).toBeLessThanOrEqual(g.texte.y + 1e-6);
+            } else {
+              expect(b.y).toBeLessThanOrEqual(g.texte.y + 1e-6);
+              expect(b.y + b.hauteur).toBeGreaterThanOrEqual(g.texte.y + g.texte.hauteur - 1e-6);
+              expect(b.y).toBeGreaterThanOrEqual(haut + g.hauteurEtiquette - 1e-6);
+            }
+          }
+        });
+      }
+    }
+  });
   it("ENT-A : aucun habillage", () => {
     expect(geometrieEntete("ENT-A", "Gagnez du temps", "9:16").boite).toBeNull();
   });
