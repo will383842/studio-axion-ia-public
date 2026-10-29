@@ -19,7 +19,7 @@ vi.mock("@/app/(studio)/videos/actions", () => new Proxy({}, { get: (_c, nom) =>
 vi.mock("@/app/(studio)/mesures/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 
 const { LignesAPublier } = await import("@/components/publication/LignesAPublier");
-const { casesAChanger, regrouperParVideo, toutesCochees } = await import("@/components/publication/regrouper-a-publier");
+const { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees } = await import("@/components/publication/regrouper-a-publier");
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const pub = await import("@/services/publications");
@@ -166,5 +166,24 @@ describe("À publier — petits défauts de la relecture", () => {
   it("le bouton d'envoi est désactivé pendant l'écriture des cases", async () => {
     const src = (await import("node:fs")).readFileSync("src/components/publication/LignesAPublier.tsx", "utf8");
     expect(src).toMatch(/disabled=\{!peutEnvoyer \|\| enCoursCases\}/);
+  });
+});
+
+describe("À publier — lecteur sans rognage", () => {
+  it("montre la vidéo entière : jamais de cadre 9:16 forcé ni de object-cover", () => {
+    const h = html(vue([ligne("v-1", "instagram", { dimensions: { largeur: 1080, hauteur: 1350 } })]));
+    const lecteur = h.match(/<video[^>]*>/)![0];
+    expect(lecteur).toContain("object-contain");
+    expect(lecteur).not.toContain("object-cover");
+    expect(lecteur).not.toContain("aspect-[9/16]");
+    expect(h).not.toContain("aspect-[9/16]");
+  });
+
+  it("le cadre suit le vrai rapport de la vidéo (4:5, 16:9, 9:16), sinon aucun cadre imposé", () => {
+    expect(html(vue([ligne("v-1", "linkedin", { dimensions: { largeur: 1080, hauteur: 1350 } })]))).toMatch(/aspect-ratio:\s*1080 \/ 1350/);
+    expect(html(vue([ligne("v-2", "facebook", { dimensions: { largeur: 1920, hauteur: 1080 } })]))).toMatch(/aspect-ratio:\s*1920 \/ 1080/);
+    expect(rapportLecteur({ largeur: 1080, hauteur: 1920 })).toBe("1080 / 1920");
+    expect(rapportLecteur(null)).toBeUndefined();
+    expect(html(vue([ligne("v-3", "instagram")]))).not.toContain("aspect-ratio");
   });
 });
