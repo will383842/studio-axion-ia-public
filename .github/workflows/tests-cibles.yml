@@ -113,4 +113,5 @@ jobs:
             tests/a-publier.test.ts \
             tests/a-publier-premier-commentaire.test.ts \
             tests/l1-10-buffer-premier-commentaire.test.ts \
-            tests/r1-ecrans-buffer.test.ts
+            tests/r1-ecrans-buffer.test.ts \
+            tests/a-publier-carte-par-video.test.ts
