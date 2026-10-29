@@ -1,13 +1,13 @@
 /**
  * Proxy (ex-middleware, Next 16) : protège TOUT sauf /connexion, /v/*, /api/sante,
- * /api/crochets/*, /hors-ligne et les fichiers statiques (PLAN B.4-3).
+ * /api/crochets/*, /api/usine/* (gardée par secret DANS chaque handler, src/usine/garde-porte.ts), /hors-ligne et les fichiers statiques (PLAN B.4-3).
  * ⚠️ Le proxy ne suffit pas : chaque action serveur et chaque route /api appelle
  * exigerSession() (révocation, expiration côté serveur).
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { NOM_COOKIE_SESSION, verifierJeton } from "@/lib/jeton-session";
 
-const PUBLICS = [/^\/connexion(\/|$)/, /^\/v\//, /^\/api\/sante$/, /^\/api\/crochets\//, /^\/api\/partages\/[^/]+$/, /^\/hors-ligne$/];
+const PUBLICS = [/^\/connexion(\/|$)/, /^\/v\//, /^\/api\/sante$/, /^\/api\/crochets\//, /^\/api\/usine\//, /^\/api\/partages\/[^/]+$/, /^\/hors-ligne$/];
 
 /** Code réservé : la page « Ce lien n'est plus actif » (rendue par /v/[code] pour un code inconnu). */
 const CODE_LIEN_INACTIF = "lien-inactif";
