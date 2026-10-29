@@ -38,7 +38,7 @@ import { Affiche } from "./Affiche";
 import { QueueFin } from "./QueueFin";
 import type { AvecAfficheIV } from "./variete/ouverture/donnees";
 import { decalageReferenceIV } from "./mise-en-page";
-import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, masqueToile, noeudCourant, opaciteRail, placeRail } from "./plan";
+import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, fondusDeScene, masqueToile, noeudCourant, opaciteRail, placeRail } from "./plan";
 import { objetsA, planEnsemble, secousseAlerte, type ObjetSceneIV, type ProprietesSceneObjetsIV } from "./plan-objets";
 import { Recherche } from "./Recherche";
 import { RepereChapitre } from "./RepereChapitre";
@@ -122,7 +122,8 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
   const ensemble = ensembleA(p, scene, t);
   // Calcul léger, refait à chaque image comme `ensembleA` : le schéma lisible dans la zone utile (sous l'en-tête).
   const vue = ensemble ? planEnsemble(p.schema, { allumes: ensemble.options.allumes, chiffresCles: ensemble.options.chiffresCles }) : null;
-  const fonduToile = ensemble ? 1 - ensemble.fondu : 1;
+  const fondus = ensemble ? fondusDeScene(p.hauteur, ensemble.fondu) : null;
+  const fonduToile = fondus ? fondus.toile : 1;
   // Sous l'en-tête, la toile s'efface en douceur : un nœud vu reste deviné, jamais mêlé au titre ; en bas, avant les sous-titres.
   const masque = masqueToile(p.hauteur, !!entete);
   // Lot G : le reste du schéma en cartes muettes (sans texte), visible dès le bas de l'en-tête ; au-dessus de la toile,
@@ -177,9 +178,9 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
           <AbsoluteFill style={{ transform: `${fixe}scale(${echelle})`, transformOrigin: "0 0" }}>
             <RailVarie scene={scene} schema={p.schema} t={t} fond={fondVu} place={placeDuRail} opacite={rail} />
           </AbsoluteFill>
-          {ensemble && vue ? (
+          {ensemble && vue && fondus && fondus.ensemble > 0 ? (
             <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
-              <Ensemble plan={vue} schema={p.schema} ecoule={ensemble.ecoule} fondu={ensemble.fondu} />
+              <Ensemble plan={vue} schema={p.schema} ecoule={ensemble.ecoule} fondu={fondus.ensemble} />
             </AbsoluteFill>
           ) : null}
           {/* CAM-B, CAM-C : le calque caméra repose la marque et l'en-tête, fixes, au-dessus de la scène recadrée (jamais deux titres). */}
