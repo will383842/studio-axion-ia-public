@@ -39,6 +39,7 @@ import type { VueKit, VueKitReseau, VueVideoCarte } from "./vues";
 import { lireFamilles } from "./hashtags";
 import { listerSeries, serieDeVideo, votreMarqueDeVideo } from "./series";
 import { creerNotification } from "./notifications";
+import { commentaireParBuffer } from "@/domaine/commentaire-a-la-main";
 import { premierCommentaireDeVideo } from "./premier-commentaire";
 import { liensSousTitresParReseau } from "./sous-titres-par-reseau";
 import { sousVerrouKit } from "./verrou-kit";
@@ -663,13 +664,13 @@ export async function envoyerVersBuffer(
 
 /**
  * Premier commentaire d'un réseau : celui de l'écran ; celui que la vidéo porte déjà n'est lu que si l'appelant le demande
- * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Seuls Instagram, Facebook et
- * LinkedIn le reçoivent par Buffer ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
+ * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Seuls Instagram et Facebook
+ * le reçoivent par Buffer (LinkedIn : posé à la main, décision de Will) ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
  */
 async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean): Promise<{ texte?: string; aLaMain: boolean }> {
   const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
-  return premierCommentaireTransmissible(reseau) ? { texte, aLaMain: false } : { aLaMain: true };
+  return commentaireParBuffer(reseau, premierCommentaireTransmissible(reseau)) ? { texte, aLaMain: false } : { aLaMain: true };
 }
 
 /**
