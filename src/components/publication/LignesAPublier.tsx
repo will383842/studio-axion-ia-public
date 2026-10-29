@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { cocherAvantDePublierAction, envoyerVersBufferAction, modifierTexteKitAction } from "@/app/(studio)/videos/actions";
 import { programmerSujetAction } from "@/app/(studio)/mesures/actions";
 import { Bouton } from "@/components/ui/Bouton";
+import { BoutonCopier } from "@/components/ui/BoutonCopier";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
@@ -98,7 +99,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
         return;
       }
       const iso = quand.toISOString();
-      const r = await envoyerVersBufferAction(l.videoId, [l.reseau], iso, false, avecChoix ? { [l.reseau]: comptes } : {}, { [l.reseau]: commentaire }, true);
+      const r = await envoyerVersBufferAction(l.videoId, [l.reseau], iso, false, avecChoix ? { [l.reseau]: comptes } : {}, l.commentaireAPoserParWill ? {} : { [l.reseau]: commentaire }, true);
       if (!r.ok) {
         notifier.erreur(r.message);
         return;
@@ -107,7 +108,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
       if (n && r.donnees.mode === "brouillon") notifier.succes(`Brouillon dans Buffer · ${libelleComptes(n)}`, "Relisez et programmez dans Buffer.");
       else if (n) notifier.succes(`Programmée sur ${libelleComptes(n)}`);
       if (r.donnees.problemes.length) notifier.erreur(r.donnees.problemes[0]);
-      if (r.donnees.commentairesALaMain.length) notifier.erreur("Le premier commentaire n'est pas transmis à ce réseau : posez-le à la main.");
+      if (r.donnees.commentairesALaMain.length && !l.commentaireAPoserParWill) notifier.erreur("Le premier commentaire n'est pas transmis à ce réseau : posez-le à la main.");
       router.refresh();
     });
   }
@@ -177,11 +178,28 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
           )}
           {l.motsDiese.length > 0 && <p className="text-xs text-texte-faible">{l.motsDiese.join(" ")}</p>}
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-texte-doux">Premier commentaire</span>
-            <textarea value={commentaire} disabled={pourSujet} onChange={(e) => setCommentaire(e.target.value)} rows={2} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-orange" />
-          </label>
-          {commentaire.trim() && !l.commentaireTransmissible && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par Buffer : rien ne sera envoyé, posez-le à la main.</p>}
+          {l.commentaireAPoserParWill ? (
+            <div className="space-y-2 rounded-champ border border-trait bg-surface-1 p-3" data-testid="commentaire-a-la-main">
+              <span className="block text-xs font-semibold text-texte-doux">Premier commentaire · À poser à la main sur {l.reseauNom} par Will</span>
+              {l.premierCommentaire?.trim() ? (
+                <>
+                  <p className="whitespace-pre-wrap text-sm text-texte">{l.premierCommentaire}</p>
+                  <BoutonCopier texte={l.premierCommentaire} libelle="Copier" />
+                </>
+              ) : (
+                <p className="text-sm text-texte-doux">Aucun premier commentaire pour cette vidéo.</p>
+              )}
+              <p className="text-xs text-texte-faible">Buffer ne reçoit rien : ce commentaire n&apos;est jamais envoyé.</p>
+            </div>
+          ) : (
+            <>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-texte-doux">Premier commentaire</span>
+                <textarea value={commentaire} disabled={pourSujet} onChange={(e) => setCommentaire(e.target.value)} rows={2} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-orange" />
+              </label>
+              {commentaire.trim() && !l.commentaireTransmissible && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par Buffer : rien ne sera envoyé, posez-le à la main.</p>}
+            </>
+          )}
 
           <div className="space-y-1 text-sm">
             <span className="block text-xs font-semibold text-texte-doux">Compte Buffer</span>
