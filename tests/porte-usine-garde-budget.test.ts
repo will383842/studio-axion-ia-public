@@ -34,6 +34,7 @@ beforeEach(async () => {
   vi.stubEnv("STUDIO_PORTE_SECRET", SECRET);
   vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", "");
   vi.stubEnv("USINE_PORTE_SECRET", "");
+  vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", "");
   await ecrireParametre("budget.mensuel", { centimes: 10000, devise: "EUR" });
 });
 
@@ -55,10 +56,21 @@ describe("garde : secret", () => {
     }
   });
 
-  it("l'ancien secret est accepté pendant la rotation, puis refusé une fois retiré", async () => {
+  it("l'ancien secret est accepté avant l'échéance, refusé après, refusé sans échéance ou avec une échéance illisible", async () => {
     vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", ANCIEN);
+    const dans = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+    vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", dans(2));
     expect((await PUT(appel(ok(), {}, ANCIEN))).status).toBe(200);
     expect((await PUT(appel(ok(), {}, SECRET))).status).toBe(200);
+    expect((await proxy(appel(ok(), {}, ANCIEN))).status).not.toBe(401);
+    vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", dans(-1));
+    expect((await PUT(appel(ok(), {}, ANCIEN))).status).toBe(401);
+    expect((await proxy(appel(ok(), {}, ANCIEN))).status).toBe(401);
+    for (const v of ["", "pas une date"]) {
+      vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", v);
+      expect((await PUT(appel(ok(), {}, ANCIEN))).status).toBe(401);
+    }
+    vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", dans(2));
     vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", "");
     expect((await PUT(appel(ok(), {}, ANCIEN))).status).toBe(401);
   });
@@ -207,6 +219,7 @@ describe("le secret n'apparaît jamais", () => {
   it("ni dans les réponses (toutes les erreurs), ni dans le journal ni dans la console", async () => {
     const avertissements = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", ANCIEN);
+    vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", new Date(Date.now() + 3_600_000).toISOString());
     const reponses = [
       await PUT(appel(ok(), {}, SECRET)),
       await PUT(appel(ok(), {}, ANCIEN)),
