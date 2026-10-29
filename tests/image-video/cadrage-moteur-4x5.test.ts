@@ -143,10 +143,18 @@ describe("4:5 : le filet cache le bloc coupé de la carte F (sans refuser la vid
     let caches = 0;
     for (const d of defauts) {
       const o = opaciteCadre(scene, scene.trajectoire.images, d.id, d.t);
-      if (noeudCourant(scene, d.t) === d.id) expect(o, `${d.id} ${d.t}`).toBe(1);
-      else {
-        // Le fondu moyenne 4 instants (0,15 s) : au premier instant d'un bord franchi, déjà atténué ; 0,15 s après, tout à fait caché.
-        expect(o, `${d.id} ${d.t}`).toBeLessThan(1);
+      if (noeudCourant(scene, d.t) === d.id) {
+        // Le bloc parlé reste plein tant qu'il est le courant et que la caméra est posée autour de l'instant ; s'il part
+        // (mot suivant, panoramique), il s'efface avec les autres.
+        const fenetre = [-0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15].map((r) => d.t + r);
+        const pose = cameraA(scene.trajectoire, fenetre[0]);
+        const pose1 = cameraA(scene.trajectoire, fenetre[6]);
+        const pose2 = cameraA(scene.trajectoire, d.t);
+        const tenue = fenetre.every((x) => noeudCourant(scene, x) === d.id) && [pose1, pose2].every((q) => q.cx === pose.cx && q.cy === pose.cy && q.zoom === pose.zoom);
+        if (tenue) expect(o, `${d.id} ${d.t}`).toBe(1);
+      } else {
+        // Le bloc est tout à fait caché à chaque instant où il est coupé (le fondu vient avant la coupe et après elle).
+        expect(o, `${d.id} ${d.t}`).toBe(0);
         const tard = d.t + 0.15;
         const b = scene.parId.get(d.id);
         const toujours = !!b && [0, 0.05, 0.1, 0.15].every((r) => etatDansCadre(emprise(b, scene.cadrage), cameraA(scene.trajectoire, tard - r), scene.cadrage) === "coupe");

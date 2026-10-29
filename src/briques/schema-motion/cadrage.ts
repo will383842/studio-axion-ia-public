@@ -19,7 +19,11 @@ export type ToileCadree = {
   defauts: DefautCadrage[];
 };
 
-/** Retard de caméra (« arrive sur X 0.4 s trop tard ») que `mettreEnSceneIV` rattrape en décalant le bloc (au plus 0,6 s, marge de 0,05 s comprise). */
+/** Retard de caméra (« arrive sur X 0.4 s trop tard ») que `mettreEnSceneIV` rattrape en décalant le bloc (au plus 0,6 s, marge de 0,05 s comprise).
+ *
+ * Ne regarde que le retard de l'alerte : il ignore le décalage déjà cumulé sur le bloc. La règle de `mettreEnSceneIV`
+ * (mise-en-scene.ts : décalage plus retard au plus 0,6 s) peut donc refuser un retard jugé absorbable ici si un
+ * décalage a déjà été pris ; le repli à coupe franche n'est alors pas tenté. */
 const RETARD_ABSORBABLE_SEC = 0.6;
 const retardAbsorbable = (alerte: string) => {
   const m = /arrive sur \S+ ([\d.]+) s trop tard/.exec(alerte);

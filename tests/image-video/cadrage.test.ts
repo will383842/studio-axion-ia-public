@@ -221,10 +221,25 @@ describe("filet : jamais un bloc coupé à l'écran (opaciteCadre)", () => {
       expect(o).toBeGreaterThanOrEqual(0);
       expect(o).toBeLessThanOrEqual(1);
     }
-    // Chaque instant où le bloc est vu coupé à l'écran est déjà en fondu (au plus 3/4 : le lissage compte 4 instants).
+    // Chaque instant où le bloc (non parlé) est vu coupé à l'écran est tout à fait caché : le fondu vient AVANT la coupe, pas après.
     instants.forEach((t, i) => {
-      if (etatDansCadre(emprise(boite(dernierBloc), s.cadrage), cameraA({ images: panoramique }, t), s.cadrage) === "coupe") expect(op[i], `t=${t}`).toBeLessThan(1);
+      if (etatDansCadre(emprise(boite(dernierBloc), s.cadrage), cameraA({ images: panoramique }, t), s.cadrage) === "coupe") expect(op[i], `t=${t}`).toBe(0);
     });
+    // Et le fondu précède la coupe : un instant avant le premier instant coupé, le bloc est déjà atténué.
+    const premierCoupe = instants.findIndex((t) => etatDansCadre(emprise(boite(dernierBloc), s.cadrage), cameraA({ images: panoramique }, t), s.cadrage) === "coupe");
+    expect(op[premierCoupe - 1]).toBeLessThan(1);
+    expect(op[premierCoupe - 1]).toBeGreaterThan(0);
+  });
+
+  it("le bloc parlé traverse un panoramique vers le mot suivant : il n'est plus exempté, il s'efface avec la coupe", () => {
+    const b = boite(premier);
+    const m = s.mots[0].t;
+    const tenue = { t: 0, cx: b.x + L / 2 + 100, cy: b.y + b.hauteur / 2, zoom: 1 };
+    const images = [tenue, { ...tenue, t: m }, { ...tenue, t: m + 3, cx: tenue.cx + 3 * L }, { ...tenue, t: 30, cx: tenue.cx + 3 * L }];
+    // Le bloc parlé, coupé au départ, reste coupé un moment pendant le panoramique (le courant n'a pas changé) : caché.
+    const coupes = Array.from({ length: 30 }, (_, i) => m + 0.05 + i * 0.05).filter((t) => noeudCourant(s, t) === premier && etatDansCadre(emprise(b, s.cadrage), cameraA({ images }, t), s.cadrage) === "coupe");
+    expect(coupes.length).toBeGreaterThan(0);
+    for (const t of coupes) expect(opaciteCadre(s, images, premier, t), `t=${t}`).toBe(0);
   });
 
   it("le bloc parlé n'est jamais caché, même coupé", () => {
@@ -257,6 +272,12 @@ describe("filet : jamais un bloc coupé à l'écran (opaciteCadre)", () => {
       for (const b of s.toile.boites) {
         const t = im[i].t;
         if (etatDansCadre(emprise(b, s.cadrage), cameraA(s.trajectoire, t), s.cadrage) !== "coupe") expect(opaciteCadre(s, im, b.id, t), `${b.id} t=${t}`).toBeGreaterThan(0);
+      }
+      // 0,15 s après le début d'une pose tenue (et jusqu'à 0,15 s avant son terme), un bloc non coupé est plein.
+      for (let t = im[i - 1].t + 0.15; t <= im[i].t - 0.15 + 1e-9; t += 0.05) {
+        for (const b of s.toile.boites) {
+          if (etatDansCadre(emprise(b, s.cadrage), cameraA(s.trajectoire, t), s.cadrage) !== "coupe") expect(opaciteCadre(s, im, b.id, t), `${b.id} t=${t}`).toBe(1);
+        }
       }
     }
   });

@@ -38,7 +38,7 @@ import { Affiche } from "./Affiche";
 import { QueueFin } from "./QueueFin";
 import type { AvecAfficheIV } from "./variete/ouverture/donnees";
 import { decalageReferenceIV } from "./mise-en-page";
-import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, masqueToile, opaciteRail, placeRail } from "./plan";
+import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, masqueToile, noeudCourant, opaciteRail, placeRail } from "./plan";
 import { objetsA, planEnsemble, secousseAlerte, type ObjetSceneIV, type ProprietesSceneObjetsIV } from "./plan-objets";
 import { Recherche } from "./Recherche";
 import { RepereChapitre } from "./RepereChapitre";
@@ -132,6 +132,9 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
   const muetDessus = masqueSchemaMuet(p.hauteur, !!entete, "dessus");
   const placeDuRail = placeRail(p.hauteur);
   const camC = donneesToile(p.variete?.donnees?.camera);
+  // Une fois par image : le nœud dont on parle, pour le filet « jamais un bloc coupé » (toile et schéma muet).
+  const courant = noeudCourant(scene, t);
+  const imagesVues = camC ? camC.trajectoire : scene.trajectoire.images;
   const rail = camC?.code === "CAM-C" && cartesEnAttenteCamC(scene, camC.ensembles ?? [], t) ? 0 : opaciteRail(scene, p.hauteur, t, fonduToile);
   // Le calque caméra (CAM-B, CAM-C) recadre toute la scène ; le rail, fixe à l'écran, en reçoit l'inverse.
   const r = camC ? recadrage(cameraA(scene.trajectoire, t), cameraA({ images: camC.trajectoire }, t)) : { s: 1, tx: 0, ty: 0 };
@@ -153,21 +156,21 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
           {fonduToile > 0 ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: muetFuturs, WebkitMaskImage: muetFuturs }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
-                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="futurs" />
+                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="futurs" trajectoireVue={imagesVues} courant={courant} />
               </Camera>
             </AbsoluteFill>
           ) : null}
           {fonduToile > 0 && muetDessus ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: muetDessus, WebkitMaskImage: muetDessus }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
-                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="dits" />
+                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="dits" trajectoireVue={imagesVues} courant={courant} />
               </Camera>
             </AbsoluteFill>
           ) : null}
           {fonduToile > 0 ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: masque, WebkitMaskImage: masque }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
-                <Toile scene={scene} schema={p.schema} t={t} dejaVus={(p as { dejaVus?: string[] }).dejaVus} trajectoireVue={camC ? camC.trajectoire : scene.trajectoire.images} />
+                <Toile scene={scene} schema={p.schema} t={t} dejaVus={(p as { dejaVus?: string[] }).dejaVus} trajectoireVue={imagesVues} courant={courant} />
               </Camera>
             </AbsoluteFill>
           ) : null}
