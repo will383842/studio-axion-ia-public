@@ -135,25 +135,20 @@ export function reinitialiserAlerteConflitPourEssai(): void {
 }
 
 /**
- * Porte éteinte parce que la configuration réutilise USINE_PORTE_SECRET : le proxy répond 404 avant tout handler, donc c'est
- * ICI que l'alerte doit partir. Une seule fois par processus ; jamais de secret dans le message.
+ * Porte éteinte parce que la configuration réutilise USINE_PORTE_SECRET : le proxy répond 404 avant tout handler. Il ne fait
+ * QUE console.error, une fois par processus, texte fixe sans secret : aucun import serveur (base de données) dans le proxy.
+ * La ligne de journal en base est écrite par le handler (src/usine/garde-porte.ts).
  */
-export async function alerterConflitPorte(env: EnvPorte = process.env as EnvPorte): Promise<void> {
+export function alerterConflitPorte(env: EnvPorte = process.env as EnvPorte): void {
   if (conflitSignale || !secretsEnConflit(env)) return;
   conflitSignale = true;
   console.error("[porte-usine] ALERTE : un secret de la porte est identique à USINE_PORTE_SECRET ; porte éteinte (404). Un secret par sens.");
-  try {
-    const { journaliser } = await import("@/services/_commun");
-    await journaliser("porte", "Porte usine /api/usine → 404 : ALERTE configuration : secret de la porte identique à celui de l'autre sens, porte éteinte");
-  } catch {
-    /* le journal ne change jamais la réponse */
-  }
 }
 
 export async function proxy(requete: NextRequest) {
   const { pathname, search } = requete.nextUrl;
   if (/^\/api\/usine(\/|$)/.test(pathname)) {
-    await alerterConflitPorte();
+    alerterConflitPorte();
     return gardeUsine(requete) ?? NextResponse.next();
   }
   const partage = /^\/v\/([^/]+)\/?$/.exec(pathname);
