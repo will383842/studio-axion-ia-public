@@ -63,7 +63,11 @@ function compterAppel(maintenantMs: number): boolean {
   return fenetre.n <= APPELS_MAX_PAR_MINUTE;
 }
 
-/** Lit le corps en s'arrêtant au-delà de 16 Ko (null = trop gros). */
+/**
+ * Lit le corps en s'arrêtant au-delà de 16 Ko (null = trop gros). Cette lecture borne le TRAITEMENT du corps, pas la
+ * mémoire : le proxy couvre cette route (le jeton y est vérifié aussi), donc Next met le corps en mémoire jusqu'à 10 Mo
+ * (`experimental.proxyClientMaxBodySize`, réglage global, laissé par défaut) AVANT que ce handler ne s'exécute.
+ */
 async function lireCorpsBorne(requete: Request): Promise<string | null> {
   const annonce = Number(requete.headers.get("content-length"));
   if (Number.isFinite(annonce) && annonce > TAILLE_MAX_CORPS_OCTETS) return null;
