@@ -6,7 +6,7 @@ import React from "react";
  */
 import type { FormatIV } from "../../../../../src/briques/schema-motion/variete";
 import { a, ANTON, avance, C, Carte, CarteIcone, couleursNoeud, Ecran, Etiquette, Icone, INTER, T, tailleQuiTient, Vibration } from "../objets-ouverture";
-import { grosPlanOuvE, type DonneesOuverture, type NoeudSchemaOuverture } from "./donnees";
+import { grosPlanOuvE, libelleRecul, type DonneesOuverture, type NoeudSchemaOuverture } from "./donnees";
 import { PhraseChoc, zonePhrase, type PhraseBoucle } from "./phrase-choc";
 
 type D = Extract<DonneesOuverture, { code: "OUV-E" }>;
@@ -86,7 +86,8 @@ function Recul({ d, t, appoint }: { d: D; t: number; appoint: boolean }) {
     return <CarteIcone key={k} cx={x.cx} cy={x.cy} l={x.grand ? 360 : 220} h={x.grand ? 180 : 104} icone={x.noeud.icone} contour={c.contour} couleurIcone={c.icone} epaisseur={x.grand ? 6 : 5} />;
   };
   const libelle = d.detail.libelle;
-  const lc = 530;
+  const r = libelleRecul(libelle);
+  const lc = r.lc;
   const xc = Math.max(60, Math.min(1020 - lc, cible.cx - lc / 2));
   return (
     <div style={{ position: "absolute", inset: 0, clipPath: "inset(190px 0 0 0)" }}>
@@ -104,7 +105,15 @@ function Recul({ d, t, appoint }: { d: D; t: number; appoint: boolean }) {
       </svg>
       {tous.map((x, k) => carte(x, `n${k}`))}
       <Carte x={xc} y={cible.cy - 70} l={lc} h={140} contour={C.encre} epaisseur={6} rayon={30} ombre={0}>
-        <div style={{ position: "absolute", left: 50, top: 0, width: lc - 70, height: 140, display: "flex", alignItems: "center", justifyContent: "center", ...ANTON, textTransform: "none", fontSize: tailleQuiTient(libelle, 64, lc - 90, 58), color: C.encre, whiteSpace: "nowrap" }}>{libelle}</div>
+        {r.lignes.length === 1 ? (
+          <div style={{ position: "absolute", left: 50, top: 0, width: lc - 70, height: 140, display: "flex", alignItems: "center", justifyContent: "center", ...ANTON, textTransform: "none", fontSize: tailleQuiTient(libelle, 64, lc - 90, 58), color: C.encre, whiteSpace: "nowrap" }}>{libelle}</div>
+        ) : (
+          <div style={{ position: "absolute", left: 50, top: 0, width: lc - 70, height: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", ...ANTON, textTransform: "none", fontSize: r.taille, lineHeight: 1, color: C.encre }}>
+            {r.lignes.map((l, i) => (
+              <div key={i} style={{ whiteSpace: "nowrap" }}>{l}</div>
+            ))}
+          </div>
+        )}
       </Carte>
       <div style={{ position: "absolute", left: xc - 42, top: cible.cy - 40, width: 80, height: 80, borderRadius: "50%", background: C.encre, display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(-12deg)" }}>
         {d.detail.icone ? <Icone nom={d.detail.icone} taille={46} couleur={C.orangeVif} epaisseur={2.6} /> : null}
