@@ -22,6 +22,8 @@ export { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_M
 
 /** Mots de l'accroche au plus (Q07). */
 const ACCROCHE_MOTS = 8;
+/** Mots de la phrase-choc au plus : elle est affichée en très grand, centrée, mot à mot. */
+const PHRASE_CHOC_MOTS = 8;
 /** Au-delà, un écran est coupé en deux (mots) ; l'écran est un confort de lecture, pas une règle. */
 const ECRAN_MOTS_MAX = 16;
 const ECRAN_CARACTERES_MAX = 380;
@@ -80,7 +82,31 @@ function couper(jetons: readonly string[], max = Infinity): [string[], string[]]
   return [jetons.slice(0, meilleur + 1), jetons.slice(meilleur + 1)];
 }
 
-/** Les écrans : une phrase chacun, trop longue coupée, six au moins, soixante au plus ; la première fait 8 mots au plus. */
+/**
+ * Le dernier morceau devient la phrase-choc : s'il dépasse `PHRASE_CHOC_MOTS` mots, on le coupe au dernier signe de
+ * ponctuation dont la suite fait 8 mots ou moins, sinon on garde ses 8 derniers mots. La tête devient le résultat.
+ */
+function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
+  const total = nbMots(jetons);
+  if (total <= PHRASE_CHOC_MOTS) return null;
+  let vus = 0;
+  let coupe = -1;
+  let dernierRang = -1;
+  jetons.forEach((j, i) => {
+    if (/[\p{L}\p{N}]/u.test(j)) vus++;
+    if (i < jetons.length - 1 && (finDeMembre.test(j) || finDePhrase.test(j)) && vus >= 1 && total - vus >= 1 && total - vus <= PHRASE_CHOC_MOTS) {
+      coupe = i;
+      dernierRang = vus;
+    }
+  });
+  if (coupe < 0 || dernierRang < 1) {
+    vus = 0;
+    coupe = jetons.findIndex((j) => /[\p{L}\p{N}]/u.test(j) && ++vus >= total - PHRASE_CHOC_MOTS);
+  }
+  return [jetons.slice(0, coupe + 1), jetons.slice(coupe + 1)];
+}
+
+/** Les écrans : une phrase chacun, trop longue coupée, six au moins, soixante au plus ; la première fait 8 mots au plus, la dernière aussi (phrase-choc). */
 export function ecransDuScript(script: string): string[][] {
   let morceaux = phrases(script);
   if (morceaux.length && nbMots(morceaux[0]!) > ACCROCHE_MOTS) morceaux.splice(0, 1, ...couper(morceaux[0]!, ACCROCHE_MOTS));
@@ -103,6 +129,16 @@ export function ecransDuScript(script: string): string[][] {
     let rang = 1;
     for (let i = 1; i < morceaux.length - 1; i++) if (nbMots(morceaux[i]!) + nbMots(morceaux[i + 1]!) < nbMots(morceaux[rang]!) + nbMots(morceaux[rang + 1]!)) rang = i;
     morceaux = [...morceaux.slice(0, rang), [...morceaux[rang]!, ...morceaux[rang + 1]!], ...morceaux.slice(rang + 2)];
+  }
+  const fin = coupeFin(morceaux[morceaux.length - 1]!);
+  if (fin) {
+    morceaux.splice(morceaux.length - 1, 1, ...fin);
+    // Au-delà de soixante écrans, on fond deux écrans du corps (jamais la tête ni la phrase-choc).
+    while (morceaux.length > ECRANS_MAX && morceaux.length > 4) {
+      let rang = 1;
+      for (let i = 1; i < morceaux.length - 3; i++) if (nbMots(morceaux[i]!) + nbMots(morceaux[i + 1]!) < nbMots(morceaux[rang]!) + nbMots(morceaux[rang + 1]!)) rang = i;
+      morceaux = [...morceaux.slice(0, rang), [...morceaux[rang]!, ...morceaux[rang + 1]!], ...morceaux.slice(rang + 2)];
+    }
   }
   return morceaux;
 }

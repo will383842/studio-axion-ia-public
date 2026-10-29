@@ -265,7 +265,7 @@ export const metaGalerieIV = ({ props }: { props: ProprietesGalerieIV }) => ({
 });
 
 /** Le composant L9a d'un moment, à l'instant `t` (pixels de l'écran de référence). */
-function ObjetDuMoment({ m, t }: { m: MomentGalerie; t: number }) {
+function ObjetDuMoment({ m, t, hauteur }: { m: MomentGalerie; t: number; hauteur: number }) {
   switch (m.sorte) {
     case "paperboard":
       return <Paperboard etapes={m.etapes} t={t} debut={m.debut + 0.2} fond={m.fond} />;
@@ -286,7 +286,7 @@ function ObjetDuMoment({ m, t }: { m: MomentGalerie; t: number }) {
     case "sources":
       return <Sources sources={m.sources} cible={m.cible} t={t} fond={m.fond} />;
     case "phrase-choc":
-      return <PhraseChoc phrase={m.phrase} debut={m.debut + 0.3} heures={m.heures} t={t} />;
+      return <PhraseChoc phrase={m.phrase} debut={m.debut + 0.3} heures={m.heures} t={t} hauteur={hauteur} />;
     case "ensemble":
       return <EnsembleDuMoment m={m} t={t} />;
   }
@@ -322,7 +322,7 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & 
           <FondIV fond={m.fond} largeur={p.largeur} hauteur={p.hauteur} />
           {/* Seul le contenu tremble à l'arrivée d'une alerte : le fond reste, aucun bord découvert. */}
           <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} translate(${secousse.x * echelle}px, ${secousse.y * echelle}px) scale(${echelle})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
-            <ObjetDuMoment m={m} t={t} />
+            <ObjetDuMoment m={m} t={t} hauteur={p.hauteur} />
             {p.repere ? <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={m.fond} /> : null}
             {temoin && (m.sousTitre ?? m.entete?.titre) ? <TemoinSousTitres texte={(m.sousTitre ?? m.entete?.titre)!} fond={m.fond} /> : null}
           </AbsoluteFill>

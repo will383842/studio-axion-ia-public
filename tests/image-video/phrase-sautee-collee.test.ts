@@ -13,6 +13,7 @@ import type { MotHorodate } from "@/domaine/types";
 import { REGLES_COUPES_IV, coupesEnPleinSon, paroleRetireeIV, phrasesSauteesSansSilenceIV, placerCoupesIV, type MesureSonIV } from "@/moteurs/montage-image-video/assemblage";
 import { RECETTE_VOIX_IV } from "@/moteurs/montage-image-video/assemblage";
 import { planRaccordVoix, type Silence } from "@/moteurs/montage-image-video/emprunts";
+import { ecransDuScript } from "@/moteurs/montage-image-video/script-colle";
 
 const f = 0.02;
 const DUREE = 90;
@@ -157,5 +158,31 @@ describe("témoins : ce qui doit rester refusé ou inchangé", () => {
     };
     const { plan: p } = placerCoupesIV(plan, { corps: mots }, { corps: sil }, { corps: DUREE }, REGLES_COUPES_IV, { mesures: { corps: mesureDe(sil, { ...TRAINE, [fen(82.06)]: -50 }) }, retraitsVoulus: RETRAIT, garderPausesSansSilence: true });
     expect(p.morceaux.filter((y) => !y.silence)[1].debutSec).toBeLessThanOrEqual(82.08 + 1e-6);
+  });
+});
+
+describe("script collé : la phrase-choc finale reste dite mot pour mot et fait 8 mots au plus", () => {
+  const mots = (t: string) => t.split(/\s+/).filter(Boolean);
+  const bout = (e: string[][]) => e.map((x) => x.join(" ")).join(" ");
+  const SCRIPT = "Vous gérez une petite entreprise et vous perdez du temps sur des tâches répétitives ? Réservez un appel, nous regardons ensemble ce qui peut être automatisé chez vous. Merci pour votre attention aujourd'hui. Un deux trois quatre cinq six sept huit neuf dix onze douze.";
+
+  it("sans ponctuation utile : les 8 derniers mots, tous les mots du script gardés", () => {
+    const e = ecransDuScript(SCRIPT);
+    expect(mots(bout(e))).toEqual(mots(SCRIPT));
+    expect(mots(e.at(-1)!.join(" ")).length).toBeLessThanOrEqual(8);
+  });
+
+  it("coupe au dernier signe dont la suite fait 8 mots ou moins", () => {
+    const t = "Un deux trois quatre cinq six. Vous perdez du temps chaque jour, alors que tout peut être fait pour vous sans effort ni attente, très vite et bien.";
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("très vite et bien.");
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("une phrase finale de 8 mots ou moins reste telle quelle ; la tête est le résultat", () => {
+    const t = "Un deux trois quatre cinq six sept. Huit neuf dix onze douze treize. Le client attend. Vous gagnez du temps. Votre client a toujours une réponse.";
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("Votre client a toujours une réponse.");
+    expect(mots(bout(e))).toEqual(mots(t));
   });
 });
