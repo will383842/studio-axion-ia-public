@@ -84,7 +84,7 @@ export const REFERENCES: { readonly [A in AxeVariete]: CodesParAxe[A] | null } =
 });
 
 /** Axes dont la référence est AUSSI tirable (trop peu de variantes gardées, sinon toutes les vidéos se ressembleraient). */
-export const REFERENCES_TIRABLES: readonly AxeVariete[] = Object.freeze(["fin", "sousTitres", "fond", "rail", "objets", "entete"]);
+export const REFERENCES_TIRABLES: readonly AxeVariete[] = Object.freeze(["recit", "chiffres", "camera", "transitions", "fin", "sousTitres", "fond", "rail", "objets", "entete"]);
 
 /** Variantes retirées : jamais tirées. */
 export const RETIREES: { readonly [A in AxeVariete]: readonly CodesParAxe[A][] } = Object.freeze({
