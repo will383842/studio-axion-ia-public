@@ -173,10 +173,11 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
           ) : null}
           {/* CAM-B, CAM-C : le calque caméra repose la marque et l'en-tête, fixes, au-dessus de la scène recadrée (jamais deux titres). */}
           {camC ? null : <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={fondVu} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />}
-          <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
-          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
+      {/* Hors du calque caméra (déjà dites hors caméra) : le trait de fin n'est jamais recadré ni masqué. */}
+      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </ContexteVariete>
   );
 }
@@ -248,10 +249,11 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
           </AbsoluteFill>
           <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           {temoin ? <TemoinEntete p={p} t={t} /> : null}
-          <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
-          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
+      {/* Hors du calque caméra (déjà dites hors caméra) : le trait de fin n'est jamais recadré ni masqué. */}
+      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </ContexteVariete>
   );
 }
@@ -327,10 +329,11 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & 
             {temoin && (m.sousTitre ?? m.entete?.titre) ? <TemoinSousTitres texte={(m.sousTitre ?? m.entete?.titre)!} fond={m.fond} /> : null}
           </AbsoluteFill>
           <EnteteVarie entete={entete} ecoule={t - m.debut} sortie={entete ? Math.max(0, Math.min(1, (t - (m.fin - 0.15)) / 0.15)) : 0} fond={m.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
-          <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
-          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
+      {/* Hors du calque caméra (déjà dites hors caméra) : le trait de fin n'est jamais recadré ni masqué. */}
+      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </ContexteVariete>
   );
 }

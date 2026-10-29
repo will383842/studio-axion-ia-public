@@ -80,8 +80,12 @@ describe("lot G · la caméra et la ligne de temps ne changent pas", () => {
       expect(s.trajectoire, `${nom} ${b.id}`).toEqual(b.trajectoire);
       const r = controlerCamera({ id: b.id, toile: s.toile, trajectoire: s.trajectoire, mots: s.mots, cadrage: s.cadrage });
       // 29/10/2026 : en 4:5 le moteur voit le vrai défaut de la carte F (trois mots à 12,9 s) : remarque (zéro blocage), pas un refus.
-      if (nom === "F" && b.proprietes.hauteur === 1350) continue;
-      expect([...r.q15, ...r.coupes], `${nom} ${b.id}`).toEqual([]);
+      // Seul ce détail connu (séquence b05, blocs n07 à n11, de 12,9 à 14,1 s) est toléré ; tout autre défaut, ici ou ailleurs, échoue.
+      const connu = nom === "F" && b.proprietes.hauteur === 1350;
+      const q15Connu = /^séquence b05 : (Au mot du bloc n0[89] \(12\.877 s\), aucun cadrage ne garde tous les blocs entiers|au mot du bloc n(09|10) \(12,9 s\), le bloc n'est pas entier dans le cadre|au mot du bloc n11 \(13,2 s\), le bloc n'est pas entier dans le cadre)/;
+      const coupeConnue = /^séquence b05 : à (12,9|13,0|13,2|13,6|14,1) s, le bloc n(07|08|09|11) est coupé par le bord de l'écran\.$/;
+      expect(r.q15.filter((x) => !(connu && q15Connu.test(x))), `${nom} ${b.id} Q15`).toEqual([]);
+      expect(r.coupes.filter((x) => !(connu && coupeConnue.test(x))), `${nom} ${b.id} coupes`).toEqual([]);
     }
   });
 });

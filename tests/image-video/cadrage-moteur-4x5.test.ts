@@ -120,6 +120,10 @@ describe("4:5 : le vrai défaut de la carte F reste une remarque (zéro blocage)
       const entree: EntreeMiseEnSceneIV = { carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES };
       const issue = mettreEnSceneAvecFiletIV((adaptes) => mettreEnSceneIV({ ...entree, format: "4:5", fiche: ficheAdapteeIV(fiche, adaptes) }), [], `F ${fin.id}`, fiche);
       expect(issue.refus, fin.id).toEqual([]);
+      // Le défaut n'est pas caché : la remarque Q15 est bien dans le rapport de la vidéo gardée.
+      const q15 = issue.resultat.rapport.lignes.find((l) => l.code === "Q15");
+      expect(q15?.ok, fin.id).toBe(false);
+      expect(q15?.details.join(" "), fin.id).toContain("séquence b05");
     }
   });
 });

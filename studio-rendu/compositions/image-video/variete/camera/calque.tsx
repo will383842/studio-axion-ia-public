@@ -14,7 +14,7 @@ import { cameraA, ECRAN_IV, FONDU_CADRE, type PoseCamera } from "../../../../../
 import { miseEnPageDeHauteurIV } from "../../mise-en-page";
 import { FondIV } from "../fond/FondVarie";
 import { EnteteVarie } from "../entete/EnteteVarie";
-import { enteteA, fondSceneA, hautCadreDe, type SceneCalculee } from "../../plan";
+import { enteteA, fondSceneA, hautCadreDe, RAIL_45, type SceneCalculee } from "../../plan";
 import { useVariete } from "../ContexteVariete";
 import { donneesToile } from "./donnees";
 import { CartesEnAttente, PointSurLeFil } from "./point";
@@ -45,7 +45,7 @@ export function CalqueCamera({ children }: { children: ReactNode }) {
   const haut = entete ? hautCadreDe(height) * height : 0.1 * height;
   // 4:5 : en plus, le fondu bas du format (comme `masqueToile`) : la scène recadrée s'efface avant la bande des sous-titres.
   const m4x5 = miseEnPageDeHauteurIV(height);
-  const bas = m4x5.format === "4:5" ? `, #000 ${m4x5.zoneUtile.bas * height}px, transparent ${m4x5.bandeSousTitres.haut * height}px` : "";
+  const bas = m4x5.format === "4:5" ? `, #000 ${Math.max(m4x5.zoneUtile.bas * height, ((RAIL_45.haut + RAIL_45.hauteur) * width) / ECRAN_IV.largeur)}px, transparent ${m4x5.bandeSousTitres.haut * height}px` : "";
   const masque = `linear-gradient(to bottom, transparent 0, transparent ${haut - FONDU_CADRE * height}px, #000 ${haut}px${bas})`;
   const echelle = width / ECRAN_IV.largeur;
   // Pendant une vue d'ensemble, le plan est ivoire dans la ligne de temps (sous-titres à l'encre sombre) : fond ivoire aussi.
