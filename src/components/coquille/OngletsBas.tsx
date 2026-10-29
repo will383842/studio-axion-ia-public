@@ -11,11 +11,11 @@ import { cn } from "@/lib/cn";
 import { estActif, ONGLETS_BAS, tuilesPlusMobile } from "./navigation";
 
 /** Onglets du bas (mobile < 1024 px) : Accueil · Vidéos · ➕ · Écrire · Plus. */
-export function OngletsBas({ actionDeconnexion, surLeSite = false }: { actionDeconnexion: () => Promise<void>; surLeSite?: boolean }) {
+export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = false }: { actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
   const chemin = usePathname();
   const [plus, setPlus] = useState(false);
   const [creer, setCreer] = useState(false);
-  const plusActif = tuilesPlusMobile(surLeSite).some((t) => estActif(chemin, t));
+  const plusActif = tuilesPlusMobile(surLeSite, aPublier).some((t) => estActif(chemin, t));
 
   return (
     <>
@@ -73,7 +73,7 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false }: { actionDec
 
       <FeuilleBas ouverte={plus} onOuverteChange={setPlus} titre="Plus">
         <div className="grid grid-cols-2 gap-3">
-          {tuilesPlusMobile(surLeSite).map((t) => (
+          {tuilesPlusMobile(surLeSite, aPublier).map((t) => (
             <Tuile key={t.href} href={t.href} icone={t.icone} libelle={t.libelle} onClick={() => setPlus(false)} />
           ))}
           <form action={actionDeconnexion}>
