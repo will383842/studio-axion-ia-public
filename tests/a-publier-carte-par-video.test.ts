@@ -142,3 +142,29 @@ describe("À publier simplifiée — le serveur garde ses gardes", () => {
     expect(r.simulation).toBe(true);
   });
 });
+
+describe("À publier — petits défauts de la relecture", () => {
+  const publiee = { libelle: "Publiée", ton: "sauge" as const, lien: "https://exemple.test/p/1", envoye: true, comptesPris: [], sansCompte: false };
+  const echec = { libelle: "Échec", ton: "brique" as const, detail: "Refusé par Buffer", envoye: false, comptesPris: [], sansCompte: false };
+
+  it("un réseau pas prêt garde son état (Publiée + lien, échec) dans la ligne repliable", () => {
+    const lignes = [ligne("v-1", "instagram"), ligne("v-1", "facebook", { blocage: "Aucun fichier au bon format pour Facebook.", etat: publiee }), ligne("v-1", "linkedin", { compte: { probleme: "Aucun compte LinkedIn." }, etat: echec })];
+    const c = regrouperParVideo(lignes)[0];
+    expect(c.pasPretes.map((p) => p.etat?.libelle)).toEqual(["Publiée", "Échec"]);
+    const h = html(vue(lignes));
+    expect(h).toContain('href="https://exemple.test/p/1"');
+    expect(texte(h)).toContain("Voir la publication");
+    expect(texte(h)).toContain("Refusé par Buffer");
+  });
+
+  it("les pastilles d'état disent à quel réseau elles s'appliquent", () => {
+    const t = texte(html(vue([ligne("v-1", "instagram", { etat: publiee }), ligne("v-1", "facebook", { etat: echec })])));
+    expect(t).toContain("Instagram : Publiée");
+    expect(t).toContain("Facebook : Échec");
+  });
+
+  it("le bouton d'envoi est désactivé pendant l'écriture des cases", async () => {
+    const src = (await import("node:fs")).readFileSync("src/components/publication/LignesAPublier.tsx", "utf8");
+    expect(src).toMatch(/disabled=\{!peutEnvoyer \|\| enCoursCases\}/);
+  });
+});

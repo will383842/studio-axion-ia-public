@@ -60,7 +60,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
   const [enCours, demarrer] = useTransition();
   const [pourSujet, demarrerSujet] = useTransition();
   const toutOk = toutesCochees(carte.casesRequises, coches);
-  const etats = [...new Map(carte.pretes.flatMap((l) => (l.etat ? [[l.etat.libelle, l.etat] as const] : []))).values()];
+  const etats = [...carte.pretes, ...carte.pasPretes].flatMap((l) => (l.etat ? [{ cle: l.reseau, reseauNom: l.reseauNom, ...l.etat }] : []));
 
   /** Une ou plusieurs vérifications d'un coup : le serveur reçoit une écriture par case, comme avant. */
   function ecrire(cles: string[], v: boolean) {
@@ -103,8 +103,8 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
             {carte.titre}
           </Link>
           {etats.map((e) => (
-            <Pastille key={e.libelle} ton={e.ton}>
-              {e.libelle}
+            <Pastille key={e.cle} ton={e.ton}>
+              {e.reseauNom} : {e.libelle}
             </Pastille>
           ))}
         </div>
@@ -177,6 +177,17 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer }: { carte: CarteVideo; e
               {carte.pasPretes.map((p) => (
                 <li key={p.reseau}>
                   <span className="font-semibold text-texte">{p.reseauNom}</span> : {p.raison}
+                  {p.etat && (
+                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                      <Pastille ton={p.etat.ton}>{p.etat.libelle}</Pastille>
+                      {p.etat.lien && (
+                        <a href={p.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-orange-vif">
+                          Voir la publication
+                        </a>
+                      )}
+                      {p.etat.detail}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -270,7 +281,7 @@ function PanneauReseau({
         </p>
       )}
 
-      <Bouton icone="envoyer" pleineLargeur disabled={!peutEnvoyer} chargement={enCours} onClick={brouillon}>
+      <Bouton icone="envoyer" pleineLargeur disabled={!peutEnvoyer || enCoursCases} chargement={enCours} onClick={brouillon}>
         {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
       </Bouton>
       {raison && <p className="text-sm text-texte-doux">{raison}</p>}
