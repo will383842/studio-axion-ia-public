@@ -1,7 +1,8 @@
 /**
  * GARDE COMMUNE des routes /api/usine/* (porte v2 : l'Usine commande le studio). SERVEUR UNIQUEMENT.
- * Chaque handler l'appelle LUI-MÊME (`garderPorte`) : /api/usine/* est public pour le proxy (pas de session), donc le proxy ne
- * protège rien ici. Ordre des contrôles :
+ * Deux couches voulues, à ne retirer ni l'une ni l'autre : /api/usine/* est public pour la session (pas de cookie), mais le
+ * jeton est vérifié d'abord dans le proxy (src/proxy.ts, `gardeUsine`), puis de nouveau DANS chaque handler, qui appelle
+ * LUI-MÊME `garderPorte`. Ordre des contrôles :
  *  1. secret `STUDIO_PORTE_SECRET` absent, de moins de 32 caractères, ou égal à `USINE_PORTE_SECRET` (un secret par sens ; alerte au
  *     journal, sans secret) → 404 sans détail (porte éteinte) ;
  *  2. `Authorization: Bearer …` comparé à temps constant (empreintes SHA-256, `timingSafeEqual`) au secret et, pendant une

@@ -5,7 +5,7 @@ import { ErreurStudio } from "@/services/_commun";
 
 /**
  * Porte v2, appel 5 : l'Usine règle son budget du mois, toujours SOUS le plafond du studio (jamais au-dessus). Public pour
- * le proxy (pas de session) : la garde par secret est appelée ici, dans le handler. Un réglage, jamais un blocage.
+ * la session (pas de cookie), mais le jeton est vérifié dans le proxy PUIS de nouveau ici (`garderPorte`) : deux couches voulues. Un réglage, jamais un blocage.
  */
 export const dynamic = "force-dynamic";
 
