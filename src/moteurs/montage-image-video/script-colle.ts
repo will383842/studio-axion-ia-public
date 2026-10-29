@@ -15,6 +15,7 @@ import type { CarteImage } from "@/domaine/image-video/carte";
 import { motsDits, schemaFicheImage, VERSION_FICHE_IMAGE, type AccrocheFiche, type EcranFiche, type FicheImage, type Partie, type Scene } from "@/domaine/image-video/fiche";
 import { DEBUT_REFUS_ECRITURE, type ResultatEcritureIV } from "./ecriture";
 import { FOND_PAR_PARTIE } from "./recettes";
+import { REGLES_SCENE_IV } from "./regles-scene";
 import { aTrancherParWill, empreinteDeCarte, verifierScript, type ContexteRegles, type Manquement, type VerdictScript } from "./regles";
 import { refusScriptColle } from "./texte/script-limites";
 
@@ -24,8 +25,12 @@ export { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_M
 const ACCROCHE_MOTS = 8;
 /** Mots de la phrase-choc au plus : elle est affichée en très grand, centrée, mot à mot. */
 const PHRASE_CHOC_MOTS = 8;
-/** Au-delà, un écran est coupé en deux (mots) ; l'écran est un confort de lecture, pas une règle. */
-const ECRAN_MOTS_MAX = 16;
+/**
+ * Au-delà, un écran est coupé en deux (mots) ; l'écran est un confort de lecture, pas une règle. 12 mots (≈ 5,5 signes par mot,
+ * espace compris : 66 signes) tiennent dans les `signesMax` (70) du texte d'écran lisible (contrôle Q21) ; 16 mots (≈ 88 signes)
+ * le dépassaient et laissaient un plan trop long. La coupe ne change aucun mot dit.
+ */
+const ECRAN_MOTS_MAX = 12;
 const ECRAN_CARACTERES_MAX = 380;
 const ECRANS_MIN = 6;
 const ECRANS_MAX = 60;
@@ -158,10 +163,11 @@ const idEcran = (i: number) => `e${String(i + 1).padStart(2, "0")}`;
 const sansAccents = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const racines = (t: string) => new Set(sansAccents(t).split(/[^a-z0-9]+/).filter((m) => m.length >= 4));
 
-/** Texte affiché : le début de ce qui est dit, 80 caractères au plus, coupé entre deux mots. */
+/** Texte affiché : le début de ce qui est dit, `signesMax` caractères au plus (le seuil de lisibilité Q21), coupé entre deux mots. */
 function texteAffiche(t: string): string {
-  if (t.length <= 80) return t;
-  return t.slice(0, 80).replace(/\s+\S*$/, "");
+  const max = REGLES_SCENE_IV.signesMax;
+  if (t.length <= max) return t;
+  return t.slice(0, max).replace(/\s+\S*$/, "");
 }
 
 function partieDe(i: number, n: number): Partie {
