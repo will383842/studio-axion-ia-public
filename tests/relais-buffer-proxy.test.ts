@@ -6,6 +6,7 @@ import { NextRequest } from "next/server";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const { proxy } = await import("@/proxy");
+const { creerJetonMediaBuffer } = await import("@/lib/jeton-media-buffer");
 
 beforeAll(() => {
   process.env.SESSION_SECRET = "f".repeat(48);
@@ -21,6 +22,12 @@ describe("proxy : exemption stricte du relais Buffer", () => {
       expect(r.headers.get("x-middleware-next")).toBe("1");
     });
   }
+
+  it("un VRAI jeton produit par creerJetonMediaBuffer passe sans session", async () => {
+    const r = await appeler(`/api/media-buffer/${creerJetonMediaBuffer("fichier-quelconque")}/video.mp4`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get("x-middleware-next")).toBe("1");
+  });
 
   for (const chemin of ["/api/media-buffer-x/a/video.mp4", "/api/media-buffer/a/b/c", "/api/media-buffer/a/video.mp4/x", "/api/media-buffer/a/autre.mp4", "/api/media-buffer//video.mp4", "/api/media-buffer/a b/video.mp4"]) {
     it(`${chemin} ne passe PAS sans session : 401`, async () => {
