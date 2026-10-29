@@ -96,6 +96,11 @@ services:
       STUDIO_RENDU_CLE: ${STUDIO_RENDU_CLE:-}
       USINE_URL: ${USINE_URL:-}
       USINE_PORTE_SECRET: ${USINE_PORTE_SECRET:-}
+      # Porte v2 (usine -> studio, /api/usine/*) : secret DIFFERENT de USINE_PORTE_SECRET, 32 caractères au moins, sinon la porte répond 404.
+      # Le précédent n'est rempli que pendant une rotation, avec son échéance (date ISO avec Z ou décalage horaire, 24 h au plus dans le futur) ; sans échéance valide il est ignoré.
+      STUDIO_PORTE_SECRET: ${STUDIO_PORTE_SECRET:-}
+      STUDIO_PORTE_SECRET_PRECEDENT: ${STUDIO_PORTE_SECRET_PRECEDENT:-}
+      STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A: ${STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A:-}
       # Vidéos sur le site (lots S3-S4) : vides = le site factice. Le vrai client n'est jamais choisi par défaut.
       SITE_VIDEOS_URL: ${SITE_VIDEOS_URL:-}
       SITE_VIDEOS_SECRET: ${SITE_VIDEOS_SECRET:-}
