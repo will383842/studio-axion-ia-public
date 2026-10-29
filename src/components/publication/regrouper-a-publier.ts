@@ -8,6 +8,8 @@ export interface ReseauPasPret {
   reseau: LigneAPublier["reseau"];
   reseauNom: string;
   raison: string;
+  /** Ce qui s'est déjà passé pour ce réseau (Publiée + lien, échec…) : un réseau pas prêt garde son état. */
+  etat?: LigneAPublier["etat"];
 }
 
 export interface CarteVideo {
@@ -45,7 +47,7 @@ export function regrouperParVideo(lignes: LigneAPublier[]): CarteVideo[] {
     const premiere = toutes[0];
     const video = toutes.find((l) => l.blocageVideo);
     const pretes = video ? [] : toutes.filter((l) => !raisonPasPret(l));
-    const pasPretes = video ? [] : toutes.filter((l) => raisonPasPret(l)).map((l) => ({ reseau: l.reseau, reseauNom: l.reseauNom, raison: raisonPasPret(l)! }));
+    const pasPretes = video ? [] : toutes.filter((l) => raisonPasPret(l)).map((l) => ({ reseau: l.reseau, reseauNom: l.reseauNom, raison: raisonPasPret(l)!, ...(l.etat ? { etat: l.etat } : {}) }));
     const sujetId = toutes.find((l) => l.sujetId)?.sujetId;
     return {
       videoId: id,
