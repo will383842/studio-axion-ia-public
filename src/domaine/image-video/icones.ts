@@ -103,6 +103,8 @@ export const TABLE_ICONES: Readonly<Record<string, NomIconeIV>> = Object.freeze(
   resultat: "cible",
   decision: "boussole",
   direction: "boussole",
+  former: "former",
+  envoyer: "envoyer",
   formation: "former",
   diplome: "former",
   apprendre: "former",
@@ -153,21 +155,27 @@ export function iconeDe(vu: string): NomIconeIV | null {
 /** Icône neutre quand ni le mot vu ni le libellé ne rappellent rien de connu. */
 export const ICONE_NEUTRE: NomIconeIV = "document";
 
-/** Mots-clés (sans accent, minuscules) → icône, du plus précis au plus général : le premier qui apparaît dans le texte gagne. */
+/**
+ * Mots-clés (sur texte normalisé sans accent, tous ancrés par des limites de mot) → icône, du plus précis au plus général :
+ * le premier motif de la liste qui trouve dans « mot vu + libellé » mis bout à bout gagne.
+ */
 const REPLIS_ICONES: readonly (readonly [RegExp, NomIconeIV])[] = [
-  [/rappel|relance|alerte|sms|notif/, "cloche"],
-  [/rendez-?\s?vous|\brdv\b|calendrier|agenda|planning|creneau|\bdate\b|veille|semaine/, "calendrier"],
-  [/reponse|repond|message|question|echange|discussion|avis/, "message"],
-  [/presen|confirm|valid|accept|arrive|honore|termin/, "coche"],
-  [/mail|courrier|courriel/, "mail"],
-  [/envoi|envoy|transmis/, "envoyer"],
-  [/heure|delai|attente|duree|minute|retard/, "horloge"],
-  [/patient|client|personne|contact|prospect|visiteur|eleve|usager/, "utilisateur"],
-  [/equipe|groupe|cabinet/, "utilisateurs"],
-  [/dossier|document|fiche|compte|rapport|facture/, "document"],
-  [/prix|tarif|paiement|cout|euro/, "euro"],
-  [/objectif|resultat|but\b/, "cible"],
+  [/\b(rappel|relanc|alert|notif)\w*|\bsms\b/, "cloche"],
+  [/\brendez-?\s?vous\b|\brdv\b|\b(calendrier|agenda|planning|creneaux?|dates?|veille|semaines?)\b/, "calendrier"],
+  [/\b(reponses?|repond\w*|messages?|questions?|echanges?|discussions?|avis)\b/, "message"],
+  [/\b(presen(t|te|ts|tes|ce)|confirme?e?s?|confirmation|valide?e?s?|validation|accept(e|ee|es|er|ation)?|arriv\w*|honore\w*|termine?e?s?)\b/, "coche"],
+  [/\b(mails?|courriers?|courriels?)\b/, "mail"],
+  [/\b(envoi\w*|envoy\w*|transmis\w*)/, "envoyer"],
+  [/\b(heures?|delais?|attente|duree|minutes?|retards?)\b/, "horloge"],
+  [/\b(patients?|clients?|personnes?|contacts?|prospects?|visiteurs?|eleves?|usagers?)\b/, "utilisateur"],
+  [/\b(equipes?|groupes?|cabinets?)\b/, "utilisateurs"],
+  [/\b(dossiers?|documents?|fiches?|comptes?|rapports?|factures?)\b/, "document"],
+  [/\b(prix|tarifs?|paiements?|couts?|euros?)\b/, "euro"],
+  [/\b(objectifs?|resultats?|but)\b/, "cible"],
 ];
+
+/** Négation d'une validation (« invalide », « non confirmé », « pas accepté ») : on ne devine pas une coche, icône neutre. */
+const NEGATION_ICONES = /\b(in|non|pas)\s?(valid|confirm|accept)/;
 
 /**
  * Icône pour un mot vu, toujours une réponse : la table d'abord (`iconeDe`), sinon les mots-clés proches du mot vu puis du
@@ -177,6 +185,7 @@ export function iconeOuRepli(vu: string, libelle = ""): NomIconeIV {
   const connue = iconeDe(vu);
   if (connue) return connue;
   const texte = normalise(`${vu} ${libelle}`);
+  if (NEGATION_ICONES.test(texte)) return ICONE_NEUTRE;
   for (const [motif, icone] of REPLIS_ICONES) if (motif.test(texte)) return icone;
   return ICONE_NEUTRE;
 }

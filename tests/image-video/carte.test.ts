@@ -268,6 +268,18 @@ describe("table d'icônes", () => {
     expect(iconeOuRepli("licorne", "Un mot sans rapport")).toBe(ICONE_NEUTRE);
     expect(iconeOuRepli("licorne")).toBe(ICONE_NEUTRE);
     expect(iconeOuRepli("Enveloppe", "Rappel")).toBe("mail");
+    for (const nom of NOMS_ICONES_IV) expect(iconeDe(nom), nom).toBe(nom);
+    expect(iconeDe(iconeOuRepli("licorne", "Envoi du devis"))).not.toBeNull();
+    expect(iconeOuRepli("licorne", "Envoi du devis")).toBe("envoyer");
+    // Mots-clés ancrés (limites de mot, négation) : pas de coche/euro/cible trouvés au milieu d'un autre mot.
+    for (const l of ["Dossier invalide", "Presentation du projet", "Resultat indetermine", "Écoute active", "Début de journée", "Neurologue"]) {
+      const icone = iconeOuRepli("licorne", l);
+      expect(["coche", "euro"], l).not.toContain(icone);
+      expect(icone, l).not.toBe(l === "Début de journée" ? "cible" : "coche");
+    }
+    expect(iconeOuRepli("licorne", "Dossier invalide")).toBe(ICONE_NEUTRE);
+    expect(iconeOuRepli("licorne", "Écoute active")).toBe(ICONE_NEUTRE);
+    expect(iconeOuRepli("licorne", "Début de journée")).toBe(ICONE_NEUTRE);
     for (const mot of ["licorne", "rappel", "patient", "rendez-vous", "reponse", "presence", "confirmation", "x"]) expect(iconeDe(iconeOuRepli(mot)), mot).not.toBeNull();
   });
   it("la remarque « Icône inconnue » ne sort plus : Réponse du patient ?, Rappel la veille, Patient présent au rendez-vous", () => {
