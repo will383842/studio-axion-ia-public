@@ -39,7 +39,8 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
         )}
       </p>
 
-      <nav aria-label="Choisir un réseau" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+      <div className="relative">
+      <nav aria-label="Choisir un réseau" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pr-10 [scrollbar-width:none]">
         {(["tous", ...presents] as ReseauListe[]).map((r) => {
           const n = parReseau[r];
           return (
@@ -56,6 +57,8 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
           );
         })}
       </nav>
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 -right-4 w-10 bg-linear-to-l from-fond to-transparent sm:hidden" />
+      </div>
 
       <nav aria-label="Filtrer les vidéos" className="flex flex-wrap gap-2">
         {FILTRES.map((f) => (
