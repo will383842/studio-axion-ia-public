@@ -48,7 +48,12 @@ const rang = (cle: string, n: number) => parseInt(createHash("sha256").update(cl
 function possibles(axe: AxeVariete, carte: CarteImage, format: FormatIV): readonly string[] {
   const tirables = tirablesDe(axe) as readonly string[];
   const a = AXES_APPLIQUES_IV.find((x) => x.axe === axe);
-  return a ? a.possibles(carte, format).filter((c) => tirables.includes(c)) : tirables;
+  const ok = a ? a.possibles(carte, format).filter((c) => tirables.includes(c)) : [...tirables];
+  // La référence (rendu d'aujourd'hui) reste un choix honnête quand l'image permet d'autres variantes : sans elle, une carte
+  // qui n'en permet qu'une ou deux les rendait toutes pareilles (issue 124). Jamais seule : sans variante, `tirer` la prend d'office.
+  const ref = REFERENCES[axe];
+  if (ref && ok.length && !ok.includes(ref) && tirables.includes(ref)) ok.push(ref);
+  return ok;
 }
 
 function tirer(graine: string, carte: CarteImage, format: FormatIV, k: number): RecetteVarieteIV {
