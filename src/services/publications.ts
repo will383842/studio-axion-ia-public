@@ -31,6 +31,7 @@ import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, h
 import { cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
 import { exigerSession } from "./auth";
 import { urlsFichiers } from "./fichiers";
+import { adresseRelaisBuffer } from "./relais-buffer";
 import { versCarte } from "./presentation";
 import { creditsVideo, obtenirVideo } from "./videos";
 import { synchroniserEtats, versionDeVideo } from "./generateur";
@@ -692,15 +693,19 @@ async function rappelerVotreMarque(videoId: Id, essai: boolean): Promise<void> {
 /** Lot R1 (C10) : Buffer télécharge la vidéo quand il veut, jusqu'à la publication : adresse signée 7 jours. */
 export const DUREE_URL_BUFFER_SEC = 604_800;
 
-/** Adresse de la vidéo lisible par Buffer pendant 7 jours (https), ou une erreur claire. */
-async function urlVideoPourBuffer(fichierId: Id | undefined): Promise<string> {
+/**
+ * Adresse de la vidéo lisible par Buffer (https), ou une erreur claire. Buffer vérifie l'adresse par un HEAD, que l'adresse R2
+ * signée (GET seulement) refuse : l'adresse donnée est celle du relais du Studio (jeton signé, 30 jours), jamais l'adresse R2.
+ */
+export async function urlVideoPourBuffer(fichierId: Id | undefined): Promise<string> {
   const f = fichierId ? await depots().fichiers.obtenir(fichierId) : null;
-  // CORRECTEUR FINAL A : un fichier de démonstration (dossier du studio) n'est jamais signé pour Buffer.
+  // CORRECTEUR FINAL A : un fichier de démonstration (dossier du studio) n'est jamais donné à Buffer.
   if (estCleDemo(f?.cleStockage)) throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
   const stockage = await fournisseur("stockage");
-  const url = f?.cleStockage && stockage.urlLectureDuree ? await stockage.urlLectureDuree(f.cleStockage, DUREE_URL_BUFFER_SEC) : "";
-  if (!/^https:\/\//.test(url)) throw new ErreurStudio("FICHIER_HORS_LIGNE", "La vidéo n'est pas sur le stockage en ligne : Buffer ne pourrait pas la lire.");
-  return url;
+  // Le fichier est-il sur le stockage en ligne ? (l'adresse signée ne sert qu'à le savoir : elle n'est jamais donnée à Buffer)
+  const enLigne = f?.cleStockage && stockage.urlLectureDuree ? await stockage.urlLectureDuree(f.cleStockage, 60) : "";
+  if (!f || !/^https:\/\//.test(enLigne)) throw new ErreurStudio("FICHIER_HORS_LIGNE", "La vidéo n'est pas sur le stockage en ligne : Buffer ne pourrait pas la lire.");
+  return adresseRelaisBuffer(f.id);
 }
 
 export interface ProblemeEnvoi {
