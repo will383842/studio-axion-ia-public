@@ -14,8 +14,18 @@ vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ refre
 vi.mock("@/app/(studio)/videos/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 vi.mock("@/app/(studio)/mesures/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 
+const pages = vi.hoisted(() => ({ lignes: [] as unknown[], allumee: true, sessionKo: false }));
+vi.mock("@/services/auth", () => ({
+  exigerSession: async () => {
+    if (pages.sessionKo) throw new Error("SESSION_REFUSEE");
+  },
+}));
+vi.mock("@/services/a-publier", () => ({ pageAPublierAllumee: async () => pages.allumee, vueAPublier: async () => ({ envoiSimule: false, modeBuffer: "brouillon", lignes: pages.lignes }) }));
+
 const { ListeAPublier } = await import("@/components/publication/ListeAPublier");
 const { LignesAPublier } = await import("@/components/publication/LignesAPublier");
+const { default: PageAPublier } = await import("@/app/(studio)/a-publier/page");
+const { default: PageDetailAPublier } = await import("@/app/(studio)/a-publier/[id]/page");
 const R = await import("@/components/publication/liste-par-reseau");
 
 const CASES = ["image", "son", "sousTitres", "mentionIA", "droits"] as const;
@@ -202,12 +212,17 @@ describe("À publier par réseau — le détail", () => {
     for (const r of [undefined, "tiktok"]) expect(renderToStaticMarkup(createElement(LignesAPublier, { vue: vue(deux()), reseauOuvert: r }))).not.toContain('aria-expanded="true"');
   });
 
-  it("les pages lisent le réseau dans l'adresse", () => {
-    const liste = readFileSync("src/app/(studio)/a-publier/page.tsx", "utf8");
-    expect(liste).toContain("reseau={sp.reseau}");
-    const detail = readFileSync("src/app/(studio)/a-publier/[id]/page.tsx", "utf8");
-    expect(detail).toContain("reseauOuvert=");
-    expect(detail).toContain("retourDetail(");
+  it("les pages lisent le réseau dans l'adresse", async () => {
+    pages.sessionKo = false;
+    pages.allumee = true;
+    pages.lignes = deux();
+    const l = renderToStaticMarkup(await PageAPublier({ searchParams: Promise.resolve({ reseau: "linkedin", filtre: "toutes" }) }));
+    expect(lignesLi(l)).toBe(1);
+    expect(l).toMatch(/aria-current="page"[^>]*>.*LinkedIn/);
+    const d = renderToStaticMarkup(await PageDetailAPublier({ params: Promise.resolve({ id: "v-1" }), searchParams: Promise.resolve({ reseau: "linkedin", filtre: "toutes" }) }));
+    expect(d).toMatch(/aria-expanded="true"[^>]*aria-controls="reseau-v-1-linkedin"/);
+    expect(d).toMatch(/aria-expanded="false"[^>]*aria-controls="reseau-v-1-facebook"/);
+    expect(d).toContain('href="/a-publier?reseau=linkedin&amp;filtre=toutes"');
   });
 });
 

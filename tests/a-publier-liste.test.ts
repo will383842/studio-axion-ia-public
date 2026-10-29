@@ -14,8 +14,18 @@ vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ refre
 vi.mock("@/app/(studio)/videos/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 vi.mock("@/app/(studio)/mesures/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 
+const pages = vi.hoisted(() => ({ lignes: [] as unknown[], allumee: true, sessionKo: false }));
+vi.mock("@/services/auth", () => ({
+  exigerSession: async () => {
+    if (pages.sessionKo) throw new Error("SESSION_REFUSEE");
+  },
+}));
+vi.mock("@/services/a-publier", () => ({ pageAPublierAllumee: async () => pages.allumee, vueAPublier: async () => ({ envoiSimule: false, modeBuffer: "brouillon", lignes: pages.lignes }) }));
+
 const { ListeAPublier } = await import("@/components/publication/ListeAPublier");
 const { LignesAPublier } = await import("@/components/publication/LignesAPublier");
+const { default: PageAPublier } = await import("@/app/(studio)/a-publier/page");
+const { default: PageDetailAPublier } = await import("@/app/(studio)/a-publier/[id]/page");
 const L = await import("@/components/publication/liste-a-publier");
 const { regrouperParVideo } = await import("@/components/publication/regrouper-a-publier");
 
@@ -131,16 +141,32 @@ describe("À publier — le détail et le retour à la liste", () => {
     const src = readFileSync("src/components/publication/LignesAPublier.tsx", "utf8");
     expect(src).toMatch(/if \(n && retour\) router\.push\(retour\)/);
     expect(src).toMatch(/if \(programmees\.length && retour\) router\.push\(retour\)/);
-    const page = readFileSync("src/app/(studio)/a-publier/[id]/page.tsx", "utf8");
-    expect(page).toContain("retourDetail(sp, presents, filtreDepuis(sp.filtre)");
-    expect(page).toContain("notFound()");
   });
 
-  it("la page détail et la liste restent protégées par la session et le réglage éteint par défaut", () => {
-    for (const f of ["src/app/(studio)/a-publier/page.tsx", "src/app/(studio)/a-publier/[id]/page.tsx"]) {
-      const src = readFileSync(f, "utf8");
-      expect(src).toContain("exigerSession()");
-      expect(src).toContain("pageAPublierAllumee()");
-    }
+  it("une vidéo inconnue ouvre la page « introuvable »", async () => {
+    pages.sessionKo = false;
+    pages.allumee = true;
+    pages.lignes = [ligne("v-1", "instagram")];
+    await expect(PageDetailAPublier({ params: Promise.resolve({ id: "inconnu" }), searchParams: Promise.resolve({}) })).rejects.toThrow("NOT_FOUND");
+    const ok = await PageDetailAPublier({ params: Promise.resolve({ id: "v-1" }), searchParams: Promise.resolve({ reseau: "instagram", filtre: "envoyees" }) });
+    const h = renderToStaticMarkup(ok);
+    expect(h).toContain("Titre v-1");
+    expect(h).toContain('href="/a-publier?reseau=instagram&amp;filtre=envoyees"');
+  });
+
+  it("une session refusée fait échouer la page détail ET la page liste, sans rien lire", async () => {
+    pages.sessionKo = true;
+    pages.lignes = [ligne("v-1", "instagram")];
+    await expect(PageDetailAPublier({ params: Promise.resolve({ id: "v-1" }), searchParams: Promise.resolve({}) })).rejects.toThrow("SESSION_REFUSEE");
+    await expect(PageAPublier({ searchParams: Promise.resolve({}) })).rejects.toThrow("SESSION_REFUSEE");
+    pages.sessionKo = false;
+  });
+
+  it("réglage éteint : la liste et le détail sont introuvables", async () => {
+    pages.allumee = false;
+    pages.lignes = [ligne("v-1", "instagram")];
+    await expect(PageAPublier({ searchParams: Promise.resolve({}) })).rejects.toThrow("NOT_FOUND");
+    await expect(PageDetailAPublier({ params: Promise.resolve({ id: "v-1" }), searchParams: Promise.resolve({}) })).rejects.toThrow("NOT_FOUND");
+    pages.allumee = true;
   });
 });
