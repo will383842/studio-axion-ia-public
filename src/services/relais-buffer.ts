@@ -13,8 +13,16 @@ import { depots, ErreurStudio, fournisseur } from "./_commun";
 export const NOM_VIDEO_RELAIS = "video.mp4";
 /** Même adresse par défaut que les e-mails de secours (STUDIO_ADRESSE, variable déjà existante). */
 const ADRESSE_PAR_DEFAUT = "https://studio.axion-ia.com";
-/** Limite de débit par jeton : au plus 600 requêtes par minute (en mémoire du processus, sans infrastructure). */
+/**
+ * Limites de débit par jeton (compteurs EN MÉMOIRE du processus : remis à zéro au redémarrage, non partagés entre instances) :
+ * - HEAD et GET avec Range : au plus 600 requêtes par minute ;
+ * - GET SANS Range (fichier entier) : au plus 30 par minute ;
+ * - au plus 3 flux GET simultanés (compteur augmenté à l'ouverture, diminué à la fin, à l'abandon, à l'annulation ou en cas d'erreur).
+ * Dépassement : 429.
+ */
 export const LIMITE_REQUETES_PAR_MINUTE = 600;
+export const LIMITE_GET_ENTIERS_PAR_MINUTE = 30;
+export const LIMITE_FLUX_SIMULTANES = 3;
 const FENETRE_MS = 60_000;
 const DELAI_ENTETES_R2_MS = 30_000;
 const ENTETES_COMMUNS = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" } as const;
@@ -32,19 +40,65 @@ export function adresseRelaisBuffer(fichierId: string): string {
 }
 
 const appels = new Map<string, number[]>();
+const appelsEntiers = new Map<string, number[]>();
+const fluxOuverts = new Map<string, number>();
 
-/** Vrai si ce jeton dépasse la limite (appelé seulement après vérification du jeton : pas de croissance par des jetons faux). */
-function tropDeRequetes(jeton: string, maintenantMs: number): boolean {
-  const recents = (appels.get(jeton) ?? []).filter((t) => t > maintenantMs - FENETRE_MS);
+/** Enregistre un appel dans la fenêtre glissante de `compteurs` et dit si `limite` est dépassée (jetons déjà vérifiés : pas de croissance par des jetons faux). */
+function depasse(compteurs: Map<string, number[]>, jeton: string, maintenantMs: number, limite: number): boolean {
+  const recents = (compteurs.get(jeton) ?? []).filter((t) => t > maintenantMs - FENETRE_MS);
   recents.push(maintenantMs);
-  appels.set(jeton, recents);
-  if (appels.size > 1000) for (const [k, v] of appels) if (!v.some((t) => t > maintenantMs - FENETRE_MS)) appels.delete(k);
-  return recents.length > LIMITE_REQUETES_PAR_MINUTE;
+  compteurs.set(jeton, recents);
+  if (compteurs.size > 1000) for (const [k, v] of compteurs) if (!v.some((t) => t > maintenantMs - FENETRE_MS)) compteurs.delete(k);
+  return recents.length > limite;
+}
+
+/** Ouvre un flux pour ce jeton ; rend la fonction qui le ferme (une seule fois), ou null si 3 flux sont déjà ouverts. */
+function ouvrirFlux(jeton: string): (() => void) | null {
+  const n = fluxOuverts.get(jeton) ?? 0;
+  if (n >= LIMITE_FLUX_SIMULTANES) return null;
+  fluxOuverts.set(jeton, n + 1);
+  let ferme = false;
+  return () => {
+    if (ferme) return;
+    ferme = true;
+    const reste = (fluxOuverts.get(jeton) ?? 1) - 1;
+    if (reste > 0) fluxOuverts.set(jeton, reste);
+    else fluxOuverts.delete(jeton);
+  };
+}
+
+/** Le même flux, qui appelle `fermer` à la fin, à l'erreur et à l'annulation du lecteur. */
+function surveillerFlux(corps: ReadableStream<Uint8Array>, fermer: () => void): ReadableStream<Uint8Array> {
+  const lecteur = corps.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(controleur) {
+      try {
+        const { done, value } = await lecteur.read();
+        if (done) {
+          fermer();
+          controleur.close();
+        } else controleur.enqueue(value);
+      } catch (e) {
+        fermer();
+        controleur.error(e);
+      }
+    },
+    async cancel(raison) {
+      fermer();
+      await lecteur.cancel(raison).catch(() => undefined);
+    },
+  });
 }
 
 /** Remet les compteurs à zéro (tests seulement). */
 export function reinitialiserLimitePourEssai(): void {
   appels.clear();
+  appelsEntiers.clear();
+  fluxOuverts.clear();
+}
+
+function tropDeRequetes(): Response {
+  return new Response("Trop de requêtes.", { status: 429, headers: { ...ENTETES_COMMUNS, "Retry-After": "60", "Content-Type": "text/plain; charset=utf-8" } });
 }
 
 function introuvable(): Response {
@@ -63,24 +117,36 @@ function plageValable(range: string | null): string | null {
 export async function servirRelaisBuffer(methode: "GET" | "HEAD", jeton: string, nom: string, range: string | null, signalClient?: AbortSignal, maintenantMs: number = Date.now()): Promise<Response> {
   const fichierId = nom === NOM_VIDEO_RELAIS ? verifierJetonMediaBuffer(jeton, maintenantMs) : null;
   if (!fichierId) return introuvable();
-  if (tropDeRequetes(jeton, maintenantMs)) return new Response("Trop de requêtes.", { status: 429, headers: { ...ENTETES_COMMUNS, "Retry-After": "60", "Content-Type": "text/plain; charset=utf-8" } });
+  const plage = plageValable(range);
+  if (depasse(appels, jeton, maintenantMs, LIMITE_REQUETES_PAR_MINUTE)) return tropDeRequetes();
+  if (methode === "GET" && !plage && depasse(appelsEntiers, jeton, maintenantMs, LIMITE_GET_ENTIERS_PAR_MINUTE)) return tropDeRequetes();
 
-  const fichier = await depots().fichiers.obtenir(fichierId);
-  // Même garde que l'envoi : un fichier de démonstration ne sort jamais.
-  if (!fichier || !fichier.cleStockage || estCleDemo(fichier.cleStockage)) return introuvable();
-
-  if (methode === "HEAD") {
-    return new Response(null, { status: 200, headers: { ...ENTETES_COMMUNS, "Content-Type": "video/mp4", "Content-Length": String(fichier.taille), "Accept-Ranges": "bytes" } });
-  }
-
+  let fermerFlux: (() => void) | null = null;
+  let flux: ReadableStream<Uint8Array> | null = null;
   try {
+    const fichier = await depots().fichiers.obtenir(fichierId);
+    // Même garde que l'envoi : un fichier de démonstration ne sort jamais ; seul un fichier prêt et de type vidéo sort.
+    if (!fichier || !fichier.cleStockage || estCleDemo(fichier.cleStockage) || fichier.statut !== "pret" || !fichier.mime.startsWith("video/")) return introuvable();
     const stockage = await fournisseur("stockage");
+
+    if (methode === "HEAD") {
+      // La taille vient de R2 (HEAD signé en interne), pas de la base ; le contenu n'est jamais lu.
+      const taille = stockage.tailleObjet ? await stockage.tailleObjet(fichier.cleStockage) : null;
+      if (taille === null || !Number.isSafeInteger(taille) || taille <= 0) return indisponible();
+      return new Response(null, { status: 200, headers: { ...ENTETES_COMMUNS, "Content-Type": "video/mp4", "Content-Length": String(taille), "Accept-Ranges": "bytes" } });
+    }
+
+    fermerFlux = ouvrirFlux(jeton);
+    if (!fermerFlux) return tropDeRequetes();
     const signee = stockage.urlLectureDuree ? await stockage.urlLectureDuree(fichier.cleStockage, 300) : "";
     if (!/^https:\/\//.test(signee)) return indisponible();
-    const plage = plageValable(range);
     const controle = new AbortController();
     const delai = setTimeout(() => controle.abort(), DELAI_ENTETES_R2_MS);
-    signalClient?.addEventListener("abort", () => controle.abort(), { once: true });
+    const fermer = fermerFlux;
+    signalClient?.addEventListener("abort", () => {
+      controle.abort();
+      fermer();
+    }, { once: true });
     let r: Response;
     try {
       r = await fetch(signee, { headers: { "accept-encoding": "identity", ...(plage ? { range: plage } : {}) }, signal: controle.signal, cache: "no-store" });
@@ -96,14 +162,24 @@ export async function servirRelaisBuffer(methode: "GET" | "HEAD", jeton: string,
       console.error(`[relais-buffer] stockage : réponse ${r.status}`);
       return indisponible();
     }
+    const contenu = r.headers.get("content-range");
+    if (r.status === 206 && !contenu) {
+      // Un 206 sans Content-Range ne dit pas quelle partie du fichier arrive : jamais présenté comme un 200.
+      await r.body.cancel().catch(() => undefined);
+      console.error("[relais-buffer] stockage : 206 sans Content-Range");
+      return indisponible();
+    }
     const entetes: Record<string, string> = { ...ENTETES_COMMUNS, "Content-Type": "video/mp4", "Accept-Ranges": "bytes" };
     const longueur = r.headers.get("content-length");
     if (longueur) entetes["Content-Length"] = longueur;
-    const contenu = r.headers.get("content-range");
     if (r.status === 206 && contenu) entetes["Content-Range"] = contenu;
-    return new Response(r.body, { status: r.status === 206 && contenu ? 206 : 200, headers: entetes });
+    flux = surveillerFlux(r.body, fermerFlux);
+    return new Response(flux, { status: r.status, headers: entetes });
   } catch {
-    console.error("[relais-buffer] stockage injoignable");
+    console.error("[relais-buffer] base ou stockage injoignable");
     return indisponible();
+  } finally {
+    // Flux jamais remis à la réponse (refus, erreur) : le compteur est rendu tout de suite.
+    if (!flux) fermerFlux?.();
   }
 }
