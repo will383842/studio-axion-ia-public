@@ -156,9 +156,11 @@ function profondeurs(noeuds: NoeudEntree[], schema: SchemaEntree, colonneDe: Map
 export const VARIANTES_DISPOSITION = Object.freeze(["normale", "serree", "branche-centree"] as const);
 /**
  * Variantes du 4:5, dont le cadre lisible est court (`cadre.bas` < 1) : `large` pose des boîtes de 960 px (moins de
- * lignes, donc moins hautes) ; `disposerEtCadrer` n'utilise cette liste que si le cadre est court.
+ * lignes, donc moins hautes) ; `etroite` (en dernier, donc seulement quand aucune autre variante n'est propre) pose les
+ * cartes d'une même rangée l'une sous l'autre dès que deux ne tiennent pas côte à côte dans 1080 px (rangée de 1000 px au plus) ;
+ * `disposerEtCadrer` n'utilise cette liste que si le cadre est court.
  */
-export const VARIANTES_DISPOSITION_4X5 = Object.freeze(["normale", "large", "serree", "branche-centree"] as const);
+export const VARIANTES_DISPOSITION_4X5 = Object.freeze(["normale", "large", "serree", "branche-centree", "etroite"] as const);
 export type VarianteDisposition = (typeof VARIANTES_DISPOSITION_4X5)[number];
 
 /**
@@ -178,6 +180,7 @@ const RANGEE_SERREE = { largeurMaxRangee: 520, rangeeMax: 1120 };
 const REGLAGES_VARIANTE: Record<VarianteDisposition, ReglageVariante> = {
   normale: { largeurMaxBranche: MESURES_TOILE.largeurMax, ecartBranches: MESURES_TOILE.ecartX, largeurMaxRangee: MESURES_TOILE.largeurMax, rangeeMax: Infinity, largeurMaxSeule: MESURES_TOILE.largeurMax },
   large: { largeurMaxBranche: 960, ecartBranches: 170, largeurMaxRangee: 560, rangeeMax: 1200, largeurMaxSeule: 960 },
+  etroite: { largeurMaxBranche: 960, ecartBranches: 170, largeurMaxRangee: 480, rangeeMax: 1000, largeurMaxSeule: 960 },
   serree: { largeurMaxBranche: 520, ecartBranches: 170, ...RANGEE_SERREE, largeurMaxSeule: MESURES_TOILE.largeurMax },
   "branche-centree": { largeurMaxBranche: MESURES_TOILE.largeurMax, ecartBranches: 120, ...RANGEE_SERREE, largeurMaxSeule: MESURES_TOILE.largeurMax },
 };
