@@ -278,37 +278,40 @@ describe("4:5 : carte F, variante « etroite » (trois cartes dites à moins d'u
     const s = calculerScene(b.proprietes);
     return { b, s, defauts: controlerCadrage(s.toile, s.trajectoire, s.mots, s.cadrage) };
   };
+  const f45 = toileF("4:5");
+  const f916 = toileF("9:16");
 
   it("F en 4:5 : les deux cartes « CRM » et « Compta » ne sont plus côte à côte (elles ne tenaient pas ensemble dans 1080 px), plus d'alerte « aucun cadrage »", () => {
-    const { s, defauts } = toileF("4:5");
+    const { s, b, defauts } = f45;
     expect(s.variante).toBe("etroite");
     const [n08, n09] = ["n08", "n09"].map((id) => s.toile.boites.find((x) => x.id === id)!);
     expect(Math.abs(n08.y - n09.y)).toBeGreaterThan(Math.min(n08.hauteur, n09.hauteur) / 2);
     expect(s.trajectoire.alertes.filter((a) => a.includes("aucun cadrage") || a.includes("trop grand"))).toEqual([]);
     // Avant (variante « large ») : 10 défauts de cadrage ; il en reste 4 (trois mots à 12,9 s, cadre lisible de 564 px), jamais un refus.
     expect(defauts.length).toBeLessThanOrEqual(4);
-    const { b } = toileF("4:5");
     const large = disposerToile(b.proprietes.schema, "large");
     const cadrage = cadrageDeToile(large, b.proprietes);
     const tr = trajectoireCamera(large, s.mots, b.proprietes.dureeSec, cadrage);
     expect(controlerCadrage(large, tr, s.mots, cadrage).length).toBeGreaterThan(defauts.length);
   });
 
-  it("le texte reste à la même taille qu'en 9:16 (la variante ne réduit aucune police) et chaque carte est entière dans la toile", () => {
-    const { s, b } = toileF("4:5");
-    const plus = toileF("9:16");
+  it("le texte reste à la même taille qu'en 9:16 (la variante ne réduit aucune police) et chaque carte (≤ 1000 px) tient dans l'écran de 1080 px", () => {
+    const { s, b } = f45;
+    const plus = f916;
     const tailles = (t: typeof s.toile) => new Set(t.boites.flatMap((x) => x.textes.map((y) => `${y.role}:${y.taille}`)));
     expect(tailles(s.toile)).toEqual(tailles(plus.s.toile));
     for (const x of s.toile.boites) {
       expect(x.x, x.id).toBeGreaterThanOrEqual(0);
-      expect(x.x + x.largeur, x.id).toBeLessThanOrEqual(s.toile.largeur);
+      // La toile est plus large que l'écran (la caméra la parcourt) : c'est la largeur de chaque carte qui doit tenir dans l'écran.
+      expect(x.largeur, x.id).toBeLessThanOrEqual(1000);
+      expect(x.largeur, x.id).toBeLessThan(ECRAN_IV.largeur);
     }
     expect(b.proprietes.hauteur).toBe(H45);
   });
 
   it("9:16 inchangé : liste des variantes de toujours, F b05 garde « serree », et seule la carte F choisit « etroite » en 4:5", () => {
     expect(VARIANTES_DISPOSITION).toEqual(["normale", "serree", "branche-centree"]);
-    expect(toileF("9:16").s.variante).toBe("serree");
+    expect(f916.s.variante).toBe("serree");
     for (const nom of ["A", "B", "C", "D", "E"] as const) {
       const carte = lire(nom);
       const fiche = FICHES_SIMULEES[IMAGES[nom]];
@@ -316,6 +319,19 @@ describe("4:5 : carte F, variante « etroite » (trois cartes dites à moins d'u
       const { ligne } = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, format: "4:5" });
       for (const b of ligne.blocs.filter((x): x is Extract<BlocRenduIV, { sorte: "toile" }> => x.sorte === "toile")) expect(calculerScene(b.proprietes).variante, `${nom} ${b.id}`).not.toBe("etroite");
     }
+  });
+});
+
+describe("4:5 : disposerEtCadrer garde la première variante quand « large » et « etroite » donnent la même disposition", () => {
+  it("carte A, cadre court sans issue : « large » (avant « etroite » dans la liste) est retenue, jamais « etroite »", () => {
+    const carte = lire("A");
+    const mots = motsSimules(carte);
+    const dureeSec = mots[mots.length - 1].t + 3;
+    expect(disposerToile(carte as unknown as SchemaEntree, "etroite")).toEqual(disposerToile(carte as unknown as SchemaEntree, "large"));
+    expect(VARIANTES_DISPOSITION_4X5.indexOf("large")).toBeLessThan(VARIANTES_DISPOSITION_4X5.indexOf("etroite"));
+    const r = disposerEtCadrer(carte as unknown as SchemaEntree, mots, dureeSec, () => ({ cadre: { haut: 0, bas: 0.5 } }));
+    expect(r.defauts.length).toBeGreaterThan(0); // aucune variante propre : le choix est « la moins mauvaise, à égalité la première »
+    expect(r.variante).toBe("large");
   });
 });
 
