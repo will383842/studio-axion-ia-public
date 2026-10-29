@@ -138,6 +138,14 @@ async function brouillonDeLOrphelin(e: ElementReserveIV, r: ReserveIV): Promise<
   return liste.sort((a, b) => a.creeLe.localeCompare(b.creeLe))[0]?.id ?? null;
 }
 
+/** Ce que le prochain clic fabriquerait (l'orphelin d'abord, sinon le prochain à faire) : nombre de réseaux et prix « au plus ». Information seulement. */
+export function apercuSuivantReserveIV(r: ReserveIV, tauxUsdEur: number): { reseaux: number; centimes: number } | null {
+  const e = orphelinIV(r, maintenant()) ?? prochainIV(r);
+  if (!e) return null;
+  const reseaux = RESEAUX_IV.filter((x) => e.reseaux.includes(x));
+  return { reseaux: reseaux.length, centimes: prixDuDepot(reseaux, tauxUsdEur) };
+}
+
 /**
  * UN clic = UNE fabrication. Sous verrou : l'orphelin éventuel (sinon le prochain à faire) est marqué « en cours ».
  * Hors verrou : le dépôt (script dit tel quel, idée décrite). Puis sous verrou : vidéo liée, ou retour à faire en fin de file.
@@ -184,11 +192,22 @@ export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}):
     issue = await deposer(prixDuDepot(reseaux, taux));
     if (issue.statut === "accord-requis") issue = await deposer(issue.centimes);
   } catch (e) {
-    if (e instanceof ErreurStudio) throw e;
-    // Panne imprévue : l'élément ne reste pas « en cours » sans vidéo ; il revient à faire, à relire.
-    console.error(e);
-    await modifier((r) => ({ reserve: remettreAFaireIV(r, element.id, NOTE_A_RELIRE_IV), sortie: null }));
-    return { statut: "refusee", id: element.id, phrase: PHRASES_RESERVE_IV.panne };
+    // Le dépôt a pu créer le brouillon avant de tomber : on le retrouve (reserveId) avant toute remise à faire.
+    const brouillon = await brouillonDeLOrphelin(element, await lireReserveIV());
+    if (brouillon) {
+      if (await dernierTravail(brouillon)) {
+        await modifier((r) => ({ reserve: lierVideoIV(r, element.id, brouillon), sortie: null }));
+        return { statut: "lancee", id: element.id, videoId: brouillon, reprise: true };
+      }
+      const { abandonnerBrouillon } = await import("./videos");
+      await abandonnerBrouillon(brouillon);
+    }
+    // Une phrase métier est la note ; une panne imprévue revient à faire, à relire.
+    const metier = e instanceof ErreurStudio;
+    if (!metier) console.error(e);
+    const phrase = metier ? e.message : PHRASES_RESERVE_IV.panne;
+    await modifier((r) => ({ reserve: remettreAFaireIV(r, element.id, metier ? e.message : NOTE_A_RELIRE_IV), sortie: null }));
+    return { statut: "refusee", id: element.id, phrase };
   }
 
   if (issue.statut === "lancee") {

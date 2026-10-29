@@ -12,8 +12,8 @@ import { ajouterReserveIVAction, fabriquerSuivantReserveIVAction, retirerReserve
 import { Bouton } from "@/components/ui/Bouton";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
-import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
-import { prochainIV, type ElementReserveIV, type NatureReserveIV, type ReserveIV } from "@/domaine/image-video/reserve";
+import type { ReseauIV } from "@/domaine/image-video/plafonds";
+import type { ElementReserveIV, NatureReserveIV, ReserveIV } from "@/domaine/image-video/reserve";
 import { euros, nomReseau, RESEAUX_ECRAN_IV } from "./vue";
 
 /** Au bout de ce nombre d'essais sans succès, l'élément s'affiche en rouge. */
@@ -37,7 +37,7 @@ const resume = (t: string) => {
   return c.length > 140 ? `${c.slice(0, 140).join("")}…` : t.replace(/\s+/g, " ");
 };
 
-function Ligne({ e, onRetirer }: { e: ElementReserveIV; onRetirer?: (id: string) => void }) {
+function Ligne({ e, onRetirer, occupe }: { e: ElementReserveIV; onRetirer?: (id: string) => void; occupe: boolean }) {
   const rouge = e.etat === "a-faire" && e.essais >= ESSAIS_ROUGE_IV;
   return (
     <li className={`rounded-2xl border px-3 py-2 ${rouge ? "border-brique/40 bg-brique-doux" : "border-trait bg-surface-1"}`}>
@@ -60,7 +60,7 @@ function Ligne({ e, onRetirer }: { e: ElementReserveIV; onRetirer?: (id: string)
         </p>
       )}
       {onRetirer && (
-        <Bouton variante="fantome" taille="md" onClick={() => onRetirer(e.id)}>
+        <Bouton variante="fantome" taille="md" disabled={occupe} aria-label={`Retirer : ${resume(e.texte)}`} onClick={() => onRetirer(e.id)}>
           Retirer
         </Bouton>
       )}
@@ -68,7 +68,7 @@ function Ligne({ e, onRetirer }: { e: ElementReserveIV; onRetirer?: (id: string)
   );
 }
 
-function Colonne({ titre, elements, vide, onRetirer }: { titre: string; elements: ElementReserveIV[]; vide: string; onRetirer?: (id: string) => void }) {
+function Colonne({ titre, elements, vide, onRetirer, occupe }: { titre: string; elements: ElementReserveIV[]; vide: string; onRetirer?: (id: string) => void; occupe: boolean }) {
   return (
     <section aria-label={titre} className="space-y-2">
       <h2 className="text-lg font-semibold text-texte">
@@ -77,7 +77,7 @@ function Colonne({ titre, elements, vide, onRetirer }: { titre: string; elements
       {elements.length ? (
         <ul className="space-y-2">
           {elements.map((e) => (
-            <Ligne key={e.id} e={e} onRetirer={onRetirer} />
+            <Ligne key={e.id} e={e} onRetirer={onRetirer} occupe={occupe} />
           ))}
         </ul>
       ) : (
@@ -87,7 +87,7 @@ function Colonne({ titre, elements, vide, onRetirer }: { titre: string; elements
   );
 }
 
-export function Reserve({ reserve, montants }: { reserve: ReserveIV; /** Prix « au plus » par nombre de réseaux (centimes) : information seulement. */ montants: Record<number, number> }) {
+export function Reserve({ reserve, suivantReseaux, prix }: { reserve: ReserveIV; /** Réseaux du prochain élément (0 : rien à fabriquer), calculé côté serveur. */ suivantReseaux: number; /** Prix « au plus » du prochain, en centimes, calculé côté serveur : information seulement. */ prix: number }) {
   const router = useRouter();
   const [nature, setNature] = useState<NatureReserveIV>("script");
   const [texte, setTexte] = useState("");
@@ -99,8 +99,6 @@ export function Reserve({ reserve, montants }: { reserve: ReserveIV; /** Prix «
   const aFaire = reserve.elements.filter((e) => e.etat === "a-faire").sort((a, b) => a.rang - b.rang);
   const enCours = reserve.elements.filter((e) => e.etat === "en-cours");
   const faits = reserve.elements.filter((e) => e.etat === "fait");
-  const suivant = prochainIV(reserve);
-  const prix = suivant ? (montants[suivant.reseaux.length] ?? montants[RESEAUX_IV.length] ?? 0) : 0;
   const blocs = decouperEnMasse(texte);
 
   async function ajouter() {
@@ -175,7 +173,7 @@ export function Reserve({ reserve, montants }: { reserve: ReserveIV; /** Prix «
       <div className="space-y-2">
         {/* Le prix informe seulement : le bouton n'est jamais désactivé par lui. */}
         <Bouton icone="film" taille="lg" pleineLargeur chargement={occupe} disabled={occupe} onClick={() => void fabriquer()}>
-          {suivant ? `Fabriquer le suivant (au plus ${euros(prix)})` : "Fabriquer le suivant"}
+          {suivantReseaux > 0 ? `Fabriquer le suivant (au plus ${euros(prix)})` : "Fabriquer le suivant"}
         </Bouton>
         {phrase && (
           <p role="alert" className="text-sm text-brique">
@@ -185,9 +183,9 @@ export function Reserve({ reserve, montants }: { reserve: ReserveIV; /** Prix «
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Colonne titre="À faire" elements={aFaire} vide="Rien en attente." onRetirer={(id) => void retirer(id)} />
-        <Colonne titre="En cours" elements={enCours} vide="Aucune vidéo en route." />
-        <Colonne titre="Fait" elements={faits} vide="Rien de fait pour le moment." />
+        <Colonne titre="À faire" elements={aFaire} vide="Rien en attente." onRetirer={(id) => void retirer(id)} occupe={occupe} />
+        <Colonne titre="En cours" elements={enCours} vide="Aucune vidéo en route." occupe={occupe} />
+        <Colonne titre="Fait" elements={faits} vide="Rien de fait pour le moment." occupe={occupe} />
       </div>
     </div>
   );

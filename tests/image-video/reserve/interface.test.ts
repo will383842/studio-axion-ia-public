@@ -22,8 +22,7 @@ const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&a
 const T0 = "2030-01-01T10:00:00.000Z";
 const el = (id: string, plus: Partial<ElementReserveIV>): ElementReserveIV => ({ id, nature: "idee", texte: `Idée fictive ${id}`, reseaux: ["linkedin"], etat: "a-faire", rang: 1, ajouteLe: T0, essais: 0, ...plus });
 const reserve = (...elements: ElementReserveIV[]): ReserveIV => ({ version: "reserve-iv/1", elements });
-const MONTANTS = { 1: 120, 2: 180, 3: 240, 4: 300 };
-const rendre = (r: ReserveIV, montants: Record<number, number> = MONTANTS) => renderToStaticMarkup(createElement(Reserve, { reserve: r, montants }));
+const rendre = (r: ReserveIV, prix = 120, suivantReseaux = r.elements.some((e) => e.etat === "a-faire") ? 1 : 0) => renderToStaticMarkup(createElement(Reserve, { reserve: r, suivantReseaux, prix }));
 
 describe("Réserve · rendu", () => {
   const r = reserve(
@@ -55,12 +54,15 @@ describe("Réserve · rendu", () => {
 
   it("Retirer n'apparaît que sur À faire", () => {
     const html = rendre(r);
-    expect(html.match(/Retirer/g)).toHaveLength(1);
+    expect(html.match(/>Retirer</g)).toHaveLength(1);
   });
 
   it("un élément à faire après 2 essais est en rouge, avec sa phrase", () => {
     const html = rendre(reserve(el("r1", { essais: 2, note: "Le format n'est pas ouvert." }), el("n1", { rang: 2, essais: 1 })));
-    expect(html.match(/text-brique/g)?.length).toBeGreaterThanOrEqual(2);
+    const lignes = [...html.matchAll(/<li\b[\s\S]*?<\/li>/g)].map((m) => m[0]);
+    const li = (id: string) => lignes.find((l) => l.includes(`Idée fictive ${id}`))!;
+    expect(li("r1")).toContain("text-brique");
+    expect(li("n1")).not.toContain("text-brique");
     expect(texte(html)).toContain("Pas réussi après 2 essais : Le format n'est pas ouvert.");
     expect(texte(rendre(reserve(el("n1", { essais: 1 }))))).not.toContain("Pas réussi");
   });
@@ -72,14 +74,19 @@ describe("Réserve · le prix informe, il ne bloque jamais", () => {
   const desactive = (bouton: string) => /^<button\b[^>]*\sdisabled(=""|\s|>)/.test(bouton);
 
   it("le prix au plus est affiché sur le bouton, qui n'est pas désactivé, même à prix énorme, nul ou absent", () => {
-    for (const montants of [MONTANTS, { 1: 9_999_999, 2: 9_999_999, 3: 9_999_999, 4: 9_999_999 }, { 1: 0, 2: 0, 3: 0, 4: 0 }, {}]) {
-      const html = rendre(reserve(el("a1", {})), montants);
+    for (const prix of [120, 9_999_999, 0]) {
+      const html = rendre(reserve(el("a1", {})), prix);
       expect(texte(html)).toContain("Fabriquer le suivant (au plus");
       expect(desactive(fabriquer(html))).toBe(false);
     }
     // Contrôle du contrôle : un bouton réellement désactivé est bien reconnu (« Ajouter » l'est quand la zone est vide).
     expect(desactive('<button type="button" disabled="" class="x">Ajouter</button>')).toBe(true);
     expect(texte(rendre(reserve(el("a1", {}))))).toMatch(/au plus 1,20\s?€/);
+  });
+
+  it("Retirer porte un libellé qui résume le texte de l'élément", () => {
+    const html = rendre(reserve(el("a1", { texte: "Un   texte\nfictif" })));
+    expect(html).toContain('aria-label="Retirer : Un texte fictif"');
   });
 
   it("file vide : le bouton reste cliquable (la réponse dira qu'il n'y a rien)", () => {

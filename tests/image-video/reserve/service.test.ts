@@ -119,7 +119,7 @@ describe("fabriquerSuivantReserveIV", () => {
     expect((await reserve.lireReserveIV()).elements.find((e) => e.etat === "a-faire" && e.rang === 2)?.id).toBe(b);
   });
 
-  it("panne imprévue du dépôt : retour à faire, à relire, refusée ; une ErreurStudio, elle, remonte", async () => {
+  it("panne imprévue du dépôt : retour à faire, à relire, refusée ; une ErreurStudio : refusée avec sa phrase", async () => {
     const bruit = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const id = await ajouter("idee", IDEE);
     depotTexte.mockRejectedValueOnce(new Error("coupure réseau"));
@@ -129,7 +129,36 @@ describe("fabriquerSuivantReserveIV", () => {
     bruit.mockRestore();
     const { ErreurStudio } = await import("@/services/_commun");
     depotTexte.mockRejectedValueOnce(new ErreurStudio("x", "Phrase métier."));
-    await expect(reserve.fabriquerSuivantReserveIV()).rejects.toThrow("Phrase métier.");
+    expect(await reserve.fabriquerSuivantReserveIV()).toMatchObject({ statut: "refusee", id, phrase: "Phrase métier." });
+    expect(await el(id)).toMatchObject({ etat: "a-faire", essais: 2, note: "Phrase métier." });
+  });
+
+  it("le dépôt tombe après avoir créé un brouillon lancé : vidéo reliée, un seul dépôt, pas de relance", async () => {
+    const id = await ajouter("idee", IDEE);
+    depotTexte.mockImplementationOnce(async () => {
+      await depots().videos.enregistrer({ id: "v-cree", titre: "x", formatId: ID_FORMAT_IMAGE_VIDEO, statut: "brouillon", entrees: { imageVideo: { texte: IDEE, reserveId: id } }, creeLe: new Date().toISOString(), modifieLe: new Date().toISOString() } as unknown as Video);
+      await travail("v-cree", "en_cours", etat("lecture"));
+      throw new Error("coupure après création");
+    });
+    const bruit = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await reserve.fabriquerSuivantReserveIV()).toEqual({ statut: "lancee", id, videoId: "v-cree", reprise: true });
+    bruit.mockRestore();
+    expect(depotTexte).toHaveBeenCalledTimes(1);
+    expect(await el(id)).toMatchObject({ etat: "en-cours", videoId: "v-cree", essais: 0 });
+  });
+
+  it("le dépôt tombe après un brouillon sans travail : archivé (conservé), l'élément revient à faire", async () => {
+    const id = await ajouter("idee", IDEE);
+    depotTexte.mockImplementationOnce(async () => {
+      await video("v-nu", IDEE);
+      await depots().videos.modifier("v-nu", { entrees: { imageVideo: { texte: IDEE, reserveId: id } } } as never);
+      throw new Error("coupure");
+    });
+    const bruit = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await reserve.fabriquerSuivantReserveIV()).toMatchObject({ statut: "refusee", id });
+    bruit.mockRestore();
+    expect((await depots().videos.obtenir("v-nu"))?.statut).toBe("archivee");
+    expect(await el(id)).toMatchObject({ etat: "a-faire", essais: 1, note: "à relire" });
   });
 
   it("double clic simultané : un seul dépôt, l'autre clic est « occupé »", async () => {
