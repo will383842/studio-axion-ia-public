@@ -92,7 +92,7 @@ const PHRASE_CHOC_CARACTERES = 80;
  */
 function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
   const total = nbMots(jetons);
-  if (total <= PHRASE_CHOC_MOTS) return null;
+  if (total <= PHRASE_CHOC_MOTS && texteDe(jetons).length <= PHRASE_CHOC_CARACTERES) return null;
   let vus = 0;
   let coupe = -1;
   for (let i = 0; i < jetons.length - 1 && coupe < 0; i++) {
@@ -103,7 +103,8 @@ function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
     // Pas de signe qui convienne : les derniers mots, retirés un à un du début tant que la fin dépasse 80 caractères.
     vus = 0;
     coupe = jetons.findIndex((j) => /[\p{L}\p{N}]/u.test(j) && ++vus >= total - PHRASE_CHOC_MOTS);
-    while (coupe < jetons.length - 1 && texteDe(jetons.slice(coupe + 1)).length > PHRASE_CHOC_CARACTERES) coupe++;
+    // Un mot seul de plus de 80 caractères (adresse web) est gardé en entier : la fin n'est jamais vide.
+    while (nbMots(jetons.slice(coupe + 2)) >= 1 && texteDe(jetons.slice(coupe + 1)).length > PHRASE_CHOC_CARACTERES) coupe++;
   }
   return [jetons.slice(0, coupe + 1), jetons.slice(coupe + 1)];
 }
