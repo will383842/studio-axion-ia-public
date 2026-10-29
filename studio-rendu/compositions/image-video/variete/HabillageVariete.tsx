@@ -11,13 +11,14 @@ import { CalqueRecit } from "./recit/calque";
 import { CalqueTransitions } from "./transitions/calque";
 import { useVariete } from "./ContexteVariete";
 
-export function HabillageVariete({ children }: { children: ReactNode }) {
+/** `horsCamera` : posé par le calque caméra juste après la scène recadrée (sous la matière et les transitions) ; sans calque caméra, rendu après le contenu. */
+export function HabillageVariete({ children, horsCamera }: { children: ReactNode; horsCamera?: ReactNode }) {
   const variete = useVariete();
-  if (!variete) return <>{children}</>;
+  if (!variete) return <>{children}{horsCamera}</>;
   return (
     <CalqueMatiere>
       <CalqueTransitions>
-        <CalqueCamera>
+        <CalqueCamera horsCamera={horsCamera}>
           <CalqueRecit>
             <CalqueChiffres>{children}</CalqueChiffres>
           </CalqueRecit>

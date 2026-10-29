@@ -274,7 +274,7 @@ function couperToile(b: BlocToile, fin: number): BlocToile {
     ...(ensembles.length ? { ensembles } : { ensembles: undefined }),
   };
   for (const k of ["separations", "coches", "entetes", "ensembles"] as const) if (proprietes[k] === undefined) delete proprietes[k];
-  const cadree = disposerEtCadrer(p.schema, mots, proprietes.dureeSec, (toile) => cadrageToile(proprietes, toile));
+  const cadree = disposerEtCadrer(p.schema, mots, proprietes.dureeSec, (toile) => cadrageToile({ ...proprietes, hauteur: p.hauteur }, toile));
   return { ...b, fin: arrondi(b.debut + fin), proprietes, trajectoire: cadree.trajectoire, toile: cadree.toile, cadrage: cadree.cadrage };
 }
 
