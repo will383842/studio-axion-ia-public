@@ -50,8 +50,12 @@ export interface EtatLigneAPublier {
   lien?: string;
   /** Raison d'un échec ou d'un envoi à vérifier. */
   detail?: string;
-  /** Un envoi a déjà eu lieu pour ce réseau : plus d'envoi depuis cette page. */
+  /** Plus d'envoi depuis cette page : le réseau (un seul compte) ou TOUS ses comptes à cocher sont déjà pris dans Buffer. */
   envoye: boolean;
+  /** Comptes du réseau déjà pris dans Buffer (le serveur raisonne par compte, comme `occupees` de publications.ts). */
+  comptesPris: string[];
+  /** Un envoi plus ancien sans compte connu occupe le réseau entier. */
+  sansCompte: boolean;
 }
 
 export interface LigneAPublier {
@@ -94,11 +98,14 @@ export interface VueAPublier {
   lignes: LigneAPublier[];
 }
 
-/** `envoye` : une publication de ce réseau occupe déjà Buffer (pas seulement la dernière), donc plus d'envoi d'ici. */
-function etatDe(p: Publication | undefined, envoye: boolean): EtatLigneAPublier | undefined {
+/** `occupees` : les publications de ce réseau qui occupent déjà Buffer (pas seulement la dernière). Le blocage se fait par compte. */
+function etatDe(p: Publication | undefined, occupees: Publication[], choix: { id: string }[] = []): EtatLigneAPublier | undefined {
   if (!p) return undefined;
   const { libelle, ton } = libellePublication(p);
-  return { libelle, ton, envoye, ...(p.statut === "publiee" && p.urlPubliee ? { lien: p.urlPubliee } : {}), ...(p.erreur ? { detail: p.erreur } : {}) };
+  const comptesPris = [...new Set(occupees.flatMap((x) => (x.canalId ? [x.canalId] : [])))];
+  const sansCompte = occupees.some((x) => !x.canalId);
+  const envoye = occupees.length > 0 && (!choix.length || sansCompte || choix.every((c) => comptesPris.includes(c.id)));
+  return { libelle, ton, envoye, comptesPris, sansCompte, ...(p.statut === "publiee" && p.urlPubliee ? { lien: p.urlPubliee } : {}), ...(p.erreur ? { detail: p.erreur } : {}) };
 }
 
 /**
@@ -160,7 +167,7 @@ export async function vueAPublier(): Promise<VueAPublier> {
         coches: kit.avantDePublier,
         ...(blocage ? { blocage } : {}),
         ...(kit.variante?.sujetId ? { sujetId: kit.variante.sujetId } : {}),
-        etat: etatDe(derniere, deCeReseau.some(occupeBuffer)),
+        etat: etatDe(derniere, deCeReseau.filter(occupeBuffer), envoi?.comptes[reseau]?.choix),
       });
     }
   }
