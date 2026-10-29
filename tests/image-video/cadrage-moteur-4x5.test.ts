@@ -168,6 +168,68 @@ describe("4:5 : le filet cache le bloc coupé de la carte F (sans refuser la vid
   });
 });
 
+/** Schéma type : une entrée, une rangée de deux nœuds (téléphone / e-mail), puis un nœud au détail long. */
+const SCHEMA_PAIRE: SchemaEntree = {
+  noeuds: [
+    { id: "n01", libelle: "Un client vous écrit", detail: "Il veut un rendez-vous", role: "source", couleur: "noir", ordre: 1 },
+    { id: "n02", libelle: "Demande par téléphone", detail: "Réponse immédiate à l'appel", role: "etape", couleur: "noir", ordre: 2 },
+    { id: "n03", libelle: "Demande par e-mail", detail: "Réponse écrite dans la journée", role: "etape", couleur: "noir", ordre: 3 },
+    { id: "n04", libelle: "Réponse sous une heure", detail: "L'agenda se remplit seul, sans relance ni oubli, avec rappel", role: "resultat", couleur: "orange", ordre: 4 },
+  ],
+  liens: [
+    { id: "l1", de: "n01", vers: "n02", couleur: "noir" },
+    { id: "l2", de: "n01", vers: "n03", couleur: "noir" },
+    { id: "l3", de: "n02", vers: "n04", couleur: "noir" },
+    { id: "l4", de: "n03", vers: "n04", couleur: "noir" },
+  ],
+  groupes: [],
+};
+
+describe("4:5 : cadre court, disposition large", () => {
+  const mots = [
+    { noeud: "n01", t: 1 },
+    { noeud: "n02", t: 4 },
+    { noeud: "n03", t: 7 },
+    { noeud: "n04", t: 10 },
+  ];
+  const scene = (hauteur: number): ProprietesSceneIV => ({
+    largeur: 1080,
+    hauteur,
+    fps: 25,
+    dureeSec: 13,
+    fond: "ivoire",
+    marque: "axion-ia.com",
+    schema: SCHEMA_PAIRE,
+    mots,
+    separations: [],
+    coches: [],
+    entetes: [{ debut: 0, fin: 13, etiquette: "Situation type", titre: "Un *titre.*" }],
+  });
+
+  it("la paire téléphone / e-mail tient : variante large, 0 défaut, aucune alerte « trop grand »", () => {
+    const p = scene(H45);
+    const r = disposerEtCadrer(p.schema, mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    expect(r.variante).toBe("large");
+    expect(r.defauts).toEqual([]);
+    expect(r.trajectoire.alertes.filter((a) => a.includes("trop grand") || a.includes("aucun cadrage"))).toEqual([]);
+  });
+
+  it("le moteur (cadrageToile) et le rendu (cadrageDeToile) choisissent la même variante et la même trajectoire", () => {
+    const p = scene(H45);
+    const rendu = calculerScene(p);
+    const moteur = disposerEtCadrer(p.schema, rendu.mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    expect(moteur.variante).toBe("large");
+    expect(rendu.variante).toBe(moteur.variante);
+    expect(rendu.trajectoire).toEqual(moteur.trajectoire);
+  });
+
+  it("en 9:16 (cadre non court) la liste des variantes reste celle de toujours : jamais « large »", () => {
+    const p = scene(ECRAN_IV.hauteur);
+    const r = disposerEtCadrer(p.schema, mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    expect(r.variante).not.toBe("large");
+  });
+});
+
 describe("9:16 : rien ne change", () => {
   it("cadrageToile sans hauteur ou à 1920 donne le cadrage de toujours (cadre 0,275 → 1, bande jusqu'au bas de la zone utile)", () => {
     for (const nom of CARTES) {
