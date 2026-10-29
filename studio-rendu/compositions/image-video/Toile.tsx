@@ -40,13 +40,18 @@ function placeSuivante(scene: SceneCalculee, t: number): { id: string; opacite: 
   return { id: d[k][0], opacite: progresDe(t, precedent, 0.3) };
 }
 
-export function Toile({ scene, schema, t }: { scene: SceneCalculee; schema: SchemaEntree; t: number }) {
+/**
+ * `dejaVus` (issue 119) : blocs posés dans une séquence précédente ; ils sont montrés « vus » (posés, grisés) quel que soit
+ * le code d'apparition, au lieu de rester absents (APP-A, B, D) ou de ne laisser que le schéma muet.
+ */
+export function Toile({ scene, schema, t, dejaVus }: { scene: SceneCalculee; schema: SchemaEntree; t: number; dejaVus?: readonly string[] }) {
   const variete = useVariete();
   const app: ApparitionIV | null = apparitionDe(variete);
   const mat = matiereDe(variete);
   const { toile, parId } = scene;
   const icones = new Map(schema.noeuds.map((n) => [n.id, n.icone]));
   const etiquettes = new Map(schema.liens.map((l) => [l.id, l.etiquette]));
+  const dejaVusSet = new Set(dejaVus ?? []);
   const decisions = [...scene.separation.keys()].filter((id) => parId.has(id)).sort();
   const fleches = toile.fleches.map((f) => {
     const chemin = cheminDe(scene, f);
@@ -71,7 +76,7 @@ export function Toile({ scene, schema, t }: { scene: SceneCalculee; schema: Sche
       {place && boitePlace ? <Place boite={boitePlace} icone={icones.get(place.id)} code={app!.code} opacite={place.opacite} /> : null}
       {toile.boites.map((b) => {
         const t0 = scene.premierMot.get(b.id);
-        const vu = app?.code === "APP-C" && t0 === undefined && app.vus.has(b.id);
+        const vu = t0 === undefined && (dejaVusSet.has(b.id) || (app?.code === "APP-C" && app.vus.has(b.id)));
         return (
           <Noeud
             key={b.id}
