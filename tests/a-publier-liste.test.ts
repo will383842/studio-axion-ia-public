@@ -138,9 +138,10 @@ describe("À publier — le détail et le retour à la liste", () => {
     expect(h).not.toMatch(/<details[^>]*\bopen\b/);
   });
 
-  it("après un envoi réussi on revient à la liste (même filtre)", () => {
+  it("après un envoi d'une vidéo on reste dessus avec un message de succès ; le sujet entier revient à la liste", () => {
     const src = readFileSync("src/components/publication/LignesAPublier.tsx", "utf8");
-    expect(src).toMatch(/if \(n && retour\) router\.push\(retour\)/);
+    expect(src).not.toMatch(/if \(n && retour\) router\.push\(retour\)/);
+    expect(src).toMatch(/setSucces\(messageSucces/);
     expect(src).toMatch(/if \(programmees\.length && retour\) router\.push\(retour\)/);
   });
 

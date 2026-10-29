@@ -12,6 +12,7 @@ import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
 import { libelleComptes } from "@/domaine/comptes-envoi";
 import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
+import { ligneCompteEtDate, messageSucces } from "./finitions-envoi";
 import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
 
 /** Valeur d'un <input type="datetime-local"> (heure locale). */
@@ -30,7 +31,7 @@ function demainNeufHeures(): Date {
 const LIBELLES_CASES: Record<string, string> = { image: "Image", son: "Son", sousTitres: "Sous-titres", mentionIA: "Mention IA", droits: "Droits" };
 
 /** Détail d'une vidéo : la carte (lecteur entier, case unique, un bouton par réseau prêt, détail replié). `retour` : la liste où revenir après un envoi réussi. */
-export function LignesAPublier({ vue, retour, reseauOuvert }: { vue: VueAPublier; retour?: string; reseauOuvert?: string }) {
+export function LignesAPublier({ vue, retour, reseauOuvert, suivante }: { vue: VueAPublier; retour?: string; reseauOuvert?: string; suivante?: string | null }) {
   const cartes = regrouperParVideo(vue.lignes);
   return (
     <div className="space-y-4">
@@ -47,14 +48,14 @@ export function LignesAPublier({ vue, retour, reseauOuvert }: { vue: VueAPublier
       </p>
       <ul className="space-y-4">
         {cartes.map((c) => (
-          <CarteDeVideo key={`${c.videoId}:${reseauOuvert ?? ""}`} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} reseauOuvert={reseauOuvert} />
+          <CarteDeVideo key={`${c.videoId}:${reseauOuvert ?? ""}`} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} reseauOuvert={reseauOuvert} suivante={suivante} />
         ))}
       </ul>
     </div>
   );
 }
 
-function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string; reseauOuvert?: string }) {
+function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, suivante }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string; reseauOuvert?: string; suivante?: string | null }) {
   const router = useRouter();
   const [coches, setCoches] = useState<Record<string, boolean>>(carte.coches);
   const [ouvert, setOuvert] = useState<string | null>(carte.pretes.some((l) => l.reseau === reseauOuvert) ? (reseauOuvert ?? null) : null);
@@ -161,6 +162,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert }: 
                 envoiSimule={envoiSimule}
                 modeBuffer={modeBuffer}
                 retour={retour}
+                suivante={suivante}
               />
             ))}
 
@@ -218,6 +220,7 @@ function PanneauReseau({
   envoiSimule,
   modeBuffer,
   retour,
+  suivante,
 }: {
   ligne: LigneAPublier;
   visible: boolean;
@@ -228,8 +231,10 @@ function PanneauReseau({
   envoiSimule: boolean;
   modeBuffer: VueAPublier["modeBuffer"];
   retour?: string;
+  suivante?: string | null;
 }) {
   const router = useRouter();
+  const [succes, setSucces] = useState<string | null>(null);
   const [texte, setTexte] = useState(l.texte);
   const [commentaire, setCommentaire] = useState(l.premierCommentaire ?? "");
   const [date, setDate] = useState(() => versLocal(demainNeufHeures()));
@@ -275,9 +280,9 @@ function PanneauReseau({
       else if (n) notifier.succes(`Programmée sur ${libelleComptes(n)}`);
       if (r.donnees.problemes.length) notifier.erreur(r.donnees.problemes[0]);
       if (r.donnees.commentairesALaMain.length) notifier.erreur("Le premier commentaire n'est pas transmis à ce réseau : posez-le à la main.");
-      // Envoi réussi : on revient à la liste (même filtre).
-      if (n && retour) router.push(retour);
-      else router.refresh();
+      // Envoi réussi : on reste sur la vidéo, avec un message clair (et « Suivante » s'il reste une vidéo à traiter).
+      if (n) setSucces(messageSucces(r.donnees.mode, n));
+      router.refresh();
     });
   }
 
@@ -298,6 +303,17 @@ function PanneauReseau({
       <Bouton icone="envoyer" pleineLargeur disabled={!peutEnvoyer || enCoursCases} chargement={enCours} onClick={brouillon}>
         {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
       </Bouton>
+      <p className="text-sm text-texte-doux">{ligneCompteEtDate(avecChoix ? comptes.map((c) => l.compte.choix!.find((x) => x.id === c)?.nom ?? c) : l.compte.nom ? [l.compte.nom] : [], date)}</p>
+      {succes && (
+        <div role="status" className="space-y-2 rounded-2xl border border-sauge/40 bg-surface-1 p-3 text-sm font-semibold text-texte">
+          <p>{succes}</p>
+          {suivante && (
+            <Bouton asChild variante="secondaire" pleineLargeur icone="envoyer">
+              <Link href={suivante}>Suivante</Link>
+            </Bouton>
+          )}
+        </div>
+      )}
       {raison && <p className="text-sm text-texte-doux">{raison}</p>}
 
       <details className="text-sm">
