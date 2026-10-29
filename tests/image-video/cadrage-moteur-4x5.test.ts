@@ -7,9 +7,9 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { boiteALEcran, cameraA } from "@/briques/schema-motion/camera";
+import { boiteALEcran, cameraA, emprise, etatDansCadre } from "@/briques/schema-motion/camera";
 import { CADRES_IV, type CodeVariante, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
-import { disposerEtCadrer, ECRAN_IV, type CadrageCamera, type ProprietesSceneIV, type SchemaEntree } from "@/briques/schema-motion";
+import { controlerCadrage, disposerEtCadrer, ECRAN_IV, type CadrageCamera, type ProprietesSceneIV, type SchemaEntree } from "@/briques/schema-motion";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
 import { idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
@@ -20,7 +20,7 @@ import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "@/moteurs/montage-image-video/adaptation-scene";
 import { cadrageToile, mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
-import { cadrageDeToile, calculerScene } from "../../studio-rendu/compositions/image-video/plan";
+import { cadrageDeToile, calculerScene, noeudCourant, opaciteCadre } from "../../studio-rendu/compositions/image-video/plan";
 import { motsSimules } from "./mots-simules";
 
 const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
@@ -125,6 +125,46 @@ describe("4:5 : le vrai défaut de la carte F reste une remarque (zéro blocage)
       expect(q15?.ok, fin.id).toBe(false);
       expect(q15?.details.join(" "), fin.id).toContain("séquence b05");
     }
+  });
+});
+
+describe("4:5 : le filet cache le bloc coupé de la carte F (sans refuser la vidéo)", () => {
+  it("F en 4:5, séquence b05 : à chaque instant où Q15 voit un bloc coupé, le bloc est en fondu puis caché (sauf le bloc parlé, toujours plein)", () => {
+    const carte = lire("F");
+    const fiche = FICHES_SIMULEES[IMAGES.F];
+    const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+    const entree: EntreeMiseEnSceneIV = { carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES };
+    const { ligne } = mettreEnSceneIV({ ...entree, format: "4:5" });
+    const b05 = ligne.blocs.find((b): b is Extract<BlocRenduIV, { sorte: "toile" }> => b.sorte === "toile" && b.id === "b05")!;
+    const scene = calculerScene(b05.proprietes);
+    expect(scene.trajectoire).toEqual(b05.trajectoire);
+    const defauts = controlerCadrage(scene.toile, scene.trajectoire, scene.mots, scene.cadrage);
+    expect(defauts.length).toBeGreaterThan(0);
+    let caches = 0;
+    for (const d of defauts) {
+      const o = opaciteCadre(scene, scene.trajectoire.images, d.id, d.t);
+      if (noeudCourant(scene, d.t) === d.id) {
+        // Le bloc parlé reste plein tant qu'il est le courant et que la caméra est posée autour de l'instant ; s'il part
+        // (mot suivant, panoramique), il s'efface avec les autres.
+        const fenetre = [-0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15].map((r) => d.t + r);
+        const pose = cameraA(scene.trajectoire, fenetre[0]);
+        const pose1 = cameraA(scene.trajectoire, fenetre[6]);
+        const pose2 = cameraA(scene.trajectoire, d.t);
+        const tenue = fenetre.every((x) => noeudCourant(scene, x) === d.id) && [pose1, pose2].every((q) => q.cx === pose.cx && q.cy === pose.cy && q.zoom === pose.zoom);
+        if (tenue) expect(o, `${d.id} ${d.t}`).toBe(1);
+      } else {
+        // Le bloc est tout à fait caché à chaque instant où il est coupé (le fondu vient avant la coupe et après elle).
+        expect(o, `${d.id} ${d.t}`).toBe(0);
+        const tard = d.t + 0.15;
+        const b = scene.parId.get(d.id);
+        const toujours = !!b && [0, 0.05, 0.1, 0.15].every((r) => etatDansCadre(emprise(b, scene.cadrage), cameraA(scene.trajectoire, tard - r), scene.cadrage) === "coupe");
+        if (toujours && noeudCourant(scene, tard) !== d.id) {
+          expect(opaciteCadre(scene, scene.trajectoire.images, d.id, tard), `${d.id} ${tard}`).toBe(0);
+          caches++;
+        }
+      }
+    }
+    expect(caches).toBeGreaterThan(0);
   });
 });
 

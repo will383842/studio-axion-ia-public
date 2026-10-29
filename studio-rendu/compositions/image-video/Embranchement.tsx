@@ -10,7 +10,8 @@ import { COULEURS_DUO } from "../../../src/briques/habillage/charte-duo";
 import { famille, graisse, planSurgir, teinte } from "../cas-concret/plans/commun";
 import { couleurTrait, OPACITE_VU, PASTILLE_PART, type PartEmbranchement } from "./plan";
 
-export function Embranchement({ decision, parts }: { decision: BoiteNoeud; parts: PartEmbranchement[] }) {
+/** `opacites` : filet « jamais un bloc coupé » (`opaciteCadre`), par flèche ; sans lui, 1. */
+export function Embranchement({ decision, parts, opacites }: { decision: BoiteNoeud; parts: PartEmbranchement[]; opacites?: (fleche: string) => number }) {
   if (parts.length === 0) return null;
   const P = PASTILLE_PART;
   const jonction = planSurgir(parts[0].entree);
@@ -40,7 +41,7 @@ export function Embranchement({ decision, parts }: { decision: BoiteNoeud; parts
               left: p.x,
               top: p.y,
               transform: `translate(-50%, -50%) scale(${s.echelle})`,
-              opacity: s.opacite * (p.allumee ? 1 : OPACITE_VU + 0.25),
+              opacity: s.opacite * (p.allumee ? 1 : OPACITE_VU + 0.25) * (opacites?.(p.fleche) ?? 1),
               background: fond,
               color: COULEURS_DUO.blanc,
               borderRadius: 999,
