@@ -105,6 +105,11 @@ export const ECART_MAX_RANGEES = 0.1;
 /** Un morceau de plusieurs mots n'est coupé que s'il faudrait le réduire sous cette part de sa taille pour qu'il tienne sur une ligne (D5). */
 const PART_MIN_UNE_LIGNE = 0.75;
 
+/** Ponctuation isolée (« ? », « ! », « : », « ; », « % », « … », guillemet ou parenthèse fermants), même précédée d'une espace insécable : elle se rattache toujours au mot qui précède. */
+export function estPonctuationIsolee(mot: string): boolean {
+  return /^[\s\u00a0\u202f]*(?:[?!:;%…»)\]”’]+|\.{2,})[\s\u00a0\u202f]*$/u.test(mot);
+}
+
 /**
  * TYP-C : coupe les lignes en rangées (mots entiers, largeur ≤ `largeur`) et choisit la plus grande taille qui fait
  * tenir le tout entre `haut` et `bas` ; le groupe orange a sa propre rangée, plus grande (le point focal). Les rangées
@@ -120,12 +125,15 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
       const morceaux: number[][] = [];
       l.mots.forEach((m, i) => {
         const dernier = morceaux.at(-1);
-        const orangePrec = i > 0 && !!l.mots[i - 1].orange;
-        if (!dernier || orangePrec !== !!m.orange) morceaux.push([i]);
+        // Un morceau fait de ponctuation seule (tête de ligne) prend le mot suivant : il n'ouvre pas de rangée à lui seul.
+        const seulePonctuation = !!dernier && dernier.every((k) => estPonctuationIsolee(l.mots[k].mot));
+        const orangeMorceau = !!dernier && !!l.mots[dernier.find((k) => !estPonctuationIsolee(l.mots[k].mot)) ?? dernier[0]].orange;
+        // Une ponctuation isolée reste avec le mot qui précède, orange ou non : jamais un morceau (donc une rangée) à elle seule.
+        if (!dernier || (!seulePonctuation && orangeMorceau !== !!m.orange && !estPonctuationIsolee(m.mot))) morceaux.push([i]);
         else dernier.push(i);
       });
       for (const morceau of morceaux) {
-        const focal = !!l.mots[morceau[0]].orange && morceaux.length > 1;
+        const focal = !!l.mots[morceau.find((k) => !estPonctuationIsolee(l.mots[k].mot)) ?? morceau[0]].orange && morceaux.length > 1;
         const t = focal ? Math.min(taille * 1.6, tailleMax * 1.6) : taille;
         // Coupe gloutonne, puis équilibrée : même nombre de rangées, mais la plus étroite possible (pas de mot veuf).
         const couperA = (l0: number): number[][] => {
@@ -133,7 +141,7 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
           let courante: number[] = [];
           for (const i of morceau) {
             const essai = [...courante, i];
-            if (courante.length && larg(essai.map((k) => l.mots[k].mot), t) > l0) {
+            if (courante.length && !estPonctuationIsolee(l.mots[i].mot) && larg(essai.map((k) => l.mots[k].mot), t) > l0) {
               rs.push(courante);
               courante = [i];
             } else courante = essai;
