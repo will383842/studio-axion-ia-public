@@ -136,6 +136,8 @@ describe("À publier par réseau — onglets et compteurs", () => {
     expect(h).toContain("shrink-0");
     expect(h).toContain("min-h-11");
     expect(h).toMatch(/aria-label="Choisir un réseau"/);
+    // Léger dégradé sur le bord droit (mobile seulement) : la barre défile.
+    expect(h).toMatch(/pointer-events-none[^"]*bg-linear-to-l[^"]*sm:hidden/);
   });
 });
 
