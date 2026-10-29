@@ -44,15 +44,19 @@ export function porteAllumee(env: Env): boolean {
   return secretValide(env.STUDIO_PORTE_SECRET) !== null && !secretsEnConflit(env);
 }
 
+const ROTATION_MAX_MS = 24 * 3_600_000;
+const DATE_ISO_AVEC_FUSEAU = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/i;
+
 /**
- * L'ancien secret (rotation) ne vaut que jusqu'à `STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A` (date ISO, 24 h au plus après la
- * rotation) : échéance absente, illisible ou dépassée → l'ancien secret est ignoré.
+ * L'ancien secret (rotation) ne vaut que jusqu'à `STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A` : date ISO AVEC « Z » ou décalage
+ * horaire (sans fuseau, l'heure serait ambiguë), et à 24 h au plus dans le futur (contrat : rotation de 24 h). Échéance
+ * absente, sans fuseau, illisible, dépassée ou trop lointaine → l'ancien secret est ignoré.
  */
 export function precedentEnVigueur(env: Env, maintenantMs: number = Date.now()): boolean {
   const brut = env.STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A?.trim() ?? "";
-  if (brut === "") return false;
+  if (!DATE_ISO_AVEC_FUSEAU.test(brut)) return false;
   const echeance = Date.parse(brut);
-  return Number.isFinite(echeance) && maintenantMs <= echeance;
+  return Number.isFinite(echeance) && maintenantMs <= echeance && echeance - maintenantMs <= ROTATION_MAX_MS;
 }
 
 /** Comparaison à temps constant : empreintes de même longueur, et les deux secrets sont toujours évalués. */
