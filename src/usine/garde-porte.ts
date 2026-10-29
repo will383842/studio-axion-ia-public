@@ -14,17 +14,16 @@
  * entre plusieurs instances. Suffisant pour une seule instance du studio ; à revoir si le studio est répliqué.
  */
 import "server-only";
-import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { journaliser } from "@/services/_commun";
+import { jetonAccepte, jetonDeLEntete, LONGUEUR_MIN_SECRET_PORTE, porteAllumee, type Env } from "@/usine/jeton-porte";
 
-export const LONGUEUR_MIN_SECRET_PORTE = 32;
+export { jetonAccepte, LONGUEUR_MIN_SECRET_PORTE };
+
 export const TAILLE_MAX_CORPS_OCTETS = 16 * 1024;
 export const APPELS_MAX_PAR_MINUTE = 60;
 export const CONTRAT_PORTE = 2;
 const FENETRE_MS = 60_000;
-
-type Env = { STUDIO_PORTE_SECRET?: string; STUDIO_PORTE_SECRET_PRECEDENT?: string };
 
 export interface CorpsPorte {
   [champ: string]: unknown;
@@ -47,29 +46,6 @@ export function reponseErreur(statut: number, erreur: string, code: string): Nex
 /** Réponse JSON de la porte (jamais mise en cache). */
 export function reponseJson(statut: number, corps: unknown): NextResponse {
   return NextResponse.json(corps, { status: statut, headers: { "Cache-Control": "no-store" } });
-}
-
-const empreinte = (s: string) => createHash("sha256").update(s).digest();
-
-/** Secret lisible seulement s'il a 32 caractères au moins. */
-function secretValide(v: string | undefined): string | null {
-  const s = v?.trim() ?? "";
-  return s.length >= LONGUEUR_MIN_SECRET_PORTE ? s : null;
-}
-
-/** Comparaison à temps constant : empreintes de même longueur, et les deux secrets sont toujours évalués. */
-export function jetonAccepte(jeton: string, env: Env): boolean {
-  const e = empreinte(jeton);
-  const courant = secretValide(env.STUDIO_PORTE_SECRET);
-  const precedent = secretValide(env.STUDIO_PORTE_SECRET_PRECEDENT);
-  const okCourant = courant !== null && timingSafeEqual(e, empreinte(courant));
-  const okPrecedent = precedent !== null && timingSafeEqual(e, empreinte(precedent));
-  return okCourant || okPrecedent;
-}
-
-function jetonDeLEntete(requete: Request): string | null {
-  const m = /^Bearer[ \t]+(\S+)$/i.exec(requete.headers.get("authorization")?.trim() ?? "");
-  return m ? m[1] : null;
 }
 
 /* --- Compteur d'appels (mémoire du processus) ---------------------------- */
@@ -142,7 +118,7 @@ export async function garderPorte(requete: Request, o: OptionsGarde): Promise<Po
     return { ok: false, reponse: reponseErreur(statut, erreur, code) };
   };
 
-  if (!secretValide(env.STUDIO_PORTE_SECRET)) return refus(404, "Introuvable.", "introuvable", null, false);
+  if (!porteAllumee(env)) return refus(404, "Introuvable.", "introuvable", null, false);
   const jeton = jetonDeLEntete(requete);
   if (jeton === null || !jetonAccepte(jeton, env)) {
     console.warn(`[porte-usine] ${o.route} → 401`);

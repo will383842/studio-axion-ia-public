@@ -2,7 +2,7 @@
  * Porte v2 (§ 3 quater) — garde commune de /api/usine/* et appel 5 (PUT /api/usine/reglages/budget).
  * Dépôts en mémoire, aucun réseau, aucun secret réel (valeurs d'essai).
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -197,31 +197,52 @@ describe("le secret n'apparaît jamais", () => {
 });
 
 describe("proxy et garde dans chaque handler", () => {
-  it("/api/usine/* est public pour le proxy (pas de redirection ni de 401 de session)", async () => {
-    const r = await proxy(new NextRequest(URL_BUDGET, { method: "PUT" }));
-    expect(r.headers.get("x-middleware-next")).toBe("1");
+  const sansJeton = () => new NextRequest(URL_BUDGET, { method: "PUT" });
+
+  it("proxy : porte éteinte → 404 ; jeton absent ou faux → 401 ; bon jeton → la requête passe", async () => {
+    vi.stubEnv("STUDIO_PORTE_SECRET", "");
+    expect((await proxy(sansJeton())).status).toBe(404);
+    vi.stubEnv("STUDIO_PORTE_SECRET", SECRET);
+    for (const s of [null, "x".repeat(40), SECRET.slice(0, -1)]) {
+      const r = await proxy(appel(ok(), {}, s));
+      expect(r.status).toBe(401);
+      expect(await r.json()).toEqual({ erreur: "Non autorisé.", code: "non_autorise" });
+    }
+    expect((await proxy(appel(ok()))).headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("sans garde dans le handler la porte serait ouverte : le handler refuse bien sans secret", async () => {
-    expect((await PUT(appel(ok(), {}, null))).status).toBe(401);
+  it("proxy : le préfixe /api/usine seul est gardé aussi", async () => {
+    expect((await proxy(new NextRequest("http://studio.test/api/usine", { method: "GET" }))).status).toBe(401);
   });
 
-  it("chaque route sous /api/usine appelle garderPorte", () => {
+  it("chaque route sous /api/usine (toute extension) refuse tout appel sans jeton : 404 porte éteinte, 401 sinon", async () => {
     const racine = join(process.cwd(), "src/app/api/usine");
     const routes: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
         const p = join(d, n);
         if (statSync(p).isDirectory()) parcourir(p);
-        else if (n === "route.ts") routes.push(p);
+        else if (/^route\.[^.]+$/.test(n)) routes.push(p);
       }
     };
     parcourir(racine);
     expect(routes.length).toBeGreaterThan(0);
+    const verbes = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
+    let appels = 0;
     for (const p of routes) {
-      const src = readFileSync(p, "utf8");
-      const handlers = src.match(/export async function (GET|POST|PUT|PATCH|DELETE)\b/g) ?? [];
-      expect(src.match(/await garderPorte\(/g)?.length ?? 0, p).toBeGreaterThanOrEqual(handlers.length);
+      const module = (await import(/* @vite-ignore */ p)) as Record<string, unknown>;
+      for (const verbe of verbes) {
+        const handler = module[verbe];
+        if (handler === undefined) continue;
+        expect(typeof handler, `${p} ${verbe}`).toBe("function");
+        for (const [secret, attendu] of [["", 404], [SECRET, 401]] as const) {
+          vi.stubEnv("STUDIO_PORTE_SECRET", secret);
+          const r = (await (handler as (r: NextRequest) => Promise<Response> | Response)(new NextRequest(URL_BUDGET, { method: verbe }))) as Response;
+          expect(r.status, `${p} ${verbe} (secret ${secret ? "posé" : "absent"})`).toBe(attendu);
+          appels += 1;
+        }
+      }
     }
+    expect(appels).toBeGreaterThan(0);
   });
 });

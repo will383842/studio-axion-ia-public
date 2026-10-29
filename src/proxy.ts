@@ -1,13 +1,14 @@
 /**
  * Proxy (ex-middleware, Next 16) : protège TOUT sauf /connexion, /v/*, /api/sante,
- * /api/crochets/*, /api/usine/* (gardée par secret DANS chaque handler, src/usine/garde-porte.ts), /hors-ligne et les fichiers statiques (PLAN B.4-3).
+ * /api/crochets/*, /api/usine/* (jeton de la porte vérifié ICI puis de nouveau DANS chaque handler, src/usine/garde-porte.ts), /hors-ligne et les fichiers statiques (PLAN B.4-3).
  * ⚠️ Le proxy ne suffit pas : chaque action serveur et chaque route /api appelle
  * exigerSession() (révocation, expiration côté serveur).
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { NOM_COOKIE_SESSION, verifierJeton } from "@/lib/jeton-session";
+import { jetonAccepte, jetonDeLEntete, porteAllumee, type Env as EnvPorte } from "@/usine/jeton-porte";
 
-const PUBLICS = [/^\/connexion(\/|$)/, /^\/v\//, /^\/api\/sante$/, /^\/api\/crochets\//, /^\/api\/usine\//, /^\/api\/partages\/[^/]+$/, /^\/hors-ligne$/];
+const PUBLICS = [/^\/connexion(\/|$)/, /^\/v\//, /^\/api\/sante$/, /^\/api\/crochets\//, /^\/api\/partages\/[^/]+$/, /^\/hors-ligne$/];
 
 /** Code réservé : la page « Ce lien n'est plus actif » (rendue par /v/[code] pour un code inconnu). */
 const CODE_LIEN_INACTIF = "lien-inactif";
@@ -112,8 +113,22 @@ function decoderSansErreur(s: string): string | null {
   }
 }
 
+/**
+ * Défense en profondeur de /api/usine/* (public pour la session, protégé par jeton) : porte éteinte → 404 sans détail ;
+ * jeton absent ou faux → 401 sans détail, AVANT que la requête n'atteigne un handler. Les handlers re-vérifient (garderPorte).
+ * Corps en JSON comme la garde des handlers : le client de l'Usine traite les deux de la même façon.
+ */
+export function gardeUsine(requete: Request, env: EnvPorte = process.env as EnvPorte): NextResponse | null {
+  const entetes = { "Cache-Control": "no-store" };
+  if (!porteAllumee(env)) return NextResponse.json({ erreur: "Introuvable.", code: "introuvable" }, { status: 404, headers: entetes });
+  const jeton = jetonDeLEntete(requete);
+  if (jeton === null || !jetonAccepte(jeton, env)) return NextResponse.json({ erreur: "Non autorisé.", code: "non_autorise" }, { status: 401, headers: entetes });
+  return null;
+}
+
 export async function proxy(requete: NextRequest) {
   const { pathname, search } = requete.nextUrl;
+  if (/^\/api\/usine(\/|$)/.test(pathname)) return gardeUsine(requete) ?? NextResponse.next();
   const partage = /^\/v\/([^/]+)\/?$/.exec(pathname);
   if (partage) return lienPrive(requete, partage[1]);
   if (PUBLICS.some((r) => r.test(pathname))) return NextResponse.next();

@@ -45,6 +45,10 @@ on:
       - "src/components/reglages/GardeSujetsReglage.tsx"
       - "src/app/(studio)/reglages/actions-garde-sujets.ts"
       - "tests/sujets-traites/**"
+      - "src/usine/**"
+      - "src/app/api/usine/**"
+      - "src/proxy.ts"
+      - "tests/porte-usine-garde-budget.test.ts"
       - ".github/workflows/tests-cibles.yml"
 
 permissions:
@@ -97,4 +101,5 @@ jobs:
             tests/empreintes-fichiers.test.ts \
             tests/r2-empreinte.test.ts \
             tests/empreintes-controle.test.ts \
-            tests/sujets-traites/reglage-garde.test.ts
+            tests/sujets-traites/reglage-garde.test.ts \
+            tests/porte-usine-garde-budget.test.ts
