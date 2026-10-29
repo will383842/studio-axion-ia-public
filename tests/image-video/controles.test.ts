@@ -457,6 +457,35 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
     expect(autre.chiffresInventes.length).toBe(1);
   });
 
+  it("un chiffre entendu hors script : Q05 échoue sans bloquer, la vidéo sort", async () => {
+    const m = monter("C");
+    const ver = m.entree.versions[0];
+    const { o } = outils(m, {
+      transcrire: (d, mots) => (d.cle === ver.piste.cle ? [...mots, { mot: "37", debutSec: mots[mots.length - 1].finSec, finSec: mots[mots.length - 1].finSec + 0.2 }] : mots),
+    });
+    const v = await porteUniqueIV(m.entree, o);
+    const q05 = v.versions[0].lignes.find((l) => l.code === "Q05")!;
+    expect(q05.etat).toBe("echoue");
+    expect(q05.bloquant).toBe(false);
+    expect(q05.phrase).toMatch(/la voix dit « 37 »/);
+    expect(v.ok).toBe(true);
+    expect(v.versions[0].lignes.find((l) => l.code === "Q26")!.etat).not.toBe("non-fait");
+  });
+
+  it("un chiffre écrit dans le script et absent de l'image reste bloquant (Q05 côté script)", async () => {
+    const m = monter("C");
+    const fiche = structuredClone(m.entree.fiche);
+    fiche.ecrans[1] = { ...fiche.ecrans[1], texteDit: `${fiche.ecrans[1].texteDit} Cela fait 4812 clients.` };
+    const sons = new Map<string, Uint8Array>();
+    const versions = m.plan.fins.map((f) => versionDe(m.entree.carte, fiche, f, sons));
+    const m2: Montage = { ...m, sons, entree: { ...m.entree, fiche, versions } };
+    const v = await porteUniqueIV(m2.entree, outils(m2).o);
+    const q05 = v.versions[0].lignes.find((l) => l.code === "Q05")!;
+    expect(q05.etat).toBe("echoue");
+    expect(bloque(q05)).toBe(true);
+    expect(v.ok).toBe(false);
+  });
+
   it("refus de réservation : aucune transcription, contrôle « non vérifié » et bloquant", async () => {
     const m = monter("A");
     const { o, j } = outils(m, { reserver: (d) => (d.fournisseur === "transcription" ? { ok: false, message: "plafond atteint" } : { ok: true }) });
