@@ -52,6 +52,10 @@ on:
       - "src/services/a-publier*"
       - "src/services/publications.ts"
       - "src/components/publication/LignesAPublier.tsx"
+      - "src/components/publication/regrouper-a-publier.ts"
+      - "src/components/publication/liste-a-publier.ts"
+      - "src/components/publication/ListeAPublier.tsx"
+      - "src/app/(studio)/a-publier/**"
       - "src/components/reglages/InterrupteurAPublier.tsx"
       - "tests/a-publier*.test.ts"
       - "tests/l1-10-buffer-premier-commentaire.test.ts"
@@ -114,4 +118,5 @@ jobs:
             tests/a-publier-premier-commentaire.test.ts \
             tests/l1-10-buffer-premier-commentaire.test.ts \
             tests/r1-ecrans-buffer.test.ts \
-            tests/a-publier-carte-par-video.test.ts
+            tests/a-publier-carte-par-video.test.ts \
+            tests/a-publier-liste.test.ts
