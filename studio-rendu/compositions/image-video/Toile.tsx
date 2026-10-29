@@ -83,7 +83,7 @@ export function Toile({ scene, schema, t, dejaVus, trajectoireVue, courant }: { 
         {app?.code === "APP-C" ? <FilsEteints chemins={toile.fleches.flatMap((f) => (parId.has(f.de) && parId.has(f.vers) ? [{ id: f.id, d: cheminDe(scene, f)!.d }] : []))} /> : null}
         {mat === "MAT-C" ? <g filter={`url(#${TREMBLE_FILS})`}>{fleches}</g> : fleches}
       </svg>
-      {place && boitePlace ? <Place boite={boitePlace} icone={icones.get(place.id)} code={app!.code} opacite={place.opacite} /> : null}
+      {place && boitePlace ? <Place boite={boitePlace} icone={icones.get(place.id)} code={app!.code} opacite={place.opacite * filetDe(place.id)} /> : null}
       {toile.boites.map((b) => {
         const t0 = scene.premierMot.get(b.id);
         const vu = t0 === undefined && (dejaVusSet.has(b.id) || (app?.code === "APP-C" && app.vus.has(b.id)));
