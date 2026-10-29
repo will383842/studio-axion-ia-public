@@ -3,7 +3,7 @@
  * idempotentes, retrait conservé, orphelin. Textes fictifs.
  */
 import { describe, expect, it } from "vitest";
-import { refusTexte } from "@/moteurs/montage-image-video/texte/conception";
+import { CARACTERES_MAX, refusTexte } from "@/moteurs/montage-image-video/texte/conception";
 import {
   ajouterIV,
   appliquerIssueReserveIV,
@@ -35,6 +35,13 @@ const el = (r: ReserveIV, id: string) => r.elements.find((e) => e.id === id)!;
 const enCours = (r: ReserveIV, id: string, videoId = "v1") => lierVideoIV(marquerLancementIV(r, id, T0), id, videoId);
 
 describe("ajouterIV", () => {
+  it("un texte trop long est coupé sans casser un emoji en deux", () => {
+    const long = `${"a".repeat(CARACTERES_MAX - 1)}😀 fin`;
+    const a = ajouterIV(reserveVideIV(), { nature: "idee", texte: long, reseaux: ["linkedin"] }, "e", T0);
+    expect(a.ok && a.element.texte).toBe("a".repeat(CARACTERES_MAX - 1));
+    expect(a.ok && a.element.texte).not.toMatch(/[\ud800-\udfff]/);
+  });
+
   it("ajoute un script valide tel quel, à la fin de la file", () => {
     const a = ajouterIV(avec(IDEE), { nature: "script", texte: SCRIPT, reseaux: ["linkedin"] }, "s", T0);
     expect(a.ok && a.element).toMatchObject({ id: "s", nature: "script", etat: "a-faire", rang: 2, essais: 0, ajouteLe: T0 });

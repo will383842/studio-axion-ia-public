@@ -46,9 +46,20 @@ export const reserveVideIV = (): ReserveIV => ({ version: "reserve-iv/1", elemen
 export const PHRASES_RESERVE_IV = Object.freeze({
   pleine: `La réserve est pleine (${RESERVE_MAX_IV} éléments à fabriquer) : fabriquez-en ou retirez-en avant d'en ajouter.`,
   videVide: "Écrivez d'abord le script ou l'idée.",
+  panne: "Un souci est survenu pendant le lancement : l'élément est remis à faire, à relire.",
 });
 
 export type IssueAjoutIV = { ok: true; reserve: ReserveIV; element: ElementReserveIV } | { ok: false; phrase: string };
+
+/** Coupe à `max` unités sans couper un emoji (ou toute paire de substitution) en deux. */
+function couper(t: string, max: number): string {
+  let sortie = "";
+  for (const c of Array.from(t)) {
+    if (sortie.length + c.length > max) break;
+    sortie += c;
+  }
+  return sortie;
+}
 
 const net = (t: string) => t.normalize("NFC").trim();
 const rangSuivant = (r: ReserveIV) => r.elements.reduce((m, e) => Math.max(m, e.rang), 0) + 1;
@@ -76,7 +87,7 @@ export function ajouterIV(r: ReserveIV, e: { nature: NatureReserveIV; texte: str
   let resserre = false;
   // Au-delà de la borne du texte, rien ne partirait : on coupe, et un script devient une idée resserrée.
   if (texte.length > CARACTERES_MAX) {
-    texte = net(texte.slice(0, CARACTERES_MAX));
+    texte = net(couper(texte, CARACTERES_MAX));
     if (nature === "script") {
       nature = "idee";
       resserre = true;

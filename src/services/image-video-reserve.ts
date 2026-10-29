@@ -10,7 +10,9 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import {
+  NOTE_A_RELIRE_IV,
   ORPHELIN_APRES_MS_IV,
+  PHRASES_RESERVE_IV,
   ajouterIV,
   appliquerIssueReserveIV,
   lierVideoIV,
@@ -29,7 +31,7 @@ import { PHRASE_TIKTOK_RETIRE_IV, RESEAUX_IV, type ReseauIV } from "@/domaine/im
 import type { Id } from "@/domaine/types";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
-import { depots, ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
+import { ErreurStudio, depots, ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
 import { PHRASES_IV, prixDuDepot } from "./image-video-ecran";
 import { dernierTravail, issueDuTravail, videoEcartee } from "./image-video-lot";
@@ -136,13 +138,21 @@ async function brouillonDeLOrphelin(e: ElementReserveIV, r: ReserveIV): Promise<
   return liste.sort((a, b) => a.creeLe.localeCompare(b.creeLe))[0]?.id ?? null;
 }
 
+/** Ce que le prochain clic fabriquerait (l'orphelin d'abord, sinon le prochain à faire) : nombre de réseaux et prix « au plus ». Information seulement. */
+export function apercuSuivantReserveIV(r: ReserveIV, tauxUsdEur: number): { reseaux: number; centimes: number } | null {
+  const e = orphelinIV(r, maintenant()) ?? prochainIV(r);
+  if (!e) return null;
+  const reseaux = RESEAUX_IV.filter((x) => e.reseaux.includes(x));
+  return { reseaux: reseaux.length, centimes: prixDuDepot(reseaux, tauxUsdEur) };
+}
+
 /**
  * UN clic = UNE fabrication. Sous verrou : l'orphelin éventuel (sinon le prochain à faire) est marqué « en cours ».
  * Hors verrou : le dépôt (script dit tel quel, idée décrite). Puis sous verrou : vidéo liée, ou retour à faire en fin de file.
  */
 export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}): Promise<IssueFabricationReserveIV> {
   await exigerSession();
-  const choix = await sousVerrou<"occupe" | { element: ElementReserveIV } | { repris: ElementReserveIV; videoId: Id } | null>(async () => {
+  const choix = await sousVerrou<"occupe" | { element: ElementReserveIV; lancee: string } | { repris: ElementReserveIV; videoId: Id } | null>(async () => {
     const r = await lireReserveIV();
     const t = Date.parse(maintenant());
     // Un lancement récent, sans vidéo : un autre clic est déjà en route (pas d'orphelin avant le délai).
@@ -163,22 +173,44 @@ export async function fabriquerSuivantReserveIV(dep: DependancesReserveIV = {}):
     }
     const element = orphelin ?? prochainIV(r);
     if (!element) return null;
-    await ecrireBrut(marquerLancementIV(r, element.id, maintenant()));
-    return { element };
+    const lancee = maintenant();
+    await ecrireBrut(marquerLancementIV(r, element.id, lancee));
+    return { element, lancee };
   });
   if (!choix) return { statut: "vide" };
   if (choix === "occupe") return { statut: "occupe" };
   if ("repris" in choix) return { statut: "lancee", id: choix.repris.id, videoId: choix.videoId, reprise: true };
 
-  const { element } = choix;
+  const { element, lancee } = choix;
   const reseaux = RESEAUX_IV.filter((r) => element.reseaux.includes(r)) as ReseauIV[];
   const taux = await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))();
   const deposer = (accordCentimes: number): Promise<IssueDepotTexteIV> =>
     element.nature === "script"
       ? deposerScriptImageVideo({ script: element.texte, reserveId: element.id, reseaux, accordCentimes }, dep.depot)
       : deposerTexteImageVideo({ texte: element.texte, reserveId: element.id, reseaux, accordCentimes }, dep.depot);
-  let issue = await deposer(prixDuDepot(reseaux, taux));
-  if (issue.statut === "accord-requis") issue = await deposer(issue.centimes);
+  let issue: IssueDepotTexteIV;
+  try {
+    issue = await deposer(prixDuDepot(reseaux, taux));
+    if (issue.statut === "accord-requis") issue = await deposer(issue.centimes);
+  } catch (e) {
+    // Le dépôt a pu créer le brouillon avant de tomber : on le retrouve (reserveId) avant toute remise à faire.
+    // `element` date d'avant le lancement : lanceeLe y manque peut-être, la recherche partirait de l'ancienne vidéo.
+    const brouillon = await brouillonDeLOrphelin({ ...element, lanceeLe: lancee }, await lireReserveIV());
+    if (brouillon) {
+      if (await dernierTravail(brouillon)) {
+        await modifier((r) => ({ reserve: lierVideoIV(r, element.id, brouillon), sortie: null }));
+        return { statut: "lancee", id: element.id, videoId: brouillon, reprise: true };
+      }
+      const { abandonnerBrouillon } = await import("./videos");
+      await abandonnerBrouillon(brouillon);
+    }
+    // Une phrase métier est la note ; une panne imprévue revient à faire, à relire.
+    const metier = e instanceof ErreurStudio;
+    if (!metier) console.error(e);
+    const phrase = metier ? e.message : PHRASES_RESERVE_IV.panne;
+    await modifier((r) => ({ reserve: remettreAFaireIV(r, element.id, metier ? e.message : NOTE_A_RELIRE_IV), sortie: null }));
+    return { statut: "refusee", id: element.id, phrase };
+  }
 
   if (issue.statut === "lancee") {
     const videoId = issue.videoId;
