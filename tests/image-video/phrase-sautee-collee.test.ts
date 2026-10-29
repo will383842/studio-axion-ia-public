@@ -8,6 +8,7 @@
  * Correctif : la fenêtre s'élargit de l'erreur d'horodatage sans entrer dans un mot gardé ; un retrait voulu accepte la
  * traîne du mot sauté (son qui précède le silence), jamais l'attaque du mot gardé.
  */
+import { REGLES_SCENE_IV } from "@/moteurs/montage-image-video/regles-scene";
 import { describe, expect, it } from "vitest";
 import type { MotHorodate } from "@/domaine/types";
 import { REGLES_COUPES_IV, coupesEnPleinSon, paroleRetireeIV, phrasesSauteesSansSilenceIV, placerCoupesIV, type MesureSonIV } from "@/moteurs/montage-image-video/assemblage";
@@ -197,23 +198,23 @@ describe("script collé : la phrase-choc finale reste dite mot pour mot et fait 
     expect(mots(bout(e))).toEqual(mots(t));
   });
 
-  it("une fin qui dépasserait 80 caractères (texte affiché tronqué) est coupée plus loin, mots intacts", () => {
+  it("une fin qui dépasserait signesMax caractères (texte affiché tronqué) est coupée plus loin, mots intacts", () => {
     const t = `${SIX}Vous perdez du temps, alors qu'automatiquement institutionnalisation extraordinairement incompréhensiblement anticonstitutionnellement.`;
     const e = ecransDuScript(t);
     const fin = e.at(-1)!.join(" ");
-    expect(fin.length).toBeLessThanOrEqual(80);
+    expect(fin.length).toBeLessThanOrEqual(REGLES_SCENE_IV.signesMax);
     expect(fin.length).toBeGreaterThan(0);
     expect(t.endsWith(fin)).toBe(true);
     expect(mots(bout(e))).toEqual(mots(t));
   });
 
-  it("une fin de 5 mots de plus de 80 caractères est coupée plus tôt ou gardée sans troncature à l'écran", () => {
+  it("une fin de 5 mots de plus de signesMax caractères est coupée plus tôt ou gardée sans troncature à l'écran", () => {
     const longs = "automatiquement institutionnalisation extraordinairement incompréhensiblement anticonstitutionnellement";
     const t = `${SIX}Vous perdez du temps ${longs}.`;
     const e = ecransDuScript(t);
     const fin = e.at(-1)!.join(" ");
     expect(fin.length).toBeGreaterThan(0);
-    expect(fin.length <= 80 || mots(fin).length === 1).toBe(true);
+    expect(fin.length <= REGLES_SCENE_IV.signesMax || mots(fin).length === 1).toBe(true);
     expect(t.endsWith(fin)).toBe(true);
     expect(mots(bout(e))).toEqual(mots(t));
   });
