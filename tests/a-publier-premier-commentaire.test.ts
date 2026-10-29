@@ -21,6 +21,10 @@ process.env.FOURNISSEUR_STOCKAGE = "r2";
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 
+// La vidéo « porte » un commentaire : seul un commentaire vide envoyé par l'écran doit le retirer.
+const lire = vi.hoisted(() => ({ commentaireDeLaVideo: undefined as string | undefined }));
+vi.mock("@/services/premier-commentaire", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/services/premier-commentaire")>()), premierCommentaireDeVideo: async () => lire.commentaireDeLaVideo }));
+
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const pub = await import("@/services/publications");
@@ -46,6 +50,7 @@ beforeEach(async () => {
   await exemplesCommeVraies(depots(), { plusExemples: true });
   reinitialiserRequete();
   await auth.seConnecter(MDP, false);
+  lire.commentaireDeLaVideo = undefined;
   buffer = fauxBuffer();
   vi.stubGlobal("fetch", buffer.appeler);
 });
@@ -85,5 +90,14 @@ describe("premier commentaire dans l'envoi réel", () => {
     await cocherTout();
     await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
     expect(entree(0).metadata?.instagram).toEqual({ type: "reel", shouldShareToFeed: true });
+  });
+
+  it("commentaire vide envoyé par l'écran : aucun firstComment, même si la vidéo en porte un", async () => {
+    await cocherTout();
+    lire.commentaireDeLaVideo = "Celui de la vidéo";
+    await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { premiersCommentaires: { instagram: "" } });
+    expect(buffer.mutations()).toHaveLength(1);
+    expect(JSON.stringify(buffer.mutations()[0].variables)).not.toContain("firstComment");
+    expect(JSON.stringify(buffer.mutations()[0].variables)).not.toContain("Celui de la vidéo");
   });
 });

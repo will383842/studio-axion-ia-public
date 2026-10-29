@@ -90,7 +90,7 @@ function LigneCarte({ ligne: l, envoiSimule, modeBuffer }: { ligne: LigneAPublie
   function brouillon() {
     demarrer(async () => {
       const iso = new Date(date).toISOString();
-      const r = await envoyerVersBufferAction(l.videoId, [l.reseau], iso, false, avecChoix ? { [l.reseau]: comptes } : {}, commentaire.trim() ? { [l.reseau]: commentaire } : {});
+      const r = await envoyerVersBufferAction(l.videoId, [l.reseau], iso, false, avecChoix ? { [l.reseau]: comptes } : {}, { [l.reseau]: commentaire });
       if (!r.ok) {
         notifier.erreur(r.message);
         return;
