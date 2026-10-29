@@ -51,7 +51,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
             >
               {r !== "tous" && <LogoReseau reseau={r} taille="sm" />}
               {r === "tous" ? "Tous" : obtenirReseau(r).nom}
-              <span className="text-xs font-normal text-texte-faible">{n.aEnvoyer > 0 ? `${n.aEnvoyer} à envoyer` : n.toutes}</span>
+              <span className="text-xs font-normal text-texte-faible">{n.aEnvoyer > 0 ? `${n.aEnvoyer} à envoyer` : n.toutes === 1 ? "1 vidéo" : `${n.toutes} vidéos`}</span>
             </Link>
           );
         })}
