@@ -291,7 +291,7 @@ function donneesDe(s: SourceTextes, reseau: IdReseau, regles: Awaited<ReturnType
   return donneesPublication({ reseau, titre: v.titre, texteValide: s.texteValide, formatId: v.formatId, dureeSec: v.dureeCibleSec, adresse: v.adresse, mention: s.mention, credits: s.credits, regles, famille: famillePour(reseau, s.familles) });
 }
 
-async function reseauxParDefaut(): Promise<IdReseau[]> {
+export async function reseauxParDefaut(): Promise<IdReseau[]> {
   return lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
 }
 
@@ -673,7 +673,7 @@ async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: stri
  * Texte publié : l'en-tête de série (équipe 7, « Série · ép. 3 »), le texte du kit puis ses mots-dièse. Dernier filet :
  * un mot-dièse fourre-tout (#fyp, #viral, #pourtoi, #foryou) ne part jamais, quelle que soit l'origine du texte.
  */
-function texteAEnvoyer(r: { texte: string; motsDiese: string[] }, entete?: string): string {
+export function texteAEnvoyer(r: { texte: string; motsDiese: string[] }, entete?: string): string {
   const motsDiese = r.motsDiese.filter((m) => !estInterdit(m));
   return [entete ? `${entete}\n${r.texte}` : r.texte, motsDiese.join(" ")].filter(Boolean).join("\n\n");
 }
@@ -928,12 +928,23 @@ export async function compterPublicationsProgrammees(videoIds: string[]): Promis
   return depots().publications.compter((p) => videoIds.includes(p.videoId) && p.statut === "programmee" && p.date >= maintenantIso);
 }
 
-/** « À programmer » : vidéos validées sans publication programmée. */
-export async function listerAProgrammer(): Promise<VueVideoCarte[]> {
+/** Famille de contenu d'une ligne « À publier » (aujourd'hui les vidéos seules ; carrousels et infographies viendront à part). */
+export type FamilleAPublier = "video";
+
+/**
+ * « À publier » : les contenus validés (étape éditoriale « validée »), même forme que les cartes de vidéo, plus leur
+ * famille. Lecture seule : ne crée aucun état, aucun envoi.
+ */
+export async function listerAPublier(): Promise<(VueVideoCarte & { famille: FamilleAPublier })[]> {
   const d = depots();
   const exemples = await filtreExemples<{ estDemo?: boolean }>();
   const videos = await d.videos.lister((v) => exemples(v) && v.statut === "prete" && v.etapeEditoriale === "validee");
-  return Promise.all(videos.map(versCarte));
+  return Promise.all(videos.map(async (v) => ({ ...(await versCarte(v)), famille: "video" as const })));
+}
+
+/** « À programmer » : vidéos validées sans publication programmée. */
+export async function listerAProgrammer(): Promise<VueVideoCarte[]> {
+  return (await listerAPublier()).map(({ famille, ...carte }) => (void famille, carte));
 }
 
 /** Onglet « Résultats » d'une vidéo (chiffres de démonstration, AV2.4-8). */

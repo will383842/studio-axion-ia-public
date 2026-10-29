@@ -31,7 +31,7 @@ function abonner(rappel: () => void) {
 }
 
 /** Barre latérale (ordinateur ≥ 1024 px) : 264 px, repliable à 72 px. */
-export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false }: { formats: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean }) {
+export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false, aPublier = false }: { formats: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
   const chemin = usePathname();
   const repliee = useSyncExternalStore(abonner, lireRepliee, () => false);
   useEffect(() => {
@@ -72,7 +72,7 @@ export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false }:
 
       <nav aria-label="Menu principal" className="sans-barre flex-1 overflow-y-auto px-3 pb-4">
         <ul className="space-y-0.5">
-          {navigationLaterale(formats, surLeSite).map((e) => {
+          {navigationLaterale(formats, surLeSite, aPublier).map((e) => {
             const actif = estActif(chemin, e);
             const nouvelle = e.href === "/nouvelle";
             return (
