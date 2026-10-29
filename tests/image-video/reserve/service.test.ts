@@ -282,7 +282,7 @@ describe("vueReserveIV : recalcul depuis les travaux", () => {
 
   it("vidéo faite : fait ; relue deux fois : inchangé", async () => {
     const id = await liee();
-    await travail("v1", "reussi", etat("prete"));
+    await travail("v1", "termine", etat("prete"));
     await reserve.vueReserveIV();
     expect((await reserve.vueReserveIV()).elements.find((e) => e.id === id)).toMatchObject({ etat: "fait" });
   });
