@@ -15,6 +15,7 @@ import type { CarteImage } from "@/domaine/image-video/carte";
 import { motsDits, schemaFicheImage, VERSION_FICHE_IMAGE, type AccrocheFiche, type EcranFiche, type FicheImage, type Partie, type Scene } from "@/domaine/image-video/fiche";
 import { DEBUT_REFUS_ECRITURE, type ResultatEcritureIV } from "./ecriture";
 import { FOND_PAR_PARTIE } from "./recettes";
+import { REGLES_SCENE_IV } from "./regles-scene";
 import { aTrancherParWill, empreinteDeCarte, verifierScript, type ContexteRegles, type Manquement, type VerdictScript } from "./regles";
 import { refusScriptColle } from "./texte/script-limites";
 
@@ -24,8 +25,12 @@ export { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_M
 const ACCROCHE_MOTS = 8;
 /** Mots de la phrase-choc au plus : elle est affichée en très grand, centrée, mot à mot. */
 const PHRASE_CHOC_MOTS = 8;
-/** Au-delà, un écran est coupé en deux (mots) ; l'écran est un confort de lecture, pas une règle. */
-const ECRAN_MOTS_MAX = 16;
+/**
+ * Au-delà, un écran est coupé en deux (mots) ; l'écran est un confort de lecture, pas une règle. 12 mots (≈ 5,5 signes par mot,
+ * espace compris : 66 signes) tiennent dans les `signesMax` (70) du texte d'écran lisible (contrôle Q21) ; 16 mots (≈ 88 signes)
+ * le dépassaient et laissaient un plan trop long. La coupe ne change aucun mot dit.
+ */
+const ECRAN_MOTS_MAX = 12;
 const ECRAN_CARACTERES_MAX = 380;
 const ECRANS_MIN = 6;
 const ECRANS_MAX = 60;
@@ -82,13 +87,13 @@ function couper(jetons: readonly string[], max = Infinity): [string[], string[]]
   return [jetons.slice(0, meilleur + 1), jetons.slice(meilleur + 1)];
 }
 
-/** Caractères de la phrase-choc au plus : le texte affiché est tronqué à 80, la voix dit tout. */
-const PHRASE_CHOC_CARACTERES = 80;
+/** Caractères de la phrase-choc au plus : le plafond unique `signesMax` du texte d'écran, pour que rien ne soit tronqué à l'affichage. */
+const PHRASE_CHOC_CARACTERES = REGLES_SCENE_IV.signesMax;
 
 /**
  * Le dernier morceau devient la phrase-choc : s'il dépasse `PHRASE_CHOC_MOTS` mots, on le coupe au PREMIER signe de
- * ponctuation dont la suite fait 8 mots ou moins et 80 caractères au plus (la fin la plus longue possible), sinon on garde
- * ses derniers mots (8 au plus, 80 caractères au plus). La tête devient le résultat.
+ * ponctuation dont la suite fait 8 mots ou moins et `signesMax` caractères au plus (la fin la plus longue possible), sinon on garde
+ * ses derniers mots (8 au plus, `signesMax` caractères au plus). La tête devient le résultat.
  */
 function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
   const total = nbMots(jetons);
@@ -106,6 +111,8 @@ function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
     // Un mot seul de plus de 80 caractères (adresse web) est gardé en entier : la fin n'est jamais vide.
     while (nbMots(jetons.slice(coupe + 2)) >= 1 && texteDe(jetons.slice(coupe + 1)).length > PHRASE_CHOC_CARACTERES) coupe++;
   }
+  // Un morceau d'un seul mot (adresse web) reste tel quel : la fin ne serait que vide.
+  if (coupe + 1 >= jetons.length) return null;
   return [jetons.slice(0, coupe + 1), jetons.slice(coupe + 1)];
 }
 
@@ -114,7 +121,7 @@ export function ecransDuScript(script: string): string[][] {
   let morceaux = phrases(script);
   if (!morceaux.length) return morceaux;
   if (morceaux.length && nbMots(morceaux[0]!) > ACCROCHE_MOTS) morceaux.splice(0, 1, ...couper(morceaux[0]!, ACCROCHE_MOTS));
-  const trop = (m: readonly string[]) => nbMots(m) > ECRAN_MOTS_MAX || texteDe(m).length > ECRAN_CARACTERES_MAX;
+  const trop = (m: readonly string[]) => nbMots(m) > ECRAN_MOTS_MAX || texteDe(m).length > ECRAN_CARACTERES_MAX || texteDe(m).length > REGLES_SCENE_IV.signesMax;
   for (let i = 1; i < morceaux.length; i++) {
     if (trop(morceaux[i]!) && nbMots(morceaux[i]!) > 1) {
       morceaux.splice(i, 1, ...couper(morceaux[i]!));
@@ -158,10 +165,12 @@ const idEcran = (i: number) => `e${String(i + 1).padStart(2, "0")}`;
 const sansAccents = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const racines = (t: string) => new Set(sansAccents(t).split(/[^a-z0-9]+/).filter((m) => m.length >= 4));
 
-/** Texte affiché : le début de ce qui est dit, 80 caractères au plus, coupé entre deux mots. */
+/** Texte affiché : le début de ce qui est dit, `signesMax` caractères au plus (le seuil de lisibilité Q21), coupé entre deux mots. */
 function texteAffiche(t: string): string {
-  if (t.length <= 80) return t;
-  return t.slice(0, 80).replace(/\s+\S*$/, "");
+  const max = REGLES_SCENE_IV.signesMax;
+  if (t.length <= max) return t;
+  if (/\s/.test(t[max]!)) return t.slice(0, max).trimEnd();
+  return t.slice(0, max).replace(/\s+\S*$/, "");
 }
 
 function partieDe(i: number, n: number): Partie {
