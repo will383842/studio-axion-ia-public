@@ -97,7 +97,7 @@ services:
       USINE_URL: ${USINE_URL:-}
       USINE_PORTE_SECRET: ${USINE_PORTE_SECRET:-}
       # Porte v2 (usine -> studio, /api/usine/*) : secret DIFFERENT de USINE_PORTE_SECRET, 32 caractères au moins, sinon la porte répond 404.
-      # Le précédent n'est rempli que pendant une rotation, avec son échéance (date ISO, 24 h au plus) ; sans échéance valide il est ignoré.
+      # Le précédent n'est rempli que pendant une rotation, avec son échéance (date ISO avec Z ou décalage horaire, 24 h au plus dans le futur) ; sans échéance valide il est ignoré.
       STUDIO_PORTE_SECRET: ${STUDIO_PORTE_SECRET:-}
       STUDIO_PORTE_SECRET_PRECEDENT: ${STUDIO_PORTE_SECRET_PRECEDENT:-}
       STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A: ${STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A:-}

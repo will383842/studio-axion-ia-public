@@ -83,6 +83,20 @@ describe("garde : secret", () => {
     expect((await PUT(appel(ok(), {}, ANCIEN))).status).toBe(401);
   });
 
+  it("échéance de l'ancien secret : sans fuseau refusée, à +25 h refusée, à +1 h acceptée, passée refusée, avec décalage acceptée", async () => {
+    vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", ANCIEN);
+    const iso = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+    const essai = async (v: string) => {
+      vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A", v);
+      return (await PUT(appel(ok(), {}, ANCIEN))).status;
+    };
+    expect(await essai(iso(1).replace("Z", ""))).toBe(401);
+    expect(await essai(iso(25))).toBe(401);
+    expect(await essai(iso(1))).toBe(200);
+    expect(await essai(iso(-1))).toBe(401);
+    expect(await essai(iso(1).replace("Z", "+00:00"))).toBe(200);
+  });
+
   it("un ancien secret trop court n'ouvre rien", async () => {
     vi.stubEnv("STUDIO_PORTE_SECRET_PRECEDENT", "court");
     expect((await PUT(appel(ok(), {}, "court"))).status).toBe(401);
