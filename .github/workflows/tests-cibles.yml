@@ -45,6 +45,13 @@ on:
       - "src/components/reglages/GardeSujetsReglage.tsx"
       - "src/app/(studio)/reglages/actions-garde-sujets.ts"
       - "tests/sujets-traites/**"
+      - "src/services/a-publier*"
+      - "src/services/publications.ts"
+      - "src/components/publication/LignesAPublier.tsx"
+      - "src/components/reglages/InterrupteurAPublier.tsx"
+      - "tests/a-publier*.test.ts"
+      - "tests/l1-10-buffer-premier-commentaire.test.ts"
+      - "tests/r1-ecrans-buffer.test.ts"
       - ".github/workflows/tests-cibles.yml"
 
 permissions:
@@ -97,4 +104,8 @@ jobs:
             tests/empreintes-fichiers.test.ts \
             tests/r2-empreinte.test.ts \
             tests/empreintes-controle.test.ts \
-            tests/sujets-traites/reglage-garde.test.ts
+            tests/sujets-traites/reglage-garde.test.ts \
+            tests/a-publier.test.ts \
+            tests/a-publier-premier-commentaire.test.ts \
+            tests/l1-10-buffer-premier-commentaire.test.ts \
+            tests/r1-ecrans-buffer.test.ts
