@@ -85,14 +85,19 @@ export function premierCommentaireTransmissible(reseau: DemandePublication["rese
   return RESEAUX_PREMIER_COMMENTAIRE.has(serviceBuffer(reseau));
 }
 
-/** Premier commentaire utile (vide ou blanc = aucun). Un interdit commun refuse l'envoi entier. */
-function commentaireDe(d: DemandePublication): string | undefined {
-  const c = d.premierCommentaire?.trim();
-  if (!c) return undefined;
+/** Refuse un premier commentaire qui contient un mot interdit à l'envoi ou un interdit commun (même s'il sera posé à la main). */
+export function verifierPremierCommentaire(c: string): void {
   const mots = motsInterditsEnvoi(c);
   if (mots.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditCommentaire, false, `mots interdits : ${mots.join(", ")}`);
   const trouves = interditsCommuns().filter((i) => Object.values(i.tests).some((t) => t?.(c)));
   if (trouves.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.commentaireInterdit, false, `interdits : ${trouves.map((i) => i.libelle).join(", ")}`);
+}
+
+/** Premier commentaire utile (vide ou blanc = aucun). Un interdit commun refuse l'envoi entier. */
+function commentaireDe(d: DemandePublication): string | undefined {
+  const c = d.premierCommentaire?.trim();
+  if (!c) return undefined;
+  verifierPremierCommentaire(c);
   return c;
 }
 

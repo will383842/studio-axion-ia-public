@@ -25,7 +25,7 @@ import { listerReseaux, obtenirReseau, verifierPourReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
 import { occupeBuffer } from "@/domaine/buffer";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
-import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
+import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
@@ -670,7 +670,15 @@ export async function envoyerVersBuffer(
 async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean): Promise<{ texte?: string; aLaMain: boolean }> {
   const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
-  return premierCommentaireTransmissible(reseau) ? { texte, aLaMain: false } : { aLaMain: true };
+  if (premierCommentaireTransmissible(reseau)) return { texte, aLaMain: false };
+  // Posé à la main : le texte est tout de même montré et recopié, il passe donc le même filtre, avant tout envoi.
+  try {
+    verifierPremierCommentaire(texte);
+  } catch (e) {
+    if (e instanceof ErreurBuffer) throw new ErreurStudio("COMMENTAIRE_INTERDIT", e.message);
+    throw e;
+  }
+  return { aLaMain: true };
 }
 
 /**

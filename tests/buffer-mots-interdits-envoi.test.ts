@@ -1,6 +1,6 @@
 /** Mots interdits à l'envoi vers Buffer : chaque mot seul est refusé (texte du post et premier commentaire). */
 import { describe, expect, it } from "vitest";
-import { entreeCreerPost, ErreurBuffer, PHRASES_BUFFER } from "@/fournisseurs/publication/buffer";
+import { entreeCreerPost, ErreurBuffer, PHRASES_BUFFER, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import { CANAUX } from "./helpers/r1-buffer";
 
@@ -87,5 +87,13 @@ describe("autres interdits toujours actifs", () => {
   });
   it("Aucun gain garanti reste refusé", () => {
     expect(refus({ premierCommentaire: "Aucun gain garanti" })?.message).toBe(PHRASES_BUFFER.commentaireInterdit);
+  });
+});
+
+describe("premier commentaire posé à la main (TikTok, YouTube)", () => {
+  it("passe le même filtre : un mot interdit ou un interdit commun est refusé, un texte propre passe", () => {
+    expect(() => verifierPremierCommentaire(`Voir ${J("cert", "ifié")}`)).toThrow(PHRASES_BUFFER.motInterditCommentaire);
+    expect(() => verifierPremierCommentaire("Aucun gain garanti")).toThrow(PHRASES_BUFFER.commentaireInterdit);
+    expect(() => verifierPremierCommentaire("Le lien : axion-ia.com")).not.toThrow();
   });
 });
