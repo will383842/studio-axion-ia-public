@@ -677,11 +677,16 @@ function poserTexte(c: Ctx, texte: string, toutesCles: Set<string>, apres = 0): 
 
 /**
  * Parties d'un texte « A · B · C » révélées l'une après l'autre (au moins 0,6 s d'écart), sinon le texte entier.
- * `virgules` (titre d'en-tête) : une liste « A, B, C » se révèle de même, au bloc dont le libellé est dit (30/10) ; la virgule
- * décimale (« 2,5 ») ne coupe jamais.
+ * `blocs` (titre d'en-tête) : une liste « A, B, C » dont chaque morceau nomme un bloc de l'écran se révèle de même, au bloc dont
+ * le libellé est dit (30/10) ; la virgule décimale (« 2,5 ») ne coupe jamais.
  */
-function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>, virgules = false): TextePose[] {
-  const coupes = texte.split(virgules ? /(\s+·\s+|,\s+)/ : /(\s+·\s+)/);
+function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>, blocs?: readonly NoeudCarte[]): TextePose[] {
+  let coupes = texte.split(blocs ? /(\s+·\s+|,\s+)/ : /(\s+·\s+)/);
+  // Une virgule de phrase (« Le soir, vous recopiez ») ne coupe pas : chaque morceau d'une liste doit nommer un bloc DIFFÉRENT de l'écran.
+  if (blocs && coupes.some((x, i) => i % 2 === 1 && x.trim() !== "·")) {
+    const noms = coupes.filter((_, i) => i % 2 === 0).map((m) => refDuTexte(sansBalises(m), blocs));
+    if (noms.some((n) => !n) || new Set(noms).size < noms.length) coupes = texte.split(/(\s+·\s+)/);
+  }
   const morceaux = coupes.filter((_, i) => i % 2 === 0);
   const liens = coupes.filter((_, i) => i % 2 === 1).map((l) => (l.trim() === "·" ? " · " : ", "));
   const jusquA = (k: number) => morceaux.slice(0, k + 1).map((m, i) => (i ? liens[i - 1] : "") + m).join("");
@@ -761,7 +766,7 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   const groupe = c.e.refs.map((r) => carte.noeuds.find((n) => n.id === r)?.groupe).find((g) => g);
   const titreGroupe = carte.groupes.find((g) => g.id === groupe)?.titre;
   const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? etiquetteDeRepli(carte, c.e.scene));
-  const parties = partiesDe(c, titre, toutesCles, true);
+  const parties = partiesDe(c, titre, toutesCles, c.e.refs.map((r) => carte.noeuds.find((n) => n.id === r)).filter((n): n is NoeudCarte => !!n));
   const montreAilleurs = (k: string) => {
     const d = c.chiffres.find((x) => x.cle === k);
     return !d || els.some((x) => x.chiffres.includes(k) && Math.abs(x.t - heureMot(c, d.rang)) <= R.chiffreApres - 0.05);
