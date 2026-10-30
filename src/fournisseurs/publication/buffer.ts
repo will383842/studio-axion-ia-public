@@ -61,6 +61,8 @@ export const PHRASES_BUFFER = {
   commentaireInterdit: "Le premier commentaire contient une formule interdite : rien n'a été envoyé.",
   motInterditTexte: "Le texte du post contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
   motInterditCommentaire: "Le premier commentaire contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
+  motInterditTitre: "Le titre YouTube contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
+  motInterditTexteAlternatif: "Le texte alternatif d'une image contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
   texteAlternatifAbsent: "Une image n'a pas de texte alternatif : rien n'a été envoyé.",
   publicationRefusee: "Buffer refuse cette publication (vidéo ou texte non acceptés).",
   compteRefuse: "Buffer refuse l'envoi sur ce compte : vérifiez-le dans Buffer.",
@@ -115,9 +117,13 @@ export function entreeCreerPost(d: DemandePublication, instant: number = Date.no
   for (const im of images) {
     if (!/^https:\/\//.test(im.url)) throw new ErreurBuffer("invalide", "Une image n'est pas en ligne : Buffer ne pourrait pas la lire.");
     if (!texteAlt(im.texteAlternatif ?? "")) throw new ErreurBuffer("invalide", PHRASES_BUFFER.texteAlternatifAbsent);
+    const motsAlt = motsInterditsEnvoi(im.texteAlternatif ?? "");
+    if (motsAlt.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTexteAlternatif, false, `mots interdits : ${motsAlt.join(", ")}`);
   }
   const motsTexte = motsInterditsEnvoi(d.texte);
   if (motsTexte.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTexte, false, `mots interdits : ${motsTexte.join(", ")}`);
+  const motsTitre = serviceBuffer(d.reseau) === "youtube" ? motsInterditsEnvoi(d.titre ?? "") : [];
+  if (motsTitre.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTitre, false, `mots interdits : ${motsTitre.join(", ")}`);
   const commentaire = commentaireDe(d);
   const brouillon = (d.mode ?? "brouillon") === "brouillon";
   const echeance = Date.parse(d.date);
