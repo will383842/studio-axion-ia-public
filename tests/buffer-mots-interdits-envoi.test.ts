@@ -36,8 +36,17 @@ const VARIANTES = [
   J("cert", "\u00A0", "ifié"), // espace insécable au milieu du mot
   J("Quali", "\u200D", "opi"),
   J("Quali", "Opi"),
+  J("re", "cert", "ifie"), // préfixe
+  J("auto", "cert", "ifie"),
+  J("cert", "ifiiez"),
+  J("cert", "ifiable"),
+  J("#formation", "cert", "ifiee"), // mot-dièse minuscule collé
+  J("cert", "\u2009", "ifié"), // espace fine
+  J("cert", "\u2062", "ifié"), // opérateur invisible
+  J("cert", "\u180E", "ifié"), // séparateur mongol
+  J("Quali", "\u2009", "opi"),
 ];
-const VOISINS = ["incertitude", "certes", "certificat", "un certain jour", "certitude", "Un certificat de présence"];
+const VOISINS = ["incertitude", "certes", "certificat", "un certain jour", "certitude", "Un certificat de présence", "des certificats", "le certificateur"];
 
 describe("variantes et contournements", () => {
   it.each(VARIANTES)("%j : refusé", (mot) => {
