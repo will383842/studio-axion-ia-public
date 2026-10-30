@@ -12,7 +12,7 @@ const RACINES: readonly { libelle: string; motif: RegExp }[] = [
   // Famille du participe : formes exactes (les mots voisins légitimes ne passent pas ce motif).
   { libelle: J("cert", "ifié"), motif: new RegExp(`(?<![a-z])${FAMILLE}(?:e|ee|es|ees|er|ant|ante|ants|antes|ons|ez)?(?![a-z])`) },
   { libelle: J("cert", "ification"), motif: new RegExp(`(?<![a-z])${J("cert", "ification")}s?(?![a-z])`) },
-  // Nom de la certification qualité : la racine seule, sans aucune frontière (aucun mot légitime ne la contient).
+  // Nom du label qualité : la racine seule, sans aucune frontière (aucun mot légitime ne la contient).
   { libelle: J("Quali", "opi"), motif: new RegExp(NOM_QUALITE) },
 ];
 

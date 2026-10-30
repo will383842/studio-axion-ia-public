@@ -35,7 +35,7 @@ const VARIANTES = [
   J("cert", "\u00AD", "ifié"), // trait d'union conditionnel
   J("cert", "\u00A0", "ifié"), // espace insécable au milieu du mot
   J("Quali", "\u200D", "opi"),
-  J("QualiOpi"),
+  J("Quali", "Opi"),
 ];
 const VOISINS = ["incertitude", "certes", "certificat", "un certain jour", "certitude", "Un certificat de présence"];
 
