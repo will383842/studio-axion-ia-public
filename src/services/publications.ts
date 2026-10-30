@@ -23,9 +23,10 @@ import { dureeDeLaVideo } from "@/domaine/duree-video";
 import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
 import { listerReseaux, obtenirReseau, verifierPourReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
-import { occupeBuffer } from "@/domaine/buffer";
+import { occupeBuffer, serviceBuffer } from "@/domaine/buffer";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
-import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
+import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
+import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
@@ -670,7 +671,21 @@ export async function envoyerVersBuffer(
 async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean): Promise<{ texte?: string; aLaMain: boolean }> {
   const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
-  return premierCommentaireTransmissible(reseau) ? { texte, aLaMain: false } : { aLaMain: true };
+  if (premierCommentaireTransmissible(reseau)) return { texte, aLaMain: false };
+  // Posé à la main : le texte est tout de même montré et recopié, il passe donc le même filtre, avant tout envoi.
+  try {
+    verifierPremierCommentaire(texte);
+  } catch (e) {
+    if (e instanceof ErreurBuffer) throw new ErreurStudio("COMMENTAIRE_INTERDIT", e.message);
+    throw e;
+  }
+  return { aLaMain: true };
+}
+
+/** Texte du post (et titre YouTube) : un mot interdit refuse tout l'envoi, avant la moindre réservation ni le moindre appel. */
+function verifierTextesAEnvoyer(reseau: IdReseau, texte: string, titre: string | undefined): void {
+  if (motsInterditsEnvoi(texte).length) throw new ErreurStudio("TEXTE_INTERDIT", PHRASES_BUFFER.motInterditTexte);
+  if (titre && serviceBuffer(reseau) === "youtube" && motsInterditsEnvoi(titre).length) throw new ErreurStudio("TEXTE_INTERDIT", PHRASES_BUFFER.motInterditTitre);
 }
 
 /**
@@ -755,10 +770,12 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     const nomReseau = obtenirReseau(reseau).nom;
     const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau], avecVideo);
     if (commentaire.aLaMain) aPoserALaMain.add(reseau);
+    const texte = texteAEnvoyer(r, kitVue.serie?.entete);
+    verifierTextesAEnvoyer(reseau, texte, r.titre);
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
       const nom = comptes.source === "auto" ? nomReseau : `${nomReseau} (${canal.nom})`;
-      prets.push({ reseau, nom, texte: texteAEnvoyer(r, kitVue.serie?.entete), ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}) });
+      prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}) });
     }
   }
   // Le choix de Will est proposé la fois suivante (et sert à « Programmer les N »).

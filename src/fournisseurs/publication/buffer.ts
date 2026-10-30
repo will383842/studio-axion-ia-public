@@ -21,6 +21,7 @@
  */
 import { serviceBuffer, statutDepuisBuffer } from "@/domaine/buffer";
 import { interditsCommuns } from "@/domaine/qualite-script";
+import { motsInterditsEnvoi } from "./mots-interdits-envoi";
 import { URL_BUFFER, VARIABLE_CLE_BUFFER } from "../mesures/buffer";
 import { nettoyerDetail, posterJson, type Fetch } from "../mesures/commun";
 import type { CanalPublication, DemandePublication, EtatPublicationExterne, FournisseurPublication } from "../types";
@@ -58,6 +59,10 @@ export const PHRASES_BUFFER = {
   limiteCompte: "Buffer : ce compte a atteint son nombre d'envois du jour.",
   demandeRefusee: "Buffer refuse la demande du studio.",
   commentaireInterdit: "Le premier commentaire contient une formule interdite : rien n'a été envoyé.",
+  motInterditTexte: "Le texte du post contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
+  motInterditCommentaire: "Le premier commentaire contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
+  motInterditTitre: "Le titre YouTube contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
+  motInterditTexteAlternatif: "Le texte alternatif d'une image contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.",
   texteAlternatifAbsent: "Une image n'a pas de texte alternatif : rien n'a été envoyé.",
   publicationRefusee: "Buffer refuse cette publication (vidéo ou texte non acceptés).",
   compteRefuse: "Buffer refuse l'envoi sur ce compte : vérifiez-le dans Buffer.",
@@ -82,12 +87,19 @@ export function premierCommentaireTransmissible(reseau: DemandePublication["rese
   return RESEAUX_PREMIER_COMMENTAIRE.has(serviceBuffer(reseau));
 }
 
+/** Refuse un premier commentaire qui contient un mot interdit à l'envoi ou un interdit commun (même s'il sera posé à la main). */
+export function verifierPremierCommentaire(c: string): void {
+  const mots = motsInterditsEnvoi(c);
+  if (mots.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditCommentaire, false, `mots interdits : ${mots.join(", ")}`);
+  const trouves = interditsCommuns().filter((i) => Object.values(i.tests).some((t) => t?.(c)));
+  if (trouves.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.commentaireInterdit, false, `interdits : ${trouves.map((i) => i.libelle).join(", ")}`);
+}
+
 /** Premier commentaire utile (vide ou blanc = aucun). Un interdit commun refuse l'envoi entier. */
 function commentaireDe(d: DemandePublication): string | undefined {
   const c = d.premierCommentaire?.trim();
   if (!c) return undefined;
-  const trouves = interditsCommuns().filter((i) => Object.values(i.tests).some((t) => t?.(c)));
-  if (trouves.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.commentaireInterdit, false, `interdits : ${trouves.map((i) => i.libelle).join(", ")}`);
+  verifierPremierCommentaire(c);
   return c;
 }
 
@@ -105,7 +117,13 @@ export function entreeCreerPost(d: DemandePublication, instant: number = Date.no
   for (const im of images) {
     if (!/^https:\/\//.test(im.url)) throw new ErreurBuffer("invalide", "Une image n'est pas en ligne : Buffer ne pourrait pas la lire.");
     if (!texteAlt(im.texteAlternatif ?? "")) throw new ErreurBuffer("invalide", PHRASES_BUFFER.texteAlternatifAbsent);
+    const motsAlt = motsInterditsEnvoi(im.texteAlternatif ?? "");
+    if (motsAlt.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTexteAlternatif, false, `mots interdits : ${motsAlt.join(", ")}`);
   }
+  const motsTexte = motsInterditsEnvoi(d.texte);
+  if (motsTexte.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTexte, false, `mots interdits : ${motsTexte.join(", ")}`);
+  const motsTitre = serviceBuffer(d.reseau) === "youtube" ? motsInterditsEnvoi(d.titre ?? "") : [];
+  if (motsTitre.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTitre, false, `mots interdits : ${motsTitre.join(", ")}`);
   const commentaire = commentaireDe(d);
   const brouillon = (d.mode ?? "brouillon") === "brouillon";
   const echeance = Date.parse(d.date);

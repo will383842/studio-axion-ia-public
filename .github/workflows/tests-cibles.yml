@@ -128,4 +128,7 @@ jobs:
             tests/a-publier-liste.test.ts \
             tests/a-publier-par-reseau.test.ts \
             tests/relais-buffer.test.ts \
-            tests/relais-buffer-proxy.test.ts
+            tests/relais-buffer-proxy.test.ts \
+            tests/buffer-mots-interdits-envoi.test.ts \
+            tests/a-publier-finitions-envoi.test.ts \
+            tests/a-publier-mots-interdits-envoi.test.ts

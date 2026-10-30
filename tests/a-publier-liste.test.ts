@@ -2,7 +2,6 @@
  * Page « À publier » en deux temps : une liste compacte (rien d'autre qu'une ligne par vidéo), puis le détail d'une vidéo au clic.
  * Filtres, tri (À envoyer d'abord, puis les plus récentes), tranches de 20, retour à la liste avec son filtre.
  */
-import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -23,7 +22,8 @@ vi.mock("@/services/auth", () => ({
 vi.mock("@/services/a-publier", () => ({ pageAPublierAllumee: async () => pages.allumee, vueAPublier: async () => ({ envoiSimule: false, modeBuffer: "brouillon", lignes: pages.lignes }) }));
 
 const { ListeAPublier } = await import("@/components/publication/ListeAPublier");
-const { LignesAPublier } = await import("@/components/publication/LignesAPublier");
+const { LignesAPublier, BlocSucces } = await import("@/components/publication/LignesAPublier");
+const { messageSucces } = await import("@/components/publication/finitions-envoi");
 const { default: PageAPublier } = await import("@/app/(studio)/a-publier/page");
 const { default: PageDetailAPublier } = await import("@/app/(studio)/a-publier/[id]/page");
 const L = await import("@/components/publication/liste-a-publier");
@@ -138,10 +138,24 @@ describe("À publier — le détail et le retour à la liste", () => {
     expect(h).not.toMatch(/<details[^>]*\bopen\b/);
   });
 
-  it("après un envoi réussi on revient à la liste (même filtre)", () => {
-    const src = readFileSync("src/components/publication/LignesAPublier.tsx", "utf8");
-    expect(src).toMatch(/if \(n && retour\) router\.push\(retour\)/);
-    expect(src).toMatch(/if \(programmees\.length && retour\) router\.push\(retour\)/);
+  it("avant tout envoi : zone d'annonce présente mais vide, pas de lien Suivante", () => {
+    const h = renderToStaticMarkup(createElement(LignesAPublier, { vue: vue([ligne("v-1", "instagram")]), suivantes: { instagram: "/a-publier/v-2" } }));
+    expect(h).toContain('role="status"');
+    expect(h).not.toContain("Suivante");
+    expect(h).not.toContain("Envoyé :");
+  });
+
+  it("le bloc de succès : message annoncé, lien Suivante seulement s'il y a une vidéo suivante", () => {
+    const avec = renderToStaticMarkup(createElement(BlocSucces, { succes: messageSucces("brouillon", 1), suivante: "/a-publier/v-2?reseau=instagram" }));
+    expect(avec).toContain('role="status"');
+    expect(texte(avec)).toContain("Envoyé : la vidéo est en brouillon dans Buffer (1 compte)");
+    expect(avec).toContain('href="/a-publier/v-2?reseau=instagram"');
+    expect(texte(avec)).toContain("Suivante");
+    const sans = renderToStaticMarkup(createElement(BlocSucces, { succes: messageSucces("programmer", 2), suivante: null }));
+    expect(texte(sans)).toContain("programmée dans Buffer sur 2 comptes");
+    expect(sans).not.toContain("<a");
+    const vide = renderToStaticMarkup(createElement(BlocSucces, { succes: null, suivante: "/x" }));
+    expect(vide).toBe('<div role="status"></div>');
   });
 
   it("une vidéo inconnue ouvre la page « introuvable »", async () => {
