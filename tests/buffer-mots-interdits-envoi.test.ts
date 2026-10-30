@@ -106,3 +106,20 @@ describe("premier commentaire posé à la main (TikTok, YouTube)", () => {
     expect(() => verifierPremierCommentaire("Le lien : axion-ia.com")).not.toThrow();
   });
 });
+
+describe("titre YouTube et texte alternatif des images", () => {
+  const mot = J("cert", "ifié");
+  it("titre YouTube avec un mot interdit : message propre au titre, rien d'envoyé", () => {
+    const e = refus({ reseau: "youtube", titre: `Formation ${mot}` });
+    expect(e).toBeInstanceOf(ErreurBuffer);
+    expect(e?.message).toBe(PHRASES_BUFFER.motInterditTitre);
+    expect(refus({ reseau: "youtube", titre: "Trois gestes simples" })).toBeNull();
+  });
+  it("texte alternatif d'une image avec un mot interdit : message propre au texte alternatif", () => {
+    const img = (t: string) => ({ url: "https://exemple.test/i.png", texteAlternatif: t });
+    const e = refus({ images: [img("Un schéma"), img(`Badge ${mot}`)] });
+    expect(e).toBeInstanceOf(ErreurBuffer);
+    expect(e?.message).toBe(PHRASES_BUFFER.motInterditTexteAlternatif);
+    expect(refus({ images: [img("Un schéma propre")] })).toBeNull();
+  });
+});
