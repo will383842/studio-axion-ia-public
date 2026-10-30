@@ -14,9 +14,9 @@ export function dateLisible(valeur: string): string | null {
   return Number.isNaN(d.getTime()) ? null : FORMAT_DATE.format(d);
 }
 
-/** Une ligne lisible : le compte Buffer et la date, visibles sans ouvrir le détail. `noms` : les comptes cochés ou mémorisés. */
-export function ligneCompteEtDate(noms: string[], valeurDate: string): string {
-  const compte = noms.length ? noms.join(", ") : "Compte lu au premier envoi";
+/** Une ligne lisible : le compte Buffer et la date, visibles sans ouvrir le détail. `noms` : les comptes cochés ou mémorisés ; `aCocher` : l'écran demande de cocher un compte. */
+export function ligneCompteEtDate(noms: string[], valeurDate: string, aCocher = false): string {
+  const compte = noms.length ? noms.join(", ") : aCocher ? "aucun compte coché" : "Compte lu au premier envoi";
   const date = dateLisible(valeurDate);
   return date ? `Compte : ${compte} · Date : ${date}` : `Compte : ${compte} · Date à choisir`;
 }
@@ -29,8 +29,15 @@ export function messageSucces(mode: "brouillon" | "programmer" | undefined, comp
     : `Envoyé : la vidéo est en brouillon dans Buffer (${sur}). Relisez-la puis programmez-la dans Buffer.`;
 }
 
-/** La prochaine vidéo encore à envoyer (autre que l'actuelle), sur le même réseau si un réseau est ouvert ; son adresse de détail. */
+const CATEGORIE_DU_FILTRE: Record<Exclude<FiltreListe, "toutes">, string> = { "a-envoyer": "a-envoyer", envoyees: "envoyee", publiees: "publiee", problemes: "probleme" };
+
+/** La prochaine vidéo (autre que l'actuelle) du filtre actif, sur le réseau demandé (celui du panneau qui vient d'envoyer) ; son adresse de détail. */
 export function videoSuivante(lignes: LigneAPublier[], actuelle: string, reseau: ReseauListe, filtre: FiltreListe = FILTRE_PAR_DEFAUT, affichees = TRANCHE): string | null {
-  const suivante = lignes.find((l) => l.videoId !== actuelle && (reseau === "tous" || l.reseau === reseau) && etatDeLigne(l).categorie === "a-envoyer");
+  const suivante = lignes.find(
+    (l) =>
+      l.videoId !== actuelle &&
+      (reseau === "tous" || l.reseau === reseau) &&
+      (filtre === "toutes" ? etatDeLigne(l).categorie !== "essai" : etatDeLigne(l).categorie === CATEGORIE_DU_FILTRE[filtre]),
+  );
   return suivante ? lienDetailReseau(suivante.videoId, suivante.reseau, filtre, affichees, reseau === "tous") : null;
 }
