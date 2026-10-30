@@ -1,0 +1,125 @@
+/** Mots interdits à l'envoi vers Buffer : chaque mot seul est refusé (texte du post et premier commentaire). */
+import { describe, expect, it } from "vitest";
+import { entreeCreerPost, ErreurBuffer, PHRASES_BUFFER, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
+import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
+import { CANAUX } from "./helpers/r1-buffer";
+
+const VIDEO = "https://compte.r2.cloudflarestorage.com/seau/v.mp4?X-Amz-Expires=604800";
+const INSTANT = Date.parse("2026-10-03T10:00:00.000Z");
+const base = { reseau: "instagram" as const, texte: "Bonjour", date: "2026-10-05T07:00:00.000Z", fichierCle: VIDEO, canalId: CANAUX.instagram };
+const J = (...p: string[]) => p.join("");
+
+const MOTS = [J("cert", "ifié"), J("cert", "ifiée"), J("cert", "ifiés"), J("cert", "ification"), J("Quali", "opi"), J("CERT", "IFIÉ"), J("cert", "ifie"), J("QUALI", "OPI"), J("Cert", "ification")];
+
+function refus(d: Partial<Parameters<typeof entreeCreerPost>[0]>) {
+  try {
+    entreeCreerPost({ ...base, ...d }, INSTANT);
+  } catch (e) {
+    return e as ErreurBuffer;
+  }
+  return null;
+}
+
+const VARIANTES = [
+  J("#Formation", "Cert", "ifie"), // mot-dièse collé, camelCase
+  J("#Cert", "ifie", "Nom"),
+  J("#Quali", "opi"),
+  J("quali", "opi", "sée"), // suffixe
+  J("Quali", "opi", "sation"),
+  J("cert", "ifiante"),
+  J("cert", "ifier"),
+  J("cert", "ifiants"),
+  J("cert", "ifications"),
+  J("certi", "\uFB01é"), // ligature fi
+  J("cert", "\u200B", "ifié"), // espace sans largeur
+  J("cert", "\u00AD", "ifié"), // trait d'union conditionnel
+  J("cert", "\u00A0", "ifié"), // espace insécable au milieu du mot
+  J("Quali", "\u200D", "opi"),
+  J("Quali", "Opi"),
+  J("re", "cert", "ifie"), // préfixe
+  J("auto", "cert", "ifie"),
+  J("cert", "ifiiez"),
+  J("cert", "ifiable"),
+  J("#formation", "cert", "ifiee"), // mot-dièse minuscule collé
+  J("cert", "\u2009", "ifié"), // espace fine
+  J("cert", "\u2062", "ifié"), // opérateur invisible
+  J("cert", "\u180E", "ifié"), // séparateur mongol
+  J("Quali", "\u2009", "opi"),
+];
+const VOISINS = ["incertitude", "certes", "certificat", "un certain jour", "certitude", "Un certificat de présence", "des certificats", "le certificateur"];
+
+describe("variantes et contournements", () => {
+  it.each(VARIANTES)("%j : refusé", (mot) => {
+    expect(motsInterditsEnvoi(`Texte ${mot} fin`).length).toBeGreaterThan(0);
+    expect(motsInterditsEnvoi(mot).length).toBeGreaterThan(0);
+    expect(refus({ texte: `Avant ${mot} après` })?.message).toBe(PHRASES_BUFFER.motInterditTexte);
+    expect(refus({ premierCommentaire: mot })?.message).toBe(PHRASES_BUFFER.motInterditCommentaire);
+  });
+  it.each(VOISINS)("%j : accepté", (t) => {
+    expect(motsInterditsEnvoi(t)).toEqual([]);
+    expect(refus({ texte: t })).toBeNull();
+    expect(refus({ premierCommentaire: t })).toBeNull();
+  });
+  it("espace insécable entre deux mots légitimes : pas de faux refus", () => {
+    expect(motsInterditsEnvoi("une\u00A0certitude\u00A0certes")).toEqual([]);
+  });
+});
+
+describe("texte du post", () => {
+  it.each(MOTS)("%s seul : refusé avec un message clair", (mot) => {
+    const e = refus({ texte: `Une formation ${mot} pour vous` });
+    expect(e).toBeInstanceOf(ErreurBuffer);
+    expect(e?.message).toBe(PHRASES_BUFFER.motInterditTexte);
+  });
+  it("texte propre accepté", () => {
+    expect(refus({ texte: "Trois gestes simples pour gagner du temps." })).toBeNull();
+  });
+  it("un mot voisin n'est pas refusé", () => {
+    expect(motsInterditsEnvoi("un certain jour")).toEqual([]);
+  });
+});
+
+describe("premier commentaire", () => {
+  it.each(MOTS)("%s seul : refusé avec un message clair", (mot) => {
+    const e = refus({ premierCommentaire: `Voir ${mot}.` });
+    expect(e).toBeInstanceOf(ErreurBuffer);
+    expect(e?.message).toBe(PHRASES_BUFFER.motInterditCommentaire);
+  });
+  it("commentaire propre accepté", () => {
+    expect(refus({ premierCommentaire: "Le lien : axion-ia.com" })).toBeNull();
+  });
+});
+
+describe("autres interdits toujours actifs", () => {
+  it("le nom de ville interdit dans le commentaire reste refusé", () => {
+    expect(refus({ premierCommentaire: "Formation à Villeexemple" })).toBeInstanceOf(ErreurBuffer);
+  });
+  it("Aucun gain garanti reste refusé", () => {
+    expect(refus({ premierCommentaire: "Aucun gain garanti" })?.message).toBe(PHRASES_BUFFER.commentaireInterdit);
+  });
+});
+
+describe("premier commentaire posé à la main (TikTok, YouTube)", () => {
+  it("passe le même filtre : un mot interdit ou un interdit commun est refusé, un texte propre passe", () => {
+    expect(() => verifierPremierCommentaire(`Voir ${J("cert", "ifié")}`)).toThrow(PHRASES_BUFFER.motInterditCommentaire);
+    expect(() => verifierPremierCommentaire("Aucun gain garanti")).toThrow(PHRASES_BUFFER.commentaireInterdit);
+    expect(() => verifierPremierCommentaire("Le lien : axion-ia.com")).not.toThrow();
+  });
+});
+
+describe("titre YouTube et texte alternatif des images", () => {
+  const mot = J("cert", "ifié");
+  it("titre YouTube avec un mot interdit : message propre au titre, rien d'envoyé", () => {
+    const e = refus({ reseau: "youtube", titre: `Formation ${mot}` });
+    expect(e).toBeInstanceOf(ErreurBuffer);
+    expect(e?.message).toBe(PHRASES_BUFFER.motInterditTitre);
+    expect(refus({ reseau: "youtube", titre: "Trois gestes simples" })).toBeNull();
+  });
+  it("texte alternatif d'une image avec un mot interdit : message propre au texte alternatif", () => {
+    const img = (t: string) => ({ url: "https://exemple.test/i.png", texteAlternatif: t });
+    const e = refus({ images: [img("Un schéma"), img(`Badge ${mot}`)] });
+    expect(e).toBeInstanceOf(ErreurBuffer);
+    expect(e?.message).toBe(PHRASES_BUFFER.motInterditTexteAlternatif);
+    expect(refus({ images: [img("Un schéma propre")] })).toBeNull();
+  });
+});
