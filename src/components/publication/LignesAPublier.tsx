@@ -31,7 +31,7 @@ function demainNeufHeures(): Date {
 const LIBELLES_CASES: Record<string, string> = { image: "Image", son: "Son", sousTitres: "Sous-titres", mentionIA: "Mention IA", droits: "Droits" };
 
 /** Détail d'une vidéo : la carte (lecteur entier, case unique, un bouton par réseau prêt, détail replié). `retour` : la liste où revenir après un envoi réussi. */
-export function LignesAPublier({ vue, retour, reseauOuvert, suivante }: { vue: VueAPublier; retour?: string; reseauOuvert?: string; suivante?: string | null }) {
+export function LignesAPublier({ vue, retour, reseauOuvert, suivantes }: { vue: VueAPublier; retour?: string; reseauOuvert?: string; suivantes?: Record<string, string | null> }) {
   const cartes = regrouperParVideo(vue.lignes);
   return (
     <div className="space-y-4">
@@ -48,14 +48,14 @@ export function LignesAPublier({ vue, retour, reseauOuvert, suivante }: { vue: V
       </p>
       <ul className="space-y-4">
         {cartes.map((c) => (
-          <CarteDeVideo key={`${c.videoId}:${reseauOuvert ?? ""}`} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} reseauOuvert={reseauOuvert} suivante={suivante} />
+          <CarteDeVideo key={`${c.videoId}:${reseauOuvert ?? ""}`} carte={c} envoiSimule={vue.envoiSimule} modeBuffer={vue.modeBuffer} retour={retour} reseauOuvert={reseauOuvert} suivantes={suivantes} />
         ))}
       </ul>
     </div>
   );
 }
 
-function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, suivante }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string; reseauOuvert?: string; suivante?: string | null }) {
+function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, suivantes }: { carte: CarteVideo; envoiSimule: boolean; modeBuffer: VueAPublier["modeBuffer"]; retour?: string; reseauOuvert?: string; suivantes?: Record<string, string | null> }) {
   const router = useRouter();
   const [coches, setCoches] = useState<Record<string, boolean>>(carte.coches);
   const [ouvert, setOuvert] = useState<string | null>(carte.pretes.some((l) => l.reseau === reseauOuvert) ? (reseauOuvert ?? null) : null);
@@ -162,7 +162,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
                 envoiSimule={envoiSimule}
                 modeBuffer={modeBuffer}
                 retour={retour}
-                suivante={suivante}
+                suivante={suivantes?.[l.reseau] ?? null}
               />
             ))}
 
@@ -240,16 +240,17 @@ function PanneauReseau({
   const [date, setDate] = useState(() => versLocal(demainNeufHeures()));
   const [comptes, setComptes] = useState<string[]>(l.compte.memorises ?? []);
   const [enCours, demarrer] = useTransition();
+  const modifie = texte !== l.texte;
   const manque = casesRequises.filter((c) => !coches[c]);
   const avecChoix = !!l.compte.choix?.length;
   // Par compte, comme le serveur : seuls les comptes cochés déjà pris bloquent ; les autres restent envoyables.
   const dejaPris = !!l.etat && (avecChoix ? l.etat.sansCompte || (comptes.length > 0 && comptes.every((c) => l.etat!.comptesPris.includes(c))) : l.etat.envoye);
   const raison =
     (avecChoix && !comptes.length ? "Cochez le compte où envoyer." : undefined) ??
+    (modifie ? "Enregistrez le texte d'abord." : undefined) ??
     (manque.length ? "Cochez d'abord « J'ai regardé la vidéo, tout est en règle »." : undefined) ??
     (dejaPris ? (avecChoix ? `Déjà envoyée vers ${comptes.filter((c) => l.etat!.comptesPris.includes(c)).map((c) => l.compte.choix!.find((x) => x.id === c)?.nom ?? c).join(", ") || "ce réseau"}.` : "Déjà envoyée pour ce réseau.") : undefined);
   const peutEnvoyer = !raison && !envoiSimule;
-  const modifie = texte !== l.texte;
 
   function enregistrerTexte() {
     demarrer(async () => {
@@ -263,6 +264,7 @@ function PanneauReseau({
   }
 
   function brouillon() {
+    setSucces(null);
     demarrer(async () => {
       const quand = new Date(date);
       if (!date || Number.isNaN(quand.getTime())) {
@@ -276,11 +278,9 @@ function PanneauReseau({
         return;
       }
       const n = r.donnees.nombre;
-      if (n && r.donnees.mode === "brouillon") notifier.succes(`Brouillon dans Buffer · ${libelleComptes(n)}`, "Relisez et programmez dans Buffer.");
-      else if (n) notifier.succes(`Programmée sur ${libelleComptes(n)}`);
       if (r.donnees.problemes.length) notifier.erreur(r.donnees.problemes[0]);
       if (r.donnees.commentairesALaMain.length) notifier.erreur("Le premier commentaire n'est pas transmis à ce réseau : posez-le à la main.");
-      // Envoi réussi : on reste sur la vidéo, avec un message clair (et « Suivante » s'il reste une vidéo à traiter).
+      // Envoi réussi : un seul message annoncé (le bloc ci-dessous, pas de toast en plus) ; on reste sur la vidéo (et « Suivante » s'il reste une vidéo à traiter).
       if (n) setSucces(messageSucces(r.donnees.mode, n));
       router.refresh();
     });
@@ -303,17 +303,15 @@ function PanneauReseau({
       <Bouton icone="envoyer" pleineLargeur disabled={!peutEnvoyer || enCoursCases} chargement={enCours} onClick={brouillon}>
         {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
       </Bouton>
-      <p className="text-sm text-texte-doux">{ligneCompteEtDate(avecChoix ? comptes.map((c) => l.compte.choix!.find((x) => x.id === c)?.nom ?? c) : l.compte.nom ? [l.compte.nom] : [], date)}</p>
-      {succes && (
-        <div role="status" className="space-y-2 rounded-2xl border border-sauge/40 bg-surface-1 p-3 text-sm font-semibold text-texte">
-          <p>{succes}</p>
-          {suivante && (
-            <Bouton asChild variante="secondaire" pleineLargeur icone="envoyer">
-              <Link href={suivante}>Suivante</Link>
-            </Bouton>
-          )}
-        </div>
-      )}
+      <p className="text-sm text-texte-doux">{ligneCompteEtDate(avecChoix ? comptes.map((c) => l.compte.choix!.find((x) => x.id === c)?.nom ?? c) : l.compte.nom ? [l.compte.nom] : [], date, avecChoix)}</p>
+      <div role="status" className={succes ? "space-y-2 rounded-2xl border border-sauge/40 bg-surface-1 p-3 text-sm font-semibold text-texte" : undefined}>
+        {succes && <p>{succes}</p>}
+        {succes && suivante && (
+          <Bouton asChild variante="secondaire" pleineLargeur icone="envoyer">
+            <Link href={suivante}>Suivante</Link>
+          </Bouton>
+        )}
+      </div>
       {raison && <p className="text-sm text-texte-doux">{raison}</p>}
 
       <details className="text-sm">
