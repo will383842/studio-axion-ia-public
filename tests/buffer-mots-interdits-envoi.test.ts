@@ -20,6 +20,42 @@ function refus(d: Partial<Parameters<typeof entreeCreerPost>[0]>) {
   return null;
 }
 
+const VARIANTES = [
+  J("#Formation", "Cert", "ifie"), // mot-dièse collé, camelCase
+  J("#Cert", "ifie", "Nom"),
+  J("#Quali", "opi"),
+  J("quali", "opi", "sée"), // suffixe
+  J("Quali", "opi", "sation"),
+  J("cert", "ifiante"),
+  J("cert", "ifier"),
+  J("cert", "ifiants"),
+  J("cert", "ifications"),
+  J("certi", "\uFB01é"), // ligature fi
+  J("cert", "\u200B", "ifié"), // espace sans largeur
+  J("cert", "\u00AD", "ifié"), // trait d'union conditionnel
+  J("cert", "\u00A0", "ifié"), // espace insécable au milieu du mot
+  J("Quali", "\u200D", "opi"),
+  J("QualiOpi"),
+];
+const VOISINS = ["incertitude", "certes", "certificat", "un certain jour", "certitude", "Un certificat de présence"];
+
+describe("variantes et contournements", () => {
+  it.each(VARIANTES)("%j : refusé", (mot) => {
+    expect(motsInterditsEnvoi(`Texte ${mot} fin`).length).toBeGreaterThan(0);
+    expect(motsInterditsEnvoi(mot).length).toBeGreaterThan(0);
+    expect(refus({ texte: `Avant ${mot} après` })?.message).toBe(PHRASES_BUFFER.motInterditTexte);
+    expect(refus({ premierCommentaire: mot })?.message).toBe(PHRASES_BUFFER.motInterditCommentaire);
+  });
+  it.each(VOISINS)("%j : accepté", (t) => {
+    expect(motsInterditsEnvoi(t)).toEqual([]);
+    expect(refus({ texte: t })).toBeNull();
+    expect(refus({ premierCommentaire: t })).toBeNull();
+  });
+  it("espace insécable entre deux mots légitimes : pas de faux refus", () => {
+    expect(motsInterditsEnvoi("une\u00A0certitude\u00A0certes")).toEqual([]);
+  });
+});
+
 describe("texte du post", () => {
   it.each(MOTS)("%s seul : refusé avec un message clair", (mot) => {
     const e = refus({ texte: `Une formation ${mot} pour vous` });
