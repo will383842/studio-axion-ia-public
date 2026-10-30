@@ -304,14 +304,7 @@ function PanneauReseau({
         {modeBuffer === "programmer" ? "Programmer dans Buffer" : "Mettre en brouillon dans Buffer"}
       </Bouton>
       <p className="text-sm text-texte-doux">{ligneCompteEtDate(avecChoix ? comptes.map((c) => l.compte.choix!.find((x) => x.id === c)?.nom ?? c) : l.compte.nom ? [l.compte.nom] : [], date, avecChoix)}</p>
-      <div role="status" className={succes ? "space-y-2 rounded-2xl border border-sauge/40 bg-surface-1 p-3 text-sm font-semibold text-texte" : undefined}>
-        {succes && <p>{succes}</p>}
-        {succes && suivante && (
-          <Bouton asChild variante="secondaire" pleineLargeur icone="envoyer">
-            <Link href={suivante}>Suivante</Link>
-          </Bouton>
-        )}
-      </div>
+      <BlocSucces succes={succes} suivante={suivante} />
       {raison && <p className="text-sm text-texte-doux">{raison}</p>}
 
       <details className="text-sm">
@@ -366,6 +359,20 @@ function PanneauReseau({
           </label>
         </div>
       </details>
+    </div>
+  );
+}
+
+/** Zone d'annonce toujours présente (pour que le lecteur d'écran l'annonce au remplissage) ; ne contient du texte qu'après un envoi réussi. */
+export function BlocSucces({ succes, suivante }: { succes: string | null; suivante?: string | null }) {
+  return (
+    <div role="status" className={succes ? "space-y-2 rounded-2xl border border-sauge/40 bg-surface-1 p-3 text-sm font-semibold text-texte" : undefined}>
+      {succes && <p>{succes}</p>}
+      {succes && suivante && (
+        <Bouton asChild variante="secondaire" pleineLargeur icone="envoyer">
+          <Link href={suivante}>Suivante</Link>
+        </Bouton>
+      )}
     </div>
   );
 }

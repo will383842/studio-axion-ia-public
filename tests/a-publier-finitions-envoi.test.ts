@@ -16,6 +16,10 @@ describe("ligne compte + date", () => {
     expect(ligneCompteEtDate([], "")).toBe("Compte : Compte lu au premier envoi · Date à choisir");
     expect(dateLisible("n'importe quoi")).toBeNull();
   });
+  it("l'écran demande de cocher un compte : dit « aucun compte coché »", () => {
+    expect(ligneCompteEtDate([], "", true)).toBe("Compte : aucun compte coché · Date à choisir");
+    expect(ligneCompteEtDate(["A"], "", true)).toContain("Compte : A");
+  });
   it("plusieurs comptes cochés : tous nommés", () => {
     expect(ligneCompteEtDate(["A", "B"], "")).toContain("A, B");
   });
@@ -38,6 +42,16 @@ describe("vidéo suivante", () => {
   it("sur un réseau ouvert, reste sur ce réseau", () => {
     expect(videoSuivante(lignes, "v3", "tiktok")).toContain("/a-publier/v4");
     expect(videoSuivante(lignes, "v4", "tiktok")).toBeNull();
+  });
+  it("suit le réseau demandé (celui du panneau), pas un autre : un panneau tiktok mène à une vidéo tiktok", () => {
+    expect(videoSuivante(lignes, "v1", "tiktok")).toContain("/a-publier/v4");
+    expect(videoSuivante(lignes, "v1", "tous")).toContain("/a-publier/v3");
+  });
+  it("filtre actif : « envoyées » mène à une vidéo envoyée, pas à une vidéo à envoyer", () => {
+    expect(videoSuivante(lignes, "v1", "instagram", "envoyees")).toContain("/a-publier/v2");
+    expect(videoSuivante(lignes, "v1", "instagram", "envoyees")).toContain("filtre=envoyees");
+    const l2 = [ligne("v1", "instagram"), ligne("v2", "instagram", { envoye: true })];
+    expect(videoSuivante(l2, "v1", "instagram", "a-envoyer")).toBeNull();
   });
   it("aucune autre vidéo : pas de bouton", () => {
     expect(videoSuivante([ligne("v1", "instagram")], "v1", "tous")).toBeNull();
