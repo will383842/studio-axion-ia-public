@@ -675,10 +675,35 @@ function poserTexte(c: Ctx, texte: string, toutesCles: Set<string>, apres = 0): 
   return { t: heureMot(c, rang), texte, chiffres: cles, couverts: [...new Set(couverts)].sort((x, y) => x - y) };
 }
 
-/** Parties d'un texte « A · B · C » révélées l'une après l'autre (au moins 0,6 s d'écart), sinon le texte entier. */
-function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>): TextePose[] {
-  const morceaux = texte.split(/\s+·\s+/);
+/**
+ * Parties d'un texte « A · B · C » révélées l'une après l'autre (au moins 0,6 s d'écart), sinon le texte entier.
+ * `refs` non vide (titre d'en-tête) : une liste « A, B, C » se révèle de même, au bloc dont le libellé est dit (30/10), mais
+ * la coupe à la virgule n'a lieu que si chaque morceau nomme un bloc DISTINCT de l'écran ; sinon c'est une phrase
+ * (« Le *devis* part, le client signe ») et seul « · » coupe. La virgule décimale (« 2,5 ») ne coupe jamais.
+ */
+function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>, refs: readonly NoeudCarte[] = []): TextePose[] {
   const entier = poserTexte(c, texte, toutesCles);
+  const decoupe = (virgules: boolean) => {
+    const coupes = texte.split(virgules ? /(\s+·\s+|,\s+)/ : /(\s+·\s+)/);
+    const morceaux: string[] = [];
+    const liens: string[] = [];
+    coupes.forEach((x, i) => {
+      if (i % 2 === 0) {
+        if (!x.trim()) return; // morceau vide (virgule finale) : retiré avec son séparateur
+        if (morceaux.length) liens.push(coupes[i - 1]!);
+        morceaux.push(x);
+      }
+    });
+    return { morceaux, liens };
+  };
+  let { morceaux, liens } = decoupe(refs.length > 0);
+  if (refs.length > 0 && /,\s+/.test(texte)) {
+    const ids = morceaux.map((m) => refDuTexte(m, refs));
+    if (ids.some((id) => !id) || new Set(ids).size < ids.length) ({ morceaux, liens } = decoupe(false));
+  }
+  // Un morceau qui ouvre un « * » sans le fermer : la coupe casserait l'emphase.
+  if (morceaux.some((m) => (m.match(/\*/g)?.length ?? 0) % 2)) return [entier];
+  const jusquA = (k: number) => morceaux.slice(0, k + 1).map((m, i) => (i ? liens[i - 1] : "") + m).join("");
   if (morceaux.length < 2) return [entier];
   const poses = morceaux.map((m) => poserTexte(c, m, toutesCles));
   // Un morceau que rien ne nomme apparaît avec le précédent.
@@ -689,7 +714,7 @@ function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>): TextePose[] 
   // Révélation cumulée : chaque étape montre les morceaux déjà dits.
   const res: TextePose[] = [];
   poses.forEach((p, k) => {
-    const cumul = morceaux.slice(0, k + 1).join(" · ");
+    const cumul = jusquA(k);
     if (res.length && res[res.length - 1].t === p.t) res[res.length - 1] = { ...p, texte: cumul, chiffres: clesDuTexte(cumul), couverts: [...res[res.length - 1].couverts, ...p.couverts] };
     else res.push({ ...p, texte: cumul, chiffres: clesDuTexte(cumul), couverts: [...(res.at(-1)?.couverts ?? []), ...p.couverts] });
   });
@@ -732,7 +757,7 @@ function elementsDe(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>, c
 
   // En-têtes (toile, objets, moments) : l'étiquette et le titre de la fiche. Au début de l'écran, sauf si son chiffre
   // dit n'est montré par rien d'autre sur son mot (il apparaît alors avec lui, Q13).
-  if (!SANS_ENTETE.has(e.scene) && sorte !== "recap" && e.textesEcran.length) enTetes(c, carte, toutesCles, els);
+  if (!SANS_ENTETE.has(e.scene) && sorte !== "recap" && e.textesEcran.length) enTetes(c, carte, toutesCles, noeudsRefs, els);
   return trier(els);
 }
 
@@ -745,7 +770,7 @@ function etiquetteDePaire(texte: string): string {
   return sansBalises(texte.split(/\s+·\s+/)[0]!);
 }
 
-function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]): void {
+function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, noeudsRefs: readonly NoeudCarte[], els: El[]): void {
   const lignes = c.e.textesEcran;
   const titre = lignes.find((t) => t.includes("*")) ?? lignes[0];
   const autre = lignes.find((t) => t !== titre);
@@ -754,7 +779,8 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   const groupe = c.e.refs.map((r) => carte.noeuds.find((n) => n.id === r)?.groupe).find((g) => g);
   const titreGroupe = carte.groupes.find((g) => g.id === groupe)?.titre;
   const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? etiquetteDeRepli(carte, c.e.scene));
-  const parties = partiesDe(c, titre, toutesCles);
+  const debutParties = els.length;
+  const parties = partiesDe(c, titre, toutesCles, noeudsRefs);
   const montreAilleurs = (k: string) => {
     const d = c.chiffres.find((x) => x.cle === k);
     return !d || els.some((x) => x.chiffres.includes(k) && Math.abs(x.t - heureMot(c, d.rang)) <= R.chiffreApres - 0.05);
@@ -785,7 +811,7 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
     // Après le titre, nommée trop tôt pour relancer, sans chiffre à montrer sur son mot : elle relance l'en-tête 1,2 s après le dernier, s'il reste de la place avant la fin de l'écran.
     else if (lignes.indexOf(autre) > lignes.indexOf(titre)) {
       if (p.couverts.length && !p.chiffres.length && dernier.t + 1.2 < c.fin - 0.3) els.push(nouvelEl(c, "entete", "objet", arrondi(dernier.t + 1.2), { texte: `${etiquette}|${autre}`, chiffres: [], couverts: p.couverts, coupe: true }));
-    } else dernier.texte = `${etiquetteDePaire(autre)}|${dernier.texte!.split("|")[1]}`;
+    } else for (const x of els.slice(debutParties)) if (x.role === "entete") x.texte = `${etiquetteDePaire(autre)}|${x.texte!.split("|")[1]}`;
   }
 }
 
