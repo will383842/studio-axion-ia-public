@@ -219,6 +219,11 @@ export interface OptionsClientZernio {
   journal?: JournalZernio;
   /** Délai maximal d'un appel (ms), défaut 30 s. */
   delaiMs?: number;
+  /**
+   * État « à vérifier » persisté par l'appelant (Z1-P) : vrai si un envoi précédent, peut-être dans un autre
+   * processus, a fini sans réponse sûre. Le client exige alors une lecture de posts avant toute écriture.
+   */
+  lectureRequiseInitiale?: boolean;
 }
 
 export interface ClientZernio {
@@ -236,6 +241,12 @@ export interface ClientZernio {
   listerPosts(query?: Record<string, string | number | boolean>): Promise<PostZernio[]>;
   promouvoir(d: DemandePromotionZernio): Promise<ResultatPromotionZernio>;
   analytics(query?: Record<string, string | number | boolean>): Promise<unknown>;
+  /**
+   * Vrai tant qu'une écriture a fini sans réponse sûre (5xx, délai, coupure) et qu'aucune lecture de posts n'a suivi.
+   * Cet état ne vit qu'en mémoire : l'appelant DOIT le persister (journal « à vérifier ») et le rendre au prochain
+   * client via `lectureRequiseInitiale`, sinon un client recréé pourrait réécrire sans lecture préalable.
+   */
+  lectureExigee(): boolean;
 }
 
 /* --- Constantes ------------------------------------------------------------------------------------------------- */
@@ -328,9 +339,15 @@ function estUrlHttps(texte: string): boolean {
   }
 }
 
+/** Forme permise de la valeur de x-request-id (ni filtre contournable, ni injection d'en-tête). */
+const VALEUR_REQUEST_ID = /^[A-Za-z0-9-]{1,64}$/;
+
 function verifierEntetes(entetes: Record<string, string> | undefined, permis: ReadonlySet<string>): void {
-  for (const nom of Object.keys(entetes ?? {})) {
+  for (const [nom, valeur] of Object.entries(entetes ?? {})) {
     if (!permis.has(nom.toLowerCase())) throw refus(`En-tête « ${nom} » non permis.`);
+    if (nom.toLowerCase() === "x-request-id" && (typeof valeur !== "string" || !VALEUR_REQUEST_ID.test(valeur))) {
+      throw refus("En-tête x-request-id : 1 à 64 lettres, chiffres ou tirets attendus.");
+    }
   }
 }
 
@@ -577,8 +594,11 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   const envoiAutorise = options.envoiAutorise ?? (() => true);
   const limiteur = new LimiteurDebitZernio({ nombreComptes: options.nombreComptes ?? 2, maintenant });
   const hotesTeleversement = new Set<string>();
-  /** Vrai après une 5xx ou un délai dépassé sur une écriture : une lecture de posts doit précéder toute écriture. */
-  let lectureRequise = false;
+  /**
+   * Vrai après une 5xx, un délai dépassé ou une coupure sur une écriture : une lecture de posts doit précéder toute
+   * écriture. En mémoire seulement : exposé par `lectureExigee()`, à persister par l'appelant (voir `ClientZernio`).
+   */
+  let lectureRequise = options.lectureRequiseInitiale === true;
 
   const propre = (t: string) => masquerSecret(t, [cle]);
   const journal = {
@@ -665,8 +685,11 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     for (let essai = 1; ; essai++) {
       const debut = maintenant();
       let rep: Response;
+      let corps: unknown;
       try {
         rep = await appeler(req);
+        // Lecture du corps dans le même try : un délai ou une coupure pendant la lecture = réponse non sûre.
+        corps = await lireCorps(rep);
       } catch (e) {
         const nom = e instanceof Error ? e.name : "";
         const detail = propre(e instanceof Error ? `${e.name}: ${e.message}` : String(e));
@@ -678,7 +701,6 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         }
         throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: detail });
       }
-      const corps = await lireCorps(rep);
       journal.info("Zernio : réponse", { requete: libelle, statut: rep.status, dureeMs: maintenant() - debut });
 
       if (rep.status === 429) {
@@ -747,6 +769,8 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
 
   const client: ClientZernio = {
     requete,
+
+    lectureExigee: () => lectureRequise,
 
     async listerComptes() {
       const { corps } = await requete({ methode: "GET", chemin: "/v1/accounts" });
@@ -859,7 +883,12 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       if (!Number.isFinite(televerseLe)) return { etat: "refuse", raison: "Date de téléversement des médias illisible." };
       if (maintenant() - televerseLe > MEDIA_AGE_MAX_MS) {
         const items = await d.medias.reteleverser();
-        await requeteInterne({ methode: "PUT", chemin: `/v1/posts/${segment(d.postId)}`, corps: { mediaItems: items } }, true);
+        try {
+          await requeteInterne({ methode: "PUT", chemin: `/v1/posts/${segment(d.postId)}`, corps: { mediaItems: items } }, true);
+        } catch (e) {
+          if (estErreurZernio(e) && e.code === "a-verifier") return aVerifier("PUT de remplacement des médias sans réponse sûre.");
+          throw e;
+        }
         mediasRemplaces = true;
       }
     }
