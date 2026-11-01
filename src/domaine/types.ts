@@ -1114,7 +1114,9 @@ export interface StatsPublication {
 }
 
 export interface Publication extends EntiteBase {
-  videoId: Id;
+  /** Source de la publication : exactement un des deux (`videoId` ou `visuelId`). Lire via `sourceDe`. */
+  videoId?: Id;
+  visuelId?: Id;
   sortieId?: Id;
   reseau: IdReseau;
   statut: StatutPublication;
@@ -1153,6 +1155,22 @@ export interface Publication extends EntiteBase {
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */
   votreMarque?: boolean;
+}
+
+/** Source d'une publication : une vidéo ou un visuel (jamais les deux, jamais aucun). */
+export type SourcePublication = { famille: "video"; videoId: Id } | { famille: "visuel"; visuelId: Id };
+
+/** Fonction pure : lit la source d'une publication. Lève si l'invariant « exactement un des deux » est rompu. */
+export function sourceDe(p: Pick<Publication, "videoId" | "visuelId">): SourcePublication {
+  if (p.videoId && !p.visuelId) return { famille: "video", videoId: p.videoId };
+  if (p.visuelId && !p.videoId) return { famille: "visuel", visuelId: p.visuelId };
+  throw new Error("Publication sans source unique : il faut exactement un identifiant de vidéo ou de visuel.");
+}
+
+/** Identifiant de la vidéo d'une publication, ou `undefined` si sa source est un visuel (passe par `sourceDe`). */
+export function videoIdDe(p: Pick<Publication, "videoId" | "visuelId">): Id | undefined {
+  const s = sourceDe(p);
+  return s.famille === "video" ? s.videoId : undefined;
 }
 
 export type EtatEnvoiBuffer = "en-cours" | "envoye" | "a-verifier" | "refuse" | "absent";
