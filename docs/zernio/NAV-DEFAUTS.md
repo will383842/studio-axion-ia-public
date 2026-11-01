@@ -4,7 +4,7 @@ Relevé du parcours navigateur en simulation (voir `tests-navigateur/`). Aucun c
 
 | N° | Écran | Parcours | Observé | Attendu |
 |---|---|---|---|---|
-| D1 | Réglages › Connexions | Ouvrir `/reglages` | L'écran « Connexions Zernio » (`ConnexionsZernio`, Z3-C) n'est monté sur aucune page : la page Réglages ne montre que l'ancien bloc Connexions (services, clés). Impossible d'atteindre « Tester les 6 comptes », « Tout arrêter », les cartes de comptes. | L'écran est visible dans Réglages (le code dit « à brancher par Z3-E/NAV »). |
+| D1 ✅ corrigé | Réglages › Connexions | Ouvrir `/reglages` | L'écran « Connexions Zernio » (`ConnexionsZernio`, Z3-C) n'est monté sur aucune page : la page Réglages ne montre que l'ancien bloc Connexions (services, clés). Impossible d'atteindre « Tester les 6 comptes », « Tout arrêter », les cartes de comptes. | L'écran est visible dans Réglages (le code dit « à brancher par Z3-E/NAV »). |
 | D2 | Tous les écrans | Après « Tout arrêter », ouvrir l'accueil, Migration, A publier, Calendrier | Aucun bandeau d'arrêt : le mot « arrêt » n'apparaît que dans la carte de l'écran Connexions. | Un bandeau « Tout est à l'arrêt » visible sur tous les écrans tant que l'arrêt est actif. |
 | D3 | Connexions | Zernio répond 503, puis « Tester » | Seul un message passager s'affiche. L'état « Zernio ne répond pas » et son bouton « Réessayer maintenant » n'apparaissent que si la lecture EN BASE échoue (la lecture de l'écran n'appelle jamais Zernio). | Quand Zernio ne répond pas, l'écran montre l'état erreur avec « Réessayer maintenant ». |
 | D4 | Migration | Ouvrir un lot (« Vérifier le lot A »), puis touche Échap | La fenêtre reste ouverte (elle n'écoute pas Échap ; seul « Fermer » la ferme). | Échap ferme la fenêtre. |
