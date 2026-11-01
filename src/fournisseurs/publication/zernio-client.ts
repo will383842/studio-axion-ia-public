@@ -28,7 +28,15 @@ export type CorpsBinaire = Uint8Array | ReadableStream<Uint8Array>;
 /** Fetch injectable (tests : faux fetch qui enregistre les appels). */
 export type FetchZernio = (
   url: string,
-  init: { method: MethodeHttp; headers: Record<string, string>; body?: string | CorpsBinaire; signal?: AbortSignal; duplex?: "half" },
+  init: {
+    method: MethodeHttp;
+    headers: Record<string, string>;
+    body?: string | CorpsBinaire;
+    signal?: AbortSignal;
+    duplex?: "half";
+    /** Toujours "error" : une redirection (307/308) ne rejoue jamais méthode et corps hors de la liste fermée. */
+    redirect?: "error";
+  },
 ) => Promise<Response>;
 
 /** Journal : ne reçoit jamais d'en-têtes ni de clé (méthode, chemin sans requête, statut, durée, message). */
@@ -559,6 +567,10 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   }
   const fetchZ: FetchZernio = options.fetch ?? ((url, init) => fetch(url, init as RequestInit));
   const base = (options.baseUrl ?? ZERNIO_URL_DEFAUT).replace(/\/+$/, "");
+  // La clé part dans Authorization : jamais vers une base en clair ni portant des identifiants.
+  if (!estUrlHttps(base) || /[?#]/.test(base)) {
+    throw new ErreurZernio("acces", "Adresse Zernio refusée : https sans identifiants exigé.");
+  }
   const maintenant = options.maintenant ?? (() => Date.now());
   const attendre = options.attendre ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const delaiMs = options.delaiMs ?? 30_000;
@@ -603,6 +615,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         body: req.corps,
         signal: AbortSignal.timeout(delaiMs),
         duplex: "half",
+        redirect: "error",
       });
     }
     const qs = req.query && Object.keys(req.query).length > 0 ? `?${new URLSearchParams(Object.entries(req.query).map(([k, v]) => [k, String(v)]))}` : "";
@@ -614,6 +627,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       headers,
       body: req.corps === undefined ? undefined : JSON.stringify(req.corps),
       signal: AbortSignal.timeout(delaiMs),
+      redirect: "error",
     });
   }
 
