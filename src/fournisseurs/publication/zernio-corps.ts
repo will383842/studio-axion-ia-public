@@ -109,6 +109,8 @@ export interface OptionsCorps {
   createurTiktok?: CreateurTiktok;
   /** Adresses des médias déjà téléversés chez Zernio (remplacent les adresses du Studio, dans le même ordre). */
   medias?: MediaItemZernio[];
+  /** Hôtes des `publicUrl` rendus par presign : chaque `mediaItems[].url` téléversé doit en venir (sinon refus). */
+  hotesPublics?: ReadonlySet<string>;
 }
 
 /** Médias demandés, sans adresse Zernio : sert au téléversement et au corps. Types : image | video | document. */
@@ -145,6 +147,18 @@ export function corpsPostZernio(d: DemandePublication, options: OptionsCorps): C
   const type = demandes[0].type;
   const medias = options.medias ?? demandes;
   if (medias.length !== demandes.length) throw refus("Les médias téléversés ne correspondent pas à la demande.");
+  if (options.medias) {
+    for (const m of medias) {
+      let hote = "";
+      try {
+        const u = new URL(m.url);
+        if (u.protocol === "https:") hote = u.host;
+      } catch {
+        /* adresse illisible : refusée plus bas */
+      }
+      if (!hote || !options.hotesPublics?.has(hote)) throw refus("L'adresse d'un média ne vient pas du téléversement Zernio.");
+    }
+  }
 
   exigerSansMotInterdit(d.texte, "Le texte du post");
   const commentaire = d.premierCommentaire?.trim();

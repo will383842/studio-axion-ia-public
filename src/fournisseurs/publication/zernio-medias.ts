@@ -42,17 +42,26 @@ export function typeEtNom(adresse: string, typeLu?: string): { filename: string;
 }
 
 /** Téléverse UN média : presign → PUT en flux. Rend le média tel que Zernio l'attend (url publique, titre, texte alternatif). */
-export async function televerserMedia(client: ClientZernio, lire: LecteurMedia, media: MediaItemZernio): Promise<MediaItemZernio> {
+export async function televerserMedia(client: ClientZernio, lire: LecteurMedia, media: MediaItemZernio, hotes?: Set<string>): Promise<MediaItemZernio> {
   const source = await lire(media.url);
   const { filename, contentType } = typeEtNom(media.url, source.contentType);
   const pret = await client.preparerTeleversement({ filename, contentType, size: source.taille });
   await client.televerser({ uploadUrl: pret.uploadUrl, corps: source.corps, contentType, contentLength: source.taille });
+  let hote = "";
+  try {
+    const u = new URL(pret.publicUrl);
+    if (u.protocol === "https:") hote = u.host;
+  } catch {
+    /* refusé ci-dessous */
+  }
+  if (!hote) throw refus("Zernio a rendu une adresse publique de média inutilisable.");
+  hotes?.add(hote);
   return { ...media, url: pret.publicUrl };
 }
 
 /** Téléverse les médias dans l'ordre, un à la fois (un seul flux ouvert). */
-export async function televerserMedias(client: ClientZernio, lire: LecteurMedia, medias: MediaItemZernio[]): Promise<MediaItemZernio[]> {
+export async function televerserMedias(client: ClientZernio, lire: LecteurMedia, medias: MediaItemZernio[], hotes?: Set<string>): Promise<MediaItemZernio[]> {
   const faits: MediaItemZernio[] = [];
-  for (const m of medias) faits.push(await televerserMedia(client, lire, m));
+  for (const m of medias) faits.push(await televerserMedia(client, lire, m, hotes));
   return faits;
 }
