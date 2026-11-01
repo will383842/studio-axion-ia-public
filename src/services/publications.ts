@@ -925,14 +925,9 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
         publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: envoi.idExterne, statut: envoi.statut ?? "brouillon", etatLuLe: maintenant() })));
       } catch (e) {
         // Toute erreur qui n'est pas un « non » net de Buffer est incertaine : on relira, on ne renverra pas.
-        const { incertain, message, existant, detail } = lireErreurEnvoi(outil, e);
+        const { incertain, message, detail } = lireErreurEnvoi(outil, e);
         if (outil === "buffer") await noterErreurBuffer(`envoi sur ${p.nom}`, e, { type: "video", id: videoId });
-        else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${existant ? "contenu déjà chez l'outil, repris" : incertain ? "réponse perdue, à vérifier" : "refus"}${detail ? ` (${detail})` : ""}`, { type: "video", id: videoId });
-        // Doublon signalé par l'outil avec l'identifiant du post d'origine : l'envoi existe, on le reprend (jamais « refusé »).
-        if (existant) {
-          publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: existant, statut: "brouillon", etatLuLe: maintenant() })));
-          continue;
-        }
+        else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : "refus"}${detail ? ` (${detail})` : ""}`, { type: "video", id: videoId });
         const ecrite = await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
         // « À vérifier » reste rendue (elle peut être chez Buffer) ; une publication refusée n'est que dans `problemes`.
         if (incertain) publications.push(ecrite);
@@ -970,15 +965,17 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
  * Erreur d'envoi → (incertain ?, phrase). Incertain = on relira, on ne renverra pas. Seul un « non » net d'un outil
  * (refus avant le réseau, ou 4xx net) est un refus : tout autre code est levé après l'écriture, donc incertain.
  */
-function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: boolean; message: string; existant?: string; detail?: string } {
+function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: boolean; message: string; detail?: string } {
   if (outil === "buffer") return { incertain: !(e instanceof ErreurBuffer) || e.incertain, message: versErreurStudio(e).message };
   const perdue = "L'outil de publication n'a pas répondu : l'envoi est à vérifier.";
   if (e instanceof ErreurStudio) return { incertain: false, message: e.message };
   if (e instanceof ErreurZernio) {
     const detail = [e.code, e.statut, e.detailTechnique].filter((x) => x !== undefined && x !== "").join(" ");
-    // Doublon : un contenu identique existe déjà. Identifiant connu → repris comme envoyé ; sinon à vérifier.
-    if (e.code === "doublon") return { incertain: true, message: perdue, ...(e.existingPostId ? { existant: e.existingPostId } : {}), detail };
-    const refusNet = (e.avantReseau && e.code !== "lecture-requise") || e.code === "refuse" || e.code === "acces" || e.code === "introuvable";
+    // Doublon : un contenu identique existe déjà (le fournisseur a déjà relu et comparé la clé) : toujours à vérifier ici.
+    if (e.code === "doublon") return { incertain: true, message: perdue, detail };
+    // « Non » net : refus avant le réseau, ou 4xx net (sans statut = levé localement avant l'appel). Un 2xx ou 5xx n'est jamais un refus.
+    const quatreCent = e.statut === undefined || (e.statut >= 400 && e.statut <= 499);
+    const refusNet = (e.avantReseau && e.code !== "lecture-requise") || ((e.code === "refuse" || e.code === "acces" || e.code === "introuvable") && quatreCent);
     return { incertain: !refusNet, message: refusNet ? "L'outil de publication a refusé l'envoi : rien n'est parti." : perdue, detail };
   }
   return { incertain: true, message: perdue };

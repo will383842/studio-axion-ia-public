@@ -62,3 +62,24 @@ export function resumeJournal(j: DocumentJournalImport): Record<EtatImportPost, 
 
 /** Ids déjà copiés en entier : un nouveau passage peut les sauter. */
 export const dejaCopies = (j: DocumentJournalImport): Set<string> => new Set(j.posts.filter((p) => p.etat === "medias-copies").map((p) => p.bufferId));
+
+/* --- Journal des clés d'idempotence `imp-…` (IMP-2 : le journal fait foi au-delà des 24 h de Zernio) --- */
+
+const CLE_IMPORT = /^imp-[0-9a-f]{64}$/;
+const ID_ZERNIO = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Relit un fichier de clés {clé: identifiant Zernio} ; toute entrée de forme inconnue est ignorée. */
+export function lireCles(brut: unknown): Map<string, string> {
+  const m = new Map<string, string>();
+  if (brut && typeof brut === "object" && !Array.isArray(brut)) {
+    for (const [k, v] of Object.entries(brut as Record<string, unknown>)) if (CLE_IMPORT.test(k) && typeof v === "string" && ID_ZERNIO.test(v)) m.set(k, v);
+  }
+  return m;
+}
+
+/** Ajoute les brouillons créés, retrouvés ou déjà connus au journal des clés ; renvoie une nouvelle table. */
+export function ajouterCles(cles: Map<string, string>, lignes: { cle?: string; zernioId?: string; etat: string }[]): Map<string, string> {
+  const r = new Map(cles);
+  for (const l of lignes) if (l.cle && l.zernioId && CLE_IMPORT.test(l.cle) && ["cree", "doublon", "deja-fait"].includes(l.etat)) r.set(l.cle, l.zernioId);
+  return r;
+}
