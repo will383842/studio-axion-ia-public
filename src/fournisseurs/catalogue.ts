@@ -82,7 +82,10 @@ export const CATALOGUE: { readonly [K in TypeFournisseur]: readonly Implementati
   etalonnage: [studioRendu("R5")],
   son: [studioRendu("R5")],
   miniature: [studioRendu("R4")],
-  publication: [{ id: "buffer", nom: "Buffer", cout: "Gratuit (votre abonnement Buffer)", ensembles: [["BUFFER_API_KEY"]], lot: "R1" }],
+  publication: [
+    { id: "buffer", nom: "Buffer", cout: "Gratuit (votre abonnement Buffer)", ensembles: [["BUFFER_API_KEY"]], lot: "R1" },
+    { id: "zernio", nom: "Zernio", cout: "Selon votre abonnement Zernio", ensembles: [["ZERNIO_API_KEY"]], lot: "Z1-P" },
+  ],
   "texte-reseaux": [{ id: "claude", nom: "Claude", cout: "Environ 0,05 $ par vidéo", ensembles: CLES_COMPTES_CLAUDE, lot: "R2" }],
   notification: [
     {
