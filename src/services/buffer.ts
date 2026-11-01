@@ -17,7 +17,9 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceBuffer, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
+import { outilDe } from "@/domaine/outil-publication";
 import type { Id, IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
+import { fournisseurParId } from "@/fournisseurs";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { ErreurBuffer } from "@/fournisseurs/publication/buffer";
 import { VARIABLE_CLE_BUFFER } from "@/fournisseurs/mesures/buffer";
@@ -287,15 +289,23 @@ export function versErreurStudio(e: unknown): ErreurStudio {
 export async function reconcilierEnvoi(publicationId: Id, instant: number = Date.now()): Promise<Publication | null> {
   const d = depots();
   const p = await d.publications.obtenir(publicationId);
-  if (!p || p.via !== "buffer" || (p.etatEnvoi !== "a-verifier" && p.etatEnvoi !== "en-cours") || !p.canalId || !p.envoiCommenceLe) return p;
-  const f = await publicationReelle();
-  const organisationId = (await canauxEnregistres())?.canaux.find((c) => c.id === p.canalId)?.organisationId;
+  const outil = p ? outilDe(p) : null;
+  if (!p || !outil || (p.etatEnvoi !== "a-verifier" && p.etatEnvoi !== "en-cours") || !p.canalId || !p.envoiCommenceLe) return p;
+  // Chaque outil se relit lui-même ; la cible Zernio « compte:fb:page » se compare par son compte (le fournisseur rend le compte).
+  let f: FournisseurPublication | null = null;
+  try {
+    f = outil === "buffer" ? await publicationReelle() : fournisseurParId("publication", outil);
+  } catch {
+    return p; // outil non relié (clé absente) : on relira plus tard, rien n'est renvoyé.
+  }
+  const organisationId = outil === "buffer" ? (await canauxEnregistres())?.canaux.find((c) => c.id === p.canalId)?.organisationId : outil;
+  const canalLu = outil === "buffer" ? p.canalId : p.canalId.split(":")[0];
   if (!f?.publicationsRecentes || !organisationId) return p;
   let trouvee: Awaited<ReturnType<typeof retrouverEnvoi>> = null;
   // Même marge que `retrouverEnvoi` : l'horloge de Buffer peut retarder sur celle du studio.
   const depuis = new Date(new Date(p.envoiCommenceLe).getTime() - MARGE_HORLOGE_MS).toISOString();
   try {
-    trouvee = retrouverEnvoi(await f.publicationsRecentes({ organisationId, canalId: p.canalId, depuis }), { canalId: p.canalId, texte: p.texte, depuis: p.envoiCommenceLe });
+    trouvee = retrouverEnvoi(await f.publicationsRecentes({ organisationId, canalId: canalLu, depuis }), { canalId: canalLu, texte: p.texte, depuis: p.envoiCommenceLe });
   } catch {
     return p; // Buffer muet : on relira plus tard, sans rien renvoyer.
   }
@@ -305,10 +315,10 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
     const actuelle = await d.publications.obtenir(publicationId);
     if (!actuelle || actuelle.modifieLe !== p.modifieLe) return actuelle;
     if (trouvee) {
-      await journaliser("publication", `Envoi vers Buffer retrouvé (${obtenirReseau(p.reseau).nom})`, { type: "video", id: p.videoId });
+      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "Buffer" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, { type: "video", id: p.videoId });
       return d.publications.modifier(p.id, { etatEnvoi: "envoye", idExterne: trouvee.idExterne, statut: trouvee.statut, etatLuLe: new Date(instant).toISOString(), ...(trouvee.lien ? { urlPubliee: trouvee.lien } : {}) });
     }
-    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
+    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
     await creerNotification({ type: "echec", titre: "Envoi vers Buffer non arrivé", message: `${obtenirReseau(p.reseau).nom} : Buffer n'a rien reçu. Vérifiez dans Buffer avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
     return modif;
   });
