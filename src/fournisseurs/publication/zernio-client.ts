@@ -554,7 +554,8 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   };
 
   async function lireCorps(rep: Response): Promise<unknown> {
-    const texte = await rep.text();
+    // Tout corps reçu est nettoyé AVANT lecture : un écho de la clé ne peut ressortir nulle part.
+    const texte = propre(await rep.text());
     if (!texte) return undefined;
     try {
       return JSON.parse(texte);
