@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { DemandePublication } from "@/fournisseurs/types";
-import { analyserCible, compteLinkedinEstProfil, corpsPostZernio, dateZernio, lireCreateurTiktok, type CreateurTiktok } from "@/fournisseurs/publication/zernio-corps";
+import { analyserCible, compteLinkedinEstProfil, corpsPostZernio, type DemandeZernio, dateZernio, lireCreateurTiktok, type CreateurTiktok } from "@/fournisseurs/publication/zernio-corps";
 import { J, MOT_INTERDIT } from "./aides/faux-zernio";
 
 const MAINTENANT = Date.parse("2026-11-01T08:00:00Z");
 const CREATEUR: CreateurTiktok = { privacyLevels: ["PUBLIC_TO_EVERYONE", "SELF_ONLY"], allowComment: true, allowDuet: false, allowStitch: true };
-const base = (p: Partial<DemandePublication> & { niveauConfidentialiteTiktok?: string } = {}) => ({
+const base = (p: Partial<DemandeZernio> = {}): DemandeZernio => ({
   reseau: "instagram",
   texte: "Texte d'exemple",
   date: "2026-11-05T10:00:00+01:00",
@@ -14,9 +13,9 @@ const base = (p: Partial<DemandePublication> & { niveauConfidentialiteTiktok?: s
   cleEnvoi: "a".repeat(64),
   ...p,
 });
-const corps = (p: Partial<DemandePublication> & { niveauConfidentialiteTiktok?: string }, o: Record<string, unknown> = {}) => corpsPostZernio(base(p), { maintenant: MAINTENANT, createurTiktok: CREATEUR, ...o });
+const corps = (p: Partial<DemandeZernio>, o: Record<string, unknown> = {}) => corpsPostZernio(base(p), { maintenant: MAINTENANT, createurTiktok: CREATEUR, ...o });
 const spec = (c: ReturnType<typeof corps>) => c.platforms[0].platformSpecificData as Record<string, unknown>;
-const refuse = (p: Partial<DemandePublication> & { niveauConfidentialiteTiktok?: string }, o: Record<string, unknown> = {}) => expect(() => corps(p, o)).toThrow(/Rien n'a été envoyé|interdit/);
+const refuse = (p: Partial<DemandeZernio>, o: Record<string, unknown> = {}) => expect(() => corps(p, o)).toThrow(/Rien n'a été envoyé|interdit/);
 
 describe("z1p · corps pur", () => {
   it("brouillon, date Z, fuseau Paris, métadonnées Studio, jamais publishNow ni draft de réseau", () => {
