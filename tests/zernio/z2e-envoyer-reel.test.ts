@@ -24,10 +24,10 @@ const pub = await import("@/services/publications");
 const VIDEO = "v-15";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
 const CANAUX: CanalPublication[] = [
-  { id: "exemple-ig", organisationId: "zernio", nom: "Exemple IG", service: "instagram" },
-  { id: "exemple-fb:fb:exemple-page-1", organisationId: "zernio", nom: "Exemple page 1", service: "facebook", genre: "page" },
-  { id: "exemple-fb:fb:exemple-page-2", organisationId: "zernio", nom: "Exemple page 2", service: "facebook", genre: "page" },
-  { id: "exemple-tt", organisationId: "zernio", nom: "Exemple TT", service: "tiktok" },
+  { id: "exemple-ig", organisationId: "zernio", nom: "Exemple IG", service: "instagram", deconnecte: false },
+  { id: "exemple-fb:fb:exemple-page-1", organisationId: "zernio", nom: "Exemple page 1", service: "facebook", genre: "page", deconnecte: false },
+  { id: "exemple-fb:fb:exemple-page-2", organisationId: "zernio", nom: "Exemple page 2", service: "facebook", genre: "page", deconnecte: false },
+  { id: "exemple-tt", organisationId: "zernio", nom: "Exemple TT", service: "tiktok", deconnecte: false },
 ];
 
 let demandes: DemandePublication[] = [];
