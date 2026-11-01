@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * TÉLÉCHARGEMENT GROUPÉ (plan v5 B.6.10, lot G1b) : « Tout le sujet » → `0042-<titre-court>.zip` ; « Par réseau » →
  * `TikTok-<date-début>-<date-fin>.zip` (publications programmées de la période). Un fichier par ratio exporté, nommé par
@@ -88,7 +89,7 @@ export async function contenuArchiveReseau(reseau: ReseauDeclinaison, debut: str
   await exigerSession();
   const d = depots();
   const pubs = await d.publications.lister((p) => p.reseau === reseau && p.statut === "programmee" && p.via !== "simulation" && p.date.slice(0, 10) >= debut && p.date.slice(0, 10) <= fin);
-  const videoIds = [...new Set(pubs.map((p) => p.videoId))];
+  const videoIds = [...new Set(pubs.map((p) => videoIdDe(p)).filter((id): id is string => !!id))];
   const videos = (await Promise.all(videoIds.map((id) => d.videos.obtenir(id)))).filter((v): v is Video => !!v && v.statut !== "archivee");
   const entrees: EntreeArchive[] = [];
   for (const video of videos) {

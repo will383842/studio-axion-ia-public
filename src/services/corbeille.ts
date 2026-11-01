@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * CORBEILLE de 30 jours (décision de Will du 18/10) : « Mettre à la corbeille » ne supprime rien ; la vidéo est
  * `archivee` avec une date `corbeilleLe`, restaurable tant que 30 jours ne sont pas passés, puis supprimée pour de bon
@@ -60,7 +61,7 @@ export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolea
       await d.videos.modifier(v.id, { statut: "archivee", statutAvantArchive: v.statut === "archivee" ? v.statutAvantArchive : v.statut, corbeilleLe: instant });
     }
     const ensemble = new Set(aMettre.map((v) => v.id));
-    const brouillonsBuffer = await d.publications.compter((p) => ensemble.has(p.videoId) && estChezUnOutil(p) && !!p.idExterne && p.statut === "brouillon");
+    const brouillonsBuffer = await d.publications.compter((p) => ensemble.has((videoIdDe(p) ?? "")) && estChezUnOutil(p) && !!p.idExterne && p.statut === "brouillon");
     return { videos: aMettre, brouillonsBuffer };
   });
   if (videos.length) await journaliser("video", videos.length > 1 ? `${videos.length} vidéos mises à la corbeille` : `Vidéo mise à la corbeille : « ${videos[0].titre} »`, videos.length === 1 ? { type: "video", id: videos[0].id } : undefined);

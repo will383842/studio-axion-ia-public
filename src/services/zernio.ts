@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * ZERNIO (lot Z2-S) : client du serveur, test des comptes, synchronisation des états (toutes les 15 min, hors verrou).
  *
@@ -176,7 +177,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
         const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
         if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
-          await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, { type: "video", id: p.videoId });
+          await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, { type: "video", id: (videoIdDe(p) ?? "") });
           await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
         }
       }
@@ -194,16 +195,16 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     r.changees++;
     const nom = obtenirReseau(p.reseau).nom;
     if (etat.statut === "publiee") {
-      await d.videos.modifier(p.videoId, { etapeEditoriale: "publiee" });
+      await d.videos.modifier((videoIdDe(p) ?? ""), { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);
-      await journaliser("publication", `Publiée par Zernio sur ${nom}`, { type: "video", id: p.videoId });
+      await journaliser("publication", `Publiée par Zernio sur ${nom}`, { type: "video", id: (videoIdDe(p) ?? "") });
     } else if (etat.statut === "programmee") {
-      await passerProgrammee(p.videoId);
+      await passerProgrammee((videoIdDe(p) ?? ""));
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       const phrase = etat.note === "annulee" ? `Zernio a annulé la publication sur ${nom}.` : `Zernio n'a pas pu publier sur ${nom} : voyez la raison dans Zernio.`;
       console.warn(`[studio] Zernio, échec sur ${p.reseau} : ${etat.note ?? "échec"}`);
-      await journaliser("publication", phrase, { type: "video", id: p.videoId });
+      await journaliser("publication", phrase, { type: "video", id: (videoIdDe(p) ?? "") });
       await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
     }
   }

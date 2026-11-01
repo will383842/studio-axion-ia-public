@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * MESURE COMPLÈTE (plan v5 B.5.5, B.8 §2, §3 et §8, lot G7b).
  *
@@ -90,7 +91,7 @@ export function traitsVersion(v: VarianteReseau, m: ScriptMaitre | null | undefi
 async function publicationsDeVersions(): Promise<Publication[]> {
   const ex = await filtreExemples<Publication>();
   const archivees = new Set((await depots().videos.lister((v) => v.statut === "archivee")).map((v) => v.id));
-  return depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !archivees.has(p.videoId));
+  return depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !archivees.has((videoIdDe(p) ?? "")));
 }
 
 /** Exemples de démonstration : seulement sur un poste de développement ET demandés (`STUDIO_APERCU_MESURES=1`). */
