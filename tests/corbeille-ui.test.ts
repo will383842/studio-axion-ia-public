@@ -22,7 +22,7 @@ describe("corbeille · textes", () => {
   });
   it("message de confirmation : restaurable 30 jours, brouillons Buffer", () => {
     expect(messageCorbeille(1, 0)).toBe("Vidéo mise à la corbeille. Restaurable pendant 30 jours.");
-    expect(messageCorbeille(2, 3)).toBe("2 vidéos mises à la corbeille. Restaurable pendant 30 jours. 3 brouillons restent dans Buffer : à supprimer dans Buffer.");
+    expect(messageCorbeille(2, 3)).toBe("2 vidéos mises à la corbeille. Restaurable pendant 30 jours. 3 brouillons restent dans Buffer ou Zernio : à supprimer dans l'outil concerné.");
   });
 });
 

@@ -17,7 +17,7 @@ export const MOT_DE_PASSE_ESSAI = process.env.NAV_MDP ?? "";
 
 /** Jetons concaténés : les mots interdits ne s'écrivent jamais en clair dans le dépôt. */
 export const J = (...p: string[]): string => p.join("");
-export const MOTS_INTERDITS = [J("Greno", "ble"), J("Aucun gain ", "garanti"), J("Quali", "opi certifié")];
+export const MOTS_INTERDITS = [J("Greno", "ble"), J("Aucun gain ", "garanti"), J("Quali", "opi"), J("certi", "fié")];
 export const MOTS_ANGLAIS = ["Loading", "Error", "Retry", "Cancel", "Submit", "Settings", "Dashboard", "Schedule", "Draft", "Publish", "Failed", "Success"];
 
 export async function regler(mode: "normal" | "vide" | "erreur" | "cle-refusee" | "lent"): Promise<void> {

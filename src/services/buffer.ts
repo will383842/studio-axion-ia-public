@@ -1,14 +1,14 @@
 /**
  * BUFFER RÉEL (lot R1, brouillon d'abord) : comptes, correspondance réseau → compte, mode, synchronisation des états.
  *
- * - Les comptes Buffer sont LUS sur un geste de Will (« Tester »), à un envoi s'ils n'ont jamais été lus ou s'il en
+ * - Les comptes Buffer sont LUS sur un geste de l'opérateur (« Tester »), à un envoi s'ils n'ont jamais été lus ou s'il en
  *   manque un, et par la boucle de fond au plus une fois par heure ; ils sont gardés en base (`buffer.canaux`).
  *   Un ÉCRAN ne lit que cette copie : afficher une page n'appelle jamais Buffer.
- * - Comptes d'un réseau (lot R1b) : Will coche le ou les comptes À CHAQUE ENVOI (deux LinkedIn : le profil, la page ou
+ * - Comptes d'un réseau (lot R1b) : l'opérateur coche le ou les comptes À CHAQUE ENVOI (deux LinkedIn : le profil, la page ou
  *   les deux) ; son dernier choix est mémorisé par réseau (`buffer.correspondance`) et proposé la fois suivante, et sert
  *   à « Programmer les N ». Sans choix ni mémoire : le seul compte du réseau ; plusieurs → jamais deviné.
  *   YouTube et YouTube Shorts partent sur le même compte.
- * - Mode (`buffer.mode`) : « brouillon » par défaut (Will relit et programme dans Buffer) ; « programmer » sur son choix.
+ * - Mode (`buffer.mode`) : « brouillon » par défaut (l'opérateur relit et programme dans Buffer) ; « programmer » sur son choix.
  * - Synchronisation (boucle de fond, toutes les 15 min, HORS verrou pour le réseau) : brouillon → programmée → publiée
  *   (+ lien de la publication) ou échec (+ notification) ; un envoi « à vérifier » est relu, jamais renvoyé à l'aveugle.
  * - Rien n'est jamais effacé chez Buffer ; ici, une publication change d'état, elle n'est jamais supprimée.
@@ -81,7 +81,7 @@ export function cleEnvoiBuffer(videoId: Id, reseau: IdReseau, dateIso: string, c
 }
 
 /* ------------------------------------------------------------------ */
-/* Comptes (réseau sur geste de Will ou boucle)                         */
+/* Comptes (réseau sur geste de l'opérateur ou boucle)                         */
 /* ------------------------------------------------------------------ */
 
 /** Relit les comptes chez Buffer et les garde en base. RÉSEAU : jamais depuis un écran. */
@@ -101,9 +101,9 @@ export async function actualiserCanauxBuffer(): Promise<CanauxEnregistres> {
 }
 
 /**
- * Les comptes où part ce réseau (geste « Envoyer » de Will, ou « Programmer les N ») : les comptes cochés (`choisis`),
+ * Les comptes où part ce réseau (geste « Envoyer » de l'opérateur, ou « Programmer les N ») : les comptes cochés (`choisis`),
  * sinon le dernier choix mémorisé, sinon le seul compte. Les comptes sont lus s'ils ne l'ont jamais été ; s'il manque
- * un compte, ils sont relus UNE fois (Will vient peut-être de le relier dans Buffer) avant de le dire.
+ * un compte, ils sont relus UNE fois (l'opérateur vient peut-être de le relier dans Buffer) avant de le dire.
  */
 export async function comptesBufferPour(reseau: IdReseau, choisis?: string[]): Promise<ComptesPourReseau> {
   const enBase = await canauxEnregistres();
@@ -115,7 +115,7 @@ export async function comptesBufferPour(reseau: IdReseau, choisis?: string[]): P
 }
 
 /**
- * Lot R1b : le choix de Will à l'envoi devient le choix proposé la fois suivante (et pour « Programmer les N »).
+ * Lot R1b : le choix de l'opérateur à l'envoi devient le choix proposé la fois suivante (et pour « Programmer les N »).
  * L'appelant ne passe que des comptes VALIDÉS (réseau envoyé, comptes connus de ce réseau).
  */
 export async function memoriserComptesBuffer(choix: Partial<Record<IdReseau, string[]>>): Promise<void> {
@@ -140,7 +140,7 @@ export async function testerBuffer(): Promise<{ message: string; comptes: number
 
 /**
  * Réglages : le ou les comptes PROPOSÉS PAR DÉFAUT pour un réseau (cochés à l'ouverture de la feuille d'envoi, utilisés
- * par « Programmer les N »). Vide ou null : aucun compte proposé, Will choisit à chaque envoi.
+ * par « Programmer les N »). Vide ou null : aucun compte proposé, l'opérateur choisit à chaque envoi.
  */
 export async function choisirCanalBuffer(reseau: IdReseau, canalId: string | string[] | null): Promise<void> {
   await exigerSession();
@@ -177,12 +177,12 @@ export interface VueCompteReseau {
   nom: string;
   /** Le seul compte du réseau (ou le seul proposé par défaut) ; absent si aucun ou s'il y en a plusieurs. */
   compte?: { id: string; nom: string; source: "choisi" | "auto" };
-  /** Lot R1b : comptes proposés par défaut à l'envoi (dernier choix de Will), quand le réseau en a plusieurs. */
+  /** Lot R1b : comptes proposés par défaut à l'envoi (dernier choix de l'opérateur), quand le réseau en a plusieurs. */
   proposes?: string[];
   probleme?: string;
   /** Un compte de ce réseau est déconnecté (nommé) ; les autres restent à cocher. */
   avertissement?: string;
-  /** Comptes connectés de ce réseau (plusieurs : Will coche à chaque envoi). */
+  /** Comptes connectés de ce réseau (plusieurs : l'opérateur coche à chaque envoi). */
   candidats: { id: string; nom: string; genre?: string }[];
 }
 
@@ -218,7 +218,7 @@ export async function vueBuffer(): Promise<VueBuffer> {
       // Plusieurs comptes : choisis à chaque envoi, ce n'est pas un problème.
       if (candidats.length > 1 && (c.ok || c.raison === "plusieurs")) return { reseau: r.id, nom: r.nom, candidats, proposes: c.ok ? c.canaux.map((x) => x.id) : [], avertissement };
       // Un compte déconnecté (mémorisé, ou parmi plusieurs sans mémoire) ne bloque pas les comptes restés connectés :
-      // Will les coche ; proposés d'office, ceux qu'il avait choisis, ou le seul resté connecté.
+      // l'opérateur les coche ; proposés d'office, ceux qu'il avait choisis, ou le seul resté connecté.
       if (!c.ok && candidats.length && (c.raison === "deconnecte" || c.raison === "plusieurs")) {
         const memoires = idsMemorises(memoire[r.id]).filter((id) => candidats.some((x) => x.id === id));
         return { reseau: r.id, nom: r.nom, candidats, proposes: memoires.length ? memoires : candidats.length === 1 ? [candidats[0].id] : [], avertissement };
@@ -270,7 +270,7 @@ export async function noterErreurBuffer(contexte: string, e: unknown, entite?: {
   await journaliser("publication", `Buffer, ${contexte} : ${phrase}`, entite);
 }
 
-/** Erreur de Buffer → message pour Will : la phrase française fixe (`PHRASES_BUFFER`), jamais le détail. */
+/** Erreur de Buffer → message pour l'opérateur : la phrase française fixe (`PHRASES_BUFFER`), jamais le détail. */
 export function versErreurStudio(e: unknown): ErreurStudio {
   if (e instanceof ErreurStudio) return e;
   if (e instanceof ErreurBuffer) return new ErreurStudio(e.code === "refuse" ? "BUFFER_CLE" : "BUFFER", e.message);
@@ -283,7 +283,7 @@ export function versErreurStudio(e: unknown): ErreurStudio {
 
 /**
  * Relit Buffer pour un envoi « à vérifier » (réseau, HORS verrou), puis écrit le résultat sous le verrou si la
- * publication n'a pas changé entre-temps. Trouvé → relié (« envoyé ») ; absent après 30 min → « absent » (Will peut
+ * publication n'a pas changé entre-temps. Trouvé → relié (« envoyé ») ; absent après 30 min → « absent » (l'opérateur peut
  * renvoyer) ; sinon inchangé.
  */
 export async function reconcilierEnvoi(publicationId: Id, instant: number = Date.now()): Promise<Publication | null> {
@@ -388,7 +388,7 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     try {
       etat = await f.lireEtat(p.idExterne!);
     } catch (e) {
-      // Supprimée dans Buffer par Will (introuvable) : on le dit, on n'efface rien ici.
+      // Supprimée dans Buffer par l'opérateur (introuvable) : on le dit, on n'efface rien ici.
       if (e instanceof ErreurBuffer && e.code === "introuvable") {
         await ecrireSiInchange(p, { statut: "echec", erreur: "Introuvable dans Buffer (retirée de Buffer ?).", etatLuLe: new Date(instant).toISOString() });
         r.changees++;
