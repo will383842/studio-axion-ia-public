@@ -50,7 +50,7 @@ export function comparerBrouillon(a: AttenduBrouillon, lu: PostZernio): Ecart[] 
   diff("statut", "draft", lu.status);
   diff("origine", ORIGINE_IMPORT, lu.metadata?.origine);
   diff("bufferId", a.bufferId, lu.metadata?.bufferId);
-  diff("texte", lue?.customContent ?? a.corps.content, lu.content ?? lue?.customContent);
+  diff("texte", att.customContent ?? a.corps.content, lue?.customContent ?? lu.content);
   diff("nombre de médias", a.corps.mediaItems?.length ?? 0, lu.mediaItems?.length ?? 0);
   diff("types de médias", (a.corps.mediaItems ?? []).map((m) => m.type).join(","), (lu.mediaItems ?? []).map((m) => m.type).join(","));
   const tAtt = Date.parse(a.corps.scheduledFor ?? "");

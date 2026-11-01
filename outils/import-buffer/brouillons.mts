@@ -6,9 +6,11 @@
  * La table des cibles est un fichier JSON local au serveur (identifiants réels : jamais dans le dépôt).
  *
  * Usage (racine du dépôt), BUFFER_API_KEY et ZERNIO_API_KEY dans l'environnement du serveur :
- *   pnpm exec tsx outils/import-buffer/brouillons.mts --table <table.json> --lot A|B|D [--a-blanc] [--creer] [--verifier] [--journal <journal.json de l'export>]
+ *   pnpm exec tsx outils/import-buffer/brouillons.mts --table <table.json> --lot A|B|D [--a-blanc] [--creer] [--sans-verifier] [--journal <journal.json de l'export>] [--cles <cles-imp.json>]
+ * --cles : journal des clés imp-… déjà créées (lu au départ, mis à jour après), il fait foi au-delà des 24 h de Zernio.
+ * --creer lance la vérification (relecture GET de chaque brouillon) par défaut ; --sans-verifier la saute (déconseillé).
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { configR2, creerStockageR2 } from "../../src/fournisseurs/r2/stockage";
 import { creerClientZernio } from "../../src/fournisseurs/publication/zernio-client";
 import { lecteurMediaParDefaut } from "../../src/fournisseurs/publication/zernio-medias";
@@ -16,7 +18,7 @@ import { estConfirmee, lireTable } from "../../src/services/import-buffer/cibles
 import { creerBrouillons, type LotImport } from "../../src/services/import-buffer/creer-brouillons";
 import { clientDepuisEnv, lireBuffer } from "../../src/services/import-buffer/lire-buffer";
 import { formaterVerification, verifierBrouillons } from "../../src/services/import-buffer/verifier";
-import type { DocumentJournalImport } from "../../src/services/import-buffer/journal";
+import { ajouterCles, lireCles, type DocumentJournalImport } from "../../src/services/import-buffer/journal";
 import type { MediaCopie } from "../../src/services/import-buffer/medias-prives";
 
 const args = process.argv.slice(2);
@@ -59,19 +61,22 @@ async function main() {
       }));
     }
   }
+  const fichierCles = valeur("--cles");
+  const dejaCrees = fichierCles && existsSync(fichierCles) ? lireCles(JSON.parse(readFileSync(fichierCles, "utf8"))) : new Map<string, string>();
   const res = await creerBrouillons({
-    client, table, posts: lu.posts, copies, lot, aBlanc, maintenant,
+    client, table, posts: lu.posts, copies, lot, aBlanc, maintenant, dejaCrees,
     urlLecture: async (cle) => stockage.urlLectureDuree?.(cle, 3600) ?? stockage.urlLecture(cle),
     lecteur: lecteurMediaParDefaut,
   });
 
+  if (fichierCles && !aBlanc) writeFileSync(fichierCles, `${JSON.stringify(Object.fromEntries(ajouterCles(dejaCrees, res.lignes)), null, 2)}\n`);
   const compte: Record<string, number> = {};
   for (const l of res.lignes) compte[l.etat] = (compte[l.etat] ?? 0) + 1;
   console.log(`${aBlanc ? "À BLANC : aucun POST" : "CRÉATION"} · lot ${lot} · ${res.lignes.length} posts · ${JSON.stringify(compte)}`);
   for (const v of res.violations) console.log(`GRILLE ${v.compte} : ${v.detail}`);
   for (const l of res.lignes.filter((x) => x.etat === "refuse" || x.etat === "a-verifier" || x.etat === "arret")) console.log(`  ${l.bufferId} : ${l.etat} — ${l.raison ?? ""}`);
 
-  if (args.includes("--verifier")) {
+  if (args.includes("--verifier") || (veutCreer && !args.includes("--sans-verifier"))) {
     const attendus = res.lignes.filter((l) => l.zernioId && res.corps.has(l.bufferId)).map((l) => ({ bufferId: l.bufferId, zernioId: l.zernioId!, corps: res.corps.get(l.bufferId)! }));
     console.log(formaterVerification(await verifierBrouillons(client, attendus)));
   }
