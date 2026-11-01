@@ -4,7 +4,7 @@
  */
 import type { ClientLecture } from "./lire-buffer";
 import { REQUETE_POSTS_ENVOYES_STATS } from "./requetes-lecture";
-import type { MesureBuffer, StatistiquesPost } from "./types";
+import { ErreurLectureBuffer, type MesureBuffer, type StatistiquesPost } from "./types";
 
 type Brut = Record<string, unknown>;
 const objet = (x: unknown): Brut | undefined => (x && typeof x === "object" && !Array.isArray(x) ? (x as Brut) : undefined);
@@ -21,10 +21,10 @@ export function normaliserStatistiques(n: Brut): StatistiquesPost {
 
 const PAGES_MAX = 100;
 
-export async function lireStatistiquesPassees(client: ClientLecture, organisationId: string, taillePage = 50): Promise<StatistiquesPost[]> {
+export async function lireStatistiquesPassees(client: ClientLecture, organisationId: string, taillePage = 50, pagesMax = PAGES_MAX): Promise<StatistiquesPost[]> {
   const res: StatistiquesPost[] = [];
   let apres: string | undefined;
-  for (let page = 0; page < PAGES_MAX; page++) {
+  for (let page = 0; page < pagesMax; page++) {
     const posts = objet((await client.lire(REQUETE_POSTS_ENVOYES_STATS, { organizationId: organisationId, apres, nombre: taillePage })).posts);
     for (const e of Array.isArray(posts?.edges) ? posts.edges : []) {
       const n = objet(objet(e)?.node);
@@ -33,6 +33,7 @@ export async function lireStatistiquesPassees(client: ClientLecture, organisatio
     const info = objet(posts?.pageInfo);
     apres = texte(info?.endCursor);
     if (info?.hasNextPage !== true || !apres) break;
+    if (page === pagesMax - 1) throw new ErreurLectureBuffer("tronquee", `Statistiques tronquées : plafond de ${pagesMax} pages atteint, il en reste chez Buffer.`);
   }
   return res;
 }

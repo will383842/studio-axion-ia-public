@@ -17,6 +17,25 @@ function post(): PostBuffer {
   };
 }
 
+describe("IMP-1 médias trop gros", () => {
+  const stockage: StockagePrive = { urlDepotDuree: async () => "https://prive.invalid/x" };
+  it("refuse sur la taille annoncée avant tout téléchargement", async () => {
+    const appeler = vi.fn(async () => new Response(OCTETS));
+    const p = post();
+    p.medias = [{ ...p.medias[0], tailleAnnoncee: 600 * 1024 * 1024 }];
+    const r = await copierMediasDuPost(p, stockage, appeler as unknown as typeof fetch);
+    expect(r.echecs[0].raison).toContain("volumineux");
+    expect(appeler).not.toHaveBeenCalled();
+  });
+  it("refuse sur content-length sans lire le corps ni déposer", async () => {
+    const appeler = vi.fn(async (_u: string, _i?: RequestInit) => new Response(OCTETS, { headers: { "content-length": String(600 * 1024 * 1024) } }));
+    const r = await copierMediasDuPost(post(), stockage, appeler as unknown as typeof fetch);
+    expect(r.copies).toEqual([]);
+    expect(r.echecs.every((e) => e.raison.includes("volumineux"))).toBe(true);
+    expect(appeler.mock.calls.every(([, init]) => (init as RequestInit | undefined)?.method !== "PUT")).toBe(true);
+  });
+});
+
 describe("IMP-1 médias privés", () => {
   it("copie sous import-buffer/<id>/ avec type, taille et sha256, sans adresse en retour", async () => {
     const depots: { url: string; taille: number }[] = [];

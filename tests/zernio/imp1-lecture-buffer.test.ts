@@ -11,6 +11,21 @@ function faux(corps: unknown, status = 200) {
   return vi.fn(async () => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } }));
 }
 
+describe("IMP-1 troncature de la lecture", () => {
+  it("drapeau tronque quand hasNextPage reste vrai au dernier tour", async () => {
+    const client = {
+      async lire(q: string) {
+        if (q === REQUETE_COMPTE) return { account: { organizations: [{ id: "org-exemple" }] } };
+        if (q === REQUETE_CANAUX) return { channels: [] };
+        return { posts: { edges: [], pageInfo: { hasNextPage: true, endCursor: "suite" } } };
+      },
+    };
+    expect((await lireBuffer(client, { depuis: "2026-11-01T00:00:00Z", pagesMax: 2 })).tronque).toBe(true);
+    const fini = { lire: async (q: string) => (q === REQUETE_COMPTE ? { account: { organizations: [{ id: "o" }] } } : q === REQUETE_CANAUX ? { channels: [] } : { posts: { edges: [], pageInfo: { hasNextPage: false } } }) };
+    expect((await lireBuffer(fini, { depuis: "2026-11-01T00:00:00Z", pagesMax: 2 })).tronque).toBe(false);
+  });
+});
+
 describe("IMP-1 client de lecture seule", () => {
   it("refuse toute requête contenant « mutation » AVANT l'envoi", async () => {
     const appeler = faux({ data: {} });

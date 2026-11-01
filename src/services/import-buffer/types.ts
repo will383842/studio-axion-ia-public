@@ -69,7 +69,7 @@ export interface PostExclu {
 /** Erreur de lecture : le message ne porte jamais la clé. */
 export class ErreurLectureBuffer extends Error {
   constructor(
-    public readonly code: "ecriture-refusee" | "cle-absente" | "refuse" | "indisponible" | "illisible",
+    public readonly code: "ecriture-refusee" | "cle-absente" | "refuse" | "indisponible" | "illisible" | "tronquee",
     message: string,
   ) {
     super(message);
