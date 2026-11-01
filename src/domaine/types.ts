@@ -1173,6 +1173,40 @@ export function videoIdDe(p: Pick<Publication, "videoId" | "visuelId">): Id | un
   return s.famille === "video" ? s.videoId : undefined;
 }
 
+const lignesSignalees = new Set<string>();
+
+/**
+ * Lecture TOLÉRANTE de la source d'une publication, pour les filtres `lister(...)` : ne lève jamais.
+ * Une ligne mal formée (ni vidéo ni visuel, les deux, identifiant vide) rend `undefined` : elle est ignorée
+ * et signalée une fois dans le journal serveur, au lieu de faire tomber tout l'écran.
+ */
+export function sourceSure(p: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): SourcePublication | undefined {
+  try {
+    return sourceDe(p);
+  } catch {
+    const cle = String(p.id ?? "?");
+    if (!lignesSignalees.has(cle)) {
+      lignesSignalees.add(cle);
+      console.warn(`[studio] Publication ${cle} ignorée : source mal formée (il faut exactement une vidéo ou un visuel).`);
+    }
+    return undefined;
+  }
+}
+
+/** Deux publications ont la même source : même famille ET même identifiant (un visuel sans vidéo n'égale jamais une autre). */
+export function memeSource(a: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }, b: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): boolean {
+  const sa = sourceSure(a);
+  const sb = sourceSure(b);
+  if (!sa || !sb || sa.famille !== sb.famille) return false;
+  return sa.famille === "video" ? sa.videoId === (sb as { videoId: Id }).videoId : sa.visuelId === (sb as { visuelId: Id }).visuelId;
+}
+
+/** Vidéo d'une publication, sans jamais lever : `undefined` pour un visuel ou une ligne mal formée (filtres). */
+export function videoIdSure(p: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): Id | undefined {
+  const s = sourceSure(p);
+  return s?.famille === "video" ? s.videoId : undefined;
+}
+
 export type EtatEnvoiBuffer = "en-cours" | "envoye" | "a-verifier" | "refuse" | "absent";
 
 /** Lot R1 : « brouillon » (défaut : Will relit et programme dans Buffer) ; « programmer » : la date du studio part telle quelle. */

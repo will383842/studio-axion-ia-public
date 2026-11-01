@@ -1,4 +1,3 @@
-import { videoIdDe } from "@/domaine/types";
 /**
  * ZERNIO (lot Z2-S) : client du serveur, test des comptes, synchronisation des états (toutes les 15 min, hors verrou).
  *
@@ -9,7 +8,7 @@ import { videoIdDe } from "@/domaine/types";
  */
 import "server-only";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
-import type { Publication, StatutPublication } from "@/domaine/types";
+import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
@@ -22,8 +21,15 @@ import { creerNotification } from "./notifications";
 
 export const VARIABLE_CLE_ZERNIO = "ZERNIO_API_KEY";
 export const PARAM_COMPTES_ZERNIO = "zernio.comptes";
+/** Interrupteur local « Tout arrêter » : à faux, toute écriture vers Zernio est refusée. Absent = envois permis. */
+export const PARAM_ARRET_ZERNIO = "zernio.envoi_autorise";
 export const INTERVALLE_SYNCHRO_ZERNIO_MS = 15 * 60_000;
 const LECTURES_PAR_TOUR = 50;
+
+/** Relu à CHAQUE requête (jamais mis en cache) : l'arrêt agit tout de suite. */
+export async function envoiZernioAutorise(): Promise<boolean> {
+  return (await lireParametre<boolean>(PARAM_ARRET_ZERNIO, true)) !== false;
+}
 
 let clientInjecte: ClientZernio | null = null;
 let clientCache: { cle: string; client: ClientZernio } | null = null;
@@ -44,7 +50,7 @@ export function clientZernio(): ClientZernio {
   if (clientInjecte) return clientInjecte;
   const cle = cleDans(process.env, VARIABLE_CLE_ZERNIO);
   if (!cle) throw new ErreurStudio("ZERNIO_NON_RELIE", "Zernio n'est pas relié (clé absente) : l'envoi est refusé, aucun autre outil n'est utilisé à sa place.");
-  if (clientCache?.cle !== cle) clientCache = { cle, client: creerClientZernio({ cle }) };
+  if (clientCache?.cle !== cle) clientCache = { cle, client: creerClientZernio({ cle, envoiAutorise: envoiZernioAutorise }) };
   return clientCache.client;
 }
 
@@ -69,7 +75,7 @@ export async function comptesZernioEnregistres(): Promise<ComptesZernioEnregistr
 }
 
 /** « Tester » (Réglages) : Zernio répond-il, et quels comptes y sont reliés ? RÉSEAU : jamais depuis un écran. */
-export async function testerZernio(): Promise<{ message: string; comptes: number }> {
+export async function testerZernio(): Promise<{ message: string; comptes: number; etats: Record<string, boolean> }> {
   await exigerSession();
   let liste: CompteZernio[];
   try {
@@ -83,7 +89,7 @@ export async function testerZernio(): Promise<{ message: string; comptes: number
   await ecrireParametre(PARAM_COMPTES_ZERNIO, { lusLe: maintenant(), comptes } satisfies ComptesZernioEnregistres);
   await journaliser("reglages", `Zernio testé : ${comptes.length} compte(s) relié(s)`);
   const reseaux = [...new Set(comptes.map((c) => c.reseau))].join(", ");
-  return { comptes: comptes.length, message: comptes.length ? `Zernio répond : ${reseaux}.` : "Zernio répond, mais aucun compte n'y est relié." };
+  return { comptes: comptes.length, etats: Object.fromEntries(liste.map((c) => [c._id, c.isActive !== false])), message: comptes.length ? `Zernio répond : ${reseaux}.` : "Zernio répond, mais aucun compte n'y est relié." };
 }
 
 /* ------------------------------------------------------------------ */
@@ -169,6 +175,9 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     .slice(0, LECTURES_PAR_TOUR);
   const lu = new Date(instant).toISOString();
   for (const p of suivies) {
+    const vid = videoIdSure(p);
+    const entite = vid ? { type: "video", id: vid } : undefined;
+    const lien = vid ? `/videos/${vid}` : "/calendrier";
     let post: PostZernio;
     try {
       post = await client.lirePost(p.idExterne!);
@@ -177,8 +186,8 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
         const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
         if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
-          await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, { type: "video", id: (videoIdDe(p) ?? "") });
-          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+          await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
+          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo });
         }
       }
       continue; // muet, 5xx, débit : on relira plus tard, jamais de renvoi
@@ -195,17 +204,17 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     r.changees++;
     const nom = obtenirReseau(p.reseau).nom;
     if (etat.statut === "publiee") {
-      await d.videos.modifier((videoIdDe(p) ?? ""), { etapeEditoriale: "publiee" });
+      if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);
-      await journaliser("publication", `Publiée par Zernio sur ${nom}`, { type: "video", id: (videoIdDe(p) ?? "") });
+      await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
     } else if (etat.statut === "programmee") {
-      await passerProgrammee((videoIdDe(p) ?? ""));
+      if (vid) await passerProgrammee(vid);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       const phrase = etat.note === "annulee" ? `Zernio a annulé la publication sur ${nom}.` : `Zernio n'a pas pu publier sur ${nom} : voyez la raison dans Zernio.`;
       console.warn(`[studio] Zernio, échec sur ${p.reseau} : ${etat.note ?? "échec"}`);
-      await journaliser("publication", phrase, { type: "video", id: (videoIdDe(p) ?? "") });
-      await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+      await journaliser("publication", phrase, entite);
+      await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
     }
   }
   return r;

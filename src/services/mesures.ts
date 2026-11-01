@@ -1,4 +1,3 @@
-import { videoIdDe } from "@/domaine/types";
 /**
  * MESURE MINIMALE ET « PROGRAMMER LES N » (plan v5 B.5.5, B.8 §2, lot G7a).
  *
@@ -23,7 +22,7 @@ import {
   type SaisieMesures,
   type VersionProgrammable,
 } from "@/domaine/mesures";
-import type { Id, ModeEnvoiPublication, Publication, ReseauDeclinaison } from "@/domaine/types";
+import { type Id, type ModeEnvoiPublication, type Publication, type ReseauDeclinaison, videoIdDe, videoIdSure } from "@/domaine/types";
 import { obtenirReseau } from "@/reseaux";
 import { depots, ErreurStudio, filtreExemples, fournisseurSimule, journaliser, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
@@ -78,11 +77,11 @@ export interface MesureSaisie {
 async function publicationsMesurables(aSaisir = false): Promise<Publication[]> {
   const ex = await filtreExemples<Publication>();
   const archivees = new Set((await depots().videos.lister((v) => v.statut === "archivee")).map((v) => v.id));
-  const publications = await depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !archivees.has((videoIdDe(p) ?? "")));
+  const publications = await depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !!videoIdSure(p) && !archivees.has(videoIdSure(p)!));
   if (!aSaisir) return publications;
   // Publication gardée après la suppression de sa vidéo : ses mesures restent consultables, mais plus rien à saisir.
   const existantes = new Set((await depots().videos.lister()).map((v) => v.id));
-  return publications.filter((p) => existantes.has((videoIdDe(p) ?? "")));
+  return publications.filter((p) => existantes.has(videoIdSure(p) ?? ""));
 }
 
 /** Publications dont un relevé est attendu (J+7 d'abord, puis les plus anciennes). */
@@ -95,10 +94,12 @@ export async function listerMesuresASaisir(instant: Date = new Date()): Promise<
     if (!jour) continue;
     const v = await d.variantes.obtenir(p.varianteId!);
     const m = v ? await d.scriptsMaitres.obtenir(v.scriptMaitreId) : null;
-    const video = await d.videos.obtenir((videoIdDe(p) ?? ""));
+    const videoId = videoIdDe(p);
+    if (!videoId) continue;
+    const video = await d.videos.obtenir(videoId);
     r.push({
       publicationId: p.id,
-      videoId: (videoIdDe(p) ?? ""),
+      videoId,
       varianteId: p.varianteId!,
       code: v?.code ?? "",
       reseau: p.reseau as ReseauDeclinaison,
@@ -163,9 +164,10 @@ export async function enregistrerMesures(publicationId: Id, saisie: SaisieMesure
     stats: valeurs,
     ...(p.statut === "programmee" ? { statut: "publiee" as const } : {}),
   });
-  if (p.statut === "programmee") await d.videos.modifier((videoIdDe(p) ?? ""), { etapeEditoriale: "publiee" });
+  const videoId = videoIdDe(p);
+  if (p.statut === "programmee" && videoId) await d.videos.modifier(videoId, { etapeEditoriale: "publiee" });
   if (p.varianteId) await synchroniserEtats(p.varianteId);
-  await journaliser("mesure", `Mesures J+${jour} saisies`, { type: "video", id: (videoIdDe(p) ?? "") });
+  await journaliser("mesure", `Mesures J+${jour} saisies`, videoId ? { type: "video", id: videoId } : undefined);
   return suite;
 }
 

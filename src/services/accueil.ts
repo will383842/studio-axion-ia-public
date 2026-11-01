@@ -1,7 +1,6 @@
-import { videoIdDe } from "@/domaine/types";
 /** ACCUEIL (B.8 #2 + AV2.4-3) : tout ce que l'écran d'accueil affiche, en un appel. */
 import "server-only";
-import type { ElementBibliotheque, Publication, Video } from "@/domaine/types";
+import { type ElementBibliotheque, type Publication, type Video, sourceSure, videoIdSure } from "@/domaine/types";
 import { cleJour } from "@/lib/dates";
 import { obtenirReseau } from "@/reseaux";
 import { depots, filtreExemples } from "./_commun";
@@ -56,9 +55,9 @@ export async function resumeAccueil(): Promise<ResumeAccueil> {
   ]);
   const aujourdhui = cleJour(new Date());
   const archivees = new Set((await d.videos.lister((v) => v.statut === "archivee")).map((v) => v.id));
-  const pubs = await d.publications.lister((p) => ex(p) && !archivees.has((videoIdDe(p) ?? "")) && cleJour(p.date) === aujourdhui && p.via !== "simulation");
+  const pubs = await d.publications.lister((p) => ex(p) && !!sourceSure(p) && !archivees.has(videoIdSure(p) ?? "") && cleJour(p.date) === aujourdhui && p.via !== "simulation");
   const publicationsDuJour = await Promise.all(
-    pubs.map(async (p) => ({ ...p, reseauNom: obtenirReseau(p.reseau).nom, videoTitre: (await d.videos.obtenir((videoIdDe(p) ?? "")))?.titre ?? "" })),
+    pubs.map(async (p) => ({ ...p, reseauNom: obtenirReseau(p.reseau).nom, videoTitre: (videoIdSure(p) ? await d.videos.obtenir(videoIdSure(p)!) : undefined)?.titre ?? "" })),
   );
 
   // TEST-UI-REEL U1 : le vrai « Moi » d'abord (la liste ne contient celui d'exemple que si les exemples sont affichés).

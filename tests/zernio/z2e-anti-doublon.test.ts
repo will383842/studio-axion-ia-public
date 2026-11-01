@@ -91,10 +91,24 @@ describe("z2e · anti-doublon entre outils", () => {
     expect(buffer.mutations()).toHaveLength(0);
   });
 
-  it("doublon (409) avec identifiant : repris comme « envoyé », Buffer refusé ensuite", async () => {
-    const r = await envoyerZernio(new ErreurZernio("doublon", "identique", { statut: 409, existingPostId: "exemple-post-origine" }));
-    expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "envoye", idExterne: "exemple-post-origine" });
+  it("doublon (409) arrivé jusqu'au service : « à vérifier » (le fournisseur a déjà comparé la clé), Buffer refusé ensuite", async () => {
+    const r = await envoyerZernio(new ErreurZernio("doublon", "identique", { statut: 409 }));
+    expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "a-verifier" });
     await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ message: "Déjà envoyée par Zernio pour ce réseau." });
+  });
+
+  it("creerPost répond 2xx avec une plateforme en échec : « à vérifier » (jamais refusé), Buffer refusé ensuite", async () => {
+    const r = await envoyerZernio(new ErreurZernio("creation-incomplete", "incomplet", { statut: 200 }));
+    expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "a-verifier" });
+    const ecrites = await depots().publications.lister((x) => x.via === "zernio");
+    expect(occupeBuffer(ecrites[0])).toBe(true);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "DEJA_CHEZ_UN_AUTRE_OUTIL", message: "Déjà envoyée par Zernio pour ce réseau." });
+  });
+
+  it("refus sans statut levé avant le réseau reste un refus ; « refuse » avec un statut 2xx ou 5xx n'en est pas un", async () => {
+    await expect(envoyerZernio(new ErreurZernio("refuse", "local"))).rejects.toMatchObject({ message: "L'outil de publication a refusé l'envoi : rien n'est parti." });
+    const r = await envoyerZernio(new ErreurZernio("refuse", "tardif", { statut: 200 }));
+    expect(r.publications[0]).toMatchObject({ etatEnvoi: "a-verifier" });
   });
 
   it("doublon (409) sans identifiant : « à vérifier », jamais « refusé »", async () => {
