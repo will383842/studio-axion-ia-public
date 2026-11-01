@@ -17,7 +17,7 @@ type Lecteur = () => Promise<DonneesMigration | null>;
 let lecteur: Lecteur = async () => null;
 
 /** Pour les tests et le futur branchement IMP-1 / IMP-2 : lecteur de données injectable. */
-export function injecterLecteurMigration(l: Lecteur | null): void {
+export async function injecterLecteurMigration(l: Lecteur | null): Promise<void> {
   lecteur = l ?? (async () => null);
 }
 
