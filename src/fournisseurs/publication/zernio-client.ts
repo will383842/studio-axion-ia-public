@@ -4,7 +4,8 @@
  * Toute requête passe par `requete`, dans cet ordre, et chaque refus a lieu AVANT le réseau :
  *   1. arrêt  : interrupteur `zernio.envoi_autorise` (faux = écritures refusées, lectures permises) ;
  *   2. filtre : mots interdits dans tout le corps (récursif + sérialisation) ;
- *   3. chemin : liste fermée D6 (méthode, chemin, forme du corps, publishNow) ;
+ *   3. chemin : liste fermée D6 (méthode, chemin, forme du corps, publishNow) ; tout PUT /v1/posts/{id} est refusé
+ *      par la porte publique et réservé à `promouvoir()` (GET avant, garde D5) ;
  *   4. débit  : plafonds locaux (requêtes/min, posts/heure/compte, posts/jour/réseau) ;
  *   5. fetch  : seul appel réseau. 429 rejoué UNE fois après Retry-After ; 5xx ou délai dépassé sur une écriture :
  *      lecture exigée avant toute nouvelle écriture (jamais de renvoi à l'aveugle).
@@ -309,25 +310,45 @@ function estObjet(v: unknown): v is Record<string, unknown> {
 /** Date ISO à la seconde, en UTC, terminée par Z (fraction nulle tolérée). */
 const ISO_SECONDE_Z = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.0{1,3})?Z$/;
 
+/** Adresse lisible, en https, sans identifiants. */
+function estUrlHttps(texte: string): boolean {
+  try {
+    const u = new URL(texte);
+    return u.protocol === "https:" && !u.username && !u.password && u.hostname.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function verifierEntetes(entetes: Record<string, string> | undefined, permis: ReadonlySet<string>): void {
   for (const nom of Object.keys(entetes ?? {})) {
     if (!permis.has(nom.toLowerCase())) throw refus(`En-tête « ${nom} » non permis.`);
   }
 }
 
-/** Formes permises du corps d'un PUT /v1/posts/{postId} (D5) : promotion stricte ou remplacement des médias. */
-function routeDuPut(corps: unknown): RouteZernio {
+/**
+ * Formes permises du corps d'un PUT /v1/posts/{postId} (D5) : promotion stricte ou remplacement des médias.
+ * Promotion : date au moins 30 min dans le futur (sinon publication immédiate). Médias : adresses https seulement.
+ * NB : la porte publique `requete()` refuse de toute façon ces deux formes (réservées à `promouvoir()`).
+ */
+function routeDuPut(corps: unknown, maintenant: number): RouteZernio {
   if (!estObjet(corps)) throw refus("PUT d'un post : corps objet attendu.");
   const cles = Object.keys(corps).sort();
   if (cles.length === 2 && cles[0] === "isDraft" && cles[1] === "scheduledFor") {
     if (corps.isDraft !== false) throw refus("PUT de promotion : isDraft doit valoir false.");
     if (typeof corps.scheduledFor !== "string" || !ISO_SECONDE_Z.test(corps.scheduledFor)) throw refus("PUT de promotion : scheduledFor ISO à la seconde avec Z attendu.");
+    if (!(Date.parse(corps.scheduledFor) >= maintenant + PROMOTION_MARGE_MIN_MS)) {
+      throw refus("PUT de promotion : date passée ou à moins de 30 min, elle publierait tout de suite.");
+    }
     return "promouvoir-post";
   }
   if (cles.length === 1 && cles[0] === "mediaItems") {
     const items = corps.mediaItems;
     if (!Array.isArray(items) || items.length === 0 || !items.every((m) => estObjet(m) && typeof m.url === "string")) {
       throw refus("PUT de remplacement des médias : liste de médias non vide attendue.");
+    }
+    if (!items.every((m) => estUrlHttps((m as Record<string, unknown>).url as string))) {
+      throw refus("PUT de remplacement des médias : adresse https sans identifiants exigée pour chaque média.");
     }
     return "remplacer-medias";
   }
@@ -401,7 +422,7 @@ export function verifierRequete(req: RequeteZernio, hotesTeleversement: Readonly
       verifierCreation(req.corps, maintenant);
       return "creer-post";
     case "promouvoir-post":
-      return routeDuPut(req.corps);
+      return routeDuPut(req.corps, maintenant);
     case "presign":
       verifierPresign(req.corps);
       return "presign";
@@ -596,7 +617,13 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     });
   }
 
-  async function requete<T = unknown>(req: RequeteZernio): Promise<ReponseZernio<T>> {
+  /** Porte publique : tout PUT /v1/posts/{id} (promotion ou médias) y est refusé, réservé à `promouvoir()` (garde D5). */
+  function requete<T = unknown>(req: RequeteZernio): Promise<ReponseZernio<T>> {
+    return requeteInterne<T>(req, false);
+  }
+
+  /** `depuisPromotion` : vrai seulement quand `promouvoir()` appelle, après son GET avant (jamais exporté). */
+  async function requeteInterne<T = unknown>(req: RequeteZernio, depuisPromotion: boolean): Promise<ReponseZernio<T>> {
     const ecriture = estEcriture(req.methode);
     const libelle = "urlTeleversement" in req ? "PUT <uploadUrl>" : `${req.methode} ${req.chemin}`;
 
@@ -611,6 +638,9 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     }
     // 3. Chemin : liste fermée.
     const route = verifierRequete(req, hotesTeleversement, maintenant());
+    if ((route === "promouvoir-post" || route === "remplacer-medias") && !depuisPromotion) {
+      throw refus("PUT d'un post réservé à promouvoir() (garde D5 : GET avant, origine, clé, filtre, marge de 30 min).");
+    }
     if (ecriture && lectureRequise) {
       throw new ErreurZernio("lecture-requise", "Un envoi précédent a fini sans réponse sûre : lire les posts avant tout nouvel envoi. Rien n'a été envoyé.");
     }
@@ -815,7 +845,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       if (!Number.isFinite(televerseLe)) return { etat: "refuse", raison: "Date de téléversement des médias illisible." };
       if (maintenant() - televerseLe > MEDIA_AGE_MAX_MS) {
         const items = await d.medias.reteleverser();
-        await requete({ methode: "PUT", chemin: `/v1/posts/${segment(d.postId)}`, corps: { mediaItems: items } });
+        await requeteInterne({ methode: "PUT", chemin: `/v1/posts/${segment(d.postId)}`, corps: { mediaItems: items } }, true);
         mediasRemplaces = true;
       }
     }
@@ -823,7 +853,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     // Date revérifiée au moment même du PUT.
     if (tropProche()) return { etat: "a-reprogrammer", raison: "Date passée ou à moins de 30 min : à reprogrammer par vous." };
     try {
-      await requete({ methode: "PUT", chemin: `/v1/posts/${segment(d.postId)}`, corps: { isDraft: false, scheduledFor } });
+      await requeteInterne({ methode: "PUT", chemin: `/v1/posts/${segment(d.postId)}`, corps: { isDraft: false, scheduledFor } }, true);
     } catch (e) {
       if (estErreurZernio(e) && e.code === "a-verifier") return aVerifier("PUT de promotion sans réponse sûre.");
       throw e;
