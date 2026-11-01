@@ -31,6 +31,8 @@ import { trouverFormat } from "@/formats";
 import { JOUR_MS } from "@/lib/dates";
 import { creerLecteurBuffer, type LecteurStatsBuffer } from "@/fournisseurs/mesures/buffer";
 import { ErreurMesure } from "@/fournisseurs/mesures/commun";
+import { lecteurZernioEssai, type LecteurStatsZernio } from "@/fournisseurs/mesures/zernio";
+import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
 import { creerLecteurPlausible, type LecteurVisites } from "@/fournisseurs/mesures/plausible";
 import { depots, filtreExemples, journaliser } from "./_commun";
 import { exigerSession } from "./auth";
@@ -118,6 +120,20 @@ export async function collecterVideosMesurees(): Promise<VideoMesuree[]> {
   return exemplesActifs() ? [...r, ...videosExemplesMesurees()] : r;
 }
 
+/** Définitions écrites avec un relevé lu chez Zernio (z4). */
+export const DEFINITIONS_ZERNIO: Readonly<Record<string, string>> = {
+  vues: "Vues lues chez Zernio (statistique du réseau).",
+  portee: "Personnes atteintes, lues chez Zernio.",
+  likes: "Réactions lues chez Zernio.",
+  commentaires: "Commentaires lus chez Zernio.",
+  partages: "Partages lus chez Zernio.",
+  partagesParPortee: "Partages ÷ personnes atteintes × 100 (%), calculé.",
+};
+
+/** Texte affiché quand Zernio ne donne pas (encore) de chiffres : jamais un zéro. */
+export const LIBELLE_PAS_PRETES = "Pas encore prêtes : Zernio rassemble les chiffres, à relire plus tard.";
+export const LIBELLE_NON_LISIBLE = "Non lisible : Zernio ne donne pas ces chiffres pour l'instant.";
+
 /* ------------------------------------------------------------------ */
 /* Import : Buffer et liens suivis                                     */
 /* ------------------------------------------------------------------ */
@@ -125,16 +141,17 @@ export async function collecterVideosMesurees(): Promise<VideoMesuree[]> {
 export interface BilanImport {
   buffer: { essai: boolean; lues: number; ajoutees: number; erreurs: number; message?: string };
   visites: { essai: boolean; lues: number; ajoutees: number; message?: string };
+  zernio: { essai: boolean; lues: number; ajoutees: number; pasPretes: number; nonLisibles: number; message?: string };
 }
 
 const memes = (a: Partial<StatsPublication> | undefined, b: Partial<StatsPublication>) => Object.entries(b).every(([k, v]) => (a as Record<string, unknown> | undefined)?.[k] === v);
 
-function dernierReleve(p: Publication, source: "buffer" | "api") {
+function dernierReleve(p: Publication, source: "buffer" | "zernio" | "api") {
   return [...(p.releves ?? [])].reverse().find((r) => r.source === source);
 }
 
 /** Ajoute un relevé (jamais un remplacement) et fusionne la copie `stats`. */
-async function ajouterReleve(p: Publication, source: "buffer" | "api", valeurs: Partial<StatsPublication>, definitions: Record<string, string>, instant: Date): Promise<boolean> {
+async function ajouterReleve(p: Publication, source: "buffer" | "zernio" | "api", valeurs: Partial<StatsPublication>, definitions: Record<string, string>, instant: Date): Promise<boolean> {
   const precedent = dernierReleve(p, source);
   if (precedent && memes(precedent.valeurs, valeurs)) return false;
   const stats: StatsPublication = { ...(p.stats ?? { vues: 0, likes: 0, commentaires: 0, partages: 0 }), ...valeurs };
@@ -149,20 +166,34 @@ const messageDe = (e: unknown) => (e instanceof ErreurMesure ? e.message : "Lect
  * Met à jour les chiffres : statistiques Buffer de chaque publication envoyée par Buffer (par `idExterne`), puis visites
  * et rendez-vous par code de version. Lecture seule chez Buffer et sur le site.
  */
-export async function importerMesures(options: { buffer?: LecteurStatsBuffer; visites?: LecteurVisites; instant?: Date } = {}): Promise<BilanImport> {
+export async function importerMesures(options: { buffer?: LecteurStatsBuffer; zernio?: LecteurStatsZernio; visites?: LecteurVisites; instant?: Date } = {}): Promise<BilanImport> {
   await exigerSession();
   const instant = options.instant ?? new Date();
   const lecteurBuffer = options.buffer ?? creerLecteurBuffer();
+  const lecteurZernio = options.zernio ?? lecteurZernioEssai;
   const lecteurVisites = options.visites ?? creerLecteurPlausible();
   const bilan: BilanImport = {
     buffer: { essai: lecteurBuffer.mode === "simulation", lues: 0, ajoutees: 0, erreurs: 0 },
     visites: { essai: lecteurVisites.mode === "simulation", lues: 0, ajoutees: 0 },
+    zernio: { essai: lecteurZernio.mode === "simulation", lues: 0, ajoutees: 0, pasPretes: 0, nonLisibles: 0 },
   };
   const d = depots();
   const publications = await publicationsDeVersions();
 
   for (const p of publications) {
-    if (p.via !== "buffer" || !p.idExterne) continue;
+    if (!estChezUnOutil(p) || !p.idExterne) continue;
+    if (outilDe(p) === "zernio") {
+      if (lecteurZernio.mode === "simulation") continue;
+      const m = await lecteurZernio.lire(p.idExterne);
+      if (m.etat === "pas-encore-pretes") bilan.zernio.pasPretes++;
+      else if (m.etat === "non-lisible") bilan.zernio.nonLisibles++;
+      else {
+        bilan.zernio.lues++;
+        const frais = (await d.publications.obtenir(p.id)) ?? p;
+        if (await ajouterReleve(frais, "zernio", m.valeurs, { ...DEFINITIONS_ZERNIO }, instant)) bilan.zernio.ajoutees++;
+      }
+      continue;
+    }
     try {
       const s = await lecteurBuffer.lire(p.idExterne);
       if (!s) continue;
@@ -199,7 +230,9 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; vi
     bilan.visites.message = messageDe(e);
   }
 
-  if (bilan.buffer.ajoutees || bilan.visites.ajoutees) await journaliser("mesure", `Chiffres mis à jour : ${bilan.buffer.ajoutees} par Buffer, ${bilan.visites.ajoutees} par lien suivi`);
+  if (bilan.zernio.pasPretes) bilan.zernio.message = LIBELLE_PAS_PRETES;
+  else if (bilan.zernio.nonLisibles) bilan.zernio.message = LIBELLE_NON_LISIBLE;
+  if (bilan.buffer.ajoutees || bilan.visites.ajoutees || bilan.zernio.ajoutees) await journaliser("mesure", `Chiffres mis à jour : ${bilan.buffer.ajoutees} par Buffer, ${bilan.zernio.ajoutees} lus chez Zernio, ${bilan.visites.ajoutees} par lien suivi`);
   return bilan;
 }
 
