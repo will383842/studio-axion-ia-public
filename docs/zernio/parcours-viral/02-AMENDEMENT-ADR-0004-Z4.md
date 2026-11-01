@@ -29,7 +29,7 @@ L'ADR-0004 (D6) refuse `webhooks/*` (« jusqu'à Z6 »), les messages et les aut
 
 ## À DÉCIDER PAR L'OPÉRATEUR
 - **Q11** : contrat de traitement et pays d'hébergement de Zernio : à lire avant d'activer l'interrupteur.
-- **QG** : plafond de fabrication 80 € ou 150 € (borne budgétaire commune).
+- **QG** : plafond de fabrication (borne budgétaire commune), montant À DÉCIDER (valeurs dans la note privée).
 
 ## Tests à prévoir
 - Chemins ajoutés acceptés ; échantillon de chemins voisins refusés sans appel réseau.
