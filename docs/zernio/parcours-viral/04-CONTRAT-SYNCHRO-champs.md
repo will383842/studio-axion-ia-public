@@ -33,7 +33,8 @@
 2. Une personne `a_l_ecart` qui redemande un guide reçoit le guide sans campagne (Q3 bis) ; son statut d'écart reste.
 3. Aucune suppression : ni côté site, ni côté CRM Pro, ni côté Studio. L'échéance des 3 ans produit une mise à l'écart.
 4. La synchro est idempotente (clé : adresse normalisée + identifiant de conversation).
-5. Les champs `contact_email` et `preuve_accord` n'apparaissent jamais dans un journal du Studio ni dans le dépôt.
+5. Une demande d'effacement ne supprime rien automatiquement : elle envoie une alerte à l'opérateur, qui décide. Le statut éventuel reste `actif` ou `a_l_ecart`, jamais « supprimé ».
+6. Les champs `contact_email` et `preuve_accord` n'apparaissent jamais dans un journal du Studio ni dans le dépôt.
 
 ## À DÉCIDER PAR L'OPÉRATEUR
 - **QE** : conservation des identifiants de commentateurs (purge interdite ou non) ; impacte `preuve_accord`.
