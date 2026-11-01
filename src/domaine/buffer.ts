@@ -10,6 +10,7 @@
 import type { CanalPublication, EtatPublicationExterne } from "@/fournisseurs/types";
 import { listerReseaux, obtenirReseau } from "@/reseaux";
 import type { Tonalite } from "./libelles";
+import { estChezUnOutil, outilDe, type OutilPublication } from "./outil-publication";
 import type { IdReseau, Publication } from "./types";
 
 /** Service Buffer d'un réseau du studio (registre des réseaux, une seule source). */
@@ -145,9 +146,9 @@ export function retrouverEnvoi(relues: EtatPublicationExterne[], envoi: { canalI
 /** Un envoi « à vérifier » que Buffer n'a toujours pas après ce délai est déclaré absent (et peut être refait). */
 export const DELAI_ABSENCE_MS = 30 * 60_000;
 
-/** La publication occupe-t-elle déjà ce réseau chez Buffer (un second message serait un doublon) ? */
+/** La publication occupe-t-elle déjà ce réseau chez UN outil (Buffer ou Zernio) : un second message serait un doublon ? */
 export function occupeBuffer(p: Pick<Publication, "via" | "statut" | "etatEnvoi">): boolean {
-  if (p.via !== "buffer") return false;
+  if (!estChezUnOutil(p)) return false;
   if (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent") return false;
   return p.statut !== "echec";
 }
@@ -171,4 +172,16 @@ export function libellePublication(p: Pick<Publication, "via" | "statut" | "etat
     default:
       return { libelle: "Échec", ton: "brique" };
   }
+}
+
+const NOMS_OUTILS: Record<OutilPublication, string> = { buffer: "Buffer", zernio: "Zernio" };
+
+/**
+ * Anti-doublon ENTRE outils (D4) : parmi les publications déjà prises (même vidéo, même réseau), l'une est-elle partie par
+ * un AUTRE outil que celui de cet envoi ? Rend la phrase de refus, sinon null. Le nom vient de l'outil trouvé.
+ */
+export function refusDoublonEntreOutils(deja: Pick<Publication, "via" | "statut" | "etatEnvoi">[], outil: OutilPublication): string | null {
+  const autre = deja.find((x) => occupeBuffer(x) && outilDe(x) !== outil);
+  const parQui = autre ? outilDe(autre) : null;
+  return parQui ? `Déjà envoyée par ${NOMS_OUTILS[parQui]} pour ce réseau.` : null;
 }

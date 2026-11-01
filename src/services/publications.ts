@@ -23,7 +23,8 @@ import { dureeDeLaVideo } from "@/domaine/duree-video";
 import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
 import { listerReseaux, obtenirReseau, verifierPourReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
-import { occupeBuffer, serviceBuffer } from "@/domaine/buffer";
+import { occupeBuffer, refusDoublonEntreOutils, serviceBuffer } from "@/domaine/buffer";
+import { estChezUnOutil, outilDe, type OutilPublication } from "@/domaine/outil-publication";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
 import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
@@ -589,7 +590,7 @@ export async function verificationsAvantProgrammer(scriptMaitreId: Id): Promise<
  * Envoi vers Buffer.
  * - Simulation (défaut, aucune clé ou pas choisi) : `via: "simulation"`, statut « brouillon », jamais affichée comme
  *   programmée ; l'écran dit « Essai : rien n'a été envoyé à Buffer ».
- * - Réel (lot R1) : voir `envoyerVersBufferReel` — brouillon dans Buffer par défaut, une publication par réseau.
+ * - Réel (lot R1) : voir `envoyerReel` — brouillon dans Buffer par défaut, une publication par réseau.
  */
 export async function envoyerVersBuffer(
   videoId: string,
@@ -624,7 +625,7 @@ export async function envoyerVersBuffer(
     if ((video && (await videoEnEssai(video))) || fichiers.some((f) => estCleDemo(f?.cleStockage))) {
       throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
     }
-    return envoyerVersBufferReel(service, kitVue, [...new Set(reseaux)], dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire);
+    return envoyerReel("buffer", service, kitVue, [...new Set(reseaux)], dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire);
   }
   const d = depots();
   const publications: Publication[] = [];
@@ -746,7 +747,7 @@ export interface ProblemeEnvoi {
  *     (le détail, nettoyé, au journal) ;
  *  6. le journal, l'étape de la vidéo et la version sont toujours mis à jour pour ce qui est parti.
  */
-async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean) {
+export async function envoyerReel(outil: OutilPublication, service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean) {
   const d = depots();
   const videoId = kitVue.videoId;
   const mode = await lireModeBuffer();
@@ -781,7 +782,9 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
   // Le choix de Will est proposé la fois suivante (et sert à « Programmer les N »).
   await memoriserComptesBuffer(valides);
   // Une publication occupe un COMPTE (une publication sans compte, d'avant R1, occupe tout le réseau).
-  const occupees = (p: (typeof prets)[number]) => d.publications.lister((x) => x.videoId === videoId && x.reseau === p.reseau && (!x.canalId || x.canalId === p.canal.id) && occupeBuffer(x));
+  const occupees = (p: (typeof prets)[number]) => d.publications.lister((x) => x.videoId === videoId && x.reseau === p.reseau && (!x.canalId || x.canalId === p.canal.id) && outilDe(x) === outil && occupeBuffer(x));
+  // Anti-doublon ENTRE outils : ce réseau est-il déjà parti par l'autre outil (quel que soit le compte) ?
+  const chezUnAutre = (p: (typeof prets)[number]) => d.publications.lister((x) => x.videoId === videoId && x.reseau === p.reseau && estChezUnOutil(x) && outilDe(x) !== outil && occupeBuffer(x));
   const cible = (p: (typeof prets)[number]) => `${p.reseau}|${p.canal.id}`;
 
   // 2 a. Envois à vérifier de ces comptes : relus d'abord (réseau, hors verrou).
@@ -801,6 +804,11 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
       // Empreinte d'avant R1b (sans compte) : une publication existante reste reconnue.
       const cleAvantR1b = cleEnvoiBuffer(videoId, p.reseau, dateIso);
       const refus = (code: string, message: string): Decision => ({ p, cleEnvoi, probleme: { reseau: p.reseau, canalId: p.canal.id, code, message } });
+      const doublon = refusDoublonEntreOutils(await chezUnAutre(p), outil);
+      if (doublon) {
+        out.push(refus("DEJA_CHEZ_UN_AUTRE_OUTIL", doublon));
+        continue;
+      }
       const deja = await occupees(p);
       const meme = deja.find((x) => (x.cleEnvoi === cleEnvoi || x.cleEnvoi === cleAvantR1b) && x.etatEnvoi === "envoye");
       if (meme) out.push({ p, cleEnvoi, existante: meme });
@@ -817,7 +825,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
           reseau: p.reseau,
           // Jamais « programmée » avant que Buffer ne l'ait dit.
           statut: "brouillon",
-          via: "buffer",
+          via: outil,
           date: dateIso,
           texte: p.texte,
           varianteId: variante?.id,
@@ -853,7 +861,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
       // 3. Appel HORS verrou.
       try {
         const envoi = await service.envoyer({ reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi, ...(p.premierCommentaire ? { premierCommentaire: p.premierCommentaire } : {}), ...(p.votreMarque ? { votreMarque: true } : {}) });
-        if (envoi.via !== "buffer") throw new ErreurBuffer("illisible", PHRASES_BUFFER.incomprehensibleEnvoi, true, "réponse sans confirmation");
+        if (envoi.via !== outil) throw new ErreurBuffer("illisible", PHRASES_BUFFER.incomprehensibleEnvoi, true, "réponse sans confirmation");
         publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: envoi.idExterne, statut: envoi.statut ?? "brouillon", etatLuLe: maintenant() })));
       } catch (e) {
         // Toute erreur qui n'est pas un « non » net de Buffer est incertaine : on relira, on ne renverra pas.
