@@ -30,7 +30,7 @@ export function Frise({ jalons }: { jalons: Jalon[] }) {
       <h2 id="mig-frise" className="text-lg text-texte">Bascule réseau par réseau</h2>
       <ol className="mt-3 grid gap-2">
         {jalons.map((j) => (
-          <li key={j.titre} className="flex items-start gap-3 text-sm">
+          <li key={j.titre} className="flex items-start gap-3 text-base sm:text-sm">
             <span aria-hidden className={`mt-1 size-3 shrink-0 rounded-full ${j.etat === "fait" ? "bg-sauge" : j.etat === "en-cours" ? "bg-orange" : "bg-trait-fort"}`} />
             <span className="min-w-0 flex-1">
               <span className="font-semibold text-texte">{j.titre}</span> · {j.date}

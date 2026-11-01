@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formaterDate, postsConfirmables, type PostMigration } from "./logique";
 import type { ComparaisonPost, ServiceImport } from "./services";
 
@@ -20,6 +20,14 @@ export function FenetreLot({ titre, posts, comparaisons, service, maintenant, on
 }) {
   const [justes, setJustes] = useState<Set<string>>(new Set(posts.filter((p) => p.cJuste).map((p) => p.id)));
   const [confirmation, setConfirmation] = useState(false);
+  // NAV D4 : la touche Échap ferme la fenêtre (comme « Fermer »).
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onFermer();
+    };
+    document.addEventListener("keydown", surTouche);
+    return () => document.removeEventListener("keydown", surTouche);
+  }, [onFermer]);
   // « C’est juste » n'est qu'un aperçu local. Au branchement, onConfirmer doit appeler confirmerRetraitEtProgrammation
   // CÔTÉ SERVEUR, qui revérifie état, date et vérification : ne jamais se fier au cJuste local.
   const vus = posts.map((p) => ({ ...p, cJuste: justes.has(p.id) }));
@@ -29,7 +37,7 @@ export function FenetreLot({ titre, posts, comparaisons, service, maintenant, on
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between gap-3">
           <h2 id="mig-fenetre" className="text-lg text-texte">{titre} · {posts.length} post{posts.length > 1 ? "s" : ""}</h2>
-          <button type="button" onClick={onFermer} aria-label="Fermer la fenêtre" className="min-h-11 rounded-full border border-trait-fort px-4 text-sm font-semibold">Fermer</button>
+          <button type="button" onClick={onFermer} aria-label="Fermer la fenêtre" className="min-h-11 rounded-full border border-trait-fort px-4 text-base sm:text-sm font-semibold">Fermer</button>
         </div>
         {posts.length === 0 && <p className="mt-4 text-texte-doux">Aucun post dans ce lot.</p>}
         {posts.map((p) => {
@@ -38,7 +46,7 @@ export function FenetreLot({ titre, posts, comparaisons, service, maintenant, on
             <article key={p.id} className="mt-4 rounded-carte border border-trait bg-surface-1 p-4">
               <h3 className="font-semibold text-texte">{p.titre} · prévu le {formaterDate(p.datePrevue)}</h3>
               {cmp ? (
-                <dl className="mt-2 grid grid-cols-[auto_1fr_1fr] gap-x-3 gap-y-1 text-sm">
+                <dl className="mt-2 grid grid-cols-[auto_1fr_1fr] gap-x-3 gap-y-1 text-base sm:text-sm">
                   <dt className="sr-only">Champ</dt><dd className="font-semibold text-texte-doux">&nbsp;</dd><dd className="font-semibold">Buffer · Zernio</dd>
                   {CHAMPS.map(([k, nom]) => (
                     <div key={k} className="contents">
@@ -49,13 +57,13 @@ export function FenetreLot({ titre, posts, comparaisons, service, maintenant, on
                   ))}
                 </dl>
               ) : (
-                <p className="mt-2 text-sm text-texte-doux">{service.disponible ? "Comparaison en préparation." : service.raison}</p>
+                <p className="mt-2 text-base sm:text-sm text-texte-doux">{service.disponible ? "Comparaison en préparation." : service.raison}</p>
               )}
               <button
                 type="button"
                 disabled={!cmp || justes.has(p.id)}
                 onClick={() => { setJustes(new Set(justes).add(p.id)); onJuste?.(p.id); }}
-                className="mt-3 min-h-11 rounded-full bg-surface-2 px-4 text-sm font-semibold text-texte disabled:opacity-50"
+                className="mt-3 min-h-11 rounded-full bg-surface-2 px-4 text-base sm:text-sm font-semibold text-texte disabled:opacity-50"
               >
                 {justes.has(p.id) ? "Vérifié" : "C’est juste"}
               </button>
@@ -72,15 +80,15 @@ export function FenetreLot({ titre, posts, comparaisons, service, maintenant, on
             Retirer de Buffer et programmer
           </button>
           {(!service.disponible || admis.length === 0) && (
-            <p className="mt-1 text-sm text-texte-doux">{!service.disponible ? service.raison : "Disponible dès qu’un post est vérifié, à plus de 30 min de son envoi."}</p>
+            <p className="mt-1 text-base sm:text-sm text-texte-doux">{!service.disponible ? service.raison : "Disponible dès qu’un post est vérifié, à plus de 30 min de son envoi."}</p>
           )}
         </div>
         {confirmation && (
           <div role="alertdialog" aria-modal="true" aria-labelledby="mig-confirmer" className="mt-4 rounded-carte border border-brique/40 bg-brique-doux p-4">
             <h3 id="mig-confirmer" className="font-semibold text-texte">Retirer {admis.length} post{admis.length > 1 ? "s" : ""} de Buffer et les programmer chez Zernio ?</h3>
             <div className="mt-3 flex gap-3">
-              <button type="button" onClick={() => setConfirmation(false)} className="min-h-11 rounded-full border border-trait-fort px-4 text-sm font-semibold">Annuler</button>
-              <button type="button" onClick={() => { onConfirmer?.(admis.map((p) => p.id)); setConfirmation(false); }} className="min-h-11 rounded-full bg-orange px-4 text-sm font-semibold text-sur-orange">Retirer et programmer</button>
+              <button type="button" onClick={() => setConfirmation(false)} className="min-h-11 rounded-full border border-trait-fort px-4 text-base sm:text-sm font-semibold">Annuler</button>
+              <button type="button" onClick={() => { onConfirmer?.(admis.map((p) => p.id)); setConfirmation(false); }} className="min-h-11 rounded-full bg-orange px-4 text-base sm:text-sm font-semibold text-sur-orange">Retirer et programmer</button>
             </div>
           </div>
         )}
