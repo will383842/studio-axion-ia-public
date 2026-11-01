@@ -15,9 +15,9 @@ export function Criteres({ comptes }: { comptes: CompteMigration[] }) {
   return (
     <section aria-labelledby="mig-criteres" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
       <h2 id="mig-criteres" className="text-lg text-texte">Critères pour résilier Buffer</h2>
-      <p className="mt-1 text-sm text-texte-doux">Chaque compte : 2 vraies publications par Zernio, dont une avec premier commentaire, vérifiées avec leur lien, sans rien « à vérifier », sur au moins 5 jours.</p>
+      <p className="mt-1 text-base sm:text-sm text-texte-doux">Chaque compte : 2 vraies publications par Zernio, dont une avec premier commentaire, vérifiées avec leur lien, sans rien « à vérifier », sur au moins 5 jours.</p>
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-base sm:text-sm">
           <thead>
             <tr className="text-left text-texte-doux">
               <th scope="col" className="px-2 py-1">Compte</th>
