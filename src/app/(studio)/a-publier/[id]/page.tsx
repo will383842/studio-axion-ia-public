@@ -7,6 +7,7 @@ import { lignesParReseau, retourDetail, reseauDepuis, reseauxPresents } from "@/
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { exigerSession } from "@/services/auth";
 import { pageAPublierAllumee, vueAPublier } from "@/services/a-publier";
+import { complementsAPublier } from "@/services/a-publier-zernio";
 
 export const metadata: Metadata = { title: "À publier" };
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function PageDetailAPublier({ params, searchParams }: { par
   const vue = await vueAPublier();
   const lignes = vue.lignes.filter((l) => l.videoId === id);
   if (!lignes.length) notFound();
+  const complements = await complementsAPublier();
   const presents = reseauxPresents(vue.lignes);
   const retour = retourDetail(sp, presents, filtreDepuis(sp.filtre), nombreAffichees(sp.n));
   const reseau = reseauDepuis(sp.reseau, reseauxPresents(lignes));
@@ -29,7 +31,7 @@ export default async function PageDetailAPublier({ params, searchParams }: { par
   return (
     <div>
       <EnTetePage titre="À publier" retour={{ href: retour, libelle: "Retour à la liste" }} />
-      <LignesAPublier vue={{ ...vue, lignes }} retour={retour} reseauOuvert={reseau === "tous" ? undefined : reseau} suivantes={suivantes} />
+      <LignesAPublier vue={{ ...vue, lignes }} retour={retour} reseauOuvert={reseau === "tous" ? undefined : reseau} suivantes={suivantes} complements={complements} />
     </div>
   );
 }

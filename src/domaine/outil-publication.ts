@@ -39,3 +39,6 @@ export function outilPour(routage: RoutagePublication | null | undefined, reseau
 export function cleEnvoiPublication(sourceId: string, reseau: string, dateIso: string, compteCode?: string | null): string {
   return createHash("sha256").update(JSON.stringify([sourceId, reseau, dateIso, compteCode ?? ""])).digest("hex");
 }
+
+/** Fin du choix de Buffer pour un contenu : 20 novembre 2026, 23 h 59 à l'heure de Paris (UTC+1 en novembre). Seule source : l'écran et le serveur la lisent ici. */
+export const FIN_BUFFER_ISO = "2026-11-20T23:59:59+01:00";
