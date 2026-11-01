@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * BUFFER RÉEL (lot R1, brouillon d'abord) : comptes, correspondance réseau → compte, mode, synchronisation des états.
  *
@@ -321,7 +322,7 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
     const actuelle = await d.publications.obtenir(publicationId);
     if (!actuelle || actuelle.modifieLe !== p.modifieLe) return actuelle;
     if (trouvee) {
-      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "Buffer" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, { type: "video", id: p.videoId });
+      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "Buffer" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, { type: "video", id: (videoIdDe(p) ?? "") });
       return d.publications.modifier(p.id, { etatEnvoi: "envoye", idExterne: trouvee.idExterne, statut: trouvee.statut, etatLuLe: new Date(instant).toISOString(), ...(trouvee.lien ? { urlPubliee: trouvee.lien } : {}) });
     }
     const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
@@ -400,15 +401,15 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     if (!ecrite || etat.statut === p.statut) continue;
     r.changees++;
     if (etat.statut === "publiee") {
-      await d.videos.modifier(p.videoId, { etapeEditoriale: "publiee" });
+      await d.videos.modifier((videoIdDe(p) ?? ""), { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);
-      await journaliser("publication", `Publiée par Buffer sur ${obtenirReseau(p.reseau).nom}`, { type: "video", id: p.videoId });
+      await journaliser("publication", `Publiée par Buffer sur ${obtenirReseau(p.reseau).nom}`, { type: "video", id: (videoIdDe(p) ?? "") });
     } else if (etat.statut === "programmee") {
-      await passerProgrammee(p.videoId);
+      await passerProgrammee((videoIdDe(p) ?? ""));
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       console.warn(`[studio] Buffer, échec sur ${p.reseau} : ${etat.erreur ?? "sans raison donnée"}`);
-      await journaliser("publication", raisonEchec, { type: "video", id: p.videoId });
+      await journaliser("publication", raisonEchec, { type: "video", id: (videoIdDe(p) ?? "") });
       await creerNotification({ type: "echec", titre: "Buffer n'a pas pu publier", message: raisonEchec, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
     }
   }

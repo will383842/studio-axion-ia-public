@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /** ACCUEIL (B.8 #2 + AV2.4-3) : tout ce que l'écran d'accueil affiche, en un appel. */
 import "server-only";
 import type { ElementBibliotheque, Publication, Video } from "@/domaine/types";
@@ -55,9 +56,9 @@ export async function resumeAccueil(): Promise<ResumeAccueil> {
   ]);
   const aujourdhui = cleJour(new Date());
   const archivees = new Set((await d.videos.lister((v) => v.statut === "archivee")).map((v) => v.id));
-  const pubs = await d.publications.lister((p) => ex(p) && !archivees.has(p.videoId) && cleJour(p.date) === aujourdhui && p.via !== "simulation");
+  const pubs = await d.publications.lister((p) => ex(p) && !archivees.has((videoIdDe(p) ?? "")) && cleJour(p.date) === aujourdhui && p.via !== "simulation");
   const publicationsDuJour = await Promise.all(
-    pubs.map(async (p) => ({ ...p, reseauNom: obtenirReseau(p.reseau).nom, videoTitre: (await d.videos.obtenir(p.videoId))?.titre ?? "" })),
+    pubs.map(async (p) => ({ ...p, reseauNom: obtenirReseau(p.reseau).nom, videoTitre: (await d.videos.obtenir((videoIdDe(p) ?? "")))?.titre ?? "" })),
   );
 
   // TEST-UI-REEL U1 : le vrai « Moi » d'abord (la liste ne contient celui d'exemple que si les exemples sont affichés).

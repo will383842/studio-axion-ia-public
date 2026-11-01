@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * MESURE MINIMALE ET « PROGRAMMER LES N » (plan v5 B.5.5, B.8 §2, lot G7a).
  *
@@ -77,11 +78,11 @@ export interface MesureSaisie {
 async function publicationsMesurables(aSaisir = false): Promise<Publication[]> {
   const ex = await filtreExemples<Publication>();
   const archivees = new Set((await depots().videos.lister((v) => v.statut === "archivee")).map((v) => v.id));
-  const publications = await depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !archivees.has(p.videoId));
+  const publications = await depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !archivees.has((videoIdDe(p) ?? "")));
   if (!aSaisir) return publications;
   // Publication gardée après la suppression de sa vidéo : ses mesures restent consultables, mais plus rien à saisir.
   const existantes = new Set((await depots().videos.lister()).map((v) => v.id));
-  return publications.filter((p) => existantes.has(p.videoId));
+  return publications.filter((p) => existantes.has((videoIdDe(p) ?? "")));
 }
 
 /** Publications dont un relevé est attendu (J+7 d'abord, puis les plus anciennes). */
@@ -94,10 +95,10 @@ export async function listerMesuresASaisir(instant: Date = new Date()): Promise<
     if (!jour) continue;
     const v = await d.variantes.obtenir(p.varianteId!);
     const m = v ? await d.scriptsMaitres.obtenir(v.scriptMaitreId) : null;
-    const video = await d.videos.obtenir(p.videoId);
+    const video = await d.videos.obtenir((videoIdDe(p) ?? ""));
     r.push({
       publicationId: p.id,
-      videoId: p.videoId,
+      videoId: (videoIdDe(p) ?? ""),
       varianteId: p.varianteId!,
       code: v?.code ?? "",
       reseau: p.reseau as ReseauDeclinaison,
@@ -162,9 +163,9 @@ export async function enregistrerMesures(publicationId: Id, saisie: SaisieMesure
     stats: valeurs,
     ...(p.statut === "programmee" ? { statut: "publiee" as const } : {}),
   });
-  if (p.statut === "programmee") await d.videos.modifier(p.videoId, { etapeEditoriale: "publiee" });
+  if (p.statut === "programmee") await d.videos.modifier((videoIdDe(p) ?? ""), { etapeEditoriale: "publiee" });
   if (p.varianteId) await synchroniserEtats(p.varianteId);
-  await journaliser("mesure", `Mesures J+${jour} saisies`, { type: "video", id: p.videoId });
+  await journaliser("mesure", `Mesures J+${jour} saisies`, { type: "video", id: (videoIdDe(p) ?? "") });
   return suite;
 }
 

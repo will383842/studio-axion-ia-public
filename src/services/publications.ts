@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * KIT DE PUBLICATION, ENVOI (simulé) ET CALENDRIER (B.8 #8, AV2.3-1/11/12/13, AV2.4-2/4).
  */
@@ -1031,17 +1032,17 @@ export async function listerCalendrier(debutIso: string, finIso: string): Promis
   // Une publication (même un essai) d'une vidéo d'exemple suit l'interrupteur « Afficher les exemples ».
   // Une vidéo archivée sort du calendrier ; ses publications reviennent si elle est restaurée.
   const videosMasquees = new Set((await depots().videos.lister((v) => !exemplesVideo(v) || v.statut === "archivee")).map((v) => v.id));
-  const pubs = await depots().publications.lister((p) => exemples(p) && !videosMasquees.has(p.videoId) && p.date >= debutIso && p.date <= finIso);
+  const pubs = await depots().publications.lister((p) => exemples(p) && !videosMasquees.has((videoIdDe(p) ?? "")) && p.date >= debutIso && p.date <= finIso);
   pubs.sort((a, b) => a.date.localeCompare(b.date));
   const parJour = new Map<string, JourCalendrier["publications"]>();
   const cartes = new Map<string, VueVideoCarte | null>();
   for (const p of pubs) {
-    if (!cartes.has(p.videoId)) {
-      const v = await depots().videos.obtenir(p.videoId);
-      cartes.set(p.videoId, v ? await versCarte(v) : null);
+    if (!cartes.has((videoIdDe(p) ?? ""))) {
+      const v = await depots().videos.obtenir((videoIdDe(p) ?? ""));
+      cartes.set((videoIdDe(p) ?? ""), v ? await versCarte(v) : null);
     }
     const jour = cleJour(p.date);
-    parJour.set(jour, [...(parJour.get(jour) ?? []), { ...p, video: cartes.get(p.videoId) ?? null, reseauNom: obtenirReseau(p.reseau).nom }]);
+    parJour.set(jour, [...(parJour.get(jour) ?? []), { ...p, video: cartes.get((videoIdDe(p) ?? "")) ?? null, reseauNom: obtenirReseau(p.reseau).nom }]);
   }
   return Array.from(parJour, ([jour, publications]) => ({ jour, publications }));
 }
@@ -1049,7 +1050,7 @@ export async function listerCalendrier(debutIso: string, finIso: string): Promis
 /** Nombre de publications programmées (à venir) des vidéos données : prévenir avant d'archiver. */
 export async function compterPublicationsProgrammees(videoIds: string[]): Promise<number> {
   const maintenantIso = new Date().toISOString();
-  return depots().publications.compter((p) => videoIds.includes(p.videoId) && p.statut === "programmee" && p.date >= maintenantIso);
+  return depots().publications.compter((p) => videoIds.includes((videoIdDe(p) ?? "")) && p.statut === "programmee" && p.date >= maintenantIso);
 }
 
 /** Famille de contenu d'une ligne « À publier » (aujourd'hui les vidéos seules ; carrousels et infographies viendront à part). */

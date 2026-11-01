@@ -1,3 +1,4 @@
+import { videoIdDe } from "@/domaine/types";
 /**
  * SERVICE DES MATIÈRES (générateur, plan v5 B.2.9, lot G2).
  *
@@ -352,7 +353,7 @@ export async function noterDeprogrammee(publicationId: Id): Promise<void> {
   if (!p) throw new ErreurStudio("INTROUVABLE", "Cette publication n'existe plus.");
   if (p.statut !== "programmee") return;
   await d.publications.modifier(p.id, { statut: "brouillon", erreur: "Déprogrammée par Will (matière retirée)" });
-  await journaliser("publication", "Publication déprogrammée (matière retirée)", { type: "video", id: p.videoId });
+  await journaliser("publication", "Publication déprogrammée (matière retirée)", { type: "video", id: (videoIdDe(p) ?? "") });
   if (p.varianteId) {
     const v = await d.variantes.obtenir(p.varianteId);
     if (v) await synchroniserSujet(v.scriptMaitreId);
