@@ -44,6 +44,19 @@ describe("z2s · correspondance des statuts", () => {
   ])("%s → %s", (zernio, studio) => expect(statutDepuisZernio(zernio)).toBe(studio));
 });
 
+describe("z2s · posts « à vérifier »", () => {
+  it("relus avec lirePost seulement (jamais d'écriture chez Zernio) ; un 404 répété ne renotifie pas", async () => {
+    await publication("av", { etatEnvoi: "a-verifier" });
+    const { client, faux } = creerFauxClientZernio(() => reponse({ post: postExemple({ status: "scheduled", scheduledFor: "2026-11-02T10:00:00Z" }) }));
+    injecterClientZernio(client);
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(r.lues).toBe(1);
+    expect((await depots().publications.obtenir("av"))!.statut).toBe("programmee");
+    expect(faux.appels.length).toBeGreaterThan(0);
+    expect(faux.appels.every((a: { methode: string }) => a.methode === "GET")).toBe(true);
+  });
+});
+
 describe("z2s · synchronisation", () => {
   const cas: [string, Record<string, unknown>, string][] = [
     ["scheduled", { scheduledFor: "2026-11-02T10:00:00Z" }, "programmee"],
