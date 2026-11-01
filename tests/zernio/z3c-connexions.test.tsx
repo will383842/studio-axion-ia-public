@@ -60,7 +60,7 @@ describe("z3c · cartes de compte", () => {
   it("compte à reconnecter : pastille « À reconnecter bientôt » ; Buffer désactivé s'il n'y a pas de compte chez Buffer", () => {
     const html = rendre({ etat: "normal", donnees: etat({ comptes: [compte("tiktok", 1, { relie: false, existeChezBuffer: false })] }) });
     expect(html).toContain("À reconnecter bientôt");
-    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>(?:(?!<\/button>).)*Buffer/s);
+    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Buffer/);
   });
 
   it("le changement de routage appelle le bon service avec le bon réseau", async () => {
@@ -207,7 +207,7 @@ describe("z3c · clé absente et budget", () => {
     for (const budget of [{ zernio: 0, buffer: 0, finBuffer: "20/11" }, { zernio: null, buffer: null, finBuffer: "20/11" }, { zernio: 999999, buffer: 999999, finBuffer: "20/11" }]) {
       const html = rendre({ etat: "normal", donnees: etat({ comptes, budget }) });
       expect(html).toContain("Rien n’est jamais bloqué par ce montant.");
-      expect(html).toMatch(/<button(?![^>]*\sdisabled="")[^>]*>(?:(?!<\/button>).)*Passer Compte exemple tiktok 6 sur Zernio/s);
+      expect(html).toMatch(/<button(?![^>]*\sdisabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Passer Compte exemple tiktok 6 sur Zernio/);
     }
     expect(rendre(VUES.normal)).toContain("10 $");
     expect(rendre({ etat: "normal", donnees: etat({ budget: { zernio: null, buffer: null, finBuffer: "20/11" } }) })).toContain("à renseigner");
