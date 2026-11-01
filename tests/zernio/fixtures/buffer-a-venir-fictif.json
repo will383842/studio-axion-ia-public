@@ -1,0 +1,26 @@
+{
+  "_note": "Données entièrement fictives (exemple). Aucun identifiant ni nom réel.",
+  "data": {
+    "account": { "id": "exemple-compte", "timezone": "UTC", "organizations": [{ "id": "exemple-org", "name": "Organisation exemple", "channelCount": 2 }] },
+    "channels": [
+      { "id": "canal-exemple-1", "name": "exemple-un", "displayName": "Page exemple un", "service": "instagram", "type": "business" },
+      { "id": "canal-exemple-2", "name": "exemple-deux", "displayName": "Page exemple deux", "service": "linkedin", "type": "profile" }
+    ],
+    "posts": {
+      "edges": [
+        { "node": { "id": "post-exemple-01", "channelId": "canal-exemple-1", "status": "scheduled", "dueAt": "2026-11-06T09:00:00.000Z", "sentAt": null, "createdAt": "2026-10-20T10:00:00.000Z", "text": "Texte exemple un",
+          "assets": [{ "__typename": "ImageAsset", "id": "m1", "type": "image", "mimeType": "image/jpeg", "source": "https://exemple.invalid/m1.jpg", "image": { "altText": "Image exemple" } }],
+          "metadata": { "__typename": "InstagramPostMetadata", "firstComment": "Premier commentaire exemple" } } },
+        { "node": { "id": "post-exemple-02", "channelId": "canal-exemple-2", "status": "scheduled", "dueAt": "2026-11-07T09:00:00.000Z", "sentAt": null, "createdAt": "2026-10-20T10:00:00.000Z", "text": "Texte exemple deux",
+          "assets": [{ "__typename": "DocumentAsset", "id": "m2", "type": "document", "mimeType": "application/pdf", "source": "https://exemple.invalid/m2.pdf", "document": { "filesize": 1200, "title": "Titre de document exemple" } }],
+          "metadata": { "__typename": "LinkedInPostMetadata", "firstComment": null, "linkAttachment": { "url": "https://exemple.invalid/page", "title": "Lien exemple" } } } },
+        { "node": { "id": "post-exemple-03", "channelId": "canal-exemple-1", "status": "draft", "dueAt": "2026-10-31T10:00:00.000Z", "sentAt": null, "createdAt": "2026-10-30T10:00:00.000Z", "text": "Vidéo de test exemple",
+          "assets": [{ "__typename": "VideoAsset", "id": "m3", "type": "video", "mimeType": "video/mp4", "source": "https://exemple.invalid/m3.mp4", "video": { "fileSize": 5000, "title": null } }],
+          "metadata": { "__typename": "InstagramPostMetadata", "firstComment": null } } },
+        { "node": { "id": "post-exemple-04", "channelId": "canal-exemple-1", "status": "sent", "dueAt": "2026-10-01T09:00:00.000Z", "sentAt": "2026-10-01T09:00:05.000Z", "createdAt": "2026-09-30T10:00:00.000Z", "text": "Déjà envoyé exemple", "assets": [], "metadata": null } },
+        { "node": { "id": "post-exemple-05", "channelId": "canal-exemple-2", "status": "draft", "dueAt": "2026-10-15T09:00:00.000Z", "sentAt": null, "createdAt": "2026-10-10T10:00:00.000Z", "text": "Passé exemple", "assets": [], "metadata": null } }
+      ],
+      "pageInfo": { "hasNextPage": false, "endCursor": null }
+    }
+  }
+}
