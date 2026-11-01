@@ -39,11 +39,22 @@ export async function definirRoutage(cle: string, outil: OutilPublication | null
   if (outil === null) delete suivant[cle];
   else {
     if (outil === "zernio" && !cleZernioPresente()) throw refusOutil("zernio");
+    // Choix explicite de Buffer sans sa clé : même refus clair que pour Zernio (finitions Z2-S). Le retour au défaut (null) reste libre.
+    if (outil === "buffer" && !bufferRelie()) throw refusOutil("buffer");
     suivant[cle] = outil;
   }
   await ecrireParametre(PARAM_ROUTAGE, suivant);
   await journaliser("reglages", outil ? `Publication : ${cle} part par ${NOMS_OUTILS[outil]}` : `Publication : ${cle} revient au réglage par défaut (Buffer)`);
   return suivant;
+}
+
+function bufferRelie(): boolean {
+  try {
+    fournisseurParId("publication", "buffer");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function refusOutil(outil: OutilPublication): ErreurStudio {
@@ -63,12 +74,6 @@ export async function outilDeEnvoi(reseau: IdReseau, compte?: string | null): Pr
   // Défaut (aucune clé de routage) : Buffer, ou sa simulation si Buffer n'est pas relié. Choix explicite de Buffer : clé exigée.
   const t = await lireRoutage();
   const explicite = [compte ? `${reseau}:${compte}` : null, reseau].some((c) => !!c && Object.hasOwn(t, c) && t[c] === "buffer");
-  if (explicite) {
-    try {
-      fournisseurParId("publication", "buffer");
-    } catch {
-      throw refusOutil("buffer");
-    }
-  }
+  if (explicite && !bufferRelie()) throw refusOutil("buffer");
   return outil;
 }

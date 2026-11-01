@@ -342,11 +342,20 @@ function estUrlHttps(texte: string): boolean {
 /** Forme permise de la valeur de x-request-id (ni filtre contournable, ni injection d'en-tête). */
 const VALEUR_REQUEST_ID = /^[A-Za-z0-9-]{1,64}$/;
 
+/** Catégorie d'échec rendue par Zernio : gardée seulement si elle a la forme d'un code court (finitions Z2-S). */
+export function categorieSure(valeur: unknown): string | undefined {
+  return typeof valeur === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(valeur) ? valeur : undefined;
+}
+
 function verifierEntetes(entetes: Record<string, string> | undefined, permis: ReadonlySet<string>): void {
   for (const [nom, valeur] of Object.entries(entetes ?? {})) {
     if (!permis.has(nom.toLowerCase())) throw refus(`En-tête « ${nom} » non permis.`);
     if (nom.toLowerCase() === "x-request-id" && (typeof valeur !== "string" || !VALEUR_REQUEST_ID.test(valeur))) {
       throw refus("En-tête x-request-id : 1 à 64 lettres, chiffres ou tirets attendus.");
+    }
+    // Par cohérence avec les corps : la valeur passe aussi par le filtre des mots interdits (finitions, relecture #154).
+    if (nom.toLowerCase() === "x-request-id" && motsInterditsDuCorps(valeur).length) {
+      throw refus("En-tête x-request-id : valeur refusée par le filtre des mots interdits.");
     }
   }
 }
@@ -828,7 +837,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       const post = lirePostDe(rep.corps);
       const echecs = post.platforms
         .filter((p) => STATUTS_ECHEC.has(String(p.status ?? "").toLowerCase()))
-        .map((p) => ({ platform: p.platform, errorMessage: p.errorMessage && propre(p.errorMessage), errorCategory: p.errorCategory }));
+        .map((p) => ({ platform: p.platform, errorMessage: p.errorMessage && propre(p.errorMessage), errorCategory: categorieSure(p.errorCategory) }));
       const issue: IssueCreationZernio = echecs.length === 0 ? "ok" : echecs.length === post.platforms.length ? "echec" : "partiel";
       if (issue !== "ok") journal.alerte("Zernio : création incomplète", { statut: rep.statut, issue, plateformes: echecs.map((e) => e.platform) });
       return { statut: rep.statut, post, issue, echecs, rejeu: rep.statut === 200 };
