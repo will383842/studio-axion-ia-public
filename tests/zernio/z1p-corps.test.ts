@@ -101,7 +101,7 @@ describe("z1p · hôte des médias téléversés", () => {
   const hotesPublics = new Set(["exemple-cdn.test"]);
   it("accepte une adresse dont l'hôte vient du presign", () => {
     const c = corpsPostZernio(base(), { maintenant: MAINTENANT, medias: [{ type: "video", url: "https://exemple-cdn.test/m/x.mp4" }], hotesPublics });
-    expect(c.mediaItems[0].url).toBe("https://exemple-cdn.test/m/x.mp4");
+    expect(c.mediaItems?.[0]?.url).toBe("https://exemple-cdn.test/m/x.mp4");
   });
   it("refuse un autre hôte, une adresse non https, ou l'absence d'hôtes de référence", () => {
     for (const url of ["https://autre-hote.test/x.mp4", "http://exemple-cdn.test/x.mp4", "pas une adresse"]) {
