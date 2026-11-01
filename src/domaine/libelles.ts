@@ -312,3 +312,42 @@ export function libelleFabriquer({ montant, dureeSec, n, sansPrix, essai }: { mo
   const texte = parties.join(" · ");
   return essai && !sansPrix ? `${texte} (essai)` : texte;
 }
+
+/* --- Écran d'envoi « À publier » (Z3-E) : le nom de l'outil vient d'ici, jamais écrit en dur dans un bouton --- */
+
+/** Catalogue des outils de publication : le nom affiché. */
+export const NOMS_OUTILS_PUBLICATION: Readonly<Record<"buffer" | "zernio", string>> = { buffer: "Buffer", zernio: "Zernio" };
+
+/** Libellés de l'écran d'envoi (vouvoiement, sans jargon). */
+export const LIBELLES_ENVOI = {
+  brouillon: "Mettre en brouillon",
+  programmer: "Programmer",
+  validerEtProgrammer: "Valider et programmer",
+  repasserBrouillon: "Repasser en brouillon",
+  reessayer: "Réessayer maintenant",
+  voirPublication: "Voir la publication",
+  publieeVerifiee: "Publiée et vérifiée. Le lien est enregistré.",
+  envoyerPar: "Envoi par",
+  changer: "Changer",
+  aussiSur: "Aussi sur :",
+  premierCommentaire: "Premier commentaire, posé automatiquement",
+  premierCommentaireTiktok: "TikTok ne permet pas de premier commentaire automatique : à poser à la main, juste après la publication.",
+  tiktokAccord: "J'ai regardé l'aperçu et j'accepte que TikTok publie cette vidéo.",
+  tiktokAccordPetit: "TikTok demande cet accord à chaque envoi.",
+  tiktokAccordManquant: "Cochez l'accord TikTok ci-dessus pour valider.",
+  tiktokInactif: "TikTok : cochez d'abord l'accord ci-dessus pour envoyer.",
+  recommande: "recommandé",
+  jusquAu: "jusqu'au",
+  pourCeContenu: "Pour ce contenu seulement.",
+  chargement: "Chargement de l'aperçu…",
+  vide: "Rien à envoyer pour le moment.",
+  erreur: "L'aperçu n'a pas pu s'afficher. Réessayez dans un instant.",
+  mentionIA: "Mention « contenu généré par IA » : transmise à ce réseau.",
+  validerLesN: (n: number) => `Valider et programmer les ${n}`,
+  noteGroupee: "Le TikTok attend votre accord.",
+  annuler: "Annuler",
+  simuleRaison: "Pour le moment, c'est un essai : rien ne peut partir tant que l'outil de publication n'est pas relié.",
+  groupeDate: (jour: string) => `Tous les envois partiront ${jour}, à 9 h.`,
+  groupeConseil: "Pour changer un envoi, ouvrez la vidéo et repassez-la en brouillon.",
+  enCours: "Envoi en cours…",
+} as const;
