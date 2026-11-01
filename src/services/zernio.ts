@@ -21,8 +21,15 @@ import { creerNotification } from "./notifications";
 
 export const VARIABLE_CLE_ZERNIO = "ZERNIO_API_KEY";
 export const PARAM_COMPTES_ZERNIO = "zernio.comptes";
+/** Interrupteur local « Tout arrêter » : à faux, toute écriture vers Zernio est refusée. Absent = envois permis. */
+export const PARAM_ARRET_ZERNIO = "zernio.envoi_autorise";
 export const INTERVALLE_SYNCHRO_ZERNIO_MS = 15 * 60_000;
 const LECTURES_PAR_TOUR = 50;
+
+/** Relu à CHAQUE requête (jamais mis en cache) : l'arrêt agit tout de suite. */
+export async function envoiZernioAutorise(): Promise<boolean> {
+  return (await lireParametre<boolean>(PARAM_ARRET_ZERNIO, true)) !== false;
+}
 
 let clientInjecte: ClientZernio | null = null;
 let clientCache: { cle: string; client: ClientZernio } | null = null;
@@ -43,7 +50,7 @@ export function clientZernio(): ClientZernio {
   if (clientInjecte) return clientInjecte;
   const cle = cleDans(process.env, VARIABLE_CLE_ZERNIO);
   if (!cle) throw new ErreurStudio("ZERNIO_NON_RELIE", "Zernio n'est pas relié (clé absente) : l'envoi est refusé, aucun autre outil n'est utilisé à sa place.");
-  if (clientCache?.cle !== cle) clientCache = { cle, client: creerClientZernio({ cle }) };
+  if (clientCache?.cle !== cle) clientCache = { cle, client: creerClientZernio({ cle, envoiAutorise: envoiZernioAutorise }) };
   return clientCache.client;
 }
 
@@ -68,7 +75,7 @@ export async function comptesZernioEnregistres(): Promise<ComptesZernioEnregistr
 }
 
 /** « Tester » (Réglages) : Zernio répond-il, et quels comptes y sont reliés ? RÉSEAU : jamais depuis un écran. */
-export async function testerZernio(): Promise<{ message: string; comptes: number }> {
+export async function testerZernio(): Promise<{ message: string; comptes: number; etats: Record<string, boolean> }> {
   await exigerSession();
   let liste: CompteZernio[];
   try {
@@ -82,7 +89,7 @@ export async function testerZernio(): Promise<{ message: string; comptes: number
   await ecrireParametre(PARAM_COMPTES_ZERNIO, { lusLe: maintenant(), comptes } satisfies ComptesZernioEnregistres);
   await journaliser("reglages", `Zernio testé : ${comptes.length} compte(s) relié(s)`);
   const reseaux = [...new Set(comptes.map((c) => c.reseau))].join(", ");
-  return { comptes: comptes.length, message: comptes.length ? `Zernio répond : ${reseaux}.` : "Zernio répond, mais aucun compte n'y est relié." };
+  return { comptes: comptes.length, etats: Object.fromEntries(liste.map((c) => [c._id, c.isActive !== false])), message: comptes.length ? `Zernio répond : ${reseaux}.` : "Zernio répond, mais aucun compte n'y est relié." };
 }
 
 /* ------------------------------------------------------------------ */

@@ -6,18 +6,18 @@
  * (`zernio.envoi_autorise`) : il ne supprime rien et n'appelle jamais Zernio. Aucune clé ne sort d'ici.
  * Les montants du budget sont de l'information : rien ici ne les compare à un envoi.
  */
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { OUTILS, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 import { serviceBuffer } from "@/domaine/buffer";
-import { clientZernio, cleZernioPresente, comptesZernioEnregistres, testerZernio } from "@/services/zernio";
+import { cleZernioPresente, comptesZernioEnregistres, PARAM_ARRET_ZERNIO, testerZernio } from "@/services/zernio";
 import { canauxEnregistres } from "@/services/buffer";
 import { definirRoutage, lireRoutage } from "@/services/routage-publication";
 import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { outilPour } from "@/domaine/outil-publication";
 
-export const PARAM_ARRET_ZERNIO = "zernio.envoi_autorise";
 const PARAM_MODES = "zernio.mode_envoi";
 const PARAM_BASCULES = "zernio.bascules";
 const PARAM_TESTS = "zernio.tests";
@@ -27,6 +27,8 @@ const RESEAUX_CONNUS: readonly IdReseau[] = ["instagram", "facebook", "linkedin"
 export interface CompteVue {
   /** Identifiant d'affichage (jamais l'identifiant du fournisseur). */
   code: string;
+  /** Clé neutre du compte pour le routage et le mode : « réseau:empreinte ». Stable, sans identifiant du fournisseur. */
+  cle: string;
   reseau: IdReseau;
   nom: string;
   relie: boolean;
@@ -55,8 +57,9 @@ export interface EtatConnexionsZernio {
 export interface ServicesZernio {
   lire(): Promise<Resultat<EtatConnexionsZernio>>;
   tester(): Promise<Resultat<{ message: string }>>;
-  changerRoutage(reseau: IdReseau, outil: OutilPublication): Promise<Resultat>;
-  changerMode(reseau: IdReseau, mode: ModeEnvoiPublication): Promise<Resultat>;
+  /** `cle` : la clé neutre d'un compte (`CompteVue.cle`). Un geste ne touche que ce compte. */
+  changerRoutage(cle: string, outil: OutilPublication): Promise<Resultat>;
+  changerMode(cle: string, mode: ModeEnvoiPublication): Promise<Resultat>;
   arreter(): Promise<Resultat>;
   reprendre(): Promise<Resultat>;
 }
@@ -65,6 +68,20 @@ const ORDRE = (r: string): number => {
   const i = RESEAUX_CONNUS.indexOf(r as IdReseau);
   return i < 0 ? 99 : i;
 };
+
+/** Empreinte courte et stable de l'identifiant du fournisseur : ne change ni quand un compte s'ajoute, ni quand il part. */
+function empreinteCompte(idFournisseur: string): string {
+  return createHash("sha256").update(`compte-studio:${idFournisseur}`).digest("hex").slice(0, 12);
+}
+
+/** Clé « réseau:compte » valide, ou une erreur claire. Le réseau doit être connu. */
+function lireCle(cle: string): { reseau: IdReseau; cle: string } {
+  const [reseau, compte, ...reste] = String(cle).split(":");
+  if (reste.length || !RESEAUX_CONNUS.includes(reseau as IdReseau) || (compte !== undefined && !/^[A-Za-z0-9_-]{1,64}$/.test(compte))) {
+    throw new ErreurStudio("RESEAU_INCONNU", "Réseau ou compte inconnu.");
+  }
+  return { reseau: reseau as IdReseau, cle: compte ? `${reseau}:${compte}` : reseau };
+}
 
 function rafraichir() {
   revalidatePath("/reglages");
@@ -90,18 +107,21 @@ export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexi
     ]);
     const comptes: CompteVue[] = (enregistres?.comptes ?? [])
       .filter((c) => RESEAUX_CONNUS.includes(c.reseau as IdReseau))
-      .map((c, i) => {
+      .map((c) => {
         const reseau = c.reseau as IdReseau;
         const test = tests[c.id];
+        const neutre = empreinteCompte(c.id);
+        const cle = `${reseau}:${neutre}`;
         return {
-          code: `${reseau}-${i + 1}`,
+          code: `${reseau}-${neutre}`,
+          cle,
           reseau,
           nom: c.nom,
           relie: test ? test.actif : true,
-          outil: outilPour(routage, reseau),
-          mode: modes[reseau] === "programmer" ? "programmer" : "brouillon",
+          outil: outilPour(routage, reseau, neutre),
+          mode: (modes[cle] ?? modes[reseau]) === "programmer" ? "programmer" : "brouillon",
           existeChezBuffer: !!canaux?.canaux.some((x) => x.service === serviceBuffer(reseau)),
-          basculeLe: bascules[reseau] ?? null,
+          basculeLe: bascules[cle] ?? bascules[reseau] ?? null,
           dernierTest: test?.testeLe ?? null,
         } satisfies CompteVue;
       })
@@ -116,37 +136,37 @@ export async function testerComptesZernioAction(): Promise<Resultat<{ message: s
   await exigerSession();
   if (!cleZernioPresente()) return { ok: true, donnees: { message: "Zernio n'est pas encore relié : l'écran fonctionne en essai." } };
   return essayer(async () => {
-    const r = await testerZernio();
-    const liste = await clientZernio().listerComptes();
+    const r = await testerZernio(); // une seule lecture chez Zernio : les états des comptes en viennent
     const testeLe = maintenant();
     const tests: Record<string, { testeLe: string; actif: boolean }> = {};
-    for (const c of liste) tests[c._id] = { testeLe, actif: c.isActive !== false };
+    for (const [id, actif] of Object.entries(r.etats)) tests[id] = { testeLe, actif };
     await ecrireParametre(PARAM_TESTS, tests);
     rafraichir();
     return { message: r.message };
   });
 }
 
-export async function changerRoutageZernioAction(reseau: IdReseau, outil: OutilPublication): Promise<Resultat> {
+export async function changerRoutageZernioAction(cleCompte: string, outil: OutilPublication): Promise<Resultat> {
   await exigerSession();
   return essayer(async () => {
     if (!(OUTILS as readonly string[]).includes(outil)) throw new ErreurStudio("OUTIL_INCONNU", "Outil inconnu.");
-    await definirRoutage(reseau, outil);
+    const { cle } = lireCle(cleCompte);
+    await definirRoutage(cle, outil);
     const bascules = await lireParametre<Record<string, string>>(PARAM_BASCULES, {});
-    await ecrireParametre(PARAM_BASCULES, { ...bascules, [reseau]: maintenant() });
+    await ecrireParametre(PARAM_BASCULES, { ...bascules, [cle]: maintenant() });
     rafraichir();
     return undefined;
   });
 }
 
-export async function changerModeZernioAction(reseau: IdReseau, mode: ModeEnvoiPublication): Promise<Resultat> {
+export async function changerModeZernioAction(cleCompte: string, mode: ModeEnvoiPublication): Promise<Resultat> {
   await exigerSession();
   return essayer(async () => {
     if (mode !== "brouillon" && mode !== "programmer") throw new ErreurStudio("MODE_INCONNU", "Choix inconnu.");
-    if (!RESEAUX_CONNUS.includes(reseau)) throw new ErreurStudio("RESEAU_INCONNU", "Réseau inconnu.");
+    const { cle } = lireCle(cleCompte);
     const modes = await lireParametre<Record<string, string>>(PARAM_MODES, {});
-    await ecrireParametre(PARAM_MODES, { ...modes, [reseau]: mode });
-    await journaliser("reglages", `Zernio : ${reseau} part en ${mode === "brouillon" ? "brouillon d'abord" : "programmation"}`);
+    await ecrireParametre(PARAM_MODES, { ...modes, [cle]: mode });
+    await journaliser("reglages", `Zernio : ${cle} part en ${mode === "brouillon" ? "brouillon d'abord" : "programmation"}`);
     rafraichir();
     return undefined;
   });

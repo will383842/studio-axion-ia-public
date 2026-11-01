@@ -40,8 +40,8 @@ export function gestesCompte(services: Pick<ServicesZernio, "changerRoutage" | "
     apres();
   };
   return {
-    publiePar: (reseau: IdReseau, outil: OutilPublication) => suite(services.changerRoutage(reseau, outil)),
-    ceQuiPart: (reseau: IdReseau, mode: ModeEnvoiPublication) => suite(services.changerMode(reseau, mode)),
+    publiePar: (cle: string, outil: OutilPublication) => suite(services.changerRoutage(cle, outil)),
+    ceQuiPart: (cle: string, mode: ModeEnvoiPublication) => suite(services.changerMode(cle, mode)),
   };
 }
 
@@ -64,7 +64,7 @@ export function CarteCompte({ compte, services, onChange }: { compte: CompteVue;
         <SelecteurPastilles
           libelle="Publie par"
           valeur={compte.outil}
-          onChange={(o) => demarrer(async () => void (await gestes.publiePar(compte.reseau, o)))}
+          onChange={(o) => demarrer(async () => void (await gestes.publiePar(compte.cle, o)))}
           options={[
             { valeur: "buffer", libelle: "Buffer", desactive: !compte.existeChezBuffer, raison: "Ce compte n’existe pas chez Buffer." },
             { valeur: "zernio", libelle: "Zernio" },
@@ -73,7 +73,7 @@ export function CarteCompte({ compte, services, onChange }: { compte: CompteVue;
         <SelecteurPastilles
           libelle="Ce qui part"
           valeur={compte.mode}
-          onChange={(m) => demarrer(async () => void (await gestes.ceQuiPart(compte.reseau, m)))}
+          onChange={(m) => demarrer(async () => void (await gestes.ceQuiPart(compte.cle, m)))}
           options={[
             { valeur: "brouillon", libelle: "Brouillon d’abord" },
             { valeur: "programmer", libelle: "Programmer" },
@@ -107,7 +107,7 @@ export function CarteBascule({ comptes, services, onChange }: { comptes: CompteV
               chargement={enCours}
               onClick={() =>
                 demarrer(async () => {
-                  const r = await services.changerRoutage(restant.reseau, "zernio");
+                  const r = await services.changerRoutage(restant.cle, "zernio");
                   if (!r.ok) return void notifier.erreur(r.message);
                   onChange?.();
                 })
@@ -184,7 +184,7 @@ export function BandeauErreur({ onReessayer, enCours }: { onReessayer: () => voi
       <h2 id="erreur-titre" className="mt-2 text-lg text-texte">
         Zernio ne répond pas
       </h2>
-      <p className="mt-1 text-sm text-texte-doux">Les publications déjà programmées partiront quand même. Nous réessayons seuls toutes les 2 minutes.</p>
+      <p className="mt-1 text-sm text-texte-doux">Ce qui est déjà programmé chez Zernio y reste, avec ou sans arrêt d’urgence. Nous réessayons seuls toutes les 2 minutes.</p>
       <div className="mt-4">
         <Bouton taille="lg" pleineLargeur icone="reessayer" chargement={enCours} onClick={onReessayer}>
           Réessayer maintenant
