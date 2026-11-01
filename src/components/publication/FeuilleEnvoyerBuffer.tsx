@@ -16,6 +16,8 @@ import { casesEnvoi, casesParDefaut, ciblesDepuisCases, libelleComptes } from "@
 import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 import { RAPPEL_VOTRE_MARQUE } from "@/domaine/votre-marque";
 import { useVideo } from "./ContexteVideo";
+import { LIBELLES_ENVOI } from "@/domaine/libelles";
+import { libelleEnvoiOutil, nomOutil, type OutilAffiche } from "./finitions-envoi";
 
 type Quand = "maintenant" | "demain" | "choisir";
 
@@ -33,9 +35,9 @@ function demainNeufHeures(): Date {
 }
 
 /** Libellé du bouton : ce qui va VRAIMENT se passer. */
-export function libelleEnvoi(mode: ModeEnvoiPublication | undefined, simule: boolean): string {
+export function libelleEnvoi(mode: ModeEnvoiPublication | undefined, simule: boolean, outil?: OutilAffiche): string {
   if (simule || !mode) return "Envoyer";
-  return mode === "brouillon" ? "Envoyer en brouillon" : "Programmer dans Buffer";
+  return mode === "brouillon" ? "Envoyer en brouillon" : libelleEnvoiOutil("programmer", outil);
 }
 
 /** TEST-UI-REEL U8 (CORRECTEUR UI2) : phrase d'une vidéo d'essai, dite dès l'ouverture de la feuille (sans envoi proposé). */
@@ -100,6 +102,9 @@ export function FeuilleEnvoyerBuffer() {
   const [date, setDate] = useState(() => versLocal(demainNeufHeures()));
   // Vérification E2E n° 1, n° 29 : date choisie dans le passé (calculé au choix de la date, pas pendant l'affichage).
   const [datePassee, setDatePassee] = useState(false);
+  // TikTok : l'accord se donne à CHAQUE envoi (jamais mémorisé). Cette case ne sert qu'à l'affichage (bouton inactif et phrase) :
+  // l'accord n'est PAS transmis par ce chemin (envoyerVersBuffer ne le reçoit pas) ; c'est l'écran de détail qui le transmet.
+  const [accordTiktok, setAccordTiktok] = useState(false);
   const [envoi, demarrerEnvoi] = useTransition();
   const [manuel, demarrerManuel] = useTransition();
   if (!kit) return null;
@@ -169,12 +174,17 @@ export function FeuilleEnvoyerBuffer() {
     <FeuilleBas
       ouverte={feuille === "buffer"}
       onOuverteChange={(o) => ouvrir(o ? "buffer" : null)}
-      titre="Envoyer vers Buffer"
+      titre={`Envoyer vers ${nomOutil("buffer")}`}
       pied={
         <div className="flex flex-col gap-2">
-          <Bouton taille="lg" pleineLargeur icone="envoyer" essai={kit.envoiSimule} disabled={!reseaux.length || !publiable} chargement={envoi} onClick={envoyer}>
+          <Bouton taille="lg" pleineLargeur icone="envoyer" essai={kit.envoiSimule} disabled={!reseaux.length || !publiable || (reseaux.includes("tiktok") && !accordTiktok)} aria-describedby={reseaux.includes("tiktok") && !accordTiktok ? "raison-tiktok" : undefined} chargement={envoi} onClick={envoyer}>
             {libelleEnvoi(envoiBuffer?.mode, kit.envoiSimule)}
           </Bouton>
+          {reseaux.includes("tiktok") && !accordTiktok && (
+            <p id="raison-tiktok" className="text-sm text-texte-doux">
+              {LIBELLES_ENVOI.tiktokAccordManquant}
+            </p>
+          )}
           <Bouton variante="fantome" pleineLargeur icone="coche" disabled={!reseaux.length} chargement={manuel} onClick={noterPubliee}>
             Je l&apos;ai publiée moi-même
           </Bouton>
@@ -209,6 +219,15 @@ export function FeuilleEnvoyerBuffer() {
             <span className="block text-base font-bold leading-snug text-texte">{RAPPEL_VOTRE_MARQUE}</span>
             <span className="mt-0.5 block text-sm text-texte-doux">Avant de publier le brouillon : la vidéo met en avant Axion IA.</span>
           </p>
+        </div>
+      )}
+      {reseaux.includes("tiktok") && (
+        <div className="mb-5 space-y-0.5">
+          <label className="flex min-h-11 items-start gap-3 rounded-2xl border border-trait px-3 py-2.5 text-sm font-semibold text-texte">
+            <input type="checkbox" className="mt-0.5 size-5 shrink-0" checked={accordTiktok} onChange={(e) => setAccordTiktok(e.target.checked)} />
+            {LIBELLES_ENVOI.tiktokAccord}
+          </label>
+          <p className="px-1 text-xs text-texte-faible">{LIBELLES_ENVOI.tiktokAccordPetit}</p>
         </div>
       )}
       {!publiable && (
