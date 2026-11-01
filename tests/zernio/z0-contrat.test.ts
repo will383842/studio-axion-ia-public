@@ -53,4 +53,23 @@ describe("z0 · contrat Zernio (extrait de la spec 1.429.1)", () => {
     const post = spec.paths["/v1/posts"].post as { parameters: Array<{ name: string; in: string }> };
     expect(post.parameters.some((p) => p.name === "Idempotency-Key" && p.in === "header")).toBe(true);
   });
+
+  const props = (nom: string) =>
+    ((spec.components.schemas[nom] as { properties?: Record<string, unknown> }).properties ?? {});
+
+  it("documentTitle est dans LinkedInPlatformData et absent de MediaItem", () => {
+    expect(props("LinkedInPlatformData")).toHaveProperty("documentTitle");
+    expect(props("MediaItem")).not.toHaveProperty("documentTitle");
+  });
+
+  it("isAiGenerated est dans InstagramPlatformData", () => {
+    expect(props("InstagramPlatformData")).toHaveProperty("isAiGenerated");
+  });
+
+  it.each(["FacebookPlatformData", "LinkedInPlatformData", "InstagramPlatformData"])(
+    "firstComment est dans %s",
+    (nom) => {
+      expect(props(nom)).toHaveProperty("firstComment");
+    },
+  );
 });
