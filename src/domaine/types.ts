@@ -1096,7 +1096,7 @@ export interface KitPublication extends Horodate {
 }
 
 export type StatutPublication = "brouillon" | "programmee" | "publiee" | "echec";
-export type ViaPublication = "buffer" | "manuel" | "simulation";
+export type ViaPublication = "buffer" | "zernio" | "manuel" | "simulation";
 
 export interface StatsPublication {
   vues: number;
@@ -1131,7 +1131,7 @@ export interface Publication extends EntiteBase {
   /** Lien suivi propre à la version (B.5.5). */
   lienSuivi?: string;
   /** Relevés successifs (ajout seul) ; `stats` = copie du dernier. */
-  releves?: { le: DateIso; jour: number; source: "saisie" | "buffer" | "api"; valeurs: StatsPublication; definitions: Record<string, string> }[];
+  releves?: { le: DateIso; jour: number; source: "saisie" | "buffer" | "zernio" | "api"; valeurs: StatsPublication; definitions: Record<string, string> }[];
   retention?: { seconde: number; part: number }[];
   /* --- Lot R1, Buffer réel (ajouts purs) --- */
   /**
