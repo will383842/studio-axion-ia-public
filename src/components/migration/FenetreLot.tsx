@@ -20,6 +20,8 @@ export function FenetreLot({ titre, posts, comparaisons, service, maintenant, on
 }) {
   const [justes, setJustes] = useState<Set<string>>(new Set(posts.filter((p) => p.cJuste).map((p) => p.id)));
   const [confirmation, setConfirmation] = useState(false);
+  // « C’est juste » n'est qu'un aperçu local. Au branchement, onConfirmer doit appeler confirmerRetraitEtProgrammation
+  // CÔTÉ SERVEUR, qui revérifie état, date et vérification : ne jamais se fier au cJuste local.
   const vus = posts.map((p) => ({ ...p, cJuste: justes.has(p.id) }));
   const admis = postsConfirmables(vus, maintenant);
   return (
