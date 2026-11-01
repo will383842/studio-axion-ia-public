@@ -19,6 +19,8 @@ export interface AppelEnregistre {
   corps?: string;
   /** Corps JSON décodé quand c'en est un. */
   json?: unknown;
+  /** Option `redirect` transmise à fetch (attendue : "error"). */
+  redirect?: string;
 }
 
 export type ReponsePreparee =
@@ -47,7 +49,7 @@ export function creerFauxFetch(reponses: ReponsePreparee[] | ((appel: AppelEnreg
         json = undefined;
       }
     }
-    const appel: AppelEnregistre = { url, methode: init.method, entetes: { ...init.headers }, corps, json };
+    const appel: AppelEnregistre = { url, methode: init.method, entetes: { ...init.headers }, corps, json, redirect: init.redirect };
     appels.push(appel);
     const r = file ? (file.shift() ?? { statut: 500, corps: { error: "aucune réponse préparée" } }) : (reponses as (a: AppelEnregistre) => ReponsePreparee)(appel);
     if ("erreur" in r) {
