@@ -170,7 +170,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   const client = clientZernio();
   const d = depots();
   const r = { lues: 0, changees: 0 };
-  const suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye")))
+  const suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
     .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""))
     .slice(0, LECTURES_PAR_TOUR);
   const lu = new Date(instant).toISOString();
@@ -184,7 +184,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     } catch (e) {
       if (estErreurZernio(e) && e.code === "introuvable") {
         const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
-        if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
+        if (p.etatEnvoi !== "a-verifier" && instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
           await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
           await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo });
