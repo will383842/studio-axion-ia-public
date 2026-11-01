@@ -4,7 +4,7 @@ import { creerBrouillons } from "../../src/services/import-buffer/creer-brouillo
 import type { MediaCopie } from "../../src/services/import-buffer/medias-prives";
 import type { PostBuffer } from "../../src/services/import-buffer/types";
 import type { LecteurMedia } from "../../src/fournisseurs/publication/zernio-medias";
-import { creerFauxClientZernio, fetchInterdit, J, MOT_INTERDIT, postExemple, type AppelEnregistre, type ReponsePreparee } from "./aides/faux-zernio";
+import { creerFauxClientZernio, J, MOT_INTERDIT, postExemple, type AppelEnregistre, type ReponsePreparee } from "./aides/faux-zernio";
 import { creerClientZernio } from "../../src/fournisseurs/publication/zernio-client";
 
 const MAINT = Date.parse("2026-11-01T08:00:00Z");
@@ -38,8 +38,9 @@ const base = { table: CONFIRMEE, copies: new Map<string, MediaCopie[]>(), mainte
 
 describe("IMP-2 brouillons", () => {
   it("à blanc (défaut) : corps construits, aucun appel réseau", async () => {
-    const faux = fetchInterdit();
-    const { client } = creerFauxClientZernio(faux.fetch ? () => { throw new Error("réseau interdit"); } : []);
+    const { client, faux } = creerFauxClientZernio(() => {
+      throw new Error("réseau interdit");
+    });
     const posts = [post({ id: "post-exemple-1", canalId: "canal-ig" })];
     const copies = new Map([["post-exemple-1", [copie("video")]]]);
     const r = await creerBrouillons({ ...base, client, posts, copies, lot: "A" });
@@ -50,6 +51,7 @@ describe("IMP-2 brouillons", () => {
     expect(c.platforms[0].platformSpecificData).toMatchObject({ shareToFeed: true });
     expect(JSON.stringify(c)).not.toMatch(/publishNow/);
     expect(r.lignes[0].cle).toMatch(/^imp-[0-9a-f]{64}$/);
+    expect(faux.appels).toHaveLength(0);
   });
 
   it("à blanc ne demande pas la table ; vraie création sans table confirmée : refusée", async () => {
