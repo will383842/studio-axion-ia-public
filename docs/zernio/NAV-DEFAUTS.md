@@ -12,7 +12,7 @@ Relevé du parcours navigateur en simulation (voir `tests-navigateur/`). Aucun c
 | D6 | Migration | Taille des textes (bureau et téléphone, clair et sombre) | 296 textes à 14 px (en-tête, légendes d'avancement, « Total vérifié », date limite, critères, sous-titres des lots…). | Textes d'au moins 16 px. |
 | D7 | Migration | « Créer le lot A » | Aucun bouton ne crée de brouillons : l'écran n'offre que « Vérifier le lot … » et « Ouvrir le lot … ». Les actions qui écrivent (« Retirer de Buffer et programmer », « C'est juste ») sont inactives avec la raison « Disponible après l'import des brouillons » : conforme, mais le parcours « confirmer, créer, retirer, programmer » n'est pas testable. | Écriture branchée (lot ultérieur) ; à tester alors. |
 | D8 | Tous | Thème clair | Le Studio n'a qu'un thème sombre (`color-scheme: dark`) : le thème « clair » demandé ne change rien. | À décider : thème clair prévu ou non. |
-| D9 | Connexions | Clé refusée | Le message dit « vérifier la clé » (infinitif) au lieu d'une phrase au vouvoiement (« Vérifiez la clé »). Mineur. | Vouvoiement. |
+| D9 ✅ corrigé | Connexions | Clé refusée | Le message dit « vérifier la clé » (infinitif) au lieu d'une phrase au vouvoiement (« Vérifiez la clé »). Mineur. | Vouvoiement. |
 
 ## Limites de cet essai
 

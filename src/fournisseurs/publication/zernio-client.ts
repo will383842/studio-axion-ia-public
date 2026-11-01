@@ -738,7 +738,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
           detailTechnique: texteErreur(corps),
         });
       }
-      if (rep.status === 401 || rep.status === 403) throw new ErreurZernio("acces", "Zernio refuse l'accès : vérifier la clé dans Connexions.", { statut: rep.status, detailTechnique: texteErreur(corps) });
+      if (rep.status === 401 || rep.status === 403) throw new ErreurZernio("acces", "Zernio refuse l'accès. Vérifiez la clé dans Connexions.", { statut: rep.status, detailTechnique: texteErreur(corps) });
       if (rep.status === 404) throw new ErreurZernio("introuvable", "Élément introuvable chez Zernio.", { statut: 404, detailTechnique: texteErreur(corps) });
       if (rep.status >= 400 || rep.status < 200 || rep.status >= 300) {
         throw new ErreurZernio("refuse", "Zernio a refusé la demande.", { statut: rep.status, detailTechnique: texteErreur(corps) });
