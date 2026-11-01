@@ -1,8 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import type { EtatConnexionsZernio, ServicesZernio } from "@/app/(studio)/reglages/actions-zernio";
 import { definirFournisseurAction, definirJeLisReelAction, definirMontageReelAction, testerConnexionAction } from "@/app/(studio)/reglages/actions";
+import { BandeauChargement, BandeauCleAbsente, BandeauErreur, BandeauVide, CarteBascule, CarteBudget, CarteCompte } from "@/components/reglages/BlocZernio";
+import { ToutArreter } from "@/components/reglages/ToutArreter";
 import { Bouton } from "@/components/ui/Bouton";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
@@ -459,5 +462,107 @@ function ClesServices({ cles }: { cles: CleService[] }) {
         })}
       </ul>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Écran « Connexions Zernio » (lot Z3-C)                               */
+/* ------------------------------------------------------------------ */
+
+export type VueZernio = { etat: "chargement" } | { etat: "erreur" } | { etat: "vide" | "normal"; donnees: EtatConnexionsZernio };
+
+/**
+ * Les 4 états de l'écran. « Arrêt d'urgence » est rendu dans chacun, y compris sous erreur : il ne dépend pas de Zernio.
+ * Aucun appel réseau ici : tout passe par `services` (faux dans les tests).
+ */
+export function VueConnexionsZernio({ vue, services, arretActif, enCours, onChange, onTester, onReessayer }: {
+  vue: VueZernio;
+  services: ServicesZernio;
+  arretActif: boolean;
+  enCours?: boolean;
+  onChange?: () => void;
+  onTester?: () => void;
+  onReessayer?: () => void;
+}) {
+  const donnees = "donnees" in vue ? vue.donnees : null;
+  return (
+    <div className="flex flex-col gap-4" data-ecran="connexions-zernio" data-etat-ecran={vue.etat}>
+      <header>
+        <h1 className="text-xl text-texte">Connexions Zernio</h1>
+        <p className="mt-1 text-sm text-texte-doux">Vos 6 comptes, l’outil qui publie et le mode d’envoi, réseau par réseau.</p>
+        <div className="mt-3">
+          <Bouton variante="secondaire" icone="actualiser" chargement={enCours} onClick={onTester}>
+            Tester les 6 comptes
+          </Bouton>
+        </div>
+      </header>
+
+      <ToutArreter services={services} arretActif={donnees?.arretActif ?? arretActif} erreur={vue.etat === "erreur"} onChange={onChange} />
+
+      {vue.etat === "chargement" && <BandeauChargement />}
+      {vue.etat === "erreur" && <BandeauErreur onReessayer={() => onReessayer?.()} enCours={enCours} />}
+      {vue.etat === "vide" && <BandeauVide onRelie={() => onReessayer?.()} enCours={enCours} />}
+      {donnees && vue.etat === "normal" && (
+        <>
+          {donnees.cleAbsente && <BandeauCleAbsente />}
+          <CarteBascule comptes={donnees.comptes} services={services} onChange={onChange} />
+          <ul className="flex flex-col gap-3">
+            {donnees.comptes.map((c) => (
+              <CarteCompte key={c.code} compte={c} services={services} onChange={onChange} />
+            ))}
+          </ul>
+          <CarteBudget budget={donnees.budget} nombreComptes={donnees.comptes.length} />
+        </>
+      )}
+      {vue.etat === "vide" && donnees?.cleAbsente && <BandeauCleAbsente />}
+    </div>
+  );
+}
+
+/** Décide l'état à afficher d'après la réponse du service. Sans compte : vue vide. Échec : erreur. */
+export function vueDepuisReponse(r: Awaited<ReturnType<ServicesZernio["lire"]>>): VueZernio {
+  if (!r.ok) return { etat: "erreur" };
+  return { etat: r.donnees.comptes.length === 0 ? "vide" : "normal", donnees: r.donnees };
+}
+
+/**
+ * Écran branché : lit en base au chargement, relit après chaque geste. « Tester » est le seul geste qui interroge
+ * Zernio (lecture seule). À brancher dans Réglages par Z3-E/NAV : `<ConnexionsZernio services={...actions-zernio} />`.
+ */
+export function ConnexionsZernio({ services, initial }: { services: ServicesZernio; initial?: VueZernio }) {
+  const [vue, setVue] = useState<VueZernio>(initial ?? { etat: "chargement" });
+  const [arret, setArret] = useState(false);
+  const [enCours, demarrer] = useTransition();
+  const recharger = useCallback(async () => {
+    const v = vueDepuisReponse(await services.lire());
+    if ("donnees" in v) setArret(v.donnees.arretActif);
+    setVue(v);
+  }, [services]);
+  useEffect(() => {
+    if (!initial) void recharger();
+  }, [initial, recharger]);
+  // Erreur : nouvel essai seul toutes les 2 minutes.
+  useEffect(() => {
+    if (vue.etat !== "erreur") return;
+    const t = setInterval(() => void recharger(), 120_000);
+    return () => clearInterval(t);
+  }, [vue.etat, recharger]);
+  return (
+    <VueConnexionsZernio
+      vue={vue}
+      services={services}
+      arretActif={arret}
+      enCours={enCours}
+      onChange={() => void recharger()}
+      onReessayer={() => demarrer(recharger)}
+      onTester={() =>
+        demarrer(async () => {
+          const r = await services.tester();
+          if (r.ok) notifier.succes(r.donnees.message);
+          else notifier.erreur(r.message);
+          await recharger();
+        })
+      }
+    />
   );
 }
