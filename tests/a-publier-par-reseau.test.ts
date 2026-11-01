@@ -20,6 +20,7 @@ vi.mock("@/services/auth", () => ({
     if (pages.sessionKo) throw new Error("SESSION_REFUSEE");
   },
 }));
+vi.mock("@/services/a-publier-zernio", () => ({ envoyerParOutilAction: async () => ({ ok: true, donnees: { nombre: 1, problemes: [] } }), complementsAPublier: async () => ({}) }));
 vi.mock("@/services/a-publier", () => ({ pageAPublierAllumee: async () => pages.allumee, vueAPublier: async () => ({ envoiSimule: false, modeBuffer: "brouillon", lignes: pages.lignes }) }));
 
 const { ListeAPublier } = await import("@/components/publication/ListeAPublier");

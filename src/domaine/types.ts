@@ -1114,7 +1114,9 @@ export interface StatsPublication {
 }
 
 export interface Publication extends EntiteBase {
-  videoId: Id;
+  /** Source de la publication : exactement un des deux (`videoId` ou `visuelId`). Lire via `sourceDe`. */
+  videoId?: Id;
+  visuelId?: Id;
   sortieId?: Id;
   reseau: IdReseau;
   statut: StatutPublication;
@@ -1153,6 +1155,56 @@ export interface Publication extends EntiteBase {
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */
   votreMarque?: boolean;
+}
+
+/** Source d'une publication : une vidéo ou un visuel (jamais les deux, jamais aucun). */
+export type SourcePublication = { famille: "video"; videoId: Id } | { famille: "visuel"; visuelId: Id };
+
+/** Fonction pure : lit la source d'une publication. Lève si l'invariant « exactement un des deux » est rompu. */
+export function sourceDe(p: Pick<Publication, "videoId" | "visuelId">): SourcePublication {
+  if (p.videoId && !p.visuelId) return { famille: "video", videoId: p.videoId };
+  if (p.visuelId && !p.videoId) return { famille: "visuel", visuelId: p.visuelId };
+  throw new Error("Publication sans source unique : il faut exactement un identifiant de vidéo ou de visuel.");
+}
+
+/** Identifiant de la vidéo d'une publication, ou `undefined` si sa source est un visuel (passe par `sourceDe`). */
+export function videoIdDe(p: Pick<Publication, "videoId" | "visuelId">): Id | undefined {
+  const s = sourceDe(p);
+  return s.famille === "video" ? s.videoId : undefined;
+}
+
+const lignesSignalees = new Set<string>();
+
+/**
+ * Lecture TOLÉRANTE de la source d'une publication, pour les filtres `lister(...)` : ne lève jamais.
+ * Une ligne mal formée (ni vidéo ni visuel, les deux, identifiant vide) rend `undefined` : elle est ignorée
+ * et signalée une fois dans le journal serveur, au lieu de faire tomber tout l'écran.
+ */
+export function sourceSure(p: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): SourcePublication | undefined {
+  try {
+    return sourceDe(p);
+  } catch {
+    const cle = String(p.id ?? "?");
+    if (!lignesSignalees.has(cle)) {
+      lignesSignalees.add(cle);
+      console.warn(`[studio] Publication ${cle} ignorée : source mal formée (il faut exactement une vidéo ou un visuel).`);
+    }
+    return undefined;
+  }
+}
+
+/** Deux publications ont la même source : même famille ET même identifiant (un visuel sans vidéo n'égale jamais une autre). */
+export function memeSource(a: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }, b: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): boolean {
+  const sa = sourceSure(a);
+  const sb = sourceSure(b);
+  if (!sa || !sb || sa.famille !== sb.famille) return false;
+  return sa.famille === "video" ? sa.videoId === (sb as { videoId: Id }).videoId : sa.visuelId === (sb as { visuelId: Id }).visuelId;
+}
+
+/** Vidéo d'une publication, sans jamais lever : `undefined` pour un visuel ou une ligne mal formée (filtres). */
+export function videoIdSure(p: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): Id | undefined {
+  const s = sourceSure(p);
+  return s?.famille === "video" ? s.videoId : undefined;
 }
 
 export type EtatEnvoiBuffer = "en-cours" | "envoye" | "a-verifier" | "refuse" | "absent";

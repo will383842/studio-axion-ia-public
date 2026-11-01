@@ -26,7 +26,7 @@ import {
   type TraitsVideo,
   type VideoMesuree,
 } from "@/domaine/mesures-rangs";
-import type { Id, Publication, ReseauDeclinaison, ScriptMaitre, StatsPublication, VarianteReseau } from "@/domaine/types";
+import { type Id, type Publication, type ReseauDeclinaison, type ScriptMaitre, type StatsPublication, type VarianteReseau, videoIdSure } from "@/domaine/types";
 import { trouverFormat } from "@/formats";
 import { JOUR_MS } from "@/lib/dates";
 import { creerLecteurBuffer, type LecteurStatsBuffer } from "@/fournisseurs/mesures/buffer";
@@ -90,7 +90,7 @@ export function traitsVersion(v: VarianteReseau, m: ScriptMaitre | null | undefi
 async function publicationsDeVersions(): Promise<Publication[]> {
   const ex = await filtreExemples<Publication>();
   const archivees = new Set((await depots().videos.lister((v) => v.statut === "archivee")).map((v) => v.id));
-  return depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !archivees.has(p.videoId));
+  return depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !!videoIdSure(p) && !archivees.has(videoIdSure(p)!));
 }
 
 /** Exemples de démonstration : seulement sur un poste de développement ET demandés (`STUDIO_APERCU_MESURES=1`). */

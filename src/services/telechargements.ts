@@ -7,7 +7,7 @@ import "server-only";
 import { exporterSrt, exporterVtt } from "@/briques/sous-titres";
 import { nomFichier, numeroSur4, titreCourt, versionsCourantes } from "@/domaine/derivations-generateur";
 import { texteScript } from "@/domaine/derivations";
-import type { Id, ReseauDeclinaison, SegmentSousTitres, Video } from "@/domaine/types";
+import { type Id, type ReseauDeclinaison, type SegmentSousTitres, type Video, videoIdSure } from "@/domaine/types";
 import { creerZip } from "@/lib/zip";
 import { obtenirReseau } from "@/reseaux";
 import { depots, ErreurStudio } from "./_commun";
@@ -88,7 +88,7 @@ export async function contenuArchiveReseau(reseau: ReseauDeclinaison, debut: str
   await exigerSession();
   const d = depots();
   const pubs = await d.publications.lister((p) => p.reseau === reseau && p.statut === "programmee" && p.via !== "simulation" && p.date.slice(0, 10) >= debut && p.date.slice(0, 10) <= fin);
-  const videoIds = [...new Set(pubs.map((p) => p.videoId))];
+  const videoIds = [...new Set(pubs.map((p) => videoIdSure(p)).filter((id): id is string => !!id))];
   const videos = (await Promise.all(videoIds.map((id) => d.videos.obtenir(id)))).filter((v): v is Video => !!v && v.statut !== "archivee");
   const entrees: EntreeArchive[] = [];
   for (const video of videos) {
