@@ -8,6 +8,7 @@
  * Données 100 % fictives. Aucun fichier de src/ n'est modifié.
  */
 "use strict";
+/* eslint-disable @typescript-eslint/no-require-imports -- préchargement Node (--require), CommonJS voulu */
 const fs = require("node:fs");
 const http = require("node:http");
 const https = require("node:https");
