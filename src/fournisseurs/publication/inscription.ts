@@ -13,9 +13,15 @@ import { creerPublicationZernio } from "./zernio";
 
 export const VARIABLE_CLE_ZERNIO = "ZERNIO_API_KEY";
 
+/**
+ * Interrupteur « Tout arrêter », relu à chaque requête. Import différé : les services importent déjà les fournisseurs,
+ * un import direct ferait une boucle.
+ */
+const envoiZernioAutorise = async (): Promise<boolean> => (await import("@/services/zernio")).envoiZernioAutorise();
+
 export function publicationZernio(env: Env = process.env): Record<string, FournisseurPublication> {
   const cle = cleDans(env, VARIABLE_CLE_ZERNIO);
-  return cle ? { zernio: creerPublicationZernio(cle) } : {};
+  return cle ? { zernio: creerPublicationZernio(cle, { client: { envoiAutorise: envoiZernioAutorise } }) } : {};
 }
 
 export function publicationBuffer(env: Env = process.env): Record<string, FournisseurPublication> {

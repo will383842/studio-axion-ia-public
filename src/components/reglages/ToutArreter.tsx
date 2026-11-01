@@ -71,7 +71,7 @@ export function ToutArreter({ services, arretActif, erreur = false, onChange }: 
       <h2 id="arret-titre" className="text-lg text-texte">
         Arrêt d’urgence
       </h2>
-      <p className="mt-1 text-sm text-texte-doux">Coupe d’un geste les publications, les messages des mots et les envois programmés. Tout se reprend en un geste.</p>
+      <p className="mt-1 text-sm text-texte-doux">Bloque seulement les envois vers Zernio : créer un brouillon, programmer, promouvoir. Ce qui est déjà programmé chez Zernio y reste. Buffer n’est pas touché et rien n’est supprimé. Tout se reprend en un geste.</p>
       {erreur && <p className="mt-1 text-sm text-texte-doux">Toujours disponible, même quand Zernio ne répond pas.</p>}
       <div className="mt-3">
         {arretActif ? (

@@ -4,10 +4,11 @@ import type { CompteVue, EtatConnexionsZernio, ServicesZernio } from "@/app/(stu
 import { BandeauChargement, BandeauErreur, BandeauVide, formaterJour, gestesCompte, ligneMeta, prochaineEtape } from "@/components/reglages/BlocZernio";
 import { VueConnexionsZernio, vueDepuisReponse, type VueZernio } from "@/components/reglages/Connexions";
 import { creerGestesArret } from "@/components/reglages/ToutArreter";
-import { MOT_INTERDIT, NOM_LABEL } from "./aides/faux-zernio";
+import { J, MOT_INTERDIT, NOM_LABEL } from "./aides/faux-zernio";
 
 const compte = (reseau: CompteVue["reseau"], i: number, sur: Partial<CompteVue> = {}): CompteVue => ({
   code: `${reseau}-${i}`,
+  cle: `${reseau}:exemple${i}`,
   reseau,
   nom: `Compte exemple ${reseau} ${i}`,
   relie: true,
@@ -67,10 +68,10 @@ describe("z3c · cartes de compte", () => {
     const services = fauxServices();
     const apres = vi.fn();
     const g = gestesCompte(services, apres, vi.fn());
-    await g.publiePar("linkedin", "zernio");
-    await g.ceQuiPart("tiktok", "programmer");
-    expect(services.appels.changerRoutage).toEqual([["linkedin", "zernio"]]);
-    expect(services.appels.changerMode).toEqual([["tiktok", "programmer"]]);
+    await g.publiePar("linkedin:exemple4", "zernio");
+    await g.ceQuiPart("tiktok:exemple6", "programmer");
+    expect(services.appels.changerRoutage).toEqual([["linkedin:exemple4", "zernio"]]);
+    expect(services.appels.changerMode).toEqual([["tiktok:exemple6", "programmer"]]);
     expect(apres).toHaveBeenCalledTimes(2);
   });
 
@@ -78,7 +79,7 @@ describe("z3c · cartes de compte", () => {
     const services = { ...fauxServices(), changerRoutage: vi.fn().mockResolvedValue({ ok: false, message: "Zernio n'est pas relié." }) };
     const apres = vi.fn();
     const alerte = vi.fn();
-    await gestesCompte(services, apres, alerte).publiePar("instagram", "zernio");
+    await gestesCompte(services, apres, alerte).publiePar("instagram:exemple1", "zernio");
     expect(alerte).toHaveBeenCalledWith("Zernio n'est pas relié.");
     expect(apres).not.toHaveBeenCalled();
   });
@@ -114,7 +115,7 @@ describe("z3c · arrêt d'urgence", () => {
     const html = rendre(VUES[nom]);
     expect(html).toContain("Arrêt d’urgence");
     expect(html).toContain("Tout arrêter");
-    expect(html).toContain("Coupe d’un geste les publications, les messages des mots et les envois programmés. Tout se reprend en un geste.");
+    expect(html).toContain("Bloque seulement les envois vers Zernio : créer un brouillon, programmer, promouvoir. Ce qui est déjà programmé chez Zernio y reste. Buffer n’est pas touché et rien n’est supprimé. Tout se reprend en un geste.");
   });
 
   it("sous erreur : « Toujours disponible, même quand Zernio ne répond pas. »", () => {
@@ -225,7 +226,7 @@ describe("z3c · langue et mots interdits", () => {
   it("mots interdits absents du rendu", () => {
     expect(TOUT).not.toContain(MOT_INTERDIT.slice(0, 6));
     expect(TOUT).not.toContain(NOM_LABEL);
-    expect(TOUT).not.toMatch(/Grenoble|Aucun gain garanti/i);
+    expect(TOUT).not.toMatch(new RegExp(`${J("Gre", "noble")}|${J("Aucun gain ", "garanti")}`, "i"));
   });
   it("aucun identifiant réel dans le rendu", () => {
     expect(TOUT).not.toMatch(/[0-9a-f]{24}|zernio_[a-z0-9]{8,}|sk_live|Bearer /);
