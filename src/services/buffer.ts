@@ -1,4 +1,3 @@
-import { videoIdDe } from "@/domaine/types";
 /**
  * BUFFER RÉEL (lot R1, brouillon d'abord) : comptes, correspondance réseau → compte, mode, synchronisation des états.
  *
@@ -19,7 +18,7 @@ import { createHash } from "node:crypto";
 import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceBuffer, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
 import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
-import type { Id, IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
+import { type Id, type IdReseau, type ModeEnvoiPublication, type Publication, memeSource, videoIdSure } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { ErreurBuffer } from "@/fournisseurs/publication/buffer";
@@ -312,9 +311,16 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
   }
   // Plusieurs pages d'un même compte pour cette vidéo et ce réseau : le post retrouvé peut être celui d'une autre page.
   // On ne conclut pas « envoyé » : l'envoi reste à vérifier (jamais de renvoi non plus).
+  const vid = videoIdSure(p);
+  const entite = vid ? { type: "video", id: vid } : undefined;
+  const lienSource = vid ? `/videos/${vid}` : "/calendrier";
   if (trouvee && outil !== "buffer" && p.canalId.includes(":")) {
-    const memeCompte = await d.publications.lister((x) => x.id !== p.id && x.videoId === p.videoId && x.reseau === p.reseau && outilDe(x) === outil && !!x.canalId && x.canalId !== p.canalId && x.canalId.split(":")[0] === canalLu);
-    if (memeCompte.length) return p;
+    const memeCompte = await d.publications.lister((x) => x.id !== p.id && memeSource(x, p) && x.reseau === p.reseau && outilDe(x) === outil && !!x.canalId && x.canalId !== p.canalId && x.canalId.split(":")[0] === canalLu);
+    if (memeCompte.length) {
+      // Annoncé dans le journal (message neutre, sans secret) : une vérification à la main est nécessaire.
+      await journaliser("publication", `Envoi à vérifier à la main (${obtenirReseau(p.reseau).nom}) : plusieurs pages du même compte, l'outil de publication ne permet pas de savoir laquelle est partie.`, entite);
+      return p;
+    }
   }
   const absente = !trouvee && instant - new Date(p.envoiCommenceLe).getTime() >= DELAI_ABSENCE_MS;
   if (!trouvee && !absente) return p;
@@ -322,12 +328,12 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
     const actuelle = await d.publications.obtenir(publicationId);
     if (!actuelle || actuelle.modifieLe !== p.modifieLe) return actuelle;
     if (trouvee) {
-      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "Buffer" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, { type: "video", id: (videoIdDe(p) ?? "") });
+      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "Buffer" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, entite);
       return d.publications.modifier(p.id, { etatEnvoi: "envoye", idExterne: trouvee.idExterne, statut: trouvee.statut, etatLuLe: new Date(instant).toISOString(), ...(trouvee.lien ? { urlPubliee: trouvee.lien } : {}) });
     }
     const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
     const eux = outil === "buffer" ? "Buffer" : "l'outil de publication";
-    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "dans Buffer" : "chez lui"} avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "dans Buffer" : "chez lui"} avant de renvoyer.`, lien: lienSource, estDemo: p.estDemo });
     return modif;
   });
 }
@@ -390,6 +396,9 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
       continue;
     }
     r.lues++;
+    const vid = videoIdSure(p);
+    const entite = vid ? { type: "video", id: vid } : undefined;
+    const lienSource = vid ? `/videos/${vid}` : "/calendrier";
     const changement: Partial<Publication> = { etatLuLe: new Date(instant).toISOString() };
     if (etat.statut !== p.statut) changement.statut = etat.statut;
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
@@ -401,16 +410,16 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     if (!ecrite || etat.statut === p.statut) continue;
     r.changees++;
     if (etat.statut === "publiee") {
-      await d.videos.modifier((videoIdDe(p) ?? ""), { etapeEditoriale: "publiee" });
+      if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);
-      await journaliser("publication", `Publiée par Buffer sur ${obtenirReseau(p.reseau).nom}`, { type: "video", id: (videoIdDe(p) ?? "") });
+      await journaliser("publication", `Publiée par Buffer sur ${obtenirReseau(p.reseau).nom}`, entite);
     } else if (etat.statut === "programmee") {
-      await passerProgrammee((videoIdDe(p) ?? ""));
+      if (vid) await passerProgrammee(vid);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       console.warn(`[studio] Buffer, échec sur ${p.reseau} : ${etat.erreur ?? "sans raison donnée"}`);
-      await journaliser("publication", raisonEchec, { type: "video", id: (videoIdDe(p) ?? "") });
-      await creerNotification({ type: "echec", titre: "Buffer n'a pas pu publier", message: raisonEchec, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+      await journaliser("publication", raisonEchec, entite);
+      await creerNotification({ type: "echec", titre: "Buffer n'a pas pu publier", message: raisonEchec, lien: lienSource, estDemo: p.estDemo });
     }
   }
   return r;

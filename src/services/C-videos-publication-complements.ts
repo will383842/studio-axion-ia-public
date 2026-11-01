@@ -1,11 +1,10 @@
-import { videoIdDe } from "@/domaine/types";
 /**
  * COMPLÉMENTS DU GROUPE C (Mes vidéos, fiche vidéo, publication, réglages).
  * Fonctions manquantes au contrat, ajoutées SANS modifier les services existants.
  * Le QA pourra les fusionner dans videos.ts / couts.ts / reglages.ts.
  */
 import "server-only";
-import type { DepenseEnregistree, Id, LigneCout, Montant } from "@/domaine/types";
+import { type DepenseEnregistree, type Id, type LigneCout, type Montant, videoIdSure } from "@/domaine/types";
 import { choixConnu, TYPES_FOURNISSEURS, type TypeFournisseur } from "@/fournisseurs";
 import { phraseChoixService } from "@/fournisseurs/journal-lisible";
 import { additionner, centimes } from "@/lib/montants";
@@ -31,9 +30,12 @@ export async function statsFormat(formatId: string): Promise<StatsFormat> {
   const exemples = await filtreExemples<{ estDemo?: boolean }>();
   const pretes = await d.videos.lister((v) => exemples(v) && v.formatId === formatId && v.statut === "prete");
   const ids = new Set(pretes.map((v) => v.id));
-  const pubs = await d.publications.lister((p) => ids.has((videoIdDe(p) ?? "")) && p.statut === "publiee");
+  const pubs = await d.publications.lister((p) => (() => { const id = videoIdSure(p); return !!id && ids.has(id); })() && p.statut === "publiee");
   const vuesParVideo = new Map<string, number>();
-  for (const p of pubs) vuesParVideo.set((videoIdDe(p) ?? ""), (vuesParVideo.get((videoIdDe(p) ?? "")) ?? 0) + (p.stats?.vues ?? 0));
+  for (const p of pubs) {
+    const id = videoIdSure(p);
+    if (id) vuesParVideo.set(id, (vuesParVideo.get(id) ?? 0) + (p.stats?.vues ?? 0));
+  }
   const notes = pretes.map((v) => v.noteQualite?.globale).filter((n): n is number => typeof n === "number");
   return {
     nbPretes: pretes.length,

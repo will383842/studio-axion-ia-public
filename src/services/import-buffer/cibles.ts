@@ -47,7 +47,8 @@ export function validerLigne(l: LigneCible): void {
   const c = analyserCible(l.cible);
   if (l.reseau === "facebook" && !c.pageId) throw new ErreurCibles("Facebook : la cible doit nommer la page (jamais la page par défaut).");
   if (l.reseau !== "facebook" && c.pageId) throw new ErreurCibles("Une page Facebook n'a de sens que sur Facebook.");
-  if (l.reseau !== "linkedin" && c.organizationUrn) throw new ErreurCibles("Une page LinkedIn n'a de sens que sur LinkedIn.");
+  if (l.reseau === "linkedin" && !c.organizationUrn && !c.profilLinkedin) throw new ErreurCibles("LinkedIn : la cible doit nommer la page (:li:<n°>) ou le profil (:li:profil).");
+  if (l.reseau !== "linkedin" && (c.organizationUrn || c.profilLinkedin)) throw new ErreurCibles("Une cible LinkedIn n'a de sens que sur LinkedIn.");
 }
 
 /** Réseau Studio d'un canal Buffer (service Buffer → réseau), ou undefined s'il n'est pas importé. */

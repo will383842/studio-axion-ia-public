@@ -67,6 +67,10 @@ on:
       - "tests/relais-buffer.test.ts"
       - "tests/relais-buffer-proxy.test.ts"
       - "tests/zernio/**"
+      - "src/components/migration/**"
+      - "src/services/lecteur-migration.ts"
+      - "src/app/(studio)/reglages/actions-migration.ts"
+      - "vitest.config.mts"
       - "docs/zernio/**"
       - "tests/r1-*.test.ts"
       - ".github/workflows/tests-cibles.yml"
@@ -139,4 +143,5 @@ jobs:
         run: |
           pnpm exec vitest run \
             tests/zernio \
+            tests/zernio/z3m-migration.test.tsx \
             r1-envoi-reel r1-buffer-client
