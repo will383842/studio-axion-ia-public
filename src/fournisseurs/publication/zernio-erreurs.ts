@@ -20,7 +20,8 @@ import type { ErreurFournisseur } from "@/fournisseurs/types";
  * - `acces` : 401 ou 403 ;
  * - `introuvable` : 404 ;
  * - `refuse` : autre 4xx ;
- * - `reponse-invalide` : réponse illisible ou de forme inattendue.
+ * - `reponse-invalide` : réponse illisible ou de forme inattendue ;
+ * - `creation-incomplete` : réponse 2xx dont une plateforme est en échec : le post EXISTE chez Zernio, jamais un refus net.
  */
 export type CodeErreurZernio =
   | "envoi-coupe"
@@ -35,7 +36,8 @@ export type CodeErreurZernio =
   | "acces"
   | "introuvable"
   | "refuse"
-  | "reponse-invalide";
+  | "reponse-invalide"
+  | "creation-incomplete";
 
 /** Codes levés AVANT tout appel réseau (le faux fetch des tests n'est jamais appelé). */
 export const CODES_AVANT_RESEAU: readonly CodeErreurZernio[] = ["envoi-coupe", "mot-interdit", "chemin-refuse", "debit", "lecture-requise"];
