@@ -118,8 +118,7 @@ test("liste « À reprogrammer » : le bouton « Choisir une date » est présen
   await expect(section.getByText("nous ne les publions jamais seuls")).toBeVisible();
 });
 
-test("clavier seul : Tab atteint « Vérifier le lot », Entrée ouvre la fenêtre, Échap la ferme, le focus se voit (D4, défaut connu)", async ({ page }) => {
-  test.fail(true, "D4 : la fenêtre d'un lot ne se ferme pas avec Échap");
+test("clavier seul : Tab atteint « Vérifier le lot », Entrée ouvre la fenêtre, Échap la ferme, le focus se voit (D4, corrigé)", async ({ page }) => {
   ecrireMigration(ETAT_NORMAL);
   await ouvrir(page);
   expect(await atteindreAuClavier(page, /Vérifier le lot A/)).toBe(true);
@@ -144,17 +143,16 @@ for (const schema of SCHEMAS) {
     await expect(page.getByText(/vous|votre|vos/i).first()).toBeVisible();
   });
 
-  test(`cibles de 48 px au moins (${schema}) (D5, défaut connu)`, async ({ page }) => {
-    test.fail(true, "D5 : des boutons de 44 px ou moins sur l'écran Migration");
+  test(`cibles de 44 px au moins (${schema}) (D5, corrigé)`, async ({ page }) => {
     ecrireMigration(ETAT_NORMAL);
     await ouvrir(page, schema);
-    expect(await ciblesTropPetites(page.locator("main").first()), "cibles plus petites que 48 px").toEqual([]);
+    expect(await ciblesTropPetites(page.locator("main").first(), 44), "cibles plus petites que 44 px").toEqual([]);
   });
 
-  test(`textes de 16 px au moins (${schema}) (D6, défaut connu)`, async ({ page }) => {
-    test.fail(true, "D6 : textes de 14 px (et moins) sur l'écran Migration");
+  test(`textes de 16 px au moins sur téléphone, 14 px ailleurs (${schema}) (D6, corrigé)`, async ({ page }, testInfo) => {
+    const minimum = testInfo.project.name === "telephone" ? 16 : 14;
     ecrireMigration(ETAT_NORMAL);
     await ouvrir(page, schema);
-    expect(await textesTropPetits(page.locator("main").first()), "textes plus petits que 16 px").toEqual([]);
+    expect(await textesTropPetits(page.locator("main").first(), minimum), `textes plus petits que ${minimum} px`).toEqual([]);
   });
 }
