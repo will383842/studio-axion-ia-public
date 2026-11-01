@@ -37,8 +37,6 @@ describe("z1c · liste fermée D6 : chemins permis", () => {
     ["POST /v1/posts (brouillon)", { methode: "POST", chemin: "/v1/posts", corps: BROUILLON, idempotence: CLE_STUDIO }, { post: postExemple() }],
     ["GET /v1/posts", { methode: "GET", chemin: "/v1/posts", query: { status: "draft" } }, { posts: [] }],
     ["GET /v1/posts/{postId}", { methode: "GET", chemin: "/v1/posts/exemple-post-1" }, { post: postExemple() }],
-    ["PUT promotion", { methode: "PUT", chemin: "/v1/posts/exemple-post-1", corps: { isDraft: false, scheduledFor: "2026-11-03T10:00:00Z" } }, {}],
-    ["PUT mediaItems", { methode: "PUT", chemin: "/v1/posts/exemple-post-1", corps: { mediaItems: [{ type: "image", url: "https://media.exemple/a.jpg" }] } }, {}],
     ["GET /v1/analytics", { methode: "GET", chemin: "/v1/analytics" }, {}],
   ];
   it.each(permis)("%s passe et part au réseau une seule fois", async (_nom, req, corps) => {
@@ -70,6 +68,8 @@ describe("z1c · liste fermée D6 : refus AVANT le réseau", () => {
     ["requête dans le chemin", { methode: "GET", chemin: "/v1/posts?status=draft" }],
     ["hors /v1", { methode: "GET", chemin: "/v2/accounts" }],
     ["PATCH d'un post", { methode: "PATCH", chemin: "/v1/posts/exemple-post-1", corps: { content: "x" } }],
+    ["PUT promotion direct (réservé à promouvoir)", { methode: "PUT", chemin: "/v1/posts/exemple-post-1", corps: { isDraft: false, scheduledFor: "2026-11-03T10:00:00Z" } }],
+    ["PUT mediaItems direct (réservé à promouvoir)", { methode: "PUT", chemin: "/v1/posts/exemple-post-1", corps: { mediaItems: [{ type: "image", url: "https://media.exemple/a.jpg" }] } }],
   ];
   it.each(refuses)("%s est refusé sans appel réseau", async (_nom, req) => {
     const e = await refusAvantReseau(req);
