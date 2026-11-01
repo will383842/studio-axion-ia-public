@@ -54,7 +54,7 @@ import { descriptionAvecPage, RESEAUX_LIEN_SITE } from "@/domaine/site-videos/yo
 
 /*
  * Lot R2 : les textes du kit s'écrivent sous le verrou local du kit (`verrou-kit.ts`, un seul processus studio) : la
- * création du kit (deux affichages simultanés ne créent plus deux kits), une retouche de Will et un texte rendu par
+ * création du kit (deux affichages simultanés ne créent plus deux kits), une retouche de l'opérateur et un texte rendu par
  * Claude ne s'effacent jamais l'un l'autre.
  */
 
@@ -62,7 +62,7 @@ import { descriptionAvecPage, RESEAUX_LIEN_SITE } from "@/domaine/site-videos/yo
 interface SourceTextes {
   video: Video;
   texteValide: string;
-  /** La mention n'est ajoutée au texte que si elle est activée (décision de Will du 01/10). */
+  /** La mention n'est ajoutée au texte que si elle est activée (décision de l'opérateur du 01/10). */
   mention: string;
   credits: string[];
   /** Équipe 7 : « Vos hashtags » par réseau (les textes du studio y piochent, le code l'applique). */
@@ -102,7 +102,7 @@ function memeTexte(a: TexteReseau | undefined, b: TexteReseau | undefined): bool
 }
 
 /**
- * Le texte est-il encore le texte d'essai INTACT ? Seul un texte d'essai intact peut être remplacé sans geste de Will :
+ * Le texte est-il encore le texte d'essai INTACT ? Seul un texte d'essai intact peut être remplacé sans geste de l'opérateur :
  * jamais un texte de Claude, d'une version ou retouché à la main — même une retouche ancienne, d'avant le drapeau
  * `modifieAMain` (le texte ne serait plus égal au texte d'essai d'aujourd'hui).
  */
@@ -130,7 +130,7 @@ async function kitOuCreation(videoId: string): Promise<KitPublication> {
       textes,
       credits: s.credits,
       ...(passeportWeb ? { passeportWeb } : {}),
-      // E2E-2 parcours n° 7 : « Cochez ce que vous avez vérifié » part de zéro (rien n'est coché à la place de Will).
+      // E2E-2 parcours n° 7 : « Cochez ce que vous avez vérifié » part de zéro (rien n'est coché à la place de l'opérateur).
       avantDePublier: { image: false, son: false, sousTitres: false, mentionIA: false, droits: false },
       ...horodatage(),
     };
@@ -139,7 +139,7 @@ async function kitOuCreation(videoId: string): Promise<KitPublication> {
 }
 
 /**
- * Pose un texte rendu par Claude SEULEMENT si le texte du kit n'a pas bougé pendant l'écriture (Will a pu le retoucher
+ * Pose un texte rendu par Claude SEULEMENT si le texte du kit n'a pas bougé pendant l'écriture (l'opérateur a pu le retoucher
  * entre-temps : sa retouche gagne toujours). Sous le verrou du kit.
  */
 async function poserSiInchange(kitId: Id, reseau: IdReseau, avant: TexteReseau | undefined, nouveau: TexteReseau): Promise<boolean> {
@@ -230,7 +230,7 @@ async function reserverEcritureAuto(kitId: Id): Promise<boolean> {
  * Crée le kit d'une vidéo s'il n'existe pas (textes d'essai, gratuits). Lot R2 (C9) : Claude n'écrit QUE si
  * `autoriserDepense` (suite de la PREMIÈRE fabrication), UNE seule fois par vidéo (`ecritureAuto`, même après un échec :
  * les réseaux non écrits y sont notés et ne repartent que par « Réécrire »), seulement pour les réseaux par défaut de
- * Will, seulement un texte d'essai intact, jamais pour une vidéo d'exemple ni pour une vidéo de version (son texte vient
+ * l'opérateur, seulement un texte d'essai intact, jamais pour une vidéo d'exemple ni pour une vidéo de version (son texte vient
  * déjà du générateur). L'affichage (`obtenirKit`) passe `false` : il ne dépense jamais.
  */
 export async function genererKit(videoId: string, options: { autoriserDepense?: boolean } = {}): Promise<KitPublication> {
@@ -304,7 +304,7 @@ export async function reseauxParDefaut(): Promise<IdReseau[]> {
 
 /**
  * E2E-2 parcours n° 7 : après une retouche (nouvelle image, nouveau son) les cases Image et Son sont décochées ; après
- * des sous-titres corrigés, la case Sous-titres. Will revérifie ce qui a changé. Rien d'autre ne bouge.
+ * des sous-titres corrigés, la case Sous-titres. l'opérateur revérifie ce qui a changé. Rien d'autre ne bouge.
  */
 export async function decocherApresRetouche(videoId: string, quoi: "retouche" | "sous-titres"): Promise<void> {
   const kit = await depots().kits.trouver((k) => k.videoId === videoId);
@@ -337,7 +337,7 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
   const prix: Partial<Record<IdReseau, Montant>> = {};
   for (const r of listerReseaux()) {
     origines[r.id] = origineTexte(kit.textes[r.id], await texteEssai(source, r.id, redaction));
-    // Prix d'un « Réécrire » (geste de Will), affiché sur le bouton AVANT le geste ; aucun appel. C'est le PIRE cas :
+    // Prix d'un « Réécrire » (geste de l'opérateur), affiché sur le bouton AVANT le geste ; aucun appel. C'est le PIRE cas :
     // tous les essais (la reprise ciblée d'une réponse refusée comprise), chacun au pire cas.
     if (parClaude) prix[r.id] = usdVersEur(centimesUsd(ESSAIS_TEXTE_PUBLICATION * pireCasRole(rolePublication, entreePublication(donneesDe(source, r.id, regles)))), t);
   }
@@ -425,7 +425,7 @@ async function resynchroniserKit(kit: KitPublication, v: NonNullable<Awaited<Ret
   });
 }
 
-/** D'où vient le texte affiché : « Écrit par Claude », version, retouché par Will, ou texte d'essai intact. */
+/** D'où vient le texte affiché : « Écrit par Claude », version, retouché par l'opérateur, ou texte d'essai intact. */
 function origineTexte(t: TexteReseau | undefined, essai: TexteReseau): VueKitReseau["origine"] {
   if (!t) return undefined;
   if (t.modifieAMain) return "main";
@@ -443,14 +443,14 @@ export async function modifierTexteKit(videoId: string, reseau: IdReseau, texte:
   await sousVerrouKit(async () => {
     const kit = (await depots().kits.obtenir(id))!;
     const avant = kit.textes[reseau];
-    // Un texte retouché à la main n'est plus jamais remplacé sans geste de Will (version G1b, Claude R2).
+    // Un texte retouché à la main n'est plus jamais remplacé sans geste de l'opérateur (version G1b, Claude R2).
     const suite: TexteReseau = avant?.source === "variante" ? { ...avant, texte, motsDiese, titre, modifieAMain: true } : { texte, motsDiese, titre, modifieAMain: true };
     await depots().kits.modifier(kit.id, { textes: { ...kit.textes, [reseau]: suite } });
   });
 }
 
 /**
- * « Réécrire ce texte » : un GESTE de Will. Avec Claude choisi : un appel (prix affiché sur le bouton), par le chemin de
+ * « Réécrire ce texte » : un GESTE de l'opérateur. Avec Claude choisi : un appel (prix affiché sur le bouton), par le chemin de
  * dépense de la vidéo (plafond de la vidéo, limite du mois, pré-vol) ; sinon le texte d'essai. Un texte retouché à la
  * main n'est remplacé qu'après confirmation (`remplacerRetouche`).
  */
@@ -602,7 +602,7 @@ export async function envoyerVersBuffer(
   dateIso: string,
   options: {
     autreReseauConfirme?: boolean;
-    /** Lot R1b : comptes Buffer cochés par Will, par réseau (sinon : dernier choix mémorisé, ou le seul compte). */
+    /** Lot R1b : comptes Buffer cochés par l'opérateur, par réseau (sinon : dernier choix mémorisé, ou le seul compte). */
     comptes?: Partial<Record<IdReseau, string[]>>;
     /** Premier commentaire modifié à l'écran, par réseau (sinon : celui que la vidéo porte déjà). */
     premiersCommentaires?: Partial<Record<IdReseau, string>>;
@@ -832,7 +832,7 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
       prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}) });
     }
   }
-  // Le choix de Will est proposé la fois suivante (et sert à « Programmer les N »).
+  // Le choix de l'opérateur est proposé la fois suivante (et sert à « Programmer les N »).
   if (outil === "buffer") await memoriserComptesBuffer(valides);
   // Une publication occupe un COMPTE (une publication sans compte, d'avant R1, occupe tout le réseau).
   const occupees = (p: (typeof prets)[number]) => d.publications.lister((x) => x.videoId === videoId && x.reseau === p.reseau && (!x.canalId || x.canalId === p.canal.id) && outilDe(x) === outil && occupeBuffer(x));

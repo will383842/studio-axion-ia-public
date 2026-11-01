@@ -7,7 +7,6 @@ Points relevés par les relectures (#154 à #162) et les restes Z2-S / Z4 qui ex
 | `src/services/publications.ts` | ~l. 652 | Le groupe Zernio de la façade reçoit `options.comptes`, qui sont des canaux Buffer : refus `CIBLE_INCONNUE` dès qu'un compte est présélectionné. Refus sûr, à traiter en traduisant la présélection par outil. | Z2-E (#159), mineur 7 |
 | `src/services/publications.ts` | ~l. 975 | Le message de refus net pour un doublon (`incertain: true`) reste générique ; vérifier à l'écran que `detailTechnique` (déjà passé par `masquerSecret`) ne devient jamais visible. | Z2-E (#159), 2e tour, mineur 4 |
 | `src/services/buffer.ts` | ~l. 313-318 | Plusieurs pages du même compte : l'envoi reste « à vérifier » sans fin. Le journal l'annonce ; prévoir une notification ou une sortie manuelle (« Marquer comme vérifié ») pour ne pas laisser l'envoi bloqué. | Z2-E (#159), 2e tour, mineur 3 |
-| `src/services/buffer.ts` (l. 4, 7, 11, 180, 185) et `src/services/publications.ts` (16 occurrences) | commentaires | Le prénom de l'opérateur est écrit dans des commentaires déjà présents sur `master` : à remplacer par « l'opérateur ». | Z2-E (#159), règle « aucun nom de personne » |
 | `src/components/publication/LignesAPublier.tsx`, `src/app/(studio)/a-publier/**`, `src/services/a-publier-zernio.ts` (PR #164) | — | Rien relevé par les relectures traitées ici ; aucun fichier de la PR #164 n'a été touché. | — |
 
 ## Points relevés mais non retenus
