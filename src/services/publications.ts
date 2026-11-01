@@ -2,7 +2,7 @@
  * KIT DE PUBLICATION, ENVOI (simulé) ET CALENDRIER (B.8 #8, AV2.3-1/11/12/13, AV2.4-2/4).
  */
 import "server-only";
-import type { Id, IdReseau, KitPublication, LigneCout, ModeEnvoiPublication, Montant, Publication, TexteReseau, Video } from "@/domaine/types";
+import { type Id, type IdReseau, type KitPublication, type LigneCout, type ModeEnvoiPublication, type Montant, type Publication, type TexteReseau, type Video, sourceSure, videoIdSure } from "@/domaine/types";
 import { centimesUsd } from "@/fournisseurs/claude/tarifs";
 import { DELAI_TOTAL_MS } from "@/fournisseurs/claude/client";
 import { estimationRealisteRole } from "@/generateur/roles/estimation";
@@ -1028,17 +1028,18 @@ export async function listerCalendrier(debutIso: string, finIso: string): Promis
   // Une publication (même un essai) d'une vidéo d'exemple suit l'interrupteur « Afficher les exemples ».
   // Une vidéo archivée sort du calendrier ; ses publications reviennent si elle est restaurée.
   const videosMasquees = new Set((await depots().videos.lister((v) => !exemplesVideo(v) || v.statut === "archivee")).map((v) => v.id));
-  const pubs = await depots().publications.lister((p) => exemples(p) && !videosMasquees.has(p.videoId) && p.date >= debutIso && p.date <= finIso);
+  const pubs = await depots().publications.lister((p) => exemples(p) && !!sourceSure(p) && !videosMasquees.has(videoIdSure(p) ?? "") && p.date >= debutIso && p.date <= finIso);
   pubs.sort((a, b) => a.date.localeCompare(b.date));
   const parJour = new Map<string, JourCalendrier["publications"]>();
   const cartes = new Map<string, VueVideoCarte | null>();
   for (const p of pubs) {
-    if (!cartes.has(p.videoId)) {
-      const v = await depots().videos.obtenir(p.videoId);
-      cartes.set(p.videoId, v ? await versCarte(v) : null);
+    const videoId = videoIdSure(p);
+    if (videoId && !cartes.has(videoId)) {
+      const v = await depots().videos.obtenir(videoId);
+      cartes.set(videoId, v ? await versCarte(v) : null);
     }
     const jour = cleJour(p.date);
-    parJour.set(jour, [...(parJour.get(jour) ?? []), { ...p, video: cartes.get(p.videoId) ?? null, reseauNom: obtenirReseau(p.reseau).nom }]);
+    parJour.set(jour, [...(parJour.get(jour) ?? []), { ...p, video: (videoId ? cartes.get(videoId) : null) ?? null, reseauNom: obtenirReseau(p.reseau).nom }]);
   }
   return Array.from(parJour, ([jour, publications]) => ({ jour, publications }));
 }
@@ -1046,7 +1047,7 @@ export async function listerCalendrier(debutIso: string, finIso: string): Promis
 /** Nombre de publications programmées (à venir) des vidéos données : prévenir avant d'archiver. */
 export async function compterPublicationsProgrammees(videoIds: string[]): Promise<number> {
   const maintenantIso = new Date().toISOString();
-  return depots().publications.compter((p) => videoIds.includes(p.videoId) && p.statut === "programmee" && p.date >= maintenantIso);
+  return depots().publications.compter((p) => videoIds.includes(videoIdSure(p) ?? "") && p.statut === "programmee" && p.date >= maintenantIso);
 }
 
 /** Famille de contenu d'une ligne « À publier » (aujourd'hui les vidéos seules ; carrousels et infographies viendront à part). */
@@ -1070,7 +1071,7 @@ export async function listerAProgrammer(): Promise<VueVideoCarte[]> {
 
 /** Onglet « Résultats » d'une vidéo (chiffres de démonstration, AV2.4-8). */
 export async function resultatsVideo(videoId: string) {
-  const pubs = await depots().publications.lister((p) => p.videoId === videoId && p.statut === "publiee");
+  const pubs = await depots().publications.lister((p) => videoIdSure(p) === videoId && p.statut === "publiee");
   const total = pubs.reduce(
     (t, p) => ({ vues: t.vues + (p.stats?.vues ?? 0), likes: t.likes + (p.stats?.likes ?? 0), commentaires: t.commentaires + (p.stats?.commentaires ?? 0), partages: t.partages + (p.stats?.partages ?? 0) }),
     { vues: 0, likes: 0, commentaires: 0, partages: 0 },
