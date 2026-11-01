@@ -117,10 +117,24 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
           const trouve = await retrouver(hex);
           if (trouve) return { idExterne: trouve._id, via: "zernio" as const, statut: statutDepuisZernio(trouve.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
         }
+        if (e instanceof ErreurZernio && e.code === "doublon" && e.existingPostId) {
+          // Le doublon est jugé par compte : le post d'origine peut être celui d'une autre page. On relit et on compare la clé.
+          let origine: PostZernio | undefined;
+          try {
+            origine = await client.lirePost(e.existingPostId);
+          } catch {
+            origine = undefined;
+          }
+          if (origine?.metadata?.studioCle === hex) return { idExterne: origine._id, via: "zernio" as const, statut: statutDepuisZernio(origine.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
+          // Clé différente ou post illisible : pas de conclusion « envoyé », l'envoi reste à vérifier (identifiant non transmis).
+          throw new ErreurZernio("doublon", e.message, { statut: e.statut, detailTechnique: e.detailTechnique });
+        }
         throw e;
       }
       if (resultat.issue !== "ok") {
-        throw new ErreurZernio("refuse", "Zernio n'a pas pu créer cette publication : vérifiez le compte et le contenu.", {
+        // Écriture réussie (2xx) : le post existe chez Zernio. Jamais un refus net : l'envoi reste « à vérifier ».
+        throw new ErreurZernio("creation-incomplete", "Zernio n'a pas pu créer cette publication : vérifiez le compte et le contenu.", {
+          statut: 200,
           detailTechnique: resultat.echecs.map((x) => `${x.platform}: ${x.errorCategory ?? "?"}`).join("; "),
         });
       }

@@ -23,12 +23,17 @@ import { dureeDeLaVideo } from "@/domaine/duree-video";
 import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
 import { listerReseaux, obtenirReseau, verifierPourReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
-import { occupeBuffer, serviceBuffer } from "@/domaine/buffer";
+import { occupeBuffer, refusDoublonEntreOutils, serviceBuffer, type ComptesPourReseau } from "@/domaine/buffer";
+import { cleEnvoiPublication, estChezUnOutil, outilDe, type OutilPublication } from "@/domaine/outil-publication";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
 import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
+import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
+import { fournisseurParId } from "@/fournisseurs";
+import { outilDeEnvoi } from "./routage-publication";
+import { ciblesZernioPour } from "./zernio-cibles";
 import { cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
 import { exigerSession } from "./auth";
 import { urlsFichiers } from "./fichiers";
@@ -589,7 +594,7 @@ export async function verificationsAvantProgrammer(scriptMaitreId: Id): Promise<
  * Envoi vers Buffer.
  * - Simulation (défaut, aucune clé ou pas choisi) : `via: "simulation"`, statut « brouillon », jamais affichée comme
  *   programmée ; l'écran dit « Essai : rien n'a été envoyé à Buffer ».
- * - Réel (lot R1) : voir `envoyerVersBufferReel` — brouillon dans Buffer par défaut, une publication par réseau.
+ * - Réel (lot R1) : voir `envoyerReel` — brouillon dans Buffer par défaut, une publication par réseau.
  */
 export async function envoyerVersBuffer(
   videoId: string,
@@ -615,7 +620,13 @@ export async function envoyerVersBuffer(
   }
   if (!kitVue.publiable) throw new ErreurStudio("AVANT_DE_PUBLIER", phraseVerifications(kitVue));
   const service = await fournisseur("publication");
-  if (service.mode !== "simulation") {
+  // Z2-E : l'outil de chaque réseau (réglage « publication.routage », défaut Buffer). Sans clé de l'outil choisi : refus, jamais l'autre.
+  const parOutil = new Map<OutilPublication, IdReseau[]>();
+  for (const reseau of new Set(reseaux)) {
+    const outil = await outilDeEnvoi(reseau);
+    parOutil.set(outil, [...(parOutil.get(outil) ?? []), reseau]);
+  }
+  if (service.mode !== "simulation" || parOutil.has("zernio")) {
     // CORRECTEUR FINAL A (VERIF-E2E-1 n° 5) : rien d'essai ni d'exemple ne part sur les vrais réseaux.
     const video = await depots().videos.obtenir(videoId);
     if (video?.estDemo) throw new ErreurStudio("VIDEO_EXEMPLE", "C'est une vidéo d'exemple : elle ne part pas sur vos réseaux.");
@@ -624,7 +635,33 @@ export async function envoyerVersBuffer(
     if ((video && (await videoEnEssai(video))) || fichiers.some((f) => estCleDemo(f?.cleStockage))) {
       throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
     }
-    return envoyerVersBufferReel(service, kitVue, [...new Set(reseaux)], dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire);
+    if (parOutil.has("buffer") && service.mode === "simulation") throw new ErreurStudio("BUFFER_NON_RELIE", "L'outil de publication de certains de ces réseaux n'est pas relié : l'envoi est refusé.");
+    // Un groupe par outil. Si un groupe lève une erreur alors qu'un autre est déjà parti, l'erreur devient un problème
+    // (l'écran dit ce qui est parti) ; si rien n'est parti, l'erreur est rendue telle quelle.
+    const resultats: Awaited<ReturnType<typeof envoyerReel>>[] = [];
+    const erreursGroupes: { groupe: IdReseau[]; erreur: ErreurStudio }[] = [];
+    let premiereErreur: unknown;
+    for (const [outil, groupe] of parOutil) {
+      try {
+        let f: FournisseurPublication;
+        try {
+          f = fournisseurParId("publication", outil);
+        } catch {
+          throw new ErreurStudio("BUFFER_NON_RELIE", "L'outil de publication de certains de ces réseaux n'est pas relié : l'envoi est refusé.");
+        }
+        resultats.push(await envoyerReel(outil, f, kitVue, groupe, dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire));
+      } catch (e) {
+        if (parOutil.size === 1) throw e;
+        premiereErreur ??= e;
+        const erreur = e instanceof ErreurStudio ? e : new ErreurStudio("ENVOI_REFUSE", "L'envoi vers l'outil de publication de ces réseaux a échoué : rien n'est parti de ce côté.");
+        erreursGroupes.push({ groupe, erreur });
+      }
+    }
+    if (!resultats.length) throw premiereErreur;
+    if (resultats.length === 1 && !erreursGroupes.length) return resultats[0];
+    const commentairesALaMain = resultats.flatMap((r) => r.commentairesALaMain ?? []);
+    const problemesGroupes: ProblemeEnvoi[] = erreursGroupes.flatMap(({ groupe, erreur }) => groupe.map((reseau) => ({ reseau, code: erreur.code, message: erreur.message })));
+    return { simulation: false, publications: resultats.flatMap((r) => r.publications), mode: resultats[0]?.mode, problemes: [...resultats.flatMap((r) => r.problemes ?? []), ...problemesGroupes], ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
   }
   const d = depots();
   const publications: Publication[] = [];
@@ -746,12 +783,28 @@ export interface ProblemeEnvoi {
  *     (le détail, nettoyé, au journal) ;
  *  6. le journal, l'étape de la vidéo et la version sont toujours mis à jour pour ce qui est parti.
  */
-async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean) {
+export interface ExtrasEnvoiReel {
+  /** TikTok : la case de consentement, cochée à CET envoi (jamais mémorisée). Absente ou fausse : refus côté serveur. */
+  consentementTiktok?: boolean;
+  /** TikTok : niveau de confidentialité choisi par la personne. */
+  niveauConfidentialiteTiktok?: string;
+  /** Contenu généré par IA : transmis seulement là où l'outil a un champ (Instagram, TikTok vidéo). */
+  contenuIA?: boolean;
+}
+
+export async function envoyerReel(outil: OutilPublication, service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean, extras: ExtrasEnvoiReel = {}) {
   const d = depots();
   const videoId = kitVue.videoId;
-  const mode = await lireModeBuffer();
+  // Phrases neutres : le nom de Buffer ne s'écrit que pour Buffer ; ailleurs « l'outil de publication ».
+  const lui = outil === "buffer" ? "Buffer" : "l'outil de publication";
+  const mode: ModeEnvoiPublication = outil === "buffer" ? await lireModeBuffer() : "brouillon";
+  if (outil !== "buffer") {
+    // Refus SERVEUR avant tout envoi : TikTok sans case cochée, et date qui ne serait pas dans le futur (elle publierait aussitôt).
+    if (reseaux.includes("tiktok") && extras.consentementTiktok !== true) throw new ErreurStudio("TIKTOK_CASE", "TikTok : cochez la case de consentement avant l'envoi.");
+    if (!(Date.parse(dateIso) > Date.parse(maintenant()))) throw new ErreurStudio("DATE_PASSEE", "Choisissez une date à venir : une date passée publierait aussitôt.");
+  }
   // Programmée directement : Buffer doit pouvoir lire la vidéo jusqu'à la publication (adresse signée 7 jours).
-  if (mode === "programmer" && Date.parse(dateIso) > Date.parse(maintenant()) + (DUREE_URL_BUFFER_SEC - 3600) * 1000) {
+  if (outil === "buffer" && mode === "programmer" && Date.parse(dateIso) > Date.parse(maintenant()) + (DUREE_URL_BUFFER_SEC - 3600) * 1000) {
     throw new ErreurStudio("TROP_LOIN", "Programmez à moins de 7 jours, ou passez par un brouillon dans Buffer.");
   }
   // 1. Préparation complète avant le moindre envoi : un envoi par compte (un seul texte par réseau, pour tous ses comptes).
@@ -762,9 +815,10 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
   for (const reseau of reseaux) {
     const r = kitVue.reseaux.find((x) => x.reseau === reseau);
     if (!r) continue;
-    const comptes = await comptesBufferPour(reseau, choisis[reseau]);
-    if (!comptes.ok) throw new ErreurStudio("COMPTE_BUFFER", comptes.message);
-    if (comptes.source === "choisi") valides[reseau] = comptes.canaux.map((c) => c.id);
+    const comptes: ComptesPourReseau | { ok: false; message: string; source?: undefined; canaux?: undefined } =
+      outil === "buffer" ? await comptesBufferPour(reseau, choisis[reseau]) : await cibleZernio(service, reseau, choisis[reseau]);
+    if (!comptes.ok) throw new ErreurStudio(outil === "buffer" ? "COMPTE_BUFFER" : "CIBLE_ZERNIO", comptes.message);
+    if (outil === "buffer" && comptes.source === "choisi") valides[reseau] = comptes.canaux.map((c) => c.id);
     if (!r.sortieConseillee) throw new ErreurStudio("RESEAU", `Aucun fichier au bon format pour ${r.nom}.`);
     const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
     const nomReseau = obtenirReseau(reseau).nom;
@@ -779,9 +833,11 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
     }
   }
   // Le choix de Will est proposé la fois suivante (et sert à « Programmer les N »).
-  await memoriserComptesBuffer(valides);
+  if (outil === "buffer") await memoriserComptesBuffer(valides);
   // Une publication occupe un COMPTE (une publication sans compte, d'avant R1, occupe tout le réseau).
-  const occupees = (p: (typeof prets)[number]) => d.publications.lister((x) => x.videoId === videoId && x.reseau === p.reseau && (!x.canalId || x.canalId === p.canal.id) && occupeBuffer(x));
+  const occupees = (p: (typeof prets)[number]) => d.publications.lister((x) => x.videoId === videoId && x.reseau === p.reseau && (!x.canalId || x.canalId === p.canal.id) && outilDe(x) === outil && occupeBuffer(x));
+  // Anti-doublon ENTRE outils : ce réseau est-il déjà parti par l'autre outil (quel que soit le compte) ?
+  const chezUnAutre = (p: (typeof prets)[number]) => d.publications.lister((x) => x.videoId === videoId && x.reseau === p.reseau && estChezUnOutil(x) && outilDe(x) !== outil && occupeBuffer(x));
   const cible = (p: (typeof prets)[number]) => `${p.reseau}|${p.canal.id}`;
 
   // 2 a. Envois à vérifier de ces comptes : relus d'abord (réseau, hors verrou).
@@ -797,17 +853,23 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
   const decisions = await sousVerrou(async (): Promise<Decision[]> => {
     const out: Decision[] = [];
     for (const p of prets) {
-      const cleEnvoi = cleEnvoiBuffer(videoId, p.reseau, dateIso, p.canal.id);
+      // Buffer : empreinte historique. Autre outil : clé NEUTRE (sans nom d'outil), D4.
+      const cleEnvoi = outil === "buffer" ? cleEnvoiBuffer(videoId, p.reseau, dateIso, p.canal.id) : cleEnvoiPublication(videoId, p.reseau, dateIso, p.canal.id);
       // Empreinte d'avant R1b (sans compte) : une publication existante reste reconnue.
-      const cleAvantR1b = cleEnvoiBuffer(videoId, p.reseau, dateIso);
+      const cleAvantR1b = outil === "buffer" ? cleEnvoiBuffer(videoId, p.reseau, dateIso) : cleEnvoi;
       const refus = (code: string, message: string): Decision => ({ p, cleEnvoi, probleme: { reseau: p.reseau, canalId: p.canal.id, code, message } });
+      const doublon = refusDoublonEntreOutils(await chezUnAutre(p), outil);
+      if (doublon) {
+        out.push(refus("DEJA_CHEZ_UN_AUTRE_OUTIL", doublon));
+        continue;
+      }
       const deja = await occupees(p);
       const meme = deja.find((x) => (x.cleEnvoi === cleEnvoi || x.cleEnvoi === cleAvantR1b) && x.etatEnvoi === "envoye");
       if (meme) out.push({ p, cleEnvoi, existante: meme });
-      else if (deja.some((x) => x.etatEnvoi === "a-verifier")) out.push(refus("ENVOI_A_VERIFIER", `L'envoi précédent vers ${p.nom} est à vérifier : le studio relit Buffer et ne renverra rien sans en être sûr. Regardez dans Buffer, ou réessayez dans 30 minutes.`));
-      else if (deja.some((x) => x.etatEnvoi === "en-cours")) out.push(refus("ENVOI_EN_COURS", `Un envoi vers Buffer est déjà en cours pour ${p.nom}.`));
-      else if (deja.length) out.push(refus("DEJA_DANS_BUFFER", `Cette vidéo est déjà dans Buffer pour ${p.nom} : changez sa date dans Buffer.`));
-      else if (declaresAbsents.has(cible(p))) out.push(refus("ENVOI_ABSENT", `Buffer n'avait rien reçu pour ${p.nom} : vérifiez dans Buffer avant de renvoyer.`));
+      else if (deja.some((x) => x.etatEnvoi === "a-verifier")) out.push(refus("ENVOI_A_VERIFIER", `L'envoi précédent vers ${p.nom} est à vérifier : le studio relit ${lui} et ne renverra rien sans en être sûr. Regardez dans ${lui}, ou réessayez dans 30 minutes.`));
+      else if (deja.some((x) => x.etatEnvoi === "en-cours")) out.push(refus("ENVOI_EN_COURS", `Un envoi vers ${lui} est déjà en cours pour ${p.nom}.`));
+      else if (deja.length) out.push(refus(outil === "buffer" ? "DEJA_DANS_BUFFER" : "DEJA_DANS_OUTIL", `Cette vidéo est déjà dans ${lui} pour ${p.nom} : changez sa date dans ${lui}.`));
+      else if (declaresAbsents.has(cible(p))) out.push(refus("ENVOI_ABSENT", `${outil === "buffer" ? "Buffer" : "L'outil de publication"} n'avait rien reçu pour ${p.nom} : vérifiez dans ${lui} avant de renvoyer.`));
       else {
         const variante = kitVue.variante && kitVue.variante.reseau === p.reseau ? kitVue.variante : undefined;
         const nouvelle: Publication = {
@@ -817,7 +879,7 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
           reseau: p.reseau,
           // Jamais « programmée » avant que Buffer ne l'ait dit.
           statut: "brouillon",
-          via: "buffer",
+          via: outil,
           date: dateIso,
           texte: p.texte,
           varianteId: variante?.id,
@@ -852,20 +914,26 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
       const { p, cleEnvoi, nouvelle: pub } = dec;
       // 3. Appel HORS verrou.
       try {
-        const envoi = await service.envoyer({ reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi, ...(p.premierCommentaire ? { premierCommentaire: p.premierCommentaire } : {}), ...(p.votreMarque ? { votreMarque: true } : {}) });
-        if (envoi.via !== "buffer") throw new ErreurBuffer("illisible", PHRASES_BUFFER.incomprehensibleEnvoi, true, "réponse sans confirmation");
+        const envoi = await service.envoyer({
+          reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi,
+          ...(p.premierCommentaire ? { premierCommentaire: p.premierCommentaire } : {}),
+          ...(p.votreMarque ? { votreMarque: true } : {}),
+          // Autre outil : cible explicite, consentement TikTok de CET envoi, mention IA (le fournisseur ne la pose que là où un champ existe).
+          ...(outil !== "buffer" ? { cible: p.canal.id, consentementTiktok: extras.consentementTiktok === true, ...(extras.contenuIA ? { contenuIA: true } : {}), ...(extras.niveauConfidentialiteTiktok ? { niveauConfidentialiteTiktok: extras.niveauConfidentialiteTiktok } : {}) } : {}),
+        });
+        if (envoi.via !== outil) throw new ErreurBuffer("illisible", PHRASES_BUFFER.incomprehensibleEnvoi, true, "réponse sans confirmation");
         publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: envoi.idExterne, statut: envoi.statut ?? "brouillon", etatLuLe: maintenant() })));
       } catch (e) {
         // Toute erreur qui n'est pas un « non » net de Buffer est incertaine : on relira, on ne renverra pas.
-        const incertain = !(e instanceof ErreurBuffer) || e.incertain;
-        const message = versErreurStudio(e).message;
-        await noterErreurBuffer(`envoi sur ${p.nom}`, e, { type: "video", id: videoId });
+        const { incertain, message, detail } = lireErreurEnvoi(outil, e);
+        if (outil === "buffer") await noterErreurBuffer(`envoi sur ${p.nom}`, e, { type: "video", id: videoId });
+        else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : "refus"}${detail ? ` (${detail})` : ""}`, { type: "video", id: videoId });
         const ecrite = await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
         // « À vérifier » reste rendue (elle peut être chez Buffer) ; une publication refusée n'est que dans `problemes`.
         if (incertain) publications.push(ecrite);
         problemes.push(
           incertain
-            ? { reseau: p.reseau, canalId: p.canal.id, code: "ENVOI_A_VERIFIER", message: `${p.nom} : la réponse de Buffer s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` }
+            ? { reseau: p.reseau, canalId: p.canal.id, code: "ENVOI_A_VERIFIER", message: `${p.nom} : la réponse de ${lui} s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` }
             : { reseau: p.reseau, canalId: p.canal.id, code: "BUFFER_REFUSE", message },
         );
       }
@@ -878,19 +946,45 @@ async function envoyerVersBufferReel(service: FournisseurPublication, kitVue: Vu
       try {
         await f();
       } catch (e) {
-        console.error(`[studio] envoi Buffer, ${nom} en échec`, e instanceof Error ? e.name : "erreur");
+        console.error(`[studio] envoi ${outil}, ${nom} en échec`, e instanceof Error ? e.name : "erreur");
       }
     };
     if (reussies.some((x) => x.statut === "programmee")) await etape("étape de la vidéo", () => passerProgrammee(videoId));
     if (kitVue.variante) await etape("version", () => synchroniserEtats(kitVue.variante!.id));
     if (reussies.some((x) => x.votreMarque)) await etape("rappel « Votre marque »", () => rappelerVotreMarque(videoId, false));
-    await etape("journal", () => journaliser("publication", `${mode === "brouillon" ? "Brouillon dans Buffer" : "Programmée dans Buffer"} : ${libelleComptes(reussies.length)}${problemes.length ? `, ${problemes.length} à revoir` : ""}`, { type: "video", id: videoId }));
+    await etape("journal", () => journaliser("publication", `${mode === "brouillon" ? `Brouillon dans ${lui}` : `Programmée dans ${lui}`} : ${libelleComptes(reussies.length)}${problemes.length ? `, ${problemes.length} à revoir` : ""}`, { type: "video", id: videoId }));
   }
   // Rien n'est parti ni en attente : la raison telle quelle, ou, pour plusieurs comptes, toutes les raisons.
   if (!publications.length && problemes.length) throw new ErreurStudio(problemes[0].code, resumeRefus(problemes));
   // Seuls les réseaux que Buffer a confirmés : jamais « à poser à la main » pour un réseau qu'il a refusé.
   const commentairesALaMain = [...aPoserALaMain].filter((reseau) => publications.some((x) => x.reseau === reseau && x.etatEnvoi === "envoye" && decisions.some((dec) => "nouvelle" in dec && dec.nouvelle.id === x.id)));
   return { simulation: false, publications, mode, problemes, ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
+}
+
+/**
+ * Erreur d'envoi → (incertain ?, phrase). Incertain = on relira, on ne renverra pas. Seul un « non » net d'un outil
+ * (refus avant le réseau, ou 4xx net) est un refus : tout autre code est levé après l'écriture, donc incertain.
+ */
+function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: boolean; message: string; detail?: string } {
+  if (outil === "buffer") return { incertain: !(e instanceof ErreurBuffer) || e.incertain, message: versErreurStudio(e).message };
+  const perdue = "L'outil de publication n'a pas répondu : l'envoi est à vérifier.";
+  if (e instanceof ErreurStudio) return { incertain: false, message: e.message };
+  if (e instanceof ErreurZernio) {
+    const detail = [e.code, e.statut, e.detailTechnique].filter((x) => x !== undefined && x !== "").join(" ");
+    // Doublon : un contenu identique existe déjà (le fournisseur a déjà relu et comparé la clé) : toujours à vérifier ici.
+    if (e.code === "doublon") return { incertain: true, message: perdue, detail };
+    // « Non » net : refus avant le réseau, ou 4xx net (sans statut = levé localement avant l'appel). Un 2xx ou 5xx n'est jamais un refus.
+    const quatreCent = e.statut === undefined || (e.statut >= 400 && e.statut <= 499);
+    const refusNet = (e.avantReseau && e.code !== "lecture-requise") || ((e.code === "refuse" || e.code === "acces" || e.code === "introuvable") && quatreCent);
+    return { incertain: !refusNet, message: refusNet ? "L'outil de publication a refusé l'envoi : rien n'est parti." : perdue, detail };
+  }
+  return { incertain: true, message: perdue };
+}
+
+/** Cibles d'un envoi par l'autre outil (z2e, D9) : même forme que les comptes Buffer. */
+async function cibleZernio(service: FournisseurPublication, reseau: IdReseau, choisies?: string[]) {
+  const c = await ciblesZernioPour(service, reseau, choisies);
+  return c.ok ? { ok: true as const, source: "choisi" as const, canaux: c.canaux } : { ok: false as const, message: c.message };
 }
 
 /** Tous les refus en une phrase : la raison seule, ou « Aucun des 2 comptes n'est parti : … » suivi de chacune. */
