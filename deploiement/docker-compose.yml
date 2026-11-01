@@ -142,6 +142,8 @@ services:
       PLAUSIBLE_SITE: ${PLAUSIBLE_SITE:-}
       # Buffer : clé d'accès. Elle sert à lire les statistiques et à PUBLIER en brouillon (jamais publié tout seul : tout reste en brouillon dans Buffer tant que le réglage ne passe pas à « Programmer »). Vide : essai, rien n'est envoyé, statistiques saisies à la main.
       BUFFER_API_KEY: ${BUFFER_API_KEY:-}
+      # Zernio : clé d'accès (lecture-écriture, un seul profil). Sans clé : aucun envoi par Zernio, tout reste par Buffer.
+      ZERNIO_API_KEY: ${ZERNIO_API_KEY:-}
       # Adresse publique du studio dans les e-mails de secours (vide = https://studio.axion-ia.com).
       STUDIO_ADRESSE: ${STUDIO_ADRESSE:-}
       # Point d'envoi ZeptoMail des e-mails de secours (vide = https://api.zeptomail.eu/v1.1/email).
