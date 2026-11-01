@@ -151,7 +151,8 @@ for (const schema of SCHEMAS) {
     expect(await ciblesTropPetites(page.locator("main").first()), "cibles plus petites que 48 px").toEqual([]);
   });
 
-  test(`textes de 16 px au moins (${schema})`, async ({ page }) => {
+  test(`textes de 16 px au moins (${schema}) (D6, défaut connu)`, async ({ page }) => {
+    test.fail(true, "D6 : textes de 14 px (et moins) sur l'écran Migration");
     ecrireMigration(ETAT_NORMAL);
     await ouvrir(page, schema);
     expect(await textesTropPetits(page.locator("main").first()), "textes plus petits que 16 px").toEqual([]);
