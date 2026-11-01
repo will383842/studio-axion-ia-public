@@ -11,7 +11,7 @@ import { cleEnvoiPublication } from "@/domaine/outil-publication";
 import type { StatutPublication } from "@/domaine/types";
 import type { CanalPublication, DemandePublication, EtatPublicationExterne, FournisseurPublication } from "../types";
 import { creerClientZernio, enteteIdempotenceStudio, type ClientZernio, type OptionsClientZernio, type PostZernio } from "./zernio-client";
-import { analyserCible, corpsPostZernio, lireCreateurTiktok, mediasDemandes, plateformeZernio, premierCommentaireTransmissibleZernio, type CreateurTiktok } from "./zernio-corps";
+import { analyserCible, compteLinkedinEstProfil, corpsPostZernio, lireCreateurTiktok, mediasDemandes, plateformeZernio, premierCommentaireTransmissibleZernio, type CreateurTiktok, type DemandeZernio } from "./zernio-corps";
 import { ErreurZernio } from "./zernio-erreurs";
 import { lecteurMediaParDefaut, televerserMedias, type LecteurMedia } from "./zernio-medias";
 
@@ -58,18 +58,26 @@ function etatDepuisPost(p: PostZernio): EtatPublicationExterne {
   };
 }
 
-/** Clé neutre en hexadécimal : celle du service si elle l'est, sinon dérivée de la demande. */
+/**
+ * Clé neutre en hexadécimal : celle du service si elle l'est, sinon dérivée de `cleEnvoi` (identifiant stable de l'envoi).
+ * Sans `cleEnvoi` : refus. `fichierCle` est une adresse signée qui change à chaque signature : jamais une base de clé.
+ */
 function cleHex(d: DemandePublication): string {
-  if (d.cleEnvoi && HEX_64.test(d.cleEnvoi)) return d.cleEnvoi;
-  return cleEnvoiPublication(d.cleEnvoi ?? d.fichierCle, d.reseau, d.date, d.cible ?? d.canalId ?? null);
+  if (!d.cleEnvoi?.trim()) throw new ErreurZernio("refuse", "Cet envoi n'a pas d'empreinte (clé d'envoi) : rien n'a été envoyé.");
+  if (HEX_64.test(d.cleEnvoi)) return d.cleEnvoi;
+  return cleEnvoiPublication(d.cleEnvoi, d.reseau, d.date, d.cible ?? d.canalId ?? null);
 }
 
+// En-tête x-request-id : ce fournisseur n'en pose AUCUN aujourd'hui. Si un jour il en pose un, la valeur doit d'abord
+// passer par `motsInterditsEnvoi` (zernio-filtre) avant d'être transmise au client.
 export function creerPublicationZernio(cle: string, options: OptionsPublicationZernio = {}): FournisseurPublication {
   const client = options.clientPret ?? creerClientZernio({ cle, ...options.client });
   const lire = options.lire ?? lecteurMediaParDefaut;
   const maintenant = () => options.maintenant?.() ?? Date.now();
 
   async function retrouver(studioCle: string): Promise<PostZernio | undefined> {
+    // Limite connue : seuls les 50 derniers posts sont lus (le client ne filtre pas par compte ni par date). Un envoi
+    // plus ancien que ces 50 posts resterait « à vérifier » : jamais de renvoi automatique dans ce cas.
     const posts = await client.listerPosts({ limit: 50 });
     return posts.find((p) => p.metadata?.studioCle === studioCle);
   }
@@ -82,20 +90,23 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
     mode: "reel",
     capacites: { asynchrone: false, accordExige: false },
 
-    async envoyer(demande) {
+    async envoyer(demande: DemandeZernio) {
       const hex = cleHex(demande);
-      const d: DemandePublication = { ...demande, cleEnvoi: hex };
+      const d: DemandeZernio = { ...demande, cleEnvoi: hex };
       const instant = maintenant();
       const cible = analyserCible(d.cible ?? d.canalId);
       // 1. Tout refus pur, avant le réseau (TikTok : réglages fictifs prudents, remplacés par les vrais ensuite).
-      const prudent: CreateurTiktok = { privacyLevels: ["SELF_ONLY"], allowComment: false, allowDuet: false, allowStitch: false };
-      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent });
+      const niveau = d.niveauConfidentialiteTiktok ?? "";
+      const prudent: CreateurTiktok = { privacyLevels: [niveau], allowComment: false, allowDuet: false, allowStitch: false };
+      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true });
+      // LinkedIn profil : prouvé par la lecture du compte (jamais présumé).
+      const profilLinkedinProuve = cible.profilLinkedin ? compteLinkedinEstProfil((await client.listerComptes()).find((c) => c._id === cible.accountId)) : false;
       const demandes = mediasDemandes(d);
       // 2. Réglages du créateur TikTok, puis médias.
       const createurTiktok = plateformeZernio(d.reseau) === "tiktok" ? lireCreateurTiktok(await client.infoCreateurTiktok(cible.accountId)) : undefined;
       const hotesPublics = new Set<string>();
       const medias = await televerserMedias(client, lire, demandes, hotesPublics);
-      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics });
+      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve });
       // 3. Création, clé d'idempotence neutre.
       let resultat;
       try {
@@ -123,7 +134,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
         if (c.platform === "facebook") {
           for (const p of await client.pagesFacebook(c._id)) canaux.push({ ...base, id: `${c._id}:fb:${p.id}`, nom: p.name ?? base.nom, genre: "page" });
         } else if (c.platform === "linkedin") {
-          canaux.push({ ...base, genre: "profile" });
+          // Pas de canal « profil » implicite : le profil n'est proposé que si le compte lu est un profil personnel.
+          if (compteLinkedinEstProfil(c)) canaux.push({ ...base, id: `${c._id}:li:profil`, genre: "profile" });
           for (const o of await client.organisationsLinkedin(c._id)) canaux.push({ ...base, id: `${c._id}:li:${o.id}`, nom: o.localizedName ?? o.name ?? base.nom, genre: "page" });
         } else canaux.push(base);
       }
