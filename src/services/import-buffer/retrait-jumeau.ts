@@ -2,7 +2,7 @@
  * IMP-3 (a) — RETRAIT DU JUMEAU BUFFER. RÈGLE ABSOLUE : on ne SUPPRIME JAMAIS un post Buffer.
  * Le seul retrait possible est le passage en brouillon, UN SEUL post à la fois, après relecture (GET) du brouillon
  * Zernio jumeau et vérification qu'il correspond. Le dépôt n'offre aucune mutation Buffer : sans fonction
- * `passerEnBrouillon` injectée ET sans `confirmerRetrait`, on produit seulement la LISTE des posts que Will retire à la main.
+ * `passerEnBrouillon` injectée ET sans `confirmerRetrait`, on produit seulement la LISTE des posts que l'opérateur retire à la main.
  * Zernio : lectures seules, via le client à liste fermée.
  */
 import type { ClientZernio, PostZernio } from "../../fournisseurs/publication/zernio-client";
@@ -51,7 +51,7 @@ export type PasserEnBrouillon = (bufferId: string) => Promise<{ ok: boolean; rai
 
 export interface OptionsRetrait {
   client: ClientZernio;
-  /** Posts Buffer à venir (lecture IMP-1). Seuls ceux au statut « scheduled » sont à retirer. */
+  /** Posts Buffer à venir (lecture IMP-1). Tout statut autre que « draft » (scheduled, needs_approval, error…) est à retirer : il peut encore partir. */
   posts: PostBuffer[];
   /** Option explicite --confirmer-retrait : sans elle (ou sans `passerEnBrouillon`), AUCUNE action Buffer. */
   confirmerRetrait?: boolean;
@@ -69,7 +69,7 @@ export async function retirerJumeaux(o: OptionsRetrait): Promise<ResultatRetrait
   const parBuffer = new Map<string, PostZernio>();
   for (const z of brouillons) if (z.metadata?.origine === ORIGINE_IMPORT && typeof z.metadata.bufferId === "string") parBuffer.set(z.metadata.bufferId, z);
   let arret = false;
-  for (const post of trierParDate(o.posts.filter((p) => p.statut === "scheduled" || o.dejaRetires?.has(p.id)))) {
+  for (const post of trierParDate(o.posts.filter((p) => p.statut !== "draft" || o.dejaRetires?.has(p.id)))) {
     const l: LigneRetrait = { bufferId: post.id, canalId: post.canalId, dateIso: post.dateUtc, etat: "arret" };
     res.lignes.push(l);
     const fin = async () => void (await o.journaliser?.(l));
@@ -134,7 +134,7 @@ export async function retirerJumeaux(o: OptionsRetrait): Promise<ResultatRetrait
 }
 
 const csv = (v: string | undefined): string => `"${(v ?? "").replace(/"/g, '""')}"`;
-/** Liste à la main pour Will : identifiants et dates seulement (aucun texte, aucune clé). */
+/** Liste à la main pour l'opérateur : identifiants et dates seulement (aucun texte, aucune clé). */
 export function listeCsv(liste: LigneRetrait[]): string {
   return ["bufferId,canalId,zernioId,date,action", ...liste.map((l) => [l.bufferId, l.canalId, l.zernioId, l.dateIso, "repasser en brouillon"].map(csv).join(","))].join("\n");
 }

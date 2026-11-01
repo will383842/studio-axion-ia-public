@@ -22,7 +22,7 @@ export interface DeltaRapprochement {
   divergents: { bufferId: string; champs: string[] }[];
   /** Même bufferId programmé plusieurs fois chez Zernio. */
   doubles: string[];
-  /** Jumeau Buffer encore « scheduled » alors que Zernio est programmé : DOUBLE PUBLICATION à éviter. */
+  /** Jumeau Buffer non repassé en brouillon (scheduled, needs_approval, error…) alors que Zernio est programmé : DOUBLE PUBLICATION à éviter. */
   doublePublication: string[];
   zeroEcart: boolean;
 }
@@ -41,7 +41,7 @@ export function rapprocher(postsBuffer: PostBuffer[], programmes: PostZernio[], 
       if (l.length > 1) d.doubles.push(p.id);
       const champs = ecartsJumeau(p, l[0]);
       if (champs.length) d.divergents.push({ bufferId: p.id, champs });
-      if (p.statut === "scheduled") d.doublePublication.push(p.id);
+      if (p.statut !== "draft") d.doublePublication.push(p.id);
     }
   }
   for (const id of parBuffer.keys()) if (!ids.has(id)) d.enTrop.push(id);
@@ -61,6 +61,6 @@ export function formaterDelta(d: DeltaRapprochement): string {
   for (const id of d.enTrop) l.push(`  EN TROP chez Zernio (aucun post Buffer) : ${id}`);
   for (const x of d.divergents) l.push(`  DIVERGENT ${x.bufferId} : ${x.champs.join(", ")}`);
   for (const id of d.doubles) l.push(`  DOUBLE chez Zernio : ${id}`);
-  for (const id of d.doublePublication) l.push(`  DOUBLE PUBLICATION possible (Buffer encore programmé) : ${id}`);
+  for (const id of d.doublePublication) l.push(`  DOUBLE PUBLICATION possible (Buffer non repassé en brouillon) : ${id}`);
   return l.join("\n");
 }

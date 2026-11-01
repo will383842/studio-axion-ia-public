@@ -10,7 +10,7 @@
  * --cles : journal des clés imp-… déjà créées (lu au départ, mis à jour après), il fait foi au-delà des 24 h de Zernio.
  * --creer lance la vérification (relecture GET de chaque brouillon) par défaut ; --sans-verifier la saute (déconseillé).
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { configR2, creerStockageR2 } from "../../src/fournisseurs/r2/stockage";
 import { creerClientZernio } from "../../src/fournisseurs/publication/zernio-client";
 import { lecteurMediaParDefaut } from "../../src/fournisseurs/publication/zernio-medias";
@@ -63,13 +63,26 @@ async function main() {
   }
   const fichierCles = valeur("--cles");
   const dejaCrees = fichierCles && existsSync(fichierCles) ? lireCles(JSON.parse(readFileSync(fichierCles, "utf8"))) : new Map<string, string>();
+  // Journal des clés : écrit après CHAQUE création (cree/doublon), de façon atomique (fichier temporaire puis rename).
+  let cles = dejaCrees;
+  const ecrireCles = (): void => {
+    if (!fichierCles || aBlanc) return;
+    const tmp = `${fichierCles}.tmp`;
+    writeFileSync(tmp, `${JSON.stringify(Object.fromEntries(cles), null, 2)}\n`);
+    renameSync(tmp, fichierCles);
+  };
   const res = await creerBrouillons({
     client, table, posts: lu.posts, copies, lot, aBlanc, maintenant, dejaCrees,
+    apresChaque: (l) => {
+      cles = ajouterCles(cles, [l]);
+      ecrireCles();
+    },
     urlLecture: async (cle) => stockage.urlLectureDuree?.(cle, 3600) ?? stockage.urlLecture(cle),
     lecteur: lecteurMediaParDefaut,
   });
 
-  if (fichierCles && !aBlanc) writeFileSync(fichierCles, `${JSON.stringify(Object.fromEntries(ajouterCles(dejaCrees, res.lignes)), null, 2)}\n`);
+  cles = ajouterCles(cles, res.lignes);
+  ecrireCles();
   const compte: Record<string, number> = {};
   for (const l of res.lignes) compte[l.etat] = (compte[l.etat] ?? 0) + 1;
   console.log(`${aBlanc ? "À BLANC : aucun POST" : "CRÉATION"} · lot ${lot} · ${res.lignes.length} posts · ${JSON.stringify(compte)}`);

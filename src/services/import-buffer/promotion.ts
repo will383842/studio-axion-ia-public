@@ -1,12 +1,13 @@
 /**
  * IMP-3 (b) — PROMOTION DES BROUILLONS ZERNIO (brouillon → programmé), UN SEUL À LA FOIS.
  * Uniquement par `client.promouvoir()` (forme D5 : GET avant, PUT { isDraft:false, scheduledFor }, GET après, date ≥ 30 min).
- * Jamais de suppression, jamais publishNow. ORDRE : un brouillon n'est promu que si son jumeau Buffer n'est plus
- * « scheduled » (retiré avant), pour qu'aucun post ne parte deux fois. À blanc par défaut.
+ * Jamais de suppression, jamais publishNow. ORDRE : un brouillon n'est promu que si son jumeau Buffer est un vrai
+ * brouillon (garde POSITIVE : tout autre statut — scheduled, needs_approval, error — bloque), pour qu'aucun post ne parte deux fois. À blanc par défaut.
  */
 import type { ClientZernio, PostZernio } from "../../fournisseurs/publication/zernio-client";
 import { estErreurZernio } from "../../fournisseurs/publication/zernio-erreurs";
 import { listerTousLesPosts, ORIGINE_IMPORT } from "./creer-brouillons";
+import { ATTENDUS_PAR_DEFAUT } from "./rapprochement";
 import { controlerGrille, dateUtilisable, SuiviDebitImport, type ViolationGrille } from "./plafonds";
 import { ecartsJumeau } from "./retrait-jumeau";
 import type { PostBuffer } from "./types";
@@ -27,11 +28,13 @@ export interface ResultatPromotion {
   aBlanc: boolean;
   lignes: LignePromotion[];
   violations: ViolationGrille[];
+  /** Raison du refus du lot entier (plafond de promotions par lot dépassé). */
+  refusLot?: string;
 }
 
 export interface OptionsPromotion {
   client: ClientZernio;
-  /** Lecture Buffer FRAÎCHE (lecture IMP-1) : sert à vérifier que le jumeau n'est plus « scheduled ». */
+  /** Lecture Buffer FRAÎCHE (lecture IMP-1) : sert à vérifier que le jumeau est un brouillon. */
   postsBuffer: PostBuffer[];
   /** Défaut : vrai. Faux = vraies promotions. */
   aBlanc?: boolean;
@@ -41,6 +44,8 @@ export interface OptionsPromotion {
   /** Reprise : identifiants Zernio déjà programmés (journal). */
   dejaPromus?: ReadonlySet<string>;
   journaliser?: (l: LignePromotion) => void | Promise<void>;
+  /** Plafond de promotions par lot (défaut : ATTENDUS_PAR_DEFAUT). Au-delà, rien n'est promu. */
+  plafondLot?: number;
 }
 
 const secondes = (iso: string): string => new Date(Date.parse(iso)).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -70,9 +75,9 @@ export async function promouvoirBrouillons(o: OptionsPromotion): Promise<Resulta
     else if (!b) {
       ligne.etat = "sans-buffer";
       ligne.raison = "jumeau Buffer introuvable dans la lecture : non promu";
-    } else if (b.statut === "scheduled") {
+    } else if (b.statut !== "draft" || b.envoyeLe) {
       ligne.etat = "buffer-actif";
-      ligne.raison = "le jumeau Buffer est encore programmé : le retirer (brouillon) d'abord";
+      ligne.raison = `le jumeau Buffer n'est pas un brouillon (statut ${b.statut}${b.envoyeLe ? ", déjà envoyé" : ""}) : le repasser en brouillon d'abord`;
     } else {
       const e = ecartsJumeau(b, z);
       const d = dateUtilisable(z.scheduledFor, o.maintenant(), "promotion");
@@ -90,14 +95,28 @@ export async function promouvoirBrouillons(o: OptionsPromotion): Promise<Resulta
   }
 
   // 2. Grille contrôlée avant le lot (heure, jour) : hors plafond, rien n'est promu.
-  res.violations = controlerGrille(candidats.map((c) => ({ id: c.b.id, compte: c.ligne.compte ?? "", reseau: c.ligne.reseau ?? "", dateIso: c.z.scheduledFor! })));
-  if (res.violations.length) {
+  // Les posts DÉJÀ programmés chez Zernio (passages précédents, Studio) comptent dans la grille (lecture seule, route existante).
+  const plafondLot = o.plafondLot ?? ATTENDUS_PAR_DEFAUT;
+  let refusLot: string | undefined;
+  if (candidats.length > plafondLot) refusLot = `${candidats.length} promotions demandées, plafond du lot ${plafondLot} : lot non lancé`;
+  const idsCandidats = new Set(candidats.map((c) => c.b.id));
+  if (candidats.length && !refusLot) {
+    const dejaProgrammes = (await listerTousLesPosts(o.client, "scheduled")).filter((z) => z.scheduledFor && !candidats.some((c) => c.z._id === z._id));
+    const grille = [
+      ...candidats.map((c) => ({ id: c.b.id, compte: c.ligne.compte ?? "", reseau: c.ligne.reseau ?? "", dateIso: c.z.scheduledFor! })),
+      ...dejaProgrammes.map((z) => ({ id: z._id, compte: idCompte(z), reseau: z.platforms?.[0]?.platform ?? "", dateIso: z.scheduledFor! })),
+    ];
+    // Seules comptent les violations qui touchent le lot (un excès sans rapport avec lui ne le bloque pas).
+    res.violations = controlerGrille(grille).filter((v) => v.ids.some((i) => idsCandidats.has(i)));
+  }
+  if (res.violations.length || refusLot) {
     for (const c of candidats) {
       c.ligne.etat = "arret";
-      c.ligne.raison = "grille hors plafond : lot non lancé";
+      c.ligne.raison = refusLot ?? "grille hors plafond : lot non lancé";
     }
   }
-  const aTraiter = res.violations.length ? [] : candidats;
+  if (refusLot) res.refusLot = refusLot;
+  const aTraiter = res.violations.length || refusLot ? [] : candidats;
 
   // 3. Promotion, un seul à la fois, journal après chacun, arrêt au premier doute.
   let arret = false;
