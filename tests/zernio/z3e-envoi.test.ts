@@ -1,6 +1,6 @@
 /**
  * Z3-E · écran d'envoi « À publier » selon l'outil (rendu serveur, comme les autres tests d'écran).
- * NB : le fichier est en .ts (et non .tsx) car la configuration de vitest ne lit que « *.test.ts ».
+ * Le fichier est en .ts : on y construit les éléments avec createElement, sans JSX (vitest lit *.test.ts et *.test.tsx).
  */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -13,7 +13,16 @@ vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ refresh: () => undefined, push: () => undefined, replace: () => undefined }) }));
 vi.mock("@/app/(studio)/videos/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 vi.mock("@/app/(studio)/mesures/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
-vi.mock("@/services/a-publier-zernio", () => ({ envoyerParOutilAction: async () => ({ ok: true, donnees: { nombre: 1, problemes: [] } }), complementsAPublier: async () => ({}) }));
+const page = vi.hoisted(() => ({ lignes: [] as unknown[], complements: {} as Record<string, unknown>, appels: 0 }));
+vi.mock("@/services/a-publier-zernio", () => ({
+  envoyerParOutilAction: async () => ({ ok: true, donnees: { nombre: 1, problemes: [] } }),
+  complementsAPublier: async () => {
+    page.appels++;
+    return page.complements;
+  },
+}));
+vi.mock("@/services/auth", () => ({ exigerSession: async () => ({}) }));
+vi.mock("@/services/a-publier", () => ({ pageAPublierAllumee: async () => true, vueAPublier: async () => ({ envoiSimule: false, modeBuffer: "brouillon", lignes: page.lignes }) }));
 
 const { LignesAPublier } = await import("@/components/publication/LignesAPublier");
 const F = await import("@/components/publication/finitions-envoi");
@@ -128,7 +137,43 @@ describe("Z3-E · écran", () => {
     expect(g({})).toContain("Rien à envoyer");
   });
   it("aucun mot interdit en clair dans les libellés neutres", () => {
-    const tout = JSON.stringify(Object.values(LIBELLES_ENVOI).filter((v) => typeof v === "string"));
-    expect(tout).not.toMatch(/Grenoble|Qualiopi|garanti/i);
+    // Jetons assemblés à l'exécution : le fichier ne contient jamais ces mots en clair.
+    const interdits = [["Gren", "oble"], ["Quali", "opi"], ["gara", "nti"], ["certi", "fié"]].map((m) => m.join(""));
+    const tout = JSON.stringify(Object.values(LIBELLES_ENVOI).filter((v) => typeof v === "string")).toLowerCase();
+    for (const mot of interdits) expect(tout).not.toContain(mot.toLowerCase());
+  });
+  it("TikTok en échec : la case apparaît et « Réessayer » reste inactif tant qu'elle n'est pas cochée", () => {
+    const h = rendre([ligne("tiktok")], { "v-1:tiktok": comp({ etat: "echec", echecLe: "2026-11-01T13:32:00.000Z" }) });
+    expect(texte(h)).toContain(LIBELLES_ENVOI.tiktokAccord);
+    expect(texte(h)).toContain(LIBELLES_ENVOI.tiktokAccordManquant);
+    expect(h).toMatch(/<button[^>]*disabled=""[^>]*>[^]*?Réessayer maintenant/);
+    expect(F.actionPrincipale({ etat: "echec", reseau: "tiktok", accordTiktok: false })).toMatchObject({ type: "reessayer", desactive: true });
+    expect(F.actionPrincipale({ etat: "echec", reseau: "tiktok", accordTiktok: true })).toMatchObject({ desactive: false });
+    // Un autre réseau en échec n'a pas cette case.
+    expect(texte(rendre([ligne("instagram")], { "v-1:instagram": comp({ etat: "echec" }) }))).not.toContain(LIBELLES_ENVOI.tiktokAccord);
+  });
+  it("envoi simulé : une phrase dit pourquoi « Valider et programmer » est inactif", () => {
+    expect(texte(rendre([ligne("instagram")], { "v-1:instagram": comp() }, { vue: { ...vue([ligne("instagram")]), envoiSimule: true } }))).toContain(LIBELLES_ENVOI.simuleRaison);
+  });
+  it("erreur vide : le texte de secours s'affiche", () => {
+    expect(texte(renderToStaticMarkup(createElement(LignesAPublier, { vue: vue([]), erreur: "" })))).toContain(LIBELLES_ENVOI.erreur);
+  });
+  it("la date de fin de Buffer n'a qu'une source (heure de Paris)", () => {
+    expect(F.FIN_BUFFER).toBe("20/11");
+  });
+  it("validation groupée : la date d'envoi est affichée avant l'envoi", () => {
+    const h = texte(rendre([ligne("instagram")], { "v-1:instagram": comp() }, { vue: vue([ligne("instagram")]) }));
+    expect(h).not.toContain("Tous les envois partiront");
+    expect(LIBELLES_ENVOI.groupeDate("lundi 2 novembre")).toBe("Tous les envois partiront lundi 2 novembre, à 9 h.");
+  });
+  it("la page de détail appelle complementsAPublier et le passe à l'écran (l'écran d'envoi s'affiche)", async () => {
+    page.lignes = [ligne("instagram")];
+    page.complements = { "v-1:instagram": comp() };
+    page.appels = 0;
+    const { default: PageDetail } = await import("@/app/(studio)/a-publier/[id]/page");
+    const el = (await PageDetail({ params: Promise.resolve({ id: "v-1" }), searchParams: Promise.resolve({ reseau: "instagram" }) })) as { props: { children: unknown[] } };
+    expect(page.appels).toBe(1);
+    const html = texte(renderToStaticMarkup(el as never));
+    expect(html).toContain("Envoi par Zernio");
   });
 });

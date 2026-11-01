@@ -42,7 +42,7 @@ export function LignesAPublier({ vue, retour, reseauOuvert, suivantes, complemen
   // Un seul outil d'abord : le nom vient du catalogue, via le complément de la première ligne (Buffer par défaut).
   const outilGeneral = nomOutil(Object.values(complements ?? {})[0]?.outil);
   if (chargement) return <p role="status" className="rounded-2xl border border-trait bg-surface-2 px-3 py-4 text-sm text-texte-doux">{LIBELLES_ENVOI.chargement}</p>;
-  if (erreur) return <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-3 py-4 text-sm text-texte">{erreur || LIBELLES_ENVOI.erreur}</p>;
+  if (erreur !== undefined) return <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-3 py-4 text-sm text-texte">{erreur || LIBELLES_ENVOI.erreur}</p>;
   if (!cartes.length) return <p role="status" className="rounded-2xl border border-trait bg-surface-2 px-3 py-4 text-sm text-texte-doux">{LIBELLES_ENVOI.vide}</p>;
   const lignesChoisies = vue.lignes.filter((l) => selection.includes(l.cle));
   const barre = barreSelection(lignesChoisies.map((l) => ({ reseau: l.reseau, accordTiktok: false })));
@@ -63,7 +63,7 @@ export function LignesAPublier({ vue, retour, reseauOuvert, suivantes, complemen
         faits += r.donnees.nombre;
       }
       setSelection([]);
-      if (faits) toast.success(`${faits} ${faits > 1 ? "envois validés" : "envoi validé"}`, { action: { label: LIBELLES_ENVOI.annuler, onClick: () => notifier.info("Annulation : repassez la ligne en brouillon depuis son détail.") } });
+      if (faits) toast.success(`${faits} ${faits > 1 ? "envois validés" : "envoi validé"}`, { description: LIBELLES_ENVOI.groupeConseil });
       router.refresh();
     });
   }
@@ -90,6 +90,7 @@ export function LignesAPublier({ vue, retour, reseauOuvert, suivantes, complemen
           <Bouton taille="lg" pleineLargeur icone="envoyer" chargement={groupe} onClick={validerGroupe}>
             {barre.libelle}
           </Bouton>
+          <p className="text-center text-xs text-texte-doux">{LIBELLES_ENVOI.groupeDate(new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(demainNeufHeures()))}</p>
           {barre.note && <p className="text-center text-xs text-texte-faible">{barre.note}</p>}
         </div>
       )}
@@ -524,7 +525,7 @@ function DetailEnvoi({
   const action = actionPrincipale({ etat: c.etat === "aucun" ? "brouillon" : c.etat, reseau: l.reseau, accordTiktok, dateEnvoi: c.etat === "programmee" ? c.dateEnvoi : iso, lien: c.lien });
   const bloc = blocPremierCommentaire(l.reseau, commentaire);
   const format = formatApercu(l.reseau, l.dimensions);
-  const tiktokAttendu = l.reseau === "tiktok" && (c.etat === "aucun" || c.etat === "brouillon");
+  const tiktokAttendu = l.reseau === "tiktok" && (c.etat === "aucun" || c.etat === "brouillon" || c.etat === "echec");
   const idPhrase = `${id}-phrase`;
   const empeche = action.type === "valider" ? (action.desactive ? action.raison : raison) : null;
   const iaVisible = mentionIAVisible(l.reseau) && l.casesRequises.includes("mentionIA");
@@ -596,6 +597,7 @@ function DetailEnvoi({
             {action.petit && <p className="text-center text-xs text-texte-faible">{action.petit}</p>}
             {action.desactive && <p id={idPhrase} className="text-sm text-texte-doux">{LIBELLES_ENVOI.tiktokAccordManquant}</p>}
             {!action.desactive && raison && <p className="text-sm text-texte-doux">{raison}</p>}
+            {envoiSimule && <p className="text-sm text-texte-doux">{LIBELLES_ENVOI.simuleRaison}</p>}
           </>
         )}
         {action.type === "repasser" && (
@@ -618,9 +620,12 @@ function DetailEnvoi({
           </>
         )}
         {action.type === "reessayer" && (
-          <Bouton icone="envoyer" pleineLargeur taille="lg" disabled={envoiSimule || occupe} chargement={occupe} onClick={envoyer}>
-            {action.libelle}
-          </Bouton>
+          <>
+            <Bouton icone="envoyer" pleineLargeur taille="lg" disabled={envoiSimule || occupe || action.desactive} aria-describedby={action.desactive ? idPhrase : undefined} chargement={occupe} onClick={envoyer}>
+              {action.libelle}
+            </Bouton>
+            {action.desactive && <p id={idPhrase} className="text-sm text-texte-doux">{LIBELLES_ENVOI.tiktokAccordManquant}</p>}
+          </>
         )}
       </div>
 
