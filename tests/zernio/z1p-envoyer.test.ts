@@ -57,16 +57,50 @@ describe("z1p · envoyer", () => {
     await expect(f.envoyer(demande({ reseau: "tiktok" }))).rejects.toThrow(/consentement/);
     expect(faux.appels).toHaveLength(0);
   });
+  it("LinkedIn : cible nue refusée sans réseau ; profil seulement si le compte lu est personnel", async () => {
+    const { f, faux } = monter();
+    await expect(f.envoyer(demande({ reseau: "linkedin", cible: "exemple-compte-2" }))).rejects.toThrow(/choisissez une page/);
+    expect(faux.appels).toHaveLength(0);
+    const comptes = (type?: string) => (a: AppelEnregistre) => (a.url.endsWith("/v1/accounts") ? { statut: 200, corps: { accounts: [{ _id: "exemple-compte-2", platform: "linkedin", ...(type ? { accountType: type } : {}) }] } } : undefined);
+    const non = monter(comptes("organization"));
+    await expect(non.f.envoyer(demande({ reseau: "linkedin", cible: "exemple-compte-2:li:profil" }))).rejects.toThrow(/profil personnel/);
+    expect(posts(non.faux)).toHaveLength(0);
+    const oui = monter(comptes("personal"));
+    await oui.f.envoyer(demande({ reseau: "linkedin", cible: "exemple-compte-2:li:profil" }));
+    expect(posts(oui.faux)).toHaveLength(1);
+    const page = monter();
+    await page.f.envoyer(demande({ reseau: "linkedin", cible: "exemple-compte-2:li:42" }));
+    expect(posts(page.faux)[0].json).toMatchObject({ platforms: [{ platformSpecificData: { organizationUrn: "urn:li:organization:42" } }] });
+  });
+  it("sans cleEnvoi : refus (jamais une clé dérivée d'une adresse signée)", async () => {
+    const { f, faux } = monter();
+    await expect(f.envoyer(demande({ cleEnvoi: undefined }))).rejects.toThrow(/empreinte/);
+    expect(faux.appels).toHaveLength(0);
+  });
+  it("TikTok : sans niveau de confidentialité choisi, refus avant le réseau", async () => {
+    const { f, faux } = monter();
+    await expect(f.envoyer({ ...demande({ reseau: "tiktok", consentementTiktok: true }) })).rejects.toThrow(/confidentialité/);
+    expect(faux.appels).toHaveLength(0);
+  });
+  it("lecture du média source : redirection refusée, délai posé", async () => {
+    const { vi } = await import("vitest");
+    const { lecteurMediaParDefaut } = await import("@/fournisseurs/publication/zernio-medias");
+    const esp = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Uint8Array([1]), { headers: { "content-length": "1" } }));
+    await lecteurMediaParDefaut("https://exemple-r2.test/v.mp4");
+    expect(esp.mock.calls[0][1]).toMatchObject({ redirect: "error" });
+    expect((esp.mock.calls[0][1] as RequestInit).signal).toBeDefined();
+    esp.mockRestore();
+  });
   it("TikTok : creator-info lu, 5 champs posés", async () => {
     const { f, faux } = monter();
-    await f.envoyer(demande({ reseau: "tiktok", consentementTiktok: true }));
+    await f.envoyer(demande({ reseau: "tiktok", niveauConfidentialiteTiktok: "PUBLIC_TO_EVERYONE", consentementTiktok: true }));
     expect(faux.appels[0].url).toContain("/tiktok/creator-info");
     expect(posts(faux)[0].json).toMatchObject({ platforms: [{ platform: "tiktok", platformSpecificData: { contentPreviewConfirmed: true, expressConsentGiven: true, allowComment: true, allowDuet: false, allowStitch: true } }] });
   });
   it("premier commentaire : Facebook transmis, TikTok à la main", async () => {
     const { f } = monter();
     expect((await f.envoyer(demande({ reseau: "facebook", cible: "a:fb:p1", premierCommentaire: "Voir" }))).premierCommentaire).toBe("transmis");
-    expect((await f.envoyer(demande({ reseau: "tiktok", consentementTiktok: true, premierCommentaire: "Voir" }))).premierCommentaire).toBe("a-la-main");
+    expect((await f.envoyer(demande({ reseau: "tiktok", niveauConfidentialiteTiktok: "PUBLIC_TO_EVERYONE", consentementTiktok: true, premierCommentaire: "Voir" }))).premierCommentaire).toBe("a-la-main");
   });
   it("délai dépassé : GET avant tout renvoi ; post retrouvé = succès, jamais un second POST", async () => {
     const { f, faux } = monter((a) => {
@@ -88,7 +122,7 @@ describe("z1p · envoyer", () => {
   });
   it("lireEtat, canaux (pages Facebook et LinkedIn)", async () => {
     const { f } = monter((a) => {
-      if (a.url.endsWith("/v1/accounts")) return { statut: 200, corps: { accounts: [{ _id: "exemple-compte-1", platform: "facebook", displayName: "Exemple" }, { _id: "exemple-compte-2", platform: "linkedin", displayName: "Exemple" }] } };
+      if (a.url.endsWith("/v1/accounts")) return { statut: 200, corps: { accounts: [{ _id: "exemple-compte-1", platform: "facebook", displayName: "Exemple" }, { _id: "exemple-compte-2", platform: "linkedin", displayName: "Exemple" }, { _id: "exemple-compte-3", platform: "linkedin", accountType: "personal" }] } };
       if (a.url.endsWith("/facebook-page")) return { statut: 200, corps: { pages: [{ id: "p1", name: "Page exemple" }] } };
       if (a.url.endsWith("/linkedin-organizations")) return { statut: 200, corps: { organizations: [{ id: "42", name: "Org exemple" }] } };
       if (a.url.includes("/v1/posts/")) return { statut: 200, corps: { post: postExemple({ status: "scheduled" }) } };
@@ -96,6 +130,7 @@ describe("z1p · envoyer", () => {
     });
     expect((await f.lireEtat!("exemple-post-1")).statut).toBe("programmee");
     const ids = (await f.listerCanaux!()).map((c) => c.id);
-    expect(ids).toEqual(expect.arrayContaining(["exemple-compte-1:fb:p1", "exemple-compte-2", "exemple-compte-2:li:42"]));
+    expect(ids).not.toContain("exemple-compte-2"); // pas de canal LinkedIn implicite
+    expect(ids).toEqual(expect.arrayContaining(["exemple-compte-1:fb:p1", "exemple-compte-2:li:42", "exemple-compte-3:li:profil"]));
   });
 });

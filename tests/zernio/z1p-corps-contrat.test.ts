@@ -50,7 +50,7 @@ describe.skipIf(!spec)("z1p · corps validés par l'OpenAPI", () => {
     ["Instagram Reel IA", { contenuIA: true }, "InstagramPlatformData"],
     ["Facebook Reel", { reseau: "facebook", cible: "a:fb:p1", format: "9:16", dureeSec: 20, premierCommentaire: "Voir" }, "FacebookPlatformData"],
     ["LinkedIn page + PDF", { reseau: "linkedin", cible: "a:li:42", document: { url: "https://exemple.test/d.pdf", titre: "Guide" } }, "LinkedInPlatformData"],
-    ["TikTok marque + IA", { reseau: "tiktok", consentementTiktok: true, votreMarque: true, contenuIA: true }, "TikTokPlatformData"],
+    ["TikTok marque + IA", { reseau: "tiktok", consentementTiktok: true, votreMarque: true, contenuIA: true, niveauConfidentialiteTiktok: "PUBLIC_TO_EVERYONE" }, "TikTokPlatformData"],
   ];
   it.each(cas)("%s", (_nom, p, schema) => {
     const c = corpsPostZernio(d(p), { maintenant: MAINTENANT, createurTiktok: CREATEUR });
@@ -63,7 +63,7 @@ describe.skipIf(!spec)("z1p · corps validés par l'OpenAPI", () => {
     expect(JSON.stringify(c)).not.toMatch(/publishNow|"draft"/);
   });
   it("TikTok : aucun champ du corps hors schéma (tiktokSettings jamais utilisé, tout dans platformSpecificData)", () => {
-    const c = corpsPostZernio(d({ reseau: "tiktok", consentementTiktok: true }), { maintenant: MAINTENANT, createurTiktok: CREATEUR });
+    const c = corpsPostZernio(d({ reseau: "tiktok", consentementTiktok: true, niveauConfidentialiteTiktok: "PUBLIC_TO_EVERYONE" }), { maintenant: MAINTENANT, createurTiktok: CREATEUR });
     expect(c).not.toHaveProperty("tiktokSettings");
     expect(Object.keys(c.platforms[0].platformSpecificData as object).sort()).toEqual(["allowComment", "allowDuet", "allowStitch", "contentPreviewConfirmed", "expressConsentGiven", "privacyLevel"]);
   });

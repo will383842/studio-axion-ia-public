@@ -14,12 +14,24 @@ const TYPES_PAR_EXTENSION: Readonly<Record<string, string>> = {
   mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm", m4v: "video/x-m4v", pdf: "application/pdf",
 };
 
+const DELAI_LECTURE_MS = 60_000;
 const refus = (message: string) => new ErreurZernio("refuse", `${message} Rien n'a été envoyé.`);
 
 /** Lecteur par défaut : fetch https, flux direct (jamais tout le fichier en mémoire). */
 export const lecteurMediaParDefaut: LecteurMedia = async (adresse) => {
   if (!/^https:\/\//.test(adresse)) throw refus("Un média n'est pas en ligne (adresse https exigée).");
-  const rep = await fetch(adresse);
+  // Pas de redirection suivie (l'adresse signée est directe). Délai maximal de 60 s pour obtenir l'EN-TÊTE de réponse
+  // (le flux d'un gros fichier, lui, n'est pas coupé par ce délai).
+  const ctrl = new AbortController();
+  const minuteur = setTimeout(() => ctrl.abort(), DELAI_LECTURE_MS);
+  let rep: Response;
+  try {
+    rep = await fetch(adresse, { redirect: "error", signal: ctrl.signal });
+  } catch {
+    throw refus("Le fichier du média n'a pas pu être lu (délai dépassé ou redirection refusée).");
+  } finally {
+    clearTimeout(minuteur);
+  }
   if (!rep.ok || !rep.body) throw refus("Le fichier du média n'a pas pu être lu.");
   const taille = Number(rep.headers.get("content-length"));
   if (!Number.isSafeInteger(taille) || taille <= 0) throw refus("La taille du média est inconnue.");
