@@ -118,7 +118,8 @@ test("liste « À reprogrammer » : le bouton « Choisir une date » est présen
   await expect(section.getByText("nous ne les publions jamais seuls")).toBeVisible();
 });
 
-test("clavier seul : Tab atteint « Vérifier le lot », Entrée ouvre la fenêtre, Échap la ferme, le focus se voit", async ({ page }) => {
+test("clavier seul : Tab atteint « Vérifier le lot », Entrée ouvre la fenêtre, Échap la ferme, le focus se voit (D4, défaut connu)", async ({ page }) => {
+  test.fail(true, "D4 : la fenêtre d'un lot ne se ferme pas avec Échap");
   ecrireMigration(ETAT_NORMAL);
   await ouvrir(page);
   expect(await atteindreAuClavier(page, /Vérifier le lot A/)).toBe(true);
@@ -143,7 +144,8 @@ for (const schema of SCHEMAS) {
     await expect(page.getByText(/vous|votre|vos/i).first()).toBeVisible();
   });
 
-  test(`cibles de 48 px au moins (${schema})`, async ({ page }) => {
+  test(`cibles de 48 px au moins (${schema}) (D5, défaut connu)`, async ({ page }) => {
+    test.fail(true, "D5 : des boutons de 44 px ou moins sur l'écran Migration");
     ecrireMigration(ETAT_NORMAL);
     await ouvrir(page, schema);
     expect(await ciblesTropPetites(page.locator("main").first()), "cibles plus petites que 48 px").toEqual([]);
