@@ -66,6 +66,9 @@ on:
       - "src/app/api/media-buffer/**"
       - "tests/relais-buffer.test.ts"
       - "tests/relais-buffer-proxy.test.ts"
+      - "tests/zernio/**"
+      - "docs/zernio/**"
+      - "tests/r1-*.test.ts"
       - ".github/workflows/tests-cibles.yml"
 
 permissions:
@@ -132,3 +135,8 @@ jobs:
             tests/buffer-mots-interdits-envoi.test.ts \
             tests/a-publier-finitions-envoi.test.ts \
             tests/a-publier-mots-interdits-envoi.test.ts
+      - name: Tests z0 (contrat Zernio) et r1 (envoi, relecture, synchro, client Buffer)
+        run: |
+          pnpm exec vitest run --passWithNoTests \
+            tests/zernio \
+            r1-envoi-reel r1-relecture r1-synchro-buffer r1-buffer-client
