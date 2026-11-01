@@ -105,6 +105,19 @@ export function resoudreFournisseur<K extends TypeFournisseur>(type: K, valeurEn
   return Object.hasOwn(impl, demande) ? impl[demande] : impl.simulation;
 }
 
+/**
+ * z1t (D2) : un fournisseur PRÉCIS par identifiant (ex. fournisseurParId("publication", "zernio")).
+ * Refus clair si cet identifiant n'est pas inscrit (clé du fournisseur absente) : jamais de repli silencieux
+ * vers un autre outil. `resoudreFournisseur` (anciens appels) reste inchangé.
+ */
+export function fournisseurParId<K extends TypeFournisseur>(type: K, id: string): CarteFournisseurs[K] {
+  const impl = IMPLEMENTATIONS[type] as Record<string, CarteFournisseurs[K]>;
+  if (!Object.hasOwn(impl, id)) {
+    throw new Error(`Le fournisseur « ${id} » n'est pas relié (clé absente) : l'envoi est refusé, aucun autre outil n'est utilisé à sa place.`);
+  }
+  return impl[id];
+}
+
 export function etatConnexion(type: TypeFournisseur, valeurEnBase?: string | null): EtatConnexion {
   const { demande } = choixFournisseur(type, valeurEnBase);
   if (demande === "simulation") return "simulation";
