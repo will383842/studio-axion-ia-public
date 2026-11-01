@@ -2,12 +2,13 @@
  * IMP-3 — RETRAIT DES JUMEAUX, PROMOTION ET RAPPROCHEMENT. Lancé plus tard sur le serveur par la session déployeuse.
  * Tout est « à blanc » (--dry-run) PAR DÉFAUT. RÈGLE ABSOLUE : aucun post Buffer n'est jamais supprimé.
  *
- *   pnpm exec tsx outils/import-buffer/jumeaux.mts retrait       [--liste <fichier.csv>] [--journal-retraits <fichier>] [--confirmer-retrait]
+ *   pnpm exec tsx outils/import-buffer/jumeaux.mts retrait       --liste <fichier.csv> [--journal-retraits <fichier>] [--confirmer-retrait]
  *   pnpm exec tsx outils/import-buffer/jumeaux.mts promotion     [--executer] [--journal-promotions <fichier>]
  *   pnpm exec tsx outils/import-buffer/jumeaux.mts rapprochement [--attendus 92]
  *
  * ORDRE : brouillons vérifiés (IMP-2) → retrait du jumeau Buffer (à la main, liste) → promotion → rapprochement.
- * Le dépôt n'offre aucune mutation Buffer sûre : --confirmer-retrait est refusé et la liste à retirer à la main est produite.
+ * Le dépôt n'offre aucune mutation Buffer sûre : --confirmer-retrait est refusé (sortie en code 3) et la liste à retirer à la main est produite.
+ * --liste est OBLIGATOIRE (la liste contient des identifiants réels : l'écrire HORS du dépôt, par ex. dans /tmp).
  * BUFFER_API_KEY et ZERNIO_API_KEY dans l'environnement du serveur.
  */
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -37,19 +38,24 @@ async function main() {
   const { retenus } = filtrerPostsAVenir(lu.posts, new Date(maintenant()));
 
   if (commande === "retrait") {
-    if (args.includes("--confirmer-retrait")) console.log("--confirmer-retrait : aucun passage en brouillon sûr n'est disponible dans le dépôt (aucune écriture Buffer). Liste à retirer à la main produite à la place.");
+    const sortie = valeur("--liste");
+    if (!sortie) throw new Error("--liste <fichier.csv> est exigé (écrire HORS du dépôt : la liste contient des identifiants réels). Rien n'a été fait.");
     const f = valeur("--journal-retraits");
     const res = await retirerJumeaux({
       client, posts: retenus,
       dejaRetires: lignesJournal(f, "bufferId", ["retire", "deja-retire"]),
       journaliser: (l) => { if (f) appendFileSync(f, `${JSON.stringify(l)}\n`); },
     });
-    const sortie = valeur("--liste") ?? "retraits-buffer-a-la-main.csv";
     writeFileSync(sortie, `${listeCsv(res.liste)}\n`);
     const n: Record<string, number> = {};
     for (const l of res.lignes) n[l.etat] = (n[l.etat] ?? 0) + 1;
     console.log(`Retrait · ${res.lignes.length} posts · ${JSON.stringify(n)} · liste à la main : ${res.liste.length} (${sortie}). Aucun post supprimé.`);
     for (const l of res.lignes.filter((x) => ["sans-jumeau", "jumeau-different", "echec"].includes(x.etat))) console.log(`  ${l.bufferId} : ${l.etat} — ${l.raison ?? ""}`);
+    if (res.lignes.some((x) => x.etat === "jumeau-different")) console.log("  Rappel : un jumeau différent sera AUSSI refusé à la promotion (état « jumeau-different »).");
+    if (args.includes("--confirmer-retrait")) {
+      console.error("--confirmer-retrait : aucun passage en brouillon sûr n'est disponible dans le dépôt (aucune écriture Buffer). Le retrait n'est PAS fait : liste à retirer à la main produite à la place.");
+      process.exitCode = 3;
+    }
   } else if (commande === "promotion") {
     const f = valeur("--journal-promotions");
     const aBlanc = !args.includes("--executer");
@@ -61,6 +67,7 @@ async function main() {
     const n: Record<string, number> = {};
     for (const l of res.lignes) n[l.etat] = (n[l.etat] ?? 0) + 1;
     console.log(`${aBlanc ? "À BLANC : aucune promotion" : "PROMOTION"} · ${res.lignes.length} brouillons · ${JSON.stringify(n)}`);
+    if (res.refusLot) console.log(`LOT REFUSÉ : ${res.refusLot}`);
     for (const v of res.violations) console.log(`GRILLE ${v.compte} : ${v.detail}`);
     for (const l of res.lignes.filter((x) => ["refuse", "a-verifier", "buffer-actif", "jumeau-different", "a-reprogrammer"].includes(x.etat))) console.log(`  ${l.bufferId} : ${l.etat} — ${l.raison ?? ""}`);
   } else {

@@ -74,6 +74,8 @@ export interface OptionsBrouillons {
   /** Journal du Studio : clés `imp-…` déjà créées → identifiant Zernio (le journal fait foi au-delà de 24 h). */
   dejaCrees?: Map<string, string>;
   suivi?: SuiviDebitImport;
+  /** Appelé après chaque création ou doublon (journal des clés écrit au fil de l'eau, pas seulement en fin de lot). */
+  apresChaque?: (ligne: LigneBrouillon) => void | Promise<void>;
   /** Compte relié avec la portée « comments » : le premier commentaire Instagram n'est transmis qu'alors. */
   commentairesInstagram?: boolean;
 }
@@ -210,77 +212,81 @@ export async function creerBrouillons(o: OptionsBrouillons): Promise<ResultatBro
   let arret = false;
   for (const p of prets) {
     const { ligne } = p;
-    if (arret) {
-      ligne.etat = "arret";
-      ligne.raison = "lot arrêté avant ce post";
-      continue;
-    }
-    const connu = o.dejaCrees?.get(p.cle);
-    if (connu) {
-      ligne.etat = "deja-fait";
-      ligne.zernioId = connu;
-      continue;
-    }
-    if (aBlanc) {
-      ligne.etat = "a-blanc";
-      continue;
-    }
     try {
-      if (o.client.lectureExigee()) await o.client.listerPosts({ status: "draft" });
-      const permis = suivi.peutOperer(p.compte, p.reseau, o.maintenant());
-      if (!permis.ok) {
+      if (arret) {
         ligne.etat = "arret";
-        ligne.raison = permis.raison;
-        arret = true;
+        ligne.raison = "lot arrêté avant ce post";
         continue;
       }
-      const attente = suivi.delaiAvant(o.maintenant());
-      if (attente > 0) await attendre(attente);
-      const hotes = new Set<string>();
-      const lecteur = o.lecteur;
-      if (!lecteur) throw new Error("Aucun lecteur de média fourni.");
-      const televerses = await televerserMedias(o.client, lecteur, mediasDemandes(p.demande), hotes);
-      for (let i = 0; i < televerses.length * 2; i++) suivi.noterRequete(o.maintenant());
-      const corps = corpsBrouillonImport(p.demande, p.post, p.cle, o.maintenant(), televerses, hotes, o.commentairesInstagram, profilProuve(p.cible));
-      res.corps.set(p.post.id, corps);
-      suivi.noterRequete(o.maintenant());
-      const r = await o.client.creerPost(corps, p.cle);
-      suivi.noterOperation(p.compte, o.maintenant());
-      ligne.zernioId = r.post._id;
-      ligne.etat = r.issue === "echec" ? "refuse" : "cree";
-      if (r.issue !== "ok") ligne.raison = `création ${r.issue}`;
-    } catch (e) {
-      if (estErreurZernio(e) && e.code === "doublon") {
-        ligne.etat = "doublon";
-        ligne.zernioId = e.existingPostId;
-        ligne.raison = "déjà chez Zernio";
-      } else if (estErreurZernio(e) && (e.code === "a-verifier" || e.code === "conflit-idempotence")) {
-        ligne.etat = "a-verifier";
-        ligne.raison = e.message;
-        // Lecture avant tout nouvel envoi : le brouillon existe-t-il déjà ?
-        try {
-          const lus = await listerTousLesPosts(o.client, "draft");
-          const trouve = lus.find((x: PostZernio) => x.metadata?.bufferId === p.post.id && x.metadata?.origine === ORIGINE_IMPORT);
-          if (trouve) {
-            ligne.etat = "cree";
-            ligne.zernioId = trouve._id;
-            ligne.raison = "retrouvé par lecture";
-            continue;
-          }
-        } catch {
-          /* lecture impossible : le lot s'arrête */
-        }
-        arret = true;
-      } else if (estErreurZernio(e) && (e.code === "debit" || e.code === "indisponible")) {
-        const pause = suivi.pauseRetryAfter((e.attenteMs ?? 0) / 1000, o.maintenant());
-        ligne.etat = "arret";
-        ligne.raison = pause.ok ? `débit : reprendre dans ${Math.ceil(pause.attenteMs / 1000)} s` : "débit : pause trop longue, lot arrêté";
-        arret = true; // jamais de boucle
-      } else {
-        ligne.etat = "refuse";
-        ligne.raison = phrase(e);
-        if (estErreurZernio(e) && (e.code === "acces" || e.code === "envoi-coupe")) arret = true;
+      const connu = o.dejaCrees?.get(p.cle);
+      if (connu) {
+        ligne.etat = "deja-fait";
+        ligne.zernioId = connu;
+        continue;
       }
+      if (aBlanc) {
+        ligne.etat = "a-blanc";
+        continue;
+      }
+      try {
+        if (o.client.lectureExigee()) await o.client.listerPosts({ status: "draft" });
+        const permis = suivi.peutOperer(p.compte, p.reseau, o.maintenant());
+        if (!permis.ok) {
+          ligne.etat = "arret";
+          ligne.raison = permis.raison;
+          arret = true;
+          continue;
+        }
+        const attente = suivi.delaiAvant(o.maintenant());
+        if (attente > 0) await attendre(attente);
+        const hotes = new Set<string>();
+        const lecteur = o.lecteur;
+        if (!lecteur) throw new Error("Aucun lecteur de média fourni.");
+        const televerses = await televerserMedias(o.client, lecteur, mediasDemandes(p.demande), hotes);
+        for (let i = 0; i < televerses.length * 2; i++) suivi.noterRequete(o.maintenant());
+        const corps = corpsBrouillonImport(p.demande, p.post, p.cle, o.maintenant(), televerses, hotes, o.commentairesInstagram, profilProuve(p.cible));
+        res.corps.set(p.post.id, corps);
+        suivi.noterRequete(o.maintenant());
+        const r = await o.client.creerPost(corps, p.cle);
+        suivi.noterOperation(p.compte, o.maintenant());
+        ligne.zernioId = r.post._id;
+        ligne.etat = r.issue === "echec" ? "refuse" : "cree";
+        if (r.issue !== "ok") ligne.raison = `création ${r.issue}`;
+      } catch (e) {
+        if (estErreurZernio(e) && e.code === "doublon") {
+          ligne.etat = "doublon";
+          ligne.zernioId = e.existingPostId;
+          ligne.raison = "déjà chez Zernio";
+        } else if (estErreurZernio(e) && (e.code === "a-verifier" || e.code === "conflit-idempotence")) {
+          ligne.etat = "a-verifier";
+          ligne.raison = e.message;
+          // Lecture avant tout nouvel envoi : le brouillon existe-t-il déjà ?
+          try {
+            const lus = await listerTousLesPosts(o.client, "draft");
+            const trouve = lus.find((x: PostZernio) => x.metadata?.bufferId === p.post.id && x.metadata?.origine === ORIGINE_IMPORT);
+            if (trouve) {
+              ligne.etat = "cree";
+              ligne.zernioId = trouve._id;
+              ligne.raison = "retrouvé par lecture";
+              continue;
+            }
+          } catch {
+            /* lecture impossible : le lot s'arrête */
+          }
+          arret = true;
+        } else if (estErreurZernio(e) && (e.code === "debit" || e.code === "indisponible")) {
+          const pause = suivi.pauseRetryAfter((e.attenteMs ?? 0) / 1000, o.maintenant());
+          ligne.etat = "arret";
+          ligne.raison = pause.ok ? `débit : reprendre dans ${Math.ceil(pause.attenteMs / 1000)} s` : "débit : pause trop longue, lot arrêté";
+          arret = true; // jamais de boucle
+        } else {
+          ligne.etat = "refuse";
+          ligne.raison = phrase(e);
+          if (estErreurZernio(e) && (e.code === "acces" || e.code === "envoi-coupe")) arret = true;
+        }
+      }
+    } finally {
+      if (o.apresChaque && ["cree", "doublon"].includes(ligne.etat)) await o.apresChaque(ligne);
     }
   }
   return res;
