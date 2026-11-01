@@ -31,11 +31,12 @@ import { trouverFormat } from "@/formats";
 import { JOUR_MS } from "@/lib/dates";
 import { creerLecteurBuffer, type LecteurStatsBuffer } from "@/fournisseurs/mesures/buffer";
 import { ErreurMesure } from "@/fournisseurs/mesures/commun";
-import { lecteurZernioEssai, type LecteurStatsZernio } from "@/fournisseurs/mesures/zernio";
+import { creerLecteurZernio, type LecteurStatsZernio } from "@/fournisseurs/mesures/zernio";
 import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
 import { creerLecteurPlausible, type LecteurVisites } from "@/fournisseurs/mesures/plausible";
 import { depots, filtreExemples, journaliser } from "./_commun";
 import { exigerSession } from "./auth";
+import { cleZernioPresente, clientZernio } from "./zernio";
 import { versionsExemplesAvantPublication, videosExemplesMesurees } from "./mesures-exemples";
 
 /** Définitions écrites avec un relevé importé de Buffer (B.8 §2). */
@@ -154,13 +155,20 @@ function dernierReleve(p: Publication, source: "buffer" | "zernio" | "api") {
 async function ajouterReleve(p: Publication, source: "buffer" | "zernio" | "api", valeurs: Partial<StatsPublication>, definitions: Record<string, string>, instant: Date): Promise<boolean> {
   const precedent = dernierReleve(p, source);
   if (precedent && memes(precedent.valeurs, valeurs)) return false;
-  const stats: StatsPublication = { ...(p.stats ?? { vues: 0, likes: 0, commentaires: 0, partages: 0 }), ...valeurs };
+  // Zernio : une statistique non lue reste absente (jamais 0). Buffer et liens suivis : copie de départ inchangée.
+  const depart = source === "zernio" ? (p.stats ?? {}) : (p.stats ?? { vues: 0, likes: 0, commentaires: 0, partages: 0 });
+  const stats = { ...depart, ...valeurs } as StatsPublication;
   const jour = Math.max(0, Math.floor((instant.getTime() - new Date(p.date).getTime()) / JOUR_MS));
   await depots().publications.modifier(p.id, { releves: [...(p.releves ?? []), { le: instant.toISOString(), jour, source, valeurs: stats, definitions }], stats });
   return true;
 }
 
 const messageDe = (e: unknown) => (e instanceof ErreurMesure ? e.message : "Lecture impossible pour l'instant.");
+
+/** Lecteur Zernio par défaut : sans clé = mode essai (aucun appel réseau) ; avec clé = lecteur réel (client à liste fermée). */
+export function lecteurZernioParDefaut(): LecteurStatsZernio {
+  return creerLecteurZernio(cleZernioPresente() ? clientZernio() : null);
+}
 
 /**
  * Met à jour les chiffres : statistiques Buffer de chaque publication envoyée par Buffer (par `idExterne`), puis visites
@@ -170,7 +178,7 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
   await exigerSession();
   const instant = options.instant ?? new Date();
   const lecteurBuffer = options.buffer ?? creerLecteurBuffer();
-  const lecteurZernio = options.zernio ?? lecteurZernioEssai;
+  const lecteurZernio = options.zernio ?? lecteurZernioParDefaut();
   const lecteurVisites = options.visites ?? creerLecteurPlausible();
   const bilan: BilanImport = {
     buffer: { essai: lecteurBuffer.mode === "simulation", lues: 0, ajoutees: 0, erreurs: 0 },

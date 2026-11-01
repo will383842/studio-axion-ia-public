@@ -6,6 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
 import { matiere, preparerMotDePasse } from "../helpers/g1a";
 import { creerLecteurZernio, lecteurZernioEssai, valeursDepuisAnalyticsZernio } from "@/fournisseurs/mesures/zernio";
+import { injecterClientZernio } from "@/services/zernio";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
 
 vi.mock("next/headers", () => mockHeaders);
@@ -119,5 +120,34 @@ describe("z4 · importerMesures", () => {
     const b = await mc.importerMesures({ buffer: { mode: "reel", lire: async () => ({ idExterne: "x", valeurs: { vues: 10, likes: 1, commentaires: 0, partages: 0 } }) }, visites: { mode: "simulation", lire: async () => null } });
     expect(b.buffer.ajoutees).toBe(1);
     expect((await depots().publications.obtenir("exemple-buf"))!.releves![0].source).toBe("buffer");
+  });
+
+  it("lecteur par défaut : sans clé = essai (aucun appel) ; avec un faux client = lecture réelle", async () => {
+    const ancienne = process.env.ZERNIO_API_KEY;
+    delete process.env.ZERNIO_API_KEY;
+    try {
+      injecterClientZernio(null);
+      expect(mc.lecteurZernioParDefaut().mode).toBe("simulation");
+      await publication("zernio", "exemple-pub");
+      const b0 = await mc.importerMesures({ visites: { mode: "simulation", lire: async () => null } });
+      expect(b0.zernio).toMatchObject({ essai: true, lues: 0, ajoutees: 0 });
+      const { client } = creerFauxClientZernio([{ statut: 200, corps: CORPS }]);
+      injecterClientZernio(client);
+      expect(mc.lecteurZernioParDefaut().mode).toBe("reel");
+      const b = await mc.importerMesures({ visites: { mode: "simulation", lire: async () => null } });
+      expect(b.zernio).toMatchObject({ essai: false, lues: 1, ajoutees: 1 });
+    } finally {
+      injecterClientZernio(null);
+      if (ancienne !== undefined) process.env.ZERNIO_API_KEY = ancienne;
+    }
+  });
+
+  it("200 qui ne donne que views : les autres chiffres restent absents, pas 0 (Zernio) ; Buffer garde son 0", async () => {
+    await publication("zernio", "exemple-pub");
+    const { client } = creerFauxClientZernio([{ statut: 200, corps: { analytics: { views: 120 } } }]);
+    await mc.importerMesures({ zernio: creerLecteurZernio(client), visites: { mode: "simulation", lire: async () => null } });
+    const p = (await depots().publications.obtenir("exemple-pub"))!;
+    expect(p.stats).toEqual({ vues: 120 });
+    expect(p.releves![0].valeurs).toEqual({ vues: 120 });
   });
 });

@@ -50,6 +50,7 @@ export function creerLecteurZernio(client: ClientZernio | null | undefined): Lec
     mode: "reel",
     async lire(postId) {
       try {
+        // requete() et non analytics() : seule requete() laisse voir le statut 202 (« pas encore prêtes »).
         const rep = await client.requete({ methode: "GET", chemin: "/v1/analytics", query: { postId } });
         if (rep.statut === 202) return { etat: "pas-encore-pretes" };
         const lu = valeursDepuisAnalyticsZernio(rep.corps);
