@@ -559,7 +559,12 @@ export function ConnexionsZernio({ services, initial }: { services: ServicesZern
         demarrer(async () => {
           const r = await services.tester();
           if (r.ok) notifier.succes(r.donnees.message);
-          else notifier.erreur(r.message);
+          else {
+            // NAV D3 : Zernio ne répond pas → état erreur avec « Réessayer maintenant » (en plus du message passager).
+            notifier.erreur(r.message);
+            setVue({ etat: "erreur" });
+            return;
+          }
           await recharger();
         })
       }
