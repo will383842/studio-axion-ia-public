@@ -48,8 +48,7 @@ const ecran = (page: Page) => page.locator(ECRAN);
 const tester = (page: Page) => ecran(page).getByRole("button", { name: "Tester les 6 comptes" });
 
 /** Le premier essai ne se saute pas : c'est lui qui annonce le défaut. */
-test("l'écran Connexions Zernio est monté dans le Studio (D1, défaut connu)", async ({ page }) => {
-  test.fail(true, "D1 : écran non monté — retirer cette ligne quand Z3-E/NAV l'aura branché");
+test("l'écran Connexions Zernio est monté dans le Studio (D1, corrigé)", async ({ page }) => {
   await page.goto(URL_ECRAN);
   await expect(ecran(page), "écran Connexions Zernio absent de la page").toHaveCount(1);
 });
@@ -103,8 +102,7 @@ test.describe("parcours Connexions", () => {
     await expect(ecran(page).getByRole("button", { name: "Tout arrêter" })).toBeVisible();
   });
 
-  test("arrêt actif : un bandeau le dit sur tous les écrans (D2, défaut connu)", async ({ page }) => {
-    test.fail(true, "D2 : aucun bandeau d'arrêt hors de l'écran Connexions");
+  test("arrêt actif : un bandeau le dit sur tous les écrans (D2, corrigé)", async ({ page }) => {
     ecrireMigration(ETAT_NORMAL);
     await ouvrir(page);
     await ecran(page).getByRole("button", { name: "Tout arrêter" }).click();
@@ -154,9 +152,8 @@ test.describe("parcours Connexions", () => {
   });
 
   // D3 : l'état « Zernio ne répond pas » + « Réessayer maintenant » n'apparaît que si la LECTURE EN BASE échoue ;
-  // un Zernio muet ne le déclenche pas. Défaut connu : l'essai échoue tant que ce n'est pas corrigé (test.fail).
-  test("Zernio ne répond pas : l'écran propose « Réessayer maintenant » (D3, défaut connu)", async ({ page }) => {
-    test.fail(true, "D3 : l'état erreur n'est pas atteint quand Zernio ne répond pas");
+  // un Zernio muet ne le déclenche pas.
+  test("Zernio ne répond pas : l'écran propose « Réessayer maintenant » (D3, corrigé)", async ({ page }) => {
     await ouvrir(page);
     await regler("erreur");
     await tester(page).click();

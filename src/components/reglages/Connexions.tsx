@@ -488,7 +488,7 @@ export function VueConnexionsZernio({ vue, services, arretActif, enCours, onChan
   return (
     <div className="flex flex-col gap-4" data-ecran="connexions-zernio" data-etat-ecran={vue.etat}>
       <header>
-        <h1 className="text-xl text-texte">Connexions Zernio</h1>
+        <h2 className="text-xl text-texte">Connexions Zernio</h2>
         <p className="mt-1 text-sm text-texte-doux">Vos 6 comptes, l’outil qui publie et le mode d’envoi, réseau par réseau.</p>
         <div className="mt-3">
           <Bouton variante="secondaire" icone="actualiser" chargement={enCours} onClick={onTester}>
@@ -559,7 +559,12 @@ export function ConnexionsZernio({ services, initial }: { services: ServicesZern
         demarrer(async () => {
           const r = await services.tester();
           if (r.ok) notifier.succes(r.donnees.message);
-          else notifier.erreur(r.message);
+          else {
+            // NAV D3 : Zernio ne répond pas → état erreur avec « Réessayer maintenant » (en plus du message passager).
+            notifier.erreur(r.message);
+            setVue({ etat: "erreur" });
+            return;
+          }
           await recharger();
         })
       }

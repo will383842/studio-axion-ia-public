@@ -9,6 +9,7 @@ import { BlocBuffer } from "@/components/reglages/BlocBuffer";
 import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier";
 import { pageAPublierAllumee } from "@/services/a-publier";
 import { Connexions } from "@/components/reglages/Connexions";
+import { ConnexionsZernioReglages } from "@/components/reglages/ConnexionsZernioReglages";
 import { Credits } from "@/components/reglages/Credits";
 import { CreditClaude } from "@/components/reglages/CreditClaude";
 import { vueCreditClaude } from "@/services/credit-claude";
@@ -162,6 +163,9 @@ export default async function PageReglages() {
         <Apparition index={1}>
           <CarteSection id="connexions" icone="prise" titre="Connexions">
             <Connexions connexions={connexions.map((c) => ({ type: c.type, etat: c.etat, options: c.options, montageReelPour: c.montageReelPour, jeLis: c.jeLis, calageRelie: c.calageRelie, montageReel: c.montageReel }))} cles={cles} />
+            {/* NAV D1 : écran Connexions Zernio (comptes, routage, « Tout arrêter »), lu en base ; session exigée par chaque action. */}
+            <div className="my-4 h-px bg-trait" />
+            <ConnexionsZernioReglages />
             {/* Lot R1 : Buffer sous la carte Publication — lu en base, aucun appel à Buffer à l'affichage. */}
             <div className="my-4 h-px bg-trait" />
             <BlocBuffer vue={buffer} />
