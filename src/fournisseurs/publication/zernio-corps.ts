@@ -26,11 +26,23 @@ export interface CibleZernio {
   accountId: string;
   /** Facebook : page choisie (même accountId). */
   pageId?: string;
-  /** LinkedIn : page (absent = profil). */
+  /** LinkedIn : page (urn:li:organization:<n°>). */
   organizationUrn?: string;
+  /** LinkedIn : profil personnel, forme explicite « accountId:li:profil » (à prouver par la lecture du compte). */
+  profilLinkedin?: true;
 }
 
-/** Cible du Studio : « accountId », « accountId:fb:<pageId> », « accountId:li:<n°> ». */
+/** Demande Zernio : la demande commune + le niveau de confidentialité TikTok choisi par la personne. */
+export type DemandeZernio = DemandePublication & { niveauConfidentialiteTiktok?: string };
+
+/** Le compte lu est-il un profil personnel LinkedIn ? Seules les valeurs explicites « personnel » comptent (sinon : non). */
+export function compteLinkedinEstProfil(compte: Record<string, unknown> | undefined): boolean {
+  if (!compte) return false;
+  const lu = [compte.accountType, compte.profileType, compte.type].find((v) => typeof v === "string");
+  return typeof lu === "string" && ["personal", "profile", "person"].includes(lu.toLowerCase());
+}
+
+/** Cible du Studio : « accountId:fb:<pageId> », « accountId:li:<n°> », « accountId:li:profil » ; « accountId » seul (Instagram, TikTok). */
 export function analyserCible(brute: string | undefined | null): CibleZernio {
   const t = (brute ?? "").trim();
   if (!t) throw refus("Aucune cible choisie pour cette publication.");
@@ -38,6 +50,7 @@ export function analyserCible(brute: string | undefined | null): CibleZernio {
   if (!SEGMENT.test(accountId) || autres.length) throw refus("La cible de la publication est illisible.");
   if (genre === undefined) return { accountId };
   if (genre === "fb" && reste && SEGMENT.test(reste)) return { accountId, pageId: reste };
+  if (genre === "li" && reste === "profil") return { accountId, profilLinkedin: true };
   if (genre === "li" && reste && /^\d{1,20}$/.test(reste)) return { accountId, organizationUrn: `urn:li:organization:${reste}` };
   throw refus("La cible de la publication est illisible.");
 }
@@ -61,10 +74,11 @@ export function lireCreateurTiktok(brut: unknown): CreateurTiktok {
   return { privacyLevels, allowComment: permis("allow_comment"), allowDuet: permis("allow_duet"), allowStitch: permis("allow_stitch") };
 }
 
-function niveauDeConfidentialite(c: CreateurTiktok): string {
-  if (c.privacyLevels.includes("PUBLIC_TO_EVERYONE")) return "PUBLIC_TO_EVERYONE";
-  if (c.privacyLevels.includes("SELF_ONLY")) return "SELF_ONLY";
-  throw refus("TikTok n'offre aucun niveau de confidentialité utilisable pour ce compte.");
+/** Le niveau est choisi par la personne (règles TikTok) : jamais déduit. Il doit faire partie de ceux que le compte offre. */
+function niveauDeConfidentialite(c: CreateurTiktok, choisi: string | undefined): string {
+  if (!choisi?.trim()) throw refus("TikTok : choisissez qui peut voir cette vidéo (niveau de confidentialité).");
+  if (!c.privacyLevels.includes(choisi)) throw refus("TikTok : ce niveau de confidentialité n'est pas offert par ce compte.");
+  return choisi;
 }
 
 /* --- Aides ------------------------------------------------------------------------------------------------------- */
@@ -78,7 +92,8 @@ export function dateZernio(dateIso: string): string {
 
 function texteAlt(brut: string): string {
   const t = brut.replace(/\s+/g, " ").trim();
-  return t.length <= ALT_MAX ? t : `${t.slice(0, ALT_MAX - 1).trimEnd()}…`;
+  if (t.length > ALT_MAX) throw refus(`Le texte alternatif d'une image dépasse ${ALT_MAX} signes : raccourcissez-le.`);
+  return t;
 }
 
 function exigerSansMotInterdit(texte: string, quoi: string): void {
@@ -111,6 +126,8 @@ export interface OptionsCorps {
   medias?: MediaItemZernio[];
   /** Hôtes des `publicUrl` rendus par presign : chaque `mediaItems[].url` téléversé doit en venir (sinon refus). */
   hotesPublics?: ReadonlySet<string>;
+  /** LinkedIn : le compte lu est bien un profil personnel (requis pour la cible « accountId:li:profil »). */
+  profilLinkedinProuve?: boolean;
 }
 
 /** Médias demandés, sans adresse Zernio : sert au téléversement et au corps. Types : image | video | document. */
@@ -140,7 +157,7 @@ export function mediasDemandes(d: DemandePublication): MediaItemZernio[] {
   return [{ type: "video", url: d.fichierCle }];
 }
 
-export function corpsPostZernio(d: DemandePublication, options: OptionsCorps): CorpsPostZernio {
+export function corpsPostZernio(d: DemandeZernio, options: OptionsCorps): CorpsPostZernio {
   const plateforme = plateformeZernio(d.reseau);
   const cible = analyserCible(d.cible ?? d.canalId);
   const demandes = mediasDemandes(d);
@@ -182,7 +199,11 @@ export function corpsPostZernio(d: DemandePublication, options: OptionsCorps): C
       if (commentaire) specifique.firstComment = commentaire;
       break;
     case "linkedin":
+      // D9 : jamais l'organisation par défaut. Page = urn explicite ; profil = forme « li:profil » prouvée par la lecture du compte.
       if (cible.organizationUrn) specifique.organizationUrn = cible.organizationUrn;
+      else if (cible.profilLinkedin) {
+        if (!options.profilLinkedinProuve) throw refus("LinkedIn : ce compte n'est pas reconnu comme un profil personnel. Choisissez une page.");
+      } else throw refus("LinkedIn : choisissez une page ou votre profil (la page par défaut n'est jamais utilisée).");
       if (type === "document") specifique.documentTitle = demandes[0].title;
       if (commentaire) specifique.firstComment = commentaire;
       break;
@@ -197,7 +218,7 @@ export function corpsPostZernio(d: DemandePublication, options: OptionsCorps): C
         allowComment: createur.allowComment,
         allowDuet: createur.allowDuet,
         allowStitch: createur.allowStitch,
-        privacyLevel: niveauDeConfidentialite(createur),
+        privacyLevel: niveauDeConfidentialite(createur, d.niveauConfidentialiteTiktok),
       });
       if (d.votreMarque) specifique.commercialContentType = "brand_organic";
       if (d.contenuIA) specifique.videoMadeWithAi = true;
