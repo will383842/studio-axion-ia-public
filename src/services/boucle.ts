@@ -39,6 +39,7 @@ import { depots, ecrireParametre, horodatage, journaliser, lireParametre, mainte
 import { ligneSimulee } from "./couts";
 import { surveillerCredits } from "./credits";
 import { synchroniserEtatsBuffer } from "./buffer";
+import { synchroniserEtatsZernio } from "./zernio";
 import { diffuserNotifications } from "./notifications";
 // Facecam lot E : raccords de la chaîne vidéo (agent monteur, Décor IA, relecture), posés au chargement.
 import "./facecam-branchements";
@@ -224,6 +225,8 @@ export interface OptionsTour {
   delai?: (t: Travail) => number;
   /** Lecture des états Buffer (injection pour les tests ; défaut : `synchroniserEtatsBuffer`). */
   synchroBuffer?: () => Promise<unknown>;
+  /** Lecture des états Zernio (injection pour les tests ; défaut : `synchroniserEtatsZernio`). */
+  synchroZernio?: () => Promise<unknown>;
 }
 
 /** Le contenu d'un tour (sans le drapeau). `choisirMoteur`, `delai`, `synchroBuffer` : injection pour les tests. */
@@ -300,6 +303,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   // Lot R1 : états des publications Buffer (au plus toutes les 15 min ; lectures HORS verrou, jamais un envoi).
   // Audit D, B9 : HORS du tour (jusqu'à 50 lectures de 30 s) ; une seule synchronisation à la fois.
   void lancerAnnexe("synchronisation Buffer", options.synchroBuffer ?? (() => synchroniserEtatsBuffer()), 0);
+  void lancerAnnexe("synchronisation Zernio", options.synchroZernio ?? (() => synchroniserEtatsZernio()), 0);
   // Tableau animé : écriture du script et découpage en scènes (plusieurs minutes) HORS du tour, une seule fois à la fois.
   void lancerAnnexe("tâches du tableau animé", async () => (await import("./tableau-creation")).travaillerTachesTableau(), 0);
   // Comité éditorial des idées (éteint par défaut, réglage `idees.comite`) : lot groupé à moitié prix, HORS du tour.
