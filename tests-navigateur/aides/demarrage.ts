@@ -2,11 +2,8 @@
  * NAV · constantes et gestes partagés par les parcours navigateur (simulation, aucune clé réelle).
  * Le mot de passe d'essai est FABRIQUÉ à chaque lancement (jamais écrit dans un fichier du dépôt).
  */
-import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { hashSync } from "@node-rs/argon2";
 import { expect, type Page } from "@playwright/test";
 
 export const PORT_STUDIO = Number(process.env.NAV_PORT ?? 3411);
@@ -14,10 +11,9 @@ export const PORT_FAUX = Number(process.env.NAV_FAUX_ZERNIO_PORT ?? 3921);
 export const URL_FAUX = `http://127.0.0.1:${PORT_FAUX}`;
 
 /** Dossier d'essai : fichier d'état de Migration, relu à chaque requête par le serveur. */
-export const DOSSIER_NAV = process.env.NAV_DOSSIER ?? mkdtempSync(join(tmpdir(), "nav-zernio-"));
+export const DOSSIER_NAV = process.env.NAV_DOSSIER ?? "";
 export const FICHIER_MIGRATION = join(DOSSIER_NAV, "migration.json");
-export const MOT_DE_PASSE_ESSAI = process.env.NAV_MDP ?? `essai-${randomBytes(9).toString("hex")}`;
-export const EMPREINTE_B64 = Buffer.from(hashSync(MOT_DE_PASSE_ESSAI)).toString("base64");
+export const MOT_DE_PASSE_ESSAI = process.env.NAV_MDP ?? "";
 
 /** Jetons concaténés : les mots interdits ne s'écrivent jamais en clair dans le dépôt. */
 export const J = (...p: string[]): string => p.join("");
