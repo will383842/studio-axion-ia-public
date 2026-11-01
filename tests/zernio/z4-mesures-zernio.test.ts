@@ -100,6 +100,16 @@ describe("z4 · importerMesures", () => {
     expect(p.stats).toMatchObject({ vues: 900, portee: 800 });
   });
 
+  it("lien suivi puis lecture Zernio sans les vues : « vues » absent, pas 0", async () => {
+    await publication("zernio", "exemple-pub");
+    await depots().publications.modifier("exemple-pub", { stats: { vues: 0, likes: 0, commentaires: 0, partages: 0 }, releves: [{ le: "2026-10-29T00:00:00.000Z", jour: 1, source: "api", valeurs: { vues: 0, likes: 0, commentaires: 0, partages: 0 }, definitions: {} }] } as never);
+    const { client } = creerFauxClientZernio([{ statut: 200, corps: { postId: "exemple-post-1", analytics: { reach: 800 } } }]);
+    await mc.importerMesures({ zernio: creerLecteurZernio(client), visites: { mode: "simulation", lire: async () => null }, instant: new Date("2026-11-01T10:00:00Z") });
+    const p = (await depots().publications.obtenir("exemple-pub"))!;
+    expect(p.stats).toEqual({ portee: 800 });
+    expect(p.stats).not.toHaveProperty("vues");
+  });
+
   it("202 / 424 / 402 : aucun relevé, aucun zéro, message écrit", async () => {
     for (const [statut, cle] of [[202, "pasPretes"], [424, "nonLisibles"], [402, "nonLisibles"]] as const) {
       reinitialiserDepots();
