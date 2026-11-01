@@ -1,0 +1,19 @@
+# Finitions Zernio restantes
+
+Points relevés par les relectures (#154 à #162) et les restes Z2-S / Z4 qui exigent de toucher à un fichier réservé à une autre PR : `src/services/publications.ts` et `src/services/buffer.ts` (PR #163, P3-A), ou les fichiers de la PR #164 (Z3-E). Chacun est à traiter dans un tour ultérieur, une fois ces PR fusionnées. Numéros de ligne relevés sur `master` au moment de la finition.
+
+| Fichier | Ligne | Ce qui est à faire | PR d'origine |
+|---|---|---|---|
+| `src/services/mesures-completes.ts` (PR #163) | `ajouterReleve`, ~l. 153-160 | Z4 : le relevé Zernio part de `p.stats`. Quand un relevé « lien suivi » (`api`) a déjà écrit `vues: 0, likes: 0, commentaires: 0, partages: 0` (copie de départ), ces zéros sont hérités par le relevé Zernio comme des mesures lues. Ne jamais hériter d'un total à 0 qui ne vient pas de Zernio : partir des seuls relevés Zernio, ou laisser les statistiques non lues absentes. Test : un lien suivi puis une lecture Zernio qui ne renvoie que la portée → `vues` absent, pas 0. | Z4 (#157) |
+| `src/services/zernio.ts` (PR #163) | `synchroniserEtatsZernio`, ~l. 177 | Z2-S : le filtre ne relit que `etatEnvoi` indéfini ou « envoyé ». Un post Zernio « à vérifier » n'est donc jamais relu par la synchro. Ajouter la relecture des posts « à vérifier » (par `lirePost`, jamais de renvoi), avec test. | Z2-S (#155) |
+| `src/services/corbeille.ts` (PR #163) | message de la corbeille | Z2-S : le message dit « Buffer ou Zernio » en dur. Le rendre neutre ou nommer l'outil réel de la publication (`p.via`), avec test. | Z2-S (#155) |
+| `src/services/publications.ts` | ~l. 652 | Le groupe Zernio de la façade reçoit `options.comptes`, qui sont des canaux Buffer : refus `CIBLE_INCONNUE` dès qu'un compte est présélectionné. Refus sûr, à traiter en traduisant la présélection par outil. | Z2-E (#159), mineur 7 |
+| `src/services/publications.ts` | ~l. 975 | Le message de refus net pour un doublon (`incertain: true`) reste générique ; vérifier à l'écran que `detailTechnique` (déjà passé par `masquerSecret`) ne devient jamais visible. | Z2-E (#159), 2e tour, mineur 4 |
+| `src/services/buffer.ts` | ~l. 313-318 | Plusieurs pages du même compte : l'envoi reste « à vérifier » sans fin. Le journal l'annonce ; prévoir une notification ou une sortie manuelle (« Marquer comme vérifié ») pour ne pas laisser l'envoi bloqué. | Z2-E (#159), 2e tour, mineur 3 |
+| `src/services/buffer.ts` (l. 4, 7, 11, 180, 185) et `src/services/publications.ts` (16 occurrences) | commentaires | Le prénom de l'opérateur est écrit dans des commentaires déjà présents sur `master` : à remplacer par « l'opérateur ». | Z2-E (#159), règle « aucun nom de personne » |
+| `src/components/publication/LignesAPublier.tsx`, `src/app/(studio)/a-publier/**`, `src/services/a-publier-zernio.ts` (PR #164) | — | Rien relevé par les relectures traitées ici ; aucun fichier de la PR #164 n'a été touché. | — |
+
+## Points relevés mais non retenus
+
+- #154, 2e tour : lier l'hôte des `mediaItems[].url` à celui du `publicUrl` de presign. À décider avec Z1-P ; le risque est faible, l'adresse est déjà en https sans identifiants.
+- #158, 5 : la lecture des brouillons est déjà paginée (`listerTousLesPosts`) dans `master`. Rien à faire.
