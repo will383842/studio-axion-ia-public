@@ -636,14 +636,32 @@ export async function envoyerVersBuffer(
       throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
     }
     if (parOutil.has("buffer") && service.mode === "simulation") throw new ErreurStudio("BUFFER_NON_RELIE", "L'outil de publication de certains de ces réseaux n'est pas relié : l'envoi est refusé.");
-    const resultats = [];
+    // Un groupe par outil. Si un groupe lève une erreur alors qu'un autre est déjà parti, l'erreur devient un problème
+    // (l'écran dit ce qui est parti) ; si rien n'est parti, l'erreur est rendue telle quelle.
+    const resultats: Awaited<ReturnType<typeof envoyerReel>>[] = [];
+    const erreursGroupes: { groupe: IdReseau[]; erreur: ErreurStudio }[] = [];
+    let premiereErreur: unknown;
     for (const [outil, groupe] of parOutil) {
-      const f = outil === "buffer" ? service : fournisseurParId("publication", outil);
-      resultats.push(await envoyerReel(outil, f, kitVue, groupe, dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire));
+      try {
+        let f: FournisseurPublication;
+        try {
+          f = fournisseurParId("publication", outil);
+        } catch {
+          throw new ErreurStudio("BUFFER_NON_RELIE", "L'outil de publication de certains de ces réseaux n'est pas relié : l'envoi est refusé.");
+        }
+        resultats.push(await envoyerReel(outil, f, kitVue, groupe, dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire));
+      } catch (e) {
+        if (parOutil.size === 1) throw e;
+        premiereErreur ??= e;
+        const erreur = e instanceof ErreurStudio ? e : new ErreurStudio("ENVOI_REFUSE", "L'envoi vers l'outil de publication de ces réseaux a échoué : rien n'est parti de ce côté.");
+        erreursGroupes.push({ groupe, erreur });
+      }
     }
-    if (resultats.length === 1) return resultats[0];
+    if (!resultats.length) throw premiereErreur;
+    if (resultats.length === 1 && !erreursGroupes.length) return resultats[0];
     const commentairesALaMain = resultats.flatMap((r) => r.commentairesALaMain ?? []);
-    return { simulation: false, publications: resultats.flatMap((r) => r.publications), mode: resultats[0]?.mode, problemes: resultats.flatMap((r) => r.problemes ?? []), ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
+    const problemesGroupes: ProblemeEnvoi[] = erreursGroupes.flatMap(({ groupe, erreur }) => groupe.map((reseau) => ({ reseau, code: erreur.code, message: erreur.message })));
+    return { simulation: false, publications: resultats.flatMap((r) => r.publications), mode: resultats[0]?.mode, problemes: [...resultats.flatMap((r) => r.problemes ?? []), ...problemesGroupes], ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
   }
   const d = depots();
   const publications: Publication[] = [];
@@ -850,7 +868,7 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
       if (meme) out.push({ p, cleEnvoi, existante: meme });
       else if (deja.some((x) => x.etatEnvoi === "a-verifier")) out.push(refus("ENVOI_A_VERIFIER", `L'envoi précédent vers ${p.nom} est à vérifier : le studio relit ${lui} et ne renverra rien sans en être sûr. Regardez dans ${lui}, ou réessayez dans 30 minutes.`));
       else if (deja.some((x) => x.etatEnvoi === "en-cours")) out.push(refus("ENVOI_EN_COURS", `Un envoi vers ${lui} est déjà en cours pour ${p.nom}.`));
-      else if (deja.length) out.push(refus("DEJA_DANS_BUFFER", `Cette vidéo est déjà dans ${lui} pour ${p.nom} : changez sa date dans ${lui}.`));
+      else if (deja.length) out.push(refus(outil === "buffer" ? "DEJA_DANS_BUFFER" : "DEJA_DANS_OUTIL", `Cette vidéo est déjà dans ${lui} pour ${p.nom} : changez sa date dans ${lui}.`));
       else if (declaresAbsents.has(cible(p))) out.push(refus("ENVOI_ABSENT", `${outil === "buffer" ? "Buffer" : "L'outil de publication"} n'avait rien reçu pour ${p.nom} : vérifiez dans ${lui} avant de renvoyer.`));
       else {
         const variante = kitVue.variante && kitVue.variante.reseau === p.reseau ? kitVue.variante : undefined;
@@ -907,9 +925,14 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
         publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: envoi.idExterne, statut: envoi.statut ?? "brouillon", etatLuLe: maintenant() })));
       } catch (e) {
         // Toute erreur qui n'est pas un « non » net de Buffer est incertaine : on relira, on ne renverra pas.
-        const { incertain, message } = lireErreurEnvoi(outil, e);
+        const { incertain, message, existant, detail } = lireErreurEnvoi(outil, e);
         if (outil === "buffer") await noterErreurBuffer(`envoi sur ${p.nom}`, e, { type: "video", id: videoId });
-        else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : message}`, { type: "video", id: videoId });
+        else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${existant ? "contenu déjà chez l'outil, repris" : incertain ? "réponse perdue, à vérifier" : "refus"}${detail ? ` (${detail})` : ""}`, { type: "video", id: videoId });
+        // Doublon signalé par l'outil avec l'identifiant du post d'origine : l'envoi existe, on le reprend (jamais « refusé »).
+        if (existant) {
+          publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: existant, statut: "brouillon", etatLuLe: maintenant() })));
+          continue;
+        }
         const ecrite = await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
         // « À vérifier » reste rendue (elle peut être chez Buffer) ; une publication refusée n'est que dans `problemes`.
         if (incertain) publications.push(ecrite);
@@ -943,15 +966,22 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
   return { simulation: false, publications, mode, problemes, ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
 }
 
-/** Erreur d'envoi → (incertain ?, phrase). Incertain = on relira, on ne renverra pas. Un « non » net d'un outil est un refus. */
-function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: boolean; message: string } {
+/**
+ * Erreur d'envoi → (incertain ?, phrase). Incertain = on relira, on ne renverra pas. Seul un « non » net d'un outil
+ * (refus avant le réseau, ou 4xx net) est un refus : tout autre code est levé après l'écriture, donc incertain.
+ */
+function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: boolean; message: string; existant?: string; detail?: string } {
   if (outil === "buffer") return { incertain: !(e instanceof ErreurBuffer) || e.incertain, message: versErreurStudio(e).message };
+  const perdue = "L'outil de publication n'a pas répondu : l'envoi est à vérifier.";
   if (e instanceof ErreurStudio) return { incertain: false, message: e.message };
   if (e instanceof ErreurZernio) {
-    const incertain = e.code === "a-verifier" || e.code === "lecture-requise" || e.code === "conflit-idempotence";
-    return { incertain, message: incertain ? "L'outil de publication n'a pas répondu : l'envoi est à vérifier." : e.message };
+    const detail = [e.code, e.statut, e.detailTechnique].filter((x) => x !== undefined && x !== "").join(" ");
+    // Doublon : un contenu identique existe déjà. Identifiant connu → repris comme envoyé ; sinon à vérifier.
+    if (e.code === "doublon") return { incertain: true, message: perdue, ...(e.existingPostId ? { existant: e.existingPostId } : {}), detail };
+    const refusNet = (e.avantReseau && e.code !== "lecture-requise") || e.code === "refuse" || e.code === "acces" || e.code === "introuvable";
+    return { incertain: !refusNet, message: refusNet ? "L'outil de publication a refusé l'envoi : rien n'est parti." : perdue, detail };
   }
-  return { incertain: true, message: "L'outil de publication n'a pas répondu : l'envoi est à vérifier." };
+  return { incertain: true, message: perdue };
 }
 
 /** Cibles d'un envoi par l'autre outil (z2e, D9) : même forme que les comptes Buffer. */

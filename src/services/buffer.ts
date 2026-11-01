@@ -17,7 +17,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceBuffer, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
-import { outilDe } from "@/domaine/outil-publication";
+import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
 import type { Id, IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
@@ -309,6 +309,12 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
   } catch {
     return p; // Buffer muet : on relira plus tard, sans rien renvoyer.
   }
+  // Plusieurs pages d'un même compte pour cette vidéo et ce réseau : le post retrouvé peut être celui d'une autre page.
+  // On ne conclut pas « envoyé » : l'envoi reste à vérifier (jamais de renvoi non plus).
+  if (trouvee && outil !== "buffer" && p.canalId.includes(":")) {
+    const memeCompte = await d.publications.lister((x) => x.id !== p.id && x.videoId === p.videoId && x.reseau === p.reseau && outilDe(x) === outil && !!x.canalId && x.canalId !== p.canalId && x.canalId.split(":")[0] === canalLu);
+    if (memeCompte.length) return p;
+  }
   const absente = !trouvee && instant - new Date(p.envoiCommenceLe).getTime() >= DELAI_ABSENCE_MS;
   if (!trouvee && !absente) return p;
   return sousVerrou(async () => {
@@ -319,7 +325,8 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
       return d.publications.modifier(p.id, { etatEnvoi: "envoye", idExterne: trouvee.idExterne, statut: trouvee.statut, etatLuLe: new Date(instant).toISOString(), ...(trouvee.lien ? { urlPubliee: trouvee.lien } : {}) });
     }
     const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
-    await creerNotification({ type: "echec", titre: "Envoi vers Buffer non arrivé", message: `${obtenirReseau(p.reseau).nom} : Buffer n'a rien reçu. Vérifiez dans Buffer avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+    const eux = outil === "buffer" ? "Buffer" : "l'outil de publication";
+    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "dans Buffer" : "chez lui"} avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
     return modif;
   });
 }
@@ -342,21 +349,27 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
   if (!options.force && g[cleSynchro] && instant - g[cleSynchro]! < INTERVALLE_SYNCHRO_BUFFER_MS) return { lues: 0, changees: 0 };
   g[cleSynchro] = instant;
   const f = await publicationReelle();
-  if (!f?.lireEtat) return { lues: 0, changees: 0 };
   const d = depots();
   const r = { lues: 0, changees: 0 };
+  // 1. Envois interrompus ou à vérifier (de n'importe quel outil) : relire, jamais renvoyer. Chaque outil se relit lui-même.
+  const relireEnvoisIncertains = async () => {
+    const aVerifier = await d.publications.lister((p) => estChezUnOutil(p) && (p.etatEnvoi === "a-verifier" || (p.etatEnvoi === "en-cours" && !!p.envoiCommenceLe && instant - new Date(p.envoiCommenceLe).getTime() > ENVOI_INTERROMPU_MS)));
+    for (const p of aVerifier) {
+      r.lues++;
+      const apres = await reconcilierEnvoi(p.id, instant);
+      if (apres && apres.etatEnvoi !== p.etatEnvoi) r.changees++;
+    }
+  };
+  if (!f?.lireEtat) {
+    await relireEnvoisIncertains();
+    return r;
+  }
 
   // 0. Comptes : relus au plus une fois par heure (un compte relié ou retiré dans Buffer).
   const lus = await canauxEnregistres();
   if (!lus || instant - new Date(lus.lusLe).getTime() >= INTERVALLE_COMPTES_BUFFER_MS) await actualiserCanauxBuffer().catch(() => undefined);
 
-  // 1. Envois interrompus ou à vérifier : relire, jamais renvoyer.
-  const aVerifier = await d.publications.lister((p) => p.via === "buffer" && (p.etatEnvoi === "a-verifier" || (p.etatEnvoi === "en-cours" && !!p.envoiCommenceLe && instant - new Date(p.envoiCommenceLe).getTime() > ENVOI_INTERROMPU_MS)));
-  for (const p of aVerifier) {
-    r.lues++;
-    const apres = await reconcilierEnvoi(p.id, instant);
-    if (apres && apres.etatEnvoi !== p.etatEnvoi) r.changees++;
-  }
+  await relireEnvoisIncertains();
 
   // 2. Publications chez Buffer pas encore publiées : leur état.
   const suivies = (await d.publications.lister((p) => p.via === "buffer" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye")))
