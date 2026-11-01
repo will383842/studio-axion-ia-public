@@ -2,6 +2,7 @@
  * Z3-M · écran Migration. Données 100 % fictives (« exemple »). Rendu serveur statique, aucun réseau.
  * Jetons concaténés pour les mots interdits : ils ne s'écrivent jamais en clair dans le dépôt.
  */
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { EcranMigration } from "@/components/migration/EcranMigration";
@@ -9,7 +10,7 @@ import { Criteres } from "@/components/migration/Criteres";
 import { FenetreLot } from "@/components/migration/FenetreLot";
 import { Heros } from "@/components/migration/Heros";
 import { compter, critereResiliation, postsConfirmables, type CompteMigration, type PostMigration, type PublicationReelle } from "@/components/migration/logique";
-import { confirmerRetraitEtProgrammation, RAISON_NON_BRANCHE, serviceNonBranche, type ServiceImport } from "@/components/migration/services";
+import { confirmerRetraitEtProgrammation, PLAFOND_IDS_PAR_APPEL, RAISON_NON_BRANCHE, serviceNonBranche, type ServiceImport } from "@/components/migration/services";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 
 vi.mock("next/link", () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
@@ -120,7 +121,7 @@ describe("z3m · 4 états et langue", () => {
   it("normal", () => {
     expect(vues.normal).toContain("Les 4 posts de Buffer passent chez Zernio");
     expect(vues.normal).toContain("Rien n’est retiré de Buffer sans votre ordre.");
-    expect(vues.normal).toContain("Vérifier le lot B · 1 posts");
+    expect(vues.normal).toContain("Vérifier le lot B · 1 post");
     expect(vues.normal).toContain("8 jours");
     expect(vues.normal).toContain("Mode simulation");
   });
@@ -136,8 +137,43 @@ describe("z3m · 4 états et langue", () => {
       expect(motsInterditsEnvoi(texte)).toEqual([]);
       expect(texte).not.toMatch(/\b(tu|ton|ta|tes|toi)\b/i);
       expect(texte).not.toMatch(new RegExp(["cert", "ifi"].join(""), "i"));
-      expect(texte).not.toContain("Grenoble");
-      expect(texte).not.toContain("Aucun gain garanti");
+      expect(texte).not.toContain(["Gren", "oble"].join(""));
+      expect(texte).not.toContain(["Aucun gain", " garanti"].join(""));
     }
+  });
+});
+
+describe("z3m · garde d'accès et contrat", () => {
+  it("actions-migration.ts : toute fonction exportée commence par await exigerSession(, aucun lecteur injectable", () => {
+    const source = readFileSync("src/app/(studio)/reglages/actions-migration.ts", "utf8");
+    expect(source.trimStart().startsWith('"use server"')).toBe(true);
+    const exportees = [...source.matchAll(/export\s+(?:async\s+)?function\s+(\w+)/g)];
+    expect(exportees.map((m) => m[1])).toEqual(["lireMigrationAction"]);
+    expect(source).not.toMatch(/export\s+(?!async\s+function)(?!type\s)(?!interface\s)/);
+    for (const m of exportees) {
+      const corps = source.slice(m.index!).match(/export\s+async\s+function\s+\w+\s*\([^)]*\)[^{]*\{\s*(await exigerSession\()?/);
+      expect(corps?.[1], `${m[1]} doit commencer par await exigerSession(`).toBeTruthy();
+    }
+  });
+  it("aucune suppression vers Buffer dans les services de migration", () => {
+    for (const f of ["src/components/migration/services.ts", "src/components/migration/FenetreLot.tsx", "src/app/(studio)/reglages/actions-migration.ts", "src/services/lecteur-migration.ts"]) {
+      const source = readFileSync(f, "utf8").split("\n").filter((l) => !/^\s*(\/\/|\/?\*)/.test(l)).join("\n");
+      expect(source, f).not.toMatch(/method\s*:\s*["']DELETE["']/i);
+      expect(source, f).not.toMatch(/\.delete\s*\(|\bsupprimer\w*\s*\(|\bdelete\w*\s*\(/i);
+    }
+  });
+  it("plafond d'ids par appel : rien n'est transmis au-delà", async () => {
+    const retirer = vi.fn(async () => ({ ok: true as const, message: "" }));
+    const s: ServiceImport = { ...serviceNonBranche, disponible: true, retirerDeBufferEtProgrammer: retirer };
+    const ids = Array.from({ length: PLAFOND_IDS_PAR_APPEL + 1 }, (_, i) => `p${i}`);
+    const r = await confirmerRetraitEtProgrammation(s, ids, [post("p0", "a-verifier", "linkedin", "2026-11-12T10:00:00Z", true)], MAINT);
+    expect(r.resultat.ok).toBe(false);
+    expect(retirer).not.toHaveBeenCalled();
+  });
+  it("accord du pluriel : « 1 post », « 2 posts »", () => {
+    const un = renderToStaticMarkup(<FenetreLot titre="Lot B" posts={[post("c", "a-verifier")]} comparaisons={[]} service={serviceNonBranche} maintenant={MAINT} onFermer={() => {}} />);
+    expect(un).toContain("Lot B · 1 post<");
+    const deux = renderToStaticMarkup(<FenetreLot titre="Lot B" posts={[post("c", "a-verifier"), post("e", "a-verifier")]} comparaisons={[]} service={serviceNonBranche} maintenant={MAINT} onFermer={() => {}} />);
+    expect(deux).toContain("Lot B · 2 posts<");
   });
 });

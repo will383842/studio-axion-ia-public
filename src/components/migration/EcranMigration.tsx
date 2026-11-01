@@ -75,6 +75,7 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
   const remplis = comptes.filter((x) => critereResiliation(x).rempli).length;
   const aReprogrammer = posts.filter((p) => Date.parse(p.datePrevue) < maintenant.getTime() && (p.etat === "a-verifier" || p.etat === "restant"));
   const lotAVerifier = lots.find((l) => l.code !== "C" && posts.some((p) => lotDe(p) === l.code && p.etat === "a-verifier"));
+  const nbAVerifier = lotAVerifier ? posts.filter((p) => lotDe(p) === lotAVerifier.code && p.etat === "a-verifier").length : 0;
   const enLot = (code: CodeLot) => posts.filter((p) => lotDe(p) === code);
   const avant14 = maintenant.toISOString().slice(0, 10) < "2026-11-14";
 
@@ -87,7 +88,7 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
         <h2 id="mig-suite" className="text-sm font-semibold text-texte-doux">Prochaine étape · vous</h2>
         {lotAVerifier ? (
           <button type="button" onClick={() => setLotOuvert(lotAVerifier.code)} className="mt-2 min-h-12 w-full rounded-full bg-orange px-5 font-semibold text-sur-orange">
-            Vérifier le lot {lotAVerifier.code} · {posts.filter((p) => lotDe(p) === lotAVerifier.code && p.etat === "a-verifier").length} posts
+            Vérifier le lot {lotAVerifier.code} · {nbAVerifier} post{nbAVerifier > 1 ? "s" : ""}
           </button>
         ) : (
           <button type="button" disabled className="mt-2 min-h-12 w-full rounded-full bg-surface-3 px-5 font-semibold text-texte-doux">

@@ -5,6 +5,7 @@
  */
 import { essayer, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
+import { lireDonneesMigration } from "@/services/lecteur-migration";
 import type { DonneesMigration } from "@/components/migration/logique";
 
 export interface EtatMigration {
@@ -13,18 +14,12 @@ export interface EtatMigration {
   simulation: boolean;
 }
 
-type Lecteur = () => Promise<DonneesMigration | null>;
-let lecteur: Lecteur = async () => null;
-
-/** Pour les tests et le futur branchement IMP-1 / IMP-2 : lecteur de données injectable. */
-export async function injecterLecteurMigration(l: Lecteur | null): Promise<void> {
-  lecteur = l ?? (async () => null);
-}
+// Le lecteur injectable vit dans @/services/lecteur-migration : un « use server » n'exporte que des actions gardées.
 
 export async function lireMigrationAction(): Promise<Resultat<EtatMigration>> {
   await exigerSession();
   return essayer(async () => {
-    const donnees = await lecteur();
+    const donnees = await lireDonneesMigration();
     return { donnees: donnees && donnees.posts.length ? donnees : null, simulation: !process.env.ZERNIO_API_KEY };
   });
 }
