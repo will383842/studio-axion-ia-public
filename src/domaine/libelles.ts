@@ -346,5 +346,8 @@ export const LIBELLES_ENVOI = {
   validerLesN: (n: number) => `Valider et programmer les ${n}`,
   noteGroupee: "Le TikTok attend votre accord.",
   annuler: "Annuler",
+  simuleRaison: "Pour le moment, c'est un essai : rien ne peut partir tant que l'outil de publication n'est pas relié.",
+  groupeDate: (jour: string) => `Tous les envois partiront ${jour}, à 9 h.`,
+  groupeConseil: "Pour changer un envoi, ouvrez la vidéo et repassez-la en brouillon.",
   enCours: "Envoi en cours…",
 } as const;

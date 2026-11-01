@@ -3,6 +3,7 @@
  * et la vidéo suivante à traiter. Pure mise en forme : aucune règle d'envoi ici.
  */
 import { LIBELLES_ENVOI, NOMS_OUTILS_PUBLICATION } from "@/domaine/libelles";
+import { FIN_BUFFER_ISO } from "@/domaine/outil-publication";
 import type { IdReseau } from "@/domaine/types";
 import type { LigneAPublier } from "@/services/a-publier";
 import { FILTRE_PAR_DEFAUT, TRANCHE, type FiltreListe } from "./liste-a-publier";
@@ -51,8 +52,8 @@ export function videoSuivante(lignes: LigneAPublier[], actuelle: string, reseau:
 export type OutilAffiche = keyof typeof NOMS_OUTILS_PUBLICATION;
 export type EtatEnvoi = "brouillon" | "programmee" | "publiee" | "echec";
 
-/** Date de fin de l'accompagnement de Buffer : « 20/11 » (choix proposé jusque-là seulement). */
-export const FIN_BUFFER = "20/11";
+/** Date de fin du choix de Buffer, « 20/11 », lue sur l'unique source (heure de Paris). */
+export const FIN_BUFFER = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Paris" }).format(new Date(FIN_BUFFER_ISO));
 
 /** Nom de l'outil, tel que le catalogue le donne. */
 export function nomOutil(outil: OutilAffiche | undefined): string {
@@ -135,12 +136,12 @@ export type ActionPrincipale =
   | { type: "valider"; libelle: string; petit: string | null; desactive: boolean; raison: string | null }
   | { type: "repasser"; libelle: string; phrase: string }
   | { type: "voir"; libelle: string; phrase: string; lien: string | null }
-  | { type: "reessayer"; libelle: string };
+  | { type: "reessayer"; libelle: string; desactive: boolean };
 
 export function actionPrincipale(e: { etat: EtatEnvoi; reseau: IdReseau | string; accordTiktok: boolean; dateEnvoi?: string; lien?: string }): ActionPrincipale {
   if (e.etat === "programmee") return { type: "repasser", libelle: LIBELLES_ENVOI.repasserBrouillon, phrase: phraseProgrammee(e.dateEnvoi) };
   if (e.etat === "publiee") return { type: "voir", libelle: LIBELLES_ENVOI.voirPublication, phrase: LIBELLES_ENVOI.publieeVerifiee, lien: e.lien ?? null };
-  if (e.etat === "echec") return { type: "reessayer", libelle: LIBELLES_ENVOI.reessayer };
+  if (e.etat === "echec") return { type: "reessayer", libelle: LIBELLES_ENVOI.reessayer, desactive: e.reseau === "tiktok" && !e.accordTiktok };
   const bloque = e.reseau === "tiktok" && !e.accordTiktok;
   return { type: "valider", libelle: LIBELLES_ENVOI.validerEtProgrammer, petit: jourHeureEnvoi(e.dateEnvoi), desactive: bloque, raison: bloque ? LIBELLES_ENVOI.tiktokAccordManquant : null };
 }

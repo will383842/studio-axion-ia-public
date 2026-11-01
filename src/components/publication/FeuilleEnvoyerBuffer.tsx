@@ -102,7 +102,8 @@ export function FeuilleEnvoyerBuffer() {
   const [date, setDate] = useState(() => versLocal(demainNeufHeures()));
   // Vérification E2E n° 1, n° 29 : date choisie dans le passé (calculé au choix de la date, pas pendant l'affichage).
   const [datePassee, setDatePassee] = useState(false);
-  // TikTok : l'accord se donne à CHAQUE envoi (jamais mémorisé).
+  // TikTok : l'accord se donne à CHAQUE envoi (jamais mémorisé). Cette case ne sert qu'à l'affichage (bouton inactif et phrase) :
+  // l'accord n'est PAS transmis par ce chemin (envoyerVersBuffer ne le reçoit pas) ; c'est l'écran de détail qui le transmet.
   const [accordTiktok, setAccordTiktok] = useState(false);
   const [envoi, demarrerEnvoi] = useTransition();
   const [manuel, demarrerManuel] = useTransition();

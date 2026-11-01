@@ -4,7 +4,7 @@
  * choisi POUR UN CONTENU. Rien n'est modifié dans `publications.ts` : on n'appelle que ses fonctions exportées.
  * Le nom de l'outil vient du catalogue (libelles.ts), jamais d'un bouton. Aucune clé, aucun identifiant réel ici.
  */
-import { outilDe, outilPour, type OutilPublication } from "@/domaine/outil-publication";
+import { FIN_BUFFER_ISO, outilDe, outilPour, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, Publication } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { Resultat } from "./_commun";
@@ -14,9 +14,6 @@ import { exigerSession } from "./auth";
 import { lireModeBuffer } from "./buffer";
 import { envoyerReel, envoyerVersBuffer, obtenirKit, videoEnEssai } from "./publications";
 import { lireRoutage } from "./routage-publication";
-
-/** Jour (inclus) jusqu'auquel Buffer reste proposé comme choix pour un contenu. */
-const FIN_BUFFER_ISO = "2026-11-20T23:59:59.000Z";
 
 export type EtatComplement = "aucun" | "brouillon" | "programmee" | "publiee" | "echec";
 
