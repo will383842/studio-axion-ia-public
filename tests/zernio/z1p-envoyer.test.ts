@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { cleEnvoiPublication } from "@/domaine/outil-publication";
 import { creerPublicationZernio } from "@/fournisseurs/publication/zernio";
 import type { LecteurMedia } from "@/fournisseurs/publication/zernio-medias";
-import type { DemandePublication } from "@/fournisseurs/types";
+import type { DemandeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { creerFauxClientZernio, CLE_FICTIVE, postExemple, type AppelEnregistre, type ReponsePreparee } from "./aides/faux-zernio";
 
 const CLE = cleEnvoiPublication("video-exemple", "instagram", "2026-11-05T10:00:00Z", "exemple");
 const flux = () => new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array([1])); c.close(); } });
 const lire: LecteurMedia = async () => ({ corps: flux(), taille: 1 });
-const demande = (p: Partial<DemandePublication> = {}): DemandePublication => ({ reseau: "instagram", texte: "Texte d'exemple", date: "2026-11-05T10:00:00Z", fichierCle: "https://exemple-r2.test/v.mp4", cible: "exemple-compte-1", cleEnvoi: CLE, ...p });
+const demande = (p: Partial<DemandeZernio> = {}): DemandeZernio => ({ reseau: "instagram", texte: "Texte d'exemple", date: "2026-11-05T10:00:00Z", fichierCle: "https://exemple-r2.test/v.mp4", cible: "exemple-compte-1", cleEnvoi: CLE, ...p });
 
 function serveur(suite: (a: AppelEnregistre) => ReponsePreparee | undefined = () => undefined) {
   return (a: AppelEnregistre): ReponsePreparee => {

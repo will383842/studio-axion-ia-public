@@ -3,8 +3,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { corpsPostZernio, type CreateurTiktok } from "@/fournisseurs/publication/zernio-corps";
-import type { DemandePublication } from "@/fournisseurs/types";
+import { corpsPostZernio, type CreateurTiktok, type DemandeZernio } from "@/fournisseurs/publication/zernio-corps";
 
 const CHEMIN = "docs/zernio/openapi-extrait-1.418.1.json";
 function charger(): any | null {
@@ -39,14 +38,14 @@ function erreurs(sch: any, v: unknown, chemin: string, racine: any): string[] {
 }
 const CREATEUR: CreateurTiktok = { privacyLevels: ["PUBLIC_TO_EVERYONE"], allowComment: true, allowDuet: true, allowStitch: false };
 const MAINTENANT = Date.parse("2026-11-01T08:00:00Z");
-const d = (p: Partial<DemandePublication>): DemandePublication => ({ reseau: "instagram", texte: "Texte d'exemple", date: "2026-11-05T10:00:00Z", fichierCle: "https://exemple.test/v.mp4", cible: "exemple-compte-1", cleEnvoi: "b".repeat(64), ...p });
+const d = (p: Partial<DemandeZernio>): DemandeZernio => ({ reseau: "instagram", texte: "Texte d'exemple", date: "2026-11-05T10:00:00Z", fichierCle: "https://exemple.test/v.mp4", cible: "exemple-compte-1", cleEnvoi: "b".repeat(64), ...p });
 
 describe.skipIf(!spec)("z1p · corps validés par l'OpenAPI", () => {
   const valide = (nom: string, v: unknown) => expect(erreurs(spec.components.schemas[nom], v, nom, spec), nom).toEqual([]);
   const racine = spec?.paths["/v1/posts"].post.requestBody.content["application/json"].schema;
   const champsRacine = Object.keys(racine?.properties ?? {});
   const champsEntree = Object.keys(racine?.properties.platforms.items.properties ?? {});
-  const cas: [string, Partial<DemandePublication>, string][] = [
+  const cas: [string, Partial<DemandeZernio>, string][] = [
     ["Instagram Reel IA", { contenuIA: true }, "InstagramPlatformData"],
     ["Facebook Reel", { reseau: "facebook", cible: "a:fb:p1", format: "9:16", dureeSec: 20, premierCommentaire: "Voir" }, "FacebookPlatformData"],
     ["LinkedIn page + PDF", { reseau: "linkedin", cible: "a:li:42", document: { url: "https://exemple.test/d.pdf", titre: "Guide" } }, "LinkedInPlatformData"],
