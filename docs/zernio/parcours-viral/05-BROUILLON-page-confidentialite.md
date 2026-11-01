@@ -11,7 +11,7 @@ Quand vous commentez un mot-clé (par exemple GUIDE) sous une de nos publication
 
 **Qui traite vos données.** [Éditeur du site : à compléter], responsable du traitement. Nous utilisons Zernio, un prestataire (sous-traitant) qui gère les commentaires et les messages sur les réseaux sociaux. [Pays d'hébergement et garanties : à compléter après lecture du contrat, voir Q11.]
 
-**Quelles données.** Votre nom public sur le réseau, votre commentaire, les messages échangés, votre adresse e-mail, le mot demandé, la date, votre réponse à la question sur les conseils par e-mail et la preuve de cette réponse.
+**Quelles données.** Votre identifiant public sur le réseau, votre commentaire, les messages échangés, votre adresse e-mail, le mot demandé, la date, votre réponse à la question sur les conseils par e-mail et la preuve de cette réponse.
 
 **Pourquoi.**
 1. Vous envoyer le guide demandé, par e-mail. Cela se fait dans tous les cas, que vous acceptiez ou non les conseils.
@@ -19,19 +19,19 @@ Quand vous commentez un mot-clé (par exemple GUIDE) sous une de nos publication
 
 **Combien de temps.** Nous conservons ces données pendant 3 ans à partir de notre dernier échange avec vous. Ensuite, votre dossier est mis à l'écart : nous ne vous contactons plus. [Mention éventuelle sur l'effacement : À DÉCIDER PAR L'OPÉRATEUR, QE.]
 
-**Vos droits.** Vous pouvez demander l'accès à vos données, leur rectification, ou vous opposer à tout moment : écrivez STOP dans la conversation, utilisez le lien de désinscription de chaque e-mail, ou écrivez à [contact : à compléter]. Votre opposition vous met à l'écart de toutes nos communications. Vous pouvez aussi saisir l'autorité de contrôle compétente [nom : à compléter].
+**Vos droits.** Vous pouvez demander l'accès à vos données, leur rectification, leur effacement, ou vous opposer à tout moment : écrivez STOP dans la conversation, utilisez le lien de désinscription de chaque e-mail, ou écrivez à [contact : à compléter]. Votre opposition vous met à l'écart de toutes nos communications. Une demande d'effacement ne supprime rien automatiquement : elle est transmise à l'opérateur, qui décide. Vous pouvez aussi saisir l'autorité de contrôle compétente [nom : à compléter].
 
 **Qui reçoit les données.** Le site, notre outil de gestion de la relation client et notre prestataire Zernio. Aucune donnée personnelle n'est transmise à nos outils de statistiques, qui ne reçoivent que des chiffres.
 
 ## Annexe · brouillons de messages (NON DÉFINITIFS, à valider par l'opérateur)
 
-Mention obligatoire en tête de chaque message privé : « Message automatique » (sans autre qualificatif).
+Mention obligatoire en tête de chaque message privé : « Message automatique » (sans autre qualificatif). M1 est en texte seul ; M2 est un message séparé avec boutons « Oui » et « Non ».
 
 - **Réponse publique** : « Merci ! Regardez vos messages privés. »
 - **M1 · message privé** : « Message automatique. Bonjour, pour vous envoyer le guide, quelle est votre adresse e-mail ? »
 - **M1 bis · adresse mal écrite (une seule fois)** : « Message automatique. Cette adresse semble incomplète. Pouvez-vous la réécrire ? » + bouton « Recevoir ici ».
-- **M2 · question d'accord** : « Souhaitez-vous aussi recevoir nos conseils par e-mail ? Répondez Oui ou Non. Le guide vous sera envoyé dans tous les cas. Écrivez STOP pour ne plus être contacté. »
-- **M3 · confirmation** : « Merci. Votre guide arrive par e-mail. Si vous avez répondu Oui, cliquez sur le lien de confirmation de l'e-mail : sans ce clic, vous ne recevrez aucun conseil. [Fréquence annoncée : À DÉCIDER PAR L'OPÉRATEUR, Q8] »
+- **M2 · question d'accord** (message séparé de M1, avec deux boutons « Oui » et « Non ») : « Message automatique. Souhaitez-vous aussi recevoir nos conseils par e-mail ? Le guide vous sera envoyé dans tous les cas. Écrivez STOP pour ne plus être contacté. »
+- **M3 · confirmation** : « Message automatique. Merci. Votre guide arrive par e-mail. Si vous avez répondu Oui, cliquez sur le lien de confirmation de l'e-mail : sans ce clic, vous ne recevrez aucun conseil. [Fréquence annoncée : À DÉCIDER PAR L'OPÉRATEUR, Q8] »
 - **Jamais de relance** : aucun message n'est envoyé si la personne ne répond pas.
 
 ## Points de vigilance

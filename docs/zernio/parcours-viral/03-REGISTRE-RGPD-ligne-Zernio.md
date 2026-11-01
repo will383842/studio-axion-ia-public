@@ -16,10 +16,10 @@
 | Données chez Zernio | Identifiant public du commentateur sur le réseau, texte du commentaire, contenu des messages échangés, adresse e-mail saisie dans la conversation, dates |
 | Données chez le Studio | Références opaques et compteurs ; **jamais l'adresse e-mail** |
 | Données chez le site | Adresse e-mail, mot d'origine, date, accord, preuve d'accord (document 04) |
-| Destinataires | Site, CRM Pro (synchro), Zernio (sous-traitant). L'Usine ne reçoit que des chiffres et des oppositions |
+| Destinataires | Site, CRM Pro (synchro), Zernio (sous-traitant). L'Usine ne reçoit que des chiffres et le nombre d'oppositions, sans identité |
 | Durée de conservation | Annoncée : 3 ans depuis le dernier échange, puis mise à l'écart sans suppression (Q6). **À DÉCIDER PAR L'OPÉRATEUR (QE)** : durée de conservation des identifiants de commentateurs et conformité avec la règle « rien n'est supprimé » |
 | Transferts hors UE | **À DÉCIDER PAR L'OPÉRATEUR (Q11)** : pays d'hébergement de Zernio et garanties à lire dans son contrat de traitement. Ne rien activer avant cette lecture |
 | Contrat de traitement (art. 28) | À obtenir et à lire par l'opérateur (Q11) ; référence à consigner ici : [à compléter] |
 | Mesures de sécurité | Secret de webhook en base, liste fermée de chemins (ADR-0004 et amendement), filtre de mots interdits, plafonds, disjoncteur, « Tout arrêter », aucune adresse dans le Studio |
-| Droits | Accès, rectification, opposition (mot STOP dans la conversation), retrait du consentement (lien dans chaque e-mail). L'opposition met la personne à l'écart partout |
+| Droits | Accès, rectification, opposition (mot STOP dans la conversation), effacement, retrait du consentement (lien dans chaque e-mail). L'opposition met la personne à l'écart partout. Une demande d'effacement ne supprime rien automatiquement : elle envoie une alerte à l'opérateur, qui décide. |
 | Analyse d'impact | Probablement non requise (volume limité, pas de données sensibles) ; à confirmer |
