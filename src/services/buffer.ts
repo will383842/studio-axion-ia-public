@@ -313,7 +313,11 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
   // On ne conclut pas « envoyé » : l'envoi reste à vérifier (jamais de renvoi non plus).
   if (trouvee && outil !== "buffer" && p.canalId.includes(":")) {
     const memeCompte = await d.publications.lister((x) => x.id !== p.id && x.videoId === p.videoId && x.reseau === p.reseau && outilDe(x) === outil && !!x.canalId && x.canalId !== p.canalId && x.canalId.split(":")[0] === canalLu);
-    if (memeCompte.length) return p;
+    if (memeCompte.length) {
+      // Annoncé dans le journal (message neutre, sans secret) : une vérification à la main est nécessaire.
+      await journaliser("publication", `Envoi à vérifier à la main (${obtenirReseau(p.reseau).nom}) : plusieurs pages du même compte, l'outil de publication ne permet pas de savoir laquelle est partie.`, { type: "video", id: p.videoId });
+      return p;
+    }
   }
   const absente = !trouvee && instant - new Date(p.envoiCommenceLe).getTime() >= DELAI_ABSENCE_MS;
   if (!trouvee && !absente) return p;
