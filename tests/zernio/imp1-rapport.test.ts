@@ -48,6 +48,25 @@ describe("IMP-1 rapport", () => {
     expect(sortie).toContain("Titres de PDF de plus de 60 signes");
   });
 
+  it("période en heure de Paris : bords inclus/exclus", () => {
+    const base = { canalId: "canal-exemple-1", statut: "scheduled", texte: "t", medias: [] };
+    const debut: PostBuffer = { ...base, id: "p-debut", dateUtc: "2026-11-05T23:30:00Z" }; // 06/11 00:30 Paris
+    const fin: PostBuffer = { ...base, id: "p-fin", dateUtc: "2026-11-18T23:30:00Z" }; // 19/11 00:30 Paris
+    const r = construireRapport([debut, fin], CANAUX);
+    expect(r.comptes.find((c) => c.canalId === "canal-exemple-1")!.jours["2026-11-06"].total).toBe(1);
+    expect(r.horsPeriode).toBe(1);
+    expect(formaterRapport(r)).toContain("(heure de Paris)");
+  });
+
+  it("mot interdit dans un champ non contrôlé (adresse du lien) : détecté sur le post entier ; adresses de médias ignorées", () => {
+    const p: PostBuffer = { id: "p-split", canalId: "canal-exemple-1", statut: "scheduled", dateUtc: "2026-11-08T09:00:00Z", texte: "t", medias: [], lienJoint: { url: `https://exemple.invalid/${MOT_A}` } };
+    const r = construireRapport([p], CANAUX);
+    expect(r.motsInterdits).toHaveLength(1);
+    expect(r.motsInterdits[0]).toMatchObject({ postId: "p-split", champ: "ensemble du post" });
+    const media: PostBuffer = { ...p, id: "p-url", lienJoint: undefined, medias: [{ type: "image", mime: "image/png", source: `https://exemple.invalid/${MOT_A}.png` }] };
+    expect(construireRapport([media], CANAUX).motsInterdits).toEqual([]);
+  });
+
   it("« certificat » reste autorisé, un titre de 60 signes pile n'est pas signalé", () => {
     const p: PostBuffer = { id: "p", canalId: "canal-exemple-1", statut: "scheduled", texte: "Un certificat exemple", medias: [{ type: "document", mime: "application/pdf", source: "", titre: "y".repeat(60) }] };
     const r = construireRapport([p], CANAUX);
@@ -73,5 +92,10 @@ describe("IMP-1 statistiques passées", () => {
     expect(requetes.every((q) => !/mutation/i.test(q))).toBe(true);
     expect(statistiquesEnCsv(stats).split("\n")).toHaveLength(3);
     vi.restoreAllMocks();
+  });
+
+  it("signale la troncature au plafond de pages", async () => {
+    const client = { async lire() { return { posts: { edges: [], pageInfo: { hasNextPage: true, endCursor: "suite" } } }; } };
+    await expect(lireStatistiquesPassees(client, "exemple-org", 50, 3)).rejects.toMatchObject({ code: "tronquee" });
   });
 });

@@ -59,8 +59,14 @@ export async function copierMedia(
   const cle = cleMediaPrive(bufferId, rang, media.mime);
   if (!media.source || !/^https:\/\//.test(media.source)) throw new Error("Média sans adresse de lecture.");
   if (!stockage.urlDepotDuree) throw new Error("Stockage privé indisponible (R2 non configuré).");
+  if (media.tailleAnnoncee !== undefined && media.tailleAnnoncee > TAILLE_MAX_MEDIA) throw new Error("Média trop volumineux.");
   const lecture = await appeler(media.source, { signal: AbortSignal.timeout(DELAI_MS) });
   if (!lecture.ok) throw new Error(`Téléchargement refusé (HTTP ${lecture.status}).`);
+  const annoncee = Number(lecture.headers.get("content-length"));
+  if (Number.isFinite(annoncee) && annoncee > TAILLE_MAX_MEDIA) {
+    await lecture.body?.cancel().catch(() => undefined);
+    throw new Error("Média trop volumineux.");
+  }
   const octets = new Uint8Array(await lecture.arrayBuffer());
   if (octets.byteLength === 0) throw new Error("Média vide.");
   if (octets.byteLength > TAILLE_MAX_MEDIA) throw new Error("Média trop volumineux.");

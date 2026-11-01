@@ -37,11 +37,14 @@ async function main() {
   const { retenus, exclus } = filtrerPostsAVenir(lu.posts, maintenant);
   const rapport = formaterRapport(construireRapport(retenus, lu.canaux, periode));
   console.log(`${lu.posts.length} posts lus, ${retenus.length} retenus, ${exclus.length} exclus (${aBlanc ? "à blanc : rien n'est écrit" : "écriture locale"}).\n`);
+  if (lu.tronque) console.log("ATTENTION : lecture tronquée (plafond de pages atteint), la liste est incomplète.");
   console.log(rapport);
 
   let journal = nouveauJournal(maintenant, aBlanc);
   for (const e of exclus) journal = ajouterEntree(journal, entreeExclue(e));
-  if (veutMedias) {
+  if (!veutMedias) {
+    for (const p of retenus) journal = ajouterEntree(journal, { bufferId: p.id, etat: "lu", medias: [], echecsMedias: 0 });
+  } else {
     const config = configR2();
     if (!config) throw new Error("Variables R2_* absentes : copie des médias impossible.");
     const stockage = creerStockageR2(config);

@@ -3,6 +3,7 @@
  * sur TOUS les champs (texte, premier commentaire, titres, textes alternatifs), titres de document > 60 signes,
  * liens joints. Le rapport ne recopie jamais un texte de post : seulement des identifiants, champs et libellés.
  */
+import { jourParis } from "./exclusions";
 import { motsInterditsEnvoi } from "../../fournisseurs/publication/mots-interdits-envoi";
 import type { CanalBuffer, PostBuffer } from "./types";
 
@@ -24,7 +25,7 @@ export interface LigneCompte {
 
 export interface AlerteMotInterdit {
   postId: string;
-  champ: "texte" | "premier commentaire" | "titre" | "titre de document" | "titre de vidéo" | "texte alternatif" | "lien";
+  champ: "texte" | "premier commentaire" | "titre" | "titre de document" | "titre de vidéo" | "texte alternatif" | "lien" | "ensemble du post";
   mots: string[];
 }
 
@@ -38,7 +39,7 @@ export interface Rapport {
   liensJoints: { postId: string; canalId: string }[];
 }
 
-/** Jours AAAA-MM-JJ de `du` à `au` inclus (UTC). */
+/** Jours AAAA-MM-JJ de `du` à `au` inclus (calendrier, sans fuseau). */
 export function joursDe(du: string, au: string): string[] {
   const res: string[] = [];
   for (let t = Date.parse(`${du}T00:00:00Z`); t <= Date.parse(`${au}T00:00:00Z`) && res.length < 400; t += 86_400_000) res.push(new Date(t).toISOString().slice(0, 10));
@@ -69,7 +70,7 @@ export function construireRapport(posts: PostBuffer[], canaux: CanalBuffer[], pe
   };
 
   for (const p of posts) {
-    const jour = p.dateUtc?.slice(0, 10);
+    const jour = jourParis(p.dateUtc);
     if (jour && jours.includes(jour)) {
       const c = ligne(p.canalId).jours[jour];
       c.total++;
@@ -92,6 +93,12 @@ export function construireRapport(posts: PostBuffer[], canaux: CanalBuffer[], pe
       rapport.liensJoints.push({ postId: p.id, canalId: p.canalId });
       verifier(p.id, "lien", p.lienJoint.titre);
     }
+    // Jetons répartis entre plusieurs champs : contrôle sur le post entier, sans les adresses de médias.
+    if (!rapport.motsInterdits.some((a) => a.postId === p.id)) {
+      const ensemble = JSON.stringify({ ...p, medias: p.medias.map((m) => ({ ...m, source: undefined })) });
+      const mots = motsInterditsEnvoi(ensemble);
+      if (mots.length) rapport.motsInterdits.push({ postId: p.id, champ: "ensemble du post", mots });
+    }
   }
   rapport.comptes = [...lignes.values()].sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
   return rapport;
@@ -99,7 +106,7 @@ export function construireRapport(posts: PostBuffer[], canaux: CanalBuffer[], pe
 
 /** Rapport lisible (console ou fichier). */
 export function formaterRapport(r: Rapport): string {
-  const L: string[] = [`Rapport d'import Buffer — période du ${r.periode.du} au ${r.periode.au} (UTC)`, ""];
+  const L: string[] = [`Rapport d'import Buffer — période du ${r.periode.du} au ${r.periode.au} (heure de Paris)`, ""];
   L.push("Comptes × jours (posts / dont avec premier commentaire) :");
   for (const c of r.comptes) {
     const jours = r.jours.filter((j) => c.jours[j].total > 0).map((j) => `${j.slice(5)} : ${c.jours[j].total}/${c.jours[j].avecPremierCommentaire}`);

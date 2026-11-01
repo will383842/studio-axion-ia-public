@@ -108,10 +108,12 @@ export interface LectureBuffer {
   canaux: CanalBuffer[];
   posts: PostBuffer[];
   organisationId: string;
+  /** Vrai si la lecture s'est arrêtée au plafond de pages alors que Buffer en annonçait encore. */
+  tronque: boolean;
 }
 
 /** Organisation, canaux, puis tous les posts à partir de `depuis`. Lecture seule. */
-export async function lireBuffer(client: ClientLecture, options: { depuis: string; taillePage?: number }): Promise<LectureBuffer> {
+export async function lireBuffer(client: ClientLecture, options: { depuis: string; taillePage?: number; pagesMax?: number }): Promise<LectureBuffer> {
   const compte = objet((await client.lire(REQUETE_COMPTE)).account);
   const orgs = Array.isArray(compte?.organizations) ? compte.organizations : [];
   const organisationId = texte(objet(orgs[0])?.id);
@@ -124,7 +126,9 @@ export async function lireBuffer(client: ClientLecture, options: { depuis: strin
   }
   const posts: PostBuffer[] = [];
   let apres: string | undefined;
-  for (let page = 0; page < PAGES_MAX; page++) {
+  let tronque = false;
+  const pagesMax = options.pagesMax ?? PAGES_MAX;
+  for (let page = 0; page < pagesMax; page++) {
     const resultat = objet((await client.lire(REQUETE_POSTS_A_VENIR, { organizationId: organisationId, depuis: options.depuis, apres, nombre: options.taillePage ?? 50 })).posts);
     for (const e of Array.isArray(resultat?.edges) ? resultat.edges : []) {
       const n = objet(objet(e)?.node);
@@ -133,6 +137,7 @@ export async function lireBuffer(client: ClientLecture, options: { depuis: strin
     const info = objet(resultat?.pageInfo);
     apres = texte(info?.endCursor);
     if (info?.hasNextPage !== true || !apres) break;
+    if (page === pagesMax - 1) tronque = true;
   }
-  return { canaux, posts, organisationId };
+  return { canaux, posts, organisationId, tronque };
 }

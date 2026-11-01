@@ -16,16 +16,16 @@ export function jourParis(iso: string | undefined): string | undefined {
   return Number.isNaN(t) ? undefined : JOUR_PARIS.format(new Date(t));
 }
 
-/** Vidéo de test : brouillon + au moins une vidéo + daté du 31/10 (de n'importe quelle année). */
+/** Vidéo de test : brouillon + au moins une vidéo + daté du 31/10/2026 (jour de Paris). */
 export function estVideoTest(p: PostBuffer): boolean {
   if (p.statut !== "draft") return false;
   if (!p.medias.some((m) => m.type === "video")) return false;
-  return /^\d{4}-10-31$/.test(jourParis(p.dateUtc ?? p.creeLe) ?? "");
+  return /^2026-10-31$/.test(jourParis(p.dateUtc ?? p.creeLe) ?? "");
 }
 
 export function raisonExclusion(p: PostBuffer, maintenant: Date): RaisonExclusion | undefined {
   if (estVideoTest(p)) return "video-test-31-10";
-  if (p.statut === "sent" || p.envoyeLe) return "envoye";
+  if (p.statut === "sent" || p.statut === "sending" || p.envoyeLe) return "envoye";
   const t = p.dateUtc ? Date.parse(p.dateUtc) : NaN;
   if (!Number.isNaN(t) && t < maintenant.getTime()) return "passe";
   return undefined;
