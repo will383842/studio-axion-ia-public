@@ -8,7 +8,7 @@
  */
 import "server-only";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
-import type { Publication, StatutPublication } from "@/domaine/types";
+import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
@@ -175,6 +175,9 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     .slice(0, LECTURES_PAR_TOUR);
   const lu = new Date(instant).toISOString();
   for (const p of suivies) {
+    const vid = videoIdSure(p);
+    const entite = vid ? { type: "video", id: vid } : undefined;
+    const lien = vid ? `/videos/${vid}` : "/calendrier";
     let post: PostZernio;
     try {
       post = await client.lirePost(p.idExterne!);
@@ -183,8 +186,8 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
         const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
         if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
-          await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, { type: "video", id: p.videoId });
-          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+          await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
+          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo });
         }
       }
       continue; // muet, 5xx, débit : on relira plus tard, jamais de renvoi
@@ -201,17 +204,17 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     r.changees++;
     const nom = obtenirReseau(p.reseau).nom;
     if (etat.statut === "publiee") {
-      await d.videos.modifier(p.videoId, { etapeEditoriale: "publiee" });
+      if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);
-      await journaliser("publication", `Publiée par Zernio sur ${nom}`, { type: "video", id: p.videoId });
+      await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
     } else if (etat.statut === "programmee") {
-      await passerProgrammee(p.videoId);
+      if (vid) await passerProgrammee(vid);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       const phrase = etat.note === "annulee" ? `Zernio a annulé la publication sur ${nom}.` : `Zernio n'a pas pu publier sur ${nom} : voyez la raison dans Zernio.`;
       console.warn(`[studio] Zernio, échec sur ${p.reseau} : ${etat.note ?? "échec"}`);
-      await journaliser("publication", phrase, { type: "video", id: p.videoId });
-      await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+      await journaliser("publication", phrase, entite);
+      await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
     }
   }
   return r;
