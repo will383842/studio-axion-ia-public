@@ -93,8 +93,9 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const demandes = mediasDemandes(d);
       // 2. Réglages du créateur TikTok, puis médias.
       const createurTiktok = plateformeZernio(d.reseau) === "tiktok" ? lireCreateurTiktok(await client.infoCreateurTiktok(cible.accountId)) : undefined;
-      const medias = await televerserMedias(client, lire, demandes);
-      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias });
+      const hotesPublics = new Set<string>();
+      const medias = await televerserMedias(client, lire, demandes, hotesPublics);
+      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics });
       // 3. Création, clé d'idempotence neutre.
       let resultat;
       try {
