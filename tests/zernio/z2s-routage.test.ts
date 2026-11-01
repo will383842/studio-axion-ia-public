@@ -41,7 +41,13 @@ describe("z2s · routage", () => {
   it("la clé la plus précise gagne ; retour à Buffer en un geste", async () => {
     injecterClientZernio(creerFauxClientZernio().client);
     await definirRoutage("instagram", "zernio");
-    await definirRoutage("instagram:exemple", "buffer");
+    // Finitions : choisir Buffer sans sa clé est refusé comme pour Zernio ; avec la clé, c'est permis.
+    delete process.env.BUFFER_API_KEY;
+    await expect(definirRoutage("instagram:exemple", "buffer")).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
+    expect(await lireRoutage()).toEqual({ instagram: "zernio" });
+    // Choix explicite déjà en base (clé retirée depuis) : écrit à la main pour la suite du scénario.
+    const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("publication.routage", { instagram: "zernio", "instagram:exemple": "buffer" });
     expect(await outilDeEnvoi("instagram", "autre")).toBe("zernio");
     // Choix explicite de Buffer sans sa clé : refus clair, pas de repli vers Zernio.
     await expect(outilDeEnvoi("instagram", "exemple")).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
