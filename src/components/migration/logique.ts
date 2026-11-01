@@ -36,8 +36,6 @@ export interface CompteMigration {
 export interface DonneesMigration {
   posts: PostMigration[];
   comptes: CompteMigration[];
-  /** Posts dont la date est passée, à reprogrammer par vous. */
-  apresDate?: string[];
 }
 
 export const DATE_LIMITE_RESILIATION = "2026-11-18";
