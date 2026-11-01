@@ -12,8 +12,8 @@ Corps de `POST /v1/posts` : `title, content, mediaItems, platforms, scheduledFor
 |---|---|
 | contentPreviewConfirmed, expressConsentGiven, allowComment, allowDuet, allowStitch, videoMadeWithAi, privacyLevel, commercialContentType | schéma `TikTokPlatformData` : soit `platformSpecificData` de l'entrée TikTok, soit `tiktokSettings` à la racine du corps (fusionné dans chaque entrée TikTok, l'entrée l'emporte). Exemples de la spec : `tiktokSettings`. |
 | isAiGenerated (Instagram) | `InstagramPlatformData` → `platformSpecificData` de l'entrée Instagram |
-| documentTitle | `LinkedInPlatformData` → `platformSpecificData` de l'entrée LinkedIn (pas dans `mediaItems`) |
-| firstComment | `platformSpecificData` des entrées Threads, Facebook, Instagram, LinkedIn |
+| documentTitle | `LinkedInPlatformData` → `platformSpecificData` de l'entrée LinkedIn (pas dans `mediaItems`). Si `documentTitle` manque, LinkedIn reprend le `title` de l'élément de média, puis le nom du fichier. |
+| firstComment | `platformSpecificData` des entrées Threads, Facebook, Instagram, LinkedIn (existe aussi dans `YouTubePlatformData`) |
 | pageId | `FacebookPlatformData` → `platformSpecificData` de l'entrée Facebook |
 | organizationUrn | `LinkedInPlatformData` → `platformSpecificData` de l'entrée LinkedIn |
 | metadata | racine du corps de `POST /v1/posts` et `PUT /v1/posts/{postId}` (objet libre, renvoyé en lecture) |
