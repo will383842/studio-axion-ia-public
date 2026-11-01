@@ -85,6 +85,8 @@ function lireCle(cle: string): { reseau: IdReseau; cle: string } {
 
 function rafraichir() {
   revalidatePath("/reglages");
+  // Le bandeau d'arrêt (layout du Studio) doit suivre l'interrupteur sur tous les écrans.
+  revalidatePath("/", "layout");
 }
 
 function nombreOuNul(v: unknown): number | null {
