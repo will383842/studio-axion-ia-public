@@ -143,11 +143,15 @@ for (const schema of SCHEMAS) {
     await expect(page.getByText(/vous|votre|vos/i).first()).toBeVisible();
   });
 
-  test(`cibles de 48 px et textes de 16 px minimum (${schema})`, async ({ page }) => {
+  test(`cibles de 48 px au moins (${schema})`, async ({ page }) => {
     ecrireMigration(ETAT_NORMAL);
     await ouvrir(page, schema);
-    const main = page.locator("main").first();
-    expect(await ciblesTropPetites(main), "cibles plus petites que 48 px").toEqual([]);
-    expect(await textesTropPetits(main), "textes plus petits que 16 px").toEqual([]);
+    expect(await ciblesTropPetites(page.locator("main").first()), "cibles plus petites que 48 px").toEqual([]);
+  });
+
+  test(`textes de 16 px au moins (${schema})`, async ({ page }) => {
+    ecrireMigration(ETAT_NORMAL);
+    await ouvrir(page, schema);
+    expect(await textesTropPetits(page.locator("main").first()), "textes plus petits que 16 px").toEqual([]);
   });
 }
