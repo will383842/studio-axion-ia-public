@@ -2,7 +2,7 @@
  * IMP-2 — BROUILLONS ZERNIO DE L'IMPORT BUFFER. Lancé plus tard sur le serveur par la session déployeuse.
  *
  * Par défaut : « à blanc » (--a-blanc) — AUCUN POST : corps construits et contrôlés, résumé affiché.
- * Les vraies créations exigent --creer ET une table des cibles confirmée par Will (« C'est juste »).
+ * Les vraies créations exigent --creer ET une table des cibles confirmée par l'opérateur (« C'est juste »).
  * La table des cibles est un fichier JSON local au serveur (identifiants réels : jamais dans le dépôt).
  *
  * Usage (racine du dépôt), BUFFER_API_KEY et ZERNIO_API_KEY dans l'environnement du serveur :
@@ -35,7 +35,7 @@ async function main() {
   const lot = valeur("--lot") as LotImport | undefined;
   if (lot !== "A" && lot !== "B" && lot !== "D") throw new Error("--lot A, B ou D est exigé.");
   const table = lireTable(JSON.parse(readFileSync(chemin, "utf8")));
-  if (veutCreer && !estConfirmee(table)) throw new Error("La table des cibles n'est pas confirmée par Will : aucune création.");
+  if (veutCreer && !estConfirmee(table)) throw new Error("La table des cibles n'est pas confirmée par l'opérateur : aucune création.");
 
   const maintenant = () => Date.now();
   const lu = await lireBuffer(clientDepuisEnv(), { depuis: new Date(maintenant()).toISOString() });

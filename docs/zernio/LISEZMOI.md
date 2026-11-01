@@ -26,3 +26,13 @@ Corps de `POST /v1/posts` : `title, content, mediaItems, platforms, scheduledFor
 - `linkAttachment` : `FacebookPostMetadataInput`, `LinkedInPostMetadataInput`, `ThreadsPostMetadataInput`, `BlueskyPostMetadataInput`, `SubstackPostMetadataInput` ; type `LinkAttachmentInput` = `url, title, description, thumbnail`.
 - `document` + titre : `AssetInput.document` de type `DocumentAssetInput` = `url, title, thumbnailUrl`.
 - « Passer un post en brouillon » : **aucune mutation de ce nom**. `movePostToDraft` n'est qu'une valeur de l'énumération `PostAction`, pas une mutation. Les leviers réels : `saveToDraft` dans `CreatePostInput` et `EditPostInput`, et les mutations `createContentItemDraft`, `updateContentItemDraft`, `promoteContentItemDraftToPosts`.
+
+## Profil LinkedIn (Z1-P) : comment il est prouvé
+
+Une cible LinkedIn s'écrit `<compte>:li:<n°>` (page, avec son numéro d'organisation) ou `<compte>:li:profil` (profil personnel). Le profil n'est **jamais présumé** :
+
+- À l'envoi réel, le fournisseur relit le compte chez Zernio (`listerComptes()`), retrouve celui de la cible et applique `compteLinkedinEstProfil`. Seules les valeurs explicites « personnel » (`personal`, `profile`, `person`) dans `accountType`, `profileType` ou `type` comptent ; toute autre valeur, ou un compte introuvable, donne « non » et la demande est refusée avant tout envoi.
+- Un profil non prouvé ne reçoit donc jamais de publication : le refus est sûr et lisible, rien n'est écrit chez Zernio.
+- À l'import des brouillons (IMP-2), la même preuve est exigée avant de créer un brouillon sur un profil (`profilLinkedinProuve`) ; sans elle, la ligne est refusée.
+- La table des cibles refuse dès la validation une ligne LinkedIn qui ne nomme ni la page (`:li:<n°>`) ni le profil (`:li:profil`).
+- Aucun identifiant réel n'est écrit dans le dépôt : la table des cibles reste sur le serveur, confirmée par l'opérateur (« C'est juste »).
