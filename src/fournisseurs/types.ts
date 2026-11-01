@@ -521,12 +521,24 @@ export interface DemandePublication {
    * (relevé du 03/10/2026) : non transmis, le studio le rappelle. À brancher ici si Buffer l'ajoute un jour.
    */
   votreMarque?: boolean;
+  /* --- z1t (facultatifs) --- */
+  /** Cible de publication (ex. page, profil, chaîne) propre à l'outil. */
+  cible?: string;
+  tailleOctets?: number;
+  /** Publication de type document (ex. PDF en carrousel). */
+  document?: { url: string; titre?: string };
+  /** Consentement TikTok enregistré pour cet envoi. */
+  consentementTiktok?: boolean;
+  /** Le contenu est généré par IA (mention à déclarer là où l'outil le permet). */
+  contenuIA?: boolean;
+  format?: string;
+  dureeSec?: number;
 }
 
 export interface FournisseurPublication extends FournisseurBase {
   type: "publication";
   /** `statut` (lot R1) : ce que le service a enregistré. Absent : la simulation (rien n'est parti). */
-  envoyer(demande: DemandePublication): Promise<{ idExterne: string; via: "buffer" | "simulation"; statut?: Extract<StatutPublication, "brouillon" | "programmee">; premierCommentaire?: "transmis" | "a-la-main" }>;
+  envoyer(demande: DemandePublication): Promise<{ idExterne: string; via: "buffer" | "zernio" | "simulation"; statut?: Extract<StatutPublication, "brouillon" | "programmee">; premierCommentaire?: "transmis" | "a-la-main" }>;
   /* --- Lot R1 (facultatifs, réseau : jamais appelés par un écran) --- */
   listerCanaux?(): Promise<CanalPublication[]>;
   lireEtat?(idExterne: string): Promise<EtatPublicationExterne>;
