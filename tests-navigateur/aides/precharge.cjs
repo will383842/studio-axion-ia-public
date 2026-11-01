@@ -59,6 +59,7 @@ if (FICHIER) {
     try {
       const brut = JSON.parse(fs.readFileSync(FICHIER, "utf8"));
       if (brut && brut.lecteur === "panne") throw new Error("lecteur en panne (essai)");
+      if (brut && brut.delaiMs) await new Promise((r) => setTimeout(r, brut.delaiMs));
       return brut && brut.posts ? brut : null;
     } catch (e) {
       if (e && e.code === "ENOENT") return null;
