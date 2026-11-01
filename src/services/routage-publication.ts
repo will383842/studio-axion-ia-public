@@ -60,10 +60,15 @@ export async function outilDeEnvoi(reseau: IdReseau, compte?: string | null): Pr
     if (!cleZernioPresente()) throw refusOutil("zernio");
     return outil;
   }
-  try {
-    fournisseurParId("publication", "buffer");
-  } catch {
-    throw refusOutil("buffer");
+  // Défaut (aucune clé de routage) : Buffer, ou sa simulation si Buffer n'est pas relié. Choix explicite de Buffer : clé exigée.
+  const t = await lireRoutage();
+  const explicite = [compte ? `${reseau}:${compte}` : null, reseau].some((c) => !!c && Object.hasOwn(t, c) && t[c] === "buffer");
+  if (explicite) {
+    try {
+      fournisseurParId("publication", "buffer");
+    } catch {
+      throw refusOutil("buffer");
+    }
   }
   return outil;
 }
