@@ -1,7 +1,7 @@
 /**
  * IMP-2 — TABLE DES CIBLES (canal Buffer → cible du Studio). Aucun identifiant réel dans le dépôt : la table vit en
  * base sur le serveur (document jsonb), construite avec la sonde des comptes (outils/zernio/comptes.mts), montrée à
- * Will et marquée confirmée seulement après son « C'est juste ». Sans confirmation : aucune création.
+ * l'opérateur et marquée confirmée seulement après son « C'est juste ». Sans confirmation : aucune création.
  *
  * Cible du Studio : « accountId », « accountId:fb:<pageId> », « accountId:li:<n°> » (D9). Facebook et LinkedIn page
  * exigent une cible explicite ; la page par défaut n'est jamais utilisée. TikTok : aucun post.
@@ -76,7 +76,7 @@ export function proposerTable(canaux: CanalBuffer[], choix: Record<string, strin
   return { table: { lignes }, sansCible };
 }
 
-/** Marque la table confirmée : seule la phrase « C'est juste » de Will la valide. */
+/** Marque la table confirmée : seule la phrase « C'est juste » de l'opérateur la valide. */
 export function confirmerTable(table: TableCibles, phrase: string, maintenant: Date): TableCibles {
   if (phrase.trim() !== PHRASE_CONFIRMATION) throw new ErreurCibles(`La table n'est confirmée que par « ${PHRASE_CONFIRMATION} ».`);
   if (table.lignes.length === 0) throw new ErreurCibles("La table des cibles est vide.");
@@ -89,7 +89,7 @@ export const estConfirmee = (t: TableCibles | undefined): t is TableCibles =>
 
 /** Refuse tout si la table n'est pas confirmée (ou a changé depuis). */
 export function exigerTableConfirmee(t: TableCibles | undefined): TableCibles {
-  if (!estConfirmee(t)) throw new ErreurCibles("La table des cibles n'est pas confirmée par Will : aucune création.");
+  if (!estConfirmee(t)) throw new ErreurCibles("La table des cibles n'est pas confirmée par l'opérateur : aucune création.");
   return t;
 }
 

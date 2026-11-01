@@ -155,8 +155,9 @@ function dernierReleve(p: Publication, source: "buffer" | "zernio" | "api") {
 async function ajouterReleve(p: Publication, source: "buffer" | "zernio" | "api", valeurs: Partial<StatsPublication>, definitions: Record<string, string>, instant: Date): Promise<boolean> {
   const precedent = dernierReleve(p, source);
   if (precedent && memes(precedent.valeurs, valeurs)) return false;
-  // Zernio : une statistique non lue reste absente (jamais 0). Buffer et liens suivis : copie de départ inchangée.
-  const depart = source === "zernio" ? (p.stats ?? {}) : (p.stats ?? { vues: 0, likes: 0, commentaires: 0, partages: 0 });
+  // Zernio : on part des seuls relevés Zernio (jamais des zéros de la copie de départ d'un lien suivi) ; une statistique non lue reste absente.
+  // Buffer et liens suivis : copie de départ inchangée.
+  const depart = source === "zernio" ? (precedent?.valeurs ?? {}) : (p.stats ?? { vues: 0, likes: 0, commentaires: 0, partages: 0 });
   const stats = { ...depart, ...valeurs } as StatsPublication;
   const jour = Math.max(0, Math.floor((instant.getTime() - new Date(p.date).getTime()) / JOUR_MS));
   await depots().publications.modifier(p.id, { releves: [...(p.releves ?? []), { le: instant.toISOString(), jour, source, valeurs: stats, definitions }], stats });
