@@ -34,6 +34,7 @@ import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { fournisseurParId } from "@/fournisseurs";
 import { outilDeEnvoi } from "./routage-publication";
 import { ciblesZernioPour, traduireSelectionVersZernio } from "./zernio-cibles";
+import { codeDeErreur, journaliserEnvoi } from "./journal-envoi";
 import { canauxEnregistres, cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
 import { exigerSession } from "./auth";
 import { urlsFichiers } from "./fichiers";
@@ -600,6 +601,22 @@ export async function envoyerVersBuffer(
   videoId: string,
   reseaux: IdReseau[],
   dateIso: string,
+  options: Parameters<typeof envoyerVersBufferInterne>[3] = {},
+): Promise<Awaited<ReturnType<typeof envoyerVersBufferInterne>>> {
+  try {
+    const r = await envoyerVersBufferInterne(videoId, reseaux, dateIso, options);
+    journaliserIssueEnvoi("envoyerVersBuffer", videoId, [...new Set(reseaux)], r.publications, r.problemes);
+    return r;
+  } catch (e) {
+    journaliserRefusEnvoi("envoyerVersBuffer", videoId, [...new Set(reseaux)], e);
+    throw e;
+  }
+}
+
+async function envoyerVersBufferInterne(
+  videoId: string,
+  reseaux: IdReseau[],
+  dateIso: string,
   options: {
     autreReseauConfirme?: boolean;
     /** Lot R1b : comptes Buffer cochés par l'opérateur, par réseau (sinon : dernier choix mémorisé, ou le seul compte). */
@@ -795,6 +812,33 @@ export interface ExtrasEnvoiReel {
 }
 
 export async function envoyerReel(outil: OutilPublication, service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean, extras: ExtrasEnvoiReel = {}) {
+  try {
+    const r = await envoyerReelInterne(outil, service, kitVue, reseaux, dateIso, choisis, commentaires, avecVideo, extras);
+    journaliserIssueEnvoi("envoyerReel", kitVue.videoId, reseaux, r.publications, r.problemes, outil, r.mode === "brouillon");
+    return r;
+  } catch (e) {
+    journaliserRefusEnvoi("envoyerReel", kitVue.videoId, reseaux, e, outil);
+    throw e;
+  }
+}
+
+/** Journal d'un envoi qui a rendu un résultat : « OK » par réseau parti, le code de chaque réseau refusé. Voir journal-envoi.ts. */
+function journaliserIssueEnvoi(action: string, contenuId: string, reseaux: IdReseau[], publications: Publication[], problemes: ProblemeEnvoi[] | undefined, outil?: OutilPublication, brouillon?: boolean): void {
+  for (const reseau of reseaux) {
+    const base = { action, reseau, contenuId, ...(outil ? { outil } : {}), ...(brouillon !== undefined ? { brouillon } : {}) };
+    const nb = publications.filter((p) => p.reseau === reseau).length;
+    const refus = (problemes ?? []).filter((p) => p.reseau === reseau);
+    for (const p of refus) journaliserEnvoi({ ...base, code: p.code, nbComptes: 0 });
+    if (!refus.length || nb) journaliserEnvoi({ ...base, code: "OK", nbComptes: nb });
+  }
+}
+
+/** Journal d'un envoi refusé par une erreur : son code court seulement, jamais son message. */
+function journaliserRefusEnvoi(action: string, contenuId: string, reseaux: IdReseau[], e: unknown, outil?: OutilPublication): void {
+  for (const reseau of reseaux) journaliserEnvoi({ action, reseau, contenuId, code: codeDeErreur(e), nbComptes: 0, ...(outil ? { outil } : {}) });
+}
+
+async function envoyerReelInterne(outil: OutilPublication, service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean, extras: ExtrasEnvoiReel = {}) {
   const d = depots();
   const videoId = kitVue.videoId;
   // Phrases neutres : le nom de Buffer ne s'écrit que pour Buffer ; ailleurs « l'outil de publication ».

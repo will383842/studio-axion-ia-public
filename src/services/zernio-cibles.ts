@@ -8,6 +8,7 @@
 import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import type { IdReseau } from "@/domaine/types";
+import { journaliserEnvoi } from "./journal-envoi";
 
 export type CiblesZernio = { ok: true; canaux: CanalPublication[] } | { ok: false; code: "CIBLE_ABSENTE" | "CIBLE_INCONNUE" | "CIBLE_AMBIGUE"; message: string };
 
@@ -15,6 +16,13 @@ export type CiblesZernio = { ok: true; canaux: CanalPublication[] } | { ok: fals
 const CIBLE_EXPLICITE: readonly string[] = ["facebook", "linkedin"];
 
 export async function ciblesZernioPour(service: FournisseurPublication, reseau: IdReseau, choisies?: string[]): Promise<CiblesZernio> {
+  const c = await ciblesZernioPourInterne(service, reseau, choisies);
+  // Trace sans nom ni identifiant de compte : le code du refus, ou « OK » et le nombre de comptes ciblés.
+  journaliserEnvoi({ action: "ciblesZernioPour", outil: "zernio", reseau, code: c.ok ? "OK" : c.code, nbComptes: c.ok ? c.canaux.length : 0 });
+  return c;
+}
+
+async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: IdReseau, choisies?: string[]): Promise<CiblesZernio> {
   if (!service.listerCanaux) return { ok: false, code: "CIBLE_ABSENTE", message: "L'outil de publication ne donne pas la liste de ses comptes : l'envoi est refusé." };
   const plateforme = plateformeZernio(reseau);
   const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte);
