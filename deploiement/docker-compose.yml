@@ -146,7 +146,6 @@ services:
       ZERNIO_API_KEY: ${ZERNIO_API_KEY:-}
       # Parcours « mot en commentaire → e-mail → guide » : INERTE tant que les interrupteurs sont vides. Les secrets se posent sur le serveur par saisie masquée, jamais dans un dépôt.
       ZERNIO_WEBHOOK_SECRET: ${ZERNIO_WEBHOOK_SECRET:-}
-      STUDIO_PORTE_SECRET: ${STUDIO_PORTE_SECRET:-}
       SITE_GUIDES_RESEAU_SECRET: ${SITE_GUIDES_RESEAU_SECRET:-}
       PARCOURS_MOT_ENABLED: ${PARCOURS_MOT_ENABLED:-}
       MOTS_ENABLED: ${MOTS_ENABLED:-}
