@@ -12,8 +12,8 @@ export interface PagesInterdites {
 }
 
 export const PAGES_FACEBOOK_INTERDITES: PagesInterdites = {
-  // Identifiant de la page : à compléter si Will le communique (le nom suffit déjà par son empreinte).
-  ids: [],
+  // Identifiant de la page (GET /facebook-page de Zernio, le même via les deux comptes) : refus même si Zernio ne renvoie pas le nom.
+  ids: ["824208820772513"],
   empreintesNom: ["c04e28d36b3737b8032499fe8ec367028d20aa63e10427288c44869e3aa1250d"],
 };
 
