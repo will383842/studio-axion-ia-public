@@ -14,6 +14,7 @@ import { creerClientZernio, enteteIdempotenceStudio, type ClientZernio, type Opt
 import { analyserCible, compteLinkedinEstProfil, corpsPostZernio, lireCreateurTiktok, mediasDemandes, plateformeZernio, premierCommentaireTransmissibleZernio, type CreateurTiktok, type DemandeZernio } from "./zernio-corps";
 import { ErreurZernio } from "./zernio-erreurs";
 import { pageInterdite, type PagesInterdites } from "./zernio-pages-interdites";
+import { choisirCompteOrganisationLinkedin, type CandidatOrganisationLinkedin } from "./zernio-linkedin";
 import { lecteurMediaParDefaut, televerserMedias, type LecteurMedia } from "./zernio-medias";
 
 const HEX_64 = /^[0-9a-f]{64}$/;
@@ -149,6 +150,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       // Facebook : deux comptes peuvent exposer les MÊMES pages. Un seul canal par page (identifiant de page), tenu par le compte
       // dont la page PAR DÉFAUT est cette page. Sans tel compte, tous les canaux de cette page restent : la cible est alors refusée (jamais tirée au hasard).
       const facebook = new Map<string, { base: CanalPublication; page: { id: string; name?: string; parDefaut?: boolean }; compte: string }[]>();
+      // LinkedIn : plusieurs comptes (organisation, profil personnel) peuvent exposer la MÊME organisation. Un seul canal par organisation.
+      const linkedin = new Map<string, CandidatOrganisationLinkedin<CanalPublication>[]>();
       for (const c of await client.listerComptes()) {
         const base: CanalPublication = { id: c._id, organisationId: "zernio", nom: c.displayName ?? c.username ?? "Compte", service: c.platform, deconnecte: c.isActive === false };
         if (c.platform === "facebook") {
@@ -161,9 +164,15 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
         } else if (c.platform === "linkedin") {
           // Pas de canal « profil » implicite : le profil n'est proposé que si le compte lu est un profil personnel.
           if (compteLinkedinEstProfil(c)) canaux.push({ ...base, id: `${c._id}:li:profil`, genre: "profile" });
-          for (const o of await client.organisationsLinkedin(c._id)) canaux.push({ ...base, id: `${c._id}:li:${o.id}`, nom: o.localizedName ?? o.name ?? base.nom, genre: "page" });
+          for (const o of await client.organisationsLinkedin(c._id)) {
+            const nom = o.localizedName ?? o.name ?? base.nom;
+            const l = linkedin.get(o.id) ?? [];
+            l.push({ canal: { ...base, id: `${c._id}:li:${o.id}`, nom, genre: "page" }, compte: c as Record<string, unknown>, organisation: o, nomOrganisation: nom });
+            linkedin.set(o.id, l);
+          }
         } else canaux.push(base);
       }
+      for (const l of linkedin.values()) canaux.push(...choisirCompteOrganisationLinkedin(l));
       for (const [idPage, l] of facebook) {
         const dePage = l.filter((x) => x.page.parDefaut);
         const retenus = l.length > 1 && dePage.length === 1 ? dePage : l;

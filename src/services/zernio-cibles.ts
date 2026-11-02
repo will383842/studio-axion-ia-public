@@ -36,7 +36,12 @@ async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: 
     if (inconnues.length) return { ok: false, code: "CIBLE_INCONNUE", message: "Le compte choisi n'est pas relié à l'outil de publication pour ce réseau." };
     return { ok: true, canaux: demandees.map((id) => disponibles.find((c) => c.id === id)!) };
   }
-  // Rien de choisi : jamais pour Facebook ni LinkedIn (aucune page par défaut) ; ailleurs, seulement s'il n'y a qu'un compte.
+  // LinkedIn, rien de choisi : l'ORGANISATION seulement, et seulement s'il n'y en a qu'une. Jamais le profil personnel sans choix explicite.
+  if (plateforme === "linkedin") {
+    const organisations = disponibles.filter((c) => c.genre === "page");
+    if (organisations.length === 1) return { ok: true, canaux: organisations };
+  }
+  // Rien de choisi : jamais pour Facebook (aucune page par défaut) ; ailleurs, seulement s'il n'y a qu'un compte.
   if (CIBLE_EXPLICITE.includes(plateforme)) {
     const noms = disponibles.map((c) => `« ${c.nom} »`);
     const aCocher = noms.length ? ` Pages ou profils reliés à Zernio : ${noms.join(", ")}.` : "";
