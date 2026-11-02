@@ -16,5 +16,5 @@ export const ACCORDS_SITE = ["non_demande", "non", "oui_en_attente_de_clic", "ou
  */
 export function cleIdempotence(idRunBrut: string): string {
   if (RE_CLE_IDEMPOTENCE.test(idRunBrut)) return idRunBrut;
-  return createHash("sha256").update(idRunBrut, "utf8").digest("hex").slice(0, 64);
+  return createHash("sha256").update(idRunBrut, "utf8").digest("hex"); // sha256 hex = 64 caractères exactement
 }
