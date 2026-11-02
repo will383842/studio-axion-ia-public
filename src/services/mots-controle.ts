@@ -19,6 +19,10 @@ const PROMESSES: readonly { libelle: string; motif: RegExp }[] = [
   { libelle: "promesse de réussite", motif: /(?:reussite|succes) (?:assure|certain)/ },
 ];
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
+/** Formes épelées d'une adresse (« nom arobase domaine point com »). */
+const EMAIL_EPELE = /\b(?:arobase|at)\b.{0,40}\b(?:point|dot)\b/;
+/** Caractères invisibles (largeur nulle, joiners, BOM, trait d'union conditionnel) retirés avant tout contrôle. */
+const INVISIBLES = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
 
 export interface Refus {
   section: Section;
@@ -32,12 +36,13 @@ export function controlerTexteSortant(section: Section, texte: string): Refus[] 
   const r = (code: Refus["code"], detail: string) => refus.push({ section, code, detail });
   if (!texte.trim()) return [{ section, code: "vide", detail: "texte vide" }];
   if (texte.length > LONGUEUR_MAX_TEXTE) r("trop_long", `plus de ${LONGUEUR_MAX_TEXTE} caractères`);
-  for (const m of motsInterditsEnvoi(texte)) r("mot_interdit", m);
-  for (const e of expressionsBannieDans(texte)) r("expression_bannie", e);
-  const plat = normaliser(texte);
+  for (const m of motsInterditsEnvoi(texte.replace(INVISIBLES, ""))) r("mot_interdit", m);
+  for (const e of expressionsBannieDans(texte.replace(INVISIBLES, ""))) r("expression_bannie", e);
+  const nu = texte.replace(INVISIBLES, "");
+  const plat = normaliser(nu);
   if (!plat.includes(normaliser(MENTION_AUTOMATIQUE))) r("mention_absente", `« ${MENTION_AUTOMATIQUE} » absent`);
   for (const p of PROMESSES) if (p.motif.test(plat)) r("promesse_interdite", p.libelle);
-  if (EMAIL.test(texte)) r("adresse_email", "adresse e-mail dans le texte");
+  if (EMAIL.test(nu) || EMAIL_EPELE.test(plat)) r("adresse_email", "adresse e-mail dans le texte");
   return refus;
 }
 

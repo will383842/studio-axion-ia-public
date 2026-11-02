@@ -14,13 +14,14 @@ import { signerAppel } from "@/fournisseurs/site/signature";
 import type { TransportSite } from "@/fournisseurs/site/types";
 import { depots, ecrireParametre, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { construireGrapheMot, construireGrapheStop, estMotOpposition, type DefinitionWorkflow } from "./mots-graphe";
-import { lireTextesMarkdown, RE_MOT, type TextesMot } from "./mots-textes";
+import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisSaisie, textesValides, type SaisieMot, type TextesMot } from "./mots-textes";
 import { creerNotification } from "./notifications";
 import { envoiZernioAutorise } from "./zernio";
 
 export const VARIABLE_INTERRUPTEUR_MOTS = "MOTS_ENABLED";
 export const PARAM_REGISTRE_MOTS = "mots.registre";
 export const PARAM_GARDES_MOTS = "mots.gardes";
+export const PARAM_VALIDATIONS_MOTS = "mots.validations";
 export const PARAM_OPPOSITIONS_MOTS = "mots.oppositions";
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */
@@ -29,9 +30,10 @@ export const PLAFOND_JOUR_MOT_DEFAUT = 100;
 export const ERREURS_CONSECUTIVES_MAX = 5;
 export const CHEMIN_OPPOSITIONS_SITE = "/api/interne/oppositions-reseau"; // À CONFIRMER avec le site (route absente du contrat 04)
 
-/** Interrupteur du module : éteint par défaut (absent ou autre chose que 1/true/oui). */
+/** Interrupteur du module : éteint par défaut (seules les valeurs exactes « 1 » ou « true » l'allument). */
 export function motsActif(env: Record<string, string | undefined> = process.env): boolean {
-  return /^(1|true|oui)$/i.test(env[VARIABLE_INTERRUPTEUR_MOTS]?.trim() ?? "");
+  const v = env[VARIABLE_INTERRUPTEUR_MOTS];
+  return v === "1" || v === "true";
 }
 
 type Env = Record<string, string | undefined>;
@@ -85,7 +87,17 @@ export async function lireGardes(): Promise<Gardes> {
   const d = GARDES_DEFAUT();
   return { ...d, ...g, disjoncteur: { ...d.disjoncteur, ...g.disjoncteur }, plafonds: { ...d.plafonds, ...g.plafonds } };
 }
-const ecrireGardes = (g: Gardes) => ecrireParametre(PARAM_GARDES_MOTS, g);
+/**
+ * Écriture des gardes (appelée sous verrou). Défense en profondeur : `ouvert` ne repasse JAMAIS de vrai à faux ici, même si
+ * l'appelant a lu des gardes anciennes ; seul `refermerDisjoncteur` (`fermer: true`) peut le refermer.
+ */
+async function ecrireGardes(g: Gardes, fermer = false): Promise<void> {
+  if (!fermer) {
+    const actuel = await lireGardes();
+    if (actuel.disjoncteur.ouvert && !g.disjoncteur.ouvert) g = { ...g, disjoncteur: actuel.disjoncteur };
+  }
+  await ecrireParametre(PARAM_GARDES_MOTS, g);
+}
 
 /** Plafonds réglables par l'opérateur, jamais au-dessus de 600 par heure et par compte. */
 export async function reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<Gardes["plafonds"]> {
@@ -119,7 +131,7 @@ export async function refermerDisjoncteur(o: { confirmeParOperateur: boolean }):
     const g = await lireGardes();
     g.disjoncteur = { ouvert: false, raison: null, ouvertLe: null };
     g.erreursConsecutives = 0;
-    await ecrireGardes(g);
+    await ecrireGardes(g, true);
     await journaliser("mots", "Disjoncteur des mots refermé par l'opérateur.");
     return { ok: true };
   });
@@ -175,10 +187,41 @@ interface Demande {
   confirmeParOperateur: boolean;
 }
 
-/** POSE d'un mot sur un compte (en pause : l'activation est un geste distinct). */
-export async function poserMot(d: Demande & { compte: string; textes: TextesMot }): Promise<Resultat> {
+/** Empreintes ENREGISTRÉES par le geste de validation (mot → empreinte des textes relus). Seule source de vérité de la pose. */
+const lireValidations = async (): Promise<Record<string, string>> => lireParametre<Record<string, string>>(PARAM_VALIDATIONS_MOTS, {});
+
+/** Geste de validation (l'appelant exige la session) : enregistre en base l'empreinte des textes tels que saisis. Sans effet réseau. */
+export async function validerMot(d: { saisie: SaisieMot; confirmeParOperateur: boolean }): Promise<{ ok: boolean; raison: string; empreinte?: string }> {
+  if (!d.confirmeParOperateur) return { ok: false, raison: "validation_operateur_absente" };
+  const t = textesDepuisSaisie(d.saisie);
+  if (!RE_MOT.test(t.mot)) return { ok: false, raison: "mot_invalide" };
+  const g = construireGrapheMot({ ...t, etat: ETAT_VALIDE, empreinteValidee: empreinteTextes(t) });
+  if (!g.ok) return { ok: false, raison: g.code };
+  const empreinte = empreinteTextes(t);
+  await sousVerrou(async () => {
+    const v = await lireValidations();
+    v[t.mot] = empreinte;
+    await ecrireParametre(PARAM_VALIDATIONS_MOTS, v);
+    await journaliser("mots", `Textes du mot ${t.mot} validés par l'opérateur.`);
+  });
+  return { ok: true, raison: "valide", empreinte };
+}
+
+/** POSE d'un mot sur un compte à partir d'une SAISIE : validé = l'empreinte ENREGISTRÉE correspond au texte actuel. */
+export async function poserMot(d: Demande & { compte: string; saisie: SaisieMot }): Promise<Resultat> {
+  const t = textesDepuisSaisie(d.saisie);
+  const enregistree = (await lireValidations())[t.mot] ?? null;
+  return poserTextes(d, enregistree ? { ...t, etat: ETAT_VALIDE, empreinteValidee: enregistree } : t);
+}
+
+/** POSE depuis `mots/<MOT>.md` (fichier du dépôt, maîtrisé côté serveur) : son état et son empreinte doivent être cohérents. */
+export async function poserMotDepuisFichier(d: Demande & { compte: string; textes: TextesMot }): Promise<Resultat> {
+  return poserTextes(d, textesValides(d.textes) ? d.textes : { ...d.textes, etat: "brouillon", empreinteValidee: null });
+}
+
+async function poserTextes(d: Demande & { compte: string }, textes: TextesMot): Promise<Resultat> {
   const env = d.env ?? process.env;
-  const g = construireGrapheMot(d.textes);
+  const g = construireGrapheMot(textes);
   if (!g.ok) return refus(g.code);
   const requete = requetePose(g.workflow, d.compte);
   if (!d.confirmeParOperateur) return refus("validation_operateur_absente", requete);
@@ -190,8 +233,8 @@ export async function poserMot(d: Demande & { compte: string; textes: TextesMot 
     if (!r.ok) return refus("zernio_refuse", requete);
     const id = idWorkflowDe(r.corps);
     if (!id) return refus("reponse_inattendue", requete);
-    await enregistrerLigne({ mot: d.textes.mot, compte: d.compte, etat: "pause", idWorkflow: id, raison: null, modifieLe: maintenant() });
-    await journaliser("mots", `Mot ${d.textes.mot} posé (en pause) sur un compte.`);
+    await enregistrerLigne({ mot: textes.mot, compte: d.compte, etat: "pause", idWorkflow: id, raison: null, modifieLe: maintenant() });
+    await journaliser("mots", `Mot ${textes.mot} posé (en pause) sur un compte.`);
     return { issue: "execute", raison: "pose", requete, idWorkflow: id };
   });
 }
@@ -263,16 +306,18 @@ export async function noterEnvois(d: { mot: string; compte: string; nombre?: num
     await ecrireGardes(x);
     return x;
   });
-  const rapport: RapportEnvois = { actif: true, compte: g.heures[kHeure], motJour: g.jours[kJour], pausesAutomatiques: 0, disjoncteurOuvert: false };
-  const plafondHeure = Math.min(g.plafonds.heureCompte, PLAFOND_HEURE_COMPTE_MAX);
-  if (rapport.compte >= plafondHeure) {
-    await ouvrirDisjoncteur(`plafond horaire atteint (${plafondHeure} par heure et par compte)`);
-    rapport.disjoncteurOuvert = true;
-    rapport.pausesAutomatiques += await pauseAuto((l) => l.compte === d.compte, env, "plafond horaire");
-  } else if (rapport.motJour >= g.plafonds.jourMot) {
-    rapport.pausesAutomatiques += await pauseAuto((l) => l.mot === d.mot, env, `plafond du jour pour ${d.mot}`);
-  }
-  return rapport;
+  return sousVerrou(async () => {
+    const rapport: RapportEnvois = { actif: true, compte: g.heures[kHeure], motJour: g.jours[kJour], pausesAutomatiques: 0, disjoncteurOuvert: false };
+    const plafondHeure = Math.min(g.plafonds.heureCompte, PLAFOND_HEURE_COMPTE_MAX);
+    if (rapport.compte >= plafondHeure) {
+      await ouvrirDisjoncteur(`plafond horaire atteint (${plafondHeure} par heure et par compte)`);
+      rapport.disjoncteurOuvert = true;
+      rapport.pausesAutomatiques += await pauseAuto((l) => l.compte === d.compte, env, "plafond horaire");
+    } else if (rapport.motJour >= g.plafonds.jourMot) {
+      rapport.pausesAutomatiques += await pauseAuto((l) => l.mot === d.mot, env, `plafond du jour pour ${d.mot}`);
+    }
+    return rapport;
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -342,12 +387,19 @@ export async function traiterOppositions(o: { env?: Env } = {}): Promise<{ actif
   for (const ev of evenements) {
     const idContact = typeof ev.charge.idContact === "string" ? ev.charge.idContact : null;
     const idRun = String(ev.charge.idRun);
-    await sousVerrou(async () => {
+    // Relecture SOUS verrou : deux passages simultanés ne traitent (ni n'alertent) jamais deux fois le même événement.
+    const reserve = await sousVerrou(async () => {
+      const courant = (await depots().evenementsFournisseurs.lister((e) => e.id === ev.id))[0];
+      if (!courant || courant.traite) return false;
       const liste = await lireParametre<{ id: string; le: string; transmise: boolean }[]>(PARAM_OPPOSITIONS_MOTS, []);
-      if (idContact && !liste.some((x) => x.id === empreinteContact(idContact))) liste.push({ id: empreinteContact(idContact), le: maintenant(), transmise: false });
+      // Sans identifiant de contact, l'événement lui-même est enregistré (empreinte de son identifiant) : personne n'est oublié.
+      const id = empreinteContact(idContact ?? `evenement:${ev.idEvenement}`);
+      if (!liste.some((x) => x.id === id)) liste.push({ id, le: maintenant(), transmise: false });
       await ecrireParametre(PARAM_OPPOSITIONS_MOTS, liste);
       await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat: "opposition", prochainEssaiLe: null } });
+      return true;
     });
+    if (!reserve) continue;
     await creerNotification({ type: "info", titre: "Opposition reçue (STOP)", message: "Une personne a écrit STOP. Elle est mise à l'écart ; rien n'est supprimé.", lien: "/mots" });
     prises++;
     if (lecteurOpp && transportOpp && secret) {
