@@ -24,16 +24,21 @@ export function hmacHex(secret: string, donnee: string): string {
   return createHmac("sha256", secret).update(donnee, "utf8").digest("hex");
 }
 
-/** En-têtes d'un appel : horodatage (secondes Unix), nonce (16 octets hex) et signature. */
+/** Formes que le vérificateur du site impose (rejet 400 sinon) : horodatage 10 chiffres, nonce 32 hex minuscules, `v1=` + 64 hex minuscules. */
+export const RE_HORODATAGE = /^[0-9]{10}$/;
+export const RE_NONCE = /^[0-9a-f]{32}$/;
+export const RE_SIGNATURE = /^v1=[0-9a-f]{64}$/;
+
+/** En-têtes d'un appel : horodatage (secondes Unix), nonce (16 octets hex) et signature `v1=<hex>`. */
 export function signerAppel(e: { secret: string; methode: string; chemin: string; corps: string; horodatageSec: number; nonce?: string }): EntetesSignes {
   const horodatage = String(Math.floor(e.horodatageSec));
   const nonce = e.nonce ?? randomBytes(16).toString("hex");
-  const signature = hmacHex(e.secret, chaineASigner({ horodatage, nonce, methode: e.methode, chemin: e.chemin, sha256Corps: sha256Hex(e.corps) }));
+  const signature = `v1=${hmacHex(e.secret, chaineASigner({ horodatage, nonce, methode: e.methode, chemin: e.chemin, sha256Corps: sha256Hex(e.corps) }))}`;
   return { [ENTETE_HORODATAGE]: horodatage, [ENTETE_NONCE]: nonce, [ENTETE_SIGNATURE]: signature };
 }
 
 export function signatureValide(secret: string, e: { methode: string; chemin: string; corps: string; horodatage: string; nonce: string; signature: string }): boolean {
-  const attendue = Buffer.from(hmacHex(secret, chaineASigner({ horodatage: e.horodatage, nonce: e.nonce, methode: e.methode, chemin: e.chemin, sha256Corps: sha256Hex(e.corps) })));
+  const attendue = Buffer.from("v1=" + hmacHex(secret, chaineASigner({ horodatage: e.horodatage, nonce: e.nonce, methode: e.methode, chemin: e.chemin, sha256Corps: sha256Hex(e.corps) })));
   const recue = Buffer.from(e.signature);
   return attendue.length === recue.length && timingSafeEqual(attendue, recue);
 }
