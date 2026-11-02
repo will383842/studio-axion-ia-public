@@ -20,12 +20,19 @@ export async function ciblesZernioPour(service: FournisseurPublication, reseau: 
   const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte);
   const demandees = [...new Set((choisies ?? []).filter((c) => typeof c === "string" && c.trim()))];
   if (demandees.length) {
+    // Traduction ambiguë (deux comptes de Zernio portent le nom choisi) : le refus nomme les choix, jamais un tirage au sort.
+    const ambigu = demandees.find((id) => id.startsWith(`${SELECTION_NON_TRADUITE}|`));
+    if (ambigu) return { ok: false, code: "CIBLE_AMBIGUE", message: ambigu.slice(SELECTION_NON_TRADUITE.length + 1) };
     const inconnues = demandees.filter((id) => !disponibles.some((c) => c.id === id));
     if (inconnues.length) return { ok: false, code: "CIBLE_INCONNUE", message: "Le compte choisi n'est pas relié à l'outil de publication pour ce réseau." };
     return { ok: true, canaux: demandees.map((id) => disponibles.find((c) => c.id === id)!) };
   }
   // Rien de choisi : jamais pour Facebook ni LinkedIn (aucune page par défaut) ; ailleurs, seulement s'il n'y a qu'un compte.
-  if (CIBLE_EXPLICITE.includes(plateforme)) return { ok: false, code: "CIBLE_ABSENTE", message: "Choisissez la page ou le profil de destination : aucune cible par défaut n'est utilisée." };
+  if (CIBLE_EXPLICITE.includes(plateforme)) {
+    const noms = disponibles.map((c) => `« ${c.nom} »`);
+    const aCocher = noms.length ? ` Pages ou profils reliés à Zernio : ${noms.join(", ")}.` : "";
+    return { ok: false, code: "CIBLE_ABSENTE", message: `Cochez la page ou le profil de destination (liste « Compte Buffer » de la page) : aucune cible par défaut n'est utilisée.${aCocher}` };
+  }
   if (disponibles.length === 1) return { ok: true, canaux: disponibles };
   if (!disponibles.length) return { ok: false, code: "CIBLE_ABSENTE", message: "Aucun compte relié à l'outil de publication pour ce réseau." };
   return { ok: false, code: "CIBLE_AMBIGUE", message: "Plusieurs comptes sont reliés pour ce réseau : choisissez-en un." };
@@ -33,6 +40,10 @@ export async function ciblesZernioPour(service: FournisseurPublication, reseau: 
 
 /** Marqueur d'une présélection qui ne se traduit pas : jamais un identifiant de Zernio, donc refusé net (CIBLE_INCONNUE). */
 export const SELECTION_NON_TRADUITE = "selection-buffer-non-traduite";
+
+/** Marqueur porteur d'un refus clair (« marqueur|phrase ») : ciblesZernioPour rend la phrase telle quelle. */
+const refusAmbigu = (nom: string, homonymes: CanalPublication[]) =>
+  `${SELECTION_NON_TRADUITE}|Plusieurs comptes de l'outil de publication portent le nom « ${nom} » (${homonymes.map((c) => `…${c.id.slice(-6)}`).join(" et ")}) : l'envoi est refusé, rien n'est choisi au hasard. Gardez un seul de ces comptes relié, ou renommez-en un chez l'outil de publication.`;
 
 const normaliserNom = (nom: string) => nom.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
@@ -52,12 +63,15 @@ export async function traduireSelectionVersZernio(service: FournisseurPublicatio
   const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte);
   const traduits: string[] = [];
   let sansHomologue = 0;
+  let ambigu: string | undefined;
   for (const id of ids) {
     const source = canauxBuffer.find((c) => c.id === id);
     const homologue = source ? disponibles.filter((c) => normaliserNom(c.nom) === normaliserNom(source.nom)) : [];
     if (homologue.length === 1) traduits.push(homologue[0].id);
+    else if (homologue.length > 1 && source) ambigu ??= refusAmbigu(source.nom, homologue);
     else sansHomologue++;
   }
+  if (ambigu) return [ambigu];
   if (!sansHomologue) return [...new Set(traduits)];
   if (ids.length === 1) return undefined;
   return [SELECTION_NON_TRADUITE];
