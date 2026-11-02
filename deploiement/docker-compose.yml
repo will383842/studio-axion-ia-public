@@ -144,6 +144,13 @@ services:
       BUFFER_API_KEY: ${BUFFER_API_KEY:-}
       # Zernio : clé d'accès (lecture-écriture, un seul profil). Sans clé : aucun envoi par Zernio, tout reste par Buffer.
       ZERNIO_API_KEY: ${ZERNIO_API_KEY:-}
+      # Parcours « mot en commentaire → e-mail → guide » : INERTE tant que les interrupteurs sont vides. Les secrets se posent sur le serveur par saisie masquée, jamais dans un dépôt.
+      ZERNIO_WEBHOOK_SECRET: ${ZERNIO_WEBHOOK_SECRET:-}
+      STUDIO_PORTE_SECRET: ${STUDIO_PORTE_SECRET:-}
+      SITE_GUIDES_RESEAU_SECRET: ${SITE_GUIDES_RESEAU_SECRET:-}
+      PARCOURS_MOT_ENABLED: ${PARCOURS_MOT_ENABLED:-}
+      MOTS_ENABLED: ${MOTS_ENABLED:-}
+      A_TRAITER_ENABLED: ${A_TRAITER_ENABLED:-}
       # Adresse publique du studio dans les e-mails de secours (vide = https://studio.axion-ia.com).
       STUDIO_ADRESSE: ${STUDIO_ADRESSE:-}
       # Point d'envoi ZeptoMail des e-mails de secours (vide = https://api.zeptomail.eu/v1.1/email).
