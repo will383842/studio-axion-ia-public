@@ -33,8 +33,8 @@ import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, h
 import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { fournisseurParId } from "@/fournisseurs";
 import { outilDeEnvoi } from "./routage-publication";
-import { ciblesZernioPour } from "./zernio-cibles";
-import { cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
+import { ciblesZernioPour, traduireSelectionVersZernio } from "./zernio-cibles";
+import { canauxEnregistres, cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
 import { exigerSession } from "./auth";
 import { urlsFichiers } from "./fichiers";
 import { adresseRelaisBuffer } from "./relais-buffer";
@@ -649,7 +649,9 @@ export async function envoyerVersBuffer(
         } catch {
           throw new ErreurStudio("BUFFER_NON_RELIE", "L'outil de publication de certains de ces réseaux n'est pas relié : l'envoi est refusé.");
         }
-        resultats.push(await envoyerReel(outil, f, kitVue, groupe, dateIso, options.comptes ?? {}, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire));
+        // La présélection de l'écran désigne des comptes BUFFER : Zernio reçoit leurs homologues (même nom), jamais l'identifiant d'un autre outil.
+        const comptes = outil === "buffer" ? (options.comptes ?? {}) : await comptesPourZernio(f, groupe, options.comptes ?? {});
+        resultats.push(await envoyerReel(outil, f, kitVue, groupe, dateIso, comptes, options.premiersCommentaires ?? {}, !!options.avecPremierCommentaire));
       } catch (e) {
         if (parOutil.size === 1) throw e;
         premiereErreur ??= e;
@@ -925,7 +927,7 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
         publications.push(await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: envoi.idExterne, statut: envoi.statut ?? "brouillon", etatLuLe: maintenant() })));
       } catch (e) {
         // Toute erreur qui n'est pas un « non » net de Buffer est incertaine : on relira, on ne renverra pas.
-        const { incertain, message, detail } = lireErreurEnvoi(outil, e);
+        const { incertain, message, detail, doublon } = lireErreurEnvoi(outil, e);
         if (outil === "buffer") await noterErreurBuffer(`envoi sur ${p.nom}`, e, { type: "video", id: videoId });
         else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : "refus"}${detail ? ` (${detail})` : ""}`, { type: "video", id: videoId });
         const ecrite = await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
@@ -933,7 +935,7 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
         if (incertain) publications.push(ecrite);
         problemes.push(
           incertain
-            ? { reseau: p.reseau, canalId: p.canal.id, code: "ENVOI_A_VERIFIER", message: `${p.nom} : la réponse de ${lui} s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` }
+            ? { reseau: p.reseau, canalId: p.canal.id, code: "ENVOI_A_VERIFIER", message: doublon ? `${p.nom} : ${MESSAGE_DOUBLON}` : `${p.nom} : la réponse de ${lui} s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` }
             : { reseau: p.reseau, canalId: p.canal.id, code: "BUFFER_REFUSE", message },
         );
       }
@@ -961,24 +963,39 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
   return { simulation: false, publications, mode, problemes, ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
 }
 
+/** Refus pour doublon (un contenu identique existe déjà chez l'outil) : phrase fixe, sans aucun détail technique. */
+export const MESSAGE_DOUBLON = "Ce contenu est déjà dans l'outil de publication : rien n'a été envoyé une seconde fois. Vérifiez-le chez l'outil avant de renvoyer.";
+
 /**
  * Erreur d'envoi → (incertain ?, phrase). Incertain = on relira, on ne renverra pas. Seul un « non » net d'un outil
  * (refus avant le réseau, ou 4xx net) est un refus : tout autre code est levé après l'écriture, donc incertain.
  */
-function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: boolean; message: string; detail?: string } {
+function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: boolean; message: string; detail?: string; doublon?: boolean } {
   if (outil === "buffer") return { incertain: !(e instanceof ErreurBuffer) || e.incertain, message: versErreurStudio(e).message };
   const perdue = "L'outil de publication n'a pas répondu : l'envoi est à vérifier.";
   if (e instanceof ErreurStudio) return { incertain: false, message: e.message };
   if (e instanceof ErreurZernio) {
     const detail = [e.code, e.statut, e.detailTechnique].filter((x) => x !== undefined && x !== "").join(" ");
     // Doublon : un contenu identique existe déjà (le fournisseur a déjà relu et comparé la clé) : toujours à vérifier ici.
-    if (e.code === "doublon") return { incertain: true, message: perdue, detail };
+    // Le détail technique d'un doublon ne va NI à l'écran NI au journal (visible) : seul le code court reste.
+    if (e.code === "doublon") return { incertain: true, doublon: true, message: MESSAGE_DOUBLON, detail: "doublon" };
     // « Non » net : refus avant le réseau, ou 4xx net (sans statut = levé localement avant l'appel). Un 2xx ou 5xx n'est jamais un refus.
     const quatreCent = e.statut === undefined || (e.statut >= 400 && e.statut <= 499);
     const refusNet = (e.avantReseau && e.code !== "lecture-requise") || ((e.code === "refuse" || e.code === "acces" || e.code === "introuvable") && quatreCent);
     return { incertain: !refusNet, message: refusNet ? "L'outil de publication a refusé l'envoi : rien n'est parti." : perdue, detail };
   }
   return { incertain: true, message: perdue };
+}
+
+/** Présélection de l'écran (comptes Buffer) → comptes de Zernio, réseau par réseau (voir `traduireSelectionVersZernio`). */
+async function comptesPourZernio(service: FournisseurPublication, reseaux: IdReseau[], presel: Partial<Record<IdReseau, string[]>>): Promise<Partial<Record<IdReseau, string[]>>> {
+  const canauxBuffer = (await canauxEnregistres())?.canaux ?? [];
+  const sortie: Partial<Record<IdReseau, string[]>> = {};
+  for (const reseau of reseaux) {
+    const traduits = await traduireSelectionVersZernio(service, reseau, presel[reseau], canauxBuffer);
+    if (traduits) sortie[reseau] = traduits;
+  }
+  return sortie;
 }
 
 /** Cibles d'un envoi par l'autre outil (z2e, D9) : même forme que les comptes Buffer. */
