@@ -13,6 +13,7 @@
 import "server-only";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
+import { construireOrigineV3, corpsDemandeGuideV3, origineV3Active } from "@/domaine/guide-reseau/origine-v3";
 import {
   ATTENTES_INTROUVABLE_MS,
   conduiteApresReponse,
@@ -181,7 +182,7 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
       }
       appelsRecents.push(now);
       rapport.traites++;
-      const { issue, code } = await tenter(ev, lire, site, now);
+      const { issue, code } = await tenter(ev, lire, site, now, origineV3Active(env));
       if (issue === "envoye") rapport.envoyes++;
       else if (issue === "definitif") rapport.definitifs++;
       else rapport.aReessayer++;
@@ -201,7 +202,7 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
   return rapport;
 }
 
-async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number): Promise<{ issue: "envoye" | "definitif" | "reessai"; code: string }> {
+async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number, v3 = false): Promise<{ issue: "envoye" | "definitif" | "reessai"; code: string }> {
   const idRun = String(ev.charge.idRun);
   const essaisAvant = Number(ev.charge.essais ?? 0);
   const essais = essaisAvant + 1;
@@ -216,7 +217,10 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
     else if (!runValide(run)) code = "run_invalide";
     else {
       // Octets FIGÉS pour tous les essais de ce passage ; clé fixe.
-      const corps = corpsDemandeGuide(run, cleIdempotence(idRun));
+      // v3 seulement si le drapeau est allumé ET l'origine valide ; sinon corps v1 inchangé (le code de refus est journalisé, jamais la valeur).
+      const o3 = v3 && run.origine ? construireOrigineV3(run.origine, { reseau: run.reseau, prefixesComptes: run.prefixesComptes ?? [] }) : null;
+      if (o3 && !o3.ok) await journaliser("parcours_mot", `Origine v3 non envoyée pour l'événement ${ev.idEvenement} : ${o3.code}.`);
+      const corps = o3?.ok ? corpsDemandeGuideV3(run, cleIdempotence(idRun), o3.origine) : corpsDemandeGuide(run, cleIdempotence(idRun));
       for (let n = 0; n < ESSAIS_NONCE; n++) {
         const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
         try {
