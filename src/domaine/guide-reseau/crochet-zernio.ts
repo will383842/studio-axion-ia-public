@@ -11,57 +11,72 @@ export const RE_VERSION_TEXTE = /^[A-Za-z0-9._-]{3,64}$/;
 const RE_DATE_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 /*
- * ⚠️ À CONFIRMER PAR UN ESSAI RÉEL (COR-PV2, bloquant 2). Le format de signature des webhooks Zernio n'est documenté
- * NULLE PART dans ce dépôt (l'extrait OpenAPI 1.418.1 ne contient ni « signature » ni « secret »), et la documentation
- * publique n'a pas pu être consultée (hôte hors de la liste réseau autorisée de la session). Sont donc des HYPOTHÈSES :
- *   · les en-têtes `x-zernio-signature` et `x-zernio-timestamp` ;
- *   · le HMAC-SHA256 hexadécimal de `<horodatage>.<corps brut>` ;
- *   · la charge `{ id, event: "run.completed", data: { runId } }`.
- * Procédure d'essai : docs/zernio/parcours-viral/05-ESSAI-REEL-WEBHOOK.md. Tant qu'elle n'est pas faite,
- * `PARCOURS_MOT_ENABLED` DOIT rester éteint.
+ * FORMAT RÉEL des webhooks Zernio (documentation publique : docs.zernio.com/webhooks et /webhooks/automations ; COR-PV2-T2).
+ *   · En-têtes : `X-Zernio-Signature`, `X-Zernio-Event`, `X-Zernio-Event-Id` ; alias hérités `X-Late-Signature` et
+ *     `X-Late-Event-Id` acceptés. AUCUN en-tête d'horodatage.
+ *   · Signature : HMAC-SHA256, hexadécimal minuscule, du CORPS BRUT SEUL (pas d'horodatage devant), vérifiée AVANT tout JSON.parse.
+ *   · Charge à la racine : `{ id, event, timestamp, ... }`. L'identifiant du run est `execution.id`.
+ *   · Anti-rejeu : champ `timestamp` du CORPS (fenêtre ±300 s, choix du Studio) + déduplication par `X-Zernio-Event-Id`.
+ * Ce qui reste à capturer à l'essai réel : docs/zernio/parcours-viral/05-ESSAI-REEL-WEBHOOK.md. `PARCOURS_MOT_ENABLED` reste éteint.
  */
-export const ENTETE_SIGNATURE_ZERNIO = "x-zernio-signature"; // À CONFIRMER PAR UN ESSAI RÉEL
-export const ENTETE_HORODATAGE_ZERNIO = "x-zernio-timestamp"; // À CONFIRMER PAR UN ESSAI RÉEL
-/** Fenêtre anti-rejeu, en secondes (de part et d'autre de l'heure du serveur). */
+export const ENTETE_SIGNATURE_ZERNIO = "x-zernio-signature";
+export const ENTETE_SIGNATURE_HERITEE = "x-late-signature";
+export const ENTETE_EVENEMENT_ZERNIO = "x-zernio-event";
+export const ENTETE_ID_EVENEMENT_ZERNIO = "x-zernio-event-id";
+export const ENTETE_ID_EVENEMENT_HERITE = "x-late-event-id";
+/** Fenêtre anti-rejeu, en secondes (de part et d'autre de l'heure du serveur), sur le champ `timestamp` du corps. */
 export const FENETRE_REJEU_SEC = 300;
 /** Taille maximale d'un crochet, en octets. */
 export const TAILLE_MAX_CROCHET = 16 * 1024;
-/** Seul type d'événement accepté : « un run vient de se terminer ». Tout le reste est refusé (charge inconnue). */
-export const TYPES_EVENEMENT_ACCEPTES = ["run.completed"] as const;
+/** Événements qui ont un effet. Tous les autres (dont `webhook.test`, `message.sent`, `comment.received`, `workflow.run.failed`) : accusé 200 sans effet. */
+export const TYPES_EVENEMENT_ACCEPTES = ["workflow.run.completed"] as const;
 
 export const RESEAUX_GUIDE = ["instagram", "facebook", "linkedin_page", "tiktok", "page_guide"] as const;
 
-const RE_HORODATAGE = /^[0-9]{10}$/;
-const RE_SIGNATURE = /^(?:sha256=)?[0-9a-fA-F]{64}$/;
+const RE_SIGNATURE = /^[0-9a-f]{64}$/;
 const RE_ID = /^[A-Za-z0-9._:-]{1,200}$/;
+const RE_ID_RUN = /^[^\u0000-\u001f]{1,200}$/;
 
-/** HMAC-SHA256 hexadécimal de `<horodatage>.<corps brut>` (le corps est signé octet pour octet). */
-export function signatureZernio(secret: string, horodatage: string, corps: string | Buffer): string {
-  // Calculé sur les OCTETS bruts (jamais sur un texte décodé) ; format À CONFIRMER PAR UN ESSAI RÉEL.
-  return createHmac("sha256", secret).update(`${horodatage}.`, "utf8").update(typeof corps === "string" ? Buffer.from(corps, "utf8") : corps).digest("hex");
+/** HMAC-SHA256 hexadécimal minuscule du CORPS BRUT SEUL (octet pour octet). */
+export function signatureZernio(secret: string, corps: string | Buffer): string {
+  return createHmac("sha256", secret).update(typeof corps === "string" ? Buffer.from(corps, "utf8") : corps).digest("hex");
 }
 
-export type VerdictSignature = "ok" | "invalide" | "perimee";
+export type VerdictSignature = "ok" | "invalide";
 
-/** Vérifie la signature à temps constant, puis la fenêtre. `maintenantMs` : injectable. */
-export function verifierSignatureZernio(e: { secret: string; corps: string | Buffer; horodatage: string | null; signature: string | null; maintenantMs: number }): VerdictSignature {
-  if (!e.horodatage || !RE_HORODATAGE.test(e.horodatage) || !e.signature || !RE_SIGNATURE.test(e.signature.trim())) return "invalide";
-  const attendue = Buffer.from(signatureZernio(e.secret, e.horodatage, e.corps));
-  const recue = Buffer.from(e.signature.trim().replace(/^sha256=/i, "").toLowerCase());
+/** Vérifie la signature à temps constant (hex minuscule, 64 caractères). Ne lit jamais le JSON. */
+export function verifierSignatureZernio(e: { secret: string; corps: string | Buffer; signature: string | null }): VerdictSignature {
+  const brute = e.signature?.trim() ?? "";
+  if (!RE_SIGNATURE.test(brute)) return "invalide";
+  const attendue = Buffer.from(signatureZernio(e.secret, e.corps));
+  const recue = Buffer.from(brute);
   // Longueurs publiques (64 hex) ; la comparaison du contenu est à temps constant.
-  if (attendue.length !== recue.length || !timingSafeEqual(attendue, recue)) return "invalide";
-  const ecart = Math.abs(Math.floor(e.maintenantMs / 1000) - Number(e.horodatage));
-  return ecart > FENETRE_REJEU_SEC ? "perimee" : "ok";
+  return attendue.length === recue.length && timingSafeEqual(attendue, recue) ? "ok" : "invalide";
 }
 
-export interface EvenementRun {
-  idEvenement: string;
-  type: (typeof TYPES_EVENEMENT_ACCEPTES)[number];
-  idRun: string;
+/** Fenêtre anti-rejeu sur l'instant du CORPS (secondes Unix). */
+export function dansFenetreRejeu(timestampSec: number, maintenantMs: number): boolean {
+  return Math.abs(Math.floor(maintenantMs / 1000) - timestampSec) <= FENETRE_REJEU_SEC;
 }
 
-/** Lit la charge : `{ id, event: "run.completed", data: { runId } }`. Rien d'autre n'est gardé (aucune donnée de personne). */
-export function lireEvenementRun(corps: string | Buffer): EvenementRun | null {
+/** `timestamp` du corps : texte ISO 8601 ou nombre (secondes, ou millisecondes si > 1e11). Retour en secondes, ou null. */
+function secondesDe(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v) && v > 0) return Math.floor(v > 1e11 ? v / 1000 : v);
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+    const t = Date.parse(v);
+    return Number.isFinite(t) ? Math.floor(t / 1000) : null;
+  }
+  return null;
+}
+
+/** Enveloppe commune, lue APRÈS vérification de la signature. `null` = charge inconnue (422). */
+export interface EnveloppeZernio {
+  id: string;
+  event: string;
+  timestampSec: number;
+  racine: Record<string, unknown>;
+}
+export function lireEnveloppe(corps: string | Buffer): EnveloppeZernio | null {
   let j: unknown;
   try {
     j = JSON.parse(typeof corps === "string" ? corps : corps.toString("utf8"));
@@ -70,9 +85,35 @@ export function lireEvenementRun(corps: string | Buffer): EvenementRun | null {
   }
   if (!j || typeof j !== "object" || Array.isArray(j)) return null;
   const o = j as Record<string, unknown>;
-  const data = o.data && typeof o.data === "object" && !Array.isArray(o.data) ? (o.data as Record<string, unknown>) : null;
-  if (typeof o.id !== "string" || !RE_ID.test(o.id) || !(TYPES_EVENEMENT_ACCEPTES as readonly string[]).includes(String(o.event)) || !data || typeof data.runId !== "string" || data.runId.length < 1 || data.runId.length > 200 || /[\u0000-\u001f]/.test(data.runId)) return null;
-  return { idEvenement: o.id, type: o.event as EvenementRun["type"], idRun: data.runId };
+  const t = secondesDe(o.timestamp);
+  if (typeof o.id !== "string" || !RE_ID.test(o.id) || typeof o.event !== "string" || o.event.length < 1 || o.event.length > 100 || t === null) return null;
+  return { id: o.id, event: o.event, timestampSec: t, racine: o };
+}
+
+export interface EvenementRun {
+  type: (typeof TYPES_EVENEMENT_ACCEPTES)[number];
+  /** `execution.id` : identifiant du run. */
+  idRun: string;
+  /** `contact.id` (opaque) et `trigger.text` (le mot saisi) : repères pour la relecture, jamais d'adresse e-mail. */
+  idContact: string | null;
+  motDeclencheur: string | null;
+}
+
+const objet = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
+const texteBorne = (v: unknown, max: number): string | null => (typeof v === "string" && v.length >= 1 && v.length <= max && !/[\u0000-\u001f]/.test(v) ? v : null);
+
+/**
+ * Lit un `workflow.run.completed` : `execution.id` + `execution.status` (`completed` ou `exited`). Retourne `null` si l'événement
+ * n'est pas de ce type (accusé sans effet) ou si la charge est incomplète (le service distingue les deux avec `lireEnveloppe`).
+ */
+export function lireEvenementRun(env: EnveloppeZernio): EvenementRun | null {
+  if (env.event !== "workflow.run.completed") return null;
+  const ex = objet(env.racine.execution);
+  const idRun = ex && typeof ex.id === "string" && RE_ID_RUN.test(ex.id) ? ex.id : null;
+  if (!ex || !idRun || (ex.status !== "completed" && ex.status !== "exited")) return null;
+  const contact = objet(env.racine.contact);
+  const trigger = objet(env.racine.trigger);
+  return { type: "workflow.run.completed", idRun, idContact: texteBorne(contact?.id, 200), motDeclencheur: texteBorne(trigger?.text, 200) };
 }
 
 /** Ce que Zernio consigne dans un run, relu chez Zernio (jamais pris dans le crochet). Transit seulement : jamais stocké ici. */

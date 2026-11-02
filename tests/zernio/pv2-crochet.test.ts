@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
-import { ATTENTE_EN_COURS_MS, ENTETE_HORODATAGE_ZERNIO, ENTETE_SIGNATURE_ZERNIO, signatureZernio, verifierSignatureZernio, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
+import { ATTENTE_EN_COURS_MS, ENTETE_SIGNATURE_ZERNIO, signatureZernio, verifierSignatureZernio, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { signatureValide } from "@/fournisseurs/site/signature";
 import type { RequeteSignee, ReponseSite } from "@/fournisseurs/site/types";
 
@@ -17,10 +17,12 @@ const T0 = 1_760_781_600_000;
 const ENV_ALLUME = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: SECRET_SITE };
 const RUN: RunLu = { email: EMAIL, mot: "guide", reseau: "instagram", accord: "non_demande", guide: "guide-ia", versionTexteM1: "m1-v1" };
 
+function corpsRun(id: string, idRun: string, t = T0): string {
+  return JSON.stringify({ id, event: "workflow.run.completed", timestamp: new Date(t).toISOString(), workflow: { id: "wf_1", name: "Parcours" }, execution: { id: idRun, status: "completed" }, contact: { id: "ct_1" }, trigger: { type: "keyword", text: "GUIDE" } });
+}
 function crochet(id: string, idRun = "run_exemple_0001", secret = SECRET_CROCHET, t = T0) {
-  const corps = JSON.stringify({ id, event: "run.completed", data: { runId: idRun } });
-  const horodatage = String(Math.floor(t / 1000));
-  return { corps, horodatage, signature: signatureZernio(secret, horodatage, corps) };
+  const corps = corpsRun(id, idRun, t);
+  return { corps, idEvenement: id, signature: signatureZernio(secret, corps) };
 }
 const recevoir = (e: ReturnType<typeof crochet>, env: Record<string, string | undefined> = ENV_ALLUME, t = T0) => pm.recevoirCrochetZernio(e, { env, maintenantMs: t });
 const outbox = () => depots().evenementsFournisseurs.lister((e) => e.fournisseur === "zernio");
@@ -39,37 +41,41 @@ afterEach(() => {
 });
 
 describe("signature du crochet", () => {
-  it("valide / invalide / périmée", () => {
+  it("valide / invalide (corps seul, hex minuscule)", () => {
     const e = crochet("evt_1");
-    const base = { secret: SECRET_CROCHET, corps: e.corps, horodatage: e.horodatage, signature: e.signature, maintenantMs: T0 };
+    const base = { secret: SECRET_CROCHET, corps: e.corps, signature: e.signature };
     expect(verifierSignatureZernio(base)).toBe("ok");
-    expect(verifierSignatureZernio({ ...base, signature: "sha256=" + e.signature })).toBe("ok");
     expect(verifierSignatureZernio({ ...base, secret: "autre-secret-fictif" })).toBe("invalide");
     expect(verifierSignatureZernio({ ...base, corps: e.corps + " " })).toBe("invalide");
     expect(verifierSignatureZernio({ ...base, signature: null })).toBe("invalide");
     expect(verifierSignatureZernio({ ...base, signature: "zz" })).toBe("invalide");
-    expect(verifierSignatureZernio({ ...base, maintenantMs: T0 + 301_000 })).toBe("perimee");
-    expect(verifierSignatureZernio({ ...base, maintenantMs: T0 - 301_000 })).toBe("perimee");
-    expect(verifierSignatureZernio({ ...base, maintenantMs: T0 + 299_000 })).toBe("ok");
+    expect(verifierSignatureZernio({ ...base, signature: e.signature.toUpperCase() })).toBe("invalide");
+    expect(verifierSignatureZernio({ ...base, signature: "sha256=" + e.signature })).toBe("invalide");
   });
 
-  it("le service refuse (401) une signature invalide ou périmée et n'écrit rien", async () => {
+  it("le service refuse (401) une signature invalide ou un horodatage du corps hors fenêtre, et n'écrit rien", async () => {
     expect((await recevoir({ ...crochet("evt_1"), signature: "0".repeat(64) })).statut).toBe(401);
     expect((await recevoir(crochet("evt_2"), ENV_ALLUME, T0 + 600_000)).statut).toBe(401);
-    expect(await outbox()).toHaveLength(0);
+    expect((await recevoir(crochet("evt_3"), ENV_ALLUME, T0 - 301_000)).statut).toBe(401);
+    expect((await recevoir(crochet("evt_4"), ENV_ALLUME, T0 + 299_000)).statut).toBe(200);
+    expect(await outbox()).toHaveLength(1);
   });
 
   it("charge inconnue : 422 propre, rien d'écrit", async () => {
-    const mauvais = (corps: string) => ({ corps, horodatage: String(T0 / 1000), signature: signatureZernio(SECRET_CROCHET, String(T0 / 1000), corps) });
-    for (const c of ["pas du json", "[]", JSON.stringify({ id: "e1", event: "autre.chose", data: { runId: "r" } }), JSON.stringify({ id: "e1", event: "run.completed" })]) {
-      expect((await recevoir(mauvais(c))).statut).toBe(422);
+    const signe = (corps: string) => ({ corps, idEvenement: "e1", signature: signatureZernio(SECRET_CROCHET, corps) });
+    const ts = new Date(T0).toISOString();
+    const ok = { id: "e1", event: "workflow.run.completed", timestamp: ts };
+    for (const c of ["pas du json", "[]", JSON.stringify({ id: "e1", event: "workflow.run.completed" }), JSON.stringify(ok), JSON.stringify({ ...ok, execution: { id: "r", status: "running" } })]) {
+      expect((await recevoir(signe(c))).statut).toBe(422);
     }
     expect(await outbox()).toHaveLength(0);
   });
 
-  it("l'entête exporté de la route est lu tel quel", () => {
+  it("les noms d'en-têtes exportés suivent la doc (aucun en-tête d'horodatage)", async () => {
+    const m = await import("@/domaine/guide-reseau/crochet-zernio");
     expect(ENTETE_SIGNATURE_ZERNIO).toBe("x-zernio-signature");
-    expect(ENTETE_HORODATAGE_ZERNIO).toBe("x-zernio-timestamp");
+    expect([m.ENTETE_EVENEMENT_ZERNIO, m.ENTETE_ID_EVENEMENT_ZERNIO, m.ENTETE_SIGNATURE_HERITEE, m.ENTETE_ID_EVENEMENT_HERITE]).toEqual(["x-zernio-event", "x-zernio-event-id", "x-late-signature", "x-late-event-id"]);
+    expect(Object.keys(m).filter((k) => /HORODATAGE/.test(k))).toEqual([]);
   });
 });
 
@@ -97,7 +103,7 @@ describe("interrupteur éteint", () => {
     pm.injecterLecteurRuns(lecteur);
     const eteint = { ...ENV_ALLUME, PARCOURS_MOT_ENABLED: undefined };
     const r1 = await recevoir(crochet("evt_1"), eteint);
-    const r2 = await recevoir({ corps: "n'importe quoi", horodatage: null, signature: null }, eteint);
+    const r2 = await recevoir({ corps: "n'importe quoi", signature: null }, eteint);
     expect(r1).toEqual({ statut: 200, corps: { recu: true } });
     expect(r2).toEqual(r1);
     expect(await outbox()).toHaveLength(0);

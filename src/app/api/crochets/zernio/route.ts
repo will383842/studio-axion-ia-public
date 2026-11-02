@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ENTETE_HORODATAGE_ZERNIO, ENTETE_SIGNATURE_ZERNIO, TAILLE_MAX_CROCHET } from "@/domaine/guide-reseau/crochet-zernio";
+import { ENTETE_ID_EVENEMENT_HERITE, ENTETE_ID_EVENEMENT_ZERNIO, ENTETE_SIGNATURE_HERITEE, ENTETE_SIGNATURE_ZERNIO, TAILLE_MAX_CROCHET } from "@/domaine/guide-reseau/crochet-zernio";
 
 /**
  * Crochet Zernio (PV-2) : exempté de session (proxy.ts), vérifié par SIGNATURE (`ZERNIO_WEBHOOK_SECRET`, lu seulement dans
@@ -38,7 +38,7 @@ export async function POST(requete: NextRequest) {
   if (!parcoursMotActif() || !process.env[VARIABLE_SECRET_CROCHET_ZERNIO]?.trim()) return NextResponse.json({ recu: true }, { status: 200 });
   const corps = await lireCorpsPlafonne(requete, TAILLE_MAX_CROCHET);
   if (corps === null) return NextResponse.json({ erreur: "trop_volumineux" }, { status: 413 });
-  const r = await recevoirCrochetZernio({ corps, signature: requete.headers.get(ENTETE_SIGNATURE_ZERNIO), horodatage: requete.headers.get(ENTETE_HORODATAGE_ZERNIO) });
+  const r = await recevoirCrochetZernio({ corps, signature: requete.headers.get(ENTETE_SIGNATURE_ZERNIO) ?? requete.headers.get(ENTETE_SIGNATURE_HERITEE), idEvenement: requete.headers.get(ENTETE_ID_EVENEMENT_ZERNIO) ?? requete.headers.get(ENTETE_ID_EVENEMENT_HERITE) });
   return NextResponse.json(r.corps, { status: r.statut });
 }
 

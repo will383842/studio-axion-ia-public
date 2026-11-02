@@ -23,6 +23,8 @@ import {
   EN_COURS_MAX,
   ESSAIS_MAX,
   LOT_MAX_PAR_PASSAGE,
+  dansFenetreRejeu,
+  lireEnveloppe,
   lireEvenementRun,
   runValide,
   TAILLE_MAX_CROCHET,
@@ -38,8 +40,8 @@ import { depots, horodatage, journaliser, maintenant, sousVerrou } from "./_comm
 
 /**
  * ⛔ `PARCOURS_MOT_ENABLED` reste ÉTEINT (valeur par défaut : absent) tant que l'ESSAI RÉEL du webhook Zernio n'a pas eu lieu
- * (docs/zernio/parcours-viral/05-ESSAI-REEL-WEBHOOK.md) : le format de signature et la charge sont des hypothèses.
- * L'allumer sans cet essai, c'est refuser (401) tous les vrais webhooks ou, pire, croire un format non vérifié.
+ * (docs/zernio/parcours-viral/05-ESSAI-REEL-WEBHOOK.md) : le format du crochet suit la doc publique, mais la relecture d'un run
+ * n'a pas de point d'accès documenté (aucun lecteur réel branché).
  */
 export const VARIABLE_INTERRUPTEUR_PARCOURS = "PARCOURS_MOT_ENABLED";
 /** Secret du webhook ENTRANT de Zernio : lu dans l'ENVIRONNEMENT seulement (jamais en base, jamais dans le dépôt). */
@@ -58,7 +60,12 @@ export function parcoursMotActif(env: Record<string, string | undefined> = proce
 }
 
 /** Relit un run chez Zernio. Aucune implémentation réelle n'est branchée tant que le point d'accès n'est pas confirmé. */
-export type LecteurRuns = (idRun: string) => Promise<RunLu | null>;
+export interface RepereRun {
+  /** `contact.id` et `trigger.text` du webhook `workflow.run.completed` (aucune adresse e-mail). */
+  idContact: string | null;
+  motDeclencheur: string | null;
+}
+export type LecteurRuns = (idRun: string, repere: RepereRun) => Promise<RunLu | null>;
 let lecteurInjecte: LecteurRuns | null = null;
 let transportInjecte: TransportSite | null = null;
 export function injecterLecteurRuns(l: LecteurRuns | null): void {
@@ -75,7 +82,8 @@ export interface EntreeCrochetZernio {
   /** Octets BRUTS du corps (un `string` reste accepté pour les tests). La signature se calcule sur ces octets. */
   corps: Buffer | string;
   signature: string | null;
-  horodatage: string | null;
+  /** `X-Zernio-Event-Id` (ou alias hérité `X-Late-Event-Id`) : clé de déduplication. À défaut, `id` du corps. */
+  idEvenement?: string | null;
 }
 
 export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { env?: Record<string, string | undefined>; maintenantMs?: number } = {}): Promise<{ statut: number; corps: Record<string, unknown> }> {
@@ -83,22 +91,30 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
   const secret = env[VARIABLE_SECRET_CROCHET_ZERNIO]?.trim();
   if (!parcoursMotActif(env) || !secret) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
   if ((typeof entree.corps === "string" ? Buffer.byteLength(entree.corps, "utf8") : entree.corps.byteLength) > TAILLE_MAX_CROCHET) return { statut: 413, corps: { erreur: "trop_volumineux" } };
-  const verdict = verifierSignatureZernio({ secret, corps: entree.corps, horodatage: entree.horodatage, signature: entree.signature, maintenantMs: o.maintenantMs ?? Date.now() });
-  if (verdict !== "ok") return { statut: 401, corps: { erreur: "signature_refusee" } };
-  const evt = lireEvenementRun(entree.corps);
+  // 1. Signature sur les octets bruts, AVANT tout JSON.parse.
+  if (verifierSignatureZernio({ secret, corps: entree.corps, signature: entree.signature }) !== "ok") return { statut: 401, corps: { erreur: "signature_refusee" } };
+  // 2. Enveloppe `{ id, event, timestamp }` et fenêtre anti-rejeu sur le `timestamp` du corps.
+  const enveloppe = lireEnveloppe(entree.corps);
+  if (!enveloppe) return { statut: 422, corps: { erreur: "charge_inconnue" } };
+  if (!dansFenetreRejeu(enveloppe.timestampSec, o.maintenantMs ?? Date.now())) return { statut: 401, corps: { erreur: "signature_refusee" } };
+  // 3. Tout événement autre que `workflow.run.completed` (dont `webhook.test`) : accusé 200, sans effet.
+  if (enveloppe.event !== "workflow.run.completed") return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+  const evt = lireEvenementRun(enveloppe);
   if (!evt) return { statut: 422, corps: { erreur: "charge_inconnue" } };
+  const idEvenement = entree.idEvenement?.trim() || enveloppe.id;
+  if (!/^[A-Za-z0-9._:-]{1,200}$/.test(idEvenement)) return { statut: 422, corps: { erreur: "charge_inconnue" } };
   return sousVerrou(async () => {
     const d = depots();
-    if (await d.evenementsFournisseurs.trouver((e) => e.fournisseur === FOURNISSEUR && e.idEvenement === evt.idEvenement)) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    if (await d.evenementsFournisseurs.trouver((e) => e.fournisseur === FOURNISSEUR && e.idEvenement === idEvenement)) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     const entite: EvenementFournisseur = {
       id: nouvelId("evf"),
       fournisseur: FOURNISSEUR,
-      idEvenement: evt.idEvenement,
+      idEvenement,
       type: evt.type,
       recuLe: maintenant(),
       traite: false,
       // Seul l'identifiant (opaque) du run est gardé : ni adresse e-mail, ni contenu du crochet.
-      charge: { idRun: evt.idRun, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null, accord: null },
+      charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null, accord: null },
       ...horodatage(),
     };
     await d.evenementsFournisseurs.enregistrer(entite);
@@ -195,7 +211,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   let corpsReponse: unknown = null;
   let code: string | null = null;
   try {
-    const run = await lire(idRun);
+    const run = await lire(idRun, { idContact: typeof ev.charge.idContact === "string" ? ev.charge.idContact : null, motDeclencheur: typeof ev.charge.motDeclencheur === "string" ? ev.charge.motDeclencheur : null });
     if (!run) code = "run_introuvable"; // réessai court borné plus bas
     else if (!runValide(run)) code = "run_invalide";
     else {
