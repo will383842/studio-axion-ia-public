@@ -16,9 +16,8 @@ const RUN: RunLu = { email: "lecteur-fictif@example.com", mot: "guide", reseau: 
 const RUN_OUI: RunLu = { ...RUN, accord: "oui", versionTexteM2: "m2-v1", occurredAt: "2026-11-01T10:00:00Z" };
 
 function crochet(id: string, idRun: string) {
-  const corps = Buffer.from(JSON.stringify({ id, event: "run.completed", data: { runId: idRun } }), "utf8");
-  const horodatage = String(Math.floor(T0 / 1000));
-  return { corps, horodatage, signature: signatureZernio(SECRET_CROCHET, horodatage, corps) };
+  const corps = Buffer.from(JSON.stringify({ id, event: "workflow.run.completed", timestamp: new Date(T0).toISOString(), execution: { id: idRun, status: "completed" }, contact: { id: "ct_1" }, trigger: { type: "keyword", text: "GUIDE" } }), "utf8");
+  return { corps, idEvenement: id, signature: signatureZernio(SECRET_CROCHET, corps) };
 }
 const outbox = () => depots().evenementsFournisseurs.lister((e) => e.fournisseur === "zernio");
 function site(reponses: (ReponseSite | "panne")[]) {
@@ -88,18 +87,17 @@ describe("MINEUR (f) — runValide aligné sur le site", () => {
 });
 
 describe("MINEUR (a) — octets bruts", () => {
+  const racine = (extra: Buffer = Buffer.alloc(0)) => Buffer.concat([Buffer.from(`{"id":"e","event":"workflow.run.completed","timestamp":"${new Date(T0).toISOString()}","execution":{"id":"r","status":"completed"}}`), extra]);
   it("la signature se calcule sur les octets : un corps non UTF-8 valide est vérifié sur le Buffer", () => {
-    const corps = Buffer.concat([Buffer.from('{"id":"e","event":"run.completed","data":{"runId":"r"}}'), Buffer.from([0xff, 0xfe])]);
-    const h = String(T0 / 1000);
-    const signature = signatureZernio(SECRET_CROCHET, h, corps);
-    expect(verifierSignatureZernio({ secret: SECRET_CROCHET, corps, horodatage: h, signature, maintenantMs: T0 })).toBe("ok");
+    const corps = racine(Buffer.from([0xff, 0xfe]));
+    const signature = signatureZernio(SECRET_CROCHET, corps);
+    expect(verifierSignatureZernio({ secret: SECRET_CROCHET, corps, signature })).toBe("ok");
     // La même chose passée par un texte décodé (U+FFFD) ne signe pas pareil.
-    expect(verifierSignatureZernio({ secret: SECRET_CROCHET, corps: corps.toString("utf8"), horodatage: h, signature, maintenantMs: T0 })).toBe("invalide");
+    expect(verifierSignatureZernio({ secret: SECRET_CROCHET, corps: corps.toString("utf8"), signature })).toBe("invalide");
   });
   it("un BOM en tête est signé octet pour octet", async () => {
-    const corps = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('{"id":"e1","event":"run.completed","data":{"runId":"r1"}}')]);
-    const h = String(T0 / 1000);
-    const r = await pm.recevoirCrochetZernio({ corps, horodatage: h, signature: signatureZernio(SECRET_CROCHET, h, corps) }, { env: ENV, maintenantMs: T0 });
+    const corps = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), racine()]);
+    const r = await pm.recevoirCrochetZernio({ corps, idEvenement: "e1", signature: signatureZernio(SECRET_CROCHET, corps) }, { env: ENV, maintenantMs: T0 });
     expect(r.statut).toBe(422); // signature valide (sinon 401) ; JSON avec BOM refusé comme charge inconnue
   });
   it("la route lit en octets plafonnés : corps trop gros sans content-length → 413", async () => {
