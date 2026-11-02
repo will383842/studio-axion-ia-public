@@ -14,13 +14,20 @@ import "server-only";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
 import {
+  ATTENTES_INTROUVABLE_MS,
   conduiteApresReponse,
   corpsDemandeGuide,
+  DEBIT_MAX_PAR_HEURE,
+  DISJONCTEUR_PAUSE_MS,
+  DISJONCTEUR_SEUIL,
+  EN_COURS_MAX,
   ESSAIS_MAX,
+  LOT_MAX_PAR_PASSAGE,
   lireEvenementRun,
   runValide,
   TAILLE_MAX_CROCHET,
   verifierSignatureZernio,
+  type Conduite,
   type RunLu,
 } from "@/domaine/guide-reseau/crochet-zernio";
 import { creerTransportHttp } from "@/fournisseurs/site/http";
@@ -29,8 +36,18 @@ import type { TransportSite } from "@/fournisseurs/site/types";
 import { nouvelId } from "@/lib/ids";
 import { depots, horodatage, journaliser, maintenant, sousVerrou } from "./_commun";
 
+/**
+ * ⛔ `PARCOURS_MOT_ENABLED` reste ÉTEINT (valeur par défaut : absent) tant que l'ESSAI RÉEL du webhook Zernio n'a pas eu lieu
+ * (docs/zernio/parcours-viral/05-ESSAI-REEL-WEBHOOK.md) : le format de signature et la charge sont des hypothèses.
+ * L'allumer sans cet essai, c'est refuser (401) tous les vrais webhooks ou, pire, croire un format non vérifié.
+ */
 export const VARIABLE_INTERRUPTEUR_PARCOURS = "PARCOURS_MOT_ENABLED";
+/** Secret du webhook ENTRANT de Zernio : lu dans l'ENVIRONNEMENT seulement (jamais en base, jamais dans le dépôt). */
 export const VARIABLE_SECRET_CROCHET_ZERNIO = "ZERNIO_WEBHOOK_SECRET";
+/** Secret de l'appel SORTANT vers la route des guides du site : variable propre (= `GUIDES_RESEAU_HMAC_SECRET` côté site). */
+export const VARIABLE_SECRET_SITE_GUIDES = "SITE_GUIDES_RESEAU_SECRET";
+/** Repli documenté : le site retombe lui-même sur le secret des vidéos si sa variable propre est absente. */
+export const VARIABLE_SECRET_SITE_REPLI = "SITE_VIDEOS_SECRET";
 export const CHEMIN_DEMANDES_GUIDE = "/api/interne/demandes-guide-reseau";
 const FOURNISSEUR = "zernio";
 const ESSAIS_NONCE = 3;
@@ -55,7 +72,8 @@ export function injecterTransportSite(t: TransportSite | null): void {
 const NEUTRE = { statut: 200, corps: { recu: true } } as const;
 
 export interface EntreeCrochetZernio {
-  corps: string;
+  /** Octets BRUTS du corps (un `string` reste accepté pour les tests). La signature se calcule sur ces octets. */
+  corps: Buffer | string;
   signature: string | null;
   horodatage: string | null;
 }
@@ -64,7 +82,7 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
   const env = o.env ?? process.env;
   const secret = env[VARIABLE_SECRET_CROCHET_ZERNIO]?.trim();
   if (!parcoursMotActif(env) || !secret) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
-  if (Buffer.byteLength(entree.corps, "utf8") > TAILLE_MAX_CROCHET) return { statut: 413, corps: { erreur: "trop_volumineux" } };
+  if ((typeof entree.corps === "string" ? Buffer.byteLength(entree.corps, "utf8") : entree.corps.byteLength) > TAILLE_MAX_CROCHET) return { statut: 413, corps: { erreur: "trop_volumineux" } };
   const verdict = verifierSignatureZernio({ secret, corps: entree.corps, horodatage: entree.horodatage, signature: entree.signature, maintenantMs: o.maintenantMs ?? Date.now() });
   if (verdict !== "ok") return { statut: 401, corps: { erreur: "signature_refusee" } };
   const evt = lireEvenementRun(entree.corps);
@@ -89,7 +107,8 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
 }
 
 function transportDuSite(env: Record<string, string | undefined>): { transport: TransportSite; secret: string } | null {
-  const secret = env.SITE_VIDEOS_SECRET?.trim();
+  // Variable propre d'abord ; repli documenté sur le secret des vidéos (comme le site).
+  const secret = env[VARIABLE_SECRET_SITE_GUIDES]?.trim() || env[VARIABLE_SECRET_SITE_REPLI]?.trim();
   if (transportInjecte) return { transport: transportInjecte, secret: secret || "secret-absent" };
   const url = env.SITE_VIDEOS_URL?.trim();
   if (!url || !secret || !/^https?:\/\//i.test(url)) return null;
@@ -98,12 +117,27 @@ function transportDuSite(env: Record<string, string | undefined>): { transport: 
 
 let enCours = false;
 
+/** Disjoncteur simple et plafond de débit : état en mémoire (un redémarrage repart fermé ; l'état des événements est en base). */
+let pannesConsecutives = 0;
+let disjoncteurOuvertJusqua = 0;
+let appelsRecents: number[] = [];
+export function reinitialiserGardesParcours(): void {
+  pannesConsecutives = 0;
+  disjoncteurOuvertJusqua = 0;
+  appelsRecents = [];
+}
+const estPanne = (code: string): boolean => code === "injoignable" || code === "401" || code === "429" || /^5\d\d$/.test(code);
+
 export interface RapportOutbox {
   actif: boolean;
   traites: number;
   envoyes: number;
   definitifs: number;
   aReessayer: number;
+  /** Vrai si le disjoncteur était ouvert ou s'est ouvert pendant ce passage. */
+  disjoncteurOuvert?: boolean;
+  /** Vrai si le plafond de lot ou de débit a laissé des événements pour le passage suivant. */
+  plafonne?: boolean;
 }
 
 /** Un passage sur l'outbox. Éteint, ou site/lecteur non reliés : aucun appel sortant. */
@@ -117,13 +151,33 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
   enCours = true;
   try {
     const now = o.maintenantMs ?? Date.now();
+    if (now < disjoncteurOuvertJusqua) return { ...rapport, disjoncteurOuvert: true };
+    appelsRecents = appelsRecents.filter((t) => t > now - 3_600_000);
     const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && !e.traite && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
-    for (const ev of dus) {
+    // Plafond de LOT : les plus anciens d'abord, le reste attend le passage suivant (rien n'est perdu).
+    dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
+    if (dus.length > LOT_MAX_PAR_PASSAGE) rapport.plafonne = true;
+    for (const ev of dus.slice(0, LOT_MAX_PAR_PASSAGE)) {
+      // Plafond de DÉBIT : au plus DEBIT_MAX_PAR_HEURE événements travaillés par heure glissante.
+      if (appelsRecents.length >= DEBIT_MAX_PAR_HEURE) {
+        rapport.plafonne = true;
+        break;
+      }
+      appelsRecents.push(now);
       rapport.traites++;
-      const conduite = await tenter(ev, lire, site, now);
-      if (conduite === "envoye") rapport.envoyes++;
-      else if (conduite === "definitif") rapport.definitifs++;
+      const { issue, code } = await tenter(ev, lire, site, now);
+      if (issue === "envoye") rapport.envoyes++;
+      else if (issue === "definitif") rapport.definitifs++;
       else rapport.aReessayer++;
+      if (issue === "envoye") pannesConsecutives = 0;
+      else if (estPanne(code)) pannesConsecutives++;
+      if (pannesConsecutives >= DISJONCTEUR_SEUIL) {
+        disjoncteurOuvertJusqua = now + DISJONCTEUR_PAUSE_MS;
+        pannesConsecutives = 0;
+        rapport.disjoncteurOuvert = true;
+        await journaliser("parcours_mot", `ALERTE : disjoncteur du parcours mot → guide ouvert ${DISJONCTEUR_PAUSE_MS / 60_000} min après ${DISJONCTEUR_SEUIL} pannes consécutives.`);
+        break;
+      }
     }
   } finally {
     enCours = false;
@@ -131,15 +185,18 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
   return rapport;
 }
 
-async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number): Promise<"envoye" | "definitif" | "reessai"> {
+async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number): Promise<{ issue: "envoye" | "definitif" | "reessai"; code: string }> {
   const idRun = String(ev.charge.idRun);
-  const essais = Number(ev.charge.essais ?? 0) + 1;
+  const essaisAvant = Number(ev.charge.essais ?? 0);
+  const essais = essaisAvant + 1;
+  const introuvablesAvant = Number(ev.charge.introuvables ?? 0);
+  const enCoursAvant = Number(ev.charge.enCours ?? 0);
   let statut = 0;
   let corpsReponse: unknown = null;
   let code: string | null = null;
   try {
     const run = await lire(idRun);
-    if (!run) code = "run_introuvable";
+    if (!run) code = "run_introuvable"; // réessai court borné plus bas
     else if (!runValide(run)) code = "run_invalide";
     else {
       // Octets FIGÉS pour tous les essais de ce passage ; clé fixe.
@@ -161,26 +218,44 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   } catch {
     statut = 0; // lecture du run en échec : traitée comme une panne passagère
   }
-  const c = code ? ({ genre: "definitif", code } as const) : conduiteApresReponse(statut, corpsReponse, essais);
   const charge: Record<string, unknown> = { ...ev.charge, essais };
   let issue: "envoye" | "definitif" | "reessai";
   let traite = true;
+  let c: Conduite;
+  if (code === "run_introuvable") {
+    // Le webhook peut précéder la lisibilité du run chez Zernio : quelques relectures rapprochées, puis définitif.
+    c = introuvablesAvant < ATTENTES_INTROUVABLE_MS.length ? { genre: "reessayer", apresMs: ATTENTES_INTROUVABLE_MS[introuvablesAvant], code } : { genre: "definitif", code };
+    charge.introuvables = introuvablesAvant + 1;
+    charge.essais = essaisAvant; // ne consomme pas l'échelle des pannes
+  } else {
+    c = code ? { genre: "definitif", code } : conduiteApresReponse(statut, corpsReponse, essais);
+  }
+  const enAttenteSite = c.genre === "reessayer" && c.code === "409_en_cours";
+  if (enAttenteSite) charge.essais = essaisAvant; // un 409 `en_cours` ne compte PAS dans ESSAIS_MAX
   if (c.genre === "termine") {
     Object.assign(charge, { etat: "envoye", dernierCode: "200", accord: c.accord, prochainEssaiLe: null });
     issue = "envoye";
   } else if (c.genre === "definitif") {
     Object.assign(charge, { etat: "definitif", dernierCode: c.code, prochainEssaiLe: null });
     issue = "definitif";
-  } else if (essais >= ESSAIS_MAX) {
+  } else if (enAttenteSite && enCoursAvant + 1 > EN_COURS_MAX) {
+    Object.assign(charge, { etat: "abandonne", dernierCode: c.code, enCours: enCoursAvant + 1, prochainEssaiLe: null });
+    issue = "definitif";
+  } else if (code !== "run_introuvable" && !enAttenteSite && essais >= ESSAIS_MAX) {
     Object.assign(charge, { etat: "abandonne", dernierCode: c.code, prochainEssaiLe: null });
     issue = "definitif";
   } else {
+    if (enAttenteSite) charge.enCours = enCoursAvant + 1;
     traite = false;
     Object.assign(charge, { etat: "a_reessayer", dernierCode: c.code, prochainEssaiLe: now + c.apresMs });
     issue = "reessai";
   }
   await depots().evenementsFournisseurs.modifier(ev.id, { charge, traite });
   // Journal : identifiant d'événement, état et code seulement (jamais l'adresse, le corps, la clé ni le secret).
-  await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : ${String(charge.etat)} (${String(charge.dernierCode)}), essai ${essais}.`);
-  return issue;
+  await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : ${String(charge.etat)} (${String(charge.dernierCode)}), essai ${String(charge.essais)}.`);
+  // 401 du site : secret absent, tourné ou horloge décalée. Définitif pour CET événement, mais l'opérateur doit le savoir.
+  if (c.genre === "definitif" && c.code === "401") {
+    await journaliser("parcours_mot", `ALERTE : le site refuse la signature (401) pour l'événement ${ev.idEvenement}. Vérifier ${VARIABLE_SECRET_SITE_GUIDES} (= GUIDES_RESEAU_HMAC_SECRET côté site) et l'horloge. Aucun secret n'est journalisé.`);
+  }
+  return { issue, code: c.genre === "termine" ? "200" : c.code };
 }

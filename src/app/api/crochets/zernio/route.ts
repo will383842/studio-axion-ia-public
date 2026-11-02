@@ -8,12 +8,36 @@ import { ENTETE_HORODATAGE_ZERNIO, ENTETE_SIGNATURE_ZERNIO, TAILLE_MAX_CROCHET }
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * Lecture du corps en OCTETS bruts, plafonnée même sans `content-length` (envoi par morceaux) : on s'arrête dès que le
+ * plafond est dépassé. Le HMAC est ensuite calculé sur ce Buffer (pas sur un texte décodé : BOM, UTF-8 invalide).
+ * Même démarche que `lireCorpsPlafonne` du site. `null` = trop volumineux.
+ */
+async function lireCorpsPlafonne(req: NextRequest, max: number): Promise<Buffer | null> {
+  const annonce = Number(req.headers.get("content-length"));
+  if (Number.isFinite(annonce) && annonce > max) return null;
+  if (!req.body) return Buffer.alloc(0);
+  const lecteur = req.body.getReader();
+  const morceaux: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await lecteur.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await lecteur.cancel();
+      return null;
+    }
+    morceaux.push(value);
+  }
+  return Buffer.concat(morceaux);
+}
+
 export async function POST(requete: NextRequest) {
   const { parcoursMotActif, recevoirCrochetZernio, VARIABLE_SECRET_CROCHET_ZERNIO } = await import("@/services/parcours-mot");
   if (!parcoursMotActif() || !process.env[VARIABLE_SECRET_CROCHET_ZERNIO]?.trim()) return NextResponse.json({ recu: true }, { status: 200 });
-  const declare = Number(requete.headers.get("content-length") ?? 0);
-  if (declare > TAILLE_MAX_CROCHET) return NextResponse.json({ erreur: "trop_volumineux" }, { status: 413 });
-  const corps = await requete.text();
+  const corps = await lireCorpsPlafonne(requete, TAILLE_MAX_CROCHET);
+  if (corps === null) return NextResponse.json({ erreur: "trop_volumineux" }, { status: 413 });
   const r = await recevoirCrochetZernio({ corps, signature: requete.headers.get(ENTETE_SIGNATURE_ZERNIO), horodatage: requete.headers.get(ENTETE_HORODATAGE_ZERNIO) });
   return NextResponse.json(r.corps, { status: r.statut });
 }
