@@ -10,6 +10,8 @@
  * extrait court du commentaire public (≤ 140 caractères, échappé), date, statut, kit de réponse validé par le contrôle de sortie.
  */
 import "server-only";
+import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
+import type { Canal } from "@/domaine/guide-reseau/origine-v3";
 import { creerVerrou, maintenant } from "./_commun";
 import { controlerTexteSortant } from "./mots-controle";
 import { lienGuideValide } from "./mots-kit";
@@ -129,6 +131,47 @@ export async function enregistrerATraiter(entree: EntreeATraiter, o: { env?: Env
     await depot.ecrire([...existantes, r.carte]);
     return { issue: "execute" as const, raison: "ajoute" as const };
   });
+}
+
+/* ---- Aiguillage d'un commentaire à mot (inerte tant que le drapeau est éteint) ---- */
+export interface CommentaireAMot {
+  idEvenement: string;
+  post: string;
+  /** Réseau du parcours guide (`linkedin_page` devient « linkedin » dans la file). */
+  reseau: "instagram" | "facebook" | "linkedin_page" | "tiktok";
+  canal: Canal;
+  mot: string | null;
+  commentaire: string;
+}
+/** Lecteur de la liste des mots connus (majuscules). Aucun lecteur réel n'est branché dans ce lot : sans lecteur, tout mot est inconnu. */
+export type LecteurMots = () => Promise<readonly string[] | null>;
+export type ResultatAiguillage =
+  | { issue: "simule"; raison: "interrupteur_eteint" }
+  | { issue: "refuse"; raison: RefusEntree }
+  | { issue: "execute"; action: "a_traiter"; raison: "ajoute" | "deja_present" }
+  | { issue: "execute"; action: "reponse_publique" | "message_prive"; raison: "mot_connu" };
+
+/**
+ * Mot inconnu, absent ou liste illisible : la carte va dans « À traiter », JAMAIS d'envoi. Mot connu : retourne seulement la
+ * décision (LinkedIn et TikTok : réponse publique seule) ; ce service n'envoie rien et n'écrit rien dans ce cas.
+ */
+export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; depot?: DepotATraiter; lireMots?: LecteurMots } = {}): Promise<ResultatAiguillage> {
+  if (!aTraiterActif(o.env ?? process.env)) return { issue: "simule", raison: "interrupteur_eteint" };
+  let mots: readonly string[] | null = null;
+  try {
+    mots = o.lireMots ? await o.lireMots() : null;
+  } catch {
+    mots = null; // liste illisible : le mot est traité comme inconnu
+  }
+  const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots });
+  if (d.action !== "a_traiter") return { issue: "execute", action: d.action, raison: "mot_connu" };
+  const r = await enregistrerATraiter(
+    { idEvenement: c.idEvenement, reseau: c.reseau === "linkedin_page" ? "linkedin" : c.reseau, post: c.post, mot: c.mot, motif: d.motif, commentaire: c.commentaire },
+    { env: o.env, depot: o.depot },
+  );
+  if (r.issue === "refuse") return { issue: "refuse", raison: r.raison };
+  if (r.issue === "simule") return r;
+  return { issue: "execute", action: "a_traiter", raison: r.raison };
 }
 
 export async function lireVueATraiter(o: { env?: Env; depot?: DepotATraiter } = {}): Promise<VueATraiter> {
