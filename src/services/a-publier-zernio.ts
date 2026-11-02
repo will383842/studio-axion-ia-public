@@ -11,7 +11,7 @@ import type { Resultat } from "./_commun";
 import { depots, ErreurStudio, essayer, maintenant } from "./_commun";
 import { vueAPublier } from "./a-publier";
 import { exigerSession } from "./auth";
-import { lireModeBuffer } from "./buffer";
+import { lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
 import { envoyerReel, envoyerVersBuffer, obtenirKit, videoEnEssai } from "./publications";
 import { lireRoutage } from "./routage-publication";
 
@@ -29,6 +29,8 @@ export interface ComplementLigne {
   echecLe?: string;
   cause?: string;
   lien?: string;
+  /** Identifiant de la publication dont l'envoi est « à vérifier » : l'écran propose alors « Marquer comme vérifié ». */
+  aVerifierId?: string;
   /** Le réseau est en mode brouillon (essais) : il reçoit d'abord un brouillon. */
   essai: boolean;
   /** Buffer reste un choix possible pour ce contenu (masqué quand le réseau est configuré sans Buffer). */
@@ -72,6 +74,7 @@ export async function complementsAPublier(): Promise<Record<string, ComplementLi
       etat,
       ...(derniere && etat !== "aucun" ? { dateEnvoi: derniere.date, creeLe: derniere.creeLe } : {}),
       ...(etat === "echec" && derniere ? { echecLe: derniere.modifieLe, ...(derniere.erreur ? { cause: derniere.erreur } : {}) } : {}),
+      ...(derniere?.etatEnvoi === "a-verifier" ? { aVerifierId: derniere.id } : {}),
       ...(etat === "publiee" && derniere?.urlPubliee ? { lien: derniere.urlPubliee } : {}),
       essai: outil === "zernio" || modeBuffer === "brouillon",
       bufferDisponible: relie && avantFin && outilPour(routage, l.reseau) === "buffer",
@@ -118,5 +121,14 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
       ...(options.contenuIA !== undefined ? { contenuIA: options.contenuIA } : {}),
     });
     return { nombre: r.publications.length, problemes: (r.problemes ?? []).map((p) => p.message) };
+  });
+}
+
+/** « Marquer comme vérifié » : l'opérateur a regardé dans l'outil. N'écrit que dans le studio (voir `marquerEnvoiVerifie`). */
+export async function marquerEnvoiVerifieAction(publicationId: string): Promise<Resultat<{ ok: true }>> {
+  await exigerSession();
+  return essayer(async () => {
+    await marquerEnvoiVerifie(publicationId);
+    return { ok: true as const };
   });
 }

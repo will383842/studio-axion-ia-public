@@ -338,6 +338,25 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
   });
 }
 
+/**
+ * Sortie manuelle d'un envoi « à vérifier » (par exemple plusieurs pages d'un même compte : le studio ne peut pas savoir
+ * laquelle est partie, voir `reconcilierEnvoi`). L'opérateur a regardé dans l'outil : l'envoi passe à « envoyé », donc il
+ * ne reste plus bloqué et ne sera jamais renvoyé. N'écrit QUE dans le studio : rien n'est lu, supprimé ni modifié chez Buffer
+ * ou chez Zernio. Refus si l'envoi n'est pas « à vérifier » (rien d'autre ne se marque ainsi). Écrit au journal.
+ */
+export async function marquerEnvoiVerifie(publicationId: Id): Promise<Publication> {
+  await exigerSession();
+  return sousVerrou(async () => {
+    const p = await depots().publications.obtenir(publicationId);
+    if (!p || !estChezUnOutil(p)) throw new ErreurStudio("PUBLICATION_INCONNUE", "Cet envoi est introuvable.");
+    if (p.etatEnvoi !== "a-verifier") throw new ErreurStudio("PAS_A_VERIFIER", "Cet envoi n'est pas à vérifier : rien à marquer.");
+    const vid = videoIdSure(p);
+    const modifiee = await depots().publications.modifier(p.id, { etatEnvoi: "envoye", erreur: undefined, etatLuLe: maintenant() });
+    await journaliser("publication", `Envoi marqué comme vérifié à la main (${obtenirReseau(p.reseau).nom}) : rien n'a été modifié chez l'outil de publication.`, vid ? { type: "video", id: vid } : undefined);
+    return modifiee;
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Synchronisation des états (boucle de fond)                           */
 /* ------------------------------------------------------------------ */
