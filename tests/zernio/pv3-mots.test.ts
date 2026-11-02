@@ -49,6 +49,7 @@ const op = { confirmeParOperateur: true as const, env: ALLUME };
 
 beforeEach(() => {
   reinitialiserDepots();
+  S.basculerAncienComportementPourTest({});
   S.injecterExecuteurMots(null);
   S.injecterLecteurOpposition(null);
   S.injecterTransportOpposition(null);
@@ -213,27 +214,104 @@ describe("pv3 · plafonds", () => {
 });
 
 describe("pv3 · disjoncteur", () => {
-  it("course : poserMot concurrent + dépassement du plafond, le disjoncteur reste ouvert", async () => {
+  /**
+   * Entrelacement FORCÉ (aucune minuterie de hasard) : (1) `noterEnvois` finit sa partie compteurs puis `ouvrirDisjoncteur` lit
+   * les gardes (fermées) et est suspendu (verrou B) ; (2) un `poserMot` concurrent exécute son appel, relit les gardes
+   * (fermées) dans `executer` et est suspendu (verrou A) ; (3) B est libéré, le disjoncteur s'écrit « ouvert » ; (4) A est
+   * libéré, `executer` réécrit ses gardes périmées. Renvoie l'état final de `ouvert`.
+   */
+  async function jouerCourse(): Promise<boolean> {
+    S.injecterExecuteurMots(null);
     let n = 0;
-    S.injecterExecuteurMots(async () => {
-      await new Promise((r) => setTimeout(r, 5));
+    let armeA = false;
+    S.injecterExecuteurMots(async (r) => {
+      if (r.methode === "POST") armeA = true; // seule la pose du compte c2 est suspendue
       return { statut: 200, corps: { id: `wf_${++n}` } };
     });
     await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op });
     await S.reglerPlafonds({ heureCompte: 10, jourMot: 100000 });
     const saisie = await prete();
-    await Promise.all([
-      S.poserMot({ compte: "c2", saisie, ...op }),
-      S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 10, env: ALLUME, maintenantMs: T0 }),
-      S.poserMot({ compte: "c3", saisie, ...op }),
-      S.poserMot({ compte: "c4", saisie, ...op }),
-      S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 1, env: ALLUME, maintenantMs: T0 + 1 }),
-    ]);
+    armeA = false;
+
+    const latch = () => {
+      let ouvrir!: () => void;
+      const p = new Promise<void>((r) => (ouvrir = r));
+      return { p, ouvrir };
+    };
+    const A = latch(), B = latch();
+    const atteintA = latch(), atteintB = latch();
+    let gardesEcrites = false;
+    const param = depots().parametres;
+    const obtenir = vi.spyOn(param, "obtenir");
+    const enregistrer = vi.spyOn(param, "enregistrer");
+    const obtenirReel = obtenir.getMockImplementation() ?? param.obtenir.bind(param);
+    const vraiObtenir = Object.getPrototypeOf(param).obtenir ? Object.getPrototypeOf(param).obtenir.bind(param) : obtenirReel;
+    let pauseB = false, pauseAFaite = false;
+    obtenir.mockImplementation(async (id: string) => {
+      const v = await vraiObtenir(id);
+      if (id !== S.PARAM_GARDES_MOTS) return v;
+      if (gardesEcrites && !pauseB) {
+        pauseB = true; // lecture de `ouvrirDisjoncteur` (gardes fermées) : suspendue
+        atteintB.ouvrir();
+        await B.p;
+      } else if (armeA && !pauseAFaite) {
+        pauseAFaite = true; // première relecture des gardes par `executer` après l'appel de pose : suspendue
+        atteintA.ouvrir();
+        await A.p;
+      }
+      return v;
+    });
+    const vraiEnregistrer = Object.getPrototypeOf(param).enregistrer.bind(param);
+    enregistrer.mockImplementation(async (e: { id: string }) => {
+      await vraiEnregistrer(e);
+      if (e.id === S.PARAM_GARDES_MOTS && !pauseB) gardesEcrites = true; // fin de la partie compteurs de noterEnvois
+    });
+    try {
+      const rapport = S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 10, env: ALLUME, maintenantMs: T0 });
+      await atteintB.p; // ouvrirDisjoncteur a lu les gardes fermées
+      const pose = S.poserMot({ compte: "c2", saisie, ...op });
+      for (let i = 0; i < 25; i++) await new Promise((r) => setTimeout(r, 0)); // laisse la pose avancer si le verrou le permet
+      B.ouvrir();
+      await rapport; // le disjoncteur est écrit « ouvert »
+      A.ouvrir(); // executer réécrit seulement maintenant ses gardes lues avant l'ouverture
+      await pose;
+    } finally {
+      A.ouvrir();
+      B.ouvrir();
+      obtenir.mockRestore();
+      enregistrer.mockRestore();
+    }
+    return (await S.lireGardes()).disjoncteur.ouvert;
+  }
+  it("course (entrelacement forcé) : poserMot concurrent + dépassement du plafond, le disjoncteur reste ouvert", async () => {
+    expect(await jouerCourse()).toBe(true);
     expect((await S.lireVueMots(ALLUME)).disjoncteur.ouvert).toBe(true);
-    expect((await S.lireGardes()).disjoncteur.ouvert).toBe(true);
     expect(await S.refermerDisjoncteur({ confirmeParOperateur: true })).toEqual({ ok: true });
     expect((await S.lireGardes()).disjoncteur.ouvert).toBe(false);
+  });
+  it("course · MUTATION : sur l'ancien comportement (797760d) le même scénario REFERME le disjoncteur — preuve que le test discrimine", async () => {
+    S.basculerAncienComportementPourTest({ sansGardeEcriture: true, noterHorsVerrou: true });
+    try {
+      expect(await jouerCourse()).toBe(false); // bug reproduit : l'écriture périmée d'executer a écrasé « ouvert »
+    } finally {
+      S.basculerAncienComportementPourTest({});
+    }
+  });
+  it("course · une seule des deux protections suffit à garder le disjoncteur ouvert (défense en profondeur)", async () => {
+    S.basculerAncienComportementPourTest({ sansGardeEcriture: true });
+    try {
+      expect(await jouerCourse()).toBe(true); // bloc sous verrou, garde d'écriture désactivée
+    } finally {
+      S.basculerAncienComportementPourTest({});
+    }
+    reinitialiserDepots();
+    S.basculerAncienComportementPourTest({ noterHorsVerrou: true });
+    try {
+      expect(await jouerCourse()).toBe(true); // bloc hors verrou, garde d'écriture active
+    } finally {
+      S.basculerAncienComportementPourTest({});
+    }
   });
   it("s'ouvre après N erreurs, bloque pose et réactivation, ne se referme que par geste", async () => {
     const faux = brancher(500);
