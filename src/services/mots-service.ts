@@ -81,6 +81,18 @@ export interface Gardes {
 }
 const GARDES_DEFAUT = (): Gardes => ({ disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, erreursConsecutives: 0, plafonds: { heureCompte: PLAFOND_HEURE_COMPTE_MAX, jourMot: PLAFOND_JOUR_MOT_DEFAUT }, heures: {}, jours: {} });
 
+/**
+ * Bascule INTERNE aux tests (preuve « mutation » du test de course) : rétablit l'ancien comportement fautif (commit 797760d).
+ * Inopérante hors tests : elle exige VITEST dans l'environnement et refuse de s'activer sinon ; les valeurs par défaut sont
+ * le comportement sûr. Aucun chemin de production ne l'appelle.
+ */
+const ancienComportementTest = { sansGardeEcriture: false, noterHorsVerrou: false };
+export function basculerAncienComportementPourTest(o: { sansGardeEcriture?: boolean; noterHorsVerrou?: boolean }): void {
+  if (!process.env.VITEST) throw new Error("réservé aux tests");
+  ancienComportementTest.sansGardeEcriture = o.sansGardeEcriture ?? false;
+  ancienComportementTest.noterHorsVerrou = o.noterHorsVerrou ?? false;
+}
+
 const lireRegistre = async (): Promise<Registre> => lireParametre<Registre>(PARAM_REGISTRE_MOTS, {});
 export async function lireGardes(): Promise<Gardes> {
   const g = await lireParametre<Partial<Gardes>>(PARAM_GARDES_MOTS, {});
@@ -92,7 +104,7 @@ export async function lireGardes(): Promise<Gardes> {
  * l'appelant a lu des gardes anciennes ; seul `refermerDisjoncteur` (`fermer: true`) peut le refermer.
  */
 async function ecrireGardes(g: Gardes, fermer = false): Promise<void> {
-  if (!fermer) {
+  if (!fermer && !ancienComportementTest.sansGardeEcriture) {
     const actuel = await lireGardes();
     if (actuel.disjoncteur.ouvert && !g.disjoncteur.ouvert) g = { ...g, disjoncteur: actuel.disjoncteur };
   }
@@ -306,7 +318,7 @@ export async function noterEnvois(d: { mot: string; compte: string; nombre?: num
     await ecrireGardes(x);
     return x;
   });
-  return sousVerrou(async () => {
+  const bloc = async () => {
     const rapport: RapportEnvois = { actif: true, compte: g.heures[kHeure], motJour: g.jours[kJour], pausesAutomatiques: 0, disjoncteurOuvert: false };
     const plafondHeure = Math.min(g.plafonds.heureCompte, PLAFOND_HEURE_COMPTE_MAX);
     if (rapport.compte >= plafondHeure) {
@@ -317,7 +329,8 @@ export async function noterEnvois(d: { mot: string; compte: string; nombre?: num
       rapport.pausesAutomatiques += await pauseAuto((l) => l.mot === d.mot, env, `plafond du jour pour ${d.mot}`);
     }
     return rapport;
-  });
+  };
+  return ancienComportementTest.noterHorsVerrou ? bloc() : sousVerrou(bloc);
 }
 
 /* ------------------------------------------------------------------ */
