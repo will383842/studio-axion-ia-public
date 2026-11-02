@@ -13,7 +13,7 @@ import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
 import { libelleComptes } from "@/domaine/comptes-envoi";
 import { LIBELLES_ENVOI } from "@/domaine/libelles";
-import { envoyerParOutilAction, type ComplementLigne } from "@/services/a-publier-zernio";
+import { envoyerParOutilAction, marquerEnvoiVerifieAction, type ComplementLigne } from "@/services/a-publier-zernio";
 import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
 import { actionPrincipale, barreSelection, blocPremierCommentaire, choixOutilPropose, FIN_BUFFER, formatApercu, joursRestantsBrouillon, ligneCompteEtDate, mentionIAVisible, messageSucces, nomOutil, libelleEnvoiOutil, phraseBrouillonAProgrammer, phraseEchec, phraseEssais, type OutilAffiche } from "./finitions-envoi";
 import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
@@ -577,6 +577,8 @@ function DetailEnvoi({
         </div>
       )}
 
+      {c.aVerifierId && <EnvoiAVerifier publicationId={c.aVerifierId} reseauNom={l.reseauNom} />}
+
       {tiktokAttendu && (
         <div className="space-y-0.5">
           <label className="flex min-h-11 items-start gap-3 rounded-2xl border border-trait px-3 py-2.5 text-sm font-semibold text-texte">
@@ -664,6 +666,30 @@ function DetailEnvoi({
           Ajouter à la sélection
         </label>
       )}
+    </div>
+  );
+}
+
+/** Envoi « à vérifier » : sortie manuelle une fois regardé chez l'outil. N'écrit que dans le studio. */
+function EnvoiAVerifier({ publicationId, reseauNom }: { publicationId: string; reseauNom: string }) {
+  const router = useRouter();
+  const [occupe, demarrer] = useTransition();
+  const marquer = () =>
+    demarrer(async () => {
+      const r = await marquerEnvoiVerifieAction(publicationId);
+      if (r.ok) {
+        notifier.succes("Envoi marqué comme vérifié.");
+        router.refresh();
+      } else notifier.erreur(r.message);
+    });
+  return (
+    <div role="note" className="space-y-2 rounded-xl border border-ambre/40 bg-ambre-doux px-3 py-2 text-sm text-texte">
+      <p>
+        L&apos;envoi vers {reseauNom} est à vérifier : regardez dans l&apos;outil de publication s&apos;il y est. Une fois regardé, marquez-le comme vérifié. Rien n&apos;est modifié ni supprimé chez l&apos;outil.
+      </p>
+      <Bouton variante="secondaire" disabled={occupe} chargement={occupe} onClick={marquer}>
+        Marquer comme vérifié
+      </Bouton>
     </div>
   );
 }
