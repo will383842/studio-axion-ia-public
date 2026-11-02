@@ -131,8 +131,6 @@ export interface RunLu {
   occurredAt?: string;
   /** Origine complète (v3), facultative : lue seulement si le drapeau d'origine est allumé. Jamais de pseudo ni de texte. */
   origine?: import("./origine-v3").OrigineBrute;
-  /** Préfixes de chemin de NOS comptes (liste fermée, fournie par l'appelant) : sans eux, `post_url` n'est jamais envoyée. */
-  prefixesComptes?: readonly string[];
 }
 
 /**

@@ -4,6 +4,11 @@
 import { corpsDemandeGuide, type RunLu } from "./crochet-zernio";
 
 export const VARIABLE_INTERRUPTEUR_ORIGINE_V3 = "ORIGINE_V3_ENABLED";
+/** Préfixes de chemin de NOS comptes (séparés par des virgules), lus dans la configuration du Studio côté serveur : jamais fournis par Zernio. */
+export const VARIABLE_PREFIXES_COMPTES_ORIGINE = "ORIGINE_V3_PREFIXES_COMPTES";
+export function prefixesComptesConfigures(env: Record<string, string | undefined> = process.env): string[] {
+  return (env[VARIABLE_PREFIXES_COMPTES_ORIGINE] ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+}
 /** Éteint par défaut : seules les valeurs exactes « 1 » et « true » allument. */
 export function origineV3Active(env: Record<string, string | undefined> = process.env): boolean {
   const v = env[VARIABLE_INTERRUPTEUR_ORIGINE_V3];
