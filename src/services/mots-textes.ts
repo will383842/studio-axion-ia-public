@@ -24,6 +24,15 @@ export interface TextesMot {
   empreinteValidee: string | null;
 }
 
+/** Saisie de l'opérateur : ni état ni empreinte (la validation est un geste serveur distinct, empreinte enregistrée en base). */
+export interface SaisieMot {
+  mot: string;
+  reponsePublique: string;
+  messagePrive: string;
+  relance?: string | null;
+  fin: string;
+}
+
 /** Empreinte des seuls textes (pas de l'état) : sert à détecter qu'un texte a changé depuis la validation. */
 export function empreinteTextes(t: Pick<TextesMot, "mot" | "reponsePublique" | "messagePrive" | "relance" | "fin">): string {
   return createHash("sha256").update(JSON.stringify([t.mot, t.reponsePublique, t.messagePrive, t.relance, t.fin])).digest("hex");

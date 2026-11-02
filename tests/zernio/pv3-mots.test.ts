@@ -26,6 +26,12 @@ const T0 = Date.UTC(2026, 10, 3, 10, 0, 0);
 const brouillon = (mot = "GUIDE") =>
   T.textesDepuisSaisie({ mot, reponsePublique: "Réponse automatique : regardez vos messages privés.", messagePrive: "Réponse automatique. Quelle adresse pour le guide ?", relance: null, fin: "Réponse automatique. Merci, c'est noté." });
 const valides = (mot = "GUIDE") => T.validerTextes(brouillon(mot));
+const saisieDe = (mot = "GUIDE", fin = "Réponse automatique. Merci, c'est noté.") => ({ mot, reponsePublique: "Réponse automatique : regardez vos messages privés.", messagePrive: "Réponse automatique. Quelle adresse pour le guide ?", relance: null, fin });
+/** Validation par le geste serveur (empreinte enregistrée en base) puis saisie prête à poser. */
+const prete = async (mot = "GUIDE") => {
+  await S.validerMot({ saisie: saisieDe(mot), confirmeParOperateur: true });
+  return saisieDe(mot);
+};
 
 interface Faux {
   appels: RequeteMots[];
@@ -52,9 +58,28 @@ describe("pv3 · textes validés", () => {
   it("un texte non validé est refusé, sans appel", async () => {
     const faux = brancher();
     expect(G.construireGrapheMot(brouillon())).toMatchObject({ ok: false, code: "textes_non_valides" });
-    const r = await S.poserMot({ compte: "c1", textes: brouillon(), ...op });
+    const r = await S.poserMot({ compte: "c1", saisie: saisieDe(), ...op });
     expect(r).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
     expect(faux.appels).toHaveLength(0);
+  });
+  it("une empreinte fournie par l'appelant est ignorée (seule l'empreinte enregistrée compte)", async () => {
+    const faux = brancher();
+    const forge = { ...saisieDe(), etat: "valide_par_operateur", empreinteValidee: T.empreinteTextes(brouillon()) } as unknown as ReturnType<typeof saisieDe>;
+    expect(await S.poserMot({ compte: "c1", saisie: forge, ...op })).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
+    expect(await Ges.gestePoserMot("c1", forge)).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
+    expect(faux.appels).toHaveLength(0);
+  });
+  it("texte modifié après la validation enregistrée : refusé", async () => {
+    const faux = brancher();
+    await prete();
+    expect(await S.poserMot({ compte: "c1", saisie: saisieDe("GUIDE", "Réponse automatique. Merci !"), ...op })).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
+    expect(faux.appels).toHaveLength(0);
+    expect(await S.poserMot({ compte: "c1", saisie: saisieDe(), ...op })).toMatchObject({ issue: "execute" });
+  });
+  it("la validation est un geste protégé par la session et enregistre l'empreinte en base", async () => {
+    expect((await Ges.gesteValiderMot(saisieDe())).ok).toBe(true);
+    expect((await lireParametre<Record<string, string>>(S.PARAM_VALIDATIONS_MOTS, {})).GUIDE).toBe(T.empreinteTextes(brouillon()));
+    expect(await S.validerMot({ saisie: saisieDe(), confirmeParOperateur: false })).toMatchObject({ ok: false });
   });
   it("un texte modifié après validation redevient non validé", () => {
     const v = valides();
@@ -93,6 +118,8 @@ describe("pv3 · contrôle de sortie", () => {
     ["mention absente", "Bonjour, votre adresse ?", "mention_absente"],
     ["promesse", `Réponse automatique. Résultat ${J("garan", "ti")} sans risque`, "promesse_interdite"],
     ["adresse e-mail", "Réponse automatique. Écrivez à quelqu@example.com", "adresse_email"],
+    ["promesse coupée par un caractère invisible", `Réponse automatique. Résultat ${J("garan", "\u200B", "ti")}`, "promesse_interdite"],
+    ["adresse épelée", "Réponse automatique. Écrivez à nom arobase exemple point com", "adresse_email"],
   ])("%s refusé", (_n, texte, code) => {
     const r = avecTexte(texte);
     expect(r).toMatchObject({ ok: false, code: "texte_refuse" });
@@ -100,8 +127,10 @@ describe("pv3 · contrôle de sortie", () => {
   });
   it("mot interdit refusé à la pose : aucun appel", async () => {
     const faux = brancher();
-    const r = await S.poserMot({ compte: "c1", textes: T.validerTextes({ ...brouillon(), reponsePublique: `Réponse automatique ${TOKENS.lieu}` }), ...op });
-    expect(r).toMatchObject({ issue: "refuse", raison: "texte_refuse" });
+    const saisie = { ...saisieDe(), reponsePublique: `Réponse automatique ${TOKENS.lieu}` };
+    expect(await S.validerMot({ saisie, confirmeParOperateur: true })).toMatchObject({ ok: false, raison: "texte_refuse" });
+    const r = await S.poserMot({ compte: "c1", saisie, ...op });
+    expect(r).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
     expect(faux.appels).toHaveLength(0);
   });
   it("texte conforme accepté", () => expect(C.controlerTextesMot(valides())).toEqual([]));
@@ -111,7 +140,7 @@ describe("pv3 · interrupteur éteint = aucun appel", () => {
   it("pose, pause, réactivation : simulation, aucun état modifié", async () => {
     const faux = brancher();
     const eteint = { confirmeParOperateur: true as const, env: {} };
-    const p = await S.poserMot({ compte: "c1", textes: valides(), ...eteint });
+    const p = await S.poserMot({ compte: "c1", saisie: await prete(), ...eteint });
     expect(p).toMatchObject({ issue: "simule", raison: "interrupteur_eteint" });
     expect(p.requete?.chemin).toBeTruthy();
     expect(await S.mettreEnPause({ mot: "GUIDE", compte: "c1", ...eteint })).toMatchObject({ issue: "refuse", raison: "mot_non_pose" });
@@ -121,7 +150,7 @@ describe("pv3 · interrupteur éteint = aucun appel", () => {
   });
   it("sans validation de l'opérateur : refus même allumé", async () => {
     const faux = brancher();
-    expect(await S.poserMot({ compte: "c1", textes: valides(), confirmeParOperateur: false, env: ALLUME })).toMatchObject({ issue: "refuse", raison: "validation_operateur_absente" });
+    expect(await S.poserMot({ compte: "c1", saisie: await prete(), confirmeParOperateur: false, env: ALLUME })).toMatchObject({ issue: "refuse", raison: "validation_operateur_absente" });
     expect(faux.appels).toHaveLength(0);
   });
   it("noterEnvois éteint : rien compté", async () => {
@@ -133,7 +162,7 @@ describe("pv3 · interrupteur éteint = aucun appel", () => {
 describe("pv3 · pose / pause / réactivation", () => {
   it("allumé et validé : pose en pause, puis réactivation, puis pause", async () => {
     const faux = brancher();
-    expect(await S.poserMot({ compte: "c1", textes: valides(), ...op })).toMatchObject({ issue: "execute", idWorkflow: "wf_1" });
+    expect(await S.poserMot({ compte: "c1", saisie: await prete(), ...op })).toMatchObject({ issue: "execute", idWorkflow: "wf_1" });
     expect((await S.lireVueMots(ALLUME)).lignes[0]).toMatchObject({ mot: "GUIDE", compte: "c1", etat: "pause" });
     expect(await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op })).toMatchObject({ issue: "execute" });
     expect((await S.lireVueMots(ALLUME)).lignes[0].etat).toBe("actif");
@@ -144,7 +173,7 @@ describe("pv3 · pose / pause / réactivation", () => {
   it("compte par compte : la pause d'un compte ne touche pas l'autre", async () => {
     brancher();
     for (const c of ["c1", "c2"]) {
-      await S.poserMot({ compte: c, textes: valides(), ...op });
+      await S.poserMot({ compte: c, saisie: await prete(), ...op });
       await S.reactiverMot({ mot: "GUIDE", compte: c, ...op });
     }
     await S.mettreEnPause({ mot: "GUIDE", compte: "c1", ...op });
@@ -161,7 +190,7 @@ describe("pv3 · plafonds", () => {
   });
   it("plafond du jour atteint = pause automatique du mot", async () => {
     const faux = brancher();
-    await S.poserMot({ compte: "c1", textes: valides(), ...op });
+    await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op });
     await S.reglerPlafonds({ jourMot: 3 });
     expect((await S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 2, env: ALLUME, maintenantMs: T0 })).pausesAutomatiques).toBe(0);
@@ -174,7 +203,7 @@ describe("pv3 · plafonds", () => {
   });
   it("plafond horaire atteint = disjoncteur ouvert + pause du compte", async () => {
     brancher();
-    await S.poserMot({ compte: "c1", textes: valides(), ...op });
+    await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op });
     await S.reglerPlafonds({ heureCompte: 10, jourMot: 100000 });
     const r = await S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 10, env: ALLUME, maintenantMs: T0 });
@@ -184,24 +213,46 @@ describe("pv3 · plafonds", () => {
 });
 
 describe("pv3 · disjoncteur", () => {
+  it("course : poserMot concurrent + dépassement du plafond, le disjoncteur reste ouvert", async () => {
+    let n = 0;
+    S.injecterExecuteurMots(async () => {
+      await new Promise((r) => setTimeout(r, 5));
+      return { statut: 200, corps: { id: `wf_${++n}` } };
+    });
+    await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
+    await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op });
+    await S.reglerPlafonds({ heureCompte: 10, jourMot: 100000 });
+    const saisie = await prete();
+    await Promise.all([
+      S.poserMot({ compte: "c2", saisie, ...op }),
+      S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 10, env: ALLUME, maintenantMs: T0 }),
+      S.poserMot({ compte: "c3", saisie, ...op }),
+      S.poserMot({ compte: "c4", saisie, ...op }),
+      S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 1, env: ALLUME, maintenantMs: T0 + 1 }),
+    ]);
+    expect((await S.lireVueMots(ALLUME)).disjoncteur.ouvert).toBe(true);
+    expect((await S.lireGardes()).disjoncteur.ouvert).toBe(true);
+    expect(await S.refermerDisjoncteur({ confirmeParOperateur: true })).toEqual({ ok: true });
+    expect((await S.lireGardes()).disjoncteur.ouvert).toBe(false);
+  });
   it("s'ouvre après N erreurs, bloque pose et réactivation, ne se referme que par geste", async () => {
     const faux = brancher(500);
-    for (let i = 0; i < S.ERREURS_CONSECUTIVES_MAX; i++) expect(await S.poserMot({ compte: "c1", textes: valides(), ...op })).toMatchObject({ raison: "zernio_refuse" });
+    for (let i = 0; i < S.ERREURS_CONSECUTIVES_MAX; i++) expect(await S.poserMot({ compte: "c1", saisie: await prete(), ...op })).toMatchObject({ raison: "zernio_refuse" });
     expect((await S.lireVueMots(ALLUME)).disjoncteur.ouvert).toBe(true);
     const avant = faux.appels.length;
     faux.statut = 200;
-    expect(await S.poserMot({ compte: "c1", textes: valides(), ...op })).toMatchObject({ issue: "refuse", raison: "disjoncteur_ouvert" });
+    expect(await S.poserMot({ compte: "c1", saisie: await prete(), ...op })).toMatchObject({ issue: "refuse", raison: "disjoncteur_ouvert" });
     expect(faux.appels).toHaveLength(avant);
     expect(await S.refermerDisjoncteur({ confirmeParOperateur: false })).toEqual({ ok: false });
     expect((await S.lireVueMots(ALLUME)).disjoncteur.ouvert).toBe(true);
     expect(await S.refermerDisjoncteur({ confirmeParOperateur: true })).toEqual({ ok: true });
-    expect(await S.poserMot({ compte: "c1", textes: valides(), ...op })).toMatchObject({ issue: "execute" });
+    expect(await S.poserMot({ compte: "c1", saisie: await prete(), ...op })).toMatchObject({ issue: "execute" });
   });
   it("un succès remet le compteur d'erreurs à zéro", async () => {
     const faux = brancher(500);
-    await S.poserMot({ compte: "c1", textes: valides(), ...op });
+    await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     faux.statut = 200;
-    await S.poserMot({ compte: "c1", textes: valides(), ...op });
+    await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     expect((await S.lireGardes()).erreursConsecutives).toBe(0);
   });
 });
@@ -209,11 +260,11 @@ describe("pv3 · disjoncteur", () => {
 describe("pv3 · Tout arrêter", () => {
   it("coupe aussi les mots : pose et réactivation refusées, mots actifs mis en pause", async () => {
     const faux = brancher();
-    await S.poserMot({ compte: "c1", textes: valides(), ...op });
+    await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op });
     await ecrireParametre("zernio.envoi_autorise", false); // l'interrupteur global existant
     const n = faux.appels.length;
-    expect(await S.poserMot({ compte: "c2", textes: valides(), ...op })).toMatchObject({ issue: "refuse", raison: "tout_arrete" });
+    expect(await S.poserMot({ compte: "c2", saisie: await prete(), ...op })).toMatchObject({ issue: "refuse", raison: "tout_arrete" });
     expect(await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op })).toMatchObject({ issue: "refuse", raison: "tout_arrete" });
     expect(faux.appels).toHaveLength(n);
     expect(await S.appliquerToutArreter({ env: ALLUME })).toEqual({ arret: true, pauses: 1 });
