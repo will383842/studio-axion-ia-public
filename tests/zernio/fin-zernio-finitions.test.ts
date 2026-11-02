@@ -96,9 +96,13 @@ describe("FIN-ZERNIO 1 · traduction de la présélection (pure)", () => {
     canauxZernio = [canal(ZERNIO_IG, "Exemple IG")];
     expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [BUFFER_IG, "buffer-canal-ig-2"], CANAUX_BUFFER)).toEqual([SELECTION_NON_TRADUITE]);
   });
-  it("homonymes chez Zernio : ambigu, donc pas deviné", async () => {
-    canauxZernio = [canal("z-a", "Exemple IG"), canal("z-b", "Exemple IG")];
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [BUFFER_IG], CANAUX_BUFFER)).toBeUndefined();
+  it("homonymes chez Zernio : ambigu, refus qui nomme les choix (jamais un tirage)", async () => {
+    canauxZernio = [canal("z-aaaaaa", "Exemple IG"), canal("z-bbbbbb", "Exemple IG")];
+    const r = await traduireSelectionVersZernio(fauxZernio(), "instagram", [BUFFER_IG], CANAUX_BUFFER);
+    expect(r).toHaveLength(1);
+    expect(r![0]).toContain("Exemple IG");
+    expect(r![0]).toContain("…aaaaaa");
+    expect(r![0]).toContain("…bbbbbb");
   });
 });
 
