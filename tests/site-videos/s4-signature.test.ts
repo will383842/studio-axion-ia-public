@@ -2,6 +2,7 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { chaineASigner } from "@/domaine/site-videos/contrat";
+import { ACCORDS_ENTREE, RE_CLE_IDEMPOTENCE, RE_MOT_GUIDE } from "@/domaine/guide-reseau/cle-idempotence";
 import { sha256Hex, signatureValide, signerAppel } from "@/fournisseurs/site/signature";
 
 vi.mock("next/headers", async () => (await import("../helpers/next-mocks")).mockHeaders);
@@ -18,6 +19,12 @@ const V = {
   corps: '{"mot":"GUIDE","reseau":"instagram","accord":"non_demande","idRun":"run_exemple_0001"}',
   sha256Corps: "7fa43e9ae5d7c0a854f7d46e6b2be9cd7f0341916a708eaf3c06c9259a9f2722",
   signature: "v1=e9876c7e1b20ac0862c564b4a02acca0ce3a336f2c1c64b2111d4950b5bafab9",
+};
+/** Corps CONFORME au schéma strict du site (`SchemaDemandeGuideReseau`) : adresse fictive sur domaine réservé, secret fictif. */
+const W = {
+  corps: '{"schemaVersion":1,"cleIdempotence":"run_exemple_0001","email":"lecteur-fictif@example.com","mot":"GUIDE","reseau":"instagram","guide":"guide-ia","accord":"non_demande","versionTexteM1":"m1-v1","locale":"fr"}',
+  sha256Corps: "80307b47bfe118bda71c7aafd42f2f96c7b819c16011fdd7a52a122a46408678",
+  signature: "v1=585e0fcf1e132f19265c09958042c5cf6206ed061761023174540ca3202e7809",
 };
 const CORPS = '{"idStudio":"vid_1","versionPasseport":2}';
 
@@ -93,5 +100,35 @@ describe("S4.2 signature", () => {
       const doc = readFileSync(f, "utf8");
       for (const v of [V.secret, V.horodatage, V.nonce, V.chemin, V.corps, V.sha256Corps, V.signature]) expect(doc).toContain(v);
     }
+  });
+  it("corps CONFORME au schéma strict du site : champs exacts, formes du site, signé et vérifié (secret fictif)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const o = JSON.parse(W.corps) as Record<string, unknown>;
+    // Mêmes règles que le schéma du site : aucun champ inconnu (.strict()), champs obligatoires présents.
+    const permis = ["schemaVersion", "cleIdempotence", "email", "mot", "reseau", "guide", "accord", "versionTexteM1", "versionTexteM2", "locale", "occurredAt"];
+    for (const k of Object.keys(o)) expect(permis).toContain(k);
+    for (const k of ["schemaVersion", "cleIdempotence", "email", "mot", "reseau", "guide", "accord", "versionTexteM1"]) expect(o).toHaveProperty(k);
+    expect(o).not.toHaveProperty("idRun");
+    expect(o.schemaVersion).toBe(1);
+    expect(String(o.cleIdempotence)).toMatch(RE_CLE_IDEMPOTENCE);
+    expect(String(o.email)).toMatch(/^[^@\s]+@example\.com$/);
+    expect(String(o.mot)).toMatch(RE_MOT_GUIDE);
+    expect(String(o.guide)).toMatch(/^[a-z0-9-]{2,40}$/);
+    expect(ACCORDS_ENTREE).toContain(o.accord);
+    expect(String(o.versionTexteM1)).toMatch(/^[A-Za-z0-9._-]{3,64}$/);
+    expect(sha256Hex(W.corps)).toBe(W.sha256Corps);
+    const e = signerAppel({ secret: V.secret, methode: V.methode, chemin: V.chemin, corps: W.corps, horodatageSec: Number(V.horodatage), nonce: V.nonce });
+    expect(e["x-axion-signature"]).toBe(W.signature);
+    expect(signatureValide(V.secret, { methode: V.methode, chemin: V.chemin, corps: W.corps, horodatage: V.horodatage, nonce: V.nonce, signature: W.signature })).toBe(true);
+    for (const f of ["docs/site-videos/contrat/signature.exemple.md", "docs/zernio/parcours-viral/04-CONTRAT-SYNCHRO-champs.md"]) {
+      const doc = readFileSync(f, "utf8");
+      for (const v of [W.corps, W.sha256Corps, W.signature]) expect(doc).toContain(v);
+    }
+  });
+
+  it("le doc 04 liste les codes 400 entetes_invalides, 413 corps_trop_gros et 415 type_non_supporte", async () => {
+    const { readFileSync } = await import("node:fs");
+    const doc = readFileSync("docs/zernio/parcours-viral/04-CONTRAT-SYNCHRO-champs.md", "utf8");
+    for (const c of ["400 `entetes_invalides`", "413 `corps_trop_gros`", "415 `type_non_supporte`"]) expect(doc).toContain(c);
   });
 });

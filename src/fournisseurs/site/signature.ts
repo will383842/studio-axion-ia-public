@@ -40,5 +40,6 @@ export function signerAppel(e: { secret: string; methode: string; chemin: string
 export function signatureValide(secret: string, e: { methode: string; chemin: string; corps: string; horodatage: string; nonce: string; signature: string }): boolean {
   const attendue = Buffer.from("v1=" + hmacHex(secret, chaineASigner({ horodatage: e.horodatage, nonce: e.nonce, methode: e.methode, chemin: e.chemin, sha256Corps: sha256Hex(e.corps) })));
   const recue = Buffer.from(e.signature);
+  // La longueur est publique (`v1=` + 64 hex) : la comparer avant timingSafeEqual ne révèle rien. Le vrai site compare deux sha256.
   return attendue.length === recue.length && timingSafeEqual(attendue, recue);
 }
