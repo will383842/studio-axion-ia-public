@@ -212,6 +212,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   let corpsReponse: unknown = null;
   let code: string | null = null;
   let envoyeEnV3 = false;
+  let refusJournalise = false;
   try {
     const run = await lire(idRun, { idContact: typeof ev.charge.idContact === "string" ? ev.charge.idContact : null, motDeclencheur: typeof ev.charge.motDeclencheur === "string" ? ev.charge.motDeclencheur : null });
     if (!run) code = "run_introuvable"; // réessai court borné plus bas
@@ -221,7 +222,11 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
       // v3 seulement si le drapeau est allumé ET l'origine valide ; sinon corps v1 inchangé (le code de refus est journalisé, jamais la valeur).
       // Reprise : un 422 du site sur un corps v3 renvoie l'événement en reprise, sans origine (corps v1), jamais en abandon.
       const o3 = v3 && run.origine && ev.charge.sansOrigineV3 !== true ? construireOrigineV3(run.origine, { reseau: run.reseau, prefixesComptes: v3.prefixesComptes }) : null;
-      if (o3 && !o3.ok) await journaliser("parcours_mot", `Origine v3 non envoyée pour l'événement ${ev.idEvenement} : ${o3.code}.`);
+      // Refus d'origine : journalisé une seule fois par événement (drapeau dans la charge), pas à chaque nouvel essai.
+      if (o3 && !o3.ok && ev.charge.refusOrigineJournalise !== true) {
+        await journaliser("parcours_mot", `Origine v3 non envoyée pour l'événement ${ev.idEvenement} : ${o3.code}.`);
+        refusJournalise = true;
+      }
       const corps = o3?.ok ? corpsDemandeGuideV3(run, cleIdempotence(idRun), o3.origine) : corpsDemandeGuide(run, cleIdempotence(idRun));
       for (let n = 0; n < ESSAIS_NONCE; n++) {
         const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
@@ -242,6 +247,8 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
     statut = 0; // lecture du run en échec : traitée comme une panne passagère
   }
   const charge: Record<string, unknown> = { ...ev.charge, essais };
+  if (refusJournalise) charge.refusOrigineJournalise = true;
+  let reprise422 = false;
   let issue: "envoye" | "definitif" | "reessai";
   let traite = true;
   let c: Conduite;
@@ -254,6 +261,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
     // Le site refuse l'origine v3 : on ne perd PAS la demande. Reprise immédiate en corps v1 (sans origine), code de refus seul conservé.
     c = { genre: "reessayer", apresMs: 0, code: "422_origine_v3" };
     charge.sansOrigineV3 = true;
+    reprise422 = true;
     charge.essais = essaisAvant; // ne consomme pas l'échelle des pannes
   } else {
     c = code ? { genre: "definitif", code } : conduiteApresReponse(statut, corpsReponse, essais);
@@ -269,7 +277,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   } else if (enAttenteSite && enCoursAvant + 1 > EN_COURS_MAX) {
     Object.assign(charge, { etat: "abandonne", dernierCode: c.code, enCours: enCoursAvant + 1, prochainEssaiLe: null });
     issue = "definitif";
-  } else if (code !== "run_introuvable" && !enAttenteSite && essais >= ESSAIS_MAX) {
+  } else if (code !== "run_introuvable" && !reprise422 && !enAttenteSite && essais >= ESSAIS_MAX) {
     Object.assign(charge, { etat: "abandonne", dernierCode: c.code, prochainEssaiLe: null });
     issue = "definitif";
   } else {

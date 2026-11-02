@@ -81,7 +81,7 @@ describe("construireOrigineV3", () => {
 });
 
 describe("corps v3", () => {
-  it("sans origine fournie le corps v1 reste identique octet pour octet", () => {
+  it('sans origine fournie le corps v1 porte "schemaVersion":1', () => {
     expect(corpsDemandeGuide(RUN, "run_exemple_0001")).toContain('"schemaVersion":1');
   });
   it("v3 : schemaVersion 3, mêmes clés v1 puis l'origine, aucun champ interdit", () => {
