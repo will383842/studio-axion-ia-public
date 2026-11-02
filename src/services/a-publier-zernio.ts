@@ -13,6 +13,7 @@ import { vueAPublier } from "./a-publier";
 import { exigerSession } from "./auth";
 import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
 import { envoyerReel, envoyerVersBuffer, obtenirKit, videoEnEssai } from "./publications";
+import { journaliserEnvoi } from "./journal-envoi";
 import { lireRoutage } from "./routage-publication";
 import { traduireSelectionVersZernio } from "./zernio-cibles";
 
@@ -100,7 +101,9 @@ export interface OptionsEnvoiParOutil {
  */
 export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, dateIso: string, options: OptionsEnvoiParOutil): Promise<Resultat<{ nombre: number; problemes: string[] }>> {
   await exigerSession();
-  return essayer(async () => {
+  const nbChoisis = options.comptes?.length ?? 0;
+  const journal = { action: "envoyerParOutilAction", outil: options.outil, reseau, contenuId: videoId };
+  const r = await essayer(async () => {
     if (options.outil === "buffer") {
       const r = await envoyerVersBuffer(videoId, [reseau], dateIso, { comptes: options.comptes ? { [reseau]: options.comptes } : {}, premiersCommentaires: { [reseau]: options.premierCommentaire ?? "" }, avecPremierCommentaire: true });
       return { nombre: r.publications.length, problemes: (r.problemes ?? []).map((p) => p.message) };
@@ -125,6 +128,9 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     });
     return { nombre: r.publications.length, problemes: (r.problemes ?? []).map((p) => p.message) };
   });
+  // Trace sans texte ni compte (voir journal-envoi.ts) : le code du refus, ou « OK » si quelque chose est parti.
+  journaliserEnvoi(r.ok ? { ...journal, code: r.donnees.nombre > 0 ? "OK" : "AUCUN_ENVOI", nbComptes: r.donnees.nombre, ...(options.outil === "zernio" ? { brouillon: true } : {}) } : { ...journal, code: r.code ?? "ERREUR", nbComptes: nbChoisis });
+  return r;
 }
 
 /** « Marquer comme vérifié » : l'opérateur a regardé dans l'outil. N'écrit que dans le studio (voir `marquerEnvoiVerifie`). */
