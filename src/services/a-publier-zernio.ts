@@ -11,9 +11,10 @@ import type { Resultat } from "./_commun";
 import { depots, ErreurStudio, essayer, maintenant } from "./_commun";
 import { vueAPublier } from "./a-publier";
 import { exigerSession } from "./auth";
-import { lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
+import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
 import { envoyerReel, envoyerVersBuffer, obtenirKit, videoEnEssai } from "./publications";
 import { lireRoutage } from "./routage-publication";
+import { traduireSelectionVersZernio } from "./zernio-cibles";
 
 export type EtatComplement = "aucun" | "brouillon" | "programmee" | "publiee" | "echec";
 
@@ -116,7 +117,9 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     } catch {
       throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
     }
-    const r = await envoyerReel("zernio", service, kit, [reseau], dateIso, options.comptes ? { [reseau]: options.comptes } : {}, { [reseau]: options.premierCommentaire ?? "" }, true, {
+    // Les comptes que l'écran envoie sont ceux de Buffer : on les traduit en comptes Zernio (par le nom), sans jamais les passer tels quels.
+    const traduits = options.comptes ? await traduireSelectionVersZernio(service, reseau, options.comptes, (await canauxEnregistres())?.canaux ?? []) : undefined;
+    const r = await envoyerReel("zernio", service, kit, [reseau], dateIso, traduits ? { [reseau]: traduits } : {}, { [reseau]: options.premierCommentaire ?? "" }, true, {
       ...(reseau === "tiktok" ? { consentementTiktok: options.accordTiktok === true } : {}),
       ...(options.contenuIA !== undefined ? { contenuIA: options.contenuIA } : {}),
     });
