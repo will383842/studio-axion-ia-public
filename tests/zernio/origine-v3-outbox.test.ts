@@ -83,4 +83,28 @@ describe("origine v3 dans l'appel au site", () => {
     const evts = await (await import("@/services/_commun")).depots().evenementsFournisseurs.lister(() => true);
     expect(evts[0].charge.etat).toBe("envoye");
   });
+  it("un 422 en v3 au dernier essai (ESSAIS_MAX-1 déjà consommés) repart en reprise v1, sans abandon", async () => {
+    const { ESSAIS_MAX } = await import("@/domaine/guide-reseau/crochet-zernio");
+    const env = { ...BASE, ORIGINE_V3_ENABLED: "1" };
+    const corps = JSON.stringify({ id: "evt_v3_0001", event: "workflow.run.completed", timestamp: new Date(T0).toISOString(), execution: { id: "run_exemple_0001", status: "completed" }, contact: { id: "ct_1" }, trigger: { type: "keyword", text: "GUIDE" } });
+    await pm.recevoirCrochetZernio({ corps, idEvenement: "evt_v3_0001", signature: signatureZernio(BASE.ZERNIO_WEBHOOK_SECRET, corps) }, { env, maintenantMs: T0 });
+    const { depots } = await import("@/services/_commun");
+    const [ev] = await depots().evenementsFournisseurs.lister(() => true);
+    await depots().evenementsFournisseurs.modifier(ev.id, { charge: { ...ev.charge, essais: ESSAIS_MAX - 1 } });
+    const vus: string[] = [];
+    pm.injecterLecteurRuns(async () => RUN);
+    pm.injecterTransportSite(async (r: RequeteSignee) => {
+      vus.push(r.corps);
+      return vus.length === 1 ? { statut: 422, corps: { erreur: "invalide" } } : { statut: 200, corps: { accord: "non_demande" } };
+    });
+    await pm.traiterOutboxZernio({ env, maintenantMs: T0 });
+    const [apres] = await depots().evenementsFournisseurs.lister(() => true);
+    expect(apres.charge.etat).toBe("a_reessayer");
+    expect(apres.charge.etat).not.toBe("abandonne");
+    expect(apres.charge.sansOrigineV3).toBe(true);
+    await pm.traiterOutboxZernio({ env, maintenantMs: T0 + 1000 });
+    expect(JSON.parse(vus[1]).schemaVersion).toBe(1);
+    const [fin] = await depots().evenementsFournisseurs.lister(() => true);
+    expect(fin.charge.etat).toBe("envoye");
+  });
 });
