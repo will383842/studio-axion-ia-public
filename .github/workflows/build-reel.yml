@@ -1,0 +1,66 @@
+# BUILD RÉEL « AU CONTEXTE DOCKER » : lance vraiment `pnpm build` (Next) sur une copie du dépôt faite comme le Dockerfile.
+# Pourquoi : le 03/11/2026 un déploiement a échoué au build (un Client Component importait un module serveur tirant `pg`)
+# alors que la CI était verte, car aucune étape ne construisait l'application. Aucun secret, aucune variable inventée :
+# le Dockerfile ne pose à la construction que NEXT_TELEMETRY_DISABLED=1 (NEXT_SERVER_ACTIONS_ENCRYPTION_KEY y est vide par défaut).
+# Contexte reproduit : celui de Dockerfile.dockerignore (sans studio-rendu, docs, tests, outils, *.test.ts(x), .env*, etc.),
+# installation faite depuis les seuls package.json + pnpm-lock.yaml + pnpm-workspace.yaml (étape « deps » du Dockerfile).
+#
+# NON BLOQUANT pour l'instant (continue-on-error au niveau du job). POUR LE RENDRE EXIGÉ, après 2 passages verts :
+#   1) supprimer la ligne `continue-on-error: true` ci-dessous ;
+#   2) dans GitHub → Settings → Branches (ou Rulesets) de master, ajouter « build réel (contexte Docker) » aux contrôles
+#      obligatoires avant fusion.
+# Si le Dockerfile change (variables, fichiers copiés) ou si Dockerfile.dockerignore change, mettre à jour ce fichier avec.
+name: build-reel
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-reel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-reel:
+    name: build réel (contexte Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Informatif : un rouge s'affiche sur la PR sans empêcher de fusionner (voir l'en-tête pour le rendre exigé).
+    continue-on-error: true
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # corepack (comme `RUN corepack enable` du Dockerfile) fournit la version de pnpm de « packageManager » (package.json).
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Contexte Docker (copie du dépôt sans ce que Dockerfile.dockerignore exclut) et pnpm install --frozen-lockfile
+        run: |
+          set -euo pipefail
+          CTX="$RUNNER_TEMP/contexte-docker"
+          mkdir -p "$CTX"
+          # Étape « deps » du Dockerfile : seuls les fichiers de dépendances, puis l'installation (scripts d'installation compris).
+          cp package.json pnpm-lock.yaml pnpm-workspace.yaml "$CTX/"
+          (cd "$CTX" && pnpm install --frozen-lockfile)
+          # Étape « build » : COPY . . filtré comme Dockerfile.dockerignore (sans toucher au node_modules installé).
+          rsync -a \
+            --exclude='/.git' --exclude='/.env*' --exclude='/.next' --exclude='/.next-*' \
+            --exclude='node_modules' \
+            --exclude='/docs/captures' --exclude='/test-results' --exclude='/playwright-report' --exclude='/tests/tmp-verif' \
+            --exclude='/studio-rendu/.essai-local' --exclude='/studio-rendu/.remotion' \
+            --exclude='/tests' --exclude='/outils' --exclude='/studio-rendu' --exclude='/docs' \
+            --exclude='*.test.ts' --exclude='*.test.tsx' \
+            ./ "$CTX/"
+          echo "CTX=$CTX" >> "$GITHUB_ENV"
+      - name: pnpm build
+        run: cd "$CTX" && pnpm build
