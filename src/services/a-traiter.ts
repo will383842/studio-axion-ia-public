@@ -15,9 +15,26 @@ import { controlerTexteSortant } from "./mots-controle";
 import { lienGuideValide } from "./mots-kit";
 import { poserStopCompte } from "./mots-service";
 import { RE_MOT } from "./mots-textes";
+import {
+  EXTRAIT_MAX,
+  MOTIFS,
+  RESEAUX_A_TRAITER,
+  VARIABLE_INTERRUPTEUR_A_TRAITER,
+  extraitLisible,
+  type CarteATraiter,
+  type EntreeATraiter,
+  type EtatVue,
+  type Motif,
+  type ReseauATraiter,
+  type ResultatChangement,
+  type StatutATraiter,
+  type VueATraiter,
+} from "./a-traiter-types";
 
-export const VARIABLE_INTERRUPTEUR_A_TRAITER = "A_TRAITER_ENABLED";
-export const EXTRAIT_MAX = 140;
+// Ré-exports : les types et constantes vivent dans a-traiter-types.ts (sans accès base, utilisable côté navigateur).
+export { EXTRAIT_MAX, MOTIFS, RESEAUX_A_TRAITER, VARIABLE_INTERRUPTEUR_A_TRAITER, extraitLisible };
+export type { CarteATraiter, EntreeATraiter, EtatVue, Motif, ReseauATraiter, ResultatChangement, StatutATraiter, VueATraiter };
+
 
 type Env = Record<string, string | undefined>;
 
@@ -25,42 +42,6 @@ type Env = Record<string, string | undefined>;
 export function aTraiterActif(env: Env = process.env): boolean {
   const v = env[VARIABLE_INTERRUPTEUR_A_TRAITER];
   return v === "1" || v === "true";
-}
-
-export const RESEAUX_A_TRAITER = ["linkedin", "tiktok", "youtube", "facebook", "instagram"] as const;
-export type ReseauATraiter = (typeof RESEAUX_A_TRAITER)[number];
-export const MOTIFS = ["echec_envoi", "mot_dans_phrase", "mot_inconnu", "mot_manuel"] as const;
-export type Motif = (typeof MOTIFS)[number];
-export type StatutATraiter = "a_traiter" | "fait" | "ignore";
-
-export interface CarteATraiter {
-  idEvenement: string;
-  reseau: ReseauATraiter;
-  /** Repère technique du post (identifiant), jamais un nom de personne. */
-  post: string;
-  /** Lien https du post, s'il est connu et sûr. */
-  lienPost: string | null;
-  /** Mot détecté (majuscules) ou null. */
-  mot: string | null;
-  motif: Motif;
-  /** Extrait court du commentaire public, ÉCHAPPÉ. */
-  extrait: string;
-  creeLe: string;
-  statut: StatutATraiter;
-  /** Réponse proposée, validée par `controlerTexteSortant`, sinon null. */
-  kit: string | null;
-}
-
-export interface EntreeATraiter {
-  idEvenement: string;
-  reseau: string;
-  post: string;
-  lienPost?: string | null;
-  mot?: string | null;
-  motif: string;
-  commentaire: string;
-  reponse?: string | null;
-  creeLe?: string;
 }
 
 /* ---- Dépôt injectable ---- */
@@ -81,7 +62,6 @@ const verrou = creerVerrou();
 
 /* ---- Fonctions pures ---- */
 const ECHAPPEMENTS: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-const INVERSES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
 const CARACTERES_DE_CONTROLE = /[\u0000-\u001F\u007F​-‏⁠-⁤﻿]+/g;
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 const PSEUDO = /@[\p{L}\p{N}_.]+/gu;
@@ -102,8 +82,6 @@ export function fabriquerExtrait(commentaire: string): string {
   }
   return sortie;
 }
-/** Pour l'affichage seulement : React échappe lui-même, on rend donc le texte lisible. */
-export const extraitLisible = (extrait: string): string => extrait.replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => INVERSES[m]);
 
 export const estReseauATraiter = (v: unknown): v is ReseauATraiter => typeof v === "string" && (RESEAUX_A_TRAITER as readonly string[]).includes(v);
 const estMotif = (v: unknown): v is Motif => typeof v === "string" && (MOTIFS as readonly string[]).includes(v);
@@ -153,14 +131,6 @@ export async function enregistrerATraiter(entree: EntreeATraiter, o: { env?: Env
   });
 }
 
-export type EtatVue = "desactive" | "normal" | "vide" | "illisible";
-export interface VueATraiter {
-  etat: EtatVue;
-  cartes: CarteATraiter[];
-  /** Compteur du menu : null quand l'interrupteur est éteint (ou la source illisible). */
-  compteur: number | null;
-}
-
 export async function lireVueATraiter(o: { env?: Env; depot?: DepotATraiter } = {}): Promise<VueATraiter> {
   if (!aTraiterActif(o.env ?? process.env)) return { etat: "desactive", cartes: [], compteur: null };
   try {
@@ -176,7 +146,6 @@ export const compteurMenu = async (o: { env?: Env; depot?: DepotATraiter } = {})
   return n && n > 0 ? n : null;
 };
 
-export type ResultatChangement = { issue: "execute" | "simule" | "refuse"; raison: string };
 async function changerStatut(id: string, statut: StatutATraiter, o: { env?: Env; depot?: DepotATraiter }): Promise<ResultatChangement> {
   if (!aTraiterActif(o.env ?? process.env)) return { issue: "simule", raison: "interrupteur_eteint" };
   const depot = o.depot ?? depotCourant;

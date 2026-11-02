@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { notifier } from "@/components/ui/Toast";
-import type { ResultatChangement, VueATraiter } from "@/services/a-traiter";
+import type { ResultatChangement, VueATraiter } from "@/services/a-traiter-types";
 import { CarteATraiter } from "./CarteATraiter";
 
 /** Ce que l'écran appelle : en production les gestes de `a-traiter-gestes`, dans les tests un faux. */
