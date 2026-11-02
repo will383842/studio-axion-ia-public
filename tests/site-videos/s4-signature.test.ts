@@ -89,7 +89,7 @@ describe("S4.2 signature", () => {
     expect(sha256Hex(V.corps)).toBe(V.sha256Corps);
     expect(e["x-axion-signature"]).toBe(V.signature);
     expect(signatureValide(V.secret, { methode: V.methode, chemin: V.chemin, corps: V.corps, horodatage: V.horodatage, nonce: V.nonce, signature: V.signature })).toBe(true);
-    for (const f of ["docs/site-videos/contrat/signature.exemple.md"]) {
+    for (const f of ["docs/site-videos/contrat/signature.exemple.md", "docs/zernio/parcours-viral/04-CONTRAT-SYNCHRO-champs.md"]) {
       const doc = readFileSync(f, "utf8");
       for (const v of [V.secret, V.horodatage, V.nonce, V.chemin, V.corps, V.sha256Corps, V.signature]) expect(doc).toContain(v);
     }
