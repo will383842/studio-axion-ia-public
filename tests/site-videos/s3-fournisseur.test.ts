@@ -85,7 +85,7 @@ describe("S3.1 signature", () => {
     expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { nonce, horodatageSec: s })).statut).toBe(200);
   });
   it("la chaîne signée porte l'horodatage, le nonce, la méthode, le chemin et le hash du corps", () => {
-    expect(chaineASigner({ horodatage: "1760000000", nonce: "ab", methode: "POST", chemin: "/api/interne/videos", sha256Corps: "cd" })).toBe("1760000000.ab.POST./api/interne/videos.cd");
+    expect(chaineASigner({ horodatage: "1760000000", nonce: "ab", methode: "POST", chemin: "/api/interne/videos", sha256Corps: "cd" })).toBe("v1\n1760000000\nab\nPOST\n/api/interne/videos\ncd");
   });
 });
 
