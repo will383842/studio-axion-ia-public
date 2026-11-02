@@ -13,7 +13,7 @@
 import "server-only";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
-import { construireOrigineV3, corpsDemandeGuideV3, origineV3Active } from "@/domaine/guide-reseau/origine-v3";
+import { construireOrigineV3, corpsDemandeGuideV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import {
   ATTENTES_INTROUVABLE_MS,
   conduiteApresReponse,
@@ -182,7 +182,7 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
       }
       appelsRecents.push(now);
       rapport.traites++;
-      const { issue, code } = await tenter(ev, lire, site, now, origineV3Active(env));
+      const { issue, code } = await tenter(ev, lire, site, now, origineV3Active(env) ? { prefixesComptes: prefixesComptesConfigures(env) } : null);
       if (issue === "envoye") rapport.envoyes++;
       else if (issue === "definitif") rapport.definitifs++;
       else rapport.aReessayer++;
@@ -202,7 +202,7 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
   return rapport;
 }
 
-async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number, v3 = false): Promise<{ issue: "envoye" | "definitif" | "reessai"; code: string }> {
+async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number, v3: { prefixesComptes: readonly string[] } | null = null): Promise<{ issue: "envoye" | "definitif" | "reessai"; code: string }> {
   const idRun = String(ev.charge.idRun);
   const essaisAvant = Number(ev.charge.essais ?? 0);
   const essais = essaisAvant + 1;
@@ -211,6 +211,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   let statut = 0;
   let corpsReponse: unknown = null;
   let code: string | null = null;
+  let envoyeEnV3 = false;
   try {
     const run = await lire(idRun, { idContact: typeof ev.charge.idContact === "string" ? ev.charge.idContact : null, motDeclencheur: typeof ev.charge.motDeclencheur === "string" ? ev.charge.motDeclencheur : null });
     if (!run) code = "run_introuvable"; // réessai court borné plus bas
@@ -218,7 +219,8 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
     else {
       // Octets FIGÉS pour tous les essais de ce passage ; clé fixe.
       // v3 seulement si le drapeau est allumé ET l'origine valide ; sinon corps v1 inchangé (le code de refus est journalisé, jamais la valeur).
-      const o3 = v3 && run.origine ? construireOrigineV3(run.origine, { reseau: run.reseau, prefixesComptes: run.prefixesComptes ?? [] }) : null;
+      // Reprise : un 422 du site sur un corps v3 renvoie l'événement en reprise, sans origine (corps v1), jamais en abandon.
+      const o3 = v3 && run.origine && ev.charge.sansOrigineV3 !== true ? construireOrigineV3(run.origine, { reseau: run.reseau, prefixesComptes: v3.prefixesComptes }) : null;
       if (o3 && !o3.ok) await journaliser("parcours_mot", `Origine v3 non envoyée pour l'événement ${ev.idEvenement} : ${o3.code}.`);
       const corps = o3?.ok ? corpsDemandeGuideV3(run, cleIdempotence(idRun), o3.origine) : corpsDemandeGuide(run, cleIdempotence(idRun));
       for (let n = 0; n < ESSAIS_NONCE; n++) {
@@ -231,6 +233,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
           statut = 0;
           corpsReponse = null;
         }
+        envoyeEnV3 = !!o3?.ok;
         const c = conduiteApresReponse(statut, corpsReponse, essais);
         if (!(c.genre === "reessayer" && c.nouveauNonce)) break;
       }
@@ -246,6 +249,11 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
     // Le webhook peut précéder la lisibilité du run chez Zernio : quelques relectures rapprochées, puis définitif.
     c = introuvablesAvant < ATTENTES_INTROUVABLE_MS.length ? { genre: "reessayer", apresMs: ATTENTES_INTROUVABLE_MS[introuvablesAvant], code } : { genre: "definitif", code };
     charge.introuvables = introuvablesAvant + 1;
+    charge.essais = essaisAvant; // ne consomme pas l'échelle des pannes
+  } else if (!code && envoyeEnV3 && statut === 422) {
+    // Le site refuse l'origine v3 : on ne perd PAS la demande. Reprise immédiate en corps v1 (sans origine), code de refus seul conservé.
+    c = { genre: "reessayer", apresMs: 0, code: "422_origine_v3" };
+    charge.sansOrigineV3 = true;
     charge.essais = essaisAvant; // ne consomme pas l'échelle des pannes
   } else {
     c = code ? { genre: "definitif", code } : conduiteApresReponse(statut, corpsReponse, essais);
