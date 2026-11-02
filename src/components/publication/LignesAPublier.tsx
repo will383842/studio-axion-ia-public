@@ -61,6 +61,10 @@ export function LignesAPublier({ vue, retour, reseauOuvert, suivantes, complemen
           break;
         }
         faits += r.donnees.nombre;
+        if (r.donnees.problemes.length) {
+          notifier.erreur(r.donnees.problemes[0]);
+          break;
+        }
       }
       setSelection([]);
       if (faits) toast.success(`${faits} ${faits > 1 ? "envois validés" : "envoi validé"}`, { description: LIBELLES_ENVOI.groupeConseil });
