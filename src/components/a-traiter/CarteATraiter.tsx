@@ -1,6 +1,6 @@
 import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
-import { extraitLisible, type CarteATraiter as Donnees } from "@/services/a-traiter";
+import { extraitLisible, type CarteATraiter as Donnees } from "@/services/a-traiter-types";
 
 export const LIBELLE_MOTIF: Record<Donnees["motif"], string> = {
   echec_envoi: "L’envoi automatique a échoué",
