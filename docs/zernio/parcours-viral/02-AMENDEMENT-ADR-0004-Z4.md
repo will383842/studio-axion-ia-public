@@ -9,7 +9,7 @@
 L'ADR-0004 (D6) refuse `webhooks/*` (« jusqu'à Z6 »), les messages et les automatisations. Le parcours viral a besoin de recevoir les commentaires, d'y répondre en public et d'écrire en privé. La liste fermée doit donc s'élargir, mais le moins possible, par chemin et par méthode, jamais par motif large. Les chemins exacts sont à figer depuis la description OpenAPI de Zernio (comme Z0) ; les noms ci-dessous sont des intentions, pas des chemins vérifiés.
 
 ## Ajouts demandés à D6 (intentions, chemins exacts à figer)
-1. **Réception d'événements** : un seul webhook entrant, vérifié par signature. Création et mise à jour du webhook réservées à une action humaine ; le secret vit en base, jamais dans le dépôt.
+1. **Réception d'événements** : un seul webhook entrant, vérifié par signature. Création et mise à jour du webhook réservées à une action humaine ; le secret du webhook entrant est lu dans l'**environnement** (`ZERNIO_WEBHOOK_SECRET`, COR-PV2 ; et non en base), jamais dans le dépôt. Le format de signature reste à confirmer par un essai réel (voir `05-ESSAI-REEL-WEBHOOK.md`).
 2. **Lecture** des commentaires et des conversations (méthode GET seule).
 3. **Réponse publique** à un commentaire : une seule écriture, après contrôle « mot seul » (Q9) et « un seul envoi par commentaire et par personne ».
 4. **Message privé** de réponse à un commentaire : écriture limitée aux gabarits validés ; forme « bouton Recevoir ici » seulement après une adresse mal écrite (Q2).

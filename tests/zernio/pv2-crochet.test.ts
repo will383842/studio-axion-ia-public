@@ -28,6 +28,7 @@ const outbox = () => depots().evenementsFournisseurs.lister((e) => e.fournisseur
 let sortie: string[];
 beforeEach(() => {
   reinitialiserDepots();
+  pm.reinitialiserGardesParcours();
   sortie = [];
   for (const m of ["log", "error", "warn", "info"] as const) vi.spyOn(console, m).mockImplementation((...a) => void sortie.push(a.map(String).join(" ")));
 });
