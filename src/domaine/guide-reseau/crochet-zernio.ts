@@ -129,6 +129,8 @@ export interface RunLu {
   locale?: string;
   /** Moment de la réponse (ISO 8601), optionnel. */
   occurredAt?: string;
+  /** Origine complète (v3), facultative : lue seulement si le drapeau d'origine est allumé. Jamais de pseudo ni de texte. */
+  origine?: import("./origine-v3").OrigineBrute;
 }
 
 /**

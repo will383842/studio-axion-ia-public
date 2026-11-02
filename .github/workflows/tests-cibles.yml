@@ -67,6 +67,7 @@ on:
       - "tests/relais-buffer.test.ts"
       - "tests/relais-buffer-proxy.test.ts"
       - "tests/zernio/**"
+      - "tests/guide-reseau/**"
       - "src/components/migration/**"
       - "src/services/lecteur-migration.ts"
       - "src/app/(studio)/reglages/actions-migration.ts"
@@ -143,5 +144,6 @@ jobs:
         run: |
           pnpm exec vitest run \
             tests/zernio \
+            tests/guide-reseau \
             tests/zernio/z3m-migration.test.tsx \
             r1-envoi-reel r1-buffer-client
