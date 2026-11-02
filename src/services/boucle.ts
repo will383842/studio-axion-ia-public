@@ -304,6 +304,8 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   // Audit D, B9 : HORS du tour (jusqu'à 50 lectures de 30 s) ; une seule synchronisation à la fois.
   void lancerAnnexe("synchronisation Buffer", options.synchroBuffer ?? (() => synchroniserEtatsBuffer()), 0);
   void lancerAnnexe("synchronisation Zernio", options.synchroZernio ?? (() => synchroniserEtatsZernio()), 0);
+  // Parcours « mot → e-mail → guide » (PV-2) : outbox du crochet Zernio → site. Éteint par défaut : aucun appel sortant.
+  void lancerAnnexe("parcours mot → guide", async () => (await import("./parcours-mot")).traiterOutboxZernio(), 0);
   // Tableau animé : écriture du script et découpage en scènes (plusieurs minutes) HORS du tour, une seule fois à la fois.
   void lancerAnnexe("tâches du tableau animé", async () => (await import("./tableau-creation")).travaillerTachesTableau(), 0);
   // Comité éditorial des idées (éteint par défaut, réglage `idees.comite`) : lot groupé à moitié prix, HORS du tour.
