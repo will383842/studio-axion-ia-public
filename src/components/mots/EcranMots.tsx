@@ -7,6 +7,8 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import type { Resultat, VueMots } from "@/services/mots-service";
+import type { ElementATraiter, KitLinkedinProfil } from "@/services/mots-kit";
+import { KitLinkedin } from "./KitLinkedin";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
 
 /** Ce que l'écran appelle : en production les gestes de `mots-gestes`, dans les tests un faux. */
@@ -21,7 +23,7 @@ export interface ServicesMots {
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
  * l’interrupteur est éteint, les gestes sont des simulations et l’écran le dit.
  */
-export function EcranMots({ vue, services, onChange }: { vue: VueMots; services: ServicesMots; onChange?: () => void }) {
+export function EcranMots({ vue, services, onChange, kitLinkedin }: { vue: VueMots; services: ServicesMots; onChange?: () => void; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
   const [enCours, demarrer] = useTransition();
   const [heure, setHeure] = useState(String(vue.plafonds.heureCompte));
   const [jour, setJour] = useState(String(vue.plafonds.jourMot));
@@ -80,6 +82,8 @@ export function EcranMots({ vue, services, onChange }: { vue: VueMots; services:
           })}
         </ul>
       )}
+
+      {kitLinkedin && <KitLinkedin kit={kitLinkedin.kit} file={kitLinkedin.file} />}
 
       <Carte data-carte="plafonds">
         <h3 className="text-base text-texte">Plafonds</h3>
