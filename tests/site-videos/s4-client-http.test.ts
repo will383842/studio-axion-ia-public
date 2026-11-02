@@ -44,7 +44,7 @@ describe("S4.11 le client réel contre le site factice", () => {
     expect(a.methode).toBe("POST");
     expect(a.entetes["x-axion-horodatage"]).toBe(String(T0 / 1000));
     expect(a.entetes["x-axion-nonce"]).toMatch(/^[0-9a-f]{32}$/);
-    expect(a.entetes["x-axion-signature"]).toMatch(/^[0-9a-f]{64}$/);
+    expect(a.entetes["x-axion-signature"]).toMatch(/^v1=[0-9a-f]{64}$/);
     expect(a.entetes["content-type"]).toBe("application/json");
     expect(JSON.parse(a.corps).idStudio).toBe("vid_exemple");
     await client.retirer("vid_exemple");
