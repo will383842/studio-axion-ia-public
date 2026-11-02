@@ -1,5 +1,7 @@
 # Finitions Zernio restantes
 
+> **FIN-ZERNIO (traité)** : les trois lignes du tableau ci-dessous sont faites (présélection traduite par outil, message de doublon sans détail technique, sortie « Marquer comme vérifié »). Tests : `tests/zernio/fin-zernio-finitions.test.ts`.
+
 Points relevés par les relectures (#154 à #162) et les restes Z2-S / Z4 qui exigent de toucher à un fichier réservé à une autre PR : `src/services/publications.ts` et `src/services/buffer.ts` (PR #163, P3-A), ou les fichiers de la PR #164 (Z3-E). Chacun est à traiter dans un tour ultérieur, une fois ces PR fusionnées. Numéros de ligne relevés sur `master` au moment de la finition.
 
 | Fichier | Ligne | Ce qui est à faire | PR d'origine |
