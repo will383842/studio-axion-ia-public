@@ -8,6 +8,7 @@
 import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import type { IdReseau } from "@/domaine/types";
+import { pageInterdite } from "@/fournisseurs/publication/zernio-pages-interdites";
 import { journaliserEnvoi } from "./journal-envoi";
 
 export type CiblesZernio = { ok: true; canaux: CanalPublication[] } | { ok: false; code: "CIBLE_ABSENTE" | "CIBLE_INCONNUE" | "CIBLE_AMBIGUE"; message: string };
@@ -25,7 +26,7 @@ export async function ciblesZernioPour(service: FournisseurPublication, reseau: 
 async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: IdReseau, choisies?: string[]): Promise<CiblesZernio> {
   if (!service.listerCanaux) return { ok: false, code: "CIBLE_ABSENTE", message: "L'outil de publication ne donne pas la liste de ses comptes : l'envoi est refusé." };
   const plateforme = plateformeZernio(reseau);
-  const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte);
+  const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte && !canalInterdit(c));
   const demandees = [...new Set((choisies ?? []).filter((c) => typeof c === "string" && c.trim()))];
   if (demandees.length) {
     // Traduction ambiguë (deux comptes de Zernio portent le nom choisi) : le refus nomme les choix, jamais un tirage au sort.
@@ -50,6 +51,15 @@ async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: 
 export const SELECTION_NON_TRADUITE = "selection-buffer-non-traduite";
 
 /** Marqueur porteur d'un refus clair (« marqueur|phrase ») : ciblesZernioPour rend la phrase telle quelle. */
+const idPageDe = (c: CanalPublication) => (c.id.includes(":fb:") ? c.id.split(":fb:")[1] : undefined);
+
+/** Page Facebook de la liste des pages jamais ciblées (identifiant de page ET nom normalisé). */
+const canalInterdit = (c: CanalPublication) => c.service === "facebook" && pageInterdite(idPageDe(c), c.nom);
+
+/** Même page vue par plusieurs comptes, aucun n'ayant cette page par défaut : refus qui le dit (jamais de choix au hasard). */
+const refusMemePage = (nom: string) =>
+  `${SELECTION_NON_TRADUITE}|La page « ${nom} » est visible depuis plusieurs comptes de l'outil de publication, et aucun d'eux ne l'a comme page par défaut : l'envoi est refusé, rien n'est choisi au hasard. Réglez la page par défaut du compte voulu chez l'outil de publication, ou gardez un seul de ces comptes relié.`;
+
 const refusAmbigu = (nom: string, homonymes: CanalPublication[]) =>
   `${SELECTION_NON_TRADUITE}|Plusieurs comptes de l'outil de publication portent le nom « ${nom} » (${homonymes.map((c) => `…${c.id.slice(-6)}`).join(" et ")}) : l'envoi est refusé, rien n'est choisi au hasard. Gardez un seul de ces comptes relié, ou renommez-en un chez l'outil de publication.`;
 
@@ -68,7 +78,7 @@ export async function traduireSelectionVersZernio(service: FournisseurPublicatio
   if (!ids.length) return undefined;
   if (!service.listerCanaux) return [SELECTION_NON_TRADUITE];
   const plateforme = plateformeZernio(reseau);
-  const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte);
+  const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte && !canalInterdit(c));
   const traduits: string[] = [];
   let sansHomologue = 0;
   let ambigu: string | undefined;
@@ -76,7 +86,10 @@ export async function traduireSelectionVersZernio(service: FournisseurPublicatio
     const source = canauxBuffer.find((c) => c.id === id);
     const homologue = source ? disponibles.filter((c) => normaliserNom(c.nom) === normaliserNom(source.nom)) : [];
     if (homologue.length === 1) traduits.push(homologue[0].id);
-    else if (homologue.length > 1 && source) ambigu ??= refusAmbigu(source.nom, homologue);
+    else if (homologue.length > 1 && source) {
+      const pages = new Set(homologue.map(idPageDe));
+      ambigu ??= pages.size === 1 && !pages.has(undefined) ? refusMemePage(source.nom) : refusAmbigu(source.nom, homologue);
+    }
     else sansHomologue++;
   }
   if (ambigu) return [ambigu];

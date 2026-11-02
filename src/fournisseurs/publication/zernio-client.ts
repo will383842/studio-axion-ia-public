@@ -104,6 +104,8 @@ export interface PageFacebookZernio {
   id: string;
   name?: string;
   username?: string;
+  /** Posé par le client : cette page est la page par défaut (`selectedPageId`) du compte interrogé. */
+  parDefaut?: boolean;
   [cle: string]: unknown;
 }
 
@@ -791,8 +793,9 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
 
     async pagesFacebook(accountId) {
       const { corps } = await requete({ methode: "GET", chemin: `/v1/accounts/${segment(accountId)}/facebook-page` });
-      const pages = exigerObjet(corps, "pages").pages;
-      return Array.isArray(pages) ? (pages as PageFacebookZernio[]) : [];
+      const lu = exigerObjet(corps, "pages");
+      const parDefaut = typeof lu.selectedPageId === "string" ? lu.selectedPageId : undefined;
+      return Array.isArray(lu.pages) ? (lu.pages as PageFacebookZernio[]).map((p) => ({ ...p, parDefaut: parDefaut !== undefined && p.id === parDefaut })) : [];
     },
 
     async organisationsLinkedin(accountId) {
