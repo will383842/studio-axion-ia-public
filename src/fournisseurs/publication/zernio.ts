@@ -13,6 +13,7 @@ import type { CanalPublication, DemandePublication, EtatPublicationExterne, Four
 import { creerClientZernio, enteteIdempotenceStudio, type ClientZernio, type OptionsClientZernio, type PostZernio } from "./zernio-client";
 import { analyserCible, compteLinkedinEstProfil, corpsPostZernio, lireCreateurTiktok, mediasDemandes, plateformeZernio, premierCommentaireTransmissibleZernio, type CreateurTiktok, type DemandeZernio } from "./zernio-corps";
 import { ErreurZernio } from "./zernio-erreurs";
+import { pageInterdite, type PagesInterdites } from "./zernio-pages-interdites";
 import { lecteurMediaParDefaut, televerserMedias, type LecteurMedia } from "./zernio-medias";
 
 const HEX_64 = /^[0-9a-f]{64}$/;
@@ -23,6 +24,8 @@ export interface OptionsPublicationZernio {
   client?: Partial<OptionsClientZernio>;
   lire?: LecteurMedia;
   maintenant?: () => number;
+  /** Pages Facebook jamais ciblées (tests) ; sinon la liste du dépôt. */
+  pagesInterdites?: PagesInterdites;
 }
 
 /** Statut Studio d'un statut Zernio. */
@@ -143,15 +146,28 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
 
     async listerCanaux() {
       const canaux: CanalPublication[] = [];
+      // Facebook : deux comptes peuvent exposer les MÊMES pages. Un seul canal par page (identifiant de page), tenu par le compte
+      // dont la page PAR DÉFAUT est cette page. Sans tel compte, tous les canaux de cette page restent : la cible est alors refusée (jamais tirée au hasard).
+      const facebook = new Map<string, { base: CanalPublication; page: { id: string; name?: string; parDefaut?: boolean }; compte: string }[]>();
       for (const c of await client.listerComptes()) {
         const base: CanalPublication = { id: c._id, organisationId: "zernio", nom: c.displayName ?? c.username ?? "Compte", service: c.platform, deconnecte: c.isActive === false };
         if (c.platform === "facebook") {
-          for (const p of await client.pagesFacebook(c._id)) canaux.push({ ...base, id: `${c._id}:fb:${p.id}`, nom: p.name ?? base.nom, genre: "page" });
+          for (const p of await client.pagesFacebook(c._id)) {
+            if (pageInterdite(p.id, p.name, options.pagesInterdites)) continue;
+            const l = facebook.get(p.id) ?? [];
+            l.push({ base, page: p, compte: c._id });
+            facebook.set(p.id, l);
+          }
         } else if (c.platform === "linkedin") {
           // Pas de canal « profil » implicite : le profil n'est proposé que si le compte lu est un profil personnel.
           if (compteLinkedinEstProfil(c)) canaux.push({ ...base, id: `${c._id}:li:profil`, genre: "profile" });
           for (const o of await client.organisationsLinkedin(c._id)) canaux.push({ ...base, id: `${c._id}:li:${o.id}`, nom: o.localizedName ?? o.name ?? base.nom, genre: "page" });
         } else canaux.push(base);
+      }
+      for (const [idPage, l] of facebook) {
+        const dePage = l.filter((x) => x.page.parDefaut);
+        const retenus = l.length > 1 && dePage.length === 1 ? dePage : l;
+        for (const x of retenus) canaux.push({ ...x.base, id: `${x.compte}:fb:${idPage}`, nom: x.page.name ?? x.base.nom, genre: "page" });
       }
       return canaux;
     },

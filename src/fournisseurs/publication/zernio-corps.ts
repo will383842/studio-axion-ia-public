@@ -7,6 +7,7 @@
  */
 import type { DemandePublication } from "../types";
 import { motsInterditsEnvoi } from "./mots-interdits-envoi";
+import { pageInterdite } from "./zernio-pages-interdites";
 import { ErreurZernio } from "./zernio-erreurs";
 import { PROMOTION_MARGE_MIN_MS, type CorpsPostZernio, type MediaItemZernio, type PlateformePostZernio } from "./zernio-client";
 
@@ -194,7 +195,8 @@ export function corpsPostZernio(d: DemandeZernio, options: OptionsCorps): CorpsP
       break;
     case "facebook":
       if (!cible.pageId) throw refus("Facebook : aucune page choisie (la page par défaut n'est jamais utilisée).");
-      specifique.pageId = cible.pageId;
+      if (pageInterdite(cible.pageId, undefined)) throw refus("Facebook : cette page ne peut jamais être une destination.");
+      specifique.pageId = cible.pageId; // compte (accountId) ET page explicites : jamais la page par défaut d'un autre compte
       if (type === "video" && d.format === "9:16" && d.dureeSec !== undefined && d.dureeSec >= REEL_FACEBOOK_DUREE_SEC.min && d.dureeSec <= REEL_FACEBOOK_DUREE_SEC.max) specifique.contentType = "reel";
       if (commentaire) specifique.firstComment = commentaire;
       break;
