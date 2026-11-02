@@ -20,7 +20,7 @@ const PROMESSES: readonly { libelle: string; motif: RegExp }[] = [
 ];
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
 /** Formes épelées d'une adresse (« nom arobase domaine point com »). */
-const EMAIL_EPELE = /\b(?:arobase|at)\b.{0,40}\b(?:point|dot)\b/;
+const EMAIL_EPELE = /\barobase\b.{0,40}\b(?:point|dot)\b/;
 /** Caractères invisibles (largeur nulle, joiners, BOM, trait d'union conditionnel) retirés avant tout contrôle. */
 const INVISIBLES = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
 
