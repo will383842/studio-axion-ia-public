@@ -12,6 +12,7 @@ const CHEMINS = [
   "src/domaine/controles-visuel/**",
   "src/components/visuels/**",
   "src/app/(studio)/carrousels/**",
+  "src/app/api/carrousels-continus/**",
   "tests/visuels/**",
   // Des tests de tests/visuels importent cette composition : une modification doit relancer la CI ciblée.
   "studio-rendu/compositions/visuels/**",
