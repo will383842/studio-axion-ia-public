@@ -16,6 +16,7 @@ import { construireGrapheMot, construireGrapheStop, estMotOpposition, type Defin
 import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisSaisie, textesValides, type SaisieMot, type TextesMot } from "./mots-textes";
 import { creerNotification } from "./notifications";
 import { empreinteContact, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
+import { parcoursMotActif } from "./parcours-mot";
 import { envoiZernioAutorise } from "./zernio";
 
 export const VARIABLE_INTERRUPTEUR_MOTS = "MOTS_ENABLED";
@@ -388,7 +389,8 @@ export const injecterTransportOpposition = (t: TransportSite | null): void => vo
  */
 export async function traiterOppositions(o: { env?: Env } = {}): Promise<{ actif: boolean; prises: number; transmises: number }> {
   const env = o.env ?? process.env;
-  if (!motsActif(env)) return { actif: false, prises: 0, transmises: 0 };
+  // Les « stop » sont pris en compte dès que le parcours est allumé (la file d'envoi en dépend) ; aucun interrupteur n'est allumé par ce code.
+  if (!motsActif(env) && !parcoursMotActif(env)) return { actif: false, prises: 0, transmises: 0 };
   const evenements = await sousVerrou(async () => {
     return depots().evenementsFournisseurs.lister((e) => e.fournisseur === "zernio" && !e.traite && estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null));
   });

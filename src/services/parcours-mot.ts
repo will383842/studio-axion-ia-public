@@ -56,6 +56,8 @@ export const VARIABLE_SECRET_SITE_REPLI = "SITE_VIDEOS_SECRET";
 export const CHEMIN_DEMANDES_GUIDE = "/api/interne/demandes-guide-reseau";
 const FOURNISSEUR = "zernio";
 const ESSAIS_NONCE = 3;
+/** Attente avant de relire le registre des oppositions après une panne de lecture. */
+const ATTENTE_REGISTRE_ILLISIBLE_MS = 60_000;
 
 /** Interrupteur du parcours : éteint par défaut (absent ou autre chose que 1/true/oui). */
 export function parcoursMotActif(env: Record<string, string | undefined> = process.env): boolean {
@@ -213,7 +215,16 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
 
 async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number, v3: { prefixesComptes: readonly string[] } | null = null): Promise<{ issue: "envoye" | "definitif" | "reessai" | "ecarte"; code: string }> {
   // Personne déjà opposée : aucune lecture du run, aucun appel au site, donc aucun guide. L'événement est conservé (rien n'est supprimé).
-  if (await personneOpposee(typeof ev.charge.idContact === "string" ? ev.charge.idContact : null)) {
+  let opposee: boolean;
+  try {
+    opposee = await personneOpposee(typeof ev.charge.idContact === "string" ? ev.charge.idContact : null);
+  } catch {
+    // Registre illisible (panne de base) : nouvel essai plus tard, JAMAIS une mise à l'écart. Événement non traité, échelle des pannes non consommée.
+    await depots().evenementsFournisseurs.modifier(ev.id, { traite: false, charge: { ...ev.charge, etat: "a_reessayer", dernierCode: "registre_illisible", prochainEssaiLe: now + ATTENTE_REGISTRE_ILLISIBLE_MS } });
+    await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : registre des oppositions illisible, nouvel essai plus tard.`);
+    return { issue: "reessai", code: "registre_illisible" };
+  }
+  if (opposee) {
     await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat: "ecarte", dernierCode: "opposee", prochainEssaiLe: null } });
     await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : ecarte (personne opposée), aucun envoi.`);
     return { issue: "ecarte", code: "opposee" };

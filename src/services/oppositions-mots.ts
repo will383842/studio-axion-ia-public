@@ -14,15 +14,14 @@ export interface LigneOpposition {
 }
 export const empreinteContact = (id: string): string => createHash("sha256").update(id, "utf8").digest("hex").slice(0, 32);
 
-/** Cette personne s'est-elle déjà opposée ? Identifiant absent : non. Lecture impossible : on suppose OUI (silence, jamais d'envoi à l'aveugle). */
+/**
+ * Cette personne s'est-elle déjà opposée ? Identifiant absent : non. Lecture impossible : l'ERREUR EST PROPAGÉE (jamais « opposée »
+ * par défaut) : l'appelant réessaie plus tard, il ne met jamais une vraie demande de côté à cause d'une panne de base.
+ */
 export async function personneOpposee(idContact: string | null | undefined): Promise<boolean> {
   if (!idContact) return false;
-  try {
-    const id = empreinteContact(idContact);
-    return (await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, [])).some((x) => x.id === id);
-  } catch {
-    return true;
-  }
+  const id = empreinteContact(idContact);
+  return (await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, [])).some((x) => x.id === id);
 }
 
 /** Met la personne à l'écart (une seule ligne par personne). */
