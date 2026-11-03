@@ -1,7 +1,7 @@
 /** PV-2 : clé d'idempotence du parcours guide (sans réseau). */
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { ACCORDS_SITE, RE_CLE_IDEMPOTENCE, RE_MOT_GUIDE, cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
+import { RE_CLE_IDEMPOTENCE, RE_MOT_GUIDE, cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
 
 describe("PV-2 clé d'idempotence", () => {
   it("un identifiant de run conforme est envoyé tel quel", () => {
@@ -24,8 +24,5 @@ describe("PV-2 clé d'idempotence", () => {
   it("mot : lettres et chiffres, accents compris, 2 à 30", () => {
     for (const ok of ["GUIDE", "dévis", "Été2", "ab", "a".repeat(30)]) expect(RE_MOT_GUIDE.test(ok), ok).toBe(true);
     for (const ko of ["a", "a".repeat(31), "deux mots", "ab-c", "a_b", "", "👍👍"]) expect(RE_MOT_GUIDE.test(ko), ko).toBe(false);
-  });
-  it("valeurs d'accord du site", () => {
-    expect([...ACCORDS_SITE]).toEqual(["non_demande", "non", "oui_en_attente_de_clic", "oui_deja_confirme", "ecarte"]);
   });
 });

@@ -1,6 +1,6 @@
 // Parcours « mot → e-mail → guide » : crochet Zernio, PUR (aucun réseau, aucune base, aucun secret en dur).
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { ACCORDS_ENTREE, RE_MOT_GUIDE } from "./cle-idempotence";
+import { RE_MOT_GUIDE } from "./cle-idempotence";
 
 /** Miroir du site (`src/content/guides-reseau.ts` : GUIDES_RESEAU_CONNUS). Liste FERMÉE ; à garder alignée sur le site. */
 export const GUIDES_RESEAU_CONNUS: readonly string[] = ["guide-ia"];
@@ -121,11 +121,9 @@ export interface RunLu {
   email: string;
   mot: string;
   reseau: (typeof RESEAUX_GUIDE)[number];
-  accord: (typeof ACCORDS_ENTREE)[number];
   guide: string;
+  /** Version du texte du premier message privé (registre de preuve), ex. « mp-m1-v2 ». */
   versionTexteM1: string;
-  /** Version de la question « conseils par e-mail » (M2). OBLIGATOIRE si `accord === "oui"` (refine du site). */
-  versionTexteM2?: string;
   locale?: string;
   /** Moment de la réponse (ISO 8601), optionnel. */
   occurredAt?: string;
@@ -136,6 +134,8 @@ export interface RunLu {
 /**
  * Corps figé de l'appel au site : ordre des clés FIXE, donc mêmes octets à chaque reconstruction.
  * Une clé absente (`undefined`) n'est pas écrite, mais les autres gardent leur place relative.
+ * Plus de champ « accord » ni de version de question d'accord (décision du 03/11/2026) : même un run relu qui en porte encore un
+ * (ancien parcours) ne les envoie pas ; le site accepte leur absence.
  * ⚠️ Le corps est RECONSTRUIT à chaque passage à partir du run relu : ne relire que des runs CLOS. Si Zernio modifie le
  * run entre deux passages, les octets changent et le site répond 409 `cle_reutilisee` (définitif).
  */
@@ -147,9 +147,7 @@ export function corpsDemandeGuide(run: RunLu, cleIdempotence: string): string {
     mot: run.mot.toUpperCase(),
     reseau: run.reseau,
     guide: run.guide,
-    accord: run.accord,
     versionTexteM1: run.versionTexteM1,
-    versionTexteM2: run.versionTexteM2,
     locale: run.locale ?? "fr",
     occurredAt: run.occurredAt,
   });
@@ -159,17 +157,13 @@ export function corpsDemandeGuide(run: RunLu, cleIdempotence: string): string {
 export function runValide(r: unknown): r is RunLu {
   if (!r || typeof r !== "object") return false;
   const o = r as Record<string, unknown>;
-  const m2 = o.versionTexteM2;
   const locale = o.locale;
   return (
     typeof o.email === "string" && o.email.length > 0 && o.email.length <= 254 &&
     typeof o.mot === "string" && RE_MOT_GUIDE.test(o.mot) &&
     (RESEAUX_GUIDE as readonly string[]).includes(String(o.reseau)) &&
-    (ACCORDS_ENTREE as readonly string[]).includes(String(o.accord)) &&
     typeof o.guide === "string" && RE_GUIDE.test(o.guide) && GUIDES_RESEAU_CONNUS.includes(o.guide) &&
     typeof o.versionTexteM1 === "string" && RE_VERSION_TEXTE.test(o.versionTexteM1) &&
-    (m2 === undefined || (typeof m2 === "string" && RE_VERSION_TEXTE.test(m2))) &&
-    (o.accord !== "oui" || m2 !== undefined) &&
     (locale === undefined || locale === "fr" || locale === "en") &&
     (o.occurredAt === undefined || (typeof o.occurredAt === "string" && RE_DATE_ISO.test(o.occurredAt) && Number.isFinite(Date.parse(o.occurredAt))))
   );
@@ -195,17 +189,14 @@ export const DISJONCTEUR_SEUIL = 5;
 export const DISJONCTEUR_PAUSE_MS = 10 * 60_000;
 
 export type Conduite =
-  | { genre: "termine"; accord: string | null }
+  | { genre: "termine" }
   | { genre: "reessayer"; apresMs: number; code: string; nouveauNonce?: boolean }
   | { genre: "definitif"; code: string };
 
 /** `statut` 0 = site injoignable. `essai` = numéro de l'essai qui vient d'échouer (1 pour le premier). */
 export function conduiteApresReponse(statut: number, corps: unknown, essai: number): Conduite {
   const erreur = corps && typeof corps === "object" && typeof (corps as Record<string, unknown>).erreur === "string" ? ((corps as Record<string, unknown>).erreur as string) : "";
-  if (statut === 200) {
-    const a = corps && typeof corps === "object" ? (corps as Record<string, unknown>).accord : undefined;
-    return { genre: "termine", accord: typeof a === "string" ? a : null };
-  }
+  if (statut === 200) return { genre: "termine" };
   if (statut === 409 && erreur === "en_cours") return { genre: "reessayer", apresMs: ATTENTE_EN_COURS_MS, code: "409_en_cours" };
   if (statut === 409 && erreur === "nonce_reutilise") return { genre: "reessayer", apresMs: 0, code: "409_nonce_reutilise", nouveauNonce: true };
   if (statut === 409) return { genre: "definitif", code: erreur === "cle_reutilisee" ? "409_cle_reutilisee" : "409" };

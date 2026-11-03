@@ -7,12 +7,12 @@
  * versionnée (`schema`), à faire correspondre au format réel lors de l'essai. Aucune adresse e-mail n'y figure : l'adresse
  * est collectée par Zernio et lue par le travail de fond du parcours (parcours-mot), jamais conservée ici.
  */
+import { estMotOpposition, MOTS_OPPOSITION } from "@/domaine/guide-reseau/opposition";
 import { controlerTextesMot, type Refus } from "./mots-controle";
 import { RE_MOT, textesValides, type TextesMot } from "./mots-textes";
 
 export const SCHEMA_GRAPHE = "studio-mots-v1";
-/** Mots d'opposition reçus en message privé (comparés sans accents ni casse, mot seul). */
-export const MOTS_OPPOSITION: readonly string[] = ["STOP", "ARRET"];
+export { estMotOpposition, MOTS_OPPOSITION };
 export const RESEAUX_AUTOMATIQUES = ["instagram", "facebook"] as const;
 
 export type EtapeGraphe =
@@ -34,6 +34,8 @@ export interface DefinitionWorkflow {
   etapes: EtapeGraphe[];
   /** Un seul envoi par commentaire et par personne (ADR-0005 P7). */
   unEnvoiParPersonne: true;
+  /** Personne déjà opposée : aucune réponse, aucun guide. */
+  siPersonneOpposee: "silence";
   /** Posé EN PAUSE : l'activation est un geste séparé de l'opérateur. */
   etatInitial: "pause";
 }
@@ -65,14 +67,15 @@ export function construireGrapheMot(textes: TextesMot, options: { reseaux?: read
       declencheur: { type: "commentaire_mot_seul", mot: textes.mot, reseaux: options.reseaux ?? RESEAUX_AUTOMATIQUES },
       etapes,
       unEnvoiParPersonne: true,
+      siPersonneOpposee: "silence",
       etatInitial: "pause",
     },
   };
 }
 
 /**
- * Workflow STOP d'un compte : un mot STOP ou ARRÊT reçu en message privé met la personne à l'écart (opposition) et alerte
- * l'opérateur. AUCUN texte sortant (ADR-0005 Q5 : silence après STOP) ; `demande_effacement` n'est pas utilisé.
+ * Workflow STOP d'un compte : un mot « stop » ou « arrêtez » écrit par la personne en message privé met la personne à l'écart (opposition) et alerte
+ * l'opérateur. AUCUN texte sortant (silence total après une opposition) ; `demande_effacement` n'est pas utilisé.
  */
 export function construireGrapheStop(): DefinitionWorkflow {
   return {
@@ -85,13 +88,7 @@ export function construireGrapheStop(): DefinitionWorkflow {
       { id: "s2", type: "alerter_operateur", motif: "opposition" },
     ],
     unEnvoiParPersonne: true,
+    siPersonneOpposee: "silence",
     etatInitial: "pause",
   };
-}
-
-/** Le texte reçu est-il un mot d'opposition (mot seul, sans accents ni casse, ponctuation finale tolérée) ? PUR. */
-export function estMotOpposition(texte: string | null | undefined): boolean {
-  if (typeof texte !== "string") return false;
-  const n = texte.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().replace(/[\s.!]+$/u, "").trim();
-  return MOTS_OPPOSITION.includes(n);
 }

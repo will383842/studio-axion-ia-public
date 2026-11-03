@@ -10,6 +10,7 @@
  * extrait court du commentaire public (≤ 140 caractères, échappé), date, statut, kit de réponse validé par le contrôle de sortie.
  */
 import "server-only";
+import { personneOpposee } from "./oppositions-mots";
 import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
 import type { Canal } from "@/domaine/guide-reseau/origine-v3";
 import { creerVerrou, maintenant } from "./_commun";
@@ -142,6 +143,8 @@ export interface CommentaireAMot {
   canal: Canal;
   mot: string | null;
   commentaire: string;
+  /** Identifiant opaque du contact (jamais affiché, jamais conservé ici) : sert seulement à savoir si la personne s'est déjà opposée. */
+  idContact?: string | null;
 }
 /** Lecteur de la liste des mots connus (majuscules). Aucun lecteur réel n'est branché dans ce lot : sans lecteur, tout mot est inconnu. */
 export type LecteurMots = () => Promise<readonly string[] | null>;
@@ -149,10 +152,12 @@ export type ResultatAiguillage =
   | { issue: "simule"; raison: "interrupteur_eteint" }
   | { issue: "refuse"; raison: RefusEntree }
   | { issue: "execute"; action: "a_traiter"; raison: "ajoute" | "deja_present" }
-  | { issue: "execute"; action: "reponse_publique" | "message_prive"; raison: "mot_connu" };
+  | { issue: "execute"; action: "reponse_publique" | "message_prive"; raison: "mot_connu"; motRetenu: string }
+  | { issue: "execute"; action: "silence"; raison: "personne_opposee" | "opposition" };
 
 /**
- * Mot inconnu, absent ou liste illisible : la carte va dans « À traiter », JAMAIS d'envoi. Mot connu : retourne seulement la
+ * Personne opposée, ou « stop » / « arrêtez » : silence (aucune réponse, aucune carte). Mot inconnu : il reçoit GUIDE si GUIDE est
+ * configuré. Sans GUIDE, mot absent ou liste illisible : la carte va dans « À traiter », JAMAIS d'envoi. Mot connu : retourne seulement la
  * décision (LinkedIn et TikTok : réponse publique seule) ; ce service n'envoie rien et n'écrit rien dans ce cas.
  */
 export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; depot?: DepotATraiter; lireMots?: LecteurMots } = {}): Promise<ResultatAiguillage> {
@@ -163,8 +168,9 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   } catch {
     mots = null; // liste illisible : le mot est traité comme inconnu
   }
-  const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots });
-  if (d.action !== "a_traiter") return { issue: "execute", action: d.action, raison: "mot_connu" };
+  const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots, opposee: await personneOpposee(c.idContact) });
+  if (d.action === "silence") return { issue: "execute", action: "silence", raison: d.motif };
+  if (d.action !== "a_traiter") return { issue: "execute", action: d.action, raison: "mot_connu", motRetenu: d.motRetenu };
   const r = await enregistrerATraiter(
     { idEvenement: c.idEvenement, reseau: c.reseau === "linkedin_page" ? "linkedin" : c.reseau, post: c.post, mot: c.mot, motif: d.motif, commentaire: c.commentaire },
     { env: o.env, depot: o.depot },

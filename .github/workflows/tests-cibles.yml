@@ -69,6 +69,13 @@ on:
       - "tests/relais-buffer.test.ts"
       - "tests/relais-buffer-proxy.test.ts"
       - "tests/zernio/**"
+      - "src/services/mots-*.ts"
+      - "src/services/oppositions-mots.ts"
+      - "src/services/parcours-mot.ts"
+      - "src/services/a-traiter*.ts"
+      - "src/components/mots/**"
+      - "src/components/a-traiter/**"
+      - "tests/site-videos/s4-signature.test.ts"
       - "tests/guide-reseau/**"
       - "src/components/migration/**"
       - "src/services/lecteur-migration.ts"
@@ -147,5 +154,6 @@ jobs:
           pnpm exec vitest run \
             tests/zernio \
             tests/guide-reseau \
+            tests/site-videos/s4-signature.test.ts \
             tests/zernio/z3m-migration.test.tsx \
             r1-envoi-reel r1-buffer-client

@@ -24,9 +24,9 @@ const ALLUME = { MOTS_ENABLED: "1" };
 const T0 = Date.UTC(2026, 10, 3, 10, 0, 0);
 
 const brouillon = (mot = "GUIDE") =>
-  T.textesDepuisSaisie({ mot, reponsePublique: "Réponse automatique : regardez vos messages privés.", messagePrive: "Réponse automatique. Quelle adresse pour le guide ?", relance: null, fin: "Réponse automatique. Merci, c'est noté." });
+  T.textesDepuisSaisie({ mot, reponsePublique: "Message automatique envoyé par Axion IA. regardez vos messages privés.", messagePrive: "Message automatique envoyé par Axion IA. Quelle adresse pour le guide ?", relance: null, fin: "Message automatique envoyé par Axion IA. Merci, c'est noté." });
 const valides = (mot = "GUIDE") => T.validerTextes(brouillon(mot));
-const saisieDe = (mot = "GUIDE", fin = "Réponse automatique. Merci, c'est noté.") => ({ mot, reponsePublique: "Réponse automatique : regardez vos messages privés.", messagePrive: "Réponse automatique. Quelle adresse pour le guide ?", relance: null, fin });
+const saisieDe = (mot = "GUIDE", fin = "Message automatique envoyé par Axion IA. Merci, c'est noté.") => ({ mot, reponsePublique: "Message automatique envoyé par Axion IA. regardez vos messages privés.", messagePrive: "Message automatique envoyé par Axion IA. Quelle adresse pour le guide ?", relance: null, fin });
 /** Validation par le geste serveur (empreinte enregistrée en base) puis saisie prête à poser. */
 const prete = async (mot = "GUIDE") => {
   await S.validerMot({ saisie: saisieDe(mot), confirmeParOperateur: true });
@@ -73,7 +73,7 @@ describe("pv3 · textes validés", () => {
   it("texte modifié après la validation enregistrée : refusé", async () => {
     const faux = brancher();
     await prete();
-    expect(await S.poserMot({ compte: "c1", saisie: saisieDe("GUIDE", "Réponse automatique. Merci !"), ...op })).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
+    expect(await S.poserMot({ compte: "c1", saisie: saisieDe("GUIDE", "Message automatique envoyé par Axion IA. Merci !"), ...op })).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
     expect(faux.appels).toHaveLength(0);
     expect(await S.poserMot({ compte: "c1", saisie: saisieDe(), ...op })).toMatchObject({ issue: "execute" });
   });
@@ -89,7 +89,7 @@ describe("pv3 · textes validés", () => {
     expect(G.construireGrapheMot({ ...v, fin: v.fin + " !" })).toMatchObject({ ok: false, code: "textes_non_valides" });
   });
   it("fichier mots/<MOT>.md : état et sections lus, jamais de texte en dur", () => {
-    const md = (etat: string) => `etat: ${etat}\n\n## reponse_publique\nA. Réponse automatique.\n## message_prive\nB. Réponse automatique.\n## fin\nC. Réponse automatique.\n`;
+    const md = (etat: string) => `etat: ${etat}\n\n## reponse_publique\nA. Message automatique envoyé par Axion IA.\n## message_prive\nB. Message automatique envoyé par Axion IA.\n## fin\nC. Message automatique envoyé par Axion IA.\n`;
     const lu = T.lireTextesMarkdown("guide", md("brouillon"));
     expect(lu.ok && lu.textes.etat).toBe("brouillon");
     const ok = T.lireTextesMarkdown("GUIDE", md("validé par l'opérateur"));
@@ -103,7 +103,7 @@ describe("pv3 · textes validés", () => {
     const g = G.construireGrapheMot(valides());
     expect(g.ok && g.workflow.etapes.map((e) => e.type)).toEqual(["repondre_commentaire", "envoyer_message_prive", "attendre_reponse", "terminer"]);
     expect(g.ok && g.workflow.etatInitial).toBe("pause");
-    const avec = T.validerTextes({ ...brouillon(), relance: "Réponse automatique. Une dernière fois." });
+    const avec = T.validerTextes({ ...brouillon(), relance: "Message automatique envoyé par Axion IA. Une dernière fois." });
     const g2 = G.construireGrapheMot(avec);
     expect(g2.ok && g2.workflow.etapes.some((e) => e.type === "relancer")).toBe(true);
   });
@@ -112,15 +112,15 @@ describe("pv3 · textes validés", () => {
 describe("pv3 · contrôle de sortie", () => {
   const avecTexte = (t: string) => G.construireGrapheMot(T.validerTextes({ ...brouillon(), messagePrive: t }));
   it.each([
-    ["lieu interdit", `Réponse automatique. Depuis ${TOKENS.lieu}`, "expression_bannie"],
-    ["gain garanti", `Réponse automatique. ${TOKENS.gain}`, "expression_bannie"],
-    ["label qualité", `Réponse automatique. ${TOKENS.label}`, "mot_interdit"],
-    ["participe", `Réponse automatique. Formation ${TOKENS.participe}e`, "mot_interdit"],
+    ["lieu interdit", `Message automatique envoyé par Axion IA. Depuis ${TOKENS.lieu}`, "expression_bannie"],
+    ["gain garanti", `Message automatique envoyé par Axion IA. ${TOKENS.gain}`, "expression_bannie"],
+    ["label qualité", `Message automatique envoyé par Axion IA. ${TOKENS.label}`, "mot_interdit"],
+    ["participe", `Message automatique envoyé par Axion IA. Formation ${TOKENS.participe}e`, "mot_interdit"],
     ["mention absente", "Bonjour, votre adresse ?", "mention_absente"],
-    ["promesse", `Réponse automatique. Résultat ${J("garan", "ti")} sans risque`, "promesse_interdite"],
-    ["adresse e-mail", "Réponse automatique. Écrivez à quelqu@example.com", "adresse_email"],
-    ["promesse coupée par un caractère invisible", `Réponse automatique. Résultat ${J("garan", "\u200B", "ti")}`, "promesse_interdite"],
-    ["adresse épelée", "Réponse automatique. Écrivez à nom arobase exemple point com", "adresse_email"],
+    ["promesse", `Message automatique envoyé par Axion IA. Résultat ${J("garan", "ti")} sans risque`, "promesse_interdite"],
+    ["adresse e-mail", "Message automatique envoyé par Axion IA. Écrivez à quelqu@example.com", "adresse_email"],
+    ["promesse coupée par un caractère invisible", `Message automatique envoyé par Axion IA. Résultat ${J("garan", "\u200B", "ti")}`, "promesse_interdite"],
+    ["adresse épelée", "Message automatique envoyé par Axion IA. Écrivez à nom arobase exemple point com", "adresse_email"],
   ])("%s refusé", (_n, texte, code) => {
     const r = avecTexte(texte);
     expect(r).toMatchObject({ ok: false, code: "texte_refuse" });
@@ -128,7 +128,7 @@ describe("pv3 · contrôle de sortie", () => {
   });
   it("mot interdit refusé à la pose : aucun appel", async () => {
     const faux = brancher();
-    const saisie = { ...saisieDe(), reponsePublique: `Réponse automatique ${TOKENS.lieu}` };
+    const saisie = { ...saisieDe(), reponsePublique: `Message automatique envoyé par Axion IA. ${TOKENS.lieu}` };
     expect(await S.validerMot({ saisie, confirmeParOperateur: true })).toMatchObject({ ok: false, raison: "texte_refuse" });
     const r = await S.poserMot({ compte: "c1", saisie, ...op });
     expect(r).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
@@ -359,7 +359,7 @@ describe("pv3 · Tout arrêter", () => {
 describe("pv3 · STOP par compte", () => {
   it("le graphe STOP n'a aucun texte sortant et ne parle pas d'effacement", () => {
     const w = G.construireGrapheStop();
-    expect(w.declencheur).toMatchObject({ type: "message_prive_mot_seul", mots: ["STOP", "ARRET"] });
+    expect(w.declencheur).toMatchObject({ type: "message_prive_mot_seul", mots: ["STOP", "ARRET", "ARRETEZ"] });
     expect(w.etapes.map((e) => e.type)).toEqual(["mettre_a_l_ecart", "alerter_operateur"]);
     expect(JSON.stringify(w)).not.toMatch(/texte|effacement/);
   });
