@@ -42,8 +42,12 @@
       "version": "mp-pub-igfb-v1",
       "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages."
     },
-    "mp-pub-lien-v1": {
-      "version": "mp-pub-lien-v1",
+    "mp-pub-linkedin-v1": {
+      "version": "mp-pub-linkedin-v1",
+      "texte": "Merci pour votre commentaire ! Le guide « [TITRE DU GUIDE] » est disponible ici : [LIEN]. Si le lien ne s'ouvre pas, dites-le-nous en réponse et nous trouverons une autre solution."
+    },
+    "mp-pub-tiktok-v1": {
+      "version": "mp-pub-tiktok-v1",
       "texte": "Merci pour votre commentaire ! Le guide « [TITRE DU GUIDE] » est disponible ici : [LIEN]. Si le lien ne s'ouvre pas, dites-le-nous en réponse et nous trouverons une autre solution."
     }
   }

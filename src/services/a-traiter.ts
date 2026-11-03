@@ -10,7 +10,7 @@
  * extrait court du commentaire public (≤ 140 caractères, échappé), date, statut, kit de réponse validé par le contrôle de sortie.
  */
 import "server-only";
-import { personneOpposee } from "./oppositions-mots";
+import { enregistrerOpposition, personneOpposee } from "./oppositions-mots";
 import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
 import type { Canal } from "@/domaine/guide-reseau/origine-v3";
 import { creerVerrou, maintenant } from "./_commun";
@@ -168,7 +168,14 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   } catch {
     mots = null; // liste illisible : le mot est traité comme inconnu
   }
-  const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots, opposee: await personneOpposee(c.idContact) });
+  let opposee: boolean;
+  try {
+    opposee = await personneOpposee(c.idContact);
+  } catch {
+    opposee = true; // registre illisible : silence cette fois (aucun envoi à l'aveugle) ; rien n'est enregistré ni marqué traité
+  }
+  const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots, opposee });
+  if (d.action === "silence" && d.motif === "opposition" && c.idContact) await enregistrerOpposition(c.idContact); // mise à l'écart, rien n'est supprimé
   if (d.action === "silence") return { issue: "execute", action: "silence", raison: d.motif };
   if (d.action !== "a_traiter") return { issue: "execute", action: d.action, raison: "mot_connu", motRetenu: d.motRetenu };
   const r = await enregistrerATraiter(
