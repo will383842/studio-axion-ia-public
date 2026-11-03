@@ -137,7 +137,7 @@ describe("porte qualité : chaque défaut rougit exactement son code", () => {
   it("SERIE : plus de 3 « Scénario type » (orange)", () => {
     const sc = (titre: string) => ({ ...dense, titre });
     const scl = (titre: string) => ({ ...liste, titre });
-    const quatre = specAvec([couverture, sc("Scénario type : A"), scl("Scénario type : B"), sc("Scénario type : C"), scl("Scénario type : D"), etapes, fin]);
+    const quatre = specAvec([couverture, sc("Scénario type : A"), scl("Scénario type : B"), sc("Scénario type : C"), scl("Scénario type : D"), avantApres, fin]);
     expect(codes(quatre)).toEqual(["SERIE"]);
     const trois = specAvec([couverture, sc("Scénario type : A"), scl("Scénario type : B"), sc("Scénario type : C"), avantApres, etapes, fin]);
     expect(codes(trois)).toEqual([]);
