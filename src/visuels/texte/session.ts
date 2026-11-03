@@ -26,7 +26,8 @@ export const Paquet = z
     }
   });
 
-function phrase(issue: z.core.$ZodIssue): string {
+/** Phrase française d'une erreur de paquet, avec le chemin du champ (réutilisée par le paquet de toile). */
+export function phrase(issue: z.core.$ZodIssue): string {
   const chemin = issue.path.map(String).join(".") || "(racine du paquet)";
   const i = issue as unknown as Record<string, unknown>;
   let detail: string;
