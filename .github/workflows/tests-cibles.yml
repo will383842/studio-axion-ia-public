@@ -6,6 +6,8 @@ name: tests-cibles
 on:
   pull_request:
     paths:
+      - "contrats/**"
+      - "src/domaine/guide-reseau/**"
       - "src/moteurs/montage-cas-concret/**"
       - "src/formats/cas-concret/**"
       - "src/briques/ecrans-motion/**"
