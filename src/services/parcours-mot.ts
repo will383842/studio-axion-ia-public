@@ -12,6 +12,7 @@
  */
 import "server-only";
 import type { EvenementFournisseur } from "@/domaine/types";
+import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
 import { construireOrigineV3, corpsDemandeGuideV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import {
@@ -37,6 +38,7 @@ import { creerTransportHttp } from "@/fournisseurs/site/http";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import type { TransportSite } from "@/fournisseurs/site/types";
 import { nouvelId } from "@/lib/ids";
+import { personneOpposee } from "./oppositions-mots";
 import { depots, horodatage, journaliser, maintenant, sousVerrou } from "./_commun";
 
 /**
@@ -115,7 +117,7 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
       recuLe: maintenant(),
       traite: false,
       // Seul l'identifiant (opaque) du run est gardé : ni adresse e-mail, ni contenu du crochet.
-      charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null, accord: null },
+      charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null },
       ...horodatage(),
     };
     await d.evenementsFournisseurs.enregistrer(entite);
@@ -151,6 +153,8 @@ export interface RapportOutbox {
   envoyes: number;
   definitifs: number;
   aReessayer: number;
+  /** Personnes déjà opposées : ni lecture, ni appel au site (événement conservé, mis de côté). */
+  ecartes: number;
   /** Vrai si le disjoncteur était ouvert ou s'est ouvert pendant ce passage. */
   disjoncteurOuvert?: boolean;
   /** Vrai si le plafond de lot ou de débit a laissé des événements pour le passage suivant. */
@@ -160,7 +164,7 @@ export interface RapportOutbox {
 /** Un passage sur l'outbox. Éteint, ou site/lecteur non reliés : aucun appel sortant. */
 export async function traiterOutboxZernio(o: { env?: Record<string, string | undefined>; maintenantMs?: number } = {}): Promise<RapportOutbox> {
   const env = o.env ?? process.env;
-  const rapport: RapportOutbox = { actif: parcoursMotActif(env), traites: 0, envoyes: 0, definitifs: 0, aReessayer: 0 };
+  const rapport: RapportOutbox = { actif: parcoursMotActif(env), traites: 0, envoyes: 0, definitifs: 0, aReessayer: 0, ecartes: 0 };
   if (!rapport.actif || enCours) return rapport;
   const site = transportDuSite(env);
   const lire = lecteurInjecte;
@@ -170,7 +174,8 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
     const now = o.maintenantMs ?? Date.now();
     if (now < disjoncteurOuvertJusqua) return { ...rapport, disjoncteurOuvert: true };
     appelsRecents = appelsRecents.filter((t) => t > now - 3_600_000);
-    const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && !e.traite && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
+    // Un « stop » / « arrêtez » écrit par la personne n'est JAMAIS une demande de guide : il reste pour la prise en compte de l'opposition.
+    const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && !e.traite && !estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null) && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
     // Plafond de LOT : les plus anciens d'abord, le reste attend le passage suivant (rien n'est perdu).
     dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
     if (dus.length > LOT_MAX_PAR_PASSAGE) rapport.plafonne = true;
@@ -183,6 +188,10 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
       appelsRecents.push(now);
       rapport.traites++;
       const { issue, code } = await tenter(ev, lire, site, now, origineV3Active(env) ? { prefixesComptes: prefixesComptesConfigures(env) } : null);
+      if (issue === "ecarte") {
+        rapport.ecartes++;
+        continue; // ne compte ni comme succès ni comme panne
+      }
       if (issue === "envoye") rapport.envoyes++;
       else if (issue === "definitif") rapport.definitifs++;
       else rapport.aReessayer++;
@@ -202,7 +211,13 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
   return rapport;
 }
 
-async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number, v3: { prefixesComptes: readonly string[] } | null = null): Promise<{ issue: "envoye" | "definitif" | "reessai"; code: string }> {
+async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number, v3: { prefixesComptes: readonly string[] } | null = null): Promise<{ issue: "envoye" | "definitif" | "reessai" | "ecarte"; code: string }> {
+  // Personne déjà opposée : aucune lecture du run, aucun appel au site, donc aucun guide. L'événement est conservé (rien n'est supprimé).
+  if (await personneOpposee(typeof ev.charge.idContact === "string" ? ev.charge.idContact : null)) {
+    await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat: "ecarte", dernierCode: "opposee", prochainEssaiLe: null } });
+    await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : ecarte (personne opposée), aucun envoi.`);
+    return { issue: "ecarte", code: "opposee" };
+  }
   const idRun = String(ev.charge.idRun);
   const essaisAvant = Number(ev.charge.essais ?? 0);
   const essais = essaisAvant + 1;
@@ -269,7 +284,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   const enAttenteSite = c.genre === "reessayer" && c.code === "409_en_cours";
   if (enAttenteSite) charge.essais = essaisAvant; // un 409 `en_cours` ne compte PAS dans ESSAIS_MAX
   if (c.genre === "termine") {
-    Object.assign(charge, { etat: "envoye", dernierCode: "200", accord: c.accord, prochainEssaiLe: null });
+    Object.assign(charge, { etat: "envoye", dernierCode: "200", prochainEssaiLe: null });
     issue = "envoye";
   } else if (c.genre === "definitif") {
     Object.assign(charge, { etat: "definitif", dernierCode: c.code, prochainEssaiLe: null });

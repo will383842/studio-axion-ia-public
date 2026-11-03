@@ -14,7 +14,7 @@ const { EcranATraiter } = await import("@/components/a-traiter/EcranATraiter");
 const J = (...p: string[]) => p.join("");
 const TOKENS = { lieu: J("Gren", "oble"), label: J("Quali", "opi"), participe: J("cert", "ifié"), gain: J("Aucun gain ", "garanti") };
 const ALLUME = { A_TRAITER_ENABLED: "1" };
-const REPONSE = "Réponse automatique : le guide est sur la page indiquée.";
+const REPONSE = "Message automatique envoyé par Axion IA. le guide est sur la page indiquée.";
 const entree = (o: Partial<import("@/services/a-traiter").EntreeATraiter> = {}) => ({ idEvenement: "ev-1", reseau: "linkedin", post: "post-1", mot: "GUIDE", motif: "mot_manuel", commentaire: "GUIDE", reponse: REPONSE, ...o });
 let depot = A.creerDepotMemoire();
 
@@ -141,7 +141,7 @@ describe("pv4 · kit de réponse et mots interdits", () => {
     expect((await depot.lire())[0].kit).toBe(REPONSE);
   });
   it("un kit refusé par le contrôle de sortie est vidé, la carte reste", async () => {
-    const mauvais = [`${TOKENS.lieu} ${REPONSE}`, `${TOKENS.label} ${REPONSE}`, `${TOKENS.participe} ${REPONSE}`, `${TOKENS.gain} ${REPONSE}`, "Le guide est là.", `${REPONSE} a@b.test`];
+    const mauvais = [`${TOKENS.lieu} ${REPONSE}`, `${TOKENS.label} ${REPONSE}`, `${TOKENS.participe} ${REPONSE}`, `${TOKENS.gain} ${REPONSE}`, `${REPONSE} ${J("ST", "OP")}`, `${REPONSE} a@b.test`];
     for (const [i, rep] of mauvais.entries()) await A.enregistrerATraiter(entree({ idEvenement: `k${i}`, reponse: rep }), { env: ALLUME, depot });
     const cartes = await depot.lire();
     expect(cartes).toHaveLength(mauvais.length);
