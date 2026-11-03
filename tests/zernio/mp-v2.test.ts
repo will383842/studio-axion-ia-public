@@ -22,7 +22,7 @@ const Opp = await import("@/services/oppositions-mots");
 
 const J = (...p: string[]) => p.join("");
 const MENTION = "Message automatique envoyé par Axion IA.";
-const IDS = ["mp-m1-v2", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-lien-v1"] as const;
+const IDS = ["mp-m1-v2", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const;
 const PRIVES = IDS.filter((i) => !i.startsWith("mp-pub"));
 
 describe("textes v2 : registre versionné", () => {
@@ -40,7 +40,7 @@ describe("textes v2 : registre versionné", () => {
     expect(TEXTES_MP["mp-m2-v1"].texte).toBe(`${MENTION} Je n'ai pas reconnu d'adresse e-mail dans votre message. Pouvez-vous l'écrire à nouveau, par exemple adresse@entreprise.fr ? Vous préférez ne pas donner d'adresse ? Touchez « Recevoir ici ».`);
     expect(TEXTES_MP["mp-lien-v2"].texte).toBe(`${MENTION} Voici le guide « [TITRE DU GUIDE] » : [LIEN]. Bonne lecture !`);
     expect(TEXTES_MP["mp-pub-igfb-v1"].texte).toBe("Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.");
-    expect(TEXTES_MP["mp-pub-lien-v1"].texte).toBe("Merci pour votre commentaire ! Le guide « [TITRE DU GUIDE] » est disponible ici : [LIEN]. Si le lien ne s'ouvre pas, dites-le-nous en réponse et nous trouverons une autre solution.");
+    for (const id of ["mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const) expect(TEXTES_MP[id].texte).toBe("Merci pour votre commentaire ! Le guide « [TITRE DU GUIDE] » est disponible ici : [LIEN]. Si le lien ne s'ouvre pas, dites-le-nous en réponse et nous trouverons une autre solution.");
   });
   it("aucune question d'accord, aucun STOP, aucun prix, jamais le nom de la ville interdite, « vous » partout", () => {
     for (const id of IDS) {
@@ -204,5 +204,68 @@ describe("outbox : personne opposée = aucune réponse, aucun guide ; plus de ch
     expect(vus).toHaveLength(0);
     const [ev] = await depots().evenementsFournisseurs.lister((x) => x.idEvenement === "evt_mp_3");
     expect(ev.traite).toBe(false);
+  });
+});
+
+describe("corrections de revue : lecture du registre en panne, « stop » commenté, interrupteur des « stop »", () => {
+  const T0 = 1_760_781_600_000;
+  const SECRET = "secret-fictif-crochet-mp-v2";
+  const ENV = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET, SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: "secret-fictif-site-mp-v2" };
+  const RUN: RunLu = { email: "lecteur-fictif@example.test", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "mp-m1-v2" };
+  beforeEach(() => {
+    reinitialiserDepots();
+    pm.reinitialiserGardesParcours();
+    for (const m of ["log", "error", "warn", "info"] as const) vi.spyOn(console, m).mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    pm.injecterLecteurRuns(null);
+    pm.injecterTransportSite(null);
+  });
+  const panneRegistre = () => vi.spyOn(depots().parametres, "obtenir").mockRejectedValue(new Error("base indisponible"));
+
+  it("lecture du registre en panne : la fonction signale l'erreur, elle ne répond jamais « opposée »", async () => {
+    panneRegistre();
+    await expect(Opp.personneOpposee("ct_panne")).rejects.toThrow();
+  });
+  it("outbox : lecture du registre en panne = nouvel essai (non traité, backoff), puis envoi une fois la base revenue", async () => {
+    const corps = Buffer.from(JSON.stringify({ id: "evt_panne", event: "workflow.run.completed", timestamp: new Date(T0).toISOString(), execution: { id: "run_evt_panne_0001", status: "completed" }, contact: { id: "ct_panne" }, trigger: { type: "keyword", text: "GUIDE" } }));
+    await pm.recevoirCrochetZernio({ corps, idEvenement: "evt_panne", signature: signatureZernio(SECRET, corps) }, { env: ENV, maintenantMs: T0 });
+    const vus: RequeteSignee[] = [];
+    pm.injecterLecteurRuns(async () => ({ ...RUN }));
+    pm.injecterTransportSite(async (r) => (vus.push(r), { statut: 200, corps: {} }));
+    const espion = panneRegistre();
+    const rap = await pm.traiterOutboxZernio({ env: ENV, maintenantMs: T0 });
+    expect(rap).toMatchObject({ envoyes: 0, ecartes: 0, aReessayer: 1 });
+    expect(vus).toHaveLength(0);
+    const [ev] = await depots().evenementsFournisseurs.lister((x) => x.idEvenement === "evt_panne");
+    expect(ev.traite).toBe(false);
+    expect(ev.charge.etat).toBe("a_reessayer");
+    expect(Number(ev.charge.prochainEssaiLe)).toBeGreaterThan(T0);
+    espion.mockRestore();
+    expect(await pm.traiterOutboxZernio({ env: ENV, maintenantMs: Number(ev.charge.prochainEssaiLe) + 1 })).toMatchObject({ envoyes: 1 });
+    expect(vus).toHaveLength(1);
+  });
+  it("« stop » / « arrêtez » commenté : la personne est mise à l'écart, un GUIDE commenté plus tard reste sans réponse", async () => {
+    const A = await import("@/services/a-traiter");
+    const depot = A.creerDepotMemoire();
+    const o = { env: { A_TRAITER_ENABLED: "1" }, depot, lireMots: async () => ["GUIDE"] };
+    const base = { idEvenement: "ev-c1", post: "post-1", reseau: "instagram" as const, canal: "commentaire" as const, idContact: "ct_commente" };
+    expect(await A.orienterCommentaire({ ...base, mot: "stop", commentaire: "stop" }, o)).toEqual({ issue: "execute", action: "silence", raison: "opposition" });
+    expect(await Opp.personneOpposee("ct_commente")).toBe(true);
+    expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-c2", mot: "GUIDE", commentaire: "GUIDE" }, o)).toEqual({ issue: "execute", action: "silence", raison: "personne_opposee" });
+    expect(await depot.lire()).toEqual([]);
+    // sans identifiant de contact : silence, rien à enregistrer, pas d'erreur
+    expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-c3", idContact: null, mot: "arrêtez", commentaire: "arrêtez" }, o)).toMatchObject({ action: "silence" });
+  });
+  it("« stop » : pris en compte dès que PARCOURS_MOT_ENABLED est allumé, même si MOTS_ENABLED est éteint ; rien d'allumé si les deux le sont", async () => {
+    const S = await import("@/services/mots-service");
+    const corps = Buffer.from(JSON.stringify({ id: "evt_stop", event: "workflow.run.completed", timestamp: new Date(T0).toISOString(), execution: { id: "run_evt_stop_0001", status: "completed" }, contact: { id: "ct_stop2" }, trigger: { type: "keyword", text: "stop" } }));
+    await pm.recevoirCrochetZernio({ corps, idEvenement: "evt_stop", signature: signatureZernio(SECRET, corps) }, { env: ENV, maintenantMs: T0 });
+    expect(await S.traiterOppositions({ env: {} })).toEqual({ actif: false, prises: 0, transmises: 0 });
+    expect(await Opp.personneOpposee("ct_stop2")).toBe(false);
+    expect(await S.traiterOppositions({ env: { PARCOURS_MOT_ENABLED: "1" } })).toMatchObject({ actif: true, prises: 1 });
+    expect(await Opp.personneOpposee("ct_stop2")).toBe(true);
+    expect(S.motsActif({ PARCOURS_MOT_ENABLED: "1" })).toBe(false); // l'interrupteur MOTS_ENABLED n'est pas allumé pour autant
   });
 });
