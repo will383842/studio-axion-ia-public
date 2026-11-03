@@ -2,6 +2,7 @@
 // Tous les champs d'origine sont FACULTATIFS. Le drapeau `ORIGINE_V3_ENABLED` est ÉTEINT par défaut : sans lui, le Studio envoie le corps v1 inchangé.
 // Interdits au contrat : pseudo, nom affiché, texte d'un commentaire ou d'un message, identifiant de profil en clair.
 import { corpsDemandeGuide, type RunLu } from "./crochet-zernio";
+import dictionnaire from "../../../contrats/dictionnaire-origine.v1.json";
 
 export const VARIABLE_INTERRUPTEUR_ORIGINE_V3 = "ORIGINE_V3_ENABLED";
 /** Préfixes de chemin de NOS comptes (séparés par des virgules), lus dans la configuration du Studio côté serveur : jamais fournis par Zernio. */
@@ -22,8 +23,18 @@ export type Canal = (typeof CANAUX)[number];
 export const RESEAUX_REPONSE_PUBLIQUE_SEULE: readonly string[] = ["linkedin_page", "tiktok"];
 
 export const RE_POST_REF = /^[A-Za-z0-9_-]{8,80}$/;
-/** Forme d'une clé du dictionnaire fermé (ASCII minuscules). Le Studio ne vérifie ici que la FORME : l'appartenance au dictionnaire est contrôlée par le site. */
+/** Forme d'une clé du dictionnaire fermé (ASCII minuscules) : premier filtre, avant la vérification d'appartenance. */
 export const RE_CLE_DICTIONNAIRE = /^[a-z0-9_]{2,40}$/;
+/** Dictionnaire fermé « Famille › Détail » : copie exacte de celui du site (contrats/, empreinte vérifiée par test). */
+const FAMILLES: Readonly<Record<string, { details: Readonly<Record<string, unknown>> }>> = dictionnaire.familles;
+const possede = (o: object, cle: string) => Object.prototype.hasOwnProperty.call(o, cle);
+export function familleDansDictionnaire(famille: string): boolean {
+  return RE_CLE_DICTIONNAIRE.test(famille) && possede(FAMILLES, famille);
+}
+/** Un détail n'existe que sous SA famille. */
+export function detailDansDictionnaire(famille: string, detail: string): boolean {
+  return familleDansDictionnaire(famille) && RE_CLE_DICTIONNAIRE.test(detail) && possede(FAMILLES[famille].details, detail);
+}
 export const RE_COMPTE = /^[a-z0-9_]{2,40}$/;
 export const RE_UTM_CAMPAGNE = /^[a-z0-9_-]{2,60}$/;
 export const RE_VERSION_TEXTE_ORIGINE = /^[A-Za-z0-9._-]{3,64}$/;
@@ -105,11 +116,11 @@ export function construireOrigineV3(b: OrigineBrute, o: { reseau: string; prefix
     sortie.compte = b.compte;
   }
   if (presente(b.famille)) {
-    if (!simple(b.famille, RE_CLE_DICTIONNAIRE)) return { ok: false, code: "famille_invalide" };
+    if (!simple(b.famille, RE_CLE_DICTIONNAIRE) || !familleDansDictionnaire(b.famille)) return { ok: false, code: "famille_invalide" };
     sortie.famille = b.famille;
   }
   if (presente(b.detail)) {
-    if (!simple(b.detail, RE_CLE_DICTIONNAIRE)) return { ok: false, code: "detail_invalide" };
+    if (!simple(b.detail, RE_CLE_DICTIONNAIRE) || typeof b.famille !== "string" || !detailDansDictionnaire(b.famille, b.detail)) return { ok: false, code: "detail_invalide" };
     sortie.detail = b.detail;
   }
   if (presente(b.versionTexte)) {
