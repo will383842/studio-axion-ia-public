@@ -33,13 +33,10 @@ export const SchemaDemandeGuideReseau = z
       .regex(/^[a-z0-9-]{2,40}$/)
       .refine((g) => GUIDES_RESEAU_CONNUS_SITE.includes(g), "guide_inconnu"),
     /**
-     * ENTRÉE `accord` (réponse à M2, « conseils par e-mail ») :
-     *   · `oui`         → accord demandé : double accord (e-mail de confirmation) ; exige M2 ;
-     *   · `non`         → refus explicite, aucune campagne ;
-     *   · `non_demande` → la question n'a pas (encore) été posée.
-     * La SORTIE (`EtatAccord`, `traitement.ts`) est différente : voir ce type.
+     * `accord` : CHAMP FACULTATIF (hérité). Le Studio ne l'envoie plus (décision du 03/11/2026 : aucune question d'accord) ;
+     * le site doit accepter son absence. À re-synchroniser avec le schéma réel du site.
      */
-    accord: z.enum(["oui", "non", "non_demande"]),
+    accord: z.enum(["oui", "non", "non_demande"]).optional(),
     /** Version du texte du premier message privé (M1) — preuve d'information. */
     versionTexteM1: z.string().regex(VERSION),
     /** Version de la question « conseils par e-mail » (M2) — obligatoire si « oui ». */

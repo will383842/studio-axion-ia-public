@@ -15,7 +15,7 @@ const SECRET_SITE = "secret-fictif-site-pv2";
 const EMAIL = "lecteur-fictif@example.com";
 const T0 = 1_760_781_600_000;
 const ENV_ALLUME = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: SECRET_SITE };
-const RUN: RunLu = { email: EMAIL, mot: "guide", reseau: "instagram", accord: "non_demande", guide: "guide-ia", versionTexteM1: "m1-v1" };
+const RUN: RunLu = { email: EMAIL, mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "m1-v1" };
 
 function corpsRun(id: string, idRun: string, t = T0): string {
   return JSON.stringify({ id, event: "workflow.run.completed", timestamp: new Date(t).toISOString(), workflow: { id: "wf_1", name: "Parcours" }, execution: { id: idRun, status: "completed" }, contact: { id: "ct_1" }, trigger: { type: "keyword", text: "GUIDE" } });
@@ -157,7 +157,7 @@ describe("appel signé au site", () => {
     expect(signatureValide(SECRET_SITE, { methode: "POST", chemin: q.chemin, corps: q.corps, horodatage: q.entetes["x-axion-horodatage"], nonce: q.entetes["x-axion-nonce"], signature: q.entetes["x-axion-signature"] })).toBe(true);
     const [ev] = await outbox();
     expect(ev.traite).toBe(true);
-    expect(ev.charge.accord).toBe("oui_en_attente_de_clic");
+    expect(ev.charge).not.toHaveProperty("accord");
   });
 
   it("identifiant de run hors forme : la clé est son sha256", async () => {

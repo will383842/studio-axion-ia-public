@@ -9,7 +9,7 @@ const pm = await import("@/services/parcours-mot");
 const T0 = 1_760_781_600_000;
 const BASE = { ORIGINE_V3_PREFIXES_COMPTES: "/compte-test/", PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: "secret-fictif-crochet-v3-test", SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: "secret-fictif-site-v3-test" };
 const RUN: RunLu = {
-  email: "lecteur@exemple.test", mot: "guide", reseau: "instagram", accord: "non_demande", guide: "guide-ia", versionTexteM1: "m1-v1",
+  email: "lecteur@exemple.test", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "m1-v1",
   origine: { postRef: "ref_post_0001", postUrl: "https://www.instagram.com/compte-test/p/abc123/", canal: "commentaire", compte: "page_principale" },
 };
 let sortie: string[];
