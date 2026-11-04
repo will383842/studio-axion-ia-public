@@ -2,7 +2,7 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { chaineASigner } from "@/domaine/site-videos/contrat";
-import { ACCORDS_ENTREE, RE_CLE_IDEMPOTENCE, RE_MOT_GUIDE } from "@/domaine/guide-reseau/cle-idempotence";
+import { RE_CLE_IDEMPOTENCE, RE_MOT_GUIDE } from "@/domaine/guide-reseau/cle-idempotence";
 import { sha256Hex, signatureValide, signerAppel } from "@/fournisseurs/site/signature";
 
 vi.mock("next/headers", async () => (await import("../helpers/next-mocks")).mockHeaders);
@@ -107,14 +107,15 @@ describe("S4.2 signature", () => {
     // Mêmes règles que le schéma du site : aucun champ inconnu (.strict()), champs obligatoires présents.
     const permis = ["schemaVersion", "cleIdempotence", "email", "mot", "reseau", "guide", "accord", "versionTexteM1", "versionTexteM2", "locale", "occurredAt"];
     for (const k of Object.keys(o)) expect(permis).toContain(k);
-    for (const k of ["schemaVersion", "cleIdempotence", "email", "mot", "reseau", "guide", "accord", "versionTexteM1"]) expect(o).toHaveProperty(k);
+    for (const k of ["schemaVersion", "cleIdempotence", "email", "mot", "reseau", "guide", "versionTexteM1"]) expect(o).toHaveProperty(k);
     expect(o).not.toHaveProperty("idRun");
     expect(o.schemaVersion).toBe(1);
     expect(String(o.cleIdempotence)).toMatch(RE_CLE_IDEMPOTENCE);
     expect(String(o.email)).toMatch(/^[^@\s]+@example\.com$/);
     expect(String(o.mot)).toMatch(RE_MOT_GUIDE);
     expect(String(o.guide)).toMatch(/^[a-z0-9-]{2,40}$/);
-    expect(ACCORDS_ENTREE).toContain(o.accord);
+    // « accord » est facultatif et hérité (le Studio ne l'envoie plus) : s'il figure dans ce vecteur ancien, il garde une valeur connue.
+    if ("accord" in o) expect(["oui", "non", "non_demande"]).toContain(o.accord);
     expect(String(o.versionTexteM1)).toMatch(/^[A-Za-z0-9._-]{3,64}$/);
     expect(sha256Hex(W.corps)).toBe(W.sha256Corps);
     const e = signerAppel({ secret: V.secret, methode: V.methode, chemin: V.chemin, corps: W.corps, horodatageSec: Number(V.horodatage), nonce: V.nonce });

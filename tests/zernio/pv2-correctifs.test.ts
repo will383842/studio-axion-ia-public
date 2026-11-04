@@ -1,4 +1,4 @@
-/** COR-PV2 : accord « oui » validé contre une COPIE du schéma du site, octets bruts, secret dédié, plafonds, disjoncteur. Sans réseau, secrets FICTIFS. */
+/** COR-PV2 : corps validé contre une COPIE du schéma du site (sans champ « accord » depuis le 03/11/2026), octets bruts, secret dédié, plafonds, disjoncteur. Sans réseau, secrets FICTIFS. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { corpsDemandeGuide, runValide, signatureZernio, verifierSignatureZernio, ATTENTES_INTROUVABLE_MS, EN_COURS_MAX, ESSAIS_MAX, LOT_MAX_PAR_PASSAGE, DISJONCTEUR_SEUIL, DISJONCTEUR_PAUSE_MS, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import type { RequeteSignee, ReponseSite } from "@/fournisseurs/site/types";
@@ -12,8 +12,7 @@ const SECRET_SITE = "secret-fictif-site-cor";
 const SECRET_REPLI = "secret-fictif-repli-cor";
 const T0 = 1_760_781_600_000;
 const ENV = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_GUIDES_RESEAU_SECRET: SECRET_SITE };
-const RUN: RunLu = { email: "lecteur-fictif@example.com", mot: "guide", reseau: "instagram", accord: "non_demande", guide: "guide-ia", versionTexteM1: "m1-v1" };
-const RUN_OUI: RunLu = { ...RUN, accord: "oui", versionTexteM2: "m2-v1", occurredAt: "2026-11-01T10:00:00Z" };
+const RUN: RunLu = { email: "lecteur-fictif@example.com", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "m1-v1" };
 
 function crochet(id: string, idRun: string) {
   const corps = Buffer.from(JSON.stringify({ id, event: "workflow.run.completed", timestamp: new Date(T0).toISOString(), execution: { id: idRun, status: "completed" }, contact: { id: "ct_1" }, trigger: { type: "keyword", text: "GUIDE" } }), "utf8");
@@ -43,29 +42,24 @@ afterEach(() => {
   pm.injecterTransportSite(null);
 });
 
-describe("BLOQUANT 1 — accord « oui » accepté par le schéma strict du site (copie)", () => {
-  for (const [nom, run] of [["non_demande", RUN], ["non", { ...RUN, accord: "non" as const }], ["oui", RUN_OUI]] as const) {
-    it(`accord ${nom} : le corps figé passe le schéma du site`, () => {
-      expect(runValide(run)).toBe(true);
-      const r = SchemaDemandeGuideReseau.safeParse(JSON.parse(corpsDemandeGuide(run, "run_exemple_0001")));
-      expect(r.success).toBe(true);
-    });
-  }
-  it("sans versionTexteM2, l'accord « oui » est refusé localement ET par le schéma du site (pas de 422 à l'aveugle)", () => {
-    const sans = { ...RUN_OUI, versionTexteM2: undefined };
-    expect(runValide(sans)).toBe(false);
-    expect(SchemaDemandeGuideReseau.safeParse(JSON.parse(corpsDemandeGuide(sans, "run_exemple_0001"))).success).toBe(false);
+describe("BLOQUANT 1 — corps sans champ « accord », accepté par le schéma strict du site (copie)", () => {
+  it("le corps figé passe le schéma du site, sans accord ni versionTexteM2", () => {
+    expect(runValide(RUN)).toBe(true);
+    const o = JSON.parse(corpsDemandeGuide(RUN, "run_exemple_0001"));
+    expect(o).not.toHaveProperty("accord");
+    expect(o).not.toHaveProperty("versionTexteM2");
+    expect(SchemaDemandeGuideReseau.safeParse(o).success).toBe(true);
   });
-  it("position de clé fixe : versionTexteM2 après versionTexteM1, occurredAt en dernier ; mêmes octets à chaque appel", () => {
-    const a = corpsDemandeGuide(RUN_OUI, "run_exemple_0001");
-    expect(a).toBe(corpsDemandeGuide({ ...RUN_OUI }, "run_exemple_0001"));
-    expect(Object.keys(JSON.parse(a))).toEqual(["schemaVersion", "cleIdempotence", "email", "mot", "reseau", "guide", "accord", "versionTexteM1", "versionTexteM2", "locale", "occurredAt"]);
-    expect(Object.keys(JSON.parse(corpsDemandeGuide(RUN, "run_exemple_0001")))).not.toContain("versionTexteM2");
+  it("position de clé fixe : occurredAt en dernier ; mêmes octets à chaque appel", () => {
+    const run = { ...RUN, occurredAt: "2026-11-01T10:00:00Z" };
+    const a = corpsDemandeGuide(run, "run_exemple_0001");
+    expect(a).toBe(corpsDemandeGuide({ ...run }, "run_exemple_0001"));
+    expect(Object.keys(JSON.parse(a))).toEqual(["schemaVersion", "cleIdempotence", "email", "mot", "reseau", "guide", "versionTexteM1", "locale", "occurredAt"]);
   });
-  it("de bout en bout : une demande « oui » est envoyée avec versionTexteM2 et le site (copie) l'accepte", async () => {
+  it("de bout en bout : la demande est envoyée sans accord et le site (copie) l'accepte", async () => {
     await pm.recevoirCrochetZernio(crochet("evt_o", "run_exemple_0001"), { env: ENV, maintenantMs: T0 });
-    const vues = site([{ statut: 200, corps: { accord: "oui_en_attente_de_clic" } }]);
-    pm.injecterLecteurRuns(async () => ({ ...RUN_OUI }));
+    const vues = site([{ statut: 200, corps: {} }]);
+    pm.injecterLecteurRuns(async () => ({ ...RUN, occurredAt: "2026-11-01T10:00:00Z" }));
     expect((await passer(T0)).envoyes).toBe(1);
     expect(SchemaDemandeGuideReseau.safeParse(JSON.parse(vues[0].corps)).success).toBe(true);
   });
@@ -78,7 +72,6 @@ describe("MINEUR (f) — runValide aligné sur le site", () => {
     ["guide trop long", { guide: "a".repeat(41) }],
     ["versionTexteM1 hors forme", { versionTexteM1: "m1 v1" }],
     ["versionTexteM1 trop courte", { versionTexteM1: "m1" }],
-    ["versionTexteM2 hors forme", { versionTexteM2: "é" }],
     ["occurredAt invalide", { occurredAt: "hier" }],
     ["locale inconnue", { locale: "de" }],
   ])("%s : refusé localement", (_n, patch) => {
