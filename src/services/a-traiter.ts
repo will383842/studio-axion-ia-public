@@ -12,6 +12,7 @@
 import "server-only";
 import { enregistrerOpposition, personneOpposee } from "./oppositions-mots";
 import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
+import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import type { Canal } from "@/domaine/guide-reseau/origine-v3";
 import { creerVerrou, maintenant } from "./_commun";
 import { controlerTexteSortant } from "./mots-controle";
@@ -151,6 +152,7 @@ export type LecteurMots = () => Promise<readonly string[] | null>;
 export type ResultatAiguillage =
   | { issue: "simule"; raison: "interrupteur_eteint" }
   | { issue: "refuse"; raison: RefusEntree }
+  | { issue: "reessai"; raison: "registre_illisible" }
   | { issue: "execute"; action: "a_traiter"; raison: "ajoute" | "deja_present" }
   | { issue: "execute"; action: "reponse_publique" | "message_prive"; raison: "mot_connu"; motRetenu: string }
   | { issue: "execute"; action: "silence"; raison: "personne_opposee" | "opposition" };
@@ -159,6 +161,9 @@ export type ResultatAiguillage =
  * Personne opposée, ou « stop » / « arrêtez » : silence (aucune réponse, aucune carte). Mot inconnu : il reçoit GUIDE si GUIDE est
  * configuré. Sans GUIDE, mot absent ou liste illisible : la carte va dans « À traiter », JAMAIS d'envoi. Mot connu : retourne seulement la
  * décision (LinkedIn et TikTok : réponse publique seule) ; ce service n'envoie rien et n'écrit rien dans ce cas.
+ * Registre des oppositions illisible : JAMAIS une mise à l'écart. Un « stop » est quand même enregistré (une erreur de cet
+ * enregistrement remonte, pour nouvel essai) ; tout autre mot renvoie `reessai` : rien d'envoyé, rien d'écrit, l'appelant ne doit
+ * pas marquer l'événement comme traité et le rejoue plus tard.
  */
 export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; depot?: DepotATraiter; lireMots?: LecteurMots } = {}): Promise<ResultatAiguillage> {
   if (!aTraiterActif(o.env ?? process.env)) return { issue: "simule", raison: "interrupteur_eteint" };
@@ -168,11 +173,14 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   } catch {
     mots = null; // liste illisible : le mot est traité comme inconnu
   }
-  let opposee: boolean;
+  let opposee = false;
   try {
     opposee = await personneOpposee(c.idContact);
   } catch {
-    opposee = true; // registre illisible : silence cette fois (aucun envoi à l'aveugle) ; rien n'est enregistré ni marqué traité
+    // Registre illisible : jamais « opposée ». Un « stop » est enregistré malgré tout ; le reste attend un nouvel essai.
+    if (!estMotOpposition(c.mot)) return { issue: "reessai", raison: "registre_illisible" };
+    if (c.idContact) await enregistrerOpposition(c.idContact); // mise à l'écart, rien n'est supprimé ; si cela échoue aussi, l'erreur remonte
+    return { issue: "execute", action: "silence", raison: "opposition" };
   }
   const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots, opposee });
   if (d.action === "silence" && d.motif === "opposition" && c.idContact) await enregistrerOpposition(c.idContact); // mise à l'écart, rien n'est supprimé
