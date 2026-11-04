@@ -9,7 +9,7 @@ import {
 } from "@/domaine/guide-reseau/origine-v3";
 import { corpsDemandeGuide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 
-const RUN: RunLu = { email: "lecteur@exemple.test", mot: "guide", reseau: "instagram", accord: "non_demande", guide: "guide-ia", versionTexteM1: "m1-v1" };
+const RUN: RunLu = { email: "lecteur@exemple.test", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "m1-v1" };
 const PREFIXES = ["/compte-test/"];
 const BRUTE: OrigineBrute = { postRef: "ref_post_0001", postUrl: "https://www.instagram.com/compte-test/p/abc123/", canal: "commentaire", compte: "page_principale", famille: "guide_reseau", detail: "autre_non_classe", versionTexte: "m1-v1", utmCampaign: "essai_test" };
 

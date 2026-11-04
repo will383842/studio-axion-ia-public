@@ -6,7 +6,6 @@
  * pause, on réactive. Aucune adresse e-mail n'est conservée (elle ne transite qu'en mémoire pour l'appel signé du STOP).
  */
 import "server-only";
-import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
@@ -16,13 +15,15 @@ import { depots, ecrireParametre, journaliser, lireParametre, maintenant, sousVe
 import { construireGrapheMot, construireGrapheStop, estMotOpposition, type DefinitionWorkflow } from "./mots-graphe";
 import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisSaisie, textesValides, type SaisieMot, type TextesMot } from "./mots-textes";
 import { creerNotification } from "./notifications";
+import { empreinteContact, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
+import { parcoursMotActif } from "./parcours-mot";
 import { envoiZernioAutorise } from "./zernio";
 
 export const VARIABLE_INTERRUPTEUR_MOTS = "MOTS_ENABLED";
 export const PARAM_REGISTRE_MOTS = "mots.registre";
 export const PARAM_GARDES_MOTS = "mots.gardes";
 export const PARAM_VALIDATIONS_MOTS = "mots.validations";
-export const PARAM_OPPOSITIONS_MOTS = "mots.oppositions";
+export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */
 export const PLAFOND_HEURE_COMPTE_MAX = 600;
@@ -379,8 +380,6 @@ let transportOpp: TransportSite | null = null;
 export const injecterLecteurOpposition = (l: LecteurOpposition | null): void => void (lecteurOpp = l);
 export const injecterTransportOpposition = (t: TransportSite | null): void => void (transportOpp = t);
 
-const empreinteContact = (id: string) => createHash("sha256").update(id, "utf8").digest("hex").slice(0, 32);
-
 /**
  * Prend en compte les événements « STOP / ARRÊT » déposés dans l'outbox par le crochet (le mot déclencheur est connu, jamais
  * l'adresse). Pour chacun : (1) personne MISE À L'ÉCART chez le Studio (empreinte de l'identifiant opaque du contact, jamais
@@ -390,7 +389,8 @@ const empreinteContact = (id: string) => createHash("sha256").update(id, "utf8")
  */
 export async function traiterOppositions(o: { env?: Env } = {}): Promise<{ actif: boolean; prises: number; transmises: number }> {
   const env = o.env ?? process.env;
-  if (!motsActif(env)) return { actif: false, prises: 0, transmises: 0 };
+  // Les « stop » sont pris en compte dès que le parcours est allumé (la file d'envoi en dépend) ; aucun interrupteur n'est allumé par ce code.
+  if (!motsActif(env) && !parcoursMotActif(env)) return { actif: false, prises: 0, transmises: 0 };
   const evenements = await sousVerrou(async () => {
     return depots().evenementsFournisseurs.lister((e) => e.fournisseur === "zernio" && !e.traite && estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null));
   });
