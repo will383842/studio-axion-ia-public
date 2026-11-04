@@ -258,6 +258,29 @@ describe("corrections de revue : lecture du registre en panne, « stop » commen
     // sans identifiant de contact : silence, rien à enregistrer, pas d'erreur
     expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-c3", idContact: null, mot: "arrêtez", commentaire: "arrêtez" }, o)).toMatchObject({ action: "silence" });
   });
+  it("aiguillage : registre en panne + « stop » = opposition enregistrée, silence, aucun envoi", async () => {
+    const A = await import("@/services/a-traiter");
+    const depot = A.creerDepotMemoire();
+    const o = { env: { A_TRAITER_ENABLED: "1" }, depot, lireMots: async () => ["GUIDE"] };
+    const base = { idEvenement: "ev-p1", post: "post-1", reseau: "instagram" as const, canal: "commentaire" as const, idContact: "ct_stop_panne" };
+    const espion = vi.spyOn(depots().parametres, "obtenir").mockRejectedValueOnce(new Error("base indisponible")); // seule la première lecture échoue
+    expect(await A.orienterCommentaire({ ...base, mot: "stop", commentaire: "stop" }, o)).toEqual({ issue: "execute", action: "silence", raison: "opposition" });
+    espion.mockRestore();
+    expect(await Opp.personneOpposee("ct_stop_panne")).toBe(true);
+    expect(await depot.lire()).toEqual([]);
+  });
+  it("aiguillage : registre en panne + GUIDE = nouvel essai, ni silence définitif, ni envoi, ni carte", async () => {
+    const A = await import("@/services/a-traiter");
+    const depot = A.creerDepotMemoire();
+    const o = { env: { A_TRAITER_ENABLED: "1" }, depot, lireMots: async () => ["GUIDE"] };
+    const base = { idEvenement: "ev-p2", post: "post-1", reseau: "instagram" as const, canal: "commentaire" as const, idContact: "ct_guide_panne" };
+    const espion = panneRegistre();
+    expect(await A.orienterCommentaire({ ...base, mot: "GUIDE", commentaire: "GUIDE" }, o)).toEqual({ issue: "reessai", raison: "registre_illisible" });
+    espion.mockRestore();
+    expect(await Opp.personneOpposee("ct_guide_panne")).toBe(false);
+    expect(await depot.lire()).toEqual([]);
+    expect(await A.orienterCommentaire({ ...base, mot: "GUIDE", commentaire: "GUIDE" }, o)).toMatchObject({ action: "reponse_publique", motRetenu: "GUIDE" });
+  });
   it("« stop » : pris en compte dès que PARCOURS_MOT_ENABLED est allumé, même si MOTS_ENABLED est éteint ; rien d'allumé si les deux le sont", async () => {
     const S = await import("@/services/mots-service");
     const corps = Buffer.from(JSON.stringify({ id: "evt_stop", event: "workflow.run.completed", timestamp: new Date(T0).toISOString(), execution: { id: "run_evt_stop_0001", status: "completed" }, contact: { id: "ct_stop2" }, trigger: { type: "keyword", text: "stop" } }));
