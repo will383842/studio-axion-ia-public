@@ -21,6 +21,10 @@ import type { ErreurFournisseur } from "@/fournisseurs/types";
  * - `introuvable` : 404 ;
  * - `refuse` : autre 4xx ;
  * - `reponse-invalide` : réponse illisible ou de forme inattendue ;
+ * - `inbox-requis` : 403 INBOX_REQUIRED (module Inbox non activé chez Zernio) ;
+ * - `quota-messages` : 403 message_allowance_exceeded (quota de messages épuisé) ;
+ * - `reponse-privee-consommee` : 400 privateReplyConsumed:true, DÉFINITIF (la réponse privée de ce commentaire est déjà partie), aucun réessai ;
+ * - `reponse-privee-inconnue` : 502 privateReplyOutcome:"unknown", issue inconnue : « à vérifier », AUCUN nouvel essai automatique ;
  * - `creation-incomplete` : réponse 2xx dont une plateforme est en échec : le post EXISTE chez Zernio, jamais un refus net.
  */
 export type CodeErreurZernio =
@@ -37,6 +41,10 @@ export type CodeErreurZernio =
   | "introuvable"
   | "refuse"
   | "reponse-invalide"
+  | "inbox-requis"
+  | "quota-messages"
+  | "reponse-privee-consommee"
+  | "reponse-privee-inconnue"
   | "creation-incomplete";
 
 /** Codes levés AVANT tout appel réseau (le faux fetch des tests n'est jamais appelé). */
@@ -49,6 +57,8 @@ export interface DetailsErreurZernio {
   reessayable?: boolean;
   /** Attente conseillée avant un nouvel essai (Retry-After ou plafond local), en millisecondes. */
   attenteMs?: number;
+  /** 429 : attente conseillée en secondes (Retry-After arrondi au-dessus). */
+  reessayerApresSec?: number;
   /** Doublon de contenu : identifiant du post d'origine (lu dans `details.existingPostId` ou à la racine). */
   existingPostId?: string;
   /** Champs du corps en cause (filtre des mots interdits, liste fermée). */
@@ -62,6 +72,7 @@ export class ErreurZernio extends Error {
   readonly statut?: number;
   readonly reessayable: boolean;
   readonly attenteMs?: number;
+  readonly reessayerApresSec?: number;
   readonly existingPostId?: string;
   readonly champs?: string[];
   readonly detailTechnique?: string;
@@ -73,6 +84,7 @@ export class ErreurZernio extends Error {
     this.statut = details.statut;
     this.reessayable = details.reessayable ?? false;
     this.attenteMs = details.attenteMs;
+    this.reessayerApresSec = details.reessayerApresSec;
     this.existingPostId = details.existingPostId;
     this.champs = details.champs;
     this.detailTechnique = details.detailTechnique;
