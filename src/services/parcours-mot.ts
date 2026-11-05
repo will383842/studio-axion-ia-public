@@ -27,7 +27,11 @@ import {
   LOT_MAX_PAR_PASSAGE,
   dansFenetreRejeu,
   lireEnveloppe,
+  lireEvenementCommentaire,
+  lireEvenementMessage,
   lireEvenementRun,
+  TYPE_EVENEMENT_COMMENTAIRE,
+  TYPE_EVENEMENT_MESSAGE,
   runValide,
   TAILLE_MAX_CROCHET,
   verifierSignatureZernio,
@@ -55,6 +59,8 @@ export const VARIABLE_SECRET_SITE_GUIDES = "SITE_GUIDES_RESEAU_SECRET";
 export const VARIABLE_SECRET_SITE_REPLI = "SITE_VIDEOS_SECRET";
 export const CHEMIN_DEMANDES_GUIDE = "/api/interne/demandes-guide-reseau";
 const FOURNISSEUR = "zernio";
+/** Seul type d'événement traité par le travail de fond (les autres attendent leur propre aiguillage). */
+const TYPE_RUN_TERMINE = "workflow.run.completed";
 const ESSAIS_NONCE = 3;
 /** Attente avant de relire le registre des oppositions après une panne de lecture. */
 const ATTENTE_REGISTRE_ILLISIBLE_MS = 60_000;
@@ -62,6 +68,12 @@ const ATTENTE_REGISTRE_ILLISIBLE_MS = 60_000;
 /** Interrupteur du parcours : éteint par défaut (absent ou autre chose que 1/true/oui). */
 export function parcoursMotActif(env: Record<string, string | undefined> = process.env): boolean {
   return /^(1|true|oui)$/i.test(env[VARIABLE_INTERRUPTEUR_PARCOURS]?.trim() ?? "");
+}
+
+/** Interrupteur des événements commentaire / message (module MOTS) : éteint par défaut. Même règle que `motsActif` (copie : pas d'import circulaire). */
+export function evenementsMotsActifs(env: Record<string, string | undefined> = process.env): boolean {
+  const v = env.MOTS_ENABLED;
+  return v === "1" || v === "true";
 }
 
 /** Relit un run chez Zernio. Aucune implémentation réelle n'est branchée tant que le point d'accès n'est pas confirmé. */
@@ -87,42 +99,55 @@ export interface EntreeCrochetZernio {
   /** Octets BRUTS du corps (un `string` reste accepté pour les tests). La signature se calcule sur ces octets. */
   corps: Buffer | string;
   signature: string | null;
-  /** `X-Zernio-Event-Id` (ou alias hérité `X-Late-Event-Id`) : clé de déduplication. À défaut, `id` du corps. */
+  /** `X-Zernio-Event-Id` (ou alias hérité `X-Late-Event-Id`) : NON signé, donc seulement un contrôle : s'il est présent il doit être égal à l'`id` du corps (signé), sinon 401. */
   idEvenement?: string | null;
 }
 
 export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { env?: Record<string, string | undefined>; maintenantMs?: number } = {}): Promise<{ statut: number; corps: Record<string, unknown> }> {
   const env = o.env ?? process.env;
   const secret = env[VARIABLE_SECRET_CROCHET_ZERNIO]?.trim();
-  if (!parcoursMotActif(env) || !secret) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+  if ((!parcoursMotActif(env) && !evenementsMotsActifs(env)) || !secret) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
   if ((typeof entree.corps === "string" ? Buffer.byteLength(entree.corps, "utf8") : entree.corps.byteLength) > TAILLE_MAX_CROCHET) return { statut: 413, corps: { erreur: "trop_volumineux" } };
   // 1. Signature sur les octets bruts, AVANT tout JSON.parse.
   if (verifierSignatureZernio({ secret, corps: entree.corps, signature: entree.signature }) !== "ok") return { statut: 401, corps: { erreur: "signature_refusee" } };
-  // 2. Enveloppe `{ id, event, timestamp }` et fenêtre anti-rejeu sur le `timestamp` du corps.
+  // 2. Enveloppe `{ id, event, timestamp }`, puis fenêtre anti-rejeu sur le `timestamp` du corps.
   const enveloppe = lireEnveloppe(entree.corps);
   if (!enveloppe) return { statut: 422, corps: { erreur: "charge_inconnue" } };
+  // L'en-tête d'id n'est pas signé : il ne décide jamais de la déduplication. S'il est présent, il doit être ÉGAL à l'id du corps (signé).
+  const entete = entree.idEvenement?.trim();
+  if (entete && entete !== enveloppe.id) return { statut: 401, corps: { erreur: "signature_refusee" } };
   if (!dansFenetreRejeu(enveloppe.timestampSec, o.maintenantMs ?? Date.now())) return { statut: 401, corps: { erreur: "signature_refusee" } };
-  // 3. Tout événement autre que `workflow.run.completed` (dont `webhook.test`) : accusé 200, sans effet.
-  if (enveloppe.event !== "workflow.run.completed") return { ...NEUTRE, corps: { ...NEUTRE.corps } };
-  const evt = lireEvenementRun(enveloppe);
-  if (!evt) return { statut: 422, corps: { erreur: "charge_inconnue" } };
-  const idEvenement = entree.idEvenement?.trim() || enveloppe.id;
-  if (!/^[A-Za-z0-9._:-]{1,200}$/.test(idEvenement)) return { statut: 422, corps: { erreur: "charge_inconnue" } };
+  // Échantillon de test (`test: true`) : accusé 200, sans effet ni dépôt.
+  if (enveloppe.racine.test === true) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+  // 3. Type : `workflow.run.completed` (interrupteur du parcours), `comment.received` / `message.received` (interrupteur MOTS) ; le reste : 200 sans effet.
+  const idEvenement = enveloppe.id;
+  let entite: { fournisseur: string; idEvenement: string; type: string; charge: Record<string, unknown> } | null = null;
+  let cleSecondaire: ((e: EvenementFournisseur) => boolean) | null = null;
+  if (enveloppe.event === "workflow.run.completed" && parcoursMotActif(env)) {
+    const evt = lireEvenementRun(enveloppe);
+    if (!evt) return { statut: 422, corps: { erreur: "charge_inconnue" } };
+    // Seul l'identifiant (opaque) du run est gardé ; `motDeclencheur` n'est un mot que s'il est mot seul ou opposition (jamais de texte libre).
+    entite = { fournisseur: FOURNISSEUR, idEvenement, type: evt.type, charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null } };
+  } else if (enveloppe.event === TYPE_EVENEMENT_COMMENTAIRE && evenementsMotsActifs(env)) {
+    const c = lireEvenementCommentaire(enveloppe);
+    // Rien à déposer : pas de mot seul, une réponse, ou notre propre réponse publique. Aucun traitement métier ici.
+    if (!c || c.motSeul === null || c.estReponse || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.commentaire", charge: { ...c, etat: "a_faire" } };
+    cleSecondaire = (e) => e.type === "zernio.commentaire" && e.charge.idCompte === c.idCompte && e.charge.idCommentaire === c.idCommentaire;
+  } else if (enveloppe.event === TYPE_EVENEMENT_MESSAGE && evenementsMotsActifs(env)) {
+    const m = lireEvenementMessage(enveloppe);
+    if (!m || m.postback === null) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.message", charge: { ...m, etat: "a_faire" } };
+    cleSecondaire = (e) => e.type === "zernio.message" && e.charge.idCompte === m.idCompte && e.charge.idMessage === m.idMessage;
+  }
+  if (!entite) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+  const depot = entite;
   return sousVerrou(async () => {
     const d = depots();
+    // Déduplication PERPÉTUELLE sur l'id signé (jamais purgée) : c'est elle, et non la fenêtre de 72 h, qui arrête le rejeu.
     if (await d.evenementsFournisseurs.trouver((e) => e.fournisseur === FOURNISSEUR && e.idEvenement === idEvenement)) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
-    const entite: EvenementFournisseur = {
-      id: nouvelId("evf"),
-      fournisseur: FOURNISSEUR,
-      idEvenement,
-      type: evt.type,
-      recuLe: maintenant(),
-      traite: false,
-      // Seul l'identifiant (opaque) du run est gardé : ni adresse e-mail, ni contenu du crochet.
-      charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null },
-      ...horodatage(),
-    };
-    await d.evenementsFournisseurs.enregistrer(entite);
+    if (cleSecondaire && (await d.evenementsFournisseurs.trouver((e) => e.fournisseur === FOURNISSEUR && cleSecondaire(e)))) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    await d.evenementsFournisseurs.enregistrer({ id: nouvelId("evf"), recuLe: maintenant(), traite: false, ...depot, ...horodatage() } as EvenementFournisseur);
     return { ...NEUTRE, corps: { ...NEUTRE.corps } };
   });
 }
@@ -176,8 +201,9 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
     const now = o.maintenantMs ?? Date.now();
     if (now < disjoncteurOuvertJusqua) return { ...rapport, disjoncteurOuvert: true };
     appelsRecents = appelsRecents.filter((t) => t > now - 3_600_000);
+    // Seul `workflow.run.completed` est traité ici : commentaires et messages restent « a_faire », intacts, hors lot, débit et disjoncteur.
     // Un « stop » / « arrêtez » écrit par la personne n'est JAMAIS une demande de guide : il reste pour la prise en compte de l'opposition.
-    const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && !e.traite && !estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null) && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
+    const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && e.type === TYPE_RUN_TERMINE && !e.traite && !estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null) && !estMotOpposition(typeof e.charge.motSeul === "string" ? e.charge.motSeul : null) && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
     // Plafond de LOT : les plus anciens d'abord, le reste attend le passage suivant (rien n'est perdu).
     dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
     if (dus.length > LOT_MAX_PAR_PASSAGE) rapport.plafonne = true;
