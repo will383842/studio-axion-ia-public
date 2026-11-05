@@ -15,7 +15,7 @@ les captures ci-dessous ne sont pas consignées.
 | `message.sent` | `executionId`, `workflowId`, `sequenceId`, `automationId` ; accusé 200, sans effet. |
 | `comment.received` | `account.accountId` ; accusé 200, sans effet. |
 | Autres (dont `webhook.test`) | accusé 200, sans effet (si la signature et la fenêtre sont bonnes). |
-| Anti-rejeu | fenêtre ±300 s (choix du Studio) sur le champ `timestamp` du **corps** + déduplication par `X-Zernio-Event-Id` (repli : `id` du corps), sous verrou. |
+| Anti-rejeu | fenêtre 72 h passé / 5 min futur (choix du Studio) sur le champ `timestamp` du **corps** + déduplication par `X-Zernio-Event-Id` (repli : `id` du corps), sous verrou. |
 
 Ordre des contrôles : interrupteur et secret → taille → signature (401) → JSON/enveloppe (422) → fenêtre (401) → type d'événement → doublon.
 

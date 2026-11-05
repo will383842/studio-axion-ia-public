@@ -73,19 +73,21 @@ describe("événements du doc", () => {
 });
 
 describe("anti-rejeu", () => {
-  it("fenêtre ±300 s sur le timestamp du CORPS (ISO ou nombre)", async () => {
-    expect(dansFenetreRejeu(T0 / 1000, T0 + 300_000)).toBe(true);
-    expect(dansFenetreRejeu(T0 / 1000, T0 + 301_000)).toBe(false);
-    expect((await recevoir(envoi(EXEMPLES["webhook.test"]), T0 + 301_000)).statut).toBe(401);
+  it("fenêtre sur le timestamp du CORPS (ISO ou nombre) : 72 h dans le passé, 5 min dans le futur", async () => {
+    expect(dansFenetreRejeu(T0 / 1000, T0 + 72 * 3600_000)).toBe(true);
+    expect(dansFenetreRejeu(T0 / 1000, T0 + 72 * 3600_000 + 1000)).toBe(false);
+    expect(dansFenetreRejeu(T0 / 1000, T0 - 300_000)).toBe(true);
+    expect(dansFenetreRejeu(T0 / 1000, T0 - 301_000)).toBe(false);
+    expect((await recevoir(envoi(EXEMPLES["webhook.test"]), T0 - 301_000)).statut).toBe(401);
     expect((await recevoir(envoi({ ...EXEMPLES["webhook.test"], timestamp: T0 / 1000 }), T0 + 100_000)).statut).toBe(200);
   });
-  it("déduplication par X-Zernio-Event-Id (même si l'id du corps diffère), sous verrou, en parallèle aussi", async () => {
-    const a = envoi({ ...EXEMPLES["workflow.run.completed"], id: "corps_1" }, "evt_entete");
-    const b = envoi({ ...EXEMPLES["workflow.run.completed"], id: "corps_2" }, "evt_entete");
-    const rs = await Promise.all([recevoir(a), recevoir(b), recevoir(a)]);
+  it("déduplication par l'id SIGNÉ du corps, sous verrou, en parallèle aussi ; un en-tête différent est refusé (401)", async () => {
+    const a = envoi({ ...EXEMPLES["workflow.run.completed"], id: "corps_1" });
+    const rs = await Promise.all([recevoir(a), recevoir(a), recevoir(a)]);
     expect(rs.every((r) => r.statut === 200)).toBe(true);
     expect(await outbox()).toHaveLength(1);
-    expect((await outbox())[0].idEvenement).toBe("evt_entete");
+    expect((await outbox())[0].idEvenement).toBe("corps_1");
+    expect((await recevoir(envoi({ ...EXEMPLES["workflow.run.completed"], id: "corps_2" }, "evt_entete"))).statut).toBe(401);
   });
   it("sans en-tête d'identifiant : repli sur l'id du corps", async () => {
     await recevoir(envoi(EXEMPLES["workflow.run.completed"], null));
@@ -110,14 +112,14 @@ describe("route : en-têtes du doc et alias hérités", () => {
     vi.unstubAllEnvs();
   });
   it("X-Zernio-Signature / -Event / -Event-Id", async () => {
-    const r = await appeler((c) => ({ "x-zernio-signature": signatureZernio(SECRET, c), "x-zernio-event": "workflow.run.completed", "x-zernio-event-id": "evt_h1" }));
+    const r = await appeler((c) => ({ "x-zernio-signature": signatureZernio(SECRET, c), "x-zernio-event": "workflow.run.completed", "x-zernio-event-id": "evt_a1" }));
     expect(r.status).toBe(200);
-    expect((await outbox())[0].idEvenement).toBe("evt_h1");
+    expect((await outbox())[0].idEvenement).toBe("evt_a1");
   });
   it("alias hérités X-Late-Signature / X-Late-Event-Id", async () => {
-    const r = await appeler((c) => ({ "x-late-signature": signatureZernio(SECRET, c), "x-late-event-id": "evt_h2" }));
+    const r = await appeler((c) => ({ "x-late-signature": signatureZernio(SECRET, c), "x-late-event-id": "evt_a1" }));
     expect(r.status).toBe(200);
-    expect((await outbox())[0].idEvenement).toBe("evt_h2");
+    expect((await outbox())[0].idEvenement).toBe("evt_a1");
   });
   it("sans signature : 401", async () => {
     expect((await appeler(() => ({ "x-zernio-event-id": "evt_h3" }))).status).toBe(401);
