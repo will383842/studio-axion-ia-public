@@ -125,15 +125,20 @@ export function lireEvenementRun(env: EnveloppeZernio): EvenementRun | null {
   if (!ex || !idRun || (ex.status !== "completed" && ex.status !== "exited")) return null;
   const contact = objet(env.racine.contact);
   const trigger = objet(env.racine.trigger);
-  return { type: "workflow.run.completed", idRun, idContact: texteBorne(contact?.id, 200), motDeclencheur: motSeulDe(trigger?.text) };
+  return { type: "workflow.run.completed", idRun, idContact: idOpaque(contact?.id), motDeclencheur: motSeulDe(trigger?.text) };
 }
 
-/** Le mot seul (forme RE_MOT du Studio : A-Z0-9, 2 à 20) ou un mot d'opposition ; tout autre texte (peut contenir une adresse) → null. */
-const RE_MOT = /^[A-Z0-9]{2,20}$/;
+/** Miroir des mots de déclenchement configurés (liste FERMÉE, à garder alignée sur les guides du site). Pas de mot libre. */
+export const MOTS_DECLENCHEURS_CONNUS: readonly string[] = ["GUIDE"];
+/** Un mot composé uniquement de chiffres (ex. un numéro de téléphone) n'est jamais un mot de déclenchement. */
+const RE_SEULEMENT_CHIFFRES = /^\d+$/;
+/** Le mot seul si c'est un mot configuré (jamais uniquement des chiffres) ou un mot d'opposition ; tout autre texte (adresse, téléphone…) → null. */
 function motSeulDe(v: unknown): string | null {
   const t = texteBorne(v, 200);
   if (t === null) return null;
-  return RE_MOT.test(t.trim().toUpperCase()) || estMotOpposition(t) ? t.trim() : null;
+  const maj = t.trim().toUpperCase();
+  if (RE_SEULEMENT_CHIFFRES.test(maj)) return null;
+  return MOTS_DECLENCHEURS_CONNUS.includes(maj) || estMotOpposition(t) ? t.trim() : null;
 }
 
 export interface EvenementCommentaire {
@@ -199,12 +204,16 @@ export function lireEvenementMessage(env: EnveloppeZernio): EvenementMessage | n
   if (!m || !idMessage || !idCompte) return null;
   const p = m.postback;
   const brut = typeof p === "string" ? p : objet(p)?.payload;
+  const compte = objet(env.racine.account);
+  const idExpediteur = idOpaque(objet(m.sender)?.id) ?? idOpaque(m.senderId);
+  // Écho de NOS propres messages : on vide le postback et on marque l'expéditeur = compte (rien à traiter).
+  const propre = objet(m.sender)?.isSelf === true || m.isSelf === true || m.isOwn === true || (idExpediteur !== null && (idExpediteur === idCompte || idExpediteur === idOpaque(compte?.platformAccountId)));
   return {
     idMessage,
     idConversation: idOpaque(m.conversationId),
     idCompte,
-    idExpediteur: idOpaque(objet(m.sender)?.id) ?? idOpaque(m.senderId),
-    postback: idOpaque(brut),
+    idExpediteur: propre ? idCompte : idExpediteur,
+    postback: propre ? null : idOpaque(brut),
   };
 }
 

@@ -1,6 +1,6 @@
 /** Crochet Zernio SANS CONTENU : aucun texte brut stocké. Corps, secret et adresse FICTIFS (example.com), aucun réseau. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { lireEnveloppe, lireEvenementCommentaire, lireEvenementMessage, lireEvenementRun, signatureZernio } from "@/domaine/guide-reseau/crochet-zernio";
+import { lireEnveloppe, lireEvenementCommentaire, lireEvenementMessage, lireEvenementRun, signatureZernio, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const pm = await import("@/services/parcours-mot");
@@ -49,9 +49,8 @@ describe("a) l'adresse ne reste NULLE PART", () => {
     const d = depots();
     const tout = JSON.stringify([
       await outbox(), await d.evenementsFournisseurs.lister(() => true),
-      await (d as unknown as Record<string, { lister: (f: () => boolean) => Promise<unknown[]> }>).parametres?.lister?.(() => true),
-      await (d as unknown as Record<string, { lister: (f: () => boolean) => Promise<unknown[]> }>).journal?.lister?.(() => true),
-      await (d as unknown as Record<string, { lister: (f: () => boolean) => Promise<unknown[]> }>).notifications?.lister?.(() => true),
+      await d.parametres.lister(() => true),
+      await d.evenements.lister(() => true), // le VRAI journal (voir `journaliser`, src/services/_commun.ts)
       consoles.map((c) => c.mock.calls),
     ]);
     expect(tout).not.toContain(ADRESSE);
@@ -193,5 +192,114 @@ describe("h) interrupteurs éteints", () => {
     await recevoir(envoi(run()), T0, env);
     await recevoir(envoi(commentaire()), T0, env);
     expect((await outbox()).map((e) => e.type)).toEqual(["workflow.run.completed"]);
+  });
+});
+
+describe("preuve du journal : une adresse déposée dans le journal est détectée", () => {
+  it("le journal réel (depots().evenements) est lu : l'adresse y est trouvée si on l'y écrit", async () => {
+    const { journaliser } = await import("@/services/_commun");
+    await journaliser("test", `fuite ${ADRESSE}`);
+    const journal = await depots().evenements.lister(() => true);
+    expect(journal.length).toBeGreaterThan(0);
+    expect(JSON.stringify(journal)).toContain(ADRESSE);
+  });
+  it("après un dépôt de trigger.text = adresse, le journal est lisible et sans adresse", async () => {
+    await recevoir(envoi(run({ trigger: { type: "keyword", text: ADRESSE } })));
+    const journal = await depots().evenements.lister(() => true);
+    expect(Array.isArray(journal)).toBe(true);
+    expect(JSON.stringify(journal)).not.toContain("example.com");
+  });
+});
+
+describe("mot seul : limité aux mots configurés et à l'opposition", () => {
+  const lireRun = (t: unknown) => lireEvenementRun(lireEnveloppe(JSON.stringify(run({ trigger: { text: t } })))!)?.motDeclencheur;
+  const env = (o: object) => lireEnveloppe(JSON.stringify(o))!;
+  it("un numéro de téléphone fictif (chiffres seuls) → null", () => {
+    expect(lireRun("0612345678")).toBeNull();
+    expect(lireRun("12")).toBeNull();
+    expect(lireEvenementCommentaire(env(commentaire({ text: "0612345678" })))!.motSeul).toBeNull();
+  });
+  it("un mot isolé non configuré → null ; GUIDE et opposition conservés", () => {
+    expect(lireRun("BONJOUR")).toBeNull();
+    expect(lireEvenementCommentaire(env(commentaire({ text: "BONJOUR" })))!.motSeul).toBeNull();
+    expect(lireRun("GUIDE")).toBe("GUIDE");
+    expect(lireRun("stop")).toBe("stop");
+    expect(lireEvenementCommentaire(env(commentaire({ text: "guide" })))!.motSeul).toBe("GUIDE");
+  });
+  it("idContact avec « @ » → null (identifiant opaque seulement)", () => {
+    const e = lireEvenementRun(lireEnveloppe(JSON.stringify(run({ contact: { id: ADRESSE } })))!)!;
+    expect(e.idContact).toBeNull();
+    expect(lireEvenementRun(lireEnveloppe(JSON.stringify(run()))!)!.idContact).toBe("ct_1");
+  });
+});
+
+describe("message : écho de nos propres messages et clé secondaire", () => {
+  it.each([
+    ["isSelf", { isSelf: true }],
+    ["isOwn", { isOwn: true }],
+    ["expéditeur = compte", { sender: { id: "acc_1" } }],
+    ["expéditeur = platformAccountId", { sender: { id: "pf_9" } }, { account: { accountId: "acc_1", platform: "instagram", platformAccountId: "pf_9" } }],
+  ] as [string, object, object?][])("écho (%s) : aucun dépôt", async (_n, m, o = {}) => {
+    expect(await recevoir(envoi(message(m, o)))).toEqual(NEUTRE);
+    expect(await outbox()).toHaveLength(0);
+  });
+  it("déduplication (idCompte, idMessage) avec un id d'événement différent", async () => {
+    await recevoir(envoi(message()));
+    await recevoir(envoi({ ...message(), id: "evt_m2" }));
+    expect(await outbox()).toHaveLength(1);
+  });
+});
+
+describe("travail de fond : seul workflow.run.completed est traité", () => {
+  const RUN: RunLu = { email: ADRESSE, mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "mp-m1-v2" };
+  afterEach(() => {
+    pm.injecterLecteurRuns(null);
+    pm.injecterTransportSite(null);
+  });
+  const ENV_FOND = { ...ENV, SITE_GUIDES_RESEAU_SECRET: "secret-site-fictif", SITE_VIDEOS_URL: "https://site.example.com" };
+
+  it("50 commentaires GUIDE : lecteur jamais appelé, rien de consommé, vrais runs traités dans le même lot", async () => {
+    const lecteur = vi.fn(async () => ({ ...RUN }));
+    const appels: unknown[] = [];
+    pm.injecterLecteurRuns(lecteur);
+    pm.injecterTransportSite(async (r) => (appels.push(r), { statut: 200, corps: {} }));
+    for (let i = 0; i < 50; i++) await recevoir(envoi({ ...commentaire({ id: `com_${i}`, author: { id: `a_${i}` } }), id: `evt_c_${i}` }));
+    await recevoir(envoi(message()));
+    for (let i = 0; i < 3; i++) await recevoir(envoi({ ...run(), id: `evt_r_${i}`, execution: { id: `exec_${i}`, status: "completed" }, contact: { id: `ct_${i}` } }));
+    expect(await outbox()).toHaveLength(54);
+
+    const rap = await pm.traiterOutboxZernio({ env: ENV_FOND, maintenantMs: T0 });
+
+    expect(rap).toMatchObject({ traites: 3, envoyes: 3, aReessayer: 0, definitifs: 0 });
+    expect(rap.plafonne).toBeFalsy();
+    expect(rap.disjoncteurOuvert).toBeFalsy();
+    expect(lecteur.mock.calls.map((c) => (c as unknown as string[])[0]).sort()).toEqual(["exec_0", "exec_1", "exec_2"]);
+    expect(appels).toHaveLength(3);
+    const autres = (await outbox()).filter((e) => e.type !== "workflow.run.completed");
+    expect(autres).toHaveLength(51);
+    for (const e of autres) {
+      expect(e.traite).toBe(false);
+      expect(e.charge).toMatchObject({ etat: "a_faire" });
+      expect(e.charge.essais ?? 0).toBe(0);
+    }
+  });
+
+  it("uniquement des commentaires : lecteur jamais appelé, aucun essai", async () => {
+    const lecteur = vi.fn(async () => ({ ...RUN }));
+    pm.injecterLecteurRuns(lecteur);
+    pm.injecterTransportSite(async () => ({ statut: 200, corps: {} }));
+    for (let i = 0; i < 50; i++) await recevoir(envoi({ ...commentaire({ id: `com_${i}`, author: { id: `a_${i}` } }), id: `evt_c_${i}` }));
+    expect(await pm.traiterOutboxZernio({ env: ENV_FOND, maintenantMs: T0 })).toMatchObject({ traites: 0, envoyes: 0, aReessayer: 0 });
+    expect(lecteur).not.toHaveBeenCalled();
+  });
+
+  it("opposition : un commentaire « stop » (motSeul) n'est pas non plus une demande, et reste intact", async () => {
+    const lecteur = vi.fn(async () => ({ ...RUN }));
+    pm.injecterLecteurRuns(lecteur);
+    pm.injecterTransportSite(async () => ({ statut: 200, corps: {} }));
+    await recevoir(envoi(commentaire({ text: "stop" })));
+    await pm.traiterOutboxZernio({ env: ENV_FOND, maintenantMs: T0 });
+    expect(lecteur).not.toHaveBeenCalled();
+    expect((await outbox())[0].traite).toBe(false);
   });
 });
