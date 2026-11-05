@@ -147,7 +147,7 @@ describe("c-e) déduplication de l'id signé et fenêtre", () => {
   it("timestamp plus vieux que 72 h → 401", async () => {
     expect((await recevoir(envoi(run({ timestamp: new Date(T0 - 73 * 3600_000).toISOString() })))).statut).toBe(401);
   });
-  it("d) en-tête d'id différent de l'id du corps → 401 ; alias hérité aussi", async () => {
+  it("d) en-tête d'id différent de l'id du corps → 401", async () => {
     expect((await recevoir(envoi(run(), "autre_id"))).statut).toBe(401);
     expect(await outbox()).toHaveLength(0);
   });
@@ -155,7 +155,7 @@ describe("c-e) déduplication de l'id signé et fenêtre", () => {
     expect((await recevoir(envoi(run({ timestamp: new Date(T0 + 600_000).toISOString() })))).statut).toBe(401);
     expect((await recevoir(envoi(run({ timestamp: new Date(T0 + 240_000).toISOString() })))).statut).toBe(200);
   });
-  it("route : en-tête d'id ≠ id du corps → 401", async () => {
+  it("route : en-tête d'id ≠ id du corps → 401 ; alias hérité x-late-event-id aussi", async () => {
     vi.stubEnv("PARCOURS_MOT_ENABLED", "1");
     vi.stubEnv("ZERNIO_WEBHOOK_SECRET", SECRET);
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -165,6 +165,8 @@ describe("c-e) déduplication de l'id signé et fenêtre", () => {
       const corps = JSON.stringify(run());
       const r = await POST(new Request("http://localhost/api/crochets/zernio", { method: "POST", body: corps, headers: { "x-zernio-signature": signatureZernio(SECRET, corps), "x-zernio-event-id": "autre_id" } }) as never);
       expect(r.status).toBe(401);
+      const r2 = await POST(new Request("http://localhost/api/crochets/zernio", { method: "POST", body: corps, headers: { "x-zernio-signature": signatureZernio(SECRET, corps), "x-late-event-id": "autre_id" } }) as never);
+      expect(r2.status).toBe(401);
     } finally {
       vi.useRealTimers();
       vi.unstubAllEnvs();
