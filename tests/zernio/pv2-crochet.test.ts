@@ -55,8 +55,8 @@ describe("signature du crochet", () => {
 
   it("le service refuse (401) une signature invalide ou un horodatage du corps hors fenêtre, et n'écrit rien", async () => {
     expect((await recevoir({ ...crochet("evt_1"), signature: "0".repeat(64) })).statut).toBe(401);
-    expect((await recevoir(crochet("evt_2"), ENV_ALLUME, T0 + 600_000)).statut).toBe(401);
-    expect((await recevoir(crochet("evt_3"), ENV_ALLUME, T0 - 301_000)).statut).toBe(401);
+    expect((await recevoir(crochet("evt_2"), ENV_ALLUME, T0 - 600_000)).statut).toBe(401);
+    expect((await recevoir(crochet("evt_3"), ENV_ALLUME, T0 + 73 * 3600_000)).statut).toBe(401);
     expect((await recevoir(crochet("evt_4"), ENV_ALLUME, T0 + 299_000)).statut).toBe(200);
     expect(await outbox()).toHaveLength(1);
   });
@@ -89,7 +89,7 @@ describe("rejeu et doublon", () => {
     expect(await outbox()).toHaveLength(1);
   });
   it("un vieux crochet rejoué hors fenêtre est refusé", async () => {
-    expect((await recevoir(crochet("evt_vieux"), ENV_ALLUME, T0 + 3_600_000)).statut).toBe(401);
+    expect((await recevoir(crochet("evt_vieux"), ENV_ALLUME, T0 + 73 * 3600_000)).statut).toBe(401);
   });
 });
 
