@@ -59,6 +59,8 @@ export const VARIABLE_SECRET_SITE_GUIDES = "SITE_GUIDES_RESEAU_SECRET";
 export const VARIABLE_SECRET_SITE_REPLI = "SITE_VIDEOS_SECRET";
 export const CHEMIN_DEMANDES_GUIDE = "/api/interne/demandes-guide-reseau";
 const FOURNISSEUR = "zernio";
+/** Seul type d'événement traité par le travail de fond (les autres attendent leur propre aiguillage). */
+const TYPE_RUN_TERMINE = "workflow.run.completed";
 const ESSAIS_NONCE = 3;
 /** Attente avant de relire le registre des oppositions après une panne de lecture. */
 const ATTENTE_REGISTRE_ILLISIBLE_MS = 60_000;
@@ -136,6 +138,7 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
     const m = lireEvenementMessage(enveloppe);
     if (!m || m.postback === null) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.message", charge: { ...m, etat: "a_faire" } };
+    cleSecondaire = (e) => e.type === "zernio.message" && e.charge.idCompte === m.idCompte && e.charge.idMessage === m.idMessage;
   }
   if (!entite) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
   const depot = entite;
@@ -198,8 +201,9 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
     const now = o.maintenantMs ?? Date.now();
     if (now < disjoncteurOuvertJusqua) return { ...rapport, disjoncteurOuvert: true };
     appelsRecents = appelsRecents.filter((t) => t > now - 3_600_000);
+    // Seul `workflow.run.completed` est traité ici : commentaires et messages restent « a_faire », intacts, hors lot, débit et disjoncteur.
     // Un « stop » / « arrêtez » écrit par la personne n'est JAMAIS une demande de guide : il reste pour la prise en compte de l'opposition.
-    const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && !e.traite && !estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null) && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
+    const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && e.type === TYPE_RUN_TERMINE && !e.traite && !estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null) && !estMotOpposition(typeof e.charge.motSeul === "string" ? e.charge.motSeul : null) && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
     // Plafond de LOT : les plus anciens d'abord, le reste attend le passage suivant (rien n'est perdu).
     dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
     if (dus.length > LOT_MAX_PAR_PASSAGE) rapport.plafonne = true;
