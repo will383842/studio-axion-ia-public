@@ -15,7 +15,7 @@ les captures ci-dessous ne sont pas consignées.
 | `message.sent` | `executionId`, `workflowId`, `sequenceId`, `automationId` ; accusé 200, sans effet. |
 | `comment.received` | `account.accountId` ; accusé 200, sans effet. |
 | Autres (dont `webhook.test`) | accusé 200, sans effet (si la signature et la fenêtre sont bonnes). |
-| Anti-rejeu | fenêtre ±300 s (choix du Studio) sur le champ `timestamp` du **corps** + déduplication par `X-Zernio-Event-Id` (repli : `id` du corps), sous verrou. |
+| Anti-rejeu | fenêtre 72 h passé / 5 min futur (choix du Studio) sur le champ `timestamp` du **corps** + déduplication sur l'`id` du **corps signé** (`payload.id`), sous verrou. `X-Zernio-Event-Id` (non signé) ne sert qu'à un contrôle d'égalité : s'il est présent et différent de `payload.id` → 401. |
 
 Ordre des contrôles : interrupteur et secret → taille → signature (401) → JSON/enveloppe (422) → fenêtre (401) → type d'événement → doublon.
 
@@ -36,7 +36,8 @@ transmis au lecteur comme repères. Aucune adresse e-mail n'est lue dans le croc
 3. Si Zernio propose une lecture d'exécution/contact : noter la méthode, le chemin, l'authentification et un exemple FICTIF, puis brancher
    `injecterLecteurRuns` (en lecture seule, runs clos uniquement).
 4. Le comportement de `exited` (sortie anticipée du parcours) : l'accord a-t-il bien été recueilli ? Sinon, ne traiter que `completed`.
-5. Consigner ici la date, la version de l'API et le résultat. Seulement alors : `PARCOURS_MOT_ENABLED=1` (action de la session déployeuse).
+5. **Vérifier que `X-Zernio-Event-Id` est bien égal à `payload.id` dans un vrai envoi Zernio**, sinon tous les crochets seront refusés en 401 sans bruit.
+6. Consigner ici la date, la version de l'API et le résultat. Seulement alors : `PARCOURS_MOT_ENABLED=1` (action de la session déployeuse).
 
 ## Pose du secret du webhook chez Zernio : geste réservé à l'opérateur
 Le secret est posé chez Zernio par `POST /v1/webhooks/settings`. C'est un **geste à autoriser explicitement par l'opérateur** :

@@ -3,8 +3,8 @@ import { ENTETE_ID_EVENEMENT_HERITE, ENTETE_ID_EVENEMENT_ZERNIO, ENTETE_SIGNATUR
 
 /**
  * Crochet Zernio (PV-2) : exempté de session (proxy.ts), vérifié par SIGNATURE (`ZERNIO_WEBHOOK_SECRET`, lu seulement dans
- * l'environnement). Éteint (`PARCOURS_MOT_ENABLED`) ou sans secret : réponse NEUTRE 200, rien n'est lu ni écrit.
- * Cette route DÉPOSE dans l'outbox ; le travail de fond relit le run chez Zernio. Aucune adresse e-mail n'est gardée.
+ * l'environnement). Éteint (`PARCOURS_MOT_ENABLED` et `MOTS_ENABLED`) ou sans secret : réponse NEUTRE 200, rien n'est lu ni écrit.
+ * Cette route DÉPOSE dans l'outbox ; le travail de fond relit le run chez Zernio. Aucun appel réseau ici. Aucune adresse e-mail ni texte brut n'est gardé.
  */
 export const dynamic = "force-dynamic";
 
@@ -34,8 +34,8 @@ async function lireCorpsPlafonne(req: NextRequest, max: number): Promise<Buffer 
 }
 
 export async function POST(requete: NextRequest) {
-  const { parcoursMotActif, recevoirCrochetZernio, VARIABLE_SECRET_CROCHET_ZERNIO } = await import("@/services/parcours-mot");
-  if (!parcoursMotActif() || !process.env[VARIABLE_SECRET_CROCHET_ZERNIO]?.trim()) return NextResponse.json({ recu: true }, { status: 200 });
+  const { parcoursMotActif, evenementsMotsActifs, recevoirCrochetZernio, VARIABLE_SECRET_CROCHET_ZERNIO } = await import("@/services/parcours-mot");
+  if ((!parcoursMotActif() && !evenementsMotsActifs()) || !process.env[VARIABLE_SECRET_CROCHET_ZERNIO]?.trim()) return NextResponse.json({ recu: true }, { status: 200 });
   const corps = await lireCorpsPlafonne(requete, TAILLE_MAX_CROCHET);
   if (corps === null) return NextResponse.json({ erreur: "trop_volumineux" }, { status: 413 });
   const r = await recevoirCrochetZernio({ corps, signature: requete.headers.get(ENTETE_SIGNATURE_ZERNIO) ?? requete.headers.get(ENTETE_SIGNATURE_HERITEE), idEvenement: requete.headers.get(ENTETE_ID_EVENEMENT_ZERNIO) ?? requete.headers.get(ENTETE_ID_EVENEMENT_HERITE) });

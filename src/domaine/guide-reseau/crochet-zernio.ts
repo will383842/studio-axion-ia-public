@@ -1,6 +1,7 @@
 // Parcours « mot → e-mail → guide » : crochet Zernio, PUR (aucun réseau, aucune base, aucun secret en dur).
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { RE_MOT_GUIDE } from "./cle-idempotence";
+import { estMotOpposition } from "./opposition";
 
 /** Miroir du site (`src/content/guides-reseau.ts` : GUIDES_RESEAU_CONNUS). Liste FERMÉE ; à garder alignée sur le site. */
 export const GUIDES_RESEAU_CONNUS: readonly string[] = ["guide-ia"];
@@ -16,7 +17,8 @@ const RE_DATE_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2
  *     `X-Late-Event-Id` acceptés. AUCUN en-tête d'horodatage.
  *   · Signature : HMAC-SHA256, hexadécimal minuscule, du CORPS BRUT SEUL (pas d'horodatage devant), vérifiée AVANT tout JSON.parse.
  *   · Charge à la racine : `{ id, event, timestamp, ... }`. L'identifiant du run est `execution.id`.
- *   · Anti-rejeu : champ `timestamp` du CORPS (fenêtre ±300 s, choix du Studio) + déduplication par `X-Zernio-Event-Id`.
+ *   · Anti-rejeu : champ `timestamp` du CORPS (72 h dans le passé, 5 min dans le futur) + déduplication PERPÉTUELLE de l'`id` du corps
+ *     (champ signé). L'en-tête `X-Zernio-Event-Id` n'est pas signé : il doit seulement être ÉGAL à l'`id` du corps.
  * Ce qui reste à capturer à l'essai réel : docs/zernio/parcours-viral/05-ESSAI-REEL-WEBHOOK.md. `PARCOURS_MOT_ENABLED` reste éteint.
  */
 export const ENTETE_SIGNATURE_ZERNIO = "x-zernio-signature";
@@ -24,12 +26,21 @@ export const ENTETE_SIGNATURE_HERITEE = "x-late-signature";
 export const ENTETE_EVENEMENT_ZERNIO = "x-zernio-event";
 export const ENTETE_ID_EVENEMENT_ZERNIO = "x-zernio-event-id";
 export const ENTETE_ID_EVENEMENT_HERITE = "x-late-event-id";
-/** Fenêtre anti-rejeu, en secondes (de part et d'autre de l'heure du serveur), sur le champ `timestamp` du corps. */
-export const FENETRE_REJEU_SEC = 300;
+/**
+ * Fenêtre anti-rejeu sur le champ `timestamp` du corps. Zernio réessaie 7 fois sur ~2 jours avec le MÊME id : le passé doit donc
+ * tolérer au moins 72 h, sinon les réessais légitimes seraient refusés. Une fenêtre aussi large ne protège pas du rejeu à elle
+ * seule : la vraie défense est la déduplication perpétuelle de l'`id` signé (un id déjà vu n'est jamais redéposé, quel que soit
+ * son âge). La fenêtre sert à écarter les horodatages absurdes ; le futur reste serré (5 min, dérive d'horloge seulement).
+ */
+export const FENETRE_REJEU_PASSE_SEC = 72 * 3600;
+export const FENETRE_REJEU_FUTUR_SEC = 300;
 /** Taille maximale d'un crochet, en octets. */
 export const TAILLE_MAX_CROCHET = 16 * 1024;
 /** Événements qui ont un effet. Tous les autres (dont `webhook.test`, `message.sent`, `comment.received`, `workflow.run.failed`) : accusé 200 sans effet. */
 export const TYPES_EVENEMENT_ACCEPTES = ["workflow.run.completed"] as const;
+/** Événements SANS CONTENU (identifiants opaques seulement ; jamais le texte d'un commentaire ou d'un message). */
+export const TYPE_EVENEMENT_COMMENTAIRE = "comment.received";
+export const TYPE_EVENEMENT_MESSAGE = "message.received";
 
 export const RESEAUX_GUIDE = ["instagram", "facebook", "linkedin_page", "tiktok", "page_guide"] as const;
 
@@ -54,9 +65,10 @@ export function verifierSignatureZernio(e: { secret: string; corps: string | Buf
   return attendue.length === recue.length && timingSafeEqual(attendue, recue) ? "ok" : "invalide";
 }
 
-/** Fenêtre anti-rejeu sur l'instant du CORPS (secondes Unix). */
+/** Fenêtre anti-rejeu sur l'instant du CORPS (secondes Unix) : 72 h dans le passé, 5 min dans le futur. */
 export function dansFenetreRejeu(timestampSec: number, maintenantMs: number): boolean {
-  return Math.abs(Math.floor(maintenantMs / 1000) - timestampSec) <= FENETRE_REJEU_SEC;
+  const ecart = Math.floor(maintenantMs / 1000) - timestampSec; // > 0 : passé
+  return ecart <= FENETRE_REJEU_PASSE_SEC && ecart >= -FENETRE_REJEU_FUTUR_SEC;
 }
 
 /** `timestamp` du corps : texte ISO 8601 ou nombre (secondes, ou millisecondes si > 1e11). Retour en secondes, ou null. */
@@ -94,7 +106,7 @@ export interface EvenementRun {
   type: (typeof TYPES_EVENEMENT_ACCEPTES)[number];
   /** `execution.id` : identifiant du run. */
   idRun: string;
-  /** `contact.id` (opaque) et `trigger.text` (le mot saisi) : repères pour la relecture, jamais d'adresse e-mail. */
+  /** `contact.id` (opaque) et `trigger.text` SEULEMENT si mot seul ou opposition (sinon null) : jamais d'adresse e-mail. */
   idContact: string | null;
   motDeclencheur: string | null;
 }
@@ -113,7 +125,96 @@ export function lireEvenementRun(env: EnveloppeZernio): EvenementRun | null {
   if (!ex || !idRun || (ex.status !== "completed" && ex.status !== "exited")) return null;
   const contact = objet(env.racine.contact);
   const trigger = objet(env.racine.trigger);
-  return { type: "workflow.run.completed", idRun, idContact: texteBorne(contact?.id, 200), motDeclencheur: texteBorne(trigger?.text, 200) };
+  return { type: "workflow.run.completed", idRun, idContact: idOpaque(contact?.id), motDeclencheur: motSeulDe(trigger?.text) };
+}
+
+/** Miroir des mots de déclenchement configurés (liste FERMÉE, à garder alignée sur les guides du site). Pas de mot libre. */
+export const MOTS_DECLENCHEURS_CONNUS: readonly string[] = ["GUIDE"];
+/** Un mot composé uniquement de chiffres (ex. un numéro de téléphone) n'est jamais un mot de déclenchement. */
+const RE_SEULEMENT_CHIFFRES = /^\d+$/;
+/** Le mot seul si c'est un mot configuré (jamais uniquement des chiffres) ou un mot d'opposition ; tout autre texte (adresse, téléphone…) → null. */
+function motSeulDe(v: unknown): string | null {
+  const t = texteBorne(v, 200);
+  if (t === null) return null;
+  const maj = t.trim().toUpperCase();
+  if (RE_SEULEMENT_CHIFFRES.test(maj)) return null;
+  return MOTS_DECLENCHEURS_CONNUS.includes(maj) || estMotOpposition(t) ? t.trim() : null;
+}
+
+export interface EvenementCommentaire {
+  idCommentaire: string;
+  idPostPlateforme: string | null;
+  idCompte: string;
+  reseau: "instagram" | "facebook";
+  idAuteur: string | null;
+  /** Texte normalisé SEULEMENT s'il est un mot seul ou une opposition ; sinon null. Jamais le texte brut. */
+  motSeul: string | null;
+  estReponse: boolean;
+}
+export interface EvenementMessage {
+  idMessage: string;
+  idConversation: string | null;
+  idCompte: string;
+  idExpediteur: string | null;
+  /** Charge d'un bouton (identifiant opaque sans espace ni « @ »), sinon null. Jamais `message.text`. */
+  postback: string | null;
+}
+const idOpaque = (v: unknown): string | null => (typeof v === "string" && RE_ID.test(v) ? v : null);
+const idCompteDe = (racine: Record<string, unknown>): string | null => {
+  const a = objet(racine.account);
+  return idOpaque(a?.accountId) ?? idOpaque(a?.id);
+};
+
+/**
+ * Lit un `comment.received` SANS CONTENU. Les champs exacts restent à confirmer à l'essai réel (05-ESSAI-REEL-WEBHOOK.md) : la lecture
+ * est tolérante sur les noms d'identifiants, stricte sur le contenu (comment.text n'est jamais conservé tel quel).
+ */
+export function lireEvenementCommentaire(env: EnveloppeZernio): EvenementCommentaire | null {
+  if (env.event !== TYPE_EVENEMENT_COMMENTAIRE) return null;
+  const c = objet(env.racine.comment);
+  const compte = objet(env.racine.account);
+  const idCommentaire = idOpaque(c?.id);
+  const idCompte = idCompteDe(env.racine);
+  const plateforme = String(compte?.platform ?? c?.platform ?? "").toLowerCase();
+  if (!c || !idCommentaire || !idCompte || (plateforme !== "instagram" && plateforme !== "facebook")) return null;
+  const auteur = objet(c.author) ?? objet(c.from);
+  const idAuteur = idOpaque(auteur?.id) ?? idOpaque(c.authorId);
+  const propre = auteur?.isSelf === true || c.isOwn === true || (idAuteur !== null && (idAuteur === idCompte || idAuteur === idOpaque(compte?.platformAccountId)));
+  const texte = typeof c.text === "string" ? c.text : null;
+  const motSeul = texte !== null && texte.length <= 200 ? motSeulDe(texte)?.toUpperCase() ?? null : null;
+  const estReponse = c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== "");
+  return {
+    idCommentaire,
+    idPostPlateforme: idOpaque(c.platformPostId) ?? idOpaque(c.postId) ?? idOpaque(objet(env.racine.post)?.platformPostId),
+    idCompte,
+    reseau: plateforme as "instagram" | "facebook",
+    // Notre propre réponse publique : on la marque en vidant l'auteur ET le mot (rien à traiter).
+    idAuteur: propre ? idCompte : idAuteur,
+    motSeul: propre ? null : motSeul,
+    estReponse,
+  };
+}
+
+/** Lit un `message.received` SANS CONTENU : identifiants et charge de bouton opaque seulement ; `message.text` n'est jamais lu. */
+export function lireEvenementMessage(env: EnveloppeZernio): EvenementMessage | null {
+  if (env.event !== TYPE_EVENEMENT_MESSAGE) return null;
+  const m = objet(env.racine.message);
+  const idMessage = idOpaque(m?.id);
+  const idCompte = idCompteDe(env.racine);
+  if (!m || !idMessage || !idCompte) return null;
+  const p = m.postback;
+  const brut = typeof p === "string" ? p : objet(p)?.payload;
+  const compte = objet(env.racine.account);
+  const idExpediteur = idOpaque(objet(m.sender)?.id) ?? idOpaque(m.senderId);
+  // Écho de NOS propres messages : on vide le postback et on marque l'expéditeur = compte (rien à traiter).
+  const propre = objet(m.sender)?.isSelf === true || m.isSelf === true || m.isOwn === true || (idExpediteur !== null && (idExpediteur === idCompte || idExpediteur === idOpaque(compte?.platformAccountId)));
+  return {
+    idMessage,
+    idConversation: idOpaque(m.conversationId),
+    idCompte,
+    idExpediteur: propre ? idCompte : idExpediteur,
+    postback: propre ? null : idOpaque(brut),
+  };
 }
 
 /** Ce que Zernio consigne dans un run, relu chez Zernio (jamais pris dans le crochet). Transit seulement : jamais stocké ici. */
