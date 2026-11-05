@@ -14,6 +14,7 @@
  */
 import { createHash } from "node:crypto";
 import { ErreurZernio, estErreurZernio, masquerSecret } from "./zernio-erreurs";
+import { IDEMPOTENCE_INBOX, SEGMENT_ID, verifierCorpsInbox, type RouteInboxZernio } from "./zernio-inbox-corps";
 import { exigerCorpsSansMotInterdit, motsInterditsDuCorps } from "./zernio-filtre";
 
 /* --- Types ------------------------------------------------------------------------------------------------------- */
@@ -51,8 +52,10 @@ export interface RequeteApiZernio {
   chemin: string;
   query?: Record<string, string | number | boolean>;
   corps?: unknown;
-  /** En-tête Idempotency-Key (`studio-<hex>` ou `imp-<hex>`), POST /v1/posts seulement. */
+  /** En-tête Idempotency-Key : `studio-<hex>` ou `imp-<hex>` (POST /v1/posts), `inbox-<hex>` (réponse publique, envoi de message). */
   idempotence?: string;
+  /** Inbox : liste FERMÉE des comptes permis (obligatoire sur les 4 routes inbox ; accountId du corps ou de la requête dedans). */
+  comptesPermis?: readonly string[];
   /** En-têtes supplémentaires (refusés si sensibles). */
   entetes?: Record<string, string>;
 }
@@ -83,7 +86,8 @@ export type RouteZernio =
   | "lister-posts"
   | "promouvoir-post"
   | "remplacer-medias"
-  | "analytics";
+  | "analytics"
+  | RouteInboxZernio;
 
 export interface ReponseZernio<T = unknown> {
   statut: number;
@@ -264,6 +268,12 @@ export const ORIGINES_PROMOUVABLES = ["studio", "import-buffer"] as const;
 const HEX_64 = /^[0-9a-f]{64}$/;
 const IDEMPOTENCE_PERMISE = /^(studio|imp)-[0-9a-f]{64}$/;
 
+/** `Idempotency-Key` d'une écriture inbox (réponse publique, envoi de message) : `inbox-<hex>`, 64 signes hexadécimaux en minuscules. */
+export function enteteIdempotenceInbox(cleHex: string): string {
+  if (!HEX_64.test(cleHex)) throw new ErreurZernio("chemin-refuse", "Clé inbox invalide : 64 signes hexadécimaux attendus.");
+  return `inbox-${cleHex}`;
+}
+
 /** `Idempotency-Key` d'un envoi du Studio : `studio-<hex>` à partir de `cleEnvoiPublication` (71 signes). */
 export function enteteIdempotenceStudio(cleHex: string): string {
   if (!HEX_64.test(cleHex)) throw new ErreurZernio("chemin-refuse", "Clé d'envoi invalide : 64 signes hexadécimaux attendus.");
@@ -283,8 +293,6 @@ export function estEcriture(methode: MethodeHttp): boolean {
   return methode !== "GET";
 }
 
-/** Un segment d'identifiant ({accountId}, {postId}) : lettres, chiffres, `_`, `-` seulement. */
-const SEGMENT_ID = "[A-Za-z0-9_-]{1,128}";
 
 /** Table des routes permises : méthode + motif exact du chemin. Tout le reste est refusé. */
 const ROUTES: readonly { methode: MethodeHttp; motif: RegExp; route: RouteZernio }[] = [
@@ -299,7 +307,16 @@ const ROUTES: readonly { methode: MethodeHttp; motif: RegExp; route: RouteZernio
   { methode: "GET", motif: new RegExp(`^/v1/posts/${SEGMENT_ID}$`), route: "lire-post" },
   { methode: "PUT", motif: new RegExp(`^/v1/posts/${SEGMENT_ID}$`), route: "promouvoir-post" },
   { methode: "GET", motif: /^\/v1\/analytics$/, route: "analytics" },
+  // Inbox (4 routes exactement ; /v1/workflows et le reste restent refusés).
+  { methode: "POST", motif: new RegExp(`^/v1/inbox/comments/${SEGMENT_ID}$`), route: "repondre-commentaire" },
+  { methode: "POST", motif: new RegExp(`^/v1/inbox/comments/${SEGMENT_ID}/${SEGMENT_ID}/private-reply$`), route: "reponse-privee" },
+  { methode: "GET", motif: new RegExp(`^/v1/inbox/conversations/${SEGMENT_ID}/messages$`), route: "lire-messages" },
+  { methode: "POST", motif: new RegExp(`^/v1/inbox/conversations/${SEGMENT_ID}/messages$`), route: "envoyer-message" },
 ];
+
+const ROUTES_INBOX: ReadonlySet<RouteZernio> = new Set<RouteZernio>(["repondre-commentaire", "reponse-privee", "lire-messages", "envoyer-message"]);
+/** Les deux écritures inbox qui acceptent Idempotency-Key (la réponse privée n'en documente pas). */
+const ROUTES_IDEMPOTENCE_INBOX: ReadonlySet<RouteZernio> = new Set<RouteZernio>(["repondre-commentaire", "envoyer-message"]);
 
 /** En-têtes supplémentaires permis sur l'API (les autres, dont Authorization, sont posés par le client seul). */
 const ENTETES_API_PERMIS = new Set(["x-request-id"]);
@@ -450,7 +467,16 @@ export function verifierRequete(req: RequeteZernio, hotesTeleversement: Readonly
 
   if (methode === "GET" && req.corps !== undefined) throw refus("Une lecture ne porte pas de corps.");
   if (estEcriture(methode) && req.query && Object.keys(req.query).length > 0) throw refus("Une écriture ne porte pas de paramètres de requête.");
-  if (req.idempotence !== undefined && trouvee.route !== "creer-post") throw refus("Idempotency-Key réservée à la création de post.");
+  if (req.idempotence !== undefined && trouvee.route !== "creer-post" && !ROUTES_IDEMPOTENCE_INBOX.has(trouvee.route)) {
+    throw refus("Idempotency-Key réservée à la création de post, à la réponse publique et à l'envoi de message.");
+  }
+  if (ROUTES_INBOX.has(trouvee.route)) {
+    if (ROUTES_IDEMPOTENCE_INBOX.has(trouvee.route) && (!req.idempotence || !IDEMPOTENCE_INBOX.test(req.idempotence))) {
+      throw refus("Inbox : Idempotency-Key inbox-<hex> exigée.");
+    }
+    verifierCorpsInbox(trouvee.route as RouteInboxZernio, { corps: req.corps, query: req.query, comptesPermis: req.comptesPermis });
+    return trouvee.route;
+  }
 
   switch (trouvee.route) {
     case "creer-post":
@@ -628,6 +654,16 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     }
   }
 
+  /** Détail technique d'une réponse en erreur : JAMAIS pour l'inbox (le corps peut redire une adresse ou un message de la personne). */
+  const detailReponse = (route: RouteZernio, corps: unknown): string | undefined => (ROUTES_INBOX.has(route) ? undefined : texteErreur(corps));
+
+  /** Codes lus à plat dans un corps d'erreur (`code`, `error` court, `details.code`). */
+  function codesDuCorps(corps: unknown): string[] {
+    if (!estObjet(corps)) return [];
+    const d = estObjet(corps.details) ? corps.details : {};
+    return [corps.code, corps.error, d.code].filter((x): x is string => typeof x === "string" && x.length <= 64);
+  }
+
   function texteErreur(corps: unknown): string {
     if (estObjet(corps)) {
       const e = corps.error ?? corps.message;
@@ -708,9 +744,9 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         journal.alerte("Zernio : appel sans réponse", { requete: libelle, delaiDepasse: delai });
         if (ecriture) {
           lectureRequise = true;
-          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: detail });
+          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: ROUTES_INBOX.has(route) ? undefined : detail });
         }
-        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: detail });
+        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) ? undefined : detail });
       }
       journal.info("Zernio : réponse", { requete: libelle, statut: rep.status, dureeMs: maintenant() - debut });
 
@@ -721,15 +757,22 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
           limiteur.reserver(route); // le rejeu compte comme une requête (pas comme un nouveau post)
           continue;
         }
-        throw new ErreurZernio("debit", "Zernio limite les envois pour le moment : réessayer plus tard.", { statut: 429, reessayable: true, attenteMs, detailTechnique: texteErreur(corps) });
+        throw new ErreurZernio("debit", "Zernio limite les envois pour le moment : réessayer plus tard.", { statut: 429, reessayable: true, attenteMs, reessayerApresSec: Math.ceil(attenteMs / 1000), detailTechnique: detailReponse(route, corps) });
       }
       if (rep.status >= 500) {
         journal.alerte("Zernio : erreur serveur", { requete: libelle, statut: rep.status });
         if (ecriture) {
           lectureRequise = true;
-          throw new ErreurZernio("a-verifier", "Zernio a répondu en erreur : état inconnu, lecture exigée avant tout nouvel envoi.", { statut: rep.status, detailTechnique: texteErreur(corps) });
+          const c5 = estObjet(corps) ? corps : {};
+          const d5 = estObjet(c5.details) ? c5.details : {};
+          if (route === "reponse-privee" && (c5.privateReplyOutcome === "unknown" || d5.privateReplyOutcome === "unknown")) {
+            // Issue inconnue : la réponse privée est peut-être partie. « À vérifier », jamais de nouvel essai automatique.
+            journal.alerte("Zernio : réponse privée à vérifier (aucun nouvel essai automatique)", { requete: libelle });
+            throw new ErreurZernio("reponse-privee-inconnue", "La réponse privée a peut-être été envoyée : à vérifier, aucun nouvel essai automatique.", { statut: rep.status });
+          }
+          throw new ErreurZernio("a-verifier", "Zernio a répondu en erreur : état inconnu, lecture exigée avant tout nouvel envoi.", { statut: rep.status, detailTechnique: detailReponse(route, corps) });
         }
-        throw new ErreurZernio("indisponible", "Zernio est indisponible pour le moment.", { statut: rep.status, reessayable: true, detailTechnique: texteErreur(corps) });
+        throw new ErreurZernio("indisponible", "Zernio est indisponible pour le moment.", { statut: rep.status, reessayable: true, detailTechnique: detailReponse(route, corps) });
       }
       if (rep.status === 409) {
         const c = estObjet(corps) ? corps : {};
@@ -739,20 +782,32 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
             statut: 409,
             reessayable: true,
             attenteMs: lireRetryAfter(rep.headers.get("retry-after"), maintenant()),
-            detailTechnique: texteErreur(corps),
+            detailTechnique: detailReponse(route, corps),
           });
         }
         const existant = details.existingPostId ?? c.existingPostId;
         throw new ErreurZernio("doublon", "Contenu identique déjà envoyé à ce compte dans les dernières 24 h.", {
           statut: 409,
           existingPostId: typeof existant === "string" ? existant : undefined,
-          detailTechnique: texteErreur(corps),
+          detailTechnique: detailReponse(route, corps),
         });
       }
-      if (rep.status === 401 || rep.status === 403) throw new ErreurZernio("acces", "Zernio refuse l'accès. Vérifiez la clé dans Connexions.", { statut: rep.status, detailTechnique: texteErreur(corps) });
-      if (rep.status === 404) throw new ErreurZernio("introuvable", "Élément introuvable chez Zernio.", { statut: 404, detailTechnique: texteErreur(corps) });
+      if (rep.status === 403) {
+        const codes = codesDuCorps(corps);
+        if (codes.includes("INBOX_REQUIRED")) throw new ErreurZernio("inbox-requis", "Le module Inbox n'est pas activé chez Zernio.", { statut: 403 });
+        if (codes.includes("message_allowance_exceeded")) throw new ErreurZernio("quota-messages", "Le quota de messages Zernio est épuisé.", { statut: 403 });
+      }
+      if (rep.status === 400 && route === "reponse-privee") {
+        const c4 = estObjet(corps) ? corps : {};
+        const d4 = estObjet(c4.details) ? c4.details : {};
+        if (c4.privateReplyConsumed === true || d4.privateReplyConsumed === true) {
+          throw new ErreurZernio("reponse-privee-consommee", "La réponse privée de ce commentaire a déjà été utilisée : définitif, aucun réessai.", { statut: 400 });
+        }
+      }
+      if (rep.status === 401 || rep.status === 403) throw new ErreurZernio("acces", "Zernio refuse l'accès. Vérifiez la clé dans Connexions.", { statut: rep.status, detailTechnique: detailReponse(route, corps) });
+      if (rep.status === 404) throw new ErreurZernio("introuvable", "Élément introuvable chez Zernio.", { statut: 404, detailTechnique: detailReponse(route, corps) });
       if (rep.status >= 400 || rep.status < 200 || rep.status >= 300) {
-        throw new ErreurZernio("refuse", "Zernio a refusé la demande.", { statut: rep.status, detailTechnique: texteErreur(corps) });
+        throw new ErreurZernio("refuse", "Zernio a refusé la demande.", { statut: rep.status, detailTechnique: detailReponse(route, corps) });
       }
       if (route === "lire-post" || route === "lister-posts") lectureRequise = false;
       return { statut: rep.status, corps: corps as T, route };
