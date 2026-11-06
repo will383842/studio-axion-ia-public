@@ -25,6 +25,11 @@ import type { ErreurFournisseur } from "@/fournisseurs/types";
  * - `quota-messages` : 403 message_allowance_exceeded (quota de messages épuisé) ;
  * - `reponse-privee-consommee` : 400 privateReplyConsumed:true, DÉFINITIF (la réponse privée de ce commentaire est déjà partie), aucun réessai ;
  * - `reponse-privee-inconnue` : 502 privateReplyOutcome:"unknown", issue inconnue : « à vérifier », AUCUN nouvel essai automatique ;
+ * - `limite-incertaine` : 429 sur une ÉCRITURE inbox : on ne sait pas si Zernio a traité la demande (la doc Zernio n'a pas pu être consultée pour le confirmer) ;
+ *   même état que « à vérifier », aucun rejeu automatique, `reessayerApresSec` conserve le Retry-After ;
+ * - `lien-hors-domaine` : un lien du message n'appartient pas à NOS domaines (liste fermée), refus avant le réseau ;
+ * - `guide-inconnu` : titre de guide absent de la liste fermée des titres permis (ou liste absente), refus avant le réseau ;
+ * - `boutons-non-supportes` : réponse privée avec boutons : la route ne les accepte pas / la plateforme les refuse (distinct de `chemin-refuse`), refus avant le réseau ;
  * - `creation-incomplete` : réponse 2xx dont une plateforme est en échec : le post EXISTE chez Zernio, jamais un refus net.
  */
 export type CodeErreurZernio =
@@ -45,10 +50,14 @@ export type CodeErreurZernio =
   | "quota-messages"
   | "reponse-privee-consommee"
   | "reponse-privee-inconnue"
+  | "limite-incertaine"
+  | "lien-hors-domaine"
+  | "guide-inconnu"
+  | "boutons-non-supportes"
   | "creation-incomplete";
 
 /** Codes levés AVANT tout appel réseau (le faux fetch des tests n'est jamais appelé). */
-export const CODES_AVANT_RESEAU: readonly CodeErreurZernio[] = ["envoi-coupe", "mot-interdit", "chemin-refuse", "debit", "lecture-requise"];
+export const CODES_AVANT_RESEAU: readonly CodeErreurZernio[] = ["envoi-coupe", "mot-interdit", "chemin-refuse", "debit", "lecture-requise", "lien-hors-domaine", "guide-inconnu", "boutons-non-supportes"];
 
 export interface DetailsErreurZernio {
   /** Statut HTTP reçu, absent pour un refus avant le réseau. */
@@ -119,7 +128,7 @@ export function versErreurFournisseur(e: ErreurZernio): ErreurFournisseur {
   const code: ErreurFournisseur["code"] =
     e.code === "debit" || e.code === "conflit-idempotence"
       ? "quota"
-      : e.code === "indisponible" || e.code === "a-verifier"
+      : e.code === "indisponible" || e.code === "a-verifier" || e.code === "limite-incertaine"
         ? "indisponible"
         : e.code === "reponse-invalide"
           ? "inconnu"
