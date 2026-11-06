@@ -8,14 +8,15 @@
 import "server-only";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
+import { cleIdempotence, RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import type { TransportSite } from "@/fournisseurs/site/types";
 import { depots, ecrireParametre, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { construireGrapheMot, construireGrapheStop, estMotOpposition, type DefinitionWorkflow } from "./mots-graphe";
 import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisSaisie, textesValides, type SaisieMot, type TextesMot } from "./mots-textes";
 import { creerNotification } from "./notifications";
-import { empreinteContact, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
+import { ESPACE_CONTACT_ZERNIO, enregistrerOppositionSousVerrou, marquerTransmise, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
+import { ErreurEmpreinteIndisponible } from "@/domaine/guide-reseau/empreinte-personne";
 import { parcoursMotActif } from "./parcours-mot";
 import { envoiZernioAutorise } from "./zernio";
 
@@ -401,17 +402,24 @@ export async function traiterOppositions(o: { env?: Env } = {}): Promise<{ actif
     const idContact = typeof ev.charge.idContact === "string" ? ev.charge.idContact : null;
     const idRun = String(ev.charge.idRun);
     // Relecture SOUS verrou : deux passages simultanés ne traitent (ni n'alertent) jamais deux fois le même événement.
-    const reserve = await sousVerrou(async () => {
-      const courant = (await depots().evenementsFournisseurs.lister((e) => e.id === ev.id))[0];
-      if (!courant || courant.traite) return false;
-      const liste = await lireParametre<{ id: string; le: string; transmise: boolean }[]>(PARAM_OPPOSITIONS_MOTS, []);
-      // Sans identifiant de contact, l'événement lui-même est enregistré (empreinte de son identifiant) : personne n'est oublié.
-      const id = empreinteContact(idContact ?? `evenement:${ev.idEvenement}`);
-      if (!liste.some((x) => x.id === id)) liste.push({ id, le: maintenant(), transmise: false });
-      await ecrireParametre(PARAM_OPPOSITIONS_MOTS, liste);
-      await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat: "opposition", prochainEssaiLe: null } });
-      return true;
-    });
+    // Sans identifiant de contact, l'événement lui-même est enregistré (espace « evenement ») : personne n'est oublié.
+    const espace = idContact ? ESPACE_CONTACT_ZERNIO : "evenement";
+    const idPersonne = idContact ?? ev.idEvenement;
+    let reserve: boolean;
+    try {
+      reserve = await sousVerrou(async () => {
+        const courant = (await depots().evenementsFournisseurs.lister((e) => e.id === ev.id))[0];
+        if (!courant || courant.traite) return false;
+        // Échec fermé : sans secret valide, rien n'est écrit et l'événement reste NON traité (repris au prochain passage).
+        await enregistrerOppositionSousVerrou(idPersonne, espace, { env });
+        await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat: "opposition", prochainEssaiLe: null } });
+        return true;
+      });
+    } catch (e) {
+      if (!(e instanceof ErreurEmpreinteIndisponible)) throw e;
+      await journaliser("mots", `Opposition (STOP) en attente pour l'événement ${ev.idEvenement} : empreinte indisponible.`);
+      continue;
+    }
     if (!reserve) continue;
     await creerNotification({ type: "info", titre: "Opposition reçue (STOP)", message: "Une personne a écrit STOP. Elle est mise à l'écart ; rien n'est supprimé.", lien: "/mots" });
     prises++;
@@ -419,15 +427,12 @@ export async function traiterOppositions(o: { env?: Env } = {}): Promise<{ actif
       try {
         const lu = await lecteurOpp(idRun, { idContact });
         if (lu) {
-          const corps = JSON.stringify({ schemaVersion: 1, cleIdempotence: cleIdempotence(idRun), email: lu.email, motif: "stop", reseau: lu.reseau, occurredAt: lu.occurredAt });
+          const corps = JSON.stringify({ schemaVersion: 1, cleIdempotence: typeof ev.charge.cleIdempotenceOpposition === "string" && RE_CLE_IDEMPOTENCE.test(ev.charge.cleIdempotenceOpposition) ? ev.charge.cleIdempotenceOpposition : cleIdempotence(idRun), email: lu.email, motif: "stop", reseau: lu.reseau, occurredAt: lu.occurredAt });
           const entetes = signerAppel({ secret, methode: "POST", chemin: CHEMIN_OPPOSITIONS_SITE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
           const r = await transportOpp({ methode: "POST", chemin: CHEMIN_OPPOSITIONS_SITE, corps, entetes });
           if (r.statut >= 200 && r.statut < 300) {
             transmises++;
-            await sousVerrou(async () => {
-              const liste = await lireParametre<{ id: string; le: string; transmise: boolean }[]>(PARAM_OPPOSITIONS_MOTS, []);
-              await ecrireParametre(PARAM_OPPOSITIONS_MOTS, liste.map((x) => (idContact && x.id === empreinteContact(idContact) ? { ...x, transmise: true } : x)));
-            });
+            await marquerTransmise(idPersonne, espace, { env });
           }
         }
       } catch {

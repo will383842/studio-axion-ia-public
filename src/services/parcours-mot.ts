@@ -13,7 +13,7 @@
 import "server-only";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
-import { cleIdempotence } from "@/domaine/guide-reseau/cle-idempotence";
+import { cleIdempotence, RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { construireOrigineV3, corpsDemandeGuideV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import {
   ATTENTES_INTROUVABLE_MS,
@@ -42,7 +42,8 @@ import { creerTransportHttp } from "@/fournisseurs/site/http";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import type { TransportSite } from "@/fournisseurs/site/types";
 import { nouvelId } from "@/lib/ids";
-import { personneOpposee } from "./oppositions-mots";
+import { ESPACE_CONTACT_ZERNIO, personneOpposee } from "./oppositions-mots";
+import { cleIdempotenceOpaque, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { depots, horodatage, journaliser, maintenant, sousVerrou } from "./_commun";
 
 /**
@@ -127,7 +128,11 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
     const evt = lireEvenementRun(enveloppe);
     if (!evt) return { statut: 422, corps: { erreur: "charge_inconnue" } };
     // Seul l'identifiant (opaque) du run est gardé ; `motDeclencheur` n'est un mot que s'il est mot seul ou opposition (jamais de texte libre).
-    entite = { fournisseur: FOURNISSEUR, idEvenement, type: evt.type, charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null } };
+    // Clés d'idempotence opaques : calculées ICI, UNE fois, avec le secret courant, puis STOCKÉES (jamais recalculées : la rotation
+    // du secret les changerait). Sans secret valide : rien n'est stocké et l'envoi retombe sur la clé d'origine (stable, sans secret).
+    const k = lireClesEmpreinte(env);
+    const cles = k.ok ? { cleIdempotenceGuide: cleIdempotenceOpaque(k.courante, "guide", evt.idRun), cleIdempotenceOpposition: cleIdempotenceOpaque(k.courante, "opposition", evt.idRun) } : {};
+    entite = { fournisseur: FOURNISSEUR, idEvenement, type: evt.type, charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, ...cles, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null } };
   } else if (enveloppe.event === TYPE_EVENEMENT_COMMENTAIRE && evenementsMotsActifs(env)) {
     const c = lireEvenementCommentaire(enveloppe);
     // Rien à déposer : pas de mot seul, une réponse, ou notre propre réponse publique. Aucun traitement métier ici.
@@ -243,7 +248,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   // Personne déjà opposée : aucune lecture du run, aucun appel au site, donc aucun guide. L'événement est conservé (rien n'est supprimé).
   let opposee: boolean;
   try {
-    opposee = await personneOpposee(typeof ev.charge.idContact === "string" ? ev.charge.idContact : null);
+    opposee = await personneOpposee(typeof ev.charge.idContact === "string" ? ev.charge.idContact : null, ESPACE_CONTACT_ZERNIO);
   } catch {
     // Registre illisible (panne de base) : nouvel essai plus tard, JAMAIS une mise à l'écart. Événement non traité, échelle des pannes non consommée.
     await depots().evenementsFournisseurs.modifier(ev.id, { traite: false, charge: { ...ev.charge, etat: "a_reessayer", dernierCode: "registre_illisible", prochainEssaiLe: now + ATTENTE_REGISTRE_ILLISIBLE_MS } });
@@ -279,7 +284,9 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
         await journaliser("parcours_mot", `Origine v3 non envoyée pour l'événement ${ev.idEvenement} : ${o3.code}.`);
         refusJournalise = true;
       }
-      const corps = o3?.ok ? corpsDemandeGuideV3(run, cleIdempotence(idRun), o3.origine) : corpsDemandeGuide(run, cleIdempotence(idRun));
+      // Clé STOCKÉE à l'enregistrement (stable après rotation) ; événements antérieurs : clé d'origine, déterministe.
+      const cleEnvoi = typeof ev.charge.cleIdempotenceGuide === "string" && RE_CLE_IDEMPOTENCE.test(ev.charge.cleIdempotenceGuide) ? ev.charge.cleIdempotenceGuide : cleIdempotence(idRun);
+      const corps = o3?.ok ? corpsDemandeGuideV3(run, cleEnvoi, o3.origine) : corpsDemandeGuide(run, cleEnvoi);
       for (let n = 0; n < ESSAIS_NONCE; n++) {
         const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
         try {

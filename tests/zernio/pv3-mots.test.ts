@@ -21,6 +21,8 @@ const { etatGlobalMots } = await import("@/components/mots/etat-mots");
 const J = (...p: string[]) => p.join("");
 const TOKENS = { lieu: J("Gren", "oble"), label: J("Quali", "opi"), participe: J("cert", "ifié"), gain: J("Aucun gain ", "garanti") };
 const ALLUME = { MOTS_ENABLED: "1" };
+// Échec fermé : la prise en compte d'un STOP exige le secret d'empreinte (même valeur fictive que vitest.config.mts).
+const ALLUME_EMPREINTE = { ...ALLUME, STUDIO_EMPREINTE_SECRET: "secret-fictif-de-test-empreinte-0123456789" };
 const T0 = Date.UTC(2026, 10, 3, 10, 0, 0);
 
 const brouillon = (mot = "GUIDE") =>
@@ -380,7 +382,7 @@ describe("pv3 · STOP par compte", () => {
     const avant = (await depots().notifications.lister(() => true)).length; // le dépôt mémoire contient des exemples
     expect(await S.traiterOppositions({ env: {} })).toEqual({ actif: false, prises: 0, transmises: 0 });
     expect((await depots().notifications.lister(() => true)).length).toBe(avant);
-    expect(await S.traiterOppositions({ env: ALLUME })).toMatchObject({ actif: true, prises: 1 });
+    expect(await S.traiterOppositions({ env: ALLUME_EMPREINTE })).toMatchObject({ actif: true, prises: 1 });
     const evts = await depots().evenementsFournisseurs.lister(() => true);
     expect(evts).toHaveLength(2); // rien supprimé
     expect(evts.find((e) => e.idEvenement === "a")).toMatchObject({ traite: true, charge: { etat: "opposition" } });
@@ -391,14 +393,14 @@ describe("pv3 · STOP par compte", () => {
     const liste = await lireParametre<{ id: string }[]>(S.PARAM_OPPOSITIONS_MOTS, []);
     expect(liste).toHaveLength(1);
     expect(JSON.stringify(liste)).not.toContain("ct_a"); // empreinte, pas l'identifiant
-    expect(await S.traiterOppositions({ env: ALLUME })).toMatchObject({ prises: 0 }); // une seule fois
+    expect(await S.traiterOppositions({ env: ALLUME_EMPREINTE })).toMatchObject({ prises: 0 }); // une seule fois
   });
   it("transmission signée au site, e-mail jamais conservé", async () => {
     await deposer("ARRÊT", "c");
     const vus: RequeteSignee[] = [];
     S.injecterLecteurOpposition(async () => ({ email: "lecteur-fictif@example.com", reseau: "instagram" }));
     S.injecterTransportOpposition(async (r) => (vus.push(r), { statut: 200, corps: {} }));
-    const env = { ...ALLUME, SITE_GUIDES_RESEAU_SECRET: "secret-fictif-pv3" };
+    const env = { ...ALLUME_EMPREINTE, SITE_GUIDES_RESEAU_SECRET: "secret-fictif-pv3" };
     expect(await S.traiterOppositions({ env })).toMatchObject({ prises: 1, transmises: 1 });
     expect(vus).toHaveLength(1);
     expect(vus[0].chemin).toBe(S.CHEMIN_OPPOSITIONS_SITE);
