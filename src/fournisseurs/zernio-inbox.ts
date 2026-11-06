@@ -77,6 +77,10 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
   const { client } = options;
   const comptesPermis = [...options.comptesPermis];
   const domainesPermis = options.domainesPermis ? [...options.domainesPermis] : undefined;
+  // Un domaine permis contient un point et ne commence pas par un point (« com » ou « .com » ouvriraient tout un suffixe).
+  if (domainesPermis?.some((d) => typeof d !== "string" || !d.trim().includes(".") || d.trim().startsWith("."))) {
+    throw new Error("Inbox : domainesPermis invalide (un domaine complet est attendu).");
+  }
   const titresGuidesPermis = [...(options.titresGuidesPermis ?? [])];
   const listes = { comptesPermis, domainesPermis, titresGuidesPermis };
 

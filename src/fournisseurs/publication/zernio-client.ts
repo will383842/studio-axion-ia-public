@@ -761,6 +761,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
           // qu'un 429 veut dire « rien n'a été traité ». On ne rejoue donc JAMAIS une écriture inbox : même état que « à vérifier »,
           // Retry-After conservé pour l'appelant. (Les lectures et les posts gardent leur rejeu unique.)
           journal.alerte("Zernio : limite atteinte sur une écriture inbox, issue incertaine (aucun rejeu automatique)", { requete: libelle });
+          lectureRequise = true;
           throw new ErreurZernio("limite-incertaine", "Zernio limite les envois et on ne sait pas si la demande a été traitée : à vérifier, aucun rejeu automatique.", { statut: 429, attenteMs, reessayerApresSec: Math.ceil(attenteMs / 1000) });
         }
         if (essai === 1 && attenteMs <= RETRY_AFTER_MAX_MS) {
