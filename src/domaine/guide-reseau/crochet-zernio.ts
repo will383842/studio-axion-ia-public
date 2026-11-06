@@ -147,6 +147,8 @@ export interface EvenementCommentaire {
   idCompte: string;
   reseau: "instagram" | "facebook";
   idAuteur: string | null;
+  /** Vrai si l'auteur est NOTRE compte (`author.isOwnAccount` du corps réel, ou ancienne garde par identifiant). Rien n'est à traiter. */
+  proprio: boolean;
   /** Texte normalisé SEULEMENT s'il est un mot seul ou une opposition ; sinon null. Jamais le texte brut. */
   motSeul: string | null;
   estReponse: boolean;
@@ -158,6 +160,14 @@ export interface EvenementMessage {
   idExpediteur: string | null;
   /** Charge d'un bouton (identifiant opaque sans espace ni « @ »), sinon null. Jamais `message.text`. */
   postback: string | null;
+  /** Instant du message (ISO 8601 normalisé), seulement s'il est lisible et borné (2020 à 2100) ; sinon absent. */
+  occurredAt?: string;
+}
+/** Horodatage ISO borné : lisible, entre 2020 et 2100, sinon `undefined`. Jamais de texte libre. */
+function dateBornee(v: unknown): string | undefined {
+  if (typeof v !== "string" || v.length > 40 || !RE_DATE_ISO.test(v)) return undefined;
+  const t = Date.parse(v);
+  return Number.isFinite(t) && t >= Date.UTC(2020, 0, 1) && t < Date.UTC(2100, 0, 1) ? new Date(t).toISOString() : undefined;
 }
 const idOpaque = (v: unknown): string | null => (typeof v === "string" && RE_ID.test(v) ? v : null);
 const idCompteDe = (racine: Record<string, unknown>): string | null => {
@@ -179,17 +189,19 @@ export function lireEvenementCommentaire(env: EnveloppeZernio): EvenementComment
   if (!c || !idCommentaire || !idCompte || (plateforme !== "instagram" && plateforme !== "facebook")) return null;
   const auteur = objet(c.author) ?? objet(c.from);
   const idAuteur = idOpaque(auteur?.id) ?? idOpaque(c.authorId);
-  const propre = auteur?.isSelf === true || c.isOwn === true || (idAuteur !== null && (idAuteur === idCompte || idAuteur === idOpaque(compte?.platformAccountId)));
+  const proprio = auteur?.isOwnAccount === true;
+  const propre = proprio || auteur?.isSelf === true || c.isOwn === true || (idAuteur !== null && (idAuteur === idCompte || idAuteur === idOpaque(compte?.platformAccountId)));
   const texte = typeof c.text === "string" ? c.text : null;
   const motSeul = texte !== null && texte.length <= 200 ? motSeulDe(texte)?.toUpperCase() ?? null : null;
   const estReponse = c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== "");
   return {
     idCommentaire,
-    idPostPlateforme: idOpaque(c.platformPostId) ?? idOpaque(c.postId) ?? idOpaque(objet(env.racine.post)?.platformPostId),
+    idPostPlateforme: idOpaque(c.platformPostId) ?? idOpaque(objet(env.racine.post)?.platformPostId) ?? idOpaque(c.postId),
     idCompte,
     reseau: plateforme as "instagram" | "facebook",
     // Notre propre réponse publique : on la marque en vidant l'auteur ET le mot (rien à traiter).
     idAuteur: propre ? idCompte : idAuteur,
+    proprio: propre,
     motSeul: propre ? null : motSeul,
     estReponse,
   };
@@ -214,6 +226,7 @@ export function lireEvenementMessage(env: EnveloppeZernio): EvenementMessage | n
     idCompte,
     idExpediteur: propre ? idCompte : idExpediteur,
     postback: propre ? null : idOpaque(brut),
+    ...(dateBornee(m.createdAt ?? m.timestamp ?? m.sentAt) ? { occurredAt: dateBornee(m.createdAt ?? m.timestamp ?? m.sentAt) } : {}),
   };
 }
 

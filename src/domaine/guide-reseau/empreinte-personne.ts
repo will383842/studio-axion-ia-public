@@ -10,7 +10,7 @@ const LONGUEUR_MINI = 32;
 const MAX_ANCIENS = 3;
 const LONGUEUR_ID_MAX = 256; // au-delà : condensé SHA-256
 
-export type EspacePersonne = "instagram" | "facebook" | "zernio-contact" | "evenement";
+export type EspacePersonne = "instagram" | "facebook" | "zernio-contact" | "evenement" | "zernio-conversation";
 export interface CleEmpreinte {
   kid: string;
   secret: Buffer;

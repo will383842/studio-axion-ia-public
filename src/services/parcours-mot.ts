@@ -89,6 +89,8 @@ let transportInjecte: TransportSite | null = null;
 export function injecterLecteurRuns(l: LecteurRuns | null): void {
   lecteurInjecte = l;
 }
+/** Transport signé vers le site (partagé avec le parcours de conversation). `null` = non relié. */
+export { transportDuSite };
 export function injecterTransportSite(t: TransportSite | null): void {
   transportInjecte = t;
 }
@@ -136,12 +138,13 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
   } else if (enveloppe.event === TYPE_EVENEMENT_COMMENTAIRE && evenementsMotsActifs(env)) {
     const c = lireEvenementCommentaire(enveloppe);
     // Rien à déposer : pas de mot seul, une réponse, ou notre propre réponse publique. Aucun traitement métier ici.
-    if (!c || c.motSeul === null || c.estReponse || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    if (!c || c.proprio || c.motSeul === null || c.estReponse || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.commentaire", charge: { ...c, etat: "a_faire" } };
     cleSecondaire = (e) => e.type === "zernio.commentaire" && e.charge.idCompte === c.idCompte && e.charge.idCommentaire === c.idCommentaire;
   } else if (enveloppe.event === TYPE_EVENEMENT_MESSAGE && evenementsMotsActifs(env)) {
     const m = lireEvenementMessage(enveloppe);
-    if (!m || m.postback === null) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    // Message SANS bouton : déposé aussi (identifiants seulement, jamais le texte) ; l'écho de notre compte est écarté.
+    if (!m || m.idExpediteur === null || m.idExpediteur === m.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.message", charge: { ...m, etat: "a_faire" } };
     cleSecondaire = (e) => e.type === "zernio.message" && e.charge.idCompte === m.idCompte && e.charge.idMessage === m.idMessage;
   }
