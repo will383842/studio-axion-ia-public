@@ -153,16 +153,22 @@ async function retrouver(empreintes: string[]): Promise<{ cle: string; etat: Con
     return null;
   });
 }
-async function noterAlias(cle: string, empreintes: string[]): Promise<void> {
-  await sousVerrou(async () => {
+export async function noterAlias(cle: string, empreintes: string[]): Promise<void> {
+  const refuses = await sousVerrou(async () => {
     const { conv, alias } = await lireTout();
     const e = conv[cle];
-    if (!e) return;
-    const nouveaux = empreintes.filter((x) => x !== cle && !(x in alias && alias[x] === cle));
-    if (nouveaux.length === 0) return;
+    if (!e) return 0;
+    // Jamais de réattribution silencieuse : une empreinte déjà rattachée à une autre personne (alias ou clé de conversation) est refusée.
+    const etrangere = (x: string): boolean => (x in alias && alias[x] !== cle) || (x !== cle && x in conv);
+    const nouveaux = empreintes.filter((x) => x !== cle && !(x in alias && alias[x] === cle) && !etrangere(x));
+    const nbRefuses = empreintes.filter((x) => x !== cle && etrangere(x)).length;
+    if (nouveaux.length === 0) return nbRefuses;
     await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, [cle]: { ...e, alias: [...new Set([...e.alias, ...nouveaux])] } });
     await ecrireParametre(PARAM_CONVERSATIONS_ALIAS, { ...alias, ...Object.fromEntries(nouveaux.map((x) => [x, cle])) });
+    return nbRefuses;
   });
+  // Journal hors verrou : un code, jamais d'identifiant ni d'empreinte.
+  if (refuses > 0) await journaliser("parcours_conversation", "Alias refusé (alias_deja_rattache) : déjà rattaché à une autre personne.");
 }
 
 /* --- Événements ------------------------------------------------------------------------------------------------ */
@@ -209,7 +215,11 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const cle = empreintePersonne(cles, ESPACE_CONVERSATION, idAuteur!);
   if (filtre.action === "opposer") {
     await enregistrerOpposition(idAuteur!, ESPACE_CONVERSATION, { env });
-    await ecrireEtat(cle, (e) => (e ? { ...e, etat: "oppose", prochainEssaiLe: null } : etatNeuf("oppose", c, d, cleIdempotenceOpaque(cles, "guide", ev.idEvenement), now)));
+    // Aussi tous les alias connus de la personne (comme l'opposition en privé) : l'auteur peut être lui-même un alias.
+    const connu = await retrouver([cle]);
+    const cleEtat = connu?.cle ?? cle;
+    for (const emp of new Set([cle, cleEtat, ...(connu?.etat.alias ?? [])])) await enregistrerOppositionParEmpreinte(emp, { env });
+    await ecrireEtat(cleEtat, (e) => (e ? { ...e, etat: "oppose", prochainEssaiLe: null } : etatNeuf("oppose", c, d, cleIdempotenceOpaque(cles, "guide", ev.idEvenement), now)));
     await clore(ev, "oppose", "opposition");
     return "traite";
   }
@@ -335,7 +345,8 @@ const pannesSite = (code: string): boolean => code === "injoignable" || code ===
  * Lecture du texte d'un message entrant. Rend le texte, ou `null` quand l'événement a déjà été traité ici :
  *  - PANNE de lecture (erreur, accès, réseau) : réessai à délai croissant, JAMAIS ignoré ni conclu « non opposé » (comme un registre
  *    illisible), alerte au plus une par heure ;
- *  - message SANS texte (absent, bouton, sortant) : 3 réessais puis ignoré.
+ *  - message INTROUVABLE dans la liste : réessais à 5 min, 30 min, 2 h, 6 h ; ignoré seulement si la dernière lecture échoue aussi ;
+ *  - message SANS texte (bouton, sortant) : 3 réessais puis ignoré.
  */
 async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte: string, idConversation: string, idMessage: string, now: number): Promise<{ texte: string } | null> {
   const c = ev.charge;
@@ -350,6 +361,14 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
     const s = transition(null, { t: "texte_panne", essais: n });
     await reporter(ev, now, s.apresMs ?? 30_000, "lecture_panne", { pannesLecture: n + 1 });
     await alerter("lecture_panne", "La lecture d'un message privé échoue (panne Zernio ou réseau) : l'événement est réessayé plus tard, rien n'est ignoré. Vérifier l'accès à l'Inbox Zernio.", now);
+    return null;
+  }
+  if (lu.introuvable === true) {
+    // Message absent de la liste (pagination, indexation) : délais longs ; à la dernière lecture sans succès seulement, on clôt.
+    const n = Number(c.essaisIntrouvable ?? 0);
+    const s = transition(null, { t: "texte_introuvable", essais: n });
+    if (s.action === "introuvable_reessai") await reporter(ev, now, s.apresMs ?? 5 * 60_000, "message_introuvable", { essaisIntrouvable: n + 1 });
+    else await clore(ev, "ignore", "introuvable");
     return null;
   }
   if (lu.texte === null) {
@@ -420,35 +439,45 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, "silence", "opposee");
     return "traite";
   }
-  if (s0.action === "lire_opposition") {
-    // État où le message est ignoré (terminé, expiré, refusé…) : on lit quand même le texte, pour y repérer SEULEMENT une opposition.
+  if (s0.action === "reprendre_recu") {
+    // Envoi sortant : soumis aux gardes.
+    const bloque = await garde(d, env, etat.idCompte, etat.reseau);
+    if (bloque) {
+      await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+      return "bloque";
+    }
     if (!idConversation) {
       await clore(ev, "ignore", "conversation_inconnue");
       return "traite";
     }
-    const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now);
-    if (!lu) return "traite";
+    return envoyerRecu(ev, d, cle, etat, idConversation, idMessage, now);
+  }
+  // LECTURE AVANT LES GARDES, dans tous les états : un « stop » est toujours lu et enregistré (lire n'envoie rien).
+  if (!idConversation) {
+    await clore(ev, "ignore", "conversation_inconnue");
+    return "traite";
+  }
+  const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now);
+  if (!lu) return "traite";
+  if (s0.action === "lire_opposition") {
+    // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition.
     if (estMotOpposition(lu.texte)) await opposerEnPrive(ev, env, cle, idExpediteur!, emps);
     else await clore(ev, "silence", s0.raison ?? "etat");
     return "traite";
   }
+  if (estMotOpposition(lu.texte)) {
+    await opposerEnPrive(ev, env, cle, idExpediteur!, emps);
+    return "traite";
+  }
+  // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
   const bloque = await garde(d, env, etat.idCompte, etat.reseau);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     return "bloque";
   }
-  if (!idConversation) {
-    await clore(ev, "ignore", "conversation_inconnue");
-    return "traite";
-  }
-  if (s0.action === "reprendre_recu") return envoyerRecu(ev, d, cle, etat, idConversation, idMessage, now);
-  // Lecture du message (entrants seulement). Rien n'est conservé : le texte reste en mémoire le temps de ce traitement.
-  const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now);
-  if (!lu) return "traite";
   // Lecture réussie = message entrant confirmé : seulement maintenant, les alias sont notés.
-  const estOpposition = estMotOpposition(lu.texte);
-  const adresse = estOpposition ? null : extraireAdresse(lu.texte);
-  const s = transition(etat, { t: "texte", estOpposition, adresse });
+  const adresse = extraireAdresse(lu.texte);
+  const s = transition(etat, { t: "texte", estOpposition: false, adresse });
   if (s.action === "opposer") {
     await opposerEnPrive(ev, env, cle, idExpediteur!, emps);
     return "traite";
@@ -468,7 +497,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     const sm = transition(etat, { t: "m1", res, maintenantMs: now });
     await reagir(sm, now);
     // M2 compté dès qu'il est parti ou d'issue inconnue (jamais deux fois) ; un refus net ne compte pas.
-    if (res.statut === "envoye" || res.statut === "a_verifier") await patcher(cle, { m2Envoye: true, etat: etat.etat === "attente_email" ? "m2_envoye" : etat.etat });
+    if (res.statut === "envoye" || res.statut === "a_verifier") await patcher(cle, { m2Envoye: true, m2Le: new Date(now).toISOString(), etat: etat.etat === "attente_email" ? "m2_envoye" : etat.etat });
     await clore(ev, res.statut, res.code ?? null);
     return "traite";
   }
