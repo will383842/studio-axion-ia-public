@@ -28,6 +28,9 @@ export interface ResultatEcritureInbox {
   etat?: "a_verifier" | "consommee";
   /** Réponse privée déjà consommée (400 privateReplyConsumed) : définitif. */
   consomme?: boolean;
+  /** Identifiants de conversation / de destinataire rendus par Zernio (transit : l'appelant n'en garde que des empreintes). */
+  idConversation?: string;
+  idDestinataire?: string;
   /** Réponse privée à l'issue inconnue (502 privateReplyOutcome unknown) : à vérifier, aucun nouvel essai automatique. */
   issueInconnue?: boolean;
   /** 429 (incertain) : attente conseillée avant de vérifier. */
@@ -37,6 +40,8 @@ export interface ResultatEcritureInbox {
 export interface MessageLu {
   texte: string | null;
   postback: string | null;
+  /** Vrai : la lecture elle-même a échoué (panne). À réessayer, JAMAIS conclu « sans texte » ni « non opposé ». */
+  panne?: boolean;
 }
 
 export interface PortInboxZernio {
@@ -59,6 +64,21 @@ function versBoutons(boutons: BoutonPostback[] | undefined): { type: "postback";
   return boutons && boutons.length > 0 ? boutons.map((b) => ({ type: "postback", title: b.titre, payload: b.payload })) : undefined;
 }
 
+function idOpaqueDe(v: unknown): string | undefined {
+  return typeof v === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(v) ? v : undefined;
+}
+function idConversationDe(corps: unknown): string | undefined {
+  if (!estObjet(corps)) return undefined;
+  const m = estObjet(corps.message) ? corps.message : corps;
+  const conv = estObjet(corps.conversation) ? corps.conversation : undefined;
+  return idOpaqueDe(m.conversationId) ?? idOpaqueDe(corps.conversationId) ?? idOpaqueDe(conv?.id);
+}
+function idDestinataireDe(corps: unknown): string | undefined {
+  if (!estObjet(corps)) return undefined;
+  const m = estObjet(corps.message) ? corps.message : corps;
+  const r = estObjet(m.recipient) ? m.recipient : estObjet(corps.recipient) ? corps.recipient : undefined;
+  return idOpaqueDe(m.recipientId) ?? idOpaqueDe(corps.recipientId) ?? idOpaqueDe(r?.id);
+}
 function idMessageDe(corps: unknown): string | undefined {
   if (!estObjet(corps)) return undefined;
   const m = estObjet(corps.message) ? corps.message : corps;
@@ -87,7 +107,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
   async function ecrire(requete: Parameters<ClientZernio["requete"]>[0]): Promise<ResultatEcritureInbox> {
     try {
       const rep = await client.requete(requete);
-      return { statut: "envoye", idMessage: idMessageDe(rep.corps) };
+      return { statut: "envoye", idMessage: idMessageDe(rep.corps), ...(idConversationDe(rep.corps) ? { idConversation: idConversationDe(rep.corps) } : {}), ...(idDestinataireDe(rep.corps) ? { idDestinataire: idDestinataireDe(rep.corps) } : {}) };
     } catch (e) {
       if (!estErreurZernio(e)) return { statut: "refuse", code: "erreur-inconnue" };
       switch (e.code) {
@@ -159,7 +179,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
         const pb = estObjet(m.postback) ? m.postback.payload : undefined;
         return { texte, postback: typeof pb === "string" && pb.length <= 64 ? pb : null };
       } catch {
-        return vide;
+        return { ...vide, panne: true };
       }
     },
   };

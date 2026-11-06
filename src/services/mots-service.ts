@@ -489,3 +489,6 @@ export async function listerMotsFichiers(dossier = DOSSIER_MOTS): Promise<string
     return [];
   }
 }
+
+/** Ouvre le disjoncteur des mots depuis un autre service (parcours de conversation) : même effet, même alerte, sous le verrou. */
+export const ouvrirDisjoncteurMotsExterne = (raison: string): Promise<void> => sousVerrou(() => ouvrirDisjoncteur(raison));

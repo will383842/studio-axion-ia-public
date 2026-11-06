@@ -111,6 +111,19 @@ export async function enregistrerOpposition(idContact: string, espace: EspacePer
   const c = cles(o);
   return sousVerrou(() => ecrireOpposition(idContact, espace, c));
 }
+/**
+ * Met à l'écart une personne connue SEULEMENT par une empreinte déjà calculée (forme p1 courante ou ancienne) : aucun identifiant brut
+ * n'est requis. Une forme déjà présente (id ou alias d'une ligne) n'ajoute rien. Échec fermé sans secret valide.
+ */
+export async function enregistrerOppositionParEmpreinte(empreinte: string, o?: Options): Promise<void> {
+  const c = cles(o);
+  await sousVerrou(async () => {
+    const liste = await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, []);
+    verifierKids(liste, c);
+    if (liste.some((x) => contientEnTempsConstant(formes(x), [empreinte]))) return;
+    await ecrireParametre(PARAM_OPPOSITIONS_MOTS, [...liste, { id: empreinte, le: maintenant(), transmise: false }]);
+  });
+}
 /** Comme `enregistrerOpposition`, pour un appelant QUI TIENT DÉJÀ le verrou (le verrou n'est pas réentrant). */
 export async function enregistrerOppositionSousVerrou(idContact: string, espace: EspacePersonne = ESPACE_CONTACT_ZERNIO, o?: Options): Promise<string> {
   return ecrireOpposition(idContact, espace, cles(o));
