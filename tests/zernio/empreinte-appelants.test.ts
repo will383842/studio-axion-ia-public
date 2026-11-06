@@ -127,6 +127,17 @@ describe("traiterOppositions : empreinte, déduplication, échec fermé, espaces
   });
 });
 
+describe("espace « zernio-conversation » (lot 3a)", () => {
+  it("existe, est distinct des autres espaces et donne une empreinte différente", () => {
+    const k = E.lireClesEmpreinte(ENV_E1);
+    if (!k.ok) throw new Error("clés");
+    const esp: import("@/domaine/guide-reseau/empreinte-personne").EspacePersonne = "zernio-conversation";
+    const a = E.empreintePersonne(k.courante, esp, "id-fictif");
+    expect(a).toMatch(/^p1\./);
+    for (const autre of ["instagram", "facebook", "zernio-contact", "evenement"] as const) expect(E.empreintePersonne(k.courante, autre, "id-fictif")).not.toBe(a);
+  });
+});
+
 describe("STOP jamais perdu : identifiants UTF-8 ou très longs", () => {
   const ids = ["contact-é-日本-🙂", "x".repeat(1000)];
   it("aiguillage : un STOP est enregistré puis la personne est reconnue (espace « zernio-contact »)", async () => {
