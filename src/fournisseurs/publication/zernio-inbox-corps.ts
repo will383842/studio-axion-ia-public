@@ -21,6 +21,9 @@ export const BOUTONS_MAX = 3;
 export const BOUTON_TITRE_MAX = 20;
 const BOUTON_PAYLOAD = /^[A-Za-z0-9_:-]{1,64}$/;
 
+/** NOS domaines par défaut (sous-domaines compris), comme `lien-fin.ts` et `BASE_PUBLIQUE`. Configurable à l'appel. */
+export const DOMAINES_PERMIS_PAR_DEFAUT: readonly string[] = ["axion-ia.com"];
+
 const refus = (message: string) => new ErreurZernio("chemin-refuse", `${message} Rien n'a été envoyé.`);
 const estObjet = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 const echapper = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -32,19 +35,68 @@ const VALEUR_MARQUEUR: Record<string, string> = {
   "[LIEN]": "https://[^\\s\\[\\]]{1,300}",
 };
 
-function motif(texte: string): RegExp {
+/** Motif d'un texte du dictionnaire + ordre des marqueurs (un groupe capturant par marqueur, pour relire titre et lien). */
+function motif(texte: string): { re: RegExp; marqueurs: string[] } {
   let source = "";
+  const marqueurs: string[] = [];
   for (const morceau of texte.split(/(\[MOT\]|\[TITRE DU GUIDE\]|\[LIEN\])/)) {
-    source += VALEUR_MARQUEUR[morceau] ?? echapper(morceau);
+    if (VALEUR_MARQUEUR[morceau]) {
+      marqueurs.push(morceau);
+      source += `(${VALEUR_MARQUEUR[morceau]})`;
+    } else source += echapper(morceau);
   }
-  return new RegExp(`^${source}$`);
+  return { re: new RegExp(`^${source}$`), marqueurs };
 }
 
-const MOTIFS = Object.entries(TEXTES_MP).map(([id, t]) => ({ id, publique: id.startsWith("mp-pub-"), re: motif(t.texte) }));
+const MOTIFS = Object.entries(TEXTES_MP).map(([id, t]) => ({ id, publique: id.startsWith("mp-pub-"), ...motif(t.texte) }));
 
 /** Texte conforme à un modèle du dictionnaire v2 du bon côté (public / privé) ? */
 export function texteDuDictionnaire(texte: unknown, publique: boolean): texte is string {
   return typeof texte === "string" && texte.length <= 2000 && MOTIFS.some((m) => m.publique === publique && m.re.test(texte));
+}
+
+/** Titres et liens relus dans un texte conforme au dictionnaire (jamais recopiés dans une erreur). */
+function valeursDuTexte(texte: string, publique: boolean): { titres: string[]; liens: string[] } {
+  const titres: string[] = [];
+  const liens: string[] = [];
+  const m = MOTIFS.find((x) => x.publique === publique && x.re.test(texte));
+  const g = m ? texte.match(m.re) : null;
+  if (m && g) {
+    m.marqueurs.forEach((q, i) => {
+      if (q === "[TITRE DU GUIDE]") titres.push(g[i + 1]);
+      if (q === "[LIEN]") liens.push(g[i + 1]);
+    });
+  }
+  return { titres, liens };
+}
+
+/** Hôte d'un lien : https seulement, sans identifiants ni port, égal à un de NOS domaines ou son sous-domaine. */
+function lienDeChezNous(lien: string, domaines: readonly string[]): boolean {
+  let u: URL;
+  try {
+    u = new URL(lien.replace(/[.,;:!?]+$/, ""));
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" || u.username !== "" || u.password !== "" || u.port !== "") return false;
+  const hote = u.hostname.toLowerCase().replace(/\.$/, "");
+  return domaines.some((d) => {
+    const dom = d.trim().toLowerCase();
+    return dom !== "" && (hote === dom || hote.endsWith(`.${dom}`));
+  });
+}
+
+/** Liens et titres de guide : seulement NOS domaines et les titres de la liste fermée. Refus typés, valeur jamais recopiée. */
+function exigerLiensEtTitres(texte: string, publique: boolean, d: { domainesPermis?: readonly string[]; titresGuidesPermis?: readonly string[] }): void {
+  const { titres, liens } = valeursDuTexte(texte, publique);
+  const domaines = d.domainesPermis ?? DOMAINES_PERMIS_PAR_DEFAUT;
+  for (const lien of liens) {
+    if (!lienDeChezNous(lien, domaines)) throw new ErreurZernio("lien-hors-domaine", "Inbox : lien hors de nos domaines. Rien n'a été envoyé.", { champs: ["message"] });
+  }
+  const permis = d.titresGuidesPermis ?? [];
+  for (const titre of titres) {
+    if (!permis.includes(titre)) throw new ErreurZernio("guide-inconnu", "Inbox : titre de guide absent de la liste fermée. Rien n'a été envoyé.", { champs: ["message"] });
+  }
 }
 
 function exigerCompte(accountId: unknown, comptes: readonly string[] | undefined): void {
@@ -72,7 +124,7 @@ function exigerBoutons(boutons: unknown): void {
  */
 export function verifierCorpsInbox(
   route: RouteInboxZernio,
-  d: { corps: unknown; query?: Record<string, string | number | boolean>; comptesPermis?: readonly string[]; commentIdChemin?: string },
+  d: { corps: unknown; query?: Record<string, string | number | boolean>; comptesPermis?: readonly string[]; commentIdChemin?: string; domainesPermis?: readonly string[]; titresGuidesPermis?: readonly string[] },
 ): void {
   if (route === "lire-messages") {
     if (d.corps !== undefined) throw refus("Inbox : une lecture ne porte pas de corps.");
@@ -86,17 +138,21 @@ export function verifierCorpsInbox(
   exigerCompte(c.accountId, d.comptesPermis);
   switch (route) {
     case "reponse-privee":
+      if ("buttons" in c) throw new ErreurZernio("boutons-non-supportes", "Inbox : la réponse privée n'accepte pas de boutons. Rien n'a été envoyé.", { champs: ["buttons"] });
       exigerCles(c, ["accountId", "message"]);
       if (!texteDuDictionnaire(c.message, false)) throw refus("Inbox : texte hors du dictionnaire v2.");
+      exigerLiensEtTitres(c.message, false, d);
       return;
     case "repondre-commentaire":
       exigerCles(c, ["accountId", "message", "commentId"]);
       if (!texteDuDictionnaire(c.message, true)) throw refus("Inbox : texte hors du dictionnaire v2.");
+      exigerLiensEtTitres(c.message, true, d);
       if (typeof c.commentId !== "string" || !new RegExp(`^${SEGMENT_ID}$`).test(c.commentId)) throw refus("Inbox : commentId illisible.");
       return;
     case "envoyer-message":
       exigerCles(c, ["accountId", "message", "buttons"]);
       if (!texteDuDictionnaire(c.message, false)) throw refus("Inbox : texte hors du dictionnaire v2.");
+      exigerLiensEtTitres(c.message, false, d);
       if (c.buttons !== undefined) exigerBoutons(c.buttons);
       return;
   }

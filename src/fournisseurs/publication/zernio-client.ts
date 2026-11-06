@@ -56,6 +56,10 @@ export interface RequeteApiZernio {
   idempotence?: string;
   /** Inbox : liste FERMÉE des comptes permis (obligatoire sur les 4 routes inbox ; accountId du corps ou de la requête dedans). */
   comptesPermis?: readonly string[];
+  /** Inbox : NOS domaines permis pour les liens des messages (sous-domaines compris). Défaut : `axion-ia.com`. */
+  domainesPermis?: readonly string[];
+  /** Inbox : titres de guide permis (liste fermée, issue du catalogue des guides). Absente = tout titre de guide refusé. */
+  titresGuidesPermis?: readonly string[];
   /** En-têtes supplémentaires (refusés si sensibles). */
   entetes?: Record<string, string>;
 }
@@ -474,7 +478,7 @@ export function verifierRequete(req: RequeteZernio, hotesTeleversement: Readonly
     if (ROUTES_IDEMPOTENCE_INBOX.has(trouvee.route) && (!req.idempotence || !IDEMPOTENCE_INBOX.test(req.idempotence))) {
       throw refus("Inbox : Idempotency-Key inbox-<hex> exigée.");
     }
-    verifierCorpsInbox(trouvee.route as RouteInboxZernio, { corps: req.corps, query: req.query, comptesPermis: req.comptesPermis });
+    verifierCorpsInbox(trouvee.route as RouteInboxZernio, { corps: req.corps, query: req.query, comptesPermis: req.comptesPermis, domainesPermis: req.domainesPermis, titresGuidesPermis: req.titresGuidesPermis });
     return trouvee.route;
   }
 
@@ -752,6 +756,13 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
 
       if (rep.status === 429) {
         const attenteMs = lireRetryAfter(rep.headers.get("retry-after"), maintenant());
+        if (ecriture && ROUTES_INBOX.has(route)) {
+          // INCERTAIN : la doc Zernio (docs.zernio.com) n'a pas pu être consultée (hôte hors du réseau autorisé) pour confirmer
+          // qu'un 429 veut dire « rien n'a été traité ». On ne rejoue donc JAMAIS une écriture inbox : même état que « à vérifier »,
+          // Retry-After conservé pour l'appelant. (Les lectures et les posts gardent leur rejeu unique.)
+          journal.alerte("Zernio : limite atteinte sur une écriture inbox, issue incertaine (aucun rejeu automatique)", { requete: libelle });
+          throw new ErreurZernio("limite-incertaine", "Zernio limite les envois et on ne sait pas si la demande a été traitée : à vérifier, aucun rejeu automatique.", { statut: 429, attenteMs, reessayerApresSec: Math.ceil(attenteMs / 1000) });
+        }
         if (essai === 1 && attenteMs <= RETRY_AFTER_MAX_MS) {
           await attendre(attenteMs);
           limiteur.reserver(route); // le rejeu compte comme une requête (pas comme un nouveau post)
