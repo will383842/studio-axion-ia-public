@@ -287,7 +287,7 @@ describe("corrections de revue : lecture du registre en panne, « stop » commen
     await pm.recevoirCrochetZernio({ corps, idEvenement: "evt_stop", signature: signatureZernio(SECRET, corps) }, { env: ENV, maintenantMs: T0 });
     expect(await S.traiterOppositions({ env: {} })).toEqual({ actif: false, prises: 0, transmises: 0 });
     expect(await Opp.personneOpposee("ct_stop2")).toBe(false);
-    expect(await S.traiterOppositions({ env: { PARCOURS_MOT_ENABLED: "1" } })).toMatchObject({ actif: true, prises: 1 });
+    expect(await S.traiterOppositions({ env: { PARCOURS_MOT_ENABLED: "1", STUDIO_EMPREINTE_SECRET: "secret-fictif-de-test-empreinte-0123456789" } })).toMatchObject({ actif: true, prises: 1 });
     expect(await Opp.personneOpposee("ct_stop2")).toBe(true);
     expect(S.motsActif({ PARCOURS_MOT_ENABLED: "1" })).toBe(false); // l'interrupteur MOTS_ENABLED n'est pas allumé pour autant
   });
