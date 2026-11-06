@@ -175,9 +175,12 @@ describe("port inbox · lireMessage", () => {
     expect((await lire("exemple-msg-clic")).r).toEqual({ texte: null, postback: "recevoir_ici" });
   });
   it("ignore nos messages sortants, les échos et les messages sans direction connue", async () => {
-    for (const id of ["exemple-msg-sortant", "exemple-msg-echo", "exemple-msg-inconnu", "exemple-absent"]) {
+    for (const id of ["exemple-msg-sortant", "exemple-msg-echo", "exemple-msg-inconnu"]) {
       expect((await lire(id)).r).toEqual({ texte: null, postback: null });
     }
+  });
+  it("message absent de la liste : « introuvable » (délais longs), distinct de « sans texte » et de la panne", async () => {
+    expect((await lire("exemple-absent")).r).toEqual({ texte: null, postback: null, introuvable: true });
   });
   it("erreur de lecture : texte et postback nuls, marquée « panne », jamais d'exception brute", async () => {
     const { port } = fabrique([{ statut: 404, corps: { error: ADRESSE } }]);

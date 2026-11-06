@@ -42,6 +42,8 @@ export interface MessageLu {
   postback: string | null;
   /** Vrai : la lecture elle-même a échoué (panne). À réessayer, JAMAIS conclu « sans texte » ni « non opposé ». */
   panne?: boolean;
+  /** Vrai : la liste est bien formée mais ne contient pas ce message (pagination, délai d'indexation). Réessai à délais longs. */
+  introuvable?: boolean;
 }
 
 export interface PortInboxZernio {
@@ -172,9 +174,11 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
           query: { accountId: p.idCompte },
           comptesPermis,
         });
-        const liste = estObjet(rep.corps) && Array.isArray(rep.corps.messages) ? rep.corps.messages : [];
-        const m = liste.find((x): x is Record<string, unknown> => estObjet(x) && (x.id === p.idMessage || x._id === p.idMessage));
-        if (!m || !estEntrant(m)) return vide;
+        // Réponse sans tableau « messages » = réponse mal formée = PANNE (jamais « sans texte »).
+        if (!estObjet(rep.corps) || !Array.isArray(rep.corps.messages)) return { ...vide, panne: true };
+        const m = rep.corps.messages.find((x): x is Record<string, unknown> => estObjet(x) && (x.id === p.idMessage || x._id === p.idMessage));
+        if (!m) return { ...vide, introuvable: true };
+        if (!estEntrant(m)) return vide;
         const texte = typeof m.text === "string" && m.text.length > 0 ? m.text.slice(0, TEXTE_MAX) : null;
         const pb = estObjet(m.postback) ? m.postback.payload : undefined;
         return { texte, postback: typeof pb === "string" && pb.length <= 64 ? pb : null };
