@@ -15,7 +15,7 @@ const PUBLIC = rendreTexteMp("mp-pub-igfb-v1", {})!;
 const COMPTES = ["exemple-compte-1"];
 const fabrique = (reponses: Parameters<typeof creerFauxClientZernio>[0], opts: Parameters<typeof creerFauxClientZernio>[1] = {}) => {
   const base = creerFauxClientZernio(reponses, opts);
-  const port: PortInboxZernio = creerPortInboxZernio({ client: base.client, comptesPermis: COMPTES });
+  const port: PortInboxZernio = creerPortInboxZernio({ client: base.client, comptesPermis: COMPTES, titresGuidesPermis: ["Guide d'exemple"] });
   return { ...base, port };
 };
 
@@ -82,13 +82,60 @@ describe("port inbox · écritures", () => {
     expect(faux.appels).toHaveLength(4);
   });
 
-  it("429 persistant : reessayerApresSec rendu", async () => {
-    const { port } = fabrique([
-      { statut: 429, entetes: { "retry-after": "2" }, corps: {} },
-      { statut: 429, entetes: { "retry-after": "11" }, corps: {} },
-    ]);
+  it("429 sur une écriture : INCERTAIN (même état que à vérifier), Retry-After conservé, aucun rejeu", async () => {
+    const { port, faux } = fabrique([{ statut: 429, entetes: { "retry-after": "11" }, corps: {} }]);
     const r = await port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });
-    expect(r).toMatchObject({ statut: "a_reessayer", reessayerApresSec: 11 });
+    expect(r).toMatchObject({ statut: "a_verifier", etat: "a_verifier", code: "limite-incertaine", reessayerApresSec: 11 });
+    expect(faux.appels).toHaveLength(1);
+  });
+
+  it("l'état à vérifier est rendu dans le résultat (502 inconnue) et « consommée » est définitive", async () => {
+    const { port } = fabrique([
+      { statut: 400, corps: { privateReplyConsumed: true } },
+      { statut: 502, corps: { privateReplyOutcome: "unknown" } },
+    ]);
+    const p = { idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE };
+    expect(await port.repondreEnPrive(p)).toMatchObject({ statut: "definitif", etat: "consommee" });
+    expect(await port.repondreEnPrive(p)).toMatchObject({ statut: "a_verifier", etat: "a_verifier", issueInconnue: true });
+  });
+
+  it("réponse privée avec boutons : code dédié, distinct de chemin-refuse, zéro appel", async () => {
+    const { port, faux } = fabrique([]);
+    const r = await port.repondreEnPrive({ idCompte: "exemple-compte-1", idPost: "p", idCommentaire: "c", texte: PRIVE, boutons: [{ titre: "Recevoir", payload: "recevoir_ici" }] });
+    expect(r).toMatchObject({ statut: "refuse", code: "boutons-non-supportes" });
+    expect(faux.appels).toHaveLength(0);
+  });
+
+  it("lien hors de nos domaines ou titre hors liste : refus typés, zéro appel, rien de recopié", async () => {
+    const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-9" } }, { statut: 200, corps: {} }]);
+    const base = { idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", cle: "k" };
+    const lien = (u: string) => rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: u })!;
+    // « http:// » n'entre même pas dans le modèle du dictionnaire : refusé aussi (chemin-refuse).
+    expect(await port.envoyerMessage({ ...base, texte: lien("http://axion-ia.com/x") })).toMatchObject({ statut: "refuse" });
+    for (const mauvais of ["https://evil.example/x", "https://axion-ia.com.evil.example/x", "https://axion-ia.com@evil.example/x", "https://xaxion-ia.com/x"]) {
+      const r = await port.envoyerMessage({ ...base, texte: lien(mauvais) });
+      expect(r).toMatchObject({ statut: "refuse", code: "lien-hors-domaine" });
+      expect(JSON.stringify(r)).not.toContain("evil");
+    }
+    const titre = await port.envoyerMessage({ ...base, texte: rendreTexteMp("mp-lien-v2", { titre: "Guide inventé", lien: "https://axion-ia.com/fr/guide-ia" })! });
+    expect(titre).toMatchObject({ statut: "refuse", code: "guide-inconnu" });
+    expect(JSON.stringify(titre)).not.toContain("inventé");
+    expect(faux.appels).toHaveLength(0);
+    // Nos domaines et sous-domaines passent.
+    expect(await port.envoyerMessage({ ...base, texte: lien("https://axion-ia.com/fr/guide-ia") })).toMatchObject({ statut: "envoye" });
+    expect(await port.envoyerMessage({ ...base, cle: "k2", texte: lien("https://guides.axion-ia.com/fr/guide-ia") })).toMatchObject({ statut: "envoye" });
+  });
+
+  it("réponse publique : lien et titre contrôlés aussi ; sans liste de titres, tout titre est refusé", async () => {
+    const { port, faux } = fabrique([]);
+    const pub = rendreTexteMp("mp-pub-linkedin-v1", { titre: "Guide d'exemple", lien: "https://evil.example/x" });
+    {
+      const r = await port.repondreCommentaire({ idCompte: "exemple-compte-1", idPost: "p", idCommentaire: "c", texte: pub!, cle: "k" });
+      expect(r).toMatchObject({ statut: "refuse", code: "lien-hors-domaine" });
+    }
+    const sans = creerPortInboxZernio({ client: fabrique([]).client, comptesPermis: COMPTES });
+    expect(await sans.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "c", texte: PRIVE, cle: "k" })).toMatchObject({ statut: "refuse", code: "guide-inconnu" });
+    expect(faux.appels).toHaveLength(0);
   });
 
   it("le résultat ne contient jamais le corps ni l'adresse de la personne", async () => {
