@@ -158,6 +158,8 @@ export interface EvenementMessage {
   idConversation: string | null;
   idCompte: string;
   idExpediteur: string | null;
+  /** Vrai si le message est sortant / de notre compte (direction, isOwnAccount) : écho à ne pas traiter. Absent sinon. */
+  sortant?: true;
   /** Charge d'un bouton (identifiant opaque sans espace ni « @ »), sinon null. Jamais `message.text`. */
   postback: string | null;
   /** Instant du message (ISO 8601 normalisé), seulement s'il est lisible et borné (2020 à 2100) ; sinon absent. */
@@ -219,12 +221,15 @@ export function lireEvenementMessage(env: EnveloppeZernio): EvenementMessage | n
   const compte = objet(env.racine.account);
   const idExpediteur = idOpaque(objet(m.sender)?.id) ?? idOpaque(m.senderId);
   // Écho de NOS propres messages : on vide le postback et on marque l'expéditeur = compte (rien à traiter).
-  const propre = objet(m.sender)?.isSelf === true || m.isSelf === true || m.isOwn === true || (idExpediteur !== null && (idExpediteur === idCompte || idExpediteur === idOpaque(compte?.platformAccountId)));
+  const sens = typeof m.direction === "string" ? m.direction.toLowerCase() : "";
+  const sortant = sens === "outgoing" || sens === "outbound" || objet(m.sender)?.isOwnAccount === true || m.isOwnAccount === true;
+  const propre = sortant || objet(m.sender)?.isSelf === true || m.isSelf === true || m.isOwn === true || (idExpediteur !== null && (idExpediteur === idCompte || idExpediteur === idOpaque(compte?.platformAccountId)));
   return {
     idMessage,
     idConversation: idOpaque(m.conversationId),
     idCompte,
     idExpediteur: propre ? idCompte : idExpediteur,
+    ...(sortant ? { sortant: true as const } : {}),
     postback: propre ? null : idOpaque(brut),
     ...(dateBornee(m.createdAt ?? m.timestamp ?? m.sentAt) ? { occurredAt: dateBornee(m.createdAt ?? m.timestamp ?? m.sentAt) } : {}),
   };

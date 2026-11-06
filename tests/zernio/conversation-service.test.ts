@@ -155,11 +155,12 @@ describe("9 et 10 · message avant l'état, alias", () => {
   });
   it("9 bis · jamais retrouvé : 2 réessais puis ignoré, aucune réponse", async () => {
     const idM = await deposerMessage(depots, { idExpediteur: "inconnu-fictif" });
-    for (const t of [0, 31_000, 31_000 + 121_000, 31_000 + 121_000 + 1000]) await passer(T0 + t);
+    // 2 réessais d'orphelin, puis le texte est lu quand même (pour ne pas perdre un « stop ») : sans texte, 3 réessais puis ignoré.
+    for (const t of [0, 31_000, 31_000 + 121_000, 200_000, 400_000, 1_100_000, 1_800_000]) await passer(T0 + t);
     const ev = await evenement(depots, idM);
     expect(ev).toMatchObject({ traite: true });
     expect(ev.charge.etat).toBe("ignore");
-    expect(port.total()).toBe(0);
+    expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
   });
   it("10 · sender.id VRAIMENT différent d'author.id : retrouvé par l'alias posé à l'envoi de M1 ; un stop privé bloque un GUIDE suivant", async () => {
     port.reponses.prive = () => ({ statut: "envoye", idMessage: "m1-fictif", idConversation: "conv-alias-1" });
@@ -197,7 +198,7 @@ describe("11 et 12 · oppositions", () => {
     await deposerMessage(depots, {});
     await passer(T0 + 2000);
     const l2 = await lignes();
-    expect(l2).toHaveLength(2);
+    expect(l2).toHaveLength(3); // + l'expéditeur et l'alias de conversation (même personne ici : deux formes)
     expect(l2.map((x) => x.id)).toEqual(expect.arrayContaining(l1.map((x) => x.id)));
     expect(port.envoyes).toHaveLength(0);
     expect((await etatDe(A)).etat).toBe("oppose");
