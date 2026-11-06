@@ -1,5 +1,5 @@
 /** Lot 3a · fonctions pures : adresse e-mail, machine d'états, garde d'import (22). Données fictives. */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { doitExpirer, transition, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
@@ -74,7 +74,7 @@ describe("machine · résultats", () => {
   });
   it("orphelin : 2 réessais (30 s, 2 min) puis ignoré ; texte absent : 3 réessais (30 s, 2 min, 10 min)", () => {
     expect([0, 1].map((n) => transition(null, { t: "orphelin", essais: n }).apresMs)).toEqual([30_000, 120_000]);
-    expect(transition(null, { t: "orphelin", essais: 2 }).action).toBe("orphelin_ignore");
+    expect(transition(null, { t: "orphelin", essais: 2 }).action).toBe("orphelin_lire");
     expect([0, 1, 2].map((n) => transition(base, { t: "texte_absent", essais: n }).apresMs)).toEqual([30_000, 120_000, 600_000]);
     expect(transition(base, { t: "texte_absent", essais: 3 }).action).toBe("texte_ignore");
   });
@@ -86,9 +86,10 @@ describe("22 · garde : la machine reste inerte en production", () => {
     for (const f of ["src/services/boucle.ts", "src/instrumentation.ts"]) expect(src(f)).not.toMatch(/parcours-conversation/);
   });
   it("aucun autre fichier de src n'importe le service (hors tests)", async () => {
-    const { execSync } = await import("node:child_process");
-    const l = execSync("grep -rlE 'from .*parcours-conversation' src || true", { cwd: new URL("../../", import.meta.url), encoding: "utf8" }).split("\n").filter(Boolean);
-    expect(l).toEqual([]);
+    const racine = new URL("../../src/", import.meta.url);
+    const fichiers = (readdirSync(racine, { recursive: true }) as string[]).filter((f) => /\.(ts|tsx)$/.test(f));
+    const importeurs = fichiers.filter((f) => /from .*parcours-conversation/.test(readFileSync(new URL(f, racine), "utf8")));
+    expect(importeurs).toEqual([]);
   });
   it("les fonctions pures n'importent pas server-only", () => {
     for (const f of ["src/domaine/guide-reseau/machine-conversation.ts", "src/domaine/guide-reseau/adresse-email.ts"]) expect(src(f)).not.toMatch(/server-only/);

@@ -161,13 +161,15 @@ describe("9 et 10 · message avant l'état, alias", () => {
     expect(ev.charge.etat).toBe("ignore");
     expect(port.total()).toBe(0);
   });
-  it("10 · sender.id différent d'author.id : retrouvé par alias de conversation ; un stop privé bloque un GUIDE suivant", async () => {
+  it("10 · sender.id VRAIMENT différent d'author.id : retrouvé par l'alias posé à l'envoi de M1 ; un stop privé bloque un GUIDE suivant", async () => {
+    port.reponses.prive = () => ({ statut: "envoye", idMessage: "m1-fictif", idConversation: "conv-alias-1" });
     await deposerCommentaire(depots, {});
     await passer();
+    expect((await etatDe(A)).alias).toHaveLength(1); // alias de conversation posé dès M1 (empreinte, jamais brut)
     port.reponses.texte = () => "bonjour";
-    await deposerMessage(depots, { idExpediteur: A, idConversation: "conv-alias-1" }); // 1er message : retrouvé par sender.id, alias posés
+    await deposerMessage(depots, { idExpediteur: "premier-sender-fictif-5", idConversation: "conv-alias-1" }); // sender.id ≠ author.id
     await passer(T0 + 1000);
-    expect((await etatDe(A)).alias).toHaveLength(1);
+    expect((await etatDe(A)).alias).toHaveLength(2);
     port.reponses.texte = () => "Arrêtez !";
     const idStop = await deposerMessage(depots, { idExpediteur: "autre-sender-fictif-9", idConversation: "conv-alias-1" });
     await passer(T0 + 2000);

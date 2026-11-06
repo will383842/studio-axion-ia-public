@@ -179,9 +179,9 @@ describe("port inbox · lireMessage", () => {
       expect((await lire(id)).r).toEqual({ texte: null, postback: null });
     }
   });
-  it("erreur de lecture : texte et postback nuls, jamais d'exception brute", async () => {
+  it("erreur de lecture : texte et postback nuls, marquée « panne », jamais d'exception brute", async () => {
     const { port } = fabrique([{ statut: 404, corps: { error: ADRESSE } }]);
-    expect(await port.lireMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", idMessage: "x" })).toEqual({ texte: null, postback: null });
+    expect(await port.lireMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", idMessage: "x" })).toEqual({ texte: null, postback: null, panne: true });
   });
 });
 
