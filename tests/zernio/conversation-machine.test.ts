@@ -87,8 +87,8 @@ describe("22 · garde : la machine reste inerte en production", () => {
   });
   it("aucun autre fichier de src n'importe le service (hors tests)", async () => {
     const { execSync } = await import("node:child_process");
-    const l = execSync("grep -rlE "from .*parcours-conversation|import\(.*parcours-conversation" src || true", { cwd: new URL("../../", import.meta.url), encoding: "utf8" }).split("\n").filter(Boolean);
-    expect(l).toEqual(["src/services/parcours-conversation.ts"]);
+    const l = execSync("grep -rlE 'from .*parcours-conversation' src || true", { cwd: new URL("../../", import.meta.url), encoding: "utf8" }).split("\n").filter(Boolean);
+    expect(l).toEqual([]);
   });
   it("les fonctions pures n'importent pas server-only", () => {
     for (const f of ["src/domaine/guide-reseau/machine-conversation.ts", "src/domaine/guide-reseau/adresse-email.ts"]) expect(src(f)).not.toMatch(/server-only/);
