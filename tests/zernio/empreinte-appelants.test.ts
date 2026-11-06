@@ -143,7 +143,10 @@ describe("STOP jamais perdu : identifiants UTF-8 ou très longs", () => {
   });
   it("outbox : personne opposée à identifiant UTF-8 écartée, sans boucle de réessai", async () => {
     await Opp.enregistrerOpposition(ids[0], "zernio-contact");
-    await deposer(ENV_E1, "evt_utf8", ids[0]);
+    await deposer(ENV_E1, "evt_utf8", "ct_ascii");
+    // Le crochet ne garde que des identifiants ASCII ; on force un identifiant UTF-8 dans l'événement pour couvrir l'outbox.
+    const ev = await evenement("evt_utf8");
+    await depots().evenementsFournisseurs.modifier(ev.id, { charge: { ...ev.charge, idContact: ids[0] } });
     pm.injecterLecteurRuns(async () => ({ ...RUN }));
     pm.injecterTransportSite(async () => ({ statut: 200, corps: {} }));
     expect(await pm.traiterOutboxZernio({ env: ENV_BASE, maintenantMs: T0 })).toMatchObject({ envoyes: 0, ecartes: 1 });
