@@ -10,7 +10,7 @@
  * extrait court du commentaire public (≤ 140 caractères, échappé), date, statut, kit de réponse validé par le contrôle de sortie.
  */
 import "server-only";
-import { enregistrerOpposition, personneOpposee } from "./oppositions-mots";
+import { ESPACE_CONTACT_ZERNIO, enregistrerOpposition, personneOpposee } from "./oppositions-mots";
 import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import type { Canal } from "@/domaine/guide-reseau/origine-v3";
@@ -175,15 +175,15 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   }
   let opposee = false;
   try {
-    opposee = await personneOpposee(c.idContact);
+    opposee = await personneOpposee(c.idContact, ESPACE_CONTACT_ZERNIO);
   } catch {
     // Registre illisible : jamais « opposée ». Un « stop » est enregistré malgré tout ; le reste attend un nouvel essai.
     if (!estMotOpposition(c.mot)) return { issue: "reessai", raison: "registre_illisible" };
-    if (c.idContact) await enregistrerOpposition(c.idContact); // mise à l'écart, rien n'est supprimé ; si cela échoue aussi, l'erreur remonte
+    if (c.idContact) await enregistrerOpposition(c.idContact, ESPACE_CONTACT_ZERNIO); // mise à l'écart, rien n'est supprimé ; si cela échoue aussi, l'erreur remonte
     return { issue: "execute", action: "silence", raison: "opposition" };
   }
   const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots, opposee });
-  if (d.action === "silence" && d.motif === "opposition" && c.idContact) await enregistrerOpposition(c.idContact); // mise à l'écart, rien n'est supprimé
+  if (d.action === "silence" && d.motif === "opposition" && c.idContact) await enregistrerOpposition(c.idContact, ESPACE_CONTACT_ZERNIO); // mise à l'écart, rien n'est supprimé
   if (d.action === "silence") return { issue: "execute", action: "silence", raison: d.motif };
   if (d.action !== "a_traiter") return { issue: "execute", action: d.action, raison: "mot_connu", motRetenu: d.motRetenu };
   const r = await enregistrerATraiter(

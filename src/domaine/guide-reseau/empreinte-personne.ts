@@ -8,7 +8,7 @@ export const VARIABLE_SECRETS_ANCIENS = "STUDIO_EMPREINTE_SECRET_ANCIEN";
 const AUTRES_SECRETS = ["SITE_GUIDES_RESEAU_SECRET", "SITE_VIDEOS_SECRET", "ZERNIO_WEBHOOK_SECRET"] as const;
 const LONGUEUR_MINI = 32;
 const MAX_ANCIENS = 3;
-const LONGUEUR_ID_MAX = 256;
+const LONGUEUR_ID_MAX = 256; // au-delà : condensé SHA-256
 
 export type EspacePersonne = "instagram" | "facebook" | "zernio-contact" | "evenement";
 export interface CleEmpreinte {
@@ -17,7 +17,7 @@ export interface CleEmpreinte {
 }
 export type EtatCles =
   | { ok: true; courante: CleEmpreinte; anciennes: CleEmpreinte[] }
-  | { ok: false; raison: "absent" | "trop_court" | "identique_autre_secret" };
+  | { ok: false; raison: "absent" | "trop_court" | "identique_autre_secret" | "virgule" | "trop_d_anciens" | "kid_en_double" };
 
 export class ErreurEmpreinteIndisponible extends Error {
   constructor(message = "Empreinte des personnes indisponible : secret absent ou non couvert.") {
@@ -27,7 +27,7 @@ export class ErreurEmpreinteIndisponible extends Error {
 }
 export class ErreurIdentifiantInvalide extends Error {
   constructor() {
-    super("Identifiant de personne invalide (vide, trop long ou non ASCII).");
+    super("Identifiant de personne invalide (vide).");
     this.name = "ErreurIdentifiantInvalide";
   }
 }
@@ -41,22 +41,35 @@ const cle = (brut: string): CleEmpreinte => {
 export function lireClesEmpreinte(env: Record<string, string | undefined>): EtatCles {
   const courant = (env[VARIABLE_SECRET_EMPREINTE] ?? "").trim();
   if (!courant) return { ok: false, raison: "absent" };
-  const anciens = (env[VARIABLE_SECRETS_ANCIENS] ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, MAX_ANCIENS);
+  // La virgule sépare les anciens secrets : un secret courant qui en contient une ne pourrait jamais être relu une fois devenu ancien.
+  if (courant.includes(",")) return { ok: false, raison: "virgule" };
+  const anciens = (env[VARIABLE_SECRETS_ANCIENS] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (anciens.length > MAX_ANCIENS) return { ok: false, raison: "trop_d_anciens" }; // jamais tronqué en silence
   const autres = AUTRES_SECRETS.map((n) => (env[n] ?? "").trim()).filter(Boolean);
   const tous = [courant, ...anciens];
   if (tous.some((s) => s.length < LONGUEUR_MINI)) return { ok: false, raison: "trop_court" };
   if (tous.some((s, i) => autres.includes(s) || tous.indexOf(s) !== i)) return { ok: false, raison: "identique_autre_secret" };
-  return { ok: true, courante: cle(courant), anciennes: anciens.map(cle) };
+  const courante = cle(courant);
+  const anciennes = anciens.map(cle);
+  const kids = [courante, ...anciennes].map((k) => k.kid);
+  if (new Set(kids).size !== kids.length) return { ok: false, raison: "kid_en_double" };
+  return { ok: true, courante, anciennes };
 }
 
-function verifierId(idBrut: string): void {
-  if (typeof idBrut !== "string" || idBrut.length === 0 || idBrut.length > LONGUEUR_ID_MAX || !/^[\x00-\x7f]+$/.test(idBrut)) throw new ErreurIdentifiantInvalide();
+/**
+ * Normalise (NFC) : l'UTF-8 est accepté, un identifiant n'est JAMAIS refusé pour son contenu (un STOP ne doit jamais être perdu).
+ * Un identifiant trop long est condensé (SHA-256) sous une étiquette distincte : aucune collision possible avec un identifiant court.
+ */
+function formeId(idBrut: string, espace: EspacePersonne): string {
+  if (typeof idBrut !== "string" || idBrut.length === 0) throw new ErreurIdentifiantInvalide();
+  const id = idBrut.normalize("NFC");
+  if (id.length <= LONGUEUR_ID_MAX) return `studio/personne/v1\0${espace}\0${id}`;
+  return `studio/personne/v1-long\0${espace}\0${createHash("sha256").update(id, "utf8").digest("hex")}`;
 }
 
 /** « p1.<kid>.<64 hex> » */
 export function empreintePersonne(c: CleEmpreinte, espace: EspacePersonne, idBrut: string): string {
-  verifierId(idBrut);
-  return `p1.${c.kid}.${hmac(c.secret, `studio/personne/v1\0${espace}\0${idBrut}`)}`;
+  return `p1.${c.kid}.${hmac(c.secret, formeId(idBrut, espace))}`;
 }
 
 /** HÉRITÉE, LECTURE SEULE : ancien SHA-256 tronqué à 32 hex (voir empreinteContact). On n'écrit plus jamais sous cette forme. */
@@ -84,7 +97,12 @@ export function contientEnTempsConstant(liste: readonly string[], candidats: rea
   return trouve;
 }
 
-/** Clé d'idempotence opaque : 64 hex, forme acceptée par RE_CLE_IDEMPOTENCE. */
+/**
+ * Clé d'idempotence opaque : 64 hex, forme acceptée par RE_CLE_IDEMPOTENCE. Chaque morceau est préfixé par sa longueur (octets) :
+ * aucun découpage ambigu, même avec \0. À calculer UNE fois à l'enregistrement de l'événement puis à STOCKER : elle dépend du
+ * secret courant, donc ne jamais la recalculer après une rotation.
+ */
 export function cleIdempotenceOpaque(c: CleEmpreinte, domaine: "guide" | "opposition", ...parties: string[]): string {
-  return hmac(c.secret, `studio/idem/v1\0${domaine}\0${parties.join("\0")}`);
+  const morceaux = [domaine, ...parties].map((p) => `${Buffer.byteLength(p, "utf8")}:${p}`).join("");
+  return hmac(c.secret, `studio/idem/v2\0${morceaux}`);
 }
