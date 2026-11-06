@@ -69,13 +69,26 @@ describe.each(cas)("18 · %s", (_nom, regler, over) => {
     const alertes = await depots().evenements.lister((e: any) => /ALERTE/.test(e.message));
     expect(alertes).toHaveLength(1);
   });
-  it("message : 0 appel (lecture comprise), site non appelé", async () => {
+  it("message : la lecture a lieu (pour y repérer un stop) mais rien ne part : 0 envoi, site non appelé", async () => {
     await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation("auteur-fictif-400")]: { etat: "attente_email", reseau: "instagram", idCompte: COMPTE, idCommentaire: "c", idPostPlateforme: "p", versionTexteM1: "mp-m1-v2", guide: "guide-ia", cleIdempotenceGuide: "c".repeat(64), creeLe: new Date(T0).toISOString(), m1Le: new Date(T0).toISOString(), occurredAt: null, m2Envoye: false, essaisSite: 0, essaisPub: 0, essaisM1: 0, prochainEssaiLe: null, dernierCode: null, alias: [] } });
     await regler();
     const id = await deposerMessage(depots, {});
     await passer(over);
-    expect(port.total()).toBe(0);
+    expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
     expect(site.vus).toHaveLength(0);
     expect((await evenement(depots, id)).traite).toBe(false);
+  });
+  it("message « stop » : lu et enregistré MÊME garde active, sans aucun envoi", async () => {
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation("auteur-fictif-400")]: { etat: "attente_email", reseau: "instagram", idCompte: COMPTE, idCommentaire: "c", idPostPlateforme: "p", versionTexteM1: "mp-m1-v2", guide: "guide-ia", cleIdempotenceGuide: "c".repeat(64), creeLe: new Date(T0).toISOString(), m1Le: new Date(T0).toISOString(), occurredAt: null, m2Envoye: false, essaisSite: 0, essaisPub: 0, essaisM1: 0, prochainEssaiLe: null, dernierCode: null, alias: [] } });
+    await regler();
+    port.reponses.texte = () => "stop";
+    const id = await deposerMessage(depots, {});
+    await passer(over);
+    expect(port.lire).toBe(1);
+    expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
+    expect(site.vus).toHaveLength(0);
+    expect((await evenement(depots, id)).charge).toMatchObject({ etat: "oppose" });
+    const conv = await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
+    expect(conv[cleConversation("auteur-fictif-400")].etat).toBe("oppose");
   });
 });

@@ -26,7 +26,10 @@ export interface FauxPort {
   envoyes: Array<{ texte: string; cle: string }>;
   total: () => number;
   /** Réponses configurables. */
-  reponses: { pub: () => ResultatEcritureInbox; prive: () => ResultatEcritureInbox; envoyer: () => ResultatEcritureInbox; texte: () => string | null };
+  reponses: { pub: () => ResultatEcritureInbox; prive: () => ResultatEcritureInbox; envoyer: () => ResultatEcritureInbox; texte: () => string | null;
+    /** Si présent, remplace la lecture : résultat complet du port (panne, introuvable…). */
+    lecture?: () => import("@/fournisseurs/zernio-inbox").MessageLu;
+  };
 }
 export function fauxPort(): FauxPort {
   const f: FauxPort = {
@@ -36,7 +39,7 @@ export function fauxPort(): FauxPort {
     port: {
       repondreCommentaire: async (p) => (f.pub.push({ texte: p.texte, cle: p.cle, idPost: p.idPost }), f.reponses.pub()),
       repondreEnPrive: async (p) => (f.prive.push({ texte: p.texte }), f.reponses.prive()),
-      lireMessage: async () => (f.lire++, { texte: f.reponses.texte(), postback: null }),
+      lireMessage: async () => (f.lire++, f.reponses.lecture ? f.reponses.lecture() : { texte: f.reponses.texte(), postback: null }),
       envoyerMessage: async (p) => (f.envoyes.push({ texte: p.texte, cle: p.cle }), f.reponses.envoyer()),
     },
   };

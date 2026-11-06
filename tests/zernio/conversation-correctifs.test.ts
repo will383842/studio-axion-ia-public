@@ -132,15 +132,18 @@ describe("B4 · panne de lecture ≠ message sans texte", () => {
       expect(ev.traite).toBe(false);
       expect(ev.charge.dernierCode).toBe("lecture_panne");
       delais.push(ev.charge.prochainEssaiLe - t);
+      // Preuve du délai : une milliseconde AVANT l'échéance, l'événement n'est pas repris (aucune relecture)...
+      const lecturesAvant = port.lire;
+      await passer(ev.charge.prochainEssaiLe - 1);
+      expect(port.lire).toBe(lecturesAvant);
+      // ...et la 2e relecture, due et dans l'heure de la 1re alerte, n'ajoute aucune notification.
+      if (i === 1) expect(await notifications()).toBe(1);
       t = ev.charge.prochainEssaiLe;
     }
+    expect(delais.slice(0, 5)).toEqual([30_000, 120_000, 600_000, 1_800_000, 3_600_000]);
     for (let i = 1; i < delais.length; i++) expect(delais[i]).toBeGreaterThanOrEqual(delais[i - 1]);
     expect(delais[3]).toBeGreaterThan(delais[0]);
     expect(await notifications()).toBeLessThanOrEqual(Math.ceil((t - T0) / H) + 1);
-    // un passage dans la même heure n'ajoute aucune alerte
-    const avant = await notifications();
-    await passer(t - 1000 > T0 ? T0 + 1000 : t);
-    expect(await notifications()).toBe(avant);
     port.reponses.texte = () => "stop";
     await passer(t);
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
