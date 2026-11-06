@@ -13,6 +13,8 @@ export const ATTENTES_ORPHELIN_MS = [30_000, 2 * 60_000] as const;
 export const ATTENTES_TEXTE_MS = [30_000, 2 * 60_000, 10 * 60_000] as const;
 /** Panne de lecture (≠ message sans texte) : délai croissant, plafonné au dernier palier, JAMAIS d'abandon. */
 export const ATTENTES_PANNE_LECTURE_MS = [30_000, 2 * 60_000, 10 * 60_000, 30 * 60_000, 3600_000] as const;
+/** Message INTROUVABLE dans la liste (pagination, délai d'indexation) : délais longs avant de conclure, jamais « sans texte ». */
+export const ATTENTES_INTROUVABLE_MS = [5 * 60_000, 30 * 60_000, 2 * 3600_000, 6 * 3600_000] as const;
 /** Codes du port qui ouvrent le disjoncteur des mots (rien ne repart tant que l'opérateur ne l'a pas refermé). */
 export const CODES_BLOCAGE = ["INBOX_REQUIRED", "message_allowance_exceeded", "acces"] as const;
 
@@ -34,6 +36,8 @@ export interface Conversation {
   /** Calculée UNE fois à la création, stockée, jamais recalculée (la rotation du secret la changerait). */
   cleIdempotenceGuide: string;
   creeLe: string;
+  /** Date d'envoi de M2 (expiration de `m2_envoye` 7 jours après ; repli sur `m1Le`). */
+  m2Le?: string | null;
   /** Date du dernier refus d'envoi (m1_refuse) : la reprise après 24 h se mesure depuis elle, pas depuis `creeLe`. */
   refuseLe?: string | null;
   m1Le: string | null;
@@ -61,12 +65,13 @@ export type EvenementMachine =
   | { t: "site"; conduite: Conduite; enCoursAvant: number }
   | { t: "orphelin"; essais: number }
   | { t: "texte_absent"; essais: number }
-  | { t: "texte_panne"; essais: number };
+  | { t: "texte_panne"; essais: number }
+  | { t: "texte_introuvable"; essais: number };
 
 export type Action =
   | "ecarter" | "opposer" | "demarrer" | "reprendre" | "silence"
   | "prive" | "reessayer" | "terminer" | "bloquer"
-  | "lire" | "lire_opposition" | "reprendre_recu" | "orphelin_reessai" | "orphelin_lire" | "texte_reessai" | "texte_ignore" | "texte_panne_reessai"
+  | "lire" | "lire_opposition" | "reprendre_recu" | "orphelin_reessai" | "orphelin_lire" | "texte_reessai" | "texte_ignore" | "texte_panne_reessai" | "introuvable_reessai" | "introuvable_clore"
   | "m2" | "demander_guide" | "guide_ok" | "site_reessai" | "site_refuse";
 
 export interface Sortie {
@@ -141,6 +146,8 @@ export function transition(etat: Conversation | null, ev: EvenementMachine): Sor
       return ev.essais < ATTENTES_TEXTE_MS.length ? { action: "texte_reessai", apresMs: ATTENTES_TEXTE_MS[ev.essais] } : { action: "texte_ignore" };
     case "texte_panne":
       return { action: "texte_panne_reessai", apresMs: ATTENTES_PANNE_LECTURE_MS[Math.min(Math.max(ev.essais, 0), ATTENTES_PANNE_LECTURE_MS.length - 1)] };
+    case "texte_introuvable":
+      return ev.essais < ATTENTES_INTROUVABLE_MS.length ? { action: "introuvable_reessai", apresMs: ATTENTES_INTROUVABLE_MS[Math.max(ev.essais, 0)] } : { action: "introuvable_clore" };
     case "texte": {
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.adresse === null) return etat && !etat.m2Envoye ? { action: "m2" } : { action: "silence", raison: "silence" };
@@ -158,7 +165,10 @@ export function transition(etat: Conversation | null, ev: EvenementMachine): Sor
   }
 }
 
-/** Expiration : `attente_email` sans réponse 7 jours après le premier message. Aucun message n'est envoyé. */
+/** Expiration : `attente_email` (7 jours après M1) ou `m2_envoye` (7 jours après M2, sinon M1). Aucun message n'est envoyé. */
 export function doitExpirer(c: Conversation, maintenantMs: number): boolean {
-  return c.etat === "attente_email" && c.m1Le !== null && maintenantMs - Date.parse(c.m1Le) >= EXPIRATION_MS;
+  const depuis = c.etat === "attente_email" ? c.m1Le : c.etat === "m2_envoye" ? (c.m2Le ?? c.m1Le) : null;
+  if (!depuis) return false;
+  const t = Date.parse(depuis);
+  return Number.isFinite(t) && maintenantMs - t >= EXPIRATION_MS;
 }
