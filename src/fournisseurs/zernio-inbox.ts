@@ -21,11 +21,16 @@ export interface ResultatEcritureInbox {
   /** Code court : INBOX_REQUIRED, message_allowance_exceeded, ou code du client (envoi-coupe, chemin-refuse, lecture-requise…). */
   code?: string;
   idMessage?: string;
+  /**
+   * État à CONSERVER par l'appelant : "a_verifier" (issue inconnue : 502 réponse privée, 5xx, délai, 429 incertain) ou
+   * "consommee" (400 privateReplyConsumed, définitif). Jamais de nouvel essai automatique sur "a_verifier".
+   */
+  etat?: "a_verifier" | "consommee";
   /** Réponse privée déjà consommée (400 privateReplyConsumed) : définitif. */
   consomme?: boolean;
   /** Réponse privée à l'issue inconnue (502 privateReplyOutcome unknown) : à vérifier, aucun nouvel essai automatique. */
   issueInconnue?: boolean;
-  /** 429 : attente conseillée. */
+  /** 429 (incertain) : attente conseillée avant de vérifier. */
   reessayerApresSec?: number;
 }
 
@@ -68,9 +73,16 @@ function estEntrant(m: Record<string, unknown>): boolean {
   return m.isEcho !== true && m.is_echo !== true && m.echo !== true && m.fromMe !== true && m.isFromMe !== true;
 }
 
-export function creerPortInboxZernio(options: { client: ClientZernio; comptesPermis: readonly string[] }): PortInboxZernio {
+export function creerPortInboxZernio(options: { client: ClientZernio; comptesPermis: readonly string[]; domainesPermis?: readonly string[]; titresGuidesPermis?: readonly string[] }): PortInboxZernio {
   const { client } = options;
   const comptesPermis = [...options.comptesPermis];
+  const domainesPermis = options.domainesPermis ? [...options.domainesPermis] : undefined;
+  // Un domaine permis contient un point et ne commence pas par un point (« com » ou « .com » ouvriraient tout un suffixe).
+  if (domainesPermis?.some((d) => typeof d !== "string" || !d.trim().includes(".") || d.trim().startsWith("."))) {
+    throw new Error("Inbox : domainesPermis invalide (un domaine complet est attendu).");
+  }
+  const titresGuidesPermis = [...(options.titresGuidesPermis ?? [])];
+  const listes = { comptesPermis, domainesPermis, titresGuidesPermis };
 
   async function ecrire(requete: Parameters<ClientZernio["requete"]>[0]): Promise<ResultatEcritureInbox> {
     try {
@@ -84,11 +96,13 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
         case "quota-messages":
           return { statut: "refuse", code: "message_allowance_exceeded" };
         case "reponse-privee-consommee":
-          return { statut: "definitif", code: e.code, consomme: true };
+          return { statut: "definitif", code: e.code, etat: "consommee", consomme: true };
         case "reponse-privee-inconnue":
-          return { statut: "a_verifier", code: e.code, issueInconnue: true };
+          return { statut: "a_verifier", code: e.code, etat: "a_verifier", issueInconnue: true };
         case "a-verifier":
-          return { statut: "a_verifier", code: e.code };
+          return { statut: "a_verifier", code: e.code, etat: "a_verifier" };
+        case "limite-incertaine":
+          return { statut: "a_verifier", code: e.code, etat: "a_verifier", reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined) };
         case "debit":
           return { statut: "a_reessayer", code: e.code, reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined) };
         default:
@@ -104,17 +118,17 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
         chemin: `/v1/inbox/comments/${p.idPost}`,
         corps: { accountId: p.idCompte, message: p.texte, commentId: p.idCommentaire },
         idempotence: cleInbox("repondre-commentaire", p.cle, p.idCompte, p.idPost, p.idCommentaire),
-        comptesPermis,
+        ...listes,
       }),
 
     repondreEnPrive: (p) => {
       const buttons = versBoutons(p.boutons);
-      if (buttons) return Promise.resolve<ResultatEcritureInbox>({ statut: "refuse", code: "chemin-refuse" }); // la route privée ne documente que {accountId, message}
+      if (buttons) return Promise.resolve<ResultatEcritureInbox>({ statut: "refuse", code: "boutons-non-supportes" }); // la route privée ne documente que {accountId, message}
       return ecrire({
         methode: "POST",
         chemin: `/v1/inbox/comments/${p.idPost}/${p.idCommentaire}/private-reply`,
         corps: { accountId: p.idCompte, message: p.texte },
-        comptesPermis,
+        ...listes,
       });
     },
 
@@ -125,7 +139,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
         chemin: `/v1/inbox/conversations/${p.idConversation}/messages`,
         corps: { accountId: p.idCompte, message: p.texte, ...(buttons ? { buttons } : {}) },
         idempotence: cleInbox("envoyer-message", p.cle, p.idCompte, p.idConversation),
-        comptesPermis,
+        ...listes,
       });
     },
 

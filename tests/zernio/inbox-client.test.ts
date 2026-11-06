@@ -13,6 +13,7 @@ const CLE_INBOX = `inbox-${HEX}`;
 const COMPTES = ["exemple-compte-1"] as const;
 const PUBLIC = rendreTexteMp("mp-pub-igfb-v1", {})!;
 const PRIVE = rendreTexteMp("mp-recu-v2", { titre: "Guide d'exemple" })!;
+const TITRES = ["Guide d'exemple"];
 const ADRESSE = "lecteur-fictif@example.com";
 
 const privee = (corps: unknown = { accountId: "exemple-compte-1", message: PRIVE }) => ({
@@ -20,6 +21,7 @@ const privee = (corps: unknown = { accountId: "exemple-compte-1", message: PRIVE
   chemin: "/v1/inbox/comments/exemple-post-1/exemple-com-1/private-reply",
   corps,
   comptesPermis: COMPTES,
+  titresGuidesPermis: TITRES,
 });
 const publique = (corps: unknown = { accountId: "exemple-compte-1", message: PUBLIC, commentId: "exemple-com-1" }, idempotence: string | undefined = CLE_INBOX) => ({
   methode: "POST" as const,
@@ -27,6 +29,7 @@ const publique = (corps: unknown = { accountId: "exemple-compte-1", message: PUB
   corps,
   idempotence,
   comptesPermis: COMPTES,
+  titresGuidesPermis: TITRES,
 });
 const envoi = (corps: unknown = { accountId: "exemple-compte-1", message: PRIVE }, idempotence: string | undefined = CLE_INBOX) => ({
   methode: "POST" as const,
@@ -34,6 +37,7 @@ const envoi = (corps: unknown = { accountId: "exemple-compte-1", message: PRIVE 
   corps,
   idempotence,
   comptesPermis: COMPTES,
+  titresGuidesPermis: TITRES,
 });
 const lecture = { methode: "GET" as const, chemin: "/v1/inbox/conversations/exemple-conv-1/messages", query: { accountId: "exemple-compte-1" }, comptesPermis: COMPTES };
 
@@ -232,23 +236,55 @@ describe("inbox · erreurs typées", () => {
     expect(client.lectureExigee()).toBe(true);
   });
 
-  it("429 : Retry-After respecté, rejeu unique ; si le 429 persiste, reessayerApresSec rendu", async () => {
+  it("429 sur une LECTURE : Retry-After respecté, rejeu unique ; si le 429 persiste, reessayerApresSec rendu", async () => {
     const un = creerFauxClientZernio([{ statut: 429, entetes: { "retry-after": "7" }, corps: {} }, { statut: 200, corps: {} }]);
-    await un.client.requete(envoi());
+    await un.client.requete(lecture);
     expect(un.horloge.attentes).toEqual([7000]);
     expect(un.faux.appels).toHaveLength(2);
-    expect(un.faux.appels[1].entetes["Idempotency-Key"]).toBe(CLE_INBOX);
 
     const deux = creerFauxClientZernio([
       { statut: 429, entetes: { "retry-after": "3" }, corps: {} },
       { statut: 429, entetes: { "retry-after": "9" }, corps: {} },
     ]);
-    await expect(deux.client.requete(privee())).rejects.toMatchObject({ code: "debit", statut: 429, reessayerApresSec: 9, reessayable: true });
+    await expect(deux.client.requete(lecture)).rejects.toMatchObject({ code: "debit", statut: 429, reessayerApresSec: 9, reessayable: true });
     expect(deux.faux.appels).toHaveLength(2);
+  });
 
+  it("429 sur une ÉCRITURE inbox : incertain, jamais rejoué, Retry-After conservé", async () => {
+    for (const req of [privee(), envoi(), publique()]) {
+      const c = creerFauxClientZernio([{ statut: 429, entetes: { "retry-after": "3" }, corps: { error: `adresse ${ADRESSE}` } }, { statut: 200, corps: {} }]);
+      await expect(c.client.requete(req)).rejects.toMatchObject({ code: "limite-incertaine", statut: 429, reessayerApresSec: 3, reessayable: false });
+      expect(c.faux.appels).toHaveLength(1);
+      expect(c.horloge.attentes).toEqual([]);
+      expect(c.client.lectureExigee()).toBe(true);
+    }
     const long = creerFauxClientZernio([{ statut: 429, entetes: { "retry-after": "900" }, corps: {} }]);
-    await expect(long.client.requete(privee())).rejects.toMatchObject({ code: "debit", reessayerApresSec: 900 });
-    expect(long.faux.appels).toHaveLength(1);
+    await expect(long.client.requete(privee())).rejects.toMatchObject({ code: "limite-incertaine", reessayerApresSec: 900 });
+  });
+
+  it("marqueur [MOT] : un mot normal passe ; un lien ou une adresse e-mail sont refusés sans être recopiés", async () => {
+    const avecMot = (mot: string) => envoi({ accountId: "exemple-compte-1", message: rendreTexteMp("mp-m1-v2", { mot, titre: "Guide d'exemple" })!, buttons: undefined });
+    const ok = creerFauxClientZernio([{ statut: 200, corps: {} }]);
+    await ok.client.requete(avecMot("GUIDE"));
+    for (const mauvais of ["https://evil.example/x", "ecrire@example.com", "a".repeat(31)]) {
+      const c = creerFauxClientZernio([]);
+      const err = await c.client.requete(avecMot(mauvais)).then(() => null, (e: unknown) => e as Error);
+      expect(err).toMatchObject({ code: "chemin-refuse" });
+      expect(JSON.stringify({ m: err?.message, j: c.journal })).not.toContain("evil");
+      expect(c.faux.appels).toHaveLength(0);
+    }
+  });
+
+  it("liens et titres : hors de nos domaines / hors liste = refus typé avant le réseau ; boutons sur réponse privée = code dédié", async () => {
+    const c = creerFauxClientZernio([]);
+    const lien = rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: "https://evil.example/x" })!;
+    await expect(c.client.requete(envoi({ accountId: "exemple-compte-1", message: lien }))).rejects.toMatchObject({ code: "lien-hors-domaine" });
+    await expect(c.client.requete({ ...envoi(), titresGuidesPermis: undefined })).rejects.toMatchObject({ code: "guide-inconnu" }); // aucune liste de titres fournie
+    await expect(c.client.requete({ ...envoi(), titresGuidesPermis: ["Autre guide"] })).rejects.toMatchObject({ code: "guide-inconnu" });
+    await expect(c.client.requete(privee({ accountId: "exemple-compte-1", message: PRIVE, buttons: [] }))).rejects.toMatchObject({ code: "boutons-non-supportes" });
+    const ok = creerFauxClientZernio([{ statut: 200, corps: {} }]);
+    await ok.client.requete(envoi());
+    expect(c.faux.appels).toHaveLength(0);
   });
 
   it("aucune adresse, aucun corps ni clé dans les erreurs et les journaux", async () => {
