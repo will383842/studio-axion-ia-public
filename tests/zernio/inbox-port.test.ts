@@ -138,6 +138,13 @@ describe("port inbox · écritures", () => {
     expect(faux.appels).toHaveLength(0);
   });
 
+  it("domainesPermis : une entrée sans point ou commençant par un point est refusée à la construction", () => {
+    for (const mauvais of ["com", ".com", ".axion-ia.com", "  "]) {
+      expect(() => creerPortInboxZernio({ client: fabrique([]).client, comptesPermis: COMPTES, domainesPermis: [mauvais] })).toThrow();
+    }
+    expect(() => creerPortInboxZernio({ client: fabrique([]).client, comptesPermis: COMPTES, domainesPermis: ["axion-ia.com"] })).not.toThrow();
+  });
+
   it("le résultat ne contient jamais le corps ni l'adresse de la personne", async () => {
     const { port } = fabrique([{ statut: 403, corps: { code: "INBOX_REQUIRED", error: ADRESSE } }]);
     const r = await port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });

@@ -30,7 +30,7 @@ const echapper = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Valeurs permises à la place des marqueurs du dictionnaire (bornées, une seule ligne). */
 const VALEUR_MARQUEUR: Record<string, string> = {
-  "[MOT]": "[^\\n\\r\\[\\]]{1,60}",
+  "[MOT]": "[\\p{L}\\p{N}' -]{1,30}", // lettres, chiffres, apostrophe, tiret, espace : ni lien ni adresse e-mail
   "[TITRE DU GUIDE]": "[^\\n\\r\\[\\]]{1,200}",
   "[LIEN]": "https://[^\\s\\[\\]]{1,300}",
 };
@@ -45,7 +45,7 @@ function motif(texte: string): { re: RegExp; marqueurs: string[] } {
       source += `(${VALEUR_MARQUEUR[morceau]})`;
     } else source += echapper(morceau);
   }
-  return { re: new RegExp(`^${source}$`), marqueurs };
+  return { re: new RegExp(`^${source}$`, "u"), marqueurs };
 }
 
 const MOTIFS = Object.entries(TEXTES_MP).map(([id, t]) => ({ id, publique: id.startsWith("mp-pub-"), ...motif(t.texte) }));

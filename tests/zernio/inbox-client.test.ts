@@ -256,9 +256,23 @@ describe("inbox · erreurs typées", () => {
       await expect(c.client.requete(req)).rejects.toMatchObject({ code: "limite-incertaine", statut: 429, reessayerApresSec: 3, reessayable: false });
       expect(c.faux.appels).toHaveLength(1);
       expect(c.horloge.attentes).toEqual([]);
+      expect(c.client.lectureExigee()).toBe(true);
     }
     const long = creerFauxClientZernio([{ statut: 429, entetes: { "retry-after": "900" }, corps: {} }]);
     await expect(long.client.requete(privee())).rejects.toMatchObject({ code: "limite-incertaine", reessayerApresSec: 900 });
+  });
+
+  it("marqueur [MOT] : un mot normal passe ; un lien ou une adresse e-mail sont refusés sans être recopiés", async () => {
+    const avecMot = (mot: string) => envoi({ accountId: "exemple-compte-1", message: rendreTexteMp("mp-m1-v2", { mot, titre: "Guide d'exemple" })!, buttons: undefined });
+    const ok = creerFauxClientZernio([{ statut: 200, corps: {} }]);
+    await ok.client.requete(avecMot("GUIDE"));
+    for (const mauvais of ["https://evil.example/x", "ecrire@example.com", "a".repeat(31)]) {
+      const c = creerFauxClientZernio([]);
+      const err = await c.client.requete(avecMot(mauvais)).then(() => null, (e: unknown) => e as Error);
+      expect(err).toMatchObject({ code: "chemin-refuse" });
+      expect(JSON.stringify({ m: err?.message, j: c.journal })).not.toContain("evil");
+      expect(c.faux.appels).toHaveLength(0);
+    }
   });
 
   it("liens et titres : hors de nos domaines / hors liste = refus typé avant le réseau ; boutons sur réponse privée = code dédié", async () => {
