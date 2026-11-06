@@ -69,7 +69,7 @@ describe("lecteurs sans contenu", () => {
   const env = (o: object) => lireEnveloppe(JSON.stringify(o))!;
   it("commentaire : identifiants opaques, motSeul normalisé, jamais le texte", () => {
     const e = lireEvenementCommentaire(env(commentaire({ text: " guide " })))!;
-    expect(e).toEqual({ idCommentaire: "com_1", idPostPlateforme: "post_1", idCompte: "acc_1", reseau: "instagram", idAuteur: "auteur_1", motSeul: "GUIDE", estReponse: false });
+    expect(e).toEqual({ idCommentaire: "com_1", idPostPlateforme: "post_1", idCompte: "acc_1", reseau: "instagram", idAuteur: "auteur_1", proprio: false, motSeul: "GUIDE", estReponse: false });
     expect(lireEvenementCommentaire(env(commentaire({ text: ADRESSE })))!.motSeul).toBeNull();
     expect(lireEvenementCommentaire(env(commentaire({ text: "stop" })))!.motSeul).toBe("STOP");
     expect(JSON.stringify(lireEvenementCommentaire(env(commentaire({ text: ADRESSE }))))).not.toContain("example.com");
@@ -101,9 +101,11 @@ describe("dépôt commentaire / message", () => {
     expect(l.map((e) => e.type)).toEqual(["zernio.message"]);
     expect(l[0].charge).toMatchObject({ idMessage: "msg_1", idConversation: "conv_1", postback: "GUIDE_OUI" });
   });
-  it("message sans postback : rien à déposer", async () => {
+  it("message sans postback : déposé (lot 3a) avec identifiants seulement, sans bouton", async () => {
     await recevoir(envoi(message({ postback: undefined })));
-    expect(await outbox()).toHaveLength(0);
+    const l = await outbox();
+    expect(l).toHaveLength(1);
+    expect(l[0].charge.postback).toBeNull();
   });
   it("déduplication (idCompte, idCommentaire) même avec un id d'événement différent", async () => {
     await recevoir(envoi(commentaire()));
