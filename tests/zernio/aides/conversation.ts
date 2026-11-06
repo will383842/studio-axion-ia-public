@@ -46,10 +46,10 @@ export function fauxPort(): FauxPort {
 export interface FauxSite {
   vus: RequeteSignee[];
   reponses: () => { statut: number; corps?: unknown };
-  transport: (r: RequeteSignee) => Promise<{ statut: number; corps?: unknown }>;
+  transport: (r: RequeteSignee) => Promise<{ statut: number; corps: unknown }>;
 }
 export function fauxSite(): FauxSite {
-  const s: FauxSite = { vus: [], reponses: () => ({ statut: 200, corps: {} }), transport: async (r) => (s.vus.push(r), s.reponses()) };
+  const s: FauxSite = { vus: [], reponses: () => ({ statut: 200, corps: {} }), transport: async (r) => (s.vus.push(r), { corps: {}, ...s.reponses() }) };
   return s;
 }
 
