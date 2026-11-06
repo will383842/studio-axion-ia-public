@@ -27,13 +27,15 @@ const graine = (etat: string, extra: Record<string, unknown> = {}) => ({
   cleIdempotenceGuide: "b".repeat(64), creeLe: new Date(T0 - 50 * H).toISOString(), m1Le: null, occurredAt: null, m2Envoye: false, essaisSite: 0, essaisPub: 0, essaisM1: 0, prochainEssaiLe: null, dernierCode: null, alias: [], ...extra,
 });
 const semer = (id: string, etat: string, extra: Record<string, unknown> = {}) => Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(id)]: graine(etat, extra) });
-const notifications = async () => (await depots().notifications.lister(() => true)).length;
+let notifBase = 0;
+const notifications = async () => (await depots().notifications.lister(() => true)).length - notifBase;
 
 beforeEach(async () => {
   reinitialiserDepots();
   C.reinitialiserParcoursConversation();
   pm.reinitialiserGardesParcours();
   silencerConsole();
+  notifBase = (await depots().notifications.lister(() => true)).length;
   port = fauxPort();
   site = fauxSite();
   pm.injecterTransportSite(site.transport);
@@ -53,7 +55,7 @@ describe("B1 · un stop en message privé est pris en compte dans TOUT état con
       await passer();
       expect((await evenement(depots, id)).charge.etat).toBe("oppose");
       expect((await etatDe(A)).etat).toBe("oppose");
-      expect(await lignes()).toHaveLength(1); // même personne : une seule ligne
+      expect(await lignes()).toHaveLength(2); // l.expéditeur (= la personne) et l.alias de conversation
       expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
       expect(site.vus).toHaveLength(0);
     });
@@ -103,7 +105,7 @@ describe("B2 · un stop posté en RÉPONSE à un commentaire", () => {
       await envoyer(o);
       const l = await deposes();
       expect(l).toHaveLength(1);
-      expect(l[0].charge).toMatchObject({ motSeul: "STOP", estReponse: true });
+      expect(l[0].charge).toMatchObject({ motSeul: "STOP.", estReponse: true }); // mot normalisé (liste fermée), jamais le texte tel qu.écrit
       expect(JSON.stringify(l)).not.toContain("Stop.");
       reinitialiserDepots();
       const g = fixture();
