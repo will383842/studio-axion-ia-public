@@ -67,6 +67,14 @@ export async function register() {
     void import("@/services/boucle-generation").then((m) => m.arreterBoucleGeneration());
     void import("@/services/veille").then((m) => m.arreterVeille());
   };
+  // Lot 4c : branchement du parcours de conversation (vérification de configuration SANS réseau, aucun interrupteur allumé).
+  // Hors du bloc DATABASE_URL ; un échec ne bloque jamais le démarrage (code seulement dans le journal, jamais de valeur).
+  try {
+    const { brancherParcoursZernio } = await import("@/services/branchements-zernio");
+    brancherParcoursZernio();
+  } catch {
+    console.error("[studio] branchement du parcours de conversation en échec (code BRANCHEMENT_ECHEC)");
+  }
   const { demarrerBoucleUnique } = await import("@/services/boucle");
   const fabrication = process.env.STUDIO_BOUCLE !== "0"; // « 0 » : coupure de secours (variable d'environnement)
   if ((await demarrerBoucleUnique({ boucleFabrication: fabrication, avecLeVerrou: lancerAvecLeVerrou, surPerte: arreterSansLeVerrou })) && fabrication) {
