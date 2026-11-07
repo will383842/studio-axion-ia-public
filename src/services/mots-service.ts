@@ -253,12 +253,56 @@ async function poserTextes(d: Demande & { compte: string }, textes: TextesMot): 
   });
 }
 
+/**
+ * ACTIVATION LOCALE (aucun appel réseau) : le registre local est la seule source de vérité de la machine de conversation.
+ * Retourne le code du refus, ou null si tout est permis. Échec fermé : une panne de lecture refuse. À appeler sous verrou.
+ */
+async function refusActivationLocale(mot: string, env: Env): Promise<string | null> {
+  try {
+    if (!motsActif(env)) return "interrupteur_eteint";
+    if (!(await lireValidations())[mot]) return "mot_non_valide";
+    if (!(await envoiZernioAutorise())) return "tout_arrete";
+    if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ouvert";
+  } catch {
+    return "lecture_impossible";
+  }
+  return null;
+}
+
+/** Active le mot GUIDE sur un compte, EN LOCAL : ligne `{ etat: "actif", idWorkflow: null, raison: "local" }`, rien vers Zernio. */
+export async function activerMotLocal(d: Demande & { mot: "GUIDE"; compte: string }): Promise<Resultat> {
+  if (d.mot !== "GUIDE") return refus("mot_non_pris_en_charge");
+  if (!d.confirmeParOperateur) return refus("validation_operateur_absente");
+  const env = d.env ?? process.env;
+  return sousVerrou(async () => {
+    const existante = (await lireRegistre())[cle(d.mot, d.compte)];
+    if (existante && existante.idWorkflow !== null) return refus("deja_pose_chez_zernio");
+    const motif = await refusActivationLocale(d.mot, env);
+    if (motif) return refus(motif);
+    await enregistrerLigne({ mot: d.mot, compte: d.compte, etat: "actif", idWorkflow: null, raison: "local", modifieLe: maintenant() });
+    await journaliser("mots", `Mot ${d.mot} activé en local sur un compte.`);
+    return { issue: "execute", raison: "activation_locale" };
+  });
+}
+
+/** Met en pause une ligne locale (jamais d'appel réseau). Toujours permis avec le geste de l'opérateur : la pause réduit le risque. */
+export const mettreEnPauseLocal = (d: Demande & { mot: string; compte: string }) => sousVerrou(() => changerEtat(d, "pause"));
+
 async function changerEtat(d: Demande & { mot: string; compte: string }, vers: "pause" | "actif", automatique = false): Promise<Resultat> {
   const env = d.env ?? process.env;
   const ligne = (await lireRegistre())[cle(d.mot, d.compte)];
-  if (!ligne?.idWorkflow) return refus("mot_non_pose");
+  if (!ligne) return refus("mot_non_pose");
+  if (!d.confirmeParOperateur && !automatique) return refus("validation_operateur_absente");
+  // Ligne locale (idWorkflow nul) : changement d'état dans le registre, sans exécuteur ni compteur d'erreurs ni disjoncteur.
+  if (ligne.idWorkflow === null) {
+    if (vers === "actif") {
+      const motif = await refusActivationLocale(ligne.mot, env);
+      if (motif) return refus(motif);
+    }
+    await enregistrerLigne({ ...ligne, etat: vers === "actif" ? "actif" : automatique ? "pause_auto" : "pause", raison: vers === "actif" ? "local" : automatique ? "automatique" : "local", modifieLe: maintenant() });
+    return { issue: "execute", raison: vers };
+  }
   const requete = requeteEtat(ligne.idWorkflow, vers);
-  if (!d.confirmeParOperateur && !automatique) return refus("validation_operateur_absente", requete);
   // « Tout arrêter » et disjoncteur ouvert interdisent de (ré)activer ; la PAUSE reste toujours permise (elle réduit le risque).
   if (vers === "actif") {
     if (!(await envoiZernioAutorise())) return refus("tout_arrete", requete);

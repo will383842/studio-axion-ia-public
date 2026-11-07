@@ -33,6 +33,8 @@ export const PHRASES_REFUS: Record<string, string> = {
   zernio_refuse: "Zernio n’a pas accepté la demande.",
   reponse_inattendue: "Réponse inattendue de Zernio.",
   fichier_absent: "Fichier du mot introuvable.",
+  mot_non_valide: "Les textes de ce mot ne sont pas validés.",
+  deja_pose_chez_zernio: "Ce mot est déjà posé chez Zernio.",
   interrupteur_eteint: "Éteint : rien n’a été envoyé (simulation).",
 };
 export const phraseRefus = (code: string): string => PHRASES_REFUS[code] ?? "Demande refusée.";
