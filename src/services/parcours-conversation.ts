@@ -22,7 +22,7 @@ import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS } from "./mots-service";
-import { enregistrerOpposition, enregistrerOppositionParEmpreinte, personneOpposee } from "./oppositions-mots";
+import { enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { creerNotification } from "./notifications";
 import { CHEMIN_DEMANDES_GUIDE, transportDuSite } from "./parcours-mot";
 import { depots, ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
@@ -239,11 +239,11 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   }
   const cle = empreintePersonne(cles.courante, ESPACE_CONVERSATION, idAuteur!); // clé des NOUVELLES écritures : toujours la courante
   if (filtre.action === "opposer") {
-    await enregistrerOpposition(idAuteur!, ESPACE_CONVERSATION, { env });
-    // Aussi tous les alias connus de la personne (comme l'opposition en privé) : l'auteur peut être lui-même un alias.
+    await enregistrerOppositionPersonne([idAuteur!], [], ESPACE_CONVERSATION, { env }); // le « stop » est noté en premier
+    // Puis les formes sans identifiant brut (clé de conversation, alias) : leur propre ligne, jamais rattachées à une autre personne.
     const connu = await retrouver(cles, idAuteur!);
     const cleEtat = connu?.cle ?? cle;
-    for (const emp of new Set([...formesConversation(cles, idAuteur!), cleEtat, ...(connu?.etat.alias ?? [])])) await enregistrerOppositionParEmpreinte(emp, { env });
+    await enregistrerOppositionPersonne([idAuteur!], [cleEtat, ...(connu?.etat.alias ?? [])], ESPACE_CONVERSATION, { env });
     await ecrireEtat(cleEtat, (e) => (e ? { ...e, etat: "oppose", prochainEssaiLe: null } : etatNeuf("oppose", c, d, cleIdempotenceOpaque(cles.courante, "guide", ev.idEvenement), now)));
     await clore(ev, "oppose", "opposition");
     return "traite";
@@ -391,7 +391,7 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
     const s = transition(null, { t: "texte_panne", essais: n });
     await reporter(ev, now, s.apresMs ?? 30_000, "lecture_panne", { pannesLecture: n + 1 });
     const horsListe = !(d.comptesLecture ?? d.comptesPermis).includes(idCompte) && !d.comptesPermis.includes(idCompte);
-    await alerter("lecture_panne", horsListe
+    await alerter(horsListe ? "lecture_compte_hors_liste" : "lecture_panne", horsListe
       ? "La lecture d'un message privé échoue : compte hors liste (absent des comptes autorisés). L'événement est réessayé plus tard, rien n'est ignoré. Vérifier les comptes autorisés."
       : "La lecture d'un message privé échoue (panne Zernio ou réseau) : l'événement est réessayé plus tard, rien n'est ignoré. Vérifier l'accès à l'Inbox Zernio.", now);
     return null;
@@ -415,11 +415,12 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
 }
 
 /** Opposition écrite en privé : TOUS les identifiants connus de la personne (expéditeur, auteur du commentaire d'origine, alias) sont opposés. */
-async function opposerEnPrive(ev: EvenementFournisseur, env: Env, cle: string, idExpediteur: string, emps: string[], toutes: string[]): Promise<void> {
-  await enregistrerOpposition(idExpediteur, ESPACE_CONVERSATION, { env });
+async function opposerEnPrive(ev: EvenementFournisseur, env: Env, cle: string, idExpediteur: string, idConversation: string | null, emps: string[]): Promise<void> {
+  const bruts = [idExpediteur, ...(idConversation ? [idConversation] : [])];
+  await enregistrerOppositionPersonne(bruts, [cle], ESPACE_CONVERSATION, { env }); // le « stop » est noté avant tout le reste
   await noterAlias(cle, emps);
   const etat = await lireEtat(cle);
-  for (const e of new Set([cle, ...emps, ...toutes, ...(etat?.alias ?? [])])) await enregistrerOppositionParEmpreinte(e, { env });
+  await enregistrerOppositionPersonne(bruts, [cle, ...(etat?.alias ?? [])], ESPACE_CONVERSATION, { env });
   await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
   await clore(ev, "oppose", "opposition");
 }
@@ -439,8 +440,6 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const empS = empreintePersonne(cles.courante, ESPACE_CONVERSATION, idExpediteur!);
   const empC = idConversation ? empreintePersonne(cles.courante, ESPACE_CONVERSATION, idConversation) : null;
   const emps = empC ? [empS, empC] : [empS];
-  // Opposition : toutes les formes connues (courante + anciennes) de l'expéditeur et du fil.
-  const empsToutes = [...formesConversation(cles, idExpediteur!), ...(idConversation ? formesConversation(cles, idConversation) : [])];
   const trouve = await retrouver(cles, idExpediteur!, idConversation);
   if (!trouve) {
     // Orphelin : 2 réessais ; ensuite le texte est lu QUAND MÊME, pour ne pas perdre un « stop » (aucune réponse n'est jamais envoyée).
@@ -503,12 +502,12 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   if (!lu) return "traite";
   if (s0.action === "lire_opposition") {
     // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition.
-    if (estMotOpposition(lu.texte)) await opposerEnPrive(ev, env, cle, idExpediteur!, emps, empsToutes);
+    if (estMotOpposition(lu.texte)) await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps);
     else await clore(ev, "silence", s0.raison ?? "etat");
     return "traite";
   }
   if (estMotOpposition(lu.texte)) {
-    await opposerEnPrive(ev, env, cle, idExpediteur!, emps, empsToutes);
+    await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps);
     return "traite";
   }
   // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
@@ -522,7 +521,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const adresse = extraireAdresse(lu.texte);
   const s = transition(etat, { t: "texte", estOpposition: false, adresse });
   if (s.action === "opposer") {
-    await opposerEnPrive(ev, env, cle, idExpediteur!, emps, empsToutes);
+    await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps);
     return "traite";
   }
   await noterAlias(cle, emps);

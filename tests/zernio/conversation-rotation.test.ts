@@ -1,6 +1,6 @@
 /** Lot 5b · R-c : suivi des conversations après rotation du secret d'empreinte. Données 100 % fictives (example.test) ; port et site FAUX. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { empreintePersonne, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
+import { empreintePersonne, ErreurEmpreinteIndisponible, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { ADRESSE_FICTIVE, COMPTE, ENV, SECRET_EMPREINTE, T0, TITRE, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -85,8 +85,12 @@ describe("rotation · (1) conversation créée sous A, suivie sous B", () => {
   });
 });
 
+const kidA = () => clesDe(ENV_B).anciennes[0].kid;
+const lignes = () => Com.lireParametre<any[]>(Opp.PARAM_OPPOSITIONS_MOTS, []);
+const seulA = async () => (await Opp.etatRegistreEmpreintes({ env: ENV_B })).seulementParKid[kidA()] ?? 0;
+
 describe("rotation · (2) « stop » après rotation", () => {
-  it("l'opposition est enregistrée sous toutes les formes connues (courante ET ancienne)", async () => {
+  it("l'opposition est enregistrée sous toutes les formes connues (courante ET ancienne), sans ligne isolée pour l'ancien secret", async () => {
     await graine(formeA(A), "attente_email");
     port.reponses.texte = () => "stop";
     const id = await deposerMessage(depots, { idExpediteur: A, idConversation: FIL, idMessage: "msg-rot-stop" });
@@ -96,8 +100,75 @@ describe("rotation · (2) « stop » après rotation", () => {
     const registreOpp = JSON.stringify(await Com.lireParametre(Opp.PARAM_OPPOSITIONS_MOTS, []));
     for (const forme of [formeA(A), formeB(A), formeA(FIL), formeB(FIL)]) expect(registreOpp, "forme absente du registre").toContain(forme);
     expect(await Opp.personneOpposee(A, "zernio-conversation", { env: ENV_B })).toBe(true);
+    expect(await seulA()).toBe(0);
     expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
     expect(site.vus).toHaveLength(0);
+  });
+});
+
+describe("rotation · T1 « stop » après rotation, retrait de l'ancien secret", () => {
+  it("seulementParKid[ancien] = 0 ; un second « stop » ne change pas le registre ; vrai sous B seul ET sous A seul", async () => {
+    await graine(formeA(A), "attente_email");
+    port.reponses.texte = () => "stop";
+    await deposerMessage(depots, { idExpediteur: A, idConversation: FIL, idMessage: "msg-t1-a" });
+    await passer(ENV_B, T0);
+    expect(await seulA()).toBe(0);
+    const avant = await lignes();
+    await deposerMessage(depots, { idExpediteur: A, idConversation: FIL, idMessage: "msg-t1-b" });
+    await passer(ENV_B, T0 + 1000);
+    expect(await lignes()).toEqual(avant);
+    for (const env of [ENV_B_SEUL, ENV]) {
+      expect(await Opp.personneOpposee(A, "zernio-conversation", { env })).toBe(true);
+      expect(await Opp.personneOpposee(FIL, "zernio-conversation", { env })).toBe(true);
+    }
+    const idc = await deposerCommentaire(depots, { idAuteur: A, idCommentaire: "com-t1" });
+    await passer(ENV_B_SEUL, T0 + 2000);
+    const ev = await evenement(depots, idc);
+    expect(ev.charge.etat).toBe("silence");
+    expect(ev.charge.dernierCode).not.toBe("registre_illisible");
+    expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
+  });
+});
+
+describe("rotation · T2 dette honnête (forme ancienne sans identifiant brut)", () => {
+  it("la forme sans brut garde sa propre ligne (échec fermé), puis disparaît quand son brut revient", async () => {
+    const AUTEUR = "auteur-commentaire-fictif-401";
+    await graine(formeA(AUTEUR), "attente_email", { alias: [formeA(FIL)] });
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS_ALIAS, { [formeA(FIL)]: formeA(AUTEUR) });
+    port.reponses.texte = () => "stop";
+    await deposerMessage(depots, { idExpediteur: A, idConversation: FIL, idMessage: "msg-t2" });
+    await passer(ENV_B, T0);
+    expect((await tout())[formeA(AUTEUR)].etat).toBe("oppose");
+    expect(await seulA()).toBe(1);
+    await expect(Opp.personneOpposee(A, "zernio-conversation", { env: ENV_B_SEUL })).rejects.toBeInstanceOf(ErreurEmpreinteIndisponible);
+    expect(await Opp.personneOpposee(AUTEUR, "zernio-conversation", { env: ENV_B })).toBe(true);
+    expect(await seulA()).toBe(0);
+    for (const id of [A, FIL, AUTEUR]) expect(await Opp.personneOpposee(id, "zernio-conversation", { env: ENV_B_SEUL })).toBe(true);
+  });
+});
+
+describe("rotation · T3 « stop » par commentaire après rotation", () => {
+  it("conversation passée en oppose sans nouvelle clé ; ancien secret retirable ; aucun envoi", async () => {
+    await graine(formeA(A), "attente_email");
+    await deposerCommentaire(depots, { idAuteur: A, idCommentaire: "com-t3", motSeul: "stop" });
+    await passer(ENV_B, T0);
+    expect(Object.keys(await tout())).toEqual([formeA(A)]);
+    expect((await tout())[formeA(A)].etat).toBe("oppose");
+    expect(await seulA()).toBe(0);
+    expect(await Opp.personneOpposee(A, "zernio-conversation", { env: ENV_B_SEUL })).toBe(true);
+    expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
+  });
+});
+
+describe("rotation · T5 opposé avant rotation (ancien format, lignes séparées)", () => {
+  it("personneOpposee(A) vrai sous B et ajoute B(A) ; commentaire GUIDE clos en silence", async () => {
+    await Com.ecrireParametre(Opp.PARAM_OPPOSITIONS_MOTS, [{ id: formeA(A), le: "x", transmise: false }, { id: formeA(FIL), le: "x", transmise: false }]);
+    expect(await Opp.personneOpposee(A, "zernio-conversation", { env: ENV_B })).toBe(true);
+    expect(JSON.stringify(await lignes())).toContain(formeB(A));
+    const id = await deposerCommentaire(depots, { idAuteur: A, idCommentaire: "com-t5" });
+    await passer(ENV_B, T0);
+    expect((await evenement(depots, id)).charge.etat).toBe("silence");
+    expect(port.total()).toBe(0);
   });
 });
 
@@ -146,6 +217,21 @@ describe("rotation · (5) l'alias du fil d'abord", () => {
     expect(conv[cleAutre].etat).toBe("termine");
     expect(conv[formeA(A)].etat).toBe("attente_email");
     expect(Object.keys(conv).sort()).toEqual([cleAutre, formeA(A)].sort());
+  });
+});
+
+describe("rotation · T4 alias ancien du fil avant la clé courante de l'expéditeur", () => {
+  it("conv 1 (alias ancien du fil) est suivie ; conv 2 (clé courante de l'expéditeur) intacte ; B(FIL) devient alias de conv 1", async () => {
+    await graine(formeA("conv1-fictive-801"), "attente_email", { alias: [formeA(FIL)] });
+    await graine(formeB(A), "attente_email");
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS_ALIAS, { [formeA(FIL)]: formeA("conv1-fictive-801") });
+    port.reponses.texte = () => `Mon adresse : ${ADRESSE_FICTIVE}`;
+    await deposerMessage(depots, { idExpediteur: A, idConversation: FIL, idMessage: "msg-t4" });
+    await passer(ENV_B, T0);
+    const conv = await tout();
+    expect(conv[formeA("conv1-fictive-801")].etat).toBe("termine");
+    expect(conv[formeB(A)].etat).toBe("attente_email");
+    expect(conv[formeA("conv1-fictive-801")].alias).toContain(formeB(FIL));
   });
 });
 

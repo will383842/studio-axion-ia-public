@@ -163,6 +163,18 @@ describe("m1 · comptesLecture", () => {
     expect(messages).toContain("compte hors liste");
     expect(messages).not.toContain("panne Zernio ou réseau");
   });
+  it("T6 · panne sur compte autorisé puis refus sur compte hors listes, même heure : les deux alertes sont présentes", async () => {
+    await semer(A, "attente_email", { m1Le: new Date(T0).toISOString() });
+    port.reponses.lecture = () => ({ texte: null, postback: null, panne: true });
+    await deposerMessage(depots, {});
+    await passer(T0);
+    await semer("autre-fictif-402", "attente_email", { idCompte: "compte-hors-fictif", m1Le: new Date(T0).toISOString() });
+    await deposerMessage(depots, { idExpediteur: "autre-fictif-402", idCompte: "compte-hors-fictif", idMessage: "msg-t6" });
+    await passer(T0, { comptesPermis: [COMPTE], comptesLecture: [COMPTE] });
+    const messages = (await depots().notifications.lister(() => true)).map((n: any) => n.message).join("|");
+    expect(messages).toContain("panne Zernio ou réseau");
+    expect(messages).toContain("compte hors liste");
+  });
   it("orphelin « stop » sur un compte hors des deux listes : jamais clos, report à +6 h, une alerte", async () => {
     port.reponses.texte = () => "stop";
     const id = await deposerMessage(depots, {});

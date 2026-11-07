@@ -2,6 +2,7 @@
 // base, aucun journal). Le service (`parcours-conversation.ts`) fait les effets. Aucune donnée personnelle n'entre dans l'état.
 import { estMotOpposition } from "./opposition";
 import { ESSAIS_MAX, EN_COURS_MAX, type Conduite } from "./crochet-zernio";
+import { ETATS_EN_COURS, type EtatParcours } from "./etats-parcours";
 import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 
 export const DELAI_PERIME_MS = 24 * 3600_000;
@@ -18,9 +19,7 @@ export const ATTENTES_INTROUVABLE_MS = [5 * 60_000, 30 * 60_000, 2 * 3600_000, 6
 /** Codes du port qui ouvrent le disjoncteur des mots (rien ne repart tant que l'opérateur ne l'a pas refermé). */
 export const CODES_BLOCAGE = ["INBOX_REQUIRED", "message_allowance_exceeded", "acces"] as const;
 
-export type EtatParcours =
-  | "nouveau" | "pub_ok" | "m1_en_vol" | "attente_email" | "m1_a_verifier" | "m1_consommee" | "m1_refuse"
-  | "m2_envoye" | "guide_demande" | "termine" | "site_refuse" | "expire" | "oppose";
+export { ETATS_EN_COURS, type EtatParcours };
 /** Etats où un message privé de la personne est pris en compte. */
 export const ETATS_MESSAGE_ACCEPTES: readonly EtatParcours[] = ["attente_email", "m1_a_verifier", "m1_en_vol", "m2_envoye"];
 
