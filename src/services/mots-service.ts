@@ -397,7 +397,9 @@ export async function traiterOppositions(o: { env?: Env } = {}): Promise<{ actif
   });
   let prises = 0;
   let transmises = 0;
-  const secret = env.SITE_GUIDES_RESEAU_SECRET?.trim() || env.SITE_VIDEOS_SECRET?.trim();
+  // Aucun repli sur SITE_VIDEOS_SECRET : la route des oppositions du site le refuse.
+  const secretBrut = env.SITE_GUIDES_RESEAU_SECRET?.trim();
+  const secret = secretBrut && secretBrut.length >= 32 ? secretBrut : undefined;
   for (const ev of evenements) {
     const idContact = typeof ev.charge.idContact === "string" ? ev.charge.idContact : null;
     const idRun = String(ev.charge.idRun);

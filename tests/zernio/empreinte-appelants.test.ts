@@ -21,7 +21,7 @@ const T0 = 1_760_781_600_000;
 const SECRET_CROCHET = "secret-fictif-crochet-appelants";
 const E1 = "secret-fictif-empreinte-numero-un-0123456789";
 const E2 = "secret-fictif-empreinte-numero-deux-012345678";
-const ENV_BASE = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: "secret-fictif-site-appelants" };
+const ENV_BASE = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_GUIDES_RESEAU_SECRET: "secret-fictif-site-appelants-0123456789" };
 const ENV_E1 = { ...ENV_BASE, [E.VARIABLE_SECRET_EMPREINTE]: E1 };
 const RUN: RunLu = { email: "lecteur-fictif@example.test", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "mp-m1-v2" };
 const lire = () => C.lireParametre<import("@/services/oppositions-mots").LigneOpposition[]>(Opp.PARAM_OPPOSITIONS_MOTS, []);
