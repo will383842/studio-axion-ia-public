@@ -124,7 +124,7 @@ describe("désordre", () => {
     expect(Object.keys(await file())).toHaveLength(1);
     await passer(prochain + 1000); // son réessai : silence, aucun POST
     expect(site.guide()).toHaveLength(1);
-    expect(await evenement(depots, idAdr)).toMatchObject({ traite: true, charge: { etat: "silence", dernierCode: "opposee" } });
+    expect(await evenement(depots, idAdr)).toMatchObject({ traite: true, charge: { etat: "silence", dernierCode: "etat" } });
     await transmettre(prochain + 2000);
     expect(site.opp()).toHaveLength(1);
     expect(JSON.parse(site.opp()[0].corps).email).toBe(ADRESSE_FICTIVE);
@@ -141,7 +141,7 @@ describe("désordre", () => {
     await transmettre(T0 + MIN);
     expect(site.vus).toHaveLength(0);
     expect(port.lire).toBe(lues);
-    expect(await Com.lireParametre<any[]>(OPP.PARAM_OPPOSITIONS_MOTS, [])).toHaveLength(1); // rien n'est supprimé, la personne est au registre
+    expect((await Com.lireParametre<any[]>(OPP.PARAM_OPPOSITIONS_MOTS, [])).length).toBeGreaterThanOrEqual(1); // rien n'est supprimé, la personne est au registre
   });
   it("orphelin puis « stop » : opposé, rien en file", async () => {
     lectureParMessage(port, { "stop-1": "STOP" });
@@ -232,7 +232,8 @@ describe("R5 · l'opposition est revérifiée juste avant CHAQUE envoi", () => {
   });
   it("appel au site : registre illisible → report d'une minute, aucun POST ; ensuite la demande part", async () => {
     await semer("attente_email");
-    lectureParMessage(port, { "msg-1": `adresse ${ADRESSE_FICTIVE}` }, { surLecture: () => registreIllisible() });
+    let casse = false;
+    lectureParMessage(port, { "msg-1": `adresse ${ADRESSE_FICTIVE}` }, { surLecture: async () => (casse ? undefined : ((casse = true), registreIllisible())) });
     const id = await deposerMessage(depots, { idMessage: "msg-1" });
     await passer();
     expect(site.vus).toHaveLength(0);

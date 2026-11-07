@@ -139,6 +139,26 @@ export async function marquerTransmise(idContact: string, espace: EspacePersonne
 }
 
 /**
+ * Une de ces empreintes (clé de conversation, alias…) est-elle au registre ? Parcours complet en temps constant. Registre illisible
+ * (kid qu'aucun secret ne couvre) ou secret absent : l'ERREUR EST LEVÉE (échec fermé, jamais « non opposée »). Ne pas appeler sous verrou.
+ */
+export async function empreintesOpposees(empreintes: readonly string[], o?: Options): Promise<boolean> {
+  const c = cles(o);
+  const liste = await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, []);
+  verifierKids(liste, c);
+  return trouver(liste, [...empreintes]) >= 0;
+}
+/** Marque « transmise » la ligne reconnue par UNE empreinte déjà calculée (aucun identifiant brut, aucun secret requis). */
+export async function marquerTransmiseParEmpreinte(empreinte: string, o?: Options): Promise<void> {
+  void o; // signature homogène avec les autres fonctions du registre ; aucun secret requis
+  await sousVerrou(async () => {
+    const liste = await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, []);
+    const i = trouver(liste, [empreinte]);
+    if (i >= 0 && !liste[i].transmise) await ecrireParametre(PARAM_OPPOSITIONS_MOTS, liste.map((x, j) => (j === i ? { ...x, transmise: true } : x)));
+  });
+}
+
+/**
  * Comptes seulement : jamais d'empreinte.
  * - lignesParKid : lignes ayant au moins une forme sous ce kid (alias compris) ;
  * - seulementParKid : lignes COUVERTES UNIQUEMENT par ce kid (retirer ce secret les rendrait illisibles) ;
