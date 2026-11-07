@@ -260,7 +260,7 @@ describe("travail de fond : seul workflow.run.completed est traité", () => {
     pm.injecterLecteurRuns(null);
     pm.injecterTransportSite(null);
   });
-  const ENV_FOND = { ...ENV, SITE_GUIDES_RESEAU_SECRET: "secret-site-fictif", SITE_VIDEOS_URL: "https://site.example.com" };
+  const ENV_FOND = { ...ENV, SITE_GUIDES_RESEAU_SECRET: "secret-site-fictif-0123456789abcdefgh", SITE_VIDEOS_URL: "https://site.example.com" };
 
   it("50 commentaires GUIDE : lecteur jamais appelé, rien de consommé, vrais runs traités dans le même lot", async () => {
     const lecteur = vi.fn(async () => ({ ...RUN }));

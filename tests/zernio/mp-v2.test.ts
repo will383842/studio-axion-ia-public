@@ -154,7 +154,7 @@ describe("« stop » / « arrêtez » écrit par la personne", () => {
 describe("outbox : personne opposée = aucune réponse, aucun guide ; plus de champ accord", () => {
   const T0 = 1_760_781_600_000;
   const SECRET = "secret-fictif-crochet-mp-v2";
-  const ENV = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET, SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: "secret-fictif-site-mp-v2" };
+  const ENV = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET, SITE_VIDEOS_URL: "https://site.exemple", SITE_GUIDES_RESEAU_SECRET: "secret-fictif-site-mp-v2-0123456789abc" };
   const RUN: RunLu = { email: "lecteur-fictif@example.test", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "mp-m1-v2" };
   beforeEach(() => {
     reinitialiserDepots();
@@ -210,7 +210,7 @@ describe("outbox : personne opposée = aucune réponse, aucun guide ; plus de ch
 describe("corrections de revue : lecture du registre en panne, « stop » commenté, interrupteur des « stop »", () => {
   const T0 = 1_760_781_600_000;
   const SECRET = "secret-fictif-crochet-mp-v2";
-  const ENV = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET, SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: "secret-fictif-site-mp-v2" };
+  const ENV = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET, SITE_VIDEOS_URL: "https://site.exemple", SITE_GUIDES_RESEAU_SECRET: "secret-fictif-site-mp-v2-0123456789abc" };
   const RUN: RunLu = { email: "lecteur-fictif@example.test", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "mp-m1-v2" };
   beforeEach(() => {
     reinitialiserDepots();

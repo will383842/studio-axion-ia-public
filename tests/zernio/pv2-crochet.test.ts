@@ -11,10 +11,10 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const pm = await import("@/services/parcours-mot");
 
 const SECRET_CROCHET = "secret-fictif-crochet-pv2";
-const SECRET_SITE = "secret-fictif-site-pv2";
+const SECRET_SITE = "secret-fictif-site-pv2-0123456789abc";
 const EMAIL = "lecteur-fictif@example.com";
 const T0 = 1_760_781_600_000;
-const ENV_ALLUME = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_VIDEOS_SECRET: SECRET_SITE };
+const ENV_ALLUME = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_GUIDES_RESEAU_SECRET: SECRET_SITE };
 const RUN: RunLu = { email: EMAIL, mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "m1-v1" };
 
 function corpsRun(id: string, idRun: string, t = T0): string {

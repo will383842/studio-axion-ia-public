@@ -14,7 +14,7 @@ export const ENV = {
   PARCOURS_CONVERSATION_ENABLED: "1",
   STUDIO_EMPREINTE_SECRET: SECRET_EMPREINTE,
   SITE_VIDEOS_URL: "https://site.exemple",
-  SITE_VIDEOS_SECRET: "secret-fictif-site-conversation",
+  SITE_GUIDES_RESEAU_SECRET: "secret-fictif-site-conversation-0123456789",
 };
 const OK: ResultatEcritureInbox = { statut: "envoye", idMessage: "msg-sortant-fictif" };
 
