@@ -631,7 +631,7 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     p.pannes = 0;
     await alerter("site_disjoncteur", `Le site des guides ne répond pas : ${DISJONCTEUR_SEUIL} pannes de suite, pause de ${DISJONCTEUR_PAUSE_MS / 60_000} minutes.`, now);
   }
-  await patcher(cle, { ...(s.patch ?? {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage } : {}) });
+  await patcher(cle, { ...(s.patch ?? {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
   if (s.action === "site_reessai") {
     await reporter(ev, now, s.apresMs ?? 60_000, s.code ?? "reessai", code === "409_en_cours" ? { enCours: Number(c.enCours ?? 0) + 1 } : {});
     return "traite";
