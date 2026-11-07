@@ -50,3 +50,23 @@ export const SchemaDemandeGuideReseau = z
     message: "versionTexteM2_requise",
     path: ["versionTexteM2"],
   });
+
+/**
+ * COPIE du schéma strict de la route d'opposition du site (`POST /api/interne/oppositions-reseau`) : corps strict, adresse
+ * OBLIGATOIRE (le Studio n'en garde aucune : il relit le message chez Zernio, en mémoire). À re-synchroniser si le site change.
+ */
+export const SchemaOppositionReseau = z
+  .object({
+    schemaVersion: z.literal(1),
+    cleIdempotence: z.string().regex(/^[A-Za-z0-9_-]{8,80}$/),
+    email: z
+      .string()
+      .trim()
+      .max(254)
+      .email()
+      .transform((e) => e.toLowerCase()),
+    motif: z.literal("stop"),
+    reseau: z.enum(RESEAUX_GUIDE_SITE),
+    occurredAt: z.string().datetime().optional(),
+  })
+  .strict();
