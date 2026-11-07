@@ -195,7 +195,8 @@ async function traiterEntree(cle: string, port: PortInboxZernio, env: Env, now: 
 
   // 1. Relire le message qui portait l'adresse : EN MÉMOIRE seulement.
   const conv = (await lireParametre<Record<string, Conversation>>(PARAM_CONVERSATIONS, {}))[cle];
-  const idMessage = conv?.idMessageAdresse ?? null;
+  // Conversations d'avant le lot : seul `idMessageGuide` est connu (le message du guide portait l'adresse).
+  const idMessage = conv?.idMessageAdresse ?? conv?.idMessageGuide ?? null;
   const evenement = idMessage ? (await depots().evenementsFournisseurs.lister((x) => x.type === "zernio.message" && x.charge.idMessage === idMessage))[0] : undefined;
   const idConversation = typeof evenement?.charge.idConversation === "string" && evenement.charge.idConversation ? evenement.charge.idConversation : null;
   let adresse: string | null = null;

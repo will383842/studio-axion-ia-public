@@ -142,6 +142,18 @@ describe("transmettreOppositions · nominal et rejeu", () => {
   });
 });
 
+describe("transmettreOppositions · conversation d'avant le lot 4 (idMessageAdresse absent)", () => {
+  it("repli sur idMessageGuide : l'adresse est relue et le « stop » est transmis", async () => {
+    const idMessage = await semerOpposee(A, { idMessageAdresse: null, idMessageGuide: `msg-adr-${A}` });
+    expect(idMessage).toBeTruthy();
+    lire(adresseDe());
+    const r = await passer();
+    expect(r.transmises).toBe(1);
+    expect(site.opp()).toHaveLength(1);
+    expect((await entree()).etat).toBe("transmise");
+  });
+});
+
 describe("transmettreOppositions · panne du site", () => {
   it("503 → 500 → 0 → 200 : délais 1, 5, 15 min, jamais d'abandon, une alerte au plus par heure", async () => {
     await semerOpposee();
