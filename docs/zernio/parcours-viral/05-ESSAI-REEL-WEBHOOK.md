@@ -48,7 +48,7 @@ puis mise à jour de l'environnement.
 ## Points de conduite à connaître avant l'allumage
 - Le corps de l'appel au site est **reconstruit à chaque passage** à partir du run relu (ordre des clés fixe). Si le run change entre deux
   passages, les octets changent et le site répond 409 `cle_reutilisee` (définitif) : ne relire que des **runs clos**.
-- Secret de l'appel sortant : `SITE_GUIDES_RESEAU_SECRET` (= `GUIDES_RESEAU_HMAC_SECRET` côté site, ≥ 32 caractères) ; repli sur
-  `SITE_VIDEOS_SECRET` seulement si le site n'a pas non plus sa variable propre.
+- Secret de l'appel sortant : `SITE_GUIDES_RESEAU_SECRET` (= `GUIDES_RESEAU_HMAC_SECRET` côté site, ≥ 32 caractères) : c'est la
+  SEULE variable lue. L'ancien repli sur `SITE_VIDEOS_SECRET` a été supprimé (#201) ; absente ou trop courte, la liaison au site est inactive.
 - Plafonds par passage : 20 événements, 120 par heure glissante ; disjoncteur : 5 pannes consécutives ouvrent le circuit 10 minutes.
   Un 401 du site est définitif pour l'événement et lève une alerte au journal (sans secret).
