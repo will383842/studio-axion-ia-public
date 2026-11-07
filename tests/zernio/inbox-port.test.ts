@@ -2,7 +2,7 @@
  * Port inbox Zernio : implémentation réelle au-dessus du client, lecture des seuls messages ENTRANTS,
  * résultats typés (jamais l'erreur brute), non-branchement au démarrage. Données FICTIVES.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { creerPortInboxZernio, type PortInboxZernio } from "@/fournisseurs/zernio-inbox";
@@ -188,15 +188,19 @@ describe("port inbox · lireMessage", () => {
   });
 });
 
-describe("port inbox · non branché au démarrage", () => {
+describe("port inbox · atteint seulement par branchements-zernio (lot 4c)", () => {
   const RACINE = resolve(__dirname, "../..");
   const SRC = resolve(RACINE, "src");
   const PORT = resolve(SRC, "fournisseurs/zernio-inbox.ts");
-  const importsDe = (fichier: string): string[] => {
+  const BRANCHEMENT = resolve(SRC, "services/branchements-zernio.ts");
+  /** Imports STATIQUES de valeurs (pas `import type`, qui disparaît à la compilation) et imports dynamiques, séparés. */
+  const importsDe = (fichier: string): { statiques: string[]; dynamiques: string[] } => {
     const code = readFileSync(fichier, "utf8");
-    const sortie: string[] = [];
-    for (const m of code.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) sortie.push(m[1]);
-    return sortie;
+    const statiques: string[] = [];
+    const dynamiques: string[] = [];
+    for (const m of code.matchAll(/^(?:import|export)\s+(?!type\b)[^;]*?from\s*["']([^"']+)["']|^import\s*["']([^"']+)["']/gm)) statiques.push(m[1] ?? m[2]);
+    for (const m of code.matchAll(/import\(\s*["']([^"']+)["']\s*\)/g)) dynamiques.push(m[1]);
+    return { statiques, dynamiques };
   };
   const resoudre = (depuis: string, spec: string): string | null => {
     const base = spec.startsWith("@/") ? resolve(SRC, spec.slice(2)) : spec.startsWith(".") ? resolve(dirname(depuis), spec) : null;
@@ -204,7 +208,28 @@ describe("port inbox · non branché au démarrage", () => {
     for (const c of [`${base}.ts`, `${base}.tsx`, resolve(base, "index.ts"), base]) if (existsSync(c) && /\.tsx?$/.test(c)) return c;
     return null;
   };
-  it("ni instrumentation.ts ni la boucle n'atteignent zernio-inbox (import direct ou transitif)", () => {
+  const fichiersSrc = (dossier: string): string[] =>
+    (readdirSync(dossier, { recursive: true }) as string[]).filter((f) => /\.tsx?$/.test(f)).map((f) => resolve(dossier, f));
+
+  it("seul branchements-zernio.ts cite le port (hors types), et par import() dynamique", () => {
+    const citeurs: string[] = [];
+    for (const f of fichiersSrc(SRC)) {
+      const { statiques, dynamiques } = importsDe(f);
+      for (const spec of statiques) expect(resoudre(f, spec), `${f} importe le port en statique`).not.toBe(PORT);
+      if (dynamiques.some((spec) => resoudre(f, spec) === PORT)) citeurs.push(f);
+    }
+    expect(citeurs).toEqual([BRANCHEMENT]);
+  });
+
+  it("l'import() du port vient APRÈS le contrôle de l'interrupteur (retour immédiat quand éteint et file vide)", () => {
+    const code = readFileSync(BRANCHEMENT, "utf8");
+    const controle = code.indexOf("if (!actif && !(await oppositionsEnAttente())) return;");
+    const importPort = code.indexOf('import("@/fournisseurs/zernio-inbox")');
+    expect(controle).toBeGreaterThan(0);
+    expect(importPort).toBeGreaterThan(controle);
+  });
+
+  it("ni instrumentation.ts ni la boucle n'atteignent le port par imports statiques, et ne citent que branchements-zernio", () => {
     const departs = [resolve(SRC, "instrumentation.ts"), resolve(SRC, "services/boucle.ts")];
     const vus = new Set<string>();
     const pile = [...departs];
@@ -212,13 +237,18 @@ describe("port inbox · non branché au démarrage", () => {
       const f = pile.pop()!;
       if (vus.has(f)) continue;
       vus.add(f);
-      for (const spec of importsDe(f)) {
+      for (const spec of importsDe(f).statiques) {
         expect(spec, `${f} importe ${spec}`).not.toMatch(/zernio-inbox(\.ts)?$/);
         const r = resoudre(f, spec);
         expect(r, `${f} atteint le port inbox`).not.toBe(PORT);
+        expect(r, `${f} atteint branchements-zernio en statique`).not.toBe(BRANCHEMENT);
         if (r) pile.push(r);
       }
     }
     expect(vus.size).toBeGreaterThan(2);
+    for (const f of departs) {
+      const { dynamiques } = importsDe(f);
+      expect(dynamiques.filter((spec) => /zernio-inbox|parcours-conversation|oppositions-transmission/.test(spec)), f).toEqual([]);
+    }
   });
 });

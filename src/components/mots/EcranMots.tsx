@@ -10,11 +10,15 @@ import type { Resultat, VueMots } from "@/services/mots-service";
 import type { ElementATraiter, KitLinkedinProfil } from "@/services/mots-kit";
 import { KitLinkedin } from "./KitLinkedin";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
+import { creerGestesMotLocal } from "./gestes-mot-local";
 
 /** Ce que l'écran appelle : en production les gestes de `mots-gestes`, dans les tests un faux. */
 export interface ServicesMots {
   mettreEnPause(mot: string, compte: string): Promise<Resultat>;
   reactiver(mot: string, compte: string): Promise<Resultat>;
+  /** Mot GUIDE LOCAL (sans idWorkflow) : activation et pause dans le registre, jamais d'appel vers Zernio. */
+  activerLocal(compte: string): Promise<Resultat>;
+  mettreEnPauseLocal(mot: string, compte: string): Promise<Resultat>;
   refermerDisjoncteur(): Promise<{ ok: boolean }>;
   reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<unknown>;
 }
@@ -35,6 +39,9 @@ export function EcranMots({ vue, services, onChange, kitLinkedin }: { vue: VueMo
     else notifier.succes("C’est fait.");
     onChange?.();
   };
+
+  // Lignes locales : l'opérateur confirme (fenêtre du navigateur) AVANT tout appel ; sans accord, rien ne part.
+  const local = creerGestesMotLocal(services, { confirmer: (phrase) => window.confirm(phrase), apres });
 
   return (
     <div className="flex flex-col gap-4" data-ecran="mots">
@@ -67,7 +74,19 @@ export function EcranMots({ vue, services, onChange, kitLinkedin }: { vue: VueMo
                 <Carte className="flex flex-wrap items-center gap-3" data-mot={l.mot}>
                   <span className="min-w-0 flex-1 text-[15px] font-semibold text-texte">{l.mot}</span>
                   <Pastille ton={e.ton}>{e.libelle}</Pastille>
-                  {l.etat === "actif" ? (
+                  {!l.idWorkflow ? (
+                    l.etat === "actif" ? (
+                      <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(async () => void (await local.pause(l.mot, l.compte)))}>
+                        Mettre en pause
+                      </Bouton>
+                    ) : (
+                      l.mot === "GUIDE" && (
+                        <Bouton chargement={enCours} onClick={() => demarrer(async () => void (await local.activer(l.compte)))}>
+                          Activer
+                        </Bouton>
+                      )
+                    )
+                  ) : l.etat === "actif" ? (
                     <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(async () => apres(await services.mettreEnPause(l.mot, l.compte)))}>
                       Mettre en pause
                     </Bouton>

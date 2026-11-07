@@ -286,7 +286,13 @@ export async function activerMotLocal(d: Demande & { mot: "GUIDE"; compte: strin
 }
 
 /** Met en pause une ligne locale (jamais d'appel réseau). Toujours permis avec le geste de l'opérateur : la pause réduit le risque. */
-export const mettreEnPauseLocal = (d: Demande & { mot: string; compte: string }) => sousVerrou(() => changerEtat(d, "pause"));
+export const mettreEnPauseLocal = (d: Demande & { mot: string; compte: string }) =>
+  sousVerrou(async () => {
+    // Une ligne posée chez Zernio (idWorkflow renseigné) se met en pause par `mettreEnPause` (appel Zernio), jamais en local.
+    const ligne = (await lireRegistre())[cle(d.mot, d.compte)];
+    if (ligne?.idWorkflow) return refus("ligne_zernio");
+    return changerEtat(d, "pause");
+  });
 
 async function changerEtat(d: Demande & { mot: string; compte: string }, vers: "pause" | "actif", automatique = false): Promise<Resultat> {
   const env = d.env ?? process.env;
@@ -294,7 +300,7 @@ async function changerEtat(d: Demande & { mot: string; compte: string }, vers: "
   if (!ligne) return refus("mot_non_pose");
   if (!d.confirmeParOperateur && !automatique) return refus("validation_operateur_absente");
   // Ligne locale (idWorkflow nul) : changement d'état dans le registre, sans exécuteur ni compteur d'erreurs ni disjoncteur.
-  if (ligne.idWorkflow === null) {
+  if (!ligne.idWorkflow) {
     if (vers === "actif") {
       const motif = await refusActivationLocale(ligne.mot, env);
       if (motif) return refus(motif);
