@@ -16,7 +16,8 @@ import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
-import { doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
+import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
@@ -32,6 +33,8 @@ import { envoiZernioAutorise } from "./zernio";
 export const VARIABLE_INTERRUPTEUR_CONVERSATION = "PARCOURS_CONVERSATION_ENABLED";
 export const PARAM_CONVERSATIONS = "parcours.conversations";
 export const PARAM_CONVERSATIONS_ALIAS = "parcours.conversations.alias";
+export const PARAM_COMPTEURS_CONVERSATION = "parcours.conversations.compteurs";
+export const PARAM_PLAFONDS_CONVERSATION = "parcours.conversations.plafonds";
 export const ESPACE_CONVERSATION = "zernio-conversation" as const;
 const FOURNISSEUR = "zernio";
 const TYPE_COMMENTAIRE = "zernio.commentaire";
@@ -99,7 +102,7 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
   p.alertes[sujet] = now;
   try {
     await journaliser("parcours_conversation", `ALERTE : ${message}`);
-    await creerNotification({ type: "echec", titre: "Parcours des messages privés", message, lien: "/mots" });
+    await creerNotification({ type: "echec", titre: "Parcours des messages privés", message, lien: "/mots" }, { cloche: true }); // cloche seulement : jamais de push au téléphone
   } catch {
     /* l'alerte ne doit jamais faire échouer le traitement */
   }
@@ -208,6 +211,40 @@ export async function noterAlias(cle: string, empreintes: string[]): Promise<voi
   if (refuses > 0) await journaliser("parcours_conversation", "Alias refusé (alias_deja_rattache) : déjà rattaché à une autre personne.");
 }
 
+/**
+ * Plafond d'envoi : RÉSERVATION sous verrou AVANT chaque écriture vers Zernio (on compte les tentatives, pas les succès).
+ * Le compteur (par compte, limité à l'heure en cours) ne contient que l'identifiant de compte et deux nombres. Échec fermé :
+ * compteur ou réglage illisible = « illisible », rien ne part.
+ */
+async function reserverEnvoi(idCompte: string, now: number): Promise<"ok" | "plafond" | "illisible"> {
+  try {
+    return await sousVerrou(async () => {
+      const plafond = plafondHeureCompte(await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION, undefined));
+      const tous = await lireParametre<unknown>(PARAM_COMPTEURS_CONVERSATION, {});
+      if (typeof tous !== "object" || tous === null || Array.isArray(tous)) return "illisible" as const;
+      const d = decider((tous as Record<string, unknown>)[idCompte], now, plafond);
+      if (d.genre !== "ok") return d.genre;
+      await ecrireParametre(PARAM_COMPTEURS_CONVERSATION, { ...(tous as Record<string, unknown>), [idCompte]: d.compteur });
+      return "ok" as const;
+    });
+  } catch {
+    return "illisible";
+  }
+}
+/** Vrai = l'envoi peut partir. Sinon l'événement est reporté (aucun essai consommé, aucun changement d'état de la conversation). */
+async function reserverOuReporter(ev: EvenementFournisseur, idCompte: string, now: number): Promise<boolean> {
+  const r = await reserverEnvoi(idCompte, now);
+  if (r === "ok") return true;
+  if (r === "plafond") {
+    await alerter("plafond_heure", "Le plafond d'envois par heure est atteint pour un compte : les messages en attente repartent à l'heure suivante, rien n'est perdu.", now);
+    await reporter(ev, now, msJusquaHeureSuivante(now), "plafond_heure");
+  } else {
+    await alerter("compteur_illisible", "Le compteur d'envois est illisible : aucun message ne part, nouvel essai dans une minute.", now);
+    await reporter(ev, now, ATTENTE_REGISTRE_MS, "compteur_illisible");
+  }
+  return false;
+}
+
 /* --- Événements ------------------------------------------------------------------------------------------------ */
 const texteDe = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
 async function clore(ev: EvenementFournisseur, etat: string, code: string | null): Promise<void> {
@@ -244,7 +281,9 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const reseau = String(c.reseau ?? "");
   const idAuteur = texteDe(c.idAuteur);
   const age = now - Date.parse(ev.recuLe);
-  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), estReponse: c.estReponse === true, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now });
+  // Péremption de 24 h : jamais ici (sans conversation connue, `transition(null, …)` la ferait valoir même pour un événement REPORTÉ
+  // dont la réponse publique est déjà publiée). Elle est jugée plus bas, seulement quand aucune conversation n'existe.
+  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), estReponse: c.estReponse === true, ageMs: 0, maintenantMs: now });
   if (filtre.action === "ecarter") {
     await clore(ev, filtre.raison === "perime" ? "perime" : "ecarte", filtre.raison ?? null);
     return "traite";
@@ -279,7 +318,12 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const cleEtat = connue?.cle ?? cle;
   const decision = transition(existant, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: false, idAuteur, idCompte, motSeul: MOT, estReponse: false, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now });
   if (decision.action === "ecarter" || decision.action === "silence") {
-    await clore(ev, decision.action === "silence" ? "silence" : "ecarte", decision.raison ?? null);
+    await clore(ev, decision.action === "silence" ? "silence" : decision.raison === "perime" ? "perime" : "ecarte", decision.raison ?? null);
+    return "traite";
+  }
+  // Nouveau parcours seulement : un commentaire de plus de 24 h ne démarre rien (une conversation déjà ouverte n'est jamais périmée ici).
+  if (decision.action === "demarrer" && Number.isFinite(age) && age > DELAI_PERIME_MS) {
+    await clore(ev, "perime", "perime");
     return "traite";
   }
   if (decision.action === "demarrer") {
@@ -331,6 +375,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
         await clore(ev, "silence", "opposee");
         return "traite";
       }
+      if (!(await reserverOuReporter(ev, idCompte, now))) return "bloque";
       const res = await appeler(() => d.port.repondreCommentaire({ idCompte, idPost, idCommentaire: e!.idCommentaire, texte, cle: e!.idCommentaire }));
       const s = transition(e, { t: "public", res });
       await reagir(s, now);
@@ -367,6 +412,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "silence", "opposee");
     return "traite";
   }
+  if (!(await reserverOuReporter(ev, idCompte, now))) return "bloque"; // réservation avant tout changement d'état
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
   await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null });
   processus().enVol.add(cle);
@@ -570,6 +616,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "silence", "opposee");
       return "traite";
     }
+    if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
     const sm = transition(etat, { t: "m1", res, maintenantMs: now });
     await reagir(sm, now);
@@ -654,6 +701,7 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
       await clore(ev, "silence", "opposee");
       return "traite";
     }
+    if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
     await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
     code = res.statut === "envoye" ? null : (res.code ?? res.statut);
@@ -709,7 +757,7 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     await expirerConversations({ env, maintenantMs: now });
     const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && !e.traite && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
     dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
-    for (const ev of dus) {
+    for (const ev of dus.slice(0, LOT_MAX_PAR_PASSAGE_CONVERSATION)) { // les autres restent dus pour le passage suivant
       let issue: "traite" | "bloque";
       try {
         issue = ev.type === TYPE_COMMENTAIRE ? await traiterCommentaire(ev, d, env, k, now) : await traiterMessage(ev, d, env, k, now);
