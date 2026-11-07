@@ -81,9 +81,10 @@ export const PREFERENCES_PAR_DEFAUT: PreferencesNotifications = { videoPrete: tr
  * Enregistre une notification (cloche) et la met en file pour le téléphone / l'e-mail. Aucun appel réseau.
  * `options.email` (lot « crédits ») : l'e-mail part aussi, quel que soit le canal choisi (alertes graves de crédit).
  */
-export async function creerNotification(n: Omit<Notification, "id" | "creeLe" | "modifieLe" | "lue" | "envoi">, options: { email?: boolean } = {}): Promise<Notification> {
+export async function creerNotification(n: Omit<Notification, "id" | "creeLe" | "modifieLe" | "lue" | "envoi">, options: { email?: boolean; cloche?: boolean } = {}): Promise<Notification> {
   // `emailForce` (lot « crédits ») : alerte grave (crédit sous 10 %, plus qu'une vidéo, clé refusée) : l'e-mail part aussi.
-  const envoi: EnvoiNotification | undefined = n.estDemo ? undefined : { statut: "a-envoyer", essais: 0, ...(options.email ? { emailForce: true } : {}) };
+  // `cloche` : cloche seulement, jamais de push ni d'e-mail (aucune file d'envoi : la notification n'est pas diffusée).
+  const envoi: EnvoiNotification | undefined = n.estDemo || options.cloche ? undefined : { statut: "a-envoyer", essais: 0, ...(options.email ? { emailForce: true } : {}) };
   return depots().notifications.enregistrer({ id: nouvelId("not"), lue: false, ...horodatage(), ...n, ...(envoi ? { envoi } : {}) });
 }
 

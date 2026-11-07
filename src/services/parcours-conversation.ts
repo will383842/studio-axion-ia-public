@@ -17,7 +17,7 @@ import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
@@ -102,7 +102,7 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
   p.alertes[sujet] = now;
   try {
     await journaliser("parcours_conversation", `ALERTE : ${message}`);
-    await creerNotification({ type: "echec", titre: "Parcours des messages privés", message, lien: "/mots" });
+    await creerNotification({ type: "echec", titre: "Parcours des messages privés", message, lien: "/mots" }, { cloche: true }); // cloche seulement : jamais de push au téléphone
   } catch {
     /* l'alerte ne doit jamais faire échouer le traitement */
   }
@@ -281,7 +281,9 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const reseau = String(c.reseau ?? "");
   const idAuteur = texteDe(c.idAuteur);
   const age = now - Date.parse(ev.recuLe);
-  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), estReponse: c.estReponse === true, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now });
+  // Péremption de 24 h : jamais ici (sans conversation connue, `transition(null, …)` la ferait valoir même pour un événement REPORTÉ
+  // dont la réponse publique est déjà publiée). Elle est jugée plus bas, seulement quand aucune conversation n'existe.
+  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), estReponse: c.estReponse === true, ageMs: 0, maintenantMs: now });
   if (filtre.action === "ecarter") {
     await clore(ev, filtre.raison === "perime" ? "perime" : "ecarte", filtre.raison ?? null);
     return "traite";
@@ -316,7 +318,12 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const cleEtat = connue?.cle ?? cle;
   const decision = transition(existant, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: false, idAuteur, idCompte, motSeul: MOT, estReponse: false, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now });
   if (decision.action === "ecarter" || decision.action === "silence") {
-    await clore(ev, decision.action === "silence" ? "silence" : "ecarte", decision.raison ?? null);
+    await clore(ev, decision.action === "silence" ? "silence" : decision.raison === "perime" ? "perime" : "ecarte", decision.raison ?? null);
+    return "traite";
+  }
+  // Nouveau parcours seulement : un commentaire de plus de 24 h ne démarre rien (une conversation déjà ouverte n'est jamais périmée ici).
+  if (decision.action === "demarrer" && Number.isFinite(age) && age > DELAI_PERIME_MS) {
+    await clore(ev, "perime", "perime");
     return "traite";
   }
   if (decision.action === "demarrer") {

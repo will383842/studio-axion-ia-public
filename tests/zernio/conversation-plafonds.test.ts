@@ -183,6 +183,41 @@ describe("plafond d'envoi par heure et par compte", () => {
     expect(site.vus.length).toBe(1); // pas de second appel au site
   });
 
+  it("R5 passe AVANT la réservation : une personne opposée (par alias) ne consomme aucune place du compteur", async () => {
+    const Opp = await import("@/services/oppositions-mots");
+    await semerCompteur(COMPTE, 5);
+    await semer(A, "attente_email", { m1Le: new Date(T0).toISOString(), alias: ["alias-fictif-opp"] });
+    await Opp.enregistrerOppositionPersonne(["id-brut-fictif-sans-rapport"], ["alias-fictif-opp"], "zernio-conversation", { env: ENV });
+    port.reponses.texte = () => "bonjour";
+    const id = await deposerMessage(depots, {});
+    await passer();
+    expect(port.envoyes.length).toBe(0);
+    expect((await evenement(depots, id)).charge.dernierCode).toBe("opposee");
+    expect((await compteurs())[COMPTE]).toEqual({ heure: HEURE, envois: 5 }); // inchangé : aucune place consommée
+  });
+
+  it("péremption : un M1 reporté par le plafond au-delà de 24 h part quand même (réponse publique déjà publiée)", async () => {
+    await semerCompteur(COMPTE, 29);
+    const id = await deposerCommentaire(depots, {});
+    await passer();
+    expect(port.pub.length).toBe(1);
+    expect(port.prive.length).toBe(0);
+    expect((await evenement(depots, id)).traite).toBe(false);
+    await passer(HEURE + 26 * H + 1000); // plus de 24 h après la réception
+    expect(port.pub.length).toBe(1); // pas de seconde réponse publique
+    expect(port.prive.length).toBe(1);
+    const ev = await evenement(depots, id);
+    expect(ev.charge.etat).not.toBe("perime");
+    expect((await etatDe(A)).etat).toBe("attente_email");
+  });
+
+  it("péremption : un nouveau commentaire de plus de 24 h reste écarté (aucune conversation)", async () => {
+    const id = await deposerCommentaire(depots, { ageMs: 25 * H });
+    await passer();
+    expect(envois()).toBe(0);
+    expect((await evenement(depots, id)).charge.etat).toBe("perime");
+  });
+
   it("compteur illisible : rien ne part, report d'une minute", async () => {
     for (const mauvais of ["n'importe quoi", { [COMPTE]: { heure: "x", envois: "y" } }, { [COMPTE]: { heure: HEURE, envois: -3 } }]) {
       reinitialiserDepots();
