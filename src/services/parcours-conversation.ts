@@ -444,10 +444,10 @@ async function opposerEnPrive(ev: EvenementFournisseur, env: Env, cle: string, i
   await noterAlias(cle, emps);
   const etat = await lireEtat(cle);
   await enregistrerOppositionPersonne(bruts, [cle, ...(etat?.alias ?? [])], ESPACE_CONVERSATION, { env });
+  // Mise en file AVANT de passer à « oppose » : si elle échoue, l'état reste inchangé et le réessai refait tout (rien n'est perdu).
+  // Idempotente (une entrée par personne) ; sans effet si l'adresse n'a jamais été transmise au site.
+  if (etat) await mettreEnFileOpposition(cle, etat, cleHmac, now);
   await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
-  // Adresse déjà transmise au site : mise en file du « stop » (idempotente, une entrée par personne) ; sinon rien à transmettre.
-  const apres = await lireEtat(cle);
-  if (apres) await mettreEnFileOpposition(cle, apres, cleHmac, now);
   await clore(ev, "oppose", "opposition");
 }
 
@@ -498,10 +498,15 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const etat = trouve.etat;
   const s0 = transition(etat, { t: "message", idExpediteur, idCompte, idMessage, sortant });
   if (s0.action === "silence") {
+    // Déjà « oppose » (un réessai après un échec de mise en file) : la mise en file, idempotente, est refaite avant de clore.
+    if (etat.etat === "oppose") await mettreEnFileOpposition(cle, etat, cles.courante, now);
     await clore(ev, "silence", s0.raison ?? null);
     return "traite";
   }
   if (await personneOpposee(idExpediteur, ESPACE_CONVERSATION, { env })) {
+    // Personne déjà opposée (registre) : même garantie, puis l'état passe à « oppose » si besoin.
+    await mettreEnFileOpposition(cle, etat, cles.courante, now);
+    if (etat.etat !== "oppose") await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
     await clore(ev, "silence", "opposee");
     return "traite";
   }
