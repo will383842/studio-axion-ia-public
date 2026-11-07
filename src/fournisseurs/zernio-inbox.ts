@@ -95,9 +95,11 @@ function estEntrant(m: Record<string, unknown>): boolean {
   return m.isEcho !== true && m.is_echo !== true && m.echo !== true && m.fromMe !== true && m.isFromMe !== true;
 }
 
-export function creerPortInboxZernio(options: { client: ClientZernio; comptesPermis: readonly string[]; domainesPermis?: readonly string[]; titresGuidesPermis?: readonly string[] }): PortInboxZernio {
+export function creerPortInboxZernio(options: { client: ClientZernio; comptesPermis: readonly string[]; comptesLecture?: readonly string[]; domainesPermis?: readonly string[]; titresGuidesPermis?: readonly string[] }): PortInboxZernio {
   const { client } = options;
   const comptesPermis = [...options.comptesPermis];
+  // Élargit la LECTURE seule (repérer un « stop » après le retrait d'un compte) ; toutes les écritures gardent comptesPermis.
+  const comptesLecture = [...(options.comptesLecture ?? options.comptesPermis)];
   const domainesPermis = options.domainesPermis ? [...options.domainesPermis] : undefined;
   // Un domaine permis contient un point et ne commence pas par un point (« com » ou « .com » ouvriraient tout un suffixe).
   if (domainesPermis?.some((d) => typeof d !== "string" || !d.trim().includes(".") || d.trim().startsWith("."))) {
@@ -172,7 +174,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
           methode: "GET",
           chemin: `/v1/inbox/conversations/${p.idConversation}/messages`,
           query: { accountId: p.idCompte },
-          comptesPermis,
+          comptesPermis: comptesLecture,
         });
         // Réponse sans tableau « messages » = réponse mal formée = PANNE (jamais « sans texte »).
         if (!estObjet(rep.corps) || !Array.isArray(rep.corps.messages)) return { ...vide, panne: true };
