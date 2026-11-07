@@ -56,8 +56,8 @@ export const VARIABLE_INTERRUPTEUR_PARCOURS = "PARCOURS_MOT_ENABLED";
 export const VARIABLE_SECRET_CROCHET_ZERNIO = "ZERNIO_WEBHOOK_SECRET";
 /** Secret de l'appel SORTANT vers la route des guides du site : variable propre (= `GUIDES_RESEAU_HMAC_SECRET` côté site). */
 export const VARIABLE_SECRET_SITE_GUIDES = "SITE_GUIDES_RESEAU_SECRET";
-/** Repli documenté : le site retombe lui-même sur le secret des vidéos si sa variable propre est absente. */
-export const VARIABLE_SECRET_SITE_REPLI = "SITE_VIDEOS_SECRET";
+/** Longueur minimale du secret des appels vers le site (la route du site refuse tout repli sur le secret des vidéos). */
+export const SECRET_SITE_LONGUEUR_MIN = 32;
 export const CHEMIN_DEMANDES_GUIDE = "/api/interne/demandes-guide-reseau";
 const FOURNISSEUR = "zernio";
 /** Seul type d'événement traité par le travail de fond (les autres attendent leur propre aiguillage). */
@@ -161,11 +161,12 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
 }
 
 function transportDuSite(env: Record<string, string | undefined>): { transport: TransportSite; secret: string } | null {
-  // Variable propre d'abord ; repli documenté sur le secret des vidéos (comme le site).
-  const secret = env[VARIABLE_SECRET_SITE_GUIDES]?.trim() || env[VARIABLE_SECRET_SITE_REPLI]?.trim();
-  if (transportInjecte) return { transport: transportInjecte, secret: secret || "secret-absent" };
+  // Aucun repli : le secret vient SEULEMENT de SITE_GUIDES_RESEAU_SECRET, d'au moins 32 caractères (même transport injecté).
+  const secret = env[VARIABLE_SECRET_SITE_GUIDES]?.trim();
+  if (!secret || secret.length < SECRET_SITE_LONGUEUR_MIN) return null;
+  if (transportInjecte) return { transport: transportInjecte, secret };
   const url = env.SITE_VIDEOS_URL?.trim();
-  if (!url || !secret || !/^https?:\/\//i.test(url)) return null;
+  if (!url || !/^https?:\/\//i.test(url)) return null;
   return { transport: creerTransportHttp({ url, fetch: (...a) => fetch(...a) }), secret };
 }
 

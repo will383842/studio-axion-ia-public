@@ -8,8 +8,8 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const pm = await import("@/services/parcours-mot");
 
 const SECRET_CROCHET = "secret-fictif-crochet-cor";
-const SECRET_SITE = "secret-fictif-site-cor";
-const SECRET_REPLI = "secret-fictif-repli-cor";
+const SECRET_SITE = "secret-fictif-site-cor-0123456789abcd";
+const SECRET_REPLI = "secret-fictif-repli-cor-0123456789abc";
 const T0 = 1_760_781_600_000;
 const ENV = { PARCOURS_MOT_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET_CROCHET, SITE_VIDEOS_URL: "https://site.exemple", SITE_GUIDES_RESEAU_SECRET: SECRET_SITE };
 const RUN: RunLu = { email: "lecteur-fictif@example.com", mot: "guide", reseau: "instagram", guide: "guide-ia", versionTexteM1: "m1-v1" };
@@ -106,7 +106,7 @@ describe("MINEUR (a) — octets bruts", () => {
   });
 });
 
-describe("MINEUR (b) — secret dédié du site, repli documenté", () => {
+describe("MINEUR (b) — secret dédié du site, sans repli", () => {
   const signeAvec = async (env: Record<string, string | undefined>) => {
     await pm.recevoirCrochetZernio(crochet("evt_s", "run_exemple_0001"), { env: ENV, maintenantMs: T0 });
     const vues = site([{ statut: 200, corps: {} }]);
@@ -121,10 +121,12 @@ describe("MINEUR (b) — secret dédié du site, repli documenté", () => {
     expect(signatureValide(SECRET_SITE, e)).toBe(true);
     expect(signatureValide(SECRET_REPLI, e)).toBe(false);
   });
-  it("à défaut, repli sur SITE_VIDEOS_SECRET", async () => {
-    const { signatureValide } = await import("@/fournisseurs/site/signature");
-    const q = await signeAvec({ ...ENV, SITE_GUIDES_RESEAU_SECRET: undefined, SITE_VIDEOS_SECRET: SECRET_REPLI });
-    expect(signatureValide(SECRET_REPLI, { methode: "POST", chemin: q.chemin, corps: q.corps, horodatage: q.entetes["x-axion-horodatage"], nonce: q.entetes["x-axion-nonce"], signature: q.entetes["x-axion-signature"] })).toBe(true);
+  it("à défaut, AUCUN repli sur SITE_VIDEOS_SECRET : aucun appel (voir secret-site-sans-repli.test.ts)", async () => {
+    await pm.recevoirCrochetZernio(crochet("evt_s2", "run_exemple_0001"), { env: ENV, maintenantMs: T0 });
+    const vues = site([{ statut: 200, corps: {} }]);
+    pm.injecterLecteurRuns(async () => ({ ...RUN }));
+    await passer(T0, { ...ENV, SITE_GUIDES_RESEAU_SECRET: undefined, SITE_VIDEOS_SECRET: SECRET_REPLI });
+    expect(vues).toHaveLength(0);
   });
 });
 
