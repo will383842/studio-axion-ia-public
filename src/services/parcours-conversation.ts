@@ -37,6 +37,10 @@ const TYPE_COMMENTAIRE = "zernio.commentaire";
 const TYPE_MESSAGE = "zernio.message";
 const ESSAIS_NONCE = 3;
 const ATTENTE_REGISTRE_MS = 60_000;
+/** Une garde qui bloque : l'événement attend ce délai (pas de relecture de Zernio à chaque tour de 5 s). */
+const ATTENTE_GARDE_MS = 60_000;
+/** Orphelin sur un compte hors des listes de lecture : on ne clôt jamais, on revient plus tard. */
+const ATTENTE_COMPTE_HORS_LISTE_MS = 6 * 3600_000;
 const INTERVALLE_ALERTE_MS = 3600_000;
 const ATTENTE_SITE_ABSENT_MS = 10 * 60_000;
 const MOT = "GUIDE";
@@ -52,6 +56,8 @@ export function parcoursConversationActif(env: Env = process.env): boolean {
 export interface DepsConversation {
   port: PortInboxZernio;
   comptesPermis: readonly string[];
+  /** Comptes dont on LIT encore les messages (pour y repérer un « stop ») ; défaut = comptesPermis. Les écritures restent sous comptesPermis. */
+  comptesLecture?: readonly string[];
   /** Titre du guide inséré dans M1 / accusé (liste fermée côté port). Absent : le texte à trous ne part pas. */
   titreGuide?: string;
   guide?: string;
@@ -145,11 +151,14 @@ async function ecrireEtat(cle: string, f: (e: Conversation | undefined) => Conve
 const patcher = (cle: string, patch: Partial<Conversation>) => ecrireEtat(cle, (e) => (e ? { ...e, ...patch } : undefined));
 
 /** Retrouve la personne par l'empreinte de `sender.id`, sinon par un alias (empreinte de `sender.id` ou de `conversationId`). */
-async function retrouver(empreintes: string[]): Promise<{ cle: string; etat: Conversation } | null> {
+async function retrouver(empS: string, empC?: string | null): Promise<{ cle: string; etat: Conversation } | null> {
   return sousVerrou(async () => {
     const { conv, alias } = await lireTout();
-    for (const e of empreintes) if (conv[e]) return { cle: e, etat: conv[e] };
-    for (const e of empreintes) if (alias[e] && conv[alias[e]]) return { cle: alias[e], etat: conv[alias[e]] };
+    // Ordre : l'alias du FIL d'abord (il désigne la personne de cette conversation), puis la clé de l'expéditeur, son alias, enfin la clé du fil.
+    if (empC && alias[empC] && conv[alias[empC]]) return { cle: alias[empC], etat: conv[alias[empC]] };
+    if (conv[empS]) return { cle: empS, etat: conv[empS] };
+    if (alias[empS] && conv[alias[empS]]) return { cle: alias[empS], etat: conv[alias[empS]] };
+    if (empC && conv[empC]) return { cle: empC, etat: conv[empC] };
     return null;
   });
 }
@@ -216,7 +225,7 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   if (filtre.action === "opposer") {
     await enregistrerOpposition(idAuteur!, ESPACE_CONVERSATION, { env });
     // Aussi tous les alias connus de la personne (comme l'opposition en privé) : l'auteur peut être lui-même un alias.
-    const connu = await retrouver([cle]);
+    const connu = await retrouver(cle);
     const cleEtat = connu?.cle ?? cle;
     for (const emp of new Set([cle, cleEtat, ...(connu?.etat.alias ?? [])])) await enregistrerOppositionParEmpreinte(emp, { env });
     await ecrireEtat(cleEtat, (e) => (e ? { ...e, etat: "oppose", prochainEssaiLe: null } : etatNeuf("oppose", c, d, cleIdempotenceOpaque(cles, "guide", ev.idEvenement), now)));
@@ -226,13 +235,17 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const bloque = await garde(d, env, idCompte, reseau);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
   if (await personneOpposee(idAuteur, ESPACE_CONVERSATION, { env })) {
     await clore(ev, "silence", "opposee");
     return "traite";
   }
-  const existant = await lireEtat(cle);
+  // Une personne déjà connue sous un alias ne démarre pas un second parcours.
+  const connue = await retrouver(cle);
+  const existant = connue?.etat ?? null;
+  const cleEtat = connue?.cle ?? cle;
   const decision = transition(existant, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: false, idAuteur, idCompte, motSeul: MOT, estReponse: false, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now });
   if (decision.action === "ecarter" || decision.action === "silence") {
     await clore(ev, decision.action === "silence" ? "silence" : "ecarte", decision.raison ?? null);
@@ -240,9 +253,9 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   }
   if (decision.action === "demarrer") {
     // Clé d'idempotence calculée UNE fois ici, stockée : jamais recalculée (la rotation du secret la changerait).
-    await ecrireEtat(cle, (e) => ({ ...etatNeuf("nouveau", c, d, cleIdempotenceOpaque(cles, "guide", String(c.idCommentaire)), now), alias: e?.alias ?? [] })); // les alias déjà connus sont conservés
+    await ecrireEtat(cleEtat, (e) => ({ ...etatNeuf("nouveau", c, d, cleIdempotenceOpaque(cles, "guide", String(c.idCommentaire)), now), alias: e?.alias ?? [] })); // les alias déjà connus sont conservés
   }
-  return etapesCommentaire(ev, d, env, cle, now, cles);
+  return etapesCommentaire(ev, d, env, cleEtat, now, cles);
 }
 
 function etatNeuf(etat: Conversation["etat"], c: Record<string, unknown>, d: DepsConversation, cleGuide: string, now: number): Conversation {
@@ -306,6 +319,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   const bloque = await garde(d, env, idCompte, e.reseau);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
   const texteM1 = rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide });
@@ -406,7 +420,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const empS = empreintePersonne(cles, ESPACE_CONVERSATION, idExpediteur!);
   const empC = idConversation ? empreintePersonne(cles, ESPACE_CONVERSATION, idConversation) : null;
   const emps = empC ? [empS, empC] : [empS];
-  const trouve = await retrouver(emps);
+  const trouve = await retrouver(empS, empC);
   if (!trouve) {
     // Orphelin : 2 réessais ; ensuite le texte est lu QUAND MÊME, pour ne pas perdre un « stop » (aucune réponse n'est jamais envoyée).
     const n = Number(c.orphelins ?? 0);
@@ -415,8 +429,14 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await reporter(ev, now, s.apresMs ?? 30_000, "orphelin", { orphelins: n + 1 });
       return "traite";
     }
-    if (!idConversation || !d.comptesPermis.includes(idCompte)) {
+    if (!idConversation) {
       await clore(ev, "ignore", "orphelin");
+      return "traite";
+    }
+    if (!(d.comptesLecture ?? d.comptesPermis).includes(idCompte)) {
+      // Compte hors des deux listes : jamais clos (un « stop » n'est jamais perdu), on revient plus tard ; alerte au plus une par heure.
+      await reporter(ev, now, ATTENTE_COMPTE_HORS_LISTE_MS, "compte_hors_liste");
+      await alerter("compte_hors_liste", "Un message privé arrive sur un compte absent des listes autorisées : il est gardé en attente (il peut contenir un « stop »). Vérifier les comptes autorisés.", now);
       return "traite";
     }
     const lu = await lireTexte(ev, d, idCompte, idConversation, idMessage, now);
@@ -444,6 +464,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     const bloque = await garde(d, env, etat.idCompte, etat.reseau);
     if (bloque) {
       await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+      await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
       return "bloque";
     }
     if (!idConversation) {
@@ -473,6 +494,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const bloque = await garde(d, env, etat.idCompte, etat.reseau);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
   // Lecture réussie = message entrant confirmé : seulement maintenant, les alias sont notés.
@@ -591,13 +613,14 @@ async function reprendreEnVol(now: number): Promise<void> {
   if (touches > 0) await alerter("m1_a_verifier", "Un message privé était en cours d'envoi lors d'un arrêt : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.", now);
 }
 
-/** Tâche d'expiration : `attente_email` → `expire` 7 jours après le premier message. Aucun message n'est envoyé. */
-export async function expirerConversations(o: { env?: Env; maintenantMs?: number } = {}): Promise<number> {
+/** Tâche d'expiration : `attente_email`, `m2_envoye`, `m1_a_verifier` et `m1_en_vol` (hors vol) → `expire` après 7 jours. Aucun message n'est envoyé. */
+export async function expirerConversations(o: { env?: Env; maintenantMs?: number; enVol?: ReadonlySet<string> } = {}): Promise<number> {
   if (!parcoursConversationActif(o.env ?? process.env)) return 0;
   const now = o.maintenantMs ?? Date.now();
+  const enVol = o.enVol ?? processus().enVol;
   return sousVerrou(async () => {
     const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
-    const cles = Object.keys(conv).filter((k) => doitExpirer(conv[k], now));
+    const cles = Object.keys(conv).filter((k) => doitExpirer(conv[k], now, enVol.has(k)));
     if (cles.length === 0) return 0;
     await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, ...Object.fromEntries(cles.map((k) => [k, { ...conv[k], etat: "expire" }])) });
     return cles.length;
