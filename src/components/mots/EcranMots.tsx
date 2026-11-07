@@ -7,14 +7,19 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import type { Resultat, VueMots } from "@/services/mots-service";
+import type { EtatBranchement } from "@/services/branchements-zernio";
 import type { ElementATraiter, KitLinkedinProfil } from "@/services/mots-kit";
 import { KitLinkedin } from "./KitLinkedin";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
+import { creerGestesMotLocal } from "./gestes-mot-local";
 
 /** Ce que l'écran appelle : en production les gestes de `mots-gestes`, dans les tests un faux. */
 export interface ServicesMots {
   mettreEnPause(mot: string, compte: string): Promise<Resultat>;
   reactiver(mot: string, compte: string): Promise<Resultat>;
+  /** Mot GUIDE LOCAL (sans idWorkflow) : activation et pause dans le registre, jamais d'appel vers Zernio. */
+  activerLocal(compte: string): Promise<Resultat>;
+  mettreEnPauseLocal(mot: string, compte: string): Promise<Resultat>;
   refermerDisjoncteur(): Promise<{ ok: boolean }>;
   reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<unknown>;
 }
@@ -23,7 +28,7 @@ export interface ServicesMots {
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
  * l’interrupteur est éteint, les gestes sont des simulations et l’écran le dit.
  */
-export function EcranMots({ vue, services, onChange, kitLinkedin }: { vue: VueMots; services: ServicesMots; onChange?: () => void; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
+export function EcranMots({ vue, services, onChange, kitLinkedin, branchement }: { vue: VueMots; services: ServicesMots; onChange?: () => void; branchement?: EtatBranchement | null; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
   const [enCours, demarrer] = useTransition();
   const [heure, setHeure] = useState(String(vue.plafonds.heureCompte));
   const [jour, setJour] = useState(String(vue.plafonds.jourMot));
@@ -36,6 +41,9 @@ export function EcranMots({ vue, services, onChange, kitLinkedin }: { vue: VueMo
     onChange?.();
   };
 
+  // Lignes locales : l'opérateur confirme (fenêtre du navigateur) AVANT tout appel ; sans accord, rien ne part.
+  const local = creerGestesMotLocal(services, { confirmer: (phrase) => window.confirm(phrase), apres });
+
   return (
     <div className="flex flex-col gap-4" data-ecran="mots">
       <Carte className="flex flex-wrap items-center gap-3">
@@ -45,6 +53,19 @@ export function EcranMots({ vue, services, onChange, kitLinkedin }: { vue: VueMo
         </Pastille>
         {vue.oppositions > 0 && <Pastille>{vue.oppositions} STOP reçu{vue.oppositions > 1 ? "s" : ""}</Pastille>}
       </Carte>
+
+      {branchement !== undefined && (
+        <Carte data-carte="branchement">
+          <p className="text-sm font-semibold text-texte">Branchement des messages privés</p>
+          {branchement === null ? (
+            <p className="mt-1 text-sm text-texte-doux">Pas encore branché dans ce processus.</p>
+          ) : branchement.codes.length === 0 ? (
+            <p className="mt-1 text-sm text-texte-doux">Configuration complète.</p>
+          ) : (
+            <p className="mt-1 text-sm text-texte-doux">À compléter sur le serveur : {branchement.codes.join(", ")}.</p>
+          )}
+        </Carte>
+      )}
 
       {vue.disjoncteur.ouvert && (
         <Carte className="border-brique/30 bg-brique-doux/40" data-carte="disjoncteur">
@@ -67,7 +88,19 @@ export function EcranMots({ vue, services, onChange, kitLinkedin }: { vue: VueMo
                 <Carte className="flex flex-wrap items-center gap-3" data-mot={l.mot}>
                   <span className="min-w-0 flex-1 text-[15px] font-semibold text-texte">{l.mot}</span>
                   <Pastille ton={e.ton}>{e.libelle}</Pastille>
-                  {l.etat === "actif" ? (
+                  {!l.idWorkflow ? (
+                    l.etat === "actif" ? (
+                      <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(async () => void (await local.pause(l.mot, l.compte)))}>
+                        Mettre en pause
+                      </Bouton>
+                    ) : (
+                      l.mot === "GUIDE" && (
+                        <Bouton chargement={enCours} onClick={() => demarrer(async () => void (await local.activer(l.compte)))}>
+                          Activer
+                        </Bouton>
+                      )
+                    )
+                  ) : l.etat === "actif" ? (
                     <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(async () => apres(await services.mettreEnPause(l.mot, l.compte)))}>
                       Mettre en pause
                     </Bouton>

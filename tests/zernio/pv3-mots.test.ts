@@ -422,7 +422,7 @@ describe("pv3 · gestes et écran", () => {
     expect(vide).toMatchObject({ interrupteurAllume: false, toutArrete: false, lignes: [] });
     expect(etatGlobalMots({ interrupteurAllume: false, toutArrete: false, disjoncteurOuvert: false }).libelle).toMatch(/Éteint/);
     expect(etatGlobalMots({ interrupteurAllume: true, toutArrete: true, disjoncteurOuvert: true }).libelle).toMatch(/arrêt/);
-    const services = { mettreEnPause: vi.fn(), reactiver: vi.fn(), refermerDisjoncteur: vi.fn(), reglerPlafonds: vi.fn() };
+    const services = { mettreEnPause: vi.fn(), reactiver: vi.fn(), activerLocal: vi.fn(), mettreEnPauseLocal: vi.fn(), refermerDisjoncteur: vi.fn(), reglerPlafonds: vi.fn() };
     const html = renderToStaticMarkup(createElement(EcranMots, { vue: vide, services }));
     expect(html).toContain("Éteint : simulation seulement");
     expect(html).toContain("Aucun mot posé");
