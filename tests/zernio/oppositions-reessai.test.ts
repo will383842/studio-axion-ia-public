@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe("« stop » privé dont la mise en file échoue", () => {
-  for (const [nom, env] of [["interrupteur allumé", ENV], ["interrupteur éteint au réessai", eteint]] as const) {
+  for (const [nom, env] of [["interrupteur allumé", ENV], ["interrupteur éteint pendant la transmission", eteint]] as const) {
     it(`réessai → entrée en file, un seul POST (${nom})`, async () => {
       await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(A)]: graineConv("guide_demande", { occurredAt: new Date(T0 - H).toISOString(), idMessageAdresse: "msg-adr", idMessageGuide: "msg-adr" }) });
       await deposerMessage(depots, { idMessage: "msg-adr" });
@@ -58,8 +58,8 @@ describe("« stop » privé dont la mise en file échoue", () => {
       await passer().catch(() => undefined);
       expect(await file()).toEqual({});
       panne.v = false;
-      await passer(T0 + 2 * MIN, env).catch(() => undefined);
-      await passer(T0 + 10 * MIN, env).catch(() => undefined);
+      await passer(T0 + 2 * MIN).catch(() => undefined);
+      await passer(T0 + 10 * MIN).catch(() => undefined);
       expect(Object.keys(await file())).toEqual([cleConversation(A)]);
       await transmettre(T0 + 11 * MIN, env);
       await transmettre(T0 + H, env);
