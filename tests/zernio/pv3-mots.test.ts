@@ -400,13 +400,13 @@ describe("pv3 · STOP par compte", () => {
     const vus: RequeteSignee[] = [];
     S.injecterLecteurOpposition(async () => ({ email: "lecteur-fictif@example.com", reseau: "instagram" }));
     S.injecterTransportOpposition(async (r) => (vus.push(r), { statut: 200, corps: {} }));
-    const env = { ...ALLUME_EMPREINTE, SITE_GUIDES_RESEAU_SECRET: "secret-fictif-pv3" };
+    const env = { ...ALLUME_EMPREINTE, SITE_GUIDES_RESEAU_SECRET: "secret-fictif-pv3-0123456789abcdefghi" };
     expect(await S.traiterOppositions({ env })).toMatchObject({ prises: 1, transmises: 1 });
     expect(vus).toHaveLength(1);
     expect(vus[0].chemin).toBe(S.CHEMIN_OPPOSITIONS_SITE);
     const h = vus[0].entetes as Record<string, string>;
     const [horo, nonce, sig] = Object.values(h);
-    expect(signatureValide("secret-fictif-pv3", { methode: "POST", chemin: vus[0].chemin, corps: vus[0].corps as string, horodatage: horo, nonce, signature: sig })).toBe(true);
+    expect(signatureValide("secret-fictif-pv3-0123456789abcdefghi", { methode: "POST", chemin: vus[0].chemin, corps: vus[0].corps as string, horodatage: horo, nonce, signature: sig })).toBe(true);
     const tout = JSON.stringify([await depots().evenementsFournisseurs.lister(() => true), await depots().parametres.lister(() => true), await depots().evenements.lister(() => true), await depots().notifications.lister(() => true)]);
     expect(tout).not.toContain("lecteur-fictif");
     expect(tout).not.toContain("secret-fictif");
