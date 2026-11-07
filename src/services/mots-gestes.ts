@@ -5,7 +5,7 @@
  */
 import "server-only";
 import { exigerSession } from "./auth";
-import { chargerTextesFichier, lireVueMots, mettreEnPause, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
+import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
 
 export async function gesteLireMots(): Promise<VueMots> {
@@ -49,4 +49,13 @@ export async function gesteRefermerDisjoncteur(): Promise<{ ok: boolean }> {
 export async function gesteReglerPlafonds(p: { heureCompte?: number; jourMot?: number }) {
   await exigerSession();
   return reglerPlafonds(p);
+}
+/** Activation LOCALE du mot GUIDE (session exigée) : aucun appel vers Zernio, refus fermé si une garde manque. */
+export async function gesteActiverMotLocal(compte: string): Promise<Resultat> {
+  await exigerSession();
+  return activerMotLocal({ mot: "GUIDE", compte, confirmeParOperateur: true });
+}
+export async function gesteMettreEnPauseLocal(mot: string, compte: string): Promise<Resultat> {
+  await exigerSession();
+  return mettreEnPauseLocal({ mot, compte, confirmeParOperateur: true });
 }
