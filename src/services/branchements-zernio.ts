@@ -9,7 +9,8 @@
  *  - `passageParcoursZernio` : interrupteur éteint ET file d'oppositions sans entrée à transmettre = retour immédiat, aucun import
  *    du port, aucun client, aucune écriture. Le port (`zernio-inbox`) n'est atteint QUE d'ici, par `import()` dynamique, après
  *    ce contrôle. Un « stop » en file continue d'être transmis même interrupteur éteint ; il n'est jamais perdu.
- *  - Liste d'envoi vide ou titre du guide absent : une alerte, aucun traitement (aucune conversation n'est modifiée).
+ *  - Liste d'envoi vide ou titre du guide absent : une alerte, aucune conversation traitée (aucun envoi) ; le port est quand même
+ *    construit avec une liste d'envoi VIDE (écriture impossible) pour transmettre et rattraper les « stop » déjà en file.
  *  - Alertes : au plus une par heure et par sujet ; des codes et des phrases, jamais d'identifiant, d'adresse ni de secret.
  */
 import "server-only";
@@ -95,11 +96,28 @@ async function etape(nom: string, f: () => Promise<unknown>): Promise<void> {
   }
 }
 
-/** Ancien chemin des « stop » du crochet et balayage « Tout arrêter » : chacun garde ses propres interrupteurs. */
-async function ancienEtArret(env: Env): Promise<void> {
+/**
+ * « Tout arrêter » : balayage qui met les lignes en pause quand l'arrêt est posé. Il passe AVANT toute conversation : un arrêt
+ * posé ne doit jamais attendre (ni suivre) un traitement de conversation.
+ */
+async function toutArreter(env: Env): Promise<void> {
+  const mots = await import("./mots-service");
+  await etape("tout arrêter", () => mots.appliquerToutArreter({ env }));
+}
+
+/**
+ * Ancien chemin des « stop » du crochet. NOTE : avec MOTS_ENABLED=1 et le parcours ÉTEINT (et aucune opposition en file), le
+ * passage s'arrête dès le contrôle de l'interrupteur : ni cet ancien chemin ni « Tout arrêter » ne tournent ici. Rien n'est
+ * perdu (les événements restent traite:false) ; à arbitrer par le responsable (voir docs/zernio/parcours-viral/).
+ */
+async function ancienChemin(env: Env): Promise<void> {
   const mots = await import("./mots-service");
   await etape("oppositions (ancien chemin)", () => mots.traiterOppositions({ env }));
-  await etape("tout arrêter", () => mots.appliquerToutArreter({ env }));
+}
+
+async function arretEtAncienChemin(env: Env): Promise<void> {
+  await toutArreter(env);
+  await ancienChemin(env);
 }
 
 async function oppositionsEnAttente(): Promise<boolean> {
@@ -121,7 +139,7 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   // (3) Branchement absent : une alerte par heure, rien d'autre.
   if (!i.branche) {
     await alerter("branchement_absent", "Le parcours des messages privés n'est pas branché au démarrage du Studio : rien n'est traité. Redémarrer le Studio ; si l'alerte revient, prévenir le développeur.", now);
-    await ancienEtArret(env);
+    await arretEtAncienChemin(env);
     return;
   }
   // (4) Comptes de lecture = comptes Instagram et Facebook reliés ; comptes d'envoi = liste du serveur ∩ comptes de lecture.
@@ -129,35 +147,37 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   const comptesLecture = (enregistres?.comptes ?? []).filter((c) => c.reseau === "instagram" || c.reseau === "facebook").map((c) => c.id);
   const comptesPermis = listeComptes(env).filter((c, n, tous) => comptesLecture.includes(c) && tous.indexOf(c) === n);
   const titre = (env[VARIABLE_TITRE_GUIDE] ?? "").trim();
-  // (5) Liste d'envoi vide ou titre absent : alerte, aucun traitement.
+  // (5) Liste d'envoi vide ou titre absent : alerte, AUCUNE conversation traitée (aucun envoi, pas de m1_refuse) ;
+  //     mais les « stop » déjà en file sont quand même transmis et rattrapés : un « stop » n'est jamais perdu.
+  const sansEnvoi = comptesPermis.length === 0 || !titre;
   if (comptesPermis.length === 0) {
-    await alerter("comptes_envoi", "Aucun compte d'envoi utilisable pour les messages privés (liste du serveur vide, ou aucun compte Instagram ou Facebook relié ne correspond) : rien n'est traité.", now);
-    await ancienEtArret(env);
-    return;
+    await alerter("comptes_envoi", "Aucun compte d'envoi utilisable pour les messages privés (liste du serveur vide, ou aucun compte Instagram ou Facebook relié ne correspond) : aucune conversation n'est traitée.", now);
+  } else if (!titre) {
+    await alerter("titre_guide", "Le titre du guide pour les messages privés n'est pas posé sur le serveur : aucune conversation n'est traitée.", now);
   }
-  if (!titre) {
-    await alerter("titre_guide", "Le titre du guide pour les messages privés n'est pas posé sur le serveur : rien n'est traité.", now);
-    await ancienEtArret(env);
-    return;
+  if (comptesLecture.length === 0 && (await oppositionsEnAttente())) {
+    await alerter("opposition_en_attente", "Opposition en attente : aucun compte Instagram ou Facebook relié, les « stop » en file ne peuvent pas être relus. Elles sont gardées, rien n'est perdu ; relier le compte ou prévenir le développeur.", now);
   }
   // (6) Le port : importé ICI seulement, après le contrôle de l'interrupteur. Même liste de lecture pour le service et le port.
+  //     Sans liste d'envoi, comptesPermis est vide : le client refuse toute écriture (liste fermée absente) ; seule la lecture reste.
   const { creerPortInboxZernio } = await import("@/fournisseurs/zernio-inbox");
   const { DOMAINES_PERMIS_PAR_DEFAUT } = await import("@/fournisseurs/publication/zernio-inbox-corps");
   const { clientZernio } = await import("./zernio");
   let port;
   try {
-    port = creerPortInboxZernio({ client: clientZernio(), comptesPermis, comptesLecture, domainesPermis: DOMAINES_PERMIS_PAR_DEFAUT, titresGuidesPermis: [titre] });
+    port = creerPortInboxZernio({ client: clientZernio(), comptesPermis: sansEnvoi ? [] : comptesPermis, comptesLecture, domainesPermis: DOMAINES_PERMIS_PAR_DEFAUT, titresGuidesPermis: titre ? [titre] : [] });
   } catch {
     await alerter("client_zernio", "Zernio n'est pas relié (clé absente ou refusée) : les messages privés ne sont pas traités.", now);
-    await ancienEtArret(env);
+    await arretEtAncienChemin(env);
     return;
   }
-  // (7) Dans l'ordre : conversations (seulement allumé), transmission des « stop », rattrapage.
+  // (7) Dans l'ordre : « Tout arrêter », conversations (seulement allumé ET envoi possible), transmission des « stop », rattrapage.
   const { traiterConversations } = await import("./parcours-conversation");
   const { transmettreOppositions, rattraperOppositions } = await import("./oppositions-transmission");
-  if (actif) await etape("conversations", () => traiterConversations({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
+  await toutArreter(env);
+  if (actif && !sansEnvoi) await etape("conversations", () => traiterConversations({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
   await etape("transmission des oppositions", () => transmettreOppositions({ port, env, maintenantMs: now }));
   await etape("rattrapage des oppositions", () => rattraperOppositions({ env, maintenantMs: now }));
-  // (8) Ancien chemin et « Tout arrêter ».
-  await ancienEtArret(env);
+  // (8) Ancien chemin des « stop ».
+  await ancienChemin(env);
 }

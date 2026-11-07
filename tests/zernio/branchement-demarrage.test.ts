@@ -149,22 +149,62 @@ describe("passageParcoursZernio", () => {
     expect(await alertes()).toHaveLength(2);
   });
 
+  const FILE_STOP = { cle1: { etat: "a_transmettre", cleIdempotence: "k", reseau: "instagram", creeLe: "2026-11-07T10:00:00.000Z", essais: 0, prochainEssaiLe: null, dernierCode: null, depuis: "x", lectures: 0 } };
   it.each([
     ["liste d'envoi vide", { PARCOURS_CONVERSATION_COMPTES: "" }],
     ["aucun compte d'envoi n'est un compte de lecture", { PARCOURS_CONVERSATION_COMPTES: "li_1, inconnu" }],
     ["titre du guide absent", { PARCOURS_CONVERSATION_TITRE_GUIDE: "  " }],
-  ])("%s : alerte, aucun envoi, aucune conversation modifiée", async (_nom, surcharge) => {
+  ])("%s : alerte, aucune conversation ni envoi, mais un « stop » en file est transmis", async (_nom, surcharge) => {
     const env = { ...ENV_BASE, ...surcharge };
     B.brancherParcoursZernio(env);
     await ecrireParametre("parcours.conversations", { cle1: { etat: "attente_email", m1Le: "2026-11-07T09:00:00.000Z" } });
+    await ecrireParametre("parcours.oppositions.file", FILE_STOP);
     const avant = JSON.stringify(await lireParametre("parcours.conversations", {}));
     await passage(env);
-    expect(creerPort).not.toHaveBeenCalled();
     expect(traiterConversations).not.toHaveBeenCalled();
-    expect(transmettreOppositions).not.toHaveBeenCalled();
+    expect(transmettreOppositions).toHaveBeenCalledTimes(1);
+    expect(rattraperOppositions).toHaveBeenCalledTimes(1);
+    // Le port existe, mais sans liste d'envoi (aucune écriture possible) quand la liste est vide.
+    const o = creerPort.mock.calls[0][0] as { comptesPermis: string[]; comptesLecture: string[] };
+    if (!surcharge.PARCOURS_CONVERSATION_TITRE_GUIDE) expect(o.comptesPermis).toEqual([]);
+    expect(o.comptesLecture).toEqual(["ig_1", "fb_1", "ig_2"]);
     expect(JSON.stringify(await lireParametre("parcours.conversations", {}))).toBe(avant);
     expect(await alertes()).toHaveLength(1);
     expect(JSON.stringify(await alertes())).not.toMatch(/m1_refuse/);
+    expect(reseau).not.toHaveBeenCalled();
+  });
+
+  it("titre absent : le port refuse aussi toute écriture (aucune écriture ne passe), les « stop » sont transmis", async () => {
+    const env = { ...ENV_BASE, PARCOURS_CONVERSATION_TITRE_GUIDE: "" };
+    B.brancherParcoursZernio(env);
+    await ecrireParametre("parcours.oppositions.file", FILE_STOP);
+    await passage(env);
+    expect(transmettreOppositions).toHaveBeenCalledTimes(1);
+    expect(traiterConversations).not.toHaveBeenCalled();
+  });
+
+  it("le port construit avec une liste d'envoi vide refuse toute écriture, sans appel réseau", async () => {
+    const { creerPortInboxZernio } = await vi.importActual<typeof import("@/fournisseurs/zernio-inbox")>("@/fournisseurs/zernio-inbox");
+    const requete = vi.fn(async () => ({ statut: 200, corps: {}, entetes: {} }));
+    const port = creerPortInboxZernio({ client: { requete } as never, comptesPermis: [], comptesLecture: ["ig_1"] });
+    // Le client réel refuse (liste fermée absente) ; ici le faux client doit au moins recevoir une liste vide.
+    await port.envoyerMessage({ idCompte: "ig_1", idConversation: "cv", texte: "Bonjour", cle: "k" } as never);
+    const req = requete.mock.calls[0] as unknown as [{ comptesPermis: string[] }];
+    expect(req[0].comptesPermis).toEqual([]);
+  });
+
+  it("compte de lecture disparu et « stop » en file : alerte « opposition en attente », entrée conservée, aucun envoi", async () => {
+    await ecrireParametre("zernio.comptes", { lusLe: "x", comptes: [] });
+    B.brancherParcoursZernio(ENV_BASE);
+    await ecrireParametre("parcours.oppositions.file", FILE_STOP);
+    await passage(ENV_BASE);
+    expect(traiterConversations).not.toHaveBeenCalled();
+    expect((creerPort.mock.calls[0][0] as { comptesPermis: string[]; comptesLecture: string[] })).toMatchObject({ comptesPermis: [], comptesLecture: [] });
+    expect(transmettreOppositions).toHaveBeenCalledTimes(1);
+    const textes = JSON.stringify(await alertes());
+    expect(textes).toMatch(/Opposition en attente/);
+    expect(await lireParametre("parcours.oppositions.file", {})).toEqual(FILE_STOP);
+    expect(reseau).not.toHaveBeenCalled();
   });
 
   it("au plus un passage toutes les 15 s", async () => {
@@ -192,7 +232,7 @@ describe("passageParcoursZernio", () => {
     expect(d.comptesPermis).toEqual(o.comptesPermis);
     expect(d.titreGuide).toBe("Guide fictif");
     expect((transmettreOppositions.mock.calls[0][0] as { port: unknown }).port).toBe(PORT_FAUX);
-    expect(ordre).toEqual(["conversations", "transmettre", "rattraper", "ancien", "toutArreter"]);
+    expect(ordre).toEqual(["toutArreter", "conversations", "transmettre", "rattraper", "ancien"]);
   });
 
   it("clé Zernio absente : alerte et rien n'est traité (le client refuse)", async () => {
@@ -360,6 +400,7 @@ describe("instrumentation.ts : le branchement est présent", () => {
     }));
     const erreurs = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const avant = process.env.DATABASE_URL;
+    const runtimeAvant = process.env.NEXT_RUNTIME;
     process.env.NEXT_RUNTIME = "nodejs";
     delete process.env.DATABASE_URL;
     try {
@@ -369,7 +410,8 @@ describe("instrumentation.ts : le branchement est présent", () => {
       expect(JSON.stringify(erreurs.mock.calls)).not.toContain("secret-fictif");
     } finally {
       if (avant !== undefined) process.env.DATABASE_URL = avant;
-      delete process.env.NEXT_RUNTIME;
+      if (runtimeAvant !== undefined) process.env.NEXT_RUNTIME = runtimeAvant;
+      else delete process.env.NEXT_RUNTIME;
       erreurs.mockRestore();
       vi.doUnmock("@/lib/demarrage");
       vi.doUnmock("@/services/boucle");
