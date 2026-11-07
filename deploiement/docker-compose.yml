@@ -150,6 +150,10 @@ services:
       PARCOURS_MOT_ENABLED: ${PARCOURS_MOT_ENABLED:-}
       MOTS_ENABLED: ${MOTS_ENABLED:-}
       A_TRAITER_ENABLED: ${A_TRAITER_ENABLED:-}
+      # Parcours « conversation » : INERTE tant que l'interrupteur est vide. Empreinte des personnes : secret de 32 caractères au moins, posé sur le serveur par saisie masquée ; les anciens (3 au plus, séparés par des virgules) ne servent qu'à reconnaître.
+      PARCOURS_CONVERSATION_ENABLED: ${PARCOURS_CONVERSATION_ENABLED:-}
+      STUDIO_EMPREINTE_SECRET: ${STUDIO_EMPREINTE_SECRET:-}
+      STUDIO_EMPREINTE_SECRET_ANCIEN: ${STUDIO_EMPREINTE_SECRET_ANCIEN:-}
       # Origine v3 des commentaires : éteinte (vide) ; préfixes de NOS comptes pour la garde post_url (vide = origine v3 refusée, corps v1).
       ORIGINE_V3_ENABLED: ${ORIGINE_V3_ENABLED:-}
       ORIGINE_V3_PREFIXES_COMPTES: ${ORIGINE_V3_PREFIXES_COMPTES:-}
