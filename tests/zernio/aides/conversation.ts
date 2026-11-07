@@ -25,7 +25,13 @@ export interface FauxPort {
   lire: number;
   envoyes: Array<{ texte: string; cle: string }>;
   total: () => number;
+  /** Comptes pour lesquels le faux port accepte d'ÉCRIRE / de LIRE ; absent = tous. Hors liste : refus compté dans `refuses` (écriture) ou panne (lecture). */
+  ecritureAutorisee?: string[];
+  lectureAutorisee?: string[];
+  refuses: number;
   /** Réponses configurables. */
+  horsEcriture: (idCompte: string) => boolean;
+  refus: () => ResultatEcritureInbox;
   reponses: { pub: () => ResultatEcritureInbox; prive: () => ResultatEcritureInbox; envoyer: () => ResultatEcritureInbox; texte: () => string | null;
     /** Si présent, remplace la lecture : résultat complet du port (panne, introuvable…). */
     lecture?: () => import("@/fournisseurs/zernio-inbox").MessageLu;
@@ -33,14 +39,16 @@ export interface FauxPort {
 }
 export function fauxPort(): FauxPort {
   const f: FauxPort = {
-    pub: [], prive: [], lire: 0, envoyes: [],
+    pub: [], prive: [], lire: 0, envoyes: [], refuses: 0,
     total: () => f.pub.length + f.prive.length + f.lire + f.envoyes.length,
+    horsEcriture: (idCompte) => !!f.ecritureAutorisee && !f.ecritureAutorisee.includes(idCompte) && (f.refuses++, true),
+    refus: () => ({ statut: "refuse", code: "compte_hors_liste" }),
     reponses: { pub: () => OK, prive: () => OK, envoyer: () => OK, texte: () => null },
     port: {
-      repondreCommentaire: async (p) => (f.pub.push({ texte: p.texte, cle: p.cle, idPost: p.idPost }), f.reponses.pub()),
-      repondreEnPrive: async (p) => (f.prive.push({ texte: p.texte }), f.reponses.prive()),
-      lireMessage: async () => (f.lire++, f.reponses.lecture ? f.reponses.lecture() : { texte: f.reponses.texte(), postback: null }),
-      envoyerMessage: async (p) => (f.envoyes.push({ texte: p.texte, cle: p.cle }), f.reponses.envoyer()),
+      repondreCommentaire: async (p) => (f.pub.push({ texte: p.texte, cle: p.cle, idPost: p.idPost }), f.horsEcriture(p.idCompte) ? f.refus() : f.reponses.pub()),
+      repondreEnPrive: async (p) => (f.prive.push({ texte: p.texte }), f.horsEcriture(p.idCompte) ? f.refus() : f.reponses.prive()),
+      lireMessage: async (p) => (f.lire++, f.lectureAutorisee && !f.lectureAutorisee.includes(p.idCompte) ? { texte: null, postback: null, panne: true } : f.reponses.lecture ? f.reponses.lecture() : { texte: f.reponses.texte(), postback: null }),
+      envoyerMessage: async (p) => (f.envoyes.push({ texte: p.texte, cle: p.cle }), f.horsEcriture(p.idCompte) ? f.refus() : f.reponses.envoyer()),
     },
   };
   return f;
