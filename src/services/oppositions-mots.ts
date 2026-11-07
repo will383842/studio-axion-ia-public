@@ -25,6 +25,10 @@ export const empreinteContact = (id: string): string => empreinteHeritee(id);
  */
 export const ESPACE_CONTACT_ZERNIO: EspacePersonne = "zernio-contact";
 
+/** Même nom que `PARAM_CONVERSATIONS` (parcours-conversation.ts importe ce module : pas d'import circulaire). */
+const PARAM_CONVERSATIONS_ETAT = "parcours.conversations";
+const ETATS_EN_COURS = ["nouveau", "pub_ok", "m1_en_vol", "attente_email", "m1_a_verifier", "m2_envoye"];
+
 interface Options {
   env?: Record<string, string | undefined>;
 }
@@ -144,7 +148,7 @@ export async function marquerTransmise(idContact: string, espace: EspacePersonne
  * - seulementParKid : lignes COUVERTES UNIQUEMENT par ce kid (retirer ce secret les rendrait illisibles) ;
  * - kidsInconnus : kids présents dans le registre qu'aucun secret actuel ne porte.
  */
-export async function etatRegistreEmpreintes(o?: Options): Promise<{ lignesParKid: Record<string, number>; seulementParKid: Record<string, number>; heritees: number; kidsInconnus: string[] }> {
+export async function etatRegistreEmpreintes(o?: Options): Promise<{ lignesParKid: Record<string, number>; seulementParKid: Record<string, number>; heritees: number; kidsInconnus: string[]; conversationsParKid: Record<string, number>; conversationsActivesParKid: Record<string, number> }> {
   const liste = await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, []);
   const c = lireClesEmpreinte(o?.env ?? process.env);
   const connus = new Set(c.ok ? [c.courante.kid, ...c.anciennes.map((a) => a.kid)] : []);
@@ -167,5 +171,21 @@ export async function etatRegistreEmpreintes(o?: Options): Promise<{ lignesParKi
     for (const k of kids) lignesParKid[k] = (lignesParKid[k] ?? 0) + 1;
     if (!heritee && kids.size === 1) { const [k] = kids; seulementParKid[k] = (seulementParKid[k] ?? 0) + 1; }
   }
-  return { lignesParKid, seulementParKid, heritees, kidsInconnus: [...inconnus].sort() };
+  // Conversations par kid (clé ou alias), des NOMBRES seulement. « Actives » = encore en cours (un message de la personne y serait traité).
+  const conversationsParKid: Record<string, number> = {};
+  const conversationsActivesParKid: Record<string, number> = {};
+  const conv = await lireParametre<Record<string, { etat?: string; alias?: string[] }>>(PARAM_CONVERSATIONS_ETAT, {});
+  for (const [cle, e] of Object.entries(conv)) {
+    const kidsConv = new Set<string>();
+    for (const f of [cle, ...(e.alias ?? [])]) {
+      const m = RE_KID.exec(f);
+      if (m) kidsConv.add(m[1]);
+    }
+    const active = ETATS_EN_COURS.includes(String(e.etat));
+    for (const k of kidsConv) {
+      conversationsParKid[k] = (conversationsParKid[k] ?? 0) + 1;
+      if (active) conversationsActivesParKid[k] = (conversationsActivesParKid[k] ?? 0) + 1;
+    }
+  }
+  return { lignesParKid, seulementParKid, heritees, kidsInconnus: [...inconnus].sort(), conversationsParKid, conversationsActivesParKid };
 }

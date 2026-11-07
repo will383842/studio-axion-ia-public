@@ -15,7 +15,7 @@ import type { EvenementFournisseur } from "@/domaine/types";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
-import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
+import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
@@ -150,17 +150,33 @@ async function ecrireEtat(cle: string, f: (e: Conversation | undefined) => Conve
 }
 const patcher = (cle: string, patch: Partial<Conversation>) => ecrireEtat(cle, (e) => (e ? { ...e, ...patch } : undefined));
 
-/** Retrouve la personne par l'empreinte de `sender.id`, sinon par un alias (empreinte de `sender.id` ou de `conversationId`). */
-async function retrouver(empS: string, empC?: string | null): Promise<{ cle: string; etat: Conversation } | null> {
-  return sousVerrou(async () => {
+type ClesOk = Extract<EtatCles, { ok: true }>;
+/** Formes d'un identifiant brut sous TOUTES les clés connues, la courante en premier. Jamais la forme héritée (les conversations n'en ont jamais eu). */
+const formesConversation = (cles: ClesOk, idBrut: string): string[] => [cles.courante, ...cles.anciennes].map((c) => empreintePersonne(c, ESPACE_CONVERSATION, idBrut));
+
+/**
+ * Retrouve la personne par les formes de `sender.id`, sinon par un alias (formes de `sender.id` ou de `conversationId`), sous toutes les clés connues.
+ * Ordre inchangé, forme par forme : alias du FIL, clé de l'expéditeur, alias de l'expéditeur, clé du fil.
+ * Retrouvée par une forme ANCIENNE : migration douce, la forme courante devient un alias (la clé reste l'ancienne, rien n'est supprimé).
+ */
+async function retrouver(cles: ClesOk, idS: string, idC?: string | null): Promise<{ cle: string; etat: Conversation } | null> {
+  const fS = formesConversation(cles, idS);
+  const fC = idC ? formesConversation(cles, idC) : [];
+  const trouve = await sousVerrou(async () => {
     const { conv, alias } = await lireTout();
-    // Ordre : l'alias du FIL d'abord (il désigne la personne de cette conversation), puis la clé de l'expéditeur, son alias, enfin la clé du fil.
-    if (empC && alias[empC] && conv[alias[empC]]) return { cle: alias[empC], etat: conv[alias[empC]] };
-    if (conv[empS]) return { cle: empS, etat: conv[empS] };
-    if (alias[empS] && conv[alias[empS]]) return { cle: alias[empS], etat: conv[alias[empS]] };
-    if (empC && conv[empC]) return { cle: empC, etat: conv[empC] };
-    return null;
+    const par = (formes: string[], viaAlias: boolean, courante: string): { cle: string; etat: Conversation; ancienne: boolean; courante: string } | null => {
+      for (const f of formes) {
+        const cle = viaAlias ? alias[f] : f;
+        if (cle && conv[cle]) return { cle, etat: conv[cle], ancienne: f !== courante, courante };
+      }
+      return null;
+    };
+    return par(fC, true, fC[0]) ?? par(fS, false, fS[0]) ?? par(fS, true, fS[0]) ?? par(fC, false, fC[0]);
   });
+  if (!trouve) return null;
+  if (trouve.ancienne) await noterAlias(trouve.cle, [trouve.courante]);
+  const etat = trouve.ancienne ? ((await lireEtat(trouve.cle)) ?? trouve.etat) : trouve.etat;
+  return { cle: trouve.cle, etat };
 }
 export async function noterAlias(cle: string, empreintes: string[]): Promise<void> {
   const refuses = await sousVerrou(async () => {
@@ -210,7 +226,7 @@ async function appeler<T extends ResultatEcritureInbox>(f: () => Promise<T>): Pr
   }
 }
 
-async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: CleEmpreinte, now: number): Promise<"traite" | "bloque"> {
+async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<"traite" | "bloque"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
   const reseau = String(c.reseau ?? "");
@@ -221,14 +237,14 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
     await clore(ev, filtre.raison === "perime" ? "perime" : "ecarte", filtre.raison ?? null);
     return "traite";
   }
-  const cle = empreintePersonne(cles, ESPACE_CONVERSATION, idAuteur!);
+  const cle = empreintePersonne(cles.courante, ESPACE_CONVERSATION, idAuteur!); // clé des NOUVELLES écritures : toujours la courante
   if (filtre.action === "opposer") {
     await enregistrerOpposition(idAuteur!, ESPACE_CONVERSATION, { env });
     // Aussi tous les alias connus de la personne (comme l'opposition en privé) : l'auteur peut être lui-même un alias.
-    const connu = await retrouver(cle);
+    const connu = await retrouver(cles, idAuteur!);
     const cleEtat = connu?.cle ?? cle;
-    for (const emp of new Set([cle, cleEtat, ...(connu?.etat.alias ?? [])])) await enregistrerOppositionParEmpreinte(emp, { env });
-    await ecrireEtat(cleEtat, (e) => (e ? { ...e, etat: "oppose", prochainEssaiLe: null } : etatNeuf("oppose", c, d, cleIdempotenceOpaque(cles, "guide", ev.idEvenement), now)));
+    for (const emp of new Set([...formesConversation(cles, idAuteur!), cleEtat, ...(connu?.etat.alias ?? [])])) await enregistrerOppositionParEmpreinte(emp, { env });
+    await ecrireEtat(cleEtat, (e) => (e ? { ...e, etat: "oppose", prochainEssaiLe: null } : etatNeuf("oppose", c, d, cleIdempotenceOpaque(cles.courante, "guide", ev.idEvenement), now)));
     await clore(ev, "oppose", "opposition");
     return "traite";
   }
@@ -243,7 +259,7 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
     return "traite";
   }
   // Une personne déjà connue sous un alias ne démarre pas un second parcours.
-  const connue = await retrouver(cle);
+  const connue = await retrouver(cles, idAuteur!);
   const existant = connue?.etat ?? null;
   const cleEtat = connue?.cle ?? cle;
   const decision = transition(existant, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: false, idAuteur, idCompte, motSeul: MOT, estReponse: false, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now });
@@ -253,7 +269,7 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   }
   if (decision.action === "demarrer") {
     // Clé d'idempotence calculée UNE fois ici, stockée : jamais recalculée (la rotation du secret la changerait).
-    await ecrireEtat(cleEtat, (e) => ({ ...etatNeuf("nouveau", c, d, cleIdempotenceOpaque(cles, "guide", String(c.idCommentaire)), now), alias: e?.alias ?? [] })); // les alias déjà connus sont conservés
+    await ecrireEtat(cleEtat, (e) => ({ ...etatNeuf("nouveau", c, d, cleIdempotenceOpaque(cles.courante, "guide", String(c.idCommentaire)), now), alias: e?.alias ?? [] })); // les alias déjà connus sont conservés
   }
   return etapesCommentaire(ev, d, env, cleEtat, now, cles);
 }
@@ -281,7 +297,7 @@ function etatNeuf(etat: Conversation["etat"], c: Record<string, unknown>, d: Dep
   };
 }
 
-async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: CleEmpreinte): Promise<"traite" | "bloque"> {
+async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk): Promise<"traite" | "bloque"> {
   let e = await lireEtat(cle);
   if (!e) return "traite";
   const { idCompte } = e;
@@ -341,7 +357,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   await reagir(s, now);
   await patcher(cle, s.patch ?? {});
   // B3 (a) : si Zernio rend l'identifiant de conversation ou de destinataire, l'alias est posé tout de suite (empreintes, jamais brut).
-  const idsRendus = [res.idConversation, res.idDestinataire].filter((x): x is string => typeof x === "string" && x.length > 0).map((x) => empreintePersonne(cles, ESPACE_CONVERSATION, x));
+  const idsRendus = [res.idConversation, res.idDestinataire].filter((x): x is string => typeof x === "string" && x.length > 0).map((x) => empreintePersonne(cles.courante, ESPACE_CONVERSATION, x));
   if (idsRendus.length > 0) await noterAlias(cle, idsRendus);
   if (s.action === "reessayer") {
     await reporter(ev, now, s.apresMs ?? 60_000, s.code ?? "a_reessayer");
@@ -374,7 +390,10 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
     const n = Number(c.pannesLecture ?? 0);
     const s = transition(null, { t: "texte_panne", essais: n });
     await reporter(ev, now, s.apresMs ?? 30_000, "lecture_panne", { pannesLecture: n + 1 });
-    await alerter("lecture_panne", "La lecture d'un message privé échoue (panne Zernio ou réseau) : l'événement est réessayé plus tard, rien n'est ignoré. Vérifier l'accès à l'Inbox Zernio.", now);
+    const horsListe = !(d.comptesLecture ?? d.comptesPermis).includes(idCompte) && !d.comptesPermis.includes(idCompte);
+    await alerter("lecture_panne", horsListe
+      ? "La lecture d'un message privé échoue : compte hors liste (absent des comptes autorisés). L'événement est réessayé plus tard, rien n'est ignoré. Vérifier les comptes autorisés."
+      : "La lecture d'un message privé échoue (panne Zernio ou réseau) : l'événement est réessayé plus tard, rien n'est ignoré. Vérifier l'accès à l'Inbox Zernio.", now);
     return null;
   }
   if (lu.introuvable === true) {
@@ -396,16 +415,16 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
 }
 
 /** Opposition écrite en privé : TOUS les identifiants connus de la personne (expéditeur, auteur du commentaire d'origine, alias) sont opposés. */
-async function opposerEnPrive(ev: EvenementFournisseur, env: Env, cle: string, idExpediteur: string, emps: string[]): Promise<void> {
+async function opposerEnPrive(ev: EvenementFournisseur, env: Env, cle: string, idExpediteur: string, emps: string[], toutes: string[]): Promise<void> {
   await enregistrerOpposition(idExpediteur, ESPACE_CONVERSATION, { env });
   await noterAlias(cle, emps);
   const etat = await lireEtat(cle);
-  for (const e of new Set([cle, ...emps, ...(etat?.alias ?? [])])) await enregistrerOppositionParEmpreinte(e, { env });
+  for (const e of new Set([cle, ...emps, ...toutes, ...(etat?.alias ?? [])])) await enregistrerOppositionParEmpreinte(e, { env });
   await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
   await clore(ev, "oppose", "opposition");
 }
 
-async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: CleEmpreinte, now: number): Promise<"traite" | "bloque"> {
+async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<"traite" | "bloque"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
   const idMessage = String(c.idMessage ?? "");
@@ -417,10 +436,12 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, "ecarte", premier.raison ?? null);
     return "traite";
   }
-  const empS = empreintePersonne(cles, ESPACE_CONVERSATION, idExpediteur!);
-  const empC = idConversation ? empreintePersonne(cles, ESPACE_CONVERSATION, idConversation) : null;
+  const empS = empreintePersonne(cles.courante, ESPACE_CONVERSATION, idExpediteur!);
+  const empC = idConversation ? empreintePersonne(cles.courante, ESPACE_CONVERSATION, idConversation) : null;
   const emps = empC ? [empS, empC] : [empS];
-  const trouve = await retrouver(empS, empC);
+  // Opposition : toutes les formes connues (courante + anciennes) de l'expéditeur et du fil.
+  const empsToutes = [...formesConversation(cles, idExpediteur!), ...(idConversation ? formesConversation(cles, idConversation) : [])];
+  const trouve = await retrouver(cles, idExpediteur!, idConversation);
   if (!trouve) {
     // Orphelin : 2 réessais ; ensuite le texte est lu QUAND MÊME, pour ne pas perdre un « stop » (aucune réponse n'est jamais envoyée).
     const n = Number(c.orphelins ?? 0);
@@ -482,12 +503,12 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   if (!lu) return "traite";
   if (s0.action === "lire_opposition") {
     // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition.
-    if (estMotOpposition(lu.texte)) await opposerEnPrive(ev, env, cle, idExpediteur!, emps);
+    if (estMotOpposition(lu.texte)) await opposerEnPrive(ev, env, cle, idExpediteur!, emps, empsToutes);
     else await clore(ev, "silence", s0.raison ?? "etat");
     return "traite";
   }
   if (estMotOpposition(lu.texte)) {
-    await opposerEnPrive(ev, env, cle, idExpediteur!, emps);
+    await opposerEnPrive(ev, env, cle, idExpediteur!, emps, empsToutes);
     return "traite";
   }
   // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
@@ -501,7 +522,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const adresse = extraireAdresse(lu.texte);
   const s = transition(etat, { t: "texte", estOpposition: false, adresse });
   if (s.action === "opposer") {
-    await opposerEnPrive(ev, env, cle, idExpediteur!, emps);
+    await opposerEnPrive(ev, env, cle, idExpediteur!, emps, empsToutes);
     return "traite";
   }
   await noterAlias(cle, emps);
@@ -648,7 +669,7 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     for (const ev of dus) {
       let issue: "traite" | "bloque";
       try {
-        issue = ev.type === TYPE_COMMENTAIRE ? await traiterCommentaire(ev, d, env, k.courante, now) : await traiterMessage(ev, d, env, k.courante, now);
+        issue = ev.type === TYPE_COMMENTAIRE ? await traiterCommentaire(ev, d, env, k, now) : await traiterMessage(ev, d, env, k, now);
       } catch {
         // Registre illisible ou panne de base : nouvel essai plus tard, JAMAIS « non opposée » ni envoi.
         await reporter(ev, now, ATTENTE_REGISTRE_MS, "registre_illisible").catch(() => undefined);

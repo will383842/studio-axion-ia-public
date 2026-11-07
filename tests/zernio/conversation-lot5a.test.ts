@@ -85,6 +85,19 @@ describe.each(gardes)("M1 · garde %s : l'événement attend 60 s, sans relire Z
   });
 });
 
+describe("expirerConversations · repli sur l'état du processus", () => {
+  it("sans enVol explicite, un M1 réellement en vol dans CE processus n'expire pas ; une fois parti, il expire", async () => {
+    let pendant = -1;
+    const enveloppe = { ...port.port, repondreEnPrive: async (p: any) => { pendant = await C.expirerConversations({ env: ENV, maintenantMs: T0 + 8 * J }); return port.port.repondreEnPrive(p); } };
+    await deposerCommentaire(depots, { idAuteur: A, idCommentaire: "com-vol" });
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(A)]: graine("pub_ok", { idCommentaire: "com-vol", creeLe: new Date(T0 - 10 * J).toISOString() }) });
+    await C.traiterConversations({ port: enveloppe, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: T0 });
+    expect(pendant).toBe(0); // en vol dans ce processus : pas expiré (repli sur processus().enVol)
+    expect((await etatDe(A)).etat).toBe("attente_email");
+    expect(await C.expirerConversations({ env: ENV, maintenantMs: T0 + 8 * J })).toBe(1); // une fois M1 parti, plus rien en vol : il expire bien
+  });
+});
+
 describe("M1 · les deux autres chemins", () => {
   it("etapesCommentaire : la garde qui tombe entre la réponse publique et M1 reporte l'événement de 60 s", async () => {
     const id = await deposerCommentaire(depots, {});
@@ -112,12 +125,43 @@ describe("m1 · comptesLecture", () => {
     await semer(A, "attente_email", { m1Le: new Date(T0).toISOString() });
     port.reponses.texte = () => "stop";
     const id = await deposerMessage(depots, {});
+    port.ecritureAutorisee = []; // le faux port refuse (et compte) toute écriture sur un compte hors liste
     await passer(T0, { comptesPermis: [], comptesLecture: [COMPTE] });
     expect(port.lire).toBe(1);
+    expect(port.refuses).toBe(0);
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
     expect((await etatDe(A)).etat).toBe("oppose");
     expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
     expect(site.vus).toHaveLength(0);
+  });
+  it("compte retiré de comptesPermis, message ordinaire : la garde bloque AVANT tout envoi (le faux port n'est jamais sollicité en écriture)", async () => {
+    await semer(A, "attente_email", { m1Le: new Date(T0).toISOString() });
+    port.ecritureAutorisee = [];
+    port.reponses.texte = () => `Mon adresse : ${ADRESSE_FICTIVE}`;
+    const id = await deposerMessage(depots, {});
+    await passer(T0, { comptesPermis: [], comptesLecture: [COMPTE] });
+    expect((await evenement(depots, id)).charge).toMatchObject({ dernierCode: "garde_compte_hors_liste", prochainEssaiLe: T0 + 60_000 });
+    expect(port.pub.length + port.prive.length + port.envoyes.length).toBe(0);
+    expect(port.refuses).toBe(0);
+    expect(site.vus).toHaveLength(0);
+  });
+  it("lecture impossible sur un compte des listes : l'alerte dit « panne Zernio ou réseau »", async () => {
+    const texteAlerte = async () => (await depots().notifications.lister(() => true)).map((n: any) => n.message).join("|");
+    await semer(A, "attente_email", { m1Le: new Date(T0).toISOString() });
+    port.reponses.lecture = () => ({ texte: null, postback: null, panne: true });
+    await deposerMessage(depots, {});
+    await passer(T0);
+    expect(await texteAlerte()).toContain("panne Zernio ou réseau");
+    expect(await texteAlerte()).not.toContain("compte hors liste");
+  });
+  it("lecture impossible sur un compte hors des deux listes : l'alerte dit « compte hors liste », pas « panne Zernio ou réseau »", async () => {
+    await semer(A, "attente_email", { m1Le: new Date(T0).toISOString() });
+    port.lectureAutorisee = []; // le faux port refuse la lecture de ce compte
+    await deposerMessage(depots, {});
+    await passer(T0, { comptesPermis: [], comptesLecture: [] });
+    const messages = (await depots().notifications.lister(() => true)).map((n: any) => n.message).join("|");
+    expect(messages).toContain("compte hors liste");
+    expect(messages).not.toContain("panne Zernio ou réseau");
   });
   it("orphelin « stop » sur un compte hors des deux listes : jamais clos, report à +6 h, une alerte", async () => {
     port.reponses.texte = () => "stop";
@@ -136,8 +180,10 @@ describe("m1 · comptesLecture", () => {
     port.reponses.texte = () => "stop";
     const id = await deposerMessage(depots, {});
     await depots().evenementsFournisseurs.modifier(`evf-${id}`, { charge: { ...(await evenement(depots, id)).charge, orphelins: 2 } });
+    port.ecritureAutorisee = []; // le faux port refuse (et compte) toute écriture sur un compte hors liste
     await passer(T0, { comptesPermis: [], comptesLecture: [COMPTE] });
     expect(port.lire).toBe(1);
+    expect(port.refuses).toBe(0);
     expect((await evenement(depots, id)).charge).toMatchObject({ etat: "oppose", dernierCode: "opposition_orpheline" });
   });
 });
@@ -271,6 +317,6 @@ describe("m5 · de bout en bout : l'adresse n'est ni stockée ni journalisée", 
     nul("depot-evenements-charges", (await depots().evenementsFournisseurs.lister(() => true)).map((e: any) => e.charge));
     for (const m of ["log", "error", "warn", "info"] as const) nul(`console.${m}`, vi.mocked(console[m]).mock.calls);
     nul("port", [port.pub, port.prive, port.envoyes]);
-    expect(await alertes()).toBeGreaterThanOrEqual(0);
+    expect(await alertes()).toBe(0); // aucune panne dans ce scénario : aucune alerte
   });
 });
