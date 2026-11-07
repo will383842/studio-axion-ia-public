@@ -156,7 +156,7 @@ describe("B4 · panne de lecture ≠ message sans texte", () => {
     for (const t of [0, 31_000, 31_000 + 121_000, 31_000 + 121_000 + 601_000]) await passer(T0 + t);
     expect((await evenement(depots, id)).charge).toMatchObject({ etat: "ignore", dernierCode: "texte_absent" });
   });
-  it("port : une erreur de lecture est rendue comme panne, un message absent comme « sans texte »", async () => {
+  it("port : une erreur de lecture est rendue comme panne, un message absent comme introuvable", async () => {
     const { creerPortInboxZernio } = await import("@/fournisseurs/zernio-inbox");
     const clientQuiEchoue = { requete: async () => { throw new Error("réseau"); } } as never;
     const p1 = creerPortInboxZernio({ client: clientQuiEchoue, comptesPermis: [COMPTE] });
@@ -164,7 +164,7 @@ describe("B4 · panne de lecture ≠ message sans texte", () => {
     const clientVide = { requete: async () => ({ corps: { messages: [] } }) } as never;
     const p2 = creerPortInboxZernio({ client: clientVide, comptesPermis: [COMPTE] });
     const r = await p2.lireMessage({ idCompte: COMPTE, idConversation: "c", idMessage: "m" });
-    expect(r.texte).toBeNull();
+    expect(r).toMatchObject({ texte: null, introuvable: true });
     expect(r.panne).toBeFalsy();
   });
   it("machine : texte_panne → réessai à délai croissant, sans fin", () => {

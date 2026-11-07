@@ -165,10 +165,29 @@ export function transition(etat: Conversation | null, ev: EvenementMachine): Sor
   }
 }
 
-/** Expiration : `attente_email` (7 jours après M1) ou `m2_envoye` (7 jours après M2, sinon M1). Aucun message n'est envoyé. */
-export function doitExpirer(c: Conversation, maintenantMs: number): boolean {
-  const depuis = c.etat === "attente_email" ? c.m1Le : c.etat === "m2_envoye" ? (c.m2Le ?? c.m1Le) : null;
-  if (!depuis) return false;
-  const t = Date.parse(depuis);
-  return Number.isFinite(t) && maintenantMs - t >= EXPIRATION_MS;
+/** Date lisible → millisecondes, sinon `null` (absente ou illisible). */
+const dateLue = (d: string | null | undefined): number | null => {
+  const t = typeof d === "string" ? Date.parse(d) : NaN;
+  return Number.isFinite(t) ? t : null;
+};
+
+/**
+ * Expiration après 7 jours, sans message envoyé. Date de référence, avec repli quand la date est illisible :
+ *  - `m2_envoye` : m2Le → m1Le → creeLe ; `attente_email` et `m1_a_verifier` : m1Le → creeLe ;
+ *  - `m1_en_vol` : creeLe, seulement s'il n'est PAS en vol dans ce processus (`enVol`, indicateur : la fonction reste pure) ;
+ *  - toutes les dates illisibles : expiré (jamais un état éternel).
+ */
+export function doitExpirer(c: Conversation, maintenantMs: number, enVol = false): boolean {
+  let candidates: Array<string | null | undefined>;
+  switch (c.etat) {
+    case "m2_envoye": candidates = [c.m2Le, c.m1Le, c.creeLe]; break;
+    case "attente_email": case "m1_a_verifier": candidates = [c.m1Le, c.creeLe]; break;
+    case "m1_en_vol": if (enVol) return false; candidates = [c.creeLe]; break;
+    default: return false;
+  }
+  for (const d of candidates) {
+    const t = dateLue(d);
+    if (t !== null) return maintenantMs - t >= EXPIRATION_MS;
+  }
+  return true;
 }
