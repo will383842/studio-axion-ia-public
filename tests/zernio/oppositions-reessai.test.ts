@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe("« stop » privé dont la mise en file échoue", () => {
-  for (const [nom, env] of [["interrupteur allumé", ENV], ["interrupteur éteint pendant la transmission", eteint]] as const) {
+  for (const [nom, env] of [["interrupteur allumé", ENV], ["interrupteur éteint seulement pendant la transmission suivante", eteint]] as const) {
     it(`réessai → entrée en file, un seul POST (${nom})`, async () => {
       await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(A)]: graineConv("guide_demande", { occurredAt: new Date(T0 - H).toISOString(), idMessageAdresse: "msg-adr", idMessageGuide: "msg-adr" }) });
       await deposerMessage(depots, { idMessage: "msg-adr" });
@@ -68,6 +68,35 @@ describe("« stop » privé dont la mise en file échoue", () => {
       expect(await tousLesTextes()).not.toContain(ADRESSE_FICTIVE);
     });
   }
+});
+
+describe("« stop » privé dont la mise en file échoue, interrupteur du parcours éteint avant le réessai", () => {
+  it("le « stop » n'est pas perdu (événement non traité, clé au registre) et part au rallumage", async () => {
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(A)]: graineConv("guide_demande", { occurredAt: new Date(T0 - H).toISOString(), idMessageAdresse: "msg-adr", idMessageGuide: "msg-adr" }) });
+    await deposerMessage(depots, { idMessage: "msg-adr" });
+    lectureParMessage(port, { "msg-adr": `adresse ${ADRESSE_FICTIVE}`, "stop-1": "STOP" });
+    const idStop = await deposerMessage(depots, { idMessage: "stop-1" });
+    const panne = { v: true };
+    paneFile(panne);
+    await passer().catch(() => undefined);
+    expect(await file()).toEqual({});
+    panne.v = false;
+    // Interrupteur éteint avant le réessai : rien n'est traité, rien n'est perdu.
+    await passer(T0 + 2 * MIN, eteint).catch(() => undefined);
+    await passer(T0 + 10 * MIN, eteint).catch(() => undefined);
+    expect(await file()).toEqual({});
+    expect((await depots().evenementsFournisseurs.lister((x: any) => x.idEvenement === idStop))[0].traite).toBe(false);
+    const registre = await Com.lireParametre<any[]>(OPP.PARAM_OPPOSITIONS_MOTS, []);
+    expect(registre.some((x) => x.id === cleConversation(A))).toBe(true);
+    // Rallumage : le « stop » est mis en file puis transmis, une seule fois.
+    await passer(T0 + 20 * MIN).catch(() => undefined);
+    expect(Object.keys(await file())).toEqual([cleConversation(A)]);
+    await transmettre(T0 + 21 * MIN);
+    await transmettre(T0 + 2 * H);
+    expect(site.opp()).toHaveLength(1);
+    expect(JSON.parse(site.opp()[0].corps).email).toBe(ADRESSE_FICTIVE);
+    expect(await tousLesTextes()).not.toContain(ADRESSE_FICTIVE);
+  });
 });
 
 describe("enregistrerOppositionPersonne · idempotence", () => {

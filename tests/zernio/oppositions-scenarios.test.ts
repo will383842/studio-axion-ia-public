@@ -107,6 +107,48 @@ describe("rejeu et doublons", () => {
   });
 });
 
+describe("adresse acceptée par le site", () => {
+  const ADRESSE_B = "autre-personne@example.test";
+  it("adresse A (503) puis adresse B (200) puis « stop » : le POST d'opposition porte l'adresse B", async () => {
+    await semer("attente_email");
+    lectureParMessage(port, { "msg-A": `adresse ${ADRESSE_FICTIVE}`, "msg-B": `adresse ${ADRESSE_B}`, "stop-1": "STOP" });
+    site.reponseGuide = () => ({ statut: 503 });
+    await deposerMessage(depots, { idMessage: "msg-A" });
+    await passer();
+    expect((await conv()).idMessageAdresse).toBe("msg-A");
+    site.reponseGuide = () => ({ statut: 200, corps: {} });
+    await deposerMessage(depots, { idMessage: "msg-B" });
+    await passer(T0 + 1000);
+    expect((await conv()).etat).toBe("termine");
+    expect((await conv()).idMessageAdresse).toBe("msg-B");
+    await deposerMessage(depots, { idMessage: "stop-1" });
+    await passer(T0 + 2000);
+    expect((await conv()).etat).toBe("oppose");
+    await transmettre(T0 + MIN);
+    expect(site.opp()).toHaveLength(1);
+    expect(JSON.parse(site.opp()[0].corps).email).toBe(ADRESSE_B);
+    expect(JSON.stringify(await conversations())).not.toMatch(/example\.test/);
+  });
+});
+
+describe("état déjà « oppose » mais absent de la file", () => {
+  it("le message suivant met le « stop » en file ; un seul POST avec la bonne adresse", async () => {
+    await semer("oppose", { occurredAt: new Date(T0 - H).toISOString(), idMessageAdresse: "msg-adr", idMessageGuide: "msg-adr" });
+    await deposerMessage(depots, { idMessage: "msg-adr" });
+    lectureParMessage(port, { "msg-adr": `adresse ${ADRESSE_FICTIVE}`, "msg-2": "bonjour" });
+    expect(await file()).toEqual({});
+    const id = await deposerMessage(depots, { idMessage: "msg-2" });
+    await passer();
+    expect(await evenement(depots, id)).toMatchObject({ traite: true });
+    expect(Object.keys(await file())).toEqual([cleConversation(A)]);
+    await transmettre(T0 + MIN);
+    await transmettre(T0 + 2 * H);
+    expect(site.opp()).toHaveLength(1);
+    expect(JSON.parse(site.opp()[0].corps).email).toBe(ADRESSE_FICTIVE);
+    expect(site.invalides).toEqual([]);
+  });
+});
+
 describe("désordre", () => {
   it("« stop » traité pendant site_reessai : l'opposition part, la demande de guide ne repart plus", async () => {
     await semer("attente_email");
