@@ -52,6 +52,8 @@ export interface Conversation {
   alias: string[];
   /** Identifiant du message ayant déclenché la demande de guide (reprise de l'accusé, une seule fois). */
   idMessageGuide?: string | null;
+  /** Identifiant OPAQUE du message qui portait l'adresse (écrit avec `occurredAt`) : sert à relire l'adresse chez Zernio pour un « stop ». */
+  idMessageAdresse?: string | null;
 }
 
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";

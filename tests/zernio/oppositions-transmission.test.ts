@@ -37,7 +37,7 @@ async function semerOpposee(id = A, extra: Record<string, unknown> = {}, o: { en
   await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { ...(await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {})), [cle]: conv });
   await deposerMessage(depots, { idMessage, idExpediteur: id });
   await OPP.enregistrerOpposition(id, "zernio-conversation", { env: ENV });
-  if (o.enFile !== false) await OT.mettreEnFileOpposition(cle, conv as any, cles());
+  if (o.enFile !== false) await OT.mettreEnFileOpposition(cle, conv as any, cles(), T0);
   return idMessage;
 }
 const lire = (table: Record<string, string>) => lectureParMessage(port, table);
@@ -56,6 +56,13 @@ beforeEach(async () => {
 afterEach(() => {
   vi.restoreAllMocks();
   pm.injecterTransportSite(null);
+});
+
+describe("constantes partagées avec le parcours", () => {
+  it("mêmes valeurs que parcours-conversation.ts (pas d'import entre les deux sens)", () => {
+    expect(OT.PARAM_CONVERSATIONS).toBe(C.PARAM_CONVERSATIONS);
+    expect(OT.VARIABLE_INTERRUPTEUR_CONVERSATION).toBe(C.VARIABLE_INTERRUPTEUR_CONVERSATION);
+  });
 });
 
 describe("mettreEnFileOpposition", () => {
@@ -80,7 +87,7 @@ describe("mettreEnFileOpposition", () => {
     await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: conv });
     await OT.mettreEnFileOpposition(cle, conv as any, cles());
     expect(await file()).toEqual({});
-    expect((await depots().parametres.obtenir(OT.PARAM_OPPOSITIONS_FILE))).toBeUndefined();
+    expect(await depots().parametres.obtenir(OT.PARAM_OPPOSITIONS_FILE)).toBeFalsy(); // aucune écriture
   });
 });
 
@@ -322,6 +329,8 @@ describe("interrupteur éteint", () => {
   it("éteint mais conversation à rattraper : la réconciliation n'ajoute rien (rien ne change)", async () => {
     await semerOpposee(A, {}, { enFile: false });
     await passer(T0, eteint);
+    expect(await file()).toEqual({});
+    expect(await OT.rattraperOppositions({ env: eteint, maintenantMs: T0 })).toBe(0);
     expect(await file()).toEqual({});
   });
   it("éteint mais « stop » déjà en file : il est quand même transmis (décision 2)", async () => {
