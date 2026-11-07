@@ -276,7 +276,7 @@ export async function activerMotLocal(d: Demande & { mot: "GUIDE"; compte: strin
   const env = d.env ?? process.env;
   return sousVerrou(async () => {
     const existante = (await lireRegistre())[cle(d.mot, d.compte)];
-    if (existante && existante.idWorkflow !== null) return refus("deja_pose_chez_zernio");
+    if (existante && !!existante.idWorkflow) return refus("deja_pose_chez_zernio");
     const motif = await refusActivationLocale(d.mot, env);
     if (motif) return refus(motif);
     await enregistrerLigne({ mot: d.mot, compte: d.compte, etat: "actif", idWorkflow: null, raison: "local", modifieLe: maintenant() });
