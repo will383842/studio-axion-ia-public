@@ -3,7 +3,8 @@
  * opaque du contact (jamais l'identifiant lui-même, jamais d'adresse). Rien n'est jamais supprimé.
  */
 import "server-only";
-import { candidatsEmpreinte, contientEnTempsConstant, empreinteHeritee, empreintePersonne, ErreurEmpreinteIndisponible, lireClesEmpreinte, type EspacePersonne, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
+import { candidatsEmpreinte, contientEnTempsConstant, empreinteHeritee, empreintePersonne, ErreurEmpreinteIndisponible, ErreurIdentifiantInvalide, lireClesEmpreinte, type EspacePersonne, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
+import { ETATS_EN_COURS } from "@/domaine/guide-reseau/etats-parcours";
 import { ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
 
 export const PARAM_OPPOSITIONS_MOTS = "mots.oppositions";
@@ -24,6 +25,9 @@ export const empreinteContact = (id: string): string => empreinteHeritee(id);
  * « instagram » / « facebook » : réservés à de futurs appelants, aucun aujourd'hui.
  */
 export const ESPACE_CONTACT_ZERNIO: EspacePersonne = "zernio-contact";
+
+/** Même nom que `PARAM_CONVERSATIONS` (parcours-conversation.ts importe ce module : pas d'import circulaire). */
+const PARAM_CONVERSATIONS_ETAT = "parcours.conversations";
 
 interface Options {
   env?: Record<string, string | undefined>;
@@ -113,7 +117,7 @@ export async function enregistrerOpposition(idContact: string, espace: EspacePer
 }
 /**
  * Met à l'écart une personne connue SEULEMENT par une empreinte déjà calculée (forme p1 courante ou ancienne) : aucun identifiant brut
- * n'est requis. Une forme déjà présente (id ou alias d'une ligne) n'ajoute rien. Échec fermé sans secret valide.
+ * n'est requis. NE PAS UTILISER pour une forme ancienne d'un identifiant brut connu (voir `enregistrerOppositionPersonne`). Une forme déjà présente (id ou alias d'une ligne) n'ajoute rien. Échec fermé sans secret valide.
  */
 export async function enregistrerOppositionParEmpreinte(empreinte: string, o?: Options): Promise<void> {
   const c = cles(o);
@@ -122,6 +126,48 @@ export async function enregistrerOppositionParEmpreinte(empreinte: string, o?: O
     verifierKids(liste, c);
     if (liste.some((x) => contientEnTempsConstant(formes(x), [empreinte]))) return;
     await ecrireParametre(PARAM_OPPOSITIONS_MOTS, [...liste, { id: empreinte, le: maintenant(), transmise: false }]);
+  });
+}
+/**
+ * « stop » d'une personne, en UNE écriture sous UN verrou. Règle de sûreté : une forme ANCIENNE n'est rattachée qu'à la ligne du MÊME
+ * identifiant brut (jamais d'une forme sans brut à une autre ligne : ce serait un échec OUVERT). Pour chaque brut : la ligne reconnue
+ * reçoit les formes manquantes (courante + anciennes) ; aucune ligne reconnue : nouvelle ligne. Une empreinte sans brut déjà présente
+ * ne change rien ; sinon elle a sa PROPRE ligne (dette visible dans le compteur). Rend la forme courante du premier brut.
+ * NE JAMAIS appeler sous `sousVerrou` (verrou non réentrant).
+ */
+export async function enregistrerOppositionPersonne(idsBruts: readonly string[], empreintesSansBrut: readonly string[], espace: EspacePersonne = ESPACE_CONTACT_ZERNIO, o?: Options): Promise<string> {
+  if (idsBruts.length === 0) throw new ErreurIdentifiantInvalide();
+  const c = cles(o);
+  return sousVerrou(async () => {
+    const liste = await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, []);
+    verifierKids(liste, c);
+    let res = liste.map((x) => ({ ...x }));
+    let change = false;
+    for (const r of idsBruts) {
+      const courante = empreintePersonne(c.courante, espace, r);
+      const anciennes = c.anciennes.map((a) => empreintePersonne(a, espace, r));
+      const toutes = [courante, ...anciennes];
+      const cand = candidatsEmpreinte(c, espace, r);
+      const concernees = res.map((x, i) => (contientEnTempsConstant(formes(x), cand) ? i : -1)).filter((i) => i >= 0);
+      if (concernees.length === 0) {
+        res = [...res, { id: courante, le: maintenant(), transmise: false, ...(anciennes.length > 0 ? { alias: anciennes } : {}) }];
+        change = true;
+        continue;
+      }
+      for (const i of concernees) {
+        const manquantes = toutes.filter((f) => !contientEnTempsConstant(formes(res[i]), [f]));
+        if (manquantes.length === 0) continue;
+        res[i] = { ...res[i], alias: [...(res[i].alias ?? []), ...manquantes] };
+        change = true;
+      }
+    }
+    for (const e of empreintesSansBrut) {
+      if (res.some((x) => contientEnTempsConstant(formes(x), [e]))) continue;
+      res = [...res, { id: e, le: maintenant(), transmise: false }];
+      change = true;
+    }
+    if (change) await ecrireParametre(PARAM_OPPOSITIONS_MOTS, res);
+    return empreintePersonne(c.courante, espace, idsBruts[0]);
   });
 }
 /** Comme `enregistrerOpposition`, pour un appelant QUI TIENT DÉJÀ le verrou (le verrou n'est pas réentrant). */
@@ -144,7 +190,7 @@ export async function marquerTransmise(idContact: string, espace: EspacePersonne
  * - seulementParKid : lignes COUVERTES UNIQUEMENT par ce kid (retirer ce secret les rendrait illisibles) ;
  * - kidsInconnus : kids présents dans le registre qu'aucun secret actuel ne porte.
  */
-export async function etatRegistreEmpreintes(o?: Options): Promise<{ lignesParKid: Record<string, number>; seulementParKid: Record<string, number>; heritees: number; kidsInconnus: string[] }> {
+export async function etatRegistreEmpreintes(o?: Options): Promise<{ lignesParKid: Record<string, number>; seulementParKid: Record<string, number>; heritees: number; kidsInconnus: string[]; conversationsParKid: Record<string, number>; conversationsActivesParKid: Record<string, number> }> {
   const liste = await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, []);
   const c = lireClesEmpreinte(o?.env ?? process.env);
   const connus = new Set(c.ok ? [c.courante.kid, ...c.anciennes.map((a) => a.kid)] : []);
@@ -167,5 +213,21 @@ export async function etatRegistreEmpreintes(o?: Options): Promise<{ lignesParKi
     for (const k of kids) lignesParKid[k] = (lignesParKid[k] ?? 0) + 1;
     if (!heritee && kids.size === 1) { const [k] = kids; seulementParKid[k] = (seulementParKid[k] ?? 0) + 1; }
   }
-  return { lignesParKid, seulementParKid, heritees, kidsInconnus: [...inconnus].sort() };
+  // Conversations par kid (clé ou alias), des NOMBRES seulement. « Actives » = encore en cours (un message de la personne y serait traité).
+  const conversationsParKid: Record<string, number> = {};
+  const conversationsActivesParKid: Record<string, number> = {};
+  const conv = await lireParametre<Record<string, { etat?: string; alias?: string[] }>>(PARAM_CONVERSATIONS_ETAT, {});
+  for (const [cle, e] of Object.entries(conv)) {
+    const kidsConv = new Set<string>();
+    for (const f of [cle, ...(e.alias ?? [])]) {
+      const m = RE_KID.exec(f);
+      if (m) kidsConv.add(m[1]);
+    }
+    const active = ETATS_EN_COURS.includes(String(e.etat));
+    for (const k of kidsConv) {
+      conversationsParKid[k] = (conversationsParKid[k] ?? 0) + 1;
+      if (active) conversationsActivesParKid[k] = (conversationsActivesParKid[k] ?? 0) + 1;
+    }
+  }
+  return { lignesParKid, seulementParKid, heritees, kidsInconnus: [...inconnus].sort(), conversationsParKid, conversationsActivesParKid };
 }
