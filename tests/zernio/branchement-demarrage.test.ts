@@ -166,7 +166,7 @@ describe("passageParcoursZernio", () => {
     expect(rattraperOppositions).toHaveBeenCalledTimes(1);
     // Le port existe, mais sans liste d'envoi (aucune écriture possible) quand la liste est vide.
     const o = creerPort.mock.calls[0][0] as { comptesPermis: string[]; comptesLecture: string[] };
-    if (!surcharge.PARCOURS_CONVERSATION_TITRE_GUIDE) expect(o.comptesPermis).toEqual([]);
+    if (!("PARCOURS_CONVERSATION_TITRE_GUIDE" in surcharge)) expect(o.comptesPermis).toEqual([]);
     expect(o.comptesLecture).toEqual(["ig_1", "fb_1", "ig_2"]);
     expect(JSON.stringify(await lireParametre("parcours.conversations", {}))).toBe(avant);
     expect(await alertes()).toHaveLength(1);
