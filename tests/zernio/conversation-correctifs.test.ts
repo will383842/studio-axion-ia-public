@@ -162,7 +162,7 @@ describe("B4 · panne de lecture ≠ message sans texte", () => {
     const clientQuiEchoue = { requete: async () => { throw new Error("réseau"); } } as never;
     const p1 = creerPortInboxZernio({ client: clientQuiEchoue, comptesPermis: [COMPTE] });
     expect(await p1.lireMessage({ idCompte: COMPTE, idConversation: "c", idMessage: "m" })).toMatchObject({ texte: null, panne: true });
-    const clientVide = { requete: async () => ({ corps: { messages: [], pagination: { hasMore: false } } }) } as never;
+    const clientVide = { requete: async () => ({ corps: { messages: [] } }) } as never;
     const p2 = creerPortInboxZernio({ client: clientVide, comptesPermis: [COMPTE] });
     const r = await p2.lireMessage({ idCompte: COMPTE, idConversation: "c", idMessage: "m" });
     expect(r).toMatchObject({ texte: null, introuvable: true });

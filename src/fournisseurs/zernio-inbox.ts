@@ -46,6 +46,11 @@ export interface MessageLu {
   codePanne?: "liste-incomplete";
   /** Vrai : la liste est bien formée mais ne contient pas ce message (pagination, délai d'indexation). Réessai à délais longs. */
   introuvable?: boolean;
+  /**
+   * Vrai : message écrit PENDANT LA VEILLE (`metadata.standby`, un humain a repris la conversation). Il est rendu, jamais écarté :
+   * l'appelant le LIT toujours (un « stop » doit être enregistré) mais n'y RÉPOND jamais (ni M1, ni M2, ni accusé, ni appel au site).
+   */
+  veille?: boolean;
 }
 
 export interface PortInboxZernio {
@@ -54,7 +59,7 @@ export interface PortInboxZernio {
   /**
    * Retrouve d'abord par `idPlateforme` (= `id` de la liste), puis par l'ancien id (id/_id/messageId = idMessage), sinon par HORODATAGE
    * (entrant, createdAt/sentAt ≈ occurredAt à ±2 s, expéditeur concordant) : l'id interne du webhook n'est jamais celui de la liste.
-   * Ne retient QUE les messages ENTRANTS de la personne (jamais nos messages sortants, échos ni messages `metadata.standby`). */
+   * Ne retient QUE les messages ENTRANTS de la personne (jamais nos messages sortants ni échos). Un message `metadata.standby` est rendu avec `veille: true`. */
   lireMessage(p: { idCompte: string; idConversation: string; idMessage: string; idPlateforme?: string; occurredAt?: string; idExpediteur?: string }): Promise<MessageLu>;
   envoyerMessage(p: { idCompte: string; idConversation: string; texte: string; boutons?: BoutonPostback[]; cle: string }): Promise<ResultatEcritureInbox>;
 }
@@ -68,9 +73,10 @@ const LIMITE_LISTE = 100;
 /** Contenu d'un message de la liste : texte dans `message` (chaîne, ou objet { text } par prudence). Sortant, écho : rien. */
 function lireContenu(m: Record<string, unknown>): MessageLu {
   if (!estEntrant(m)) return { texte: null, postback: null };
+  const veille = estObjet(m.metadata) && m.metadata.standby === true;
   const brut = typeof m.message === "string" ? m.message : estObjet(m.message) && typeof m.message.text === "string" ? m.message.text : "";
   const pb = estObjet(m.postback) ? m.postback.payload : undefined;
-  return { texte: brut.length > 0 ? brut.slice(0, TEXTE_MAX) : null, postback: typeof pb === "string" && pb.length <= 64 ? pb : null };
+  return { texte: brut.length > 0 ? brut.slice(0, TEXTE_MAX) : null, postback: typeof pb === "string" && pb.length <= 64 ? pb : null, ...(veille ? { veille: true } : {}) };
 }
 
 /** Heure d'un message de la liste : `createdAt`, sinon `sentAt` (ms), ou `undefined` si absente / illisible. */
@@ -213,8 +219,6 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
           let plusAncien = false;
           for (const x of rep.corps.messages) {
             if (!estObjet(x)) continue;
-            // Message d'un robot en veille (un humain a la main) : un robot l'ignore.
-            if (estObjet(x.metadata) && x.metadata.standby === true) continue;
             // 1er choix : l'id de la plateforme (= id de la liste) ; 2e choix : l'ancienne correspondance par id.
             if (p.idPlateforme !== undefined && x.id === p.idPlateforme) return lireContenu(x);
             if (x.id === p.idMessage || x._id === p.idMessage || x.messageId === p.idMessage) {
@@ -226,21 +230,25 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
             if (!Number.isFinite(cible)) continue;
             const t = heureDe(x);
             if (t === undefined) continue;
-            if (desc && t < cible - TOLERANCE_MS) plusAncien = true;
+            // Arrêt anticipé interdit tant qu'un idPlateforme fourni n'a pas été trouvé (il peut être plus bas dans la liste).
+            if (desc && p.idPlateforme === undefined && t < cible - TOLERANCE_MS) plusAncien = true;
             if (!estEntrant(x)) continue;
-            // Défense en profondeur : un expéditeur connu et différent n'est jamais la bonne personne.
-            if (p.idExpediteur !== undefined && typeof x.senderId === "string" && x.senderId !== p.idExpediteur) continue;
             const ecart = Math.abs(t - cible);
             if (ecart > TOLERANCE_MS) continue;
             const sender = p.idExpediteur !== undefined && x.senderId === p.idExpediteur;
             if (!meilleur || ecart < meilleur.ecart || (ecart === meilleur.ecart && sender && !meilleur.sender)) meilleur = { m: x, ecart, sender };
           }
           const pag = estObjet(rep.corps.pagination) ? rep.corps.pagination : undefined;
-          if (pag?.hasMore === false || plusAncien) {
+          // Sans bloc pagination, ou hasMore false : page unique, la liste est finie (jamais une panne).
+          if (pag === undefined || pag.hasMore === false || plusAncien) {
             complete = true;
             break;
           }
-          const suivant = typeof pag?.nextCursor === "string" && pag.nextCursor.length > 0 && pag.nextCursor.length <= 512 && /^[A-Za-z0-9_=.+/-]+$/.test(pag.nextCursor) ? pag.nextCursor : undefined;
+          const suivant = typeof pag.nextCursor === "string" && pag.nextCursor.length > 0 && pag.nextCursor.length <= 512 && /^[A-Za-z0-9_=.+/-]+$/.test(pag.nextCursor) ? pag.nextCursor : undefined;
+          if (!suivant && pag.hasMore !== true) {
+            complete = true; // hasMore absent et pas de curseur : rien à suivre
+            break;
+          }
           // Curseur absent / refusé / déjà vu (pas de boucle) : on s'arrête, la liste n'est PAS finie.
           if (!suivant || vus.has(suivant)) break;
           vus.add(suivant);

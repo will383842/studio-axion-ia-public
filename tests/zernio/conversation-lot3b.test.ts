@@ -123,8 +123,8 @@ describe("R-b · message introuvable ≠ sans texte ; réponse mal formée = pan
   it("port : liste sans message cherché → introuvable ; corps sans tableau « messages » → panne", async () => {
     const { creerPortInboxZernio } = await import("@/fournisseurs/zernio-inbox");
     const lire = (corps: unknown) => creerPortInboxZernio({ client: { requete: async () => ({ corps }) } as never, comptesPermis: [COMPTE] }).lireMessage({ idCompte: COMPTE, idConversation: "c", idMessage: "m" });
-    expect(await lire({ messages: [], pagination: { hasMore: false } })).toMatchObject({ texte: null, introuvable: true });
-    expect(await lire({ messages: [{ id: "autre", direction: "incoming", text: "x" }], pagination: { hasMore: false } })).toMatchObject({ introuvable: true });
+    expect(await lire({ messages: [] })).toMatchObject({ texte: null, introuvable: true });
+    expect(await lire({ messages: [{ id: "autre", direction: "incoming", text: "x" }] })).toMatchObject({ introuvable: true });
     for (const mauvais of [{}, null, "oups", { messages: "pas-un-tableau" }, [], { data: [] }]) expect(await lire(mauvais)).toMatchObject({ texte: null, panne: true });
     // un message trouvé mais sortant reste « sans texte » (ni panne ni introuvable)
     const sortant = await lire({ messages: [{ id: "m", direction: "outgoing", text: "x" }] });
