@@ -96,9 +96,9 @@ export function finsParReseau(offre: Offre, motSur: readonly ReseauCas[], nature
 export const formatCasConcret: DefinitionFormat = {
   id: "cas-concret",
   version: 1,
-  nom: "Cas concret MD",
-  nomCourt: "Cas concret MD",
-  accroche: "Une phrase, une vidéo.",
+  nom: "Cas concret",
+  nomCourt: "Cas concret",
+  accroche: "Une automatisation montrée étape par étape",
   description: "Une voix, des écrans qui montrent une automatisation étape par étape, puis un appel au diagnostic. Aucun visage.",
   icone: "eclair",
   adresseCreation: "/cas-concret",

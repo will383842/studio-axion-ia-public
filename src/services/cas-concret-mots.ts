@@ -43,7 +43,7 @@ export async function poserBranchementMot(mot: string, reseau: ReseauCas, etat: 
   await exigerSession();
   const suivant = avecBranchement(await lireReglageMots(), mot, reseau, { etat, le }, compte);
   await ecrireParametre(PARAM_MOTS_BRANCHES, suivant);
-  await journaliser("reglages", `Cas concret MD : mot ${mot.trim().toUpperCase()} ${etat === "branche" ? "branché" : "débranché"} sur ${reseau}${compte ? ` (compte ${compte.trim().toLowerCase()})` : ""}`);
+  await journaliser("reglages", `Cas concret : mot ${mot.trim().toUpperCase()} ${etat === "branche" ? "branché" : "débranché"} sur ${reseau}${compte ? ` (compte ${compte.trim().toLowerCase()})` : ""}`);
   return suivant;
 }
 
