@@ -14,7 +14,6 @@ import { validerScriptImageVideoAction } from "@/app/(studio)/image-video/action
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
 import { Icone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
@@ -25,7 +24,7 @@ import { cn } from "@/lib/cn";
 import type { FormuleATrancherIV, PrixIV } from "@/moteurs/montage-image-video/fabrication";
 import { RecetteVariete } from "./RecetteVariete";
 import { jusquALaReprise } from "./reprise";
-import { AUCUNE_MODIFICATION, changementsVarieteIV, euros, formulesNonTranchees, lignesDuScript, lignesVarieteIV, morceauxEcrit, phrasePrix, scriptValideParWill, type ModificationsScript } from "./vue";
+import { AUCUNE_MODIFICATION, changementsVarieteIV, formulesNonTranchees, lignesDuScript, lignesVarieteIV, morceauxEcrit, scriptValideParWill, type ModificationsScript } from "./vue";
 
 function Ecrit({ t }: { t: string }) {
   return (
@@ -78,8 +77,7 @@ export function ScriptEcrans({
     setOccupe(true);
     setPhrase(null);
     try {
-      const accord = await confirmerPrix({ message: `La suite coûte ${phrasePrix(prix)} : la voix, puis les vérifications.`, montant });
-      if (typeof accord !== "number") return setPhrase("Rien n'a été payé.");
+      const accord = montant;
       const choixVariete = variete ? changementsVarieteIV(variete.recette, changes) : undefined;
       const r = await validerScriptImageVideoAction(videoId, { ...decision, ...(choixVariete ? { variete: choixVariete } : {}) }, accord);
       if (!r.ok) return setPhrase(r.message);
@@ -95,14 +93,6 @@ export function ScriptEcrans({
   const [a, b] = fiche.accroches;
   return (
     <section aria-label="Le script" className="space-y-6">
-      <Carte lueur className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-texte-doux">La suite</p>
-          <p className="font-titre text-3xl text-texte">{euros(prix.habituelCentimes)}</p>
-        </div>
-        <p className="text-sm text-texte-doux">au plus {euros(montant)} · rien n&apos;est payé avant votre accord</p>
-      </Carte>
-
       <div>
         <p className="mb-2 text-sm font-semibold text-texte-doux">L&apos;accroche</p>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -213,7 +203,7 @@ export function ScriptEcrans({
 
       <div className="flex flex-wrap gap-2">
         <Bouton icone="film" taille="lg" chargement={occupe} disabled={ouvertes.length > 0} onClick={() => void valider()}>
-          Valider et fabriquer (au plus {euros(montant)})
+          Valider et fabriquer
         </Bouton>
         <Bouton variante="secondaire" icone="ecrire" onClick={() => setEdition((v) => !v)}>
           {edition ? "Revoir le script" : "Modifier le script"}

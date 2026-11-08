@@ -575,7 +575,7 @@ export async function apercuFabrication(videoId: Id): Promise<ApercuFabrication>
     estimation,
     // Lot R7 : le double réel exige toujours la confirmation de son prix (même règle que `verifierBudgetEtCredits`).
     // Lot R8 : une vidéo montée pour de vrai par l'interrupteur montre et fait confirmer son prix à chaque lancement.
-    budget: { restant: b.restant, depasse: restantApres < 0 && !indicatif, indicatif, depasseIndicatif: restantApres < 0 && indicatif, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: bloquant > b.seuilConfirmation.centimes || !!partDoubleReel(estimation.lignes) || montageReel, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
+    budget: { restant: b.restant, depasse: restantApres < 0 && !indicatif, indicatif, depasseIndicatif: restantApres < 0 && indicatif, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: false, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
     etapes: moteur.etapes(commande).map((e) => ({ cle: e.cle, nom: e.nom, icone: e.icone })),
     essaiGratuit: commandeEnEssai(commande) && !montageReel && !partDoubleReel(estimation.lignes) && estimation.lignes.every((l) => ligneSimulee(l) || l.total.centimes <= 0),
     ...(textesReseaux ? { textesReseaux } : {}),

@@ -33,7 +33,7 @@ export function FeuilleFabrication({ ouverte, onOuverteChange }: { ouverte: bool
             notifier.info("Maquette : rien n'est fabriqué.");
           }}
         >
-          {envoye ? "C'est parti" : `Fabriquer · ${f.prix}`}
+          {envoye ? "C'est parti" : "Fabriquer"}
         </Bouton>
       }
     >
@@ -64,23 +64,15 @@ export function FeuilleFabrication({ ouverte, onOuverteChange }: { ouverte: bool
           </p>
         </div>
 
-        {/* Le prix, en grand */}
         <div className="rounded-carte bg-surface-2 p-4">
-          <p className="font-titre text-5xl leading-none text-texte">{f.prix}</p>
-          <p className="mt-1.5 text-sm text-texte-doux">version {obtenirReseau(reseau).nom}, avec votre double</p>
+          <p className="text-sm text-texte-doux">version {obtenirReseau(reseau).nom}, avec votre double</p>
         </div>
 
-        {/* Total du jour et crédits */}
-        <dl className="grid grid-cols-3 gap-2">
-          <Chiffre libelle="Aujourd'hui" valeur={f.totalJourApres} detail={`avant : ${f.totalJourAvant}`} ambre />
+        {/* Crédits */}
+        <dl className="grid grid-cols-2 gap-2">
           <Chiffre libelle="Double" valeur={f.creditDouble} detail="crédit HeyGen" />
           <Chiffre libelle="Écriture" valeur={f.creditEcriture} detail="crédit Claude" />
         </dl>
-
-        <p className="flex items-center gap-2 rounded-carte border border-ambre/40 bg-ambre-doux px-3 py-2.5 text-sm font-semibold text-ambre">
-          <Icone nom="attention" size={16} className="shrink-0" />
-          Au-delà de votre repère du jour ({f.repereJour})
-        </p>
 
         <p className="flex items-center gap-2 text-sm text-texte-faible">
           <Icone nom="horloge" size={14} />

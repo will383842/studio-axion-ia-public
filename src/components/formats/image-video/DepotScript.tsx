@@ -3,7 +3,7 @@
 /**
  * ÉCRAN 1 · MODE SCRIPT COMPLET · « Coller mon script complet ». Will colle le texte que la voix doit dire ; l'IA n'écrit
  * rien et ne change aucun mot : elle conçoit seulement le schéma d'après ce texte, puis la vidéo se fabrique comme avec
- * une image. Même bouton, même prix « au plus » et mêmes réseaux que le mode texte (rien ne part sans ce prix confirmé).
+ * une image. Même bouton et mêmes réseaux que le mode texte.
  * Un refus (script trop court, trop long, chiffre absent du schéma) s'affiche en phrase simple et le script reste là.
  */
 import { useRouter } from "next/navigation";
@@ -14,7 +14,6 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import type { ReseauIV } from "@/domaine/image-video/plafonds";
 import { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_MOTS_MAX } from "@/moteurs/montage-image-video/texte/script-limites";
-import { euros } from "./vue";
 
 export function DepotScript({ script, onScript, reseaux, montant, blocage, onRefus, children }: { script: string; onScript: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; onRefus: (phrase: string | null) => void; /** Sélecteur de réseaux, placé entre le script et la barre du prix. */ children?: ReactNode }) {
   const router = useRouter();
@@ -47,7 +46,7 @@ export function DepotScript({ script, onScript, reseaux, montant, blocage, onRef
       {children}
       {blocage && <p className="text-[15px] text-texte-doux">{blocage}</p>}
       <BarreActionCollee>
-        <BoutonFabriquer montantCentimes={montant} libelle={`Concevoir le schéma et fabriquer la vidéo (au plus ${euros(montant)})`} desactive={!pret} onFabriquer={fabriquer} message="Au plus ce prix. Seule la conception du schéma part maintenant : la voix attend votre accord sur le script." />
+        <BoutonFabriquer montantCentimes={montant} libelle="Concevoir le schéma et fabriquer la vidéo" desactive={!pret} onFabriquer={fabriquer} />
       </BarreActionCollee>
     </>
   );

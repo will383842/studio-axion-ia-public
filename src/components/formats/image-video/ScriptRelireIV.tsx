@@ -22,7 +22,7 @@ import type { FormuleATrancherIV, PrixIV } from "@/moteurs/montage-image-video/f
 import { RecetteVariete } from "./RecetteVariete";
 import { jusquALaReprise } from "./reprise";
 import { lignesRelireIV, modificationsDesLignesIV, observerIV } from "./relire";
-import { changementsVarieteIV, euros, formulesNonTranchees, lignesVarieteIV, scriptValideParWill } from "./vue";
+import { changementsVarieteIV, formulesNonTranchees, lignesVarieteIV, scriptValideParWill } from "./vue";
 
 const VERIFICATION_INDISPONIBLE: PastilleControle[] = [{ niveau: "alerte", texte: "Vérification indisponible. Elle sera refaite à la validation." }];
 
@@ -70,7 +70,7 @@ export function ScriptRelireIV({
 
   const lancer = useCallback(
     async (s: ScriptRelu, accord: number | true): Promise<ResultatLancement> => {
-      if (typeof accord !== "number") return { ok: false, message: "Le prix n'a pas été confirmé. Rien n'a été payé." };
+      if (typeof accord !== "number") return { ok: false, message: "Le lancement n'a pas été confirmé. Rien n'a été lancé." };
       const choixVariete = variete ? changementsVarieteIV(variete.recette, changes) : undefined;
       const r = await validerScriptImageVideoAction(videoId, { ...decisionDe(s), ...(choixVariete ? { variete: choixVariete } : {}) }, accord);
       if (!r.ok) return { ok: false, message: r.message };
@@ -104,7 +104,7 @@ export function ScriptRelireIV({
         controler={controler}
         lancer={lancer}
         prixCentimes={montant}
-        libelleLancer={`Valider et fabriquer (au plus ${euros(montant)})`}
+        libelleLancer="Valider et fabriquer"
         iconeLancer="film"
         bloque={ouvertes.length ? `Tranchez d'abord ${ouvertes.length > 1 ? `les ${ouvertes.length} phrases trop affirmatives` : "la phrase trop affirmative"}.` : null}
         observation={observerIV(base, avecQuestion)}

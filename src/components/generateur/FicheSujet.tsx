@@ -115,7 +115,6 @@ interface ContexteFiche {
   retourVideo?: string;
 }
 const Fiche = createContext<ContexteFiche>({ prix: null, ecritureSimulee: true });
-const auPlus = (prix: string | undefined) => (prix ? `au plus ${prix}` : "prix calculé au lancement");
 
 function duree(sec: number): string {
   return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
@@ -370,13 +369,12 @@ export function FicheSujet(p: {
             <PastilleEssai className="ml-auto" />
           </h2>
           <div className="flex flex-wrap gap-2">
-            {p.ajouts.jeLis && <BoutonAjout icone="texte" libelle="Je lis" prix={auPlus(p.prixAjouts?.supplement)} disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, mode: "teleprompteur" }, "« Je lis »")} />}
-            {p.ajouts.tu && <BoutonAjout icone="personne" libelle="Tu" prix={auPlus(p.prixAjouts?.adresse)} disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, adresse: "tu" }, "« Tu »")} />}
-            {p.ajouts.autresFormats.length > 0 && <BoutonAjout icone="grille" libelle="Autre format" prix={auPlus(p.prixAjouts?.supplement)} disabled={enCours} onClick={() => setFeuille("format")} />}
+            {p.ajouts.jeLis && <BoutonAjout icone="texte" libelle="Je lis" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, mode: "teleprompteur" }, "« Je lis »")} />}
+            {p.ajouts.tu && <BoutonAjout icone="personne" libelle="Tu" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, adresse: "tu" }, "« Tu »")} />}
+            {p.ajouts.autresFormats.length > 0 && <BoutonAjout icone="grille" libelle="Autre format" disabled={enCours} onClick={() => setFeuille("format")} />}
             <Link href="/ecrire/matieres?ajout=matiere" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-trait-fort px-4 text-sm font-semibold text-texte-doux hover:text-texte">
               <Icone nom="micro" size={16} className="text-orange-vif" />
               Matière
-              <span className="font-medium text-texte-faible">· 0 €</span>
             </Link>
           </div>
         </section>
@@ -490,7 +488,6 @@ export function FicheSujet(p: {
                 <Icone nom={f.icone} size={18} className="text-orange-vif" />
                 <span className="flex-1 font-semibold text-texte">{f.nom}</span>
                 {f.moteurAVenir && <span className="text-xs text-texte-faible">moteur à venir</span>}
-                <span className="text-sm tabular-nums text-texte-doux">{auPlus(p.prixAjouts?.supplement)}</span>
               </button>
             </li>
           ))}
@@ -522,7 +519,7 @@ function LienVideoVersion({ videoId, fabrication }: { videoId: string; fabricati
   );
 }
 
-function BoutonAjout({ icone, libelle, prix, onClick, disabled }: { icone: NomIcone; libelle: string; prix: string; onClick: () => void; disabled?: boolean }) {
+function BoutonAjout({ icone, libelle, onClick, disabled }: { icone: NomIcone; libelle: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -532,7 +529,6 @@ function BoutonAjout({ icone, libelle, prix, onClick, disabled }: { icone: NomIc
     >
       <Icone nom={icone} size={16} className="text-orange-vif" />
       {libelle}
-      <span className="font-medium tabular-nums text-texte-faible">· {prix}</span>
     </button>
   );
 }
@@ -633,7 +629,6 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
           >
             <Icone nom="ecrire" size={15} className="text-orange-vif" />
             Relire et modifier
-            <span className="font-medium tabular-nums text-texte-faible">· 0 €</span>
           </Link>
         )}
         {/* Une version « je lis » se filme (« Filmer ici », « Monter ma prise ») : jamais de fabrication par le double. */}
@@ -643,7 +638,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
           <p className="w-full text-xs text-texte-faible">
             {v.retouchesRestantes > 0
               ? `${v.retouchesRestantes} retouche${v.retouchesRestantes > 1 ? "s" : ""} payante${v.retouchesRestantes > 1 ? "s" : ""} possible${v.retouchesRestantes > 1 ? "s" : ""} sur cette version.`
-              : "Plus de retouche payante sur cette version : relisez et modifiez le script à la main (0 €)."}
+              : "Plus de retouche payante sur cette version : relisez et modifiez le script à la main."}
           </p>
         )}
         {v.aUneVersionAvant && (
@@ -682,12 +677,10 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
 }
 
 function BoutonRetouche({ libelle, icone, onClick, disabled }: { libelle: string; icone: NomIcone; onClick: () => void; disabled?: boolean }) {
-  const { prix } = useContext(Fiche);
   return (
     <button type="button" disabled={disabled} onClick={onClick} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait px-3 text-sm font-semibold text-texte hover:border-trait-fort disabled:opacity-50">
       <Icone nom={icone} size={15} className="text-orange-vif" />
       {libelle}
-      <span className="font-medium tabular-nums text-texte-faible">· {auPlus(prix?.retouche)}</span>
     </button>
   );
 }
@@ -696,7 +689,7 @@ function BoutonRetouche({ libelle, icone, onClick, disabled }: { libelle: string
  * « Fabriquer » (intérim G4) : feuille du prix (B.6.6), puis « Relire le script » : la fabrication ne part JAMAIS sans
  * cette relecture (le serveur exige le repère « script relu ») ; l'écran de relecture lance après la confirmation du prix.
  */
-function BoutonFabriquer({ sujetId, varianteId, formatId, prix }: { sujetId: string; varianteId: string; formatId?: string; prix?: { centimes: number; texte: string; avatarParle?: string } }) {
+function BoutonFabriquer({ sujetId, varianteId, formatId, prix: fab }: { sujetId: string; varianteId: string; formatId?: string; prix?: { centimes: number; texte: string; avatarParle?: string } }) {
   const [ouverte, setOuverte] = useState(false);
   const [resume, setResume] = useState<ResumeDepense | null>(null);
   return (
@@ -707,49 +700,29 @@ function BoutonFabriquer({ sujetId, varianteId, formatId, prix }: { sujetId: str
         onClick={() => {
           setOuverte(true);
           // Vérification E2E n° 1, n° 3 : prix, total du jour et budget restant AVANT le toucher qui lance (lecture seule).
-          if (prix) void resumeDepenseAction(prix.centimes, formatId ? [formatId] : undefined).then((r) => setResume(r.ok ? r.donnees : null));
+          if (fab) void resumeDepenseAction(fab.centimes, formatId ? [formatId] : undefined).then((r) => setResume(r.ok ? r.donnees : null));
         }}
       >
         Fabriquer
       </Bouton>
       <FeuilleBas ouverte={ouverte} onOuverteChange={setOuverte} titre="Fabriquer cette version">
         <p className="mb-4 text-[15px] text-texte-doux">
-          {resume?.essai ? "Une vidéo d'essai : rien n'est payé, et ce n'est pas encore votre vraie vidéo." : "La vidéo complète, avec votre double et votre voix. Le coût réel s'affiche ensuite sur la vidéo."}
+          {resume?.essai ? "Une vidéo d'essai : rien n'est payé, et ce n'est pas encore votre vraie vidéo." : "La vidéo complète, avec votre double et votre voix."}
         </p>
-        <dl className="mb-4 space-y-1.5 rounded-champ bg-surface-2 p-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-texte-doux">Prix</dt>
-            <dd className="flex items-center gap-2 font-semibold tabular-nums text-texte">
-              {resume?.prix ?? prix?.texte ?? "calculé au lancement"}
-              {resume?.essai && <PastilleEssai />}
-            </dd>
-          </div>
-          {resume && (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-texte-doux">Aujourd&apos;hui</dt>
-                <dd className="tabular-nums text-texte">
-                  {resume.jourAvant} → {resume.jourApres}
-                </dd>
+        {resume && resume.credits.length > 0 && (
+          <dl className="mb-4 space-y-1.5 rounded-champ bg-surface-2 p-3 text-sm">
+            {resume.credits.map((c) => (
+              <div key={c.nom} className="flex items-center justify-between gap-2">
+                <dt className="text-texte-doux">Crédit {c.nom}</dt>
+                <dd className="tabular-nums text-texte">{c.disponible}</dd>
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-texte-doux">Budget du mois restant</dt>
-                <dd className="tabular-nums text-texte">{resume.budgetRestant}</dd>
-              </div>
-              {resume.credits.map((c) => (
-                <div key={c.nom} className="flex items-center justify-between gap-2">
-                  <dt className="text-texte-doux">Crédit {c.nom}</dt>
-                  <dd className="tabular-nums text-texte">{c.disponible}</dd>
-                </div>
-              ))}
-            </>
-          )}
-        </dl>
+            ))}
+          </dl>
+        )}
         {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{resume.messageEssai}</p>}
-        {prix?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{prix.avatarParle}</p>}
-        {resume?.auDelaDuRepere && <p className="mb-3 text-sm font-semibold text-ambre">Au-dessus de votre repère de confirmation.</p>}
+        {fab?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{fab.avatarParle}</p>}
         <Bouton asChild taille="lg" pleineLargeur icone="ecrire">
-          <Link href={`/ecrire/sujets/${sujetId}/relire?version=${varianteId}${prix ? `&prix=${prix.centimes}` : ""}`}>Relire le script</Link>
+          <Link href={`/ecrire/sujets/${sujetId}/relire?version=${varianteId}${fab ? `&prix=${fab.centimes}` : ""}`}>Relire le script</Link>
         </Bouton>
         <p className="mt-2 text-center text-xs text-texte-faible">La vidéo part après votre relecture.</p>
       </FeuilleBas>
@@ -955,9 +928,6 @@ function CarteManque({ id, idee, manque, sansAccord }: { id: string; idee: strin
           </div>
         )}
         {!horsDomaine && <SaisieMatiereSujet id={id} libelleBouton="Ajouter et écrire" messageSucces={ecritureSimulee ? "texte d'essai, rien n'est payé" : "écriture lancée"} essai={ecritureSimulee} />}
-        <p className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-sauge-doux px-3 py-1 text-xs font-bold text-sauge">
-          <Icone nom="euro" size={12} />0 € dépensé
-        </p>
       </Carte>
       <Bouton
         variante={horsDomaine ? "secondaire" : "fantome"}

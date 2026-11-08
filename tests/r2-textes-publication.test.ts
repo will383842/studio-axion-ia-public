@@ -4,6 +4,7 @@
  * Tests ROUGES du plan (rouges sur 03d297b) : « obtenirKit avec Claude choisi : zéro appel » ; « suites de
  * fabrication : seuls les réseaux par défaut ».
  */
+import { readFileSync } from "node:fs";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import { exemplesCommeVraies } from "./helpers/videos-reelles";
@@ -532,11 +533,9 @@ describe("R2 relecture n° 7 · le prix des textes est annoncé au lancement de 
     const sans = await fabrication.apercuFabrication(v.id);
     expect(sans.estimation.lignes.some((l) => l.etape === "Textes des réseaux")).toBe(false);
     expect(avec.estimation.total.centimes - sans.estimation.total.centimes).toBe(ligne!.total.centimes);
-    // Écran : la ligne se lit dans le bloc du coût, en euros.
-    const { LigneTextesReseaux } = await import("@/assistant/etapes/Apercu");
-    const html = renderToStaticMarkup(createElement(LigneTextesReseaux, { montant: ligne!.total }));
-    expect(html).toContain("Textes des réseaux");
-    expect(html).toMatch(/environ \d+,\d{2}\s€/);
+    // Écran : aucun montant n'est affiché pour cette ligne (décision du 08/11/2026).
+    const apercu = await import("@/assistant/etapes/Apercu");
+    expect("LigneTextesReseaux" in apercu).toBe(false);
   });
 
   it("la suite d'une fabrication lancée avec cette ligne écrit bien les textes ; une seconde fabrication ne l'annonce plus", async () => {
@@ -631,12 +630,11 @@ describe("R2 relecture n° 5 et 2ᵉ relecture (b) · un seul nombre d'essais, p
   });
 });
 
-describe("R2 2ᵉ relecture (c) · la ligne des textes dit qu'elle est comprise dans le total", () => {
-  it("« Textes des réseaux · environ X € (compris dans le total) »", async () => {
-    const { LigneTextesReseaux } = await import("@/assistant/etapes/Apercu");
-    const html = renderToStaticMarkup(createElement(LigneTextesReseaux, { montant: { centimes: 5, devise: "EUR" } }));
-    const texte = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    expect(texte).toMatch(/^Textes des réseaux environ 0,05\s€ \(compris dans le total\)$/);
+describe("R2 2ᵉ relecture (c) · la ligne des textes n'affiche plus aucun montant", () => {
+  it("l'écran « Votre vidéo » ne montre plus « Textes des réseaux · environ X € »", async () => {
+    const source = readFileSync("src/assistant/etapes/Apercu.tsx", "utf8");
+    expect(source).not.toContain("Textes des réseaux");
+    expect(source).not.toContain("compris dans le total");
   });
 });
 

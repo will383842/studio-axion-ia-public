@@ -6,7 +6,7 @@
  *
  *  - Les mots dits doivent correspondre aux mots écrits des `texteDit`, dans l'ordre (casse, accents, ponctuation ignorés ;
  *    un mot coupé ou collé autrement par la voix est recollé). Seuls écarts permis : un nombre dit en lettres, un mot dit
- *    sous sa prononciation. Tout autre écart est refusé, en nommant l'écran et le mot.
+ *    sous sa prononciation. Tout autre écart (08/11/2026) est GARDÉ au mieux et nommé dans `ecarts` (écran et mot) : la vidéo n'est plus jetée.
  *  - Un écran démarre au début du premier mot de son `texteDit` moins `avanceMs`, arrondi à l'image (40 ms) ; le premier à 0.
  *    Il finit au début du suivant ; le dernier finit à la fin du dernier mot plus `finApresDernierMotSec` (2,1 s).
  *  - Un événement tombe au début de son mot `surMot` (compté par `motsLus`, comme la fiche) moins son avance, dans les
@@ -39,7 +39,7 @@ export interface EvenementCale {
 }
 
 export type ResultatCalageCasConcret =
-  | { ok: true; fiche: FicheEcrans; fin: FinPlanifiee | null; evenements: EvenementCale[]; dureeMs: number }
+  | { ok: true; fiche: FicheEcrans; fin: FinPlanifiee | null; evenements: EvenementCale[]; dureeMs: number; ecarts: string[] }
   | { ok: false; problemes: string[] };
 
 interface MotEcrit {
@@ -126,29 +126,59 @@ export function calerFiche(fiche: FicheEcrans, fin: FinPlanifiee | null, motsDit
   }
   const temps: { debutMs: number; finMs: number }[] = [];
   const prononciations = options.prononciations ?? [];
+  // 08/11/2026 : le calage ne jette plus la vidéo. Un écart entre le texte écrit et le texte lu est GARDÉ au mieux (resynchronisation
+  // sur le mot suivant qui correspond, sinon mot pour mot) et nommé dans `ecarts` ; seule une voix sans aucun mot ne se cale pas.
+  const ecarts: string[] = [];
+  if (dits.length === 0) return { ok: false, problemes: ["Aucun mot n'a été entendu dans la voix : il n'y a rien à caler."] };
   let i = 0;
   let j = 0;
   while (i < ecrits.length) {
     const e = ecrits[i];
     const id = ecrans[e.ecran].id;
     if (j >= dits.length) {
-      problemes.push(`Écran ${id} · la voix s'arrête avant le mot ${e.rang + 1} (« ${e.texte} ») : il manque la fin du texte dit.`);
+      ecarts.push(`Écran ${id} · la voix s'arrête avant le mot ${e.rang + 1} (« ${e.texte} ») : la fin du texte n'est pas dite.`);
+      const dernier = temps[temps.length - 1] ?? { debutMs: ms(dits[dits.length - 1].debutSec), finMs: ms(dits[dits.length - 1].finSec) };
+      for (; i < ecrits.length; i++) temps.push(dernier);
       break;
     }
     const c = correspondance(ecrits, dits, i, j, prononciations);
-    if (!c) {
-      problemes.push(`Écran ${id} · le mot ${e.rang + 1} écrit « ${e.texte} » ne correspond pas au mot dit « ${dits[j].mot} » (à ${dits[j].debutSec} s).`);
-      break;
+    if (c) {
+      const intervalle = { debutMs: ms(dits[j].debutSec), finMs: ms(dits[j + c.b - 1].finSec) };
+      for (let k = 0; k < c.a; k++) temps.push(intervalle);
+      i += c.a;
+      j += c.b;
+      continue;
     }
-    const intervalle = { debutMs: ms(dits[j].debutSec), finMs: ms(dits[j + c.b - 1].finSec) };
-    for (let k = 0; k < c.a; k++) temps.push(intervalle);
-    i += c.a;
-    j += c.b;
+    // Pas de correspondance : on cherche le plus proche point de reprise (mots dits en trop, ou mots écrits non dits).
+    let reprise: { da: number; db: number; c: { a: number; b: number } } | null = null;
+    for (let d = 1; d <= 6 && !reprise; d++) {
+      const surDits = j + d < dits.length ? correspondance(ecrits, dits, i, j + d, prononciations) : null;
+      if (surDits) reprise = { da: 0, db: d, c: surDits };
+      else if (i + d < ecrits.length) {
+        const surEcrits = correspondance(ecrits, dits, i + d, j, prononciations);
+        if (surEcrits) reprise = { da: d, db: 0, c: surEcrits };
+      }
+    }
+    const lu = dits[j].mot;
+    if (reprise && reprise.db > 0) {
+      ecarts.push(`Écran ${id} · la voix dit « ${dits.slice(j, j + reprise.db).map((m) => m.mot).join(" ")} » en plus avant le mot ${e.rang + 1} « ${e.texte} ».`);
+      j += reprise.db;
+    } else if (reprise) {
+      const manquants = ecrits.slice(i, i + reprise.da);
+      ecarts.push(`Écran ${id} · ${manquants.length > 1 ? "les mots" : "le mot"} « ${manquants.map((m) => m.texte).join(" ")} » ${manquants.length > 1 ? "ne sont pas dits" : "n'est pas dit"}.`);
+      const dernier = temps[temps.length - 1] ?? { debutMs: ms(dits[j].debutSec), finMs: ms(dits[j].debutSec) };
+      for (let k = 0; k < reprise.da; k++) temps.push(dernier);
+      i += reprise.da;
+    } else {
+      ecarts.push(`Écran ${id} · le mot ${e.rang + 1} écrit « ${e.texte} » est lu « ${lu} » (à ${dits[j].debutSec} s).`);
+      temps.push({ debutMs: ms(dits[j].debutSec), finMs: ms(dits[j].finSec) });
+      i += 1;
+      j += 1;
+    }
   }
-  if (!problemes.length && j < dits.length) {
-    problemes.push(`Écran ${ecrans[ecrans.length - 1].id} · la voix dit ${dits.length - j} mot${dits.length - j > 1 ? "s" : ""} de plus que le texte dit (à partir de « ${dits[j].mot} »).`);
+  if (j < dits.length) {
+    ecarts.push(`Écran ${ecrans[ecrans.length - 1].id} · la voix dit ${dits.length - j} mot${dits.length - j > 1 ? "s" : ""} de plus que le texte dit (à partir de « ${dits[j].mot} »).`);
   }
-  if (problemes.length) return { ok: false, problemes };
 
   // 3. Début et fin des écrans, sans trou ni chevauchement, à l'image près.
   const premier: number[] = [];
@@ -191,5 +221,5 @@ export function calerFiche(fiche: FicheEcrans, fin: FinPlanifiee | null, motsDit
     const horaires = finCalee.ecrans.flatMap((e, k) => problemesEcran(e, k === 0 ? corps[corps.length - 1] : finCalee.ecrans[k - 1]));
     if (horaires.length) return { ok: false, problemes: horaires.map((p) => p.message) };
   }
-  return { ok: true, fiche: v.fiche, fin: finCalee, evenements, dureeMs: fins[fins.length - 1] };
+  return { ok: true, fiche: v.fiche, fin: finCalee, evenements, dureeMs: fins[fins.length - 1], ecarts };
 }

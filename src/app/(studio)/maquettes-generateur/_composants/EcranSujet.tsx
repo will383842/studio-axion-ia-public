@@ -141,11 +141,11 @@ export function EcranSujet({ ideeInitiale, sensible }: { ideeInitiale: string; s
       <BarreActionCollee>
         {pret ? (
           <Bouton asChild icone="ecrire" taille="lg">
-            <Link href="/maquettes-generateur/resultat">Écrire · au plus 1,40 €</Link>
+            <Link href="/maquettes-generateur/resultat">Écrire</Link>
           </Bouton>
         ) : (
           <Bouton icone="ecrire" taille="lg" disabled>
-            Écrire · au plus 1,40 €
+            Écrire
           </Bouton>
         )}
       </BarreActionCollee>

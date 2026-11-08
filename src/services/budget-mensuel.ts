@@ -17,7 +17,7 @@ import type { Id } from "@/domaine/types";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant } from "./_commun";
 import { decalerMois, engagementDuTravail, jourParis, moisParis, resumeBudget } from "./couts";
 import { creerNotification } from "./notifications";
-import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, messageAuDelaDuBudgetIndicatifClaude } from "./mode-budget";
+import { budgetIndicatifPour, messageAuDelaDuBudgetIndicatifClaude } from "./mode-budget";
 import { centimesDuPlafond } from "@/lib/montants";
 
 /** Plafond du mois par défaut (150 €, garde-fou du plan maître C2), tant que Will n'en a pas réglé d'autre. */
@@ -150,15 +150,15 @@ export async function signalerDepassementIndicatif(motif: string, titre: string,
  *  - sous le plafond : "ok" ;
  *  - mode bloquant, plafond dépassé : "bloque" (refus comme avant) ;
  *  - mode indicatif, jusqu'à 5 × le plafond : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif) ;
- *  - mode indicatif, au-delà de 5 × le plafond : "depasse" (même alerte, SANS arrêt : le prix ne bloque jamais).
+ *  - mode indicatif, au-delà : "ok" aussi (même alerte, SANS arrêt : le prix ne bloque jamais).
  */
-export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque" | "depasse"> {
+export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque"> {
   const plafond = centimesDuPlafond(plafondUsd);
   if (totalCentimes <= plafond) return "ok";
   if (!indicatif) return "bloque";
-  const loin = totalCentimes > plafond * FACTEUR_SECURITE_BUDGET;
   await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", `${quoi} : ${messageAuDelaDuBudgetIndicatifClaude(affichage.sansPrix || affichage.tauxUsdEur === undefined ? undefined : formaterMontant(centimes(centimesDuPlafond(plafondUsd * affichage.tauxUsdEur))))}`, sujet);
-  return loin ? "depasse" : "ok";
+  // 08/11/2026 : plus d'arrêt à 5 × ; le dépassement prévient, la fabrication continue.
+  return "ok";
 }
 
 /** `type` : "budget" (refus, canaux de Will) ; "credit" = cloche seule (jamais de push ni d'e-mail : cloches indicatives). */

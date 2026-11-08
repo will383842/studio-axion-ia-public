@@ -1,12 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { demanderRetoucheAction, estimerRetoucheAction } from "@/app/(studio)/videos/actions";
+import { useState, useTransition } from "react";
+import { demanderRetoucheAction } from "@/app/(studio)/videos/actions";
 import { Bouton, Icone, notifier } from "@/components/ui";
 import { contientMot } from "@/domaine/prononciations";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 
 /** Un plan de la version, tel que la fiche vidéo le connaît. */
 export interface PlanPhrase {
@@ -26,30 +25,14 @@ export function plansDuMot(plans: PlanPhrase[], mot: string, instantSec?: number
 }
 
 /**
- * « Refaire la phrase seulement » (n° 3, 9) : retouche des seuls plans qui contiennent le mot, avec le coût estimé
- * AVANT. Rien ne part sans le geste de Will ; au-delà du seuil habituel, une confirmation est demandée.
+ * « Refaire la phrase seulement » (n° 3, 9) : retouche des seuls plans qui contiennent le mot. Rien ne part sans le
+ * geste de Will.
  */
 export function RefairePhrase({ videoId, plans, mot, prononciation, className, compacte }: { videoId: string; plans: PlanPhrase[]; mot: string; prononciation: string; className?: string; compacte?: boolean }) {
   const router = useRouter();
-  const [cout, setCout] = useState<number | null>(null);
-  // Paquet 4 (D2) : montant renvoyé par le serveur au-delà du seuil ; il repart avec l'accord (`true` sans montant).
-  const [confirmer, setConfirmer] = useState<number | boolean>(false);
   const [fait, setFait] = useState(false);
   const [enCours, demarrer] = useTransition();
   const ids = plans.map((p) => p.id);
-  const cle = ids.join(",");
-
-  useEffect(() => {
-    if (!cle) return;
-    let annule = false;
-    void estimerRetoucheAction(videoId, cle.split(",")).then((r) => {
-      if (!annule && r.ok) setCout(r.donnees.centimes);
-    });
-    return () => {
-      annule = true;
-    };
-  }, [videoId, cle]);
-
   if (!ids.length) return null;
   if (fait) {
     return (
@@ -62,25 +45,20 @@ export function RefairePhrase({ videoId, plans, mot, prononciation, className, c
 
   function refaire() {
     demarrer(async () => {
-      const r = await demanderRetoucheAction(videoId, ids, `Prononciation : « ${mot} » se dit « ${prononciation} »`, confirmer);
-      if (!r.ok) {
-        if (r.code === "CONFIRMATION_REQUISE") {
-          setConfirmer(r.montant ?? true);
-          return void notifier.info(r.message);
-        }
-        return void notifier.erreur(r.message);
-      }
+      const demande = `Prononciation : « ${mot} » se dit « ${prononciation} »`;
+      let r = await demanderRetoucheAction(videoId, ids, demande, false);
+      // Geste direct : si le serveur demande un accord, il repart aussitôt avec lui (une seule relance).
+      if (!r.ok && r.code === "CONFIRMATION_REQUISE") r = await demanderRetoucheAction(videoId, ids, demande, r.montant ?? true);
+      if (!r.ok) return void notifier.erreur(r.message);
       setFait(true);
       notifier.succes("Phrase en cours de fabrication", "Seuls les plans de ce mot sont refaits.");
       router.refresh();
     });
   }
 
-  const affiche = typeof confirmer === "number" ? confirmer : cout;
-  const prix = affiche === null ? "" : affiche === 0 ? " · gratuit" : ` · ${formaterMontant({ centimes: affiche, devise: "EUR" })}`;
   return (
     <Bouton variante={compacte ? "contour" : "principal"} icone="reessayer" chargement={enCours} onClick={refaire} className={className} pleineLargeur={!compacte}>
-      {confirmer ? `Confirmer${prix}` : `Refaire ${ids.length > 1 ? `les ${ids.length} phrases` : "la phrase"}${prix}`}
+      Refaire {ids.length > 1 ? `les ${ids.length} phrases` : "la phrase"}
     </Bouton>
   );
 }

@@ -133,7 +133,7 @@ export function FeuilleEnVrac({ ouverte, onOuverteChange, rangementEssai = false
             </Bouton>
             {rangementEssai && (
               <Bouton pleineLargeur variante="fantome" icone="etincelles" chargement={envoi === "machine"} disabled={!dictee.trim()} onClick={() => decouper(true)}>
-                Ranger pour moi · 0 €
+                Ranger pour moi
                 <PastilleEssai className="ml-1" />
               </Bouton>
             )}

@@ -62,10 +62,10 @@ export interface EstimationFeuille {
 
 /** LOT F · le choix « Nouveau script » (cas à script validé) : libellé et explication, en français simple. */
 /** Le prix d'un cas ouvert sans montant d'avance n'a pas pu être calculé : le bouton reste inactif. */
-export const PHRASE_PRIX_INTROUVABLE = "Le prix n'a pas pu être calculé. Fermez cette fenêtre et rouvrez le cas.";
+export const PHRASE_PRIX_INTROUVABLE = "Le cas n'a pas pu être préparé. Fermez cette fenêtre et rouvrez-le.";
 
 /** Ce que la feuille dit du texte exact d'une vidéo dont le cas a un récit : honnête sur le moment et le prix. */
-export const PHRASE_TEXTE_ECRIT_AU_LANCEMENT = "Le texte exact dit dans la vidéo est écrit au lancement (compris dans le prix affiché, ≈ 0,5 €) puis relu par vous avant la voix.";
+export const PHRASE_TEXTE_ECRIT_AU_LANCEMENT = "Le texte exact dit dans la vidéo est écrit au lancement puis relu par vous avant la voix.";
 export const LIBELLE_NOUVEAU_SCRIPT = "Nouveau script (autre structure)";
 export const PHRASE_NOUVEAU_SCRIPT = "Claude écrit un nouveau script pour cette vidéo, dans une autre structure. Vous le relisez avant que la voix soit payée. Le script validé reste tel quel tant que vous ne validez pas le nouveau.";
 
@@ -289,7 +289,7 @@ export function PiedVotreVideo({
         </Bouton>
       ) : montant === null ? (
         <Bouton taille="lg" pleineLargeur disabled>
-          Calcul du prix…
+          Préparation…
         </Bouton>
       ) : (
         <BoutonFabriquer montantCentimes={montant} desactive={desactive || sansVoix || !!blocage || sujetEnAttente} onFabriquer={onFabriquer} />

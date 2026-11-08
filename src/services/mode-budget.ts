@@ -22,13 +22,9 @@ export const CLE_MODE_BUDGET = "budget.mode";
 /** Multiple du prix annoncé au-delà duquel une vidéo (ou un sujet) s'arrête, même en mode indicatif. */
 export const FACTEUR_SECURITE_BUDGET = 5;
 
-function defautDuCode(): ModeBudget {
-  return process.env.STUDIO_BUDGET_MODE_DEFAUT === "bloquant" ? "bloquant" : "indicatif";
-}
-
+/** Décision de Williams (08/11/2026) : le budget est inopérant. Le mode « bloquant » n'existe plus : ni réglage, ni variable ne le rétablit. */
 export async function modeBudget(): Promise<ModeBudget> {
-  const v = await lireParametre<unknown>(CLE_MODE_BUDGET, null);
-  return v === "indicatif" || v === "bloquant" ? v : defautDuCode();
+  return "indicatif";
 }
 
 /** Indicatif pour CETTE commande : jamais pour une commande de l'Usine (elle reste bloquante). */

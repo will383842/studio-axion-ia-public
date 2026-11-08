@@ -20,7 +20,7 @@ import { obtenirReseau } from "@/reseaux";
 import { exigerSession } from "./auth";
 import { memoriserCorrectionsWill } from "./apprentissage";
 import { cleRetouches, enregistrerRetouche, RETOUCHES_MAX_PAR_VERSION } from "./boucle-generation";
-import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant } from "./_commun";
+import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant } from "./_commun";
 
 /**
  * Sujets numérotés dont l'idée ressemble à celle-ci (lot L5 : par le service commun des sujets traités, tous générateurs
@@ -140,7 +140,7 @@ async function versionsDeLaCible(cible: CibleRelecture, options: { fabriquer?: b
     const v = await d.variantes.obtenir(cible.varianteId);
     const c = v && v.scriptMaitreId === m.id ? await courante(v.code) : undefined;
     if (!c) throw new ErreurStudio("INTROUVABLE", "Cette version n'existe plus.");
-    if (options.fabriquer && c.etat !== "validee") throw new ErreurStudio("A_VALIDER", "Validez d'abord cette version.");
+    if (options.fabriquer && c.etat !== "validee") await journaliser("generateur", "Remarque : cette version n'est pas validée ; la fabrication continue.", { type: "sujet", id: m.id });
     return { m, versions: [c] };
   }
   const { versionsAvatar } = await import("./fabrication-reseaux");
@@ -289,12 +289,13 @@ export async function fabriquerApresRelecture(
   if (!repere?.lance) {
     if (!scriptRelu(o.lignes, o.empreinte)) throw new ErreurStudio("SCRIPT_A_RELIRE", "Relisez le script avant de lancer la vidéo.");
     const { m, versions } = await versionsDeLaCible(cible, { fabriquer: true });
-    if (m.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) throw new ErreurStudio("LIMITE_A_VALIDER", "Validez d'abord la limite proposée (un toucher).");
+    if (m.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) await journaliser("generateur", "Remarque : la limite proposée par la machine n'est pas validée ; la fabrication continue (le script de Williams fait foi).");
     const { lot, scripts } = await lotDe(m, versions);
     const r = appliquerAuLot(lot, o.lignes);
     if (!r.ok) throw new ErreurStudio("SCRIPT_A_RELIRE", r.raisons[0]);
     const pastilles = await pastillesRelues(m, versions, lot, scripts, lotModifie(lot, r));
-    if (pastilles.some((p) => p.niveau === "bloquant")) throw new ErreurStudio("SCRIPT_A_CORRIGER", "Une phrase est à corriger avant la vidéo. Rien n'a été payé.");
+    // 08/11/2026 : une phrase signalée « à corriger » devient une remarque au journal ; le script de Williams fait foi.
+    if (pastilles.some((p) => p.niveau === "bloquant")) await journaliser("generateur", "Remarque : une phrase du script est signalée à corriger ; la fabrication continue avec le texte de Williams.", { type: "sujet", id: m.id });
     // Voyant rouge : second oui AVANT la voix payante, pour tout le lot en une seule demande (rien n'a été créé ni payé).
     // Après les refus du texte relu, et sur le texte RELU : les garde-fous sont ceux de `pastillesRelues` (mêmes violations).
     const reluDuLot = await controlesDuLot(m, versions, lotModifie(lot, r), scripts);
