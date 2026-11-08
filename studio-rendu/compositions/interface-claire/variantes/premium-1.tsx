@@ -13,19 +13,31 @@ import { COULEURS, GEOMETRIE, POLICES } from "../charte";
 
 /* ------------------------------------------------------------------ Les 12 jetons de couleur ------------------------------------------------------------------ */
 
-/** Les 4 couleurs de la charte et leurs mélanges calculés (standard § 2.4). Aucune autre teinte. */
-export const NUANCES = Object.freeze({
-  ivoire: COULEURS.ivoire,
+/** Les 8 mélanges calculés de la charte, définis une seule fois (importés par premium-2 à 5). */
+export const MELANGES = Object.freeze({
   ivoireCreux: "#DECFB9",
   sableClair: "#D4C2AA",
-  sable: COULEURS.sable,
   sableProfond: "#94806A",
   filet: "#CBBFAD",
   orangeVoile: "#DEC0A8",
-  orange: COULEURS.orange,
   orangeChaud: "#BC6441",
   orangeProfond: "#934122",
   encreDouce: "#45392D",
+} as const);
+
+/** Les 4 couleurs de la charte et leurs mélanges calculés (standard § 2.4). Aucune autre teinte. */
+export const NUANCES = Object.freeze({
+  ivoire: COULEURS.ivoire,
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
+  sable: COULEURS.sable,
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
+  orange: COULEURS.orange,
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  encreDouce: MELANGES.encreDouce,
   encre: COULEURS.encre,
 } as const);
 
