@@ -88,9 +88,11 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                   {obtenirReseau(s.reseau).nom}
                   <span className="text-xs font-normal text-texte-faible">{s.lignes.length}</span>
                 </h2>
-                <Bouton asChild variante="secondaire" taille="md" icone="telecharger">
-                  <a href={`/api/telechargements?validees=1&reseau=${s.reseau}`}>Tout télécharger</a>
-                </Bouton>
+                {s.lignes.some((l) => (l.ligne.etapeVideo ?? "validee") === "validee") && (
+                  <Bouton asChild variante="secondaire" taille="md" icone="telecharger">
+                    <a href={`/api/telechargements?validees=1&reseau=${s.reseau}`}>Tout télécharger</a>
+                  </Bouton>
+                )}
               </div>
               <ul className="divide-y divide-trait overflow-hidden rounded-carte border border-trait bg-surface-1">
                 {montrees.map(({ ligne, etat, format }) => (

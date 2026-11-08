@@ -177,12 +177,45 @@ describe("Vidéos validées · zip d'un réseau", () => {
     expect(c.nom).toMatch(/^Instagram-validees-/);
   });
 
-  it("une vidéo à la corbeille ou archivée n'y est jamais", async () => {
+  it("une vidéo archivée n'y est jamais", async () => {
     await seulesValidees("v-15");
     await valider("v-15");
     await livrerImageVideo("v-15");
-    await depots().videos.modifier("v-15", { corbeilleLe: new Date().toISOString(), statut: "archivee" } as never);
-    await expect(tel.contenuArchiveValidees("linkedin")).rejects.toMatchObject({ code: expect.any(String) });
+    await depots().videos.modifier("v-15", { statut: "archivee" } as never);
+    await expect(tel.contenuArchiveValidees("linkedin")).rejects.toMatchObject({ code: "RIEN_A_TELECHARGER" });
+  });
+
+  it("une vidéo prête mais à la corbeille n'y est jamais (filtre corbeilleLe)", async () => {
+    await seulesValidees("v-15");
+    await valider("v-15");
+    await livrerImageVideo("v-15");
+    await depots().videos.modifier("v-15", { corbeilleLe: new Date().toISOString(), statut: "prete" } as never);
+    await expect(tel.contenuArchiveValidees("linkedin")).rejects.toMatchObject({ code: "RIEN_A_TELECHARGER" });
+  });
+
+  it("une vidéo programmée puis publiée est exclue du zip", async () => {
+    await seulesValidees("v-15", "v-12");
+    await livrerImageVideo("v-15");
+    await valider("v-15");
+    await valider("v-12");
+    const cleDe = (c: Awaited<ReturnType<typeof tel.contenuArchiveValidees>>) => c.entrees.flatMap((e) => ("url" in e ? [e.url] : []));
+    expect(cleDe(await tel.contenuArchiveValidees("linkedin")).some((u) => u.includes("v-15-li.mp4"))).toBe(true);
+    for (const etape of ["programmee", "publiee"] as const) {
+      await depots().videos.modifier("v-15", { etapeEditoriale: etape });
+      const c = await tel.contenuArchiveValidees("linkedin");
+      expect(cleDe(c).some((u) => u.includes("v-15"))).toBe(false);
+    }
+  });
+
+  it("une validée sans fichier est nommée dans le zip, pas sautée en silence", async () => {
+    await seulesValidees("v-15");
+    await valider("v-15");
+    await depots().videos.modifier("v-15", { reseau: "linkedin" } as never);
+    await depots().sorties.lister((s) => s.videoId === "v-15").then((ss) => Promise.all(ss.map((s) => depots().sorties.supprimer?.(s.id))));
+    const v = (await depots().videos.obtenir("v-15"))!;
+    const c = await tel.contenuArchiveValidees("linkedin");
+    const note = c.entrees.find((e) => e.nom === "VIDEOS-SANS-FICHIER.txt");
+    expect(note && "contenu" in note ? note.contenu : "").toContain(v.titre);
   });
 
   it("une liste vide lève une ErreurStudio", async () => {
@@ -193,7 +226,7 @@ describe("Vidéos validées · zip d'un réseau", () => {
 
   it("sans session : refusé", async () => {
     await auth.seDeconnecter();
-    await expect(tel.contenuArchiveValidees("linkedin")).rejects.toBeTruthy();
+    await expect(tel.contenuArchiveValidees("linkedin")).rejects.toMatchObject({ vers: "/connexion" });
   });
 });
 
@@ -211,6 +244,11 @@ describe("Vidéos validées · route /api/telechargements?validees=1&reseau=…"
     const zip = lireZip(new Uint8Array(await r.arrayBuffer()));
     expect(zip.some((f) => f.nom.endsWith(".mp4"))).toBe(true);
     expect(zip.some((f) => f.nom.endsWith(".txt"))).toBe(true);
+  });
+
+  it("sans session : 401", async () => {
+    await auth.seDeconnecter();
+    expect((await GET(demande("?validees=1&reseau=linkedin"))).status).toBe(401);
   });
 
   it("réseau inconnu : 400 ; rien de validé : 404", async () => {
@@ -240,6 +278,16 @@ describe("Vidéos validées · la liste", () => {
     expect(texte(h)).toContain("Tout télécharger");
     expect(texte(h)).toContain("Télécharger");
     expect(texte(h)).toContain("Remettre à relire");
+  });
+
+  it("« Tout télécharger » seulement si la section a une ligne validée", async () => {
+    await seulesValidees("v-15");
+    await livrerImageVideo("v-15");
+    await valider("v-15");
+    const l = (await lignes()).map((x) => (x.videoId === "v-15" && x.reseau === "facebook" ? { ...x, etapeVideo: "programmee" as const } : x));
+    const h = renderToStaticMarkup(createElement(ListeAPublier, { lignes: l, filtre: "toutes", reseau: "tous" }));
+    expect(h).toContain("reseau=linkedin");
+    expect(h).not.toContain("validees=1&amp;reseau=facebook");
   });
 
   it("une ligne image → vidéo n'offre jamais l'envoi", async () => {

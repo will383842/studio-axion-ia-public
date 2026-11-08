@@ -162,6 +162,7 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
   const validees = await d.videos.lister((v) => exemples(v) && v.statut === "prete" && !v.corbeilleLe && v.etapeEditoriale === "validee");
   const entrees: EntreeArchive[] = [];
   const pris = new Set<string>();
+  const sautees: string[] = [];
   const poser = (nom: string, e: { url: string } | { contenu: string }) => {
     let final = nom;
     for (let i = 2; pris.has(final); i++) final = nom.replace(/(\.[A-Za-z0-9]+)$/, `-${i}$1`);
@@ -192,7 +193,10 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
         trouve = true;
       }
     }
-    if (!trouve) continue;
+    if (!trouve) {
+      sautees.push(video.titre);
+      continue;
+    }
     // Texte déjà enregistré (jamais généré ici) : lu dans le kit, tel quel.
     const kit = await d.kits.trouver((k) => k.videoId === video.id);
     const t = kit?.textes[reseau];
@@ -200,6 +204,7 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
     const detail = await obtenirVideo(video.id);
     if (sousTitresUtilisables(detail?.sousTitres?.segments)) poser(`${base}.srt`, { contenu: exporterSrt(detail!.sousTitres!.segments) });
   }
+  if (sautees.length) poser("VIDEOS-SANS-FICHIER.txt", { contenu: `Ces vidéos validées n'ont pas de fichier à télécharger :\n\n${sautees.map((t) => `- ${t}`).join("\n")}\n` });
   if (!entrees.length) throw new ErreurStudio("RIEN_A_TELECHARGER", "Aucune vidéo validée pour ce réseau.");
   return { nom: `${obtenirReseau(reseau).nom.replace(/\s+/g, "")}-validees-${maintenant().slice(0, 10)}.zip`, entrees };
 }
