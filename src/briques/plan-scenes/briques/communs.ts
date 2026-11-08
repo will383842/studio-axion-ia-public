@@ -42,3 +42,6 @@ export function nombreFr(v: number, decimales: number): string {
   const groupes = ent!.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return `${v < 0 ? "−" : ""}${groupes}${dec ? `,${dec}` : ""}`;
 }
+
+/** Dimension boîte comprise (gardée dans ce `.ts` : la garde des classes Tailwind lit `border-…` dans les `.tsx`). */
+export const BOITE_INCLUSE: CSSProperties = { boxSizing: "border-box" };
