@@ -40,6 +40,8 @@ export interface PortsRetoucheChat {
   rendreScenes?: (e: EntreeRenduPartiel) => Promise<SortieRenduPartiel>;
   enregistrerVersion: (e: { videoId: string; parentVersionId: string; plan: PlanValide; demande: string; operations: OperationRetouche[]; impact: ImpactRetouche; rendu: SortieRenduPartiel }) => Promise<{ versionId: string }>;
   choisirVersion: (videoId: string, versionId: string) => Promise<void>;
+  /** Lot R3 : filtre propre au générateur (liste des retouches permises, voix jamais touchée sans demande explicite). Absent : aucun filtre. */
+  filtrerOperations?: (operations: OperationRetouche[], demande: string) => { operations: OperationRetouche[]; remarques: string[] };
 }
 
 export interface ApercuRetouche {
@@ -64,8 +66,9 @@ export async function apercevoirRetouche(videoId: string, demande: string, ports
   const vide: ImpactRetouche = { scenes: [], total: 0, voixTouchee: false, phrase: "Aucune scène ne change, la voix ne change pas." };
   if (!courante) return { demande, operations: [], impact: vide, remarques: [PHRASE_SANS_PLAN] };
   const c = await comprendreDemande({ phrase: demande, plan: courante.plan }, ports.appeler);
-  const a = appliquerOperations(courante.plan, c.operations);
-  return { demande, operations: a.operations, impact: impactRetouche(courante.plan, a.plan, a.operations), remarques: [...c.remarques, ...texteRemarques(a.remarques)] };
+  const f = ports.filtrerOperations?.(c.operations, demande) ?? { operations: c.operations, remarques: [] };
+  const a = appliquerOperations(courante.plan, f.operations);
+  return { demande, operations: a.operations, impact: impactRetouche(courante.plan, a.plan, a.operations), remarques: [...c.remarques, ...f.remarques, ...texteRemarques(a.remarques)] };
 }
 
 export async function appliquerRetouche(videoId: string, e: { demande: string; operations: unknown }, ports: PortsRetoucheChat): Promise<IssueRetoucheChat> {
@@ -73,9 +76,10 @@ export async function appliquerRetouche(videoId: string, e: { demande: string; o
   if (!courante) return { statut: "inchangee", impact: null, remarques: [PHRASE_SANS_PLAN] };
   // Les opérations viennent du navigateur : relues comme celles du LLM (liste fermée, jamais de code).
   const lu = lireOperations(e.operations);
-  const a = appliquerOperations(courante.plan, lu.operations);
+  const f = ports.filtrerOperations?.(lu.operations, e.demande) ?? { operations: lu.operations, remarques: [] };
+  const a = appliquerOperations(courante.plan, f.operations);
   const impact = impactRetouche(courante.plan, a.plan, a.operations);
-  const remarques = [...lu.remarques, ...texteRemarques(a.remarques)];
+  const remarques = [...lu.remarques, ...f.remarques, ...texteRemarques(a.remarques)];
   if (!impact.scenes.length && !impact.voixTouchee) return { statut: "inchangee", impact, remarques: [...remarques, impact.phrase] };
   if (!ports.rendreScenes) return { statut: "plan-pret", plan: a.plan, impact, remarques: [...remarques, PHRASE_RENDU_NON_BRANCHE] };
   const rendu = await ports.rendreScenes({ videoId, parentVersionId: courante.versionId, plan: a.plan, scenes: impact.scenes, voix: impact.voixTouchee });
