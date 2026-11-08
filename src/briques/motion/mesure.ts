@@ -17,7 +17,7 @@ export const sansBalises = (texte: string) => texte.replace(/\*/g, "");
 
 /** Largeur (px) d'un mot à une taille et une graisse données, approche comprise. */
 export function largeurMotMotion(mot: string, taillePx: number, graisse: number, approcheEm = 0): number {
-  const police = graisse >= 700 ? "Poppins ExtraBold" : "Poppins Medium";
+  const police = graisse >= 700 ? "Manrope ExtraBold" : "Manrope Medium";
   return largeurMot(mot, police, taillePx) * MARGE_GRAISSE + Array.from(mot).length * approcheEm * taillePx;
 }
 

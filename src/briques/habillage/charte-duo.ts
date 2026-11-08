@@ -9,20 +9,26 @@
 
 export const VERSION_CHARTE_DUO = "charte-duo/1";
 
-/** Couleurs par rôle. L'orange est un accent : sur ivoire `orange`, sur nuit `orangeVif`. */
+/**
+ * Couleurs par rôle, palette 2026 (V7-03) : ivoire #FAF9F5, noir #141413, terracotta #B23F16 (`orange`, sur ivoire),
+ * orange #D97757 et gris #B0AEA5 (`orangeVif`, `grisClair` : sur nuit seulement). Les noms de rôle sont conservés pour
+ * les compositions qui les importent ; les rôles `nuitHaut`, `nuitLueur`, `ivoireHaut`, `blanc` valent la couleur de
+ * leur fond (plus de dégradé ni de blanc pur). `gris` (texte secondaire sur ivoire) vaut le noir. `vert` (ancien
+ * accent vert, supprimé) garde son nom le temps de migrer les plans qui l'importent : il vaut la terracotta.
+ */
 export const COULEURS_DUO = Object.freeze({
-  nuit: "#110A05",
-  nuitHaut: "#2A150B",
-  nuitLueur: "#7A3418",
-  ivoire: "#F4EFE7",
-  ivoireHaut: "#FBF8F3",
-  encre: "#15100C",
-  orange: "#C2532A",
-  orangeVif: "#F0703C",
-  gris: "#8A7C6E",
-  grisClair: "#C9B8A6",
-  vert: "#22A55B",
-  blanc: "#FFFFFF",
+  nuit: "#141413",
+  nuitHaut: "#141413",
+  nuitLueur: "#141413",
+  ivoire: "#FAF9F5",
+  ivoireHaut: "#FAF9F5",
+  encre: "#141413",
+  orange: "#B23F16",
+  orangeVif: "#D97757",
+  gris: "#141413",
+  grisClair: "#B0AEA5",
+  vert: "#B23F16",
+  blanc: "#FAF9F5",
 } as const);
 
 export type RoleCouleurDuo = keyof typeof COULEURS_DUO;
@@ -84,6 +90,5 @@ export const COUPLES_TEXTE_DUO: readonly CouleurFondDuo[] = Object.freeze([
 export const COUPLES_AFFICHE_DUO: readonly CouleurFondDuo[] = Object.freeze([
   Object.freeze({ texte: "orangeVif", fond: "nuit" }),
   Object.freeze({ texte: "orange", fond: "ivoire" }),
-  Object.freeze({ texte: "vert", fond: "nuit" }),
   Object.freeze({ texte: "gris", fond: "ivoire" }),
 ] as const);

@@ -31,11 +31,11 @@ export const CONTRASTE_MIN_SOUS_TITRES = 4.5;
 /**
  * Style « Encre » des anciens styles du tableau (essai réel du 11/10 : le « Minimal » crème à ombre sombre était presque
  * illisible sur la page ivoire). Gabarit Minimal (groupes, fondu), écriture de la charte sur la page, ni contour ni
- * ombre, police de la charte (Inter Bold). Le « Minimal » des autres formats n'est pas touché.
+ * ombre, police de la charte (Manrope Bold). Le « Minimal » des autres formats n'est pas touché.
  */
 export const STYLE_SOUS_TITRES_ENCRE: ValeurStyleSousTitres = Object.freeze({
   ...STYLE_SOUS_TITRES_MINIMAL,
-  police: "Inter Bold",
+  police: "Manrope Bold",
   contourPx: 0,
   ombrePx: 0,
   encre: Object.freeze({ texte: COULEURS_VIDEO.ecriture, page: COULEURS_VIDEO.page }),

@@ -102,7 +102,7 @@ describe("L3b · variations selon le tirage", () => {
   });
 
   it("surlignage : l'orange de la charte dans le style, jamais sur un mot coloré", () => {
-    expect(surlignageCasConcret(avec({ accent: "surlignage" }))).toEqual({ surlignage: { fond: "#F0703C", texte: "#15100C", fondClair: "#C2532A", texteClair: "#F4EFE7" } });
+    expect(surlignageCasConcret(avec({ accent: "surlignage" }))).toEqual({ surlignage: { fond: "#D97757", texte: "#141413", fondClair: "#B23F16", texteClair: "#FAF9F5" } });
     const s = sousTitres(avec({ accent: "surlignage" }));
     // Le mot choisi est le même que le soulignement de la v4 : seul son dessin change.
     expect(s).toEqual(sousTitres(V4));

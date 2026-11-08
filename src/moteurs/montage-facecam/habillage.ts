@@ -16,6 +16,7 @@
  *   - écran partagé : la personne en bas, yeux à 37,5 % de la demi-hauteur (cadrage par calque) ;
  *   - B-roll : LUT du Look Will (même cible) ; encodage : une seule compression 8 bits (`source10bits`).
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import type { EntreeComposition, RecetteComposition } from "@/briques/composition";
 import { TAILLE_SOUS_TITRES_REFERENCE_PX } from "@/briques/composition";
 import { dispositionQuiTient, GROUPEMENT_FACECAM, ligneSousTitresEcranPartage, positionSousTitresFacecam, SOUS_TITRES_FACECAM, sourceYMoitieBasse, textesAffichesDesCartes, type PhraseHorodatee } from "@/briques/habillage-facecam";
@@ -32,7 +33,7 @@ import type { PlanProduit } from "@/moteurs/types";
 export const RECETTE_COMPOSITION_FACECAM: RecetteComposition = {
   id: "facecam",
   angles: { principal: "face" },
-  decorRepli: { teinte: "#16120F", directionLumiere: "face", flouPx: 0, clair: false },
+  decorRepli: { teinte: PALETTE.noir, directionLumiere: "face", flouPx: 0, clair: false },
   nomDecorRepli: "Sombre chaud",
   // Fin : coupe sèche qui boucle (6 à 8 images après le dernier mot, fondu audio de 50 ms fait au montage).
   reductionLarge: { "9:16": 1, "4:5": 1, "1:1": 1 },

@@ -6,7 +6,7 @@
 import type { ElementBibliotheque, ValeurAccessoire, ValeurDecor, ValeurElement, ValeurProfilSon, ValeurStyleMontage, ValeurStyleSousTitres } from "@/domaine/types";
 
 /**
- * Sous-titres de l'avocat (lot M2, décision de Will du 01/10) : base KARAOKÉ (Poppins ExtraBold 70 px, mot en cours en
+ * Sous-titres de l'avocat (lot M2, décision de Will du 01/10) : base KARAOKÉ (Manrope ExtraBold 70 px, mot en cours en
  * orange, mots à venir à 45 %), mélangée d'accents Impact et Bandeau selon l'intensité de la vidéo. Contour noir
  * sous le remplissage (3 px visibles), centre à 48 %, emphase par le jeton `orange-vif` de la marque, chiffres alignés.
  * Le rendu lit `briques/sous-titres/style.ts` (gabarit) ; ces valeurs en sont les réglages de Bibliothèque.
@@ -14,7 +14,7 @@ import type { ElementBibliotheque, ValeurAccessoire, ValeurDecor, ValeurElement,
 export const STYLE_SOUS_TITRES_AVOCAT: ValeurStyleSousTitres = {
   type: "style-sous-titres",
   gabarit: "karaoke",
-  police: "Poppins ExtraBold",
+  police: "Manrope ExtraBold",
   tailleRelative: 1,
   taillePx: 70,
   motsParLigne: 4,
@@ -33,11 +33,11 @@ export const STYLE_SOUS_TITRES_AVOCAT: ValeurStyleSousTitres = {
   chiffresAlignes: true,
 };
 
-/** Base calme (LinkedIn, sujets sérieux) : Minimal, Poppins Medium 60 px, une couleur, fondu de 120 ms. */
+/** Base calme (LinkedIn, sujets sérieux) : Minimal, Manrope Medium 60 px, une couleur, fondu de 120 ms. */
 export const STYLE_SOUS_TITRES_MINIMAL: ValeurStyleSousTitres = {
   type: "style-sous-titres",
   gabarit: "minimal",
-  police: "Poppins Medium",
+  police: "Manrope Medium",
   tailleRelative: 1,
   taillePx: 60,
   motsParLigne: 6,
