@@ -43,6 +43,8 @@ Chaque brique est un composant **pur** (l'image courante arrive en propriété, 
 
 `cd studio-rendu && STUDIO_RENDU_NAVIGATEUR=<chrome> npx tsx scripts/demo-plan-scenes.ts --images` → `out/plan-de-scenes-demo.mp4` (15 s, 3 scènes : niveau 1, niveau 2, niveau 1).
 
-## Retouche (préparée, non implémentée)
+## Retouche par chat (lot R1)
 
-`src/briques/operations.ts` : `changer-mot`, `ajouter-chiffre`, `changer-brique`, `decaler-scene`, `changer-habillage`.
+`src/briques/operations.ts` : `changer-mot`, `ajouter-chiffre`, `changer-brique`, `decaler-scene`, `changer-habillage`, `ajouter-piece`, `retirer-piece`, `remplacer-piece`, `changer-transition`, `ajouter-dynamisme`, `ajuster-zoom`, `modifier-script` (seule à toucher la voix, gardée seulement sur demande explicite de modifier le script).
+
+`src/services/retouche-chat/` : `comprendreDemande` (phrase + plan → opérations, port LLM injecté, Zod strict, jamais de code libre), `appliquerOperations` (revalidé par `validerPlan`, remarques au lieu de refus), `impactRetouche` (« 2 scènes sur 7 seront refaites, la voix ne change pas »), `service.ts` (aperçu, application avec rendu partiel des seules scènes touchées, nouvelle version, retour arrière par `choisirVersion`). Route `POST /api/retouche-chat`, composant `components/retouche-chat/ChatRetouche.tsx` (non branché). Ports du studio (`studio.ts`) : LLM et rendu partiel NON branchés (lecture simple, plan retouché « prêt ») ; à brancher par `executerRole` et par chaque générateur (lot R2).
