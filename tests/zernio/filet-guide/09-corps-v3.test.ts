@@ -5,13 +5,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SchemaDemandeGuideReseau, SchemaDemandeGuideReseauV3 } from "../aides/contrat-site-guides-reseau";
 import { deposerCommentaire, deposerMessage } from "../aides/conversation";
-import { ADRESSE, banc, ENV, C, depots, nettoyer, pm, passer, preparer, T0, toutLeStockage, lireTexteDe } from "./_amorce";
+import { ADRESSE, banc, COMPTE, ENV, C, depots, nettoyer, pm, passer, preparer, T0, toutLeStockage, lireTexteDe } from "./_amorce";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 beforeEach(preparer);
 afterEach(nettoyer);
 
-const V3 = { ...ENV, ORIGINE_V3_ENABLED: "1", ORIGINE_V3_PREFIXES_COMPTES: "/compte-test/" };
+const V3 = { ...ENV, ORIGINE_V3_ENABLED: "1", ORIGINE_V3_PREFIXES_COMPTES: "/compte-test/", ORIGINE_V3_COMPTES: COMPTE };
 
 async function parcours(env: Record<string, string | undefined>, idPost?: string): Promise<void> {
   await deposerCommentaire(depots, { reseau: "facebook", idCommentaire: "com-fictif-z1", ...(idPost ? { idPost } : {}) });
@@ -81,6 +81,58 @@ describe("Z1 · corps v3 de la demande de guide", () => {
     banc.site.reponses = () => ({ statut: 422, corps: { erreur: "schema_invalide" } });
     await parcours(ENV);
     expect(banc.site.vus).toHaveLength(1);
+  });
+});
+
+describe("Z1 · version du corps figée (D1, D2, D3)", () => {
+  it("D3 : compte de la conversation non listé : corps v1", async () => {
+    await parcours({ ...V3, ORIGINE_V3_COMPTES: "autre-compte-fictif" });
+    expect(JSON.parse(banc.site.vus[0].corps).schemaVersion).toBe(1);
+  });
+  it("D3 : liste des comptes absente : corps v1 (éteinte par défaut)", async () => {
+    await parcours({ ...V3, ORIGINE_V3_COMPTES: undefined });
+    expect(JSON.parse(banc.site.vus[0].corps).schemaVersion).toBe(1);
+  });
+  it("D3 : compte listé parmi d'autres (espaces tolérés) : corps v3", async () => {
+    await parcours({ ...V3, ORIGINE_V3_COMPTES: ` autre-compte-fictif , ${COMPTE} ` });
+    expect(JSON.parse(banc.site.vus[0].corps).schemaVersion).toBe(3);
+  });
+  it("D1 : interrupteur allumé entre deux essais : mêmes octets que le premier essai (v1 figé)", async () => {
+    let n = 0;
+    banc.site.reponses = () => (++n === 1 ? { statut: 503, corps: {} } : { statut: 200, corps: {} });
+    await parcours(ENV);
+    await passer(T0 + 3_600_000, { env: V3 });
+    await passer(T0 + 7_200_000, { env: V3 });
+    expect(banc.site.vus.length).toBeGreaterThanOrEqual(2);
+    for (const v of banc.site.vus) expect(Buffer.from(v.corps).equals(Buffer.from(banc.site.vus[0].corps))).toBe(true);
+    expect(JSON.parse(banc.site.vus[0].corps).schemaVersion).toBe(1);
+  });
+  it("D1 : v3 choisi au premier essai reste v3 si l'interrupteur s'éteint ensuite", async () => {
+    let n = 0;
+    banc.site.reponses = () => (++n === 1 ? { statut: 503, corps: {} } : { statut: 200, corps: {} });
+    await parcours(V3);
+    await passer(T0 + 3_600_000, { env: ENV });
+    await passer(T0 + 7_200_000, { env: ENV });
+    expect(banc.site.vus.length).toBeGreaterThanOrEqual(2);
+    for (const v of banc.site.vus) expect(JSON.parse(v.corps).schemaVersion).toBe(3);
+  });
+  it("D2 : 422 au 3e essai du corps v3 : le corps v1 est quand même essayé", async () => {
+    const statuts = [{ statut: 409, corps: { erreur: "nonce_reutilise" } }, { statut: 409, corps: { erreur: "nonce_reutilise" } }, { statut: 422, corps: { erreur: "schema_invalide" } }];
+    let n = 0;
+    banc.site.reponses = () => statuts[n++] ?? { statut: 200, corps: {} };
+    await parcours(V3);
+    const versions = banc.site.vus.map((v) => JSON.parse(v.corps).schemaVersion);
+    expect(versions.at(-1)).toBe(1);
+    expect(versions).toContain(3);
+    expect(await journal()).not.toContain("site_refuse");
+  });
+  it("D2 : après le repli v1, les essais suivants restent en v1 même interrupteur allumé", async () => {
+    let n = 0;
+    banc.site.reponses = () => (++n === 1 ? { statut: 422, corps: {} } : n === 2 ? { statut: 503, corps: {} } : { statut: 200, corps: {} });
+    await parcours(V3);
+    await passer(T0 + 3_600_000, { env: V3 });
+    await passer(T0 + 7_200_000, { env: V3 });
+    expect(banc.site.vus.slice(1).every((v) => JSON.parse(v.corps).schemaVersion === 1)).toBe(true);
   });
 });
 void C; void pm;
