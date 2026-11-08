@@ -1,5 +1,5 @@
 /**
- * OPÉRATIONS DE RETOUCHE TYPÉES (lot C, PRÉPARATION — non implémentées) : ce que le futur chat de retouche
+ * OPÉRATIONS DE RETOUCHE TYPÉES (lot C, appliquées par le chat de retouche du lot R1 : `services/retouche-chat/`) : ce que le chat de retouche
  * produira à partir d'une phrase de Williams. Chaque opération vise une scène du plan (`ScenePlan.id`) ou tout
  * l'habillage ; l'appliquer donnera un nouveau plan, revalidé (`validerPlan`), dont seules les scènes à l'empreinte
  * changée seront re-rendues (`scenesARerendre`). Le script de Williams fait foi : « changer un mot » ne touche que le
@@ -59,7 +59,96 @@ export interface OperationChangerHabillage {
   position?: { sceneId: string; position: Position };
 }
 
-export type OperationRetouche = OperationChangerMot | OperationAjouterChiffre | OperationChangerBrique | OperationDecalerScene | OperationChangerHabillage;
+/* Lot R1 (chat de retouche) : opérations ajoutées. */
+
+/** Ajouter une pièce en calque à une scène (la scène passe au niveau 2 ; sa pièce d'avant reste dessous). */
+export interface OperationAjouterPiece {
+  type: "ajouter-piece";
+  sceneId: string;
+  piece: IdPiece;
+  parametres?: Record<string, unknown>;
+  zone?: Position;
+  /** Décalage depuis le début de la scène (ms). */
+  debutMs?: number;
+}
+
+/** Retirer d'une scène les calques d'une pièce (plus aucun calque : la scène repasse au niveau 1). */
+export interface OperationRetirerPiece {
+  type: "retirer-piece";
+  sceneId: string;
+  piece: IdPiece;
+}
+
+/** Remplacer une pièce par une autre dans une scène (pièce principale ou calques), paramètres réparés par le validateur. */
+export interface OperationRemplacerPiece {
+  type: "remplacer-piece";
+  sceneId: string;
+  ancienne: IdPiece;
+  nouvelle: IdPiece;
+  parametres?: Record<string, unknown>;
+}
+
+/** Changer la transition d'une scène, ou de toutes (`sceneId` absent). */
+export interface OperationChangerTransition {
+  type: "changer-transition";
+  sceneId?: string;
+  entree?: Transition;
+  sortie?: Transition;
+  dureeMs?: number;
+}
+
+/** Ajouter du dynamisme à des scènes EXISTANTES (zoom caméra doux + transition plus vive) ; `sceneIds` absent : toutes. */
+export interface OperationAjouterDynamisme {
+  type: "ajouter-dynamisme";
+  sceneIds?: string[];
+  intensite: "leger" | "fort";
+}
+
+/** Régler le zoom caméra d'une scène (« zoom plus doux sur le bouton ») : facteur, cible, moment. */
+export interface OperationAjusterZoom {
+  type: "ajuster-zoom";
+  sceneId: string;
+  facteur?: number;
+  cible?: { x: number; y: number };
+  moment?: number;
+}
+
+/**
+ * Modifier le TEXTE LU (script de Williams). Seule opération qui touche la voix ; gardée seulement si la phrase de
+ * Williams demande explicitement de modifier le script.
+ */
+export interface OperationModifierScript {
+  type: "modifier-script";
+  ancien: string;
+  nouveau: string;
+}
+
+export type OperationRetouche =
+  | OperationChangerMot
+  | OperationAjouterChiffre
+  | OperationChangerBrique
+  | OperationDecalerScene
+  | OperationChangerHabillage
+  | OperationAjouterPiece
+  | OperationRetirerPiece
+  | OperationRemplacerPiece
+  | OperationChangerTransition
+  | OperationAjouterDynamisme
+  | OperationAjusterZoom
+  | OperationModifierScript;
 export type TypeOperationRetouche = OperationRetouche["type"];
 
-export const TYPES_OPERATIONS_RETOUCHE = ["changer-mot", "ajouter-chiffre", "changer-brique", "decaler-scene", "changer-habillage"] as const satisfies readonly TypeOperationRetouche[];
+export const TYPES_OPERATIONS_RETOUCHE = [
+  "changer-mot",
+  "ajouter-chiffre",
+  "changer-brique",
+  "decaler-scene",
+  "changer-habillage",
+  "ajouter-piece",
+  "retirer-piece",
+  "remplacer-piece",
+  "changer-transition",
+  "ajouter-dynamisme",
+  "ajuster-zoom",
+  "modifier-script",
+] as const satisfies readonly TypeOperationRetouche[];
