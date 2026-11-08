@@ -6,7 +6,6 @@ import { Carte } from "@/components/ui/Carte";
 import { EnTeteSection } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
-import { JaugeBudget } from "@/components/ui/JaugeBudget";
 import { CarteVideo } from "@/components/videos/CarteVideo";
 import { listerFormatsActifs } from "@/formats";
 import { cn } from "@/lib/cn";
@@ -203,13 +202,6 @@ export default async function PageAccueil() {
               ))}
             </ul>
           </Carte>
-
-          <Link href="/reglages#budget" className="block">
-            <Carte interactive>
-              <p className="mb-3 text-sm font-semibold text-texte-doux">Budget du mois</p>
-              <JaugeBudget depense={r.budget.depense} budget={r.budget.budget} />
-            </Carte>
-          </Link>
 
           {/* Crédit Claude restant (estimé) : affichage seulement ; l'Accueil ne casse jamais s'il manque. */}
           {creditClaude && <CarteCreditClaude vue={creditClaude} />}

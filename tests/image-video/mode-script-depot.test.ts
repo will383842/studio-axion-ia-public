@@ -129,9 +129,10 @@ describe("Image → vidéo · script complet · l'écran de dépôt", () => {
     expect(html).toContain("Coller mon script complet");
   });
 
-  it("l'écran du script : même bouton « au plus » que le mode texte, compteur de mots, bouton inactif tant que le script est vide", () => {
+  it("l'écran du script : même bouton que le mode texte, sans prix, compteur de mots, bouton inactif tant que le script est vide", () => {
     const html = renderToStaticMarkup(createElement(DepotScript, { script: "", onScript: () => undefined, reseaux: [...RESEAUX_IV], montant: 250, onRefus: () => undefined }));
-    expect(html).toContain("Concevoir le schéma et fabriquer la vidéo (au plus");
+    expect(html).toContain("Concevoir le schéma et fabriquer la vidéo");
+    expect(html).not.toMatch(/au plus \d+ ?(€|euro)|€/);
     expect(html).toContain("0 mot sur 300 au plus");
     expect(html).toContain("disabled");
   });

@@ -553,11 +553,11 @@ describe("décors « look HeyGen » : toujours interdits, même réglage allumé
 
 describe("écrans en phrases simples", () => {
   const INTERDIT = /simulation|api|webm|mp4|matting|avatar_v|engine|look|digital|twin|idempotence|heygen_api|\bfalse\b|\btrue\b/i;
-  it("Réglages › Connexions › Double : éteint, prix d'une minute, fond, consigne ; aucun nom technique ni anglais", () => {
+  it("Réglages › Connexions › Double : éteint, aucun prix, fond, consigne ; aucun nom technique ni anglais", () => {
     const html = renderToStaticMarkup(createElement(ReglageDouble, { initial: { allume: false, fond: "sans-fond", prixMinute: { centimes: 378, devise: "EUR" } } }));
     const texte = html.replace(/<[^>]+>/g, " ");
     expect(texte).toContain("Votre avatar parle dans le studio");
-    expect(texte).toContain("Environ 3,78 € par minute de vidéo.");
+    expect(texte).not.toMatch(/€|par minute de vidéo/);
     expect(texte).toContain("Sans fond, posé sur vos décors");
     expect(texte).toContain("Fond uni");
     expect(html).toMatch(/aria-checked="false"/);

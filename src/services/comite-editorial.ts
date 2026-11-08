@@ -47,7 +47,7 @@ import { centimes, centimesDuPlafond, formaterMontant, usdVersEur } from "@/lib/
 import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { libererReservation, MARGE_CREDITS, verifierEtReserverSelonOrigine } from "./credits";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
-import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET } from "./mode-budget";
+import { budgetIndicatifPour } from "./mode-budget";
 import type { OrigineLancement } from "./budget-mensuel";
 import { appelerAvecRotation, claudeActif, cleClaudeDuStudio, coutReelUsd, engageClaudeDuMoisCentimes, envClaude, fetchClaudeEssai, ligne, messageSansCompte, peutEcrire, plafondMensuelClaudeUsd, sousVerrouMois, taux } from "./generation-claude";
 import { marquerEpuisee } from "./source-claude";
@@ -238,11 +238,6 @@ async function reserverPourComite(appelId: string, etape: string, pireUsd: numbe
       if (!indicatif) {
         await journaliser("generateur", `Comité éditorial : plafond des idées du mois atteint (${enEuros}), rien n'est parti`);
         return `Plafond des idées du mois atteint (${enEuros}) : rien n'a été payé.`;
-      }
-      // Arrêt de sécurité : même en indicatif, jamais au-delà de 5 × le repère des idées du mois.
-      if ((await engageIdeesDuMoisCentimes()) + demande > centimesDuPlafond(plafondIdees) * FACTEUR_SECURITE_BUDGET) {
-        await journaliser("generateur", `Comité éditorial : arrêt de sécurité (5 fois le repère des idées du mois, ${enEuros}), rien n'est parti`);
-        return `Arrêt de sécurité : le jugement d'idées dépasserait ${FACTEUR_SECURITE_BUDGET} fois le repère des idées du mois (${enEuros}), rien n'a été payé.`;
       }
       alertes.push(["idees-mois", "Repère des idées du mois dépassé", `Le jugement d'idées continue (repère du mois ${enEuros}) ; rien n'est arrêté. Réglages pour l'ajuster.`]);
     }

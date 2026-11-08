@@ -306,7 +306,7 @@ describe("D1 — Réglages › Connexions avec la configuration de production", 
     expect(f.prix.dureeSec).toBe(DUREE_PRIX_REFERENCE_SEC);
     // INTÉGRATION FINALE : fal.ai branché (FOURNISSEUR_ILLUSTRATION=reel) : la ligne des illustrations « type » compte.
     expect(f.prix.lignes.map((l) => l.quoi)).toEqual(["Voix", "Votre avatar", "Votre avatar, second angle", "Illustrations fabriquées (jusqu'à 8)", "Textes des réseaux", "Montage, sous-titres, couleurs, son, miniature"]);
-    expect(detailMontageReel(f)).toBe(`Environ ${formaterMontant(f.prix.total)} pour une vidéo de 45 s. Éteint : vos vidéos restent des essais.`);
+    expect(detailMontageReel(f)).toBe("Éteint : vos vidéos restent des essais.");
   });
 
   it("écart env/base : « possible » ne dépend pas de miniature/étalonnage/son ; en base seulement, la miniature finale est bien faite sur studio-rendu (vérifié en D3)", async () => {
@@ -323,7 +323,7 @@ describe("D1 — Réglages › Connexions avec la configuration de production", 
     const vue = await renduDouble.vueRenduDouble();
     expect(vue.allume).toBe(false);
     expect(vue.prixMinute.centimes).toBe(378);
-    expect(TEXTES_DOUBLE.prix(vue.prixMinute)).toBe(`Environ ${formaterMontant(vue.prixMinute)} par minute de vidéo.`);
+    expect(Object.keys(TEXTES_DOUBLE)).not.toContain("prix");
     await renduDouble.definirRenduDouble({ allume: true });
     expect(await renduDouble.renduDoubleAllume()).toBe(true);
     await renduDouble.definirRenduDouble({ allume: false });

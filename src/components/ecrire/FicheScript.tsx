@@ -197,7 +197,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
                 <Link href={`/ecrire/sujets/${script.scriptMaitreId}`}>Retoucher avec Claude, depuis le sujet</Link>
               </Bouton>
             ) : (
-              <p className="text-sm text-texte-faible">Corrigez le texte à la main (0 €), ou écrivez un nouveau sujet dans « Écrire ».</p>
+              <p className="text-sm text-texte-faible">Corrigez le texte à la main, ou écrivez un nouveau sujet dans « Écrire ».</p>
             ))}
           <EditeurBlocs
             formatId={script.formatId}

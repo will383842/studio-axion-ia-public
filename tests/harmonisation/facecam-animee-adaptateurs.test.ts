@@ -40,8 +40,9 @@ describe("face caméra animée · page et dépôt", () => {
     expect(depot).toMatch(/const pret = pretesALancer\(prises\) && accord/);
   });
 
-  it("restent à leur place : coût, script validé, accord d'essai, déjà payé", () => {
+  it("restent à leur place : script validé, accord d'essai, déjà payé ; le coût n'est plus affiché", () => {
     expect(depot).toMatch(/<EstimationCout/);
+    expect(lire("src/components/formats/facecam-animee/EstimationCout.tsx")).not.toMatch(/lignesCout|Coût|€/);
     expect(depot).toContain("Utiliser un script validé");
     expect(depot).toMatch(/<FeuilleScriptsValides/);
     expect(depot).toContain("J'accepte l'essai réel");

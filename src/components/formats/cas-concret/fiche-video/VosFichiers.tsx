@@ -1,7 +1,6 @@
 /**
  * « VOS FICHIERS » (tâche U2, plan § 7) : une ligne par réseau (nom, durée, dimensions, phrase de la fin, télécharger,
- * copier le texte, copier le lien, où poser le lien), « Le premier commentaire », « Vérifications », « Ce que la vidéo a
- * coûté ». Reçoit la vue toute faite (`vueCasConcret`). AUCUN bouton de publication ni de programmation.
+ * copier le texte, copier le lien, où poser le lien), « Le premier commentaire », « Vérifications ». Reçoit la vue toute faite (`vueCasConcret`). AUCUN bouton de publication ni de programmation.
  * Vidéo d'essai : la pastille « Essai… », ni lien ni texte à copier.
  */
 import { BoutonLienPrive, type LienPriveVideo } from "@/components/partage/BoutonLienPrive";
@@ -78,10 +77,6 @@ export function VosFichiers({ vue, lienPrive }: { vue: VueCasConcret; lienPrive?
           )}
         </Carte>
       )}
-      <Carte>
-        <h3 className="mb-1 text-sm font-semibold text-texte-doux">Ce que la vidéo a coûté</h3>
-        <p className="text-[17px] font-semibold text-texte">{vue.cout}</p>
-      </Carte>
     </section>
   );
 }

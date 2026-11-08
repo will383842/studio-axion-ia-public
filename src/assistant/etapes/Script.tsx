@@ -180,11 +180,11 @@ export function EtapeScript({ formatId, brouillon, modifier, allerA, contexte, c
                     void ecrireAvecGenerateur(idee);
                   }}
                 >
-                  <Champ libelle="Votre idée" libelleMasque placeholder="Relancer automatiquement les devis qui dorment" value={idee} onChange={(e) => setIdee(e.target.value)} />
+                  <Champ libelle="Votre idée" libelleMasque placeholder="Relancer automatiquement les factures qui dorment" value={idee} onChange={(e) => setIdee(e.target.value)} />
                   <Bouton type="submit" icone="etincelles" pleineLargeur chargement={depart} disabled={idee.trim().length < 3}>
                     Écrire le texte
                   </Bouton>
-                  <p className="text-sm text-texte-faible">Le texte s&apos;écrit dans « Écrire », avec son prix. Ensuite, « Utiliser dans ma vidéo » vous ramène ici.</p>
+                  <p className="text-sm text-texte-faible">Le texte s&apos;écrit dans « Écrire ». Ensuite, « Utiliser dans ma vidéo » vous ramène ici.</p>
                 </form>
               ),
             },

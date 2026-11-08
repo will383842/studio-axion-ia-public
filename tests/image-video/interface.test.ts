@@ -210,8 +210,8 @@ describe("L16 · écran 3 « Le script »", () => {
     const s = v.script!;
     expect(s.prix.auPlusCentimes).toBeGreaterThan(0);
     const html = texte(renderToStaticMarkup(createElement(ScriptEcrans, { videoId: "v-1", ...s })));
-    const auPlus = vue.euros(Math.max(s.prix.auPlusCentimes, s.prix.habituelCentimes));
-    expect(html).toContain(`Valider et fabriquer (au plus ${auPlus})`);
+    expect(html).toContain("Valider et fabriquer");
+    expect(html).not.toMatch(/au plus|€/);
     expect(html).toContain("Modifier le script");
     expect(html).toContain("La question pour faire commenter");
     expect(html).toContain(s.fiche.accroches[0].texteDit);

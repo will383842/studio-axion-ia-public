@@ -13,7 +13,6 @@ import { BoutonFabriquer } from "@/components/formats/commun/BoutonFabriquer";
 import { Bouton } from "@/components/ui/Bouton";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Carte } from "@/components/ui/Carte";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
 import { notifier } from "@/components/ui/Toast";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { ZoneDepot } from "@/components/ui/ZoneDepot";
@@ -27,7 +26,7 @@ import { DepotLot, type ItemLotIV } from "./DepotLot";
 import { DepotScript } from "./DepotScript";
 import { DepotTexte } from "./DepotTexte";
 import { clicIgnore, controleServeurAvantPrix, PHRASE_PRIX_CHANGE, prixRedemandable } from "./sujet-deja-traite";
-import { euros, garderLeLot, OFFRES_IV, refusDimensions, refusFichier, RESEAUX_ECRAN_IV, TYPES_IMAGE_ACCEPTES } from "./vue";
+import { garderLeLot, OFFRES_IV, refusDimensions, refusFichier, RESEAUX_ECRAN_IV, TYPES_IMAGE_ACCEPTES } from "./vue";
 import { ENTREE_IMAGE_VISIBLE, ENTREE_PAR_DEFAUT, ENTREES_VISIBLES, type EntreeDepot } from "./entrees";
 
 /** Destination du dépôt (dossier des entrées du studio). */
@@ -204,8 +203,7 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
     try {
       let montantAffiche = montant;
       for (let essai = 0; ; essai++) {
-        const accord = await confirmerPrix({ message: "Cette image a déjà une vidéo : vous en voulez une autre.", montant: montantAffiche });
-        if (typeof accord !== "number") return;
+        const accord = montantAffiche;
         const r = await deposerImageVideoAction({ fichierId: image.fichierId, reseaux, ...(offre !== "image" ? { offre } : {}), largeur: image.largeur, hauteur: image.hauteur, accordCentimes: accord, sujet: { choix: "refaire", jeton: refus.jeton } });
         if (!r.ok) return void setRefus(r.message);
         const d = r.donnees;
@@ -321,7 +319,7 @@ export function Depot({ montants, blocage }: { /** Prix par nombre de réseaux c
       {blocage && mode === "image" && <p className="text-[15px] text-texte-doux">{blocage}</p>}
       {!(mode !== "image" && !image) && (
       <BarreActionCollee>
-        <BoutonFabriquer montantCentimes={montant} libelle={`Fabriquer la vidéo (au plus ${euros(montant)})`} desactive={!pret} onFabriquer={fabriquer} avantPrix={controlerAvantPrix} message="Au plus ce prix. Seule la lecture de l'image part maintenant : la voix attend votre accord sur le script." />
+        <BoutonFabriquer montantCentimes={montant} libelle="Fabriquer la vidéo" desactive={!pret} onFabriquer={fabriquer} avantPrix={controlerAvantPrix} />
       </BarreActionCollee>
       )}
     </section>
