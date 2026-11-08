@@ -59,11 +59,11 @@ export function creerFournisseurMiniatureStudioRendu(deps: DependancesMiniature)
               idRendu: `miniature-${identifiantSur(videoId)}-${d.i + 1}-${marque}`,
               operation: "miniature",
               file: "courte",
-              entrees: { video: source.url },
+              entrees: source.fondPropre ? {} : { video: source.url },
               sortie: d.sortie,
               parametres: {
                 instantSec: d.instant, dureeSec: source.dureeSec, ratio: source.ratio, couverture: texte, motCle: couverture?.motCle ?? "", variante: d.variante,
-                ...(v2 ? { gabarit: "axion-v2", ambiance, mise: mises[d.variante % mises.length], generateur: source.formatId ?? "" } : {}),
+                ...(v2 ? { gabarit: "axion-v2", ...(source.fondPropre ? { fondPropre: true } : {}), ambiance, mise: mises[d.variante % mises.length], generateur: source.formatId ?? "" } : {}),
               },
             },
             { delaiMs: deps.delaiMs ?? 120_000, essais: ESSAIS_MINIATURE, attendre: deps.attendre, maintenant: deps.maintenant },

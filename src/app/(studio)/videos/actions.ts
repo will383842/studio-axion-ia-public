@@ -223,6 +223,37 @@ export async function refaireMiniaturesAction(videoId: string): Promise<Resultat
   });
 }
 
+/** Titre de la vignette (3 à 5 mots) et mot à mettre en valeur : fixés par Williams, l'image choisie est refaite. */
+export async function fixerCouvertureVignetteAction(videoId: string, texte: string, motCle: string): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    const { fixerCouvertureVignette } = await import("@/services/videos");
+    await fixerCouvertureVignette(videoId, texte, motCle);
+    rafraichir(videoId);
+    return undefined;
+  });
+}
+
+/** « Refaire les vignettes » d'une vidéo : de nouvelles miniatures, les anciennes sont gardées. */
+export async function refaireVignettesAction(videoId: string): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    const { refaireVignettes } = await import("@/services/miniatures");
+    await refaireVignettes(videoId);
+    rafraichir(videoId);
+    return undefined;
+  });
+}
+
+/** « Refaire les vignettes » de toutes les vidéos qui n'ont pas encore la vignette Axion (20 à la fois, rien n'est effacé). */
+export async function refaireToutesLesVignettesAction(): Promise<Resultat<{ videos: number; erreurs: number; restantes: number }>> {
+  await exigerSession();
+  return essayer(async () => {
+    const { refaireToutesLesVignettes } = await import("@/services/miniatures");
+    return refaireToutesLesVignettes();
+  });
+}
+
 export async function corrigerMotAction(videoId: string, segmentId: string, indexMot: number, mot: string): Promise<Resultat> {
   await exigerSession();
   return essayer(async () => {

@@ -435,6 +435,8 @@ export interface SourceMiniature {
   gabarit?: "r4" | "axion-v2";
   formatId?: string;
   rangVideo?: number;
+  /** Aucune vidéo SANS texte : pas de lecture de la vidéo finale (texte déjà incrusté), fond propre de la charte. */
+  fondPropre?: boolean;
   depots: { cle: string; urlDepot: string }[];
 }
 
