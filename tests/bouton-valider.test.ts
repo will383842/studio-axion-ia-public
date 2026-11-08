@@ -1,4 +1,4 @@
-/** Lot S (08/11, Williams) — « Valider » : les 4 étapes + pas prête, et l'action au clic (jamais bloquée). */
+/** Lot S (08/11, Williams) — « Valider » : les 4 étapes et le cas « pas prête » (rendu statique, pas de jsdom dans le dépôt). */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";

@@ -157,13 +157,35 @@ describe("302 vers un lien signé de 600 s", () => {
   });
 });
 
-describe("image → vidéo : la livraison fait foi", () => {
-  const livraison = [
-    { reseau: "linkedin", version: "courte", fichierCle: "studio/dev/iv/v2/linkedin.mp4", format: "4:5" },
-    { reseau: "facebook", version: "longue", fichierCle: "studio/dev/iv/v2/fb-reel.mp4", fichierCleFil: "studio/dev/iv/v2/fb-fil.mp4" },
-    { reseau: "instagram", version: "aucune" },
-  ];
+const livraison = [
+  { reseau: "linkedin", version: "courte", fichierCle: "studio/dev/iv/v2/linkedin.mp4", format: "4:5" },
+  { reseau: "facebook", version: "longue", fichierCle: "studio/dev/iv/v2/fb-reel.mp4", fichierCleFil: "studio/dev/iv/v2/fb-fil.mp4" },
+  { reseau: "instagram", version: "aucune" },
+];
 
+describe("redirection ouverte : une clé trompeuse ne mène jamais hors du studio", () => {
+  it.each([["//evil.example/a.mp4"], ["/\\evil.example/a.mp4"], ["\\\\evil.example\\a.mp4"], ["/\t/evil.example/a.mp4"]])("clé %j", async (cle) => {
+    await semer("v1");
+    await depots().fichiers.modifier("f-v1-9:16", { cleStockage: cle });
+    await connecte();
+    const r = await GET(requete("?video=v1&ratio=9:16"));
+    const lieu = r.headers.get("location");
+    if (lieu) {
+      expect(new URL(lieu).hostname).not.toBe("evil.example");
+      expect(["localhost", "r2.exemple"]).toContain(new URL(lieu).hostname);
+    } else expect(r.status).toBe(404);
+  });
+
+  it("sans signature possible (média du studio), une adresse « //hote » est refusée", async () => {
+    await semer("v1");
+    await depots().fichiers.modifier("f-v1-9:16", { cleStockage: "//evil.example/a.mp4" });
+    await connecte();
+    const r = await GET(requete("?video=v1&ratio=9:16"));
+    expect(r.headers.get("location") ?? "").not.toMatch(/^(https?:)?\/\/evil\.example/);
+  });
+});
+
+describe("image → vidéo : la livraison fait foi", () => {
   it("réseau LinkedIn : son fichier", async () => {
     await semer("v2", {}, livraison);
     await connecte();
@@ -199,6 +221,16 @@ describe("service", () => {
     }
     expect((await fichierATelecharger("v1", {}))?.cle).toBeTruthy();
     expect(await fichierATelecharger("inconnue", {})).toBeNull();
+  });
+
+  it("le nom suit le fichier réellement servi : « fil » seulement pour le fil Facebook, format de la livraison sinon", async () => {
+    await semer("v2", {}, livraison);
+    expect((await fichierATelecharger("v2", { reseau: "facebook", fil: true }))?.nom).toMatch(/-facebook-fil\.mp4$/);
+    expect((await fichierATelecharger("v2", { reseau: "facebook" }))?.nom).toMatch(/-facebook-9-16\.mp4$/);
+    // fil=1 sans Facebook : le fichier servi n'est pas un fil, le nom ne le dit pas ; le ratio demandé ne le renomme pas.
+    expect((await fichierATelecharger("v2", { reseau: "linkedin", fil: true, ratio: "16:9" }))?.nom).toMatch(/-linkedin-4-5\.mp4$/);
+    await semer("v1");
+    expect((await fichierATelecharger("v1", { fil: true }))?.nom).not.toContain("fil.mp4");
   });
 
   it("nomTelechargement : [A-Za-z0-9-], 80 au plus, .mp4", () => {
