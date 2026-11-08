@@ -153,23 +153,43 @@ describe("lireMessage · platformMessageId, tri décroissant, garde-fous", () =>
     expect((await lire(port, { occurredAt: T })).texte).toBe("page deux");
     expect(faux.appels).toHaveLength(2);
   });
-  it("senderId différent de l'expéditeur connu : écarté (horodatage)", async () => {
-    const { port } = fabrique([{ statut: 200, corps: liste([msg(1, { message: "autre personne", senderId: "autre-fictif" })]) }]);
-    expect(await lire(port, { occurredAt: T, idExpediteur: "personne-fictive-500" })).toEqual({ texte: null, postback: null, introuvable: true });
+  it("senderId différent de l'expéditeur connu : PAS d'exclusion (départage seulement, comme #223)", async () => {
+    const { port } = fabrique([{ statut: 200, corps: liste([msg(1, { message: "autre senderId", senderId: "autre-fictif" })]) }]);
+    expect(await lire(port, { occurredAt: T, idExpediteur: "personne-fictive-500" })).toEqual({ texte: "autre senderId", postback: null });
   });
   it("senderId absent : non écarté", async () => {
     const { port } = fabrique([{ statut: 200, corps: liste([msg(1, { message: "sans sender", senderId: undefined })]) }]);
     expect((await lire(port, { occurredAt: T, idExpediteur: "personne-fictive-500" })).texte).toBe("sans sender");
   });
-  it("metadata.standby === true : message ignoré (même à l'horodatage exact ou par id)", async () => {
-    const a = fabrique([{ statut: 200, corps: liste([msg(1, { message: "veille", metadata: { standby: true } })]) }]);
-    expect(await lire(a.port, { occurredAt: T })).toEqual({ texte: null, postback: null, introuvable: true });
-    const b = fabrique([{ statut: 200, corps: liste([msg(1, { message: "veille", metadata: { standby: true } })]) }]);
-    expect((await lire(b.port, { idPlateforme: mid(1) })).texte).toBeNull();
+  it("metadata.standby === true : message RENDU avec veille:true (jamais écarté), à l'horodatage comme par id", async () => {
+    const a = fabrique([{ statut: 200, corps: liste([msg(1, { message: "stop", metadata: { standby: true } })]) }]);
+    expect(await lire(a.port, { occurredAt: T })).toEqual({ texte: "stop", postback: null, veille: true });
+    const b = fabrique([{ statut: 200, corps: liste([msg(1, { message: "stop", metadata: { standby: true } })]) }]);
+    expect(await lire(b.port, { idPlateforme: mid(1) })).toEqual({ texte: "stop", postback: null, veille: true });
   });
   it("metadata.standby false ou absent : message lu normalement", async () => {
     const { port } = fabrique([{ statut: 200, corps: liste([msg(1, { message: "actif", metadata: { standby: false } })]) }]);
-    expect((await lire(port, { occurredAt: T })).texte).toBe("actif");
+    expect(await lire(port, { occurredAt: T })).toEqual({ texte: "actif", postback: null });
+  });
+  it("réponse de liste SANS bloc pagination : page unique, introuvable (jamais une panne)", async () => {
+    const { port, faux } = fabrique([{ statut: 200, corps: { messages: [msg(1, { createdAt: dec(-3_600_000) })] } }]);
+    expect(await lire(port, { occurredAt: T })).toEqual({ texte: null, postback: null, introuvable: true });
+    expect(faux.appels).toHaveLength(1);
+  });
+  it("idPlateforme fourni mais absent de la liste → repli sur l'ancien id", async () => {
+    const { port } = fabrique([{ statut: 200, corps: liste([msg(1, { message: "horodatage" }), msg(2, { id: ID_WEBHOOK, message: "ancien id", createdAt: dec(1900) })]) }]);
+    expect((await lire(port, { occurredAt: T, idPlateforme: mid(99) })).texte).toBe("ancien id");
+  });
+  it("idPlateforme fourni mais absent de la liste, sans ancien id → repli sur l'horodatage", async () => {
+    const { port } = fabrique([{ statut: 200, corps: liste([msg(1, { message: "par horodatage" })]) }]);
+    expect((await lire(port, { occurredAt: T, idPlateforme: mid(99) })).texte).toBe("par horodatage");
+  });
+  it("en desc : pas d'arrêt anticipé tant que l'idPlateforme fourni n'est pas trouvé (il est sur la page 2)", async () => {
+    const { port, faux } = fabrique((a) => a.url.includes("cursor=suite")
+      ? { statut: 200, corps: liste([msg(9, { message: "par plateforme", createdAt: dec(-4_000_000) })], { hasMore: false }, "desc") }
+      : { statut: 200, corps: liste([msg(1, { createdAt: dec(-3_600_000) })], { hasMore: true, nextCursor: "suite" }, "desc") });
+    expect((await lire(port, { occurredAt: T, idPlateforme: mid(9) })).texte).toBe("par plateforme");
+    expect(faux.appels).toHaveLength(2);
   });
   it("heure lue dans sentAt si createdAt est absent", async () => {
     const { port } = fabrique([{ statut: 200, corps: liste([msg(1, { message: "par sentAt", createdAt: undefined, sentAt: T })]) }]);

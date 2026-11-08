@@ -161,7 +161,7 @@ describe("port inbox · lireMessage", () => {
     { id: "exemple-msg-inconnu", message: "sans direction" },
   ];
   const lire = async (idMessage: string) => {
-    const { port, faux } = fabrique([{ statut: 200, corps: { messages, pagination: { hasMore: false } } }]);
+    const { port, faux } = fabrique([{ statut: 200, corps: { messages } }]);
     const r = await port.lireMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", idMessage });
     return { r, faux };
   };
