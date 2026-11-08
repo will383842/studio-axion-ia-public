@@ -1,9 +1,8 @@
 /**
  * Écran commun « Relire le script » : le bouton principal. Une API pour tous les formats (tableau animé, cas concret,
- * assistant) : `libelleLancer` en phrase entière OU selon le nombre de phrases modifiées ; `prixCentimes` absent = rien
- * à payer à ce geste (`lancer(script, true)`, sans confirmation) ; 0 avec
- * `prixDejaPaye` (voix déjà payée reprise, tableau) = accord 0 sans feuille ; tout autre prix, 0 compris sans
- * l'option, passe TOUJOURS par la confirmation. Sans DOM (crochets factices), aucun réseau.
+ * assistant) : `libelleLancer` en phrase entière OU selon le nombre de phrases modifiées ; aucun prix affiché ni
+ * confirmation (décision du 08/11/2026) : `prixCentimes` absent = `lancer(script, true)`, sinon l'accord part avec
+ * le montant déclaré. Sans DOM (crochets factices), aucun réseau.
  */
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,78 +34,49 @@ beforeEach(() => {
   lancer.mockClear();
 });
 
-describe("RelireScript : un geste payant ne part jamais sans confirmation", () => {
-  it("prix > 0 : la confirmation s'ouvre avec ce prix, puis le lancement porte le montant accepté", async () => {
-    confirmerPrix.mockResolvedValue(89);
+describe("RelireScript : un geste avec montant part directement, sans confirmation ni prix affiché", () => {
+  it("montant > 0 : aucune confirmation, le lancement porte le montant", async () => {
     await cliquer({ prixCentimes: 89 });
-    expect(confirmerPrix).toHaveBeenCalledWith(expect.objectContaining({ montant: 89 }));
+    expect(confirmerPrix).not.toHaveBeenCalled();
     expect(lancer).toHaveBeenCalledTimes(1);
     expect(lancer.mock.calls[0]).toEqual([expect.anything(), 89]);
   });
 
-  it("prix > 0 avec un libellé en phrase entière (tableau) : toujours confirmé", async () => {
-    confirmerPrix.mockResolvedValue(null);
-    await cliquer({ prixCentimes: 89, libelleLancer: "Découper en scènes (≈ 0,89 € au plus)" });
-    expect(confirmerPrix).toHaveBeenCalledTimes(1);
-    expect(lancer).not.toHaveBeenCalled();
+  it("montant > 0 avec un libellé en phrase entière (tableau) : part directement", async () => {
+    await cliquer({ prixCentimes: 89, libelleLancer: "Découper en scènes" });
+    expect(confirmerPrix).not.toHaveBeenCalled();
+    expect(lancer.mock.calls[0]).toEqual([expect.anything(), 89]);
   });
 
-  it("prix > 0, confirmation refusée : rien ne part", async () => {
-    confirmerPrix.mockResolvedValue(null);
-    await cliquer({ prixCentimes: 420, libelleLancer: (n) => (n ? "Valider le script modifié" : "Valider ce script") });
-    expect(lancer).not.toHaveBeenCalled();
-  });
-
-  it("prix non nombre (NaN) ou négatif : confirmé quand même, jamais d'accord à 0", async () => {
-    confirmerPrix.mockResolvedValue(null);
-    await cliquer({ prixCentimes: Number.NaN });
-    await cliquer({ prixCentimes: -1 });
-    expect(confirmerPrix).toHaveBeenCalledTimes(2);
-    expect(lancer).not.toHaveBeenCalled();
-  });
-
-  it("sans prix (rien à payer, ex. valider le script) : part sans confirmation, `lancer(script, true)`", async () => {
+  it("sans montant (ex. valider le script) : part sans confirmation, `lancer(script, true)`", async () => {
     await cliquer({ libelleLancer: (n) => (n ? "Valider le script modifié" : "Valider ce script") });
     expect(confirmerPrix).not.toHaveBeenCalled();
     expect(lancer.mock.calls[0]).toEqual([expect.anything(), true]);
   });
 
-  it("prix 0 sans l'option : confirmerPrix appelé avec montant 0 (comme avant, cas concret et assistant)", async () => {
-    confirmerPrix.mockResolvedValue(0);
+  it("montant 0 : accord 0, sans confirmation (avec ou sans `prixDejaPaye`)", async () => {
     await cliquer({ prixCentimes: 0 });
-    expect(confirmerPrix).toHaveBeenCalledWith(expect.objectContaining({ montant: 0 }));
-    expect(lancer.mock.calls[0]).toEqual([expect.anything(), 0]);
-  });
-
-  it("prix 0 avec l'option `prixDejaPaye` (voix déjà payée reprise, tableau) : accord 0, sans feuille", async () => {
-    await cliquer({ prixCentimes: 0, prixDejaPaye: true, libelleLancer: "Fabriquer la vidéo (voix déjà payée)" });
+    await cliquer({ prixCentimes: 0, prixDejaPaye: true, libelleLancer: "Fabriquer la vidéo" });
     expect(confirmerPrix).not.toHaveBeenCalled();
-    expect(lancer.mock.calls[0]).toEqual([expect.anything(), 0]);
-  });
-
-  it("option `prixDejaPaye` avec un prix non nul : confirmé quand même", async () => {
-    confirmerPrix.mockResolvedValue(null);
-    await cliquer({ prixCentimes: 89, prixDejaPaye: true });
-    expect(confirmerPrix).toHaveBeenCalledWith(expect.objectContaining({ montant: 89 }));
-    expect(lancer).not.toHaveBeenCalled();
+    expect(lancer.mock.calls.map((c) => c[1])).toEqual([0, 0]);
   });
 });
 
 describe("RelireScript : libellé du bouton, en phrase ou en fonction", () => {
   const libelle = (p: Partial<Proprietes>) => texteDe(boutonPrincipal(ecran(p).rendre())).replace(/\s/g, " ");
 
-  it("phrase entière : telle quelle (le format y met son prix)", () => {
-    expect(libelle({ prixCentimes: 89, libelleLancer: "Découper en scènes (≈ 0,89 € au plus)" })).toBe("Découper en scènes (≈ 0,89 € au plus)");
+  it("phrase entière : telle quelle", () => {
+    expect(libelle({ prixCentimes: 89, libelleLancer: "Découper en scènes" })).toBe("Découper en scènes");
   });
 
-  it("fonction : selon les phrases modifiées, le prix ajouté s'il y en a un", () => {
+  it("fonction : selon les phrases modifiées, jamais de prix ajouté", () => {
     const f = (n: number) => (n ? "Valider le script modifié" : "Valider ce script");
     expect(libelle({ libelleLancer: f })).toBe("Valider ce script");
-    expect(libelle({ libelleLancer: f, prixCentimes: 420 })).toBe("Valider ce script (≈ 4,20 €)");
+    expect(libelle({ libelleLancer: f, prixCentimes: 420 })).toBe("Valider ce script");
   });
 
-  it("par défaut : « Lancer la vidéo (≈ prix) », et sans prix « Lancer la vidéo »", () => {
-    expect(libelle({ prixCentimes: 420 })).toBe("Lancer la vidéo (≈ 4,20 €)");
+  it("par défaut : « Lancer la vidéo », avec ou sans montant", () => {
+    expect(libelle({ prixCentimes: 420 })).toBe("Lancer la vidéo");
     expect(libelle({})).toBe("Lancer la vidéo");
   });
 });

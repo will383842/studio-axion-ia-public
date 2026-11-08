@@ -52,7 +52,8 @@ describe("Vos fichiers", () => {
     expect((t.match(/Copier le texte/g) ?? []).length).toBe(4);
     expect((t.match(/Copier le lien/g) ?? []).length).toBe(4);
     expect((t.match(/Où poser le lien/g) ?? []).length).toBe(4);
-    for (const bloc of ["Le premier commentaire", "Vérifications", "Ce que la vidéo a coûté", "0,42 €"]) expect(t).toContain(bloc);
+    for (const bloc of ["Le premier commentaire", "Vérifications"]) expect(t).toContain(bloc);
+    expect(t).not.toMatch(/a coûté|0,42|€/);
   });
 
   it("la phrase « Fin : diagnostic et lien » s'affiche avec sa raison", () => {
