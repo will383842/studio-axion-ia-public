@@ -49,13 +49,25 @@ export interface MessageLu {
 export interface PortInboxZernio {
   repondreCommentaire(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; cle: string }): Promise<ResultatEcritureInbox>;
   repondreEnPrive(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; boutons?: BoutonPostback[] }): Promise<ResultatEcritureInbox>;
-  /** Ne retient QUE les messages ENTRANTS de la personne (jamais nos messages sortants ni les échos). */
-  lireMessage(p: { idCompte: string; idConversation: string; idMessage: string }): Promise<MessageLu>;
+  /**
+   * Retrouve d'abord par id (id/_id/messageId = idMessage), sinon par HORODATAGE (entrant, createdAt ≈ occurredAt à ±2 s) : l'id du
+   * webhook n'est jamais celui de la liste. Ne retient QUE les messages ENTRANTS de la personne (jamais nos messages sortants ni les échos). */
+  lireMessage(p: { idCompte: string; idConversation: string; idMessage: string; occurredAt?: string; idExpediteur?: string }): Promise<MessageLu>;
   envoyerMessage(p: { idCompte: string; idConversation: string; texte: string; boutons?: BoutonPostback[]; cle: string }): Promise<ResultatEcritureInbox>;
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 const TEXTE_MAX = 2000;
+const PAGES_MAX = 10;
+const TOLERANCE_MS = 2000;
+
+/** Contenu d'un message de la liste : texte dans `message` (chaîne, ou objet { text } par prudence). Sortant, écho : rien. */
+function lireContenu(m: Record<string, unknown>): MessageLu {
+  if (!estEntrant(m)) return { texte: null, postback: null };
+  const brut = typeof m.message === "string" ? m.message : estObjet(m.message) && typeof m.message.text === "string" ? m.message.text : "";
+  const pb = estObjet(m.postback) ? m.postback.payload : undefined;
+  return { texte: brut.length > 0 ? brut.slice(0, TEXTE_MAX) : null, postback: typeof pb === "string" && pb.length <= 64 ? pb : null };
+}
 
 /** Clé d'idempotence stable : même clé métier + même route + même cible = même `inbox-<hex>`. */
 function cleInbox(route: string, ...parties: string[]): string {
@@ -169,21 +181,42 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
 
     async lireMessage(p) {
       const vide: MessageLu = { texte: null, postback: null };
+      const cible = typeof p.occurredAt === "string" ? Date.parse(p.occurredAt) : NaN;
+      let meilleur: { m: Record<string, unknown>; ecart: number; sender: boolean } | undefined;
+      let curseur: string | undefined;
+      const vus = new Set<string>();
       try {
-        const rep = await client.requete({
-          methode: "GET",
-          chemin: `/v1/inbox/conversations/${p.idConversation}/messages`,
-          query: { accountId: p.idCompte },
-          comptesPermis: comptesLecture,
-        });
-        // Réponse sans tableau « messages » = réponse mal formée = PANNE (jamais « sans texte »).
-        if (!estObjet(rep.corps) || !Array.isArray(rep.corps.messages)) return { ...vide, panne: true };
-        const m = rep.corps.messages.find((x): x is Record<string, unknown> => estObjet(x) && (x.id === p.idMessage || x._id === p.idMessage));
-        if (!m) return { ...vide, introuvable: true };
-        if (!estEntrant(m)) return vide;
-        const texte = typeof m.text === "string" && m.text.length > 0 ? m.text.slice(0, TEXTE_MAX) : null;
-        const pb = estObjet(m.postback) ? m.postback.payload : undefined;
-        return { texte, postback: typeof pb === "string" && pb.length <= 64 ? pb : null };
+        for (let page = 0; page < PAGES_MAX; page++) {
+          const rep = await client.requete({
+            methode: "GET",
+            chemin: `/v1/inbox/conversations/${p.idConversation}/messages`,
+            query: { accountId: p.idCompte, ...(curseur ? { cursor: curseur } : {}) },
+            comptesPermis: comptesLecture,
+          });
+          // Réponse sans tableau « messages » = réponse mal formée = PANNE (jamais « sans texte »).
+          if (!estObjet(rep.corps) || !Array.isArray(rep.corps.messages)) return { ...vide, panne: true };
+          for (const x of rep.corps.messages) {
+            if (!estObjet(x)) continue;
+            // 1er choix : l'ancienne correspondance par id.
+            if (x.id === p.idMessage || x._id === p.idMessage || x.messageId === p.idMessage) return lireContenu(x);
+            if (!Number.isFinite(cible) || !estEntrant(x) || typeof x.createdAt !== "string") continue;
+            const t = Date.parse(x.createdAt);
+            if (!Number.isFinite(t)) continue;
+            const ecart = Math.abs(t - cible);
+            if (ecart > TOLERANCE_MS) continue;
+            const sender = p.idExpediteur !== undefined && x.senderId === p.idExpediteur;
+            if (!meilleur || ecart < meilleur.ecart || (ecart === meilleur.ecart && sender && !meilleur.sender)) meilleur = { m: x, ecart, sender };
+          }
+          const pag = estObjet(rep.corps.pagination) ? rep.corps.pagination : undefined;
+          const suivant = typeof pag?.nextCursor === "string" && pag.nextCursor.length > 0 && pag.nextCursor.length <= 512 && /^[A-Za-z0-9_=.+/-]+$/.test(pag.nextCursor) ? pag.nextCursor : undefined;
+          // Fin de liste, ou curseur absent / déjà vu (pas de boucle) : on s'arrête.
+          if (pag?.hasMore === false || !suivant || vus.has(suivant)) break;
+          vus.add(suivant);
+          curseur = suivant;
+        }
+        // L'id est testé sur TOUTES les pages avant de se rabattre sur l'horodatage.
+        if (!meilleur) return { ...vide, introuvable: true };
+        return lireContenu(meilleur.m);
       } catch {
         return { ...vide, panne: true };
       }
