@@ -9,7 +9,7 @@ import { exigerSession } from "@/services/auth";
 import { pageAPublierAllumee, vueAPublier } from "@/services/a-publier";
 import { complementsAPublier } from "@/services/a-publier-zernio";
 
-export const metadata: Metadata = { title: "À publier" };
+export const metadata: Metadata = { title: "Vidéos validées" };
 export const dynamic = "force-dynamic";
 
 /** Détail d'une vidéo à publier : lecteur entier, case unique, un bouton par réseau prêt. Lien partageable, ouvert sur le réseau choisi, retour à la liste de ce réseau avec son filtre. */
@@ -30,7 +30,7 @@ export default async function PageDetailAPublier({ params, searchParams }: { par
   const suivantes = Object.fromEntries(lignes.map((l) => [l.reseau, videoSuivante(toutes, id, sp.liste === "tous" ? "tous" : l.reseau, filtre, nombreAffichees(sp.n))]));
   return (
     <div>
-      <EnTetePage titre="À publier" retour={{ href: retour, libelle: "Retour à la liste" }} />
+      <EnTetePage titre="Vidéos validées" retour={{ href: retour, libelle: "Retour à la liste" }} />
       <LignesAPublier vue={{ ...vue, lignes }} retour={retour} reseauOuvert={reseau === "tous" ? undefined : reseau} suivantes={suivantes} complements={complements} />
     </div>
   );
