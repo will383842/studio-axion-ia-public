@@ -40,16 +40,16 @@ export interface StylePastille {
 }
 
 /**
- * « Pastille Axion » : pastille pleine encre `#110A05` (coins entièrement arrondis), texte ivoire `#F6F1E8` en Inter Bold,
- * mot dit en orange clair `#E8A27F` (teinte de l'orange brûlé `#B44F29` éclaircie pour être lisible sur l'encre),
+ * « Pastille Axion » : pastille pleine noir `#141413` (coins entièrement arrondis), texte ivoire `#FAF9F5` en Manrope Bold,
+ * mot dit en orange `#D97757` (palette Axion 2026, sur noir seulement),
  * 62 px en 1080 × 1920 (jamais sous 52), marges 1,5 % × 4 % de la largeur, mot dit +5 % (un mot long un peu moins :
  * il ne déborde jamais de plus de 0,06 em de chaque côté) et 4 % d'em plus haut.
  */
 export const PASTILLE_AXION: StylePastille = Object.freeze({
   nom: "Pastille Axion",
-  fond: "#110A05",
-  texte: "#F6F1E8",
-  motDit: "#E8A27F",
+  fond: "#141413",
+  texte: "#FAF9F5",
+  motDit: "#D97757",
   taillePx: 62,
   tailleMinPx: 52,
   poids: 700,
@@ -65,8 +65,7 @@ export const PASTILLE_AXION: StylePastille = Object.freeze({
 }) as StylePastille;
 
 /**
- * « Pastille Axion » sur l'ARDOISE du tableau (critique #291, D1) : l'encre `#110A05` s'y confond avec l'ardoise
- * `#140E09` ; la pastille y est un peu plus claire (`#241912`) et cernée d'un bord fin sable (`#8A7660`, 4,2:1 sur
- * l'ardoise), comme la maquette B. Texte et mot dit inchangés (≥ 4,5:1).
+ * « Pastille Axion » sur l'ARDOISE du tableau (critique #291, D1) : le noir de la pastille se confond avec l'ardoise ; elle y est cernée
+ * d'un bord fin gris `#B0AEA5` (gris sur noir). Texte et mot dit inchangés (≥ 4,5:1).
  */
-export const PASTILLE_AXION_ARDOISE: StylePastille = Object.freeze({ ...PASTILLE_AXION, nom: "Pastille Axion (ardoise)", fond: "#241912", bord: Object.freeze({ couleur: "#8A7660", px: 2 }) }) as StylePastille;
+export const PASTILLE_AXION_ARDOISE: StylePastille = Object.freeze({ ...PASTILLE_AXION, nom: "Pastille Axion (ardoise)", fond: "#141413", bord: Object.freeze({ couleur: "#B0AEA5", px: 2 }) }) as StylePastille;

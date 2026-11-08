@@ -71,6 +71,7 @@ COPY --chown=rendu:rendu src/domaine/facecam-animee/plan.ts /app/src/domaine/fac
 COPY --chown=rendu:rendu src/visuels/proprietes-page.ts /app/src/visuels/proprietes-page.ts
 COPY --chown=rendu:rendu src/domaine/visuels /app/src/domaine/visuels
 COPY --chown=rendu:rendu src/briques/visuels /app/src/briques/visuels
+COPY --chown=rendu:rendu src/briques/charte /app/src/briques/charte
 COPY --chown=rendu:rendu src/lib/lut3d.ts src/lib/qc-lut.ts src/lib/erreur-lisible.ts /app/src/lib/
 
 # Contrôle à la construction : la construction ÉCHOUE si l'opération `visuel-page` ou `assemblage-pdf` ne se charge pas (import nu introuvable…).
