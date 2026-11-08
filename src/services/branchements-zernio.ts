@@ -14,6 +14,7 @@
  *  - Alertes : au plus une par heure et par sujet ; des codes et des phrases, jamais d'identifiant, d'adresse ni de secret.
  */
 import "server-only";
+import { comptesParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { creerNotification } from "./notifications";
 import { journaliser, lireParametre } from "./_commun";
 
@@ -52,7 +53,7 @@ const vue = (i: Interne): EtatBranchement => ({ branche: i.branche, cleZernio: i
 const present = (env: Env, nom: string): boolean => (env[nom]?.trim() ?? "") !== "";
 /** Même règle que le parcours : éteint par défaut, allumé seulement par 1 / true / oui. */
 const allume = (env: Env): boolean => /^(1|true|oui)$/i.test(env[VARIABLE_INTERRUPTEUR]?.trim() ?? "");
-const listeComptes = (env: Env): string[] => (env[VARIABLE_COMPTES] ?? "").split(",").map((c) => c.trim()).filter(Boolean);
+const listeComptes = (env: Env): string[] => comptesParcours(env);
 
 /** État courant du branchement (copie), ou null si jamais branché ni passé dans ce processus. */
 export function etatBranchementZernio(): EtatBranchement | null {
@@ -147,6 +148,8 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   const comptesLecture = (enregistres?.comptes ?? []).filter((c) => c.reseau === "instagram" || c.reseau === "facebook").map((c) => c.id);
   const comptesPermis = listeComptes(env).filter((c, n, tous) => comptesLecture.includes(c) && tous.indexOf(c) === n);
   const titre = (env[VARIABLE_TITRE_GUIDE] ?? "").trim();
+  // Un compte retiré de la liste : ses lignes GUIDE actives passent en pause automatique (hors de tout verrou, avant l'envoi).
+  await etape("guides hors liste", async () => (await import("./mots-service")).pauserGuidesHorsListe(env));
   // (5) Liste d'envoi vide ou titre absent : alerte, AUCUNE conversation traitée (aucun envoi, pas de m1_refuse) ;
   //     mais les « stop » déjà en file sont quand même transmis et rattrapés : un « stop » n'est jamais perdu.
   const sansEnvoi = comptesPermis.length === 0 || !titre;

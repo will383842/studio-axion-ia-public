@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { activerMotLocalAction, mettreEnPauseAction, mettreEnPauseLocalAction, reactiverAction, refermerDisjoncteurAction, reglerPlafondsAction } from "@/app/(studio)/mots/actions";
+import { activerMotLocalAction, mettreEnPauseAction, mettreEnPauseLocalAction, reactiverAction, refermerDisjoncteurAction, reglerPlafondsAction, validerMotGuideAction } from "@/app/(studio)/mots/actions";
 import type { VueMots } from "@/services/mots-service";
 import type { EtatBranchement } from "@/services/branchements-zernio";
 import { EcranMots, type ServicesMots } from "./EcranMots";
@@ -14,9 +14,10 @@ export const SERVICES_MOTS: ServicesMots = {
   mettreEnPauseLocal: mettreEnPauseLocalAction,
   refermerDisjoncteur: refermerDisjoncteurAction,
   reglerPlafonds: reglerPlafondsAction,
+  validerGuide: validerMotGuideAction,
 };
 
-export function EcranMotsConnecte({ vue, branchement }: { vue: VueMots; branchement: EtatBranchement | null }) {
+export function EcranMotsConnecte({ vue, branchement, comptes }: { vue: VueMots; comptes: readonly string[]; branchement: EtatBranchement | null }) {
   const router = useRouter();
-  return <EcranMots vue={vue} services={SERVICES_MOTS} branchement={branchement} onChange={() => router.refresh()} />;
+  return <EcranMots vue={vue} services={SERVICES_MOTS} branchement={branchement} comptes={comptes} onChange={() => router.refresh()} />;
 }

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { doitExpirer, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
 import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -28,7 +28,10 @@ const graine = (etat: string, extra: Record<string, unknown> = {}) => ({
   cleIdempotenceGuide: "b".repeat(64), creeLe: new Date(T0 - 50 * H).toISOString(), m1Le: null, occurredAt: null, m2Envoye: false, essaisSite: 0, essaisPub: 0, essaisM1: 0, prochainEssaiLe: null, dernierCode: null, alias: [], ...extra,
 });
 const semer = async (id: string, etat: string, extra: Record<string, unknown> = {}) => Com.ecrireParametre(C.PARAM_CONVERSATIONS, { ...(await tout()), [cleConversation(id)]: graine(etat, extra) });
-const registre = (etat: string) => Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat, idWorkflow: null, raison: null, modifieLe: "x" } });
+const registre = async (etat: string) => {
+  await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat, idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
+};
 
 beforeEach(async () => {
   reinitialiserDepots();

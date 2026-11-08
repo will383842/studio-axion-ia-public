@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signatureZernio } from "@/domaine/guide-reseau/crochet-zernio";
 import type { RunLu } from "@/domaine/guide-reseau/crochet-zernio";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -32,6 +32,7 @@ beforeEach(async () => {
   pm.reinitialiserGardesParcours();
   silencerConsole();
   await Com.ecrireParametre(S.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
 });
 afterEach(() => {
   vi.restoreAllMocks();

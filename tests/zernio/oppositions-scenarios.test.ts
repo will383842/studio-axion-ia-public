@@ -1,6 +1,6 @@
 /** Lot 5d · scénarios de bout en bout des « stop » (rejeu, doublons, désordre, R5, fuites). Données 100 % fictives ; port et site FAUX. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, silencerConsole } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 import { H, MIN, graineConv, lectureParMessage, siteDouble } from "./aides/oppositions";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -21,7 +21,10 @@ const conversations = () => Com.lireParametre<Record<string, any>>(C.PARAM_CONVE
 const conv = async (id = A) => (await conversations())[cleConversation(id)];
 const file = () => Com.lireParametre<Record<string, any>>(OT.PARAM_OPPOSITIONS_FILE, {});
 const semer = async (etat: string, extra: Record<string, unknown> = {}, id = A) => Com.ecrireParametre(C.PARAM_CONVERSATIONS, { ...(await conversations()), [cleConversation(id)]: graineConv(etat, extra) });
-const registre = () => Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+const registre = async () => {
+  await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
+};
 /** Insère une opposition « venue d'ailleurs » directement au registre (sans verrou : utilisable depuis un espion de lecture). */
 const opposerAilleurs = (id = A) => Com.ecrireParametre(OPP.PARAM_OPPOSITIONS_MOTS, [{ id: cleConversation(id), le: "x", transmise: false }]);
 const registreIllisible = () => Com.ecrireParametre(OPP.PARAM_OPPOSITIONS_MOTS, [{ id: "p1.deadbeef." + "0".repeat(64), le: "x", transmise: false }]);
