@@ -451,20 +451,30 @@ const pannesSite = (code: string): boolean => code === "injoignable" || code ===
  *  - PANNE de lecture (erreur, accès, réseau) : réessai à délai croissant, JAMAIS ignoré ni conclu « non opposé » (comme un registre
  *    illisible), alerte au plus une par heure ;
  *  - message INTROUVABLE dans la liste : réessais à 5 min, 30 min, 2 h, 6 h ; ignoré seulement si la dernière lecture échoue aussi ;
- *  - message SANS texte (bouton, sortant) : 3 réessais puis ignoré.
+ *  - message SANS texte (bouton, sortant) : 3 réessais puis ignoré ;
+ *  - liste Zernio INCOMPLÈTE (limite de pages, curseur refusé) : si `plafonner`, 6 essais espacés puis clos « ignore » avec une alerte distincte.
+ *    Jamais plafonné quand seule une opposition compte (orphelin, état terminal) : un « stop » n'est jamais perdu.
+ * `veille` : le message a été écrit pendant la reprise humaine : l'appelant le lit mais n'y répond jamais.
  */
-async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte: string, idConversation: string, idMessage: string, now: number): Promise<{ texte: string } | null> {
+const ESSAIS_LISTE_INCOMPLETE = 6;
+async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte: string, idConversation: string, idMessage: string, now: number, plafonner: boolean): Promise<{ texte: string; veille: boolean } | null> {
   const c = ev.charge;
   const occurredAt = typeof c.occurredAt === "string" ? c.occurredAt : undefined;
   const idExpediteur = typeof c.idExpediteur === "string" && c.idExpediteur ? c.idExpediteur : undefined;
+  const idPlateforme = typeof c.idPlateforme === "string" && c.idPlateforme ? c.idPlateforme : undefined;
   let lu: MessageLu;
   try {
-    lu = await d.port.lireMessage({ idCompte, idConversation, idMessage, ...(occurredAt ? { occurredAt } : {}), ...(idExpediteur ? { idExpediteur } : {}) });
+    lu = await d.port.lireMessage({ idCompte, idConversation, idMessage, ...(idPlateforme ? { idPlateforme } : {}), ...(occurredAt ? { occurredAt } : {}), ...(idExpediteur ? { idExpediteur } : {}) });
   } catch {
     lu = { texte: null, postback: null, panne: true };
   }
   if (lu.panne === true) {
     const n = Number(c.pannesLecture ?? 0);
+    if (plafonner && lu.codePanne === "liste-incomplete" && n + 1 >= ESSAIS_LISTE_INCOMPLETE) {
+      await alerter("liste_incomplete", "La lecture d'un message privé est abandonnée : liste Zernio trop longue ou incomplète (6 essais). L'événement est clos sans réponse ; à vérifier dans l'Inbox Zernio.", now);
+      await clore(ev, "ignore", "liste_incomplete");
+      return null;
+    }
     const s = transition(null, { t: "texte_panne", essais: n });
     await reporter(ev, now, s.apresMs ?? 30_000, "lecture_panne", { pannesLecture: n + 1 });
     const horsListe = !(d.comptesLecture ?? d.comptesPermis).includes(idCompte) && !d.comptesPermis.includes(idCompte);
@@ -488,7 +498,7 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
     else await clore(ev, "ignore", "texte_absent");
     return null;
   }
-  return { texte: lu.texte };
+  return { texte: lu.texte, veille: lu.veille === true };
 }
 
 /** Opposition écrite en privé : TOUS les identifiants connus de la personne (expéditeur, auteur du commentaire d'origine, alias) sont opposés. */
@@ -539,7 +549,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await alerter("compte_hors_liste", "Un message privé arrive sur un compte absent des listes autorisées : il est gardé en attente (il peut contenir un « stop »). Vérifier les comptes autorisés.", now);
       return "traite";
     }
-    const lu = await lireTexte(ev, d, idCompte, idConversation, idMessage, now);
+    const lu = await lireTexte(ev, d, idCompte, idConversation, idMessage, now, false);
     if (!lu) return "traite";
     if (estMotOpposition(lu.texte)) {
       await enregistrerOpposition(idExpediteur!, ESPACE_CONVERSATION, { env });
@@ -583,7 +593,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, "ignore", "conversation_inconnue");
     return "traite";
   }
-  const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now);
+  const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now, s0.action !== "lire_opposition");
   if (!lu) return "traite";
   if (s0.action === "lire_opposition") {
     // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition.
@@ -593,6 +603,11 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   if (estMotOpposition(lu.texte)) {
     await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
+    return "traite";
+  }
+  // Veille : un humain a repris la conversation. Le « stop » a été lu ci-dessus ; ici plus rien ne part (ni M2, ni appel au site, ni accusé).
+  if (lu.veille) {
+    await clore(ev, "silence", "veille");
     return "traite";
   }
   // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
