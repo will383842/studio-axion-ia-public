@@ -66,8 +66,8 @@ export function VignetteVideo({
         <span className="absolute bottom-2 right-2 rounded-md bg-fond/75 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-texte backdrop-blur">{dureeEnviron ? `≈ ${chrono(dureeSec)}` : chrono(dureeSec)}</span>
       )}
       {lecture && progression === undefined && (
-        <span className="absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-fond/60 text-texte backdrop-blur transition-transform group-hover:scale-110">
-          <Icone nom="lecture" size={20} className="translate-x-0.5" fill="currentColor" />
+        <span className="absolute bottom-2 left-2 grid size-9 place-items-center rounded-full bg-fond/70 text-texte backdrop-blur transition-transform group-hover:scale-110">
+          <Icone nom="lecture" size={16} className="translate-x-0.5" fill="currentColor" />
         </span>
       )}
       {progression !== undefined && (

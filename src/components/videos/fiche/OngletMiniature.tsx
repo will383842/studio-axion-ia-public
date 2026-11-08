@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { choisirMiniatureAction, refaireMiniaturesAction } from "@/app/(studio)/videos/actions";
+import { choisirMiniatureAction, fixerCouvertureVignetteAction, refaireMiniaturesAction, refaireToutesLesVignettesAction, refaireVignettesAction } from "@/app/(studio)/videos/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { EtatVide } from "@/components/ui/EtatVide";
@@ -24,21 +24,23 @@ export interface MiniatureVue {
 type Apercu = "instagram" | "youtube";
 
 /** Miniature (niveau 3) : 3 propositions, titre de couverture, aperçu Instagram (4:5) et YouTube (16:9). */
-export function OngletMiniature({ videoId, miniatures, dureeLibelle }: { videoId: string; miniatures: MiniatureVue[]; dureeLibelle: string }) {
+export function OngletMiniature({ videoId, miniatures, dureeLibelle, couverture }: { videoId: string; miniatures: MiniatureVue[]; dureeLibelle: string; couverture?: { texte: string; motCle: string; fixee: boolean } }) {
   const router = useRouter();
   const initiale = miniatures.find((m) => m.choisie) ?? miniatures[0];
   const [choisie, setChoisie] = useState(initiale?.id);
-  const [titre, setTitre] = useState(initiale?.titre ?? "");
   const [apercu, setApercu] = useState<Apercu>("instagram");
+  const [titreVignette, setTitreVignette] = useState(couverture?.texte ?? initiale?.titre ?? "");
+  const [motCle, setMotCle] = useState(couverture?.motCle ?? "");
   const [enCours, demarrer] = useTransition();
 
   if (!miniatures.length) return <EtatVide compact icone="image" titre="Pas encore de miniature" />;
   const courante = miniatures.find((m) => m.id === choisie) ?? miniatures[0];
-  const modifie = courante.id !== initiale?.id || titre !== (initiale?.titre ?? "");
+  const modifie = courante.id !== initiale?.id;
   const ecrit = !!courante.incrustee;
-  const refaire = ecrit && titre.trim() !== courante.titre.trim();
   const aCode = miniatures.some((m) => titreCommenceParCodeInterne(m.titre));
-  const mots = titre.trim().split(/\s+/).filter(Boolean).length;
+  const mots = titreVignette.trim().split(/\s+/).filter(Boolean).length;
+  const couvertureModifiee = titreVignette.trim() !== (couverture?.texte ?? "") || motCle.trim() !== (couverture?.motCle ?? "");
+  const motsValides = mots >= 3 && mots <= 5;
 
   return (
     <div className="space-y-5">
@@ -53,7 +55,6 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle }: { videoId
                 aria-label={`Proposition ${i + 1}`}
                 onClick={() => {
                   setChoisie(m.id);
-                  setTitre(m.titre);
                 }}
                 className={cn("relative block aspect-[9/16] w-full overflow-hidden rounded-xl border-2 transition-[border-color,transform] duration-200", actif ? "scale-[1.02] border-orange shadow-orange" : "border-trait hover:border-trait-fort")}
               >
@@ -69,13 +70,36 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle }: { videoId
         })}
       </ul>
 
-      <Champ
-        libelle="Titre de couverture"
-        value={titre}
-        onChange={(e) => setTitre(e.target.value)}
-        maxLength={60}
-        aide={ecrit ? (mots > 5 ? "5 mots au plus sont écrits sur l'image : le titre sera raccourci." : "Le titre est écrit sur l'image : si vous le changez, l'image est refaite.") : undefined}
-      />
+      <div className="space-y-3">
+        <Champ
+          libelle="Titre de la vignette"
+          value={titreVignette}
+          onChange={(e) => setTitreVignette(e.target.value)}
+          maxLength={60}
+          aide={mots > 5 ? "5 mots au plus." : mots < 3 ? "3 à 5 mots." : couverture && !couverture.fixee ? "Proposé par le studio : changez-le si vous le souhaitez." : "L'image est refaite à chaque changement."}
+        />
+        <Champ libelle="Mot à mettre en valeur" value={motCle} onChange={(e) => setMotCle(e.target.value)} maxLength={30} aide="Un mot du titre, facultatif." />
+        {couvertureModifiee && (
+          <Bouton
+            icone="coche"
+            chargement={enCours}
+            disabled={!motsValides}
+            onClick={() =>
+              demarrer(async () => {
+                const r = await fixerCouvertureVignetteAction(videoId, titreVignette.trim(), motCle.trim());
+                if (!r.ok) {
+                  notifier.erreur(r.message);
+                  return;
+                }
+                notifier.succes("Vignette refaite avec votre titre");
+                router.refresh();
+              })
+            }
+          >
+            Enregistrer et refaire l&apos;image
+          </Bouton>
+        )}
+      </div>
 
       {modifie && (
         <Bouton
@@ -83,19 +107,59 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle }: { videoId
           chargement={enCours}
           onClick={() =>
             demarrer(async () => {
-              const r = await choisirMiniatureAction(videoId, courante.id, titre.trim() || undefined);
+              const r = await choisirMiniatureAction(videoId, courante.id);
               if (!r.ok) {
                 notifier.erreur(r.message);
                 return;
               }
-              notifier.succes(refaire ? "Miniature refaite avec votre titre" : "Miniature choisie");
+              notifier.succes("Miniature choisie");
               router.refresh();
             })
           }
         >
-          {refaire ? "Refaire l'image avec ce titre" : "Garder cette miniature"}
+          Garder cette miniature
         </Bouton>
       )}
+
+      <div className="flex flex-wrap gap-2">
+        <Bouton
+          variante="secondaire"
+          icone="image"
+          chargement={enCours}
+          onClick={() =>
+            demarrer(async () => {
+              const r = await refaireVignettesAction(videoId);
+              if (!r.ok) {
+                notifier.erreur(r.message);
+                return;
+              }
+              notifier.succes("Vignettes refaites, les anciennes sont gardées");
+              router.refresh();
+            })
+          }
+        >
+          Refaire les vignettes
+        </Bouton>
+        <Bouton
+          variante="secondaire"
+          icone="image"
+          chargement={enCours}
+          onClick={() =>
+            demarrer(async () => {
+              const r = await refaireToutesLesVignettesAction();
+              if (!r.ok) {
+                notifier.erreur(r.message);
+                return;
+              }
+              const { videos, erreurs, restantes } = r.donnees;
+              notifier.succes(`${videos} vidéo${videos > 1 ? "s" : ""} refaite${videos > 1 ? "s" : ""}${erreurs ? `, ${erreurs} en échec` : ""}${restantes ? ` · il en reste ${restantes} : relancez` : ""}`);
+              router.refresh();
+            })
+          }
+        >
+          Refaire toutes les vignettes
+        </Bouton>
+      </div>
 
       {aCode && (
         <Bouton
@@ -141,7 +205,7 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle }: { videoId
                 {i === 0 ? (
                   <>
                     <Image src={courante.url} alt="" fill sizes="130px" className="object-cover" />
-                    {!ecrit && <span className="absolute inset-x-1.5 bottom-1.5 line-clamp-3 font-titre text-[11px] uppercase leading-tight text-texte">{titre}</span>}
+                    {!ecrit && <span className="absolute inset-x-1.5 bottom-1.5 line-clamp-3 font-titre text-[11px] uppercase leading-tight text-texte">{titreVignette}</span>}
                   </>
                 ) : (
                   <span aria-hidden className="absolute inset-0 lueur opacity-40" />
@@ -153,13 +217,13 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle }: { videoId
           <div className="max-w-sm">
             <div className="relative aspect-video overflow-hidden rounded-xl border border-trait">
               <Image src={courante.url} alt="" fill sizes="384px" className="object-cover" />
-              {!ecrit && <span className="absolute inset-y-0 left-4 flex max-w-[60%] items-center font-titre text-lg uppercase leading-tight text-texte">{titre}</span>}
+              {!ecrit && <span className="absolute inset-y-0 left-4 flex max-w-[60%] items-center font-titre text-lg uppercase leading-tight text-texte">{titreVignette}</span>}
               <span className="absolute bottom-2 right-2 rounded bg-fond/80 px-1.5 text-[11px] font-bold tabular-nums text-texte">{dureeLibelle}</span>
             </div>
             <div className="mt-2 flex gap-2.5">
               <span className="size-9 shrink-0 rounded-full bg-orange" aria-hidden />
               <div className="min-w-0">
-                <p className="line-clamp-2 text-sm font-semibold text-texte">{titre || "Sans titre"}</p>
+                <p className="line-clamp-2 text-sm font-semibold text-texte">{titreVignette || "Sans titre"}</p>
                 <p className="text-xs text-texte-faible">Axion-IA</p>
               </div>
             </div>
