@@ -28,11 +28,11 @@ export function Coquille({ formats, nonLues, surLeSite = false, aPublier = false
               <Logo />
             </Link>
             <div className="hidden flex-1 lg:block">
-              <Recherche variante="champ" />
+              <Recherche variante="champ" aPublier={aPublier} surLeSite={surLeSite} />
             </div>
             <div className="ml-auto flex items-center gap-1">
               <span className="lg:hidden">
-                <Recherche />
+                <Recherche aPublier={aPublier} surLeSite={surLeSite} />
               </span>
               <Cloche nonLuesInitial={nonLues} />
             </div>
