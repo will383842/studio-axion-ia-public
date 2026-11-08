@@ -13,7 +13,6 @@ import { Dialogue } from "@/components/ui/Dialogue";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
-import { formaterMontant } from "@/lib/montants";
 import type { BoutonRetoucheTableau, ChoixRetoucheTableau } from "@/services/tableau-vue";
 import { BoutonsRetoucheTableau } from "./BoutonsRetouche";
 import { CoutVoixTableau } from "./CoutVoix";
@@ -70,7 +69,7 @@ export function RetouchesTableau({ videoId, retouches, choix, coutCentimes, poss
         titre={bouton?.libelle ?? ""}
         pied={
           <Bouton chargement={enCours} disabled={!operation} onClick={envoyer}>
-            {prix !== null ? `Confirmer ${formaterMontant({ centimes: prix, devise: "EUR" })}` : "Retoucher"}
+            {prix !== null ? "Confirmer" : "Retoucher"}
           </Bouton>
         }
       >
@@ -91,7 +90,7 @@ export function RetouchesTableau({ videoId, retouches, choix, coutCentimes, poss
           {besoin?.texte && (!besoin.element || saisie.elementId) && (besoin.texte !== "dit" || scene) && (
             <ZoneTexte libelle={besoin.texte === "dit" ? "Ce que dit la voix" : "Le texte écrit"} value={saisie.texte ?? ""} onChange={(e) => changer({ ...saisie, texte: e.target.value })} />
           )}
-          {prix !== null && <p className="text-[15px] font-semibold text-texte">La voix est refaite : environ {formaterMontant({ centimes: prix, devise: "EUR" })}. Rien n&apos;est payé avant votre accord.</p>}
+          {prix !== null && <p className="text-[15px] font-semibold text-texte">La voix est refaite.</p>}
           {refus && (
             <p role="alert" className="text-[15px] text-brique">
               {refus}

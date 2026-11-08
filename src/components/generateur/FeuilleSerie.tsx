@@ -8,7 +8,6 @@ import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
-import { formaterMontant } from "@/lib/montants";
 import type { PlanSerie } from "@/services/serie-ecriture";
 import { ReglagesSujet, type EtatReglagesSujet } from "./ReglagesSujet";
 
@@ -20,8 +19,7 @@ export interface IdeeSerie {
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 /**
- * Confirmation d'une écriture en série (B7) : prix total maximum (N × prix d'un sujet, calculé par le studio), ce que
- * le budget du mois couvre, et les réglages communs. Rien ne part avant « Écrire ».
+ * Confirmation d'une écriture en série (B7) : ce que le mois couvre, et les réglages communs. Rien ne part avant « Écrire ».
  */
 export function FeuilleSerie({
   ouverte,
@@ -107,42 +105,23 @@ export function FeuilleSerie({
       titre={n > 1 ? `Écrire ces ${n} idées` : "Écrire cette idée"}
       pied={
         <Bouton pleineLargeur taille="lg" icone="ecrire" disabled={!plan || !partiront || !reglages.pret} chargement={envoi || (!plan && !erreur)} onClick={ecrire}>
-          {!plan ? "Calcul du prix" : partiront === 0 ? "Budget du mois atteint" : partiront < n ? `Écrire ${pluriel(partiront, "idée")} sur ${n}` : n > 1 ? `Écrire ces ${n} idées` : "Écrire"}
+          {!plan ? "Calcul en cours" : partiront === 0 ? "Aucune idée ne part" : partiront < n ? `Écrire ${pluriel(partiront, "idée")} sur ${n}` : n > 1 ? `Écrire ces ${n} idées` : "Écrire"}
         </Bouton>
       }
     >
       <div className="space-y-4 pb-2">
-        <div className="rounded-carte border border-trait bg-surface-2 p-4" role="status" aria-live="polite">
-          {erreur ? (
-            <p className="text-sm font-semibold text-texte">{erreur}</p>
-          ) : !plan ? (
-            <p className="h-12 animate-pulse rounded bg-surface-1" aria-label="Calcul du prix" />
-          ) : (
-            <>
-              <p className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-semibold text-texte-doux">Au plus</span>
-                <span className="text-2xl font-bold tabular-nums text-texte">{formaterMontant(plan.totalMax)}</span>
+        {(erreur || !plan || plan.essai) && (
+          <div className="rounded-carte border border-trait bg-surface-2 p-4" role="status" aria-live="polite">
+            {erreur ? (
+              <p className="text-sm font-semibold text-texte">{erreur}</p>
+            ) : !plan ? (
+              <p className="h-12 animate-pulse rounded bg-surface-1" aria-label="Calcul en cours" />
+            ) : (
+              <p className="flex items-center gap-2 text-xs text-texte-faible">
+                <PastilleEssai />
+                Rien n&apos;est payé tant que Claude n&apos;est pas branché.
               </p>
-              <p className="mt-1 text-xs text-texte-faible">
-                {pluriel(n, "idée")} × {formaterMontant(plan.prixUnitaire)}
-              </p>
-              {plan.essai && (
-                <p className="mt-3 flex items-center gap-2 text-xs text-texte-faible">
-                  <PastilleEssai />
-                  Rien n&apos;est payé tant que Claude n&apos;est pas branché.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        {plan && plan.partiront >= plan.demandees && plan.limite && (
-          <div className="flex items-start gap-3 rounded-carte border border-ambre/40 bg-ambre-doux p-3">
-            <Icone nom="attention" size={18} className="mt-0.5 shrink-0 text-ambre" />
-            <p className="text-sm font-semibold leading-snug text-texte">
-              {plan.limite === "claude" ? "Le repère d'écriture du mois est dépassé" : "Le budget indicatif du mois est dépassé"} : tout part quand même.{" "}
-              <span className="font-normal text-texte-doux">Rien n&apos;est bloqué : le prix n&apos;arrête jamais la fabrication.</span>
-            </p>
+            )}
           </div>
         )}
 
@@ -153,8 +132,8 @@ export function FeuilleSerie({
               {plan.partiront === 0
                 ? plan.limite === "claude"
                   ? "La limite d'écriture du mois est atteinte."
-                  : "Le budget du mois est atteint."
-                : `${plan.limite === "claude" ? "La limite d'écriture du mois" : "Le budget du mois"} couvre ${pluriel(plan.partiront, "idée")} : ${plan.partiront > 1 ? "elles partent" : "elle part"} (au plus ${formaterMontant(plan.totalPartant)}).`}{" "}
+                  : "La limite du mois est atteinte."
+                : `${plan.limite === "claude" ? "La limite d'écriture du mois" : "La limite du mois"} couvre ${pluriel(plan.partiront, "idée")} : ${plan.partiront > 1 ? "elles partent" : "elle part"}.`}{" "}
               <span className="font-normal text-texte-doux">{plan.demandees - plan.partiront > 1 ? "Les autres restent en idée." : "L'autre reste en idée."}</span>
             </p>
           </div>

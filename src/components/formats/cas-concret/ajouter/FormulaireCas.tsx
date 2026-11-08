@@ -175,7 +175,7 @@ export function FormulaireCas() {
       <Champ id={id("scene")} libelle="La scène, au présent, sans nom ni chiffre" aide="Ce qui se passe avant : une situation, pas un client réel." max={260} valeur={s.scene} enFaute={fautes.has("scene")} erreur={err("scene")}>
         {(p) => <textarea {...p} rows={4} value={s.scene} maxLength={260} onChange={(e) => maj("scene", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("exemple")} libelle="L'exemple suivi" aide="La chose que la vidéo suit du début à la fin (« ce devis envoyé… »)." max={80} valeur={s.exemple} enFaute={fautes.has("exemple")} erreur={err("exemple")}>
+      <Champ id={id("exemple")} libelle="L'exemple suivi" aide="La chose que la vidéo suit du début à la fin (« ce dossier envoyé… »)." max={80} valeur={s.exemple} enFaute={fautes.has("exemple")} erreur={err("exemple")}>
         {(p) => <input {...p} type="text" value={s.exemple} maxLength={80} onChange={(e) => maj("exemple", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
       <Champ id={id("taches")} libelle="Ce qui se fait à la main aujourd'hui" aide="Une tâche par ligne, de 2 à 6, 6 mots au plus chacune." enFaute={fautes.has("taches")} erreur={err("taches")}>

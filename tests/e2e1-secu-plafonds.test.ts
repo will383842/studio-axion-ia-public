@@ -75,19 +75,28 @@ function moisPrecedent(): string {
 }
 
 describe("E2E-1 n° 6 · plafond du sujet : les appels parallèles se voient", () => {
-  it("4 appels lancés ensemble sous un plafond qui en permet 2 : 2 partent, 2 s'arrêtent, rien au-delà du plafond", async () => {
+  it("4 appels lancés ensemble sous un plafond qui en permet 2 : commande de Will, les 4 partent (repère) ; commande de l'Usine, 2 partent, 2 s'arrêtent", async () => {
     await credits.declarerRecharge("anthropic", 500);
     const appels = brancherLent();
     const r = estimationRealisteRole(roleSonde, entree);
     // L3-01 (audit) : le plafond se contrôle en centimes de dollar entiers, chaque appel au centime supérieur (r < 1 c$
     // compte 1 c$) : un plafond de 2 c$ en permet exactement 2.
     expect(Math.ceil(r * 100)).toBe(1);
+    // 08/11/2026 : pour une commande de Will, le plafond du sujet n'est qu'un repère, même avec le réglage « bloquant ».
+    await ecrireParametre("budget.mode", "bloquant");
     const g = await nouvelleGeneration(0.02);
     const res = await Promise.all([1, 2, 3, 4].map(() => gc.executerRoleFacture(g.id, roleSonde, entree)));
-    expect(res.filter((x) => x.ok)).toHaveLength(2);
-    expect(res.filter((x) => !x.ok && x.arret === "plafond-atteint")).toHaveLength(2);
+    expect(res.filter((x) => x.ok)).toHaveLength(4);
+    expect(appels).toHaveLength(4);
+    // L'Usine reste bloquante : le verrou fait toujours se voir les appels parallèles, rien au-delà du plafond.
+    const { moisParis } = await import("@/services/couts");
+    await ecrireParametre(`budget.usine.${moisParis()}`, { budget_mensuel_cents: 100_000, mois: moisParis(), le: new Date().toISOString() });
+    const gu = await nouvelleGeneration(0.02);
+    const resUsine = await Promise.all([1, 2, 3, 4].map(() => gc.executerRoleFacture(gu.id, roleSonde, entree, { origine: "usine" })));
+    expect(resUsine.filter((x) => x.ok)).toHaveLength(2);
+    expect(resUsine.filter((x) => !x.ok && x.arret === "plafond-atteint")).toHaveLength(2);
     // Avant la correction, les 4 lisaient la même dépense (0) et partaient tous.
-    expect(appels).toHaveLength(2);
+    expect(appels).toHaveLength(6);
   });
 
   it("aucune réservation oubliée : un appel arrêté par la limite du mois rend sa place dans le plafond du sujet", async () => {
@@ -97,7 +106,8 @@ describe("E2E-1 n° 6 · plafond du sujet : les appels parallèles se voient", (
     // L3-01 (audit) : plafond en centimes entiers ; un appel (r < 1 c$) y compte 1 c$, la place entière du sujet.
     const g = await nouvelleGeneration(0.01);
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 0);
-    const res = await gc.executerRoleFacture(g.id, roleSonde, entree);
+    // 08/11/2026 : seule une commande de l'Usine est encore arrêtée par la limite du mois.
+    const res = await gc.executerRoleFacture(g.id, roleSonde, entree, { origine: "usine" });
     expect(res).toMatchObject({ ok: false, arret: "en-attente-credit" });
     // Toute la place du sujet est encore libre.
     expect(await gc.reserverDansPlafondSujet(g.id, "sonde-test", r * 1.5)).toEqual({ ok: true });

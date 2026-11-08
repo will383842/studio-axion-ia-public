@@ -1,6 +1,7 @@
 /**
  * Socle « le prix ne bloque jamais » · montage réel : en mode indicatif, une vidéo montée pour de vrai part SANS confirmation
- * de prix (le prix du jour est journalisé « accepté sans confirmation ») ; en mode bloquant, la garde R8 refuse comme avant.
+ * de prix (le prix du jour est journalisé « accepté sans confirmation ») ; témoin : depuis le 08/11/2026, le réglage
+ * `budget.mode` = « bloquant » ne rétablit plus la garde R8, la vidéo part de même.
  * Harnais repris de `r8-bout-en-bout` (fournisseurs doublés, aucun appel réel, 0 €).
  */
 import { readFileSync } from "node:fs";
@@ -229,10 +230,12 @@ describe("montage réel : le prix ne bloque pas en indicatif", () => {
     expect((await depots().evenements.lister()).some((e) => /accepté sans confirmation/.test(e.message))).toBe(true);
   });
 
-  it("TÉMOIN — bloquant : sans « confirme », CONFIRMATION_REQUISE comme avant", async () => {
+  it("TÉMOIN — réglé « bloquant » : sans « confirme », aucun CONFIRMATION_REQUISE, la vidéo part montée pour de vrai", async () => {
     await preparer();
     await reglages.definirMontageReel("avocat", true);
     await ecrireParametre("budget.mode", "bloquant");
-    await expect(fabrication.lancerFabrication(VIDEO)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    const { versionId } = await fabrication.lancerFabrication(VIDEO);
+    expect((await depots().versions.obtenir(versionId))!.commande.moteurId).toBe("montage-avocat");
+    expect((await depots().evenements.lister()).some((e) => /accepté sans confirmation/.test(e.message))).toBe(true);
   });
 });

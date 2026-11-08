@@ -3,8 +3,7 @@
  * Montants en centimes de dollar entiers, bornes 0,50 $ à 5 $, session exigée, journal (ancienne et nouvelle valeur),
  * défaut 1,50 $ inchangé sans saisie, aucun effet sur le plafond de la grande chaîne, aucun réseau.
  */
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { existsSync, readFileSync } from "node:fs";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import { preparerMotDePasse } from "./helpers/g1a";
@@ -19,8 +18,6 @@ const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const gc = await import("@/services/generation-claude");
 const { lirePlafondSujet, BORNES_PLAFOND_SUJET_CENTIMES } = await import("@/services/plafond-sujet");
 const { definirPlafondSujetAction } = await import("@/app/(studio)/reglages/actions-plafond-sujet");
-
-const { PlafondSujet, centimesDepuisTexte } = await import("@/components/reglages/PlafondSujet");
 
 const MDP = "essai-plafond-sujet";
 const appelsReseau: string[] = [];
@@ -64,15 +61,11 @@ describe("valeur déjà posée hors des bornes de saisie : la VRAIE valeur appli
     [0.2, 20, "0,20 $"],
     [0, 0, "0,00 $"],
     [1.234, 123, "1,234 $"],
-  ])("%s $ en base : lue telle quelle, signalée hors bornes, identique à plafondChaineUsd", async (usd, centimes, texte) => {
+  ])("%s $ en base : lue telle quelle, signalée hors bornes, identique à plafondChaineUsd", async (usd, centimes) => {
     await ecrireParametre(gc.PARAM_PLAFOND_SUJET, usd);
     const l = await lirePlafondSujet();
     expect(l).toMatchObject({ usd, centimes, reglee: true, horsBornes: true });
     expect(l.usd).toBe(await gc.plafondChaineUsd("courte"));
-    const html = renderToStaticMarkup(createElement(PlafondSujet, { ...l, chaine: "courte" }));
-    expect(html).toContain(`Plafond actuel : ${texte}`);
-    expect(html).not.toContain("par défaut");
-    expect(html).toContain("hors des bornes de saisie");
   });
   it("une valeur dans les bornes n'est pas signalée", async () => {
     await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 2);
@@ -145,27 +138,10 @@ describe("session", () => {
 });
 
 describe("l'écran", () => {
-  it("lit la saisie en centimes entiers, sans flottant", () => {
-    expect(centimesDepuisTexte("1,5")).toBe(150);
-    expect(centimesDepuisTexte("1.50")).toBe(150);
-    expect(centimesDepuisTexte("0,29")).toBe(29);
-    expect(centimesDepuisTexte("2")).toBe(200);
-    for (const mauvais of ["", "abc", "1,555", "-1", "1e2", "100"]) expect(centimesDepuisTexte(mauvais)).toBeNull();
-  });
-  it("affiche l'intitulé, l'explication et le plafond actuel (défaut signalé)", () => {
-    const html = renderToStaticMarkup(createElement(PlafondSujet, { usd: 1.5, centimes: 150, reglee: false, horsBornes: false, chaine: null }));
-    expect(html).toContain("Plafond d&#x27;un sujet (Écrire)");
-    expect(html).toContain("pas le prix");
-    expect(html).toContain("0,3 à 0,4 $");
-    expect(html).toContain("Plafond actuel : 1,50 $");
-    expect(html).toContain("par défaut");
-    expect(html).not.toContain("hors des bornes");
-  });
-  it("dit que le plafond s'applique à la chaîne « courte » (équipe et grande verrouillées) et montre la chaîne active", () => {
-    const rendu = (chaine: "courte" | "equipe" | null) => renderToStaticMarkup(createElement(PlafondSujet, { usd: 1.5, centimes: 150, reglee: false, horsBornes: false, chaine }));
-    expect(rendu(null)).toContain("s&#x27;applique à la chaîne « courte »");
-    expect(rendu("courte")).toContain("Chaîne active : courte");
-    expect(rendu("equipe")).toContain("Chaîne active : équipe");
-    expect(rendu(null)).toContain("Chaîne active : grande");
+  it("le plafond n'est plus affiché ni réglable dans les Réglages (aucun prix dans l'interface)", () => {
+    expect(existsSync("src/components/reglages/PlafondSujet.tsx")).toBe(false);
+    const page = readFileSync("src/app/(studio)/reglages/page.tsx", "utf8");
+    expect(page).not.toContain("PlafondSujet");
+    expect(page).not.toContain("lirePlafondSujet");
   });
 });

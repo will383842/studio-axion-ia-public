@@ -2,14 +2,14 @@
 
 /**
  * ÉCRAN « VOTRE VIDÉO » (étape `express`, lot M3 ; plan PARTIE A §2-3, B.0 §2 et §16, B.9).
- * Cinq blocs empilés, chacun avec une image et une ligne : Script · Plateau · Voix · Style · Coût.
+ * Quatre blocs empilés, chacun avec une image et une ligne : Script · Plateau · Voix · Style.
  * - Mode RAPIDE : on ne touche que le texte (tout le reste est déjà réglé sur les habitudes), puis « Fabriquer ».
  * - Mode PAS À PAS : les mêmes feuilles du bas, enchaînées avec « Suivant » (mêmes composants, mêmes défauts).
  * Chaque bloc ouvre une feuille du bas qui RÉUTILISE l'étape existante en mode compact (aucune copie d'écran).
  * Le brouillon s'enregistre tout seul ≈ 800 ms après chaque changement (coquille de l'assistant).
  * « Fabriquer » ouvre la relecture du script (brique 6, même sous le seuil) dès qu'une voix de synthèse dit le texte :
- * les phrases se relisent et se modifient, les contrôles tournent en direct, puis « Lancer la vidéo (≈ prix) » confirme
- * le prix et lance. La flèche retour garde les phrases retouchées. Vidéo déjà filmée (« rush ») : pas de relecture.
+ * les phrases se relisent et se modifient, les contrôles tournent en direct, puis « Lancer la vidéo » confirme
+ * et lance. La flèche retour garde les phrases retouchées. Vidéo déjà filmée (« rush ») : pas de relecture.
  */
 import { motion } from "motion/react";
 import Image from "next/image";
@@ -36,17 +36,15 @@ import type { DifferenceLigne, ResultatLancement, ScriptRelu } from "@/domaine/r
 import type { BlocScript } from "@/domaine/types";
 import { briquesEffectives, debitLecture, estimerDureeTexte, libelleDuree, obtenirFormat, zoneDuree } from "@/formats";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import type { DetailCredit } from "@/services/credits";
 import type { ApercuFabrication } from "@/services/fabrication";
 import { FeuillePlateau } from "../express/FeuillePlateau";
-import { aDuTexte, blocSuivant, decisionLancement, elementsAVerifier, etatPlateau, etatVoix, libelleBoutonFabriquer, libelleManques, manquesAvantFabrication, ouvreLaRelecture, premiereFois, prixEnVrai, sujetDepuisScript, type BlocExpress, type BlocManquant, type TonBloc } from "../express/logique";
+import { aDuTexte, blocSuivant, BLOCS_EXPRESS, decisionLancement, elementsAVerifier, etatPlateau, etatVoix, libelleManques, manquesAvantFabrication, ouvreLaRelecture, premiereFois, sujetDepuisScript, type BlocExpress, type BlocManquant, type TonBloc } from "../express/logique";
 import { decorDe, imageDecor, proprietesPlateau } from "../express/plateau";
 import { RelectureAssistant } from "../express/RelectureAssistant";
 import { VoirLesPlans } from "../express/VoirLesPlans";
 import { ZoneColler } from "../express/ZoneColler";
 import { entreesAvecOrigine } from "@/domaine/voyant-rouge";
-import { EtapeApercu } from "./Apercu";
 import { ChoixVoix } from "./Distribution";
 import { EtapeReglages } from "./Reglages";
 import { EtapeScript, type OngletScript } from "./Script";
@@ -61,8 +59,11 @@ const TITRES: Record<BlocExpress, { titre: string; icone: NomIcone }> = {
   plateau: { titre: "Plateau", icone: "camera" },
   voix: { titre: "Voix", icone: "micro" },
   style: { titre: "Style", icone: "curseurs" },
-  cout: { titre: "Coût", icone: "euro" },
+  cout: { titre: "Aperçu", icone: "jauge" },
 };
+
+/** Le dernier bloc (l'estimation) n'est plus affiché : aucun montant dans l'interface. */
+const DERNIER_BLOC = BLOCS_EXPRESS[BLOCS_EXPRESS.length - 1];
 
 type ResultatCout = { ok: true; donnees: ApercuFabrication } | { ok: false; message: string; code?: string };
 
@@ -74,7 +75,6 @@ export function EtapeExpress(props: ProprietesEtape) {
   // Onglet de la feuille Script : « Mes scripts » et « Une idée » ouvrent chacun le leur (E2E-1 n° 3).
   const [ongletScript, setOngletScript] = useState<OngletScript | undefined>(undefined);
   const [apercu, setApercu] = useState<ApercuFabrication | null>(null);
-  const [erreurApercu, setErreurApercu] = useState<{ message: string; code?: string } | null>(null);
   // Brique 6 : relecture du script ouverte par « Fabriquer » (le texte du moment, les raisons à vérifier, la saisie reprise).
   const [relecture, setRelecture] = useState<{ blocs: BlocScript[]; raisons: string[]; modifications: DifferenceLigne[] } | null>(null);
   // Flèche retour de la relecture : les phrases retouchées sont gardées pour le prochain « Fabriquer ».
@@ -83,7 +83,6 @@ export function EtapeExpress(props: ProprietesEtape) {
   const [confirmation, setConfirmation] = useState<string[] | null>(null);
   // Le oui au voyant rouge (texte repris d'une version du générateur), gardé pour que la question ne soit posée qu'une fois.
   const ouiVoyant = useRef<OuiVoyant>({ current: false });
-  const [budget, setBudget] = useState(false);
   const [lancement, setLancement] = useState(false);
   // Lot « crédits » (02/10) : feuille « Crédit HeyGen insuffisant » (Recharger · Version économique · Garder en brouillon).
   const [credit, setCredit] = useState<(DetailCredit & { videoId: string; confirme: boolean | number; scriptRelu?: string }) | null>(null);
@@ -126,7 +125,6 @@ export function EtapeExpress(props: ProprietesEtape) {
     setOngletScript(onglet ?? (idee ? "idee" : undefined));
     setFeuille("script");
   }
-  const ouvrirFeuille = (b: "script" | "plateau" | "voix" | "style") => (b === "script" ? ouvrirScript() : setFeuille(b));
 
   // L'idée arrive avec la feuille Script ouverte sur « Une idée », sujet rempli : il reste à toucher « Écrire le texte ».
   const ideeAuDepart = !brouillon.videoId && !!idee;
@@ -164,24 +162,22 @@ export function EtapeExpress(props: ProprietesEtape) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clePlateau]);
 
-  // Le coût suit le brouillon : recalculé après l'enregistrement différé.
+  // L'aperçu suit le brouillon : recalculé après l'enregistrement différé.
   const chargerCout = useCallback(async (): Promise<ResultatCout> => {
     const id = await contexte.enregistrer();
     if (!id) return { ok: false, message: "Le brouillon n'a pas pu être enregistré." };
     const r = await apercuAction(id);
     if (r.ok) {
       setApercu(r.donnees);
-      setErreurApercu(null);
       return r;
     }
-    setErreurApercu({ message: r.message, code: r.code });
     return r;
   }, [contexte]);
   const cleCout = JSON.stringify([brouillon.videoId, texte, brouillon.ratios, brouillon.distribution, brouillon.styles, brouillon.briquesCoupees, brouillon.reglages]);
   // Sans `videoId` (ouvert depuis un script, une idée ou un modèle), `chargerCout` enregistre d'abord le brouillon :
-  // sinon le coût restait « Calcul en cours » tant que rien n'était modifié.
+  // sinon l'aperçu restait vide tant que rien n'était modifié.
   // Jamais de brouillon créé de soi-même (E2E-1 n° 6) : un script ouvert sans rien toucher n'en crée pas ; le coût
-  // se calcule dès la première vraie saisie, ou quand Will ouvre « Coût ».
+  // se calcule dès la première vraie saisie, ou quand Will lance la vidéo.
   const saisi = contexte.aSaisi?.() ?? true;
   useEffect(() => {
     if (!aTexte || !saisi) return;
@@ -192,7 +188,7 @@ export function EtapeExpress(props: ProprietesEtape) {
   }, [cleCout]);
 
   /**
-   * « Fabriquer » : coût à jour, ce qui manque, le budget ; puis la relecture du script quand une voix de synthèse le
+   * « Fabriquer » : aperçu à jour, ce qui manque ; puis la relecture du script quand une voix de synthèse le
    * dit. Vidéo déjà filmée (« rush ») : elle part directement, ou après la confirmation d'avant.
    */
   async function fabriquer(options: { manquesAcceptes?: boolean } = {}) {
@@ -234,14 +230,13 @@ export function EtapeExpress(props: ProprietesEtape) {
         manques: manquesAvantFabrication(plateau, voix),
         essaiGratuit: donnees.essaiGratuit,
         manquesAcceptes: options.manquesAcceptes,
-        budgetIndicatif: !!donnees.budget.indicatif,
+        budgetIndicatif: true,
       });
       if (decision.genre === "completer") {
         notifier.info(decision.bloc === "plateau" ? "Choisissez d'abord qui parle" : "Choisissez d'abord une voix");
         return setFeuille(decision.bloc);
       }
       if (decision.genre === "essai-demonstration") return setEssaiDemo(decision.manques);
-      if (decision.genre === "budget") return setBudget(true);
       if (ouvreLaRelecture(decision, relectureAExiger(format, brouillon.distribution))) {
         setEssaiDemo(null);
         setRelecture({ blocs: brouillon.blocs, raisons: decision.genre === "confirmer" ? decision.raisons : [], modifications: saisieAReprendre(brouillon.blocs, saisieGardee) });
@@ -272,7 +267,6 @@ export function EtapeExpress(props: ProprietesEtape) {
       // CORRECTEUR FINAL A : la phrase du serveur dit la vraie raison (« montée pour de vrai : … »).
       return setConfirmation([r.message || "Plus cher que d'habitude"]);
     }
-    if (r.code === "BUDGET_DEPASSE") return setBudget(true);
     if (r.code === "CREDIT_INSUFFISANT") {
       setConfirmation(null);
       const detail = await detailCreditAction(id);
@@ -306,11 +300,6 @@ export function EtapeExpress(props: ProprietesEtape) {
       setMontantServeur(r.montant ?? null);
       return { ok: false, code: r.code, message: r.message, montant: r.montant };
     }
-    if (r.code === "BUDGET_DEPASSE") {
-      setRelecture(null);
-      setBudget(true);
-      return { ok: false, message: r.message };
-    }
     if (r.code === "CREDIT_INSUFFISANT") {
       const detail = await detailCreditAction(id);
       if (detail.ok && detail.donnees.manques.length) {
@@ -343,10 +332,6 @@ export function EtapeExpress(props: ProprietesEtape) {
   // CORRECTEUR FINAL A (VERIF-E2E-1 n° 6) : la pastille « Essai » seulement quand rien de réel n'est payé (comme l'Aperçu).
   const fabricationEssai = !apercu?.budget.montageReel && !apercu?.budget.double;
   const prixAConfirmer = sansPrix ? undefined : cout ? { centimes: Math.max(cout.centimes, montantServeur ?? 0), devise: cout.devise } : montantServeur !== null ? { centimes: montantServeur, devise: "EUR" as const } : undefined;
-  // TEST-UI-REEL U6 : un essai gratuit le dit (« Essai gratuit ») ; le vrai prix reste lisible, en petit.
-  const essaiGratuit = !!apercu?.essaiGratuit;
-  const libelleFabriquer = libelleBoutonFabriquer({ montant: cout, dureeFabricationSec: apercu?.estimation.dureeFabricationSec, essaiGratuit });
-  const enVrai = essaiGratuit ? prixEnVrai(cout) : null;
   const lut = contexte.elements.find((e) => e.id === (brouillon.styles.lutId ?? format.stylesParDefaut.lut));
   const sousTitres = contexte.elements.find((e) => e.id === (brouillon.styles.sousTitresId ?? format.stylesParDefaut.sousTitres));
   const rythme = contexte.elements.find((e) => e.id === (brouillon.styles.styleMontageId ?? format.stylesParDefaut.styleMontage));
@@ -371,17 +356,12 @@ export function EtapeExpress(props: ProprietesEtape) {
     voix,
     // Noms dédoublonnés : sous-titres et rythme s'appellent souvent tous deux « Avocat » (« Avocat · Avocat »).
     style: { ligne: [...new Set([briques.etalonnage ? lut?.nom : null, briques["sous-titres"] ? sousTitres?.nom : null, rythme?.nom].filter(Boolean))].join(" · ") || "Réglages habituels", ton: "pret" },
-    cout: cout
-      ? essaiGratuit
-        ? { ligne: `Essai gratuit · en vrai ≈ ${formaterMontant(cout, { court: true })}`, ton: "pret" }
-        : { ligne: `≈ ${formaterMontant(cout, { court: true })} · ${brouillon.ratios.length} format${brouillon.ratios.length > 1 ? "s" : ""}`, ton: apercu?.budget.depasse ? "orange" : "pret" }
-      : erreurApercu
-        ? { ligne: erreurApercu.message, ton: "orange" }
-        : { ligne: !aTexte ? "Après le texte" : saisi ? "Calcul en cours" : "Touchez pour voir", ton: "attente" },
+    // Bloc jamais affiché (aucun montant dans l'interface) : l'entrée garde seulement le type complet.
+    cout: { ligne: "", ton: "attente" },
   };
 
   const suivantBrut = feuille ? blocSuivant(feuille) : null;
-  const suivant = sansPrix && suivantBrut === "cout" ? null : suivantBrut;
+  const suivant = suivantBrut === DERNIER_BLOC ? null : suivantBrut;
 
   if (relecture) {
     return (
@@ -476,7 +456,7 @@ export function EtapeExpress(props: ProprietesEtape) {
       )}
 
       <ul className="space-y-2">
-        {(Object.keys(TITRES) as BlocExpress[]).filter((b) => !(sansPrix && b === "cout")).map((b, i) => (
+        {(Object.keys(TITRES) as BlocExpress[]).filter((b) => b !== DERNIER_BLOC).map((b, i) => (
           <li key={b}>
             <CarteBloc index={i} icone={TITRES[b].icone} titre={TITRES[b].titre} {...lignes[b]} onOuvrir={() => (b === "script" ? ouvrirScript() : setFeuille(b))} />
           </li>
@@ -489,7 +469,7 @@ export function EtapeExpress(props: ProprietesEtape) {
         {/* E2E-2 parcours n° 3 : un bouton grisé dit TOUJOURS pourquoi, juste dessous. */}
         <div className="flex min-w-0 flex-col gap-1">
           <Bouton taille="lg" pleineLargeur icone="clap" essai={fabricationEssai} disabled={boutonFabriquerGrise({ aTexte, formatId, budgetDepasse: !!apercu?.budget.depasse, refus: !!apercu?.refus })} chargement={lancement} onClick={() => void fabriquer()}>
-            {!aTexte && scriptFacultatif(formatId) ? "Envoyer ma vidéo déjà filmée" : libelleFabriquer}
+            {!aTexte && scriptFacultatif(formatId) ? "Envoyer ma vidéo déjà filmée" : "Fabriquer"}
           </Bouton>
           {!aTexte && scriptFacultatif(formatId) ? (
             <p className="text-center text-xs text-texte-doux">Sans texte : vous envoyez votre vidéo déjà filmée.</p>
@@ -502,22 +482,6 @@ export function EtapeExpress(props: ProprietesEtape) {
                 Ouvrir Réglages › Connexions
               </Link>
             </p>
-          ) : apercu?.budget.depasse ? (
-            <p className="text-center text-xs text-ambre">
-              Budget du mois dépassé ·{" "}
-              <Link href="/reglages#budget" className="font-semibold underline">
-                Augmenter le budget
-              </Link>
-            </p>
-          ) : apercu?.budget.depasseIndicatif ? (
-            <p className="text-center text-xs text-ambre">
-              Au-delà du budget indicatif du mois · la vidéo part quand même ·{" "}
-              <Link href="/reglages#budget" className="font-semibold underline">
-                Régler le repère
-              </Link>
-            </p>
-          ) : enVrai ? (
-            <p className="text-center text-xs text-texte-faible">Rien n&apos;est payé · {enVrai}</p>
           ) : null}
         </div>
       </BarreActionCollee>
@@ -538,7 +502,6 @@ export function EtapeExpress(props: ProprietesEtape) {
           {feuille === "plateau" && <FeuillePlateau {...props} compacte />}
           {feuille === "voix" && <ChoixVoix brouillon={brouillon} modifier={modifier} contexte={contexte} />}
           {feuille === "style" && <EtapeReglages {...props} compacte />}
-          {feuille === "cout" && <EtapeApercu {...props} compacte ouvrirFeuille={ouvrirFeuille} />}
         </div>
       </FeuilleBas>
 
@@ -546,7 +509,6 @@ export function EtapeExpress(props: ProprietesEtape) {
         ouverte={!!confirmation}
         onOuverteChange={(o) => !o && setConfirmation(null)}
         titre="Avant de fabriquer"
-        description={prixAConfirmer ? `Cette vidéo : au plus ${formaterMontant(prixAConfirmer, { court: true })}` : undefined}
         pied={
           <Bouton
             taille="lg"
@@ -657,37 +619,6 @@ export function EtapeExpress(props: ProprietesEtape) {
         <div className="py-2">
           <CaseACocher libelle="Lancer dès que possible" detail="Dès que le crédit le permet." coche={desQuePossible} onChange={setDesQuePossible} />
         </div>
-      </FeuilleBas>
-
-      <FeuilleBas
-        ouverte={budget}
-        onOuverteChange={setBudget}
-        titre="Budget du mois"
-        description={apercu ? `Il reste ${formaterMontant(apercu.budget.restant, { court: true })} ce mois-ci · cette vidéo ≈ ${formaterMontant(apercu.estimation.total, { court: true })}` : undefined}
-        pied={
-          <div className="grid gap-2">
-            {briques.illustrations && (
-              <Bouton
-                taille="lg"
-                pleineLargeur
-                variante="secondaire"
-                icone="eclair"
-                onClick={() => {
-                  modifier({ briquesCoupees: [...new Set([...brouillon.briquesCoupees, "illustrations" as const])] });
-                  setBudget(false);
-                  notifier.info("Version économique", "Sans images animées.");
-                }}
-              >
-                Version économique
-              </Bouton>
-            )}
-            <Link href="/reglages#budget" className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-5 text-[15px] font-semibold text-sur-orange">
-              <Icone nom="jauge" size={18} /> Relever le plafond
-            </Link>
-          </div>
-        }
-      >
-        <p className="py-4 text-center font-titre text-[56px] tabular-nums leading-none text-brique">{apercu ? formaterMontant(apercu.estimation.total) : "—"}</p>
       </FeuilleBas>
     </div>
   );

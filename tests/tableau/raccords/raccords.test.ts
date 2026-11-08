@@ -142,25 +142,15 @@ describe("raccord 2 · les boutons agissent", () => {
     expect(await nbVersions()).toBe(avant + 1);
   });
 
-  it("retouche payante (voix refaite) : refusée sans accord sur le montant annoncé, rien n'est lancé", async () => {
+  // Lot H (décision de Williams, 08/11) : plus de confirmation de prix ; la retouche qui refait la voix part sans accord.
+  it("retouche payante (voix refaite) : lancée sans accord sur le montant (aucune confirmation de prix demandée)", async () => {
     await videoTableau(ficheDemonstration);
     const avant = await nbVersions();
     const op = { type: "modifierTexteDit", sceneId: "s03", texte: "Geste deux : demandez trois idées de publication à partir de la question." };
-    for (const accord of [undefined, true, 0]) {
-      const r = await retoucherTableauAction(VIDEO, op, accord);
-      expect(r).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
-      if (r.ok && r.donnees.statut === "accord-requis") {
-        expect(r.donnees.centimes).toBeGreaterThan(0);
-        expect(r.donnees.phrase).toMatch(/refait la voix/);
-      }
-    }
-    expect(await nbVersions()).toBe(avant);
-    expect(await depots().reservations.compter((x) => x.videoId === VIDEO && x.statut === "active")).toBe(0);
-    // Avec le montant annoncé : lancée.
-    const annonce = await retoucherTableauAction(VIDEO, op);
-    const montant = annonce.ok && annonce.donnees.statut === "accord-requis" ? annonce.donnees.centimes : -1;
-    expect(await retoucherTableauAction(VIDEO, op, montant - 1)).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
-    expect(await retoucherTableauAction(VIDEO, op, montant)).toMatchObject({ ok: true, donnees: { statut: "lancee" } });
+    const r = await retoucherTableauAction(VIDEO, op);
+    expect(r).toMatchObject({ ok: true, donnees: { statut: "lancee" } });
+    const travailId = r.ok && r.donnees.statut === "lancee" ? r.donnees.travailId : "";
+    expect(await depots().travaux.obtenir(travailId)).toMatchObject({ type: "retouche", statut: "en_file" });
     expect(await nbVersions()).toBe(avant + 1);
   });
 

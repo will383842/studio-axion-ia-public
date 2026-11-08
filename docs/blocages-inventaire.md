@@ -28,21 +28,37 @@ Décision : **levé** (remplacé par une remarque ou une réserve), **déjà lev
 | `src/briques/voix-maitre/machine.ts:273` | contrôle de ressemblance : la meilleure prise est retenue après les relances, aucun arrêt (voix épinglée non touchée) |
 | `src/services/fabrication-reseaux.ts:637` | `CREDIT_INSUFFISANT` / `CLE_REFUSEE` / `BUDGET_DEPASSE` → attente (`lancementEnAttente`) puis reprise, pas un échec |
 
+## Levés dans le lot H (08/11/2026)
+
+| point | décision appliquée |
+|---|---|
+| Mode budget « bloquant » (`budget.mode`, `STUDIO_BUDGET_MODE_DEFAUT`) | supprimé : `modeBudget()` rend toujours « indicatif » ; ni réglage ni variable ne le rétablit. Les anciens tests de ce mode sont réécrits (la fabrication part sans arrêt) |
+| Arrêt de sécurité à 5 × (`budget-mensuel.ts` `jugerPlafond`, `comite-editorial.ts`) | retiré : le dépassement prévient (journal, cloche), la fabrication continue |
+| Confirmation de prix « Montage réel », `confirmationRequise` de l'aperçu | plus aucune confirmation : `confirmationRequise` vaut toujours faux, l'accord du prix du jour est automatique |
+| Interface : prix, budget, plafond, « € » (56 fichiers de `tests/lot-a/prix-interface-restants.json`) | retirés des écrans ; la liste est vide, le test « cliquet » reste vert. Aucun fichier n'était un tarif de produit vendu à un client |
+| Calage : texte lu ≠ texte écrit (`calage.ts`, `fabriquer.ts`) | la meilleure lecture est gardée (resynchronisation sur le mot suivant), les mots en cause partent en réserves « À vérifier · Calage · … » ; la vidéo n'est plus jetée |
+| `LIMITE_A_VALIDER` (boucle d'écriture, séries, `generateur-ecran`) | remarque au journal, la fabrication continue |
+| `A_VALIDER` (version non validée) | remarque au journal, la fabrication continue avec le texte de Williams |
+| `SCRIPT_A_CORRIGER` (phrase signalée « bloquant » au relu) | remarque au journal |
+| Liens `/reglages#budget` des notifications | pointent sur `/reglages` (la section budget n'existe plus) |
+
 ## Gardés (et pourquoi)
 
 | point | pourquoi |
 |---|---|
-| Étiquette inconnue, ligne vide, ligne > 400 caractères, texte > 4000 caractères, > 26 lignes (`script-fourni.ts` lecture) | le script ne se lit pas / la fiche d'écrans a un format fixe |
-| Moins de 3 étapes, accroche > 9 mots, « bascule » manquante, chiffre qui ne vient d'aucun fait du cas (écran « chiffre » sans fait) | le schéma de la fiche ne peut pas se mettre en page sans cela |
+| Commandes de l'Usine (`BUDGET_USINE_ABSENT`, `BUDGET_MENSUEL_ATTEINT`, origine « usine ») | garde de l'Usine, sécurité : hors lot |
+| Plafonds anti-boucle (lectures de voix, retouches), idempotence des réservations | ce ne sont pas des prix : ils évitent une boucle infinie |
+| Solde réel HeyGen / ElevenLabs, crédit Claude épuisé, clé refusée | impossibilité technique ; mise en attente puis reprise automatique (`lancementEnAttente`) |
+| `SCRIPT_A_RELIRE` / `SCRIPT_NON_RELU` (empreinte du script différente de celle relue) | cohérence technique : le texte a changé sous la relecture ; on ne peut pas savoir lequel fabriquer |
+| `STOCKAGE_NON_RELIE` / `STOCKAGE_REFUS` (tableau animé) | fichier ou service injoignable : la vidéo ne peut pas partir |
+| Étiquette inconnue, ligne vide, ligne > 400 caractères, texte > 4000 caractères, > 26 lignes (`script-fourni.ts`) | le script ne se lit pas / la fiche d'écrans a un format fixe |
+| Moins de 3 étapes, accroche > 9 mots, « bascule » manquante, chiffre sans fait (écran « chiffre ») | le schéma de la fiche ne peut pas se mettre en page sans cela |
+| Voix sans aucun mot entendu (calage) | rien à caler : impossibilité technique |
 | Marque, visuels connus, ordre du fonctionnement, appel dans le corps (R04, R07 à R09, R18, R19, R23) | règles de structure, non citées par les décisions |
-| Calage quand le texte lu ne correspond plus du tout au texte écrit (`fabriquer.ts` étape calage) | alignement impossible : reste à faire (calage tolérant) |
-| Commandes de l'Usine (`BUDGET_USINE_ABSENT`, `BUDGET_MENSUEL_ATTEINT`) | garde de l'Usine, sécurité : hors lot |
-| Mode budget « bloquant » (réglage `budget.mode`) | retiré du défaut depuis le 23/10 ; le supprimer demande de réécrire ≈ 44 tests de l'ancien mode (voir « Reste à faire ») |
 
-## Reste à faire (hors de cette PR)
+## Reste à faire
 
-- Pose « Image → vidéo » : non trivial (service `image-video-*`, voix propre `montage-image-video/voix.ts:502,562`), non touchée.
-- Boucle d'écriture (`boucle-generation.ts`), avocat, tableau animé : blocages budget/confirmation déjà neutralisés en mode indicatif ; les arrêts d'écriture et de validation (`LIMITE_A_VALIDER`, `A_VALIDER`) n'ont pas été revus.
-- Retirer définitivement le mode « bloquant » (`modeBudget()` → toujours indicatif) et l'arrêt de sécurité à 5 × (`mode-budget.ts`, `comite-editorial.ts`, `image-video`).
-- Retirer l'affichage des prix : 56 fichiers de l'interface en parlent encore (liste figée dans `tests/lot-a/prix-interface-restants.json`, test cliquet `tests/lot-a/aucun-prix-interface.test.ts`).
-- Les avertissements et réserves sont dans `noteQualite.alertes` (fiche vidéo) ; la page « Mon script » les affiche. Aucune autre vue n'a été remaniée.
+- Pose « Image → vidéo » : non trivial (service `image-video-*`, voix propre `montage-image-video/voix.ts:502,562`), non touchée par le lot H. Les écrans ont perdu leurs prix, mais ses arrêts d'écriture/validation (`IV_CARTE_A_VALIDER`, `IV_SCRIPT_A_VALIDER`, `SCRIPT_PAS_A_VALIDER`) sont des étapes de validation de son parcours, à revoir avec la mission « image-vidéo ».
+- Avocat : ses arrêts budget/confirmation sont levés avec le mode indicatif ; ses codes d'écriture/validation propres n'ont pas d'arrêt supplémentaire hors `SCRIPT_A_RELIRE` (gardé ci-dessus).
+- Le cliquet ne voit que les chaînes littérales : quelques montants fournis par les services (ligne « Déjà payé » du suivi du cas concret, etc.) peuvent encore s'afficher ; à traiter si Williams les voit.
+- Les avertissements et réserves sont dans `noteQualite.alertes` (fiche vidéo) ; la page « Mon script » les affiche.
