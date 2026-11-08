@@ -685,7 +685,9 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   let corps = corpsV1;
   if (etat.versionCorpsGuide === undefined || etat.versionCorpsGuide === null) {
     version = 1;
-    if (origineV3Active(env) && prefixesComptesConfigures(env).length > 0 && compteAutoriseOrigineV3(etat.idCompte, env)) {
+    // Migration douce : un état ancien (sans versionCorpsGuide) dont un essai est déjà parti (occurredAt écrit dès le premier essai) a envoyé un corps v1
+    // (les interrupteurs v3 étaient éteints avant) : on FIGE la version à 1 sans la recalculer, sinon même clé + corps différent = 409 cle_reutilisee définitif.
+    if (etat.occurredAt === null && origineV3Active(env) && prefixesComptesConfigures(env).length > 0 && compteAutoriseOrigineV3(etat.idCompte, env)) {
       const o3 = construireOrigineV3({ postRef: etat.idPostPlateforme ?? undefined, canal: "commentaire" }, { reseau: etat.reseau, prefixesComptes: prefixesComptesConfigures(env) });
       if (o3.ok) version = 3;
       else await journaliser("parcours_conversation", `Origine v3 non envoyée : ${o3.code}.`);
