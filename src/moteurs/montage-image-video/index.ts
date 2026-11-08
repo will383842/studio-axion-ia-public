@@ -48,7 +48,7 @@ export const ID_MOTEUR_IV = ID_MOTEUR_IMAGE_VIDEO;
 export const CODE_CARTE_A_VALIDER = "IV_CARTE_A_VALIDER";
 export const CODE_SCRIPT_A_VALIDER = "IV_SCRIPT_A_VALIDER";
 export const PHRASE_CARTE_A_VALIDER = "Vérifiez ce que j'ai compris de votre image, corrigez si besoin, puis validez la carte.";
-export const PHRASE_SCRIPT_A_VALIDER = "Relisez le script et son prix, tranchez les phrases trop affirmatives, puis validez : la voix n'est payée qu'après.";
+export const PHRASE_SCRIPT_A_VALIDER = "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite.";
 export const PHRASE_FORMAT_MASQUE = "Le format « Image → vidéo » n'est pas encore ouvert : un essai réel demande l'accord de Will.";
 
 /* ------------------------------------------------------------------ */
@@ -118,6 +118,8 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
     image: { cle: e.imageCle, ...(e.empreinte ? { empreinte: e.empreinte } : {}) },
     ...(e.texte !== undefined ? { texte: e.texte } : {}),
     ...(e.scriptColle ? { scriptColle: true } : {}),
+    // Titre ou idée : le script généré attend Williams (relecture, modification, « Valider et fabriquer »).
+    ...(e.texte !== undefined && !e.scriptColle ? { scriptAValider: true } : {}),
     reseaux: e.reseaux,
     ...(e.offre ? { offre: e.offre } : {}),
     ...(e.typeImpose ? { typeImpose: e.typeImpose } : {}),
