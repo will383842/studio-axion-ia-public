@@ -1,7 +1,7 @@
 /** Lot S1a — logique PURE « un mot = un guide ». Valeurs fictives. Aucun changement de comportement par défaut. */
 import { describe, expect, it } from "vitest";
 import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
-import { affectationPour, detecterCollision, type Affectation } from "@/domaine/guide-reseau/affectations";
+import { affectationPour, detecterCollision, PLAFOND_JOUR_REPLI, type Affectation } from "@/domaine/guide-reseau/affectations";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { transition } from "@/domaine/guide-reseau/machine-conversation";
 import { lireEnveloppe, lireEvenementCommentaire, motSeulDe, runValide, MOTS_DECLENCHEURS_CONNUS } from "@/domaine/guide-reseau/crochet-zernio";
@@ -38,6 +38,17 @@ describe("affectationPour", () => {
       expect(a).toMatchObject({ mot: "GUIDE", compte: "compte-fictif-1", guide: "guide-ia", titre: "Titre fictif" });
     }
   });
+  it("le plafond du repli est fini et survit à la sérialisation JSON (jamais null)", () => {
+    expect(Number.isFinite(PLAFOND_JOUR_REPLI)).toBe(true);
+    const a = affectationPour("GUIDE", "compte-fictif-1", [], "T")!;
+    expect(a.plafondJour).toBe(PLAFOND_JOUR_REPLI);
+    expect(JSON.parse(JSON.stringify(a)).plafondJour).toBe(PLAFOND_JOUR_REPLI);
+  });
+  it("la comparaison normalise aussi le mot de la donnée (« Ia » et « Guidé » retrouvés)", () => {
+    const d: Affectation[] = [{ mot: "Ia", compte: "c1", guide: "g", titre: "T", plafondJour: 5 }];
+    expect(affectationPour("IA", "c1", d, "T")).toEqual(d[0]);
+    expect(affectationPour("ia !", "c1", d, "T")).toEqual(d[0]);
+  });
   it("données vides : un autre mot n'a pas d'affectation", () => {
     expect(affectationPour("IA", "compte-fictif-1", [], "Titre fictif")).toBeNull();
   });
@@ -53,6 +64,10 @@ describe("detecterCollision", () => {
   it("deux saisies de même forme normalisée = collision", () => {
     expect(detecterCollision(["Guide", "GUIDÉ", "IA"])).toEqual(["GUIDE"]);
     expect(detecterCollision(["guide", "ia"])).toEqual([]);
+  });
+  it("une même saisie répétée n'est pas une collision ; deux saisies distinctes de même forme le sont", () => {
+    expect(detecterCollision(["GUIDE", "GUIDE"])).toEqual([]);
+    expect(detecterCollision(["GUIDE", "guide"])).toEqual(["GUIDE"]);
   });
 });
 
@@ -77,6 +92,21 @@ describe("crochet : mots connus en paramètre", () => {
     expect(motSeulDe("guide")).toBe("guide");
     expect(motSeulDe("ia")).toBeNull();
     expect(motSeulDe("stop")).toBe("stop");
+  });
+  it("même jugement que normaliserMot : accents et ponctuation de bord ignorés, résultat identique pour « Guidé » et « GUIDE ! »", () => {
+    expect(motSeulDe("Guidé")).toBe("Guidé");
+    expect(motSeulDe("GUIDE !")).toBe("GUIDE !");
+    expect(motSeulDe("GUIDE😀")).toBe("GUIDE😀");
+    for (const t of ["Guidé", "GUIDE !", "guide", "GUIDE", " guide "]) expect(motSeulDe(t) !== null).toBe(normaliserMot(t) === "GUIDE");
+    expect(motSeulDe("guide ia")).toBeNull();
+    expect(motSeulDe(" guide ")).toBe("guide");
+  });
+  it("commentaire : « Guidé » et « GUIDE ! » donnent le même motSeul normalisé (GUIDE) ; stop reste prioritaire", () => {
+    const corps = (text: string) => lireEnveloppe(JSON.stringify({ id: "e1", event: "comment.received", timestamp: 1_800_000_000, account: { accountId: "cpt", platform: "facebook" }, comment: { id: "c1", text, author: { id: "a1" } } }))!;
+    expect(lireEvenementCommentaire(corps("Guidé"))?.motSeul).toBe("GUIDE");
+    expect(lireEvenementCommentaire(corps("GUIDE !"))?.motSeul).toBe("GUIDE");
+    expect(lireEvenementCommentaire(corps(" guide "))?.motSeul).toBe("GUIDE");
+    expect(lireEvenementCommentaire(corps("Stop"), ["STOP", "GUIDE"])?.motSeul).toBe("STOP");
   });
   it("liste étendue : IA gardé, texte hors liste jamais gardé, stop prioritaire", () => {
     const l = ["GUIDE", "IA"];
