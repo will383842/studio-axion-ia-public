@@ -12,22 +12,23 @@ import { Easing, interpolate } from "remotion";
 import { GEOMETRIE, POLICES } from "../charte";
 import { animationCarte } from "../cadrage";
 import { Icone } from "../elements";
+import { MELANGES } from "./premium-1";
 
 /* ------------------------------------------------------------------ Couleurs : les 12 jetons ------------------------------------------------------------------ */
 
 /** Les 4 couleurs de la charte et leurs mélanges calculés (§ 2.4). Aucune autre teinte. */
 export const N3 = Object.freeze({
   ivoire: "#E9DCC8",
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
   sable: "#BFA88B",
-  sableProfond: "#94806A",
-  filet: "#CBBFAD",
-  orangeVoile: "#DEC0A8",
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
   orange: "#B44F29",
-  orangeChaud: "#BC6441",
-  orangeProfond: "#934122",
-  encreDouce: "#45392D",
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  encreDouce: MELANGES.encreDouce,
   encre: "#110A05",
 } as const);
 

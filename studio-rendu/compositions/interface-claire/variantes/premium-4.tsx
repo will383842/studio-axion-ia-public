@@ -11,24 +11,25 @@ import React from "react";
 import type { CSSProperties } from "react";
 import { Easing, interpolate } from "remotion";
 import { COULEURS, POLICES } from "../charte";
+import { MELANGES } from "./premium-1";
 
 /* ------------------------------------------------------------------ Couleurs : les 12 jetons ------------------------------------------------------------------ */
 
 /** Les 4 couleurs de la charte et 8 mélanges calculés entre elles. Aucune autre teinte. */
 export const N4 = Object.freeze({
   ivoire: COULEURS.ivoire,
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
   /** « En attente / désactivé » uniquement. */
   sable: COULEURS.sable,
-  sableProfond: "#94806A",
-  filet: "#CBBFAD",
-  orangeVoile: "#DEC0A8",
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
   /** « Actif / fort » uniquement. */
   orange: COULEURS.orange,
-  orangeChaud: "#BC6441",
-  orangeProfond: "#934122",
-  encreDouce: "#45392D",
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  encreDouce: MELANGES.encreDouce,
   encre: COULEURS.encre,
 } as const);
 
