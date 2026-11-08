@@ -14,6 +14,8 @@ import { CompositionsInterfaceClaire } from "./interface-claire/Compositions";
 import { CompositionsImageVideo } from "./image-video/Compositions";
 import { CompositionsVisuels } from "./visuels/Compositions";
 import { PLAN_VIDE, PlanDeScenes, metaPlanDeScenes } from "./plan-scenes/PlanDeScenes";
+import { TutorielOutil, metaTutorielOutil } from "./plan-scenes/TutorielOutil";
+import { DEMO_FACECAM_VIDE, DemoFacecam, metaDemoFacecam } from "./demo-facecam/DemoFacecam";
 import { tailleAccessoire, type ProprietesImageComposition, type ProprietesTexteComposition } from "../../src/briques/composition/scene";
 
 /** Données vides : les vraies arrivent par les propriétés de la demande de rendu. */
@@ -68,6 +70,8 @@ export function Racine() {
     <>
       <Composition id="Essai" component={Essai} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={{ titre: "Studio Axion-IA" }} />
       <Composition id="PlanDeScenes" component={PlanDeScenes} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={PLAN_VIDE} calculateMetadata={metaPlanDeScenes} />
+      <Composition id="TutorielOutil" component={TutorielOutil} durationInFrames={75} fps={25} width={1080} height={1350} defaultProps={{ ...PLAN_VIDE, fin: { titre: "Axion IA", sousTitre: "axion-ia.com" }, finMs: 2500 }} calculateMetadata={metaTutorielOutil} />
+      <Composition id="DemoFacecam" component={DemoFacecam} durationInFrames={88} fps={25} width={1080} height={1350} defaultProps={DEMO_FACECAM_VIDE} calculateMetadata={metaDemoFacecam} />
       <Composition id="SousTitres" component={CalqueSousTitres} durationInFrames={1} fps={25} width={1080} height={1920} defaultProps={CALQUE_VIDE} calculateMetadata={dureeCalque} />
       <Composition
         id="ApercuSousTitres"
