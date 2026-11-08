@@ -94,7 +94,7 @@ describe("service : le lancement avec l'option", () => {
     expect(await scripts.historiqueScriptsValides(CAS)).toEqual([]);
   });
 
-  it("le prix compte l'écriture (même plafond « au plus ») : l'accord du script rejoué ne suffit plus", async () => {
+  it("le prix compte l'écriture (même plafond « au plus »), mais un accord plus bas n'arrête rien : la fabrication part", async () => {
     const sans = await service.estimerCas(CAS, RESEAUX, false);
     const avec = await service.estimerCas(CAS, RESEAUX, false, { nouveauScript: true });
     expect(avec.centimes).toBeGreaterThan(sans.centimes);
@@ -102,8 +102,8 @@ describe("service : le lancement avec l'option", () => {
     expect(estimerDepuisCas(cas, RESEAUX as never, false).lignes.some((l) => l.etape === "Écriture")).toBe(false);
     expect(attendu.lignes.some((l) => l.etape === "Écriture")).toBe(true);
     const r = await service.preparerEtLancer(demande({ nouveauScript: true, accordCentimes: sans.centimes }), { lancer });
-    expect(r.statut).toBe("accord-requis");
-    if (r.statut === "accord-requis") expect(r.centimes).toBeGreaterThanOrEqual(avec.centimes);
+    // 08/11/2026 : le prix de l'écriture reste annoncé, mais aucune confirmation de prix n'est exigée : la fabrication part.
+    expect(r.statut).toBe("lancee");
   });
 
   it("sans l'option, rien ne change : repère toujours exigé, entrées de la vidéo sans la nouvelle clé", async () => {

@@ -1,6 +1,6 @@
 /**
- * Générateurs grisés (décision de Will, 17/10) : un format dont `statut !== "actif"` n'est jamais cliquable (carte,
- * barre latérale), mais reste visible avec sa pastille « Bientôt ». « Mes vidéos » garde l'onglet d'un format masqué
+ * Générateurs grisés (décision de Will, 17/10) : un format dont `statut !== "actif"` n'est jamais cliquable (carte).
+ * 08/11 : la barre latérale et « Nouvelle vidéo » ne le montrent plus du tout (« ça évite d'avoir du bruit pour rien »). « Mes vidéos » garde l'onglet d'un format masqué
  * qui a des vidéos (Image → vidéo). Les boutons de la fiche vidéo ne s'affichent que si l'onglet visé existe.
  */
 import { createElement } from "react";
@@ -60,11 +60,12 @@ describe("BarreLaterale : formats sous « Mes vidéos »", () => {
   it("un format actif reste un lien", () => {
     expect(html).toContain('href="/formats/avocat"');
   });
-  it("un format non actif : pas de lien, aria-disabled, pastille « Bientôt », nom visible", () => {
+  // 08/11 (Williams, remplace le 17/10 pour la barre) : un format sans générateur n'apparaît plus du tout, même grisé.
+  it("un format non actif n'apparaît pas : ni lien, ni nom, ni pastille « Bientôt »", () => {
     expect(html).not.toContain('href="/formats/podcast"');
-    expect(html).toMatch(/<span[^>]*aria-disabled="true"[^>]*>/);
-    expect(texte(html)).toContain("Podcast");
-    expect(texte(html)).toContain("Bientôt");
+    expect(html).not.toContain('aria-disabled="true"');
+    expect(texte(html)).not.toContain("Podcast");
+    expect(texte(html)).not.toContain("Bientôt");
   });
 });
 

@@ -33,7 +33,7 @@ describe("4 · « stop » en commentaire", () => {
     expect(envoisSortants()).toBe(0);
     expect(banc.site.vus).toHaveLength(0);
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
-    expect((await lignes()).length).toBeGreaterThan(0);
+    expect(await lignes()).toHaveLength(1);
   });
   it("une réponse (estReponse) « STOP » coupe aussi", async () => {
     const id = await deposerCommentaire(depots, { reseau: "facebook", motSeul: "STOP", estReponse: true });
@@ -53,7 +53,7 @@ describe("4 · « stop » en commentaire", () => {
     const id = await deposerCommentaire(depots, { reseau: "facebook", motSeul: "STOP" });
     await passer(T0, { comptesPermis: ["autre-compte-fictif"] });
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
-    expect((await lignes()).length).toBeGreaterThan(0);
+    expect(await lignes()).toHaveLength(1);
   });
   it("personne déjà opposée dans le registre : un GUIDE ne démarre aucun parcours", async () => {
     await Opp.enregistrerOpposition(AUTEUR, "zernio-conversation", { env: ENV });
@@ -76,7 +76,7 @@ describe("4 · « stop » en message privé", () => {
     expect(banc.site.vus).toHaveLength(0);
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
     expect((await toutesLesConversations())[cleConversation(AUTEUR)].etat).toBe("oppose");
-    expect((await lignes()).length).toBeGreaterThan(0);
+    expect(await lignes()).toHaveLength(2);
   });
   it("l'opposition l'emporte : après un « stop » privé, un message avec une adresse valide ne produit ni appel au site ni accusé", async () => {
     lireTexteDe("stop");

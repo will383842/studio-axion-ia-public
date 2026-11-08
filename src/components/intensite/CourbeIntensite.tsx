@@ -10,6 +10,7 @@ export const NOMS_NIVEAUX: Record<NiveauIntensite, string> = { sobre: "Sobre", e
 
 export function CourbeIntensite({ rapport, className, marques }: { rapport: RapportIntensite; className?: string; marques?: { tSec: number; libelle: string }[] }) {
   const duree = Math.max(1, rapport.courbe.at(-1)?.tSec ?? 1);
+  const limite = rapport.plafond;
   const haut = Math.max(rapport.plafond + 1, ...rapport.courbe.map((p) => p.charge));
   const L = 300;
   const H = 44;
@@ -24,7 +25,7 @@ export function CourbeIntensite({ rapport, className, marques }: { rapport: Rapp
         <span className="font-semibold text-texte-doux">Intensité · {NOMS_NIVEAUX[rapport.niveau]}</span>
         <span className={cn("tabular-nums", depasse ? "font-semibold text-brique" : "text-texte-faible")}>{depasse ? "Trop d'effets à un moment" : `${rapport.effetsGardes + rapport.effetsDecales} effets`}</span>
       </figcaption>
-      <svg viewBox={`0 0 ${L} ${H}`} preserveAspectRatio="none" role="img" aria-label={`Courbe d'intensité, plafond ${rapport.plafond}`} className="block h-11 w-full">
+      <svg viewBox={`0 0 ${L} ${H}`} preserveAspectRatio="none" role="img" aria-label={`Courbe d'intensité, limite ${limite}`} className="block h-11 w-full">
         <polygon points={aire} className="fill-orange/20" />
         <polyline points={points} fill="none" strokeWidth={1.6} vectorEffect="non-scaling-stroke" className="stroke-orange-vif" />
         <line x1={0} x2={L} y1={y(rapport.plafond)} y2={y(rapport.plafond)} strokeDasharray="4 4" strokeWidth={1} vectorEffect="non-scaling-stroke" className="stroke-texte-faible" />

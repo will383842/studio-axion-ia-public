@@ -10,6 +10,14 @@ export const VARIABLE_PREFIXES_COMPTES_ORIGINE = "ORIGINE_V3_PREFIXES_COMPTES";
 export function prefixesComptesConfigures(env: Record<string, string | undefined> = process.env): string[] {
   return (env[VARIABLE_PREFIXES_COMPTES_ORIGINE] ?? "").split(",").map((p) => p.trim()).filter(Boolean);
 }
+/** Identifiants des comptes Zernio autorisés à envoyer le corps v3 (séparés par des virgules). Vide ou absent = aucun compte (éteint par défaut). */
+export const VARIABLE_COMPTES_ORIGINE_V3 = "ORIGINE_V3_COMPTES";
+export function comptesOrigineV3(env: Record<string, string | undefined> = process.env): string[] {
+  return (env[VARIABLE_COMPTES_ORIGINE_V3] ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+}
+export function compteAutoriseOrigineV3(idCompte: string, env: Record<string, string | undefined> = process.env): boolean {
+  return idCompte !== "" && comptesOrigineV3(env).includes(idCompte);
+}
 /** Éteint par défaut : seules les valeurs exactes « 1 » et « true » allument. */
 export function origineV3Active(env: Record<string, string | undefined> = process.env): boolean {
   const v = env[VARIABLE_INTERRUPTEUR_ORIGINE_V3];

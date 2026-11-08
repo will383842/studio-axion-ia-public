@@ -320,7 +320,7 @@ export function Vitrine({ elements }: { elements: VueElement[] }) {
           ouvert={dialogue}
           onOuvertChange={setDialogue}
           titre="Confirmer la fabrication"
-          description="Cette vidéo coûtera 24 €."
+          description="La vidéo sera fabriquée."
           pied={
             <>
               <Bouton variante="fantome" onClick={() => setDialogue(false)}>

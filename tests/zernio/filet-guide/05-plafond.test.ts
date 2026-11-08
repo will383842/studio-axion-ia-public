@@ -65,7 +65,7 @@ describe("6 · application du plafond", () => {
     await deposerCommentaire(depots, { reseau: "facebook" });
     await passer();
     expect(envoisSortants()).toBe(0);
-    expect(plafond).toBeLessThanOrEqual(600);
+    expect(plafondHeureCompte(reglage)).toBe(plafond);
     // nouveau cas, base propre : même réglage, compteur juste sous le plafond
     await preparer();
     await Com.ecrireParametre(C.PARAM_PLAFONDS_CONVERSATION, reglage);

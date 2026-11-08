@@ -69,11 +69,11 @@ describe("Image → vidéo · mode texte · le dépôt", () => {
     expect(await videosIV()).toEqual([]);
   });
 
-  it("sans accord du prix : le prix « au plus » est redemandé, rien n'est créé", async () => {
+  it("sans accord du prix : aucune confirmation n'est demandée, le prix du jour vaut accord et la vidéo est créée", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
     const issue = await texte.deposerTexteImageVideo({ texte: TEXTE, reseaux: [...RESEAUX_IV] });
-    expect(issue).toMatchObject({ statut: "accord-requis", centimes: ecran.prixDuDepot(RESEAUX_IV, (await ecran.etatDepotImageVideo()).tauxUsdEur) });
-    expect(await videosIV()).toEqual([]);
+    expect(issue, JSON.stringify(issue)).toMatchObject({ statut: "lancee" });
+    expect(await videosIV()).toHaveLength(1);
   });
 
   it("texte → carte à valider (conception simulée, aucun fichier lu)", async () => {

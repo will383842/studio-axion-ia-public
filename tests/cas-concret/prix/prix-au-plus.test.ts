@@ -50,10 +50,9 @@ describe("cas concret · le prix annoncé est un vrai plafond (17/10)", () => {
     const b = banc({ scriptValide: "catalogue", lecturesFautives: TOUTES });
     const c = b.commande();
     const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-pire")));
-    // 08/11/2026 : la voix qui lit mal n'arrête plus à l'étape voix (lecture gardée, phrase signalée). Ici le texte lu ne
-    // correspond plus du tout au texte écrit : c'est le CALAGE qui ne peut pas aligner (impossibilité technique, reste à faire).
-    expect(t.statut).toBe("echec");
-    expect(t.erreur?.messagePourWill).toContain("Le calage");
+    // 08/11/2026 : la voix qui lit mal n'arrête plus à l'étape voix (lecture gardée, phrase signalée) et le calage ne jette
+    // plus la vidéo sur un écart de mots (il rend `ecarts`) : la fabrication va au bout, sans arrêt.
+    expect(t.statut).toBe("termine");
     expect(b.d.lus.slice(0, LECTURES_CORPS_MAX).length).toBe(LECTURES_CORPS_MAX);
     const annonce = voixDe(await b.moteur.estimer(c));
     expect(b.d.lus.reduce((n, x) => n + x.length, 0)).toBeLessThanOrEqual(annonce.quantite);
