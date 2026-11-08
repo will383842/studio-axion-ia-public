@@ -39,6 +39,29 @@ export function pucesDe(videos: readonly VideoAffichee[]): Puce[] {
   return puces;
 }
 
+/** Adresse de téléchargement par la route du studio (le fil Facebook porte `&fil=1`). PUR. */
+export function adresseTelechargement(videoId: string, reseau: string, fil: boolean): string {
+  return `/api/telechargements/video?video=${encodeURIComponent(videoId)}&reseau=${encodeURIComponent(reseau)}${fil ? "&fil=1" : ""}`;
+}
+
+/**
+ * La route lit la livraison de la version ; une vidéo fabriquée par le lanceur n'en a pas (404). Dans ce cas, on prend
+ * l'adresse directe de la vidéo montrée. Une route qui répond autrement (redirection) ou une erreur réseau : la route.
+ */
+export async function telechargerAvecSecours(
+  adresse: string,
+  secours: string | null | undefined,
+  o: { sonder: (adresse: string) => Promise<number>; aller: (adresse: string) => void },
+): Promise<void> {
+  let statut = 0;
+  try {
+    statut = await o.sonder(adresse);
+  } catch {
+    statut = 0;
+  }
+  o.aller(statut === 404 && secours ? secours : adresse);
+}
+
 export function LecteurParReseau({ videoId, videos, prete, etape }: { videoId: string; videos: readonly VideoAffichee[]; prete: boolean; etape?: EtapeEditoriale }) {
   const puces = pucesDe(videos);
   const [choisie, setChoisie] = useState(puces[0]?.cle);
@@ -49,7 +72,8 @@ export function LecteurParReseau({ videoId, videos, prete, etape }: { videoId: s
   const { v, fil } = courante;
   const texte = fil ? v.fil?.texte : v.texte;
   const consigneLien = fil ? v.fil?.consigneLien : v.consigneLien;
-  const adresse = `/api/telechargements/video?video=${encodeURIComponent(videoId)}&reseau=${encodeURIComponent(v.reseau)}${fil ? "&fil=1" : ""}`;
+  const adresse = adresseTelechargement(videoId, v.reseau, fil);
+  const titre = !fil ? v.titre : undefined;
 
   function touche(e: KeyboardEvent<HTMLButtonElement>, i: number) {
     const pas = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
@@ -96,12 +120,27 @@ export function LecteurParReseau({ videoId, videos, prete, etape }: { videoId: s
         })}
       </div>
       <div role="tabpanel" id={`${id}-panneau`} aria-labelledby={`${id}-${courante.cle}`} className="space-y-3">
+        {titre && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-semibold text-texte">{titre}</p>
+            <BoutonCopier texte={titre} libelle="Copier le titre" />
+          </div>
+        )}
         {v.ton !== "vert" && <p className={cn("text-sm", v.ton === "rouge" ? "text-brique" : "text-texte-doux")}>{v.phrase}</p>}
         <div className="flex flex-wrap gap-2">
           <BoutonValider videoId={videoId} prete={prete} etape={etape} />
           {courante.url && (
             <Bouton asChild variante="secondaire" icone="telecharger">
-              <a href={adresse}>{fil ? "Télécharger le fil" : "Télécharger"}</a>
+              <a
+                href={adresse}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void telechargerAvecSecours(adresse, courante.url, {
+                    sonder: async (a) => (await fetch(a, { redirect: "manual", credentials: "same-origin" })).status,
+                    aller: (a) => window.location.assign(a),
+                  });
+                }}
+              >{fil ? "Télécharger le fil" : "Télécharger"}</a>
             </Bouton>
           )}
           {texte && <BoutonCopier texte={texte} libelle="Copier le texte" />}

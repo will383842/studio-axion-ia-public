@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
 const { VosVideos } = await import("@/components/formats/image-video/VosVideos");
+const { pucesDe, adresseTelechargement, telechargerAvecSecours } = await import("@/components/formats/image-video/LecteurParReseau");
 const { titreCourt, construireVueImageVideo } = await import("@/services/image-video-ecran");
 
 const carte = (reseau: string, nom: string, extra: Record<string, unknown> = {}) => ({
@@ -107,5 +108,34 @@ describe("la vue", () => {
     expect(v.etapeEditoriale).toBe("validee");
     expect(v.prete).toBe(true);
     expect(v.texteOrigine).toBe("Mon texte");
+  });
+});
+
+describe("titre YouTube, adresses, puces, secours du téléchargement", () => {
+  it("le titre du réseau est montré avec « Copier le titre » (publication par téléchargement)", () => {
+    const h = rendre({ videos: [carte("youtube-shorts", "YouTube Shorts", { titre: "Mon titre YouTube" })] });
+    expect(texte(h)).toContain("Mon titre YouTube");
+    expect(texte(h)).toContain("Copier le titre");
+    expect(texte(rendre())).not.toContain("Copier le titre");
+  });
+  it("pucesDe : une puce par réseau, « fil » juste après Facebook, avec l'adresse du fil", () => {
+    const p = pucesDe(VIDEOS as never);
+    expect(p.map((x) => x.cle)).toEqual(["youtube-shorts", "linkedin", "instagram", "facebook", "facebook:fil"]);
+    expect(p[4]).toMatchObject({ fil: true, nom: "Facebook · fil", duree: "28 s", url: "https://exemple/facebook-fil.mp4" });
+    expect(p[3]!.fil).toBe(false);
+    expect(pucesDe([])).toEqual([]);
+  });
+  it("l'adresse du fil porte &fil=1, pas celle du Reel", () => {
+    expect(adresseTelechargement("v-1", "facebook", true)).toBe("/api/telechargements/video?video=v-1&reseau=facebook&fil=1");
+    expect(adresseTelechargement("v-1", "facebook", false)).toBe("/api/telechargements/video?video=v-1&reseau=facebook");
+  });
+  it("route sans fichier (404) : on garde l'adresse directe de la vidéo ; route bonne : la route", async () => {
+    const aller = vi.fn();
+    await telechargerAvecSecours("/r", "https://exemple/a.mp4", { sonder: async () => 404, aller });
+    expect(aller).toHaveBeenLastCalledWith("https://exemple/a.mp4");
+    await telechargerAvecSecours("/r", "https://exemple/a.mp4", { sonder: async () => 0, aller });
+    expect(aller).toHaveBeenLastCalledWith("/r");
+    await telechargerAvecSecours("/r", "https://exemple/a.mp4", { sonder: async () => { throw new Error("x"); }, aller });
+    expect(aller).toHaveBeenLastCalledWith("/r");
   });
 });

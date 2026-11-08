@@ -332,9 +332,10 @@ async function lancerParDefaut(videoId: Id, accord: AccordPrix | undefined, mont
 export function titreCourt(titre: string, max = 40): string {
   const t = titre.normalize("NFC").replace(/\s+/g, " ").trim();
   if (!t) return "Image → vidéo";
-  if (t.length <= max) return t;
-  const coupe = t.slice(0, max - 1);
-  const surUnMot = t[max - 1] === " " ? coupe : coupe.replace(/\s+\S*$/, "");
+  const signes = Array.from(t); // points de code : jamais une paire de substitution coupée
+  if (signes.length <= max) return t;
+  const coupe = signes.slice(0, max - 1).join("");
+  const surUnMot = signes[max - 1] === " " ? coupe : coupe.replace(/\s+\S*$/, "");
   return `${(surUnMot || coupe).trimEnd()}…`;
 }
 

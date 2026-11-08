@@ -15,4 +15,10 @@ describe("titreCourt (écran Image → vidéo)", () => {
   it("titre vide : libellé par défaut", () => {
     expect(titreCourt("   ")).toBe("Image → vidéo");
   });
+  it("compte en caractères, pas en moitiés d'emoji : jamais de paire coupée", () => {
+    const r = titreCourt("😀".repeat(50));
+    expect(Array.from(r)).toHaveLength(40);
+    expect(r.endsWith("…")).toBe(true);
+    expect(r).not.toMatch(/[\ud800-\udbff]$|^[\udc00-\udfff]/);
+  });
 });
