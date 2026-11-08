@@ -99,29 +99,29 @@ export function PlateauEffets(p: ProprietesPlateau) {
   const cligne = (t % 3.4) > 3.28 ? 0.15 : 1;
   const cle = mainA(p.main, t);
   const paume = v.rx * 2 * 0.62;
-  const mur = p.mur ?? "#2E2119";
+  const mur = p.mur ?? "#141413";
   return (
-    <AbsoluteFill style={{ backgroundColor: "#16120F", overflow: "hidden" }}>
+    <AbsoluteFill style={{ backgroundColor: "#141413", overflow: "hidden" }}>
       <AbsoluteFill style={{ transform: `scale(${p.serre})`, transformOrigin: `${(v.cx / l) * 100}% ${(v.cy / h) * 100}%` }}>
         <svg viewBox={`0 0 ${l} ${h}`} width="100%" height="100%">
           <defs>
             <radialGradient id="mur" cx="0.3" cy="0.3" r="0.9">
               <stop offset="0" stopColor={mur} />
-              <stop offset="1" stopColor="#120E0B" />
+              <stop offset="1" stopColor="#141413" />
             </radialGradient>
             <radialGradient id="peau" cx="0.38" cy="0.32" r="0.75">
-              <stop offset="0" stopColor="#E2B496" />
-              <stop offset="0.6" stopColor="#C08A6C" />
-              <stop offset="1" stopColor="#8A5A44" />
+              <stop offset="0" stopColor="#E8E6DC" />
+              <stop offset="0.6" stopColor="#B0AEA5" />
+              <stop offset="1" stopColor="#B0AEA5" />
             </radialGradient>
             <linearGradient id="peauMain" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0" stopColor="#E0B293" />
-              <stop offset="1" stopColor="#A9765C" />
+              <stop offset="0" stopColor="#E8E6DC" />
+              <stop offset="1" stopColor="#B0AEA5" />
             </linearGradient>
             <linearGradient id="pull" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0" stopColor="#3B332D" />
-              <stop offset="0.6" stopColor="#2A2420" />
-              <stop offset="1" stopColor="#1B1714" />
+              <stop offset="0" stopColor="#141413" />
+              <stop offset="0.6" stopColor="#141413" />
+              <stop offset="1" stopColor="#141413" />
             </linearGradient>
             <filter id="flou40">
               <feGaussianBlur stdDeviation="40" />
@@ -139,24 +139,24 @@ export function PlateauEffets(p: ProprietesPlateau) {
           <circle cx={950} cy={920} r={46} fill="rgba(246,238,224,0.1)" filter="url(#flou14)" />
           <g transform={`translate(${balance * 0.4} 0) scale(1 ${respiration})`} style={{ transformOrigin: "540px 1920px" }}>
             {/* Buste et cou. */}
-            <path d="M 470 770 L 610 770 L 628 1000 C 590 1030, 490 1030, 452 1000 Z" fill="#A36F56" />
+            <path d="M 470 770 L 610 770 L 628 1000 C 590 1030, 490 1030, 452 1000 Z" fill="#B0AEA5" />
             <path d="M 470 860 C 520 900, 570 900, 610 860 L 612 900 C 570 940, 510 940, 468 900 Z" fill="rgba(70,40,28,0.35)" />
             <path d="M 50 1920 C 70 1380, 180 1060, 410 990 C 470 1030, 610 1030, 670 990 C 900 1060, 1010 1380, 1030 1920 Z" fill="url(#pull)" />
-            <path d="M 410 990 C 470 1045, 610 1045, 670 990 L 690 1010 C 620 1080, 460 1080, 390 1010 Z" fill="#231E1A" />
+            <path d="M 410 990 C 470 1045, 610 1045, 670 990 L 690 1010 C 620 1080, 460 1080, 390 1010 Z" fill="#141413" />
           </g>
           {/* Tête. */}
           <g transform={`rotate(${inclinaison} ${v.cx} ${v.cy + 160}) translate(${balance} 0)`}>
-            <ellipse cx={v.cx - v.rx + 6} cy={v.cy + 20} rx={22} ry={40} fill="#B07D62" />
-            <ellipse cx={v.cx + v.rx - 6} cy={v.cy + 20} rx={22} ry={40} fill="#8E5E48" />
+            <ellipse cx={v.cx - v.rx + 6} cy={v.cy + 20} rx={22} ry={40} fill="#B0AEA5" />
+            <ellipse cx={v.cx + v.rx - 6} cy={v.cy + 20} rx={22} ry={40} fill="#B0AEA5" />
             <ellipse cx={v.cx} cy={v.cy} rx={v.rx} ry={v.ry} fill="url(#peau)" />
-            <path d={`M ${v.cx - v.rx - 4} ${v.cy - 30} C ${v.cx - v.rx} ${v.cy - v.ry - 40}, ${v.cx + v.rx} ${v.cy - v.ry - 50}, ${v.cx + v.rx + 4} ${v.cy - 40} C ${v.cx + v.rx - 30} ${v.cy - v.ry + 10}, ${v.cx - 40} ${v.cy - v.ry + 30}, ${v.cx - v.rx - 4} ${v.cy - 30} Z`} fill="#2A1C15" />
+            <path d={`M ${v.cx - v.rx - 4} ${v.cy - 30} C ${v.cx - v.rx} ${v.cy - v.ry - 40}, ${v.cx + v.rx} ${v.cy - v.ry - 50}, ${v.cx + v.rx + 4} ${v.cy - 40} C ${v.cx + v.rx - 30} ${v.cy - v.ry + 10}, ${v.cx - 40} ${v.cy - v.ry + 30}, ${v.cx - v.rx - 4} ${v.cy - 30} Z`} fill="#141413" />
             {/* Sourcils, yeux, nez, bouche (traits simples). */}
-            <path d={`M ${v.cx - 95} ${v.cy - 52} Q ${v.cx - 62} ${v.cy - 68} ${v.cx - 28} ${v.cy - 54}`} stroke="#3A271D" strokeWidth={9} strokeLinecap="round" fill="none" />
-            <path d={`M ${v.cx + 28} ${v.cy - 54} Q ${v.cx + 62} ${v.cy - 68} ${v.cx + 95} ${v.cy - 52}`} stroke="#3A271D" strokeWidth={9} strokeLinecap="round" fill="none" />
-            <ellipse cx={v.cx - 60} cy={v.cy - 18} rx={15} ry={11 * cligne} fill="#22170F" />
-            <ellipse cx={v.cx + 60} cy={v.cy - 18} rx={15} ry={11 * cligne} fill="#22170F" />
+            <path d={`M ${v.cx - 95} ${v.cy - 52} Q ${v.cx - 62} ${v.cy - 68} ${v.cx - 28} ${v.cy - 54}`} stroke="#141413" strokeWidth={9} strokeLinecap="round" fill="none" />
+            <path d={`M ${v.cx + 28} ${v.cy - 54} Q ${v.cx + 62} ${v.cy - 68} ${v.cx + 95} ${v.cy - 52}`} stroke="#141413" strokeWidth={9} strokeLinecap="round" fill="none" />
+            <ellipse cx={v.cx - 60} cy={v.cy - 18} rx={15} ry={11 * cligne} fill="#141413" />
+            <ellipse cx={v.cx + 60} cy={v.cy - 18} rx={15} ry={11 * cligne} fill="#141413" />
             <path d={`M ${v.cx + 4} ${v.cy - 10} Q ${v.cx + 18} ${v.cy + 50} ${v.cx - 6} ${v.cy + 58}`} stroke="rgba(110,66,48,0.6)" strokeWidth={6} strokeLinecap="round" fill="none" />
-            <rect x={v.cx - 42} y={v.cy + 96 - parole * 9} width={84} height={10 + parole * 22} rx={10 + parole * 8} fill="#5A2A20" />
+            <rect x={v.cx - 42} y={v.cy + 96 - parole * 9} width={84} height={10 + parole * 22} rx={10 + parole * 8} fill="#B23F16" />
           </g>
           {cle && cle.y < 1.08 ? <Main cle={cle} paume={paume} l={l} h={h} /> : null}
         </svg>
