@@ -20,12 +20,12 @@
 export const STYLE_BLOCS_2 = "blocs/2";
 
 export const COULEURS_V2 = Object.freeze({
-  encre: "#110A05",
-  ivoire: "#E9DCC8",
-  orange: "#B44F29",
-  sable: "#BFA88B",
+  encre: "#141413",
+  ivoire: "#FAF9F5",
+  orange: "#B23F16",
+  sable: "#E8E6DC",
   /** Texte clair posé sur l'orange (fond ou bloc) : 5,3:1 sur l'orange. */
-  ivoireFranc: "#FFF6E9",
+  ivoireFranc: "#FAF9F5",
 } as const);
 
 export type FondV2 = "encre" | "ivoire" | "orange";
