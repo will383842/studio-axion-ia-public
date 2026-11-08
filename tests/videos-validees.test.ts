@@ -31,6 +31,18 @@ vi.mock("@/services/publications", async (importOriginal) => {
   };
 });
 
+// Le stockage de simulation renvoie toujours la même adresse : ici l'adresse porte la clé, pour savoir QUEL fichier part au zip.
+vi.mock("@/services/_commun", async (importOriginal) => {
+  const m = await importOriginal<typeof import("@/services/_commun")>();
+  return {
+    ...m,
+    fournisseur: async (nom: string) => {
+      const f = await (m.fournisseur as (n: string) => Promise<Record<string, unknown>>)(nom);
+      return nom === "stockage" ? { ...f, urlLecture: async (cle: string) => `https://stockage.test/${cle}` } : f;
+    },
+  };
+});
+
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const apub = await import("@/services/a-publier");
@@ -70,6 +82,9 @@ async function livrerImageVideo(videoId: string) {
     },
   } as never);
 }
+/** Le jeu d'essai a déjà des vidéos validées : on ne garde validées que celles dont le test a besoin. */
+const seulesValidees = (...ids: string[]) =>
+  depots().videos.lister(() => true).then((vs) => Promise.all(vs.filter((v) => v.etapeEditoriale === "validee" && !ids.includes(v.id)).map((v) => depots().videos.modifier(v.id, { etapeEditoriale: "a_relire" }))));
 const valider = (id: string) => depots().videos.modifier(id, { etapeEditoriale: "validee" });
 const lignes = async () => (await apub.vueAPublier()).lignes;
 const noms = (c: Awaited<ReturnType<typeof tel.contenuArchiveValidees>>) => c.entrees.map((e) => e.nom);
@@ -117,6 +132,7 @@ describe("Vidéos validées · classement par réseau", () => {
 describe("Vidéos validées · zip d'un réseau", () => {
   it("ne prend que des validées de ce réseau : bon fichier, texte enregistré, aucun kit généré", async () => {
     await livrerImageVideo("v-15");
+    await seulesValidees("v-15", "v-03");
     await valider("v-15");
     // v-03 : validée mais faite pour TikTok seulement ; v-12 : LinkedIn par défaut mais encore à relire.
     await depots().videos.modifier("v-03", { etapeEditoriale: "validee", reseau: "tiktok" } as never);
@@ -138,6 +154,7 @@ describe("Vidéos validées · zip d'un réseau", () => {
   });
 
   it("le fil de Facebook accompagne la vidéo de Facebook", async () => {
+    await seulesValidees("v-15");
     await livrerImageVideo("v-15");
     await valider("v-15");
     const c = await tel.contenuArchiveValidees("facebook");
@@ -153,7 +170,15 @@ describe("Vidéos validées · zip d'un réseau", () => {
     expect(generation.appels).toHaveLength(0);
   });
 
+  it("le nom du zip garde le nom entier du réseau (aucune lettre perdue)", async () => {
+    await seulesValidees();
+    await valider("v-12");
+    const c = await tel.contenuArchiveValidees("instagram");
+    expect(c.nom).toMatch(/^Instagram-validees-/);
+  });
+
   it("une vidéo à la corbeille ou archivée n'y est jamais", async () => {
+    await seulesValidees("v-15");
     await valider("v-15");
     await livrerImageVideo("v-15");
     await depots().videos.modifier("v-15", { corbeilleLe: new Date().toISOString(), statut: "archivee" } as never);

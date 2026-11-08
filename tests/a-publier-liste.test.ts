@@ -56,7 +56,8 @@ const jeu = (): LigneAPublier[] => [
 describe("À publier — la liste", () => {
   it("n'a ni lecteur, ni champ, ni case, ni bouton d'envoi", () => {
     const h = liste(jeu(), "toutes");
-    for (const balise of ["<video", "<input", "<textarea", "<button", "<details", "<select"]) expect(h).not.toContain(balise);
+    // Lot V (08/11, Williams) : « Remettre à relire » est un bouton ; le reste reste interdit.
+    for (const balise of ["<video", "<input", "<textarea", "<details", "<select"]) expect(h).not.toContain(balise);
     expect(texte(h)).not.toMatch(/J'ai regardé|Mettre en brouillon|Programmer dans Buffer|Phrase du post/);
   });
 

@@ -67,13 +67,13 @@ describe("À publier", () => {
     expect("famille" in ancien).toBe(false);
   });
 
-  it("la page est éteinte par défaut, et ne s'allume que par le réglage", async () => {
-    expect(await apub.pageAPublierAllumee()).toBe(false);
-    await expect(apub.definirPageAPublier("oui")).rejects.toMatchObject({ code: "CHOIX_INCONNU" });
-    await apub.definirPageAPublier(true);
+  it("la page est allumée par défaut (Williams, 08/11) ; seul le réglage « éteinte » l'éteint", async () => {
     expect(await apub.pageAPublierAllumee()).toBe(true);
+    await expect(apub.definirPageAPublier("oui")).rejects.toMatchObject({ code: "CHOIX_INCONNU" });
     await apub.definirPageAPublier(false);
     expect(await apub.pageAPublierAllumee()).toBe(false);
+    await apub.definirPageAPublier(true);
+    expect(await apub.pageAPublierAllumee()).toBe(true);
   });
 
   it("vueAPublier : une ligne par vidéo validée et par réseau voulu, en simulation (aucun envoi)", async () => {

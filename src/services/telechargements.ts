@@ -164,13 +164,13 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
   const pris = new Set<string>();
   const poser = (nom: string, e: { url: string } | { contenu: string }) => {
     let final = nom;
-    for (let i = 2; pris.has(final); i++) final = nom.replace(/(.[A-Za-z0-9]+)$/, `-${i}$1`);
+    for (let i = 2; pris.has(final); i++) final = nom.replace(/(\.[A-Za-z0-9]+)$/, `-${i}$1`);
     pris.add(final);
     entrees.push({ nom: final, ...e });
   };
   for (const video of validees) {
     if (!(await reseauxDeVideoStockee(video, parDefaut)).reseaux.includes(reseau)) continue;
-    const base = nomTelechargement(video.titre, reseau).replace(/.mp4$/, "");
+    const base = nomTelechargement(video.titre, reseau).replace(/\.mp4$/, "");
     const livraison = await livraisonDe(video);
     const sorties = video.versionChoisieId ? await d.sorties.lister((s) => s.versionId === video.versionChoisieId) : [];
     let trouve = false;
@@ -201,5 +201,5 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
     if (sousTitresUtilisables(detail?.sousTitres?.segments)) poser(`${base}.srt`, { contenu: exporterSrt(detail!.sousTitres!.segments) });
   }
   if (!entrees.length) throw new ErreurStudio("RIEN_A_TELECHARGER", "Aucune vidéo validée pour ce réseau.");
-  return { nom: `${obtenirReseau(reseau).nom.replace(/s+/g, "")}-validees-${maintenant().slice(0, 10)}.zip`, entrees };
+  return { nom: `${obtenirReseau(reseau).nom.replace(/\s+/g, "")}-validees-${maintenant().slice(0, 10)}.zip`, entrees };
 }
