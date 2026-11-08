@@ -7,6 +7,7 @@ import "server-only";
 import { exigerSession } from "./auth";
 import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
+import { comptesParcours, saisieGuideOfficielle } from "./mots-guide-source";
 
 export async function gesteLireMots(): Promise<VueMots> {
   await exigerSession();
@@ -58,4 +59,16 @@ export async function gesteActiverMotLocal(compte: string): Promise<Resultat> {
 export async function gesteMettreEnPauseLocal(mot: string, compte: string): Promise<Resultat> {
   await exigerSession();
   return mettreEnPauseLocal({ mot, compte, confirmeParOperateur: true });
+}
+/** Validation des textes du mot GUIDE : la saisie est construite ICI (fichier officiel ou dictionnaire), le client ne transmet rien. */
+export async function gesteValiderMotGuide(): Promise<{ ok: boolean; raison: string }> {
+  await exigerSession();
+  const s = await saisieGuideOfficielle();
+  if (!s.ok) return { ok: false, raison: s.raison };
+  return gesteValiderMot(s.saisie);
+}
+/** Comptes du parcours de conversation (identifiants seulement) pour les boutons d'activation. */
+export async function gesteComptesGuide(): Promise<string[]> {
+  await exigerSession();
+  return comptesParcours();
 }

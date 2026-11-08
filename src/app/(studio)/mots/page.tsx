@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EcranMotsConnecte } from "@/components/mots/EcranMotsConnecte";
 import { exigerSession } from "@/services/auth";
 import { etatBranchementZernio } from "@/services/branchements-zernio";
-import { gesteLireMots } from "@/services/mots-gestes";
+import { gesteComptesGuide, gesteLireMots } from "@/services/mots-gestes";
 
 export const metadata: Metadata = { title: "Mots" };
 export const dynamic = "force-dynamic";
@@ -11,5 +11,6 @@ export const dynamic = "force-dynamic";
 export default async function PageMots() {
   await exigerSession();
   const vue = await gesteLireMots();
-  return <EcranMotsConnecte vue={vue} branchement={etatBranchementZernio()} />;
+  const comptes = await gesteComptesGuide();
+  return <EcranMotsConnecte vue={vue} comptes={comptes} branchement={etatBranchementZernio()} />;
 }

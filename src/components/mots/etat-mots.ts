@@ -34,6 +34,7 @@ export const PHRASES_REFUS: Record<string, string> = {
   reponse_inattendue: "Réponse inattendue de Zernio.",
   fichier_absent: "Fichier du mot introuvable.",
   mot_non_valide: "Les textes de ce mot ne sont pas validés.",
+  titre_guide_absent: "Le titre du guide manque côté serveur.",
   deja_pose_chez_zernio: "Ce mot est déjà posé chez Zernio.",
   ligne_zernio: "Ce mot est posé chez Zernio : utilisez la pause habituelle.",
   lecture_impossible: "Les réglages sont illisibles : rien n’a changé.",

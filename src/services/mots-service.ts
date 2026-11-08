@@ -507,6 +507,8 @@ export interface VueMots {
   plafonds: Gardes["plafonds"];
   lignes: LigneMot[];
   oppositions: number;
+  /** Les textes du mot GUIDE sont-ils validés ? Un booléen, jamais un texte. */
+  guideValide: boolean;
 }
 export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
   const g = await lireGardes();
@@ -517,6 +519,7 @@ export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
     plafonds: g.plafonds,
     lignes: Object.values(await lireRegistre()).sort((a, b) => cle(a.mot, a.compte).localeCompare(cle(b.mot, b.compte))),
     oppositions: (await lireParametre<unknown[]>(PARAM_OPPOSITIONS_MOTS, [])).length,
+    guideValide: !!(await lireValidations()).GUIDE,
   };
 }
 

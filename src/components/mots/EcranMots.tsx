@@ -11,7 +11,7 @@ import type { EtatBranchement } from "@/services/branchements-zernio";
 import type { ElementATraiter, KitLinkedinProfil } from "@/services/mots-kit";
 import { KitLinkedin } from "./KitLinkedin";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
-import { creerGestesMotLocal } from "./gestes-mot-local";
+import { creerGestesMotLocal, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
 
 /** Ce que l'écran appelle : en production les gestes de `mots-gestes`, dans les tests un faux. */
 export interface ServicesMots {
@@ -20,6 +20,8 @@ export interface ServicesMots {
   /** Mot GUIDE LOCAL (sans idWorkflow) : activation et pause dans le registre, jamais d'appel vers Zernio. */
   activerLocal(compte: string): Promise<Resultat>;
   mettreEnPauseLocal(mot: string, compte: string): Promise<Resultat>;
+  /** Valide les textes du mot GUIDE : le serveur construit lui-même la saisie, le client n'envoie rien. */
+  validerGuide?(): Promise<{ ok: boolean; raison: string }>;
   refermerDisjoncteur(): Promise<{ ok: boolean }>;
   reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<unknown>;
 }
@@ -28,7 +30,7 @@ export interface ServicesMots {
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
  * l’interrupteur est éteint, les gestes sont des simulations et l’écran le dit.
  */
-export function EcranMots({ vue, services, onChange, kitLinkedin, branchement }: { vue: VueMots; services: ServicesMots; onChange?: () => void; branchement?: EtatBranchement | null; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
+export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, comptes }: { vue: VueMots; comptes?: readonly string[]; services: ServicesMots; onChange?: () => void; branchement?: EtatBranchement | null; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
   const [enCours, demarrer] = useTransition();
   const [heure, setHeure] = useState(String(vue.plafonds.heureCompte));
   const [jour, setJour] = useState(String(vue.plafonds.jourMot));
@@ -42,7 +44,21 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement }:
   };
 
   // Lignes locales : l'opérateur confirme (fenêtre du navigateur) AVANT tout appel ; sans accord, rien ne part.
-  const local = creerGestesMotLocal(services, { confirmer: (phrase) => window.confirm(phrase), apres });
+  const apresLocal = (r: Resultat) => {
+    if (r.issue === "refuse" && r.raison === "mot_non_valide") {
+      notifier.erreur("Validez d’abord les textes du mot");
+      onChange?.();
+    } else apres(r);
+  };
+  const local = creerGestesMotLocal(services, { confirmer: (phrase) => window.confirm(phrase), apres: apresLocal });
+  const comptesSansLigne = (comptes ?? []).filter((c) => !vue.lignes.some((l) => l.mot === "GUIDE" && l.compte === c));
+  const validerGuide = async () => {
+    if (!services.validerGuide || !window.confirm(PHRASE_VALIDER_GUIDE)) return;
+    const r = await services.validerGuide();
+    if (r.ok) notifier.succes("Textes du mot GUIDE validés.");
+    else notifier.erreur(phraseRefus(r.raison));
+    onChange?.();
+  };
 
   return (
     <div className="flex flex-col gap-4" data-ecran="mots">
@@ -76,6 +92,28 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement }:
           </Bouton>
         </Carte>
       )}
+
+      <Carte data-carte="mot-guide">
+        <h3 className="text-base text-texte">Mot GUIDE</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <Pastille ton={vue.guideValide ? "sauge" : "neutre"}>{vue.guideValide ? "Textes validés" : "Textes non validés"}</Pastille>
+          <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(validerGuide)}>
+            Valider les textes du mot GUIDE
+          </Bouton>
+        </div>
+        {comptesSansLigne.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-2" aria-label="Comptes sans mot GUIDE">
+            {comptesSansLigne.map((c) => (
+              <li key={c} className="flex flex-wrap items-center gap-3" data-compte={c}>
+                <span className="min-w-0 flex-1 text-sm text-texte">{c}</span>
+                <Bouton chargement={enCours} onClick={() => demarrer(async () => void (await local.activer(c)))}>
+                  Activer le mot GUIDE
+                </Bouton>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Carte>
 
       {vue.lignes.length === 0 ? (
         <EtatVide icone="bouclier" titre="Aucun mot posé" phrase="Tout est éteint. Posez un mot depuis un fichier validé." compact />

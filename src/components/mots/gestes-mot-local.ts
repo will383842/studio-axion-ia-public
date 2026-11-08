@@ -17,6 +17,7 @@ export interface AppuiMotLocal {
 }
 
 export const PHRASE_ACTIVER = "Activer le mot GUIDE pour ce compte ? Les commentaires GUIDE recevront alors une réponse et un message privé.";
+export const PHRASE_VALIDER_GUIDE = "Valider les textes du mot GUIDE ? Ce sont les textes officiels du serveur ; rien n’est envoyé.";
 export const PHRASE_PAUSE = "Mettre le mot GUIDE en pause pour ce compte ? Plus aucun message ne partira ; rien n’est supprimé.";
 
 export function creerGestesMotLocal(services: ServicesMotLocal, appui: AppuiMotLocal) {
