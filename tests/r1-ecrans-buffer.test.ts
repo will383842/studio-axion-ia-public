@@ -35,6 +35,16 @@ const rendre = (v: VueBuffer) => renderToStaticMarkup(createElement(BlocBuffer, 
 const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, " ");
 
 describe("R1 — bloc Buffer (Réglages)", () => {
+  // Décision de Williams du 08/11 : jamais « Zernio », « Buffer » ni « API » dans un libellé visible des Réglages.
+  it("aucun libellé du bloc ne nomme l'outil ni « API » (décision de Williams du 08/11)", () => {
+    // Le problème d'un compte vient du domaine (message partagé avec « À publier ») : hors du périmètre de ce contrôle.
+    const reseaux = vue().reseaux.map((r) => ({ ...r, probleme: undefined }));
+    for (const v of [vue({ reseaux }), vue({ reseaux, relie: false, clePresente: false }), vue({ reseaux, relie: false, clePresente: true })]) {
+      expect(texte(rendre(v))).not.toMatch(/zernio|buffer|\bapi\b/i);
+    }
+  });
+
+  // Libellés mis à jour selon la décision de Williams du 08/11 : jamais « Buffer », « Zernio » ni « API » dans un libellé visible.
   it("relié, brouillon par défaut : la phrase, le choix du mode, les comptes, les problèmes, le choix LinkedIn", () => {
     const t = texte(rendre(vue()));
     expect(t).toContain("Relié");

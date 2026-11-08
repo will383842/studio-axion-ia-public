@@ -115,11 +115,11 @@ describe("z3c · arrêt d'urgence", () => {
     const html = rendre(VUES[nom]);
     expect(html).toContain("Arrêt d’urgence");
     expect(html).toContain("Tout arrêter");
-    expect(html).toContain("Bloque seulement les envois vers Zernio : créer un brouillon, programmer, promouvoir. Ce qui est déjà programmé chez Zernio y reste. Buffer n’est pas touché et rien n’est supprimé. Tout se reprend en un geste.");
+    expect(html).toContain("Bloque seulement les envois vers le nouvel outil : créer un brouillon, programmer, promouvoir. Ce qui est déjà programmé dans le nouvel outil y reste. L’ancien outil n’est pas touché et rien n’est supprimé. Tout se reprend en un geste.");
   });
 
-  it("sous erreur : « Toujours disponible, même quand Zernio ne répond pas. »", () => {
-    expect(rendre(VUES.erreur)).toContain("Toujours disponible, même quand Zernio ne répond pas.");
+  it("sous erreur : « Toujours disponible, même quand le nouvel outil ne répond pas. »", () => {
+    expect(rendre(VUES.erreur)).toContain("Toujours disponible, même quand le nouvel outil ne répond pas.");
     expect(rendre(VUES.normal)).not.toContain("Toujours disponible");
   });
 
@@ -227,6 +227,9 @@ describe("z3c · langue et mots interdits", () => {
     expect(TOUT).not.toContain(MOT_INTERDIT.slice(0, 6));
     expect(TOUT).not.toContain(NOM_LABEL);
     expect(TOUT).not.toMatch(new RegExp(`${J("Gre", "noble")}|${J("Aucun gain ", "garanti")}`, "i"));
+  });
+  it("aucun nom d'outil ni « API » dans les libellés rendus (décision de Williams du 08/11)", () => {
+    expect(texte).not.toMatch(/zernio|buffer|\bapi\b/i);
   });
   it("aucun identifiant réel dans le rendu", () => {
     expect(TOUT).not.toMatch(/[0-9a-f]{24}|zernio_[a-z0-9]{8,}|sk_live|Bearer /);
