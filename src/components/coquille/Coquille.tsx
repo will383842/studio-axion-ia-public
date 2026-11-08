@@ -13,7 +13,7 @@ import { Recherche } from "./Recherche";
  * COQUILLE (AV2.1) : barre latérale (ordinateur), en-tête (loupe + cloche), onglets du bas (mobile).
  * Le contenu des pages est centré, largeur max 1200 px, marges 16 px sur mobile.
  */
-export function Coquille({ formats, nonLues, surLeSite = false, aPublier = false, children }: { formats: FormatNavigation[]; nonLues: number; /** Vidéos sur le site : au moins un type de vidéo autorisé (entrée de menu « Sur le site »). */ surLeSite?: boolean; /** Page « À publier » allumée dans les réglages. */ aPublier?: boolean; children: ReactNode }) {
+export function Coquille({ formats, nonLues, surLeSite = false, aPublier = false, children }: { formats: FormatNavigation[]; nonLues: number; /** Vidéos sur le site : au moins un type de vidéo autorisé (entrée de menu « Sur le site »). */ surLeSite?: boolean; /** Page « Vidéos validées » allumée dans les réglages. */ aPublier?: boolean; children: ReactNode }) {
   return (
     <div className="min-h-dvh">
       <a href="#contenu" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-full focus:bg-orange focus:px-4 focus:py-2 focus:text-sur-orange">
