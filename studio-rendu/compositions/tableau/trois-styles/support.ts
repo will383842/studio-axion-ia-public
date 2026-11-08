@@ -35,7 +35,7 @@ function bruit(w: number, h: number, cellules: number, graine: number, octaves =
   const c = toile(w, h);
   const g = c.getContext("2d")!;
   const r = alea(graine);
-  g.fillStyle = "#808080";
+  g.fillStyle = "#B0AEA5";
   g.fillRect(0, 0, w, h);
   let poids = 0.5;
   for (let o = 0; o < octaves; o++) {
@@ -113,24 +113,24 @@ function cylindre(g: Ctx, x: number, y: number, L: number, d: number, base: stri
 function alu(g: Ctx, W: number, x: number, y: number, w: number, h: number, sens: "h" | "v") {
   const gr = sens === "h" ? g.createLinearGradient(0, y, 0, y + h) : g.createLinearGradient(x, 0, x + w, 0);
   if (sens === "h") {
-    gr.addColorStop(0, "#77716B");
-    gr.addColorStop(0.18, "#D8D4CF");
-    gr.addColorStop(0.4, "#F2F0ED");
-    gr.addColorStop(0.62, "#BBB6B0");
-    gr.addColorStop(0.9, "#8F8983");
-    gr.addColorStop(1, "#5E5852");
+    gr.addColorStop(0, "#B0AEA5");
+    gr.addColorStop(0.18, "#E8E6DC");
+    gr.addColorStop(0.4, "#FAF9F5");
+    gr.addColorStop(0.62, "#E8E6DC");
+    gr.addColorStop(0.9, "#B0AEA5");
+    gr.addColorStop(1, "#141413");
   } else {
     const l = x < W / 2;
-    gr.addColorStop(l ? 0 : 1, "#6A645E");
-    gr.addColorStop(l ? 0.25 : 0.75, "#CFCAC4");
-    gr.addColorStop(0.5, "#EEEBE7");
-    gr.addColorStop(l ? 0.8 : 0.2, "#A9A39D");
-    gr.addColorStop(l ? 1 : 0, "#5E5852");
+    gr.addColorStop(l ? 0 : 1, "#141413");
+    gr.addColorStop(l ? 0.25 : 0.75, "#E8E6DC");
+    gr.addColorStop(0.5, "#FAF9F5");
+    gr.addColorStop(l ? 0.8 : 0.2, "#B0AEA5");
+    gr.addColorStop(l ? 1 : 0, "#141413");
   }
   g.fillStyle = gr;
   g.fillRect(x, y, w, h);
   g.globalAlpha = 0.08;
-  g.fillStyle = "#3A322C";
+  g.fillStyle = "#141413";
   const r = alea(Math.round(x + y + w));
   for (let i = 0; i < (sens === "h" ? 260 : 400); i++) {
     if (sens === "h") g.fillRect(x + r() * w, y + r() * h, 20 + r() * 80, 1);
@@ -141,10 +141,10 @@ function alu(g: Ctx, W: number, x: number, y: number, w: number, h: number, sens
 
 function bois(g: Ctx, W: number, x: number, y: number, w: number, h: number, sens: "h" | "v") {
   const gr = sens === "h" ? g.createLinearGradient(0, y, 0, y + h) : g.createLinearGradient(x, 0, x + w, 0);
-  gr.addColorStop(0, "#2A1A10");
-  gr.addColorStop(0.3, "#5A3A24");
-  gr.addColorStop(0.55, "#6B4A30");
-  gr.addColorStop(1, "#24160D");
+  gr.addColorStop(0, "#141413");
+  gr.addColorStop(0.3, "#141413");
+  gr.addColorStop(0.55, "#141413");
+  gr.addColorStop(1, "#141413");
   g.fillStyle = gr;
   g.fillRect(x, y, w, h);
   const r = alea(Math.round(x * 7 + y + 3));
@@ -175,10 +175,10 @@ export function pince(g: Ctx, W: number, k: number) {
   g.shadowBlur = 16 * k;
   g.shadowOffsetY = 8 * k;
   const gr = g.createLinearGradient(0, 22 * k, 0, 96 * k);
-  gr.addColorStop(0, "#4A3A2E");
-  gr.addColorStop(0.35, "#2A1F17");
-  gr.addColorStop(0.75, "#1A120C");
-  gr.addColorStop(1, "#0E0905");
+  gr.addColorStop(0, "#141413");
+  gr.addColorStop(0.35, "#141413");
+  gr.addColorStop(0.75, "#141413");
+  gr.addColorStop(1, "#141413");
   g.fillStyle = gr;
   g.beginPath();
   g.roundRect(20 * k, 26 * k, W - 40 * k, 66 * k, 12 * k);
@@ -188,9 +188,9 @@ export function pince(g: Ctx, W: number, k: number) {
   g.fillRect(30 * k, 32 * k, W - 60 * k, 3 * k);
   for (const x of [150 * k, W - 150 * k]) {
     const v = g.createRadialGradient(x - 4 * k, 55 * k, 2 * k, x, 59 * k, 16 * k);
-    v.addColorStop(0, "#D8CBB8");
-    v.addColorStop(0.5, "#8C7C6A");
-    v.addColorStop(1, "#3A2E24");
+    v.addColorStop(0, "#E8E6DC");
+    v.addColorStop(0.5, "#B0AEA5");
+    v.addColorStop(1, "#141413");
     g.fillStyle = v;
     g.beginPath();
     g.arc(x, 59 * k, 15 * k, 0, 7);
@@ -211,9 +211,9 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
   const res: Support = { fond };
   if (style === "tableau-blanc") {
     const gr = g.createLinearGradient(0, 0, W, H);
-    gr.addColorStop(0, "#F8F7F4");
-    gr.addColorStop(0.55, "#F2F0EC");
-    gr.addColorStop(1, "#E9E6E1");
+    gr.addColorStop(0, "#FAF9F5");
+    gr.addColorStop(0.55, "#FAF9F5");
+    gr.addColorStop(1, "#FAF9F5");
     g.fillStyle = gr;
     g.fillRect(0, 0, W, H);
     // Traces d'usage : de grands coups de chiffon très flous, sans aucune lettre.
@@ -222,7 +222,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.filter = `blur(${16 * k}px)`;
     for (let i = 0; i < 9; i++) {
       g.globalAlpha = 0.02 + r() * 0.015;
-      g.strokeStyle = "#5A4C42";
+      g.strokeStyle = "#141413";
       g.lineWidth = (90 + r() * 80) * k;
       g.lineCap = "round";
       g.beginPath();
@@ -248,8 +248,8 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     // Le mur sous le tableau.
     const y0 = bas + 34 * k;
     const m = g.createLinearGradient(0, y0, 0, H);
-    m.addColorStop(0, "#C9C0B4");
-    m.addColorStop(1, "#B7AC9F");
+    m.addColorStop(0, "#E8E6DC");
+    m.addColorStop(1, "#B0AEA5");
     g.fillStyle = m;
     g.fillRect(0, y0, W, H - y0);
     if (H - y0 > 4) {
@@ -292,15 +292,15 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
       g.lineTo(2 * k, y + 28 * k);
       g.closePath();
       const dd = g.createLinearGradient(0, y, 0, y + 28 * k);
-      dd.addColorStop(0, "#9E9891");
-      dd.addColorStop(0.45, "#D9D5D0");
-      dd.addColorStop(1, "#EFECE8");
+      dd.addColorStop(0, "#B0AEA5");
+      dd.addColorStop(0.45, "#E8E6DC");
+      dd.addColorStop(1, "#FAF9F5");
       g.fillStyle = dd;
       g.fill();
       const f = g.createLinearGradient(0, y + 28 * k, 0, y + 60 * k);
-      f.addColorStop(0, "#D2CDC7");
-      f.addColorStop(0.3, "#A19A93");
-      f.addColorStop(1, "#5E5852");
+      f.addColorStop(0, "#E8E6DC");
+      f.addColorStop(0.3, "#B0AEA5");
+      f.addColorStop(1, "#141413");
       g.fillStyle = f;
       g.beginPath();
       g.roundRect(2 * k, y + 28 * k, W - 4 * k, 32 * k, [0, 0, 9 * k, 9 * k]);
@@ -315,21 +315,21 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
         cylindre(g, x + 190 * k, yy, 62 * k, 27 * k, capuchon);
         cylindre(g, x - 14 * k, yy, 18 * k, 12 * k, capuchon, 0.2);
       };
-      feutre(190 * k, y + 14 * k, "#2A1F17", "#B44F29");
-      feutre(520 * k, y + 13 * k, "#ECE8E3", "#110A05");
+      feutre(190 * k, y + 14 * k, "#141413", "#B23F16");
+      feutre(520 * k, y + 13 * k, "#FAF9F5", "#141413");
       g.save();
       g.shadowColor = "rgba(40,28,18,0.45)";
       g.shadowBlur = 7 * k;
       g.shadowOffsetY = 4 * k;
       const b = g.createLinearGradient(0, y - 6 * k, 0, y + 24 * k);
-      b.addColorStop(0, "#4A3C31");
-      b.addColorStop(1, "#140D08");
+      b.addColorStop(0, "#141413");
+      b.addColorStop(1, "#141413");
       g.fillStyle = b;
       g.beginPath();
       g.roundRect(W - 230 * k, y - 8 * k, 150 * k, 30 * k, 8 * k);
       g.fill();
       g.restore();
-      g.fillStyle = "#BFA88B";
+      g.fillStyle = "#B0AEA5";
       g.fillRect(W - 228 * k, y + 16 * k, 146 * k, 6 * k);
     }
     // Stries claires (feutre).
@@ -338,12 +338,12 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     const rr = alea(41);
     for (let i = 0; i < 2400 * (W * H) / (1080 * 1920); i++) {
       sg.globalAlpha = 0.05 + rr() * 0.12;
-      sg.fillStyle = "#fff";
+      sg.fillStyle = "#FAF9F5";
       sg.fillRect(rr() * W, rr() * H, (30 + rr() * 120) * k, (1 + rr() * 1.5) * k);
     }
     res.stries = st;
   } else if (style === "ardoise") {
-    g.fillStyle = "#110A05";
+    g.fillStyle = "#141413";
     g.fillRect(0, 0, W, H);
     const n = bruit(W, H, 220 * k, 9, 4);
     g.globalCompositeOperation = "screen";
@@ -360,7 +360,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.filter = `blur(${16 * k}px)`;
     for (let i = 0; i < 11; i++) {
       g.globalAlpha = 0.03 + r() * 0.025;
-      g.strokeStyle = "#E9DCC8";
+      g.strokeStyle = "#E8E6DC";
       g.lineWidth = (110 + r() * 70) * k;
       g.lineCap = "round";
       g.beginPath();
@@ -379,20 +379,20 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     // Rebord à craies et poussière au pied, puis le mur sombre.
     const y = bas;
     const m = g.createLinearGradient(0, y, 0, H);
-    m.addColorStop(0, "#1C130C");
-    m.addColorStop(1, "#0A0603");
+    m.addColorStop(0, "#141413");
+    m.addColorStop(1, "#141413");
     g.fillStyle = m;
     g.fillRect(0, y, W, H - y);
     g.save();
     g.filter = `blur(${14 * k}px)`;
     g.globalAlpha = 0.07;
-    g.fillStyle = "#E9DCC8";
+    g.fillStyle = "#E8E6DC";
     g.fillRect(70 * k, y - 96 * k, W - 140 * k, 56 * k);
     g.restore();
     const d = g.createLinearGradient(0, y, 0, y + 24 * k);
-    d.addColorStop(0, "#3A2414");
-    d.addColorStop(0.5, "#7A5436");
-    d.addColorStop(1, "#8E6644");
+    d.addColorStop(0, "#141413");
+    d.addColorStop(0.5, "#141413");
+    d.addColorStop(1, "#B0AEA5");
     g.fillStyle = d;
     g.beginPath();
     g.moveTo(8 * k, y);
@@ -403,7 +403,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.fill();
     bois(g, W, 0, y + 24 * k, W, 34 * k, "h");
     const rr = alea(71);
-    g.fillStyle = "#E9DCC8";
+    g.fillStyle = "#E8E6DC";
     for (let i = 0; i < 260; i++) {
       g.globalAlpha = 0.12 + rr() * 0.3;
       g.fillRect(40 * k + rr() * (W - 80 * k), y + (4 + rr() * 18) * k, (1 + rr() * 2.2) * k, (1 + rr() * 1.5) * k);
@@ -417,9 +417,9 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
       cylindre(g, x, y + 10 * k, L, 17 * k, c, 0.3);
       g.restore();
     };
-    baton(300 * k, 132 * k, "#E9DCC8");
-    baton(610 * k, 92 * k, "#D97A52");
-    baton(780 * k, 34 * k, "#E9DCC8");
+    baton(300 * k, 132 * k, "#E8E6DC");
+    baton(610 * k, 92 * k, "#D97757");
+    baton(780 * k, 34 * k, "#E8E6DC");
     bois(g, W, 0, 0, W, 30 * k, "h");
     bois(g, W, 0, 0, 24 * k, bas, "v");
     bois(g, W, W - 24 * k, 0, 24 * k, bas, "v");
@@ -432,7 +432,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     const P = plume(CHARTES_TABLEAU.ardoise, 4242);
     const c = toile(W, H);
     const cg = c.getContext("2d")!;
-    cg.strokeStyle = "#BFA88B";
+    cg.strokeStyle = "#B0AEA5";
     cg.lineCap = "round";
     cg.lineJoin = "round";
     const R = geo.contenu;
@@ -452,7 +452,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
       cg.moveTo(x + sx * 12 * k, yy + sy * 46 * k);
       cg.quadraticCurveTo(x + sx * 30 * k, yy + sy * 30 * k, x + sx * 46 * k, yy + sy * 12 * k);
       cg.stroke();
-      cg.fillStyle = "#D97A52";
+      cg.fillStyle = "#D97757";
       cg.globalAlpha = 0.9;
       cg.beginPath();
       cg.moveTo(x + sx * 24 * k, yy + sy * 14 * k);
@@ -473,7 +473,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.drawImage(c, 0, 0);
   } else {
     // Mur enduit sable, chevalet, papier épais.
-    g.fillStyle = "#B49C7E";
+    g.fillStyle = "#B0AEA5";
     g.fillRect(0, 0, W, H);
     const n = bruit(W, H, 90 * k, 21, 4);
     g.globalCompositeOperation = "soft-light";
@@ -487,9 +487,9 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
       g.shadowBlur = 14 * k;
       g.shadowOffsetX = 6 * k;
       const gr = g.createLinearGradient(Math.min(x0, x1) - 22 * k, 0, Math.max(x0, x1) + 22 * k, 0);
-      gr.addColorStop(0, "#4A3020");
-      gr.addColorStop(0.45, "#8A6040");
-      gr.addColorStop(1, "#3A2414");
+      gr.addColorStop(0, "#141413");
+      gr.addColorStop(0.45, "#B0AEA5");
+      gr.addColorStop(1, "#141413");
       g.fillStyle = gr;
       g.beginPath();
       g.moveTo(x0 - 21 * k, bas - 60 * k);
@@ -508,9 +508,9 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.fillStyle = S.fond;
     g.fillRect(40 * k, 70 * k, W - 80 * k, bas - 70 * k);
     g.restore();
-    g.fillStyle = "#E8DFCF";
+    g.fillStyle = "#E8E6DC";
     g.fillRect(44 * k, 70 * k, W - 88 * k, 22 * k);
-    g.fillStyle = "#DED3C1";
+    g.fillStyle = "#E8E6DC";
     g.fillRect(48 * k, 70 * k, W - 96 * k, 12 * k);
     g.fillStyle = S.fond;
     g.fillRect(40 * k, 84 * k, W - 80 * k, bas - 84 * k);
@@ -529,7 +529,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     }), 0, 0);
     const fibres = alea(27);
     g.globalAlpha = 0.07;
-    g.strokeStyle = "#7A6248";
+    g.strokeStyle = "#141413";
     g.lineWidth = 1;
     for (let i = 0; i < 900; i++) {
       const x = 40 * k + fibres() * (W - 80 * k);
@@ -562,8 +562,8 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.shadowBlur = 18 * k;
     g.shadowOffsetY = 10 * k;
     const d = g.createLinearGradient(0, y, 0, y + 22 * k);
-    d.addColorStop(0, "#6A4A30");
-    d.addColorStop(1, "#A07850");
+    d.addColorStop(0, "#141413");
+    d.addColorStop(1, "#B0AEA5");
     g.fillStyle = d;
     g.fillRect(24 * k, y, W - 48 * k, 22 * k);
     g.restore();
@@ -573,13 +573,13 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
       g.shadowColor = "rgba(40,25,12,0.5)";
       g.shadowBlur = 6 * k;
       g.shadowOffsetY = 3 * k;
-      cylindre(g, x, y + 8 * k, 260 * k, 30 * k, "#1E1610");
+      cylindre(g, x, y + 8 * k, 260 * k, 30 * k, "#141413");
       g.restore();
-      cylindre(g, x + 70 * k, y + 8 * k, 100 * k, 31 * k, "#D9C6A6", 0.3);
+      cylindre(g, x + 70 * k, y + 8 * k, 100 * k, 31 * k, "#E8E6DC", 0.3);
       cylindre(g, x + 200 * k, y + 8 * k, 64 * k, 33 * k, capuchon);
     };
-    marqueur(170 * k, "#110A05");
-    marqueur(560 * k, "#B44F29");
+    marqueur(170 * k, "#141413");
+    marqueur(560 * k, "#B23F16");
     pince(g, W, k);
     res.grainPapier = pap;
   }
