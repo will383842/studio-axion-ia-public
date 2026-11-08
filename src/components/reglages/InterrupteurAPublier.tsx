@@ -33,5 +33,5 @@ export function InterrupteurAPublier({ initial }: { initial: boolean }) {
     });
   }
 
-  return <Interrupteur libelle="Page « À publier »" detail="Quand c'est allumé, le menu montre « À publier » à côté du calendrier : les vidéos validées, prêtes à partir vers Buffer, en brouillon ou programmées selon votre réglage Buffer." coche={allume} desactive={enCours} onChange={changer} />;
+  return <Interrupteur libelle="Page « Vidéos validées »" detail="Quand c'est allumé, le menu montre « Vidéos validées » : vos vidéos validées, classées par réseau, à télécharger ou à envoyer." coche={allume} desactive={enCours} onChange={changer} />;
 }
