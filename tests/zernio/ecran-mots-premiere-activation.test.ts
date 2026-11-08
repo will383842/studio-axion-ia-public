@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LigneMot } from "@/services/mots-service";
 
@@ -43,21 +43,6 @@ beforeEach(() => {
 });
 
 describe("service : source officielle et validation serveur", () => {
-  it("la saisie du dictionnaire est acceptée par construireGrapheMot", async () => {
-    const { saisieGuideDepuisDictionnaire } = await import("@/services/mots-guide-source");
-    const { textesDepuisSaisie, validerTextes } = await import("@/services/mots-textes");
-    const { construireGrapheMot } = await import("@/services/mots-graphe");
-    const s = saisieGuideDepuisDictionnaire(process.env);
-    expect(s.ok).toBe(true);
-    if (!s.ok) return;
-    expect(construireGrapheMot(validerTextes(textesDepuisSaisie(s.saisie))).ok).toBe(true);
-  });
-
-  it("sans titre du guide, la source du dictionnaire refuse (aucun texte à trous)", async () => {
-    const { saisieGuideDepuisDictionnaire } = await import("@/services/mots-guide-source");
-    expect(saisieGuideDepuisDictionnaire({}).ok).toBe(false);
-  });
-
   it("sans validation : l'activation est refusée avec mot_non_valide, aucune ligne", async () => {
     const r = await actions.activerMotLocalAction(COMPTE);
     expect(r).toMatchObject({ issue: "refuse", raison: "mot_non_valide" });
@@ -99,7 +84,7 @@ describe("session exigée", () => {
   });
 });
 
-const vueVide = { interrupteurAllume: false, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 100 }, lignes: [] as LigneMot[], oppositions: 0, guideValide: false };
+const vueVide = { guidePerime: false, interrupteurAllume: false, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 100 }, lignes: [] as LigneMot[], oppositions: 0, guideValide: false };
 const services = () => ({
   mettreEnPause: vi.fn(),
   reactiver: vi.fn(),
@@ -135,5 +120,158 @@ describe("écran", () => {
   it("dictionnaire inchangé", () => {
     const h = createHash("sha256").update(readFileSync("contrats/dictionnaire-textes-mp.v2.json")).digest("hex");
     expect(h).toBe("2acad2a6ed24250b65df4e6693c6e0614bafe4921140e119aa53b21d9ee4671e");
+  });
+});
+
+
+/* ------------------------------------------------------------------ */
+/* Corrections de l'audit : B1 (empreinte liée aux textes envoyés) et B2 (compte hors liste)  */
+/* ------------------------------------------------------------------ */
+const { TEXTES_MP, rendreTexteMp } = await import("@/domaine/guide-reseau/textes-mp");
+const { empreinteGuideParcours, textesGuideEnvoyes, comptesParcours } = await import("@/domaine/guide-reseau/empreinte-guide");
+const { ecrireParametre } = await import("@/services/_commun");
+const { depots } = await import("@/donnees/memoire");
+
+const IDS = ["mp-pub-igfb-v1", "mp-m1-v2", "mp-m2-v1", "mp-recu-v2"] as const;
+const rendusParcours = (titre: string) => [rendreTexteMp("mp-pub-igfb-v1", {}), rendreTexteMp("mp-m1-v2", { mot: "GUIDE", titre }), rendreTexteMp("mp-m2-v1", {}), rendreTexteMp("mp-recu-v2", { titre })];
+const attendue = (titre: string) => createHash("sha256").update(JSON.stringify(["guide-parcours-v1", IDS.map((id, n) => [id, TEXTES_MP[id].version, rendusParcours(titre)[n]])])).digest("hex");
+const validation = () => S.lireValidationGuideParcours();
+const refus = (r: { issue: string; raison?: string }) => ({ issue: r.issue, raison: r.raison });
+
+describe("B1 · empreinte liée aux 4 textes réellement envoyés", () => {
+  it("l'empreinte validée = celle recalculée des 4 rendus du parcours ; changer M2 seul la change", async () => {
+    expect(await actions.validerMotGuideAction()).toEqual({ ok: true, raison: "valide" });
+    const v = await validation();
+    expect(v?.empreinte).toBe(attendue("Guide fictif"));
+    const e = empreinteGuideParcours("Guide fictif");
+    expect(e).toEqual({ ok: true, empreinte: attendue("Guide fictif") });
+    const t = textesGuideEnvoyes("Guide fictif");
+    expect(t.ok && t.textes.m2).toBe(rendreTexteMp("mp-m2-v1", {}));
+    const origine = TEXTES_MP["mp-m2-v1"];
+    try {
+      (TEXTES_MP as Record<string, unknown>)["mp-m2-v1"] = { ...origine, texte: `${origine.texte} (modifié)` };
+      const e2 = empreinteGuideParcours("Guide fictif");
+      expect(e2.ok && e2.empreinte).not.toBe(attendue("Guide fictif"));
+    } finally {
+      (TEXTES_MP as Record<string, unknown>)["mp-m2-v1"] = origine;
+    }
+  });
+  it("titre absent / vide : raison titre_guide_absent ; titre avec espaces : même empreinte côté validation et parcours", async () => {
+    expect(textesGuideEnvoyes("   ")).toEqual({ ok: false, raison: "titre_guide_absent" });
+    expect(empreinteGuideParcours("")).toEqual({ ok: false, raison: "titre_guide_absent" });
+    vi.stubEnv("PARCOURS_CONVERSATION_TITRE_GUIDE", "  Guide fictif  ");
+    expect(await actions.validerMotGuideAction()).toEqual({ ok: true, raison: "valide" });
+    expect((await validation())?.empreinte).toBe(attendue("Guide fictif"));
+    expect(refus(await actions.activerMotLocalAction(COMPTE)).issue).toBe("execute");
+  });
+  it("titre changé après validation : activation refusée validation_perimee, vue « à revalider »", async () => {
+    await actions.validerMotGuideAction();
+    vi.stubEnv("PARCOURS_CONVERSATION_TITRE_GUIDE", "Autre guide fictif");
+    expect(refus(await actions.activerMotLocalAction(COMPTE))).toEqual({ issue: "refuse", raison: "validation_perimee" });
+    expect(await ligne()).toBeUndefined();
+    const vue = await S.lireVueMots({ ...ENV, PARCOURS_CONVERSATION_TITRE_GUIDE: "Autre guide fictif" });
+    expect(vue.guideValide).toBe(false);
+    expect(vue.guidePerime).toBe(true);
+    expect(JSON.stringify(vue)).not.toMatch(/Message automatique/);
+    await actions.validerMotGuideAction();
+    expect(refus(await actions.activerMotLocalAction(COMPTE)).issue).toBe("execute");
+  });
+  it("sans titre côté serveur : la validation et l'activation rendent titre_guide_absent", async () => {
+    vi.stubEnv("PARCOURS_CONVERSATION_TITRE_GUIDE", "");
+    expect(await actions.validerMotGuideAction()).toEqual({ ok: false, raison: "titre_guide_absent" });
+    expect(await validation()).toBeNull();
+  });
+  it("mots/GUIDE.md présent : validation refusée guide_fichier_present, rien écrit", async () => {
+    const avant = existsSync("mots");
+    mkdirSync("mots", { recursive: true });
+    writeFileSync("mots/GUIDE.md", "fichier d'essai");
+    try {
+      expect(await actions.validerMotGuideAction()).toEqual({ ok: false, raison: "guide_fichier_present" });
+      expect(await validation()).toBeNull();
+      expect(await lireParametre(S.PARAM_VALIDATIONS_MOTS, {})).toEqual({});
+    } finally {
+      rmSync("mots/GUIDE.md", { force: true });
+      if (!avant) rmSync("mots", { recursive: true, force: true });
+    }
+  });
+  it("mots.validations inchangé par la validation du GUIDE ; validerMot + poserMot d'un autre mot comme avant", async () => {
+    await actions.validerMotGuideAction();
+    expect(await lireParametre(S.PARAM_VALIDATIONS_MOTS, {})).toEqual({});
+    const saisie = { mot: "AUTRE", reponsePublique: "Réponse fictive {lien}", messagePrive: "Message fictif {lien}", fin: "Fin fictive" };
+    const v = await S.validerMot({ saisie, confirmeParOperateur: true });
+    expect(v.ok).toBe(true);
+    expect(await lireParametre(S.PARAM_VALIDATIONS_MOTS, {})).toEqual({ AUTRE: v.empreinte });
+    const r = await S.poserMot({ compte: COMPTE, saisie, confirmeParOperateur: true, env: { MOTS_ENABLED: "0" } });
+    expect(r.issue).toBe("simule");
+  });
+  it("une validation écrite avec une fausse empreinte bloque l'activation (validation_perimee)", async () => {
+    await ecrireParametre(S.PARAM_VALIDATION_GUIDE_PARCOURS, { empreinte: "0".repeat(64), valideLe: "x" });
+    expect(refus(await actions.activerMotLocalAction(COMPTE))).toEqual({ issue: "refuse", raison: "validation_perimee" });
+  });
+});
+
+describe("B2 · un compte hors PARCOURS_CONVERSATION_COMPTES ne peut pas être activé", () => {
+  it("action et service direct : refusé compte_hors_liste, aucune ligne créée", async () => {
+    await actions.validerMotGuideAction();
+    expect(refus(await actions.activerMotLocalAction("compte_inconnu"))).toEqual({ issue: "refuse", raison: "compte_hors_liste" });
+    expect(refus(await S.activerMotLocal({ mot: "GUIDE", compte: "compte_inconnu", confirmeParOperateur: true }))).toEqual({ issue: "refuse", raison: "compte_hors_liste" });
+    expect(Object.keys(await lireParametre(S.PARAM_REGISTRE_MOTS, {}))).toHaveLength(0);
+  });
+  it("le refus du geste précède tout appel (même sans validation)", async () => {
+    expect(refus(await Ges.gesteActiverMotLocal("compte_inconnu"))).toEqual({ issue: "refuse", raison: "compte_hors_liste" });
+  });
+  it("ligne locale en pause + compte retiré + Réactiver : refusé", async () => {
+    await actions.validerMotGuideAction();
+    await actions.activerMotLocalAction(COMPTE);
+    await actions.mettreEnPauseLocalAction("GUIDE", COMPTE);
+    vi.stubEnv("PARCOURS_CONVERSATION_COMPTES", "compte_fictif_2");
+    expect(refus(await actions.reactiverAction("GUIDE", COMPTE))).toEqual({ issue: "refuse", raison: "compte_hors_liste" });
+    expect((await ligne())?.etat).toBe("pause");
+  });
+  it("comptesParcours : liste nettoyée", () => {
+    expect(comptesParcours({ PARCOURS_CONVERSATION_COMPTES: " a, b ,,c" })).toEqual(["a", "b", "c"]);
+  });
+  it("ligne active + compte retiré : pauserGuidesHorsListe la met en pause_auto, une alerte ; ligne Zernio intacte", async () => {
+    await actions.validerMotGuideAction();
+    await actions.activerMotLocalAction(COMPTE);
+    await actions.activerMotLocalAction("compte_fictif_2");
+    const env = { ...ENV, PARCOURS_CONVERSATION_COMPTES: "compte_fictif_2" };
+    await S.pauserGuidesHorsListe(env);
+    expect((await ligne())?.etat).toBe("pause_auto");
+    expect((await lireParametre<Record<string, LigneMot>>(S.PARAM_REGISTRE_MOTS, {}))["GUIDE|compte_fictif_2"].etat).toBe("actif");
+    const alertes = await depots().evenements.lister((e: { message: string }) => /ALERTE|retiré/.test(e.message));
+    expect(alertes.length).toBeGreaterThanOrEqual(1);
+  });
+  it("pauserGuidesHorsListe n'est jamais appelée depuis une section sous verrou (sousVerrou non réentrant)", () => {
+    const src = readFileSync("src/services/mots-service.ts", "utf8");
+    const corps = src.slice(src.indexOf("export async function pauserGuidesHorsListe"));
+    expect(corps.slice(0, corps.indexOf("\n}\n"))).not.toMatch(/await (activerMotLocal|changerEtat|mettreEnPause|reactiverMot)\(/);
+    expect(src.match(/sousVerrou\([^\n]*pauserGuidesHorsListe/g) ?? []).toHaveLength(0);
+  });
+});
+
+describe("phrases et écran", () => {
+  it("chaque raison a sa phrase propre (jamais « Demande refusée »)", () => {
+    const raisons = ["validation_perimee", "compte_hors_liste", "guide_fichier_present", "texte_dictionnaire_incomplet", "titre_guide_absent", "mot_non_pris_en_charge"];
+    const phrases = raisons.map((r) => phraseRefus(r));
+    expect(new Set(phrases).size).toBe(raisons.length);
+    for (const p of phrases) expect(p).not.toBe("Demande refusée.");
+    expect(phraseRefus("n_importe_quoi")).toBe("Demande refusée.");
+  });
+  it("pastille « à revalider » si la validation est périmée, « Textes validés » si valide, « non validés » sinon", () => {
+    const rendu = (v: object) => renderToStaticMarkup(createElement(EcranMots, { vue: { ...vueVide, ...v }, services: services() as never, comptes: [COMPTE] }));
+    expect(rendu({ guidePerime: true })).toContain("à revalider");
+    expect(rendu({ guideValide: true })).toContain("Textes validés");
+    expect(rendu({})).toContain("Textes non validés");
+  });
+  it("le compte est visible sur chaque carte de ligne (data-compte)", () => {
+    const l: LigneMot[] = [
+      { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: "local", modifieLe: "" },
+      { mot: "GUIDE", compte: "compte_fictif_2", etat: "pause", idWorkflow: null, raison: "local", modifieLe: "" },
+    ];
+    const html = renderToStaticMarkup(createElement(EcranMots, { vue: { ...vueVide, lignes: l }, services: services() as never, comptes: [] }));
+    expect(html).toMatch(new RegExp(`data-mot="GUIDE"[^>]*data-compte="${COMPTE}"|data-compte="${COMPTE}"[^>]*data-mot="GUIDE"`));
+    expect(html).toMatch(/data-compte="compte_fictif_2"/);
+    expect(html).toContain(`>${COMPTE}<`);
   });
 });

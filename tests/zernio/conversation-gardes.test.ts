@@ -1,6 +1,6 @@
 /** Lot 3a · interrupteur et gardes avant toute action sortante (18). */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -90,5 +90,78 @@ describe.each(cas)("18 · %s", (_nom, regler, over) => {
     expect((await evenement(depots, id)).charge).toMatchObject({ etat: "oppose" });
     const conv = await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
     expect(conv[cleConversation("auteur-fictif-400")].etat).toBe("oppose");
+  });
+});
+
+describe("B1 · validation du GUIDE revérifiée avant tout envoi", () => {
+  const alertes = () => depots().evenements.lister((e: { message: string }) => /ALERTE/.test(e.message));
+  it("titre changé après validation : aucun appel, événement reporté, une alerte ; après revalidation l'envoi repart", async () => {
+    await validerGuideAuParcours(TITRE);
+    const id = await deposerCommentaire(depots, {});
+    const rap = await passer({ titreGuide: "Autre titre fictif" });
+    expect(port.total()).toBe(0);
+    expect(site.vus).toHaveLength(0);
+    expect((await evenement(depots, id)).traite).toBe(false);
+    expect(rap.enAttente).toBe(1);
+    await passer({ titreGuide: "Autre titre fictif" }, T0 + 1000);
+    const a = await alertes();
+    expect(a).toHaveLength(1);
+    expect(a[0].message).toMatch(/Les textes du mot GUIDE ont changé/);
+    await validerGuideAuParcours("Autre titre fictif");
+    await passer({ titreGuide: "Autre titre fictif" }, T0 + 120_000);
+    expect(port.pub.length).toBeGreaterThan(0);
+  });
+  it("jamais validé : aucun envoi", async () => {
+    const id = await deposerCommentaire(depots, {});
+    await passer();
+    expect(port.total()).toBe(0);
+    expect((await evenement(depots, id)).traite).toBe(false);
+  });
+  it("validation enregistrée avec une fausse empreinte (écrite directement) : aucun envoi", async () => {
+    await Com.ecrireParametre(MS.PARAM_VALIDATION_GUIDE_PARCOURS, { empreinte: "f".repeat(64), valideLe: "x" });
+    const id = await deposerCommentaire(depots, {});
+    await passer();
+    expect(port.total()).toBe(0);
+    expect((await evenement(depots, id)).traite).toBe(false);
+  });
+  it("titre avec espaces côté serveur : même empreinte que la validation, l'envoi part", async () => {
+    await MS.validerGuideParcours({ titre: `  ${TITRE}  `.trim(), confirmeParOperateur: true });
+    await deposerCommentaire(depots, {});
+    await passer({ titreGuide: TITRE });
+    expect(port.pub.length).toBeGreaterThan(0);
+  });
+  it("validé et titre inchangé : l'envoi part", async () => {
+    await validerGuideAuParcours(TITRE);
+    await deposerCommentaire(depots, {});
+    await passer();
+    expect(port.pub.length).toBeGreaterThan(0);
+  });
+});
+
+describe("B2 · liste des comptes", () => {
+  it("la garde refuse un compte actif hors comptesPermis (validation en règle)", async () => {
+    await validerGuideAuParcours(TITRE);
+    await deposerCommentaire(depots, {});
+    await passer({ comptesPermis: ["autre-compte"] });
+    expect(port.total()).toBe(0);
+    const a = await depots().evenements.lister((e: { message: string }) => /pas dans la liste autorisée/.test(e.message));
+    expect(a).toHaveLength(1);
+  });
+  it("ligne active, compte retiré : pause_auto ; compte réajouté + passage complet : aucun envoi, reste pause_auto ; après Réactiver l'envoi repart", async () => {
+    await validerGuideAuParcours(TITRE);
+    const sans = { ...ENV, MOTS_ENABLED: "1", PARCOURS_CONVERSATION_COMPTES: "autre-compte", PARCOURS_CONVERSATION_TITRE_GUIDE: TITRE };
+    await MS.pauserGuidesHorsListe(sans);
+    const lire = async () => (await Com.lireParametre<Record<string, { etat: string }>>(MS.PARAM_REGISTRE_MOTS, {}))[`GUIDE|${COMPTE}`].etat;
+    expect(await lire()).toBe("pause_auto");
+    const avec = { ...sans, PARCOURS_CONVERSATION_COMPTES: `autre-compte,${COMPTE}` };
+    await MS.pauserGuidesHorsListe(avec);
+    await deposerCommentaire(depots, {});
+    await passer({ env: avec });
+    expect(port.total()).toBe(0);
+    expect(await lire()).toBe("pause_auto");
+    const r = await MS.reactiverMot({ mot: "GUIDE", compte: COMPTE, confirmeParOperateur: true, env: avec });
+    expect(r.issue).toBe("execute");
+    await passer({ env: avec }, T0 + 120_000);
+    expect(port.pub.length).toBeGreaterThan(0);
   });
 });
