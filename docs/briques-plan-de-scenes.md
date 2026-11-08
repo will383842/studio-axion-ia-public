@@ -45,6 +45,18 @@ Chaque brique est un composant **pur** (l'image courante arrive en propriété, 
 
 ## Retouche par chat (lot R1)
 
+`src/briques/operations.ts` : `changer-mot`, `ajouter-chiffre`, `changer-brique`, `decaler-scene`, `changer-habillage`.
+
+## Option sur les générateurs existants (lot R2)
+
+Cas concret, Facecam et Facecam animée peuvent utiliser le plan de scènes pour leurs scènes d'**interface, de chiffres et d'accents** (légendes de 5 mots au plus) ; le reste (sous-titres, cartes, légendes longues) reste à l'existant.
+
+- **Réglages, tous ÉTEINTS par défaut** (allumés seulement par la valeur `true`) : `planScenes.casConcret`, `planScenes.facecam`, `planScenes.facecamAnimee` (`briques/plan-scenes-generateurs/reglage.ts`). Éteint : aucune propriété ajoutée, rien ne change à l'écran ni dans les empreintes de rendu.
+- **Adaptateur** (`briques/plan-scenes-generateurs/adaptateur.ts`) : script + segments calés → `PlanValide`. Niveau 1 : pièces du stock d'après le texte ; niveau 2 : `genererPlan` avec le fournisseur injecté ; repli d'un niveau **par scène** ; niveau 3 interdit. Jamais de refus : des remarques.
+- **Calque Remotion** (`studio-rendu/compositions/plan-scenes/CalquePlanScenes.tsx`) posé par-dessus la composition existante, fond transparent, seulement si la propriété optionnelle `planScenes` est présente.
+- **Empreintes par scène** : Cas concret : une tranche du plan par écran (`tranche.ts`), donc seul un écran dont les scènes changent est rendu à nouveau ; plan gardé au journal (l'IA n'est pas rappelée à la reprise). Facecam et Facecam animée : plan gardé dans l'état de la chaîne, `scenesARerendre` pour la retouche.
+- **À faire avant usage réel du niveau 2** : brancher le fournisseur par `executerRole` (comme le lot C). Allumé aujourd'hui, le réglage donne les pièces du stock (niveau 1).
+
 `src/briques/operations.ts` : `changer-mot`, `ajouter-chiffre`, `changer-brique`, `decaler-scene`, `changer-habillage`, `ajouter-piece`, `retirer-piece`, `remplacer-piece`, `changer-transition`, `ajouter-dynamisme`, `ajuster-zoom`, `modifier-script` (seule à toucher la voix, gardée seulement sur demande explicite de modifier le script).
 
 `src/services/retouche-chat/` : `comprendreDemande` (phrase + plan → opérations, port LLM injecté, Zod strict, jamais de code libre), `appliquerOperations` (revalidé par `validerPlan`, remarques au lieu de refus), `impactRetouche` (« 2 scènes sur 7 seront refaites, la voix ne change pas »), `service.ts` (aperçu, application avec rendu partiel des seules scènes touchées, nouvelle version, retour arrière par `choisirVersion`). Route `POST /api/retouche-chat`, composant `components/retouche-chat/ChatRetouche.tsx` (non branché). Ports du studio (`studio.ts`) : LLM et rendu partiel NON branchés (lecture simple, plan retouché « prêt ») ; à brancher par `executerRole` et par chaque générateur (lot R2).

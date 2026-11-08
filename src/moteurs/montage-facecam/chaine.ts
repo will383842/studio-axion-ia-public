@@ -52,9 +52,13 @@ import type { PassageMonteur } from "./monteur/appliquer";
 import { MESSAGE_EFFET_RATE, planAvecEffets, plansLargesPendant, selonEffetsRealistes, type EffetRealistePrepare, type ResultatEffetRealiste } from "@/briques/effet-realiste";
 import { effetDuPassage } from "./monteur/effet-realiste";
 import type { ControleCouleurs } from "@/briques/composition/scene";
+import type { AppelClaude } from "@/briques/plan-scenes/generateur";
+import { planPourVideo, type MemoPlanVideo } from "@/briques/plan-scenes-generateurs/video";
 import { couleursBloquent, MESSAGE_COULEURS, pairesCouleurs } from "./garde-couleurs";
 
 export const VERSION_CHAINE_FACECAM = "chaine-facecam-1";
+/** Format du plan de scènes de la vidéo maître (9:16, 25 i/s). */
+const FORMAT_PLAN_FACECAM = { largeur: 1080, hauteur: 1920, fps: 25 as const };
 
 /** Une étape de la chaîne : un travail du `studio-aligneur`. */
 export type CleTravailChaine = "transcrire" | "visages" | "son" | "passe" | "cadrage" | "controle";
@@ -125,6 +129,8 @@ export interface EtatChaine {
   habillage?: EtatHabillage;
   /** Mission H (facultatif) : piste multicaméra (brique commune `multicamera`). Absent : une seule caméra. */
   multicamera?: { statut: "fait"; piste?: PisteMulticamera };
+  /** Lot R2 : plan de scènes (option éteinte par défaut), gardé pour ne pas rappeler l'IA à la reprise. Absent : option éteinte. */
+  planScenes?: MemoPlanVideo;
   /** Briques ratées, livrées sans elles (« 1 élément non fait — Réessayer »). */
   sauts: { brique: string; message: string }[];
   fini?: boolean;
@@ -247,6 +253,8 @@ export interface DependancesChaine {
    * fabriqués par son double sur le même son. Rend `null` quand l'option est coupée (réglage `facecam.multicamera`, ni
    * consigne « 3 caméras »). Absent : une seule caméra, comme avant.
    */
+  /** Lot R2 : plan de scènes pour les scènes d'interface, de chiffres et d'accents (9:16). Absent (par défaut) : habillage inchangé. `appeler` absent : pièces du stock seulement. */
+  planScenes?: () => Promise<{ appeler?: AppelClaude } | undefined>;
   multicamera?: (e: { pisteCle: string; dureeSec: number; mots: MotHorodate[]; coupesPrefereesSec: number[]; consignes: string[] }) => Promise<PisteMulticamera | null>;
   /**
    * Lot K : fabrique les effets réalistes par IA de la version (`passeEffetsRealistesFacecam` : jamais sans confirmation
@@ -903,6 +911,11 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       });
       const demandes: EtatHabillage["cartes"] = [];
       const e = h.entree;
+      // Lot R2 : plan de scènes (option éteinte par défaut : sans `deps.planScenes`, rien n'est composé ni ajouté) ; 9:16 seulement.
+      const optionPlan = deps.planScenes ? await deps.planScenes().catch(() => undefined) : undefined;
+      if (optionPlan) {
+        etat.planScenes = await planPourVideo({ generateur: "facecam", mots: mots.map((m) => ({ texte: m.mot, debutSec: m.debutSec, finSec: m.finSec })), dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM, appeler: optionPlan.appeler, memo: etat.planScenes });
+      }
       // Lot G : sous-titres corrigés par Will (recalque) : ses groupes et ses mots, tels quels.
       if (etat.sousTitres?.length) e.segments = etat.sousTitres;
       for (const carte of h.cartes) {
@@ -946,7 +959,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
           audioCle: e.audioCle,
           pistesDouble: e.pistesDouble,
           pistesDepuisLook: true,
-          supplements: { sourcePreCadree: e.sourcePreCadree, source10bits: e.source10bits, positionSousTitresPct: e.positionSousTitresPct, ecransPartages: e.ecransPartages, cartesPleinEcran: fx?.cartesPleinEcran.length ? [...(e.cartesPleinEcran ?? []), ...fx.cartesPleinEcran] : e.cartesPleinEcran, lookBroll: e.lookBroll, ...(e.textesAffiches?.length ? { textesAffiches: e.textesAffiches } : {}), ...controleCouleurs([...(e.cartesPleinEcran ?? []), ...(fx?.cartesPleinEcran ?? []), ...(e.ecransPartages ?? []), ...(e.misesEnPage ?? []), ...occupes], dureeSec, !!multicamera) },
+          supplements: { ...(etat.planScenes?.plan ? { planScenes: etat.planScenes.plan } : {}), sourcePreCadree: e.sourcePreCadree, source10bits: e.source10bits, positionSousTitresPct: e.positionSousTitresPct, ecransPartages: e.ecransPartages, cartesPleinEcran: fx?.cartesPleinEcran.length ? [...(e.cartesPleinEcran ?? []), ...fx.cartesPleinEcran] : e.cartesPleinEcran, lookBroll: e.lookBroll, ...(e.textesAffiches?.length ? { textesAffiches: e.textesAffiches } : {}), ...controleCouleurs([...(e.cartesPleinEcran ?? []), ...(fx?.cartesPleinEcran ?? []), ...(e.ecransPartages ?? []), ...(e.misesEnPage ?? []), ...occupes], dureeSec, !!multicamera) },
           // Lot G : mises en page (côté, vignette).
           ...(e.misesEnPage?.length ? { supplementsMiseEnPage: { misesEnPage: e.misesEnPage } } : {}),
           ...(multicamera ? { multicamera } : {}),

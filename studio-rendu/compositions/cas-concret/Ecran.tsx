@@ -21,8 +21,20 @@ import { Promesse } from "./types/Promesse";
 import { Lien } from "./types/Lien";
 import { codeL6, EcranL6, Raccorde } from "./mises-en-page/MiseEnPage";
 import { Habillage } from "./socle/Habillage";
+import { CalquePlanScenes } from "../plan-scenes/CalquePlanScenes";
 
+/** Lot R2 : le calque « plan de scènes » (réglage allumé) se pose par-dessus l'écran ; sans lui, l'arbre rendu est celui d'avant. */
 export function Ecran(p: ProprietesEcran) {
+  if (!p.planScenes) return <EcranExistant {...p} />;
+  return (
+    <>
+      <EcranExistant {...p} />
+      <CalquePlanScenes plan={p.planScenes} />
+    </>
+  );
+}
+
+function EcranExistant(p: ProprietesEcran) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   if (!p.jeu) return ecranV4(p);

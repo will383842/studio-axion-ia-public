@@ -117,6 +117,8 @@ export type JeuEcran = Readonly<Record<string, string | number | boolean>>;
 
 /** Ce que porte tout écran rendu, quel que soit son type. */
 export type BaseProprietesEcran = {
+  /** Lot R2 (ajout pur, FACULTATIF) : tranche du plan de scènes posée par-dessus l'écran. Absent : écran inchangé. */
+  planScenes?: import("../plan-scenes/schema").PlanValide;
   /** Identifiant de l'écran dans la fiche (« e01 »…). */
   id: string;
   largeur: number;
