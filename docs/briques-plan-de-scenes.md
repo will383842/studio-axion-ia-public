@@ -25,7 +25,7 @@ Un plan (`version: "plan-scenes-1"`) : format (25 i/s), face caméra oui/non, du
 
 ## Le générateur (`generateur.ts`)
 
-`genererPlan(entree, appeler)` : consigne figée (catalogue + charte, cache 1 h), modèle `MODELE_PLAN_SCENES = "claude-opus-5-5"`, JSON demandé et validé. Fournisseur injecté (`appelClaudeReel(cle)` en production, un faux dans les tests). Sortie illisible → second essai avec le motif, puis plan de repli ; panne → plan de repli. **À faire avant usage réel** : passer par le pré-vol et la réservation des crédits (`services/generation-claude.ts`).
+`genererPlan(entree, appeler)` : consigne figée (catalogue + charte, cache 1 h), modèle `MODELE_PLAN_SCENES = "claude-opus-5-5"`, JSON demandé et validé. Fournisseur injecté (`AppelClaude`) : un faux dans les tests ; aucun appel réel dans ce lot. Sortie illisible → second essai avec le motif, puis plan de repli ; panne → plan de repli. **À faire avant usage réel** : brancher le fournisseur par `executerRole` / `services/generation-claude.ts` (pré-vol et réservation des crédits ; `envoyerMessage` n'est appelé que par `executerRole`, garde de `tests/v4-argent.test.ts`).
 
 ## Le catalogue (`catalogue.ts`, rendus dans `briques/`)
 
