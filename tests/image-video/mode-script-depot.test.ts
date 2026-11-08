@@ -82,19 +82,18 @@ describe("Image → vidéo · script complet · le dépôt", () => {
       expect(issue.statut, t.slice(0, 20)).toBe("refusee");
       expect((issue as { phrase: string }).phrase).toMatch(/[a-zé]/);
     }
-    // Aucun refus n'a créé de vidéo.
-    expect(await videosIV()).toEqual([]);
-    expect(ecritures).toEqual([]);
     // 300 mots pile : accepté (le refus ne vient pas de la longueur).
     const pile = await texte.deposerScriptImageVideo({ script: Array.from({ length: 300 }, () => "mot").join(" "), reseaux: [...RESEAUX_IV] });
     expect(pile.statut).not.toBe("refusee");
+    expect(await videosIV()).toEqual([]);
+    expect(ecritures).toEqual([]);
   });
 
-  it("sans accord du prix : aucune confirmation n'est demandée, le prix du jour vaut accord et la vidéo est créée", async () => {
+  it("sans accord du prix : le prix « au plus » est redemandé, rien n'est créé", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
     const issue = await texte.deposerScriptImageVideo({ script: SCRIPT, reseaux: [...RESEAUX_IV] });
-    expect(issue, JSON.stringify(issue)).toMatchObject({ statut: "lancee" });
-    expect(await videosIV()).toHaveLength(1);
+    expect(issue).toMatchObject({ statut: "accord-requis", centimes: ecran.prixDuDepot(RESEAUX_IV, (await ecran.etatDepotImageVideo()).tauxUsdEur) });
+    expect(await videosIV()).toEqual([]);
   });
 
   it("script → carte à valider : mots gardés, même prix, aucun fichier lu, AUCUN appel d'écriture", async () => {
@@ -123,17 +122,17 @@ describe("Image → vidéo · script complet · le dépôt", () => {
 });
 
 describe("Image → vidéo · script complet · l'écran de dépôt", () => {
-  it("seules DEUX entrées sont visibles : « Décrire avec mes mots » et « Coller mon script complet » (l'entrée image est masquée)", () => {
+  it("seules DEUX entrées sont visibles : « Titre ou idée » et « Mon script » (plus d'entrée par image)", () => {
     const html = renderToStaticMarkup(createElement(Depot, { montants: { 4: 250 } }));
     expect(html).not.toContain("Déposer une image");
-    expect(html).toContain("Décrire avec mes mots");
-    expect(html).toContain("Coller mon script complet");
+    expect(html).toContain("Titre ou idée");
+    expect(html).toContain("Mon script");
   });
 
-  it("l'écran du script : même bouton que le mode texte, sans prix, compteur de mots, bouton inactif tant que le script est vide", () => {
+  it("l'écran du script : bouton « Fabriquer la vidéo » sans prix, compteur de mots, bouton inactif tant que le script est vide", () => {
     const html = renderToStaticMarkup(createElement(DepotScript, { script: "", onScript: () => undefined, reseaux: [...RESEAUX_IV], montant: 250, onRefus: () => undefined }));
-    expect(html).toContain("Concevoir le schéma et fabriquer la vidéo");
-    expect(html).not.toMatch(/au plus \d+ ?(€|euro)|€/);
+    expect(html).toContain("Fabriquer la vidéo");
+    expect(html).not.toMatch(/€|au plus \d|prix/i);
     expect(html).toContain("0 mot sur 300 au plus");
     expect(html).toContain("disabled");
   });

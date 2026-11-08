@@ -3,7 +3,7 @@
 /**
  * ÉCRAN 1 · MODE SCRIPT COMPLET · « Coller mon script complet ». Will colle le texte que la voix doit dire ; l'IA n'écrit
  * rien et ne change aucun mot : elle conçoit seulement le schéma d'après ce texte, puis la vidéo se fabrique comme avec
- * une image. Même bouton et mêmes réseaux que le mode texte.
+ * une image. Même bouton, même prix « au plus » et mêmes réseaux que le mode texte (rien ne part sans ce prix confirmé).
  * Un refus (script trop court, trop long, chiffre absent du schéma) s'affiche en phrase simple et le script reste là.
  */
 import { useRouter } from "next/navigation";
@@ -32,9 +32,9 @@ export function DepotScript({ script, onScript, reseaux, montant, blocage, onRef
   return (
     <>
       <ZoneTexte
-        libelle="Collez votre script complet"
-        aide={`La voix dira vos mots tels quels : rien n'est réécrit. Seul le schéma est conçu d'après votre texte. ${mots} mot${mots > 1 ? "s" : ""} sur ${SCRIPT_MOTS_MAX} au plus.`}
-        placeholder="Collez ici le texte exact que la voix doit dire, du début à la fin."
+        libelle="Votre script"
+        aide={`Vos mots sont dits tels quels. ${mots} mot${mots > 1 ? "s" : ""} sur ${SCRIPT_MOTS_MAX} au plus.`}
+        placeholder="Collez ici votre script, du début à la fin."
         value={script}
         longueurMax={SCRIPT_CARACTERES_MAX}
         rows={8}
@@ -46,7 +46,7 @@ export function DepotScript({ script, onScript, reseaux, montant, blocage, onRef
       {children}
       {blocage && <p className="text-[15px] text-texte-doux">{blocage}</p>}
       <BarreActionCollee>
-        <BoutonFabriquer montantCentimes={montant} libelle="Concevoir le schéma et fabriquer la vidéo" desactive={!pret} onFabriquer={fabriquer} />
+        <BoutonFabriquer montantCentimes={montant} libelle="Fabriquer la vidéo" desactive={!pret} onFabriquer={fabriquer} />
       </BarreActionCollee>
     </>
   );

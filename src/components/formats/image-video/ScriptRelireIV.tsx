@@ -22,7 +22,7 @@ import type { FormuleATrancherIV, PrixIV } from "@/moteurs/montage-image-video/f
 import { RecetteVariete } from "./RecetteVariete";
 import { jusquALaReprise } from "./reprise";
 import { lignesRelireIV, modificationsDesLignesIV, observerIV } from "./relire";
-import { changementsVarieteIV, formulesNonTranchees, lignesVarieteIV, scriptValideParWill } from "./vue";
+import { changementsVarieteIV, lignesVarieteIV, scriptValideParWill } from "./vue";
 
 const VERIFICATION_INDISPONIBLE: PastilleControle[] = [{ niveau: "alerte", texte: "Vérification indisponible. Elle sera refaite à la validation." }];
 
@@ -51,7 +51,6 @@ export function ScriptRelireIV({
   // La fiche relue part de l'accroche choisie : changer d'accroche repart du texte proposé (l'écran se recrée).
   const base = useMemo(() => (autreAccroche ? (scriptValideParWill(fiche, [], { ecrans: {}, formules: {}, autreAccroche: true }).fiche ?? fiche) : fiche), [fiche, autreAccroche]);
   const depart = useMemo(() => lignesRelireIV(base, avecQuestion), [base, avecQuestion]);
-  const ouvertes = formulesNonTranchees(formules, { formules: choix });
   const [a, b] = fiche.accroches;
 
   const decisionDe = useCallback(
@@ -69,17 +68,19 @@ export function ScriptRelireIV({
   );
 
   const lancer = useCallback(
-    async (s: ScriptRelu, accord: number | true): Promise<ResultatLancement> => {
-      if (typeof accord !== "number") return { ok: false, message: "Le lancement n'a pas été confirmé. Rien n'a été lancé." };
+    async (s: ScriptRelu): Promise<ResultatLancement> => {
       const choixVariete = variete ? changementsVarieteIV(variete.recette, changes) : undefined;
-      const r = await validerScriptImageVideoAction(videoId, { ...decisionDe(s), ...(choixVariete ? { variete: choixVariete } : {}) }, accord);
+      // Le script de Williams fait foi : une phrase non tranchée est gardée telle quelle (simple remarque).
+      const decision = decisionDe(s);
+      const choixFormules = { ...Object.fromEntries(formules.map((f) => [f.cle, "garder" as const])), ...decision.choixFormules };
+      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}) }, montant);
       if (!r.ok) return { ok: false, message: r.message };
       const fin = await jusquALaReprise(videoId, r.donnees);
       if (fin) return { ok: false, message: fin };
       notifier.succes("Script validé : la vidéo se fabrique");
       return { ok: true };
     },
-    [videoId, decisionDe, variete, changes],
+    [videoId, decisionDe, variete, changes, formules, montant],
   );
 
   return (
@@ -103,10 +104,9 @@ export function ScriptRelireIV({
         lignes={depart}
         controler={controler}
         lancer={lancer}
-        prixCentimes={montant}
         libelleLancer="Valider et fabriquer"
         iconeLancer="film"
-        bloque={ouvertes.length ? `Tranchez d'abord ${ouvertes.length > 1 ? `les ${ouvertes.length} phrases trop affirmatives` : "la phrase trop affirmative"}.` : null}
+        bloque={null}
         observation={observerIV(base, avecQuestion)}
         apresLancement={() => router.refresh()}
       />
