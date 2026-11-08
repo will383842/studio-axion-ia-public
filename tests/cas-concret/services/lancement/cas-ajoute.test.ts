@@ -220,22 +220,15 @@ describe("ajouter un cas · corrections de relecture", () => {
     await expect(ajoutes.ajouterCas(autre)).resolves.toMatchObject({ casId: expect.stringMatching(/^ajout-/) });
   }, 60_000);
 
-  it("script conforme mais plus long que celui qui a servi au prix : refusé AVANT toute écriture (contrôle et ajout)", async () => {
-    // Conforme aux règles, mais UN mot de plus que le texte qui a servi au prix : la voix coûterait plus que le prix annoncé.
+  it("LOT A (08/11/2026) : un script plus long que le texte du gabarit n'est plus refusé (aucun prix) : le cas s'ajoute avec son script", async () => {
     const lignes = texteDuCas().split("\n");
     const i1 = lignes.findIndex((l) => /^\[étape 1\]/.test(l));
     lignes[i1] = lignes[i1].replace(/\.?$/, " bien.");
     const long = lignes.join("\n");
     const apercu = await ajoutes.controlerCasAjoute(FORMULAIRE_MINIMAL, long);
-    expect(apercu.ok).toBe(false);
-    expect(apercu.raisons.join("|")).toMatch(/Mon script : .*plus long/);
-    await expect(ajoutValide(FORMULAIRE_MINIMAL, { script: long })).rejects.toMatchObject({ code: "SCRIPT_FOURNI_REFUSE", message: expect.stringMatching(/plus long/) });
-    expect(await lecture.lireCasAjoutes()).toEqual([]);
-    expect((await depots().parametres.obtenir(lecture.CLE_CAS_AJOUTES))?.valeur ?? {}).toEqual({});
-    expect((await depots().parametres.obtenir("casConcret.validations"))?.valeur ?? {}).toEqual({});
-    // Sans ce script, le cas s'ajoute normalement, sans script.
-    const r = await ajoutValide();
-    expect(r.scriptEnregistre).toBe(false);
+    expect(apercu.raisons.join("|")).not.toMatch(/plus long|prix/);
+    const r = await ajoutValide(FORMULAIRE_MINIMAL, { script: long });
+    expect(r.scriptEnregistre).toBe(true);
   }, 60_000);
 
   it("l'enregistrement du script échoue après l'écriture du cas : le cas reste, la raison est rendue, l'action n'échoue pas", async () => {

@@ -74,10 +74,18 @@ export function scriptValideDuCatalogue(casId: string): ScriptValide | undefined
   return SCRIPTS_VALIDES_CATALOGUE[casId];
 }
 
-/** Ce qui empêche ce script de servir pour ce cas (autre cas, autre version du cas) ; vide : il peut être relu. */
+/** Ce qui empêche ce script de servir pour ce cas (le script d'un AUTRE cas) ; vide : il peut être rejoué. */
 export function problemesScriptValide(script: ScriptValide, cas: Pick<CasConcret, "id" | "version">): string[] {
   if (script.casId !== cas.id) return [`Le script validé est celui du cas « ${script.casId} », pas de « ${cas.id} ».`];
-  if (script.versionCas !== cas.version) return [`Le script a été validé pour la version ${script.versionCas} du cas ; le cas est en version ${cas.version} : faites revalider le script.`];
+  return [];
+}
+
+/**
+ * 08/11/2026 : un script « périmé » (validé pour une autre version du cas) n'est plus jamais réécrit par Claude ni refusé :
+ * il est REJOUÉ tel quel, et l'écart est montré à Will comme une remarque. Vide : le script est à jour. PUR.
+ */
+export function ecartsScriptValide(script: ScriptValide, cas: Pick<CasConcret, "id" | "version">): string[] {
+  if (script.casId === cas.id && script.versionCas !== cas.version) return [`Votre script a été validé pour la version ${script.versionCas} du cas ; le cas est maintenant en version ${cas.version}. Il est rejoué tel quel : relisez-le si le cas a changé.`];
   return [];
 }
 
