@@ -232,7 +232,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                 {d.miniatures.length > 0 && (
                   <section>
                     <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Miniature</h2>
-                    <OngletMiniature videoId={v.id} dureeLibelle={dureeLibelle} miniatures={d.miniatures.map((m) => ({ id: m.id, url: m.url, titre: m.titre, choisie: m.choisie, incrustee: !!m.incrustee }))} />
+                    <OngletMiniature videoId={v.id} dureeLibelle={dureeLibelle} couverture={v.couvertureVignette} miniatures={d.miniatures.map((m) => ({ id: m.id, url: m.url, titre: m.titre, choisie: m.choisie, incrustee: !!m.incrustee }))} />
                   </section>
                 )}
               </div>

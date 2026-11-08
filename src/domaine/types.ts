@@ -769,6 +769,8 @@ export interface Video extends EntiteBase {
   /** Version courante choisie (VersionVideo.id). */
   versionChoisieId?: Id;
   miniatureChoisieId?: Id;
+  /** Titre de la vignette (3 à 5 mots) et mot mis en valeur : FIXÉS par Williams (`fixee`) ou proposés à la création. */
+  couvertureVignette?: { texte: string; motCle: string; fixee: boolean };
   modeleId?: Id;
   serieId?: Id;
   /** Équipe 7 : numéro d'épisode dans `serieId` (une vidéo d'un sujet en série prend celui du sujet). */
@@ -939,6 +941,8 @@ export interface Miniature extends EntiteBase {
   /** Instant de la vidéo retenu (la plus nette des 5 images) et mise en page (0, 1, 2) : pour refaire l'image. */
   instantSec?: number;
   variante?: number;
+  /** Gabarit unique Axion (charte du 07/11) : absent sur les anciennes miniatures, qu'« Refaire les vignettes » remplace sans les effacer. */
+  gabarit?: "axion-v2";
 }
 
 /**

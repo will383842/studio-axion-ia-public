@@ -5,7 +5,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { COULEURS_VIDEO } from "../src/briques/habillage/charte-video";
-import { COULEURS_MINIATURE } from "../studio-rendu/compositions/commune/miniature-mise-en-page";
 import { formatMiniature, unitesCouverture } from "../studio-rendu/compositions/commune/miniature-mise-en-page";
 import { boiteTitre, MISES, MISE_INSTAGRAM, placerSujet } from "../studio-rendu/compositions/commune/vignette/mises";
 import { mettreTitreVignette } from "../studio-rendu/compositions/commune/vignette/titre";
@@ -42,14 +41,14 @@ describe("vignettes lot 1 · socle", () => {
     expect(ZONES_SURES["16:9"].coinDuree).toEqual({ largeur: 140, hauteur: 60 });
   });
 
-  it("couleurs : celles de la charte vidéo ; pavé encre #E07040, pavé ivoire #B23F16", () => {
+  it("couleurs : uniquement les jetons de la charte vidéo ; pavé terracotta #B23F16 dans les deux ambiances", () => {
     expect(AMBIANCES.encre.fond).toBe(COULEURS_VIDEO.ecriture);
-    expect(AMBIANCES.encre.paveTexte).toBe(COULEURS_VIDEO.ecriture);
+    expect(AMBIANCES.encre.paveTexte).toBe(COULEURS_VIDEO.page);
     expect(AMBIANCES.ivoire.texte).toBe(COULEURS_VIDEO.ecriture);
     expect(AMBIANCES.ivoire.pave).toBe(COULEURS_VIDEO.soulignement);
     expect(AMBIANCES.ivoire.pave).toBe("#B23F16");
-    expect(AMBIANCES.encre.pave).toBe(COULEURS_MINIATURE.orangeVif);
-    expect(AMBIANCES.encre.pave).toBe("#E07040");
+    expect(AMBIANCES.encre.pave).toBe(COULEURS_VIDEO.soulignement);
+    expect(AMBIANCES.encre.pave).toBe("#B23F16");
   });
 
   it("contraste pavé / texte du pavé ≥ 3:1 dans les 2 ambiances", () => {
