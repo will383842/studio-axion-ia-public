@@ -178,7 +178,7 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     await depots().generations.modifier(r.generationId, { statut: "plafond-atteint" });
     await ecrireParametre("budget.mode", "indicatif");
     const e = await bg.etatEcriture(r.scriptMaitreId);
-    expect(e?.reprise.possible).toBe(true);
+    expect(e?.reprise?.possible).toBe(true);
   }, 90_000);
 });
 
