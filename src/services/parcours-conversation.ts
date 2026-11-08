@@ -15,7 +15,7 @@ import type { EvenementFournisseur } from "@/domaine/types";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
-import { construireOrigineV3, corpsDemandeGuideV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
+import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
@@ -668,7 +668,6 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   // occurredAt FIGÉ au premier essai (stocké dans l'état), puis réutilisé tel quel : mêmes octets à chaque essai.
   // idMessageAdresse (identifiant opaque, jamais l'adresse) est écrit avec lui : il permet de relire l'adresse pour un « stop ».
   const occurredAt = etat.occurredAt ?? (typeof c.occurredAt === "string" ? c.occurredAt : new Date(now).toISOString());
-  if (etat.occurredAt === null || !etat.idMessageAdresse) await patcher(cle, { occurredAt, idMessageAdresse: etat.idMessageAdresse ?? idMessage });
   const run: RunLu = { email: adresse, mot: MOT, reseau: etat.reseau, guide: etat.guide, versionTexteM1: etat.versionTexteM1, occurredAt };
   const cleEnvoi = RE_CLE_IDEMPOTENCE.test(etat.cleIdempotenceGuide) ? etat.cleIdempotenceGuide : "";
   if (!runValide(run) || !cleEnvoi) {
@@ -678,18 +677,29 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     return "traite";
   }
   const corpsV1 = corpsDemandeGuide(run, cleEnvoi);
-  // Lot Z1 : corps v3 seulement si l'interrupteur est allumé ET qu'au moins un de nos comptes est configuré ; sinon v1 inchangé.
+  // Lot Z1 : corps v3 seulement si l'interrupteur est allumé, qu'au moins un préfixe de compte est configuré ET que le compte de la conversation est listé
+  // (ORIGINE_V3_COMPTES) ; sinon v1 inchangé. La version choisie est FIGÉE dans l'état au premier essai (le site répond 409 si le corps change pour une même clé).
   // Origine = référence de publication (identifiant opaque) + canal « commentaire » ; mot, réseau, date et version M1 sont déjà dans le corps.
   // Un refus de construction est journalisé par son code seul (jamais la valeur, jamais une adresse) et on retombe sur le corps v1.
+  let version: 1 | 3 = etat.versionCorpsGuide ?? 1;
   let corps = corpsV1;
-  let enV3 = false;
-  if (origineV3Active(env) && prefixesComptesConfigures(env).length > 0) {
-    const o3 = construireOrigineV3({ postRef: etat.idPostPlateforme ?? undefined, canal: "commentaire" }, { reseau: etat.reseau, prefixesComptes: prefixesComptesConfigures(env) });
-    if (o3.ok) {
-      corps = corpsDemandeGuideV3(run, cleEnvoi, o3.origine);
-      enV3 = true;
-    } else await journaliser("parcours_conversation", `Origine v3 non envoyée : ${o3.code}.`);
+  if (etat.versionCorpsGuide === undefined || etat.versionCorpsGuide === null) {
+    version = 1;
+    if (origineV3Active(env) && prefixesComptesConfigures(env).length > 0 && compteAutoriseOrigineV3(etat.idCompte, env)) {
+      const o3 = construireOrigineV3({ postRef: etat.idPostPlateforme ?? undefined, canal: "commentaire" }, { reseau: etat.reseau, prefixesComptes: prefixesComptesConfigures(env) });
+      if (o3.ok) version = 3;
+      else await journaliser("parcours_conversation", `Origine v3 non envoyée : ${o3.code}.`);
+    }
   }
+  if (version === 3) {
+    const o3 = construireOrigineV3({ postRef: etat.idPostPlateforme ?? undefined, canal: "commentaire" }, { reseau: etat.reseau, prefixesComptes: prefixesComptesConfigures(env) });
+    if (o3.ok) corps = corpsDemandeGuideV3(run, cleEnvoi, o3.origine);
+    else version = 1; // version figée en v3 mais origine non reconstructible (configuration retirée) : repli v1, figé ci-dessous
+  }
+  if (etat.occurredAt === null || !etat.idMessageAdresse || etat.versionCorpsGuide !== version) {
+    await patcher(cle, { occurredAt, idMessageAdresse: etat.idMessageAdresse ?? idMessage, versionCorpsGuide: version });
+  }
+  let enV3 = version === 3;
   let statut = 0;
   let corpsReponse: unknown = null;
   for (let n = 0; n < ESSAIS_NONCE; n++) {
@@ -706,6 +716,8 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     if (enV3 && statut === 422) {
       corps = corpsV1;
       enV3 = false;
+      await patcher(cle, { versionCorpsGuide: 1 });
+      n--; // le repli v1 ne consomme pas d'essai : il est toujours tenté
       continue;
     }
     const cd = conduiteApresReponse(statut, corpsReponse, etat.essaisSite + 1);
