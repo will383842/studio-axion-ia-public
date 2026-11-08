@@ -158,6 +158,8 @@ export function geometrieEcranPartage(e: Pick<EcranPartageScene, "hauteurHaut" |
 }
 
 export type ProprietesImageComposition = {
+  /** Lot R2 (ajout pur, FACULTATIF) : plan de scènes validé posé par-dessus l'image. Absent : image inchangée. */
+  planScenes?: import("../plan-scenes/schema").PlanValide;
   ratio: RatioScene;
   largeur: number;
   hauteur: number;
