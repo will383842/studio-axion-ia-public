@@ -22,7 +22,7 @@ export default async function PageDejaFaits() {
   const cas = listerDejaFaits(traites, { catalogueEtendu, stockMetiers }, retires, Object.values(await lireEntreesCasAjoutes()));
   return (
     <div className="mx-auto max-w-2xl">
-      <EnTetePage titre="Cas déjà faits" sousTitre="Ces cas ont déjà leur vidéo. Remettez-en un en stock pour le refaire." retour={{ href: "/cas-concret", libelle: "Cas concret MD" }} />
+      <EnTetePage titre="Cas déjà faits" sousTitre="Ces cas ont déjà leur vidéo. Remettez-en un en stock pour le refaire." retour={{ href: "/cas-concret", libelle: "Cas concret" }} />
       <ListeDejaFaits cas={cas} />
     </div>
   );

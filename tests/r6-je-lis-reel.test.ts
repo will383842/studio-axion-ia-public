@@ -117,7 +117,7 @@ describe("R6 — vidéos « je lis » montées pour de vrai (moteur.<format>.jeL
     expect((await r.fabrication.construireCommande(videoId)).moteurId).toBe("simulation");
     const montage = (await r.reglages.listerConnexions()).find((x) => x.type === "montage")!;
     expect(montage.jeLis).toEqual([{ formatId: "avocat", nom: "Type avocat", allume: true, possible: false, manque: "le stockage des fichiers" }]);
-    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual([]);
+    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual([]);
 
     r = await charger();
     videoId = await videoJeLis(r);
@@ -129,14 +129,14 @@ describe("R6 — vidéos « je lis » montées pour de vrai (moteur.<format>.jeL
     const r = await charger(RELIE);
     let montage = (await r.reglages.listerConnexions()).find((x) => x.type === "montage")!;
     expect(montage.jeLis).toEqual([{ formatId: "avocat", nom: "Type avocat", allume: false, possible: true }]);
-    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual([]);
+    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual([]);
     await r.reglages.definirJeLisReel("avocat", true);
     montage = (await r.reglages.listerConnexions()).find((x) => x.type === "montage")!;
-    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual(["Type avocat · je lis"]);
+    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Type avocat · je lis"]);
     // Le double réel ensuite (R8) : le type entier est monté, la ligne « je lis » n'a plus lieu d'être.
     await r.commun.ecrireParametre("moteur.avocat", "montage-avocat");
     montage = (await r.reglages.listerConnexions()).find((x) => x.type === "montage")!;
-    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual(["Type avocat"]);
+    expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Type avocat"]);
 
     const html = renderToStaticMarkup(createElement(r.ecran.ChoixService, { connexion: montage, valeur: "studio-rendu", onChange: () => undefined }));
     expect(html).toContain("Vidéos « je lis » montées pour de vrai");
@@ -199,7 +199,7 @@ describe("R6 — une seule règle : la carte Montage et le lancement disent touj
         // Moteur réel déjà choisi : il décide (interrupteur sans objet), et la carte le dit sans « je lis ».
         expect(c.moteurId).toBe(cas.moteurAvocat);
         expect(decision.effectif).toBe(false);
-        expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual(["Type avocat"]);
+        expect(montage.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Type avocat"]);
       } else {
         expect(c.moteurId).toBe(decision.effectif ? "montage-avocat" : "simulation");
       }

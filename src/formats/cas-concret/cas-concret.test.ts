@@ -37,7 +37,8 @@ const refus = (cas: unknown): string => {
 describe("fiche du format", () => {
   it("active, code CC, musique interdite, voix seule, aucun visage", () => {
     expect(formatCasConcret.id).toBe("cas-concret");
-    expect(formatCasConcret.nom).toBe("Cas concret MD");
+    // Décision du 08/11 (Williams) : « MD » est un sigle interne ; le nom lu est « Cas concret ».
+    expect(formatCasConcret.nom).toBe("Cas concret");
     expect(formatCasConcret.statut).toBe("actif");
     expect(formatCasConcret.codeClassement).toBe("CC");
     expect(formatCasConcret.musique).toBe("interdite");

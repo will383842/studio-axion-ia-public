@@ -21,7 +21,7 @@ export default async function PageCasRetires() {
   const cas = listerCasRetires(retraits, { catalogueEtendu, stockMetiers }, Object.values(await lireEntreesCasAjoutes()));
   return (
     <div className="mx-auto max-w-2xl">
-      <EnTetePage titre="Cas retirés" sousTitre="Ces cas ne sont plus proposés. Remettez-en un pour le revoir dans la liste." retour={{ href: "/cas-concret", libelle: "Cas concret MD" }} />
+      <EnTetePage titre="Cas retirés" sousTitre="Ces cas ne sont plus proposés. Remettez-en un pour le revoir dans la liste." retour={{ href: "/cas-concret", libelle: "Cas concret" }} />
       <ListeCasRetires cas={cas} />
     </div>
   );
