@@ -16,6 +16,26 @@ vi.mock("next/navigation", () => mockNavigation);
 // Ces tests portent sur la relecture, le prix et le budget, pas sur le voyant rouge (voir tests/voyant-rouge-service) :
 // le texte simulé lève des garde-fous au hasard de la génération, la seconde confirmation est donc neutralisée ici.
 vi.mock("@/domaine/voyant-rouge", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/domaine/voyant-rouge")>()), demandeConfirmationVoyant: () => null }));
+/**
+ * Pré-vol de l'argent observé (08/11 : le budget et le prix ne bloquent plus) : chaque total contrôlé est noté ; `refuserUneFois`
+ * simule un crédit réel insuffisant (HeyGen, qui reste bloquant) pour arrêter un lancement juste après la mesure du prix.
+ */
+const prevol = vi.hoisted(() => ({ totaux: [] as number[], refuserUneFois: false }));
+vi.mock("@/services/credits", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/services/credits")>();
+  const { ErreurStudio } = await import("@/services/_commun");
+  return {
+    ...vrai,
+    verifierBudgetEtCredits: async (...args: Parameters<typeof vrai.verifierBudgetEtCredits>) => {
+      prevol.totaux.push(args[0].total.centimes);
+      if (prevol.refuserUneFois) {
+        prevol.refuserUneFois = false;
+        throw new ErreurStudio("CREDIT_INSUFFISANT", "Crédit HeyGen insuffisant (essai).");
+      }
+      return vrai.verifierBudgetEtCredits(...args);
+    },
+  };
+});
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
@@ -37,6 +57,8 @@ beforeAll(async () => {
   await preparerMotDePasse(MDP);
 });
 beforeEach(async () => {
+  prevol.totaux.length = 0;
+  prevol.refuserUneFois = false;
   reinitialiserDepots();
   reinitialiserRequete();
   bg.suspendreBoucleGeneration(true);
@@ -184,58 +206,53 @@ describe("la fabrication ne part jamais sans le repère « script relu »", { ti
     expect(courante).toMatchObject({ code: v.code, etat: "validee", videoId: video.id });
   });
 
-  it("budget dépassé, texte modifié : refus AVANT tout enregistrement, aucune nouvelle version, état inchangé", async () => {
+  it("budget dépassé, texte modifié : aucun refus (décision du 08/11), le texte relu est enregistré, validé, et part", async () => {
     const { sujetId, versions } = await sujetPretAFabriquer();
     const v = versions[0];
     const cible = { sujetId, varianteId: v.id };
     const { lignes } = await ecran.lotARelire(cible);
     const milieu = lignes.find((l) => l.id.startsWith("c:"))!;
     const relues = appliquerSaisie(lignes, milieu.id, { dit: "Un milieu réécrit par Will avant la vidéo." });
-    const avant = await depots().variantes.lister((x) => x.scriptMaitreId === sujetId);
-    const scriptsAvant = await depots().scripts.compter();
     const videosAvant = await depots().videos.compter();
     await ecrireParametre("budget.mensuel", { centimes: 1, devise: "EUR" });
-    const e = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-budget" }).then(() => null, (x: ErreurStudio) => x);
-    expect(e?.code).toBe("BUDGET_DEPASSE");
-    const apres = await depots().variantes.lister((x) => x.scriptMaitreId === sujetId);
-    expect(apres.length).toBe(avant.length);
-    expect(apres.map((x) => `${x.id}:${x.etat}`).sort()).toEqual(avant.map((x) => `${x.id}:${x.etat}`).sort());
-    expect(await depots().scripts.compter()).toBe(scriptsAvant);
-    expect(await depots().videos.compter()).toBe(videosAvant);
+    const r = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-budget" });
+    expect(r.videoId).toBeTruthy();
+    expect(r.enAttente).toBeUndefined();
+    expect(await depots().videos.compter()).toBeGreaterThan(videosAvant);
+    const courante = (await depots().variantes.obtenir((await depots().videos.obtenir(r.videoId!))!.varianteId!))!;
+    expect(courante).toMatchObject({ code: v.code, etat: "validee" });
+    const script = (await depots().scripts.obtenir(courante.scriptId))!;
+    expect(script.blocs.flatMap((b) => b.segments).some((g) => g.texte === "Un milieu réécrit par Will avant la vidéo.")).toBe(true);
   });
 
-  it("prix refusé à la reconfirmation (texte modifié) : rien n'est enregistré ni validé", async () => {
+  it("accord trop bas à la reconfirmation (texte modifié) : aucun refus de prix, le texte relu est enregistré et part", async () => {
     const { sujetId } = await sujetPretAFabriquer();
     const cible = { sujetId };
     const { lignes } = await ecran.lotARelire(cible);
     const milieu = lignes.find((l) => l.id.startsWith("c:"))!;
     const relues = appliquerSaisie(lignes, milieu.id, { dit: "Un milieu bien plus long, réécrit par Will, qui fait monter le prix de la vidéo." });
-    const avant = await depots().variantes.lister((x) => x.scriptMaitreId === sujetId);
     const videosAvant = await depots().videos.compter();
     await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
-    const e = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-prix", accord: 1 }).then(() => null, (x: ErreurStudio) => x);
-    expect(e?.code).toBe("CONFIRMATION_REQUISE");
-    const apres = await depots().variantes.lister((x) => x.scriptMaitreId === sujetId);
-    expect(apres.map((x) => `${x.id}:${x.etat}`).sort()).toEqual(avant.map((x) => `${x.id}:${x.etat}`).sort());
-    expect(await depots().videos.compter()).toBe(videosAvant);
+    const r = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-prix", accord: 1 });
+    expect(r.videoId).toBeTruthy();
+    expect(r.n).toBeGreaterThan(1);
+    expect(await depots().videos.compter()).toBeGreaterThan(videosAvant);
   });
 
   // Relecture n° 2 (19:12) : le prix et le budget contrôlés AVANT l'enregistrement sont ceux du texte RELU (rallongé),
-  // pas ceux du texte enregistré : le montant demandé au 1er refus suffit ensuite, sans 2e refus.
+  // pas ceux du texte enregistré. 08/11 : ni le prix ni le budget ne refusent plus ; la vidéo part du premier coup.
   const RALLONGE = "Un milieu bien plus long, réécrit par Will, qui fait monter le prix de la vidéo, encore et encore, avec beaucoup de mots en plus pour allonger.";
   for (const une of [true, false]) {
-    it(`${une ? "une version" : "les N"} : le montant demandé AVANT l'enregistrement suffit ensuite (vidéo créée, aucun 2e refus)`, async () => {
+    it(`${une ? "une version" : "les N"} : un accord plus bas que le prix ne refuse plus (vidéo créée du premier coup)`, async () => {
       const { sujetId, versions } = await sujetPretAFabriquer();
       const cible = une ? { sujetId, varianteId: versions[0].id } : { sujetId };
       const { lignes } = await ecran.lotARelire(cible);
       const milieu = lignes.find((l) => l.id.startsWith("c:"))!;
       const relues = appliquerSaisie(lignes, milieu.id, { dit: RALLONGE });
       await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
-      const e1 = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-p", accord: 1 }).then(() => null, (x: ErreurStudio & { montant?: number }) => x);
-      expect(e1?.code).toBe("CONFIRMATION_REQUISE");
-      expect(e1?.montant).toBeGreaterThan(1);
-      const r = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-p", accord: e1!.montant });
+      const r = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-p", accord: 1 });
       expect(r.videoId).toBeTruthy();
+      expect(prevol.totaux[0]).toBeGreaterThan(1);
       if (!une) expect(r.n).toBeGreaterThan(1);
     });
 
@@ -245,59 +262,56 @@ describe("la fabrication ne part jamais sans le repère « script relu »", { ti
       const { lignes } = await ecran.lotARelire(cible);
       const milieu = lignes.find((l) => l.id.startsWith("c:"))!;
       const relues = appliquerSaisie(lignes, milieu.id, { dit: RALLONGE });
-      await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
-      const avant = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-e" }).then(() => null, (x: ErreurStudio & { montant?: number }) => x);
-      expect(avant?.code).toBe("CONFIRMATION_REQUISE");
+      // Le prix du texte relu est mesuré au pré-vol ; un crédit réel insuffisant (simulé) arrête le lancement juste après.
+      prevol.refuserUneFois = true;
+      const refus = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-e" }).then(() => null, (x: ErreurStudio) => x);
+      expect(refus?.code).toBe("CREDIT_INSUFFISANT");
+      const avant = prevol.totaux.at(-1);
       // Le même texte, enregistré puis validé (comme le fait le lancement) : même prix.
       await ecran.enregistrerRelecture(cible, relues);
       const courantes = versionsCourantes(await depots().variantes.lister((x) => x.scriptMaitreId === sujetId));
       for (const c of courantes) if (c.etat !== "validee") await depots().variantes.modifier(c.id, { etat: "validee" });
       const fr = await import("@/services/fabrication-reseaux");
       const code = versions[0].code;
-      const apres = await (une ? fr.verifierAvantDeCreer([courantes.find((c) => c.code === code)!.id], { confirme: false }) : fr.verifierAvantDeFabriquerLesN(sujetId)).then(() => null, (x: ErreurStudio & { montant?: number }) => x);
-      expect(apres?.code).toBe("CONFIRMATION_REQUISE");
-      expect(avant?.montant).toBe(apres?.montant);
+      await (une ? fr.verifierAvantDeCreer([courantes.find((c) => c.code === code)!.id], { confirme: false }) : fr.verifierAvantDeFabriquerLesN(sujetId));
+      expect(avant).toBeGreaterThan(0);
+      expect(prevol.totaux.at(-1)).toBe(avant);
     });
 
-    it(`${une ? "une version" : "les N"} : texte rallongé qui fait dépasser le budget → BUDGET_DEPASSE avant l'enregistrement, aucune nouvelle version`, async () => {
+    it(`${une ? "une version" : "les N"} : texte rallongé qui dépasse le budget → aucun BUDGET_DEPASSE, le texte relu est enregistré et part`, async () => {
       const { sujetId, versions } = await sujetPretAFabriquer();
       const cible = une ? { sujetId, varianteId: versions[0].id } : { sujetId };
       const fr = await import("@/services/fabrication-reseaux");
-      await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
       // Prix du texte enregistré : il tient tout juste dans le budget ; le texte rallongé, non.
-      const ancien = await (une ? fr.verifierAvantDeCreer([versions[0].id], { confirme: false }) : fr.verifierAvantDeFabriquerLesN(sujetId)).then(() => null, (x: ErreurStudio & { montant?: number }) => x);
-      expect(ancien?.code).toBe("CONFIRMATION_REQUISE");
-      await ecrireParametre("budget.mensuel", { centimes: ancien!.montant!, devise: "EUR" });
+      const ancien = une ? (await fr.verifierAvantDeCreer([versions[0].id], { confirme: false })).total.centimes : (await fr.planFabricationSujet(sujetId))!.total.centimes;
+      expect(ancien).toBeGreaterThan(0);
+      await ecrireParametre("budget.mensuel", { centimes: ancien, devise: "EUR" });
       const { lignes } = await ecran.lotARelire(cible);
       const milieu = lignes.find((l) => l.id.startsWith("c:"))!;
       const relues = appliquerSaisie(lignes, milieu.id, { dit: RALLONGE });
-      const avant = await depots().variantes.lister((x) => x.scriptMaitreId === sujetId);
       const scriptsAvant = await depots().scripts.compter();
       const videosAvant = await depots().videos.compter();
-      const e = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-b", accord: ancien!.montant }).then(() => null, (x: ErreurStudio) => x);
-      expect(e?.code).toBe("BUDGET_DEPASSE");
-      const apres = await depots().variantes.lister((x) => x.scriptMaitreId === sujetId);
-      expect(apres.map((x) => `${x.id}:${x.etat}`).sort()).toEqual(avant.map((x) => `${x.id}:${x.etat}`).sort());
-      expect(await depots().scripts.compter()).toBe(scriptsAvant);
-      expect(await depots().videos.compter()).toBe(videosAvant);
+      const r = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-b", accord: ancien });
+      expect(r.videoId).toBeTruthy();
+      expect(r.enAttente).toBeUndefined();
+      expect(await depots().scripts.compter()).toBeGreaterThan(scriptsAvant);
+      expect(await depots().videos.compter()).toBeGreaterThan(videosAvant);
     });
   }
 
-  it("une version « à relire » n'est jamais validée puis fabriquée par l'écran de relecture (sans « but=modifier »)", async () => {
+  it("une version « à relire » fabriquée par l'écran de relecture : simple remarque au journal (08/11), la fabrication continue", async () => {
     const { sujetId, versions } = await sujetPretAFabriquer();
     const v = versions[0];
     await depots().variantes.modifier(v.id, { etat: "a-relire" });
     const cible = { sujetId, varianteId: v.id };
     const { lignes } = await ecran.lotARelire(cible);
-    await expect(ecran.lotARelire(cible, { fabriquer: true })).rejects.toMatchObject({ code: "A_VALIDER" });
+    await expect(ecran.lotARelire(cible, { fabriquer: true })).resolves.toBeTruthy();
     const relues = appliquerSaisie(lignes, lignes[0].id, { dit: "Un mot changé pour forcer la validation." });
-    const avant = await depots().variantes.compter();
     const videosAvant = await depots().videos.compter();
-    const e = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-arelire" }).then(() => null, (x: ErreurStudio) => x);
-    expect(e?.code).toBe("A_VALIDER");
-    expect(await depots().variantes.compter()).toBe(avant);
-    expect((await depots().variantes.obtenir(v.id))?.etat).toBe("a-relire");
-    expect(await depots().videos.compter()).toBe(videosAvant);
+    const r = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-arelire" });
+    expect(r.videoId).toBeTruthy();
+    expect(await depots().videos.compter()).toBeGreaterThan(videosAvant);
+    expect(await depots().journal.trouver((e) => /^Remarque : cette version n'est pas validée/.test(e.message))).toBeTruthy();
   });
 
   it("repère « script relu » lié à sa cible : le même identifiant d'opération sur une autre version ne saute pas la relecture", async () => {

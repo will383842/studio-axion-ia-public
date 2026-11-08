@@ -160,7 +160,7 @@ const { DOUBLE_PAS_CHOISI, DOUBLE_PARLE_DANS_HEYGEN } = await import("@/moteurs"
 const { DUREE_PRIX_REFERENCE_SEC } = await import("@/moteurs/montage-avocat/prix-reel");
 const { CENTIMES_USD_PAR_CARACTERE_HEYGEN } = await import("@/fournisseurs/heygen/voix");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
-const { formaterMontant, usdVersEur } = await import("@/lib/montants");
+const { usdVersEur } = await import("@/lib/montants");
 const { detailMontageReel } = await import("@/components/reglages/Connexions");
 const { TEXTES_DOUBLE } = await import("@/components/reglages/Double");
 const { decisionLancement } = await import("@/assistant/express/logique");
@@ -400,11 +400,11 @@ describe("D2 — le PRIX « pour une vidéo de 45 s » face à l'aperçu de fabr
     await d.videos.modifier(VIDEO, { scriptId: `${script.id}-45s` });
   }
 
-  it("la vidéo de référence est bien de ~45 s, montée pour de vrai, confirmation exigée", async () => {
+  it("la vidéo de référence est bien de ~45 s, montée pour de vrai, aucune confirmation de prix (décision du 08/11)", async () => {
     const { apercu, commande } = await allumerTout();
     expect(commande.moteurId).toBe("montage-avocat");
     expect(Math.abs(commande.dureeCibleSec - 45)).toBeLessThanOrEqual(2);
-    expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: true });
+    expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: false });
   });
 
   it("les lignes avatar et textes des réseaux concordent (à la durée près)", async () => {
@@ -458,7 +458,7 @@ describe("D2 — le PRIX « pour une vidéo de 45 s » face à l'aperçu de fabr
 
 /* ================================================================== */
 describe("D3 — confirmer à chaque fabrication, puis fabrication de bout en bout (NODE_ENV=production)", () => {
-  it("lancer sans confirmer → CONFIRMATION_REQUISE (phrase claire, bon montant) ; confirmer → voix, double, montage, miniature, kit, brouillon Buffer", async () => {
+  it("lancer sans confirmer → la fabrication part (aucune confirmation de prix, décision du 08/11) → voix, double, montage, miniature, kit, brouillon Buffer", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const tq = await choisirDouble();
     await renduDouble.definirRenduDouble({ allume: true });
@@ -469,15 +469,9 @@ describe("D3 — confirmer à chaque fabrication, puis fabrication de bout en bo
 
     const apercu = await fabrication.apercuFabrication(VIDEO);
     const total = apercu.estimation.total;
-    // 1. Sans confirmer : refusé, rien n'est réservé ni lancé.
-    await expect(fabrication.lancerFabrication(VIDEO)).rejects.toMatchObject({
-      code: "CONFIRMATION_REQUISE",
-      message: `Cette vidéo sera montée pour de vrai : ${formaterMontant(total)}. Confirmez pour continuer.`,
-      montant: total.centimes,
-    });
-    expect(await depots().travaux.compter((t) => t.cibleId === VIDEO && t.statut === "en_file")).toBe(0);
-    // 2. Un accord pour un montant PLUS BAS que le prix du jour ne suffit pas au-delà du seuil ; ici sous le seuil, le montant vu suffit.
-    const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO, { confirme: total.centimes });
+    // 1-2. Sans confirmer : la confirmation de prix « Montage réel » est automatique, la fabrication part en montage réel.
+    const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO);
+    expect(await depots().travaux.compter((t) => t.cibleId === VIDEO && t.statut === "en_file")).toBe(1);
     expect((await depots().versions.obtenir(versionId))!.commande.moteurId).toBe("montage-avocat");
 
     // 3. Jusqu'au bout.

@@ -68,29 +68,30 @@ async function brancherClaude() {
 const sujetsDesIdees = (textes: string[]) => depots().scriptsMaitres.lister((m) => !m.estDemo && textes.includes(m.brief.idee));
 
 /* ------------------------------------------------------------------ */
-describe("Jonction 1 · garde argent (B6) × écriture en série : le total vu sur la feuille est exigé au-delà du seuil", () => {
-  it("au-delà du seuil, sans total confirmé : CONFIRMATION_REQUISE, rien n'est créé, aucun appel", async () => {
+describe("Jonction 1 · garde argent (B6) × écriture en série : le total vu sur la feuille n'est plus exigé (décision du 08/11)", () => {
+  it("au-delà du seuil, sans total confirmé : la série part quand même (aucune confirmation de prix), aucun appel dans la requête", async () => {
     await brancherClaude();
     const prix = (await bg.prixLancement()).centimes;
     await ecrireParametre("budget.seuilConfirmation", { centimes: 2 * prix, devise: "EUR" });
     const textes = IDEES.slice(0, 3);
-    await expect(serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-p4-sans-total")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await sujetsDesIdees(textes)).toHaveLength(0);
-    expect(await depots().generations.compter((g) => !g.estDemo && g.statut === "en-cours")).toBe(0);
+    const { serie: s } = await serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-p4-sans-total");
+    expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
+    expect(await sujetsDesIdees(textes)).toHaveLength(3);
+    expect(await depots().generations.compter((g) => !g.estDemo && g.statut === "en-cours")).toBe(3);
+    // C'est la boucle de fond qui écrit : rien n'est appelé chez Claude dans la requête.
     expect(appelsClaude).toHaveLength(0);
   });
 
-  it("un total confirmé plus bas que le prix du jour ne vaut pas confirmation ; le bon total fait partir la série", async () => {
+  it("un total confirmé plus bas que le prix du jour ne bloque plus : la série part", async () => {
     await brancherClaude();
     const prix = (await bg.prixLancement()).centimes;
     await ecrireParametre("budget.seuilConfirmation", { centimes: 2 * prix, devise: "EUR" });
     const textes = IDEES.slice(0, 3);
     const plan = await serie.planSerie(3);
     expect(plan.totalPartant.centimes).toBe(3 * prix);
-    await expect(serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-p4-total-bas", plan.totalPartant.centimes - 1)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await sujetsDesIdees(textes)).toHaveLength(0);
-    const { serie: s } = await serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-p4-total-ok", plan.totalPartant.centimes, plan.partiront);
+    const { serie: s } = await serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-p4-total-bas", plan.totalPartant.centimes - 1);
     expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
+    expect(await sujetsDesIdees(textes)).toHaveLength(3);
     expect(appelsClaude).toHaveLength(0);
   });
 

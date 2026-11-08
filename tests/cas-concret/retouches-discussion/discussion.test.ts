@@ -235,12 +235,11 @@ describe("service : proposer, montrer, confirmer", () => {
     expect(executer).toHaveBeenCalledTimes(1);
 
     // 08/11/2026 : aucun prix ne bloque. Un montant plus bas que le prix montré ne redemande plus rien : la retouche part,
-    // avec le montant donné (l'accord absent ou illisible `false` va tel quel à `lancerRetouche`).
+    // (le service transmet le prix montré ; l'accord absent ou illisible `false` va tel quel à `lancerRetouche`).
     expect(propose.centimes).toBeGreaterThan(0);
-    const confirme = propose.centimes - 1;
-    expect(await service.confirmerRetouche(VIDEO, confirme, dep)).toEqual({ statut: "lancee", travailId: "t-retouche" });
+    expect(await service.confirmerRetouche(VIDEO, propose.centimes - 1, dep)).toEqual({ statut: "lancee", travailId: "t-retouche" });
     expect(lancerRetouche).toHaveBeenCalledTimes(1);
-    expect(lancerRetouche).toHaveBeenCalledWith(VIDEO, [], "Changez le mot à commenter : RDV", { confirme, operations: [{ type: "changer-mot", mot: "RDV" }] });
+    expect(lancerRetouche).toHaveBeenCalledWith(VIDEO, [], "Changez le mot à commenter : RDV", { confirme: propose.centimes, operations: [{ type: "changer-mot", mot: "RDV" }] });
     // La demande est oubliée.
     expect(await service.suivreRetouche(VIDEO, dep)).toEqual({ statut: "aucune" });
   });
