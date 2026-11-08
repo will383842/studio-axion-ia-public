@@ -156,7 +156,7 @@ export function GalerieVideos({
     fichiers.forEach((v, i) => {
       setTimeout(() => {
         const a = document.createElement("a");
-        a.href = v.video!;
+        a.href = `/api/telechargements/video?video=${encodeURIComponent(v.id)}`;
         a.download = `${v.titre.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
         document.body.appendChild(a);
         a.click();

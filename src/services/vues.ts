@@ -70,6 +70,10 @@ export interface VueVideoCarte {
   estDemo?: boolean;
   /** Date de mise à la corbeille (supprimée 30 jours plus tard). */
   corbeilleLe?: string;
+  /** Lot M : réseaux de la vidéo (pastille et classement). Absent : écran qui ne les demande pas. */
+  reseaux?: IdReseau[];
+  /** Lot M : faux = réseaux prévus par défaut (rien ne dit pour quel réseau la vidéo est faite). */
+  reseauxPrecis?: boolean;
 }
 
 export interface VuePlan extends Plan {
