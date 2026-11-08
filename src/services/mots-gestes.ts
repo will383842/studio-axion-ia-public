@@ -5,8 +5,10 @@
  */
 import "server-only";
 import { exigerSession } from "./auth";
-import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
+import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
+import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
+import { guideFichierPresent } from "./mots-guide-source";
 
 export async function gesteLireMots(): Promise<VueMots> {
   await exigerSession();
@@ -53,9 +55,25 @@ export async function gesteReglerPlafonds(p: { heureCompte?: number; jourMot?: n
 /** Activation LOCALE du mot GUIDE (session exigée) : aucun appel vers Zernio, refus fermé si une garde manque. */
 export async function gesteActiverMotLocal(compte: string): Promise<Resultat> {
   await exigerSession();
+  if (!comptesParcours().includes(compte)) return { issue: "refuse", raison: "compte_hors_liste" };
   return activerMotLocal({ mot: "GUIDE", compte, confirmeParOperateur: true });
 }
 export async function gesteMettreEnPauseLocal(mot: string, compte: string): Promise<Resultat> {
   await exigerSession();
   return mettreEnPauseLocal({ mot, compte, confirmeParOperateur: true });
+}
+/**
+ * Validation des textes du mot GUIDE du parcours : le client ne transmet rien. Refusée si `mots/GUIDE.md` existe (le parcours
+ * n'envoie pas ce fichier : la validation ne le couvrirait pas). Le titre est celui du serveur, comme pour le parcours.
+ */
+export async function gesteValiderMotGuide(): Promise<{ ok: boolean; raison: string }> {
+  await exigerSession();
+  if (await guideFichierPresent()) return { ok: false, raison: "guide_fichier_present" };
+  const r = await validerGuideParcours({ titre: titreGuideParcours(process.env), confirmeParOperateur: true });
+  return { ok: r.ok, raison: r.raison };
+}
+/** Comptes du parcours de conversation (identifiants seulement) pour les boutons d'activation. */
+export async function gesteComptesGuide(): Promise<string[]> {
+  await exigerSession();
+  return comptesParcours();
 }

@@ -1,6 +1,6 @@
 /** Lot 5d · réessai d'un « stop » dont la mise en file a échoué, et idempotence du registre. Données 100 % fictives ; port et site FAUX. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerMessage, fauxPort, silencerConsole } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerMessage, fauxPort, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 import { H, MIN, graineConv, lectureParMessage, siteDouble } from "./aides/oppositions";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -40,6 +40,7 @@ beforeEach(async () => {
   site = siteDouble();
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
 });
 afterEach(() => {
   vi.restoreAllMocks();

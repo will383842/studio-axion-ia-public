@@ -17,6 +17,7 @@ import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisS
 import { creerNotification } from "./notifications";
 import { ESPACE_CONTACT_ZERNIO, enregistrerOppositionSousVerrou, marquerTransmise, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
 import { ErreurEmpreinteIndisponible } from "@/domaine/guide-reseau/empreinte-personne";
+import { comptesParcours, empreinteGuideParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { parcoursMotActif } from "./parcours-mot";
 import { envoiZernioAutorise } from "./zernio";
 
@@ -24,6 +25,8 @@ export const VARIABLE_INTERRUPTEUR_MOTS = "MOTS_ENABLED";
 export const PARAM_REGISTRE_MOTS = "mots.registre";
 export const PARAM_GARDES_MOTS = "mots.gardes";
 export const PARAM_VALIDATIONS_MOTS = "mots.validations";
+/** Validation du GUIDE du parcours : clé SÉPARÉE de `mots.validations` (qui reste réservée aux autres mots). */
+export const PARAM_VALIDATION_GUIDE_PARCOURS = "mots.validation.guide-parcours";
 export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */
@@ -221,6 +224,26 @@ export async function validerMot(d: { saisie: SaisieMot; confirmeParOperateur: b
   return { ok: true, raison: "valide", empreinte };
 }
 
+/** Validation du GUIDE du parcours : l'empreinte des 4 textes réellement envoyés (voir empreinte-guide), enregistrée par le geste de l'opérateur. */
+export interface ValidationGuideParcours {
+  empreinte: string;
+  valideLe: string;
+}
+export const lireValidationGuideParcours = (): Promise<ValidationGuideParcours | null> => lireParametre<ValidationGuideParcours | null>(PARAM_VALIDATION_GUIDE_PARCOURS, null);
+
+/** Geste de validation du GUIDE (l'appelant exige la session). Idempotent : revalider les mêmes textes ne change rien. Sans effet réseau. */
+export async function validerGuideParcours(d: { titre: string; confirmeParOperateur: boolean }): Promise<{ ok: boolean; raison: string; empreinte?: string }> {
+  if (!d.confirmeParOperateur) return { ok: false, raison: "validation_operateur_absente" };
+  const e = empreinteGuideParcours(d.titre);
+  if (!e.ok) return { ok: false, raison: e.raison };
+  await sousVerrou(async () => {
+    if ((await lireValidationGuideParcours())?.empreinte === e.empreinte) return;
+    await ecrireParametre(PARAM_VALIDATION_GUIDE_PARCOURS, { empreinte: e.empreinte, valideLe: maintenant() });
+    await journaliser("mots", "Textes du mot GUIDE validés par l'opérateur.");
+  });
+  return { ok: true, raison: "valide", empreinte: e.empreinte };
+}
+
 /** POSE d'un mot sur un compte à partir d'une SAISIE : validé = l'empreinte ENREGISTRÉE correspond au texte actuel. */
 export async function poserMot(d: Demande & { compte: string; saisie: SaisieMot }): Promise<Resultat> {
   const t = textesDepuisSaisie(d.saisie);
@@ -257,10 +280,18 @@ async function poserTextes(d: Demande & { compte: string }, textes: TextesMot): 
  * ACTIVATION LOCALE (aucun appel réseau) : le registre local est la seule source de vérité de la machine de conversation.
  * Retourne le code du refus, ou null si tout est permis. Échec fermé : une panne de lecture refuse. À appeler sous verrou.
  */
-async function refusActivationLocale(mot: string, env: Env): Promise<string | null> {
+async function refusActivationLocale(mot: string, compte: string, env: Env): Promise<string | null> {
+  if (!comptesParcours(env).includes(compte)) return "compte_hors_liste";
   try {
     if (!motsActif(env)) return "interrupteur_eteint";
-    if (!(await lireValidations())[mot]) return "mot_non_valide";
+    if (mot === "GUIDE") {
+      // Le GUIDE est validé par son empreinte, recalculée ici avec le titre du serveur (comme le parcours).
+      const v = await lireValidationGuideParcours();
+      if (!v) return "mot_non_valide";
+      const e = empreinteGuideParcours(titreGuideParcours(env));
+      if (!e.ok) return e.raison;
+      if (e.empreinte !== v.empreinte) return "validation_perimee";
+    } else if (!(await lireValidations())[mot]) return "mot_non_valide";
     if (!(await envoiZernioAutorise())) return "tout_arrete";
     if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ouvert";
   } catch {
@@ -277,7 +308,7 @@ export async function activerMotLocal(d: Demande & { mot: "GUIDE"; compte: strin
   return sousVerrou(async () => {
     const existante = (await lireRegistre())[cle(d.mot, d.compte)];
     if (existante && !!existante.idWorkflow) return refus("deja_pose_chez_zernio");
-    const motif = await refusActivationLocale(d.mot, env);
+    const motif = await refusActivationLocale(d.mot, d.compte, env);
     if (motif) return refus(motif);
     await enregistrerLigne({ mot: d.mot, compte: d.compte, etat: "actif", idWorkflow: null, raison: "local", modifieLe: maintenant() });
     await journaliser("mots", `Mot ${d.mot} activé en local sur un compte.`);
@@ -302,7 +333,7 @@ async function changerEtat(d: Demande & { mot: string; compte: string }, vers: "
   // Ligne locale (idWorkflow nul) : changement d'état dans le registre, sans exécuteur ni compteur d'erreurs ni disjoncteur.
   if (!ligne.idWorkflow) {
     if (vers === "actif") {
-      const motif = await refusActivationLocale(ligne.mot, env);
+      const motif = await refusActivationLocale(ligne.mot, ligne.compte, env);
       if (motif) return refus(motif);
     }
     await enregistrerLigne({ ...ligne, etat: vers === "actif" ? "actif" : automatique ? "pause_auto" : "pause", raison: vers === "actif" ? "local" : automatique ? "automatique" : "local", modifieLe: maintenant() });
@@ -507,9 +538,16 @@ export interface VueMots {
   plafonds: Gardes["plafonds"];
   lignes: LigneMot[];
   oppositions: number;
+  /** Les textes du mot GUIDE sont-ils validés ? Un booléen, jamais un texte. */
+  guideValide: boolean;
+  /** Une validation existe mais elle ne correspond plus aux textes envoyés (titre ou dictionnaire changé) : à revalider. */
+  guidePerime: boolean;
 }
 export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
   const g = await lireGardes();
+  const enregistree = await lireValidationGuideParcours();
+  const actuelle = empreinteGuideParcours(titreGuideParcours(env));
+  const guideValide = !!enregistree && actuelle.ok && actuelle.empreinte === enregistree.empreinte;
   return {
     interrupteurAllume: motsActif(env),
     toutArrete: !(await envoiZernioAutorise()),
@@ -517,6 +555,8 @@ export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
     plafonds: g.plafonds,
     lignes: Object.values(await lireRegistre()).sort((a, b) => cle(a.mot, a.compte).localeCompare(cle(b.mot, b.compte))),
     oppositions: (await lireParametre<unknown[]>(PARAM_OPPOSITIONS_MOTS, [])).length,
+    guideValide,
+    guidePerime: !!enregistree && !guideValide,
   };
 }
 
@@ -544,3 +584,17 @@ export async function listerMotsFichiers(dossier = DOSSIER_MOTS): Promise<string
 
 /** Ouvre le disjoncteur des mots depuis un autre service (parcours de conversation) : même effet, même alerte, sous le verrou. */
 export const ouvrirDisjoncteurMotsExterne = (raison: string): Promise<void> => sousVerrou(() => ouvrirDisjoncteur(raison));
+
+/**
+ * Met en pause automatique les lignes GUIDE LOCALES (idWorkflow nul) dont le compte a quitté PARCOURS_CONVERSATION_COMPTES, puis
+ * alerte. Ne rien réactiver ici : un compte réajouté reste en pause jusqu'à « Réactiver ». NE JAMAIS l'appeler depuis une
+ * section déjà sous verrou (`sousVerrou` n'est pas réentrant).
+ */
+export async function pauserGuidesHorsListe(env: Env = process.env): Promise<number> {
+  const liste = comptesParcours(env);
+  const horsListe = (l: LigneMot) => l.mot === "GUIDE" && !l.idWorkflow && !liste.includes(l.compte);
+  // Rien à faire = aucune écriture ni journal (la fonction passe à chaque tour de boucle).
+  const n = await sousVerrou(async () => (Object.values(await lireRegistre()).some((l) => l.etat === "actif" && horsListe(l)) ? pauseAuto(horsListe, env, "compte retiré de la liste") : 0));
+  if (n > 0) await creerNotification({ type: "echec", titre: "Mot GUIDE", message: `Le mot GUIDE a été mis en pause automatique sur ${n} compte(s) retiré(s) de la liste des comptes autorisés.`, lien: "/mots" }, { cloche: true });
+  return n;
+}
