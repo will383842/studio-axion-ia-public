@@ -305,8 +305,8 @@ export function descenteA(frame: number, cles: CleDescente[]): number {
 /** Prise de Will en fond (vidéo avec sa voix), translatée de `d × H` — la SEULE transformation permise ; bande ivoire révélée en haut. */
 export type FondTest = "prise" | "blanc" | "noir" | string;
 export function FondPrise({ d, source, debutVideo = 0, fondTest = "prise" }: { d: number; source: string; debutVideo?: number; fondTest?: FondTest }) {
-  if (fondTest === "blanc" || fondTest === "noir") return <AbsoluteFill style={{ background: fondTest === "blanc" ? BLANC : "#111111" }} />;
-  if (fondTest !== "prise") return <AbsoluteFill style={{ background: "#111111" }}><OffthreadVideo src={mediaV4(fondTest)} muted style={{ width: W, height: H, objectFit: "cover" }} /></AbsoluteFill>;
+  if (fondTest === "blanc" || fondTest === "noir") return <AbsoluteFill style={{ background: fondTest === "blanc" ? BLANC : "#141413" }} />;
+  if (fondTest !== "prise") return <AbsoluteFill style={{ background: "#141413" }}><OffthreadVideo src={mediaV4(fondTest)} muted style={{ width: W, height: H, objectFit: "cover" }} /></AbsoluteFill>;
   return (
     <AbsoluteFill style={{ background: IVOIRE }}>
       <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translateY(${(d * H).toFixed(2)}px)` }}>
