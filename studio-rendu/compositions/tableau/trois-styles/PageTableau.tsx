@@ -72,7 +72,7 @@ function encreDe(texte: string, p: PoliceTableau, taille: number): Encre {
   const g = c.getContext("2d")!;
   g.font = police(p, taille);
   g.fontKerning = "none";
-  g.fillStyle = "#fff";
+  g.fillStyle = "#FAF9F5";
   g.fillText(texte, pad, pad + asc);
   const d = g.getImageData(0, 0, c.width, c.height).data;
   const cols: Encre["cols"] = [];
@@ -272,7 +272,7 @@ function ruban(g: Ctx, x: number, y: number, w: number, h: number, rot: number, 
   g.fill();
   g.shadowColor = "transparent";
   g.globalAlpha = 0.18;
-  g.fillStyle = "#fff";
+  g.fillStyle = "#FAF9F5";
   g.fillRect(-w / 2, -h / 2 + 2 * k, w, 3 * k);
   g.restore();
 }
@@ -356,7 +356,7 @@ function chapitres(g: Ctx, sc: Scene, actif: number, u: number) {
       const lt = col - 26 * k;
       g.save();
       g.lineCap = "round";
-      g.strokeStyle = i === actif ? S.accent : i < actif ? S.encre : sc.style === "ardoise" ? "#5A4636" : "#B9AC9C";
+      g.strokeStyle = i === actif ? S.accent : i < actif ? S.encre : sc.style === "ardoise" ? "#B0AEA5" : "#E8E6DC";
       g.lineWidth = (i === actif ? 9 : 6) * k;
       g.globalAlpha = 0.95;
       g.beginPath();
@@ -365,7 +365,7 @@ function chapitres(g: Ctx, sc: Scene, actif: number, u: number) {
       g.quadraticCurveTo(r.x + l / 2, yl + (i % 2 ? 3 : -2) * k, r.x + l, yl);
       g.stroke();
       g.restore();
-      if (i === actif && sc.style === "tableau-blanc") aimant(g, r.x + lt - (1 - u) * (col + 2 * k), yl, 13 * k, "#B44F29", k);
+      if (i === actif && sc.style === "tableau-blanc") aimant(g, r.x + lt - (1 - u) * (col + 2 * k), yl, 13 * k, "#B23F16", k);
     }
   });
 }
@@ -418,14 +418,14 @@ function outil(g: Ctx, sc: Scene, x: number, y: number, lev: number, col: string
     g.lineTo(16 * k, 9 * k);
     g.closePath();
     const gc = g.createLinearGradient(0, -D / 2, 0, D / 2);
-    gc.addColorStop(0, "#5B5149");
-    gc.addColorStop(0.35, "#B9B0A7");
-    gc.addColorStop(1, "#2E2621");
+    gc.addColorStop(0, "#B0AEA5");
+    gc.addColorStop(0.35, "#B0AEA5");
+    gc.addColorStop(1, "#141413");
     g.fillStyle = gc;
     g.fill();
-    cyl(44 * k, L - 34 * k, D, [[0, "#8C847C"], [0.18, "#EDE9E4"], [0.38, "#FFFFFF"], [0.62, "#E2DDD7"], [0.86, "#B0A79E"], [1, "#7C736B"]]);
-    cyl(110 * k, 190 * k, D + 0.5, [[0, "#110A05"], [0.35, "#3A2E26"], [1, "#0A0603"]]);
-    g.fillStyle = "#E9DCC8";
+    cyl(44 * k, L - 34 * k, D, [[0, "#B0AEA5"], [0.18, "#FAF9F5"], [0.38, "#FAF9F5"], [0.62, "#E8E6DC"], [0.86, "#B0AEA5"], [1, "#B0AEA5"]]);
+    cyl(110 * k, 190 * k, D + 0.5, [[0, "#141413"], [0.35, "#141413"], [1, "#141413"]]);
+    g.fillStyle = "#E8E6DC";
     g.font = `700 ${15 * k}px "${FAMILLES_POLICES_TABLEAU.kalam}"`;
     g.fillText("AXION", 124 * k, 5 * k);
     cyl(L - 34 * k, L, D + 4 * k, [[0, assombrir(col, 0.6)], [0.3, col], [0.5, eclaircir(col, 0.3)], [1, assombrir(col, 0.5)]]);
@@ -468,18 +468,18 @@ function outil(g: Ctx, sc: Scene, x: number, y: number, lev: number, col: string
     g.lineTo(22 * k, 13 * k);
     g.closePath();
     const gc = g.createLinearGradient(0, -D / 2, 0, D / 2);
-    gc.addColorStop(0, "#3A2E26");
-    gc.addColorStop(0.3, "#7A6A5C");
-    gc.addColorStop(1, "#140D08");
+    gc.addColorStop(0, "#141413");
+    gc.addColorStop(0.3, "#B0AEA5");
+    gc.addColorStop(1, "#141413");
     g.fillStyle = gc;
     g.fill();
-    cyl(52 * k, L - 50 * k, D, [[0, "#0C0805"], [0.2, "#3E3229"], [0.34, "#6A5A4D"], [0.55, "#221912"], [1, "#080503"]]);
-    cyl(110 * k, 230 * k, D + 0.5, [[0, "#8E7859"], [0.3, "#D9C6A6"], [0.55, "#E9DCC8"], [1, "#7E6A4E"]]);
-    g.fillStyle = "#110A05";
+    cyl(52 * k, L - 50 * k, D, [[0, "#141413"], [0.2, "#141413"], [0.34, "#B0AEA5"], [0.55, "#141413"], [1, "#141413"]]);
+    cyl(110 * k, 230 * k, D + 0.5, [[0, "#E8E6DC"], [0.3, "#E8E6DC"], [0.55, "#E8E6DC"], [1, "#E8E6DC"]]);
+    g.fillStyle = "#141413";
     g.font = `${20 * k}px "${FAMILLES_POLICES_TABLEAU.marker}"`;
     g.fillText("ATELIER", 128 * k, 7 * k);
     cyl(L - 50 * k, L - 26 * k, D + 3 * k, [[0, assombrir(col, 0.5)], [0.35, col], [1, assombrir(col, 0.45)]]);
-    cyl(L - 26 * k, L, D, [[0, "#0C0805"], [0.3, "#3E3229"], [1, "#080503"]]);
+    cyl(L - 26 * k, L, D, [[0, "#141413"], [0.3, "#141413"], [1, "#141413"]]);
   }
   g.restore();
 }
@@ -498,20 +498,20 @@ function brosse(g: Ctx, sc: Scene, x: number, y: number) {
   const h = 290 * k;
   const gr = g.createLinearGradient(-w / 2, 0, w / 2, 0);
   if (sc.style === "tableau-blanc") {
-    gr.addColorStop(0, "#1C140F");
-    gr.addColorStop(0.4, "#4A3C31");
-    gr.addColorStop(1, "#140D08");
+    gr.addColorStop(0, "#141413");
+    gr.addColorStop(0.4, "#141413");
+    gr.addColorStop(1, "#141413");
   } else {
-    gr.addColorStop(0, "#4A2E1B");
-    gr.addColorStop(0.45, "#8A5E3C");
-    gr.addColorStop(1, "#3A2414");
+    gr.addColorStop(0, "#141413");
+    gr.addColorStop(0.45, "#B23F16");
+    gr.addColorStop(1, "#141413");
   }
   g.fillStyle = gr;
   g.beginPath();
   g.roundRect(-w / 2, -h / 2, w, h, 24 * k);
   g.fill();
   g.shadowColor = "transparent";
-  g.fillStyle = sc.style === "tableau-blanc" ? "#BFA88B" : "#D8CBB8";
+  g.fillStyle = "#E8E6DC";
   g.fillRect(-w / 2 + 4 * k, -h / 2 + 10 * k, 20 * k, h - 20 * k);
   g.fillStyle = "rgba(255,255,255,0.18)";
   g.fillRect(-w / 2 + 34 * k, -h / 2 + 18 * k, 8 * k, h - 36 * k);
@@ -536,7 +536,7 @@ function masqueEffacement(sc: Scene, u: number): { m: HTMLCanvasElement; p: [num
   g.clearRect(0, 0, W, H);
   const n = Math.floor(borne(u) * (pts.length - 1));
   const ry = Math.max(175 * k, R.hauteur / 7);
-  g.fillStyle = "#000";
+  g.fillStyle = "#141413";
   for (let i = 0; i <= n; i++) {
     g.beginPath();
     g.ellipse(pts[i][0], pts[i][1], 150 * k, ry, 0, 0, 7);
@@ -804,7 +804,7 @@ function reflet(g: Ctx, sc: Scene, t: number) {
 function poussiere(g: Ctx, sc: Scene, et: Etat) {
   const r = alea(99 + Math.round(et.plan.debutPage * 10));
   g.save();
-  g.fillStyle = "#E9DCC8";
+  g.fillStyle = "#E8E6DC";
   const duree = Math.max(1, et.plan.finPage - et.plan.debutPage);
   for (let i = 0; i < 40; i++) {
     const naissance = et.plan.debutPage + r() * duree;
