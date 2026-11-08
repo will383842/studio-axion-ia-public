@@ -7,30 +7,32 @@
  * Changer d'ambiance = modifier ce bloc :root, rien d'autre.
  */
 :root {
-  --fond: #16120f;
-  --surface-1: #1f1a16;
-  --surface-2: #2a2420;
-  --surface-3: #342c27;
-  --trait: #3a322c;
-  --trait-fort: #4d433b;
-  --texte: #f3ede4;
-  --texte-doux: #b8ada0;
-  --texte-faible: #9a8f83; /* ≥ 4,5:1 sur --surface-2 (petits textes) */
-  --orange: #b4512a; /* 4,7:1 avec --sur-orange (WCAG AA texte normal) ; #e07040 reste pour lueurs et accents */
-  --orange-vif: #e07040;
-  --orange-doux: rgb(198 90 46 / 0.16);
-  --sur-orange: #fff6ec;
-  --sauge: #8fb08a;
-  --sauge-doux: rgb(143 176 138 / 0.16);
-  --ambre: #e3a64b;
-  --ambre-doux: rgb(227 166 75 / 0.16);
-  --brique: #e5735c; /* navigation 03/10 : ≥ 4,5:1 sur --brique-doux (axe, petites pastilles) ; était #d9664f */
-  --brique-doux: rgb(217 102 79 / 0.16);
-  --voile: rgb(10 8 6 / 0.72);
-  --lueur: radial-gradient(60% 60% at 50% 0%, rgb(224 112 64 / 0.18) 0%, rgb(224 112 64 / 0.06) 45%, transparent 75%);
-  --lueur-forte: radial-gradient(70% 70% at 50% 30%, rgb(224 112 64 / 0.32) 0%, rgb(198 90 46 / 0.1) 50%, transparent 80%);
-  --ombre-carte: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
-  --ombre-orange: 0 10px 30px -10px rgb(224 112 64 / 0.55);
+  /* Palette Axion 2026 : ivoire #FAF9F5, gris #E8E6DC, noir #141413, terracotta #B23F16 ;
+     orange #D97757 et gris #B0AEA5 sur noir seulement. Les surfaces sont des mélanges ivoire/noir (aucun autre hex). */
+  --fond: #141413;
+  --surface-1: color-mix(in srgb, #faf9f5 5%, #141413);
+  --surface-2: color-mix(in srgb, #faf9f5 9%, #141413);
+  --surface-3: color-mix(in srgb, #faf9f5 13%, #141413);
+  --trait: color-mix(in srgb, #faf9f5 16%, #141413);
+  --trait-fort: color-mix(in srgb, #faf9f5 28%, #141413);
+  --texte: #faf9f5;
+  --texte-doux: #b0aea5;
+  --texte-faible: #b0aea5; /* ≥ 4,5:1 sur --surface-2 (petits textes) */
+  --orange: #b23f16; /* terracotta : texte --sur-orange dessus (WCAG AA) */
+  --orange-vif: #d97757; /* sur noir seulement : lueurs, accents, focus */
+  --orange-doux: rgb(217 119 87 / 0.16);
+  --sur-orange: #faf9f5;
+  --sauge: #e8e6dc; /* « réussi » : gris clair, ni vert ni jaune */
+  --sauge-doux: rgb(232 230 220 / 0.12);
+  --ambre: #d97757; /* « attention » : orange de la palette */
+  --ambre-doux: rgb(217 119 87 / 0.16);
+  --brique: #d97757; /* erreur sur noir : orange + icône  */
+  --brique-doux: rgb(217 119 87 / 0.16);
+  --voile: rgb(20 20 19 / 0.72);
+  --lueur: none; /* aucun dégradé dans la charte */
+  --lueur-forte: none;
+  --ombre-carte: 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  --ombre-orange: 0 10px 30px -10px rgb(217 119 87 / 0.55);
   --hauteur-onglets-bas: 72px;
   --largeur-barre: 264px;
   --largeur-barre-repliee: 72px;
@@ -61,7 +63,7 @@
   --color-brique-doux: var(--brique-doux);
   --color-voile: var(--voile);
 
-  --font-titre: var(--police-titre), "Arial Black", sans-serif;
+  --font-titre: var(--police-texte), system-ui, sans-serif;
   --font-texte: var(--police-texte), system-ui, sans-serif;
   --font-sans: var(--police-texte), system-ui, sans-serif;
 
@@ -97,6 +99,7 @@
   h2,
   h3 {
     font-family: var(--font-titre);
+    font-weight: 800;
     letter-spacing: -0.01em;
     line-height: 1.05;
   }
@@ -123,6 +126,7 @@
   }
   .titre-affiche {
     font-family: var(--font-titre);
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: -0.005em;
     line-height: 0.95;
@@ -144,11 +148,12 @@
 }
 
 @keyframes miroiter {
-  from {
-    background-position: 200% 0;
+  0%,
+  100% {
+    opacity: 1;
   }
-  to {
-    background-position: -200% 0;
+  50% {
+    opacity: 0.55;
   }
 }
 
@@ -164,9 +169,8 @@
 }
 
 .squelette {
-  background: linear-gradient(90deg, var(--surface-1) 0%, var(--surface-2) 50%, var(--surface-1) 100%);
-  background-size: 200% 100%;
-  animation: miroiter 1.6s linear infinite;
+  background: var(--surface-2);
+  animation: miroiter 1.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
