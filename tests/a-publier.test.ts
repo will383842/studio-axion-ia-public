@@ -98,7 +98,8 @@ describe("À publier", () => {
     expect(ligne?.etat).toMatchObject({ libelle: "Essai" });
   });
 
-  it("menu : « À publier » à côté du calendrier seulement quand le réglage est allumé", () => {
+  it("menu : « Vidéos validées » (ex « À publier », décision de Williams du 08/11) à côté du calendrier seulement quand le réglage est allumé", () => {
+    expect(nav.ENTREE_A_PUBLIER.libelle).toBe("Vidéos validées");
     const sans = nav.navigationLaterale([]).map((e) => e.href);
     const avec = nav.navigationLaterale([], false, true).map((e) => e.href);
     expect(sans).not.toContain("/a-publier");
