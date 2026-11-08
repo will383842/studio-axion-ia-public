@@ -136,7 +136,7 @@ export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexi
 /** « Tester les 6 comptes » : lecture seule chez Zernio. Sans clé : message simple, aucune exception. */
 export async function testerComptesZernioAction(): Promise<Resultat<{ message: string }>> {
   await exigerSession();
-  if (!cleZernioPresente()) return { ok: true, donnees: { message: "Zernio n'est pas encore relié : l'écran fonctionne en essai." } };
+  if (!cleZernioPresente()) return { ok: true, donnees: { message: "Le nouvel outil n'est pas encore relié : l'écran fonctionne en essai." } };
   return essayer(async () => {
     const r = await testerZernio(); // une seule lecture chez Zernio : les états des comptes en viennent
     const testeLe = maintenant();
