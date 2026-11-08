@@ -129,28 +129,10 @@ export function CarteBascule({ comptes, services, onChange }: { comptes: CompteV
   );
 }
 
-/** « 24 $ » : valeur de configuration, ou rien si elle n'est pas renseignée. Jamais comparée à un envoi. */
-function montant(v: number | null): string {
-  return v === null ? "à renseigner" : `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(v)} $`;
-}
-
-export function CarteBudget({ budget, nombreComptes }: { budget: BudgetInfo; nombreComptes: number }) {
-  return (
-    <section aria-labelledby="budget-titre" data-carte="budget" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte sm:p-5">
-      <h2 id="budget-titre" className="text-lg text-texte">
-        Budget du mois <span className="text-sm font-normal text-texte-faible">· pour information</span>
-      </h2>
-      <p className="mt-1 text-sm text-texte-doux">Rien n’est jamais bloqué par ce montant.</p>
-      <ul className="mt-3 flex flex-col gap-1 text-sm text-texte">
-        <li>
-          ≈ {montant(budget.zernio)} Zernio · {nombreComptes} comptes
-        </li>
-        <li>
-          {montant(budget.buffer)} Buffer · jusqu’au {budget.finBuffer}, puis 0
-        </li>
-      </ul>
-    </section>
-  );
+/** Aucun montant dans l'interface : la carte n'affiche plus rien (l'appelant peut la retirer). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function CarteBudget(_props: { budget: BudgetInfo; nombreComptes: number }): null {
+  return null;
 }
 
 export function BandeauVide({ onRelie, enCours, lienZernio = "https://zernio.com" }: { onRelie: () => void; enCours?: boolean; lienZernio?: string }) {

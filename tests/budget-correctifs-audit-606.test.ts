@@ -145,14 +145,18 @@ describe("cloche : une par vidéo et par jour", () => {
     expect(cloches[0].message).not.toMatch(/arrêt de sécurité/);
     expect(cloches[0].message).toMatch(/Au-delà du budget indicatif : la fabrication continue\./);
   });
-  it("bloquant : le plafond des textes refuse, message exact et clair", async () => {
+  it("réglage « bloquant » sans effet : le plafond des textes ne refuse plus, une seule cloche claire, sans « déjà coûté »", async () => {
     await ecrireParametre("budget.mode", "bloquant");
-    brancherClaude();
+    const appels = brancherClaude();
     const v = await video();
     await depenseMonteur(v.id, 800, new Date(Date.now() - 30_000).toISOString());
     const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, options());
-    expect(!r.ok && r.message).toMatch(/Version simple pour cette modification/);
-    expect(!r.ok && r.message).not.toMatch(/déjà coûté/);
+    expect(r.ok).toBe(true);
+    expect(appels).toHaveLength(1);
+    const cloches = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
+    expect(cloches).toHaveLength(1);
+    expect(cloches[0].message).toMatch(/la fabrication continue/);
+    expect(cloches[0].message).not.toMatch(/déjà coûté/);
   });
 });
 
@@ -279,7 +283,7 @@ describe("Usine : réservation sur le budget de l'Usine, actions de Will, format
     await monteurPourFabrication(v.id, { entrees, origine: "studio" }, opts);
     expect(appels.length).toBeGreaterThanOrEqual(1);
   }, 30_000);
-  it("format sans prix (face caméra animée) : ni la cloche ni l'arrêt de sécurité ne montrent de montant", async () => {
+  it("format sans prix (face caméra animée) : la cloche ne montre aucun montant ; plus d'arrêt, même avec le réglage « bloquant »", async () => {
     await ecrireParametre("budget.mode", "indicatif");
     brancherClaude();
     const a = await video();
@@ -298,7 +302,7 @@ describe("Usine : réservation sur le budget de l'Usine, actions de Will, format
     await depots().depenses.enregistrer({ id: nouvelId("dep"), videoId: v.id, lignes: [ligne2], total: ligne2.total, date, creeLe: date, modifieLe: date } as never);
     await ecrireParametre("budget.mode", "bloquant");
     const r2 = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Face caméra animée · mise en scène", plafondPropre } as never);
-    expect(r2.ok).toBe(false);
-    expect(!r2.ok && r2.message).toMatch(/Plafond de cette vidéo atteint/);
+    expect(r2.ok).toBe(true);
+    for (const c of (await depots().notifications.lister()).filter((x) => x.type === "credit")) expect(c.message).not.toMatch(/€|\$/);
   }, 30_000);
 });

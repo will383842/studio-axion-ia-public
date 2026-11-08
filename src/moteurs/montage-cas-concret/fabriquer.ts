@@ -39,6 +39,7 @@
  * technique). Un raccord de voix fini est gardé même si celui d'une autre fin rate dans le même tour. « Réessayer »
  * passe le journal par `relancerRendusCasConcret` : seuls les rendus restés en cours ou ratés repartent.
  */
+import { joindrePhrasesPourVoix } from "@/domaine/voix-phrases";
 import { FIN_PROPRE_COMMUNE } from "@/briques/composition/fin-propre";
 import { creerSuivi, empreinteStable, plansDesScenes, commandeMinimale, type EtapeComptee, type Journal, type ScenePosee } from "@/briques/chaine-scenes";
 import { avancerCompositions, montageFini, type BaseComposition, type EtatComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
@@ -73,7 +74,7 @@ import { defautsVisuels, type DefautVisuel } from "./defauts-visuels";
 import { ecrireFiche, PREFIXE_APPEL_ECRITURE, reformulerPhrase, type ResultatEcriture } from "./ecriture";
 import { ecartsScriptValide, ficheDuScriptValide, PHRASE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_VALIDE_REFUSE, problemesScriptValide, type ScriptValide } from "./script-valide";
 import { departDePage, ecransCales, LIBELLES_ETAPES_CAS_CONCRET, motsOrange, regrouperFins, reporterTexteDit, type CaptureVraiEcran, type EntreesCasConcret } from "./etapes";
-import { FORMAT_CAS_CONCRET, texteDuCorps, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
+import { FORMAT_CAS_CONCRET, texteDuCorps, texteDuCorpsPourVoix, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
 import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
@@ -670,8 +671,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
 
   // 4. Voix : corps, une prise par fin, puis l'assemblage de chaque fin.
   const lire = (t: string) => (prononciations.length ? substituerPrononciations(t, [...prononciations]) : t);
-  const texteCorps = lire(texteDuCorps(captures.fiche));
-  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(f.ecrans.map((e) => e.texteDit.trim()).join(" ")) }));
+  const texteCorps = lire(texteDuCorpsPourVoix(captures.fiche));
+  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(joindrePhrasesPourVoix(f.ecrans.map((e) => e.texteDit))) }));
   const tarif = outils.budget.tarifCentimesParCaractere;
   const estimation = estimerVoixCasConcret([texteCorps, ...textesFins.map((f) => f.texte)], tarif);
   const v = outils.voix;
@@ -826,6 +827,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       if (!r.ok) throw new ErreurFabricationCasConcret("calage", r.problemes.map((p) => (plan.fins.length > 1 ? `Fin pour ${nomsReseaux(f.reseaux)} · ${p}` : p)));
       return { r, f };
     });
+    // 08/11/2026 : les mots lus autrement que le texte écrit ne jettent plus la vidéo : ils partent en réserves « À vérifier ».
+    const ecarts = [...new Set(parFin.flatMap(({ r, f }) => r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`)))];
     const commun = Math.min(...parFin.map(({ r }) => r.fin!.ecrans[0].debutMs!));
     const premier = parFin[0].r;
     const dernier = premier.fiche.ecrans.length - 1;
@@ -833,6 +836,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const idsCorps = new Set(corps.map((e) => e.id));
     const borne = (ev: EvenementCale) => (ev.ecranId === corps[dernier].id ? { ...ev, debutMs: Math.min(ev.debutMs, commun - IMAGE_MS) } : ev);
     return {
+      ecarts,
       fiche: { ...premier.fiche, ecrans: corps },
       evenements: premier.evenements.filter((ev) => idsCorps.has(ev.ecranId)).map(borne),
       fins: parFin.map(({ r, f }) => ({
@@ -1192,6 +1196,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     reservesVoix: [
       ...(voix.rapport.corpsGardeMalgreRejet ? [`Voix · la phrase « ${voix.rapport.corpsGardeMalgreRejet.phrase} » est peut-être mal lue (${voix.rapport.corpsGardeMalgreRejet.detail}) : écoutez-la.`] : []),
       ...(voix.reservesFin ?? []),
+      ...(calage.ecarts ?? []),
     ],
     remarquesScript: remarquesScript ?? [],
     avertissementsScript: avertissementsScript ?? [],

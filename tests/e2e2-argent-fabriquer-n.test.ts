@@ -1,7 +1,6 @@
 /**
  * E2E-2 (03/10) — correcteur « argent et fabrication » : « Fabriquer les N » sans impasse et au juste prix.
- *  - parcours n° 1 : refus du budget (ou d'un crédit) AVANT de rien créer ; refus au lancement même → la vidéo attend,
- *    avec sa raison, et repart d'elle-même ;
+ *  - parcours n° 1 : le budget du mois ne bloque plus (décision du 08/11) : ni avant de créer, ni au lancement même ;
  *  - parcours n° 2 : la fonction sûre pour « Fabriquer cette version » (`verifierAvantDeCreer`, `lancerVideoDeVersion`) ;
  *  - parcours n° 4 : le prix annoncé est celui que le lancement contrôle (même chemin de commande) ;
  *  - parcours n° 9 : la ligne « vous » faite, « Fabriquer les N » propose la ligne suivante.
@@ -58,66 +57,55 @@ async function sujetValide(): Promise<string> {
 
 const budget = (c: number) => ecrireParametre("budget.mensuel", { centimes: c, devise: "EUR" });
 
-describe("parcours n° 1 · « Fabriquer les N » refusé : rien n'est créé, le bouton reste", () => {
-  it("budget du mois insuffisant : BUDGET_DEPASSE, aucune vidéo, aucune version rattachée, le plan est toujours proposé", async () => {
+describe("parcours n° 1 · « Fabriquer les N » : le budget du mois ne bloque plus (décision du 08/11)", () => {
+  it("budget du mois insuffisant : aucun BUDGET_DEPASSE, les vidéos sont créées et la fabrication part", async () => {
     const id = await sujetValide();
     const videosAvant = await depots().videos.compter();
     await budget(1);
-    await expect(fr.fabriquerLesN(id, { operationId: "op-refus", lancer: true })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect(await depots().videos.compter()).toBe(videosAvant);
-    expect((await depots().variantes.lister((v) => v.scriptMaitreId === id)).filter((v) => v.videoId)).toHaveLength(0);
-    expect(await depots().travaux.compter((t) => t.statut === "en_cours" || t.statut === "en_file")).toBe(await depots().travaux.compter((t) => (t.statut === "en_cours" || t.statut === "en_file") && !!t.estDemo));
-    // Le bouton reste : il y a toujours quelque chose à fabriquer.
-    expect(await fr.planFabricationSujet(id)).not.toBeNull();
-    // Budget relevé : le même geste passe.
-    await budget(1_000_000);
-    const r = await fr.fabriquerLesN(id, { operationId: "op-ok", lancer: true });
+    const r = await fr.fabriquerLesN(id, { operationId: "op-refus", lancer: true });
     expect(r.travailId).toBeTruthy();
+    expect(r.enAttente).toBeUndefined();
+    expect(await depots().videos.compter()).toBeGreaterThan(videosAvant);
+    expect((await depots().variantes.lister((v) => v.scriptMaitreId === id)).filter((v) => v.videoId).length).toBeGreaterThan(0);
+    expect(await depots().travaux.compter((t) => t.cibleId === r.mereVideoId)).toBe(1);
+    // Le même geste renvoyé (même clé) ne lance rien de plus.
+    expect(await fr.fabriquerLesN(id, { operationId: "op-refus", lancer: true })).toMatchObject({ mereVideoId: r.mereVideoId, travailId: r.travailId });
   }, 60_000);
 
-  it("refus au lancement même : la mère attend le budget avec la raison, puis repart d'elle-même après la hausse", async () => {
+  it("budget baissé entre la préparation et le lancement : la mère part quand même, sans attente du budget", async () => {
     const id = await sujetValide();
     // Vidéos préparées (geste interrompu), puis le budget baisse avant le lancement.
-    // CORRECTEUR 1 — B6 : l'écran envoie le total que Will a confirmé sur la feuille.
     const totalConfirme = (await fr.planFabricationSujet(id))!.total.centimes;
     const prepare = await fr.fabriquerLesN(id, { operationId: "op-course", lancer: false });
     await budget(1);
     const r = await fr.fabriquerLesN(id, { operationId: "op-course", lancer: true, totalConfirme });
-    expect(r.travailId).toBeUndefined();
-    expect(r.enAttente).toMatch(/Budget du mois atteint/);
+    expect(r.travailId).toBeTruthy();
+    expect(r.enAttente).toBeUndefined();
     const mere = (await depots().videos.obtenir(prepare.mereVideoId))!;
-    expect(mere.statut).toBe("brouillon");
-    // Seconde relecture paquet 4 (R2) : l'accord gardé est le MONTANT du total confirmé, plus un simple `true`.
-    expect(mere.lancementEnAttente).toMatchObject({ fournisseur: "budget", confirme: expect.any(Number) });
+    expect(mere.lancementEnAttente).toBeFalsy();
     const etat = await fr.etatFabricationSujet(id);
-    expect(etat.find((e) => e.videoId === prepare.mereVideoId)).toMatchObject({ attendCredit: true, raisonAttente: expect.stringMatching(/partira dès que le budget le permettra/) });
-    expect(await depots().notifications.trouver((n) => /attend le budget/.test(n.titre))).toBeTruthy();
-    // Budget relevé : Will est prévenu, et la mère part à l'ouverture du studio.
-    await budget(1_000_000);
-    await credits.surveillerCredits({ force: true });
-    expect(await depots().notifications.trouver((n) => n.titre === "Crédit disponible")).toBeTruthy();
-    await credits.lancerVideosEnAttente();
+    expect(etat.find((e) => e.videoId === prepare.mereVideoId)?.attendCredit).toBeFalsy();
+    expect(await depots().notifications.trouver((n) => /attend le budget/.test(n.titre))).toBeFalsy();
     expect(await depots().travaux.compter((t) => t.cibleId === prepare.mereVideoId)).toBe(1);
   }, 60_000);
 });
 
 describe("parcours n° 2 · fonctions sûres pour « Fabriquer cette version »", () => {
-  it("verifierAvantDeCreer refuse AVANT toute création ; lancerVideoDeVersion ne lève jamais un refus de budget", async () => {
+  it("verifierAvantDeCreer ne refuse plus pour le budget ; lancerVideoDeVersion lance sans mise en attente du budget", async () => {
     const id = await sujetValide();
     const v = (await depots().variantes.lister((x) => x.scriptMaitreId === id && x.etat === "validee"))[0];
     const videosAvant = await depots().videos.compter();
     await budget(1);
-    await expect(fr.verifierAvantDeCreer([v.id])).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect(await depots().videos.compter()).toBe(videosAvant);
-    await budget(1_000_000);
     const { total } = await fr.verifierAvantDeCreer([v.id]);
     expect(total.centimes).toBeGreaterThan(0);
-    // Brouillon déjà créé, budget retombé : la vidéo attend, avec la raison.
+    // La vérification seule ne crée rien.
+    expect(await depots().videos.compter()).toBe(videosAvant);
+    // Brouillon déjà créé, budget toujours à 1 centime : la vidéo part, elle n'attend pas le budget.
     const prepare = await fr.fabriquerLesN(id, { operationId: "op-v", lancer: false });
-    await budget(1);
     const r = await fr.lancerVideoDeVersion(prepare.mereVideoId);
-    expect(r).toEqual({ enAttente: expect.stringMatching(/Budget du mois atteint/) });
-    expect((await depots().videos.obtenir(prepare.mereVideoId))!.lancementEnAttente?.fournisseur).toBe("budget");
+    expect(r.travailId).toBeTruthy();
+    expect(r.enAttente).toBeUndefined();
+    expect((await depots().videos.obtenir(prepare.mereVideoId))!.lancementEnAttente?.fournisseur).not.toBe("budget");
   }, 60_000);
 });
 

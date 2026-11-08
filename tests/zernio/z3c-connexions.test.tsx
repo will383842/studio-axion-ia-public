@@ -184,7 +184,7 @@ describe("z3c · les 3 autres états", () => {
   });
 });
 
-describe("z3c · clé absente et budget", () => {
+describe("z3c · clé absente et aucun montant", () => {
   it("clé absente : message simple, aucune exception", () => {
     const html = rendre({ etat: "normal", donnees: etat({ cleAbsente: true }) });
     expect(html).toContain("Zernio n’est pas encore relié. L’écran fonctionne en essai.");
@@ -203,15 +203,14 @@ describe("z3c · clé absente et budget", () => {
     vi.doUnmock("@/services/zernio");
   });
 
-  it("aucun montant ne bloque : budget à zéro ou absent, tous les gestes restent actifs", () => {
+  it("aucun montant affiché ni bloquant : budget à zéro ou absent, tous les gestes restent actifs", () => {
     const comptes = [...SIX.slice(0, 5), compte("tiktok", 6, { outil: "buffer" })];
     for (const budget of [{ zernio: 0, buffer: 0, finBuffer: "20/11" }, { zernio: null, buffer: null, finBuffer: "20/11" }, { zernio: 999999, buffer: 999999, finBuffer: "20/11" }]) {
       const html = rendre({ etat: "normal", donnees: etat({ comptes, budget }) });
-      expect(html).toContain("Rien n’est jamais bloqué par ce montant.");
+      expect(html).not.toMatch(/\$|Budget|à renseigner|jamais bloqué par ce montant/);
       expect(html).toMatch(/<button(?![^>]*\sdisabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Passer Compte exemple tiktok 6 sur Zernio/);
     }
-    expect(rendre(VUES.normal)).toContain("10 $");
-    expect(rendre({ etat: "normal", donnees: etat({ budget: { zernio: null, buffer: null, finBuffer: "20/11" } }) })).toContain("à renseigner");
+    expect(rendre(VUES.normal)).not.toMatch(/10 \$|Budget du mois/);
   });
 });
 

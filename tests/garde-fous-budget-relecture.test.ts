@@ -26,7 +26,7 @@ const auth = await import("@/services/auth");
 const credits = await import("@/services/credits");
 const gc = await import("@/services/generation-claude");
 const bg = await import("@/services/boucle-generation");
-const { ecrireParametre } = await import("@/services/_commun");
+const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
 const { ROLES_ECRITURE } = await import("@/generateur/roles");
 const { ROLES_CHAINE_COURTE, ROLES_CHAINE_COURTE_HORS_RECETTE, executerChaineCourte } = await import("@/generateur/chaine-courte");
@@ -94,6 +94,11 @@ function claudeAuPire(roles: DefinitionRole[]) {
 }
 
 const generation = async (id: string) => (await depots().generations.obtenir(id))!;
+/** Commande de l'Usine (origine figée au lancement) : la seule encore arrêtée par la limite du mois. */
+const faireUsine = async (generationId: string) => {
+  const cle = `generateur.chaine-options.${generationId}`;
+  await ecrireParametre(cle, { ...((await lireParametre<object>(cle, {})) ?? {}), origine: "usine" });
+};
 
 describe("1 · pire cas prudent, selon la chaîne, plafond lu des réglages", () => {
   const z = etapeZeroBanc(SUJETS_BANC[0]);
@@ -152,26 +157,23 @@ describe("1 · pire cas prudent, selon la chaîne, plafond lu des réglages", ()
 });
 
 describe("7 · de bout en bout, plafond PAR DÉFAUT (rien neutralisé)", () => {
-  it("grande chaîne facturée au pire : refusée AVANT le 1er appel, message avec le chiffre et le réglage à changer", async () => {
+  it("grande chaîne facturée au pire : pire cas au-dessus du plafond signalé (Will prévenu), l'écriture PART et va au bout sans arrêt", async () => {
     const claude = claudeAuPire(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: claude.fetch, attenteMs: () => 0 });
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
     expect((await generation(r.generationId)).plafondUsd).toBe(1.5);
     expect(await bg.tourBoucleGeneration()).toBe(r.generationId);
-    expect(claude.appels).toHaveLength(0);
-    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    expect(claude.appels.length).toBeGreaterThan(10);
+    expect((await generation(r.generationId)).statut).toBe("terminee");
     const reserve = (await gc.lireReserveChaine(r.generationId))!;
-    expect(reserve).toMatchObject({ accepte: false, plafondUsd: 1.5, chaine: "grande", reglage: "generateur.plafondGrandeChaineUsd", depenseUsd: 0 });
+    expect(reserve).toMatchObject({ accepte: true, plafondUsd: 1.5, chaine: "grande", reglage: "generateur.plafondGrandeChaineUsd", depenseUsd: 0 });
+    expect(reserve.pireCasUsd).toBeGreaterThan(1.5);
     const e = await bg.etatEcriture(r.scriptMaitreId);
-    expect(e?.messagePlafond).toMatch(/jusqu'à \d+,\d\d \$ \(.*€\), plus que le plafond de 1,50 \$ par sujet : rien n'est parti\. Pour l'écrire, relevez le réglage « generateur\.plafondGrandeChaineUsd » à \d+,\d\d \$ au moins\./);
-    // Le bouton dit pourquoi au lieu d'un prix ; le geste ne change rien.
-    expect(e?.reprise).toMatchObject({ possible: false });
-    expect(e?.reprise?.raison).toMatch(/generateur\.plafondGrandeChaineUsd/);
-    await expect(bg.reprendreEcriture(r.scriptMaitreId, 100_000)).rejects.toMatchObject({ code: "REPRISE_IMPOSSIBLE" });
-    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
-    expect(claude.appels).toHaveLength(0);
-  });
+    expect(e?.messagePlafond ?? "").not.toMatch(/rien n'est parti/);
+    expect(await depots().notifications.trouver((x) => x.titre === "Plafond du sujet dépassé (l'écriture continue)")).toBeTruthy();
+    expect(await depots().notifications.trouver((x) => x.titre === "Écriture non lancée")).toBeFalsy();
+  }, 60_000);
 
   it("chaîne courte facturée au pire, plafond du sujet par défaut : réservée, elle va au bout sans arrêt (3 appels)", async () => {
     const claude = claudeAuPire([...Object.values(ROLES_CHAINE_COURTE), ...Object.values(ROLES_CHAINE_COURTE_HORS_RECETTE)] as DefinitionRole[]);
@@ -215,30 +217,25 @@ describe("7 · de bout en bout, plafond PAR DÉFAUT (rien neutralisé)", () => {
     expect(pire.usd).toBeLessThanOrEqual(1.5);
   });
 
-  it("grande chaîne : Will relève le réglage au chiffre annoncé, « Reprendre (≈ X €) » confirmé, la chaîne facturée au pire va au bout", async () => {
+  it("grande chaîne arrêtée au plafond avant le 08/11/2026 : « Reprendre » part sans confirmation de prix, la chaîne facturée au pire va au bout", async () => {
     const claude = claudeAuPire(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: claude.fetch, attenteMs: () => 0 });
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
-    await bg.tourBoucleGeneration();
-    const refus = (await gc.lireReserveChaine(r.generationId))!;
-    await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.ceil(refus.pireCasUsd * 100) / 100);
+    // Écriture arrêtée au plafond sous l'ancienne règle (plus aucun lancement de Will ne s'y arrête aujourd'hui).
+    await depots().generations.modifier(r.generationId, { statut: "plafond-atteint" });
     const e = await bg.etatEcriture(r.scriptMaitreId);
     expect(e?.reprise).toMatchObject({ possible: true });
-    expect(e!.reprise!.prixUsd).toBeCloseTo(refus.pireCasUsd, 6);
-    // Le serveur fait confirmer le prix : sans accord, ou plus bas, il le redemande.
-    await expect(bg.reprendreEcriture(r.scriptMaitreId)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    const err = await bg.reprendreEcriture(r.scriptMaitreId, 1).catch((x) => x);
-    expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
-    expect(await bg.reprendreEcriture(r.scriptMaitreId, err.montant)).toBe(1);
-    expect((await generation(r.generationId)).plafondUsd).toBeCloseTo(Math.ceil(refus.pireCasUsd * 100) / 100, 6);
+    // Le prix ne bloque jamais : le geste suffit, aucune confirmation (ni sans accord, ni avec un accord plus bas).
+    expect(await bg.reprendreEcriture(r.scriptMaitreId, 1)).toBe(1);
+    expect(claude.appels).toHaveLength(0);
     expect(await bg.tourBoucleGeneration()).toBe(r.generationId);
     const fin = await generation(r.generationId);
     expect(fin.statut).toBe("terminee");
     expect(claude.appels.length).toBeGreaterThan(10);
-    expect(gc.depenseGenerationUsd(fin)).toBeLessThanOrEqual(refus.pireCasUsd);
-    expect(await gc.lireReserveChaine(r.generationId)).toMatchObject({ accepte: true });
+    const reserve = (await gc.lireReserveChaine(r.generationId))!;
+    expect(reserve).toMatchObject({ accepte: true });
+    expect(gc.depenseGenerationUsd(fin)).toBeLessThanOrEqual(reserve.pireCasUsd);
   }, 60_000);
 });
 
@@ -255,16 +252,11 @@ describe("2 · écritures déjà en route sans réserve, et « Reprendre » qui 
     // Des appels sont partis (aucun refus avant le premier), aucune réserve n'a été posée.
     expect(claude.appels.length).toBeGreaterThan(0);
     expect(await gc.lireReserveChaine(r.generationId)).toBeNull();
-    // Facturée au pire, elle finit au plafond (ancien contrôle appel par appel), jamais par un refus de réserve.
+    // Facturée au pire, elle va au bout : le plafond du sujet n'est plus qu'un repère appel par appel (08/11/2026),
+    // jamais un refus de réserve ni un arrêt « plafond-atteint », même au-delà de 1,50 $.
     const g = await generation(r.generationId);
-    expect(["terminee", "plafond-atteint"]).toContain(g.statut);
-    expect(gc.depenseGenerationUsd(g)).toBeLessThanOrEqual(1.5 + 1e-9);
-    // Au plafond, « Reprendre » dit pourquoi au lieu d'un prix.
-    if (g.statut === "plafond-atteint") {
-      const e = await bg.etatEcriture(r.scriptMaitreId);
-      expect(e?.reprise?.possible).toBe(false);
-      expect(e?.reprise?.raison).toMatch(/Plafond de l'écriture atteint.*generateur\.plafondGrandeChaineUsd/);
-    }
+    expect(g.statut).toBe("terminee");
+    expect(gc.depenseGenerationUsd(g)).toBeGreaterThan(0);
   }, 60_000);
 
   it("en attente de crédit, empêchement pas levé : le bouton dit pourquoi, le geste ne demande aucun prix", async () => {
@@ -274,6 +266,8 @@ describe("2 · écritures déjà en route sans réserve, et « Reprendre » qui 
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 0);
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
+    // 08/11/2026 : la limite du mois ne met plus en attente qu'une commande de l'Usine.
+    await faireUsine(r.generationId);
     await bg.tourBoucleGeneration();
     expect((await generation(r.generationId)).statut).toBe("en-attente-credit");
     const e = await bg.etatEcriture(r.scriptMaitreId);
@@ -282,14 +276,13 @@ describe("2 · écritures déjà en route sans réserve, et « Reprendre » qui 
     expect(e?.reprise?.raison).toMatch(/renouvellement des comptes Claude/);
     expect(e?.reprise?.raison).not.toMatch(/rechargez/);
     await expect(bg.reprendreEcriture(r.scriptMaitreId, 100_000)).rejects.toMatchObject({ code: "TOUJOURS_BLOQUEE" });
-    // Limite relevée : le prix est montré, puis confirmé.
+    // Limite relevée : la reprise devient possible, le geste part sans confirmation de prix.
     await gc.definirPlafondMensuelClaude(100);
     const e2 = await bg.etatEcriture(r.scriptMaitreId);
     expect(e2?.reprise).toMatchObject({ possible: true });
     expect(e2!.reprise!.prixUsd).toBeGreaterThan(0);
     expect(e2!.reprise!.prixUsd).toBeLessThanOrEqual(20);
-    await expect(bg.reprendreEcriture(r.scriptMaitreId)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await bg.reprendreEcriture(r.scriptMaitreId, 100_000)).toBe(1);
+    expect(await bg.reprendreEcriture(r.scriptMaitreId)).toBe(1);
     expect((await generation(r.generationId)).statut).toBe("en-cours");
   });
 });
@@ -313,7 +306,7 @@ describe("3 et 5 · réserve recalculée à chaque reprise, prix de ce qui reste
     expect(reserve.pireCasUsd).toBeGreaterThan(reserve.depenseUsd + 1);
   });
 
-  it("reprise après une réponse coupée : si ce qui est dépensé + le pire cas restant dépasse le plafond, le bouton dit pourquoi", async () => {
+  it("reprise après une réponse coupée : même si ce qui est dépensé + le pire cas restant dépasse le plafond, rien ne bloque ni ne demande de prix", async () => {
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fetchInterdit, attenteMs: () => 0 });
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 6);
     const r = await lancer(0);
@@ -331,17 +324,14 @@ describe("3 et 5 · réserve recalculée à chaque reprise, prix de ce qui reste
     expect((await generation(r.generationId)).statut).toBe("echec");
     // Étapes rejouées : 5,90 $ déjà comptés.
     await depots().generations.modifier(r.generationId, { etapes: [...(await generation(r.generationId)).etapes, { role: "fond", versionConsigne: 1, modeleDemande: "claude-opus-5-5", effort: "high", appelId: "a-fond", lanceLe: le, termineLe: le, estimationPireCasUsd: 1, modeleEffectif: "claude-opus-5-5", jetons: { entree: 0, cacheLu: 0, cacheEcrit: 0, sortie: 295_000 }, resultat: "coupe" }] });
+    // 08/11/2026 : 5,90 $ dépensés + le pire cas restant dépassent 6 $, mais le plafond n'est plus qu'un repère.
     const a = await bg.ecritureArretee(r.scriptMaitreId);
-    expect(a?.bloque).toMatch(/plus que le plafond de 6,00 \$ par sujet : elle ne peut pas reprendre\. Pour l'écrire, relevez le réglage « generateur\.plafondGrandeChaineUsd »/);
-    await expect(bg.reprendreEcritureArretee(r.scriptMaitreId)).rejects.toMatchObject({ code: "REPRISE_IMPOSSIBLE" });
-    expect((await generation(r.generationId)).statut).toBe("echec");
-    // Réglage relevé : la reprise peut partir, au prix montré et confirmé (re-relecture A09 : plafond relevé au réglage).
+    expect(a?.bloque).toBeUndefined();
+    // Réglage relevé : le plafond suit le réglage (re-relecture A09), et la reprise part sans confirmation de prix.
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 20);
-    const apres = await bg.ecritureArretee(r.scriptMaitreId);
-    expect(apres?.bloque).toBeUndefined();
-    await expect(bg.reprendreEcritureArretee(r.scriptMaitreId)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await bg.reprendreEcritureArretee(r.scriptMaitreId, apres?.supplement?.centimes)).toBe(true);
+    expect(await bg.reprendreEcritureArretee(r.scriptMaitreId)).toBe(true);
     expect((await generation(r.generationId)).plafondUsd).toBe(20);
+    expect((await generation(r.generationId)).statut).toBe("en-cours");
   }, 30_000);
 
   it("prix de « Reprendre » : le pire cas de ce qui reste (pas 0, même si la dépense a dépassé la réserve), borné par le plafond", async () => {
@@ -350,6 +340,8 @@ describe("3 et 5 · réserve recalculée à chaque reprise, prix de ce qui reste
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 0);
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
+    // 08/11/2026 : la limite du mois ne met plus en attente qu'une commande de l'Usine.
+    await faireUsine(r.generationId);
     await bg.tourBoucleGeneration();
     const reserve = (await gc.lireReserveChaine(r.generationId))!;
     // Étapes rejouées : 9 $ déjà comptés, bien au-delà du pire cas réservé.
@@ -373,7 +365,7 @@ describe("3 et 5 · réserve recalculée à chaque reprise, prix de ce qui reste
 });
 
 describe("Re-relecture A09 · même règle pour les deux « Reprendre », série au plafond du réglage", () => {
-  it("« Reprendre l'écriture » (panne) qui relève le plafond au réglage : le prix est montré et DOIT être confirmé", async () => {
+  it("« Reprendre l'écriture » (panne) qui relève le plafond au réglage : aucune confirmation de prix, le plafond suit le réglage", async () => {
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fetchInterdit, attenteMs: () => 0 });
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
@@ -382,14 +374,13 @@ describe("Re-relecture A09 · même règle pour les deux « Reprendre », série
     // Will relève le réglage (pour un autre sujet) : la reprise de celui-ci pourrait dépenser jusqu'au nouveau plafond.
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 100);
     const arret = await bg.ecritureArretee(r.scriptMaitreId);
-    expect(arret?.supplement?.centimes).toBeGreaterThan(0);
-    await expect(bg.reprendreEcritureArretee(r.scriptMaitreId)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: arret!.supplement!.centimes });
+    expect(arret?.bloque).toBeUndefined();
     expect((await depots().generations.obtenir(r.generationId))?.plafondUsd).toBe(1.5);
-    expect(await bg.reprendreEcritureArretee(r.scriptMaitreId, arret!.supplement!.centimes)).toBe(true);
+    expect(await bg.reprendreEcritureArretee(r.scriptMaitreId)).toBe(true);
     expect((await depots().generations.obtenir(r.generationId))?.plafondUsd).toBe(100);
     }, 30_000);
 
-  it("série : la limite du mois est comptée au plafond du RÉGLAGE, pas à 1,50 $ en dur", async () => {
+  it("série : la limite du mois est comptée au plafond du RÉGLAGE, pas à 1,50 $ en dur (dite en information, tout part)", async () => {
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fetchInterdit, attenteMs: () => 0 });
     const serie = await import("@/services/serie-ecriture");
     await ecrireParametre("budget.mensuel", { centimes: 1_000_000, devise: "EUR" });
@@ -398,7 +389,10 @@ describe("Re-relecture A09 · même règle pour les deux « Reprendre », série
     await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 4.88);
     const plan = await serie.planSerie(5);
     expect(plan.essai).toBe(false);
-    expect(plan.partiront).toBeLessThanOrEqual(Math.floor(10 / 4.88));
+    // 08/11/2026 : la limite du mois ne retient plus la série (les 5 partent) ; elle reste dite : à 4,88 $ par sujet,
+    // 10 $ n'en couvrent que 2 (à 1,50 $ en dur, 6 : aucune limite ne serait dite).
+    expect(plan.partiront).toBe(5);
+    expect(plan.limite).toBe("claude");
   });
 });
 
@@ -410,14 +404,17 @@ describe("Re-relecture A09 (PR #254) · une seule source pour le plafond d'un su
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 10);
     // Grande chaîne (forcée par le crochet d'essai du beforeEach) : seul son réglage est relevé.
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 4.88);
-    expect((await serie.planSerie(5)).partiront).toBe(Math.floor(10 / 4.88));
+    // 08/11/2026 : tout part, la limite reste dite en information. 3 demandées : 10 / 4,88 n'en couvre que 2 → limite dite.
+    expect(await serie.planSerie(3)).toMatchObject({ partiront: 3, limite: "claude" });
     // Chaîne courte : c'est le réglage du sujet qui compte.
     gc.forcerChainePourEssai(null);
     await ecrireParametre(bg.PARAM_CHAINE, "courte");
     await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 2.4);
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 4.88);
-    // 10 / 2,4 donne 4 ; 10 / 4,88 donnerait 2 : seul le réglage du sujet (courte) compte.
-    expect((await serie.planSerie(5)).partiront).toBe(Math.floor(10 / 2.4));
+    // 10 / 2,4 donne 4 (≥ 3, aucune limite dite) ; 10 / 4,88 donnerait 2 : seul le réglage du sujet (courte) compte.
+    const plan = await serie.planSerie(3);
+    expect(plan.partiront).toBe(3);
+    expect(plan.limite).toBeUndefined();
   });
 
   it("aucune valeur 1,50 $ retapée : le plafond par défaut d'un sujet a une seule source", async () => {

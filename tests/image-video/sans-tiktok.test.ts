@@ -40,7 +40,7 @@ describe("(a) le dépôt Image → vidéo ne propose plus TikTok", () => {
     const html = texte(renderToStaticMarkup(createElement(Depot, { montants: { 1: 120, 2: 180, 3: 240, 4: 300 } })));
     expect(html).not.toMatch(/tiktok/i);
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
-    expect(html).toMatch(/au plus 3,00\s?€/);
+    expect(html).not.toMatch(/au plus|€/);
   });
 
   it("le prix « au plus » du dépôt baisse avec quatre réseaux (le moteur réserve le même prix)", () => {

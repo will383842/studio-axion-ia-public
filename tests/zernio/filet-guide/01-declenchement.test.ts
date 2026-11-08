@@ -108,6 +108,10 @@ describe("2 · le guide envoyé est « guide-ia », avec le titre de PARCOURS_CO
     await crochetCommentaire("GUIDE", { reseau: "facebook" });
     await passer(undefined, { titreGuide: AUTRE }); // validation faite pour TITRE seulement → garde « validation_perimee »
     expect(envoisSortants()).toBe(0);
+    expect(Object.values(await toutesLesConversations())).toHaveLength(0);
+    const evs = await depots().evenementsFournisseurs.lister(() => true);
+    expect(evs).toHaveLength(1);
+    expect(evs[0].charge).toMatchObject({ etat: "a_reessayer", dernierCode: "garde_validation_perimee" });
   });
   it("le modèle M1 n'a pas de titre sans titreGuide : le texte à trous ne part pas (rendu null)", () => {
     expect(TEXTES_MP["mp-m1-v2"].texte).toContain("[TITRE DU GUIDE]");

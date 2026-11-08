@@ -59,8 +59,8 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
     setPhrase(null);
     let accord: number | undefined;
     if (typeof montant === "number") {
-      const a = await confirmerPrix({ message: message ?? "La voix de cette vidéo est la seule dépense (l'écriture et le découpage sont gardés).", montant });
-      if (typeof a !== "number") return setPhrase("Relance non lancée. Prix indicatif, sans blocage : réessayez quand vous voulez.");
+      const a = await confirmerPrix({ message: message ?? "Seule la voix de cette vidéo est refaite (l'écriture et le découpage sont gardés).", montant });
+      if (typeof a !== "number") return setPhrase("Relance non lancée : réessayez quand vous voulez.");
       accord = a;
     }
     demarrer(async () => {
@@ -70,7 +70,7 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
       if (r.donnees.statut === "refusee") return setPhrase(r.donnees.phrase);
       if (r.donnees.statut === "accord-requis") {
         // UNE seule relance automatique, jamais de boucle.
-        if (dejaRelance) return setPhrase("Le prix a changé, réessayez.");
+        if (dejaRelance) return setPhrase("La relance n'a pas abouti, réessayez.");
         return void relancer(r.donnees.centimes, r.donnees.phrase, true);
       }
       notifier.succes(r.donnees.phrase);

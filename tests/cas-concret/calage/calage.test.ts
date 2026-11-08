@@ -93,29 +93,38 @@ describe("M5 · calage sur la vidéo de référence", () => {
     expect(Math.abs(r.dureeMs - attendu)).toBeLessThanOrEqual(IMAGE_MS / 2);
   });
 
-  it("un mot manquant est refusé, en nommant l'écran et le mot", () => {
+  it("un mot manquant n'est plus refusé : le calage est gardé et le mot est nommé dans les écarts", () => {
     const sans = motsDits.filter((_, i) => i !== debuts[3] + 2);
     const r = calerFiche(fiche(), fin(), sans, options);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.problemes[0]).toMatch(/Écran e0[34] · .*« .+ »/);
-  });
-
-  it("un mot rendu différent du mot écrit est refusé, avec les deux mots", () => {
-    const autre = motsDits.map((m, i) => (i === debuts[5] + 1 ? { ...m, mot: "banane" } : m));
-    const r = calerFiche(fiche(), fin(), autre, options);
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.problemes[0]).toContain("Écran e06");
-      expect(r.problemes[0]).toContain("banane");
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.ecarts.length).toBeGreaterThan(0);
+      expect(r.ecarts[0]).toMatch(/Écran e0[34] · .*« .+ »/);
     }
   });
 
-  it("des mots en trop ou en moins en fin de voix sont refusés", () => {
+  it("un mot rendu différent du mot écrit n'est plus refusé : lecture gardée, les deux mots sont signalés", () => {
+    const autre = motsDits.map((m, i) => (i === debuts[5] + 1 ? { ...m, mot: "banane" } : m));
+    const r = calerFiche(fiche(), fin(), autre, options);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.ecarts[0]).toContain("Écran e06");
+      expect(r.ecarts[0]).toContain("banane");
+    }
+  });
+
+  it("des mots en trop ou en moins en fin de voix sont signalés, sans refus", () => {
     const trop = [...motsDits, { mot: "encore", debutSec: 60, finSec: 60.4 }];
     const r = calerFiche(fiche(), fin(), trop, options);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.problemes[0]).toContain("de plus");
-    expect(calerFiche(fiche(), fin(), motsDits.slice(0, -3), options).ok).toBe(false);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.ecarts[0]).toContain("de plus");
+    const moins = calerFiche(fiche(), fin(), motsDits.slice(0, -3), options);
+    expect(moins.ok).toBe(true);
+    if (moins.ok) expect(moins.ecarts.join(" ")).toContain("n'est pas dite");
+  });
+
+  it("une voix sans aucun mot ne se cale pas (impossibilité technique)", () => {
+    expect(calerFiche(fiche(), fin(), [], options).ok).toBe(false);
   });
 
   it("un événement tombe au début de son mot moins son avance, dans son écran", () => {
@@ -148,8 +157,11 @@ describe("M5 · calage sur la vidéo de référence", () => {
     const dit: MotCalage[] = [{ mot: "Écrivez", debutSec: 0.1, finSec: 0.4 }, { mot: "I.A.", debutSec: 0.5, finSec: 0.9 }];
     expect(calerFiche(f, null, dit, options).ok).toBe(true);
     const phonetique: MotCalage[] = [{ mot: "Écrivez", debutSec: 0.1, finSec: 0.4 }, { mot: "yaa", debutSec: 0.5, finSec: 0.9 }];
-    expect(calerFiche(f, null, phonetique, options).ok).toBe(false);
-    expect(calerFiche(f, null, phonetique, { ...options, prononciations: [{ mot: "IA", prononciation: "yaa" }] }).ok).toBe(true);
+    // Sans prononciation connue, la lecture est gardée mais le mot est signalé ; avec elle, aucun écart.
+    const sansPron = calerFiche(f, null, phonetique, options);
+    expect(sansPron.ok && sansPron.ecarts.length).toBe(1);
+    const avecPron = calerFiche(f, null, phonetique, { ...options, prononciations: [{ mot: "IA", prononciation: "yaa" }] });
+    expect(avecPron.ok && avecPron.ecarts.length).toBe(0);
   });
 
   it("déterministe : deux calages donnent le même résultat", () => {

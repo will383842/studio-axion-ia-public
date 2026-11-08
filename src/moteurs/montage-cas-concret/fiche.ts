@@ -14,6 +14,7 @@
 import { z } from "zod";
 import { identifiantSur, jsonCanonique, texteObligatoire, type ProblemeFiche, type ResultatFiche } from "@/briques/fiche-scenes";
 import type { FinChoisie } from "@/briques/fins";
+import { joindrePhrasesPourVoix } from "@/domaine/voix-phrases";
 import { OBJETS, OFFRES, POSTURES } from "@/formats/cas-concret/cas";
 import type { ReseauCas } from "@/formats/cas-concret";
 import { schemaMise, STRUCTURES, type TirageEcran } from "./variete";
@@ -472,6 +473,11 @@ export function problemesEcran(e: Ecran, precedent?: Ecran): ProblemeFiche[] {
 /** Le texte dit du corps, écrans mis bout à bout (comparé au script par R02, lu par la voix). */
 export function texteDuCorps(fiche: Pick<FicheEcrans, "ecrans">): string {
   return fiche.ecrans.map((e) => e.texteDit.trim()).join(" ");
+}
+
+/** Lot E : le corps tel qu'il part à la voix, un point à la fin de chaque écran (la fiche, elle, n'est pas modifiée). */
+export function texteDuCorpsPourVoix(fiche: Pick<FicheEcrans, "ecrans">): string {
+  return joindrePhrasesPourVoix(fiche.ecrans.map((e) => e.texteDit));
 }
 
 /** FNV-1a 64 bits (deux passes de 32 bits) + longueur, comme `src/briques/fiche-scenes/empreinte.ts`. */

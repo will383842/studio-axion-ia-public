@@ -165,8 +165,9 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
   it("déjà traité (vidéo finie) : refus net, comme pour un cas du catalogue", async () => {
     const { casId } = await ajoutValide();
     const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : aucune confirmation de prix, la fabrication part directement.
+    expect(a.statut).toBe("lancee");
+    if (a.statut !== "lancee") return;
     await depots().videos.modifier(a.videoId, { statut: "prete" });
     expect((await service.estimerCas(casId, RESEAUX, false)).refus).toBe(PHRASE_CAS_TRAITE);
   }, 30_000);
@@ -175,14 +176,17 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
     const { casId } = await ajoutValide();
     const feuille = (await service.estimerCas(casId, RESEAUX, false)).centimes;
     const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : aucune confirmation de prix, la fabrication part directement.
+    expect(a.statut).toBe("lancee");
+    if (a.statut !== "lancee") return;
     const commande = await construireCommande(a.videoId);
     const e = commande.entrees.casConcret as { casFige?: { id: string }; casId: string };
     expect(e.casId).toBe(casId);
     expect(e.casFige?.id).toBe(casId);
-    expect((await moteurDeCommande(commande).estimer(commande)).total.centimes).toBe(a.centimes);
-    expect(feuille).toBe(a.centimes);
+    // Le montant transmis au lancement est celui du moteur sur la commande, et celui de la feuille.
+    const montant = (lancer.mock.calls as unknown as [string, number][])[0][1];
+    expect((await moteurDeCommande(commande).estimer(commande)).total.centimes).toBe(montant);
+    expect(feuille).toBe(montant);
     expect(moteurDeCommande(commande).refusAuLancement?.(commande)).toBeNull();
   }, 30_000);
 
@@ -190,8 +194,9 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
     const id = "rappels-rendez-vous";
     await service.confirmerCas(id);
     const a = await service.preparerEtLancer(demande(id, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : aucune confirmation de prix, la fabrication part directement.
+    expect(a.statut).toBe("lancee");
+    if (a.statut !== "lancee") return;
     const commande = await construireCommande(a.videoId);
     expect((commande.entrees.casConcret as Record<string, unknown>).casFige).toBeUndefined();
   }, 30_000);
@@ -257,13 +262,11 @@ describe("ajouter un cas · corrections de relecture", () => {
     expect(lancer).not.toHaveBeenCalled();
   }, 60_000);
 
-  it("cas ajouté retiré du réglage entre « accord requis » et l'accord : « Ce cas n'existe plus », rien n'est lancé", async () => {
+  it("cas ajouté retiré du réglage avant le lancement : « Ce cas n'existe plus », rien n'est lancé", async () => {
     const { casId } = await ajoutValide();
-    const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : plus d'étape « accord requis » ; le cas retiré du réglage avant le lancement est refusé, rien ne part.
     await ecrireParametre(lecture.CLE_CAS_AJOUTES, {});
-    const r = await service.preparerEtLancer(demande(casId, { accordCentimes: a.centimes }), { lancer });
+    const r = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
     expect(r).toEqual({ statut: "refusee", phrase: "Ce cas n'existe plus." });
     expect(lancer).not.toHaveBeenCalled();
   }, 60_000);
