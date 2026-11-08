@@ -45,7 +45,7 @@ test("P11-01 · La case du cas : même avec une vraie phrase, pas de « Faire la
   await seConnecter(page);
   const erreurs = surveiller(page);
   await page.goto("/cas-concret");
-  await expect(page.getByRole("heading", { name: "Cas concret MD" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cas concret" })).toBeVisible();
   // Le bouton exige le réglage ET au moins deux mots utiles dans la case : la phrase est donc écrite avant de constater son absence
   // (avec `casConcret.porteB` allumé, il apparaîtrait ici).
   const laCase = page.getByRole("textbox", { name: "Quel cas voulez-vous montrer ?" });

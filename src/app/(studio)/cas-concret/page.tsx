@@ -27,7 +27,7 @@ import { lireStockCas } from "@/services/cas-concret-stock-lecture";
 import { lireParamsStock } from "@/components/formats/cas-concret/stock/filtres-stock";
 import { apercuDesEcrans } from "@/moteurs/montage-cas-concret/script-valide";
 
-export const metadata: Metadata = { title: "Cas concret MD" };
+export const metadata: Metadata = { title: "Cas concret" };
 export const dynamic = "force-dynamic";
 
 const RESEAUX = ["facebook", "instagram", "tiktok", "linkedin"];
@@ -55,7 +55,7 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
   const synthese = { aFaire: nombres["a-faire"], faits: nombres["deja-faits"], valides: valides.length };
   return (
     <div className="mx-auto max-w-2xl">
-      <EnTetePage titre="Cas concret MD" sousTitre="Une phrase, une vidéo." />
+      <EnTetePage titre="Cas concret" sousTitre="Une automatisation montrée étape par étape." />
       <OngletsCasConcret actif={onglet} nombres={nombres} synthese={synthese} />
       <section id={ID_PANNEAU_CAS} aria-labelledby={idOnglet(onglet)} className="mt-6">
         {onglet === "deja-faits" && (
