@@ -267,6 +267,8 @@ export type OutilsAvancerVoix = OutilsVoixCasConcret & {
    * lecture de plus, avec une explication et une proposition. Absent : comportement d'avant (image → vidéo).
    */
   arretSiRefusIdentique?: boolean;
+  /** 08/11/2026 : garder la dernière lecture du corps malgré un rejet (au lieu d'arrêter) ; la phrase est dans `rapportVoix().corpsGardeMalgreRejet`. */
+  garderLaLectureSiRefus?: boolean;
   avantLecture?: (lecture: LectureAPayer) => void | Promise<void>;
 };
 
@@ -433,12 +435,30 @@ export async function avancerVoixCasConcret(entree: EtatVoixCasConcret, o: Outil
     // pas payée. Le texte (figé ou non) est relu tel quel seulement pour un refus qui n'est pas un mot mal dit.
     const relu = c.rejet !== "mots" || o.texteFige;
     const deja = relu && o.arretSiRefusIdentique ? etat.reformulations.find((r) => r.avant === c.phrase && r.apres === c.phrase && signatureRefus(r) === signatureRefus(c)) : undefined;
-    if (deja) {
-      // 08/11/2026 : une voix qui lit mal une phrase ne ARRÊTE plus la vidéo : la dernière lecture est gardée, la phrase est signalée.
-      corps.retenu = true;
+    if (deja && !o.garderLaLectureSiRefus) {
+      const figee = arretPhraseFigee(c, o.texteFige);
+      etat.issue = figee
+        ? { statut: "arret", phrase: c.phrase, ...figee }
+        : {
+            statut: "arret",
+            phrase: c.phrase,
+            message: `La phrase « ${c.phrase} » a été refusée deux fois de la même façon (${c.detail}) : une nouvelle lecture échouerait sans doute pareil, la voix s'arrête sans payer de lecture de plus. Écoutez la dernière lecture : si elle est bonne, signalez-le (le contrôle se trompe) ; sinon, retouchez cette phrase dans « Relire le script » (par exemple une virgule là où la voix marque une pause), puis relancez.`,
+          };
       return etat;
     }
-    if (corps.lectures >= LECTURES_CORPS_MAX) {
+    if (corps.lectures >= LECTURES_CORPS_MAX && !o.garderLaLectureSiRefus) {
+      const figee = arretPhraseFigee(c, o.texteFige);
+      etat.issue = figee
+        ? { statut: "arret", phrase: c.phrase, ...figee }
+        : {
+            statut: "arret",
+            phrase: c.phrase,
+            message: `La voix a lu la phrase « ${c.phrase} » ${LECTURES_CORPS_MAX} fois sans y arriver (${c.detail}). Une nouvelle tentative ne changera rien tant que la phrase reste la même : retouchez-la dans « Relire le script » (par exemple en changeant ce qui entoure le mot), puis lancez la vidéo.`,
+          };
+      return etat;
+    }
+    // 08/11/2026 : cas concret : une voix qui lit mal une phrase ne ARRÊTE plus la vidéo, la dernière lecture est gardée et la phrase signalée.
+    if (o.garderLaLectureSiRefus && (deja || corps.lectures >= LECTURES_CORPS_MAX)) {
       corps.retenu = true;
       return etat;
     }
@@ -452,12 +472,20 @@ export async function avancerVoixCasConcret(entree: EtatVoixCasConcret, o: Outil
     }
     const r = await o.reformuler(c.phrase, o.faits);
     if (!r.ok) {
-      corps.retenu = true;
+      if (o.garderLaLectureSiRefus) {
+        corps.retenu = true;
+        return etat;
+      }
+      etat.issue = { statut: "arret", phrase: c.phrase, message: `La phrase « ${c.phrase} » n'a pas pu être reformulée : ${r.raison}` };
       return etat;
     }
     const apres = r.phrase.trim();
     if (!apres || motsDe(apres).length > motsDe(c.phrase).length || !corps.texte.includes(c.phrase)) {
-      corps.retenu = true;
+      if (o.garderLaLectureSiRefus) {
+        corps.retenu = true;
+        return etat;
+      }
+      etat.issue = { statut: "arret", phrase: c.phrase, message: `La phrase « ${c.phrase} » n'a pas pu être reformulée sans l'allonger.` };
       return etat;
     }
     etat.reformulations.push({ lecture: corps.lectures, avant: c.phrase, apres, rejet: c.rejet, detail: c.detail });

@@ -11,9 +11,9 @@ const plafond = { centimes: 25, prixLecture: () => 10 };
 const lecture = { prise: "corps", texte: "Bonjour" };
 
 describe("verifierPartVoix", () => {
-  it("bloquant : 30 > 25 → refus", () => {
+  it("LOT A (08/11/2026) : hors indicatif, 30 > 25 ne refuse plus (aucun prix ne bloque)", () => {
     const deja = [payee("corps", 1), payee("fin-a", 1)];
-    expect(() => verifierPartVoix({ plafondVoix: { centimes: 25, prixLecture: () => 10 } }, deja, lecture)).toThrow(ErreurFabricationCasConcret);
+    expect(() => verifierPartVoix({ plafondVoix: { centimes: 25, prixLecture: () => 10 } }, deja, lecture)).not.toThrow();
   });
 
   it("indicatif : le montant ne refuse plus, même largement dépassé", () => {
