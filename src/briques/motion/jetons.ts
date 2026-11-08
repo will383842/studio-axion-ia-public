@@ -20,25 +20,25 @@ export const FPS_MOTION = 25;
 /** Charte Axion : sombre chaud, orange, crème. Toute autre couleur est refusée dans une carte sur mesure. */
 export const COULEURS = {
   /** Fond de la charte (sombre chaud). */
-  fond: "#16120F",
+  fond: "#141413",
   /** Fond profond (coins, vignette, ombres portées). */
-  fondProfond: "#0C0A08",
+  fondProfond: "#141413",
   /** Panneau posé sur le fond (cartes, pastilles). */
-  surface: "#211A15",
+  surface: "#141413",
   /** Panneau relevé (élément actif). */
-  surfaceHaute: "#2C221B",
+  surfaceHaute: "#141413",
   /** Orange Axion (accent unique). */
-  orange: "#C65A2E",
+  orange: "#D97757",
   /** Orange lumineux : lueurs, chiffres sur fond sombre (même teinte, plus clair). */
-  orangeVif: "#E07040",
+  orangeVif: "#D97757",
   /** Orange profond : ombres de l'accent, dégradés. */
-  orangeProfond: "#8E3B1B",
+  orangeProfond: "#B23F16",
   /** Crème : texte principal. */
-  creme: "#F6EEE0",
+  creme: "#FAF9F5",
   /** Crème atténuée : texte secondaire (≈ 64 %). */
-  cremeAttenuee: "#A79E92",
+  cremeAttenuee: "#B0AEA5",
   /** Filets et contours discrets (≈ 14 % de crème). */
-  filet: "#3A322B",
+  filet: "#B0AEA5",
 } as const;
 
 export type NomCouleur = keyof typeof COULEURS;

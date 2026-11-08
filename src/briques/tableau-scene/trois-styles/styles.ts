@@ -8,7 +8,7 @@
  * SÉRIE (`STYLE_PAR_SERIE`) ; le champ facultatif `styleTableau` de la fiche prend le dessus ; une série inconnue
  * retombe sur le paperboard.
  *
- * Charte : #110A05 (encre), #B44F29 (terracotta), #E9DCC8 (ivoire), #BFA88B (sable), et leurs teintes dérivées ;
+ * Charte : #141413 (encre), #B23F16 (terracotta), #FAF9F5 (ivoire), #B0AEA5 (sable), et leurs teintes dérivées ;
  * aucun vert, aucun bleu.
  */
 
@@ -69,8 +69,8 @@ export interface CharteTableau {
   capitales: boolean;
   /** Mise en page : alignée à gauche (A, C) ou centrée, symétrique (B). */
   centre: boolean;
-  /** Carte, post-it, bouton : leur fond (le texte y garde 4,5:1). Le bouton d'appel est plein, terracotta #B44F29, dans
-   * les trois styles (critique #291, I5), son texte ivoire clair #FBF7EF (4,8:1). */
+  /** Carte, post-it, bouton : leur fond (le texte y garde 4,5:1). Le bouton d'appel est plein, terracotta #B23F16, dans
+   * les trois styles (critique #291, I5), son texte ivoire clair #FAF9F5 (4,8:1). */
   fondPostit: string;
   fondCarte: string;
   fondBouton: string;
@@ -84,67 +84,67 @@ export const CHARTES_TABLEAU: Readonly<Record<StyleTableau, CharteTableau>> = Ob
   "tableau-blanc": {
     style: "tableau-blanc",
     matiere: "feutre",
-    fond: "#F4F2EE",
-    encre: "#110A05",
-    accent: "#B44F29",
-    accentTexte: "#A8461F",
-    doux: "#6E5A48",
-    clair: "#E3D3BA",
-    moyen: "#C7AC86",
-    ombre: "#110A05",
+    fond: "#FAF9F5",
+    encre: "#141413",
+    accent: "#B23F16",
+    accentTexte: "#B23F16",
+    doux: "#141413",
+    clair: "#E8E6DC",
+    moyen: "#E8E6DC",
+    ombre: "#141413",
     titre: "marker",
     corps: "kalam",
     chiffres: "caveat",
     capitales: true,
     centre: false,
-    fondPostit: "#C8602F",
-    fondCarte: "#FBF7EF",
-    fondBouton: "#B44F29",
-    encreBouton: "#FBF7EF",
+    fondPostit: "#E8E6DC",
+    fondCarte: "#FAF9F5",
+    fondBouton: "#B23F16",
+    encreBouton: "#FAF9F5",
   },
   ardoise: {
     style: "ardoise",
     matiere: "craie",
-    fond: "#140E09",
-    encre: "#E9DCC8",
-    accent: "#D97A52",
-    accentTexte: "#D97A52",
-    doux: "#BFA88B",
-    clair: "#E9DCC8",
-    moyen: "#BFA88B",
-    ombre: "#BFA88B",
+    fond: "#141413",
+    encre: "#FAF9F5",
+    accent: "#D97757",
+    accentTexte: "#D97757",
+    doux: "#B0AEA5",
+    clair: "#FAF9F5",
+    moyen: "#B0AEA5",
+    ombre: "#B0AEA5",
     titre: "kalam",
     corps: "kalam",
     chiffres: "caveat",
     capitales: false,
     centre: true,
-    fondPostit: "#140E09",
-    fondCarte: "#140E09",
-    fondBouton: "#B44F29",
-    encreBouton: "#FBF7EF",
+    fondPostit: "#141413",
+    fondCarte: "#141413",
+    fondBouton: "#B23F16",
+    encreBouton: "#FAF9F5",
   },
   paperboard: {
     style: "paperboard",
     matiere: "marqueur",
-    fond: "#F3EBDD",
-    encre: "#110A05",
-    accent: "#B44F29",
-    accentTexte: "#9E3F1C",
-    doux: "#6E5A48",
-    clair: "#E6D6BC",
-    moyen: "#CDB28C",
-    ombre: "#110A05",
-    surligneur: "#BFA88B",
+    fond: "#FAF9F5",
+    encre: "#141413",
+    accent: "#B23F16",
+    accentTexte: "#B23F16",
+    doux: "#141413",
+    clair: "#E8E6DC",
+    moyen: "#E8E6DC",
+    ombre: "#141413",
+    surligneur: "#E8E6DC",
     titre: "caveat",
     corps: "caveat",
     chiffres: "caveat",
     capitales: false,
     centre: false,
-    fondPostit: "#C8602F",
-    fondCarte: "#E9DDC8",
-    fondBouton: "#B44F29",
-    encreBouton: "#FBF7EF",
-    rubans: { actif: "#E3A07C", passe: "#D8C3A2", avenir: "#E2D2B6" },
+    fondPostit: "#E8E6DC",
+    fondCarte: "#E8E6DC",
+    fondBouton: "#B23F16",
+    encreBouton: "#FAF9F5",
+    rubans: { actif: "#B23F16", passe: "#E8E6DC", avenir: "#E8E6DC" },
   },
 });
 

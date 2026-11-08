@@ -11,14 +11,14 @@
 export const VERSION_CHARTE_INTERFACE = "interface-claire/1";
 
 export const COULEURS = Object.freeze({
-  /** Bande, corps des cartes, étiquettes claires (crème de la référence). */
-  ivoire: "#E9DCC8",
-  /** Contours, textes, ombres dures, pastilles (bleu nuit de la référence). */
-  encre: "#110A05",
-  /** En-têtes de carte, plaques des mots forts, barre de progression, éléments actifs (cyan de la référence). */
-  orange: "#B44F29",
+  /** Bande, corps des cartes, étiquettes claires (ivoire 2026). */
+  ivoire: "#FAF9F5",
+  /** Contours, textes, ombres dures, pastilles (noir 2026). */
+  encre: "#141413",
+  /** En-têtes de carte, plaques des mots forts, barre de progression, éléments actifs (terracotta 2026). */
+  orange: "#B23F16",
   /** Éléments en attente (grisés), filets, mentions. */
-  sable: "#BFA88B",
+  sable: "#E8E6DC",
 } as const);
 
 /** Polices : Montserrat ExtraBold (titres, sous-titres, étiquettes), Inter Bold (texte des cartes). SIL OFL 1.1. */
