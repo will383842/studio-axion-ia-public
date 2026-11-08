@@ -52,6 +52,36 @@ export const SchemaDemandeGuideReseau = z
   });
 
 /**
+ * COPIE du schéma v3 du site (`SchemaDemandeGuideReseauV3`, contrat.ts) : v1 + champs d'origine FACULTATIFS, toujours strict.
+ * Listes fermées recopiées de `valeurs-connues.ts`. À re-synchroniser si le site change.
+ */
+export const VERSIONS_TEXTE_CONNUES_SITE = ["m1-brouillon-v1", "m1-v1"] as const;
+export const SchemaDemandeGuideReseauV3 = z
+  .object({
+    schemaVersion: z.literal(3),
+    cleIdempotence: z.string().regex(/^[A-Za-z0-9_-]{8,80}$/),
+    email: z.string().trim().max(254).email(),
+    mot: z.string().trim().regex(/^[\p{L}\p{N}]{2,30}$/u),
+    reseau: z.enum(RESEAUX_GUIDE_SITE),
+    guide: z.string().regex(/^[a-z0-9-]{2,40}$/),
+    accord: z.enum(["oui", "non", "non_demande"]).optional(),
+    versionTexteM1: z.string().regex(VERSION),
+    versionTexteM2: z.string().regex(VERSION).optional(),
+    locale: z.enum(["fr", "en"]).default("fr"),
+    occurredAt: z.string().datetime().optional(),
+    post_ref: z.string().regex(/^[A-Za-z0-9_-]{8,80}$/).optional(),
+    post_url: z.string().max(300).optional(),
+    canal: z.enum(["commentaire", "message_prive"]).optional(),
+    famille: z.string().optional(),
+    detail: z.string().regex(/^[a-z0-9_]{2,60}$/).optional(),
+    compte: z.enum(["page_principale"]).optional(),
+    version_texte: z.enum(VERSIONS_TEXTE_CONNUES_SITE).optional(),
+    utm_campaign: z.string().optional(),
+    commentaire_ref: z.string().regex(/^[A-Za-z0-9_-]{8,80}$/).optional(),
+  })
+  .strict();
+
+/**
  * COPIE du schéma strict de la route d'opposition du site (`POST /api/interne/oppositions-reseau`) : corps strict, adresse
  * OBLIGATOIRE (le Studio n'en garde aucune : il relit le message chez Zernio, en mémoire). À re-synchroniser si le site change.
  */

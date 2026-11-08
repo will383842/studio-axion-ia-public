@@ -122,16 +122,17 @@ describe("Image → vidéo · script complet · le dépôt", () => {
 });
 
 describe("Image → vidéo · script complet · l'écran de dépôt", () => {
-  it("seules DEUX entrées sont visibles : « Décrire avec mes mots » et « Coller mon script complet » (l'entrée image est masquée)", () => {
+  it("seules DEUX entrées sont visibles : « Titre ou idée » et « Mon script » (plus d'entrée par image)", () => {
     const html = renderToStaticMarkup(createElement(Depot, { montants: { 4: 250 } }));
     expect(html).not.toContain("Déposer une image");
-    expect(html).toContain("Décrire avec mes mots");
-    expect(html).toContain("Coller mon script complet");
+    expect(html).toContain("Titre ou idée");
+    expect(html).toContain("Mon script");
   });
 
-  it("l'écran du script : même bouton « au plus » que le mode texte, compteur de mots, bouton inactif tant que le script est vide", () => {
+  it("l'écran du script : bouton « Fabriquer la vidéo » sans prix, compteur de mots, bouton inactif tant que le script est vide", () => {
     const html = renderToStaticMarkup(createElement(DepotScript, { script: "", onScript: () => undefined, reseaux: [...RESEAUX_IV], montant: 250, onRefus: () => undefined }));
-    expect(html).toContain("Concevoir le schéma et fabriquer la vidéo (au plus");
+    expect(html).toContain("Fabriquer la vidéo");
+    expect(html).not.toMatch(/€|au plus \d|prix/i);
     expect(html).toContain("0 mot sur 300 au plus");
     expect(html).toContain("disabled");
   });
