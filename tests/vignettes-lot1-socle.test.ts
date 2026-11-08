@@ -42,12 +42,12 @@ describe("vignettes lot 1 · socle", () => {
     expect(ZONES_SURES["16:9"].coinDuree).toEqual({ largeur: 140, hauteur: 60 });
   });
 
-  it("couleurs : celles de la charte vidéo ; pavé encre #E07040, pavé ivoire #B44F29", () => {
+  it("couleurs : celles de la charte vidéo ; pavé encre #E07040, pavé ivoire #B23F16", () => {
     expect(AMBIANCES.encre.fond).toBe(COULEURS_VIDEO.ecriture);
     expect(AMBIANCES.encre.paveTexte).toBe(COULEURS_VIDEO.ecriture);
     expect(AMBIANCES.ivoire.texte).toBe(COULEURS_VIDEO.ecriture);
     expect(AMBIANCES.ivoire.pave).toBe(COULEURS_VIDEO.soulignement);
-    expect(AMBIANCES.ivoire.pave).toBe("#B44F29");
+    expect(AMBIANCES.ivoire.pave).toBe("#B23F16");
     expect(AMBIANCES.encre.pave).toBe(COULEURS_MINIATURE.orangeVif);
     expect(AMBIANCES.encre.pave).toBe("#E07040");
   });
