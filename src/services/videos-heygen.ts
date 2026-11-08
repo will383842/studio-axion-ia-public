@@ -82,10 +82,14 @@ function reservations(): Set<string> {
   return (g[cleReservations] ??= new Set());
 }
 
-/** Relecture exactitude (`3042b94`, n° 5) : au-delà, ce n'est sans doute pas la vidéo de ce texte. */
+/**
+ * Relecture exactitude (`3042b94`, n° 5) : au-delà, ce n'est sans doute pas la vidéo de ce texte.
+ * 08/11/2026 : la durée est celle de Will, elle ne bloque plus jamais : une remarque est écrite au journal, la vidéo est rattachée.
+ */
 const dureeMaxSec = (v: VarianteReseau) => Math.max(180, 3 * (v.dureeEstimeeSec || 0));
-function exigerDureePlausible(v: VarianteReseau, dureeSec: number | undefined): void {
-  if (dureeSec && dureeSec > dureeMaxSec(v)) throw new ErreurStudio("VIDEO_TROP_LONGUE", "Cette vidéo est bien plus longue que le texte de cette version. Vérifiez que c'est la bonne.");
+export const REMARQUE_VIDEO_TROP_LONGUE = "Cette vidéo est bien plus longue que le texte de cette version. Vérifiez que c'est la bonne.";
+async function remarquerDuree(v: VarianteReseau, dureeSec: number | undefined): Promise<void> {
+  if (dureeSec && dureeSec > dureeMaxSec(v)) await journaliser("tournage", `À vérifier · ${v.code} : ${REMARQUE_VIDEO_TROP_LONGUE}`);
 }
 
 /**
@@ -173,7 +177,7 @@ export async function rattacherVideoHeygen(varianteId: Id, idExterne: string): P
     if (!acces) throw new ErreurStudio("HEYGEN_NON_RELIE", "HeyGen n'est pas relié au serveur : déposez le fichier téléchargé depuis HeyGen.");
     const lue = await acces.lire(idExterne);
     if (!lue.terminee || !lue.adresse) throw new ErreurStudio("VIDEO_PAS_PRETE", lue.raison ?? "HeyGen termine encore cette vidéo : revenez dans un moment.");
-    exigerDureePlausible(v, lue.dureeSec);
+    await remarquerDuree(v, lue.dureeSec);
     const stockage = await fournisseur("stockage");
     const fichierId = nouvelId("f");
     const { cleStockage } = await stockage.preparerDepot({ fichierId, nom: `${v.code}-heygen.mp4`, mime: "video/mp4", taille: 0, typeEntite: "rush", entiteId: v.id });
@@ -219,7 +223,7 @@ export async function rattacherFichierHeygen(varianteId: Id, fichierId: Id): Pro
   const memeFichier = (r: Rush) => r.fichierId === f.id;
   const deja = await sousVerrou(async () => resultatSiDeja(v.id, await depots().rushs.trouver(memeFichier)));
   if (deja) return deja;
-  exigerDureePlausible(v, f.dureeSec);
+  await remarquerDuree(v, f.dureeSec);
   // n° 3 : le type déclaré par le navigateur ne compte pas, seuls les premiers octets du fichier stocké comptent.
   if (!(await estUneVideo(await fournisseur("stockage"), f.cleStockage))) throw new ErreurStudio("PAS_UNE_VIDEO", "Ce fichier n'est pas une vidéo lisible : déposez la vidéo téléchargée depuis HeyGen.");
   return ranger(v.id, f, f.dureeSec ?? 0, ["heygen"], { deja: memeFichier, nouveau: false });

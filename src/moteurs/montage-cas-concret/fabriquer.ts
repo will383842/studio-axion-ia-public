@@ -68,14 +68,14 @@ import { REGLES_RECALAGE_CAS_CONCRET, controlerFinDeVoix, lireWav, recalerCoupes
 import { controlerVideoCasConcret, type MesuresFin, type RapportControleCasConcret } from "./controles";
 import { defautsVisuels, type DefautVisuel } from "./defauts-visuels";
 import { ecrireFiche, PREFIXE_APPEL_ECRITURE, reformulerPhrase, type ResultatEcriture } from "./ecriture";
-import { ficheDuScriptValide, PHRASE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_VALIDE_REFUSE, problemesScriptValide, type ScriptValide } from "./script-valide";
+import { ecartsScriptValide, ficheDuScriptValide, PHRASE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_VALIDE_REFUSE, problemesScriptValide, type ScriptValide } from "./script-valide";
 import { departDePage, ecransCales, LIBELLES_ETAPES_CAS_CONCRET, motsOrange, regrouperFins, reporterTexteDit, type CaptureVraiEcran, type EntreesCasConcret } from "./etapes";
 import { FORMAT_CAS_CONCRET, texteDuCorps, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
 import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
 import { textesDePublication, type TextePublication } from "./publication";
-import { validerFicheEcrans } from "./regles";
+import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
 import { centreSousTitresHautPct, surlignageCasConcret, variationSousTitresCasConcret } from "./sous-titres-variete";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
@@ -242,6 +242,12 @@ export interface CompteRenduCasConcret {
   sousTitres?: SegmentSousTitres[];
   /** V4-3 : défauts visibles « brouillon » mesurés sur la mise en page (texte sur texte, objet vide…), en indicatif. */
   defautsVisuels: DefautVisuel[];
+  /** 08/11/2026 : voix gardée malgré un défaut (phrase mal lue, fin coupée) : à écouter, la vidéo est faite quand même. */
+  reservesVoix: string[];
+  /** 08/11/2026 : remarques sur le script de Will (durée, accroche, tutoiement…) ; la vidéo est faite quand même. */
+  remarquesScript: string[];
+  /** Parmi elles, celles à montrer très visiblement (mot interdit, mot légal, faux témoignage, chiffre douteux). */
+  avertissementsScript: string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -344,9 +350,8 @@ export function verifierPartVoix(
     }
     return;
   }
-  const plafond = budget.plafondVoix;
-  const deja = payees.reduce((n, x) => n + x.coutCentimes, 0);
-  if (plafond && deja + plafond.prixLecture(l.texte) > plafond.centimes) throw new ErreurFabricationCasConcret("voix", [phrasePlafondVoix(plafond.centimes, deja)]);
+  // 08/11/2026 : aucun prix ne bloque. Sans mode indicatif, la part « voix » du prix n'arrête plus la lecture (les bornes de lectures
+  // de voix.ts — `LECTURES_CORPS_MAX`, `LECTURES_FIN_MAX` — restent le garde-fou anti-boucle).
 }
 
 /* ------------------------------------------------------------------ */
@@ -581,7 +586,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
 
   // 2. Relecture : un refus arrête avant toute voix.
   const script = !entrees.ficheCle && o.scriptValide ? o.scriptValide : null;
-  const { fiche } = await etape("fiche", empreinte("fiche", brute, cas, reseaux, controleRegles, script ? "script-valide" : "ecrite", !!ctx.exigerScriptValide), async () => {
+  const { fiche, remarquesScript, avertissementsScript } = await etape("fiche", empreinte("fiche", brute, cas, reseaux, controleRegles, script ? "script-valide" : "ecrite", !!ctx.exigerScriptValide), async () => {
     if (!reseaux.length) throw new ErreurFabricationCasConcret("fiche", ["Aucun réseau choisi : cochez au moins un réseau."]);
     if (!plan.fins.length) throw new ErreurFabricationCasConcret("fiche", plan.sansFin.length ? plan.sansFin.map((s) => s.raison) : ["Aucune fin possible pour ces réseaux."]);
     // V4-3 : un script validé refusé arrête la fabrication avec une phrase claire, suivie des refus exacts.
@@ -593,7 +598,15 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const forme = validerSchemaFiche(brute);
     if (!forme.ok) throw refus(forme.problemes.map((p) => p.message));
     if (forme.fiche.casId !== cas.id) throw refus([`La fiche est écrite pour un autre cas (« ${forme.fiche.casId} »).`]);
-    const v = validerFicheEcrans(brute, { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles });
+    // 08/11/2026 : le script de Will (validé, fourni ou modifié) fait foi : durée, accroche, tutoiement, mots à éviter… sont des
+    // REMARQUES gardées sur la vidéo, jamais un refus. Un texte écrit par Claude garde les règles d'avant.
+    const ctxRegles = { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles };
+    if (script) {
+      const t = validerFicheEcransTolerant(brute, ctxRegles);
+      if (!t.ok) throw refus(t.problemes.map((p) => p.message));
+      return { fiche: t.fiche, remarquesScript: [...ecartsScriptValide(script, cas), ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
+    }
+    const v = validerFicheEcrans(brute, ctxRegles);
     if (!v.ok) throw refus(v.problemes.map((p) => p.message));
     // V4-3 : un script écrit (ni validé, ni fourni) attend la validation de Will : aucune voix avant.
     if (ctx.exigerScriptValide && !script && !entrees.ficheCle) throw new ErreurFabricationCasConcret("fiche", [PHRASE_SCRIPT_A_VALIDER]);
@@ -778,7 +791,9 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     );
     // Les mots recalés par la recette : resserrés, raccordés, divisés par `atempo` (le tempo final du calage).
     const fins = sons.map(({ id, plan: p }) => ({ id, cle: assembles[id].cle, dureeSec: assembles[id].dureeSec, mots: p.mots }));
-    // V4-1 : contrôle BLOQUANT, la dernière phrase est dite jusqu'au bout (son final mesuré, pas l'heure du fournisseur).
+    // V4-1 : la dernière phrase est dite jusqu'au bout (son final mesuré, pas l'heure du fournisseur). 08/11/2026 : un défaut
+    // n'arrête plus la vidéo, il est signalé à vérifier.
+    const reservesFin: string[] = [];
     for (const f of fins) {
       const son = await sonDe(v, f.cle);
       const dernier = f.mots.at(-1);
@@ -786,10 +801,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       const verdict = controlerFinDeVoix(son, dernier.finSec);
       if (!verdict.ok) {
         const fin = plan.fins.find((x) => x.id === f.id);
-        throw new ErreurFabricationCasConcret("voix", [`Voix${fin && plan.fins.length > 1 ? ` de la fin pour ${nomsReseaux(fin.reseaux)}` : ""} · ${verdict.raison} Relancez la voix.`]);
+        reservesFin.push(`Voix${fin && plan.fins.length > 1 ? ` de la fin pour ${nomsReseaux(fin.reseaux)}` : ""} · ${verdict.raison}`);
       }
     }
-    return { texteCorps: finie.corps.texte, reformule: finie.reformulations.length > 0, payees: finie.payees, rapport: rapportVoix(finie), fins };
+    return { texteCorps: finie.corps.texte, reformule: finie.reformulations.length > 0, payees: finie.payees, rapport: rapportVoix(finie), fins, reservesFin };
   });
   const coutCentimes = voix.payees.slice(payeesAvant).reduce((s, p) => s + p.coutCentimes, 0);
 
@@ -1150,5 +1165,11 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       ...defautsVisuels(brouillon.corps, Object.fromEntries(calage.fiche.ecrans.map((e) => [e.id, e.texteDit]))),
       ...calage.fins.flatMap((f) => defautsVisuels(brouillon.fins[f.fin.id] ?? [], Object.fromEntries(f.fin.ecrans.map((e) => [e.id, e.texteDit])))),
     ].filter((d, i, tous) => tous.findIndex((x) => x.ecranId === d.ecranId && x.detail === d.detail) === i),
+    reservesVoix: [
+      ...(voix.rapport.corpsGardeMalgreRejet ? [`Voix · la phrase « ${voix.rapport.corpsGardeMalgreRejet.phrase} » est peut-être mal lue (${voix.rapport.corpsGardeMalgreRejet.detail}) : écoutez-la.`] : []),
+      ...(voix.reservesFin ?? []),
+    ],
+    remarquesScript: remarquesScript ?? [],
+    avertissementsScript: avertissementsScript ?? [],
   };
 }
