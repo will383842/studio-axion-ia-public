@@ -17,7 +17,6 @@ import { BarreActionCollee, Bouton, Curseur, EtatVide, FeuilleBas, Icone, notifi
 import type { ReglagesVoix, Voix } from "@/domaine/types";
 import { listerFormatsActifs } from "@/formats";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import type { VueFichePersonnage } from "@/services/B-personnages-bibliotheque";
 import type { VoixHeygenAffichee } from "@/services/personnages";
 import { BlocageAccord } from "./BlocageAccord";
@@ -49,7 +48,7 @@ const TEXTE_ESSAI = "Bonjour, ici Axion-IA. Voici comment l'IA peut vous faire g
 /** Test d'écoute (lot M0b) : trois phrases difficiles — des sons proches, un montant, un nom propre. */
 const PHRASES_TEST = [
   { libelle: "Sons proches", texte: "Un bon PV, puis un pépin : voilà comment tout commence." },
-  { libelle: "Montant", texte: "Cette amende de 135 € peut être contestée sous 45 jours." },
+  { libelle: "Montant", texte: "Cette amende de 135 euros peut être contestée sous 45 jours." },
   { libelle: "Nom propre", texte: "Williams Jullin, d'Axion-IA, vous explique tout cela simplement." },
 ];
 
@@ -500,7 +499,7 @@ function ReglagesEtEssai({ personnageId, voix }: { personnageId: string; voix: V
   const [langue, setLangue] = useState(voix.langue);
   const [texte, setTexte] = useState(TEXTE_ESSAI);
   const [audio, setAudio] = useState<string | null>(null);
-  const [cout, setCout] = useState<{ texte: string; simulee: boolean } | null>(null);
+  const [cout, setCout] = useState<{ simulee: boolean } | null>(null);
   const [joue, setJoue] = useState(false);
   const [enSauvegarde, sauver] = useTransition();
   const [enEssai, essayer] = useTransition();
@@ -536,7 +535,7 @@ function ReglagesEtEssai({ personnageId, voix }: { personnageId: string; voix: V
       const r = await ecouterEssaiVoixAction(voix.id, texte);
       if (!r.ok) return void notifier.erreur(r.message);
       setAudio(`${r.donnees.url}${r.donnees.url.includes("?") ? "&" : "?"}t=${Date.now()}`);
-      setCout({ texte: r.donnees.simulee ? "" : formaterMontant(r.donnees.cout), simulee: r.donnees.simulee });
+      setCout({ simulee: r.donnees.simulee });
       if (r.donnees.simulee) notifier.essai("voix de démonstration, aucune voix réelle n'a été créée");
     });
   }
@@ -630,18 +629,9 @@ function ReglagesEtEssai({ personnageId, voix }: { personnageId: string; voix: V
             ))}
           </div>
         </div>
-        {cout && (
+        {cout?.simulee && (
           <p className="mt-2 flex items-center gap-2 text-xs text-texte-faible">
-            {cout.simulee ? (
-              <>
-                <PastilleEssai /> son de démonstration
-              </>
-            ) : (
-              <>
-                <Icone nom="euro" size={12} />
-                {cout.texte} · {voix.nom}
-              </>
-            )}
+            <PastilleEssai /> son de démonstration
           </p>
         )}
         {audio && <audio ref={ref} src={audio} onPlay={() => setJoue(true)} onEnded={() => setJoue(false)} onPause={() => setJoue(false)} className="hidden" />}

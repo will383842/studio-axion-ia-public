@@ -75,7 +75,7 @@ export function EcranResultat({ etapeInitiale, feuilleOuverte }: { etapeInitiale
                         onClick={() => setRegles((x) => [...x, v.reseau])}
                         className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-ambre/40 bg-ambre-doux px-4 text-sm font-bold text-ambre hover:bg-ambre hover:text-fond"
                       >
-                        {v.action.libelle} · {v.action.prix}
+                        {v.action.libelle}
                       </button>
                       <button
                         type="button"
@@ -93,7 +93,7 @@ export function EcranResultat({ etapeInitiale, feuilleOuverte }: { etapeInitiale
         </ul>
       </Carte>
 
-      {/* Ajouter une déclinaison : chaque bouton payant porte son prix */}
+      {/* Ajouter une déclinaison : chaque bouton payant */}
       <section aria-labelledby="titre-ajouter">
         <h2 id="titre-ajouter" className="mb-2 flex items-center gap-1.5 font-texte text-xs font-bold uppercase tracking-wider text-texte-faible">
           <Icone nom="plus" size={12} />
@@ -104,12 +104,11 @@ export function EcranResultat({ etapeInitiale, feuilleOuverte }: { etapeInitiale
             <button
               key={a.libelle}
               type="button"
-              onClick={() => notifier.info(`${a.libelle} : ${a.prix}`)}
+              onClick={() => notifier.info(a.libelle)}
               className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait bg-surface-1 px-4 text-sm font-semibold text-texte hover:border-trait-fort hover:bg-surface-2"
             >
               <Icone nom={a.icone} size={16} className="text-orange-vif" />
               {a.libelle}
-              <span className="font-medium tabular-nums text-texte-faible">· {a.prix}</span>
             </button>
           ))}
         </div>

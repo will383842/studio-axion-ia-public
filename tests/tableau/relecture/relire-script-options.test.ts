@@ -14,8 +14,8 @@ const rendu = (p: Partial<ProprietesRelireScript>) => renderToStaticMarkup(creat
 
 describe("RelireScript : options du format", () => {
   it("le bouton principal porte le libellé du format (« Découper en scènes ») et son icône", () => {
-    const html = rendu({ libelleLancer: "Découper en scènes (≈ 0,89 € au plus)", iconeLancer: "ciseaux" });
-    expect(texte(html)).toContain("Découper en scènes (≈ 0,89 € au plus)");
+    const html = rendu({ libelleLancer: "Découper en scènes", iconeLancer: "ciseaux" });
+    expect(texte(html)).toContain("Découper en scènes");
     expect(texte(html)).not.toContain("Lancer la vidéo");
   });
 
@@ -27,7 +27,7 @@ describe("RelireScript : options du format", () => {
 
   it("sans option : l'écran validé est inchangé", () => {
     const html = rendu({});
-    expect(texte(html)).toContain("Lancer la vidéo (≈ 0,89 €)");
+    expect(texte(html)).toContain("Lancer la vidéo");
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Lancer la vidéo/);
   });
 });
@@ -49,6 +49,6 @@ describe("RelireScript : socle qualité en observation (option `observation`)", 
       },
     });
     expect(html).not.toContain("<details");
-    expect(texte(html)).toContain("Lancer la vidéo (≈ 0,89 €)");
+    expect(texte(html)).toContain("Lancer la vidéo");
   });
 });

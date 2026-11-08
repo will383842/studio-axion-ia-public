@@ -2,7 +2,7 @@
 
 /**
  * RÉGLAGES › CONNEXIONS › DOUBLE (lot R7e). Will allume lui-même « Votre avatar parle dans le studio » : le studio fait
- * alors parler son avatar HeyGen, sur un texte validé, avec sa voix clonée (payant, prix annoncé et confirmé avant
+ * alors parler son avatar HeyGen, sur un texte validé, avec sa voix clonée (payant, confirmé avant
  * chaque vidéo). Éteint par défaut. Phrases simples, aucun nom technique.
  */
 import { useRouter } from "next/navigation";
@@ -13,20 +13,18 @@ import { Interrupteur } from "@/components/ui/Interrupteur";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import type { Montant } from "@/domaine/types";
-import { formaterMontant } from "@/lib/montants";
 
 export type FondAvatar = "sans-fond" | "uni";
 
 export const TEXTES_DOUBLE = {
   titre: "Votre avatar parle dans le studio",
-  allume: "Le studio fait parler votre avatar avec votre voix, sur le texte validé. Le prix est annoncé et confirmé avant chaque vidéo.",
+  allume: "Le studio fait parler votre avatar avec votre voix, sur le texte validé. Vous confirmez avant chaque vidéo.",
   eteint: "Éteint : vous faites vos vidéos dans l'application HeyGen et vous les rattachez à leur version.",
-  prix: (minute: Montant) => `Environ ${formaterMontant(minute)} par minute de vidéo.`,
   fond: "Fond de votre avatar",
   sansFond: "Sans fond, posé sur vos décors",
   uni: "Fond uni",
   looks: "Créer vos décors avec HeyGen",
-  looksAllume: "Depuis « Décrivez » ou un décor, le studio crée votre avatar dans la pièce et la tenue décrites. Le prix est montré et confirmé avant chaque création.",
+  looksAllume: "Depuis « Décrivez » ou un décor, le studio crée votre avatar dans la pièce et la tenue décrites. Vous confirmez avant chaque création.",
   looksEteint: "Éteint : vos décors se font dans l'application HeyGen, puis vous les reliez ici.",
   consigne:
     "Pour « sans fond », votre avatar doit avoir été créé dans HeyGen avec le fond détouré (c'est le cas des avatars récents). Si HeyGen le refuse, le studio passe tout seul au fond uni quand rien n'est encore payé, sinon il vous le dit.",
@@ -63,10 +61,6 @@ export function ReglageDouble({ initial }: { initial: { allume: boolean; fond: F
         desactive={enCours}
         onChange={(v) => enregistrer({ allume: v }, v ? "Votre avatar parlera dans le studio" : "Votre avatar ne parle plus dans le studio")}
       />
-      <p className="flex items-start gap-2 text-sm text-texte-doux">
-        <Icone nom="euro" size={15} className="mt-0.5 shrink-0" />
-        {TEXTES_DOUBLE.prix(r.prixMinute)}
-      </p>
       <SelecteurPastilles<FondAvatar>
         libelle={TEXTES_DOUBLE.fond}
         valeur={r.fond}

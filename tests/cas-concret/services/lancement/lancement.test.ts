@@ -146,23 +146,24 @@ describe("preparerEtLancer", () => {
     expect(commande.distribution[0].voixId).toBe("voix-avocat-test");
   });
 
-  it("sans montant confirmé suffisant, rien n'est lancé", async () => {
+  it("sans montant confirmé (absent, `true` ou trop bas), la fabrication part quand même : aucun prix ne bloque", async () => {
     lancer.mockClear();
     for (const accordCentimes of [undefined, true, 1]) {
       // V4-3 : un cas sans script validé, en essai (un prix non nul ; voir « rend un montant »).
       const r = await service.preparerEtLancer(demande({ accordCentimes, casId: "rappels-rendez-vous", essai: true }), { lancer });
-      expect(r.statut).toBe("accord-requis");
+      // 08/11/2026 : aucun accord de prix n'est exigé, quel qu'il soit : la fabrication part chaque fois.
+      expect(r.statut).toBe("lancee");
     }
-    expect(lancer).not.toHaveBeenCalled();
+    expect(lancer).toHaveBeenCalledTimes(3);
   });
 
-  it("refus de budget puis nouvel essai : même vidéo, pas de « mot déjà pris »", async () => {
+  it("deuxième demande sans accord de prix : même vidéo, pas de « mot déjà pris »", async () => {
     const a = await service.preparerEtLancer(demande({ accordCentimes: undefined }), { lancer });
     const b = await service.preparerEtLancer(demande(), { lancer });
-    expect(a.statut).toBe("accord-requis");
+    expect(a.statut).toBe("lancee");
     expect(b.statut).toBe("lancee");
     expect(await videosCas()).toHaveLength(1);
-    expect(b.statut === "lancee" && a.statut === "accord-requis" && b.videoId === a.videoId).toBe(true);
+    expect(b.statut === "lancee" && a.statut === "lancee" && b.videoId === a.videoId).toBe(true);
   });
 
   it("deux appels simultanés : une seule vidéo", async () => {
@@ -226,7 +227,7 @@ describe("preparerEtLancer", () => {
     // Brouillon lancé (statut quitté) : la prochaine demande crée une autre vidéo. Le contrôle « sujet déjà traité »
     // (lot L3) refuserait ce second lancement du même cas : il est éteint ici, ce test ne parle que des codes de suivi.
     await ecrireParametre("sujets.garde", "eteint");
-    if (a.statut === "accord-requis") await depots().videos.modifier(a.videoId, { statut: "en_fabrication" });
+    if (a.statut === "lancee") await depots().videos.modifier(a.videoId, { statut: "en_fabrication" });
     await service.preparerEtLancer(demande({ mot: "AUTRE", accordCentimes: undefined }), { lancer });
     const codes = (await videosCas()).map((v) => (v.entrees as { casConcret: { codeSuivi: string } }).casConcret.codeSuivi);
     expect(codes).toHaveLength(2);

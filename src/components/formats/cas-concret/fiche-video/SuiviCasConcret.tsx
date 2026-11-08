@@ -86,7 +86,7 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
       const confirme = await confirmerPrix({ message: issue.phrase, montant: issue.centimes });
       if (confirme === null) return setPhrase({ texte: PHRASES_ECRAN_RELANCE.annulee, ton: "info" });
       // UNE seule relance automatique, jamais de boucle.
-      if (dejaRelance) return setPhrase({ texte: "Le prix a changé, réessayez.", ton: "refus" });
+      if (dejaRelance) return setPhrase({ texte: "Cela a changé, réessayez.", ton: "refus" });
       return envoyer(confirme, true);
     }
     if (issue.statut === "refusee") return setPhrase({ texte: issue.phrase, ton: "refus" });

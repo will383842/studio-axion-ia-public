@@ -1,7 +1,7 @@
 /**
  * « NOUVELLE VIDÉO · TABLEAU ANIMÉ » (`services/tableau-creation.ts`) : un script devient une fiche valide avec un
- * découpage simulé (tâche de fond : l'action enregistre, la boucle découpe) ; une fiche refusée déclenche UNE relance puis un refus propre ; la fabrication est refusée sans
- * confirmation du prix ; la page ne s'affiche pas quand le format est masqué. Dépôts en mémoire, double de Claude :
+ * découpage simulé (tâche de fond : l'action enregistre, la boucle découpe) ; une fiche refusée déclenche UNE relance puis un refus propre ; l'action
+ * « Fabriquer » ne demande plus de confirmation du prix (lot H) ; la page ne s'affiche pas quand le format est masqué. Dépôts en mémoire, double de Claude :
  * aucun appel réseau, rien de payé.
  */
 import { hash } from "@node-rs/argon2";
@@ -267,14 +267,14 @@ describe("Fabriquer la vidéo", () => {
     expect((video?.entrees as { tableau?: { dejaVu?: unknown } }).tableau?.dejaVu).toEqual({ coche: true, le: AUJOURDHUI_EXEMPLES });
   });
 
-  it("l'action est refusée par le serveur sans confirmation du prix : rien n'est rangé ni lancé", async () => {
+  // Lot H (décision de Williams, 08/11) : plus aucune confirmation de prix ; l'action donne l'accord d'elle-même et va
+  // jusqu'au rangement de la fiche. Ici le stockage n'est pas relié : refus clair, rien n'est rangé ni lancé.
+  it("l'action du serveur ne demande plus la confirmation du prix : sans accord, elle va jusqu'au rangement (stockage absent ici : refus, rien n'est rangé ni lancé)", async () => {
     const videoId = await brouillonPret();
     const travaux = await depots().travaux.compter();
     for (const accord of [undefined, true, false, 0]) {
       const r = await fabriquerVideoTableauAction(videoId, accord, await relu(videoId));
-      expect(r.ok).toBe(true);
-      if (!r.ok) return;
-      expect(r.donnees.statut).toBe("accord-requis");
+      expect(r).toMatchObject({ ok: false, code: "STOCKAGE_NON_RELIE" });
     }
     expect(await depots().travaux.compter()).toBe(travaux);
     const video = await depots().videos.obtenir(videoId);

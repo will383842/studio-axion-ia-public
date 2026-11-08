@@ -48,10 +48,9 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
   const ecrit = vue.versions.length > 0;
   // E2E-2 argent n° 2 : une écriture arrêtée sur une panne le dit, avec « Reprendre l'écriture ».
   const arret = await ecritureArretee(id);
-  if (ecriture && !ecrit && ecriture.statut && (["en-cours", "en-pause", "en-attente-credit", "plafond-atteint", "bloquee-modele"].includes(ecriture.statut) || (ecriture.statut === "echec" && !!arret)) && !(ecriture.statut === "en-pause" && !ecriture.pause)) {
+  if (ecriture && !ecrit && ecriture.statut && (ecriture.statut !== "terminee" && (ecriture.statut !== "echec" || !!arret)) && !(ecriture.statut === "en-pause" && !ecriture.pause)) {
     const messages: Record<string, string> = {
       "en-attente-credit": ecriture.preteAReprendre ? "Prête à reprendre. Rien ne repart sans vous." : (ecriture.messageAttente ?? messageAttenteEcritureParDefaut(!!ecriture.abonnements)),
-      "plafond-atteint": "Plafond du sujet atteint : ce qui est écrit est gardé.",
       "bloquee-modele": "Le modèle d'écriture a changé : mise à jour nécessaire.",
     };
     return (

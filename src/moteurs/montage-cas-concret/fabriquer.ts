@@ -820,6 +820,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       if (!r.ok) throw new ErreurFabricationCasConcret("calage", r.problemes.map((p) => (plan.fins.length > 1 ? `Fin pour ${nomsReseaux(f.reseaux)} · ${p}` : p)));
       return { r, f };
     });
+    // 08/11/2026 : les mots lus autrement que le texte écrit ne jettent plus la vidéo : ils partent en réserves « À vérifier ».
+    const ecarts = [...new Set(parFin.flatMap(({ r, f }) => r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`)))];
     const commun = Math.min(...parFin.map(({ r }) => r.fin!.ecrans[0].debutMs!));
     const premier = parFin[0].r;
     const dernier = premier.fiche.ecrans.length - 1;
@@ -827,6 +829,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const idsCorps = new Set(corps.map((e) => e.id));
     const borne = (ev: EvenementCale) => (ev.ecranId === corps[dernier].id ? { ...ev, debutMs: Math.min(ev.debutMs, commun - IMAGE_MS) } : ev);
     return {
+      ecarts,
       fiche: { ...premier.fiche, ecrans: corps },
       evenements: premier.evenements.filter((ev) => idsCorps.has(ev.ecranId)).map(borne),
       fins: parFin.map(({ r, f }) => ({
@@ -1170,6 +1173,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     reservesVoix: [
       ...(voix.rapport.corpsGardeMalgreRejet ? [`Voix · la phrase « ${voix.rapport.corpsGardeMalgreRejet.phrase} » est peut-être mal lue (${voix.rapport.corpsGardeMalgreRejet.detail}) : écoutez-la.`] : []),
       ...(voix.reservesFin ?? []),
+      ...(calage.ecarts ?? []),
     ],
     remarquesScript: remarquesScript ?? [],
     avertissementsScript: avertissementsScript ?? [],

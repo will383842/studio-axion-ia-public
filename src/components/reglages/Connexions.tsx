@@ -17,7 +17,6 @@ import { TITRES_SERVICES } from "@/fournisseurs/titres";
 import { cn } from "@/lib/cn";
 import { ilYA } from "@/lib/dates";
 import type { CleService } from "@/services/credits";
-import { formaterMontant } from "@/lib/montants";
 import type { FormatJeLis, FormatMontageReel } from "@/services/reglages";
 
 export interface ConnexionVue {
@@ -174,28 +173,24 @@ export function ChoixService({ connexion, valeur, onChange }: { connexion: Conne
   );
 }
 
-/** Ligne sous l'interrupteur « montage réel » : ce qui empêche de l'allumer, ou son prix. */
+/** Ligne sous l'interrupteur « montage réel » : ce qui empêche de l'allumer, ou son état. */
 export function detailMontageReel(f: FormatMontageReel): string {
   if (!f.possible) return f.raison ?? "Il faut d'abord relier le montage.";
-  const prix = `Environ ${formaterMontant(f.prix.total)} pour une vidéo de ${f.prix.dureeSec} s.`;
-  return f.allume ? `${prix} Prix confirmé à chaque lancement.` : `${prix} Éteint : vos vidéos restent des essais.`;
+  return f.allume ? "Vos vidéos sont montées pour de vrai." : "Éteint : vos vidéos restent des essais.";
 }
 
 /**
  * Lot R8 : « Montage réel des vidéos avocat » (voix, double, montage, réseaux). Proposé seulement quand tout est relié
- * et que le double est prêt ; sinon la ligne dit ce qui manque. Allumer : le prix d'une vidéo de 45 s s'affiche d'abord
- * (feuille à confirmer). Couper : un seul geste, rien n'est perdu (les vidéos repartent en essai).
+ * et que le double est prêt ; sinon la ligne dit ce qui manque. Allumer ou couper : un seul geste, rien n'est perdu (les vidéos repartent en essai).
  */
 export function BlocMontageReel({ formats }: { formats: FormatMontageReel[] }) {
   const router = useRouter();
   const [etats, setEtats] = useState<Record<string, boolean>>({});
-  const [aConfirmer, setAConfirmer] = useState<FormatMontageReel | null>(null);
-  const [enCours, demarrer] = useTransition();
+  const [, demarrer] = useTransition();
   function enregistrer(f: FormatMontageReel, v: boolean) {
     setEtats((x) => ({ ...x, [f.formatId]: v }));
     demarrer(async () => {
       const r = await definirMontageReelAction(f.formatId, v);
-      setAConfirmer(null);
       if (!r.ok) {
         setEtats((x) => ({ ...x, [f.formatId]: !v }));
         notifier.erreur(r.message);
@@ -219,45 +214,12 @@ export function BlocMontageReel({ formats }: { formats: FormatMontageReel[] }) {
                 detail={detailMontageReel({ ...f, allume: coche })}
                 coche={coche}
                 desactive={!f.possible && !coche}
-                onChange={(v) => (v ? setAConfirmer(f) : enregistrer(f, false))}
+                onChange={(v) => enregistrer(f, v)}
               />
             </li>
           );
         })}
       </ul>
-      <FeuilleBas
-        ouverte={!!aConfirmer}
-        onOuverteChange={(o) => !o && setAConfirmer(null)}
-        titre="Monter vos vidéos pour de vrai"
-        description={aConfirmer ? `Prix estimé d'une vidéo de ${aConfirmer.prix.dureeSec} s. Il s'affiche aussi avant chaque lancement.` : undefined}
-        pied={
-          aConfirmer && (
-            <div className="flex flex-col gap-2">
-              <Bouton taille="lg" pleineLargeur icone="clap" chargement={enCours} onClick={() => enregistrer(aConfirmer, true)}>
-                Allumer · environ {formaterMontant(aConfirmer.prix.total, { court: true })} la vidéo
-              </Bouton>
-              <Bouton variante="secondaire" pleineLargeur onClick={() => setAConfirmer(null)}>
-                Rester en essai
-              </Bouton>
-            </div>
-          )
-        }
-      >
-        {aConfirmer && (
-          <>
-            <p className="py-4 text-center font-titre text-[56px] tabular-nums leading-none text-orange-vif">{formaterMontant(aConfirmer.prix.total)}</p>
-            <ul className="flex flex-col gap-1 text-sm">
-              {aConfirmer.prix.lignes.map((l) => (
-                <li key={l.quoi} className="flex justify-between gap-3">
-                  <span className="text-texte-doux">{l.quoi}</span>
-                  <span className="tabular-nums text-texte">{l.montant.centimes ? formaterMontant(l.montant) : "Gratuit"}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-sm text-texte-doux">Vidéo verticale en haute définition. Vous pouvez repasser en essai à tout moment, sans rien perdre.</p>
-          </>
-        )}
-      </FeuilleBas>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 /**
  * IMAGE → VIDÉO · MA RÉSERVE. Zone d'ajout (un script collé ou une idée, réseaux en pastilles, ajout en masse séparé par
  * une ligne `---`), puis trois listes : À faire, En cours, Fait. Un élément retiré est conservé mais n'est plus montré.
- * « Fabriquer le suivant » : UNE vidéo par clic ; le prix « au plus » n'est qu'une information, il ne désactive jamais le bouton.
+ * « Fabriquer le suivant » : UNE vidéo par clic ; aucun prix n'est affiché.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,7 @@ import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import type { ReseauIV } from "@/domaine/image-video/plafonds";
 import type { ElementReserveIV, NatureReserveIV, ReserveIV } from "@/domaine/image-video/reserve";
-import { euros, nomReseau, RESEAUX_ECRAN_IV } from "./vue";
+import { nomReseau, RESEAUX_ECRAN_IV } from "./vue";
 
 /** Au bout de ce nombre d'essais sans succès, l'élément s'affiche en rouge. */
 export const ESSAIS_ROUGE_IV = 2;
@@ -87,7 +87,7 @@ function Colonne({ titre, elements, vide, onRetirer, occupe }: { titre: string; 
   );
 }
 
-export function Reserve({ reserve, suivantReseaux, prix }: { reserve: ReserveIV; /** Réseaux du prochain élément (0 : rien à fabriquer), calculé côté serveur. */ suivantReseaux: number; /** Prix « au plus » du prochain, en centimes, calculé côté serveur : information seulement. */ prix: number }) {
+export function Reserve({ reserve }: { reserve: ReserveIV; /** Réseaux du prochain élément (0 : rien à fabriquer), calculé côté serveur. */ suivantReseaux: number; /** Prix « au plus » du prochain, en centimes, calculé côté serveur : information seulement. */ prix: number }) {
   const router = useRouter();
   const [nature, setNature] = useState<NatureReserveIV>("script");
   const [texte, setTexte] = useState("");
@@ -171,9 +171,8 @@ export function Reserve({ reserve, suivantReseaux, prix }: { reserve: ReserveIV;
       </section>
 
       <div className="space-y-2">
-        {/* Le prix informe seulement : le bouton n'est jamais désactivé par lui. */}
         <Bouton icone="film" taille="lg" pleineLargeur chargement={occupe} disabled={occupe} onClick={() => void fabriquer()}>
-          {suivantReseaux > 0 && prix > 0 ? `Fabriquer le suivant (au plus ${euros(prix)})` : "Fabriquer le suivant"}
+          Fabriquer le suivant
         </Bouton>
         {phrase && (
           <p role="alert" className="text-sm text-brique">

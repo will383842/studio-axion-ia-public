@@ -93,15 +93,14 @@ describe("plafond du monteur face caméra en mode indicatif", () => {
     expect(appels).toHaveLength(1);
   });
 
-  it("bloquant, au-delà du plafond : refus, aucun appel (en indicatif, plus d'arrêt à 5 ×)", async () => {
+  it("réglage « bloquant » sans effet, très au-delà du plafond : le monteur part quand même (plus d'arrêt)", async () => {
     await ecrireParametre("budget.mode", "bloquant");
     const appels = brancherClaude();
     const v = await video();
     await depenseMonteur(v.id, 800, new Date(Date.now() - 30_000).toISOString());
     const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, options());
-    expect(r).toMatchObject({ ok: false, arret: "plafond-video" });
-    expect(!r.ok && r.message).toMatch(/Version simple/);
-    expect(appels).toHaveLength(0);
+    expect(r.ok).toBe(true);
+    expect(appels).toHaveLength(1);
   });
 
   it("le plafond Claude du MOIS ne bloque plus (pas de plafond mensuel en indicatif)", async () => {
@@ -124,13 +123,14 @@ describe("plafond du monteur face caméra en mode indicatif", () => {
     expect(appels).toHaveLength(0);
   });
 
-  it("mode bloquant : plafond atteint → arrêt « plafond-video » comme avant", async () => {
+  it("réglage « bloquant » sans effet : plafond atteint → le monteur continue, Will est seulement prévenu", async () => {
     await ecrireParametre("budget.mode", "bloquant");
     const appels = brancherClaude();
     const v = await video();
     await depenseMonteur(v.id, 140, new Date(Date.now() - 30_000).toISOString());
     const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, options());
-    expect(r).toMatchObject({ ok: false, arret: "plafond-video" });
-    expect(appels).toHaveLength(0);
+    expect(r.ok).toBe(true);
+    expect(appels).toHaveLength(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre))).toHaveLength(1);
   });
 });
