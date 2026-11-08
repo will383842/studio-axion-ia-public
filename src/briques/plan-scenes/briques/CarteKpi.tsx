@@ -1,7 +1,7 @@
 import type { ParametresPiece } from "../catalogue";
 import { TOILES } from "../toiles";
 import { decelerer, progression } from "../../jetons-motion";
-import { apparition, nombreFr, ombre, palette, RACINE, type ProprietesBrique } from "./communs";
+import { BOITE_INCLUSE, apparition, nombreFr, ombre, palette, RACINE, type ProprietesBrique } from "./communs";
 
 type P = ParametresPiece<"carte-kpi">;
 
@@ -13,7 +13,7 @@ export function CarteKpi({ image, fond, accent, parametres: p }: ProprietesBriqu
   const fleche = p.tendance === "hausse" ? "↗" : p.tendance === "baisse" ? "↘" : "→";
   return (
     <div style={{ ...RACINE, ...apparition(image, 0, 12, 30) }}>
-      <div style={{ position: "absolute", left: 20, top: 20, width: largeur - 40, height: hauteur - 40, borderRadius: 32, background: c.panneau, boxShadow: `${ombre(fond)}, 0 0 0 2px ${c.filet}`, padding: "44px 52px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+      <div style={{ position: "absolute", left: 20, top: 20, width: largeur - 40, height: hauteur - 40, borderRadius: 32, background: c.panneau, boxShadow: `${ombre(fond)}, 0 0 0 2px ${c.filet}`, padding: "44px 52px", ...BOITE_INCLUSE, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         <div style={{ fontSize: 34, fontWeight: 600, color: c.texteDoux }}>{p.libelle}</div>
         <div style={{ fontSize: 150, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.03em", color: c.texte }}>
           {p.prefixe}

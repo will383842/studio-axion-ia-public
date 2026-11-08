@@ -1,7 +1,7 @@
 import type { ParametresPiece } from "../catalogue";
 import { TOILES } from "../toiles";
 import { decelerer, progression } from "../../jetons-motion";
-import { apparition, palette, RACINE, round, type ProprietesBrique } from "./communs";
+import { BOITE_INCLUSE, apparition, palette, RACINE, round, type ProprietesBrique } from "./communs";
 
 type P = ParametresPiece<"legende">;
 
@@ -19,7 +19,7 @@ export function Legende({ image, fond, accent, parametres: p }: ProprietesBrique
           ...apparition(image, 0, 14, 28),
           maxWidth: largeur - 40,
           maxHeight: hauteur - 20,
-          boxSizing: "border-box",
+          ...BOITE_INCLUSE,
           padding: bandeau ? "30px 44px" : p.style === "etiquette" ? "16px 30px" : 0,
           borderRadius: p.style === "etiquette" ? 999 : 28,
           background: bandeau ? c.texte : p.style === "etiquette" ? c.panneau : "transparent",

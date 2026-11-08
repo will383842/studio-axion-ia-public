@@ -1,7 +1,7 @@
 import type { ParametresPiece } from "../catalogue";
 import { TOILES } from "../toiles";
 import { adoucir, progression } from "../../jetons-motion";
-import { apparition, ombre, palette, RACINE, round, type ProprietesBrique } from "./communs";
+import { BOITE_INCLUSE, apparition, ombre, palette, RACINE, round, type ProprietesBrique } from "./communs";
 
 type P = ParametresPiece<"tableau-de-bord">;
 
@@ -22,7 +22,7 @@ export function TableauDeBord({ image, fond, accent, parametres: p }: Proprietes
     <div style={RACINE}>
       <div style={{ ...apparition(image, 0), position: "absolute", left: 40, top: 20, fontSize: 40, fontWeight: 800, color: c.texte }}>{p.titre}</div>
       {p.kpis.map((k, i) => (
-        <div key={k.libelle + i} style={{ ...apparition(image, 6 + i * 6, 12, 30), position: "absolute", left: round(40 + i * (lt + ecart)), top: 110, width: round(lt), height: 230, borderRadius: 28, background: c.panneau, boxShadow: `${ombre(fond)}, 0 0 0 2px ${c.filet}`, padding: "30px 32px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div key={k.libelle + i} style={{ ...apparition(image, 6 + i * 6, 12, 30), position: "absolute", left: round(40 + i * (lt + ecart)), top: 110, width: round(lt), height: 230, borderRadius: 28, background: c.panneau, boxShadow: `${ombre(fond)}, 0 0 0 2px ${c.filet}`, padding: "30px 32px", ...BOITE_INCLUSE, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <span style={{ fontSize: 26, fontWeight: 600, color: c.texteDoux }}>{k.libelle}</span>
           <span style={{ fontSize: 84, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em", color: i === 0 ? c.accent : c.texte }}>{k.valeur}</span>
         </div>

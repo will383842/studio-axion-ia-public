@@ -1,7 +1,7 @@
 import type { ParametresPiece } from "../catalogue";
 import { TOILES } from "../toiles";
 import { adoucir, avecOpacite, CHARTE_AXION, entre, progression } from "../../jetons-motion";
-import { RACINE, round, type ProprietesBrique } from "./communs";
+import { BOITE_INCLUSE, RACINE, round, type ProprietesBrique } from "./communs";
 
 type P = ParametresPiece<"curseur">;
 
@@ -36,7 +36,7 @@ export function Curseur({ image, dureeImages, fond, accent, parametres: p }: Pro
   return (
     <div style={RACINE}>
       {clic > 0 && clic < 1 && (
-        <span style={{ position: "absolute", left: round(x - 10 - 40 * clic), top: round(y - 10 - 40 * clic), width: round(20 + 80 * clic), height: round(20 + 80 * clic), borderRadius: "50%", border: `4px solid ${couleurAnneau}`, opacity: round(1 - clic), boxSizing: "border-box" }} />
+        <span style={{ position: "absolute", left: round(x - 10 - 40 * clic), top: round(y - 10 - 40 * clic), width: round(20 + 80 * clic), height: round(20 + 80 * clic), borderRadius: "50%", border: `4px solid ${couleurAnneau}`, opacity: round(1 - clic), ...BOITE_INCLUSE }} />
       )}
       <svg width={44} height={56} viewBox="0 0 22 28" style={{ position: "absolute", left: round(x), top: round(y), transform: `scale(${round(enfonce)})`, transformOrigin: "0 0", filter: `drop-shadow(0 4px 8px ${avecOpacite(CHARTE_AXION.noir, 0.25)})` }}>
         <path d="M1 1 L1 22 L6.5 17 L10 26 L14 24.5 L10.5 15.8 L18 15.8 Z" fill={remplissage} stroke={contour} strokeWidth={1.6} strokeLinejoin="round" />
