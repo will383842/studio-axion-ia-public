@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
 import { dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
-import { bornesDesFins, limiteCaracteresDuCorps, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
+import { bornesDesFins, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
 
 const etat = vi.hoisted(() => ({ session: true, journal: [] as string[], parametres: {} as Record<string, unknown> }));
 vi.mock("./_commun", () => ({
@@ -28,7 +28,7 @@ vi.mock("./auth", () => ({
 }));
 vi.mock("./cas-concret-stock-acces", () => ({ trouverCasAutorise: async (id: string) => CATALOGUE.find((c) => c.id === id) }));
 
-import { controlerScriptFourni, departMonScript, enregistrerScriptFourni, PHRASE_CAS_A_SCRIPT_CATALOGUE, phraseScriptTropLong, revenirAuScriptDeLIA } from "./cas-concret-script-fourni";
+import { controlerScriptFourni, departMonScript, enregistrerScriptFourni, revenirAuScriptDeLIA } from "./cas-concret-script-fourni";
 import { CLE_HISTORIQUE_SCRIPTS, CLE_SCRIPTS_VALIDES, scriptValideDuStudio } from "./cas-concret-scripts";
 
 const CAS = CATALOGUE.find((c) => c.id === "rappels-rendez-vous")!;
@@ -97,22 +97,34 @@ describe("script fourni (service)", () => {
     expect(await enregistrerScriptFourni(CAS.id, espaces)).toMatchObject({ modifie: false, numero: 3 });
   });
 
-  it("ARGENT : un cas à script du catalogue est refusé ; un script plus long que le corps du prix est refusé avec la limite", async () => {
+  it("LOT A (08/11/2026) : aucun prix. Un cas à script du catalogue accepte « Mon script » ; un script plus long passe, sans remarque d'argent", async () => {
     const catalogue = CATALOGUE.find((c) => c.id === "recrutement-apporteurs")!;
     const rc = await controlerScriptFourni(catalogue.id, "[accroche] x");
-    expect(rc.ok).toBe(false);
-    expect(rc.refus[0].message).toBe(PHRASE_CAS_A_SCRIPT_CATALOGUE);
-    await expect(enregistrerScriptFourni(catalogue.id, "[accroche] x")).rejects.toMatchObject({ code: "SCRIPT_FOURNI_REFUSE", message: PHRASE_CAS_A_SCRIPT_CATALOGUE });
-    // Plus long que le corps du gabarit qui sert au prix.
+    expect(rc.refus.map((r) => r.message).join(" ")).not.toMatch(/prix|catalogue|€/i);
     const lignes = texteConforme.split("\n");
     lignes[lignes.length - 1] = lignes[lignes.length - 1].replace("toute seule ?", "toute seule dans votre entreprise de service ?");
-    const limite = limiteCaracteresDuCorps(CAS);
     const r = await controlerScriptFourni(CAS.id, lignes.join("\n"));
-    expect(r.ok).toBe(false);
-    expect(r.refus).toEqual([{ message: phraseScriptTropLong(limite) }]);
-    expect(phraseScriptTropLong(limite)).toBe(`Votre script est plus long que celui qui a servi au prix : raccourcissez-le (${limite} caractères au plus pour le texte dit).`);
-    await expect(enregistrerScriptFourni(CAS.id, lignes.join("\n"))).rejects.toMatchObject({ code: "SCRIPT_FOURNI_REFUSE" });
-    expect(etat.parametres[CLE_SCRIPTS_VALIDES]).toBeUndefined();
+    expect(r.ok).toBe(true);
+    expect([...r.refus.map((x) => x.message), ...r.remarques, ...r.avertissements].join(" ")).not.toMatch(/prix|€/i);
+    await expect(enregistrerScriptFourni(CAS.id, lignes.join("\n"))).resolves.toMatchObject({ modifie: true });
+  });
+
+  it("LOT A : un script trop court ou trop long passe avec des REMARQUES (jamais un refus)", async () => {
+    const court = await controlerScriptFourni(CAS.id, texteConforme.split("\n").filter((l) => !l.startsWith("[détail]")).join("\n"));
+    // Moins de 12 lignes : remarque visible. Le script ne se fabrique pas s'il est techniquement illisible, mais jamais pour sa taille.
+    expect(court.refus.map((r) => r.message).join(" ")).not.toMatch(/Il faut de 12 à 26 lignes|Il faut de 3 à 7 étapes/);
+    expect(court.ok).toBe(true);
+    expect(court.remarques.join(" ")).toMatch(/Durée/);
+    const tutoie = await controlerScriptFourni(CAS.id, texteConforme.replace("vous", "tu"));
+    expect(tutoie.refus.map((r) => r.message).join(" ")).not.toMatch(/Dites « vous »/);
+  });
+
+  it("LOT A : le mot « machine » est un AVERTISSEMENT très visible, pas un refus", async () => {
+    const lignes = texteConforme.split("\n");
+    lignes[2] = `${lignes[2]} Cette machine répond.`;
+    const r = await controlerScriptFourni(CAS.id, lignes.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.join(" ")).toMatch(/machine/);
   });
 
   it("un cas retiré est refusé (action appelée directement) : CAS_RETIRE, rien n'est écrit", async () => {

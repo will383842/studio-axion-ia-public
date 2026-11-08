@@ -46,21 +46,21 @@ describe("durée : R21", () => {
     }
   });
 
-  it("juste sous 35 s avec la fin la plus courte : refusé, avec un nombre qui ne dépasse pas la borne (jamais « 35 s, il en faut 35 »)", () => {
+  it("LOT A · juste sous 35 s avec la fin la plus courte : une REMARQUE avec un nombre qui ne dépasse pas la borne (jamais « 35 s, il en faut 35 »), le script passe", () => {
     const l = BASE.split("\n");
     let vu = false;
-    // On raccourcit toutes les étapes d'un mot à la fois jusqu'à passer sous la borne : le premier texte refusé pour la durée est jugé.
+    // On raccourcit toutes les étapes d'un mot à la fois jusqu'à passer sous la borne : la première remarque de durée est jugée.
     for (let k = 14; k >= 4 && !vu; k--) {
       const essai = l.map((x) => {
         const e = /^(\[étape \d\])\s*(.*)$/.exec(x);
         return e ? `${e[1]} ${e[2].split(" ").slice(0, k).join(" ")}` : x;
       });
       const r = controlerTexteFourni(essai.join("\n"), LT02);
-      if (!r.ok && r.dureeMs && r.dureeMs.min < 35_000) {
+      if (r.ok && r.dureeMs.min < 35_000) {
         vu = true;
-        const m = r.refus.find((x) => x.message.startsWith("Durée : avec la fin la plus courte"))!;
-        expect(m.message).toMatch(/^Durée : avec la fin la plus courte la vidéo ferait environ [\d,]+ s, il en faut au moins 35 : ajoutez une phrase\.$/);
-        const dit = Number(/environ ([\d,]+) s/.exec(m.message)![1].replace(",", "."));
+        const m = r.remarques.find((x) => x.startsWith("Durée : avec la fin la plus courte"))!;
+        expect(m).toMatch(/^Durée : avec la fin la plus courte la vidéo ferait environ [\d,]+ s ; l'habitude est d'au moins 35 s\.$/);
+        const dit = Number(/environ ([\d,]+) s/.exec(m)![1].replace(",", "."));
         expect(dit).toBeLessThan(35);
         expect(dit).toBeLessThanOrEqual(r.dureeMs.min / 1000);
       }

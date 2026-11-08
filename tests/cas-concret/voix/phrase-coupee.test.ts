@@ -18,6 +18,7 @@ import {
   avancerVoixCasConcret,
   etatInitialVoixCasConcret,
   pausesAMesurer,
+  rapportVoix,
   REGLES_BLANCS_CAS_CONCRET,
   rouvrirApresArret,
   type EtatVoixCasConcret,
@@ -139,29 +140,22 @@ describe("voix du cas concret · l'accroche « On recrute nos collaborateurs en 
     expect(Math.round((j.mesures[0].aSec - j.mesures[0].deSec) * 1000)).toBeGreaterThanOrEqual(80);
   });
 
-  it("un vrai « euh » au milieu du blanc reste refusé", async () => {
+  it("un vrai « euh » au milieu du blanc reste REPÉRÉ : la lecture est gardée et la phrase signalée (08/11/2026, jamais d'arrêt)", async () => {
     const j = neuf();
-    const fin = await jusquAuBout(doubles(j, () => -17), etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
-    expect(fin.issue).toMatchObject({ statut: "arret", phrase: ACCROCHE });
+    const fin = await jusquAuBout({ ...doubles(j, () => -17), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(rapportVoix(fin).corpsGardeMalgreRejet).toMatchObject({ rejet: "son", phrase: ACCROCHE });
   });
 
-  it("deux refus identiques sur la même phrase : arrêt SANS payer de 3e lecture, avec une explication et une proposition", async () => {
+  it("deux refus identiques sur la même phrase : AUCUNE 3e lecture payée, la dernière lecture est gardée et la phrase signalée", async () => {
     const j = neuf();
-    const fin = await jusquAuBout(doubles(j, () => -17), etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
+    const fin = await jusquAuBout({ ...doubles(j, () => -17), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
     expect(j.lus).toEqual([CORPS, CORPS]);
     expect(j.lecturesAPayer).toBe(2);
     expect(fin.payees).toHaveLength(2);
-    if (fin.issue?.statut !== "arret") throw new Error("pas d'arrêt");
-    expect(fin.issue.phrase).toBe(ACCROCHE);
-    // 17/10 : script validé qui hésite, relu sans succès (sans 3e lecture payée) : le conseil renvoie vers « Relire le script » et R03.
-    expect(fin.issue.message).toMatch(/^La voix hésite sur « recrute » \(-17 dB\)\. Reformulez la phrase dans « Relire le script »/);
-    expect(fin.issue.message).toMatch(/mot exact de la promesse/);
-    expect(fin.issue.message).toMatch(/R03/);
-    expect(fin.issue.conseil).toBeTruthy();
-    // Un état arrêté ne bouge plus, et « Réessayer » sur ce même refus ne paie rien de plus.
-    const repris = await jusquAuBout(doubles(j, () => -17), rouvrirApresArret(fin));
-    expect(repris.issue?.statut).toBe("arret");
-    expect(j.lus).toHaveLength(2);
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(rapportVoix(fin).corpsGardeMalgreRejet).toMatchObject({ rejet: "son", phrase: ACCROCHE });
+    expect(rapportVoix(fin).corpsGardeMalgreRejet!.detail).toContain("-17 dB");
   });
 
   it("deux refus DIFFÉRENTS ne déclenchent pas l'arrêt anticipé (la 3e lecture reste permise)", async () => {
@@ -185,7 +179,10 @@ describe("voix du cas concret · l'accroche « On recrute nos collaborateurs en 
     // L'arrêt gardé de la vidéo : 3 lectures payées, la dernière refusée (fenêtre mesurée collée au mot, −17 dB).
     const j = neuf();
     const avant = await jusquAuBout(doubles(j, () => -17), etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
-    const arrete: EtatVoixCasConcret = { ...avant, corps: { ...avant.corps, lectures: 3 } };
+    // Un état ARRÊTÉ d'avant le 08/11/2026 (stocké au journal) doit encore se rouvrir : on le reconstitue.
+    const { retenu: _r, ...corpsSansRetenu } = avant.corps;
+    void _r;
+    const arrete: EtatVoixCasConcret = { ...avant, corps: { ...corpsSansRetenu, lectures: 3 }, issue: { statut: "arret", message: "ancien arrêt", phrase: ACCROCHE } };
     expect(arrete.issue?.statut).toBe("arret");
     const lus = j.lus.length;
     const fin = await jusquAuBout(doubles(j), rouvrirApresArret(arrete));
