@@ -62,6 +62,8 @@ import type { ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
 import { exigerVoixMaitre } from "@/briques/voix-maitre/voix-epinglee";
 import { TEMPO_VOIX } from "@/formats/cas-concret";
 import { retouchesAllumeesConnues } from "./cas-concret-reglages";
+import { planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
+import { lireParametre as lireReglagePlanScenes } from "./_commun";
 import { CONSIGNE_VOIX_CAS_CONCRET } from "@/moteurs/montage-cas-concret/avant-prix";
 import { RECETTE_VOIX_CAS_CONCRET } from "@/moteurs/montage-cas-concret/recette-voix";
 
@@ -151,6 +153,8 @@ export interface DependancesBranchementsCasConcret {
   scriptValideDeLaVideo?: (casId: string, videoId: string) => Promise<ScriptValide | null>;
   /** 18/10 : le texte dit des scripts déjà écrits ou validés (défaut : `scriptsDejaEcrits`, catalogue + studio + vidéos non supprimées). */
   scriptsAnterieurs?: (casId: string, videoId: string) => Promise<readonly string[]>;
+  /** Lot R2 : option « plan de scènes » (double dans les tests). Par défaut : le réglage `planScenes.casConcret` (éteint). */
+  planScenes?: OutilsCasConcret["planScenes"];
   /** V4-3 : un script écrit par Claude attend la validation de Will avant toute voix (défaut : oui). */
   validationScript?: boolean;
   /** L2 : historique des tirages et mise héritée (défaut : réglages du studio) ; `null` : aucun tirage. */
@@ -522,6 +526,8 @@ export async function outilsCasConcret(c: CommandeFabrication, travailId: Id, de
     // V4-3 : le script validé du cas (aucun appel d'écriture) ; sans lui, Claude écrit et Will valide avant la voix.
     scriptValide: dep.scriptValide ?? (async (casId) => (await import("./cas-concret-scripts")).scriptValideDuStudio(casId)),
     scriptValideDeLaVideo: dep.scriptValideDeLaVideo ?? (async (casId, videoId) => (await import("./cas-concret-scripts")).scriptValideDeLaVideo(casId, videoId)),
+    // Lot R2 : éteint par défaut ; allumé, pièces du stock (le fournisseur du niveau 2 se branche par `executerRole`, comme le lot C).
+    planScenes: dep.planScenes ?? (async () => ((await planScenesActif("cas-concret", lireReglagePlanScenes)) ? {} : undefined)),
     scriptsAnterieurs: dep.scriptsAnterieurs ?? (async (_casId, videoId) => (await import("./cas-concret-scripts")).scriptsDejaEcrits(videoId)),
     voix: {
       voix: () => voixLue,

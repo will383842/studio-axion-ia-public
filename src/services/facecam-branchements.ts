@@ -53,6 +53,15 @@ async function imageRvb(cle: string): Promise<ImageRvb | null> {
   }
 }
 
+// Lot R2 : plan de scènes du face caméra (réglage `planScenes.facecam`, ÉTEINT par défaut ; allumé : pièces du stock, le
+// fournisseur du niveau 2 se branche par `executerRole`, comme le lot C).
+brancherServicesFacecam({
+  planScenes: async () => {
+    const [{ planScenesActif }, { lireParametre }] = await Promise.all([import("@/briques/plan-scenes-generateurs/reglage"), import("./_commun")]);
+    return (await planScenesActif("facecam", lireParametre)) ? {} : undefined;
+  },
+});
+
 // Mission H : multicaméra du face caméra (même brique et même service que l'avocat, coupée par défaut).
 brancherServicesFacecam({
   multicamera: (c, travailId) => async ({ pisteCle, dureeSec, mots, coupesPrefereesSec, consignes }) => {
