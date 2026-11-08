@@ -2,12 +2,12 @@
 import { describe, expect, it } from "vitest";
 import { NAV_LATERALE, TUILES_PLUS, navigationLaterale, tuilesPlusMobile, ONGLETS_BAS } from "../src/components/coquille/navigation";
 
-describe("entrée « Mots et messages »", () => {
+describe("entrée « Messages Zernio »", () => {
   it("barre latérale : présente une seule fois, juste avant Réglages", () => {
     const menu = navigationLaterale([], true, true);
     expect(menu.filter((e) => e.href === "/mots")).toHaveLength(1);
     const i = menu.findIndex((e) => e.href === "/mots");
-    expect(menu[i].libelle).toBe("Mots et messages");
+    expect(menu[i].libelle).toBe("Messages Zernio");
     expect(menu[i + 1].href).toBe("/reglages");
     expect(NAV_LATERALE.some((e) => e.href === "/mots")).toBe(true);
   });
@@ -15,7 +15,7 @@ describe("entrée « Mots et messages »", () => {
     for (const t of [TUILES_PLUS, tuilesPlusMobile(true, true)]) {
       expect(t.filter((e) => e.href === "/mots")).toHaveLength(1);
       const i = t.findIndex((e) => e.href === "/mots");
-      expect(t[i].libelle).toBe("Mots et messages");
+      expect(t[i].libelle).toBe("Messages Zernio");
       expect(t[i + 1].href).toBe("/reglages");
     }
   });
