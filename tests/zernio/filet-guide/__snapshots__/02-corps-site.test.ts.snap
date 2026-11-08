@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`3 · corps de la demande de guide envoyée au site > INSTANTANÉ NOMMÉ « corps-demande-guide-v1 » : forme complète du corps (clé d'idempotence déterministe sous le secret fictif) > corps-demande-guide-v1 1`] = `
+{
+  "cleIdempotence": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+  "email": "adresse@exemple.test",
+  "guide": "guide-ia",
+  "locale": "fr",
+  "mot": "GUIDE",
+  "occurredAt": "2026-10-18T10:00:20.000Z",
+  "reseau": "facebook",
+  "schemaVersion": 1,
+  "versionTexteM1": "mp-m1-v2",
+}
+`;
