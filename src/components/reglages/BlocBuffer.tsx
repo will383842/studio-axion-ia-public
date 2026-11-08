@@ -66,7 +66,7 @@ export function BlocBuffer({ vue }: { vue: VueBuffer }) {
           <Icone nom="envoyer" size={18} />
         </span>
         <h3 id="bloc-buffer-titre" className="min-w-0 flex-1 text-[15px] font-semibold text-texte">
-          Buffer
+          Comment les vidéos partent
         </h3>
         <Pastille ton={e.ton}>{e.libelle}</Pastille>
       </div>

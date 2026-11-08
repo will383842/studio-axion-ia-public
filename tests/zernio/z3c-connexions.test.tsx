@@ -178,7 +178,8 @@ describe("z3c · les 3 autres états", () => {
   });
   it("en-tête : titre, chapo, bouton de test", () => {
     const html = rendre(VUES.normal);
-    expect(html).toContain("Connexions Zernio");
+    // Titre renommé le 08/11 (Williams) : plus de nom de service dans un titre ; la carte de la page porte « Vos comptes de publication ».
+    expect(html).toContain("Vos comptes");
     expect(html).toContain("Vos 6 comptes, l’outil qui publie et le mode d’envoi, réseau par réseau.");
     expect(html).toContain("Tester les 6 comptes");
   });
