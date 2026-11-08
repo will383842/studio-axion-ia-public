@@ -26,9 +26,10 @@ describe("pagesTrouvees", () => {
     expect(hrefs("ce qui marche")).toContain("/mesures/ce-qui-marche");
     expect(hrefs("ranger")).toContain("/videos/a-ranger");
   });
-  it("« À publier » et « Sur le site » seulement quand elles sont allumées", () => {
+  it("« Vidéos validées » (ex « À publier », décision de Williams du 08/11) et « Sur le site » seulement quand elles sont allumées", () => {
     expect(hrefs("publier")).not.toContain("/a-publier");
     expect(hrefs("publier", { aPublier: true })).toContain("/a-publier");
+    expect(hrefs("vidéos validées", { aPublier: true })).toContain("/a-publier");
     expect(hrefs("site")).not.toContain("/sur-le-site");
     expect(hrefs("site", { surLeSite: true })).toContain("/sur-le-site");
   });
