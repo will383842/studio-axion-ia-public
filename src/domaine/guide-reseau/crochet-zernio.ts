@@ -1,6 +1,7 @@
 // Parcours « mot → e-mail → guide » : crochet Zernio, PUR (aucun réseau, aucune base, aucun secret en dur).
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { RE_MOT_GUIDE } from "./cle-idempotence";
+import { normaliserMot } from "./mot-normalise";
 import { estMotOpposition } from "./opposition";
 
 /** Miroir du site (`src/content/guides-reseau.ts` : GUIDES_RESEAU_CONNUS). Liste FERMÉE ; à garder alignée sur le site. */
@@ -130,15 +131,18 @@ export function lireEvenementRun(env: EnveloppeZernio): EvenementRun | null {
 
 /** Miroir des mots de déclenchement configurés (liste FERMÉE, à garder alignée sur les guides du site). Pas de mot libre. */
 export const MOTS_DECLENCHEURS_CONNUS: readonly string[] = ["GUIDE"];
-/** Un mot composé uniquement de chiffres (ex. un numéro de téléphone) n'est jamais un mot de déclenchement. */
-const RE_SEULEMENT_CHIFFRES = /^\d+$/;
-/** Le mot seul si c'est un mot configuré (jamais uniquement des chiffres) ou un mot d'opposition ; tout autre texte (adresse, téléphone…) → null. */
+/**
+ * Le mot seul si c'est un mot configuré ou un mot d'opposition ; tout autre texte (adresse, téléphone, mot composé uniquement de chiffres…) → null.
+ * La comparaison aux mots configurés passe par `normaliserMot` (accents, ponctuation et émojis de bord ignorés) : le même commentaire est jugé
+ * pareil ici et dans le module de normalisation (« Guidé » et « GUIDE ! » donnent le même résultat). L'opposition reste prioritaire.
+ */
 export function motSeulDe(v: unknown, motsConnus: readonly string[] = MOTS_DECLENCHEURS_CONNUS): string | null {
   const t = texteBorne(v, 200);
   if (t === null) return null;
-  const maj = t.trim().toUpperCase();
-  if (RE_SEULEMENT_CHIFFRES.test(maj)) return null;
-  return motsConnus.includes(maj) || estMotOpposition(t) ? t.trim() : null;
+  if (estMotOpposition(t)) return t.trim();
+  const m = normaliserMot(t);
+  if (m === null) return null;
+  return motsConnus.some((c) => normaliserMot(c) === m) ? t.trim() : null;
 }
 
 export interface EvenementCommentaire {
@@ -196,7 +200,9 @@ export function lireEvenementCommentaire(env: EnveloppeZernio, motsConnus: reado
   const proprio = auteur?.isOwnAccount === true;
   const propre = proprio || auteur?.isSelf === true || c.isOwn === true || (idAuteur !== null && (idAuteur === idCompte || idAuteur === idOpaque(compte?.platformAccountId)));
   const texte = typeof c.text === "string" ? c.text : null;
-  const motSeul = texte !== null && texte.length <= 200 ? motSeulDe(texte, motsConnus)?.toUpperCase() ?? null : null;
+  const gardé = texte !== null && texte.length <= 200 ? motSeulDe(texte, motsConnus) : null;
+  // Mot configuré : forme normalisée (même jugement que `normaliserMot`) ; opposition : forme majuscule d'avant, inchangée.
+  const motSeul = gardé === null ? null : estMotOpposition(gardé) ? gardé.toUpperCase() : normaliserMot(gardé);
   const estReponse = c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== "");
   return {
     idCommentaire,
