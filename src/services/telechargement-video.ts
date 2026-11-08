@@ -61,8 +61,8 @@ export async function fichierATelecharger(videoId: Id, demande: DemandeFichier =
   if (!video || video.corbeilleLe) return null;
   const versions = (await d.versions.lister((v) => v.videoId === videoId && v.statut !== "maquette")).sort((a, b) => a.numero - b.numero);
   const version = versions.find((v) => v.id === video.versionChoisieId) ?? versions[versions.length - 1] ?? null;
-  const nom = (ratio?: string) => nomTelechargement(video.titre, demande.reseau, ratio ?? demande.ratio);
-  const cle = (c: string, ratio?: string): FichierATelecharger => ({ cle: c, nom: nom(demande.fil ? "fil" : ratio) });
+  const nom = (ratio?: string) => nomTelechargement(video.titre, demande.reseau, ratio);
+  const cle = (c: string, ratio?: string): FichierATelecharger => ({ cle: c, nom: nom(ratio) });
 
   // Image → vidéo : la livraison fait foi, un réseau non livré n'a pas de fichier (jamais le fichier d'un autre).
   const livraison = livraisonDe(version);
@@ -70,8 +70,8 @@ export async function fichierATelecharger(videoId: Id, demande: DemandeFichier =
     const livrees = livraison.filter((l) => l.version !== "aucune" && cleValide(l.fichierCle));
     const ligne = demande.reseau ? livrees.find((l) => l.reseau === demande.reseau) : (livrees.find((l) => l.format !== "4:5") ?? livrees[0]);
     if (!ligne) return null;
-    if (demande.fil && demande.reseau === "facebook") return cleValide(ligne.fichierCleFil) ? cle(ligne.fichierCleFil, "4:5") : null;
-    return cle(ligne.fichierCle as string, ligne.format === "4:5" ? "4:5" : undefined);
+    if (demande.fil && demande.reseau === "facebook") return cleValide(ligne.fichierCleFil) ? cle(ligne.fichierCleFil, "fil") : null;
+    return cle(ligne.fichierCle as string, ligne.format === "4:5" ? "4:5" : "9:16");
   }
 
   const sorties: Sortie[] = version ? await d.sorties.lister((s) => s.versionId === version.id) : [];

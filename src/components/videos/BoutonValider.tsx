@@ -24,7 +24,13 @@ export function BoutonValider({ videoId, prete, etape }: { videoId: string; pret
 
   function changer(vers: EtapeEditoriale, succes: string) {
     demarrer(async () => {
-      const r = await changerEtapeEditorialeAction(videoId, vers);
+      let r: Awaited<ReturnType<typeof changerEtapeEditorialeAction>>;
+      try {
+        r = await changerEtapeEditorialeAction(videoId, vers);
+      } catch {
+        notifier.erreur("Le serveur ne répond pas. Réessayez dans un instant.");
+        return;
+      }
       if (!r.ok) {
         notifier.erreur(r.message ?? "Un souci est survenu.");
         return;
