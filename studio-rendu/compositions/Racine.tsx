@@ -13,6 +13,7 @@ import { CompositionsCasConcret } from "./cas-concret/Compositions";
 import { CompositionsInterfaceClaire } from "./interface-claire/Compositions";
 import { CompositionsImageVideo } from "./image-video/Compositions";
 import { CompositionsVisuels } from "./visuels/Compositions";
+import { PLAN_VIDE, PlanDeScenes, metaPlanDeScenes } from "./plan-scenes/PlanDeScenes";
 import { tailleAccessoire, type ProprietesImageComposition, type ProprietesTexteComposition } from "../../src/briques/composition/scene";
 
 /** Données vides : les vraies arrivent par les propriétés de la demande de rendu. */
@@ -66,6 +67,7 @@ export function Racine() {
   return (
     <>
       <Composition id="Essai" component={Essai} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={{ titre: "Studio Axion-IA" }} />
+      <Composition id="PlanDeScenes" component={PlanDeScenes} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={PLAN_VIDE} calculateMetadata={metaPlanDeScenes} />
       <Composition id="SousTitres" component={CalqueSousTitres} durationInFrames={1} fps={25} width={1080} height={1920} defaultProps={CALQUE_VIDE} calculateMetadata={dureeCalque} />
       <Composition
         id="ApercuSousTitres"
