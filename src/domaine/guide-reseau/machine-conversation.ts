@@ -89,7 +89,7 @@ const estBlocage = (code: string | undefined): boolean => !!code && (CODES_BLOCA
 const secondes = (s: number | undefined, defautMs: number): number => (typeof s === "number" && Number.isFinite(s) && s > 0 ? Math.min(Math.ceil(s) * 1000, 3600_000) : defautMs);
 
 /** Transition PURE : (état courant | null, événement) → action à faire et correctif d'état. */
-export function transition(etat: Conversation | null, ev: EvenementMachine): Sortie {
+export function transition(etat: Conversation | null, ev: EvenementMachine, motsActifs: readonly string[] = ["GUIDE"]): Sortie {
   switch (ev.t) {
     case "commentaire": {
       if (ev.proprio) return { action: "ecarter", raison: "proprio" };
@@ -99,7 +99,7 @@ export function transition(etat: Conversation | null, ev: EvenementMachine): Sor
       if (ev.estReponse) return { action: "ecarter", raison: "reponse" };
       if (ev.motSeul === null) return { action: "ecarter", raison: "mot" };
       // Jamais de repli « mot inconnu → GUIDE » : seul le mot GUIDE ou une opposition a un effet.
-      if (ev.motSeul.trim().toUpperCase() !== "GUIDE") return { action: "ecarter", raison: "mot" };
+      if (!motsActifs.includes(ev.motSeul.trim().toUpperCase())) return { action: "ecarter", raison: "mot" };
       if (etat === null) return ev.ageMs > DELAI_PERIME_MS ? { action: "ecarter", raison: "perime" } : { action: "demarrer" };
       // Reprise du MÊME commentaire (réessai public ou privé), jamais un second parcours.
       if (etat.idCommentaire === ev.idCommentaire && (etat.etat === "nouveau" || etat.etat === "pub_ok")) return { action: "reprendre" };
