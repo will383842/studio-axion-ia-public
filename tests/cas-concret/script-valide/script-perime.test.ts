@@ -1,8 +1,7 @@
 /**
  * Script validé PÉRIMÉ (24/10/2026, prod v-76133af2a7d2) : un script validé depuis le studio pour une autre version du cas est
- * traité comme ABSENT (Claude écrit un nouveau script, la fabrication s'arrête à « Script à valider », la voix n'est payée
- * qu'après la validation de Will). Un script validé de la version courante est rejoué à l'identique, sans appel d'écriture.
- * Un script du CATALOGUE périmé reste un refus (défaut de code). Base en mémoire, simulation : rien de payé.
+ * REJOUÉ tel quel (08/11/2026 : jamais réécrit par Claude, l'écart est montré en remarque). Un script validé de la version courante est rejoué à l'identique, sans appel d'écriture.
+ * Base en mémoire, simulation : rien de payé.
  */
 import { hash } from "@node-rs/argon2";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,14 +13,13 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: (
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { creerServiceRenduSimule } = await import("@/fournisseurs/simulation/rendu");
-const { fournisseurVoixSimulation } = await import("@/fournisseurs/simulation/autres");
 const { creerMoteurMontageCasConcret } = await import("@/moteurs/montage-cas-concret");
 const auth = await import("@/services/auth");
 const b = await import("@/services/cas-concret-branchements");
 const scripts = await import("@/services/cas-concret-scripts");
 // L0a : « Valider ce script » réécrit le script de la vidéo (services/videos) : module chargé ici, pas pendant un test.
 await import("@/services/videos");
-const { CODE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_A_VALIDER, scriptValideDuCatalogue } = await import("@/moteurs/montage-cas-concret/script-valide");
+const { CODE_SCRIPT_A_VALIDER, ecartsScriptValide, scriptValideDuCatalogue } = await import("@/moteurs/montage-cas-concret/script-valide");
 const { texteDuCorps } = await import("@/moteurs/montage-cas-concret/fiche");
 const { ecrireParametre } = await import("@/services/_commun");
 const { trouverCas } = await import("@/formats/cas-concret/catalogue");
@@ -127,28 +125,20 @@ async function scriptValideDeLaVersionCourante() {
 }
 
 describe("script validé périmé", () => {
-  it("studio : un script validé pour la version N-1 (réglage du studio) est traité comme absent ; validé de nouveau, la vidéo se fait sans réécriture", async () => {
-    const lire = vi.spyOn(fournisseurVoixSimulation, "lire");
+  it("LOT A : un script validé pour la version N-1 est REJOUÉ tel quel (jamais réécrit par Claude, jamais refusé), l'écart est une remarque", async () => {
     const cas = trouverCas(CAS)!;
     const { c, courant } = await scriptValideDeLaVersionCourante();
     expect(courant.versionCas).toBe(cas.version);
-    // Le réglage casConcret.scriptsValides porte un script de la version N-1 ; raccord par défaut (réglage du studio puis catalogue).
-    await ecrireParametre(scripts.CLE_SCRIPTS_VALIDES, { [CAS]: { ...courant, versionCas: cas.version - 1 } });
+    const ancien = { ...courant, versionCas: cas.version - 1 };
+    await ecrireParametre(scripts.CLE_SCRIPTS_VALIDES, { [CAS]: ancien });
+    expect(ecartsScriptValide(ancien, cas)[0]).toMatch(new RegExp(`version ${cas.version - 1} du cas.*version ${cas.version}.*rejoué tel quel`));
+    expect(ecartsScriptValide(courant, cas)).toEqual([]);
     const { appels, executer } = ecritureComptee();
     const moteur = moteurAvec({ rendu: renduImmediat(), attendre: async () => {}, executer, claudeActif: async () => false });
-    const arrete = await jusquAuBout(moteur, c);
-    expect(arrete.statut).toBe("echec");
-    expect(arrete.erreur).toMatchObject({ code: CODE_SCRIPT_A_VALIDER, reessayable: true, messagePourWill: PHRASE_SCRIPT_A_VALIDER });
-    expect(appels.filter((x) => x === "ecriture-cas-concret")).toHaveLength(1);
-    expect(lire).not.toHaveBeenCalled();
-
-    // Will valide le nouveau script ; « Réessayer » : la vidéo se fait sans nouvel appel d'écriture.
-    await rangerTravail(arrete, c);
-    await scripts.validerScriptCasConcret(VIDEO, { maintenant: Date.UTC(2026, 9, 24) });
-    expect((await scripts.scriptValideDuStudio(CAS))!.versionCas).toBe(cas.version);
-    const fini = await jusquAuBout(moteur, c, await moteur.reessayer(arrete));
+    const fini = await jusquAuBout(moteur, c);
     expect(fini.statut).toBe("termine");
-    expect(appels.filter((x) => x === "ecriture-cas-concret")).toHaveLength(1);
+    expect(appels.filter((x) => x === "ecriture-cas-concret")).toHaveLength(0);
+    expect(texteDuCorps(scripts.ficheDuTravail(fini)!)).toBe(texteDuCorps({ ecrans: courant.ecrans } as never));
   });
 
   it("studio : un script validé de la version courante est rejoué à l'identique, sans aucun appel d'écriture", async () => {
@@ -162,17 +152,15 @@ describe("script validé périmé", () => {
     expect(texteDuCorps(fiche)).toBe(texteDuCorps({ ecrans: courant.ecrans } as never));
   });
 
-  it("« Nouveau script » : le script validé de la vidéo en version N-1 est traité comme absent (réessai sur « à valider », aucune voix)", async () => {
-    const lire = vi.spyOn(fournisseurVoixSimulation, "lire");
+  it("LOT A · « Nouveau script » : le script validé de la vidéo en version N-1 est rejoué tel quel, sans écriture de Claude", async () => {
     const cas = trouverCas(CAS)!;
     const { c, courant } = await scriptValideDeLaVersionCourante();
     const nouveau = { ...c, entrees: { casConcret: { ...(c.entrees as { casConcret: object }).casConcret, nouveauScript: 1 } } } as unknown as CommandeFabrication;
     const { appels, executer } = ecritureComptee();
     const moteur = moteurAvec({ rendu: renduImmediat(), attendre: async () => {}, executer, claudeActif: async () => false, scriptValideDeLaVideo: async () => ({ ...courant, versionCas: cas.version - 1 }) });
-    const arrete = await jusquAuBout(moteur, nouveau);
-    expect(arrete.erreur).toMatchObject({ code: CODE_SCRIPT_A_VALIDER, reessayable: true });
-    expect(appels.filter((x) => x === "ecriture-cas-concret")).toHaveLength(1);
-    expect(lire).not.toHaveBeenCalled();
+    const fini = await jusquAuBout(moteur, nouveau);
+    expect(fini.statut).toBe("termine");
+    expect(appels.filter((x) => x === "ecriture-cas-concret")).toHaveLength(0);
   });
 
   it("catalogue : un réglage du studio périmé retombe sur le script du catalogue, valide pour la version courante (rejoué, sans écriture)", async () => {
@@ -186,7 +174,7 @@ describe("script validé périmé", () => {
     expect(appels.filter((x) => x === "ecriture-cas-concret")).toHaveLength(0);
   });
 
-  it("catalogue : un script du catalogue périmé reste un refus (jamais écrit à nouveau en silence)", async () => {
+  it("LOT A · catalogue : un script du catalogue périmé est rejoué aussi (jamais refusé, jamais réécrit)", async () => {
     const script = scriptValideDuCatalogue("recrutement-apporteurs")!;
     const cas = trouverCas("recrutement-apporteurs")!;
     const avant = script.versionCas;
@@ -195,9 +183,7 @@ describe("script validé périmé", () => {
       const { appels, executer } = ecritureComptee();
       const moteur = moteurAvec({ rendu: renduImmediat(), attendre: async () => {}, executer, claudeActif: async () => false });
       const travail = await jusquAuBout(moteur, commande("recrutement-apporteurs"));
-      expect(travail.statut).toBe("echec");
-      expect(travail.erreur?.code).not.toBe(CODE_SCRIPT_A_VALIDER);
-      expect(travail.erreur?.messagePourWill ?? "").toContain("revalider");
+      expect(travail.statut).toBe("termine");
       expect(appels.filter((x) => x === "ecriture-cas-concret")).toHaveLength(0);
     } finally {
       (script as { versionCas: number }).versionCas = avant;

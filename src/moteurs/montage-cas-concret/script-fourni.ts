@@ -27,7 +27,7 @@ import {
   type FinPlanifiee,
 } from "./fiche";
 import { planDesFins } from "./fins";
-import { DEBIT_RECETTE, DUREE_TOTALE_REFUS_MS, dureeFinMs, dureeFinParDefautMs, MOTS_MAX, nombresDe, sansPointsDeSigle, tempsEcrans, texteNormalise, validerFicheEcrans } from "./regles";
+import { DEBIT_RECETTE, DUREE_TOTALE_REFUS_MS, dureeFinMs, dureeFinParDefautMs, MOTS_MAX, nombresDe, sansPointsDeSigle, tempsEcrans, texteNormalise, validerFicheEcransTolerant } from "./regles";
 import { scriptDeFiche, type EcranScript } from "./script-valide";
 import { ETIQUETTE_POSTURE } from "@/formats/cas-concret/recette";
 import type { ContexteCasConcret } from "./regles";
@@ -243,13 +243,14 @@ const relaisDuVisuel = (objet: string): string[] => [EVENEMENT_DE_L_OBJET[objet 
 
 type Brouillon = Record<string, unknown>;
 
-export type FicheDuTexte = { ok: true; brute: { ecrans: Brouillon[] }; lignes: LigneFournie[] } | { ok: false; refus: RefusFourni[] };
+export type FicheDuTexte = { ok: true; brute: { ecrans: Brouillon[] }; lignes: LigneFournie[]; remarques?: string[] } | { ok: false; refus: RefusFourni[] };
 
 /** Une fiche brute (avant `completerFiche`) : un écran par ligne, aucun hasard. */
 export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheDuTexte {
   const lu = lireTexteFourni(texte, cas);
   if (!lu.ok) return lu;
   const refus: RefusFourni[] = [];
+  const remarquesFiche: string[] = [];
   const non = (l: LigneFournie, message: string) => void refus.push({ ligne: l.rang, message: `Ligne ${l.rang} : ${message}` });
   const ecrans: Brouillon[] = [];
 
@@ -261,7 +262,11 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
     switch (l.forme) {
       case "accroche": {
         const n = nombreLus(l.texte);
-        if (n > 8 || n < 2) return non(l, `l'accroche compte ${n} mot${n > 1 ? "s" : ""} ; de 2 à 8 mots. Dites le sujet de la vidéo, par exemple « ${cas.recit?.sujet ?? cas.promesse} ».`);
+        // 08/11/2026 : une accroche longue n'est qu'une remarque. Limite TECHNIQUE seulement : l'écran d'accroche porte 3 lignes de
+        // 3 mots au plus (9 mots) ; un mot seul ne se met pas en page.
+        if (n > 9) return non(l, `l'accroche compte ${n} mots ; l'écran d'accroche en tient 9 au plus. Gardez l'idée, coupez le reste.`);
+        if (n < 2) return non(l, `l'accroche compte ${n} mot${n > 1 ? "s" : ""} ; il en faut au moins 2. Dites le sujet de la vidéo, par exemple « ${cas.recit?.sujet ?? cas.promesse} ».`);
+        if (n > 8) remarquesFiche.push(`Ligne ${l.rang} : l'accroche compte ${n} mots ; l'habitude est de 8 au plus.`);
         const mots = sansPointsDeSigle(sansPointFinal(l.texte)).split(/\s+/);
         const nl = mots.length <= 6 ? 2 : 3;
         const tailles = Array.from({ length: nl }, (_, k) => Math.floor(mots.length / nl) + (k < mots.length % nl ? 1 : 0));
@@ -360,7 +365,7 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
       }
     }
   });
-  return refus.length ? { ok: false, refus } : { ok: true, brute: { ecrans }, lignes: lu.lignes };
+  return refus.length ? { ok: false, refus } : { ok: true, brute: { ecrans }, lignes: lu.lignes, remarques: remarquesFiche };
 }
 
 /* ------------------------------------------------------------------ */
@@ -378,7 +383,7 @@ export function bornesDesFins(cas: Pick<CasConcret, "offre" | "nature" | "mot">)
 }
 
 export type ControleFourni =
-  | { ok: true; ecrans: EcranScript[]; dureeMs: { min: number; max: number }; lignes: LigneFournie[] }
+  | { ok: true; ecrans: EcranScript[]; dureeMs: { min: number; max: number }; lignes: LigneFournie[]; remarques: string[]; avertissements: string[] }
   | { ok: false; refus: RefusFourni[]; dureeMs?: { min: number; max: number } };
 
 /** Un refus des règles, dit en « Ligne N : … » avec le geste à faire (la durée totale est jugée à part, par `controlerTexteFourni`). */
@@ -429,15 +434,15 @@ export function controlerTexteFourni(texte: unknown, cas: CasConcret, options: {
   if (!f.ok) return f;
   // Le nombre de lignes et d'étapes se dit tout de suite, en clair (sinon le schéma refuserait par un message technique).
   const nbEtapes = f.lignes.filter((l) => l.forme === "etape").length;
-  if (f.lignes.length < 12 || f.lignes.length > 26 || nbEtapes < 3 || nbEtapes > 7) {
-    const refus: RefusFourni[] = [];
-    if (f.lignes.length < 12 || f.lignes.length > 26) refus.push({ message: `Le script compte ${f.lignes.length} lignes. Il faut de 12 à 26 lignes (une ligne = un écran).` });
-    if (nbEtapes < 3 || nbEtapes > 7) refus.push({ message: `Le script compte ${nbEtapes} ligne${nbEtapes > 1 ? "s" : ""} d'étape. Il faut de 3 à 7 étapes ([étape]).` });
-    return { ok: false, refus };
-  }
+  // 08/11/2026 : le script de Will fait foi. Le nombre de lignes et d'étapes est une REMARQUE, pas un refus.
+  const remarques: string[] = [...(f.remarques ?? [])];
+  const avertissements: string[] = [];
+  if (f.lignes.length < 12 || f.lignes.length > 26) remarques.push(`Le script compte ${f.lignes.length} lignes ; l'habitude est de 12 à 26 (une ligne = un écran).`);
+  if (nbEtapes < 3 || nbEtapes > 7) remarques.push(`Le script compte ${nbEtapes} ligne${nbEtapes > 1 ? "s" : ""} d'étape ; l'habitude est de 3 à 7 ([étape]).`);
   const c = completerFiche(f.brute, { ...fixe, cas });
   const lignes = f.lignes;
   const refus: RefusFourni[] = [];
+  const noter = (liste: string[], m: string) => void (liste.includes(m) || liste.push(m));
   const vus = new Set<string>();
   const ajouter = (r: RefusFourni) => {
     if (vus.has(r.message)) return;
@@ -448,14 +453,20 @@ export function controlerTexteFourni(texte: unknown, cas: CasConcret, options: {
   const forme = validerSchemaFiche(c.brute);
   if (!forme.ok) {
     for (const p of forme.problemes) ajouter(messageFourni(p, cas));
+    // Impossibilité technique (la fiche ne se lit pas) : on garde aussi le nombre de lignes dit en clair.
+    for (const r of remarques) ajouter({ message: r });
     return { ok: false, refus };
   }
   const { courte } = bornesDesFins(cas);
   const contexte = { cas, texteScript: texteDuCorps(forme.fiche), ...(options.motsInterdits?.length ? { motsInterdits: options.motsInterdits } : {}) } as ContexteCasConcret;
   // Les règles que la fabrication rejoue, avec la fin la plus courte puis la plus longue (la durée totale est jugée plus bas).
   for (const fins of [[courte], undefined] as const) {
-    const v = validerFicheEcrans(c.brute, { ...contexte, ...(fins ? { fins } : {}) });
-    if (!v.ok) for (const p of v.problemes) if (p.regle !== "durée totale") ajouter(messageFourni(p, cas));
+    const v = validerFicheEcransTolerant(c.brute, { ...contexte, ...(fins ? { fins } : {}) });
+    if (!v.ok) for (const p of v.problemes) ajouter(messageFourni(p, cas));
+    else {
+      for (const p of v.remarques) if (p.regle !== "durée totale") noter(remarques, messageFourni(p, cas).message);
+      for (const p of v.avertissements) noter(avertissements, messageFourni(p, cas).message);
+    }
   }
   // R21 comme la règle : le corps au débit de la recette, plus la fin la plus courte (trop court) ou la plus longue (trop long).
   const temps = tempsEcrans(forme.fiche.ecrans, DEBIT_RECETTE);
@@ -464,11 +475,11 @@ export function controlerTexteFourni(texte: unknown, cas: CasConcret, options: {
   // Vers le bas pour « trop court », vers le haut pour « trop long » : le nombre dit n'est jamais du bon côté de la borne.
   const secBas = (ms: number) => String(Math.floor(ms / 100) / 10).replace(".", ",");
   const secHaut = (ms: number) => String(Math.ceil(ms / 100) / 10).replace(".", ",");
-  if (dureeMs.min < DUREE_TOTALE_REFUS_MS.min) ajouter({ message: `Durée : avec la fin la plus courte la vidéo ferait environ ${secBas(dureeMs.min)} s, il en faut au moins ${DUREE_TOTALE_REFUS_MS.min / 1000} : ajoutez une phrase.` });
-  if (dureeMs.max > DUREE_TOTALE_REFUS_MS.max) ajouter({ message: `Durée : avec la fin la plus longue la vidéo ferait environ ${secHaut(dureeMs.max)} s, ${DUREE_TOTALE_REFUS_MS.max / 1000} au plus : retirez une phrase.` });
+  if (dureeMs.min < DUREE_TOTALE_REFUS_MS.min) noter(remarques, `Durée : avec la fin la plus courte la vidéo ferait environ ${secBas(dureeMs.min)} s ; l'habitude est d'au moins ${DUREE_TOTALE_REFUS_MS.min / 1000} s.`);
+  if (dureeMs.max > DUREE_TOTALE_REFUS_MS.max) noter(remarques, `Durée : avec la fin la plus longue la vidéo ferait environ ${secHaut(dureeMs.max)} s ; l'habitude est de ${DUREE_TOTALE_REFUS_MS.max / 1000} s au plus.`);
   if (refus.length) return { ok: false, refus, dureeMs };
   const script = scriptDeFiche(forme.fiche, { versionCas: cas.version, valideLe: "2000-01-01", source: "contrôle" });
-  return { ok: true, ecrans: script.ecrans, dureeMs, lignes };
+  return { ok: true, ecrans: script.ecrans, dureeMs, lignes, remarques, avertissements };
 }
 
 /* ------------------------------------------------------------------ */

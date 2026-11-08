@@ -1073,6 +1073,34 @@ export function problemesDuCas(cas: CasConcret): ProblemeFiche[] {
   return [{ regle, message: `Fiche · règle « ${regle} » : le document promis « ${cas.documentPromis.nom} » ne correspond pas au cadeau annoncé par la fin de l'offre.` }];
 }
 
+/**
+ * Décision de Will du 08/11/2026 : le script de Will (écrit, collé, modifié) fait foi. Ces règles ne REFUSENT plus son script.
+ * `REGLES_REMARQUES` : durée, nombre d'écrans, accroche, tutoiement, rythme : une simple remarque.
+ * `REGLES_AVERTISSEMENTS` : mots interdits (« machine », mots légaux), faux témoignage, chiffres douteux : un avertissement très visible.
+ * Les autres règles (marque, visuels connus, ordre du fonctionnement…) restent bloquantes : sans elles la vidéo ne se fabrique pas.
+ */
+export const REGLES_REMARQUES: readonly string[] = ["durée d'un écran", "rythme", "accroche", "vouvoiement", "nombre d'écrans", "durée totale"];
+export const REGLES_AVERTISSEMENTS: readonly string[] = ["mots interdits", "nombres des faits", "réserve des estimations", "aucun témoignage", "aucun usage réel", "aucun prix", "phrase de conformité", "sigles"];
+
+export type ResultatFicheTolerant =
+  | { ok: true; fiche: FicheEcrans; remarques: ProblemeFiche[]; avertissements: ProblemeFiche[] }
+  | { ok: false; problemes: ProblemeFiche[] };
+
+/** Comme `validerFicheEcrans`, pour le script de Will : seules les règles techniques refusent, le reste devient remarque ou avertissement. */
+export function validerFicheEcransTolerant(brut: unknown, contexte: ContexteCasConcret): ResultatFicheTolerant {
+  const forme = validerSchemaFiche(brut);
+  if (!forme.ok) return forme;
+  const problemes = [...problemesDuCas(contexte.cas), ...verifierRegles(forme.fiche, contexte, REGLES_CAS_CONCRET)];
+  const bloquants = problemes.filter((p) => !REGLES_REMARQUES.includes(p.regle) && !REGLES_AVERTISSEMENTS.includes(p.regle));
+  if (bloquants.length) return { ok: false, problemes: bloquants };
+  return {
+    ok: true,
+    fiche: forme.fiche,
+    remarques: problemes.filter((p) => REGLES_REMARQUES.includes(p.regle)),
+    avertissements: problemes.filter((p) => REGLES_AVERTISSEMENTS.includes(p.regle)),
+  };
+}
+
 /** Validation complète : schéma exact (R01), document promis du cas, puis les règles R02 à R22. Ne modifie jamais la fiche. */
 export function validerFicheEcrans(brut: unknown, contexte: ContexteCasConcret): ResultatFiche<FicheEcrans> {
   const forme = validerSchemaFiche(brut);
