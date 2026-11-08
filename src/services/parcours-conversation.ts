@@ -457,9 +457,10 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
   const c = ev.charge;
   const occurredAt = typeof c.occurredAt === "string" ? c.occurredAt : undefined;
   const idExpediteur = typeof c.idExpediteur === "string" && c.idExpediteur ? c.idExpediteur : undefined;
+  const idPlateforme = typeof c.idPlateforme === "string" && c.idPlateforme ? c.idPlateforme : undefined;
   let lu: MessageLu;
   try {
-    lu = await d.port.lireMessage({ idCompte, idConversation, idMessage, ...(occurredAt ? { occurredAt } : {}), ...(idExpediteur ? { idExpediteur } : {}) });
+    lu = await d.port.lireMessage({ idCompte, idConversation, idMessage, ...(idPlateforme ? { idPlateforme } : {}), ...(occurredAt ? { occurredAt } : {}), ...(idExpediteur ? { idExpediteur } : {}) });
   } catch {
     lu = { texte: null, postback: null, panne: true };
   }
