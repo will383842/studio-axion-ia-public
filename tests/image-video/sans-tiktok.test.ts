@@ -92,7 +92,7 @@ describe("(b) une ancienne demande ou vidéo avec « tiktok » reste lisible", (
     ]);
     expect(cartes.map((c) => c.nom)).toEqual(["TikTok", "LinkedIn", "Facebook"]);
     expect(cartes[0].fichierCle).toBe("final/tt.mp4");
-    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videos: cartes.map((c) => ({ ...c, url: `https://exemple/${c.fichierCle}` })), verdict: "" as never })));
+    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: cartes.map((c) => ({ ...c, url: `https://exemple/${c.fichierCle}` })), verdict: "" as never })));
     expect(html).toContain("TikTok");
     expect(html).toContain("Télécharger");
   });
