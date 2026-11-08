@@ -116,7 +116,7 @@ describe("coupes dans un silence mesuré", () => {
     const p = planRaccordVoix(corps, fin);
     const r = recalerCoupesSurSilences(p, { corps: corps.mots, fin: fin.mots }, { 0: silencesCorps, 1: silencesFin });
     const ecart = r.plan.morceaux.filter((m) => m.source === 0 && !m.silence).at(-1)!.finSec - 1.2;
-    const k = 1.08;
+    const k = 1;
     expect(r.plan.mots[2].debutSec - p.mots[2].debutSec).toBeCloseTo(ecart / k, 3);
     expect(r.plan.mots[0]).toEqual(p.mots[0]);
     expect(r.plan.dureeSec - p.dureeSec).toBeCloseTo(ecart / k, 3);
@@ -149,8 +149,8 @@ describe("coupe déjà dans un blanc mais à quelques ms de son début (v-0250d2
     const r = recalerCoupesSurSilences(p, { corps: corps.mots, fin: fin.mots }, { 0: blancs(1.29), 1: silencesFin }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET);
     expect(dernier(r.plan).finSec).toBeCloseTo(1.33, 4);
     expect(r.coupesDeplacees).toBe(1);
-    expect(r.plan.mots[2].debutSec - p.mots[2].debutSec).toBeCloseTo(0.03 / 1.08, 3);
-    expect(r.plan.dureeSec - p.dureeSec).toBeCloseTo(0.03 / 1.08, 3);
+    expect(r.plan.mots[2].debutSec - p.mots[2].debutSec).toBeCloseTo(0.03 / 1, 3);
+    expect(r.plan.dureeSec - p.dureeSec).toBeCloseTo(0.03 / 1, 3);
     expect(r.plan.mots.slice(0, 2)).toEqual(p.mots.slice(0, 2));
   });
 
@@ -193,7 +193,7 @@ describe("coupe déjà dans un blanc mais à quelques ms de son début (v-0250d2
     expect(r.plan.morceaux[i].finSec).toBeCloseTo(1.33, 4);
     expect(r.plan.morceaux[i + 1].debutSec).toBeCloseTo(plan.morceaux[i + 1].debutSec, 4);
     expect(r.coupesDeplacees).toBe(1);
-    expect(r.plan.mots[2].debutSec - plan.mots[2].debutSec).toBeCloseTo(0.03 / 1.08, 3);
+    expect(r.plan.mots[2].debutSec - plan.mots[2].debutSec).toBeCloseTo(0.03 / 1, 3);
     expect(r.plan.mots.slice(0, 2)).toEqual(p.mots.slice(0, 2));
   });
 

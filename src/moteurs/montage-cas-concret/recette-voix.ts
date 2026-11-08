@@ -12,7 +12,7 @@
 import type { MotHorodate } from "@/domaine/types";
 
 export const RECETTE_VOIX_CAS_CONCRET = Object.freeze({
-  id: "voix-cas-concret/recette-1",
+  id: "voix-cas-concret/recette-2",
   /** La voix HeyGen déjà en service, moteur `starfish`, vitesse 1,1, fr-FR. */
   synthese: Object.freeze({ fournisseur: "heygen", moteur: "starfish", vitesse: 1.1, locale: "fr-FR" }),
   resserrage: Object.freeze({
@@ -30,9 +30,11 @@ export const RECETTE_VOIX_CAS_CONCRET = Object.freeze({
     queueSec: 0.45,
   }),
   filtres: Object.freeze({
-    atempo: 1.08 as number, // `number` (et non le littéral 1,08) : Image → vidéo dérive sa propre recette à ×1,05 (`RECETTE_VOIX_IV`)
+    // Lot E : HeyGen lit déjà à 1,1 (`synthese.vitesse`) ; plus d'accélération en plus (c'était 1,08, soit ×1,19 en tout).
+    atempo: 1 as number, // `number` (et non le littéral 1) : Image → vidéo dérive sa propre recette à ×1,05 (`RECETTE_VOIX_IV`)
     passeHaut: "highpass=f=70",
-    compresseur: "acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=3",
+    // Lot E : doux et lent (seuil haut, rapport 2) pour que la fin de phrase, plus basse, ne soit pas remontée ; mesuré par `tests/lot-e`.
+    compresseur: "acompressor=threshold=-10dB:ratio=2:attack=25:release=250:makeup=1",
     volume: "loudnorm=I=-14:TP=-1.5:LRA=7",
   }),
   fin: Object.freeze({ fonduSortieSec: 0.22, silenceSec: 0.8 }),
