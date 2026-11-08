@@ -17,7 +17,7 @@ const MESSAGE_PERSONNE = `Bonjour, voici mon adresse ${ADRESSE} merci beaucoup`;
 
 async function verifier(): Promise<void> {
   const j = await journal();
-  expect(j.length).toBeGreaterThan(2); // le journal n'est pas vide : la vérification a un sens
+  expect(j.startsWith("[{")).toBe(true); // au moins un événement : la vérification a un sens (la longueur exacte varie selon le cas)
   expect(j).not.toContain(ADRESSE);
   expect(j).not.toContain("exemple.test");
   expect(j).not.toContain("@");
@@ -54,12 +54,12 @@ describe("9 · le journal ne contient ni texte de message ni adresse", () => {
     await verifier();
   });
   it("« stop » en commentaire et en message privé, refus définitif du site", async () => {
+    banc.site.reponses = () => ({ statut: 422, corps: {} }); // posée AVANT le passage : la réponse 422 est bien celle que le site donnerait
     await deposerCommentaire(depots, { reseau: "facebook", motSeul: "STOP", idAuteur: "auteur-fictif-402" });
     await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(AUTEUR)]: graineConv("attente_email") });
     lireTexteDe("stop");
     await deposerMessage(depots, {});
     await passer();
-    banc.site.reponses = () => ({ statut: 422, corps: {} });
     await verifier();
   });
   it("gardes bloquantes (alertes) : Tout arrêter, disjoncteur, compte hors liste", async () => {

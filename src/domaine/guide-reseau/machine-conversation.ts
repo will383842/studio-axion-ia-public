@@ -136,7 +136,7 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       if (ev.sortant === true || ev.idExpediteur === null || ev.idExpediteur === ev.idCompte) return { action: "ecarter", raison: "echo" };
       if (etat === null) return { action: "orphelin_reessai", raison: "orphelin" };
       if (etat.etat === "guide_demande" && etat.idMessageGuide === ev.idMessage) return { action: "reprendre_recu" };
-      // Déjà opposée : rien à lire. Tout AUTRE état connu : le texte est lu pour y repérer une opposition (jamais autre chose).
+      // Déjà opposée : rien à lire. États de ETATS_MESSAGE_ACCEPTES : lecture complète (adresse ou opposition). Tout AUTRE état connu : le texte est lu pour y repérer une opposition SEULEMENT.
       if (etat.etat === "oppose") return { action: "silence", raison: "etat" };
       if (!ETATS_MESSAGE_ACCEPTES.includes(etat.etat)) return { action: "lire_opposition", raison: "etat" };
       return { action: "lire" };
