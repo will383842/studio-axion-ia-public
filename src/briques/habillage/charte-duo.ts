@@ -7,26 +7,28 @@
  * Le contraste se mesure avec `contraste.ts`.
  */
 
-import { FAMILLE_CSS, POLICE, PALETTE } from "../charte/axion-2026";
-
 export const VERSION_CHARTE_DUO = "charte-duo/1";
 
-/** Couleurs par rôle. L'orange est un accent : sur ivoire `orange`, sur nuit `orangeVif`. */
+/**
+ * Couleurs par rôle, palette 2026 (V7-03) : ivoire #FAF9F5, noir #141413, terracotta #B23F16 (`orange`, sur ivoire),
+ * orange #D97757 et gris #B0AEA5 (`orangeVif`, `grisClair` : sur nuit seulement). Les noms de rôle sont conservés pour
+ * les compositions qui les importent ; les rôles `nuitHaut`, `nuitLueur`, `ivoireHaut`, `blanc` valent la couleur de
+ * leur fond (plus de dégradé ni de blanc pur). `gris` (texte secondaire sur ivoire) vaut le noir. `vert` (ancien
+ * accent vert, supprimé) garde son nom le temps de migrer les plans qui l'importent : il vaut la terracotta.
+ */
 export const COULEURS_DUO = Object.freeze({
-  nuit: PALETTE.noir,
-  nuitHaut: PALETTE.noir,
-  nuitLueur: PALETTE.terracotta,
-  ivoire: PALETTE.ivoire,
-  ivoireHaut: PALETTE.ivoire,
-  encre: PALETTE.noir,
-  orange: PALETTE.terracotta,
-  orangeVif: PALETTE.orange,
-  /** Texte secondaire sur ivoire : le noir (la charte n'a pas de gris pour le texte sur clair). */
-  gris: PALETTE.noir,
-  grisClair: PALETTE.grisSurNoir,
-  /** Plus de vert dans la charte 2026 : l'accent. */
-  vert: PALETTE.orange,
-  blanc: PALETTE.ivoire,
+  nuit: "#141413",
+  nuitHaut: "#141413",
+  nuitLueur: "#141413",
+  ivoire: "#FAF9F5",
+  ivoireHaut: "#FAF9F5",
+  encre: "#141413",
+  orange: "#B23F16",
+  orangeVif: "#D97757",
+  gris: "#141413",
+  grisClair: "#B0AEA5",
+  vert: "#B23F16",
+  blanc: "#FAF9F5",
 } as const);
 
 export type RoleCouleurDuo = keyof typeof COULEURS_DUO;
@@ -48,13 +50,13 @@ export const FONDS = Object.freeze({
 });
 
 /**
- * Polices : Manrope seule (charte Axion 2026, SIL OFL 1.1), rangée dans
+ * Polices : Anton (affiche, SIL OFL 1.1) et Inter Bold (texte, SIL OFL 1.1), rangées dans
  * `studio-rendu/compositions/commune/polices/` et chargées PAR FONCTION (`commune/polices.ts`), jamais à l'import.
  * `droit` = identifiant de l'entrée du registre des droits.
  */
 export const POLICES_DUO = Object.freeze({
-  affiche: Object.freeze({ famille: FAMILLE_CSS, graisse: 800, voulue: POLICE, droit: "police-manrope" }),
-  texte: Object.freeze({ famille: FAMILLE_CSS, graisse: 700, voulue: POLICE, droit: "police-manrope" }),
+  affiche: Object.freeze({ famille: "Axion Anton", graisse: 400, voulue: "Anton", droit: "police-anton" }),
+  texte: Object.freeze({ famille: "Axion Inter Bold", graisse: 700, voulue: "Inter", droit: "police-inter" }),
 });
 
 /** Plancher (fraction de la hauteur) de tout texte porteur de sens, sauf `etiquette` et `marque`. */
@@ -88,6 +90,5 @@ export const COUPLES_TEXTE_DUO: readonly CouleurFondDuo[] = Object.freeze([
 export const COUPLES_AFFICHE_DUO: readonly CouleurFondDuo[] = Object.freeze([
   Object.freeze({ texte: "orangeVif", fond: "nuit" }),
   Object.freeze({ texte: "orange", fond: "ivoire" }),
-  Object.freeze({ texte: "vert", fond: "nuit" }),
   Object.freeze({ texte: "gris", fond: "ivoire" }),
 ] as const);

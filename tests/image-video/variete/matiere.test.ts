@@ -133,14 +133,14 @@ describe("MAT · toile", () => {
     expect((rendreToile(b, fin).match(/data-plateau=/g) ?? []).length).toBe(colonnes(b.proprietes.mots.map((m) => m.noeud)));
     expect(rendreToile(b, 0)).not.toContain("data-plateau=");
     const html = rendreToile(b, b.proprietes.mots[1].t + 0.5);
-    expect(html).toMatch(/top:22px;width:\d+px;height:\d+px;border-radius:34px;background:#(C2532A|2A150B)/);
+    expect(html).toMatch(/top:22px;width:\d+px;height:\d+px;border-radius:34px;background:#(B23F16|141413)/);
   });
 
   it("MAT-B : les cartes sont en papier (ivoire clair) avec une ombre plus profonde", () => {
     const b = toileC("MAT-B");
     const html = rendreToile(b, b.proprietes.mots[1].t + 0.5);
-    expect(html).toContain("background:#FBF8F3");
-    expect(html).toContain("0 34px 90px #15100C1f");
+    expect(html).toContain("background:#FAF9F5");
+    expect(html).toContain("0 34px 90px #1414131f");
   });
 });
 

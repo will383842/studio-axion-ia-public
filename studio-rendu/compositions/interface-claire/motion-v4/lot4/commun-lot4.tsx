@@ -1,4 +1,3 @@
-import { FAMILLE_CSS } from "../../../../../src/briques/charte/axion-2026";
 import React from "react";
 /**
  * BRIQUES COMMUNES du lot 4 « Fenêtres vidéo » (standard DA v4 du 16/10, §§ A à D). Version LOCALE : l'intégration fusionnera
@@ -12,7 +11,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { continueRender, delayRender } from "remotion";
 import { GAIN_BRUITAGES, mediaV4 } from "../communs/medias-v4";
 import { placerDansZoneSure, Y_ST_MAX, Y_ST_MIN } from "../communs/zone-sure-v4";
-import manropeVariable from "../../../commune/polices/Manrope-Variable.ttf";
+import montserratBlack from "./polices/Montserrat-Black.ttf";
 
 export const FPS = 30;
 export const L = 1080;
@@ -28,14 +27,14 @@ const { ENCRE, IVOIRE, BLANC, GRIS } = COULEURS;
 export const ombre = (taille: "S" | "M" | "L", k = 1): string => `${OMBRE[taille][0] * k}px ${OMBRE[taille][1] * k}px 0 0 ${ENCRE}`;
 
 /* ------------------------------------------------------------------ Police ------------------------------------------------------------------ */
-export const MONTSERRAT = FAMILLE_CSS;
-export const INTER = FAMILLE_CSS;
+export const MONTSERRAT = "Axion Montserrat Black";
+export const INTER = "Inter, 'Axion Inter Bold', system-ui, sans-serif";
 let chargement: Promise<void> | null = null;
-/** Charge Manrope (SIL OFL 1.1) en local ; le rendu attend la police (jamais une police de secours). */
+/** Charge Montserrat Black (SIL OFL 1.1) en local ; le rendu attend la police (jamais une police de secours). */
 export function chargerMontserratBlack(): void {
   if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Police Manrope");
-  const face = new FontFace(FAMILLE_CSS, `url(${manropeVariable})`, { weight: "200 800" });
+  const attente = delayRender("Police Montserrat Black");
+  const face = new FontFace(MONTSERRAT, `url(${montserratBlack})`, { weight: "900" });
   chargement = face.load().then((f) => {
     document.fonts.add(f);
     continueRender(attente);

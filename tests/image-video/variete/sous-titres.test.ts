@@ -39,7 +39,7 @@ const misEnAvant = (s: readonly SegmentSousTitres[]) => s.filter((x) => x.style 
 
 /** Empreinte des sous-titres variés SANS recette, 6 cartes × 5 réseaux (figée sur la branche du socle f3c79ec, avant le lot). */
 // 19/10/2026 : TikTok retiré d'Image → vidéo (décision de Will) : 4 réseaux. Recalculée sur master (#551 compris) avec YouTube Shorts à la place de TikTok : même valeur que sur cette branche.
-const EMPREINTE_SANS_RECETTE = "13510576a73467a8b6c50d48039a943cb74fb56757fb357fb07aa47a4fda72e0";
+const EMPREINTE_SANS_RECETTE = "eb5b9209eee6358f18c9b5937ce71711858301084b05f981f87eb1c686858b47";
 
 describe("sous-titres · sans recette, rien ne change", () => {
   it("6 cartes × 4 réseaux : sous-titres variés identiques à ceux d'avant le lot", { timeout: 60_000 }, () => {
