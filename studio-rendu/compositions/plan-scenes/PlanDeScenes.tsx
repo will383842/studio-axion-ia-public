@@ -12,7 +12,7 @@ export type ProprietesPlanDeScenes = {
 };
 
 let chargement: Promise<void> | null = null;
-function chargerManrope(): void {
+export function chargerManrope(): void {
   if (chargement || typeof document === "undefined") return;
   const attente = delayRender("Police Manrope");
   const face = new FontFace("Manrope", `url(${manrope})`, { weight: "200 800" });
