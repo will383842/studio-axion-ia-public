@@ -23,12 +23,12 @@ describe("style nommé « Pastille Axion » (ajout pur)", () => {
     const el = sceneAuTemps(d, 1.6)!;
     expect(el.opacite).toBe(1);
     expect(el.taillePx).toBeGreaterThanOrEqual(52);
-    expect(el.mots.map((m) => m.couleur)).toEqual(["#F6F1E8", "#E8A27F", "#F6F1E8"]);
+    expect(el.mots.map((m) => m.couleur)).toEqual(["#FAF9F5", "#D97757", "#FAF9F5"]);
     expect(el.mots[1].echelle!).toBeGreaterThan(1.02);
     expect(el.mots[1].echelle!).toBeLessThanOrEqual(1.06);
     expect(el.mots[1].monteePx!).toBeLessThan(0);
-    const css = cssElement(el, d, "Inter");
-    expect(css.ligne).toMatchObject({ background: "#110A05", borderRadius: 9999, color: "#F6F1E8" });
+    const css = cssElement(el, d, "Manrope");
+    expect(css.ligne).toMatchObject({ background: "#141413", borderRadius: 9999, color: "#FAF9F5" });
     expect(css.ligne.textShadow).toBeUndefined();
     expect(css.ligne.WebkitTextStroke).toBeUndefined();
     expect(String(css.mot(1).transform)).toMatch(/scale\(1\.0[1-5]/);

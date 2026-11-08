@@ -1,3 +1,4 @@
+import { FAMILLE_CSS } from "../../../../../src/briques/charte/axion-2026";
 import React from "react";
 /**
  * BRIQUES COMMUNES du lot 2 « Cartes qui se construisent » (standard v4 du 16/10, § B, C, D, E).
@@ -10,9 +11,7 @@ import React from "react";
 import { Audio, continueRender, delayRender, Easing, interpolate, OffthreadVideo, Sequence, spring } from "remotion";
 import { GAIN_BRUITAGES, mediaV4 } from "../communs/medias-v4";
 import type { CSSProperties, ReactNode } from "react";
-import interBold from "../../../commune/polices/Inter-Bold.ttf";
-import montserratExtraBold from "../../../commune/polices/Montserrat-ExtraBold.ttf";
-import montserratBlack from "./polices/Montserrat-Black.ttf";
+import manropeVariable from "../../../commune/polices/Manrope-Variable.ttf";
 
 export const FPS = 30;
 export const L = 1080;
@@ -33,20 +32,16 @@ export const ombre = (t: keyof typeof OMBRE): string => `${OMBRE[t][0]}px ${OMBR
 
 /* ------------------------------------------------------------------ Polices (B.5) ------------------------------------------------------------------ */
 
-export const MONTSERRAT = "Axion V4 Montserrat Black";
-export const MONTSERRAT_800 = "Axion V4 Montserrat ExtraBold";
-export const INTER = "Axion V4 Inter";
+export const MONTSERRAT = FAMILLE_CSS;
+export const MONTSERRAT_800 = FAMILLE_CSS;
+export const INTER = FAMILLE_CSS;
 
 let chargement: Promise<void> | null = null;
 /** Charge les polices EN LOCAL (aucun réseau) ; le rendu attend leur chargement. À appeler au début de chaque composition. */
 export function chargerPolicesV4(): void {
   if (chargement || typeof document === "undefined") return;
   const attente = delayRender("Polices v4 du lot 2");
-  const faces = [
-    new FontFace(MONTSERRAT, `url(${montserratBlack})`, { weight: "900" }),
-    new FontFace(MONTSERRAT_800, `url(${montserratExtraBold})`, { weight: "800" }),
-    new FontFace(INTER, `url(${interBold})`, { weight: "100 900" }),
-  ];
+  const faces = [new FontFace(FAMILLE_CSS, `url(${manropeVariable})`, { weight: "200 800" })];
   chargement = Promise.all(faces.map((f) => f.load())).then((fs) => {
     fs.forEach((f) => document.fonts.add(f));
     continueRender(attente);

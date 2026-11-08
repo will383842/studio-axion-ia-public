@@ -3,14 +3,15 @@
  * PUR. Montant vert (gain) ou rouge (perte), objet détouré ; un montant n'est jamais écrit deux fois (incrusté ET en
  * sous-titre) ; contrôle « montant dit = montant affiché ». Géométrie : `GeometrieIncrustations` de la recette.
  */
+import { PALETTE } from "../charte/axion-2026";
 import { zoneDe } from "@/briques/sous-titres/largeur";
 import type { AlerteQualite, CommandeFabrication, IdReseau } from "@/domaine/types";
 import type { PlanProduit } from "@/moteurs/types";
 import { GEOMETRIE_INCRUSTATIONS_PAR_DEFAUT, type GeometrieIncrustations } from "./recette";
 import { DIMENSIONS_SCENE, PREFIXE_ENTREE, type IncrustationScene, type RatioScene } from "./scene";
 
-/** Couleurs des incrustations graphiques (au-dessus de la LUT : elles gardent leur vert et leur rouge, B.7). */
-export const COULEURS_INCRUSTATION = { gain: "#34C26B", perte: "#E5484D", neutre: "#F3EDE4" } as const;
+/** Couleurs des incrustations graphiques (au-dessus de la LUT : charte 2026 : ni vert ni bleu, orange pour un gain, filet rouge pour une perte). */
+export const COULEURS_INCRUSTATION = { gain: PALETTE.orange, perte: PALETTE.erreurFilet, neutre: PALETTE.ivoire } as const;
 
 const ref = (nom: string) => `${PREFIXE_ENTREE}${nom}`;
 

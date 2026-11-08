@@ -58,6 +58,7 @@ COPY --chown=rendu:rendu src/briques/effets-speciaux /app/src/briques/effets-spe
 # des compositions (`npm run verifier`) se suffise dans l'image. Fichier pur, sans import.
 COPY --chown=rendu:rendu src/briques/realisation/piste.ts /app/src/briques/realisation/piste.ts
 # ORG-11 : habillage (charte vidéo), stylo et dessins, lus par les compositions du tableau animé.
+COPY --chown=rendu:rendu src/briques/charte /app/src/briques/charte
 COPY --chown=rendu:rendu src/briques/habillage /app/src/briques/habillage
 COPY --chown=rendu:rendu src/briques/stylo /app/src/briques/stylo
 COPY --chown=rendu:rendu src/briques/dessins /app/src/briques/dessins

@@ -10,18 +10,20 @@
  * Les jetons de face caméra (`motion-1`, `src/briques/motion/jetons.ts`) sont distincts et inchangés.
  */
 
+import { FAMILLE_CSS, PALETTE, POLICE } from "../charte/axion-2026";
+
 export const VERSION_CHARTE_VIDEO = "charte-video/1";
 
 /** Rôles de couleur. Chaque rôle dit à quoi sert la couleur ; l'orange ne figure dans aucun rôle de texte. */
 export const COULEURS_VIDEO = Object.freeze({
   /** Page ivoire (fond de tout). */
-  page: "#E9DCC8",
+  page: PALETTE.ivoire,
   /** Écriture : tout texte, y compris les mots importants (noir presque pur, chaud). */
-  ecriture: "#110A05",
+  ecriture: PALETTE.noir,
   /** Soulignement et marques (trait, entourage, barré, coche, corps du crayon) : jamais du texte. */
-  soulignement: "#B44F29",
+  soulignement: PALETTE.terracotta,
   /** Sable : remplissage des dessins (non porteur de sens, hors règle de contraste ; les contours restent en écriture). */
-  sable: "#BFA88B",
+  sable: PALETTE.gris,
 } as const);
 
 export type RoleCouleurVideo = keyof typeof COULEURS_VIDEO;
@@ -49,8 +51,8 @@ export const CONTRASTE_MARQUE_MIN = 3;
  * `studio-rendu/compositions/commune/polices/` (chargées par `commune/polices.ts`). Droits : `police-montserrat`.
  */
 export const POLICES_VIDEO = Object.freeze({
-  titre: Object.freeze({ famille: "Axion Montserrat ExtraBold", graisse: 800, voulue: "Montserrat ExtraBold", presente: true }),
-  texte: Object.freeze({ famille: "Axion Inter Bold", graisse: 700, voulue: "Inter", presente: true }),
+  titre: Object.freeze({ famille: FAMILLE_CSS, graisse: 800, voulue: POLICE, presente: true }),
+  texte: Object.freeze({ famille: FAMILLE_CSS, graisse: 700, voulue: POLICE, presente: true }),
 });
 
 /** Taille minimale du texte : 3 % de la hauteur de la vidéo (garde-fou du plan). */
