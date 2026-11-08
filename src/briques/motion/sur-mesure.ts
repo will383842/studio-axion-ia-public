@@ -8,7 +8,7 @@
  *
  * Garde-fous (refus → repli sur le modèle fixe) : 3 à 8 s ; aucune adresse ni API réseau ; rien qui dépende de
  * l'horloge (CSS animé, minuteries, `Math.random`, `Date`) : chaque image doit se recalculer depuis `t` seul ;
- * couleurs de la charte seulement ; Poppins seulement ; texte d'au moins 3 % de la hauteur ; zones sûres (contrôlées
+ * couleurs de la charte seulement ; Manrope seulement ; texte d'au moins 3 % de la hauteur ; zones sûres (contrôlées
  * à l'image par le mode `controle`, relue par Claude).
  */
 import { DUREE_CARTE_SEC } from "./catalogue";
@@ -90,7 +90,7 @@ export function verifierSurMesure(code: CodeSurMesure, dureeSec: number, hauteur
   for (const m of tout.matchAll(/font-family\s*:\s*([^;"}]+)/gi)) {
     const f = m[1].toLowerCase();
     if (!/var\(--axion-police\)|poppins/.test(f) || /serif(?!-)|monospace|arial|helvetica|inter\b|roboto/.test(f.replace(/sans-serif/g, ""))) {
-      erreurs.push("police : Poppins seulement (font-family: var(--axion-police))");
+      erreurs.push("police : Manrope seulement (font-family: var(--axion-police))");
       break;
     }
   }
@@ -196,13 +196,13 @@ var tl=A._tl;
 if(!tl){tl=gsap.exportRoot();tl.pause(0)}
 gsap.globalTimeline.pause();
 function controle(){var c=document.getElementById("controle");if(!c)return;c.innerHTML="";
-var z=A.zone;var cadre=document.createElement("div");cadre.style.cssText="position:absolute;left:"+z.x+"px;top:"+z.y+"px;width:"+z.largeur+"px;height:"+z.hauteur+"px;outline:3px dashed rgba(246,238,224,.55)";c.appendChild(cadre);
+var z=A.zone;var cadre=document.createElement("div");cadre.style.cssText="position:absolute;left:"+z.x+"px;top:"+z.y+"px;width:"+z.largeur+"px;height:"+z.hauteur+"px;outline:3px dashed rgba(250,249,245,.55)";c.appendChild(cadre);
 var marche=document.createTreeWalker(document.getElementById("carte"),NodeFilter.SHOW_TEXT);var n;
 while((n=marche.nextNode())){if(!n.textContent.trim())continue;var el=n.parentElement;var st=getComputedStyle(el);if(st.visibility==="hidden"||st.display==="none")continue;
 var o=1,e=el;while(e&&e!==document.body){o*=parseFloat(getComputedStyle(e).opacity||"1");e=e.parentElement}if(o<0.05)continue;
 var r=document.createRange();r.selectNodeContents(n);var b=r.getBoundingClientRect();if(!b.width)continue;
 var petit=parseFloat(st.fontSize)<A.tailleMin;var dehors=b.left<z.x-1||b.top<z.y-1||b.right>z.x+z.largeur+1||b.bottom>z.y+z.hauteur+1;
-if(petit||dehors){var m=document.createElement("div");m.style.cssText="position:absolute;left:"+b.left+"px;top:"+b.top+"px;width:"+b.width+"px;height:"+b.height+"px;outline:4px solid #ff2a2a;background:rgba(255,42,42,.18)";c.appendChild(m)}}}
+if(petit||dehors){var m=document.createElement("div");m.style.cssText="position:absolute;left:"+b.left+"px;top:"+b.top+"px;width:"+b.width+"px;height:"+b.height+"px;outline:4px solid #B8341C;background:rgba(184,52,28,.18)";c.appendChild(m)}}}
 window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type!=="seek")return;
 try{tl.seek(Math.max(0,d.t),false);for(var k=0;k<A._images.length;k++)A._images[k](d.t);controle()}catch(e){A._erreurs.push(String(e.message||e))}
 requestAnimationFrame(function(){requestAnimationFrame(function(){parent.postMessage({type:"vu",id:d.id,erreurs:A._erreurs.slice(0,5)},"*")})})});

@@ -14,6 +14,7 @@
  * Importe la mise en page du tableau (`mise-en-page.ts`, règle 4) : elle n'importe rien de ce fichier (sa forme de
  * référence est dans `reference.ts`), et de `fiche.ts` que des types.
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import type { RegleFormat } from "@/briques/fiche-scenes";
 import { dessinValide as dessinValideBanque } from "@/briques/dessins";
 import { formesAdresse, utilisable } from "@/domaine/controles-script";
@@ -135,12 +136,12 @@ export interface FormeRole {
 
 /** Formes par défaut des rôles de ligne (couleurs des posts de Will, réponses du 11/10) ; l'habillage peut les remplacer. */
 export const FORMES_PAR_ROLE: Readonly<Record<RoleLigne, FormeRole>> = {
-  titre: { couleur: "#110A05", forme: { type: "soulignement" } },
-  regle: { couleur: "#110A05", forme: { type: "cadre" } },
-  avantage: { couleur: "#110A05", forme: { type: "pictogramme", nom: "coche" } },
-  condition: { couleur: "#110A05", forme: { type: "pictogramme", nom: "fleche" } },
-  resultat: { couleur: "#110A05", forme: { type: "pictogramme", nom: "cible" } },
-  alerte: { couleur: "#110A05", forme: { type: "pictogramme", nom: "point-exclamation" } },
+  titre: { couleur: PALETTE.noir, forme: { type: "soulignement" } },
+  regle: { couleur: PALETTE.noir, forme: { type: "cadre" } },
+  avantage: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "coche" } },
+  condition: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "fleche" } },
+  resultat: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "cible" } },
+  alerte: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "point-exclamation" } },
 };
 
 export type PreuveConnue = Pick<Preuve, "id" | "statut" | "retrait" | "archiveLe" | "perimeLe">;

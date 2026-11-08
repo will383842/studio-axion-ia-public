@@ -8,20 +8,22 @@
  * pour rester justes à toute taille et à toute cadence.
  */
 
+import { PALETTE } from "../../../src/briques/charte/axion-2026";
+
 export const VERSION_CHARTE_INTERFACE = "interface-claire/1";
 
 export const COULEURS = Object.freeze({
   /** Bande, corps des cartes, étiquettes claires (crème de la référence). */
-  ivoire: "#E9DCC8",
+  ivoire: PALETTE.ivoire,
   /** Contours, textes, ombres dures, pastilles (bleu nuit de la référence). */
-  encre: "#110A05",
+  encre: PALETTE.noir,
   /** En-têtes de carte, plaques des mots forts, barre de progression, éléments actifs (cyan de la référence). */
-  orange: "#B44F29",
+  orange: PALETTE.terracotta,
   /** Éléments en attente (grisés), filets, mentions. */
-  sable: "#BFA88B",
+  sable: PALETTE.gris,
 } as const);
 
-/** Polices : Montserrat ExtraBold (titres, sous-titres, étiquettes), Inter Bold (texte des cartes). SIL OFL 1.1. */
+/** Polices : Montserrat ExtraBold et Inter Bold, RESTENT dans ce lot (largeurs mesurées sur leurs fichiers). SIL OFL 1.1. */
 export const POLICES = Object.freeze({ titre: "Axion Montserrat ExtraBold", texte: "Axion Inter Bold" } as const);
 
 /** Géométrie mesurée sur la référence, en fraction de la LARGEUR (l) ou de la HAUTEUR (h) de l'image. */

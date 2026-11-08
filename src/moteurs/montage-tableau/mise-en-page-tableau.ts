@@ -14,6 +14,7 @@
  *  - alignée à gauche (A, C) ou centrée, symétrique (B) ; un seul accent orange fort par page.
  * Les dessins sont des polylignes ordonnées (contour → remplissage → ombre) que l'outil trace (`ElementPlace.tableau`).
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { CHARTES_TABLEAU, type CharteTableau, type PoliceTableau, type StyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 import { INTERLIGNES_TABLEAU, couperTableau, coupeUnGroupe, largeurTableau } from "@/briques/tableau-scene/trois-styles/mesure";
 import { banderole, barre, calendrier, carteCroquis, chrono, eclat, enveloppe, etoile, feuilleBrouillon, feuilleDemande, fleche, flecheCourbe, horloge, loupe, medaillon, pointeur, rayons, reveil, sablier, souligne, surligneur, telephone } from "@/briques/tableau-scene/trois-styles/dessins";
@@ -300,7 +301,7 @@ function entete(g: Geo, c: ContenuPage): Rang | null {
     const chiffre = String(n.n);
     const lc = Math.ceil(largeurTableau(chiffre, "caveat", tChiffre));
     const ilc = Math.round(tChiffre * INTERLIGNES_TABLEAU.caveat);
-    const objets: ObjetTableau[] = g.style === "tableau-blanc" ? [{ sorte: "postit", x: disque.x, y: disque.y, l: B, h: B, rot: -4, c: S.fondPostit }, { sorte: "aimant", x: disque.x + B - px(g, 42), y: disque.y + px(g, 2), l: px(g, 36), h: px(g, 36), c: "#2A1F17" }] : [];
+    const objets: ObjetTableau[] = g.style === "tableau-blanc" ? [{ sorte: "postit", x: disque.x, y: disque.y, l: B, h: B, rot: -4, c: S.fondPostit }, { sorte: "aimant", x: disque.x + B - px(g, 42), y: disque.y + px(g, 2), l: px(g, 36), h: px(g, 36), c: PALETTE.noir }] : [];
     const fond = g.style === "ardoise" ? S.fond : S.fondPostit;
     const pose: Pose = {
       elementId: n.ecrit ? idNumero(n.sceneId) : `${c.premiere.id}~numero`,
@@ -363,9 +364,9 @@ function entete(g: Geo, c: ContenuPage): Rang | null {
     const lignes = [{ texte: libelle, px: { x: carte.x + mx, y: my, largeur: l, hauteur: il } }];
     const objets: ObjetTableau[] =
       g.style === "tableau-blanc"
-        ? [{ sorte: "carte", x: carte.x, y: carte.y, l: carte.largeur, h: carte.hauteur, rot: -1.5, c: fond }, { sorte: "aimant", x: carte.x + carte.largeur - px(g, 30), y: carte.y - px(g, 12), l: px(g, 34), h: px(g, 34), c: "#3A2A1E" }]
+        ? [{ sorte: "carte", x: carte.x, y: carte.y, l: carte.largeur, h: carte.hauteur, rot: -1.5, c: fond }, { sorte: "aimant", x: carte.x + carte.largeur - px(g, 30), y: carte.y - px(g, 12), l: px(g, 34), h: px(g, 34), c: PALETTE.noir }]
         : g.style === "paperboard"
-          ? [{ sorte: "carte", x: carte.x, y: carte.y, l: carte.largeur, h: carte.hauteur, rot: -1.2, c: fond }, { sorte: "ruban", x: carte.x + px(g, 16), y: carte.y + px(g, 6), l: px(g, 66), h: px(g, 24), rot: -30, c: "#E2D2B6", dessus: true }, { sorte: "ruban", x: carte.x + carte.largeur - px(g, 16), y: carte.y + px(g, 6), l: px(g, 66), h: px(g, 24), rot: 28, c: "#E2D2B6", dessus: true }]
+          ? [{ sorte: "carte", x: carte.x, y: carte.y, l: carte.largeur, h: carte.hauteur, rot: -1.2, c: fond }, { sorte: "ruban", x: carte.x + px(g, 16), y: carte.y + px(g, 6), l: px(g, 66), h: px(g, 24), rot: -30, c: PALETTE.gris, dessus: true }, { sorte: "ruban", x: carte.x + carte.largeur - px(g, 16), y: carte.y + px(g, 6), l: px(g, 66), h: px(g, 24), rot: 28, c: PALETTE.gris, dessus: true }]
           : [];
     let pose: Pose = { elementId: id, sceneId, type: "mention", niveau: "corps", taillePx: taille, couleurTexte: g.style === "ardoise" ? S.doux : S.encre, couleurFond: fond, lignes, gabarit: { sorte: "partie", role: c.role, point: { x: carte.x, y: carte.y, largeur: 0, hauteur: 0 }, couleur: S.encre, couleurPoint: S.accent }, px: carte, enc: carte, heure: null, tableau: { lignes: [{ police: pol, taille, couleur: g.style === "ardoise" ? S.doux : S.encre }], objets } } as Pose;
     if (g.style === "ardoise") pose = avecTraits(pose, "avant", etoile(g.P, carte.x - px(g, 10), carte.y + carte.hauteur / 2, px(g, 15)), 0.2);
@@ -613,7 +614,7 @@ function transformation(g: Geo, x: Ligne): Rang | null {
     fleche3 = { x1: x0 + mx, y1: my + ilDe + px(g, 8) + Math.round(ilVers / 2), x2: x0 + mx + lf, y2: my + ilDe + px(g, 8) + Math.round(ilVers / 2) };
   }
   const fond = g.style === "ardoise" ? S.fond : S.fondCarte;
-  const objets: ObjetTableau[] = g.style === "ardoise" ? [] : [{ sorte: "carte", x: carte.x, y: carte.y, l: carte.largeur, h: carte.hauteur, rot: -1, c: fond }, ...(g.style === "paperboard" ? [{ sorte: "ruban" as const, x: carte.x + carte.largeur / 2, y: carte.y + px(g, 4), l: px(g, 110), h: px(g, 30), rot: -3, c: "#E2D2B6", dessus: true }] : [{ sorte: "aimant" as const, x: carte.x + carte.largeur - px(g, 36), y: carte.y - px(g, 12), l: px(g, 32), h: px(g, 32), c: "#2A1F17" }])];
+  const objets: ObjetTableau[] = g.style === "ardoise" ? [] : [{ sorte: "carte", x: carte.x, y: carte.y, l: carte.largeur, h: carte.hauteur, rot: -1, c: fond }, ...(g.style === "paperboard" ? [{ sorte: "ruban" as const, x: carte.x + carte.largeur / 2, y: carte.y + px(g, 4), l: px(g, 110), h: px(g, 30), rot: -3, c: PALETTE.gris, dessus: true }] : [{ sorte: "aimant" as const, x: carte.x + carte.largeur - px(g, 36), y: carte.y - px(g, 12), l: px(g, 32), h: px(g, 32), c: PALETTE.noir }])];
   const pose: Pose = { elementId: x.l.id, sceneId: x.sceneId, type: "ligne", niveau: "corps", taillePx: tVers, couleurTexte: S.encre, couleurFond: fond, lignes, role: x.l.role, px: union(lignes.map((l) => l.px)), enc: carte, gabarit: { sorte: "transformation", fleche: fleche3, couleur: S.encre, carte, rayon: px(g, 16), fond, tailleDe: tDe }, tableau: { lignes: [{ police: S.corps, taille: tDe, couleur: S.doux }, { police: pVers, taille: tVers, couleur: S.encre }], objets } };
   let p = encombrer(pose);
   // Ardoise : la carte tracée à la craie, exactement autour de ses deux textes (jamais sur un mot).
@@ -890,8 +891,8 @@ function appel(g: Geo, c: ContenuPage, gr: Extract<Groupe, { sorte: "appel" }>, 
     b = avecObjets(b, [
       { sorte: g.style === "paperboard" ? "carte" : "plaque", x: cadre.x, y: cadre.y, l: cadre.largeur, h: cadre.hauteur, rot: -0.8, c: S.fondBouton },
       ...(g.style === "paperboard"
-        ? ([[cadre.x + px(g, 30), cadre.y + px(g, 8), -32], [cadre.x + cadre.largeur - px(g, 30), cadre.y + px(g, 8), 30], [cadre.x + px(g, 30), cadre.y + cadre.hauteur - px(g, 6), 30], [cadre.x + cadre.largeur - px(g, 30), cadre.y + cadre.hauteur - px(g, 6), -32]] as const).map(([x, y, rot]) => ({ sorte: "ruban" as const, x, y, l: px(g, 96), h: px(g, 32), rot, c: "#E2D2B6", dessus: true }))
-        : [{ sorte: "aimant" as const, x: cadre.x + px(g, 18), y: cadre.y + px(g, 12), l: px(g, 38), h: px(g, 38), c: "#2A1F17" }, { sorte: "aimant" as const, x: cadre.x + cadre.largeur - px(g, 56), y: cadre.y + px(g, 8), l: px(g, 38), h: px(g, 38), c: "#2A1F17" }]),
+        ? ([[cadre.x + px(g, 30), cadre.y + px(g, 8), -32], [cadre.x + cadre.largeur - px(g, 30), cadre.y + px(g, 8), 30], [cadre.x + px(g, 30), cadre.y + cadre.hauteur - px(g, 6), 30], [cadre.x + cadre.largeur - px(g, 30), cadre.y + cadre.hauteur - px(g, 6), -32]] as const).map(([x, y, rot]) => ({ sorte: "ruban" as const, x, y, l: px(g, 96), h: px(g, 32), rot, c: PALETTE.gris, dessus: true }))
+        : [{ sorte: "aimant" as const, x: cadre.x + px(g, 18), y: cadre.y + px(g, 12), l: px(g, 38), h: px(g, 38), c: PALETTE.noir }, { sorte: "aimant" as const, x: cadre.x + cadre.largeur - px(g, 56), y: cadre.y + px(g, 8), l: px(g, 38), h: px(g, 38), c: PALETTE.noir }]),
     ]);
   b = avecTraits(b, "apres", pointeur(P, cadre.x + cadre.largeur - px(g, 130), cadre.y + cadre.hauteur - px(g, 56), 1.1 * k), 0.3);
   rangs.push({ sorte: "fixe", bloc: bloc([encombrer({ ...b, enc: union([b.enc, cadre]) })]) });
