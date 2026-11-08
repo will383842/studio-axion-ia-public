@@ -31,13 +31,14 @@ describe("vitrines branchées plus tard", () => {
     expect(f.entrees[1].obligatoire).toBe(false);
     expect(f.pieces?.voix).toBe("prise-filmee");
   });
-  for (const moteur of [moteurMontageTutorielOutil, moteurMontageDemoFacecam]) {
+  // Lot I : le tutoriel est branché ; sans ses outils (voix, rendu) reliés, il reste en pause claire « outils non reliés ».
+  for (const [moteur, codePause] of [[moteurMontageTutorielOutil, "TO_OUTILS_NON_RELIES"], [moteurMontageDemoFacecam, "PAS_ENCORE_BRANCHE"]] as const) {
     it(`${moteur.id} : le lancement met en pause claire, sans échec, sans coût`, async () => {
       const t = await moteur.lancer(commande, ctx);
       expect(t.statut).toBe("en_file");
       expect(t.erreur).toBeUndefined();
-      expect(t.parametres?.pause).toMatchObject({ code: "PAS_ENCORE_BRANCHE" });
       const apres = await moteur.avancer(t, commande, ctx.maintenant + 60_000);
+      expect(apres.travail.parametres?.pause).toMatchObject({ code: codePause });
       expect(apres.travail.statut).toBe("en_file");
       expect(apres.travail.etapes.some((e) => e.statut === "echec")).toBe(false);
       expect(apres.resultat).toBeUndefined();

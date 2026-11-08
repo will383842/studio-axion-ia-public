@@ -7,8 +7,8 @@ import { CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES } from "../commun
  *
  * Part d'un script collé, ou d'un titre / d'une idée dont le studio écrit un script lisible et modifiable avant validation.
  * L'outil est montré en plein écran par du motion design (curseur, clics, zooms, frappe, légendes), sur la voix HeyGen
- * épinglée. Aucun visage. Statut `masque` : inscrit, mais le rendu n'est pas branché (`moteurs/montage-tutoriel-outil` met
- * la fabrication en pause claire). Un lot suivant branche le vrai rendu et le fait passer `actif` sur décision de Williams.
+ * épinglée. Aucun visage. Lot I : le rendu est branché (`moteurs/montage-tutoriel-outil`) ; le format reste `masque`
+ * jusqu'à la décision de Williams de le passer `actif`.
  */
 export const ID_FORMAT_TUTORIEL_OUTIL = "tutoriel-outil";
 export const CODE_FORMAT_TUTORIEL_OUTIL = "TO";
@@ -27,10 +27,11 @@ export const formatTutorielOutil: DefinitionFormat = {
   codeClassement: CODE_FORMAT_TUTORIEL_OUTIL,
   declinaison: "aucune",
   durees: { mode: "depuis-script", zoneSec: [30, 75], zoneOrangeSec: [75, 120], ciblesGenerationSec: [45, 60, 75], cibleParDefautSec: 60 },
-  ratios: ["9:16"],
-  ratioMaitre: "9:16",
+  // Lot I : rendu maître en 4:5, puis les autres formats des réseaux.
+  ratios: ["4:5", "9:16", "1:1"],
+  ratioMaitre: "4:5",
   miseEnPage: "plein-ecran",
-  miseEnPageParRatio: { "9:16": "plein-ecran" },
+  miseEnPageParRatio: { "4:5": "plein-ecran", "9:16": "plein-ecran", "1:1": "plein-ecran" },
   personnages: { min: 0, max: 0, sources: [] },
   entrees: [],
   etapes: ["express", "fabrication"],
