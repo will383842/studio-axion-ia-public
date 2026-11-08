@@ -27,6 +27,8 @@ export const NAV_LATERALE: EntreeNavigation[] = [
   { href: "/bibliotheque", libelle: "Bibliothèque", icone: "bibliotheque" },
   { href: "/modeles", libelle: "Mes modèles", icone: "modele" },
   { href: "/veille", libelle: "Veille", icone: "tendance" },
+  // Messages Zernio : activer le mot GUIDE, valider les textes, pause (l'écran existait sans entrée de menu).
+  { href: "/mots", libelle: "Messages Zernio", icone: "envoyer" },
   { href: "/reglages", libelle: "Réglages", icone: "reglages" },
 ];
 
@@ -48,6 +50,8 @@ export const TUILES_PLUS: EntreeNavigation[] = [
   { href: "/mesures", libelle: "Mesures", icone: "resultats" },
   // Veille des outils (lot B2) : nouvelles versions de HeyGen, Remotion… (aussi dans Réglages > Outils).
   { href: "/veille", libelle: "Veille", icone: "tendance" },
+  // Messages Zernio : activer le mot GUIDE, valider les textes, pause (l'écran existait sans entrée de menu).
+  { href: "/mots", libelle: "Messages Zernio", icone: "envoyer" },
   { href: "/reglages", libelle: "Réglages", icone: "reglages" },
 ];
 
