@@ -3,7 +3,7 @@
  * PUR, sans React ni Remotion et SANS alias « @/ » : lu tel quel par `studio-rendu`. FIGÉE (objets gelés) : aucun
  * format ne la modifie ; un changement de charte = une nouvelle version (`charte-video/2`), jamais une retouche.
  *
- * Décision de Will (11/10/2026) : la charte de ses posts. Page ivoire, écriture presque noire, mots importants en
+ * Décision de Williams (11/10/2026), palette 2026 (V7-03) : la charte de ses posts. Page ivoire #FAF9F5, écriture presque noire, mots importants en
  * NOIR SOULIGNÉS d'orange. L'orange n'est JAMAIS une couleur de texte (contraste insuffisant sur l'ivoire).
  *
  * Les zones sûres ne sont pas recopiées ici : elles se lisent dans `src/reseaux` (zonesProtegees).
@@ -15,13 +15,13 @@ export const VERSION_CHARTE_VIDEO = "charte-video/1";
 /** Rôles de couleur. Chaque rôle dit à quoi sert la couleur ; l'orange ne figure dans aucun rôle de texte. */
 export const COULEURS_VIDEO = Object.freeze({
   /** Page ivoire (fond de tout). */
-  page: "#E9DCC8",
+  page: "#FAF9F5",
   /** Écriture : tout texte, y compris les mots importants (noir presque pur, chaud). */
-  ecriture: "#110A05",
+  ecriture: "#141413",
   /** Soulignement et marques (trait, entourage, barré, coche, corps du crayon) : jamais du texte. */
-  soulignement: "#B44F29",
-  /** Sable : remplissage des dessins (non porteur de sens, hors règle de contraste ; les contours restent en écriture). */
-  sable: "#BFA88B",
+  soulignement: "#B23F16",
+  /** Gris chaud : remplissage des dessins (non porteur de sens, hors règle de contraste ; les contours restent en écriture). */
+  sable: "#E8E6DC",
 } as const);
 
 export type RoleCouleurVideo = keyof typeof COULEURS_VIDEO;
