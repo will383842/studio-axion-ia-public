@@ -196,10 +196,7 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
     // Texte déjà enregistré (jamais généré ici) : lu dans le kit, tel quel.
     const kit = await d.kits.trouver((k) => k.videoId === video.id);
     const t = kit?.textes[reseau];
-    if (t?.texte) poser(`${base}.txt`, { contenu: [t.titre, t.texte, t.motsDiese.join(" ")].filter(Boolean).join("
-
-") + "
-" });
+    if (t?.texte) poser(`${base}.txt`, { contenu: [t.titre, t.texte, t.motsDiese.join(" ")].filter(Boolean).join("\n\n") + "\n" });
     const detail = await obtenirVideo(video.id);
     if (sousTitresUtilisables(detail?.sousTitres?.segments)) poser(`${base}.srt`, { contenu: exporterSrt(detail!.sousTitres!.segments) });
   }
