@@ -166,7 +166,7 @@ async function alerterUneFoisParJour(motif: string, texte: { titre: string; mess
   try {
     const cle = `budget.refus.${jourParis()}.${motif}`;
     if (await lireParametre<boolean>(cle, false)) return;
-    await creerNotification({ type, ...texte, lien: "/reglages#budget" });
+    await creerNotification({ type, ...texte, lien: "/reglages" });
     // L3-0 : la marque « déjà alerté » n'est posée qu'APRÈS l'envoi réussi ; une panne d'envoi laisse l'alerte repartir au refus suivant.
     await ecrireParametre(cle, true);
   } catch {

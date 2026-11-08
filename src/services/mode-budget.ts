@@ -101,7 +101,7 @@ export async function signalerDepassementIndicatif(sujet: string, titre: string,
     const cle = `budget.prixaccepte.${jourParis()}.${sujet}`;
     if (await lireParametre<boolean>(cle, false)) return;
     const { creerNotification } = await import("./notifications");
-    await creerNotification({ type: "credit", titre, message, lien: "/reglages#budget" });
+    await creerNotification({ type: "credit", titre, message, lien: "/reglages" });
     await ecrireParametre(cle, true);
   } catch {
     /* la cloche ne bloque jamais */
