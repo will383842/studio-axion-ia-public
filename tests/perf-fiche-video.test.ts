@@ -85,6 +85,27 @@ describe("fiche vidéo · lecture ciblée", () => {
     expect(await ancienne(CIBLE)).toBeNull();
   });
 
+  it("2 travaux en_cours sur une autre vidéo + la cible en_file : même rang et même début qu'avant", async () => {
+    await depots().travaux.enregistrer(travail("autre-a", "v-01", { statut: "en_cours", progression: 30 }, 310));
+    await depots().travaux.enregistrer(travail("autre-b", "v-01", { statut: "en_cours", progression: 30 }, 311));
+    await depots().travaux.enregistrer(travail("t-file", CIBLE, { statut: "en_file", progression: 0 }, 312));
+    // Heure figée : debutVers (arrondi à la minute, d'après Date.now()) ne peut pas changer entre les deux lectures.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(Date.UTC(2026, 10, 8, 10, 30, 15)));
+      const d = await videos.obtenirVideo(CIBLE);
+      const avant = await ancienne(CIBLE);
+      expect(d?.travail?.id).toBe("t-file");
+      expect(avant?.id).toBe("t-file");
+      expect(d?.travail?.rang).toBe(1);
+      expect(d?.travail?.debutVers).toBeDefined();
+      expect(d?.travail?.rang).toBe(avant?.rang);
+      expect(d?.travail?.debutVers).toBe(avant?.debutVers);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("vidéo absente : null", async () => {
     expect(await videos.obtenirVideo("inconnue")).toBeNull();
   });
