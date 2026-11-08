@@ -39,6 +39,7 @@
  * technique). Un raccord de voix fini est gardé même si celui d'une autre fin rate dans le même tour. « Réessayer »
  * passe le journal par `relancerRendusCasConcret` : seuls les rendus restés en cours ou ratés repartent.
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { joindrePhrasesPourVoix } from "@/domaine/voix-phrases";
 import { FIN_PROPRE_COMMUNE } from "@/briques/composition/fin-propre";
 import { creerSuivi, empreinteStable, plansDesScenes, commandeMinimale, type EtapeComptee, type Journal, type ScenePosee } from "@/briques/chaine-scenes";
@@ -271,7 +272,7 @@ export const empreinte = (...parts: unknown[]) => empreinteStable(VERSION_FABRIC
  */
 export const STYLE_SOUS_TITRES_DUO: ValeurStyleSousTitres = Object.freeze({
   ...STYLE_SOUS_TITRES_MINIMAL,
-  police: "Inter Bold",
+  police: "Manrope Bold",
   couleurAccent: "orange",
   jetonEmphase: "orange-vif",
   contourPx: 7,
@@ -287,8 +288,8 @@ export function zonesOccupeesSousTitres(dureeSec: number): { debutSec: number; f
   return [{ debutSec: 0, finSec: dureeSec, zone: "haut" }];
 }
 
-/** Texte des sous-titres sur un écran ivoire : la couleur de la v4 (`.I { color: #15100c }`). */
-export const ENCRE_SOUS_TITRES_IVOIRE = "#15100c";
+/** Texte des sous-titres sur un écran ivoire : le noir de la charte Axion 2026. */
+export const ENCRE_SOUS_TITRES_IVOIRE: string = PALETTE.noir;
 
 /** V4-2 : largeur des sous-titres, en % de l'image : 960 px, comme la v4 (`#st` sur 60–1 020 px). */
 export const LARGEUR_SOUS_TITRES_PCT = +((960 / 1080) * 100).toFixed(2);

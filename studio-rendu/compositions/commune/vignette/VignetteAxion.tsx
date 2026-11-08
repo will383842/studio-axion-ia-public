@@ -2,11 +2,11 @@
  * VIGNETTE AXION V2 (lot 1) — une image fixe. DESSIN SEULEMENT : les règles sont dans `socle.ts`, `mises.ts`, `titre.ts`
  * (purs, testés). Référence visuelle : `docs/vignettes/v2/gabarit/socle.css`.
  * Calques (z) : fond d'ambiance → image pleine (repli) ou sujet détouré → voile → titre → signature, liseré, carré → grain.
- * Police : Montserrat ExtraBold, chargée en local, attendue avant la mesure du titre.
+ * Police : Manrope (variable), chargée en local, attendue avant la mesure du titre.
  */
 import { useEffect, useState } from "react";
 import { AbsoluteFill, cancelRender, continueRender, delayRender, Img } from "remotion";
-import montserratExtraBold from "../polices/Montserrat-ExtraBold.ttf";
+import manropeVariable from "../polices/Manrope-Variable.ttf";
 import { FAMILLE_MONTSERRAT } from "../polices";
 import { boiteTitre, INTERLIGNE_TITRE, MISE_INSTAGRAM, MISES, placerSujet, type MiseDef, type PositionSujet } from "./mises";
 import { AMBIANCES, dimensionsVignette, IVOIRE_CARRE, ORANGE_VIF, proprietesVignette, type EntreeVignette } from "./socle";
@@ -17,10 +17,10 @@ export type ProprietesVignetteAxion = EntreeVignette;
 type Mesure = (texte: string, taillePx: number) => number;
 
 let police: Promise<Mesure> | null = null;
-/** Charge Montserrat ExtraBold une fois, puis renvoie une mesure de largeur faite avec elle (interlettrage compris). */
+/** Charge Manrope une fois, puis renvoie une mesure de largeur faite avec elle (interlettrage compris). */
 function mesureAvecPolice(): Promise<Mesure> {
   if (!police) {
-    police = new FontFace(FAMILLE_MONTSERRAT, `url(${montserratExtraBold})`, { weight: "800" }).load().then((face) => {
+    police = new FontFace(FAMILLE_MONTSERRAT, `url(${manropeVariable})`, { weight: "200 800" }).load().then((face) => {
       document.fonts.add(face);
       const ctx = document.createElement("canvas").getContext("2d")!;
       return (texte: string, taille: number) => {

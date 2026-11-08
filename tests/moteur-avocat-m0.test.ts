@@ -257,7 +257,7 @@ describe("musique interdite et styles avocat (B.0 §8, B.7)", () => {
     await depots().videos.modifier("v-03", { styles: { musiqueId: "mus-tension" } });
     const c = await fabrication.construireCommande("v-03");
     expect(c.styles.musique).toBeNull();
-    expect(c.styles.sousTitres).toMatchObject({ id: "st-avocat-v1", valeur: { gabarit: "karaoke", police: "Poppins ExtraBold", positionPct: 48, chiffresAlignes: true } });
+    expect(c.styles.sousTitres).toMatchObject({ id: "st-avocat-v1", valeur: { gabarit: "karaoke", police: "Manrope ExtraBold", positionPct: 48, chiffresAlignes: true } });
     expect(c.styles.styleMontage?.valeur).toMatchObject({ transitions: "coupe", dureePlanOuvertureSec: [1.5, 2.5], ecartCadrageMinPct: 15 });
     expect(c.styles.profilSon?.valeur).toMatchObject({ niveauCibleLufs: -14, creteVraieMaxDbtp: -1.5, traitementVoix: "sec", volumeMusique: 0 });
     expect(c.styles.habillage?.valeur).toMatchObject({ fin: false, logoAnime: false, grandTitre: false });

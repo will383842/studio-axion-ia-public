@@ -4,7 +4,8 @@
  */
 import { CARACTERES, METRIQUES } from "./metriques";
 
-export type NomPolice = "Poppins ExtraBold" | "Poppins Medium" | "Montserrat Black";
+/** Police unique de la charte Axion 2026 : Manrope, en deux graisses (500 et 800), un fichier par graisse. */
+export type NomPolice = "Manrope Medium" | "Manrope ExtraBold";
 
 export interface OptionsMesure {
   majuscules?: boolean;
