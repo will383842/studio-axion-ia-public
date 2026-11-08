@@ -31,3 +31,15 @@ describe("point final automatique", () => {
     expect(texteDuCorpsPourVoix(fiche)).toBe("Vous perdez du temps. Axion IA le fait pour vous. Et chez vous.");
   });
 });
+
+describe("lexique de prononciation avant l'envoi à la voix", () => {
+  it("le mot est remplacé par son écriture phonétique ET la phrase garde son point (pas de double point sur un sigle)", async () => {
+    const { substituerPrononciations } = await import("@/domaine/prononciations");
+    const liste = [{ mot: "PV", prononciation: "pé vé" }, { mot: "I.A.", prononciation: "i a" }];
+    const envoye = substituerPrononciations(joindrePhrasesPourVoix(["Rédigez votre PV", "Sans l'I.A.", "Merci"]), liste);
+    expect(envoye).toContain("pé vé.");
+    expect(envoye).not.toMatch(/\.\./);
+    expect(envoye).not.toContain("PV");
+    expect(envoye.split(". ").length).toBeGreaterThanOrEqual(3);
+  });
+});
