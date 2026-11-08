@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { NOTE_SANS_RETOUCHE } from "@/services/modifications";
 import { RETOUCHE_PAS_DISPONIBLE } from "@/services/fabrication";
+import { RETOUCHE_PAS_DISPONIBLE as DU_DOMAINE } from "@/domaine/voix-phrases";
 
 const lire = (p: string) => readFileSync(join(__dirname, "../..", p), "utf8");
 const SANS_ARGENT = /\b(prix|budget|plafond|coût|couts?|tarif|devis|payé|payer|centimes?)\b|€/i;
@@ -27,6 +28,9 @@ describe("bouton « Refaire la phrase »", () => {
 });
 
 describe("formats qui ne savent pas refaire une phrase", () => {
+  it("le service et le domaine disent exactement la même chose", () => {
+    expect(RETOUCHE_PAS_DISPONIBLE).toBe(DU_DOMAINE);
+  });
   it("le message est clair, en vouvoiement, et sans argent", () => {
     for (const m of [RETOUCHE_PAS_DISPONIBLE, NOTE_SANS_RETOUCHE]) {
       expect(m).toMatch(/phrase/i);
