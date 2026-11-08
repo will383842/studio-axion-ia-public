@@ -38,8 +38,8 @@ describe("R1 — bloc Buffer (Réglages)", () => {
   it("relié, brouillon par défaut : la phrase, le choix du mode, les comptes, les problèmes, le choix LinkedIn", () => {
     const t = texte(rendre(vue()));
     expect(t).toContain("Relié");
-    expect(t).toContain("Les vidéos arrivent en brouillon dans Buffer : vous les relisez et les programmez dans Buffer.");
-    expect(t).toContain("Brouillon dans Buffer");
+    expect(t).toContain("Les vidéos arrivent en brouillon dans l'outil de programmation : vous les relisez et les programmez là-bas.");
+    expect(t).toContain("Brouillon dans l'outil");
     expect(t).toContain("Programmer directement");
     expect(t).toContain("Axion IA");
     expect(t).toContain("Aucun compte TikTok n'est relié dans Buffer.");
@@ -54,7 +54,7 @@ describe("R1 — bloc Buffer (Réglages)", () => {
   it("sans clé : « À relier », « il manque la clé Buffer » (jamais un nom de réglage ni une valeur) ; clé posée mais non choisie : « Essai »", () => {
     const sans = texte(rendre(vue({ relie: false, clePresente: false })));
     expect(sans).toContain("À relier");
-    expect(sans).toContain("Il manque la clé Buffer sur le serveur.");
+    expect(sans).toContain("Il manque la clé de l'outil de programmation sur le serveur.");
     expect(sans).not.toMatch(/BUFFER_API_KEY|\b[A-Z][A-Z0-9_]{3,}\b/);
     expect(texte(rendre(vue({ relie: false, clePresente: true })))).toContain("Essai");
     expect(rendre(vue())).not.toContain(CLE);

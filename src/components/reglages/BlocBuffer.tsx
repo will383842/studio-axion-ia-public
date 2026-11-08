@@ -16,9 +16,9 @@ import type { VueBuffer } from "@/services/buffer";
 
 /** État affiché : la vérité (clé posée et Buffer choisi), jamais une promesse. */
 function etat(vue: VueBuffer): { libelle: string; ton: "sauge" | "ambre" | "brique"; phrase: string } {
-  if (vue.relie) return { libelle: "Relié", ton: "sauge", phrase: vue.mode === "brouillon" ? "Les vidéos arrivent en brouillon dans Buffer : vous les relisez et les programmez dans Buffer." : "Les vidéos partent à la date choisie dans le studio." };
-  if (!vue.clePresente) return { libelle: "À relier", ton: "brique", phrase: "Il manque la clé Buffer sur le serveur. D'ici là, rien ne part : c'est un essai." };
-  return { libelle: "Essai", ton: "ambre", phrase: "La clé est posée. Choisissez Buffer dans « Publication » pour que les vidéos partent vraiment." };
+  if (vue.relie) return { libelle: "Relié", ton: "sauge", phrase: vue.mode === "brouillon" ? "Les vidéos arrivent en brouillon dans l'outil de programmation : vous les relisez et les programmez là-bas." : "Les vidéos partent à la date choisie dans le studio." };
+  if (!vue.clePresente) return { libelle: "À relier", ton: "brique", phrase: "Il manque la clé de l'outil de programmation sur le serveur. D'ici là, rien ne part : c'est un essai." };
+  return { libelle: "Essai", ton: "ambre", phrase: "La clé est posée. Choisissez cet outil dans « Publication » pour que les vidéos partent vraiment." };
 }
 
 /**
@@ -45,7 +45,7 @@ export function BlocBuffer({ vue }: { vue: VueBuffer }) {
     demarrerReglage(async () => {
       const r = await definirModeBufferAction(mode);
       if (!r.ok) return void notifier.erreur(r.message);
-      notifier.succes(mode === "brouillon" ? "Brouillon dans Buffer" : "Programmation directe");
+      notifier.succes(mode === "brouillon" ? "Brouillon dans l'outil" : "Programmation directe");
       router.refresh();
     });
   }
@@ -78,14 +78,14 @@ export function BlocBuffer({ vue }: { vue: VueBuffer }) {
           valeur={vue.mode}
           onChange={changerMode}
           options={[
-            { valeur: "brouillon", libelle: "Brouillon dans Buffer", detail: "Vous relisez et programmez dans Buffer", icone: "document", desactive: reglage },
+            { valeur: "brouillon", libelle: "Brouillon dans l'outil", detail: "Vous relisez et programmez dans l'outil", icone: "document", desactive: reglage },
             { valeur: "programmer", libelle: "Programmer directement", detail: "La date choisie ici part telle quelle", icone: "calendrier", desactive: reglage },
           ]}
         />
       </div>
 
       <div className="mt-5">
-        <p className="mb-2 text-sm font-semibold text-texte-doux">Comptes dans Buffer</p>
+        <p className="mb-2 text-sm font-semibold text-texte-doux">Comptes de l’outil de programmation</p>
         <ul className="space-y-2">
           {vue.reseaux.map((r) => (
             <li key={r.reseau} className="rounded-champ border border-trait bg-surface-2 px-3 py-2.5">

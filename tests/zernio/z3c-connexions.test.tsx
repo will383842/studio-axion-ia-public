@@ -61,7 +61,7 @@ describe("z3c · cartes de compte", () => {
   it("compte à reconnecter : pastille « À reconnecter bientôt » ; Buffer désactivé s'il n'y a pas de compte chez Buffer", () => {
     const html = rendre({ etat: "normal", donnees: etat({ comptes: [compte("tiktok", 1, { relie: false, existeChezBuffer: false })] }) });
     expect(html).toContain("À reconnecter bientôt");
-    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Buffer/);
+    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Ancien outil/);
   });
 
   it("le changement de routage appelle le bon service avec le bon réseau", async () => {
@@ -97,15 +97,15 @@ describe("z3c · prochaine étape de la bascule", () => {
     const comptes = [...SIX.slice(0, 5), compte("tiktok", 6, { outil: "buffer" })];
     expect(prochaineEtape(comptes).autres).toBe(5);
     const html = rendre({ etat: "normal", donnees: etat({ comptes }) });
-    expect(html).toContain("Compte exemple tiktok 6 publie encore par Buffer");
-    expect(html).toContain("Les 5 autres comptes passent déjà par Zernio.");
+    expect(html).toContain("Compte exemple tiktok 6 publie encore par l’ancien outil");
+    expect(html).toContain("Les 5 autres comptes passent déjà par le nouvel outil.");
     expect(html).toContain("jusqu’au 20/11");
-    expect(html).toContain("Passer Compte exemple tiktok 6 sur Zernio");
+    expect(html).toContain("Passer Compte exemple tiktok 6 sur le nouvel outil");
   });
 
-  it("tous chez Zernio : « Les 6 comptes publient par Zernio » + lien", () => {
+  it("tous chez Zernio : « Les 6 comptes publient par le nouvel outil » + lien", () => {
     const html = rendre(VUES.normal);
-    expect(html).toContain("Les 6 comptes publient par Zernio");
+    expect(html).toContain("Les 6 comptes publient par le nouvel outil");
     expect(html).toContain("Voir la migration");
   });
 });
@@ -156,9 +156,9 @@ describe("z3c · arrêt d'urgence", () => {
 describe("z3c · les 3 autres états", () => {
   it("vide", () => {
     const html = rendre(VUES.vide);
-    expect(html).toContain("Aucun compte relié à Zernio");
-    expect(html).toContain("Tant qu’aucun compte n’est relié, Buffer continue de tout publier.");
-    expect(html).toContain("Ouvrir Zernio");
+    expect(html).toContain("Aucun compte relié au nouvel outil");
+    expect(html).toContain("Tant qu’aucun compte n’est relié, l’ancien outil continue de tout publier.");
+    expect(html).toContain("Ouvrir le nouvel outil");
     expect(html).toContain("J’ai relié mes comptes");
   });
   it("chargement : squelettes", () => {
@@ -168,7 +168,7 @@ describe("z3c · les 3 autres états", () => {
   });
   it("erreur", () => {
     const html = rendre(VUES.erreur);
-    expect(html).toContain("Zernio ne répond pas");
+    expect(html).toContain("Le nouvel outil ne répond pas");
     expect(html).toContain("Nous réessayons seuls toutes les 2 minutes.");
     expect(html).toContain("Réessayer maintenant");
   });
@@ -188,7 +188,7 @@ describe("z3c · les 3 autres états", () => {
 describe("z3c · clé absente et aucun montant", () => {
   it("clé absente : message simple, aucune exception", () => {
     const html = rendre({ etat: "normal", donnees: etat({ cleAbsente: true }) });
-    expect(html).toContain("Zernio n’est pas encore relié. L’écran fonctionne en essai.");
+    expect(html).toContain("Le nouvel outil n’est pas encore relié. L’écran fonctionne en essai.");
   });
 
   it("l'action « tester » sans clé répond par un message, sans exception ni appel à Zernio", async () => {
@@ -209,7 +209,7 @@ describe("z3c · clé absente et aucun montant", () => {
     for (const budget of [{ zernio: 0, buffer: 0, finBuffer: "20/11" }, { zernio: null, buffer: null, finBuffer: "20/11" }, { zernio: 999999, buffer: 999999, finBuffer: "20/11" }]) {
       const html = rendre({ etat: "normal", donnees: etat({ comptes, budget }) });
       expect(html).not.toMatch(/\$|Budget|à renseigner|jamais bloqué par ce montant/);
-      expect(html).toMatch(/<button(?![^>]*\sdisabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Passer Compte exemple tiktok 6 sur Zernio/);
+      expect(html).toMatch(/<button(?![^>]*\sdisabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Passer Compte exemple tiktok 6 sur le nouvel outil/);
     }
     expect(rendre(VUES.normal)).not.toMatch(/10 \$|Budget du mois/);
   });
