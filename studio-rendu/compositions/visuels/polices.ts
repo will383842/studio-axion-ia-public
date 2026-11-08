@@ -3,7 +3,6 @@
  * - Inter Display Black (SIL OFL 1.1, version optique d'Inter pour les grands corps) : titres en capitales (ART-1, style C + A) ;
  * - Inter (SIL OFL 1.1, trois graisses Medium / SemiBold / Bold) : texte courant, étiquettes et légendes ;
  * - Kalam Bold (SIL OFL 1.1, licence `../commune/polices/OFL-Kalam.txt`) : annotations manuscrites (L9), toujours à l'encre.
- * - Manrope variable 200 à 800 (SIL OFL 1.1, licence `../commune/polices/OFL-Manrope.txt`) : police unique de la charte Axion 2026 (famille `FAMILLE_MANROPE`).
  * Sources : Inter et Inter Display, dépôt rsms/inter (Inter 4.1 pour Inter Display Black : sous-ensemble latin, crénage conservé)
  * (licences : OFL-*.txt, à côté des fichiers ; droits : `src/briques/droits/registre/police-inter.ts`).
  * L'espace fine insécable (U+202F, `typographie-francaise.ts`) manque à Inter Bold et à Kalam : une face limitée à U+202F (`unicodeRange`)
@@ -17,7 +16,6 @@ import interMedium from "../commune/polices/Inter-Medium.ttf";
 import interSemiBold from "../commune/polices/Inter-SemiBold.ttf";
 import interBold from "../commune/polices/Inter-Bold.ttf";
 import kalamBold from "../commune/polices/Kalam-Bold.ttf";
-import manropeVariable from "../commune/polices/Manrope-Variable.ttf";
 
 /** Espace fine insécable : absente d'Inter Bold et de Kalam, prise dans Inter SemiBold (même dessin, même chasse à un pixel près). */
 const PLAGE_ESPACE_FINE = "U+202F";
@@ -115,33 +113,4 @@ export function chargerPoliceKalam(): void {
 /** Promesse du chargement de Kalam, ou `undefined` si la page ne l'a pas demandée (aucune attente inutile). */
 export function policeKalamPrete(): Promise<void> | undefined {
   return chargementKalam ?? undefined;
-}
-
-export const FAMILLE_MANROPE = "Axion Manrope";
-
-let chargementManrope: Promise<void> | null = null;
-
-/** Manrope variable (axe wght 200 à 800) : police unique de la charte Axion 2026. */
-export function chargerPoliceManrope(): void {
-  if (chargementManrope || typeof document === "undefined") return;
-  const attente = delayRender("Police Manrope", { timeoutInMilliseconds: DELAI_DELAYRENDER_MS });
-  const face = new FontFace(FAMILLE_MANROPE, `url(${manropeVariable})`, { weight: "200 800" });
-  chargementManrope = face.load().then(
-    (f) => {
-      document.fonts.add(f);
-      continueRender(attente);
-    },
-    (e: unknown) => {
-      const err = new Error(`Police Manrope illisible : ${e instanceof Error ? e.message : String(e)}`);
-      cancelRender(err);
-      throw err;
-    },
-  );
-  chargementManrope.catch(() => undefined);
-}
-
-/** Promesse du chargement de Manrope (lance le chargement si besoin). */
-export function policeManropePrete(): Promise<void> {
-  chargerPoliceManrope();
-  return chargementManrope ?? Promise.resolve();
 }

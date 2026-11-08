@@ -30,7 +30,7 @@ describe("V7-05 : Manrope variable + licence OFL", () => {
   }
 
   it("le rendu des visuels charge Manrope en local (famille dédiée)", () => {
-    const source = readFileSync(join(racine, "studio-rendu/compositions/visuels/polices.ts"), "utf8");
+    const source = readFileSync(join(racine, "studio-rendu/compositions/visuels/police-manrope.ts"), "utf8");
     expect(source).toContain("FAMILLE_MANROPE");
     expect(source).toContain("Manrope-Variable.ttf");
   });
