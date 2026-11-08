@@ -1,7 +1,7 @@
 /** Lot 3a · service de conversation : parcours, reprises, oppositions, adresses, site. Port et site FAUX, données fictives. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -26,6 +26,7 @@ beforeEach(async () => {
   site = fauxSite();
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -392,6 +393,8 @@ describe("15 et 20 · aucune adresse stockée, textes du dictionnaire", () => {
     await deposerCommentaire(depots, {});
     await passer(T0, { titreGuide: undefined });
     expect(port.prive).toHaveLength(0);
-    expect((await etatDe(A)).etat).toBe("m1_refuse");
+    // Titre absent : la garde de validation (qui recalcule l'empreinte) bloque AVANT M1 ; l'événement attend, rien ne part.
+    expect(await etatDe(A)).toBeFalsy();
+    expect(port.pub).toHaveLength(0);
   });
 });

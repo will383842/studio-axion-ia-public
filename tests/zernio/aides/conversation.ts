@@ -94,3 +94,12 @@ export const evenement = async (depots: () => any, idEvenement: string) => (awai
 export function silencerConsole(): void {
   for (const m of ["log", "error", "warn", "info"] as const) vi.spyOn(console, m).mockImplementation(() => undefined);
 }
+
+/** Enregistre la validation du mot GUIDE (écran /mots) pour ce titre : la garde du parcours la revérifie avant tout envoi. */
+export async function validerGuideAuParcours(titre: string = TITRE): Promise<void> {
+  const { empreinteGuideParcours } = await import("@/domaine/guide-reseau/empreinte-guide");
+  const { ecrireParametre } = await import("@/services/_commun");
+  const e = empreinteGuideParcours(titre);
+  if (!e.ok) throw new Error(e.raison);
+  await ecrireParametre("mots.validation.guide-parcours", { empreinte: e.empreinte, valideLe: "2026-01-01T00:00:00.000Z" });
+}

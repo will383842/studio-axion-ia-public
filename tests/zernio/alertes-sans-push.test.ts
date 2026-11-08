@@ -1,6 +1,6 @@
 /** Les alertes du parcours de conversation n'envoient JAMAIS de notification push au téléphone (cloche seulement). Données fictives, faux transports. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { COMPTE, ENV, T0, TITRE, deposerCommentaire, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { COMPTE, ENV, T0, TITRE, deposerCommentaire, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -17,6 +17,7 @@ beforeEach(async () => {
   silencerConsole();
   pm.injecterTransportSite(fauxSite().transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
 });
 afterEach(() => {
   vi.restoreAllMocks();
