@@ -209,5 +209,7 @@ describe("bloc « Adapté automatiquement, à vérifier »", () => {
   it("rien à montrer : rien", () => {
     expect(renderToStaticMarkup(createElement(BlocAdapteAutomatiquement, { phrases: [] }))).toBe("");
     expect(phrasesAdaptees(undefined)).toEqual([]);
+    expect(phrasesAdaptees({ adaptations: "pas un tableau" } as never)).toEqual([]);
+    expect(phrasesAdaptees({ adaptations: ["Une", 3, null] } as never)).toEqual(["Une"]);
   });
 });

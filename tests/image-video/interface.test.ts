@@ -406,7 +406,7 @@ describe("L16 · écran 4 « Fabrication » et écran 5 « Vos vidéos »", () =
     expect(v!.ecran).toBe("videos");
     expect(v!.barre).toBe("videos");
     expect(v!.imageUrl).toBe("https://exemple/studio/dev/entree/image-video/f-1.png");
-    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videos: v!.videos!, verdict: v!.verdict })));
+    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: v!.videos!, verdict: v!.verdict })));
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
     expect(html).toContain("Télécharger");
     expect(html).toContain("Copier le texte");
