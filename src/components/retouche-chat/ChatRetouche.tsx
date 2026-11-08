@@ -110,7 +110,7 @@ export function ChatRetouche({ videoId, versionInitialeId, envoyer = envoiParDef
         <label className="sr-only" htmlFor={`retouche-${videoId}`}>
           Que voulez-vous changer ?
         </label>
-        <input id={`retouche-${videoId}`} value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="Que voulez-vous changer ?" className="min-h-11 flex-1 rounded-lg border border-trait bg-surface px-3 text-sm" />
+        <input id={`retouche-${videoId}`} value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="Que voulez-vous changer ?" className="min-h-11 flex-1 rounded-lg border border-trait bg-surface-1 px-3 text-sm" />
         <Bouton type="submit" variante="secondaire" disabled={!saisie.trim() || occupe}>
           Envoyer
         </Bouton>
