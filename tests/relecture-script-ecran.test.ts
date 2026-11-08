@@ -24,8 +24,9 @@ describe("RelireScript : rendu", () => {
     expect(vu).toContain("On recrute nos collaborateurs en quinze minutes.");
   });
 
-  it("le bouton porte le prix, la durée est estimée, le mode texte libre est proposé", () => {
-    expect(vu).toContain("Lancer la vidéo (≈ 4,20 €)");
+  it("le bouton ne porte aucun prix, la durée est estimée, le mode texte libre est proposé", () => {
+    expect(vu).toContain("Lancer la vidéo");
+    expect(vu).not.toMatch(/€|4,20/);
     expect(vu).toMatch(/≈ 4\d s/);
     expect(vu).toContain("Texte libre");
     expect(vu).toContain("Vérification");

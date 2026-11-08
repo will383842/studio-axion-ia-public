@@ -80,7 +80,7 @@ const claude = () => {
   return c;
 };
 
-/** Pire cas de la grande chaîne, lu d'une écriture refusée en mode bloquant (plafond par défaut), puis close. */
+/** Pire cas de la grande chaîne, lu de la réserve d'une première écriture (plafond par défaut ; le réglage « bloquant » n'arrête plus rien), puis close. */
 async function pireCasDeLaGrandeChaine(): Promise<number> {
   claude();
   await ecrireParametre("budget.mode", "bloquant");
@@ -98,7 +98,7 @@ const faireUsine = async (generationId: string) => {
 const entre = (pire: number, diviseur: number) => Math.ceil((pire / diviseur) * 100) / 100;
 
 describe("de bout en bout : plafond du sujet, mode indicatif", () => {
-  it("pire cas entre 1 × et 5 × le plafond : l'écriture PART (bloquant : refusée avant le 1er appel)", async () => {
+  it("pire cas entre 1 × et 5 × le plafond : l'écriture PART, même avec le réglage « bloquant » (sans effet depuis le 08/11/2026)", async () => {
     const pire = await pireCasDeLaGrandeChaine();
     expect(pire).toBeGreaterThan(1.5);
     const c = claude();
@@ -107,8 +107,8 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     const b = await lancer(1);
     if (!b.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
-    expect((await generation(b.generationId)).statut).toBe("plafond-atteint");
-    expect(c.appels).toHaveLength(0);
+    expect((await generation(b.generationId)).statut).not.toBe("plafond-atteint");
+    expect(c.appels.length).toBeGreaterThan(0);
     await ecrireParametre("budget.mode", "indicatif");
     const r = await lancer(2);
     if (!r.ok) throw new Error("lancement");
@@ -130,7 +130,7 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     expect(c.appels).toHaveLength(0);
   }, 90_000);
 
-  it("au-delà de 5 × : indicatif, l'écriture PART quand même (plus d'arrêt de sécurité) ; bloquant, elle est refusée", async () => {
+  it("au-delà de 5 × : l'écriture PART quand même (plus d'arrêt de sécurité), en indicatif comme avec le réglage « bloquant »", async () => {
     const pire = await pireCasDeLaGrandeChaine();
     const c = claude();
     await ecrireParametre("budget.mode", "bloquant");
@@ -138,8 +138,8 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     const b = await lancer(1);
     if (!b.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
-    expect(c.appels).toHaveLength(0);
-    expect((await generation(b.generationId)).statut).toBe("plafond-atteint");
+    expect(c.appels.length).toBeGreaterThan(0);
+    expect((await generation(b.generationId)).statut).not.toBe("plafond-atteint");
     await ecrireParametre("budget.mode", "indicatif");
     const r = await lancer(2);
     if (!r.ok) throw new Error("lancement");
@@ -155,8 +155,8 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
     const r = await lancer(2);
     if (!r.ok) throw new Error("lancement");
-    await bg.tourBoucleGeneration();
-    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    // Écriture arrêtée au plafond AVANT le 08/11/2026 (plus aucun lancement de Will ne s'y arrête aujourd'hui).
+    await depots().generations.modifier(r.generationId, { statut: "plafond-atteint" });
     await ecrireParametre("budget.mode", "indicatif");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, entre(pire, 3));
     const e = await bg.etatEcriture(r.scriptMaitreId);
@@ -174,11 +174,11 @@ describe("de bout en bout : plafond du sujet, mode indicatif", () => {
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
     const r = await lancer(2);
     if (!r.ok) throw new Error("lancement");
-    await bg.tourBoucleGeneration();
-    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    // Écriture arrêtée au plafond AVANT le 08/11/2026 (plus aucun lancement de Will ne s'y arrête aujourd'hui).
+    await depots().generations.modifier(r.generationId, { statut: "plafond-atteint" });
     await ecrireParametre("budget.mode", "indicatif");
     const e = await bg.etatEcriture(r.scriptMaitreId);
-    expect(e?.reprise.possible).toBe(true);
+    expect(e?.reprise?.possible).toBe(true);
   }, 90_000);
 });
 
@@ -204,12 +204,12 @@ describe("écriture en attente de crédit : en indicatif, seul le crédit réel 
     expect(await gc.ecritureDebloquee(r.generationId)).toBe(true);
   }, 60_000);
 
-  it("même cas en mode bloquant : PAS prête (limite du mois)", async () => {
+  it("même cas avec le réglage « bloquant » (sans effet) : prête aussi, la limite du mois n'est qu'un repère", async () => {
     await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 20);
     const r = await enAttenteFacturation();
     await gc.declarerRechargeClaude(1000);
-    expect(await gc.ecriturePreteAReprendre(r.generationId)).toBe(false);
+    expect(await gc.ecriturePreteAReprendre(r.generationId)).toBe(true);
   }, 60_000);
 
   it("commande de l'Usine en indicatif : PAS prête non plus", async () => {
@@ -249,14 +249,16 @@ describe("seuil de confirmation : plus jamais exigé en indicatif", () => {
     expect(c.appels.length).toBeGreaterThan(0);
   }, 90_000);
 
-  it("mode bloquant : la phrase d'attente demande toujours de relever le seuil dans Réglages", async () => {
-    claude();
+  it("réglage « bloquant » sans effet : aucune attente « seuil », aucune phrase demandant de relever le seuil dans Réglages", async () => {
+    const c = claude();
     await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, 20);
     await ecrireParametre("budget.seuilConfirmation", eur0);
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
-    expect(await gc.phraseAttenteSeuil(r.generationId)).toMatch(/Relevez-le dans Réglages/);
+    expect((await generation(r.generationId)).statut).not.toBe("en-attente-credit");
+    expect(c.appels.length).toBeGreaterThan(0);
+    expect(await gc.phraseAttenteSeuil(r.generationId)).toBeNull();
   }, 60_000);
 });

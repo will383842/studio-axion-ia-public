@@ -458,7 +458,7 @@ describe("Garde écran · rien de technique sous les yeux de Will", () => {
       { fichier: "src/services/fabrication.ts", extrait: "Votre vidéo reste telle quelle.", equipe: "3 · retouche refusée (constante)" },
       { fichier: "src/services/personnages.ts", extrait: "Ce visage n'est pas encore prêt.", equipe: "5 · avatar par format" },
       { fichier: "src/services/notifications.ts", extrait: "Essai de notification par e-mail envoyé", equipe: "2 · notifications" },
-      { fichier: "src/components/generateur/FeuilleSerie.tsx", extrait: "Calcul du prix", equipe: "6 · feuille de série (écran)" },
+      { fichier: "src/components/generateur/FeuilleSerie.tsx", extrait: "Calcul en cours", equipe: "6 · feuille de série (écran)" },
       { fichier: "src/components/personnages/OngletVisages.tsx", extrait: "Visage par défaut", equipe: "5 · avatar (écran)" },
     ];
     const manques: string[] = [];

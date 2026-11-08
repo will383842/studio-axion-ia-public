@@ -37,10 +37,6 @@ export function CarteManqueMatiere() {
           <Icone nom="micro" size={36} />
         </button>
         <p className="mt-3 text-sm font-semibold text-texte">{ecoute ? "Je vous écoute…" : "Dicter · 10 s"}</p>
-
-        <p className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-sauge-doux px-3 py-1 text-xs font-bold text-sauge">
-          <Icone nom="euro" size={12} />0 € dépensé
-        </p>
       </Carte>
 
       {/* Réemploi d'une matière déjà servie */}

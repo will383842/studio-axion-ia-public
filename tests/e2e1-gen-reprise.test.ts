@@ -19,9 +19,9 @@ describe("E2E-1 sécurité · reprise d'une écriture bloquée", () => {
     expect(page).toMatch(/« Reprendre »/);
   });
 
-  it("l'écran d'écriture propose « Reprendre (≈ X €) », branché sur l'action qui exige la session", () => {
+  it("l'écran d'écriture propose « Reprendre » sans prix, branché sur l'action qui exige la session", () => {
     const ecran = lire("src/components/generateur/EcritureEnCours.tsx");
-    expect(ecran).toMatch(/Reprendre \(≈ \$\{etat\.reprise\.prix\}\)/);
+    expect(ecran).not.toMatch(/Reprendre \(≈/);
     expect(ecran).toMatch(/reprendreEcrituresAction\(/);
     const actions = lire("src/app/(studio)/ecrire/sujets/actions.ts");
     expect(actions).toMatch(/export async function reprendreEcrituresAction[\s\S]{0,120}exigerSession\(\)/);

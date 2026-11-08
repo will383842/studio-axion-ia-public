@@ -21,7 +21,7 @@ export function EtapeSujet({ formatId, brouillon, modifier, contexte }: Propriet
           libelle="Le sujet"
           grand
           autoFocus={!brouillon.sujet}
-          placeholder="Relancer automatiquement les devis qui dorment"
+          placeholder="Relancer automatiquement les clients qui dorment"
           value={brouillon.sujet}
           maxLength={160}
           onChange={(e) => modifier({ sujet: e.target.value, titre: "" })}

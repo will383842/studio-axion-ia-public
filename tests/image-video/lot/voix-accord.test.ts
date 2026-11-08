@@ -60,8 +60,8 @@ describe("accord de la voix", () => {
     expect(await reserver(voix(200), 220)).toBe("ok");
   });
 
-  it("vidéo du lot : une voix qui dépasse le prix accordé pour la vidéo est refusée (jamais plus que l'accord)", async () => {
-    expect(await reserver(voix(300), 220)).toBe("CONFIRMATION_REQUISE");
+  it("vidéo du lot : une voix qui dépasse le prix accordé pour la vidéo n'est pas refusée (le dépassement est seulement signalé)", async () => {
+    expect(await reserver(voix(300), 220)).toBe("ok");
   });
 
   it("vidéo seule : comportement actuel (la voix est réservée sur son propre coût)", async () => {

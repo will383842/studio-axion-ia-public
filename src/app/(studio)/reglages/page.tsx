@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Apparition } from "@/components/ui/Apparition";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
-import { Budget } from "@/components/reglages/Budget";
 import { CarteSection } from "@/components/reglages/CarteSection";
 import { BlocBuffer } from "@/components/reglages/BlocBuffer";
 import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier";
@@ -21,9 +20,6 @@ import { ChangerMotDePasse, ListeAppareils } from "@/components/reglages/Securit
 import { ilYA } from "@/lib/dates";
 import { listerSessions } from "@/services/auth";
 import { vueBuffer } from "@/services/buffer";
-import { coutsParFournisseurEtMois } from "@/services/C-videos-publication-complements";
-import { resumeBudget, tableauCouts } from "@/services/couts";
-import { lireBudgetUsine } from "@/services/budget-mensuel";
 import { vueCles, vueCredits } from "@/services/credits";
 import { aPropos, listerConnexions, listerJournal, lireReglages } from "@/services/reglages";
 import { exigerSession } from "@/services/auth";
@@ -43,8 +39,6 @@ import { lireChaineReglee } from "@/services/chaine-ecriture";
 import { InterrupteursEcriture } from "@/components/reglages/InterrupteursEcriture";
 import { lireInterrupteursEcriture } from "@/services/interrupteurs-ecriture";
 import { ADAPTATIONS_BRANCHEES } from "@/reseaux/branchement-adaptations";
-import { PlafondSujet } from "@/components/reglages/PlafondSujet";
-import { lirePlafondSujet } from "@/services/plafond-sujet";
 import { GardeSujetsReglage } from "@/components/reglages/GardeSujetsReglage";
 import { lireGardeSujets } from "@/services/sujets-traites";
 import { optionRetiree } from "@/briques/options-payantes";
@@ -59,7 +53,7 @@ const SECTIONS: { id: string; libelle: string; icone: NomIcone }[] = [
   { id: "securite", libelle: "Sécurité", icone: "cadenas" },
   { id: "connexions", libelle: "Connexions", icone: "prise" },
   { id: "credits", libelle: "Crédits", icone: "jauge" },
-  { id: "budget", libelle: "Budget", icone: "euro" },
+  { id: "options-payantes", libelle: "Options payantes", icone: "euro" },
   { id: "ecriture", libelle: "Écriture des scripts", icone: "ecrire" },
   { id: "outils", libelle: "Outils", icone: "tendance" },
   { id: "votre-site", libelle: "Votre site", icone: "lien" },
@@ -98,14 +92,11 @@ export default async function PageReglages() {
   // Plan facecam v4 (lot D) : « Mon monteur » n'apparaît qu'une fois le format face caméra ouvert (masqué pendant le chantier).
   const avecMonteur = trouverFormat("facecam")?.statut === "actif";
   const sections = avecMonteur ? [...SECTIONS.slice(0, 5), { id: "mon-monteur", libelle: "Mon monteur", icone: "etincelles" as const }, { id: "decor-ia", libelle: "Décor IA", icone: "image" as const }, ...SECTIONS.slice(5)] : SECTIONS;
-  const [reglages, connexions, sessions, budget, mois, journal, tableau, veille, credits, cles, site, buffer, double, monteur, budgetUsine, creditClaude] = await Promise.all([
+  const [reglages, connexions, sessions, journal, veille, credits, cles, site, buffer, double, monteur, creditClaude] = await Promise.all([
     lireReglages(),
     listerConnexions(),
     listerSessions(),
-    resumeBudget(),
-    coutsParFournisseurEtMois(3),
     listerJournal(12),
-    tableauCouts(),
     bilanVeille(),
     vueCredits(),
     vueCles(),
@@ -113,7 +104,6 @@ export default async function PageReglages() {
     vueBuffer(),
     vueRenduDouble(),
     vueReglagesMonteur(),
-    lireBudgetUsine(),
     vueCreditClaude().catch((e) => {
       console.error("[reglages] crédit Claude restant illisible", e);
       return null;
@@ -124,7 +114,6 @@ export default async function PageReglages() {
   const lignesSite = await lireReglagesSite();
   const aPublierAllumee = await pageAPublierAllumee();
   const chaine = await lireChaineReglee();
-  const plafondSujet = await lirePlafondSujet();
   const gardeSujets = await lireGardeSujets();
   const interrupteursEcriture = await lireInterrupteursEcriture();
   const infos = aPropos();
@@ -189,13 +178,9 @@ export default async function PageReglages() {
         </Apparition>
 
         <Apparition index={2}>
-          <CarteSection id="budget" icone="euro" titre="Budget">
-            <Budget budget={budget.budget} depense={budget.depense} seuil={budget.seuilConfirmation} mois={mois} tableau={tableau} engage={budget.engage} essai={budget.essai} usine={budgetUsine} />
+          <CarteSection id="options-payantes" icone="euro" titre="Options payantes">
             {/* Vérif V4 : un seul geste pour qu'aucune option payante ne soit proposée ni ne parte. */}
-            <div className="my-4 h-px bg-trait" />
             <OptionsPayantes initial={coupees} />
-            <div className="my-4 h-px bg-trait" />
-            <PlafondSujet key={`${plafondSujet.usd}-${plafondSujet.reglee}-${chaine}`} {...plafondSujet} chaine={chaine} />
           </CarteSection>
         </Apparition>
 

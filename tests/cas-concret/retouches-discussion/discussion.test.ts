@@ -217,7 +217,7 @@ describe("service : proposer, montrer, confirmer", () => {
     return { det, executer, lancerRetouche, dep: { appels: det.appels, executer, claudeActif: async () => false, lancerRetouche } };
   }
 
-  it("« changez le mot » : lu sans être attendu, montré avec le prix, rien ne part sans l'accord, puis la retouche part", async () => {
+  it("« changez le mot » : lu sans être attendu, montré avec le prix, rien ne part avant « Confirmer », puis la retouche part même sur un montant plus bas", async () => {
     const { det, executer, lancerRetouche, dep } = dependances();
     const premier = await service.proposerRetouche(VIDEO, "Changez le mot à commenter : RDV", dep);
     expect(premier).toMatchObject({ statut: "en-cours", phrase: service.PHRASE_LECTURE });
@@ -234,11 +234,11 @@ describe("service : proposer, montrer, confirmer", () => {
     expect(propose.prix).toMatch(/^environ .*€$/);
     expect(executer).toHaveBeenCalledTimes(1);
 
-    // Un montant trop bas redemande. Un accord absent ou illisible (`false`) n'est jamais changé en `true` : il va tel quel à
-    // `lancerRetouche`, qui applique la règle commune du seuil (voir tests/modifications/cas-concret-correctifs.test.ts).
-    if (propose.centimes > 0) expect((await service.confirmerRetouche(VIDEO, propose.centimes - 1, dep)).statut).toBe("accord-requis");
-    expect(lancerRetouche).not.toHaveBeenCalled();
-    expect(await service.confirmerRetouche(VIDEO, propose.centimes, dep)).toEqual({ statut: "lancee", travailId: "t-retouche" });
+    // 08/11/2026 : aucun prix ne bloque. Un montant plus bas que le prix montré ne redemande plus rien : la retouche part,
+    // (le service transmet le prix montré ; l'accord absent ou illisible `false` va tel quel à `lancerRetouche`).
+    expect(propose.centimes).toBeGreaterThan(0);
+    expect(await service.confirmerRetouche(VIDEO, propose.centimes - 1, dep)).toEqual({ statut: "lancee", travailId: "t-retouche" });
+    expect(lancerRetouche).toHaveBeenCalledTimes(1);
     expect(lancerRetouche).toHaveBeenCalledWith(VIDEO, [], "Changez le mot à commenter : RDV", { confirme: propose.centimes, operations: [{ type: "changer-mot", mot: "RDV" }] });
     // La demande est oubliée.
     expect(await service.suivreRetouche(VIDEO, dep)).toEqual({ statut: "aucune" });

@@ -1,6 +1,6 @@
 /**
  * Budget INDICATIF · plafond Claude du mois pour les faces caméra (simple et animée) : en mode indicatif il ne déclenche
- * plus la « version simple » (la version complète est fabriquée) ; en mode bloquant, inchangé.
+ * plus la « version simple » (la version complète est fabriquée) ; le mode bloquant n'existe plus (08/11/2026), seule l'Usine reste bloquante.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,9 +21,9 @@ beforeEach(async () => {
 });
 
 describe("plafondClaudeDuMoisAtteint", () => {
-  it("bloquant : atteint → la version simple", async () => {
+  it("réglage « bloquant » sans effet (08/11/2026) : jamais atteint, la version complète est fabriquée", async () => {
     await ecrireParametre("budget.mode", "bloquant");
-    expect(await plafondClaudeDuMoisAtteint()).toBe(true);
+    expect(await plafondClaudeDuMoisAtteint()).toBe(false);
   });
   it("indicatif mais commande de l'Usine : le plafond reste atteint", async () => {
     await ecrireParametre("budget.mode", "indicatif");

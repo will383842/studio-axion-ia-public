@@ -103,7 +103,7 @@ describe("plafonds propres du tableau animé", () => {
     expect(ecriture).toBeLessThan(decoupage);
   });
 
-  it("plafond des textes à 0 : le découpage passe sur son propre plafond ; le sien atteint : arrêt, aucun appel", async () => {
+  it("plafond des textes à 0 : le découpage passe sur son propre plafond ; le sien atteint : l'appel part quand même, dépassement signalé (Usine : arrêt, aucun appel)", async () => {
     const appels = brancherClaude();
     const v = await video();
     await ecrireParametre("claude.plafondKitUsd", 0);
@@ -113,10 +113,16 @@ describe("plafonds propres du tableau animé", () => {
     const reservations = await depots().reservations.lister((x) => x.videoId === v.id);
     expect(reservations.every((x) => x.travailId?.startsWith("txtpub-tbdec-"))).toBe(true);
 
+    // Lot H (décision de Williams, 08/11) : le plafond propre atteint ne bloque plus le studio ; il est signalé au journal.
     await ecrireParametre("tableau.plafondDecoupageUsd", 0.01);
-    const refus = await dcv.executerRolePourVideo(v.id, roleDecoupageTableau, entree, { etape: ETAPE_DECOUPAGE, plafondPropre: dcv.PLAFOND_DECOUPAGE_TABLEAU });
+    const passe = await dcv.executerRolePourVideo(v.id, roleDecoupageTableau, entree, { etape: ETAPE_DECOUPAGE, plafondPropre: dcv.PLAFOND_DECOUPAGE_TABLEAU });
+    expect(passe.ok).toBe(true);
+    expect(appels).toHaveLength(2);
+    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(video\)/.test(e.message))).toBe(true);
+    // Une commande de l'Usine reste bloquante : arrêt, aucun appel.
+    const refus = await dcv.executerRolePourVideo(v.id, roleDecoupageTableau, entree, { etape: ETAPE_DECOUPAGE, plafondPropre: dcv.PLAFOND_DECOUPAGE_TABLEAU, origine: "usine" });
     expect(refus).toMatchObject({ ok: false, arret: "plafond-video", message: expect.stringMatching(/rien n'a été payé/) });
-    expect(appels).toHaveLength(1);
+    expect(appels).toHaveLength(2);
   });
 
   it("une étape mal nommée est refusée (elle échapperait à son plafond)", async () => {
@@ -125,14 +131,16 @@ describe("plafonds propres du tableau animé", () => {
     await expect(dcv.executerRolePourVideo(v.id, roleDecoupageTableau, entree, { etape: "Autre chose", plafondPropre: dcv.PLAFOND_DECOUPAGE_TABLEAU })).rejects.toThrow(/mal nommée/);
   });
 
-  it("le générateur passe par le chemin plafonné : son plafond atteint, refus expliqué, aucun appel", async () => {
+  it("le générateur passe par le chemin plafonné : son plafond atteint, l'appel part quand même (budget indicatif), dépassement signalé", async () => {
     const appels = brancherClaude();
     const v = await video();
     await ecrireParametre("tableau.plafondScriptUsd", 0);
     const r = await genererScriptTableau(DEMANDE_MODELE, { client: clientScriptsStudio(v.id, 1) });
+    // Le faux Claude rend une réponse hors format : l'écriture s'arrête là, mais PAS sur le plafond (lot H).
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.motifs[0]).toMatch(/Plafond de cette vidéo atteint/);
-    expect(appels).toHaveLength(0);
+    if (!r.ok) expect(r.motifs[0]).not.toMatch(/Plafond de cette vidéo atteint/);
+    expect(appels).toHaveLength(1);
+    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(video\)/.test(e.message))).toBe(true);
   });
 
   it("le générateur dépense par le chemin plafonné : la dépense est rattachée à la vidéo, sur son étape propre", async () => {
