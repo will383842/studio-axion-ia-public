@@ -60,7 +60,7 @@ describe("variété · axe objets", () => {
     for (const c of CODES) {
       const h = habillageObjet(c, "ivoire");
       expect(contraste(h.enTete.texte, h.enTete.fond), `${c} en-tête`).toBeGreaterThanOrEqual(4.5);
-      if (c !== "OBJ-A") expect(contraste(h.tampon.texte, h.tampon.fond ?? "#FBF8F3"), `${c} tampon`).toBeGreaterThanOrEqual(4.5);
+      if (c !== "OBJ-A") expect(contraste(h.tampon.texte, h.tampon.fond ?? "#FAF9F5"), `${c} tampon`).toBeGreaterThanOrEqual(4.5);
       expect(contraste(h.alerte.tamponTexte, h.alerte.fond), `${c} alerte`).toBeGreaterThanOrEqual(c === "OBJ-A" ? 2.5 : 4.5);
     }
   });

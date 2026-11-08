@@ -44,7 +44,7 @@ export function DecorIa({ initial, retire = false }: { initial: { actif: boolean
         notifier.erreur(res.message);
         return;
       }
-      if ("plafond" in res.donnees) {
+      if (!("phrase" in res.donnees)) {
         notifier.erreur(res.donnees.plafond);
         return;
       }

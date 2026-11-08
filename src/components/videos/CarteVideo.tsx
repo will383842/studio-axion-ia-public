@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import type { VueVideoCarte } from "@/services/vues";
 import { adresseFicheVideo, nomCourtFormat } from "@/formats";
 import { IlYA } from "@/components/ui/IlYA";
+import { PastillesReseaux } from "@/components/videos/PastillesReseaux";
 
 /**
  * Carte d'une vidéo (Accueil, Mes vidéos, onglets de format, Calendrier).
@@ -64,6 +65,7 @@ export function CarteVideo({
           )}
           <span className="shrink-0"><IlYA iso={v.modifieLe} /></span>
         </p>
+        {v.reseaux && v.reseaux.length > 0 && <PastillesReseaux reseaux={v.reseaux} precis={v.reseauxPrecis ?? false} className="mt-1.5" />}
       </div>
     </Link>
   );

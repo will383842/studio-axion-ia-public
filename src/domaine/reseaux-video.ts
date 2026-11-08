@@ -43,7 +43,11 @@ function tableau(valeur: unknown): unknown[] {
 export function reseauxDeLaVideo(e: EntreesReseauxVideo): { reseaux: IdReseau[]; precis: boolean } {
   const sources: unknown[][] = [
     [e.reseau],
-    tableau(e.livraisonIV).flatMap((l) => (l && typeof l === "object" && (l as { version?: unknown }).version !== "aucune" ? [(l as { reseau?: unknown }).reseau] : [])),
+    // Un réseau livré compte s'il a un fichier (même règle que le téléchargement : pastille et lien concordent).
+    tableau(e.livraisonIV).flatMap((l) => {
+      const ligne = l && typeof l === "object" ? (l as { reseau?: unknown; version?: unknown; fichierCle?: unknown }) : null;
+      return ligne && ligne.version !== "aucune" && typeof ligne.fichierCle === "string" && ligne.fichierCle ? [ligne.reseau] : [];
+    }),
     tableau(e.entreesIV),
     tableau(e.sortiesReseaux).flatMap((s) => tableau(s)),
   ];

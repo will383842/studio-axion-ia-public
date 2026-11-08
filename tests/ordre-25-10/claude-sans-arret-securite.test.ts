@@ -43,7 +43,8 @@ describe("plafond par vidéo (jugerPlafond)", () => {
     const plafondCentimes = 150; // 1,5 $ ≈ 150 c
     const r = await jugerPlafond(plafondCentimes * 6, 1.5, true, "Ce texte", "vid-1", { sansPrix: true });
     expect(r).not.toBe("arret-securite");
-    expect(r).toBe("depasse");
+    // 08/11 : plus d'arrêt à 5 × ni d'issue « depasse » ; la fabrication continue (« ok »), le dépassement est signalé.
+    expect(r).toBe("ok");
     expect(await cloches()).toHaveLength(1);
   });
   it("bloquant : refus comme avant", async () => {

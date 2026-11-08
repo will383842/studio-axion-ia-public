@@ -17,8 +17,8 @@ import { useVariete } from "./variete/ContexteVariete";
 import { habillageObjet } from "./variete/objets/habillage";
 import { PUCE_DECLENCHEUR, planAlerte, type DeclencheurAlerte, type TamponIV } from "./plan-objets";
 
-/** Bleu de la pastille d'envoi (messagerie), comme la maquette. */
-const BLEU_MESSAGERIE = "#2AABEE";
+/** Pastille d'envoi (messagerie) : terracotta de la charte (plus de bleu). */
+const ENVOI_MESSAGERIE = "#B23F16";
 
 export function Alerte({ source, moment, message, t0, frappe, t, declencheurs, tampon, icone = "envoyer" }: { source: string; moment?: string; message: string; t0: number; frappe?: number; t: number; declencheurs?: DeclencheurAlerte[]; tampon?: TamponIV; icone?: string }) {
   const a = planAlerte({ source, moment, message, t: t0, declencheurs, tampon, frappe }, t);
@@ -105,7 +105,7 @@ export function Alerte({ source, moment, message, t0, frappe, t, declencheurs, t
             transform: `translate(${a.secousse.x}px, ${a.decalageY + a.secousse.y}px)`,
           }}
         >
-          <div style={{ width: 116, height: 116, borderRadius: "50%", background: BLEU_MESSAGERIE, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+          <div style={{ width: 116, height: 116, borderRadius: "50%", background: ENVOI_MESSAGERIE, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
             <Icone nom={icone} taille={64} couleur={COULEURS_DUO.blanc} epaisseur={2.8} />
           </div>
           <div style={{ position: "relative" }}>

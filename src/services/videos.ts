@@ -18,7 +18,8 @@ import { exigerSession } from "./auth";
 import { urlFichier, urlsFichiers } from "./fichiers";
 import { enregistrerTexteVariante } from "./generateur";
 import { versCarte } from "./presentation";
-import { listerTravaux } from "./travaux";
+import { cache } from "react";
+import { listerTravaux, travauxDeLaCible } from "./travaux";
 import type { VueDistribution, VueVideoCarte, VueVideoDetail } from "./vues";
 import type { AccordPrix } from "@/domaine/accord";
 import { trouverMoi } from "./moi";
@@ -108,11 +109,11 @@ export function travailAffiche<T extends Pick<Travail, "cibleId" | "statut" | "t
 }
 
 /** Fiche complète d'une vidéo (B.8 #8). */
-export async function obtenirVideo(id: Id): Promise<VueVideoDetail | null> {
-  const travaux = await listerTravaux({ inclureTermines: true });
+async function obtenirVideoSansCache(id: Id): Promise<VueVideoDetail | null> {
   const d = depots();
   const video = await d.videos.obtenir(id);
   if (!video) return null;
+  const travaux = await travauxDeLaCible(id);
   // Les maquettes ne sont pas des versions de la vidéo (ni choisies, ni comparées).
   const versions = (await d.versions.lister((v) => v.videoId === id && v.statut !== "maquette")).sort((a, b) => a.numero - b.numero);
   const versionCourante = versions.find((v) => v.id === video.versionChoisieId) ?? versions[versions.length - 1] ?? null;
@@ -156,6 +157,13 @@ export async function obtenirVideo(id: Id): Promise<VueVideoDetail | null> {
     licencesABloquer: elements.filter((e) => etatLicence(e.licence) !== "ok").map((e) => ({ id: e.id, nom: e.nom, etat: etatLicence(e.licence) })),
   };
 }
+
+/**
+ * Fiche complète d'une vidéo, lue UNE fois par requête (`cache` : la page, ses métadonnées et ses sous-lectures se
+ * partagent le résultat). Ne jamais la modifier sur place : copier avant de trier. Seules les fabrications de CETTE
+ * vidéo sont lues (lot P, 08/11).
+ */
+export const obtenirVideo = cache(obtenirVideoSansCache);
 
 /**
  * Sous-titres COURANTS d'une version : celui de plus haute `version` (chaque correction ou chaque fabrication

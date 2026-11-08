@@ -15,6 +15,8 @@ import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
 import { GalerieVideos } from "@/components/videos/GalerieVideos";
 import { formatBientot, titrePageFormat } from "@/components/videos/formatBientot";
 import { OngletsMesVideos } from "@/components/videos/OngletsMesVideos";
+import { FiltresMesVideos } from "@/components/videos/FiltresMesVideos";
+import { compterParReseau, filtrerCartes, lireFiltres, type ParametresAdresse } from "@/domaine/filtres-mes-videos";
 import { compteursMesVideos } from "@/domaine/mes-videos";
 import { adresseCreationFormat, libelleDuree, listerFormats, nomCourtFormat, trouverFormat, valeursDuree } from "@/formats";
 import { cn } from "@/lib/cn";
@@ -37,9 +39,10 @@ const compact = new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFra
  * En-tête du format, chiffres (vues moyennes), UNE galerie de toutes ses vidéos non archivées, scripts.
  * Action : « Nouvelle vidéo de ce format » (actif) ou « Me prévenir » (bientôt).
  */
-export default async function PageFormat({ params }: { params: Promise<{ id: string }> }) {
+export default async function PageFormat({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<ParametresAdresse> }) {
   await exigerSession();
   const { id } = await params;
+  const sp = await searchParams;
   const [fiche, toutes, stats, series] = await Promise.all([obtenirFicheFormat(id), listerVideos({ inclureArchivees: true }), statsFormat(id), listerSeries()]);
   if (!fiche) notFound();
   const f = fiche.format;
@@ -47,6 +50,11 @@ export default async function PageFormat({ params }: { params: Promise<{ id: str
   // « Bientôt » seulement pour un format réellement pas fait : pas pour un format ouvert dans la navigation (Image → vidéo, essai).
   const ouvert = trouverFormat(f.id)?.ouvertDansLaNavigation === true;
   const bientot = formatBientot(f.statut, ouvert);
+  // Lot M : mêmes rangées Réseau et Étape que Mes vidéos (le format est déjà celui de la page).
+  const filtres = lireFiltres({ ...sp, format: undefined });
+  const sansReseau = filtrerCartes(fiche.videos, { etape: filtres.etape });
+  const reseaux = compterParReseau(sansReseau);
+  const affichees = filtres.reseau ? filtrerCartes(sansReseau, { reseau: filtres.reseau }) : sansReseau;
   const compteurs = compteursMesVideos(toutes, listerFormats({ inclureMasques: true, inclureReservesAWill: true }).map((x) => x.id));
 
   const chiffres = [
@@ -165,8 +173,10 @@ export default async function PageFormat({ params }: { params: Promise<{ id: str
         <div className="mb-3 flex justify-end">
           <NettoyerNonTerminees formatId={f.id} />
         </div>
+        <FiltresMesVideos base={`/formats/${id}`} params={sp} filtres={filtres} reseaux={reseaux} className="mb-4" />
         <GalerieVideos
-          videos={fiche.videos}
+          key={`${filtres.etape ?? ""}-${filtres.reseau ?? ""}`}
+          videos={affichees}
           series={series.map((s) => ({ id: s.id, nom: s.nom }))}
           afficherFormat={false}
           ratioForce={f.ratioMaitre}

@@ -4,6 +4,7 @@
  * Tests ROUGES du plan (rouges sur 03d297b) : « obtenirKit avec Claude choisi : zéro appel » ; « suites de
  * fabrication : seuls les réseaux par défaut ».
  */
+import { readFileSync } from "node:fs";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import { exemplesCommeVraies } from "./helpers/videos-reelles";
@@ -150,51 +151,56 @@ describe("R2 · dépense rattachée à la vidéo", () => {
     expect(appels).toHaveLength(4);
   });
 
-  it("plafond PAR VIDÉO : au-delà, rien ne part ; les autres textes restent des textes d'essai", async () => {
+  it("plafond PAR VIDÉO : simple repère (08/11/2026), au-delà tous les textes partent, Will est prévenu une fois", async () => {
     const appels = await brancherClaude();
     const v = await videoSansKit();
-    // 1er appel : 5 centimes réservés (pire cas × 1,2) ≤ 6. Ensuite : 2 centimes dépensés (1 centime d'euro, compté
-    // au centime de dollar supérieur) + 5 réservés > 6 → rien d'autre ne part.
+    // 1er appel : 5 centimes réservés (pire cas × 1,2) ≤ 6. Ensuite : 2 centimes dépensés + 5 réservés > 6 : avant, rien
+    // d'autre ne partait ; aujourd'hui le dépassement est signalé et les textes continuent, même avec le réglage « bloquant ».
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre("claude.plafondKitUsd", 0.06);
     await suite(v);
-    expect(appels.map((a) => a.reseau)).toEqual(["linkedin"]);
-    expect(await dcv.engageClaudeVideoCentimes(v.id)).toBeLessThanOrEqual(6);
+    expect(appels.map((a) => a.reseau).sort()).toEqual([...PAR_DEFAUT].sort());
+    expect(await depensesClaude(v.id)).toHaveLength(PAR_DEFAUT.length);
     const kit = (await pub.obtenirKit(v.id))!;
-    expect(kit.reseaux.filter((r) => r.origine === "claude").map((r) => r.reseau)).toEqual(["linkedin"]);
-    expect(kit.reseaux.find((r) => r.reseau === "tiktok")!.origine).toBe("essai");
-    expect((await journal()).some((m) => /plafond de la vidéo atteint \(0,05\s€\)/.test(m))).toBe(true);
+    expect(kit.reseaux.filter((r) => r.origine === "claude").map((r) => r.reseau).sort()).toEqual([...PAR_DEFAUT].sort());
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre))).toHaveLength(1);
+    expect((await journal()).some((m) => /plafond de la vidéo atteint/.test(m))).toBe(false);
   });
 
-  it("plafond par vidéo SOUS VERROU : deux appels lancés au même instant ne passent pas ensemble au-delà du plafond", async () => {
+  it("plafond par vidéo SOUS VERROU : trois appels lancés au même instant partent tous (repère), chacun compté, une seule cloche", async () => {
     const appels = await brancherClaude({ delaiMs: 40 });
     const v = await videoSansKit();
     await ecrireParametre("claude.plafondKitUsd", 0.06); // une seule réservation au pire cas (5 centimes)
     const { donneesPublication, entreePublication, rolePublication } = await import("@/generateur/roles/publication");
     const entree = (reseau: IdReseau) => entreePublication(donneesPublication({ reseau, titre: v.titre, texteValide: "Les outils de l'équipe.", adresse: "vous", mention: "", credits: [], regles: [] }));
     const r = await Promise.all((["linkedin", "tiktok", "instagram"] as const).map((x) => dcv.executerRolePourVideo(v.id, rolePublication, entree(x), { etape: x })));
-    expect(appels).toHaveLength(1);
-    expect(r.filter((x) => x.ok)).toHaveLength(1);
-    expect(r.filter((x) => !x.ok).map((x) => !x.ok && x.arret)).toEqual(["plafond-video", "plafond-video"]);
+    expect(appels).toHaveLength(3);
+    expect(r.filter((x) => x.ok)).toHaveLength(3);
+    expect(await depensesClaude(v.id)).toHaveLength(3);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre))).toHaveLength(1);
   });
 
-  it("deux « Réécrire » simultanés : un seul passe sous un plafond d'un appel", async () => {
+  it("deux « Réécrire » simultanés sous un plafond d'un appel : les deux passent (le plafond n'est plus qu'un repère)", async () => {
     const appels = await brancherClaude({ delaiMs: 40 });
     const v = await videoSansKit();
     await pub.obtenirKit(v.id);
     await ecrireParametre("claude.plafondKitUsd", 0.06);
     const r = await Promise.allSettled([pub.regenererTexteKit(v.id, "linkedin"), pub.regenererTexteKit(v.id, "tiktok")]);
-    expect(appels).toHaveLength(1);
-    expect(r.filter((x) => x.status === "rejected").map((x) => (x as PromiseRejectedResult).reason.message)).toEqual([expect.stringMatching(/Plafond des textes de cette vidéo atteint/)]);
+    expect(appels).toHaveLength(2);
+    expect(r.filter((x) => x.status === "rejected")).toHaveLength(0);
   });
 
-  it("limite Claude du MOIS atteinte : aucun appel, aucune réservation", async () => {
+  it("limite Claude du MOIS atteinte : simple repère, les textes partent, Will est prévenu une fois", async () => {
     const appels = await brancherClaude();
     const v = await videoSansKit();
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre("claude.plafondMensuelUsd", 0);
     await suite(v);
-    expect(appels).toHaveLength(0);
-    expect(await depots().reservations.compter((r) => r.videoId === v.id)).toBe(0);
-    await expect(pub.regenererTexteKit(v.id, "linkedin")).rejects.toMatchObject({ code: "TEXTE_NON_ECRIT", message: expect.stringMatching(/Limite Claude du mois atteinte/) });
+    expect(appels).toHaveLength(PAR_DEFAUT.length);
+    expect(await depots().reservations.compter((r) => r.videoId === v.id)).toBe(PAR_DEFAUT.length);
+    await pub.regenererTexteKit(v.id, "linkedin");
+    expect(appels).toHaveLength(PAR_DEFAUT.length + 1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Claude du mois/.test(x.titre))).toHaveLength(1);
   });
 
   it("pré-vol : crédit Claude suivi insuffisant → aucun appel", async () => {
@@ -428,14 +434,16 @@ describe("R2 relecture n° 1 · l'écriture automatique ne part qu'UNE fois par 
   });
 
   it("une retouche après la première écriture : aucun appel, même sur un réseau resté en texte d'essai", async () => {
-    const appels = await brancherClaude();
+    // Seul LinkedIn reçoit un texte valide ; les autres réseaux restent en texte d'essai (sorties refusées). Le plafond
+    // par vidéo n'arrête plus rien depuis le 08/11/2026 : c'est le refus des sorties qui laisse des textes d'essai.
+    const appels = await brancherClaude({ texte: (reseau) => (reseau === "linkedin" ? "Ce que coûtent vraiment les outils d'équipe.\n\nLe point en une minute, sans jargon." : "Un de nos clients a gagné 12 heures.") });
     const v = await videoSansKit();
-    await ecrireParametre("claude.plafondKitUsd", 0.06); // un seul texte écrit
     await suite(v);
-    expect(appels).toHaveLength(1);
-    await ecrireParametre("claude.plafondKitUsd", 0.3);
+    const apres = appels.length;
+    expect(apres).toBe(1 + (PAR_DEFAUT.length - 1) * rolePub.ESSAIS_TEXTE_PUBLICATION);
+    expect((await pub.obtenirKit(v.id))!.reseaux.find((r) => r.reseau === "tiktok")!.origine).toBe("essai");
     await suiteRetouche(v);
-    expect(appels).toHaveLength(1);
+    expect(appels).toHaveLength(apres);
   });
 
   it("une retouche d'une vidéo dont le kit n'a jamais été écrit par Claude (vidéo d'avant R2) : aucun appel", async () => {
@@ -532,11 +540,9 @@ describe("R2 relecture n° 7 · le prix des textes est annoncé au lancement de 
     const sans = await fabrication.apercuFabrication(v.id);
     expect(sans.estimation.lignes.some((l) => l.etape === "Textes des réseaux")).toBe(false);
     expect(avec.estimation.total.centimes - sans.estimation.total.centimes).toBe(ligne!.total.centimes);
-    // Écran : la ligne se lit dans le bloc du coût, en euros.
-    const { LigneTextesReseaux } = await import("@/assistant/etapes/Apercu");
-    const html = renderToStaticMarkup(createElement(LigneTextesReseaux, { montant: ligne!.total }));
-    expect(html).toContain("Textes des réseaux");
-    expect(html).toMatch(/environ \d+,\d{2}\s€/);
+    // Écran : aucun montant n'est affiché pour cette ligne (décision du 08/11/2026).
+    const apercu = await import("@/assistant/etapes/Apercu");
+    expect("LigneTextesReseaux" in apercu).toBe(false);
   });
 
   it("la suite d'une fabrication lancée avec cette ligne écrit bien les textes ; une seconde fabrication ne l'annonce plus", async () => {
@@ -549,14 +555,16 @@ describe("R2 relecture n° 7 · le prix des textes est annoncé au lancement de 
 });
 
 describe("R2 relecture n° 8 · une seule monnaie à l'écran", () => {
-  it("le plafond de la vidéo est dit en euros", async () => {
+  it("le plafond de la vidéo est dit en euros (cloche du dépassement, journal), jamais en dollars ; le texte est réécrit", async () => {
     await brancherClaude();
     const v = await videoSansKit();
     await pub.obtenirKit(v.id);
     await ecrireParametre("claude.plafondKitUsd", 0.01);
-    const e = await pub.regenererTexteKit(v.id, "linkedin").catch((x: Error) => x);
-    expect((e as Error).message).toMatch(/€/);
-    expect((e as Error).message).not.toMatch(/\$/);
+    await pub.regenererTexteKit(v.id, "linkedin");
+    const cloche = (await depots().notifications.lister()).filter((x) => x.type === "credit" && /Prix annoncé/.test(x.titre));
+    expect(cloche).toHaveLength(1);
+    expect(cloche[0].message).toMatch(/€/);
+    expect(cloche[0].message).not.toMatch(/\$/);
     expect((await journal()).filter((m) => /plafond/i.test(m)).join("\n")).not.toMatch(/\$/);
   });
 });
@@ -631,12 +639,11 @@ describe("R2 relecture n° 5 et 2ᵉ relecture (b) · un seul nombre d'essais, p
   });
 });
 
-describe("R2 2ᵉ relecture (c) · la ligne des textes dit qu'elle est comprise dans le total", () => {
-  it("« Textes des réseaux · environ X € (compris dans le total) »", async () => {
-    const { LigneTextesReseaux } = await import("@/assistant/etapes/Apercu");
-    const html = renderToStaticMarkup(createElement(LigneTextesReseaux, { montant: { centimes: 5, devise: "EUR" } }));
-    const texte = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    expect(texte).toMatch(/^Textes des réseaux environ 0,05\s€ \(compris dans le total\)$/);
+describe("R2 2ᵉ relecture (c) · la ligne des textes n'affiche plus aucun montant", () => {
+  it("l'écran « Votre vidéo » ne montre plus « Textes des réseaux · environ X € »", async () => {
+    const source = readFileSync("src/assistant/etapes/Apercu.tsx", "utf8");
+    expect(source).not.toContain("Textes des réseaux");
+    expect(source).not.toContain("compris dans le total");
   });
 });
 

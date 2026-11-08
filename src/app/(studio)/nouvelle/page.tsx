@@ -20,8 +20,8 @@ export default async function PageNouvelle() {
   await exigerSession();
   const [formats, modeles] = await Promise.all([listerFormatsAvecCompteurs(), listerModeles()]);
   const actifs = formats.filter((f): f is typeof f & { statut: "actif" } => f.statut === "actif");
-  // Tout ce qui n'est pas actif est grisé et non cliquable (décision de Will, 17/10) : il sait ce qui n'est pas fait.
-  const bientot = formats.filter((f): f is typeof f & { statut: "bientot" | "masque" } => f.statut !== "actif");
+  // 08/11 (Williams, remplace la décision du 17/10) : un format sans générateur n'apparaît plus, même grisé — « ça évite
+  // d'avoir du bruit pour rien ». Il réapparaît seul quand son statut passe à « actif ».
   return (
     <div>
       <EnTetePage titre="Nouvelle vidéo" sousTitre="Choisissez un format." />
@@ -77,19 +77,6 @@ export default async function PageNouvelle() {
         </section>
       ) : (
         <EtatVide icone="clap" titre="Aucun format prêt" phrase="Les formats arrivent bientôt." />
-      )}
-
-      {bientot.length > 0 && (
-        <section className="mt-10">
-          <EnTeteSection titre="Bientôt" compteur={bientot.length} />
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {bientot.map((f) => (
-              <li key={f.id}>
-                <CarteFormat format={f} compacte />
-              </li>
-            ))}
-          </ul>
-        </section>
       )}
     </div>
   );

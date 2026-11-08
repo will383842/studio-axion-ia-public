@@ -5,7 +5,7 @@
  * `domaine/relecture-script`). Une carte par phrase : la toucher l'ouvre pour la modifier (une ligne verrouillée ou un
  * écrit tiré d'un fait ne se modifie pas). Mode « Texte libre » (formats en blocs) : toutes les phrases ouvertes d'un
  * coup. Les contrôles se relancent ~900 ms après la frappe (action serveur gratuite du format), la durée suit le texte.
- * Le bouton collé en bas passe par la confirmation du prix (`confirmerPrix`), puis appelle `lancer`.
+ * Le bouton collé en bas appelle `lancer` directement, sans confirmation.
  * Même logique que `ScriptEcrans` (image → vidéo) et `ValidationScript` (cas concret) : seules les différences partent.
  * Options FACULTATIVES d'un format (tableau animé) : le libellé du bouton, la raison d'un lancement pas encore possible,
  * l'enregistrement des modifications avant de lancer, le suivi du texte relu. Sans elles, l'écran ne change pas.
@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
-import { avecConfirmationPrix, confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
@@ -24,7 +24,6 @@ import type { NiveauControle } from "@/domaine/controles-script/types";
 import type { Tonalite } from "@/domaine/libelles";
 import { appliquerSaisie, dureeEstimee, scriptReluDe, type AdaptateurFormat, type LigneScript, type PastilleControle, type ResultatLancement, type ScriptRelu } from "@/domaine/relecture-script";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 
 /** Délai entre la dernière frappe et le contrôle (ms). */
 export const DELAI_CONTROLE_MS = 900;
@@ -75,14 +74,12 @@ export interface ProprietesRelireScript {
   lignes: LigneScript[];
   controler: AdaptateurFormat<unknown>["controler"];
   lancer: AdaptateurFormat<unknown>["lancer"];
-  /** Prix au plus de la vidéo, en centimes (montré sur le bouton et dans la confirmation) ; absent : rien à payer à ce
-   *  geste (ex. valider le script, la voix est payée ensuite) : ni prix, ni confirmation. Tout prix défini, 0 compris, passe
-   *  TOUJOURS par la confirmation, sauf 0 avec `prixDejaPaye`. */
+  /** Montant d'accord envoyé au lancement, en centimes (jamais affiché) ; absent : rien à envoyer à ce geste (ex. valider
+   *  le script, la voix est lancée ensuite). */
   prixCentimes?: number;
-  /** Le prix 0 est déjà payé (ex. voix reprise du tableau) : accord 0, sans confirmation. Sans effet sur un prix non nul. */
+  /** Gardé pour les appelants existants : sans effet (plus aucune confirmation). */
   prixDejaPaye?: boolean;
-  /** Libellé du bouton principal : une phrase entière (le prix compris), ou selon le nombre de phrases modifiées (le
-   *  prix s'y ajoute) ; défaut : « Lancer la vidéo (≈ prix) ». */
+  /** Libellé du bouton principal : une phrase entière, ou selon le nombre de phrases modifiées ; défaut : « Lancer la vidéo ». */
   libelleLancer?: string | ((modifiees: number) => string);
   /** Débit du format (mots/s) ; sinon 2,8. */
   debit?: number;
@@ -108,7 +105,7 @@ export interface ProprietesRelireScript {
   observation?: (lignes: LigneScript[]) => PastilleControle[];
 }
 
-export function RelireScript({ lignes: depart, controler, lancer, prixCentimes, prixDejaPaye, libelleLancer, debit, texteLibre, apresLancement, iconeLancer, bloque, enregistrer, saisie, surChangement, action, observation, enregistrerSansLancer }: ProprietesRelireScript) {
+export function RelireScript({ lignes: depart, controler, lancer, prixCentimes, libelleLancer, debit, texteLibre, apresLancement, iconeLancer, bloque, enregistrer, saisie, surChangement, action, observation, enregistrerSansLancer }: ProprietesRelireScript) {
   const [lignes, setLignes] = useState<LigneScript[]>(saisie ?? depart);
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [libre, setLibre] = useState(false);
@@ -126,8 +123,7 @@ export function RelireScript({ lignes: depart, controler, lancer, prixCentimes, 
   const aJour = controle?.empreinte === script.empreinte;
   const pastilles = controle?.pastilles ?? [];
   const bloquants = pastilles.filter((p) => p.niveau === "bloquant").length;
-  const prix = prixCentimes === undefined ? null : formaterMontant({ centimes: prixCentimes, devise: "EUR" }, { court: true });
-  const libelle = typeof libelleLancer === "string" ? libelleLancer : `${libelleLancer?.(modifiees.size) ?? "Lancer la vidéo"}${prix ? ` (≈ ${prix})` : ""}`;
+  const libelle = typeof libelleLancer === "string" ? libelleLancer : (libelleLancer?.(modifiees.size) ?? "Lancer la vidéo");
   const aEnregistrer = !!enregistrer && modifiees.size > 0;
   const observees = useMemo(() => {
     if (!observation) return [];
@@ -165,10 +161,8 @@ export function RelireScript({ lignes: depart, controler, lancer, prixCentimes, 
         if (!r.ok) return setPhrase(r.message);
         return apresLancement?.();
       }
-      // Geste gratuit (`action`) : accord `true`. Seul un prix de 0 déclaré déjà payé (voix reprise du tableau) se passe de
-      // confirmation ; tout autre prix se confirme.
-      const accord = action ? true : prixDejaPaye && prixCentimes === 0 ? 0 : await confirmerPrix({ message: fige.modifications.length ? "Avec vos modifications." : "Avec ce script.", montant: prixCentimes });
-      if (accord === null) return setPhrase("Rien n'a été payé.");
+      // Geste direct : aucune confirmation ; l'accord part avec le montant déclaré (`true` pour un geste gratuit, `action`).
+      const accord = action ? true : prixCentimes;
       const r = await avecConfirmationPrix(await lancer(fige, accord), (a) => lancer(fige, a));
       if (!r.ok) return setPhrase(r.message);
       apresLancement?.();

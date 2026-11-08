@@ -106,7 +106,7 @@ describe("le moteur avocat = la brique + sa recette", () => {
   it("la recette avocat garde les valeurs réglées aux lots M4 et M4b", () => {
     expect(RECETTE_COMPOSITION_AVOCAT.reductionLarge).toEqual({ "9:16": 1, "4:5": 0.85, "1:1": 0.72 });
     expect(RECETTE_COMPOSITION_AVOCAT.centreSousTitres).toEqual({ "9:16": 48, "4:5": 57, "1:1": 61 });
-    expect(RECETTE_COMPOSITION_AVOCAT.decorRepli.teinte).toBe("#110A05");
+    expect(RECETTE_COMPOSITION_AVOCAT.decorRepli.teinte).toBe("#141413");
     expect(RECETTE_COMPOSITION_AVOCAT.angles).toEqual({ principal: "trois-quarts", second: "face" });
   });
 });

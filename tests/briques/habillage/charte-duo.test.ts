@@ -17,21 +17,21 @@ import { rapportContraste } from "../../../src/briques/habillage/contraste";
 import { trouverDroit } from "../../../src/briques/droits";
 
 describe("charte-duo/1", () => {
-  it("est versionnée et reprend les valeurs exactes de la vidéo 1", () => {
+  it("est versionnée et porte la palette 2026 (les tailles restent celles de la vidéo 1)", () => {
     expect(VERSION_CHARTE_DUO).toBe("charte-duo/1");
     expect(COULEURS_DUO).toEqual({
-      nuit: "#110A05",
-      nuitHaut: "#2A150B",
-      nuitLueur: "#7A3418",
-      ivoire: "#F4EFE7",
-      ivoireHaut: "#FBF8F3",
-      encre: "#15100C",
-      orange: "#C2532A",
-      orangeVif: "#F0703C",
-      gris: "#8A7C6E",
-      grisClair: "#C9B8A6",
-      vert: "#22A55B",
-      blanc: "#FFFFFF",
+      nuit: "#141413",
+      nuitHaut: "#141413",
+      nuitLueur: "#141413",
+      ivoire: "#FAF9F5",
+      ivoireHaut: "#FAF9F5",
+      encre: "#141413",
+      orange: "#B23F16",
+      orangeVif: "#D97757",
+      gris: "#141413",
+      grisClair: "#B0AEA5",
+      vert: "#B23F16",
+      blanc: "#FAF9F5",
     });
     expect(TAILLES_DUO).toEqual({ geant: 0.375, affiche: 0.12, titre: 0.099, ligne: 0.022, etiquette: 0.0146, marque: 0.0188 });
     expect(TAILLE_PLANCHER_DUO).toBe(0.03);
@@ -90,7 +90,23 @@ describe("charte-duo/1", () => {
 
   it("charte-video/1 garde ses valeurs d'aujourd'hui", () => {
     expect(VERSION_CHARTE_VIDEO).toBe("charte-video/1");
-    expect(COULEURS_VIDEO).toEqual({ page: "#E9DCC8", ecriture: "#110A05", soulignement: "#B44F29", sable: "#BFA88B" });
+    expect(COULEURS_VIDEO).toEqual({ page: "#FAF9F5", ecriture: "#141413", soulignement: "#B23F16", sable: "#E8E6DC" });
+  });
+
+  it("palette 2026 : aucune couleur hors liste, ni bleu, ni jaune, ni vert, ni dégradé ; orange et gris clair sur nuit seulement", () => {
+    const AUTORISEES = ["#FAF9F5", "#E8E6DC", "#141413", "#B23F16", "#D97757", "#B0AEA5"];
+    const toutes = [...Object.values(COULEURS_DUO), ...Object.values(COULEURS_VIDEO)];
+    for (const c of toutes) expect(AUTORISEES, c).toContain(c.toUpperCase());
+    const src = [readFileSync(new URL("../../../src/briques/habillage/charte-duo.ts", import.meta.url), "utf8"), readFileSync(new URL("../../../src/briques/habillage/charte-video.ts", import.meta.url), "utf8")].join("\n");
+    for (const h of src.match(/#[0-9a-fA-F]{6}\b/g) ?? []) expect(AUTORISEES, h).toContain(h.toUpperCase());
+    expect(src).not.toMatch(/gradient/i);
+    for (const fond of [FONDS.sombre, FONDS.ivoire]) {
+      expect(["#141413", "#FAF9F5"]).toContain(fond.fond);
+    }
+    expect(FONDS.ivoire.accent).not.toBe("#D97757");
+    expect(FONDS.ivoire.secondaire).not.toBe("#B0AEA5");
+    expect(FONDS.sombre.accent).toBe("#D97757");
+    expect(FONDS.sombre.secondaire).toBe("#B0AEA5");
   });
 
   it("ne dépend d'aucun alias « @/ » ni d'aucun module (lisible par studio-rendu)", () => {

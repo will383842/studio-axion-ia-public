@@ -3,8 +3,8 @@
 /**
  * « DEMANDER UNE MODIFICATION » (lot M3 ; plan PARTIE A §2 étape 9 (c), B.9), sous le lecteur, en conversation :
  * « enlever le plan 2 », « le chiffre doit apparaître plus tôt », « plus de plans serrés au début ».
- * Le studio répond par ce qu'il va changer, les plans touchés et le prix ; RIEN ne part sans « Confirmer ».
- * Hors des capacités d'une retouche : une réponse claire, avec le prix de la vidéo à refaire.
+ * Le studio répond par ce qu'il va changer et les plans touchés ; RIEN ne part sans « Confirmer ».
+ * Hors des capacités d'une retouche : une réponse claire.
  * 17/10 : les exemples viennent du serveur (`exemplesModification`), selon le format et la vidéo : chacun est compris.
  * Un format sans retouche n'en montre aucun, seulement sa note.
  */
@@ -17,7 +17,6 @@ import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import type { PropositionModification } from "@/services/modifications";
 
 /** Cas concret : la demande est lue par Claude sans être attendue ; l'écran la relit à ce rythme (ms). */
@@ -29,14 +28,11 @@ const STATUTS: Partial<Record<PropositionModification["statut"], { libelle: stri
   abandonnee: { libelle: "Laissée", ton: "neutre" },
 };
 
-/** `sansPrix` (plan facecam v4, facultatif) : format qui ne montre aucun montant ; absent, rien ne change. */
-export function DemanderModification({ videoId, historique: initial, possible, essai, sansPrix = false, exemples = [], note }: { videoId: string; historique: PropositionModification[]; possible: boolean; essai: boolean; sansPrix?: boolean; exemples?: string[]; note?: string }) {
+/** `sansPrix` : gardé pour les appelants existants ; plus aucun montant n'est affiché nulle part. */
+export function DemanderModification({ videoId, historique: initial, possible, essai, exemples = [], note }: { videoId: string; historique: PropositionModification[]; possible: boolean; essai: boolean; sansPrix?: boolean; exemples?: string[]; note?: string }) {
   const router = useRouter();
   const [historique, setHistorique] = useState(initial);
   const [texte, setTexte] = useState("");
-  const [aConfirmer, setAConfirmer] = useState<string | null>(null);
-  // Paquet 4 (D2) : prix renvoyé par le serveur au-delà du seuil ; c'est ce montant qui repart avec l'accord.
-  const [montantAConfirmer, setMontantAConfirmer] = useState<number | undefined>(undefined);
   const [envoi, demarrer] = useTransition();
 
   const remplacer = (p: PropositionModification) => setHistorique((h) => h.map((x) => (x.id === p.id ? p : x)));
@@ -74,20 +70,15 @@ export function DemanderModification({ videoId, historique: initial, possible, e
     });
   }
 
-  function confirmer(p: PropositionModification, auDela = false) {
+  function confirmer(p: PropositionModification) {
     demarrer(async () => {
-      const r = await confirmerModificationAction(videoId, p.id, auDela ? (montantAConfirmer ?? true) : false);
+      let r = await confirmerModificationAction(videoId, p.id, false);
+      // Le serveur redemande un accord : il est donné tout de suite, une seule fois, sans rien afficher.
+      if (!r.ok && r.code === "CONFIRMATION_REQUISE") r = await confirmerModificationAction(videoId, p.id, r.montant ?? true);
       if (!r.ok) {
-        // Au-delà du seuil du mois : une seconde confirmation explicite (AV2.2-9).
-        if (r.code === "CONFIRMATION_REQUISE") {
-          setAConfirmer(p.id);
-          setMontantAConfirmer(r.montant);
-          return;
-        }
         notifier.erreur(r.message);
         return;
       }
-      setAConfirmer(null);
       remplacer({ ...p, statut: "confirmee", travailId: r.donnees.travailId });
       if (essai) notifier.essai("la modification est simulée, une nouvelle version arrive");
       else notifier.succes("Modification lancée", "Une nouvelle version arrive.");
@@ -120,16 +111,15 @@ export function DemanderModification({ videoId, historique: initial, possible, e
               <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-orange-doux px-3 py-2 text-[15px] text-texte">{p.demande}</p>
               <div className={cn("max-w-[92%] rounded-2xl rounded-bl-md border px-3 py-2.5", p.statut === "hors-capacite" ? "border-ambre/40 bg-ambre-doux" : "border-trait bg-surface-2")}>
                 <p className="text-[15px] text-texte">{p.resume}</p>
-                {p.statut === "hors-capacite" && p.horsCapacite && p.horsCapacite.prixVideo.centimes > 0 && !sansPrix && <p className="mt-1 text-sm text-texte-doux">Refaire la vidéo : ≈ {formaterMontant(p.horsCapacite.prixVideo, { court: true })}</p>}
                 {p.plansTouches.length > 0 && (
                   <p className="mt-1 text-sm text-texte-doux">
-                    {p.unite === "ecran" ? "Écran" : "Plan"}{p.plansTouches.length > 1 ? "s" : ""} {p.plansTouches.join(", ")}{sansPrix ? "" : ` · ${p.cout.centimes ? `≈ ${formaterMontant(p.cout, { court: true })}` : "gratuit"}`}
+                    {p.unite === "ecran" ? "Écran" : "Plan"}{p.plansTouches.length > 1 ? "s" : ""} {p.plansTouches.join(", ")}
                   </p>
                 )}
                 {p.statut === "proposee" && possible && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Bouton icone="coche" essai={essai} chargement={envoi} onClick={() => confirmer(p, aConfirmer === p.id)}>
-                      {sansPrix ? "Confirmer" : aConfirmer === p.id ? `Confirmer${montantAConfirmer !== undefined ? ` · ${formaterMontant({ centimes: montantAConfirmer, devise: "EUR" }, { court: true })}` : " quand même"}` : `Confirmer${p.cout.centimes ? ` · ${formaterMontant(p.cout, { court: true })}` : ""}`}
+                    <Bouton icone="coche" essai={essai} chargement={envoi} onClick={() => confirmer(p)}>
+                      Confirmer
                     </Bouton>
                     <Bouton variante="fantome" disabled={envoi} onClick={() => laisser(p)}>
                       Laisser

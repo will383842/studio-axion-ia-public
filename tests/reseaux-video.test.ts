@@ -26,9 +26,9 @@ describe("reseauxDeLaVideo", () => {
       ...base,
       entreesIV: ["facebook"],
       livraisonIV: [
-        { reseau: "facebook", version: "longue" },
+        { reseau: "facebook", version: "longue", fichierCle: "c/fb.mp4" },
         { reseau: "youtube-shorts", version: "aucune" },
-        { reseau: "linkedin", version: "courte" },
+        { reseau: "linkedin", version: "courte", fichierCle: "c/li.mp4" },
       ],
     });
     expect(r).toEqual({ reseaux: ["linkedin", "facebook"], precis: true });
@@ -37,6 +37,11 @@ describe("reseauxDeLaVideo", () => {
   it("2. image → vidéo : rien de livré (ou tout en « aucune »), on lit les entrées", () => {
     expect(reseauxDeLaVideo({ ...base, entreesIV: ["facebook", "linkedin"], livraisonIV: [] })).toEqual({ reseaux: ["linkedin", "facebook"], precis: true });
     expect(reseauxDeLaVideo({ ...base, entreesIV: ["instagram"], livraisonIV: [{ reseau: "linkedin", version: "aucune" }] })).toEqual({ reseaux: ["instagram"], precis: true });
+  });
+
+  it("2. un réseau livré sans fichier ne compte pas (pastille et téléchargement concordent)", () => {
+    const livraisonIV = [{ reseau: "linkedin", version: "courte", fichierCle: "" }, { reseau: "facebook", version: "longue" }, { reseau: "instagram", version: "longue", fichierCle: "c/ig.mp4" }];
+    expect(reseauxDeLaVideo({ ...base, entreesIV: ["linkedin"], livraisonIV })).toEqual({ reseaux: ["instagram"], precis: true });
   });
 
   it("3. l'union des réseaux des sorties, sans doublon", () => {
