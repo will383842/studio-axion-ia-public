@@ -82,18 +82,19 @@ describe("Image → vidéo · script complet · le dépôt", () => {
       expect(issue.statut, t.slice(0, 20)).toBe("refusee");
       expect((issue as { phrase: string }).phrase).toMatch(/[a-zé]/);
     }
+    // Aucun refus n'a créé de vidéo.
+    expect(await videosIV()).toEqual([]);
+    expect(ecritures).toEqual([]);
     // 300 mots pile : accepté (le refus ne vient pas de la longueur).
     const pile = await texte.deposerScriptImageVideo({ script: Array.from({ length: 300 }, () => "mot").join(" "), reseaux: [...RESEAUX_IV] });
     expect(pile.statut).not.toBe("refusee");
-    expect(await videosIV()).toEqual([]);
-    expect(ecritures).toEqual([]);
   });
 
-  it("sans accord du prix : le prix « au plus » est redemandé, rien n'est créé", async () => {
+  it("sans accord du prix : aucune confirmation n'est demandée, le prix du jour vaut accord et la vidéo est créée", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
     const issue = await texte.deposerScriptImageVideo({ script: SCRIPT, reseaux: [...RESEAUX_IV] });
-    expect(issue).toMatchObject({ statut: "accord-requis", centimes: ecran.prixDuDepot(RESEAUX_IV, (await ecran.etatDepotImageVideo()).tauxUsdEur) });
-    expect(await videosIV()).toEqual([]);
+    expect(issue, JSON.stringify(issue)).toMatchObject({ statut: "lancee" });
+    expect(await videosIV()).toHaveLength(1);
   });
 
   it("script → carte à valider : mots gardés, même prix, aucun fichier lu, AUCUN appel d'écriture", async () => {
