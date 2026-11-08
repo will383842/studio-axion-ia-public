@@ -202,18 +202,18 @@ describe("C · « Écrire ces N idées » → N scripts (Claude, chemin payant r
     expect(await depots().generations.compter((g) => g.statut === "en-cours" && !g.estDemo)).toBe(3);
   });
 
-  it("au-delà du seuil (20 idées) : le prix total est exigé ; sans lui, rien n'est créé ; avec lui, les 20 partent", async () => {
+  it("au-delà du seuil (20 idées) : aucun prix total exigé (décision du 08/11) ; sans lui, les 20 partent", async () => {
     // Lot L5 : vingt « variantes » des mêmes trois idées ne sont pas vingt sujets différents ; le contrôle « déjà traité » n'est pas l'objet ici.
     await ecrireParametre("sujets.garde", "eteint");
     const vingt = Array.from({ length: 20 }, (_, i) => `${IDEES[i % 3]} (variante ${i + 1})`);
     const plan = await serie.planSerie(20);
     expect(plan.totalPartant.centimes).toBeGreaterThan(2000);
-    await expect(serie.lancerSerie(vingt.map((texte) => ({ texte })), REGLAGES, "serie-bc-vingt")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    // Un prix vu pour un autre nombre d'idées ne vaut pas.
-    await expect(serie.lancerSerie(vingt.map((texte) => ({ texte })), REGLAGES, "serie-bc-vingt", plan.totalPartant.centimes, 19)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await depots().scriptsMaitres.compter((m) => !m.estDemo)).toBe(0);
-    const { serie: s } = await serie.lancerSerie(vingt.map((texte) => ({ texte })), REGLAGES, "serie-bc-vingt", plan.totalPartant.centimes, 20);
+    // Sans total confirmé : aucune confirmation de prix, la série part.
+    const { serie: s } = await serie.lancerSerie(vingt.map((texte) => ({ texte })), REGLAGES, "serie-bc-vingt");
     expect(s.elements.filter((e) => e.sort === "parti")).toHaveLength(20);
+    expect(await depots().scriptsMaitres.compter((m) => !m.estDemo)).toBe(20);
+    // Un prix vu pour un autre nombre d'idées ne bloque rien non plus ; la même clé ne crée aucun sujet de plus.
+    await expect(serie.lancerSerie(vingt.map((texte) => ({ texte })), REGLAGES, "serie-bc-vingt", plan.totalPartant.centimes, 19)).resolves.toMatchObject({ serie: s });
     expect(await depots().scriptsMaitres.compter((m) => !m.estDemo)).toBe(20);
   });
 
@@ -291,38 +291,24 @@ describe("C · « Écrire ces N idées » → N scripts (Claude, chemin payant r
   });
 
   /*
-   * RELECTURE FINALE G1 : « Reprendre l'écriture » relevait le plafond du sujet (pire cas des appels sans réponse) sans
-   * montrer de prix ni demander d'accord, et chaque cycle « panne puis reprise » ajoutait cette marge. Attendu : la fiche
-   * montre le montant supplémentaire possible ; la reprise passe par la confirmation de ce prix ; un seul relèvement
-   * par accord.
+   * RELECTURE FINALE G1, revue le 08/11 (aucun prix ne bloque) : la fiche montre encore le montant supplémentaire possible,
+   * mais la reprise part sans accord (le relèvement est seulement journalisé) ; un seul relèvement par reprise.
    */
-  it("CORRIGÉ G1 — « Reprendre l'écriture » montre le supplément possible et exige son accord ; un relèvement par accord", async () => {
+  it("CORRIGÉ G1 — « Reprendre l'écriture » montre le supplément possible, part sans accord ; un seul relèvement", async () => {
     const panne = await serieAvecPanne();
     const g0 = (await depots().generations.lister((g) => g.scriptMaitreId === panne))[0];
     const arret = (await bg.ecritureArretee(panne))!;
     // Le montant supplémentaire possible est connu de la fiche (centimes d'euro).
     expect(arret.supplement?.centimes ?? 0).toBeGreaterThan(0);
     const supplement = arret.supplement!.centimes;
-    // Sans accord : rien ne bouge, le prix est demandé.
-    const sansAccord = await bg.reprendreEcritureArretee(panne).then(
-      () => null,
-      (e: { code?: string; montant?: number }) => e,
-    );
-    expect(sansAccord).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: supplement });
-    // Un accord plus bas que le prix du jour ne suffit pas.
-    await expect(bg.reprendreEcritureArretee(panne, supplement - 1)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: supplement });
-    let g = (await depots().generations.obtenir(g0.id))!;
-    expect(g.statut).toBe("echec");
-    expect(g.plafondUsd).toBe(g0.plafondUsd);
-    expect(await bg.ecritureArretee(panne)).toBeTruthy();
-    // Accord donné sur ce montant : un seul relèvement, puis la reprise va au bout.
-    expect(await bg.reprendreEcritureArretee(panne, supplement)).toBe(true);
-    g = (await depots().generations.obtenir(g0.id))!;
+    // Sans accord : aucune confirmation de prix, la reprise part et relève le plafond une fois.
+    expect(await bg.reprendreEcritureArretee(panne)).toBe(true);
+    const g = (await depots().generations.obtenir(g0.id))!;
     expect(g.plafondUsd).toBeGreaterThan(g0.plafondUsd);
-    const apresAccord = g.plafondUsd;
-    // Le même accord rejoué (double toucher) ne relève rien de plus.
+    const apresReprise = g.plafondUsd;
+    // La même reprise rejouée (double toucher), même avec un accord, ne relève rien de plus.
     expect(await bg.reprendreEcritureArretee(panne, supplement)).toBe(false);
-    expect((await depots().generations.obtenir(g0.id))!.plafondUsd).toBe(apresAccord);
+    expect((await depots().generations.obtenir(g0.id))!.plafondUsd).toBe(apresReprise);
   });
 
   // GÊNE CONFIRMÉE : une écriture ARRÊTÉE sur panne (Claude n'a pas répondu 3 fois) est affichée « À compléter » dans le
