@@ -142,14 +142,14 @@ describe("voix du cas concret · l'accroche « On recrute nos collaborateurs en 
 
   it("un vrai « euh » au milieu du blanc reste REPÉRÉ : la lecture est gardée et la phrase signalée (08/11/2026, jamais d'arrêt)", async () => {
     const j = neuf();
-    const fin = await jusquAuBout(doubles(j, () => -17), etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
+    const fin = await jusquAuBout({ ...doubles(j, () => -17), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
     expect(fin.issue).toEqual({ statut: "faite" });
     expect(rapportVoix(fin).corpsGardeMalgreRejet).toMatchObject({ rejet: "son", phrase: ACCROCHE });
   });
 
   it("deux refus identiques sur la même phrase : AUCUNE 3e lecture payée, la dernière lecture est gardée et la phrase signalée", async () => {
     const j = neuf();
-    const fin = await jusquAuBout(doubles(j, () => -17), etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
+    const fin = await jusquAuBout({ ...doubles(j, () => -17), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: [] }));
     expect(j.lus).toEqual([CORPS, CORPS]);
     expect(j.lecturesAPayer).toBe(2);
     expect(fin.payees).toHaveLength(2);

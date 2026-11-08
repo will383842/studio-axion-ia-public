@@ -678,6 +678,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     ...(script ? { texteFige: true } : {}),
     // Deux refus identiques sur la même phrase : arrêt expliqué, jamais une lecture payée de plus qui échouerait pareil.
     arretSiRefusIdentique: true,
+    garderLaLectureSiRefus: true,
     reformuler: (phrase, faits) => reformulerPhrase(phrase, faits, ecritureVoix, { videoId: o.videoId, appelId: `${o.videoId}-${o.versionId}-l${e.corps.lectures}` }),
     avantLecture: (l) => {
       // 17/10 : une lecture qui ferait dépasser la part « voix » du prix confirmé n'est pas faite (« au plus » reste vrai).

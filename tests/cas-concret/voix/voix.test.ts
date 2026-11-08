@@ -266,7 +266,7 @@ describe("M4 · enchaînement des prises", () => {
       j.appels.push("reformuler");
       return { ok: true, phrase };
     };
-    const fin = await jusquAuBout(doubles(j, { motsPour, niveaux: -30, reformuler }), etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
     expect(j.lus.slice(0, 3)).toEqual([CORPS, CORPS, CORPS]);
     // Une hésitation vient de la lecture, pas du texte : aucune reformulation.
     expect(j.appels.filter((a) => a === "reformuler")).toHaveLength(0);
@@ -285,7 +285,7 @@ describe("M4 · enchaînement des prises", () => {
       j.appels.push("reformuler");
       return { ok: true, phrase };
     };
-    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), texteFige: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), texteFige: true, garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
     expect(j.lus.slice(0, 3)).toEqual([CORPS, CORPS, CORPS]);
     expect(j.appels.filter((a) => a === "reformuler")).toHaveLength(0);
     expect(fin.issue).toEqual({ statut: "faite" });
@@ -313,7 +313,7 @@ describe("M4 · enchaînement des prises", () => {
     const j: Journal = { appels: [], lus: [] };
     const motsPour = (t: string) => motsDuTexte(t, { 3: 600 });
     const reformuler: OutilsAvancerVoix["reformuler"] = async (phrase) => ({ ok: true, phrase });
-    const fin = await jusquAuBout(doubles(j, { motsPour, niveaux: -30, reformuler }), etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
     expect(fin.issue).toEqual({ statut: "faite" });
     expect(rapportVoix(fin).corpsGardeMalgreRejet?.phrase).toBe("On recrute en quinze minutes.");
   });
@@ -322,7 +322,7 @@ describe("M4 · enchaînement des prises", () => {
     const j: Journal = { appels: [], lus: [] };
     const motsPour = (t: string) => motsDuTexte(t.replace("tout part", "tout tout part"));
     const reformuler: OutilsAvancerVoix["reformuler"] = async () => ({ ok: false, raison: "Le service d'écriture est injoignable." });
-    const fin = await jusquAuBout(doubles(j, { motsPour, reformuler }), etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, reformuler }), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
     expect(j.lus[0]).toBe(CORPS);
     expect(fin.issue).toEqual({ statut: "faite" });
     expect(rapportVoix(fin).corpsGardeMalgreRejet).toMatchObject({ rejet: "mots", phrase: "Et vraiment tout part tout seul." });
