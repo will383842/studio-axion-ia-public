@@ -53,6 +53,8 @@ export interface Conversation {
   idMessageGuide?: string | null;
   /** Identifiant OPAQUE du message qui portait l'adresse (écrit avec `occurredAt`) : sert à relire l'adresse chez Zernio pour un « stop ». */
   idMessageAdresse?: string | null;
+  /** Version du corps de la demande de guide (1 ou 3), figée au PREMIER essai : le site refuse (409) un corps différent pour une même clé. */
+  versionCorpsGuide?: 1 | 3 | null;
 }
 
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";
