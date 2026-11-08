@@ -27,7 +27,7 @@ interface Message {
   texte: string;
 }
 
-export function ChatRetouche({ videoId, versionInitialeId, envoyer = envoiParDefaut }: { videoId: string; versionInitialeId?: string; envoyer?: EnvoiRetouche }) {
+export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer = envoiParDefaut }: { videoId: string; versionInitialeId?: string; /** Lot R3 : générateur de la vidéo (adaptateur de retouche propre à lui). */ generateur?: string; envoyer?: EnvoiRetouche }) {
   const [saisie, setSaisie] = useState("");
   const [historique, setHistorique] = useState<Message[]>([]);
   const [apercu, setApercu] = useState<Apercu | null>(null);
@@ -42,7 +42,7 @@ export function ChatRetouche({ videoId, versionInitialeId, envoyer = envoiParDef
     dire({ auteur: "vous", texte: demande });
     setSaisie("");
     try {
-      const a = (await envoyer({ action: "apercu", videoId, demande })) as unknown as Apercu;
+      const a = (await envoyer({ action: "apercu", videoId, demande, ...(generateur ? { generateur } : {}) })) as unknown as Apercu;
       setApercu(a.operations?.length ? a : null);
       dire({ auteur: "studio", texte: [a.impact?.phrase, ...(a.remarques ?? [])].filter(Boolean).join(" ") });
     } catch {
@@ -56,7 +56,7 @@ export function ChatRetouche({ videoId, versionInitialeId, envoyer = envoiParDef
     if (!apercu || occupe) return;
     setOccupe(true);
     try {
-      const r = await envoyer({ action: "appliquer", videoId, demande: apercu.demande, operations: apercu.operations });
+      const r = await envoyer({ action: "appliquer", videoId, demande: apercu.demande, operations: apercu.operations, ...(generateur ? { generateur } : {}) });
       const remarques = Array.isArray(r.remarques) ? (r.remarques as string[]) : [];
       if (r.statut === "rendue" && typeof r.versionId === "string") {
         setVersions((v) => [...v, r.versionId as string]);
@@ -75,7 +75,7 @@ export function ChatRetouche({ videoId, versionInitialeId, envoyer = envoiParDef
     if (!avant || occupe) return;
     setOccupe(true);
     try {
-      await envoyer({ action: "revenir", videoId, versionId: avant });
+      await envoyer({ action: "revenir", videoId, versionId: avant, ...(generateur ? { generateur } : {}) });
       setVersions((v) => v.slice(0, -1));
       dire({ auteur: "studio", texte: "Version d'avant remise." });
     } finally {

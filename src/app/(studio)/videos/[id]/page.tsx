@@ -72,6 +72,7 @@ import { ValidationScript } from "@/components/formats/cas-concret/fiche-video/V
 import { vueVotreVideo } from "@/services/monteur-facecam";
 import { OptionsPayantesVideo } from "@/components/options-payantes/CarteOptionPayante";
 import { cartesEnAttente } from "@/services/options-payantes";
+import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatGenerateur";
 import { BlocSurLeSite } from "@/components/videos/fiche/BlocSurLeSite";
 
 export const dynamic = "force-dynamic";
@@ -219,6 +220,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
             compteur: d.retouches.length || undefined,
             contenu: (
               <div className="space-y-4">
+                <RetoucheChatGenerateur videoId={v.id} formatId={v.formatId} {...(d.versionCourante ? { versionId: d.versionCourante.id } : {})} />
                 {!facecam && <DemanderModification videoId={v.id} historique={modifications} possible={prete && !enFabrication} essai={fabricationSimulee} sansPrix={trouverFormat(v.formatId)?.sansPrix === true} {...exemplesRetouche} />}
                 <OngletRetouches
                 videoId={v.id}
