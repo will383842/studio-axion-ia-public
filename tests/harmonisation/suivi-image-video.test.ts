@@ -227,19 +227,21 @@ describe("F7 · SuiviLot, sur le socle", () => {
 
 describe("F7 · Vos vidéos (le résultat)", () => {
   const video = { reseau: "tiktok", nom: "TikTok", ton: "vert" as const, phrase: "Prête.", duree: "0:30", format: "9:16" as const, url: "https://x/v.mp4", titre: "T", texte: "Texte", premierCommentaire: "C", lien: undefined, consigneLien: undefined };
-  it("titre commun « Votre vidéo est prête » avant les cartes ; un fichier par réseau gardé", () => {
-    const html = renderToStaticMarkup(createElement(VosVideos, { videos: [video, { ...video, reseau: "youtube-shorts", nom: "YouTube Shorts" }] as never }));
+  // 08/11 (Williams) : un seul lecteur, une puce par réseau ; le téléchargement passe par la route du studio (plus de lien `download` par carte).
+  it("titre commun « Votre vidéo est prête » avant le lecteur ; une puce par réseau gardé, un seul téléchargement affiché", () => {
+    const html = renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: [video, { ...video, reseau: "youtube-shorts", nom: "YouTube Shorts" }] as never }));
     const t = texte(html);
     expect(t).toContain(PHRASES_SUIVI.prete.titre);
     expect(t.indexOf(PHRASES_SUIVI.prete.titre)).toBeLessThan(t.indexOf("TikTok"));
-    expect(html.match(/<a [^>]*download/g)).toHaveLength(2);
+    expect(html.match(/role="tab"/g)).toHaveLength(2);
+    expect(html.match(/\/api\/telechargements\/video\?video=v-1/g)).toHaveLength(1);
   });
 
   it("verdict rouge (ok=false) : pas de titre « Votre vidéo est prête », le verdict est dit ; verdict vert : titre gardé", () => {
-    const rouge = texte(renderToStaticMarkup(createElement(VosVideos, { videos: [video], verdict: { ok: false, phrase: "Contrôle : à revoir.", mentions: [] } } as never)));
+    const rouge = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: [video], verdict: { ok: false, phrase: "Contrôle : à revoir.", mentions: [] } } as never)));
     expect(rouge).not.toContain(PHRASES_SUIVI.prete.titre);
     expect(rouge).toContain("Contrôle : à revoir.");
-    const vert = texte(renderToStaticMarkup(createElement(VosVideos, { videos: [video], verdict: { ok: true, phrase: "Contrôle : bon.", mentions: [] } } as never)));
+    const vert = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: [video], verdict: { ok: true, phrase: "Contrôle : bon.", mentions: [] } } as never)));
     expect(vert).toContain(PHRASES_SUIVI.prete.titre);
   });
 });
