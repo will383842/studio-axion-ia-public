@@ -101,7 +101,7 @@ describe("la vue", () => {
   it("porte l'étape éditoriale, l'état « prête » et le texte d'origine", () => {
     const v = construireVueImageVideo(
       { id: "v-1", titre: "T", etapeEditoriale: "validee", statut: "prete", entrees: { imageVideo: { texte: "Mon texte" } } },
-      { id: "t-1", statut: "termine", parametres: { imageVideo: { version: "fabrication-iv/1", etape: "prete", livraison: [{ reseau: "facebook", version: "longue", dureeSec: 30, fichierCle: "f.mp4" }] } } } as never,
+      { id: "t-1", statut: "termine", parametres: { imageVideo: { version: "fabrication-iv/1", etape: "prete", caisse: { plafondCentimes: 0, reservations: [] }, livraison: [{ reseau: "facebook", version: "longue", dureeSec: 30, fichierCle: "f.mp4" }] } } } as never,
       null,
     );
     expect(v.etapeEditoriale).toBe("validee");
