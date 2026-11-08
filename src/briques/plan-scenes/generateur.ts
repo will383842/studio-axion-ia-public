@@ -3,8 +3,9 @@
  * `src/fournisseurs/claude` (`RequeteClaude` / `ReponseClaude`, JSON demandé dans la consigne, `extraireJson`).
  * Le fournisseur est INJECTÉ (`AppelClaude`) : les tests passent un faux, jamais d'appel réel.
  * Jamais d'échec : sortie illisible → un second essai avec le motif, puis plan de repli niveau 1 ; panne du fournisseur
- * → plan de repli, avec une remarque. Le branchement au pré-vol et à la réservation des crédits
- * (`services/generation-claude.ts`) reste à faire avant tout usage en production.
+ * → plan de repli, avec une remarque. AUCUN appel réel ici : `envoyerMessage` n'est appelé que par `executerRole`
+ * (garde de `tests/v4-argent.test.ts`) ; le fournisseur réel se branchera par `services/generation-claude.ts`
+ * (pré-vol et réservation des crédits), à faire avant tout usage en production.
  */
 import { ErreurClaude, extraireJson, type RequeteClaude, type ReponseClaude } from "@/fournisseurs/claude/client";
 import { CATALOGUE_BRIQUES } from "./catalogue";
@@ -105,10 +106,3 @@ function repli(contexte: Parameters<typeof planDeRepli>[0], remarque: Remarque):
   return { plan: r.plan, remarques: [remarque, ...r.remarques], source: "repli" };
 }
 
-/** Fournisseur réel (serveur seulement, clé du studio) : à n'appeler qu'après le pré-vol des crédits. */
-export function appelClaudeReel(cle: string): AppelClaude {
-  return async (r) => {
-    const { envoyerMessage } = await import("@/fournisseurs/claude/client");
-    return envoyerMessage(r, { cle });
-  };
-}
