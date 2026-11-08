@@ -10,7 +10,7 @@ const tableau = (statut: F["statut"]): F => ({ id: "tableau-anime", statut });
 const cas = (statut: F["statut"]): F => ({ id: "cas-concret", statut });
 const avocat: F = { id: "avocat", statut: "actif" };
 
-const LIBELLES = ["Accueil", "Nouvelle vidéo", "Mes vidéos", "Carrousels", "Calendrier", "Mesures", "Écrire", "Personnages", "Bibliothèque", "Mes modèles", "Veille", "Réglages"];
+const LIBELLES = ["Accueil", "Nouvelle vidéo", "Mes vidéos", "Carrousels", "Calendrier", "Mesures", "Écrire", "Personnages", "Bibliothèque", "Mes modèles", "Veille", "Messages Zernio", "Réglages"];
 const INTERDITS = ["/tableau/nouvelle", "/cas-concret", "/image-video", "/face-camera-animee"];
 
 describe("navigationLaterale", () => {
