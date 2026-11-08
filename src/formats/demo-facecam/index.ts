@@ -6,8 +6,8 @@ import { briquesAuChoix, CRITERES_STANDARD, entree, migrationIdentite, REGLES_CO
  * FORMAT « DÉMO FACECAM » (demo-facecam, code DF) — lot G, VITRINE.
  *
  * Williams dépose une vidéo facecam ET une vidéo d'enregistrement d'écran, ou une seule vidéo. Écran partagé : facecam d'un côté,
- * écran réel de l'autre ; le motion design reste AUTOUR de l'écran, jamais devant le visage ; sous-titres calés. Statut `masque` :
- * inscrit, mais le rendu n'est pas branché (`moteurs/montage-demo-facecam` met la fabrication en pause claire).
+ * écran réel de l'autre ; le motion design reste AUTOUR de l'écran, jamais devant le visage ; sous-titres calés. Lot J : le rendu
+ * est branché (`moteurs/montage-demo-facecam`) ; le format reste `masque` jusqu'à la décision de Williams de le passer `actif`.
  */
 export const ID_FORMAT_DEMO_FACECAM = "demo-facecam";
 export const CODE_FORMAT_DEMO_FACECAM = "DF";
@@ -27,10 +27,11 @@ export const formatDemoFacecam: DefinitionFormat = {
   codeClassement: CODE_FORMAT_DEMO_FACECAM,
   declinaison: "aucune",
   durees: { mode: "depuis-script", zoneSec: [30, 90], zoneOrangeSec: [90, 150], ciblesGenerationSec: [45, 60, 90], cibleParDefautSec: 60 },
-  ratios: ["9:16"],
-  ratioMaitre: "9:16",
+  // Lot J : rendu maître en 4:5 (moitié / moitié), puis les autres formats des réseaux.
+  ratios: ["4:5", "9:16", "1:1"],
+  ratioMaitre: "4:5",
   miseEnPage: "ecran-partage-haut-bas",
-  miseEnPageParRatio: { "9:16": "ecran-partage-haut-bas" },
+  miseEnPageParRatio: { "4:5": "ecran-partage-haut-bas", "9:16": "ecran-partage-haut-bas", "1:1": "ecran-partage-haut-bas" },
   personnages: { min: 1, max: 1, roles: ["Face caméra"], sources: ["rush"] },
   entrees: [
     entree("rushs", "Votre vidéo facecam", "Vous face caméra, avec votre voix.", { obligatoire: true, multiple: false, accepte: ["video/*"] }),

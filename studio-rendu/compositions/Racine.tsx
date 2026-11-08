@@ -15,7 +15,23 @@ import { CompositionsImageVideo } from "./image-video/Compositions";
 import { CompositionsVisuels } from "./visuels/Compositions";
 import { PLAN_VIDE, PlanDeScenes, metaPlanDeScenes } from "./plan-scenes/PlanDeScenes";
 import { TutorielOutil, metaTutorielOutil } from "./plan-scenes/TutorielOutil";
+import { DemoFacecam, metaDemoFacecam } from "./plan-scenes/DemoFacecam";
 import { tailleAccessoire, type ProprietesImageComposition, type ProprietesTexteComposition } from "../../src/briques/composition/scene";
+
+/** Démo facecam vide (lot J) : sans vidéo, le plan vide dans la moitié de l'écran ; le vrai arrive par la demande de rendu. */
+const DEMO_FACECAM_VIDE = {
+  mode: "deux" as const,
+  format: { largeur: 1080, hauteur: 1350, fps: 25 as const },
+  disposition: "haut-bas" as const,
+  ecran: { x: 0, y: 0, largeur: 1080, hauteur: 674 },
+  facecam: { x: 0, y: 674, largeur: 1080, hauteur: 676 },
+  decalageEcranMs: 0,
+  dureeMs: 3000,
+  plan: { ...PLAN_VIDE.plan, format: { largeur: 1080, hauteur: 674, fps: 25 as const }, facecam: true },
+  zooms: [],
+  fin: { titre: "Axion IA", sousTitre: "axion-ia.com" },
+  finMs: 2500,
+};
 
 /** Données vides : les vraies arrivent par les propriétés de la demande de rendu. */
 const CALQUE_VIDE: ProprietesCalque = {
@@ -70,6 +86,7 @@ export function Racine() {
       <Composition id="Essai" component={Essai} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={{ titre: "Studio Axion-IA" }} />
       <Composition id="PlanDeScenes" component={PlanDeScenes} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={PLAN_VIDE} calculateMetadata={metaPlanDeScenes} />
       <Composition id="TutorielOutil" component={TutorielOutil} durationInFrames={75} fps={25} width={1080} height={1350} defaultProps={{ ...PLAN_VIDE, fin: { titre: "Axion IA", sousTitre: "axion-ia.com" }, finMs: 2500 }} calculateMetadata={metaTutorielOutil} />
+      <Composition id="DemoFacecam" component={DemoFacecam} durationInFrames={75} fps={25} width={1080} height={1350} defaultProps={DEMO_FACECAM_VIDE} calculateMetadata={metaDemoFacecam} />
       <Composition id="SousTitres" component={CalqueSousTitres} durationInFrames={1} fps={25} width={1080} height={1920} defaultProps={CALQUE_VIDE} calculateMetadata={dureeCalque} />
       <Composition
         id="ApercuSousTitres"

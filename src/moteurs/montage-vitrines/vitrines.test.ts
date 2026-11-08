@@ -31,8 +31,8 @@ describe("vitrines branchées plus tard", () => {
     expect(f.entrees[1].obligatoire).toBe(false);
     expect(f.pieces?.voix).toBe("prise-filmee");
   });
-  // Lot I : le tutoriel est branché ; sans ses outils (voix, rendu) reliés, il reste en pause claire « outils non reliés ».
-  for (const [moteur, codePause] of [[moteurMontageTutorielOutil, "TO_OUTILS_NON_RELIES"], [moteurMontageDemoFacecam, "PAS_ENCORE_BRANCHE"]] as const) {
+  // Lot I : le tutoriel est branché ; lot J : la démo facecam aussi. Sans leurs outils reliés : pause claire « outils non reliés ».
+  for (const [moteur, codePause] of [[moteurMontageTutorielOutil, "TO_OUTILS_NON_RELIES"], [moteurMontageDemoFacecam, "DF_OUTILS_NON_RELIES"]] as const) {
     it(`${moteur.id} : le lancement met en pause claire, sans échec, sans coût`, async () => {
       const t = await moteur.lancer(commande, ctx);
       expect(t.statut).toBe("en_file");
