@@ -23,6 +23,7 @@ export const NAV_LATERALE: EntreeNavigation[] = [
   // Navigation (03/10) : « Mesures » et « Ce qui marche » n'étaient joignables que par une tuile de l'Accueil.
   { href: "/mesures", libelle: "Mesures", icone: "resultats" },
   { href: "/ecrire", libelle: "Écrire", icone: "ecrire", actifSur: ["/ecrire", "/scripts", "/idees"] },
+  { href: "/outils-motion", libelle: "Outils motion design", icone: "baguette" },
   { href: "/personnages", libelle: "Personnages", icone: "personnages" },
   { href: "/bibliotheque", libelle: "Bibliothèque", icone: "bibliotheque" },
   { href: "/modeles", libelle: "Mes modèles", icone: "modele" },
@@ -43,6 +44,7 @@ export const ONGLETS_BAS: (EntreeNavigation & { central?: boolean })[] = [
 /** Feuille « Plus » (mobile) : grille de tuiles. */
 export const TUILES_PLUS: EntreeNavigation[] = [
   { href: "/carrousels", libelle: "Carrousels", icone: "images" },
+  { href: "/outils-motion", libelle: "Outils motion design", icone: "baguette" },
   { href: "/personnages", libelle: "Personnages", icone: "personnages" },
   { href: "/bibliotheque", libelle: "Bibliothèque", icone: "bibliotheque" },
   { href: "/modeles", libelle: "Mes modèles", icone: "modele" },

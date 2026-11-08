@@ -11,6 +11,8 @@ import { formatTableauAnime } from "./tableau-anime";
 import { formatCasConcret } from "./cas-concret";
 import { formatFacecamAnimee } from "./facecam-animee";
 import { formatImageVideo } from "./image-video";
+import { formatTutorielOutil } from "./tutoriel-outil";
+import { formatDemoFacecam } from "./demo-facecam";
 import type { DefinitionFormat, StatutFormat } from "./types";
 import type { ConseilSite, RegleChapitresWeb } from "@/domaine/site-videos/types";
 import { BRIQUES_FACULTATIVES, type BlocScript, type BriqueFacultative, type ModeDeclinaison, type Script } from "@/domaine/types";
@@ -19,7 +21,7 @@ import { codeDuFormat } from "./registre-codes";
 
 export type { DefinitionFormat } from "./types";
 
-const FORMATS: DefinitionFormat[] = [formatAvocat, formatFacecam, formatPodcast, formatCreateurB, formatEcranPartage, formatMotion, formatUgc, formatSelfie, formatTableauAnime, formatCasConcret, formatFacecamAnimee, formatImageVideo];
+const FORMATS: DefinitionFormat[] = [formatAvocat, formatFacecam, formatPodcast, formatCreateurB, formatEcranPartage, formatMotion, formatUgc, formatSelfie, formatTableauAnime, formatCasConcret, formatFacecamAnimee, formatImageVideo, formatTutorielOutil, formatDemoFacecam];
 
 /**
  * Inscrit un format PAR DES DONNÉES (générateur, plan v5 B.4.0) : ajouter un format ne change jamais le générateur
