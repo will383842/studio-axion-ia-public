@@ -106,6 +106,8 @@ export interface OutilsCasConcret extends Omit<OutilsFabricationCasConcret<Journ
    * s'écrit), lu seulement quand Claude écrit. Absent ou illisible : aucune mémoire (comme avant), l'écriture n'échoue pas.
    */
   scriptsAnterieurs?: (casId: string, videoId: string) => Promise<readonly string[]>;
+  /** Lot R2 : plan de scènes (réglage `planScenes.casConcret`, ÉTEINT par défaut). Rend les options si le réglage est allumé, sinon rien. Absent : écrans inchangés. */
+  planScenes?: () => Promise<{ appeler?: import("@/briques/plan-scenes/generateur").AppelClaude } | undefined>;
 }
 
 /**
@@ -615,7 +617,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   const cas = casDe(commande, outils);
   if (!cas) return { etat: depart, issue: { type: "echec", cle: "fiche", erreur: { code: "CAS_CONCRET_SANS_CAS", reessayable: false, messagePourWill: "Le cas de cette vidéo est introuvable : choisissez-en un autre." } } };
 
-  const { env, contexte, lireFiche, cas: _cas, numeroVersion: lireNumero, scriptValide: lireScript, scriptValideDeLaVideo: lireDeLaVideo, scriptsAnterieurs: lireAnterieurs, ...reste } = outils;
+  const { env, contexte, lireFiche, cas: _cas, numeroVersion: lireNumero, scriptValide: lireScript, scriptValideDeLaVideo: lireDeLaVideo, scriptsAnterieurs: lireAnterieurs, planScenes: lirePlanScenes, ...reste } = outils;
   void _cas;
   // Retouche : la voix part des prises déjà payées (posée une fois, avant que la chaîne ne lise la voix).
   if (retouche && !journal?.voix) {
@@ -673,8 +675,10 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
     },
   };
 
+  const optionPlanScenes = lirePlanScenes ? await lirePlanScenes().catch(() => undefined) : undefined;
   try {
     const compteRendu = await fabriquerCasConcret({
+      ...(optionPlanScenes ? { planScenes: optionPlanScenes } : {}),
       videoId: commande.videoId,
       versionId,
       ...(numeroVersion !== undefined ? { numeroVersion } : {}),

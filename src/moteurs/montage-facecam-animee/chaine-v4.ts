@@ -20,6 +20,8 @@ import { horodaterMotsPrononces } from "@/briques/calage/report";
 import { DUREE_MIN_SEC } from "@/domaine/facecam-parcours";
 import type { ElementV4Plan, PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
 import type { MotHorodate } from "@/domaine/types";
+import type { AppelClaude } from "@/briques/plan-scenes/generateur";
+import { planPourVideo, type MemoPlanVideo } from "@/briques/plan-scenes-generateurs/video";
 import { MENTION_PLAFOND_FACECAM_ANIMEE } from "./index";
 import { PHRASE_REALISATEUR_PANNE, realiser, type DependancesRealisateur, type EntreeRealisateur, type HistoriqueVideo, type MotTranscrit } from "./realisateur";
 import { controlerDiversiteV4, estRendableV4 } from "./realisateur/regles-v4";
@@ -31,6 +33,8 @@ export const VERSION_CHAINE_V4 = "chaine-facecam-v4/1";
 export const PRISE_MONTEE_V4 = "prise-montee.mp4";
 /** Cadence du rendu v4 : les intervalles gardés sont recalés sur cette grille. */
 const GRILLE_V4 = 30;
+/** Format du plan de scènes (1080 × 1920, 25 i/s) : le calque convertit les images vers les 30 i/s de la composition. */
+const FORMAT_PLAN_FACECAM_ANIMEE = { largeur: 1080, hauteur: 1920, fps: 25 as const };
 
 export type EtapeChaineV4 = "transcription" | "coupes" | "mise-en-scene" | "videos" | "rendu" | "prete";
 export const ETAPES_CHAINE_V4: readonly EtapeChaineV4[] = Object.freeze(["transcription", "coupes", "mise-en-scene", "videos", "rendu", "prete"]);
@@ -90,9 +94,13 @@ export interface EtatChaineV4 {
    */
   repliSansVideo?: { retirees: PlaquetteRetireeV4[]; manques: string[]; elementsPrecedents: ElementV4Plan[]; fait?: boolean; essais?: number };
   rendu?: { cle: string; vignetteCle: string; dureeSec: number; taille: number };
+  /** Lot R2 : plan de scènes (option éteinte par défaut), gardé pour ne pas rappeler l'IA à la reprise. Absent : option éteinte ou pas encore composé. */
+  planScenes?: MemoPlanVideo;
 }
 
 export interface OutilsChaineV4 {
+  /** Lot R2 : plan de scènes pour les scènes d'interface, de chiffres et d'accents. Absent (par défaut) : rendu inchangé. `appeler` absent : pièces du stock seulement. */
+  planScenes?: { appeler?: AppelClaude };
   /** Transcription horodatée au mot de la prise brute (temps de la prise). Lève `EnCoursChaineV4` tant qu'elle n'est pas finie. */
   transcrire(d: { priseCle: string; appelId: string }): Promise<{ mots: MotHorodate[]; dureeSec: number; largeurSource?: number; hauteurSource?: number }>;
   /**
@@ -375,7 +383,13 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       if (!etat.realisation || !etat.coupes) return { ...etat, etape: etat.coupes ? "mise-en-scene" : "coupes" };
       // Jamais de rendu d'une plaquette à vidéo sans vidéo (v-60359dd080b1 : `broll/` sans nom de fichier, 404 à 99 %) ; sert aussi à reprendre un travail déjà à « rendu ».
       if (plaquettesSansVideo(etat.realisation.plan).length) return { ...etat, etape: "videos" };
-      const rendu = await outils.rendre({ idRendu: `fa4-${etat.demande.versionId}`, priseCle: etat.demande.priseCle, plan: etat.realisation.plan, gardes: etat.coupes.gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}) });
+      // Lot R2 : le plan de scènes se compose (et se garde) AVANT le rendu : un pas à lui seul, jamais refait à la reprise.
+      if (outils.planScenes && !etat.planScenes) {
+        const memo = await planPourVideo({ generateur: "facecam-animee", mots: etat.coupes.mots.map((m) => ({ texte: m.w, debutSec: m.a, finSec: m.f })), dureeSec: etat.coupes.dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM_ANIMEE, appeler: outils.planScenes.appeler });
+        return { ...etat, planScenes: memo };
+      }
+      const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: etat.planScenes.plan } : etat.realisation.plan;
+      const rendu = await outils.rendre({ idRendu: `fa4-${etat.demande.versionId}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes: etat.coupes.gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}) });
       return { ...etat, etape: "prete", rendu };
     }
     case "prete":

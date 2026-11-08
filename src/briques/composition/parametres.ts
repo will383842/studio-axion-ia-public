@@ -146,6 +146,8 @@ export interface EntreeComposition {
    * ni ombre (`texte`), comme la v4. Absent : inchangé.
    */
   passagesClairs?: { debutSec: number; finSec: number; texte: string }[];
+  /** Lot R2 (ajout pur, FACULTATIF, réglage éteint par défaut) : plan de scènes posé par-dessus l'image. Absent : paramètres identiques. */
+  planScenes?: import("../plan-scenes/schema").PlanValide;
 }
 
 /**
@@ -308,6 +310,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   if (e.sourcePreCadree) image.sourcePreCadree = true;
   if (e.source10bits) image.source10bits = true;
   if (cameras) image.cameras = cameras;
+  if (e.planScenes) image.planScenes = e.planScenes;
 
   // --- Texte : sous-titres (M2), encadré, incrustations ---
   const style = c.styles.sousTitres?.valeur;

@@ -44,8 +44,7 @@ export function FeuilleTelecharger() {
         {sorties.map((s) => (
           <li key={s.id}>
             <a
-              href={s.url}
-              download={nom(s.ratio, "mp4")}
+              href={`/api/telechargements/video?video=${encodeURIComponent(videoId)}&ratio=${encodeURIComponent(s.ratio)}`}
               className="group flex min-h-20 items-center gap-4 rounded-2xl border border-trait bg-surface-2 p-3 pr-4 transition-colors hover:border-orange"
             >
               <span className={cn("relative w-12 shrink-0 overflow-hidden rounded-lg border border-trait-fort bg-fond", ASPECT[s.ratio])}>

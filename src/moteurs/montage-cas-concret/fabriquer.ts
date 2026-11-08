@@ -39,12 +39,16 @@
  * technique). Un raccord de voix fini est gardé même si celui d'une autre fin rate dans le même tour. « Réessayer »
  * passe le journal par `relancerRendusCasConcret` : seuls les rendus restés en cours ou ratés repartent.
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { joindrePhrasesPourVoix } from "@/domaine/voix-phrases";
 import { FIN_PROPRE_COMMUNE } from "@/briques/composition/fin-propre";
 import { creerSuivi, empreinteStable, plansDesScenes, commandeMinimale, type EtapeComptee, type Journal, type ScenePosee } from "@/briques/chaine-scenes";
 import { avancerCompositions, montageFini, type BaseComposition, type EtatComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
 import { GEOMETRIE_INCRUSTATIONS_PAR_DEFAUT, type RecetteComposition } from "@/briques/composition/recette";
 import { REDUCTION_LARGE_PAR_DEFAUT } from "@/briques/composition/scene";
+import type { AppelClaude } from "@/briques/plan-scenes/generateur";
+import type { PlanValide } from "@/briques/plan-scenes/schema";
+import { cleTranche, planScenesCasConcret, type GroupePourPlan, type MemoPlanScenes } from "./plan-scenes";
 import { centreSousTitresPleineImagePct, proprietesPleineImage, zonePleineImage } from "./zone-objets";
 import { controlerProprietes, zonesEcran, type CaptureEcran, type EcranCale, type ProprietesEcran } from "@/briques/ecrans-motion";
 import { COULEURS_DUO, VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo";
@@ -137,6 +141,8 @@ export interface JournalCasConcret extends Journal<EtapeCasConcret> {
   /** Assemblages corps + fin déjà finis, par fin. */
   assemblages?: { empreinte: string; faits: Record<string, ResultatAssemblage> };
   ecrans?: { empreinte: string; etat: EtatCartesMotion; rendues: string[] };
+  /** Lot R2 : plan de scènes par groupe d'écrans (corps, fins), gardé pour ne pas rappeler l'IA à la reprise. Absent : option éteinte. */
+  planScenes?: MemoPlanScenes;
   /** État de la composition de chaque fin. */
   montage?: Record<string, { empreinte: string; etat: EtatComposition }>;
   /** Essai seulement : échecs déjà joués par étape (`panneDEssai`). */
@@ -182,6 +188,8 @@ export interface OptionsFabricationCasConcret {
   lireScriptsAnterieurs?: () => Promise<readonly string[]>;
   /** Personnage qui prête sa voix (inscrit dans la distribution de la commande). */
   personnageId?: string;
+  /** Lot R2 : plan de scènes (motion sur mesure) pour les écrans d'interface, de chiffres et d'accents. Absent (par défaut) : écrans inchangés. `appeler` absent : pièces du stock seulement. */
+  planScenes?: { appeler?: AppelClaude };
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
   prononciations?: readonly { mot: string; prononciation: string }[];
   horloge?: () => number;
@@ -264,7 +272,7 @@ export const empreinte = (...parts: unknown[]) => empreinteStable(VERSION_FABRIC
  */
 export const STYLE_SOUS_TITRES_DUO: ValeurStyleSousTitres = Object.freeze({
   ...STYLE_SOUS_TITRES_MINIMAL,
-  police: "Inter Bold",
+  police: "Manrope Bold",
   couleurAccent: "orange",
   jetonEmphase: "orange-vif",
   contourPx: 7,
@@ -280,8 +288,8 @@ export function zonesOccupeesSousTitres(dureeSec: number): { debutSec: number; f
   return [{ debutSec: 0, finSec: dureeSec, zone: "haut" }];
 }
 
-/** Texte des sous-titres sur un écran ivoire : la couleur de la v4 (`.I { color: #15100c }`). */
-export const ENCRE_SOUS_TITRES_IVOIRE = "#15100c";
+/** Texte des sous-titres sur un écran ivoire : le noir de la charte Axion 2026. */
+export const ENCRE_SOUS_TITRES_IVOIRE: string = PALETTE.noir;
 
 /** V4-2 : largeur des sous-titres, en % de l'image : 960 px, comme la v4 (`#st` sur 60–1 020 px). */
 export const LARGEUR_SOUS_TITRES_PCT = +((960 / 1080) * 100).toFixed(2);
@@ -963,11 +971,27 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const dernierLien = cales.map((e) => e.type).lastIndexOf("lien");
     return { id: f.fin.id, cales: Object.keys(jeuFin).length && dernierLien >= 0 ? cales.map((e, i) => (i === dernierLien ? { ...e, jeu: { ...e.jeu, ...jeuFin } } : e)) : cales };
   });
+  // Lot R2 · plan de scènes (option, ÉTEINTE par défaut) : sans `o.planScenes`, rien ici ne s'exécute et les propriétés
+  // des écrans (donc leurs empreintes de rendu) sont celles d'avant.
+  let tranchesPlan: Record<string, PlanValide> = {};
+  if (o.planScenes) {
+    const dit = (ecrans: readonly { id: string; texteDit: string }[]) => new Map(ecrans.map((e) => [e.id, e.texteDit]));
+    const groupe = (id: string, cales: readonly EcranCale[], textes: Map<string, string>): GroupePourPlan => ({ id, ecrans: cales.map((e) => ({ id: e.id, texteDit: textes.get(e.id) ?? "", debutMs: e.debutMs, finMs: e.finMs })) });
+    const r = await planScenesCasConcret({
+      groupes: [groupe("corps", corpsCales, dit(calage.fiche.ecrans)), ...finsCales.map((f) => groupe(f.id, f.cales, dit(calage.fins.find((x) => x.fin.id === f.id)?.fin.ecrans ?? [])))],
+      appeler: o.planScenes.appeler,
+      memo: journal.planScenes,
+    });
+    journal.planScenes = r.memo;
+    await ecrire();
+    tranchesPlan = r.tranches;
+  }
+  const avecPlan = (groupe: string, ps: ProprietesEcran[]): ProprietesEcran[] => ps.map((p) => (tranchesPlan[cleTranche(groupe, p.id)] ? { ...p, planScenes: tranchesPlan[cleTranche(groupe, p.id)] } : p));
   const proprietes = (src: (cle: string) => string) => {
     const caps: Record<string, CaptureEcran> = Object.fromEntries(Object.values(captures.captures).map((c) => [c.cle, { ...c, src: src(c.cle) }]));
     return {
-      corps: proprietesPleineImage({ ecrans: corpsCales, captures: caps }),
-      fins: Object.fromEntries(finsCales.map((f) => [f.id, proprietesPleineImage({ ecrans: f.cales, captures: caps })])) as Record<string, ProprietesEcran[]>,
+      corps: avecPlan("corps", proprietesPleineImage({ ecrans: corpsCales, captures: caps })),
+      fins: Object.fromEntries(finsCales.map((f) => [f.id, avecPlan(f.id, proprietesPleineImage({ ecrans: f.cales, captures: caps }))])) as Record<string, ProprietesEcran[]>,
     };
   };
   const brouillon = proprietes(() => "");
