@@ -144,6 +144,10 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
   }
 
   const ouverte = carte.pretes.find((l) => l.reseau === ouvert);
+  // Image → vidéo : le fichier se télécharge, il ne part jamais d'ici.
+  const seul = carte.pretes.some((l) => l.telechargementSeul);
+  const reseauTelechargement = ouverte?.reseau ?? carte.pretes[0]?.reseau ?? carte.pasPretes[0]?.reseau;
+  const lienTelechargement = `/api/telechargements/video?video=${encodeURIComponent(carte.videoId)}${reseauTelechargement ? `&reseau=${reseauTelechargement}` : ""}`;
 
   return (
     <li className="rounded-carte border border-trait bg-surface-1 p-4">
@@ -174,7 +178,19 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
 
         {carte.blocageVideo && <p className="text-sm text-texte-doux">{carte.blocageVideo}</p>}
 
-        {carte.pretes.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Bouton asChild variante="secondaire" icone="telecharger">
+            <a href={lienTelechargement}>Télécharger</a>
+          </Bouton>
+          {seul && reseauTelechargement === "facebook" && (
+            <Bouton asChild variante="secondaire" icone="telecharger">
+              <a href={`${lienTelechargement}&fil=1`}>Télécharger pour le fil</a>
+            </Bouton>
+          )}
+        </div>
+        {seul && <p className="text-sm text-texte-doux">Cette vidéo se télécharge ; elle ne part pas d&apos;ici.</p>}
+
+        {carte.pretes.length > 0 && !seul && (
           <>
             <label className="flex min-h-11 items-start gap-3 rounded-2xl border border-trait px-3 py-2.5 text-sm font-semibold text-texte">
               <input type="checkbox" className="mt-0.5 size-5 shrink-0" checked={toutOk} disabled={enCours} onChange={(e) => ecrire(casesAChanger(carte.casesRequises, coches, e.target.checked), e.target.checked)} />

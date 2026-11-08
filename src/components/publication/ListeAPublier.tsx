@@ -1,5 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { PastillesReseaux } from "@/components/videos/PastillesReseaux";
+import { BoutonValider } from "@/components/videos/BoutonValider";
+import { Bouton } from "@/components/ui/Bouton";
 import { Icone } from "@/components/ui/Icone";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
@@ -79,13 +82,18 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
           const montrees = tranche(s.lignes, affichees);
           return (
             <section key={s.reseau} aria-label={obtenirReseau(s.reseau).nom} className="space-y-2">
-              {reseau === "tous" && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-texte">
                   <LogoReseau reseau={s.reseau} taille="sm" />
                   {obtenirReseau(s.reseau).nom}
                   <span className="text-xs font-normal text-texte-faible">{s.lignes.length}</span>
                 </h2>
-              )}
+                {s.lignes.some((l) => (l.ligne.etapeVideo ?? "validee") === "validee") && (
+                  <Bouton asChild variante="secondaire" taille="md" icone="telecharger">
+                    <a href={`/api/telechargements?validees=1&reseau=${s.reseau}`}>Tout télécharger</a>
+                  </Bouton>
+                )}
+              </div>
               <ul className="divide-y divide-trait overflow-hidden rounded-carte border border-trait bg-surface-1">
                 {montrees.map(({ ligne, etat, format }) => (
                   <li key={ligne.cle}>
@@ -99,8 +107,20 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                           {[ligne.typeVideo, format, etat.raison].filter(Boolean).join(" · ")}
                         </span>
                       </span>
-                      <Pastille ton={etat.ton}>{etat.libelle}</Pastille>
+                      <Pastille ton={etat.ton}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
                     </Link>
+                    <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+                      <PastillesReseaux reseaux={ligne.reseauxVideo ?? [ligne.reseau]} precis={ligne.reseauxPrecis ?? true} />
+                      <Bouton asChild variante="secondaire" taille="md" icone="telecharger">
+                        <a href={`/api/telechargements/video?video=${encodeURIComponent(ligne.videoId)}&reseau=${ligne.reseau}`}>Télécharger</a>
+                      </Bouton>
+                      {!ligne.telechargementSeul && etat.categorie === "a-envoyer" && (
+                        <Bouton asChild variante="secondaire" taille="md" icone="envoyer">
+                          <Link href={lienDetailReseau(ligne.videoId, ligne.reseau, filtre, affichees, reseau === "tous")}>Envoyer</Link>
+                        </Bouton>
+                      )}
+                      <BoutonValider videoId={ligne.videoId} prete etape={ligne.etapeVideo ?? "validee"} />
+                    </div>
                   </li>
                 ))}
               </ul>
