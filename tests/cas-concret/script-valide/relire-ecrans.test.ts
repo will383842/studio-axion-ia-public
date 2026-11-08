@@ -117,11 +117,12 @@ describe("feuille « Votre vidéo » : un script validé se relit avant le lance
     expect(t).toContain("Vous le relirez, et pourrez le modifier, avant le lancement.");
   });
 
-  it("l'écran de relecture : le script du cas sur l'écran commun, avec le prix et un retour", () => {
+  it("l'écran de relecture : le script du cas sur l'écran commun, sans prix et avec un retour", () => {
     const html = renderToStaticMarkup(createElement(RelireAvantLancement, { cas: vue, montant: 94, controler: rien, lancer: ok, onRetour: () => undefined }));
     const t = texte(html);
     expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(apercu.length);
-    expect(t).toContain("Lancer la vidéo (≈ 0,94 €)");
+    expect(t).toContain("Lancer la vidéo");
+    expect(t).not.toContain("€");
     expect(t).toContain("Retour");
     expect(t).toContain("Nos collaborateurs, on les recrute en");
   });
