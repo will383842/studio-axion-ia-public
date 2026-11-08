@@ -12,8 +12,16 @@ const DUREE_LIEN_SEC = 600;
 const ID_VIDEO = /^[A-Za-z0-9_-]{1,80}$/;
 const RATIOS: readonly Ratio[] = ["9:16", "1:1", "4:5", "16:9"];
 const SANS_CACHE = { "Cache-Control": "no-store" };
+/** Chemin du studio : commence par une seule barre, jamais « // » ni « / » (adresses vers un autre site). */
+const CHEMIN_LOCAL = /^\/(?![\/\\])/;
 
 const refus = (statut: number, erreur: string) => NextResponse.json({ erreur }, { status: statut, headers: SANS_CACHE });
+
+/** Redirection ; un chemin du studio ne doit jamais sortir de son origine (le lien signé du stockage, lui, est externe). */
+function aller(cible: URL, requete: NextRequest, externe = false) {
+  if (!externe && cible.origin !== requete.nextUrl.origin) return refus(404, "Cette vidéo n'a pas de fichier à télécharger.");
+  return NextResponse.redirect(cible, { status: 302, headers: SANS_CACHE });
+}
 
 /**
  * Téléchargement direct d'une vidéo : `?video=<id>[&reseau=<réseau>][&ratio=9:16][&fil=1]`.
@@ -39,11 +47,14 @@ export async function GET(requete: NextRequest) {
     });
     if (!fichier) return refus(404, "Cette vidéo n'a pas de fichier à télécharger.");
     // Média du studio (démonstration) : servi par le studio lui-même, rien à signer.
-    if (fichier.cle.startsWith("/")) return NextResponse.redirect(new URL(fichier.cle, requete.nextUrl.origin), { status: 302, headers: SANS_CACHE });
+    // Chemin relatif simple seulement : « //hote/x » et « /\hote/x » sont des adresses vers un autre site.
+    if (CHEMIN_LOCAL.test(fichier.cle)) return aller(new URL(fichier.cle, requete.nextUrl.origin), requete);
     const stockage = await fournisseur("stockage");
     const adresse = stockage.urlLectureDuree ? await stockage.urlLectureDuree(fichier.cle, DUREE_LIEN_SEC, { telechargerSous: fichier.nom }) : await stockage.urlLecture(fichier.cle);
     if (!adresse) return refus(404, "Cette vidéo n'a pas de fichier à télécharger.");
-    return NextResponse.redirect(new URL(adresse, requete.nextUrl.origin), { status: 302, headers: SANS_CACHE });
+    // Adresse signée du stockage (https) ou chemin du studio ; tout le reste (« //hote », schéma inconnu) est refusé.
+    if (!CHEMIN_LOCAL.test(adresse) && !/^https:\/\//.test(adresse)) return refus(404, "Cette vidéo n'a pas de fichier à télécharger.");
+    return aller(new URL(adresse, requete.nextUrl.origin), requete, !CHEMIN_LOCAL.test(adresse));
   } catch (e) {
     console.error("[telechargement-video]", e);
     return refus(502, "Le téléchargement n'a pas pu démarrer. Réessayez dans un instant.");
