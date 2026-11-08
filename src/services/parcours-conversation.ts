@@ -455,9 +455,11 @@ const pannesSite = (code: string): boolean => code === "injoignable" || code ===
  */
 async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte: string, idConversation: string, idMessage: string, now: number): Promise<{ texte: string } | null> {
   const c = ev.charge;
+  const occurredAt = typeof c.occurredAt === "string" ? c.occurredAt : undefined;
+  const idExpediteur = typeof c.idExpediteur === "string" && c.idExpediteur ? c.idExpediteur : undefined;
   let lu: MessageLu;
   try {
-    lu = await d.port.lireMessage({ idCompte, idConversation, idMessage });
+    lu = await d.port.lireMessage({ idCompte, idConversation, idMessage, ...(occurredAt ? { occurredAt } : {}), ...(idExpediteur ? { idExpediteur } : {}) });
   } catch {
     lu = { texte: null, postback: null, panne: true };
   }

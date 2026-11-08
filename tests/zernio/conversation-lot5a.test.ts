@@ -274,9 +274,9 @@ describe("m3 · ordre de recherche et alias", () => {
 describe("port · comptesLecture", () => {
   const AUTRE = "exemple-compte-2";
   it("élargit la lecture mais aucune écriture", async () => {
-    const f = creerFauxClientZernio(() => ({ statut: 200, corps: { messages: [{ id: "m", direction: "incoming", text: "bonjour" }] } }));
+    const f = creerFauxClientZernio(() => ({ statut: 200, corps: { messages: [{ id: "m_" + "x".repeat(86), conversationId: "c", direction: "incoming", message: "bonjour", createdAt: "2026-11-08T07:13:06.886Z" }] } }));
     const p = creerPortInboxZernio({ client: f.client, comptesPermis: [COMPTE], comptesLecture: [COMPTE, AUTRE] });
-    expect(await p.lireMessage({ idCompte: AUTRE, idConversation: "c", idMessage: "m" })).toMatchObject({ texte: "bonjour" });
+    expect(await p.lireMessage({ idCompte: AUTRE, idConversation: "c", idMessage: "0123456789abcdef01234567", occurredAt: "2026-11-08T07:13:06.886Z" })).toMatchObject({ texte: "bonjour" });
     const lus = f.faux.appels.length;
     expect(lus).toBe(1);
     const e = await p.envoyerMessage({ idCompte: AUTRE, idConversation: "c", texte: "x", cle: "k" });

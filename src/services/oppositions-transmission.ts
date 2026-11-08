@@ -205,7 +205,11 @@ async function traiterEntree(cle: string, port: PortInboxZernio, env: Env, now: 
     const idCompte = typeof evenement?.charge.idCompte === "string" && evenement.charge.idCompte ? evenement.charge.idCompte : conv.idCompte;
     let lu;
     try {
-      lu = await port.lireMessage({ idCompte, idConversation, idMessage });
+      lu = await port.lireMessage({
+        idCompte, idConversation, idMessage,
+        ...(typeof evenement?.charge.occurredAt === "string" ? { occurredAt: evenement.charge.occurredAt } : {}),
+        ...(typeof evenement?.charge.idExpediteur === "string" && evenement.charge.idExpediteur ? { idExpediteur: evenement.charge.idExpediteur } : {}),
+      });
     } catch {
       lu = { texte: null, postback: null, panne: true as const };
     }
