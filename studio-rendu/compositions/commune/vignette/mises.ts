@@ -55,6 +55,12 @@ export const MISE_INSTAGRAM: MiseDef = Object.freeze({
   halo: { hx: 50, hy: 45 },
 }) as MiseDef;
 
+/** Fond propre de la charte (aucune image acceptable ou aucune vidéo sans texte) : titre gros, centré, dans la zone sûre (84 px de marge). */
+export const MISE_FOND_PROPRE: MiseDef = Object.freeze({
+  titre: { x: 84, y: 760, ancre: "haut", largeur: 912, taille: 144, align: "centre" },
+  halo: { hx: 50, hy: 45 },
+}) as MiseDef;
+
 export interface BoiteTitre {
   x: number;
   y: number;

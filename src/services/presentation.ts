@@ -2,6 +2,7 @@
 import "server-only";
 import type { ElementBibliotheque, Modele, Video } from "@/domaine/types";
 import { etatLicence } from "@/domaine/derivations";
+import { miniatureAAfficher } from "@/domaine/couverture-vignette";
 import { dureeDeLaVideo } from "@/domaine/duree-video";
 import { reseauxDeLaVideo } from "@/domaine/reseaux-video";
 import { trouverFormat } from "@/formats";
@@ -20,10 +21,12 @@ export async function versCarte(v: Video): Promise<VueVideoCarte> {
   const versionId = v.versionChoisieId;
   const sorties = versionId ? await d.sorties.lister((s) => s.versionId === versionId) : [];
   const principale = sorties.find((s) => s.ratio === v.ratios[0]) ?? sorties[0];
-  const miniature = v.miniatureChoisieId ? await d.miniatures.obtenir(v.miniatureChoisieId) : null;
+  // La miniature CHOISIE (jamais une image au hasard) ; sans choix, la marquée choisie ; sinon la vignette de la vidéo.
+  const miniature = v.miniatureChoisieId ? ((await d.miniatures.obtenir(v.miniatureChoisieId)) ?? null) : null;
+  const choisie = miniature ?? miniatureAAfficher({}, await d.miniatures.lister((m) => m.videoId === v.id));
   // Un format ajouté en cours ne fait pas passer la carte « En fabrication » : la vidéo reste prête.
   const travail = await d.travaux.trouver((t) => t.cibleId === v.id && t.type !== "reexport" && (t.statut === "en_cours" || t.statut === "en_file" || t.statut === "echec"));
-  const vignette = (await urlFichier(miniature?.fichierId)) ?? (await urlFichier(principale?.vignetteFichierId));
+  const vignette = (await urlFichier(choisie?.fichierId)) ?? (await urlFichier(principale?.vignetteFichierId));
   const duree = dureeDeLaVideo(v.dureeCibleSec, principale);
   // Lot M : réseau(x) de la vidéo ; la livraison image → vidéo de la version choisie est lue avec prudence.
   const version = versionId ? await d.versions.obtenir(versionId) : null;

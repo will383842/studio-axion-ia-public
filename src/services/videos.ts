@@ -7,6 +7,7 @@ import type { Adresse, BriqueFacultative, BlocScript, EtapeEditoriale, Id, IdRes
 import { creditsDepuisElements, etatLicence, MENTION_IA_PAR_DEFAUT, texteScript } from "@/domaine/derivations";
 import { adresseDepuisFacon } from "@/domaine/adresse";
 import { visagePourFormat } from "@/domaine/distribution";
+import { verifierCouverture } from "@/domaine/couverture-vignette";
 import { couvertureDepuisTitre } from "@/domaine/miniatures";
 import { compteDansFormat } from "@/domaine/mes-videos";
 import { voixPourFormat } from "@/domaine/voix-format";
@@ -535,6 +536,31 @@ export async function choisirMiniature(videoId: Id, miniatureId: Id, titreDemand
     await d.miniatures.modifier(m.id, { choisie: m.id === miniatureId, ...(m.id === miniatureId && titre ? { titre } : {}), ...(m.id === miniatureId && fichierId ? { fichierId } : {}) });
   }
   await d.videos.modifier(videoId, { miniatureChoisieId: miniatureId });
+}
+
+/**
+ * Titre de la vignette et mot à mettre en valeur, FIXÉS par Williams (3 à 5 mots), modifiables à tout moment : l'image
+ * choisie est refaite (l'ancienne reste dans les fichiers). Si l'image n'a pas le titre écrit dessus, les vignettes
+ * sont refaites.
+ */
+export async function fixerCouvertureVignette(videoId: Id, texteSaisi: string, motCleSaisi: string): Promise<void> {
+  await exigerSession();
+  const d = depots();
+  const video = await d.videos.obtenir(videoId);
+  if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
+  const texte = texteSaisi.replace(/\s+/g, " ").trim();
+  const motCle = motCleSaisi.replace(/\s+/g, " ").trim();
+  const problemes = verifierCouverture(texte, motCle);
+  if (problemes.length) throw new ErreurStudio("COUVERTURE", problemes[0]);
+  await d.videos.modifier(videoId, { couvertureVignette: { texte, motCle, fixee: true } });
+  const choisie = (video.miniatureChoisieId ? await d.miniatures.obtenir(video.miniatureChoisieId) : null) ?? (await d.miniatures.lister((m) => m.videoId === videoId && m.choisie))[0];
+  const { retitrerMiniature, refaireVignettes } = await import("./miniatures");
+  if (choisie?.incrustee) {
+    const fichierId = await retitrerMiniature(choisie, texte, motCle);
+    await d.miniatures.modifier(choisie.id, { titre: texte, ...(fichierId ? { fichierId } : {}) });
+  } else if (!video.estDemo) {
+    await refaireVignettes(videoId);
+  }
 }
 
 /** Corrige un mot des sous-titres (toucher un mot pour le corriger, AV2.3-3). */

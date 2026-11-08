@@ -70,7 +70,7 @@ beforeEach(async () => {
 async function vraieVideo() {
   const d = depots();
   const v = (await d.videos.lister((x) => !!x.estDemo && x.statut === "prete" && !!x.versionChoisieId))[0];
-  await d.videos.modifier(v.id, { estDemo: false, titre: "Amende : l'erreur que tout le monde fait" });
+  await d.videos.modifier(v.id, { estDemo: false, scriptId: undefined, varianteId: undefined, titre: "Amende : l'erreur que tout le monde fait" });
   for (const m of await d.miniatures.lister((x) => x.videoId === v.id)) await d.miniatures.modifier(m.id, { videoId: `${v.id}-ranges` });
   const sortie = (await d.sorties.lister((s) => s.versionId === v.versionChoisieId && s.ratio === v.ratios[0]))[0];
   await d.fichiers.modifier(sortie.fichierId, { cleStockage: `studio/dev/videos/${v.id}/finale.mp4` });
