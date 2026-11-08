@@ -8,7 +8,7 @@ import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
 import { Tuile } from "@/components/ui/Tuile";
 import { cn } from "@/lib/cn";
-import { estActif, ONGLETS_BAS, tuilesPlusMobile } from "./navigation";
+import { estActif, ONGLETS_BAS, sectionsPlusMobile, tuilesPlusMobile } from "./navigation";
 
 /** Onglets du bas (mobile < 1024 px) : Accueil · Vidéos · ➕ · Écrire · Plus. */
 export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = false }: { actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
@@ -64,7 +64,7 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
 
       <FeuilleBas ouverte={creer} onOuverteChange={setCreer} titre="Créer">
         <div className="grid grid-cols-2 gap-3">
-          <Tuile href="/nouvelle" icone="film" libelle="Nouvelle vidéo" onClick={() => setCreer(false)} />
+          <Tuile href="/nouvelle" icone="clap" libelle="Nouvelle vidéo" onClick={() => setCreer(false)} />
           <Tuile href="/ecrire/atelier" icone="ecrire" libelle="Nouveau sujet" onClick={() => setCreer(false)} />
           <Tuile href="/ecrire/matieres?ajout=matiere" icone="micro" libelle="+ Matière" onClick={() => setCreer(false)} />
           <Tuile href="/ecrire/matieres?ajout=preuve" icone="certifie" libelle="+ Preuve" onClick={() => setCreer(false)} />
@@ -72,10 +72,20 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
       </FeuilleBas>
 
       <FeuilleBas ouverte={plus} onOuverteChange={setPlus} titre="Plus">
-        <div className="grid grid-cols-2 gap-3">
-          {tuilesPlusMobile(surLeSite, aPublier).map((t) => (
-            <Tuile key={t.href} href={t.href} icone={t.icone} libelle={t.libelle} onClick={() => setPlus(false)} />
+        {/* Mêmes sections que la barre latérale (08/11), moins ce qui est déjà dans les onglets du bas. */}
+        <div className="space-y-5">
+          {sectionsPlusMobile(surLeSite, aPublier).map((s) => (
+            <section key={s.titre ?? "tete"}>
+              {s.titre && <h3 className="mb-2 text-xs font-semibold text-texte-faible">{s.titre}</h3>}
+              <div className="grid grid-cols-2 gap-3">
+                {s.entrees.map((t) => (
+                  <Tuile key={t.href} href={t.href} icone={t.icone} libelle={t.libelle} onClick={() => setPlus(false)} />
+                ))}
+              </div>
+            </section>
           ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
           <form action={actionDeconnexion}>
             <button type="submit" className="flex min-h-24 w-full flex-col justify-between gap-3 rounded-carte border border-trait bg-surface-1 p-4 text-left hover:bg-surface-2">
               <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-texte-doux">
