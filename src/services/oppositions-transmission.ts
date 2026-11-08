@@ -204,9 +204,11 @@ async function traiterEntree(cle: string, port: PortInboxZernio, env: Env, now: 
   if (conv && idMessage && idConversation) {
     const idCompte = typeof evenement?.charge.idCompte === "string" && evenement.charge.idCompte ? evenement.charge.idCompte : conv.idCompte;
     let lu;
+    // `veille` ne compte pas ici : on relit l'adresse pour TRANSMETTRE un « stop » (aucune réponse n'est envoyée), et une liste incomplète est réessayée sans fin.
     try {
       lu = await port.lireMessage({
         idCompte, idConversation, idMessage,
+        ...(typeof evenement?.charge.idPlateforme === "string" && evenement.charge.idPlateforme ? { idPlateforme: evenement.charge.idPlateforme } : {}),
         ...(typeof evenement?.charge.occurredAt === "string" ? { occurredAt: evenement.charge.occurredAt } : {}),
         ...(typeof evenement?.charge.idExpediteur === "string" && evenement.charge.idExpediteur ? { idExpediteur: evenement.charge.idExpediteur } : {}),
       });
