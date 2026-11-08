@@ -311,7 +311,7 @@ describe("la fabrication ne part jamais sans le repère « script relu »", { ti
     const r = await ecran.fabriquerApresRelecture(cible, { lignes: relues, empreinte: empreinte(relues), operationId: "op-arelire" });
     expect(r.videoId).toBeTruthy();
     expect(await depots().videos.compter()).toBeGreaterThan(videosAvant);
-    expect(await depots().journal.trouver((e) => /^Remarque : cette version n'est pas validée/.test(e.message))).toBeTruthy();
+    expect(await depots().evenements.trouver((e) => /^Remarque : cette version n'est pas validée/.test(e.message))).toBeTruthy();
   });
 
   it("repère « script relu » lié à sa cible : le même identifiant d'opération sur une autre version ne saute pas la relecture", async () => {
