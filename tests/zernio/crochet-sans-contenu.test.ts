@@ -79,6 +79,14 @@ describe("lecteurs sans contenu", () => {
     expect(e).toEqual({ idMessage: "msg_1", idConversation: "conv_1", idCompte: "acc_1", idExpediteur: "exp_1", postback: "GUIDE_OUI" });
     expect(lireEvenementMessage(env(message({ postback: { payload: ADRESSE } })))!.postback).toBeNull();
   });
+  it("message : platformMessageId conservé comme idPlateforme (opaque, borné), sinon absent", () => {
+    const mid = `m_${"x".repeat(86)}`;
+    expect(lireEvenementMessage(env(message({ platformMessageId: mid })))!.idPlateforme).toBe(mid);
+    expect(lireEvenementMessage(env(message({ platformMessageId: ADRESSE })))).not.toHaveProperty("idPlateforme");
+    expect(lireEvenementMessage(env(message({ platformMessageId: "a".repeat(201) })))).not.toHaveProperty("idPlateforme");
+    expect(lireEvenementMessage(env(message({ platformMessageId: 42 })))).not.toHaveProperty("idPlateforme");
+    expect(lireEvenementMessage(env(message()))).not.toHaveProperty("idPlateforme");
+  });
   it("mauvais type ou identifiant absent → null", () => {
     expect(lireEvenementCommentaire(env(run()))).toBeNull();
     expect(lireEvenementCommentaire(env(commentaire({ id: undefined })))).toBeNull();

@@ -155,6 +155,8 @@ export interface EvenementCommentaire {
 }
 export interface EvenementMessage {
   idMessage: string;
+  /** `message.platformMessageId` : le mid de la plateforme, identique à l'`id` de la liste des messages (appariement sûr). Opaque, borné, facultatif. */
+  idPlateforme?: string;
   idConversation: string | null;
   idCompte: string;
   idExpediteur: string | null;
@@ -226,6 +228,7 @@ export function lireEvenementMessage(env: EnveloppeZernio): EvenementMessage | n
   const propre = sortant || objet(m.sender)?.isSelf === true || m.isSelf === true || m.isOwn === true || (idExpediteur !== null && (idExpediteur === idCompte || idExpediteur === idOpaque(compte?.platformAccountId)));
   return {
     idMessage,
+    ...(idOpaque(m.platformMessageId) ? { idPlateforme: idOpaque(m.platformMessageId)! } : {}),
     idConversation: idOpaque(m.conversationId),
     idCompte,
     idExpediteur: propre ? idCompte : idExpediteur,
