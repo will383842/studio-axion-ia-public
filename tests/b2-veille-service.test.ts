@@ -250,8 +250,8 @@ describe("migration 15 et menu", () => {
     expect(await d.veilleOutils.compter()).toBe(11);
   });
 
-  it("tuile « Veille » dans le menu Plus et la barre latérale", () => {
-    expect(TUILES_PLUS.some((t) => t.href === "/veille" && t.libelle === "Veille")).toBe(true);
+  it("tuile « Veille des outils » dans le menu Plus et la barre latérale", () => {
+    expect(TUILES_PLUS.some((t) => t.href === "/veille" && t.libelle === "Veille des outils")).toBe(true);
     expect(NAV_LATERALE.some((t) => t.href === "/veille")).toBe(true);
   });
 });

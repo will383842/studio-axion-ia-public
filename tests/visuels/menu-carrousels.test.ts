@@ -14,10 +14,9 @@ describe("menu : entrée Carrousels", () => {
     expect(e?.href).toBe("/carrousels");
   });
 
-  it("est placée après « Mes vidéos » et juste avant « Calendrier »", () => {
+  it("est placée juste après « Mes vidéos » (section « Contenus », 08/11)", () => {
     const i = libelles.indexOf("Carrousels");
-    expect(i).toBeGreaterThan(libelles.indexOf("Mes vidéos"));
-    expect(libelles[i + 1]).toBe("Calendrier");
+    expect(libelles[i - 1]).toBe("Mes vidéos");
   });
 
   it("n'est pas rangée sous « Mes vidéos » : « Mes vidéos » ne s'allume pas sur /carrousels et inversement", () => {
