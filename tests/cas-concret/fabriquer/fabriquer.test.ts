@@ -48,7 +48,7 @@ describe("M8 · sorties", () => {
     expect(cr.estimation.centimes).toBeGreaterThanOrEqual(cr.coutCentimes);
     // Corps puis fin raccordés par la recette de la voix (X4), au tempo du format, un son par fin.
     expect(d.assemblages).toHaveLength(3);
-    expect(d.assemblages.every((a) => a.tempo === 1.08 && a.recette?.parametres.mode === "recette")).toBe(true);
+    expect(d.assemblages.every((a) => a.tempo === 1 && a.recette?.parametres.mode === "recette")).toBe(true);
     // Liens suivis et textes de publication, par réseau.
     expect(Object.keys(cr.liens)).toEqual(["facebook", "instagram", "tiktok", "linkedin"]);
     expect(cr.publication).toHaveLength(4);

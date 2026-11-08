@@ -50,7 +50,7 @@ import { centimes, formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur, ZERO } 
 import { APPELS_ECRITURE_MAX, contexteDuSocle, coutEstimeUsd, DEBUT_REFUS_ECRITURE, dureesDesFins, ficheParGabarit, MAX_TOKENS_ECRITURE, roleEcritureCasConcret, variableEcriture } from "./ecriture";
 import { etapesCasConcret, lireEntreesCasConcret, regrouperFins, type EntreesCasConcret } from "./etapes";
 import { empreinte, ErreurFabricationCasConcret, fabriquerCasConcret, marquerRepriseEcriture, MOTEUR_CAS_CONCRET, relancerRendusCasConcret, VERSION_FABRICATION_CAS_CONCRET, type CompteRenduCasConcret, type JournalCasConcret } from "./fabriquer";
-import { texteDuCorps, validerSchemaFiche, type FicheEcrans } from "./fiche";
+import { texteDuCorps, texteDuCorpsPourVoix, validerSchemaFiche, type FicheEcrans } from "./fiche";
 import { planDesFins } from "./fins";
 import { LECTURES_CORPS_MAX, LECTURES_FIN_MAX } from "./voix";
 import { ETAPES_CAS_CONCRET, type ContexteFabricationCasConcret, type EtapeCasConcret, type OutilsFabricationCasConcret } from "./outils";
@@ -589,7 +589,7 @@ function voixDeRetouche(commande: CommandeFabrication, outils: OutilsCasConcret,
   const reseaux = [...new Set(entrees.reseaux)];
   const motDit = entrees.motDit ?? cas.motDit;
   const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: outils.contexte.tableDesFins }));
-  const texteCorps = lire(texteDuCorps(r.fiche));
+  const texteCorps = lire(texteDuCorpsPourVoix(r.fiche));
   const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(texteDeFin(f)) }));
   const v = outils.voix;
   const meme = (texte: string, p: EtatVoixCasConcret["corps"]["prise"]) => priseReprise(texte, p, v);
