@@ -13,7 +13,10 @@ const Z = await import("@/services/zernio");
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
 const passer = (over: Partial<Parameters<typeof C.traiterConversations>[0]> = {}, ms = T0) => C.traiterConversations({ port: port.port, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: ms, ...over });
-const registre = (etat: string) => Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat, idWorkflow: null, raison: null, modifieLe: "x" } });
+const registre = async (etat: string) => {
+  await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat, idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
+};
 
 beforeEach(async () => {
   reinitialiserDepots();
@@ -112,6 +115,7 @@ describe("B1 · validation du GUIDE revérifiée avant tout envoi", () => {
     expect(port.pub.length).toBeGreaterThan(0);
   });
   it("jamais validé : aucun envoi", async () => {
+    await Com.ecrireParametre(MS.PARAM_VALIDATION_GUIDE_PARCOURS, null);
     const id = await deposerCommentaire(depots, {});
     await passer();
     expect(port.total()).toBe(0);

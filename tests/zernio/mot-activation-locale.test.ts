@@ -8,10 +8,10 @@ const { reinitialiserDepots } = await import("@/donnees/memoire");
 const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const S = await import("@/services/mots-service");
 
-const ALLUME = { MOTS_ENABLED: "1" };
 const COMPTE = "compte_fictif_1";
-const saisie = { mot: "GUIDE", reponsePublique: "Message automatique envoyé par Axion IA. regardez vos messages privés.", messagePrive: "Message automatique envoyé par Axion IA. Quelle adresse pour le guide ?", relance: null, fin: "Message automatique envoyé par Axion IA. Merci, c'est noté." };
-const valider = () => S.validerMot({ saisie, confirmeParOperateur: true });
+const TITRE = "Guide fictif";
+const ALLUME = { MOTS_ENABLED: "1", PARCOURS_CONVERSATION_COMPTES: COMPTE, PARCOURS_CONVERSATION_TITRE_GUIDE: TITRE };
+const valider = () => S.validerGuideParcours({ titre: TITRE, confirmeParOperateur: true });
 const demande = (env: Record<string, string | undefined> = ALLUME) => ({ mot: "GUIDE" as const, compte: COMPTE, confirmeParOperateur: true, env });
 /** Même lecture que la garde `motGuideActif` de la machine de conversation (registre["GUIDE|compte"].etat === "actif"). */
 const guideActif = async () => (await lireParametre<Record<string, { etat?: string }>>(S.PARAM_REGISTRE_MOTS, {}))[`GUIDE|${COMPTE}`]?.etat === "actif";
@@ -46,7 +46,7 @@ describe("activation locale du mot GUIDE", () => {
     ["« Tout arrêter » actif", "tout_arrete", async () => ecrireParametre("zernio.envoi_autorise", false), ALLUME, true],
     ["disjoncteur ouvert", "disjoncteur_ouvert", async () => ecrireParametre(S.PARAM_GARDES_MOTS, { disjoncteur: { ouvert: true, raison: "essai", ouvertLe: "2026-01-01T00:00:00.000Z" } }), ALLUME, true],
     ["mot non validé", "mot_non_valide", async () => undefined, ALLUME, false],
-    ["MOTS_ENABLED éteint", "interrupteur_eteint", async () => undefined, {}, true],
+    ["MOTS_ENABLED éteint", "interrupteur_eteint", async () => undefined, { PARCOURS_CONVERSATION_COMPTES: COMPTE, PARCOURS_CONVERSATION_TITRE_GUIDE: TITRE }, true],
   ])("refuse : %s", async (_nom, raison, preparer, env, valide) => {
     if (valide) await valider();
     await preparer();

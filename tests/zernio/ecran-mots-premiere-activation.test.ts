@@ -147,11 +147,12 @@ describe("B1 · empreinte liée aux 4 textes réellement envoyés", () => {
     expect(e).toEqual({ ok: true, empreinte: attendue("Guide fictif") });
     const t = textesGuideEnvoyes("Guide fictif");
     expect(t.ok && t.textes.m2).toBe(rendreTexteMp("mp-m2-v1", {}));
+    const avant = attendue("Guide fictif");
     const origine = TEXTES_MP["mp-m2-v1"];
     try {
       (TEXTES_MP as Record<string, unknown>)["mp-m2-v1"] = { ...origine, texte: `${origine.texte} (modifié)` };
       const e2 = empreinteGuideParcours("Guide fictif");
-      expect(e2.ok && e2.empreinte).not.toBe(attendue("Guide fictif"));
+      expect(e2.ok && e2.empreinte).not.toBe(avant);
     } finally {
       (TEXTES_MP as Record<string, unknown>)["mp-m2-v1"] = origine;
     }
@@ -197,7 +198,7 @@ describe("B1 · empreinte liée aux 4 textes réellement envoyés", () => {
   it("mots.validations inchangé par la validation du GUIDE ; validerMot + poserMot d'un autre mot comme avant", async () => {
     await actions.validerMotGuideAction();
     expect(await lireParametre(S.PARAM_VALIDATIONS_MOTS, {})).toEqual({});
-    const saisie = { mot: "AUTRE", reponsePublique: "Réponse fictive {lien}", messagePrive: "Message fictif {lien}", fin: "Fin fictive" };
+    const saisie = { mot: "AUTRE", reponsePublique: "Message automatique envoyé par Axion IA. regardez vos messages privés.", messagePrive: "Message automatique envoyé par Axion IA. Quelle adresse pour le guide ?", relance: null, fin: "Message automatique envoyé par Axion IA. Merci, c'est noté." };
     const v = await S.validerMot({ saisie, confirmeParOperateur: true });
     expect(v.ok).toBe(true);
     expect(await lireParametre(S.PARAM_VALIDATIONS_MOTS, {})).toEqual({ AUTRE: v.empreinte });

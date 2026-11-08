@@ -45,8 +45,8 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
 
   // Lignes locales : l'opérateur confirme (fenêtre du navigateur) AVANT tout appel ; sans accord, rien ne part.
   const apresLocal = (r: Resultat) => {
-    if (r.issue === "refuse" && r.raison === "mot_non_valide") {
-      notifier.erreur("Validez d’abord les textes du mot");
+    if (r.issue === "refuse") {
+      notifier.erreur(phraseRefus(r.raison));
       onChange?.();
     } else apres(r);
   };
@@ -96,7 +96,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
       <Carte data-carte="mot-guide">
         <h3 className="text-base text-texte">Mot GUIDE</h3>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <Pastille ton={vue.guideValide ? "sauge" : "neutre"}>{vue.guideValide ? "Textes validés" : "Textes non validés"}</Pastille>
+          <Pastille ton={vue.guideValide ? "sauge" : vue.guidePerime ? "ambre" : "neutre"}>{vue.guideValide ? "Textes validés" : vue.guidePerime ? "Textes à revalider" : "Textes non validés"}</Pastille>
           <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(validerGuide)}>
             Valider les textes du mot GUIDE
           </Bouton>
@@ -123,8 +123,11 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
             const e = ETATS_MOT[l.etat];
             return (
               <li key={`${l.mot}|${l.compte}`}>
-                <Carte className="flex flex-wrap items-center gap-3" data-mot={l.mot}>
-                  <span className="min-w-0 flex-1 text-[15px] font-semibold text-texte">{l.mot}</span>
+                <Carte className="flex flex-wrap items-center gap-3" data-mot={l.mot} data-compte={l.compte}>
+                  <span className="min-w-0 flex-1 text-[15px] font-semibold text-texte">
+                    {l.mot}
+                    <span className="block text-sm font-normal text-texte-doux">{l.compte}</span>
+                  </span>
                   <Pastille ton={e.ton}>{e.libelle}</Pastille>
                   {!l.idWorkflow ? (
                     l.etat === "actif" ? (

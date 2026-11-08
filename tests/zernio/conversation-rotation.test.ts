@@ -1,7 +1,7 @@
 /** Lot 5b · R-c : suivi des conversations après rotation du secret d'empreinte. Données 100 % fictives (example.test) ; port et site FAUX. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { empreintePersonne, ErreurEmpreinteIndisponible, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
-import { ADRESSE_FICTIVE, COMPTE, ENV, SECRET_EMPREINTE, T0, TITRE, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, SECRET_EMPREINTE, T0, TITRE, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -40,7 +40,10 @@ const graine = (cle: string, etat: string, extra: Record<string, unknown> = {}) 
       cleIdempotenceGuide: "b".repeat(64), creeLe: new Date(T0 - 2 * H).toISOString(), m1Le: new Date(T0 - H).toISOString(), occurredAt: null, m2Envoye: false, essaisSite: 0, essaisPub: 0, essaisM1: 0,
       prochainEssaiLe: null, dernierCode: null, alias: [], ...extra },
   }));
-const registre = () => Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+const registre = async () => {
+  await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
+};
 
 beforeEach(async () => {
   reinitialiserDepots();

@@ -256,7 +256,7 @@ describe("écran /mots : boutons du mot GUIDE local", () => {
 
   it("ligne locale en pause : « Activer » ; ligne locale active : « Mettre en pause » ; ligne Zernio : boutons habituels", async () => {
     const { EcranMots } = await import("@/components/mots/EcranMots");
-    const rendu = (l: LigneMot) => renderToStaticMarkup(createElement(EcranMots, { vue: { ...vide, lignes: [l] }, services }));
+    const rendu = (l: LigneMot) => renderToStaticMarkup(createElement(EcranMots, { vue: { ...vide, guideValide: false, guidePerime: false, lignes: [l] }, services }));
     expect(rendu(local("pause"))).toContain(">Activer<");
     expect(rendu(local("pause"))).not.toContain("Réactiver");
     expect(rendu(local("actif"))).toContain("Mettre en pause");

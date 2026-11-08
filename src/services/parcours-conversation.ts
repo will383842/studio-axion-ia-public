@@ -19,10 +19,11 @@ import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmp
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
+import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
-import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS } from "./mots-service";
+import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
 import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -119,6 +120,10 @@ async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: st
     if (!(await envoiZernioAutorise())) return "tout_arrete";
     if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ferme";
     if (!(await motGuideActif(idCompte))) return "mot_inactif";
+    // La validation de l'opérateur est liée aux textes réellement envoyés : revérifiée ici, à chaque garde (échec fermé).
+    const e = empreinteGuideParcours(d.titreGuide ?? "");
+    const v = await lireParametre<{ empreinte?: string } | null>(PARAM_VALIDATION_GUIDE_PARCOURS, null);
+    if (!e.ok || !v || v.empreinte !== e.empreinte) return "validation_perimee";
   } catch {
     return "lecture_impossible";
   }
@@ -135,6 +140,7 @@ const MESSAGES_GARDE: Record<string, string> = {
   reseau: "Réseau non pris en charge : aucun message privé ne part.",
   cles_absentes: "Le secret d'empreinte des personnes est absent ou invalide : aucun message privé ne part.",
   lecture_impossible: "Les réglages des mots sont illisibles : aucun message privé ne part.",
+  validation_perimee: "Les textes du mot GUIDE ont changé depuis leur validation (ou ne sont pas validés) : aucun message ne part. Revalidez-les dans Mots.",
 };
 
 /* --- État par personne (sous verrou) -------------------------------------------------------------------------- */

@@ -1,7 +1,7 @@
 /** Lot 3b · seconde relecture (R-a, R-b, R-e, R-f). Données 100 % fictives ; port et site FAUX. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ATTENTES_INTROUVABLE_MS, doitExpirer, transition, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
-import { COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -28,7 +28,10 @@ const graine = (etat: string, extra: Record<string, unknown> = {}) => ({
 });
 const semer = (id: string, etat: string, extra: Record<string, unknown> = {}) => Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(id)]: graine(etat, extra) });
 const semerPlusieurs = (l: Array<[string, string, Record<string, unknown>?]>) => Com.ecrireParametre(C.PARAM_CONVERSATIONS, Object.fromEntries(l.map(([id, etat, extra]) => [cleConversation(id), graine(etat, extra ?? {})])));
-const registre = (etat: string) => Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat, idWorkflow: null, raison: null, modifieLe: "x" } });
+const registre = async (etat: string) => {
+  await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat, idWorkflow: null, raison: null, modifieLe: "x" } });
+  await validerGuideAuParcours();
+};
 
 beforeEach(async () => {
   reinitialiserDepots();

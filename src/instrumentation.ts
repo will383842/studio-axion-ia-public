@@ -75,6 +75,10 @@ export async function register() {
   } catch {
     console.error("[studio] branchement du parcours de conversation en échec (code BRANCHEMENT_ECHEC)");
   }
+  // Compte retiré de la liste pendant l'arrêt : ses lignes GUIDE actives passent en pause automatique dès le démarrage.
+  void import("@/services/mots-service")
+    .then((m) => m.pauserGuidesHorsListe(process.env))
+    .catch(() => console.error("[studio] pause des guides hors liste en échec (code PAUSE_HORS_LISTE_ECHEC)"));
   const { demarrerBoucleUnique } = await import("@/services/boucle");
   const fabrication = process.env.STUDIO_BOUCLE !== "0"; // « 0 » : coupure de secours (variable d'environnement)
   if ((await demarrerBoucleUnique({ boucleFabrication: fabrication, avecLeVerrou: lancerAvecLeVerrou, surPerte: arreterSansLeVerrou })) && fabrication) {

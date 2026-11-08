@@ -1,5 +1,5 @@
 /** LOT 4c · page /mots et actions serveur : session exigée, Activer/Pause du mot GUIDE local via mots-gestes. Valeurs fictives, aucun réseau. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let session = false;
 const exigerSession = vi.fn(async () => {
@@ -18,6 +18,7 @@ vi.mock("@/services/mots-service", async (orig) => ({ ...(await orig<typeof impo
 const actions = await import("@/app/(studio)/mots/actions");
 const { default: PageMots } = await import("@/app/(studio)/mots/page");
 
+afterEach(() => vi.unstubAllEnvs());
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal("fetch", reseau);
@@ -48,6 +49,7 @@ describe("/mots : session exigée", () => {
 
   it("avec session : Activer appelle activerMotLocal (GUIDE, confirmé par l'opérateur)", async () => {
     session = true;
+    vi.stubEnv("PARCOURS_CONVERSATION_COMPTES", "c1");
     const r = await actions.activerMotLocalAction("c1");
     expect(r.issue).toBe("execute");
     expect(activerMotLocal).toHaveBeenCalledWith(expect.objectContaining({ mot: "GUIDE", compte: "c1", confirmeParOperateur: true }));

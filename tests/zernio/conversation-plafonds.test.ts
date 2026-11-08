@@ -1,7 +1,7 @@
 /** Lot 4b · plafonds d'envoi du parcours de conversation. Données 100 % fictives ; port et site FAUX. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LOT_MAX_PAR_PASSAGE_CONVERSATION, PLAFOND_CONVERSATION_HEURE_COMPTE_DEFAUT, PLAFOND_HEURE_COMPTE_MAX, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -25,7 +25,10 @@ const etatDe = async (id: string) => (await tout())[cleConversation(id)];
 const alertes = async () => (await depots().evenements.lister((e: any) => /ALERTE/.test(e.message))).length;
 const envois = () => port.pub.length + port.prive.length + port.envoyes.length;
 const A = "auteur-fictif-400";
-const registre = () => Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, Object.fromEntries([COMPTE, COMPTE2].map((c) => [`GUIDE|${c}`, { mot: "GUIDE", compte: c, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" }])));
+const registre = async () => {
+  await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, Object.fromEntries([COMPTE, COMPTE2].map((c) => [`GUIDE|${c}`, { mot: "GUIDE", compte: c, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" }])));
+  await validerGuideAuParcours();
+};
 const graine = (etat: string, extra: Record<string, unknown> = {}) => ({
   etat, reseau: "instagram", idCompte: COMPTE, idCommentaire: "com-graine", idPostPlateforme: "post-plateforme-fictif-200", versionTexteM1: "mp-m1-v2", guide: "guide-ia",
   cleIdempotenceGuide: "b".repeat(64), creeLe: new Date(T0 - 50 * H).toISOString(), m1Le: null, occurredAt: null, m2Envoye: false, essaisSite: 0, essaisPub: 0, essaisM1: 0, prochainEssaiLe: null, dernierCode: null, alias: [], ...extra,
