@@ -133,12 +133,12 @@ export const MOTS_DECLENCHEURS_CONNUS: readonly string[] = ["GUIDE"];
 /** Un mot composé uniquement de chiffres (ex. un numéro de téléphone) n'est jamais un mot de déclenchement. */
 const RE_SEULEMENT_CHIFFRES = /^\d+$/;
 /** Le mot seul si c'est un mot configuré (jamais uniquement des chiffres) ou un mot d'opposition ; tout autre texte (adresse, téléphone…) → null. */
-function motSeulDe(v: unknown): string | null {
+export function motSeulDe(v: unknown, motsConnus: readonly string[] = MOTS_DECLENCHEURS_CONNUS): string | null {
   const t = texteBorne(v, 200);
   if (t === null) return null;
   const maj = t.trim().toUpperCase();
   if (RE_SEULEMENT_CHIFFRES.test(maj)) return null;
-  return MOTS_DECLENCHEURS_CONNUS.includes(maj) || estMotOpposition(t) ? t.trim() : null;
+  return motsConnus.includes(maj) || estMotOpposition(t) ? t.trim() : null;
 }
 
 export interface EvenementCommentaire {
@@ -181,7 +181,7 @@ const idCompteDe = (racine: Record<string, unknown>): string | null => {
  * Lit un `comment.received` SANS CONTENU. Les champs exacts restent à confirmer à l'essai réel (05-ESSAI-REEL-WEBHOOK.md) : la lecture
  * est tolérante sur les noms d'identifiants, stricte sur le contenu (comment.text n'est jamais conservé tel quel).
  */
-export function lireEvenementCommentaire(env: EnveloppeZernio): EvenementCommentaire | null {
+export function lireEvenementCommentaire(env: EnveloppeZernio, motsConnus: readonly string[] = MOTS_DECLENCHEURS_CONNUS): EvenementCommentaire | null {
   if (env.event !== TYPE_EVENEMENT_COMMENTAIRE) return null;
   const c = objet(env.racine.comment);
   const compte = objet(env.racine.account);
@@ -194,7 +194,7 @@ export function lireEvenementCommentaire(env: EnveloppeZernio): EvenementComment
   const proprio = auteur?.isOwnAccount === true;
   const propre = proprio || auteur?.isSelf === true || c.isOwn === true || (idAuteur !== null && (idAuteur === idCompte || idAuteur === idOpaque(compte?.platformAccountId)));
   const texte = typeof c.text === "string" ? c.text : null;
-  const motSeul = texte !== null && texte.length <= 200 ? motSeulDe(texte)?.toUpperCase() ?? null : null;
+  const motSeul = texte !== null && texte.length <= 200 ? motSeulDe(texte, motsConnus)?.toUpperCase() ?? null : null;
   const estReponse = c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== "");
   return {
     idCommentaire,
@@ -273,13 +273,13 @@ export function corpsDemandeGuide(run: RunLu, cleIdempotence: string): string {
 }
 
 /** Aligné sur le schéma strict du site (`SchemaDemandeGuideReseau`) pour refuser localement ce que le site refuserait en 422. */
-export function runValide(r: unknown): r is RunLu {
+export function runValide(r: unknown, motsConnus?: readonly string[]): r is RunLu {
   if (!r || typeof r !== "object") return false;
   const o = r as Record<string, unknown>;
   const locale = o.locale;
   return (
     typeof o.email === "string" && o.email.length > 0 && o.email.length <= 254 &&
-    typeof o.mot === "string" && RE_MOT_GUIDE.test(o.mot) &&
+    typeof o.mot === "string" && RE_MOT_GUIDE.test(o.mot) && (motsConnus === undefined || motsConnus.includes(o.mot.toUpperCase())) &&
     (RESEAUX_GUIDE as readonly string[]).includes(String(o.reseau)) &&
     typeof o.guide === "string" && RE_GUIDE.test(o.guide) && GUIDES_RESEAU_CONNUS.includes(o.guide) &&
     typeof o.versionTexteM1 === "string" && RE_VERSION_TEXTE.test(o.versionTexteM1) &&
