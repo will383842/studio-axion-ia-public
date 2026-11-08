@@ -154,11 +154,11 @@ describe("port inbox · écritures", () => {
 
 describe("port inbox · lireMessage", () => {
   const messages = [
-    { id: "exemple-msg-sortant", direction: "outgoing", text: "Message automatique envoyé par Axion IA. Bonjour" },
-    { id: "exemple-msg-echo", direction: "incoming", isEcho: true, text: "écho de notre message" },
-    { id: "exemple-msg-entrant", direction: "incoming", text: `Mon adresse : ${ADRESSE}` },
+    { id: "exemple-msg-sortant", direction: "outgoing", message: "Message automatique envoyé par Axion IA. Bonjour" },
+    { id: "exemple-msg-echo", direction: "incoming", isEcho: true, message: "écho de notre message" },
+    { id: "exemple-msg-entrant", direction: "incoming", message: `Mon adresse : ${ADRESSE}` },
     { id: "exemple-msg-clic", direction: "incoming", postback: { payload: "recevoir_ici" } },
-    { id: "exemple-msg-inconnu", text: "sans direction" },
+    { id: "exemple-msg-inconnu", message: "sans direction" },
   ];
   const lire = async (idMessage: string) => {
     const { port, faux } = fabrique([{ statut: 200, corps: { messages } }]);
