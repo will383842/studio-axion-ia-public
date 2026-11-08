@@ -162,11 +162,11 @@ describe("cas concret : voix en indicatif = compteur ET 5 ×", () => {
     const p = (prise: string) => ({ prise, coutCentimes: 1 }) as never;
     expect(() => verifierPartVoix({ indicatif: { lecturesVoixMax: 3, facteurSecurite: 5 } }, [p("a"), p("a"), p("a")], { prise: "a", texte: "t" })).toThrow(/déjà été lue 3 fois/);
   });
-  it("bloquant, au-delà de la part voix : la lecture est refusée (en indicatif, plus d'arrêt à 5 ×)", async () => {
+  it("LOT A (08/11/2026) : sans mode indicatif, au-delà de la part voix, la lecture N'EST PLUS refusée (aucun prix ne bloque)", async () => {
     const { verifierPartVoix } = await import("@/moteurs/montage-cas-concret/fabriquer");
     const budget = { plafondVoix: { centimes: 10, prixLecture: () => 20 } };
     const payees = [{ prise: "a", coutCentimes: 40 }] as never;
-    expect(() => verifierPartVoix(budget, payees, { prise: "a", texte: "t" })).toThrow(/dépasserait le prix confirmé de la voix/);
+    expect(() => verifierPartVoix(budget, payees, { prise: "a", texte: "t" })).not.toThrow();
   });
   it("au-dessus du montant mais sous 5 × : la lecture passe (indicatif)", async () => {
     const { verifierPartVoix } = await import("@/moteurs/montage-cas-concret/fabriquer");

@@ -81,8 +81,8 @@ describe("cas concret : voix", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]).toMatch(/dépasse le prix confirmé de la voix/);
   });
-  it("bloquant : le plafond de voix refuse comme avant", () => {
-    expect(() => verifierPartVoix({ plafondVoix: budget.plafondVoix }, [{ prise: "a", coutCentimes: 40 }] as never, { prise: "a", texte: "t" })).toThrow(/dépasserait le prix confirmé de la voix/);
+  it("LOT A (08/11/2026) : hors indicatif, le plafond de voix ne refuse plus (aucun prix ne bloque)", () => {
+    expect(() => verifierPartVoix({ plafondVoix: budget.plafondVoix }, [{ prise: "a", coutCentimes: 40 }] as never, { prise: "a", texte: "t" })).not.toThrow();
   });
   it("l'arrêt anti-boucle (lecturesVoixMax) reste en indicatif", () => {
     const p = (prise: string) => ({ prise, coutCentimes: 1 });

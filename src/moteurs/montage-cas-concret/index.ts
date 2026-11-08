@@ -39,6 +39,7 @@ import { VoixNonEpingleeError } from "@/briques/voix-maitre";
 import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, EtapeTravail, ErreurTravail, LigneCout, Travail } from "@/domaine/types";
+import type { RapportControleCasConcret } from "./controles";
 import { TEMPO_VOIX, type ReseauCas } from "@/formats/cas-concret";
 import { verifierCas, type CasConcret } from "@/formats/cas-concret/cas";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
@@ -624,7 +625,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   const numeroVersion = await lireNumero?.(versionId);
   // V4-3 : le script validé du cas (services, sinon catalogue) ; une fiche fournie l'emporte (elle saute l'écriture).
   const scriptLu = entrees.ficheCle ? null : lireScript ? await lireScript(cas.id) : (scriptValideDuCatalogue(cas.id) ?? null);
-  // Un script validé DEPUIS LE STUDIO qui ne convient plus au cas (autre cas, autre version) est périmé : traité comme ABSENT (Claude
+  // Un script validé qui est celui d'un AUTRE cas est traité comme ABSENT (08/11/2026 : une autre VERSION du cas est rejouée, avec remarque). (Claude
   // écrit un nouveau script, la fabrication s'arrête à « Script à valider », Will valide, la voix n'est payée qu'après). Même règle
   // que la feuille « Votre vidéo » (`problemesScriptValide`). Sinon la fabrication le refusait (« faites revalider le script ») sans
   // aucun recours dans l'interface. Un script du CATALOGUE périmé reste un refus (défaut de code).
@@ -760,9 +761,29 @@ export function plansDeLaFiche(videoId: string, fiche: Pick<FicheEcrans, "ecrans
   };
 }
 
+/**
+ * 08/11/2026 : une vidéo finie avec un défaut de détail est LIVRÉE avec une liste « à vérifier » (terminée avec réserves),
+ * jamais jetée ni marquée en échec. Les contrôles qui bloquaient deviennent des alertes « attention » ; le rapport garde
+ * son verdict mais le dit en clair. PUR.
+ */
+export function reservesDuRapport(rapport: Pick<RapportControleCasConcret, "bloquants" | "resume" | "phrases">): { alertes: AlerteQualite[]; resume: string; phrases: string[] } {
+  const n = rapport.bloquants.length;
+  const reserves = rapport.bloquants.map((l) => `À vérifier · ${l.raison.startsWith(l.libelle) ? l.raison : `${l.libelle} : ${l.raison}`}`);
+  return {
+    alertes: rapport.bloquants.map((l) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message: `À vérifier · ${l.libelle} : ${l.raison}` })),
+    resume: n ? `Terminée, ${n} point${n > 1 ? "s" : ""} à vérifier` : rapport.resume,
+    phrases: n ? [...reserves, ...rapport.phrases.filter((p) => !p.startsWith("Bloquant · "))] : rapport.phrases,
+  };
+}
+
 function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, etat: EtatCasConcret, maintenant: number): ResultatFabrication {
   const signales = [...r.rapport.indicatifs, ...r.rapport.nonFaits];
+  const reserves = reservesDuRapport(r.rapport);
   const alertes: AlerteQualite[] = [
+    ...reserves.alertes,
+    ...(r.reservesVoix ?? []).map((message) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message: `À vérifier · ${message}` })),
+    // Script de Will : remarques simples (info), avertissements très visibles (attention).
+    ...(r.remarquesScript ?? []).map((message) => ({ code: "defaut-visuel" as const, gravite: ((r.avertissementsScript ?? []).includes(message) ? "attention" : "info") as "attention" | "info", message: `Script : ${message}` })),
     ...signales.map((l) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message: `${l.libelle} : ${l.raison}` })),
     // S1e : un bruitage illisible par le rendu est retiré ; la vidéo est fabriquée sans lui.
     ...r.bruitagesRetires.map((message) => ({ code: "bruitage" as const, gravite: "attention" as const, message })),
@@ -794,7 +815,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, eta
         // L0d : et ses sous-titres (export .srt / .vtt par réseau, `services/sous-titres-par-reseau.ts`).
         fins: r.fins.map((f) => ({ id: f.id, reseaux: f.reseaux, fichierCle: f.fichierCle, dureeSec: f.dureeSec, mesures: f.mesures, ...(f.sousTitres?.length ? { sousTitres: f.sousTitres } : {}) })),
         liens: r.liens,
-        rapport: { verdict: r.rapport.verdict, resume: r.rapport.resume, phrases: r.rapport.phrases },
+        rapport: { verdict: r.rapport.verdict, resume: reserves.resume, phrases: reserves.phrases },
         // Traçabilité (demande de Will du 12/10).
         ...entrees,
         cas: { id: r.fiche.casId, empreinte: r.fiche.empreinteCas },
@@ -924,10 +945,7 @@ export function creerMoteurMontageCasConcret(dependances: DependancesMoteurCasCo
       if (tour.issue.type === "pause") return { travail: suivant(travail, etat, statuts(travail, etat), maintenant) };
       if (tour.issue.type === "echec") return { travail: enEchec(travail, etat, tour.issue.cle, tour.issue.erreur, maintenant) };
       const r = tour.issue.compteRendu;
-      if (r.rapport.verdict === "bloque") {
-        const etatControle = { ...etat, atteinte: ETAPES_CAS_CONCRET.indexOf("controle") - 1 };
-        return { travail: enEchec(travail, etatControle, "controle", { code: "CAS_CONCRET_CONTROLES_BLOQUANTS", reessayable: false, messagePourWill: `La vérification bloque la livraison (${r.rapport.resume}). ${r.rapport.phrases.join(" ")}` }, maintenant) };
-      }
+      // 08/11/2026 : un contrôle en défaut ne jette plus la vidéo : elle est livrée « avec réserves » (voir `reservesDuRapport`).
       return { travail: suivant(travail, etat, statuts(travail, etat), maintenant), resultat: resultatDe(commande, r, etat, maintenant) };
     },
 

@@ -267,6 +267,8 @@ export type OutilsAvancerVoix = OutilsVoixCasConcret & {
    * lecture de plus, avec une explication et une proposition. Absent : comportement d'avant (image → vidéo).
    */
   arretSiRefusIdentique?: boolean;
+  /** 08/11/2026 : garder la dernière lecture du corps malgré un rejet (au lieu d'arrêter) ; la phrase est dans `rapportVoix().corpsGardeMalgreRejet`. */
+  garderLaLectureSiRefus?: boolean;
   avantLecture?: (lecture: LectureAPayer) => void | Promise<void>;
 };
 
@@ -433,7 +435,7 @@ export async function avancerVoixCasConcret(entree: EtatVoixCasConcret, o: Outil
     // pas payée. Le texte (figé ou non) est relu tel quel seulement pour un refus qui n'est pas un mot mal dit.
     const relu = c.rejet !== "mots" || o.texteFige;
     const deja = relu && o.arretSiRefusIdentique ? etat.reformulations.find((r) => r.avant === c.phrase && r.apres === c.phrase && signatureRefus(r) === signatureRefus(c)) : undefined;
-    if (deja) {
+    if (deja && !o.garderLaLectureSiRefus) {
       const figee = arretPhraseFigee(c, o.texteFige);
       etat.issue = figee
         ? { statut: "arret", phrase: c.phrase, ...figee }
@@ -444,7 +446,7 @@ export async function avancerVoixCasConcret(entree: EtatVoixCasConcret, o: Outil
           };
       return etat;
     }
-    if (corps.lectures >= LECTURES_CORPS_MAX) {
+    if (corps.lectures >= LECTURES_CORPS_MAX && !o.garderLaLectureSiRefus) {
       const figee = arretPhraseFigee(c, o.texteFige);
       etat.issue = figee
         ? { statut: "arret", phrase: c.phrase, ...figee }
@@ -453,6 +455,11 @@ export async function avancerVoixCasConcret(entree: EtatVoixCasConcret, o: Outil
             phrase: c.phrase,
             message: `La voix a lu la phrase « ${c.phrase} » ${LECTURES_CORPS_MAX} fois sans y arriver (${c.detail}). Une nouvelle tentative ne changera rien tant que la phrase reste la même : retouchez-la dans « Relire le script » (par exemple en changeant ce qui entoure le mot), puis lancez la vidéo.`,
           };
+      return etat;
+    }
+    // 08/11/2026 : cas concret : une voix qui lit mal une phrase ne ARRÊTE plus la vidéo, la dernière lecture est gardée et la phrase signalée.
+    if (o.garderLaLectureSiRefus && (deja || corps.lectures >= LECTURES_CORPS_MAX)) {
+      corps.retenu = true;
       return etat;
     }
     // Une hésitation (« euh », souffle, long blanc) vient de la LECTURE, pas du texte : le même texte est relu, en lecture
@@ -465,11 +472,19 @@ export async function avancerVoixCasConcret(entree: EtatVoixCasConcret, o: Outil
     }
     const r = await o.reformuler(c.phrase, o.faits);
     if (!r.ok) {
+      if (o.garderLaLectureSiRefus) {
+        corps.retenu = true;
+        return etat;
+      }
       etat.issue = { statut: "arret", phrase: c.phrase, message: `La phrase « ${c.phrase} » n'a pas pu être reformulée : ${r.raison}` };
       return etat;
     }
     const apres = r.phrase.trim();
     if (!apres || motsDe(apres).length > motsDe(c.phrase).length || !corps.texte.includes(c.phrase)) {
+      if (o.garderLaLectureSiRefus) {
+        corps.retenu = true;
+        return etat;
+      }
       etat.issue = { statut: "arret", phrase: c.phrase, message: `La phrase « ${c.phrase} » n'a pas pu être reformulée sans l'allonger.` };
       return etat;
     }
@@ -501,11 +516,15 @@ export function rapportVoix(etat: EtatVoixCasConcret): {
   lecturesCorps: number;
   reformulations: ReformulationCorps[];
   finsGardeesMalgreRejet: { id: string; rejet: RejetPrise; phrase: string; detail: string }[];
+  /** 08/11/2026 : la lecture du corps gardée malgré un rejet (la phrase est à vérifier à l'écoute), sinon absent. */
+  corpsGardeMalgreRejet?: { rejet: RejetPrise; phrase: string; detail: string };
   coutCentimes: number;
 } {
+  const cc = etat.corps.retenu ? etat.corps.prise?.controle : undefined;
   return {
     lecturesCorps: etat.corps.lectures,
     reformulations: etat.reformulations,
+    ...(cc && "rejet" in cc ? { corpsGardeMalgreRejet: { rejet: cc.rejet, phrase: cc.phrase, detail: cc.detail } } : {}),
     finsGardeesMalgreRejet: etat.fins.flatMap((f) => {
       const c = f.prise?.controle;
       return c && "rejet" in c ? [{ id: f.id, rejet: c.rejet, phrase: c.phrase, detail: c.detail }] : [];

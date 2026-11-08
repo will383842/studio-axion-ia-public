@@ -124,7 +124,7 @@ describe("P2-02 · moteur : retouches acceptées", () => {
 });
 
 describe("P2-02 · moteur : la voix d'une retouche ne paie jamais plus que le prix confirmé", () => {
-  it("une lecture qui dépasserait la réservation de la retouche n'est pas faite (plafond de la voix, comme la vidéo)", async () => {
+  it("LOT A (08/11/2026) : une lecture qui dépasserait la réservation de la retouche n'est plus un arrêt (aucun prix ne bloque)", async () => {
     const opt: Parameters<typeof banc>[0] = { motSur: ["facebook", "instagram"], retouches: true };
     const b = banc(opt);
     const c = b.commande();
@@ -137,12 +137,11 @@ describe("P2-02 · moteur : la voix d'une retouche ne paie jamais plus que le pr
     opt!.coutVoixParCaractere = reserve;
     const lus = b.d.lus.length;
     const r = await avancerJusqua(b.moteur, c, await b.moteur.retoucher({ commande: c, contexte: ctx("t-2"), planIds: [], consigne: "Mot", operations: ops(operation), parent }));
-    expect(b.d.lus.length - lus).toBe(1);
-    expect(r.travail.statut).toBe("echec");
-    expect(r.travail.erreur?.messagePourWill).toContain("dépasserait le prix confirmé de la voix");
+    expect(b.d.lus.length - lus).toBeGreaterThanOrEqual(1);
+    expect(r.travail.erreur?.messagePourWill ?? "").not.toContain("dépasserait le prix confirmé de la voix");
   });
 
-  it("rien à relire réservé (aucune ligne « Voix ») : si la voix change pendant l'attente, aucune lecture n'est payée", async () => {
+  it("LOT A (08/11/2026) : rien à relire réservé (aucune ligne « Voix ») : si la voix change pendant l'attente, la retouche n'est plus arrêtée par le prix", async () => {
     const { b, c, parent } = await videoFabriquee();
     const t = await b.moteur.retoucher({ commande: c, contexte: ctx("t-2"), planIds: [], consigne: "Phrase", operations: ops([{ type: "changer-phrase", ecranId: "e06", avant: "notre annonce", apres: "notre petite annonce" }]), parent });
     // État d'une retouche dont l'aperçu n'a rien à relire (ex. un chiffre affiché mais jamais dit) : sa réservation n'a
@@ -153,9 +152,8 @@ describe("P2-02 · moteur : la voix d'une retouche ne paie jamais plus que le pr
     b.d.options.outils.voix = { ...b.d.options.outils.voix, idVoix: "une-autre-voix" };
     const lus = b.d.lus.length;
     const r = await avancerJusqua(b.moteur, c, t);
-    expect(b.d.lus.length - lus).toBe(0);
-    expect(r.travail.statut).toBe("echec");
-    expect(r.travail.erreur?.messagePourWill).toContain("dépasserait le prix confirmé de la voix");
+    expect(b.d.lus.length - lus).toBeGreaterThanOrEqual(0);
+    expect(r.travail.erreur?.messagePourWill ?? "").not.toContain("dépasserait le prix confirmé de la voix");
   });
 });
 
