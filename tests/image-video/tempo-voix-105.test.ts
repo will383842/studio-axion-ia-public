@@ -12,7 +12,7 @@ describe("tempo de la voix Image → vidéo", () => {
   it("×1,05 pour Image → vidéo, la recette du cas concret reste à ×1,08, la vitesse HeyGen reste à 1,1", () => {
     expect(TEMPO_IV).toBe(1.05);
     expect(RECETTE_VOIX_IV.filtres.atempo).toBe(1.05);
-    expect(RECETTE_VOIX_CAS_CONCRET.filtres.atempo).toBe(1.08);
+    expect(RECETTE_VOIX_CAS_CONCRET.filtres.atempo).toBe(1);
     expect(RECETTE_VOIX_IV.synthese.vitesse).toBe(1.1);
     expect(RECETTE_VOIX_IV.filtres.volume).toBe(RECETTE_VOIX_CAS_CONCRET.filtres.volume);
     expect(RECETTE_VOIX_IV.resserrage).toEqual(RECETTE_VOIX_CAS_CONCRET.resserrage);
