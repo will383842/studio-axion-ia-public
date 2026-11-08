@@ -708,13 +708,14 @@ export function allegerTravail(t: Travail): Travail {
   return { ...t, parametres: reste } as Travail;
 }
 
-/** Travaux à afficher : actifs + en échec + terminés depuis moins de 2 minutes. N'avance rien (la boucle de fond s'en charge). */
-export async function listerTravaux(options: { inclureTermines?: boolean } = {}): Promise<VueTravail[]> {
+/** Le filtre de listerTravaux, en y ajoutant (ou non) la cible : actifs + en échec + terminés (récents, ou tous). */
+async function lireTravauxAffiches(options: { inclureTermines?: boolean }, cibleId?: string): Promise<VueTravail[]> {
   const limite = Date.now() - 2 * 60 * 1000;
   // « Afficher les exemples » désactivé : les travaux des vidéos d'exemple sont masqués aussi.
   const exemples = await filtreExemples<Travail>();
   const travaux = await depots().travaux.lister(
     (t) =>
+      (cibleId === undefined || t.cibleId === cibleId) &&
       exemples(t) &&
       (t.statut === "en_cours" ||
         t.statut === "en_file" ||
@@ -725,6 +726,19 @@ export async function listerTravaux(options: { inclureTermines?: boolean } = {})
   travaux.sort((a, b) => b.creeLe.localeCompare(a.creeLe));
   const places = await placesDansLaFile();
   return Promise.all(travaux.map((t) => versVue(t, places.get(t.id))));
+}
+
+/** Travaux à afficher : actifs + en échec + terminés depuis moins de 2 minutes. N'avance rien (la boucle de fond s'en charge). */
+export async function listerTravaux(options: { inclureTermines?: boolean } = {}): Promise<VueTravail[]> {
+  return lireTravauxAffiches(options);
+}
+
+/**
+ * Les travaux d'UNE vidéo (même filtre que `listerTravaux({ inclureTermines: true })`, restreint à `cibleId`) : la fiche
+ * d'une vidéo n'a pas besoin de recopier ceux de tout le studio (lot P, 08/11).
+ */
+export async function travauxDeLaCible(cibleId: string): Promise<VueTravail[]> {
+  return lireTravauxAffiches({ inclureTermines: true }, cibleId);
 }
 
 export async function obtenirTravail(id: string): Promise<VueTravail | null> {
