@@ -7,22 +7,26 @@
  * Le contraste se mesure avec `contraste.ts`.
  */
 
+import { FAMILLE_CSS, POLICE, PALETTE } from "../charte/axion-2026";
+
 export const VERSION_CHARTE_DUO = "charte-duo/1";
 
 /** Couleurs par rôle. L'orange est un accent : sur ivoire `orange`, sur nuit `orangeVif`. */
 export const COULEURS_DUO = Object.freeze({
-  nuit: "#110A05",
-  nuitHaut: "#2A150B",
-  nuitLueur: "#7A3418",
-  ivoire: "#F4EFE7",
-  ivoireHaut: "#FBF8F3",
-  encre: "#15100C",
-  orange: "#C2532A",
-  orangeVif: "#F0703C",
-  gris: "#8A7C6E",
-  grisClair: "#C9B8A6",
-  vert: "#22A55B",
-  blanc: "#FFFFFF",
+  nuit: PALETTE.noir,
+  nuitHaut: PALETTE.noir,
+  nuitLueur: PALETTE.terracotta,
+  ivoire: PALETTE.ivoire,
+  ivoireHaut: PALETTE.ivoire,
+  encre: PALETTE.noir,
+  orange: PALETTE.terracotta,
+  orangeVif: PALETTE.orange,
+  /** Texte secondaire sur ivoire : le noir (la charte n'a pas de gris pour le texte sur clair). */
+  gris: PALETTE.noir,
+  grisClair: PALETTE.grisSurNoir,
+  /** Plus de vert dans la charte 2026 : l'accent. */
+  vert: PALETTE.orange,
+  blanc: PALETTE.ivoire,
 } as const);
 
 export type RoleCouleurDuo = keyof typeof COULEURS_DUO;
@@ -44,13 +48,13 @@ export const FONDS = Object.freeze({
 });
 
 /**
- * Polices : Anton (affiche, SIL OFL 1.1) et Inter Bold (texte, SIL OFL 1.1), rangées dans
+ * Polices : Manrope seule (charte Axion 2026, SIL OFL 1.1), rangée dans
  * `studio-rendu/compositions/commune/polices/` et chargées PAR FONCTION (`commune/polices.ts`), jamais à l'import.
  * `droit` = identifiant de l'entrée du registre des droits.
  */
 export const POLICES_DUO = Object.freeze({
-  affiche: Object.freeze({ famille: "Axion Anton", graisse: 400, voulue: "Anton", droit: "police-anton" }),
-  texte: Object.freeze({ famille: "Axion Inter Bold", graisse: 700, voulue: "Inter", droit: "police-inter" }),
+  affiche: Object.freeze({ famille: FAMILLE_CSS, graisse: 800, voulue: POLICE, droit: "police-manrope" }),
+  texte: Object.freeze({ famille: FAMILLE_CSS, graisse: 700, voulue: POLICE, droit: "police-manrope" }),
 });
 
 /** Plancher (fraction de la hauteur) de tout texte porteur de sens, sauf `etiquette` et `marque`. */

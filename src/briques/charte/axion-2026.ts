@@ -1,6 +1,6 @@
 /**
  * Charte Axion 2026 : source unique des couleurs, de la police et des règles de contraste du Studio.
- * Module PUR : aucun import. Pas encore branché (fiche V7-01) : aucun changement visible.
+ * Module PUR : aucun import. Branché par le lot B : seule référence des couleurs, polices, durées et courbes des vidéos.
  * Règles : orange et gris #B0AEA5 sur noir seulement ; terracotta jamais en texte sur noir ; ni bleu, ni jaune, ni dégradé.
  */
 
@@ -64,4 +64,71 @@ export function autoriserTexte(texte: string, fond: string): boolean {
 /** Fond d'un visuel : jamais deux « sombre » de suite ; sinon le fond voulu. */
 export function choisirFond(_index: number, precedent: Fond | null, voulu: Fond): Fond {
   return precedent === "sombre" ? "clair" : voulu;
+}
+
+/* ------------------------------------------------------------------ */
+/* Lot B (08/11/2026) : jetons communs des vidéos — source UNIQUE de src/moteurs/** et des compositions.     */
+/* ------------------------------------------------------------------ */
+
+/** Cadence du studio : 25 images par seconde, partout. */
+export const FPS = 25;
+
+/** Famille CSS de Manrope dans les rendus (fichier local, jamais de CDN) et pile de repli (aucune autre police de marque). */
+export const FAMILLE_CSS = "Axion Manrope";
+export const PILE_CSS = `"${FAMILLE_CSS}", "${POLICE}", sans-serif`;
+
+/** Graisses de Manrope utilisées (axe variable 200 à 800). */
+export const GRAISSES = { corps: 500, appui: 600, gras: 700, titre: 800 } as const;
+
+/** Couleurs sur fond clair (par défaut, ~80 % de la vidéo). */
+export const SUR_CLAIR = {
+  fond: PALETTE.ivoire,
+  fondSecondaire: PALETTE.gris,
+  texte: PALETTE.noir,
+  accent: PALETTE.terracotta,
+  /** Filets, contours discrets. */
+  filet: PALETTE.gris,
+} as const;
+
+/** Couleurs sur le bloc sombre (UNE seule carte sombre arrondie par vidéo : la carte de fin). */
+export const SUR_SOMBRE = {
+  fond: PALETTE.noir,
+  texte: PALETTE.ivoire,
+  accent: PALETTE.orange,
+  secondaire: PALETTE.grisSurNoir,
+  filet: PALETTE.grisSurNoir,
+} as const;
+
+/** Espacements (px sur une image de 1080 de large) et rayons des blocs arrondis. */
+export const ESPACEMENTS = { xs: 8, s: 16, m: 32, l: 56, xl: 96 } as const;
+export const RAYONS = { petit: 16, carte: 48 } as const;
+
+/** Durées d'animation (secondes) : douces, sans rebond. */
+export const DUREES = { courte: 0.2, normale: 0.36, longue: 0.6, fondu: 0.45 } as const;
+
+/** Courbes d'easing douces (cubic-bezier x1, y1, x2, y2) : jamais de dépassement (y entre 0 et 1) donc jamais de rebond. */
+export const COURBES = {
+  douce: [0.25, 0.1, 0.25, 1],
+  entree: [0, 0, 0.2, 1],
+  sortie: [0.4, 0, 1, 1],
+  continue: [0.45, 0, 0.55, 1],
+} as const;
+
+/** Nombre d'images d'une durée en secondes à `FPS` (au moins 1). */
+export function images(secondes: number): number {
+  return Math.max(1, Math.round(secondes * FPS));
+}
+
+/**
+ * Couleurs permises dans les vidéos (#RRGGBB majuscules), pour le test garde : la palette définitive de la charte du
+ * 07/11/2026 (REPRENDRE.md d'axion-brand : le vert sauge `reussite` est GARDÉ, pour l'état « réussite » seulement).
+ * Tout autre bleu, jaune, saumon ou vert est refusé.
+ */
+export const COULEURS_CHARTE: readonly string[] = Object.values(PALETTE).map((c) => c.toUpperCase());
+
+/** `#RRGGBB` + opacité (0 à 1) → `rgba(...)`. */
+export function avecOpacite(hex: string, opacite: number): string {
+  if (!HEX.test(hex)) throw new Error(`Couleur invalide : ${hex}`);
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${Math.max(0, Math.min(1, opacite)).toFixed(3)})`;
 }

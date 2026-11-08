@@ -4,6 +4,7 @@ import { ApercuSousTitres, CalqueSousTitres, type ProprietesApercu, type Proprie
 import { AccessoireSeul, DoubleEssai, ImageComposee, Miniature, TexteCompose, type ProprietesAccessoire, type ProprietesDoubleEssai } from "./commune";
 import { formatMiniature, type ProprietesMiniature } from "./commune/miniature-mise-en-page";
 import { VignetteAxion } from "./commune/vignette/VignetteAxion";
+import { CarteFinAxion } from "./commune/fin/CarteFinAxion";
 import { metaVignette } from "./commune/vignette/socle";
 import type { ProprietesVignetteAxion } from "./commune/vignette/VignetteAxion";
 import { CompositionsMotion } from "./commune/motion";
@@ -133,6 +134,7 @@ export function Racine() {
         }}
       />
       {/* Vignettes lot 1 (17/10) : socle v2, derrière le réglage `miniature.gabarit` (éteint). */}
+      <Composition id="CarteFinAxion" component={CarteFinAxion} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={{ largeur: 1080, hauteur: 1920, dureeSec: 3, adresse: "axion-ia.com" }} />
       <Composition id="VignetteAxion" component={VignetteAxion} durationInFrames={1} fps={25} width={1080} height={1920} defaultProps={VIGNETTE_VIDE} calculateMetadata={({ props }) => metaVignette(props)} />
       {/* Facecam lot C (09/10) : brique commune `motion` — 6 modèles et la carte sur mesure, pour tous les formats. */}
       <CompositionsMotion />

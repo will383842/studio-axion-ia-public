@@ -1,3 +1,4 @@
+import { FAMILLE_CSS } from "../../../../../src/briques/charte/axion-2026";
 import React, { useEffect, useState } from "react";
 /**
  * BRIQUES COMMUNES du lot 1 « Au-dessus de la tête » (standard DA v4 du 16/10/2026, § A à D).
@@ -36,15 +37,12 @@ export const BAS_M1 = 0.18 * H;
 
 /* ------------------------------------------------------------------ Polices ------------------------------------------------------------------ */
 
-export const MONTSERRAT = "Axion Montserrat Black";
-export const INTER = "Axion Inter Bold";
+export const MONTSERRAT = FAMILLE_CSS;
+export const INTER = FAMILLE_CSS;
 let chargement: Promise<unknown> | null = null;
 function chargerPolices(): Promise<unknown> {
   if (!chargement) {
-    const faces = [
-      new FontFace(MONTSERRAT, `url(${mediaV4("polices/Montserrat-Black.ttf")})`, { weight: "900" }),
-      new FontFace(INTER, `url(${mediaV4("polices/Inter-Bold.ttf")})`, { weight: "700" }),
-    ];
+    const faces = [new FontFace(FAMILLE_CSS, `url(${mediaV4("polices/Manrope-Variable.ttf")})`, { weight: "200 800" })];
     chargement = Promise.all(faces.map((f) => f.load().then((l) => { document.fonts.add(l); })));
   }
   return chargement;

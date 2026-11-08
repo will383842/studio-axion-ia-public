@@ -1,3 +1,4 @@
+import { FAMILLE_CSS } from "../../../../../src/briques/charte/axion-2026";
 import React, { useEffect, useMemo, useState } from "react";
 /**
  * BRIQUES COMMUNES du lot 3 « Fil conducteur, chiffres et preuves » (standard v4 du 16/10, § A à D).
@@ -24,14 +25,14 @@ const E = COULEURS.ENCRE;
 export const ombre = (t: "S" | "M" | "L"): string => `${OMBRE[t][0]}px ${OMBRE[t][1]}px 0 0 ${E}`;
 
 /* ------------------------------------------------------------------ Typographie ------------------------------------------------------------------ */
-export const MONTSERRAT = '"Axion Montserrat Black", "Montserrat", "Arial Black", sans-serif';
-export const INTER = '"Inter", "Axion Inter Bold", system-ui, sans-serif';
+export const MONTSERRAT = `"${FAMILLE_CSS}", sans-serif`;
+export const INTER = MONTSERRAT;
 
-/** Charge Montserrat Black (fichier `polices/Montserrat-Black.ttf` du dossier public). Inter vient du système. */
+/** Charge Manrope (fichier `polices/Manrope-Variable.ttf` du dossier servi). */
 export function Polices(): null {
   const [poignee] = useState(() => delayRender("polices v4 lot 3"));
   useEffect(() => {
-    const f = new FontFace("Axion Montserrat Black", `url(${mediaV4("polices/Montserrat-Black.ttf")})`, { weight: "900" });
+    const f = new FontFace(FAMILLE_CSS, `url(${mediaV4("polices/Manrope-Variable.ttf")})`, { weight: "200 800" });
     f.load().then((face) => { document.fonts.add(face); continueRender(poignee); }).catch(() => continueRender(poignee));
   }, [poignee]);
   return null;

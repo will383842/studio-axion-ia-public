@@ -4,41 +4,42 @@
  * `studio-rendu/compositions/commune/motion/` et par la carte sur mesure (variables CSS injectées dans l'iframe).
  *
  * Ces jetons sont IMPOSÉS à tous les modèles et à toutes les cartes sur mesure : un seul système de design, versionné
- * (`VERSION_CHARTE_MOTION`, à figer dans la recette de chaque vidéo). Poppins dans la vidéo ; l'interface du studio
- * reste en Manrope.
+ * (`VERSION_CHARTE_MOTION`, à figer dans la recette de chaque vidéo). Manrope partout (charte Axion 2026).
  */
+
+import { COURBES as COURBES_CHARTE, FAMILLE_CSS, FPS, PALETTE } from "../charte/axion-2026";
 
 export const VERSION_CHARTE_MOTION = "motion-1";
 
 /** Cadence du studio (toutes les compositions, toutes les cartes). */
-export const FPS_MOTION = 25;
+export const FPS_MOTION = FPS;
 
 /* ------------------------------------------------------------------ */
 /* Couleurs                                                              */
 /* ------------------------------------------------------------------ */
 
-/** Charte Axion : sombre chaud, orange, crème. Toute autre couleur est refusée dans une carte sur mesure. */
+/** Charte Axion 2026 (`src/briques/charte/axion-2026.ts`, source unique). Toute autre couleur est refusée dans une carte sur mesure. */
 export const COULEURS = {
-  /** Fond de la charte (sombre chaud). */
-  fond: "#16120F",
+  /** Fond du bloc (noir de la charte Axion 2026). */
+  fond: PALETTE.noir,
   /** Fond profond (coins, vignette, ombres portées). */
-  fondProfond: "#0C0A08",
+  fondProfond: PALETTE.noir,
   /** Panneau posé sur le fond (cartes, pastilles). */
-  surface: "#211A15",
+  surface: PALETTE.noir,
   /** Panneau relevé (élément actif). */
-  surfaceHaute: "#2C221B",
-  /** Orange Axion (accent unique). */
-  orange: "#C65A2E",
-  /** Orange lumineux : lueurs, chiffres sur fond sombre (même teinte, plus clair). */
-  orangeVif: "#E07040",
-  /** Orange profond : ombres de l'accent, dégradés. */
-  orangeProfond: "#8E3B1B",
-  /** Crème : texte principal. */
-  creme: "#F6EEE0",
-  /** Crème atténuée : texte secondaire (≈ 64 %). */
-  cremeAttenuee: "#A79E92",
-  /** Filets et contours discrets (≈ 14 % de crème). */
-  filet: "#3A322B",
+  surfaceHaute: PALETTE.noir,
+  /** Orange de la charte (sur noir seulement). */
+  orange: PALETTE.orange,
+  /** Orange lumineux : lueurs, chiffres sur fond sombre (même orange : la charte n'en a qu'un). */
+  orangeVif: PALETTE.orange,
+  /** Orange profond : ombres de l'accent. */
+  orangeProfond: PALETTE.terracotta,
+  /** Ivoire : texte principal. */
+  creme: PALETTE.ivoire,
+  /** Gris sur noir : texte secondaire. */
+  cremeAttenuee: PALETTE.grisSurNoir,
+  /** Filets et contours discrets. */
+  filet: PALETTE.grisSurNoir,
 } as const;
 
 export type NomCouleur = keyof typeof COULEURS;
@@ -57,9 +58,9 @@ export function avecOpacite(hex: string, opacite: number): string {
 /* Typographie                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Familles chargées EN LOCAL (Poppins, SIL OFL 1.1) : une famille, cinq graisses. */
-export const POLICE_MOTION = "Axion Poppins";
-export const GRAISSES = { corps: 500, appui: 600, gras: 700, titre: 800, affiche: 900 } as const;
+/** Manrope, chargée EN LOCAL (SIL OFL 1.1) : une famille, graisses 500 à 800 (axe variable). */
+export const POLICE_MOTION = FAMILLE_CSS;
+export const GRAISSES = { corps: 500, appui: 600, gras: 700, titre: 800, affiche: 800 } as const;
 
 /**
  * Hiérarchie en 4 tailles, en FRACTION DE LA HAUTEUR DE LA VIDÉO (pas de la carte : une carte en moitié haute garde
@@ -129,22 +130,22 @@ export const DUREES = {
 
 /**
  * Courbes signature (Bézier cubiques CSS) et ressort. `signature` = sortie expo maison (entrée de tous les éléments) ;
- * `anticipation` = léger recul avant le départ ; `sortie` = accélération pour la chute ; `glisse` = déplacements longs
+ * `anticipation` = départ en douceur (sans recul : charte 2026, aucun rebond) ; `sortie` = accélération pour la chute ; `glisse` = déplacements longs
  * (caméra, barre de progression).
  */
 export const COURBES = {
   signature: [0.16, 1, 0.3, 1],
-  anticipation: [0.36, -0.42, 0.24, 1],
+  anticipation: [0.36, 0, 0.24, 1],
   sortie: [0.7, 0, 0.84, 0],
   glisse: [0.65, 0, 0.35, 1],
-  douce: [0.25, 0.1, 0.25, 1],
+  douce: COURBES_CHARTE.douce,
 } as const satisfies Record<string, readonly [number, number, number, number]>;
 export type NomCourbe = keyof typeof COURBES;
 
-/** Ressorts (raideur, amortissement, masse) : `chute` = petit dépassement (≈ 6 %) puis repos ; `ferme` = sans rebond. */
+/** Ressorts (raideur, amortissement, masse) : aucun ne dépasse sa cible (charte 2026 : mouvement doux, sans rebond). */
 export const RESSORTS = {
-  chute: { raideur: 210, amortissement: 19, masse: 1 },
-  souple: { raideur: 120, amortissement: 15, masse: 1 },
+  chute: { raideur: 210, amortissement: 30, masse: 1 },
+  souple: { raideur: 120, amortissement: 22, masse: 1 },
   ferme: { raideur: 260, amortissement: 32, masse: 1 },
 } as const;
 export type NomRessort = keyof typeof RESSORTS;
