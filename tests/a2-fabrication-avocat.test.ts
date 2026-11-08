@@ -199,7 +199,7 @@ describe("A2 · après la création : modification d'une vraie vidéo avocat, bu
     const p = await modifs.proposerModification("v-03", "changez l'image du plan 2");
     expect(p.statut).toBe("hors-capacite");
     expect(p.cout.centimes).toBe(0);
-    expect(p.horsCapacite?.message).toMatch(/pas encore disponible/);
+    expect(p.horsCapacite?.message).toMatch(/Refaire une seule phrase/);
   });
 
   it("une voix payée pendant la fabrication n'est pas comptée deux fois (dépense + engagement entier)", async () => {

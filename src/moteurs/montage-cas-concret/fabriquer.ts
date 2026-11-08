@@ -40,6 +40,7 @@
  * passe le journal par `relancerRendusCasConcret` : seuls les rendus restés en cours ou ratés repartent.
  */
 import { PALETTE } from "@/briques/charte/axion-2026";
+import { joindrePhrasesPourVoix } from "@/domaine/voix-phrases";
 import { FIN_PROPRE_COMMUNE } from "@/briques/composition/fin-propre";
 import { creerSuivi, empreinteStable, plansDesScenes, commandeMinimale, type EtapeComptee, type Journal, type ScenePosee } from "@/briques/chaine-scenes";
 import { avancerCompositions, montageFini, type BaseComposition, type EtatComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
@@ -71,7 +72,7 @@ import { defautsVisuels, type DefautVisuel } from "./defauts-visuels";
 import { ecrireFiche, PREFIXE_APPEL_ECRITURE, reformulerPhrase, type ResultatEcriture } from "./ecriture";
 import { ecartsScriptValide, ficheDuScriptValide, PHRASE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_VALIDE_REFUSE, problemesScriptValide, type ScriptValide } from "./script-valide";
 import { departDePage, ecransCales, LIBELLES_ETAPES_CAS_CONCRET, motsOrange, regrouperFins, reporterTexteDit, type CaptureVraiEcran, type EntreesCasConcret } from "./etapes";
-import { FORMAT_CAS_CONCRET, texteDuCorps, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
+import { FORMAT_CAS_CONCRET, texteDuCorps, texteDuCorpsPourVoix, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
 import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
@@ -664,8 +665,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
 
   // 4. Voix : corps, une prise par fin, puis l'assemblage de chaque fin.
   const lire = (t: string) => (prononciations.length ? substituerPrononciations(t, [...prononciations]) : t);
-  const texteCorps = lire(texteDuCorps(captures.fiche));
-  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(f.ecrans.map((e) => e.texteDit.trim()).join(" ")) }));
+  const texteCorps = lire(texteDuCorpsPourVoix(captures.fiche));
+  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(joindrePhrasesPourVoix(f.ecrans.map((e) => e.texteDit))) }));
   const tarif = outils.budget.tarifCentimesParCaractere;
   const estimation = estimerVoixCasConcret([texteCorps, ...textesFins.map((f) => f.texte)], tarif);
   const v = outils.voix;
