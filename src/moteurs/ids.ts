@@ -5,7 +5,7 @@
 import { trouverFormat } from "@/formats";
 import type { CommandeFabrication } from "@/domaine/types";
 
-export const IDS_MOTEURS = ["simulation", "montage-avocat", "montage-facecam", "montage-tableau", "montage-cas-concret", "montage-facecam-animee", "montage-image-video"] as const;
+export const IDS_MOTEURS = ["simulation", "montage-avocat", "montage-facecam", "montage-tableau", "montage-cas-concret", "montage-facecam-animee", "montage-image-video", "montage-tutoriel-outil", "montage-demo-facecam"] as const;
 export type IdMoteur = (typeof IDS_MOTEURS)[number];
 
 export function moteurExiste(id: string): boolean {

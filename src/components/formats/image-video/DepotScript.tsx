@@ -14,7 +14,6 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import type { ReseauIV } from "@/domaine/image-video/plafonds";
 import { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_MOTS_MAX } from "@/moteurs/montage-image-video/texte/script-limites";
-import { euros } from "./vue";
 
 export function DepotScript({ script, onScript, reseaux, montant, blocage, onRefus, children }: { script: string; onScript: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; onRefus: (phrase: string | null) => void; /** Sélecteur de réseaux, placé entre le script et la barre du prix. */ children?: ReactNode }) {
   const router = useRouter();
@@ -33,9 +32,9 @@ export function DepotScript({ script, onScript, reseaux, montant, blocage, onRef
   return (
     <>
       <ZoneTexte
-        libelle="Collez votre script complet"
-        aide={`La voix dira vos mots tels quels : rien n'est réécrit. Seul le schéma est conçu d'après votre texte. ${mots} mot${mots > 1 ? "s" : ""} sur ${SCRIPT_MOTS_MAX} au plus.`}
-        placeholder="Collez ici le texte exact que la voix doit dire, du début à la fin."
+        libelle="Votre script"
+        aide={`Vos mots sont dits tels quels. ${mots} mot${mots > 1 ? "s" : ""} sur ${SCRIPT_MOTS_MAX} au plus.`}
+        placeholder="Collez ici votre script, du début à la fin."
         value={script}
         longueurMax={SCRIPT_CARACTERES_MAX}
         rows={8}
@@ -47,7 +46,7 @@ export function DepotScript({ script, onScript, reseaux, montant, blocage, onRef
       {children}
       {blocage && <p className="text-[15px] text-texte-doux">{blocage}</p>}
       <BarreActionCollee>
-        <BoutonFabriquer montantCentimes={montant} libelle={`Concevoir le schéma et fabriquer la vidéo (au plus ${euros(montant)})`} desactive={!pret} onFabriquer={fabriquer} message="Au plus ce prix. Seule la conception du schéma part maintenant : la voix attend votre accord sur le script." />
+        <BoutonFabriquer montantCentimes={montant} libelle="Fabriquer la vidéo" desactive={!pret} onFabriquer={fabriquer} />
       </BarreActionCollee>
     </>
   );
