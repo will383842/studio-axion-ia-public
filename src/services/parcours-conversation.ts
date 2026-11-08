@@ -15,6 +15,7 @@ import type { EvenementFournisseur } from "@/domaine/types";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
+import { construireOrigineV3, corpsDemandeGuideV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
@@ -676,7 +677,19 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     await clore(ev, "site_refuse", "run_invalide");
     return "traite";
   }
-  const corps = corpsDemandeGuide(run, cleEnvoi);
+  const corpsV1 = corpsDemandeGuide(run, cleEnvoi);
+  // Lot Z1 : corps v3 seulement si l'interrupteur est allumé ET qu'au moins un de nos comptes est configuré ; sinon v1 inchangé.
+  // Origine = référence de publication (identifiant opaque) + canal « commentaire » ; mot, réseau, date et version M1 sont déjà dans le corps.
+  // Un refus de construction est journalisé par son code seul (jamais la valeur, jamais une adresse) et on retombe sur le corps v1.
+  let corps = corpsV1;
+  let enV3 = false;
+  if (origineV3Active(env) && prefixesComptesConfigures(env).length > 0) {
+    const o3 = construireOrigineV3({ postRef: etat.idPostPlateforme ?? undefined, canal: "commentaire" }, { reseau: etat.reseau, prefixesComptes: prefixesComptesConfigures(env) });
+    if (o3.ok) {
+      corps = corpsDemandeGuideV3(run, cleEnvoi, o3.origine);
+      enV3 = true;
+    } else await journaliser("parcours_conversation", `Origine v3 non envoyée : ${o3.code}.`);
+  }
   let statut = 0;
   let corpsReponse: unknown = null;
   for (let n = 0; n < ESSAIS_NONCE; n++) {
@@ -688,6 +701,12 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     } catch {
       statut = 0;
       corpsReponse = null;
+    }
+    // Le site refuse l'origine v3 (422) : la demande n'est pas perdue, reprise immédiate en corps v1 (même clé).
+    if (enV3 && statut === 422) {
+      corps = corpsV1;
+      enV3 = false;
+      continue;
     }
     const cd = conduiteApresReponse(statut, corpsReponse, etat.essaisSite + 1);
     if (!(cd.genre === "reessayer" && cd.nouveauNonce)) break;
