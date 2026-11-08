@@ -234,7 +234,7 @@ describe("F7 · Vos vidéos (le résultat)", () => {
     expect(t).toContain(PHRASES_SUIVI.prete.titre);
     expect(t.indexOf(PHRASES_SUIVI.prete.titre)).toBeLessThan(t.indexOf("TikTok"));
     expect(html.match(/role="tab"/g)).toHaveLength(2);
-    expect(html.match(//api/telechargements/video?video=v-1/g)).toHaveLength(1);
+    expect(html.match(/\/api\/telechargements\/video\?video=v-1/g)).toHaveLength(1);
   });
 
   it("verdict rouge (ok=false) : pas de titre « Votre vidéo est prête », le verdict est dit ; verdict vert : titre gardé", () => {

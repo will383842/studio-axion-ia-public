@@ -330,11 +330,11 @@ async function lancerParDefaut(videoId: Id, accord: AccordPrix | undefined, mont
 
 /** Titre court de l'écran (40 caractères au plus), coupé sur un mot et fini par « … ». PUR. */
 export function titreCourt(titre: string, max = 40): string {
-  const t = titre.normalize("NFC").replace(/s+/g, " ").trim();
+  const t = titre.normalize("NFC").replace(/\s+/g, " ").trim();
   if (!t) return "Image → vidéo";
   if (t.length <= max) return t;
   const coupe = t.slice(0, max - 1);
-  const surUnMot = t[max - 1] === " " ? coupe : coupe.replace(/s+S*$/, "");
+  const surUnMot = t[max - 1] === " " ? coupe : coupe.replace(/\s+\S*$/, "");
   return `${(surUnMot || coupe).trimEnd()}…`;
 }
 
