@@ -8,7 +8,7 @@
  *     prise HORIZONTALE seulement (`parametres.recadrage`, calculé par le studio sur le visage) : colonne 9:16 FIXE de toute la hauteur,
  *     ramenée à 1080 × 1920 (aucun zoom en plus, aucun mouvement de cadrage) ;
  *  2. un dossier PLAT est servi en local (`servirDossier`) : prise montée, bruitages (`sons/` + 3 maison du lot 5), B-roll
- *     (`motion-v4/communs/broll`), police (Manrope variable) et logo ; son adresse passe à la
+ *     (`motion-v4/communs/broll`), polices (Montserrat 900 woff2, Montserrat Black, Inter Bold) et logo ; son adresse passe à la
  *     composition en `mediasBase` (`motion-v4/communs/medias-v4.ts`) : aucun `staticFile`, aucun dossier public ;
  *  3. Remotion rend `InterfaceClaireFaceCameraV4` (CRF 18), puis FFmpeg ré-encode comme la répétition (CRF 22, ≤ 3,4 Mb/s, AAC 48 kHz,
  *     `+faststart`) ; la vidéo est déposée sur `sortie.urlDepot`.
@@ -62,7 +62,7 @@ export function sourcesMediasV4(racine: string = racinePaquet()): { dossiers: st
   const ic = resolve(racine, "compositions", "interface-claire");
   return {
     dossiers: [join(ic, "sons"), join(ic, "motion-v4", "lot5", "sons"), join(ic, "motion-v4", "communs", "broll"), join(ic, "motion-v4", "lot5", "polices"), join(ic, "motion-v4", "lot5", "marque")],
-    fichiers: [resolve(racine, "compositions", "commune", "polices", "Manrope-Variable.ttf")],
+    fichiers: [join(ic, "motion-v4", "lot2", "polices", "Montserrat-Black.ttf"), resolve(racine, "compositions", "commune", "polices", "Inter-Bold.ttf")],
   };
 }
 

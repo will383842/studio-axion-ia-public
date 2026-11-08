@@ -64,7 +64,7 @@ const HABILLAGES: { readonly [C in CodeObjet]: HabillageObjet } = Object.freeze(
     rayon: 40,
     ombre: OMBRE_REFERENCE,
     tampon: TAMPON_REFERENCE,
-    alerte: { fond: blanc, bordure: encre, epaisseurBordure: 6, filetGauche: null, rayon: 40, tamponTexte: "#2AABEE" },
+    alerte: { fond: blanc, bordure: encre, epaisseurBordure: 6, filetGauche: null, rayon: 40, tamponTexte: orange },
   }),
   "OBJ-B": Object.freeze({
     enTete: { fond: ivoireHaut, texte: encre, icone: orange, epaisseurIcone: 2.8, filetGauche: orangeVif, point: null, majuscules: true },

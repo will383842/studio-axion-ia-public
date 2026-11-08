@@ -8,7 +8,7 @@
  * pour rester justes à toute taille et à toute cadence.
  */
 
-import { FAMILLE_CSS, PALETTE } from "../../../src/briques/charte/axion-2026";
+import { PALETTE } from "../../../src/briques/charte/axion-2026";
 
 export const VERSION_CHARTE_INTERFACE = "interface-claire/1";
 
@@ -23,8 +23,8 @@ export const COULEURS = Object.freeze({
   sable: PALETTE.gris,
 } as const);
 
-/** Police : Manrope seule (charte Axion 2026). SIL OFL 1.1. */
-export const POLICES = Object.freeze({ titre: FAMILLE_CSS, texte: FAMILLE_CSS } as const);
+/** Polices : Montserrat ExtraBold et Inter Bold, RESTENT dans ce lot (largeurs mesurées sur leurs fichiers). SIL OFL 1.1. */
+export const POLICES = Object.freeze({ titre: "Axion Montserrat ExtraBold", texte: "Axion Inter Bold" } as const);
 
 /** Géométrie mesurée sur la référence, en fraction de la LARGEUR (l) ou de la HAUTEUR (h) de l'image. */
 export const GEOMETRIE = Object.freeze({

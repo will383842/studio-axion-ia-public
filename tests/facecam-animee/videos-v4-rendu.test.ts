@@ -87,7 +87,8 @@ describe("rendu v4 · vidéos d'illustration reçues en entrées « broll: »", 
     const ic = join(racine, "compositions", "interface-claire");
     for (const d of ["sons", "motion-v4/lot5/sons", "motion-v4/communs/broll", "motion-v4/lot5/polices", "motion-v4/lot5/marque", "motion-v4/lot2/polices"]) mkdirSync(join(ic, d), { recursive: true });
     mkdirSync(join(racine, "compositions", "commune", "polices"), { recursive: true });
-    writeFileSync(join(racine, "compositions/commune/polices/Manrope-Variable.ttf"), "x");
+    writeFileSync(join(ic, "motion-v4/lot2/polices/Montserrat-Black.ttf"), "x");
+    writeFileSync(join(racine, "compositions/commune/polices/Inter-Bold.ttf"), "x");
     writeFileSync(join(ic, "motion-v4/communs/broll/v4-0-0.mp4"), "x");
     const dossier = mkdtempSync(join(tmpdir(), "rendu-v4-"));
     writeFileSync(join(dossier, "v4-0-0.mp4"), "x"); // la vidéo d'illustration déjà reçue

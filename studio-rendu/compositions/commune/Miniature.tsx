@@ -2,12 +2,12 @@
  * MINIATURE (lot R4, 03/10) — une image fixe : la plus belle image de la vidéo, le titre de couverture posé dans la
  * zone sûre, aux couleurs d'Axion. Trois mises en page (« bas », « étiquettes », « bandeau »), sous le visage ; la géométrie est PURE
  * (`miniature-mise-en-page.ts`, testée), ce fichier ne fait que la dessiner.
- * Police : Manrope (SIL OFL 1.1), chargée EN LOCAL, mesurée par le navigateur une fois chargée : le titre
+ * Police : Montserrat Black (SIL OFL 1.1), chargée EN LOCAL, mesurée par le navigateur une fois chargée : le titre
  * est coupé et dimensionné sur sa vraie largeur, il ne déborde jamais.
  */
 import { useEffect, useState } from "react";
 import { AbsoluteFill, cancelRender, continueRender, delayRender, Img } from "remotion";
-import manropeVariable from "./polices/Manrope-Variable.ttf";
+import montserratBlack from "../../../src/briques/sous-titres/polices/Montserrat-Black.ttf";
 import {
   COULEURS_MINIATURE as C,
   contraintesTitre,
@@ -22,17 +22,17 @@ import {
   type ProprietesMiniature,
 } from "./miniature-mise-en-page";
 
-const FAMILLE = "Axion Miniature Manrope";
+const FAMILLE = "Axion Miniature Montserrat Black";
 
 /** Charge la police une fois, puis renvoie une mesure de largeur faite avec elle. */
 let police: Promise<(texte: string, taille: number) => number> | null = null;
 function mesureAvecPolice(): Promise<(texte: string, taille: number) => number> {
   if (!police) {
-    police = new FontFace(FAMILLE, `url(${manropeVariable})`, { weight: "200 800" }).load().then((face) => {
+    police = new FontFace(FAMILLE, `url(${montserratBlack})`).load().then((face) => {
       document.fonts.add(face);
       const ctx = document.createElement("canvas").getContext("2d")!;
       return (texte: string, taille: number) => {
-        ctx.font = `800 ${taille}px "${FAMILLE}"`;
+        ctx.font = `${taille}px "${FAMILLE}"`;
         return ctx.measureText(texte).width;
       };
     });
@@ -142,7 +142,7 @@ export function Miniature(p: ProprietesMiniature) {
             display: "flex",
             flexDirection: "column",
             alignItems: centre ? "center" : "flex-start",
-            fontFamily: `"${FAMILLE}"`, fontWeight: 800,
+            fontFamily: `"${FAMILLE}"`,
             fontSize: taille,
             lineHeight: variante === "etiquettes" ? 1.08 : c.interligne,
             textAlign: centre ? "center" : "left",
