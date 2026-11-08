@@ -5,7 +5,7 @@ import { exigerSession } from "@/services/auth";
 import { generateurAllume, type FamilleVisuelle } from "@/visuels/interrupteur";
 import { basculerGenerateurFormulaire } from "./actions";
 
-export const metadata: Metadata = { title: "Carrousels" };
+export const metadata: Metadata = { title: "Réglages des carrousels" };
 export const dynamic = "force-dynamic";
 
 const FAMILLES: { id: FamilleVisuelle; libelle: string }[] = [
@@ -13,14 +13,14 @@ const FAMILLES: { id: FamilleVisuelle; libelle: string }[] = [
   { id: "infographies", libelle: "Infographies" },
 ];
 
-/** Réglages › Carrousels : état des deux générateurs, éteints tant que vous ne les allumez pas. */
+/** Réglages des carrousels : état des deux générateurs, éteints tant que vous ne les allumez pas. */
 export default async function PageReglagesCarrousels() {
   await exigerSession();
   const etats = await Promise.all(FAMILLES.map(async (f) => ({ ...f, allume: await generateurAllume(f.id) })));
   return (
     <div className="mx-auto w-full max-w-xl">
-      <EnTetePage retour={{ href: "/reglages", libelle: "Réglages" }} titre="Carrousels" sousTitre="Allumez un générateur seulement quand vous voulez l'utiliser." />
-      <p className="mb-3 text-sm text-texte-doux">Écriture : simulation (0 $) ou texte écrit en session ; API payante : verrouillée</p>
+      <EnTetePage retour={{ href: "/reglages", libelle: "Réglages" }} titre="Réglages des carrousels" sousTitre="Allumez un générateur seulement quand vous voulez l'utiliser." />
+      <p className="mb-3 text-sm text-texte-doux">Les textes s&apos;écrivent pendant la session de travail, sans service payant.</p>
       <Link href="/carrousels" className="mb-4 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
         Ouvrir Carrousels
       </Link>

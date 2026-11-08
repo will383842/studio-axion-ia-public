@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { controlerEssai, DEBIT_V4, lignesV4, TEXTE_V4 } from "@/app/(studio)/essais/relire-script/_exemple";
+import { controlerEssai, DEBIT_V4, lignesV4, TEXTE_V4 } from "./relecture-script-exemple";
 import { dureeLisible, RelireScript } from "@/components/script/RelireScript";
 import { appliquerSaisie, scriptReluDe } from "@/domaine/relecture-script";
 

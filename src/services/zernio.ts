@@ -89,7 +89,7 @@ export async function testerZernio(): Promise<{ message: string; comptes: number
   await ecrireParametre(PARAM_COMPTES_ZERNIO, { lusLe: maintenant(), comptes } satisfies ComptesZernioEnregistres);
   await journaliser("reglages", `Zernio testé : ${comptes.length} compte(s) relié(s)`);
   const reseaux = [...new Set(comptes.map((c) => c.reseau))].join(", ");
-  return { comptes: comptes.length, etats: Object.fromEntries(liste.map((c) => [c._id, c.isActive !== false])), message: comptes.length ? `Zernio répond : ${reseaux}.` : "Zernio répond, mais aucun compte n'y est relié." };
+  return { comptes: comptes.length, etats: Object.fromEntries(liste.map((c) => [c._id, c.isActive !== false])), message: comptes.length ? `Le nouvel outil répond : ${reseaux}.` : "Le nouvel outil répond, mais aucun compte n'y est relié." };
 }
 
 /* ------------------------------------------------------------------ */
