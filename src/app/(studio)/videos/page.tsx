@@ -4,6 +4,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
+import { RefaireToutesLesVignettes } from "@/components/videos/RefaireToutesLesVignettes";
 import { GalerieVideos } from "@/components/videos/GalerieVideos";
 import { OngletsMesVideos } from "@/components/videos/OngletsMesVideos";
 import { compterParReseau, filtrerCartes, lireFiltres } from "@/domaine/filtres-mes-videos";
@@ -55,7 +56,8 @@ export default async function PageVideos({ searchParams }: { searchParams: Promi
     <div>
       <EnTetePage titre="Mes vidéos" actions={<div className="hidden lg:block">{nouvelle}</div>} />
       {vue !== "corbeille" && vue !== "archivees" && (
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex flex-wrap items-start justify-end gap-2">
+          <RefaireToutesLesVignettes />
           <NettoyerNonTerminees />
         </div>
       )}
