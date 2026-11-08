@@ -56,9 +56,9 @@ chargerPolice();
 /* ------------------------------------------------------------------ Jetons (§ B.1, à l'identique) ------------------------------------------------------------------ */
 
 export const COULEURS = {
-  ENCRE: "#110A05", IVOIRE: "#E9DCC8", IVOIRE_CLAIR: "#FBF7EF", BLANC: "#FFFFFF",
-  GRIS: "#9A948C", ORANGE_MARQUE: "#B44F29",
-  ORANGE_VIF: "#F07C3E",
+  ENCRE: "#141413", IVOIRE: "#FAF9F5", IVOIRE_CLAIR: "#FAF9F5", BLANC: "#FAF9F5",
+  GRIS: "#B0AEA5", ORANGE_MARQUE: "#B23F16",
+  ORANGE_VIF: "#D97757",
 } as const;
 /** Palette unique (standard § L) : accent 1 = orange vif ; accent 2 (chiffres, états) = blanc sur contour encre. Le paramètre est conservé (ignoré) pour les appels existants. */
 export type Palette = "B";
@@ -230,16 +230,16 @@ export const BROLL_FOND = "broll/lotE-m1.mp4";
 export function Prise({ D, depuisSec = 0, mode = "normal", volume = 1, fond = "prise" }: { D: number; depuisSec?: number; mode?: "normal" | "visage"; volume?: number; /** Test des 4 fonds (standard J.5) : la prise est remplacée par un aplat ou un B-roll chargé. Jamais utilisé en production. */ fond?: FondTest }) {
   if (fond !== "prise" && mode === "normal") {
     return (
-      <AbsoluteFill style={{ background: fond === "blanc" ? "#FFFFFF" : "#111111" }}>
+      <AbsoluteFill style={{ background: fond === "blanc" ? "#FAF9F5" : "#141413" }}>
         {fond === "broll" ? <OffthreadVideo src={mediaV4(BROLL_FOND)} muted style={{ position: "absolute", left: 0, top: 0, width: W, height: H, objectFit: "cover" }} pauseWhenBuffering={false} /> : null}
       </AbsoluteFill>
     );
   }
   return (
     <AbsoluteFill style={{ background: COULEURS.IVOIRE }}>
-      <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translateY(${D * H}px)`, background: mode === "visage" ? "#888" : undefined }}>
+      <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translateY(${D * H}px)`, background: mode === "visage" ? "#B0AEA5" : undefined }}>
         {mode === "visage" ? (
-          <div style={{ position: "absolute", left: 0.25 * W, top: 0.12 * H, width: 0.5 * W, height: 0.46 * H, background: "#FF00FF" }} />
+          <div style={{ position: "absolute", left: 0.25 * W, top: 0.12 * H, width: 0.5 * W, height: 0.46 * H, background: "#B23F16" }} />
         ) : (
           <OffthreadVideo src={mediaV4(PRISE_VIDEO)} startFrom={Math.round(depuisSec * FPS)} volume={volume} style={{ position: "absolute", left: 0, top: 0, width: W, height: H, objectFit: "cover" }} pauseWhenBuffering={false} />
         )}
