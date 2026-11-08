@@ -121,6 +121,11 @@ export interface DemandeFabricationIV {
    * texte), puis REMPLACE l'écriture : aucun appel d'écriture, aucun mot changé (`script-colle.ts`).
    */
   scriptColle?: boolean;
+  /**
+   * Titre ou idée de Williams (script GÉNÉRÉ par le studio) : le script s'arrête pour sa relecture et sa modification, même en
+   * mode « automatique », avant toute voix. Absent (script collé, lot, essais) : comportement inchangé.
+   */
+  scriptAValider?: boolean;
   /** Réseaux cochés (tous les quatre par défaut). */
   reseaux: ReseauIV[];
   /** Offre corrigée par Will au dépôt ; absente : déduite du type de l'image. */
@@ -1328,7 +1333,7 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
     e.journal.push(colle ? `Script collé découpé en ${r.fiche.ecrans.length} écrans, mots inchangés (aucun appel d'écriture)${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.` : `Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
     passerA(e, "script-a-valider");
     // Lot : aucune porte n'attend Will ; contrôle automatique avant de payer la voix.
-    return e.demande.lot || e.demande.validationCarte === "automatique" ? controleAutomatiqueScriptIV(e, e.demande.lot ? o.budget.indicatif?.facteurSecurite : undefined, { prixIndicatif: !!o.budget.indicatif }) : e;
+    return e.demande.lot || (e.demande.validationCarte === "automatique" && !e.demande.scriptAValider) ? controleAutomatiqueScriptIV(e, e.demande.lot ? o.budget.indicatif?.facteurSecurite : undefined, { prixIndicatif: !!o.budget.indicatif }) : e;
   }
   if (r.motif === "budget") return refuser(e, "ecriture", plafond(), r.message);
   // Script collé : le relancer tel quel donnerait le même refus ; Will corrige son texte et le dépose de nouveau.

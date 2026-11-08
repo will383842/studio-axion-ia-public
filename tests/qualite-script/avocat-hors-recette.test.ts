@@ -30,17 +30,21 @@ import { versionV4 } from "../helpers/v4";
 
 const sha = (t: string) => createHash("sha256").update(t).digest("hex");
 
-/** SHA-256 des consignes d'AVANT #499 (fed29a7a, 1er parent de la fusion) : angle v1, script v3, relecture v1. */
+/**
+ * SHA-256 des consignes que reçoit l'avocat (hors recette commune : angle v1, script v3, relecture v1), telles que la version
+ * publique les construit. Le jeu de règles d'écriture y est le jeu réduit (`REGLES_WILL`) : les empreintes du studio, calculées sur
+ * son jeu complet, ne s'y appliquent pas ; celles-ci figent le texte public.
+ */
 const AVANT_499 = {
-  angle: "aea6a53735a5dcc542b8a6d84519b707cf3a936815dffa7b07409d157d5a00c5",
-  script: "48ee361bc91850eaca26fb9471975ee46afee76284e53108f11f4ca1a2dfa253",
-  relecture: "94a75c73cd0cf537d8b6c3074b527d4d49e0979ba0466ba5d7685740cd09e0e8",
+  angle: "09947b6c940e9b529ce385d668a99f17442a959fd6512f385ba17196e572ae75",
+  script: "214213058d5850a3584918e6ef931a910e6216d105e6383e45793641bfcc5b31",
+  relecture: "31da543ecff149d0211069a47aa57a585e83fdd6b969171fbe8e07acbd53f053",
 };
-/** SHA-256 des consignes d'AUJOURD'HUI (master, après #499), pour tous les autres formats. */
+/** SHA-256 des consignes d'AUJOURD'HUI (version publique, après #499), pour tous les autres formats. */
 const AUJOURDHUI = {
-  angle: "32eebc0ba9e171ccf575bd1614e6365a66a18d5e7690263e8444252c3f7227b5",
-  script: "a477eecc03e8eb985c3d1c5ba38e2a907504e75ad2f1ddbc338aa291e6d86acc",
-  relecture: "13d3a53c6a8765af0f0a890eaa0826c26990e772b48b230e6f9d49f8a302dc16",
+  angle: "0c2f64bf4317766fb9cc84f8bd0b53142addce911437839614fa3867231199c5",
+  script: "52ce9900f24ae6a5465165d78e2d6af72419e2ec31a09983d9986f24f6ed40b8",
+  relecture: "0e6cca0eb003f65d7231ec29508d78f3c69be41a0344d86d6928ce62f86bb91f",
 };
 
 const contexteWill = { interdits: CONTEXTE_BANC.interdits, promessesInterdites: CONTEXTE_BANC.promessesInterdites, rolesDestinataires: CONTEXTE_BANC.rolesDestinataires, tournures: TOURNURES_G4 } as never;
@@ -92,10 +96,10 @@ describe("consignes de la chaîne courte : l'avocat retrouve celles d'avant #499
     expect(CONSIGNE_COURT_ANGLE_HORS_RECETTE).not.toContain("TENSION");
     expect(CONSIGNE_COURT_RELECTURE_HORS_RECETTE).not.toContain("plus d'une idée");
   });
-  it("REGLES_WILL_AVANT_LOT_A n'est REGLES_WILL que sans la ligne « tutoriel »", () => {
-    expect(REGLES_WILL).toContain("Un. Listez");
+  it("REGLES_WILL_AVANT_LOT_A n'est REGLES_WILL que sans la ligne « tutoriel » (la version publique n'en a pas : les deux sont alors identiques)", () => {
     expect(REGLES_WILL_AVANT_LOT_A).not.toContain("Un. Listez");
-    expect(REGLES_WILL_AVANT_LOT_A.split("\n")).toHaveLength(REGLES_WILL.split("\n").length - 1);
+    const sansTutoriel = REGLES_WILL.split("\n").filter((l) => !l.includes("Un. Listez"));
+    expect(REGLES_WILL_AVANT_LOT_A.split("\n")).toEqual(sansTutoriel);
   });
   it("les autres formats : consignes d'aujourd'hui, octet pour octet", () => {
     expect(sha(CONSIGNE_COURT_ANGLE)).toBe(AUJOURDHUI.angle);

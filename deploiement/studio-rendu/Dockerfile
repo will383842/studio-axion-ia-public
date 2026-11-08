@@ -66,6 +66,10 @@ COPY --chown=rendu:rendu src/briques/tableau-scene /app/src/briques/tableau-scen
 # Format « Image → vidéo » (lot L17) : motion de schéma (types, disposition, caméra, cadrage, lisibilité, micro-objets),
 # lu par les compositions `image-video/` (le reste de ce qu'elles lisent est déjà copié ci-dessus).
 COPY --chown=rendu:rendu src/briques/schema-motion /app/src/briques/schema-motion
+# Plan de scènes (lot C) : composition `PlanDeScenes` (briques pures, jetons de la charte, police Manrope).
+COPY --chown=rendu:rendu src/briques/plan-scenes /app/src/briques/plan-scenes
+COPY --chown=rendu:rendu src/briques/jetons-motion.ts /app/src/briques/jetons-motion.ts
+COPY --chown=rendu:rendu src/app/polices/manrope-latin.woff2 /app/src/app/polices/manrope-latin.woff2
 COPY --chown=rendu:rendu src/domaine/facecam-animee/plan.ts /app/src/domaine/facecam-animee/plan.ts
 # Carrousels V2-A (opération `visuel-page`) : la porte d'entrée de la page (schéma Zod strict) et ce qu'elle charge, par
 # imports RELATIFS (l'image n'a pas d'alias `@/`) — brique des visuels avec ses règles JSON, charte lue par les compositions.

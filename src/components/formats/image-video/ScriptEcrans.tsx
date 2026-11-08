@@ -14,7 +14,6 @@ import { validerScriptImageVideoAction } from "@/app/(studio)/image-video/action
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
 import { Icone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
@@ -25,7 +24,7 @@ import { cn } from "@/lib/cn";
 import type { FormuleATrancherIV, PrixIV } from "@/moteurs/montage-image-video/fabrication";
 import { RecetteVariete } from "./RecetteVariete";
 import { jusquALaReprise } from "./reprise";
-import { AUCUNE_MODIFICATION, changementsVarieteIV, euros, formulesNonTranchees, lignesDuScript, lignesVarieteIV, morceauxEcrit, phrasePrix, scriptValideParWill, type ModificationsScript } from "./vue";
+import { AUCUNE_MODIFICATION, changementsVarieteIV, formulesNonTranchees, lignesDuScript, lignesVarieteIV, morceauxEcrit, scriptValideParWill, type ModificationsScript } from "./vue";
 
 function Ecrit({ t }: { t: string }) {
   return (
@@ -74,14 +73,14 @@ export function ScriptEcrans({
   const changerEcran = (id: string, x: { texteDit?: string; ecrits?: string[] }) => setM((v) => ({ ...v, ecrans: { ...v.ecrans, [id]: { ...v.ecrans[id], ...x } } }));
 
   async function valider() {
-    if (occupe || ouvertes.length) return;
+    if (occupe) return;
     setOccupe(true);
     setPhrase(null);
     try {
-      const accord = await confirmerPrix({ message: `La suite coûte ${phrasePrix(prix)} : la voix, puis les vérifications.`, montant });
-      if (typeof accord !== "number") return setPhrase("Rien n'a été payé.");
       const choixVariete = variete ? changementsVarieteIV(variete.recette, changes) : undefined;
-      const r = await validerScriptImageVideoAction(videoId, { ...decision, ...(choixVariete ? { variete: choixVariete } : {}) }, accord);
+      // Le script de Williams fait foi : une phrase non tranchée est gardée telle quelle (simple remarque).
+      const choixFormules = { ...Object.fromEntries(ouvertes.map((f) => [f.cle, "garder" as const])), ...decision.choixFormules };
+      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}) }, montant);
       if (!r.ok) return setPhrase(r.message);
       const fin = await jusquALaReprise(videoId, r.donnees);
       if (fin) return setPhrase(fin);
@@ -95,14 +94,6 @@ export function ScriptEcrans({
   const [a, b] = fiche.accroches;
   return (
     <section aria-label="Le script" className="space-y-6">
-      <Carte lueur className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-texte-doux">La suite</p>
-          <p className="font-titre text-3xl text-texte">{euros(prix.habituelCentimes)}</p>
-        </div>
-        <p className="text-sm text-texte-doux">au plus {euros(montant)} · rien n&apos;est payé avant votre accord</p>
-      </Carte>
-
       <div>
         <p className="mb-2 text-sm font-semibold text-texte-doux">L&apos;accroche</p>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -212,8 +203,8 @@ export function ScriptEcrans({
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Bouton icone="film" taille="lg" chargement={occupe} disabled={ouvertes.length > 0} onClick={() => void valider()}>
-          Valider et fabriquer (au plus {euros(montant)})
+        <Bouton icone="film" taille="lg" chargement={occupe} onClick={() => void valider()}>
+          Valider et fabriquer
         </Bouton>
         <Bouton variante="secondaire" icone="ecrire" onClick={() => setEdition((v) => !v)}>
           {edition ? "Revoir le script" : "Modifier le script"}
@@ -224,7 +215,6 @@ export function ScriptEcrans({
           </Bouton>
         )}
       </div>
-      {ouvertes.length > 0 && <p className="text-sm text-texte-doux">Tranchez d&apos;abord {ouvertes.length > 1 ? `les ${ouvertes.length} phrases trop affirmatives` : "la phrase trop affirmative"}.</p>}
       {phrase && (
         <p role="alert" className="text-sm text-brique">
           {phrase}
