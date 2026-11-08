@@ -6,6 +6,7 @@ import { ScriptEcrans } from "@/components/formats/image-video/ScriptEcrans";
 import { ScriptRelireIV } from "@/components/formats/image-video/ScriptRelireIV";
 import { VosVideos } from "@/components/formats/image-video/VosVideos";
 import { etapesImageVideo } from "@/components/formats/image-video/vues-gabarit";
+import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatGenerateur";
 import { BandeauGenerateur } from "@/components/videos/BandeauGenerateur";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
@@ -116,6 +117,7 @@ export default async function PageVideoImageVideo({
             lienPrive={{ videoId: vue.videoId, titre: vue.titre, partages }}
           />
         )}
+        {vue.ecran === "videos" && <RetoucheChatGenerateur videoId={vue.videoId} formatId={ID_FORMAT_IMAGE_VIDEO} />}
       </div>
     </GabaritCreation>
   );

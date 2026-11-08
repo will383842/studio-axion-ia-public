@@ -7,6 +7,7 @@ import type { Adresse, BriqueFacultative, BlocScript, EtapeEditoriale, Id, IdRes
 import { creditsDepuisElements, etatLicence, MENTION_IA_PAR_DEFAUT, texteScript } from "@/domaine/derivations";
 import { adresseDepuisFacon } from "@/domaine/adresse";
 import { visagePourFormat } from "@/domaine/distribution";
+import { verifierCouverture } from "@/domaine/couverture-vignette";
 import { couvertureDepuisTitre } from "@/domaine/miniatures";
 import { compteDansFormat } from "@/domaine/mes-videos";
 import { voixPourFormat } from "@/domaine/voix-format";
@@ -18,7 +19,8 @@ import { exigerSession } from "./auth";
 import { urlFichier, urlsFichiers } from "./fichiers";
 import { enregistrerTexteVariante } from "./generateur";
 import { versCarte } from "./presentation";
-import { listerTravaux } from "./travaux";
+import { cache } from "react";
+import { listerTravaux, travauxDeLaCible } from "./travaux";
 import type { VueDistribution, VueVideoCarte, VueVideoDetail } from "./vues";
 import type { AccordPrix } from "@/domaine/accord";
 import { trouverMoi } from "./moi";
@@ -108,11 +110,11 @@ export function travailAffiche<T extends Pick<Travail, "cibleId" | "statut" | "t
 }
 
 /** Fiche complète d'une vidéo (B.8 #8). */
-export async function obtenirVideo(id: Id): Promise<VueVideoDetail | null> {
-  const travaux = await listerTravaux({ inclureTermines: true });
+async function obtenirVideoSansCache(id: Id): Promise<VueVideoDetail | null> {
   const d = depots();
   const video = await d.videos.obtenir(id);
   if (!video) return null;
+  const travaux = await travauxDeLaCible(id);
   // Les maquettes ne sont pas des versions de la vidéo (ni choisies, ni comparées).
   const versions = (await d.versions.lister((v) => v.videoId === id && v.statut !== "maquette")).sort((a, b) => a.numero - b.numero);
   const versionCourante = versions.find((v) => v.id === video.versionChoisieId) ?? versions[versions.length - 1] ?? null;
@@ -156,6 +158,13 @@ export async function obtenirVideo(id: Id): Promise<VueVideoDetail | null> {
     licencesABloquer: elements.filter((e) => etatLicence(e.licence) !== "ok").map((e) => ({ id: e.id, nom: e.nom, etat: etatLicence(e.licence) })),
   };
 }
+
+/**
+ * Fiche complète d'une vidéo, lue UNE fois par requête (`cache` : la page, ses métadonnées et ses sous-lectures se
+ * partagent le résultat). Ne jamais la modifier sur place : copier avant de trier. Seules les fabrications de CETTE
+ * vidéo sont lues (lot P, 08/11).
+ */
+export const obtenirVideo = cache(obtenirVideoSansCache);
 
 /**
  * Sous-titres COURANTS d'une version : celui de plus haute `version` (chaque correction ou chaque fabrication
@@ -527,6 +536,31 @@ export async function choisirMiniature(videoId: Id, miniatureId: Id, titreDemand
     await d.miniatures.modifier(m.id, { choisie: m.id === miniatureId, ...(m.id === miniatureId && titre ? { titre } : {}), ...(m.id === miniatureId && fichierId ? { fichierId } : {}) });
   }
   await d.videos.modifier(videoId, { miniatureChoisieId: miniatureId });
+}
+
+/**
+ * Titre de la vignette et mot à mettre en valeur, FIXÉS par Williams (3 à 5 mots), modifiables à tout moment : l'image
+ * choisie est refaite (l'ancienne reste dans les fichiers). Si l'image n'a pas le titre écrit dessus, les vignettes
+ * sont refaites.
+ */
+export async function fixerCouvertureVignette(videoId: Id, texteSaisi: string, motCleSaisi: string): Promise<void> {
+  await exigerSession();
+  const d = depots();
+  const video = await d.videos.obtenir(videoId);
+  if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
+  const texte = texteSaisi.replace(/\s+/g, " ").trim();
+  const motCle = motCleSaisi.replace(/\s+/g, " ").trim();
+  const problemes = verifierCouverture(texte, motCle);
+  if (problemes.length) throw new ErreurStudio("COUVERTURE", problemes[0]);
+  await d.videos.modifier(videoId, { couvertureVignette: { texte, motCle, fixee: true } });
+  const choisie = (video.miniatureChoisieId ? await d.miniatures.obtenir(video.miniatureChoisieId) : null) ?? (await d.miniatures.lister((m) => m.videoId === videoId && m.choisie))[0];
+  const { retitrerMiniature, refaireVignettes } = await import("./miniatures");
+  if (choisie?.incrustee) {
+    const fichierId = await retitrerMiniature(choisie, texte, motCle);
+    await d.miniatures.modifier(choisie.id, { titre: texte, ...(fichierId ? { fichierId } : {}) });
+  } else if (!video.estDemo) {
+    await refaireVignettes(videoId);
+  }
 }
 
 /** Corrige un mot des sous-titres (toucher un mot pour le corriger, AV2.3-3). */

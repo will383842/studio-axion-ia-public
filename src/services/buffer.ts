@@ -135,7 +135,7 @@ export async function testerBuffer(): Promise<{ message: string; comptes: number
   for (const c of lus.canaux) parService.set(c.service, (parService.get(c.service) ?? 0) + 1);
   const liste = [...parService].map(([s, n]) => `${nomService(s)}${n > 1 ? ` ×${n}` : ""}`).join(", ");
   await journaliser("reglages", `Buffer testé : ${lus.canaux.length} compte(s) relié(s)`);
-  return { comptes: lus.canaux.length, message: lus.canaux.length ? `Buffer répond : ${liste}.` : "Buffer répond, mais aucun compte n'y est relié." };
+  return { comptes: lus.canaux.length, message: lus.canaux.length ? `L'ancien outil répond : ${liste}.` : "L'ancien outil répond, mais aucun compte n'y est relié." };
 }
 
 /**

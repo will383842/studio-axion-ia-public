@@ -6,8 +6,8 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
 import { GalerieVideos } from "@/components/videos/GalerieVideos";
 import { OngletsMesVideos } from "@/components/videos/OngletsMesVideos";
-import { ETAPES_EDITORIALES } from "@/domaine/libelles";
-import type { EtapeEditoriale } from "@/domaine/types";
+import { compterParReseau, filtrerCartes, lireFiltres } from "@/domaine/filtres-mes-videos";
+import { FiltresMesVideos } from "@/components/videos/FiltresMesVideos";
 import { compteursMesVideos, videosAutres, videosDeToutes } from "@/domaine/mes-videos";
 import { listerFormats } from "@/formats";
 import { listerCorbeille } from "@/services/corbeille";
@@ -24,7 +24,7 @@ type Vue = "toutes" | "brouillons" | "autres" | "archivees" | "corbeille";
  * Onglets : Toutes · Brouillons · un par format (registre) · Archivées · Corbeille.
  * Recherche, filtres (état, publication, format d'image, série), tri, sélection multiple.
  */
-export default async function PageVideos({ searchParams }: { searchParams: Promise<{ vue?: string; etape?: string; format?: string }> }) {
+export default async function PageVideos({ searchParams }: { searchParams: Promise<{ vue?: string; etape?: string; format?: string; reseau?: string }> }) {
   await exigerSession();
   const sp = await searchParams;
   const vue: Vue = sp.vue === "brouillons" || sp.vue === "autres" || sp.vue === "archivees" || sp.vue === "corbeille" ? sp.vue : "toutes";
@@ -38,7 +38,12 @@ export default async function PageVideos({ searchParams }: { searchParams: Promi
   const compteurs = compteursMesVideos([...toutes, ...enCorbeille], idsRegistre);
   const liste = vue === "corbeille" ? enCorbeille : vue === "brouillons" ? brouillons : vue === "archivees" ? archivees : vue === "autres" ? videosAutres(toutes, idsRegistre) : videosDeToutes(toutes);
   // Lien « À relire » de l'accueil : /videos?etape=a_relire préremplit le filtre d'étape.
-  const etape = sp.etape && Object.hasOwn(ETAPES_EDITORIALES, sp.etape) ? (sp.etape as EtapeEditoriale) : undefined;
+  // Lot M : ?reseau= et ?etape= classent la liste (côté serveur) ; une valeur inconnue est ignorée.
+  const filtres = lireFiltres(sp);
+  const etape = filtres.etape;
+  const sansReseau = filtrerCartes(liste, { etape, format: filtres.format });
+  const reseaux = compterParReseau(sansReseau);
+  const affichees = filtres.reseau ? filtrerCartes(sansReseau, { reseau: filtres.reseau }) : sansReseau;
 
   const nouvelle = (
     <Bouton asChild icone="plus">
@@ -55,9 +60,10 @@ export default async function PageVideos({ searchParams }: { searchParams: Promi
         </div>
       )}
       <OngletsMesVideos actif={vue} compteParFormat={compteurs.parFormat} nbToutes={compteurs.toutes} nbBrouillons={compteurs.brouillons} nbArchivees={vue === "archivees" ? archivees.length : compteurs.archivees} nbCorbeille={compteurs.corbeille} nbAutres={compteurs.autres} className="mb-5" />
+      <FiltresMesVideos base="/videos" params={sp} filtres={filtres} reseaux={reseaux} className="mb-5" />
       <GalerieVideos
-        key={`${vue}-${sp.format ?? ""}-${etape ?? ""}`}
-        videos={liste}
+        key={`${vue}-${sp.format ?? ""}-${etape ?? ""}-${filtres.reseau ?? ""}`}
+        videos={affichees}
         filtresInitiaux={etape ? { etape } : undefined}
         series={series.map((s) => ({ id: s.id, nom: s.nom }))}
         archivees={vue === "archivees"}

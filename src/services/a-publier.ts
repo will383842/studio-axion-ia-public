@@ -2,12 +2,12 @@
  * Page « À publier » (vidéos) : des vidéos validées jusqu'à Buffer, SANS nouvel état ni nouvelle table. Ce fichier ne fait
  * que LIRE et mettre en forme ; les envois passent par `envoyerVersBuffer` et `programmerSujet` (mêmes gardes : « Avant de
  * publier », anti-doublon, brouillon par défaut, vidéos d'exemple et d'essai refusées, rien d'envoyé en simulation).
- * L'interrupteur de la page est éteint par défaut ; seul le booléen exact `true` l'allume.
+ * Page « Vidéos validées » : allumée par défaut (décision de Williams, 08/11) ; seul le booléen exact `false` l'éteint.
  */
 import "server-only";
 import { libellePublication, occupeBuffer } from "@/domaine/buffer";
 import type { ComptesReseauEnvoi } from "@/domaine/comptes-envoi";
-import type { IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
+import type { EtapeEditoriale, IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
 import type { Tonalite } from "@/domaine/libelles";
 import { premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
 import { depots, ecrireParametre, ErreurStudio, filtreExemples, journaliser, lireParametre, maintenant } from "./_commun";
@@ -17,6 +17,7 @@ import { premierCommentaireDeVideo } from "./premier-commentaire";
 import { casesRequises } from "@/formats";
 import { LIBELLES_VERIFICATIONS, listerAPublier, obtenirKit, reseauxParDefaut, texteAEnvoyer, verificationsManquantes } from "./publications";
 import { versCarte } from "./presentation";
+import { reseauxDeVideoStockee } from "./telechargements";
 
 type CleAvant = keyof typeof LIBELLES_VERIFICATIONS;
 
@@ -27,9 +28,9 @@ const JOURS_PUBLIEES_VISIBLES = 14;
 
 export async function pageAPublierAllumee(): Promise<boolean> {
   try {
-    return (await lireParametre<unknown>(PARAM_PAGE_A_PUBLIER, false)) === true;
+    return (await lireParametre<unknown>(PARAM_PAGE_A_PUBLIER, true)) !== false;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -38,7 +39,7 @@ export async function definirPageAPublier(valeur: unknown): Promise<boolean> {
   if (valeur !== true && valeur !== false) throw new ErreurStudio("CHOIX_INCONNU", "Ce choix n'existe pas.");
   if ((await lireParametre<unknown>(PARAM_PAGE_A_PUBLIER, null)) !== valeur) {
     await ecrireParametre(PARAM_PAGE_A_PUBLIER, valeur);
-    await journaliser("reglages", `Page « À publier » : ${valeur ? "allumée" : "éteinte"}`);
+    await journaliser("reglages", `Page « Vidéos validées » : ${valeur ? "allumée" : "éteinte"}`);
   }
   return valeur;
 }
@@ -97,6 +98,14 @@ export interface LigneAPublier {
   /** Sujet de la version (pour « Programmer »). */
   sujetId?: string;
   etat?: EtatLigneAPublier;
+  /** Tous les réseaux de la vidéo (pastilles de la ligne). */
+  reseauxVideo?: IdReseau[];
+  /** Faux : réseaux prévus par défaut, faute de mieux (pastilles atténuées). */
+  reseauxPrecis?: boolean;
+  /** Image → vidéo : le fichier enregistré est le 9:16 commun, la vidéo se télécharge mais ne part jamais d'ici. */
+  telechargementSeul?: boolean;
+  /** Étape de la vidéo : « Remettre à relire » n'existe que pour une vidéo validée. */
+  etapeVideo?: EtapeEditoriale;
 }
 
 export interface VueAPublier {
@@ -104,6 +113,8 @@ export interface VueAPublier {
   envoiSimule: boolean;
   modeBuffer: ModeEnvoiPublication | null;
   lignes: LigneAPublier[];
+  /** Vidéos prêtes encore à relire (lien « À relire (n) » de l'en-tête). */
+  nbARelire?: number;
 }
 
 /** « 1080x1350 » -> taille ; rien si la valeur est absente ou illisible. */
@@ -146,9 +157,10 @@ export async function vueAPublier(): Promise<VueAPublier> {
     const kit = await obtenirKit(carte.id);
     if (!kit) continue;
     const pubs = await d.publications.lister((p) => p.videoId === carte.id);
-    const voulus = kit.variante ? [kit.variante.reseau] : parDefaut;
     const manquantes = verificationsManquantes(kit);
     const video = await d.videos.obtenir(carte.id);
+    const deLaVideo = video ? await reseauxDeVideoStockee(video, parDefaut) : { reseaux: parDefaut, precis: false, telechargementSeul: false };
+    const voulus = kit.variante ? [kit.variante.reseau] : deLaVideo.reseaux;
     for (const reseau of voulus) {
       const r = kit.reseaux.find((x) => x.reseau === reseau);
       if (!r) continue;
@@ -187,8 +199,13 @@ export async function vueAPublier(): Promise<VueAPublier> {
         ...(blocageVideo ? { blocageVideo } : {}),
         ...(kit.variante?.sujetId ? { sujetId: kit.variante.sujetId } : {}),
         etat: etatDe(derniere, deCeReseau.filter(occupeBuffer), envoi?.comptes[reseau]?.choix),
+        reseauxVideo: kit.variante ? [kit.variante.reseau] : deLaVideo.reseaux,
+        reseauxPrecis: kit.variante ? true : deLaVideo.precis,
+        ...(deLaVideo.telechargementSeul ? { telechargementSeul: true } : {}),
+        ...(carte.etapeEditoriale ? { etapeVideo: carte.etapeEditoriale } : {}),
       });
     }
   }
-  return { envoiSimule: envoi === null, modeBuffer: envoi?.mode ?? null, lignes };
+  const nbARelire = await d.videos.compter((v) => exemples(v) && v.statut === "prete" && v.etapeEditoriale === "a_relire");
+  return { envoiSimule: envoi === null, modeBuffer: envoi?.mode ?? null, lignes, nbARelire };
 }

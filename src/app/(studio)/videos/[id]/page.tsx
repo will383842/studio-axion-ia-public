@@ -21,7 +21,7 @@ import { GabaritFicheVideo } from "@/components/fabrication/GabaritFicheVideo";
 import { ActionsArret } from "@/components/videos/ActionsArret";
 import { peutAnnuler, statutAnnulable } from "@/domaine/corbeille";
 import { BandeauGenerateur } from "@/components/videos/BandeauGenerateur";
-import { EnTeteVideo } from "@/components/videos/EnTeteVideo";
+import { ActionsRapidesVideo, EnTeteVideo } from "@/components/videos/EnTeteVideo";
 import { LecteurVersions } from "@/components/videos/LecteurVersions";
 import { SuiviTravail } from "@/components/videos/SuiviTravail";
 import { aOnglet } from "@/components/videos/fiche/aOnglet";
@@ -29,6 +29,9 @@ import { OngletMiniature } from "@/components/videos/fiche/OngletMiniature";
 import { DemanderModification } from "@/components/videos/fiche/DemanderModification";
 import { OngletRetouches } from "@/components/videos/fiche/OngletRetouches";
 import { OngletSousTitres } from "@/components/videos/fiche/OngletSousTitres";
+import { OngletDetails } from "@/components/videos/fiche/OngletDetails";
+import { SujetReplie, sujetDifferent } from "@/components/videos/fiche/SujetReplie";
+import { reseauxDeLaVideo } from "@/domaine/reseaux-video";
 import { AlerteAjouteesDepuis } from "@/components/prononciations/AlerteAjouteesDepuis";
 import { prononciationsAjouteesDepuisVideo } from "@/services/prononciations";
 import { OngletDistribution, OngletHistorique, OngletReglages, OngletResultats, OngletScript } from "@/components/videos/fiche/OngletsLecture";
@@ -69,6 +72,7 @@ import { ValidationScript } from "@/components/formats/cas-concret/fiche-video/V
 import { vueVotreVideo } from "@/services/monteur-facecam";
 import { OptionsPayantesVideo } from "@/components/options-payantes/CarteOptionPayante";
 import { cartesEnAttente } from "@/services/options-payantes";
+import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatGenerateur";
 import { BlocSurLeSite } from "@/components/videos/fiche/BlocSurLeSite";
 
 export const dynamic = "force-dynamic";
@@ -84,8 +88,9 @@ const compact = new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFra
 /**
  * FICHE VIDÉO (B.8 #8 + AV2.3) — niveau 1.
  * Lecteur au ratio réel + versions, note de qualité, « Avant de publier », KIT DE PUBLICATION,
- * onglets Publier · Retouches · Miniature · Sous-titres · Script · Qui parle · Réglages · Résultats · Historique.
- * Actions collées : Télécharger · Lien privé · Publier (Buffer, en Essai).
+ * Lot F (08/11) : la vidéo d'abord, titre sobre, puis Valider · Télécharger · Lien privé et les pastilles de réseau ;
+ * seules Durée et Vues en chiffres, sujet replié, 6 onglets : Publier · Retouches · Sous-titres · Texte · Résultats · Détails.
+ * Actions collées en bas : Télécharger · Lien privé · Publier (Buffer, en Essai).
  */
 export default async function PageVideo({ params }: { params: Promise<{ id: string }> }) {
   // Session vérifiée ICI, avant toute lecture : le layout est rendu en parallèle (cookie révoqué → aucune donnée).
@@ -127,7 +132,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   const histoTab = tableau ? await historiqueTableau(v.id) : null;
   // Fabrication du tableau arrêtée : les fichiers déjà faits restent téléchargeables, avec ce qui manque.
   const fichiersTab = tableau && d.travail?.statut === "echec" ? await fichiersApresArretTableau(v.id) : null;
-  // Cas concret MD : « Vos fichiers » ; la publication est coupée pour ce format (`ecranVideo.publication`).
+  // Cas concret : « Vos fichiers » ; la publication est coupée pour ce format (`ecranVideo.publication`).
   const vueCas = ficheCasConcretVisible(format) ? await vueCasConcret(v.id) : null;
   // V4-3 : un script écrit qui attend la validation de Will (avant toute voix) : texte dit et ordre des écrans.
   const scriptAValider = ficheCasConcretVisible(format) && d.travail?.statut === "echec" ? await apercuScriptCasConcret(v.id) : null;
@@ -174,9 +179,13 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
     verifiesAuto: principale?.rapportQualite.verifie ?? {},
   };
 
+  // Lot F : seules Durée et Vues en haut ; les coûts passent dans l'onglet Détails.
+  const { reseaux, precis: reseauxPrecis } = reseauxDeLaVideo({ reseau: v.reseau, sortiesReseaux: d.sorties.map((x) => x.reseaux), parDefaut: reglages.reseauxParDefaut });
   const chiffres: ChiffreVideo[] = [
     { libelle: "Durée", valeur: dureeLibelle, icone: "horloge" as const },
     { libelle: "Vues", valeur: resultats.total.vues ? compact.format(resultats.total.vues) : "—", icone: "oeil" as const },
+  ];
+  const chiffresCout: ChiffreVideo[] = [
     // E2E-2 argent n° 6 et 7 : le payé (sans ESSAI) et la part simulée (ESSAI, pas payée) sont séparés.
     ...(facecam ? [] : chiffresCoutVideo({ ...couts, coutEstime: v.coutEstime, fabricationSimulee, estDemo: v.estDemo }).map((c) => ({
       libelle: c.libelle,
@@ -202,7 +211,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
           },
         ]
       : []),
-    ...(prete || d.retouches.length || modifications.length
+    ...(prete || d.retouches.length || modifications.length || d.miniatures.length
       ? [
           {
             valeur: "retouches",
@@ -211,6 +220,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
             compteur: d.retouches.length || undefined,
             contenu: (
               <div className="space-y-4">
+                <RetoucheChatGenerateur videoId={v.id} formatId={v.formatId} {...(d.versionCourante ? { versionId: d.versionCourante.id } : {})} />
                 {!facecam && <DemanderModification videoId={v.id} historique={modifications} possible={prete && !enFabrication} essai={fabricationSimulee} sansPrix={trouverFormat(v.formatId)?.sansPrix === true} {...exemplesRetouche} />}
                 <OngletRetouches
                 videoId={v.id}
@@ -219,18 +229,14 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                 retouches={d.retouches}
                 plans={d.plans.map((p) => ({ id: p.id, ordre: p.ordre, debutSec: p.debutSec, finSec: p.finSec, texte: p.texte, vignette: p.vignette, verrouille: !!p.illustration?.verrouille }))}
                 />
+                {d.miniatures.length > 0 && (
+                  <section>
+                    <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Miniature</h2>
+                    <OngletMiniature videoId={v.id} dureeLibelle={dureeLibelle} couverture={v.couvertureVignette} miniatures={d.miniatures.map((m) => ({ id: m.id, url: m.url, titre: m.titre, choisie: m.choisie, incrustee: !!m.incrustee }))} />
+                  </section>
+                )}
               </div>
             ),
-          },
-        ]
-      : []),
-    ...(d.miniatures.length
-      ? [
-          {
-            valeur: "miniature",
-            libelle: "Miniature",
-            icone: "image" as const,
-            contenu: <OngletMiniature videoId={v.id} dureeLibelle={dureeLibelle} miniatures={d.miniatures.map((m) => ({ id: m.id, url: m.url, titre: m.titre, choisie: m.choisie, incrustee: !!m.incrustee }))} />,
           },
         ]
       : []),
@@ -240,20 +246,37 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
       icone: "sous-titres",
       contenu: <OngletSousTitres videoId={v.id} segments={d.sousTitres?.segments ?? null} liens={telechargements?.sousTitres ?? null} recalquePossible={recalquePossible && !enFabrication} correctionEnAttente={correctionAAppliquer} plans={plansPhrases} />,
     },
-    { valeur: "script", libelle: "Script", icone: "document", contenu: <OngletScript script={d.script} formatId={v.formatId} /> },
-    { valeur: "distribution", libelle: "Qui parle", icone: "personnages", contenu: <OngletDistribution distribution={d.distribution} /> },
     {
-      valeur: "reglages",
-      libelle: "Réglages",
-      icone: "curseurs",
-      contenu: <OngletReglages commande={d.versionCourante?.commande ?? null} mentionIA={v.mentionIA} dureeLibelle={dureeLibelle} ratios={v.ratios} />,
+      valeur: "script",
+      libelle: "Texte",
+      icone: "document",
+      contenu: (
+        <div className="space-y-6">
+          <OngletScript script={d.script} formatId={v.formatId} />
+          <section>
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Qui parle</h2>
+            <OngletDistribution distribution={d.distribution} />
+          </section>
+        </div>
+      ),
     },
     ...(prete ? [{ valeur: "resultats", libelle: "Résultats", icone: "resultats" as const, contenu: <OngletResultats resultats={resultats} exemple={v.estDemo} /> }] : []),
     {
-      valeur: "historique",
-      libelle: "Historique",
-      icone: "horloge",
-      contenu: <OngletHistorique versions={d.versions} publications={d.publications} versionCouranteId={d.versionCourante?.id} />,
+      valeur: "details",
+      libelle: "Détails",
+      icone: "curseurs",
+      contenu: (
+        <OngletDetails couts={chiffresCout}>
+          <section>
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Réglages</h2>
+            <OngletReglages commande={d.versionCourante?.commande ?? null} mentionIA={v.mentionIA} dureeLibelle={dureeLibelle} ratios={v.ratios} />
+          </section>
+          <section>
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Historique</h2>
+            <OngletHistorique versions={d.versions} publications={d.publications} versionCouranteId={d.versionCourante?.id} />
+          </section>
+        </OngletDetails>
+      ),
     },
   ];
 
@@ -283,7 +306,8 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   // La zone « specifique » n'existe que si au moins un de ses blocs s'affiche (sinon le gabarit laisserait un vide).
   const etatVide = !prete && !d.travail && v.statut !== "archivee" && !arretee;
   const ajoutees = !enFabrication && prononciationsAjoutees.length > 0;
-  const aSpecifique = Boolean(d.noteQualite || ajoutees || etatVide || prete || (tableau && (vueTab || histoTab)) || optionsPayantes.length > 0);
+  const sujetReplie = sujetDifferent(titreAffiche(v.titre), v.sujet);
+  const aSpecifique = Boolean(sujetReplie || d.noteQualite || ajoutees || etatVide || prete || (tableau && (vueTab || histoTab)) || optionsPayantes.length > 0);
 
   return (
     <FournisseurVideo donnees={donnees}>
@@ -298,16 +322,16 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
           bandeau={<BandeauGenerateur formatId={d.carte.format.id} className="mb-0" />}
           entete={
             <>
-              <EnTeteVideo videoId={v.id} titre={titreAffiche(v.titre)} statut={v.statut} etapeEditoriale={v.etapeEditoriale} format={d.carte.format} estDemo={v.estDemo} aRelire={aRelire} corbeilleLe={d.carte.corbeilleLe} />
+              <EnTeteVideo videoId={v.id} titre={titreAffiche(v.titre)} statut={v.statut} etapeEditoriale={v.etapeEditoriale} format={d.carte.format} estDemo={v.estDemo} aRelire={aRelire} corbeilleLe={d.carte.corbeilleLe} reseaux={reseaux} reseauxPrecis={reseauxPrecis} actions={prete && kit && !sansPublication ? <ActionsRapidesVideo /> : undefined} />
               {v.statut === "archivee" && <BandeauArchivee videoId={v.id} corbeilleLe={d.carte.corbeilleLe} />}
             </>
           }
           lecteur={lecteur}
           essai={
             versionDEssai && (
-              <div className="flex items-start gap-3 rounded-2xl border border-trait bg-surface-1 px-4 py-3 text-sm text-texte-doux">
-                <PastilleEssai className="mt-0.5 shrink-0" />
-                <p className="min-w-0 flex-1">Vidéo d&apos;essai : une vidéo de démonstration remplace la vôtre. Rien n&apos;a été payé et elle ne part pas sur vos réseaux.</p>
+              <div className="flex items-center gap-3 rounded-2xl border border-trait bg-surface-1 px-4 py-2 text-sm text-texte-doux">
+                <PastilleEssai className="shrink-0" />
+                <p className="min-w-0 flex-1 truncate" title="Vidéo d'essai : une vidéo de démonstration remplace la vôtre. Rien n'a été payé et elle ne part pas sur vos réseaux.">Vidéo d&apos;essai : une vidéo de démonstration remplace la vôtre. Rien n&apos;a été payé et elle ne part pas sur vos réseaux.</p>
               </div>
             )
           }
@@ -353,6 +377,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
               )}
               <OptionsPayantesVideo videoId={v.id} cartes={optionsPayantes} />
               {prete && <BlocSurLeSite videoId={v.id} />}
+              <SujetReplie titre={titreAffiche(v.titre)} sujet={v.sujet} />
             </div>
             )
           }
