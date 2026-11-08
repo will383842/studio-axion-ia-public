@@ -26,6 +26,7 @@ import type {
   VisageResolu,
   VoixBrutePayee,
 } from "@/domaine/types";
+import { RETOUCHE_PAS_DISPONIBLE } from "@/domaine/voix-phrases";
 import { centimesBloquants } from "@/domaine/credits";
 import { motsSousTitres, plansDepuisScript, texteScript } from "@/domaine/derivations";
 import { baseRetenue, fabriquerSousTitres } from "@/briques/sous-titres";
@@ -1064,7 +1065,7 @@ export async function parentDeLaVersion(version: VersionVideo): Promise<ParentRe
 }
 
 /** CORRECTEUR 1 — B1 : phrase montrée à Will quand la retouche d'un passage n'existe pas encore pour cette vidéo. */
-export const RETOUCHE_PAS_DISPONIBLE = "La retouche d'un passage n'est pas encore disponible pour cette vidéo. Votre vidéo reste telle quelle.";
+export { RETOUCHE_PAS_DISPONIBLE };
 
 /** Retouche ciblée d'un ou plusieurs plans : nouvelle version, seuls ces plans sont repayés. Le moteur de la version fait foi. */
 /**

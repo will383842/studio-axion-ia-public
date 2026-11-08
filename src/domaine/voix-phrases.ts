@@ -30,3 +30,6 @@ export function ponctuerPhrase(phrase: string): string {
 export function joindrePhrasesPourVoix(phrases: readonly string[]): string {
   return phrases.map(ponctuerPhrase).filter(Boolean).join(" ");
 }
+
+/** Format qui ne sait pas refaire UNE phrase (avatar, image → vidéo, face caméra animée) : dit en clair, sans argent. */
+export const RETOUCHE_PAS_DISPONIBLE = "Refaire une seule phrase n'est pas possible pour ce format : pour ce changement, il faut refaire la vidéo. Votre vidéo reste telle quelle.";

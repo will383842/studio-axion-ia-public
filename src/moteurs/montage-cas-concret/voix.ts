@@ -105,7 +105,7 @@ function lettresDuSigle(m: string): number {
 }
 
 /** Phrases du texte : coupées après un point suivi d'une majuscule ou d'un chiffre (« I.A. en commentaire » reste entier). */
-function phrasesDe(texte: string): string[] {
+export function phrasesDe(texte: string): string[] {
   return texte
     .trim()
     .split(/(?<=[.!?…]["»”)]?)\s+(?=[«"“(]?[\p{Lu}\p{N}])/u)
