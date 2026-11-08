@@ -287,13 +287,13 @@ describe("R0 — carte Montage : ce qui sera VRAIMENT monté (C2)", () => {
   it("« — » sans serveur de rendu, même avec `moteur.avocat` ; « — » avec le serveur mais sans moteur réel", async () => {
     let r = await charger();
     await r.commun.ecrireParametre("moteur.avocat", "montage-avocat");
-    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual([]);
+    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual([]);
     // Sans serveur de rendu, le tableau animé (actif) n'est pas annoncé non plus.
     expect((await r.connexion("montage")).montageReelPour).toEqual([]);
 
     r = await charger({ STUDIO_RENDU_URL: "http://studio-rendu:4100" });
     await r.complements.definirFournisseur("montage", "studio-rendu");
-    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual([]);
+    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual([]);
   });
 
   it("ROUGE (relecture) — serveur de rendu posé + `moteur.avocat`, carte Montage en Simulation : le type avocat EST monté pour de vrai", async () => {
@@ -302,8 +302,8 @@ describe("R0 — carte Montage : ce qui sera VRAIMENT monté (C2)", () => {
     await r.commun.ecrireParametre("moteur.avocat", "montage-avocat");
     const c = await r.connexion("montage");
     expect(c.etat).toBe("simulation");
-    expect(c.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual(["Type avocat"]);
-    expect(r.ecran.ligneMontageReel(c.montageReelPour)).toBe("Montage réel pour : Type avocat, Tableau animé, Cas concret MD");
+    expect(c.montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Type avocat"]);
+    expect(r.ecran.ligneMontageReel(c.montageReelPour)).toBe("Montage réel pour : Type avocat, Tableau animé, Cas concret");
     // Les autres types ne portent pas cette ligne.
     expect((await r.connexion("voix")).montageReelPour).toBeUndefined();
   });
@@ -311,18 +311,18 @@ describe("R0 — carte Montage : ce qui sera VRAIMENT monté (C2)", () => {
   it("face caméra (format actif) : annoncé monté pour de vrai seulement avec le serveur d'alignement, comme au lancement", async () => {
     // Sans STUDIO_ALIGNEUR_URL, le moteur face caméra refuse le lancement (FACECAM_EN_CHANTIER) : la carte ne le promet pas.
     let r = await charger({ STUDIO_RENDU_URL: "http://studio-rendu:4100" });
-    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual([]);
+    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual([]);
     // Serveur d'alignement posé, chaîne réelle allumée par défaut : le face caméra est monté pour de vrai.
     r = await charger({ STUDIO_RENDU_URL: "http://studio-rendu:4100", STUDIO_ALIGNEUR_URL: "http://studio-aligneur:4200" });
-    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual(["Face caméra"]);
+    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Face caméra"]);
     await r.commun.ecrireParametre("moteur.avocat", "montage-avocat");
-    expect(r.ecran.ligneMontageReel((await r.connexion("montage")).montageReelPour)).toBe("Montage réel pour : Type avocat, Face caméra, Tableau animé, Cas concret MD");
+    expect(r.ecran.ligneMontageReel((await r.connexion("montage")).montageReelPour)).toBe("Montage réel pour : Type avocat, Face caméra, Tableau animé, Cas concret");
     // Chaîne réelle coupée en base (`facecam.aligneur.reel` = false) : plus annoncé.
     await r.commun.ecrireParametre("facecam.aligneur.reel", false);
-    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual(["Type avocat"]);
+    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Type avocat"]);
     // Sans serveur de rendu : « — », même avec le serveur d'alignement.
     r = await charger({ STUDIO_ALIGNEUR_URL: "http://studio-aligneur:4200" });
-    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret MD")).toEqual([]);
+    expect((await r.connexion("montage")).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual([]);
   });
 });
 

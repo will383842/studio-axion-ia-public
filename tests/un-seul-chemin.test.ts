@@ -43,7 +43,7 @@ describe("BarreLaterale : aucun raccourci de création", () => {
   const formats = [
     { id: "avocat", nom: "Vidéo type avocat", icone, statut: "actif" as const, nbVideos: 1, adresseCreation: "/nouvelle/avocat" },
     { id: "tableau-anime", nom: "Tableau animé", icone, statut: "actif" as const, nbVideos: 0, adresseCreation: "/tableau/nouvelle" },
-    { id: "cas-concret", nom: "Cas concret MD", icone, statut: "actif" as const, nbVideos: 0, adresseCreation: "/cas-concret" },
+    { id: "cas-concret", nom: "Cas concret", icone, statut: "actif" as const, nbVideos: 0, adresseCreation: "/cas-concret" },
     { id: "facecam-animee", nom: "Vidéo face caméra animée", icone, statut: "actif" as const, nbVideos: 0, essai: true, adresseCreation: "/face-camera-animee" },
     { id: "image-video", nom: "Image → vidéo", icone, statut: "actif" as const, nbVideos: 2, essai: true, adresseCreation: "/image-video" },
   ];
