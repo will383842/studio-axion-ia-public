@@ -110,10 +110,10 @@ describe("X4 · la recette de la voix du cas concret : gelée (1,1 / 0,20 s / 1,
     void _a;
     void _b;
     void _p;
-    expect(nous).toEqual({ ...tableau, synthese: { ...tableau.synthese, vitesse: 1.1 }, resserrage: { ...tableau.resserrage, blancPhraseSec: 0.2 }, filtres: { ...tableau.filtres, atempo: 1.08 } });
+    expect(nous).toEqual({ ...tableau, synthese: { ...tableau.synthese, vitesse: 1.1 }, resserrage: { ...tableau.resserrage, blancPhraseSec: 0.2 }, filtres: { ...tableau.filtres, atempo: 1, compresseur: "acompressor=threshold=-10dB:ratio=2:attack=25:release=250:makeup=1" } });
     expect(RECETTE_VOIX_CAS_CONCRET.synthese).toEqual({ fournisseur: "heygen", moteur: "starfish", vitesse: 1.1, locale: "fr-FR" });
     expect(RECETTE_VOIX_CAS_CONCRET.resserrage).toEqual({ gardeSec: 0.035, blancMotsSec: 0.1, blancVirguleSec: 0.13, blancPhraseSec: 0.2, fonduMs: 6, queueSec: 0.45 });
-    expect(RECETTE_VOIX_CAS_CONCRET.filtres).toEqual({ atempo: 1.08, passeHaut: "highpass=f=70", compresseur: "acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=3", volume: "loudnorm=I=-14:TP=-1.5:LRA=7" });
+    expect(RECETTE_VOIX_CAS_CONCRET.filtres).toEqual({ atempo: 1, passeHaut: "highpass=f=70", compresseur: "acompressor=threshold=-10dB:ratio=2:attack=25:release=250:makeup=1", volume: "loudnorm=I=-14:TP=-1.5:LRA=7" });
     expect(RECETTE_VOIX_CAS_CONCRET.fin).toEqual({ fonduSortieSec: 0.22, silenceSec: 0.8 });
   });
 
@@ -123,7 +123,7 @@ describe("X4 · la recette de la voix du cas concret : gelée (1,1 / 0,20 s / 1,
     const fin = { mots: [mot("Faites", 0.3, 0.8), mot("votre", 0.85, 1.1), mot("diagnostic.", 1.6, 2.3)], dureeSec: 3 };
     const nous = planRaccordVoix(corps, fin);
     // Comparé au calcul du tableau avec les valeurs du cas concret (le tableau est passé à `atempo` 1,0 et 0,30 s au lot B2a).
-    const recetteTableau108 = { ...RECETTE_VOIX_TABLEAU, resserrage: { ...RECETTE_VOIX_TABLEAU.resserrage, blancPhraseSec: 0.2 }, filtres: { ...RECETTE_VOIX_TABLEAU.filtres, atempo: 1.08 } } as unknown as typeof RECETTE_VOIX_TABLEAU;
+    const recetteTableau108 = { ...RECETTE_VOIX_TABLEAU, resserrage: { ...RECETTE_VOIX_TABLEAU.resserrage, blancPhraseSec: 0.2 }, filtres: { ...RECETTE_VOIX_TABLEAU.filtres, atempo: 1, compresseur: "acompressor=threshold=-10dB:ratio=2:attack=25:release=250:makeup=1" } } as unknown as typeof RECETTE_VOIX_TABLEAU;
     // Le blanc du raccord du tableau suit son blanc de phrase (0,30 s depuis le lot B2a) : on compare donc le corps seul.
     expect(planRaccordVoix(corps)).toEqual(planTableau(corps, undefined, recetteTableau108));
     // Hors la porte de bruit, ajout propre au tableau (14/10/2026).
@@ -131,17 +131,17 @@ describe("X4 · la recette de la voix du cas concret : gelée (1,1 / 0,20 s / 1,
     void _porte;
     expect(parametresRaccord(planRaccordVoix(corps))).toEqual(tableau);
     const filtres = String(parametresRaccord(nous).filtres);
-    expect(filtres).toBe("atempo=1.08,highpass=f=70,acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=3,loudnorm=I=-14:TP=-1.5:LRA=7");
+    expect(filtres).toBe("atempo=1,highpass=f=70,acompressor=threshold=-10dB:ratio=2:attack=25:release=250:makeup=1,loudnorm=I=-14:TP=-1.5:LRA=7");
     expect(filtres.match(/loudnorm/g)).toHaveLength(1);
     // Le raccord : 0,20 s de blanc entre le dernier mot du corps et le premier de la fin.
-    const k = 1.08;
+    const k = 1;
     expect(+((nous.mots[4].debutSec - nous.mots[3].finSec) * k).toFixed(3)).toBe(0.2);
     // Figé EN DUR (lot B2b, relecture B2a : la recette partagée du cas concret ne doit pas bouger avec celle du tableau) :
     // écart entre le dernier mot du corps et le premier mot de la fin = 0,20 / 1,08 s, quelle que soit la recette du tableau.
-    expect(nous.mots[4].debutSec - nous.mots[3].finSec).toBeCloseTo(0.2 / 1.08, 3);
-    expect(+(nous.mots[4].debutSec - nous.mots[3].finSec).toFixed(3)).toBe(0.185);
+    expect(nous.mots[4].debutSec - nous.mots[3].finSec).toBeCloseTo(0.2, 3);
+    expect(+(nous.mots[4].debutSec - nous.mots[3].finSec).toFixed(3)).toBe(0.2);
     expect(RECETTE_VOIX_CAS_CONCRET.resserrage.blancPhraseSec).toBe(0.2);
-    expect(RECETTE_VOIX_CAS_CONCRET.filtres.atempo).toBe(1.08);
+    expect(RECETTE_VOIX_CAS_CONCRET.filtres.atempo).toBe(1);
   });
 
   it("la chaîne raccorde les sons BRUTS du corps et de chaque fin par la recette, un traitement par fin", async () => {

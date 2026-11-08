@@ -25,15 +25,18 @@ export function plansDuMot(plans: PlanPhrase[], mot: string, instantSec?: number
 }
 
 /**
- * « Refaire la phrase seulement » (n° 3, 9) : retouche des seuls plans qui contiennent le mot. Rien ne part sans le
- * geste de Will.
+ * « Refaire la phrase » (n° 3, 9) : UNE seule phrase est refaite (nouvelle prise de cette phrase, les autres gardent la
+ * leur) et l'ancienne version reste. Ni prix ni budget : rien n'est montré, rien n'est estimé. S'il y a plusieurs phrases
+ * avec le mot, on refait la première puis on recommence pour la suivante.
  */
 export function RefairePhrase({ videoId, plans, mot, prononciation, className, compacte }: { videoId: string; plans: PlanPhrase[]; mot: string; prononciation: string; className?: string; compacte?: boolean }) {
   const router = useRouter();
   const [fait, setFait] = useState(false);
   const [enCours, demarrer] = useTransition();
-  const ids = plans.map((p) => p.id);
-  if (!ids.length) return null;
+  const plan = plans[0];
+
+  if (!plan) return null;
+  const idDuPlan = plan.id;
   if (fait) {
     return (
       <p className={cn("flex items-center gap-2 text-sm text-sauge", className)}>
@@ -45,20 +48,17 @@ export function RefairePhrase({ videoId, plans, mot, prononciation, className, c
 
   function refaire() {
     demarrer(async () => {
-      const demande = `Prononciation : « ${mot} » se dit « ${prononciation} »`;
-      let r = await demanderRetoucheAction(videoId, ids, demande, false);
-      // Geste direct : si le serveur demande un accord, il repart aussitôt avec lui (une seule relance).
-      if (!r.ok && r.code === "CONFIRMATION_REQUISE") r = await demanderRetoucheAction(videoId, ids, demande, r.montant ?? true);
+      const r = await demanderRetoucheAction(videoId, [idDuPlan], `Prononciation : « ${mot} » se dit « ${prononciation} »`, true);
       if (!r.ok) return void notifier.erreur(r.message);
       setFait(true);
-      notifier.succes("Phrase en cours de fabrication", "Seuls les plans de ce mot sont refaits.");
+      notifier.succes("Phrase en cours de fabrication", "Seule cette phrase est refaite.");
       router.refresh();
     });
   }
 
   return (
     <Bouton variante={compacte ? "contour" : "principal"} icone="reessayer" chargement={enCours} onClick={refaire} className={className} pleineLargeur={!compacte}>
-      Refaire {ids.length > 1 ? `les ${ids.length} phrases` : "la phrase"}
+      {plans.length > 1 ? `Refaire la phrase (1 sur ${plans.length})` : "Refaire la phrase"}
     </Bouton>
   );
 }
