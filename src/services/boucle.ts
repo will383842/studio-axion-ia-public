@@ -47,6 +47,7 @@ import "./avocat-branchements";
 import "./tableau-branchements";
 import "./cas-concret-branchements";
 import "./tutoriel-branchements";
+import "./demo-facecam-branchements";
 import "./image-video";
 import "./facecam-animee";
 import { avecDelai, ecrireAvancement, ecrireAvancementTardif, ecrirePanne, executerSuites, lireTravauxAAvancer, rattraperFinitions, type ChoixMoteur, type SuiteFabrication } from "./travaux";
