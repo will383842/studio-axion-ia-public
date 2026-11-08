@@ -43,7 +43,6 @@
   "src/components/intensite/CourbeIntensite.tsx",
   "src/components/matieres/FeuilleEnVrac.tsx",
   "src/components/personnages/OngletVoix.tsx",
-  "src/components/prononciations/RefairePhrase.tsx",
   "src/components/reglages/BlocZernio.tsx",
   "src/components/reglages/Budget.tsx",
   "src/components/reglages/Connexions.tsx",

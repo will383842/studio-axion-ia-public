@@ -13,7 +13,7 @@ import type { NatureCas, Offre } from "./cas";
 /** Page du diagnostic en ligne (à faire soi-même, sans réservation) visée par le lien suivi (plan § 4-e). */
 export const PAGE_DIAGNOSTIC = "https://axion-ia.com/fr/diagnostic";
 /** Tempo appliqué à la voix assemblée. */
-export const TEMPO_VOIX = 1.08;
+export const TEMPO_VOIX = 1;
 /** Tenue de l'écran final après le dernier mot, en secondes. */
 export const FIN_APRES_DERNIER_MOT_SEC = 2.1;
 /**
