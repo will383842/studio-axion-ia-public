@@ -70,6 +70,8 @@ COPY --chown=rendu:rendu src/briques/plan-scenes /app/src/briques/plan-scenes
 COPY --chown=rendu:rendu src/briques/jetons-motion.ts /app/src/briques/jetons-motion.ts
 COPY --chown=rendu:rendu src/app/polices/manrope-latin.woff2 /app/src/app/polices/manrope-latin.woff2
 COPY --chown=rendu:rendu src/domaine/facecam-animee/plan.ts /app/src/domaine/facecam-animee/plan.ts
+COPY --chown=rendu:rendu src/moteurs/montage-tutoriel-outil/proprietes.ts /app/src/moteurs/montage-tutoriel-outil/proprietes.ts
+COPY --chown=rendu:rendu src/moteurs/montage-demo-facecam/proprietes.ts src/moteurs/montage-demo-facecam/pistes.ts src/moteurs/montage-demo-facecam/mise-en-page.ts /app/src/moteurs/montage-demo-facecam/
 # Carrousels V2-A (opération `visuel-page`) : la porte d'entrée de la page (schéma Zod strict) et ce qu'elle charge, par
 # imports RELATIFS (l'image n'a pas d'alias `@/`) — brique des visuels avec ses règles JSON, charte lue par les compositions.
 COPY --chown=rendu:rendu src/visuels/proprietes-page.ts /app/src/visuels/proprietes-page.ts
