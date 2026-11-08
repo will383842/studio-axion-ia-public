@@ -23,19 +23,19 @@ export const titreGuideParcours = (env: Env): string => (env.PARCOURS_CONVERSATI
 /** Comptes du parcours (identifiants seulement, jamais un secret). */
 export const comptesParcours = (env: Env = process.env): string[] => (env.PARCOURS_CONVERSATION_COMPTES ?? "").split(",").map((c) => c.trim()).filter(Boolean);
 
-export function textesGuideEnvoyes(titre: string): ResultatTextesGuide {
+export function textesGuideEnvoyes(titre: string, mot = "GUIDE"): ResultatTextesGuide {
   const t = (titre ?? "").trim();
   if (!t) return { ok: false, raison: "titre_guide_absent" };
   const pub = rendreTexteMp("mp-pub-igfb-v1", {});
-  const m1 = rendreTexteMp("mp-m1-v2", { mot: "GUIDE", titre: t });
+  const m1 = rendreTexteMp("mp-m1-v2", { mot, titre: t });
   const m2 = rendreTexteMp("mp-m2-v1", {});
   const recu = rendreTexteMp("mp-recu-v2", { titre: t });
   if (pub === null || m1 === null || m2 === null || recu === null) return { ok: false, raison: "texte_dictionnaire_incomplet" };
   return { ok: true, textes: { pub, m1, m2, recu } };
 }
 
-export function empreinteGuideParcours(titre: string): { ok: true; empreinte: string } | { ok: false; raison: "titre_guide_absent" | "texte_dictionnaire_incomplet" } {
-  const r = textesGuideEnvoyes(titre);
+export function empreinteGuideParcours(titre: string, mot = "GUIDE"): { ok: true; empreinte: string } | { ok: false; raison: "titre_guide_absent" | "texte_dictionnaire_incomplet" } {
+  const r = textesGuideEnvoyes(titre, mot);
   if (!r.ok) return r;
   const rendus = [r.textes.pub, r.textes.m1, r.textes.m2, r.textes.recu];
   const lignes = IDS.map((id, n) => [id, TEXTES_MP[id].version, rendus[n]]);
