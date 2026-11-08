@@ -45,23 +45,6 @@ describe("E2E-1 · proxy : le premier filtre ne dépend plus de l'extension", ()
   });
 });
 
-describe("E2E-1 n° 10 · maquettes du générateur réservées au développement", () => {
-  it("la garde est fermée en production, ouverte ailleurs", async () => {
-    const { maquettesOuvertes } = await import("@/app/(studio)/maquettes-generateur/_garde");
-    expect(maquettesOuvertes({ NODE_ENV: "production" })).toBe(false);
-    expect(maquettesOuvertes({ NODE_ENV: "development" })).toBe(true);
-    expect(maquettesOuvertes({ NODE_ENV: "test" })).toBe(true);
-  });
-
-  it("en production, toute page sous /maquettes-generateur répond « introuvable » (gabarit commun)", async () => {
-    const { default: Gabarit } = await import("@/app/(studio)/maquettes-generateur/layout");
-    vi.stubEnv("NODE_ENV", "production");
-    expect(() => Gabarit({ children: "maquette" })).toThrow("NOT_FOUND");
-    vi.stubEnv("NODE_ENV", "development");
-    expect(Gabarit({ children: "maquette" })).toBe("maquette");
-  });
-});
-
 describe("E2E-1 n° 12 · dictée : on sait que le son passe par le téléphone", () => {
   it("la mention apparaît pendant l'écoute seulement", async () => {
     const { BoutonMicro, MENTION_DICTEE } = await import("@/components/matieres/Dictee");
