@@ -10,8 +10,8 @@ export interface RetraitCas {
   titre: string;
 }
 
-export const PHRASE_CAS_RETIRE = "Ce cas est retiré : il n'est plus proposé. Pour le reprendre : Cas concret MD › Cas retirés › Remettre ce cas.";
-export const PHRASE_RELANCE_CAS_RETIRE = "Ce cas est retiré : cette relance est refusée, rien n'est dépensé. Remettez-le d'abord (Cas concret MD › Cas retirés).";
+export const PHRASE_CAS_RETIRE = "Ce cas est retiré : il n'est plus proposé. Pour le reprendre : Cas concret › Cas retirés › Remettre ce cas.";
+export const PHRASE_RELANCE_CAS_RETIRE = "Ce cas est retiré : cette relance est refusée, rien n'est dépensé. Remettez-le d'abord (Cas concret › Cas retirés).";
 
 const estDate = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v));
 

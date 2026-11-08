@@ -836,7 +836,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, eta
 /* Le moteur                                                             */
 /* ------------------------------------------------------------------ */
 
-const NON_RELIE = "« Cas concret MD » n'est pas relié (voix, stockage des fichiers ou serveur de rendu). Vérifiez Réglages > Connexions, puis réessayez.";
+const NON_RELIE = "« Cas concret » n'est pas relié (voix, stockage des fichiers ou serveur de rendu). Vérifiez Réglages > Connexions, puis réessayez.";
 const VERSION_2 = "viendra en version 2";
 
 /** Refus avant toute réservation : ce qui manque à la commande elle-même. */
