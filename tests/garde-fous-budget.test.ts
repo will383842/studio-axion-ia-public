@@ -94,13 +94,14 @@ describe("1 · plus aucune reprise automatique après une recharge", () => {
     expect((await depots().generations.obtenir(g.id))?.statut).toBe("en-cours");
   });
 
-  it("limite du mois relevée dans Réglages : rien ne repart seul (prête seulement)", async () => {
+  it("limite du mois relevée dans Réglages : rien ne repart seul (prête seulement) ; seule l'Usine attend encore la limite du mois", async () => {
     await credits.declarerRecharge("anthropic", 10_000);
     await ecrireParametre("fournisseur.script", "claude");
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fetchInterdit, attenteMs: () => 0 });
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 0);
     const g = await nouvelleGeneration();
-    expect(await gc.executerRoleFacture(g.id, roleSonde, entree)).toMatchObject({ ok: false, arret: "en-attente-credit" });
+    // 08/11/2026 : la limite du mois n'arrête plus une écriture de Will ; une commande de l'Usine, si.
+    expect(await gc.executerRoleFacture(g.id, roleSonde, entree, { origine: "usine" })).toMatchObject({ ok: false, arret: "en-attente-credit" });
     expect(await gc.definirPlafondMensuelClaude(100)).toEqual([]);
     expect((await depots().generations.obtenir(g.id))?.statut).toBe("en-attente-credit");
     expect(await gc.ecriturePreteAReprendre(g.id)).toBe(true);
@@ -156,7 +157,7 @@ describe("1 · plus aucune reprise automatique après une recharge", () => {
 });
 
 describe("2 · le pire cas de toute la chaîne est réservé avant le premier appel", () => {
-  it("pire cas au-dessus de 1,50 $ : AUCUN appel, statut « plafond-atteint », message avec le prix", async () => {
+  it("pire cas au-dessus de 1,50 $ : réservé et signalé, l'écriture PART (jamais « plafond-atteint », le prix ne bloque jamais)", async () => {
     await credits.declarerRecharge("anthropic", 100_000);
     await ecrireParametre("fournisseur.script", "claude");
     let appels = 0;
@@ -164,17 +165,15 @@ describe("2 · le pire cas de toute la chaîne est réservé avant le premier ap
     const r = await lancer(0);
     if (!r.ok) throw new Error("lancement");
     expect(await bg.tourBoucleGeneration()).toBe(r.generationId);
-    expect(appels).toBe(0);
-    expect((await depots().generations.obtenir(r.generationId))?.statut).toBe("plafond-atteint");
+    expect(appels).toBeGreaterThan(0);
+    expect((await depots().generations.obtenir(r.generationId))?.statut).not.toBe("plafond-atteint");
     const reserve = await gc.lireReserveChaine(r.generationId);
-    expect(reserve).toMatchObject({ accepte: false, plafondUsd: 1.5 });
+    expect(reserve).toMatchObject({ accepte: true, plafondUsd: 1.5 });
     expect(reserve!.pireCasUsd).toBeGreaterThan(1.5);
     const e = await bg.etatEcriture(r.scriptMaitreId);
-    expect(e?.messagePlafond).toMatch(/jusqu'à \d+,\d\d \$ \(.*€\), plus que le plafond de 1,50 \$ par sujet : rien n'est parti/);
-    expect(await depots().notifications.trouver((x) => x.titre === "Écriture non lancée")).toBeTruthy();
-    // Les tours suivants n'appellent toujours rien.
-    await bg.tourBoucleGeneration();
-    expect(appels).toBe(0);
+    expect(e?.messagePlafond ?? "").not.toMatch(/rien n'est parti/);
+    expect(await depots().notifications.trouver((x) => x.titre === "Écriture non lancée")).toBeFalsy();
+    expect(await depots().notifications.trouver((x) => x.titre === "Plafond du sujet dépassé (l'écriture continue)")).toBeTruthy();
   });
 
   it("pire cas sous le plafond : réservé, puis RECALCULÉ à chaque tour (correctif après relecture)", async () => {
