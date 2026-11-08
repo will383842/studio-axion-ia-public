@@ -129,7 +129,8 @@ export function verifierCorpsInbox(
   if (route === "lire-messages") {
     if (d.corps !== undefined) throw refus("Inbox : une lecture ne porte pas de corps.");
     const q = d.query ?? {};
-    if (Object.keys(q).some((k) => k !== "accountId")) throw refus("Inbox : seul accountId est permis en paramètre.");
+    if (Object.keys(q).some((k) => k !== "accountId" && k !== "cursor")) throw refus("Inbox : seuls accountId et cursor sont permis en paramètre.");
+    if (q.cursor !== undefined && (typeof q.cursor !== "string" || !/^[A-Za-z0-9_=.+/-]{1,512}$/.test(q.cursor))) throw refus("Inbox : curseur illisible.");
     exigerCompte(q.accountId, d.comptesPermis);
     return;
   }
