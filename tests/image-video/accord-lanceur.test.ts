@@ -17,7 +17,7 @@ const { lireParametre } = await import("@/services/_commun");
 const { publierVitrineIV, idsVitrineIV } = await import("@/services/image-video-lanceur");
 const { validerScriptImageVideo, prixAffiche } = await import("@/services/image-video-scripts");
 const { validerScriptEtReprendre, reessayerImageVideo, PHRASES_IV } = await import("@/services/image-video-ecran");
-const { outilsImageVideo, PREFIXE_DECISIONS, PHRASE_ACCORD_ABSENT_IV } = await import("@/services/image-video");
+const { outilsImageVideo, PREFIXE_DECISIONS } = await import("@/services/image-video");
 
 const VIDEO = "v-iv-accord";
 
@@ -39,16 +39,17 @@ const decisionsGardees = () => lireParametre<Record<string, Record<string, unkno
 describe("vitrine du lanceur : décision du script et accord du prix, ensemble ou pas du tout", () => {
   beforeEach(() => void reinitialiserDepots());
 
-  it("sans accord, ou avec un accord plus bas que le prix affiché : RIEN n'est écrit (le lanceur ne peut pas avancer)", async () => {
+  it("sans accord, ou avec un accord plus bas que le prix affiché : le prix du jour vaut accord, la décision est écrite, rien ne refuse", async () => {
     const { e, montant } = await vitrineAuScript();
     expect(montant).toBeGreaterThan(0);
-    await expect(validerScriptImageVideo(VIDEO, toutGarder(e))).rejects.toThrow(/Validez de nouveau en confirmant ce prix/);
-    await expect(validerScriptImageVideo(VIDEO, toutGarder(e), montant - 1)).rejects.toThrow(/Rien n'est payé/);
-    expect((await decisionsGardees())?.script).toBeUndefined();
-    // Par l'écran : une phrase, aucune décision gardée.
-    const issue = await validerScriptEtReprendre(VIDEO, { ...toutGarder(e), ajoutsWill: [] }, undefined);
-    expect(issue.statut).toBe("refusee");
-    expect((await decisionsGardees())?.script).toBeUndefined();
+    await expect(validerScriptImageVideo(VIDEO, toutGarder(e))).resolves.toMatchObject({ lanceur: true });
+    expect((await decisionsGardees())?.script).toMatchObject({ proposition: e.propositionScript!.empreinte, accordCentimes: montant });
+    await expect(validerScriptImageVideo(VIDEO, toutGarder(e), montant - 1)).resolves.toMatchObject({ lanceur: true });
+    expect((await decisionsGardees())?.script).toMatchObject({ accordCentimes: montant });
+    // Par l'écran : la reprise part, la décision est gardée.
+    const issue = await validerScriptEtReprendre(VIDEO, { ...toutGarder(e), ajoutsWill: [] }, undefined, { reessayer: async () => undefined });
+    expect(issue).toEqual({ statut: "reprise" });
+    expect((await decisionsGardees())?.script).toBeDefined();
   });
 
   it("avec l'accord : la décision est écrite AVEC le montant accordé ; aucun « Réessayer » n'est lancé sur la vitrine", async () => {
@@ -60,14 +61,14 @@ describe("vitrine du lanceur : décision du script et accord du prix, ensemble o
     expect((await decisionsGardees())?.script).toMatchObject({ proposition: e.propositionScript!.empreinte, accordCentimes: montant });
   });
 
-  it("outils du lanceur : une décision sans accord est ignorée et la voix n'est pas réservée ; avec l'accord, elle compte", async () => {
+  it("outils du lanceur : une décision sans accord compte aussi et la voix est réservée (le prix du jour vaut accord)", async () => {
     await vitrineAuScript();
     const { travailId } = idsVitrineIV(VIDEO);
     const outils = await outilsImageVideo({ videoId: VIDEO, travailId, production: false, accordDuScriptExige: true, lireImageSource: async () => null });
     const { ecrireParametre } = await import("@/services/_commun");
     await ecrireParametre(`${PREFIXE_DECISIONS}${VIDEO}`, { script: { proposition: "p", choixFormules: {} } });
-    expect(await outils.decisions!.script!()).toBeNull();
-    expect(await outils.budget.reserver({ videoId: VIDEO, appelId: "iv-voix-1-1", etape: "voix", fournisseur: "heygen", centimes: 40, caracteres: 900 })).toEqual({ ok: false, message: PHRASE_ACCORD_ABSENT_IV });
+    expect(await outils.decisions!.script!()).toMatchObject({ proposition: "p" });
+    expect(await outils.budget.reserver({ videoId: VIDEO, appelId: "iv-voix-1-1", etape: "voix", fournisseur: "heygen", centimes: 40, caracteres: 900 })).toEqual({ ok: true });
     await ecrireParametre(`${PREFIXE_DECISIONS}${VIDEO}`, { script: { proposition: "p", choixFormules: {}, accordCentimes: 180 } });
     expect(await outils.decisions!.script!()).toMatchObject({ proposition: "p", accordCentimes: 180 });
     expect(await outils.budget.reserver({ videoId: VIDEO, appelId: "iv-voix-1-1", etape: "voix", fournisseur: "heygen", centimes: 40, caracteres: 900 })).toEqual({ ok: true });

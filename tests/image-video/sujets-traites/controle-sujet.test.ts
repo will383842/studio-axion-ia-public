@@ -273,17 +273,17 @@ describe("lot : l'image déjà traitée est sautée et dite, les autres partent"
     expect(await depots().videos.compter()).toBe(avant + 2);
   });
 
-  it("sans accord : le prix demandé est celui des images gardées, et la phrase dit ce qui est sauté ; rien n'est créé", async () => {
+  it("sans accord : aucune confirmation de prix, le lot des images gardées part et la phrase dit ce qui est sauté", async () => {
     await videoDeLImage("B");
     const avant = await compter();
     const r = await lots.deposerLotImageVideo({ images: images("A", "B", "C"), reseaux: RESEAUX }, dep() as never);
-    expect(r.statut).toBe("accord-requis");
-    if (r.statut === "accord-requis") {
-      expect(r.centimes).toBe(PRIX * 2);
-      expect(r.phrase).toContain("B.png");
+    expect(r.statut).toBe("lancee");
+    if (r.statut === "lancee") {
+      expect(r.phraseSautees).toContain("B.png");
       expect(r.sautees?.length).toBe(1);
+      expect((await lots.lireLotIV(r.lotId))!.videos.map((v) => v.fichierId)).toEqual(["A", "C"]);
     }
-    expect(await compter()).toEqual(avant);
+    expect(await compter()).not.toEqual(avant);
   });
 
   it("la même image deux fois dans le lot : seule la première part", async () => {
