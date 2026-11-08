@@ -22,7 +22,7 @@ describe("structure du menu", () => {
     expect(SECTIONS_NAV[0].entrees.map((e) => e.href)).toEqual(["/", "/nouvelle"]);
   });
 
-  it("chaque section titrée a de 2 à 4 entrées (6 au plus quand « À publier » et « Sur le site » sont allumés)", () => {
+  it("chaque section titrée a de 2 à 4 entrées (6 au plus quand « Vidéos validées » et « Sur le site » sont allumés)", () => {
     for (const s of SECTIONS_NAV.filter((x) => x.titre)) {
       expect(s.entrees.length).toBeGreaterThanOrEqual(2);
       expect(s.entrees.length).toBeLessThanOrEqual(4);
@@ -30,9 +30,10 @@ describe("structure du menu", () => {
     for (const s of sectionsLaterales(true, true)) expect(s.entrees.length).toBeLessThanOrEqual(6);
   });
 
-  it("« À publier » et « Sur le site » se rangent juste après « Calendrier »", () => {
+  it("« Vidéos validées » (ex « À publier », décision de Williams du 08/11) et « Sur le site » se rangent juste après « Calendrier »", () => {
     const publier = sectionsLaterales(true, true).find((s) => s.titre === "Publier et mesurer")!;
     expect(publier.entrees.map((e) => e.href).slice(0, 3)).toEqual(["/calendrier", "/a-publier", "/sur-le-site"]);
+    expect(publier.entrees[1].libelle).toBe("Vidéos validées");
     expect(navigationLaterale([], false, false).some((e) => e.href === "/a-publier" || e.href === "/sur-le-site")).toBe(false);
   });
 

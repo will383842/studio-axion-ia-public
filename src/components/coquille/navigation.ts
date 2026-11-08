@@ -19,8 +19,8 @@ export interface SectionNavigation {
   entrees: EntreeNavigation[];
 }
 
-/** « À publier » : les vidéos validées jusqu'à Buffer (visible seulement quand le réglage est allumé). */
-export const ENTREE_A_PUBLIER: EntreeNavigation = { href: "/a-publier", libelle: "À publier", icone: "envoyer" };
+/** « Vidéos validées » : les vidéos validées jusqu'à Buffer (visible seulement quand le réglage est allumé). */
+export const ENTREE_A_PUBLIER: EntreeNavigation = { href: "/a-publier", libelle: "Vidéos validées", icone: "envoyer" };
 
 /** « Sur le site » : la liste de ce qui est en ligne (visible seulement si un générateur est autorisé). */
 export const ENTREE_SUR_LE_SITE: EntreeNavigation = { href: "/sur-le-site", libelle: "Sur le site", icone: "lien" };
@@ -29,7 +29,7 @@ export const ENTREE_SUR_LE_SITE: EntreeNavigation = { href: "/sur-le-site", libe
  * MENU EN SECTIONS (08/11, Williams : « parfaitement compréhensible, sans friction »). Source UNIQUE : la barre latérale,
  * la feuille « Plus » (mobile) et les listes à plat ci-dessous en sont tirées. Ordre du travail : créer → contenus →
  * publier et mesurer → ressources ; les écrans rares (veille, réglages) sont dans le pied, toujours visibles.
- * « À publier » et « Sur le site » s'insèrent après « Calendrier » quand ils sont allumés.
+ * « Vidéos validées » et « Sur le site » s'insèrent après « Calendrier » quand ils sont allumés.
  */
 export const SECTIONS_NAV: readonly SectionNavigation[] = [
   {
@@ -75,7 +75,7 @@ export const NAV_PIED: readonly EntreeNavigation[] = [
   { href: "/reglages", libelle: "Réglages", icone: "reglages" },
 ];
 
-/** Sections réellement affichées : « À publier » puis « Sur le site » juste après Calendrier, quand ils sont allumés. */
+/** Sections réellement affichées : « Vidéos validées » puis « Sur le site » juste après Calendrier, quand ils sont allumés. */
 export function sectionsLaterales(avecSurLeSite = false, avecAPublier = false): SectionNavigation[] {
   return SECTIONS_NAV.map((s) => ({
     titre: s.titre,
