@@ -38,7 +38,7 @@ export function CarteVideo({
         src={v.vignette}
         titre={v.titre}
         ratio={ratioForce ?? v.ratioPrincipal}
-        ratioImage={v.ratioPrincipal}
+        ratioImage={v.ratioVignette ?? v.ratioPrincipal}
         dureeSec={v.statut === "prete" ? v.dureeSec : undefined}
         dureeEnviron={v.dureeEstimee}
         progression={enCours ? v.travail!.progression : enEchec ? (v.travail?.progression ?? 0) : undefined}
