@@ -66,7 +66,7 @@ function LigneEntree({ e, chemin, repliee, sousEntreeActive = false }: { e: Entr
         nouvelle
           ? "my-2 bg-orange text-sur-orange shadow-orange hover:bg-orange-vif"
           : actif
-            ? "bg-surface-2 text-texte"
+            ? "bg-surface-2 font-semibold text-texte"
             : "text-texte-doux hover:bg-surface-2/70 hover:text-texte",
       )}
     >
@@ -98,7 +98,7 @@ function SectionPliable({ titre, idTitre, idListe, contientPageCourante, barreRe
           onClick={basculer}
           aria-expanded={ouverte}
           aria-controls={idListe}
-          aria-label={`${ouverte ? "Replier" : "Déplier"} la section ${titre}`}
+          aria-label={contientPageCourante ? `Section ${titre}, page en cours` : `${ouverte ? "Replier" : "Déplier"} la section ${titre}`}
           aria-disabled={contientPageCourante || undefined}
           className={cn("mb-1 flex min-h-9 w-full items-center justify-between rounded-lg px-3 text-xs font-semibold text-texte-faible transition-colors", contientPageCourante ? "cursor-default" : "hover:bg-surface-2/70 hover:text-texte")}
         >
