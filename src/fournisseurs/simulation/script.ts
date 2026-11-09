@@ -340,11 +340,12 @@ function noterSync(blocs: BlocScript[], recette: RecetteScript, dureeCibleSec: n
     blocs,
     recette.criteres.map((c) => c.id),
     { adresse, sujet, motsParSeconde: recette.motsParSeconde, zones: zonesDe(recette), dureeCibleSec },
-    // Critère propre à un autre format (rythme…) : note stable tirée du texte, comme avant.
-    (id) => 72 + (hache(id + texte) % 22),
+    // Critère non calculé : aucune note inventée, il sort de la moyenne.
+    () => null,
   );
-  const poidsTotal = recette.criteres.reduce((t, c) => t + c.poids, 0) || 1;
-  const globale = Math.round(recette.criteres.reduce((t, c) => t + (detail.criteres[c.id] ?? 0) * c.poids, 0) / poidsTotal);
+  const calcules = recette.criteres.filter((c) => detail.criteres[c.id] !== undefined);
+  const poidsTotal = calcules.reduce((t, c) => t + c.poids, 0);
+  const globale = poidsTotal ? Math.round(calcules.reduce((t, c) => t + detail.criteres[c.id] * c.poids, 0) / poidsTotal) : 0;
   const nom = (id: string) => recette.criteres.find((c) => c.id === id)?.nom ?? id;
   const faible = detail.aRenforcer[0];
   const commentaire =
