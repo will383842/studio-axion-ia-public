@@ -83,44 +83,53 @@ async function vraieVideo(avecMaster = true) {
 const fabriquer = async (v: { id: string; titre: string; ratios: string[] }) => travaux.executerSuites([{ type: "finition", videoId: v.id, titre: v.titre, ratio: v.ratios[0] as never }]);
 
 describe("vignettes · service", () => {
-  it("gabarit Axion par défaut (réglage absent)", { timeout: 60_000 }, async () => {
+  it("par défaut : UNE image tirée de la vidéo FINALE, sans titre ni mot-clé (gabarit image-video-v3)", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await fabriquer(v);
-    expect(recues.length).toBe(3);
-    for (const d of recues) expect(d.parametres.gabarit).toBe("axion-v2");
+    expect(recues.length).toBe(1);
+    expect(recues[0].parametres).toMatchObject({ gabarit: "image-video-v3", couverture: "", motCle: "" });
+    expect(recues[0].parametres.fondPropre).toBeUndefined();
+    expect(recues[0].entrees.video).toContain("finale.mp4");
+    const m = (await depots().miniatures.lister((x) => x.videoId === v.id))[0];
+    expect(m).toMatchObject({ gabarit: "image-video-v3b", choisie: true });
+    expect(m.incrustee).toBeFalsy();
+    expect(m.titre).toBe("");
   });
 
-  it("sans piste master-sans-texte : jamais la vidéo finale, fond propre de la charte (aucune lecture)", { timeout: 60_000 }, async () => {
+  it("la vidéo finale sert même sans piste master-sans-texte ; sans fichier de sortie réel : carte de la charte", { timeout: 60_000 }, async () => {
     const v = await vraieVideo(false);
     await fabriquer(v);
-    expect(recues.length).toBe(3);
-    for (const d of recues) {
-      expect(d.parametres.fondPropre).toBe(true);
-      expect(d.entrees.video).toBeUndefined();
-    }
+    expect(recues.length).toBe(1);
+    expect(recues[0].entrees.video).toContain("finale.mp4");
+    const d = depots();
+    const sortie = (await d.sorties.lister((s) => s.versionId === v.versionChoisieId))[0];
+    await d.fichiers.modifier(sortie.fichierId, { cleStockage: "demo/finale.mp4" });
+    recues.length = 0;
+    const { refaireVignettes } = await import("@/services/miniatures");
+    await refaireVignettes(v.id);
+    expect(recues[0].parametres.fondPropre).toBe(true);
+    expect(recues[0].entrees.video).toBeUndefined();
   });
 
   it("le titre fixé par Williams est celui de l'image ; il n'est jamais remplacé", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
     await fabriquer(v);
+    expect(recues).toHaveLength(1);
     for (const d of recues) expect(d.parametres).toMatchObject({ couverture: "Vos devis sans réponse", motCle: "devis" });
     expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toMatchObject({ texte: "Vos devis sans réponse", fixee: true });
   });
 
-  it("à la création, un titre est PROPOSÉ depuis l'accroche du script et gardé (non fixé)", { timeout: 60_000 }, async () => {
+  it("à la création, AUCUN titre n'est proposé ni écrit, même avec un script (champs vides par défaut)", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await depots().scripts.enregistrer({ id: "scr-vign", formatId: v.formatId, blocs: [{ id: "b1", blocRecette: "accroche", segments: [{ id: "s1", texte: "Votre amende de 135 € n'est pas définitive, contestez-la dans les 45 jours." }] }] } as never);
     await depots().videos.modifier(v.id, { scriptId: "scr-vign" });
     await fabriquer(v);
-    const c = (await depots().videos.obtenir(v.id))!.couvertureVignette!;
-    expect(c.fixee).toBe(false);
-    expect(c.texte.split(/\s+/).length).toBeLessThanOrEqual(5);
-    expect(c.texte).toContain("135");
-    for (const d of recues) expect(d.parametres.couverture).toBe(c.texte);
+    expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toBeUndefined();
+    for (const d of recues) expect(d.parametres.couverture).toBe("");
   });
 
-  it("fixer le titre et le mot refait l'image choisie (l'ancienne reste)", { timeout: 60_000 }, async () => {
+  it("saisir un titre pose le titre sur une NOUVELLE image (l'ancienne reste) ; le vider revient à l'image seule", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await fabriquer(v);
     const avant = (await depots().miniatures.lister((m) => m.videoId === v.id)).find((m) => m.choisie)!;
@@ -128,10 +137,14 @@ describe("vignettes · service", () => {
     await videos.fixerCouvertureVignette(v.id, "Vos devis sans réponse", "devis");
     expect(recues).toHaveLength(1);
     expect(recues[0].parametres).toMatchObject({ couverture: "Vos devis sans réponse", motCle: "devis" });
-    const apres = (await depots().miniatures.obtenir(avant.id))!;
-    expect(apres.fichierId).not.toBe(avant.fichierId);
+    const apres = (await depots().miniatures.lister((m) => m.videoId === v.id)).find((m) => m.choisie)!;
+    expect(apres.id).not.toBe(avant.id);
     expect(await depots().fichiers.obtenir(avant.fichierId)).toBeTruthy();
     expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toEqual({ texte: "Vos devis sans réponse", motCle: "devis", fixee: true });
+    recues.length = 0;
+    await videos.fixerCouvertureVignette(v.id, "", "");
+    expect(recues).toHaveLength(1);
+    expect(recues[0].parametres).toMatchObject({ couverture: "", motCle: "" });
   });
 
   it("un titre de 2 mots est refusé", async () => {
@@ -146,9 +159,9 @@ describe("vignettes · service", () => {
     recues.length = 0;
     const { refaireVignettes } = await import("@/services/miniatures");
     const n = await refaireVignettes(v.id);
-    expect(n).toBe(3);
+    expect(n).toBe(1);
     const apres = await depots().miniatures.lister((m) => m.videoId === v.id);
-    expect(apres).toHaveLength(6);
+    expect(apres).toHaveLength(2);
     for (const a of avant) expect(apres.find((x) => x.id === a.id)!.fichierId).toBe(a.fichierId);
     const choisies = apres.filter((m) => m.choisie);
     expect(choisies).toHaveLength(1);
@@ -159,8 +172,8 @@ describe("vignettes · service", () => {
   it("par lot : les vidéos réelles sans vignette Axion sont refaites ; une vidéo déjà à jour est sautée", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await fabriquer(v);
-    // État d'avant : les miniatures existantes ne portent pas encore le gabarit Axion.
-    for (const m of await depots().miniatures.lister((x) => x.videoId === v.id)) await depots().miniatures.modifier(m.id, { gabarit: undefined });
+    // État d'avant : les miniatures existantes sont des cartes-titre (gabarit Axion v2, lot #261).
+    for (const m of await depots().miniatures.lister((x) => x.videoId === v.id)) await depots().miniatures.modifier(m.id, { gabarit: "axion-v2" });
     const { refaireToutesLesVignettes } = await import("@/services/miniatures");
     recues.length = 0;
     const r1 = await refaireToutesLesVignettes();
@@ -169,6 +182,53 @@ describe("vignettes · service", () => {
     recues.length = 0;
     const r2 = await refaireToutesLesVignettes();
     expect(r2.videos).toBe(0);
+    expect(r2.restantes).toBe(0);
     expect(recues).toHaveLength(0);
+    // Rien n'est effacé : les cartes-titre restent.
+    expect((await depots().miniatures.lister((x) => x.videoId === v.id && x.gabarit === "axion-v2")).length).toBeGreaterThan(0);
+  });
+});
+
+describe("vignettes · ratio réel de la sortie", () => {
+  /** Vidéo dont video.ratios = [9:16] mais dont la seule sortie a le ratio donné (fichier réel). */
+  async function videoSortieUnique(ratio: "1:1" | "16:9" | "9:16" | "4:5") {
+    const v = await vraieVideo();
+    const d = depots();
+    const sorties = await d.sorties.lister((s) => s.versionId === v.versionChoisieId);
+    for (const s of sorties.slice(1)) await d.sorties.supprimer(s.id);
+    await d.sorties.modifier(sorties[0].id, { ratio });
+    await d.videos.modifier(v.id, { ratios: ["9:16"] });
+    return v;
+  }
+  const cas = [["1:1", 1080, 1080], ["4:5", 1080, 1350], ["16:9", 1280, 720], ["9:16", 1080, 1920]] as const;
+  for (const [ratio, l, h] of cas) {
+    it(`sortie ${ratio} avec video.ratios=[9:16] : image ${ratio} non rognée, ratio et marqueur enregistrés`, { timeout: 60_000 }, async () => {
+      const v = await videoSortieUnique(ratio);
+      await fabriquer(v);
+      expect(recues).toHaveLength(1);
+      expect(recues[0].parametres.ratio).toBe(ratio);
+      const m = (await depots().miniatures.lister((x) => x.videoId === v.id))[0];
+      expect(m).toMatchObject({ ratio, gabarit: "image-video-v3b" });
+      expect(await depots().fichiers.obtenir(m.fichierId)).toMatchObject({ largeur: l, hauteur: h });
+    });
+  }
+
+  it("« Refaire toutes les vignettes » recompte une image v3 au mauvais ratio, laisse la bonne, n'efface rien", { timeout: 60_000 }, async () => {
+    const v = await videoSortieUnique("1:1");
+    await fabriquer(v);
+    const d = depots();
+    const m = (await d.miniatures.lister((x) => x.videoId === v.id))[0];
+    const { videosAVignettesAnciennes, refaireToutesLesVignettes } = await import("@/services/miniatures");
+    expect(await videosAVignettesAnciennes()).toHaveLength(0);
+    await d.miniatures.modifier(m.id, { gabarit: "image-video-v3", ratio: "9:16" });
+    expect(await videosAVignettesAnciennes()).toHaveLength(1);
+    await d.miniatures.modifier(m.id, { ratio: "1:1" });
+    expect(await videosAVignettesAnciennes()).toHaveLength(0);
+    await d.miniatures.modifier(m.id, { ratio: "9:16" });
+    recues.length = 0;
+    expect((await refaireToutesLesVignettes()).videos).toBe(1);
+    expect(recues[0].parametres.ratio).toBe("1:1");
+    expect(await d.miniatures.obtenir(m.id)).toBeTruthy();
+    expect(await videosAVignettesAnciennes()).toHaveLength(0);
   });
 });

@@ -64,6 +64,8 @@ beforeEach(async () => {
   reinitialiserRequete();
   recues.length = 0;
   await auth.seConnecter(MDP, false);
+  // Ces essais portent sur la carte-titre (réglage de secours) : le défaut est désormais l'image de la vidéo, sans titre.
+  await (await import("@/services/_commun")).ecrireParametre("miniature.gabarit", "axion-v2");
 });
 
 /** Une vidéo prête devenue « vraie » : fichiers dans notre stockage, vidéo sans texte, aucune miniature. */

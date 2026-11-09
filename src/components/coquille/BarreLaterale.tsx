@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useSyncExternalStore } from "react";
+import { useEffect, useId, useSyncExternalStore, type ReactNode } from "react";
 import { Icone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { cn } from "@/lib/cn";
@@ -19,6 +19,26 @@ function lireRepliee(): boolean {
   } catch {
     return false;
   }
+}
+
+const CLE_SECTION = "studio.sectionRepliee.";
+
+function lireSectionRepliee(titre: string): boolean {
+  try {
+    return localStorage.getItem(CLE_SECTION + titre) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Une section est ouverte sauf si elle est mémorisée repliée ; celle de la page courante et la barre en icônes ne se replient jamais. */
+export function sectionOuverte({ memoriseeRepliee, contientPageCourante, barreRepliee }: { memoriseeRepliee: boolean; contientPageCourante: boolean; barreRepliee: boolean }): boolean {
+  return barreRepliee || contientPageCourante || !memoriseeRepliee;
+}
+
+/** Vrai si la page courante est dans la section, y compris l'adresse de création d'un format actif (sous-entrée de « Mes vidéos »). */
+export function sectionContientPageCourante(entrees: EntreeNavigation[], chemin: string, formats: FormatNavigation[]): boolean {
+  return entrees.some((e) => estActif(chemin, e) || (e.href === "/videos" && formats.some((f) => f.statut === "actif" && formatActif(chemin, f))));
 }
 
 function abonner(rappel: () => void) {
@@ -41,7 +61,7 @@ function LigneEntree({ e, chemin, repliee, sousEntreeActive = false }: { e: Entr
       aria-label={repliee ? e.libelle : undefined}
       aria-current={actif && !sousEntreeActive ? "page" : undefined}
       className={cn(
-        "group relative flex min-h-11 items-center gap-3 rounded-xl text-[15px] font-semibold transition-colors",
+        "group relative flex min-h-9 items-center gap-2 rounded-lg text-sm font-medium transition-colors",
         repliee ? "justify-center" : "px-3",
         nouvelle
           ? "my-2 bg-orange text-sur-orange shadow-orange hover:bg-orange-vif"
@@ -51,9 +71,45 @@ function LigneEntree({ e, chemin, repliee, sousEntreeActive = false }: { e: Entr
       )}
     >
       {actif && !nouvelle && <span aria-hidden className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-orange" />}
-      <Icone nom={e.icone} size={20} className="shrink-0" />
+      <Icone nom={e.icone} size={18} className="shrink-0" />
       {!repliee && <span className="truncate">{e.libelle}</span>}
     </Link>
+  );
+}
+
+/** Section titrée du menu : le titre est un bouton qui plie et déplie la liste (état mémorisé par section). */
+function SectionPliable({ titre, idTitre, idListe, contientPageCourante, barreRepliee, children }: { titre: string; idTitre: string; idListe: string; contientPageCourante: boolean; barreRepliee: boolean; children: ReactNode }) {
+  const memoriseeRepliee = useSyncExternalStore(abonner, () => lireSectionRepliee(titre), () => false);
+  const ouverte = sectionOuverte({ memoriseeRepliee, contientPageCourante, barreRepliee });
+  function basculer() {
+    if (contientPageCourante) return; // toujours ouverte : rien à écrire
+    try {
+      localStorage.setItem(CLE_SECTION + titre, ouverte ? "1" : "0");
+    } catch {
+      /* stockage indisponible : l'état ne sera pas mémorisé */
+    }
+    window.dispatchEvent(new Event(EVENEMENT));
+  }
+  return (
+    <>
+      {!barreRepliee && (
+        <button
+          type="button"
+          onClick={basculer}
+          aria-expanded={ouverte}
+          aria-controls={idListe}
+          aria-label={`${ouverte ? "Replier" : "Déplier"} la section ${titre}`}
+          aria-disabled={contientPageCourante || undefined}
+          className={cn("mb-1 flex min-h-9 w-full items-center justify-between rounded-lg px-3 text-xs font-semibold text-texte-faible transition-colors", contientPageCourante ? "cursor-default" : "hover:bg-surface-2/70 hover:text-texte")}
+        >
+          <span id={idTitre}>{titre}</span>
+          {!contientPageCourante && <Icone nom="chevron-bas" size={14} className={cn("shrink-0 transition-transform", !ouverte && "-rotate-90")} />}
+        </button>
+      )}
+      <ul id={idListe} hidden={!ouverte} className="space-y-0.5" aria-labelledby={!barreRepliee ? idTitre : undefined} aria-label={barreRepliee ? titre : undefined}>
+        {children}
+      </ul>
+    </>
   );
 }
 
@@ -70,7 +126,7 @@ function SousListeFormats({ formats, chemin }: { formats: FormatNavigation[]; ch
             <Link
               href={`/formats/${f.id}`}
               aria-current={fActif ? "page" : undefined}
-              className={cn("flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm transition-colors", fActif ? "bg-surface-2 font-semibold text-texte" : "text-texte-doux hover:bg-surface-2/70 hover:text-texte")}
+              className={cn("flex min-h-8 items-center gap-2 rounded-lg px-2 text-[13px] transition-colors", fActif ? "bg-surface-2 font-semibold text-texte" : "text-texte-doux hover:bg-surface-2/70 hover:text-texte")}
             >
               <Icone nom={f.icone} size={15} className="shrink-0" />
               <span className="flex-1 truncate">{nomCourtFormat(f)}</span>
@@ -105,6 +161,14 @@ export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false, a
     window.dispatchEvent(new Event(EVENEMENT));
   }
 
+  const lignes = (s: { entrees: EntreeNavigation[] }) =>
+    s.entrees.map((e) => (
+      <li key={e.href}>
+        <LigneEntree e={e} chemin={chemin} repliee={repliee} sousEntreeActive={e.href === "/videos" && !repliee && formats.some((f) => f.statut === "actif" && formatActif(chemin, f))} />
+        {e.href === "/videos" && !repliee && <SousListeFormats formats={formats} chemin={chemin} />}
+      </li>
+    ));
+
   return (
     <div
       className={cn(
@@ -134,19 +198,13 @@ export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false, a
             const idTitre = `${idBase}-section-${i}`;
             return (
               <div key={s.titre ?? `tete-${i}`} className={cn(i > 0 && (repliee ? "mt-3 border-t border-trait pt-3" : "mt-5"))}>
-                {s.titre && !repliee && (
-                  <p id={idTitre} className="mb-1 px-3 text-xs font-semibold text-texte-faible">
-                    {s.titre}
-                  </p>
+                {s.titre ? (
+                  <SectionPliable titre={s.titre} idTitre={idTitre} idListe={`${idBase}-liste-${i}`} contientPageCourante={sectionContientPageCourante(s.entrees, chemin, formats)} barreRepliee={repliee}>
+                    {lignes(s)}
+                  </SectionPliable>
+                ) : (
+                  <ul className="space-y-0.5">{lignes(s)}</ul>
                 )}
-                <ul className="space-y-0.5" aria-labelledby={s.titre && !repliee ? idTitre : undefined} aria-label={s.titre && repliee ? s.titre : undefined}>
-                  {s.entrees.map((e) => (
-                    <li key={e.href}>
-                      <LigneEntree e={e} chemin={chemin} repliee={repliee} sousEntreeActive={e.href === "/videos" && !repliee && formats.some((f) => f.statut === "actif" && formatActif(chemin, f))} />
-                      {e.href === "/videos" && !repliee && <SousListeFormats formats={formats} chemin={chemin} />}
-                    </li>
-                  ))}
-                </ul>
               </div>
             );
           })}
@@ -166,7 +224,7 @@ export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false, a
           type="submit"
           title={repliee ? "Me déconnecter" : undefined}
           aria-label={repliee ? "Me déconnecter" : undefined}
-          className={cn("flex min-h-11 w-full items-center gap-3 rounded-xl text-sm font-semibold text-texte-faible hover:bg-surface-2/70 hover:text-texte", repliee ? "justify-center" : "px-3")}
+          className={cn("flex min-h-9 w-full items-center gap-2 rounded-lg text-sm font-medium text-texte-faible hover:bg-surface-2/70 hover:text-texte", repliee ? "justify-center" : "px-3")}
         >
           <Icone nom="deconnexion" size={18} />
           {!repliee && "Me déconnecter"}
