@@ -1,5 +1,5 @@
 /** Contrôles purs du ciblage (aucune entrée-sortie). */
-import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION, type Ciblage, type TailleId, type TypeAutomatisation } from "./types";
+import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION, type Ciblage, type NiveauCible, type TailleId, type TypeAutomatisation } from "./types";
 
 export function normaliser(texte: string): string {
   return texte
@@ -7,7 +7,8 @@ export function normaliser(texte: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[’'`]/g, " ")
-    .replace(/[^a-z0-9€%\s-]/g, " ")
+    .replace(/-/g, " ")
+    .replace(/[^a-z0-9€%\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -39,19 +40,47 @@ const SYNONYMES_TAILLE: Record<TailleId, string[]> = {
 function tailleDansTexte(texte: string): TailleId | null {
   const m = mots(texte);
   const trouvees = (Object.keys(SYNONYMES_TAILLE) as TailleId[]).filter((t) => SYNONYMES_TAILLE[t].some((s) => contientSuite(m, mots(s))));
-  // « petite et moyenne entreprise » contient aussi « moyenne entreprise » : même taille (PME).
-  return trouvees.length === 1 ? trouvees[0] : trouvees.includes("PME") && !trouvees.includes("ETI") ? "PME" : null;
+  return trouvees.length === 1 ? trouvees[0] : null;
 }
 
-/** Vrai si la cible est nommée dans le texte (sans accents ni casse, singulier ou pluriel, élisions). */
+/** Racine commune au masculin et au féminin (électricienne → électricien), pour comparer deux mots. */
+function racineGenre(mot: string): string {
+  const m = racine(mot);
+  if (m.endsWith("ienne")) return m.slice(0, -2);
+  if (m.endsWith("euse")) return `${m.slice(0, -4)}eur`;
+  if (m.endsWith("trice")) return `${m.slice(0, -5)}teur`;
+  return m.length > 4 && m.endsWith("e") ? m.slice(0, -1) : m;
+}
+
+function motsUtiles(texte: string): string[] {
+  return normaliser(texte).split(" ").filter((x) => x && !MOTS_VIDES.has(x)).map(racineGenre);
+}
+
+/** Vrai si la cible est nommée dans le texte (sans accents ni casse, singulier ou pluriel, féminin, élisions), mots dans l'ordre et côte à côte. */
 export function cibleNommee(texteDebut: string, ciblage: Ciblage): boolean {
-  const m = mots(texteDebut);
   if (ciblage.niveau === "taille") {
-    const id = (["TPE", "PME", "ETI"] as TailleId[]).find((t) => mots(ciblage.libelle).includes(racine(t.toLowerCase())));
+    const id = tailleDansTexte(ciblage.libelle);
+    const m = mots(texteDebut);
     return id ? SYNONYMES_TAILLE[id].some((s) => contientSuite(m, mots(s))) : false;
   }
-  const utiles = mots(ciblage.libelle).filter((x) => !MOTS_VIDES.has(x));
-  return utiles.length > 0 && utiles.every((x) => m.includes(x));
+  return contientSuite(motsUtiles(texteDebut), motsUtiles(ciblage.libelle));
+}
+
+/** Libellé de cible acceptable : non vide après trim, une seule ligne, 80 caractères au plus. */
+export function libelleCibleValide(texte: string): boolean {
+  const t = texte.trim();
+  return t.length > 0 && t.length <= LONGUEUR_MAX_LIBELLE && !/[\r\n]/.test(t);
+}
+
+export interface EtatChoixCible {
+  niveau?: NiveauCible;
+  valeur: string;
+}
+
+/** Transition pure de l'écran de choix de cible : changer de niveau ouvre l'étape 2 et vide la valeur. */
+export function appliquerChoix(etat: EtatChoixCible, evenement: { type: "niveau"; niveau: NiveauCible } | { type: "valeur"; valeur: string }): EtatChoixCible {
+  if (evenement.type === "valeur") return { ...etat, valeur: evenement.valeur };
+  return evenement.niveau === etat.niveau ? etat : { niveau: evenement.niveau, valeur: "" };
 }
 
 /** Les 5 premières secondes parlées (~13 mots à 2,6 mots par seconde). */
@@ -104,12 +133,14 @@ function trouverDans(liste: string[], texte: string): string[] {
 /** Déduit un ciblage d'un texte libre ; null si rien (ou plusieurs cibles) de reconnu. */
 export function deduireCiblage(texteLibre: string): Ciblage | null {
   const taille = tailleDansTexte(texteLibre);
-  const metiers = trouverDans(METIERS, texteLibre);
-  const secteurs = trouverDans(SECTEURS, texteLibre);
-  const total = (taille ? 1 : 0) + metiers.length + secteurs.length;
-  if (total !== 1) return null;
-  const faire = (niveau: Ciblage["niveau"], brut: string): Ciblage => ({ niveau, libelle: (AFFICHAGE[brut] ?? brut).slice(0, LONGUEUR_MAX_LIBELLE), origine: "deduite" });
+  const trouvees = [
+    ...trouverDans(METIERS, texteLibre).map((brut) => ({ niveau: "metier" as const, brut })),
+    ...trouverDans(SECTEURS, texteLibre).map((brut) => ({ niveau: "secteur" as const, brut })),
+  ];
+  // Une cible incluse dans une autre plus longue (comptable / expert comptable) n'est pas une seconde cible.
+  const retenues = trouvees.filter((c) => !trouvees.some((d) => d !== c && mots(d.brut).length > mots(c.brut).length && contientSuite(mots(d.brut), mots(c.brut))));
+  if ((taille ? 1 : 0) + retenues.length !== 1) return null;
   if (taille) return { niveau: "taille", libelle: taille, origine: "deduite" };
-  if (metiers.length) return faire("metier", metiers[0]);
-  return faire("secteur", secteurs[0]);
+  const { niveau, brut } = retenues[0];
+  return { niveau, libelle: (AFFICHAGE[brut] ?? brut).slice(0, LONGUEUR_MAX_LIBELLE), origine: "deduite" };
 }

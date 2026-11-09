@@ -33,7 +33,12 @@ function cleCible(s: ScriptPourDoublons): string {
 
 /** Groupes (d'au moins 2 identifiants) de scripts qui se ressemblent. */
 export function doublonsPossibles(scripts: ScriptPourDoublons[]): Id[][] {
-  const eligibles = scripts.filter((s) => s.typeAutomatisation && cleCible(s));
+  const vus = new Set<Id>();
+  const eligibles = scripts.filter((s) => {
+    if (!s.typeAutomatisation || !cleCible(s) || vus.has(s.id)) return false;
+    vus.add(s.id);
+    return true;
+  });
   const mots = new Map(eligibles.map((s) => [s.id, motsSujet(s.sujet)]));
   const parent = new Map(eligibles.map((s) => [s.id, s.id]));
   const racine = (x: Id): Id => {
@@ -49,5 +54,9 @@ export function doublonsPossibles(scripts: ScriptPourDoublons[]): Id[][] {
   }
   const groupes = new Map<Id, Id[]>();
   for (const s of eligibles) groupes.set(racine(s.id), [...(groupes.get(racine(s.id)) ?? []), s.id]);
-  return [...groupes.values()].filter((g) => g.length >= 2);
+  // Ordre déterministe : identifiants triés dans chaque groupe, groupes triés par premier identifiant.
+  return [...groupes.values()]
+    .filter((g) => g.length >= 2)
+    .map((g) => [...g].sort((x, y) => (x < y ? -1 : x > y ? 1 : 0)))
+    .sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
 }

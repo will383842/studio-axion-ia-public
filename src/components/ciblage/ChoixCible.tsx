@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import { appliquerChoix, type EtatChoixCible } from "@/domaine/ciblage/controles";
 import { TAILLES, type NiveauCible } from "@/domaine/ciblage/types";
 
 const NIVEAUX: { id: NiveauCible; libelle: string }[] = [
@@ -14,6 +18,8 @@ export interface ChoixCibleProps {
   chargement?: boolean;
   erreur?: boolean;
   nom?: string;
+  /** Appelé à chaque choix : le niveau courant et la valeur (vide au changement de niveau). */
+  onChange?: (niveau: NiveauCible, valeur: string) => void;
 }
 
 export type EtatSuggestions = "chargement" | "erreur" | "vide" | "rempli";
@@ -31,7 +37,14 @@ const MESSAGES: Record<Exclude<EtatSuggestions, "rempli">, string> = {
 };
 
 /** Étape 1 : le niveau de cible ; étape 2 : la taille, ou un champ libre avec suggestions. Rendu serveur compatible. */
-export function ChoixCible({ niveau, valeur, suggestions = [], chargement, erreur, nom = "cible" }: ChoixCibleProps) {
+export function ChoixCible({ niveau: niveauInitial, valeur: valeurInitiale = "", suggestions = [], chargement, erreur, nom = "cible", onChange }: ChoixCibleProps) {
+  const [choix, setChoix] = useState<EtatChoixCible>({ niveau: niveauInitial, valeur: valeurInitiale });
+  const { niveau, valeur } = choix;
+  const changer = (e: Parameters<typeof appliquerChoix>[1]) => {
+    const suivant = appliquerChoix(choix, e);
+    setChoix(suivant);
+    if (suivant.niveau) onChange?.(suivant.niveau, suivant.valeur);
+  };
   const etat = etatSuggestions({ suggestions, chargement, erreur });
   const idListe = `${nom}-suggestions`;
   return (
@@ -40,7 +53,7 @@ export function ChoixCible({ niveau, valeur, suggestions = [], chargement, erreu
         <legend className="mb-1 text-sm text-texte-doux">Qui visez-vous ?</legend>
         {NIVEAUX.map((n) => (
           <label key={n.id} className="flex items-center gap-2 rounded-lg border border-trait bg-surface-2 px-3 py-2">
-            <input type="radio" name={`${nom}-niveau`} value={n.id} defaultChecked={niveau === n.id} />
+            <input type="radio" name={`${nom}-niveau`} value={n.id} checked={niveau === n.id} onChange={() => changer({ type: "niveau", niveau: n.id })} />
             <span>{n.libelle}</span>
           </label>
         ))}
@@ -50,7 +63,7 @@ export function ChoixCible({ niveau, valeur, suggestions = [], chargement, erreu
           <legend className="mb-1 text-sm text-texte-doux">Quelle taille ?</legend>
           {TAILLES.map((t) => (
             <label key={t.id} className="flex items-center gap-2 rounded-lg border border-trait bg-surface-2 px-3 py-2">
-              <input type="radio" name={`${nom}-taille`} value={t.id} defaultChecked={valeur === t.id} />
+              <input type="radio" name={`${nom}-taille`} value={t.id} checked={valeur === t.id} onChange={() => changer({ type: "valeur", valeur: t.id })} />
               <span>{t.libelle}</span>
             </label>
           ))}
@@ -63,7 +76,8 @@ export function ChoixCible({ niveau, valeur, suggestions = [], chargement, erreu
             name={`${nom}-libelle`}
             type="text"
             maxLength={80}
-            defaultValue={valeur}
+            value={valeur}
+            onChange={(e) => changer({ type: "valeur", valeur: e.target.value })}
             list={etat === "rempli" ? idListe : undefined}
             aria-describedby={`${nom}-aide`}
             className="rounded-lg border border-trait bg-surface-2 px-3 py-2 text-texte"
