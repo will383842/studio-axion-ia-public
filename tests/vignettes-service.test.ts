@@ -91,7 +91,7 @@ describe("vignettes · service", () => {
     expect(recues[0].parametres.fondPropre).toBeUndefined();
     expect(recues[0].entrees.video).toContain("finale.mp4");
     const m = (await depots().miniatures.lister((x) => x.videoId === v.id))[0];
-    expect(m).toMatchObject({ gabarit: "image-video-v3", choisie: true });
+    expect(m).toMatchObject({ gabarit: "image-video-v3b", choisie: true });
     expect(m.incrustee).toBeFalsy();
     expect(m.titre).toBe("");
   });
@@ -186,5 +186,49 @@ describe("vignettes · service", () => {
     expect(recues).toHaveLength(0);
     // Rien n'est effacé : les cartes-titre restent.
     expect((await depots().miniatures.lister((x) => x.videoId === v.id && x.gabarit === "axion-v2")).length).toBeGreaterThan(0);
+  });
+});
+
+describe("vignettes · ratio réel de la sortie", () => {
+  /** Vidéo dont video.ratios = [9:16] mais dont la seule sortie a le ratio donné (fichier réel). */
+  async function videoSortieUnique(ratio: "1:1" | "16:9" | "9:16" | "4:5") {
+    const v = await vraieVideo();
+    const d = depots();
+    const sorties = await d.sorties.lister((s) => s.versionId === v.versionChoisieId);
+    for (const s of sorties.slice(1)) await d.sorties.supprimer(s.id);
+    await d.sorties.modifier(sorties[0].id, { ratio });
+    await d.videos.modifier(v.id, { ratios: ["9:16"] });
+    return v;
+  }
+  const cas = [["1:1", 1080, 1080], ["4:5", 1080, 1350], ["16:9", 1280, 720], ["9:16", 1080, 1920]] as const;
+  for (const [ratio, l, h] of cas) {
+    it(`sortie ${ratio} avec video.ratios=[9:16] : image ${ratio} non rognée, ratio et marqueur enregistrés`, { timeout: 60_000 }, async () => {
+      const v = await videoSortieUnique(ratio);
+      await fabriquer(v);
+      expect(recues).toHaveLength(1);
+      expect(recues[0].parametres.ratio).toBe(ratio);
+      const m = (await depots().miniatures.lister((x) => x.videoId === v.id))[0];
+      expect(m).toMatchObject({ ratio, gabarit: "image-video-v3b" });
+      expect(await depots().fichiers.obtenir(m.fichierId)).toMatchObject({ largeur: l, hauteur: h });
+    });
+  }
+
+  it("« Refaire toutes les vignettes » recompte une image v3 au mauvais ratio, laisse la bonne, n'efface rien", { timeout: 60_000 }, async () => {
+    const v = await videoSortieUnique("1:1");
+    await fabriquer(v);
+    const d = depots();
+    const m = (await d.miniatures.lister((x) => x.videoId === v.id))[0];
+    const { videosAVignettesAnciennes, refaireToutesLesVignettes } = await import("@/services/miniatures");
+    expect(await videosAVignettesAnciennes()).toHaveLength(0);
+    await d.miniatures.modifier(m.id, { gabarit: "image-video-v3", ratio: "9:16" });
+    expect(await videosAVignettesAnciennes()).toHaveLength(1);
+    await d.miniatures.modifier(m.id, { ratio: "1:1" });
+    expect(await videosAVignettesAnciennes()).toHaveLength(0);
+    await d.miniatures.modifier(m.id, { ratio: "9:16" });
+    recues.length = 0;
+    expect((await refaireToutesLesVignettes()).videos).toBe(1);
+    expect(recues[0].parametres.ratio).toBe("1:1");
+    expect(await d.miniatures.obtenir(m.id)).toBeTruthy();
+    expect(await videosAVignettesAnciennes()).toHaveLength(0);
   });
 });
