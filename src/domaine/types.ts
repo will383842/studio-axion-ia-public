@@ -1,3 +1,4 @@
+import type { Ciblage, MarqueAncien, TypeAutomatisation } from "./ciblage/types";
 /**
  * Modèle de données complet du Studio (PLAN B.7 + AVENANT 2 : AV2.2, AV2.3, AV2.4).
  *
@@ -595,6 +596,11 @@ export interface Script extends EntiteBase {
   versionFormat: number;
   sujet: string;
   cible?: string;
+  /** Ciblage structuré (lot A) : facultatif. */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
+  ancien?: MarqueAncien;
+  doublonsPossibles?: Id[];
   ton?: string;
   /** Tu ou vous (B.0 §15). Absent : la valeur de « Ma façon de parler ». */
   adresse?: Adresse;
@@ -734,6 +740,8 @@ export interface StylesChoisis {
 
 export interface Video extends EntiteBase {
   titre: string;
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
   sujet?: string;
   formatId: string;
   versionFormat: number;
@@ -2142,6 +2150,8 @@ export interface ScriptMaitre extends EntiteBase {
     adresseParDefaut: Adresse;
     modeParDefaut?: ModeDiction;
     cible?: string;
+    ciblage?: Ciblage;
+    typeAutomatisation?: TypeAutomatisation;
     pilier?: string;
     motCle?: { forme: string; source: "creator-search-insights" | "search-console" | "hypothese" };
     serieId?: Id;
