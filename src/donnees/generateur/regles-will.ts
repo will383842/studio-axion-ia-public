@@ -19,7 +19,7 @@ export const REGLES_WILL = [
   "- Apporter de la valeur, mais ne JAMAIS conclure par « faites-le vous-même » : la fin dit ce que nous mettons en place.",
   "- Pas de suite de consignes à l'impératif adressées au spectateur : ce serait un tutoriel.",
   "- Pas d'annonce d'outil ni de nouveauté (« dernière mise à jour », « l'annonce de ») : on parle du bénéfice pour l'entreprise.",
-  "- Une vidéo = UNE cible (TPE, PME, ETI ou grand groupe), jamais plusieurs.",
+  "- Une vidéo = UNE cible (un métier, un secteur, ou une taille : TPE, PME, ETI), jamais plusieurs, nommée dans les 5 premières secondes.",
   "- Pas de tics d'IA : jamais « ce n'est pas X, c'est Y », aucun superlatif creux.",
   `- Mots et tournures que le contrôle refuse (les éviter dès l'écriture) : tics d'IA : ${citer(TICS_IA_WILL)} ; annonces d'outil : ${citer(ANNONCES_OUTIL_WILL)}.`,
   "- Interdits permanents : aucun gain garanti, aucun chiffre sans source (une <preuve> fournie), aucun faux client.",

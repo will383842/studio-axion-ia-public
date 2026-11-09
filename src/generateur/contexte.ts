@@ -14,6 +14,8 @@
 import { anonymiser, utilisable, type ConsignesDiversite } from "@/domaine/controles-script";
 import type { StructureGenerateur } from "@/domaine/controles-script/types";
 import { memeValeur, nombresAffirmes } from "@/domaine/nombres-fr";
+import type { Ciblage, TypeAutomatisation } from "@/domaine/ciblage/types";
+import { TYPES_AUTOMATISATION, LONGUEUR_MAX_LIBELLE } from "@/domaine/ciblage/types";
 import type { Adresse, ChoixSerie, ContexteAxion, ExempleStyle, FicheStyle, Matiere, ModeDiction, ObjectifSujet, Preuve, ReseauDeclinaison, ScriptMaitre } from "@/domaine/types";
 import { CADRE_AXION } from "@/donnees/generateur/domaine-axion";
 import { EXTRAITS_AVOCATREF, rendreExtraits } from "@/donnees/generateur/modeles-avocatref";
@@ -32,6 +34,9 @@ export interface DonneesGeneration {
     objectif: ObjectifSujet;
     niveauConscience: ScriptMaitre["brief"]["niveauConscience"];
     cible?: string;
+    /** Cible choisie (métier, secteur ou taille) : nommée dans les 5 premières secondes. */
+    ciblage?: Ciblage;
+    typeAutomatisation?: TypeAutomatisation;
     motCle?: string;
     adresse: Adresse;
     mode: ModeDiction;
@@ -242,17 +247,26 @@ export function rendreReseau(r: ReseauDeclinaison, p: ParametresGenerateur): str
   ].join(" | ");
 }
 
+const NIVEAU_DIT = { metier: "métier", secteur: "secteur", taille: "taille" } as const;
+
+/** Libellé de cible pour une consigne : une ligne, 80 caractères au plus, passé à l'anonymisation. */
+function libelleCible(c: Ciblage, noms: string[]): string {
+  return propre(c.libelle.replace(/\s+/g, " ").trim().slice(0, LONGUEUR_MAX_LIBELLE), noms);
+}
+
 /** Le sujet, en données. */
 export function rendreSujet(d: DonneesGeneration): string {
   const s = d.sujet;
   // Même liste que le socle (liste globale du stock quand elle est donnée, relecture A09).
   const noms = nomsDuSocle(d);
+  const typeDit = TYPES_AUTOMATISATION.find((t) => t.id === s.typeAutomatisation)?.libelle;
   return [
     `<sujet>`,
     `Idée : ${propre(s.idee, noms)}`,
     s.pilier ? `Pilier d'Axion-IA : ${s.pilier.nom}` : "",
     `But : ${s.objectif} · niveau de conscience : ${s.niveauConscience} · adresse : ${s.adresse} · qui parle : ${s.mode === "avatar" ? "le double de Will (texte écrit d'avance)" : "Will lui-même"}`,
-    s.cible ? `Cible : ${s.cible}` : "",
+    s.ciblage ? `Cible : ${libelleCible(s.ciblage, noms)} (${NIVEAU_DIT[s.ciblage.niveau]}), à nommer dans les 5 premières secondes` : s.cible ? `Cible : ${s.cible}` : "",
+    typeDit ? `Type d'automatisation : ${typeDit}` : "",
     s.motCle ? `Mot-clé cherché : ${s.motCle}` : "",
     s.sujetSensible ? `Sujet sensible : ${s.sujetSensible} (jamais un conseil personnalisé)` : "",
     `Réseaux : ${s.reseaux.join(", ")}${s.stadeCompte ? ` · comptes : ${s.stadeCompte}` : ""}`,

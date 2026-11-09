@@ -1,7 +1,7 @@
 /** Lot C3 : l'action de création refuse un sujet sans cible (CIBLE_ABSENTE) ; ailleurs, l'absence n'est jamais bloquante. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const lancerGeneration = vi.fn(async () => ({ scriptMaitreId: "suj-1", ok: true }));
+const lancerGeneration = vi.fn(async (_brief: unknown) => ({ scriptMaitreId: "suj-1", ok: true }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
 vi.mock("@/services/boucle-generation", () => ({ lancerGeneration }));
