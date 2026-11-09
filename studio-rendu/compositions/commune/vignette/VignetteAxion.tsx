@@ -49,12 +49,12 @@ function dimensionsImage(url: string): Promise<{ l: number; h: number }> {
 export function VignetteAxion(entree: ProprietesVignetteAxion) {
   const p = proprietesVignette(entree);
   const { largeur, hauteur } = dimensionsVignette(p.ratio);
-  const vertical = p.ratio === "9:16";
+  const vertical = p.ratio !== "16:9";
   const amb = AMBIANCES[p.ambiance];
   const encre = p.ambiance === "encre";
   // Sans image ni sujet (Instagram, ou fond propre de la charte) : titre centré, gros, dans la zone sûre.
   const sansImage = p.instagram || (!p.image && !p.sujet);
-  const def: MiseDef = p.instagram ? MISE_INSTAGRAM : sansImage ? { ...MISE_FOND_PROPRE, titre: p.ratio === "16:9" ? { ...MISES["16:9"].m2.titre, x: 96, largeur: 1088, y: 250, align: "centre" } : MISE_FOND_PROPRE.titre } : MISES[p.ratio][p.mise];
+  const def: MiseDef = p.instagram ? MISE_INSTAGRAM : sansImage ? { ...MISE_FOND_PROPRE, titre: p.ratio === "16:9" ? { ...MISES["16:9"].m2.titre, x: 96, largeur: 1088, y: 250, align: "centre" } : p.ratio === "9:16" ? MISE_FOND_PROPRE.titre : { ...MISE_FOND_PROPRE.titre, y: Math.round(hauteur / 2 - 160) } } : MISES[p.ratio][p.mise];
   const T = def.titre;
 
   const [attente] = useState(() => delayRender("Mise en page de la vignette"));
