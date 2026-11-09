@@ -25,7 +25,8 @@ describe("titres de section en boutons", () => {
       expect(b).toContain('aria-expanded="true"');
       expect(b).toMatch(/aria-controls="[^"]+"/);
     }
-    for (const t of ["Contenus", "Publier et mesurer", "Ressources"]) expect(html).toContain(`aria-label="Replier la section ${t}"`);
+    for (const t of ["Publier et mesurer", "Ressources"]) expect(html).toContain(`aria-label="Replier la section ${t}"`);
+    expect(html).toContain('aria-label="Section Contenus, page en cours"');
   });
 
   it("chaque bouton pointe une liste existante, visible par défaut", () => {
@@ -72,7 +73,7 @@ describe("section contenant la page courante", () => {
 
 describe("section de la page courante : pas de flèche", () => {
   it("/carrousels est dans « Contenus » : son titre n'est pas cliquable, sans flèche", () => {
-    const b = boutons.find((x) => x.includes("section Contenus"))!;
+    const b = boutons.find((x) => x.includes("Section Contenus"))!;
     expect(b).toContain('aria-disabled="true"');
     const i = html.indexOf(b);
     expect(html.slice(i, html.indexOf("</button>", i))).not.toContain("<svg");
@@ -95,5 +96,20 @@ describe("barre latérale compacte (bureau)", () => {
   });
   it("le pied (Déconnexion) suit le même gabarit", () => {
     expect(html).toMatch(/flex min-h-9 w-full items-center gap-2 rounded-lg text-sm font-medium[^"]*"[^>]*>(?:<svg|<span)[\s\S]*?Me déconnecter/);
+  });
+});
+
+describe("finitions (relecture de #265)", () => {
+  it("la section courante annonce « page en cours » et non « Replier »", () => {
+    const b = boutons.find((x) => x.includes("Contenus"))!;
+    expect(b).toContain('aria-label="Section Contenus, page en cours"');
+    expect(b).not.toContain("Replier la section Contenus");
+  });
+  it("l'entrée active est en gras (font-semibold), les autres non", () => {
+    const actif = html.match(/<a[^>]*aria-current="page"[^>]*>/)?.[0] ?? "";
+    expect(actif).toContain("font-semibold");
+    const autres = (html.match(/<a[^>]*>/g) ?? []).filter((a) => !a.includes('aria-current="page"') && !a.includes("bg-orange"));
+    expect(autres.length).toBeGreaterThan(0);
+    for (const a of autres) expect(a).not.toContain("font-semibold");
   });
 });
