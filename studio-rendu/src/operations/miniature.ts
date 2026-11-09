@@ -9,6 +9,7 @@
  * Entrée : `video` (adresse signée : la vidéo SANS texte de préférence, sinon la vidéo finale).
  * Paramètres : `instantSec`, `dureeSec` (facultatif), `ratio`, `couverture`, `motCle`, `variante` (0, 1, 2).
  * Fond propre (`fondPropre: true` ou aucune image acceptable) : fond de la charte, titre seul.
+ * Gabarit `image-video-v3` : première bonne image de la vidéo finale, sans titre (voir `operationImageVideo`).
  * Gabarit `axion-v2` (vignettes, lot 1) : `gabarit`, `ambiance`, `mise`, `instagram`, `generateur`, entrée facultative `sujet`.
  * Sans `gabarit` (ou `r4`) : le comportement d'avant, inchangé.
  * Mesures : instant retenu, flou, luminosité, largeur, hauteur, octets.
@@ -86,6 +87,38 @@ export function choisirPlusNette(mesures: MesureImage[], instantVise: number): M
     if (fb === fa && proche) return b;
     return a;
   });
+}
+
+/** Fin des « premières secondes » où l'on cherche la première image bonne. */
+export const DEBUT_BON_SEC = 2;
+/** Limite du repli : la meilleure image des 6 premières secondes. */
+export const DEBUT_SECOURS_SEC = 6;
+
+/**
+ * Instants à examiner au début de la vidéo finale. `premiers` : 0,05 s puis pas de 0,1 s jusqu'à 2 s ; `secours` :
+ * pas de 0,25 s de 2 s à 6 s. Jamais au-delà de la durée. PUR.
+ */
+export function instantsDebut(dureeSec: number): { premiers: number[]; secours: number[] } {
+  const max = Math.max(0.05, dureeSec - 0.15);
+  const arrondi = (t: number) => Math.round(t * 1000) / 1000;
+  const premiers: number[] = [];
+  for (let t = 0.05; t <= DEBUT_BON_SEC + 1e-9 && t <= max; t = t === 0.05 ? 0.1 : arrondi(t + 0.1)) premiers.push(arrondi(t));
+  const secours: number[] = [];
+  for (let t = 2.25; t <= DEBUT_SECOURS_SEC + 1e-9 && t <= max; t = arrondi(t + 0.25)) secours.push(t);
+  return { premiers, secours };
+}
+
+/**
+ * Image de départ de la vignette : la PREMIÈRE image bonne des 2 premières secondes (celle que les réseaux montrent
+ * quand la vidéo se lance). Aucune ne passe : la meilleure des 6 premières secondes, pourvu qu'elle ne soit ni noire ni
+ * vide. Sinon null (carte de la charte, en dernier recours). PUR.
+ */
+export function choisirImageDebut(mesures: MesureImage[]): MesureImage | null {
+  const triees = [...mesures].sort((a, b) => a.instantSec - b.instantSec);
+  const premiere = triees.find((m) => m.instantSec <= DEBUT_BON_SEC + 1e-9 && jugerImage(m));
+  if (premiere) return premiere;
+  const utilisables = triees.filter((m) => (m.luminosite === undefined || (m.luminosite >= LUMINOSITE_MIN && m.luminosite <= LUMINOSITE_MAX)) && m.instantSec <= DEBUT_SECOURS_SEC + 1e-9);
+  return utilisables.length ? choisirPlusNette(utilisables, 0) : null;
 }
 
 /** Mise à la taille de la miniature (recadrage au centre si besoin) et légère netteté. PUR. */
@@ -284,8 +317,84 @@ async function operationVignette(demande: Parameters<Operation>[0], contexte: Co
   return { mesures };
 }
 
+/** Mise à la taille SANS retouche de couleur : l'image est celle de la vidéo, telle quelle. PUR. */
+export function filtreFondFidele(largeur: number, hauteur: number): string {
+  return `scale=${largeur}:${hauteur}:force_original_aspect_ratio=increase:flags=lanczos,crop=${largeur}:${hauteur},format=rgb24`;
+}
+
+/**
+ * Gabarit `image-video-v3` : la vignette est une vraie image du DÉBUT de la vidéo finale, sans titre ajouté (celle que
+ * les réseaux montrent au lancement). Titre (`couverture`) seulement si Williams en a saisi un. Aucune image
+ * utilisable (ou pas de vidéo lisible) : carte de la charte, en dernier recours.
+ */
+async function operationImageVideo(demande: Parameters<Operation>[0], contexte: ContexteOperation, rendre: RendreVignette): ReturnType<Operation> {
+  const p = demande.parametres;
+  const ratio = p.ratio === "16:9" ? "16:9" : "9:16";
+  const format = formatMiniature(ratio);
+  const couverture = typeof p.couverture === "string" ? p.couverture.trim().slice(0, 80) : "";
+  const base: Parameters<typeof proprietesVignette>[0] = {
+    ratio,
+    ambiance: p.ambiance as AmbianceVignette | undefined,
+    mise: p.mise as MiseVignette | undefined,
+    couverture,
+    motCle: typeof p.motCle === "string" ? p.motCle.slice(0, 60) : undefined,
+  };
+  const mesures: Record<string, number> = { largeur: format.largeur, hauteur: format.hauteur };
+  const png = join(contexte.dossier, "miniature.png");
+  let choisie: MesureImage | null = null;
+  if (p.fondPropre !== true && demande.entrees.video) {
+    const url = entreePermise(demande.entrees.video);
+    const dureeSec = Number.isFinite(Number(p.dureeSec)) && Number(p.dureeSec) > 0 ? Number(p.dureeSec) : await dureeMedia(url, contexte.signal, argumentsLecture(url));
+    const { premiers, secours } = instantsDebut(dureeSec);
+    const vues: MesureImage[] = [];
+    const fichiers = new Map<number, string>();
+    // 2 premières secondes d'abord, on s'arrête à la première image bonne ; le repli (jusqu'à 6 s) seulement si aucune ne passe.
+    for (const [i, t] of [...premiers, ...secours].entries()) {
+      const chemin = join(contexte.dossier, `debut-${i}.png`);
+      try {
+        await extraire(url, t, chemin, contexte.signal);
+        await stat(chemin);
+      } catch (e) {
+        if (e instanceof ErreurRendu && /403|404|Forbidden|Not Found/i.test(e.message)) throw new ErreurRendu({ code: "fichier-inaccessible", reessayable: true, message: "Vidéo inaccessible (adresse expirée ?)." });
+        continue;
+      }
+      const m = await mesurer(chemin, t, contexte.signal);
+      vues.push(m);
+      fichiers.set(t, chemin);
+      contexte.progression(5 + Math.min(45, i));
+      if (t <= DEBUT_BON_SEC && jugerImage(m)) break;
+    }
+    mesures.candidats = vues.length;
+    choisie = choisirImageDebut(vues);
+    if (choisie) {
+      mesures.instant = choisie.instantSec;
+      if (choisie.flou !== undefined) mesures.flou = choisie.flou;
+      if (choisie.luminosite !== undefined) mesures.luminosite = choisie.luminosite;
+      await executer(FFMPEG, ["-hide_banner", "-v", "error", "-y", "-i", fichiers.get(choisie.instantSec)!, "-vf", filtreFondFidele(format.largeur, format.hauteur), "-frames:v", "1", join(contexte.dossier, "fond.png")], contexte.signal);
+    }
+  }
+  if (!choisie) mesures.fondPropre = 1;
+  contexte.progression(55);
+  if (choisie && !couverture) {
+    await copyFile(join(contexte.dossier, "fond.png"), png);
+  } else {
+    const serveur = await servirDossier(contexte.dossier);
+    try {
+      await rendre(proprietesVignette(choisie ? { ...base, image: `${serveur.base}/fond.png` } : base), png, contexte);
+    } finally {
+      await serveur.fermer();
+    }
+  }
+  contexte.progression(85);
+  const jpeg = join(contexte.dossier, "miniature.jpg");
+  mesures.octets = await encoderJpeg(png, jpeg, contexte.signal);
+  await deposer(demande.sortie.urlDepot, jpeg, "image/jpeg", contexte.signal);
+  return { mesures };
+}
+
 export function creerOperationMiniature(rendre: RendreMiniature = rendreAvecRemotion, rendreVignette: RendreVignette = rendreVignetteAvecRemotion): Operation {
   return async (demande, contexte) => {
+    if (demande.parametres.gabarit === "image-video-v3") return operationImageVideo(demande, contexte, rendreVignette);
     if (demande.parametres.gabarit === "axion-v2") return operationVignette(demande, contexte, rendreVignette);
     if (!demande.entrees.video) throw new ErreurRendu({ code: "refuse", reessayable: false, message: "Entrée « video » manquante." });
     const url = entreePermise(demande.entrees.video);

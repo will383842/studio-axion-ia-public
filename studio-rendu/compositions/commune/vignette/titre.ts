@@ -69,5 +69,6 @@ export function mettreTitreVignette(e: EntreeTitre): TitreVignette {
   let k = 0;
   const lignes = mise.lignes.map((l) => l.map(() => unites[k++]));
   const trop = mise.taillePx < base * (1 - REDUCTION_MAX);
-  return { lignes, taillePx: Math.max(mise.taillePx, Math.ceil(base * (1 - REDUCTION_MAX))), trop };
+  // Jamais de débordement : la taille qui TIENT dans la zone (même sous la réduction usuelle), jamais relevée de force.
+  return { lignes, taillePx: Math.min(mise.taillePx, base), trop };
 }
