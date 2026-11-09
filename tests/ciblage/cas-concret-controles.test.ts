@@ -11,7 +11,7 @@ void recrutementApporteurs;
 
 function ficheDit(...phrases: string[]): FicheEcrans {
   const f = ficheVideo1();
-  return { ...f, ecrans: f.ecrans.map((e, i) => ({ ...e, texteDit: phrases[i] ?? e.texteDit })) as FicheEcrans["ecrans"] };
+  return { ...f, ecrans: f.ecrans.map((e, i) => ({ ...e, texteDit: phrases[i] ?? "Et voilà." })) as FicheEcrans["ecrans"] };
 }
 const metier = (libelle: string) => ({ niveau: "metier" as const, libelle, origine: "saisie" as const });
 
