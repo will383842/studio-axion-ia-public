@@ -61,7 +61,7 @@ function LigneEntree({ e, chemin, repliee, sousEntreeActive = false }: { e: Entr
       aria-label={repliee ? e.libelle : undefined}
       aria-current={actif && !sousEntreeActive ? "page" : undefined}
       className={cn(
-        "group relative flex min-h-11 items-center gap-3 rounded-xl text-[15px] font-semibold transition-colors",
+        "group relative flex min-h-9 items-center gap-2 rounded-lg text-sm font-medium transition-colors",
         repliee ? "justify-center" : "px-3",
         nouvelle
           ? "my-2 bg-orange text-sur-orange shadow-orange hover:bg-orange-vif"
@@ -71,7 +71,7 @@ function LigneEntree({ e, chemin, repliee, sousEntreeActive = false }: { e: Entr
       )}
     >
       {actif && !nouvelle && <span aria-hidden className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-orange" />}
-      <Icone nom={e.icone} size={20} className="shrink-0" />
+      <Icone nom={e.icone} size={18} className="shrink-0" />
       {!repliee && <span className="truncate">{e.libelle}</span>}
     </Link>
   );
@@ -126,7 +126,7 @@ function SousListeFormats({ formats, chemin }: { formats: FormatNavigation[]; ch
             <Link
               href={`/formats/${f.id}`}
               aria-current={fActif ? "page" : undefined}
-              className={cn("flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm transition-colors", fActif ? "bg-surface-2 font-semibold text-texte" : "text-texte-doux hover:bg-surface-2/70 hover:text-texte")}
+              className={cn("flex min-h-8 items-center gap-2 rounded-lg px-2 text-[13px] transition-colors", fActif ? "bg-surface-2 font-semibold text-texte" : "text-texte-doux hover:bg-surface-2/70 hover:text-texte")}
             >
               <Icone nom={f.icone} size={15} className="shrink-0" />
               <span className="flex-1 truncate">{nomCourtFormat(f)}</span>
@@ -224,7 +224,7 @@ export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false, a
           type="submit"
           title={repliee ? "Me déconnecter" : undefined}
           aria-label={repliee ? "Me déconnecter" : undefined}
-          className={cn("flex min-h-11 w-full items-center gap-3 rounded-xl text-sm font-semibold text-texte-faible hover:bg-surface-2/70 hover:text-texte", repliee ? "justify-center" : "px-3")}
+          className={cn("flex min-h-9 w-full items-center gap-2 rounded-lg text-sm font-medium text-texte-faible hover:bg-surface-2/70 hover:text-texte", repliee ? "justify-center" : "px-3")}
         >
           <Icone nom="deconnexion" size={18} />
           {!repliee && "Me déconnecter"}

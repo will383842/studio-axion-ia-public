@@ -84,3 +84,16 @@ describe("section de la page courante : pas de flèche", () => {
     expect(html.slice(i, html.indexOf("</button>", i))).toContain("<svg");
   });
 });
+
+/** Gabarit compact aligné sur le CRM Pro (09/11, Williams : « le menu latéral est plus gros que celui du CRM Pro »). */
+describe("barre latérale compacte (bureau)", () => {
+  const nav = html.slice(html.indexOf("<nav"));
+  it("liens text-sm font-medium, lignes min-h-9, gap-2, rayon rounded-lg", () => {
+    expect(nav).toContain("min-h-9 items-center gap-2 rounded-lg text-sm font-medium");
+    expect(nav).not.toContain("text-[15px]");
+    expect(nav).not.toContain("min-h-11 items-center gap-3");
+  });
+  it("le pied (Déconnexion) suit le même gabarit", () => {
+    expect(html).toMatch(/flex min-h-9 w-full items-center gap-2 rounded-lg text-sm font-medium[^"]*"[^>]*>(?:<svg|<span)[\s\S]*?Me déconnecter/);
+  });
+});
