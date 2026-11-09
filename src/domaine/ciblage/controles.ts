@@ -15,7 +15,7 @@ export function normaliser(texte: string): string {
 
 const MOTS_VIDES = new Set(["de", "du", "des", "d", "la", "le", "les", "l", "un", "une", "en", "et", "a", "au", "aux", "pour", "sur", "vos", "votre", "mes", "mon", "ma", "ce", "ces", "dans", "par", "avec", "sans", "vous", "je", "tu", "il", "on"]);
 
-function racine(mot: string): string {
+export function racine(mot: string): string {
   return mot.length > 3 && /[sx]$/.test(mot) ? mot.slice(0, -1) : mot;
 }
 
@@ -125,20 +125,36 @@ const METIERS = ["plombier", "electricien", "comptable", "avocat", "coiffeur", "
 const SECTEURS = ["batiment", "btp", "immobilier", "restauration", "sante", "commerce", "transport", "logistique", "industrie", "artisanat", "hotellerie", "agriculture", "assurance", "juridique", "education", "services"];
 const AFFICHAGE: Record<string, string> = { electricien: "électricien", macon: "maçon", medecin: "médecin", kinesitherapeute: "kinésithérapeute", batiment: "bâtiment", sante: "santé", "expert comptable": "expert-comptable", hotellerie: "hôtellerie", education: "éducation" };
 
-function trouverDans(liste: string[], texte: string): string[] {
-  const m = mots(texte);
-  return liste.filter((x) => contientSuite(m, mots(x)));
+function motsGenre(texte: string): string[] {
+  return normaliser(texte).split(" ").filter(Boolean).map(racineGenre);
+}
+
+/** Correspondances d'une liste ; les mots pris par une correspondance plus longue sont retirés avant de chercher les plus courtes. */
+function trouverToutes(candidats: { niveau: "metier" | "secteur"; brut: string }[], texte: string): { niveau: "metier" | "secteur"; brut: string }[] {
+  const reste = motsGenre(texte);
+  const trouvees: { niveau: "metier" | "secteur"; brut: string }[] = [];
+  const triees = [...candidats].sort((x, y) => motsGenre(y.brut).length - motsGenre(x.brut).length);
+  for (const c of triees) {
+    const aiguille = motsGenre(c.brut);
+    let present = false;
+    for (let i = 0; i + aiguille.length <= reste.length; i++) {
+      if (aiguille.every((m, j) => reste[i + j] === m)) {
+        present = true;
+        for (let j = 0; j < aiguille.length; j++) reste[i + j] = "\0";
+      }
+    }
+    if (present) trouvees.push(c);
+  }
+  return trouvees;
 }
 
 /** Déduit un ciblage d'un texte libre ; null si rien (ou plusieurs cibles) de reconnu. */
 export function deduireCiblage(texteLibre: string): Ciblage | null {
   const taille = tailleDansTexte(texteLibre);
-  const trouvees = [
-    ...trouverDans(METIERS, texteLibre).map((brut) => ({ niveau: "metier" as const, brut })),
-    ...trouverDans(SECTEURS, texteLibre).map((brut) => ({ niveau: "secteur" as const, brut })),
-  ];
-  // Une cible incluse dans une autre plus longue (comptable / expert comptable) n'est pas une seconde cible.
-  const retenues = trouvees.filter((c) => !trouvees.some((d) => d !== c && mots(d.brut).length > mots(c.brut).length && contientSuite(mots(d.brut), mots(c.brut))));
+  const retenues = trouverToutes([
+    ...METIERS.map((brut) => ({ niveau: "metier" as const, brut })),
+    ...SECTEURS.map((brut) => ({ niveau: "secteur" as const, brut })),
+  ], texteLibre);
   if ((taille ? 1 : 0) + retenues.length !== 1) return null;
   if (taille) return { niveau: "taille", libelle: taille, origine: "deduite" };
   const { niveau, brut } = retenues[0];
