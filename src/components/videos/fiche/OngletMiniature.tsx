@@ -29,7 +29,7 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle, couverture 
   const initiale = miniatures.find((m) => m.choisie) ?? miniatures[0];
   const [choisie, setChoisie] = useState(initiale?.id);
   const [apercu, setApercu] = useState<Apercu>("instagram");
-  const [titreVignette, setTitreVignette] = useState(couverture?.texte ?? initiale?.titre ?? "");
+  const [titreVignette, setTitreVignette] = useState(couverture?.texte ?? "");
   const [motCle, setMotCle] = useState(couverture?.motCle ?? "");
   const [enCours, demarrer] = useTransition();
 
@@ -40,7 +40,8 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle, couverture 
   const aCode = miniatures.some((m) => titreCommenceParCodeInterne(m.titre));
   const mots = titreVignette.trim().split(/\s+/).filter(Boolean).length;
   const couvertureModifiee = titreVignette.trim() !== (couverture?.texte ?? "") || motCle.trim() !== (couverture?.motCle ?? "");
-  const motsValides = mots >= 3 && mots <= 5;
+  // Titre facultatif : vide = l'image de la vidéo telle quelle.
+  const motsValides = mots === 0 || (mots >= 3 && mots <= 5);
 
   return (
     <div className="space-y-5">
@@ -76,7 +77,7 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle, couverture 
           value={titreVignette}
           onChange={(e) => setTitreVignette(e.target.value)}
           maxLength={60}
-          aide={mots > 5 ? "5 mots au plus." : mots < 3 ? "3 à 5 mots." : couverture && !couverture.fixee ? "Proposé par le studio : changez-le si vous le souhaitez." : "L'image est refaite à chaque changement."}
+          aide={mots === 0 ? "Facultatif : sans titre, l'image de la vidéo reste telle quelle." : mots > 5 ? "5 mots au plus." : mots < 3 ? "3 à 5 mots." : couverture && !couverture.fixee ? "Proposé par le studio : changez-le si vous le souhaitez." : "L'image est refaite à chaque changement."}
         />
         <Champ libelle="Mot à mettre en valeur" value={motCle} onChange={(e) => setMotCle(e.target.value)} maxLength={30} aide="Un mot du titre, facultatif." />
         {couvertureModifiee && (
@@ -96,7 +97,7 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle, couverture 
               })
             }
           >
-            Enregistrer et refaire l&apos;image
+            {mots === 0 ? "Retirer le titre et refaire l’image" : "Enregistrer et refaire l’image"}
           </Bouton>
         )}
       </div>
