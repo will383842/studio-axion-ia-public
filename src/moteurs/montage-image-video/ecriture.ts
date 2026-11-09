@@ -16,6 +16,8 @@ import type { CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, DEBIT_MOTS_PAR_SEC, type ComplexiteCarte } from "@/domaine/image-video/complexite";
 import { chiffresDe } from "@/domaine/image-video/chiffres";
 import { FAMILLES_ACCROCHE, PARTIES, SCENES, motsDits, schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
+import { anonymiser } from "@/domaine/controles-script/anonymisation";
+import { LONGUEUR_MAX_LIBELLE, type Ciblage } from "@/domaine/ciblage/types";
 import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
 import { APPELS_ECRITURE_MAX, MAX_TOKENS_ECRITURE } from "./emprunts";
@@ -84,8 +86,18 @@ FORME (JSON seul, aucun texte autour, aucun champ en plus) :
 { "version": "fiche-image/1", "empreinteCarte": <empreinte_carte>, "accroches": [{ "famille", "texteDit", "textesEcran" }, { … }], "ecrans": [{ "id": "e01"…, "partie", "scene", "refs": [ids des noeuds, liens, chiffres ou groupes de la carte ; jamais titre, sousTitre, pied, phraseChoc ni un nom de scene], "texteDit", "textesEcran": [], "surMot": [{ "mot" (rang du mot dit, 0 = premier), "action", "ref"? }], "fond": "sombre" | "ivoire" }], "questionCommentaire": { "texteDit", "texteEcran" }, "chapitres": [{ "repere", "titre", "ecrans": [ids], "essentiel" }] }
 Scènes : ${liste(SCENES)} (seulement celles de <scenes>).`;
 
+const NIVEAUX_CIBLE_IV: Record<Ciblage["niveau"], string> = { metier: "métier", secteur: "secteur", taille: "taille d'entreprise" };
+
+/** Consigne de cible (facultative) : libellé sur une ligne, borné à 80 caractères et anonymisé. Sans cible : rien. */
+export function consigneCibleIV(ciblage: Ciblage | undefined): string {
+  if (!ciblage) return "";
+  const libelle = anonymiser(ciblage.libelle.replace(/\s+/g, " ").trim().slice(0, LONGUEUR_MAX_LIBELLE), { nomsSensibles: [] }).texte;
+  if (!libelle) return "";
+  return `<cible>Cible : ${libelle} (${NIVEAUX_CIBLE_IV[ciblage.niveau]}), à nommer dans les 5 premières secondes.</cible>`;
+}
+
 /** Partie variable : la carte et ce que le code en a calculé, entre balises (données, jamais instructions). */
-export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCarte, choix: ContexteRegles["choixFormules"] = {}, recit?: CodeRecit, parcours?: ChoixParcoursIV): string {
+export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCarte, choix: ContexteRegles["choixFormules"] = {}, recit?: CodeRecit, parcours?: ChoixParcoursIV, ciblage?: Ciblage): string {
   const annonce = annonceAttendue(carte, complexite.classe);
   const [bas, haut] = complexite.fourchetteSec;
   // Déroulé du récit (variété) : absent ou REC-A, la partie variable reste celle d'aujourd'hui, octet pour octet.
@@ -93,6 +105,7 @@ export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCart
   // Parcours varié (diversité) : absent, la partie variable reste celle d'aujourd'hui, octet pour octet.
   const varie = parcoursDeCode(carte.types[0], parcours?.code);
   const aEviter = parcours ? consigneAEviter(parcours.aEviter) : "";
+  const cible = consigneCibleIV(ciblage);
   return [
     `<image-id>${carte.image.empreinte}</image-id>`,
     `<empreinte_carte>${JSON.stringify(empreinteDeCarte(carte))}</empreinte_carte>`,
@@ -107,6 +120,7 @@ export function variableEcritureIV(carte: CarteImage, complexite: ComplexiteCart
     `<choix_formules>${JSON.stringify(choix)}</choix_formules>`,
     ...(parcoursRecit ? [`<recit>${recit} · ${parcoursRecit}</recit>`] : []),
     ...(aEviter ? [`<a_eviter>${aEviter}</a_eviter>`] : []),
+    ...(cible ? [cible] : []),
   ].join("\n");
 }
 
@@ -215,6 +229,8 @@ export interface EntreeEcritureIV extends Omit<ContexteRegles, "complexite"> {
   decoupage?: unknown;
   /** Parcours varié et scènes à éviter, tirés avant l'écriture (absent : le parcours de `recettes.ts`). */
   parcours?: ChoixParcoursIV;
+  /** À qui parle la vidéo (facultatif) : nommée dans les 5 premières secondes ; absente, rien ne change. */
+  ciblage?: Ciblage;
 }
 
 export type ResultatEcritureIV =
@@ -446,7 +462,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
   const role = roleEcritureImageVideo;
   const complexite = complexiteDe(entree.carte);
   const ctx: ContexteRegles = { ...entree, complexite };
-  const base = variableEcritureIV(entree.carte, complexite, entree.choixFormules, entree.recit, entree.parcours);
+  const base = variableEcritureIV(entree.carte, complexite, entree.choixFormules, entree.recit, entree.parcours, entree.ciblage);
   let contexte: EntreeRole["contexte"] = {};
   try {
     contexte = contexteDuSocleIV(outils.socle ? await outils.socle() : undefined);

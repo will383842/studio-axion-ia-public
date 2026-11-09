@@ -14,7 +14,7 @@ describe("remarqueCibleIV", () => {
     expect(remarqueCibleIV("Plombiers, gagnez deux heures par semaine sur vos devis. Voici comment faire.", metier)).toEqual([]);
   });
   it("cible absente du début : une remarque en français", () => {
-    const r = remarqueCibleIV("Bonjour à tous, voici une astuce pour gagner du temps. Les plombiers y gagnent.", metier);
+    const r = remarqueCibleIV("Bonjour à tous, voici une astuce pour gagner du temps chaque semaine sur vos papiers, sans effort. Les plombiers y gagnent.", metier);
     expect(r).toHaveLength(1);
     expect(r[0]).toMatch(/plombier/);
     expect(r[0]).toMatch(/5 premières secondes/);
