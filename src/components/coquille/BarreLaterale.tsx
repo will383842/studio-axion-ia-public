@@ -36,6 +36,11 @@ export function sectionOuverte({ memoriseeRepliee, contientPageCourante, barreRe
   return barreRepliee || contientPageCourante || !memoriseeRepliee;
 }
 
+/** Vrai si la page courante est dans la section, y compris l'adresse de création d'un format actif (sous-entrée de « Mes vidéos »). */
+export function sectionContientPageCourante(entrees: EntreeNavigation[], chemin: string, formats: FormatNavigation[]): boolean {
+  return entrees.some((e) => estActif(chemin, e) || (e.href === "/videos" && formats.some((f) => f.statut === "actif" && formatActif(chemin, f))));
+}
+
 function abonner(rappel: () => void) {
   window.addEventListener(EVENEMENT, rappel);
   window.addEventListener("storage", rappel);
@@ -77,6 +82,7 @@ function SectionPliable({ titre, idTitre, idListe, contientPageCourante, barreRe
   const memoriseeRepliee = useSyncExternalStore(abonner, () => lireSectionRepliee(titre), () => false);
   const ouverte = sectionOuverte({ memoriseeRepliee, contientPageCourante, barreRepliee });
   function basculer() {
+    if (contientPageCourante) return; // toujours ouverte : rien à écrire
     try {
       localStorage.setItem(CLE_SECTION + titre, ouverte ? "1" : "0");
     } catch {
@@ -93,10 +99,11 @@ function SectionPliable({ titre, idTitre, idListe, contientPageCourante, barreRe
           aria-expanded={ouverte}
           aria-controls={idListe}
           aria-label={`${ouverte ? "Replier" : "Déplier"} la section ${titre}`}
-          className="mb-1 flex min-h-9 w-full items-center justify-between rounded-lg px-3 text-xs font-semibold text-texte-faible transition-colors hover:bg-surface-2/70 hover:text-texte"
+          aria-disabled={contientPageCourante || undefined}
+          className={cn("mb-1 flex min-h-9 w-full items-center justify-between rounded-lg px-3 text-xs font-semibold text-texte-faible transition-colors", contientPageCourante ? "cursor-default" : "hover:bg-surface-2/70 hover:text-texte")}
         >
           <span id={idTitre}>{titre}</span>
-          <Icone nom="chevron-bas" size={14} className={cn("shrink-0 transition-transform", !ouverte && "-rotate-90")} />
+          {!contientPageCourante && <Icone nom="chevron-bas" size={14} className={cn("shrink-0 transition-transform", !ouverte && "-rotate-90")} />}
         </button>
       )}
       <ul id={idListe} hidden={!ouverte} className="space-y-0.5" aria-labelledby={!barreRepliee ? idTitre : undefined} aria-label={barreRepliee ? titre : undefined}>
@@ -192,7 +199,7 @@ export function BarreLaterale({ formats, actionDeconnexion, surLeSite = false, a
             return (
               <div key={s.titre ?? `tete-${i}`} className={cn(i > 0 && (repliee ? "mt-3 border-t border-trait pt-3" : "mt-5"))}>
                 {s.titre ? (
-                  <SectionPliable titre={s.titre} idTitre={idTitre} idListe={`${idBase}-liste-${i}`} contientPageCourante={s.entrees.some((e) => estActif(chemin, e))} barreRepliee={repliee}>
+                  <SectionPliable titre={s.titre} idTitre={idTitre} idListe={`${idBase}-liste-${i}`} contientPageCourante={sectionContientPageCourante(s.entrees, chemin, formats)} barreRepliee={repliee}>
                     {lignes(s)}
                   </SectionPliable>
                 ) : (
