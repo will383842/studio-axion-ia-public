@@ -5,7 +5,7 @@
  */
 import { COULEURS_VIDEO } from "../../../../src/briques/habillage/charte-video";
 
-export type RatioVignette = "16:9" | "9:16";
+export type RatioVignette = "16:9" | "9:16" | "1:1" | "4:5";
 export type AmbianceVignette = "encre" | "ivoire";
 export type MiseVignette = "m1" | "m2" | "m3";
 export const AMBIANCES_VIGNETTE = ["encre", "ivoire"] as const;
@@ -43,7 +43,9 @@ export const TERRACOTTA_RGB = "178,63,22";
 export function dimensionsVignette(ratio: RatioVignette): { largeur: number; hauteur: number } {
   if (ratio === "16:9") return { largeur: 1280, hauteur: 720 };
   if (ratio === "9:16") return { largeur: 1080, hauteur: 1920 };
-  throw new Error(`Ratio de vignette refusé : ${String(ratio)} (16:9 ou 9:16 seulement).`);
+  if (ratio === "1:1") return { largeur: 1080, hauteur: 1080 };
+  if (ratio === "4:5") return { largeur: 1080, hauteur: 1350 };
+  throw new Error(`Ratio de vignette refusé : ${String(ratio)} (16:9, 9:16, 1:1 ou 4:5).`);
 }
 
 export interface Reperes {
@@ -56,6 +58,8 @@ export interface Reperes {
 export const REPERES: Readonly<Record<RatioVignette, Reperes>> = Object.freeze({
   "16:9": Object.freeze({ lisere: 16, carre: Object.freeze({ x: 44, y: 36, taille: 62 }), signature: null }),
   "9:16": Object.freeze({ lisere: 22, carre: Object.freeze({ x: 84, y: 456, taille: 86 }), signature: Object.freeze({ x: 190, y: 484 }) }),
+  "4:5": Object.freeze({ lisere: 22, carre: Object.freeze({ x: 84, y: 84, taille: 86 }), signature: Object.freeze({ x: 190, y: 112 }) }),
+  "1:1": Object.freeze({ lisere: 22, carre: Object.freeze({ x: 84, y: 84, taille: 86 }), signature: Object.freeze({ x: 190, y: 112 }) }),
 });
 
 export const ZONES_SURES = Object.freeze({

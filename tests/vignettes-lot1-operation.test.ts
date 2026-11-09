@@ -9,7 +9,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { creerOperationMiniature, OCTETS_MAX_MINIATURE } from "../studio-rendu/src/operations/miniature";
+import { creerOperationMiniature, filtreFondFidele, OCTETS_MAX_MINIATURE } from "../studio-rendu/src/operations/miniature";
 import type { DemandeRendu } from "../studio-rendu/src/contrat";
 
 const ffmpegPresent = spawnSync("ffmpeg", ["-version"]).status === 0;
@@ -152,6 +152,35 @@ describe.skipIf(!ffmpegPresent)("vignettes lot 1 · opération miniature", { tim
     expect(jpeg.length).toBeLessThanOrEqual(OCTETS_MAX_MINIATURE);
     const sonde = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", "-"], { input: jpeg });
     expect(sonde.stdout.toString().trim()).toBe("1080,1920");
+  });
+
+  it.each([
+    ["9:16", "1080,1920", 1080, 1920],
+    ["1:1", "1080,1080", 1080, 1080],
+    ["4:5", "1080,1350", 1080, 1350],
+    ["16:9", "1280,720", 1280, 720],
+    ["3:2", "1080,1920", 1080, 1920],
+  ])("« image-video-v3 » ratio %s : JPEG %s, mesures cohérentes, aucun rognage vers 9:16", async (ratio, taille, l, h) => {
+    const { op } = essai();
+    recus.delete("/depot/v.jpg");
+    const r = await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio, couverture: "", motCle: "" }), contexte());
+    expect(r.mesures).toMatchObject({ largeur: l, hauteur: h });
+    const sonde = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", "-"], { input: recus.get("/depot/v.jpg")! });
+    expect(sonde.stdout.toString().trim()).toBe(taille);
+  });
+
+  it.each(["1:1", "4:5"])("« image-video-v3 » %s avec un titre : la composition reçoit ce ratio", async (ratio) => {
+    const { op, vus } = essai();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio, couverture: "Vos devis", motCle: "devis" }), contexte());
+    expect(vus[0].proprietes).toMatchObject({ ratio });
+  });
+
+  it("filtreFondFidele : simple mise à l'échelle, sans recadrage", () => {
+    for (const [l, h] of [[1080, 1080], [1080, 1350], [1080, 1920]]) {
+      const f = filtreFondFidele(l, h);
+      expect(f).toContain(`scale=${l}:${h}`);
+      expect(f).not.toMatch(/crop|force_original_aspect_ratio/);
+    }
   });
 
   it("« image-video-v3 » avec un titre saisi : le titre est posé sur cette image", async () => {
