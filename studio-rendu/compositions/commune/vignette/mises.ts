@@ -47,6 +47,16 @@ export const MISES: Readonly<Record<RatioVignette, Readonly<Record<MiseVignette,
     m2: { sujet: { cx: 760, cy: 1250, hv: 640 }, titre: { x: 84, y: 590, ancre: "haut", largeur: 856, taille: 128 }, halo: { hx: 70, hy: 62 } },
     m3: { sujet: { cx: 560, cy: 880, hv: 470 }, titre: { x: 84, y: 1450, ancre: "bas", largeur: 856, taille: 128 }, halo: { hx: 50, hy: 50 } },
   },
+  "4:5": {
+    m1: { sujet: { cx: 600, cy: 520, hv: 440 }, titre: { x: 84, y: 1230, ancre: "bas", largeur: 856, taille: 112 }, halo: { hx: 60, hy: 38 } },
+    m2: { sujet: { cx: 760, cy: 900, hv: 500 }, titre: { x: 84, y: 230, ancre: "haut", largeur: 856, taille: 112 }, halo: { hx: 70, hy: 62 } },
+    m3: { sujet: { cx: 560, cy: 640, hv: 380 }, titre: { x: 84, y: 1250, ancre: "bas", largeur: 856, taille: 112 }, halo: { hx: 50, hy: 50 } },
+  },
+  "1:1": {
+    m1: { sujet: { cx: 600, cy: 420, hv: 360 }, titre: { x: 84, y: 960, ancre: "bas", largeur: 856, taille: 104 }, halo: { hx: 60, hy: 38 } },
+    m2: { sujet: { cx: 760, cy: 700, hv: 400 }, titre: { x: 84, y: 220, ancre: "haut", largeur: 856, taille: 104 }, halo: { hx: 70, hy: 62 } },
+    m3: { sujet: { cx: 560, cy: 520, hv: 320 }, titre: { x: 84, y: 980, ancre: "bas", largeur: 856, taille: 104 }, halo: { hx: 50, hy: 50 } },
+  },
 });
 
 /** Instagram (9:16 seulement) : fond d'ambiance, halo, socle et titre centré en grand. Aucun sujet. */
