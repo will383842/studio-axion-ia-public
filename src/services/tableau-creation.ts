@@ -1551,6 +1551,8 @@ export function lireDemandeEcriture(brut: unknown): { ok: true; demande: Demande
     serie: b.serie,
     sujet: nettoyer(b.sujet, COURT_MAX),
     public: nettoyer(b.public, 200),
+    ...(b.ciblage && typeof b.ciblage === "object" ? { ciblage: b.ciblage } : {}),
+    ...(typeof b.typeAutomatisation === "string" ? { typeAutomatisation: b.typeAutomatisation } : {}),
     vraiCas: vraiCas ? Object.fromEntries(["metier", "tache", "avant", "apres", "date"].map((k) => [k, nettoyer(vraiCas[k], 400)])) : null,
     reseau: b.reseau,
     fin: fin.type === "commentaire" ? { type: "commentaire", mot: nettoyer(fin.mot, 20) } : { type: "diagnostic" },

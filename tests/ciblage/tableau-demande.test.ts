@@ -54,3 +54,15 @@ describe("tableau animé : remarques C100 / C101 non bloquantes", () => {
     expect(remarquesCiblage(undefined, "Bonjour.")).toEqual([]);
   });
 });
+
+describe("tableau animé : la lecture de la demande garde la cible", () => {
+  it("transmet ciblage et type, et reste valable sans eux", async () => {
+    const { lireDemandeEcriture } = await import("@/services/tableau-creation");
+    const b = await demandeValide();
+    const sans = lireDemandeEcriture(b);
+    expect(sans.ok).toBe(true);
+    const avec = lireDemandeEcriture({ ...b, ciblage: { niveau: "taille", libelle: "TPE", origine: "saisie" }, typeAutomatisation: "devis-factures" });
+    expect(avec.ok && avec.demande.ciblage?.libelle).toBe("TPE");
+    expect(avec.ok && avec.demande.typeAutomatisation).toBe("devis-factures");
+  });
+});
