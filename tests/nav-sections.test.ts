@@ -74,7 +74,7 @@ describe("rendu de la barre latérale", () => {
   const html = renderToStaticMarkup(createElement(BarreLaterale, { formats: [], actionDeconnexion: async () => undefined, surLeSite: true, aPublier: true }));
 
   it("affiche les titres de section, reliés à leur liste", () => {
-    for (const titre of ["Contenus", "Publier et mesurer", "Ressources"]) expect(html).toContain(`>${titre}</p>`);
+    for (const titre of ["Contenus", "Publier et mesurer", "Ressources"]) expect(html).toContain(`>${titre}</span>`); // 09/11, Williams : le titre est un bouton qui plie la section
     expect(html.match(/aria-labelledby="/g)?.length).toBe(3);
   });
 
