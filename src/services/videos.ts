@@ -550,12 +550,13 @@ export async function fixerCouvertureVignette(videoId: Id, texteSaisi: string, m
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
   const texte = texteSaisi.replace(/\s+/g, " ").trim();
   const motCle = motCleSaisi.replace(/\s+/g, " ").trim();
-  const problemes = verifierCouverture(texte, motCle);
+  // Titre OPTIONNEL : vide = pas de titre sur l'image (la vraie image de la vidéo, telle quelle).
+  const problemes = texte ? verifierCouverture(texte, motCle) : [];
   if (problemes.length) throw new ErreurStudio("COUVERTURE", problemes[0]);
-  await d.videos.modifier(videoId, { couvertureVignette: { texte, motCle, fixee: true } });
+  await d.videos.modifier(videoId, { couvertureVignette: { texte, motCle: texte ? motCle : "", fixee: true } });
   const choisie = (video.miniatureChoisieId ? await d.miniatures.obtenir(video.miniatureChoisieId) : null) ?? (await d.miniatures.lister((m) => m.videoId === videoId && m.choisie))[0];
   const { retitrerMiniature, refaireVignettes } = await import("./miniatures");
-  if (choisie?.incrustee) {
+  if (texte && choisie?.incrustee && choisie.gabarit !== "image-video-v3") {
     const fichierId = await retitrerMiniature(choisie, texte, motCle);
     await d.miniatures.modifier(choisie.id, { titre: texte, ...(fichierId ? { fichierId } : {}) });
   } else if (!video.estDemo) {

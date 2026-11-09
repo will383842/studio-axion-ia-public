@@ -141,4 +141,32 @@ describe.skipIf(!ffmpegPresent)("vignettes lot 1 · opération miniature", { tim
     const { op } = essai();
     await expect(op(demande({ gabarit: "axion-v2", instantSec: 2, dureeSec: 4, ratio: "4:5", couverture: "X" }), contexte())).rejects.toThrow(/16:9|9:16/);
   });
+  it("« image-video-v3 » sans titre : la vraie image du début, aucun rendu de titre, JPEG à la bonne taille", async () => {
+    const { op, vus } = essai();
+    recus.delete("/depot/v.jpg");
+    const r = await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "", motCle: "" }), contexte());
+    expect(vus).toEqual([]);
+    expect(r.mesures?.instant).toBeLessThanOrEqual(2);
+    expect(r.mesures?.fondPropre).toBeUndefined();
+    const jpeg = recus.get("/depot/v.jpg")!;
+    expect(jpeg.length).toBeLessThanOrEqual(OCTETS_MAX_MINIATURE);
+    const sonde = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", "-"], { input: jpeg });
+    expect(sonde.stdout.toString().trim()).toBe("1080,1920");
+  });
+
+  it("« image-video-v3 » avec un titre saisi : le titre est posé sur cette image", async () => {
+    const { op, vus } = essai();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse", motCle: "devis" }), contexte());
+    expect(vus).toHaveLength(1);
+    expect(vus[0].id).toBe("VignetteAxion");
+    expect(vus[0].proprietes).toMatchObject({ couverture: "Vos devis sans réponse", image: expect.stringMatching(/\/fond\.png$/) });
+  });
+
+  it("« image-video-v3 » sans vidéo lisible : carte de la charte, dernier recours", async () => {
+    const { op, vus } = essai();
+    const r = await op(demande({ gabarit: "image-video-v3", fondPropre: true, ratio: "9:16", couverture: "Vos devis sans réponse" }, {}), contexte());
+    expect(vus[0].id).toBe("VignetteAxion");
+    expect(vus[0].proprietes.image).toBeUndefined();
+    expect(r.mesures?.fondPropre).toBe(1);
+  });
 });

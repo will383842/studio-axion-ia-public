@@ -941,8 +941,8 @@ export interface Miniature extends EntiteBase {
   /** Instant de la vidéo retenu (la plus nette des 5 images) et mise en page (0, 1, 2) : pour refaire l'image. */
   instantSec?: number;
   variante?: number;
-  /** Gabarit unique Axion (charte du 07/11) : absent sur les anciennes miniatures, qu'« Refaire les vignettes » remplace sans les effacer. */
-  gabarit?: "axion-v2";
+  /** Marqueur de gabarit : absent ou « axion-v2 » (carte-titre) = ancienne, qu'« Refaire les vignettes » remplace sans l'effacer ; « image-video-v3 » = vraie image du début de la vidéo. */
+  gabarit?: "axion-v2" | "image-video-v3";
 }
 
 /**

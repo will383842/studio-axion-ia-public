@@ -8,6 +8,10 @@ import { normaliser } from "@/domaine/controles-script/texte";
 
 /** Gabarits de miniature : `r4` (actuel, défaut) et `axion-v2` (réglage `miniature.gabarit`, éteint). */
 export const GABARITS_MINIATURE = ["r4", "axion-v2"] as const;
+/** Gabarit par défaut (09/11) : la vraie image du début de la vidéo finale, sans titre ajouté. Marqueur des vignettes à jour. */
+export const GABARIT_IMAGE_VIDEO = "image-video-v3" as const;
+/** Instant de la première image demandée au serveur (il choisit ensuite la première bonne image des 2 premières secondes). */
+export const INSTANT_PREMIERE_IMAGE_SEC = 0.05;
 export type GabaritMiniature = (typeof GABARITS_MINIATURE)[number];
 
 /** Motifs propres aux vignettes (la liste des écrivains n'est pas touchée), sur le texte normalisé. */
