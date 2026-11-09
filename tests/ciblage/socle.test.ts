@@ -1,11 +1,12 @@
 /**
  * Ciblage des scripts, lot A (socle) : types, contrôles purs, doublons. Rendu serveur seulement (pas de jsdom).
  */
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { TAILLES, TYPES_AUTOMATISATION, type Ciblage } from "@/domaine/ciblage/types";
-import { beneficeClair, cibleNommee, debutParle, deduireCiblage, deduireTypeAutomatisation } from "@/domaine/ciblage/controles";
+import { appliquerChoix, beneficeClair, cibleNommee, debutParle, deduireCiblage, deduireTypeAutomatisation, libelleCibleValide, normaliser } from "@/domaine/ciblage/controles";
 import { doublonsPossibles } from "@/domaine/ciblage/doublons";
 import { ChoixCible } from "@/components/ciblage/ChoixCible";
 import { ChoixTypeAutomatisation } from "@/components/ciblage/ChoixTypeAutomatisation";
@@ -140,5 +141,135 @@ describe("composants", () => {
     expect(h).toContain("À classer");
     const tout = h + renderToStaticMarkup(createElement(ChoixCible, { niveau: "metier" }));
     expect(tout).not.toMatch(/zernio|buffer|\bkit\b|variante|#[0-9a-f]{3,6}\b|€/i);
+  });
+});
+
+const taille = (libelle: string): Ciblage => ({ niveau: "taille", libelle, origine: "saisie" });
+const secteur = (libelle: string): Ciblage => ({ niveau: "secteur", libelle, origine: "saisie" });
+
+describe("défaut 1 : plusieurs tailles nommées", () => {
+  it("« les TPE et les PME » : null", () => {
+    expect(deduireCiblage("pour les TPE et les PME")).toBeNull();
+  });
+  it("une seule taille reste déduite, y compris « petites et moyennes entreprises »", () => {
+    expect(deduireCiblage("pour les PME")?.libelle).toBe("PME");
+    expect(deduireCiblage("pour les petites et moyennes entreprises")?.libelle).toBe("PME");
+  });
+});
+
+describe("défaut 2 : tiret traité comme espace", () => {
+  it("normaliser remplace le tiret par une espace", () => expect(normaliser("Rendez-vous, compte-rendu")).toBe("rendez vous compte rendu"));
+  it("types déduits avec tirets", () => {
+    expect(deduireTypeAutomatisation("Vos rendez-vous en un clic")).toBe("rendez-vous-planning");
+    expect(deduireTypeAutomatisation("Votre compte-rendu automatique")).toBe("comptes-rendus");
+  });
+  it("expert-comptable nommé dans « Experts comptables »", () => {
+    expect(cibleNommee("Experts comptables, lisez ceci", metier("expert-comptable"))).toBe(true);
+  });
+});
+
+describe("défaut 3 : la cible la plus longue l'emporte", () => {
+  it("« experts comptables » : un métier", () => {
+    expect(deduireCiblage("pour les experts comptables")).toEqual({ niveau: "metier", libelle: "expert-comptable", origine: "deduite" });
+  });
+  it("« agents immobiliers » : le métier, pas le secteur", () => {
+    expect(deduireCiblage("pour les agents immobiliers")).toEqual({ niveau: "metier", libelle: "agent immobilier", origine: "deduite" });
+  });
+  it("deux cibles distinctes : null", () => expect(deduireCiblage("plombiers et électriciens")).toBeNull());
+});
+
+describe("défaut 4 : cibleNommee compare des suites de mots", () => {
+  const agent = secteur("agent immobilier");
+  it("singulier, pluriel, élision", () => {
+    expect(cibleNommee("un agent immobilier", agent)).toBe(true);
+    expect(cibleNommee("des agents immobiliers", agent)).toBe(true);
+    expect(cibleNommee("devis d'électricien", metier("électricien"))).toBe(true);
+    expect(cibleNommee("des électriciens", metier("électricien"))).toBe(true);
+  });
+  it("féminin", () => {
+    expect(cibleNommee("Vous êtes électricienne ?", metier("électricien"))).toBe(true);
+    expect(cibleNommee("Vous êtes électricien ?", metier("électricienne"))).toBe(true);
+  });
+  it("faux positifs : mots non consécutifs ou autre mot", () => {
+    expect(cibleNommee("un agent de voyage immobilier", agent)).toBe(false);
+    expect(cibleNommee("immobilier : un agent", agent)).toBe(false);
+    expect(cibleNommee("Une opportunité à saisir", taille("TPE"))).toBe(false);
+    expect(cibleNommee("Une opportunité à saisir", metier("coach"))).toBe(false);
+    expect(cibleNommee("Du coaching pour tous", metier("coach"))).toBe(false);
+  });
+  it("tailles : PMEs et libellés en toutes lettres", () => {
+    expect(cibleNommee("Les PMEs perdent du temps", taille("PME"))).toBe(true);
+    expect(cibleNommee("Les TPE perdent du temps", taille("Petites entreprises"))).toBe(true);
+    expect(cibleNommee("Votre petite entreprise", taille("Petites entreprises"))).toBe(true);
+    expect(cibleNommee("Votre petite entreprise", taille("Moyennes entreprises"))).toBe(false);
+    expect(cibleNommee("Votre moyenne entreprise", taille("Moyennes entreprises"))).toBe(true);
+  });
+});
+
+describe("défaut 5 : doublons", () => {
+  const base = { typeAutomatisation: "devis-factures" as const, ciblage: metier("plombier") };
+  it("un même id présent deux fois : pas d'auto-doublon", () => {
+    expect(doublonsPossibles([{ id: "a", sujet: "Faire un devis", ...base }, { id: "a", sujet: "Faire un devis", ...base }])).toEqual([]);
+  });
+  it("un id répété plus un vrai doublon : groupe sans répétition", () => {
+    const g = doublonsPossibles([
+      { id: "a", sujet: "Faire un devis", ...base },
+      { id: "a", sujet: "Faire un devis", ...base },
+      { id: "b", sujet: "Faire un devis", ...base },
+    ]);
+    expect(g).toEqual([["a", "b"]]);
+  });
+  it("seuil exact 0,6 : compte", () => {
+    // 3 communs sur 5 mots en tout : 3/5 = 0,6
+    const exact = doublonsPossibles([{ id: "a", sujet: "alpha beta gamma delta", ...base }, { id: "b", sujet: "alpha beta gamma epsilon", ...base }]);
+    expect(exact).toEqual([["a", "b"]]);
+  });
+  it("0,59 ne compte pas", () => {
+    const communs = Array.from({ length: 13 }, (_, i) => `mot${i}`);
+    const a = [...communs, ...Array.from({ length: 9 }, (_, i) => `seul${i}`)].join(" ");
+    const g = doublonsPossibles([{ id: "a", sujet: a, ...base }, { id: "b", sujet: communs.join(" "), ...base }]);
+    expect(g).toEqual([]);
+  });
+  it("ordre déterministe quel que soit l'ordre d'entrée", () => {
+    const s = [
+      { id: "z", sujet: "Faire un devis", ...base },
+      { id: "m", sujet: "Faire un devis", ...base },
+      { id: "c", sujet: "Relancer les clients impayés", ...base },
+      { id: "b", sujet: "Relancer les clients impayés", ...base },
+    ];
+    const attendu = [["b", "c"], ["m", "z"]];
+    expect(doublonsPossibles(s)).toEqual(attendu);
+    expect(doublonsPossibles([...s].reverse())).toEqual(attendu);
+  });
+});
+
+describe("défaut 6 : ChoixCible réactif et libellé valide", () => {
+  it("le composant est utilisable côté client et expose onChange", () => {
+    const src = readFileSync("src/components/ciblage/ChoixCible.tsx", "utf-8");
+    expect(src.trimStart().startsWith('"use client"')).toBe(true);
+    expect(src).toContain("onChange");
+  });
+  it("rendu serveur : radios contrôlés, niveau coché", () => {
+    const h = renderToStaticMarkup(createElement(ChoixCible, { niveau: "secteur", valeur: "santé" }));
+    expect(h.match(/checked=""/g)).toHaveLength(1);
+    expect(h).toContain('value="santé"');
+    const t = renderToStaticMarkup(createElement(ChoixCible, { niveau: "taille", valeur: "PME" }));
+    expect(t.match(/checked=""/g)).toHaveLength(2);
+  });
+  it("appliquerChoix : choisir un niveau ouvre l'étape 2 et vide la valeur", () => {
+    expect(appliquerChoix({ valeur: "" }, { type: "niveau", niveau: "metier" })).toEqual({ niveau: "metier", valeur: "" });
+    expect(appliquerChoix({ niveau: "metier", valeur: "plombier" }, { type: "niveau", niveau: "taille" })).toEqual({ niveau: "taille", valeur: "" });
+    expect(appliquerChoix({ niveau: "metier", valeur: "plombier" }, { type: "niveau", niveau: "metier" })).toEqual({ niveau: "metier", valeur: "plombier" });
+    expect(appliquerChoix({ niveau: "metier", valeur: "" }, { type: "valeur", valeur: "maçon" })).toEqual({ niveau: "metier", valeur: "maçon" });
+  });
+  it("libelleCibleValide", () => {
+    expect(libelleCibleValide("plombier")).toBe(true);
+    expect(libelleCibleValide("  plombier  ")).toBe(true);
+    expect(libelleCibleValide("a".repeat(80))).toBe(true);
+    expect(libelleCibleValide("a".repeat(81))).toBe(false);
+    expect(libelleCibleValide("")).toBe(false);
+    expect(libelleCibleValide("   ")).toBe(false);
+    expect(libelleCibleValide("deux\nlignes")).toBe(false);
+    expect(libelleCibleValide("une\rligne")).toBe(false);
   });
 });
