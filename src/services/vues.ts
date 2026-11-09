@@ -55,6 +55,8 @@ export interface VueVideoCarte {
   dureeEstimee: boolean;
   ratios: Ratio[];
   ratioPrincipal: Ratio;
+  /** Ratio réel de l'image de la vignette (miniature choisie, sinon sortie principale) : montrée entière, jamais rognée. */
+  ratioVignette?: Ratio;
   /** Adresse de la vignette (null = brouillon sans image). */
   vignette: string | null;
   /** Adresse de la vidéo principale (null si pas encore fabriquée). */
