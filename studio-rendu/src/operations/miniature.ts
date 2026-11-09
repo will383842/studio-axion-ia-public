@@ -317,9 +317,9 @@ async function operationVignette(demande: Parameters<Operation>[0], contexte: Co
   return { mesures };
 }
 
-/** Mise à la taille SANS retouche de couleur : l'image est celle de la vidéo, telle quelle. PUR. */
+/** Mise à la taille SANS retouche de couleur ni rognage : l'image de la vidéo a déjà le ratio demandé, simple mise à l'échelle. PUR. */
 export function filtreFondFidele(largeur: number, hauteur: number): string {
-  return `scale=${largeur}:${hauteur}:force_original_aspect_ratio=increase:flags=lanczos,crop=${largeur}:${hauteur},format=rgb24`;
+  return `scale=${largeur}:${hauteur}:flags=lanczos,format=rgb24`;
 }
 
 /**
@@ -329,7 +329,7 @@ export function filtreFondFidele(largeur: number, hauteur: number): string {
  */
 async function operationImageVideo(demande: Parameters<Operation>[0], contexte: ContexteOperation, rendre: RendreVignette): ReturnType<Operation> {
   const p = demande.parametres;
-  const ratio = p.ratio === "16:9" ? "16:9" : "9:16";
+  const ratio = ratioMiniature(p.ratio);
   const format = formatMiniature(ratio);
   const couverture = typeof p.couverture === "string" ? p.couverture.trim().slice(0, 80) : "";
   const base: Parameters<typeof proprietesVignette>[0] = {
