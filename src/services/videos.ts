@@ -4,6 +4,7 @@
  */
 import "server-only";
 import type { Adresse, BriqueFacultative, BlocScript, EtapeEditoriale, Id, IdReseau, Plan, PostureVisage, Ratio, Script, SousTitres, StatutVideo, StylesChoisis, Travail, Video, Distribution, MentionIA } from "@/domaine/types";
+import { estImageVideo } from "@/domaine/vignettes";
 import { creditsDepuisElements, etatLicence, MENTION_IA_PAR_DEFAUT, texteScript } from "@/domaine/derivations";
 import { adresseDepuisFacon } from "@/domaine/adresse";
 import { visagePourFormat } from "@/domaine/distribution";
@@ -556,7 +557,7 @@ export async function fixerCouvertureVignette(videoId: Id, texteSaisi: string, m
   await d.videos.modifier(videoId, { couvertureVignette: { texte, motCle: texte ? motCle : "", fixee: true } });
   const choisie = (video.miniatureChoisieId ? await d.miniatures.obtenir(video.miniatureChoisieId) : null) ?? (await d.miniatures.lister((m) => m.videoId === videoId && m.choisie))[0];
   const { retitrerMiniature, refaireVignettes } = await import("./miniatures");
-  if (texte && choisie?.incrustee && choisie.gabarit !== "image-video-v3") {
+  if (texte && choisie?.incrustee && !estImageVideo(choisie.gabarit)) {
     const fichierId = await retitrerMiniature(choisie, texte, motCle);
     await d.miniatures.modifier(choisie.id, { titre: texte, ...(fichierId ? { fichierId } : {}) });
   } else if (!video.estDemo) {

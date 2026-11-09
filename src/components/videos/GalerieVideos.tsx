@@ -460,7 +460,7 @@ function CarteChoix({ video: v, ratio, choisi, onBasculer }: { video: VueVideoCa
           src={v.vignette}
           titre={v.titre}
           ratio={ratio}
-          ratioImage={v.ratioPrincipal}
+          ratioImage={v.ratioVignette ?? v.ratioPrincipal}
           dureeSec={v.statut === "prete" ? v.dureeSec : undefined}
           dureeEnviron={v.dureeEstimee}
           className={cn("transition-opacity", choisi ? "opacity-100" : "opacity-80")}
