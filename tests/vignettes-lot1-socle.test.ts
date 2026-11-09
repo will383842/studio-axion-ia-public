@@ -20,11 +20,12 @@ function contraste(a: string, b: string): number {
 }
 
 describe("vignettes lot 1 · socle", () => {
-  it("dimensions : 16:9 = 1280×720, 9:16 = 1080×1920, tout autre ratio refusé", () => {
+  it("dimensions : 16:9 = 1280×720, 9:16 = 1080×1920, 1:1 = 1080×1080, 4:5 = 1080×1350, tout autre ratio refusé", () => {
     expect(dimensionsVignette("16:9")).toEqual({ largeur: 1280, hauteur: 720 });
     expect(dimensionsVignette("9:16")).toEqual({ largeur: 1080, hauteur: 1920 });
-    expect(() => dimensionsVignette("4:5" as never)).toThrow();
-    expect(() => dimensionsVignette("1:1" as never)).toThrow();
+    expect(dimensionsVignette("1:1")).toEqual({ largeur: 1080, hauteur: 1080 });
+    expect(dimensionsVignette("4:5")).toEqual({ largeur: 1080, hauteur: 1350 });
+    expect(() => dimensionsVignette("3:2" as never)).toThrow();
   });
 
   it("repères fixes : liseré 16/22 px, carré A (44,36,62) et (84,456,86), signature en 9:16 seulement", () => {
