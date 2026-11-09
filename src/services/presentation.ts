@@ -50,6 +50,7 @@ export async function versCarte(v: Video): Promise<VueVideoCarte> {
     dureeEstimee: duree.estimee,
     ratios: v.ratios,
     ratioPrincipal: v.ratios[0] ?? "9:16",
+    ratioVignette: choisie?.fichierId ? choisie.ratio : principale?.ratio,
     vignette,
     video: await urlFichier(principale?.fichierId),
     noteQualite: v.noteQualite?.globale,

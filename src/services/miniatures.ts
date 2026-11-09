@@ -10,16 +10,37 @@
  * Changer le titre d'une miniature où il est écrit REFAIT l'image (l'ancienne reste dans les fichiers : rien n'est effacé).
  */
 import "server-only";
-import type { Fichier, Id, Miniature, Ratio, Video } from "@/domaine/types";
+import type { Fichier, Id, Miniature, Ratio, Sortie, Video } from "@/domaine/types";
 import { couvertureDepuisTitre, dimensionsMiniature, estCleDemo, instantsMiniature, motCleCouverture, titreCommenceParCodeInterne, titreSansCodeInterne } from "@/domaine/miniatures";
 import { segmentStockage, VALIDITE_ADRESSES_RENDU_SEC as VALIDITE_ADRESSES_SEC } from "@/fournisseurs/rendu/commun";
 import { fournisseurMiniatureSimulation } from "@/fournisseurs/simulation/autres";
 import type { CouvertureMiniature, PropositionMiniature, SourceMiniature } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
 import { proposerCouverture } from "@/domaine/couverture-vignette";
-import { GABARIT_IMAGE_VIDEO, GABARITS_MINIATURE, INSTANT_PREMIERE_IMAGE_SEC, rangDeVideo } from "@/domaine/vignettes";
+import { estImageVideo, GABARIT_IMAGE_VIDEO, GABARIT_IMAGE_VIDEO_RATIO, GABARITS_MINIATURE, INSTANT_PREMIERE_IMAGE_SEC, rangDeVideo } from "@/domaine/vignettes";
 import { depots, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre } from "./_commun";
 
+
+/** Ratio réel d'une sortie : celui de la sortie, sinon mesuré sur son fichier (largeur / hauteur). */
+function ratioReelDeSortie(sortie: Sortie, fichier: Fichier | null): Ratio {
+  if (sortie.ratio) return sortie.ratio;
+  const l = fichier?.largeur ?? 0;
+  const h = fichier?.hauteur ?? 0;
+  const r = l && h ? l / h : 0;
+  const proche = (["9:16", "1:1", "4:5", "16:9"] as const).reduce((a, b) => (Math.abs(rapport(b) - r) < Math.abs(rapport(a) - r) ? b : a));
+  return r ? proche : "9:16";
+}
+const rapport = (r: Ratio): number => (r === "9:16" ? 9 / 16 : r === "1:1" ? 1 : r === "4:5" ? 4 / 5 : 16 / 9);
+
+/** La sortie d'où tirer l'image : celle du ratio principal de la vidéo si elle existe, sinon la première disponible. JAMAIS un ratio sans fichier. */
+export async function sortieDeMiniature(video: Video): Promise<{ sortie: Sortie; ratio: Ratio } | null> {
+  const d = depots();
+  if (!video.versionChoisieId) return null;
+  const sorties = await d.sorties.lister((s) => s.versionId === video.versionChoisieId);
+  const sortie = sorties.find((s) => s.ratio === video.ratios[0]) ?? sorties[0];
+  if (!sortie) return null;
+  return { sortie, ratio: ratioReelDeSortie(sortie, sortie.fichierId ? await d.fichiers.obtenir(sortie.fichierId) : null) };
+}
 
 async function enregistrerImage(cle: string, nom: string, ratio: Ratio): Promise<Id> {
   const d = depots();
@@ -89,15 +110,16 @@ async function preparerSource(video: Video, nombre: number, imposes?: { instants
   if (stockage.mode === "simulation" || !stockage.urlLectureDuree || !stockage.urlDepotDuree) return null;
   const versionId = video.versionChoisieId;
   if (!versionId) return null;
-  const ratio: Ratio = video.ratios[0] ?? "9:16";
-  const sorties = await d.sorties.lister((s) => s.versionId === versionId);
-  const sortie = sorties.find((s) => s.ratio === ratio) ?? sorties[0];
+  // Le ratio de l'image est celui du FICHIER d'où elle est tirée (jamais `video.ratios[0]` quand une sortie existe).
+  const choix = await sortieDeMiniature(video);
+  const sortie = choix?.sortie;
+  const ratio: Ratio = choix?.ratio ?? video.ratios[0] ?? "9:16";
   const gabarit = await choisirGabarit();
   const v3 = gabarit === GABARIT_IMAGE_VIDEO;
   // Image de la vidéo (défaut) : on lit la vidéo FINALE du ratio principal (c'est elle que les réseaux montrent au lancement).
   // Gabarits de secours : la vidéo SANS texte seule ; sans elle, fond propre de la charte.
   const finale = v3 && sortie?.fichierId ? await d.fichiers.obtenir(sortie.fichierId) : null;
-  const master = v3 ? undefined : (await d.pistes.lister((p) => p.versionId === versionId && p.type === "master-sans-texte" && (p.ratio ?? ratio) === (sortie?.ratio ?? ratio)))[0];
+  const master = v3 ? undefined : (await d.pistes.lister((p) => p.versionId === versionId && p.type === "master-sans-texte" && (p.ratio ?? ratio) === ratio))[0];
   const fichierMaster = master?.fichierId ? await d.fichiers.obtenir(master.fichierId) : null;
   const candidat = v3 ? finale : fichierMaster;
   const fichier = candidat && !estCleDemo(candidat.cleStockage) ? candidat : null;
@@ -116,7 +138,7 @@ async function preparerSource(video: Video, nombre: number, imposes?: { instants
     url: fichier ? await stockage.urlLectureDuree(fichier.cleStockage, VALIDITE_ADRESSES_SEC) : "",
     ...(fichier ? {} : { fondPropre: true }),
     dureeSec,
-    ratio: sortie?.ratio ?? ratio,
+    ratio,
     instantsSec,
     ...(imposes ? { variantes: imposes.variantes } : {}),
     // Défaut : image de la vidéo (« image-video-v3 ») ; « axion-v2 » (carte-titre) et « r4 » en réglage explicite de secours.
@@ -147,6 +169,7 @@ export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, rati
 
   let propositions: PropositionMiniature[] = [];
   let origine: Miniature["origine"] = "rendu";
+  let ratioImage: Ratio = ratio;
   const { couverture, aGarder } = await resoudreCouverture(video, titre);
   if (aGarder) await d.videos.modifier(videoId, { couvertureVignette: aGarder });
   if (video.estDemo) {
@@ -156,6 +179,7 @@ export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, rati
   } else if (outil.mode === "reel") {
     const source = await preparerSource(video, 3);
     if (source) {
+      ratioImage = source.ratio;
       try {
         propositions = await outil.proposer({ videoId, titre, nombre: 3, source, couverture });
       } catch (e) {
@@ -177,7 +201,7 @@ export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, rati
     return;
   }
   for (const [i, p] of propositions.entries()) {
-    const fichierId = await enregistrerImage(p.fichierCle, `miniature-${i + 1}.jpg`, ratio);
+    const fichierId = await enregistrerImage(p.fichierCle, `miniature-${i + 1}.jpg`, ratioImage);
     const id = nouvelId("mini");
     await d.miniatures.enregistrer({
       id,
@@ -185,12 +209,12 @@ export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, rati
       fichierId,
       titre: p.titre,
       choisie: i === 0,
-      ratio,
+      ratio: ratioImage,
       origine,
       ...(p.incrustee ? { incrustee: true } : {}),
       ...(p.instantSec !== undefined ? { instantSec: p.instantSec } : {}),
       ...(p.variante !== undefined ? { variante: p.variante } : {}),
-      ...(p.gabarit ? { gabarit: p.gabarit } : p.ambiance ? { gabarit: "axion-v2" as const } : {}),
+      ...(p.gabarit ? { gabarit: GABARIT_IMAGE_VIDEO_RATIO } : p.ambiance ? { gabarit: "axion-v2" as const } : {}),
       ...horodatage(),
     });
     // La première proposition devient LA miniature de la vidéo : cartes, calendrier et lien privé la montrent.
@@ -205,7 +229,7 @@ export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, rati
  */
 export async function retitrerMiniature(m: Miniature, titre: string, motCleVoulu?: string): Promise<Id | null> {
   // Une image de la vidéo (v3) se refait en entier par « Refaire les vignettes » : jamais de titre reposé ici.
-  if (!m.incrustee || m.gabarit === "image-video-v3") return null;
+  if (!m.incrustee || estImageVideo(m.gabarit)) return null;
   const d = depots();
   const video = await d.videos.obtenir(m.videoId);
   const outil = await fournisseur("miniature");
@@ -257,10 +281,10 @@ export async function refaireVignettes(videoId: Id): Promise<number> {
   if (!video || video.estDemo) throw new ErreurStudio("MINIATURE", "Cette vidéo n'a pas de vraie vignette à refaire.");
   const outil = await fournisseur("miniature");
   if (outil.mode !== "reel") throw new ErreurStudio("MINIATURE", "Le calcul des vignettes sur le serveur n'est pas relié : rien n'a été refait.");
-  const ratio: Ratio = video.ratios[0] ?? "9:16";
   const { couverture, aGarder } = await resoudreCouverture(video, video.titre);
   const source = await preparerSource(video, 3);
   if (!source) throw new ErreurStudio("MINIATURE", "La vidéo n'est pas lisible pour l'instant : réessayez dans un moment.");
+  const ratio: Ratio = source.ratio;
   const propositions = (await outil.proposer({ videoId, titre: video.titre, nombre: 3, source, couverture }).catch(() => [])).filter((p) => !estCleDemo(p.fichierCle));
   if (!propositions.length) throw new ErreurStudio("MINIATURE", "Les vignettes n'ont pas pu être refaites. Les anciennes sont gardées.");
   if (!(await d.videos.obtenir(videoId))) return 0;
@@ -274,7 +298,7 @@ export async function refaireVignettes(videoId: Id): Promise<number> {
       ...(p.incrustee ? { incrustee: true } : {}),
       ...(p.instantSec !== undefined ? { instantSec: p.instantSec } : {}),
       ...(p.variante !== undefined ? { variante: p.variante } : {}),
-      ...(p.gabarit ? { gabarit: p.gabarit } : p.ambiance ? { gabarit: "axion-v2" as const } : {}),
+      ...(p.gabarit ? { gabarit: GABARIT_IMAGE_VIDEO_RATIO } : p.ambiance ? { gabarit: "axion-v2" as const } : {}),
       ...horodatage(),
     });
     premiere ??= id;
@@ -291,7 +315,15 @@ export async function videosAVignettesAnciennes(): Promise<Video[]> {
   const aRefaire: Video[] = [];
   for (const v of videos) {
     const choisie = v.miniatureChoisieId ? await d.miniatures.obtenir(v.miniatureChoisieId) : null;
-    if (choisie?.gabarit !== GABARIT_IMAGE_VIDEO) aRefaire.push(v);
+    if (!choisie || !estImageVideo(choisie.gabarit)) {
+      aRefaire.push(v);
+      continue;
+    }
+    // Image de la vidéo faite avant le marqueur « v3b » : refaite seulement si son ratio n'est pas celui de la sortie.
+    if (choisie.gabarit !== GABARIT_IMAGE_VIDEO_RATIO) {
+      const choix = await sortieDeMiniature(v);
+      if (choix && choix.ratio !== choisie.ratio) aRefaire.push(v);
+    }
   }
   return aRefaire;
 }
