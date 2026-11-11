@@ -30,6 +30,7 @@ import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifier
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
+import { etatStockage } from "./etat-branchements";
 import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { fournisseurParId } from "@/fournisseurs";
 import { outilDeEnvoi } from "./routage-publication";
@@ -628,6 +629,9 @@ async function envoyerVersBufferInterne(
   } = {},
 ): Promise<{ simulation: boolean; publications: Publication[]; mode?: ModeEnvoiPublication; problemes?: ProblemeEnvoi[]; commentairesALaMain?: IdReseau[] }> {
   await exigerSession();
+  // L0-12 : stockage simulé en production = rien n'est prêt à publier (message clair, aucune valeur de secret).
+  const stockage = etatStockage();
+  if (!stockage.pretAPublier) throw new ErreurStudio("STOCKAGE_SIMULE", stockage.message ?? "Le stockage est simulé.");
   const kitVue = await obtenirKit(videoId);
   if (!kitVue) throw new ErreurStudio("PAS_PRETE", "La vidéo n'est pas prête.");
   // Générateur (G1b, B.5.5) : une vidéo issue d'une version part sur SON réseau ; ailleurs, seulement après confirmation.
