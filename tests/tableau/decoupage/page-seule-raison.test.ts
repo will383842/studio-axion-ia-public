@@ -67,15 +67,15 @@ describe("pourquoiPasDePageDePlus : la raison, quand la page de plus ne passe pa
     expect(raison).toContain("avant « Le »");
   });
 
-  it("3 · 18 scènes : « 18 scènes au plus » ; 14 pages : « plus de page libre »", () => {
+  it("3 · 30 scènes : « 30 scènes au plus » ; 28 pages : « plus de page libre »", () => {
     const f = copie();
     f.scenes[1].texteDit = "Une seule phrase ici. Et une autre là.";
-    const clones = Array.from({ length: 8 }, (_, i) => ({ ...structuredClone(f.scenes[4]), id: `s${11 + i}`, page: 5 }));
+    const clones = Array.from({ length: 20 }, (_, i) => ({ ...structuredClone(f.scenes[4]), id: `s${11 + i}`, page: 5 }));
     f.scenes = [...f.scenes, ...clones];
-    expect(f.scenes).toHaveLength(18);
-    expect(pourquoiPasDePageDePlus(f, 2)).toContain("18 scènes au plus");
+    expect(f.scenes).toHaveLength(30);
+    expect(pourquoiPasDePageDePlus(f, 2)).toContain("30 scènes au plus");
     const g = copie();
-    g.scenes[9].page = 14;
+    g.scenes[9].page = 28;
     expect(pourquoiPasDePageDePlus(g, 2)).toContain("plus de page libre");
   });
 
@@ -150,7 +150,7 @@ describe("refus de la règle 4 expliqué (mise en page SIMULÉE)", () => {
   it("6 bis · plus de page libre : le refus propose de réunir deux pages courtes, jamais de couper", () => {
     const reponse = structuredClone(cas.reponse);
     const vide = { id: "e90", type: "dessin", dessinId: "enveloppe", cote: "droite", ancre: 0 };
-    for (let p = 10; p <= 14; p++) reponse.scenes.push({ ...structuredClone(reponse.scenes[0]), id: `s${p + 1}`, page: p, texteDit: "Oui.", elements: [{ ...vide, id: `e9${p}` }] });
+    for (let p = 10; p <= 28; p++) reponse.scenes.push({ ...structuredClone(reponse.scenes[0]), id: `s${p + 1}`, page: p, texteDit: "Oui.", elements: [{ ...vide, id: `e9${p}` }] });
     const refus = refusPageDePlus(reponse);
     expect(refus).toContain("plus de page libre");
     expect(refus).toContain("Réunissez deux pages courtes");
@@ -160,10 +160,10 @@ describe("refus de la règle 4 expliqué (mise en page SIMULÉE)", () => {
   it("6 ter · 18 scènes : le refus propose de réunir deux scènes voisines", () => {
     const reponse = structuredClone(cas.reponse);
     const vide = { id: "e90", type: "dessin", dessinId: "enveloppe", cote: "droite", ancre: 0 };
-    const clones = Array.from({ length: 8 }, (_, i) => ({ ...structuredClone(reponse.scenes[0]), id: `s${11 + i}`, texteDit: "Oui.", elements: [{ ...vide, id: `e9${i}` }] }));
+    const clones = Array.from({ length: 20 }, (_, i) => ({ ...structuredClone(reponse.scenes[0]), id: `s${11 + i}`, texteDit: "Oui.", elements: [{ ...vide, id: `e9${i}` }] }));
     reponse.scenes.splice(1, 0, ...clones);
     const refus = refusPageDePlus(reponse);
-    expect(refus).toContain("18 scènes au plus");
+    expect(refus).toContain("30 scènes au plus");
     expect(refus).toContain("Réunissez deux scènes voisines");
   });
 

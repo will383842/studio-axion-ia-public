@@ -56,7 +56,7 @@ export function ValidationScript({ videoId, travailId, ecrans, avertissements = 
   );
 
   return (
-    <section aria-label="Le script à valider" className="mt-4 space-y-3">
+    <section id="valider-script" aria-label="Le script à valider" className="mt-4 space-y-3">
       <h3 className="text-sm font-semibold text-texte-doux">Le script à valider : texte dit et ordre des écrans</h3>
       <p className="text-sm text-texte-faible">Aucune voix n&apos;est payée tant que vous n&apos;avez pas validé ce script.</p>
       <p className="text-sm text-texte-doux">Modifier le script : touchez une phrase.</p>

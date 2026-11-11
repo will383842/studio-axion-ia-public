@@ -14,9 +14,9 @@ import { REGLES_TABLEAU as CONSIGNE_SCRIPT_TABLEAU } from "../../../src/services
 const source = (chemin: string) => readFileSync(new URL(`../../../${chemin}`, import.meta.url), "utf8");
 
 describe("une seule borne de longueur, partout", () => {
-  it("dérivée de l'estimateur et du plafond : 90 s à 16,9 caractères par seconde (165 mots/min), soit 1 520", () => {
+  it("dérivée de l'estimateur et du plafond : 180 s à 16,9 caractères par seconde (165 mots/min), soit 3 041", () => {
     expect(CARACTERES_DITS_MAX_TABLEAU).toBe(caracteresEn(DUREE_MAX_TABLEAU_SEC));
-    expect(CARACTERES_DITS_MAX_TABLEAU).toBe(1520);
+    expect(CARACTERES_DITS_MAX_TABLEAU).toBe(3041);
   });
 
   it("le script de l'essai (1 500 caractères, YouTube) passe le générateur ; un caractère de trop au-delà de la borne, non", () => {
@@ -27,22 +27,22 @@ describe("une seule borne de longueur, partout", () => {
     expect(d.message).toContain(`${CARACTERES_DITS_MAX_TABLEAU} caractères dits au plus`);
   });
 
-  it("1520 caractères dits sont acceptés et 1521 refusés de la même façon par le contrôle de durée du script et par l'indicateur de l'écran (le découpage tient la même borne en ms : voir l'accord DUREE_MAX_MS ci-dessous), sans dépendre d'un arrondi flottant", () => {
+  it("3041 caractères dits sont acceptés et 3042 refusés de la même façon par le contrôle de durée du script et par l'indicateur de l'écran (le découpage tient la même borne en ms : voir l'accord DUREE_MAX_MS ci-dessous), sans dépendre d'un arrondi flottant", () => {
     const texte = (n: number) => `${"a".repeat(n - 1)}.`;
     for (const reseau of ["linkedin", "youtube"] as const) {
-      expect(controlerDuree(texte(1520), reseau)).toEqual([]);
-      const [d] = controlerDuree(texte(1521), reseau);
+      expect(controlerDuree(texte(3041), reseau)).toEqual([]);
+      const [d] = controlerDuree(texte(3042), reseau);
       expect(d?.eliminatoire).toBe(true);
       expect(d?.code).toBe("duree-reseau");
     }
     const plafond = (n: number) => pastillesTexteTableau(lignesDuTexteTableau(texte(n))).some((p) => p.code === "duree-plafond");
-    expect(plafond(1520)).toBe(false);
-    expect(plafond(1521)).toBe(true);
-    expect(controlerDuree(texte(1521), "youtube", "Le script", false)[0]?.eliminatoire).toBe(false); // forcé en remarque : seul l'indicateur change
-    expect(source("src/domaine/duree-tableau.ts")).toMatch(/export const CARACTERES_DITS_MAX_TABLEAU = 1520;/);
+    expect(plafond(3041)).toBe(false);
+    expect(plafond(3042)).toBe(true);
+    expect(controlerDuree(texte(3042), "youtube", "Le script", false)[0]?.eliminatoire).toBe(false); // forcé en remarque : seul l'indicateur change
+    expect(source("src/domaine/duree-tableau.ts")).toMatch(/export const CARACTERES_DITS_MAX_TABLEAU = 3041;/);
   });
 
-  it("le découpage (règle 14) tient la même borne : DUREE_MAX_MS est le plafond de 90 s, soit 1 520 caractères dits au débit commun", () => {
+  it("le découpage (règle 14) tient la même borne : DUREE_MAX_MS est le plafond de 180 s, soit 3 041 caractères dits au débit commun", () => {
     expect(DUREE_MAX_MS).toBe(DUREE_MAX_TABLEAU_SEC * 1000);
     expect(caracteresEn(DUREE_MAX_MS / 1000)).toBe(CARACTERES_DITS_MAX_TABLEAU);
     expect(CONSIGNE_DECOUPAGE).toContain(`${DUREE_MAX_MS / 1000} secondes au plus (${CARACTERES_DITS_MAX_TABLEAU} caractères dits)`);
