@@ -10,6 +10,9 @@ import type { ComptesReseauEnvoi } from "@/domaine/comptes-envoi";
 import type { EtapeEditoriale, IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
 import type { Tonalite } from "@/domaine/libelles";
 import { premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
+import { etatPremierCommentaire } from "@/components/publication/finitions-envoi";
+import { outilPour } from "@/domaine/outil-publication";
+import { lireRoutage } from "./routage-publication";
 import { depots, ecrireParametre, ErreurStudio, filtreExemples, journaliser, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { vueEnvoiBuffer } from "./buffer";
@@ -85,6 +88,8 @@ export interface LigneAPublier {
   premierCommentaire?: string;
   /** Instagram, Facebook, LinkedIn : transmis par Buffer ; les autres : à poser à la main. */
   commentaireTransmissible: boolean;
+  /** Selon l'outil du réseau : posé tout seul, transmis mais à confirmer (Zernio : Facebook, LinkedIn), ou à poser à la main (bouton Copier). */
+  commentaireEtat?: "auto" | "a-confirmer" | "a-la-main";
   /** Compte Buffer : celui mémorisé, les comptes à cocher, ou ce qui manque. Jamais deviné. */
   compte: ComptesReseauEnvoi;
   /** Vérifications « Avant de publier » encore à cocher. */
@@ -152,6 +157,7 @@ export async function vueAPublier(): Promise<VueAPublier> {
   }
   const envoi = await vueEnvoiBuffer();
   const parDefaut = await reseauxParDefaut();
+  const routage = await lireRoutage().catch(() => ({}));
   const lignes: LigneAPublier[] = [];
   for (const carte of [...validees, ...recentes]) {
     const kit = await obtenirKit(carte.id);
@@ -191,6 +197,7 @@ export async function vueAPublier(): Promise<VueAPublier> {
         apercu: texteAEnvoyer(r, kit.serie?.entete),
         ...(commentaire ? { premierCommentaire: commentaire } : {}),
         commentaireTransmissible: premierCommentaireTransmissible(reseau),
+        commentaireEtat: etatPremierCommentaire(outilPour(routage, reseau), reseau),
         compte: envoi?.comptes[reseau] ?? {},
         manquantes: manquantes.map((cle) => ({ cle, libelle: LIBELLES_VERIFICATIONS[cle] })),
         casesRequises: casesRequises(kit.mentionIAActive),
