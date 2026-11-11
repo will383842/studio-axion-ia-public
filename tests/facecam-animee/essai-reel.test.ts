@@ -70,17 +70,14 @@ describe("Essai réel · 1. visible pour Will (grille et menu), pastille « Essa
     expect(readFileSync(join(RACINE, "src/app/(studio)/layout.tsx"), "utf8")).toContain("essai: true");
   });
 
-  it("menu latéral : lien sous « Mes vidéos » avec son compteur et la pastille « Essai », pas grisé ; les « bientôt » n'apparaissent plus (08/11)", () => {
+  it("menu latéral : plus de ligne de format (la barre ne liste que « Mes vidéos ») ; les « bientôt » n'apparaissent pas non plus", () => {
     const formats = [
       { id: "facecam-animee", nom: fa.nom, icone: fa.icone, statut: "actif" as const, nbVideos: 3, essai: true },
       { id: "bidon", nom: "Format pas fait", icone: fa.icone, statut: "bientot" as const, nbVideos: 0 },
     ];
     const html = renderToStaticMarkup(createElement(BarreLaterale, { formats, actionDeconnexion: async () => undefined }));
-    const lien = /<a[^>]*href="\/formats\/facecam-animee"[^>]*>([\s\S]*?)<\/a>/.exec(html);
-    expect(lien).not.toBeNull();
-    expect(texte(lien![1])).toContain("Essai");
-    expect(texte(lien![1])).toContain("3");
-    expect(lien![0]).not.toContain("aria-disabled");
+    expect(html).not.toContain("/formats/facecam-animee");
+    expect(html).not.toContain("aria-disabled");
     // 08/11 (Williams, remplace la PR #338) : le format pas fait n'apparaît plus du tout, même grisé.
     expect(html).not.toContain("Format pas fait");
     expect(html).not.toContain("Bientôt");

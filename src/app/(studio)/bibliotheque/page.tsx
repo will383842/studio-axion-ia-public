@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { ApercuImageVideo } from "@/components/bibliotheque/ApercuImageVideo";
 import { ChoixAjout } from "@/components/bibliotheque/ChoixAjout";
 import { Apparition } from "@/components/ui/Apparition";
-import { EnTetePage, EnTeteSection } from "@/components/ui/EnTetePage";
+import { EnTetePage } from "@/components/ui/EnTetePage";
+import { Section } from "@/components/ui/Section";
 import { Tuile } from "@/components/ui/Tuile";
 import { TYPES_BIBLIOTHEQUE } from "@/domaine/libelles";
 import { compterRushs, donneesApercuImage } from "@/services/B-personnages-bibliotheque";
@@ -42,8 +43,7 @@ export default async function PageBibliotheque() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
         <div className="space-y-8">
           {GROUPES.map((g, gi) => (
-            <section key={g.id}>
-              <EnTeteSection titre={g.titre} />
+            <Section key={g.id} id={`groupe-${g.id}`} titre={g.titre}>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {types
                   .filter((t) => t.groupe === g.id)
@@ -53,14 +53,20 @@ export default async function PageBibliotheque() {
                     </Apparition>
                   ))}
               </div>
-            </section>
+            </Section>
           ))}
         </div>
         <Apparition index={4} className="lg:sticky lg:top-6">
-          <EnTeteSection titre="Aperçu" className="lg:hidden" />
-          <ApercuImageVideo donnees={apercu} />
+          <Section id="apercu" titre="Aperçu" sansCarte>
+            <ApercuImageVideo donnees={apercu} />
+          </Section>
         </Apparition>
       </div>
+      <Section id="outils" titre="Outils" className="mt-8">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Tuile href="/outils-motion" icone="baguette" libelle="Outils motion design" />
+        </div>
+      </Section>
       <ChoixAjout types={types.filter((t) => t.type !== "animations").map((t) => ({ type: t.type, nom: t.nom, icone: t.icone }))} />
     </div>
   );

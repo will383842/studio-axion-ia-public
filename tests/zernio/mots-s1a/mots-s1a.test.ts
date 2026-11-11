@@ -91,7 +91,7 @@ describe("crochet : mots connus en paramètre", () => {
     expect(MOTS_DECLENCHEURS_CONNUS).toEqual(["GUIDE"]);
     expect(motSeulDe("guide")).toBe("guide");
     expect(motSeulDe("ia")).toBeNull();
-    expect(motSeulDe("stop")).toBe("stop");
+    expect(motSeulDe("stop")).toBe("STOP");
   });
   it("même jugement que normaliserMot : accents et ponctuation de bord ignorés, résultat identique pour « Guidé » et « GUIDE ! »", () => {
     expect(motSeulDe("Guidé")).toBe("Guidé");
@@ -113,7 +113,7 @@ describe("crochet : mots connus en paramètre", () => {
     expect(motSeulDe("ia", l)).toBe("ia");
     expect(motSeulDe("bonjour", l)).toBeNull();
     expect(motSeulDe("0612345678", l)).toBeNull();
-    expect(motSeulDe("stop", l)).toBe("stop");
+    expect(motSeulDe("stop", l)).toBe("STOP");
   });
   it("commentaire lu avec liste étendue", () => {
     const corps = (text: string) => lireEnveloppe(JSON.stringify({ id: "e1", event: "comment.received", timestamp: 1_800_000_000, account: { accountId: "cpt", platform: "facebook" }, comment: { id: "c1", text, author: { id: "a1" } } }))!;

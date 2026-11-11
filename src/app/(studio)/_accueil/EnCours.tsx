@@ -96,7 +96,7 @@ export function EnCours({ initial }: { initial: VueTravail[] }) {
                 {t.type === "fabrication" && <BoutonAnnuler videoId={t.cibleId} compact />}
                 </>
               ) : aRelire ? (
-                <Link href={t.lien} className="inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-orange-vif underline-offset-2 hover:underline">Relire</Link>
+                <Link href={t.lien} className="inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-texte underline underline-offset-2">Relire</Link>
               ) : (
                 <span className="w-16 shrink-0 whitespace-nowrap text-right font-titre text-lg tabular-nums text-texte">{t.progression}&nbsp;%</span>
               )}
