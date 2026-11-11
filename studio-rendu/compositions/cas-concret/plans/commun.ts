@@ -173,7 +173,7 @@ export function planEclair(t: number, debut: number | null) {
 
 /** Puce (pastille blanche à coche verte) : couleurs et taille de la charte. */
 export function planPuce(texte: string, taille: number) {
-  return { texte, taille, fond: COULEURS_DUO.blanc, texteCouleur: COULEURS_DUO.encre, coche: COULEURS_DUO.vert, cocheTrait: COULEURS_DUO.blanc, famille: famille("inter-gras") };
+  return { texte, taille, fond: COULEURS_DUO.carte, texteCouleur: COULEURS_DUO.encre, coche: COULEURS_DUO.vert, cocheTrait: COULEURS_DUO.blanc, famille: famille("inter-gras") };
 }
 
 /** Propriétés communes à tout objet redessiné : sa boîte, l'instant, le fond, ses textes ou sa capture. */

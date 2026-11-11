@@ -44,7 +44,7 @@ function planContratV4(p: ContexteObjet) {
   return {
     boite,
     k,
-    feuille: { fond: COULEURS_DUO.blanc, rayon: FEUILLE.rayon * k, ombre: couleursDuFond(p.fond).ombre },
+    feuille: { fond: COULEURS_DUO.carte, rayon: FEUILLE.rayon * k, ombre: couleursDuFond(p.fond).ombre },
     lignes,
     signature: { boite: { x: 60 * k, y: boite.hauteur - (70 + 150) * k, largeur: 360 * k, hauteur: 150 * k }, chemin: TRACE_SIGNATURE, longueur: LONGUEUR_SIGNATURE, decalage: LONGUEUR_SIGNATURE * (1 - trace), trace, couleur: COULEURS_DUO.encre, epaisseur: 8, depart },
     base: { x: 60 * k, y: boite.hauteur - 60 * k - 3 * k, largeur: boite.largeur - (60 + 54) * k, hauteur: 3 * k, couleur: COULEURS_DUO.grisClair },

@@ -20,6 +20,9 @@ describe("charte Axion 2026 : palette", () => {
       orange: "#D97757",
       grisSurNoir: "#B0AEA5",
       reussite: "#5E7050",
+      blanc: "#FFFFFF",
+      survol: "#8F3412",
+      texteSecondaire: "#5E5D59",
       erreurFilet: "#B8341C",
     });
   });

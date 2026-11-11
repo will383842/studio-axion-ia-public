@@ -3,6 +3,10 @@
  * vidéo 1). PUR, sans React ni Remotion et SANS alias « @/ » : lu tel quel par `studio-rendu`. FIGÉE (objets gelés) :
  * un changement de charte = une nouvelle version (`charte-duo/2`), jamais une retouche.
  *
+ * EXCEPTION ACTÉE (en attente de la décision D3 de Williams) : la palette 2026 a été appliquée sous `charte-duo/1` sans
+ * passer en `/2`, car la version est figée dans des fiches persistées (montage-cas-concret, montage-tableau). Les
+ * correctifs L0 (`vert`, `gris`, `blanc`, `carte`) changent donc des valeurs sous la même version ; ne pas copier ce procédé.
+ *
  * `charte-video/1` (`charte-video.ts`) et `motion-1` (`src/briques/motion/jetons.ts`) sont distinctes et inchangées.
  * Le contraste se mesure avec `contraste.ts`.
  */
@@ -12,9 +16,9 @@ export const VERSION_CHARTE_DUO = "charte-duo/1";
 /**
  * Couleurs par rôle, palette 2026 (V7-03) : ivoire #FAF9F5, noir #141413, terracotta #B23F16 (`orange`, sur ivoire),
  * orange #D97757 et gris #B0AEA5 (`orangeVif`, `grisClair` : sur nuit seulement). Les noms de rôle sont conservés pour
- * les compositions qui les importent ; les rôles `nuitHaut`, `nuitLueur`, `ivoireHaut`, `blanc` valent la couleur de
- * leur fond (plus de dégradé ni de blanc pur). `gris` (texte secondaire sur ivoire) vaut le noir. `vert` (ancien
- * accent vert, supprimé) garde son nom le temps de migrer les plans qui l'importent : il vaut la terracotta.
+ * les compositions qui les importent ; les rôles `nuitHaut`, `nuitLueur`, `ivoireHaut` valent la couleur de leur
+ * fond (plus de dégradé). `blanc` = ivoire (texte et traits sur fond sombre) ; `carte` = #FFFFFF (fonds de carte sur ivoire) ; `sable` = gris chaud #E8E6DC de la palette (vignettes muettes) ;
+ * `gris` = #5E5D59, affiche et décor seulement, jamais texte courant (6,26 < 7). `vert` (ancien accent vert) ne sert plus qu'à la coche de validation : sauge #5E7050.
  */
 export const COULEURS_DUO = Object.freeze({
   nuit: "#141413",
@@ -25,10 +29,12 @@ export const COULEURS_DUO = Object.freeze({
   encre: "#141413",
   orange: "#B23F16",
   orangeVif: "#D97757",
-  gris: "#141413",
+  gris: "#5E5D59",
   grisClair: "#B0AEA5",
-  vert: "#B23F16",
+  vert: "#5E7050",
   blanc: "#FAF9F5",
+  carte: "#FFFFFF",
+  sable: "#E8E6DC",
 } as const);
 
 export type RoleCouleurDuo = keyof typeof COULEURS_DUO;
@@ -45,7 +51,7 @@ export const FONDS = Object.freeze({
     fond: COULEURS_DUO.ivoire,
     texte: COULEURS_DUO.encre,
     accent: COULEURS_DUO.orange,
-    secondaire: COULEURS_DUO.gris,
+    secondaire: COULEURS_DUO.encre,
   }),
 });
 
@@ -84,6 +90,7 @@ export const COUPLES_TEXTE_DUO: readonly CouleurFondDuo[] = Object.freeze([
   Object.freeze({ texte: "blanc", fond: "nuit" }),
   Object.freeze({ texte: "grisClair", fond: "nuit" }),
   Object.freeze({ texte: "encre", fond: "ivoire" }),
+  Object.freeze({ texte: "encre", fond: "carte" }),
 ] as const);
 
 /** Couples du texte d'affiche (au moins 5 % de la hauteur) : chacun doit atteindre `CONTRASTE_AFFICHE_MIN`. */

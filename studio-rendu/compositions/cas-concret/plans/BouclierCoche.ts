@@ -34,7 +34,7 @@ function planBouclierCocheV4(p: ProprietesBouclierCoche, image: number, fps: num
   const surgir = planSurgir(progres(t, p.debutCoche ?? DEBUT_COCHE_S, DUREE_COCHE_S));
   return {
     t,
-    fiche: { boite: { x: x0, y: y0, largeur: c, hauteur: c } as BoitePx, rayon: c * (90 / 400), couleur: COULEURS_DUO.blanc },
+    fiche: { boite: { x: x0, y: y0, largeur: c, hauteur: c } as BoitePx, rayon: c * (90 / 400), couleur: COULEURS_DUO.carte },
     rond: { boite: { x: x0 + (c - diametre) / 2, y: y0 + (c - diametre) / 2, largeur: diametre, hauteur: diametre } as BoitePx, couleur: COULEURS_DUO.vert, opacite: surgir.opacite, echelle: surgir.echelle },
     coche: {
       /** Les deux côtés de la coche, dans le rond (bordure droite et basse, tournée de 45°). */

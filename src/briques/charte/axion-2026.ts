@@ -15,6 +15,12 @@ export const PALETTE = {
   grisSurNoir: "#B0AEA5",
   /** État « réussite » seulement, jamais en accent. */
   reussite: "#5E7050",
+  /** Blanc pur : cartes sur ivoire, texte sur terracotta ou survol. */
+  blanc: "#FFFFFF",
+  /** Survol et attention : valeur dérivée, NON confirmée (décision D5 de Williams) ; aucun usage avant D5. Texte blanc dessus (7,87) ; jamais sur noir (2,34). */
+  survol: "#8F3412",
+  /** Texte secondaire des interfaces (site, console, PDF ; seuil 4,5 de ce module) sur ivoire, blanc ou gris chaud. Vidéos (charte-duo, seuil 7) : affiche et décor seulement, jamais texte courant (6,26 sur ivoire). */
+  texteSecondaire: "#5E5D59",
   /** Filet d'erreur ; le texte d'erreur reste noir. */
   erreurFilet: "#B8341C",
 } as const;
@@ -41,7 +47,7 @@ export function contrasteWcag(avantPlan: string, fond: string): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-const { ivoire, gris, noir, terracotta, orange, grisSurNoir } = PALETTE;
+const { ivoire, gris, noir, terracotta, orange, grisSurNoir, blanc, survol, texteSecondaire } = PALETTE;
 
 /** Paires [texte, fond] autorisées. */
 export const PAIRES_TEXTE: readonly (readonly [string, string])[] = [
@@ -53,6 +59,11 @@ export const PAIRES_TEXTE: readonly (readonly [string, string])[] = [
   [gris, noir],
   [orange, noir],
   [grisSurNoir, noir],
+  [blanc, terracotta],
+  [blanc, survol],
+  [texteSecondaire, ivoire],
+  [texteSecondaire, gris],
+  [noir, blanc],
 ];
 
 /** Vrai si le texte `texte` sur le fond `fond` est une paire de la charte (casse indifférente). */
