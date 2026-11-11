@@ -409,6 +409,7 @@ const RAISONS_REPLI_LIEN: Record<Exclude<CodeRepliLien, "lien_eteint">, string> 
   lien_trop_long: "lien trop long",
   forme_refusee: "lien de forme non permise",
 };
+const LONGUEUR_MAX_M1_LIEN = 1000;
 const RE_NOM_COURT_COMPTE = /^[a-z0-9_]{2,40}$/;
 const RE_OPAQUE_LIEN = /^[A-Za-z0-9_-]{1,64}$/;
 /** `LIEN_GUIDE_COMPTES` = « idCompteZernio=nom_court,idCompte2=nom2 » : le nom court du compte, ou null. */
@@ -434,14 +435,9 @@ async function texteLienValide(): Promise<boolean> {
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
  */
-async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string }> {
-  const repli = async (code: CodeRepliLien) => {
-    if (code !== "lien_eteint") {
-      await journaliser("parcours_conversation", `Lien du 1er message non utilisé : ${code}.`);
-      await alerter(`lien:${code}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[code]}).`, now);
-    }
-    return { texte: rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide }), version: TEXTES_MP["mp-m1-v2"].version };
-  };
+async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien }> {
+  // Le journal et l'alerte du repli ne sont PAS émis ici : l'appelant les émet une fois l'envoi réservé (ni opposition, ni plafond).
+  const repli = async (code: CodeRepliLien) => ({ texte: rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide }), version: TEXTES_MP["mp-m1-v2"].version, codeRepli: code });
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -458,7 +454,8 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   const lien = construireLienGuide(jeton);
   if (lien === null) return repli("lien_trop_long");
   const texte = rendreTexteMp(VERSION_M1_LIEN, { mot: MOT, titre: d.titreGuide, lien });
-  if (texte === null || !texteDuDictionnaire(texte, false) || !formeLienPageGuide(lien)) return repli("forme_refusee");
+  // Borne de M1 v3 : 1 000 unités de texte (texte.length), pas les 2 000 du dictionnaire ; au-delà, M1 v2.
+  if (texte === null || texte.length > LONGUEUR_MAX_M1_LIEN || !texteDuDictionnaire(texte, false) || !formeLienPageGuide(lien)) return repli("forme_refusee");
   // Empreinte du jeton réellement envoyé : c'est la `ref` que le site renverra à la validation de la page (jamais le jeton lui-même).
   return { texte, version: VERSION_M1_LIEN, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
 }
@@ -521,6 +518,10 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (!(await reserverOuReporter(ev, idCompte, now))) return "bloque"; // réservation avant tout changement d'état
+  if (m1.codeRepli && m1.codeRepli !== "lien_eteint") {
+    await journaliser("parcours_conversation", `Lien du 1er message non utilisé : ${m1.codeRepli}.`);
+    await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
+  }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
   await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);

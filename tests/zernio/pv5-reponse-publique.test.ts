@@ -28,8 +28,14 @@ describe("pv5 · matrice de capacités", () => {
   it("Facebook et Instagram : réponse publique + message privé", () => {
     for (const r of ["facebook", "instagram"] as const) expect(Cap.capaciteDe(r)).toMatchObject({ reponsePublique: "auto", messagePrive: "auto", automatisable: true });
   });
-  it("LinkedIn page et TikTok : réponse publique seule", () => {
-    for (const r of ["linkedin_page", "tiktok"] as const) expect(Cap.capaciteDe(r)).toMatchObject({ reponsePublique: "auto", messagePrive: "non", automatisable: true });
+  it("RC-43 · LinkedIn page et TikTok : réponse publique à la main, jamais « auto »", () => {
+    for (const r of ["linkedin_page", "tiktok"] as const) {
+      expect(Cap.capaciteDe(r).reponsePublique).not.toBe("auto");
+      expect(Cap.capaciteDe(r)).toMatchObject({ reponsePublique: "manuel", messagePrive: "non", automatisable: false });
+    }
+  });
+  it("RC-43 · aucun réseau LinkedIn/TikTok ne produit de workflow de réponse publique automatique", () => {
+    for (const r of ["linkedin_page", "tiktok"] as const) expect(Cap.construireGrapheReseau(valides(), r)).toMatchObject({ ok: false, code: "manuel_seulement" });
   });
   it("LinkedIn profil : manuel, non automatisable", () => {
     expect(Cap.capaciteDe("linkedin_profil")).toMatchObject({ reponsePublique: "manuel", messagePrive: "non", automatisable: false });
@@ -42,18 +48,6 @@ describe("pv5 · matrice de capacités", () => {
 });
 
 describe("pv5 · graphe adapté", () => {
-  it("jamais d'étape message privé, d'attente ni de relance pour LinkedIn page et TikTok", () => {
-    for (const r of ["linkedin_page", "tiktok"] as const) {
-      const g = Cap.construireGrapheReseau(valides(), r);
-      expect(g.ok).toBe(true);
-      if (!g.ok) continue;
-      expect(g.workflow.etapes.map((e) => e.type)).toEqual(["repondre_commentaire", "terminer"]);
-      expect(g.workflow.etapes.some((e) => e.type === "envoyer_message_prive")).toBe(false);
-      expect(JSON.stringify(g.workflow)).not.toContain("Quelle adresse");
-      expect(g.workflow.etatInitial).toBe("pause");
-      expect(Cap.grapheConformeAuReseau(g.workflow, r)).toBe(true);
-    }
-  });
   it("un graphe complet de PV-3 est refusé pour LinkedIn et TikTok (garde finale), accepté pour Facebook", () => {
     const complet = G.construireGrapheMot(valides());
     if (!complet.ok) throw new Error("graphe");
@@ -69,11 +63,11 @@ describe("pv5 · graphe adapté", () => {
     expect(Cap.construireGrapheReseau(valides(), "linkedin_profil")).toMatchObject({ ok: false, code: "manuel_seulement" });
   });
   it("textes non validés ou refusés par le contrôle de sortie : refus, quel que soit le réseau", () => {
-    expect(Cap.construireGrapheReseau(brouillon(), "tiktok")).toMatchObject({ ok: false, code: "textes_non_valides" });
+    expect(Cap.construireGrapheReseau(brouillon(), "instagram")).toMatchObject({ ok: false, code: "textes_non_valides" });
     const modifie = { ...valides(), reponsePublique: "Message automatique envoyé par Axion IA. autre texte." };
-    expect(Cap.construireGrapheReseau(modifie, "tiktok")).toMatchObject({ ok: false, code: "textes_non_valides" });
+    expect(Cap.construireGrapheReseau(modifie, "instagram")).toMatchObject({ ok: false, code: "textes_non_valides" });
     for (const mauvais of [`Message automatique envoyé par Axion IA. ${TOKENS.lieu}`, `Message automatique envoyé par Axion IA. ${TOKENS.gain}`, `Message automatique envoyé par Axion IA. ${TOKENS.label} ${TOKENS.participe}`]) {
-      expect(Cap.construireGrapheReseau(valides(saisieDe(mauvais)), "linkedin_page")).toMatchObject({ ok: false, code: "texte_refuse" });
+      expect(Cap.construireGrapheReseau(valides(saisieDe(mauvais)), "facebook")).toMatchObject({ ok: false, code: "texte_refuse" });
     }
   });
 });
