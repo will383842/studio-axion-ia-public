@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Script } from "@/domaine/types";
-import { filtrerParCiblage, lireFiltreCiblage, lienCiblage, compterAnciens } from "@/domaine/ciblage/listes";
+import { filtrerParCiblage, lireFiltreCiblage, lienCiblage, compterAnciens, estDoublonPossible, filtrerSujetsParType } from "@/domaine/ciblage/listes";
 import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
 import { BadgeDoublon } from "@/components/ciblage/BadgeDoublon";
 
@@ -25,9 +25,9 @@ describe("lireFiltreCiblage", () => {
     expect(lireFiltreCiblage({})).toEqual({ anciens: false });
   });
   it("lit anciens=1 et un type connu ; ignore un type inconnu", () => {
-    expect(lireFiltreCiblage({ anciens: "1", type: "devis-factures" })).toEqual({ anciens: true, type: "devis-factures" });
-    expect(lireFiltreCiblage({ type: "a-classer" })).toEqual({ anciens: false, type: "a-classer" });
-    expect(lireFiltreCiblage({ type: "n-importe-quoi" })).toEqual({ anciens: false });
+    expect(lireFiltreCiblage({ anciens: "1", typeAuto: "devis-factures" })).toEqual({ anciens: true, type: "devis-factures" });
+    expect(lireFiltreCiblage({ typeAuto: "a-classer" })).toEqual({ anciens: false, type: "a-classer" });
+    expect(lireFiltreCiblage({ typeAuto: "n-importe-quoi" })).toEqual({ anciens: false });
   });
 });
 
@@ -46,10 +46,36 @@ describe("filtrerParCiblage", () => {
     expect(filtrerParCiblage(liste, { anciens: true, type: "devis-factures" }).map((x) => x.id)).toEqual(["a", "b"]);
     expect(filtrerParCiblage(liste, { anciens: true, type: "a-classer" }).map((x) => x.id)).toEqual(["c"]);
   });
-  it("lienCiblage garde les autres paramètres et retire un filtre vide", () => {
-    expect(lienCiblage("/videos", { vue: "brouillons", type: "recrutement" }, { anciens: "1" })).toBe("/videos?vue=brouillons&type=recrutement&anciens=1");
-    expect(lienCiblage("/videos", { vue: "brouillons", type: "recrutement" }, { type: undefined })).toBe("/videos?vue=brouillons");
+  it("le paramètre « type » (matières de /ecrire) n'est pas lu comme filtre de ciblage", () => {
+    expect(lireFiltreCiblage({ type: "devis-factures" })).toEqual({ anciens: false });
   });
+  it("lienCiblage garde les autres paramètres et retire un filtre vide", () => {
+    expect(lienCiblage("/videos", { vue: "brouillons", typeAuto: "recrutement" }, { anciens: "1" })).toBe("/videos?vue=brouillons&typeAuto=recrutement&anciens=1");
+    expect(lienCiblage("/videos", { vue: "brouillons", typeAuto: "recrutement" }, { typeAuto: undefined })).toBe("/videos?vue=brouillons");
+  });
+});
+
+describe("estDoublonPossible", () => {
+  it("vrai si un jumeau existe encore", () => {
+    expect(estDoublonPossible({ doublonsPossibles: ["j"] }, new Set(["j", "x"]))).toBe(true);
+  });
+  it("faux si le script jumeau a été supprimé", () => {
+    expect(estDoublonPossible({ doublonsPossibles: ["j"] }, new Set(["x"]))).toBe(false);
+  });
+  it("faux sans jumeau déclaré", () => {
+    expect(estDoublonPossible({}, new Set(["j"]))).toBe(false);
+  });
+});
+
+describe("filtrerSujetsParType (liste principale de /ecrire)", () => {
+  const sujets = [
+    { id: "a", maitre: { brief: { typeAutomatisation: "devis-factures" as const } } },
+    { id: "b", maitre: { brief: { typeAutomatisation: "recrutement" as const } } },
+    { id: "c", maitre: { brief: {} } },
+  ];
+  it("sans filtre, tout reste", () => expect(filtrerSujetsParType(sujets, { anciens: false }).map((x) => x.id)).toEqual(["a", "b", "c"]));
+  it("filtre par type", () => expect(filtrerSujetsParType(sujets, { anciens: false, type: "devis-factures" }).map((x) => x.id)).toEqual(["a"]));
+  it("« à classer » = sans type", () => expect(filtrerSujetsParType(sujets, { anciens: false, type: "a-classer" }).map((x) => x.id)).toEqual(["c"]));
 });
 
 describe("service listerScripts", () => {
