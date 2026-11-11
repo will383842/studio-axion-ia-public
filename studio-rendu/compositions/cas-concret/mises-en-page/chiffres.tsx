@@ -276,7 +276,7 @@ export function ResCoupeDeux({ p, d }: { p: P<"resultat">; d: ReturnType<typeof 
       <div style={{ position: "absolute", left: 0, top: 0, opacity: borne(ressort(image, 0) * 3) }}>
         <TexteL t={texte(d, "etiquette-avant")!} couleur={haut.secondaire} accent={haut.accent} />
         <div style={{ position: "absolute", left: carte.x, top: carte.y, width: carte.largeur, height: carte.hauteur, borderRadius: 20, background: C.carte, boxShadow: `0 10px 30px ${a(C.nuit, 0.25)}` }}>
-          <div style={{ margin: carte.largeur * 0.08, height: carte.hauteur * 0.4, borderRadius: 12, background: "#E8E6DC" }} />
+          <div style={{ margin: carte.largeur * 0.08, height: carte.hauteur * 0.4, borderRadius: 12, background: C.sable }} />
         </div>
         <TexteL t={texte(d, "avant")!} couleur={haut.texte} accent={haut.accent} />
       </div>

@@ -17,7 +17,7 @@ export const VERSION_CHARTE_DUO = "charte-duo/1";
  * Couleurs par rôle, palette 2026 (V7-03) : ivoire #FAF9F5, noir #141413, terracotta #B23F16 (`orange`, sur ivoire),
  * orange #D97757 et gris #B0AEA5 (`orangeVif`, `grisClair` : sur nuit seulement). Les noms de rôle sont conservés pour
  * les compositions qui les importent ; les rôles `nuitHaut`, `nuitLueur`, `ivoireHaut` valent la couleur de leur
- * fond (plus de dégradé). `blanc` = ivoire (texte et traits sur fond sombre) ; `carte` = #FFFFFF (fonds de carte sur ivoire) ;
+ * fond (plus de dégradé). `blanc` = ivoire (texte et traits sur fond sombre) ; `carte` = #FFFFFF (fonds de carte sur ivoire) ; `sable` = gris chaud #E8E6DC de la palette (vignettes muettes) ;
  * `gris` = #5E5D59, affiche et décor seulement, jamais texte courant (6,26 < 7). `vert` (ancien accent vert) ne sert plus qu'à la coche de validation : sauge #5E7050.
  */
 export const COULEURS_DUO = Object.freeze({
@@ -34,6 +34,7 @@ export const COULEURS_DUO = Object.freeze({
   vert: "#5E7050",
   blanc: "#FAF9F5",
   carte: "#FFFFFF",
+  sable: "#E8E6DC",
 } as const);
 
 export type RoleCouleurDuo = keyof typeof COULEURS_DUO;

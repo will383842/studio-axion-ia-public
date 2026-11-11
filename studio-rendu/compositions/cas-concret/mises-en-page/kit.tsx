@@ -123,7 +123,7 @@ export function CarteMuette({ x, y, l, h, lignes = 2, contour, coche, style }: {
   const e = Math.max(3, Math.round(l * 0.018));
   return (
     <div style={{ position: "absolute", left: x, top: y, width: l, height: h, boxSizing: "border-box", borderRadius: l * 0.08, background: C.carte, border: contour ? `${e}px solid ${contour}` : undefined, padding: l * 0.07, boxShadow: `0 ${l * 0.04}px ${l * 0.1}px ${a(C.encre, 0.14)}`, ...style }}>
-      <div style={{ width: "100%", height: h * 0.42, borderRadius: l * 0.045, background: "#E8E6DC" }} />
+      <div style={{ width: "100%", height: h * 0.42, borderRadius: l * 0.045, background: C.sable }} />
       <div style={{ marginTop: h * 0.06, width: "78%", height: Math.max(6, h * 0.07), borderRadius: 99, background: C.encre }} />
       <div style={{ marginTop: h * 0.05 }}>
         <Lignes n={lignes} largeur={l * 0.86 - 2 * e} epaisseur={Math.max(4, h * 0.04)} ecart={Math.max(3, h * 0.03)} couleur={a(C.gris, 0.45)} />
