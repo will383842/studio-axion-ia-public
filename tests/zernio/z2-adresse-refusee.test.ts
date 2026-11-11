@@ -13,6 +13,7 @@ const C = await import("@/services/parcours-conversation");
 const pm = await import("@/services/parcours-mot");
 const Com = await import("@/services/_commun");
 const MS = await import("@/services/mots-service");
+const Opp = await import("@/services/oppositions-mots");
 
 const H = 3600_000;
 const HEURE = Math.floor(T0 / H) * H;
@@ -106,16 +107,11 @@ describe("422 du site : un seul message", () => {
 
 describe("personne opposée : rien du tout", () => {
   it("opposition arrivée pendant l'appel au site : aucun message", async () => {
-    site.reponses = () => {
-      // l'opposition est enregistrée entre l'appel au site et l'envoi
-      void Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {}).then(() => undefined);
-      return refuse();
-    };
     const transportInitial = site.transport;
+    site.reponses = refuse;
     pm.injecterTransportSite(async (r) => {
       const res = await transportInitial(r);
-      const conv = await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
-      await Com.ecrireParametre(C.PARAM_CONVERSATIONS, Object.fromEntries(Object.entries(conv).map(([k, v]) => [k, { ...v, etat: "oppose" }])));
+      await Opp.enregistrerOppositionParEmpreinte(cleConversation(A), { env: ENV });
       return res;
     });
     await ecrireAdresse("msg-e1");
