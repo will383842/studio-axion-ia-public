@@ -5,21 +5,24 @@ import { notFound } from "next/navigation";
 import { Apparition } from "@/components/ui/Apparition";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
+import { Carte } from "@/components/ui/Carte";
 import { EnTetePage, EnTeteSection } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { Icone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
+import { PucesActives } from "@/components/ui/PanneauFiltres";
+import { Section } from "@/components/ui/Section";
 import { FormeRatio } from "@/components/ui/SelecteurPastilles";
 import { BoutonMePrevenir } from "@/components/videos/BoutonMePrevenir";
 import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
 import { GalerieVideos } from "@/components/videos/GalerieVideos";
 import { formatBientot, titrePageFormat } from "@/components/videos/formatBientot";
 import { OngletsMesVideos } from "@/components/videos/OngletsMesVideos";
-import { FiltresMesVideos } from "@/components/videos/FiltresMesVideos";
-import { compterParReseau, filtrerCartes, lireFiltres, type ParametresAdresse } from "@/domaine/filtres-mes-videos";
+import { FiltresMesVideos, PLURIEL } from "@/components/videos/FiltresMesVideos";
+import { compterParReseau, filtrerCartes, lienFiltres, lireFiltres, type ParametresAdresse } from "@/domaine/filtres-mes-videos";
 import { compteursMesVideos } from "@/domaine/mes-videos";
 import { adresseCreationFormat, libelleDuree, listerFormats, nomCourtFormat, trouverFormat, valeursDuree } from "@/formats";
-import { cn } from "@/lib/cn";
+import { obtenirReseau } from "@/reseaux";
 import { statsFormat } from "@/services/C-videos-publication-complements";
 import { obtenirFicheFormat } from "@/services/formats";
 import { listerSeries, listerVideos } from "@/services/videos";
@@ -57,6 +60,20 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
   const affichees = filtres.reseau ? filtrerCartes(sansReseau, { reseau: filtres.reseau }) : sansReseau;
   const compteurs = compteursMesVideos(toutes, listerFormats({ inclureMasques: true, inclureReservesAWill: true }).map((x) => x.id));
 
+  // Même barre que Mes vidéos : un bouton « Filtres (n) » dans la galerie, des puces retirables.
+  const base = `/formats/${id}`;
+  const puces = [
+    ...(filtres.reseau ? [{ libelle: obtenirReseau(filtres.reseau).nom, href: lienFiltres(base, sp, { reseau: undefined }) }] : []),
+    ...(filtres.etape ? [{ libelle: PLURIEL[filtres.etape], href: lienFiltres(base, sp, { etape: undefined }) }] : []),
+  ];
+  const effacerHref = lienFiltres(base, sp, { reseau: undefined, etape: undefined });
+  const filtresAdresse = {
+    contenu: <FiltresMesVideos base={base} params={sp} filtres={filtres} reseaux={reseaux} disposition="panneau" />,
+    puces: <PucesActives puces={puces} effacerHref={effacerHref} sansEffacer />,
+    nombre: puces.length,
+    effacerHref,
+  };
+
   const chiffres = [
     // Le nombre de vidéos est dans l'en-tête de la galerie unique plus bas (E2E-1 n° 31) : ici, les scripts.
     { libelle: "Scripts", valeur: String(fiche.scripts.length), icone: "document" as const },
@@ -66,7 +83,7 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
 
   return (
     <div>
-      <EnTetePage titre={titrePageFormat(f.nom, bientot)} />
+      <EnTetePage titre={titrePageFormat(f.nom, bientot)} sousTitre={f.accroche} />
       <OngletsMesVideos
         actif={id}
         compteParFormat={compteurs.parFormat}
@@ -77,55 +94,47 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
         className="mb-5"
       />
 
-      {/* En-tête du format */}
+      {/* Fiche du format : icône, durées, formats d'image, éléments à fournir */}
       <Apparition>
-        <section className="relative isolate mb-6 overflow-hidden rounded-[24px] border border-trait bg-surface-1 p-5 sm:p-7">
-          <div aria-hidden className={cn("absolute inset-0 -z-10", actif ? "lueur-forte opacity-80" : "lueur")} />
-          <div className="flex items-start gap-4">
-            <span className={cn("grid size-14 shrink-0 place-items-center rounded-2xl", actif ? "bg-orange text-sur-orange shadow-orange" : "bg-surface-2 text-texte-doux")}>
+        <Carte className="mb-6 p-5 sm:p-7">
+          <div className="flex items-center gap-4">
+            <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-surface-2 text-texte-faible">
               <Icone nom={f.icone} size={26} />
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl text-texte sm:text-3xl">{nomCourtFormat(f)}</h2>
-                {bientot && (
-                  <Pastille ton="ambre" icone="horloge">
-                    Bientôt
-                  </Pastille>
-                )}
-              </div>
-              <p className="text-[15px] text-texte-doux">{f.accroche}</p>
+            <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+              {bientot && (
+                <Pastille ton="ambre" icone="horloge">
+                  Bientôt
+                </Pastille>
+              )}
+              {valeursDuree(f).map((d) => (
+                <Pastille key={d} taille="md" icone="horloge">
+                  {libelleDuree(d)}
+                </Pastille>
+              ))}
+              {f.ratios.map((r) => (
+                <Pastille key={r} ton="neutre" taille="md">
+                  <FormeRatio ratio={r} className="scale-75" />
+                  {r}
+                </Pastille>
+              ))}
             </div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-1.5">
-            {valeursDuree(f).map((d) => (
-              <Pastille key={d} taille="md" icone="horloge">
-                {libelleDuree(d)}
-              </Pastille>
-            ))}
-            {f.ratios.map((r) => (
-              <span key={r} className="inline-flex items-center gap-1.5 rounded-full border border-orange/30 bg-orange-doux px-3 py-1 text-xs font-semibold text-orange-vif">
-                <FormeRatio ratio={r} className="scale-75" />
-                {r}
-              </span>
-            ))}
-          </div>
-          {bientot && f.aFournir.length > 0 && (
-            <div className="mt-6 border-t border-trait pt-5">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-texte-faible">À fournir</p>
-              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {f.aFournir.map((a) => (
-                  <li key={a} className="flex items-center gap-2.5 text-sm text-texte">
-                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-doux text-orange-vif">
-                      <Icone nom="coche" size={14} />
-                    </span>
-                    {a}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+        </Carte>
+        {bientot && f.aFournir.length > 0 && (
+          <Section id="a-fournir" titre="À fournir" className="mb-6">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {f.aFournir.map((a) => (
+                <li key={a} className="flex items-center gap-2.5 text-sm text-texte">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface-2 text-texte-faible">
+                    <Icone nom="coche" size={14} />
+                  </span>
+                  {a}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
       </Apparition>
 
       {/* Chiffres du format */}
@@ -155,7 +164,7 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
             {f.exemples.map((e, i) => (
               <li key={e.titre}>
                 <Apparition index={i}>
-                  <div className="relative aspect-[9/16] overflow-hidden rounded-carte border border-trait">
+                  <div className="theme-sombre relative aspect-[9/16] overflow-hidden rounded-carte border border-trait">
                     <Image src={e.vignette} alt={e.titre} fill sizes="(max-width: 640px) 50vw, 240px" className="object-cover" />
                     <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-fond/90 to-transparent" />
                     <p className="absolute inset-x-3 bottom-3 line-clamp-2 text-sm font-semibold text-texte">{e.titre}</p>
@@ -173,18 +182,18 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
         <div className="mb-3 flex justify-end">
           <NettoyerNonTerminees formatId={f.id} />
         </div>
-        <FiltresMesVideos base={`/formats/${id}`} params={sp} filtres={filtres} reseaux={reseaux} className="mb-4" />
         <GalerieVideos
           key={`${filtres.etape ?? ""}-${filtres.reseau ?? ""}`}
           videos={affichees}
           series={series.map((s) => ({ id: s.id, nom: s.nom }))}
+          filtresAdresse={filtresAdresse}
           afficherFormat={false}
           ratioForce={f.ratioMaitre}
           vide={<EtatVide compact icone={f.icone} titre="Pas encore de vidéo" phrase={bientot ? "Ce format arrive bientôt." : "Lancez la première."} />}
         />
         {fiche.nbArchivees > 0 && (
           <p className="mt-4 text-sm">
-            <Link href={`/videos?vue=archivees&format=${encodeURIComponent(f.id)}`} className="font-semibold text-orange-vif hover:underline">
+            <Link href={`/videos?vue=archivees&format=${encodeURIComponent(f.id)}`} className="font-semibold text-texte-doux underline-offset-4 hover:text-texte hover:underline">
               Archivées de ce format ({fiche.nbArchivees})
             </Link>
           </p>

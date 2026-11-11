@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FichePersonnage, type OngletFiche } from "@/components/personnages/FichePersonnage";
-import { Icone } from "@/components/ui/Icone";
+import { LienRetour } from "@/components/ui/EnTetePage";
 import { obtenirFichePersonnage } from "@/services/B-personnages-bibliotheque";
 import { TEXTE_A_LIRE } from "@/services/personnages";
 import { exigerSession } from "@/services/auth";
@@ -27,10 +26,7 @@ export default async function PagePersonnage({ params, searchParams }: { params:
   const texte = fiche.personnage.nature === "moi" ? TEXTE_A_LIRE : TEXTE_A_LIRE.replace("Williams", prenom);
   return (
     <div>
-      <Link href="/personnages" className="-ml-2 mb-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-texte-doux hover:text-texte">
-        <Icone nom="fleche-gauche" size={16} />
-        Personnages
-      </Link>
+      <LienRetour href="/personnages" libelle="Personnages" />
       <FichePersonnage key={fiche.personnage.id} fiche={fiche} texteALire={texte} ongletInitial={ongletInitial} />
     </div>
   );

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { BoutonCopier } from "@/components/ui/BoutonCopier";
 import { exigerSession } from "@/services/auth";
 import { depots } from "@/services/_commun";
@@ -20,8 +21,8 @@ export default async function PageLire({ params }: { params: Promise<{ id: strin
   if (!v || v.scriptMaitreId !== id || !v.prompteur) notFound();
   const prises = v.prompteur.split("\n").filter((l) => l.trim());
   const texte = (
-    <div className="mx-auto max-w-3xl">
-      <EnTetePage retour={{ href: `/ecrire/sujets/${id}`, libelle: "Sujet" }} surTitre={v.code} titre="Je lis" className="mb-4" />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={{ href: `/ecrire/sujets/${id}`, libelle: "Sujet" }} surTitre={v.code} titre="Je lis" />
       <div className="mb-4 flex justify-end">
         <BoutonCopier texte={v.prompteur} />
       </div>
@@ -36,7 +37,7 @@ export default async function PageLire({ params }: { params: Promise<{ id: strin
           </li>
         ))}
       </ol>
-    </div>
+    </ConteneurPage>
   );
   // Plan facecam v4 (lot D) : écran de départ (4 pictogrammes, « C'est parti ») pour le face caméra seulement.
   return v.formatId === "facecam" ? <DepartIpad varianteId={v.id}>{texte}</DepartIpad> : texte;

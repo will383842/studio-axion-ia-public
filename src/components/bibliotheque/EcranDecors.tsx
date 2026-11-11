@@ -52,7 +52,7 @@ export function EcranDecors({ donnees, ajouterAuDepart }: { donnees: DonneesEcra
             {d.code && <Pastille>{d.code}</Pastille>}
             {d.etat !== "fond-neutre" && d.etat !== "photo" && <Pastille ton={d.ton}>{d.libelleEtat}</Pastille>}
           </span>
-          {d.defautAvocat && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-voile px-2 py-0.5 text-[11px] font-semibold text-texte">Défaut</span>}
+          {d.defautAvocat && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-[#000]/70 px-2 py-0.5 text-[11px] font-semibold text-[#fff6ec]">Défaut</span>}
         </div>
         <p className="mt-1.5 truncate text-xs font-semibold text-texte">{d.nom}</p>
       </button>
@@ -61,15 +61,15 @@ export function EcranDecors({ donnees, ajouterAuDepart }: { donnees: DonneesEcra
 
   return (
     <div className="space-y-7 pb-24">
-      <button type="button" onClick={() => setDemande(true)} className="flex min-h-14 w-full items-center gap-3 rounded-carte border border-orange/40 bg-orange-doux px-4 text-left">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-orange/20 text-orange-vif">
+      <button type="button" onClick={() => setDemande(true)} className="flex min-h-14 w-full items-center gap-3 rounded-carte border border-trait bg-surface-1 px-4 text-left shadow-carte transition-colors hover:border-trait-fort">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-texte-faible">
           <Icone nom="etincelles" size={18} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-texte">Demander un décor</span>
           <span className="block text-xs text-texte-faible">Une phrase, 3 propositions sur votre double</span>
         </span>
-        <Icone nom="chevron-droite" size={16} className="text-orange-vif" />
+        <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
       </button>
 
       {aChoisir.map((g) => (
