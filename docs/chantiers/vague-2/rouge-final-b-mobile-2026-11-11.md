@@ -4,6 +4,6 @@
 
 **Fichier touché** : `tests/final-b-mobile.test.ts` (le cas n° 10 lit maintenant `ChiffresVideo.tsx`, mêmes assertions, aucune affaiblie).
 
-**Résultat** : `tests/final-b-mobile.test.ts` 10/10 vert. `npx tsc --noEmit -p .` : une seule erreur, préexistante et sans rapport (`tests/zernio/pv3-mots.test.ts:268`).
+**Résultat** : `tests/final-b-mobile.test.ts` 10/10 vert. `npx tsc --noEmit -p .`  : 146 erreurs, toutes préexistantes sur master et sans rapport avec ce test (ex. `tests/zernio/pv3-mots.test.ts:268`) ; aucune dans le fichier modifié.
 
 **Points laissés** : aucun. Installation faite avec `pnpm install --frozen-lockfile` (le dépôt n'a pas de package-lock, `npm ci` ne marche pas).
