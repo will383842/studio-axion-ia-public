@@ -54,9 +54,12 @@ export const OBJETS_CHOIX: readonly ObjetCas[] = OBJETS;
 
 const net = (t: string): string => t.trim();
 
-/** Phrase « Pour qui » après un choix de cible : préremplie tant qu'elle est vide ou qu'elle vient du choix précédent ; sinon intacte. */
+/**
+ * Phrase « Pour qui » après un choix de cible : elle suit le choix tant qu'elle est vide ou qu'elle vient du choix précédent
+ * (vidée au changement de niveau, valeur vide) ; écrite à la main, elle reste intacte.
+ */
 export function choixCibleVersPhrase(phrase: string, precedent: string, libelle: string): string {
-  return libelle && (phrase.trim() === "" || phrase === precedent) ? libelle : phrase;
+  return phrase.trim() === "" || phrase === precedent ? libelle : phrase;
 }
 
 /** Le formulaire tel que le serveur l'attend : les champs vides facultatifs sont omis, les tâches séparées par ligne. */

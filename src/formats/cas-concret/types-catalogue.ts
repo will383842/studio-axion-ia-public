@@ -31,7 +31,7 @@ export const TYPE_PAR_CAS: Readonly<Record<string, TypeAutomatisation>> = {
   "rendez-vous-classes": "rendez-vous-planning",
 };
 
-/** Table, puis champ du cas, puis déduction du titre, de la promesse et du sujet ; null = « À classer ». */
+/** Champ déclaré du cas, puis table, puis déduction du titre, de la promesse et du sujet ; null = « À classer ». */
 export function typeAutomatisationDuCas(cas: Pick<CasConcret, "id" | "titre" | "promesse" | "typeAutomatisation" | "recit">): TypeAutomatisation | null {
-  return TYPE_PAR_CAS[cas.id] ?? cas.typeAutomatisation ?? deduireTypeAutomatisation(`${cas.titre} ${cas.promesse} ${cas.recit?.sujet ?? ""}`);
+  return cas.typeAutomatisation ?? TYPE_PAR_CAS[cas.id] ?? deduireTypeAutomatisation(`${cas.titre} ${cas.promesse} ${cas.recit?.sujet ?? ""}`);
 }
