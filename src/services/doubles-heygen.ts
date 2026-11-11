@@ -14,7 +14,7 @@ import { normaliserTenue } from "@/domaine/distribution";
 import { etatConnexion, resoudreFournisseur } from "@/fournisseurs";
 import type { DoubleExistant } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
-import { depots, enregistrerRessource, ErreurStudio, horodatage, journaliser, ressourceActive } from "./_commun";
+import { depots, enregistrerRessource, ErreurStudio, horodatage, journaliser, maintenant, ressourceActive } from "./_commun";
 import { exigerSession } from "./auth";
 import { accordComplet } from "./personnages";
 
@@ -63,14 +63,42 @@ export async function choisirDoubleHeygen(personnageId: Id, choix: { idExterne: 
   if (!ANGLES_DOUBLE.includes(choix.angle)) throw new ErreurStudio("ANGLE", "Choisissez « Trois quarts » ou « Presque de face ».");
   const { f, branche } = fournisseurHeygen();
   if (!branche) throw new ErreurStudio("DOUBLE_NON_RELIE", "Le double HeyGen n'est pas encore relié au serveur.");
-  const double = (await f.listerDoubles!()).find((x) => x.idExterne === choix.idExterne);
+  const liste = await f.listerDoubles!();
+  const double = liste.find((x) => x.idExterne === choix.idExterne);
   if (!double) throw new ErreurStudio("INTROUVABLE", "Ce double n'existe plus dans votre compte HeyGen.");
   if (!double.utilisable) throw new ErreurStudio("DOUBLE_PAS_PRET", double.raison ?? "Ce double n'est pas encore prêt chez HeyGen.");
   const visages = await d.visages.lister((v) => v.personnageId === personnageId);
+  // Doubles disparus du compte HeyGen (visages « filmé » prêts reliés à un double qui n'est plus dans la liste). Liste vide : on ne conclut rien.
+  const absents: { id: Id; nom: string; ressourceId: Id }[] = [];
+  if (liste.length > 0) {
+    const presents = new Set(liste.map((x) => x.idExterne));
+    for (const v of visages) {
+      if (v.fournisseur !== "heygen" || v.origine !== "filme" || v.statut !== "pret") continue;
+      const r = await ressourceActive(v.id);
+      if (r?.fournisseur === "heygen" && !presents.has(r.idExterne)) absents.push({ id: v.id, nom: v.nom, ressourceId: r.id });
+    }
+  }
+  /** Range les doubles disparus (jamais effacés) et remet le nouveau double à leur place (défaut, visage par format). */
+  const rangerAbsents = async (nouveauId: Id) => {
+    if (absents.length === 0) return;
+    const ids = new Set(absents.map((a) => a.id));
+    for (const a of absents) {
+      await d.ressourcesFournisseurs.modifier(a.ressourceId, { remplaceeLe: maintenant() });
+      await d.visages.modifier(a.id, { statut: "brouillon" });
+      await journaliser("personnage", `Double HeyGen « ${a.nom} » introuvable dans votre compte HeyGen : remplacé par « ${double.nom} ».`, { type: "personnage", id: personnageId });
+    }
+    const maj: { visageParDefautId?: Id; visageParFormat?: Record<string, Id> } = {};
+    if (p.visageParDefautId && ids.has(p.visageParDefautId)) maj.visageParDefautId = nouveauId;
+    if (p.visageParFormat && Object.values(p.visageParFormat).some((x) => ids.has(x))) {
+      maj.visageParFormat = Object.fromEntries(Object.entries(p.visageParFormat).map(([k, x]) => [k, ids.has(x) ? nouveauId : x]));
+    }
+    if (Object.keys(maj).length > 0) await d.personnages.modifier(personnageId, maj);
+  };
   for (const v of visages) {
     const r = await ressourceActive(v.id);
     if (r?.fournisseur === "heygen" && r.idExterne === choix.idExterne) {
       await d.visages.modifier(v.id, { angle: choix.angle, statut: "pret" });
+      await rangerAbsents(v.id);
       return v.id;
     }
   }
@@ -101,8 +129,11 @@ export async function choisirDoubleHeygen(personnageId: Id, choix: { idExterne: 
   // Lot R7e : le nouvel avatar devient le visage par défaut SEULEMENT si le défaut actuel manque ou n'est pas un avatar
   // HeyGen prêt (un choix existant de Will n'est jamais écrasé sans le dire — relecture R7e n° 5).
   const defaut = p.visageParDefautId ? visages.find((x) => x.id === p.visageParDefautId) : undefined;
-  if (!defaut || defaut.fournisseur !== "heygen" || defaut.statut !== "pret") await d.personnages.modifier(personnageId, { visageParDefautId: v.id });
-  else await journaliser("personnage", `Le visage par défaut est gardé : « ${defaut.nom} ». Pour le changer, choisissez-le dans Personnages.`, { type: "personnage", id: personnageId });
+  await rangerAbsents(v.id);
+  const defautAbsent = !!defaut && absents.some((a) => a.id === defaut.id);
+  if (!defaut || defaut.fournisseur !== "heygen" || defaut.statut !== "pret" || defautAbsent) {
+    if (!defautAbsent) await d.personnages.modifier(personnageId, { visageParDefautId: v.id });
+  } else await journaliser("personnage", `Le visage par défaut est gardé : « ${defaut.nom} ». Pour le changer, choisissez-le dans Personnages.`, { type: "personnage", id: personnageId });
   return v.id;
 }
 
