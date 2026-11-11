@@ -3,7 +3,7 @@
  * (`docs/OUTILS-REELS-R1.md`, section R1b) :
  *  1. deux comptes du même réseau cochés → DEUX envois légitimes (deux brouillons, deux publications) ;
  *  2. le même compte deux fois (dans la même demande, ou renvoyé) → UN seul envoi ;
- *  3. sans mémoire, aucun compte n'est coché par défaut dans la feuille (jamais un compte que Will n'a pas vu) ;
+ *  3. sans mémoire, aucun compte n'est coché par défaut dans la feuille (jamais un compte que le dirigeant n'a pas vu) ;
  *  4. « Programmer les N » sans compte mémorisé pour un réseau à plusieurs comptes → ce réseau est mis de côté, phrase simple.
  * Et : la mémoire du dernier choix, l'affichage du compte, une publication d'avant R1b reste reconnue.
  *
@@ -137,7 +137,7 @@ describe("R1b — un compte choisi à chaque envoi", () => {
     expect(defaut.filter((cle) => cases.find((c) => c.cle === cle)?.reseau === "linkedin")).toEqual([]);
     expect(defaut).toContain("instagram");
 
-    // Will envoie vers la page : c'est mémorisé et proposé la fois suivante.
+    // Le dirigeant envoie vers la page : c'est mémorisé et proposé la fois suivante.
     await cocher(VIDEO);
     await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } });
     const vue2 = (await buf.vueEnvoiBuffer())!;
@@ -194,7 +194,7 @@ describe("R1b — un compte choisi à chaque envoi", () => {
     await gen.rangerVideo("v-11", vue.versions[0].variante.id);
     await cocher("v-11");
     await cocher(VIDEO);
-    // Will a choisi le profil lors d'un envoi précédent (autre vidéo).
+    // Le dirigeant a choisi le profil lors d'un envoi précédent (autre vidéo).
     await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinProfil] } });
     const r = await mes.programmerSujet(s.id, { jourJ: mes.jourJParDefaut() });
     expect(r.ignorees).toEqual([]);
