@@ -23,7 +23,7 @@ export function melange(a: string, b: string, t: number): string {
 
 /**
  * Les 8 mélanges calculés sur la palette 2026, définis une seule fois (importés par premium-2 à 5).
- * Fonds clairs : ivoire, gris, terracotta, texte secondaire. Le niveau de sombre `encreDouce` est le noir lui-même (relief par filet, jamais par un second neutre) ; l'orange #D97757 n'y est pas employé (noir seulement).
+ * Fonds clairs : ivoire, gris, terracotta, texte secondaire. Le niveau de sombre `encreDouce` est le noir lui-même (relief par filet, jamais par un second neutre) ; l'orange de la palette n'y est pas employé (noir seulement).
  */
 export const MELANGES = Object.freeze({
   ivoireCreux: melange(PALETTE.ivoire, PALETTE.gris, 0.5),
