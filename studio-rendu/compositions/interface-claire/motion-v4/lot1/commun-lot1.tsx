@@ -273,7 +273,7 @@ export function Picto({ nom, taille = 56, fond = BLANC, trait = ENCRE }: { nom: 
   return <svg width={taille} height={taille} viewBox="0 0 64 64">{corps}</svg>;
 }
 
-/** Symbole Claude (étoile à 12 rayons inégaux, terre cuite #D97757), tracé en SVG maison ; à remplacer par le fichier de marque officiel si Will le fournit. */
+/** Symbole Claude (étoile à 12 rayons inégaux, terre cuite #D97757), tracé en SVG maison ; à remplacer par le fichier de marque officiel si Williams le fournit. */
 export function LogoClaude({ taille = 126 }: { taille?: number }) {
   const longueurs = [30, 22, 29, 20, 30, 23, 29, 21, 30, 22, 28, 20];
   return (
@@ -302,11 +302,11 @@ export function descenteA(frame: number, cles: CleDescente[]): number {
   return valeur(frame);
 }
 
-/** Prise de Will en fond (vidéo avec sa voix), translatée de `d × H` — la SEULE transformation permise ; bande ivoire révélée en haut. */
+/** Prise de Williams en fond (vidéo avec sa voix), translatée de `d × H` — la SEULE transformation permise ; bande ivoire révélée en haut. */
 export type FondTest = "prise" | "blanc" | "noir" | string;
 export function FondPrise({ d, source, debutVideo = 0, fondTest = "prise" }: { d: number; source: string; debutVideo?: number; fondTest?: FondTest }) {
-  if (fondTest === "blanc" || fondTest === "noir") return <AbsoluteFill style={{ background: fondTest === "blanc" ? BLANC : "#111111" }} />;
-  if (fondTest !== "prise") return <AbsoluteFill style={{ background: "#111111" }}><OffthreadVideo src={mediaV4(fondTest)} muted style={{ width: W, height: H, objectFit: "cover" }} /></AbsoluteFill>;
+  if (fondTest === "blanc" || fondTest === "noir") return <AbsoluteFill style={{ background: fondTest === "blanc" ? BLANC : ENCRE }} />;
+  if (fondTest !== "prise") return <AbsoluteFill style={{ background: ENCRE }}><OffthreadVideo src={mediaV4(fondTest)} muted style={{ width: W, height: H, objectFit: "cover" }} /></AbsoluteFill>;
   return (
     <AbsoluteFill style={{ background: IVOIRE }}>
       <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translateY(${(d * H).toFixed(2)}px)` }}>
