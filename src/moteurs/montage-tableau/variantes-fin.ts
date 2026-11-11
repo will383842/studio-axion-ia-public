@@ -25,9 +25,10 @@ import { substituerPrononciations } from "@/domaine/prononciations";
 import { mots } from "@/domaine/controles-script/texte";
 import { ECRANS_PAR_SCENE_MAX as ECRANS_MAX } from "@/briques/fiche-scenes";
 import { remettreEnForme } from "./decoupage";
-import { cleMot, estStyleBlocs2, type EcranTableau, type ElementTableau, type FicheTableau, type MomentEcran, type SceneTableau } from "./fiche";
+import { cleMot, estStyleBlocs2, estStyleReference3, type EcranTableau, type ElementTableau, type FicheTableau, type MomentEcran, type SceneTableau } from "./fiche";
 import { sansAppelAuMot, type IdSortie } from "./formats-sortie";
 import { cleSimple, PHRASES_APPEL } from "./regles";
+import { enregistrerDetecteurAppel } from "./appel-dit";
 
 /** Adresse montrée en grand sur l'écran de fin sans appel. */
 export const SITE_FIN = "axion-ia.com";
@@ -200,6 +201,8 @@ export function trouverAppel(fiche: Pick<FicheTableau, "scenes">, dit?: string):
   while (a > 0 && (phraseDAppel(avant[a - 1].texte) || AMORCE_APPEL.test(sansAccents(avant[a - 1].texte)))) a--;
   return resultat(phrases[depart].debut, phrases[derniere].fin, a < avant.length ? avant[a].debut : undefined);
 }
+
+enregistrerDetecteurAppel((f) => trouverAppel(f) !== null);
 
 /** Le texte dit d'une scène, mots [debut, fin[ retirés (les jetons sans lettre suivent le mot d'avant), `ajout` à la place. */
 function texteSans(texte: string, debut: number, fin: number, ajout?: string): string {
@@ -547,6 +550,7 @@ export type PlanVoixSorties =
  * principales aide à repérer l'appel dans la fiche).
  */
 export function planVoixSorties(fiche: FicheTableau, sorties: readonly { id: IdSortie; fin?: FinDeSortie }[]): PlanVoixSorties {
+  if (estStyleReference3(fiche) && !fiche.scenes.some((s) => s.gabarit?.role === "appel") && !trouverAppel(fiche)) return { mode: "unique" };
   const dits = sorties.map((s) => ({ ...s, appel: appelDitDeLaSortie(s.id, s.fin) }));
   if (dits.every((d) => d.appel.sorte === "fiche")) return { mode: "unique" };
   const ditFiche = dits.map((d) => (d.appel.sorte === "fiche" && d.fin && "ecran" in d.fin ? d.fin.dit : undefined)).find(Boolean);

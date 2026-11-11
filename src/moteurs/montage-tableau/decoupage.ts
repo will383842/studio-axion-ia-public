@@ -329,7 +329,7 @@ GABARIT PAR PARTIES (habillage "${STYLE_REFERENCE_3}", le style des NOUVELLES fi
 - LA QUESTION SUR L'IA (l'une de ${QUESTIONS_IA.map((q) => `« ${q} »`).join(", ")}) est DITE, jamais écrite, sur aucune page (pas même sur la page d'appel ni raccourcie) ;
 - LE NOM AXION-IA n'est écrit que sur la page d'appel (la dernière) : jamais dans un titre, une ligne, une étiquette ou un visuel d'une autre page (il peut être dit) ;
 - LA LIGNE DE LA PAGE D'APPEL : 6 mots / 35 caractères au plus ; plus longue, garde-la dite et écris une version courte ;
-- APPEL (dernière page, plein cadre) : la phrase d'appel en « bloc » « appel » (courte : « Réservez un appel de diagnostic »), au plus une autre phrase en « detail » ; axion-ia.com est ajouté d'office ;
+- APPEL (dernière page, plein cadre) SEULEMENT SI LE SCRIPT DIT UN APPEL : la phrase d'appel en « bloc » « appel » (courte : « Réservez un appel de diagnostic »), au plus une autre phrase en « detail » ; axion-ia.com est ajouté d'office. Un script qui ne dit AUCUN appel (texte prêt, un hook court) n'a PAS de page « appel » : la dernière page est sa dernière partie dite ; n'écris jamais d'appel qui n'est pas dit ;
 - chaque ligne est ancrée au PREMIER mot où la voix la dit (jamais plus tard) : elle s'écrit pendant qu'elle est dite ; un dessin au plus par page (il va à droite de l'étiquette) ;
 - une page courte (une seule phrase) reste courte : la mise en page agrandit son texte. N'ajoute JAMAIS de texte écrit qui n'est pas dit pour la remplir ;
 - le texte écrit raccourcit le texte dit, JAMAIS ne le contredit (aucun nombre écrit qui ne soit dit) ; 26 pages au plus ;
@@ -404,7 +404,8 @@ export const roleDecoupageTableau = {
   //   paperboard (refus page lisible du 23/10, série Automatisations).
   // 22 (11/11) : relecture Opus du lot correctifs ; le rôle attend jusqu'à 10 min (`delaiTotalMs`) ; marge de réparation de 2 pages
   //   (le gabarit accepte 28 pages, la consigne en demande toujours 26 au plus).
-  version: 22,
+  // 23 (11/11) : page d'appel seulement si le script dit un appel (texte de Will sans appel : aucune page d'appel).
+  version: 23,
   consigne: CONSIGNE_DECOUPAGE,
   modele: MODELE_ECRITURE,
   effort: "medium",
