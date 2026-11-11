@@ -216,14 +216,14 @@ export function FeuilleVotreVideo({
           voix={voix}
           onFabriquer={fabriquer}
           sujetEnAttente={!peutFabriquer(dejaTraite, choixSujet)}
-          {...(cas.script && onRelire && !nouveauScript ? { onRelire: () => onRelire({ reseaux, mot, avecMot, ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, montant ?? 0) } : {})}
+          {...(cas.script && !cas.scriptFourni && onRelire && !nouveauScript ? { onRelire: () => onRelire({ reseaux, mot, avecMot, ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, montant ?? 0) } : {})}
         />
       }
     >
       {dejaTraite && !choixSujet && <PanneauSujetDejaTraite dejaTraite={dejaTraite} onChoisir={choisirSujet} {...(onAutreCas ? { onAutreCas } : {})} />}
       {choixSujet && (
         <p role="status" className="flex flex-wrap items-center gap-2 px-1 text-[15px] text-texte-doux">
-          {choixSujet.choix === "nouvel-angle" ? "Nouvel angle : un nouveau script sera écrit." : "Vous refaites ce cas quand même."}
+          {choixSujet.choix === "nouvel-angle" ? (cas.scriptFourni ? "Nouvel angle : un nouveau script sera écrit par Claude. Votre script ne sera PAS utilisé pour cette vidéo." : "Nouvel angle : un nouveau script sera écrit.") : "Vous refaites ce cas quand même."}
           <Bouton variante="fantome" onClick={changerChoixSujet}>
             Changer
           </Bouton>
@@ -419,7 +419,7 @@ export function ContenuVotreVideo({
           <LienMonScript cas={cas} />
         </section>
       )}
-      {cas.script && onNouveauScript && (
+      {cas.script && !cas.scriptFourni && onNouveauScript && (
         <section aria-label="Nouveau script">
           <Interrupteur libelle={LIBELLE_NOUVEAU_SCRIPT} detail={PHRASE_NOUVEAU_SCRIPT} coche={nouveauScript} onChange={onNouveauScript} />
         </section>

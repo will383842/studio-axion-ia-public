@@ -74,10 +74,10 @@ beforeEach(async () => {
 const videosIV = () => depots().videos.lister((v) => v.formatId === ID_FORMAT_IMAGE_VIDEO);
 
 describe("Image → vidéo · script complet · le dépôt", () => {
-  it("refuse en phrases (vide, trop court, plus de 300 mots, plus de 4000 caractères) avant tout prix, brouillon ou dépense", async () => {
+  it("refuse en phrases (vide, trop court, plus de 450 mots, plus de 4000 caractères) avant tout prix, brouillon ou dépense", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
-    const trois_cent_un = Array.from({ length: 301 }, () => "mot").join(" ");
-    for (const t of ["", "   ", "Facture client", trois_cent_un, "x".repeat(4001)]) {
+    const quatre_cent_cinquante_et_un = Array.from({ length: 451 }, () => "mot").join(" ");
+    for (const t of ["", "   ", "Facture client", quatre_cent_cinquante_et_un, "x".repeat(4001)]) {
       const issue = await texte.deposerScriptImageVideo({ script: t, reseaux: [...RESEAUX_IV], accordCentimes: 100000 });
       expect(issue.statut, t.slice(0, 20)).toBe("refusee");
       expect((issue as { phrase: string }).phrase).toMatch(/[a-zé]/);
@@ -85,8 +85,8 @@ describe("Image → vidéo · script complet · le dépôt", () => {
     // Aucun refus n'a créé de vidéo.
     expect(await videosIV()).toEqual([]);
     expect(ecritures).toEqual([]);
-    // 300 mots pile : accepté (le refus ne vient pas de la longueur).
-    const pile = await texte.deposerScriptImageVideo({ script: Array.from({ length: 300 }, () => "mot").join(" "), reseaux: [...RESEAUX_IV] });
+    // 450 mots pile : accepté (le refus ne vient pas de la longueur).
+    const pile = await texte.deposerScriptImageVideo({ script: Array.from({ length: 450 }, () => "mot").join(" "), reseaux: [...RESEAUX_IV] });
     expect(pile.statut).not.toBe("refusee");
   });
 
@@ -134,7 +134,7 @@ describe("Image → vidéo · script complet · l'écran de dépôt", () => {
     const html = renderToStaticMarkup(createElement(DepotScript, { script: "", onScript: () => undefined, reseaux: [...RESEAUX_IV], montant: 250, onRefus: () => undefined }));
     expect(html).toContain("Fabriquer la vidéo");
     expect(html).not.toMatch(/€|au plus \d|prix/i);
-    expect(html).toContain("0 mot sur 300 au plus");
+    expect(html).toContain("0 mot sur 450 au plus");
     expect(html).toContain("disabled");
   });
 });
