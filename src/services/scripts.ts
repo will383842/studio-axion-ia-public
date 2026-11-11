@@ -7,6 +7,7 @@ import { adresseDepuisFacon } from "@/domaine/adresse";
 import { compterMots, texteScript } from "@/domaine/derivations";
 import { debitLecture, dureeParDefaut, obtenirFormat, scriptAJour } from "@/formats";
 import type { ConsigneAmelioration, ScriptGenere } from "@/fournisseurs";
+import type { FiltreType } from "@/domaine/ciblage/listes";
 import { nouvelId } from "@/lib/ids";
 import { contient } from "@/lib/textes";
 import { depots, fournisseur, ecrireParametre, ErreurStudio, filtreExemples, horodatage, lireParametre, maintenant } from "./_commun";
@@ -32,6 +33,9 @@ export interface FiltresScripts {
   reference?: boolean;
   favori?: boolean;
   q?: string;
+  /** Ciblage (lot H) : `false` masque les anciens scripts ; absent = tout (les autres écrans ne changent pas). */
+  inclureAnciens?: boolean;
+  typeAutomatisation?: FiltreType;
 }
 
 export async function listerScripts(filtres: FiltresScripts = {}): Promise<(Script & { dureeEstimeeSec: number; apercu: string })[]> {
@@ -42,6 +46,8 @@ export async function listerScripts(filtres: FiltresScripts = {}): Promise<(Scri
       (!filtres.formatId || s.formatId === filtres.formatId) &&
       (filtres.reference === undefined || s.reference === filtres.reference) &&
       (!filtres.favori || s.favori) &&
+      (filtres.inclureAnciens !== false || !s.ancien) &&
+      (!filtres.typeAutomatisation || (filtres.typeAutomatisation === "a-classer" ? !s.typeAutomatisation : s.typeAutomatisation === filtres.typeAutomatisation)) &&
       (!filtres.q || contient(s.sujet, filtres.q) || contient(texteScript(s.blocs), filtres.q)),
   );
   liste.sort((a, b) => b.modifieLe.localeCompare(a.modifieLe));
