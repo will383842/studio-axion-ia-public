@@ -52,6 +52,8 @@ const EXACT_RACINE: Record<string, string> = {
 const EXACT_RACINE_RGB: Record<string, string> = {
   "orange-doux": "rgb(178 63 22 / 0.10)", "sauge-doux": "rgb(94 112 80 / 0.08)", "ambre-doux": "rgb(20 20 19 / 0.08)",
   "brique-doux": "rgb(178 63 22 / 0.10)", voile: "rgb(20 20 19 / 0.45)",
+  "ombre-carte": "0 1px 2px rgb(20 20 19 / .06), 0 8px 24px -12px rgb(20 20 19 / .18)",
+  "ombre-orange": "0 8px 24px -10px rgb(178 63 22 / .35)",
 };
 const EXACT_SOMBRE: Record<string, string> = {
   fond: "#141413", "surface-1": "#141413", "surface-2": "#141413", "surface-3": "#141413",

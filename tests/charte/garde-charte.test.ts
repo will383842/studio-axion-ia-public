@@ -1,10 +1,10 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { defauts, fichiers, relatif } from "./garde-charte";
+import { defauts, EXCEPTIONS_DEGRADES_MATIERES, EXCEPTIONS_STRICTES, fichiers, occurrencesDegrades, relatif } from "./garde-charte";
 
 /** Zones où AUCUNE couleur hors charte ni police autre que Manrope n'est tolérée. */
-const STRICTES = ["src/moteurs", "src/briques/charte", "src/briques/motion", "src/briques/habillage", "src/briques/habillage-facecam", "src/briques/sous-titres"];
+const STRICTES = ["src/moteurs", "src/briques/charte", "src/briques/motion", "src/briques/habillage", "src/briques/habillage-facecam", "src/briques/sous-titres", "src/briques/tableau-scene", "src/briques/visuels"];
 /**
  * Polices qui restent (cliquet) parce que les mises en page sont MESURÉES sur leurs fichiers : les passer à Manrope
  * demande de régénérer les tables de chasse (écrans du cas concret, tableau, encadré). Les couleurs, elles, sont strictes.
@@ -18,7 +18,7 @@ const BASE = join(process.cwd(), "tests/charte/compositions-restantes.json");
 describe("garde charte Axion 2026", () => {
   for (const zone of STRICTES) {
     it(`${zone} : aucune couleur hors charte, aucune police autre que Manrope`, () => {
-      const fautes = fichiers(zone).flatMap((f) => {
+      const fautes = fichiers(zone).filter((f) => !EXCEPTIONS_STRICTES.includes(relatif(f))).flatMap((f) => {
         const d = defauts(readFileSync(f, "utf8"), relatif(f));
         const reste = POLICES_RESTANTES[relatif(f)];
         const polices = d.filter((x) => x.startsWith("police"));
@@ -30,9 +30,30 @@ describe("garde charte Axion 2026", () => {
     });
   }
 
+  it("les exceptions de dégradés de matière sont une liste fermée, motivée, qui désigne un dégradé existant", () => {
+    for (const e of EXCEPTIONS_DEGRADES_MATIERES) {
+      expect(e.raison.length, `${e.fichier} ${e.nom}`).toBeGreaterThan(10);
+      const trouve = occurrencesDegrades(readFileSync(join(process.cwd(), e.fichier), "utf8")).some((o) => o.nom === e.nom);
+      expect(trouve, `${e.fichier} : « ${e.nom} » n'existe plus (retirer l'exception)`).toBe(true);
+    }
+  });
+
+  it("détecte les dégradés canvas et SVG, sauf les matières nommées", () => {
+    expect(defauts("const g = ctx.createLinearGradient(0, 0, 0, 9);").some((x) => x.startsWith("dégradé canvas"))).toBe(true);
+    expect(defauts("const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 9);").some((x) => x.startsWith("dégradé canvas"))).toBe(true);
+    expect(defauts("const g = ctx.createConicGradient(0, 4, 4);").some((x) => x.startsWith("dégradé canvas"))).toBe(true);
+    expect(defauts('<svg><linearGradient id="fond" /></svg>').some((x) => x.startsWith("dégradé svg"))).toBe(true);
+    expect(defauts('<svg><radialGradient id="fond"></radialGradient></svg>').some((x) => x.startsWith("dégradé svg"))).toBe(true);
+    expect(defauts('// <linearGradient id="x"> en commentaire').length).toBe(0);
+    const m = EXCEPTIONS_DEGRADES_MATIERES[0];
+    expect(defauts(`<linearGradient id="${m.nom}">`, m.fichier)).toEqual([]);
+    expect(defauts(`<linearGradient id="${m.nom}">`, "autre/fichier.tsx").length).toBe(1);
+    expect(defauts('<linearGradient id="fond-decor">', m.fichier).length).toBe(1);
+  });
+
   it("compositions : le nombre de défauts par fichier ne dépasse jamais la liste figée (et ne la laisse pas périmée)", () => {
     const actuel: Record<string, number> = {};
-    for (const f of fichiers(COMPOSITIONS)) {
+    for (const f of [...fichiers(COMPOSITIONS), ...fichiers("src/app")]) {
       const r = relatif(f);
       if (r.startsWith(`${COMPOSITIONS}/visuels/`)) continue;
       const n = defauts(readFileSync(f, "utf8"), r).length;
