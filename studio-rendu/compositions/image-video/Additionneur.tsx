@@ -103,7 +103,7 @@ export function Additionneur({ t, fond, ...p }: ProprietesAdditionneur & { t: nu
                   display: "inline-block",
                   opacity: s ? s.opacite : e.opacite,
                   transform: s ? `scale(${s.echelle})` : `translateY(${e.decalageY}px)`,
-                  color: m.accent ? accent : m.texte === "+" || m.texte === "=" ? COULEURS_DUO.gris : c.texte,
+                  color: m.accent ? accent : m.texte === "+" || m.texte === "=" ? c.secondaire : c.texte,
                   textTransform: "uppercase",
                 }}
               >
