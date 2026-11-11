@@ -8,7 +8,6 @@ import { describe, expect, it } from "vitest";
 import { contenuDepuisVideoImportee } from "@/domaine/ecriture-post/adaptateurs";
 import { composerPremierCommentaire, modePremierCommentaire, PREMIER_COMMENTAIRE_RESEAUX } from "@/domaine/ecriture-post/commentaire";
 import { evaluerPremierCommentaire, entreePremierCommentaire, rolePremierCommentaire, simulerPremierCommentaire } from "@/generateur/roles/premier-commentaire";
-import { rolePremierCommentaire as roleReexporte } from "@/generateur/roles";
 import { proposerPremierCommentaire } from "@/services/premier-commentaire";
 
 const LIEN = "https://exemple.fr/ressource?utm_medium=post";
@@ -58,8 +57,8 @@ describe("évaluations", () => {
     expect(evaluerPremierCommentaire({ texte: "a".repeat(5000) }, { reseau: "linkedin" }).join(" ")).toMatch(/PC-02/);
   });
   it("objectif lien : le lien doit y être", () => expect(evaluerPremierCommentaire({ texte: "Voici la suite." }, { reseau: "linkedin", objectif: "lien", lien: LIEN }).join(" ")).toMatch(/PC-03/));
-  it("le rôle est exporté et simulable sans appel", () => {
-    expect(roleReexporte).toBe(rolePremierCommentaire);
+  it("le rôle est défini et simulable sans appel", () => {
+    expect(rolePremierCommentaire.id).toBe("premier-commentaire");
     const d = { reseau: "facebook" as const, contenu, objectif: "lien" as const, lien: LIEN };
     expect(simulerPremierCommentaire(entreePremierCommentaire(d)).texte).toContain(LIEN);
   });
