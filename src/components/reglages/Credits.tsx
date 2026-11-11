@@ -14,6 +14,7 @@ import { LIBELLES_NIVEAU, LIBELLES_NIVEAU_FORFAIT, niveauCredit } from "@/domain
 import { dateCourte, heure } from "@/lib/dates";
 import { cn } from "@/lib/cn";
 import type { CarteCredit } from "@/services/credits";
+import { eurosVersDollars, lireSaisieEuros } from "./montants-euros";
 
 const COULEURS: Record<TonJauge, { barre: string; texte: string }> = {
   vert: { barre: "bg-sauge", texte: "text-sauge" },
@@ -44,7 +45,7 @@ export function etiquetteSolde(c: Pick<CarteCredit, "mode" | "nom" | "luLe">): s
  * Réglages > CRÉDITS (lot « crédits », 02/10) : une carte par service payant. Solde étiqueté « lu » (avec l'heure) ou
  * « suivi », jauge, « ≈ N vidéos », consommé ce mois, Recharger (page du service) et « J'ai rechargé ».
  */
-export function Credits({ cartes }: { cartes: CarteCredit[] }) {
+export function Credits({ cartes, tauxUsdEur }: { cartes: CarteCredit[]; tauxUsdEur?: number }) {
   const router = useRouter();
   const [recharge, setRecharge] = useState<CarteCredit | null>(null);
   const [montant, setMontant] = useState("");
@@ -145,11 +146,12 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
             taille="lg"
             pleineLargeur
             chargement={enCours}
-            disabled={!(Number.parseFloat(montant.replace(",", ".")) > 0)}
+            disabled={!(lireSaisieEuros(montant) > 0)}
             onClick={() =>
               recharge &&
               demarrer(async () => {
-                const dollars = Number.parseFloat(montant.replace(",", ".").replace(/\s/g, ""));
+                // Saisie en euros ; l'action et le stockage restent en dollars.
+                const dollars = eurosVersDollars(lireSaisieEuros(montant), tauxUsdEur);
                 const r = await declarerRechargeAction(recharge.fournisseur, dollars);
                 if (!r.ok) {
                   notifier.erreur(r.message);
@@ -165,7 +167,7 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
           </Bouton>
         }
       >
-        <Champ libelle="Montant ($)" inputMode="decimal" grand autoFocus value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="20" suffixe="$" />
+        <Champ libelle="Montant (€)" inputMode="decimal" grand autoFocus value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="20" suffixe="€" />
       </FeuilleBas>
     </div>
   );
