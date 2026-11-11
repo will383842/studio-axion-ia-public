@@ -88,6 +88,8 @@ export function etapeZero(e: EntreeEtapeZero): ResultatEtapeZero {
         objectif: e.brief.objectif,
         niveauConscience: e.brief.niveauConscience,
         cible: e.brief.cible,
+        ciblage: e.brief.ciblage,
+        typeAutomatisation: e.brief.typeAutomatisation,
         motCle: e.brief.motCle?.forme,
         adresse: e.brief.adresseParDefaut,
         mode: e.mode,

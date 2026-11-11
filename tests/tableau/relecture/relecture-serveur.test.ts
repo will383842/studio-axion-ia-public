@@ -176,7 +176,7 @@ describe("« Découper en scènes » exige le repère du texte relu (comme « Fa
   });
 
   it("l'action transmet le repère", async () => {
-    expect(await actions.decouperScriptTableauAction(donnees, undefined, undefined, repereTexte(donnees.texte))).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
+    expect(await actions.decouperScriptTableauAction(donnees, undefined, undefined, repereTexte(donnees.texte))).toMatchObject({ ok: true, donnees: { statut: "en-cours" } });
     expect(await actions.decouperScriptTableauAction(donnees)).toMatchObject({ ok: true, donnees: { statut: "refusee", phrase: creation.RAISON_TEXTE_NON_RELU } });
   });
 
@@ -246,7 +246,8 @@ describe("relecture de la fiche, puis « Fabriquer » avec le repère « script 
   it("l'action transmet le repère", async () => {
     const videoId = await brouillonPret();
     const r = await actions.fabriquerVideoTableauAction(videoId, undefined, repereFiche(await ficheDe(videoId)));
-    expect(r).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
+    // Le repère est transmis et le prix est accepté sans confirmation : la fabrication va jusqu'au stockage (non relié dans ce test), sans « accord-requis ».
+    expect(r).toMatchObject({ ok: false, code: "STOCKAGE_NON_RELIE" });
     expect(await actions.fabriquerVideoTableauAction(videoId, undefined)).toMatchObject({ ok: true, donnees: { statut: "refusee" } });
   });
 });

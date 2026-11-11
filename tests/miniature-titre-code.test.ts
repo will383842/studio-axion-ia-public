@@ -62,6 +62,8 @@ beforeEach(async () => {
   reinitialiserRequete();
   recues.length = 0;
   await auth.seConnecter(MDP, false);
+  // Ces essais portent sur la carte-titre (réglage de secours) : le défaut est désormais l'image de la vidéo, sans titre.
+  await (await import("@/services/_commun")).ecrireParametre("miniature.gabarit", "axion-v2");
 });
 
 import { couvertureDepuisTitre, instantsHorsSousTitres } from "@/domaine/miniatures";
@@ -112,6 +114,8 @@ async function videoCodee(avecMaster: boolean) {
 describe("miniatures d'une vidéo au titre interne", () => {
   it("le titre de couverture écrit et enregistré n'a ni code ni version", { timeout: 60_000 }, async () => {
     const v = await videoCodee(true);
+    // Sans script ni accroche : le titre de la vidéo, nettoyé de son code, sert de repli.
+    await depots().videos.modifier(v.id, { scriptId: undefined, varianteId: undefined });
     await travaux.executerSuites([{ type: "finition", videoId: v.id, titre: v.titre, ratio: v.ratios[0] }]);
     expect(recues).toHaveLength(3);
     for (const r of recues) expect(r.parametres.couverture).toBe("Le diagnostic fuite");
@@ -119,17 +123,13 @@ describe("miniatures d'une vidéo au titre interne", () => {
     expect(minis.every((m) => m.titre === "Le diagnostic fuite")).toBe(true);
   });
 
-  it("sans vidéo sans texte, les instants évitent les sous-titres de la vidéo finale", { timeout: 60_000 }, async () => {
+  it("sans vidéo sans texte, la vidéo finale (texte et sous-titres déjà incrustés) n'est jamais lue : fond propre de la charte", { timeout: 60_000 }, async () => {
     const v = await videoCodee(false);
-    // Sous-titres partout sauf un trou à 40 %-50 % : aucun instant ne doit tomber dans un groupe.
-    const d = v.dureeCibleSec;
-    const trou = [{ id: "s1", debutSec: 0, finSec: d * 0.4, mots: [] }, { id: "s2", debutSec: d * 0.5, finSec: d, mots: [] }];
-    await depots().sousTitres.enregistrer({ id: "st-code", videoId: v.id, versionId: v.versionChoisieId!, langue: "fr", version: 1, segments: trou, creeLe: "2026-10-11T10:00:00.000Z", modifieLe: "2026-10-11T10:00:00.000Z" } as never);
     await travaux.executerSuites([{ type: "finition", videoId: v.id, titre: v.titre, ratio: v.ratios[0] }]);
     expect(recues.length).toBeGreaterThan(0);
     for (const r of recues) {
-      const t = Number(r.parametres.instantSec);
-      expect(trou.some((g) => t >= g.debutSec && t <= g.finSec), `instant ${t}`).toBe(false);
+      expect(r.parametres.fondPropre).toBe(true);
+      expect(r.entrees.video).toBeUndefined();
     }
   });
 

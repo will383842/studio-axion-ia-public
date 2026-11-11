@@ -1,3 +1,4 @@
+import type { Ciblage, MarqueAncien, TypeAutomatisation } from "./ciblage/types";
 /**
  * Modèle de données complet du Studio (PLAN B.7 + AVENANT 2 : AV2.2, AV2.3, AV2.4).
  *
@@ -595,6 +596,11 @@ export interface Script extends EntiteBase {
   versionFormat: number;
   sujet: string;
   cible?: string;
+  /** Ciblage structuré (lot A) : facultatif. */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
+  ancien?: MarqueAncien;
+  doublonsPossibles?: Id[];
   ton?: string;
   /** Tu ou vous (B.0 §15). Absent : la valeur de « Ma façon de parler ». */
   adresse?: Adresse;
@@ -734,6 +740,8 @@ export interface StylesChoisis {
 
 export interface Video extends EntiteBase {
   titre: string;
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
   sujet?: string;
   formatId: string;
   versionFormat: number;
@@ -769,6 +777,8 @@ export interface Video extends EntiteBase {
   /** Version courante choisie (VersionVideo.id). */
   versionChoisieId?: Id;
   miniatureChoisieId?: Id;
+  /** Titre de la vignette (3 à 5 mots) et mot mis en valeur : FIXÉS par Williams (`fixee`) ou proposés à la création. */
+  couvertureVignette?: { texte: string; motCle: string; fixee: boolean };
   modeleId?: Id;
   serieId?: Id;
   /** Équipe 7 : numéro d'épisode dans `serieId` (une vidéo d'un sujet en série prend celui du sujet). */
@@ -939,6 +949,8 @@ export interface Miniature extends EntiteBase {
   /** Instant de la vidéo retenu (la plus nette des 5 images) et mise en page (0, 1, 2) : pour refaire l'image. */
   instantSec?: number;
   variante?: number;
+  /** Marqueur de gabarit : absent ou « axion-v2 » (carte-titre) = ancienne, qu'« Refaire les vignettes » remplace sans l'effacer ; « image-video-v3 » = vraie image du début de la vidéo. */
+  gabarit?: "axion-v2" | "image-video-v3" | "image-video-v3b";
 }
 
 /**
@@ -2138,6 +2150,8 @@ export interface ScriptMaitre extends EntiteBase {
     adresseParDefaut: Adresse;
     modeParDefaut?: ModeDiction;
     cible?: string;
+    ciblage?: Ciblage;
+    typeAutomatisation?: TypeAutomatisation;
     pilier?: string;
     motCle?: { forme: string; source: "creator-search-insights" | "search-console" | "hypothese" };
     serieId?: Id;

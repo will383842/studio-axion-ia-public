@@ -97,16 +97,14 @@ afterEach(() => {
 });
 
 describe("dépôt du lot", () => {
-  it("accord inférieur au total (ou « true ») : rien n'est créé, le total est redemandé", async () => {
-    const avant = await nombreDeVideos();
+  it("accord inférieur au total (ou « true », ou absent) : aucune confirmation n'est demandée, le prix du jour vaut accord et le lot part", async () => {
     const prix = (await import("@/services/image-video-ecran")).prixDuDepot(["linkedin"], 0.9);
-    for (const accord of [prix, prix * 3 - 1, true as unknown as number, undefined]) {
+    for (const accord of [undefined, prix, prix * 3 - 1, true as unknown as number]) {
+      reinitialiserDepots();
       const r = await lots.deposerLotImageVideo({ images: IMAGES, reseaux: RESEAUX, accordCentimes: accord }, dep());
-      expect(r).toMatchObject({ statut: "accord-requis", centimes: prix * 3 });
+      expect(r, JSON.stringify(r)).toMatchObject({ statut: "lancee" });
+      expect(await lots.lotsDeLIndexIV()).toHaveLength(1);
     }
-    expect(await nombreDeVideos()).toBe(avant);
-    expect(await lots.lotsDeLIndexIV()).toEqual([]);
-    expect(await depots().reservations.lister((r) => !!r.travailId?.startsWith("lot:"))).toHaveLength(0);
   });
 
   it("taille : 1 image ou plus de 10 refusées", async () => {
@@ -249,17 +247,18 @@ describe("séquenceur", () => {
     expect(lancees).toHaveLength(2);
   });
 
-  it("plafond du lot : jamais plus que le prix accordé", async () => {
+  it("plafond du lot : le prix accordé n'arrête rien, même avec le réglage budget.mode = « bloquant »", async () => {
     const { lotId, prix } = await deposer();
     const lot = await lire(lotId);
-    // Le plafond ne couvre plus qu'une vidéo : la seconde n'est pas lancée.
+    // Le plafond ne couvre plus qu'une vidéo : la seconde part quand même (aucun budget n'est bloquant).
     const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre(`imageVideo.lot.${lotId}`, { ...lot, plafondCentimes: prix });
     await lots.avancerLotsIV(dep());
     await terminer(lot.videos[0].videoId, "termine", etat("prete", { caisse: { plafondCentimes: prix, reservations: [{ cle: "x", etape: "voix", fournisseur: "heygen", centimes: prix }] } }));
     await lots.avancerLotsIV(dep());
-    expect(lancees).toHaveLength(1);
-    expect((await lire(lotId)).pause).toMatchObject({ raison: "budget", phrase: "Le prix accordé pour ce lot est atteint : rien de plus n'est lancé." });
+    expect(lancees).toHaveLength(2);
+    expect((await lire(lotId)).pause).toBeFalsy();
   });
 
   it("plafond du lot en mode INDICATIF : le prix accordé est un repère, la suivante part (aucun arrêt de sécurité)", async () => {

@@ -39,3 +39,18 @@ describe("alerte du parcours : cloche seulement", () => {
     expect(envoyerPush).not.toHaveBeenCalled();
   });
 });
+
+/** Garde de source : chaque appel à `creerNotification` du parcours des mots / oppositions / branchements porte `{ cloche: true }`. */
+describe("alertes du parcours : option cloche présente à chaque appel", () => {
+  const fichiers = ["parcours-conversation", "oppositions-transmission", "branchements-zernio", "mots-service"];
+  for (const f of fichiers) {
+    it(`${f}.ts : tous les appels à creerNotification sont en cloche seulement`, async () => {
+      const { readFileSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const source = readFileSync(join(process.cwd(), "src/services", `${f}.ts`), "utf8");
+      const appels = source.split("\n").filter((l) => /\bawait creerNotification\(/.test(l));
+      expect(appels.length).toBeGreaterThan(0);
+      for (const l of appels) expect(l).toMatch(/\{\s*cloche:\s*true\s*\}\s*\)/);
+    });
+  }
+});

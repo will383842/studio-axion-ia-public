@@ -13,7 +13,7 @@ import type { NatureCas, Offre } from "./cas";
 /** Page du diagnostic en ligne (à faire soi-même, sans réservation) visée par le lien suivi (plan § 4-e). */
 export const PAGE_DIAGNOSTIC = "https://axion-ia.com/fr/diagnostic";
 /** Tempo appliqué à la voix assemblée. */
-export const TEMPO_VOIX = 1.08;
+export const TEMPO_VOIX = 1;
 /** Tenue de l'écran final après le dernier mot, en secondes. */
 export const FIN_APRES_DERNIER_MOT_SEC = 2.1;
 /**
@@ -96,9 +96,9 @@ export function finsParReseau(offre: Offre, motSur: readonly ReseauCas[], nature
 export const formatCasConcret: DefinitionFormat = {
   id: "cas-concret",
   version: 1,
-  nom: "Cas concret MD",
-  nomCourt: "Cas concret MD",
-  accroche: "Une phrase, une vidéo.",
+  nom: "Cas concret",
+  nomCourt: "Cas concret",
+  accroche: "Une automatisation montrée étape par étape",
   description: "Une voix, des écrans qui montrent une automatisation étape par étape, puis un appel au diagnostic. Aucun visage.",
   icone: "eclair",
   adresseCreation: "/cas-concret",

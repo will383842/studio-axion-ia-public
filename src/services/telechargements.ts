@@ -7,12 +7,15 @@ import "server-only";
 import { exporterSrt, exporterVtt } from "@/briques/sous-titres";
 import { nomFichier, numeroSur4, titreCourt, versionsCourantes } from "@/domaine/derivations-generateur";
 import { texteScript } from "@/domaine/derivations";
-import { type Id, type ReseauDeclinaison, type SegmentSousTitres, type Video, videoIdSure } from "@/domaine/types";
+import { type Id, type IdReseau, type ReseauDeclinaison, type SegmentSousTitres, type Video, videoIdSure } from "@/domaine/types";
+import { reseauxDeLaVideo } from "@/domaine/reseaux-video";
 import { creerZip } from "@/lib/zip";
 import { obtenirReseau } from "@/reseaux";
-import { depots, ErreurStudio } from "./_commun";
+import { meilleureSortie } from "@/reseaux/sorties";
+import { depots, ErreurStudio, filtreExemples, fournisseur, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { sousTitresDepuisTexte, sousTitresUtilisables } from "./telechargements-sous-titres";
+import { nomTelechargement } from "./telechargement-video";
 import { obtenirVideo } from "./videos";
 
 /** Une entrée de l'archive : une adresse à lire (vidéo) ou un contenu déjà prêt (sous-titres). */
@@ -106,4 +109,102 @@ export async function construireArchive(contenu: ContenuArchive, lire: (url: str
   const fichiers = [];
   for (const e of contenu.entrees) fichiers.push({ nom: e.nom, donnees: "contenu" in e ? enc.encode(e.contenu) : await lire(e.url) });
   return creerZip(fichiers);
+}
+
+/* ------------------------------------------------------------------ */
+/* Vidéos validées (lot V)                                              */
+/* ------------------------------------------------------------------ */
+
+const objet = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
+const cleValide = (c: unknown): c is string => typeof c === "string" && c.length > 0;
+
+/** Livraison image → vidéo de la version choisie (lue avec prudence), ou null si la vidéo n'en a pas. */
+async function livraisonDe(video: Video): Promise<Record<string, unknown>[] | null> {
+  const version = video.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null;
+  const l = objet(version?.projetMontage?.imageVideo)?.livraison;
+  if (!Array.isArray(l) || !l.length) return null;
+  return l.map(objet).filter((x): x is Record<string, unknown> => !!x);
+}
+
+/**
+ * Réseau(x) d'une vidéo telle qu'elle est enregistrée (rien n'est stocké en plus) et « téléchargement seul » : une
+ * vidéo image → vidéo n'est jamais envoyée d'ici, le fichier enregistré est le 9:16 commun.
+ */
+export async function reseauxDeVideoStockee(video: Video, parDefaut: readonly IdReseau[]): Promise<{ reseaux: IdReseau[]; precis: boolean; telechargementSeul: boolean }> {
+  const d = depots();
+  const livraison = await livraisonDe(video);
+  const sorties = video.versionChoisieId ? await d.sorties.lister((s) => s.versionId === video.versionChoisieId) : [];
+  const { reseaux, precis } = reseauxDeLaVideo({
+    reseau: video.reseau,
+    entreesIV: objet(video.entrees?.imageVideo)?.reseaux,
+    livraisonIV: livraison ?? undefined,
+    sortiesReseaux: sorties.map((s) => s.reseaux),
+    parDefaut,
+  });
+  return { reseaux, precis, telechargementSeul: !!livraison || !!video.entrees?.imageVideo };
+}
+
+/** Adresse lisible d'une clé de stockage (comme `urlFichier`, mais depuis la clé). */
+async function urlDeCle(cle: string): Promise<string | null> {
+  return ((await (await fournisseur("stockage")).urlLecture(cle)) as string | null) || null;
+}
+
+/**
+ * Zip « Tout télécharger » d'un réseau : les vidéos validées de ce réseau, rien d'autre (ni programmées, ni à relire,
+ * ni corbeille, ni exemples). Par vidéo : le fichier du réseau (livraison image → vidéo, plus le fil pour Facebook, sinon la
+ * meilleure sortie), le texte déjà enregistré (jamais écrit pour l'occasion) et les sous-titres s'ils existent.
+ */
+export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuArchive> {
+  await exigerSession();
+  const d = depots();
+  const exemples = await filtreExemples<{ estDemo?: boolean }>();
+  const parDefaut = await lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
+  const validees = await d.videos.lister((v) => exemples(v) && v.statut === "prete" && !v.corbeilleLe && v.etapeEditoriale === "validee");
+  const entrees: EntreeArchive[] = [];
+  const pris = new Set<string>();
+  const sautees: string[] = [];
+  const poser = (nom: string, e: { url: string } | { contenu: string }) => {
+    let final = nom;
+    for (let i = 2; pris.has(final); i++) final = nom.replace(/(\.[A-Za-z0-9]+)$/, `-${i}$1`);
+    pris.add(final);
+    entrees.push({ nom: final, ...e });
+  };
+  for (const video of validees) {
+    if (!(await reseauxDeVideoStockee(video, parDefaut)).reseaux.includes(reseau)) continue;
+    const base = nomTelechargement(video.titre, reseau).replace(/\.mp4$/, "");
+    const livraison = await livraisonDe(video);
+    const sorties = video.versionChoisieId ? await d.sorties.lister((s) => s.versionId === video.versionChoisieId) : [];
+    let trouve = false;
+    if (livraison) {
+      const ligne = livraison.find((l) => l.reseau === reseau && l.version !== "aucune" && cleValide(l.fichierCle));
+      const url = ligne ? await urlDeCle(ligne.fichierCle as string) : null;
+      if (ligne && url) {
+        poser(`${base}.mp4`, { url });
+        trouve = true;
+        const fil = reseau === "facebook" && cleValide(ligne.fichierCleFil) ? await urlDeCle(ligne.fichierCleFil) : null;
+        if (fil) poser(`${base}-fil.mp4`, { url: fil });
+      }
+    } else {
+      const choisie = meilleureSortie(reseau, sorties) ?? sorties[0] ?? null;
+      const fichier = choisie ? await d.fichiers.obtenir(choisie.fichierId) : null;
+      const url = fichier?.cleStockage ? await urlDeCle(fichier.cleStockage) : null;
+      if (choisie && url) {
+        poser(`${nomTelechargement(video.titre, reseau, choisie.ratio)}`, { url });
+        trouve = true;
+      }
+    }
+    if (!trouve) {
+      sautees.push(video.titre);
+      continue;
+    }
+    // Texte déjà enregistré (jamais généré ici) : lu dans le kit, tel quel.
+    const kit = await d.kits.trouver((k) => k.videoId === video.id);
+    const t = kit?.textes[reseau];
+    if (t?.texte) poser(`${base}.txt`, { contenu: [t.titre, t.texte, t.motsDiese.join(" ")].filter(Boolean).join("\n\n") + "\n" });
+    const detail = await obtenirVideo(video.id);
+    if (sousTitresUtilisables(detail?.sousTitres?.segments)) poser(`${base}.srt`, { contenu: exporterSrt(detail!.sousTitres!.segments) });
+  }
+  if (sautees.length) poser("VIDEOS-SANS-FICHIER.txt", { contenu: `Ces vidéos validées n'ont pas de fichier à télécharger :\n\n${sautees.map((t) => `- ${t}`).join("\n")}\n` });
+  if (!entrees.length) throw new ErreurStudio("RIEN_A_TELECHARGER", "Aucune vidéo validée pour ce réseau.");
+  return { nom: `${obtenirReseau(reseau).nom.replace(/\s+/g, "")}-validees-${maintenant().slice(0, 10)}.zip`, entrees };
 }

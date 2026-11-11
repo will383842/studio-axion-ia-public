@@ -74,26 +74,27 @@ beforeEach(async () => {
 const videosIV = () => depots().videos.lister((v) => v.formatId === ID_FORMAT_IMAGE_VIDEO);
 
 describe("Image → vidéo · script complet · le dépôt", () => {
-  it("refuse en phrases (vide, trop court, plus de 300 mots, plus de 4000 caractères) avant tout prix, brouillon ou dépense", async () => {
+  it("refuse en phrases (vide, trop court, plus de 450 mots, plus de 4000 caractères) avant tout prix, brouillon ou dépense", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
-    const trois_cent_un = Array.from({ length: 301 }, () => "mot").join(" ");
-    for (const t of ["", "   ", "Facture client", trois_cent_un, "x".repeat(4001)]) {
+    const quatre_cent_cinquante_et_un = Array.from({ length: 451 }, () => "mot").join(" ");
+    for (const t of ["", "   ", "Facture client", quatre_cent_cinquante_et_un, "x".repeat(4001)]) {
       const issue = await texte.deposerScriptImageVideo({ script: t, reseaux: [...RESEAUX_IV], accordCentimes: 100000 });
       expect(issue.statut, t.slice(0, 20)).toBe("refusee");
       expect((issue as { phrase: string }).phrase).toMatch(/[a-zé]/);
     }
-    // 300 mots pile : accepté (le refus ne vient pas de la longueur).
-    const pile = await texte.deposerScriptImageVideo({ script: Array.from({ length: 300 }, () => "mot").join(" "), reseaux: [...RESEAUX_IV] });
-    expect(pile.statut).not.toBe("refusee");
+    // Aucun refus n'a créé de vidéo.
     expect(await videosIV()).toEqual([]);
     expect(ecritures).toEqual([]);
+    // 450 mots pile : accepté (le refus ne vient pas de la longueur).
+    const pile = await texte.deposerScriptImageVideo({ script: Array.from({ length: 450 }, () => "mot").join(" "), reseaux: [...RESEAUX_IV] });
+    expect(pile.statut).not.toBe("refusee");
   });
 
-  it("sans accord du prix : le prix « au plus » est redemandé, rien n'est créé", async () => {
+  it("sans accord du prix : aucune confirmation n'est demandée, le prix du jour vaut accord et la vidéo est créée", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
     const issue = await texte.deposerScriptImageVideo({ script: SCRIPT, reseaux: [...RESEAUX_IV] });
-    expect(issue).toMatchObject({ statut: "accord-requis", centimes: ecran.prixDuDepot(RESEAUX_IV, (await ecran.etatDepotImageVideo()).tauxUsdEur) });
-    expect(await videosIV()).toEqual([]);
+    expect(issue, JSON.stringify(issue)).toMatchObject({ statut: "lancee" });
+    expect(await videosIV()).toHaveLength(1);
   });
 
   it("script → carte à valider : mots gardés, même prix, aucun fichier lu, AUCUN appel d'écriture", async () => {
@@ -122,17 +123,18 @@ describe("Image → vidéo · script complet · le dépôt", () => {
 });
 
 describe("Image → vidéo · script complet · l'écran de dépôt", () => {
-  it("seules DEUX entrées sont visibles : « Décrire avec mes mots » et « Coller mon script complet » (l'entrée image est masquée)", () => {
+  it("seules DEUX entrées sont visibles : « Titre ou idée » et « Mon script » (plus d'entrée par image)", () => {
     const html = renderToStaticMarkup(createElement(Depot, { montants: { 4: 250 } }));
     expect(html).not.toContain("Déposer une image");
-    expect(html).toContain("Décrire avec mes mots");
-    expect(html).toContain("Coller mon script complet");
+    expect(html).toContain("Titre ou idée");
+    expect(html).toContain("Mon script");
   });
 
-  it("l'écran du script : même bouton « au plus » que le mode texte, compteur de mots, bouton inactif tant que le script est vide", () => {
+  it("l'écran du script : bouton « Fabriquer la vidéo » sans prix, compteur de mots, bouton inactif tant que le script est vide", () => {
     const html = renderToStaticMarkup(createElement(DepotScript, { script: "", onScript: () => undefined, reseaux: [...RESEAUX_IV], montant: 250, onRefus: () => undefined }));
-    expect(html).toContain("Concevoir le schéma et fabriquer la vidéo (au plus");
-    expect(html).toContain("0 mot sur 300 au plus");
+    expect(html).toContain("Fabriquer la vidéo");
+    expect(html).not.toMatch(/€|au plus \d|prix/i);
+    expect(html).toContain("0 mot sur 450 au plus");
     expect(html).toContain("disabled");
   });
 });

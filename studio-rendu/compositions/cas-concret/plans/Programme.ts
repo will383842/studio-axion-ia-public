@@ -68,7 +68,7 @@ function planProgrammeV4(p: ProprietesObjet, image?: number) {
   return {
     boite: { x: 0, y: 0, largeur: w, hauteur: h },
     rayon: Math.min(w, h) * 0.07,
-    fiche: COULEURS_DUO.blanc,
+    fiche: COULEURS_DUO.carte,
     ombre: c.ombre,
     bandeau: { boite: bandeau, couleur: COULEURS_DUO.encre, accent: { x: w * 0.07, y: bandeau.hauteur * 0.4, largeur: w * 0.22, hauteur: bandeau.hauteur * 0.2, couleur: COULEURS_DUO.orangeVif } },
     police: { famille: famille("inter-gras"), graisse: graisse("inter-gras"), couleur: COULEURS_DUO.encre },

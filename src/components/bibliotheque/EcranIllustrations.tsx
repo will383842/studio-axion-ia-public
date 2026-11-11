@@ -49,7 +49,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
               type="button"
               aria-pressed={filtre === v}
               onClick={() => setFiltre(v)}
-              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors", filtre === v ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte-doux hover:text-texte")}
+              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors", filtre === v ? "bg-texte text-fond" : "bg-surface-2 text-texte-doux hover:text-texte")}
             >
               {l}
               <span className="tabular-nums opacity-70">{n}</span>
@@ -62,7 +62,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
               type="button"
               aria-pressed={motCle === m}
               onClick={() => setMotCle((x) => (x === m ? null : m))}
-              className={cn("flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-sm transition-colors", motCle === m ? "border-orange text-orange-vif" : "border-trait text-texte-doux hover:text-texte")}
+              className={cn("flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-sm transition-colors", motCle === m ? "border-texte text-texte" : "border-trait text-texte-doux hover:text-texte")}
             >
               <Icone nom="diese" size={13} />
               {m}
@@ -80,7 +80,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
           <AnimatePresence initial={false}>
             {visibles.map((e) => (
               <motion.li key={e.id} layout initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }}>
-                <button type="button" onClick={() => setOuvertId(e.id)} className="group relative block aspect-[9/16] w-full overflow-hidden rounded-2xl border border-trait bg-surface-2 text-left">
+                <button type="button" onClick={() => setOuvertId(e.id)} className="theme-sombre group relative block aspect-[9/16] w-full overflow-hidden rounded-2xl border border-trait bg-surface-2 text-left">
                   <div data-carte className="absolute inset-0">
                     {e.vignette && <Image src={e.vignette} alt={e.nom} fill sizes="(max-width: 640px) 33vw, 200px" className="object-cover transition-transform duration-500 group-hover:scale-[1.05]" />}
                     {e.type === "illustration-video" && e.url && <ApercuVideoSurvol src={e.url} />}

@@ -334,7 +334,7 @@ export async function alerteBudget(): Promise<AlerteBudget | null> {
   const b = await resumeBudget();
   if (b.pourcentage < 80) return null;
   if (await lireParametre<boolean>(cleAlerteBudget(), false)) return null;
-  return { type: "budget", titre: b.pourcentage >= 100 ? "Budget du mois atteint" : `Budget du mois utilisé à ${b.pourcentage} %`, message: "Réglages > Budget pour le modifier.", lien: "/reglages#budget" };
+  return { type: "budget", titre: b.pourcentage >= 100 ? "Budget du mois atteint" : `Budget du mois utilisé à ${b.pourcentage} %`, message: "Réglages > Budget pour le modifier.", lien: "/reglages" };
 }
 
 /** Deux passages simultanés (deux dépenses finies ensemble) : une seule alerte part. */

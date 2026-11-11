@@ -5,7 +5,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { COULEURS_VIDEO } from "../src/briques/habillage/charte-video";
-import { COULEURS_MINIATURE } from "../studio-rendu/compositions/commune/miniature-mise-en-page";
 import { formatMiniature, unitesCouverture } from "../studio-rendu/compositions/commune/miniature-mise-en-page";
 import { boiteTitre, MISES, MISE_INSTAGRAM, placerSujet } from "../studio-rendu/compositions/commune/vignette/mises";
 import { mettreTitreVignette } from "../studio-rendu/compositions/commune/vignette/titre";
@@ -21,11 +20,12 @@ function contraste(a: string, b: string): number {
 }
 
 describe("vignettes lot 1 · socle", () => {
-  it("dimensions : 16:9 = 1280×720, 9:16 = 1080×1920, tout autre ratio refusé", () => {
+  it("dimensions : 16:9 = 1280×720, 9:16 = 1080×1920, 1:1 = 1080×1080, 4:5 = 1080×1350, tout autre ratio refusé", () => {
     expect(dimensionsVignette("16:9")).toEqual({ largeur: 1280, hauteur: 720 });
     expect(dimensionsVignette("9:16")).toEqual({ largeur: 1080, hauteur: 1920 });
-    expect(() => dimensionsVignette("4:5" as never)).toThrow();
-    expect(() => dimensionsVignette("1:1" as never)).toThrow();
+    expect(dimensionsVignette("1:1")).toEqual({ largeur: 1080, hauteur: 1080 });
+    expect(dimensionsVignette("4:5")).toEqual({ largeur: 1080, hauteur: 1350 });
+    expect(() => dimensionsVignette("3:2" as never)).toThrow();
   });
 
   it("repères fixes : liseré 16/22 px, carré A (44,36,62) et (84,456,86), signature en 9:16 seulement", () => {
@@ -42,14 +42,14 @@ describe("vignettes lot 1 · socle", () => {
     expect(ZONES_SURES["16:9"].coinDuree).toEqual({ largeur: 140, hauteur: 60 });
   });
 
-  it("couleurs : celles de la charte vidéo ; pavé encre #E07040, pavé ivoire #B44F29", () => {
+  it("couleurs : uniquement les jetons de la charte vidéo ; pavé terracotta #B23F16 dans les deux ambiances", () => {
     expect(AMBIANCES.encre.fond).toBe(COULEURS_VIDEO.ecriture);
-    expect(AMBIANCES.encre.paveTexte).toBe(COULEURS_VIDEO.ecriture);
+    expect(AMBIANCES.encre.paveTexte).toBe(COULEURS_VIDEO.page);
     expect(AMBIANCES.ivoire.texte).toBe(COULEURS_VIDEO.ecriture);
     expect(AMBIANCES.ivoire.pave).toBe(COULEURS_VIDEO.soulignement);
-    expect(AMBIANCES.ivoire.pave).toBe("#B44F29");
-    expect(AMBIANCES.encre.pave).toBe(COULEURS_MINIATURE.orangeVif);
-    expect(AMBIANCES.encre.pave).toBe("#E07040");
+    expect(AMBIANCES.ivoire.pave).toBe("#B23F16");
+    expect(AMBIANCES.encre.pave).toBe(COULEURS_VIDEO.soulignement);
+    expect(AMBIANCES.encre.pave).toBe("#B23F16");
   });
 
   it("contraste pavé / texte du pavé ≥ 3:1 dans les 2 ambiances", () => {

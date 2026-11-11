@@ -13,6 +13,8 @@
  */
 import "server-only";
 import { detecterSujetSensible } from "@/domaine/classement-generateur";
+import { ciblageSaisieValide, typeAutomatisationValide } from "@/domaine/ciblage/saisie";
+import type { Ciblage, TypeAutomatisation } from "@/domaine/ciblage/types";
 import { MAX_IDEES_SERIE } from "@/domaine/serie-idees";
 import type { Adresse, Id, ModeDiction, Montant, ObjectifSujet, ReseauDeclinaison } from "@/domaine/types";
 import { centimes, formaterMontant } from "@/lib/montants";
@@ -36,6 +38,9 @@ export interface ReglagesSerie {
   objectif: ObjectifSujet;
   /** Intégration paquet 4 (équipe 7) : série TikTok choisie dans l'atelier ; chaque idée partie en devient un épisode, dans l'ordre. */
   serieId?: Id;
+  /** Une cible pour tout le lot (exigée par l'action, facultative ici). */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
 }
 
 export interface PlanSerie {
@@ -136,7 +141,7 @@ function unParUn<T>(f: () => Promise<T>): Promise<T> {
 function reglagesPropres(r: ReglagesSerie): ReglagesSerie {
   if (!Array.isArray(r?.reseaux) || !r.reseaux.length) throw new ErreurStudio("SANS_RESEAU", "Choisissez au moins un réseau.");
   if (!r.formatId) throw new ErreurStudio("FORMAT", "Choisissez un format.");
-  return { reseaux: [...r.reseaux], formatId: String(r.formatId), adresse: r.adresse === "tu" ? "tu" : "vous", mode: r.mode, objectif: r.objectif, ...(typeof r.serieId === "string" && r.serieId ? { serieId: r.serieId } : {}) };
+  return { reseaux: [...r.reseaux], formatId: String(r.formatId), adresse: r.adresse === "tu" ? "tu" : "vous", mode: r.mode, objectif: r.objectif, ...(typeof r.serieId === "string" && r.serieId ? { serieId: r.serieId } : {}), ...(ciblageSaisieValide(r.ciblage) ? { ciblage: ciblageSaisieValide(r.ciblage) } : {}), ...(typeAutomatisationValide(r.typeAutomatisation) ? { typeAutomatisation: typeAutomatisationValide(r.typeAutomatisation) } : {}) };
 }
 
 /**
@@ -180,7 +185,7 @@ export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reg
         continue;
       }
       try {
-        const lance = await lancerGeneration({ idee: x.texte, reseaux: r.reseaux, formatId: r.formatId, adresse: r.adresse, mode: r.mode, objectif: r.objectif, ideeId: x.ideeId, sujetSensible: detecterSujetSensible(x.texte), serieId: r.serieId });
+        const lance = await lancerGeneration({ idee: x.texte, reseaux: r.reseaux, formatId: r.formatId, adresse: r.adresse, mode: r.mode, objectif: r.objectif, ideeId: x.ideeId, sujetSensible: detecterSujetSensible(x.texte), serieId: r.serieId, ciblage: r.ciblage, typeAutomatisation: r.typeAutomatisation });
         if (x.ideeId) await d.idees.modifier(x.ideeId, { scriptMaitreId: lance.scriptMaitreId });
         elements.push({ texte: x.texte, ideeId: x.ideeId, scriptMaitreId: lance.scriptMaitreId, sort: "parti" });
       } catch (e) {

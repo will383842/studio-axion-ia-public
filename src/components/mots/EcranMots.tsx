@@ -22,6 +22,8 @@ export interface ServicesMots {
   mettreEnPauseLocal(mot: string, compte: string): Promise<Resultat>;
   /** Valide les textes du mot GUIDE : le serveur construit lui-même la saisie, le client n'envoie rien. */
   validerGuide?(): Promise<{ ok: boolean; raison: string }>;
+  /** Valide le message « adresse refusée » (texte du dictionnaire, côté serveur) : le client n'envoie rien. */
+  validerAdresseRefusee?(): Promise<{ ok: boolean; raison: string }>;
   refermerDisjoncteur(): Promise<{ ok: boolean }>;
   reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<unknown>;
 }
@@ -60,6 +62,14 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
     onChange?.();
   };
 
+  const validerAdresseRefusee = async () => {
+    if (!services.validerAdresseRefusee || !window.confirm("Valider le message « adresse refusée » (texte officiel du serveur) ? Rien n’est envoyé.")) return;
+    const r = await services.validerAdresseRefusee();
+    if (r.ok) notifier.succes("Message « adresse refusée » validé.");
+    else notifier.erreur(phraseRefus(r.raison));
+    onChange?.();
+  };
+
   return (
     <div className="flex flex-col gap-4" data-ecran="mots">
       <Carte className="flex flex-wrap items-center gap-3">
@@ -90,6 +100,18 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
           <Bouton className="mt-3" taille="lg" chargement={enCours} onClick={() => demarrer(async () => { const r = await services.refermerDisjoncteur(); if (!r.ok) notifier.erreur("Non refermé."); onChange?.(); })}>
             Refermer le disjoncteur
           </Bouton>
+        </Carte>
+      )}
+
+      {services.validerAdresseRefusee && (
+        <Carte data-carte="adresse-refusee">
+          <h3 className="text-base text-texte">Message « adresse refusée »</h3>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <Pastille ton={vue.adresseRefuseeValide ? "sauge" : "neutre"}>{vue.adresseRefuseeValide ? "Texte validé" : "Texte non validé"}</Pastille>
+            <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(validerAdresseRefusee)}>
+              Valider le message « adresse refusée »
+            </Bouton>
+          </div>
         </Carte>
       )}
 

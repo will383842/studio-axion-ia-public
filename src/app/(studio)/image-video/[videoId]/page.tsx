@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
-import { AdapteAutomatiquementServeur } from "@/components/formats/image-video/AdapteAutomatiquementServeur";
 import { CarteComprise } from "@/components/formats/image-video/CarteComprise";
 import { Fabrication } from "@/components/formats/image-video/Fabrication";
 import { ScriptEcrans } from "@/components/formats/image-video/ScriptEcrans";
 import { ScriptRelireIV } from "@/components/formats/image-video/ScriptRelireIV";
 import { VosVideos } from "@/components/formats/image-video/VosVideos";
 import { etapesImageVideo } from "@/components/formats/image-video/vues-gabarit";
+import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatGenerateur";
 import { BandeauGenerateur } from "@/components/videos/BandeauGenerateur";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
-import { vueImageVideo } from "@/services/image-video-ecran";
+import { titreCourt, vueImageVideo } from "@/services/image-video-ecran";
 import { listerPartages } from "@/services/partages";
 
 export const metadata: Metadata = { title: "Image → vidéo" };
@@ -41,7 +41,7 @@ export default async function PageVideoImageVideo({
   return (
     <GabaritCreation
       entete={{
-        titre: vue.titre,
+        titre: titreCourt(vue.titre),
         retour: vue.lot
           ? {
               href: `/image-video/lot/${vue.lot.id}`,
@@ -105,14 +105,19 @@ export default async function PageVideoImageVideo({
             arretee={vue.arretee}
           />
         )}
-        {vue.ecran === "videos" && <AdapteAutomatiquementServeur videoId={vue.videoId} />}
         {vue.ecran === "videos" && vue.videos && (
           <VosVideos
+            videoId={vue.videoId}
             videos={vue.videos}
+            prete={vue.prete}
+            etape={vue.etapeEditoriale}
+            texteOrigine={vue.texteOrigine}
+            adapte={vue.adapte}
             verdict={vue.verdict}
             lienPrive={{ videoId: vue.videoId, titre: vue.titre, partages }}
           />
         )}
+        {vue.ecran === "videos" && <RetoucheChatGenerateur videoId={vue.videoId} formatId={ID_FORMAT_IMAGE_VIDEO} />}
       </div>
     </GabaritCreation>
   );

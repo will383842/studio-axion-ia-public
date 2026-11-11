@@ -138,7 +138,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
       </span>
       <h2 className="text-2xl text-texte">{attend ? etat.libelle : etat.statut === "echec" ? "Écriture arrêtée" : "En attente"}</h2>
       {etat.message && <p className="mt-2 text-[15px] text-texte-doux">{etat.message}</p>}
-      {(etat.statut === "en-attente-credit" || etat.statut === "plafond-atteint") && etat.reprise && !etat.reprise.possible && (
+      {(etat.statut === "en-attente-credit" || etat.statut?.endsWith("-atteint")) && etat.reprise && !etat.reprise.possible && (
         <>
           <p className="mt-2 text-sm text-texte-faible">{etat.reprise.raison}</p>
           <Bouton className="mt-4" pleineLargeur icone="repeter" disabled>
@@ -146,7 +146,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
           </Bouton>
         </>
       )}
-      {(etat.statut === "en-attente-credit" || etat.statut === "plafond-atteint") && etat.reprise?.possible && (
+      {(etat.statut === "en-attente-credit" || etat.statut?.endsWith("-atteint")) && etat.reprise?.possible && (
         <Bouton
           className="mt-4"
           pleineLargeur
@@ -165,7 +165,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
             })
           }
         >
-          {etat.reprise.centimes > 0 ? `Reprendre (≈ ${etat.reprise.prix})` : "Reprendre"}
+          Reprendre
         </Bouton>
       )}
       {etat.statut === "echec" && (

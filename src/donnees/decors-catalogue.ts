@@ -11,6 +11,7 @@
  *
  * Une seule source pour la migration au démarrage (étape 9) et pour les tests. PUR.
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { DECOR_DEFAUT_AVOCAT } from "@/domaine/decors";
 import type { ElementBibliotheque, Fichier, Licence, ValeurDecor } from "@/domaine/types";
 
@@ -43,7 +44,7 @@ interface EntreeNeutre {
 
 /** Ordre d'affichage : les trois validés d'abord (N1, N5, N3), la réserve à la fin. */
 const NEUTRES: EntreeNeutre[] = [
-  { code: "N1", id: DECOR_DEFAUT_AVOCAT, nom: "Halo orange", fichier: "fond-1-halo-orange", ordre: 1, misEnAvant: true, teinte: "#110A05", teinteLumiere: "#C65A2E", directionLumiere: "face", ambiance: "noir brun, lueur orange douce derrière la tête", motsCles: ["halo", "orange", "noir", "sombre", "axion"] },
+  { code: "N1", id: DECOR_DEFAUT_AVOCAT, nom: "Halo orange", fichier: "fond-1-halo-orange", ordre: 1, misEnAvant: true, teinte: PALETTE.noir, teinteLumiere: PALETTE.orange, directionLumiere: "face", ambiance: "noir brun, lueur orange douce derrière la tête", motsCles: ["halo", "orange", "noir", "sombre", "axion"] },
   {
     code: "N5",
     id: "decor-n5-creme-chaud",
@@ -52,16 +53,16 @@ const NEUTRES: EntreeNeutre[] = [
     ordre: 2,
     misEnAvant: true,
     clair: true,
-    teinte: "#F2E9DA",
-    teinteLumiere: "#FFCCA8",
+    teinte: PALETTE.ivoire,
+    teinteLumiere: PALETTE.gris,
     directionLumiere: "face",
     ambiance: "dégradé crème vers sable, halo pêche très léger",
     motsCles: ["crème", "clair", "lumineux", "jour", "linkedin"],
     lutsConseillees: ["Doux", "Naturel"],
   },
-  { code: "N3", id: "decor-n3-lumiere-doree", nom: "Lumière dorée", fichier: "fond-3-bois-dore", ordre: 3, misEnAvant: true, teinte: "#110A05", teinteLumiere: "#D69650", directionLumiere: "droite", ambiance: "brun profond, raie de lumière dorée rasante, flous lumineux", motsCles: ["doré", "lumière", "bois", "chaleureux", "buffer"] },
-  { code: "N2", id: "decor-n2-tube-led", nom: "Tube LED orange", fichier: "fond-2-tube-led-orange", ordre: 20, reserve: true, teinte: "#110A05", teinteLumiere: "#FF9E5C", directionLumiere: "droite", ambiance: "studio sombre, tube LED orange vertical flou sur le côté", motsCles: ["led", "studio", "orange", "série"] },
-  { code: "N4", id: "decor-n4-noir-uni", nom: "Noir uni", fichier: "fond-4-noir-uni", ordre: 21, reserve: true, teinte: "#110A05", directionLumiere: "face", ambiance: "noir brun sans effet", motsCles: ["noir", "uni", "sobre"] },
+  { code: "N3", id: "decor-n3-lumiere-doree", nom: "Lumière dorée", fichier: "fond-3-bois-dore", ordre: 3, misEnAvant: true, teinte: PALETTE.noir, teinteLumiere: PALETTE.orange, directionLumiere: "droite", ambiance: "brun profond, raie de lumière dorée rasante, flous lumineux", motsCles: ["doré", "lumière", "bois", "chaleureux", "buffer"] },
+  { code: "N2", id: "decor-n2-tube-led", nom: "Tube LED orange", fichier: "fond-2-tube-led-orange", ordre: 20, reserve: true, teinte: PALETTE.noir, teinteLumiere: PALETTE.orange, directionLumiere: "droite", ambiance: "studio sombre, tube LED orange vertical flou sur le côté", motsCles: ["led", "studio", "orange", "série"] },
+  { code: "N4", id: "decor-n4-noir-uni", nom: "Noir uni", fichier: "fond-4-noir-uni", ordre: 21, reserve: true, teinte: PALETTE.noir, directionLumiere: "face", ambiance: "noir brun sans effet", motsCles: ["noir", "uni", "sobre"] },
   {
     code: "N6",
     id: "decor-n6-mur-creme",
@@ -70,8 +71,8 @@ const NEUTRES: EntreeNeutre[] = [
     ordre: 22,
     reserve: true,
     clair: true,
-    teinte: "#F2E9DA",
-    teinteLumiere: "#E6B464",
+    teinte: PALETTE.ivoire,
+    teinteLumiere: PALETTE.terracotta,
     directionLumiere: "droite",
     ambiance: "mur crème, raies de lumière de fenêtre dorées et floues",
     motsCles: ["mur", "crème", "clair", "fenêtre", "témoignage"],
@@ -189,7 +190,7 @@ export function decorsCatalogue(maintenant: string): ElementBibliotheque[] {
       ambiance: r.description,
       description: r.description,
       profondeurFlou: 0,
-      teinteLumiere: "#D69650",
+      teinteLumiere: PALETTE.orange,
       directionLumiere: "gauche",
       positionSujet: 0.5,
       methode: "look-heygen",

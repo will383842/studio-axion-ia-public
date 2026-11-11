@@ -17,12 +17,12 @@ export default function ErreurGlobale({ error, retry }: { error: Error & { diges
   }, [miseAJour]);
   return (
     <html lang="fr">
-      <body style={{ margin: 0, minHeight: "100dvh", display: "grid", placeItems: "center", background: "#16120f", color: "#f3ede4", fontFamily: "system-ui, sans-serif", textAlign: "center", padding: 16 }}>
+      <body style={{ margin: 0, minHeight: "100dvh", display: "grid", placeItems: "center", background: "#FAF9F5", color: "#141413", fontFamily: "system-ui, sans-serif", textAlign: "center", padding: 16 }}>
         <div>
-          <p style={{ fontSize: 64, fontWeight: 900, color: "#e07040", margin: 0 }}>Oups</p>
+          <p style={{ fontSize: 64, fontWeight: 900, color: "#B23F16", margin: 0 }}>Oups</p>
           <h1 style={{ fontSize: 22, margin: "12px 0 8px" }}>{miseAJour ? "Le studio vient d'être mis à jour" : "Le studio a rencontré un souci"}</h1>
-          <p style={{ color: "#b8ada0", margin: "0 0 24px" }}>{miseAJour ? "Rechargez la page pour continuer." : "Rien n'est perdu. Réessayez."}</p>
-          <button onClick={() => (miseAJour ? window.location.reload() : retry())} style={{ minHeight: 48, padding: "0 24px", borderRadius: 999, border: 0, background: "#c65a2e", color: "#fff6ec", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+          <p style={{ color: "#3D3D3A", margin: "0 0 24px" }}>{miseAJour ? "Rechargez la page pour continuer." : "Rien n'est perdu. Réessayez."}</p>
+          <button onClick={() => (miseAJour ? window.location.reload() : retry())} style={{ minHeight: 48, padding: "0 24px", borderRadius: 999, border: 0, background: "#B23F16", color: "#FFFFFF", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
             {miseAJour ? "Recharger" : "Réessayer"}
           </button>
         </div>

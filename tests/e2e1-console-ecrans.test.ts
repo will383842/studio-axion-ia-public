@@ -68,7 +68,8 @@ describe("n° 5 — « Corriger » dans Coût ouvre la bonne feuille", () => {
   it("en compact, Corriger passe par ouvrirFeuille (l'étape « script » n'existe pas en Rapide)", () => {
     expect(apercu).toMatch(/ouvrirFeuille \? ouvrirFeuille\(FEUILLE_DE_L_ETAPE\[cible\] \?\? "script"\) : allerA\(cible\)/);
     expect(apercu).toMatch(/script: "script", distribution: "plateau", reglages: "style"/);
-    expect(express).toMatch(/<EtapeApercu \{\.\.\.props\} compacte ouvrirFeuille=\{ouvrirFeuille\} \/>/);
+    // Aucun montant dans l'interface : l'écran Rapide n'ouvre plus la feuille de l'aperçu chiffré.
+    expect(express).not.toMatch(/<EtapeApercu\b/);
   });
 });
 

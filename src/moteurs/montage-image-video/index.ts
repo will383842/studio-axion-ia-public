@@ -48,7 +48,7 @@ export const ID_MOTEUR_IV = ID_MOTEUR_IMAGE_VIDEO;
 export const CODE_CARTE_A_VALIDER = "IV_CARTE_A_VALIDER";
 export const CODE_SCRIPT_A_VALIDER = "IV_SCRIPT_A_VALIDER";
 export const PHRASE_CARTE_A_VALIDER = "Vérifiez ce que j'ai compris de votre image, corrigez si besoin, puis validez la carte.";
-export const PHRASE_SCRIPT_A_VALIDER = "Relisez le script et son prix, tranchez les phrases trop affirmatives, puis validez : la voix n'est payée qu'après.";
+export const PHRASE_SCRIPT_A_VALIDER = "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite.";
 export const PHRASE_FORMAT_MASQUE = "Le format « Image → vidéo » n'est pas encore ouvert : un essai réel demande l'accord de Will.";
 
 /* ------------------------------------------------------------------ */
@@ -109,15 +109,17 @@ function lotDe(v: unknown): { lot?: NonNullable<EntreesImageVideo["lot"]> } {
 export function demandeDeLaCommande(commande: CommandeFabrication, versionId: string, numeroVersion?: number): DemandeFabricationIV {
   const e = lireEntreesImageVideo(commande.entrees);
   // Commande d'avant R5 (réglage jamais écrit) : elle garde l'ancien comportement « en cas de doute » ; seules les commandes qui
-  // portent « automatique » (nouvelles vidéos) suivent le nouveau défaut.
+  // portent « validationCarte » suivent leur réglage. Un script collé sans réglage écrit passe en « automatique » (sinon « si-doute »).
   const brut = (commande.reglages ?? {}) as Record<string, unknown>;
-  const reglages = schemaReglagesImageVideo.parse("validationCarte" in brut ? brut : { ...brut, validationCarte: "si-doute" });
+  const reglages = schemaReglagesImageVideo.parse("validationCarte" in brut ? brut : { ...brut, validationCarte: e.scriptColle ? "automatique" : "si-doute" });
   return {
     videoId: commande.videoId,
     versionId,
     image: { cle: e.imageCle, ...(e.empreinte ? { empreinte: e.empreinte } : {}) },
     ...(e.texte !== undefined ? { texte: e.texte } : {}),
     ...(e.scriptColle ? { scriptColle: true } : {}),
+    // Titre ou idée : le script généré attend Williams (relecture, modification, « Valider et fabriquer »).
+    ...(e.texte !== undefined && !e.scriptColle ? { scriptAValider: true } : {}),
     reseaux: e.reseaux,
     ...(e.offre ? { offre: e.offre } : {}),
     ...(e.typeImpose ? { typeImpose: e.typeImpose } : {}),

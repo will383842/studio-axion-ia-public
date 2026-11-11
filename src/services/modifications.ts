@@ -13,6 +13,7 @@
  * ceux que la vidéo permet vraiment.
  */
 import "server-only";
+import { RETOUCHE_PAS_DISPONIBLE } from "@/domaine/voix-phrases";
 import type { CommandeFabrication, Id, Montant } from "@/domaine/types";
 import type { DemandeModification } from "@/fournisseurs";
 import { idMoteurDeCommande, moteurDeCommande } from "@/moteurs";
@@ -127,11 +128,11 @@ export function intentionDe(texte: string): string | null {
 /** Réponse d'un format qui ne sait pas retoucher un passage : ce qui est compris, et qu'il faut refaire la vidéo. */
 function messageSansRetouche(texte: string): string {
   const intention = intentionDe(texte);
-  return `${intention ? `Compris : ${intention}. ` : ""}La retouche d'un passage n'est pas encore disponible pour cette vidéo : pour ce changement, il faut refaire la vidéo. Votre vidéo reste telle quelle.`;
+  return `${intention ? `Compris : ${intention}. ` : ""}${RETOUCHE_PAS_DISPONIBLE}`;
 }
 
 /** Note affichée à la place des exemples quand le format ne sait pas retoucher un passage. */
-export const NOTE_SANS_RETOUCHE = "Ce format ne sait pas encore retoucher un passage : décrivez le changement, le studio vous donne le prix pour refaire la vidéo.";
+export const NOTE_SANS_RETOUCHE = RETOUCHE_PAS_DISPONIBLE;
 
 /** La vidéo peut-elle être retouchée par passage ? (même règle que `lancerRetouche`.) */
 const retouchable = (video: { estDemo?: boolean }, commande: CommandeFabrication) => {

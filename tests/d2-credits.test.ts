@@ -282,8 +282,10 @@ describe("pré-vol bloquant", () => {
     expect(await depots().notifications.trouver((n) => n.type === "credit" && n.titre === "Clé HeyGen refusée")).toBeTruthy();
   });
 
-  it("le budget du mois reste vérifié en premier, à l'identique", async () => {
-    await expect(credits.verifierBudgetEtCredits({ lignes: [], total: centimes(10_000_000) }, true, "Cette vidéo")).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+  it("le budget du mois n'arrête plus rien (08/11/2026) : dépassé, il prévient seulement, même avec le réglage « bloquant »", async () => {
+    await (await import("@/services/_commun")).ecrireParametre("budget.mode", "bloquant");
+    await expect(credits.verifierBudgetEtCredits({ lignes: [], total: centimes(10_000_000) }, true, "Cette vidéo")).resolves.toBeUndefined();
+    expect((await depots().notifications.lister()).filter((n) => n.type === "credit" && /indicatif/i.test(n.titre))).toHaveLength(1);
   });
 });
 

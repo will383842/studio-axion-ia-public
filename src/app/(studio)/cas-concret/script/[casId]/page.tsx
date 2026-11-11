@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { FormulaireScriptFourni } from "@/components/formats/cas-concret/script-fourni/FormulaireScriptFourni";
 import { Carte } from "@/components/ui/Carte";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
+import { EnTetePage } from "@/components/ui/EnTetePage";
 import { lireSession } from "@/services/auth";
 import { lireCasRetires } from "@/services/cas-concret-retires";
 import { departMonScript } from "@/services/cas-concret-script-fourni";
@@ -22,15 +23,11 @@ export default async function PageMonScript({ params }: { params: Promise<{ casI
   if (!cas || (await lireCasRetires()).has(cas.id)) notFound();
   const depart = await departMonScript(cas.id);
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
-      <Link href="/cas-concret" className="inline-flex min-h-11 items-center text-sm text-texte-doux underline">
-        Retour aux cas
-      </Link>
-      <h1 className="text-2xl text-texte">Mon script</h1>
-      <p className="text-[15px] text-texte-doux">{cas.titre}</p>
+    <ConteneurPage largeur="lecture">
+      <EnTetePage titre="Mon script" sousTitre={cas.titre} retour={{ href: "/cas-concret", libelle: "Retour aux cas" }} />
       <Carte>
         <FormulaireScriptFourni casId={cas.id} titre={cas.titre} texteDepart={depart.texte} origine={depart.origine} perime={depart.perime} courantFourni={depart.courantFourni} />
       </Carte>
-    </div>
+    </ConteneurPage>
   );
 }

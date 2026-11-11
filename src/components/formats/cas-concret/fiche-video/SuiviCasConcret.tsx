@@ -14,6 +14,7 @@
  *   - brique 3 : l'arrêt pour que Will relise le script n'est pas un échec : l'étape s'affiche « À relire », sans
  *     « Réessayer » (la validation, juste en dessous, relance la fabrication).
  */
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { EtatSuivi } from "@/components/creation/SuiviFabrication";
@@ -29,7 +30,7 @@ import { ACTIONS_FABRICATION, LIBELLES_ARGENT } from "@/domaine/libelles";
 import { useTravaux } from "@/hooks/useTravaux";
 import { formaterMontant } from "@/lib/montants";
 import type { VueTravail } from "@/services/vues";
-import { etapeARelire } from "./a-relire";
+import { etapeARelire, vientDePasserARelire } from "./a-relire";
 import { ADRESSE_RELANCE, PHRASES_ECRAN_RELANCE, lireIssue, phraseRelancee } from "./relance";
 
 /** Au-delà, la relance est tenue pour sans réponse (phrase, jamais un bouton qui tourne sans fin). */
@@ -57,6 +58,13 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
 
   const echec = t.etapes.find((e) => e.statut === "echec");
   const aRelire = etapeARelire(t);
+  // Dès que le script attend la relecture, la page serveur est relue UNE fois : c'est elle qui affiche « Valider ce script ».
+  const etaitARelire = useRef(aRelire !== null);
+  useEffect(() => {
+    const maintenant = aRelire !== null;
+    if (vientDePasserARelire(etaitARelire.current, maintenant)) router.refresh();
+    etaitARelire.current = maintenant;
+  }, [aRelire, router]);
   const reessayable = t.statut === "echec" && (echec?.erreur ?? t.erreur)?.reessayable !== false;
   const actif = t.statut === "en_cours" || t.statut === "en_file";
   // Après une relance acceptée : « envoyée » tant que l'état relu n'a pas changé ou que l'étape tourne ; de nouveau
@@ -86,7 +94,7 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
       const confirme = await confirmerPrix({ message: issue.phrase, montant: issue.centimes });
       if (confirme === null) return setPhrase({ texte: PHRASES_ECRAN_RELANCE.annulee, ton: "info" });
       // UNE seule relance automatique, jamais de boucle.
-      if (dejaRelance) return setPhrase({ texte: "Le prix a changé, réessayez.", ton: "refus" });
+      if (dejaRelance) return setPhrase({ texte: "Cela a changé, réessayez.", ton: "refus" });
       return envoyer(confirme, true);
     }
     if (issue.statut === "refusee") return setPhrase({ texte: issue.phrase, ton: "refus" });
@@ -148,6 +156,13 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
       <ActionsSuivi
         etat={etat}
         arreter={actif ? <BoutonArreter travailId={t.id} videoId={t.cibleId} depense={t.depense} compact={compacte} /> : undefined}
+        propres={
+          etat === "a-relire" ? (
+            <Link href="#valider-script" className="inline-flex min-h-11 items-center rounded-bouton bg-orange px-4 text-sm font-semibold text-sur-orange">
+              Relire et valider le script
+            </Link>
+          ) : undefined
+        }
         reprendre={
           etat === "coincee" && reessayable ? (
             <Bouton variante="secondaire" icone="reessayer" onClick={() => void reessayer()} chargement={enAttente} className="shrink-0">

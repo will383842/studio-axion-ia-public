@@ -15,15 +15,16 @@ import type { EvenementFournisseur } from "@/domaine/types";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
+import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
-import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
+import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
-import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
+import { empreinteAdresseRefusee, lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
 import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -109,6 +110,10 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
   }
 }
 
+/** Alerte FIXE d'un doute sur une demande d'arrêt : ni texte, ni identifiant. Sujet propre à l'événement : un 2e doute n'est pas masqué par le délai d'une heure. */
+const MESSAGE_DOUTE_OPPOSITION = "Un message privé contient peut-être une demande d'arrêt. Rien n'a été envoyé ; la conversation est en pause. À vérifier dans l'Inbox Zernio.";
+const signalerDoute = (ev: EvenementFournisseur, now: number): Promise<void> => alerter(`doute:${ev.idEvenement}`, MESSAGE_DOUTE_OPPOSITION, now);
+
 /* --- Gardes avant toute action sortante ----------------------------------------------------------------------- */
 async function motGuideActif(compte: string): Promise<boolean> {
   const reg = await lireParametre<Registre>(PARAM_REGISTRE_MOTS, {});
@@ -169,9 +174,11 @@ const formesConversation = (cles: ClesOk, idBrut: string): string[] => [cles.cou
  * interrogé avec la clé et tous les alias : une opposition arrivée entre-temps arrête l'envoi. Registre illisible : l'erreur est
  * levée (le passage reporte l'événement d'une minute, `registre_illisible`) ; jamais « non opposée » par défaut.
  */
-async function opposeeAvantEnvoi(cle: string, env: Env): Promise<boolean> {
+async function opposeeAvantEnvoi(cle: string, env: Env, opts: { m2?: boolean } = {}): Promise<boolean> {
   const e = await lireEtat(cle);
   if (e?.etat === "oppose") return true;
+  // Un doute posé entre la lecture et l'envoi bloque M2 (pas la demande de guide : une adresse explicite reste servie).
+  if (opts.m2 && e?.douteOpposition === true) return true;
   return empreintesOpposees([cle, ...(e?.alias ?? [])], { env });
 }
 
@@ -551,10 +558,14 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     }
     const lu = await lireTexte(ev, d, idCompte, idConversation, idMessage, now, false);
     if (!lu) return "traite";
-    if (estMotOpposition(lu.texte)) {
+    const classeOrphelin = classerOpposition(lu.texte);
+    if (classeOrphelin === "opposition") {
       await enregistrerOpposition(idExpediteur!, ESPACE_CONVERSATION, { env });
       await enregistrerOpposition(idConversation, ESPACE_CONVERSATION, { env });
       await clore(ev, "oppose", "opposition_orpheline");
+    } else if (classeOrphelin === "doute") {
+      await signalerDoute(ev, now);
+      await clore(ev, "ignore", "doute_opposition");
     } else await clore(ev, "ignore", "orphelin");
     return "traite";
   }
@@ -595,14 +606,26 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now, s0.action !== "lire_opposition");
   if (!lu) return "traite";
+  // Classé UNE fois : opposition claire, doute, ou rien.
+  const classe = classerOpposition(lu.texte);
   if (s0.action === "lire_opposition") {
-    // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition.
-    if (estMotOpposition(lu.texte)) await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
-    else await clore(ev, "silence", s0.raison ?? "etat");
+    // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition ; un doute alerte, l'état reste inchangé.
+    if (classe === "opposition") await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
+    else if (classe === "doute") {
+      await signalerDoute(ev, now);
+      await clore(ev, "silence", "doute_opposition");
+    } else await clore(ev, "silence", s0.raison ?? "etat");
     return "traite";
   }
-  if (estMotOpposition(lu.texte)) {
+  if (classe === "opposition") {
     await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
+    return "traite";
+  }
+  // Doute : AVANT la veille et les gardes. Rien ne part (M2 n'est plus jamais envoyé), la conversation est en pause, l'opérateur est alerté (cloche seulement).
+  if (classe === "doute") {
+    await patcher(cle, { douteOpposition: true });
+    await signalerDoute(ev, now);
+    await clore(ev, "silence", "doute_opposition");
     return "traite";
   }
   // Veille : un humain a repris la conversation. Le « stop » a été lu ci-dessus ; ici plus rien ne part (ni M2, ni appel au site, ni accusé).
@@ -619,7 +642,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // Lecture réussie = message entrant confirmé : seulement maintenant, les alias sont notés.
   const adresse = extraireAdresse(lu.texte);
-  const s = transition(etat, { t: "texte", estOpposition: false, adresse });
+  const classeMachine: ClasseOpposition = classe as ClasseOpposition; // opposition et doute sont déjà traités plus haut : la machine reste la source de vérité des transitions
+  const s = transition(etat, { t: "texte", estOpposition: classeMachine === "opposition", doute: classeMachine === "doute", adresse });
   if (s.action === "opposer") {
     await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
     return "traite";
@@ -635,7 +659,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "ignore", "texte_incomplet");
       return "traite";
     }
-    if (await opposeeAvantEnvoi(cle, env)) {
+    if (await opposeeAvantEnvoi(cle, env, { m2: true })) {
       await clore(ev, "silence", "opposee");
       return "traite";
     }
@@ -667,7 +691,6 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   // occurredAt FIGÉ au premier essai (stocké dans l'état), puis réutilisé tel quel : mêmes octets à chaque essai.
   // idMessageAdresse (identifiant opaque, jamais l'adresse) est écrit avec lui : il permet de relire l'adresse pour un « stop ».
   const occurredAt = etat.occurredAt ?? (typeof c.occurredAt === "string" ? c.occurredAt : new Date(now).toISOString());
-  if (etat.occurredAt === null || !etat.idMessageAdresse) await patcher(cle, { occurredAt, idMessageAdresse: etat.idMessageAdresse ?? idMessage });
   const run: RunLu = { email: adresse, mot: MOT, reseau: etat.reseau, guide: etat.guide, versionTexteM1: etat.versionTexteM1, occurredAt };
   const cleEnvoi = RE_CLE_IDEMPOTENCE.test(etat.cleIdempotenceGuide) ? etat.cleIdempotenceGuide : "";
   if (!runValide(run) || !cleEnvoi) {
@@ -676,10 +699,37 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     await clore(ev, "site_refuse", "run_invalide");
     return "traite";
   }
-  const corps = corpsDemandeGuide(run, cleEnvoi);
+  const corpsV1 = corpsDemandeGuide(run, cleEnvoi);
+  // Lot Z1 : corps v3 seulement si l'interrupteur est allumé, qu'au moins un préfixe de compte est configuré ET que le compte de la conversation est listé
+  // (ORIGINE_V3_COMPTES) ; sinon v1 inchangé. La version choisie est FIGÉE dans l'état au premier essai (le site répond 409 si le corps change pour une même clé).
+  // Origine = référence de publication (identifiant opaque) + canal « commentaire » ; mot, réseau, date et version M1 sont déjà dans le corps.
+  // Un refus de construction est journalisé par son code seul (jamais la valeur, jamais une adresse) et on retombe sur le corps v1.
+  let version: 1 | 3 = etat.versionCorpsGuide ?? 1;
+  let corps = corpsV1;
+  if (etat.versionCorpsGuide === undefined || etat.versionCorpsGuide === null) {
+    version = 1;
+    // Migration douce : un état ancien (sans versionCorpsGuide) dont un essai est déjà parti (occurredAt écrit dès le premier essai) a envoyé un corps v1
+    // (les interrupteurs v3 étaient éteints avant) : on FIGE la version à 1 sans la recalculer, sinon même clé + corps différent = 409 cle_reutilisee définitif.
+    if (etat.occurredAt === null && origineV3Active(env) && prefixesComptesConfigures(env).length > 0 && compteAutoriseOrigineV3(etat.idCompte, env)) {
+      const o3 = construireOrigineV3({ postRef: etat.idPostPlateforme ?? undefined, canal: "commentaire" }, { reseau: etat.reseau, prefixesComptes: prefixesComptesConfigures(env) });
+      if (o3.ok) version = 3;
+      else await journaliser("parcours_conversation", `Origine v3 non envoyée : ${o3.code}.`);
+    }
+  }
+  if (version === 3) {
+    const o3 = construireOrigineV3({ postRef: etat.idPostPlateforme ?? undefined, canal: "commentaire" }, { reseau: etat.reseau, prefixesComptes: prefixesComptesConfigures(env) });
+    if (o3.ok) corps = corpsDemandeGuideV3(run, cleEnvoi, o3.origine);
+    else version = 1; // version figée en v3 mais origine non reconstructible (configuration retirée) : repli v1, figé ci-dessous
+  }
+  if (etat.occurredAt === null || !etat.idMessageAdresse || etat.versionCorpsGuide !== version) {
+    await patcher(cle, { occurredAt, idMessageAdresse: etat.idMessageAdresse ?? idMessage, versionCorpsGuide: version });
+  }
+  let enV3 = version === 3;
   let statut = 0;
   let corpsReponse: unknown = null;
-  for (let n = 0; n < ESSAIS_NONCE; n++) {
+  // Réessai après un report au plafond : le refus 422 est déjà connu, on ne rappelle pas le site.
+  if (etat.adresseRefuseeEnAttente === true) statut = 422;
+  for (let n = 0; n < ESSAIS_NONCE && etat.adresseRefuseeEnAttente !== true; n++) {
     const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
     try {
       const r = await site.transport({ methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, entetes });
@@ -688,6 +738,14 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     } catch {
       statut = 0;
       corpsReponse = null;
+    }
+    // Le site refuse l'origine v3 (422) : la demande n'est pas perdue, reprise immédiate en corps v1 (même clé).
+    if (enV3 && statut === 422) {
+      corps = corpsV1;
+      enV3 = false;
+      await patcher(cle, { versionCorpsGuide: 1 });
+      n--; // le repli v1 ne consomme pas d'essai : il est toujours tenté
+      continue;
     }
     const cd = conduiteApresReponse(statut, corpsReponse, etat.essaisSite + 1);
     if (!(cd.genre === "reessayer" && cd.nouveauNonce)) break;
@@ -701,7 +759,14 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     p.pannes = 0;
     await alerter("site_disjoncteur", `Le site des guides ne répond pas : ${DISJONCTEUR_SEUIL} pannes de suite, pause de ${DISJONCTEUR_PAUSE_MS / 60_000} minutes.`, now);
   }
-  await patcher(cle, { ...(s.patch ?? {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
+  // Z2 : le site refuse l'ADRESSE (422) : UN seul message demande de la vérifier (jamais deux, rien si opposée, plafond respecté).
+  // AVANT de passer l'état à « site_refuse » : si le plafond reporte l'événement, l'état est intact et le réessai reprend ici.
+  if (s.action === "site_refuse" && s.code === "422" && (await prevenirAdresseRefusee(ev, d, env, cle, etat, idConversation, idMessage, now)) === "bloque") {
+    // Le refus est connu : on le note pour que le réessai ne rappelle PAS le site (une seule demande au site par refus).
+    await patcher(cle, { adresseRefuseeEnAttente: true });
+    return "bloque";
+  }
+  await patcher(cle, { ...(s.patch ?? {}), ...(etat.adresseRefuseeEnAttente ? { adresseRefuseeEnAttente: false } : {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
   if (s.action === "site_reessai") {
     await reporter(ev, now, s.apresMs ?? 60_000, s.code ?? "reessai", code === "409_en_cours" ? { enCours: Number(c.enCours ?? 0) + 1 } : {});
     return "traite";
@@ -714,6 +779,31 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   }
   const maj = await lireEtat(cle);
   return envoyerRecu(ev, d, env, cle, maj ?? etat, idConversation, idMessage, now);
+}
+
+/** Z2 : message unique « vérifiez votre adresse ». « bloque » = plafond atteint (l'événement est reporté, rien n'est consommé). */
+async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
+  if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
+  if (await opposeeAvantEnvoi(cle, env)) return "fait";
+  // Garde de validation (échec fermé) : le texte ne part que si /mots en a validé l'empreinte exacte.
+  const brouillon = TEXTES_MP["mp-adresse-refusee-v2"];
+  const attendue = empreinteAdresseRefusee();
+  let validee = false;
+  try {
+    validee = (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === attendue;
+  } catch {
+    validee = false;
+  }
+  if (!validee) {
+    await alerter("adresse_refusee_non_validee", "Le message « adresse refusée » n'est pas validé dans Mots : il n'est pas parti.", now);
+    return "fait";
+  }
+  if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+  // Marqué AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
+  await patcher(cle, { adresseRefuseeEnvoyee: true });
+  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: brouillon.texte, cle: idMessage }));
+  await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
+  return "fait";
 }
 
 async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"traite" | "bloque"> {

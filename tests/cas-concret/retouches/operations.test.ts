@@ -7,7 +7,7 @@ import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
-import { texteDuCorps, type EcranCorps, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
+import { texteDuCorps, texteDuCorpsPourVoix, type EcranCorps, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
 import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
 import { validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
 import {
@@ -67,8 +67,8 @@ describe("P2-02 · changer une phrase", () => {
     expect(ecran(a.fiche, "e06").texteDit).toBe("La personne voit notre offre.");
     expect(a.corpsRelu).toBe(true);
     expect(a.finsRelues).toEqual([]);
-    expect(a.textesARelire).toEqual([texteDuCorps(a.fiche)]);
-    expect(a.caracteresARelire).toBe(texteDuCorps(a.fiche).length);
+    expect(a.textesARelire).toEqual([texteDuCorpsPourVoix(a.fiche)]);
+    expect(a.caracteresARelire).toBe(texteDuCorpsPourVoix(a.fiche).length);
     expect(a.ecransRefaits).toEqual([]);
   });
 

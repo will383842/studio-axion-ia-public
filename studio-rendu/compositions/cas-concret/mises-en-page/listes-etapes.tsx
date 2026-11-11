@@ -59,7 +59,7 @@ export function AvaCartesTombent({ p, d }: { p: P<"liste-avant">; d: ReturnType<
         const h = f.boite.hauteur;
         return (
           <div key={f.nom} style={{ position: "absolute", left: 0, top: 0, transform: `translateY(${(1 - q) * -700}px) rotate(${(i % 2 ? 1.6 : -1.6) * q}deg)`, transformOrigin: `${f.boite.x + f.boite.largeur / 2}px ${f.boite.y + h / 2}px`, opacity: borne(q * 4) }}>
-            <div style={{ position: "absolute", left: f.boite.x, top: f.boite.y, width: f.boite.largeur, height: h, boxSizing: "border-box", borderRadius: h * 0.27, background: C.blanc, border: `5px solid ${C.encre}`, boxShadow: `0 12px 30px ${a(C.encre, 0.1)}` }} />
+            <div style={{ position: "absolute", left: f.boite.x, top: f.boite.y, width: f.boite.largeur, height: h, boxSizing: "border-box", borderRadius: h * 0.27, background: C.carte, border: `5px solid ${C.encre}`, boxShadow: `0 12px 30px ${a(C.encre, 0.1)}` }} />
             <Rond x={f.boite.x + h * 0.52} y={f.boite.y + h / 2} d={h * 0.68} fondR={C.encre} couleur={C.blanc} numero={String(i + 1)} />
             <TexteL t={t} couleur={C.encre} accent={C.orange} />
           </div>
@@ -163,7 +163,7 @@ export function EtaSchemaFeutre({ p, d }: { p: P<"etape">; d: ReturnType<typeof 
       {/* Halo du fond sous les textes : le trait du schéma ne les traverse jamais à l'œil. */}
       <TexteL t={texte(d, "titre")!} couleur={k.texte} accent={k.accent} style={{ ...entree(allume, 30), transformOrigin: d.actif % 2 ? "100% 50%" : "0 50%", textShadow: `0 0 14px ${k.fond}, 0 0 6px ${k.fond}` }} />
       <TexteL t={texte(d, "ligne")!} couleur={k.secondaire} accent={k.accent} style={{ opacity: prog(image, img(p, "ligne", 0.6), 8), textShadow: `0 0 10px ${k.fond}, 0 0 4px ${k.fond}, 0 0 2px ${k.fond}` }} />
-      <Pilules formes={d.formes} textes={d.textes} nom="puce" image={image} debut={(i) => departPuce(p, i)} fond={C.blanc} couleurTexte={C.encre} />
+      <Pilules formes={d.formes} textes={d.textes} nom="puce" image={image} debut={(i) => departPuce(p, i)} fond={C.carte} couleurTexte={C.encre} />
     </>
   );
 }
@@ -238,7 +238,7 @@ export function EtaFantome({ p, d }: { p: P<"etape">; d: ReturnType<typeof dispo
           </div>
         );
       })}
-      <Pilules formes={d.formes} textes={d.textes} nom="puce" image={image} debut={(i) => departPuce(p, i)} fond={C.blanc} couleurTexte={C.encre} />
+      <Pilules formes={d.formes} textes={d.textes} nom="puce" image={image} debut={(i) => departPuce(p, i)} fond={C.carte} couleurTexte={C.encre} />
     </>
   );
 }
@@ -262,7 +262,7 @@ export function ObjEtiquettePend({ p, d }: { p: P<"objet">; d: ReturnType<typeof
     <>
       <TexteL t={texte(d, "titre")!} couleur={k.texte} accent={k.accent} style={{ transform: `translateX(${(1 - titre) * -600}px)` }} />
       <div style={{ position: "absolute", left: 0, top: 0, transform: `translateY(${(1 - photo) * -900}px) rotate(${-3 * photo}deg)`, transformOrigin: `${cb.x + cb.largeur / 2}px ${cb.y + cb.hauteur / 2}px` }}>
-        <div style={{ position: "absolute", left: cb.x, top: cb.y, width: cb.largeur, height: cb.hauteur, background: C.blanc, borderRadius: 30, boxShadow: `0 40px 80px ${a(C.encre, 0.18)}` }} />
+        <div style={{ position: "absolute", left: cb.x, top: cb.y, width: cb.largeur, height: cb.hauteur, background: C.carte, borderRadius: 30, boxShadow: `0 40px 80px ${a(C.encre, 0.18)}` }} />
         <Visuel p={p} b={d.visuel} image={image} />
       </div>
       {/* Le fil et l'étiquette : la ligne de l'écran devient un objet qui se balance. */}

@@ -51,7 +51,7 @@ describe("B1 · retouche d'une vraie vidéo avocat", () => {
     const travauxAvant = await depots().travaux.compter((t) => t.cibleId === "v-03");
     const err = await fabrication.lancerRetouche("v-03", [plan.id], "plus net", { confirme: true }).catch((e) => e);
     expect(err).toMatchObject({ code: "RETOUCHE_INDISPONIBLE" });
-    expect(String(err.message)).toMatch(/pas encore disponible/);
+    expect(String(err.message)).toMatch(/Refaire une seule phrase/);
     expect(await depots().versions.compter((x) => x.videoId === "v-03")).toBe(versionsAvant);
     expect(await depots().travaux.compter((t) => t.cibleId === "v-03")).toBe(travauxAvant);
     expect(await depots().reservations.compter((r) => r.videoId === "v-03" && r.statut === "active")).toBe(0);
@@ -93,7 +93,7 @@ describe("B1 · retouche d'une vraie vidéo avocat", () => {
     // Rien n'annonce « Votre vidéo est prête » ; Will lit une phrase simple.
     const notes = await depots().notifications.lister((n) => n.lien === "/videos/v-03" && !notesAvant.has(n.id));
     expect(notes.some((n) => n.titre === "Votre vidéo est prête")).toBe(false);
-    expect(notes.some((n) => /pas encore disponible/.test(`${n.titre} ${n.message ?? ""}`))).toBe(true);
+    expect(notes.some((n) => /Refaire une seule phrase/.test(`${n.titre} ${n.message ?? ""}`))).toBe(true);
     void travaux;
   });
 });

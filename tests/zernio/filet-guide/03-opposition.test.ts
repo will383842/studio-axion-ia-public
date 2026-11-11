@@ -13,12 +13,14 @@ beforeEach(preparer);
 afterEach(nettoyer);
 
 const VARIANTES = ["stop", "STOP", "Stop", "stop.", "stop !", "  stop  ", "arret", "ARRET", "arrêt", "Arrêt", "arretez", "Arrêtez", "Arrêtez !", "arrêtez."];
-const NON_OPPOSITIONS = ["stoppez", "ne pas arrêter", "stop svp", "oui", "", "GUIDE"];
+const NON_OPPOSITIONS = ["stopper", "ne pas arrêter", "GUIDE stop", "oui", "", "GUIDE"];
+const PHRASES = ["stop svp", "stoppez", "Stop, merci"]; // reconnues depuis STU-STOP
 const lignes = () => Com.lireParametre<Array<{ id: string }>>(Opp.PARAM_OPPOSITIONS_MOTS, []);
 
 describe("4 · reconnaissance (opposition.ts)", () => {
-  it("liste exacte des mots", () => expect([...MOTS_OPPOSITION]).toEqual(["STOP", "ARRET", "ARRETEZ"]));
+  it("liste exacte des mots", () => expect([...MOTS_OPPOSITION]).toEqual(["STOP", "STOPPEZ", "ARRET", "ARRETE", "ARRETEZ", "ARRETER", "DESINSCRIRE", "DESINSCRIPTION", "DESINSCRIVEZ", "DESABONNER", "DESABONNEZ", "DESABONNEMENT"]));
   it.each(VARIANTES)("« %s » est une opposition", (t) => expect(estMotOpposition(t)).toBe(true));
+  it.each(PHRASES)("« %s » est une opposition (phrase)", (t) => expect(estMotOpposition(t)).toBe(true));
   it.each(NON_OPPOSITIONS)("« %s » n'est pas une opposition", (t) => expect(estMotOpposition(t)).toBe(false));
   it("null / undefined / non-texte : pas une opposition", () => {
     expect(estMotOpposition(null)).toBe(false);
@@ -33,7 +35,7 @@ describe("4 · « stop » en commentaire", () => {
     expect(envoisSortants()).toBe(0);
     expect(banc.site.vus).toHaveLength(0);
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
-    expect((await lignes()).length).toBeGreaterThan(0);
+    expect(await lignes()).toHaveLength(1);
   });
   it("une réponse (estReponse) « STOP » coupe aussi", async () => {
     const id = await deposerCommentaire(depots, { reseau: "facebook", motSeul: "STOP", estReponse: true });
@@ -53,7 +55,7 @@ describe("4 · « stop » en commentaire", () => {
     const id = await deposerCommentaire(depots, { reseau: "facebook", motSeul: "STOP" });
     await passer(T0, { comptesPermis: ["autre-compte-fictif"] });
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
-    expect((await lignes()).length).toBeGreaterThan(0);
+    expect(await lignes()).toHaveLength(1);
   });
   it("personne déjà opposée dans le registre : un GUIDE ne démarre aucun parcours", async () => {
     await Opp.enregistrerOpposition(AUTEUR, "zernio-conversation", { env: ENV });
@@ -76,7 +78,7 @@ describe("4 · « stop » en message privé", () => {
     expect(banc.site.vus).toHaveLength(0);
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
     expect((await toutesLesConversations())[cleConversation(AUTEUR)].etat).toBe("oppose");
-    expect((await lignes()).length).toBeGreaterThan(0);
+    expect(await lignes()).toHaveLength(2);
   });
   it("l'opposition l'emporte : après un « stop » privé, un message avec une adresse valide ne produit ni appel au site ni accusé", async () => {
     lireTexteDe("stop");
