@@ -4,6 +4,7 @@
  * Il fabrique des objets Travail (purs) ; le service les enregistre et applique le résultat.
  */
 import type {
+  AngleVisage,
   CommandeFabrication,
   ElementBibliotheque,
   IdReseau,
@@ -141,6 +142,14 @@ export interface ContexteEstimationRetouche {
   travail?: Travail;
 }
 
+/** Ce qu'un lancement réel utiliserait chez HeyGen (vérifié gratuitement avant toute dépense). */
+export interface AVerifierHeygen {
+  personnageId?: string;
+  doubles: { angle: AngleVisage; visageId: string; idExterne: string }[];
+  looksDecor: string[];
+  voix?: string;
+}
+
 export interface MoteurVideo {
   id: string;
   nom: string;
@@ -158,6 +167,11 @@ export interface MoteurVideo {
    * d'essai : « Votre double n'est pas prêt ».
    */
   refusAuLancement?(commande: CommandeFabrication): { code: string; message: string } | null;
+  /**
+   * Facultatif : ce que le lancement réel utiliserait chez HeyGen (doubles, looks de décor, voix). Le service le fait
+   * vérifier GRATUITEMENT avant toute réservation. Null : rien à vérifier (simulation, rendu éteint, tout déjà rendu).
+   */
+  heygenAVerifier?(commande: CommandeFabrication): AVerifierHeygen | null;
   /**
    * Facecam lot G (facultatif) : refus d'une RETOUCHE avant toute réservation (la retouche réelle n'est pas branchée pour
    * cette commande). Absent : seule `capacites.retoucheParPlan` décide, comme avant.

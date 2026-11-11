@@ -25,7 +25,7 @@ export interface DoubleHeygenAffiche extends DoubleExistant {
 
 const ANGLES_DOUBLE: AngleVisage[] = ["trois-quarts", "face"];
 
-function fournisseurHeygen() {
+export function fournisseurHeygen() {
   const f = resoudreFournisseur("visage", "heygen");
   const branche = f.id === "heygen" && f.mode === "reel" && !!f.listerDoubles && etatConnexion("visage", "heygen") === "relie";
   return { f, branche };
@@ -55,6 +55,50 @@ export async function listerDoublesHeygen(personnageId: Id): Promise<{ branche: 
  * Choisi deux fois : le même visage (rien n'est créé de plus).
  */
 export async function choisirDoubleHeygen(personnageId: Id, choix: { idExterne: string; angle: AngleVisage; tenue?: string }): Promise<Id> {
+  try {
+    return await choisirDoubleHeygenInterne(personnageId, choix);
+  } finally {
+    (await import("./verification-heygen")).oublierCacheVerificationHeygen();
+  }
+}
+
+/**
+ * Doubles « filmé » prêts du personnage reliés à un double qui n'est plus dans `presents`. Ensemble vide : rien
+ * (on ne conclut jamais « absent » sans liste).
+ */
+export async function doublesAbsents(personnageId: Id, presents: ReadonlySet<string>): Promise<{ id: Id; nom: string; ressourceId: Id }[]> {
+  const absents: { id: Id; nom: string; ressourceId: Id }[] = [];
+  if (presents.size === 0) return absents;
+  const visages = await depots().visages.lister((v) => v.personnageId === personnageId);
+  for (const v of visages) {
+    if (v.fournisseur !== "heygen" || v.origine !== "filme" || v.statut !== "pret") continue;
+    const r = await ressourceActive(v.id);
+    if (r?.fournisseur === "heygen" && !presents.has(r.idExterne)) absents.push({ id: v.id, nom: v.nom, ressourceId: r.id });
+  }
+  return absents;
+}
+
+/** Range les doubles disparus (jamais effacés) et remet le remplaçant à leur place (défaut, visage par format). */
+export async function rangerDoublesAbsents(personnageId: Id, absents: { id: Id; nom: string; ressourceId: Id }[], remplacant: { id: Id; nom: string }): Promise<void> {
+  if (absents.length === 0) return;
+  const d = depots();
+  const p = await d.personnages.obtenir(personnageId);
+  if (!p) return;
+  const ids = new Set(absents.map((a) => a.id));
+  for (const a of absents) {
+    await d.ressourcesFournisseurs.modifier(a.ressourceId, { remplaceeLe: maintenant() });
+    await d.visages.modifier(a.id, { statut: "brouillon" });
+    await journaliser("personnage", `Double HeyGen « ${a.nom} » introuvable dans votre compte HeyGen : remplacé par « ${remplacant.nom} ».`, { type: "personnage", id: personnageId });
+  }
+  const maj: { visageParDefautId?: Id; visageParFormat?: Record<string, Id> } = {};
+  if (p.visageParDefautId && ids.has(p.visageParDefautId)) maj.visageParDefautId = remplacant.id;
+  if (p.visageParFormat && Object.values(p.visageParFormat).some((x) => ids.has(x))) {
+    maj.visageParFormat = Object.fromEntries(Object.entries(p.visageParFormat).map(([k, x]) => [k, ids.has(x) ? remplacant.id : x]));
+  }
+  if (Object.keys(maj).length > 0) await d.personnages.modifier(personnageId, maj);
+}
+
+async function choisirDoubleHeygenInterne(personnageId: Id, choix: { idExterne: string; angle: AngleVisage; tenue?: string }): Promise<Id> {
   await exigerSession();
   const d = depots();
   const p = await d.personnages.obtenir(personnageId);
@@ -68,32 +112,9 @@ export async function choisirDoubleHeygen(personnageId: Id, choix: { idExterne: 
   if (!double) throw new ErreurStudio("INTROUVABLE", "Ce double n'existe plus dans votre compte HeyGen.");
   if (!double.utilisable) throw new ErreurStudio("DOUBLE_PAS_PRET", double.raison ?? "Ce double n'est pas encore prêt chez HeyGen.");
   const visages = await d.visages.lister((v) => v.personnageId === personnageId);
-  // Doubles disparus du compte HeyGen (visages « filmé » prêts reliés à un double qui n'est plus dans la liste). Liste vide : on ne conclut rien.
-  const absents: { id: Id; nom: string; ressourceId: Id }[] = [];
-  if (liste.length > 0) {
-    const presents = new Set(liste.map((x) => x.idExterne));
-    for (const v of visages) {
-      if (v.fournisseur !== "heygen" || v.origine !== "filme" || v.statut !== "pret") continue;
-      const r = await ressourceActive(v.id);
-      if (r?.fournisseur === "heygen" && !presents.has(r.idExterne)) absents.push({ id: v.id, nom: v.nom, ressourceId: r.id });
-    }
-  }
-  /** Range les doubles disparus (jamais effacés) et remet le nouveau double à leur place (défaut, visage par format). */
-  const rangerAbsents = async (nouveauId: Id) => {
-    if (absents.length === 0) return;
-    const ids = new Set(absents.map((a) => a.id));
-    for (const a of absents) {
-      await d.ressourcesFournisseurs.modifier(a.ressourceId, { remplaceeLe: maintenant() });
-      await d.visages.modifier(a.id, { statut: "brouillon" });
-      await journaliser("personnage", `Double HeyGen « ${a.nom} » introuvable dans votre compte HeyGen : remplacé par « ${double.nom} ».`, { type: "personnage", id: personnageId });
-    }
-    const maj: { visageParDefautId?: Id; visageParFormat?: Record<string, Id> } = {};
-    if (p.visageParDefautId && ids.has(p.visageParDefautId)) maj.visageParDefautId = nouveauId;
-    if (p.visageParFormat && Object.values(p.visageParFormat).some((x) => ids.has(x))) {
-      maj.visageParFormat = Object.fromEntries(Object.entries(p.visageParFormat).map(([k, x]) => [k, ids.has(x) ? nouveauId : x]));
-    }
-    if (Object.keys(maj).length > 0) await d.personnages.modifier(personnageId, maj);
-  };
+  // Doubles disparus du compte HeyGen (liste vide : on ne conclut rien).
+  const absents = await doublesAbsents(personnageId, new Set(liste.map((x) => x.idExterne)));
+  const rangerAbsents = (nouveauId: Id) => rangerDoublesAbsents(personnageId, absents, { id: nouveauId, nom: double.nom });
   for (const v of visages) {
     const r = await ressourceActive(v.id);
     if (r?.fournisseur === "heygen" && r.idExterne === choix.idExterne) {
@@ -145,4 +166,5 @@ export async function retirerDoubleHeygen(visageId: Id): Promise<void> {
   if (!r || r.fournisseur !== "heygen") throw new ErreurStudio("INTROUVABLE", "Ce visage n'utilise pas de double HeyGen.");
   await d.ressourcesFournisseurs.modifier(r.id, { remplaceeLe: new Date().toISOString() });
   await d.visages.modifier(visageId, { statut: "brouillon" });
+  (await import("./verification-heygen")).oublierCacheVerificationHeygen();
 }
