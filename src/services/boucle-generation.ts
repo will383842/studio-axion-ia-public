@@ -951,6 +951,8 @@ async function rangerSujet(m: ScriptMaitre, g: GenerationScript, o: OptionsGener
     versionFormat: format.version,
     sujet: m.brief.idee,
     cible: m.brief.cible,
+    ...(m.brief.ciblage ? { ciblage: m.brief.ciblage } : {}),
+    ...(m.brief.typeAutomatisation ? { typeAutomatisation: m.brief.typeAutomatisation } : {}),
     adresse: o.adresse,
     version: 1,
     blocs: k.blocs,

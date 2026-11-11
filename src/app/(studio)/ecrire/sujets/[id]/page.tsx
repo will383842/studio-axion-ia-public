@@ -205,6 +205,8 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
         id={id}
         numero={m.numero}
         idee={m.brief.idee}
+        ciblage={m.brief.ciblage}
+        typeAutomatisation={m.brief.typeAutomatisation}
         etat={etat}
         archive={!!m.archiveLe}
         manque={m.numero === undefined || m.manque ? (m.manque ? { libelle: MANQUES_GENERATEUR[m.manque.type] ?? "Il manque une matière", ceQuIlFaudrait: m.manque.ceQuIlFaudrait, horsDomaine: m.manque.type === "HORS_DOMAINE" } : null) : null}
