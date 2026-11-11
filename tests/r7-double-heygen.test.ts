@@ -154,6 +154,8 @@ describe("erreur 404 de HeyGen : double disparu (11/11/2026)", () => {
     for (const code of ["avatar_not_found", "look_not_found"]) {
       const e = erreurDepuisReponse(404, { error: { code, message: "x" } });
       expect(e.message).toContain("n'existe plus");
+      expect(e.message).toContain("relancez une nouvelle vidéo");
+      expect(e.message).not.toContain("Réessayer");
       expect(e.erreur).toMatchObject({ code: "refuse", reessayable: false });
     }
     expect(erreurDepuisReponse(404, null).message).toContain("HeyGen ne trouve pas cet élément");

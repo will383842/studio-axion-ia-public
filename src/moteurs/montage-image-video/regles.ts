@@ -428,7 +428,8 @@ const MOTS_OUTILS_DEBUT: ReadonlySet<string> = new Set(["un", "une", "le", "la",
 
 /** Le nom apparaît tel quel (majuscule comprise), comme un nom propre. */
 function contientNomPropre(texte: string, nom: string): boolean {
-  return new RegExp(`(?<![\\p{L}])${nom}(?![\\p{L}])`, "u").test(texte);
+  // Majuscule comprise, et aussi en capitales (« MARTIN ») : « Un / Par / Le… » n'arrivent jamais ici (écartés par MOTS_OUTILS_DEBUT).
+  return [nom, nom.toUpperCase()].some((n) => new RegExp(`(?<![\\p{L}])${n}(?![\\p{L}])`, "u").test(texte));
 }
 
 /** Q08 · Interdits (prioritaires sur le mot pour mot), faux client, nom d'exemple sans « par exemple », appel dans le corps. */
@@ -438,7 +439,7 @@ export function regleInterdits(fiche: FicheImage, ctx: ContexteRegles, dejaSigna
   let interdits = tous;
   const noms = ctx.carte.noeuds
     .filter((n) => n.exemple)
-    .flatMap((n) => [n.libelle, n.detail ?? ""].join(" ").split(/\s+/).filter((w, i, a) => i > 0 && /^\p{Lu}\p{Ll}+$/u.test(w) && !/[.!?…:]["»”)]*$/u.test(a[i - 1]!) && !MOTS_OUTILS_DEBUT.has(w.toLowerCase())))
+    .flatMap((n) => [n.libelle, n.detail ?? ""].join(" ").split(/\s+/).filter((w, i) => i > 0 && /^\p{Lu}\p{Ll}+$/u.test(w) && !MOTS_OUTILS_DEBUT.has(w.toLowerCase())))
     .filter((w, i, a) => a.indexOf(w) === i);
   const controler = (t: string, ou: string, corps: boolean, ecranId?: string) => {
     const avec = (message: string, extra: Partial<Manquement> = {}): Manquement => ({ regle: "Q08", priorite: 1, message, ...(ecranId ? { ecranId } : {}), ...extra });

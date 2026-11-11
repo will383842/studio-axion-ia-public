@@ -27,6 +27,13 @@ describe("instantsClesIV · image du chiffre après la fin du compteur", () => {
     expect(r[0]!.instantSec).toBeGreaterThanOrEqual(2.5 - 1e-6);
     expect(r[0]!.instantSec).toBeLessThanOrEqual(4 - 0.05 + 1e-6);
   });
+  it("transition (caméra) juste après la fin du compteur : l'instant reste au moins finSec + 0,3 s", () => {
+    const l = ligne(1.2) as unknown as { evenements: unknown[] };
+    l.evenements.push({ id: "k1", genre: "camera", instantSec: 1.3, visible: true });
+    const r = chiffre(l as never);
+    expect(r).toHaveLength(1);
+    expect(r[0]!.instantSec).toBeGreaterThanOrEqual(1.5 - 1e-6);
+  });
   it("aucune place avant la fin du plan : pas d'image de chiffre", () => {
     expect(chiffre(ligne(3.9))).toHaveLength(0);
   });

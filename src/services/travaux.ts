@@ -731,12 +731,16 @@ async function lireTravauxAffiches(options: { inclureTermines?: boolean }, cible
 }
 
 async function sansEchecsPerimes(travaux: Travail[]): Promise<Travail[]> {
-  if (!travaux.some((t) => t.statut === "echec")) return travaux;
+  const echecs = travaux.filter((t) => t.statut === "echec");
+  if (!echecs.length) return travaux;
   const d = depots();
-  const videos = new Map((await d.videos.lister(() => true)).map((v) => [v.id, v]));
-  // Le travail le plus récent de chaque vidéo, tous statuts confondus (un ancien terminé compte aussi).
+  // Lecture limitée aux vidéos des échecs affichés (pas toutes les vidéos ni tous les travaux).
+  const cibles = new Set(echecs.map((t) => t.cibleId));
+  const videos = new Map<string, Video | undefined>(await Promise.all([...cibles].map(async (id) => [id, await d.videos.obtenir(id)] as const)));
+  // Le travail le plus récent de chaque vidéo, tous statuts confondus (un ancien terminé compte aussi), SAUF les ré-exports de
+  // format : ils n'effacent pas un échec de fabrication ou de retouche.
   const dernier = new Map<string, string>();
-  for (const x of await d.travaux.lister(() => true, (t) => ({ id: t.id, cibleId: t.cibleId, creeLe: t.creeLe }) as Travail)) {
+  for (const x of await d.travaux.lister((t) => cibles.has(t.cibleId) && t.type !== "reexport", (t) => ({ id: t.id, cibleId: t.cibleId, creeLe: t.creeLe }) as Travail)) {
     if ((dernier.get(x.cibleId) ?? "") < x.creeLe) dernier.set(x.cibleId, x.creeLe);
   }
   return travaux.filter((t) => travailAfficheALAccueil(t, videos.get(t.cibleId), (dernier.get(t.cibleId) ?? "") > t.creeLe));
@@ -953,11 +957,13 @@ export function avecDelai<T>(promesse: Promise<T>, ms: number): Promise<T> {
 
 /**
  * Accueil seulement : faut-il montrer ce travail ? Un travail actif (en cours, en file) ou terminé se montre toujours.
- * Un travail EN ÉCHEC se masque (sans rien effacer) quand sa vidéo est absente, archivée ou prête, ou qu'un travail plus
+ * Un travail EN ÉCHEC se masque (sans rien effacer) quand sa vidéo est absente ou archivée (ou prête, pour une fabrication seulement), ou qu'un travail plus
  * récent existe pour la même vidéo. `video` : `undefined` = introuvable. PUR.
  */
 export function travailAfficheALAccueil(t: Pick<Travail, "statut" | "type">, video: Pick<Video, "statut"> | undefined, plusRecent: boolean): boolean {
   if (t.statut !== "echec") return true;
-  if (!video || video.statut === "archivee" || video.statut === "prete") return false;
+  if (!video || video.statut === "archivee") return false;
+  // Vidéo prête : seul un échec de FABRICATION est périmé (la vidéo existe). Une retouche ou un recalque en échec reste visible.
+  if (video.statut === "prete" && t.type === "fabrication") return false;
   return !plusRecent;
 }

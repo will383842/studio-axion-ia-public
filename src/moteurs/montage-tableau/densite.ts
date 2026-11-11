@@ -137,7 +137,11 @@ export function diagnosticPageDePlus(fiche: FicheTableau, page: number): { type:
     if (!indices.length) return null;
     if (indices.length === 1) {
       const scene = fiche.scenes[indices[0]];
-      if (scene.gabarit?.role === "appel") return { type: "appel-long", texte: `la phrase d'appel « ${scene.texteDit.trim()} » est trop longue pour la plaque : 35 caractères au plus, ou choisissez une phrase de fin` };
+      if (scene.gabarit?.role === "appel") {
+        // La plaque porte la LIGNE ÉCRITE d'appel (pas tout le texte dit) : elle seule compte, et seulement si elle est trop longue.
+        const ligne = scene.elements.find((e) => e.type === "ligne" && e.bloc === "appel")?.texte?.trim();
+        if (ligne && (ligne.length > 35 || ligne.split(/\s+/).length > 6)) return { type: "appel-long", texte: `la phrase d'appel « ${ligne} » est trop longue pour la plaque : 35 caractères au plus, ou choisissez une phrase de fin` };
+      }
       if (fiche.scenes.length >= bornes.scenesMax) return { type: "scenes-max", texte: `${bornes.scenesMax} scènes au plus : la scène ne peut plus être coupée en deux` };
       if (scene.debutMs !== undefined || scene.finMs !== undefined) return { type: "coupe-impossible", texte: `la scène ${scene.id} est calée sur un temps fixé : elle ne peut pas être coupée` };
       if ((scene.ecrans ?? []).some((e) => e.moment === "appel")) return { type: "coupe-impossible", texte: `la scène ${scene.id} porte l'écran d'appel : elle ne peut pas être coupée` };

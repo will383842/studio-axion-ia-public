@@ -53,7 +53,7 @@ export function EnCours({ initial }: { initial: VueTravail[] }) {
         {travaux.map((t) => {
           const reparti = repartis.has(t.id);
           // Un script ou une carte qui attend la relecture de Will n'est pas une panne : « À relire », sans rouge.
-          const aRelire = t.statut === "echec" && !reparti && CODES_ATTENTE_VALIDATION.includes(t.erreur?.code ?? t.etapes.find((e) => e.statut === "echec")?.erreur?.code ?? "");
+          const aRelire = t.statut === "echec" && !reparti && CODES_ATTENTE_VALIDATION.includes(t.etapes.find((e) => e.statut === "echec")?.erreur?.code ?? t.erreur?.code ?? "");
           const echec = t.statut === "echec" && !reparti && !aRelire;
           const etape = t.etapes.find((e) => e.statut === "en_cours") ?? t.etapes.find((e) => e.statut === "echec");
           return (

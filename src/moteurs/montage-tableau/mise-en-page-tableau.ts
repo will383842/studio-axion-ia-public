@@ -890,7 +890,6 @@ function appel(g: Geo, c: ContenuPage, gr: Extract<Groupe, { sorte: "appel" }>, 
     rangs.push({ sorte: "fixe", bloc: bloc([rc.pose]) });
     return ajouterSite(rangs);
   }
-  if (!r) return null;
   const cadre = { x: g.x0, y: 0, largeur: g.x1 - g.x0, hauteur: r.h + 2 * my };
   let b = deplacer(r.pose, 0, my);
   const gab: DecorGabarit = phraseFiche ? { sorte: "bouton", cadre, rayon: px(g, 46), fond: S.fondBouton } : { sorte: "appel-plein", fond: S.fondBouton };

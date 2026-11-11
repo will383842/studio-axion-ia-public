@@ -21,6 +21,12 @@ describe("regleInterdits · nom d'exemple", () => {
   it("« Par » ou « Le » en début de phrase ne sont pas des noms d'exemple", () => {
     expect(nomsExemple(regleInterdits(fiche("Par ici.", ["Le tri est fait"]), ctx("Tri fait. Par la suite. Le client paie."), []))).toHaveLength(0);
   });
+  it("« Facture payée. Martin relance. » (nom après un point) : Q08", () => {
+    expect(nomsExemple(regleInterdits(fiche("Martin relance.", ["Martin relance"]), ctx("Facture payée. Martin relance."), [])).length).toBeGreaterThan(0);
+  });
+  it("nom en capitales (« MARTIN relance ») : Q08 aussi", () => {
+    expect(nomsExemple(regleInterdits(fiche("MARTIN relance.", ["MARTIN relance"]), ctx("Facture payée. Martin relance."), [])).length).toBeGreaterThan(0);
+  });
   it("« Martin paie » sans « exemple » : toujours Q08", () => {
     expect(nomsExemple(regleInterdits(fiche("Martin paie.", ["Martin paie"]), ctx("Facture de Martin payée"), [])).length).toBeGreaterThan(0);
   });
