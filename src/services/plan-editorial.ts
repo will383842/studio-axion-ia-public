@@ -56,9 +56,14 @@ export function estConfie(c: CreneauEditorial): boolean {
 export async function decaler(d: DepotsPlan, id: string, demande: DemandeDecalage, maintenant: string): Promise<CreneauPlan> {
   const c = await lire(d, id);
   const idLigne = `decalage:${id}:${demande.cle}`;
-  if (await d.journal.obtenir(idLigne)) return c;
+  const ligne = await d.journal.obtenir(idLigne);
+  // Rejeu : si le décalage est déjà appliqué, on rend le créneau tel quel ; sinon (écriture du créneau tombée en panne) on le réapplique sans nouvelle ligne.
+  if (ligne && c.jourVise === ligne.nouveauJour) return c;
   if (c.statut === "publie") throw new Error(`Décalage refusé : le créneau ${id} est publié.`);
   if (c.statut === "archive") throw new Error(`Décalage refusé : le créneau ${id} est archivé.`);
+  if (c.statut === "programme" || c.statut === "echec") {
+    throw new Error(`Décalage refusé : le créneau ${id} est « ${c.statut} », un envoi existe déjà ; le repasser d'abord à « valide » après retrait de l'envoi.`);
+  }
   if (!JOUR.test(demande.nouveauJour) || Number.isNaN(Date.parse(demande.nouveauJour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
   const heures: CreneauEditorial["heuresParReseau"] = {};
   for (const [reseau, h] of Object.entries(c.heuresParReseau)) {
@@ -68,8 +73,8 @@ export async function decaler(d: DepotsPlan, id: string, demande: DemandeDecalag
     ...c, jourVise: demande.nouveauJour, heuresParReseau: heures, decalages: c.decalages + 1,
     ...(estConfie(c) ? { aRenvoyer: true } : {}),
   };
-  // Journal d'abord (ajout seul), puis le créneau : un rejeu avec la même clé s'arrête sur la ligne déjà écrite.
-  await d.journal.enregistrer({ id: idLigne, creneauId: id, ancienJour: c.jourVise, nouveauJour: demande.nouveauJour, raison: demande.raison, creeLe: maintenant });
+  // Journal (ajout seul) puis créneau ; un rejeu avec la même clé réapplique le créneau si besoin, sans second journal.
+  if (!ligne) await d.journal.enregistrer({ id: idLigne, creneauId: id, ancienJour: c.jourVise, nouveauJour: demande.nouveauJour, raison: demande.raison, creeLe: maintenant });
   return d.creneaux.enregistrer(modifie);
 }
 
