@@ -10,6 +10,7 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { Icone } from "@/components/ui/Icone";
 import { Menu } from "@/components/ui/Menu";
 import { Pastille } from "@/components/ui/Pastille";
+import { Section } from "@/components/ui/Section";
 import { notifier } from "@/components/ui/Toast";
 import { lienEcrireTexte, retourAssistant } from "@/domaine/retour-video";
 import type { Idee } from "@/domaine/types";
@@ -56,17 +57,19 @@ export function OngletIdees({ idees, formats = [], suivi = null, usine = false }
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       {usine && <BlocIdeesUsine />}
       <SuiviSerie key={suivi?.id ?? "aucune"} initial={suivi} />
+      <Section id="idees-liste" titre="Vos idées" sousTitre="Notez-les en une ligne, transformez-les en script ou en vidéo plus tard." sansCarte>
+      <div className="space-y-4">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           ajouter();
         }}
-        className="flex min-h-14 items-center gap-2 rounded-full border border-trait bg-surface-1 pl-5 pr-1.5 transition-colors focus-within:border-orange"
+        className="flex min-h-14 items-center gap-2 rounded-full border border-trait bg-surface-1 pl-5 pr-1.5 transition-colors focus-within:border-texte"
       >
-        <Icone nom="plus" size={18} className="shrink-0 text-ambre" />
+        <Icone nom="plus" size={18} className="shrink-0 text-texte-faible" />
         <label htmlFor={id} className="sr-only">
           Nouvelle idée
         </label>
@@ -79,7 +82,7 @@ export function OngletIdees({ idees, formats = [], suivi = null, usine = false }
           enterKeyHint="send"
           className="min-w-0 flex-1 bg-transparent text-[16px] text-texte outline-none placeholder:text-texte-faible"
         />
-        <button type="submit" disabled={!texte.trim() || enCours} aria-label="Noter l'idée" className="grid size-11 shrink-0 place-items-center rounded-full bg-orange text-sur-orange transition-opacity disabled:opacity-40">
+        <button type="submit" disabled={!texte.trim() || enCours} aria-label="Noter l'idée" className="grid size-11 shrink-0 place-items-center rounded-full bg-texte text-fond transition-opacity disabled:opacity-40">
           <Icone nom={enCours ? "chargement" : "fleche-droite"} size={18} className={enCours ? "animate-spin" : ""} />
         </button>
       </form>
@@ -100,14 +103,14 @@ export function OngletIdees({ idees, formats = [], suivi = null, usine = false }
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2, delay: Math.min(n, 8) * 0.025 }}
-                  className={`flex items-center gap-2 rounded-carte border bg-surface-1 py-2 pr-1.5 ${choisies.includes(i.id) ? "border-orange" : "border-trait"} ${formats.length && ideeEcrivable(i) ? "pl-1" : "pl-4"}`}
+                  className={`flex items-center gap-2 rounded-carte border bg-surface-1 py-2 pr-1.5 ${choisies.includes(i.id) ? "border-texte" : "border-trait"} ${formats.length && ideeEcrivable(i) ? "pl-1" : "pl-4"}`}
                 >
                   {formats.length > 0 && ideeEcrivable(i) && <CaseIdee cochee={choisies.includes(i.id)} onChange={() => basculer(i.id)} texte={i.texte} />}
                   <div className="min-w-0 flex-1 py-1">
                     <p className="text-[15px] font-semibold leading-snug text-texte">{i.texte}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-texte-faible">
                       {f && (
-                        <Pastille icone={f.icone} ton={f.statut === "actif" ? "orange" : "neutre"}>
+                        <Pastille icone={f.icone} ton={"neutre"}>
                           {nomCourtFormat(f)}
                         </Pastille>
                       )}
@@ -141,7 +144,7 @@ export function OngletIdees({ idees, formats = [], suivi = null, usine = false }
                         // Format suggéré pas encore disponible : on le dit, au lieu de l'ignorer en silence.
                         if (f && f.statut !== "actif") notifier.info(`${f.nom} arrive bientôt`, `Je l'ouvre en ${nomCourtFormat({ id: formatVideo }).toLowerCase()}.`);
                       }}
-                      className="grid size-11 shrink-0 place-items-center rounded-full bg-orange-doux text-orange-vif transition-colors hover:bg-orange hover:text-sur-orange"
+                      className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-texte-doux transition-colors hover:bg-surface-3 hover:text-texte"
                     >
                       <Icone nom="clap" size={18} />
                     </Link>
@@ -165,6 +168,8 @@ export function OngletIdees({ idees, formats = [], suivi = null, usine = false }
           </AnimatePresence>
         </ul>
       )}
+      </div>
+      </Section>
       <BarreSerieIdees idees={idees.filter((i) => choisies.includes(i.id) && ideeEcrivable(i))} formats={formats} onFini={() => setChoisies([])} />
     </div>
   );

@@ -26,7 +26,7 @@ export function RefaireToutesLesVignettes() {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Bouton variante="secondaire" icone="image" chargement={enCours} disabled={enCours} onClick={() => void lancer()}>
+      <Bouton variante="fantome" icone="image" chargement={enCours} disabled={enCours} onClick={() => void lancer()}>
         Refaire toutes les vignettes
       </Bouton>
       <p className="text-xs text-texte-doux" aria-live="polite" role="status">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
+import { estMotOpposition, formeCanonique } from "@/domaine/guide-reseau/opposition";
 import { motSeulDe, MOTS_DECLENCHEURS_CONNUS } from "@/domaine/guide-reseau/crochet-zernio";
 
 // Règle : une opposition est au moins aussi tolérante qu'un déclencheur (accents, casse, bordures, guillemets, pleine chasse).
@@ -8,8 +8,13 @@ describe("opposition tolérante (valeurs fictives)", () => {
     expect(estMotOpposition(t)).toBe(true);
   });
 
-  it.each(["je ne vais pas stop tout de suite", "GUIDE stop", "stop guide", "stop stop", "s t o p", "stopper", "", "🙏", "GUIDE", "12345"])("« %s » n'est PAS une opposition", (t) => {
+  it.each(["je ne vais pas stop tout de suite", "GUIDE stop", "stop guide", "s t o p", "stopper", "", "🙏", "GUIDE", "12345"])("« %s » n'est PAS une opposition", (t) => {
     expect(estMotOpposition(t)).toBe(false);
+  });
+
+  it("« stop stop » est une opposition ; « stopper » reste non", () => {
+    expect(estMotOpposition("stop stop")).toBe(true);
+    expect(estMotOpposition("stopper")).toBe(false);
   });
 
   it("non-texte : jamais une opposition", () => {
@@ -23,7 +28,9 @@ describe("opposition tolérante (valeurs fictives)", () => {
   });
 
   it("l'opposition reste reconnue par motSeulDe avec ses variantes", () => {
-    for (const t of ["stop ?", "« stop »", "stop 🙏", "Arrêtez."]) expect(motSeulDe(t)).toBe(t.trim());
+    for (const t of ["stop ?", "« stop »", "stop 🙏", "Arrêtez."]) expect(motSeulDe(t)).toBe(formeCanonique(t)); // forme canonique, jamais le texte brut
+    expect(motSeulDe("stop ?")).toBe("STOP");
+    expect(motSeulDe("Arrêtez.")).toBe("ARRETEZ");
   });
 
   it("propriété : toute décoration acceptée pour un déclencheur est acceptée pour « stop »", () => {
