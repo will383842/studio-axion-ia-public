@@ -30,7 +30,7 @@ import { phrasesAdaptees } from "@/components/formats/image-video/AdapteAutomati
 import { OFFRES, type Offre } from "@/formats/cas-concret/cas";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { additionner, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
-import { CLE_LANCEUR_IV, engageCentimes, euros, estimerImageVideo, plafondProposeIV, releverPlafondIV, type EtatFabricationIV, type FormuleATrancherIV, type PrixIV } from "@/moteurs/montage-image-video";
+import { CLE_LANCEUR_IV, engageCentimes, estimerImageVideo, plafondProposeIV, releverPlafondIV, type EtatFabricationIV, type FormuleATrancherIV, type PrixIV } from "@/moteurs/montage-image-video";
 import { avecVersionsPrudentes, type ChoixFormule } from "@/domaine/image-video/versions-prudentes";
 // Ré-export : la fonction vit désormais dans le domaine (pure, utilisable côté client).
 export { avecVersionsPrudentes, cleFormule } from "@/domaine/image-video/versions-prudentes";
@@ -69,7 +69,7 @@ export const PHRASES_IV = Object.freeze({
   lanceur: "Cette vidéo est fabriquée par le lanceur, hors du studio : relancez le lanceur (la même commande) pour reprendre. Rien de déjà payé n'est refait.",
   plafondEnCours: "La fabrication avance : relevez le plafond quand elle est arrêtée.",
   plafondLanceur: "Cette vidéo est fabriquée par le lanceur, hors du studio : son plafond se règle au lancement.",
-  plafondMontant: "Indiquez un montant en euros.",
+  plafondMontant: "Indiquez un montant valide.",
   plafondChange: "La vidéo a changé entre-temps : rechargez la page.",
 });
 
@@ -265,7 +265,7 @@ export async function deposerImageVideo(d: DemandeDepotIV, dep: DependancesEcran
     }
     const accord = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
     // Accord absent ou plus bas que le prix : rien n'est créé, le prix est redemandé.
-    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo coûte au plus ${(montant / 100).toFixed(2).replace(".", ",")} €. Confirmez ce prix pour lancer.` };
+    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo est payante. Confirmez pour lancer.` };
     const accordEssaiReel = await (dep.accordEssai ?? (() => lireParametre<boolean>(PARAM_ACCORD_ESSAI_IV, false)))();
     const titre = (d.titre?.trim() || fichier.nom.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[-_]+/g, " ").trim() || "Image → vidéo").slice(0, 80);
     const entrees = {
@@ -640,10 +640,10 @@ export async function releverPlafondImageVideo(videoId: Id, d: DemandeRelevePlaf
   if (travail.statut === "en_cours" || travail.statut === "en_file") return { statut: "refusee", phrase: PHRASES_IV.plafondEnCours };
   const engage = engageCentimes(etat);
   const actuel = etat.caisse.plafondCentimes;
-  if (nouveau < engage) return { statut: "refusee", phrase: `Le plafond ne peut pas descendre sous ce qui est déjà engagé (${euros(engage)}).` };
-  if (nouveau <= actuel) return { statut: "refusee", phrase: `Le nouveau plafond doit dépasser le plafond actuel (${euros(actuel)}).` };
+  if (nouveau < engage) return { statut: "refusee", phrase: `Le plafond ne peut pas descendre sous ce qui est déjà engagé.` };
+  if (nouveau <= actuel) return { statut: "refusee", phrase: `Le nouveau plafond doit dépasser le plafond actuel.` };
   // Confirmation explicite du montant, comme « Confirmer ce prix » : un autre montant (ou aucun) est redemandé.
-  if (d.accordCentimes !== nouveau) return { statut: "accord-requis", centimes: nouveau, phrase: `Le plafond de cette vidéo passera de ${euros(actuel)} à ${euros(nouveau)}. Confirmez ce montant.` };
+  if (d.accordCentimes !== nouveau) return { statut: "accord-requis", centimes: nouveau, phrase: `Le plafond de cette vidéo va être relevé. Confirmez pour continuer.` };
   // Relecture et écriture SOUS le verrou de la boucle (comme `reessayerTravail`) : un « Refaire cette partie » passé
   // entre-temps (voix peut-être déjà payée) n'est jamais écrasé par la lecture d'avant ; rien n'est écrit, Will recharge.
   const ecrit = await sousVerrou(async () => {
@@ -655,7 +655,7 @@ export async function releverPlafondImageVideo(videoId: Id, d: DemandeRelevePlaf
     const apres = releverPlafondIV(etatFrais, nouveau);
     await (dep.enregistrerTravail ?? ((t: Travail) => depots().travaux.enregistrer(t)))({ ...frais, parametres: { ...frais.parametres, imageVideo: apres }, modifieLe: new Date().toISOString() });
     await (dep.porterPlafond ?? porterPlafondParDefaut)(videoId, frais.versionId, nouveau);
-    await journaliser("video", `Image → vidéo : plafond relevé de ${euros(actuel)} à ${euros(nouveau)}`, { type: "video", id: videoId }).catch(() => undefined);
+    await journaliser("video", `Image → vidéo : plafond relevé`, { type: "video", id: videoId }).catch(() => undefined);
     return true;
   });
   if (!ecrit) return { statut: "refusee", phrase: PHRASES_IV.plafondChange };

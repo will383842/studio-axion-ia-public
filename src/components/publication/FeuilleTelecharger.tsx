@@ -12,7 +12,6 @@ import { notifier } from "@/components/ui/Toast";
 import type { Ratio } from "@/domaine/types";
 import { nomFichier } from "@/domaine/derivations-generateur";
 import { cn } from "@/lib/cn";
-import { centimes, formaterMontant } from "@/lib/montants";
 import { useVideo } from "./ContexteVideo";
 import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
 import { formateurNombre } from "@/lib/intl";
@@ -105,7 +104,7 @@ export function FeuilleTelecharger() {
               >
                 <FormeRatio ratio={r} />
                 {r}
-                {coutsFormats[r] !== undefined && <span className="font-normal text-texte-doux">{coutsFormats[r] === 0 ? "gratuit" : `≈ ${formaterMontant(centimes(coutsFormats[r]))}`}</span>}
+                {coutsFormats[r] === 0 && <span className="font-normal text-texte-doux">gratuit</span>}
               </Bouton>
             ))}
           </div>

@@ -451,7 +451,7 @@ describe("Garde écran · rien de technique sous les yeux de Will", () => {
     const points: { fichier: string; extrait: string; equipe: string }[] = [
       { fichier: "src/services/serie-ecriture.ts", extrait: "Choisissez au moins une idée.", equipe: "6 · série (erreur)" },
       { fichier: "src/services/serie-ecriture.ts", extrait: " en écriture", equipe: "6 · série (Journal)" },
-      { fichier: "src/services/serie-ecriture.ts", extrait: "Confirmez ce prix pour continuer.", equipe: "intégration · confirmation du total de la série" },
+      { fichier: "src/services/serie-ecriture.ts", extrait: "Confirmez pour continuer.", equipe: "intégration · confirmation du total de la série" },
       { fichier: "src/services/publications.ts", extrait: "avant de publier le brouillon.", equipe: "7 · rappel « Votre marque » (notification persistée)" },
       { fichier: "src/services/series.ts", extrait: "Cette série existe déjà.", equipe: "7 · séries" },
       { fichier: "src/services/decors.ts", extrait: "elles arriveront sans nouveau paiement.", equipe: "3 · décors (constante)" },

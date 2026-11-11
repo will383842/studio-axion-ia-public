@@ -144,7 +144,7 @@ export function lireProjetTutoriel(projetMontage: Record<string, unknown> | unde
 function erreurLisible(err: unknown): ErreurTravail {
   if (err instanceof VoixNonEpingleeError) return { code: err.code, reessayable: false, messagePourWill: err.messagePourWill };
   if (err instanceof ErreurTutoriel) return { code: err.code, reessayable: err.reessayable, messagePourWill: err.messagePourWill };
-  if (err instanceof ErreurRendu) return { code: "TO_RENDU", reessayable: true, messagePourWill: `Le rendu de la vidéo n'a pas abouti (${err.message}) : « Réessayer » ne refait que le rendu.` };
+  if (err instanceof ErreurRendu) return { code: "TO_RENDU", reessayable: true, messagePourWill: "Le rendu de la vidéo n'a pas abouti : « Réessayer » ne refait que le rendu." };
   const message = err instanceof Error ? err.message : "erreur inattendue";
   return { code: "TO_ETAPE", reessayable: true, messagePourWill: `Une étape s'est arrêtée (${message}) : « Réessayer » ne refait que cette étape et la suite.` };
 }
