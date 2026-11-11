@@ -6,3 +6,10 @@
 - Reste : une petite fiche pour ajouter ces 3 collections à src/services/suppression-video.ts. Relecture.
 - Douteux : champs du message (texte, réseau, creeLe, archiveLe) déduits de la fiche, très courte. Suite complète non lancée (consigne).
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (v1-r8)
+- À corriger (TRAITEMENT_SUPPRESSION sans stockMessages, creneauxEditoriaux, journalDecalages) : corrigé, 3 clés « sans-lien » ajoutées dans src/services/suppression-video.ts (fichier HORS liste de la fiche, ajouté sur demande de l'avis). Test rouge préexistant : tests/suppression-video-orphelins.test.ts (16/17 avant, 17/17 après).
+- Tests : suppression-video* + stock-messages : 8 fichiers, 70 passés, 0 échoué. tsc : aucune erreur dans suppression-video.ts (erreurs préexistantes dans tests/zernio, hors fiche).
+- Douteux : CreneauEditorial a un videoId facultatif ; « sans-lien » ne le détache pas à la suppression d'une vidéo. À trancher par une autre fiche.
+- Remarques (Depot.supprimer, champs du message) : reportées, à confirmer par le fondateur.
+- contrôle anti-fuite : vide
