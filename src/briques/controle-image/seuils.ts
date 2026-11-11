@@ -5,7 +5,7 @@ export const SEUILS_CONTROLE_IMAGE: Readonly<SeuilsControleImage> = Object.freez
   volumeCible: -14,
   volumeTolerance: 1,
   creteMax: -1.5,
-  dureeMaxSec: 90,
+  dureeMaxSec: 180,
   tailleTexteMin: 0.03,
   contrasteTexteMin: 7,
   contrasteMarqueMin: 3,

@@ -13,3 +13,8 @@ export function etapeARelire(t: { statut: StatutTravail; erreur?: ErreurTravail;
   const arretee = t.etapes.find((e) => e.statut === "echec");
   return (arretee?.erreur ?? t.erreur)?.code === CODE_A_RELIRE ? (arretee?.cle ?? null) : null;
 }
+
+/** Le suivi vient de basculer en « à relire » (faux puis vrai) : la page doit être relue UNE fois pour afficher la validation. */
+export function vientDePasserARelire(avant: boolean, maintenant: boolean): boolean {
+  return !avant && maintenant;
+}

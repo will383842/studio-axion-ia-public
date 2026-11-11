@@ -25,7 +25,7 @@ export function controlerScriptIV(etat: Pick<EtatFabricationIV, "etape" | "propo
   if (!lu.success) return [{ niveau: "bloquant", code: "script-incomplet", texte: "Le script modifié est incomplet : une phrase ou un écrit est vide." }];
   // Comme à la validation (le serveur pose la version prudente choisie) : on contrôle le texte qui sera vraiment gardé.
   const fiche = avecVersionsPrudentes(lu.data, d.choixFormules ?? {}) ?? lu.data;
-  const verdict = verifierScript(fiche, { carte, choixFormules: d.choixFormules ?? {}, ajoutsWill: d.ajoutsWill ?? [], interdits: etat.demande.interdits ?? [], ...(etat.variete ? { recit: etat.variete.recette.recit } : {}) });
+  const verdict = verifierScript(fiche, { carte, choixFormules: d.choixFormules ?? {}, ajoutsWill: [...(d.ajoutsWill ?? []), ...(etat.demande.scriptColle && etat.demande.texte ? [etat.demande.texte] : [])], interdits: etat.demande.interdits ?? [], ...(etat.variete ? { recit: etat.variete.recette.recit } : {}) });
   const pastilles: PastilleControle[] = verdict.manquements.map((m) => ({ niveau: m.pourWill || (etat.demande.scriptColle && !bloqueUnScriptColle(m)) ? "alerte" : "bloquant", code: m.regle, ...(m.ecranId ? { ligneId: m.ecranId } : {}), texte: m.message }));
   if (etat.demande.appelCommentaire === "question-puis-fin") {
     const refus = refusQuestion(fiche.questionCommentaire.texteDit);
