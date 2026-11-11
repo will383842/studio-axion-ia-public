@@ -30,15 +30,15 @@ export function FiltresCiblage({ base, params, filtre, nbAnciens, className }: {
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-xs font-bold uppercase tracking-wider text-texte-faible">Type</span>
         <nav aria-label="Type d'automatisation" className="sans-barre -mr-4 flex gap-1.5 overflow-x-auto pb-1 pr-4 sm:mr-0 sm:flex-wrap sm:overflow-visible sm:pr-0">
-          <Puce href={lienCiblage(base, params, { type: undefined })} actif={!filtre.type}>
+          <Puce href={lienCiblage(base, params, { typeAuto: undefined })} actif={!filtre.type}>
             Tous
           </Puce>
           {TYPES_AUTOMATISATION.map((t) => (
-            <Puce key={t.id} href={lienCiblage(base, params, { type: t.id })} actif={filtre.type === t.id}>
+            <Puce key={t.id} href={lienCiblage(base, params, { typeAuto: t.id })} actif={filtre.type === t.id}>
               {t.libelle}
             </Puce>
           ))}
-          <Puce href={lienCiblage(base, params, { type: "a-classer" })} actif={filtre.type === "a-classer"}>
+          <Puce href={lienCiblage(base, params, { typeAuto: "a-classer" })} actif={filtre.type === "a-classer"}>
             À classer
           </Puce>
         </nav>

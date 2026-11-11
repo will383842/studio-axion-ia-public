@@ -17,6 +17,12 @@ export function resumeFormat(formatId: string): ResumeFormat {
   return f ? { id: f.id, nom: f.nom, icone: f.icone, statut: f.statut } : { id: formatId, nom: formatId, icone: "film", statut: "masque" };
 }
 
+/** Lecture seulement si le script déclare des jumeaux (rare) : pas de lecture supplémentaire sinon. */
+async function jumeauxExistants(ids: readonly string[] | undefined): Promise<Set<string>> {
+  if (!ids?.length) return new Set();
+  return new Set((await depots().scripts.lister((s) => ids.includes(s.id))).map((s) => s.id));
+}
+
 export async function versCarte(v: Video): Promise<VueVideoCarte> {
   const d = depots();
   const versionId = v.versionChoisieId;
@@ -67,7 +73,7 @@ export async function versCarte(v: Video): Promise<VueVideoCarte> {
     reseaux,
     reseauxPrecis: precis,
     typeAutomatisation: v.typeAutomatisation,
-    doublonPossible: script ? estDoublonPossible(script) : undefined,
+    doublonPossible: script ? estDoublonPossible(script, await jumeauxExistants(script.doublonsPossibles)) : undefined,
   };
 }
 

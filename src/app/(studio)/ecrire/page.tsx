@@ -21,7 +21,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { Icone } from "@/components/ui/Icone";
 import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
-import { compterAnciens, estDoublonPossible, filtrerParCiblage, lireFiltreCiblage } from "@/domaine/ciblage/listes";
+import { compterAnciens, estDoublonPossible, filtrerParCiblage, filtrerSujetsParType, lireFiltreCiblage } from "@/domaine/ciblage/listes";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { Onglets } from "@/components/ui/Onglets";
 import { listerSujets, valeursFiltresGenerateur } from "@/services/generateur";
@@ -74,14 +74,16 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
   const series = await listerSeries();
   const filtreMatieres = sp.type === "preuves" || TYPES_MATIERE.includes(sp.type as TypeMatiere) ? (sp.type as TypeMatiere | "preuves") : "tout";
   const ajoutMatiere = sp.ajout === "matiere" || sp.ajout === "vrac" || sp.ajout === "preuve" ? sp.ajout : undefined;
-  const sujets = vues.map(versSujetListe);
+  const filtreCiblage = lireFiltreCiblage(sp);
+  // Le filtre par type trie aussi la liste principale des sujets (les compteurs de formats restent calculés sur ce qui est affiché).
+  const sujets = filtrerSujetsParType(vues, filtreCiblage).map(versSujetListe);
   const formats = formatsClassables();
   const nombres = Object.fromEntries(formats.map((f) => [f.id, sujets.filter((s) => s.grille.some((l) => l.formatId === f.id)).length]));
   // Ciblage (lot H) : anciens masqués par défaut, filtre par type ; les doublons sont signalés, jamais supprimés.
-  const filtreCiblage = lireFiltreCiblage(sp);
   const sansSujetTous = scripts.filter((s) => !s.scriptMaitreId);
   const sansSujetVus = filtrerParCiblage(sansSujetTous, filtreCiblage);
-  const sansSujet = sansSujetVus.map((s) => ({ id: s.id, titre: s.sujet, doublon: estDoublonPossible(s) }));
+  const idsScripts = new Set(scripts.map((s) => s.id));
+  const sansSujet = sansSujetVus.map((s) => ({ id: s.id, titre: s.sujet, doublon: estDoublonPossible(s, idsScripts) }));
   const ciblageActif = !!filtreCiblage.type || filtreCiblage.anciens;
 
   return (
@@ -114,7 +116,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             contenu: (
               <Suspense>
                 <BandeauSeries series={series} active={sp.serie} />
-                {sansSujetTous.length > 0 && <FiltresCiblage base="/ecrire" params={sp} filtre={filtreCiblage} nbAnciens={compterAnciens(sansSujetTous)} className="mb-4" />}
+                {(sansSujetTous.length > 0 || vues.length > 0) && <FiltresCiblage base="/ecrire" params={sp} filtre={filtreCiblage} nbAnciens={compterAnciens(sansSujetTous)} className="mb-4" />}
                 <ListeSujets
                   sujets={sujets}
                   formats={formats}
