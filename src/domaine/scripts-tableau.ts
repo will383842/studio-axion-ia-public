@@ -12,6 +12,7 @@
 import { z } from "zod";
 import { DOULEUR_MAX_TABLEAU, MOTS_DOULEUR_MAX, MOTS_DOULEUR_MIN } from "./douleur-tableau";
 import { DUREE_MAX_TABLEAU_SEC } from "./duree-tableau";
+import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION } from "./ciblage/types";
 
 /* ------------------------------------------------------------------ */
 /* Valeurs fermées                                                     */
@@ -129,6 +130,10 @@ export const schemaDemandeScript = z.strictObject({
   /** Le sujet en une ligne. */
   sujet: texteCourt(160).refine((s) => !/\n/.test(s), "Le sujet tient en une ligne."),
   public: texteCourt(200),
+  /** Qui vise la vidéo (facultatif : son absence donne une remarque, jamais un blocage). */
+  ciblage: z.strictObject({ niveau: z.enum(["metier", "secteur", "taille"]), libelle: texteCourt(LONGUEUR_MAX_LIBELLE).refine((s) => !/[\r\n]/.test(s), "Une seule ligne."), origine: z.enum(["saisie", "deduite"]) }).optional(),
+  /** Type d'automatisation (facultatif ; absent = « À classer »). */
+  typeAutomatisation: z.enum(TYPES_AUTOMATISATION.map((t) => t.id) as [string, ...string[]]).optional(),
   vraiCas: schemaVraiCas.nullable().default(null),
   reseau: z.enum(RESEAUX_SCRIPT),
   fin: schemaFinDemandee,

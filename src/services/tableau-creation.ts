@@ -74,6 +74,7 @@ import { trouverMoi } from "./moi";
 import { TARIF_VOIX_CENTIMES_PAR_CARACTERE } from "./tableau-outils";
 import { interditsDeLaMarque } from "./tableau-marque";
 import { choisirFinTableau } from "./tableau-fin";
+import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
 
 /* ------------------------------------------------------------------ */
 /* Listes fermées de l'écran                                             */
@@ -1427,6 +1428,9 @@ const DEMANDE_MAX: DemandeScriptTableau = {
   serie: "formation",
   sujet: "x".repeat(160),
   public: "x".repeat(200),
+  // Cible et type facultatifs (lot D) : leur ligne la plus longue entre aussi dans la consigne.
+  ciblage: { niveau: "secteur", libelle: "x".repeat(LONGUEUR_MAX_LIBELLE), origine: "saisie" },
+  typeAutomatisation: [...TYPES_AUTOMATISATION].sort((a, b) => b.libelle.length - a.libelle.length)[0].id,
   vraiCas: { metier: "x".repeat(120), tache: "x".repeat(200), avant: "x".repeat(400), apres: "x".repeat(400), date: "x".repeat(40) },
   reseau: "linkedin",
   fin: { type: "diagnostic" },
@@ -1551,6 +1555,8 @@ export function lireDemandeEcriture(brut: unknown): { ok: true; demande: Demande
     serie: b.serie,
     sujet: nettoyer(b.sujet, COURT_MAX),
     public: nettoyer(b.public, 200),
+    ...(b.ciblage && typeof b.ciblage === "object" ? { ciblage: b.ciblage } : {}),
+    ...(typeof b.typeAutomatisation === "string" ? { typeAutomatisation: b.typeAutomatisation } : {}),
     vraiCas: vraiCas ? Object.fromEntries(["metier", "tache", "avant", "apres", "date"].map((k) => [k, nettoyer(vraiCas[k], 400)])) : null,
     reseau: b.reseau,
     fin: fin.type === "commentaire" ? { type: "commentaire", mot: nettoyer(fin.mot, 20) } : { type: "diagnostic" },

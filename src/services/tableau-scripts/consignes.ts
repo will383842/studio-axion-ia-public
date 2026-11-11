@@ -47,6 +47,8 @@ import {
   type OptionsControles,
   type PassageBorne,
 } from "@/domaine/scripts-tableau-controles";
+import { anonymiser } from "@/domaine/controles-script";
+import { TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
 import { ANTI_PATTERNS_SCRIPT, RECETTE_SCRIPT } from "@/donnees/generateur/recette-script";
 import { DOULEUR_MAX_TABLEAU, MOTS_DOULEUR_MAX, MOTS_DOULEUR_MIN } from "@/domaine/douleur-tableau";
 import { CARACTERES_DITS_MAX_TABLEAU, CARACTERES_PAR_SECONDE_TABLEAU, DEBUT_DOULEUR_SEC, DUREE_MAX_TABLEAU_SEC, caracteresEn } from "@/domaine/duree-tableau";
@@ -241,6 +243,11 @@ Deux scripts plus anciens avaient été refusés pour une autre raison : ils dé
 /* La demande, mise en forme pour le modèle                            */
 /* ------------------------------------------------------------------ */
 
+/** Consigne commune : la cible déclarée est nommée dans les 5 premières secondes (l'accroche). */
+export function consigneCibleAccroche(): string {
+  return "Si une cible est donnée, l'accroche la NOMME (le métier, le secteur ou la taille, en mots simples) : elle est dite dans les 5 premières secondes.";
+}
+
 export function demandeEnTexte(d: DemandeScriptTableau): string {
   const serie = SUJET_DE_SERIE[d.serie];
   const reseau = RESEAUX_SCRIPT_INFOS[d.reseau];
@@ -249,6 +256,8 @@ export function demandeEnTexte(d: DemandeScriptTableau): string {
     `Série : ${d.serie} (le sujet parle de : ${serie.parleDe.toLowerCase()} ; question du spectateur : ${serie.question})`,
     `Sujet : ${d.sujet}`,
     `Public : ${d.public}`,
+    ...(d.ciblage ? [`Cible : ${anonymiser(d.ciblage.libelle.trim().slice(0, 80)).texte} (${d.ciblage.niveau}), à nommer dans les 5 premières secondes (dans l'accroche). ${consigneCibleAccroche()}`] : []),
+    ...(d.typeAutomatisation ? [`Type d'automatisation : ${TYPES_AUTOMATISATION.find((t) => t.id === d.typeAutomatisation)?.libelle ?? d.typeAutomatisation}`] : []),
     `Réseau principal : ${d.reseau} — ${reseau.libelle}, ${fourchette(reseau.dureeMin, reseau.dureeMax)}`,
     `Durée visée : ${dureeVisee(d)} s (${MOTS_SCRIPT[dureeVisee(d)].min} à ${MOTS_SCRIPT[dureeVisee(d)].max} mots ; ${dureeVisee(d) === 30 ? "2 ou 3 constats « ce qui change »" : `${ETAPES_MIN} à ${ETAPES_MAX} constats « ce qui change », 3 par défaut`})`,
     d.fin.type === "commentaire"
