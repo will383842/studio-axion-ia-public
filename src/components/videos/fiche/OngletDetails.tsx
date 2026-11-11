@@ -1,3 +1,4 @@
+import { EnTeteSection } from "@/components/ui/EnTetePage";
 import type { ReactNode } from "react";
 import { ChiffresVideo, type ChiffreVideo } from "@/components/fabrication/ChiffresVideo";
 
@@ -7,7 +8,7 @@ export function OngletDetails({ couts, children }: { couts: ChiffreVideo[]; chil
     <div className="space-y-6">
       {couts.length > 0 && (
         <section>
-          <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Coûts</h2>
+          <EnTeteSection titre="Coûts" />
           <ChiffresVideo chiffres={couts} />
         </section>
       )}

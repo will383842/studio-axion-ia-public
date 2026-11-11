@@ -7,6 +7,7 @@
  */
 import "server-only";
 import { readdir, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { cleIdempotence, RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { signerAppel } from "@/fournisseurs/site/signature";
@@ -17,8 +18,10 @@ import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisS
 import { creerNotification } from "./notifications";
 import { ESPACE_CONTACT_ZERNIO, enregistrerOppositionSousVerrou, marquerTransmise, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
 import { ErreurEmpreinteIndisponible } from "@/domaine/guide-reseau/empreinte-personne";
+import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import { comptesParcours, empreinteGuideParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { parcoursMotActif } from "./parcours-mot";
+import { PARAM_PLAFONDS_CONVERSATION_NOM, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { envoiZernioAutorise } from "./zernio";
 
 export const VARIABLE_INTERRUPTEUR_MOTS = "MOTS_ENABLED";
@@ -27,13 +30,19 @@ export const PARAM_GARDES_MOTS = "mots.gardes";
 export const PARAM_VALIDATIONS_MOTS = "mots.validations";
 /** Validation du GUIDE du parcours : clé SÉPARÉE de `mots.validations` (qui reste réservée aux autres mots). */
 export const PARAM_VALIDATION_GUIDE_PARCOURS = "mots.validation.guide-parcours";
+/** Validation (écran /mots) du texte brouillon « adresse refusée » : { empreinte } = sha256(version + "\n" + texte). */
+export const PARAM_VALIDATION_ADRESSE_REFUSEE = "parcours.validation.adresse_refusee";
+/** Validation (écran /mots) du texte du merci après la page : { empreinte } = sha256("mp-merci-v1" + "\n" + texte brut). Aucun écrivain pour l'instant (bouton à ajouter, décision de l'opérateur). */
+export const PARAM_VALIDATION_MERCI = "parcours.validation.merci";
+/** Validation (écran /mots) du texte « 1er message avec lien » : { empreinte } = sha256("mp-m1-v3" + "\n" + texte brut avec ses marqueurs). */
+export const PARAM_VALIDATION_M1_LIEN = "parcours.validation.m1_lien";
 export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */
 export const PLAFOND_HEURE_COMPTE_MAX = 600;
 export const PLAFOND_JOUR_MOT_DEFAUT = 100;
 export const ERREURS_CONSECUTIVES_MAX = 5;
-export const CHEMIN_OPPOSITIONS_SITE = "/api/interne/oppositions-reseau"; // À CONFIRMER avec le site (route absente du contrat 04) : corps strict, adresse OBLIGATOIRE ; le Studio la relit chez Zernio, en mémoire seulement
+export const CHEMIN_OPPOSITIONS_SITE = "/api/interne/oppositions-reseau"; // Route existante côté site (créée par la PR 1872 du site, vérifiée dans son dépôt) : corps strict, adresse OBLIGATOIRE ; le Studio la relit chez Zernio, en mémoire seulement
 
 /** Interrupteur du module : éteint par défaut (seules les valeurs exactes « 1 » ou « true » l'allument). */
 export function motsActif(env: Record<string, string | undefined> = process.env): boolean {
@@ -116,15 +125,30 @@ async function ecrireGardes(g: Gardes, fermer = false): Promise<void> {
   await ecrireParametre(PARAM_GARDES_MOTS, g);
 }
 
-/** Plafonds réglables par l'opérateur, jamais au-dessus de 600 par heure et par compte. */
+/**
+ * Plafonds réglables par l'opérateur. DEUX réglages distincts :
+ * - `heureCompte` : le plafond que le parcours de conversation LIT (`parcours.conversations.plafonds`, 1 à 600, défaut 30) ;
+ *   il est refusé s'il n'est pas un nombre d'au moins 1 (jamais de repli silencieux sur le défaut) ;
+ * - `jourMot` : plafond par mot et par jour (gardes). Les gardes `heureCompte` (seuil du disjoncteur, 600) ne sont JAMAIS écrites ici.
+ * Seul le champ fourni est écrit.
+ */
 export async function reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<Gardes["plafonds"]> {
+  if (p.heureCompte !== undefined && !(Number.isFinite(p.heureCompte) && Math.floor(p.heureCompte) >= 1)) {
+    throw new Error("Plafond par heure invalide : indiquez un nombre d'au moins 1 (0 ne coupe pas les envois ; utilisez la pause ou « Tout arrêter »).");
+  }
   return sousVerrou(async () => {
     const g = await lireGardes();
-    const borne = (v: number, max: number) => Math.max(0, Math.min(max, Math.floor(Number.isFinite(v) ? v : 0)));
-    if (p.heureCompte !== undefined) g.plafonds.heureCompte = borne(p.heureCompte, PLAFOND_HEURE_COMPTE_MAX);
-    if (p.jourMot !== undefined) g.plafonds.jourMot = borne(p.jourMot, 1_000_000);
-    await ecrireGardes(g);
-    return g.plafonds;
+    if (p.heureCompte !== undefined) {
+      const valeur = Math.min(PLAFOND_HEURE_COMPTE_MAX, Math.floor(p.heureCompte));
+      const ancien = await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined);
+      const base = typeof ancien === "object" && ancien !== null ? (ancien as Record<string, unknown>) : {};
+      await ecrireParametre(PARAM_PLAFONDS_CONVERSATION_NOM, { ...base, heureCompte: valeur });
+    }
+    if (p.jourMot !== undefined) {
+      g.plafonds.jourMot = Math.max(0, Math.min(1_000_000, Math.floor(Number.isFinite(p.jourMot) ? p.jourMot : 0)));
+      await ecrireGardes(g);
+    }
+    return { ...g.plafonds, heureCompte: plafondHeureCompte(await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined)) };
   });
 }
 
@@ -242,6 +266,24 @@ export async function validerGuideParcours(d: { titre: string; confirmeParOperat
     await journaliser("mots", "Textes du mot GUIDE validés par l'opérateur.");
   });
   return { ok: true, raison: "valide", empreinte: e.empreinte };
+}
+
+/** Empreinte du texte brouillon « adresse refusée » : sha256(version + "\n" + texte). Source UNIQUE (validation /mots ET garde d'envoi). */
+export function empreinteAdresseRefusee(): string {
+  const b = TEXTES_MP["mp-adresse-refusee-v2"];
+  return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex");
+}
+
+/** Geste de validation du texte « adresse refusée » (l'appelant exige la session). Idempotent ; journal SANS le texte ; aucun effet réseau. */
+export async function validerAdresseRefusee(d: { confirmeParOperateur: boolean }): Promise<{ ok: boolean; raison: string; empreinte?: string }> {
+  if (!d.confirmeParOperateur) return { ok: false, raison: "validation_operateur_absente" };
+  const empreinte = empreinteAdresseRefusee();
+  await sousVerrou(async () => {
+    if ((await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === empreinte) return;
+    await ecrireParametre(PARAM_VALIDATION_ADRESSE_REFUSEE, { empreinte, valideLe: maintenant() });
+    await journaliser("mots", "Message « adresse refusée » validé par l'opérateur.");
+  });
+  return { ok: true, raison: "valide", empreinte };
 }
 
 /** POSE d'un mot sur un compte à partir d'une SAISIE : validé = l'empreinte ENREGISTRÉE correspond au texte actuel. */
@@ -542,21 +584,32 @@ export interface VueMots {
   guideValide: boolean;
   /** Une validation existe mais elle ne correspond plus aux textes envoyés (titre ou dictionnaire changé) : à revalider. */
   guidePerime: boolean;
+  /** Interrupteur du parcours des messages privés (lecture seule) : un booléen. */
+  parcoursAllume: boolean;
+  /** « Stop » reçus mais pas encore transmis (donc en doute) : un NOMBRE, jamais une personne ni une empreinte. */
+  oppositionsNonTransmises: number;
+  /** Le message « adresse refusée » est-il validé (empreinte courante) ? Facultatif pour les anciens appelants. */
+  adresseRefuseeValide?: boolean;
 }
 export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
   const g = await lireGardes();
   const enregistree = await lireValidationGuideParcours();
   const actuelle = empreinteGuideParcours(titreGuideParcours(env));
+  const oppositions = await lireParametre<{ transmise?: boolean }[]>(PARAM_OPPOSITIONS_MOTS, []);
   const guideValide = !!enregistree && actuelle.ok && actuelle.empreinte === enregistree.empreinte;
   return {
     interrupteurAllume: motsActif(env),
     toutArrete: !(await envoiZernioAutorise()),
     disjoncteur: g.disjoncteur,
-    plafonds: g.plafonds,
+    // Ce que le parcours applique réellement (défaut 30, borné à 600), pas l'ancien réglage des gardes.
+    plafonds: { ...g.plafonds, heureCompte: plafondHeureCompte(await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined)) },
     lignes: Object.values(await lireRegistre()).sort((a, b) => cle(a.mot, a.compte).localeCompare(cle(b.mot, b.compte))),
-    oppositions: (await lireParametre<unknown[]>(PARAM_OPPOSITIONS_MOTS, [])).length,
+    oppositions: oppositions.length,
     guideValide,
     guidePerime: !!enregistree && !guideValide,
+    parcoursAllume: /^(1|true|oui)$/i.test(env.PARCOURS_CONVERSATION_ENABLED?.trim() ?? ""), // même règle que parcoursConversationActif (figée par test)
+    oppositionsNonTransmises: oppositions.filter((o) => o?.transmise === false).length,
+    adresseRefuseeValide: (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === empreinteAdresseRefusee(),
   };
 }
 

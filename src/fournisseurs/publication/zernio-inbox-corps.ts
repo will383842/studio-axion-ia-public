@@ -32,7 +32,7 @@ const echapper = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const VALEUR_MARQUEUR: Record<string, string> = {
   "[MOT]": "[\\p{L}\\p{N}' -]{1,30}", // lettres, chiffres, apostrophe, tiret, espace : ni lien ni adresse e-mail
   "[TITRE DU GUIDE]": "[^\\n\\r\\[\\]]{1,200}",
-  "[LIEN]": "https://[^\\s\\[\\]]{1,300}",
+  "[LIEN]": "https://[^\\s\\[\\]]{1,512}", // 512 : longueur du lien signé de la page guide
 };
 
 /** Motif d'un texte du dictionnaire + ordre des marqueurs (un groupe capturant par marqueur, pour relire titre et lien). */
@@ -86,11 +86,30 @@ function lienDeChezNous(lien: string, domaines: readonly string[]): boolean {
   });
 }
 
+/** Forme EXACTE du lien signé de la page « Recevoir le guide » : jeton (charge.signature de 43 caractères), rien d'autre. */
+const LIEN_PAGE_GUIDE = /^https:\/\/axion-ia\.com\/guide-reseau\?j=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/;
+
+/** Le lien a-t-il EXACTEMENT la forme du lien signé de la page guide ? (contrôle avant tout envoi) */
+export function formeLienPageGuide(lien: string): boolean {
+  return LIEN_PAGE_GUIDE.test(lien);
+}
+
+/** Le chemin du lien est-il celui de la page guide ? (le lien doit alors avoir exactement la forme signée) */
+function cheminPageGuide(lien: string): boolean {
+  try {
+    const chemin = new URL(lien.replace(/[.,;:!?]+$/, "")).pathname.toLowerCase();
+    return chemin === "/guide-reseau" || chemin.startsWith("/guide-reseau/");
+  } catch {
+    return false;
+  }
+}
+
 /** Liens et titres de guide : seulement NOS domaines et les titres de la liste fermée. Refus typés, valeur jamais recopiée. */
 function exigerLiensEtTitres(texte: string, publique: boolean, d: { domainesPermis?: readonly string[]; titresGuidesPermis?: readonly string[] }): void {
   const { titres, liens } = valeursDuTexte(texte, publique);
   const domaines = d.domainesPermis ?? DOMAINES_PERMIS_PAR_DEFAUT;
   for (const lien of liens) {
+    if (cheminPageGuide(lien) && !LIEN_PAGE_GUIDE.test(lien)) throw new ErreurZernio("lien-hors-domaine", "Inbox : lien de la page guide de forme non permise. Rien n'a été envoyé.", { champs: ["message"] });
     if (!lienDeChezNous(lien, domaines)) throw new ErreurZernio("lien-hors-domaine", "Inbox : lien hors de nos domaines. Rien n'a été envoyé.", { champs: ["message"] });
   }
   const permis = d.titresGuidesPermis ?? [];

@@ -10,6 +10,9 @@ import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier
 import { pageAPublierAllumee } from "@/services/a-publier";
 import { Connexions } from "@/components/reglages/Connexions";
 import { ConnexionsZernioReglages } from "@/components/reglages/ConnexionsZernioReglages";
+import { lireParametre } from "@/services/_commun";
+import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { tauxValide } from "@/components/reglages/montants-euros";
 import { Credits } from "@/components/reglages/Credits";
 import { CreditClaude } from "@/components/reglages/CreditClaude";
 import { vueCreditClaude } from "@/services/credit-claude";
@@ -114,10 +117,11 @@ export default async function PageReglages() {
   const gardeSujets = await lireGardeSujets();
   const interrupteursEcriture = await lireInterrupteursEcriture();
   const infos = aPropos();
+  const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
 
   return (
     <div>
-      <EnTetePage titre="Réglages" />
+      <EnTetePage titre="Réglages" sousTitre="Votre compte, vos vidéos, vos services reliés." />
 
       {/* Rangée de liens vers les rubriques : défilante sur mobile, collante sur ordinateur */}
       <nav aria-label="Rubriques des réglages" className="sans-barre -mx-4 mb-8 flex gap-2 overflow-x-auto bg-fond px-4 py-2 lg:sticky lg:top-16 lg:z-10 lg:mx-0 lg:px-0">
@@ -127,7 +131,7 @@ export default async function PageReglages() {
             href={`#${r.id}`}
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-trait bg-surface-1 px-4 text-sm font-semibold text-texte-doux transition-colors hover:border-trait-fort hover:text-texte"
           >
-            <Icone nom={r.icone} size={16} />
+            <Icone nom={r.icone} size={16} className="text-texte-faible" />
             {r.libelle}
           </a>
         ))}
@@ -139,7 +143,7 @@ export default async function PageReglages() {
             <CarteSection id="securite" icone="cadenas" titre="Sécurité">
               <ChangerMotDePasse enMemoire={infos.enMemoire} />
               <div className="my-4 h-px bg-trait" />
-              <p className="mb-1 text-xs font-bold uppercase tracking-wider text-texte-faible">Appareils connectés · {sessions.length}</p>
+              <h3 className="mb-1 text-[15px] font-semibold text-texte">Appareils connectés · {sessions.length}</h3>
               <ListeAppareils appareils={sessions.map((s) => ({ id: s.id, appareil: s.appareil, derniereActivite: s.derniereActivite, courante: s.courante, resterConnecte: s.resterConnecte }))} />
             </CarteSection>
           </Apparition>
@@ -218,8 +222,8 @@ export default async function PageReglages() {
           </Apparition>
           <Apparition index={1}>
             <CarteSection id="credits" icone="jauge" titre="Crédits">
-              <Credits cartes={credits} />
-              {creditClaude && <CreditClaude vue={creditClaude} />}
+              <Credits cartes={credits} tauxUsdEur={tauxUsdEur} />
+              {creditClaude && <CreditClaude vue={creditClaude} tauxUsdEur={tauxUsdEur} />}
             </CarteSection>
           </Apparition>
           <Apparition index={2}>
@@ -276,7 +280,7 @@ export default async function PageReglages() {
             <div className="space-y-10 border-t border-trait p-4 sm:p-5">
               {/* Choix de la chaîne qui écrit les prochains scripts (courte ou équipe). */}
               <CarteSection id="ecriture" icone="ecrire" titre="Écriture des scripts">
-                <ChoixChaineEcriture key={chaine} initiale={chaine} />
+                <ChoixChaineEcriture key={chaine} initiale={chaine} tauxUsdEur={tauxUsdEur} />
                 <div className="my-4 h-px bg-trait" />
                 <GardeSujetsReglage key={gardeSujets} garde={gardeSujets} />
                 <div className="my-4 h-px bg-trait" />

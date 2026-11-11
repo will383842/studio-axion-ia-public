@@ -75,13 +75,13 @@ export function SelecteurPastilles<V extends string | number>(props: Proprietes<
               className={cn(
                 "relative flex shrink-0 items-center gap-2 rounded-full border text-left font-semibold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40",
                 props.taille === "lg" ? "min-h-14 px-5 text-base" : "min-h-11 px-4 text-sm",
-                actif ? "border-orange text-sur-orange" : "border-trait bg-surface-1 text-texte hover:border-trait-fort hover:bg-surface-2",
+                actif ? "border-texte text-fond" : "border-trait bg-surface-1 text-texte hover:border-trait-fort hover:bg-surface-2",
               )}
             >
               {actif && (
                 <motion.span
                   layoutId={props.multiple ? undefined : `${id}-fond`}
-                  className="absolute inset-0 -z-0 rounded-full bg-orange"
+                  className="absolute inset-0 -z-0 rounded-full bg-texte"
                   transition={{ type: "spring", stiffness: 500, damping: 38 }}
                 />
               )}
@@ -90,7 +90,7 @@ export function SelecteurPastilles<V extends string | number>(props: Proprietes<
                 {o.icone && <Icone nom={o.icone} size={16} />}
                 <span className="flex flex-col leading-tight">
                   <span>{o.libelle}</span>
-                  {o.detail && <span className={cn("text-[11px] font-medium", actif ? "text-sur-orange" : "text-texte-faible")}>{o.detail}</span>}
+                  {o.detail && <span className={cn("text-[11px] font-medium", actif ? "text-fond" : "text-texte-faible")}>{o.detail}</span>}
                 </span>
                 {props.multiple && actif && <Icone nom="coche" size={14} />}
               </span>

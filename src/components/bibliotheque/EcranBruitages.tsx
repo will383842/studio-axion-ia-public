@@ -46,8 +46,8 @@ export function EcranBruitages({ banque }: { banque: Banque }) {
 
   return (
     <div className="space-y-4 pb-6">
-      <div className="flex items-center gap-3 rounded-carte border border-trait bg-surface-1 p-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-doux text-orange-vif">
+      <div className="flex items-center gap-3 rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-texte-faible">
           <Icone nom="casque" size={20} />
         </span>
         <p className="min-w-0 flex-1 text-sm text-texte-doux">
@@ -71,7 +71,7 @@ export function EcranBruitages({ banque }: { banque: Banque }) {
               return (
                 <li key={s.id} className={cn("rounded-2xl border bg-surface-1 p-2.5 transition-colors", valide ? "border-sauge/60" : "border-trait")}>
                   <button type="button" onClick={() => ecouter(s)} disabled={!s.url} aria-label={`Écouter ${s.nom}`} className="flex min-h-11 w-full items-center gap-2 rounded-xl text-left">
-                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", joue ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte")}>
+                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", joue ? "bg-texte text-fond" : "bg-surface-2 text-texte")}>
                       <Icone nom={joue ? "volume" : "lecture"} size={16} />
                     </span>
                     <span className="min-w-0">

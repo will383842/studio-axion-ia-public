@@ -62,7 +62,13 @@ function masquerCommentaires(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, blanc).replace(/(^|[^:"'`\\])(\/\/.*)$/gm, (_, a: string, b: string) => a + blanc(b));
 }
 
-/** Dégradés canvas (`createXGradient`) et SVG (`<linearGradient`, `<radialGradient`) d'un fichier, hors commentaires. */
+/**
+ * Dégradés canvas (`createXGradient`) et SVG (`<linearGradient`, `<radialGradient`) d'un fichier, hors commentaires.
+ *
+ * ⚠️ Le `nom` d'un dégradé canvas est la DERNIÈRE fonction déclarée avant l'appel, pas la fonction qui
+ * l'englobe : une flèche locale déclarée plus haut peut « voler » le nom. Sans effet tant qu'aucune exception
+ * canvas n'existe ; à corriger avant d'en ajouter une.
+ */
 export function occurrencesDegrades(src: string): OccurrenceDegrade[] {
   const code = masquerCommentaires(src);
   const ligneDe = (i: number) => code.slice(0, i).split("\n").length;
