@@ -246,9 +246,9 @@ export function ficheDuScriptColle(script: string, carte: CarteImage): FicheImag
  * Ce qui bloque un script que Will a écrit : un chiffre absent du schéma, un interdit, une fiche mal formée, et une phrase
  * affirmative non tranchée. Tout le reste (ossature, durée, phrase-choc…) reste une remarque, jamais un refus.
  */
-export function bloqueUnScriptColle(m: Pick<Manquement, "regle" | "priorite" | "pourWill">): boolean {
+export function bloqueUnScriptColle(m: Pick<Manquement, "regle" | "priorite" | "pourWill"> & { interdit?: boolean }): boolean {
   if (m.regle === "FORME" || m.regle === "Q05") return true;
-  if (m.regle === "Q08") return !m.pourWill;
+  if (m.regle === "Q08") return !m.pourWill && m.interdit === true;
   return m.regle === "Q05bis" && m.priorite === 2;
 }
 
@@ -267,7 +267,7 @@ export function ecrireScriptColleIV(entree: EntreeScriptColleIV): ResultatEcritu
   const fiche = ficheDuScriptColle(entree.script, entree.carte);
   const forme = schemaFicheImage.safeParse(fiche);
   if (!forme.success) return refusDe(`${DEBUT_REFUS_ECRITURE} : votre script n'a pas pu être découpé en écrans.`);
-  const verdict = verifierScript(forme.data, { carte: entree.carte, complexite: complexiteDe(entree.carte), ...(entree.choixFormules ? { choixFormules: entree.choixFormules } : {}), ...(entree.interdits ? { interdits: entree.interdits } : {}), ...(entree.recit ? { recit: entree.recit } : {}) });
+  const verdict = verifierScript(forme.data, { ajoutsWill: [entree.script], carte: entree.carte, complexite: complexiteDe(entree.carte), ...(entree.choixFormules ? { choixFormules: entree.choixFormules } : {}), ...(entree.interdits ? { interdits: entree.interdits } : {}), ...(entree.recit ? { recit: entree.recit } : {}) });
   const bloquants = manquementsDuScriptColle(verdict);
   const refus = bloquants.filter((m) => !(m.regle === "Q05bis"));
   if (refus.length) {

@@ -260,7 +260,7 @@ RÈGLES ABSOLUES (la fiche est refusée sinon) :
 FORME (JSON seul, COMPACT : sans indentation ni retour à la ligne, aucun texte autour, aucun champ en plus) :
 { "version": "fiche-scenes/1", "formatId": "${FORMAT_TABLEAU}", "videoId", "versionId", "habillage", "stylo", "ratio", "structure", "serie": { "code", "nom" }, "douleur", "gesteMinute", "appelId": null, "scenes": [...] }
 Les champs fixes (<fiche_fixe>, <structure>, <serie>, <douleur>, <geste_minute>) sont recopiés tels quels.
-Scène : { "id": "s01"…"s10" dans l'ordre, "role": ${liste(ROLES_SCENE_TABLEAU)}, "page": 1 à 6 (nouvelle page = page blanche), "texteDit", "elements": 1 à 6 }. 4 à 10 scènes (6 à 9 conseillées). Pas de « debutMs » ni « finMs ». Habillage "${STYLE_REFERENCE_2}" : 1 à 8 pages, 4 à 14 scènes, et chaque scène porte en plus « gabarit » (voir plus bas). Habillage "${STYLE_REFERENCE_3}" : 4 à 12 pages, 4 à 16 scènes, « gabarit » sur chaque scène, « bloc » sur chaque ligne, et « code » sur un élément de liste à pastilles (voir « GABARIT PAR PARTIES »).
+Scène : { "id": "s01"…"s10" dans l'ordre, "role": ${liste(ROLES_SCENE_TABLEAU)}, "page": 1 à 6 (nouvelle page = page blanche), "texteDit", "elements": 1 à 6 }. 4 à 10 scènes (6 à 9 conseillées). Pas de « debutMs » ni « finMs ». Habillage "${STYLE_REFERENCE_2}" : 1 à 8 pages, 4 à 14 scènes, et chaque scène porte en plus « gabarit » (voir plus bas). Habillage "${STYLE_REFERENCE_3}" : 4 à 26 pages, 4 à 30 scènes, « gabarit » sur chaque scène, « bloc » sur chaque ligne, et « code » sur un élément de liste à pastilles (voir « GABARIT PAR PARTIES »).
 Éléments (« id » unique dans la fiche, « e01 »…, « ancre » = index du mot du texteDit de la scène où il apparaît, 0 = premier mot) :
 - ligne : { "id", "type": "ligne", "texte" (court ; page écrite "${STYLE_REFERENCE_1}" : une phrase presque complète, voir plus bas), "niveau": ${liste(NIVEAUX_LIGNE)}, "role": ${liste(ROLES_LIGNE)}, "marque"? : ${liste(MARQUES)}, "bloc" (habillages "${STYLE_REFERENCE_2}" et "${STYLE_REFERENCE_3}" seulement, obligatoire) : ${liste(BLOCS_GABARIT)}, "code"? (habillage "${STYLE_REFERENCE_3}", bloc « code ») : « vert », « orange » ou « rouge », "ancre" }
 - dessin : { "id", "type": "dessin", "dessinId", "cote": ${liste(COTES)}, "ancre" }
@@ -328,10 +328,11 @@ GABARIT PAR PARTIES (habillage "${STYLE_REFERENCE_3}", le style des NOUVELLES fi
 - « À RETENIR » : L'IDÉE en UNE phrase clé (« bloc » « phrase-cle », ${BORNES_GABARIT_3.phraseMots} mots au plus, reprise du texte dit), écrite en grand ; pas de liste des étapes, pas de titre ;
 - LA QUESTION SUR L'IA (l'une de ${QUESTIONS_IA.map((q) => `« ${q} »`).join(", ")}) est DITE, jamais écrite, sur aucune page (pas même sur la page d'appel ni raccourcie) ;
 - LE NOM AXION-IA n'est écrit que sur la page d'appel (la dernière) : jamais dans un titre, une ligne, une étiquette ou un visuel d'une autre page (il peut être dit) ;
+- LA LIGNE DE LA PAGE D'APPEL : 6 mots / 35 caractères au plus ; plus longue, garde-la dite et écris une version courte ;
 - APPEL (dernière page, plein cadre) : la phrase d'appel en « bloc » « appel » (courte : « Réservez un appel de diagnostic »), au plus une autre phrase en « detail » ; axion-ia.com est ajouté d'office ;
 - chaque ligne est ancrée au PREMIER mot où la voix la dit (jamais plus tard) : elle s'écrit pendant qu'elle est dite ; un dessin au plus par page (il va à droite de l'étiquette) ;
 - une page courte (une seule phrase) reste courte : la mise en page agrandit son texte. N'ajoute JAMAIS de texte écrit qui n'est pas dit pour la remplir ;
-- le texte écrit raccourcit le texte dit, JAMAIS ne le contredit (aucun nombre écrit qui ne soit dit) ; 12 pages au plus ;
+- le texte écrit raccourcit le texte dit, JAMAIS ne le contredit (aucun nombre écrit qui ne soit dit) ; 26 pages au plus ;
 - VISUELS DESSINÉS (facultatif, un par page AU PLUS, aucune page obligée) : « gabarit » { …, "visuel": { "id", "chiffre"?, "libelle"?, "gauche"?, "droite"?, "ancre"? } } sur la scène dont l'idée se dessine, pris dans la banque fermée : ${liste(IDS_VISUELS_3)}. Choisis-le selon l'IDÉE de la page : un chiffre qui frappe → « chiffre-entoure » (avec « chiffre ») ; un gain mesuré → « barres-avant-apres » ; du temps gagné, un délai → « chrono » ; une date, « chaque lundi » → « calendrier » ; un e-mail, une relance, un message automatique → « email-envoye » ; des données retirées, ce qu'on ne colle pas → « document-barre » ; des étapes, une check-list → « liste-cochee » ; une transformation (nom → lettre, avant → après) → « schema-a-b » (« gauche » : « personne » ou un mot court, « droite » : le mot d'après) ; trier → « entonnoir » ; comparer deux options → « balance » ; un objectif, le bon client → « cible » ; un client qui écrit, une alerte → « telephone-notification » ; la sécurité, des données protégées → « bouclier-coche » ; une croissance → « graphique-monte » ; ChatGPT, une consigne, une question → « fenetre-discussion » ; l'équipe à former → « equipe ». « chiffre » et « libelle » : des mots DITS, courts ; pas de visuel sur la page d'appel ; le visuel remplace le dessin de la page (pas de « dessin » en plus) ; « ancre » : le mot où il se dessine (absent : après les lignes de la scène) ;
 - BLOC ORANGE (facultatif, UN par page au plus, jamais sur la page d'appel) : « gabarit » { …, "bloc": { "texte", "compteur"?: { "de", "a" }, "ancre"? } } — le mot-clé de la page en ${BORNES_BLOC_3.motsMax} mots au plus, repris du texte dit, mis dans un bloc orange plein ; « compteur » : un chiffre qui défile (de 0 à 3 quand la voix dit « trois données de trop ») ; il compte pour un des 3 blocs de la page ; « ancre » : le mot où il apparaît. Un chiffre écrit (compteur, « chiffre » d'un visuel) suit la règle des chiffres : la voix le dit, et un élément « chiffre » de la scène le source (il est montré par le visuel ou le bloc, pas écrit deux fois) ;
 EXEMPLE (forme exacte attendue, d'après le témoin v5 (18/10), 10 pages : l'accroche, une page « douleur », la promesse, deux constats « ce qui change », « À retenir », l'appel) →
@@ -352,8 +353,8 @@ EXEMPLE (forme exacte attendue, d'après le témoin v5 (18/10), 10 pages : l'acc
  * Texte : 2,5 fois cette mesure ; pensée : comptée À PART (la pensée adaptative est prise sur `max_tokens`).
  */
 export const JETONS_FICHE_TEMOIN = 4952;
-export const BUDGET_TEXTE_DECOUPAGE = Math.ceil(JETONS_FICHE_TEMOIN * 2.5);
-export const BUDGET_PENSEE_DECOUPAGE = 6000;
+export const BUDGET_TEXTE_DECOUPAGE = Math.ceil(JETONS_FICHE_TEMOIN * 2.5 * (5 / 3)); // fiches jusqu'à 30 scènes (x5/3 sur les 18 d'avant)
+export const BUDGET_PENSEE_DECOUPAGE = 9000;
 export const MAX_TOKENS_DECOUPAGE = BUDGET_TEXTE_DECOUPAGE + BUDGET_PENSEE_DECOUPAGE;
 
 /**
@@ -401,11 +402,15 @@ export const roleDecoupageTableau = {
   // 20 (19/10) : relecture Opus B2a, exemple du gabarit par parties réécrit d'après le témoin v5.
   // 21 (23/10) : style du tableau de la série donné ; scènes de 3 phrases au plus ; détail OU visuel aux styles tableau-blanc et
   //   paperboard (refus page lisible du 23/10, série Automatisations).
-  version: 21,
+  // 22 (11/11) : relecture Opus du lot correctifs ; le rôle attend jusqu'à 10 min (`delaiTotalMs`) ; marge de réparation de 2 pages
+  //   (le gabarit accepte 28 pages, la consigne en demande toujours 26 au plus).
+  version: 22,
   consigne: CONSIGNE_DECOUPAGE,
   modele: MODELE_ECRITURE,
   effort: "medium",
   maxTokens: MAX_TOKENS_DECOUPAGE,
+  // Longue fiche (30 scènes) : pensée + JSON dépassent 300 s ; 10 min au plus (la pause sans nouvelles reste 150 s).
+  delaiTotalMs: 600_000,
   // Simulation : aucune fiche inventée ; `decouperEnScenes` rend un échec « simulation ».
   simuler: () => "",
 } satisfies DefinitionRole;
@@ -694,7 +699,8 @@ function raisonPageDePlus(p: { regle: string; message: string }, brute: unknown,
     const debut = derniere.texteDit.split(/\s+/).filter(Boolean).slice(0, 8).join(" ");
     const garder = "gardez sur cette page UN détail OU le visuel";
     let quoi: string;
-    if (diag.type === "une-phrase" || diag.type === "coupe-impossible") quoi = `${garder}, ou raccourcissez une ligne écrite`;
+    if (diag.type === "appel-long") quoi = "raccourcissez la ligne écrite de la page d'appel (6 mots, 35 caractères au plus ; la phrase peut rester dite en entier) ou choisissez une phrase de fin plus courte";
+    else if (diag.type === "une-phrase" || diag.type === "coupe-impossible") quoi = `${garder}, ou raccourcissez une ligne écrite`;
     else if (diag.type === "scenes-max") quoi = `réunissez deux scènes voisines d'une autre page, ou ${garder}`;
     else if (diag.type === "pages-max") quoi = `réunissez deux pages courtes, ou ${garder}`;
     else if (scenes.length >= 2) quoi = `mettez la scène ${derniere.id} « ${debut} » seule sur une page NEUVE juste après (même partie, pages suivantes décalées de un)${diag.type === "regle-page" ? ", en respectant la règle citée" : ""}`;
