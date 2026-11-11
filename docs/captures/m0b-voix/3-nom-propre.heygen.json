@@ -1,13 +1,13 @@
 {
-  "texte": "Jean Exemple, d'Axion-IA, vous explique tout cela simplement.",
+  "texte": "Williams ici, d'Axion-IA, vous explique tout cela simplement.",
   "mots": [
     {
-      "mot": "Jean",
+      "mot": "Williams",
       "debutSec": 0.22,
       "finSec": 0.66
     },
     {
-      "mot": "Exemple,",
+      "mot": "ici,",
       "debutSec": 0.7,
       "finSec": 1
     },

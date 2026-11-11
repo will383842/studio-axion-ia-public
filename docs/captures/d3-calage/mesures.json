@@ -486,7 +486,7 @@
    },
    {
     "phrase": "3-nom-propre",
-    "texte": "Jean Exemple, d'Axion-IA, vous explique tout cela simplement.",
+    "texte": "Williams ici, d'Axion-IA, vous explique tout cela simplement.",
     "attaquesVoisees": [
      1.67,
      1.995,
@@ -507,12 +507,12 @@
     ],
     "aligneurTout": [
      {
-      "mot": "Jean",
+      "mot": "Williams",
       "debutSec": 0.151,
       "finSec": 0.713
      },
      {
-      "mot": "Exemple,",
+      "mot": "ici,",
       "debutSec": 0.713,
       "finSec": 1.204
      },
@@ -549,12 +549,12 @@
     ],
     "heygenTout": [
      {
-      "mot": "Jean",
+      "mot": "Williams",
       "debutSec": 0.22,
       "finSec": 0.66
      },
      {
-      "mot": "Exemple,",
+      "mot": "ici,",
       "debutSec": 0.7,
       "finSec": 1
      },

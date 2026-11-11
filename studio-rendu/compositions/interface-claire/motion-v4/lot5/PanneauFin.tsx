@@ -2,7 +2,7 @@ import React from "react";
 /**
  * ÉLÉMENT 38 `PanneauFin` (standard DA v4, lot 5). La fin, comme les deux références (Instagram 72,8 s ; LinkedIn 78,2 s).
  * Gabarit M9 : panneau IVOIRE qui MONTE DU BAS en 5 i (sans rebond au-dessus du haut) et pousse la prise vers le bas (translation
- * verticale de la prise seulement : `decalagePrise`). Puis, en cascade, UN ÉLÉMENT PAR IMAGE : logo Axion-IA, nom « Jean Exemple »
+ * verticale de la prise seulement : `decalagePrise`). Puis, en cascade, UN ÉLÉMENT PAR IMAGE : logo Axion-IA, nom « Williams »
  * (Montserrat 900, 64), 5 pastilles d'outils (tuiles BLANC à contour 5 px, icônes du composant `Icone`), bouton ACCENT_1
  * « COMMENTEZ « RELANCE » » qui pulse. Aucun pictogramme de réseau social tiers : les tuiles portent des icônes neutres.
  * Durée 1-1,5 s. Son : « son qui monte » (≈ 1,2 → 2,6 kHz, synthèse maison `sons/montee.wav`).
@@ -22,7 +22,7 @@ export const monteePanneau = (frame: number, debut: number) => courbe(frame - de
 /** Décalage vertical supplémentaire de la prise (fraction de H) : elle est repoussée vers le bas sous le panneau qui monte. */
 export const decalagePrise = (frame: number, debut: number) => (frame < debut ? 0 : 0.12 * monteePanneau(frame, debut));
 
-export function PanneauFin({ frame, debut, palette, nom = "Jean Exemple", motCle, icones = ["crayon", "video", "globe", "tableur", "partage"] }: PanneauFinProps) {
+export function PanneauFin({ frame, debut, palette, nom = "Williams", motCle, icones = ["crayon", "video", "globe", "tableur", "partage"] }: PanneauFinProps) {
   const { ACCENT_1 } = accents(palette);
   const i = frame - debut;
   if (i < 0) return null;
