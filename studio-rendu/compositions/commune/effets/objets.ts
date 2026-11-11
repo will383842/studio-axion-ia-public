@@ -1,16 +1,16 @@
 /**
  * OBJETS 3D DE L'EFFET « OBJET DANS LA MAIN » (lot F3) : géométries simples générées (aucune ressource externe),
- * charte Axion (orange #C65A2E, crème #F6EEE0, sombre chaud #16120F). Chaque objet tient dans un diamètre de 1 :
+ * charte Axion (orange #B23F16, crème #FAF9F5, sombre chaud #141413). Chaque objet tient dans un diamètre de 1 :
  * la composition le met à l'échelle de la paume. Le logo Axion = la tuile orange arrondie, le « A » crème et le
  * point, extrudés et biseautés.
  */
 import type { ObjetMain } from "../../../../src/briques/effets-speciaux/types";
 import type { Trois } from "./trois";
 
-const ORANGE = "#C65A2E";
-const ORANGE_VIF = "#E07040";
-const CREME = "#F6EEE0";
-const SOMBRE = "#16120F";
+const ORANGE = "#B23F16";
+const ORANGE_VIF = "#D97757";
+const CREME = "#FAF9F5";
+const SOMBRE = "#141413";
 
 /** Rectangle arrondi (centré). */
 function rectangleArrondi(T: Trois, l: number, h: number, r: number) {
@@ -81,14 +81,11 @@ function texturEcran(T: Trois) {
   c.width = 256;
   c.height = 512;
   const g = c.getContext("2d")!;
-  const fond = g.createLinearGradient(0, 0, 0, 512);
-  fond.addColorStop(0, "#211A15");
-  fond.addColorStop(1, SOMBRE);
-  g.fillStyle = fond;
+  g.fillStyle = SOMBRE;
   g.fillRect(0, 0, 256, 512);
   const halo = g.createRadialGradient(128, 200, 10, 128, 200, 190);
-  halo.addColorStop(0, "rgba(224,112,64,0.85)");
-  halo.addColorStop(1, "rgba(224,112,64,0)");
+  halo.addColorStop(0, "rgba(217,119,87,0.85)");
+  halo.addColorStop(1, "rgba(217,119,87,0)");
   g.fillStyle = halo;
   g.fillRect(0, 0, 256, 512);
   // Tuile du logo.
@@ -116,11 +113,11 @@ function texturEcran(T: Trois) {
   g.arc(166, 162, 5, 0, Math.PI * 2);
   g.fill();
   // Lignes de texte et bouton.
-  g.fillStyle = "rgba(246,238,224,0.85)";
+  g.fillStyle = "rgba(250,249,245,0.85)";
   g.beginPath();
   g.roundRect(58, 290, 140, 14, 7);
   g.fill();
-  g.fillStyle = "rgba(246,238,224,0.4)";
+  g.fillStyle = "rgba(250,249,245,0.4)";
   g.beginPath();
   g.roundRect(78, 316, 100, 10, 5);
   g.fill();
@@ -151,7 +148,7 @@ export function construireObjet(T: Trois, objet: ObjetMain) {
     case "telephone": {
       const corps = new T.Mesh(extruder(T, rectangleArrondi(T, 0.5, 1, 0.09), 0.055, 0.02), matiere(T, SOMBRE, { rugosite: 0.25, metal: 0.6, vernis: 1 }));
       const image = texturEcran(T);
-      const ecran = new T.Mesh(new T.PlaneGeometry(0.455, 0.94), new T.MeshStandardMaterial({ map: image, emissive: new T.Color("#FFFFFF"), emissiveMap: image, emissiveIntensity: 0.55, roughness: 0.12, metalness: 0 }));
+      const ecran = new T.Mesh(new T.PlaneGeometry(0.455, 0.94), new T.MeshStandardMaterial({ map: image, emissive: new T.Color("#FAF9F5"), emissiveMap: image, emissiveIntensity: 0.55, roughness: 0.12, metalness: 0 }));
       ecran.position.z = 0.0485;
       groupe.add(corps, ecran);
       groupe.scale.setScalar(0.95);
