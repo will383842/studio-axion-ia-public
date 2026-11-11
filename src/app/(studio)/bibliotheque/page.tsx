@@ -61,6 +61,12 @@ export default async function PageBibliotheque() {
           <ApercuImageVideo donnees={apercu} />
         </Apparition>
       </div>
+      <section className="mt-8">
+        <EnTeteSection titre="Outils" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Tuile href="/outils-motion" icone="baguette" libelle="Outils motion design" />
+        </div>
+      </section>
       <ChoixAjout types={types.filter((t) => t.type !== "animations").map((t) => ({ type: t.type, nom: t.nom, icone: t.icone }))} />
     </div>
   );
