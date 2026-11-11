@@ -7,14 +7,14 @@ import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import type { ChaineChoisie } from "@/services/chaine-ecriture";
 
-/** Aucun montant affiché (règle de Williams). */
+/** Coûts mesurés au banc du 18/10 (5 sujets) : à mettre à jour si un nouveau banc les change. */
 export const TEXTES_CHAINE = {
   libelle: "Chaîne d'écriture",
-  courte: { libelle: "Économique", cout: "Recommandée" },
+  courte: { libelle: "Économique", coutDollars: 0.28 },
   avertissement: "S'applique aux prochains scripts.",
 } as const;
 
-export function ChoixChaineEcriture({ initiale }: { initiale: ChaineChoisie }) {
+export function ChoixChaineEcriture({ initiale, tauxUsdEur }: { initiale: ChaineChoisie; tauxUsdEur?: number }) {
   const router = useRouter();
   const [chaine, setChaine] = useState<ChaineChoisie>(initiale);
   const [enCours, demarrer] = useTransition();
@@ -50,7 +50,7 @@ export function ChoixChaineEcriture({ initiale }: { initiale: ChaineChoisie }) {
         onChange={choisir}
         taille="lg"
         options={[
-          { valeur: "courte", libelle: TEXTES_CHAINE.courte.libelle, detail: TEXTES_CHAINE.courte.cout, desactive: enCours },
+          { valeur: "courte", libelle: TEXTES_CHAINE.courte.libelle, desactive: enCours },
         ]}
       />
       <p className="mt-2 text-xs text-texte-faible">{TEXTES_CHAINE.avertissement}</p>
