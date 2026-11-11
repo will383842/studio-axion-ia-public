@@ -294,25 +294,28 @@ describe("10 · la validation suit le texte", () => {
     expect(port.prive[0].texte).toBe(v2());
     expect(await sansLien()).toBe(1);
   });
-  it("PARAM_VALIDATION_M1_LIEN est la clé attendue, texte proposé conforme (mention, vouvoiement, pas de STOP)", () => {
+  it("PARAM_VALIDATION_M1_LIEN est la clé attendue, texte conforme (sans mention ni signature, vouvoiement, pas de STOP)", () => {
     expect(MS.PARAM_VALIDATION_M1_LIEN).toBe(PARAM_VALIDATION_M1);
     const t = TEXTES_MP["mp-m1-v3"].texte;
-    expect(t.startsWith("Message automatique envoyé par Axion IA. ")).toBe(true);
-    expect(t).toContain("[LIEN]");
-    expect(t).toMatch(/48 h/);
+    expect(t).not.toMatch(/Message automatique/);
+    expect(t.endsWith("[LIEN]")).toBe(true);
+    expect(t).toMatch(/48 heures/);
     expect(t).not.toMatch(/\bstop\b|autres informations/i);
   });
 });
 
 describe("RELECTURE-OPUS · défaut 1 : borne à 1 000 caractères pour M1 v3", () => {
-  const TITRE_LONG = "🎓".repeat(200); // 400 unités UTF-16 pour 200 points de code (titre maximal) : v3 dépasse 1 000, v2 reste court
+  const TITRE_LONG = "🎓".repeat(200); // 400 unités UTF-16 pour 200 points de code (titre maximal)
+  // Texte v3 raccourci : pour dépasser 1 000 il faut aussi un lien long (nom de compte de 40 caractères, référence de post de 64, nom de guide de 40).
+  const ENV_LONG = { ...ENV_LIEN, LIEN_GUIDE_COMPTES: `${COMPTE}=${"a".repeat(40)}` };
+  const POST_LONG = "p".repeat(64);
   it("v3 trop long (titre hors BMP) : repli exact sur M1 v2 par le VRAI constructeur de corps, 1 seul POST ≤ 1 000", async () => {
     await validerGuideAuParcours(TITRE_LONG);
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "msg-sortant-9" } }));
     const p = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE_LONG] });
     const portReel = { ...port.port, repondreEnPrive: p.repondreEnPrive };
-    await deposerCommentaire(depots, {});
-    await C.traiterConversations({ port: portReel, comptesPermis: [COMPTE], titreGuide: TITRE_LONG, env: ENV_LIEN, maintenantMs: T0 });
+    await deposerCommentaire(depots, { idPost: POST_LONG });
+    await C.traiterConversations({ port: portReel, comptesPermis: [COMPTE], titreGuide: TITRE_LONG, guide: "g".repeat(40), env: ENV_LONG, maintenantMs: T0 });
     const posts = faux.appels.filter((a) => a.methode === "POST");
     expect(posts).toHaveLength(1);
     const message = (posts[0].json as { message: string }).message;
