@@ -7,6 +7,7 @@
  */
 import "server-only";
 import { readdir, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { cleIdempotence, RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { signerAppel } from "@/fournisseurs/site/signature";
@@ -17,6 +18,7 @@ import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisS
 import { creerNotification } from "./notifications";
 import { ESPACE_CONTACT_ZERNIO, enregistrerOppositionSousVerrou, marquerTransmise, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
 import { ErreurEmpreinteIndisponible } from "@/domaine/guide-reseau/empreinte-personne";
+import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import { comptesParcours, empreinteGuideParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { parcoursMotActif } from "./parcours-mot";
 import { PARAM_PLAFONDS_CONVERSATION_NOM, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
@@ -28,6 +30,8 @@ export const PARAM_GARDES_MOTS = "mots.gardes";
 export const PARAM_VALIDATIONS_MOTS = "mots.validations";
 /** Validation du GUIDE du parcours : clé SÉPARÉE de `mots.validations` (qui reste réservée aux autres mots). */
 export const PARAM_VALIDATION_GUIDE_PARCOURS = "mots.validation.guide-parcours";
+/** Validation (écran /mots) du texte brouillon « adresse refusée » : { empreinte } = sha256(version + "\n" + texte). */
+export const PARAM_VALIDATION_ADRESSE_REFUSEE = "parcours.validation.adresse_refusee";
 export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */
@@ -258,6 +262,24 @@ export async function validerGuideParcours(d: { titre: string; confirmeParOperat
     await journaliser("mots", "Textes du mot GUIDE validés par l'opérateur.");
   });
   return { ok: true, raison: "valide", empreinte: e.empreinte };
+}
+
+/** Empreinte du texte brouillon « adresse refusée » : sha256(version + "\n" + texte). Source UNIQUE (validation /mots ET garde d'envoi). */
+export function empreinteAdresseRefusee(): string {
+  const b = TEXTES_MP["mp-adresse-refusee-v2"];
+  return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex");
+}
+
+/** Geste de validation du texte « adresse refusée » (l'appelant exige la session). Idempotent ; journal SANS le texte ; aucun effet réseau. */
+export async function validerAdresseRefusee(d: { confirmeParOperateur: boolean }): Promise<{ ok: boolean; raison: string; empreinte?: string }> {
+  if (!d.confirmeParOperateur) return { ok: false, raison: "validation_operateur_absente" };
+  const empreinte = empreinteAdresseRefusee();
+  await sousVerrou(async () => {
+    if ((await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === empreinte) return;
+    await ecrireParametre(PARAM_VALIDATION_ADRESSE_REFUSEE, { empreinte, valideLe: maintenant() });
+    await journaliser("mots", "Message « adresse refusée » validé par l'opérateur.");
+  });
+  return { ok: true, raison: "valide", empreinte };
 }
 
 /** POSE d'un mot sur un compte à partir d'une SAISIE : validé = l'empreinte ENREGISTRÉE correspond au texte actuel. */
@@ -562,6 +584,8 @@ export interface VueMots {
   parcoursAllume: boolean;
   /** « Stop » reçus mais pas encore transmis (donc en doute) : un NOMBRE, jamais une personne ni une empreinte. */
   oppositionsNonTransmises: number;
+  /** Le message « adresse refusée » est-il validé (empreinte courante) ? Facultatif pour les anciens appelants. */
+  adresseRefuseeValide?: boolean;
 }
 export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
   const g = await lireGardes();
@@ -581,6 +605,7 @@ export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
     guidePerime: !!enregistree && !guideValide,
     parcoursAllume: /^(1|true|oui)$/i.test(env.PARCOURS_CONVERSATION_ENABLED?.trim() ?? ""), // même règle que parcoursConversationActif (figée par test)
     oppositionsNonTransmises: oppositions.filter((o) => o?.transmise === false).length,
+    adresseRefuseeValide: (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === empreinteAdresseRefusee(),
   };
 }
 

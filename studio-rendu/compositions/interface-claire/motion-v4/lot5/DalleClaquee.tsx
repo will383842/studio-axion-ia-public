@@ -42,7 +42,7 @@ export function DalleClaquee({ frame, debut, palette, mot, suite, duree = DUREE_
       <AbsoluteFill style={{ background: ACCENT_1 }} />
       <div style={{ position: "absolute", left: cx + dx, top: cy + dy, width: 0, height: 0 }}>
         <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(-50%, -50%) scale(${s}) rotate(-2deg)`, transformOrigin: "center center", filter: `drop-shadow(11px 12px 0 ${COULEURS.ENCRE})` }}>
-          <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: "-0.01em", color: COULEURS.ENCRE, whiteSpace: "nowrap", ...contourTexte(corps, COULEURS.BLANC, 0.1 * 2) }}>{mot}</div>
+          <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: "-0.01em", color: COULEURS.BLANC, whiteSpace: "nowrap", ...contourTexte(corps, COULEURS.ENCRE, 0.1 * 2) }}>{mot}</div>
           <div style={{ position: "absolute", left: lm * 0.1, top: corps * 1.0, height: 24, width: lm * 0.8, background: COULEURS.ENCRE, transform: `scaleX(${traitSouligne})`, transformOrigin: "left center", borderRadius: 4, boxShadow: `0 0 0 3px ${COULEURS.IVOIRE_CLAIR}` }} />
         </div>
       </div>
