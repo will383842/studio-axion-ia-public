@@ -37,7 +37,7 @@ export function BarreEtapes({ etapes, courante, onAller, className }: { etapes: 
               >
                 <span className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-surface-3">
                   <motion.span
-                    className="absolute inset-y-0 left-0 rounded-full bg-orange"
+                    className="absolute inset-y-0 left-0 rounded-full bg-texte"
                     initial={false}
                     animate={{ width: faite ? "100%" : active ? "50%" : "0%" }}
                     transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}

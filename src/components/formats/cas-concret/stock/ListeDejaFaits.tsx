@@ -17,7 +17,7 @@ export function ListeDejaFaits({ cas }: { cas: readonly CasDejaFait[] }) {
               <span className="text-[13px] text-texte-doux">
                 {c.date ? `Vidéo du ${c.date} · ` : ""}
                 {c.videoId ? (
-                  <a className="inline-flex min-h-11 items-center rounded-sm text-orange-vif underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href={`/videos/${c.videoId}`} aria-label={`Voir la vidéo : ${c.titre}`}>Voir la vidéo</a>
+                  <a className="inline-flex min-h-11 items-center rounded-sm text-texte underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href={`/videos/${c.videoId}`} aria-label={`Voir la vidéo : ${c.titre}`}>Voir la vidéo</a>
                 ) : (
                   "Vidéo supprimée"
                 )}
