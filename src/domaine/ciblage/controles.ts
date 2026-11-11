@@ -125,20 +125,29 @@ const METIERS = ["plombier", "electricien", "comptable", "avocat", "coiffeur", "
 const SECTEURS = ["batiment", "btp", "immobilier", "restauration", "sante", "commerce", "transport", "logistique", "industrie", "artisanat", "hotellerie", "agriculture", "assurance", "juridique", "education", "services"];
 const AFFICHAGE: Record<string, string> = { electricien: "électricien", macon: "maçon", medecin: "médecin", kinesitherapeute: "kinésithérapeute", batiment: "bâtiment", sante: "santé", "expert comptable": "expert-comptable", hotellerie: "hôtellerie", education: "éducation" };
 
-function motsGenre(texte: string): string[] {
-  return normaliser(texte).split(" ").filter(Boolean).map(racineGenre);
+function motsPluriel(texte: string): string[] {
+  return normaliser(texte).split(" ").filter(Boolean).map(racine);
+}
+
+/** Formes acceptées d'un mot de la liste : lui-même et son féminin régulier (électricienne, coiffeuse, formatrice, avocate, immobilière), jamais un « e » ajouté au hasard (médecine, transporté). */
+function formesGenre(mot: string): string[] {
+  if (mot.endsWith("ien")) return [mot, `${mot}ne`];
+  if (mot.endsWith("teur")) return [mot, `${mot.slice(0, -4)}trice`, `${mot.slice(0, -3)}euse`];
+  if (mot.endsWith("eur")) return [mot, `${mot.slice(0, -3)}euse`];
+  if (/(er|at|an|ant|ent|ert)$/.test(mot)) return [mot, `${mot}e`];
+  return [mot];
 }
 
 /** Correspondances d'une liste ; les mots pris par une correspondance plus longue sont retirés avant de chercher les plus courtes. */
 function trouverToutes(candidats: { niveau: "metier" | "secteur"; brut: string }[], texte: string): { niveau: "metier" | "secteur"; brut: string }[] {
-  const reste = motsGenre(texte);
+  const reste: string[] = motsPluriel(texte);
   const trouvees: { niveau: "metier" | "secteur"; brut: string }[] = [];
-  const triees = [...candidats].sort((x, y) => motsGenre(y.brut).length - motsGenre(x.brut).length);
+  const triees = [...candidats].sort((x, y) => motsPluriel(y.brut).length - motsPluriel(x.brut).length);
   for (const c of triees) {
-    const aiguille = motsGenre(c.brut);
+    const aiguille = motsPluriel(c.brut).map(formesGenre);
     let present = false;
     for (let i = 0; i + aiguille.length <= reste.length; i++) {
-      if (aiguille.every((m, j) => reste[i + j] === m)) {
+      if (aiguille.every((formes, j) => formes.includes(reste[i + j]))) {
         present = true;
         for (let j = 0; j < aiguille.length; j++) reste[i + j] = "\0";
       }
