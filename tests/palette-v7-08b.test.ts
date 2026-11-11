@@ -61,9 +61,12 @@ describe("palette V7-08b", () => {
         expect(l).toContain("strokeWidth={3}");
       }
     });
-    it("le col se distingue du pull (texte secondaire #5E5D59)", () => {
-      expect(valeur("GRIS_TEXTE_SECONDAIRE")).toBe("#5E5D59");
-      expect(balise(/390 1010 Z"/)).toContain("fill={GRIS_TEXTE_SECONDAIRE}");
+    it("le col est le gris sur noir (#B0AEA5, 8,29 sur le pull #141413), jamais #5E5D59 ni le noir du pull", () => {
+      const col = balise(/390 1010 Z"/);
+      expect(col).toContain("fill={GRIS_SUR_NOIR}");
+      expect(col).not.toContain("GRIS_TEXTE_SECONDAIRE");
+      expect(col).not.toContain("fill={NOIR}");
+      expect(valeur("GRIS_SUR_NOIR")).toBe("#B0AEA5");
     });
     it("le halo de l'étagère n'est plus terracotta sur noir", () => {
       expect(src).not.toContain("rgba(178,63,22");
@@ -73,17 +76,23 @@ describe("palette V7-08b", () => {
   // Passe 2 : les objets sont posés sur le plateau noir : orange #D97757 (jamais terracotta), A sombre sur tuile orange.
   describe("objets.ts : rôles sur fond noir", () => {
     const src = readFileSync(BASE + "effets/objets.ts", "utf8");
-    it("ORANGE est l'orange sur noir, le bord de pièce est le gris sur noir", () => {
+    it("ORANGE est l'orange sur noir, le bord de pièce est SOMBRE (5,90 sur le disque orange)", () => {
       expect(src).toContain('const ORANGE = "#D97757";');
-      expect(src).toContain('const GRIS = "#B0AEA5";');
+      expect(src).not.toContain("matiere(T, GRIS");
       expect(src).not.toContain("#B23F16\";");
-      expect(src).toContain("matiere(T, GRIS, { metal: 0.9");
+      expect(src).toContain("matiere(T, SOMBRE, { metal: 0.9");
     });
     it("le halo de l'écran est ivoire discret et le « A » posé sur une tuile orange est sombre", () => {
       expect(src).toContain("rgba(250,249,245,0.12)");
       expect(src).not.toMatch(/halo\.addColorStop\([01], "rgba\(217,119,87/);
       expect(src).not.toMatch(/matiere\(T, CREME, \{ (rugosite: 0\.42|rugosite: 0\.45|metal: 0\.3)/);
     });
+  });
+  it("objets.ts : la texture d'écran peint le « A » en SOMBRE juste après la tuile ORANGE", () => {
+    const src = readFileSync(BASE + "effets/objets.ts", "utf8");
+    const i = src.indexOf("g.fillStyle = ORANGE;");
+    expect(i).toBeGreaterThan(-1);
+    expect(src.slice(i + "g.fillStyle = ORANGE;".length).match(/fillStyle = (\w+);/)?.[1]).toBe("SOMBRE");
   });
   it("MicroPodcast : les matières sont nommées par rôle, plus numérotées", () => {
     const src = readFileSync(BASE + "MicroPodcast.tsx", "utf8");
