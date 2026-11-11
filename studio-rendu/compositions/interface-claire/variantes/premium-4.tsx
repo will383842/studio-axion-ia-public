@@ -10,31 +10,33 @@ import React from "react";
  */
 import type { CSSProperties } from "react";
 import { Easing, interpolate } from "remotion";
+import { avecOpacite, PALETTE } from "../../../../src/briques/charte/axion-2026";
 import { COULEURS, POLICES } from "../charte";
+import { MELANGES } from "./premium-1";
 
 /* ------------------------------------------------------------------ Couleurs : les 12 jetons ------------------------------------------------------------------ */
 
 /** Les 4 couleurs de la charte et 8 mélanges calculés entre elles. Aucune autre teinte. */
 export const N4 = Object.freeze({
   ivoire: COULEURS.ivoire,
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
   /** « En attente / désactivé » uniquement. */
   sable: COULEURS.sable,
-  sableProfond: "#94806A",
-  filet: "#CBBFAD",
-  orangeVoile: "#DEC0A8",
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
   /** « Actif / fort » uniquement. */
   orange: COULEURS.orange,
-  orangeChaud: "#BC6441",
-  orangeProfond: "#934122",
-  encreDouce: "#45392D",
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  encreDouce: MELANGES.encreDouce,
   encre: COULEURS.encre,
 } as const);
 
-/** Encre (#110A05) ou ivoire (#E9DCC8) avec une opacité : ombres, reflets, grain. */
-export const encreA = (a: number) => `rgba(17, 10, 5, ${a})`;
-export const ivoireA = (a: number) => `rgba(233, 220, 200, ${a})`;
+/** Encre ou ivoire avec une opacité : ombres, reflets, grain. */
+export const encreA = (a: number) => avecOpacite(PALETTE.noir, a);
+export const ivoireA = (a: number) => avecOpacite(PALETTE.ivoire, a);
 
 /** Dégradé vertical orange-chaud → orange-profond (surfaces héros orange). */
 export const DEGRADE_ORANGE = `linear-gradient(180deg, ${N4.orangeChaud} 0%, ${N4.orangeProfond} 100%)`;
