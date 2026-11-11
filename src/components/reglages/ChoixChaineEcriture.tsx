@@ -7,10 +7,10 @@ import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import type { ChaineChoisie } from "@/services/chaine-ecriture";
 
-/** Coûts mesurés au banc du 18/10 (5 sujets) : à mettre à jour si un nouveau banc les change. */
+/** Aucun montant affiché (règle de Williams). */
 export const TEXTES_CHAINE = {
   libelle: "Chaîne d'écriture",
-  courte: { libelle: "Économique", cout: "≈ 0,28 $ par script" },
+  courte: { libelle: "Économique", cout: "Recommandée" },
   avertissement: "S'applique aux prochains scripts.",
 } as const;
 

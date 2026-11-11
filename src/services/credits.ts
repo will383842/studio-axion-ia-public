@@ -303,10 +303,10 @@ export async function manquesPour(lignes: LigneCout[]): Promise<{ manques: Manqu
   return { manques: calculerManques(besoins, disponibles), besoins, refusees };
 }
 
-/** « Crédit HeyGen insuffisant : il reste 2,10 $, cette vidéo demande ≈ 3,80 $. » */
+/** « Crédit HeyGen insuffisant pour cette vidéo : rechargez le compte HeyGen, puis relancez. » (aucun montant affiché ; la condition de blocage ne change pas) */
 export function messageManque(m: Manque, quoi = "Cette vidéo"): string {
-  const u = uniteDe(m.fournisseur);
-  return `Crédit ${nomFournisseur(m.fournisseur)} insuffisant : il reste ${texteMontant(u, Math.max(0, m.disponible))}, ${quoi.charAt(0).toLowerCase()}${quoi.slice(1)} demande ≈ ${texteMontant(u, m.demande)}.`;
+  const nom = nomFournisseur(m.fournisseur);
+  return `Crédit ${nom} insuffisant pour ${quoi.charAt(0).toLowerCase()}${quoi.slice(1)} : rechargez le compte ${nom}, puis relancez.`;
 }
 
 /**

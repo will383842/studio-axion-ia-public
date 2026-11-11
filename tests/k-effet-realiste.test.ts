@@ -179,7 +179,7 @@ describe("lot K · fil « Discuter avec mon monteur » : carte avant toute dépe
   it("la carte « Effet réaliste par IA — option payante… » part avec l'aperçu ; aucune version, aucun appel réseau", async () => {
     const m = await demanderEffet();
     expect(m.confirmation?.optionId).toBe("effet-realiste-ia");
-    expect(m.confirmation?.phrase).toMatch(/^Effet réaliste par IA — option payante, (environ \d+ €|moins de 1 €) pris sur vos crédits Higgsfield\.$/);
+    expect(m.confirmation?.phrase).toMatch(/^Effet réaliste par IA — option payante, pris sur vos crédits Higgsfield\.$/);
     expect(m.confirmation?.apercu?.instant).toMatch(/^\d:\d\d$/);
     expect(m.confirmation?.apercu?.phrase).toMatch(/téléphone/);
     expect(m.texte).toMatch(/option payante/);

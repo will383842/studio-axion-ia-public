@@ -83,17 +83,18 @@ describe("F6 · Fabrication d'une vidéo, sur le socle", () => {
 
   it("l'argent : dépense face au plafond gardée, « Au plus » et « Déjà payé » dits avec les mots communs", () => {
     const t = texte(rendreFab({ enCours: true, arret, plafond: { proposeCentimes: 700, arrete: false } }));
-    expect(t).toContain("Dépense");
-    expect(t).toContain("plafond");
-    expect(t).toContain("Au plus");
-    expect(t).toContain("Voix déjà payée");
+    // Règle de Williams (11/11) : aucun montant ni plafond affiché.
+    expect(t).not.toContain("plafond");
+    expect(t).not.toContain("Au plus");
+    expect(t).not.toContain("Voix déjà payée");
     expect(t).not.toContain("Déjà payé");
+    expect(t).not.toMatch(/€/);
   });
 
   it("l'ordre d'avant : steps, puis l'argent, puis le détail du refus, puis « Refaire cette partie » (plus de plafond à relever)", () => {
     const vue = { ...argent, pas: pas("fait", "arrete"), attente: true, refus: { phrase: "Le rendu n'a pas abouti.", details: ["Détail un"], reessayable: true } };
     const t = texte(rendreFab({ vue, plafond: { proposeCentimes: 700, arrete: false } }));
-    const ordre = ["Le rendu tourne", "Dépense", "Détail un", "Refaire cette partie"].map((m) => t.indexOf(m));
+    const ordre = ["Le rendu tourne", "Détail un", "Refaire cette partie"].map((m) => t.indexOf(m));
     expect(ordre.every((i) => i >= 0)).toBe(true);
     expect(t).not.toContain("Besoin de plus de marge");
     expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
