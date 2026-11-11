@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CONTRASTE_AFFICHE_MIN,
@@ -12,6 +12,7 @@ import {
   TAILLES_DUO,
   VERSION_CHARTE_DUO,
 } from "../../../src/briques/habillage/charte-duo";
+import { PALETTE } from "../../../src/briques/charte/axion-2026";
 import { COULEURS_VIDEO, VERSION_CHARTE_VIDEO } from "../../../src/briques/habillage/charte-video";
 import { rapportContraste } from "../../../src/briques/habillage/contraste";
 import { trouverDroit } from "../../../src/briques/droits";
@@ -98,7 +99,7 @@ describe("charte-duo/1", () => {
   it("palette 2026 : aucune couleur hors liste, ni bleu, ni jaune, ni vert, ni dégradé ; orange et gris clair sur nuit seulement", () => {
     const AUTORISEES = ["#FAF9F5", "#E8E6DC", "#141413", "#B23F16", "#D97757", "#B0AEA5"];
     // Correctif L0 : fond de carte (#FFFFFF), gris d'affiche et de décor (#5E5D59) et coche de validation (sauge), chacun limité à son rôle.
-    const PAR_ROLE = { carte: "#FFFFFF", gris: "#5E5D59", vert: "#5E7050" } as const;
+    const PAR_ROLE = { carte: "#FFFFFF", gris: "#5E5D59", vert: "#5E7050", sable: "#E8E6DC" } as const;
     for (const [role, c] of Object.entries(COULEURS_DUO)) {
       const permise = role in PAR_ROLE ? [PAR_ROLE[role as keyof typeof PAR_ROLE]] : AUTORISEES;
       expect(permise, `${role} ${c}`).toContain(c.toUpperCase());
@@ -130,6 +131,31 @@ describe("charte-duo/1", () => {
     expect(FONDS.ivoire.secondaire).not.toBe(COULEURS_DUO.gris);
     expect(COUPLES_TEXTE_DUO.filter((c) => c.texte === "gris")).toEqual([]);
     expect(COUPLES_TEXTE_DUO.some((c) => c.texte === "encre" && c.fond === "carte")).toBe(true);
+  });
+
+  it("charte-duo se range sur la palette 2026 : chaque rôle est une couleur de PALETTE, et sable, carte, vert ne portent jamais de texte", () => {
+    const valeurs = Object.values(PALETTE) as string[];
+    for (const [role, c] of Object.entries(COULEURS_DUO)) expect(valeurs, `${role} ${c}`).toContain(c);
+    expect(COULEURS_DUO.sable).toBe(PALETTE.gris);
+    expect(COULEURS_DUO.carte).toBe(PALETTE.blanc);
+    expect(COULEURS_DUO.gris).toBe(PALETTE.texteSecondaire);
+    expect(COULEURS_DUO.vert).toBe(PALETTE.reussite);
+    expect(COULEURS_DUO.sable).toBe(COULEURS_VIDEO.sable);
+    for (const c of [...COUPLES_TEXTE_DUO, ...COUPLES_AFFICHE_DUO]) expect(["sable", "carte", "vert"], `${c.texte}/${c.fond}`).not.toContain(c.texte);
+  });
+
+  it("garde-fou : aucune composition (cas-concret, image-video) ne met le gris d'affiche en couleur de texte", () => {
+    const racine = new URL("../../../studio-rendu/compositions/", import.meta.url).pathname;
+    const fautes: string[] = [];
+    for (const dossier of ["cas-concret", "image-video"]) {
+      for (const f of readdirSync(`${racine}${dossier}`, { recursive: true, encoding: "utf8" })) {
+        if (!/\.tsx?$/.test(f)) continue;
+        readFileSync(`${racine}${dossier}/${f}`, "utf8").split("\n").forEach((ligne, i) => {
+          if (/color: *[^,}]*\b(COULEURS_DUO|C)\.gris\b/.test(ligne)) fautes.push(`${dossier}/${f}:${i + 1}`);
+        });
+      }
+    }
+    expect(fautes).toEqual([]);
   });
 
   it("ne dépend d'aucun alias « @/ » ni d'aucun module (lisible par studio-rendu)", () => {
