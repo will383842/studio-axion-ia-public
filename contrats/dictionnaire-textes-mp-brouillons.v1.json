@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "statut": "brouillon",
+  "note": "Textes BROUILLONS : à revalider sur la page /mots avant allumage. Ce fichier ne modifie pas le dictionnaire validé (dictionnaire-textes-mp.v2.json), dont l'empreinte reste figée.",
+  "textes": {
+    "mp-adresse-refusee-v1": {
+      "version": "mp-adresse-refusee-v1",
+      "statut": "brouillon",
+      "texte": "Message automatique envoyé par Axion IA. Votre adresse e-mail n'a pas été acceptée. Pouvez-vous la vérifier et nous l'écrire à nouveau ici ?"
+    }
+  }
+}

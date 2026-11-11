@@ -55,6 +55,8 @@ export interface Conversation {
   idMessageAdresse?: string | null;
   /** Version du corps de la demande de guide (1 ou 3), figée au PREMIER essai : le site refuse (409) un corps différent pour une même clé. */
   versionCorpsGuide?: 1 | 3 | null;
+  /** Vrai dès que le message « adresse refusée » (site : 422) a été tenté : il ne part JAMAIS deux fois pour une conversation. */
+  adresseRefuseeEnvoyee?: boolean;
 }
 
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";
