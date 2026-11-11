@@ -41,8 +41,13 @@ describe("lot G : note de rythme réelle", () => {
   });
   it("tous les critères avocat sont calculés", () => {
     const n = noterScriptDetaille(IRREGULIER, CRITERES, CTX, () => null);
-    for (const id of CRITERES.filter((c) => c !== "rythme")) void id;
-    expect(Object.keys(n.criteres).length).toBeGreaterThan(0);
+    expect(Object.keys(n.criteres).sort()).toEqual([...CRITERES].sort());
+  });
+  it("rythme non calculable (moins de 3 phrases) : absent, la moyenne ne le compte pas", () => {
+    const court = [bloc("c", "coeur", "Vous gardez la photo du PV.")];
+    const n = noterScriptDetaille(court, ["rythme", "clarte"], CTX);
+    expect(n.criteres.rythme).toBeUndefined();
+    expect(n.globale).toBe(n.criteres.clarte);
   });
 });
 
