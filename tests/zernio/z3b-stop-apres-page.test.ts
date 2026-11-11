@@ -274,3 +274,17 @@ describe("partie 2 (côté Studio) : OPPOSITIONS_PAR_REF_ENABLED, éteint par d�
     expect(vusPage).toHaveLength(0);
   });
 });
+describe("8 · message « Bonjour » sans adresse après le message avec lien", () => {
+  it("PARCOURS_LIEN_GUIDE allumé, M1 v3 envoyé, puis « Bonjour » : 0 envoi réseau, événement clos en silence, m2Envoye faux", async () => {
+    await personneAvecLien();
+    const avant = port.envoyes.length;
+    port.reponses.texte = () => "Bonjour";
+    const id = await deposerMessage(depots, { idMessage: "msg-bonjour-8" });
+    await passer(ENV_LIEN, T0 + 500);
+    expect(port.envoyes).toHaveLength(avant);
+    const ev = (await depots().evenementsFournisseurs.lister((x: any) => x.idEvenement === id))[0];
+    expect(ev.traite).toBe(true);
+    expect(ev.charge.etat).toBe("silence");
+    expect((await etatDe()).m2Envoye).toBeFalsy();
+  });
+});
