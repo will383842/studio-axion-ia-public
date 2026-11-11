@@ -19,6 +19,8 @@ const MATIERES_D1 = [
   "#4A3A2E", "#2A1F17", "#1A120C", "#0E0905", "#D8CBB8", "#8C7C6A", "#3A2E24",
   // feutres et marqueurs
   "#B44F29", "#ECE8E3", "#110A05", "#4A3C31", "#140D08", "#BFA88B", "#1E1610", "#D9C6A6",
+  // auget aluminium du tableau blanc
+  "#9E9891", "#D9D5D0", "#EFECE8", "#D2CDC7", "#A19A93", "#5E5852",
 ];
 const FICHIER = "studio-rendu/compositions/tableau/trois-styles/support.ts";
 
@@ -72,5 +74,25 @@ describe("V7-06 support.ts : palette de marque (hex seulement, rgba au cliquet)"
     const bloc = code.slice(i, i + 250);
     expect(bloc).toMatch(/fillStyle = "#E8E6DC"/i);
     expect(hexTrouves(bloc)).not.toContain("#B0AEA5");
+  });
+
+  it("l'auget aluminium du tableau blanc garde EXACTEMENT les six arrêts de master (D1 ouverte)", () => {
+    const code = source();
+    const dd = code.match(/const dd = g\.createLinearGradient[\s\S]*?g\.fillStyle = dd;/)![0];
+    expect(arrets(dd)).toEqual(["#9E9891", "#D9D5D0", "#EFECE8"]);
+    const f = code.match(/const f = g\.createLinearGradient[\s\S]*?g\.fillStyle = f;/)![0];
+    expect(arrets(f)).toEqual(["#D2CDC7", "#A19A93", "#5E5852"]);
+  });
+
+  it("aucun #B0AEA5 dans la branche tableau-blanc ni dans la branche paperboard", () => {
+    const code = source();
+    const a = code.indexOf('if (style === "tableau-blanc")');
+    const b = code.indexOf('} else if (style === "ardoise")');
+    expect(a).toBeGreaterThan(-1);
+    expect(b).toBeGreaterThan(a);
+    expect(hexTrouves(code.slice(a, b))).not.toContain("#B0AEA5");
+    const c = code.indexOf("} else {", b);
+    expect(c).toBeGreaterThan(b);
+    expect(hexTrouves(code.slice(c))).not.toContain("#B0AEA5");
   });
 });
