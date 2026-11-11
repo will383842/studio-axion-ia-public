@@ -3,7 +3,8 @@
 // Sortie : `lancer` (faux dès qu'un refus existe) et la liste des refus, chacun avec sa règle.
 // Règles : fichiers exacts, jamais deux fiches sur le même fichier, parallele_avec lu dans les deux sens,
 // fermeture des versions (une V1 ne dépend jamais d'une V2), comparaison aux PR ouvertes,
-// jauge à 400 M de jetons et 400 sessions (atteints ou dépassés : aucune vague lancée).
+// jauge à 400 M de jetons et 400 sessions (atteints ou dépassés : aucune vague lancée ; jauge illisible ou négative : refus).
+// Un chemin dont le dernier segment a une extension passe comme fichier exact, dossier à point compris (docs/v1.2) : la routine ne connaît pas l'arbre, la fiche doit lister de vrais fichiers.
 // Un fichier exact porte une extension : un fichier sans extension (Dockerfile, LICENSE) est refusé, à lister avec son extension ou à faire lister autrement.
 // Exécution : routines cloud ou Actions d'un dépôt public, jamais sur le PC.
 
@@ -85,7 +86,11 @@ export function controlerLot(entree: {
   const refus: Refus[] = [];
   const ajouter = (id: string, regle: Regle, detail: string) => refus.push({ id, regle, detail });
 
-  if (jauge.jetons >= PLAFOND_JETONS || jauge.sessions >= PLAFOND_SESSIONS) {
+  const illisible =
+    !Number.isFinite(jauge.jetons) || !Number.isFinite(jauge.sessions) || jauge.jetons < 0 || jauge.sessions < 0;
+  if (illisible) {
+    ajouter("*", "jauge", `jauge illisible ou négative (jetons ${jauge.jetons}, sessions ${jauge.sessions}) : arrêt de sécurité`);
+  } else if (jauge.jetons >= PLAFOND_JETONS || jauge.sessions >= PLAFOND_SESSIONS) {
     ajouter("*", "jauge", `jetons ${jauge.jetons}/${PLAFOND_JETONS}, sessions ${jauge.sessions}/${PLAFOND_SESSIONS}`);
   }
   if (fiches.length === 0) ajouter("*", "lot-vide", "aucune fiche dans le lot");
