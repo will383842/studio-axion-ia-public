@@ -10,9 +10,9 @@ const LE = "2026-10-12";
 
 describe("X7 · motBranchePour(mot, reseau, compte?)", () => {
   it("ligne avec compte : branché pour ce compte seulement ; un autre compte ou un compte inconnu : non branché", () => {
-    const r = m.lireReglageMotsBranches([{ mot: "GUIDE", reseau: "facebook", compte: "williamsjullin", etat: "branche", le: LE }]);
-    expect(m.motBranchePour("GUIDE", "facebook", "williamsjullin", r)).toBe(true);
-    expect(m.motBranchePour("guide", "facebook", "WilliamsJullin", r)).toBe(true);
+    const r = m.lireReglageMotsBranches([{ mot: "GUIDE", reseau: "facebook", compte: "exemple", etat: "branche", le: LE }]);
+    expect(m.motBranchePour("GUIDE", "facebook", "exemple", r)).toBe(true);
+    expect(m.motBranchePour("guide", "facebook", "Exemple", r)).toBe(true);
     expect(m.motBranchePour("GUIDE", "facebook", "axion-ia", r)).toBe(false);
     expect(m.motBranchePour("GUIDE", "facebook", undefined, r)).toBe(false);
     expect(m.motBranchePour("GUIDE", "facebook", r)).toBe(false);
@@ -21,7 +21,7 @@ describe("X7 · motBranchePour(mot, reseau, compte?)", () => {
 
   it("ligne sans compte : branché pour tous les comptes du réseau, et lue par la feuille", () => {
     const r = m.lireReglageMotsBranches([{ mot: "GUIDE", reseau: "instagram", etat: "branche", le: LE }]);
-    expect(m.motBranchePour("GUIDE", "instagram", "williamsjullin", r)).toBe(true);
+    expect(m.motBranchePour("GUIDE", "instagram", "exemple", r)).toBe(true);
     expect(m.motBranchePour("GUIDE", "instagram", "axion-ia", r)).toBe(true);
     expect(m.motBranchePour("GUIDE", "instagram", r)).toBe(true);
     expect(m.motBranchePour("GUIDE", "facebook", r)).toBe(false);
@@ -31,9 +31,9 @@ describe("X7 · motBranchePour(mot, reseau, compte?)", () => {
   it("la ligne d'un compte l'emporte sur la ligne sans compte, pour ce compte", () => {
     const r = m.lireReglageMotsBranches([
       { mot: "IA", reseau: "facebook", etat: "branche", le: LE },
-      { mot: "IA", reseau: "facebook", compte: "williamsjullin", etat: "non_branche", le: LE },
+      { mot: "IA", reseau: "facebook", compte: "exemple", etat: "non_branche", le: LE },
     ]);
-    expect(m.motBranchePour("IA", "facebook", "williamsjullin", r)).toBe(false);
+    expect(m.motBranchePour("IA", "facebook", "exemple", r)).toBe(false);
     expect(m.motBranchePour("IA", "facebook", "axion-ia", r)).toBe(true);
   });
 
@@ -49,23 +49,23 @@ describe("X7 · motBranchePour(mot, reseau, compte?)", () => {
   });
 
   it("avecBranchement pose une ligne de compte ; lignesDuReglage rend la forme du contrat", () => {
-    const r = m.avecBranchement(m.REGLAGE_MOTS_VIDE, "guide", "facebook", { etat: "branche", le: LE }, "@WilliamsJullin");
-    expect(m.lignesDuReglage(r)).toEqual([{ mot: "GUIDE", reseau: "facebook", compte: "williamsjullin", etat: "branche", le: LE }]);
+    const r = m.avecBranchement(m.REGLAGE_MOTS_VIDE, "guide", "facebook", { etat: "branche", le: LE }, "@Exemple");
+    expect(m.lignesDuReglage(r)).toEqual([{ mot: "GUIDE", reseau: "facebook", compte: "exemple", etat: "branche", le: LE }]);
     expect(() => m.avecBranchement(r, "GUIDE", "facebook", { etat: "branche", le: LE }, "un compte")).toThrow(/compte/);
     const deux = m.avecBranchement(r, "GUIDE", "instagram", { etat: "branche", le: LE });
     expect(m.lignesDuReglage(deux)).toContainEqual({ mot: "GUIDE", reseau: "instagram", etat: "branche", le: LE });
   });
 
   it("l'ancienne forme du réglage (mot → réseau → état) se lit comme des lignes sans compte", () => {
-    const r = m.lireReglageMotsBranches({ IA: { instagram: { etat: "branche", le: LE }, "facebook@williamsjullin": { etat: "branche", le: LE } } });
+    const r = m.lireReglageMotsBranches({ IA: { instagram: { etat: "branche", le: LE }, "facebook@exemple": { etat: "branche", le: LE } } });
     expect(m.motBranchePour("IA", "instagram", "n-importe", r)).toBe(true);
-    expect(m.motBranchePour("IA", "facebook", "williamsjullin", r)).toBe(true);
+    expect(m.motBranchePour("IA", "facebook", "exemple", r)).toBe(true);
     expect(m.motBranchePour("IA", "facebook", r)).toBe(false);
   });
 
   it("le lecteur passe le compte quand il le connaît", () => {
-    const lire = m.lecteurDuReglage(m.lireReglageMotsBranches([{ mot: "IA", reseau: "facebook", compte: "williamsjullin", etat: "branche", le: LE }]));
-    expect(lire("IA", "facebook", "williamsjullin")).toBe(true);
+    const lire = m.lecteurDuReglage(m.lireReglageMotsBranches([{ mot: "IA", reseau: "facebook", compte: "exemple", etat: "branche", le: LE }]));
+    expect(lire("IA", "facebook", "exemple")).toBe(true);
     expect(lire("IA", "facebook")).toBe(false);
     expect(m.reseauxDuMot("IA", ["facebook", "instagram"], lire)).toEqual([]);
   });

@@ -77,7 +77,7 @@ beforeEach(async () => {
   reinitialiserRequete();
   await auth.seConnecter("essai-log-refus", false);
   etat.zernio = fauxZernio();
-  canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-williams-222222", "Williams Jullin")];
+  canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-exemple-222222", "Jean Exemple")];
   await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 });
@@ -121,7 +121,7 @@ describe("LOG-REFUS · journal des envois", () => {
     expect(codes).toEqual(["CIBLE_ABSENTE", "CIBLE_AMBIGUE", "CIBLE_INCONNUE"]);
     expect(evenements().filter((e) => e.action === "envoyerParOutilAction").map((e) => e.code)).toEqual(["CIBLE_ZERNIO", "CIBLE_ZERNIO"]);
     const brut = lignes.join("\n");
-    for (const interdit of ["Axion-IA.com", "Williams", "111111", "333333", "Cochez", "aucune cible"]) expect(brut).not.toContain(interdit);
+    for (const interdit of ["Axion-IA.com", "Exemple", "111111", "333333", "Cochez", "aucune cible"]) expect(brut).not.toContain(interdit);
   });
 
   it("(c) envoi accepté : « OK », un compte, brouillon", async () => {
