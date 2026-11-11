@@ -31,6 +31,8 @@ export const PARAM_VALIDATIONS_MOTS = "mots.validations";
 export const PARAM_VALIDATION_GUIDE_PARCOURS = "mots.validation.guide-parcours";
 /** Validation (écran /mots) du texte brouillon « adresse refusée » : { empreinte } = sha256(version + "\n" + texte). */
 export const PARAM_VALIDATION_ADRESSE_REFUSEE = "parcours.validation.adresse_refusee";
+/** Validation (écran /mots) du texte « 1er message avec lien » : { empreinte } = sha256("mp-m1-v3" + "\n" + texte brut avec ses marqueurs). */
+export const PARAM_VALIDATION_M1_LIEN = "parcours.validation.m1_lien";
 export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */

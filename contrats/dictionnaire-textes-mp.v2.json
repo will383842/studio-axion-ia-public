@@ -6,6 +6,10 @@
       "version": "mp-m1-v2",
       "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « [MOT] ». Pour vous envoyer le guide « [TITRE DU GUIDE] » par e-mail, répondez à ce message avec votre adresse e-mail."
     },
+    "mp-m1-v3": {
+      "version": "mp-m1-v3",
+      "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « [MOT] ». Pour recevoir le guide « [TITRE DU GUIDE] » par e-mail, indiquez votre adresse sur cette page : [LIEN] (lien valable 48 h). Vous pouvez aussi répondre à ce message avec votre adresse e-mail."
+    },
     "mp-m1-v2-a": {
       "version": "mp-m1-v2-a",
       "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « [MOT] ». Pour recevoir le guide, écrivez-nous votre adresse e-mail en réponse."
