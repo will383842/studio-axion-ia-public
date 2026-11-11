@@ -434,23 +434,26 @@ describe("e2e-2 · mots interdits : l'envoi est bloqué avant le réseau", () =>
     expect(e.message).not.toContain(CERTIFIE);
   });
 
-  // DÉFAUT RÉEL (voir description de la PR, D1) : la liste d'envoi (`mots-interdits-envoi.ts`) ne connaît que
-  // « certifié » et le nom du label. La ville interdite et la promesse de gain ne sont contrôlées qu'EN AMONT
-  // (écriture du script, textes affichés), jamais à l'envoi. Un texte édité à la main ou importé de Buffer les laisse passer.
-  // Quand le défaut sera corrigé, ces tests passeront « à l'envers » : retirer alors `.fails`.
-  it.fails("DÉFAUT D1 : la ville interdite dans le texte bloque l'envoi", async () => {
+  // D1 (STU-D1) corrigé : la liste d'envoi (`mots-interdits-envoi.ts`) connaît aussi la ville interdite et la promesse
+  // de gain, même pour un texte édité à la main ou importé de Buffer.
+  it("D1 corrigé : la ville interdite dans le texte bloque l'envoi", async () => {
     const { f, faux } = monter();
     await expect(f.envoyer(demande({ texte: `Formation à ${VILLE} cet hiver` }))).rejects.toThrow();
     expect(faux.appels).toHaveLength(0);
   });
 
-  it.fails("DÉFAUT D1 : « Aucun gain garanti » dans le texte bloque l'envoi", async () => {
+  it("D1 corrigé : « Aucun gain garanti » dans le texte bloque l'envoi", async () => {
     const { f, faux } = monter();
     await expect(f.envoyer(demande({ texte: `${PROMESSE} mais des résultats` }))).rejects.toThrow();
     expect(faux.appels).toHaveLength(0);
   });
 
-  it.fails("DÉFAUT D1 : ces mots bloquent aussi le premier commentaire et le texte alternatif", async () => {
+  it("D1 : un texte sain passe (pas de faux positif)", async () => {
+    const { f } = monter();
+    await expect(f.envoyer(demande({ texte: "Des résultats concrets, selon votre situation" }))).resolves.toMatchObject({ statut: "brouillon" });
+  });
+
+  it("D1 corrigé : ces mots bloquent aussi le premier commentaire et le texte alternatif", async () => {
     const { f, faux } = monter();
     await expect(f.envoyer(demande({ reseau: "facebook", cible: "exemple-compte-2:fb:exemple-page-1", premierCommentaire: `Venez à ${VILLE}` }))).rejects.toThrow();
     await expect(f.envoyer(demande({ images: [{ url: "https://exemple-r2.test/a.png", texteAlternatif: PROMESSE }] }))).rejects.toThrow();
