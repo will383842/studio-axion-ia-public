@@ -38,6 +38,13 @@ describe("garde charte Axion 2026", () => {
     }
   });
 
+  it("id d'exception unique par fichier : un second dégradé du même nom dans le même fichier est refusé", () => {
+    for (const e of EXCEPTIONS_DEGRADES_MATIERES) {
+      const occurrences = occurrencesDegrades(readFileSync(join(process.cwd(), e.fichier), "utf8")).filter((o) => o.nom === e.nom);
+      expect(occurrences.length, `${e.fichier} : « ${e.nom} » doit être unique dans le fichier`).toBe(1);
+    }
+  });
+
   it("détecte les dégradés canvas et SVG, sauf les matières nommées", () => {
     expect(defauts("const g = ctx.createLinearGradient(0, 0, 0, 9);").some((x) => x.startsWith("dégradé canvas"))).toBe(true);
     expect(defauts("const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 9);").some((x) => x.startsWith("dégradé canvas"))).toBe(true);

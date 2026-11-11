@@ -113,7 +113,7 @@ describe("4-5) textes", () => {
     await cc.enregistrerCycleCredit("abonnement-2", { ...CYCLE, montantCentimes: 1000 });
     await depense(5000, "2026-10-10T00:00:00.000Z", "abonnement-2");
     const c = (await cc.vueCreditClaude(ENV)).comptes.find((x) => x.source === "abonnement-2")!;
-    expect(c.restantTexte).toBe("0 $ (dépensé plus que le crédit noté : à recaler avec la Console)");
+    expect(c.restantTexte).toBe("Épuisé (dépensé plus que le crédit noté : à recaler avec la Console)");
   });
   it("hors total : doublon, clé payante, sans clé, désactivé", async () => {
     await ecrireParametre("claude.sources", { mode: "abonnements", ordre: ["abonnement-1", "abonnement-2", "abonnement-3"], desactives: ["abonnement-2"] });

@@ -39,6 +39,9 @@ const pub = await import("@/services/publications");
 const { PARAM_CANAUX, marquerEnvoiVerifie } = await import("@/services/buffer");
 const { PARAM_ROUTAGE } = await import("@/services/routage-publication");
 const { envoyerParOutilAction } = await import("@/services/a-publier-zernio");
+// Précondition L7-08 : l'envoi du calendrier a son propre réglage, fermé par défaut ; ce fichier teste l'envoi, il l'ouvre.
+const { ecrireParametre: ecrireReglageCalendrier } = await import("@/services/_commun");
+const { PARAM_ENVOI_CALENDRIER } = await import("@/services/zernio");
 
 
 const VIDEO = "v-15";
@@ -72,11 +75,12 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", () => Promise.reject(new Error("fetch interdit")));
   reinitialiserDepots();
   await exemplesCommeVraies(depots(), { plusExemples: true });
+  await ecrireReglageCalendrier(PARAM_ENVOI_CALENDRIER, true);
   reinitialiserRequete();
   await auth.seConnecter("essai-fix-cible", false);
   etat.zernio = fauxZernio();
   demandes = [];
-  canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-williams-222222", "Williams Jullin")];
+  canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-exemple-222222", "Jean Exemple")];
   await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 });
@@ -94,7 +98,7 @@ describe("FIX-CIBLE · réessai par Zernio avec la page cochée", () => {
   });
 
   it("deux comptes Zernio du même nom : refus clair qui nomme les choix, rien ne part", async () => {
-    canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-axion-333333", "Axion-IA.com"), canal("zernio-fb-williams-222222", "Williams Jullin")];
+    canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-axion-333333", "Axion-IA.com"), canal("zernio-fb-exemple-222222", "Jean Exemple")];
     const r = await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio", comptes: [BUF_AXION] });
     const texte = JSON.stringify(r);
     expect(texte).toContain("Axion-IA.com");
@@ -110,7 +114,7 @@ describe("FIX-CIBLE · réessai par Zernio avec la page cochée", () => {
     const texte = JSON.stringify(r);
     expect(texte).toContain("Cochez la page");
     expect(texte).toContain("Axion-IA.com");
-    expect(texte).toContain("Williams Jullin");
+    expect(texte).toContain("Jean Exemple");
     expect(demandes).toHaveLength(0);
   });
 });

@@ -380,7 +380,7 @@ describe("R2 · écran du kit (rendu)", () => {
     expect(html("essai")).toContain("Texte d&#x27;essai");
     expect(html("main")).toContain("Retouché par vous");
     expect(html(undefined)).toBe("");
-    expect(libelleReecrire({ prixReecriture: { centimes: 7, devise: "EUR" } })).toMatch(/^Réécrire · jusqu'à environ 0,07\s€$/);
+    expect(libelleReecrire({ prixReecriture: { centimes: 7, devise: "EUR" } })).toBe("Réécrire");
     expect(libelleReecrire({})).toBe("Réécrire");
     for (const o of ["claude", "essai", "main", "version"] as const) expect(html(o)).not.toMatch(/\bIA\b/);
   });
@@ -635,7 +635,7 @@ describe("R2 relecture n° 5 et 2ᵉ relecture (b) · un seul nombre d'essais, p
     expect((await journal()).some((m) => m.includes(`essai ${N} sur ${N}`))).toBe(true);
     const e = rolePub.entreePublication(rolePub.donneesPublication({ reseau: "linkedin", titre: v.titre, texteValide: "x", adresse: "vous", mention: "", credits: [], regles: [] }));
     expect(li.prixReecriture!.centimes).toBeGreaterThanOrEqual(Math.floor(N * pireCasRole(rolePub.rolePublication, e) * 100 * TAUX_USD_EUR_PAR_DEFAUT));
-    expect(libelleReecrire(li)).toMatch(/^Réécrire · jusqu'à environ \d+,\d{2}\s€$/);
+    expect(libelleReecrire(li)).toBe("Réécrire");
   });
 });
 

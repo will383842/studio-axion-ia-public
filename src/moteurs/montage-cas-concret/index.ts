@@ -46,7 +46,7 @@ import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { refusAvantPrix } from "./avant-prix";
 import { retenirCasPourSimulation } from "./cas-simules";
 import { recettePour } from "@/formats/cas-concret/recette";
-import { centimes, formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur, ZERO } from "@/lib/montants";
+import { centimes, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur, ZERO } from "@/lib/montants";
 import { APPELS_ECRITURE_MAX, contexteDuSocle, coutEstimeUsd, DEBUT_REFUS_ECRITURE, dureesDesFins, ficheParGabarit, MAX_TOKENS_ECRITURE, roleEcritureCasConcret, variableEcriture } from "./ecriture";
 import { etapesCasConcret, lireEntreesCasConcret, regrouperFins, type EntreesCasConcret } from "./etapes";
 import { empreinte, ErreurFabricationCasConcret, fabriquerCasConcret, marquerRepriseEcriture, MOTEUR_CAS_CONCRET, relancerRendusCasConcret, VERSION_FABRICATION_CAS_CONCRET, type CompteRenduCasConcret, type JournalCasConcret } from "./fabriquer";
@@ -867,8 +867,7 @@ export function coutNouvelEssaiEcritureCentimes(cas: CasConcret, commande: Comma
 
 /** X12 : ce que fait « Réessayer » après une écriture refusée, et son prix (dit AVANT le clic). */
 function annonceNouvelEssai(cas: CasConcret, commande: CommandeFabrication): string {
-  const prix = formaterMontant({ centimes: coutNouvelEssaiEcritureCentimes(cas, commande), devise: "EUR" });
-  return ` « Reprendre » relit d'abord les réponses déjà payées avec les règles du jour ; si elles restent refusées, un nouvel essai d'écriture coûte environ ${prix}.`;
+  return ` « Reprendre » relit d'abord les réponses déjà payées avec les règles du jour ; si elles restent refusées, il lance un seul nouvel essai d'écriture.`;
 }
 
 /** Phrase d'une étape en échec : une seule tournure, accordée quel que soit le nom de l'étape (« Les écrans »…). */

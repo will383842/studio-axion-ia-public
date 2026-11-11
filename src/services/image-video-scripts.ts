@@ -62,7 +62,7 @@ export async function validerScriptImageVideo(
   const accordCentimes = typeof auto === "number" ? auto : undefined;
   if (lanceur && (accordCentimes === undefined || accordCentimes < montant)) {
     // Pas « CONFIRMATION_REQUISE » : la reprise par « Réessayer » ne garderait pas la décision ; Will valide de nouveau.
-    throw new ErreurStudio("ACCORD_PRIX_REQUIS", `Rien n'est payé : la suite coûte au plus ${(montant / 100).toFixed(2).replace(".", ",")} €. Validez de nouveau en confirmant ce prix.`, montant);
+    throw new ErreurStudio("ACCORD_PRIX_REQUIS", `Rien n'est payé : la suite est payante. Validez de nouveau en confirmant.`, montant);
   }
   const decision = {
     proposition: etat.propositionScript.empreinte,

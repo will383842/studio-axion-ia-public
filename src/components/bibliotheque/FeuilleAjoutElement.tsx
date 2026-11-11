@@ -65,7 +65,7 @@ function Formulaire({ type, onFini }: { type: TypeElement; onFini: () => void })
       {fichierAttendu &&
         (fichier ? (
           <div className="flex min-h-14 items-center gap-3 rounded-carte border border-trait bg-surface-2 px-4">
-            <Icone nom="document" size={18} className="text-orange-vif" />
+            <Icone nom="document" size={18} className="text-texte-faible" />
             <span className="min-w-0 flex-1 truncate text-sm text-texte">{fichier.name}</span>
             <span className="text-xs text-texte-faible">{tailleLisible(fichier.size)}</span>
             <button type="button" aria-label="Retirer le fichier" onClick={() => setFichier(null)} className="-mr-2 grid size-11 place-items-center rounded-full text-texte-faible hover:text-texte">
