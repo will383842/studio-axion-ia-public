@@ -385,7 +385,7 @@ export function controlerDuree(texteDit: string, reseau: DemandeScriptTableau["r
   const libelle = bornes ? "une vidéo de 30 s" : RESEAUX_SCRIPT_INFOS[reseau].libelle;
   const duree = dureeDiteBrute(texteDit);
   const n = caracteresDits(texteDit);
-  // Le plafond se juge sur les caractères (constante figée), pas sur la durée flottante : 1 520 passe, 1 521 est refusé.
+  // Le plafond se juge sur les caractères (constante figée), pas sur la durée flottante : 3 041 passe, 3 042 est refusé.
   const auDela = n > CARACTERES_DITS_MAX_TABLEAU;
   if (!auDela && duree >= dureeMin && duree <= dureeMax) return [];
   const ecart = duree < dureeMin ? (dureeMin - duree) / dureeMin : (duree - dureeMax) / dureeMax;
