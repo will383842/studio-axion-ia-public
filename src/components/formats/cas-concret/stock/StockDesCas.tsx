@@ -7,7 +7,6 @@ import { Pastille } from "@/components/ui/Pastille";
 import { OFFRES_PASTILLES } from "@/components/formats/cas-concret/entree/vue";
 import type { IdeeAutomatisation } from "@/formats/cas-concret/stock-idees";
 import { phraseSynthese, synthese, type EtatVideoCas, type LigneStock } from "@/services/cas-concret-stock";
-import { centimes, formaterMontant } from "@/lib/montants";
 import { filtrerStock, syntheseStock, type FiltresStock as Filtres } from "@/services/cas-concret-stock-synthese";
 import { FiltresStock } from "./FiltresStock";
 import { groupesDepuisCompteurs, lienStock, PAR_PAGE } from "./filtres-stock";
@@ -53,7 +52,6 @@ function CarteStock({ l }: { l: LigneStock }) {
             ))}
           </span>
         )}
-        {l.prixAuPlusCentimes !== undefined && <span className="text-[13px] text-texte-doux">Prix : {formaterMontant(centimes(l.prixAuPlusCentimes))} au plus</span>}
         {l.faits.aSignaler.length > 0 && (
           <span className="text-[13px] text-ambre">
             {l.faits.aSignaler.length > 1 ? `${l.faits.aSignaler.length} faits à vérifier` : "1 fait à vérifier"} sur {l.faits.total}
