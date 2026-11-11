@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as carrousel from "@/briques/visuels/charte-carrousel";
 import { PALETTE, choisirFond, type Fond } from "@/briques/charte/axion-2026";
@@ -36,6 +37,38 @@ describe("V7-02 : carrousels sur la charte Axion 2026", () => {
     expect(c.orange).toBe(PALETTE.orange);
     expect(carrousel.texteLisible(c.orangeFonce, c.creme, 30)).toBe(true);
     expect(carrousel.texteLisible(c.orange, c.encre, 30)).toBe(true);
+  });
+
+  it("D5 : aucune valeur de CHARTE_CONTINU ne vaut #8F3412 (survol, décision ouverte)", () => {
+    for (const v of Object.values(carrousel.CHARTE_CONTINU)) expect(v.toUpperCase()).not.toBe("#8F3412");
+  });
+
+  it("deux rôles d'accent : accentSombre sur noir seulement, accentClair sur fonds clairs", () => {
+    const C = carrousel.CHARTE_CONTINU;
+    expect(carrousel.contrasteWcag(C.accentSombre, C.encre)).toBeGreaterThanOrEqual(3);
+    // Sur blancCarte (#FFFFFF) l'orange fait 3,12 : la consigne « < 3 » y est fausse, l'interdit reste une règle de rôle (ESCALADE).
+    for (const fond of [C.creme, carrousel.CHARTE_CARROUSEL.couleurs.pale]) expect(carrousel.contrasteWcag(C.accentSombre, fond)).toBeLessThan(3);
+    for (const fond of [C.creme, C.blancCarte, carrousel.CHARTE_CARROUSEL.couleurs.pale]) expect(carrousel.contrasteWcag(C.accentClair, fond)).toBeGreaterThanOrEqual(3);
+    for (const alias of [C.orange, C.orangeClair, C.orangeLumiere]) expect(alias).toBe(C.accentSombre);
+  });
+
+  it("tuiles k (noir) et w (blanche) différentes", () => {
+    expect(carrousel.DEGRADES_CONTINU.tuile.k).not.toBe(carrousel.DEGRADES_CONTINU.tuile.w);
+  });
+
+  it("continu/ n'emploie que accentClair et accentSombre (jamais C.orange, C.orangeClair, C.orangeLumiere)", () => {
+    const racine = "studio-rendu/compositions/visuels/continu";
+    const fichiers: string[] = [];
+    const parcourir = (d: string) => {
+      for (const n of readdirSync(d)) {
+        const p = join(d, n);
+        if (statSync(p).isDirectory()) parcourir(p);
+        else if (/\.tsx?$/.test(n)) fichiers.push(p);
+      }
+    };
+    parcourir(racine);
+    expect(fichiers.length).toBeGreaterThan(10);
+    for (const f of fichiers) expect(readFileSync(f, "utf8"), f).not.toMatch(/C\.(orange|orangeClair|orangeLumiere)\b/);
   });
 
   it("pastille : couleurs de la palette, Manrope", () => {
