@@ -104,7 +104,7 @@ export function FeuilleImport({ ouverte, onOuverteChange, onImportees }: { ouver
         )}
         <div className="rounded-carte border border-dashed border-trait-fort p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-texte">
-            <Icone nom="lien" size={15} className="text-orange-vif" />
+            <Icone nom="lien" size={15} className="text-texte-faible" />
             Dossier Google Drive
           </p>
           <p className="mt-1 text-xs text-texte-faible">Lu sans jamais être modifié.</p>

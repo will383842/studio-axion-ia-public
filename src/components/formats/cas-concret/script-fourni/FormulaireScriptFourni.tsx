@@ -132,7 +132,7 @@ export function FormulaireScriptFourni({ casId, titre, texteDepart, origine, per
                   {r.ligne && (
                     <>
                       {" "}
-                      <button type="button" onClick={() => allerALaLigne(r.ligne!)} className="inline-flex min-h-11 items-center rounded-sm font-semibold text-orange-vif underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
+                      <button type="button" onClick={() => allerALaLigne(r.ligne!)} className="inline-flex min-h-11 items-center rounded-sm font-semibold text-texte underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
                         Aller à la ligne {r.ligne}
                       </button>
                     </>

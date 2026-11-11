@@ -25,10 +25,10 @@ export function ApercuImageVideo({ donnees }: { donnees: DonneesApercuImage }) {
       </div>
       {/* Colonne bornée (minmax(0,1fr)) : les rangées de pastilles défilent sans élargir la carte. */}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 p-4">
-        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-vif">
+        <p className="flex items-center gap-2 text-sm font-semibold text-texte-doux">
           <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-orange-vif opacity-60" />
-            <span className="relative inline-flex size-2 rounded-full bg-orange-vif" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-texte-faible opacity-60" />
+            <span className="relative inline-flex size-2 rounded-full bg-texte-faible" />
           </span>
           Aperçu en direct
         </p>

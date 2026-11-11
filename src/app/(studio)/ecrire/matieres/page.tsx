@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { OngletMatieres } from "@/components/matieres/OngletMatieres";
-import { EnTetePage } from "@/components/ui";
+import { ConteneurPage, EnTetePage } from "@/components/ui";
 import { TYPES_MATIERE } from "@/domaine/matieres";
 import type { TypeMatiere } from "@/domaine/types";
 import { exigerSession } from "@/services/auth";
@@ -22,9 +22,9 @@ export default async function PageMatieres({ searchParams }: { searchParams: Pro
   const filtre = type === "preuves" || TYPES_MATIERE.includes(type as TypeMatiere) ? (type as TypeMatiere | "preuves") : "tout";
   const ajoutInitial = ajout === "matiere" || ajout === "vrac" || ajout === "preuve" ? ajout : undefined;
   return (
-    <div className="mx-auto max-w-2xl">
-      <EnTetePage retour={{ href: "/ecrire", libelle: "Écrire" }} titre="Matières" className="mb-4" />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={{ href: "/ecrire", libelle: "Écrire" }} titre="Matières" sousTitre="Ce que vous savez et ce que vous avez vécu, pour nourrir vos scripts." />
       <OngletMatieres vues={vues} preuves={preuves} jauge={jauge} rappelHebdo={rappel.actif} filtreInitial={filtre} ajoutInitial={ajoutInitial} rangementEssai={!claude} />
-    </div>
+    </ConteneurPage>
   );
 }

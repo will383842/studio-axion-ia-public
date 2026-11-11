@@ -2,6 +2,7 @@ import Link from "next/link";
 import { lienFiltres, type FiltresMesVideos as Filtres, type ParametresAdresse } from "@/domaine/filtres-mes-videos";
 import { ETAPES_EDITORIALES } from "@/domaine/libelles";
 import type { EtapeEditoriale, IdReseau } from "@/domaine/types";
+import { GroupeFiltres, PuceLien } from "@/components/ui/PanneauFiltres";
 import { cn } from "@/lib/cn";
 import { obtenirReseau } from "@/reseaux";
 
@@ -31,7 +32,7 @@ function Rangee({ titre, children }: { titre: string; children: React.ReactNode 
   );
 }
 
-const PLURIEL: Record<EtapeEditoriale, string> = { a_relire: "À relire", validee: "Validées", programmee: "Programmées", publiee: "Publiées" };
+export const PLURIEL: Record<EtapeEditoriale, string> = { a_relire: "À relire", validee: "Validées", programmee: "Programmées", publiee: "Publiées" };
 
 /**
  * Deux rangées de puces (lot M) : Réseau (seulement ceux qui ont une vidéo, avec leur nombre) et Étape.
@@ -43,13 +44,45 @@ export function FiltresMesVideos({
   filtres,
   reseaux,
   className,
+  disposition = "rangee",
 }: {
   base: string;
   params: ParametresAdresse;
   filtres: Filtres;
   reseaux: { reseau: IdReseau; nombre: number }[];
   className?: string;
+  /** "rangee" (défaut, inchangé) ou "panneau" (GroupeFiltres + PuceLien, à placer dans un panneau ou une feuille). */
+  disposition?: "rangee" | "panneau";
 }) {
+  if (disposition === "panneau") {
+    return (
+      <>
+        {(reseaux.length > 0 || filtres.reseau) && (
+          <GroupeFiltres titre="Réseau" className={className}>
+            <PuceLien href={lienFiltres(base, params, { reseau: undefined })} actif={!filtres.reseau}>
+              Tous
+            </PuceLien>
+            {reseaux.map(({ reseau, nombre }) => (
+              <PuceLien key={reseau} href={lienFiltres(base, params, { reseau })} actif={filtres.reseau === reseau}>
+                {obtenirReseau(reseau).nom}
+                <span className="text-[11px] tabular-nums opacity-70">{nombre}</span>
+              </PuceLien>
+            ))}
+          </GroupeFiltres>
+        )}
+        <GroupeFiltres titre="Étape" className={className}>
+          <PuceLien href={lienFiltres(base, params, { etape: undefined })} actif={!filtres.etape}>
+            Toutes
+          </PuceLien>
+          {(Object.keys(ETAPES_EDITORIALES) as EtapeEditoriale[]).map((e) => (
+            <PuceLien key={e} href={lienFiltres(base, params, { etape: e })} actif={filtres.etape === e}>
+              {PLURIEL[e]}
+            </PuceLien>
+          ))}
+        </GroupeFiltres>
+      </>
+    );
+  }
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {(reseaux.length > 0 || filtres.reseau) && (

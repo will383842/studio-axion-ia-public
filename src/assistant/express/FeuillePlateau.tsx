@@ -13,6 +13,7 @@ import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
 import { ApercuPlateau } from "@/components/creation/ApercuPlateau";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
+import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { Pastille } from "@/components/ui/Pastille";
@@ -99,7 +100,7 @@ function ListeDecors({ decors, choisi, silhouette, contexte, onChoisir }: { deco
             role="radio"
             aria-checked={actif}
             onClick={() => onChoisir(e.id)}
-            className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort")}
+            className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-texte ring-2 ring-texte/30" : "border-trait hover:border-trait-fort")}
           >
             <span className="relative block aspect-[9/16]" style={{ background: v.teinte ?? "var(--surface-2)" }}>
               {image ? (
@@ -113,7 +114,7 @@ function ListeDecors({ decors, choisi, silhouette, contexte, onChoisir }: { deco
               {silhouette && !look && <Image src={silhouette} alt="" fill sizes="96px" className="object-contain object-bottom" />}
               {v.catalogue?.misEnAvant && !actif && (
                 <span className="absolute left-1 top-1">
-                  <Pastille ton="orange" icone="etoile">
+                  <Pastille ton="neutre" icone="etoile">
                     Conseillé
                   </Pastille>
                 </span>
@@ -124,7 +125,7 @@ function ListeDecors({ decors, choisi, silhouette, contexte, onChoisir }: { deco
                 </span>
               )}
               {actif && (
-                <span className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-orange text-sur-orange">
+                <span className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-texte text-fond">
                   <Icone nom="coche" size={13} strokeWidth={3} />
                 </span>
               )}
@@ -198,7 +199,7 @@ function Decrivez({ brouillon, modifier, contexte }: ProprietesEtape) {
   };
 
   return (
-    <section className="rounded-carte border border-trait bg-surface-1 p-4">
+    <Carte as="section">
       <form
         className="flex items-end gap-2"
         onSubmit={(e) => {
@@ -231,6 +232,6 @@ function Decrivez({ brouillon, modifier, contexte }: ProprietesEtape) {
           </Bouton>
         </div>
       )}
-    </section>
+    </Carte>
   );
 }

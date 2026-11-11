@@ -64,9 +64,9 @@ export function EtapeMedias({ formatId, brouillon, modifier }: ProprietesEtape) 
         return (
           <section key={e.cle}>
             <div className="mb-2 flex items-center gap-2">
-              <Icone nom={ICONES[e.cle]} size={16} className="text-orange-vif" />
+              <Icone nom={ICONES[e.cle]} size={16} className="text-texte-doux" />
               <h2 className="font-texte text-[15px] font-semibold text-texte">{e.nom}</h2>
-              {e.obligatoire ? <Pastille ton="orange">Obligatoire</Pastille> : <Pastille>Facultatif</Pastille>}
+              {e.obligatoire ? <Pastille ton="neutre">Obligatoire</Pastille> : <Pastille>Facultatif</Pastille>}
               {fichiers.length > 0 && <span className="ml-auto text-sm tabular-nums text-texte-faible">{fichiers.length}</span>}
             </div>
             {fichiers.length > 0 && (

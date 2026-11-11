@@ -126,6 +126,38 @@ describe("port inbox · écritures", () => {
     expect(await port.envoyerMessage({ ...base, cle: "k2", texte: lien("https://guides.axion-ia.com/fr/guide-ia") })).toMatchObject({ statut: "envoye" });
   });
 
+  it("lien de la page guide : la forme exacte du lien signé passe, tout écart est refusé", async () => {
+    const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-g1" } }]);
+    const base = { idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", cle: "kg" };
+    const lien = (u: string) => rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: u })!;
+    const fixture = JSON.parse(readFileSync(resolve(__dirname, "aides", "lien-page-guide.v2.json"), "utf8")) as { lien: string };
+    const entete = "https://axion-ia.com/guide-reseau?j=";
+    const [charge, sig] = fixture.lien.slice(entete.length).split(".") as [string, string];
+    // Le lien de la fixture (340 caractères) est accepté.
+    expect(await port.envoyerMessage({ ...base, texte: lien(fixture.lien) })).toMatchObject({ statut: "envoye" });
+    const appelsAvant = faux.appels.length;
+    // 513 caractères : refusé (le modèle du dictionnaire n'admet pas plus de 512).
+    const trop = entete + "a".repeat(513 - entete.length);
+    expect(trop).toHaveLength(513);
+    const refuses = [
+      trop,
+      "https://evil.example/guide-reseau?j=" + charge + "." + sig, // hôte étranger
+      fixture.lien + "&x=1", // paramètre en plus
+      "https://axion-ia.com/guide-reseau?x=1&j=" + charge + "." + sig, // paramètre avant
+      entete + charge, // pas de signature
+      entete + charge + "." + sig.slice(1), // signature de 42 caractères
+      entete + charge + "." + sig + "a", // signature de 44 caractères
+      fixture.lien + "#ancre",
+      "https://guides.axion-ia.com/guide-reseau?j=" + charge + "." + sig, // sous-domaine : forme exacte exigée
+    ];
+    for (const mauvais of refuses) {
+      const r = await port.envoyerMessage({ ...base, texte: lien(mauvais) });
+      expect(r).toMatchObject({ statut: "refuse" });
+      expect(JSON.stringify(r)).not.toContain(charge);
+    }
+    expect(faux.appels).toHaveLength(appelsAvant);
+  });
+
   it("réponse publique : lien et titre contrôlés aussi ; sans liste de titres, tout titre est refusé", async () => {
     const { port, faux } = fabrique([]);
     const pub = rendreTexteMp("mp-pub-linkedin-v1", { titre: "Guide d'exemple", lien: "https://evil.example/x" });

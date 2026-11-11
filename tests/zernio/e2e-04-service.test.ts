@@ -30,6 +30,9 @@ const pub = await import("@/services/publications");
 const { envoyerParOutilAction } = await import("@/services/a-publier-zernio");
 const actions = await import("@/app/(studio)/reglages/actions-zernio");
 const { injecterClientZernio, synchroniserEtatsZernio } = await import("@/services/zernio");
+// Précondition L7-08 : l'envoi du calendrier a son propre réglage, fermé par défaut ; ce fichier teste l'envoi, il l'ouvre.
+const { ecrireParametre: ecrireReglageCalendrier } = await import("@/services/_commun");
+const { PARAM_ENVOI_CALENDRIER } = await import("@/services/zernio");
 
 const VIDEO = "v-15";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
@@ -83,6 +86,7 @@ beforeEach(async () => {
   vi.unstubAllGlobals();
   reinitialiserDepots();
   await exemplesCommeVraies(depots(), { plusExemples: true });
+  await ecrireReglageCalendrier(PARAM_ENVOI_CALENDRIER, true);
   reinitialiserRequete();
   injecterClientZernio(null);
   process.env.ZERNIO_API_KEY = CLE_FICTIVE;
@@ -319,7 +323,8 @@ describe("e2e-4 · synchronisation : un post publié chez Zernio passe à « Pub
     await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
     const avant = appelsZernio.length;
     expect((await synchroniserEtatsZernio({ force: true, instant: Date.now() })).lues).toBe(0);
-    expect(appelsZernio.length).toBe(avant);
+    // Seule la lecture des comptes (alertes jetons, STU-JETONS) est permise : aucune lecture de post.
+    expect(appelsZernio.slice(avant).filter((a) => !/\/v1\/accounts$/.test(String((a as { url?: string }).url ?? a)))).toHaveLength(0);
   });
 
   it("sans clé Zernio : la synchro ne fait rien et ne plante pas", async () => {
