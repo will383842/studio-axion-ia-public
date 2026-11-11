@@ -17,6 +17,17 @@ describe("L5-26 · rattachement d'un contact", () => {
   });
 });
 
+describe("L5-26 · mot normalisé", () => {
+  it("« GUIDE », « guide » et « Guide » donnent une seule ligne", () => {
+    const t = jointureMotPublication([
+      { mot: "GUIDE", reseau: "instagram", post_ref: "p1" },
+      { mot: " guide ", reseau: "instagram", post_ref: "p1" },
+      { mot: "Guide", reseau: "instagram", post_ref: "p1" },
+    ]);
+    expect(t.lignes).toEqual([{ mot: "GUIDE", postRef: "p1", contacts: 3 }]);
+  });
+});
+
 describe("L5-26 · corps sans e-mail", () => {
   it("refuse un corps qui contient une adresse e-mail", () => {
     expect(corpsSansEmail("écris-moi à personne@exemple.fr")).toEqual({ ok: false, motif: "email_interdit" });
@@ -47,11 +58,22 @@ describe("L5-26 · contrat utm_campaign (fixture)", () => {
   it("la charge CRM v3 porte utm_campaign dans chaque origine", () => {
     for (const o of charge.payload.origines) expect(typeof o.utm_campaign).toBe("string");
   });
+  it("chaque utm_campaign de la fixture est un code de lien accepté par construireLienSuivi", () => {
+    for (const o of charge.payload.origines) {
+      const typeLien = /^mot-/.test(o.utm_campaign) ? "message" : "video";
+      expect(() => construireLienSuivi({ typeLien, reseau: o.reseau, code: o.utm_campaign, activite: "clients", page: "/fr/guide-ia" }), `utm_campaign « ${o.utm_campaign} »`).not.toThrow();
+    }
+  });
   it("utm_campaign du lien suivi = code du lien (vidéo et mot)", () => {
     const video = construireLienSuivi({ typeLien: "video", reseau: "instagram", code: "0042-TB-IG", activite: "clients", page: "/fr/diagnostic" });
     expect(utmCampaignDuLien(video)).toBe("0042-TB-IG");
     const mot = construireLienSuivi({ typeLien: "message", reseau: "instagram", code: "mot-guide", activite: "clients", page: "/fr/guide-ia" });
     expect(utmCampaignDuLien(mot)).toBe("mot-guide");
+  });
+  it("fragment ignoré et pourcentage décodé", () => {
+    expect(utmCampaignDuLien("https://axion-ia.com/fr/appel?utm_source=x&utm_campaign=mot-guide#x")).toBe("mot-guide");
+    expect(utmCampaignDuLien("https://axion-ia.com/fr/appel?utm_campaign=mot%2Dguide")).toBe("mot-guide");
+    expect(utmCampaignDuLien("pas un lien")).toBeNull();
   });
   it("un lien sans utm_campaign donne null", () => {
     expect(utmCampaignDuLien("https://axion-ia.com/fr/appel?utm_source=x")).toBeNull();

@@ -16,7 +16,7 @@ export type Rattachement = { statut: "non_rattache" } | { statut: "rattache"; cl
 export function rattacherContact(o: OrigineContact): Rattachement {
   const ref = o.post_ref?.trim();
   if (!ref) return { statut: "non_rattache" };
-  return { statut: "rattache", cle: { mot: o.mot, postRef: ref } };
+  return { statut: "rattache", cle: { mot: o.mot.trim().toUpperCase(), postRef: ref } };
 }
 
 const RE_EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
@@ -49,12 +49,11 @@ export function jointureMotPublication(origines: readonly OrigineContact[]): { l
   return { lignes, nonRattaches };
 }
 
-/** Valeur de `utm_campaign` d'un lien suivi, ou null. */
+/** Valeur de `utm_campaign` d'un lien suivi (sans fragment, décodée), ou null. */
 export function utmCampaignDuLien(lien: string): string | null {
-  const requete = lien.split("?")[1] ?? "";
-  for (const p of requete.split("&")) {
-    const [nom, valeur] = p.split("=");
-    if (nom === "utm_campaign" && valeur) return valeur;
+  try {
+    return new URL(lien).searchParams.get("utm_campaign") || null;
+  } catch {
+    return null;
   }
-  return null;
 }
