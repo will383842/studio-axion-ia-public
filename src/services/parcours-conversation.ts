@@ -19,7 +19,7 @@ import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, orig
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
-import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
+import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
@@ -110,6 +110,10 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
   }
 }
 
+/** Alerte FIXE d'un doute sur une demande d'arrêt : ni texte, ni identifiant. Sujet propre à l'événement : un 2e doute n'est pas masqué par le délai d'une heure. */
+const MESSAGE_DOUTE_OPPOSITION = "Un message privé contient peut-être une demande d'arrêt. Rien n'a été envoyé ; la conversation est en pause. À vérifier dans l'Inbox Zernio.";
+const signalerDoute = (ev: EvenementFournisseur, now: number): Promise<void> => alerter(`doute:${ev.idEvenement}`, MESSAGE_DOUTE_OPPOSITION, now);
+
 /* --- Gardes avant toute action sortante ----------------------------------------------------------------------- */
 async function motGuideActif(compte: string): Promise<boolean> {
   const reg = await lireParametre<Registre>(PARAM_REGISTRE_MOTS, {});
@@ -170,9 +174,11 @@ const formesConversation = (cles: ClesOk, idBrut: string): string[] => [cles.cou
  * interrogé avec la clé et tous les alias : une opposition arrivée entre-temps arrête l'envoi. Registre illisible : l'erreur est
  * levée (le passage reporte l'événement d'une minute, `registre_illisible`) ; jamais « non opposée » par défaut.
  */
-async function opposeeAvantEnvoi(cle: string, env: Env): Promise<boolean> {
+async function opposeeAvantEnvoi(cle: string, env: Env, opts: { m2?: boolean } = {}): Promise<boolean> {
   const e = await lireEtat(cle);
   if (e?.etat === "oppose") return true;
+  // Un doute posé entre la lecture et l'envoi bloque M2 (pas la demande de guide : une adresse explicite reste servie).
+  if (opts.m2 && e?.douteOpposition === true) return true;
   return empreintesOpposees([cle, ...(e?.alias ?? [])], { env });
 }
 
@@ -552,10 +558,14 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     }
     const lu = await lireTexte(ev, d, idCompte, idConversation, idMessage, now, false);
     if (!lu) return "traite";
-    if (estMotOpposition(lu.texte)) {
+    const classeOrphelin = classerOpposition(lu.texte);
+    if (classeOrphelin === "opposition") {
       await enregistrerOpposition(idExpediteur!, ESPACE_CONVERSATION, { env });
       await enregistrerOpposition(idConversation, ESPACE_CONVERSATION, { env });
       await clore(ev, "oppose", "opposition_orpheline");
+    } else if (classeOrphelin === "doute") {
+      await signalerDoute(ev, now);
+      await clore(ev, "ignore", "doute_opposition");
     } else await clore(ev, "ignore", "orphelin");
     return "traite";
   }
@@ -596,14 +606,26 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now, s0.action !== "lire_opposition");
   if (!lu) return "traite";
+  // Classé UNE fois : opposition claire, doute, ou rien.
+  const classe = classerOpposition(lu.texte);
   if (s0.action === "lire_opposition") {
-    // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition.
-    if (estMotOpposition(lu.texte)) await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
-    else await clore(ev, "silence", s0.raison ?? "etat");
+    // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition ; un doute alerte, l'état reste inchangé.
+    if (classe === "opposition") await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
+    else if (classe === "doute") {
+      await signalerDoute(ev, now);
+      await clore(ev, "silence", "doute_opposition");
+    } else await clore(ev, "silence", s0.raison ?? "etat");
     return "traite";
   }
-  if (estMotOpposition(lu.texte)) {
+  if (classe === "opposition") {
     await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
+    return "traite";
+  }
+  // Doute : AVANT la veille et les gardes. Rien ne part (M2 n'est plus jamais envoyé), la conversation est en pause, l'opérateur est alerté (cloche seulement).
+  if (classe === "doute") {
+    await patcher(cle, { douteOpposition: true });
+    await signalerDoute(ev, now);
+    await clore(ev, "silence", "doute_opposition");
     return "traite";
   }
   // Veille : un humain a repris la conversation. Le « stop » a été lu ci-dessus ; ici plus rien ne part (ni M2, ni appel au site, ni accusé).
@@ -620,7 +642,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // Lecture réussie = message entrant confirmé : seulement maintenant, les alias sont notés.
   const adresse = extraireAdresse(lu.texte);
-  const s = transition(etat, { t: "texte", estOpposition: false, adresse });
+  const classeMachine: ClasseOpposition = classe as ClasseOpposition; // opposition et doute sont déjà traités plus haut : la machine reste la source de vérité des transitions
+  const s = transition(etat, { t: "texte", estOpposition: classeMachine === "opposition", doute: classeMachine === "doute", adresse });
   if (s.action === "opposer") {
     await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
     return "traite";
@@ -636,7 +659,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "ignore", "texte_incomplet");
       return "traite";
     }
-    if (await opposeeAvantEnvoi(cle, env)) {
+    if (await opposeeAvantEnvoi(cle, env, { m2: true })) {
       await clore(ev, "silence", "opposee");
       return "traite";
     }

@@ -59,7 +59,7 @@ describe("a) l'adresse ne reste NULLE PART", () => {
   it("trigger.text : gardé seulement si mot seul ou opposition", () => {
     const lire = (t: unknown) => lireEvenementRun(lireEnveloppe(JSON.stringify(run({ trigger: { text: t } })))!)?.motDeclencheur;
     expect(lire("GUIDE")).toBe("GUIDE");
-    expect(lire("stop")).toBe("stop");
+    expect(lire("stop")).toBe("STOP");
     expect(lire(ADRESSE)).toBeNull();
     expect(lire("bonjour guide")).toBeNull();
   });
@@ -235,7 +235,7 @@ describe("mot seul : limité aux mots configurés et à l'opposition", () => {
     expect(lireRun("BONJOUR")).toBeNull();
     expect(lireEvenementCommentaire(env(commentaire({ text: "BONJOUR" })))!.motSeul).toBeNull();
     expect(lireRun("GUIDE")).toBe("GUIDE");
-    expect(lireRun("stop")).toBe("stop");
+    expect(lireRun("stop")).toBe("STOP");
     expect(lireEvenementCommentaire(env(commentaire({ text: "guide" })))!.motSeul).toBe("GUIDE");
   });
   it("idContact avec « @ » → null (identifiant opaque seulement)", () => {
