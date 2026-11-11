@@ -98,7 +98,7 @@ export function Fabrication({
         arreter={enCours && arret ? <BoutonArreter travailId={arret.travailId} videoId={videoId} depense={arret.depense} /> : undefined}
         propres={
           arretee && !enCours ? (
-            <Link href="/videos" className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-orange underline">
+            <Link href="/videos" className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-orange-vif underline">
               Voir mes vidéos
             </Link>
           ) : undefined

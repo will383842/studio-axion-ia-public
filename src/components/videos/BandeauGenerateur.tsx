@@ -18,7 +18,7 @@ export function BandeauGenerateur({ formatId, className }: { formatId: string | 
       data-bandeau="generateur"
       className={cn("mb-3 inline-flex min-h-8 max-w-full items-center gap-2 rounded-full border border-trait bg-surface-1 px-3 py-1 text-sm font-semibold text-texte-doux hover:text-texte", className)}
     >
-      <Icone nom={format.icone} size={16} className="shrink-0 text-orange" />
+      <Icone nom={format.icone} size={16} className="shrink-0 text-orange-vif" />
       <span className="truncate">{format.nomCourt}</span>
       {formatEnEssai(format) && <PastilleEssai />}
     </Link>
