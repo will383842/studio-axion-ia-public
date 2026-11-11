@@ -298,7 +298,7 @@ async function creerPropositionsDuLot(lot: LotDecors, reel: boolean): Promise<Id
         // Une photo réelle est toujours floutée (profondeur de champ) : 14 px à 1080 de large.
         profondeurFlou: 14,
         teinte: clair ? PALETTE.gris : PALETTE.noir,
-        teinteLumiere: clair ? PALETTE.terracotta : PALETTE.orange,
+        teinteLumiere: clair ? PALETTE.gris : PALETTE.orange,
         directionLumiere: clair ? "gauche" : "droite",
         positionSujet: 0.5,
         clair,
