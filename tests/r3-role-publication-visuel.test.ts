@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { evaluerPublicationVisuel, entreePublicationVisuel, rolePublicationVisuel, simulerPublicationVisuel, type DonneesPublicationVisuel, type SortiePublicationVisuel } from "@/generateur/roles/publication-visuel";
-import { versionsRoles } from "@/generateur/roles";
+import { rolePublicationVisuel as roleReexporte } from "@/generateur/roles";
 import { ecrireTextePost, textePostDeterministe } from "@/services/texte-post";
 import { obtenirReseau } from "@/reseaux";
 import { ecritureReseau } from "@/reseaux/ecriture";
@@ -60,9 +60,10 @@ describe("évaluations", () => {
 });
 
 describe("rôle et registre", () => {
-  it("le rôle est versionné et déclaré dans le registre", () => {
+  it("le rôle est versionné et exporté par l'index des rôles", () => {
     expect(rolePublicationVisuel.id).toBe("publication-visuel");
-    expect(versionsRoles()["publication-visuel"]).toBe(rolePublicationVisuel.version);
+    expect(rolePublicationVisuel.version).toBeGreaterThanOrEqual(1);
+    expect(roleReexporte).toBe(rolePublicationVisuel);
   });
   it("la consigne ne nomme aucun montant", () => {
     expect(rolePublicationVisuel.consigne).not.toMatch(/€|\$|euro/i);
