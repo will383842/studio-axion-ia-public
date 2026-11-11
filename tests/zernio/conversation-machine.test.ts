@@ -95,3 +95,15 @@ describe("22 · garde : la machine reste inerte en production", () => {
     for (const f of ["src/domaine/guide-reseau/machine-conversation.ts", "src/domaine/guide-reseau/adresse-email.ts"]) expect(src(f)).not.toMatch(/server-only/);
   });
 });
+
+describe("après le message avec lien (mp-m1-v3) : jamais de M2", () => {
+  const avecLien = { ...base, etat: "attente_email" as const, versionTexteM1: "mp-m1-v3" };
+  it("texte sans adresse : silence (pas de M2) ; avec l'ancienne version M1, M2 reste envoyé", () => {
+    expect(transition(avecLien, { t: "texte", estOpposition: false, adresse: null })).toMatchObject({ action: "silence" });
+    expect(transition({ ...avecLien, versionTexteM1: "mp-m1-v2" }, { t: "texte", estOpposition: false, adresse: null }).action).toBe("m2");
+  });
+  it("« stop » l'emporte encore avec le lien ; le doute reste un doute", () => {
+    expect(transition(avecLien, { t: "texte", estOpposition: true, adresse: null }).action).toBe("opposer");
+    expect(transition(avecLien, { t: "texte", estOpposition: false, doute: true, adresse: null }).action).toBe("doute");
+  });
+});

@@ -217,7 +217,8 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
-      if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition ? { action: "m2" } : { action: "silence", raison: "silence" };
+      // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.
+      if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition && etat.versionTexteM1 !== VERSION_M1_LIEN ? { action: "m2" } : { action: "silence", raison: "silence" };
       return { action: "demander_guide" };
     }
     case "site": {
