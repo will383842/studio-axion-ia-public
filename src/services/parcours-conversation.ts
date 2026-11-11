@@ -1274,7 +1274,9 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   if (issue === "texte_non_valide") await alerter("merci_non_valide", "Le texte du merci n'est pas validé dans Mots : le merci n'est pas parti.", now);
   // g. Tout sauf « à envoyer » : entrée « non_envoyé », accusé.
   if (issue !== "a_envoyer" || texte === null || idConversation === null) {
-    await terminer("non_envoye", issue === "a_envoyer" ? "hors_fenetre" : issue, cle);
+    const motif = issue === "a_envoyer" ? "hors_fenetre" : issue;
+    await terminer("non_envoye", motif, cle);
+    if (motif === "hors_fenetre") await marquerFenetreFermee(cle, now); // marque la conversation + alerte cloche (jamais de push)
     if (issue === "deja_remercie") return "fait";
     return "fait";
   }
@@ -1332,6 +1334,16 @@ async function finirMerci(ref: string, cle: string, etat: EtatMerci, issue: stri
     const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     if (tout[cle]) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: etat, ...(merciLe ? { merciLe } : {}) } });
   });
+}
+
+export const MOTIF_MERCI_FENETRE_FERMEE = "merci non envoyé : fenêtre fermée";
+/** Dernier message de la personne trop ancien (≥ 23 h) : rien n'est envoyé ; on le note sur la conversation et on lève l'alerte cloche existante. */
+async function marquerFenetreFermee(cle: string, now: number): Promise<void> {
+  await sousVerrou(async () => {
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    if (tout[cle]) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciMotif: MOTIF_MERCI_FENETRE_FERMEE } });
+  });
+  await alerter("merci_fenetre_fermee", `${MOTIF_MERCI_FENETRE_FERMEE.charAt(0).toUpperCase()}${MOTIF_MERCI_FENETRE_FERMEE.slice(1)}. Le dernier message de la personne date de plus de 23 h.`, now);
 }
 
 /** Identifiant brut de conversation Zernio, relu EN MÉMOIRE dans l'événement du dernier message de la personne (jamais gardé dans l'état). */
