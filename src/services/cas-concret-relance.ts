@@ -39,7 +39,7 @@ export const PHRASES_RELANCE = {
 
 /** Annonce d'une écriture arrêtée : ce que fait la relance, et le prix au plus d'un nouvel essai. PUR. */
 export function annonceEcriture(centimes: number): string {
-  return `Les réponses déjà payées sont relues d'abord. Si l'écriture précédente ne peut pas être reprise, un nouvel essai coûte environ ${formaterMontant({ centimes, devise: "EUR" })}.`;
+  return `Les réponses déjà payées sont relues d'abord. Si l'écriture précédente ne peut pas être reprise, un nouvel essai est payant.`;
 }
 
 /**

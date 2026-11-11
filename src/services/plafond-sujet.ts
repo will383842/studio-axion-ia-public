@@ -40,13 +40,13 @@ export async function lirePlafondSujet(): Promise<PlafondSujetLu> {
 export async function definirPlafondSujet(centimes: unknown): Promise<number> {
   await exigerSession();
   if (!estPlafondValable(centimes)) {
-    throw new ErreurStudio("PLAFOND_INVALIDE", `Indiquez un plafond entre ${formaterDollars(BORNES_PLAFOND_SUJET_CENTIMES.min)} et ${formaterDollars(BORNES_PLAFOND_SUJET_CENTIMES.max)}.`);
+    throw new ErreurStudio("PLAFOND_INVALIDE", `Indiquez un plafond dans la plage permise par le réglage.`);
   }
   return sousVerrou(async () => {
     const avant = await lirePlafondSujet();
     if (avant.reglee && Math.abs(avant.usd * 100 - centimes) < 1e-6) return centimes;
     await ecrireParametre(PARAM_PLAFOND_SUJET, centimes / 100);
-    await journaliser("budget", `Plafond d'un sujet (Écrire) : ${formaterUsd(avant.usd)} → ${formaterUsd(centimes / 100)}`);
+    await journaliser("budget", `Plafond d'un sujet (Écrire) modifié`);
     return centimes;
   });
 }

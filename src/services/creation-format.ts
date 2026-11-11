@@ -79,7 +79,7 @@ export async function lancerAvecAccord(videoId: Id, accordBrut: AccordPrix | unk
   // Règle « le prix ne bloque jamais » : en mode indicatif, le prix du jour vaut accord (journalisé) ; mode bloquant : inchangé.
   const accord = await accordAutomatique(accordPropre(accordBrut), montantCentimes, { videoId, signaler: !accordCouvre(accordPropre(accordBrut), montantCentimes, 0) });
   if (typeof accord !== "number" || accord < montantCentimes) {
-    return { statut: "accord-requis", centimes: montantCentimes, phrase: `La voix coûte environ ${formaterMontant({ centimes: montantCentimes, devise: "EUR" })}. Confirmez ce prix pour lancer.` };
+    return { statut: "accord-requis", centimes: montantCentimes, phrase: `La voix est payante (prix sur le bouton). Confirmez pour lancer.` };
   }
   const { travailId } = await (dependances.lancer ?? lancerCommun)(videoId, accord);
   return { statut: "lancee", travailId };

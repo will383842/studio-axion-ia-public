@@ -855,10 +855,10 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
     // Seconde relecture (R2) : au-delà du seuil, seul le MONTANT vu couvre ce prix (`true` ne suffit plus).
     // Règle « le prix ne bloque jamais » : en mode indicatif (commande de l'utilisateur), le prix du jour vaut accord.
     const accordMontage = await accordAutomatique(accordPropre(options.confirme), estimation.total.centimes, { origine: options.origine, videoId, signaler: !accordCouvre(accordPropre(options.confirme), estimation.total.centimes, 0) });
-    if (!accordCouvre(accordMontage, estimation.total.centimes, (await resumeBudget()).seuilConfirmation.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera montée pour de vrai : ${formaterMontant(estimation.total)}. Confirmez pour continuer.`, estimation.total.centimes);
+    if (!accordCouvre(accordMontage, estimation.total.centimes, (await resumeBudget()).seuilConfirmation.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera montée pour de vrai (payant). Confirmez pour continuer.`, estimation.total.centimes);
     // Correcteur R8 n° 1 : un accord donné plus tôt pour un autre moteur (l'essai) ne vaut pas pour le montage réel.
     if (options.confirmationDifferee && options.confirmationDifferee.moteurId !== commande.moteurId && !(await budgetIndicatifPour(options.origine))) {
-      throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera maintenant montée pour de vrai : ${formaterMontant(estimation.total)}. Ouvrez-la pour voir ce prix et confirmer.`, estimation.total.centimes);
+      throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera maintenant montée pour de vrai (payant). Ouvrez-la pour confirmer.`, estimation.total.centimes);
     }
   }
   const travailId = nouvelId("trav");

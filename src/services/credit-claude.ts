@@ -67,9 +67,9 @@ function releveValide(v: unknown): ReleveCredit | null {
 }
 
 function texteRestant(etat: EtatRestant, centimes: number | null, depasse: boolean): string {
-  if (etat === "estime" && depasse) return "0 $ (dépensé plus que le crédit noté : à recaler avec la Console)";
+  if (etat === "estime" && depasse) return "Épuisé (dépensé plus que le crédit noté : à recaler avec la Console)";
   if (etat === "estime" && centimes !== null) return formaterDollars(centimes);
-  if (etat === "expire") return "Expiré (0 $)";
+  if (etat === "expire") return "Expiré";
   if (etat === "a-venir") return "À venir";
   return "À renseigner";
 }

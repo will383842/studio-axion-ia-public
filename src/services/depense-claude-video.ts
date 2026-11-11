@@ -305,9 +305,8 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
         const plafond = await valeurPlafondPropre(propre);
         const sur = await jugerPlafond((await engagePlafondPropreCentimes(videoId, propre)) + demande, plafond, indicatif, `${libelle} (cette vidéo)`, sujet, sansPrix ? { sansPrix: true } : { tauxUsdEur: t });
         if (sur === "bloque") {
-          const enEuros = formaterMontant(centimes(centimesDuPlafond(plafond * t)));
-          await journaliser("video", `${libelle} : plafond de cette vidéo atteint (${enEuros}), rien n'est parti`, { type: "video", id: videoId });
-          return { ok: false, arret: "plafond-video", message: `Plafond de cette vidéo atteint (${enEuros}) : rien n'a été payé.` };
+          await journaliser("video", `${libelle} : plafond de cette vidéo atteint, rien n'est parti`, { type: "video", id: videoId });
+          return { ok: false, arret: "plafond-video", message: `Plafond de cette vidéo atteint : rien n'a été payé.` };
         }
       }
       const plafondVideo = await plafondKitUsd();
@@ -315,9 +314,8 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
         const sur = await jugerPlafond((await engageClaudeVideoCentimes(videoId)) + demande, plafondVideo, indicatif, `${libelle} (textes de la vidéo)`, sujet, { tauxUsdEur: t });
         if (sur === "bloque") {
           // Une seule monnaie à l'écran : le plafond (réglé en dollars) est dit en euros, comme le prix du bouton.
-          const enEuros = formaterMontant(centimes(centimesDuPlafond(plafondVideo * t)));
-          await journaliser("publication", `${libelle} : plafond de la vidéo atteint (${enEuros}), le texte n'est pas écrit`, { type: "video", id: videoId });
-          return { ok: false, arret: "plafond-video", message: `Plafond des textes de cette vidéo atteint (${enEuros}) : le texte actuel est gardé.` };
+          await journaliser("publication", `${libelle} : plafond de la vidéo atteint, le texte n'est pas écrit`, { type: "video", id: videoId });
+          return { ok: false, arret: "plafond-video", message: `Plafond des textes de cette vidéo atteint : le texte actuel est gardé.` };
         }
       }
       const plafondMois = await plafondMensuelClaudeUsd();
