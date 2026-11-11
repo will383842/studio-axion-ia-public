@@ -4,13 +4,16 @@
  * (craie ivoire et terracotta), C paperboard d'atelier (marqueurs, surligneur, ruban). PUR, sans alias « @/ » :
  * importable par Remotion.
  *
- * Choix du style (décision par défaut du 16/10/2026, Will n'a pas tranché ; modifiable ici et par vidéo) : UN STYLE PAR
+ * Choix du style (décision par défaut du 16/10/2026, Williams n'a pas tranché ; modifiable ici et par vidéo) : UN STYLE PAR
  * SÉRIE (`STYLE_PAR_SERIE`) ; le champ facultatif `styleTableau` de la fiche prend le dessus ; une série inconnue
  * retombe sur le paperboard.
  *
- * Charte : #110A05 (encre), #B44F29 (terracotta), #E9DCC8 (ivoire), #BFA88B (sable), et leurs teintes dérivées ;
- * aucun vert, aucun bleu.
+ * Charte : uniquement les rôles de `PALETTE` (charte Axion 2026) : encre = noir, terracotta, ivoire, gris chaud, blanc,
+ * texte secondaire ; l'orange et le gris `grisSurNoir` seulement sur l'ardoise (fond noir). Aucun vert, aucun bleu,
+ * aucun dégradé.
  */
+
+import { PALETTE as P } from "../../charte/axion-2026";
 
 export const STYLES_TABLEAU = ["tableau-blanc", "ardoise", "paperboard"] as const;
 export type StyleTableau = (typeof STYLES_TABLEAU)[number];
@@ -69,8 +72,8 @@ export interface CharteTableau {
   capitales: boolean;
   /** Mise en page : alignée à gauche (A, C) ou centrée, symétrique (B). */
   centre: boolean;
-  /** Carte, post-it, bouton : leur fond (le texte y garde 4,5:1). Le bouton d'appel est plein, terracotta #B44F29, dans
-   * les trois styles (critique #291, I5), son texte ivoire clair #FBF7EF (4,8:1). */
+  /** Carte, post-it, bouton : leur fond (le texte y garde 4,5:1). Le bouton d'appel est plein, terracotta #B23F16, dans
+   * les trois styles (critique #291, I5), son texte blanc #FFFFFF (5,81:1). */
   fondPostit: string;
   fondCarte: string;
   fondBouton: string;
@@ -84,67 +87,68 @@ export const CHARTES_TABLEAU: Readonly<Record<StyleTableau, CharteTableau>> = Ob
   "tableau-blanc": {
     style: "tableau-blanc",
     matiere: "feutre",
-    fond: "#F4F2EE",
-    encre: "#110A05",
-    accent: "#B44F29",
-    accentTexte: "#A8461F",
-    doux: "#6E5A48",
-    clair: "#E3D3BA",
-    moyen: "#C7AC86",
-    ombre: "#110A05",
+    fond: P.ivoire,
+    encre: P.noir,
+    accent: P.terracotta,
+    accentTexte: P.terracotta,
+    doux: P.texteSecondaire,
+    clair: P.gris,
+    moyen: P.texteSecondaire,
+    ombre: P.noir,
     titre: "marker",
     corps: "kalam",
     chiffres: "caveat",
     capitales: true,
     centre: false,
-    fondPostit: "#C8602F",
-    fondCarte: "#FBF7EF",
-    fondBouton: "#B44F29",
-    encreBouton: "#FBF7EF",
+    fondPostit: P.gris,
+    fondCarte: P.blanc,
+    fondBouton: P.terracotta,
+    encreBouton: P.blanc,
   },
   ardoise: {
     style: "ardoise",
     matiere: "craie",
-    fond: "#140E09",
-    encre: "#E9DCC8",
-    accent: "#D97A52",
-    accentTexte: "#D97A52",
-    doux: "#BFA88B",
-    clair: "#E9DCC8",
-    moyen: "#BFA88B",
-    ombre: "#BFA88B",
+    fond: P.noir,
+    encre: P.ivoire,
+    accent: P.orange,
+    accentTexte: P.orange,
+    doux: P.grisSurNoir,
+    clair: P.ivoire,
+    moyen: P.grisSurNoir,
+    ombre: P.grisSurNoir,
     titre: "kalam",
     corps: "kalam",
     chiffres: "caveat",
     capitales: false,
     centre: true,
-    fondPostit: "#140E09",
-    fondCarte: "#140E09",
-    fondBouton: "#B44F29",
-    encreBouton: "#FBF7EF",
+    fondPostit: P.noir,
+    fondCarte: P.noir,
+    fondBouton: P.terracotta,
+    encreBouton: P.blanc,
   },
   paperboard: {
     style: "paperboard",
     matiere: "marqueur",
-    fond: "#F3EBDD",
-    encre: "#110A05",
-    accent: "#B44F29",
-    accentTexte: "#9E3F1C",
-    doux: "#6E5A48",
-    clair: "#E6D6BC",
-    moyen: "#CDB28C",
-    ombre: "#110A05",
-    surligneur: "#BFA88B",
+    fond: P.ivoire,
+    encre: P.noir,
+    accent: P.terracotta,
+    accentTexte: P.terracotta,
+    doux: P.texteSecondaire,
+    clair: P.gris,
+    moyen: P.texteSecondaire,
+    ombre: P.noir,
+    surligneur: P.terracotta,
     titre: "caveat",
     corps: "caveat",
     chiffres: "caveat",
     capitales: false,
     centre: false,
-    fondPostit: "#C8602F",
-    fondCarte: "#E9DDC8",
-    fondBouton: "#B44F29",
-    encreBouton: "#FBF7EF",
-    rubans: { actif: "#E3A07C", passe: "#D8C3A2", avenir: "#E2D2B6" },
+    fondPostit: P.gris,
+    fondCarte: P.blanc,
+    fondBouton: P.terracotta,
+    encreBouton: P.blanc,
+    /** Rubans derrière les chapitres (texte noir dessus : tous clairs) : le passé en gris, le chapitre actif en blanc, l'à venir en ivoire (même ton que le fond : le ruban existe mais ne se voit pas). ESCALADE : avec ivoire, gris et blanc seuls, l'actif ne dépasse pas 1,05:1 sur le fond ; le repérer exigerait un autre ton ou un repère hors de ce lot. */
+    rubans: { actif: P.blanc, passe: P.gris, avenir: P.ivoire },
   },
 });
 

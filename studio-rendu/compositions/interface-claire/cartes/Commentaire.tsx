@@ -245,7 +245,7 @@ export function Commentaire(p: CommentaireProps) {
               <span style={{ ...styleTitre(ty.titre, N3.ivoire), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.titre}</span>
               <span style={{ ...styleCorps(ty.corps, N3.sableClair), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: fondu(t, n.a + 0.05) }}>{n.texte}</span>
             </div>
-            <div style={{ width: Math.round(W * 0.016), height: Math.round(W * 0.016), flexShrink: 0, borderRadius: "50%", background: N3.orangeChaud, boxShadow: `0 0 0 ${Math.round(W * 0.007 * respire(t, 1.0))}px ${ivoireA(0.14)}` }} />
+            <div style={{ width: Math.round(W * 0.016), height: Math.round(W * 0.016), flexShrink: 0, borderRadius: "50%", background: N3.orangeSurNoir, boxShadow: `0 0 0 ${Math.round(W * 0.007 * respire(t, 1.0))}px ${ivoireA(0.14)}` }} />
           </div>
         </div>
       ) : null}

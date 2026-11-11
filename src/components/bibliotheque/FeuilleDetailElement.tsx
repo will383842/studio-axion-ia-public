@@ -94,7 +94,7 @@ function Contenu({ element: e, formats, onFermer, lectureSeule }: { element: Ele
     <div className="grid gap-5">
       {/* Aperçu */}
       {estVideo && e.url ? (
-        <video src={e.url} poster={e.vignette ?? undefined} controls playsInline className="mx-auto max-h-[50dvh] w-auto rounded-carte bg-fond" />
+        <video src={e.url} poster={e.vignette ?? undefined} controls playsInline className="mx-auto max-h-[50dvh] w-auto rounded-carte bg-[#000]" />
       ) : e.type === "lut" ? (
         <Link href="/bibliotheque/lut" className="flex min-h-12 items-center gap-2 rounded-carte bg-surface-2 px-4 text-sm font-semibold text-texte">
           <Icone nom="contraste" size={18} className="text-orange-vif" />

@@ -22,6 +22,15 @@ describe("pagesTrouvees", () => {
     expect(hrefs("commentaires")).toContain("/mots");
     expect(hrefs("réponses")).toContain("/mots");
   });
+  it("Veille, Outils motion design, Mesures et Résultats mènent à la bonne page", () => {
+    expect(hrefs("veille")).toContain("/veille");
+    expect(hrefs("nouveautés")).toContain("/veille");
+    expect(hrefs("motion")).toContain("/outils-motion");
+    expect(hrefs("animations")).toContain("/outils-motion");
+    expect(hrefs("mesures")).toContain("/mesures");
+    expect(hrefs("résultats")).toContain("/mesures");
+    expect(hrefs("nouvelle")).toContain("/nouvelle");
+  });
   it("propose les pages hors menu", () => {
     expect(hrefs("ce qui marche")).toContain("/mesures/ce-qui-marche");
     expect(hrefs("ranger")).toContain("/videos/a-ranger");
