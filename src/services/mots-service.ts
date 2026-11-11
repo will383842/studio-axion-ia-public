@@ -18,7 +18,7 @@ import { empreinteTextes, ETAT_VALIDE, lireTextesMarkdown, RE_MOT, textesDepuisS
 import { creerNotification } from "./notifications";
 import { ESPACE_CONTACT_ZERNIO, enregistrerOppositionSousVerrou, marquerTransmise, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
 import { ErreurEmpreinteIndisponible } from "@/domaine/guide-reseau/empreinte-personne";
-import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
+import { GROUPES_MP, TEXTES_MP, type GroupeMp, type IdTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { comptesParcours, empreinteGuideParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { parcoursMotActif } from "./parcours-mot";
 import { envoiZernioAutorise } from "./zernio";
@@ -35,6 +35,8 @@ export const PARAM_VALIDATION_ADRESSE_REFUSEE = "parcours.validation.adresse_ref
 /** Validation (écran /mots) du texte du merci après la page : { empreinte } = sha256("mp-merci-v1" + "\n" + texte brut). Aucun écrivain pour l'instant (bouton à ajouter, décision de l'opérateur). */
 export const PARAM_VALIDATION_MERCI = "parcours.validation.merci";
 export const PARAM_VALIDATION_M1_LIEN = "parcours.validation.m1_lien";
+/** Validation (écran /mots) des FORMULATIONS des messages privés : { [version]: { empreinte, valideLe } }, empreinte = sha256(version + "\n" + texte brut avec ses marqueurs). Une formulation = un geste. */
+export const PARAM_VALIDATION_FORMULATIONS = "parcours.validation.formulations";
 export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */
@@ -268,6 +270,46 @@ export async function validerAdresseRefusee(d: { confirmeParOperateur: boolean }
     await journaliser("mots", "Message « adresse refusée » validé par l'opérateur.");
   });
   return { ok: true, raison: "valide", empreinte };
+}
+
+/** Empreinte d'une formulation : sha256(version + "\n" + texte brut). Source UNIQUE (geste de validation ET garde d'envoi). `null` si la version n'est pas au dictionnaire. */
+export function empreinteFormulation(version: string): string | null {
+  const b = (TEXTES_MP as Record<string, { version: string; texte: string } | undefined>)[version];
+  return b ? createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex") : null;
+}
+const groupeDe = (version: string): GroupeMp | null => (Object.keys(GROUPES_MP) as GroupeMp[]).find((g) => (GROUPES_MP[g] as readonly string[]).includes(version)) ?? null;
+
+/**
+ * Versions dont la validation enregistrée correspond au texte actuel. Panne de lecture = ensemble VIDE (échec fermé :
+ * le 1er message part sans lien, « adresse refusée » ne part pas).
+ */
+export async function formulationsValidees(): Promise<Set<string>> {
+  try {
+    const v = await lireParametre<Record<string, { empreinte?: unknown } | null> | null>(PARAM_VALIDATION_FORMULATIONS, null);
+    const ok = new Set<string>();
+    if (!v || typeof v !== "object") return ok;
+    for (const [version, val] of Object.entries(v)) if (val && typeof val === "object" && empreinteFormulation(version) !== null && val.empreinte === empreinteFormulation(version)) ok.add(version);
+    return ok;
+  } catch {
+    return new Set();
+  }
+}
+
+/** Geste de validation d'UNE formulation (l'appelant exige la session). Refuse une version absente, retirée ou hors de tout groupe. Idempotent ; journal SANS le texte ; aucun effet réseau. */
+export async function validerFormulation(d: { version: string; confirmeParOperateur: boolean }): Promise<{ ok: boolean; raison: string }> {
+  if (!d.confirmeParOperateur) return { ok: false, raison: "validation_operateur_absente" };
+  const texte = (TEXTES_MP as Record<string, { statut: string } | undefined>)[d.version];
+  if (!texte || typeof d.version !== "string") return { ok: false, raison: "formulation_inconnue" };
+  if (texte.statut !== "actif") return { ok: false, raison: "formulation_retiree" };
+  if (groupeDe(d.version) === null) return { ok: false, raison: "formulation_hors_groupe" };
+  const empreinte = empreinteFormulation(d.version)!;
+  await sousVerrou(async () => {
+    const v = (await lireParametre<Record<string, { empreinte?: unknown }> | null>(PARAM_VALIDATION_FORMULATIONS, null)) ?? {};
+    if (v[d.version]?.empreinte === empreinte) return;
+    await ecrireParametre(PARAM_VALIDATION_FORMULATIONS, { ...v, [d.version]: { empreinte, valideLe: maintenant() } });
+    await journaliser("mots", `Formulation ${d.version} validée par l'opérateur.`);
+  });
+  return { ok: true, raison: "valide" };
 }
 
 /** POSE d'un mot sur un compte à partir d'une SAISIE : validé = l'empreinte ENREGISTRÉE correspond au texte actuel. */
@@ -570,12 +612,15 @@ export interface VueMots {
   guidePerime: boolean;
   /** Le message « adresse refusée » est-il validé (empreinte courante) ? Facultatif pour les anciens appelants. */
   adresseRefuseeValide?: boolean;
+  /** Formulations des messages privés, dans l'ordre des groupes. Le texte est déjà public dans le dépôt : il est montré pour valider en connaissance de cause. */
+  formulations?: { groupe: GroupeMp; version: IdTexteMp; texte: string; valide: boolean }[];
 }
 export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
   const g = await lireGardes();
   const enregistree = await lireValidationGuideParcours();
   const actuelle = empreinteGuideParcours(titreGuideParcours(env));
   const guideValide = !!enregistree && actuelle.ok && actuelle.empreinte === enregistree.empreinte;
+  const validees = await formulationsValidees();
   return {
     interrupteurAllume: motsActif(env),
     toutArrete: !(await envoiZernioAutorise()),
@@ -586,6 +631,7 @@ export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
     guideValide,
     guidePerime: !!enregistree && !guideValide,
     adresseRefuseeValide: (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === empreinteAdresseRefusee(),
+    formulations: (Object.keys(GROUPES_MP) as GroupeMp[]).flatMap((groupe) => GROUPES_MP[groupe].map((version) => ({ groupe, version, texte: TEXTES_MP[version].texte, valide: validees.has(version) }))),
   };
 }
 

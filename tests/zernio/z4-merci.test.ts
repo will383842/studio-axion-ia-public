@@ -11,7 +11,7 @@ import { ENTETE_HORODATAGE, ENTETE_NONCE, ENTETE_SIGNATURE, signatureValide } fr
 import type { RequeteSignee } from "@/fournisseurs/site/types";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
 import fixture from "./aides/confirmations-page-guide.v1.json";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, fauxPort, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, fauxPort, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -76,7 +76,7 @@ async function poserPersonne(o: { auteur?: string; refs?: string[]; ageMs?: numb
   const conv = await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
   conv[cle] = {
     etat: o.etat ?? "attente_email", reseau: "instagram", idCompte: COMPTE, idCommentaire: "com-fictif-1", idPostPlateforme: "post-plateforme-fictif-200",
-    versionTexteM1: "mp-m1-v3", guide: "guide-ia", cleIdempotenceGuide: `cle-${auteur}`, creeLe: new Date(T0 - 2 * H).toISOString(), m1Le: new Date(T0 - 2 * H).toISOString(),
+    versionTexteM1: "mp-m1-v4-1", guide: "guide-ia", cleIdempotenceGuide: `cle-${auteur}`, creeLe: new Date(T0 - 2 * H).toISOString(), m1Le: new Date(T0 - 2 * H).toISOString(),
     occurredAt: null, m2Envoye: false, essaisSite: 0, essaisPub: 0, essaisM1: 0, prochainEssaiLe: null, dernierCode: null, alias: [],
     refLienConv: "c1_AbCdEf0123456789_-xyZQ", empreintesLien: o.refs ?? [ref(1)],
     ...(o.ageMs === null ? {} : { derniereActiviteLe: new Date(T0 - (o.ageMs ?? H)).toISOString(), idMessageDernier }),
@@ -472,7 +472,7 @@ describe("16 · M1 v3 garde l'empreinte du jeton envoyé (le rapprochement avec 
   it("l'empreinte SHA-256 du jeton réellement envoyé est au registre ; jamais le jeton ni le lien", async () => {
     const { deposerCommentaire } = await import("./aides/conversation");
     await Com.ecrireParametre(C.PARAM_CONVERSATIONS, {});
-    await Com.ecrireParametre("parcours.validation.m1_lien", { empreinte: createHash("sha256").update(`${TEXTES_MP["mp-m1-v3"].version}\n${TEXTES_MP["mp-m1-v3"].texte}`).digest("hex") });
+    await validerFormulationsAuParcours(["mp-m1-v4-1"]);
     const envLien = { ...ENV_MERCI, PARCOURS_LIEN_GUIDE: "1", GUIDES_RESEAU_LIEN_SECRET: "secret-fictif-lien-page-guide-0123456789-abcdef", LIEN_GUIDE_COMPTES: `${COMPTE}=page_principale` };
     await deposerCommentaire(depots, {});
     await C.traiterConversations({ port: port.port, comptesPermis: [COMPTE], titreGuide: TITRE, env: envLien, maintenantMs: T0 });

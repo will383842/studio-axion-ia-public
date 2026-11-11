@@ -1,6 +1,7 @@
 // Machine d'états de la conversation « commentaire → message privé → e-mail → guide » : fonctions PURES (aucun réseau, aucune
 // base, aucun journal). Le service (`parcours-conversation.ts`) fait les effets. Aucune donnée personnelle n'entre dans l'état.
 import { estMotOpposition } from "./opposition";
+import type { GroupeMp } from "./textes-mp";
 import { ESSAIS_MAX, EN_COURS_MAX, type Conduite } from "./crochet-zernio";
 import { ETATS_EN_COURS, type EtatParcours } from "./etats-parcours";
 import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
@@ -59,6 +60,8 @@ export interface Conversation {
   idMessageAdresse?: string | null;
   /** Version du corps de la demande de guide (1 ou 3), figée au PREMIER essai : le site refuse (409) un corps différent pour une même clé. */
   versionCorpsGuide?: 1 | 3 | null;
+  /** Formulation retenue par groupe (noms de versions SEULEMENT, jamais de texte) : figée au premier envoi, une conversation garde toujours la même. */
+  formulations?: Partial<Record<GroupeMp, string>>;
   /** Vrai dès que le message « adresse refusée » (site : 422) a été tenté : il ne part JAMAIS deux fois pour une conversation. */
   adresseRefuseeEnvoyee?: boolean;
   /** Le site a refusé l'adresse (422) mais le message « adresse refusée » attend le plafond : le réessai ne rappelle pas le site. */
@@ -114,8 +117,8 @@ export function issueMerci(o: { refAuRegistre: boolean; conversation: Pick<Conve
   return "a_envoyer";
 }
 
-/** Version du 1er message privé quand il porte le lien signé de la page guide (interrupteur PARCOURS_LIEN_GUIDE). */
-export const VERSION_M1_LIEN = "mp-m1-v3";
+/** Groupe de formulations du 1er message privé quand il porte le lien signé de la page guide (interrupteur PARCOURS_LIEN_GUIDE). */
+export const GROUPE_M1_LIEN = "m1-lien" satisfies GroupeMp;
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
 export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee";
 
