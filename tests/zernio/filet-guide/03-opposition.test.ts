@@ -13,12 +13,14 @@ beforeEach(preparer);
 afterEach(nettoyer);
 
 const VARIANTES = ["stop", "STOP", "Stop", "stop.", "stop !", "  stop  ", "arret", "ARRET", "arrêt", "Arrêt", "arretez", "Arrêtez", "Arrêtez !", "arrêtez."];
-const NON_OPPOSITIONS = ["stoppez", "ne pas arrêter", "stop svp", "oui", "", "GUIDE"];
+const NON_OPPOSITIONS = ["stopper", "ne pas arrêter", "GUIDE stop", "oui", "", "GUIDE"];
+const PHRASES = ["stop svp", "stoppez", "Stop, merci"]; // reconnues depuis STU-STOP
 const lignes = () => Com.lireParametre<Array<{ id: string }>>(Opp.PARAM_OPPOSITIONS_MOTS, []);
 
 describe("4 · reconnaissance (opposition.ts)", () => {
-  it("liste exacte des mots", () => expect([...MOTS_OPPOSITION]).toEqual(["STOP", "ARRET", "ARRETEZ"]));
+  it("liste exacte des mots", () => expect([...MOTS_OPPOSITION]).toEqual(["STOP", "STOPPEZ", "ARRET", "ARRETE", "ARRETEZ", "ARRETER", "DESINSCRIRE", "DESINSCRIPTION", "DESINSCRIVEZ", "DESABONNER", "DESABONNEZ", "DESABONNEMENT"]));
   it.each(VARIANTES)("« %s » est une opposition", (t) => expect(estMotOpposition(t)).toBe(true));
+  it.each(PHRASES)("« %s » est une opposition (phrase)", (t) => expect(estMotOpposition(t)).toBe(true));
   it.each(NON_OPPOSITIONS)("« %s » n'est pas une opposition", (t) => expect(estMotOpposition(t)).toBe(false));
   it("null / undefined / non-texte : pas une opposition", () => {
     expect(estMotOpposition(null)).toBe(false);
