@@ -42,8 +42,15 @@ export function analyserEcartH(texte: string): number | null {
   return m ? Number(m[1].replace(",", ".")) : null;
 }
 
+const MARQUEURS_NON_PROUVES = /exemple|invent|inconnu|v[ée]rifier|remplacer/i;
+const SOURCE_DATEE = /\b\d{4}-\d{2}-\d{2}\b/;
+const SOURCE_URL = /https?:\/\/\S+/i;
+
+/** Confirmée seulement si la source n'a aucun marqueur « exemple / inventé / inconnu / à vérifier » ET est datée (AAAA-MM-JJ) ou porte une URL. */
 export function estConfirmee(source: string): boolean {
-  return !SOURCES_NON_CONFIRMEES.includes(source.trim().toLowerCase());
+  const s = source.trim().toLowerCase();
+  if (SOURCES_NON_CONFIRMEES.includes(s) || MARQUEURS_NON_PROUVES.test(s)) return false;
+  return SOURCE_DATEE.test(s) || SOURCE_URL.test(s);
 }
 
 /** Règles de cadence (conseil), toutes ou d'un réseau. */
