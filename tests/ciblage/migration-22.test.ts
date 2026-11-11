@@ -71,4 +71,15 @@ describe("migration 22 · ciblage", () => {
     await migrerDonnees(depots(), T2);
     expect((await depots().scripts.obtenir("script-ref-fiche-radar"))?.ancien).toEqual({ depuis: T1, raison: "hors-sujet" });
   });
+
+  it("un script créé APRÈS la migration n'est jamais marqué ancien au démarrage suivant", async () => {
+    await semer();
+    const d = depots();
+    await etape22Ciblage(d, T1);
+    await d.scripts.enregistrer(script("s-neuf", "Devis plus vite pour les couvreurs", "Les couvreurs perdent du temps.", { cible: "couvreurs" }));
+    expect(await etape22Ciblage(d, T2)).toBeNull();
+    expect((await d.scripts.obtenir("s-neuf"))?.ancien).toBeUndefined();
+    await migrerDonnees(d, "2026-11-10T08:00:00.000Z");
+    expect((await d.scripts.obtenir("s-neuf"))?.ancien).toBeUndefined();
+  });
 });
