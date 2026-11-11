@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { executerRendu } from "@/fournisseurs/rendu/attente";
 import { identifiantSur, segmentStockage } from "@/fournisseurs/rendu/commun";
+import type { VersionStockee } from "@/domaine/visuels/depot";
 import { PROFILS_RESEAUX, cadreDe, type Cadre, type Reseau } from "../../briques/visuels/reseaux";
 import { validerProprietesPage, type SpecValide } from "../proprietes-page";
 import { canonique, DELAI_RENDU_MS, rendrePageVisuel, VERSION_RENDU, type DependancesRenduVisuels, type FichierRendu } from "./rendu";
@@ -42,6 +43,26 @@ export type DependancesRenduReseaux = Omit<DependancesRenduVisuels, "registre"> 
 export function creerRegistreVersionsMemoire(): RegistreVersionsReseaux {
   const m = new Map<string, VersionRendue>();
   return { lire: async (e) => m.get(e) ?? null, ecrire: async (e, v) => void m.set(e, v) };
+}
+
+/** Versions prêtes à être gardées avec le visuel (JSON sans perte). PUR. */
+export function versionsPourStockage(versions: readonly VersionReseau[]): VersionStockee[] {
+  return versions.map((v) => ({ cadre: v.cadre, empreinte: v.empreinte, pages: v.pages, pdfCle: v.pdfCle, vignetteCle: v.vignetteCle, reseaux: v.reseaux }));
+}
+
+/**
+ * Registre reconstruit depuis les versions gardées (après un redémarrage) : un rendu déjà fait se relit, rien n'est soumis de nouveau.
+ * `surEcriture` reçoit chaque nouvelle version, à garder avec le visuel.
+ */
+export function creerRegistreVersionsDepuis(gardees: readonly VersionStockee[], surEcriture?: (version: VersionStockee) => void): RegistreVersionsReseaux {
+  const m = new Map<string, VersionRendue>(gardees.map((v) => [v.empreinte, v as VersionRendue]));
+  return {
+    lire: async (e) => m.get(e) ?? null,
+    ecrire: async (e, v) => {
+      m.set(e, v);
+      surEcriture?.({ cadre: v.cadre, empreinte: v.empreinte, pages: v.pages, pdfCle: v.pdfCle, vignetteCle: v.vignetteCle });
+    },
+  };
 }
 
 /** Empreinte SHA-256 (hexadécimal) d'une version par cadre : version du rendu, cadre, spec VALIDÉ. Lève si le spec est invalide. PUR. */
