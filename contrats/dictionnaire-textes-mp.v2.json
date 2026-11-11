@@ -34,6 +34,10 @@
       "version": "mp-m2-v1",
       "texte": "Message automatique envoyé par Axion IA. Je n'ai pas reconnu d'adresse e-mail dans votre message. Pouvez-vous l'écrire à nouveau, par exemple adresse@entreprise.fr ? Vous préférez ne pas donner d'adresse ? Touchez « Recevoir ici »."
     },
+    "mp-adresse-refusee-v2": {
+      "version": "mp-adresse-refusee-v2",
+      "texte": "Message automatique envoyé par Axion IA. Nous n'avons pas pu enregistrer cette adresse e-mail : le guide ne peut pas vous être envoyé par ce moyen."
+    },
     "mp-lien-v2": {
       "version": "mp-lien-v2",
       "texte": "Message automatique envoyé par Axion IA. Voici le guide « [TITRE DU GUIDE] » : [LIEN]. Bonne lecture !"
