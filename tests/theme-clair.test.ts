@@ -46,3 +46,12 @@ describe("thème clair de la zone de page", () => {
     expect(ratio(val(racine, "sur-orange"), val(racine, "orange"))).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+describe("thèmes : mêmes variables", () => {
+  it("les variables de .theme-sombre sont celles de :root (sauf tailles de barres)", () => {
+    const noms = (b: string) => new Set([...b.matchAll(/^\s*(--[a-z0-9-]+):/gm)].map((m) => m[1]));
+    const attendu = noms(racine);
+    for (const n of [...attendu]) if (n === "--hauteur-onglets-bas" || n.startsWith("--largeur-barre")) attendu.delete(n);
+    expect([...noms(sombre)].sort()).toEqual([...attendu].sort());
+  });
+});

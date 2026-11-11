@@ -4,7 +4,7 @@
  * Système de design « Studio » (PLAN B.5).
  * TOUTES les couleurs passent par ces jetons. La palette Tailwind par défaut
  * est désactivée (--color-*: initial) : une classe comme bg-red-500 n'existe pas.
- * Changer d'ambiance = modifier ce bloc :root, rien d'autre.
+ * Changer d'ambiance = modifier ce bloc :root ET le bloc .theme-sombre (barres, aperçus de vidéo).
  */
 :root {
   --fond: #FAF9F5;

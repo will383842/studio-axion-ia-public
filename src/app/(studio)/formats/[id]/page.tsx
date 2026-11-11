@@ -155,7 +155,7 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
             {f.exemples.map((e, i) => (
               <li key={e.titre}>
                 <Apparition index={i}>
-                  <div className="relative aspect-[9/16] overflow-hidden rounded-carte border border-trait">
+                  <div className="theme-sombre relative aspect-[9/16] overflow-hidden rounded-carte border border-trait">
                     <Image src={e.vignette} alt={e.titre} fill sizes="(max-width: 640px) 50vw, 240px" className="object-cover" />
                     <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-fond/90 to-transparent" />
                     <p className="absolute inset-x-3 bottom-3 line-clamp-2 text-sm font-semibold text-texte">{e.titre}</p>

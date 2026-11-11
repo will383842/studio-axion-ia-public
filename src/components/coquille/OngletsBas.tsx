@@ -36,7 +36,7 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
                     aria-label="Créer"
                     aria-haspopup="dialog"
                     aria-expanded={creer}
-                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-fond transition-transform active:scale-95"
+                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-[#16120f] transition-transform active:scale-95"
                   >
                     <Icone nom="plus" size={28} strokeWidth={2.4} />
                   </button>

@@ -100,3 +100,17 @@ describe("rendu de la barre latérale", () => {
     expect(html).toContain('href="/reglages"');
   });
 });
+
+describe("« Mes vidéos » couvre toutes les adresses de création", () => {
+  it("chaque adresseCreation du registre allume Mes vidéos (barre et onglets)", async () => {
+    const { listerFormats } = await import("@/formats");
+    const { estActif } = await import("@/components/coquille/navigation");
+    const videos = SECTIONS_NAV.flatMap((s) => s.entrees).find((e) => e.href === "/videos")!;
+    const onglet = ONGLETS_BAS.find((o) => o.href === "/videos")!;
+    for (const f of listerFormats({ inclureMasques: true, inclureReservesAWill: true })) {
+      if (!f.adresseCreation) continue;
+      expect(estActif(f.adresseCreation, videos), f.id).toBe(true);
+      expect(estActif(f.adresseCreation, onglet), f.id).toBe(true);
+    }
+  });
+});

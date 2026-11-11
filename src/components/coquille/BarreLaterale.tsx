@@ -47,6 +47,7 @@ function LigneEntree({ e, chemin, repliee, petit = false }: { e: EntreeNavigatio
     <Link
       href={e.href}
       aria-label={repliee ? e.libelle : undefined}
+      title={repliee ? e.libelle : undefined}
       aria-current={actif ? "page" : undefined}
       className={cn(
         "group relative flex items-center gap-2 rounded-lg px-2 py-1.5 font-medium transition-colors",

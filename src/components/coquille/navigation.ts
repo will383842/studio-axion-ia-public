@@ -12,6 +12,9 @@ export interface EntreeNavigation {
   actifSur?: string[];
 }
 
+/** Pages qui allument « Mes vidéos » : la fiche des formats et l'écran de création de chacun (couverture testée contre le registre). */
+export const ACTIF_SUR_VIDEOS: string[] = ["/videos", "/formats", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee", "/demo-facecam", "/tutoriel-outil"];
+
 /** Une section du menu : un titre (absent pour la tête du menu) et ses entrées. */
 export interface SectionNavigation {
   /** Titre affiché au-dessus des entrées ; `null` = pas de titre (tête du menu). */
@@ -39,7 +42,7 @@ export const SECTIONS_NAV: readonly SectionNavigation[] = [
   {
     titre: "Mes contenus",
     entrees: [
-      { href: "/videos", libelle: "Mes vidéos", icone: "film", actifSur: ["/videos", "/formats", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee"] },
+      { href: "/videos", libelle: "Mes vidéos", icone: "film", actifSur: ACTIF_SUR_VIDEOS },
       // 18/10 : carrousels, infographies et vidéos sont trois familles distinctes (jamais sous « Mes vidéos »).
       { href: "/carrousels", libelle: "Carrousels", icone: "images" },
       { href: "/ecrire", libelle: "Écrire", icone: "ecrire", actifSur: ["/ecrire", "/scripts", "/idees"] },
@@ -84,7 +87,7 @@ export const NAV_LATERALE: EntreeNavigation[] = [SECTIONS_NAV[0].entrees[0], ACT
 /** Onglets du bas (mobile) : Accueil · Vidéos · ➕ · Écrire · Plus. */
 export const ONGLETS_BAS: (EntreeNavigation & { central?: boolean })[] = [
   { href: "/", libelle: "Accueil", icone: "accueil" },
-  { href: "/videos", libelle: "Vidéos", icone: "film", actifSur: ["/videos", "/formats", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee"] },
+  { href: "/videos", libelle: "Vidéos", icone: "film", actifSur: ACTIF_SUR_VIDEOS },
   { href: "/nouvelle", libelle: "Nouvelle vidéo", icone: "plus", central: true },
   { href: "/ecrire", libelle: "Écrire", icone: "ecrire", actifSur: ["/ecrire", "/scripts", "/idees"] },
 ];
