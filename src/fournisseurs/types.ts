@@ -585,8 +585,7 @@ export type OperationRendu =
   | "extrait" // file courte (lot R7, double) : tranche de l'audio maître (WAV) pour le second angle, ou passage vidéo
   | "visuel-page" // file courte (carrousels V2-A, M2-01) : une page VisuelPage rendue en JPEG (×1 ou ×2), mesures de débordement
   | "assemblage-pdf" // file courte (carrousels V2-A, M2-02) : les JPEG des pages assemblés en un PDF (810 × 1012,5 pt)
-  | "toile-continue" // file courte : toile large rendue puis découpée
-  | "infographie"; // file courte (L2-06) : une infographie (gabarit chiffres clés, étapes ou comparaison ; 1:1 ou 9:16) rendue en image
+  | "toile-continue"; // file courte : toile large rendue puis découpée
 
 export interface DemandeRendu {
   idRendu: string;
