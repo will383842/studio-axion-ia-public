@@ -33,6 +33,10 @@ export interface EcritureReseau {
   /** Ce réseau peut retenir les segments facultatifs du corps (B.0 n° 5 et 86 : zone la plus longue). */
   segmentFacultatif: ValeurReglee<boolean>;
   particularites: ValeurReglee<string>[];
+  /** L3-03 : longueur maximale d'un commentaire publié sous la vidéo (absent : aucune limite connue). */
+  commentaireCaracteresMax?: ValeurReglee<number>;
+  /** L3-03 : longueur maximale d'un titre (absent : le réseau n'a pas de champ titre). */
+  titreCaracteresMax?: ValeurReglee<number>;
   /**
    * Équipe 7 : termes qui disent de quoi parle le compte. L'un d'eux est dit avant 5 s (C10) et écrit dans la
    * description (`avecTermeDuCompte`). Absent : aucune exigence.
@@ -69,6 +73,7 @@ export const ECRITURE_RESEAUX: Readonly<Record<ReseauDeclinaison, EcritureReseau
     famillesFavorisees: { valeur: { familles: ["erreur-commune", "mise-en-garde-destinataire"], poids: 1.5 }, regleId: "hyp-familles-reseau" },
     boucle: { valeur: "oui", regleId: "hyp-ecriture-reseau" },
     motsDiese: { valeur: [0, 3], regleId: "ig-hashtags-5" },
+    commentaireCaracteresMax: { valeur: 2200, regleId: "hyp-ecriture-reseau" },
     premiereLigne: { valeur: { consigne: "La question que tape le prospect ; mot-clé exact dans les 125 premiers caractères.", motCleAvantCaractere: 125 }, regleId: "hyp-ecriture-reseau" },
     zoneDureeSec: { valeur: [28, 40], regleId: "hyp-zones-reseau" },
     dureeMaxSec: { valeur: 180, regleId: "ig-reels-3min-2025" },
@@ -121,6 +126,7 @@ export const ECRITURE_RESEAUX: Readonly<Record<ReseauDeclinaison, EcritureReseau
     boucle: { valeur: "oui", regleId: "hyp-ecriture-reseau" },
     motsDiese: { valeur: [0, 2], regleId: "hyp-ecriture-reseau" },
     premiereLigne: { valeur: { consigne: "Deux titres de 100 caractères au plus avec le mot-clé exact ; sources dans la description.", caracteresMax: TITRE_CARACTERES_MAX }, regleId: "ys-titre-indexe" },
+    titreCaracteresMax: { valeur: TITRE_CARACTERES_MAX, regleId: "ys-titre-indexe" },
     zoneDureeSec: { valeur: [28, 40], regleId: "hyp-zones-reseau" },
     dureeMaxSec: { valeur: 180, regleId: "ys-shorts-3min-2024" },
     jourPublication: { valeur: 2, regleId: "hyp-ordre-publication" },
@@ -142,9 +148,46 @@ export function ecritureReseau(reseau: ReseauDeclinaison): EcritureReseau {
 export function regleIdsEcriture(): string[] {
   const ids = new Set<string>();
   for (const e of Object.values(ECRITURE_RESEAUX)) {
-    for (const v of [e.famillesFavorisees, e.boucle, e.motsDiese, e.premiereLigne, e.appelsPermis, e.zoneDureeSec, e.dureeMaxSec, e.jourPublication, e.segmentFacultatif, e.termesDuCompte, ...e.particularites]) {
+    for (const v of [e.commentaireCaracteresMax, e.titreCaracteresMax, e.famillesFavorisees, e.boucle, e.motsDiese, e.premiereLigne, e.appelsPermis, e.zoneDureeSec, e.dureeMaxSec, e.jourPublication, e.segmentFacultatif, e.termesDuCompte, ...e.particularites]) {
       if (v) ids.add(v.regleId);
     }
   }
   return [...ids].sort();
+}
+
+export type CodeErreurLimite = "commentaire-trop-long" | "titre-trop-long" | "mots-diese-hors-bornes";
+
+export interface ErreurLimiteTexte {
+  code: CodeErreurLimite;
+  reseau: ReseauDeclinaison;
+  message: string;
+  /** Règle datée d'où vient la limite (« hyp-* » tant qu'elle n'est pas sourcée). */
+  regleId: string;
+}
+
+/**
+ * L3-03 : contrôle des champs de texte d'un réseau contre les limites de la table. Une erreur nommée par champ hors
+ * limite ; tableau vide si tout passe. Un champ sans limite dans la table n'est jamais refusé.
+ */
+export function verifierLimitesTexte(
+  reseau: ReseauDeclinaison,
+  champs: { commentaire?: string; titre?: string; motsDiese?: number },
+): ErreurLimiteTexte[] {
+  const t = ECRITURE_RESEAUX[reseau];
+  const erreurs: ErreurLimiteTexte[] = [];
+  const c = t.commentaireCaracteresMax;
+  if (c && champs.commentaire !== undefined && champs.commentaire.length > c.valeur) {
+    erreurs.push({ code: "commentaire-trop-long", reseau, regleId: c.regleId, message: `Commentaire trop long (${champs.commentaire.length}/${c.valeur})` });
+  }
+  const ti = t.titreCaracteresMax;
+  if (ti && champs.titre !== undefined && champs.titre.length > ti.valeur) {
+    erreurs.push({ code: "titre-trop-long", reseau, regleId: ti.regleId, message: `Titre trop long (${champs.titre.length}/${ti.valeur})` });
+  }
+  if (champs.motsDiese !== undefined) {
+    const [min, max] = t.motsDiese.valeur;
+    if (champs.motsDiese < min || champs.motsDiese > max) {
+      erreurs.push({ code: "mots-diese-hors-bornes", reseau, regleId: t.motsDiese.regleId, message: `${champs.motsDiese} mots-dièse, entre ${min} et ${max} attendus` });
+    }
+  }
+  return erreurs;
 }
