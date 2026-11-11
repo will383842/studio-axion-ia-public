@@ -58,3 +58,61 @@ describe("Facebook : durée maximale (11/11/2026)", () => {
     expect(obtenirReseau("facebook").dureeMaxSec).toBe(180);
   });
 });
+
+/* L3-03 : limites de texte par réseau et par champ (lues dans la table d'écriture, jamais en dur ailleurs). */
+import { readFileSync } from "node:fs";
+import { ALT_MAX_REFERENCE } from "./index";
+import { ECRITURE_RESEAUX, verifierLimitesTexte } from "./ecriture";
+import { REGLES_DATEES_SEMEES } from "@/donnees/generateur/regles-datees";
+
+describe("limites de texte par réseau (L3-03)", () => {
+  it("un commentaire Instagram trop long renvoie l'erreur « commentaire-trop-long »", () => {
+    const max = ECRITURE_RESEAUX.instagram.commentaireCaracteresMax!.valeur;
+    expect(verifierLimitesTexte("instagram", { commentaire: "a".repeat(max) })).toEqual([]);
+    const e = verifierLimitesTexte("instagram", { commentaire: "a".repeat(max + 1) });
+    expect(e.map((x) => x.code)).toEqual(["commentaire-trop-long"]);
+    expect(e[0].regleId).toBe(ECRITURE_RESEAUX.instagram.commentaireCaracteresMax!.regleId);
+  });
+
+  it("un titre trop long renvoie « titre-trop-long »", () => {
+    const max = ECRITURE_RESEAUX["youtube-shorts"].titreCaracteresMax!.valeur;
+    expect(max).toBe(100);
+    expect(verifierLimitesTexte("youtube-shorts", { titre: "t".repeat(max) })).toEqual([]);
+    expect(verifierLimitesTexte("youtube-shorts", { titre: "t".repeat(max + 1) }).map((x) => x.code)).toEqual(["titre-trop-long"]);
+  });
+
+  it("un nombre de mots-dièse hors bornes sur LinkedIn renvoie « mots-diese-hors-bornes »", () => {
+    const [min, max] = ECRITURE_RESEAUX.linkedin.motsDiese.valeur;
+    expect(verifierLimitesTexte("linkedin", { motsDiese: min })).toEqual([]);
+    expect(verifierLimitesTexte("linkedin", { motsDiese: max })).toEqual([]);
+    expect(verifierLimitesTexte("linkedin", { motsDiese: max + 1 }).map((x) => x.code)).toEqual(["mots-diese-hors-bornes"]);
+    expect(verifierLimitesTexte("linkedin", { motsDiese: min - 1 }).map((x) => x.code)).toEqual(["mots-diese-hors-bornes"]);
+  });
+
+  it("un réseau sans limite pour un champ n'en refuse rien ; aucun cas YouTube", () => {
+    expect(verifierLimitesTexte("tiktok", { commentaire: "a".repeat(10000) })).toEqual([]);
+    expect(Object.keys(ECRITURE_RESEAUX)).not.toContain("youtube");
+  });
+
+  it("chaque limite porte un regleId semé ; « hyp-* » tant qu'elle n'est pas sourcée", () => {
+    const ids = REGLES_DATEES_SEMEES.map((r) => r.id);
+    for (const e of Object.values(ECRITURE_RESEAUX)) {
+      for (const v of [e.commentaireCaracteresMax, e.titreCaracteresMax, e.motsDiese]) {
+        if (!v) continue;
+        expect(ids).toContain(v.regleId);
+        const niveau = REGLES_DATEES_SEMEES.find((r) => r.id === v.regleId)!.niveau;
+        if (v.regleId.startsWith("hyp-")) expect(niveau).toBe("hypothese");
+      }
+    }
+    expect(ALT_MAX_REFERENCE.regleId).toMatch(/^hyp-/);
+    expect(ids).toContain(ALT_MAX_REFERENCE.regleId);
+  });
+
+  it("non-divergence : ALT_MAX de zernio-corps.ts et de buffer.ts égale la référence (lecture seule)", () => {
+    for (const f of ["src/fournisseurs/publication/zernio-corps.ts", "src/fournisseurs/publication/buffer.ts"]) {
+      const m = /export const ALT_MAX = (\d+);/.exec(readFileSync(f, "utf8"));
+      expect(m, f).not.toBeNull();
+      expect(Number(m![1]), f).toBe(ALT_MAX_REFERENCE.valeur);
+    }
+  });
+});
