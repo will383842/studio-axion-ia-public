@@ -23,12 +23,24 @@ export const VARIABLE_CLE_ZERNIO = "ZERNIO_API_KEY";
 export const PARAM_COMPTES_ZERNIO = "zernio.comptes";
 /** Interrupteur local « Tout arrêter » : à faux, toute écriture vers Zernio est refusée. Absent = envois permis. */
 export const PARAM_ARRET_ZERNIO = "zernio.envoi_autorise";
+/** L7-08 · interrupteur SÉPARÉ de l'envoi des publications du calendrier. FERMÉ par défaut (absent = fermé). Le parcours GUIDE ne le lit jamais. */
+export const PARAM_ENVOI_CALENDRIER = "zernio.envoi_calendrier_autorise";
 export const INTERVALLE_SYNCHRO_ZERNIO_MS = 15 * 60_000;
 const LECTURES_PAR_TOUR = 50;
 
 /** Relu à CHAQUE requête (jamais mis en cache) : l'arrêt agit tout de suite. */
 export async function envoiZernioAutorise(): Promise<boolean> {
   return (await lireParametre<boolean>(PARAM_ARRET_ZERNIO, true)) !== false;
+}
+
+/** Relu à chaque appel. Seul `true` ouvre : absent, faux ou toute autre valeur = fermé. */
+export async function envoiCalendrierAutorise(): Promise<boolean> {
+  return (await lireParametre<boolean>(PARAM_ENVOI_CALENDRIER, false)) === true;
+}
+
+/** Envoi de publications (calendrier, promotion) : exige les DEUX réglages ouverts. Le GUIDE n'utilise pas cette porte. */
+export async function envoiPublicationCalendrierAutorise(): Promise<boolean> {
+  return (await envoiZernioAutorise()) && (await envoiCalendrierAutorise());
 }
 
 let clientInjecte: ClientZernio | null = null;
