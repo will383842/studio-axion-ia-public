@@ -19,7 +19,7 @@ import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCT
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { DELAI_PERIME_MS, doitExpirer, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { DELAI_PERIME_MS, activiteRetenue, dansFenetreEnvoi, doitExpirer, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
@@ -183,6 +183,25 @@ async function opposeeAvantEnvoi(cle: string, env: Env, opts: { m2?: boolean } =
   // Un doute posé entre la lecture et l'envoi bloque M2 (pas la demande de guide : une adresse explicite reste servie).
   if (opts.m2 && e?.douteOpposition === true) return true;
   return empreintesOpposees([cle, ...(e?.alias ?? [])], { env });
+}
+
+/**
+ * Fenêtre de 24 h de Meta : date (et identifiant opaque) du dernier message écrit par la personne, posés sous verrou, seulement si
+ * la nouvelle date est STRICTEMENT plus récente (rejeu et désordre sans effet). Appelée en tête de traitement d'un message entrant.
+ */
+async function noterActivite(cle: string, ev: EvenementFournisseur, now: number): Promise<void> {
+  const c = ev.charge;
+  await ecrireEtat(cle, (e) => {
+    if (!e) return undefined;
+    const nouvelle = activiteRetenue(e.derniereActiviteLe, typeof c.occurredAt === "string" ? c.occurredAt : null, ev.recuLe, now);
+    if (nouvelle === null || nouvelle === (e.derniereActiviteLe ?? null)) return undefined;
+    return { ...e, derniereActiviteLe: nouvelle, idMessageDernier: texteDe(c.idMessage) };
+  });
+}
+/** Vrai = hors fenêtre : le message de conversation ne part pas. L'état est relu (échec fermé si la date manque). */
+async function horsFenetre(cle: string, now: number): Promise<boolean> {
+  const e = await lireEtat(cle);
+  return !e || !dansFenetreEnvoi(e, now);
 }
 
 /**
@@ -640,6 +659,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     return "traite";
   }
   const { cle } = trouve;
+  await noterActivite(cle, ev, now); // avant tout envoi, même pour une personne opposée (sans effet d'envoi)
   const etat = trouve.etat;
   const s0 = transition(etat, { t: "message", idExpediteur, idCompte, idMessage, sortant });
   if (s0.action === "silence") {
@@ -731,6 +751,12 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     }
     if (await opposeeAvantEnvoi(cle, env, { m2: true })) {
       await clore(ev, "silence", "opposee");
+      return "traite";
+    }
+    if (await horsFenetre(cle, now)) {
+      // Fenêtre de 24 h de Meta : M2 ne part pas, m2Envoye reste faux (un message ultérieur rouvre la fenêtre).
+      await patcher(cle, { dernierCode: "hors_fenetre" });
+      await clore(ev, "hors_fenetre", "hors_fenetre");
       return "traite";
     }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
@@ -855,6 +881,11 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
 async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
   if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
   if (await opposeeAvantEnvoi(cle, env)) return "fait";
+  if (await horsFenetre(cle, now)) {
+    // Fenêtre de 24 h de Meta : le message ne partira plus jamais (l'état passe ensuite à site_refuse).
+    await patcher(cle, { adresseRefuseeEnvoyee: true, dernierCode: "hors_fenetre" });
+    return "fait";
+  }
   // Garde de validation (échec fermé) : le texte ne part que si /mots en a validé l'empreinte exacte.
   const brouillon = TEXTES_MP["mp-adresse-refusee-v2"];
   const attendue = empreinteAdresseRefusee();
@@ -882,6 +913,12 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
   if (texte !== null) {
     if (await opposeeAvantEnvoi(cle, env)) {
       await clore(ev, "silence", "opposee");
+      return "traite";
+    }
+    if (await horsFenetre(cle, now)) {
+      // Le guide part par e-mail (demande déjà faite au site) : seul le reçu dans la conversation est abandonné.
+      await patcher(cle, { etat: "termine", dernierCode: "hors_fenetre" });
+      await clore(ev, "termine", "hors_fenetre");
       return "traite";
     }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";

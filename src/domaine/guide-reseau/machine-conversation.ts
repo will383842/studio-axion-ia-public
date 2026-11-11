@@ -8,6 +8,10 @@ import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 export const DELAI_PERIME_MS = 24 * 3600_000;
 export const EXPIRATION_MS = 7 * 24 * 3600_000;
 export const FENETRE_M1_REESSAI_MS = 6 * 24 * 3600_000;
+/** Fenêtre de 24 h de Meta, avec 1 h de marge (retards de Zernio) : au-delà, aucun message de conversation n'est envoyé. */
+export const FENETRE_ENVOI_MS = 23 * 3600_000;
+/** Une date de dernier message plus en avance que cela sur notre horloge est jugée suspecte : fenêtre fermée. */
+export const AVANCE_HORLOGE_MAX_MS = 5 * 60_000;
 export const ESSAIS_PUBLIC_MAX = 3;
 export const ESSAIS_M1_MAX = 3;
 export const ATTENTES_ORPHELIN_MS = [30_000, 2 * 60_000] as const;
@@ -61,6 +65,10 @@ export interface Conversation {
   adresseRefuseeEnAttente?: boolean;
   /** Référence opaque de conversation du lien signé (« c1_… »), écrite UNE fois au premier M1 v3 ; jamais réécrite, jamais le jeton. */
   refLienConv?: string | null;
+  /** Date (ISO) du dernier message ÉCRIT PAR LA PERSONNE : base de la fenêtre de 24 h de Meta. Jamais reculée. Absente = fenêtre fermée. */
+  derniereActiviteLe?: string | null;
+  /** Identifiant OPAQUE de ce dernier message de la personne (jamais d'identifiant de conversation brut). */
+  idMessageDernier?: string | null;
   /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
   douteOpposition?: boolean;
 }
@@ -208,4 +216,24 @@ export function doitExpirer(c: Conversation, maintenantMs: number, enVol = false
     if (t !== null) return maintenantMs - t >= EXPIRATION_MS;
   }
   return true;
+}
+
+/**
+ * Date de dernière activité à retenir : la PLUS RÉCENTE de l'ancienne et de la nouvelle (jamais en arrière : rejeu, désordre).
+ * La nouvelle vient de `occurredAt` s'il est lisible, sinon de `recuLe` ; une date dans le futur est ramenée à maintenant.
+ * `null` si rien n'est lisible.
+ */
+export function activiteRetenue(ancienne: string | null | undefined, occurredAt: string | null | undefined, recuLe: string | null | undefined, maintenantMs: number): string | null {
+  const nouvelle = dateLue(occurredAt) ?? dateLue(recuLe);
+  const vieille = dateLue(ancienne);
+  const n = nouvelle === null ? null : Math.min(nouvelle, maintenantMs);
+  const meilleur = n === null ? vieille : vieille === null ? n : Math.max(n, vieille);
+  return meilleur === null ? null : new Date(meilleur).toISOString();
+}
+
+/** Vrai si un message de conversation peut encore partir. Échec fermé : date absente, illisible ou en avance sur l'horloge = faux. */
+export function dansFenetreEnvoi(c: Pick<Conversation, "derniereActiviteLe">, maintenantMs: number): boolean {
+  const t = dateLue(c.derniereActiviteLe);
+  if (t === null || t > maintenantMs + AVANCE_HORLOGE_MAX_MS) return false;
+  return maintenantMs - t < FENETRE_ENVOI_MS;
 }

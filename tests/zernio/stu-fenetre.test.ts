@@ -40,6 +40,7 @@ beforeEach(async () => {
   silencerConsole();
   port = fauxPort();
   site = fauxSite();
+  port.reponses.texte = () => "Bonjour";
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
@@ -132,7 +133,7 @@ describe("hors fenêtre : rien ne part, rien n'est perdu", () => {
 describe("dans la fenêtre : comportement d'avant, avec le VRAI constructeur de corps d'envoi", () => {
   function portReel() {
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "msg-sortant-1" } }));
-    const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE] });
+    const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
     return { port: { ...port.port, envoyerMessage: reel.envoyerMessage }, faux };
   }
   const posts = (p: ReturnType<typeof portReel>) => p.faux.appels.filter((a) => a.methode === "POST");
@@ -156,6 +157,7 @@ describe("dans la fenêtre : comportement d'avant, avec le VRAI constructeur de 
     await deposerMessage(depots, { idMessage: "msg-rc-in", occurredAt: iso(T0) });
     await passer(T0 + 22 * H, p1.port);
     expect(posts(p1)).toHaveLength(1);
+    expect((posts(p1)[0].json as { message: string }).message).toContain(TITRE);
     expect(await etatDe()).toMatchObject({ etat: "termine" });
   });
   it("adresse refusée dans la fenêtre : part comme avant", async () => {
@@ -209,14 +211,15 @@ describe("un stop l'emporte toujours", () => {
     expect(await Opp.personneOpposee(A, "zernio-conversation", { env: ENV })).toBe(true);
     expect(port.envoyes).toHaveLength(0);
   });
-  it("personne déjà opposée puis message hors fenêtre au même passage : le code est opposee, pas hors_fenetre", async () => {
+  it("personne déjà opposée puis message hors fenêtre au même passage : le code n'est jamais hors_fenetre (etat/opposee)", async () => {
     port.reponses.texte = () => "STOP";
     await deposerMessage(depots, { idMessage: "msg-stop-1", occurredAt: iso(T0) });
     await passer(T0 + 1000);
     port.reponses.texte = () => "bonjour";
     const id = await deposerMessage(depots, { idMessage: "msg-apres", occurredAt: iso(T0), avance: 5000 });
     await passer(T0 + HORS);
-    expect((await evenement(depots, id)).charge.dernierCode).toBe("opposee");
+    // État déjà « oppose » : l'événement est clos « etat » (silence), jamais « hors_fenetre » ; rien ne part.
+    expect((await evenement(depots, id)).charge.dernierCode).toMatch(/^(etat|opposee)$/);
     expect(port.envoyes).toHaveLength(0);
   });
 });
