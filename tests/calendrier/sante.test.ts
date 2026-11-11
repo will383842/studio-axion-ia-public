@@ -26,7 +26,7 @@ describe("evaluerSante", () => {
   });
   it("valide jamais programmé en retard : alerte « jamais envoyé »", () => {
     const a = evaluerSante([c({ statut: "valide" })], min(30));
-    expect(a[0].motif).toMatch(/jamais/);
+    expect(a[0].motif).toMatch(/Jamais/);
   });
   it("avant l'heure : rien", () => {
     expect(evaluerSante([c()], min(-5))).toEqual([]);
