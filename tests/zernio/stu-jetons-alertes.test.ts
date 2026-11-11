@@ -1,0 +1,70 @@
+/** STU-JETONS : alerte (cloche seulement) avant l'expiration d'un jeton de réseau relié à Zernio, ou compte déconnecté. Données fictives. */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
+
+const J = 24 * 3600_000;
+const T0 = Date.parse("2026-11-10T08:00:00Z");
+const iso = (ms: number) => new Date(ms).toISOString();
+
+const { alertesJetonsZernio, compteSurveilleDepuisZernio } = await import("@/fournisseurs/publication/zernio-alertes-jetons");
+const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
+
+const compte = (extra: Record<string, unknown> = {}) => ({ id: "exemple-c1", nom: "Compte exemple", ...extra });
+
+describe("fonction pure", () => {
+  it("rien à signaler : aucun jeton à risque", () => {
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ actif: true, expireLe: iso(T0 + 30 * J) })], quotaRestantPct: 80 })).toEqual([]);
+  });
+  it("expiration dans moins de 7 jours : alerte ; à 7 jours pile : rien", () => {
+    const a = alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: iso(T0 + 3 * J) })] });
+    expect(a).toHaveLength(1);
+    expect(a[0].sujet).toBe("jeton:exemple-c1");
+    expect(a[0].message).toMatch(/3 jours/);
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: iso(T0 + 7 * J) })] })).toEqual([]);
+  });
+  it("déjà expiré, déconnecté ou à reconnecter : une seule alerte par compte", () => {
+    for (const c of [compte({ expireLe: iso(T0 - J) }), compte({ actif: false }), compte({ aReconnecter: true }), compte({ actif: false, expireLe: iso(T0 - J) })]) {
+      const a = alertesJetonsZernio({ maintenant: T0, comptes: [c] });
+      expect(a).toHaveLength(1);
+      expect(a[0].sujet).toBe("jeton:exemple-c1");
+    }
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: iso(T0 - J) })] })[0].message).toMatch(/expiré/);
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ actif: false })] })[0].message).toMatch(/déconnecté/);
+  });
+  it("quota restant strictement sous 20 % : alerte « quota » ; 20 % pile, absent ou invalide : rien", () => {
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [], quotaRestantPct: 19 }).map((x) => x.sujet)).toEqual(["quota"]);
+    for (const q of [20, 50, null, undefined, Number.NaN, -3, 140]) expect(alertesJetonsZernio({ maintenant: T0, comptes: [], quotaRestantPct: q as never })).toEqual([]);
+  });
+  it("date illisible : n'invente rien, pas d'alerte", () => {
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: "n'importe quoi" })] })).toEqual([]);
+  });
+  it("aucun identifiant dans le message", () => {
+    expect(JSON.stringify(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ actif: false })] }))).not.toMatch(/exemple-c1\b.*message|"message":"[^"]*exemple-c1/);
+  });
+  it("lecture d'un compte Zernio : isActive, needsReconnection et metadata.tokenExpiresAt seulement", () => {
+    expect(compteSurveilleDepuisZernio({ _id: "x1", platform: "instagram", displayName: "Nom", isActive: false, needsReconnection: true, metadata: { tokenExpiresAt: "2026-12-01T00:00:00Z" } } as never)).toEqual({ id: "x1", nom: "Nom", actif: false, aReconnecter: true, expireLe: "2026-12-01T00:00:00Z" });
+    expect(compteSurveilleDepuisZernio({ _id: "x2", platform: "facebook" } as never)).toEqual({ id: "x2", nom: "facebook", actif: undefined, aReconnecter: undefined, expireLe: undefined });
+  });
+});
+
+describe("service : cloche seulement, une par sujet et par jour", () => {
+  beforeEach(() => reinitialiserDepots());
+  it("une seule notification par jour pour un sujet, sans push ; le lendemain elle revient", async () => {
+    const { alerterJetonsZernio } = await import("@/services/zernio");
+    const comptes = [{ _id: "exemple-c1", platform: "instagram", displayName: "Compte exemple", isActive: false }] as never;
+    await alerterJetonsZernio(comptes, T0);
+    await alerterJetonsZernio(comptes, T0 + 3600_000);
+    let liste = await depots().notifications.lister();
+    expect(liste).toHaveLength(1);
+    expect(liste[0].envoi).toBeUndefined(); // cloche seule : jamais de file d'envoi (push / e-mail)
+    await alerterJetonsZernio(comptes, T0 + J);
+    liste = await depots().notifications.lister();
+    expect(liste).toHaveLength(2);
+  });
+  it("rien à signaler : aucune notification", async () => {
+    const { alerterJetonsZernio } = await import("@/services/zernio");
+    await alerterJetonsZernio([{ _id: "c", platform: "instagram", isActive: true }] as never, T0);
+    expect(await depots().notifications.lister()).toHaveLength(0);
+  });
+});
