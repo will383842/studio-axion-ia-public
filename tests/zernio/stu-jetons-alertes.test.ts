@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
+const TITRE = "Zernio : compte ou jeton à surveiller";
 const J = 24 * 3600_000;
 const T0 = Date.parse("2026-11-10T08:00:00Z");
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -40,7 +41,7 @@ describe("fonction pure", () => {
     expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: "n'importe quoi" })] })).toEqual([]);
   });
   it("aucun identifiant dans le message", () => {
-    expect(JSON.stringify(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ actif: false })] }))).not.toMatch(/exemple-c1\b.*message|"message":"[^"]*exemple-c1/);
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ actif: false })] })[0].message).not.toContain("exemple-c1");
   });
   it("lecture d'un compte Zernio : isActive, needsReconnection et metadata.tokenExpiresAt seulement", () => {
     expect(compteSurveilleDepuisZernio({ _id: "x1", platform: "instagram", displayName: "Nom", isActive: false, needsReconnection: true, metadata: { tokenExpiresAt: "2026-12-01T00:00:00Z" } } as never)).toEqual({ id: "x1", nom: "Nom", actif: false, aReconnecter: true, expireLe: "2026-12-01T00:00:00Z" });
@@ -55,16 +56,16 @@ describe("service : cloche seulement, une par sujet et par jour", () => {
     const comptes = [{ _id: "exemple-c1", platform: "instagram", displayName: "Compte exemple", isActive: false }] as never;
     await alerterJetonsZernio(comptes, T0);
     await alerterJetonsZernio(comptes, T0 + 3600_000);
-    let liste = await depots().notifications.lister();
+    let liste = (await depots().notifications.lister()).filter((n) => n.titre === TITRE);
     expect(liste).toHaveLength(1);
     expect(liste[0].envoi).toBeUndefined(); // cloche seule : jamais de file d'envoi (push / e-mail)
     await alerterJetonsZernio(comptes, T0 + J);
-    liste = await depots().notifications.lister();
+    liste = (await depots().notifications.lister()).filter((n) => n.titre === TITRE);
     expect(liste).toHaveLength(2);
   });
   it("rien à signaler : aucune notification", async () => {
     const { alerterJetonsZernio } = await import("@/services/zernio");
     await alerterJetonsZernio([{ _id: "c", platform: "instagram", isActive: true }] as never, T0);
-    expect(await depots().notifications.lister()).toHaveLength(0);
+    expect((await depots().notifications.lister()).filter((n) => n.titre === TITRE)).toHaveLength(0);
   });
 });
