@@ -55,7 +55,7 @@ function BoutonEcoute({ src, nom }: { src: string; nom: string }) {
             setJoue(true);
           }
         }}
-        className={cn("relative z-10 grid size-11 shrink-0 place-items-center rounded-full transition-colors", joue ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte hover:bg-surface-3")}
+        className={cn("relative z-10 grid size-11 shrink-0 place-items-center rounded-full transition-colors", joue ? "bg-texte text-fond" : "bg-surface-2 text-texte hover:bg-surface-3")}
       >
         <Icone nom={joue ? "son" : "lecture"} size={18} className={joue ? "animate-pulse" : "translate-x-px"} />
       </button>
@@ -77,7 +77,7 @@ export function CarteElement({ element: e, onOuvrir, selection, extra }: { eleme
           <Image src={e.vignette} alt="" fill sizes="(max-width: 640px) 50vw, 220px" className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
         ) : (
           <div className="absolute inset-0 grid place-items-center lueur">
-            <span className="grid size-12 place-items-center rounded-2xl bg-orange-doux text-orange-vif">
+            <span className="grid size-12 place-items-center rounded-2xl bg-surface-2 text-texte-faible">
               <Icone nom={meta?.icone ?? "image"} size={22} />
             </span>
           </div>
@@ -87,12 +87,12 @@ export function CarteElement({ element: e, onOuvrir, selection, extra }: { eleme
           {e.type === "illustration-video" && <Pastille ton="neutre" icone="film">Vidéo</Pastille>}
         </div>
         {e.formatsParDefaut.length > 0 && (
-          <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-orange text-sur-orange" title="Style par défaut d'un format">
+          <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-texte text-fond" title="Style par défaut d'un format">
             <Icone nom="etoile" size={14} fill="currentColor" />
           </span>
         )}
         {selection && (
-          <span className={cn("absolute bottom-2 right-2 grid size-7 place-items-center rounded-full border-2", selection.choisi ? "border-orange bg-orange text-sur-orange" : "border-texte/70 bg-fond/50")}>
+          <span className={cn("absolute bottom-2 right-2 grid size-7 place-items-center rounded-full border-2", selection.choisi ? "border-texte bg-texte text-fond" : "border-texte/70 bg-fond/50")}>
             {selection.choisi && <Icone nom="coche" size={14} strokeWidth={3} />}
           </span>
         )}
@@ -120,7 +120,7 @@ export function CarteElement({ element: e, onOuvrir, selection, extra }: { eleme
   const classes = cn(
     "group relative block w-full overflow-hidden rounded-carte border border-trait bg-surface-1 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-trait-fort",
     action && "cursor-pointer has-[button:focus-visible]:outline-2 has-[button:focus-visible]:outline-offset-2 has-[button:focus-visible]:outline-orange-vif",
-    selection?.choisi && "border-orange",
+    selection?.choisi && "border-texte",
   );
   return <div className={classes}>{contenu}</div>;
 }

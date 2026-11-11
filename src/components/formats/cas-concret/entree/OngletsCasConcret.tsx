@@ -24,7 +24,7 @@ export function OngletsCasConcret({ actif, nombres, synthese }: { actif: OngletI
                 href={lienOnglet(o.id)}
                 className={cn(
                   "inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-orange-vif",
-                  choisi ? "border-orange text-texte" : "border-transparent text-texte-doux hover:text-texte",
+                  choisi ? "border-texte text-texte" : "border-transparent text-texte-doux hover:text-texte",
                 )}
               >
                 {o.libelle} ({nombres[o.id]})

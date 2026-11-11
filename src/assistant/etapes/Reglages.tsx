@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import { Champ } from "@/components/ui/Champ";
 import { Curseur } from "@/components/ui/Curseur";
+import { Carte } from "@/components/ui/Carte";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
@@ -59,13 +60,13 @@ const BRUITAGES: { valeur: ReglageBruitages; libelle: string }[] = [
 
 function Bloc({ icone, titre, children, className }: { icone: NomIcone; titre: string; children: ReactNode; className?: string }) {
   return (
-    <motion.section layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }} className={cn("rounded-carte border border-trait bg-surface-1 p-4", className)}>
+    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}><Carte as="section" className={className}>
       <h2 className="mb-3 flex items-center gap-2 font-texte text-sm font-semibold text-texte-doux">
-        <Icone nom={icone} size={16} className="text-orange-vif" />
+        <Icone nom={icone} size={16} className="text-texte-doux" />
         {titre}
       </h2>
       {children}
-    </motion.section>
+    </Carte></motion.div>
   );
 }
 
@@ -132,7 +133,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                 role="radio"
                 aria-checked={lutChoisie === LUT_AUCUNE}
                 onClick={() => style({ lutId: LUT_AUCUNE })}
-                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", lutChoisie === LUT_AUCUNE ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort")}
+                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", lutChoisie === LUT_AUCUNE ? "border-texte ring-2 ring-texte/30" : "border-trait hover:border-trait-fort")}
               >
                 <span className="relative grid aspect-video place-items-center bg-surface-2">
                   <Icone nom="nuancier" size={20} className="text-texte-faible" />
@@ -148,19 +149,19 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                     role="radio"
                     aria-checked={actif}
                     onClick={() => style({ lutId: l.id })}
-                    className={cn("w-32 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort")}
+                    className={cn("w-32 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-texte ring-2 ring-texte/30" : "border-trait hover:border-trait-fort")}
                   >
                     <span className="relative block aspect-video bg-surface-2">
                       {l.vignette ? <Image src={l.vignette} alt="" fill sizes="128px" className="object-cover" /> : <Icone nom="nuancier" size={20} className="absolute inset-0 m-auto text-texte-faible" />}
                       {conseillees.has(l.id) && !actif && (
                         <span className="absolute left-1.5 top-1.5">
-                          <Pastille ton="orange" icone="etoile">
+                          <Pastille ton="neutre" icone="etoile">
                             Conseillé
                           </Pastille>
                         </span>
                       )}
                       {actif && (
-                        <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-orange text-sur-orange">
+                        <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-texte text-fond">
                           <Icone nom="coche" size={13} strokeWidth={3} />
                         </span>
                       )}

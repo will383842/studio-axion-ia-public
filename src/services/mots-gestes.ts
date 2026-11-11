@@ -5,7 +5,7 @@
  */
 import "server-only";
 import { exigerSession } from "./auth";
-import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
+import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
@@ -70,6 +70,12 @@ export async function gesteValiderMotGuide(): Promise<{ ok: boolean; raison: str
   await exigerSession();
   if (await guideFichierPresent()) return { ok: false, raison: "guide_fichier_present" };
   const r = await validerGuideParcours({ titre: titreGuideParcours(process.env), confirmeParOperateur: true });
+  return { ok: r.ok, raison: r.raison };
+}
+/** Validation du message « adresse refusée » : le client ne transmet rien, le texte est celui du dictionnaire (serveur). */
+export async function gesteValiderAdresseRefusee(): Promise<{ ok: boolean; raison: string }> {
+  await exigerSession();
+  const r = await validerAdresseRefusee({ confirmeParOperateur: true });
   return { ok: r.ok, raison: r.raison };
 }
 /** Comptes du parcours de conversation (identifiants seulement) pour les boutons d'activation. */

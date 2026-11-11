@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CeQuiMarche } from "@/components/generateur/CeQuiMarche";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { apprentissageActif } from "@/services/apprentissage";
 import { exigerSession } from "@/services/auth";
@@ -18,9 +19,9 @@ export default async function PageCeQuiMarche() {
   const apprentissage = await apprentissageActif();
   const modes = modesLecture();
   return (
-    <div className="mx-auto max-w-2xl">
-      <EnTetePage retour={{ href: "/mesures", libelle: "Mesures" }} titre="Ce qui marche" sousTitre={donnees.nombre ? `${donnees.nombre} vidéos mesurées` : undefined} className="mb-4" />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={{ href: "/mesures", libelle: "Mesures" }} titre="Ce qui marche" sousTitre={donnees.nombre ? `${donnees.nombre} vidéos mesurées` : undefined} />
       <CeQuiMarche donnees={donnees} apprentissage={apprentissage} essai={modes.buffer === "simulation" && modes.visites === "simulation"} />
-    </div>
+    </ConteneurPage>
   );
 }
