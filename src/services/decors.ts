@@ -37,6 +37,7 @@ import {
 } from "@/domaine/decors";
 import { TARIFS_FABRICATION_USD } from "@/domaine/illustrations";
 import type { AngleVisage, DateIso, ElementBibliotheque, Fichier, Id, Montant, ValeurDecor } from "@/domaine/types";
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { descriptionEnCatalogue } from "@/donnees/decors-catalogue";
 import { DECORS_DANS_HEYGEN, LOOKS_HEYGEN_PAR_LE_STUDIO } from "@/fournisseurs/heygen/rendus";
 import { etatConnexion, resoudreFournisseur } from "@/fournisseurs";
@@ -296,8 +297,8 @@ async function creerPropositionsDuLot(lot: LotDecors, reel: boolean): Promise<Id
         methode: "photo-incrustee",
         // Une photo réelle est toujours floutée (profondeur de champ) : 14 px à 1080 de large.
         profondeurFlou: 14,
-        teinte: clair ? "#E9E1D4" : "#1A120B",
-        teinteLumiere: clair ? "#F2D6A8" : "#D69650",
+        teinte: clair ? PALETTE.gris : PALETTE.noir,
+        teinteLumiere: clair ? PALETTE.gris : PALETTE.orange,
         directionLumiere: clair ? "gauche" : "droite",
         positionSujet: 0.5,
         clair,
@@ -789,7 +790,7 @@ export async function creerDecorDepuisDescription(phrase: string, options: { con
     licence: { type: "generee-ia", usageCommercial: true, reseaux: [], source: "HeyGen (look de votre avatar)" },
     formatsParDefaut: [],
     marqueId: "marque-axion",
-    valeur: { type: "decor", mode: "image", methode: "look-heygen", profondeurFlou: 0, teinte: "#1A120B", directionLumiere: "gauche", positionSujet: 0.5, description: texte, statut: "a_verifier", demande: { texte, le: maintenant() } },
+    valeur: { type: "decor", mode: "image", methode: "look-heygen", profondeurFlou: 0, teinte: PALETTE.noir, directionLumiere: "gauche", positionSujet: 0.5, description: texte, statut: "a_verifier", demande: { texte, le: maintenant() } },
     ...horodatage(),
   };
   await d.elements.enregistrer(element);
