@@ -17,9 +17,9 @@ export const PALETTE = {
   reussite: "#5E7050",
   /** Blanc pur : cartes sur ivoire, texte sur terracotta ou survol. */
   blanc: "#FFFFFF",
-  /** Survol et attention (à confirmer par Williams). Texte blanc dessus ; jamais sur noir. */
+  /** Survol et attention : valeur dérivée, NON confirmée (décision D5 de Williams) ; aucun usage avant D5. Texte blanc dessus (7,87) ; jamais sur noir (2,34). */
   survol: "#8F3412",
-  /** Texte secondaire sur ivoire ou gris. */
+  /** Texte secondaire des interfaces (site, console, PDF ; seuil 4,5 de ce module) sur ivoire, blanc ou gris chaud. Vidéos (charte-duo, seuil 7) : affiche et décor seulement, jamais texte courant (6,26 sur ivoire). */
   texteSecondaire: "#5E5D59",
   /** Filet d'erreur ; le texte d'erreur reste noir. */
   erreurFilet: "#B8341C",

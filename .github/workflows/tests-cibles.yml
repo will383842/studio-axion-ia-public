@@ -1,5 +1,5 @@
 # TESTS CIBLÉS « CAS CONCRET » : informatif, NON BLOQUANT (ne jamais l'ajouter aux contrôles exigés de la protection de `main`).
-# Liste fixe de tests verts. Exclus car rouges ou instables : variete/l3c (empreintes différentes sous Linux, vert sous Windows), l7-socle, services/boucle, x7/avant-prix, s1e, x9/montant, x6, prix/prix-au-plus, r1-relecture, r1-synchro-buffer (rouges sur master, à remettre au vert par un lot dédié).
+# Liste fixe de tests verts. Exclus car rouges ou instables : services/boucle, x7/avant-prix, s1e, x9/montant, x6, prix/prix-au-plus, r1-relecture, r1-synchro-buffer (rouges sur master, à remettre au vert par un lot dédié).
 # Pas de tsc ni d'eslint complets (erreurs de types préexistantes). Aucun secret.
 name: tests-cibles
 
@@ -28,6 +28,10 @@ on:
       - "tests/facecam-animee/sujets-traites/**"
       - "src/components/formats/facecam-animee/sujet-deja-traite.ts"
       - "src/services/sujet-central-controle.ts"
+      - "src/briques/habillage/**"
+      - "src/briques/charte/**"
+      - "studio-rendu/compositions/cas-concret/**"
+      - "studio-rendu/compositions/image-video/Additionneur.tsx"
       - "src/services/generateur.ts"
       - "src/services/generateur-ecran.ts"
       - "src/services/usine-sujet.ts"
@@ -149,6 +153,15 @@ jobs:
             tests/buffer-mots-interdits-envoi.test.ts \
             tests/a-publier-finitions-envoi.test.ts \
             tests/a-publier-mots-interdits-envoi.test.ts
+      - name: Charte et v4 exacte
+        run: |
+          pnpm exec vitest run \
+            tests/briques/habillage/charte-duo.test.ts \
+            tests/briques/charte/axion-2026.test.ts \
+            tests/cas-concret/variete/l3c.test.ts \
+            tests/cas-concret/variete/l7-socle.test.ts \
+            tests/cas-concret/compositions/lot2.test.ts \
+            tests/cas-concret/compositions/lot3.test.ts
       - name: Tests z0 (contrat Zernio) et r1 (envoi, client Buffer)
         run: |
           pnpm exec vitest run \
