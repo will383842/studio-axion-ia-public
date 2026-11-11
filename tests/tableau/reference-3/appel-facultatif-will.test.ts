@@ -54,3 +54,33 @@ describe("page d'appel facultative (texte de Williams)", () => {
     expect(textes(regleGabarit(f, { texteDeWill: true })).join(" | ")).not.toMatch(/APPEL|page d'appel/);
   });
 });
+
+describe("« réservez un appel » est un appel dit (texte de Williams)", () => {
+  const formes = ["Réservez un appel", "réserver un appel", "RESERVEZ VOTRE APPEL", "Reservez un appel", "Réservez  un   appel", "réservez un appel."];
+  for (const forme of formes) {
+    it(`« ${forme} » : appel reconnu, page d'appel attendue`, () => {
+      const f = sansAppelFiche();
+      const derniere = f.scenes[f.scenes.length - 1];
+      derniere.texteDit = `${derniere.texteDit} ${forme} pour en parler.`;
+      expect(trouverAppel(f)).not.toBeNull();
+      expect(textes(regleGabarit(f, { texteDeWill: true })).join(" | ")).toMatch(/dernière page est la page d'APPEL/);
+    });
+  }
+  it("apostrophes typographiques et casse : « Réservez votre appel » dans une phrase", () => {
+    const f = sansAppelFiche();
+    const derniere = f.scenes[f.scenes.length - 1];
+    derniere.texteDit = `${derniere.texteDit} Alors, n’hésitez pas : réservez votre appel dès maintenant.`;
+    expect(trouverAppel(f)).not.toBeNull();
+  });
+  it("texte sans appel : inchangé (aucun appel, aucun refus)", () => {
+    const f = sansAppelFiche();
+    expect(trouverAppel(f)).toBeNull();
+    expect(textes(regleGabarit(f, { texteDeWill: true })).join(" | ")).not.toMatch(/APPEL|page d'appel/);
+  });
+  it("un mot voisin ne déclenche pas : « un appel » seul, « réservation »", () => {
+    const f = sansAppelFiche();
+    const derniere = f.scenes[f.scenes.length - 1];
+    derniere.texteDit = `${derniere.texteDit} Il a reçu un appel hier, sa réservation est confirmée.`;
+    expect(trouverAppel(f)).toBeNull();
+  });
+});

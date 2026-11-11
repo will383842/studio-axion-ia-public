@@ -6,6 +6,10 @@
  */
 import { AbsoluteFill } from "remotion";
 
+/** Palette Axion : vêtements. La peau, les cheveux et l'oreille gardent leurs teintes réalistes. */
+const NOIR = "#141413";
+const GRIS = "#E8E6DC";
+
 export type ProprietesSilhouette = { tenue: string; peau: string; t: number };
 
 export function Silhouette({ tenue, peau, t }: ProprietesSilhouette) {
@@ -24,25 +28,21 @@ export function Silhouette({ tenue, peau, t }: ProprietesSilhouette) {
           <linearGradient id="veste" x1="0" x2="1" y1="0" y2="0">
             <stop offset="0" stopColor={tenue} stopOpacity="1" />
             <stop offset="0.65" stopColor={tenue} />
-            <stop offset="1" stopColor="#2C313B" />
+            <stop offset="1" stopColor={NOIR} />
           </linearGradient>
           <radialGradient id="peau" cx="0.6" cy="0.4" r="0.7">
             <stop offset="0" stopColor={peau} />
             <stop offset="1" stopColor="#8E6553" />
           </radialGradient>
-          <linearGradient id="pantalon" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#23262D" />
-            <stop offset="1" stopColor="#15171B" />
-          </linearGradient>
         </defs>
         {/* Cuisses (assis, coupées à mi-cuisse par le bas du cadre). */}
-        <path d="M300 1500 C 290 1700, 300 1860, 310 1920 L 1010 1920 C 1020 1800, 1000 1650, 960 1540 C 840 1500, 460 1480, 300 1500 Z" fill="url(#pantalon)" />
+        <path d="M300 1500 C 290 1700, 300 1860, 310 1920 L 1010 1920 C 1020 1800, 1000 1650, 960 1540 C 840 1500, 460 1480, 300 1500 Z" fill={NOIR} />
         {/* Buste (veste), respiration. */}
         <g transform={`translate(540 1100) scale(${respiration}) translate(-540 -1100)`}>
           <path d="M330 760 C 250 820, 230 1000, 250 1250 C 260 1420, 280 1520, 300 1560 L 940 1560 C 960 1480, 980 1380, 960 1240 C 950 1050, 930 840, 830 760 C 760 720, 640 700, 580 700 C 500 700, 400 720, 330 760 Z" fill="url(#veste)" />
           {/* Chemise et col. */}
-          <path d="M520 712 L 600 712 L 640 980 L 580 1060 L 520 980 Z" fill="#E8E2D8" />
-          <path d="M500 720 L 560 1010 L 470 860 Z M 640 720 L 600 1010 L 690 860 Z" fill="#191C22" />
+          <path d="M520 712 L 600 712 L 640 980 L 580 1060 L 520 980 Z" fill={GRIS} />
+          <path d="M500 720 L 560 1010 L 470 860 Z M 640 720 L 600 1010 L 690 860 Z" fill={NOIR} />
           {/* Bras gauche, posé. */}
           <path d="M300 820 C 230 1000, 240 1300, 330 1560 L 420 1560 C 380 1350, 370 1050, 390 880 Z" fill={tenue} opacity="0.95" />
           {/* Bras droit, du coude vers la main (geste). */}
