@@ -736,7 +736,7 @@ async function sansEchecsPerimes(travaux: Travail[]): Promise<Travail[]> {
   const d = depots();
   // Lecture limitée aux vidéos des échecs affichés (pas toutes les vidéos ni tous les travaux).
   const cibles = new Set(echecs.map((t) => t.cibleId).filter((id): id is string => typeof id === "string"));
-  const videos = new Map<string, Video | undefined>(await Promise.all([...cibles].map(async (id) => [id, await d.videos.obtenir(id)] as const)));
+  const videos = new Map<string, Video | null | undefined>(await Promise.all([...cibles].map(async (id) => [id, await d.videos.obtenir(id)] as const)));
   // Le travail le plus récent de chaque vidéo, tous statuts confondus (un ancien terminé compte aussi), SAUF les ré-exports de
   // format : ils n'effacent pas un échec de fabrication ou de retouche.
   const dernier = new Map<string, string>();
@@ -960,7 +960,7 @@ export function avecDelai<T>(promesse: Promise<T>, ms: number): Promise<T> {
  * Un travail EN ÉCHEC se masque (sans rien effacer) quand sa vidéo est absente ou archivée (ou prête, pour une fabrication seulement), ou qu'un travail plus
  * récent existe pour la même vidéo. `video` : `undefined` = introuvable. PUR.
  */
-export function travailAfficheALAccueil(t: Pick<Travail, "statut" | "type">, video: Pick<Video, "statut"> | undefined, plusRecent: boolean): boolean {
+export function travailAfficheALAccueil(t: Pick<Travail, "statut" | "type">, video: Pick<Video, "statut"> | null | undefined, plusRecent: boolean): boolean {
   if (t.statut !== "echec") return true;
   if (!video || video.statut === "archivee") return false;
   // Vidéo prête : seul un échec de FABRICATION est périmé (la vidéo existe). Une retouche ou un recalque en échec reste visible.
