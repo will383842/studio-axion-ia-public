@@ -38,6 +38,9 @@ const { PARAM_ROUTAGE } = await import("@/services/routage-publication");
 const { envoyerParOutilAction } = await import("@/services/a-publier-zernio");
 const { journaliserEnvoi } = await import("@/services/journal-envoi");
 const { ciblesZernioPour } = await import("@/services/zernio-cibles");
+// Précondition L7-08 : l'envoi du calendrier a son propre réglage, fermé par défaut ; ce fichier teste l'envoi, il l'ouvre.
+const { ecrireParametre: ecrireReglageCalendrier } = await import("@/services/_commun");
+const { PARAM_ENVOI_CALENDRIER } = await import("@/services/zernio");
 
 
 const VIDEO = "v-15";
@@ -74,6 +77,7 @@ beforeEach(async () => {
   vi.spyOn(console, "log").mockImplementation((...a: unknown[]) => void lignes.push(a.map(String).join(" ")));
   reinitialiserDepots();
   await exemplesCommeVraies(depots(), { plusExemples: true });
+  await ecrireReglageCalendrier(PARAM_ENVOI_CALENDRIER, true);
   reinitialiserRequete();
   await auth.seConnecter("essai-log-refus", false);
   etat.zernio = fauxZernio();

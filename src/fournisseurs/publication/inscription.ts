@@ -14,10 +14,9 @@ import { creerPublicationZernio } from "./zernio";
 export const VARIABLE_CLE_ZERNIO = "ZERNIO_API_KEY";
 
 /**
- * Interrupteur « Tout arrêter », relu à chaque requête. Import différé : les services importent déjà les fournisseurs,
- * un import direct ferait une boucle.
+ * L7-08 : le fournisseur de publication (posts du calendrier) exige l'ancien (« Tout arrêter », relu à chaque requête) ET le nouveau réglage.
+ * Import différé : les services importent déjà les fournisseurs, un import direct ferait une boucle.
  */
-/** L7-08 : le fournisseur de publication (posts du calendrier) exige l'ancien ET le nouveau réglage. */
 export const envoiAutoriseCalendrierClient = async (): Promise<boolean> => (await import("@/services/zernio")).envoiPublicationCalendrierAutorise();
 
 export function publicationZernio(env: Env = process.env): Record<string, FournisseurPublication> {

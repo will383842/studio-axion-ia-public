@@ -39,6 +39,9 @@ const pub = await import("@/services/publications");
 const { PARAM_CANAUX, marquerEnvoiVerifie } = await import("@/services/buffer");
 const { PARAM_ROUTAGE } = await import("@/services/routage-publication");
 const { envoyerParOutilAction } = await import("@/services/a-publier-zernio");
+// Précondition L7-08 : l'envoi du calendrier a son propre réglage, fermé par défaut ; ce fichier teste l'envoi, il l'ouvre.
+const { ecrireParametre: ecrireReglageCalendrier } = await import("@/services/_commun");
+const { PARAM_ENVOI_CALENDRIER } = await import("@/services/zernio");
 
 
 const VIDEO = "v-15";
@@ -72,6 +75,7 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", () => Promise.reject(new Error("fetch interdit")));
   reinitialiserDepots();
   await exemplesCommeVraies(depots(), { plusExemples: true });
+  await ecrireReglageCalendrier(PARAM_ENVOI_CALENDRIER, true);
   reinitialiserRequete();
   await auth.seConnecter("essai-fix-cible", false);
   etat.zernio = fauxZernio();
