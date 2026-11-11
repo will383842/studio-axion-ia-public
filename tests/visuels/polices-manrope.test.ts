@@ -72,9 +72,12 @@ describe("L2-02 : mesures de chasse Manrope (largeur-mot)", () => {
     expect(largeurMot(mot, 40)).toBeCloseTo(attendu, 6);
   });
 
-  it("la chasse n'est plus celle d'Inter : « m » et « i » diffèrent de la table Inter Bold", () => {
+  it("la chasse n'est plus celle d'Inter : « m » et « i » diffèrent de la table Inter Bold (mesurée dans Inter-Bold.ttf, 2048 unités par em)", () => {
+    const interBold = { m: 1869 / 2048, i: 555 / 2048 };
     expect(largeurMot("m", 1000)).toBeCloseTo(chasse("m") * 1000 * MARGE_MESURE, 6);
     expect(largeurMot("i", 1000)).toBeCloseTo(chasse("i") * 1000 * MARGE_MESURE, 6);
+    expect(largeurMot("m", 1000)).not.toBeCloseTo(interBold.m * 1000 * MARGE_MESURE, 1);
+    expect(largeurMot("i", 1000)).not.toBeCloseTo(interBold.i * 1000 * MARGE_MESURE, 1);
   });
 
   it("un signe absent de la table compte comme le plus large (choix prudent)", () => {
@@ -85,6 +88,26 @@ describe("L2-02 : mesures de chasse Manrope (largeur-mot)", () => {
   it("l'espace fine insécable et l'espace insécable prennent la chasse de l'espace", () => {
     expect(largeurMot(" ", 100)).toBeCloseTo(chasse(" ") * 100 * MARGE_MESURE, 6);
     expect(largeurMot(" ", 100)).toBeCloseTo(chasse(" ") * 100 * MARGE_MESURE, 6);
+  });
+
+  // Borne INDÉPENDANTE de largeur-mot : « PROFESSIONNALISATION » en Manrope ExtraBold, additionnée à la main (unités sur 2000 par em, relevées dans la table des métriques).
+  const MAIN = [1300, 1340, 1516, 1060, 1180, 1342, 1342, 592, 1516, 1458, 1458, 1366, 1082, 592, 1342, 1366, 1220, 592, 1516, 1458];
+  const MOT = "PROFESSIONNALISATION";
+  const EM_MAIN = 24638 / 2000;
+
+  it("la somme faite à la main (24 638 unités sur 2000) est celle de la mesure, au corps 40", () => {
+    expect(MAIN.reduce((a, b) => a + b, 0)).toBe(24638);
+    expect([...MOT]).toHaveLength(MAIN.length);
+    expect(largeurMot(MOT, 40)).toBeCloseTo(EM_MAIN * 40 * 1.03, 6);
+  });
+
+  it("corpus de référence : le corps retenu est le plus grand qui tienne selon la borne à la main (un corps de plus déborde)", () => {
+    const corps = corpsPourMots([MOT], LARGEUR_TEXTE, 112, 20);
+    expect(corps).toBe(Math.floor(LARGEUR_TEXTE / (EM_MAIN * 1.03)));
+    expect(EM_MAIN * corps * 1.03).toBeLessThanOrEqual(LARGEUR_TEXTE);
+    expect(EM_MAIN * (corps + 1) * 1.03).toBeGreaterThan(LARGEUR_TEXTE);
+    expect(motLePlusLarge(MOT, corps).largeur).toBeLessThanOrEqual(LARGEUR_TEXTE);
+    expect(motLePlusLarge(MOT, corps + 1).largeur).toBeGreaterThan(LARGEUR_TEXTE);
   });
 
   it("corpus de référence : à la largeur de page, chaque mot tient au corps retenu (aucun débordement)", () => {

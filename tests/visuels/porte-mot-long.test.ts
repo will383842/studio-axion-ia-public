@@ -64,14 +64,16 @@ describe("MOT_TROP_LONG : mot le plus long d'un titre de carte T02 (mesuré au r
 });
 
 /**
- * Tour 2 : un mot insécable plus large que sa colonne (chasses réelles d'Inter Bold) est refusé PAR LA PORTE, avant le rendu, dans les
+ * Tour 2 : un mot insécable plus large que sa colonne (chasses réelles de Manrope ExtraBold) est refusé PAR LA PORTE, avant le rendu, dans les
  * gabarits à colonnes : T26 (lignes, outils, « vous »), T28, T24, T23, T02, T27. « professionnalisation » y tient ; des lettres larges non.
  */
 describe("MOT_TROP_LONG : gabarits à colonnes (largeur réelle du mot)", () => {
-  const LARGE = "MWMWMWMWMWMWMWMW";
+  /** 20 lettres larges : la chasse de Manrope ExtraBold est plus étroite que celle d'Inter Bold, 16 lettres y tiennent (le seuil de la colonne « avec nous » est à 18). */
+  const LARGE = "MWMWMWMWMWMWMWMWMWMW";
   const t26 = { type: "T26", titre: "Un exemple type", avant: ["Les mails s'empilent", "On répond tard"], avec: ["Les demandes sont triées", "Un brouillon attend"], outils: ["Messagerie"], vous: "Vous relisez et vous envoyez" };
-  it("T26 : « professionnalisation » tient partout ; 16 lettres larges dans une ligne « avec nous » sont refusées, avec le chemin du champ", () => {
+  it("T26 : « professionnalisation » tient partout ; 20 lettres larges dans une ligne « avec nous » sont refusées (16 y tiennent en Manrope), avec le chemin du champ", () => {
     expect(motsTropLongs({ ...t26, avec: ["La professionnalisation", "Professionnalisation"] })).toEqual([]);
+    expect(motsTropLongs({ ...t26, avec: [LARGE.slice(0, 16), "Un brouillon attend"] })).toEqual([]);
     const r = motsTropLongs({ ...t26, avec: [LARGE, "Un brouillon attend"] });
     expect(r).toHaveLength(1);
     expect(r[0]).toMatchObject({ niveau: "rouge", page: 2, chemin: "pages.1.avec.0" });

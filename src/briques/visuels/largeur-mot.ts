@@ -12,7 +12,7 @@ const MANROPE = METRIQUES["Manrope ExtraBold"];
 const CHASSES = new Map([...CARACTERES].map((c, i) => [c, MANROPE.largeurs[i] / MANROPE.unitesParEm] as const));
 /** Un signe absent de la table compte comme le plus large de la table (choix prudent). */
 const CHASSE_MAX = Math.max(...CHASSES.values());
-/** Marge de sécurité sur la mesure (versions d'Inter, arrondis du moteur de rendu). */
+/** Marge de sécurité sur la mesure (versions de Manrope, arrondis du moteur de rendu). */
 export const MARGE_MESURE = 1.03;
 
 /** Mots insécables d'un texte affiché : seuls l'espace ordinaire, les blancs de contrôle et les tirets ASCII / U+2010 coupent (choix prudent). */
