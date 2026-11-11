@@ -4,9 +4,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { DemandeRendu, EtatRendu, ServiceRendu } from "@/fournisseurs/types";
-import { lireVisuelStocke } from "@/domaine/visuels/depot";
+import { lireVisuelStocke, VersionsStockees } from "@/domaine/visuels/depot";
 import { InfographieSpec } from "@/domaine/visuels/schema-infographie";
-import { VersionsStockees } from "@/domaine/visuels/schema";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import { REGISTRE_VISUELS } from "@/visuels/registre";
 import { creerRegistreVersionsDepuis, rendreVersionsReseaux, versionsPourStockage, type DependancesRenduReseaux } from "@/visuels/services/rendu-reseaux";
