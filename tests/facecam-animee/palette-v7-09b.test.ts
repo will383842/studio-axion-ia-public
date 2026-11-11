@@ -104,7 +104,7 @@ describe("V7-09b : couleurs en dur", () => {
 
   it.each(tsxDe("motion-v4"))("%s : ACCENT_1 n'est jamais la couleur d'un texte ou d'un glyphe posé sur ENCRE (3,17 ; ACCENT_SOMBRE donne ≈ 7)", (f) => {
     const lignes = readFileSync(join(BASE, f), "utf8").replace(/\r\n/g, "\n").split("\n");
-    const roleTexte = /\b(color:\s*|couleurTexte\s*=\s*)[^,}]*ACCENT_1|texte(=\{|:\s*)(accents\(palette\)\.)?ACCENT_1|enCours \? ACCENT_1|fill=\{ACCENT_1\} stroke=\{ACCENT_1\}|melange\(COULEURS\.ENCRE, ACCENT_1|couleur = (p\.interjection|n === lettreCle)[^;]*ACCENT_1/;
+    const roleTexte = /\b(color:\s*|couleurTexte\s*=\s*)[^,}]*ACCENT_1|texte(=\{|:\s*)(accents\(palette\)\.)?ACCENT_1|enCours \? ACCENT_1|fill=\{ACCENT_1\} stroke=\{ACCENT_1\}|melange\(COULEURS\.ENCRE, ACCENT_1|couleur = (p\.interjection|n === lettreCle)[^;]*ACCENT_1|couleurTexte\s*=\s*\[[^\]]*\bACCENT_1\b|couleur\w*\s*=\s*[^;]*\bACCENT_1\b/;
     const fautes = lignes.map((l, i) => ({ l, n: i + 1 })).filter(({ l }) => roleTexte.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l)).map(({ n, l }) => `${f}:${n} ${l.trim().slice(0, 120)}`);
     expect(fautes).toEqual([]);
   });
@@ -128,6 +128,12 @@ describe("V7-09b : couleurs en dur", () => {
     const l4 = readFileSync(join(BASE, "motion-v4/lot4/interfaces-lot4.tsx"), "utf8");
     expect(l4).not.toMatch(/txt\(\d+, GRIS\)/);
     expect((l4.match(/txt\(\d+, COULEURS\.TEXTE_SECONDAIRE\)/g) ?? []).length).toBe(3);
+    for (const f of ["motion-v4/lot2/CarteCommentaire.tsx", "motion-v4/lot2/FriseEtapes.tsx"]) {
+      const lignesTexte = readFileSync(join(BASE, f), "utf8").split(/\r?\n/).filter((l) => /\bcolor:/.test(l));
+      expect(lignesTexte.length, `${f} : aucune couleur de texte trouvée`).toBeGreaterThan(0);
+      for (const l of lignesTexte) expect(l, `${f} : texte GRIS sur fond clair`).not.toMatch(/: GRIS\b/);
+      expect(lignesTexte.some((l) => /COULEURS\.TEXTE_SECONDAIRE/.test(l)), `${f} : texte secondaire attendu`).toBe(true);
+    }
   });
 
   it("lot1 : la barre de progression et le mot en cours (contour ENCRE) emploient ACCENT_SOMBRE", () => {

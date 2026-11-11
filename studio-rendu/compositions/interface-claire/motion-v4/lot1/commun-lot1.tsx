@@ -216,7 +216,7 @@ export function SurEtiquette({ texte, corps = 38, style }: { texte: string; corp
 }
 
 /** Pilule ronde, contour 5, ombre S (corps 34-40), icône optionnelle à gauche. */
-export function Puce({ fond, texte = ENCRE, corps = 36, icone, children, style }: { fond: string; texte?: string; corps?: number; icone?: ReactNode; children?: ReactNode; style?: CSSProperties }) {
+export function Puce({ fond, texte = fond === COULEURS.ORANGE_MARQUE ? BLANC : ENCRE, corps = 36, icone, children, style }: { fond: string; texte?: string; corps?: number; icone?: ReactNode; children?: ReactNode; style?: CSSProperties }) {
   return (
     <div style={{ ...styleCapitales(corps, 0.02), boxSizing: "border-box", display: "inline-flex", alignItems: "center", gap: 0.3 * corps, background: fond, color: texte, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, borderRadius: RAYON.PILULE, padding: `${0.2 * corps}px ${0.5 * corps}px`, boxShadow: ombre("S"), ...style }}>
       {icone}{children}

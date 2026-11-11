@@ -70,7 +70,7 @@ export function FriseEtapes({ palette, duree, decl, etapes = ["La demande arrive
             <React.Fragment key={k}>
               <div style={{ position: "absolute", left: xRond - 42, top: y(k) - 42, width: 84, height: 84, boxSizing: "border-box", borderRadius: "50%", background: melange(GRIS, ACCENT_1, courbe(i, d, 3)), border: `${TRAIT.MOYEN}px solid ${ENCRE}`, display: "flex", alignItems: "center", justifyContent: "center", transform: `scale(${pulse})`, ...styleMontserrat(42) }}>{k + 1}</div>
               <div style={{ position: "absolute", left: 170, top: y(k) - 48, height: 96, display: "flex", alignItems: "center", transform: `scale(${on ? 0.94 + 0.06 * ressort("POP", i - d) : 1})`, transformOrigin: "0% 50%" }}>
-                <div style={{ position: "relative", padding: "6px 22px", ...styleInter(46, 800, { color: on ? ENCRE : GRIS }) }}>
+                <div style={{ position: "relative", padding: "6px 22px", ...styleInter(46, 800, { color: on ? ENCRE : COULEURS.TEXTE_SECONDAIRE }) }}>
                   <div style={{ position: "absolute", left: 0, bottom: 4, height: 18, width: `${(100 * courbe(i, d, 4)).toFixed(1)}%`, background: ACCENT_1, zIndex: 0 }} />
                   <span style={{ position: "relative", zIndex: 1 }}>{e}</span>
                 </div>

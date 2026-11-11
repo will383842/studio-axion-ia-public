@@ -54,11 +54,11 @@ export function CarteCommentaire({ palette, duree, decl, motCle = "RELANCE", not
       >
         {/* champ de saisie */}
         <div style={{ position: "absolute", left: 38, right: 38, top: 60, height: 84, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", background: BLANC, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderRadius: 12, padding: "0 12px 0 24px" }}>
-          <div style={styleInter(saisi ? 40 : 28, saisi ? 800 : 600, { color: saisi ? ENCRE : GRIS, letterSpacing: saisi ? "0.04em" : undefined })}>
+          <div style={styleInter(saisi ? 40 : 28, saisi ? 800 : 600, { color: saisi ? ENCRE : COULEURS.TEXTE_SECONDAIRE, letterSpacing: saisi ? "0.04em" : undefined })}>
             {saisi || (i >= iT && i < iP ? "" : "Écrire un commentaire…")}
             {i >= iT && i < iP && <Curseur i={i} corps={40} />}
           </div>
-          <div style={{ transform: `scale(${claque})`, boxSizing: "border-box", background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, borderRadius: 999, padding: "10px 24px", display: "flex", alignItems: "center", gap: 10, ...styleInter(30, 800) }}>
+          <div style={{ transform: `scale(${claque})`, boxSizing: "border-box", background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, borderRadius: 999, padding: "10px 24px", display: "flex", alignItems: "center", gap: 10, ...styleInter(30, 800, { color: BLANC }) }}>
             PUBLIER
           </div>
         </div>
