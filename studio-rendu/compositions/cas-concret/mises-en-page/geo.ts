@@ -166,8 +166,8 @@ export function ajusterDisposition<R extends { textes: TexteL6[]; formes: FormeL
 export function couleurs(fond: Fond | "orange") {
   if (fond === "orange") return { fond: C.orangeVif, texte: C.encre, accent: C.ivoire, secondaire: C.encre, trait: C.encre, carte: C.ivoire, piste: `${C.encre}22` };
   return fond === "sombre"
-    ? { fond: C.nuit, texte: C.ivoire, accent: C.orangeVif, secondaire: C.grisClair, trait: C.ivoire, carte: C.blanc, piste: `${C.grisClair}29` }
-    : { fond: C.ivoire, texte: C.encre, accent: C.orange, secondaire: C.gris, trait: C.encre, carte: C.blanc, piste: `${C.encre}1a` };
+    ? { fond: C.nuit, texte: C.ivoire, accent: C.orangeVif, secondaire: C.grisClair, trait: C.ivoire, carte: C.carte, piste: `${C.grisClair}29` }
+    : { fond: C.ivoire, texte: C.encre, accent: C.orange, secondaire: C.encre, trait: C.encre, carte: C.carte, piste: `${C.encre}1a` };
 }
 
 /** Teinte avec opacité (#RRGGBBAA). */

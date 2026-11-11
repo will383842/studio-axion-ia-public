@@ -69,7 +69,7 @@ export function PreCompterObjets({ p, d }: { p: P<"preuve">; d: ReturnType<typeo
         const t = texte(d, f.nom);
         return (
           <div key={f.nom} style={{ position: "absolute", left: 0, top: 0, opacity: borne(q * 3), transform: `scale(${0.9 + 0.1 * q})`, transformOrigin: `${b.x + b.largeur / 2}px ${b.y + b.hauteur / 2}px` }}>
-            <div style={{ position: "absolute", left: b.x, top: b.y, width: b.largeur, height: b.hauteur, borderRadius: 32, background: C.blanc, boxShadow: `0 12px 30px ${a(C.encre, 0.1)}` }} />
+            <div style={{ position: "absolute", left: b.x, top: b.y, width: b.largeur, height: b.hauteur, borderRadius: 32, background: C.carte, boxShadow: `0 12px 30px ${a(C.encre, 0.1)}` }} />
             {nomme && t ? <TexteL t={t} couleur={C.encre} accent={C.orange} /> : <div style={{ position: "absolute", left: b.x + b.largeur * 0.14, top: b.y + b.hauteur * 0.68, width: b.largeur * 0.45, height: 12, borderRadius: 6, background: a(C.gris, 0.4) }} />}
             <Coche x={nomme ? b.x + b.largeur - 70 : b.x + b.largeur * 0.68} y={nomme ? b.y + b.hauteur / 2 : b.y + b.hauteur * 0.32} r={nomme ? Math.min(44, b.hauteur * 0.36) : b.largeur * 0.2} echelle={coche} trace={coche} ombre={false} />
           </div>
@@ -90,7 +90,7 @@ export function PreCasesCochees({ p, d }: { p: P<"preuve">; d: ReturnType<typeof
         const b = f.boite;
         return (
           <div key={f.nom} style={{ position: "absolute", left: 0, top: 0, transform: `translateY(${(1 - q) * 200}px)`, opacity: borne(q * 3) }}>
-            <div style={{ position: "absolute", left: b.x, top: b.y, width: b.largeur, height: b.hauteur, boxSizing: "border-box", borderRadius: 40, background: C.blanc, border: `6px solid ${p.fond === "sombre" ? C.blanc : C.encre}` }} />
+            <div style={{ position: "absolute", left: b.x, top: b.y, width: b.largeur, height: b.hauteur, boxSizing: "border-box", borderRadius: 40, background: C.carte, border: `6px solid ${p.fond === "sombre" ? C.blanc : C.encre}` }} />
             <TexteL t={texte(d, f.nom)!} couleur={C.encre} accent={k.accent === C.orangeVif ? C.orange : k.accent} />
             <Coche x={b.x + b.largeur - b.hauteur * 0.5} y={b.y + b.hauteur / 2} r={b.hauteur * 0.24} echelle={ressort(image, departPuce(p, i) + 8, 240, 12)} />
           </div>
@@ -240,7 +240,7 @@ export function QueChampReponse({ p, d }: { p: P<"question">; d: ReturnType<type
           );
         })}
       <div style={{ position: "absolute", left: 0, top: 0, transform: `translateY(${(1 - champ) * 300}px)`, opacity: borne(champ * 3) }}>
-        <div style={{ position: "absolute", left: ch.x, top: ch.y, width: ch.largeur, height: ch.hauteur, boxSizing: "border-box", borderRadius: 48, background: C.blanc, border: `6px solid ${C.encre}`, boxShadow: `0 24px 50px ${a(C.encre, 0.12)}` }} />
+        <div style={{ position: "absolute", left: ch.x, top: ch.y, width: ch.largeur, height: ch.hauteur, boxSizing: "border-box", borderRadius: 48, background: C.carte, border: `6px solid ${C.encre}`, boxShadow: `0 24px 50px ${a(C.encre, 0.12)}` }} />
         <div style={{ position: "absolute", left: ch.x + 44, top: ch.y + (ch.hauteur - av) / 2, width: av, height: av, borderRadius: av / 2, background: C.encre }} />
         <TexteL t={texte(d, "question")!} couleur={a(C.encre, 0.55)} accent={C.orange} />
         <div style={{ position: "absolute", left: ch.x + ch.largeur - av * 0.8 - 44, top: ch.y + (ch.hauteur - av * 0.8) / 2, width: av * 0.8, height: av * 0.8, borderRadius: "50%", background: C.orange, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -275,7 +275,7 @@ export function ResCoupeDeux({ p, d }: { p: P<"resultat">; d: ReturnType<typeof 
       {et ? <TexteL t={et} couleur={haut.accent} accent={haut.accent} /> : null}
       <div style={{ position: "absolute", left: 0, top: 0, opacity: borne(ressort(image, 0) * 3) }}>
         <TexteL t={texte(d, "etiquette-avant")!} couleur={haut.secondaire} accent={haut.accent} />
-        <div style={{ position: "absolute", left: carte.x, top: carte.y, width: carte.largeur, height: carte.hauteur, borderRadius: 20, background: C.blanc, boxShadow: `0 10px 30px ${a(C.nuit, 0.25)}` }}>
+        <div style={{ position: "absolute", left: carte.x, top: carte.y, width: carte.largeur, height: carte.hauteur, borderRadius: 20, background: C.carte, boxShadow: `0 10px 30px ${a(C.nuit, 0.25)}` }}>
           <div style={{ margin: carte.largeur * 0.08, height: carte.hauteur * 0.4, borderRadius: 12, background: "#E8E6DC" }} />
         </div>
         <TexteL t={texte(d, "avant")!} couleur={haut.texte} accent={haut.accent} />
@@ -310,7 +310,7 @@ export function ResMoisRempli({ p, d }: { p: P<"resultat">; d: ReturnType<typeof
         const v = ressort(image, 8 + i * 1.4, 240, 14);
         const plein = v > 0.5;
         return (
-          <div key={i} style={{ position: "absolute", left: g.x + q * (c + e), top: g.y + rr * (c + e), width: c, height: c, boxSizing: "border-box", borderRadius: c * 0.2, background: plein ? C.blanc : "transparent", border: `4px solid ${plein ? C.encre : a(k.trait, 0.15)}` }}>
+          <div key={i} style={{ position: "absolute", left: g.x + q * (c + e), top: g.y + rr * (c + e), width: c, height: c, boxSizing: "border-box", borderRadius: c * 0.2, background: plein ? C.carte : "transparent", border: `4px solid ${plein ? C.encre : a(k.trait, 0.15)}` }}>
             <div style={{ position: "absolute", left: c * 0.12, top: c * 0.06, fontFamily: FAMILLE_TITRE, fontWeight: 700, fontSize: c * 0.26, color: plein ? C.encre : k.secondaire }}>{i + 1}</div>
             <Coche x={c - c * 0.29} y={c - c * 0.29} r={c * 0.2} echelle={v} ombre={false} />
           </div>

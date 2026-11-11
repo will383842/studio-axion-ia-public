@@ -62,7 +62,7 @@ function planEMailV4(p: ProprietesObjet, image: number | undefined, TEMPS_EMAIL:
     message: {
       boite: message,
       visible: sortie > 0,
-      couleur: COULEURS_DUO.blanc,
+      couleur: COULEURS_DUO.carte,
       rayon: Math.min(w, h) * 0.04,
       objet,
       lignes: [0.56, 0.69, 0.82].map((y, i) => ({ x: message.x + message.largeur * 0.08, y: message.y + message.hauteur * y, largeur: message.largeur * (0.84 - 0.18 * i), hauteur: Math.max(3, message.hauteur * 0.04), couleur: COULEURS_DUO.grisClair })),
