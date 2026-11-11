@@ -342,8 +342,7 @@ export async function verifierBudgetEtCredits(
   // un lancement AUTOMATIQUE d'une commande qui garderait un accord insuffisant. Mode bloquant et Usine : confirmation exigée.
   const seuilIndicatif = options.automatique === true && options.origine !== "usine" && (await budgetIndicatif());
   if (!seuilIndicatif && bloquant > budget.seuilConfirmation.centimes && !accordCouvre(confirme, bloquant, budget.seuilConfirmation.centimes)) {
-    const prix = formaterMontant({ centimes: bloquant, devise: "EUR" });
-    const message = typeof confirme === "number" ? `Le prix a changé : ${prix} au plus. Confirmez ce prix pour continuer.` : `${quoi} coûte au plus ${prix}, plus que d'habitude. Confirmez ce prix pour continuer.`;
+    const message = typeof confirme === "number" ? "Le prix a changé : confirmez pour continuer." : `${quoi} coûte plus que d'habitude : confirmez pour continuer.`;
     throw new ErreurStudio("CONFIRMATION_REQUISE", message, bloquant);
   }
   // Lot R7 — GARDE-FOU : le double RÉEL ne part jamais sans que Will ait confirmé son prix, quel que soit le seuil.

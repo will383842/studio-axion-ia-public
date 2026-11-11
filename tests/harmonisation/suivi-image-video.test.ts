@@ -81,7 +81,7 @@ describe("F6 · Fabrication d'une vidéo, sur le socle", () => {
     expect(texte(html)).not.toContain("Refaire cette partie");
   });
 
-  it("l'argent : dépense face au plafond gardée, « Au plus » et « Déjà payé » dits avec les mots communs", () => {
+  it("l'argent : dépense gardée mais aucun montant dit, « Au plus » et « Déjà payé » dits avec les mots communs", () => {
     const t = texte(rendreFab({ enCours: true, arret, plafond: { proposeCentimes: 700, arrete: false } }));
     // Règle de Williams (11/11) : aucun montant ni plafond affiché.
     expect(t).not.toContain("plafond");

@@ -634,4 +634,4 @@ export function garderLeLot<T>(fichiers: readonly T[]): { gardes: T[]; phrase?: 
 export const libelleBoutonLot = (n: number, parVideoCentimes: number): string => `Fabriquer les ${n} vidéos`;
 
 /** La phrase unique sous le bouton du lot. */
-export const messageDuLot = (n: number): string => `Au plus ce prix pour les ${n} vidéos. Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.`;
+export const messageDuLot = (n: number): string => `Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.`;
