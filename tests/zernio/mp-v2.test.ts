@@ -22,7 +22,7 @@ const Opp = await import("@/services/oppositions-mots");
 
 const J = (...p: string[]) => p.join("");
 const MENTION = "Message automatique envoyé par Axion IA.";
-const IDS = ["mp-m1-v2", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const;
+const IDS = ["mp-m1-v2", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const;
 const PRIVES = IDS.filter((i) => !i.startsWith("mp-pub"));
 
 describe("textes v2 : registre versionné", () => {
@@ -54,7 +54,7 @@ describe("textes v2 : registre versionné", () => {
   });
   it("le dictionnaire de textes est une copie à empreinte figée", () => {
     const brut = readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url));
-    expect(createHash("sha256").update(brut).digest("hex")).toBe("2acad2a6ed24250b65df4e6693c6e0614bafe4921140e119aa53b21d9ee4671e");
+    expect(createHash("sha256").update(brut).digest("hex")).toBe("3db4aa167aed179b487abd6a465a4617214805aa36c6d7d84cf3a7b952298c6c");
     const d = JSON.parse(brut.toString("utf8")) as { textes: Record<string, { texte: string }> };
     for (const id of IDS) expect(d.textes[id].texte).toBe(TEXTES_MP[id].texte);
     expect(JSON.stringify(d)).not.toMatch(/\bstop\b/i);

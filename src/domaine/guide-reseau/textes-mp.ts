@@ -2,7 +2,6 @@
 // Source unique : contrats/dictionnaire-textes-mp.v2.json (empreinte vérifiée par test). Toute modification = NOUVELLE version
 // (nouvel identifiant), inscrite au registre de preuve. Jamais de question d'accord, jamais de mention STOP, aucun prix.
 import dictionnaire from "../../../contrats/dictionnaire-textes-mp.v2.json";
-import brouillons from "../../../contrats/dictionnaire-textes-mp-brouillons.v1.json";
 
 export const MENTION_OUVERTURE: string = dictionnaire.mention_ouverture;
 export type IdTexteMp = keyof typeof dictionnaire.textes;
@@ -12,16 +11,6 @@ export interface TexteMp {
   texte: string;
 }
 export const TEXTES_MP: Readonly<Record<IdTexteMp, TexteMp>> = dictionnaire.textes;
-
-/**
- * Textes BROUILLONS (fiche Z2) : fichier séparé, pour ne pas toucher à l'empreinte figée du dictionnaire validé.
- * Ils ne sont PAS dans l'empreinte du parcours : à revalider sur la page /mots avant allumage.
- */
-export type IdTexteMpBrouillon = keyof typeof brouillons.textes;
-export interface TexteMpBrouillon extends TexteMp {
-  statut: "brouillon";
-}
-export const TEXTES_MP_BROUILLONS: Readonly<Record<IdTexteMpBrouillon, TexteMpBrouillon>> = brouillons.textes as Record<IdTexteMpBrouillon, TexteMpBrouillon>;
 
 export interface ValeursTexteMp {
   mot?: string;

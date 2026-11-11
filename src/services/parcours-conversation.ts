@@ -22,7 +22,7 @@ import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafo
 import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
-import { rendreTexteMp, TEXTES_MP, TEXTES_MP_BROUILLONS } from "@/domaine/guide-reseau/textes-mp";
+import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
@@ -780,8 +780,8 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
 async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
   if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
   if (await opposeeAvantEnvoi(cle, env)) return "fait";
-  // Garde de validation (échec fermé) : le texte brouillon ne part que si /mots en a validé l'empreinte exacte.
-  const brouillon = TEXTES_MP_BROUILLONS["mp-adresse-refusee-v2"];
+  // Garde de validation (échec fermé) : le texte ne part que si /mots en a validé l'empreinte exacte.
+  const brouillon = TEXTES_MP["mp-adresse-refusee-v2"];
   const attendue = createHash("sha256").update(`${brouillon.version}\n${brouillon.texte}`).digest("hex");
   let validee = false;
   try {
