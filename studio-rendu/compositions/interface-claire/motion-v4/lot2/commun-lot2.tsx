@@ -174,7 +174,7 @@ export function Plaque(p: { fond: string; texte?: string; couleur?: string; corp
         alignItems: "center",
         gap: corps * 0.25,
         background: p.fond,
-        color: p.couleur ?? ENCRE,
+        color: p.couleur ?? (p.fond === COULEURS.ORANGE_MARQUE ? BLANC : ENCRE),
         border: `${TRAIT.MOYEN}px solid ${ENCRE}`,
         borderRadius: RAYON.PLAQUE,
         boxShadow: p.fond === ENCRE ? `${LISERE}, ${ombre(p.ombreTaille ?? "S")}` : ombre(p.ombreTaille ?? "S"),
@@ -336,7 +336,7 @@ export function CoqueCarte(p: { palette: Palette; titre: ReactNode; pastille?: R
     <div style={{ position: "absolute", left: CARTE.x, top: CARTE.haut, width: CARTE.largeur, height: h, transform: `translateY(${m.ty}px) rotate(${m.rot}deg)`, transformOrigin: "50% 0%" }}>
       <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", border: `${TRAIT.FORT}px solid ${ENCRE}`, borderRadius: RAYON.CARTE, boxShadow: ombre("M"), background: IVOIRE_CLAIR, overflow: "hidden" }}>
         <div style={{ boxSizing: "border-box", height: CARTE.entete, background: ACCENT_1, borderBottom: `${TRAIT.MOYEN}px solid ${ENCRE}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px 0 30px" }}>
-          <div style={styleMontserrat(38, { letterSpacing: "0.04em", color: ENCRE })}>{p.titre}</div>
+          <div style={styleMontserrat(38, { letterSpacing: "0.04em", color: BLANC })}>{p.titre}</div>
           <div style={{ transform: `scale(${pulsation(p.i, p.vie ?? [], 0.2)})` }}>{p.pastille}</div>
         </div>
         <div style={{ position: "relative", width: CARTE.largeur - 2 * TRAIT.FORT, height: h - 2 * TRAIT.FORT - CARTE.entete }}>{p.children}</div>
@@ -505,9 +505,10 @@ export function SousTitresV4({ mots, frame, palette, y }: { mots: Mot[]; frame: 
         const commun: CSSProperties = { ...styleMontserrat(corps), opacity: demarre ? Math.min(1, j + 1) : 0 };
         if (fort) {
           const fond = m.chiffre ? ACCENT_2 : ACCENT_1;
+          const encreOuBlanc = fond === ACCENT_1 ? BLANC : ENCRE;
           const etire = 0.35 + 0.65 * courbe(j, 0, 3, Easing.out(Easing.cubic));
           return (
-            <div key={k} style={{ ...commun, opacity: demarre ? 1 : 0, boxSizing: "border-box", background: fond, color: ENCRE, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, borderRadius: RAYON.PLAQUE, boxShadow: ombre("S"), padding: `${(corps * 0.1).toFixed(1)}px ${(corps * 0.24).toFixed(1)}px`, transform: `rotate(${rotPlaque}deg) scaleX(${etire})`, transformOrigin: "0% 50%" }}>
+            <div key={k} style={{ ...commun, opacity: demarre ? 1 : 0, boxSizing: "border-box", background: fond, color: encreOuBlanc, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, borderRadius: RAYON.PLAQUE, boxShadow: ombre("S"), padding: `${(corps * 0.1).toFixed(1)}px ${(corps * 0.24).toFixed(1)}px`, transform: `rotate(${rotPlaque}deg) scaleX(${etire})`, transformOrigin: "0% 50%" }}>
               <span style={{ display: "inline-block", transform: `scale(${0.5 + 0.5 * ressort("POP", j)})` }}>{m.mot}</span>
             </div>
           );

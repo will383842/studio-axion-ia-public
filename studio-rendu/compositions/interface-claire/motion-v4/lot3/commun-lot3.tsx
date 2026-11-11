@@ -182,7 +182,7 @@ export function Prise({ D, depart = 0, fond = "prise" }: { D: number; depart?: n
 export const liserePlaque = (t: "S" | "M" | "L"): string => `0 0 0 3px ${COULEURS.IVOIRE_CLAIR}, ${OMBRE[t][0]}px ${OMBRE[t][1]}px 0 3px ${E}`;
 
 /* ------------------------------------------------------------------ Primitives (§ B.7) ------------------------------------------------------------------ */
-export function Plaque({ fond, texte = E, corps, children, incl = 0, style, ombreT = "S", bord = TRAIT.MOYEN }: {
+export function Plaque({ fond, texte = fond === COULEURS.ORANGE_MARQUE ? COULEURS.BLANC : E, corps, children, incl = 0, style, ombreT = "S", bord = TRAIT.MOYEN }: {
   fond: string; texte?: string; corps: number; children: ReactNode; incl?: number; style?: CSSProperties; ombreT?: "S" | "M" | "L"; bord?: number;
 }) {
   return (
@@ -204,7 +204,7 @@ export function CoqueCarte({ palette, titre, droite, w, h, entete = 106, childre
       <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", border: `${TRAIT.FORT}px solid ${E}`, borderRadius: RAYON.CARTE, boxShadow: ombre("M"), background: COULEURS.IVOIRE_CLAIR, overflow: "hidden" }}>
         <div style={{ position: "absolute", left: 0, top: 0, right: 0, height: entete, boxSizing: "border-box", background: ACCENT_1, borderBottom: `${TRAIT.MOYEN}px solid ${E}`,
           display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 30px", zIndex: 3 }}>
-          <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, letterSpacing: "0.04em", color: E, textTransform: "uppercase", whiteSpace: "nowrap" }}>{titre}</div>
+          <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, letterSpacing: "0.04em", color: COULEURS.BLANC, textTransform: "uppercase", whiteSpace: "nowrap" }}>{titre}</div>
           {droite}
         </div>
         <div style={{ position: "absolute", left: 0, right: 0, top: entete, bottom: 0 }}>{children}</div>
@@ -357,7 +357,7 @@ export function SousTitresV4({ mots, palette, cles, prise, muets = [] }: { mots:
                 <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", background: m.chiffre ? ACCENT_2 : ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.PLAQUE,
                   boxShadow: ombre("S"), transform: `scaleX(${Math.min(1, etire).toFixed(3)})`, transformOrigin: "0% 50%" }} />
                 <div style={{ position: "relative", padding: `${(0.1 * corps).toFixed(1)}px ${(0.24 * corps).toFixed(1)}px`, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1,
-                  letterSpacing: "0.01em", color: E, whiteSpace: "nowrap", transform: `scale(${(0.6 + 0.4 * texteP).toFixed(3)})`, opacity: visible ? 1 : 0 }}>{m.mot}</div>
+                  letterSpacing: "0.01em", color: m.chiffre ? E : COULEURS.BLANC, whiteSpace: "nowrap", transform: `scale(${(0.6 + 0.4 * texteP).toFixed(3)})`, opacity: visible ? 1 : 0 }}>{m.mot}</div>
               </>
             ) : (
               <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: "0.01em", color: couleurTexte, whiteSpace: "nowrap",

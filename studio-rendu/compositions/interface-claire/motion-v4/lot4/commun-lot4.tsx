@@ -121,7 +121,7 @@ export function Plaque(p: { texte: ReactNode; fond: string; couleur?: string; co
         boxSizing: "border-box",
         padding: `${0.16 * corps}px ${0.3 * corps}px`,
         background: p.fond,
-        color: p.couleur ?? ENCRE,
+        color: p.couleur ?? (p.fond === COULEURS.ORANGE_MARQUE ? BLANC : ENCRE),
         border: `${TRAIT.MOYEN}px solid ${ENCRE}`,
         borderRadius: RAYON.PLAQUE,
         boxShadow: p.sansOmbre ? undefined : ombre("S"),
@@ -145,7 +145,7 @@ export function Puce(p: { texte: ReactNode; fond: string; couleur?: string; corp
         boxSizing: "border-box",
         padding: `${0.3 * corps}px ${0.65 * corps}px`,
         background: p.fond,
-        color: p.couleur ?? ENCRE,
+        color: p.couleur ?? (p.fond === COULEURS.ORANGE_MARQUE ? BLANC : ENCRE),
         border: `${TRAIT.MOYEN}px solid ${ENCRE}`,
         borderRadius: RAYON.PILULE,
         boxShadow: ombre("S"),
@@ -278,7 +278,8 @@ export function EtiquetteTete(p: { f: number; debut: number; fin: number; palett
   const inc = p.inclinaison ?? -3;
   const y = 0.115 * H;
   const fond = p.interjection ? ENCRE : p.blanc ? BLANC : ACCENT_1;
-  const couleur = p.interjection ? ACCENT_SOMBRE : ENCRE;
+  const encreOuBlanc = fond === ACCENT_1 ? BLANC : ENCRE;
+  const couleur = p.interjection ? ACCENT_SOMBRE : encreOuBlanc;
   const tremble = p.interjection ? secousse(p.f - p.debut - 6, 0.006 * L) : 0;
   return (
     <>
@@ -354,6 +355,7 @@ export function SousTitresV4({ f, mots, palette, position, exclure, masque }: { 
         const enCours = m === dernier;
         const plaque = m.fort || m.chiffre;
         const fondPlaque = m.chiffre ? ACCENT_2 : ACCENT_1;
+        const encreOuBlanc = fondPlaque === ACCENT_1 ? BLANC : ENCRE;
         const incl = k % 2 === 0 ? -2 : 1.5;
         const etire = plaque ? lerp(0.35, 1, ress("GLISSE", f, fm)) : 1;
         return (
@@ -365,7 +367,7 @@ export function SousTitresV4({ f, mots, palette, position, exclure, masque }: { 
               style={{
                 position: "relative",
                 ...styleTexteMontserrat(corps),
-                color: plaque ? ENCRE : enCours ? ACCENT_SOMBRE : BLANC,
+                color: plaque ? encreOuBlanc : enCours ? ACCENT_SOMBRE : BLANC,
                 WebkitTextStroke: plaque ? undefined : `${contour}px ${ENCRE}`,
                 paintOrder: "stroke fill",
                 opacity: 1,

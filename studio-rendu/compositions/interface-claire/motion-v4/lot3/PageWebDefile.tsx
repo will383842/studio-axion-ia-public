@@ -114,7 +114,7 @@ export function PageWebDefile(props: PropsPageWebDefile) {
                 <div style={{ position: "absolute", left: 28, top: 14, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 30, color: E }}>VOTRE DEVIS</div>
               </div>
               <div style={{ position: "absolute", left: 48, right: 48, top: yCible, height: 78, boxSizing: "border-box", border: `${TRAIT.FIN}px solid ${E}`, borderRadius: RAYON.CHAMP, background: surFond ? ACCENT_1 : COULEURS.BLANC,
-                display: "flex", alignItems: "center", paddingLeft: 30, fontFamily: INTER, fontWeight: 800, fontSize: 36, color: E, zIndex: 3, overflow: "hidden" }}>
+                display: "flex", alignItems: "center", paddingLeft: 30, fontFamily: INTER, fontWeight: 800, fontSize: 36, color: surFond ? COULEURS.BLANC : E, zIndex: 3, overflow: "hidden" }}>
                 {filet ? <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, background: ACCENT_1 }} /> : null}
                 <span style={{ marginLeft: filet ? 8 : 0 }}>Demandez votre devis en ligne</span>
               </div>

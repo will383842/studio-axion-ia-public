@@ -27,8 +27,8 @@ export function RafaleTroisMots({ frame, debut, palette, mots, ecarts = [12, 25]
   const idx = i >= iRecap ? 3 : i >= iMots[2] ? 2 : i >= iMots[1] ? 1 : 0;
   const fond = idx === 3 ? ACCENT_1 : fonds[idx];
   const k = i - (idx === 3 ? iRecap : iMots[idx]);
-  const couleurTexte = [COULEURS.ENCRE, ACCENT_SOMBRE, COULEURS.ENCRE][idx] ?? COULEURS.ENCRE;
-  const contour = [COULEURS.BLANC, COULEURS.BLANC, accents(palette).ACCENT_1][idx] ?? COULEURS.BLANC;
+  const couleurTexte = [COULEURS.BLANC, ACCENT_SOMBRE, COULEURS.ENCRE][idx] ?? COULEURS.BLANC;
+  const contour = [COULEURS.ENCRE, COULEURS.BLANC, accents(palette).ACCENT_1][idx] ?? COULEURS.BLANC;
   const s = (1.25 - 0.25 * ressort("CLAQUE", k)) * (idx < 3 ? tick(k, 6) : 1);
   const dx = secousse(k - 4, 0.004 * W);
   const motCourant = mots[Math.min(idx, 2)];

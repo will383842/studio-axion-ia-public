@@ -79,13 +79,13 @@ export function CarteStatuts({ palette, duree, decl, fin, roles = ROLES, avecSon
                   <Ico nom={r.icone} taille={40} fond={i >= d ? BLANC : "none"} />
                 </PastilleRonde>
                 <div style={{ flex: 1 }}>
-                  <div style={styleMontserrat(34, { letterSpacing: "0.03em" })}>{r.agent}</div>
-                  <div style={styleInter(32, 600, { marginTop: 6 })}>{r.action}</div>
+                  <div style={styleMontserrat(34, { letterSpacing: "0.03em", color: flash ? BLANC : ENCRE })}>{r.agent}</div>
+                  <div style={styleInter(32, 600, { marginTop: 6, color: flash ? BLANC : ENCRE })}>{r.action}</div>
                 </div>
                 {i >= d && (
                   <div style={{ transform: `scale(${(0.5 + 0.5 * ressort("POP", i - d)) * (fait && k === n - 1 ? pulsation(i, vie, 0.12) : 1)})`, transformOrigin: "100% 50%" }}>
                     {fait ? (
-                      <div style={{ boxSizing: "border-box", display: "flex", alignItems: "center", gap: 10, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, borderRadius: 999, padding: puces === "pictos" ? "8px 14px" : "8px 22px 8px 14px", ...styleMontserrat(30, { letterSpacing: "0.03em" }) }}>
+                      <div style={{ boxSizing: "border-box", display: "flex", alignItems: "center", gap: 10, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, borderRadius: 999, padding: puces === "pictos" ? "8px 14px" : "8px 22px 8px 14px", ...styleMontserrat(30, { letterSpacing: "0.03em", color: BLANC }) }}>
                         <Case i={i} i0={suivant} taille={36} fond={BLANC} />
                         {puces === "pictos" ? null : "FAIT"}
                       </div>
