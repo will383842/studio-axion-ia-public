@@ -14,12 +14,14 @@
  * viennent de la brique `ecrans-motion` (`disposer`). Les phrases sont en français, sans sigle ni identifiant interne.
  * N'importe AUCUN autre moteur.
  */
+import { beneficeClair, cibleNommee, debutParle } from "@/domaine/ciblage/controles";
+import type { Ciblage } from "@/domaine/ciblage/types";
 import { controleFinDesMesures } from "@/briques/composition/fin-propre";
 import { controlerMesures, controlerMiseEnPage, SEUILS_CONTROLE_IMAGE, type Boite, type MesuresExport, type MiseEnPage, type ResultatControle, type SeuilsControleImage, type ZoneSure } from "@/briques/controle-image";
 import { CONTRASTE_TEXTE_DUO_MIN, FONDS, TAILLE_PLANCHER_DUO } from "@/briques/habillage/charte-duo";
 import { controlerProprietes, disposer, sansBalises, type ProprietesEcran } from "@/briques/ecrans-motion";
 import { BANDE_SOUS_TITRES_CAS_CONCRET, type ReseauCas } from "@/formats/cas-concret";
-import type { FicheEcrans, FinPlanifiee, PlanDesFins } from "./fiche";
+import { texteDuCorps, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
 import { ACCROCHE_FIN_MAX_MS, DEBIT_RECETTE, manquementsDurees } from "./regles";
 
 /** Image du fichier rendu. */
@@ -41,7 +43,7 @@ export const SEUILS_CAS_CONCRET: Readonly<SeuilsControleImage> = Object.freeze({
   bandeSousTitres: BANDE_SOUS_TITRES_CAS_CONCRET,
 });
 
-export type FamilleControleCasConcret = "duree" | "ecran" | "mise-en-page" | "fichier" | "voix" | "capture" | "fin" | "bruitage";
+export type FamilleControleCasConcret = "duree" | "ecran" | "mise-en-page" | "fichier" | "voix" | "capture" | "fin" | "bruitage" | "ciblage";
 export type EtatLigneCasConcret = "reussi" | "echoue" | "non-fait";
 
 /** Une ligne du rapport. */
@@ -77,6 +79,11 @@ export interface EntreeControleCasConcret {
   /** Fins dont la prise de voix a été gardée malgré un rejet (`rapportVoix().finsGardeesMalgreRejet`). */
   finsGardeesMalgreRejet?: readonly { id: string; phrase: string }[];
   seuils?: SeuilsControleImage;
+  /**
+   * Ciblage déclaré de la vidéo. Absent (appel d'avant) : aucune remarque ; `null` : aucune cible déclarée (remarque).
+   * Les remarques de ciblage ne bloquent jamais une vidéo.
+   */
+  ciblage?: Ciblage | null;
 }
 
 export interface RapportControleCasConcret {
@@ -360,6 +367,21 @@ function indicatifs(e: EntreeControleCasConcret): LigneControleCasConcret[] {
 }
 
 /* ------------------------------------------------------------------ */
+/* Ciblage (remarques, jamais bloquantes)                                */
+/* ------------------------------------------------------------------ */
+
+/** Cible nommée dans les 5 premières secondes parlées, bénéfice clair dans le corps. Aucune remarque si `ciblage` est absent. */
+export function controlerCiblageCasConcret(fiche: FicheEcrans, ciblage: Ciblage | null | undefined): LigneControleCasConcret[] {
+  if (ciblage === undefined) return [];
+  if (ciblage === null) return [ligne("ciblage", "Cible de la vidéo", false, "echoue", "Aucune cible déclarée : choisissez à qui parle la vidéo.")];
+  const texte = texteDuCorps(fiche);
+  const res: LigneControleCasConcret[] = [];
+  if (!cibleNommee(debutParle(texte), ciblage)) res.push(ligne("ciblage", "Cible dans l'accroche", false, "echoue", `La cible « ${ciblage.libelle} » n'est pas nommée dans les 5 premières secondes.`));
+  if (!beneficeClair(texte)) res.push(ligne("ciblage", "Bénéfice clair", false, "echoue", "Aucun bénéfice clair (temps, argent, erreurs, clients ou délais) n'est dit dans la vidéo."));
+  return res;
+}
+
+/* ------------------------------------------------------------------ */
 /* Rapport                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -409,5 +431,6 @@ export function controlerVideoCasConcret(entree: EntreeControleCasConcret): Rapp
   }
   if (!entree.planDesFins.fins.length) lignes.push(ligne("fin", "Fin de la vidéo", true, "echoue", "Aucune fin n'est prévue : la vidéo ne dit ni le diagnostic ni le lien."));
   lignes.push(...indicatifs(entree));
+  lignes.push(...proteger("Ciblage", "ciblage", () => controlerCiblageCasConcret(entree.fiche, entree.ciblage)));
   return assembler(lignes);
 }
