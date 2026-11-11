@@ -1176,6 +1176,23 @@ export interface Publication extends EntiteBase {
   repereUsine?: string;
   /** Signature posée par l'usine sur ce qu'elle a envoyé. */
   signatureUsine?: string;
+  /* --- CAL-15 (ajouts purs, tous facultatifs : aucun ne bloque un ajout) --- */
+  /** Pilier éditorial (liste à fixer avant la V2 : texte libre d'ici là). */
+  pilier?: string;
+  sujet?: string;
+  angle?: string;
+  campagne?: string;
+  motCle?: string;
+}
+
+/** CAL-15 · état de l'indicateur d'équilibre de la semaine : replié par défaut. */
+export interface EquilibreSemaineEtat {
+  deplie: boolean;
+}
+export const EQUILIBRE_SEMAINE_PAR_DEFAUT: Readonly<EquilibreSemaineEtat> = Object.freeze({ deplie: false });
+/** Un clic déplie l'indicateur, le suivant le replie ; l'état reçu n'est pas modifié. */
+export function basculerEquilibreSemaine(etat: EquilibreSemaineEtat): EquilibreSemaineEtat {
+  return { deplie: !etat.deplie };
 }
 
 /** Sortie d'un visuel (image fixe) : type séparé de `Sortie`, qui reste celle d'une vidéo. */
