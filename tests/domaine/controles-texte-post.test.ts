@@ -3,7 +3,7 @@
  * Les mots interdits ne sont jamais écrits en clair : ils sont assemblés.
  */
 import { describe, expect, it } from "vitest";
-import { controlerTextePost } from "@/domaine/controles-script";
+import { controlerTextePost } from "@/domaine/controles-script/texte-post";
 
 const J = (...p: string[]) => p.join("");
 const INTERDIT = J("cert", "ifié");
@@ -47,18 +47,18 @@ describe("controlerTextePost", () => {
     expect(r.violations.map((v) => `${v.code}:${v.zone}`)).toEqual(["interdit:legende"]);
   });
 
-  it("un ajout manuel (auteur will) n'est bloqué que sur le format technique ; style et interdit avertissent", () => {
+  it("un ajout manuel (auteur fondateur) n'est bloqué que sur le format technique ; style et interdit avertissent", () => {
     const commentaire = `Commentez PLAN. Écrivez-moi. ${INTERDIT}.`;
-    const r = controlerTextePost({ reseau: "linkedin", texte: BASE, commentaire, auteur: "will" });
+    const r = controlerTextePost({ reseau: "linkedin", texte: BASE, commentaire, auteur: "fondateur" });
     expect(r.passe).toBe(true);
     expect(r.violations.map((v) => v.code).sort()).toEqual(["appels-multiples", "interdit"]);
     expect(r.violations.every((v) => v.niveau === "alerte")).toBe(true);
-    const long = controlerTextePost({ reseau: "linkedin", texte: "a".repeat(3200), auteur: "will" });
+    const long = controlerTextePost({ reseau: "linkedin", texte: "a".repeat(3200), auteur: "fondateur" });
     expect(long.passe).toBe(false);
   });
 
   it("la limite de commentaire de la table des réseaux est reprise (format technique)", () => {
-    const r = controlerTextePost({ reseau: "instagram", texte: BASE, commentaire: "a".repeat(2201), auteur: "will" });
+    const r = controlerTextePost({ reseau: "instagram", texte: BASE, commentaire: "a".repeat(2201), auteur: "fondateur" });
     expect(r.violations.map((v) => v.code)).toContain("commentaire-trop-long");
     expect(r.passe).toBe(false);
   });
