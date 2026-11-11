@@ -251,3 +251,21 @@ describe("controlerLot", () => {
     expect(r.lancer).toBe(false);
   });
 });
+
+describe("jauge illisible ou négative", () => {
+  const cas: Array<[string, { jetons: number; sessions: number }]> = [
+    ["jetons NaN", { jetons: Number.NaN, sessions: 0 }],
+    ["sessions undefined", { jetons: 0, sessions: undefined as unknown as number }],
+    ["les deux illisibles", { jetons: Number.NaN, sessions: undefined as unknown as number }],
+    ["jetons infinis", { jetons: Number.POSITIVE_INFINITY, sessions: 0 }],
+    ["jetons négatifs", { jetons: -1, sessions: 0 }],
+    ["sessions négatives", { jetons: 0, sessions: -5 }],
+  ];
+  for (const [nom, jauge] of cas) {
+    it(`refuse (jauge) : ${nom}`, () => {
+      const r = controlerLot({ fiches: [fiche({ id: "A" })], prOuvertes: [], jauge });
+      expect(r.lancer).toBe(false);
+      expect(r.refus.some((x) => x.regle === "jauge")).toBe(true);
+    });
+  }
+});
