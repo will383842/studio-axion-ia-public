@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { OUTILS, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 import { serviceBuffer } from "@/domaine/buffer";
-import { cleZernioPresente, comptesZernioEnregistres, PARAM_ARRET_ZERNIO, testerZernio } from "@/services/zernio";
+import { cleZernioPresente, comptesZernioEnregistres, PARAM_ARRET_ZERNIO, PARAM_ENVOI_CALENDRIER, testerZernio } from "@/services/zernio";
 import { canauxEnregistres } from "@/services/buffer";
 import { definirRoutage, lireRoutage } from "@/services/routage-publication";
 import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, type Resultat } from "@/services/_commun";
@@ -49,6 +49,8 @@ export interface BudgetInfo {
 export interface EtatConnexionsZernio {
   cleAbsente: boolean;
   arretActif: boolean;
+  /** L7-08 : réglage séparé de l'envoi du calendrier (lecture seule ici). Absent = éteint. */
+  envoiCalendrierOuvert?: boolean;
   comptes: CompteVue[];
   budget: BudgetInfo;
 }
@@ -97,7 +99,7 @@ function nombreOuNul(v: unknown): number | null {
 export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexionsZernio>> {
   await exigerSession();
   return essayer(async () => {
-    const [enregistres, routage, canaux, modes, bascules, tests, budgetBrut, autorise] = await Promise.all([
+    const [enregistres, routage, canaux, modes, bascules, tests, budgetBrut, autorise, calendrier] = await Promise.all([
       comptesZernioEnregistres(),
       lireRoutage(),
       canauxEnregistres(),
@@ -106,6 +108,7 @@ export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexi
       lireParametre<Record<string, { testeLe: string; actif: boolean }>>(PARAM_TESTS, {}),
       lireParametre<Partial<BudgetInfo> | null>(PARAM_BUDGET, null),
       lireParametre<boolean>(PARAM_ARRET_ZERNIO, true),
+      lireParametre<boolean>(PARAM_ENVOI_CALENDRIER, false),
     ]);
     const comptes: CompteVue[] = (enregistres?.comptes ?? [])
       .filter((c) => RESEAUX_CONNUS.includes(c.reseau as IdReseau))
@@ -129,7 +132,7 @@ export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexi
       })
       .sort((a, b) => ORDRE(a.reseau) - ORDRE(b.reseau) || a.nom.localeCompare(b.nom, "fr"));
     const budget: BudgetInfo = { zernio: nombreOuNul(budgetBrut?.zernio), buffer: nombreOuNul(budgetBrut?.buffer), finBuffer: typeof budgetBrut?.finBuffer === "string" ? budgetBrut.finBuffer : "20/11" };
-    return { cleAbsente: !cleZernioPresente(), arretActif: autorise === false, comptes, budget };
+    return { cleAbsente: !cleZernioPresente(), arretActif: autorise === false, envoiCalendrierOuvert: calendrier === true, comptes, budget };
   });
 }
 

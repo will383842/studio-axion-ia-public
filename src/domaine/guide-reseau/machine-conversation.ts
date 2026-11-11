@@ -1,7 +1,7 @@
 // Machine d'états de la conversation « commentaire → message privé → e-mail → guide » : fonctions PURES (aucun réseau, aucune
 // base, aucun journal). Le service (`parcours-conversation.ts`) fait les effets. Aucune donnée personnelle n'entre dans l'état.
 import { estMotOpposition } from "./opposition";
-import type { GroupeMp } from "./textes-mp";
+import { GROUPES_MP, type GroupeMp } from "./textes-mp";
 import { ESSAIS_MAX, EN_COURS_MAX, type Conduite } from "./crochet-zernio";
 import { ETATS_EN_COURS, type EtatParcours } from "./etats-parcours";
 import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
@@ -119,6 +119,10 @@ export function issueMerci(o: { refAuRegistre: boolean; conversation: Pick<Conve
 
 /** Groupe de formulations du 1er message privé quand il porte le lien signé de la page guide (interrupteur PARCOURS_LIEN_GUIDE). */
 export const GROUPE_M1_LIEN = "m1-lien" satisfies GroupeMp;
+/** Vrai si la version du 1er message est un message avec lien (formulations actuelles ou ancienne mp-m1-v3, retirée mais encore présente dans des conversations en cours). */
+function m1AvecLien(v: string | null | undefined): boolean {
+  return v === "mp-m1-v3" || (v != null && (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v));
+}
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
 export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee";
 
@@ -220,7 +224,8 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
-      if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition ? { action: "m2" } : { action: "silence", raison: "silence" };
+      // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.
+      if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition && !m1AvecLien(etat.versionTexteM1) ? { action: "m2" } : { action: "silence", raison: "silence" };
       return { action: "demander_guide" };
     }
     case "site": {
