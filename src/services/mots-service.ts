@@ -41,7 +41,7 @@ export const DOSSIER_MOTS = "mots";
 export const PLAFOND_HEURE_COMPTE_MAX = 600;
 export const PLAFOND_JOUR_MOT_DEFAUT = 100;
 export const ERREURS_CONSECUTIVES_MAX = 5;
-export const CHEMIN_OPPOSITIONS_SITE = "/api/interne/oppositions-reseau"; // À CONFIRMER avec le site (route absente du contrat 04) : corps strict, adresse OBLIGATOIRE ; le Studio la relit chez Zernio, en mémoire seulement
+export const CHEMIN_OPPOSITIONS_SITE = "/api/interne/oppositions-reseau"; // Route existante côté site (créée par la PR 1872 du site, vérifiée dans son dépôt) : corps strict, adresse OBLIGATOIRE ; le Studio la relit chez Zernio, en mémoire seulement
 
 /** Interrupteur du module : éteint par défaut (seules les valeurs exactes « 1 » ou « true » l'allument). */
 export function motsActif(env: Record<string, string | undefined> = process.env): boolean {

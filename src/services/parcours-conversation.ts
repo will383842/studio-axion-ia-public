@@ -1,10 +1,12 @@
 /**
  * PARCOURS DE CONVERSATION (lot 3a) : commentaire GUIDE → réponse publique → message privé M1 → adresse e-mail → demande de guide.
- * INERTE : éteint tant que `PARCOURS_CONVERSATION_ENABLED` n'est pas allumé (absent = éteint, échec fermé) ; ni `boucle.ts` ni
- * `instrumentation.ts` ne l'importent (lot 4). Éteint : aucun appel au port ni au site, aucune écriture d'état.
+ * Éteint tant que `PARCOURS_CONVERSATION_ENABLED` n'est pas allumé (absent = éteint, échec fermé). Chargé par `branchements-zernio.ts`
+ * (import dynamique, après le contrôle de l'interrupteur). Éteint : aucun appel au port ni au site, aucune écriture d'état.
  *
  * Règles de sûreté :
- *  - L'état par personne (`parcours.conversations`) ne contient JAMAIS pseudo, texte, adresse ni identifiant brut : des empreintes.
+ *  - L'état par personne (`parcours.conversations`) ne contient JAMAIS pseudo, texte, adresse ni identifiant de personne ou de conversation
+ *    brut : des empreintes. Seuls restent bruts `idCommentaire` (reprise du même commentaire, réduit après clôture si PARCOURS_REDUCTION_IDS
+ *    est allumé), `idCompte` et `idPostPlateforme` (identifiants de NOTRE compte et de NOTRE publication).
  *  - L'adresse e-mail n'existe qu'en mémoire, le temps d'un appel ; à chaque nouvel essai le message est relu.
  *  - Lectures/écritures d'état sous `sousVerrou` ; appels réseau (port, site) HORS verrou ; rien n'est supprimé.
  *  - M1 : `m1_en_vol` est écrit AVANT l'envoi ; après un plantage il vaut `m1_a_verifier` : jamais de second envoi.
@@ -736,7 +738,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // Lecture réussie = message entrant confirmé : seulement maintenant, les alias sont notés.
   const adresse = extraireAdresse(lu.texte);
-  const classeMachine: ClasseOpposition = classe as ClasseOpposition; // opposition et doute sont déjà traités plus haut : la machine reste la source de vérité des transitions
+  // `classe` ne peut plus valoir « opposition » ni « doute » ici (traités plus haut) : `estOpposition` et `doute` sont donc toujours faux et la
+  // branche « opposer » plus bas est inatteignable aujourd'hui. Elle est GARDÉE volontairement (filet de sécurité d'un « stop ») : ne pas la retirer.
+  const classeMachine: ClasseOpposition = classe as ClasseOpposition;
   const s = transition(etat, { t: "texte", estOpposition: classeMachine === "opposition", doute: classeMachine === "doute", adresse });
   if (s.action === "opposer") {
     await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
@@ -949,7 +953,7 @@ async function reprendreEnVol(now: number): Promise<void> {
   if (touches > 0) await alerter("m1_a_verifier", "Un message privé était en cours d'envoi lors d'un arrêt : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.", now);
 }
 
-/** Tâche d'expiration : `attente_email`, `m2_envoye`, `m1_a_verifier` et `m1_en_vol` (hors vol) → `expire` après 7 jours. Aucun message n'est envoyé. */
+/** Tâche d'expiration : `nouveau`, `pub_ok`, `guide_demande`, `attente_email`, `m2_envoye`, `m1_a_verifier` et `m1_en_vol` (hors vol) → `expire` après 7 jours. Aucun message n'est envoyé, aucune clé n'est retirée. */
 export async function expirerConversations(o: { env?: Env; maintenantMs?: number; enVol?: ReadonlySet<string> } = {}): Promise<number> {
   if (!parcoursConversationActif(o.env ?? process.env)) return 0;
   const now = o.maintenantMs ?? Date.now();
