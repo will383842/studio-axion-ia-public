@@ -62,7 +62,8 @@ export const COULEURS = {
 } as const;
 /** Palette unique (standard § L) : accent 1 = terracotta #B23F16 (fond de plaque, texte #FFFFFF 5,81 ; l'orange #D97757 reste réservé au noir) ; accent 2 (chiffres, états) = blanc sur contour encre. Le paramètre est conservé (ignoré) pour les appels existants. */
 export type Palette = "B";
-export const accents = (_p?: Palette) => ({ ACCENT_1: COULEURS.ORANGE_MARQUE, ACCENT_2: COULEURS.BLANC });
+/** Deux rôles d'accent : `ACCENT_1` (= `ACCENT_CLAIR`, terracotta) pour les fonds de plaque (texte BLANC) ; `ACCENT_SOMBRE` (orange #D97757) pour le NOIR seulement (barres, textes à contour). */
+export const accents = (_p?: Palette) => ({ ACCENT_1: COULEURS.ORANGE_MARQUE, ACCENT_CLAIR: COULEURS.ORANGE_MARQUE, ACCENT_SOMBRE: COULEURS.ORANGE_VIF, ACCENT_2: COULEURS.BLANC });
 export const TRAIT = { FORT: 7, MOYEN: 5, FIN: 3 };
 export const OMBRE = { S: [5, 6], M: [8, 9], L: [11, 12] };
 export const RAYON = { PLAQUE: 10, CHAMP: 12, TUILE: 14, CARTE: 18, FENETRE: 22, PILULE: 999 };
@@ -223,7 +224,7 @@ export const PRISE_VIDEO = "prise-commune-15s.mp4";
 /**
  * Fond : la vraie prise de Williams (voix comprise) en `OffthreadVideo`, plein cadre, SANS échelle ; descente = `translateY`.
  * La bande révélée en haut est IVOIRE. `depuisSec` : instant de la prise à l'image 0 de la composition.
- * `mode="visage"` : la prise est remplacée par un magenta sur la zone Z (mesure de la couverture du visage).
+ * `mode="visage"` : la prise est remplacée par un magenta #FF00FF sur la zone Z (repère technique de mesure, laissé au cliquet de tests/charte : le banc PlancheLot5 isole ce magenta, hors palette) (mesure de la couverture du visage).
  */
 export type FondTest = "prise" | "blanc" | "noir" | "broll";
 export const BROLL_FOND = "broll/lotE-m1.mp4";
@@ -239,7 +240,7 @@ export function Prise({ D, depuisSec = 0, mode = "normal", volume = 1, fond = "p
     <AbsoluteFill style={{ background: COULEURS.IVOIRE }}>
       <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, transform: `translateY(${D * H}px)`, background: mode === "visage" ? COULEURS.GRIS : undefined }}>
         {mode === "visage" ? (
-          <div style={{ position: "absolute", left: 0.25 * W, top: 0.12 * H, width: 0.5 * W, height: 0.46 * H, background: COULEURS.ORANGE_MARQUE }} />
+          <div style={{ position: "absolute", left: 0.25 * W, top: 0.12 * H, width: 0.5 * W, height: 0.46 * H, background: "#FF00FF" }} />
         ) : (
           <OffthreadVideo src={mediaV4(PRISE_VIDEO)} startFrom={Math.round(depuisSec * FPS)} volume={volume} style={{ position: "absolute", left: 0, top: 0, width: W, height: H, objectFit: "cover" }} pauseWhenBuffering={false} />
         )}
@@ -251,11 +252,11 @@ export function Prise({ D, depuisSec = 0, mode = "normal", volume = 1, fond = "p
 /* ------------------------------------------------------------------ Barre de progression (§ B.7) ------------------------------------------------------------------ */
 
 export function BarreProgression({ frame, duree, palette }: { frame: number; duree: number; palette: Palette }) {
-  const { ACCENT_1 } = accents(palette);
+  const { ACCENT_SOMBRE } = accents(palette);
   const p = borne((frame + 1) / duree);
   return (
     <div style={{ position: "absolute", left: 0, top: 0, width: W, height: 10, background: ENCRE, zIndex: 900 }}>
-      <div style={{ position: "absolute", left: 0, top: 0, width: p * W, height: 10, background: ACCENT_1 }} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: p * W, height: 10, background: ACCENT_SOMBRE }} />
       <div style={{ position: "absolute", left: Math.max(0, p * W - 4), top: 0, width: 4, height: 10, background: COULEURS.BLANC }} />
     </div>
   );
@@ -291,7 +292,7 @@ export function grouperMots(mots: MotDemo[], finVideo: number): GroupeST[] {
 export type PositionST = (frame: number) => number | null;
 
 export function SousTitresV4({ frame, groupes, palette, position, tailleBase = 84, masquer, bande }: { frame: number; groupes: GroupeST[]; palette: Palette; position: PositionST; tailleBase?: number; /** Bande [x min, x max] (fractions de L) imposée à l'image `frame` (ex. à gauche d'une carte), ou null : largeur habituelle. */ bande?: (frame: number) => readonly [number, number] | null; /** Vrai : le groupe est masqué (une étiquette posée affiche déjà ces mots). */ masquer?: (g: GroupeST) => boolean }) {
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_1, ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   const t = frame / FPS;
   const g = groupes.find((x) => t >= x.debut - 1e-6 && t < x.fin - 1e-6);
   const yc = position(frame);
@@ -333,7 +334,7 @@ export function SousTitresV4({ frame, groupes, palette, position, tailleBase = 8
             <span style={{ position: "relative", ...styleMontserrat(corps, fondPlaque === COULEURS.ORANGE_MARQUE ? COULEURS.BLANC : ENCRE) }}>{m.mot}</span>
           </>
         ) : (
-          <span style={{ ...styleMontserrat(corps, enCours ? ACCENT_1 : COULEURS.BLANC), ...contourTexte(corps), filter: `drop-shadow(4px 5px 0 ${ENCRE})` }}>{m.mot}</span>
+          <span style={{ ...styleMontserrat(corps, enCours ? ACCENT_SOMBRE : COULEURS.BLANC), ...contourTexte(corps), filter: `drop-shadow(4px 5px 0 ${ENCRE})` }}>{m.mot}</span>
         )}
       </div>
     );
