@@ -36,14 +36,19 @@ const MESSAGES: Record<Exclude<EtatSuggestions, "rempli">, string> = {
   erreur: "Suggestions indisponibles, la saisie reste possible.",
 };
 
+/** Gestion pure d'un choix : calcule le nouvel état et appelle onChange (niveau, valeur) quand un niveau est connu. */
+export function gererChoix(etat: EtatChoixCible, evenement: Parameters<typeof appliquerChoix>[1], onChange?: (niveau: NiveauCible, valeur: string) => void): EtatChoixCible {
+  const suivant = appliquerChoix(etat, evenement);
+  if (suivant.niveau) onChange?.(suivant.niveau, suivant.valeur);
+  return suivant;
+}
+
 /** Étape 1 : le niveau de cible ; étape 2 : la taille, ou un champ libre avec suggestions. Rendu serveur compatible. */
 export function ChoixCible({ niveau: niveauInitial, valeur: valeurInitiale = "", suggestions = [], chargement, erreur, nom = "cible", onChange }: ChoixCibleProps) {
   const [choix, setChoix] = useState<EtatChoixCible>({ niveau: niveauInitial, valeur: valeurInitiale });
   const { niveau, valeur } = choix;
   const changer = (e: Parameters<typeof appliquerChoix>[1]) => {
-    const suivant = appliquerChoix(choix, e);
-    setChoix(suivant);
-    if (suivant.niveau) onChange?.(suivant.niveau, suivant.valeur);
+    setChoix(gererChoix(choix, e, onChange));
   };
   const etat = etatSuggestions({ suggestions, chargement, erreur });
   const idListe = `${nom}-suggestions`;
@@ -88,9 +93,8 @@ export function ChoixCible({ niveau: niveauInitial, valeur: valeurInitiale = "",
                 <option key={s} value={s} />
               ))}
             </datalist>
-          ) : (
-            <p role="status" className="text-sm text-texte-faible">{MESSAGES[etat]}</p>
-          )}
+          ) : null}
+          <p role="status" className="text-sm text-texte-faible">{etat === "rempli" ? "" : MESSAGES[etat]}</p>
           <p id={`${nom}-aide`} className="text-sm text-texte-faible">Elle sera nommée dans les 5 premières secondes.</p>
         </div>
       ) : null}
