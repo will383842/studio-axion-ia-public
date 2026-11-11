@@ -273,12 +273,12 @@ export function BarreProgression({ f, total, palette }: { f: number; total: numb
 /* ------------------------------------------------------------------ Étiquettes génériques (lot 1, version locale) ------------------------------------------------------------------ */
 /** `EtiquetteTete` générique (M1, D1) : plaque 0,40-0,72 L au-dessus de la tête, éventuellement coiffée d'une sur-étiquette. */
 export function EtiquetteTete(p: { f: number; debut: number; fin: number; palette: Palette; texte: string; sur?: string; blanc?: boolean; x?: number; inclinaison?: number; interjection?: boolean }) {
-  const { ACCENT_1 } = accents(p.palette);
+  const { ACCENT_1, ACCENT_SOMBRE } = accents(p.palette);
   const x = p.x ?? L / 2;
   const inc = p.inclinaison ?? -3;
   const y = 0.115 * H;
   const fond = p.interjection ? ENCRE : p.blanc ? BLANC : ACCENT_1;
-  const couleur = p.interjection ? ACCENT_1 : ENCRE;
+  const couleur = p.interjection ? ACCENT_SOMBRE : ENCRE;
   const tremble = p.interjection ? secousse(p.f - p.debut - 6, 0.006 * L) : 0;
   return (
     <>
@@ -321,7 +321,7 @@ export function SousTitresV4({ f, mots, palette, position, exclure, masque }: { 
   if (!g || (masque && masque(f))) return null; // `masque` : groupe caché ≤ 6 i pendant qu'un objet balaie sa place (ouverture du plein cadre)
   // un mot déjà affiché par une étiquette posée n'est pas répété en plaque dans le sous-titre
   if (exclure && g.mots.every((m) => exclure(m, f))) return null;
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_1, ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   const visibles = g.mots.filter((m) => t >= m.debut && !(exclure && exclure(m, f)));
   if (visibles.length === 0) return null;
   const dernier = visibles[visibles.length - 1];
@@ -365,7 +365,7 @@ export function SousTitresV4({ f, mots, palette, position, exclure, masque }: { 
               style={{
                 position: "relative",
                 ...styleTexteMontserrat(corps),
-                color: plaque ? ENCRE : enCours ? ACCENT_1 : BLANC,
+                color: plaque ? ENCRE : enCours ? ACCENT_SOMBRE : BLANC,
                 WebkitTextStroke: plaque ? undefined : `${contour}px ${ENCRE}`,
                 paintOrder: "stroke fill",
                 opacity: 1,
