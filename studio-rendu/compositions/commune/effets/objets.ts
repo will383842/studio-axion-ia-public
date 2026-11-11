@@ -10,7 +10,6 @@ import type { Trois } from "./trois";
 /** Orange de la palette (rôle orange sur noir) : les objets sont posés sur le plateau noir. */
 const ORANGE = "#D97757";
 /** Gris sur noir (rôle de la palette) : bord de la pièce. */
-const GRIS = "#B0AEA5";
 const CREME = "#FAF9F5";
 const SOMBRE = "#141413";
 
@@ -173,7 +172,7 @@ export function construireObjet(T: Trois, objet: ObjetMain) {
     case "piece": {
       const disque = new T.Mesh(new T.CylinderGeometry(0.46, 0.46, 0.08, 96, 1), matiere(T, ORANGE, { metal: 0.85, rugosite: 0.28, vernis: 0.6 }));
       disque.rotation.x = Math.PI / 2;
-      const bord = new T.Mesh(new T.TorusGeometry(0.42, 0.02, 12, 96), matiere(T, GRIS, { metal: 0.9, rugosite: 0.3 }));
+      const bord = new T.Mesh(new T.TorusGeometry(0.42, 0.02, 12, 96), matiere(T, SOMBRE, { metal: 0.9, rugosite: 0.3 }));
       bord.position.z = 0.04;
       const a = new T.Mesh(extruder(T, formeA(T, 0.75), 0.02, 0.008), matiere(T, SOMBRE, { metal: 0.3, rugosite: 0.35 }));
       a.position.z = 0.055;

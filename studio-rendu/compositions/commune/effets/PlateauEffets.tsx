@@ -9,9 +9,8 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 
 /** Palette Axion : mur, pull et vêtements. Peau, cheveux, sourcils, yeux et bouche gardent leurs teintes réalistes. */
 const NOIR = "#141413";
-/** Gris sur noir (rôle de la palette) : filet de contour du pull et de la manche, texte secondaire pour le col. */
+/** Gris sur noir (rôle de la palette) : filet de contour du pull et de la manche, et col. */
 const GRIS_SUR_NOIR = "#B0AEA5";
-const GRIS_TEXTE_SECONDAIRE = "#5E5D59";
 
 export interface CleMain {
   t: number;
@@ -143,7 +142,7 @@ export function PlateauEffets(p: ProprietesPlateau) {
             <path d="M 470 770 L 610 770 L 628 1000 C 590 1030, 490 1030, 452 1000 Z" fill="#A36F56" />
             <path d="M 470 860 C 520 900, 570 900, 610 860 L 612 900 C 570 940, 510 940, 468 900 Z" fill="rgba(70,40,28,0.35)" />
             <path d="M 50 1920 C 70 1380, 180 1060, 410 990 C 470 1030, 610 1030, 670 990 C 900 1060, 1010 1380, 1030 1920 Z" fill={NOIR} stroke={GRIS_SUR_NOIR} strokeWidth={3} strokeLinejoin="round" />
-            <path d="M 410 990 C 470 1045, 610 1045, 670 990 L 690 1010 C 620 1080, 460 1080, 390 1010 Z" fill={GRIS_TEXTE_SECONDAIRE} />
+            <path d="M 410 990 C 470 1045, 610 1045, 670 990 L 690 1010 C 620 1080, 460 1080, 390 1010 Z" fill={GRIS_SUR_NOIR} />
           </g>
           {/* Tête. */}
           <g transform={`rotate(${inclinaison} ${v.cx} ${v.cy + 160}) translate(${balance} 0)`}>
