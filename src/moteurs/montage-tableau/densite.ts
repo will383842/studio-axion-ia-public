@@ -12,7 +12,7 @@
  *     glissent d'un cran) ; une page d'une seule scène est d'abord coupée à une fin de phrase, la seconde moitié tourne
  *     la page. Au style « reference/2 », la page neuve est une page de SUITE (même rôle, pas de nouveau titre).
  * Le texte dit n'est JAMAIS retouché, ni aucun texte écrit ; aucun élément n'est retiré (sauf, au DÉCOUPAGE seulement et en dernier recours, l'allègement `allegerPage`). Bornes (`bornesFicheTableau`) : 14 scènes et 8 pages
- * au plus pour la page écrite au crayon, 10 pages pour « reference/2 » ; « reference/3 » : 18 scènes et 14 pages. En dernier recours, une page qu'aucune page de plus ne sauve est allégée au découpage (`allegerPage` : détail, dessin, visuel retirés, texte dit intact, retraits tracés). Ce qui ne se répare pas reste tel quel : la validation
+ * au plus pour la page écrite au crayon, 10 pages pour « reference/2 » ; « reference/3 » : 30 scènes et 28 pages. En dernier recours, une page qu'aucune page de plus ne sauve est allégée au découpage (`allegerPage` : détail, dessin, visuel retirés, texte dit intact, retraits tracés). Ce qui ne se répare pas reste tel quel : la validation
  * le refuse alors avec un message qui dit quoi faire (`pourquoiPasDePageDePlus` donne la raison d'une page de plus impossible). Une fiche qui n'a rien à réparer est rendue telle quelle (même
  * objet). Ne lève jamais.
  */
@@ -120,7 +120,7 @@ function pageDePlus(fiche: FicheTableau, page: number): FicheTableau | null {
 }
 
 /** Type de la raison : le message de refus en dépend (ce qu'il propose de faire). */
-export type TypeRaisonPageDePlus = "une-phrase" | "scenes-max" | "pages-max" | "coupe-vide" | "coupe-impossible" | "regle-page" | "erreur";
+export type TypeRaisonPageDePlus = "une-phrase" | "scenes-max" | "pages-max" | "coupe-vide" | "coupe-impossible" | "regle-page" | "appel-long" | "erreur";
 
 /** Les détails sans leurs nombres : un ancien défaut dont le numéro a glissé n'est pas « nouveau ». */
 const sansNombres = (detail: string) => detail.replace(/\d+/g, "#");
@@ -137,6 +137,12 @@ export function diagnosticPageDePlus(fiche: FicheTableau, page: number): { type:
     if (!indices.length) return null;
     if (indices.length === 1) {
       const scene = fiche.scenes[indices[0]];
+      if (scene.gabarit?.role === "appel") {
+        // La plaque porte la LIGNE ÉCRITE d'appel (pas tout le texte dit) : elle seule compte, et seulement si elle est trop longue.
+        const elAppel = scene.elements.find((e) => e.type === "ligne" && e.bloc === "appel");
+        const ligne = elAppel && elAppel.type === "ligne" ? elAppel.texte.trim() : undefined;
+        if (ligne && (ligne.length > 35 || ligne.split(/\s+/).length > 6)) return { type: "appel-long", texte: `la phrase d'appel « ${ligne} » est trop longue pour la plaque : 35 caractères au plus, ou choisissez une phrase de fin` };
+      }
       if (fiche.scenes.length >= bornes.scenesMax) return { type: "scenes-max", texte: `${bornes.scenesMax} scènes au plus : la scène ne peut plus être coupée en deux` };
       if (scene.debutMs !== undefined || scene.finMs !== undefined) return { type: "coupe-impossible", texte: `la scène ${scene.id} est calée sur un temps fixé : elle ne peut pas être coupée` };
       if ((scene.ecrans ?? []).some((e) => e.moment === "appel")) return { type: "coupe-impossible", texte: `la scène ${scene.id} porte l'écran d'appel : elle ne peut pas être coupée` };

@@ -580,12 +580,10 @@ describe("les quatre fiches témoins du dépôt fabriquent leurs deux verticaux 
   ] as const) {
     it(`${nom} : fin propre, relecture sans point, deux verticaux`, async () => {
       const fiche = lire(nom);
-      // Lot B2b : la fiche réelle « habitude-equipe » (1 670 caractères dits, enregistrée le 12/10) dépasse la limite de 90 s au
-      // débit de la voix à 165 mots/min (1 520 caractères) : elle est désormais REFUSÉE (durée, et un trou du rythme dû aux
-      // ancres posées pour l'ancien débit).
+      // La fiche réelle « habitude-equipe » (1 670 caractères dits) tient désormais sous le plafond de 180 s ; seul reste un trou du rythme dû aux ancres posées pour l'ancien débit.
       if (nom === "fiche-habitude-equipe-prod.json") {
         const v = validerFicheTableau(fiche, contexteDe(fiche));
-        expect(v.ok ? [] : v.problemes.map((p) => p.message.replace(/^.*?règle « ([^»]*) ».*$/, "$1"))).toEqual(["durée de 90 secondes au plus", "du rythme : un événement visuel toutes les 4 secondes"]);
+        expect(v.ok ? [] : v.problemes.map((p) => p.message.replace(/^.*?règle « ([^»]*) ».*$/, "$1"))).toEqual(["du rythme : un événement visuel toutes les 4 secondes"]);
         return;
       }
       attendreFinPropre(ficheLiens(fiche, sansFinValidee(mot)), mot);
