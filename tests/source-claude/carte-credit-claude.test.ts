@@ -44,11 +44,19 @@ const rendre = (v: never) => renderToStaticMarkup(createElement(CarteCreditClaud
 const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/\s+/g, " ");
 
 describe("carte Crédit Claude de l'Accueil", () => {
+  it("aucun montant (€, $) : un niveau en mots, et « ≈ N scripts restants » quand l'unité existe", () => {
+    const cas = [vue(), vue({ comptes: [compte(1, { restantCentimes: 1500, restantTexte: "15,00 $" })] }), vue({ comptes: [compte(1, { etat: "expire", restantCentimes: 0, restantTexte: "Expiré (0 $)" })] })];
+    for (const v of cas) expect(texte(rendre(v))).not.toMatch(/[$€]|\d\s?(?:,\d{2})\s/);
+    expect(texte(rendre(vue({ comptes: [compte(1, { restantCentimes: 1500 })] })))).toContain("Presque épuisé");
+    expect(texte(renderToStaticMarkup(createElement(CarteCreditClaude, { vue: vue(), maintenant: MAINTENANT, scriptsRestants: 7 })))).toContain("≈ 7 scripts restants");
+  });
+
   it("titre, total en gros, ligne de compte, lien vers les Réglages", () => {
     const html = rendre(vue());
     const t = texte(html);
-    expect(t).toContain("Crédit Claude restant (estimé)");
-    expect(t).toContain("120,00 $");
+    expect(t).toContain("Crédit Claude");
+    expect(t).toContain("Crédit suffisant");
+    expect(t).not.toMatch(/[$€]/);
     expect(t).toContain("Compte 1 · …AAAA");
     expect(t).toContain("depuis le relevé du 12/10");
     expect(html).toContain('href="/reglages#credits-claude"');
@@ -102,10 +110,10 @@ describe("carte Crédit Claude de l'Accueil", () => {
     expect(texte(rendre(vue()))).not.toContain("Relevé ancien");
   });
 
-  it("API payante : à part, grisée, « éteinte » / « allumée », la consommation du mois, jamais un restant", () => {
+  it("API payante : à part, grisée, « éteinte » / « allumée », sans aucun montant, jamais un restant", () => {
     const eteinte = texte(rendre(vue()));
     expect(eteinte).toContain("API payante · …FFFF · éteinte");
-    expect(eteinte).toContain("3,50 $");
+    expect(eteinte).not.toMatch(/[$€]/);
     expect(eteinte).not.toMatch(/API payante[^.]*restant/i);
     const allumee = texte(rendre(vue({ mode: "api", api: { finCle: "…FFFF", eteinte: false, consommeMoisTexte: "3,50 $" } })));
     expect(allumee).toContain("API payante · …FFFF · allumée");

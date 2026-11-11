@@ -6,12 +6,13 @@ import { definirCycleCreditClaudeAction, releverCreditClaudeAction } from "@/app
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { notifier } from "@/components/ui/Toast";
+import { LIBELLES_NIVEAU_FORFAIT, niveauCompteClaude, niveauTotalClaude } from "@/domaine/niveau-credit";
 import type { SourceAbonnement } from "@/domaine/source-claude";
 import type { VueCompteCredit, VueCreditClaude } from "@/services/credit-claude";
 
 export const TEXTES_CREDIT_CLAUDE = {
-  titre: "Crédit Claude restant (estimé)",
-  aide: "Estimé : à recaler avec la Console. Anthropic n'indique aucun solde ; ce chiffre est un calcul et ne bloque jamais rien.",
+  titre: "Crédit Claude",
+  aide: "Niveau estimé : à recaler avec la Console. Anthropic n'indique aucun solde ; cette indication est un calcul et ne bloque jamais rien.",
   montant: "Crédit du cycle ($)",
   debut: "Début du cycle",
   expiration: "Expiration",
@@ -19,7 +20,7 @@ export const TEXTES_CREDIT_CLAUDE = {
   releve: "Solde relevé dans la Console ($)",
   enregistrerCycle: "Enregistrer le cycle",
   enregistrerReleve: "Enregistrer le relevé",
-  apresExpiration: "Après l'expiration, saisissez le nouveau cycle (ex. compte 1 : revient vers le 11/11). Les 200 $ proposés ne comptent qu'après un clic sur « Enregistrer le cycle ».",
+  apresExpiration: "Après l'expiration, saisissez le nouveau cycle (ex. compte 1 : revient vers le 11/11). Le crédit proposé dans le champ ne compte qu'après un clic sur « Enregistrer le cycle ».",
 } as const;
 
 /** Exemples gris (placeholder) : jamais une valeur enregistrable par défaut. */
@@ -68,7 +69,7 @@ function CarteCompte({ compte }: { compte: VueCompteCredit }) {
           {compte.libelle} {compte.finCle && <span className="text-sm font-normal text-texte-faible">{compte.finCle}</span>}
         </p>
         <p className="text-sm text-texte-doux" role="status">
-          {compte.restantTexte}
+          {compte.etat === "expire" ? "Expiré" : compte.etat === "a-venir" ? "À venir" : LIBELLES_NIVEAU_FORFAIT[niveauCompteClaude(compte)]}
           {compte.depuisTexte && <span className="text-texte-faible"> · {compte.depuisTexte}</span>}
         </p>
       </div>
@@ -99,7 +100,7 @@ export function CreditClaude({ vue }: { vue: VueCreditClaude }) {
     <div id="credits-claude" className="mt-6 scroll-mt-24">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold text-texte">{TEXTES_CREDIT_CLAUDE.titre}</h3>
-        <p className="text-sm text-texte-doux">Total : {vue.totalTexte}</p>
+        <p className="text-sm text-texte-doux">{LIBELLES_NIVEAU_FORFAIT[niveauTotalClaude(vue.comptes)]}</p>
       </div>
       <p className="mt-1 text-sm text-texte-faible">{TEXTES_CREDIT_CLAUDE.aide}</p>
       <div className="mt-3 grid gap-3">
@@ -108,7 +109,7 @@ export function CreditClaude({ vue }: { vue: VueCreditClaude }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-texte-faible">
-        Accès payant {vue.api.finCle ?? ""} : {vue.api.eteinte ? "éteinte" : "active"} · dépensé ce mois-ci {vue.api.consommeMoisTexte}
+        Accès payant {vue.api.finCle ?? ""} : {vue.api.eteinte ? "éteinte" : "active"}
       </p>
     </div>
   );
