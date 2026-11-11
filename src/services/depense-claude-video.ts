@@ -267,7 +267,7 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
 
   // Tous les comptes Claude posés sont épuisés : AUCUN appel, AUCUNE réservation (jamais l'API payante).
   if (!peutEcrire(actif)) {
-    await journaliser("publication", `${options.etape} : ${actif.sansCompte ? "aucun compte Claude utilisable" : "tous les comptes Claude sont épuisés"}, rien n'est parti`, { type: "video", id: videoId });
+    await journaliser("publication", actif.sansCompte ? "Aucun compte Claude utilisable : l'étape n'a pas été lancée." : "Tous les comptes Claude sont épuisés : l'étape n'a pas été lancée.", { type: "video", id: videoId });
     return { ok: false, arret: "en-attente-credit", message: `${actif.sansCompte ? messageSansCompte(actif.sansCompte) : "Les comptes Claude sont épuisés pour cette période."} Le texte actuel est gardé.` };
   }
 
