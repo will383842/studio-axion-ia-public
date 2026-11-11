@@ -31,4 +31,7 @@ describe("evaluerSante", () => {
   it("avant l'heure : rien", () => {
     expect(evaluerSante([c()], min(-5))).toEqual([]);
   });
+  it("instant « maintenant » invalide : erreur, pas d'alerte en masse", () => {
+    expect(() => evaluerSante([c()], "pas-une-date")).toThrow(/invalide/);
+  });
 });
