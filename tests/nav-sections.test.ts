@@ -11,15 +11,15 @@ import { mockHeaders, mockNavigation } from "./helpers/next-mocks";
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => ({ ...mockNavigation, usePathname: () => "/reglages" }));
 
-const { NAV_PIED, ONGLETS_BAS, SECTIONS_NAV, sectionsLaterales, sectionsPlusMobile, navigationLaterale } = await import("@/components/coquille/navigation");
+const { ACTION_CREER, NAV_PIED, ONGLETS_BAS, SECTIONS_NAV, sectionsLaterales, sectionsPlusMobile, navigationLaterale } = await import("@/components/coquille/navigation");
 const { BarreLaterale } = await import("@/components/coquille/BarreLaterale");
 
 const toutes = (surLeSite: boolean, aPublier: boolean) => [...sectionsLaterales(surLeSite, aPublier).flatMap((s) => s.entrees), ...NAV_PIED];
 
 describe("structure du menu", () => {
-  it("sections titrées : Contenus, Publier et mesurer, Ressources ; la tête n'a pas de titre", () => {
-    expect(SECTIONS_NAV.map((s) => s.titre)).toEqual([null, "Contenus", "Publier et mesurer", "Ressources"]);
-    expect(SECTIONS_NAV[0].entrees.map((e) => e.href)).toEqual(["/", "/nouvelle"]);
+  it("sections titrées : Mes contenus, Publier, Mes ressources ; la tête (Accueil seul) n'a pas de titre", () => {
+    expect(SECTIONS_NAV.map((s) => s.titre)).toEqual([null, "Mes contenus", "Publier", "Mes ressources"]);
+    expect(SECTIONS_NAV[0].entrees.map((e) => e.href)).toEqual(["/"]);
   });
 
   it("chaque section titrée a de 2 à 4 entrées (6 au plus quand « Vidéos validées » et « Sur le site » sont allumés)", () => {
@@ -31,15 +31,22 @@ describe("structure du menu", () => {
   });
 
   it("« Vidéos validées » (ex « À publier », décision de Williams du 08/11) et « Sur le site » se rangent juste après « Calendrier »", () => {
-    const publier = sectionsLaterales(true, true).find((s) => s.titre === "Publier et mesurer")!;
+    const publier = sectionsLaterales(true, true).find((s) => s.titre === "Publier")!;
     expect(publier.entrees.map((e) => e.href).slice(0, 3)).toEqual(["/calendrier", "/a-publier", "/sur-le-site"]);
     expect(publier.entrees[1].libelle).toBe("Vidéos validées");
     expect(navigationLaterale([], false, false).some((e) => e.href === "/a-publier" || e.href === "/sur-le-site")).toBe(false);
   });
 
-  it("Réglages et la veille sont dans le pied, jamais dans une section", () => {
-    expect(NAV_PIED.map((e) => e.href)).toEqual(["/veille", "/reglages"]);
+  it("Réglages (qui allume aussi /veille) est dans le pied, jamais dans une section ; Veille et Outils motion sortent du menu", () => {
+    expect(NAV_PIED.map((e) => e.href)).toEqual(["/reglages"]);
+    expect(NAV_PIED[0].actifSur).toContain("/veille");
+    for (const e of toutes(true, true)) expect(["/veille", "/outils-motion"]).not.toContain(e.href);
     for (const s of SECTIONS_NAV) for (const e of s.entrees) expect(["/veille", "/reglages"]).not.toContain(e.href);
+  });
+
+  it("Nouvelle vidéo est un bouton d'action hors liste, jamais dans une section", () => {
+    expect(ACTION_CREER.href).toBe("/nouvelle");
+    for (const s of SECTIONS_NAV) expect(s.entrees.map((e) => e.href)).not.toContain("/nouvelle");
   });
 
   it("aucune adresse ni icône en double ; libellés courts, sans jargon technique", () => {
@@ -73,9 +80,9 @@ describe("mobile : même organisation que l'ordinateur", () => {
 describe("rendu de la barre latérale", () => {
   const html = renderToStaticMarkup(createElement(BarreLaterale, { formats: [], actionDeconnexion: async () => undefined, surLeSite: true, aPublier: true }));
 
-  it("affiche les titres de section, reliés à leur liste", () => {
-    for (const titre of ["Contenus", "Publier et mesurer", "Ressources"]) expect(html).toContain(`>${titre}</span>`); // 09/11, Williams : le titre est un bouton qui plie la section
-    expect(html.match(/aria-labelledby="/g)?.length).toBe(3);
+  it("affiche les titres de groupe fixes (h2), reliés à leur liste", () => {
+    for (const titre of ["Mes contenus", "Publier", "Mes ressources"]) expect(html).toContain(`>${titre}</h2>`);
+    expect(html.match(/aria-labelledby="/g)?.length).toBe(4); // 3 groupes + le pied « Compte »
   });
 
   it("un seul repère de navigation, et l'entrée de la page en cours porte aria-current", () => {
@@ -86,10 +93,24 @@ describe("rendu de la barre latérale", () => {
     expect(html.match(/aria-current="page"/g)?.length).toBe(1);
   });
 
-  it("le pied (veille, réglages) est hors de la zone qui défile", () => {
-    const zoneDefilante = html.slice(html.indexOf("overflow-y-auto"), html.indexOf("shrink-0 space-y-0.5 border-t"));
+  it("le pied (réglages) est hors de la zone qui défile", () => {
+    const zoneDefilante = html.slice(html.indexOf("overflow-y-auto"), html.indexOf("shrink-0 border-t"));
     expect(zoneDefilante).not.toContain('href="/reglages"');
     expect(zoneDefilante).not.toContain('href="/veille"');
     expect(html).toContain('href="/reglages"');
+  });
+});
+
+describe("« Mes vidéos » couvre toutes les adresses de création", () => {
+  it("chaque adresseCreation du registre allume Mes vidéos (barre et onglets)", async () => {
+    const { listerFormats } = await import("@/formats");
+    const { estActif } = await import("@/components/coquille/navigation");
+    const videos = SECTIONS_NAV.flatMap((s) => s.entrees).find((e) => e.href === "/videos")!;
+    const onglet = ONGLETS_BAS.find((o) => o.href === "/videos")!;
+    for (const f of listerFormats({ inclureMasques: true, inclureReservesAWill: true })) {
+      if (!f.adresseCreation) continue;
+      expect(estActif(f.adresseCreation, videos), f.id).toBe(true);
+      expect(estActif(f.adresseCreation, onglet), f.id).toBe(true);
+    }
   });
 });

@@ -2,7 +2,7 @@
  * Vérification de la navigation (03/10/2026) : ce que montrent les écrans corrigés (rendu serveur, sans clic).
  *  - fiche sujet : la vidéo d'une version se voit et s'ouvre sans déplier la ligne (« Voir la vidéo » / « en fabrication ») ;
  *  - fiche vidéo : « Publier · n/N » n'est plus un bouton muet (il mène aux vérifications) ;
- *  - menu : « Mesures » est joignable depuis la barre latérale et la feuille « Plus ».
+ *  - menu : « Résultats » (ex « Mesures ») est joignable depuis la barre latérale et la feuille « Plus ».
  */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -108,8 +108,8 @@ describe("navigation · fiche vidéo", () => {
 });
 
 describe("navigation · menu", () => {
-  it("« Mesures » est dans la barre latérale et dans la feuille « Plus »", () => {
-    expect(NAV_LATERALE.some((e) => e.href === "/mesures" && e.libelle === "Mesures")).toBe(true);
-    expect(TUILES_PLUS.some((e) => e.href === "/mesures" && e.libelle === "Mesures")).toBe(true);
+  it("« Résultats » (/mesures) est dans la barre latérale et dans la feuille « Plus »", () => {
+    expect(NAV_LATERALE.some((e) => e.href === "/mesures" && e.libelle === "Résultats")).toBe(true);
+    expect(TUILES_PLUS.some((e) => e.href === "/mesures" && e.libelle === "Résultats")).toBe(true);
   });
 });

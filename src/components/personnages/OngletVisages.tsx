@@ -153,7 +153,7 @@ function CarteVisage({ visage: v, habituel, onOuvrir }: { visage: VueVisage; hab
       onClick={onOuvrir}
       className="group relative block w-full overflow-hidden rounded-carte border border-trait bg-surface-1 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-trait-fort"
     >
-      <div className="relative aspect-[4/5] bg-surface-2">
+      <div className="theme-sombre relative aspect-[4/5] bg-surface-2">
         {v.vignette ? (
           <Image src={v.vignette} alt="" fill sizes="(max-width: 640px) 50vw, 260px" className={cn("object-cover transition-transform duration-500 group-hover:scale-[1.04]", v.statut !== "pret" && "opacity-50 grayscale")} />
         ) : (
@@ -497,7 +497,7 @@ function VisageParFormat({ personnageId, visages, parFormat, habituel }: { perso
                     onClick={() => choisir(format.id, o.id)}
                     className={cn("group relative block w-full overflow-hidden rounded-carte border text-left transition-[border-color,box-shadow]", actif ? "border-orange shadow-orange" : "border-trait hover:border-trait-fort")}
                   >
-                    <span className="relative block aspect-[4/5] bg-surface-2">
+                    <span className="theme-sombre relative block aspect-[4/5] bg-surface-2">
                       {o.visage.vignette ? (
                         <Image src={o.visage.vignette} alt="" fill sizes="(max-width: 640px) 50vw, 200px" className={cn("object-cover transition-transform duration-500 group-hover:scale-[1.04]", o.id === null && "opacity-60")} />
                       ) : (
