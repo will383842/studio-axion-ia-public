@@ -205,7 +205,7 @@ export default async function PageAccueil() {
               </div>
 
               {/* Crédit Claude restant (estimé) : affichage seulement ; l'Accueil ne casse jamais s'il manque. */}
-              {creditClaude && <CarteCreditClaude vue={creditClaude} scriptsRestants={credits.cartes.find((c) => c.fournisseur === "anthropic")?.videosRestantes ?? null} />}
+              {creditClaude && <CarteCreditClaude vue={creditClaude} />}
 
               {/* Lot « crédits » (02/10) : solde des services payants reliés, et départ des brouillons « dès que possible ». */}
               <CarteCredits cartes={credits.cartes} brouillonsPrets={credits.brouillonsPrets} />

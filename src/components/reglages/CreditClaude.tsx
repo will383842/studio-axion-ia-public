@@ -69,7 +69,7 @@ function CarteCompte({ compte }: { compte: VueCompteCredit }) {
           {compte.libelle} {compte.finCle && <span className="text-sm font-normal text-texte-faible">{compte.finCle}</span>}
         </p>
         <p className="text-sm text-texte-doux" role="status">
-          {compte.etat === "expire" ? "Expiré" : compte.etat === "a-venir" ? "À venir" : LIBELLES_NIVEAU_FORFAIT[niveauCompteClaude(compte)]}
+          {compte.horsTotalTexte ? "hors total" : compte.etat === "expire" ? "Expiré" : compte.etat === "a-venir" ? "À venir" : LIBELLES_NIVEAU_FORFAIT[niveauCompteClaude(compte)]}
           {compte.depuisTexte && <span className="text-texte-faible"> · {compte.depuisTexte}</span>}
         </p>
       </div>

@@ -72,7 +72,7 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
               )}
             </div>
 
-            <p className={cn("mt-3 font-titre text-2xl leading-none", c.disponibleTexte ? COULEURS[c.ton].texte : "text-texte-faible")}>{(c.abonnements ? LIBELLES_NIVEAU_FORFAIT : LIBELLES_NIVEAU)[niveauCredit({ ...c, soldeConnu: c.disponibleTexte !== null })]}</p>
+            <p className={cn("mt-3 font-titre text-2xl leading-none", c.disponibleTexte ? COULEURS[c.ton].texte : "text-texte-faible")}>{c.cleRefusee ? "Clé refusée" : (c.abonnements ? LIBELLES_NIVEAU_FORFAIT : LIBELLES_NIVEAU)[niveauCredit({ ...c, soldeConnu: c.disponibleTexte !== null })]}</p>
             {c.disponibleTexte === null && (
               <p className="mt-1 text-sm text-texte-faible">
                 {c.nom === "Claude"

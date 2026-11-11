@@ -44,11 +44,11 @@ const rendre = (v: never) => renderToStaticMarkup(createElement(CarteCreditClaud
 const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/\s+/g, " ");
 
 describe("carte Crédit Claude de l'Accueil", () => {
-  it("aucun montant (€, $) : un niveau en mots, et « ≈ N scripts restants » quand l'unité existe", () => {
+  it("aucun montant (€, $) : un niveau en mots, jamais de « scripts restants »", () => {
     const cas = [vue(), vue({ comptes: [compte(1, { restantCentimes: 1500, restantTexte: "15,00 $" })] }), vue({ comptes: [compte(1, { etat: "expire", restantCentimes: 0, restantTexte: "Expiré (0 $)" })] })];
     for (const v of cas) expect(texte(rendre(v))).not.toMatch(/[$€]|\d\s?(?:,\d{2})\s/);
     expect(texte(rendre(vue({ comptes: [compte(1, { restantCentimes: 1500 })] })))).toContain("Presque épuisé");
-    expect(texte(renderToStaticMarkup(createElement(CarteCreditClaude, { vue: vue(), maintenant: MAINTENANT, scriptsRestants: 7 })))).toContain("≈ 7 scripts restants");
+    expect(texte(renderToStaticMarkup(createElement(CarteCreditClaude, { vue: vue(), maintenant: MAINTENANT })))).not.toContain("scripts restants");
   });
 
   it("titre, total en gros, ligne de compte, lien vers les Réglages", () => {

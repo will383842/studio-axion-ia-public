@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { avertissementCreditClaude } from "@/domaine/credit-claude";
-import { texteRestants } from "@/domaine/credits";
 import { LIBELLES_NIVEAU_FORFAIT, niveauCompteClaude, niveauTotalClaude } from "@/domaine/niveau-credit";
 import { cn } from "@/lib/cn";
 import { dateCourte } from "@/lib/dates";
@@ -27,14 +26,13 @@ function LigneCompte({ c }: { c: VueCompteCredit }) {
   );
 }
 
-export function CarteCreditClaude({ vue, maintenant = new Date().toISOString(), scriptsRestants = null }: { vue: VueCreditClaude; maintenant?: string; scriptsRestants?: number | null }) {
+export function CarteCreditClaude({ vue, maintenant = new Date().toISOString() }: { vue: VueCreditClaude; maintenant?: string }) {
   const alerte = avertissementCreditClaude({ mode: vue.mode, comptes: vue.comptes, maintenant, formaterJour: dateCourte });
   return (
     <Link href="/reglages#credits-claude" className="-m-2 block rounded-xl p-2 hover:bg-surface-2">
       <div>
         <p className="text-sm font-semibold text-texte-doux">Crédit Claude</p>
         <p className="mt-1 font-titre text-2xl text-texte">{LIBELLES_NIVEAU_FORFAIT[niveauTotalClaude(vue.comptes)]}</p>
-        {scriptsRestants !== null && <p className="mt-1 text-sm text-texte-doux">{texteRestants("anthropic", scriptsRestants)}</p>}
         {alerte && (
           <p role="status" className={cn("mt-2 rounded-xl px-3 py-2 text-sm", alerte.ton === "brique" && "bg-brique-doux text-brique", alerte.ton === "ambre" && "bg-ambre-doux text-ambre", alerte.ton === "gris" && "px-0 py-0 text-xs text-texte-faible")}>
             {alerte.texte}
