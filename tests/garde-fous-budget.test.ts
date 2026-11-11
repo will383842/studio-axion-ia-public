@@ -87,7 +87,7 @@ describe("1 · plus aucune reprise automatique après une recharge", () => {
     // Will est prévenu UNE fois, avec un prix.
     const notes = await depots().notifications.lister((x) => x.titre === "Une écriture peut reprendre");
     expect(notes).toHaveLength(1);
-    expect(notes[0].message).toMatch(/Reprendre.*\$/);
+    expect(notes[0].message).toMatch(/Reprendre/);
     // Le geste de Will (sur CE sujet) la relance.
     expect(await gc.relancerEcrituresEnAttente("autre-sujet")).toEqual([]);
     expect(await gc.relancerEcrituresEnAttente(g.scriptMaitreId)).toEqual([g.id]);

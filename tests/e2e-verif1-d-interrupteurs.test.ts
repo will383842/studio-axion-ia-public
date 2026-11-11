@@ -464,7 +464,7 @@ describe("D3 — confirmer à chaque fabrication, puis fabrication de bout en bo
     await renduDouble.definirRenduDouble({ allume: true });
     await preparerVideo(tq, { sansIllustrations: true });
     await reglages.definirMontageReel("avocat", true);
-    expect((await reglages.listerJournal(3)).map((e) => e.message).some((m) => /^Vidéos Type avocat : montage réel \(environ \d+,\d\d\s€ la vidéo de 45 s\)$/.test(m))).toBe(true);
+    expect((await reglages.listerJournal(3)).map((e) => e.message).some((m) => /^Vidéos Type avocat : montage réel \(payant\)$/.test(m))).toBe(true);
     expect((await carteMontage()).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Type avocat", "Face caméra"]);
 
     const apercu = await fabrication.apercuFabrication(VIDEO);

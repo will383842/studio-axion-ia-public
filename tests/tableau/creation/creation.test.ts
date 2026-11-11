@@ -133,7 +133,7 @@ describe("Découper en scènes", () => {
     for (const accord of [undefined, true, 0, 1]) {
       const r = await decouperScriptTableau(donnees, { accord, relu: repereTexte(donnees.texte) }, { aujourdhui: AUJOURDHUI_EXEMPLES });
       expect(r.statut).toBe("accord-requis");
-      if (r.statut === "accord-requis") expect(r.phrase).toMatch(/Le découpage coûte au plus .* Confirmez ce prix/);
+      if (r.statut === "accord-requis") expect(r.phrase).toMatch(/Le découpage est payant .* Confirmez pour lancer/);
     }
     expect(await depots().videos.compter((v) => v.formatId === "tableau-anime")).toBe(0);
   });
