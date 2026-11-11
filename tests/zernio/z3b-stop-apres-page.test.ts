@@ -268,4 +268,9 @@ describe("partie 2 (côté Studio) : OPPOSITIONS_PAR_REF_ENABLED, éteint par d�
     await transmettre(ENV_REF, T0 + 1000);
     expect(Object.keys(await pagePrm())).toHaveLength(1);
   });
+  it("une file « page » illisible (entrée null) ne bloque jamais le passage : la voie par adresse est quand même traitée, avec ou sans l'interrupteur", async () => {
+    await Com.ecrireParametre(OT.PARAM_OPPOSITIONS_PAGE, { entree_illisible: null });
+    for (const env of [ENV_LIEN, ENV_REF]) await expect(transmettre(env, T0 + 1000)).resolves.toBeDefined();
+    expect(vusPage).toHaveLength(0);
+  });
 });
