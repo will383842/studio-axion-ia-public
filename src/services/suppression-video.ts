@@ -449,7 +449,7 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   reecrire("evenements", {
     id: nouvelId("ev"),
     type: "video_supprimee",
-    message: `Vidéo supprimée : « ${video.titre} » (${video.formatId}), ${totalDepense} dépensés`,
+    message: `Vidéo supprimée : « ${video.titre} » (${video.formatId})`,
     entite: "video",
     entiteId: id,
     date: maintenant(),
