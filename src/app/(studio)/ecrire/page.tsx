@@ -20,6 +20,9 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { Icone } from "@/components/ui/Icone";
+import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
+import { compterAnciens, estDoublonPossible, filtrerParCiblage, lireFiltreCiblage } from "@/domaine/ciblage/listes";
+import { EtatVide } from "@/components/ui/EtatVide";
 import { Onglets } from "@/components/ui/Onglets";
 import { listerSujets, valeursFiltresGenerateur } from "@/services/generateur";
 import { listerIdees } from "@/services/idees";
@@ -74,7 +77,12 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
   const sujets = vues.map(versSujetListe);
   const formats = formatsClassables();
   const nombres = Object.fromEntries(formats.map((f) => [f.id, sujets.filter((s) => s.grille.some((l) => l.formatId === f.id)).length]));
-  const sansSujet = scripts.filter((s) => !s.scriptMaitreId).map((s) => ({ id: s.id, titre: s.sujet }));
+  // Ciblage (lot H) : anciens masqués par défaut, filtre par type ; les doublons sont signalés, jamais supprimés.
+  const filtreCiblage = lireFiltreCiblage(sp);
+  const sansSujetTous = scripts.filter((s) => !s.scriptMaitreId);
+  const sansSujetVus = filtrerParCiblage(sansSujetTous, filtreCiblage);
+  const sansSujet = sansSujetVus.map((s) => ({ id: s.id, titre: s.sujet, doublon: estDoublonPossible(s) }));
+  const ciblageActif = !!filtreCiblage.type || filtreCiblage.anciens;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -106,6 +114,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             contenu: (
               <Suspense>
                 <BandeauSeries series={series} active={sp.serie} />
+                {sansSujetTous.length > 0 && <FiltresCiblage base="/ecrire" params={sp} filtre={filtreCiblage} nbAnciens={compterAnciens(sansSujetTous)} className="mb-4" />}
                 <ListeSujets
                   sujets={sujets}
                   formats={formats}
@@ -115,6 +124,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
                   series={valeurs.series}
                   sansSujet={sansSujet}
                 />
+                {sansSujet.length === 0 && sansSujetTous.length > 0 && ciblageActif && <EtatVide compact icone="document" titre="Aucun script ici" phrase="Changez de type ou affichez les anciens." />}
               </Suspense>
             ),
           },

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { BadgeDoublon } from "@/components/ciblage/BadgeDoublon";
 import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
@@ -29,7 +30,7 @@ export interface ProprietesListeSujets {
   favoris?: string[];
   piliers: { id: string; nom: string }[];
   series: { id: string; nom: string }[];
-  sansSujet: { id: string; titre: string }[];
+  sansSujet: { id: string; titre: string; doublon?: boolean }[];
 }
 
 /** Liste « Scripts » (B.6.2-B.6.4) : rangée de 5 logos et bouton Format visibles ; le reste dans « Plus de filtres ». */
@@ -175,6 +176,7 @@ export function ListeSujets(p: ProprietesListeSujets) {
               <li key={t.id}>
                 <Link href={`/scripts/${t.id}`} className="flex min-h-11 items-center justify-between gap-2 text-sm text-texte hover:text-orange-vif">
                   <span className="truncate">{t.titre}</span>
+                  {t.doublon && <BadgeDoublon className="ml-auto" />}
                   <Icone nom="chevron-droite" size={14} className="shrink-0 text-texte-faible" />
                 </Link>
               </li>

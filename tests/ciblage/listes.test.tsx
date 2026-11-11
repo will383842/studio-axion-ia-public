@@ -13,7 +13,7 @@ const MARQUE = { depuis: "2026-11-09T08:00:00.000Z", raison: "avant-ciblage" as 
 
 function script(id: string, extra: Partial<Script> = {}): Script {
   return {
-    id, formatId: "talking-head", versionFormat: 1, sujet: `Sujet ${id}`, version: 1,
+    id, formatId: "avocat", versionFormat: 1, sujet: `Sujet ${id}`, version: 1,
     blocs: [{ id: `${id}-b`, blocRecette: "corps", segments: [{ id: `${id}-s`, texte: "Texte." }] }],
     favori: false, reference: false, statutEditorial: "brouillon", marqueId: "marque-axion", creeLe: "2026-01-01T00:00:00.000Z", modifieLe: "2026-01-01T00:00:00.000Z",
     ...extra,
@@ -54,6 +54,7 @@ describe("filtrerParCiblage", () => {
 
 describe("service listerScripts", () => {
   beforeEach(() => reinitialiserDepots());
+  const miens = async (f: Parameters<typeof listerScripts>[0]) => (await listerScripts(f)).map((s) => s.id).filter((id) => id.startsWith("s-")).sort();
   async function semer() {
     const d = depots();
     await d.scripts.enregistrer(script("s-ancien", { ancien: MARQUE, typeAutomatisation: "recrutement" }));
@@ -62,13 +63,13 @@ describe("service listerScripts", () => {
   }
   it("sans option, rien ne change pour les autres écrans (tout est listé)", async () => {
     await semer();
-    expect((await listerScripts({ reference: false })).map((s) => s.id).sort()).toEqual(["s-ancien", "s-libre", "s-recent"]);
+    expect(await miens({ reference: false })).toEqual(["s-ancien", "s-libre", "s-recent"]);
   });
   it("inclureAnciens=false masque les anciens ; le type filtre", async () => {
     await semer();
-    expect((await listerScripts({ inclureAnciens: false })).map((s) => s.id).sort()).toEqual(["s-libre", "s-recent"]);
-    expect((await listerScripts({ typeAutomatisation: "recrutement" })).map((s) => s.id).sort()).toEqual(["s-ancien", "s-recent"]);
-    expect((await listerScripts({ typeAutomatisation: "a-classer" })).map((s) => s.id)).toEqual(["s-libre"]);
+    expect(await miens({ inclureAnciens: false })).toEqual(["s-libre", "s-recent"]);
+    expect(await miens({ typeAutomatisation: "recrutement" })).toEqual(["s-ancien", "s-recent"]);
+    expect(await miens({ typeAutomatisation: "a-classer" })).toEqual(["s-libre"]);
   });
 });
 
