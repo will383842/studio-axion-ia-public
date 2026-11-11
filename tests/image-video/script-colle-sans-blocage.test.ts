@@ -39,12 +39,13 @@ describe("B1 · plafond de mots", () => {
 });
 
 describe("B2 · vidéo longue livrée en script collé", () => {
-  it("sans version courte : mention (longue) au lieu de « aucune », sauf Facebook au-delà de 90 s", () => {
+  it("sans version courte : mention (longue) au lieu de « aucune », sauf Facebook au-delà de 180 s", () => {
     for (const r of ["youtube-shorts", "linkedin", "instagram"] as const) {
       expect(verdictReseau(r, 140, null, true), r).toMatchObject({ verdict: "mention", version: "longue", bloquant: false });
       expect(verdictReseau(r, 140, null, false), r).toMatchObject({ version: "aucune", bloquant: true });
     }
-    expect(verdictReseau("facebook", 140, null, true)).toMatchObject({ verdict: "non-livree", version: "aucune", bloquant: true });
+    expect(verdictReseau("facebook", 140, null, true)).toMatchObject({ verdict: "mention", version: "longue", bloquant: false });
+    expect(verdictReseau("facebook", 190, null, true)).toMatchObject({ verdict: "non-livree", version: "aucune", bloquant: true });
     expect(verdictReseau("linkedin", 50, null, true)).toMatchObject({ verdict: "livree", version: "longue" });
   });
 });

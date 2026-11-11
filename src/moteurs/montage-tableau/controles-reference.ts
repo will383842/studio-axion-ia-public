@@ -17,6 +17,7 @@
 import { SEUILS_CONTROLE_IMAGE, type SeuilsControleImage } from "@/briques/controle-image";
 import { COULEURS_TEXTE_REFERENCE, COULEURS_DESSINS, TAILLES_REFERENCE, couleurDuTon } from "@/briques/tableau-scene/reference/charte";
 import { couleursClipart } from "@/briques/tableau-scene/reference/cliparts";
+import { TOLERANCE_DUREE_REFERENCE } from "@/domaine/duree-tableau";
 import { cleMot } from "./fiche";
 import { ACCROCHE_MOTS_MAX_3 } from "./regles";
 import type { ElementPlace, MiseEnPageTableau, RectPx } from "./mise-en-page";
@@ -26,8 +27,8 @@ export const LIGNES_BLOC_MAX = 3;
 /** Contraste minimal du texte (on le garde à 4,5 pour 1, même si 44 px et plus sont du « grand texte »). */
 export const CONTRASTE_TEXTE_REFERENCE = 4.5;
 
-/** Tolérance sur la durée du fichier final (débit non mesuré, voir `duree-tableau.ts`). */
-export const TOLERANCE_DUREE_REFERENCE = 1.05;
+/** Tolérance sur la durée du fichier final (débit non mesuré) : définie dans `duree-tableau.ts` (pas de cycle d'import avec `regles.ts`). */
+export { TOLERANCE_DUREE_REFERENCE };
 
 /** Une faute, et la scène où elle se voit. */
 export interface FauteReference {

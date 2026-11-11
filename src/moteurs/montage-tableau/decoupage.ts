@@ -402,11 +402,15 @@ export const roleDecoupageTableau = {
   // 20 (19/10) : relecture Opus B2a, exemple du gabarit par parties réécrit d'après le témoin v5.
   // 21 (23/10) : style du tableau de la série donné ; scènes de 3 phrases au plus ; détail OU visuel aux styles tableau-blanc et
   //   paperboard (refus page lisible du 23/10, série Automatisations).
-  version: 21,
+  // 22 (11/11) : relecture Opus du lot correctifs ; le rôle attend jusqu'à 10 min (`delaiTotalMs`) ; marge de réparation de 2 pages
+  //   (le gabarit accepte 28 pages, la consigne en demande toujours 26 au plus).
+  version: 22,
   consigne: CONSIGNE_DECOUPAGE,
   modele: MODELE_ECRITURE,
   effort: "medium",
   maxTokens: MAX_TOKENS_DECOUPAGE,
+  // Longue fiche (30 scènes) : pensée + JSON dépassent 300 s ; 10 min au plus (la pause sans nouvelles reste 150 s).
+  delaiTotalMs: 600_000,
   // Simulation : aucune fiche inventée ; `decouperEnScenes` rend un échec « simulation ».
   simuler: () => "",
 } satisfies DefinitionRole;

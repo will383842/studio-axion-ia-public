@@ -62,6 +62,8 @@ export const ATEMPO_DES_MESURES = 1.08;
 
 /** Plafond de durée d'une vidéo du tableau (règle 14 du découpage ; aucune fourchette du générateur ne le dépasse). */
 export const DUREE_MAX_TABLEAU_SEC = 180;
+/** Tolérance sur la durée du fichier final (débit non mesuré) ; reprise par le contrôle du fichier et par la règle 14 pour un texte de Williams. */
+export const TOLERANCE_DUREE_REFERENCE = 1.05;
 
 /** Début de la vidéo où la douleur doit être dite, écrite et soulignée (règles 10 et 17 du découpage). */
 export const DEBUT_DOULEUR_SEC = 3;

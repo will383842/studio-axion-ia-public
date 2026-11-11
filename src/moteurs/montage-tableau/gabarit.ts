@@ -43,8 +43,8 @@ export const CONSEIL_GABARIT = { detailMots: 10, comparaisonMots: 8 } as const;
 
 /** Pages au plus d'une fiche « reference/2 » (la consigne en demande 8 au plus ; 2 restent pour la réparation). */
 export const PAGE_MAX_GABARIT = 10;
-/** Pages au plus d'une fiche « reference/3 » (la consigne en demande 26 au plus ; 2 restent pour la réparation). */
-export const PAGE_MAX_GABARIT_3 = 26;
+/** Pages au plus d'une fiche « reference/3 » (la consigne en demande 26 au plus ; 2 pages de marge pour la réparation). */
+export const PAGE_MAX_GABARIT_3 = 28;
 
 /**
  * Bornes communes d'une fiche du format : celles de la fiche commune ; pour la page écrite au crayon (« reference/1 »

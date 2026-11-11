@@ -438,7 +438,7 @@ export function controlerTexteFourni(texte: unknown, cas: CasConcret, options: {
   if (!f.ok) return f;
   // Le nombre de lignes et d'étapes se dit tout de suite, en clair (sinon le schéma refuserait par un message technique).
   const nbEtapes = f.lignes.filter((l) => l.forme === "etape").length;
-  // 08/11/2026 : le script de Will fait foi. Le nombre de lignes et d'étapes est une REMARQUE, pas un refus.
+  // 08/11/2026 : le script de Will fait foi. Le nombre de lignes est une REMARQUE ; le nombre d'étapes (moins de 3 ou plus de 7) est REFUSÉ plus bas (la composition l'exige).
   const remarques: string[] = [...(f.remarques ?? [])];
   const avertissements: string[] = [];
   if (f.lignes.length < 12 || f.lignes.length > 26) remarques.push(`Le script compte ${f.lignes.length} lignes ; l'habitude est de 12 à 26 (une ligne = un écran).`);
@@ -468,7 +468,7 @@ export function controlerTexteFourni(texte: unknown, cas: CasConcret, options: {
   const contexte = { cas, texteScript: texteDuCorps(forme.fiche), ...(options.motsInterdits?.length ? { motsInterdits: options.motsInterdits } : {}) } as ContexteCasConcret;
   // Les règles que la fabrication rejoue, avec la fin la plus courte puis la plus longue (la durée totale est jugée plus bas).
   for (const fins of [[courte], undefined] as const) {
-    const v = validerFicheEcransTolerant(c.brute, { ...contexte, ...(fins ? { fins } : {}) });
+    const v = validerFicheEcransTolerant(c.brute, { ...contexte, ...(fins ? { fins } : {}) }, true);
     if (!v.ok) for (const p of v.problemes) ajouter(messageFourni(p, cas));
     else {
       for (const p of v.remarques) if (p.regle !== "durée totale") noter(remarques, messageFourni(p, cas).message);

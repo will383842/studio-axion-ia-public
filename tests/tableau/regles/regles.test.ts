@@ -241,14 +241,14 @@ describe("règle 9 · preuve validée à l'écran", () => {
     expect(refuse(base(), nom(9), { matieres: [] })[0].message).toContain("est inconnue");
   });
 
-  it("ne refuse pas l'absence de scène « preuve » pour un texte de Williams, ni sans preuve disponible", () => {
+  it("ne refuse pas l'absence de scène « preuve » pour un texte de Williams ; une fiche de Claude sans preuve reste refusée", () => {
     const f = base();
     scene(f, "s05").role = "etape";
     expect(reglePreuveValidee(f, contexteExemple(f, { texteDeWill: true }))).toEqual([]);
     const g = base();
     scene(g, "s05").role = "etape";
     scene(g, "s05").elements = scene(g, "s05").elements.filter((e) => e.type !== "preuve");
-    expect(reglePreuveValidee(g, contexteExemple(g, { preuves: [], matieres: [] }))).toEqual([]);
+    expect(reglePreuveValidee(g, contexteExemple(g, { preuves: [], matieres: [] })).length).toBe(1);
   });
 
   it("refuse une fiche sans scène « preuve »", () => {
@@ -383,6 +383,13 @@ describe("règle 14 · durée de 180 secondes au plus", () => {
     const [p] = regleDureeMaximale(calee(DUREE_MAX_MS + 600), contexteExemple(base()));
     expect(p.sceneId).toBe("s06");
     expect(p.detail).toContain("environ 180,6 s ; 180 s au plus");
+  });
+
+  it("tolère 5 % de plus pour un texte de Williams (185 s accepté), pas pour un texte de Claude", () => {
+    const f = calee(185_000);
+    expect(regleDureeMaximale(f, contexteExemple(base(), { texteDeWill: true }))).toEqual([]);
+    expect(regleDureeMaximale(f, contexteExemple(base()))).toHaveLength(1);
+    expect(regleDureeMaximale(calee(190_000), contexteExemple(base(), { texteDeWill: true }))).toHaveLength(1);
   });
 
   it("refuse par la validation complète (estimation au débit injecté)", () => {
