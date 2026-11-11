@@ -57,7 +57,7 @@ chargerPolice();
 
 export const COULEURS = {
   ENCRE: "#141413", IVOIRE: "#FAF9F5", IVOIRE_CLAIR: "#FAF9F5", BLANC: "#FFFFFF",
-  GRIS: "#B0AEA5", ORANGE_MARQUE: "#B23F16",
+  GRIS: "#B0AEA5", TEXTE_SECONDAIRE: "#5E5D59", ORANGE_MARQUE: "#B23F16",
   ORANGE_VIF: "#D97757",
 } as const;
 /** Palette unique (standard § L) : accent 1 = terracotta #B23F16 (fond de plaque, texte #FFFFFF 5,81 ; l'orange #D97757 reste réservé au noir) ; accent 2 (chiffres, états) = blanc sur contour encre. Le paramètre est conservé (ignoré) pour les appels existants. */

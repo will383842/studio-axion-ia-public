@@ -103,7 +103,7 @@ export function CarteCommande({ palette, duree, decl, commandes = ["/relance", "
         )}
         {/* champ de saisie + bouton d'envoi */}
         <div style={{ position: "absolute", left: 38, right: 38, top: yChamp, height: 84, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", background: BLANC, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderRadius: 12, padding: "0 12px 0 24px" }}>
-          <div style={styleInter(texteChamp || i >= iT ? 38 : 28, texteChamp ? 700 : 600, { color: texteChamp ? ENCRE : COULEURS.GRIS })}>
+          <div style={styleInter(texteChamp || i >= iT ? 38 : 28, texteChamp ? 700 : 600, { color: texteChamp ? ENCRE : COULEURS.TEXTE_SECONDAIRE })}>
             {texteChamp || (i >= iT && i < iE ? "" : "Tapez une commande…")}
             {i >= iT && i < iE && <Curseur i={i} corps={38} />}
           </div>

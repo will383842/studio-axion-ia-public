@@ -480,7 +480,7 @@ function corpsGroupe(g: Groupe): number {
  * chiffre : plaque ACCENT_2), contour de texte ENCRE 0,14 em, ombre dure. `y(frame)` renvoie le centre vertical (px) selon la mise en page à l'image courante (coupe sèche quand la cible de D change).
  */
 export function SousTitresV4({ mots, frame, palette, y }: { mots: Mot[]; frame: number; palette: Palette; y: (frame: number) => number }) {
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_1, ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   const groupes = React.useMemo(() => grouper(mots), [mots]);
   const t = frame / FPS;
   let courant = -1;
@@ -513,7 +513,7 @@ export function SousTitresV4({ mots, frame, palette, y }: { mots: Mot[]; frame: 
           );
         }
         return (
-          <div key={k} style={{ ...commun, color: enCours ? ACCENT_1 : BLANC, transform: `scale(${pop})`, WebkitTextStroke: `${(0.14 * corps).toFixed(1)}px ${ENCRE}`, paintOrder: "stroke fill", filter: `drop-shadow(4px 5px 0 ${ENCRE})` }}>
+          <div key={k} style={{ ...commun, color: enCours ? ACCENT_SOMBRE : BLANC, transform: `scale(${pop})`, WebkitTextStroke: `${(0.14 * corps).toFixed(1)}px ${ENCRE}`, paintOrder: "stroke fill", filter: `drop-shadow(4px 5px 0 ${ENCRE})` }}>
             {m.mot}
           </div>
         );

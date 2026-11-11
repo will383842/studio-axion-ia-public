@@ -313,7 +313,7 @@ export function SousTitresV4({ mots, palette, cles, prise, muets = [] }: { mots:
   const frame = useCurrentFrame();
   const t = frame / FPS;
   const groupes = useMemo(() => grouper(mots), [mots]);
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_1, ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   let gi = -1;
   for (let k = 0; k < groupes.length; k++) if (groupes[k][0].debut <= t + 1e-6) gi = k;
   if (gi < 0) return null;
@@ -345,7 +345,7 @@ export function SousTitresV4({ mots, palette, cles, prise, muets = [] }: { mots:
         const p = ressort("POP", i);
         const echelle = visible ? 0.5 + 0.5 * p : 0.5;
         const opacite = visible ? courbe(i, 0, 1) : 0;
-        const couleurTexte = plaque ? E : idx === dernier ? ACCENT_1 : COULEURS.BLANC;
+        const couleurTexte = plaque ? E : idx === dernier ? ACCENT_SOMBRE : COULEURS.BLANC;
         const incl = (gi % 2 === 0 ? -2 : 1.5);
         // la plaque part de 0,6 de sa largeur (jamais un carré vide, le texte à l'échelle 0,6 y tient) et le texte pop dans la MÊME image
         const etire = visible ? 0.6 + 0.4 * ressort("GLISSE", i) : 0.6;

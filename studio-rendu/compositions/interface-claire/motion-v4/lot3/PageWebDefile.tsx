@@ -103,7 +103,7 @@ export function PageWebDefile(props: PropsPageWebDefile) {
               </div>
               <div style={{ position: "absolute", left: 40, top: 150, width: 560, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 70, lineHeight: 1.02, color: E }}>VOTRE PROJET, CLÉ EN MAIN</div>
               <div style={{ position: "absolute", left: 40, top: 360, width: 520, fontFamily: INTER, fontWeight: 600, fontSize: 30, color: E }}>Décrivez ici votre activité en une phrase.</div>
-              <div style={{ position: "absolute", left: 40, top: 450, padding: "16px 30px", background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.PLAQUE, boxShadow: ombre("S"), fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 30, color: E }}>VOIR NOS SERVICES</div>
+              <div style={{ position: "absolute", left: 40, top: 450, padding: "16px 30px", background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.PLAQUE, boxShadow: ombre("S"), fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 30, color: COULEURS.BLANC }}>VOIR NOS SERVICES</div>
               <div style={{ position: "absolute", right: 36, top: 140, width: 270, height: 340, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.CARTE, boxShadow: ombre("M"), boxSizing: "border-box" }}>
                 <div style={{ position: "absolute", left: 40, top: 60, width: 190, height: 190, borderRadius: "50%", background: COULEURS.BLANC, border: `${TRAIT.MOYEN}px solid ${E}`, boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", left: 80, top: 100, width: 110, height: 110, background: ACCENT_2, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: 14, boxSizing: "border-box", transform: "rotate(12deg)" }} />
