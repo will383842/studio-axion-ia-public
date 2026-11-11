@@ -11,7 +11,6 @@
 import "server-only";
 import type { Id } from "@/domaine/types";
 import { estCasStock } from "@/formats/cas-concret/catalogue";
-import { formaterMontant } from "@/lib/montants";
 import { casDesEntrees, coutNouvelEssaiEcritureCentimes, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { depots, ErreurStudio } from "./_commun";
 import { exigerSession } from "./auth";
@@ -39,7 +38,7 @@ export const PHRASES_RELANCE = {
 
 /** Annonce d'une écriture arrêtée : ce que fait la relance, et le prix au plus d'un nouvel essai. PUR. */
 export function annonceEcriture(centimes: number): string {
-  return `Les réponses déjà payées sont relues d'abord. Si l'écriture précédente ne peut pas être reprise, un nouvel essai coûte environ ${formaterMontant({ centimes, devise: "EUR" })}.`;
+  return `Les réponses déjà payées sont relues d'abord. Si l'écriture précédente ne peut pas être reprise, un nouvel essai est payant.`;
 }
 
 /**

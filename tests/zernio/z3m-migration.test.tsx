@@ -123,7 +123,7 @@ describe("z3m · 4 états et langue", () => {
     expect(vues.normal).toContain("Rien n’est retiré de Buffer sans votre ordre.");
     expect(vues.normal).toContain("Vérifier le lot B · 1 post");
     expect(vues.normal).toContain("8 jours");
-    expect(vues.normal).toContain("Mode simulation");
+    expect(vues.normal).toContain("Mode essai");
   });
   it("vide", () => {
     expect(vues.vide).toContain("La bascule n’a pas commencé");
