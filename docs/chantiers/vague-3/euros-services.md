@@ -12,7 +12,7 @@ Les champs d'argent de la rubrique « Services reliés » se saisissent et s'aff
 Un réglage existe déjà : `taux.usdEur` (€ pour 1 $, modifiable dans Réglages > Budget), défaut `TAUX_USD_EUR_PAR_DEFAUT` = 0,9 (`src/lib/montants.ts`). Je l'utilise, avec `TAUX_EUR_PAR_USD` comme repli documenté si le réglage est absent/invalide. Williams doit confirmer que 0,9 est bien le taux voulu.
 
 ## Vérifications
-- `npx tsc --noEmit -p .` : aucune erreur hors `docs/…prototypes` (module `remotion` absent de l'environnement, sans rapport).
+- `npx tsc --noEmit -p .` : aucune erreur dans les fichiers touchés (reglages, montants-euros). Erreurs restantes sans rapport : `remotion` absent (docs/…prototypes) et type `RouteContext` des routes API (types Next générés absents).
 - Tests : `src/components/reglages` + `tests/reglages-chaine-ecriture`, `sans-prix-credits`, `chiffres-ecrans`, `source-claude/*` : 14 fichiers, 208 tests verts.
 
 ## Points laissés
