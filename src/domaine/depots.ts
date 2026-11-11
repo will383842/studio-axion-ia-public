@@ -6,6 +6,7 @@
  * ⚠️ Seuls les SERVICES (src/services) importent les dépôts. Les écrans, jamais.
  */
 import type { EnvoiPlanifie } from "./envoi-planifie";
+import type { CreneauEditorial } from "./plan-editorial/types";
 import type { EvenementTrace } from "./tracabilite-tableau";
 import type { Visuel } from "./visuels/visuel";
 import type {
@@ -64,6 +65,18 @@ import type {
   Voix,
 } from "./types";
 import type { TraceScriptTableau } from "./scripts-tableau";
+
+/** Journal des décalages d'un créneau éditorial : lignes AJOUTÉES seulement (jamais modifiées ni effacées). */
+export interface JournalDecalage {
+  id: Id;
+  creneauId: Id;
+  /** Jours de Paris, AAAA-MM-JJ. */
+  ancienJour: string;
+  nouveauJour: string;
+  raison: string;
+  /** Instant ISO en UTC. */
+  creeLe: string;
+}
 
 export interface Depot<T extends { id: Id }> {
   /**
@@ -158,4 +171,7 @@ export interface Depots {
   visuels: Depot<Visuel>;
   /** Calendrier d'envoi (D7-01) : un envoi planifié par vidéo, réseau et version de créneau. */
   envoisPlanifies: Depot<EnvoiPlanifie>;
+  /** Plan éditorial (L1-06) : les créneaux, et le journal de leurs décalages (ajout seul). */
+  creneauxEditoriaux: Depot<CreneauEditorial>;
+  journalDecalages: Depot<JournalDecalage>;
 }
