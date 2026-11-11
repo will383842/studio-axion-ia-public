@@ -22,14 +22,28 @@ describe("règles de cadence typées", () => {
     expect(estConfirmee("inconnu")).toBe(false);
     expect(estConfirmee("page officielle du réseau, lue le 2026-11-01")).toBe(true);
   });
+  it("refuse aussi les variantes de source non prouvée", () => {
+    for (const s of ["exemple inventé.", "Exemple inventé (à remplacer)", "exemple", "à vérifier", "Inconnue", "source inventée", "non daté", "https://exemple.fr/page, exemple inventé"]) {
+      expect(estConfirmee(s), s).toBe(false);
+    }
+  });
+  it("n'accepte qu'une source datée ou une URL", () => {
+    expect(estConfirmee("https://aide.reseau.test/cadence")).toBe(true);
+    expect(estConfirmee("lue le 2026-11-01")).toBe(true);
+    expect(estConfirmee("page officielle du réseau")).toBe(false);
+    expect(estConfirmee("on m'a dit")).toBe(false);
+  });
   it("lit les mêmes règles que reseaux() et marque chacune « conseil, non confirmé »", () => {
     const toutes = reglesCadence();
     expect(toutes.length).toBe(reseaux().length);
     for (const c of toutes) {
       expect(c.niveau).toBe("conseil");
       expect(c.confirmee).toBe(false);
-      expect(c.rythme).toEqual({ min: 5, max: 7 });
-      expect(c.ecartMinH).toBe(3);
+    }
+    for (const r of reseaux()) {
+      const c = toutes.find((x) => x.code === r.code)!;
+      expect(c.rythme).toEqual(analyserRythme(r.rythmeMaxSemaine));
+      expect(c.ecartMinH).toBe(analyserEcartH(r.ecartMinH));
     }
     expect(reglesCadence("tiktok").every((c) => c.reseau === "tiktok")).toBe(true);
   });
