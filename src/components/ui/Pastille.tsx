@@ -9,6 +9,9 @@ const TONS: Record<Tonalite, string> = {
   ambre: "bg-ambre-doux text-ambre border-ambre/30",
   brique: "bg-brique-doux text-brique border-brique/30",
   neutre: "bg-surface-2 text-texte-doux border-trait",
+  encre: "bg-surface-1 text-texte border-texte/25",
+  contour: "bg-transparent text-texte-doux border-trait-fort",
+  pointille: "bg-transparent text-texte-doux border-trait-fort border-dashed",
 };
 
 export interface ProprietesPastille {

@@ -50,7 +50,7 @@ export function NettoyerNonTerminees({ formatId }: { formatId?: string }) {
   const n = cochees.size;
   return (
     <>
-      <Bouton variante="secondaire" icone="corbeille" onClick={() => void ouvrir()}>
+      <Bouton variante="fantome" icone="corbeille" onClick={() => void ouvrir()}>
         Nettoyer les vidéos non terminées
       </Bouton>
       <FeuilleBas

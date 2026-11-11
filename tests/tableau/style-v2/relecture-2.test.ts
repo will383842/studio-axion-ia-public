@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { proprietesScenes } from "../../../src/briques/tableau-scene/proprietes";
 import type { MiseEnPageTableau as MiseBrique, SceneCalee } from "../../../src/briques/tableau-scene/types";
 import { REGLAGES_ANIMATION_V2, planifierEcranV2 } from "../../../src/briques/tableau-scene/v2/animation";
-import { COULEURS_V2, TEXTES_SUR_ORANGE, contraste, contrasteExige } from "../../../src/briques/tableau-scene/v2/charte";
+import { BLOC_SUR, COULEURS_V2, TEXTES_SUR_ORANGE, contraste, contrasteExige } from "../../../src/briques/tableau-scene/v2/charte";
 import { cleMotV2 } from "../../../src/briques/tableau-scene/v2/disposition";
 import type { EcranPlace, GeometrieV2 } from "../../../src/briques/tableau-scene/v2/types";
 import { IDS_FORMATS_SORTIE, ZONE_VERTICAL_BLOCS_2, zoneSureBlocs2, zoneSureFormat, type IdFormatSortie } from "../../../src/moteurs/montage-tableau/formats-sortie";
@@ -95,9 +95,11 @@ describe("3. lisibilité sur l'orange", () => {
     for (const f of IDS_FORMATS_SORTIE)
       for (const { ecran, g } of tous[f])
         for (const t of ecran.textes) {
-          if (t.fond !== COULEURS_V2.orange) continue;
+          if (t.fond !== COULEURS_V2.orange && t.fond !== COULEURS_V2.orangeSurEncre) continue;
           vus++;
-          expect(TEXTES_SUR_ORANGE, `${f} ${ecran.id} « ${t.texte} »`).toContain(t.couleur);
+          // Sur l'orange de l'encre (#D97757), seule l'encre est permise ; sur la terracotta, le blanc franc seulement (l'encre n'y donne que 3,17).
+          if (t.fond === COULEURS_V2.orangeSurEncre) expect(t.couleur, `${f} ${ecran.id} « ${t.texte} »`).toBe(COULEURS_V2.encre);
+          else expect(TEXTES_SUR_ORANGE, `${f} ${ecran.id} « ${t.texte} »`).toContain(t.couleur);
           expect(contraste(t.couleur, t.fond), `${f} ${ecran.id} « ${t.texte} »`).toBeGreaterThanOrEqual(contrasteExige(t.taille, g.k));
         }
     expect(vus).toBeGreaterThan(20);
@@ -143,7 +145,7 @@ describe("6. accroche calée sur les mots", () => {
       const blocs = ecran.formes.filter((x) => x.sorte === "bloc" && x.source === "e04");
       expect(blocs.length).toBeGreaterThan(0);
       for (const b of blocs) {
-        expect(b.remplissage).toBe(COULEURS_V2.orange);
+        expect(b.remplissage).toBe(BLOC_SUR[ecran.fond].fond);
         expect(Math.abs(plan.apparitions[b.id].debutMs - motDit("laisse"))).toBeLessThanOrEqual(80);
         expect(plan.apparitions[b.id].entree).toBe("claque");
       }

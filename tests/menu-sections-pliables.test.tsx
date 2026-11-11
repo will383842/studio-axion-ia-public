@@ -1,115 +1,117 @@
 /**
- * Note : jsdom n'est pas installé (et on n'en ajoute pas) : le rendu est serveur seulement (renderToStaticMarkup),
- * donc le clic et le localStorage ne sont pas testés ; on teste les règles pures exportées.
+ * Note : jsdom n'est pas installé (et on n'en ajoute pas) : le rendu est serveur seulement (renderToStaticMarkup).
  *
- * Menu : chaque section se plie et se déplie (09/11, Williams). Rendu statique : tout ouvert par défaut ;
- * la règle d'ouverture est testée à part (section courante toujours ouverte, barre en icônes sans repli).
+ * Menu : titres de groupe FIXES (plus de sections repliables), gabarit compact aligné sur le CRM Pro,
+ * bouton de repli accessible, OngletsBas (mobile) sans aria-current sur un bouton.
  */
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "./helpers/next-mocks";
 
 vi.mock("next/headers", () => mockHeaders);
-vi.mock("next/navigation", () => ({ ...mockNavigation, usePathname: () => "/carrousels" }));
+vi.mock("next/navigation", () => ({ ...mockNavigation, usePathname: () => "/cas-concret" }));
 
-const { BarreLaterale, sectionOuverte, sectionContientPageCourante } = await import("@/components/coquille/BarreLaterale");
+const { BarreLaterale } = await import("@/components/coquille/BarreLaterale");
 
 const html = renderToStaticMarkup(createElement(BarreLaterale, { formats: [], actionDeconnexion: async () => undefined }));
-const boutons = html.match(/<button[^>]*aria-expanded[^>]*>/g) ?? [];
+const lire = (p: string) => readFileSync(p, "utf8");
+const sourceBarre = lire("src/components/coquille/BarreLaterale.tsx");
 
-describe("titres de section en boutons", () => {
-  it("un bouton par section titrée, avec aria-expanded, aria-controls et libellé français", () => {
-    expect(boutons.length).toBe(3);
-    for (const b of boutons) {
-      expect(b).toContain('aria-expanded="true"');
-      expect(b).toMatch(/aria-controls="[^"]+"/);
-    }
-    for (const t of ["Publier et mesurer", "Ressources"]) expect(html).toContain(`aria-label="Replier la section ${t}"`);
-    expect(html).toContain('aria-label="Section Contenus, page en cours"');
+describe("titres de groupe fixes", () => {
+  it("trois titres h2 non cliquables : Mes contenus, Publier, Mes ressources", () => {
+    for (const t of ["Mes contenus", "Publier", "Mes ressources"]) expect(html).toMatch(new RegExp(`<h2[^>]*>${t}</h2>`));
+    expect(html).not.toMatch(/<button[^>]*>\s*<span[^>]*>(Mes contenus|Publier|Mes ressources)/);
+    expect(html).not.toContain("aria-disabled");
   });
-
-  it("chaque bouton pointe une liste existante, visible par défaut", () => {
-    for (const b of boutons) {
-      const id = b.match(/aria-controls="([^"]+)"/)![1];
-      const ul = html.match(new RegExp(`<ul id="${id.replace(/[:]/g, "\\$&")}"[^>]*>`))?.[0] ?? "";
-      expect(ul).not.toBe("");
-      expect(ul).not.toContain("hidden");
-    }
+  it("plus aucun mécanisme de section repliable dans le code", () => {
+    for (const mot of ["SectionPliable", "lireSectionRepliee", "CLE_SECTION", "sectionOuverte", "SousListeFormats"]) expect(sourceBarre).not.toContain(mot);
   });
-
-  it("la tête du menu (Accueil, Nouvelle vidéo) n'a pas de bouton", () => {
-    const tete = html.slice(html.indexOf("<nav"), html.indexOf("aria-expanded"));
-    expect(tete).toContain('href="/nouvelle"');
-    expect(tete.replace(/<button[^>]*$/, "")).not.toContain("<button");
+  it("chaque liste est reliée à son titre (aria-labelledby)", () => {
+    for (const m of html.matchAll(/<ul[^>]*aria-labelledby="([^"]+)"/g)) expect(html).toContain(`id="${m[1]}"`);
+  });
+  it("un seul <nav aria-label=\"Menu principal\"> ; « Nouvelle vidéo » est hors du <nav>", () => {
+    expect(html.match(/<nav/g)).toHaveLength(1);
+    expect(html).toContain('<nav id="');
+    expect(html).toContain('aria-label="Menu principal"');
+    expect(html.indexOf('href="/nouvelle"')).toBeLessThan(html.indexOf("<nav"));
+  });
+  it("« Mes vidéos » est allumé sur /cas-concret, une seule ligne porte aria-current", () => {
+    expect(html.match(/<a[^>]*href="\/videos"[^>]*>/)?.[0]).toContain('aria-current="page"');
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
   });
 });
 
-describe("règle d'ouverture", () => {
-  const base = { memoriseeRepliee: false, contientPageCourante: false, barreRepliee: false };
-  it("ouverte par défaut, repliée si mémorisée", () => {
-    expect(sectionOuverte(base)).toBe(true);
-    expect(sectionOuverte({ ...base, memoriseeRepliee: true })).toBe(false);
+describe("bouton de repli", () => {
+  it("aria-expanded, aria-controls vers l'id de la nav, libellé « Replier le menu »", () => {
+    const b = html.match(/<button[^>]*aria-label="Replier le menu"[^>]*>/)?.[0] ?? "";
+    expect(b).toContain('aria-expanded="true"');
+    const id = b.match(/aria-controls="([^"]+)"/)?.[1];
+    expect(id).toBeTruthy();
+    expect(html).toContain(`<nav id="${id}"`);
   });
-  it("la section de la page courante reste ouverte même mémorisée repliée", () => {
-    expect(sectionOuverte({ ...base, memoriseeRepliee: true, contientPageCourante: true })).toBe(true);
-  });
-  it("barre en icônes : aucune section repliée", () => {
-    expect(sectionOuverte({ ...base, memoriseeRepliee: true, barreRepliee: true })).toBe(true);
-  });
-});
-
-describe("section contenant la page courante", () => {
-  const entrees = [{ href: "/videos", libelle: "Mes vidéos", icone: "film" }] as never[];
-  const formats = [{ id: "cas-concret", statut: "actif", adresseCreation: "/cas-concret" }] as never[];
-  it("une adresse de création de format (hors /videos et /formats) compte pour « Mes vidéos »", () => {
-    expect(sectionContientPageCourante(entrees, "/cas-concret", formats)).toBe(true);
-    expect(sectionContientPageCourante(entrees, "/cas-concret/nouvelle", formats)).toBe(true);
-  });
-  it("une page sans rapport ne la compte pas", () => {
-    expect(sectionContientPageCourante(entrees, "/carrousels", formats)).toBe(false);
+  it("la clé mémorisée et la variable de largeur ne changent pas", () => {
+    expect(sourceBarre).toContain('"studio.barreRepliee"');
+    expect(sourceBarre).toContain("--largeur-barre-courante");
   });
 });
 
-describe("section de la page courante : pas de flèche", () => {
-  it("/carrousels est dans « Contenus » : son titre n'est pas cliquable, sans flèche", () => {
-    const b = boutons.find((x) => x.includes("Section Contenus"))!;
-    expect(b).toContain('aria-disabled="true"');
-    const i = html.indexOf(b);
-    expect(html.slice(i, html.indexOf("</button>", i))).not.toContain("<svg");
-  });
-  it("les autres sections gardent flèche et clic", () => {
-    const b = boutons.find((x) => x.includes("section Ressources"))!;
-    expect(b).not.toContain("aria-disabled");
-    const i = html.indexOf(b);
-    expect(html.slice(i, html.indexOf("</button>", i))).toContain("<svg");
-  });
-});
-
-/** Gabarit compact aligné sur le CRM Pro (09/11, Williams : « le menu latéral est plus gros que celui du CRM Pro »). */
+/** Gabarit compact aligné sur le CRM Pro (Williams : « le menu latéral est plus gros que celui du CRM Pro »). */
 describe("barre latérale compacte (bureau)", () => {
-  const nav = html.slice(html.indexOf("<nav"));
-  it("liens text-sm font-medium, lignes min-h-9, gap-2, rayon rounded-lg", () => {
-    expect(nav).toContain("min-h-9 items-center gap-2 rounded-lg text-sm font-medium");
-    expect(nav).not.toContain("text-[15px]");
-    expect(nav).not.toContain("min-h-11 items-center gap-3");
+  it("liens 14 px, graisse 500, py-1.5 (jamais font-semibold sur l'entrée active)", () => {
+    const actif = html.match(/<a[^>]*aria-current="page"[^>]*href="\/videos"[^>]*>|<a[^>]*href="\/videos"[^>]*aria-current="page"[^>]*>/)?.[0] ?? "";
+    expect(actif).toContain("text-sm");
+    expect(actif).toContain("font-medium");
+    expect(actif).toContain("py-1.5");
+    expect(actif).not.toContain("font-semibold");
   });
-  it("le pied (Déconnexion) suit le même gabarit", () => {
-    expect(html).toMatch(/flex min-h-9 w-full items-center gap-2 rounded-lg text-sm font-medium[^"]*"[^>]*>(?:<svg|<span)[\s\S]*?Me déconnecter/);
+  it("le pied (Réglages, Me déconnecter) est en text-xs font-medium", () => {
+    const reglages = html.match(/<a[^>]*href="\/reglages"[^>]*>/)?.[0] ?? "";
+    expect(reglages).toContain("text-xs");
+    expect(reglages).toContain("font-medium");
+    expect(html).toMatch(/<button[^>]*font-medium[^>]*>(?:<svg|<span)[\s\S]*?Me déconnecter/);
+  });
+  it("titres de groupe : majuscules, graisse 600 au plus, espacement léger", () => {
+    const h2 = html.match(/<h2[^>]*>Mes contenus<\/h2>/)?.[0] ?? "";
+    expect(h2).toContain("uppercase");
+    expect(h2).toContain("font-semibold");
+    expect(h2).toContain("tracking-wide");
+  });
+  it("la barre n'emploie ni font-bold/extrabold sur les items, ni Archivo (font-titre), ni la taille sur mesure 13 px des sous-items", () => {
+    for (const f of ["src/components/coquille/BarreLaterale.tsx", "src/components/coquille/OngletsBas.tsx"]) {
+      const src = lire(f);
+      expect(src).not.toMatch(/font-(bold|extrabold|black)/);
+      expect(src).not.toContain("font-titre");
+      expect(src).not.toContain("Archivo");
+    }
+    expect(sourceBarre).not.toContain("text-[13px] transition");
+    // L'item actif n'est pas en font-semibold (seul le titre de groupe l'est).
+    expect(sourceBarre).not.toMatch(/actif \? "[^"]*font-semibold/);
+    expect(html).not.toContain("Archivo");
+  });
+  it("le logo de la barre : Manrope 14 px gras serré, sous-marque 10 px à +0.05em, pas d'Archivo", () => {
+    const logo = lire("src/components/coquille/Logo.tsx");
+    expect(logo).toContain("text-sm font-bold tracking-tight");
+    expect(logo).toContain("tracking-wider");
+    expect(logo).not.toContain("tracking-[0.2em]");
+  });
+  it("la barre garde le thème sombre (classe theme-sombre)", () => {
+    expect(html).toContain("theme-sombre");
+    expect(lire("src/components/coquille/OngletsBas.tsx")).toContain("theme-sombre");
   });
 });
 
-describe("finitions (relecture de #265)", () => {
-  it("la section courante annonce « page en cours » et non « Replier »", () => {
-    const b = boutons.find((x) => x.includes("Contenus"))!;
-    expect(b).toContain('aria-label="Section Contenus, page en cours"');
-    expect(b).not.toContain("Replier la section Contenus");
+describe("OngletsBas (mobile) : statique", () => {
+  const src = lire("src/components/coquille/OngletsBas.tsx");
+  it("aria-label « Menu principal (mobile) »", () => {
+    expect(src).toContain('aria-label="Menu principal (mobile)"');
   });
-  it("l'entrée active est en gras (font-semibold), les autres non", () => {
-    const actif = html.match(/<a[^>]*aria-current="page"[^>]*>/)?.[0] ?? "";
-    expect(actif).toContain("font-semibold");
-    const autres = (html.match(/<a[^>]*>/g) ?? []).filter((a) => !a.includes('aria-current="page"') && !a.includes("bg-orange"));
-    expect(autres.length).toBeGreaterThan(0);
-    for (const a of autres) expect(a).not.toContain("font-semibold");
+  it("aucun aria-current sur un <button> ; aria-haspopup=\"dialog\" sur Créer et Plus", () => {
+    for (const b of src.match(/<button[\s\S]*?>/g) ?? []) expect(b).not.toContain("aria-current");
+    expect(src.match(/aria-haspopup="dialog"/g)).toHaveLength(2);
+  });
+  it("Plus actif : texte caché « , contient la page en cours »", () => {
+    expect(src).toContain('<span className="sr-only">, contient la page en cours</span>');
   });
 });

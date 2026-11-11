@@ -4,9 +4,42 @@
  * Système de design « Studio » (PLAN B.5).
  * TOUTES les couleurs passent par ces jetons. La palette Tailwind par défaut
  * est désactivée (--color-*: initial) : une classe comme bg-red-500 n'existe pas.
- * Changer d'ambiance = modifier ce bloc :root, rien d'autre.
+ * Changer d'ambiance = modifier ce bloc :root ET le bloc .theme-sombre (barres, aperçus de vidéo).
  */
 :root {
+  --fond: #FAF9F5;
+  --surface-1: #FFFFFF;
+  --surface-2: #F0EEE6;
+  --surface-3: #E8E6DC;
+  --trait: #E8E6DC;
+  --trait-fort: #D1CFC5;
+  --texte: #141413;
+  --texte-doux: #4D4C48;
+  --texte-faible: #5E5D59; /* ≥ 4,5:1 sur toutes les surfaces claires */
+  --orange: #B23F16;
+  --orange-vif: #9A3412;
+  --orange-doux: rgb(178 63 22 / 0.10);
+  --sur-orange: #FFFFFF;
+  --sauge: #3F6B3A;
+  --sauge-doux: rgb(63 107 58 / 0.10);
+  --ambre: #7A4E0B;
+  --ambre-doux: rgb(122 78 11 / 0.10);
+  --brique: #A3261B;
+  --brique-doux: rgb(163 38 27 / 0.10);
+  --voile: rgb(20 20 19 / 0.45);
+  --lueur: radial-gradient(60% 60% at 50% 0%, rgb(178 63 22 / 0.08) 0%, rgb(178 63 22 / 0.03) 45%, transparent 75%);
+  --lueur-forte: radial-gradient(70% 70% at 50% 30%, rgb(178 63 22 / 0.14) 0%, rgb(178 63 22 / 0.05) 50%, transparent 80%);
+  --ombre-carte: 0 1px 2px rgb(20 20 19 / .06), 0 8px 24px -12px rgb(20 20 19 / .18);
+  --ombre-orange: 0 8px 24px -10px rgb(178 63 22 / .35);
+  --hauteur-onglets-bas: 72px;
+  --largeur-barre: 264px;
+  --largeur-barre-repliee: 72px;
+  --largeur-barre-courante: var(--largeur-barre);
+  color-scheme: light;
+}
+
+/* Zones sombres (barre latérale, onglets du bas) : anciennes valeurs, mot pour mot. */
+.theme-sombre {
   --fond: #16120f;
   --surface-1: #1f1a16;
   --surface-2: #2a2420;
@@ -31,10 +64,6 @@
   --lueur-forte: radial-gradient(70% 70% at 50% 30%, rgb(224 112 64 / 0.32) 0%, rgb(198 90 46 / 0.1) 50%, transparent 80%);
   --ombre-carte: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
   --ombre-orange: 0 10px 30px -10px rgb(224 112 64 / 0.55);
-  --hauteur-onglets-bas: 72px;
-  --largeur-barre: 264px;
-  --largeur-barre-repliee: 72px;
-  --largeur-barre-courante: var(--largeur-barre);
   color-scheme: dark;
 }
 

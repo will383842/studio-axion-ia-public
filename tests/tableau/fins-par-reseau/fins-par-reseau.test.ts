@@ -20,6 +20,7 @@ import { mettreEnPage } from "../../../src/moteurs/montage-tableau/mise-en-page"
 import { ficheDeVariante, planVoixSorties, trouverAppel } from "../../../src/moteurs/montage-tableau/variantes-fin";
 import { appelsValides, estFinAuMot, finDuTableau, finEtAppelDuTableau, reseauDeLaSortie } from "../../../src/services/tableau-fin";
 import { doubles } from "../fabriquer/doubles";
+import { ficheTemoin3 } from "../reference-3/fiches";
 import { contexteFormation, ficheFormation } from "../style-v2/temoin-formation";
 
 const APPEL = "Écrivez CINQ en commentaire. Je vous l'envoie.";
@@ -82,6 +83,25 @@ describe("fin au mot refusée pour TikTok et Shorts", () => {
     expect(finEtAppelDuTableau("youtube-shorts", null, validee)).toMatchObject({ id: "fin-ty-lien-profil" });
     // Jamais pour Instagram (autre groupe), ni pour YouTube (réseaux de la ligne).
     expect(finDuTableau("youtube", "fin-ty-lien-profil", validee)).toHaveProperty("absente");
+  });
+});
+
+describe("fiche reference/3 sans page d'appel : voix unique", () => {
+  const sorties = [
+    { id: "vertical" as const, fin: { id: "fin-if-mot-envoi", ecran: "Écrivez CINQ en commentaire", dit: APPEL, type: "commentaire", mot: "CINQ" } },
+    { id: "vertical-liens" as const, fin: { absente: FIN_SANS_APPEL_LIENS } },
+  ];
+  it("sans scène « appel » : mode unique ; avec elle : le mode d'avant", () => {
+    const avec = ficheTemoin3();
+    const sans = { ...avec, scenes: avec.scenes.filter((s) => s.gabarit?.role !== "appel") };
+    expect(planVoixSorties(sans, sorties).mode).toBe("unique");
+    const dit = "Pour savoir quoi apprendre à votre équipe, réservez un appel de diagnostic. Le geste avant l'erreur.";
+    const avecFins = [
+      { id: "vertical" as const, fin: { id: "fin-if-mot-envoi", ecran: "Écrivez CINQ en commentaire", dit, type: "commentaire", mot: "CINQ" } },
+      { id: "vertical-liens" as const, fin: { absente: FIN_SANS_APPEL_LIENS } },
+    ];
+    expect(planVoixSorties(sans, avecFins).mode).toBe("unique");
+    expect(planVoixSorties(avec, avecFins).mode).not.toBe("unique");
   });
 });
 

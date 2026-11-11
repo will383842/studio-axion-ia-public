@@ -39,7 +39,7 @@ export function CadreApercu({
   const lutActive = apres !== undefined;
   const clip = coupure !== undefined ? { clipPath: `inset(0 0 0 ${coupure}%)` } : undefined;
   return (
-    <div className={cn("@container relative isolate aspect-video w-full overflow-hidden rounded-carte border border-trait bg-fond", className)}>
+    <div className={cn("theme-sombre @container relative isolate aspect-video w-full overflow-hidden rounded-carte border border-trait bg-fond", className)}>
       {avant ? <Image src={avant} alt="" fill sizes="(max-width: 1024px) 100vw, 640px" className="object-cover" /> : <div className="absolute inset-0 lueur-forte" />}
       {lutActive && avant && (
         <div className="absolute inset-0 transition-opacity duration-200" style={{ opacity: intensite / 100, ...clip }}>

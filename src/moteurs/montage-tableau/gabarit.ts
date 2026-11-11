@@ -269,9 +269,9 @@ const chiffres = (t: string) => t.match(/\d+/g) ?? [];
  * le texte dit, jamais le contredire : la phrase clé et les détails reprennent ses mots, un chiffre écrit est dit.
  * Les autres styles refusent les champs `gabarit` et `bloc`.
  */
-export function regleGabarit(fiche: FicheTableau): Manquement[] {
+export function regleGabarit(fiche: FicheTableau, contexte?: { texteDeWill?: boolean }): Manquement[] {
   const res: Manquement[] = [];
-  if (estGabarit3(fiche)) return regleGabarit3(fiche);
+  if (estGabarit3(fiche)) return regleGabarit3(fiche, contexte);
   if (!estGabaritClair(fiche)) {
     for (const s of fiche.scenes) {
       if (s.gabarit) res.push({ sceneId: s.id, detail: `le champ « gabarit » n'existe qu'au style « ${STYLE_GABARIT_CLAIR} » (cette fiche est au style « ${fiche.habillage} ») : retirez-le.` });

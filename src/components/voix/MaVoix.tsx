@@ -23,7 +23,7 @@ import type { ContexteAxion, ExempleStyle, Matiere, TourneInterdite } from "@/do
 import type { ExpressionProposee } from "@/domaine/voix";
 import type { FileAValider, VueFiche, VueRegle } from "@/services/voix";
 import type { VueInterdits } from "@/services/contexte-axion";
-import { Bouton, Icone, Interrupteur, LogoReseau, notifier, Pastille, ZoneTexte, type NomIcone } from "@/components/ui";
+import { Bouton, Icone, Interrupteur, LogoReseau, notifier, Pastille, Section, ZoneTexte, type NomIcone } from "@/components/ui";
 import { ajouterDicte, BoutonMicro, useDictee } from "@/components/matieres/Dictee";
 import { cn } from "@/lib/cn";
 
@@ -65,7 +65,7 @@ function Puce({ children, ton = "neutre", onClick, icone, actif }: { children: R
   const classe = cn(
     "inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold",
     ton === "sauge" && "border-sauge/40 bg-sauge-doux text-sauge",
-    ton === "orange" && "border-orange/40 bg-orange-doux text-orange-vif",
+    ton === "orange" && "border-trait-fort bg-surface-2 text-texte",
     ton === "neutre" && "border-trait bg-surface-1 text-texte",
   );
   if (!onClick)
@@ -94,6 +94,7 @@ function AjoutTexte() {
       <ZoneTexte ref={champ} libelle="Un texte à vous" libelleMasque value={texte} onChange={(e) => setTexte(e.target.value)} rows={3} placeholder="Un post, un mémo, ce que vous diriez face caméra." />
       <Bouton
         pleineLargeur
+        variante="secondaire"
         icone="coche"
         chargement={envoi}
         disabled={!texte.trim()}
@@ -125,10 +126,10 @@ function AjoutCourt({ libelle, onAjouter, enfants }: { libelle: string; onAjoute
         onChange={(e) => setTexte(e.target.value)}
         aria-label={libelle}
         placeholder={libelle}
-        className="min-h-11 min-w-0 flex-1 rounded-full border border-trait bg-surface-1 px-4 text-[15px] text-texte placeholder:text-texte-faible focus:border-orange focus:outline-none"
+        className="min-h-11 min-w-0 flex-1 rounded-full border border-trait bg-surface-1 px-4 text-[15px] text-texte placeholder:text-texte-faible focus:border-texte focus:outline-none"
       />
       {enfants}
-      <button type="submit" aria-label="Ajouter" disabled={!texte.trim()} className="grid size-11 shrink-0 place-items-center rounded-full bg-orange text-sur-orange disabled:opacity-40">
+      <button type="submit" aria-label="Ajouter" disabled={!texte.trim()} className="grid size-11 shrink-0 place-items-center rounded-full bg-texte text-fond disabled:opacity-40">
         <Icone nom="plus" size={20} />
       </button>
     </form>
@@ -169,6 +170,7 @@ export function MaVoix({ d, ouverteInitiale }: { d: DonneesMaVoix; ouverteInitia
   const tournuresVisibles = toutesTournures ? d.tournures : d.tournures.slice(0, 8);
 
   return (
+    <Section id="ma-voix" titre="Votre façon d'écrire" sousTitre="Ce qui rend vos textes reconnaissables : touchez une rubrique pour l'ouvrir." sansCarte>
     <div className="overflow-hidden rounded-carte border border-trait bg-surface-1">
       <Rubrique id="facon" icone="citation" titre="Ma façon de parler" aFaire={ficheAValider ? 1 : 0} ouverte={ouverte === "facon"} onBasculer={() => basculer("facon")}>
         <div className="grid grid-cols-2 gap-2">
@@ -192,7 +194,7 @@ export function MaVoix({ d, ouverteInitiale }: { d: DonneesMaVoix; ouverteInitia
         )}
         {!f.depuisReglage && !f.proposition.tireeDe.length && <p className="text-sm text-texte-doux">Dictez d&apos;abord quelques textes à vous.</p>}
         {f.fiche?.valideeParWillLe && <p className="text-xs text-texte-faible">Validée le {jour(f.fiche.valideeParWillLe)}</p>}
-        <Bouton pleineLargeur icone="coche" variante={ficheAValider ? "principal" : "secondaire"} onClick={() => faire(validerFicheAction, "Façon de parler validée")}>
+        <Bouton pleineLargeur icone="coche" variante="secondaire" onClick={() => faire(validerFicheAction, "Façon de parler validée")}>
           {ficheAValider ? "Valider" : "Mettre à jour"}
         </Bouton>
       </Rubrique>
@@ -250,7 +252,7 @@ export function MaVoix({ d, ouverteInitiale }: { d: DonneesMaVoix; ouverteInitia
       <Rubrique id="themes" icone="grille" titre="Mes thèmes" aFaire={themesAValider.length} compteur={d.contexte.piliers.length} ouverte={ouverte === "themes"} onBasculer={() => basculer("themes")}>
         {themesAValider.length > 0 && (
           <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Proposés</p>
+            <p className="mb-2 text-sm font-semibold text-texte-doux">Proposés</p>
             <div className="flex flex-wrap gap-2">
               {themesAValider.map((p) => (
                 <Puce key={p.id} ton="orange" icone="plus" onClick={() => faire(() => validerPilierAction(p.id))}>
@@ -364,7 +366,7 @@ export function MaVoix({ d, ouverteInitiale }: { d: DonneesMaVoix; ouverteInitia
       <Rubrique id="prononciation" icone="volume" titre="Prononciation" aFaire={d.file.siglesInconnus.length + d.file.nonEcoutees.length} ouverte={ouverte === "prononciation"} onBasculer={() => basculer("prononciation")}>
         {d.file.siglesInconnus.length > 0 && (
           <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Se dit tel quel ?</p>
+            <p className="mb-2 text-sm font-semibold text-texte-doux">Se dit tel quel ?</p>
             <div className="flex flex-wrap gap-2">
               {d.file.siglesInconnus.map((s) => (
                 <Puce key={s} ton="orange" icone="coche" onClick={() => faire(() => sigleTelQuelAction(s))}>
@@ -393,5 +395,6 @@ export function MaVoix({ d, ouverteInitiale }: { d: DonneesMaVoix; ouverteInitia
         </Bouton>
       </Rubrique>
     </div>
+    </Section>
   );
 }
