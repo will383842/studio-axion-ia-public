@@ -237,3 +237,12 @@ export function dansFenetreEnvoi(c: Pick<Conversation, "derniereActiviteLe">, ma
   if (t === null || t > maintenantMs + AVANCE_HORLOGE_MAX_MS) return false;
   return maintenantMs - t < FENETRE_ENVOI_MS;
 }
+
+/**
+ * Par quelles voies un « stop » peut-il devoir atteindre le site ?
+ *  - `adresse` : l'adresse a été tapée dans la conversation et transmise (route actuelle, par adresse) ;
+ *  - `page` : la personne a reçu le lien de la page (`refLienConv`), donc son adresse est peut-être chez le site sans que le Studio la connaisse.
+ */
+export function voiesOpposition(c: Pick<Conversation, "occurredAt" | "refLienConv">): { adresse: boolean; page: boolean } {
+  return { adresse: typeof c.occurredAt === "string", page: typeof c.refLienConv === "string" && c.refLienConv !== "" };
+}
