@@ -105,7 +105,7 @@ describe("alerte « ≈ 10 vidéos » (fal.ai, solde suivi)", () => {
     const liste = await alertes();
     expect(liste).toHaveLength(1);
     expect(liste[0].titre).toMatch(/^fal\.ai : ≈ \d+ vidéos? restantes?$/);
-    expect(liste[0].message).toMatch(/Il reste .*\$ \(≈ \d+ vidéos? restantes?\)\. Rechargez votre compte fal\.ai\./);
+    expect(liste[0].message).toMatch(/^Il reste ≈ \d+ vidéos? restantes?\. Rechargez votre compte fal\.ai\.$/);
     await credits.declarerRecharge("fal", 60000);
     await credits.surveillerCredits({ force: true });
     expect(await alertes()).toHaveLength(1);
@@ -145,7 +145,7 @@ describe("messages et bandeau (purs)", () => {
     expect(dom.texteRestant("heygen", 8)).toBe("≈ 8 vidéos");
     const m = dom.messageAlerteCredit({ nom: "HeyGen", fournisseur: "heygen", cle: "25", disponibleTexte: "12,00 $", restantes: 8 });
     expect(m.titre).toBe("HeyGen : crédit sous 25 % · ≈ 8 vidéos restantes");
-    expect(m.message).toBe("Il reste 12,00 $ (≈ 8 vidéos restantes). Rechargez votre compte HeyGen.");
+    expect(m.message).toBe("Il reste ≈ 8 vidéos restantes. Rechargez votre compte HeyGen.");
   });
 
   it("bandeau : rien si > 10 ; épuisé ou ≤ 10 sinon", () => {
