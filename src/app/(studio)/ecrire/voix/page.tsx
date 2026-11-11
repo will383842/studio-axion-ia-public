@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { MaVoix } from "@/components/voix/MaVoix";
-import { EnTetePage } from "@/components/ui";
+import { ConteneurPage, EnTetePage } from "@/components/ui";
 import { exigerSession } from "@/services/auth";
 import { lireContexte, lireInterdits, proposerExpressions } from "@/services/contexte-axion";
 import { listerMatieres } from "@/services/matieres";
@@ -32,9 +32,9 @@ export default async function PageMaVoix({ searchParams }: { searchParams: Promi
   ]);
   const avis = vues.filter((v) => v.etat.disponible).map((v) => v.matiere);
   return (
-    <div className="mx-auto max-w-2xl">
-      <EnTetePage retour={{ href: "/ecrire", libelle: "Écrire" }} titre="Ma voix" className="mb-4" />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={{ href: "/ecrire", libelle: "Écrire" }} titre="Ma voix" sousTitre="Vos textes, vos mots et vos interdits, pour que les scripts sonnent comme vous." />
       <MaVoix d={{ fiche, textes, expressions, avis, contexte, interdits, tournures, regles, file }} ouverteInitiale={RUBRIQUES.includes(rubrique ?? "") ? rubrique : undefined} />
-    </div>
+    </ConteneurPage>
   );
 }

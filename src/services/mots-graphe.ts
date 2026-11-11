@@ -74,7 +74,7 @@ export function construireGrapheMot(textes: TextesMot, options: { reseaux?: read
 }
 
 /**
- * Workflow STOP d'un compte : un mot « stop » ou « arrêtez » écrit par la personne en message privé met la personne à l'écart (opposition) et alerte
+ * Workflow STOP d'un compte : un mot d'opposition (« stop », « arrêtez »…) ou une courte phrase (« stop, merci ») écrit par la personne en message privé met la personne à l'écart (opposition) et alerte
  * l'opérateur. AUCUN texte sortant (silence total après une opposition) ; `demande_effacement` n'est pas utilisé.
  */
 export function construireGrapheStop(): DefinitionWorkflow {

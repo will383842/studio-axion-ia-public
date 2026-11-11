@@ -31,7 +31,7 @@ function Barre({ libelle, pct }: { libelle: string; pct: number }) {
 
 function Drapeau({ actif, libelle, icone }: { actif: boolean; libelle: string; icone: NomIcone }) {
   return (
-    <span className={cn("flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm font-semibold", actif ? "bg-orange-doux text-orange-vif" : "bg-surface-2 text-texte-faible line-through")}>
+    <span className={cn("flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm font-semibold", actif ? "bg-surface-3 text-texte" : "bg-surface-2 text-texte-faible line-through")}>
       <Icone nom={icone} size={16} />
       {libelle}
     </span>

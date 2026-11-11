@@ -30,7 +30,7 @@ export function IdeeRapide() {
         }}
         className="flex min-h-14 items-center gap-2 rounded-full border border-trait bg-surface-1 pl-5 pr-1.5 transition-colors focus-within:border-orange"
       >
-        <Icone nom="idee" size={20} className="shrink-0 text-ambre" />
+        <Icone nom="idee" size={20} className="shrink-0 text-texte-faible" />
         <label htmlFor={id} className="sr-only">
           Une idée ?
         </label>
@@ -50,7 +50,7 @@ export function IdeeRapide() {
           type="submit"
           disabled={!texte.trim() || enCours}
           aria-label="Noter l'idée"
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-texte transition-colors hover:bg-orange hover:text-sur-orange disabled:opacity-40"
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-texte transition-colors hover:bg-texte hover:text-fond disabled:opacity-40"
         >
           <Icone nom={enCours ? "chargement" : "fleche-droite"} size={18} className={enCours ? "animate-spin" : ""} />
         </button>

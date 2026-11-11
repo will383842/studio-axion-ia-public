@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { listerDejaFaits } from "@/components/formats/cas-concret/stock/deja-faits";
 import { ListeDejaFaits } from "@/components/formats/cas-concret/stock/ListeDejaFaits";
@@ -21,9 +22,9 @@ export default async function PageDejaFaits() {
   const [traites, catalogueEtendu, stockMetiers, retires] = await Promise.all([lireCasTraites(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers), lireCasRetires()]);
   const cas = listerDejaFaits(traites, { catalogueEtendu, stockMetiers }, retires, Object.values(await lireEntreesCasAjoutes()));
   return (
-    <div className="mx-auto max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage titre="Cas déjà faits" sousTitre="Ces cas ont déjà leur vidéo. Remettez-en un en stock pour le refaire." retour={{ href: "/cas-concret", libelle: "Cas concret" }} />
       <ListeDejaFaits cas={cas} />
-    </div>
+    </ConteneurPage>
   );
 }

@@ -30,7 +30,7 @@ export type DuelVideoProps = {
 };
 
 export function DuelVideo({ frame, debut, palette, motA, motB, videoA, videoB, iMotB = 14, verdict, duree = DUREE_DUEL_VIDEO, sansVideo = false }: DuelVideoProps) {
-  const { ACCENT_1 } = accents(palette);
+  const { ACCENT_1, ACCENT_SOMBRE } = accents(palette);
   const i = frame - debut;
   if (i < 0 || i >= duree) return null;
   const kS = i - (duree - SORTIE);
@@ -82,7 +82,7 @@ export function DuelVideo({ frame, debut, palette, motA, motB, videoA, videoB, i
       </Pose>
       {/* disque VS */}
       <Pose x={W / 2 + sh * 0.4} y={H / 2} echelle={Math.max(0, (1 - sortie) * (0.3 + 0.7 * ressort("CLAQUE", i - 4))) * tick(i, 12, 3, 0.07)} opacite={i >= 4 ? 1 : 0} z={10}>
-        <div style={{ width: dDisque, height: dDisque, borderRadius: 999, boxSizing: "border-box", background: COULEURS.ENCRE, border: `5px solid ${COULEURS.ENCRE}`, boxShadow: `0 0 0 3px ${COULEURS.IVOIRE_CLAIR}, 8px 9px 0 0 ${COULEURS.ENCRE}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 64, color: ACCENT_1, letterSpacing: "0.01em" }}><svg width={80} height={80} viewBox="0 0 64 64" style={{ display: "block" }}><path d="M36 4 L12 36 H30 L26 60 L52 26 H34 Z" fill={ACCENT_1} stroke={ACCENT_1} strokeWidth={4} strokeLinejoin="round" /></svg></div>
+        <div style={{ width: dDisque, height: dDisque, borderRadius: 999, boxSizing: "border-box", background: COULEURS.ENCRE, border: `5px solid ${COULEURS.ENCRE}`, boxShadow: `0 0 0 3px ${COULEURS.IVOIRE_CLAIR}, 8px 9px 0 0 ${COULEURS.ENCRE}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 64, color: ACCENT_SOMBRE, letterSpacing: "0.01em" }}><svg width={80} height={80} viewBox="0 0 64 64" style={{ display: "block" }}><path d="M36 4 L12 36 H30 L26 60 L52 26 H34 Z" fill={ACCENT_SOMBRE} stroke={ACCENT_SOMBRE} strokeWidth={4} strokeLinejoin="round" /></svg></div>
       </Pose>
     </AbsoluteFill>
   );
