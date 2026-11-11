@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { FormulaireNouveauCarrousel } from "@/components/visuels/FormulaireNouveauCarrousel";
@@ -19,8 +20,8 @@ export default async function PageNouveauCarrousel({ searchParams }: { searchPar
   // Un seul message « éteint » : le bandeau. Le code d'erreur de l'adresse ne le répète pas.
   const erreur = sp.erreur === "GENERATEUR_ETEINT" && !allume ? undefined : phraseDuCode(sp.erreur);
   return (
-    <div className="mx-auto w-full max-w-xl">
-      <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre="Nouveau carrousel" sousTitre="Texte d'exemple (simulation, 0 $) ou texte écrit en session." />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre="Nouveau carrousel" sousTitre="Un texte d'exemple, ou le vôtre." />
       {!allume && <BandeauGenerateurEteint />}
       {erreur && (
         <p role="alert" className="mb-4 text-sm text-brique">
@@ -28,6 +29,6 @@ export default async function PageNouveauCarrousel({ searchParams }: { searchPar
         </p>
       )}
       <FormulaireNouveauCarrousel creer={creerCarrouselAction} aide={aideFormat()} allume={allume} entreeInitiale={sp.entree === "session" ? "depot" : "sujet"} />
-    </div>
+    </ConteneurPage>
   );
 }

@@ -18,7 +18,7 @@ export default async function PageConnexion({ searchParams }: { searchParams: Pr
         <h1 className="titre-affiche mt-10 text-[44px] text-texte">
           Mon
           <br />
-          <span className="text-orange-vif">studio</span>
+          <span className="text-texte">studio</span>
           <br />
           vidéo.
         </h1>

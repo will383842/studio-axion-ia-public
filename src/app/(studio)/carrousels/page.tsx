@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { after } from "next/server";
 import { Bouton } from "@/components/ui/Bouton";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { CarteCarrousel } from "@/components/visuels/CarteCarrousel";
@@ -36,7 +37,7 @@ export default async function PageCarrousels({ searchParams }: { searchParams: P
   });
   const erreur = phraseDuCode(sp.erreur);
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage
         titre="Carrousels"
         sousTitre="Des carrousels à relire et à valider avant de les publier."
@@ -76,6 +77,6 @@ export default async function PageCarrousels({ searchParams }: { searchParams: P
           <ListeCarrousels carrousels={carrousels} />
         )}
       </div>
-    </div>
+    </ConteneurPage>
   );
 }

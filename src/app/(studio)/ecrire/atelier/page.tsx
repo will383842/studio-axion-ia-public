@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { formatsEcrivables } from "@/components/generateur/donnees";
 import { EcranSujet } from "@/components/generateur/EcranSujet";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { listerIdees } from "@/services/idees";
 import { exigerSession } from "@/services/auth";
 import { apprentissageActif } from "@/services/apprentissage";
@@ -26,8 +27,8 @@ export default async function PageSujet({ searchParams }: { searchParams: Promis
   const idee = sp.idee ? (await listerIdees({ inclureArchivees: true })).find((i) => i.id === sp.idee) : undefined;
   const retour = retourValide(sp.retour);
   return (
-    <div className="mx-auto max-w-2xl">
-      <EnTetePage retour={retour ? { href: retour, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }} titre="Nouveau sujet" className="mb-4" />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={retour ? { href: retour, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }} titre="Nouveau sujet" sousTitre="Une idée suffit : le script s'écrit à partir de là." />
       <EcranSujet
         ideeInitiale={idee?.texte ?? sp.texte ?? ""}
         ideeId={idee?.id}
@@ -38,6 +39,6 @@ export default async function PageSujet({ searchParams }: { searchParams: Promis
         series={(await listerSeries()).map((s) => ({ id: s.id, nom: s.nom }))}
         imposee={sp.structure && (await apprentissageActif()) ? { structure: sp.structure, libelle: libelleAxe("structure", sp.structure), ...(sp.famille ? { famille: sp.famille } : {}) } : undefined}
       />
-    </div>
+    </ConteneurPage>
   );
 }

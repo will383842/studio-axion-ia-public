@@ -6,7 +6,7 @@ import type { TypeMatiere } from "@/domaine/types";
 import { LIBELLES_MATIERE, TYPES_MATIERE, type Jauge } from "@/domaine/matieres";
 import type { VueMatiere } from "@/services/matieres";
 import type { VuePreuve } from "@/services/preuves";
-import { Bouton, Carte, EtatVide, Icone, Interrupteur, LogoReseau, notifier, Pastille } from "@/components/ui";
+import { Bouton, Carte, EtatVide, Icone, Interrupteur, LogoReseau, notifier, Pastille, Section } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { DepuisVotreSite } from "./DepuisVotreSite";
 import { FeuilleEnVrac } from "./FeuilleEnVrac";
@@ -20,7 +20,7 @@ type Filtre = "tout" | TypeMatiere | "preuves";
 /** Jauge du carburant : « ≈ N sujets variés · il manque surtout … » (+ dicter ce type d'un toucher). */
 function CarteJauge({ jauge, onAjouter }: { jauge: Jauge; onAjouter: (t: TypeMatiere) => void }) {
   return (
-    <Carte lueur className="!p-4">
+    <Carte className="!p-4">
       <div className="flex items-end gap-3">
         <p className="font-titre text-5xl leading-none text-texte tabular-nums">≈ {jauge.sujets}</p>
         <p className="pb-1 text-sm font-semibold text-texte-doux">sujets variés</p>
@@ -31,15 +31,15 @@ function CarteJauge({ jauge, onAjouter }: { jauge: Jauge; onAjouter: (t: TypeMat
         )}
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-3" aria-hidden>
-        <div className="h-full rounded-full bg-orange transition-[width] duration-500" style={{ width: `${Math.max(4, Math.round(jauge.remplissage * 100))}%` }} />
+        <div className="h-full rounded-full bg-texte transition-[width] duration-500" style={{ width: `${Math.max(4, Math.round(jauge.remplissage * 100))}%` }} />
       </div>
       {jauge.manqueSurtout && (
         <button type="button" onClick={() => onAjouter(jauge.manqueSurtout!)} className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-2xl bg-surface-2 px-3 text-left text-sm text-texte-doux hover:bg-surface-3">
-          <Icone nom={ICONE_MATIERE[jauge.manqueSurtout]} size={16} className="text-ambre" />
+          <Icone nom={ICONE_MATIERE[jauge.manqueSurtout]} size={16} className="text-texte-faible" />
           <span>
             Il manque surtout <span className="font-semibold text-texte">{LIBELLES_MATIERE[jauge.manqueSurtout].manque}</span>
           </span>
-          <Icone nom="micro" size={16} className="ml-auto text-orange-vif" />
+          <Icone nom="micro" size={16} className="ml-auto text-texte-faible" />
         </button>
       )}
     </Carte>
@@ -161,9 +161,11 @@ export function OngletMatieres({
   const depuisSite = vues.filter(aRelireSite);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <DepuisVotreSite vues={depuisSite} />
 
+      <Section id="matieres-reserve" titre="Votre réserve" sousTitre="Ce que vous avez à dire, pour écrire sans page blanche." sansCarte>
+      <div className="space-y-3">
       <CarteJauge
         jauge={jauge}
         onAjouter={(t) => {
@@ -175,6 +177,7 @@ export function OngletMatieres({
       <div className="grid grid-cols-2 gap-2">
         <Bouton
           taille="lg"
+          variante="secondaire"
           icone="micro"
           onClick={() => {
             setTypeAjout(filtre !== "tout" && filtre !== "preuves" ? filtre : undefined);
@@ -187,6 +190,11 @@ export function OngletMatieres({
           Plusieurs
         </Bouton>
       </div>
+      </div>
+      </Section>
+
+      <Section id="matieres-liste" titre="Vos matières" sansCarte>
+      <div className="space-y-4">
 
       <div role="radiogroup" aria-label="Type de matière" className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {options.map((o) => {
@@ -220,7 +228,7 @@ export function OngletMatieres({
             ))}
           </ul>
         ) : (
-          <EtatVide compact icone="resultats" titre="Aucune preuve" phrase="Dictez un chiffre vrai, avec sa source." action={<Bouton icone="micro" onClick={() => setAjout("preuve")}>Preuve</Bouton>} />
+          <EtatVide compact icone="resultats" titre="Aucune preuve" phrase="Dictez un chiffre vrai, avec sa source." action={<Bouton variante="secondaire" icone="micro" onClick={() => setAjout("preuve")}>Preuve</Bouton>} />
         )
       ) : visibles.length ? (
         <ul className="space-y-3">
@@ -236,6 +244,7 @@ export function OngletMatieres({
           phrase="Ce qu'on vous demande, ce que vous voyez souvent, ce que vous pensez."
           action={
             <Bouton
+              variante="secondaire"
               icone="micro"
               onClick={() => {
                 setTypeAjout(filtre === "tout" ? undefined : filtre);
@@ -248,6 +257,10 @@ export function OngletMatieres({
         />
       )}
 
+      </div>
+      </Section>
+
+      <Section id="matieres-rappel" titre="Rappel" sansCarte>
       <div className="rounded-carte border border-trait bg-surface-1 px-4">
         <Interrupteur
           icone="cloche"
@@ -264,6 +277,7 @@ export function OngletMatieres({
           }}
         />
       </div>
+      </Section>
 
       <FeuilleNouvelleMatiere key={typeAjout ?? "auto"} ouverte={ajout === "matiere"} onOuverteChange={(o) => !o && setAjout(null)} typeInitial={typeAjout} />
       <FeuilleEnVrac ouverte={ajout === "vrac"} onOuverteChange={(o) => !o && setAjout(null)} rangementEssai={rangementEssai} />

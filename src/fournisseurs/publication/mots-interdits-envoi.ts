@@ -41,3 +41,19 @@ export function motsInterditsEnvoi(texte: string): string[] {
   const lectures = [aplatir(texte, false, true), aplatir(texte, true, true), aplatir(texte, true, false)];
   return RACINES.filter((r) => lectures.some((n) => r.motif.test(n))).map((r) => r.libelle);
 }
+
+// Interdits supplémentaires de l'ENVOI ZERNIO (STU-D1). Buffer, lui, les refuse déjà par ses « interdits communs » (messages
+// distincts, testés) : la liste partagée ci-dessus reste donc inchangée pour ne pas altérer ces messages.
+const RACINES_ZERNIO: readonly { libelle: string; motif: RegExp }[] = [
+  // Ville interdite : la racine, sans frontière (mots collés, #mot-dièse).
+  { libelle: J("Gre", "noble"), motif: new RegExp(J("gre", "noble")) },
+  // Promesse de gain : l'expression entière, espaces multiples tolérés (le texte est mis à plat avant la recherche).
+  { libelle: J("Aucun gain ", "garanti"), motif: new RegExp(J("aucun\\s+gain\\s+", "garanti")) },
+];
+
+/** Mots interdits à l'envoi Zernio : ceux de la liste partagée + la ville interdite + la promesse de gain. PUR. */
+export function motsInterditsEnvoiZernio(texte: string): string[] {
+  const lectures = [aplatir(texte, false, true), aplatir(texte, true, true), aplatir(texte, true, false)];
+  const extra = RACINES_ZERNIO.filter((r) => lectures.some((n) => r.motif.test(n))).map((r) => r.libelle);
+  return [...motsInterditsEnvoi(texte), ...extra];
+}

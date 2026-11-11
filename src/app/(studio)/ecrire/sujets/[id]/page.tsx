@@ -4,6 +4,7 @@ import { formatsEcrivables, lignesAffichees, nomFormat } from "@/components/gene
 import { FicheSujet, type VersionAffichee } from "@/components/generateur/FicheSujet";
 import { lettresLigne } from "@/components/generateur/MiniGrille";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { Pastille } from "@/components/ui/Pastille";
 import { messageAttenteEcritureParDefaut } from "@/domaine/credits";
 import { lireFiltres, ordreValide } from "@/domaine/classement-generateur";
@@ -54,8 +55,8 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
       "bloquee-modele": "Le modèle d'écriture a changé : mise à jour nécessaire.",
     };
     return (
-      <div className="mx-auto max-w-2xl">
-        <EnTetePage retour={retourVideo ? { href: retourVideo, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }} surTitre={m.numero !== undefined ? `n° ${m.numero}` : "Sujet"} titre={m.brief.idee} className="mb-4 [&_h1]:break-words" />
+      <ConteneurPage largeur="lecture">
+        <EnTetePage retour={retourVideo ? { href: retourVideo, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }} surTitre={m.numero !== undefined ? `n° ${m.numero}` : "Sujet"} titre={m.brief.idee} className="[&_h1]:break-words" />
         <EcritureEnCours
           id={id}
           etat={{
@@ -80,7 +81,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
             bloque: ecriture.statut === "echec" ? arret?.bloque : undefined,
           }}
         />
-      </div>
+      </ConteneurPage>
     );
   }
   const lignes = lignesAffichees(vue.grille);
@@ -176,7 +177,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
   const etat = ETATS_SUJET_GENERATEUR[vue.etat]?.libelle ?? vue.etat;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage
         retour={retourVideo ? { href: retourVideo, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }}
         surTitre={
@@ -252,6 +253,6 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
             : null
         }
       />
-    </div>
+    </ConteneurPage>
   );
 }

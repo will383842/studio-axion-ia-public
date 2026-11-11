@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ChoixSeance } from "@/components/tournage/ChoixSeance";
 import { compteSeance } from "@/domaine/tournage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { exigerSession } from "@/services/auth";
 import { listerSeances, listerVersionsATourner } from "@/services/tournage";
 
@@ -19,9 +20,9 @@ export default async function PageTournage({ searchParams }: { searchParams: Pro
   const [versions, seances] = await Promise.all([listerVersionsATourner(), listerSeances()]);
   const enCours = seances.filter((s) => s.etat !== "terminee").map((s) => ({ id: s.id, ...compteSeance(s) }));
   return (
-    <div className="mx-auto max-w-2xl">
-      <EnTetePage retour={{ href: "/ecrire", libelle: "Écrire" }} titre="Tournage" sousTitre={versions.length ? `${versions.length} à filmer` : undefined} className="mb-4" />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={{ href: "/ecrire", libelle: "Écrire" }} titre="Tournage" sousTitre={versions.length ? `${versions.length} à filmer` : undefined} />
       <ChoixSeance versions={versions} preselection={pre} seances={enCours} />
-    </div>
+    </ConteneurPage>
   );
 }
