@@ -96,7 +96,7 @@ function etatPalette(t: number, cible: number, arret: number): { de: number; ver
 
 function Demi({ chiffre, haut, l, h, rayon }: { chiffre: number | string; haut: boolean; l: number; h: number; rayon: number }) {
   return (
-    <div style={{ position: "relative", width: l, height: h / 2, overflow: "hidden", background: haut ? N3.encreDouce : N3.encre, borderRadius: haut ? `${rayon}px ${rayon}px 0 0` : `0 0 ${rayon}px ${rayon}px` }}>
+    <div style={{ position: "relative", width: l, height: h / 2, overflow: "hidden", background: haut ? N3.encreDouce : N3.encre, borderRadius: haut ? `${rayon}px ${rayon}px 0 0` : `0 0 ${rayon}px ${rayon}px`, boxShadow: haut ? `inset 0 -1px 0 ${ivoireA(0.12)}` : undefined }}>
       <div style={{ position: "absolute", left: 0, top: haut ? 0 : -h / 2, width: l, height: h, lineHeight: `${h}px`, textAlign: "center", fontFamily: POLICES.titre, fontSize: h * 0.8, color: N3.ivoire, fontVariantNumeric: "tabular-nums" }}>{chiffre}</div>
       {haut ? <Reflet rayon={rayon} retrait={rayon * 0.6} /> : null}
     </div>
