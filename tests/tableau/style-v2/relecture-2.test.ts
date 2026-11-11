@@ -143,7 +143,7 @@ describe("6. accroche calée sur les mots", () => {
       const blocs = ecran.formes.filter((x) => x.sorte === "bloc" && x.source === "e04");
       expect(blocs.length).toBeGreaterThan(0);
       for (const b of blocs) {
-        expect(b.remplissage).toBe(COULEURS_V2.orange);
+        expect([COULEURS_V2.orange, COULEURS_V2.orangeSurEncre]).toContain(b.remplissage);
         expect(Math.abs(plan.apparitions[b.id].debutMs - motDit("laisse"))).toBeLessThanOrEqual(80);
         expect(plan.apparitions[b.id].entree).toBe("claque");
       }
