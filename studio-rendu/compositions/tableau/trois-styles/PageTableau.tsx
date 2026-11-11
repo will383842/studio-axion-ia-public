@@ -72,7 +72,7 @@ function encreDe(texte: string, p: PoliceTableau, taille: number): Encre {
   const g = c.getContext("2d")!;
   g.font = police(p, taille);
   g.fontKerning = "none";
-  g.fillStyle = "#fff";
+  g.fillStyle = "#FAF9F5";
   g.fillText(texte, pad, pad + asc);
   const d = g.getImageData(0, 0, c.width, c.height).data;
   const cols: Encre["cols"] = [];
@@ -272,7 +272,7 @@ function ruban(g: Ctx, x: number, y: number, w: number, h: number, rot: number, 
   g.fill();
   g.shadowColor = "transparent";
   g.globalAlpha = 0.18;
-  g.fillStyle = "#fff";
+  g.fillStyle = "#FAF9F5";
   g.fillRect(-w / 2, -h / 2 + 2 * k, w, 3 * k);
   g.restore();
 }
@@ -356,7 +356,7 @@ function chapitres(g: Ctx, sc: Scene, actif: number, u: number) {
       const lt = col - 26 * k;
       g.save();
       g.lineCap = "round";
-      g.strokeStyle = i === actif ? S.accent : i < actif ? S.encre : sc.style === "ardoise" ? "#5A4636" : "#B9AC9C";
+      g.strokeStyle = i === actif ? S.accent : i < actif ? S.encre : sc.style === "ardoise" ? "#B0AEA5" : "#5E5D59";
       g.lineWidth = (i === actif ? 9 : 6) * k;
       g.globalAlpha = 0.95;
       g.beginPath();
@@ -365,7 +365,7 @@ function chapitres(g: Ctx, sc: Scene, actif: number, u: number) {
       g.quadraticCurveTo(r.x + l / 2, yl + (i % 2 ? 3 : -2) * k, r.x + l, yl);
       g.stroke();
       g.restore();
-      if (i === actif && sc.style === "tableau-blanc") aimant(g, r.x + lt - (1 - u) * (col + 2 * k), yl, 13 * k, "#B44F29", k);
+      if (i === actif && sc.style === "tableau-blanc") aimant(g, r.x + lt - (1 - u) * (col + 2 * k), yl, 13 * k, "#B23F16", k);
     }
   });
 }
@@ -536,7 +536,7 @@ function masqueEffacement(sc: Scene, u: number): { m: HTMLCanvasElement; p: [num
   g.clearRect(0, 0, W, H);
   const n = Math.floor(borne(u) * (pts.length - 1));
   const ry = Math.max(175 * k, R.hauteur / 7);
-  g.fillStyle = "#000";
+  g.fillStyle = "#141413";
   for (let i = 0; i <= n; i++) {
     g.beginPath();
     g.ellipse(pts[i][0], pts[i][1], 150 * k, ry, 0, 0, 7);
@@ -804,7 +804,7 @@ function reflet(g: Ctx, sc: Scene, t: number) {
 function poussiere(g: Ctx, sc: Scene, et: Etat) {
   const r = alea(99 + Math.round(et.plan.debutPage * 10));
   g.save();
-  g.fillStyle = "#E9DCC8";
+  g.fillStyle = "#E8E6DC";
   const duree = Math.max(1, et.plan.finPage - et.plan.debutPage);
   for (let i = 0; i < 40; i++) {
     const naissance = et.plan.debutPage + r() * duree;
