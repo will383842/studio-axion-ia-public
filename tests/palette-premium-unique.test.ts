@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { contrasteWcag, PALETTE } from "../src/briques/charte/axion-2026";
 import { MELANGES } from "../studio-rendu/compositions/interface-claire/variantes/premium-1";
@@ -69,5 +69,62 @@ describe("MELANGES : valeurs, contrastes et ordre des tons (palette 2026)", () =
     const ordre = [PALETTE.ivoire, MELANGES.ivoireCreux, MELANGES.sableClair, PALETTE.gris, MELANGES.filet, MELANGES.sableProfond];
     const l = ordre.map((c) => contrasteWcag(c, "#000000"));
     for (let i = 1; i < l.length; i++) expect(l[i], `rang ${i}`).toBeLessThan(l[i - 1]);
+  });
+});
+
+/* ---------------------------------------------------------------- Usage : pas de terracotta sur un fond encre ---------------------------------------------------------------- */
+
+const DOSSIER_INTERFACE = "studio-rendu/compositions/interface-claire";
+const DECLENCHEUR_ENCRE = /degradeEncre|DEGRADE\.encre|background:\s*\w+\.encre\b/;
+/** Teinte terracotta (orange, orangeChaud, orangeProfond) en couleur de texte, d'icône ou de fond ; DEGRADE.orange (tuile pleine, surface ≥ 3:1) n'en fait pas partie. */
+const TERRACOTTA = /(?:couleur\s*[=:]\s*\{?|background:\s*|color:\s*)(?!DEGRADE\b)\w+\.(?:orange|orangeChaud|orangeProfond)\b/;
+const indentation = (l: string) => l.length - l.trimStart().length;
+
+/** Violations d'une source : lignes terracotta situées dans l'élément dont le fond est encre (de son ouvrant à sa fermeture). */
+function terracottaSurEncre(src: string): string[] {
+  const lignes = src.split("\n");
+  const trouve = new Set<number>();
+  lignes.forEach((l, i) => {
+    if (!DECLENCHEUR_ENCRE.test(l) || /^\s*(import|export const degradeEncre)/.test(l)) return;
+    let ouvrant = i;
+    while (ouvrant > 0 && !/<(div|span|g|rect|AbsoluteFill)\b/.test(lignes[ouvrant])) ouvrant--;
+    const ind = indentation(lignes[ouvrant]);
+    let fin = i + 3;
+    if (!/<\/(div|span)>|\/>\s*$/.test(lignes[ouvrant])) {
+      for (let k = i; k < Math.min(lignes.length, ouvrant + 80); k++) {
+        if (k > ouvrant && indentation(lignes[k]) === ind && lignes[k].trimStart().startsWith("</")) { fin = k; break; }
+      }
+    }
+    for (let k = i; k <= fin && k < lignes.length; k++) if (TERRACOTTA.test(lignes[k])) trouve.add(k + 1);
+  });
+  return [...trouve].sort((a, b) => a - b).map((n) => `ligne ${n}`);
+}
+
+describe("cartes et variantes : aucune icône ni pastille terracotta sur un fond encre (tuiles pleines DEGRADE.orange admises)", () => {
+  const fichiers = ["cartes", "variantes"].flatMap((d) =>
+    readdirSync(`${DOSSIER_INTERFACE}/${d}`).filter((f) => f.endsWith(".tsx")).map((f) => `${DOSSIER_INTERFACE}/${d}/${f}`),
+  );
+  it("le parcours couvre les cartes et les variantes", () => {
+    expect(fichiers.length).toBeGreaterThan(20);
+  });
+  for (const f of fichiers) {
+    it(`${f.replace(`${DOSSIER_INTERFACE}/`, "")} : orange, orangeChaud et orangeProfond absents de la couleur et du fond d'un élément à fond encre`, () => {
+      expect(terracottaSurEncre(readFileSync(f, "utf8")), f).toEqual([]);
+    });
+  }
+  it("le détecteur échoue sur le défaut de relecture (pastille orangeChaud sur bandeau encre) et sur une icône orange", () => {
+    const bandeau = [
+      "          <div",
+      "            style={{",
+      "              background: DEGRADE.encre,",
+      "            }}",
+      "          >",
+      "            <div style={{ background: N3.orangeChaud }} />",
+      "          </div>",
+    ].join("\n");
+    expect(terracottaSurEncre(bandeau)).toEqual(["ligne 6"]);
+    expect(terracottaSurEncre(bandeau.replace("N3.orangeChaud", "N3.orangeSurNoir"))).toEqual([]);
+    expect(terracottaSurEncre(`<div style={{ background: degradeEncre }}>\n<Icone couleur={N3.orange} />\n</div>`)).toEqual(["ligne 2"]);
+    expect(terracottaSurEncre(`<div style={{ background: DEGRADE.encre }}>\n<div style={{ background: DEGRADE.orange }} />\n</div>`)).toEqual([]);
   });
 });
