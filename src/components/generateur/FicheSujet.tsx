@@ -1,5 +1,6 @@
 "use client";
 
+import { TYPES_AUTOMATISATION, type Ciblage, type TypeAutomatisation } from "@/domaine/ciblage/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
@@ -164,6 +165,9 @@ export function FicheSujet(p: {
   retourVideo?: string;
   /** E2E-2 données n° 4 : matières de ce sujet qui attendent un accord (elles ne sont pas citées sans lui). */
   sansAccord?: MatiereSansAccord[];
+  /** Cible et type d'automatisation du sujet (absents : « cible à préciser », jamais bloquant). */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -236,6 +240,18 @@ export function FicheSujet(p: {
       {/* Un ajout (« Je lis », « Tu », autre format) arrêté APRÈS la numérotation : l'arrêt est montré, avec ce qu'il faut. */}
       {p.manque && !p.archive && <CarteArretAjout id={p.id} manque={p.manque} sansAccord={p.sansAccord ?? []} />}
       {p.arret && !p.archive && <CartePanneAjout id={p.id} message={p.arret} supplement={p.arretSupplement ?? undefined} />}
+
+      <p className="px-1 text-sm text-texte-doux" data-ciblage>
+        {p.ciblage ? (
+          <>
+            Cible : <span className="font-semibold text-texte">{p.ciblage.libelle}</span>
+          </>
+        ) : (
+          <span className="font-semibold text-ambre">Cible à préciser</span>
+        )}
+        {" · "}
+        Type : <span className="font-semibold text-texte">{TYPES_AUTOMATISATION.find((t) => t.id === p.typeAutomatisation)?.libelle ?? "À classer"}</span>
+      </p>
 
       {/* La grille, puis les onglets réseaux */}
       <Carte>
