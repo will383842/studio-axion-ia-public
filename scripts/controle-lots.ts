@@ -3,7 +3,8 @@
 // Sortie : `lancer` (faux dès qu'un refus existe) et la liste des refus, chacun avec sa règle.
 // Règles : fichiers exacts, jamais deux fiches sur le même fichier, parallele_avec lu dans les deux sens,
 // fermeture des versions (une V1 ne dépend jamais d'une V2), comparaison aux PR ouvertes,
-// jauge à 400 M de jetons et 400 sessions (au-dessus : aucune vague lancée).
+// jauge à 400 M de jetons et 400 sessions (atteints ou dépassés : aucune vague lancée).
+// Un fichier exact porte une extension : un fichier sans extension (Dockerfile, LICENSE) est refusé, à lister avec son extension ou à faire lister autrement.
 // Exécution : routines cloud ou Actions d'un dépôt public, jamais sur le PC.
 
 export const PLAFOND_JETONS = 400_000_000;
@@ -24,6 +25,8 @@ export type Regle =
   | "meme-fichier"
   | "parallele-un-sens"
   | "fermeture-versions"
+  | "version-inconnue"
+  | "id-double"
   | "dependance-inconnue"
   | "pr-ouverte"
   | "jauge";
@@ -65,7 +68,7 @@ function estFichierExact(chemin: string): boolean {
 }
 
 function rang(version: string): number {
-  const n = /^V(\d+)$/i.exec(version);
+  const n = /^V(\d+)$/i.exec(version.trim());
   return n ? Number(n[1]) : Number.NaN;
 }
 
@@ -75,20 +78,31 @@ export function controlerLot(entree: {
   jauge: Jauge;
   /** Identifiants déjà fusionnés (dépendances satisfaites hors du lot). */
   fusionnees?: string[];
+  /** Version (« V1 », « V2 »…) des fiches déjà fusionnées, pour fermer les versions hors du lot. */
+  versionsFusionnees?: Record<string, string>;
 }): Resultat {
   const { fiches, prOuvertes, jauge } = entree;
   const refus: Refus[] = [];
   const ajouter = (id: string, regle: Regle, detail: string) => refus.push({ id, regle, detail });
 
-  if (jauge.jetons > PLAFOND_JETONS || jauge.sessions > PLAFOND_SESSIONS) {
+  if (jauge.jetons >= PLAFOND_JETONS || jauge.sessions >= PLAFOND_SESSIONS) {
     ajouter("*", "jauge", `jetons ${jauge.jetons}/${PLAFOND_JETONS}, sessions ${jauge.sessions}/${PLAFOND_SESSIONS}`);
   }
   if (fiches.length === 0) ajouter("*", "lot-vide", "aucune fiche dans le lot");
 
   const parId = new Map(fiches.map((f) => [f.id, f]));
   const fusionnees = new Set(entree.fusionnees ?? []);
+  const versionsFusionnees = entree.versionsFusionnees ?? {};
+
+  const vus = new Set<string>();
+  for (const f of fiches) {
+    if (vus.has(f.id)) ajouter(f.id, "id-double", `identifiant ${f.id} présent plusieurs fois dans le lot`);
+    vus.add(f.id);
+  }
 
   for (const f of fiches) {
+    const rangF = rang(f.version);
+    if (Number.isNaN(rangF)) ajouter(f.id, "version-inconnue", `version illisible : « ${f.version} » (attendu V<n>)`);
     if (f.fichiers.length === 0) ajouter(f.id, "fichiers-exacts", "aucun fichier listé");
     for (const c of f.fichiers) {
       if (!estFichierExact(c)) ajouter(f.id, "fichiers-exacts", `pas un fichier exact : ${c}`);
@@ -96,10 +110,23 @@ export function controlerLot(entree: {
 
     for (const d of f.dependDe) {
       const cible = parId.get(d);
-      if (!cible) {
-        if (!fusionnees.has(d)) ajouter(f.id, "dependance-inconnue", `${d} absente du lot et non fusionnée`);
-      } else if (rang(cible.version) > rang(f.version)) {
-        ajouter(f.id, "fermeture-versions", `${f.version} dépend de ${d} (${cible.version})`);
+      let versionCible: string | undefined;
+      if (cible) versionCible = cible.version;
+      else if (fusionnees.has(d)) {
+        versionCible = versionsFusionnees[d];
+        if (versionCible === undefined) {
+          ajouter(f.id, "version-inconnue", `version de ${d} (fusionnée) non fournie`);
+          continue;
+        }
+      } else {
+        ajouter(f.id, "dependance-inconnue", `${d} absente du lot et non fusionnée`);
+        continue;
+      }
+      const rangC = rang(versionCible);
+      if (Number.isNaN(rangC)) {
+        ajouter(f.id, "version-inconnue", `version illisible pour ${d} : « ${versionCible} »`);
+      } else if (!Number.isNaN(rangF) && rangC > rangF) {
+        ajouter(f.id, "fermeture-versions", `${f.version} dépend de ${d} (${versionCible})`);
       }
     }
 

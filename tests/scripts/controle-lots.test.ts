@@ -122,6 +122,7 @@ describe("controlerLot", () => {
         fiche({ id: "A" }),
       ],
       fusionnees: ["Z"],
+      versionsFusionnees: { Z: "V1" },
       prOuvertes: [],
       jauge: jaugeOk,
     });
@@ -156,13 +157,93 @@ describe("controlerLot", () => {
     }
   });
 
-  it("la jauge pile au plafond n'est pas dépassée", () => {
+  it("la jauge pile au plafond arrête la vague (jetons ou sessions)", () => {
+    for (const jauge of [
+      { jetons: PLAFOND_JETONS, sessions: 0 },
+      { jetons: 0, sessions: PLAFOND_SESSIONS },
+      { jetons: PLAFOND_JETONS, sessions: PLAFOND_SESSIONS },
+    ]) {
+      const r = controlerLot({ fiches: [fiche({ id: "A" })], prOuvertes: [], jauge });
+      expect(r.lancer).toBe(false);
+      expect(r.refus.some((x) => x.regle === "jauge")).toBe(true);
+    }
+  });
+
+  it("juste sous le plafond, la vague part", () => {
     const r = controlerLot({
       fiches: [fiche({ id: "A" })],
       prOuvertes: [],
-      jauge: { jetons: PLAFOND_JETONS, sessions: PLAFOND_SESSIONS },
+      jauge: { jetons: PLAFOND_JETONS - 1, sessions: PLAFOND_SESSIONS - 1 },
     });
     expect(r.lancer).toBe(true);
+  });
+
+  it("refuse une V1 qui dépend d'une V2 déjà fusionnée (hors du lot)", () => {
+    const r = controlerLot({
+      fiches: [fiche({ id: "A", dependDe: ["Z"] })],
+      fusionnees: ["Z"],
+      versionsFusionnees: { Z: "V2" },
+      prOuvertes: [],
+      jauge: jaugeOk,
+    });
+    expect(r.lancer).toBe(false);
+    expect(r.refus.some((x) => x.id === "A" && x.regle === "fermeture-versions")).toBe(true);
+  });
+
+  it("accepte une V1 qui dépend d'une V1 fusionnée, et une V2 d'une V2 fusionnée", () => {
+    const r = controlerLot({
+      fiches: [fiche({ id: "A", dependDe: ["Z"] }), fiche({ id: "B", version: "V2", dependDe: ["Y"], fichiers: ["src/b.ts"] })],
+      fusionnees: ["Z", "Y"],
+      versionsFusionnees: { Z: "V1", Y: "V2" },
+      prOuvertes: [],
+      jauge: jaugeOk,
+    });
+    expect(r.refus).toEqual([]);
+  });
+
+  it("refuse une dépendance fusionnée dont la version n'est pas connue", () => {
+    const r = controlerLot({
+      fiches: [fiche({ id: "A", dependDe: ["Z"] })],
+      fusionnees: ["Z"],
+      prOuvertes: [],
+      jauge: jaugeOk,
+    });
+    expect(r.lancer).toBe(false);
+    expect(r.refus.some((x) => x.id === "A" && x.regle === "version-inconnue")).toBe(true);
+  });
+
+  it("refuse une version illisible (vide, « v1-a », absente), sans NaN silencieux", () => {
+    for (const version of ["", "v1-a", "V", "1"]) {
+      const r = controlerLot({
+        fiches: [fiche({ id: "A", version, dependDe: ["B"] }), fiche({ id: "B", fichiers: ["src/b.ts"] })],
+        prOuvertes: [],
+        jauge: jaugeOk,
+      });
+      expect(r.lancer).toBe(false);
+      expect(r.refus.some((x) => x.regle === "version-inconnue")).toBe(true);
+    }
+    const cible = controlerLot({
+      fiches: [fiche({ id: "A", dependDe: ["B"] }), fiche({ id: "B", version: "v1-a", fichiers: ["src/b.ts"] })],
+      prOuvertes: [],
+      jauge: jaugeOk,
+    });
+    expect(cible.refus.some((x) => x.regle === "version-inconnue")).toBe(true);
+    const absente = lireFiche('---\nid: A\ndepend_de: []\nfichiers_autorises: ["a.ts"]\n---\n');
+    expect(absente.version).toBe("");
+    expect(
+      controlerLot({ fiches: [absente], prOuvertes: [], jauge: jaugeOk }).refus.some((x) => x.regle === "version-inconnue"),
+    ).toBe(true);
+  });
+
+  it("refuse deux fiches de même identifiant dans le lot", () => {
+    const r = controlerLot({ fiches: [fiche({ id: "A" }), fiche({ id: "A" })], prOuvertes: [], jauge: jaugeOk });
+    expect(r.lancer).toBe(false);
+    expect(r.refus.some((x) => x.id === "A" && x.regle === "id-double")).toBe(true);
+  });
+
+  it("documenté : un fichier sans extension (Dockerfile) est refusé comme non exact", () => {
+    const r = controlerLot({ fiches: [fiche({ id: "A", fichiers: ["Dockerfile"] })], prOuvertes: [], jauge: jaugeOk });
+    expect(r.refus.some((x) => x.regle === "fichiers-exacts")).toBe(true);
   });
 
   it("refuse un lot vide", () => {
