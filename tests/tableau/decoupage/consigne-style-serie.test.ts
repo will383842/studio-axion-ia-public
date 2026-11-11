@@ -49,8 +49,8 @@ describe("consigne v21", () => {
     expect(CONSIGNE_DECOUPAGE).toContain("UN détail OU UN VISUEL, jamais les deux");
   });
 
-  it("version 21", () => {
-    expect(roleDecoupageTableau.version).toBe(21);
+  it("version 22", () => {
+    expect(roleDecoupageTableau.version).toBe(22);
   });
 
   it("l'exemple : la page 2 a DEUX scènes (s02, s03), chaque scène d'exemple dit 3 phrases au plus, le texte dit n'a pas changé", () => {

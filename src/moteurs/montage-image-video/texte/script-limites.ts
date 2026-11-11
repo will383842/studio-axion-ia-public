@@ -1,9 +1,9 @@
 /**
  * MODE « SCRIPT COMPLET » · bornes du script collé : fichier PUR et sans import (utilisable côté client, sans cycle avec
- * la fabrication). Même borne de caractères que le mode texte ; en plus, 300 mots au plus.
+ * la fabrication). Même borne de caractères que le mode texte ; en plus, 450 mots au plus.
  */
 export const SCRIPT_CARACTERES_MAX = 4000;
-export const SCRIPT_MOTS_MAX = 300;
+export const SCRIPT_MOTS_MAX = 450;
 /** Six écrans au moins (les six parties du corps), donc six mots au moins. */
 export const SCRIPT_MOTS_MIN = 6;
 
