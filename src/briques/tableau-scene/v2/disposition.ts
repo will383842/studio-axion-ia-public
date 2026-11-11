@@ -1393,7 +1393,7 @@ function entete(p: Pose, etapes: readonly EtapeBarre[]): void {
     p.texte({ id: "etq", texte: txt, x: t.x + 22 * k, y: t.y + (t.hauteur - te) / 2, largeur: le, hauteur: te, taille: te, couleur: coulE, fond: fondE, source: d.id, entree: "gauche", horsContenu: true });
   }
   // Fil de progression (largeur animée par le rendu).
-  p.forme({ id: "fil#piste", sorte: "jauge", x: g.fil.x, y: g.fil.y, largeur: g.fil.largeur, hauteur: g.fil.hauteur, rayon: g.fil.hauteur / 2, remplissage: f === "ivoire" ? "#110A0524" : f === "orange" ? "#110A0538" : "#E9DCC838", source: d.id, entree: "aucune" });
+  p.forme({ id: "fil#piste", sorte: "jauge", x: g.fil.x, y: g.fil.y, largeur: g.fil.largeur, hauteur: g.fil.hauteur, rayon: g.fil.hauteur / 2, remplissage: f === "ivoire" ? `${COULEURS_V2.encre}24` : f === "orange" ? `${COULEURS_V2.encre}38` : `${COULEURS_V2.ivoire}38`, source: d.id, entree: "aucune" });
   p.forme({ id: "fil", sorte: "jauge", x: g.fil.x, y: g.fil.y, largeur: g.fil.largeur, hauteur: g.fil.hauteur, rayon: g.fil.hauteur / 2, remplissage: f === "encre" ? COULEURS_V2.ivoire : COULEURS_V2.encre, source: d.id, entree: "aucune" });
   // Barre des étapes : écrans de la méthode et récapitulatif.
   const montrer = (d.moment === "etape" && d.etape) || (d.moment === "recapitulatif" && etapes.length > 1);

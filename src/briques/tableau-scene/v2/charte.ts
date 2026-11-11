@@ -46,8 +46,8 @@ export const BLOC_SUR: Readonly<Record<FondV2, { fond: string; texte: string }>>
   ivoire: { fond: COULEURS_V2.orange, texte: COULEURS_V2.ivoireFranc },
   orange: { fond: COULEURS_V2.encre, texte: COULEURS_V2.ivoire },
 });
-/** Seules couleurs de texte permises sur l'orange (fond d'écran ou bloc). */
-export const TEXTES_SUR_ORANGE: readonly string[] = Object.freeze([COULEURS_V2.ivoireFranc, COULEURS_V2.encre]);
+/** Seule couleur de texte permise sur la terracotta (fond d'écran ou bloc) : le blanc franc (5,81:1). L'encre n'y donne que 3,17:1. */
+export const TEXTES_SUR_ORANGE: readonly string[] = Object.freeze([COULEURS_V2.ivoireFranc]);
 /** Couleur des traits du crayon (soulignements, croix, coches) sur un fond. */
 export const TRAIT_SUR: Readonly<Record<FondV2, string>> = Object.freeze({ encre: COULEURS_V2.orangeSurEncre, ivoire: COULEURS_V2.orange, orange: COULEURS_V2.encre });
 /** Contours des formes (cases, cartes en pointillés) sur un fond. */
