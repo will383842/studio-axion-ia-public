@@ -57,6 +57,8 @@ export interface Conversation {
   versionCorpsGuide?: 1 | 3 | null;
   /** Vrai dès que le message « adresse refusée » (site : 422) a été tenté : il ne part JAMAIS deux fois pour une conversation. */
   adresseRefuseeEnvoyee?: boolean;
+  /** Le site a refusé l'adresse (422) mais le message « adresse refusée » attend le plafond : le réessai ne rappelle pas le site. */
+  adresseRefuseeEnAttente?: boolean;
   /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
   douteOpposition?: boolean;
 }

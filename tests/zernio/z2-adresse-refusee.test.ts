@@ -299,3 +299,68 @@ describe("confidentialité", () => {
     expect(tout).not.toContain("example.test");
   });
 });
+
+describe("RELECTURE-OPUS · défaut 2 : le geste de validation /mots écrit la bonne empreinte", () => {
+  it("sans confirmation de l'opérateur : refus, rien d'écrit", async () => {
+    await Com.ecrireParametre(PARAM_VALIDATION, null);
+    const r = await MS.validerAdresseRefusee({ confirmeParOperateur: false });
+    expect(r.ok).toBe(false);
+    expect(await Com.lireParametre(PARAM_VALIDATION, null)).toBeNull();
+  });
+
+  it("le geste (session exigée) écrit sha256(version + \\n + texte), journalise sans le texte, est idempotent", async () => {
+    await Com.ecrireParametre(PARAM_VALIDATION, null);
+    const gestes = await import("@/services/mots-gestes");
+    const auth = await import("@/services/auth");
+    const r = await gestes.gesteValiderAdresseRefusee();
+    expect(auth.exigerSession).toHaveBeenCalled();
+    expect(r).toMatchObject({ ok: true });
+    expect(await Com.lireParametre<any>(PARAM_VALIDATION, null)).toMatchObject({ empreinte: empreinteTexte() });
+    const avant = (await depots().evenements.lister(() => true)).length;
+    await gestes.gesteValiderAdresseRefusee();
+    expect((await depots().evenements.lister(() => true)).length).toBe(avant); // déjà validé : rien de nouveau
+    const journal = JSON.stringify(await depots().evenements.lister(() => true));
+    expect(journal).not.toContain(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect(journal).toMatch(/adresse refusée/);
+  });
+
+  it("validé par le geste (pas par une écriture directe) + 422 : le VRAI constructeur envoie UN message", async () => {
+    await Com.ecrireParametre(PARAM_VALIDATION, null);
+    expect((await MS.validerAdresseRefusee({ confirmeParOperateur: true })).ok).toBe(true);
+    site.reponses = refuse;
+    const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "msg-sortant-2" } }));
+    const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE] });
+    port.reponses.texte = () => `Mon adresse ${ADRESSE_FICTIVE}`;
+    await deposerMessage(depots, { idMessage: "msg-v1" });
+    await C.traiterConversations({ port: { ...port.port, envoyerMessage: reel.envoyerMessage }, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: T0 + 1000 });
+    const envois = faux.appels.filter((a) => a.methode === "POST");
+    expect(envois).toHaveLength(1);
+    expect((envois[0].json as { message: string }).message).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+  });
+});
+
+describe("RELECTURE-OPUS · défaut 3 : réessai au plafond sans rappeler le site", () => {
+  it("plafond atteint puis heure suivante : le site n'est appelé qu'UNE fois, un seul message", async () => {
+    site.reponses = refuse;
+    await Com.ecrireParametre(PARAM_COMPTEURS, { [COMPTE]: { heure: HEURE, envois: 30 } });
+    await ecrireAdresse("msg-p1");
+    expect(site.vus).toHaveLength(1);
+    await passer(HEURE + 500);
+    await passer(HEURE + H + 1000);
+    expect(site.vus).toHaveLength(1);
+    expect(port.envoyes).toHaveLength(1);
+    expect(await etatDe()).toMatchObject({ etat: "site_refuse", dernierCode: "422", adresseRefuseeEnvoyee: true });
+  });
+});
+
+describe("RELECTURE-OPUS · défaut 4 : après un doute d'opposition (règle actuelle conservée, figée par un test)", () => {
+  it("un doute ne bloque que M2 : le message « adresse refusée » part quand même, une seule fois", async () => {
+    site.reponses = refuse;
+    const k = cleConversation(A);
+    const tout = await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { ...tout, [k]: { ...tout[k], douteOpposition: true } });
+    await ecrireAdresse("msg-d1");
+    expect(port.envoyes).toHaveLength(1);
+    expect(port.envoyes[0].texte).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+  });
+});
