@@ -8,8 +8,6 @@
 const J = (...p: string[]) => p.join("");
 const FAMILLE = J("cert", "ifi");
 const NOM_QUALITE = J("quali", "opi");
-const VILLE = J("gre", "noble");
-const PROMESSE_GAIN = J("aucun\\s+gain\\s+", "garanti");
 
 const RACINES: readonly { libelle: string; motif: RegExp }[] = [
   // Famille du participe : la racine sans frontière de gauche (préfixes, mots collés, #mot-dièse) ; seule la série
@@ -17,10 +15,6 @@ const RACINES: readonly { libelle: string; motif: RegExp }[] = [
   { libelle: J("cert", "ifié"), motif: new RegExp(`${FAMILLE}(?!cat(?!ion))`) },
   // Nom du label qualité : la racine seule, sans aucune frontière (aucun mot légitime ne la contient).
   { libelle: J("Quali", "opi"), motif: new RegExp(NOM_QUALITE) },
-  // Ville interdite (règle éditoriale permanente) : la racine, sans frontière (mots collés, #mot-dièse).
-  { libelle: J("Gre", "noble"), motif: new RegExp(VILLE) },
-  // Promesse de gain : l'expression entière, espaces multiples tolérés (le texte est mis à plat avant la recherche).
-  { libelle: J("Aucun gain ", "garanti"), motif: new RegExp(PROMESSE_GAIN) },
 ];
 
 // Caractères invisibles écrits en séquences d'échappement : trait d'union conditionnel, espaces sans largeur,
@@ -46,4 +40,20 @@ export function motsInterditsEnvoi(texte: string): string[] {
   // Lectures : espace insécable gardée puis supprimée (coupe au milieu d'un mot) ; camelCase coupé ou non (nom collé).
   const lectures = [aplatir(texte, false, true), aplatir(texte, true, true), aplatir(texte, true, false)];
   return RACINES.filter((r) => lectures.some((n) => r.motif.test(n))).map((r) => r.libelle);
+}
+
+// Interdits supplémentaires de l'ENVOI ZERNIO (STU-D1). Buffer, lui, les refuse déjà par ses « interdits communs » (messages
+// distincts, testés) : la liste partagée ci-dessus reste donc inchangée pour ne pas altérer ces messages.
+const RACINES_ZERNIO: readonly { libelle: string; motif: RegExp }[] = [
+  // Ville interdite : la racine, sans frontière (mots collés, #mot-dièse).
+  { libelle: J("Gre", "noble"), motif: new RegExp(J("gre", "noble")) },
+  // Promesse de gain : l'expression entière, espaces multiples tolérés (le texte est mis à plat avant la recherche).
+  { libelle: J("Aucun gain ", "garanti"), motif: new RegExp(J("aucun\\s+gain\\s+", "garanti")) },
+];
+
+/** Mots interdits à l'envoi Zernio : ceux de la liste partagée + la ville interdite + la promesse de gain. PUR. */
+export function motsInterditsEnvoiZernio(texte: string): string[] {
+  const lectures = [aplatir(texte, false, true), aplatir(texte, true, true), aplatir(texte, true, false)];
+  const extra = RACINES_ZERNIO.filter((r) => lectures.some((n) => r.motif.test(n))).map((r) => r.libelle);
+  return [...motsInterditsEnvoi(texte), ...extra];
 }
