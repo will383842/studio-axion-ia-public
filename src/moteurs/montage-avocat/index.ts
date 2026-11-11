@@ -33,12 +33,12 @@ import { ErreurRendu, obtenirServiceRendu, renduSimule, suivreRendu } from "@/fo
 import { creerServiceRenduSimule } from "@/fournisseurs/simulation/rendu";
 import type { DemandeAlignement, DemandeRendu, FournisseurAlignement, FournisseurVoix, ServiceRendu, StockageFichiers } from "@/fournisseurs/types";
 import { alerteSousTitresApproximatifs, appliquerAlignement, calerLaVoix, causeApproximation, demandeAlignement, ESSAIS_ALIGNEMENT, optionsCalage } from "./alignement";
-import { avancerDouble, compositionDuDouble, principalDejaRendu, doubleEnEchec, doubleFini, etatInitialDouble, lignesDouble, MESSAGE_DELAI_RENDU_DOUBLE, MESSAGE_DOUBLE_TOUJOURS_EN_COURS, pistesPourComposition, PLAFOND_DEPASSEMENT, progressionDouble, refusDouble, renduAllumeDans, renduARelire, secondesAnnonceesDouble, type EtatDoubleMoteur } from "./double";
+import { anglesDuDouble, decorDuLook, avancerDouble, compositionDuDouble, principalDejaRendu, doubleEnEchec, doubleFini, etatInitialDouble, lignesDouble, MESSAGE_DELAI_RENDU_DOUBLE, MESSAGE_DOUBLE_TOUJOURS_EN_COURS, pistesPourComposition, PLAFOND_DEPASSEMENT, progressionDouble, refusDouble, renduAllumeDans, renduARelire, secondesAnnonceesDouble, type EtatDoubleMoteur } from "./double";
 import type { FournisseurVisage } from "@/fournisseurs/types";
 import { additionner, centimes, multiplier } from "@/lib/montants";
 import { cleEtapeDeLigne, coutDeLEtape, lignesDesEtapesPayees } from "../couts-etapes";
 import { moteurSimulation } from "../simulation";
-import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, ParentRetouche, PlanProduit, ResultatFabrication, ResultatMaquette, SortieProduite } from "../types";
+import type { AVerifierHeygen, ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, ParentRetouche, PlanProduit, ResultatFabrication, ResultatMaquette, SortieProduite } from "../types";
 import { parametresComposition, RECETTE_COMPOSITION_AVOCAT } from "./composition";
 import { noteDepuisAlertes } from "./controles";
 import { avancerCompositions, montageFini, PLAGES_ETAPES, progressionMontage, type BaseComposition, type EtatComposition, type EtatMontage, type OutilsMontage, type ModeComposition } from "./montage";
@@ -1206,6 +1206,24 @@ export function creerMoteurMontageAvocat(deps: DependancesMoteurAvocat = {}): Mo
       if (refus) return { code: "DOUBLE_PAS_PRET", message: refus };
       const voix = refusDeLaVoix(c);
       return voix ? { code: "VOIX_ESSAI", message: voix } : null;
+    },
+
+    /** Ce que le lancement réel utiliserait chez HeyGen, à vérifier gratuitement avant toute réservation. */
+    heygenAVerifier(c: CommandeFabrication): AVerifierHeygen | null {
+      if (!doubleReel(c)) return null;
+      const recette = recetteDe(c);
+      const angles = anglesDuDouble(c, recette).filter((a) => a.visage?.fournisseur === "heygen" && !!a.visage.idExterne);
+      if (!angles.length || (angles.length === 1 && principalDejaRendu(c, recette))) return null;
+      const dl = decorDuLook(c, recette);
+      const looksDecor = dl?.valide ? angles.map((a) => dl.lookPour(a.angle)).filter((x): x is string => !!x) : [];
+      const d0 = c.distribution[0];
+      const voix = d0?.fournisseurVoix === "heygen" && d0.idVoixFournisseur && !c.audioMaitre ? d0.idVoixFournisseur : undefined;
+      return {
+        personnageId: d0?.personnageId,
+        doubles: angles.map((a) => ({ angle: a.angle, visageId: a.visage!.visageId, idExterne: a.visage!.idExterne! })),
+        looksDecor,
+        ...(voix ? { voix } : {}),
+      };
     },
 
     async lancer(c: CommandeFabrication, ctx: ContexteLancement): Promise<Travail> {

@@ -120,12 +120,13 @@ const cle = (m: string) =>
     .replace(/[^a-z0-9]/g, "");
 const LETTRES: Record<string, string> = { "1": "un", "2": "deux", "3": "trois", "4": "quatre", "5": "cinq", "6": "six", "7": "sept", "8": "huit", "9": "neuf", "10": "dix", "11": "onze", "12": "douze", "13": "treize", "14": "quatorze", "15": "quinze", "16": "seize", "20": "vingt", "30": "trente", "40": "quarante", "50": "cinquante", "60": "soixante", "100": "cent" };
 
-/** Règle 18 au style « reference/3 ». */
-export function regleGabarit3(fiche: FicheTableau): Manquement[] {
+/** Règle 18 au style « reference/3 » (texte de Will sans page d'appel : la page d'appel est facultative). */
+export function regleGabarit3(fiche: FicheTableau, contexte?: { texteDeWill?: boolean }): Manquement[] {
   const res: Manquement[] = [];
   if (fiche.styleTableau !== undefined && !estStyleTableau(fiche.styleTableau)) res.push({ detail: `le style du tableau « ${fiche.styleTableau} » n'existe pas ; styles : ${liste(STYLES_TABLEAU)} (ou aucun : celui de la série).` });
   const pages = pagesDe(fiche);
   const derniere = fiche.scenes[fiche.scenes.length - 1];
+  const pageAppelFacultative = contexte?.texteDeWill === true && !fiche.scenes.some((s) => s.gabarit?.role === "appel");
   let etapeAttendue = 1;
   let rangPrecedent = -1;
   pages.forEach((p: PageGabarit, i) => {
@@ -166,7 +167,7 @@ export function regleGabarit3(fiche: FicheTableau): Manquement[] {
     if (RANG[role] < rangPrecedent) res.push({ sceneId: premiere.id, detail: `la partie « ${NOMS_ROLES[role]} » (page ${p.page}) revient après une partie qui la suit : l'ordre est accroche, douleur, solution, exemple, à retenir, appel.` });
     rangPrecedent = Math.max(rangPrecedent, RANG[role]);
     if (role === "appel" && !p.scenes.includes(derniere)) res.push({ sceneId: premiere.id, detail: `la page d'appel est la dernière page de la vidéo.` });
-    if (i === pages.length - 1 && role !== "appel") res.push({ sceneId: premiere.id, detail: `la dernière page est la page d'APPEL (plein cadre : la phrase d'appel en grand, axion-ia.com) ; donnez à la dernière scène la partie « appel » et une ligne « bloc » « appel ».` });
+    if (!pageAppelFacultative && i === pages.length - 1 && role !== "appel") res.push({ sceneId: premiere.id, detail: `la dernière page est la page d'APPEL (plein cadre : la phrase d'appel en grand, axion-ia.com) ; donnez à la dernière scène la partie « appel » et une ligne « bloc » « appel ».` });
     if (role === "retenir" && pages[i + 1] && rolePage(pages[i + 1]) !== "appel" && rolePage(pages[i + 1]) !== "retenir") res.push({ sceneId: premiere.id, detail: `« À retenir » vient juste avant la page d'appel.` });
 
     const lignes = p.scenes.flatMap((s) => lignesDe(s).map((l) => ({ l, s })));

@@ -1166,7 +1166,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     if (reference) proprietes.splice(0, proprietes.length, ...alignerSurReference(proprietes, reference));
     proprietesFaites.set(id, proprietes);
     // « reference/3 » : contrôles de l'animation (accroche pleine à 0 s, blocs écrits à l'heure, aucune page vide, appel lisible).
-    const problemes = [...proprietes.flatMap((p) => o.preparation.controlerProprietes(p)), ...(estStyleReference3(calageS.fiche) ? problemesAnimation3(proprietes as unknown as Parameters<typeof problemesAnimation3>[0]) : []), ...controlerAnimationTableau(proprietes as unknown as Parameters<typeof controlerAnimationTableau>[0]).map((x) => `${x.page ? `Page ${x.page} · ` : ""}${x.detail}`)];
+    const problemes = [...proprietes.flatMap((p) => o.preparation.controlerProprietes(p)), ...(estStyleReference3(calageS.fiche) ? problemesAnimation3(proprietes as unknown as Parameters<typeof problemesAnimation3>[0], { pageAppelFacultative: !calageS.fiche.scenes.some((s) => s.gabarit?.role === "appel") }) : []), ...controlerAnimationTableau(proprietes as unknown as Parameters<typeof controlerAnimationTableau>[0]).map((x) => `${x.page ? `Page ${x.page} · ` : ""}${x.detail}`)];
     if (problemes.length) throw new ErreurFabrication("scenes", problemes);
     // Clé d'une scène : son empreinte (préfixée du format hors vertical) ; une scène commune aux deux verticaux a la même.
     const empreintes = Object.fromEntries(proprietes.map((p) => [p.scene.id, `${imageVerticale ? "" : `${id}-`}${empreinte("scene", COMPOSITION_SCENE, CRF_SCENE, p)}`]));

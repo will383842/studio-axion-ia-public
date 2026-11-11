@@ -1155,7 +1155,7 @@ export const REGLES_TABLEAU: readonly RegleTableau[] = [
   { numero: 15, nom: "série sans numéro", verifier: (f, c) => regleSansNumeroEpisode(f, c) },
   { numero: 16, nom: "du rythme : un événement visuel toutes les 4 secondes", verifier: regleRythme },
   { numero: 17, nom: "geste fort sur la douleur dès le début", verifier: regleGesteFortDouleur },
-  { numero: 18, nom: "gabarit de page clair (titre, phrase clé, détails, numéros dits)", verifier: (f) => regleGabarit(f) },
+  { numero: 18, nom: "gabarit de page clair (titre, phrase clé, détails, numéros dits)", verifier: (f, c) => regleGabarit(f, c) },
 ];
 
 /** Règles du format pour la brique commune (`ExtensionFormat.regles`), liées au contexte injecté. */

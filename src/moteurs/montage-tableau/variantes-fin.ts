@@ -25,7 +25,7 @@ import { substituerPrononciations } from "@/domaine/prononciations";
 import { mots } from "@/domaine/controles-script/texte";
 import { ECRANS_PAR_SCENE_MAX as ECRANS_MAX } from "@/briques/fiche-scenes";
 import { remettreEnForme } from "./decoupage";
-import { cleMot, estStyleBlocs2, type EcranTableau, type ElementTableau, type FicheTableau, type MomentEcran, type SceneTableau } from "./fiche";
+import { cleMot, estStyleBlocs2, estStyleReference3, type EcranTableau, type ElementTableau, type FicheTableau, type MomentEcran, type SceneTableau } from "./fiche";
 import { sansAppelAuMot, type IdSortie } from "./formats-sortie";
 import { cleSimple, PHRASES_APPEL } from "./regles";
 
@@ -547,6 +547,7 @@ export type PlanVoixSorties =
  * principales aide à repérer l'appel dans la fiche).
  */
 export function planVoixSorties(fiche: FicheTableau, sorties: readonly { id: IdSortie; fin?: FinDeSortie }[]): PlanVoixSorties {
+  if (estStyleReference3(fiche) && !fiche.scenes.some((s) => s.gabarit?.role === "appel")) return { mode: "unique" };
   const dits = sorties.map((s) => ({ ...s, appel: appelDitDeLaSortie(s.id, s.fin) }));
   if (dits.every((d) => d.appel.sorte === "fiche")) return { mode: "unique" };
   const ditFiche = dits.map((d) => (d.appel.sorte === "fiche" && d.fin && "ecran" in d.fin ? d.fin.dit : undefined)).find(Boolean);
