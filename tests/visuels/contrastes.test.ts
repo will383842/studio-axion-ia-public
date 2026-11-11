@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHARTE_CARROUSEL,
+  CHARTE_CONTINU,
   contrasteWcag,
   texteLisible,
 } from "@/briques/visuels/charte-carrousel";
@@ -12,7 +13,7 @@ describe("charte-carrousel/1 : contrastes WCAG", () => {
     expect(CHARTE_CARROUSEL.couleurs.orange).toBe("#D97757");
   });
 
-  it("encre sur ivoire = 17,2 ± 0,3", () => {
+  it("encre sur crème = 17,5 ± 0,1", () => {
     const { encre, creme } = CHARTE_CARROUSEL.couleurs;
     expect(Math.abs(contrasteWcag(encre, creme) - 17.5)).toBeLessThanOrEqual(0.1);
   });
@@ -22,12 +23,22 @@ describe("charte-carrousel/1 : contrastes WCAG", () => {
     expect(texteLisible(orange, creme, 30)).toBe(false);
   });
 
+  it("accepte un GRAND élément sur crème avec accentClair (72 px)", () => {
+    const { creme } = CHARTE_CARROUSEL.couleurs;
+    expect(texteLisible(CHARTE_CONTINU.accentClair, creme, 72)).toBe(true);
+  });
+
+  it("refuse l'orange sur crème même en GRAND (72 px)", () => {
+    const { orange, creme } = CHARTE_CARROUSEL.couleurs;
+    expect(texteLisible(orange, creme, 72)).toBe(false);
+  });
+
   it("accepte l'orange sur noir pour un GRAND élément", () => {
     const { orange, encre } = CHARTE_CARROUSEL.couleurs;
     expect(texteLisible(orange, encre, 72)).toBe(true);
   });
 
-  it("accepte la terracotta #B23F16 sur gris", () => {
+  it("accepte la terracotta #B23F16 sur gris (4,64)", () => {
     const { pale, orangeFonce } = CHARTE_CARROUSEL.couleurs;
     expect(texteLisible(orangeFonce, pale, 30)).toBe(true);
   });

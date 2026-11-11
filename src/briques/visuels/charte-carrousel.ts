@@ -24,22 +24,27 @@ export const CHARTE_CARROUSEL = {
 export const CHARTE_CONTINU = {
   creme: CHARTE_CARROUSEL.couleurs.creme,
   encre: CHARTE_CARROUSEL.couleurs.encre,
-  orange: CHARTE_CARROUSEL.couleurs.orange,
+  /** Accent des fonds ivoire, blanc et gris (contrastes 5,51 / 5,81 / 4,64). */
+  accentClair: P.terracotta,
+  /** Accent du fond NOIR SEULEMENT (5,90) ; sur ivoire 2,96 et sur gris 2,50 : interdit. */
+  accentSombre: P.orange,
+  // Clés historiques : alias de accentSombre, noir seulement.
+  orange: P.orange,
   creme2: P.gris,
   blancCarte: P.blanc,
   peche: P.gris,
-  orangeClair: P.orange,
-  orangeLumiere: P.orange,
+  orangeClair: P.orange, // noir seulement
+  orangeLumiere: P.orange, // noir seulement
   orangeProfond: P.terracotta,
   orangeBrule: P.terracotta,
   encreDouce: P.noir,
-  brun: P.noir,
-  brunClair: P.texteSecondaire,
+  brun: P.texteSecondaire, // décor seulement, jamais en texte
+  brunClair: P.texteSecondaire, // décor seulement, jamais en texte
   brunNuit: P.noir,
   nuit: P.noir,
-  brunPierre: P.texteSecondaire,
+  brunPierre: P.texteSecondaire, // décor seulement, jamais en texte
   abricot: P.gris,
-  rouille: P.survol,
+  rouille: P.terracotta, // la valeur de survol est la décision D5 (ouverte) : non employée
   cuivre: P.terracotta,
   ecume: P.ivoire,
   rosePeche: P.gris,
@@ -63,22 +68,22 @@ const C = CHARTE_CONTINU;
 /**
  * Fonds du carrousel continu : AUCUN dégradé, un aplat de PALETTE par clé (mêmes clés qu'avant, valeurs utilisables
  * telles quelles en `background`). Le dégradé de `barre` devient un aplat transparent.
- * Variante `w` des tuiles : noir (l'icône `orange` y est lisible, 5,90 ; sur blanc elle ne ferait que 2,96).
+ * Tuiles : `k` noir (icône accentSombre) et `w` blanche (icône accentClair) sont distinctes.
  */
 export const DEGRADES_CONTINU = {
   tuile: {
-    o: C.orangeProfond,
+    o: C.accentClair,
     k: C.nuit,
-    w: C.encre,
+    w: C.blancCarte,
     p: C.peche,
     g: alpha(C.creme, 0.12),
   },
   carte: {
-    o: C.orange,
+    o: C.accentClair,
     k: C.nuit,
     pl: C.peche,
   },
-  bouton: C.orange,
+  bouton: C.accentClair,
   barre: "transparent",
 } as const;
 
