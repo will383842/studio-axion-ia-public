@@ -13,8 +13,8 @@ import {
 
 afterEach(() => vi.restoreAllMocks());
 
-function lignes(espion: ReturnType<typeof vi.spyOn>): string[] {
-  return espion.mock.calls.map((a) => String(a[0]));
+function lignes(espion: { mock: { calls: unknown[][] } }): string[] {
+  return espion.mock.calls.map((a: unknown[]) => String(a[0]));
 }
 
 describe("journal des actions sensibles", () => {
