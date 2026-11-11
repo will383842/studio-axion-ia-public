@@ -618,7 +618,7 @@ Vidéos : vraies vidéos Pexels/Pixabay **nettes** (source ≥ 1080 px du côté
 - *Durée* : 3-4,5 s. *Son* : `ding` par ligne cochée.
 
 **38. `PanneauFin`** — la fin.
-- *Montre* : panneau IVOIRE qui **monte du bas en 5 i** et pousse la prise vers le bas ; puis en cascade (1 élément par image) : logo Axion-IA, nom « Williams Jullin » (Montserrat 900, 64), 3-5 pastilles d'outils, bouton ACCENT_1 « COMMENTEZ « RELANCE » ».
+- *Montre* : panneau IVOIRE qui **monte du bas en 5 i** et pousse la prise vers le bas ; puis en cascade (1 élément par image) : logo Axion-IA, nom « Jean Exemple » (Montserrat 900, 64), 3-5 pastilles d'outils, bouton ACCENT_1 « COMMENTEZ « RELANCE » ».
 - *Quand* : dernière seconde.
 - *Gabarit* : M9.
 - *Déroulé* : i0 panneau E-BAS (`CHUTE` inversée, sans rebond au-dessus du haut) ; i5-i10 cascade ; bouton qui pulse.

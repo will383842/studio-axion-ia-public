@@ -41,7 +41,7 @@
 | A19 | Collage | mixed media | découpes, papier, formes superposées | motion |
 | A20 | Boucle parfaite | infinite loop | la dernière image raccorde avec la première (revisionnage) | vidéos très courtes |
 | A21 | Masque qui passe | object wipe | un objet traverse l'écran et révèle le plan suivant | motion, UGC |
-| A22 | Bandeau nom | lower third | le prénom et le nom d'un **invité** apparaissent 3 s en bas | **podcast uniquement**, pour présenter un invité. ⛔ **Jamais dans l'avocat** ni dans les vidéos courtes « naturelles » (selfie, UGC) : décision de Will, 08/10, « ça fait trop marketing, les spectateurs risquent de sortir ». Jamais de bandeau « Williams Jullin · Axion-IA ». La marque n'apparaît qu'à la fin, pendant la dernière phrase (règle du format avocat déjà écrite). |
+| A22 | Bandeau nom | lower third | le prénom et le nom d'un **invité** apparaissent 3 s en bas | **podcast uniquement**, pour présenter un invité. ⛔ **Jamais dans l'avocat** ni dans les vidéos courtes « naturelles » (selfie, UGC) : décision de Will, 08/10, « ça fait trop marketing, les spectateurs risquent de sortir ». Jamais de bandeau « Jean Exemple · Axion-IA ». La marque n'apparaît qu'à la fin, pendant la dernière phrase (règle du format avocat déjà écrite). |
 | A23 | Chiffres et graphiques animés | data animation | un chiffre qui compte jusqu'à sa valeur, une barre qui monte, une courbe qui se dessine | écran partagé, motion, avocat (chiffre choc) |
 
 ## B. Plans générés (payants, toujours muets)

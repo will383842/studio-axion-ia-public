@@ -32,7 +32,7 @@ const FREQ = 48_000;
 const PHRASES: { id: string; texte: string; prononciations?: boolean }[] = [
   { id: "1-sons-proches", texte: "Un bon PV, puis un pépin : voilà comment tout commence." },
   { id: "2-montant", texte: "Cette amende de 135 € peut être contestée sous 45 jours." },
-  { id: "3-nom-propre", texte: "Williams Jullin, d'Axion-IA, vous explique tout cela simplement." },
+  { id: "3-nom-propre", texte: "Jean Exemple, d'Axion-IA, vous explique tout cela simplement." },
   { id: "4-avant", texte: "Chez Axion-IA, nous préparons votre RGPD et vos PV." },
   { id: "5-apres", texte: "Chez Axion-IA, nous préparons votre RGPD et vos PV.", prononciations: true },
 ];

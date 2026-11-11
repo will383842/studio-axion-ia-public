@@ -359,7 +359,7 @@ Source : `<dossier-de-plan-prive>\A4-SEO-GEO-METADONNEES.md` (audit en lecture s
 1. **Valider la règle de sélection** : « explique ou prouve quelque chose, 30 s ou plus, pas une variante ». Et valider le tableau par générateur de la section 1, en particulier image → vidéo « plutôt non » et face caméra « au cas par cas ».
 2. **Valider la matrice** de la section 2 : le passeport fabriqué dans le studio, tout le référencement dans le site.
 3. **Créer le sous-domaine** `videos.axion-ia.com` (DNS chez Cloudflare, proxifié, comme pour `studio`). Le connecteur n'a pas le droit d'écrire les DNS : c'est à vous de le faire, en 2 minutes, au moment du lot S4.
-4. **YouTube** : confirmer qu'on publie aussi sur la chaîne « Axion-IA · Williams Jullin » via Buffer, avec le lien vers la page du site.
+4. **YouTube** : confirmer qu'on publie aussi sur la chaîne « Axion-IA · Jean Exemple » via Buffer, avec le lien vers la page du site.
 5. Me dire **quelles vidéos existantes** publier en premier, ou me laisser proposer une première liste de 5 à 10 vidéos parmi les tableaux animés et cas concrets terminés.
 
 ---
