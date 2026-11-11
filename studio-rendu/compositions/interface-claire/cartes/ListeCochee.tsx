@@ -136,7 +136,7 @@ export function ListeCochee(p: ListeCocheeProps) {
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: u * H_BADGE, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <div style={{ height: u * H_BADGE * 0.7, ...styleHeros(W, degradeEncre, u), display: "flex", alignItems: "center", gap: u * 0.16, padding: `0 ${u * 0.32}px 0 ${u * 0.24}px`, transform: `translateY(${(1 - eBadge) * W * 0.03}px)`, opacity: fondu(p.t, p.badge.a) }}>
             <Reflet rayon={u * 0.3} />
-            <Icone nom={p.badge.icone ?? "coche"} taille={iconeTaille} couleur={NUANCES.orange} epaisseur={2.6} />
+            <Icone nom={p.badge.icone ?? "coche"} taille={iconeTaille} couleur={NUANCES.orangeSurNoir} epaisseur={2.6} />
             <span style={styleTitre(tailleQuiTient(largeurTitre(p.badge.texte, 1), L * 0.7, TYPO.minimum(W), Math.min(W * 0.036, u * H_BADGE * 0.36)), NUANCES.ivoire)}>{p.badge.texte}</span>
           </div>
         </div>
