@@ -10,6 +10,9 @@ import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier
 import { pageAPublierAllumee } from "@/services/a-publier";
 import { Connexions } from "@/components/reglages/Connexions";
 import { ConnexionsZernioReglages } from "@/components/reglages/ConnexionsZernioReglages";
+import { lireParametre } from "@/services/_commun";
+import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { tauxValide } from "@/components/reglages/montants-euros";
 import { Credits } from "@/components/reglages/Credits";
 import { CreditClaude } from "@/components/reglages/CreditClaude";
 import { vueCreditClaude } from "@/services/credit-claude";
@@ -114,6 +117,7 @@ export default async function PageReglages() {
   const gardeSujets = await lireGardeSujets();
   const interrupteursEcriture = await lireInterrupteursEcriture();
   const infos = aPropos();
+  const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
 
   return (
     <div>
@@ -218,8 +222,8 @@ export default async function PageReglages() {
           </Apparition>
           <Apparition index={1}>
             <CarteSection id="credits" icone="jauge" titre="Crédits">
-              <Credits cartes={credits} />
-              {creditClaude && <CreditClaude vue={creditClaude} />}
+              <Credits cartes={credits} tauxUsdEur={tauxUsdEur} />
+              {creditClaude && <CreditClaude vue={creditClaude} tauxUsdEur={tauxUsdEur} />}
             </CarteSection>
           </Apparition>
           <Apparition index={2}>
@@ -276,7 +280,7 @@ export default async function PageReglages() {
             <div className="space-y-10 border-t border-trait p-4 sm:p-5">
               {/* Choix de la chaîne qui écrit les prochains scripts (courte ou équipe). */}
               <CarteSection id="ecriture" icone="ecrire" titre="Écriture des scripts">
-                <ChoixChaineEcriture key={chaine} initiale={chaine} />
+                <ChoixChaineEcriture key={chaine} initiale={chaine} tauxUsdEur={tauxUsdEur} />
                 <div className="my-4 h-px bg-trait" />
                 <GardeSujetsReglage key={gardeSujets} garde={gardeSujets} />
                 <div className="my-4 h-px bg-trait" />
