@@ -3,6 +3,7 @@
  * Jamais deux messages, rien si la personne est opposée, plafond respecté, interrupteur éteint = comportement inchangé,
  * aucune adresse dans les journaux. Données 100 % fictives (example.test) ; port et site FAUX.
  */
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEXTES_MP, TEXTES_MP_BROUILLONS, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
@@ -18,6 +19,8 @@ const Opp = await import("@/services/oppositions-mots");
 const H = 3600_000;
 const HEURE = Math.floor(T0 / H) * H;
 const PARAM_COMPTEURS = "parcours.conversations.compteurs";
+const PARAM_VALIDATION = "parcours.validation.adresse_refusee";
+const empreinteTexte = () => { const b = TEXTES_MP_BROUILLONS["mp-adresse-refusee-v2"]; return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex"); };
 const A = "auteur-fictif-400";
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
@@ -44,6 +47,7 @@ beforeEach(async () => {
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
+  await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: empreinteTexte() });
   await deposerCommentaire(depots, {});
   await passer();
 });
@@ -54,16 +58,48 @@ afterEach(() => {
 
 describe("texte brouillon", () => {
   it("nouvelle clé BROUILLON, absente des textes validés, vouvoiement, sans STOP, sans prix, sans « autres informations »", () => {
-    const b = TEXTES_MP_BROUILLONS["mp-adresse-refusee-v1"];
-    expect(b.version).toBe("mp-adresse-refusee-v1");
+    const b = TEXTES_MP_BROUILLONS["mp-adresse-refusee-v2"];
+    expect(b.version).toBe("mp-adresse-refusee-v2");
     expect(b.statut).toBe("brouillon");
-    expect(Object.keys(TEXTES_MP)).not.toContain("mp-adresse-refusee-v1");
+    expect(Object.keys(TEXTES_MP)).not.toContain("mp-adresse-refusee-v2");
     expect(b.texte.startsWith("Message automatique envoyé par Axion IA. ")).toBe(true);
     expect(b.texte).toMatch(/\bvotre\b|\bvous\b/i);
     expect(b.texte).not.toMatch(/\bstop\b|autres? informations|€|\beuros?\b|\bprix\b|\btarifs?\b|\b(tu|ton|ta|tes|toi)\b|\bordre de\b|aucun gain/i);
+    expect(b.texte).not.toMatch(/\bici\b|renvoy|à nouveau|écrivez|répond/i); // aucune invitation à répondre ni à renvoyer
     expect(b.texte.toLowerCase()).not.toContain(["gren", "oble"].join(""));
     expect(b.texte.split(/[.?!]\s/).length).toBeLessThanOrEqual(4); // une ou deux phrases après la mention
     expect(rendreTexteMp("mp-m2-v1", {})).toBe(TEXTES_MP["mp-m2-v1"].texte); // textes validés inchangés
+  });
+});
+
+describe("garde de validation du texte", () => {
+  it("brouillon non validé (paramètre absent) + 422 : 0 envoi, plafond inchangé, alerte, site_refuse, événement traité", async () => {
+    await Com.ecrireParametre(PARAM_VALIDATION, null);
+    site.reponses = refuse;
+    const avant = JSON.stringify(await Com.lireParametre(PARAM_COMPTEURS, {}));
+    const id = await ecrireAdresse("msg-v1");
+    expect(port.envoyes).toHaveLength(0);
+    expect(JSON.stringify(await Com.lireParametre(PARAM_COMPTEURS, {}))).toBe(avant);
+    const non = (await depots().evenements.lister((e: any) => /n'est pas validé dans Mots/.test(e.message))).length;
+    expect(non).toBe(1);
+    const etat = await etatDe();
+    expect(etat).toMatchObject({ etat: "site_refuse", dernierCode: "422" });
+    expect(etat.adresseRefuseeEnvoyee).not.toBe(true);
+    expect((await evenement(depots, id)).traite).toBe(true);
+  });
+
+  it("empreinte différente : 0 envoi", async () => {
+    await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: "0".repeat(64) });
+    site.reponses = refuse;
+    await ecrireAdresse("msg-v2");
+    expect(port.envoyes).toHaveLength(0);
+    expect(await etatDe()).toMatchObject({ etat: "site_refuse" });
+  });
+
+  it("validé : 1 envoi", async () => {
+    site.reponses = refuse;
+    await ecrireAdresse("msg-v3");
+    expect(port.envoyes).toHaveLength(1);
   });
 });
 
@@ -72,19 +108,35 @@ describe("422 du site : un seul message", () => {
     site.reponses = refuse;
     const id = await ecrireAdresse("msg-a1");
     expect(port.envoyes).toHaveLength(1);
-    expect(port.envoyes[0].texte).toBe(TEXTES_MP_BROUILLONS["mp-adresse-refusee-v1"].texte);
+    expect(port.envoyes[0].texte).toBe(TEXTES_MP_BROUILLONS["mp-adresse-refusee-v2"].texte);
     expect(port.envoyes[0].texte).not.toContain(ADRESSE_FICTIVE);
     expect(await etatDe()).toMatchObject({ etat: "site_refuse", dernierCode: "422" });
     expect((await evenement(depots, id)).traite).toBe(true);
     expect(await alertes()).toBeGreaterThan(0);
   });
 
-  it("deux 422 de suite (la personne renvoie une adresse refusée) : toujours UN seul message", async () => {
+  it("trois messages de suite (adresse refusée) : le site n'est appelé qu'une fois, un seul envoi, les deux suivants sont clos sans envoi", async () => {
     site.reponses = refuse;
-    await ecrireAdresse("msg-b1");
-    await ecrireAdresse("msg-b2", T0 + 2000);
-    await ecrireAdresse("msg-b3", T0 + 3000);
+    const b1 = await ecrireAdresse("msg-b1");
+    const b2 = await ecrireAdresse("msg-b2", T0 + 2000);
+    const b3 = await ecrireAdresse("msg-b3", T0 + 3000);
+    expect(site.vus).toHaveLength(1); // site_refuse ne lit que l'opposition : pas de nouvel appel
     expect(port.envoyes).toHaveLength(1);
+    for (const id of [b1, b2, b3]) expect((await evenement(depots, id)).traite).toBe(true);
+    expect(await etatDe()).toMatchObject({ etat: "site_refuse" });
+  });
+
+  it("après un 422, « stop » enregistre l'opposition et rien ne part", async () => {
+    site.reponses = refuse;
+    await ecrireAdresse("msg-s1");
+    expect(port.envoyes).toHaveLength(1);
+    port.reponses.texte = () => "stop";
+    const id = await deposerMessage(depots, { idMessage: "msg-s3" });
+    await passer(T0 + 3000);
+    expect(port.envoyes).toHaveLength(1);
+    expect((await evenement(depots, id)).charge.etat).toBe("oppose");
+    expect((await etatDe()).etat).toBe("oppose");
+    expect((await Com.lireParametre<any[]>(Opp.PARAM_OPPOSITIONS_MOTS, [])).length).toBeGreaterThan(0);
   });
 
   it("un réessai du même événement (message déjà parti) n'en renvoie pas un second", async () => {

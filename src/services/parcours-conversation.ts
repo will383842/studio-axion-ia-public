@@ -11,6 +11,7 @@
  *  - Journal : identifiant d'événement, état, code. Jamais adresse, texte, empreinte, corps d'appel ni clé.
  */
 import "server-only";
+import { createHash } from "node:crypto";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
@@ -24,7 +25,7 @@ import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { rendreTexteMp, TEXTES_MP, TEXTES_MP_BROUILLONS } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
-import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
+import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
 import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -756,10 +757,23 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
 async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
   if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
   if (await opposeeAvantEnvoi(cle, env)) return "fait";
+  // Garde de validation (échec fermé) : le texte brouillon ne part que si /mots en a validé l'empreinte exacte.
+  const brouillon = TEXTES_MP_BROUILLONS["mp-adresse-refusee-v2"];
+  const attendue = createHash("sha256").update(`${brouillon.version}\n${brouillon.texte}`).digest("hex");
+  let validee = false;
+  try {
+    validee = (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === attendue;
+  } catch {
+    validee = false;
+  }
+  if (!validee) {
+    await alerter("adresse_refusee_non_validee", "Le message « adresse refusée » n'est pas validé dans Mots : il n'est pas parti.", now);
+    return "fait";
+  }
   if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
   // Marqué AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
   await patcher(cle, { adresseRefuseeEnvoyee: true });
-  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: TEXTES_MP_BROUILLONS["mp-adresse-refusee-v1"].texte, cle: idMessage }));
+  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: brouillon.texte, cle: idMessage }));
   await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
   return "fait";
 }
