@@ -194,7 +194,12 @@ export async function transmettreOppositions(o: { port: PortInboxZernio; env?: E
       await journaliser("parcours_conversation", "Rattrapage des oppositions impossible (registre illisible) : nouvel essai plus tard.").catch(() => undefined);
     }
   }
-  await transmettrePage(o.port, env, now);
+  try {
+    await transmettrePage(o.port, env, now);
+  } catch {
+    // La voie « page » ne doit jamais bloquer l'ancienne file par adresse : un code seulement, nouvel essai au passage suivant.
+    await journaliser("parcours_conversation", "File des oppositions de la page illisible : nouvel essai plus tard ; la file par adresse continue.").catch(() => undefined);
+  }
   const attentes = Object.values(await lireFile()).filter((e) => e.etat === "a_transmettre" && now - Date.parse(e.creeLe) > ALERTE_ATTENTE_MS);
   if (attentes.length > 0) await alerter("attente_6h", "Une opposition (« stop ») attend depuis plus de 6 h d'être transmise au site. Elle reste gardée et sera réessayée ; vérifier le site et l'Inbox Zernio.", now);
   // Réservation sous verrou : une entrée en cours de traitement n'est pas reprise par un passage simultané.
