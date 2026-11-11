@@ -3,6 +3,8 @@
  * Un compte ne reçoit pas plus de `plafond` écritures vers Zernio par heure civile (UTC). Le plafond se règle par le paramètre
  * `parcours.conversations.plafonds` (un nombre, ou `{ heureCompte: nombre }`) ; absent ou invalide = défaut ; borné par le maximum.
  */
+/** Nom du paramètre lu par le parcours (même valeur que `PARAM_PLAFONDS_CONVERSATION` de parcours-conversation.ts, figée par test) ; la carte « Plafonds » de /mots l'écrit. */
+export const PARAM_PLAFONDS_CONVERSATION_NOM = "parcours.conversations.plafonds";
 export const PLAFOND_CONVERSATION_HEURE_COMPTE_DEFAUT = 30;
 export const PLAFOND_HEURE_COMPTE_MAX = 600;
 export const LOT_MAX_PAR_PASSAGE_CONVERSATION = 20;
