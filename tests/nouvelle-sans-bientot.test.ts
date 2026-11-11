@@ -53,12 +53,13 @@ describe("barre latérale : état actif sur les sous-pages", () => {
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
   });
 
-  it("/formats/avocat : le format porte aria-current, « Mes vidéos » reste allumé sans l'annoncer une 2e fois", () => {
-    const html = rendre("/formats/avocat");
-    expect(balise(html, "/formats/avocat")).toContain('aria-current="page"');
-    expect(balise(html, "/videos")).not.toContain("aria-current");
-    expect(balise(html, "/videos")).toContain("bg-surface-2 text-texte");
-    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  it("/formats/avocat et /cas-concret : « Mes vidéos » reste allumé (une seule annonce), plus de ligne de format", () => {
+    for (const c of ["/formats/avocat", "/cas-concret"]) {
+      const html = rendre(c);
+      expect(html).not.toContain('href="/formats/avocat"');
+      expect(balise(html, "/videos")).toContain('aria-current="page"');
+      expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    }
   });
 
   it("/videos : « Mes vidéos » porte aria-current", () => {

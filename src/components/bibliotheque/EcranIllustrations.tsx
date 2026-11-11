@@ -80,7 +80,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
           <AnimatePresence initial={false}>
             {visibles.map((e) => (
               <motion.li key={e.id} layout initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }}>
-                <button type="button" onClick={() => setOuvertId(e.id)} className="group relative block aspect-[9/16] w-full overflow-hidden rounded-2xl border border-trait bg-surface-2 text-left">
+                <button type="button" onClick={() => setOuvertId(e.id)} className="theme-sombre group relative block aspect-[9/16] w-full overflow-hidden rounded-2xl border border-trait bg-surface-2 text-left">
                   <div data-carte className="absolute inset-0">
                     {e.vignette && <Image src={e.vignette} alt={e.nom} fill sizes="(max-width: 640px) 33vw, 200px" className="object-cover transition-transform duration-500 group-hover:scale-[1.05]" />}
                     {e.type === "illustration-video" && e.url && <ApercuVideoSurvol src={e.url} />}

@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { NAV_LATERALE, TUILES_PLUS, navigationLaterale, sectionsLaterales, tuilesPlusMobile, ONGLETS_BAS } from "../src/components/coquille/navigation";
 
 describe("entrée « Réponses automatiques » (ex-« Messages Zernio », 08/11)", () => {
-  it("barre latérale : présente une seule fois, dans « Publier et mesurer », sans le mot Zernio", () => {
+  it("barre latérale : présente une seule fois, dans « Publier », sans le mot Zernio", () => {
     const menu = navigationLaterale([], true, true);
     expect(menu.filter((e) => e.href === "/mots")).toHaveLength(1);
     expect(menu.find((e) => e.href === "/mots")?.libelle).toBe("Réponses automatiques");
     expect(menu.some((e) => /zernio/i.test(e.libelle))).toBe(false);
     const section = sectionsLaterales(true, true).find((s) => s.entrees.some((e) => e.href === "/mots"));
-    expect(section?.titre).toBe("Publier et mesurer");
+    expect(section?.titre).toBe("Publier");
     expect(NAV_LATERALE.some((e) => e.href === "/mots")).toBe(true);
   });
   it("feuille « Plus » : tuile présente une seule fois", () => {
