@@ -9,7 +9,7 @@ import type { Trois } from "./trois";
 
 /** Orange de la palette (rôle orange sur noir) : les objets sont posés sur le plateau noir. */
 const ORANGE = "#D97757";
-/** Gris sur noir (rôle de la palette) : bord de la pièce. */
+/** Crème : anneau de la sphère. */
 const CREME = "#FAF9F5";
 const SOMBRE = "#141413";
 
@@ -76,7 +76,7 @@ function ombres(objet: { traverse: (f: (o: { isMesh?: boolean; castShadow?: bool
   });
 }
 
-/** Écran du téléphone : fond sombre chaud, halo orange, logo et lignes de texte suggérées (canevas local). */
+/** Écran du téléphone : fond sombre, halo ivoire discret, tuile orange, « A » sombre (canevas local). */
 function texturEcran(T: Trois) {
   const c = document.createElement("canvas");
   c.width = 256;

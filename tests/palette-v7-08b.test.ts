@@ -78,6 +78,7 @@ describe("palette V7-08b", () => {
     const src = readFileSync(BASE + "effets/objets.ts", "utf8");
     it("ORANGE est l'orange sur noir, le bord de pièce est SOMBRE (5,90 sur le disque orange)", () => {
       expect(src).toContain('const ORANGE = "#D97757";');
+      expect(src).toContain('const SOMBRE = "#141413";');
       expect(src).not.toContain("matiere(T, GRIS");
       expect(src).not.toContain("#B23F16\";");
       expect(src).toContain("matiere(T, SOMBRE, { metal: 0.9");
