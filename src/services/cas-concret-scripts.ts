@@ -162,7 +162,8 @@ export async function apercuScriptCasConcret(videoId: Id): Promise<ApercuScriptC
   await exigerSession();
   try {
     return apercuDuTravail(await travailDeLaVideo(videoId));
-  } catch {
+  } catch (erreur) {
+    console.error("[studio] aperçu du script du cas concret illisible", videoId, erreur);
     return null;
   }
 }

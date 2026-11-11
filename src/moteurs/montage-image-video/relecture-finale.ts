@@ -152,7 +152,12 @@ export function instantsClesIV(l: Pick<LigneDeTempsIV, "plans" | "evenements" | 
     if (p.scene === "phrase-choc") {
       if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "phrase-choc", legende: "La phrase-choc de l'image, en entier.", bas: Math.min(apres, (dernierElement(p) ?? p.debut) + 0.5) });
     } else if (p.scene === "chiffre" || p.scene === "bandeau-chiffres") {
-      if (apres !== null && !dansOuv(apres)) brut.push({ instantSec: apres, sorte: "chiffre", legende: `Chiffre-choc : ${p.textes.map((t) => t.replace(/\*/g, "")).join(" · ") || "le chiffre de l'écran"}.`, bas: Math.min(apres, (dernierElement(p) ?? p.debut) + 0.5) });
+      // Plan chiffre : jamais pendant que le compteur défile ; au plus tôt à la fin du dernier compteur + 0,3 s (11/11/2026).
+      const finCompteurs = l.evenements.filter((e) => e.genre === "compteur" && e.instantSec >= p.debut - 1e-6 && e.instantSec < p.fin - 1e-6).map((e) => (e as { finSec?: number }).finSec ?? e.instantSec);
+      const apresCompteur = finCompteurs.length ? Math.max(...finCompteurs) + 0.3 : null;
+      const placeChiffre = apresCompteur === null || apresCompteur <= p.fin - 0.05 + 1e-9;
+      const instantChiffre = apres === null || apresCompteur === null ? apres : Math.max(apres, apresCompteur);
+      if (placeChiffre && instantChiffre !== null && !dansOuv(instantChiffre)) brut.push({ instantSec: instantChiffre, sorte: "chiffre", legende: `Chiffre-choc : ${p.textes.map((t) => t.replace(/\*/g, "")).join(" · ") || "le chiffre de l'écran"}.`, bas: Math.min(instantChiffre, (dernierElement(p) ?? p.debut) + 0.5) });
     } else if (p.sorte === "ensemble" || p.sorte === "recap") brut.push({ instantSec: milieu(p), sorte: "charniere", legende: p.sorte === "ensemble" ? "Vue d'ensemble du schéma (sans texte à lire)." : "Récapitulatif." });
   }
   const pF = l.plans.find((x) => l.segmentFin.debut >= x.debut - 1e-6 && l.segmentFin.debut < x.fin - 1e-6);

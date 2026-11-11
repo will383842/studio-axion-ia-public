@@ -1,4 +1,5 @@
 import { correctionEnAttente } from "@/services/recalque";
+import { etapeARelire } from "@/components/formats/cas-concret/fiche-video/a-relire";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -350,6 +351,11 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                 ) : d.travail && ficheCasConcretVisible(format) ? (
                   <>
                     {!(prete && d.travail.statut === "annule") && <SuiviCasConcret initial={d.travail} compacte={!enFabrication} annulable={peutAnnuler(v)} videoPrete={prete} />}
+                    {!scriptAValider && etapeARelire(d.travail) && (
+                      <p role="status" className="mt-4 rounded-carte border border-trait bg-surface-2 p-3 text-sm text-texte-doux">
+                        Le script n'a pas pu être chargé : rechargez la page.
+                      </p>
+                    )}
                     {aRelire && scriptAValider && <ValidationScript videoId={v.id} travailId={d.travail.id} ecrans={scriptAValider.ecrans} avertissements={scriptAValider.avertissements} />}
                   </>
                 ) : d.travail ? (

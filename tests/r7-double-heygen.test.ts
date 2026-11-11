@@ -52,6 +52,7 @@ const auth = await import("@/services/auth");
 const fabrication = await import("@/services/fabrication");
 const doublesHeygen = await import("@/services/doubles-heygen");
 const { ecrireParametre } = await import("@/services/_commun");
+const commun = await import("@/services/_commun");
 const { creerMoteurMontageAvocat } = await import("@/moteurs/montage-avocat");
 const { passagesSecondAngle, refusDouble, lignesDouble, cleRendu } = await import("@/moteurs/montage-avocat/double");
 const { RECETTE_MONTAGE_AVOCAT } = await import("@/formats/avocat");
@@ -105,6 +106,57 @@ describe("choisir mon double HeyGen (service)", () => {
     await expect(doublesHeygen.choisirDoubleHeygen(moi.id, { idExterne: "look_en_attente", angle: "face" })).rejects.toMatchObject({ code: "DOUBLE_PAS_PRET" });
     // Aucune demande payante, aucune création chez HeyGen.
     expect(heygen.requetes.every((r) => r.methode === "GET")).toBe(true);
+  });
+});
+
+describe("double HeyGen disparu du compte : le nouveau double le remplace (11/11/2026)", () => {
+  const { enregistrerRessource, horodatage } = commun;
+  const visage = (id: string, personnageId: string, extra: Record<string, unknown> = {}) => ({ id, personnageId, nom: `Visage ${id}`, angle: "trois-quarts", tenue: "", fondTournage: "x", posture: "assis", origine: "filme", statut: "pret", fichierIds: [], fournisseur: "heygen", versionFournisseur: "avatar_v", ...horodatage(), ...extra }) as never;
+  async function installer(idExterneAncien: string) {
+    const moi = (await depots().personnages.trouver((p) => p.nature === "moi"))!;
+    await depots().visages.enregistrer(visage("vis_A", moi.id));
+    await enregistrerRessource({ id: "rf_A", entite: "visage", entiteId: "vis_A", fournisseur: "heygen", idExterne: idExterneAncien, versionModele: "avatar_v", statut: "pret", ...horodatage() } as never);
+    await depots().visages.enregistrer(visage("vis_G", moi.id, { origine: "genere", fournisseur: "freepik", statut: "pret" }));
+    await depots().personnages.modifier(moi.id, { visageParDefautId: "vis_A", visageParFormat: { avocat: "vis_A", autre: "vis_G" } });
+    return moi;
+  }
+  it("A (disparu) par défaut + pour l'avocat, liste = {B} : B devient le défaut et le visage de l'avocat ; A rangé ; « genere » intact", async () => {
+    const moi = await installer("look_ancien_disparu");
+    const idB = await doublesHeygen.choisirDoubleHeygen(moi.id, { idExterne: "look_essai_tq_001", angle: "trois-quarts" });
+    const p = (await depots().personnages.obtenir(moi.id))!;
+    expect(p.visageParDefautId).toBe(idB);
+    expect(p.visageParFormat).toEqual({ avocat: idB, autre: "vis_G" });
+    expect((await depots().visages.obtenir("vis_A"))!.statut).toBe("brouillon");
+    expect((await depots().ressourcesFournisseurs.obtenir("rf_A"))!.remplaceeLe).toBeTruthy();
+    expect((await depots().visages.obtenir("vis_G"))!.statut).toBe("pret");
+  });
+  it("A encore dans la liste : rien ne change", async () => {
+    const moi = await installer("look_essai_tq_001");
+    await doublesHeygen.choisirDoubleHeygen(moi.id, { idExterne: "look_essai_tq_001", angle: "trois-quarts" });
+    const p = (await depots().personnages.obtenir(moi.id))!;
+    expect(p.visageParDefautId).toBe("vis_A");
+    expect(p.visageParFormat).toEqual({ avocat: "vis_A", autre: "vis_G" });
+    expect((await depots().visages.obtenir("vis_A"))!.statut).toBe("pret");
+    expect((await depots().ressourcesFournisseurs.obtenir("rf_A"))!.remplaceeLe).toBeUndefined();
+  });
+  it("liste HeyGen vide : rien n'est rangé", async () => {
+    const moi = await installer("look_ancien_disparu");
+    heygen.looks = [];
+    await expect(doublesHeygen.choisirDoubleHeygen(moi.id, { idExterne: "look_essai_tq_001", angle: "trois-quarts" })).rejects.toMatchObject({ code: "INTROUVABLE" });
+    expect((await depots().visages.obtenir("vis_A"))!.statut).toBe("pret");
+    expect((await depots().personnages.obtenir(moi.id))!.visageParDefautId).toBe("vis_A");
+  });
+});
+
+describe("erreur 404 de HeyGen : double disparu (11/11/2026)", () => {
+  it("avatar_not_found / look_not_found : message « n'existe plus » ; 404 sans code : ancien message", async () => {
+    const { erreurDepuisReponse } = await import("@/fournisseurs/heygen/client");
+    for (const code of ["avatar_not_found", "look_not_found"]) {
+      const e = erreurDepuisReponse(404, { error: { code, message: "x" } });
+      expect(e.message).toContain("n'existe plus");
+      expect(e.erreur).toMatchObject({ code: "refuse", reessayable: false });
+    }
+    expect(erreurDepuisReponse(404, null).message).toContain("HeyGen ne trouve pas cet élément");
   });
 });
 

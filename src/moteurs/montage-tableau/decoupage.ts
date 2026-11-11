@@ -328,6 +328,7 @@ GABARIT PAR PARTIES (habillage "${STYLE_REFERENCE_3}", le style des NOUVELLES fi
 - « À RETENIR » : L'IDÉE en UNE phrase clé (« bloc » « phrase-cle », ${BORNES_GABARIT_3.phraseMots} mots au plus, reprise du texte dit), écrite en grand ; pas de liste des étapes, pas de titre ;
 - LA QUESTION SUR L'IA (l'une de ${QUESTIONS_IA.map((q) => `« ${q} »`).join(", ")}) est DITE, jamais écrite, sur aucune page (pas même sur la page d'appel ni raccourcie) ;
 - LE NOM AXION-IA n'est écrit que sur la page d'appel (la dernière) : jamais dans un titre, une ligne, une étiquette ou un visuel d'une autre page (il peut être dit) ;
+- LA LIGNE DE LA PAGE D'APPEL : 6 mots / 35 caractères au plus ; plus longue, garde-la dite et écris une version courte ;
 - APPEL (dernière page, plein cadre) : la phrase d'appel en « bloc » « appel » (courte : « Réservez un appel de diagnostic »), au plus une autre phrase en « detail » ; axion-ia.com est ajouté d'office ;
 - chaque ligne est ancrée au PREMIER mot où la voix la dit (jamais plus tard) : elle s'écrit pendant qu'elle est dite ; un dessin au plus par page (il va à droite de l'étiquette) ;
 - une page courte (une seule phrase) reste courte : la mise en page agrandit son texte. N'ajoute JAMAIS de texte écrit qui n'est pas dit pour la remplir ;
@@ -694,7 +695,8 @@ function raisonPageDePlus(p: { regle: string; message: string }, brute: unknown,
     const debut = derniere.texteDit.split(/\s+/).filter(Boolean).slice(0, 8).join(" ");
     const garder = "gardez sur cette page UN détail OU le visuel";
     let quoi: string;
-    if (diag.type === "une-phrase" || diag.type === "coupe-impossible") quoi = `${garder}, ou raccourcissez une ligne écrite`;
+    if (diag.type === "appel-long") quoi = "raccourcissez la ligne écrite de la page d'appel (6 mots, 35 caractères au plus ; la phrase peut rester dite en entier) ou choisissez une phrase de fin plus courte";
+    else if (diag.type === "une-phrase" || diag.type === "coupe-impossible") quoi = `${garder}, ou raccourcissez une ligne écrite`;
     else if (diag.type === "scenes-max") quoi = `réunissez deux scènes voisines d'une autre page, ou ${garder}`;
     else if (diag.type === "pages-max") quoi = `réunissez deux pages courtes, ou ${garder}`;
     else if (scenes.length >= 2) quoi = `mettez la scène ${derniere.id} « ${debut} » seule sur une page NEUVE juste après (même partie, pages suivantes décalées de un)${diag.type === "regle-page" ? ", en respectant la règle citée" : ""}`;

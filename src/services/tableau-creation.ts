@@ -193,21 +193,20 @@ export function validerDonneesScript(brut: unknown): { ok: true; donnees: Donnee
   const texte = nettoyer(b.texte, TEXTE_MAX);
   if (texte.split(" ").filter(Boolean).length < 8) return { ok: false, phrase: "Écrivez le texte dit (quelques phrases)." };
   const serie = SERIES_TABLEAU.find((s) => s.code === b.serieCode);
-  if (!serie) return { ok: false, phrase: "Choisissez la série." };
   const structure = STRUCTURES_TABLEAU.find((s) => s === b.structure);
-  if (!structure) return { ok: false, phrase: "Choisissez la forme de la vidéo." };
   // Trop longue pour la fiche (140 caractères) : raccourcie à la première phrase entière qui tient, jamais refusée.
   const douleur = raccourcirDouleur(nettoyer(b.douleur, TEXTE_MAX));
-  if (!douleur) return { ok: false, phrase: "Dites en une phrase le problème de votre public." };
+  // Borne de la fiche (120 caractères) : coupé au mot, jamais refusé.
+  const gesteMinute = couperAuMot(nettoyer(b.gesteMinute, TEXTE_MAX), BORNES_FICHE.gesteMinuteMax);
+  // Tous les champs manquants d'un coup : un seul aller-retour pour l'utilisateur.
+  const manque = [!serie && "la série", !structure && "la forme", !douleur && "le problème", !gesteMinute && "le geste"].filter((x): x is string => !!x);
+  if (!serie || !structure || !douleur || !gesteMinute) return { ok: false, phrase: `Il manque : ${manque.join(", ")}.` };
   const motsDouleur = nettoyerMotsDouleur(Array.isArray(b.motsDouleur) || typeof b.motsDouleur === "string" ? (b.motsDouleur as string[] | string) : []);
   if (motsDouleur.length > MOTS_DOULEUR_MAX) return { ok: false, phrase: `Donnez ${MOTS_DOULEUR_MAX} mots de la douleur au plus.` };
   const motVide = motsDouleur.find((m) => !motsPleins(m).length);
   if (motVide) return { ok: false, phrase: `Le mot de la douleur « ${motVide} » ne porte aucun sens : prenez un mot plein (un verbe, un nom) dit au début du texte.` };
   const absent = motsDouleur.find((m) => !contientExpression(texte, m));
   if (absent) return { ok: false, phrase: `Le mot de la douleur « ${absent} » n'est pas dans le texte dit : recopiez-le tel qu'il est dit, ou retirez-le.` };
-  // Borne de la fiche (120 caractères) : coupé au mot, jamais refusé.
-  const gesteMinute = couperAuMot(nettoyer(b.gesteMinute, TEXTE_MAX), BORNES_FICHE.gesteMinuteMax);
-  if (!gesteMinute) return { ok: false, phrase: "Dites le geste à refaire dans la minute." };
   const fin = b.finId ? TABLE_FINS.find((f) => f.id === b.finId) : null;
   if (b.finId && !fin) return { ok: false, phrase: "Cette phrase de fin n'existe pas." };
   const avecMot = !!fin && (fin.dit.includes(EMPLACEMENT_MOT) || fin.ecran.includes(EMPLACEMENT_MOT));

@@ -725,7 +725,21 @@ async function lireTravauxAffiches(options: { inclureTermines?: boolean }, cible
   );
   travaux.sort((a, b) => b.creeLe.localeCompare(a.creeLe));
   const places = await placesDansLaFile();
-  return Promise.all(travaux.map((t) => versVue(t, places.get(t.id))));
+  // Accueil seulement : pas d'échec périmé (vidéo archivée, prête, absente, ou travail plus récent). Rien n'est effacé.
+  const affiches = cibleId === undefined ? await sansEchecsPerimes(travaux) : travaux;
+  return Promise.all(affiches.map((t) => versVue(t, places.get(t.id))));
+}
+
+async function sansEchecsPerimes(travaux: Travail[]): Promise<Travail[]> {
+  if (!travaux.some((t) => t.statut === "echec")) return travaux;
+  const d = depots();
+  const videos = new Map((await d.videos.lister(() => true)).map((v) => [v.id, v]));
+  // Le travail le plus récent de chaque vidéo, tous statuts confondus (un ancien terminé compte aussi).
+  const dernier = new Map<string, string>();
+  for (const x of await d.travaux.lister(() => true, (t) => ({ id: t.id, cibleId: t.cibleId, creeLe: t.creeLe }) as Travail)) {
+    if ((dernier.get(x.cibleId) ?? "") < x.creeLe) dernier.set(x.cibleId, x.creeLe);
+  }
+  return travaux.filter((t) => travailAfficheALAccueil(t, videos.get(t.cibleId), (dernier.get(t.cibleId) ?? "") > t.creeLe));
 }
 
 /** Travaux à afficher : actifs + en échec + terminés depuis moins de 2 minutes. N'avance rien (la boucle de fond s'en charge). */
@@ -935,4 +949,15 @@ export function avecDelai<T>(promesse: Promise<T>, ms: number): Promise<T> {
     minuterie = setTimeout(() => rejeter(Object.assign(new Error(`Délai de ${Math.round(ms / 1000)} s dépassé`), { reessayable: true, delaiDepasse: true })), ms);
   });
   return Promise.race([promesse, delai]).finally(() => clearTimeout(minuterie));
+}
+
+/**
+ * Accueil seulement : faut-il montrer ce travail ? Un travail actif (en cours, en file) ou terminé se montre toujours.
+ * Un travail EN ÉCHEC se masque (sans rien effacer) quand sa vidéo est absente, archivée ou prête, ou qu'un travail plus
+ * récent existe pour la même vidéo. `video` : `undefined` = introuvable. PUR.
+ */
+export function travailAfficheALAccueil(t: Pick<Travail, "statut" | "type">, video: Pick<Video, "statut"> | undefined, plusRecent: boolean): boolean {
+  if (t.statut !== "echec") return true;
+  if (!video || video.statut === "archivee" || video.statut === "prete") return false;
+  return !plusRecent;
 }
