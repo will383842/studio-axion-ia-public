@@ -26,12 +26,11 @@ describe("plages du calendrier (D6-02)", () => {
     expect(s.finIso).toBe("2027-03-28T21:59:59.999Z");
   });
 
-  it("dimanche 23:30 UTC (= lundi 00:30 Paris à l'heure d'hiver) tombe dans la semaine suivante", () => {
-    const jourParis = "2026-11-02"; // 2026-11-01T23:30Z = lundi 2 novembre 00:30 à Paris
-    expect(lundiDeLaSemaine(jourParis)).toBe("2026-11-02");
-    const s = plageSemaine(jourParis);
-    expect("2026-11-01T23:30:00.000Z" >= s.debutIso).toBe(true);
-    expect("2026-11-01T22:59:59.999Z" >= s.debutIso).toBe(false);
+  it("dimanche 23:30 UTC (= lundi 00:30 Paris) : la borne de la semaine du 2/11 est à 23:00Z, pas plus tôt", () => {
+    // Le rangement instant -> jour de Paris est exercé dans calendrier-lecture.test.ts (listerCalendrier).
+    expect(lundiDeLaSemaine("2026-11-02")).toBe("2026-11-02");
+    expect(plageSemaine("2026-11-02").debutIso).toBe("2026-11-01T23:00:00.000Z");
+    expect(plageSemaine("2026-11-01").finIso).toBe("2026-11-01T22:59:59.999Z");
   });
 
   it("un mois = 6 × 7 jours, commence un lundi", () => {
