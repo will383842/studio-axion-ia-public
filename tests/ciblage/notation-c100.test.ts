@@ -64,6 +64,11 @@ describe("C100 : la cible déclarée est nommée dans les 5 premières secondes"
     expect(r).toContain("C102");
     expect(r).not.toContain("C100");
   });
+  it("cible au libellé vide : C102 (information), pas de C100", () => {
+    const r = leve(cible("metier", "   "), "On recrute nos collaborateurs en quinze minutes.");
+    expect(r).toContain("C102");
+    expect(r).not.toContain("C100");
+  });
   it("cible déclarée : pas de C102", () => {
     expect(leve(cible("metier", "plombier"), "Plombier, un devis dort.")).not.toContain("C102");
   });
