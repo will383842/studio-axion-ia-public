@@ -6,10 +6,13 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import type { Reseau } from "@/briques/visuels/reseaux";
 import type { MotifRefus } from "@/domaine/visuels/visuel";
+import { programmerEnUnClic } from "@/components/visuels/BoutonProgrammerVisuel";
 import { exigerSession } from "@/services/auth";
+import type { DepotsPasserelle } from "@/services/plan-vers-publication";
 import { ErreurVisuel, lancerRendu, preparerPourReseaux, PHRASE_GENERATEUR_ETEINT, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { mettreALaCorbeille, restaurer } from "@/visuels/services/corbeille";
 import { codeErreur, dependancesCarrousels, lireIdFormulaire } from "@/visuels/services/production";
+import { depots, maintenant } from "@/services/_commun";
 
 const MOTIFS: readonly string[] = ["texte", "mise_en_page", "sujet", "ton", "autre"];
 
@@ -89,4 +92,20 @@ export async function preparerReseauxAction(donnees: FormData): Promise<void> {
   await exigerSession();
   const reseaux = donnees.getAll("reseau").filter((r): r is Reseau => r === "linkedin" || r === "instagram" || r === "facebook");
   await agir(donnees, (id, deps) => preparerPourReseaux(id, reseaux, deps));
+}
+
+/** « Programmer » : un clic crée le créneau du plan et programme le visuel (lignes du Studio seulement, aucun envoi). */
+export async function programmerAction(donnees: FormData): Promise<void> {
+  await exigerSession();
+  const jour = donnees.get("jour");
+  await agir(donnees, async (id) => {
+    const d = depots();
+    const passerelle: DepotsPasserelle = {
+      creneaux: d.creneauxEditoriaux as unknown as DepotsPasserelle["creneaux"],
+      journal: d.journalDecalages,
+      publications: d.publications,
+      visuels: d.visuels,
+    };
+    await programmerEnUnClic(passerelle, id, typeof jour === "string" ? jour : "", maintenant());
+  });
 }
