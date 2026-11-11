@@ -8,6 +8,8 @@
 const J = (...p: string[]) => p.join("");
 const FAMILLE = J("cert", "ifi");
 const NOM_QUALITE = J("quali", "opi");
+const VILLE = J("gre", "noble");
+const PROMESSE_GAIN = J("aucun\\s+gain\\s+", "garanti");
 
 const RACINES: readonly { libelle: string; motif: RegExp }[] = [
   // Famille du participe : la racine sans frontière de gauche (préfixes, mots collés, #mot-dièse) ; seule la série
@@ -15,6 +17,10 @@ const RACINES: readonly { libelle: string; motif: RegExp }[] = [
   { libelle: J("cert", "ifié"), motif: new RegExp(`${FAMILLE}(?!cat(?!ion))`) },
   // Nom du label qualité : la racine seule, sans aucune frontière (aucun mot légitime ne la contient).
   { libelle: J("Quali", "opi"), motif: new RegExp(NOM_QUALITE) },
+  // Ville interdite (règle éditoriale permanente) : la racine, sans frontière (mots collés, #mot-dièse).
+  { libelle: J("Gre", "noble"), motif: new RegExp(VILLE) },
+  // Promesse de gain : l'expression entière, espaces multiples tolérés (le texte est mis à plat avant la recherche).
+  { libelle: J("Aucun gain ", "garanti"), motif: new RegExp(PROMESSE_GAIN) },
 ];
 
 // Caractères invisibles écrits en séquences d'échappement : trait d'union conditionnel, espaces sans largeur,
