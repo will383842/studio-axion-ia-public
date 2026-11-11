@@ -312,3 +312,17 @@ describe("lot A2 : finitions du socle", () => {
     expect(deduireCiblage("une coiffeuse")?.libelle).toBe("coiffeur");
   });
 });
+
+describe("lot A2 (relecture) : le féminin ne crée pas de fausse cible", () => {
+  it("médecine et transporté ne sont ni médecin ni transport", () => {
+    expect(deduireCiblage("la médecine du travail")).toBeNull();
+    expect(deduireCiblage("un colis transporté")).toBeNull();
+  });
+  it("les vrais féminins restent reconnus", () => {
+    expect(deduireCiblage("une avocate")?.libelle).toBe("avocat");
+    expect(deduireCiblage("les agentes immobilières")?.libelle).toBe("agent immobilier");
+    expect(deduireCiblage("une boulangère")?.libelle).toBe("boulanger");
+    expect(deduireCiblage("une experte-comptable")?.libelle).toBe("expert-comptable");
+    expect(deduireCiblage("une formatrice")?.libelle).toBe("formateur");
+  });
+});
