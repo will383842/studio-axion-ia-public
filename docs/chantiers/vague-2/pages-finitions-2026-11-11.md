@@ -19,5 +19,5 @@ Périmètre relu : accueil, vidéos, bibliothèque, personnages, modèles, mesur
 
 ## Vérifications
 - `npx vitest run tests/theme-clair.test.ts tests/ciblage` : 19 fichiers, 156 tests verts.
-- `npx tsc --noEmit -p .` : erreurs uniquement dans `tests/zernio/*` (déjà présentes sur master, hors périmètre) ; aucune dans `src/`.
+- `npx tsc --noEmit -p .` : 146 erreurs, dans `tests/` et `docs/` (module `remotion` absent, types de tests), non liées à ce changement ; Les 7 erreurs de `src/` sont des types globaux Next générés (`RouteContext`, `LayoutProps`) absents sans build.
 - Note : pas de `package-lock.json` (seulement `pnpm-lock.yaml`), `npm ci` échoue ; installé avec `npm install --no-package-lock`.
