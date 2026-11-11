@@ -79,19 +79,39 @@ describe("L7-08 · deux réglages, deux portes", () => {
     }
   });
 
-  it("envoi du calendrier (écran À publier) : refusé tant que le nouveau est absent ou que l'ancien est fermé", async () => {
-    for (const [a, n] of [[true, undefined], [false, true]] as const) {
-      await reglages(a, n);
+  it("envoi du calendrier (écran À publier) : refusé par le nouveau réglage quand l'ancien est ouvert et le nouveau absent ou fermé", async () => {
+    for (const nouveau of [undefined, false] as const) {
+      await reglages(true, nouveau);
+      const { client, faux } = creerFauxClientZernio([]);
+      Z.injecterClientZernio(client);
       const r = await envoyerParOutilAction("video-exemple", "instagram", "2030-01-01T10:00:00Z", { outil: "zernio" });
       expect(r.ok).toBe(false);
       if (!r.ok) expect(r.code).toBe("ENVOI_CALENDRIER_FERME");
+      expect(faux.appels).toHaveLength(0);
+    }
+  });
+
+  it("« Tout arrêter » (ancien fermé) : rien ne part, et le refus n'est PAS celui du nouveau réglage (comportement d'avant conservé)", async () => {
+    for (const nouveau of [undefined, true] as const) {
+      await reglages(false, nouveau);
+      const { client, faux } = creerFauxClientZernio([]);
+      Z.injecterClientZernio(client);
+      const r = await envoyerParOutilAction("video-exemple", "instagram", "2030-01-01T10:00:00Z", { outil: "zernio" });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.code).not.toBe("ENVOI_CALENDRIER_FERME");
+      expect(faux.appels.filter((a) => a.methode !== "GET")).toHaveLength(0);
     }
   });
 
   it("envoi du calendrier, les deux ouverts : la porte s'ouvre (le refus suivant n'est plus celui du réglage)", async () => {
     await reglages(true, true);
     const r = await envoyerParOutilAction("video-exemple", "instagram", "2030-01-01T10:00:00Z", { outil: "zernio" });
-    if (!r.ok) expect(r.code).not.toBe("ENVOI_CALENDRIER_FERME");
+    // La vidéo « video-exemple » n'existe pas dans ce test : l'issue attendue est un refus d'un autre ordre, jamais celui du réglage.
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).not.toBe("ENVOI_CALENDRIER_FERME");
+      expect(r.code).toBe("PAS_PRETE");
+    }
   });
 
   it("promotion brouillon → programmé : refusée sans un seul appel tant que les deux ne sont pas ouverts", async () => {
