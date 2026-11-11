@@ -10,10 +10,17 @@ import { depots } from "./_commun";
 import { urlFichier } from "./fichiers";
 import { reseauxParDefaut } from "./formats-voulus";
 import type { ResumeFormat, VueElement, VueModele, VueVideoCarte } from "./vues";
+import { estDoublonPossible } from "@/domaine/ciblage/listes";
 
 export function resumeFormat(formatId: string): ResumeFormat {
   const f = trouverFormat(formatId);
   return f ? { id: f.id, nom: f.nom, icone: f.icone, statut: f.statut } : { id: formatId, nom: formatId, icone: "film", statut: "masque" };
+}
+
+/** Lecture seulement si le script déclare des jumeaux (rare) : pas de lecture supplémentaire sinon. */
+async function jumeauxExistants(ids: readonly string[] | undefined): Promise<Set<string>> {
+  if (!ids?.length) return new Set();
+  return new Set((await depots().scripts.lister((s) => ids.includes(s.id))).map((s) => s.id));
 }
 
 export async function versCarte(v: Video): Promise<VueVideoCarte> {
@@ -31,6 +38,7 @@ export async function versCarte(v: Video): Promise<VueVideoCarte> {
   // Lot M : réseau(x) de la vidéo ; la livraison image → vidéo de la version choisie est lue avec prudence.
   const version = versionId ? await d.versions.obtenir(versionId) : null;
   const iv = version?.projetMontage?.imageVideo;
+  const script = v.scriptId ? await d.scripts.obtenir(v.scriptId) : null;
   const { reseaux, precis } = reseauxDeLaVideo({
     reseau: v.reseau,
     entreesIV: (v.entrees?.imageVideo as { reseaux?: unknown } | undefined)?.reseaux,
@@ -64,6 +72,8 @@ export async function versCarte(v: Video): Promise<VueVideoCarte> {
     corbeilleLe: v.corbeilleLe,
     reseaux,
     reseauxPrecis: precis,
+    typeAutomatisation: v.typeAutomatisation,
+    doublonPossible: script ? estDoublonPossible(script, await jumeauxExistants(script.doublonsPossibles)) : undefined,
   };
 }
 

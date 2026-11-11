@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BadgeDoublon } from "@/components/ciblage/BadgeDoublon";
 import { Icone } from "@/components/ui/Icone";
 import { insecable } from "@/lib/textes";
 import { PastilleEtat } from "@/components/ui/PastilleEtat";
@@ -65,6 +66,7 @@ export function CarteVideo({
           )}
           <span className="shrink-0"><IlYA iso={v.modifieLe} /></span>
         </p>
+        {v.doublonPossible && <BadgeDoublon className="mt-1.5" />}
         {v.reseaux && v.reseaux.length > 0 && <PastillesReseaux reseaux={v.reseaux} precis={v.reseauxPrecis ?? false} className="mt-1.5" />}
       </div>
     </Link>
