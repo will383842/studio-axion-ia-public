@@ -84,7 +84,7 @@ describe("session exigée", () => {
   });
 });
 
-const vueVide = { guidePerime: false, interrupteurAllume: false, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 100 }, lignes: [] as LigneMot[], oppositions: 0, guideValide: false };
+const vueVide = { guidePerime: false, interrupteurAllume: false, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 100 }, lignes: [] as LigneMot[], oppositions: 0, parcoursAllume: false, oppositionsNonTransmises: 0, guideValide: false };
 const services = () => ({
   mettreEnPause: vi.fn(),
   reactiver: vi.fn(),
@@ -119,7 +119,7 @@ describe("écran", () => {
   });
   it("dictionnaire inchangé", () => {
     const h = createHash("sha256").update(readFileSync("contrats/dictionnaire-textes-mp.v2.json")).digest("hex");
-    expect(h).toBe("2acad2a6ed24250b65df4e6693c6e0614bafe4921140e119aa53b21d9ee4671e");
+    expect(h).toBe("8b013522803455ca50baa12d60159ce72dfa55b9178b335ab863c32b637a57a9");
   });
 });
 

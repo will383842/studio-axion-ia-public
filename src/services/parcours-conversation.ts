@@ -11,6 +11,7 @@
  *  - Journal : identifiant d'événement, état, code. Jamais adresse, texte, empreinte, corps d'appel ni clé.
  */
 import "server-only";
+import { createHash } from "node:crypto";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
@@ -18,13 +19,15 @@ import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCT
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { DELAI_PERIME_MS, doitExpirer, transition, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { DELAI_PERIME_MS, doitExpirer, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
+import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
+import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
-import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
+import { empreinteAdresseRefusee, lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS, PARAM_VALIDATION_M1_LIEN } from "./mots-service";
 import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -369,6 +372,69 @@ function etatNeuf(etat: Conversation["etat"], c: Record<string, unknown>, d: Dep
   };
 }
 
+/* --- M1 avec lien signé (Z3a-Studio-2) ------------------------------------------------------------------------- */
+/** Interrupteur du lien dans M1 : éteint par défaut ; seules les valeurs 1, true, oui l'allument. */
+export function parcoursLienGuideActif(env: Env = process.env): boolean {
+  return /^(1|true|oui)$/i.test(env.PARCOURS_LIEN_GUIDE?.trim() ?? "");
+}
+const RAISONS_REPLI_LIEN: Record<Exclude<CodeRepliLien, "lien_eteint">, string> = {
+  secret_lien_absent: "secret du lien absent ou invalide",
+  texte_lien_non_valide: "texte avec lien non validé dans Mots",
+  compte_lien_inconnu: "compte absent de la table des noms courts",
+  jeton_invalide: "jeton refusé",
+  lien_trop_long: "lien trop long",
+  forme_refusee: "lien de forme non permise",
+};
+const LONGUEUR_MAX_M1_LIEN = 1000;
+const RE_NOM_COURT_COMPTE = /^[a-z0-9_]{2,40}$/;
+const RE_OPAQUE_LIEN = /^[A-Za-z0-9_-]{1,64}$/;
+/** `LIEN_GUIDE_COMPTES` = « idCompteZernio=nom_court,idCompte2=nom2 » : le nom court du compte, ou null. */
+function nomCourtCompte(env: Env, idCompte: string): string | null {
+  for (const paire of (env.LIEN_GUIDE_COMPTES ?? "").split(",")) {
+    const i = paire.indexOf("=");
+    if (i < 1 || paire.slice(0, i).trim() !== idCompte) continue;
+    const nom = paire.slice(i + 1).trim();
+    return RE_NOM_COURT_COMPTE.test(nom) ? nom : null;
+  }
+  return null;
+}
+async function texteLienValide(): Promise<boolean> {
+  try {
+    const b = TEXTES_MP[VERSION_M1_LIEN];
+    const attendue = createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex");
+    return (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_M1_LIEN, null))?.empreinte === attendue;
+  } catch {
+    return false; // échec fermé vers M1 v2, jamais vers « pas de M1 »
+  }
+}
+/**
+ * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
+ * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
+ */
+async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; codeRepli?: CodeRepliLien }> {
+  // Le journal et l'alerte du repli ne sont PAS émis ici : l'appelant les émet une fois l'envoi réservé (ni opposition, ni plafond).
+  const repli = async (code: CodeRepliLien) => ({ texte: rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide }), version: TEXTES_MP["mp-m1-v2"].version, codeRepli: code });
+  if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
+  const secret = lireSecretLien(env);
+  if (secret === null) return repli("secret_lien_absent");
+  if (!(await texteLienValide())) return repli("texte_lien_non_valide");
+  const compte = nomCourtCompte(env, e.idCompte);
+  if (compte === null) return repli("compte_lien_inconnu");
+  const conv = e.refLienConv || refConversationLien(cles.courante.secret.toString("utf8"), e.cleIdempotenceGuide);
+  let jeton: string;
+  try {
+    jeton = creerJetonLien({ conv, mot: MOT, reseau: e.reseau, guide: e.guide, compte, ...(e.idPostPlateforme && RE_OPAQUE_LIEN.test(e.idPostPlateforme) ? { post_ref: e.idPostPlateforme } : {}), version_m1: VERSION_M1_LIEN }, secret, now);
+  } catch {
+    return repli("jeton_invalide"); // jamais e.message
+  }
+  const lien = construireLienGuide(jeton);
+  if (lien === null) return repli("lien_trop_long");
+  const texte = rendreTexteMp(VERSION_M1_LIEN, { mot: MOT, titre: d.titreGuide, lien });
+  // Borne de M1 v3 : 1 000 unités de texte (texte.length), pas les 2 000 du dictionnaire ; au-delà, M1 v2.
+  if (texte === null || texte.length > LONGUEUR_MAX_M1_LIEN || !texteDuDictionnaire(texte, false) || !formeLienPageGuide(lien)) return repli("forme_refusee");
+  return { texte, version: VERSION_M1_LIEN, ...(e.refLienConv ? {} : { refLienConv: conv }) };
+}
+
 async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk): Promise<"traite" | "bloque"> {
   let e = await lireEtat(cle);
   if (!e) return "traite";
@@ -415,7 +481,8 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
-  const texteM1 = rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide });
+  const m1 = await preparerM1(e, d, env, cles, now);
+  const texteM1 = m1.texte;
   if (texteM1 === null) {
     await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: "texte_incomplet" });
     await clore(ev, "m1_refuse", "texte_incomplet");
@@ -426,8 +493,12 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (!(await reserverOuReporter(ev, idCompte, now))) return "bloque"; // réservation avant tout changement d'état
+  if (m1.codeRepli && m1.codeRepli !== "lien_eteint") {
+    await journaliser("parcours_conversation", `Lien du 1er message non utilisé : ${m1.codeRepli}.`);
+    await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
+  }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
@@ -727,7 +798,9 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   let enV3 = version === 3;
   let statut = 0;
   let corpsReponse: unknown = null;
-  for (let n = 0; n < ESSAIS_NONCE; n++) {
+  // Réessai après un report au plafond : le refus 422 est déjà connu, on ne rappelle pas le site.
+  if (etat.adresseRefuseeEnAttente === true) statut = 422;
+  for (let n = 0; n < ESSAIS_NONCE && etat.adresseRefuseeEnAttente !== true; n++) {
     const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
     try {
       const r = await site.transport({ methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, entetes });
@@ -757,7 +830,14 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     p.pannes = 0;
     await alerter("site_disjoncteur", `Le site des guides ne répond pas : ${DISJONCTEUR_SEUIL} pannes de suite, pause de ${DISJONCTEUR_PAUSE_MS / 60_000} minutes.`, now);
   }
-  await patcher(cle, { ...(s.patch ?? {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
+  // Z2 : le site refuse l'ADRESSE (422) : UN seul message demande de la vérifier (jamais deux, rien si opposée, plafond respecté).
+  // AVANT de passer l'état à « site_refuse » : si le plafond reporte l'événement, l'état est intact et le réessai reprend ici.
+  if (s.action === "site_refuse" && s.code === "422" && (await prevenirAdresseRefusee(ev, d, env, cle, etat, idConversation, idMessage, now)) === "bloque") {
+    // Le refus est connu : on le note pour que le réessai ne rappelle PAS le site (une seule demande au site par refus).
+    await patcher(cle, { adresseRefuseeEnAttente: true });
+    return "bloque";
+  }
+  await patcher(cle, { ...(s.patch ?? {}), ...(etat.adresseRefuseeEnAttente ? { adresseRefuseeEnAttente: false } : {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
   if (s.action === "site_reessai") {
     await reporter(ev, now, s.apresMs ?? 60_000, s.code ?? "reessai", code === "409_en_cours" ? { enCours: Number(c.enCours ?? 0) + 1 } : {});
     return "traite";
@@ -770,6 +850,31 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   }
   const maj = await lireEtat(cle);
   return envoyerRecu(ev, d, env, cle, maj ?? etat, idConversation, idMessage, now);
+}
+
+/** Z2 : message unique « vérifiez votre adresse ». « bloque » = plafond atteint (l'événement est reporté, rien n'est consommé). */
+async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
+  if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
+  if (await opposeeAvantEnvoi(cle, env)) return "fait";
+  // Garde de validation (échec fermé) : le texte ne part que si /mots en a validé l'empreinte exacte.
+  const brouillon = TEXTES_MP["mp-adresse-refusee-v2"];
+  const attendue = empreinteAdresseRefusee();
+  let validee = false;
+  try {
+    validee = (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === attendue;
+  } catch {
+    validee = false;
+  }
+  if (!validee) {
+    await alerter("adresse_refusee_non_validee", "Le message « adresse refusée » n'est pas validé dans Mots : il n'est pas parti.", now);
+    return "fait";
+  }
+  if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+  // Marqué AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
+  await patcher(cle, { adresseRefuseeEnvoyee: true });
+  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: brouillon.texte, cle: idMessage }));
+  await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
+  return "fait";
 }
 
 async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"traite" | "bloque"> {
