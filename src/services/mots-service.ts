@@ -117,20 +117,29 @@ async function ecrireGardes(g: Gardes, fermer = false): Promise<void> {
   await ecrireParametre(PARAM_GARDES_MOTS, g);
 }
 
-/** Plafonds réglables par l'opérateur, jamais au-dessus de 600 par heure et par compte. */
+/**
+ * Plafonds réglables par l'opérateur. DEUX réglages distincts :
+ * - `heureCompte` : le plafond que le parcours de conversation LIT (`parcours.conversations.plafonds`, 1 à 600, défaut 30) ;
+ *   il est refusé s'il n'est pas un nombre d'au moins 1 (jamais de repli silencieux sur le défaut) ;
+ * - `jourMot` : plafond par mot et par jour (gardes). Les gardes `heureCompte` (seuil du disjoncteur, 600) ne sont JAMAIS écrites ici.
+ * Seul le champ fourni est écrit.
+ */
 export async function reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<Gardes["plafonds"]> {
+  if (p.heureCompte !== undefined && !(Number.isFinite(p.heureCompte) && Math.floor(p.heureCompte) >= 1)) {
+    throw new Error("Plafond par heure invalide : indiquez un nombre d'au moins 1 (0 ne coupe pas les envois ; utilisez la pause ou « Tout arrêter »).");
+  }
   return sousVerrou(async () => {
     const g = await lireGardes();
-    const borne = (v: number, max: number) => Math.max(0, Math.min(max, Math.floor(Number.isFinite(v) ? v : 0)));
     if (p.heureCompte !== undefined) {
-      // Le parcours de conversation lit `parcours.conversations.plafonds` : c'est CE réglage que la carte écrit (0 = invalide côté parcours, il retombe sur son défaut).
-      g.plafonds.heureCompte = borne(p.heureCompte, PLAFOND_HEURE_COMPTE_MAX);
+      const valeur = Math.min(PLAFOND_HEURE_COMPTE_MAX, Math.floor(p.heureCompte));
       const ancien = await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined);
       const base = typeof ancien === "object" && ancien !== null ? (ancien as Record<string, unknown>) : {};
-      await ecrireParametre(PARAM_PLAFONDS_CONVERSATION_NOM, { ...base, heureCompte: g.plafonds.heureCompte });
+      await ecrireParametre(PARAM_PLAFONDS_CONVERSATION_NOM, { ...base, heureCompte: valeur });
     }
-    if (p.jourMot !== undefined) g.plafonds.jourMot = borne(p.jourMot, 1_000_000);
-    await ecrireGardes(g);
+    if (p.jourMot !== undefined) {
+      g.plafonds.jourMot = Math.max(0, Math.min(1_000_000, Math.floor(Number.isFinite(p.jourMot) ? p.jourMot : 0)));
+      await ecrireGardes(g);
+    }
     return { ...g.plafonds, heureCompte: plafondHeureCompte(await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined)) };
   });
 }
@@ -552,7 +561,7 @@ export interface VueMots {
   /** Interrupteur du parcours des messages privés (lecture seule) : un booléen. */
   parcoursAllume: boolean;
   /** « Stop » reçus mais pas encore transmis (donc en doute) : un NOMBRE, jamais une personne ni une empreinte. */
-  oppositionsEnDoute: number;
+  oppositionsNonTransmises: number;
 }
 export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
   const g = await lireGardes();
@@ -571,7 +580,7 @@ export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
     guideValide,
     guidePerime: !!enregistree && !guideValide,
     parcoursAllume: /^(1|true|oui)$/i.test(env.PARCOURS_CONVERSATION_ENABLED?.trim() ?? ""), // même règle que parcoursConversationActif (figée par test)
-    oppositionsEnDoute: oppositions.filter((o) => o?.transmise === false).length,
+    oppositionsNonTransmises: oppositions.filter((o) => o?.transmise === false).length,
   };
 }
 
