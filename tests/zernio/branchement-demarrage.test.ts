@@ -18,6 +18,7 @@ const creerPort = vi.fn((_o: unknown) => PORT_FAUX);
 const clientFaux = { faux: "client" };
 const clientZernio = vi.fn((): unknown => clientFaux);
 const traiterConversations = vi.fn(async (_d: unknown) => ({ actif: true, traites: 0, enAttente: 0 }));
+const traiterMercis = vi.fn(async (_d: unknown) => ({ actif: true, lues: 0, envoyes: 0, accuses: 0 }));
 const transmettreOppositions = vi.fn(async (_o: unknown) => ({ actif: true, traitees: 0, transmises: 0 }));
 const rattraperOppositions = vi.fn(async (_o?: unknown) => 0);
 const traiterOppositionsAncien = vi.fn(async () => ({ actif: false, prises: 0, transmises: 0 }));
@@ -26,7 +27,7 @@ const ordre: string[] = [];
 
 vi.mock("@/fournisseurs/zernio-inbox", () => ({ creerPortInboxZernio: (o: unknown) => creerPort(o) }));
 vi.mock("@/services/zernio", async (orig) => ({ ...(await orig<typeof import("@/services/zernio")>()), clientZernio: () => clientZernio() }));
-vi.mock("@/services/parcours-conversation", async (orig) => ({ ...(await orig<typeof import("@/services/parcours-conversation")>()), traiterConversations: (d: unknown) => (ordre.push("conversations"), traiterConversations(d)) }));
+vi.mock("@/services/parcours-conversation", async (orig) => ({ ...(await orig<typeof import("@/services/parcours-conversation")>()), traiterConversations: (d: unknown) => (ordre.push("conversations"), traiterConversations(d)), traiterMercis: (d: unknown) => (ordre.push("mercis"), traiterMercis(d)) }));
 vi.mock("@/services/oppositions-transmission", async (orig) => ({
   ...(await orig<typeof import("@/services/oppositions-transmission")>()),
   transmettreOppositions: (o: unknown) => (ordre.push("transmettre"), transmettreOppositions(o)),
@@ -232,7 +233,7 @@ describe("passageParcoursZernio", () => {
     expect(d.comptesPermis).toEqual(o.comptesPermis);
     expect(d.titreGuide).toBe("Guide fictif");
     expect((transmettreOppositions.mock.calls[0][0] as { port: unknown }).port).toBe(PORT_FAUX);
-    expect(ordre).toEqual(["toutArreter", "conversations", "transmettre", "rattraper", "ancien"]);
+    expect(ordre).toEqual(["toutArreter", "conversations", "mercis", "transmettre", "rattraper", "ancien"]);
   });
 
   it("clé Zernio absente : alerte et rien n'est traité (le client refuse)", async () => {

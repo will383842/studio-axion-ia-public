@@ -229,7 +229,7 @@ describe("4 · l'opposition est relue, et à nouveau juste avant le réseau", ()
       await vrai(nom, v);
       if (!armee && nom === PARAM_JOURNAL && Object.values(v as Record<string, { etat: string }>).some((x) => x.etat === "en_vol")) {
         armee = true;
-        await Opp.enregistrerOpposition(A, "zernio-conversation", { env: ENV });
+        await Opp.enregistrerOppositionSousVerrou(A, "zernio-conversation", { env: ENV }); // appelé depuis la section sous verrou : variante sans verrou
       }
     });
     await passer(T0);
@@ -329,8 +329,8 @@ describe("8 · garde bloquée (« Tout arrêter »)", () => {
 
 describe("9 · plafond d'envois atteint", () => {
   it("0 envoi, 0 accusé, ref absente du registre ; à l'heure suivante : envoyé", async () => {
-    await Com.ecrireParametre("parcours.conversations.plafonds", { [COMPTE]: 1 });
-    await Com.ecrireParametre("parcours.conversations.compteurs", { [COMPTE]: { heure: Math.floor(T0 / H) * H, n: 5 } });
+    await Com.ecrireParametre("parcours.conversations.plafonds", { heureCompte: 1 });
+    await Com.ecrireParametre("parcours.conversations.compteurs", { [COMPTE]: { heure: Math.floor(T0 / H) * H, envois: 5 } });
     confirmer(ref(1));
     await passer(T0);
     expect(merciEnvoyes()).toHaveLength(0);
