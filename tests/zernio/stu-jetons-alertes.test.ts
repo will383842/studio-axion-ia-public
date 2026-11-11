@@ -44,8 +44,29 @@ describe("fonction pure", () => {
     expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ actif: false })] })[0].message).not.toContain("exemple-c1");
   });
   it("lecture d'un compte Zernio : isActive, needsReconnection et metadata.tokenExpiresAt seulement", () => {
-    expect(compteSurveilleDepuisZernio({ _id: "x1", platform: "instagram", displayName: "Nom", isActive: false, needsReconnection: true, metadata: { tokenExpiresAt: "2026-12-01T00:00:00Z" } } as never)).toEqual({ id: "x1", nom: "Nom", actif: false, aReconnecter: true, expireLe: "2026-12-01T00:00:00Z" });
+    expect(compteSurveilleDepuisZernio({ _id: "x1", platform: "instagram", displayName: "Nom", isActive: false, needsReconnection: true, metadata: { tokenExpiresAt: "2026-12-01T00:00:00Z" } } as never)).toEqual({ id: "x1", nom: "instagram", actif: false, aReconnecter: true, expireLe: "2026-12-01T00:00:00Z" });
     expect(compteSurveilleDepuisZernio({ _id: "x2", platform: "facebook" } as never)).toEqual({ id: "x2", nom: "facebook", actif: undefined, aReconnecter: undefined, expireLe: undefined });
+  });
+});
+
+describe("correction de relecture", () => {
+  it("le nom affiché ou le pseudo (personne) ne part jamais dans le message : réseau + rang", () => {
+    expect(compteSurveilleDepuisZernio({ _id: "x1", platform: "facebook", displayName: "Prénom Nom", username: "pseudo.perso", isActive: false } as never).nom).toBe("facebook");
+    const a = alertesJetonsZernio({ maintenant: T0, comptes: [{ id: "b2", nom: "facebook", actif: false }, { id: "a1", nom: "facebook", actif: false }, { id: "z9", nom: "linkedin", actif: false }] });
+    expect(a.find((x) => x.sujet === "jeton:a1")!.message).toMatch(/^facebook n°1 :/);
+    expect(a.find((x) => x.sujet === "jeton:b2")!.message).toMatch(/^facebook n°2 :/);
+    expect(a.find((x) => x.sujet === "jeton:z9")!.message).toMatch(/^linkedin :/);
+  });
+  it("une date numérique en secondes Unix est lue comme des secondes (pas 1970)", () => {
+    const sec = Math.floor((T0 + 30 * J) / 1000);
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: sec })] })).toEqual([]);
+    const proche = alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: Math.floor((T0 + 2 * J) / 1000) })] });
+    expect(proche).toHaveLength(1);
+    expect(proche[0].message).toMatch(/2 jours/);
+  });
+  it("une date numérique en millisecondes reste lue comme des millisecondes", () => {
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: T0 + 30 * J })] })).toEqual([]);
+    expect(alertesJetonsZernio({ maintenant: T0, comptes: [compte({ expireLe: T0 + 2 * J })] })).toHaveLength(1);
   });
 });
 
@@ -67,5 +88,32 @@ describe("service : cloche seulement, une par sujet et par jour", () => {
     const { alerterJetonsZernio } = await import("@/services/zernio");
     await alerterJetonsZernio([{ _id: "c", platform: "instagram", isActive: true }] as never, T0);
     expect((await depots().notifications.lister()).filter((n) => n.titre === TITRE)).toHaveLength(0);
+  });
+});
+
+describe("service : concurrence, échec de création, purge", () => {
+  beforeEach(() => reinitialiserDepots());
+  const comptes = [{ _id: "exemple-c1", platform: "instagram", isActive: false }] as never;
+  it("deux synchronisations simultanées : une seule alerte", async () => {
+    const { alerterJetonsZernio } = await import("@/services/zernio");
+    await Promise.all([alerterJetonsZernio(comptes, T0), alerterJetonsZernio(comptes, T0 + 1000)]);
+    expect((await depots().notifications.lister()).filter((n) => n.titre === TITRE)).toHaveLength(1);
+  });
+  it("si la création de la notification échoue, la marque n'est pas écrite : l'alerte reviendra", async () => {
+    const svc = await import("@/services/zernio");
+    const notif = await import("@/services/notifications");
+    const espion = vi.spyOn(notif, "creerNotification").mockRejectedValueOnce(new Error("panne"));
+    await svc.alerterJetonsZernio(comptes, T0).catch(() => undefined);
+    espion.mockRestore();
+    await svc.alerterJetonsZernio(comptes, T0 + 1000);
+    expect((await depots().notifications.lister()).filter((n) => n.titre === TITRE)).toHaveLength(1);
+  });
+  it("l'état ne garde que les sujets du jour : un compte disparu est purgé", async () => {
+    const { alerterJetonsZernio, PARAM_ALERTES_JETONS_ZERNIO } = await import("@/services/zernio");
+    const { lireParametre } = await import("@/services/_commun");
+    await alerterJetonsZernio([{ _id: "vieux", platform: "instagram", isActive: false }] as never, T0);
+    await alerterJetonsZernio(comptes, T0 + J);
+    const etat = await lireParametre<Record<string, string>>(PARAM_ALERTES_JETONS_ZERNIO, {});
+    expect(Object.keys(etat)).toEqual(["jeton:exemple-c1"]);
   });
 });

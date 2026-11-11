@@ -3,7 +3,7 @@
  * - un compte relié est déconnecté (`isActive: false`) ou à reconnecter (`needsReconnection: true`) ;
  * - son jeton est expiré, ou expire dans moins de 7 jours (`metadata.tokenExpiresAt`, documenté par Zernio ; absent = jeton sans expiration) ;
  * - le quota restant passe sous 20 % (valeur fournie par l'appelant : aucune route Zernio du client ne la donne aujourd'hui, voir la PR).
- * Un champ absent ou illisible ne déclenche JAMAIS d'alerte : on n'invente rien. Aucun identifiant dans les messages.
+ * Un champ absent ou illisible ne déclenche JAMAIS d'alerte : on n'invente rien. Aucun identifiant ni nom de personne dans les messages (réseau + rang).
  */
 import type { CompteZernio } from "./zernio-client";
 
@@ -30,22 +30,35 @@ export function compteSurveilleDepuisZernio(c: CompteZernio): CompteSurveille {
   const exp = meta.tokenExpiresAt;
   return {
     id: c._id,
-    nom: c.displayName ?? c.username ?? c.platform,
+    // Libellé NEUTRE : jamais le nom affiché ni le pseudo (un compte personnel porte le nom d'une personne). Le rang est ajouté à l'alerte.
+    nom: c.platform,
     actif: typeof c.isActive === "boolean" ? c.isActive : undefined,
     aReconnecter: typeof c.needsReconnection === "boolean" ? c.needsReconnection : undefined,
     expireLe: typeof exp === "string" || typeof exp === "number" ? exp : undefined,
   };
 }
 
+/** Nombre < 1e12 = secondes Unix (les jetons Meta le sont souvent) ; sinon millisecondes. Illisible = NaN (aucune alerte). */
+function dateEnMs(v: string | number | null | undefined): number {
+  if (v === null || v === undefined) return NaN;
+  if (typeof v === "number") return Number.isFinite(v) && v > 0 ? (v < 1e12 ? v * 1000 : v) : NaN;
+  return Date.parse(v);
+}
+
 export function alertesJetonsZernio(e: { comptes: readonly CompteSurveille[]; quotaRestantPct?: number | null; maintenant: number }): AlerteJeton[] {
   const sortie: AlerteJeton[] = [];
-  for (const c of e.comptes) {
+  // Libellé neutre : réseau, plus un rang (ordre des identifiants) quand plusieurs comptes du même réseau existent.
+  const parReseau = new Map<string, string[]>();
+  for (const c of e.comptes) parReseau.set(c.nom, [...(parReseau.get(c.nom) ?? []), c.id].sort());
+  for (const brut of e.comptes) {
+    const ids = parReseau.get(brut.nom) ?? [];
+    const c = { ...brut, nom: ids.length > 1 ? `${brut.nom} n°${ids.indexOf(brut.id) + 1}` : brut.nom };
     const sujet = `jeton:${c.id}`;
     if (c.actif === false || c.aReconnecter === true) {
       sortie.push({ sujet, message: `${c.nom} : le compte est déconnecté de Zernio. Reconnectez-le pour que les publications repartent.` });
       continue;
     }
-    const fin = c.expireLe === null || c.expireLe === undefined ? NaN : typeof c.expireLe === "number" ? c.expireLe : Date.parse(c.expireLe);
+    const fin = dateEnMs(c.expireLe);
     if (!Number.isFinite(fin)) continue;
     if (fin <= e.maintenant) sortie.push({ sujet, message: `${c.nom} : le jeton du réseau est expiré. Reconnectez le compte dans Zernio.` });
     else if (fin - e.maintenant < JETON_ALERTE_JOURS * JOUR_MS) {
