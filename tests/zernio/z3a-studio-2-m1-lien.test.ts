@@ -303,3 +303,68 @@ describe("10 · la validation suit le texte", () => {
     expect(t).not.toMatch(/\bstop\b|autres informations/i);
   });
 });
+
+describe("RELECTURE-OPUS · défaut 1 : borne à 1 000 caractères pour M1 v3", () => {
+  const TITRE_LONG = "🎓".repeat(200); // 400 unités UTF-16 pour 200 points de code (titre maximal) : v3 dépasse 1 000, v2 reste court
+  it("v3 trop long (titre hors BMP) : repli exact sur M1 v2 par le VRAI constructeur de corps, 1 seul POST ≤ 1 000", async () => {
+    await validerGuideAuParcours(TITRE_LONG);
+    const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "msg-sortant-9" } }));
+    const p = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE_LONG] });
+    const portReel = { ...port.port, repondreEnPrive: p.repondreEnPrive };
+    await deposerCommentaire(depots, {});
+    await C.traiterConversations({ port: portReel, comptesPermis: [COMPTE], titreGuide: TITRE_LONG, env: ENV_LIEN, maintenantMs: T0 });
+    const posts = faux.appels.filter((a) => a.methode === "POST");
+    expect(posts).toHaveLength(1);
+    const message = (posts[0].json as { message: string }).message;
+    expect(message).toBe(rendreTexteMp("mp-m1-v2", { mot: "GUIDE", titre: TITRE_LONG }));
+    expect(message).not.toContain(PREFIXE);
+    expect(message.length).toBeLessThanOrEqual(1000);
+    const e = await etatDe();
+    expect(e.versionTexteM1).toBe("mp-m1-v2");
+    expect(e.refLienConv).toBeUndefined();
+    expect(await sansLien()).toBe(1);
+  });
+  it("v3 de taille normale : toujours accepté (≤ 1 000)", async () => {
+    await deposerCommentaire(depots, {});
+    await passer();
+    expect(port.prive[0].texte.length).toBeLessThanOrEqual(1000);
+    expect((await etatDe()).versionTexteM1).toBe("mp-m1-v3");
+  });
+});
+
+describe("RELECTURE-OPUS · défaut 2 : ni journal ni alerte de repli si rien ne part", () => {
+  const SANS_LIEN = { ...ENV_LIEN, GUIDES_RESEAU_LIEN_SECRET: undefined };
+  const journalRepli = async () => (await depots().evenements.lister((x: any) => /Lien du 1er message non utilisé/.test(x.message))).length;
+  it("personne opposée : 0 envoi, 0 journal de repli, 0 alerte « sans lien »", async () => {
+    let appels = 0;
+    vi.spyOn(Opp, "empreintesOpposees").mockImplementation(async () => ++appels > 1); // l'opposition arrive après la réponse publique, avant M1
+    await deposerCommentaire(depots, {});
+    await passer(SANS_LIEN);
+    expect(appels).toBeGreaterThan(1);
+    expect(port.prive).toHaveLength(0);
+    expect(await journalRepli()).toBe(0);
+    expect(await sansLien()).toBe(0);
+  });
+  it("plafond atteint : reporté, 0 journal de repli, 0 alerte « sans lien » ; puis UNE seule fois à l'envoi réel", async () => {
+    const HEURE = Math.floor(T0 / H) * H;
+    await Com.ecrireParametre("parcours.conversations.compteurs", { [COMPTE]: { heure: HEURE, envois: 29 } }); // la réponse publique prend la 30e place : M1 est reporté
+    await deposerCommentaire(depots, {});
+    await passer(SANS_LIEN);
+    await passer(SANS_LIEN, T0 + 1000);
+    expect(port.pub).toHaveLength(1);
+    expect(port.prive).toHaveLength(0);
+    expect(await journalRepli()).toBe(0);
+    expect(await sansLien()).toBe(0);
+    await passer(SANS_LIEN, HEURE + H + 1000);
+    expect(port.prive).toHaveLength(1);
+    expect(await journalRepli()).toBe(1);
+    expect(await sansLien()).toBe(1);
+  });
+  it("envoi normal en repli : journal et alerte présents (inchangé)", async () => {
+    await deposerCommentaire(depots, {});
+    await passer(SANS_LIEN);
+    expect(port.prive).toHaveLength(1);
+    expect(await journalRepli()).toBe(1);
+    expect(await sansLien()).toBe(1);
+  });
+});
