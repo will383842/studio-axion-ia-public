@@ -79,7 +79,7 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
   p.alertes[sujet] = now;
   try {
     await journaliser("parcours_conversation", `ALERTE : ${message}`);
-    await creerNotification({ type: "echec", titre: "Oppositions (STOP) à transmettre au site", message, lien: "/mots" });
+    await creerNotification({ type: "echec", titre: "Oppositions (STOP) à transmettre au site", message, lien: "/mots" }, { cloche: true });
   } catch {
     /* l'alerte ne doit jamais faire échouer le traitement */
   }

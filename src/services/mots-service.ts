@@ -138,7 +138,7 @@ async function ouvrirDisjoncteur(raison: string): Promise<void> {
   g.disjoncteur = { ouvert: true, raison, ouvertLe: maintenant() };
   await ecrireGardes(g);
   await journaliser("mots", `ALERTE : disjoncteur des mots OUVERT (${raison}). Il ne se referme que par un geste de l'opérateur.`);
-  await creerNotification({ type: "echec", titre: "Mots : disjoncteur ouvert", message: "Les mots sont à l'arrêt. Rien ne repart tant que vous ne l'avez pas refermé.", lien: "/mots" });
+  await creerNotification({ type: "echec", titre: "Mots : disjoncteur ouvert", message: "Les mots sont à l'arrêt. Rien ne repart tant que vous ne l'avez pas refermé.", lien: "/mots" }, { cloche: true });
 }
 
 /** SEUL moyen de refermer le disjoncteur : un geste de l'opérateur (l'appelant exige la session). */
@@ -504,7 +504,7 @@ export async function traiterOppositions(o: { env?: Env } = {}): Promise<{ actif
       continue;
     }
     if (!reserve) continue;
-    await creerNotification({ type: "info", titre: "Opposition reçue (STOP)", message: "Une personne a écrit STOP. Elle est mise à l'écart ; rien n'est supprimé.", lien: "/mots" });
+    await creerNotification({ type: "info", titre: "Opposition reçue (STOP)", message: "Une personne a écrit STOP. Elle est mise à l'écart ; rien n'est supprimé.", lien: "/mots" }, { cloche: true });
     prises++;
     if (lecteurOpp && transportOpp && secret) {
       try {
