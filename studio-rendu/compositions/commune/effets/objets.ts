@@ -1,14 +1,16 @@
 /**
  * OBJETS 3D DE L'EFFET « OBJET DANS LA MAIN » (lot F3) : géométries simples générées (aucune ressource externe),
- * charte Axion (orange #B23F16, crème #FAF9F5, sombre chaud #141413). Chaque objet tient dans un diamètre de 1 :
- * la composition le met à l'échelle de la paume. Le logo Axion = la tuile orange arrondie, le « A » crème et le
+ * charte Axion (orange #D97757 sur le plateau noir, crème #FAF9F5, sombre chaud #141413). Chaque objet tient dans un diamètre de 1 :
+ * la composition le met à l'échelle de la paume. Le logo Axion = la tuile orange arrondie, le « A » sombre (lisible sur la tuile orange) et le
  * point, extrudés et biseautés.
  */
 import type { ObjetMain } from "../../../../src/briques/effets-speciaux/types";
 import type { Trois } from "./trois";
 
-const ORANGE = "#B23F16";
-const ORANGE_VIF = "#D97757";
+/** Orange de la palette (rôle orange sur noir) : les objets sont posés sur le plateau noir. */
+const ORANGE = "#D97757";
+/** Gris sur noir (rôle de la palette) : bord de la pièce. */
+const GRIS = "#B0AEA5";
 const CREME = "#FAF9F5";
 const SOMBRE = "#141413";
 
@@ -84,8 +86,8 @@ function texturEcran(T: Trois) {
   g.fillStyle = SOMBRE;
   g.fillRect(0, 0, 256, 512);
   const halo = g.createRadialGradient(128, 200, 10, 128, 200, 190);
-  halo.addColorStop(0, "rgba(217,119,87,0.85)");
-  halo.addColorStop(1, "rgba(217,119,87,0)");
+  halo.addColorStop(0, "rgba(250,249,245,0.12)");
+  halo.addColorStop(1, "rgba(250,249,245,0)");
   g.fillStyle = halo;
   g.fillRect(0, 0, 256, 512);
   // Tuile du logo.
@@ -93,7 +95,7 @@ function texturEcran(T: Trois) {
   g.beginPath();
   g.roundRect(78, 150, 100, 100, 24);
   g.fill();
-  g.fillStyle = CREME;
+  g.fillStyle = SOMBRE;
   g.beginPath();
   g.moveTo(98, 228);
   g.lineTo(122, 166);
@@ -121,7 +123,7 @@ function texturEcran(T: Trois) {
   g.beginPath();
   g.roundRect(78, 316, 100, 10, 5);
   g.fill();
-  g.fillStyle = ORANGE_VIF;
+  g.fillStyle = ORANGE;
   g.beginPath();
   g.roundRect(64, 400, 128, 40, 20);
   g.fill();
@@ -136,10 +138,10 @@ export function construireObjet(T: Trois, objet: ObjetMain) {
   switch (objet) {
     case "logo-axion": {
       const tuile = new T.Mesh(extruder(T, rectangleArrondi(T, 0.82, 0.82, 0.2), 0.16, 0.045), matiere(T, ORANGE, { rugosite: 0.3, vernis: 1 }));
-      const a = new T.Mesh(extruder(T, formeA(T, 0.92), 0.05, 0.014), matiere(T, CREME, { rugosite: 0.42, vernis: 0.5 }));
+      const a = new T.Mesh(extruder(T, formeA(T, 0.92), 0.05, 0.014), matiere(T, SOMBRE, { rugosite: 0.42, vernis: 0.5 }));
       a.position.z = 0.135;
       a.position.y = -0.02;
-      const point = new T.Mesh(new T.SphereGeometry(0.045, 32, 16), matiere(T, CREME, { rugosite: 0.4 }));
+      const point = new T.Mesh(new T.SphereGeometry(0.045, 32, 16), matiere(T, SOMBRE, { rugosite: 0.4 }));
       point.scale.z = 0.6;
       point.position.set(0.27, 0.27, 0.13);
       groupe.add(tuile, a, point);
@@ -156,7 +158,7 @@ export function construireObjet(T: Trois, objet: ObjetMain) {
     }
     case "cube": {
       const cube = new T.Mesh(extruder(T, rectangleArrondi(T, 0.58, 0.58, 0.1), 0.5, 0.04), matiere(T, ORANGE, { rugosite: 0.32 }));
-      const a = new T.Mesh(extruder(T, formeA(T, 0.62), 0.03, 0.01), matiere(T, CREME, { rugosite: 0.45 }));
+      const a = new T.Mesh(extruder(T, formeA(T, 0.62), 0.03, 0.01), matiere(T, SOMBRE, { rugosite: 0.45 }));
       a.position.z = 0.3;
       groupe.add(cube, a);
       break;
@@ -169,11 +171,11 @@ export function construireObjet(T: Trois, objet: ObjetMain) {
       break;
     }
     case "piece": {
-      const disque = new T.Mesh(new T.CylinderGeometry(0.46, 0.46, 0.08, 96, 1), matiere(T, ORANGE_VIF, { metal: 0.85, rugosite: 0.28, vernis: 0.6 }));
+      const disque = new T.Mesh(new T.CylinderGeometry(0.46, 0.46, 0.08, 96, 1), matiere(T, ORANGE, { metal: 0.85, rugosite: 0.28, vernis: 0.6 }));
       disque.rotation.x = Math.PI / 2;
-      const bord = new T.Mesh(new T.TorusGeometry(0.42, 0.02, 12, 96), matiere(T, ORANGE, { metal: 0.9, rugosite: 0.3 }));
+      const bord = new T.Mesh(new T.TorusGeometry(0.42, 0.02, 12, 96), matiere(T, GRIS, { metal: 0.9, rugosite: 0.3 }));
       bord.position.z = 0.04;
-      const a = new T.Mesh(extruder(T, formeA(T, 0.75), 0.02, 0.008), matiere(T, CREME, { metal: 0.3, rugosite: 0.35 }));
+      const a = new T.Mesh(extruder(T, formeA(T, 0.75), 0.02, 0.008), matiere(T, SOMBRE, { metal: 0.3, rugosite: 0.35 }));
       a.position.z = 0.055;
       const dos = a.clone();
       dos.position.z = -0.055;

@@ -9,6 +9,9 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 
 /** Palette Axion : mur, pull et vêtements. Peau, cheveux, sourcils, yeux et bouche gardent leurs teintes réalistes. */
 const NOIR = "#141413";
+/** Gris sur noir (rôle de la palette) : filet de contour du pull et de la manche, texte secondaire pour le col. */
+const GRIS_SUR_NOIR = "#B0AEA5";
+const GRIS_TEXTE_SECONDAIRE = "#5E5D59";
 
 export interface CleMain {
   t: number;
@@ -69,7 +72,7 @@ function Main({ cle, paume, l, h }: { cle: CleMain; paume: number; l: number; h:
   return (
     <g>
       {/* Avant-bras (manche du pull) depuis le bas de l'image. */}
-      <path d={`M ${x + paume * 0.9} ${h + 40} C ${x + paume * 0.7} ${y + paume * 2.2}, ${x + paume * 0.25} ${y + paume * 1.3}, ${x + paume * 0.05} ${y + paume * 0.75} L ${x - paume * 0.45} ${y + paume * 0.62} C ${x - paume * 0.4} ${y + paume * 1.5}, ${x - paume * 0.1} ${y + paume * 2.6}, ${x - paume * 0.3} ${h + 40} Z`} fill={NOIR} />
+      <path d={`M ${x + paume * 0.9} ${h + 40} C ${x + paume * 0.7} ${y + paume * 2.2}, ${x + paume * 0.25} ${y + paume * 1.3}, ${x + paume * 0.05} ${y + paume * 0.75} L ${x - paume * 0.45} ${y + paume * 0.62} C ${x - paume * 0.4} ${y + paume * 1.5}, ${x - paume * 0.1} ${y + paume * 2.6}, ${x - paume * 0.3} ${h + 40} Z`} fill={NOIR} stroke={GRIS_SUR_NOIR} strokeWidth={3} strokeLinejoin="round" />
       {/* Paume (face à la caméra), éclairée de la gauche. */}
       <ellipse cx={x} cy={y + paume * 0.12} rx={paume * 0.46} ry={paume * 0.5} fill="url(#peauMain)" />
       {doigts.map((d, i) => {
@@ -133,14 +136,14 @@ export function PlateauEffets(p: ProprietesPlateau) {
           <ellipse cx={-60} cy={560} rx={420} ry={760} fill="rgba(250,249,245,0.16)" filter="url(#flou40)" />
           <circle cx={900} cy={420} r={70} fill="rgba(217,119,87,0.35)" filter="url(#flou40)" />
           <rect x={780} y={980} width={300} height={22} rx={8} fill="rgba(250,249,245,0.08)" filter="url(#flou14)" />
-          <circle cx={830} cy={930} r={36} fill="rgba(178,63,22,0.25)" filter="url(#flou14)" />
+          <circle cx={830} cy={930} r={36} fill="rgba(217,119,87,0.25)" filter="url(#flou14)" />
           <circle cx={950} cy={920} r={46} fill="rgba(250,249,245,0.1)" filter="url(#flou14)" />
           <g transform={`translate(${balance * 0.4} 0) scale(1 ${respiration})`} style={{ transformOrigin: "540px 1920px" }}>
             {/* Buste et cou. */}
             <path d="M 470 770 L 610 770 L 628 1000 C 590 1030, 490 1030, 452 1000 Z" fill="#A36F56" />
             <path d="M 470 860 C 520 900, 570 900, 610 860 L 612 900 C 570 940, 510 940, 468 900 Z" fill="rgba(70,40,28,0.35)" />
-            <path d="M 50 1920 C 70 1380, 180 1060, 410 990 C 470 1030, 610 1030, 670 990 C 900 1060, 1010 1380, 1030 1920 Z" fill={NOIR} />
-            <path d="M 410 990 C 470 1045, 610 1045, 670 990 L 690 1010 C 620 1080, 460 1080, 390 1010 Z" fill={NOIR} />
+            <path d="M 50 1920 C 70 1380, 180 1060, 410 990 C 470 1030, 610 1030, 670 990 C 900 1060, 1010 1380, 1030 1920 Z" fill={NOIR} stroke={GRIS_SUR_NOIR} strokeWidth={3} strokeLinejoin="round" />
+            <path d="M 410 990 C 470 1045, 610 1045, 670 990 L 690 1010 C 620 1080, 460 1080, 390 1010 Z" fill={GRIS_TEXTE_SECONDAIRE} />
           </g>
           {/* Tête. */}
           <g transform={`rotate(${inclinaison} ${v.cx} ${v.cy + 160}) translate(${balance} 0)`}>
