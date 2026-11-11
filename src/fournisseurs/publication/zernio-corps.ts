@@ -6,7 +6,7 @@
  * `scheduledFor` en UTC avec Z, `metadata.origine = "studio"` + `metadata.studioCle`.
  */
 import type { DemandePublication } from "../types";
-import { motsInterditsEnvoi } from "./mots-interdits-envoi";
+import { motsInterditsEnvoiZernio } from "./mots-interdits-envoi";
 import { pageInterdite } from "./zernio-pages-interdites";
 import { ErreurZernio } from "./zernio-erreurs";
 import { PROMOTION_MARGE_MIN_MS, type CorpsPostZernio, type MediaItemZernio, type PlateformePostZernio } from "./zernio-client";
@@ -98,7 +98,7 @@ function texteAlt(brut: string): string {
 }
 
 function exigerSansMotInterdit(texte: string, quoi: string): void {
-  const mots = motsInterditsEnvoi(texte);
+  const mots = motsInterditsEnvoiZernio(texte);
   if (mots.length) throw new ErreurZernio("mot-interdit", `${quoi} contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.`, { detailTechnique: `mots interdits : ${mots.join(", ")}` });
 }
 

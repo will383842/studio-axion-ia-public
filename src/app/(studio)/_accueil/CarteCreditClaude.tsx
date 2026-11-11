@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Carte } from "@/components/ui/Carte";
 import { avertissementCreditClaude } from "@/domaine/credit-claude";
 import { cn } from "@/lib/cn";
 import { dateCourte } from "@/lib/dates";
@@ -29,8 +28,8 @@ function LigneCompte({ c }: { c: VueCompteCredit }) {
 export function CarteCreditClaude({ vue, maintenant = new Date().toISOString() }: { vue: VueCreditClaude; maintenant?: string }) {
   const alerte = avertissementCreditClaude({ mode: vue.mode, comptes: vue.comptes, maintenant, formaterJour: dateCourte });
   return (
-    <Link href="/reglages#credits-claude" className="block">
-      <Carte interactive>
+    <Link href="/reglages#credits-claude" className="-m-2 block rounded-xl p-2 hover:bg-surface-2">
+      <div>
         <p className="text-sm font-semibold text-texte-doux">Crédit Claude restant (estimé)</p>
         <p className="mt-1 font-titre text-3xl tabular-nums text-texte">{vue.totalTexte}</p>
         {alerte && (
@@ -46,7 +45,7 @@ export function CarteCreditClaude({ vue, maintenant = new Date().toISOString() }
         <p className="mt-3 border-t border-trait pt-2 text-xs text-texte-faible opacity-70">
           API payante · {vue.api.finCle ?? "aucune clé"} · {vue.api.eteinte ? "éteinte" : "allumée"} · {vue.api.consommeMoisTexte} ce mois-ci
         </p>
-      </Carte>
+      </div>
     </Link>
   );
 }

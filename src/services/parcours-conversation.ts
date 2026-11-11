@@ -24,7 +24,7 @@ import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
-import { lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
+import { empreinteAdresseRefusee, lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
 import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -727,7 +727,9 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   let enV3 = version === 3;
   let statut = 0;
   let corpsReponse: unknown = null;
-  for (let n = 0; n < ESSAIS_NONCE; n++) {
+  // Réessai après un report au plafond : le refus 422 est déjà connu, on ne rappelle pas le site.
+  if (etat.adresseRefuseeEnAttente === true) statut = 422;
+  for (let n = 0; n < ESSAIS_NONCE && etat.adresseRefuseeEnAttente !== true; n++) {
     const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
     try {
       const r = await site.transport({ methode: "POST", chemin: CHEMIN_DEMANDES_GUIDE, corps, entetes });
@@ -757,7 +759,14 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     p.pannes = 0;
     await alerter("site_disjoncteur", `Le site des guides ne répond pas : ${DISJONCTEUR_SEUIL} pannes de suite, pause de ${DISJONCTEUR_PAUSE_MS / 60_000} minutes.`, now);
   }
-  await patcher(cle, { ...(s.patch ?? {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
+  // Z2 : le site refuse l'ADRESSE (422) : UN seul message demande de la vérifier (jamais deux, rien si opposée, plafond respecté).
+  // AVANT de passer l'état à « site_refuse » : si le plafond reporte l'événement, l'état est intact et le réessai reprend ici.
+  if (s.action === "site_refuse" && s.code === "422" && (await prevenirAdresseRefusee(ev, d, env, cle, etat, idConversation, idMessage, now)) === "bloque") {
+    // Le refus est connu : on le note pour que le réessai ne rappelle PAS le site (une seule demande au site par refus).
+    await patcher(cle, { adresseRefuseeEnAttente: true });
+    return "bloque";
+  }
+  await patcher(cle, { ...(s.patch ?? {}), ...(etat.adresseRefuseeEnAttente ? { adresseRefuseeEnAttente: false } : {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
   if (s.action === "site_reessai") {
     await reporter(ev, now, s.apresMs ?? 60_000, s.code ?? "reessai", code === "409_en_cours" ? { enCours: Number(c.enCours ?? 0) + 1 } : {});
     return "traite";
@@ -770,6 +779,31 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   }
   const maj = await lireEtat(cle);
   return envoyerRecu(ev, d, env, cle, maj ?? etat, idConversation, idMessage, now);
+}
+
+/** Z2 : message unique « vérifiez votre adresse ». « bloque » = plafond atteint (l'événement est reporté, rien n'est consommé). */
+async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
+  if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
+  if (await opposeeAvantEnvoi(cle, env)) return "fait";
+  // Garde de validation (échec fermé) : le texte ne part que si /mots en a validé l'empreinte exacte.
+  const brouillon = TEXTES_MP["mp-adresse-refusee-v2"];
+  const attendue = empreinteAdresseRefusee();
+  let validee = false;
+  try {
+    validee = (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === attendue;
+  } catch {
+    validee = false;
+  }
+  if (!validee) {
+    await alerter("adresse_refusee_non_validee", "Le message « adresse refusée » n'est pas validé dans Mots : il n'est pas parti.", now);
+    return "fait";
+  }
+  if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+  // Marqué AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
+  await patcher(cle, { adresseRefuseeEnvoyee: true });
+  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: brouillon.texte, cle: idMessage }));
+  await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
+  return "fait";
 }
 
 async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"traite" | "bloque"> {
