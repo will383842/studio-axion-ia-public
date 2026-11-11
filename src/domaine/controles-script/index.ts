@@ -38,6 +38,9 @@ export { problemeAbstrait, c80SerieDouleur, tempsDuRecit, raconteUnClient } from
 export * from "./serie";
 export { noterVersion, voyant, LEVIERS } from "./note";
 export { bandeMots } from "./retention";
+// L3-09 : `texte-post` (contrôleur du texte d'un post et de son commentaire) n'est PAS réexporté ici : il lit la liste unique
+// des interdits, qui lit elle-même ce dossier (montage-cas-concret/regles → ici). Le réexporter ferait un cycle d'import ;
+// on l'importe donc par son chemin : "@/domaine/controles-script/texte-post".
 
 /** Version des contrôles (enregistrée sur `ResultatControles.versionControles`). */
 export const VERSION_CONTROLES = 1;
