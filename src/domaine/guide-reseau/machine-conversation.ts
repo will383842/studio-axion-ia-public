@@ -69,8 +69,30 @@ export interface Conversation {
   derniereActiviteLe?: string | null;
   /** Identifiant OPAQUE de ce dernier message de la personne (jamais d'identifiant de conversation brut). */
   idMessageDernier?: string | null;
+  /** Empreintes SHA-256 (hex) des jetons des liens réellement ENVOYÉS dans M1 v3 : la `ref` d'une confirmation du site en est une. Jamais le jeton, jamais le lien. */
+  empreintesLien?: string[];
+  /** Merci après la page : « en_vol » écrit AVANT l'envoi, jamais effacé. Une autre confirmation de la même personne ne déclenche pas un 2e merci. */
+  merciEtat?: EtatMerci | null;
+  merciLe?: string | null;
   /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
   douteOpposition?: boolean;
+}
+
+export type EtatMerci = "en_vol" | "envoye" | "a_verifier" | "non_envoye";
+/** Issues d'une confirmation, dans l'ordre où elles s'évaluent (la première vraie l'emporte). */
+export type IssueMerci = "deja_traite" | "conversation_inconnue" | "oppose" | "deja_remercie" | "texte_non_valide" | "hors_fenetre" | "a_envoyer";
+/**
+ * Issue d'une confirmation de la page, à partir de faits DÉJÀ lus. Fonction pure. Ordre : ref au registre › conversation inconnue
+ * › opposée › déjà remerciée (autre ref) › texte non validé › hors fenêtre (ou identifiant de conversation introuvable) › à envoyer.
+ */
+export function issueMerci(o: { refAuRegistre: boolean; conversation: Pick<Conversation, "derniereActiviteLe" | "merciEtat"> | null; oppose: boolean; texteValide: boolean; idConversationRetrouve: boolean; maintenantMs: number }): IssueMerci {
+  if (o.refAuRegistre) return "deja_traite";
+  if (!o.conversation) return "conversation_inconnue";
+  if (o.oppose) return "oppose";
+  if (o.conversation.merciEtat) return "deja_remercie";
+  if (!o.texteValide) return "texte_non_valide";
+  if (!dansFenetreEnvoi(o.conversation, o.maintenantMs) || !o.idConversationRetrouve) return "hors_fenetre";
+  return "a_envoyer";
 }
 
 /** Version du 1er message privé quand il porte le lien signé de la page guide (interrupteur PARCOURS_LIEN_GUIDE). */

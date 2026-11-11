@@ -32,6 +32,8 @@ export const PARAM_VALIDATION_GUIDE_PARCOURS = "mots.validation.guide-parcours";
 /** Validation (écran /mots) du texte brouillon « adresse refusée » : { empreinte } = sha256(version + "\n" + texte). */
 export const PARAM_VALIDATION_ADRESSE_REFUSEE = "parcours.validation.adresse_refusee";
 /** Validation (écran /mots) du texte « 1er message avec lien » : { empreinte } = sha256("mp-m1-v3" + "\n" + texte brut avec ses marqueurs). */
+/** Validation (écran /mots) du texte du merci après la page : { empreinte } = sha256("mp-merci-v1" + "\n" + texte brut). Aucun écrivain pour l'instant (bouton à ajouter, décision de l'opérateur). */
+export const PARAM_VALIDATION_MERCI = "parcours.validation.merci";
 export const PARAM_VALIDATION_M1_LIEN = "parcours.validation.m1_lien";
 export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";

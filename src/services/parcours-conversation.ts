@@ -19,7 +19,7 @@ import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCT
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { DELAI_PERIME_MS, activiteRetenue, dansFenetreEnvoi, doitExpirer, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { DELAI_PERIME_MS, activiteRetenue, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
@@ -27,7 +27,7 @@ import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
-import { empreinteAdresseRefusee, lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS, PARAM_VALIDATION_M1_LIEN } from "./mots-service";
+import { empreinteAdresseRefusee, lireGardes, PARAM_VALIDATION_MERCI, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS, PARAM_VALIDATION_M1_LIEN } from "./mots-service";
 import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -85,6 +85,9 @@ export interface RapportConversation {
 interface EtatProcessus {
   enCours: boolean;
   enVol: Set<string>;
+  /** Merci (par `ref`) dont l'envoi est en cours dans CE processus. */
+  merciEnVol: Set<string>;
+  mercisEnCours: boolean;
   alertes: Record<string, number>;
   pannes: number;
   ouvertJusqua: number;
@@ -92,7 +95,7 @@ interface EtatProcessus {
 const CLE_PROCESSUS = Symbol.for("studio-axion-ia.parcours-conversation");
 function processus(): EtatProcessus {
   const g = globalThis as typeof globalThis & { [CLE_PROCESSUS]?: EtatProcessus };
-  return (g[CLE_PROCESSUS] ??= { enCours: false, enVol: new Set(), alertes: {}, pannes: 0, ouvertJusqua: 0 });
+  return (g[CLE_PROCESSUS] ??= { enCours: false, enVol: new Set(), merciEnVol: new Set(), mercisEnCours: false, alertes: {}, pannes: 0, ouvertJusqua: 0 });
 }
 /** Tests : simule un redémarrage du processus (plus rien « en vol », gardes en mémoire remises à zéro). */
 export function reinitialiserParcoursConversation(): void {
@@ -429,7 +432,7 @@ async function texteLienValide(): Promise<boolean> {
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
  */
-async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string }> {
+async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string }> {
   const repli = async (code: CodeRepliLien) => {
     if (code !== "lien_eteint") {
       await journaliser("parcours_conversation", `Lien du 1er message non utilisé : ${code}.`);
@@ -454,7 +457,8 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   if (lien === null) return repli("lien_trop_long");
   const texte = rendreTexteMp(VERSION_M1_LIEN, { mot: MOT, titre: d.titreGuide, lien });
   if (texte === null || !texteDuDictionnaire(texte, false) || !formeLienPageGuide(lien)) return repli("forme_refusee");
-  return { texte, version: VERSION_M1_LIEN, ...(e.refLienConv ? {} : { refLienConv: conv }) };
+  // Empreinte du jeton réellement envoyé : c'est la `ref` que le site renverra à la validation de la page (jamais le jeton lui-même).
+  return { texte, version: VERSION_M1_LIEN, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
 }
 
 async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk): Promise<"traite" | "bloque"> {
@@ -516,7 +520,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   }
   if (!(await reserverOuReporter(ev, idCompte, now))) return "bloque"; // réservation avant tout changement d'état
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}) });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
@@ -996,4 +1000,254 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     p.enCours = false;
   }
   return rapport;
+}
+
+/* --- Merci après la validation de la page (Z4) ------------------------------------------------------------------- */
+export const VARIABLE_INTERRUPTEUR_MERCI = "PARCOURS_MERCI_ENABLED";
+export const PARAM_MERCI_JOURNAL = "parcours.merci.journal";
+export const CHEMIN_CONFIRMATIONS = "/api/interne/confirmations-page-guide";
+export const CHEMIN_CONFIRMATIONS_ISSUE = "/api/interne/confirmations-page-guide/issue";
+const LOT_CONFIRMATIONS = 10;
+/** Délais entre deux essais d'accusé (puis 6 h, sans fin). */
+const ATTENTES_ACCUSE_MS = [60_000, 5 * 60_000, 15 * 60_000, 3600_000, 6 * 3600_000] as const;
+const RE_REF_CONFIRMATION = /^[A-Za-z0-9_-]{8,80}$/;
+
+/** Éteint par défaut ; n'agit que si le parcours de conversation est allumé aussi. */
+export function parcoursMerciActif(env: Env = process.env): boolean {
+  return parcoursConversationActif(env) && /^(1|true|oui)$/i.test(env[VARIABLE_INTERRUPTEUR_MERCI]?.trim() ?? "");
+}
+
+/** Une ligne par `ref`, JAMAIS retirée. Ni adresse, ni prénom, ni texte, ni identifiant Zernio. `cle` = clé d'empreinte de la conversation. */
+export interface EntreeMerci {
+  cle: string | null;
+  etat: EtatMerci;
+  issue: string;
+  accuse: boolean;
+  le: string;
+  essaisAccuse: number;
+  prochainAccuseLe: number | null;
+}
+type JournalMerci = Record<string, EntreeMerci>;
+export interface RapportMerci {
+  actif: boolean;
+  lues: number;
+  envoyes: number;
+  accuses: number;
+}
+
+const lireJournalMerci = (): Promise<JournalMerci> => lireParametre<JournalMerci>(PARAM_MERCI_JOURNAL, {});
+async function ecrireEntreeMerci(ref: string, f: (e: EntreeMerci | undefined) => EntreeMerci | undefined): Promise<EntreeMerci | undefined> {
+  return sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    const suivant = f(j[ref]);
+    if (suivant) await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: suivant });
+    return suivant ?? j[ref];
+  });
+}
+/** Issue vue par le site (liste fermée : envoye | hors_fenetre | echec). « echec » n'est jamais utilisé : le site re-proposerait la ref. */
+const issueDuSite = (e: Pick<EntreeMerci, "etat">): "envoye" | "hors_fenetre" => (e.etat === "envoye" || e.etat === "a_verifier" ? "envoye" : "hors_fenetre");
+
+/** Texte du merci validé par l'opérateur ET rendu non nul. `null` = ne part pas. */
+async function texteMerciPret(d: DepsConversation): Promise<string | null> {
+  try {
+    const b = TEXTES_MP["mp-merci-v1"];
+    const attendue = createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex");
+    if ((await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_MERCI, null))?.empreinte !== attendue) return null;
+    return rendreTexteMp("mp-merci-v1", { titre: d.titreGuide });
+  } catch {
+    return null; // échec fermé
+  }
+}
+
+/** Appel signé au site. Le corps n'est jamais journalisé. `null` = site non relié ou injoignable. */
+async function appelerSite(env: Env, chemin: string, corpsObjet: unknown): Promise<{ statut: number; corps: unknown } | null> {
+  const site = transportDuSite(env);
+  if (!site) return null;
+  const corps = JSON.stringify(corpsObjet);
+  const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin, corps, horodatageSec: Math.floor(Date.now() / 1000) });
+  try {
+    const r = await site.transport({ methode: "POST", chemin, corps, entetes });
+    return { statut: r.statut, corps: r.corps };
+  } catch {
+    return null;
+  }
+}
+
+/** Accuse une issue au site. Vrai = le site a pris l'accusé (200) ou le connaissait déjà (409). Sinon l'échéance du prochain essai est écrite. */
+async function accuserMerci(env: Env, ref: string, now: number): Promise<boolean> {
+  const e = (await lireJournalMerci())[ref];
+  if (!e || e.accuse || e.etat === "en_vol") return e?.accuse === true;
+  const r = await appelerSite(env, CHEMIN_CONFIRMATIONS_ISSUE, { schemaVersion: 1, issues: [{ ref, issue: issueDuSite(e) }] });
+  if (r && (r.statut === 200 || r.statut === 409)) {
+    await ecrireEntreeMerci(ref, (x) => (x ? { ...x, accuse: true, prochainAccuseLe: null } : x));
+    return true;
+  }
+  await ecrireEntreeMerci(ref, (x) => (x ? { ...x, essaisAccuse: x.essaisAccuse + 1, prochainAccuseLe: now + ATTENTES_ACCUSE_MS[Math.min(x.essaisAccuse, ATTENTES_ACCUSE_MS.length - 1)] } : x));
+  return false;
+}
+
+/** Au redémarrage, tout merci « en vol » non porté par CE processus devient « à vérifier » : jamais de second envoi. */
+async function reprendreMercisEnVol(now: number): Promise<void> {
+  const vol = processus().merciEnVol;
+  const touches = await sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    const refs = Object.keys(j).filter((r) => j[r].etat === "en_vol" && !vol.has(r));
+    if (refs.length === 0) return 0;
+    await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, ...Object.fromEntries(refs.map((r) => [r, { ...j[r], etat: "a_verifier" as const, issue: "a_verifier", accuse: false, prochainAccuseLe: null }])) });
+    const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    const cles = refs.map((r) => j[r].cle).filter((c): c is string => !!c && conv[c]?.merciEtat === "en_vol");
+    if (cles.length > 0) await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, ...Object.fromEntries(cles.map((c) => [c, { ...conv[c], merciEtat: "a_verifier" as const }])) });
+    return refs.length;
+  });
+  if (touches > 0) await alerter("merci_a_verifier", "Un merci a une issue inconnue : il ne sera pas renvoyé.", now);
+}
+
+/**
+ * Merci après la validation de la page « Recevoir le guide ». Le Studio réserve la liste des confirmations au site, envoie UN merci
+ * dans la conversation quand c'est permis, puis accuse l'issue. Jamais deux merci pour une même `ref` ni pour une même conversation ;
+ * l'opposition est relue juste avant le réseau ; hors fenêtre de 24 h, rien n'est envoyé. Les accusés en retard partent même
+ * interrupteur du merci éteint (ce n'est pas un message à une personne).
+ */
+export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> {
+  const env = d.env ?? process.env;
+  const rapport: RapportMerci = { actif: parcoursMerciActif(env), lues: 0, envoyes: 0, accuses: 0 };
+  const p = processus();
+  if (!parcoursConversationActif(env) || p.mercisEnCours) return rapport;
+  p.mercisEnCours = true;
+  try {
+    const now = d.maintenantMs ?? Date.now();
+    await reprendreMercisEnVol(now);
+    // 2. Accusés en retard (échéance passée), même interrupteur éteint.
+    const dus = Object.entries(await lireJournalMerci()).filter(([, e]) => !e.accuse && e.etat !== "en_vol" && (e.prochainAccuseLe === null || e.prochainAccuseLe <= now)).map(([r]) => r);
+    for (const r of dus) if (await accuserMerci(env, r, now)) rapport.accuses++;
+    // 3. Interrupteur du merci éteint : fin du passage.
+    if (!rapport.actif) return rapport;
+    const k = lireClesEmpreinte(env);
+    if (!k.ok) return rapport;
+    // 4. Lecture-réservation.
+    const lecture = await appelerSite(env, CHEMIN_CONFIRMATIONS, { schemaVersion: 1, limite: LOT_CONFIRMATIONS });
+    const liste = lecture && lecture.statut === 200 && typeof lecture.corps === "object" && lecture.corps !== null ? (lecture.corps as { confirmations?: unknown }).confirmations : undefined;
+    if (!Array.isArray(liste)) {
+      await alerter("merci_site", "Le site ne répond pas pour les merci après la page : rien n'est envoyé, nouvel essai au prochain passage.", now);
+      return rapport;
+    }
+    for (const el of liste.slice(0, LOT_CONFIRMATIONS)) {
+      rapport.lues++;
+      const r = typeof el === "object" && el !== null ? (el as { ref?: unknown }).ref : undefined;
+      if (typeof r !== "string" || !RE_REF_CONFIRMATION.test(r)) {
+        await journaliser("parcours_conversation", "Merci : confirmation_illisible (ignorée, sans accusé).");
+        continue;
+      }
+      const issue = await traiterConfirmation(r, d, env, k, now);
+      if (issue === "garde") return rapport; // la garde a bloqué : ni envoi ni accusé, le site re-proposera
+      if (issue === "envoye") rapport.envoyes++;
+    }
+  } finally {
+    p.mercisEnCours = false;
+  }
+  return rapport;
+}
+
+/** Une confirmation, dans l'ordre. `garde` : un blocage a mis fin au passage (rien n'est écrit pour cette ref). */
+async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k: ClesOk, now: number): Promise<"envoye" | "fait" | "garde"> {
+  // b. Déjà au registre : aucun envoi, accusé seulement s'il manque. JAMAIS DEUX FOIS LA MÊME REF.
+  if ((await lireJournalMerci())[ref]) {
+    await accuserMerci(env, ref, now);
+    return "fait";
+  }
+  // c. Retrouver la conversation par l'empreinte du jeton envoyé dans M1 v3.
+  const conv = await sousVerrou(async () => {
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    const cle = Object.keys(tout).find((c) => tout[c].empreintesLien?.includes(ref));
+    return cle ? { cle, etat: tout[cle] } : null;
+  });
+  const terminer = async (etat: EtatMerci, issue: string, cle: string | null) => {
+    await ecrireEntreeMerci(ref, (x) => x ?? { cle, etat, issue, accuse: false, le: new Date(now).toISOString(), essaisAccuse: 0, prochainAccuseLe: null });
+    await accuserMerci(env, ref, now);
+  };
+  if (!conv) return (await terminer("non_envoye", "conversation_inconnue", null), "fait");
+  const { cle } = conv;
+  // d. Opposition relue (état, registre, clé et alias).
+  if (await opposeeAvantEnvoi(cle, env)) {
+    await mettreEnFileOpposition(cle, conv.etat, k.courante, now);
+    return (await terminer("non_envoye", "oppose", cle), "fait");
+  }
+  // e. Garde (« Tout arrêter », disjoncteur, mot actif, validation du guide…) : si elle bloque, ni envoi ni accusé.
+  const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau);
+  if (bloque) {
+    await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    return "garde";
+  }
+  // f. Texte validé, fenêtre, identifiant de conversation retrouvé via le dernier message de la personne.
+  const texte = await texteMerciPret(d);
+  const idConversation = await idConversationDuDernierMessage(conv.etat);
+  const issue = issueMerci({ refAuRegistre: false, conversation: conv.etat, oppose: false, texteValide: texte !== null, idConversationRetrouve: idConversation !== null, maintenantMs: now });
+  if (issue === "texte_non_valide") await alerter("merci_non_valide", "Le texte du merci n'est pas validé dans Mots : le merci n'est pas parti.", now);
+  // g. Tout sauf « à envoyer » : entrée « non_envoyé », accusé.
+  if (issue !== "a_envoyer" || texte === null || idConversation === null) {
+    await terminer("non_envoye", issue === "a_envoyer" ? "hors_fenetre" : issue, cle);
+    if (issue === "deja_remercie") return "fait";
+    return "fait";
+  }
+  // h. Plafond d'envois : ni envoi ni accusé si atteint (on reviendra).
+  const reserve = await reserverEnvoi(conv.etat.idCompte, now);
+  if (reserve !== "ok") {
+    await alerter(reserve === "plafond" ? "plafond_heure" : "compteur_illisible", reserve === "plafond" ? "Le plafond d'envois par heure est atteint pour un compte : les messages en attente repartent à l'heure suivante, rien n'est perdu." : "Le compteur d'envois est illisible : aucun message ne part, nouvel essai dans une minute.", now);
+    return "fait";
+  }
+  // i. SOUS VERROU : revérifier le registre et l'état, puis écrire « en vol » dans le registre ET dans la conversation.
+  const pris = await sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    if (j[ref] || tout[cle]?.merciEtat) return false;
+    await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: { cle, etat: "en_vol" as const, issue: "en_vol", accuse: false, le: new Date(now).toISOString(), essaisAccuse: 0, prochainAccuseLe: null } });
+    await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: "en_vol" as const } });
+    return true;
+  });
+  if (!pris) {
+    await terminer("non_envoye", "deja_remercie", cle);
+    return "fait";
+  }
+  p_enVol(ref, true);
+  try {
+    // j. RELIRE L'OPPOSITION une dernière fois, juste avant le réseau.
+    if (await opposeeAvantEnvoi(cle, env)) {
+      await mettreEnFileOpposition(cle, conv.etat, k.courante, now);
+      await finirMerci(ref, cle, "non_envoye", "oppose", null);
+      await accuserMerci(env, ref, now);
+      return "fait";
+    }
+    // k. Envoi : clé d'idempotence par CONVERSATION (un rejeu chez Zernio ne double pas).
+    const res = await appeler(() => d.port.envoyerMessage({ idCompte: conv.etat.idCompte, idConversation, texte, cle: `merci:${conv.etat.refLienConv ?? cle}` }));
+    await reagir(transition(conv.etat, { t: "m1", res, maintenantMs: now }), now);
+    // l. Issue : envoyé | à vérifier (jamais renvoyé) | tout le reste = non envoyé avec le code (D4 : aucun nouvel essai).
+    if (res.statut === "envoye") await finirMerci(ref, cle, "envoye", "envoye", new Date(now).toISOString());
+    else if (res.statut === "a_verifier") {
+      await finirMerci(ref, cle, "a_verifier", "a_verifier", null);
+      await alerter("merci_a_verifier", "Un merci a une issue inconnue : il ne sera pas renvoyé.", now);
+    } else await finirMerci(ref, cle, "non_envoye", String(res.code ?? res.statut), null);
+  } finally {
+    p_enVol(ref, false);
+  }
+  // m. Accusé immédiat ; un échec est rattrapé au passage suivant. Jamais de second envoi pour rattraper un accusé.
+  await accuserMerci(env, ref, now);
+  return (await lireJournalMerci())[ref]?.etat === "envoye" ? "envoye" : "fait";
+}
+const p_enVol = (ref: string, vol: boolean): void => void (vol ? processus().merciEnVol.add(ref) : processus().merciEnVol.delete(ref));
+
+/** Écrit l'issue dans le registre ET dans la conversation (même section). */
+async function finirMerci(ref: string, cle: string, etat: EtatMerci, issue: string, merciLe: string | null): Promise<void> {
+  await sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    if (j[ref]) await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: { ...j[ref], etat, issue } });
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    if (tout[cle]) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: etat, ...(merciLe ? { merciLe } : {}) } });
+  });
+}
+
+/** Identifiant brut de conversation Zernio, relu EN MÉMOIRE dans l'événement du dernier message de la personne (jamais gardé dans l'état). */
+async function idConversationDuDernierMessage(e: Conversation): Promise<string | null> {
+  if (!e.idMessageDernier) return null;
+  const ev = (await depots().evenementsFournisseurs.lister((x) => x.type === TYPE_MESSAGE && x.charge.idMessage === e.idMessageDernier))[0];
+  return typeof ev?.charge.idConversation === "string" && ev.charge.idConversation ? ev.charge.idConversation : null;
 }

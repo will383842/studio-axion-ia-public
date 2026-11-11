@@ -22,13 +22,18 @@ const Opp = await import("@/services/oppositions-mots");
 
 const J = (...p: string[]) => p.join("");
 const MENTION = "Message automatique envoyé par Axion IA.";
-const IDS = ["mp-m1-v2", "mp-m1-v3", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const;
-const PRIVES = IDS.filter((i) => !i.startsWith("mp-pub"));
+const IDS = ["mp-m1-v2", "mp-m1-v3", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-merci-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const;
+/** Le merci est un message PERSONNEL, sans la mention d'ouverture (décision de l'opérateur, texte à valider) : il a son propre contrôle plus bas. */
+const PRIVES = IDS.filter((i) => !i.startsWith("mp-pub") && i !== "mp-merci-v1");
 
 describe("textes v2 : registre versionné", () => {
   it("la mention d'ouverture est exacte et chaque message privé commence par elle", () => {
     expect(MENTION_OUVERTURE).toBe(MENTION);
     for (const id of PRIVES) expect(TEXTES_MP[id].texte.startsWith(`${MENTION} `), id).toBe(true);
+  });
+  it("le merci ne porte PAS la mention d'ouverture (ton personnel, sans signature), et c'est le seul message privé dans ce cas", () => {
+    expect(TEXTES_MP["mp-merci-v1"].texte).not.toMatch(/message automatique/i);
+    expect(IDS.filter((i) => !i.startsWith("mp-pub") && !TEXTES_MP[i].texte.startsWith(`${MENTION} `))).toEqual(["mp-merci-v1"]);
   });
   it("tous les identifiants validés existent, avec leur version dans l'identifiant", () => {
     expect(Object.keys(TEXTES_MP).sort()).toEqual([...IDS].sort());
@@ -54,7 +59,7 @@ describe("textes v2 : registre versionné", () => {
   });
   it("le dictionnaire de textes est une copie à empreinte figée", () => {
     const brut = readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url));
-    expect(createHash("sha256").update(brut).digest("hex")).toBe("4f897e507f688af264d64dfc5ced92ff3e4fed774446cfb60d2343cee0d22733");
+    expect(createHash("sha256").update(brut).digest("hex")).toBe("0767f84cec0406dfb07cf18a0605570b1714ab30ac6c95dbb6725b1379222a9d");
     const d = JSON.parse(brut.toString("utf8")) as { textes: Record<string, { texte: string }> };
     for (const id of IDS) expect(d.textes[id].texte).toBe(TEXTES_MP[id].texte);
     expect(JSON.stringify(d)).not.toMatch(/\bstop\b/i);
