@@ -36,15 +36,15 @@ const sha = (t: string) => createHash("sha256").update(t).digest("hex");
  * son jeu complet, ne s'y appliquent pas ; celles-ci figent le texte public.
  */
 const AVANT_499 = {
-  angle: "09947b6c940e9b529ce385d668a99f17442a959fd6512f385ba17196e572ae75",
-  script: "214213058d5850a3584918e6ef931a910e6216d105e6383e45793641bfcc5b31",
-  relecture: "31da543ecff149d0211069a47aa57a585e83fdd6b969171fbe8e07acbd53f053",
+  angle: "edac9335a2da56e033f4dbed85a874db2124addec74d39b615b42e35c7bb6098",
+  script: "ca65955980b01b77afee0097369b6a347b1819cd24e0776797310e40e3141dba",
+  relecture: "fd747a570c3b3cb09f4d3ba6ba46e2fe72e364c54b773915308d3da37a58a335",
 };
 /** SHA-256 des consignes d'AUJOURD'HUI (version publique, après #499), pour tous les autres formats. */
 const AUJOURDHUI = {
-  angle: "0c2f64bf4317766fb9cc84f8bd0b53142addce911437839614fa3867231199c5",
-  script: "52ce9900f24ae6a5465165d78e2d6af72419e2ec31a09983d9986f24f6ed40b8",
-  relecture: "0e6cca0eb003f65d7231ec29508d78f3c69be41a0344d86d6928ce62f86bb91f",
+  angle: "54465729ea8d10a3817c54122a7d66f13a0efbf7f6b2cb9ba54f32fe8aeb41c3",
+  script: "aea925325af19fa8a404956dada881b8e9f4b5b1f72acc068103389e8e9e7b53",
+  relecture: "f3c7b1da2112b0667fa83ac4b74d52a60dbb4fd1e2ccdb8ee84744d45722a5bc",
 };
 
 const contexteWill = { interdits: CONTEXTE_BANC.interdits, promessesInterdites: CONTEXTE_BANC.promessesInterdites, rolesDestinataires: CONTEXTE_BANC.rolesDestinataires, tournures: TOURNURES_G4 } as never;

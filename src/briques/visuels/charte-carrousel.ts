@@ -1,49 +1,57 @@
 // Charte graphique des carrousels : `charte-carrousel/1`.
-// Couleurs de la charte « charte-carrousel/1 » ; l'orange est réservé aux GRANDS éléments.
+// Toutes les couleurs viennent de PALETTE (charte Axion 2026) : aucun hex en dur ici.
+// L'orange #D97757 est réservé aux fonds noirs et aux GRANDS éléments.
+import { PALETTE as P } from "../charte/axion-2026";
 
 export const CHARTE_CARROUSEL = {
   id: "charte-carrousel/1",
   couleurs: {
-    creme: "#F8F0E3",
-    encre: "#0D0A07",
-    orange: "#D9622B",
-    orangeFonce: "#B44F29",
-    pale: "#F2DFCB",
-    // Blanc chaud : fond des cartes impaires (L1), plus clair que la crème de la page.
-    blanc: "#FFFCF7",
+    creme: P.ivoire,
+    encre: P.noir,
+    orange: P.orange,
+    orangeFonce: P.terracotta,
+    pale: P.gris,
+    // Blanc pur : fond des cartes impaires (L1), plus clair que l'ivoire de la page.
+    blanc: P.blanc,
   },
   // Au-delà de ce corps (px), un texte compte comme « grand » (seuil de 3:1).
   grandTextePx: 40,
   seuils: { normal: 4.5, grand: 3 },
 } as const;
 
-// Charte du carrousel continu : jetons nommés (maquette v3). Les trois premiers viennent de CHARTE_CARROUSEL.
+// Charte du carrousel continu : jetons nommés (maquette v3), tous rattachés à un rôle de PALETTE.
+// Les noms historiques restent (importés par continu/commun) ; seules les valeurs changent.
 export const CHARTE_CONTINU = {
   creme: CHARTE_CARROUSEL.couleurs.creme,
   encre: CHARTE_CARROUSEL.couleurs.encre,
-  orange: CHARTE_CARROUSEL.couleurs.orange,
-  creme2: "#EDE2D1",
-  blancCarte: "#FFFBF4",
-  peche: "#F7DCC8",
-  orangeClair: "#F08A52",
-  orangeLumiere: "#FFA66E",
-  orangeProfond: "#C4501F",
-  orangeBrule: "#B8481A",
-  encreDouce: "#241C15",
-  brun: "#3A2D22",
-  brunClair: "#52412F",
-  brunNuit: "#1D1510",
-  nuit: "#0E0905",
-  brunPierre: "#5B4B3E",
-  abricot: "#FFD2AE",
-  rouille: "#8F3410",
-  cuivre: "#C9511D",
-  ecume: "#FFF4E8",
-  rosePeche: "#FDEBDD",
-  peau: "#F2C6A2",
-  grisTexte: "#51463B",
-  sableSombre: "#CDBFAE",
-  lin: "#CFC3B1",
+  /** Accent des fonds ivoire, blanc et gris (contrastes 5,51 / 5,81 / 4,64). */
+  accentClair: P.terracotta,
+  /** Accent du fond NOIR SEULEMENT (5,90) ; sur ivoire 2,96 et sur gris 2,50 : interdit. */
+  accentSombre: P.orange,
+  // Clés historiques : alias de accentSombre, noir seulement.
+  orange: P.orange,
+  creme2: P.gris,
+  blancCarte: P.blanc,
+  peche: P.gris,
+  orangeClair: P.orange, // noir seulement
+  orangeLumiere: P.orange, // noir seulement
+  orangeProfond: P.terracotta,
+  orangeBrule: P.terracotta,
+  encreDouce: P.noir,
+  brun: P.texteSecondaire, // décor seulement, jamais en texte
+  brunClair: P.texteSecondaire, // décor seulement, jamais en texte
+  brunNuit: P.noir,
+  nuit: P.noir,
+  brunPierre: P.texteSecondaire, // décor seulement, jamais en texte
+  abricot: P.gris,
+  rouille: P.terracotta, // la valeur de survol est la décision D5 (ouverte) : non employée
+  cuivre: P.terracotta,
+  ecume: P.ivoire,
+  rosePeche: P.gris,
+  peau: P.gris,
+  grisTexte: P.texteSecondaire,
+  sableSombre: P.grisSurNoir,
+  lin: P.gris,
 } as const;
 
 /** Couleur à `a` (0 à 1) d'opacité : `color-mix` sur transparent. */
@@ -57,21 +65,26 @@ export function degrade(angle: number, arrets: string[]): string {
 }
 
 const C = CHARTE_CONTINU;
+/**
+ * Fonds du carrousel continu : AUCUN dégradé, un aplat de PALETTE par clé (mêmes clés qu'avant, valeurs utilisables
+ * telles quelles en `background`). Le dégradé de `barre` devient un aplat transparent.
+ * Tuiles : `k` noir (icône accentSombre) et `w` blanche (icône accentClair) sont distinctes.
+ */
 export const DEGRADES_CONTINU = {
   tuile: {
-    o: degrade(145, [C.orangeLumiere, `${C.orange} 58%`, C.orangeBrule]),
-    k: degrade(145, [C.brunClair, `${C.brunNuit} 62%`, C.nuit]),
-    w: degrade(145, ["#FFFFFF", "#F1E6D6"]),
-    p: degrade(145, [C.rosePeche, C.peau]),
-    g: degrade(145, [alpha("#FFFFFF", 0.26), alpha("#FFFFFF", 0.06)]),
+    o: C.accentClair,
+    k: C.nuit,
+    w: C.blancCarte,
+    p: C.peche,
+    g: alpha(C.creme, 0.12),
   },
   carte: {
-    o: degrade(150, [C.orangeClair, `${C.orange} 60%`, C.orangeProfond]),
-    k: degrade(160, ["#2B2118", "#171009"]),
-    pl: degrade(160, ["#FBE9DA", "#F4D2B6"]),
+    o: C.accentClair,
+    k: C.nuit,
+    pl: C.peche,
   },
-  bouton: degrade(90, [C.orangeClair, C.orange]),
-  barre: degrade(180, [alpha(C.orange, 0.34), alpha(C.orange, 0)]),
+  bouton: C.accentClair,
+  barre: "transparent",
 } as const;
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;

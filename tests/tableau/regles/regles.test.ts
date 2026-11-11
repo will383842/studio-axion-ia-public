@@ -12,6 +12,7 @@ import {
   regleDouleurEnTete,
   regleDureeMaximale,
   regleGesteFortDouleur,
+  reglePreuveValidee,
   regleSansAppel,
   regleSansNumeroEpisode,
   regleTexteMotPourMot,
@@ -240,6 +241,16 @@ describe("règle 9 · preuve validée à l'écran", () => {
     expect(refuse(base(), nom(9), { matieres: [] })[0].message).toContain("est inconnue");
   });
 
+  it("ne refuse pas l'absence de scène « preuve » pour un texte de Williams ; une fiche de Claude sans preuve reste refusée", () => {
+    const f = base();
+    scene(f, "s05").role = "etape";
+    expect(reglePreuveValidee(f, contexteExemple(f, { texteDeWill: true }))).toEqual([]);
+    const g = base();
+    scene(g, "s05").role = "etape";
+    scene(g, "s05").elements = scene(g, "s05").elements.filter((e) => e.type !== "preuve");
+    expect(reglePreuveValidee(g, contexteExemple(g, { preuves: [], matieres: [] })).length).toBe(1);
+  });
+
   it("refuse une fiche sans scène « preuve »", () => {
     const f = base();
     scene(f, "s05").role = "etape";
@@ -269,6 +280,15 @@ describe("règle 10 · douleur en tête", () => {
     f.douleur = "Des réponses vagues.";
     const ps = regleDouleurEnTete(f, contexteExemple(f));
     expect(ps).toEqual([{ sceneId: "s01", detail: expect.stringContaining("n'est dit dans les 3 premières secondes") }]);
+  });
+
+  it("pour un texte de Williams, ne refuse pas une douleur saisie qui n'apparaît pas", () => {
+    const f = base();
+    f.douleur = "Vos textes générés sonnent faux.";
+    const ctx = contexteExemple(f, { texteDeWill: true });
+    expect(regleDouleurEnTete(f, ctx)).toEqual([]);
+    for (const sc of f.scenes) for (const e of sc.elements) if (e.type === "ligne") delete e.marque;
+    expect(regleGesteFortDouleur(f, ctx)).toEqual([]);
   });
 
   it("refuse un geste de la minute vide", () => {
@@ -345,7 +365,8 @@ describe("règle 13 · contrôles du script sur les textes écrits et dits", () 
   });
 });
 
-describe("règle 14 · durée de 90 secondes au plus", () => {
+const CPS_LENT = 1.5;
+describe("règle 14 · durée de 180 secondes au plus", () => {
   const calee = (finMs: number) => {
     const f = base();
     const pas = finMs / f.scenes.length;
@@ -353,20 +374,28 @@ describe("règle 14 · durée de 90 secondes au plus", () => {
     return f;
   };
 
-  it("accepte une durée estimée sous 90 s, et une fiche calée de 90 s pile", () => {
+  it("accepte une durée estimée sous 180 s, et une fiche calée de 180 s pile", () => {
     accepte(base());
     expect(regleDureeMaximale(calee(DUREE_MAX_MS), contexteExemple(base()))).toEqual([]);
   });
 
-  it("refuse une durée de plus de 90 s, en nommant la scène où elle est dépassée", () => {
+  it("refuse une durée de plus de 180 s, en nommant la scène où elle est dépassée", () => {
     const [p] = regleDureeMaximale(calee(DUREE_MAX_MS + 600), contexteExemple(base()));
     expect(p.sceneId).toBe("s06");
-    expect(p.detail).toContain("environ 90,6 s ; 90 s au plus");
+    expect(p.detail).toContain("environ 180,6 s ; 180 s au plus");
+  });
+
+  it("tolère 5 % de plus pour un texte de Williams (185 s accepté), pas pour un texte de Claude", () => {
+    const f = calee(185_000);
+    expect(regleDureeMaximale(f, contexteExemple(base(), { texteDeWill: true }))).toEqual([]);
+    expect(regleDureeMaximale(f, contexteExemple(base()))).toHaveLength(1);
+    expect(regleDureeMaximale(calee(190_000), contexteExemple(base(), { texteDeWill: true }))).toHaveLength(1);
   });
 
   it("refuse par la validation complète (estimation au débit injecté)", () => {
-    const ps = refuse(base(), nom(14), { caracteresParSeconde: 3 }, false);
-    expect(ps[0].message).toBe("Scène s05 · règle « durée de 90 secondes au plus » : la vidéo durerait environ 110,0 s ; 90 s au plus (dépassé dans cette scène) : raccourcissez le texte dit d'au moins 60 caractères (environ 10 mots).");
+    const ps = refuse(base(), nom(14), { caracteresParSeconde: CPS_LENT }, false);
+    expect(ps[0].message).toContain("règle « durée de 180 secondes au plus » : la vidéo durerait environ");
+    expect(ps[0].message).toContain("180 s au plus (dépassé dans cette scène)");
   });
 });
 

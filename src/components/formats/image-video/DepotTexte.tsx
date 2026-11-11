@@ -7,7 +7,11 @@
  * long, ou schéma impossible) s'affiche en phrase simple et le texte reste là pour être reformulé.
  */
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { ChoixCible } from "@/components/ciblage/ChoixCible";
+import { ChoixTypeAutomatisation } from "@/components/ciblage/ChoixTypeAutomatisation";
+import { libelleCibleValide } from "@/domaine/ciblage/controles";
+import type { Ciblage, NiveauCible, TypeAutomatisation } from "@/domaine/ciblage/types";
 import { deposerTexteImageVideoAction } from "@/app/(studio)/image-video/actions";
 import { BoutonFabriquer } from "@/components/formats/commun/BoutonFabriquer";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
@@ -17,8 +21,16 @@ import type { ReseauIV } from "@/domaine/image-video/plafonds";
 /** Longueur maximale du texte (même borne que le serveur, `CARACTERES_MAX` du moteur du mode texte). */
 export const CARACTERES_MAX_TEXTE_IV = 4000;
 
-export function DepotTexte({ texte, onTexte, reseaux, montant, blocage, onRefus, children }: { texte: string; onTexte: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; onRefus: (phrase: string | null) => void; /** Sélecteur de réseaux, placé entre le texte et la barre du prix. */ children?: ReactNode }) {
+/** Ciblage saisi à l'écran ; rien tant que la valeur est vide ou invalide (la cible reste facultative ici). */
+export function ciblageDepose(niveau: NiveauCible | undefined, valeur: string): Ciblage | undefined {
+  const libelle = valeur.trim();
+  return niveau && libelleCibleValide(libelle) ? { niveau, libelle, origine: "saisie" } : undefined;
+}
+
+export function DepotTexte({ texte, onTexte, reseaux, montant, blocage, onRefus, onCiblage, children }: { texte: string; onTexte: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; onRefus: (phrase: string | null) => void; /** Cible et type choisis (facultatifs) ; non branchés au serveur par ce composant. */ onCiblage?: (c: { ciblage?: Ciblage; typeAutomatisation?: TypeAutomatisation }) => void; /** Sélecteur de réseaux, placé entre le texte et la barre du prix. */ children?: ReactNode }) {
   const router = useRouter();
+  const [ciblage, setCiblage] = useState<Ciblage | undefined>();
+  const [type, setType] = useState<TypeAutomatisation | undefined>();
   const pret = texte.trim().length > 0 && texte.length <= CARACTERES_MAX_TEXTE_IV && reseaux.length > 0 && !blocage;
 
   async function fabriquer(accord: number): Promise<{ centimes: number } | void> {
@@ -44,6 +56,23 @@ export function DepotTexte({ texte, onTexte, reseaux, montant, blocage, onRefus,
           onRefus(null);
         }}
       />
+      <ChoixCible
+        nom="cible-iv"
+        onChange={(niveau, valeur) => {
+          const c = ciblageDepose(niveau, valeur);
+          setCiblage(c);
+          onCiblage?.({ ciblage: c, typeAutomatisation: type });
+        }}
+      />
+      <div
+        onChange={(e) => {
+          const v = (e.target as HTMLInputElement).value as TypeAutomatisation | "";
+          setType(v || undefined);
+          onCiblage?.({ ciblage, typeAutomatisation: v || undefined });
+        }}
+      >
+        <ChoixTypeAutomatisation nom="type-iv" valeur={type} />
+      </div>
       {children}
       {blocage && <p className="text-[15px] text-texte-doux">{blocage}</p>}
       <BarreActionCollee>

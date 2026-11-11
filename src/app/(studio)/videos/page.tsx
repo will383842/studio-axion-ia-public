@@ -8,6 +8,8 @@ import { RefaireToutesLesVignettes } from "@/components/videos/RefaireToutesLesV
 import { GalerieVideos } from "@/components/videos/GalerieVideos";
 import { OngletsMesVideos } from "@/components/videos/OngletsMesVideos";
 import { compterParReseau, filtrerCartes, lireFiltres } from "@/domaine/filtres-mes-videos";
+import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
+import { filtrerParCiblage, lireFiltreCiblage } from "@/domaine/ciblage/listes";
 import { FiltresMesVideos } from "@/components/videos/FiltresMesVideos";
 import { compteursMesVideos, videosAutres, videosDeToutes } from "@/domaine/mes-videos";
 import { listerFormats } from "@/formats";
@@ -25,7 +27,7 @@ type Vue = "toutes" | "brouillons" | "autres" | "archivees" | "corbeille";
  * Onglets : Toutes · Brouillons · un par format (registre) · Archivées · Corbeille.
  * Recherche, filtres (état, publication, format d'image, série), tri, sélection multiple.
  */
-export default async function PageVideos({ searchParams }: { searchParams: Promise<{ vue?: string; etape?: string; format?: string; reseau?: string }> }) {
+export default async function PageVideos({ searchParams }: { searchParams: Promise<{ vue?: string; etape?: string; format?: string; reseau?: string; type?: string }> }) {
   await exigerSession();
   const sp = await searchParams;
   const vue: Vue = sp.vue === "brouillons" || sp.vue === "autres" || sp.vue === "archivees" || sp.vue === "corbeille" ? sp.vue : "toutes";
@@ -44,7 +46,10 @@ export default async function PageVideos({ searchParams }: { searchParams: Promi
   const etape = filtres.etape;
   const sansReseau = filtrerCartes(liste, { etape, format: filtres.format });
   const reseaux = compterParReseau(sansReseau);
-  const affichees = filtres.reseau ? filtrerCartes(sansReseau, { reseau: filtres.reseau }) : sansReseau;
+  const filtreCiblage = lireFiltreCiblage(sp);
+  const affichees0 = filtres.reseau ? filtrerCartes(sansReseau, { reseau: filtres.reseau }) : sansReseau;
+  // Ciblage (lot H) : filtre par type ; une vidéo n'est jamais masquée parce qu'elle est ancienne.
+  const affichees = filtrerParCiblage(affichees0, { anciens: true, type: filtreCiblage.type });
 
   const nouvelle = (
     <Bouton asChild icone="plus">
@@ -63,8 +68,9 @@ export default async function PageVideos({ searchParams }: { searchParams: Promi
       )}
       <OngletsMesVideos actif={vue} compteParFormat={compteurs.parFormat} nbToutes={compteurs.toutes} nbBrouillons={compteurs.brouillons} nbArchivees={vue === "archivees" ? archivees.length : compteurs.archivees} nbCorbeille={compteurs.corbeille} nbAutres={compteurs.autres} className="mb-5" />
       <FiltresMesVideos base="/videos" params={sp} filtres={filtres} reseaux={reseaux} className="mb-5" />
+      <FiltresCiblage base="/videos" params={sp} filtre={{ anciens: false, type: filtreCiblage.type }} nbAnciens={0} className="mb-5" />
       <GalerieVideos
-        key={`${vue}-${sp.format ?? ""}-${etape ?? ""}-${filtres.reseau ?? ""}`}
+        key={`${vue}-${sp.format ?? ""}-${etape ?? ""}-${filtres.reseau ?? ""}-${filtreCiblage.type ?? ""}`}
         videos={affichees}
         filtresInitiaux={etape ? { etape } : undefined}
         series={series.map((s) => ({ id: s.id, nom: s.nom }))}

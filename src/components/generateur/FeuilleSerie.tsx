@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import type { Ciblage, TypeAutomatisation } from "@/domaine/ciblage/types";
 import { lancerSerieAction, planSerieAction } from "@/app/(studio)/ecrire/serie/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
@@ -27,6 +28,8 @@ export function FeuilleSerie({
   idees,
   reglages,
   serieId,
+  ciblage,
+  typeAutomatisation,
   onLancee,
 }: {
   ouverte: boolean;
@@ -35,6 +38,9 @@ export function FeuilleSerie({
   reglages: EtatReglagesSujet;
   /** Intégration paquet 4 : série TikTok choisie dans l'atelier (chaque idée partie en devient un épisode). */
   serieId?: string;
+  /** La cible de tout le lot (choisie sur l'écran Sujet). */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
   onLancee?: () => void;
 }) {
   const router = useRouter();
@@ -76,7 +82,7 @@ export function FeuilleSerie({
     const c = cle.current;
     demarrer(async () => {
       // Garde argent (B6) : le total envoyé est celui affiché sur cette feuille ; le serveur le compare au prix du jour.
-      const r = await lancerSerieAction(idees, { reseaux: reglages.reseaux, formatId: reglages.formatId, adresse: reglages.adresse, mode: reglages.qui, objectif: reglages.but, serieId }, c, plan.totalPartant.centimes, plan.partiront);
+      const r = await lancerSerieAction(idees, { reseaux: reglages.reseaux, formatId: reglages.formatId, adresse: reglages.adresse, mode: reglages.qui, objectif: reglages.but, serieId, ciblage, typeAutomatisation }, c, plan.totalPartant.centimes, plan.partiront);
       if (!r.ok) {
         notifier.erreur(r.message);
         // Prix changé depuis l'ouverture : la feuille affiche le nouveau total, Will reconfirme d'un toucher.
