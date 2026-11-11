@@ -136,6 +136,47 @@ describe("V7-09b : couleurs en dur", () => {
     }
   });
 
+  const lire = (f: string) => readFileSync(join(BASE, f), "utf8").replace(/\r\n/g, "\n");
+
+  it("interfaces-lot4 EcranSignature : bouton à fond ACCENT_1 quand `touche`, texte BLANC (5,81), ENCRE sinon", () => {
+    const src = lire("motion-v4/lot4/interfaces-lot4.tsx");
+    const i = src.indexOf("background: touche ? ACCENT_1 : BLANC");
+    expect(i).toBeGreaterThan(0);
+    const bloc = src.slice(i, src.indexOf("}}", i));
+    expect(bloc).toMatch(/\.\.\.txt\(44, touche \? BLANC : ENCRE\)/);
+    expect(bloc).not.toMatch(/\.\.\.txt\(44\)/);
+  });
+
+  it("interfaces-lot4 EmailEnvoi : bouton ENVOYER à fond ACCENT_1 avant l'envoi, texte BLANC ; ENCRE une fois parti (fond BLANC)", () => {
+    const l = lire("motion-v4/lot4/interfaces-lot4.tsx").split("\n").find((x) => x.includes("background: parti ? BLANC : ACCENT_1"))!;
+    expect(l).toBeDefined();
+    expect(l).toMatch(/\.\.\.txt\(44, parti \? ENCRE : BLANC\)/);
+  });
+
+  it("CarteStatuts : la couleur du texte suit le fond réel (`fait` ivoire prime sur `flash`), jamais `flash` seul", () => {
+    const src = lire("motion-v4/lot2/CarteStatuts.tsx");
+    expect(src).toMatch(/const fond = fait \? IVOIRE_CLAIR : flash \? ACCENT_1 :/);
+    const lignes = src.split("\n").filter((l) => /r\.agent|r\.action/.test(l));
+    expect(lignes.length).toBe(2);
+    for (const l of lignes) {
+      expect(l, "la couleur du texte doit dépendre du fond réel").toMatch(/color: (fond === ACCENT_1|!fait && flash) \? BLANC : ENCRE/);
+      expect(l, "texte blanc sur ivoire quand fait && flash (1,05)").not.toMatch(/color: flash \? BLANC/);
+    }
+    expect(contrasteWcag(COULEURS.BLANC, COULEURS.IVOIRE_CLAIR)).toBeLessThan(1.2);
+  });
+
+  it("balayage des assistants de style : tout texte d'un élément dont le fond peut valoir ACCENT_1 est BLANC sur ACCENT_1", () => {
+    const attendus: [string, RegExp][] = [
+      ["motion-v4/lot2/FriseEtapes.tsx", /styleMontserrat\(42, \{ color: courbe\(i, d, 3\) >= 0\.5 \? BLANC : ENCRE \}\)/],
+      ["motion-v4/lot3/FilEtape.tsx", /color: actif && courbe\(i, iA, 3\) >= 0\.5 \? COULEURS\.BLANC : E,/],
+      ["motion-v4/lot3/EclatChiffre.tsx", /color: COULEURS\.BLANC, fontVariantNumeric/],
+      ["motion-v4/lot5/DalleClaquee.tsx", /color: COULEURS\.BLANC, whiteSpace: "nowrap", \.\.\.contourTexte\(corps, COULEURS\.ENCRE/],
+    ];
+    for (const [f, re] of attendus) expect(lire(f), f).toMatch(re);
+    expect(lire("motion-v4/lot3/EclatChiffre.tsx")).not.toMatch(/color: E, fontVariantNumeric/);
+    expect(lire("motion-v4/lot5/DalleClaquee.tsx")).not.toMatch(/color: COULEURS\.ENCRE, whiteSpace/);
+  });
+
   it("lot1 : la barre de progression et le mot en cours (contour ENCRE) emploient ACCENT_SOMBRE", () => {
     const src = readFileSync(join(BASE, "motion-v4/lot1/commun-lot1.tsx"), "utf8");
     expect(src).toMatch(/accents\(palette\)\.ACCENT_SOMBRE/);

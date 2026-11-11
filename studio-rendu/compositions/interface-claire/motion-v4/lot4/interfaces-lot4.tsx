@@ -161,7 +161,7 @@ export function EcranSignature({ f, l, h, palette, iTrace, iTouche, bouton, text
           alignItems: "center",
           justifyContent: "center",
           gap: 16,
-          ...txt(44),
+          ...txt(44, touche ? BLANC : ENCRE),
           transform: `scale(${touche ? 1 - 0.06 * Math.sin(Math.PI * borne((f - iTouche) / 6)) : 1})`,
         }}
       >
@@ -207,7 +207,7 @@ export function EmailEnvoi({ f, l, h, palette, iEnvoi }: { f: number; l: number;
         DEVIS.PDF
       </div>
       {!parti || k < 5 ? (
-        <div style={{ position: "absolute", left: 40, top: h - bh - 56, width: bl, height: bh, borderRadius: 24, background: parti ? BLANC : ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, boxShadow: `5px 6px 0 0 ${ENCRE}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", ...txt(44), transform: `scale(${presse})`, transformOrigin: "0% 50%" }}>ENVOYER</div>
+        <div style={{ position: "absolute", left: 40, top: h - bh - 56, width: bl, height: bh, borderRadius: 24, background: parti ? BLANC : ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, boxShadow: `5px 6px 0 0 ${ENCRE}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", ...txt(44, parti ? ENCRE : BLANC), transform: `scale(${presse})`, transformOrigin: "0% 50%" }}>ENVOYER</div>
       ) : null}
       {parti && k >= 6 ? <Coche f={k} debut={6} d={92} fond={ACCENT_1} style={{ position: "absolute", left: 40, top: h - bh - 56 }} /> : null}
       {parti && k >= 6 ? <div style={{ position: "absolute", left: 160, top: h - bh - 56 + 28, ...txt(48) }}>ENVOYÉ</div> : null}
