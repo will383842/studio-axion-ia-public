@@ -199,7 +199,6 @@ export function dessinerEcran(): HTMLCanvasElement {
     const x = 96 + (i % 4) * (t + ecart);
     const y = 1320 + Math.floor(i / 4) * 330;
     icone(g, x, y, t, couleurs[i][0], couleurs[i][1], (cx, cy, s) => {
-      g.fillStyle = i === 1 || i === 3 ? ORANGE : "rgba(255,255,255,0.95)";
       if (i === 3) {
         g.fillStyle = "#E8344F";
         g.font = police(s * 0.16, 600);
