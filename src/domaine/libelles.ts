@@ -1,17 +1,17 @@
 /**
  * Libellés et tonalités d'affichage (PUR, importable côté client).
- * Les tonalités sont des NOMS DE JETONS : « orange », « sauge », « ambre », « brique », « neutre ».
+ * Les tonalités sont des NOMS DE JETONS : « orange », « sauge », « ambre », « brique », « neutre », « encre ».
  */
 import type { NomIcone } from "@/components/ui/Icone";
 import { formaterMontant } from "@/lib/montants";
 import type { BriqueFacultative, EtapeEditoriale, Montant, EtatVeille, NaturePersonnage, StatutNouveaute, StatutPreparation, StatutTravail, StatutVideo, TypeElement, VeilleNouveaute } from "./types";
 
-export type Tonalite = "orange" | "sauge" | "ambre" | "brique" | "neutre";
+export type Tonalite = "orange" | "sauge" | "ambre" | "brique" | "neutre" | "encre" | "contour" | "pointille";
 
 export const STATUTS_VIDEO: Record<StatutVideo, { libelle: string; tonalite: Tonalite; icone: NomIcone }> = {
   brouillon: { libelle: "Brouillon", tonalite: "neutre", icone: "ecrire" },
   maquette: { libelle: "Maquette", tonalite: "neutre", icone: "oeil" },
-  en_file: { libelle: "En attente", tonalite: "ambre", icone: "sablier" },
+  en_file: { libelle: "En attente", tonalite: "neutre", icone: "sablier" },
   en_fabrication: { libelle: "En fabrication", tonalite: "orange", icone: "chargement" },
   prete: { libelle: "Prête", tonalite: "sauge", icone: "valide" },
   echec: { libelle: "À corriger", tonalite: "brique", icone: "attention" },
@@ -21,9 +21,9 @@ export const STATUTS_VIDEO: Record<StatutVideo, { libelle: string; tonalite: Ton
 
 export const ETAPES_EDITORIALES: Record<EtapeEditoriale, { libelle: string; tonalite: Tonalite; icone: NomIcone }> = {
   a_relire: { libelle: "À relire", tonalite: "ambre", icone: "oeil" },
-  validee: { libelle: "Validée", tonalite: "sauge", icone: "coche" },
-  programmee: { libelle: "Programmée", tonalite: "orange", icone: "calendrier" },
-  publiee: { libelle: "Publiée", tonalite: "sauge", icone: "megaphone" },
+  validee: { libelle: "Validée", tonalite: "encre", icone: "coche" },
+  programmee: { libelle: "Programmée", tonalite: "sauge", icone: "calendrier" },
+  publiee: { libelle: "Publiée", tonalite: "contour", icone: "megaphone" },
 };
 
 /**
@@ -33,7 +33,7 @@ export const ETAPES_EDITORIALES: Record<EtapeEditoriale, { libelle: string; tona
 export const LIBELLES_RETRAIT = { action: "Archiver", retour: "Restaurer", liste: "Archivés", listeFeminin: "Archivées" } as const;
 
 export const STATUTS_TRAVAIL: Record<StatutTravail, { libelle: string; tonalite: Tonalite }> = {
-  en_file: { libelle: "En attente", tonalite: "ambre" },
+  en_file: { libelle: "En attente", tonalite: "neutre" },
   en_cours: { libelle: "En cours", tonalite: "orange" },
   termine: { libelle: "Terminé", tonalite: "sauge" },
   echec: { libelle: "À corriger", tonalite: "brique" },
