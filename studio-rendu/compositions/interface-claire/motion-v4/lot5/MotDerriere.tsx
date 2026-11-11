@@ -18,7 +18,7 @@ export const DUREE_MOT_DERRIERE = 48; // 1,6 s
 export type MotDerriereProps = { frame: number; debut: number; palette: Palette; mot: string; /** Index de la lettre clé qui passe ACCENT_2 à +0,5 s. */ lettreCle?: number; duree?: number };
 
 export function MotDerriere({ frame, debut, palette, mot, lettreCle = 2, duree = DUREE_MOT_DERRIERE }: MotDerriereProps) {
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   const i = frame - debut;
   if (i < 0 || i >= duree) return null;
   const lettres = mot.split("");
@@ -41,7 +41,7 @@ export function MotDerriere({ frame, debut, palette, mot, lettreCle = 2, duree =
         const mont = ressort("POP", k);
         const kF = i - (iSortie + n);
         const chute = kF >= 0 ? courbe(kF + 1, 0, 3, Easing.in(Easing.cubic)) : 0;
-        const couleur = n === lettreCle ? melange(ACCENT_1, ACCENT_2, courbe(i, iCle, 3)) : ACCENT_1;
+        const couleur = n === lettreCle ? melange(ACCENT_SOMBRE, ACCENT_2, courbe(i, iCle, 3)) : ACCENT_SOMBRE;
         const pop = (n === lettreCle ? 1 + 0.12 * Math.sin(Math.PI * courbe(i, iCle, 6)) : 1) * (1 + 0.09 * Math.sin(Math.PI * courbe(i, iVague + n, 5)));
         if (k < 0 || chute >= 1) return null;
         return (
