@@ -28,10 +28,10 @@ describe("charte-duo/1", () => {
       encre: "#141413",
       orange: "#B23F16",
       orangeVif: "#D97757",
-      gris: "#141413",
+      gris: "#5E5D59",
       grisClair: "#B0AEA5",
-      vert: "#B23F16",
-      blanc: "#FAF9F5",
+      vert: "#5E7050",
+      blanc: "#FFFFFF",
     });
     expect(TAILLES_DUO).toEqual({ geant: 0.375, affiche: 0.12, titre: 0.099, ligne: 0.022, etiquette: 0.0146, marque: 0.0188 });
     expect(TAILLE_PLANCHER_DUO).toBe(0.03);
@@ -95,10 +95,15 @@ describe("charte-duo/1", () => {
 
   it("palette 2026 : aucune couleur hors liste, ni bleu, ni jaune, ni vert, ni dégradé ; orange et gris clair sur nuit seulement", () => {
     const AUTORISEES = ["#FAF9F5", "#E8E6DC", "#141413", "#B23F16", "#D97757", "#B0AEA5"];
-    const toutes = [...Object.values(COULEURS_DUO), ...Object.values(COULEURS_VIDEO)];
-    for (const c of toutes) expect(AUTORISEES, c).toContain(c.toUpperCase());
+    // Correctif L0 : blanc des cartes, gris secondaire sur ivoire et coche de validation (sauge), chacun limité à son rôle.
+    const PAR_ROLE = { blanc: "#FFFFFF", gris: "#5E5D59", vert: "#5E7050" } as const;
+    for (const [role, c] of Object.entries(COULEURS_DUO)) {
+      const permise = role in PAR_ROLE ? [PAR_ROLE[role as keyof typeof PAR_ROLE]] : AUTORISEES;
+      expect(permise, `${role} ${c}`).toContain(c.toUpperCase());
+    }
+    for (const c of Object.values(COULEURS_VIDEO)) expect(AUTORISEES, c).toContain(c.toUpperCase());
     const src = [readFileSync(new URL("../../../src/briques/habillage/charte-duo.ts", import.meta.url), "utf8"), readFileSync(new URL("../../../src/briques/habillage/charte-video.ts", import.meta.url), "utf8")].join("\n");
-    for (const h of src.match(/#[0-9a-fA-F]{6}\b/g) ?? []) expect(AUTORISEES, h).toContain(h.toUpperCase());
+    for (const h of src.match(/#[0-9a-fA-F]{6}\b/g) ?? []) expect([...AUTORISEES, ...Object.values(PAR_ROLE)], h).toContain(h.toUpperCase());
     expect(src).not.toMatch(/gradient/i);
     for (const fond of [FONDS.sombre, FONDS.ivoire]) {
       expect(["#141413", "#FAF9F5"]).toContain(fond.fond);
