@@ -779,7 +779,7 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   if (!lu.success) throw new ErreurDecisionIV("Le script modifié est incomplet.", lu.error.issues.slice(0, 10).map((i) => `${i.path.join(".") || "script"} : ${i.message}`));
   const fiche = lu.data;
   const choixFormules = { ...(d.choixFormules ?? {}) };
-  const ajoutsWill = [...(d.ajoutsWill ?? [])];
+  const ajoutsWill = [...(d.ajoutsWill ?? []), ...(etat.demande.scriptColle && etat.demande.texte ? [etat.demande.texte] : [])];
   const verdict = verifierScript(fiche, { carte, choixFormules, ajoutsWill, interdits: etat.demande.interdits ?? [], ...recitDe(etat) });
   // Script collé : seuls les points qui le bloquent comptent (chiffre hors schéma, interdit, phrase affirmative non tranchée).
   const manquements = etat.demande.scriptColle ? manquementsDuScriptColle(verdict) : verdict.manquements;

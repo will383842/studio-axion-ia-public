@@ -376,14 +376,14 @@ const BLOC_RECETTE: Record<IdBloc, string> = {
 };
 
 /** Texte « trame » d'un bloc : de quoi remplir le script du brouillon, l'écriture réelle vient ensuite. */
-function trameDuBloc(id: IdBloc, cas: CasConcret): string {
+function trameDuBloc(id: IdBloc, cas: CasConcret): string | null {
   switch (id) {
     case "accroche":
       return cas.promesse;
     case "resultat-tete":
       return cas.resultat;
     case "chiffre":
-      return cas.faits[0]?.enonce ?? cas.promesse;
+      return cas.faits[0]?.enonce ?? null;
     case "avant":
       return cas.avant.taches.join(", ");
     case "bascule":
@@ -401,10 +401,18 @@ function trameDuBloc(id: IdBloc, cas: CasConcret): string {
   }
 }
 
-function blocsTrame(cas: CasConcret, videoId: Id): BlocScript[] {
-  return recettePour(cas)
-    .filter((b) => !b.facultatif || (b.id === "conformite" && !!cas.conformite?.rgpd))
-    .map((b, i) => ({ id: `${videoId}-b${i + 1}`, blocRecette: BLOC_RECETTE[b.id], segments: [{ id: `${videoId}-s${i + 1}`, texte: trameDuBloc(b.id, cas) }] }));
+/** Trame du brouillon : jamais deux fois le même texte (un bloc qui répète un bloc précédent est omis). Exporté pour les tests. */
+export function blocsTrame(cas: CasConcret, videoId: Id): BlocScript[] {
+  const vus = new Set<string>();
+  const gardes: { b: IdBloc; texte: string }[] = [];
+  for (const b of recettePour(cas).filter((x) => !x.facultatif || (x.id === "conformite" && !!cas.conformite?.rgpd))) {
+    const texte = trameDuBloc(b.id, cas);
+    const cle = texte?.trim().toLowerCase();
+    if (!texte || !cle || vus.has(cle)) continue;
+    vus.add(cle);
+    gardes.push({ b: b.id, texte });
+  }
+  return gardes.map((g, i) => ({ id: `${videoId}-b${i + 1}`, blocRecette: BLOC_RECETTE[g.b], segments: [{ id: `${videoId}-s${i + 1}`, texte: g.texte }] }));
 }
 
 /** Un identifiant fait de minuscules, de chiffres et de tirets : les six derniers caractères de la vidéo. */
