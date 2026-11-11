@@ -61,7 +61,7 @@ function planRapportV4(p: ProprietesObjet, image?: number) {
     pages,
     devant: {
       boite: page,
-      couleur: COULEURS_DUO.blanc,
+      couleur: COULEURS_DUO.carte,
       titre,
       lignes: [0.22, 0.34, 0.46].map((y, i) => ({ x: page.largeur * 0.1, y: page.hauteur * y, largeur: page.largeur * (0.8 - 0.15 * i), hauteur: Math.max(3, page.hauteur * 0.02), couleur: COULEURS_DUO.grisClair })),
       etiquette,
