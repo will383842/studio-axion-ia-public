@@ -4,6 +4,8 @@
  * texte, la marque « ancien » (« avant-ciblage », ou « hors-sujet » pour les scripts avocat hors du domaine d'Axion) et
  * leurs doublons possibles. Les vidéos recopient ciblage et type depuis leur script. Idempotente, AUCUNE suppression ;
  * renvoie null au second passage. Les scripts liés à une vidéo publiée ne sont pas marqués anciens.
+ * Jouée UNE SEULE FOIS (repère `migrations.ciblage`) : la migration tourne à chaque démarrage, et un script écrit après
+ * elle ne doit jamais devenir « ancien ».
  */
 import type { Depots } from "@/domaine/depots";
 import { deduireCiblage, deduireTypeAutomatisation } from "@/domaine/ciblage/controles";
@@ -15,7 +17,10 @@ const REFERENCES_HORS_SUJET = new Set(["script-ref-fiche-radar", "script-ref-fic
 
 const texteDe = (s: Script) => s.blocs.flatMap((b) => b.segments.map((x) => x.texte)).join(" ");
 
+const REPERE = "migrations.ciblage";
+
 export async function etape22Ciblage(d: Depots, maintenant: string): Promise<Record<string, unknown> | null> {
+  if (await d.parametres.obtenir(REPERE)) return null;
   const publiees = new Set((await d.videos.lister((v) => v.etapeEditoriale === "publiee" && !!v.scriptId)).map((v) => v.scriptId!));
   const anciens: string[] = [];
   const horsSujet: string[] = [];
@@ -69,6 +74,7 @@ export async function etape22Ciblage(d: Depots, maintenant: string): Promise<Rec
     videos += 1;
   }
 
+  await d.parametres.enregistrer({ id: REPERE, valeur: { appliqueeLe: maintenant }, creeLe: maintenant, modifieLe: maintenant });
   if (!modifies && !videos) return null;
   return { scriptsAnciens: anciens.length, scriptsHorsSujet: horsSujet.length, groupesDoublons: groupes.length, videosCompletees: videos };
 }
