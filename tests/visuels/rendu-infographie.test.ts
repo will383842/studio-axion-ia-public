@@ -13,6 +13,7 @@ import {
   ErreurDebordementInfographie,
   FORMATS_INFOGRAPHIE,
   GABARITS_INFOGRAPHIE,
+  ID_COMPOSITION_INFOGRAPHIE,
   miseEnPageInfographie,
   type Gabarit,
   type RatioInfographie,
@@ -90,11 +91,12 @@ describe("L2-06 · palette 2026 seule", () => {
 });
 
 describe("L2-06 · rendu simulé", () => {
-  it("l'opération « infographie » est connue des deux copies du contrat, file courte", () => {
-    const op: OperationRendu = "infographie";
+  it("la demande passe par l'opération existante « image-fixe » (composition « Infographie ») : le contrat reste inchangé", () => {
+    const op: OperationRendu = "image-fixe";
     expect(OPERATIONS).toContain(op);
-    const d: DemandeRendu = { idRendu: "r1", operation: op, file: "courte", entrees: {}, sortie: { urlDepot: "https://r2.exemple/depot", cle: "sorties/r1" }, parametres: { gabarit: "etapes", ratio: "9:16", spec: spec(4) } };
-    expect(() => verifierDemande(d)).not.toThrow();
+    expect(OPERATIONS).not.toContain("infographie");
+    const d: DemandeRendu = { idRendu: "r1", operation: op, file: "courte", entrees: {}, sortie: { urlDepot: "https://r2.exemple/depot", cle: "sorties/r1" }, parametres: { composition: ID_COMPOSITION_INFOGRAPHIE, proprietes: { gabarit: "etapes", ratio: "9:16", spec: spec(4) } } };
+    expect(verifierDemande(d)).toBeNull();
   });
   it("service simulé : une demande par gabarit et par ratio, terminée, sans appel réel", async () => {
     const soumises: DemandeRendu[] = [];
@@ -104,7 +106,7 @@ describe("L2-06 · rendu simulé", () => {
     };
     for (const g of GABARITS_INFOGRAPHIE) for (const r of RATIOS) {
       const id = `${g}-${r}`;
-      await service.soumettre({ idRendu: id, operation: "infographie", file: "courte", entrees: {}, sortie: { urlDepot: "https://r2.exemple/d", cle: id }, parametres: { gabarit: g, ratio: r, spec: spec(NB[g]) } });
+      await service.soumettre({ idRendu: id, operation: "image-fixe", file: "courte", entrees: {}, sortie: { urlDepot: "https://r2.exemple/d", cle: id }, parametres: { composition: ID_COMPOSITION_INFOGRAPHIE, proprietes: { gabarit: g, ratio: r, spec: spec(NB[g]) } } });
       expect(await service.etat(id)).toMatchObject({ statut: "termine" });
     }
     expect(soumises).toHaveLength(6);
