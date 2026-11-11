@@ -735,7 +735,7 @@ async function sansEchecsPerimes(travaux: Travail[]): Promise<Travail[]> {
   if (!echecs.length) return travaux;
   const d = depots();
   // Lecture limitée aux vidéos des échecs affichés (pas toutes les vidéos ni tous les travaux).
-  const cibles = new Set(echecs.map((t) => t.cibleId));
+  const cibles = new Set(echecs.map((t) => t.cibleId).filter((id): id is string => typeof id === "string"));
   const videos = new Map<string, Video | undefined>(await Promise.all([...cibles].map(async (id) => [id, await d.videos.obtenir(id)] as const)));
   // Le travail le plus récent de chaque vidéo, tous statuts confondus (un ancien terminé compte aussi), SAUF les ré-exports de
   // format : ils n'effacent pas un échec de fabrication ou de retouche.

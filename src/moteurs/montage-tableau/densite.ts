@@ -139,7 +139,8 @@ export function diagnosticPageDePlus(fiche: FicheTableau, page: number): { type:
       const scene = fiche.scenes[indices[0]];
       if (scene.gabarit?.role === "appel") {
         // La plaque porte la LIGNE ÉCRITE d'appel (pas tout le texte dit) : elle seule compte, et seulement si elle est trop longue.
-        const ligne = scene.elements.find((e) => e.type === "ligne" && e.bloc === "appel")?.texte?.trim();
+        const elAppel = scene.elements.find((e) => e.type === "ligne" && e.bloc === "appel");
+        const ligne = elAppel && elAppel.type === "ligne" ? elAppel.texte.trim() : undefined;
         if (ligne && (ligne.length > 35 || ligne.split(/\s+/).length > 6)) return { type: "appel-long", texte: `la phrase d'appel « ${ligne} » est trop longue pour la plaque : 35 caractères au plus, ou choisissez une phrase de fin` };
       }
       if (fiche.scenes.length >= bornes.scenesMax) return { type: "scenes-max", texte: `${bornes.scenesMax} scènes au plus : la scène ne peut plus être coupée en deux` };
