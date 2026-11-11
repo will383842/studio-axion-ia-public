@@ -82,7 +82,7 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
   i.alertes[sujet] = now;
   try {
     await journaliser("parcours_conversation", `ALERTE : ${message}`);
-    await creerNotification({ type: "echec", titre: "Parcours des messages privés", message, lien: "/mots" });
+    await creerNotification({ type: "echec", titre: "Parcours des messages privés", message, lien: "/mots" }, { cloche: true });
   } catch {
     /* l'alerte ne doit jamais faire échouer le passage */
   }

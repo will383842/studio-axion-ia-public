@@ -80,12 +80,12 @@ describe("script complet · découpage en écrans, mots inchangés", () => {
     expect(mots(ecransDuScript(long).map((x) => x.join(" ")).join(" "))).toEqual(mots(long));
   });
 
-  it("un chiffre du script absent du schéma est refusé ; un chiffre de l'image non dit ne bloque jamais", () => {
+  it("un chiffre du script absent du schéma n'est plus refusé (le script est celui de Will) ; un chiffre de l'image non dit ne bloque jamais", () => {
     const carte = carteFixe("C");
-    const inventé = ecrireScriptColleIV({ script: `${SCRIPT} Cela fait gagner 45 minutes par jour.`, carte });
-    expect(inventé.ok).toBe(false);
-    expect(inventé).toMatchObject({ ok: false, motif: "refusee", appels: 0 });
-    expect((inventé as { refus: string[] }).refus.join(" ")).toMatch(/45/);
+    const ajoute = ecrireScriptColleIV({ script: `${SCRIPT} Cela fait gagner 45 minutes par jour.`, carte });
+    // Seule la formule « toujours » de SCRIPT reste à trancher (Q05bis) : le chiffre 45 n'est plus un refus.
+    expect(ajoute).not.toMatchObject({ motif: "refusee" });
+    expect(((ajoute as { refus?: string[] }).refus ?? []).join(" ")).not.toMatch(/45/);
     // Aucun des chiffres de l'image (23h14, 4 sec, 80 %, 2h…) n'est dit : le script passe.
     const sansChiffres = ecrireScriptColleIV({ script: "Un client vous écrit la nuit. Personne ne répond. Le chatbot lit la demande. Il répond tout de suite. Le ticket se ferme. L'équipe est prévenue. Le client repart content.", carte });
     expect(sansChiffres, JSON.stringify(sansChiffres)).toMatchObject({ ok: true, appels: 0 });
@@ -119,14 +119,13 @@ describe("script complet · la fabrication ne réécrit pas", () => {
     expect(mots(e.script!.fiche.ecrans.map((x) => x.texteDit).join(" "))).toEqual(mots(SCRIPT));
   });
 
-  it("un chiffre inventé : refus de l'écriture en phrases, aucun appel d'écriture, non réessayable tel quel", async () => {
+  it("un chiffre ajouté par Will : le script n'est pas refusé, aucun appel d'écriture", async () => {
     const { o, ecritures } = outilsScript();
     let e = await avancerJusquAArretIV(etatInitialIV(demandeScript(`${SCRIPT} Cela fait gagner 45 minutes par jour.`)), o);
     e = await avancerJusquAArretIV(validerCarteIV(e, decisionCarte(e)), o);
-    expect(e.etape).toBe("refusee");
-    expect(e.refus?.etape).toBe("ecriture");
-    expect(e.refus?.reessayable).toBe(false);
-    expect(e.refus?.message).toMatch(/45/);
+    expect(e.etape).not.toBe("refusee");
+    expect(e.refus).toBeUndefined();
+    expect(attendWillIV(e)).toBe("script");
     expect(ecritures).toEqual([]);
   });
 });

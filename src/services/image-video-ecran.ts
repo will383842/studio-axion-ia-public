@@ -82,9 +82,14 @@ export const PARAM_RELIRE_SCRIPT_IV = "imageVideo.relireScript";
 // ─── Prix du dépôt ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Prix au pire de la vidéo, affiché sur le bouton du dépôt (même calcul que le moteur au lancement). PUR. */
-export function prixDuDepot(reseaux: readonly ReseauIV[], tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT): number {
-  const commande = { entrees: { imageVideo: { reseaux: [...reseaux] } }, tauxUsdEur, dureeCibleSec: 50 } as unknown as CommandeFabrication;
+export function prixDuDepot(reseaux: readonly ReseauIV[], tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT, dureeCibleSec = 50): number {
+  const commande = { entrees: { imageVideo: { reseaux: [...reseaux] } }, tauxUsdEur, dureeCibleSec } as unknown as CommandeFabrication;
   return estimerImageVideo(commande).total.centimes;
+}
+
+/** Mode script : durée cible = mots / 3,3 (débit de la voix), bornée à 180 s. Sans script : 50 s. PUR. */
+export function dureeCibleDuScript(nbMots: number): number {
+  return Math.min(180, Math.max(1, Math.ceil(nbMots / 3.3)));
 }
 
 // ─── Écran 1 · Déposer ───────────────────────────────────────────────────────────────────────────────────────────────

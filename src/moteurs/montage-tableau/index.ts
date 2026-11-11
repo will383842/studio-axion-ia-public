@@ -617,8 +617,8 @@ export function creerMoteurMontageTableau(dependances: DependancesMoteurTableau 
     id: ID_MOTEUR_TABLEAU,
     nom: "Montage tableau animé",
     capacites: {
-      // 90 s : plafond du Reel Facebook (§ 2) ; 9:16 seulement en version 1.
-      dureeMaxSec: 90,
+      // 180 s : plafond du tableau (Williams) ; 9:16 seulement en version 1.
+      dureeMaxSec: 180,
       ratios: ["9:16"],
       langues: ["fr-FR"],
       retoucheParPlan: true,

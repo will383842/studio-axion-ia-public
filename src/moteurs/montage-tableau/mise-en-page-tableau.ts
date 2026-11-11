@@ -875,8 +875,21 @@ function appel(g: Geo, c: ContenuPage, gr: Extract<Groupe, { sorte: "appel" }>, 
   const mx = px(g, basse ? 40 : 48);
   const my = px(g, basse ? 18 : 40);
   const pBouton: PoliceTableau = g.style === "tableau-blanc" ? "marker" : g.style === "ardoise" ? "kalam" : "caveat";
-  const r = ecrire(g, { ...demande, l: { ...demande.l, texte: demande.l.texte.replace(/\.$/, "") } }, { police: pBouton, taille: T(g).bouton * k * g.f, min: mini(g, "phrase"), couleur: S.encreBouton, max: g.s.W >= g.s.H * 0.99 ? 3 : 2, x0: g.x0 + mx, x1: g.x1 - mx, centre: true, fond: S.fondBouton, majuscules: S.capitales });
-  if (!r) return null;
+  const demandeSansPoint = { ...demande, l: { ...demande.l, texte: demande.l.texte.replace(/\.$/, "") } };
+  const memesOptions = { police: pBouton, taille: T(g).bouton * k * g.f, min: mini(g, "phrase"), couleur: S.encreBouton, x0: g.x0 + mx, x1: g.x1 - mx, centre: true, fond: S.fondBouton, majuscules: S.capitales };
+  // Une phrase longue (sans bouton) ne tient pas toujours en 2 lignes de capitales : 3 lignes en vertical, puis, en dernier
+  // recours, l'écriture courante sans plaque (audit du 11/11/2026 : « Prenez rendez-vous pour un diagnostic IA gratuit »).
+  let r = null as ReturnType<typeof ecrire>;
+  for (const max of basse ? [3] : [2, 3]) {
+    r = ecrire(g, demandeSansPoint, { ...memesOptions, max });
+    if (r) break;
+  }
+  if (!r) {
+    const rc = ecrire(g, demandeSansPoint, { police: S.corps, taille: T(g).phrase * k * g.f, min: mini(g, "phrase"), couleur: S.encre, max: 4, centre: true, gabarit: { sorte: "appel-plein", fond: S.fond } });
+    if (!rc) return null;
+    rangs.push({ sorte: "fixe", bloc: bloc([rc.pose]) });
+    return ajouterSite(rangs);
+  }
   const cadre = { x: g.x0, y: 0, largeur: g.x1 - g.x0, hauteur: r.h + 2 * my };
   let b = deplacer(r.pose, 0, my);
   const gab: DecorGabarit = phraseFiche ? { sorte: "bouton", cadre, rayon: px(g, 46), fond: S.fondBouton } : { sorte: "appel-plein", fond: S.fondBouton };
@@ -896,11 +909,14 @@ function appel(g: Geo, c: ContenuPage, gr: Extract<Groupe, { sorte: "appel" }>, 
     ]);
   b = avecTraits(b, "apres", pointeur(P, cadre.x + cadre.largeur - px(g, 130), cadre.y + cadre.hauteur - px(g, 56), 1.1 * k), 0.3);
   rangs.push({ sorte: "fixe", bloc: bloc([encombrer({ ...b, enc: union([b.enc, cadre]) })]) });
-  if (!gr.site) return rangs;
-  const rs = ecrire(g, gr.site, { police: g.style === "paperboard" ? "caveat" : "kalam", taille: T(g).site * k * g.f, min: mini(g, "phrase"), couleur: S.encre, max: 1, centre: true });
-  if (!rs) return null;
-  rangs.push({ sorte: "fixe", bloc: bloc([{ ...rs.pose, heure: demande.l.id, marque: "souligne", couleurMarque: g.style === "ardoise" ? S.doux : S.encre, epaisseurMarque: px(g, 10), enc: { ...rs.pose.enc, hauteur: rs.pose.enc.hauteur + px(g, 16) } }]) });
-  return rangs;
+  return ajouterSite(rangs);
+  function ajouterSite(rs0: Rang[]): Rang[] | null {
+    if (!gr.site) return rs0;
+    const rs = ecrire(g, gr.site, { police: g.style === "paperboard" ? "caveat" : "kalam", taille: T(g).site * k * g.f, min: mini(g, "phrase"), couleur: S.encre, max: 1, centre: true });
+    if (!rs) return null;
+    rs0.push({ sorte: "fixe", bloc: bloc([{ ...rs.pose, heure: demande.l.id, marque: "souligne", couleurMarque: g.style === "ardoise" ? S.doux : S.encre, epaisseurMarque: px(g, 10), enc: { ...rs.pose.enc, hauteur: rs.pose.enc.hauteur + px(g, 16) } }]) });
+    return rs0;
+  }
 }
 
 /** Le dessin illustré de la page (souple : il remplit la place qui reste). */
