@@ -12,7 +12,7 @@ import type { EntreeControle } from "./types";
 export function c100c101c102(e: EntreeControle, a: Analyse, col: Collecte): void {
   const texte = segmentsParles(a).map((s) => s.dit).join(" ");
   const ciblage = e.maitre?.brief.ciblage;
-  if (!ciblage) col.ajouter("C102", "Aucune cible déclarée : choisissez à qui parle la vidéo (métier, secteur ou taille).");
+  if (!ciblage?.libelle.trim()) col.ajouter("C102", "Aucune cible déclarée : choisissez à qui parle la vidéo (métier, secteur ou taille).");
   else if (!cibleNommee(debutParle(texte), ciblage)) col.ajouter("C100", `La cible « ${ciblage.libelle} » n'est pas nommée dans les 5 premières secondes : nommez-la dans l'accroche.`);
   if (texte.trim() && !beneficeClair(texte)) col.ajouter("C101", "Aucun bénéfice clair (temps, argent, erreurs, clients ou délais gagnés) : dites ce que la personne y gagne.");
 }
