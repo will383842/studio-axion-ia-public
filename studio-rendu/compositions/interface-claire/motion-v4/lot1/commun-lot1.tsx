@@ -194,7 +194,7 @@ export const hauteurPlaque = (corps: number, padV = 0.16): number => Math.round(
 /** Liseré extérieur IVOIRE_CLAIR de 3 px des surfaces ENCRE (lisibles sur fond noir) ; l'ombre dure ENCRE passe derrière. */
 export const ombreEncre = (t: "S" | "M" | "L" = "S"): string => `0 0 0 3px ${COULEURS.IVOIRE_CLAIR}, ${OMBRE[t][0] + 3}px ${OMBRE[t][1] + 3}px 0 0 ${ENCRE}`;
 
-export function Plaque({ fond, texte = ENCRE, corps = 66, children, style, ombreT = "S", interl = 0.01, largeur, padV = 0.16, padH = 0.3, lisere }: {
+export function Plaque({ fond, texte = fond === COULEURS.ORANGE_MARQUE || fond === ENCRE ? BLANC : ENCRE, corps = 66, children, style, ombreT = "S", interl = 0.01, largeur, padV = 0.16, padH = 0.3, lisere }: {
   fond: string; texte?: string; corps?: number; children?: ReactNode; style?: CSSProperties; ombreT?: "S" | "M" | "L"; interl?: number; largeur?: number; padV?: number; padH?: number; lisere?: boolean;
 }) {
   const avecLisere = lisere ?? fond === ENCRE;
@@ -322,7 +322,7 @@ export function BarreProgression({ palette, total }: { palette: Palette; total: 
   const x = Math.min(1, (frame + 1) / total) * W;
   return (
     <div style={{ position: "absolute", left: 0, top: 0, width: W, height: 10, background: ENCRE }}>
-      <div style={{ position: "absolute", left: 0, top: 0, width: x, height: 10, background: accents(palette).ACCENT_1 }} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: x, height: 10, background: accents(palette).ACCENT_SOMBRE }} />
       <div style={{ position: "absolute", left: Math.max(0, x - 4), top: 0, width: 4, height: 10, background: BLANC }} />
     </div>
   );
@@ -354,7 +354,7 @@ export const centreSurs = (d: number, hauteurGroupe: number): number => centreSo
 
 export function SousTitresV4({ mots, palette, d }: { mots: Mot[]; palette: Palette; d: number }) {
   const frame = useCurrentFrame();
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_1, ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   const groupes = React.useMemo(() => grouper(mots), [mots]);
   const t = frame / FPS;
   const g = groupes.find((x) => t >= x.debut - 1e-6 && t < x.fin);
@@ -388,7 +388,7 @@ export function SousTitresV4({ mots, palette, d }: { mots: Mot[]; palette: Palet
         }
         return (
           <span key={k} style={{ display: "inline-block", transform: `scale(${pop})`, opacity: Math.min(1, i + 1) }}>
-            <TexteContour corps={corps} couleur={k === courant ? ACCENT_1 : BLANC}>{m.mot}</TexteContour>
+            <TexteContour corps={corps} couleur={k === courant ? ACCENT_SOMBRE : BLANC}>{m.mot}</TexteContour>
           </span>
         );
       })}
