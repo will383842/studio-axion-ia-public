@@ -147,7 +147,7 @@ function CarteValidation({ image, onFaite }: { image: VueMesImage; onFaite: (val
             role="radio"
             aria-checked={categorie === c.id}
             onClick={() => setCategorie(c.id)}
-            className={cn("flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-sm font-semibold transition-colors", categorie === c.id ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte-doux hover:text-texte")}
+            className={cn("flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-sm font-semibold transition-colors", categorie === c.id ? "bg-texte text-fond" : "bg-surface-2 text-texte-doux hover:text-texte")}
           >
             {c.nom}
           </button>

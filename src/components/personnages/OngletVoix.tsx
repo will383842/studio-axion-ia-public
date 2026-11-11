@@ -71,7 +71,7 @@ export function OngletVoix({ fiche, texteALire, verrouille, onOuvrirAccord }: { 
 
       {/* Voix HeyGen : la voix déjà créée se relie (chemin normal). */}
       {reliee && voix ? (
-        <div className="relative isolate overflow-hidden rounded-carte border border-orange/40 bg-surface-1 p-5">
+        <div className="relative isolate overflow-hidden rounded-carte border border-trait bg-surface-1 p-5">
           <div aria-hidden className="absolute inset-0 -z-10 lueur" />
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -89,7 +89,7 @@ export function OngletVoix({ fiche, texteALire, verrouille, onOuvrirAccord }: { 
           type="button"
           disabled={verrouille}
           onClick={() => setFeuille("relier")}
-          className="group relative isolate flex min-h-20 w-full items-center gap-4 overflow-hidden rounded-carte border border-orange/40 bg-surface-1 p-4 text-left transition-colors hover:border-orange disabled:opacity-50"
+          className="group relative isolate flex min-h-20 w-full items-center gap-4 overflow-hidden rounded-carte border border-trait bg-surface-1 p-4 text-left transition-colors hover:border-trait-fort disabled:opacity-50"
         >
           <span aria-hidden className="absolute inset-0 -z-10 lueur opacity-70" />
           <span className="grid size-12 shrink-0 place-items-center rounded-full bg-orange text-sur-orange">
@@ -99,7 +99,7 @@ export function OngletVoix({ fiche, texteALire, verrouille, onOuvrirAccord }: { 
             <span className="block text-[17px] font-semibold text-texte">{moi ? "Relier ma voix HeyGen" : "Relier sa voix HeyGen"}</span>
             <span className="block text-sm text-texte-faible">Écoutez, choisissez : c&apos;est prêt.</span>
           </span>
-          <Icone nom="chevron-droite" size={18} className="text-orange-vif" />
+          <Icone nom="chevron-droite" size={18} className="text-texte-faible" />
         </button>
       )}
 
@@ -216,7 +216,7 @@ function VoixParFormat({ personnageId, voix, parFormat, habituelle }: { personna
           return (
             <li key={f.id}>
               <button type="button" onClick={() => setOuvert(f.id)} disabled={enCours} className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-2 text-left transition-colors hover:bg-surface-2">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-orange-vif">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-texte-faible">
                   <Icone nom={f.icone} size={18} />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -241,9 +241,9 @@ function VoixParFormat({ personnageId, voix, parFormat, habituelle }: { personna
                     role="radio"
                     aria-checked={actif}
                     onClick={() => choisir(format.id, o.id)}
-                    className={cn("flex min-h-14 w-full items-center gap-3 rounded-carte border p-3 text-left transition-colors", actif ? "border-orange bg-surface-2" : "border-trait bg-surface-1 hover:border-trait-fort")}
+                    className={cn("flex min-h-14 w-full items-center gap-3 rounded-carte border p-3 text-left transition-colors", actif ? "border-texte bg-surface-2" : "border-trait bg-surface-1 hover:border-trait-fort")}
                   >
-                    <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", actif ? "bg-orange text-sur-orange" : "bg-orange-doux text-orange-vif")}>
+                    <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", actif ? "bg-texte text-fond" : "bg-surface-2 text-texte-faible")}>
                       <Icone nom={actif ? "coche" : "micro"} size={17} />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -350,7 +350,7 @@ function FeuilleRelier({ ouverte, onOuverteChange, personnageId }: { ouverte: bo
                   aria-label={`Écouter ${v.nom}`}
                   disabled={!v.apercu}
                   onClick={() => ecoute.jouerAdresse(cle, v.apercu)}
-                  className="grid size-11 shrink-0 place-items-center rounded-full bg-orange-doux text-orange-vif disabled:opacity-40"
+                  className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-texte-faible disabled:opacity-40"
                 >
                   <Icone nom={ecoute.joue === cle ? "volume" : "lecture"} size={17} />
                 </button>
@@ -480,7 +480,7 @@ function FeuilleDeposer({ ouverte, onOuverteChange, personnageId, langue }: { ou
         <ZoneDepot libelle="Choisir des fichiers audio" detail="MP3, WAV, M4A" accepte="audio/*" icone="micro" onFichiers={(f) => void ajouter(f)} />
         {fichiers.map((x, i) => (
           <div key={`${x.f.name}-${i}`} className="flex min-h-12 items-center gap-3 rounded-champ bg-surface-2 px-3">
-            <Icone nom="son" size={18} className="text-orange-vif" />
+            <Icone nom="son" size={18} className="text-texte-faible" />
             <span className="min-w-0 flex-1 truncate text-sm text-texte">{x.f.name}</span>
             <span className="text-xs tabular-nums text-texte-faible">{minutesLisibles(x.sec / 60)}</span>
             <button type="button" aria-label={`Retirer ${x.f.name}`} onClick={() => setFichiers((l) => l.filter((_, j) => j !== i))} className="-mr-2 grid size-11 place-items-center rounded-full text-texte-faible hover:text-texte">
@@ -591,7 +591,7 @@ function ReglagesEtEssai({ personnageId, voix }: { personnageId: string; voix: V
               onClick={() => setTexte(p.texte)}
               className={cn(
                 "inline-flex min-h-11 shrink-0 items-center rounded-full border px-3.5 text-sm font-semibold transition-colors",
-                texte === p.texte ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-2 text-texte-doux",
+                texte === p.texte ? "border-texte bg-texte text-fond" : "border-trait bg-surface-2 text-texte-doux",
               )}
             >
               {p.libelle}
