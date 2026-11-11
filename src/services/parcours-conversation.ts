@@ -21,7 +21,7 @@ import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCT
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { DELAI_PERIME_MS, activiteRetenue, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, reductible, activiteRetenue, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
@@ -957,7 +957,13 @@ async function reprendreEnVol(now: number): Promise<void> {
 export async function expirerConversations(o: { env?: Env; maintenantMs?: number; enVol?: ReadonlySet<string> } = {}): Promise<number> {
   if (!parcoursConversationActif(o.env ?? process.env)) return 0;
   const now = o.maintenantMs ?? Date.now();
-  const enVol = o.enVol ?? processus().enVol;
+  const expirees = await expirerSousVerrou(now, o.enVol ?? processus().enVol);
+  // Même cadence : la réduction des identifiants bruts (éteinte par défaut) suit l'expiration. Une panne ici n'empêche jamais l'expiration.
+  await reduireIdentifiants({ env: o.env, maintenantMs: now }).catch(() => undefined);
+  return expirees;
+}
+
+function expirerSousVerrou(now: number, enVol: ReadonlySet<string>): Promise<number> {
   return sousVerrou(async () => {
     const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     const cles = Object.keys(conv).filter((k) => doitExpirer(conv[k], now, enVol.has(k)));
@@ -966,6 +972,59 @@ export async function expirerConversations(o: { env?: Env; maintenantMs?: number
     return cles.length;
   });
 }
+
+/* --- Réduction des identifiants bruts après clôture (STU-MIN) ------------------------------------------------------ */
+export const VARIABLE_REDUCTION_IDS = "PARCOURS_REDUCTION_IDS";
+const LOT_REDUCTION = 50;
+/** Éteint par défaut ; n'agit que si le parcours de conversation est allumé aussi. */
+export function reductionIdsActive(env: Env = process.env): boolean {
+  return parcoursConversationActif(env) && /^(1|true|oui)$/i.test(env[VARIABLE_REDUCTION_IDS]?.trim() ?? "");
+}
+
+/**
+ * Remplace par `null` les identifiants bruts (auteur, expéditeur, conversation, plateforme) des événements clos depuis plus de
+ * `DELAI_REDUCTION_MS`. La LIGNE reste, ainsi que `idEvenement`, `idCompte`, `idCommentaire` / `idMessage` (déduplication des rejeux).
+ * Jamais réduits : le message qui portait l'adresse (relu pour transmettre un « stop », sans limite de durée), le dernier message d'une
+ * conversation à fenêtre ouverte, un événement dont une opposition à transmettre dépend. Au plus 50 événements par passage, une seule
+ * écriture par événement. Une conversation `oppose` n'est PAS touchée (décision D3 non tranchée : preuve de l'origine du « stop »).
+ */
+export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number } = {}): Promise<number> {
+  const env = o.env ?? process.env;
+  if (!reductionIdsActive(env)) return 0;
+  const now = o.maintenantMs ?? Date.now();
+  const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+  const file = await lireParametre<Record<string, { etat?: string }>>("parcours.oppositions.file", {});
+  const proteges = new Set<string>();
+  for (const [cle, c] of Object.entries(conv)) {
+    for (const id of [c.idMessageAdresse, c.idMessageGuide]) if (id) proteges.add(id);
+    if (c.idMessageDernier && (dansFenetreEnvoi(c, now) || file[cle]?.etat === "a_transmettre")) proteges.add(c.idMessageDernier);
+  }
+  const iso = new Date(now).toISOString();
+  const evenements = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && reductible(e, { idsMessagesProteges: proteges }, now));
+  evenements.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
+  let n = 0;
+  for (const ev of evenements.slice(0, LOT_REDUCTION)) {
+    await depots().evenementsFournisseurs.modifier(ev.id, { charge: { ...ev.charge, idAuteur: null, idExpediteur: null, idConversation: null, idPlateforme: null, idsReduitsLe: iso } });
+    n++;
+  }
+  // Conversation close depuis plus de 30 jours (sauf `oppose`) : l'identifiant brut du commentaire n'a plus d'usage (la reprise n'existe qu'en nouveau / pub_ok).
+  const aReduire = await sousVerrou(async () => {
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    const cles = Object.keys(tout).filter((k) => {
+      const c = tout[k];
+      if (!FINIS_REDUCTIBLES.includes(c.etat) || c.idCommentaire === "reduit") return false;
+      // Date de clôture inconnue : on retient la PLUS RÉCENTE des dates de l'état (conservateur). Aucune date lisible : jamais réduit.
+      const dates = [c.creeLe, c.m1Le, c.m2Le, c.refuseLe, c.derniereActiviteLe, c.occurredAt].map((x) => (typeof x === "string" ? Date.parse(x) : NaN)).filter((d) => Number.isFinite(d));
+      return dates.length > 0 && now - Math.max(...dates) >= DELAI_REDUCTION_MS;
+    });
+    if (cles.length > 0) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, ...Object.fromEntries(cles.map((k) => [k, { ...tout[k], idCommentaire: "reduit" }])) });
+    return cles.length;
+  });
+  n += aReduire;
+  if (n > 0) await journaliser("parcours_conversation", `${n} identifiants réduits.`);
+  return n;
+}
+const FINIS_REDUCTIBLES: readonly string[] = ["termine", "site_refuse", "expire", "m1_refuse", "m1_consommee"];
 
 export async function traiterConversations(d: DepsConversation): Promise<RapportConversation> {
   const env = d.env ?? process.env;

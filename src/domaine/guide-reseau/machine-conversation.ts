@@ -78,6 +78,25 @@ export interface Conversation {
   douteOpposition?: boolean;
 }
 
+/** Délai avant réduction des identifiants bruts d'un événement clos (D1 : 30 jours, assez pour les réessais et les vérifications à la main dans l'Inbox Zernio). */
+export const DELAI_REDUCTION_MS = 30 * 24 * 3600_000;
+export interface FaitsReduction {
+  /** `idMessage` à NE PAS réduire : message d'adresse et du guide de TOUTES les conversations (relecture d'un « stop »), dernier message des conversations à fenêtre ouverte, messages dont dépend une opposition à transmettre. */
+  idsMessagesProteges: ReadonlySet<string>;
+}
+/**
+ * Un événement Zernio clos peut-il perdre ses identifiants bruts ? Fonction pure. Vrai seulement si : clos, plus vieux que le délai
+ * (date illisible = jamais : échec fermé), non protégé, pas déjà réduit.
+ */
+export function reductible(ev: { traite: boolean; recuLe: string; modifieLe?: string; charge: Record<string, unknown> }, faits: FaitsReduction, maintenantMs: number): boolean {
+  if (ev.traite !== true) return false;
+  if (typeof ev.charge.idsReduitsLe === "string") return false;
+  const t = dateLue(ev.modifieLe) ?? dateLue(ev.recuLe);
+  if (t === null || maintenantMs - t < DELAI_REDUCTION_MS) return false;
+  const idMessage = ev.charge.idMessage;
+  return !(typeof idMessage === "string" && faits.idsMessagesProteges.has(idMessage));
+}
+
 export type EtatMerci = "en_vol" | "envoye" | "a_verifier" | "non_envoye";
 /** Issues d'une confirmation, dans l'ordre où elles s'évaluent (la première vraie l'emporte). */
 export type IssueMerci = "deja_traite" | "conversation_inconnue" | "oppose" | "deja_remercie" | "texte_non_valide" | "hors_fenetre" | "a_envoyer";
