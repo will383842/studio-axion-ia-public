@@ -17,6 +17,7 @@ import { roleEquipeAccroches } from "./equipe-accroches";
 import { roleEquipeChef } from "./equipe-chef";
 import { roleEquipeRelecteur } from "./equipe-relecteur";
 import { roleEquipeScenariste } from "./equipe-scenariste";
+import { rolePublicationVisuel } from "./publication-visuel";
 
 export const ROLES_ECRITURE = {
   stratege: roleStratege,
@@ -57,7 +58,7 @@ export const EVALUATIONS_DES_ROLES = {
 
 /** Versions des rôles (fiche figée, B.8), ceux de la chaîne courte (la chaîne de production) et de la chaîne « équipe » compris. */
 export function versionsRoles(): Record<string, number> {
-  return Object.fromEntries([...Object.values(ROLES_ECRITURE), ...Object.values(ROLES_CHAINE_COURTE), roleEquipeChef, roleEquipeScenariste, roleEquipeAccroches, roleEquipeRelecteur].map((r: DefinitionRole) => [r.id, r.version]));
+  return Object.fromEntries([...Object.values(ROLES_ECRITURE), ...Object.values(ROLES_CHAINE_COURTE), roleEquipeChef, roleEquipeScenariste, roleEquipeAccroches, roleEquipeRelecteur, rolePublicationVisuel].map((r: DefinitionRole) => [r.id, r.version]));
 }
 
-export { roleAccroches, roleDeclinaison, roleFond, roleJuge, rolePlan, rolePreference, roleProse, roleReecriture, roleStratege };
+export { roleAccroches, roleDeclinaison, roleFond, roleJuge, rolePlan, rolePreference, roleProse, roleReecriture, roleStratege, rolePublicationVisuel };
