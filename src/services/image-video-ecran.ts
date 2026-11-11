@@ -265,7 +265,7 @@ export async function deposerImageVideo(d: DemandeDepotIV, dep: DependancesEcran
     }
     const accord = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
     // Accord absent ou plus bas que le prix : rien n'est créé, le prix est redemandé.
-    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo a un prix maximum annoncé sur le bouton. Confirmez pour lancer.` };
+    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo est payante. Confirmez pour lancer.` };
     const accordEssaiReel = await (dep.accordEssai ?? (() => lireParametre<boolean>(PARAM_ACCORD_ESSAI_IV, false)))();
     const titre = (d.titre?.trim() || fichier.nom.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[-_]+/g, " ").trim() || "Image → vidéo").slice(0, 80);
     const entrees = {

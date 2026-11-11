@@ -154,11 +154,11 @@ export async function vueCreditClaude(env: EnvClaude = process.env): Promise<Vue
 /** Enregistre le cycle de crédit d'un compte (montant en centimes de dollar). Rien d'autre n'est touché. */
 export async function enregistrerCycleCredit(s: SourceAbonnement, cycle: CycleCredit): Promise<void> {
   await ecrireParametre(paramCycleCredit(s), cycle);
-  await journaliser("credits", `Crédit ${libelleSource(s)} : cycle de ${formaterDollars(cycle.montantCentimes)} noté (estimation)`);
+  await journaliser("credits", `Crédit ${libelleSource(s)} : cycle noté (estimation)`);
 }
 
 /** Enregistre le solde relevé dans la Console (centimes de dollar), daté de maintenant. Rien d'autre n'est touché. */
 export async function enregistrerReleveCredit(s: SourceAbonnement, centimes: number): Promise<void> {
   await ecrireParametre(paramReleveCredit(s), { centimes: Math.round(centimes), le: maintenant() } satisfies ReleveCredit);
-  await journaliser("credits", `Crédit ${libelleSource(s)} : solde relevé ${formaterDollars(centimes)} noté (estimation)`);
+  await journaliser("credits", `Crédit ${libelleSource(s)} : solde relevé noté (estimation)`);
 }

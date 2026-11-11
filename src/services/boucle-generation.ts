@@ -547,7 +547,7 @@ async function supplementReprise(liste: { releveUsd: number }[]): Promise<Montan
   return usd > 0 ? usdVersEur(Math.ceil(usd * 100), await tauxUsdEur()) : null;
 }
 
-const phraseSupplement = (m: Montant) => `Reprendre peut coûter plus cher : des appels à Claude restés sans réponse sont peut-être déjà payés, l'écriture refait ces étapes. Confirmez pour continuer.`;
+const phraseSupplement = () => `Reprendre peut coûter plus cher : des appels à Claude restés sans réponse sont peut-être déjà payés, l'écriture refait ces étapes. Confirmez pour continuer.`;
 
 /**
  * Re-relecture A09 : prix que « Reprendre l'écriture » fait confirmer. D'ordinaire le supplément des appels restés sans
@@ -564,10 +564,10 @@ async function prixAConfirmerArretee(liste: { g: GenerationScript; releveUsd: nu
   }
   if (releveAuReglage && prixUsd > 0) {
     const montant = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
-    return { montant, phrase: `Reprendre peut coûter. Confirmez pour continuer.` };
+    return { montant, phrase: `Reprendre est payant. Confirmez pour continuer.` };
   }
   const supplement = await supplementReprise(liste);
-  return supplement ? { montant: supplement, phrase: phraseSupplement(supplement) } : null;
+  return supplement ? { montant: supplement, phrase: phraseSupplement() } : null;
 }
 
 /**
@@ -604,7 +604,7 @@ export async function reprendreEcritureArretee(scriptMaitreId: Id, accord?: Acco
     const releve = await releverPlafondApresPannes(g.id, indicatif ? Number.POSITIVE_INFINITY : releveUsd);
     if (releve < 0) {
       const nouveau = (await supplementReprise(await ecrituresAReprendre(scriptMaitreId))) ?? supplement!;
-      throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(nouveau), nouveau.centimes);
+      throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(), nouveau.centimes);
     }
     await ecrireParametre(clePanne(g.id), null);
     if (releve > 0) await journaliser("generateur", indicatif ? `Reprise lancée, prix indicatif : un supplément pour les appels restés sans réponse (ils restent comptés dans le mois).` : `Reprise acceptée par Will : un supplément pour les appels restés sans réponse (ils restent comptés dans le mois).`, { type: "sujet", id: scriptMaitreId });
@@ -770,7 +770,7 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
   const prix = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
   const accordVu = accordPropre(accord);
   const confirme = prix.centimes > 0 ? await accordAutomatique(accordVu, prix.centimes, { signaler: !(typeof accordVu === "number" && accordVu >= prix.centimes) }) : accordVu;
-  if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre peut coûter. Confirmez pour continuer.`, prix.centimes);
+  if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre est payant. Confirmez pour continuer.`, prix.centimes);
   const d = depots();
   let n = 0;
   for (const g of liste) {

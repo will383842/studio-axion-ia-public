@@ -759,7 +759,7 @@ async function prixDecoupage(donnees: DonneesScriptTableau, aujourdhui: string):
   const pireUsd = coutPireDecoupageUsd(entree);
   // Le prix annoncé sur le bouton (script le plus long permis) ; plus haut seulement pour un script plus long encore.
   const montant = Math.max(centimesEurDe(pireUsd, taux), await annonceDecoupageCentimes(aujourdhui, taux));
-  return { pireUsd, montant, phrase: `Le découpage est payant (prix sur le bouton). Confirmez pour lancer.` };
+  return { pireUsd, montant, phrase: `Le découpage est payant. Confirmez pour lancer.` };
 }
 
 /** Refus de « Découper en scènes » sans le repère « texte relu » du texte envoyé. Rien n'est payé. */
@@ -1575,7 +1575,7 @@ async function prixEcriture(methodeTache?: MethodeTableau): Promise<{ pireUsd: n
   const methode = methodeTache ?? (await methodeEcritureTableau());
   const pireUsd = await pireCasEcritureUsd(methode);
   const montant = coutEcritureCentimes(taux, pireUsd);
-  return { pireUsd, montant, methode, phrase: `L'écriture est payante (prix sur le bouton). Confirmez pour lancer.` };
+  return { pireUsd, montant, methode, phrase: `L'écriture est payante. Confirmez pour lancer.` };
 }
 
 /**

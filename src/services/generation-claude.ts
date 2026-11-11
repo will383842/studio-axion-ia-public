@@ -908,7 +908,7 @@ async function marquerPrete(g: GenerationScript, a: Attente): Promise<void> {
   await creerNotification({
     type: "credit",
     titre: "Une écriture peut reprendre",
-    message: `« ${titre} » : touchez « Reprendre » (le bouton annonce ce qui sera payé). Elle ne repart pas seule.`,
+    message: `« ${titre} » : touchez « Reprendre » (c'est payant, il faut confirmer). Elle ne repart pas seule.`,
     lien: `/ecrire/sujets/${g.scriptMaitreId}`,
     estDemo: g.estDemo,
   });

@@ -290,7 +290,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   const accordAuto = await accordAutomatique(accordBrut ?? false, total, { signaler: accordBrut === undefined || accordBrut < total });
   const accord = typeof accordAuto === "number" ? accordAuto : undefined;
   if (accord === undefined || accord < total) {
-    return { statut: "accord-requis", centimes: total, phrase: `${phraseSautees ? `${phraseSautees} ` : ""}Ce lot de ${nLot} vidéos a un prix maximum annoncé sur le bouton. Confirmez pour lancer.`, ...(sautees.length ? { sautees } : {}) };
+    return { statut: "accord-requis", centimes: total, phrase: `${phraseSautees ? `${phraseSautees} ` : ""}Ce lot de ${nLot} vidéos est payant. Confirmez pour lancer.`, ...(sautees.length ? { sautees } : {}) };
   }
 
   return verrouDepot(async () => {
