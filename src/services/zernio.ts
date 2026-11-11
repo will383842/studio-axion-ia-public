@@ -11,9 +11,10 @@ import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
+import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { obtenirReseau } from "@/reseaux";
-import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
+import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant, sousVerrou, creerVerrou } from "./_commun";
 import { exigerSession } from "./auth";
 import { passerProgrammee } from "./buffer";
 import { synchroniserEtats } from "./generateur";
@@ -25,6 +26,37 @@ export const PARAM_COMPTES_ZERNIO = "zernio.comptes";
 export const PARAM_ARRET_ZERNIO = "zernio.envoi_autorise";
 /** L7-08 · interrupteur SÉPARÉ de l'envoi des publications du calendrier. FERMÉ par défaut (absent = fermé). Le parcours GUIDE ne le lit jamais. */
 export const PARAM_ENVOI_CALENDRIER = "zernio.envoi_calendrier_autorise";
+
+/** Jour (AAAA-MM-JJ, UTC) de la dernière alerte envoyée, par sujet : une alerte par sujet et par jour. */
+export const PARAM_ALERTES_JETONS_ZERNIO = "zernio.alertes_jetons";
+
+/** Verrou LOCAL (le verrou global est pris par `creerNotification`) : lecture, envoi et marque ne s'entrelacent pas. */
+const verrouAlertes = creerVerrou();
+
+/**
+ * Alertes jetons / comptes déconnectés / quota : CLOCHE SEULEMENT (jamais de push ni d'e-mail), une par sujet et par jour.
+ * `quotaRestantPct` : l'API lue aujourd'hui ne le donne pas (ESCALADE dans la PR) ; absent = pas d'alerte quota.
+ */
+export async function alerterJetonsZernio(comptes: readonly CompteZernio[], instant: number, quotaRestantPct?: number | null): Promise<number> {
+  const alertes = alertesJetonsZernio({ comptes: comptes.map(compteSurveilleDepuisZernio), quotaRestantPct, maintenant: instant });
+  const jour = new Date(instant).toISOString().slice(0, 10);
+  return verrouAlertes(async () => {
+    const lus = await lireParametre<Record<string, string>>(PARAM_ALERTES_JETONS_ZERNIO, {});
+    // Purge : seules les marques du jour servent ; les autres (jours passés, comptes disparus) sont retirées.
+    const etat: Record<string, string> = Object.fromEntries(Object.entries(lus).filter(([, j]) => j === jour));
+    let envoyees = 0;
+    for (const a of alertes.filter((x) => etat[x.sujet] !== jour)) {
+      // Création d'abord, marque ensuite : si la création échoue, rien n'est marqué et l'alerte reviendra.
+      await creerNotification({ type: "echec", titre: "Zernio : compte ou jeton à surveiller", message: a.message, lien: "/reglages" }, { cloche: true });
+      etat[a.sujet] = jour;
+      envoyees++;
+      await ecrireParametre(PARAM_ALERTES_JETONS_ZERNIO, etat);
+    }
+    if (envoyees === 0 && Object.keys(etat).length !== Object.keys(lus).length) await ecrireParametre(PARAM_ALERTES_JETONS_ZERNIO, etat);
+    return envoyees;
+  });
+}
+
 export const INTERVALLE_SYNCHRO_ZERNIO_MS = 15 * 60_000;
 const LECTURES_PAR_TOUR = 50;
 
@@ -182,6 +214,12 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   const client = clientZernio();
   const d = depots();
   const r = { lues: 0, changees: 0 };
+  // Passage périodique (15 min) : alertes jetons / comptes déconnectés. Jamais bloquant pour la synchronisation.
+  try {
+    await alerterJetonsZernio(await client.listerComptes(), instant);
+  } catch {
+    /* lecture ou alerte impossible : on réessaiera au prochain passage */
+  }
   const suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
     .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""))
     .slice(0, LECTURES_PAR_TOUR);

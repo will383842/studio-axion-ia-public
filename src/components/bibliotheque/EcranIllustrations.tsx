@@ -49,7 +49,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
               type="button"
               aria-pressed={filtre === v}
               onClick={() => setFiltre(v)}
-              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors", filtre === v ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte-doux hover:text-texte")}
+              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors", filtre === v ? "bg-texte text-fond" : "bg-surface-2 text-texte-doux hover:text-texte")}
             >
               {l}
               <span className="tabular-nums opacity-70">{n}</span>
@@ -62,7 +62,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
               type="button"
               aria-pressed={motCle === m}
               onClick={() => setMotCle((x) => (x === m ? null : m))}
-              className={cn("flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-sm transition-colors", motCle === m ? "border-orange text-orange-vif" : "border-trait text-texte-doux hover:text-texte")}
+              className={cn("flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-sm transition-colors", motCle === m ? "border-texte text-texte" : "border-trait text-texte-doux hover:text-texte")}
             >
               <Icone nom="diese" size={13} />
               {m}
