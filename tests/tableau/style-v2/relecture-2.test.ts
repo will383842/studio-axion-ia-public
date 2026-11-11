@@ -97,7 +97,7 @@ describe("3. lisibilité sur l'orange", () => {
         for (const t of ecran.textes) {
           if (t.fond !== COULEURS_V2.orange && t.fond !== COULEURS_V2.orangeSurEncre) continue;
           vus++;
-          // Sur l'orange de l'encre (#D97757), seule l'encre est permise ; sur la terracotta, le blanc franc ou l'encre.
+          // Sur l'orange de l'encre (#D97757), seule l'encre est permise ; sur la terracotta, le blanc franc seulement (l'encre n'y donne que 3,17).
           if (t.fond === COULEURS_V2.orangeSurEncre) expect(t.couleur, `${f} ${ecran.id} « ${t.texte} »`).toBe(COULEURS_V2.encre);
           else expect(TEXTES_SUR_ORANGE, `${f} ${ecran.id} « ${t.texte} »`).toContain(t.couleur);
           expect(contraste(t.couleur, t.fond), `${f} ${ecran.id} « ${t.texte} »`).toBeGreaterThanOrEqual(contrasteExige(t.taille, g.k));

@@ -5,9 +5,9 @@
  *
  *  - Trois fonds qui alternent : encre, ivoire, orange (le sable ne sert qu'aux formes et aux libellés sur l'encre).
  *  - Titres en Montserrat ExtraBold, très gros, ajustés à la largeur ; texte en Inter Bold.
- *  - Mots forts dans des blocs (orange sur l'encre et l'ivoire, encre sur l'orange), texte ivoire.
+ *  - Mots forts dans des blocs : blocs terracotta sur l'ivoire (texte blanc), #D97757 sur l'encre (texte encre), encre sur l'orange (texte ivoire).
  *  - Sur l'orange (fond d'écran ou bloc), le texte est IVOIRE FRANC (`ivoireFranc`, blanc, plus clair que l'ivoire du fond :
- *    5,81:1) ou ENCRE, jamais un ton clair proche de l'orange (relecture du 12/10/2026 : l'ivoire du fond, 4,2:1, se
+ *    5,81:1) ; le texte est le blanc franc, jamais l'encre (3,17), jamais un ton clair proche de l'orange (relecture du 12/10/2026 : l'ivoire du fond, 4,2:1, se
  *    lisait mal sur l'orange en grand titre).
  *  - L'orange n'est JAMAIS une couleur de texte (la vidéo modèle l'écrivait sur l'ivoire à l'étape 3 : corrigé, le mot
  *    est écrit à l'encre et souligné d'orange).
