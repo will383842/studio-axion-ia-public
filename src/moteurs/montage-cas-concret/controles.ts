@@ -41,6 +41,8 @@ export const SEUILS_CAS_CONCRET: Readonly<SeuilsControleImage> = Object.freeze({
   tailleTexteMin: TAILLE_PLANCHER_DUO,
   contrasteTexteMin: CONTRASTE_TEXTE_DUO_MIN,
   bandeSousTitres: BANDE_SOUS_TITRES_CAS_CONCRET,
+  // 11/11/2026 : un script de Will va jusqu'à 3 min (surcharge locale, indépendante du seuil commun).
+  dureeMaxSec: 180,
 });
 
 export type FamilleControleCasConcret = "duree" | "ecran" | "mise-en-page" | "fichier" | "voix" | "capture" | "fin" | "bruitage" | "ciblage";

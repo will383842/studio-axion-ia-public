@@ -83,6 +83,9 @@ export function erreurDepuisReponse(statut: number, corps: { error?: { code?: st
   if (statut === 429 || statut >= 500) {
     return new ErreurHeygen({ code: "indisponible", reessayable: true, message: "HeyGen est momentanément indisponible. Nouvel essai dans un instant." });
   }
+  if (statut === 404 && /avatar_not_found|look_not_found/i.test(code)) {
+    return new ErreurHeygen({ code: "refuse", reessayable: false, message: "Votre double n'existe plus dans votre compte HeyGen. Dans Personnages, « Choisir mon double HeyGen », reliez-le de nouveau, puis relancez une nouvelle vidéo." });
+  }
   if (statut === 404) return new ErreurHeygen({ code: "refuse", reessayable: false, message: "HeyGen ne trouve pas cet élément (voix ou fichier supprimé chez HeyGen ?)." });
   return new ErreurHeygen({ code: "refuse", reessayable: false, message: "HeyGen a refusé la demande." }, SANS_FOND_IMPOSSIBLE.test(code) || SANS_FOND_IMPOSSIBLE.test(detail));
 }
