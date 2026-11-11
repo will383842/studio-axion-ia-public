@@ -95,4 +95,14 @@ describe("V7-06 support.ts : palette de marque (hex seulement, rgba au cliquet)"
     expect(c).toBeGreaterThan(b);
     expect(hexTrouves(code.slice(c))).not.toContain("#B0AEA5");
   });
+
+  it("la surface de l'ardoise est #141413 et les traces décoratifs #B0AEA5 (ciblé)", () => {
+    const code = source();
+    const a = code.indexOf('} else if (style === "ardoise") {');
+    expect(a).toBeGreaterThan(-1);
+    expect(code.slice(a, a + 120)).toMatch(/fillStyle = "#141413"/i);
+    const t = code.indexOf("cg.strokeStyle", a);
+    expect(t).toBeGreaterThan(a);
+    expect(code.slice(t, t + 40)).toMatch(/strokeStyle = "#B0AEA5"/i);
+  });
 });
