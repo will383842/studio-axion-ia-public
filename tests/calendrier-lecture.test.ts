@@ -43,6 +43,29 @@ describe("listerCalendrier (lecture)", () => {
     expect(jours.map((j) => j.jour)).toEqual([...jours.map((j) => j.jour)].sort());
   });
 
+  it("publication de visuel (visuelId, sans vidéo) : au bon jour avec video null ; hors plage, absente", async () => {
+    const s = plageSemaine("2026-10-25");
+    const posteVisuel = (id: string, date: string) =>
+      depots().publications.enregistrer({ id, visuelId: "visuel-test", reseau: "tiktok", statut: "programmee", via: "manuel", date, texte: "t", creeLe: date, modifieLe: date } as never);
+    await posteVisuel("pv-dedans", "2026-10-21T10:00:00.000Z"); // mercredi 21/10 12:00 Paris
+    await posteVisuel("pv-dehors", "2026-10-26T10:00:00.000Z"); // lundi 26/10, semaine suivante
+    const jours = await pub.listerCalendrier(s.debutIso, s.finIso);
+    const jour = jours.find((j) => j.jour === "2026-10-21");
+    expect(jour?.publications.map((p) => p.id)).toEqual(["pv-dedans"]);
+    expect(jour?.publications[0].video).toBeNull();
+    expect(JSON.stringify(jours)).not.toMatch(/pv-dehors/);
+  });
+
+  it("dimanche 23:30 UTC (= lundi 00:30 Paris) : rangé au lundi 2/11, absent de la semaine du 1er", async () => {
+    const v = (await depots().videos.lister((x) => x.statut === "prete"))[0];
+    await poser("p-bascule", "2026-11-01T23:30:00.000Z", v.id);
+    const suivante = await pub.listerCalendrier(plageSemaine("2026-11-02").debutIso, plageSemaine("2026-11-02").finIso);
+    expect(suivante.find((j) => j.jour === "2026-11-02")?.publications.map((p) => p.id)).toContain("p-bascule");
+    expect(suivante.filter((j) => j.jour !== "2026-11-02").flatMap((j) => j.publications.map((p) => p.id))).not.toContain("p-bascule");
+    const precedente = plageSemaine("2026-11-01"); // semaine du lundi 26/10 au dimanche 1/11
+    expect(JSON.stringify(await pub.listerCalendrier(precedente.debutIso, precedente.finIso))).not.toMatch(/p-bascule/);
+  });
+
   it("plage vide : liste vide", async () => {
     expect(await pub.listerCalendrier("2030-01-01T00:00:00.000Z", "2030-01-07T23:59:59.999Z")).toEqual([]);
   });
