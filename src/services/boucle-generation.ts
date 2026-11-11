@@ -36,7 +36,7 @@ import { etapeZero } from "@/generateur/etape-zero";
 import { vousVersTu } from "@/generateur/adresse-tu";
 import { versionsRoles } from "@/generateur/roles";
 import { nouvelId } from "@/lib/ids";
-import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { exigerSession } from "./auth";
 import { effacerRepriseDeWill, marquerRepriseDeWill, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
 import { accordAutomatique, budgetIndicatifPour } from "./mode-budget";

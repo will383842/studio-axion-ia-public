@@ -48,7 +48,7 @@ import { doubleDejaRenduDepuis, partDoubleReel } from "@/domaine/double-reel";
 import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
 import { nouvelId } from "@/lib/ids";
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
-import { additionner, centimes, formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { additionner, centimes, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { depots, ressourceActive, ErreurStudio, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { prochainNumeroSuivi } from "@/donnees/memoire";
 import { NUMERO_DEMO_MIN } from "./generateur";

@@ -50,7 +50,7 @@ import { estimationRealisteRole } from "@/generateur/roles/estimation";
 import { pireCasRole, type DefinitionRole, type EntreeRole, type MarqueurArret } from "@/generateur/roles/types";
 import { cleMois } from "@/lib/dates";
 import { nouvelId } from "@/lib/ids";
-import { centimesAuSuperieur, centimesDuPlafond, formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
+import { centimesAuSuperieur, centimesDuPlafond, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { etatBoucle } from "./_boucle-etat";
 import { exigerSession } from "./auth";

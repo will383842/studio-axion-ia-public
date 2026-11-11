@@ -11,7 +11,6 @@
 import "server-only";
 import type { Id } from "@/domaine/types";
 import { estCasStock } from "@/formats/cas-concret/catalogue";
-import { formaterMontant } from "@/lib/montants";
 import { casDesEntrees, coutNouvelEssaiEcritureCentimes, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { depots, ErreurStudio } from "./_commun";
 import { exigerSession } from "./auth";

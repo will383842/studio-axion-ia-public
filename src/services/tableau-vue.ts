@@ -20,7 +20,6 @@ import { ecranTableauVisible } from "@/components/formats/tableau-anime/aiguilla
 import { accordPropre, type AccordPrix } from "@/domaine/accord";
 import type { Id, VersionVideo } from "@/domaine/types";
 import { trouverFormat } from "@/formats";
-import { formaterMontant } from "@/lib/montants";
 import type { OperationMontage } from "@/moteurs";
 import { CATALOGUE_RETOUCHES, apercuRetouche, lireEntreesTableau, type ContexteRetouche } from "@/moteurs/montage-tableau";
 import { estimerFabrication } from "@/moteurs/montage-tableau/fabriquer";

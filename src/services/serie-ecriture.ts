@@ -17,7 +17,7 @@ import { ciblageSaisieValide, typeAutomatisationValide } from "@/domaine/ciblage
 import type { Ciblage, TypeAutomatisation } from "@/domaine/ciblage/types";
 import { MAX_IDEES_SERIE } from "@/domaine/serie-idees";
 import type { Adresse, Id, ModeDiction, Montant, ObjectifSujet, ReseauDeclinaison } from "@/domaine/types";
-import { centimes, formaterMontant } from "@/lib/montants";
+import { centimes } from "@/lib/montants";
 import { nouvelId } from "@/lib/ids";
 import { exigerSession } from "./auth";
 import { chaineDeLEcriture, lancerGeneration, prixLancement } from "./boucle-generation";

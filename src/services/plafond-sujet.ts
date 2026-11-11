@@ -5,7 +5,6 @@
  */
 import "server-only";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre, sousVerrou } from "./_commun";
-import { formaterUsd } from "@/domaine/plafond-sujet";
 import { exigerSession } from "./auth";
 import { PARAM_PLAFOND_SUJET, plafondChaineUsd } from "./generation-claude";
 
@@ -14,8 +13,6 @@ export const BORNES_PLAFOND_SUJET_CENTIMES = Object.freeze({ min: 50, max: 500 }
 
 const estPlafondValable = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= BORNES_PLAFOND_SUJET_CENTIMES.min && v <= BORNES_PLAFOND_SUJET_CENTIMES.max;
 
-/** « 1,50 $ » depuis des centimes entiers. */
-export const formaterDollars = (centimes: number): string => `${Math.floor(centimes / 100)},${String(centimes % 100).padStart(2, "0")} $`;
 
 export interface PlafondSujetLu {
   /** Plafond RÉELLEMENT appliqué (dollars), exactement ce que lit `plafondChaineUsd`. */

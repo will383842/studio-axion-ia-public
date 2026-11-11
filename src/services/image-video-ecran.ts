@@ -30,7 +30,7 @@ import { phrasesAdaptees } from "@/components/formats/image-video/AdapteAutomati
 import { OFFRES, type Offre } from "@/formats/cas-concret/cas";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { additionner, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
-import { CLE_LANCEUR_IV, engageCentimes, euros, estimerImageVideo, plafondProposeIV, releverPlafondIV, type EtatFabricationIV, type FormuleATrancherIV, type PrixIV } from "@/moteurs/montage-image-video";
+import { CLE_LANCEUR_IV, engageCentimes, estimerImageVideo, plafondProposeIV, releverPlafondIV, type EtatFabricationIV, type FormuleATrancherIV, type PrixIV } from "@/moteurs/montage-image-video";
 import { avecVersionsPrudentes, type ChoixFormule } from "@/domaine/image-video/versions-prudentes";
 // Ré-export : la fonction vit désormais dans le domaine (pure, utilisable côté client).
 export { avecVersionsPrudentes, cleFormule } from "@/domaine/image-video/versions-prudentes";

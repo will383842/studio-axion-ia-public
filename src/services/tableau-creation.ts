@@ -35,7 +35,7 @@ import { MENTION_IA_PAR_DEFAUT } from "@/domaine/derivations";
 import type { BlocScript, Distribution, Id, MentionIA, Video } from "@/domaine/types";
 import { dureeParDefaut, reglagesParDefaut, trouverFormat } from "@/formats";
 import { nouvelId } from "@/lib/ids";
-import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { ENTREE_TABLEAU, fichiersDuTravail, lireEntreesTableau, voixPayeeDuTravail, type VoixPayee } from "@/moteurs/montage-tableau";
 import { ancreParlee, couperScene } from "@/moteurs/montage-tableau/rythme";
 import { coutPireDecoupageUsd, decouperEnScenes, ETAPE_DECOUPAGE, PARTIES_MAX, partiesDuDecoupage, remettreEnForme, type EntreeDecoupage, type OutilsDecoupage, type PreuveProposee, type ReponseAppelDecoupage, type ResultatDecoupage } from "@/moteurs/montage-tableau/decoupage";

@@ -28,7 +28,7 @@ import { masquerSecretsClaude } from "@/fournisseurs/claude/secret";
 import { pireCasRole, type DefinitionRole, type EntreeRole, type MarqueurArret } from "@/generateur/roles/types";
 import { cleMois } from "@/lib/dates";
 import { nouvelId } from "@/lib/ids";
-import { centimes, centimesDuPlafond, formaterMontant } from "@/lib/montants";
+import { centimes, centimesDuPlafond } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { libererReservation, MARGE_CREDITS, signalerAttenteCredit, verifierEtReserverSelonOrigine } from "./credits";
 import { jugerPlafond, signalerDepassementIndicatif, type OrigineLancement } from "./budget-mensuel";

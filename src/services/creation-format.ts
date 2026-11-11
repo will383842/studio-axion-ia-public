@@ -11,7 +11,6 @@ import { accordCouvre, accordPropre, type AccordPrix } from "@/domaine/accord";
 import type { Distribution, Id, MentionIA, Video } from "@/domaine/types";
 import { dureeParDefaut, reglagesParDefaut, trouverFormat } from "@/formats";
 import { nouvelId } from "@/lib/ids";
-import { formaterMontant } from "@/lib/montants";
 import { depots, ErreurStudio, horodatage, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
 import { accordAutomatique } from "./mode-budget";

@@ -93,7 +93,6 @@ function lignesUneVideo(reseaux: readonly ReseauIV[], taux: number): LigneCout[]
   return estimerImageVideo(commande).lignes;
 }
 
-const eurosTexte = (centimes: number) => `${(centimes / 100).toFixed(2).replace(".", ",")} €`;
 
 // ─── Dépôt ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 
