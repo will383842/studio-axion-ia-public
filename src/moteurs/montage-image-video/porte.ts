@@ -72,7 +72,7 @@ export interface VerdictPorteIV {
 const nomReseaux = (r: readonly ReseauIV[]) => r.map((x) => PLAFONDS_IV[x].nom).join(", ");
 
 /** Verdict des plafonds de chaque réseau demandé, lu sur les durées MESURÉES (fichier final) de ses versions. */
-export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: readonly VersionAControlerIV[]): { verdicts: VerdictReseauIV[]; manques: string[] } {
+export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: readonly VersionAControlerIV[], scriptColle = false): { verdicts: VerdictReseauIV[]; manques: string[] } {
   const verdicts: VerdictReseauIV[] = [];
   const manques: string[] = [];
   for (const r of RESEAUX_IV.filter((x) => reseaux.includes(x))) {
@@ -82,7 +82,7 @@ export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: reado
       continue;
     }
     const courte = versions.find((v) => v.courte && v.reseaux.includes(r));
-    verdicts.push(verdictReseau(r, longue.ligne.dureeSec, courte ? courte.ligne.dureeSec : null));
+    verdicts.push(verdictReseau(r, longue.ligne.dureeSec, courte ? courte.ligne.dureeSec : null, scriptColle));
   }
   return { verdicts, manques };
 }
@@ -104,7 +104,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
     if (vus.has(v.version)) generaux.push(`la version ${v.version} est fournie deux fois.`);
     vus.add(v.version);
   }
-  const { verdicts, manques } = plafondsDesReseaux(e.reseaux, e.versions);
+  const { verdicts, manques } = plafondsDesReseaux(e.reseaux, e.versions, e.scriptColle === true);
   generaux.push(...manques);
 
   // 1. Sans dépense : instants clés, mise en page (Q21, mesurée par les contrôles), et toutes les lignes qui ne dépendent pas de l'écoute.
