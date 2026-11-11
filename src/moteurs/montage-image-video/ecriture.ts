@@ -88,10 +88,10 @@ Scènes : ${liste(SCENES)} (seulement celles de <scenes>).`;
 
 const NIVEAUX_CIBLE_IV: Record<Ciblage["niveau"], string> = { metier: "métier", secteur: "secteur", taille: "taille d'entreprise" };
 
-/** Consigne de cible (facultative) : libellé sur une ligne, borné à 80 caractères et anonymisé. Sans cible : rien. */
+/** Consigne de cible (facultative) : libellé sur une ligne, sans chevrons, borné à 80 caractères et anonymisé. Sans cible : rien. */
 export function consigneCibleIV(ciblage: Ciblage | undefined): string {
   if (!ciblage) return "";
-  const libelle = anonymiser(ciblage.libelle.replace(/\s+/g, " ").trim().slice(0, LONGUEUR_MAX_LIBELLE), { nomsSensibles: [] }).texte;
+  const libelle = anonymiser(ciblage.libelle.replace(/[<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, LONGUEUR_MAX_LIBELLE), { nomsSensibles: [] }).texte;
   if (!libelle) return "";
   return `<cible>Cible : ${libelle} (${NIVEAUX_CIBLE_IV[ciblage.niveau]}), à nommer dans les 5 premières secondes.</cible>`;
 }
