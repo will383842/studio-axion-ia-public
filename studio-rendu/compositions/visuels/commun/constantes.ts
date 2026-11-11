@@ -14,7 +14,7 @@ export const LARGEUR_TEXTE = FORMAT.largeur - 2 * MARGE;
 /** Plancher de tout texte de la composition. */
 export const TAILLE_TEXTE_MIN = 26;
 
-/** Tailles de référence (px) du texte hors titres (ART-1) : toutes ≥ 26 ; le texte courant (Inter SemiBold) ≥ 30. Les gabarits les agrandissent avec `k()` pour remplir la page. */
+/** Tailles de référence (px) du texte hors titres (ART-1) : toutes ≥ 26 ; le texte courant (Manrope) ≥ 30. Les gabarits les agrandissent avec `k()` pour remplir la page. */
 export const TAILLES = {
   corps: 30,
   /** Titre d'un élément (carte, étape, question). */
@@ -56,13 +56,14 @@ export const LARGEUR_TITRE = LARGEUR_TEXTE - TITRE.tolerance;
 
 export const COULEURS = CHARTE_CARROUSEL.couleurs;
 
-/** Les polices sont chargées par `../polices.ts` (mêmes noms de familles). */
-/** Titres : Inter Display Black (900), toujours avec `fontWeight: 900` (`GRAISSE_TITRE`). */
-export const POLICE_TITRE = '"Axion Inter Display", "Inter Display", "Inter", sans-serif';
-export const GRAISSE_TITRE = 900;
-export const POLICE_CORPS = '"Axion Inter", "Inter", sans-serif';
-/** Annotations manuscrites (L9) : Kalam Bold, à l'encre, jamais sous `TAILLE_MANUSCRITE`. */
-export const POLICE_MANUSCRITE = '"Axion Kalam", "Kalam", cursive';
+/** Une seule police sur toute page : Manrope (variable 200-800), chargée par `../polices.ts` (famille « Axion Manrope »). */
+const PILE_MANROPE = '"Axion Manrope", "Manrope", sans-serif';
+/** Titres : Manrope ExtraBold (800, la graisse la plus forte de Manrope), toujours avec `fontWeight: GRAISSE_TITRE`. */
+export const POLICE_TITRE = PILE_MANROPE;
+export const GRAISSE_TITRE = 800;
+export const POLICE_CORPS = PILE_MANROPE;
+/** Annotations (L9) : Manrope aussi (plus de police manuscrite), à l'encre, jamais sous `TAILLE_MANUSCRITE`. */
+export const POLICE_MANUSCRITE = PILE_MANROPE;
 export const TAILLE_MANUSCRITE = 34;
 
 /** Filet du style éditorial (A) : 2 px, encre. Il remplace les contours de 3-4 px et les ombres décalées (abandonnés en ART-1). */
@@ -70,7 +71,7 @@ export const FILET = 2;
 /** Surface douce (B, accent ponctuel) : rayon et ombre floue légère (encre à 10 %). */
 export const RAYON_DOUX = 24;
 export const OMBRE_DOUCE = `0 12px 32px color-mix(in srgb, ${CHARTE_CARROUSEL.couleurs.encre} 10%, transparent)`;
-/** Rubrique : Inter Bold en capitales espacées. */
+/** Rubrique : Manrope Bold en capitales espacées. */
 export const INTERLETTRAGE_RUBRIQUE = "0.16em";
 
 /** Le « froid » (colonne SANS, mythe) : encre ATTÉNUÉE en gris, jamais de bleu ; posé sur le blanc de carte (contraste ≈ 7:1, test `l9-gabarits`). */
