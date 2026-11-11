@@ -13,26 +13,28 @@ import React, { useId } from "react";
  *  - Grain, reflet, micro-ombre, relief « héros », tampon EXEMPLE.
  */
 import type { CSSProperties } from "react";
-import { POLICES, largeurTexte } from "../charte";
+import { avecOpacite, PALETTE } from "../../../../src/briques/charte/axion-2026";
+import { COULEURS, POLICES, largeurTexte } from "../charte";
+import { MELANGES } from "./premium-1";
 
 /* ------------------------------------------------------------------ Couleurs ------------------------------------------------------------------ */
 
 /** Les 12 jetons (rôle unique chacun). Aucune autre teinte n'est permise dans les cartes premium. */
 export const NUANCES = Object.freeze({
-  ivoire: "#E9DCC8",
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
+  ivoire: COULEURS.ivoire,
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
   /** « En attente » uniquement. */
-  sable: "#BFA88B",
-  sableProfond: "#94806A",
-  filet: "#CBBFAD",
-  orangeVoile: "#DEC0A8",
+  sable: COULEURS.sable,
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
   /** « Actif / fort » uniquement. */
-  orange: "#B44F29",
-  orangeChaud: "#BC6441",
-  orangeProfond: "#934122",
-  encreDouce: "#45392D",
-  encre: "#110A05",
+  orange: COULEURS.orange,
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  encreDouce: MELANGES.encreDouce,
+  encre: COULEURS.encre,
 } as const);
 
 /** `#RRGGBB` → `rgba(r, g, b, a)` (transparences des jetons, jamais une nouvelle teinte). */

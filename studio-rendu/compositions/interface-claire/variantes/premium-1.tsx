@@ -9,30 +9,53 @@ import React from "react";
  */
 import type { CSSProperties } from "react";
 import { Easing, interpolate } from "remotion";
+import { avecOpacite, PALETTE } from "../../../../src/briques/charte/axion-2026";
 import { COULEURS, GEOMETRIE, POLICES } from "../charte";
 
 /* ------------------------------------------------------------------ Les 12 jetons de couleur ------------------------------------------------------------------ */
 
+/** Mélange linéaire de deux couleurs #RRGGBB (`t` = part de `b`) : les teintes intermédiaires se déduisent de la palette 2026, jamais saisies à la main. */
+export function melange(a: string, b: string, t: number): string {
+  const canal = (hex: string, i: number) => parseInt(hex.slice(i, i + 2), 16);
+  const hex = (i: number) => Math.round(canal(a, i) * (1 - t) + canal(b, i) * t).toString(16).padStart(2, "0");
+  return `#${hex(1)}${hex(3)}${hex(5)}`.toUpperCase();
+}
+
+/**
+ * Les 8 mélanges calculés sur la palette 2026, définis une seule fois (importés par premium-2 à 5).
+ * Fonds clairs : ivoire, gris, terracotta, texte secondaire. Le niveau de sombre `encreDouce` est le noir lui-même (relief par filet, jamais par un second neutre) ; l'orange #D97757 n'y est pas employé (noir seulement).
+ */
+export const MELANGES = Object.freeze({
+  ivoireCreux: melange(PALETTE.ivoire, PALETTE.gris, 0.5),
+  sableClair: melange(PALETTE.gris, PALETTE.texteSecondaire, 0.15),
+  sableProfond: melange(PALETTE.gris, PALETTE.texteSecondaire, 0.6),
+  filet: melange(PALETTE.gris, PALETTE.texteSecondaire, 0.3),
+  orangeVoile: melange(PALETTE.ivoire, PALETTE.terracotta, 0.15),
+  orangeChaud: melange(PALETTE.terracotta, PALETTE.ivoire, 0.12),
+  orangeProfond: melange(PALETTE.terracotta, PALETTE.noir, 0.25),
+  encreDouce: PALETTE.noir,
+} as const);
+
 /** Les 4 couleurs de la charte et leurs mélanges calculés (standard § 2.4). Aucune autre teinte. */
 export const NUANCES = Object.freeze({
   ivoire: COULEURS.ivoire,
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
   sable: COULEURS.sable,
-  sableProfond: "#94806A",
-  filet: "#CBBFAD",
-  orangeVoile: "#DEC0A8",
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
   orange: COULEURS.orange,
-  orangeChaud: "#BC6441",
-  orangeProfond: "#934122",
-  encreDouce: "#45392D",
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  encreDouce: MELANGES.encreDouce,
   encre: COULEURS.encre,
 } as const);
 
 /** Encre avec opacité (ombres, grain) : la teinte reste l'encre de la charte. */
-export const encreA = (alpha: number) => `rgba(17, 10, 5, ${alpha})`;
+export const encreA = (alpha: number) => avecOpacite(PALETTE.noir, alpha);
 /** Ivoire avec opacité (reflets). */
-export const ivoireA = (alpha: number) => `rgba(233, 220, 200, ${alpha})`;
+export const ivoireA = (alpha: number) => avecOpacite(PALETTE.ivoire, alpha);
 
 /* ------------------------------------------------------------------ Courbes nommées (standard § 2.5) ------------------------------------------------------------------ */
 
