@@ -34,6 +34,7 @@ describe("V7-07 objets-realistes.ts", () => {
   it("met les pictos de l'écran clair en terracotta, pas en orange (réservé au noir)", () => {
     const src = readFileSync(FICHIER, "utf8");
     expect(src).toMatch(/const ORANGE = PALETTE\.terracotta;/);
+    expect(src).toMatch(/i === 1 \|\| i === 3 \? ORANGE :/);
     expect(src).not.toMatch(/\? "#D97757"/);
   });
 });
