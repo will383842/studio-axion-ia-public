@@ -79,8 +79,8 @@ export function CarteStatuts({ palette, duree, decl, fin, roles = ROLES, avecSon
                   <Ico nom={r.icone} taille={40} fond={i >= d ? BLANC : "none"} />
                 </PastilleRonde>
                 <div style={{ flex: 1 }}>
-                  <div style={styleMontserrat(34, { letterSpacing: "0.03em", color: flash ? BLANC : ENCRE })}>{r.agent}</div>
-                  <div style={styleInter(32, 600, { marginTop: 6, color: flash ? BLANC : ENCRE })}>{r.action}</div>
+                  <div style={styleMontserrat(34, { letterSpacing: "0.03em", color: !fait && flash ? BLANC : ENCRE })}>{r.agent}</div>
+                  <div style={styleInter(32, 600, { marginTop: 6, color: !fait && flash ? BLANC : ENCRE })}>{r.action}</div>
                 </div>
                 {i >= d && (
                   <div style={{ transform: `scale(${(0.5 + 0.5 * ressort("POP", i - d)) * (fait && k === n - 1 ? pulsation(i, vie, 0.12) : 1)})`, transformOrigin: "100% 50%" }}>
