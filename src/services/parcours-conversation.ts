@@ -987,24 +987,48 @@ export function reductionIdsActive(env: Env = process.env): boolean {
  * `DELAI_REDUCTION_MS`. La LIGNE reste, ainsi que `idEvenement`, `idCompte`, `idCommentaire` / `idMessage` (déduplication des rejeux).
  * Jamais réduits : le message qui portait l'adresse (relu pour transmettre un « stop », sans limite de durée), le dernier message d'une
  * conversation à fenêtre ouverte, un événement dont une opposition à transmettre dépend. Au plus 50 événements par passage, une seule
- * écriture par événement. Une conversation `oppose` n'est PAS touchée (décision D3 non tranchée : preuve de l'origine du « stop »).
+ * écriture par événement. Une personne opposée n'est JAMAIS touchée : aucun de ses événements (le « stop » comme le commentaire d'origine)
+ * ni sa conversation, que l'opposition vienne de l'état `oppose`, de la file des oppositions ou du registre. Registre illisible : rien n'est réduit.
  */
 export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number } = {}): Promise<number> {
   const env = o.env ?? process.env;
   if (!reductionIdsActive(env)) return 0;
   const now = o.maintenantMs ?? Date.now();
+  const cles = lireClesEmpreinte(env);
+  if (!cles.ok) return 0; // échec fermé : sans les clés on ne sait pas reconnaître une personne opposée
   const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
   const file = await lireParametre<Record<string, { etat?: string }>>("parcours.oppositions.file", {});
   const proteges = new Set<string>();
+  const clesOpposees = new Set<string>(); // clés (et alias) des conversations d'une personne opposée ou en file d'opposition
   for (const [cle, c] of Object.entries(conv)) {
     for (const id of [c.idMessageAdresse, c.idMessageGuide]) if (id) proteges.add(id);
     if (c.idMessageDernier && (dansFenetreEnvoi(c, now) || file[cle]?.etat === "a_transmettre")) proteges.add(c.idMessageDernier);
+    if (c.etat === "oppose" || file[cle] || c.douteOpposition === true) {
+      for (const k of [cle, ...(c.alias ?? [])]) clesOpposees.add(k);
+      for (const id of [c.idMessageDernier, c.idMessageAdresse, c.idMessageGuide]) if (id) proteges.add(id);
+    }
   }
+  const estOpposee = async (ch: Record<string, unknown>): Promise<boolean> => {
+    const ids = [ch.idAuteur, ch.idExpediteur, ch.idConversation].filter((x): x is string => typeof x === "string" && x.length > 0);
+    for (const id of ids) {
+      if (formesConversation(cles, id).some((f) => clesOpposees.has(f))) return true;
+      if (await personneOpposee(id, ESPACE_CONVERSATION, { env })) return true;
+    }
+    return false;
+  };
   const iso = new Date(now).toISOString();
   const evenements = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && reductible(e, { idsMessagesProteges: proteges }, now));
   evenements.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
   let n = 0;
-  for (const ev of evenements.slice(0, LOT_REDUCTION)) {
+  let traites = 0;
+  for (const ev of evenements) {
+    if (traites >= LOT_REDUCTION) break;
+    try {
+      if (await estOpposee(ev.charge)) continue; // la preuve de l'opposition reste intacte
+    } catch {
+      break; // registre illisible : on ne réduit plus rien dans ce passage
+    }
+    traites++;
     await depots().evenementsFournisseurs.modifier(ev.id, { charge: { ...ev.charge, idAuteur: null, idExpediteur: null, idConversation: null, idPlateforme: null, idsReduitsLe: iso } });
     n++;
   }
@@ -1016,6 +1040,7 @@ export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number 
       if (!FINIS_REDUCTIBLES.includes(c.etat) || c.idCommentaire === "reduit") return false;
       // Date de clôture inconnue : on retient la PLUS RÉCENTE des dates de l'état (conservateur). Aucune date lisible : jamais réduit.
       const dates = [c.creeLe, c.m1Le, c.m2Le, c.refuseLe, c.derniereActiviteLe, c.occurredAt].map((x) => (typeof x === "string" ? Date.parse(x) : NaN)).filter((d) => Number.isFinite(d));
+      if (c.alias?.some((a) => clesOpposees.has(a)) || clesOpposees.has(k)) return false;
       return dates.length > 0 && now - Math.max(...dates) >= DELAI_REDUCTION_MS;
     });
     if (cles.length > 0) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, ...Object.fromEntries(cles.map((k) => [k, { ...tout[k], idCommentaire: "reduit" }])) });

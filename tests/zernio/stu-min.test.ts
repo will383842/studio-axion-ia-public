@@ -23,13 +23,13 @@ const ilYa = (ms: number) => new Date(T0 - ms).toISOString();
 let n = 0;
 
 /** Événement Zernio CLOS depuis `ageMs` (traite, modifieLe) avec tous ses identifiants bruts. */
-async function evenement(o: { type?: "zernio.commentaire" | "zernio.message"; ageMs: number; traite?: boolean; idMessage?: string; idCompte?: string } ) {
+async function evenement(o: { type?: "zernio.commentaire" | "zernio.message"; ageMs: number; traite?: boolean; idMessage?: string; idCompte?: string; personne?: string; idConversation?: string } ) {
   const type = o.type ?? "zernio.commentaire";
   const idEvenement = `evt-${++n}`;
   const date = ilYa(o.ageMs);
   const charge: Record<string, unknown> = type === "zernio.commentaire"
-    ? { idCommentaire: `com-${n}`, idPostPlateforme: "post-plateforme-fictif-200", idCompte: o.idCompte ?? COMPTE, reseau: "instagram", idAuteur: "auteur-brut-fictif", proprio: false, motSeul: "GUIDE", estReponse: false, etat: "termine", dernierCode: null }
-    : { idMessage: o.idMessage ?? `msg-${n}`, idConversation: "conv-brute-fictive", idCompte: o.idCompte ?? COMPTE, idExpediteur: "auteur-brut-fictif", idPlateforme: "plateforme-brute-fictive", etat: "termine", dernierCode: null };
+    ? { idCommentaire: `com-${n}`, idPostPlateforme: "post-plateforme-fictif-200", idCompte: o.idCompte ?? COMPTE, reseau: "instagram", idAuteur: o.personne ?? "auteur-brut-fictif", proprio: false, motSeul: "GUIDE", estReponse: false, etat: "termine", dernierCode: null }
+    : { idMessage: o.idMessage ?? `msg-${n}`, idConversation: o.idConversation ?? "conv-brute-fictive", idCompte: o.idCompte ?? COMPTE, idExpediteur: o.personne ?? "auteur-brut-fictif", idPlateforme: "plateforme-brute-fictive", etat: "termine", dernierCode: null };
   await depots().evenementsFournisseurs.enregistrer({ id: `evf-${idEvenement}`, fournisseur: "zernio", idEvenement, type, recuLe: date, traite: o.traite ?? true, creeLe: date, modifieLe: date, charge } as any);
   return `evf-${idEvenement}`;
 }
@@ -236,5 +236,40 @@ describe("reductible (fonction pure)", () => {
     expect(reductible(ev({ charge: { idMessage: "protege" } }), faits, T0)).toBe(false);
     expect(reductible(ev({ charge: { idMessage: "m1", idsReduitsLe: ilYa(J) } }), faits, T0)).toBe(false);
     expect(reductible(ev({ modifieLe: "illisible", recuLe: "illisible" }), faits, T0)).toBe(false); // date illisible : jamais réduit (échec fermé)
+  });
+});
+
+describe("11 · une personne opposée n'est JAMAIS touchée (la preuve de l'opposition reste intacte)", () => {
+  it("conversation `oppose` : son commentaire d'origine et son message « stop » de 40 jours restent entiers ; une autre personne est réduite", async () => {
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation("personne-opposee")]: graineConv("oppose", { creeLe: ilYa(41 * J), m1Le: ilYa(41 * J), idMessageAdresse: null, idMessageGuide: null, idMessageDernier: null }) });
+    const commentaire = await evenement({ ageMs: 40 * J, personne: "personne-opposee" });
+    const stop = await evenement({ type: "zernio.message", ageMs: 40 * J, personne: "personne-opposee", idConversation: "conv-opposee" });
+    const autre = await evenement({ ageMs: 40 * J, personne: "personne-autre" });
+    const avant = [await lire(commentaire), await lire(stop)];
+    expect(await reduire()).toBe(1);
+    expect(await lire(commentaire)).toEqual(avant[0]);
+    expect(await lire(stop)).toEqual(avant[1]);
+    expect((await lire(commentaire)).charge).toMatchObject({ idAuteur: "personne-opposee" });
+    expect((await lire(stop)).charge).toMatchObject({ idExpediteur: "personne-opposee", idConversation: "conv-opposee", idPlateforme: "plateforme-brute-fictive" });
+    expect((await lire(autre)).charge).toMatchObject({ idAuteur: null });
+    expect((await conversations())[cleConversation("personne-opposee")].idCommentaire).not.toBe("reduit");
+  });
+  it("opposition seulement au registre (aucun état de conversation) : événements gardés entiers", async () => {
+    await OPP.enregistrerOppositionPersonne(["personne-registre"], [], "zernio-conversation", { env: ENV_RED });
+    const ids = [await evenement({ ageMs: 45 * J, personne: "personne-registre" }), await evenement({ type: "zernio.message", ageMs: 45 * J, personne: "personne-registre" })];
+    const avant = [await lire(ids[0]), await lire(ids[1])];
+    expect(await reduire()).toBe(0);
+    expect(await lire(ids[0])).toEqual(avant[0]);
+    expect(await lire(ids[1])).toEqual(avant[1]);
+  });
+  it("opposition en file à transmettre : événements gardés, conversation non réduite", async () => {
+    const cle = cleConversation("personne-file");
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: graineConv("termine", { creeLe: ilYa(50 * J), m1Le: ilYa(50 * J) }) });
+    await Com.ecrireParametre("parcours.oppositions.file", { [cle]: { etat: "a_transmettre" } });
+    const id = await evenement({ ageMs: 45 * J, personne: "personne-file" });
+    const avant = await lire(id);
+    expect(await reduire()).toBe(0);
+    expect(await lire(id)).toEqual(avant);
+    expect((await conversations())[cle].idCommentaire).not.toBe("reduit");
   });
 });
