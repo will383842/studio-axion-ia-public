@@ -21,9 +21,9 @@ export const REFUS_ADMIS: Readonly<Record<string, RegExp>> = {
   // Leur texte dit, inchangé, dépasse maintenant 90 s (habitude-equipe : 1 670 caractères, fabrication-arrêtée : 1 561 ;
   // 91,7 s) ou laisse un trou de rythme dû à des ancres posées pour l'ancien débit (tâches répétitives, s09 : 70,8 à 76,4 s).
   // C'est le comportement voulu : elles sont refusées à la fiche, pas par le moteur.
-  "fiche-habitude-equipe-prod": DEBIT_165,
+  // Plafond relevé à 180 s / 3 041 caractères : habitude-equipe-prod (1 670 car.) et fabrication-arrêtée (1 561 car.)
+  // ne sont plus refusées pour leur durée ; elles passent donc le banc sans refus (retirées de la liste).
   "fiche-habitude-equipe-reference-2": DEBIT_165,
-  "fabrication-arretee-ecriture-a-l-heure-2026-10-15": DEBIT_165,
   "fiche-taches-repetitives-reference-2": DEBIT_165,
 };
 
