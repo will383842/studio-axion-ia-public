@@ -324,7 +324,12 @@ export async function lancerRendu(id: string, deps: DependancesCarrousels): Prom
 }
 
 export async function valider(id: string, deps: DependancesCarrousels): Promise<void> {
-  await deps.verrou(() => transiter(id, "valide", { valideLe: deps.maintenant() }, deps));
+  await deps.verrou(async () => {
+    // Seul « à valider » se valide : depuis « programmé », la table permet de revenir à « validé » (déprogrammer), mais ce n'est pas cette action.
+    const v = await lireVisuel(id, deps);
+    if (v.statut !== "a_valider") throw refus("TRANSITION_REFUSEE", `Un carrousel « ${LIBELLES_STATUT[v.statut]} » ne se valide pas`);
+    await transiter(id, "valide", { valideLe: deps.maintenant() }, deps);
+  });
 }
 
 /** `page` est en base 0, comme `pages[].index` de la fiche : un entier de 0 à nombre de pages - 1. */
