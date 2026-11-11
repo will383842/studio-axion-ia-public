@@ -725,16 +725,6 @@ function BoutonFabriquer({ sujetId, varianteId, formatId, prix: fab }: { sujetId
         <p className="mb-4 text-[15px] text-texte-doux">
           {resume?.essai ? "Une vidéo d'essai : rien n'est payé, et ce n'est pas encore votre vraie vidéo." : "La vidéo complète, avec votre double et votre voix."}
         </p>
-        {resume && resume.credits.length > 0 && (
-          <dl className="mb-4 space-y-1.5 rounded-champ bg-surface-2 p-3 text-sm">
-            {resume.credits.map((c) => (
-              <div key={c.nom} className="flex items-center justify-between gap-2">
-                <dt className="text-texte-doux">Crédit {c.nom}</dt>
-                <dd className="tabular-nums text-texte">{c.disponible}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
         {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{resume.messageEssai}</p>}
         {fab?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{fab.avatarParle}</p>}
         <Bouton asChild taille="lg" pleineLargeur icone="ecrire">
@@ -886,7 +876,7 @@ function CarteArretAjout({ id, manque, sansAccord }: { id: string; manque: { lib
 }
 
 /** E2E-2 argent n° 2 : un ajout arrêté sur une panne de Claude ; rien n'est perdu, la reprise est un toucher. */
-function CartePanneAjout({ id, message, supplement }: { id: string; message: string; supplement?: string }) {
+function CartePanneAjout({ id, message }: { id: string; message: string; supplement?: string }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   return (
@@ -913,7 +903,7 @@ function CartePanneAjout({ id, message, supplement }: { id: string; message: str
           })
         }
       >
-        {supplement ? `Reprendre l'écriture (jusqu'à ${supplement} de plus)` : "Reprendre l'écriture"}
+        Reprendre l'écriture
       </Bouton>
     </Carte>
   );
