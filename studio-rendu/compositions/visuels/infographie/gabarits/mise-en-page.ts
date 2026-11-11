@@ -19,7 +19,8 @@ export const ID_COMPOSITION_INFOGRAPHIE = "Infographie";
 
 const MARGE = 64;
 const ECART = 24;
-const INTERLIGNE = 1.2;
+export const INTERLIGNE_INFOGRAPHIE = 1.2;
+const INTERLIGNE = INTERLIGNE_INFOGRAPHIE;
 
 export class ErreurDebordementInfographie extends Error {
   constructor(zone: string, texte: string) {
