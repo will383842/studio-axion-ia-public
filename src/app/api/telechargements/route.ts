@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { ReseauDeclinaison } from "@/domaine/types";
 import { fluxZip, type EntreeFluxZip, type SourceZip } from "@/lib/zip";
+import { estIdReseau } from "@/domaine/reseaux-video";
 import { estReseauDeclinaison } from "@/reseaux/codes";
 import { sessionApi } from "@/services/auth";
 import { ErreurStudio } from "@/services/_commun";
-import { cetteSemaine, contenuArchiveReseau, contenuArchiveSujet, type ContenuArchive } from "@/services/telechargements";
+import { cetteSemaine, contenuArchiveReseau, contenuArchiveValidees, contenuArchiveSujet, type ContenuArchive } from "@/services/telechargements";
 
 /**
  * Téléchargement groupé (plan v5 B.6.10, lot G1b) : `?sujet=<id>` (tout le sujet) ou `?reseau=tiktok&du=AAAA-MM-JJ&au=…`
@@ -15,6 +16,9 @@ import { cetteSemaine, contenuArchiveReseau, contenuArchiveSujet, type ContenuAr
  * que soit le poids du sujet (300 à 600 Mo). Une vidéo illisible ne casse plus la réponse : elle est sautée et nommée
  * dans `FICHIERS-ILLISIBLES.txt`, à la fin de l'archive. Le CONTENU des entrées (vidéos, sous-titres) vient tel quel
  * du service `telechargements`.
+ *
+ * Lot V (08/11) : `?validees=1&reseau=<réseau>` (« Tout télécharger » de la page Vidéos validées) = les vidéos validées de ce
+ * réseau, pour tout réseau du studio. Branche ajoutée à côté des deux autres, qui ne changent pas.
  */
 export async function GET(requete: NextRequest) {
   if (!(await sessionApi())) return NextResponse.json({ erreur: "Connexion requise." }, { status: 401 });
@@ -23,7 +27,10 @@ export async function GET(requete: NextRequest) {
   const reseau = p.get("reseau");
   let contenu: ContenuArchive;
   try {
-    if (sujet) contenu = await contenuArchiveSujet(sujet);
+    if (p.get("validees") === "1") {
+      if (!reseau || !estIdReseau(reseau)) return NextResponse.json({ erreur: "Précisez le réseau." }, { status: 400 });
+      contenu = await contenuArchiveValidees(reseau);
+    } else if (sujet) contenu = await contenuArchiveSujet(sujet);
     else if (reseau && estReseauDeclinaison(reseau as ReseauDeclinaison)) {
       const semaine = cetteSemaine();
       contenu = await contenuArchiveReseau(reseau as ReseauDeclinaison, p.get("du") ?? semaine.debut, p.get("au") ?? semaine.fin);

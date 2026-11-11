@@ -53,7 +53,7 @@ export function AppelFinalPile({ frame, debut, palette, motCle, lignes, iLignes 
   return (
     <>
       <Pose x={W / 2 - 10} y={0.063 * H} rotation={-3} echelle={Math.max(0, e0 * sortie * croit * tick(i, 8, 0, 0.03)) * entree0} z={60}>
-        <Plaque texte={<span>COMMENTEZ « <span style={{ color: accents(palette).ACCENT_1, display: "inline-block", minWidth: motCle.length * 38, transform: `scale(${kMot >= 0 ? 1 + 0.25 * Math.sin(Math.PI * courbe(kMot, 0, 6)) : 0})`, opacity: kMot >= 0 ? 1 : 0 }}>{motCle}</span> »</span>} fond={COULEURS.ENCRE} couleurTexte={COULEURS.BLANC} corps={CORPS_PRINCIPALE} ombre="M" />
+        <Plaque texte={<span>COMMENTEZ « <span style={{ color: accents(palette).ACCENT_SOMBRE, display: "inline-block", minWidth: motCle.length * 38, transform: `scale(${kMot >= 0 ? 1 + 0.25 * Math.sin(Math.PI * courbe(kMot, 0, 6)) : 0})`, opacity: kMot >= 0 ? 1 : 0 }}>{motCle}</span> »</span>} fond={COULEURS.ENCRE} couleurTexte={COULEURS.BLANC} corps={CORPS_PRINCIPALE} ombre="M" />
       </Pose>
       {lignes.map((l, n) => {
         const k = i - iLignes[n];

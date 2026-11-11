@@ -179,7 +179,9 @@ describe("À publier par réseau — vue Tous et tranches de 20", () => {
     expect(sections[0]).not.toContain("Titre v-fb");
     expect(sections[1]).toContain("Titre v-fb");
     expect(sections[1]).not.toContain("Titre v-li");
-    expect(liste(jeu(), "toutes", "facebook")).not.toContain("<h2");
+    // Lot V (08/11, Williams) : un réseau choisi garde son titre, qui porte « Tout télécharger » (validées de ce réseau).
+    expect(liste(jeu(), "toutes", "facebook").match(/<h2/g)?.length).toBe(1);
+    expect(texte(liste(jeu(), "toutes", "facebook"))).toContain("Tout télécharger");
     expect(liste(jeu(), "toutes")).toContain('href="/a-publier/v-fb?reseau=facebook&amp;liste=tous&amp;filtre=toutes"');
   });
 

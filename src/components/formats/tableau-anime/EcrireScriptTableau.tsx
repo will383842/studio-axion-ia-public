@@ -27,6 +27,9 @@ import { MOMENTS_SCRIPT, normaliserScript, phrasesDites, phrasesEtape, type Dema
 import { formaterMontant } from "@/lib/montants";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
+import { ChoixCible } from "@/components/ciblage/ChoixCible";
+import type { Ciblage } from "@/domaine/ciblage/types";
+import { publicDepuisCible } from "./ciblage-saisie";
 import { DUREE_ECRITURE_TEXTE } from "./durees";
 import { accordApresRefus, controleServeurAvantPrix, PHRASE_PRIX_CHANGE, prixRedemandable } from "./sujet-deja-traite";
 
@@ -36,6 +39,7 @@ interface Saisie {
   serie: string;
   sujet: string;
   public: string;
+  ciblage?: Ciblage;
   avecVraiCas: boolean;
   vraiCas: { metier: string; tache: string; avant: string; apres: string; date: string };
   reseau: string;
@@ -49,6 +53,7 @@ function saisieDe(d: Partial<DemandeScriptTableau> | null | undefined): Saisie {
     serie: d?.serie ?? "",
     sujet: d?.sujet ?? "",
     public: d?.public ?? "",
+    ciblage: d?.ciblage,
     avecVraiCas: !!d?.vraiCas,
     vraiCas: d?.vraiCas ?? { metier: "", tache: "", avant: "", apres: "", date: "" },
     reseau: d?.reseau ?? "",
@@ -110,6 +115,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
       serie: saisie.serie,
       sujet: saisie.sujet,
       public: saisie.public,
+      ...(saisie.ciblage ? { ciblage: saisie.ciblage } : {}),
       vraiCas: saisie.avecVraiCas ? saisie.vraiCas : null,
       reseau: saisie.reseau,
       fin: saisie.fin === "commentaire" ? { type: "commentaire", mot: saisie.mot } : { type: saisie.fin },
@@ -184,6 +190,15 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
       <section aria-label="Votre demande" className="space-y-4">
         <SelecteurPastilles libelle="La série" options={ecran.ecriture.series} valeur={saisie.serie || undefined} onChange={(v) => changer({ serie: v })} />
         <Champ libelle="Le sujet, en une ligne" value={saisie.sujet} onChange={(e) => changer({ sujet: e.target.value })} maxLength={160} />
+        <ChoixCible
+          nom="cible-tableau"
+          niveau={saisie.ciblage?.niveau}
+          valeur={saisie.ciblage?.libelle}
+          onChange={(niveau, valeur) => {
+            const c = publicDepuisCible(niveau, valeur);
+            changer({ ciblage: c.ciblage, ...(c.public !== undefined ? { public: c.public } : {}) });
+          }}
+        />
         <Champ libelle="À qui parle la vidéo" value={saisie.public} onChange={(e) => changer({ public: e.target.value })} maxLength={200} />
         <CaseACocher libelle="J'ai un vrai cas à raconter" coche={saisie.avecVraiCas} onChange={(v) => changer({ avecVraiCas: v })} />
         {saisie.avecVraiCas && (

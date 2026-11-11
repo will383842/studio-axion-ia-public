@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, OffthreadVideo, useCurrentFrame, useVideoConfig } from "remotion";
+import { CalquePlanScenes } from "../plan-scenes/CalquePlanScenes";
+import type { PlanValide } from "../../../src/briques/plan-scenes/schema";
 import { mediaV4 } from "./motion-v4/communs/medias-v4";
 import type { PlanFacecamAnimee } from "../../../src/domaine/facecam-animee/plan";
 import { BarreProgression, chargerPolice, COULEURS, grouperMots, SousTitresV4 } from "./motion-v4/communs/briques-v4";
@@ -40,6 +42,7 @@ export function VideoAnimeeV4(plan: PlanFacecamAnimee) {
           </div>
         </AbsoluteFill>
         {elements.map((e, k) => rendreElementV4(e, { rang: k }))}
+        {plan.planScenes ? <CalquePlanScenes plan={plan.planScenes as PlanValide} /> : null}
         <SousTitresV4 frame={frame} groupes={groupes} palette={PALETTE_V4} position={(f) => positionSousTitresV4(elements, cles, f)} masquer={(g) => groupeDoubleV4(elements, frame, g.mots.map((m) => m.mot))} bande={(f) => bandeSousTitresV4(elements, f)} />
         <BarreProgression frame={frame} duree={Math.round(plan.duree * fps)} palette={PALETTE_V4} />
       </AbsoluteFill>

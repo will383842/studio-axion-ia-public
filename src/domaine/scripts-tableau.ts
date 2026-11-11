@@ -12,6 +12,7 @@
 import { z } from "zod";
 import { DOULEUR_MAX_TABLEAU, MOTS_DOULEUR_MAX, MOTS_DOULEUR_MIN } from "./douleur-tableau";
 import { DUREE_MAX_TABLEAU_SEC } from "./duree-tableau";
+import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION } from "./ciblage/types";
 
 /* ------------------------------------------------------------------ */
 /* Valeurs fermées                                                     */
@@ -33,8 +34,8 @@ export const SUJET_DE_SERIE: Record<SerieTableau, { parleDe: string; question: s
  * Réseaux (REGLES § 5), avec leur fourchette de durée en secondes. Revues le 12/10 : la vidéo modèle validée par Will
  * dure 51 s en vertical ; l'ancienne fourchette des courts (30 à 45 s) la refusait. Les autres réseaux suivent le même
  * esprit (la vidéo modèle y passe aussi). Un écart de moins de 10 % est une remarque, pas un défaut éliminatoire.
- * Aucune borne haute ne dépasse le plafond du découpage (`DUREE_MAX_TABLEAU_SEC`, 90 s) : un script accepté par le
- * générateur n'est jamais refusé pour sa durée au découpage (YouTube ramené de 120 à 90 s le 12/10 ; la tolérance de
+ * Aucune borne haute ne dépasse le plafond du découpage (`DUREE_MAX_TABLEAU_SEC`, 180 s) : un script accepté par le
+ * générateur n'est jamais refusé pour sa durée au découpage (YouTube ramené de 120 à 90 s le 12/10, avant le plafond actuel ; la tolérance de
  * 10 % s'arrête aussi au plafond).
  */
 export const RESEAUX_SCRIPT = ["courts", "fil", "linkedin", "youtube"] as const;
@@ -43,7 +44,7 @@ export type ReseauScript = (typeof RESEAUX_SCRIPT)[number];
 export const RESEAUX_SCRIPT_INFOS: Record<ReseauScript, { libelle: string; dimensions: string; dureeMin: number; dureeMax: number; accroche: string; fin: string }> = {
   // dureeMin 40 (4e passe) : 125 mots courts (4 lettres) font ~37 s, tolérance de 10 % comprise.
   // v4 (15/10) : la vidéo de 60 s fait 160 à 190 mots (55 à 70 s selon la voix) ; B2b (19/10) : 125 à 145 mots, voix à 165 mots/min ; celle de 30 s, 75 à 95 mots
-  // (`DUREES_SCRIPT`, la fourchette du réseau ne vaut alors plus). Le plafond du découpage (90 s) reste loin.
+  // (`DUREES_SCRIPT`, la fourchette du réseau ne vaut alors plus). Le plafond du découpage (180 s) reste loin.
   courts: { libelle: "TikTok, Reels, Shorts, stories", dimensions: "Vertical plein écran", dureeMin: 40, dureeMax: 75, accroche: "Directe, la douleur d'abord", fin: "Commentaire ou diagnostic" },
   fil: { libelle: "Fil Instagram et Facebook", dimensions: "Vertical moins haut", dureeMin: 40, dureeMax: 75, accroche: "Proche, concrète", fin: "Commentaire" },
   linkedin: { libelle: "LinkedIn", dimensions: "Vertical plein écran", dureeMin: 40, dureeMax: DUREE_MAX_TABLEAU_SEC, accroche: "Professionnelle, posée", fin: "Diagnostic" },
@@ -129,6 +130,10 @@ export const schemaDemandeScript = z.strictObject({
   /** Le sujet en une ligne. */
   sujet: texteCourt(160).refine((s) => !/\n/.test(s), "Le sujet tient en une ligne."),
   public: texteCourt(200),
+  /** Qui vise la vidéo (facultatif : son absence donne une remarque, jamais un blocage). */
+  ciblage: z.strictObject({ niveau: z.enum(["metier", "secteur", "taille"]), libelle: texteCourt(LONGUEUR_MAX_LIBELLE).refine((s) => !/[\r\n]/.test(s), "Une seule ligne."), origine: z.enum(["saisie", "deduite"]) }).optional(),
+  /** Type d'automatisation (facultatif ; absent = « À classer »). */
+  typeAutomatisation: z.enum(TYPES_AUTOMATISATION.map((t) => t.id) as [string, ...string[]]).optional(),
   vraiCas: schemaVraiCas.nullable().default(null),
   reseau: z.enum(RESEAUX_SCRIPT),
   fin: schemaFinDemandee,

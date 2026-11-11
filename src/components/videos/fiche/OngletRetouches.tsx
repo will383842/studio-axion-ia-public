@@ -1,9 +1,10 @@
 "use client";
 
+import { EnTeteSection } from "@/components/ui/EnTetePage";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { demanderRetoucheAction, estimerRetoucheAction } from "@/app/(studio)/videos/actions";
+import { useState, useTransition } from "react";
+import { demanderRetoucheAction } from "@/app/(studio)/videos/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { Icone } from "@/components/ui/Icone";
@@ -13,7 +14,6 @@ import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import type { Retouche } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { chrono } from "@/lib/dates";
-import { centimes, formaterMontant } from "@/lib/montants";
 import { IlYA } from "@/components/ui/IlYA";
 import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
 
@@ -38,7 +38,7 @@ const STATUTS: Record<Retouche["statut"], { libelle: string; ton: "neutre" | "or
 const TOUT_FAITS = ["Autre illustration", "Autre angle", "Plus serré", "Plus large", "Refaire le visage"] as const;
 
 /**
- * Retouches (niveau 3) : choisir des plans, une consigne (ou un des 5 boutons tout faits), voir le coût, « Refaire ».
+ * Retouches (niveau 3) : choisir des plans, une consigne (ou un des 5 boutons tout faits), « Refaire ».
  * Corriger un mot se fait dans l'onglet Sous-titres (gratuit).
  */
 export function OngletRetouches({
@@ -58,21 +58,8 @@ export function OngletRetouches({
   const router = useRouter();
   const [choisis, setChoisis] = useState<string[]>([]);
   const [consigne, setConsigne] = useState("");
-  const [cout, setCout] = useState<{ centimes: number; dureeSec: number } | null>(null);
   const [envoi, demarrer] = useTransition();
 
-  useEffect(() => {
-    if (!choisis.length) return;
-    let annule = false;
-    const t = setTimeout(async () => {
-      const r = await estimerRetoucheAction(videoId, choisis);
-      if (!annule && r.ok) setCout(r.donnees);
-    }, 250);
-    return () => {
-      annule = true;
-      clearTimeout(t);
-    };
-  }, [choisis, videoId]);
 
   if (!plans.length) return <EtatVide compact icone="ciseaux" titre="Aucun plan" phrase="Les plans apparaissent avec la vidéo." />;
 
@@ -136,10 +123,7 @@ export function OngletRetouches({
           </div>
           <ZoneTexte libelle="Ce qu'il faut changer" value={consigne} onChange={(e) => setConsigne(e.target.value)} placeholder="Ex. : un sourire plus naturel" longueurMax={280} />
           <div className="mt-4 flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs text-texte-faible">Coût estimé</p>
-              <p className="font-titre text-2xl tabular-nums text-texte">{cout ? formaterMontant(centimes(cout.centimes)) : "…"}</p>
-            </div>
+            <div className="flex-1" />
             <Bouton
               icone="reessayer"
               essai={essai}
@@ -170,7 +154,7 @@ export function OngletRetouches({
 
       {retouches.length > 0 && (
         <section>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Déjà demandées</p>
+          <EnTeteSection titre="Déjà demandées" />
           <ul className="space-y-2">
             {[...retouches].reverse().map((r) => (
               <li key={r.id} className="flex min-h-14 items-center gap-3 rounded-2xl border border-trait bg-surface-1 px-3 py-2">

@@ -59,7 +59,7 @@ export function planListeTaches(p: ProprietesListeTaches, image: number, fps = 2
   });
   return {
     t,
-    fiche: { boite: { x: 0, y: 0, largeur: w, hauteur: h } as BoitePx, rayon: (40 / 860) * w, couleur: COULEURS_DUO.blanc },
+    fiche: { boite: { x: 0, y: 0, largeur: w, hauteur: h } as BoitePx, rayon: (40 / 860) * w, couleur: COULEURS_DUO.carte },
     decalageX: tremblement,
     rangs,
   };

@@ -4,6 +4,7 @@ import { ApercuSousTitres, CalqueSousTitres, type ProprietesApercu, type Proprie
 import { AccessoireSeul, DoubleEssai, ImageComposee, Miniature, TexteCompose, type ProprietesAccessoire, type ProprietesDoubleEssai } from "./commune";
 import { formatMiniature, type ProprietesMiniature } from "./commune/miniature-mise-en-page";
 import { VignetteAxion } from "./commune/vignette/VignetteAxion";
+import { CarteFinAxion } from "./commune/fin/CarteFinAxion";
 import { metaVignette } from "./commune/vignette/socle";
 import type { ProprietesVignetteAxion } from "./commune/vignette/VignetteAxion";
 import { CompositionsMotion } from "./commune/motion";
@@ -13,6 +14,9 @@ import { CompositionsCasConcret } from "./cas-concret/Compositions";
 import { CompositionsInterfaceClaire } from "./interface-claire/Compositions";
 import { CompositionsImageVideo } from "./image-video/Compositions";
 import { CompositionsVisuels } from "./visuels/Compositions";
+import { PLAN_VIDE, PlanDeScenes, metaPlanDeScenes } from "./plan-scenes/PlanDeScenes";
+import { TutorielOutil, metaTutorielOutil } from "./plan-scenes/TutorielOutil";
+import { DEMO_FACECAM_VIDE, DemoFacecam, metaDemoFacecam } from "./demo-facecam/DemoFacecam";
 import { tailleAccessoire, type ProprietesImageComposition, type ProprietesTexteComposition } from "../../src/briques/composition/scene";
 
 /** Données vides : les vraies arrivent par les propriétés de la demande de rendu. */
@@ -66,6 +70,9 @@ export function Racine() {
   return (
     <>
       <Composition id="Essai" component={Essai} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={{ titre: "Studio Axion-IA" }} />
+      <Composition id="PlanDeScenes" component={PlanDeScenes} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={PLAN_VIDE} calculateMetadata={metaPlanDeScenes} />
+      <Composition id="TutorielOutil" component={TutorielOutil} durationInFrames={75} fps={25} width={1080} height={1350} defaultProps={{ ...PLAN_VIDE, fin: { titre: "Axion IA", sousTitre: "axion-ia.com" }, finMs: 2500 }} calculateMetadata={metaTutorielOutil} />
+      <Composition id="DemoFacecam" component={DemoFacecam} durationInFrames={88} fps={25} width={1080} height={1350} defaultProps={DEMO_FACECAM_VIDE} calculateMetadata={metaDemoFacecam} />
       <Composition id="SousTitres" component={CalqueSousTitres} durationInFrames={1} fps={25} width={1080} height={1920} defaultProps={CALQUE_VIDE} calculateMetadata={dureeCalque} />
       <Composition
         id="ApercuSousTitres"
@@ -133,6 +140,7 @@ export function Racine() {
         }}
       />
       {/* Vignettes lot 1 (17/10) : socle v2, derrière le réglage `miniature.gabarit` (éteint). */}
+      <Composition id="CarteFinAxion" component={CarteFinAxion} durationInFrames={75} fps={25} width={1080} height={1920} defaultProps={{ largeur: 1080, hauteur: 1920, dureeSec: 3, adresse: "axion-ia.com" }} />
       <Composition id="VignetteAxion" component={VignetteAxion} durationInFrames={1} fps={25} width={1080} height={1920} defaultProps={VIGNETTE_VIDE} calculateMetadata={({ props }) => metaVignette(props)} />
       {/* Facecam lot C (09/10) : brique commune `motion` — 6 modèles et la carte sur mesure, pour tous les formats. */}
       <CompositionsMotion />

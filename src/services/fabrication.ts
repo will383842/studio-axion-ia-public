@@ -575,7 +575,7 @@ export async function apercuFabrication(videoId: Id): Promise<ApercuFabrication>
     estimation,
     // Lot R7 : le double réel exige toujours la confirmation de son prix (même règle que `verifierBudgetEtCredits`).
     // Lot R8 : une vidéo montée pour de vrai par l'interrupteur montre et fait confirmer son prix à chaque lancement.
-    budget: { restant: b.restant, depasse: restantApres < 0 && !indicatif, indicatif, depasseIndicatif: restantApres < 0 && indicatif, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: bloquant > b.seuilConfirmation.centimes || !!partDoubleReel(estimation.lignes) || montageReel, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
+    budget: { restant: b.restant, depasse: restantApres < 0 && !indicatif, indicatif, depasseIndicatif: restantApres < 0 && indicatif, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: false, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
     etapes: moteur.etapes(commande).map((e) => ({ cle: e.cle, nom: e.nom, icone: e.icone })),
     essaiGratuit: commandeEnEssai(commande) && !montageReel && !partDoubleReel(estimation.lignes) && estimation.lignes.every((l) => ligneSimulee(l) || l.total.centimes <= 0),
     ...(textesReseaux ? { textesReseaux } : {}),
@@ -839,6 +839,9 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   // Lot R7d : un montage réel ne part jamais avec le double d'essai (refus clair, avant toute réservation).
   const refus = moteur.refusAuLancement?.(commande);
   if (refus) throw new ErreurStudio(refus.code, refus.message);
+  // Vérification GRATUITE du double / look de décor / voix HeyGen, avant toute estimation et réservation.
+  const aVerifier = moteur.heygenAVerifier?.(commande);
+  if (aVerifier) await (await import("./verification-heygen")).verifierHeygenAvantPaiement(aVerifier);
   // Lot R2 : les textes des réseaux (Claude, à la fin) sont comptés dans le total engagé, sans jamais bloquer le lancement.
   const { textesReseaux: _textes, ...estimation } = await avecTextesDesReseaux(videoId, await moteur.estimer(commande), commande);
   void _textes;
@@ -1064,7 +1067,7 @@ export async function parentDeLaVersion(version: VersionVideo): Promise<ParentRe
 }
 
 /** CORRECTEUR 1 — B1 : phrase montrée à Will quand la retouche d'un passage n'existe pas encore pour cette vidéo. */
-export const RETOUCHE_PAS_DISPONIBLE = "La retouche d'un passage n'est pas encore disponible pour cette vidéo. Votre vidéo reste telle quelle.";
+export const RETOUCHE_PAS_DISPONIBLE = "Refaire une seule phrase n'est pas possible pour ce format : pour ce changement, il faut refaire la vidéo. Votre vidéo reste telle quelle."; // même texte que `domaine/voix-phrases` (tests/lot-e le vérifie) ; littéral ici pour la garde écran
 
 /** Retouche ciblée d'un ou plusieurs plans : nouvelle version, seuls ces plans sont repayés. Le moteur de la version fait foi. */
 /**

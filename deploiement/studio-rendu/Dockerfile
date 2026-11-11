@@ -58,6 +58,7 @@ COPY --chown=rendu:rendu src/briques/effets-speciaux /app/src/briques/effets-spe
 # des compositions (`npm run verifier`) se suffise dans l'image. Fichier pur, sans import.
 COPY --chown=rendu:rendu src/briques/realisation/piste.ts /app/src/briques/realisation/piste.ts
 # ORG-11 : habillage (charte vidéo), stylo et dessins, lus par les compositions du tableau animé.
+COPY --chown=rendu:rendu src/briques/charte /app/src/briques/charte
 COPY --chown=rendu:rendu src/briques/habillage /app/src/briques/habillage
 COPY --chown=rendu:rendu src/briques/stylo /app/src/briques/stylo
 COPY --chown=rendu:rendu src/briques/dessins /app/src/briques/dessins
@@ -65,7 +66,13 @@ COPY --chown=rendu:rendu src/briques/tableau-scene /app/src/briques/tableau-scen
 # Format « Image → vidéo » (lot L17) : motion de schéma (types, disposition, caméra, cadrage, lisibilité, micro-objets),
 # lu par les compositions `image-video/` (le reste de ce qu'elles lisent est déjà copié ci-dessus).
 COPY --chown=rendu:rendu src/briques/schema-motion /app/src/briques/schema-motion
+# Plan de scènes (lot C) : composition `PlanDeScenes` (briques pures, jetons de la charte, police Manrope).
+COPY --chown=rendu:rendu src/briques/plan-scenes /app/src/briques/plan-scenes
+COPY --chown=rendu:rendu src/briques/jetons-motion.ts /app/src/briques/jetons-motion.ts
+COPY --chown=rendu:rendu src/app/polices/manrope-latin.woff2 /app/src/app/polices/manrope-latin.woff2
 COPY --chown=rendu:rendu src/domaine/facecam-animee/plan.ts /app/src/domaine/facecam-animee/plan.ts
+COPY --chown=rendu:rendu src/moteurs/montage-tutoriel-outil/proprietes.ts /app/src/moteurs/montage-tutoriel-outil/proprietes.ts
+COPY --chown=rendu:rendu src/moteurs/montage-demo-facecam/proprietes.ts src/moteurs/montage-demo-facecam/pistes.ts src/moteurs/montage-demo-facecam/mise-en-page.ts /app/src/moteurs/montage-demo-facecam/
 # Carrousels V2-A (opération `visuel-page`) : la porte d'entrée de la page (schéma Zod strict) et ce qu'elle charge, par
 # imports RELATIFS (l'image n'a pas d'alias `@/`) — brique des visuels avec ses règles JSON, charte lue par les compositions.
 COPY --chown=rendu:rendu src/visuels/proprietes-page.ts /app/src/visuels/proprietes-page.ts

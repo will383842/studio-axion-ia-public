@@ -50,7 +50,7 @@ function planChampV4(p: ProprietesChamp, image?: number) {
   return {
     boite: { x: 0, y: 0, largeur: boite.largeur, hauteur: h },
     rayon: h / 2,
-    fiche: COULEURS_DUO.blanc,
+    fiche: COULEURS_DUO.carte,
     ombre: c.ombre,
     pastille: { x: (34 / 260) * h, y: (40 / 260) * h, diametre: (180 / 260) * h, couleur: COULEURS_DUO.grisClair },
     texte: {

@@ -158,7 +158,6 @@ export function ReglagesNotifications({ initiales, serveur }: { initiales: Prefe
     <div className="space-y-1">
       <Interrupteur icone="valide" libelle="Vidéo prête" coche={p.videoPrete} onChange={(v) => changer({ ...p, videoPrete: v })} />
       <Interrupteur icone="attention" libelle="Une étape bloque" coche={p.echec} onChange={(v) => changer({ ...p, echec: v })} />
-      <Interrupteur icone="euro" libelle="Budget" coche={p.budget} onChange={(v) => changer({ ...p, budget: v })} />
       <div className="pt-3">
         <SelecteurPastilles<PreferencesNotifications["canal"]>
           libelle="Par où"

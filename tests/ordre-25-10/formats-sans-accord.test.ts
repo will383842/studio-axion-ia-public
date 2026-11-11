@@ -1,7 +1,8 @@
 /**
  * Lot 5 « le prix ne bloque jamais » (règle produit du 25/10/2026), autres formats : séries, décors, reprises d'écriture,
  * tableau animé, cas concret. Pour chaque format : en mode indicatif aucun accord-requis (ni arrêt de prix) et un appel part ;
- * témoin en mode bloquant : l'ancien comportement. Dépôts en mémoire, aucun réseau, 0 €.
+ * témoin : décision de Williams (08/11/2026), le réglage `budget.mode` = « bloquant » ne rétablit plus rien, le même appel
+ * part sans accord. Dépôts en mémoire, aucun réseau, 0 €.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -43,6 +44,8 @@ const fetchInterdit = (async () => {
 }) as typeof fetch;
 const REGLAGES = { reseaux: [...RESEAUX_DECLINAISON], formatId: "avocat", adresse: "vous" as const, mode: "avatar" as const, objectif: "notoriete" as const };
 const IDEES = [...SUJETS_BANC.map((s) => s.idee), "Les réunions qui auraient pu être un e-mail", "Le devis refait trois fois"];
+/** Titre du témoin « bloquant » : depuis le 08/11/2026, ce réglage est sans effet, le comportement est celui de l'indicatif. */
+const temoin = (indicatif: boolean, titre: string) => (indicatif ? titre : `témoin (réglage « bloquant » sans effet) : ${titre}`);
 
 beforeAll(async () => preparerMotDePasse(MDP));
 beforeEach(async () => {
@@ -75,19 +78,14 @@ describe.each([
     await ecrireParametre(CLE_MODE_BUDGET, mode);
   });
 
-  it(indicatif ? "au-delà du seuil, sans total confirmé : la série part" : "témoin : au-delà du seuil, sans total confirmé, CONFIRMATION_REQUISE et rien n'est créé", async () => {
+  it(temoin(indicatif, "au-delà du seuil, sans total confirmé : la série part"), async () => {
     await brancherClaude();
     const prix = (await bg.prixLancement()).centimes;
     await ecrireParametre("budget.seuilConfirmation", { centimes: 2 * prix, devise: "EUR" });
     const textes = IDEES.slice(0, 3);
-    const lancement = serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, `serie-${mode}`);
-    if (!indicatif) {
-      await expect(lancement).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-      expect(await depots().scriptsMaitres.compter((m) => !m.estDemo && textes.includes(m.brief.idee))).toBe(0);
-      return;
-    }
-    const { serie: s } = await lancement;
+    const { serie: s } = await serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, `serie-${mode}`);
     expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
+    expect(await depots().scriptsMaitres.compter((m) => !m.estDemo && textes.includes(m.brief.idee))).toBe(3);
   });
 });
 
@@ -101,22 +99,18 @@ describe.each([
     await ecrireParametre(CLE_MODE_BUDGET, mode);
   });
 
-  it(indicatif ? "« Un décor en une phrase » sans confirmation du coût : les 3 propositions partent" : "témoin : sans confirmation du coût, « Confirmez d'abord »", async () => {
-    const lancement = decors.demanderDecor("Un bureau en bois avec une bibliothèque", { confirme: false });
-    if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
-    expect((await lancement).propositionIds).toHaveLength(3);
+  it(temoin(indicatif, "« Un décor en une phrase » sans confirmation du coût : les 3 propositions partent"), async () => {
+    const r = await decors.demanderDecor("Un bureau en bois avec une bibliothèque", { confirme: false });
+    expect(r.propositionIds).toHaveLength(3);
   });
 
-  it(indicatif ? "Look de décor sans confirmation du coût : un look par angle" : "témoin : Look de décor sans confirmation, « Confirmez d'abord »", async () => {
-    const lancement = decors.preparerLookDecor("decor-r2-bibliotheque", { confirme: false });
-    if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
-    expect((await lancement).crees.sort()).toEqual(["face", "trois-quarts"]);
+  it(temoin(indicatif, "Look de décor sans confirmation du coût : un look par angle"), async () => {
+    const r = await decors.preparerLookDecor("decor-r2-bibliotheque", { confirme: false });
+    expect(r.crees.sort()).toEqual(["face", "trois-quarts"]);
   });
 
-  it(indicatif ? "« Créer un décor depuis une phrase » sans confirmation du coût : le décor est créé" : "témoin : création depuis une phrase sans confirmation, « Confirmez d'abord »", async () => {
-    const lancement = decors.creerDecorDepuisDescription("Un bureau en bois avec une bibliothèque", { confirme: false });
-    if (!indicatif) return void (await expect(lancement).rejects.toThrow(/Confirmez/));
-    const r = await lancement;
+  it(temoin(indicatif, "« Créer un décor depuis une phrase » sans confirmation du coût : le décor est créé"), async () => {
+    const r = await decors.creerDecorDepuisDescription("Un bureau en bois avec une bibliothèque", { confirme: false });
     expect(r.decorId).toBeTruthy();
     expect(r.crees.length).toBeGreaterThan(0);
   });
@@ -158,12 +152,12 @@ describe.each([
   ["indicatif", true],
   ["bloquant", false],
 ] as const)("reprise d'une écriture bloquée — mode %s", (mode, indicatif) => {
-  it(indicatif ? "« Reprendre » sans montant confirmé : l'écriture repart, aucun CONFIRMATION_REQUISE" : "témoin : « Reprendre » sans montant confirmé, CONFIRMATION_REQUISE", async () => {
+  it(temoin(indicatif, "« Reprendre » sans montant confirmé : l'écriture repart, aucun CONFIRMATION_REQUISE"), async () => {
     credits.injecterLecteursPourEssai([creerLecteurAnthropic({ ANTHROPIC_API_KEY: CLE_ESSAI_CLAUDE }, fetchInterdit)], ["anthropic"]);
     await credits.declarerRecharge("anthropic", 100_000);
     await ecrireParametre("fournisseur.script", "claude");
     gc.forcerChainePourEssai("grande");
-    // Pire cas de la grande chaîne, lu d'une écriture refusée en mode bloquant (plafond par défaut), puis close.
+    // Pire cas de la grande chaîne, lu d'une première écriture (plafond par défaut ; le réglage « bloquant » est sans effet), puis close.
     claudePire();
     await ecrireParametre(CLE_MODE_BUDGET, "bloquant");
     const sonde = await lancerSujet(0);
@@ -173,18 +167,15 @@ describe.each([
     await depots().generations.modifier(sonde.generationId, { statut: "echec" });
 
     const c = claudePire();
-    // L'arrêt se provoque en mode bloquant (en indicatif il n'existe plus à 5 ×) ; le mode testé est posé ensuite, avant « Reprendre ».
-    await ecrireParametre(CLE_MODE_BUDGET, "bloquant");
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, Math.floor((pire / 8) * 100) / 100);
     const r = await lancerSujet(2);
     if (!r.ok) throw new Error("lancement");
-    await bg.tourBoucleGeneration();
-    expect((await generation(r.generationId)).statut).toBe("plafond-atteint");
+    // Écriture arrêtée au plafond AVANT le 08/11/2026 (plus aucun lancement de Will ne s'y arrête aujourd'hui, même réglé « bloquant »).
+    await depots().generations.modifier(r.generationId, { statut: "plafond-atteint" });
     await ecrireParametre(CLE_MODE_BUDGET, mode);
     await ecrireParametre(gc.PARAM_PLAFOND_GRANDE_CHAINE, indicatif ? entre(pire, 3) : Math.ceil(pire * 100) / 100 + 1);
-    const reprise = bg.reprendreEcriture(r.scriptMaitreId);
-    if (!indicatif) return void (await expect(reprise).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" }));
-    expect(await reprise).toBe(1);
+    // Sans montant confirmé, quel que soit le réglage : la reprise part.
+    expect(await bg.reprendreEcriture(r.scriptMaitreId)).toBe(1);
     await bg.tourBoucleGeneration();
     expect(c.appels.length).toBeGreaterThan(0);
     expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
@@ -228,21 +219,16 @@ describe.each([
     await videoTableau();
   });
 
-  it(indicatif ? "retoucherTableau sans accord : lancée, jamais accord-requis" : "témoin : retoucherTableau sans accord, accord-requis et rien n'est lancé", async () => {
+  it(temoin(indicatif, "retoucherTableau sans accord : lancée, jamais accord-requis"), async () => {
     const avant = await nbVersions();
     const r = await tableauVue.retoucherTableau(VIDEO, OP_VOIX, {}, { aujourdhui: AUJOURDHUI_EXEMPLES });
-    if (!indicatif) {
-      expect(r).toMatchObject({ statut: "accord-requis" });
-      expect(await nbVersions()).toBe(avant);
-      return;
-    }
     expect(r).toMatchObject({ statut: "lancee" });
     expect(await nbVersions()).toBe(avant + 1);
   });
 
-  it(indicatif ? "un accord trop bas est relevé au prix du jour : lancée" : "témoin : un accord trop bas redemande le prix", async () => {
+  it(temoin(indicatif, "un accord trop bas est relevé au prix du jour : lancée"), async () => {
     const r = await tableauVue.retoucherTableau(VIDEO, OP_VOIX, { accord: 1 }, { aujourdhui: AUJOURDHUI_EXEMPLES });
-    expect(r).toMatchObject({ statut: indicatif ? "lancee" : "accord-requis" });
+    expect(r).toMatchObject({ statut: "lancee" });
   });
 });
 
@@ -275,14 +261,9 @@ describe.each([
     await ecrireParametre("budget.seuilConfirmation", { centimes: 1_000_000, devise: "EUR" });
   });
 
-  it(indicatif ? "Claude réel, sans accord : la relance part, jamais accord-requis" : "témoin : Claude réel, sans accord, accord-requis avec le prix du nouvel essai", async () => {
+  it(temoin(indicatif, "Claude réel, sans accord : la relance part, jamais accord-requis"), async () => {
     const t = await ecritureArretee();
     const r = await relanceCas.relancerEtapeCasConcret(t.id, undefined, { claudeActif: async () => true });
-    if (!indicatif) {
-      expect(r.statut).toBe("accord-requis");
-      expect((await depots().travaux.obtenir(t.id))?.statut).toBe("echec");
-      return;
-    }
     expect(r).toEqual({ statut: "relancee", travailId: t.id });
     expect((await depots().travaux.obtenir(t.id))?.statut).toBe("en_cours");
   });
@@ -345,7 +326,7 @@ describe.each([
     await videoCasConcret();
   });
 
-  it(indicatif ? "« Confirmer » avec un montant trop bas : relevé au prix du jour, la retouche part" : "témoin : « Confirmer » avec un montant trop bas, accord-requis et rien ne part", async () => {
+  it(temoin(indicatif, "« Confirmer » avec un montant trop bas : relevé au prix du jour, la retouche part"), async () => {
     const det = detaches();
     const lancerRetouche = vi.fn(async () => ({ travailId: "t-retouche" }));
     const dep = { appels: det.appels, executer: async (_v: string, role: DefinitionRole, entree: never) => ({ ok: true as const, simule: true, donnees: role.simuler(entree) }), claudeActif: async () => false, lancerRetouche };
@@ -355,11 +336,6 @@ describe.each([
     if (propose.statut !== "proposee") throw new Error(propose.statut);
     expect(propose.centimes).toBeGreaterThan(0);
     const r = await retouchesCas.confirmerRetouche(VIDEO, propose.centimes - 1, dep as never);
-    if (!indicatif) {
-      expect(r.statut).toBe("accord-requis");
-      expect(lancerRetouche).not.toHaveBeenCalled();
-      return;
-    }
     expect(r).toEqual({ statut: "lancee", travailId: "t-retouche" });
     expect(lancerRetouche).toHaveBeenCalledTimes(1);
     expect(lancerRetouche).toHaveBeenCalledWith(VIDEO, [], "Changez le mot à commenter : RDV", expect.objectContaining({ confirme: propose.centimes }));
@@ -394,19 +370,14 @@ describe.each([
     for (const m of regles.matieres) await depots().matieres.enregistrer(m as never);
   });
 
-  it(indicatif ? "« Découper en scènes » sans accord : le découpage part (en-cours), jamais accord-requis" : "témoin : « Découper en scènes » sans accord, accord-requis et rien n'est créé", async () => {
+  it(temoin(indicatif, "« Découper en scènes » sans accord : le découpage part (en-cours), jamais accord-requis"), async () => {
     const videos = await depots().videos.compter();
     const r = await actionsTableau.decouperScriptTableauAction(donneesTableau, undefined, undefined, repereTexte(donneesTableau.texte));
-    if (!indicatif) {
-      expect(r).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
-      expect(await depots().videos.compter()).toBe(videos);
-      return;
-    }
     expect(r).toMatchObject({ ok: true, donnees: { statut: "en-cours" } });
     expect(await depots().videos.compter()).toBe(videos + 1);
   });
 
-  it(indicatif ? "« Fabriquer la vidéo » sans accord : le prix ne l'arrête plus, jamais accord-requis" : "témoin : « Fabriquer la vidéo » sans accord, accord-requis", async () => {
+  it(temoin(indicatif, "« Fabriquer la vidéo » sans accord : le prix ne l'arrête plus, jamais accord-requis"), async () => {
     // Brouillon découpé (fiche valide), case « déjà vu » cochée, avec le prix accepté à la main (service, hors action).
     const relu = repereTexte(donneesTableau.texte);
     const prix = await creationTableau.decouperScriptTableau(donneesTableau, { relu, accord: 999_999 }, { aujourdhui: AUJOURDHUI_EXEMPLES });
@@ -415,8 +386,7 @@ describe.each([
     await creationTableau.cocherDejaVuTableau(prix.videoId, true, { aujourdhui: AUJOURDHUI_EXEMPLES });
     const fiche: FicheTableau = creationTableau.lireBrouillonTableau((await depots().videos.obtenir(prix.videoId))!)!.versions.at(-1)!.fiche;
     const r = await actionsTableau.fabriquerVideoTableauAction(prix.videoId, undefined, repereFiche(fiche));
-    // Indicatif : le prix est passé ; en test le stockage n'est pas relié, c'est ce qui arrête la fabrication (après le prix, rien payé).
-    if (indicatif) expect(r).toMatchObject({ ok: false, code: "STOCKAGE_NON_RELIE" });
-    else expect(r).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
+    // Le prix est passé (quel que soit le réglage) ; en test le stockage n'est pas relié, c'est ce qui arrête la fabrication (après le prix, rien payé).
+    expect(r).toMatchObject({ ok: false, code: "STOCKAGE_NON_RELIE" });
   });
 });

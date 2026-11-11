@@ -7,7 +7,7 @@
  * jamais à Zernio. Aucun interrupteur n'est allumé ici.
  */
 import { revalidatePath } from "next/cache";
-import { gesteActiverMotLocal, gesteValiderMotGuide, gesteMettreEnPause, gesteMettreEnPauseLocal, gesteReactiver, gesteRefermerDisjoncteur, gesteReglerPlafonds } from "@/services/mots-gestes";
+import { gesteActiverMotLocal, gesteValiderMotGuide, gesteValiderAdresseRefusee, gesteMettreEnPause, gesteMettreEnPauseLocal, gesteReactiver, gesteRefermerDisjoncteur, gesteReglerPlafonds } from "@/services/mots-gestes";
 import type { Resultat } from "@/services/mots-service";
 
 const rafraichir = () => revalidatePath("/mots");
@@ -45,6 +45,12 @@ export async function reglerPlafondsAction(p: { heureCompte?: number; jourMot?: 
 /** Aucun argument : le texte du mot GUIDE est lu côté serveur, jamais transmis par le client. */
 export async function validerMotGuideAction(): Promise<{ ok: boolean; raison: string }> {
   const r = await gesteValiderMotGuide();
+  rafraichir();
+  return r;
+}
+/** Aucun argument : le texte « adresse refusée » est celui du dictionnaire, jamais transmis par le client. */
+export async function validerAdresseRefuseeAction(): Promise<{ ok: boolean; raison: string }> {
+  const r = await gesteValiderAdresseRefusee();
   rafraichir();
   return r;
 }

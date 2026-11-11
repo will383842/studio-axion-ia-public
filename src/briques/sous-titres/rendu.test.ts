@@ -58,7 +58,7 @@ describe("moteur de rendu unique (scène à l'instant t)", () => {
     expect(el.mots[1]).toMatchObject({ couleur: COULEURS.accent, opacite: 1 }); // en valeur, déjà dit
     expect(el.mots[2]).toMatchObject({ couleur: COULEURS.accent, opacite: 1 }); // en cours
     expect(el.mots[3]).toMatchObject({ couleur: couleurAVenir(COULEURS.texte, COULEURS.contour, 0.45), opacite: 1 });
-    expect(el.police).toBe("Poppins ExtraBold");
+    expect(el.police).toBe("Manrope ExtraBold");
   });
 
   it("rien pendant un blanc", () => {
@@ -70,7 +70,7 @@ describe("moteur de rendu unique (scène à l'instant t)", () => {
     const el = sceneAuTemps(d, 0.06)!;
     expect(el.opacite).toBeCloseTo(0.5, 1);
     expect(el.mots.every((m) => m.couleur === COULEURS.texte)).toBe(true);
-    expect(el.police).toBe("Poppins Medium");
+    expect(el.police).toBe("Manrope Medium");
   });
 
   it("Impact : majuscules, rebond 0,9 → 1,05 → 1, incliné, chiffres en orange, très grand (×1,8)", () => {

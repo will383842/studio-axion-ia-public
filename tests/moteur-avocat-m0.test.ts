@@ -257,12 +257,12 @@ describe("musique interdite et styles avocat (B.0 §8, B.7)", () => {
     await depots().videos.modifier("v-03", { styles: { musiqueId: "mus-tension" } });
     const c = await fabrication.construireCommande("v-03");
     expect(c.styles.musique).toBeNull();
-    expect(c.styles.sousTitres).toMatchObject({ id: "st-avocat-v1", valeur: { gabarit: "karaoke", police: "Poppins ExtraBold", positionPct: 48, chiffresAlignes: true } });
+    expect(c.styles.sousTitres).toMatchObject({ id: "st-avocat-v1", valeur: { gabarit: "karaoke", police: "Manrope ExtraBold", positionPct: 48, chiffresAlignes: true } });
     expect(c.styles.styleMontage?.valeur).toMatchObject({ transitions: "coupe", dureePlanOuvertureSec: [1.5, 2.5], ecartCadrageMinPct: 15 });
     expect(c.styles.profilSon?.valeur).toMatchObject({ niveauCibleLufs: -14, creteVraieMaxDbtp: -1.5, traitementVoix: "sec", volumeMusique: 0 });
     expect(c.styles.habillage?.valeur).toMatchObject({ fin: false, logoAnime: false, grandTitre: false });
     // Lot M4 (décision de Will, `decors/CATALOGUE-DECORS.md`) : N1 Halo orange est le décor par défaut de l'avocat.
-    expect(c.styles.decor).toMatchObject({ id: "decor-n1-halo-orange", valeur: { mode: "image", methode: "neutre-incruste", teinte: "#110A05" } });
+    expect(c.styles.decor).toMatchObject({ id: "decor-n1-halo-orange", valeur: { mode: "image", methode: "neutre-incruste", teinte: "#141413" } });
     expect(c.styles.lut).toMatchObject({ id: "lut-avocat-v1", intensite: 70 });
     expect(c.recetteMontage?.cadrages.poitrineParDefautPct).toBe(120);
     expect(c.profilRealisme).toMatchObject({ grainPct: 4 });

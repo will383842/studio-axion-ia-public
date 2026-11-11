@@ -79,7 +79,7 @@ export function CarteChecklist({ palette, duree, decl, titre = "CE QUI S'AUTOMAT
               <div key={k} style={{ height: ouverture * (hLigne + 10), overflow: "hidden" }}>
                 <div style={{ boxSizing: "border-box", height: hLigne, display: "flex", alignItems: "center", gap: 22, padding: "0 24px", background: flash ? ACCENT_1 : BLANC, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderLeft: flash ? undefined : `8px solid ${ACCENT_1}`, borderRadius: 12 }}>
                   <Case i={i} i0={d + DELAI_COCHE} fond={ACCENT_1} />
-                  <div style={styleInter(38, 700, { transform: `scale(${0.8 + 0.2 * ressort("POP", i - d - 1)})`, transformOrigin: "0% 50%", opacity: i > d ? 1 : 0 })}>{texte}</div>
+                  <div style={styleInter(38, 700, { color: flash ? BLANC : ENCRE, transform: `scale(${0.8 + 0.2 * ressort("POP", i - d - 1)})`, transformOrigin: "0% 50%", opacity: i > d ? 1 : 0 })}>{texte}</div>
                 </div>
               </div>
             );

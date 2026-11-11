@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { creerSerieAction } from "@/app/(studio)/ecrire/actions-series";
 import { Icone } from "@/components/ui/Icone";
+import { Section } from "@/components/ui/Section";
 import { notifier } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 
@@ -33,13 +34,7 @@ export function BandeauSeries({ series, active }: { series: { id: string; nom: s
   }
 
   return (
-    <section aria-label="Séries" className="mb-4">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm font-semibold text-texte-doux">
-          <Icone nom="calques" size={15} />
-          Séries
-        </p>
-      </div>
+    <Section id="series" titre="Séries" sousTitre="Touchez une série pour ne voir que ses sujets." icone="calques" sansCarte className="mb-8">
       <div className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {series.map((s) => {
           const choisie = s.id === active;
@@ -51,7 +46,7 @@ export function BandeauSeries({ series, active }: { series: { id: string; nom: s
               aria-current={choisie ? "true" : undefined}
               className={cn(
                 "flex min-h-16 w-44 shrink-0 flex-col justify-between rounded-carte border p-3 transition-colors",
-                choisie ? "border-orange bg-orange-doux" : "border-trait bg-surface-1 hover:border-trait-fort",
+                choisie ? "border-texte bg-surface-1 ring-1 ring-texte" : "border-trait bg-surface-1 hover:border-trait-fort",
               )}
             >
               <span className="line-clamp-2 text-sm font-semibold leading-tight text-texte">{s.nom}</span>
@@ -61,14 +56,14 @@ export function BandeauSeries({ series, active }: { series: { id: string; nom: s
         })}
         {ouvert ? (
           <form
-            className="flex min-h-16 w-64 shrink-0 items-center gap-1 rounded-carte border border-orange bg-surface-1 p-2"
+            className="flex min-h-16 w-64 shrink-0 items-center gap-1 rounded-carte border border-texte bg-surface-1 p-2"
             onSubmit={(e) => {
               e.preventDefault();
               creer();
             }}
           >
             <input autoFocus value={nom} onChange={(e) => setNom(e.target.value)} maxLength={40} placeholder="L'IA qui fait gagner 1 h" aria-label="Nom de la série" className="min-w-0 flex-1 bg-transparent px-1 text-sm text-texte outline-none placeholder:text-texte-faible" />
-            <button type="submit" disabled={enCours || nom.trim().length < 2} aria-label="Créer la série" className="grid size-10 place-items-center rounded-full bg-orange text-sur-orange disabled:opacity-40">
+            <button type="submit" disabled={enCours || nom.trim().length < 2} aria-label="Créer la série" className="grid size-10 place-items-center rounded-full bg-texte text-fond disabled:opacity-40">
               <Icone nom="coche" size={16} />
             </button>
             <button type="button" aria-label="Annuler" onClick={() => setOuvert(false)} className="grid size-10 place-items-center rounded-full text-texte-faible hover:text-texte">
@@ -76,12 +71,12 @@ export function BandeauSeries({ series, active }: { series: { id: string; nom: s
             </button>
           </form>
         ) : (
-          <button type="button" onClick={() => setOuvert(true)} className="flex min-h-16 w-36 shrink-0 items-center justify-center gap-1.5 rounded-carte border border-dashed border-trait-fort text-sm font-semibold text-texte-doux hover:border-orange hover:text-texte">
+          <button type="button" onClick={() => setOuvert(true)} className="flex min-h-16 w-36 shrink-0 items-center justify-center gap-1.5 rounded-carte border border-dashed border-trait-fort text-sm font-semibold text-texte-doux hover:border-texte hover:text-texte">
             <Icone nom="plus" size={16} />
             Nouvelle série
           </button>
         )}
       </div>
-    </section>
+    </Section>
   );
 }

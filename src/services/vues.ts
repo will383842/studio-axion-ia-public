@@ -3,6 +3,7 @@
  * des fichiers déjà résolues (les écrans ne manipulent jamais de fichierId).
  * Les écrans importent ces types avec `import type { … } from "@/services/vues"`.
  */
+import type { TypeAutomatisation } from "@/domaine/ciblage/types";
 import type {
   ElementBibliotheque,
   EtapeEditoriale,
@@ -55,6 +56,8 @@ export interface VueVideoCarte {
   dureeEstimee: boolean;
   ratios: Ratio[];
   ratioPrincipal: Ratio;
+  /** Ratio réel de l'image de la vignette (miniature choisie, sinon sortie principale) : montrée entière, jamais rognée. */
+  ratioVignette?: Ratio;
   /** Adresse de la vignette (null = brouillon sans image). */
   vignette: string | null;
   /** Adresse de la vidéo principale (null si pas encore fabriquée). */
@@ -70,6 +73,14 @@ export interface VueVideoCarte {
   estDemo?: boolean;
   /** Date de mise à la corbeille (supprimée 30 jours plus tard). */
   corbeilleLe?: string;
+  /** Lot M : réseaux de la vidéo (pastille et classement). Absent : écran qui ne les demande pas. */
+  reseaux?: IdReseau[];
+  /** Lot M : faux = réseaux prévus par défaut (rien ne dit pour quel réseau la vidéo est faite). */
+  reseauxPrecis?: boolean;
+  /** Ciblage (lot H) : type d'automatisation de la vidéo ; absent = « À classer ». */
+  typeAutomatisation?: TypeAutomatisation;
+  /** Ciblage (lot H) : son script a un texte proche d'un autre (signalé, jamais supprimé). */
+  doublonPossible?: boolean;
 }
 
 export interface VuePlan extends Plan {

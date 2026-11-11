@@ -708,13 +708,14 @@ export function allegerTravail(t: Travail): Travail {
   return { ...t, parametres: reste } as Travail;
 }
 
-/** Travaux à afficher : actifs + en échec + terminés depuis moins de 2 minutes. N'avance rien (la boucle de fond s'en charge). */
-export async function listerTravaux(options: { inclureTermines?: boolean } = {}): Promise<VueTravail[]> {
+/** Le filtre de listerTravaux, en y ajoutant (ou non) la cible : actifs + en échec + terminés (récents, ou tous). */
+async function lireTravauxAffiches(options: { inclureTermines?: boolean }, cibleId?: string): Promise<VueTravail[]> {
   const limite = Date.now() - 2 * 60 * 1000;
   // « Afficher les exemples » désactivé : les travaux des vidéos d'exemple sont masqués aussi.
   const exemples = await filtreExemples<Travail>();
   const travaux = await depots().travaux.lister(
     (t) =>
+      (cibleId === undefined || t.cibleId === cibleId) &&
       exemples(t) &&
       (t.statut === "en_cours" ||
         t.statut === "en_file" ||
@@ -724,7 +725,38 @@ export async function listerTravaux(options: { inclureTermines?: boolean } = {})
   );
   travaux.sort((a, b) => b.creeLe.localeCompare(a.creeLe));
   const places = await placesDansLaFile();
-  return Promise.all(travaux.map((t) => versVue(t, places.get(t.id))));
+  // Accueil seulement : pas d'échec périmé (vidéo archivée, prête, absente, ou travail plus récent). Rien n'est effacé.
+  const affiches = cibleId === undefined ? await sansEchecsPerimes(travaux) : travaux;
+  return Promise.all(affiches.map((t) => versVue(t, places.get(t.id))));
+}
+
+async function sansEchecsPerimes(travaux: Travail[]): Promise<Travail[]> {
+  const echecs = travaux.filter((t) => t.statut === "echec");
+  if (!echecs.length) return travaux;
+  const d = depots();
+  // Lecture limitée aux vidéos des échecs affichés (pas toutes les vidéos ni tous les travaux).
+  const cibles = new Set(echecs.map((t) => t.cibleId).filter((id): id is string => typeof id === "string"));
+  const videos = new Map<string, Video | null | undefined>(await Promise.all([...cibles].map(async (id) => [id, await d.videos.obtenir(id)] as const)));
+  // Le travail le plus récent de chaque vidéo, tous statuts confondus (un ancien terminé compte aussi), SAUF les ré-exports de
+  // format : ils n'effacent pas un échec de fabrication ou de retouche.
+  const dernier = new Map<string, string>();
+  for (const x of await d.travaux.lister((t) => cibles.has(t.cibleId) && t.type !== "reexport", (t) => ({ id: t.id, cibleId: t.cibleId, creeLe: t.creeLe }) as Travail)) {
+    if ((dernier.get(x.cibleId) ?? "") < x.creeLe) dernier.set(x.cibleId, x.creeLe);
+  }
+  return travaux.filter((t) => travailAfficheALAccueil(t, videos.get(t.cibleId), (dernier.get(t.cibleId) ?? "") > t.creeLe));
+}
+
+/** Travaux à afficher : actifs + en échec + terminés depuis moins de 2 minutes. N'avance rien (la boucle de fond s'en charge). */
+export async function listerTravaux(options: { inclureTermines?: boolean } = {}): Promise<VueTravail[]> {
+  return lireTravauxAffiches(options);
+}
+
+/**
+ * Les travaux d'UNE vidéo (même filtre que `listerTravaux({ inclureTermines: true })`, restreint à `cibleId`) : la fiche
+ * d'une vidéo n'a pas besoin de recopier ceux de tout le studio (lot P, 08/11).
+ */
+export async function travauxDeLaCible(cibleId: string): Promise<VueTravail[]> {
+  return lireTravauxAffiches({ inclureTermines: true }, cibleId);
 }
 
 export async function obtenirTravail(id: string): Promise<VueTravail | null> {
@@ -921,4 +953,17 @@ export function avecDelai<T>(promesse: Promise<T>, ms: number): Promise<T> {
     minuterie = setTimeout(() => rejeter(Object.assign(new Error(`Délai de ${Math.round(ms / 1000)} s dépassé`), { reessayable: true, delaiDepasse: true })), ms);
   });
   return Promise.race([promesse, delai]).finally(() => clearTimeout(minuterie));
+}
+
+/**
+ * Accueil seulement : faut-il montrer ce travail ? Un travail actif (en cours, en file) ou terminé se montre toujours.
+ * Un travail EN ÉCHEC se masque (sans rien effacer) quand sa vidéo est absente ou archivée (ou prête, pour une fabrication seulement), ou qu'un travail plus
+ * récent existe pour la même vidéo. `video` : `undefined` = introuvable. PUR.
+ */
+export function travailAfficheALAccueil(t: Pick<Travail, "statut" | "type">, video: Pick<Video, "statut"> | null | undefined, plusRecent: boolean): boolean {
+  if (t.statut !== "echec") return true;
+  if (!video || video.statut === "archivee") return false;
+  // Vidéo prête : seul un échec de FABRICATION est périmé (la vidéo existe). Une retouche ou un recalque en échec reste visible.
+  if (video.statut === "prete" && t.type === "fabrication") return false;
+  return !plusRecent;
 }

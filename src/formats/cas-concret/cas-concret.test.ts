@@ -37,7 +37,8 @@ const refus = (cas: unknown): string => {
 describe("fiche du format", () => {
   it("active, code CC, musique interdite, voix seule, aucun visage", () => {
     expect(formatCasConcret.id).toBe("cas-concret");
-    expect(formatCasConcret.nom).toBe("Cas concret MD");
+    // Décision du 08/11 (Williams) : « MD » est un sigle interne ; le nom lu est « Cas concret ».
+    expect(formatCasConcret.nom).toBe("Cas concret");
     expect(formatCasConcret.statut).toBe("actif");
     expect(formatCasConcret.codeClassement).toBe("CC");
     expect(formatCasConcret.musique).toBe("interdite");
@@ -51,7 +52,7 @@ describe("fiche du format", () => {
   });
 
   it("constantes du format", () => {
-    expect([PAGE_DIAGNOSTIC, TEMPO_VOIX, FIN_APRES_DERNIER_MOT_SEC, FORMAT_VOIX_DE_REFERENCE, VALIDITE_CAS_JOURS]).toEqual(["https://axion-ia.com/fr/diagnostic", 1.08, 2.1, "avocat", 180]);
+    expect([PAGE_DIAGNOSTIC, TEMPO_VOIX, FIN_APRES_DERNIER_MOT_SEC, FORMAT_VOIX_DE_REFERENCE, VALIDITE_CAS_JOURS]).toEqual(["https://axion-ia.com/fr/diagnostic", 1, 2.1, "avocat", 180]);
   });
 
   it("le catalogue ne trouve pas un cas inconnu", () => {

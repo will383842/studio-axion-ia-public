@@ -10,7 +10,7 @@ import type { EtatElementSerie, SuiviSerie as Suivi } from "@/services/serie-ecr
 const ETATS: Record<EtatElementSerie, { icone: NomIcone; libelle: string; ton: string }> = {
   ecrit: { icone: "coche", libelle: "Écrit", ton: "text-sauge" },
   "en-cours": { icone: "chargement", libelle: "En écriture", ton: "text-orange-vif" },
-  attente: { icone: "sablier", libelle: "En attente de budget", ton: "text-ambre" },
+  attente: { icone: "sablier", libelle: "En attente", ton: "text-ambre" },
   "a-completer": { icone: "attention", libelle: "À compléter", ton: "text-ambre" },
   arretee: { icone: "attention", libelle: "Arrêtée : à reprendre", ton: "text-ambre" },
   reste: { icone: "idee", libelle: "Gardée en idée", ton: "text-texte-faible" },
@@ -34,7 +34,7 @@ export function SuiviSerie({ initial }: { initial: Suivi | null }) {
   const pct = Math.round((suivi.ecrits / suivi.total) * 100);
   const fini = suivi.ecrits === suivi.total;
   const icone: NomIcone = fini ? "coche" : suivi.termine ? "attention" : "chargement";
-  const details = [suivi.aCompleter ? `${suivi.aCompleter} à compléter` : "", suivi.arretees ? `${suivi.arretees} arrêtée${suivi.arretees > 1 ? "s" : ""} : à reprendre` : "", suivi.enAttente ? `${suivi.enAttente} en attente de budget` : ""].filter(Boolean).join(" · ");
+  const details = [suivi.aCompleter ? `${suivi.aCompleter} à compléter` : "", suivi.arretees ? `${suivi.arretees} arrêtée${suivi.arretees > 1 ? "s" : ""} : à reprendre` : "", suivi.enAttente ? `${suivi.enAttente} en attente` : ""].filter(Boolean).join(" · ");
   return (
     <section className="rounded-carte border border-trait bg-surface-1 p-4" aria-label="Série en cours">
       <button type="button" onClick={() => setOuvert((x) => !x)} aria-expanded={ouvert} className="flex w-full items-center gap-3 text-left">

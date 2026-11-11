@@ -33,7 +33,7 @@ export const PLAFONDS_IV: Readonly<Record<ReseauIV, PlafondReseau>> = Object.fre
   "youtube-shorts": { nom: "YouTube Shorts", conseilleSec: 60, dureSec: null },
   linkedin: { nom: "LinkedIn", conseilleSec: 60, dureSec: null },
   instagram: { nom: "Instagram", conseilleSec: 90, dureSec: null },
-  facebook: { nom: "Facebook", conseilleSec: 90, dureSec: 90 },
+  facebook: { nom: "Facebook", conseilleSec: 90, dureSec: 180 },
 });
 
 /** Dépassement toléré avec mention (cas 2). */

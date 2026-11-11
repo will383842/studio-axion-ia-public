@@ -108,7 +108,7 @@ export function CreditClaude({ vue }: { vue: VueCreditClaude }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-texte-faible">
-        API payante {vue.api.finCle ?? ""} : {vue.api.eteinte ? "éteinte" : "active"} · dépensé ce mois-ci {vue.api.consommeMoisTexte}
+        Accès payant {vue.api.finCle ?? ""} : {vue.api.eteinte ? "éteinte" : "active"} · dépensé ce mois-ci {vue.api.consommeMoisTexte}
       </p>
     </div>
   );

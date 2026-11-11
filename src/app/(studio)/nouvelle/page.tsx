@@ -20,11 +20,11 @@ export default async function PageNouvelle() {
   await exigerSession();
   const [formats, modeles] = await Promise.all([listerFormatsAvecCompteurs(), listerModeles()]);
   const actifs = formats.filter((f): f is typeof f & { statut: "actif" } => f.statut === "actif");
-  // Tout ce qui n'est pas actif est grisé et non cliquable (décision de Will, 17/10) : il sait ce qui n'est pas fait.
-  const bientot = formats.filter((f): f is typeof f & { statut: "bientot" | "masque" } => f.statut !== "actif");
+  // 08/11 (Williams, remplace la décision du 17/10) : un format sans générateur n'apparaît plus, même grisé — « ça évite
+  // d'avoir du bruit pour rien ». Il réapparaît seul quand son statut passe à « actif ».
   return (
     <div>
-      <EnTetePage titre="Nouvelle vidéo" sousTitre="Choisissez un format." />
+      <EnTetePage titre="Nouvelle vidéo" sousTitre="Choisissez un format, ou repartez d'un modèle." />
 
       {modeles.length > 0 && (
         <section className="mb-8">
@@ -34,13 +34,13 @@ export default async function PageNouvelle() {
               <Apparition key={m.id} index={i}>
                 <Link
                   href={`/nouvelle/${m.formatId}?modele=${m.id}`}
-                  className="group relative isolate flex items-center gap-3 overflow-hidden rounded-carte border border-trait bg-surface-1 p-2.5 pr-3 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-orange/50"
+                  className="group relative isolate flex items-center gap-3 overflow-hidden rounded-carte border border-trait bg-surface-1 p-2.5 pr-3 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-trait-fort"
                 >
                   <span className="relative aspect-[9/16] w-14 shrink-0 overflow-hidden rounded-xl bg-surface-2">
                     {m.vignette ? <Image src={m.vignette} alt="" fill sizes="56px" className="object-cover" /> : <Icone nom="modele" size={18} className="absolute inset-0 m-auto text-texte-faible" />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-vif">
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-texte-faible">
                       <Icone nom={m.format.icone} size={12} />
                       <span className="truncate">{nomCourtFormat(m.format)}</span>
                     </span>
@@ -52,7 +52,7 @@ export default async function PageNouvelle() {
                       {m.ratios.join(" ")}
                     </span>
                   </span>
-                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-orange-doux text-orange-vif transition-colors group-hover:bg-orange group-hover:text-sur-orange">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-full border border-trait-fort bg-surface-1 text-texte transition-colors group-hover:bg-surface-2">
                     <Icone nom="repeter" size={17} />
                   </span>
                 </Link>
@@ -77,19 +77,6 @@ export default async function PageNouvelle() {
         </section>
       ) : (
         <EtatVide icone="clap" titre="Aucun format prêt" phrase="Les formats arrivent bientôt." />
-      )}
-
-      {bientot.length > 0 && (
-        <section className="mt-10">
-          <EnTeteSection titre="Bientôt" compteur={bientot.length} />
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {bientot.map((f) => (
-              <li key={f.id}>
-                <CarteFormat format={f} compacte />
-              </li>
-            ))}
-          </ul>
-        </section>
       )}
     </div>
   );

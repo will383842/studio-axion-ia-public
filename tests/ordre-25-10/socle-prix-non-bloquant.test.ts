@@ -1,7 +1,8 @@
 /**
  * Socle « le prix ne bloque jamais » (règle produit du 25/10/2026) : en mode indicatif, un lancement de l'utilisateur sans
- * confirmation de prix part quand même ; le prix accepté est écrit au journal. Témoins : en mode bloquant et pour une
- * commande de l'Usine, les gardes d'avant restent. Dépôts en mémoire, aucun réseau, 0 €.
+ * confirmation de prix part quand même ; le prix accepté est écrit au journal. Témoins : pour une commande de l'Usine, les
+ * gardes d'avant restent ; le réglage `budget.mode` = « bloquant » ne rétablit plus rien (décision du 08/11/2026).
+ * Dépôts en mémoire, aucun réseau, 0 €.
  */
 import { hash } from "@node-rs/argon2";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -134,27 +135,32 @@ describe("mode indicatif : le prix ne bloque pas", () => {
   });
 });
 
-describe("TÉMOINS — mode bloquant : comme avant", () => {
+describe("TÉMOINS — réglage « bloquant » sans effet (08/11/2026) : comme en indicatif", () => {
   beforeEach(async () => {
     await ecrireParametre(CLE_MODE_BUDGET, "bloquant");
   });
 
-  it("avecAccordAutomatique n'appelle `appel` qu'une fois : l'accord reste refusé, aucune relance", async () => {
+  it("le mode lu reste « indicatif » malgré le réglage", async () => {
+    expect(await modeBudget.modeBudget()).toBe("indicatif");
+  });
+
+  it("avecAccordAutomatique relance une fois avec le prix du jour : aucune boucle", async () => {
     const appel = vi.fn(async () => ({ statut: "accord-requis" as const, centimes: 700 }));
     const issue = await modeBudget.avecAccordAutomatique(appel, undefined);
     expect(issue.statut).toBe("accord-requis");
-    expect(appel).toHaveBeenCalledTimes(1);
+    expect(appel).toHaveBeenCalledTimes(2);
+    expect(appel).toHaveBeenLastCalledWith(700);
   });
 
-  it("verifierBudgetEtCredits lève CONFIRMATION_REQUISE au-dessus du seuil, et pour le double réel", async () => {
-    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo", { origine: "studio" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    await expect(credits.verifierBudgetEtCredits(estimationDouble(150), false, "Cette vidéo")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await journalDuPrix()).toHaveLength(0);
+  it("verifierBudgetEtCredits ne lève plus CONFIRMATION_REQUISE au-dessus du seuil, ni pour le double réel ; le prix est journalisé", async () => {
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo", { origine: "studio" })).resolves.toBeUndefined();
+    await expect(credits.verifierBudgetEtCredits(estimationDouble(150), false, "Cette vidéo")).resolves.toBeUndefined();
+    expect((await journalDuPrix()).length).toBeGreaterThan(0);
   });
 
-  it("lancerAvecAccord sans accord rend accord-requis, rien n'est lancé", async () => {
+  it("lancerAvecAccord sans accord : lancée, le lanceur reçoit le montant", async () => {
     const lancer = vi.fn(async () => ({ travailId: "trav-essai" }));
-    expect(await lancerAvecAccord("v-essai", undefined, 500, { lancer })).toMatchObject({ statut: "accord-requis", centimes: 500 });
-    expect(lancer).not.toHaveBeenCalled();
+    expect(await lancerAvecAccord("v-essai", undefined, 500, { lancer })).toEqual({ statut: "lancee", travailId: "trav-essai" });
+    expect(lancer).toHaveBeenCalledWith("v-essai", 500);
   });
 });

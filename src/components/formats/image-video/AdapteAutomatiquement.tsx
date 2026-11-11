@@ -1,7 +1,7 @@
 /**
  * IMAGE → VIDÉO · R5 · Bloc « Adapté automatiquement, à vérifier » de l'écran de résultat. AFFICHAGE SEUL : il liste
  * `carte.adaptations` (ce que le code a réparé ou adapté sans rien demander). Rien ne se modifie ici, et le schéma
- * d'exemple reste un exemple. Partie pure (le lecteur de l'état est dans `AdapteAutomatiquementServeur.tsx`).
+ * d'exemple reste un exemple. Partie pure (l'état est lu par `construireVueImageVideo`).
  */
 import { Carte } from "@/components/ui/Carte";
 import type { CarteImage } from "@/domaine/image-video/carte";
@@ -10,7 +10,9 @@ const PREFIXE = "Adapté automatiquement : ";
 
 /** Les adaptations à montrer, sans le préfixe technique, dans l'ordre, sans doublon. PUR. */
 export function phrasesAdaptees(carte: Pick<CarteImage, "adaptations"> | null | undefined): string[] {
-  return [...new Set((carte?.adaptations ?? []).map((a) => (a.startsWith(PREFIXE) ? a.slice(PREFIXE.length) : a)))];
+  const liste: unknown = carte?.adaptations;
+  if (!Array.isArray(liste)) return []; // état abîmé : rien ne bloque la page
+  return [...new Set(liste.filter((a): a is string => typeof a === "string").map((a) => (a.startsWith(PREFIXE) ? a.slice(PREFIXE.length) : a)))];
 }
 
 export function BlocAdapteAutomatiquement({ phrases }: { phrases: readonly string[] }) {

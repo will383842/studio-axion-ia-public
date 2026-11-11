@@ -13,6 +13,7 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
+import { Carte } from "@/components/ui/Carte";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { LecteurVideo } from "@/components/ui/LecteurVideo";
@@ -22,11 +23,10 @@ import { Squelette } from "@/components/ui/Squelette";
 import { notifier } from "@/components/ui/Toast";
 import { phraseAvatarParle } from "@/domaine/double-reel";
 import { resoudreVisagesParAngle } from "@/domaine/distribution";
-import type { AngleVisage, ChoixBruitagePlan, Montant, Ratio } from "@/domaine/types";
+import type { AngleVisage, ChoixBruitagePlan, Ratio } from "@/domaine/types";
 import { briquesEffectives, libelleDuree, obtenirFormat } from "@/formats";
 import { chrono } from "@/lib/dates";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import { sansAccents } from "@/lib/textes";
 import type { ApercuFabrication, IllustrationsApercu } from "@/services/fabrication";
 import type { OrigineCascade } from "@/domaine/illustrations";
@@ -42,8 +42,8 @@ export const FEUILLE_DE_L_ETAPE: Partial<Record<CleEtape, "script" | "plateau" |
 /** Lot M5 : d'où vient l'illustration (cascade), affiché sur le plan. */
 const ORIGINES: Record<OrigineCascade, { libelle: string; icone: NomIcone; ton: "orange" | "ambre" | "neutre" | "sauge" }> = {
   "mes-images": { libelle: "Mes images", icone: "images", ton: "sauge" },
-  reutilisee: { libelle: "Réutilisée · 0 €", icone: "repeter", ton: "neutre" },
-  banque: { libelle: "Banque · 0 €", icone: "image", ton: "neutre" },
+  reutilisee: { libelle: "Réutilisée", icone: "repeter", ton: "neutre" },
+  banque: { libelle: "Banque", icone: "image", ton: "neutre" },
   "a-fabriquer": { libelle: "À fabriquer", icone: "etincelles", ton: "ambre" },
   choix: { libelle: "Mon choix", icone: "cadenas", ton: "orange" },
   double: { libelle: "Mon double", icone: "visage", ton: "orange" },
@@ -213,7 +213,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
         compact={compacte}
         icone="ecrire"
         titre="D'abord le texte"
-        phrase="Le prix se calcule dès qu'il y a un texte."
+        phrase="Écrivez d'abord le texte de la vidéo."
         action={
           <Bouton icone="ecrire" onClick={() => (ouvrirFeuille ? ouvrirFeuille("script") : allerA("script"))}>
             Écrire le texte
@@ -280,7 +280,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                         onClick={() => setActif(i)}
                         aria-label={`Plan ${i + 1}${sonne ? ", avec un son" : ""}`}
                         aria-current={choisi || undefined}
-                        className={cn("relative grid size-11 shrink-0 place-items-center rounded-full border text-sm font-bold tabular-nums transition-colors", choisi ? "border-orange bg-orange text-sur-orange" : "border-trait bg-surface-2 text-texte")}
+                        className={cn("relative grid size-11 shrink-0 place-items-center rounded-full border text-sm font-bold tabular-nums transition-colors", choisi ? "border-texte bg-texte text-fond" : "border-trait bg-surface-2 text-texte")}
                       >
                         {i + 1}
                         {sonne && (
@@ -297,7 +297,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                   return <SonDuPlan choix={intensite.choixParPlan[p.id] ?? null} prevu={intensite.choixParPlan[p.id] ? undefined : intensite.sonsParPlan[p.id]} onChange={(c) => void changerSon(p.id, c)} />;
                 })()}
                 {intensite.sonsValides === 0 && intensite.bruitages === "discrets" && (
-                  <Link href="/bibliotheque/bruitage" className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-orange-vif hover:underline">
+                  <Link href="/bibliotheque/bruitage" className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-texte-doux hover:underline">
                     <Icone nom="casque" size={13} />
                     Écouter et valider les sons
                   </Link>
@@ -312,9 +312,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
 
   const plans = donnees.plans;
   const plan = plans[Math.min(actif, plans.length - 1)];
-  const cout = donnees.estimation.total;
-  const prixAConfirmer = { centimes: Math.max(cout.centimes, montantServeur ?? 0), devise: cout.devise };
-  const depasse = donnees.budget.depasse;
+  const prixAConfirmer = { centimes: Math.max(donnees.estimation.total.centimes, montantServeur ?? 0) };
   const nbDebordements = zones ? plans.filter((p) => briques["texte-ecran"] && texteDeborde(p.texteEcran, ratio)).length : 0;
   const lut = contexte.elements.find((e) => e.id === (brouillon.styles.lutId ?? format.stylesParDefaut.lut));
 
@@ -387,7 +385,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                       onClick={() => setActif(i)}
                       aria-label={`Plan ${i + 1}`}
                       aria-current={choisi || undefined}
-                      className={cn("relative block aspect-[9/16] w-full overflow-hidden rounded-xl border-2 bg-surface-2 transition-all", choisi ? "border-orange shadow-orange" : "border-transparent opacity-80 hover:opacity-100")}
+                      className={cn("relative block aspect-[9/16] w-full overflow-hidden rounded-xl border-2 bg-surface-2 transition-all", choisi ? "border-texte shadow-carte" : "border-transparent opacity-80 hover:opacity-100")}
                     >
                       {imagePlan(p) && donnees.illustrations?.parPlan[p.id]?.origine !== "a-fabriquer" && <Image src={imagePlan(p)!} alt="" fill sizes="80px" className="object-cover" />}
                       {donnees.illustrations?.parPlan[p.id]?.origine === "a-fabriquer" && (
@@ -397,7 +395,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                       )}
                       <span className="absolute left-1 top-1 rounded bg-fond/80 px-1 text-[10px] font-bold tabular-nums text-texte">{i + 1}</span>
                       {p.illustration?.verrouille && (
-                        <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-orange text-sur-orange">
+                        <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-texte text-fond">
                           <Icone nom="cadenas" size={9} />
                         </span>
                       )}
@@ -415,7 +413,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
             {/* Lot « intensité » : la courbe unique que tous les effets consultent (plafond en pointillé). */}
             {intensite && <CourbeIntensite rapport={intensite.rapport} className="mt-1" />}
             {plan && (
-              <motion.div key={plan.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 rounded-carte border border-trait bg-surface-1 p-4">
+              <motion.div key={plan.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2"><Carte>
                 <div className="mb-2 flex flex-wrap items-center gap-1.5">
                   <span className="text-xs font-bold tabular-nums text-texte-faible">
                     {chrono(plan.debutSec)} – {chrono(plan.finSec)}
@@ -424,12 +422,12 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                     {sourcePlan(plan, donnees.illustrations).libelle}
                   </Pastille>
                   {donnees.illustrations?.parPlan[plan.id]?.ia && (
-                    <Pastille ton="orange" icone="etincelles">
+                    <Pastille ton="neutre" icone="etincelles">
                       IA
                     </Pastille>
                   )}
                   {plan.illustration?.verrouille && (
-                    <Pastille ton="orange" icone="cadenas">
+                    <Pastille ton="neutre" icone="cadenas">
                       Mon choix
                     </Pastille>
                   )}
@@ -448,14 +446,14 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                   <div className="mt-3">
                     <SonDuPlan choix={intensite.choixParPlan[plan.id] ?? null} prevu={intensite.choixParPlan[plan.id] ? undefined : intensite.sonsParPlan[plan.id]} onChange={(c) => void changerSon(plan.id, c)} />
                     {intensite.sonsValides === 0 && intensite.bruitages === "discrets" && (
-                      <Link href="/bibliotheque/bruitage" className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-orange-vif hover:underline">
+                      <Link href="/bibliotheque/bruitage" className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-texte-doux hover:underline">
                         <Icone nom="casque" size={13} />
                         Écouter et valider les sons
                       </Link>
                     )}
                   </div>
                 )}
-              </motion.div>
+              </Carte></motion.div>
             )}
           </section>
 
@@ -482,11 +480,11 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
             pleineLargeur
             icone="clap"
             essai={!donnees.budget.double && !donnees.budget.montageReel}
-            disabled={depasse || !plans.length || occupe === "maquette" || !!donnees.refus}
+            disabled={!plans.length || occupe === "maquette" || !!donnees.refus}
             chargement={occupe === "lancement"}
-            onClick={() => (donnees.budget.confirmationRequise ? setConfirmation(true) : void lancer(false))}
+            onClick={() => (donnees.budget.confirmationRequise ? (donnees.budget.double || donnees.budget.montageReel ? setConfirmation(true) : void lancer(prixAConfirmer.centimes)) : void lancer(false))}
           >
-            Fabriquer · {formaterMontant(cout, { court: true })}
+            Fabriquer
           </Bouton>
           {donnees.refus ? (
             <p role="alert" className="text-center text-xs text-ambre">
@@ -497,13 +495,6 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
             </p>
           ) : occupe === "maquette" ? (
             <p className="text-center text-xs text-texte-doux">La maquette se prépare : sa voix servira à la vidéo.</p>
-          ) : depasse ? (
-            <p className="text-center text-xs text-ambre">
-              Budget du mois dépassé ·{" "}
-              <Link href="/reglages#budget" className="font-semibold underline">
-                Augmenter le budget
-              </Link>
-            </p>
           ) : !plans.length ? (
             <p className="text-center text-xs text-texte-doux">Ajoutez d&apos;abord le texte de la vidéo.</p>
           ) : null}
@@ -513,13 +504,13 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
       <FeuilleBas
         ouverte={confirmation}
         onOuverteChange={setConfirmation}
-        titre={donnees.budget.double ? "Votre avatar parle" : donnees.budget.montageReel ? "Cette vidéo sera montée pour de vrai" : "Plus cher que d'habitude"}
+        titre={donnees.budget.double ? "Votre avatar parle" : donnees.budget.montageReel ? "Cette vidéo sera montée pour de vrai" : "Fabriquer cette vidéo"}
         description={
           donnees.budget.double
             ? phraseAvatarParle(donnees.budget.double)
             : donnees.budget.montageReel
-              ? "Prix estimé de cette vidéo. Pour repasser en essai : Réglages, Connexions, Montage."
-              : `Au-dessus de votre seuil de ${formaterMontant(donnees.budget.seuil, { court: true })}.`
+              ? "Pour repasser en essai : Réglages, Connexions, Montage."
+              : undefined
         }
         pied={
           <Bouton taille="lg" pleineLargeur icone="clap" essai={!donnees.budget.double && !donnees.budget.montageReel} chargement={occupe === "lancement"} onClick={() => void lancer(prixAConfirmer.centimes)}>
@@ -527,8 +518,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
           </Bouton>
         }
       >
-        <p className="py-4 text-center font-titre text-[64px] tabular-nums leading-none text-orange-vif">{formaterMontant(prixAConfirmer)}</p>
-        <p className="text-center text-sm text-texte-doux">Reste ce mois après la vidéo : {formaterMontant({ centimes: Math.max(0, donnees.budget.restant.centimes - prixAConfirmer.centimes), devise: cout.devise }, { court: true })}</p>
+        {null}
       </FeuilleBas>
 
       <FeuilleBas ouverte={!!aRemplacer} onOuverteChange={(o) => !o && setARemplacer(null)} titre="Remplacer l'image" description={aRemplacer?.illustration?.requete ? `« ${aRemplacer.illustration.requete} »` : undefined}>
@@ -553,7 +543,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                     type="button"
                     disabled={occupe === "remplacement"}
                     onClick={() => void remplacer(aRemplacer, e)}
-                    className={cn("group relative block aspect-[3/4] w-full overflow-hidden rounded-xl border-2 bg-surface-2", actuel ? "border-orange" : "border-transparent hover:border-trait-fort")}
+                    className={cn("group relative block aspect-[3/4] w-full overflow-hidden rounded-xl border-2 bg-surface-2", actuel ? "border-texte" : "border-transparent hover:border-trait-fort")}
                   >
                     {e.vignette && <Image src={e.vignette} alt={e.nom} fill sizes="120px" className="object-cover transition-transform group-hover:scale-105" />}
                     <span className="absolute inset-x-0 bottom-0 truncate bg-fond/80 px-1.5 py-1 text-left text-[10px] font-semibold text-texte">{e.nom}</span>
@@ -561,7 +551,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
                     {((s > 0 && !actuel) || e.etatLicence !== "ok") && (
                       <span className="absolute inset-x-1 top-1 flex flex-wrap items-start justify-between gap-1">
                         {s > 0 && !actuel && (
-                          <Pastille ton="orange" icone="etoile">
+                          <Pastille ton="neutre" icone="etoile">
                             Conseillé
                           </Pastille>
                         )}
@@ -587,29 +577,12 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
   );
 }
 
-/** Lot R2 : les textes des réseaux que Claude écrira à la fin, déjà comptés dans le coût affiché au-dessus. */
-export function LigneTextesReseaux({ montant }: { montant: Montant }) {
-  return (
-    <p className="mt-4 flex items-baseline justify-between gap-2 rounded-xl bg-fond/40 px-3 py-2.5 text-sm">
-      <span className="text-texte-doux">Textes des réseaux</span>
-      <span className="text-right">
-        <span className="font-semibold tabular-nums text-texte">environ {formaterMontant(montant)}</span> <span className="text-texte-faible">(compris dans le total)</span>
-      </span>
-    </p>
-  );
-}
-
-/** Coût estimé en GROS chiffre, temps de fabrication, formats, reste du mois et étapes (AV2.4-6). */
+/** Temps de fabrication, formats, illustrations et étapes (AV2.4-6). */
 export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: ApercuFabrication; nbFormats: number; onEconomique?: (actif: boolean) => void }) {
-  const cout = donnees.estimation.total;
-  const depasse = donnees.budget.depasse;
   const illus = donnees.illustrations;
   return (
-    <section className={cn("relative isolate overflow-hidden rounded-carte border p-5", depasse ? "border-brique/40 bg-brique-doux" : "border-orange/30 bg-surface-1")}>
-      {!depasse && <span aria-hidden className="absolute inset-0 -z-10 lueur" />}
-      <p className="text-sm font-semibold text-texte-doux">Coût estimé</p>
-      <p className={cn("mt-1 font-titre text-[56px] tabular-nums leading-none", depasse ? "text-brique" : "text-texte")}>{formaterMontant(cout)}</p>
-      <ul className="mt-4 grid grid-cols-3 gap-2 text-center">
+    <Carte as="section">
+      <ul className="grid grid-cols-2 gap-2 text-center">
         <li className="rounded-xl bg-fond/40 px-2 py-2.5">
           <span className="block font-titre text-lg tabular-nums text-texte">~{libelleDuree(donnees.estimation.dureeFabricationSec)}</span>
           <span className="text-[11px] text-texte-faible">Fabrication</span>
@@ -618,27 +591,10 @@ export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: Apercu
           <span className="block font-titre text-lg tabular-nums text-texte">{nbFormats}</span>
           <span className="text-[11px] text-texte-faible">Format{nbFormats > 1 ? "s" : ""}</span>
         </li>
-        <li className="rounded-xl bg-fond/40 px-2 py-2.5">
-          <span className={cn("block truncate font-titre text-lg tabular-nums", depasse ? "text-brique" : "text-texte")}>{formaterMontant({ centimes: Math.round(donnees.budget.restant.centimes / 100) * 100, devise: donnees.budget.restant.devise }, { court: true })}</span>
-          <span className="text-[11px] text-texte-faible">Reste ce mois</span>
-        </li>
       </ul>
-      {donnees.textesReseaux && <LigneTextesReseaux montant={donnees.textesReseaux} />}
       {illus && (illus.resume.mesImages + illus.resume.reutilisees + illus.resume.banques + illus.resume.aFabriquer > 0 || illus.economique) && (
         <div className="mt-4 rounded-xl bg-fond/40 p-3">
           <p className="mb-2 text-xs font-semibold text-texte-faible">Illustrations</p>
-          <ul className="grid gap-1.5 text-sm">
-            <li className="flex items-baseline justify-between gap-2">
-              <span className="text-texte-doux">Réutilisé</span>
-              <span className="font-semibold tabular-nums text-texte">{illus.resume.mesImages + illus.resume.reutilisees + illus.resume.banques} · 0 €</span>
-            </li>
-            <li className="flex items-baseline justify-between gap-2">
-              <span className="text-texte-doux">À fabriquer</span>
-              <span className={cn("font-semibold tabular-nums", illus.resume.aFabriquer ? "text-ambre" : "text-texte")}>
-                {illus.resume.aFabriquer} · {formaterMontant({ centimes: illus.resume.centimesAFabriquer, devise: cout.devise })}
-              </span>
-            </li>
-          </ul>
           <ul aria-label="Illustrations des plans" className="sans-barre -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
             {donnees.plans
               .filter((p) => illus.parPlan[p.id])
@@ -649,9 +605,9 @@ export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: Apercu
                   <li key={p.id} className="w-[76px] shrink-0">
                     <span className={cn("relative grid aspect-[9/16] w-full place-items-center overflow-hidden rounded-lg", image ? "bg-surface-2" : "border border-dashed border-ambre/60 bg-ambre/10 text-ambre")}>
                       {image ? <Image src={image} alt="" fill sizes="76px" className="object-cover" /> : <Icone nom={o.icone} size={18} />}
-                      {illus.parPlan[p.id].ia && <span className="absolute right-1 top-1 rounded bg-orange px-1 text-[9px] font-bold text-sur-orange">IA</span>}
+                      {illus.parPlan[p.id].ia && <span className="absolute right-1 top-1 rounded bg-texte px-1 text-[9px] font-bold text-fond">IA</span>}
                     </span>
-                    <span className={cn("mt-1 block truncate text-[10px] font-semibold", o.ton === "sauge" ? "text-sauge" : o.ton === "ambre" ? "text-ambre" : o.ton === "orange" ? "text-orange-vif" : "text-texte-doux")}>{o.libelle}</span>
+                    <span className={cn("mt-1 block truncate text-[10px] font-semibold", o.ton === "sauge" ? "text-sauge" : o.ton === "ambre" ? "text-ambre" : "text-texte-doux")}>{o.libelle}</span>
                   </li>
                 );
               })}
@@ -666,20 +622,6 @@ export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: Apercu
           )}
         </div>
       )}
-      {depasse && (
-        <Link href="/reglages#budget" className="mt-3 flex min-h-11 items-center gap-2 text-sm font-semibold text-brique">
-          <Icone nom="attention" size={16} />
-          Budget du mois dépassé : l&apos;augmenter
-          <Icone nom="chevron-droite" size={16} className="ml-auto" />
-        </Link>
-      )}
-      {donnees.budget.depasseIndicatif && (
-        <Link href="/reglages#budget" className="mt-3 flex min-h-11 items-center gap-2 text-sm font-semibold text-ambre">
-          <Icone nom="attention" size={16} />
-          Au-delà du budget indicatif du mois : la vidéo part quand même
-          <Icone nom="chevron-droite" size={16} className="ml-auto" />
-        </Link>
-      )}
       {donnees.etapes.length > 0 && (
         <div className="sans-barre mt-4 flex items-center gap-1 overflow-x-auto text-[11px] font-semibold text-texte-faible">
           {donnees.etapes.map((e, i) => (
@@ -690,7 +632,7 @@ export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: Apercu
           ))}
         </div>
       )}
-    </section>
+    </Carte>
   );
 }
 
@@ -715,7 +657,7 @@ export function FormatsImage({ disponibles, choisis, onChange }: { disponibles: 
               onClick={() => onChange(actif ? choisis.filter((x) => x !== r) : disponibles.filter((x) => x === r || choisis.includes(x)))}
               className={cn(
                 "flex min-h-11 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors",
-                actif ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort",
+                actif ? "border-texte bg-texte text-fond" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort",
               )}
             >
               <FormeRatio ratio={r} />
@@ -736,7 +678,7 @@ function Recap({ icone, texte, onClick }: { icone: NomIcone; texte: string; onCl
       onClick={onClick}
       className="flex min-h-11 max-w-full items-center gap-2 rounded-full border border-trait bg-surface-1 px-3.5 text-sm font-semibold text-texte-doux transition-colors hover:border-trait-fort hover:text-texte"
     >
-      <Icone nom={icone} size={14} className="shrink-0 text-orange-vif" />
+      <Icone nom={icone} size={14} className="shrink-0 text-texte-doux" />
       <span className="truncate">{texte}</span>
       <Icone nom="ecrire" size={13} className="shrink-0 text-texte-faible" />
     </button>

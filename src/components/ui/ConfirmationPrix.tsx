@@ -2,15 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import type { AccordPrix } from "@/domaine/accord";
-import { formaterMontant } from "@/lib/montants";
 import { Bouton } from "./Bouton";
 import { FeuilleBas } from "./FeuilleBas";
-import { Icone } from "./Icone";
 
 /**
  * Feuille « Confirmer » (remplace `window.confirm`) : réservée aux simples questions SANS montant (elle rend `true`).
  * Un montant renvoyé par le serveur avec `CONFIRMATION_REQUISE` est accepté tout de suite par `confirmerPrix`, qui le rend
- * à l'appelant pour qu'il le renvoie au serveur ; le prix reste affiché ailleurs à titre d'information.
+ * à l'appelant pour qu'il le renvoie au serveur ; aucun montant n'est affiché.
  * À placer une fois (layout racine) : `<HoteConfirmationPrix />`.
  */
 interface Demande {
@@ -50,7 +48,6 @@ export function HoteConfirmationPrix() {
     () => courante,
     () => null,
   );
-  const prix = d?.montant !== undefined ? formaterMontant({ centimes: d.montant, devise: "EUR" }) : null;
   const fermer = (accord: number | true | null) => {
     if (!d) return;
     publier(null);
@@ -60,11 +57,11 @@ export function HoteConfirmationPrix() {
     <FeuilleBas
       ouverte={!!d}
       onOuverteChange={(v) => !v && fermer(null)}
-      titre={prix ? "Confirmer ce prix" : "Confirmer"}
+      titre="Confirmer"
       pied={
         <div className="flex flex-col gap-2">
           <Bouton pleineLargeur taille="lg" icone="coche" onClick={() => fermer(d?.montant ?? true)}>
-            {prix ? `Confirmer ${prix}` : "Confirmer"}
+            Confirmer
           </Bouton>
           <Bouton pleineLargeur variante="fantome" onClick={() => fermer(null)}>
             Annuler
@@ -73,15 +70,6 @@ export function HoteConfirmationPrix() {
       }
     >
       <div className="flex flex-col items-center gap-3 py-2 text-center">
-        {prix && (
-          <>
-            <span className="grid size-12 place-items-center rounded-2xl bg-orange-doux text-orange-vif">
-              <Icone nom="euro" size={22} />
-            </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-texte-faible">Au plus</span>
-            <span className="font-titre text-4xl tabular-nums leading-none text-texte">{prix}</span>
-          </>
-        )}
         {d?.message && <p className="max-w-sm text-sm text-texte-doux">{d.message}</p>}
       </div>
     </FeuilleBas>

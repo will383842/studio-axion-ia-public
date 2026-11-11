@@ -432,9 +432,11 @@ export interface SourceMiniature {
   /** Mise en page de chaque miniature (0, 1, 2) ; absent : 0, 1, 2 dans l'ordre. */
   variantes?: number[];
   /** Vignettes lot 1 : gabarit voulu (réglage `miniature.gabarit`, `r4` par défaut), générateur et rang de la vidéo. */
-  gabarit?: "r4" | "axion-v2";
+  gabarit?: "r4" | "axion-v2" | "image-video-v3";
   formatId?: string;
   rangVideo?: number;
+  /** Aucune vidéo SANS texte : pas de lecture de la vidéo finale (texte déjà incrusté), fond propre de la charte. */
+  fondPropre?: boolean;
   depots: { cle: string; urlDepot: string }[];
 }
 
@@ -455,6 +457,8 @@ export interface PropositionMiniature {
   /** Vignettes lot 1 (gabarit `axion-v2`) : ambiance et mise en page de l'image. */
   ambiance?: "encre" | "ivoire";
   mise?: "m1" | "m2" | "m3";
+  /** Marqueur de gabarit de l'image produite (`image-video-v3` : vraie image du début de la vidéo). */
+  gabarit?: "image-video-v3";
 }
 
 export interface FournisseurMiniature extends FournisseurBase {

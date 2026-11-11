@@ -66,8 +66,8 @@ export function CarteCompte({ compte, services, onChange }: { compte: CompteVue;
           valeur={compte.outil}
           onChange={(o) => demarrer(async () => void (await gestes.publiePar(compte.cle, o)))}
           options={[
-            { valeur: "buffer", libelle: "Buffer", desactive: !compte.existeChezBuffer, raison: "Ce compte n’existe pas chez Buffer." },
-            { valeur: "zernio", libelle: "Zernio" },
+            { valeur: "buffer", libelle: "Ancien outil", desactive: !compte.existeChezBuffer, raison: "Ce compte n’existe pas dans l’ancien outil." },
+            { valeur: "zernio", libelle: "Nouvel outil" },
           ]}
         />
         <SelecteurPastilles
@@ -95,9 +95,9 @@ export function CarteBascule({ comptes, services, onChange }: { comptes: CompteV
       </h2>
       {restant ? (
         <>
-          <p className="mt-1 text-[15px] font-semibold text-texte">{restant.nom} publie encore par Buffer</p>
+          <p className="mt-1 text-[15px] font-semibold text-texte">{restant.nom} publie encore par l’ancien outil</p>
           <p className="mt-1 text-sm text-texte-doux">
-            {autres === 1 ? "Le 1 autre compte passe déjà par Zernio." : `Les ${autres} autres comptes passent déjà par Zernio.`} Vous pourrez revenir sur Buffer en un geste jusqu’au 20/11.
+            {autres === 1 ? "Le 1 autre compte passe déjà par le nouvel outil." : `Les ${autres} autres comptes passent déjà par le nouvel outil.`} Vous pourrez revenir à l’ancien outil en un geste jusqu’au 20/11.
           </p>
           <div className="mt-3">
             <Bouton
@@ -113,13 +113,13 @@ export function CarteBascule({ comptes, services, onChange }: { comptes: CompteV
                 })
               }
             >
-              Passer {restant.nom} sur Zernio
+              Passer {restant.nom} sur le nouvel outil
             </Bouton>
           </div>
         </>
       ) : (
         <>
-          <p className="mt-1 text-[15px] font-semibold text-texte">Les 6 comptes publient par Zernio</p>
+          <p className="mt-1 text-[15px] font-semibold text-texte">Les 6 comptes publient par le nouvel outil</p>
           <a href="/reglages#migration" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-orange-vif underline">
             Voir la migration
           </a>
@@ -129,28 +129,10 @@ export function CarteBascule({ comptes, services, onChange }: { comptes: CompteV
   );
 }
 
-/** « 24 $ » : valeur de configuration, ou rien si elle n'est pas renseignée. Jamais comparée à un envoi. */
-function montant(v: number | null): string {
-  return v === null ? "à renseigner" : `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(v)} $`;
-}
-
-export function CarteBudget({ budget, nombreComptes }: { budget: BudgetInfo; nombreComptes: number }) {
-  return (
-    <section aria-labelledby="budget-titre" data-carte="budget" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte sm:p-5">
-      <h2 id="budget-titre" className="text-lg text-texte">
-        Budget du mois <span className="text-sm font-normal text-texte-faible">· pour information</span>
-      </h2>
-      <p className="mt-1 text-sm text-texte-doux">Rien n’est jamais bloqué par ce montant.</p>
-      <ul className="mt-3 flex flex-col gap-1 text-sm text-texte">
-        <li>
-          ≈ {montant(budget.zernio)} Zernio · {nombreComptes} comptes
-        </li>
-        <li>
-          {montant(budget.buffer)} Buffer · jusqu’au {budget.finBuffer}, puis 0
-        </li>
-      </ul>
-    </section>
-  );
+/** Aucun montant dans l'interface : la carte n'affiche plus rien (l'appelant peut la retirer). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function CarteBudget(_props: { budget: BudgetInfo; nombreComptes: number }): null {
+  return null;
 }
 
 export function BandeauVide({ onRelie, enCours, lienZernio = "https://zernio.com" }: { onRelie: () => void; enCours?: boolean; lienZernio?: string }) {
@@ -158,10 +140,10 @@ export function BandeauVide({ onRelie, enCours, lienZernio = "https://zernio.com
     <section aria-labelledby="vide-titre" data-etat="vide" className="rounded-carte border border-trait bg-surface-1 p-5 text-center shadow-carte">
       <Icone nom="lien" size={28} className="mx-auto text-texte-faible" />
       <h2 id="vide-titre" className="mt-2 text-lg text-texte">
-        Aucun compte relié à Zernio
+        Aucun compte relié au nouvel outil
       </h2>
       <p className="mt-1 text-sm text-texte-doux">
-        Reliez vos comptes dans Zernio (Facebook ×2, Instagram, LinkedIn page et profil, TikTok), puis revenez ici : ils apparaîtront seuls. Tant qu’aucun compte n’est relié, Buffer continue de tout publier.
+        Reliez vos comptes dans le nouvel outil (Facebook ×2, Instagram, LinkedIn page et profil, TikTok), puis revenez ici : ils apparaîtront seuls. Tant qu’aucun compte n’est relié, l’ancien outil continue de tout publier.
       </p>
       <div className="mt-4 flex flex-col gap-2">
         <Bouton taille="lg" pleineLargeur chargement={enCours} onClick={onRelie}>
@@ -169,7 +151,7 @@ export function BandeauVide({ onRelie, enCours, lienZernio = "https://zernio.com
         </Bouton>
         <Bouton variante="secondaire" pleineLargeur asChild>
           <a href={lienZernio} target="_blank" rel="noopener noreferrer">
-            Ouvrir Zernio
+            Ouvrir le nouvel outil
           </a>
         </Bouton>
       </div>
@@ -182,9 +164,9 @@ export function BandeauErreur({ onReessayer, enCours }: { onReessayer: () => voi
     <section role="alert" aria-labelledby="erreur-titre" data-etat="erreur" className="rounded-carte border border-brique/30 bg-brique-doux/40 p-5 text-center">
       <Icone nom="alerte" size={28} className="mx-auto text-brique" />
       <h2 id="erreur-titre" className="mt-2 text-lg text-texte">
-        Zernio ne répond pas
+        Le nouvel outil ne répond pas
       </h2>
-      <p className="mt-1 text-sm text-texte-doux">Ce qui est déjà programmé chez Zernio y reste, avec ou sans arrêt d’urgence. Nous réessayons seuls toutes les 2 minutes.</p>
+      <p className="mt-1 text-sm text-texte-doux">Ce qui est déjà programmé dans le nouvel outil y reste, avec ou sans arrêt d’urgence. Nous réessayons seuls toutes les 2 minutes.</p>
       <div className="mt-4">
         <Bouton taille="lg" pleineLargeur icone="reessayer" chargement={enCours} onClick={onReessayer}>
           Réessayer maintenant
@@ -208,7 +190,7 @@ export function BandeauChargement() {
 export function BandeauCleAbsente() {
   return (
     <p data-info="cle-absente" className="rounded-2xl border border-trait bg-surface-2 px-4 py-3 text-sm text-texte-doux">
-      Zernio n’est pas encore relié. L’écran fonctionne en essai.
+      Le nouvel outil n’est pas encore relié. L’écran fonctionne en essai.
     </p>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { insecable } from "@/lib/textes";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -12,6 +13,7 @@ import {
   mettreALaCorbeilleAction,
   viderCorbeilleAction,
 } from "@/app/(studio)/videos/actions";
+import { useVideo } from "@/components/publication/ContexteVideo";
 import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
@@ -22,9 +24,11 @@ import { PastilleEtat } from "@/components/ui/PastilleEtat";
 import { notifier } from "@/components/ui/Toast";
 import { messageCorbeille, noteRestauration } from "@/domaine/corbeille";
 import { ETAPES_EDITORIALES, LIBELLES_RETRAIT } from "@/domaine/libelles";
-import type { EtapeEditoriale, StatutVideo } from "@/domaine/types";
+import type { EtapeEditoriale, IdReseau, StatutVideo } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { nomCourtFormat } from "@/formats";
+import { BoutonValider } from "./BoutonValider";
+import { PastillesReseaux } from "./PastillesReseaux";
 import { useConfirmationArchivage } from "./ConfirmationArchivage";
 import { useConfirmationSuppression } from "./ConfirmationSuppression";
 
@@ -43,6 +47,9 @@ export function EnTeteVideo({
   estDemo,
   aRelire,
   corbeilleLe,
+  reseaux = [],
+  reseauxPrecis = false,
+  actions,
 }: {
   videoId: string;
   titre: string;
@@ -54,6 +61,11 @@ export function EnTeteVideo({
   aRelire?: boolean;
   /** Vidéo à la corbeille : seule « Supprimer définitivement » reste (et « Restaurer »). */
   corbeilleLe?: string;
+  /** Lot F : réseaux de la vidéo (pastilles) ; `reseauxPrecis` faux = réseaux prévus par défaut (pastilles atténuées). */
+  reseaux?: readonly IdReseau[];
+  reseauxPrecis?: boolean;
+  /** Lot F : actions posées à côté de « Valider », sous le titre (Télécharger, Lien privé). */
+  actions?: ReactNode;
 }) {
   const router = useRouter();
   const [feuille, setFeuille] = useState<Feuille>(null);
@@ -110,9 +122,10 @@ export function EnTeteVideo({
           <PastilleEtat type="video" statut={statut} />
         )}
         {estDemo && <Pastille>Exemple</Pastille>}
+        <PastillesReseaux reseaux={reseaux} precis={reseauxPrecis} />
       </div>
       <div className="flex items-start gap-2">
-        <h1 className="min-w-0 flex-1 text-[26px] leading-tight text-texte sm:text-4xl">{insecable(titre)}</h1>
+        <h1 title={titre} className="line-clamp-2 min-w-0 flex-1 text-2xl leading-tight text-texte sm:text-3xl">{insecable(titre)}</h1>
         <Menu
           declencheur={<BoutonIcone icone="menu" libelle="Plus d'actions" variante="secondaire" />}
           elements={[
@@ -157,6 +170,13 @@ export function EnTeteVideo({
           ]}
         />
       </div>
+
+      {(prete || actions) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <BoutonValider videoId={videoId} prete={prete} etape={etapeEditoriale} />
+          {actions}
+        </div>
+      )}
 
       {confirmation.feuille}
       {suppression.feuille}
@@ -231,5 +251,20 @@ export function EnTeteVideo({
         </ul>
       </FeuilleBas>
     </div>
+  );
+}
+
+/** Télécharger et Lien privé, sous le titre : ouvrent les feuilles que porte `BarreActionsVideo` (même fiche). */
+export function ActionsRapidesVideo() {
+  const { ouvrir } = useVideo();
+  return (
+    <>
+      <Bouton variante="secondaire" taille="md" icone="telecharger" onClick={() => ouvrir("telecharger")}>
+        Télécharger
+      </Bouton>
+      <Bouton variante="secondaire" taille="md" icone="lien" onClick={() => ouvrir("partager")}>
+        Lien privé
+      </Bouton>
+    </>
   );
 }

@@ -219,8 +219,9 @@ describe("écrans", () => {
     ];
     expect(textes[0]).toBe("Il faut d'abord relier la voix.");
     expect(textes[1]).toMatch(/Ma vidéo HeyGen/);
-    expect(textes[2]).toMatch(/^Environ .+ pour une vidéo de 45 s\. Éteint : vos vidéos restent des essais\.$/);
-    expect(textes[3]).toMatch(/Prix confirmé à chaque lancement/);
+    expect(textes[2]).toBe("Éteint : vos vidéos restent des essais.");
+    expect(textes[3]).toBe("Vos vidéos sont montées pour de vrai.");
+    for (const t of textes) expect(t).not.toMatch(/€|prix|environ/i);
     for (const t of textes) expect(t).not.toMatch(/simulation|montage-avocat|studio-rendu|[A-Z]+_[A-Z]+|4K|2160/i);
     const source = readFileSync("src/components/reglages/Connexions.tsx", "utf8") + readFileSync("src/assistant/etapes/Apercu.tsx", "utf8");
     expect(source).not.toMatch(/4K|2160p|3840/);

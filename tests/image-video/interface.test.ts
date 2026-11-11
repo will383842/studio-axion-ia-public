@@ -64,7 +64,7 @@ describe("L16 · écran 1 « Déposer »", () => {
     expect(vue.refusFichier({ type: "image/webp", size: 10 })).toBeNull();
   });
 
-  it("montre les 2 entrées (texte par défaut), les 4 réseaux et le prix SUR le bouton ; aucune zone de dépôt d'image", () => {
+  it("montre les 2 entrées (texte par défaut), les 4 réseaux et aucun prix sur le bouton ; aucune zone de dépôt d'image", () => {
     const montants = { 1: 120, 2: 180, 3: 240, 4: 300 };
     const html = texte(renderToStaticMarkup(createElement(Depot, { montants })));
     expect(html).toContain("Décrire avec mes mots");
@@ -72,7 +72,7 @@ describe("L16 · écran 1 « Déposer »", () => {
     expect(html).not.toContain("Déposer une image");
     expect(html).not.toContain("Déposez une ou plusieurs images");
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
-    expect(html).toMatch(/\(au plus 3,00\s?€\)/);
+    expect(html).not.toMatch(/au plus|€/);
     expect(html).not.toMatch(TECHNIQUE);
   });
 
@@ -210,8 +210,8 @@ describe("L16 · écran 3 « Le script »", () => {
     const s = v.script!;
     expect(s.prix.auPlusCentimes).toBeGreaterThan(0);
     const html = texte(renderToStaticMarkup(createElement(ScriptEcrans, { videoId: "v-1", ...s })));
-    const auPlus = vue.euros(Math.max(s.prix.auPlusCentimes, s.prix.habituelCentimes));
-    expect(html).toContain(`Valider et fabriquer (au plus ${auPlus})`);
+    expect(html).toContain("Valider et fabriquer");
+    expect(html).not.toMatch(/au plus|€/);
     expect(html).toContain("Modifier le script");
     expect(html).toContain("La question pour faire commenter");
     expect(html).toContain(s.fiche.accroches[0].texteDit);
@@ -406,7 +406,7 @@ describe("L16 · écran 4 « Fabrication » et écran 5 « Vos vidéos »", () =
     expect(v!.ecran).toBe("videos");
     expect(v!.barre).toBe("videos");
     expect(v!.imageUrl).toBe("https://exemple/studio/dev/entree/image-video/f-1.png");
-    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videos: v!.videos!, verdict: v!.verdict })));
+    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: v!.videos!, verdict: v!.verdict })));
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
     expect(html).toContain("Télécharger");
     expect(html).toContain("Copier le texte");

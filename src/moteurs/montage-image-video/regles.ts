@@ -36,6 +36,8 @@ export interface Manquement {
   message: string;
   /** À trancher par Will (formule absolue, phrase-choc de l'image à reformuler). */
   pourWill?: boolean;
+  /** Mot interdit en toutes lettres (liste de Will / de la marque) : seul cas de Q08 qui bloque un script collé. */
+  interdit?: boolean;
   /** Version proposée (prudente, ou sans le mot interdit). */
   proposition?: string;
 }
@@ -79,6 +81,8 @@ export const TOLERANCE_DUREE_IV = 0.1;
 
 /** Interdits permanents de Will (Q08), en plus de `MOTS_INTERDITS_FORMAT` du cas concret. */
 export const INTERDITS_PERMANENTS: readonly string[] = [...MOTS_INTERDITS_FORMAT, "certifié", "certifiée", "certifiés", "Certifexemple"];
+/** Interdits permanents qui restent une alerte (jamais un refus) pour un script collé. */
+const MOTS_SEULEMENT_ALERTE: readonly string[] = ["machine", "machines"];
 /** Faux client : un client présenté comme réel (« un client a… », « notre client »). */
 const FAUX_CLIENT = /(?:^|[^a-z])(?:un|une|notre|nos|mon|ma|mes|ce|cette) (?:de nos )?client(?:e)?s? (?:a|ont|nous a|m a|nous ont|est|sont)(?=$|[^a-z])|(?:^|[^a-z])(?:notre|nos) client(?:e)?s?(?=$|[^a-z])/;
 /** Phrases d'appel refusées dans le corps (la fin vient de la banque). */
@@ -423,21 +427,30 @@ function regleOssature(fiche: FicheImage, ctx: ContexteRegles, complexite: Compl
   return res;
 }
 
+/** Mots outils jamais pris pour un nom d'exemple, même avec une majuscule (début de phrase). */
+const MOTS_OUTILS_DEBUT: ReadonlySet<string> = new Set(["un", "une", "le", "la", "les", "l", "par", "pour", "de", "des", "du", "avec", "sans", "dans", "en", "et", "ou", "au", "aux", "il", "elle", "vous", "nous", "ce", "cette", "chaque", "si", "quand"]);
+
+/** Le nom apparaît tel quel (majuscule comprise), comme un nom propre. */
+function contientNomPropre(texte: string, nom: string): boolean {
+  // Majuscule comprise, et aussi en capitales (« MARTIN ») : « Un / Par / Le… » n'arrivent jamais ici (écartés par MOTS_OUTILS_DEBUT).
+  return [nom, nom.toUpperCase()].some((n) => new RegExp(`(?<![\\p{L}])${n}(?![\\p{L}])`, "u").test(texte));
+}
+
 /** Q08 · Interdits (prioritaires sur le mot pour mot), faux client, nom d'exemple sans « par exemple », appel dans le corps. */
-function regleInterdits(fiche: FicheImage, ctx: ContexteRegles, dejaSignales: readonly string[]): Manquement[] {
+export function regleInterdits(fiche: FicheImage, ctx: ContexteRegles, dejaSignales: readonly string[]): Manquement[] {
   const res: Manquement[] = [];
   const tous = [...INTERDITS_PERMANENTS, ...(ctx.interdits ?? [])];
   let interdits = tous;
   const noms = ctx.carte.noeuds
     .filter((n) => n.exemple)
-    .flatMap((n) => [n.libelle, n.detail ?? ""].join(" ").split(/\s+/).filter((w, i) => i > 0 && /^\p{Lu}\p{Ll}+$/u.test(w)))
+    .flatMap((n) => [n.libelle, n.detail ?? ""].join(" ").split(/\s+/).filter((w, i) => i > 0 && /^\p{Lu}\p{Ll}+$/u.test(w) && !MOTS_OUTILS_DEBUT.has(w.toLowerCase())))
     .filter((w, i, a) => a.indexOf(w) === i);
   const controler = (t: string, ou: string, corps: boolean, ecranId?: string) => {
     const avec = (message: string, extra: Partial<Manquement> = {}): Manquement => ({ regle: "Q08", priorite: 1, message, ...(ecranId ? { ecranId } : {}), ...extra });
-    for (const i of interdits) if (contientExpression(t, i)) res.push(avec(`${ou} : « ${i} » est interdit.`, { proposition: reformulerInterdits(t) }));
+    for (const i of interdits) if (contientExpression(t, i)) res.push(avec(`${ou} : « ${i} » est interdit.`, { proposition: reformulerInterdits(t), ...(MOTS_SEULEMENT_ALERTE.includes(i) ? {} : { interdit: true }) }));
     if (FAUX_CLIENT.test(texteCompare(t).replace(/'/g, " "))) res.push(avec(`${ou} : un client est présenté comme réel ; dites « situation type » ou « par exemple ».`));
     for (const nom of noms) {
-      for (const p of phrasesDe(t)) if (contientExpression(p, nom) && !contientExpression(p, "exemple")) res.push(avec(`${ou} : « ${nom} » est un nom d'exemple ; dites « par exemple ».`));
+      for (const p of phrasesDe(t)) if (contientNomPropre(p, nom) && !contientExpression(p, "exemple")) res.push(avec(`${ou} : « ${nom} » est un nom d'exemple ; dites « par exemple ».`));
     }
     if (corps) for (const a of TOURNURES_APPEL_CORPS) if (contientExpression(t, a)) res.push(avec(`${ou} : aucune phrase d'appel dans le corps (« ${a} ») ; la fin vient de la banque.`));
   };

@@ -16,7 +16,7 @@ const SORTIE = 4;
 export type RafaleProps = { frame: number; debut: number; palette: Palette; mots: [string, string, string]; /** Images d'apparition des mots 2 et 3 après le mot 1 (< 0,9 s = 27 i). */ ecarts?: [number, number]; duree?: number };
 
 export function RafaleTroisMots({ frame, debut, palette, mots, ecarts = [12, 25], duree = DUREE_RAFALE }: RafaleProps) {
-  const { ACCENT_1 } = accents(palette);
+  const { ACCENT_1, ACCENT_SOMBRE } = accents(palette);
   const i = frame - debut;
   if (i < 0 || i >= duree) return null;
   const iMots = [0, ecarts[0], ecarts[1]];
@@ -27,8 +27,8 @@ export function RafaleTroisMots({ frame, debut, palette, mots, ecarts = [12, 25]
   const idx = i >= iRecap ? 3 : i >= iMots[2] ? 2 : i >= iMots[1] ? 1 : 0;
   const fond = idx === 3 ? ACCENT_1 : fonds[idx];
   const k = i - (idx === 3 ? iRecap : iMots[idx]);
-  const couleurTexte = [COULEURS.ENCRE, ACCENT_1, COULEURS.ENCRE][idx] ?? COULEURS.ENCRE;
-  const contour = [COULEURS.BLANC, COULEURS.BLANC, accents(palette).ACCENT_1][idx] ?? COULEURS.BLANC;
+  const couleurTexte = [COULEURS.BLANC, ACCENT_SOMBRE, COULEURS.ENCRE][idx] ?? COULEURS.BLANC;
+  const contour = [COULEURS.ENCRE, COULEURS.BLANC, accents(palette).ACCENT_1][idx] ?? COULEURS.BLANC;
   const s = (1.25 - 0.25 * ressort("CLAQUE", k)) * (idx < 3 ? tick(k, 6) : 1);
   const dx = secousse(k - 4, 0.004 * W);
   const motCourant = mots[Math.min(idx, 2)];
@@ -37,7 +37,7 @@ export function RafaleTroisMots({ frame, debut, palette, mots, ecarts = [12, 25]
   const plaques: { fond: string; texte: string }[] = [
     { fond: COULEURS.BLANC, texte: COULEURS.ENCRE },
     { fond: COULEURS.IVOIRE_CLAIR, texte: COULEURS.ENCRE },
-    { fond: COULEURS.ENCRE, texte: ACCENT_1 },
+    { fond: COULEURS.ENCRE, texte: ACCENT_SOMBRE },
   ];
   return (
     <AbsoluteFill style={{ transform: `translate(${p * 1.25 * W}px, ${-p * 1.25 * H}px)`, zIndex: 100 }}>

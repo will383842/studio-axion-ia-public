@@ -15,6 +15,8 @@
  *    textes de publication (Q27), plafonds du réseau (Q11, verdict fourni par la porte).
  */
 import { createHash } from "node:crypto";
+import { cibleNommee, debutParle } from "@/domaine/ciblage/controles";
+import type { Ciblage } from "@/domaine/ciblage/types";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, DEBIT_MOTS_PAR_SEC } from "@/domaine/image-video/complexite";
 import { PARTIES, motsDits, texteDuCorps, type FicheImage } from "@/domaine/image-video/fiche";
@@ -41,7 +43,7 @@ import type { EtatVoixIV } from "./voix";
 export const CODES_CONTROLE_IV = [
   "Q01", "Q02", "Q03", "Q04", "Q05", "Q05bis", "Q06", "Q07", "Q08", "Q08bis", "Q09", "Q10", "Q11", "Q11bis",
   "Q12", "Q13", "CHIFFRES", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25",
-  "Q26", "Q27", "Q28", "FOND", "ORANGE", "FIN", "SCENE",
+  "Q26", "Q27", "Q28", "FOND", "ORANGE", "FIN", "SCENE", "C100",
 ] as const;
 export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
 
@@ -51,7 +53,7 @@ export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
  * Contrôles indicatifs (jamais bloquants : remarque orange à la porte). Q13 et Q14 (chiffre non montré, rythme) sont des défauts de DÉTAIL :
  * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q12, Q15, Q19 à Q23, Q25, Q27 et SCENE le sont aussi (règle du 25/10/2026). Restent bloquants : CHIFFRES (chiffre faux), la voix (Q16, Q17), le rendu impossible (mesure absente de Q24) et l'image noire ou illisible. Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; relecture impossible = remarque « images finales non relues ». Q11 (plafond de durée), Q05 côté voix (chiffre entendu hors script : transcription probablement fautive ; côté script il reste bloquant), Q11bis, Q18 (sous ses planchers), l'accroche de Q07 après 3 s, la phrase-choc ou la question pas entendue en entier (Q06, Q08bis) et l'absence de fin sont des remarques ; Q24 ne bloque qu'au-delà de ses planchers (image noire ou figée très longue, volume très éloigné) ou si une mesure manque ; le cadre et la cadence de Q24 sont des remarques.
  */
-export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", ...DEFAUTS_DE_DETAIL_IV, ...LIGNES_ZERO_BLOCAGE_IV]);
+export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", "C100", ...DEFAUTS_DE_DETAIL_IV, ...LIGNES_ZERO_BLOCAGE_IV]);
 
 /** Libellé de chaque contrôle, en tête de la phrase pour Will. */
 export const LIBELLES_CONTROLE_IV: Readonly<Record<CodeControleIV, string>> = Object.freeze({
@@ -91,6 +93,7 @@ export const LIBELLES_CONTROLE_IV: Readonly<Record<CodeControleIV, string>> = Ob
   ORANGE: "Mot orange",
   FIN: "Fin du réseau",
   SCENE: "Ligne de temps rendue",
+  C100: "Cible nommée dès le début",
 });
 
 export type EtatLigneIV = "reussi" | "echoue" | "non-fait";
@@ -158,6 +161,8 @@ export interface ContexteControlesIV {
   appelCommentaire?: AppelCommentaire;
   /** Script collé par Will : les points d'ossature d'un script écrit par l'IA ne le bloquent pas (`script-colle.ts`). */
   scriptColle?: boolean;
+  /** Cible déclarée (facultative) : absente des 5 premières secondes = remarque C100, jamais un blocage. */
+  ciblage?: Ciblage;
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,6 +195,12 @@ const deConstat = (code: CodeControleIV, v: VersionAControlerIV, c: ConstatSoupl
 /** Empreinte stable d'une ligne de temps (sa forme JSON). */
 export function empreinteLigne(l: LigneDeTempsIV): string {
   return createHash("sha256").update(JSON.stringify(l)).digest("hex").slice(0, 32);
+}
+
+/** C100 : la cible déclarée doit être nommée dans les 5 premières secondes. Sans cible déclarée : rien à dire. */
+export function remarqueCibleIV(script: string, ciblage: Ciblage | undefined): string[] {
+  if (!ciblage || cibleNommee(debutParle(script), ciblage)) return [];
+  return [`la cible déclarée (« ${ciblage.libelle} ») n'est pas nommée dans les 5 premières secondes.`];
 }
 
 /** Texte que dit la version : corps, puis question et fin (rien après la phrase-choc sur LinkedIn). */
@@ -363,6 +374,8 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // Mise en scène relue : Q12-Q15, Q19 (ligne de temps), Q20-Q23, Q25, fonds, mot orange, fin du réseau.
   const scene = relireMiseEnScene(v);
   L("SCENE", scene.ecarts);
+  // C100 · la cible (si déclarée) est nommée dès le début : remarque, jamais bloquant.
+  L("C100", remarqueCibleIV(scriptDeLaVersion(v), ctx.ciblage), { phraseOk: ctx.ciblage ? "cible nommée dès le début" : "aucune cible déclarée" });
   const lignesScene = scene.resultat?.rapport.lignes ?? [];
   const sceneDe = (code: LigneControleSceneIV["code"]) => lignesScene.filter((l) => l.code === code && l.bloquant).flatMap((l) => l.details);
   const sceneCode = (code: CodeControleIV & LigneControleSceneIV["code"]) => (scene.resultat ? L(code, sceneDe(code)) : L(code, ["la mise en scène n'a pas pu être relue."], { nonFait: true }));
@@ -385,7 +398,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // « Les chiffres dits ne sont pas confirmés » : une remarque seulement si la carte n'a AUCUN chiffre à dire ; sinon un chiffre dit pourrait être faux, la ligne bloque.
   const aDesChiffresADire = (v.courte ? carteSansRetires(carte, v.noeudsRetires ?? []) : carte).chiffres.some((c) => c.aDire);
   const chiffresNonConfirmes = "l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés.";
-  if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [chiffresNonConfirmes, ...chiffres], { nonFait: true });
+  if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [chiffresNonConfirmes, ...chiffres], ctx.scriptColle ? { nonFait: true, indicatif: true } : { nonFait: true });
   else if (sansEcoute) L("CHIFFRES", [chiffresNonConfirmes], { nonFait: true, indicatif: true });
   else L("CHIFFRES", chiffres, { indicatif: true });
 

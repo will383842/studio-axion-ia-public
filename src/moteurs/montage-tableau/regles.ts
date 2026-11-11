@@ -14,12 +14,13 @@
  * Importe la mise en page du tableau (`mise-en-page.ts`, règle 4) : elle n'importe rien de ce fichier (sa forme de
  * référence est dans `reference.ts`), et de `fiche.ts` que des types.
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import type { RegleFormat } from "@/briques/fiche-scenes";
 import { dessinValide as dessinValideBanque } from "@/briques/dessins";
 import { formesAdresse, utilisable } from "@/domaine/controles-script";
 import { contientExpression, debutsDePhrase, mots, motsPleins, racine, texteCompare } from "@/domaine/controles-script/texte";
 import type { ContexteAxion, Matiere, Preuve } from "@/domaine/types";
-import { CARACTERES_PAR_SECONDE_TABLEAU, DEBUT_DOULEUR_SEC, DUREE_MAX_TABLEAU_SEC, caracteresDits } from "@/domaine/duree-tableau";
+import { CARACTERES_PAR_SECONDE_TABLEAU, DEBUT_DOULEUR_SEC, DUREE_MAX_TABLEAU_SEC, TOLERANCE_DUREE_REFERENCE, caracteresDits } from "@/domaine/duree-tableau";
 import { QUESTIONS_IA } from "@/domaine/scripts-tableau";
 import { appliquerInterdits } from "@/domaine/voix";
 import { cleMot, type ElementTableau, type FicheTableau, type Geste, type Marque, type NiveauLigne, type RoleLigne, type SceneTableau } from "./fiche";
@@ -135,12 +136,12 @@ export interface FormeRole {
 
 /** Formes par défaut des rôles de ligne (couleurs des posts de Will, réponses du 11/10) ; l'habillage peut les remplacer. */
 export const FORMES_PAR_ROLE: Readonly<Record<RoleLigne, FormeRole>> = {
-  titre: { couleur: "#110A05", forme: { type: "soulignement" } },
-  regle: { couleur: "#110A05", forme: { type: "cadre" } },
-  avantage: { couleur: "#110A05", forme: { type: "pictogramme", nom: "coche" } },
-  condition: { couleur: "#110A05", forme: { type: "pictogramme", nom: "fleche" } },
-  resultat: { couleur: "#110A05", forme: { type: "pictogramme", nom: "cible" } },
-  alerte: { couleur: "#110A05", forme: { type: "pictogramme", nom: "point-exclamation" } },
+  titre: { couleur: PALETTE.noir, forme: { type: "soulignement" } },
+  regle: { couleur: PALETTE.noir, forme: { type: "cadre" } },
+  avantage: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "coche" } },
+  condition: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "fleche" } },
+  resultat: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "cible" } },
+  alerte: { couleur: PALETTE.noir, forme: { type: "pictogramme", nom: "point-exclamation" } },
 };
 
 export type PreuveConnue = Pick<Preuve, "id" | "statut" | "retrait" | "archiveLe" | "perimeLe">;
@@ -658,7 +659,8 @@ export function reglePreuveValidee(fiche: FicheTableau, contexte: ContexteTablea
       else if (s.role === "preuve") bonne = true;
     }
   }
-  if (!bonne && !res.length) {
+  // Texte dit de Will : pas de scène « preuve » imposée (le texte est pris à l'identique, on n'invente pas de preuve). Une fiche de Claude reste refusée.
+  if (!bonne && !res.length && !contexte.texteDeWill) {
     res.push({ detail: "aucune scène « preuve » ne montre une preuve validée et non périmée ; une vidéo montre sa preuve à l'écran." });
   }
   return res;
@@ -685,7 +687,8 @@ export function regleDouleurEnTete(fiche: FicheTableau, contexte: ContexteTablea
     });
   }
   const ecrits = clesPresentes(s.elements.flatMap(textesEcrits).join(" "), cles);
-  if (ecrits.length < MOTS_CLES_DOULEUR_MIN) {
+  // Texte dit de Will : la douleur saisie peut ne pas apparaître dans ses mots ; on ne refuse pas pour cela.
+  if (!contexte.texteDeWill && ecrits.length < MOTS_CLES_DOULEUR_MIN) {
     res.push({ sceneId: s.id, detail: `aucun mot de la douleur n'est écrit dans la première scène : écrivez dans une de ses lignes un des mots ${cherches}.` });
   }
   return res;
@@ -820,8 +823,10 @@ export function regleControlesScript(fiche: FicheTableau, contexte: ContexteTabl
 export function regleDureeMaximale(fiche: FicheTableau, contexte: ContexteTableau): Manquement[] {
   const ts = tempsScenes(fiche, debitDe(contexte));
   const fin = ts[ts.length - 1]?.finMs ?? 0;
-  if (fin <= DUREE_MAX_MS) return [];
-  const depasse = ts.find((t) => t.finMs > DUREE_MAX_MS);
+  // Texte dit de Will (`texteDeWill`) : tolérance de 5 % (débit non mesuré, comme le contrôle du fichier final) ; un texte de Claude reste à 180 s pile.
+  const limite = contexte.texteDeWill ? DUREE_MAX_MS * TOLERANCE_DUREE_REFERENCE : DUREE_MAX_MS;
+  if (fin <= limite) return [];
+  const depasse = ts.find((t) => t.finMs > limite);
   const enTrop = Math.ceil(((fin - DUREE_MAX_MS) / 1000) * debitDe(contexte));
   return [
     {
@@ -1045,7 +1050,9 @@ export function regleGesteFortDouleur(fiche: FicheTableau, contexte: ContexteTab
           (e.type === "ligne" && !!e.marque && MARQUES_FORTES.includes(e.marque) && lignesDouleur.get(e.id))),
     ),
   );
-  if (!fort) {
+  // Texte dit de Will : si aucune ligne de la première scène n'écrit un mot de la douleur, il n'y a rien à souligner : pas de refus.
+  const douleurEcrite = premiere.scene.elements.some((e) => e.type === "ligne" && lignesDouleur.get(e.id));
+  if (!fort && !(contexte.texteDeWill && !douleurEcrite)) {
     res.push({
       sceneId: premiere.scene.id,
       detail: `aucun geste fort (entourer, barrer) sur un mot de la douleur dans les ${DEBUT_DOULEUR_MS / 1000} premières secondes : entourez ou barrez, au début de la première scène, une ligne qui écrit un des mots ${cherches}.`,
@@ -1144,11 +1151,11 @@ export const REGLES_TABLEAU: readonly RegleTableau[] = [
   { numero: 11, nom: "dessins de la banque, droits valides", verifier: regleDessinsAutorises },
   { numero: 12, nom: "aucune phrase d'appel", verifier: (f, c) => regleSansAppel(f, c) },
   { numero: 13, nom: "contrôles du script sur les textes écrits et dits", verifier: regleControlesScript },
-  { numero: 14, nom: "durée de 90 secondes au plus", verifier: regleDureeMaximale },
+  { numero: 14, nom: "durée de 180 secondes au plus", verifier: regleDureeMaximale },
   { numero: 15, nom: "série sans numéro", verifier: (f, c) => regleSansNumeroEpisode(f, c) },
   { numero: 16, nom: "du rythme : un événement visuel toutes les 4 secondes", verifier: regleRythme },
   { numero: 17, nom: "geste fort sur la douleur dès le début", verifier: regleGesteFortDouleur },
-  { numero: 18, nom: "gabarit de page clair (titre, phrase clé, détails, numéros dits)", verifier: (f) => regleGabarit(f) },
+  { numero: 18, nom: "gabarit de page clair (titre, phrase clé, détails, numéros dits)", verifier: (f, c) => regleGabarit(f, c) },
 ];
 
 /** Règles du format pour la brique commune (`ExtensionFormat.regles`), liées au contexte injecté. */

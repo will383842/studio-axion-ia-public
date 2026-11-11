@@ -80,7 +80,17 @@ describe("3 · corps de la demande de guide envoyée au site", () => {
     lireTexteDe(ADRESSE);
     await deposerMessage(depots, { occurredAt: "2026-10-18T10:00:20.000Z" });
     await passer(T0 + 1000);
-    expect(JSON.parse(banc.site.vus[0].corps)).toMatchObject({ schemaVersion: 1, email: ADRESSE, reseau: "facebook", guide: "guide-ia" });
+    expect(JSON.parse(banc.site.vus[0].corps)).toEqual({
+      cleIdempotence: ((Object.values(await toutesLesConversations())[0]) as any).cleIdempotenceGuide, // dépend de l'identifiant d'événement : lue dans l'état
+      email: ADRESSE,
+      guide: "guide-ia",
+      locale: "fr",
+      mot: "GUIDE",
+      occurredAt: "2026-10-18T10:00:20.000Z",
+      reseau: "facebook",
+      schemaVersion: 1,
+      versionTexteM1: "mp-m1-v2",
+    });
     expect(C.PARAM_CONVERSATIONS).toBe("parcours.conversations");
   });
 });

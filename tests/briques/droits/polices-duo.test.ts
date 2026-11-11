@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DROITS, droitValide, trouverDroit } from "../../../src/briques/droits";
 
 describe("polices de charte-duo/1", () => {
-  it.each(["police-anton", "police-inter"])("%s : entrée valide, SIL OFL 1.1, de type police", (id) => {
+  it.each(["police-anton", "police-inter", "police-manrope"])("%s : entrée valide, SIL OFL 1.1, de type police", (id) => {
     const d = trouverDroit(id);
     expect(d?.type).toBe("police");
     expect(d?.licence).toBe("SIL OFL 1.1");
@@ -19,6 +19,14 @@ describe("polices de charte-duo/1", () => {
     expect(existsSync(new URL("../../../studio-rendu/compositions/commune/polices/OFL-Anton.txt", import.meta.url))).toBe(true);
     expect(existsSync(new URL("../../../studio-rendu/compositions/commune/polices/Anton-Regular.ttf", import.meta.url))).toBe(true);
     expect(existsSync(new URL("../../../studio-rendu/compositions/commune/polices/Inter-Bold.ttf", import.meta.url))).toBe(true);
+  });
+
+  it("police-manrope : copie de la licence et police variable présentes, date de l'entrée valide", () => {
+    const manrope = trouverDroit("police-manrope")!;
+    expect(manrope.preuve).toContain("studio-rendu/compositions/commune/polices/OFL-Manrope.txt");
+    expect(existsSync(new URL("../../../studio-rendu/compositions/commune/polices/OFL-Manrope.txt", import.meta.url))).toBe(true);
+    expect(existsSync(new URL("../../../studio-rendu/compositions/commune/polices/Manrope-Variable.ttf", import.meta.url))).toBe(true);
+    expect(droitValide("police-manrope", "2026-11-11")).toBe(true);
   });
 
   it("les identifiants restent uniques", () => {

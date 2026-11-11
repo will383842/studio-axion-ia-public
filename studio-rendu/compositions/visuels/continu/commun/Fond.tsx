@@ -23,7 +23,7 @@ export interface Halo {
 const GRAIN = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNjAnIGhlaWdodD0nMjYwJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nLjg1JyBudW1PY3RhdmVzPScyJyBzdGl0Y2hUaWxlcz0nc3RpdGNoJy8+PGZlQ29sb3JNYXRyaXggdmFsdWVzPScwIDAgMCAwIC4zNSAwIDAgMCAwIC4yMiAwIDAgMCAwIC4xIDAgMCAwIC4yMiAwJy8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsdGVyPSd1cmwoI24pJy8+PC9zdmc+")`;
 
 export function Fond({ pages, hauteur, sombres, halos }: { pages: number; hauteur: number; sombres: readonly number[]; halos: readonly Halo[] }) {
-  const degrades = halos.map((h) => `radial-gradient(${h.r}px ${Math.round(h.r * 0.78)}px at ${h.x}px ${h.y}px, ${alpha(C.orange, h.a ?? 0.18)}, transparent 62%)`);
+  const degrades = halos.map((h) => `radial-gradient(${h.r}px ${Math.round(h.r * 0.78)}px at ${h.x}px ${h.y}px, ${alpha(C.accentClair, h.a ?? 0.18)}, transparent 62%)`);
   return (
     <div data-fond="" style={{ position: "absolute", left: 0, top: 0, width: pages * LARGEUR_PAGE, height: hauteur, background: C.creme }}>
       {sombres.map((i) => (

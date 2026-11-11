@@ -951,6 +951,8 @@ async function rangerSujet(m: ScriptMaitre, g: GenerationScript, o: OptionsGener
     versionFormat: format.version,
     sujet: m.brief.idee,
     cible: m.brief.cible,
+    ...(m.brief.ciblage ? { ciblage: m.brief.ciblage } : {}),
+    ...(m.brief.typeAutomatisation ? { typeAutomatisation: m.brief.typeAutomatisation } : {}),
     adresse: o.adresse,
     version: 1,
     blocs: k.blocs,
@@ -1380,7 +1382,7 @@ export async function validerVariantes(varianteIds: Id[]): Promise<number> {
   const sujets = new Set((await Promise.all(varianteIds.map((id) => d.variantes.obtenir(id)))).filter((x): x is VarianteReseau => !!x).map((v) => v.scriptMaitreId));
   for (const id of sujets) {
     const m = await d.scriptsMaitres.obtenir(id);
-    if (m?.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) throw new ErreurStudio("LIMITE_A_VALIDER", "Validez d'abord la limite proposée (un toucher).");
+    if (m?.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) await journaliser("generateur", "Remarque : la limite proposée par la machine n'est pas validée ; la fabrication continue (le script de Williams fait foi).");
   }
   return validerVersions(await suivreInsertionLimite(varianteIds));
 }
@@ -1422,7 +1424,8 @@ export async function fabriquerVariante(varianteId: Id, options: { operationId: 
   const d = depots();
   const v = await d.variantes.obtenir(varianteId);
   if (!v || v.archiveLe) throw new ErreurStudio("INTROUVABLE", "Cette version n'existe plus.");
-  if (v.etat !== "validee") throw new ErreurStudio("A_VALIDER", "Validez d'abord cette version.");
+  // 08/11/2026 : une version non validée ne bloque plus ; remarque au journal, la fabrication part avec le texte de Williams.
+  if (v.etat !== "validee") await journaliser("generateur", "Remarque : cette version n'est pas validée ; la fabrication continue.", { type: "sujet", id: v.scriptMaitreId });
   if (options.lancer && !v.videoId) {
     // E2E-2 parcours n° 2 (fonction du correcteur argent) : budget, crédit et clé vérifiés AVANT toute création ; un
     // refus remonte tel quel et rien n'est créé.

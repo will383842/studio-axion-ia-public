@@ -260,7 +260,7 @@ export function texteBlocs(blocs: BlocScript[]): string {
 /** Le brief au format du sujet (pour les contrôles). */
 function briefDe(d: DonneesGeneration): ScriptMaitre["brief"] {
   const s = d.sujet;
-  return { idee: s.idee, phraseWill: s.phraseWill, objectif: s.objectif, niveauConscience: s.niveauConscience, reseaux: s.reseaux, formatId: s.formatId, formatsDemandes: [s.formatId], adresseParDefaut: s.adresse, modeParDefaut: s.mode, cible: s.cible, pilier: s.pilier?.id, modeChoix: "rapide", mentionIA: false, sujetSensible: s.sujetSensible };
+  return { idee: s.idee, phraseWill: s.phraseWill, objectif: s.objectif, niveauConscience: s.niveauConscience, reseaux: s.reseaux, formatId: s.formatId, formatsDemandes: [s.formatId], adresseParDefaut: s.adresse, modeParDefaut: s.mode, cible: s.cible, ciblage: s.ciblage, typeAutomatisation: s.typeAutomatisation, pilier: s.pilier?.id, modeChoix: "rapide", mentionIA: false, sujetSensible: s.sujetSensible };
 }
 
 /**

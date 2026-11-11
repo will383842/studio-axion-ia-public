@@ -15,6 +15,8 @@ import { moteurMontageTableau } from "./montage-tableau";
 import { moteurMontageCasConcret } from "./montage-cas-concret";
 import { moteurMontageFacecamAnimee } from "./montage-facecam-animee";
 import { moteurMontageImageVideo } from "./montage-image-video";
+import { moteurMontageTutorielOutil } from "./montage-tutoriel-outil";
+import { moteurMontageDemoFacecam } from "./montage-demo-facecam";
 import { moteurSimulation } from "./simulation";
 import type { MoteurVideo } from "./types";
 import { idMoteurDeCommande, moteurExiste, type IdMoteur } from "./ids";
@@ -35,6 +37,9 @@ const MOTEURS: Record<IdMoteur, MoteurVideo> = {
   // Face caméra animée (lot A) : squelette, désigné par le seul `format.moteur` du format facecam-animee.
   "montage-facecam-animee": moteurMontageFacecamAnimee,
   "montage-image-video": moteurMontageImageVideo,
+  // Lot G : vitrines, le rendu n'est pas branché (le travail est mis en pause claire).
+  "montage-tutoriel-outil": moteurMontageTutorielOutil,
+  "montage-demo-facecam": moteurMontageDemoFacecam,
 };
 
 export function obtenirMoteur(id: string): MoteurVideo {
