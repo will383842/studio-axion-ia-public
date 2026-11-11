@@ -94,7 +94,7 @@ export function OngletAccord({ fiche }: { fiche: VueFichePersonnage }) {
 
       {document ? (
         <div className="flex min-h-14 items-center gap-3 rounded-carte border border-trait bg-surface-1 px-4">
-          <Icone nom="document" size={20} className="text-orange-vif" />
+          <Icone nom="document" size={20} className="text-texte-faible" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-texte">{document.name}</span>
             <span className="text-xs text-texte-faible">{tailleLisible(document.size)}</span>

@@ -129,7 +129,7 @@ export function EtapeScript({ formatId, brouillon, modifier, allerA, contexte, c
         />
         {aTexte && (
           <span className="ml-auto flex items-center gap-1.5 text-sm font-semibold tabular-nums text-texte-doux">
-            <Icone nom="horloge" size={14} className="text-orange-vif" />≈ {libelleDuree(duree)}
+            <Icone nom="horloge" size={14} className="text-texte-doux" />≈ {libelleDuree(duree)}
           </span>
         )}
       </div>
@@ -245,17 +245,16 @@ export function EtapeScript({ formatId, brouillon, modifier, allerA, contexte, c
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           onClick={() => allerA("apercu")}
-          className="group relative isolate flex min-h-16 w-full items-center gap-3 overflow-hidden rounded-carte border border-orange/40 bg-surface-1 p-3 pl-4 text-left transition-colors hover:border-orange"
+          className="group relative isolate flex min-h-16 w-full items-center gap-3 overflow-hidden rounded-carte border border-trait bg-surface-1 p-3 pl-4 text-left transition-colors hover:border-trait-fort"
         >
-          <span aria-hidden className="absolute inset-0 -z-10 lueur opacity-70" />
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-orange-doux text-orange-vif transition-transform duration-300 group-hover:scale-110">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-texte-faible transition-transform duration-300 group-hover:scale-110">
             <Icone nom="eclair" size={20} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-semibold text-texte">Fabriquer avec les réglages habituels</span>
             <span className="block truncate text-sm text-texte-faible">Droit à l&apos;aperçu</span>
           </span>
-          <Icone nom="fleche-droite" size={18} className="shrink-0 text-orange-vif transition-transform group-hover:translate-x-0.5" />
+          <Icone nom="fleche-droite" size={18} className="shrink-0 text-texte-doux transition-transform group-hover:translate-x-0.5" />
         </motion.button>
       )}
     </div>
@@ -292,7 +291,7 @@ function ListeMesScripts({ scripts, onChoisir }: { scripts: ScriptExpress[]; onC
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-semibold text-texte">{s.sujet}</span>
-              {(parSujet.get(s.sujet) ?? 0) > 1 && <span className="block text-xs font-semibold text-orange-vif">{distinctionScript(s)}</span>}
+              {(parSujet.get(s.sujet) ?? 0) > 1 && <span className="block text-xs font-semibold text-texte-doux">{distinctionScript(s)}</span>}
               <span className="line-clamp-2 text-sm text-texte-faible">{s.apercu}</span>
             </span>
             <span className="shrink-0 pt-0.5 text-xs font-semibold tabular-nums text-texte-doux">≈ {libelleDuree(s.dureeEstimeeSec)}</span>

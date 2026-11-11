@@ -35,7 +35,7 @@ export function CarteFormat({ format, href, compacte, className }: ProprietesCar
   const bientot = format.statut !== "actif";
   const classes = cn(
     "group relative isolate flex overflow-hidden rounded-carte border bg-surface-1 shadow-carte transition-[border-color,transform] duration-200 ease-studio",
-    bientot ? "cursor-not-allowed border-trait opacity-70" : "border-trait hover:-translate-y-0.5 hover:border-orange/60",
+    bientot ? "cursor-not-allowed border-trait opacity-70" : "border-trait hover:-translate-y-0.5 hover:border-trait-fort",
     compacte ? "items-center gap-3 p-3" : "flex-col",
     className,
   );
@@ -61,7 +61,7 @@ export function CarteFormat({ format, href, compacte, className }: ProprietesCar
             <div className="absolute inset-0 lueur-forte" />
           )}
           <div aria-hidden className="absolute inset-0 bg-linear-to-t from-surface-1 via-surface-1/10 to-transparent" />
-          <span className={cn("absolute left-3 top-3 grid size-11 place-items-center rounded-2xl backdrop-blur", bientot ? "bg-surface-2/80 text-texte-doux" : "bg-orange text-sur-orange shadow-orange")}>
+          <span className={cn("absolute left-3 top-3 grid size-11 place-items-center rounded-2xl backdrop-blur", bientot ? "bg-surface-2/80 text-texte-doux" : "bg-surface-1/90 text-texte shadow-carte")}>
             <Icone nom={format.icone} size={22} />
           </span>
           {bientot && (
@@ -77,7 +77,7 @@ export function CarteFormat({ format, href, compacte, className }: ProprietesCar
         </div>
       )}
       {compacte && (
-        <span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl", bientot ? "bg-surface-2 text-texte-doux" : "bg-orange text-sur-orange")}>
+        <span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl", bientot ? "bg-surface-2 text-texte-doux" : "bg-surface-2 text-texte")}>
           <Icone nom={format.icone} size={22} />
         </span>
       )}
