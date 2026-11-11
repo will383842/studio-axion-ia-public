@@ -460,6 +460,9 @@ export function VueConnexionsZernio({ vue, services, arretActif, enCours, onChan
       </header>
 
       <ToutArreter services={services} arretActif={donnees?.arretActif ?? arretActif} erreur={vue.etat === "erreur"} onChange={onChange} />
+      <p data-reglage="envoi-calendrier" className="text-sm text-texte-doux">
+        Envoi du calendrier : <strong className="text-texte">{donnees?.envoiCalendrierOuvert === true ? "allumé" : "éteint"}</strong>. Réglage séparé de l’arrêt d’urgence : il ne touche pas aux messages du parcours.
+      </p>
 
       {vue.etat === "chargement" && <BandeauChargement />}
       {vue.etat === "erreur" && <BandeauErreur onReessayer={() => onReessayer?.()} enCours={enCours} />}

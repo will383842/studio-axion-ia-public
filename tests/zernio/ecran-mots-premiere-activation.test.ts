@@ -84,7 +84,7 @@ describe("session exigée", () => {
   });
 });
 
-const vueVide = { guidePerime: false, interrupteurAllume: false, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 100 }, lignes: [] as LigneMot[], oppositions: 0, guideValide: false };
+const vueVide = { guidePerime: false, interrupteurAllume: false, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 100 }, lignes: [] as LigneMot[], oppositions: 0, parcoursAllume: false, oppositionsNonTransmises: 0, guideValide: false };
 const services = () => ({
   mettreEnPause: vi.fn(),
   reactiver: vi.fn(),
