@@ -17,7 +17,7 @@ export function Pied({ index, total, sombre }: { index: number; total: number; s
         <span style={{ opacity: 0.55, fontWeight: 500 }}>{derniere ? "enregistrer" : "glisser →"}</span>
       </div>
       <div style={{ height: PIED.rail, borderRadius: 3, background: sombre ? alpha(C.creme, 0.18) : alpha(C.encre, 0.12), position: "relative" }}>
-        <u style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${((index + 1) / total) * 100}%`, borderRadius: 3, background: C.orange, display: "block" }} />
+        <u style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${((index + 1) / total) * 100}%`, borderRadius: 3, background: sombre ? C.accentSombre : C.accentClair, display: "block" }} />
       </div>
     </div>
   );

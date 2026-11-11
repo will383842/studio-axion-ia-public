@@ -1077,27 +1077,37 @@ export function problemesDuCas(cas: CasConcret): ProblemeFiche[] {
  * Décision de Will du 08/11/2026 : le script de Will (écrit, collé, modifié) fait foi. Ces règles ne REFUSENT plus son script.
  * `REGLES_REMARQUES` : durée, nombre d'écrans, accroche, tutoiement, rythme : une simple remarque.
  * `REGLES_AVERTISSEMENTS` : mots interdits (« machine », mots légaux), faux témoignage, chiffres douteux : un avertissement très visible.
- * Les autres règles (marque, visuels connus, ordre du fonctionnement…) restent bloquantes : sans elles la vidéo ne se fabrique pas.
+ * 11/11/2026 : l'ordre du fonctionnement (R23, partie humaine mot pour mot), l'appel à l'action dans le corps (R18) et la liste « avant » tardive ne s'assouplissent QUE pour un script de Will (`fourni === true`) ; un script validé non fourni (texte écrit par Claude) les garde bloquants, et un texte non validé garde `validerFicheEcrans`, strict.
+ * Les autres règles (marque, visuels connus…) restent bloquantes : sans elles la vidéo ne se fabrique pas.
  */
 export const REGLES_REMARQUES: readonly string[] = ["durée d'un écran", "rythme", "accroche", "vouvoiement", "nombre d'écrans", "durée totale"];
-export const REGLES_AVERTISSEMENTS: readonly string[] = ["mots interdits", "nombres des faits", "réserve des estimations", "aucun témoignage", "aucun usage réel", "aucun prix", "phrase de conformité", "sigles"];
+export const REGLES_AVERTISSEMENTS_BASE: readonly string[] = ["mots interdits", "nombres des faits", "réserve des estimations", "aucun témoignage", "aucun usage réel", "aucun prix", "phrase de conformité", "sigles"];
+/** Avertissements en plus pour un script FOURNI par Will (R23 et R18). */
+export const REGLES_AVERTISSEMENTS_FOURNI: readonly string[] = [...REGLES_AVERTISSEMENTS_BASE, "ordre du fonctionnement", "aucun appel dans le corps"];
+export const REGLES_AVERTISSEMENTS: readonly string[] = REGLES_AVERTISSEMENTS_FOURNI;
 
 export type ResultatFicheTolerant =
   | { ok: true; fiche: FicheEcrans; remarques: ProblemeFiche[]; avertissements: ProblemeFiche[] }
   | { ok: false; problemes: ProblemeFiche[] };
 
-/** Comme `validerFicheEcrans`, pour le script de Will : seules les règles techniques refusent, le reste devient remarque ou avertissement. */
-export function validerFicheEcransTolerant(brut: unknown, contexte: ContexteCasConcret): ResultatFicheTolerant {
+/**
+ * Comme `validerFicheEcrans`, pour le script de Will : seules les règles techniques refusent, le reste devient remarque ou avertissement.
+ * `fourni` : le script est celui de Will (`script.fourni === true`) ; sinon R18, R23 et la liste tardive restent bloquantes.
+ */
+export function validerFicheEcransTolerant(brut: unknown, contexte: ContexteCasConcret, fourni: boolean): ResultatFicheTolerant {
   const forme = validerSchemaFiche(brut);
   if (!forme.ok) return forme;
   const problemes = [...problemesDuCas(contexte.cas), ...verifierRegles(forme.fiche, contexte, REGLES_CAS_CONCRET)];
-  const bloquants = problemes.filter((p) => !REGLES_REMARQUES.includes(p.regle) && !REGLES_AVERTISSEMENTS.includes(p.regle));
+  const avertissable = fourni ? REGLES_AVERTISSEMENTS_FOURNI : REGLES_AVERTISSEMENTS_BASE;
+  // 11/11/2026 : « la liste « avant » commence avant 6 s » (R04) n'est qu'une remarque pour un script FOURNI par Will (accroche longue).
+  const listeTardive = (p: ProblemeFiche) => fourni && p.regle === "ordre des écrans" && p.message.includes("la liste « avant » commence à");
+  const bloquants = problemes.filter((p) => !REGLES_REMARQUES.includes(p.regle) && !avertissable.includes(p.regle) && !listeTardive(p));
   if (bloquants.length) return { ok: false, problemes: bloquants };
   return {
     ok: true,
     fiche: forme.fiche,
-    remarques: problemes.filter((p) => REGLES_REMARQUES.includes(p.regle)),
-    avertissements: problemes.filter((p) => REGLES_AVERTISSEMENTS.includes(p.regle)),
+    remarques: problemes.filter((p) => REGLES_REMARQUES.includes(p.regle) || listeTardive(p)),
+    avertissements: problemes.filter((p) => avertissable.includes(p.regle)),
   };
 }
 

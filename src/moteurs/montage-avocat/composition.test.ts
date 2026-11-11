@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { CommandeFabrication, SegmentSousTitres } from "@/domaine/types";
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { decorsCatalogue } from "@/donnees/decors-catalogue";
 import { ACCESSOIRE_MICRO, HABILLAGE_AVOCAT, PROFIL_SON_AVOCAT, STYLE_SOUS_TITRES_AVOCAT } from "@/donnees/elements-avocat";
 import { formatAvocat, RECETTE_MONTAGE_AVOCAT } from "@/formats/avocat";
@@ -209,7 +210,7 @@ describe("paramètres complets d'un format", () => {
     expect(p.image.plans.map((x) => x.type)).toEqual(["double", "double", "illustration", "double", "double"]);
     expect(p.image.plans[2].illustration).toEqual({ url: "entree:illu-3", video: false });
     expect(p.image.accessoire).toMatchObject({ x: 0.78, y: 0.3, largeurPct: 22, flouPx: 3 });
-    expect(p.image.contour).toEqual({ couleur: "#C65A2E", cote: "gauche" });
+    expect(p.image.contour).toEqual({ couleur: PALETTE.orange, cote: "gauche" });
     expect(p.entrees).toMatchObject({ decor: "/demo/decors/fond-1-halo-orange.jpg", "illu-3": "/demo/illustrations/illu-02.jpg", voix: "studio/dev/audio.wav" });
     expect(p.couleurs.luts.map((l) => [l.intensite, l.plages])).toEqual([[0.7, [[0, 4], [6, 9]]], [0.7, [[4, 6]]]]);
     expect(p.couleurs).toMatchObject({ grainPct: 4, grainTaillePx: 2, vignettePct: 8 });

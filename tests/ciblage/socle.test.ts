@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { TAILLES, TYPES_AUTOMATISATION, type Ciblage } from "@/domaine/ciblage/types";
 import { appliquerChoix, beneficeClair, cibleNommee, debutParle, deduireCiblage, deduireTypeAutomatisation, libelleCibleValide, normaliser } from "@/domaine/ciblage/controles";
 import { doublonsPossibles } from "@/domaine/ciblage/doublons";
-import { ChoixCible } from "@/components/ciblage/ChoixCible";
+import { ChoixCible, gererChoix } from "@/components/ciblage/ChoixCible";
 import { ChoixTypeAutomatisation } from "@/components/ciblage/ChoixTypeAutomatisation";
 
 const metier = (libelle: string): Ciblage => ({ niveau: "metier", libelle, origine: "saisie" });
@@ -271,5 +271,58 @@ describe("défaut 6 : ChoixCible réactif et libellé valide", () => {
     expect(libelleCibleValide("   ")).toBe(false);
     expect(libelleCibleValide("deux\nlignes")).toBe(false);
     expect(libelleCibleValide("une\rligne")).toBe(false);
+  });
+});
+
+describe("lot A2 : finitions du socle", () => {
+  it("deux cibles courtes/longues dans un même texte : pas de déduction", () => {
+    expect(deduireCiblage("les comptables et experts comptables")).toBeNull();
+    expect(deduireCiblage("pour les experts comptables")?.libelle).toBe("expert-comptable");
+    expect(deduireCiblage("les comptables")?.libelle).toBe("comptable");
+  });
+  it("cleCible ignore le pluriel", () => {
+    const base = { sujet: "relancer les impayés rapidement", typeAutomatisation: "relances-impayes" as const };
+    const g = doublonsPossibles([
+      { id: "a", ...base, ciblage: { niveau: "metier", libelle: "Plombiers", origine: "saisie" } },
+      { id: "b", ...base, ciblage: { niveau: "metier", libelle: "plombier", origine: "saisie" } },
+    ]);
+    expect(g).toEqual([["a", "b"]]);
+  });
+  it("la zone role=status est toujours présente", () => {
+    const h = renderToStaticMarkup(createElement(ChoixCible, { niveau: "metier", suggestions: ["plombier"] }));
+    expect(h).toContain('role="status"');
+    expect(h).not.toContain("Aucune suggestion");
+    const v = renderToStaticMarkup(createElement(ChoixCible, { niveau: "metier" }));
+    expect(v).toContain('role="status"');
+    expect(v).toContain("Aucune suggestion");
+  });
+  it("gererChoix appelle onChange avec (metier, \"\") au changement de niveau", () => {
+    const appels: [string, string][] = [];
+    const suivant = gererChoix({ niveau: "taille", valeur: "PME" }, { type: "niveau", niveau: "metier" }, (n, v) => appels.push([n, v]));
+    expect(appels).toEqual([["metier", ""]]);
+    expect(suivant).toEqual({ niveau: "metier", valeur: "" });
+    gererChoix(suivant, { type: "valeur", valeur: "plombier" }, (n, v) => appels.push([n, v]));
+    expect(appels[1]).toEqual(["metier", "plombier"]);
+  });
+  it("deduireCiblage gère le féminin", () => {
+    expect(deduireCiblage("les agences immobilières")?.libelle).toBe("immobilier");
+    expect(deduireCiblage("une agence immobilière")?.niveau).toBe("secteur");
+    expect(deduireCiblage("les photographes et les électriciennes")).toBeNull();
+    expect(deduireCiblage("une électricienne")?.libelle).toBe("électricien");
+    expect(deduireCiblage("une coiffeuse")?.libelle).toBe("coiffeur");
+  });
+});
+
+describe("lot A2 (relecture) : le féminin ne crée pas de fausse cible", () => {
+  it("médecine et transporté ne sont ni médecin ni transport", () => {
+    expect(deduireCiblage("la médecine du travail")).toBeNull();
+    expect(deduireCiblage("un colis transporté")).toBeNull();
+  });
+  it("les vrais féminins restent reconnus", () => {
+    expect(deduireCiblage("une avocate")?.libelle).toBe("avocat");
+    expect(deduireCiblage("les agentes immobilières")?.libelle).toBe("agent immobilier");
+    expect(deduireCiblage("une boulangère")?.libelle).toBe("boulanger");
+    expect(deduireCiblage("une experte-comptable")?.libelle).toBe("expert-comptable");
+    expect(deduireCiblage("une formatrice")?.libelle).toBe("formateur");
   });
 });

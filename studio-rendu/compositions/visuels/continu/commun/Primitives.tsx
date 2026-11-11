@@ -36,7 +36,7 @@ export function Icone({ nom, taille, couleur = "currentColor", epaisseur = 1.8 }
 }
 
 export type VarianteTuile = keyof typeof D.tuile;
-const ENCRE_TUILE: Record<VarianteTuile, string> = { o: C.ecume, k: C.orangeLumiere, w: C.orange, p: C.orangeBrule, g: C.creme };
+const ENCRE_TUILE: Record<VarianteTuile, string> = { o: C.creme, k: C.accentSombre, w: C.accentClair, p: C.accentClair, g: C.creme };
 
 /** `tile(n, sz, v)` : tuile en relief (rayon 30 %, biseau bas, ombre portée), icône à 54 %. */
 export function Tuile({ icone, taille, variante = "o", style }: { icone: NomIconeContinu; taille: number; variante?: VarianteTuile; style?: CSSProperties }) {
@@ -61,7 +61,7 @@ export function Sphere({ rayon, sombre = false }: { rayon: number; sombre?: bool
   const d = rayon * 2;
   const arrets = sombre
     ? [[0, C.brunPierre], [0.5, C.encreDouce], [1, C.nuit]]
-    : [[0, C.abricot], [0.38, C.orangeClair], [0.78, C.cuivre], [1, C.rouille]];
+    : [[0, C.abricot], [0.38, C.accentClair], [0.78, C.cuivre], [1, C.rouille]];
   return (
     <svg width={d} height={d} viewBox={`0 0 ${d} ${d}`} style={{ display: "block", overflow: "visible" }} aria-hidden>
       <defs>
@@ -83,7 +83,7 @@ export function Sphere({ rayon, sombre = false }: { rayon: number; sombre?: bool
 }
 
 /** `spk(x, y, s, c)` : étincelle à quatre branches (sans position : le parent la place). */
-export function Etincelle({ taille, couleur = C.orange }: { taille: number; couleur?: string }) {
+export function Etincelle({ taille, couleur = C.accentClair }: { taille: number; couleur?: string }) {
   return (
     <svg width={taille} height={taille} viewBox="0 0 24 24" aria-hidden style={{ display: "block" }}>
       <path d="M12 0c.6 6.5 5.5 11.4 12 12-6.5.6-11.4 5.5-12 12-.6-6.5-5.5-11.4-12-12 6.5-.6 11.4-5.5 12-12z" fill={couleur} />
@@ -101,9 +101,9 @@ export type VarianteCarte = "" | "k" | "o" | "pl" | "c" | "glass";
 function styleCarte(v: VarianteCarte): CSSProperties {
   switch (v) {
     case "k":
-      return { background: D.carte.k, color: C.creme, boxShadow: `inset 0 2px 0 ${alpha(C.blancCarte, 0.12)}, 0 44px 60px -34px ${alpha(C.nuit, 0.7)}` };
+      return { background: D.carte.k, color: C.creme, boxShadow: `inset 0 0 0 1.5px ${alpha(C.creme, 0.12)}, inset 0 2px 0 ${alpha(C.blancCarte, 0.12)}, 0 44px 60px -34px ${alpha(C.nuit, 0.7)}` };
     case "o":
-      return { background: D.carte.o, color: C.encre, boxShadow: `inset 0 2px 0 ${alpha(C.blancCarte, 0.4)}, 0 44px 60px -34px ${ombre(0.6)}` };
+      return { background: D.carte.o, color: C.creme, boxShadow: `inset 0 2px 0 ${alpha(C.blancCarte, 0.4)}, 0 44px 60px -34px ${ombre(0.6)}` };
     case "pl":
       return { background: D.carte.pl, boxShadow: `0 0 0 1.5px ${alpha(C.encre, 0.06)}, 0 44px 60px -34px ${ombre(0.42)}` };
     case "c":
@@ -135,7 +135,7 @@ export function Bulle({ cote, children }: { cote: "l" | "r" | "ro"; children: Re
   const variantes: Record<typeof cote, CSSProperties> = {
     l: { background: C.blancCarte, borderBottomLeftRadius: 10, boxShadow: `0 0 0 1.5px ${alpha(C.encre, 0.06)}, 0 20px 30px -20px ${ombre(0.4)}` },
     r: { background: C.encre, color: C.creme, borderBottomRightRadius: 10, alignSelf: "flex-end" },
-    ro: { background: D.bouton, color: C.encre, borderBottomRightRadius: 10, alignSelf: "flex-end" },
+    ro: { background: D.bouton, color: C.creme, borderBottomRightRadius: 10, alignSelf: "flex-end" },
   };
   return <div style={{ ...base, ...variantes[cote] }}>{children}</div>;
 }
@@ -162,7 +162,7 @@ export function Titre({ taille, texte, accent, sombre = false, style }: { taille
       {accent ? (
         <>
           {" "}
-          <em style={{ ...police(400, Math.round(taille * 1.1), 0.9, POLICE_SERIF, true), letterSpacing: "-0.015em", color: C.orange, wordSpacing: 0 }}>{accent}</em>
+          <em style={{ ...police(400, Math.round(taille * 1.1), 0.9, POLICE_SERIF, true), letterSpacing: "-0.015em", color: sombre ? C.accentSombre : C.accentClair, wordSpacing: 0 }}>{accent}</em>
         </>
       ) : null}
     </h1>

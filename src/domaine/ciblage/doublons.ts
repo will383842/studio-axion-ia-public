@@ -1,6 +1,6 @@
 /** Doublons possibles : même type, même cible, sujets proches (Jaccard ≥ 0,6). */
 import type { Id } from "@/domaine/types";
-import { normaliser } from "./controles";
+import { normaliser, racine as racineMot } from "./controles";
 import type { Ciblage, TypeAutomatisation } from "./types";
 
 export interface ScriptPourDoublons {
@@ -26,9 +26,13 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
   return commun / (a.size + b.size - commun);
 }
 
+function normaliserCible(texte: string): string {
+  return normaliser(texte).split(" ").map(racineMot).join(" ");
+}
+
 function cleCible(s: ScriptPourDoublons): string {
-  if (s.ciblage) return `${s.ciblage.niveau}:${normaliser(s.ciblage.libelle)}`;
-  return s.cible ? `libre:${normaliser(s.cible)}` : "";
+  if (s.ciblage) return `${s.ciblage.niveau}:${normaliserCible(s.ciblage.libelle)}`;
+  return s.cible ? `libre:${normaliserCible(s.cible)}` : "";
 }
 
 /** Groupes (d'au moins 2 identifiants) de scripts qui se ressemblent. */
