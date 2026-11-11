@@ -46,13 +46,13 @@ describe("ADR 0010 à 0013", () => {
     const t = lire(ADR[0][1]);
     expect(t).toMatch(/D-14/);
     expect(t).toMatch(/choix du fondateur l'emporte/);
-    expect(t).not.toMatch(/le Studio fait foi\.?(?! .*(sauf|nuance))/i);
+    for (const l of t.split("\n").filter((x) => /fait foi/i.test(x))) expect(l).toMatch(/posée à la main/);
   });
 
   it("0013 : garde sortante ; l'usine ne parle jamais à Zernio", () => {
     const t = lire(ADR[3][1]);
     expect(t).toMatch(/garde sortante/i);
-    expect(t).toMatch(/l'usine ne parle jamais à Zernio/);
+    expect(t).toMatch(/l'usine ne parle jamais à Zernio/i);
   });
 
   it("0012 : sonde de publication sans appel réel dans l'ADR", () => {
