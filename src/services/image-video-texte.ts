@@ -19,11 +19,11 @@ import type { Distribution, Id } from "@/domaine/types";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { cleDuTexte, PROVENANCE_TEXTE, refusTexte } from "@/moteurs/montage-image-video/texte/conception";
-import { refusScriptColle } from "@/moteurs/montage-image-video/texte/script-limites";
+import { nombreDeMotsDuScript, refusScriptColle } from "@/moteurs/montage-image-video/texte/script-limites";
 import { creerVerrou, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import { accordAutomatique, avecAccordAutomatique } from "./mode-budget";
 import { exigerSession } from "./auth";
-import { BLOCS_SCRIPT_PROVISOIRE_IV, PARAM_ACCORD_ESSAI_IV, PHRASES_IV, prixDuDepot, type DependancesEcranIV } from "./image-video-ecran";
+import { BLOCS_SCRIPT_PROVISOIRE_IV, PARAM_ACCORD_ESSAI_IV, dureeCibleDuScript, PHRASES_IV, prixDuDepot, type DependancesEcranIV } from "./image-video-ecran";
 
 export interface DemandeDepotTexteIV {
   /** Description libre de l'automatisation (comme dans une conversation). */
@@ -110,7 +110,7 @@ async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptCo
   if (!(await (dep.formatOuvert ?? formatOuvertParDefaut)())) return { statut: "refusee", phrase: PHRASES_IV.pasRaccorde };
   const voix = await (dep.voix ?? voixParDefaut)();
   if (!voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
-  const montant = prixDuDepot(reseaux, await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))());
+  const montant = prixDuDepot(reseaux, await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))(), scriptColle ? Math.max(50, dureeCibleDuScript(nombreDeMotsDuScript(d.texte))) : 50);
   return verrouDepotTexte<IssueDepotTexteIV>(async () => {
     // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord ; sinon l'accord reçu, tel quel.
     const accordBrut = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;

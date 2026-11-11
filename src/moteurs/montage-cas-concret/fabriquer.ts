@@ -611,7 +611,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     // REMARQUES gardées sur la vidéo, jamais un refus. Un texte écrit par Claude garde les règles d'avant.
     const ctxRegles = { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles };
     if (script) {
-      const t = validerFicheEcransTolerant(brute, ctxRegles);
+      const t = validerFicheEcransTolerant(brute, ctxRegles, script.fourni === true);
       if (!t.ok) throw refus(t.problemes.map((p) => p.message));
       return { fiche: t.fiche, remarquesScript: [...ecartsScriptValide(script, cas), ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
     }
