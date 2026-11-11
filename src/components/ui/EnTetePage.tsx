@@ -54,6 +54,7 @@ export function EnTeteSection({
   compteur,
   sousTitre,
   action,
+  niveau = 2,
   className,
 }: {
   titre: string;
@@ -61,15 +62,17 @@ export function EnTeteSection({
   compteur?: number;
   sousTitre?: ReactNode;
   action?: ReactNode;
+  niveau?: 2 | 3;
   className?: string;
 }) {
+  const Titre = niveau === 3 ? "h3" : "h2";
   return (
     <div className={cn("mb-3", className)}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="flex min-w-0 items-center gap-2 truncate text-lg text-texte">
+        <Titre className="flex min-w-0 items-center gap-2 truncate text-lg text-texte">
           {titre}
           {compteur !== undefined && <span className="rounded-full bg-surface-2 px-2 py-0.5 font-texte text-xs font-bold tabular-nums text-texte-doux">{compteur}</span>}
-        </h2>
+        </Titre>
         {action}
         {lien && (
           <Link href={lien.href} className="-mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-sm font-semibold text-texte-doux hover:text-texte">

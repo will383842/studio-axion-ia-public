@@ -28,7 +28,7 @@ function LigneCompte({ c }: { c: VueCompteCredit }) {
 export function CarteCreditClaude({ vue, maintenant = new Date().toISOString() }: { vue: VueCreditClaude; maintenant?: string }) {
   const alerte = avertissementCreditClaude({ mode: vue.mode, comptes: vue.comptes, maintenant, formaterJour: dateCourte });
   return (
-    <Link href="/reglages#credits-claude" className="block">
+    <Link href="/reglages#credits-claude" className="-m-2 block rounded-xl p-2 hover:bg-surface-2">
       <div>
         <p className="text-sm font-semibold text-texte-doux">Crédit Claude restant (estimé)</p>
         <p className="mt-1 font-titre text-3xl tabular-nums text-texte">{vue.totalTexte}</p>

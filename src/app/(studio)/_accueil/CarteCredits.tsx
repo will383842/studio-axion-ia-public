@@ -32,7 +32,7 @@ export function CarteCredits({ cartes, brouillonsPrets }: { cartes: CarteCredit[
 
   if (!cartes.length) return null;
   return (
-    <Link href="/reglages#credits" className="block">
+    <Link href="/reglages#credits" className="-m-2 block rounded-xl p-2 hover:bg-surface-2">
       <div>
         <p className="mb-3 text-sm font-semibold text-texte-doux">Crédits</p>
         <ul className="space-y-3">

@@ -56,7 +56,7 @@ export function PuceLien({ href, actif = false, className, children }: { href: s
  * Filtres actifs retirables + « Tout effacer ». Props : puces ({ libelle, href (lien qui retire ce filtre) }[]), effacerHref, className?.
  * Ne rend rien s'il n'y a aucune puce.
  */
-export function PucesActives({ puces, effacerHref, className }: { puces: { libelle: string; href: string }[]; effacerHref: string; className?: string }) {
+export function PucesActives({ puces, effacerHref, sansEffacer, className }: { puces: { libelle: string; href: string }[]; effacerHref: string; sansEffacer?: boolean; className?: string }) {
   if (puces.length === 0) return null;
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
@@ -71,9 +71,11 @@ export function PucesActives({ puces, effacerHref, className }: { puces: { libel
           <Icone nom="fermer" size={14} />
         </Link>
       ))}
-      <Link href={effacerHref} className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-texte-doux hover:text-texte sm:min-h-9">
-        Tout effacer
-      </Link>
+      {!sansEffacer && (
+        <Link href={effacerHref} className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-texte-doux hover:text-texte sm:min-h-9">
+          Tout effacer
+        </Link>
+      )}
     </div>
   );
 }

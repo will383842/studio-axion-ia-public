@@ -78,7 +78,7 @@ export default async function PageVideos({ searchParams }: { searchParams: Promi
         <FiltresCiblage base="/videos" params={sp} filtre={{ anciens: false, type: filtreCiblage.type }} nbAnciens={0} disposition="panneau" />
       </>
     ),
-    puces: <PucesActives puces={puces} effacerHref={effacerHref} />,
+    puces: <PucesActives puces={puces} effacerHref={effacerHref} sansEffacer />,
     nombre: puces.length,
     effacerHref,
   };

@@ -6,6 +6,7 @@ import { Tabs } from "radix-ui";
 import { useId, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { Icone, type NomIcone } from "./Icone";
+import { MenuPlusOnglets } from "./MenuPlusOnglets";
 
 export interface Onglet {
   valeur: string;
@@ -117,29 +118,26 @@ function LienOnglet({ o, idActif }: { o: OngletLien; idActif?: string }) {
 export function OngletsLiens({ onglets, libelle, plus, className }: { onglets: OngletLien[]; libelle: string; plus?: OngletLien[]; className?: string }) {
   const id = useId();
   const plusActif = plus?.some((o) => o.actif) ?? false;
-  return (
-    <nav aria-label={libelle} className={cn("sans-barre -mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 lg:flex-wrap lg:overflow-visible", className)}>
+  const cle = [...onglets, ...(plus ?? [])].find((o) => o.actif)?.href ?? "aucun";
+  const rangee = (
+    <nav
+      aria-label={libelle}
+      className={cn("sans-barre -mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 lg:flex-wrap lg:overflow-visible", plus && plus.length > 0 ? "min-w-0 flex-1" : "", !(plus && plus.length > 0) && className)}
+    >
       {onglets.map((o) => (
         <LienOnglet key={o.href} o={o} idActif={`${id}-actif`} />
       ))}
-      {plus && plus.length > 0 && (
-        <details className="group/plus relative shrink-0">
-          <summary
-            className={cn(
-              "flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition-colors [&::-webkit-details-marker]:hidden",
-              plusActif ? "bg-texte text-fond" : "text-texte-doux hover:text-texte",
-            )}
-          >
-            Plus
-            <Icone nom="chevron-bas" size={16} />
-          </summary>
-          <div className="fixed inset-x-4 z-20 mt-1 flex lg:absolute lg:inset-x-auto lg:left-0 lg:top-full lg:min-w-48 flex-col gap-1 rounded-carte border border-trait bg-surface-1 p-2 shadow-carte">
-            {plus.map((o) => (
-              <LienOnglet key={o.href} o={o} />
-            ))}
-          </div>
-        </details>
-      )}
     </nav>
+  );
+  if (!plus || plus.length === 0) return rangee;
+  return (
+    <div className={cn("flex items-start gap-1", className)}>
+      {rangee}
+      <MenuPlusOnglets key={cle} actif={plusActif}>
+        {plus.map((o) => (
+          <LienOnglet key={o.href} o={o} />
+        ))}
+      </MenuPlusOnglets>
+    </div>
   );
 }

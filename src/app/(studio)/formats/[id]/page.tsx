@@ -69,7 +69,7 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
   const effacerHref = lienFiltres(base, sp, { reseau: undefined, etape: undefined });
   const filtresAdresse = {
     contenu: <FiltresMesVideos base={base} params={sp} filtres={filtres} reseaux={reseaux} disposition="panneau" />,
-    puces: <PucesActives puces={puces} effacerHref={effacerHref} />,
+    puces: <PucesActives puces={puces} effacerHref={effacerHref} sansEffacer />,
     nombre: puces.length,
     effacerHref,
   };

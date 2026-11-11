@@ -147,7 +147,7 @@ export default async function PageAccueil() {
             <div className="space-y-6">
               {r.brouillons.length > 0 && (
                 <div>
-                  <EnTeteSection titre="Brouillons" compteur={r.brouillons.length} lien={{ href: "/videos?vue=brouillons" }} />
+                  <EnTeteSection niveau={3} titre="Brouillons" compteur={r.brouillons.length} lien={{ href: "/videos?vue=brouillons" }} />
                   <Carrousel libelle="Brouillons" largeurElement="w-[46%] sm:w-52">
                     {r.brouillons.map((v) => (
                       <CarteBrouillon key={v.id} video={v} />
@@ -157,7 +157,7 @@ export default async function PageAccueil() {
               )}
 
               <div>
-                <EnTeteSection titre="Dernières vidéos" lien={r.dernieres.length ? { href: "/videos" } : undefined} />
+                <EnTeteSection niveau={3} titre="Dernières vidéos" lien={r.dernieres.length ? { href: "/videos" } : undefined} />
                 {r.dernieres.length ? (
                   <Carrousel libelle="Dernières vidéos" largeurElement="w-[44%] sm:w-48">
                     {r.dernieres.map((v, i) => (

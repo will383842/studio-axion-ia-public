@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
@@ -140,7 +141,7 @@ export function GalerieVideos({
   const aDesFiltres = !!filtresAdresse || presents.statuts.length > 1 || presents.etapes.length > 0 || presents.ratios.length > 1 || presents.series.length > 0;
 
   // Liste vide : si des filtres d'adresse sont posés, on garde leurs puces pour pouvoir les retirer.
-  if (!videos.length && vide) return filtresAdresse?.nombre ? <div><div className="mb-4">{filtresAdresse.puces}</div>{vide}</div> : <>{vide}</>;
+  if (!videos.length && vide) return filtresAdresse?.nombre ? <div><div className="mb-4">{filtresAdresse.puces}<Link href={filtresAdresse.effacerHref} className="ml-1.5 inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-texte-doux hover:text-texte sm:min-h-9">Tout effacer</Link></div>{vide}</div> : <>{vide}</>;
 
   function basculer(id: string) {
     setChoisis((s) => {
@@ -315,7 +316,7 @@ export function GalerieVideos({
           {filtres.etape && !filtresAdresse && <PuceFiltre libelle={ETAPES_EDITORIALES[filtres.etape].libelle} onRetirer={() => setFiltres((f) => ({ ...f, etape: undefined }))} />}
           {filtres.ratio && <PuceFiltre libelle={filtres.ratio} onRetirer={() => setFiltres((f) => ({ ...f, ratio: undefined }))} />}
           {filtres.serie && <PuceFiltre libelle={series.find((s) => s.id === filtres.serie)?.nom ?? "Série"} onRetirer={() => setFiltres((f) => ({ ...f, serie: undefined }))} />}
-          {nbClient > 0 && !filtresAdresse?.nombre && (
+          {nbFiltres > 0 && (
             <button type="button" onClick={toutEffacer} className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-texte-doux hover:text-texte sm:min-h-9">
               Tout effacer
             </button>

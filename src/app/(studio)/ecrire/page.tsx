@@ -20,10 +20,11 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
-import { PanneauFiltres } from "@/components/ui/PanneauFiltres";
+import { PanneauFiltres, PucesActives } from "@/components/ui/PanneauFiltres";
 import { Section } from "@/components/ui/Section";
 import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
-import { compterAnciens, estDoublonPossible, filtrerParCiblage, filtrerSujetsParType, lireFiltreCiblage } from "@/domaine/ciblage/listes";
+import { compterAnciens, estDoublonPossible, filtrerParCiblage, filtrerSujetsParType, lienCiblage, lireFiltreCiblage } from "@/domaine/ciblage/listes";
+import { TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { Onglets } from "@/components/ui/Onglets";
 import { listerSujets, valeursFiltresGenerateur } from "@/services/generateur";
@@ -86,6 +87,13 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
   const sansSujetVus = filtrerParCiblage(sansSujetTous, filtreCiblage);
   const idsScripts = new Set(scripts.map((s) => s.id));
   const sansSujet = sansSujetVus.map((s) => ({ id: s.id, titre: s.sujet, doublon: estDoublonPossible(s, idsScripts) }));
+  const pucesCiblage = [
+    ...(filtreCiblage.type
+      ? [{ libelle: filtreCiblage.type === "a-classer" ? "À classer" : (TYPES_AUTOMATISATION.find((t) => t.id === filtreCiblage.type)?.libelle ?? "Type"), href: lienCiblage("/ecrire", sp, { typeAuto: undefined }) }]
+      : []),
+    ...(filtreCiblage.anciens ? [{ libelle: "Anciens affichés", href: lienCiblage("/ecrire", sp, { anciens: undefined }) }] : []),
+  ];
+  const effacerCiblage = lienCiblage("/ecrire", sp, { typeAuto: undefined, anciens: undefined });
   const ciblageActif = !!filtreCiblage.type || filtreCiblage.anciens;
 
   return (
@@ -124,6 +132,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
                   )}
                   <BoutonPlusDeFiltres />
                 </div>
+                <PucesActives puces={pucesCiblage} effacerHref={effacerCiblage} className="mb-4" />
                 <Section id="sujets" titre="Vos sujets" sansCarte>
                   <ListeSujets
                     sujets={sujets}

@@ -581,7 +581,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
 export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: ApercuFabrication; nbFormats: number; onEconomique?: (actif: boolean) => void }) {
   const illus = donnees.illustrations;
   return (
-    <Carte as="section" lueur>
+    <Carte as="section">
       <ul className="grid grid-cols-2 gap-2 text-center">
         <li className="rounded-xl bg-fond/40 px-2 py-2.5">
           <span className="block font-titre text-lg tabular-nums text-texte">~{libelleDuree(donnees.estimation.dureeFabricationSec)}</span>
@@ -607,7 +607,7 @@ export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: Apercu
                       {image ? <Image src={image} alt="" fill sizes="76px" className="object-cover" /> : <Icone nom={o.icone} size={18} />}
                       {illus.parPlan[p.id].ia && <span className="absolute right-1 top-1 rounded bg-texte px-1 text-[9px] font-bold text-fond">IA</span>}
                     </span>
-                    <span className={cn("mt-1 block truncate text-[10px] font-semibold", o.ton === "sauge" ? "text-sauge" : o.ton === "ambre" ? "text-ambre" : o.ton === "orange" ? "text-texte-doux" : "text-texte-doux")}>{o.libelle}</span>
+                    <span className={cn("mt-1 block truncate text-[10px] font-semibold", o.ton === "sauge" ? "text-sauge" : o.ton === "ambre" ? "text-ambre" : "text-texte-doux")}>{o.libelle}</span>
                   </li>
                 );
               })}

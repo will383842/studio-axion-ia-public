@@ -364,8 +364,8 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
           }
           specifique={
             aSpecifique && (
-            <Section id="pour-cette-video" titre="Pour cette vidéo" className="[&:has(.pour-video:empty)]:hidden">
-            <div className="pour-video divide-y divide-trait [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
+            <Section id="pour-cette-video" titre="Pour cette vidéo" sansCarte className="[&:has(.pour-video:empty)]:hidden">
+            <div className="pour-video space-y-4">
               {d.noteQualite && <CarteQualite note={d.noteQualite} />}
               {ajoutees && <AlerteAjouteesDepuis videoId={v.id} ajoutees={prononciationsAjoutees} plans={plansPhrases} />}
               {etatVide && <EtatVide compact icone={STATUTS_VIDEO[v.statut].icone} titre={STATUTS_VIDEO[v.statut].libelle} phrase="Le kit de publication arrive avec la vidéo." action={statutAnnulable(v.statut) && !v.versionChoisieId ? <BoutonAnnuler videoId={v.id} apres="/videos" /> : undefined} />}
