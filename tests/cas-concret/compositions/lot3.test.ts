@@ -146,7 +146,7 @@ describe("telephone-capture : la capture entière, jamais rognée", () => {
       expect(proportions(t.corps)).toBeCloseTo(470 / 920, 9);
       expect(boiteDans(t.corps, boite)).toBe(true);
       expect(t.capture).toBeNull();
-      expect(t.fondEcran).toBe(COULEURS_DUO.blanc);
+      expect(t.fondEcran).toBe(COULEURS_DUO.carte);
     }
   });
 });

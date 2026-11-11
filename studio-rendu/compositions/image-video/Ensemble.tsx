@@ -17,7 +17,7 @@ import { cheminContourne, entreePastille, type PlanEnsemble } from "./plan-objet
 
 export type ImageSourceEnsemble = { src: string; photoPersonnes: boolean };
 
-const fondPastille = (c: string) => (c === "orange" ? COULEURS_DUO.orangeVif : c === "vert" ? COULEURS_DUO.vert : c === "neutre" ? COULEURS_DUO.gris : COULEURS_DUO.encre);
+const fondPastille = (c: string) => (c === "orange" ? COULEURS_DUO.orangeVif : c === "vert" ? COULEURS_DUO.vert : c === "neutre" ? COULEURS_DUO.encre : COULEURS_DUO.encre);
 
 export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsemble; schema?: SchemaEntree; ecoule: number; fondu: number; imageSource?: ImageSourceEnsemble }) {
   if (imageSource && !imageSource.photoPersonnes) {
