@@ -1167,6 +1167,23 @@ export interface Publication extends EntiteBase {
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */
   votreMarque?: boolean;
+  /* --- L1-03 (ajouts purs, facultatifs ; `idExterne` est réutilisé, `StatsPublication` n'est pas redéclaré) --- */
+  /** Date de la publication chez le diffuseur, telle que relue. */
+  dateExterne?: DateIso;
+  /** Date demandée pour la publication. */
+  dateVoulue?: DateIso;
+  /** Repère posé par l'usine pour retrouver cette publication. */
+  repereUsine?: string;
+  /** Signature posée par l'usine sur ce qu'elle a envoyé. */
+  signatureUsine?: string;
+}
+
+/** Sortie d'un visuel (image fixe) : type séparé de `Sortie`, qui reste celle d'une vidéo. */
+export interface SortieVisuel extends EntiteBase {
+  visuelId: Id;
+  ratio: Ratio;
+  reseau?: IdReseau;
+  fichierId: Id;
 }
 
 /** Source d'une publication : une vidéo ou un visuel (jamais les deux, jamais aucun). */
