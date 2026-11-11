@@ -81,6 +81,33 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
     await creerCreneau(d, base("c2"), T0);
     expect((await decaler(d, "c2", { nouveauJour: "2026-11-26", raison: "r", cle: "k2" }, T0)).aRenvoyer).toBeFalsy();
   });
+  it("correction relecture : décaler un créneau programme ou en échec est refusé, sans écriture", async () => {
+    for (const fin of [["a_valider", "valide", "programme"], ["a_valider", "valide", "programme", "echec"]] as const) {
+      const d = depots();
+      await creerCreneau(d, base("c1"), T0);
+      for (const s of fin) await changerStatut(d, "c1", s, "studio", T0);
+      await expect(decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k" }, T0)).rejects.toThrow(/programm|échec|echec/i);
+      expect(await d.journal.lister()).toHaveLength(0);
+      expect((await d.creneaux.obtenir("c1"))?.decalages).toBe(0);
+    }
+  });
+  it("correction relecture : si l'écriture du créneau échoue, le rejeu avec la même clé réapplique le décalage", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    const vrai = d.creneaux.enregistrer.bind(d.creneaux);
+    let panne = true;
+    d.creneaux.enregistrer = async (e) => { if (panne) throw new Error("panne"); return vrai(e); };
+    const demande = { nouveauJour: "2026-11-27", raison: "r", cle: "k1" };
+    await expect(decaler(d, "c1", demande, T0)).rejects.toThrow(/panne/);
+    panne = false;
+    const c = await decaler(d, "c1", demande, T0);
+    expect(c.jourVise).toBe("2026-11-27");
+    expect(c.decalages).toBe(1);
+    expect(await d.journal.lister()).toHaveLength(1);
+    const encore = await decaler(d, "c1", demande, T0);
+    expect(encore.decalages).toBe(1);
+    expect(await d.journal.lister()).toHaveLength(1);
+  });
   it("refuse un jour invalide et un créneau inconnu", async () => {
     const d = depots();
     await creerCreneau(d, base("c1"), T0);

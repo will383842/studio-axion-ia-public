@@ -3,7 +3,7 @@
 Le plan éditorial (`src/services/plan-editorial.ts`) tient le calendrier des créneaux. L'usine propose, le Studio décide.
 
 ## Isolation
-- Le plan n'importe jamais `src/fournisseurs` (réseau, modèle d'IA, diffuseur) et n'effectue aucun appel. Le test `tests/plan-editorial/contrat-isolation.test.ts` échoue au premier import de ce type.
+- Le plan n'importe jamais `src/fournisseurs` (réseau, modèle d'IA, diffuseur) et n'effectue aucun appel. Le test `tests/plan-editorial/contrat-isolation.test.ts` échoue au premier import de ce type, y compris dans un module local importé (suivi récursif).
 - Les dépôts sont passés en paramètre : le service ne connaît pas la base.
 
 ## Ce que l'usine peut écrire
