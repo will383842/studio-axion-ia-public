@@ -6,7 +6,6 @@ import { definirChaineEcritureAction } from "@/app/(studio)/reglages/actions-cha
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import type { ChaineChoisie } from "@/services/chaine-ecriture";
-import { texteEuros } from "./montants-euros";
 
 /** Coûts mesurés au banc du 18/10 (5 sujets) : à mettre à jour si un nouveau banc les change. */
 export const TEXTES_CHAINE = {
@@ -51,7 +50,7 @@ export function ChoixChaineEcriture({ initiale, tauxUsdEur }: { initiale: Chaine
         onChange={choisir}
         taille="lg"
         options={[
-          { valeur: "courte", libelle: TEXTES_CHAINE.courte.libelle, detail: `≈ ${texteEuros(TEXTES_CHAINE.courte.coutDollars, tauxUsdEur)} par script`, desactive: enCours },
+          { valeur: "courte", libelle: TEXTES_CHAINE.courte.libelle, desactive: enCours },
         ]}
       />
       <p className="mt-2 text-xs text-texte-faible">{TEXTES_CHAINE.avertissement}</p>

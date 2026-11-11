@@ -98,8 +98,8 @@ describe("l'affichage", () => {
   it("un seul choix, « Économique », coché, avec son coût et l'avertissement ; plus de Premium, rien de garanti", () => {
     const html = renderToStaticMarkup(createElement(ChoixChaineEcriture, { initiale: "courte" }));
     expect(html).toContain('role="radiogroup"');
-    for (const t of ["Économique", "0,25 €", "prochains scripts"]) expect(html).toContain(t);
-    for (const t of ["Premium", "0,39 $", "grande chaîne"]) expect(html).not.toContain(t);
+    for (const t of ["Économique", "prochains scripts"]) expect(html).toContain(t);
+    for (const t of ["Premium", "0,39 $", "0,25 €", "grande chaîne"]) expect(html).not.toContain(t);
     expect(html.match(/aria-checked="true"/g)).toHaveLength(1);
     expect(html.match(/role="radio"/g)).toHaveLength(1);
     expect(html).not.toMatch(/garanti/i);
