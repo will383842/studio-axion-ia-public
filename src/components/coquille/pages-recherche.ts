@@ -3,7 +3,7 @@
  * propose la page. Liste tirée de la navigation (une seule source) + quelques pages utiles hors menu. Fichier pur.
  */
 import type { NomIcone } from "@/components/ui/Icone";
-import { ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE, NAV_PIED, SECTIONS_NAV } from "./navigation";
+import { ACTION_CREER, ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE, NAV_PIED, SECTIONS_NAV } from "./navigation";
 
 export interface PageTrouvee {
   href: string;
@@ -22,7 +22,7 @@ interface PageRecherchable extends PageTrouvee {
 const SYNONYMES: Record<string, string[]> = {
   "/reglages": ["parametres", "parametre", "options", "configuration"],
   "/calendrier": ["planning", "agenda"],
-  "/mesures": ["statistiques", "stats", "resultats", "chiffres"],
+  "/mesures": ["mesures", "statistiques", "stats", "resultats", "chiffres"],
   "/ecrire": ["scripts", "idees", "script", "idee", "texte"],
   "/mots": ["mots-cles", "mot-cle", "mots cles", "commentaires", "reponses"],
   "/nouvelle": ["creer", "nouveau", "generer"],
@@ -31,6 +31,8 @@ const SYNONYMES: Record<string, string[]> = {
 };
 
 const HORS_MENU: PageRecherchable[] = [
+  { href: "/veille", libelle: "Veille des outils", icone: "tendance", synonymes: ["veille", "nouveautes", "mises a jour"] },
+  { href: "/outils-motion", libelle: "Outils motion design", icone: "baguette", synonymes: ["motion", "animations"] },
   { href: "/mesures/ce-qui-marche", libelle: "Ce qui marche", icone: "resultats", synonymes: ["succes", "meilleures", "performances"] },
   { href: "/videos/a-ranger", libelle: "Vidéos à ranger", icone: "film", synonymes: ["ranger", "rangement", "non classees"] },
 ];
@@ -45,7 +47,7 @@ export function simplifier(s: string): string {
 }
 
 function toutes(): PageRecherchable[] {
-  const menu = [...SECTIONS_NAV.flatMap((s) => s.entrees), ...NAV_PIED, ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE];
+  const menu = [...SECTIONS_NAV.flatMap((s) => s.entrees), ACTION_CREER, ...NAV_PIED, ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE];
   const depuisMenu = menu.map((e): PageRecherchable => ({
     href: e.href,
     libelle: e.libelle,

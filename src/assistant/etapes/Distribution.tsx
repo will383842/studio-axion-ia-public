@@ -177,7 +177,7 @@ export function EtapeDistribution({ formatId, brouillon, modifier, contexte, com
                           actif ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort",
                         )}
                       >
-                        <span className="relative block aspect-[4/5] bg-surface-2">
+                        <span className="theme-sombre relative block aspect-[4/5] bg-surface-2">
                           {v.vignette ? (
                             <Image src={v.vignette} alt="" fill sizes="(max-width: 640px) 50vw, 200px" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                           ) : (
