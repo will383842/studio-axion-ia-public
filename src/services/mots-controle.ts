@@ -1,17 +1,17 @@
 /**
  * MOTS (PV-3) · contrôle de SORTIE. Tout texte qui partira vers une personne passe ici, par les filtres EXISTANTS :
  * mots interdits de l'envoi (famille « certifié », nom du label qualité), expressions bannies (lieu interdit, « Aucun gain
- * garanti »), puis les règles du parcours : mention « Message automatique envoyé par Axion IA. » en ouverture de chaque message privé, jamais de mention STOP, jamais de question d'accord, aucune promesse interdite,
+ * garanti »), puis les règles du parcours : aucune mention « Message automatique » en ouverture, aucune signature, jamais de mention STOP, jamais de question d'accord, aucune promesse interdite,
  * aucune adresse e-mail. PUR. Les mots interdits ne sont jamais écrits en clair dans les tests (jetons).
  */
 import { expressionsBannieDans, normaliser } from "@/domaine/controles-visuel/texte";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
-import { MENTION_OUVERTURE } from "@/domaine/guide-reseau/textes-mp";
 import { SECTIONS, type Section, type TextesMot } from "./mots-textes";
 
-export const MENTION_AUTOMATIQUE = MENTION_OUVERTURE;
-/** Sections qui partent en message PRIVÉ : la mention d'ouverture y est obligatoire (la réponse publique n'en porte pas). */
-const SECTIONS_PRIVEES: readonly Section[] = ["message_prive", "relance", "fin"];
+/** Aucun texte (toute section) ne commence par cette mention d'automatisme (« ça ne fait pas très pro »). */
+const MOTIF_MENTION_AUTOMATIQUE = /^message automatique\b/;
+/** Aucune signature en fin de texte (les réseaux sociaux affichent déjà le nom du compte). */
+const MOTIF_SIGNATURE = /(?:\bl equipe axion ia|\baxion ia|\bcordialement|\bbien cordialement)$/;
 export const LONGUEUR_MAX_TEXTE = 1000;
 
 /** Promesses refusées (racines, comparées sans accents ni casse). */
@@ -33,7 +33,7 @@ const INVISIBLES = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
 
 export interface Refus {
   section: Section;
-  code: "vide" | "trop_long" | "mot_interdit" | "expression_bannie" | "mention_absente" | "promesse_interdite" | "adresse_email" | "mention_stop" | "question_accord";
+  code: "vide" | "trop_long" | "mot_interdit" | "expression_bannie" | "mention_automatique" | "signature" | "promesse_interdite" | "adresse_email" | "mention_stop" | "question_accord";
   detail: string;
 }
 
@@ -47,7 +47,8 @@ export function controlerTexteSortant(section: Section, texte: string): Refus[] 
   for (const e of expressionsBannieDans(texte.replace(INVISIBLES, ""))) r("expression_bannie", e);
   const nu = texte.replace(INVISIBLES, "");
   const plat = normaliser(nu);
-  if (SECTIONS_PRIVEES.includes(section) && !plat.startsWith(normaliser(MENTION_AUTOMATIQUE))) r("mention_absente", `« ${MENTION_AUTOMATIQUE} » absent en ouverture`);
+  if (MOTIF_MENTION_AUTOMATIQUE.test(plat)) r("mention_automatique", "mention d'automatisme interdite en ouverture");
+  if (MOTIF_SIGNATURE.test(plat)) r("signature", "signature interdite en fin de texte");
   if (MOTIF_STOP.test(plat)) r("mention_stop", "mention de l'arrêt interdite");
   if (MOTIF_QUESTION_ACCORD.test(plat)) r("question_accord", "question d'accord interdite");
   for (const p of PROMESSES) if (p.motif.test(plat)) r("promesse_interdite", p.libelle);

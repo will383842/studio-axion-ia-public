@@ -5,7 +5,7 @@
  */
 import "server-only";
 import { exigerSession } from "./auth";
-import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
+import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, validerFormulation, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
@@ -77,6 +77,12 @@ export async function gesteValiderAdresseRefusee(): Promise<{ ok: boolean; raiso
   await exigerSession();
   const r = await validerAdresseRefusee({ confirmeParOperateur: true });
   return { ok: r.ok, raison: r.raison };
+}
+/** Validation d'UNE formulation : le client n'envoie qu'un nom de version, contrôlé côté serveur contre le dictionnaire (jamais de texte). */
+export async function gesteValiderFormulation(version: string): Promise<{ ok: boolean; raison: string }> {
+  await exigerSession();
+  if (typeof version !== "string") return { ok: false, raison: "formulation_inconnue" };
+  return validerFormulation({ version, confirmeParOperateur: true });
 }
 /** Comptes du parcours de conversation (identifiants seulement) pour les boutons d'activation. */
 export async function gesteComptesGuide(): Promise<string[]> {
