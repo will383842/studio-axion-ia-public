@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PALETTE } from "@/briques/charte/axion-2026";
-import { decorsCatalogue } from "@/donnees/decors-catalogue";
+import { DECOR_DEFAUT_AVOCAT, decorsCatalogue } from "@/donnees/decors-catalogue";
 
 const AUTORISEES = new Set(["#faf9f5", "#e8e6dc", "#141413", "#b23f16", "#d97757", "#b0aea5", "#b8341c"]);
 
@@ -19,12 +19,14 @@ describe("V7-09c : couleurs des décors", () => {
 });
 
 describe("V7-09c : teinte de lumière selon le fond", () => {
-  const valeurs = decorsCatalogue("2026-01-01T00:00:00.000Z").map((e) => e.valeur as { type: string; teinte?: string; teinteLumiere?: string; clair?: boolean });
+  const elements = decorsCatalogue("2026-01-01T00:00:00.000Z");
+  const valeurs = elements.map((e) => e.valeur as { type: string; teinte?: string; teinteLumiere?: string; clair?: boolean });
   const decors = valeurs.filter((v) => v.type === "decor");
 
   it("N1 (noir) : halo orange #D97757, orange permis sur noir", () => {
-    const n1 = decors.find((v) => v.teinte === PALETTE.noir && v.teinteLumiere === PALETTE.orange);
+    const n1 = elements.find((e) => e.id === DECOR_DEFAUT_AVOCAT);
     expect(n1).toBeDefined();
+    expect(n1?.valeur).toMatchObject({ teinte: PALETTE.noir, teinteLumiere: PALETTE.orange });
   });
 
   it("N6 (clair) : lumière et contour terracotta #B23F16, jamais d'orange sur ivoire", () => {
