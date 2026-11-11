@@ -247,12 +247,12 @@ Branche : `vignettes/lot1-socle` depuis `origin/master` à jour. Pousser après 
   `thumbnailUrl` sur une vidéo). Le risque « photo sur Instagram » viendrait d'un téléchargement manuel : le lot 5
   rangera la sortie Instagram à part dans la fiche.
 - Tri à faire avant tout usage (relevé visuel du 17/10) :
-  - **à écarter** : `williams-jullin-3-personnes.png` et `chatgpt-image-11-janv-2026-08-46-152.png` (deux autres
+  - **à écarter** : `exemple-3-personnes.png` et `chatgpt-image-11-janv-2026-08-46-152.png` (deux autres
     personnes et un **logo Apple** visible sur l'ordinateur : interdit « aucun logo ») ;
-  - `williams-jullin-autre-marque-500kb.jpg` : image propre, mais le nom du fichier cite une autre marque → renommer s'il
+  - `exemple-autre-marque-500kb.jpg` : image propre, mais le nom du fichier cite une autre marque → renommer s'il
     sert ;
-  - fonds simples, faciles à détourer : `williams-d-econtract-e.png`, `chatgpt-image-11-janv-2026-08-28-50-2.png`
-    (fond blanc), `williams-jullin-autre-marque-500kb.jpg`, `williams-jullin-bureau.png`.
+  - fonds simples, faciles à détourer : `exemple-d-econtract-e.png`, `chatgpt-image-11-janv-2026-08-28-50-2.png`
+    (fond blanc), `exemple-autre-marque-500kb.jpg`, `exemple-bureau.png`.
 - Où elles entreraient (lot 6, après décision) : en **image de secours** quand aucune image de la vidéo ne passe le
   contrôle (aucun visage, yeux fermés partout), pour les générateurs à visage seulement, détourées une fois pour
   toutes, rangées dans « Mes images » du studio avec une étiquette `jamais-instagram`.

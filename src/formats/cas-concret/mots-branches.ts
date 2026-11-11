@@ -11,7 +11,7 @@
  *
  * X7 · CONTRAT FIGÉ AVEC L'USINE (12/10/2026) : une ligne `{ mot: "GUIDE", reseau: "instagram" | "facebook",
  * compte?: "exemple", etat: "non_branche" | "branche", le: "AAAA-MM-JJ" }`. `compte` est l'identifiant public du
- * compte sur le réseau, en minuscules (Will a deux comptes Facebook). Une ligne sans `compte` vaut pour tous les comptes
+ * compte sur le réseau, en minuscules (le dirigeant a deux comptes Facebook). Une ligne sans `compte` vaut pour tous les comptes
  * du réseau ; une ligne avec `compte` l'emporte, pour ce compte, sur la ligne sans compte. Le réglage accepte ces lignes
  * (un tableau) comme l'ancienne forme (mot → réseau → état, lue comme des lignes sans compte).
  * Tant que le studio ne sait pas à quel compte une sortie est destinée, il lit la ligne sans compte (à défaut : non

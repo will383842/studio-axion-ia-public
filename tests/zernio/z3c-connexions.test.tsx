@@ -178,7 +178,7 @@ describe("z3c · les 3 autres états", () => {
   });
   it("en-tête : titre, chapo, bouton de test", () => {
     const html = rendre(VUES.normal);
-    // Titre renommé le 08/11 (Williams) : plus de nom de service dans un titre ; la carte de la page porte « Vos comptes de publication ».
+    // Titre renommé le 08/11 (Jean) : plus de nom de service dans un titre ; la carte de la page porte « Vos comptes de publication ».
     expect(html).toContain("Vos comptes");
     expect(html).toContain("Vos 6 comptes, l’outil qui publie et le mode d’envoi, réseau par réseau.");
     expect(html).toContain("Tester les 6 comptes");
@@ -228,7 +228,7 @@ describe("z3c · langue et mots interdits", () => {
     expect(TOUT).not.toContain(NOM_LABEL);
     expect(TOUT).not.toMatch(new RegExp(`${J("Gre", "noble")}|${J("Aucun gain ", "garanti")}`, "i"));
   });
-  it("aucun nom d'outil ni « API » dans les libellés rendus (décision de Williams du 08/11)", () => {
+  it("aucun nom d'outil ni « API » dans les libellés rendus (décision de Jean du 08/11)", () => {
     expect(texte).not.toMatch(/zernio|buffer|\bapi\b/i);
   });
   it("aucun identifiant réel dans le rendu", () => {
