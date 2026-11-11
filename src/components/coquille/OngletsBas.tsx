@@ -20,8 +20,8 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
   return (
     <>
       <nav
-        aria-label="Navigation"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-trait bg-fond/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+        aria-label="Menu principal (mobile)"
+        className="theme-sombre fixed inset-x-0 bottom-0 z-40 border-t border-trait bg-fond/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
       >
         <ul className="mx-auto grid h-[var(--hauteur-onglets-bas)] max-w-xl grid-cols-5 items-center px-2">
           {ONGLETS_BAS.map((o) => {
@@ -34,8 +34,9 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
                     type="button"
                     onClick={() => setCreer(true)}
                     aria-label="Créer"
+                    aria-haspopup="dialog"
                     aria-expanded={creer}
-                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-fond transition-transform active:scale-95"
+                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-[#16120f] transition-transform active:scale-95"
                   >
                     <Icone nom="plus" size={28} strokeWidth={2.4} />
                   </button>
@@ -53,10 +54,11 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
             );
           })}
           <li>
-            <button type="button" onClick={() => setPlus(true)} aria-expanded={plus} aria-current={plusActif ? "page" : undefined} className="relative flex min-h-14 w-full flex-col items-center justify-center gap-1">
+            <button type="button" onClick={() => setPlus(true)} aria-haspopup="dialog" aria-expanded={plus} className="relative flex min-h-14 w-full flex-col items-center justify-center gap-1">
               {plusActif && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-orange" />}
               <Icone nom="grille" size={22} className={plusActif ? "text-texte" : "text-texte-faible"} />
               <span className={cn("text-[11px] font-semibold", plusActif ? "text-texte" : "text-texte-faible")}>Plus</span>
+              {plusActif && <span className="sr-only">, contient la page en cours</span>}
             </button>
           </li>
         </ul>

@@ -82,8 +82,8 @@ export function GraphiqueBarres({ palette, duree, decl, titre = "TAUX DE RÉPONS
           const double = dernier ? ressort("CLAQUE", i - iFort) : 0;
           const h = Math.max(0, dernier ? hMax * (v * montee + (Math.min(0.97, v * 2) - v) * double) : hMax * v * montee);
           if (i <= d) return null;
-          const couleur = dernier ? melange(ACCENT_1, ACCENT_2, courbe(i, iFort, 3)) : ACCENT_1;
-          return <div key={k} style={{ position: "absolute", left: x0 + k * (largeur + ecart), top: yBase - h, width: largeur, height: h, boxSizing: "border-box", background: couleur, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderBottom: "none", borderRadius: "10px 10px 0 0", boxShadow: "5px 0 0 0 " + ENCRE }} />;
+          const teinte = dernier ? melange(ACCENT_1, ACCENT_2, courbe(i, iFort, 3)) : ACCENT_1;
+          return <div key={k} style={{ position: "absolute", left: x0 + k * (largeur + ecart), top: yBase - h, width: largeur, height: h, boxSizing: "border-box", background: teinte, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderBottom: "none", borderRadius: "10px 10px 0 0", boxShadow: "5px 0 0 0 " + ENCRE }} />;
         })}
         {/* valeur de la barre, posée sur son sommet quand « deux fois » est dit */}
         {i >= iPuce && (
