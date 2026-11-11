@@ -8,28 +8,28 @@ import {
 describe("charte-carrousel/1 : contrastes WCAG", () => {
   it("porte l'identifiant et les couleurs de base", () => {
     expect(CHARTE_CARROUSEL.id).toBe("charte-carrousel/1");
-    expect(CHARTE_CARROUSEL.couleurs.creme).toBe("#F8F0E3");
-    expect(CHARTE_CARROUSEL.couleurs.orange).toBe("#D9622B");
+    expect(CHARTE_CARROUSEL.couleurs.creme).toBe("#FAF9F5");
+    expect(CHARTE_CARROUSEL.couleurs.orange).toBe("#D97757");
   });
 
-  it("encre sur crème = 17,4 ± 0,1", () => {
+  it("encre sur ivoire = 17,2 ± 0,3", () => {
     const { encre, creme } = CHARTE_CARROUSEL.couleurs;
-    expect(Math.abs(contrasteWcag(encre, creme) - 17.4)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(contrasteWcag(encre, creme) - 17.5)).toBeLessThanOrEqual(0.1);
   });
 
-  it("refuse #D9622B en texte de 30 px (texte normal)", () => {
+  it("refuse l'orange #D97757 en texte de 30 px sur ivoire (texte normal)", () => {
     const { orange, creme } = CHARTE_CARROUSEL.couleurs;
     expect(texteLisible(orange, creme, 30)).toBe(false);
   });
 
-  it("accepte l'orange pour un GRAND élément", () => {
-    const { orange, creme } = CHARTE_CARROUSEL.couleurs;
-    expect(texteLisible(orange, creme, 72)).toBe(true);
+  it("accepte l'orange sur noir pour un GRAND élément", () => {
+    const { orange, encre } = CHARTE_CARROUSEL.couleurs;
+    expect(texteLisible(orange, encre, 72)).toBe(true);
   });
 
-  it("refuse #B44F29 sur pale", () => {
+  it("accepte la terracotta #B23F16 sur gris", () => {
     const { pale, orangeFonce } = CHARTE_CARROUSEL.couleurs;
-    expect(texteLisible(orangeFonce, pale, 30)).toBe(false);
+    expect(texteLisible(orangeFonce, pale, 30)).toBe(true);
   });
 
   it("l'encre est lisible partout, y compris en petit", () => {

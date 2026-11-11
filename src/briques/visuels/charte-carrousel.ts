@@ -1,49 +1,52 @@
 // Charte graphique des carrousels : `charte-carrousel/1`.
-// Couleurs de la charte « charte-carrousel/1 » ; l'orange est réservé aux GRANDS éléments.
+// Toutes les couleurs viennent de PALETTE (charte Axion 2026) : aucun hex en dur ici.
+// L'orange #D97757 est réservé aux fonds noirs et aux GRANDS éléments.
+import { PALETTE as P } from "../charte/axion-2026";
 
 export const CHARTE_CARROUSEL = {
   id: "charte-carrousel/1",
   couleurs: {
-    creme: "#F8F0E3",
-    encre: "#0D0A07",
-    orange: "#D9622B",
-    orangeFonce: "#B44F29",
-    pale: "#F2DFCB",
-    // Blanc chaud : fond des cartes impaires (L1), plus clair que la crème de la page.
-    blanc: "#FFFCF7",
+    creme: P.ivoire,
+    encre: P.noir,
+    orange: P.orange,
+    orangeFonce: P.terracotta,
+    pale: P.gris,
+    // Blanc pur : fond des cartes impaires (L1), plus clair que l'ivoire de la page.
+    blanc: P.blanc,
   },
   // Au-delà de ce corps (px), un texte compte comme « grand » (seuil de 3:1).
   grandTextePx: 40,
   seuils: { normal: 4.5, grand: 3 },
 } as const;
 
-// Charte du carrousel continu : jetons nommés (maquette v3). Les trois premiers viennent de CHARTE_CARROUSEL.
+// Charte du carrousel continu : jetons nommés (maquette v3), tous rattachés à un rôle de PALETTE.
+// Les noms historiques restent (importés par continu/commun) ; seules les valeurs changent.
 export const CHARTE_CONTINU = {
   creme: CHARTE_CARROUSEL.couleurs.creme,
   encre: CHARTE_CARROUSEL.couleurs.encre,
   orange: CHARTE_CARROUSEL.couleurs.orange,
-  creme2: "#EDE2D1",
-  blancCarte: "#FFFBF4",
-  peche: "#F7DCC8",
-  orangeClair: "#F08A52",
-  orangeLumiere: "#FFA66E",
-  orangeProfond: "#C4501F",
-  orangeBrule: "#B8481A",
-  encreDouce: "#241C15",
-  brun: "#3A2D22",
-  brunClair: "#52412F",
-  brunNuit: "#1D1510",
-  nuit: "#0E0905",
-  brunPierre: "#5B4B3E",
-  abricot: "#FFD2AE",
-  rouille: "#8F3410",
-  cuivre: "#C9511D",
-  ecume: "#FFF4E8",
-  rosePeche: "#FDEBDD",
-  peau: "#F2C6A2",
-  grisTexte: "#51463B",
-  sableSombre: "#CDBFAE",
-  lin: "#CFC3B1",
+  creme2: P.gris,
+  blancCarte: P.blanc,
+  peche: P.gris,
+  orangeClair: P.orange,
+  orangeLumiere: P.orange,
+  orangeProfond: P.terracotta,
+  orangeBrule: P.terracotta,
+  encreDouce: P.noir,
+  brun: P.noir,
+  brunClair: P.texteSecondaire,
+  brunNuit: P.noir,
+  nuit: P.noir,
+  brunPierre: P.texteSecondaire,
+  abricot: P.gris,
+  rouille: P.survol,
+  cuivre: P.terracotta,
+  ecume: P.ivoire,
+  rosePeche: P.gris,
+  peau: P.gris,
+  grisTexte: P.texteSecondaire,
+  sableSombre: P.grisSurNoir,
+  lin: P.gris,
 } as const;
 
 /** Couleur à `a` (0 à 1) d'opacité : `color-mix` sur transparent. */
@@ -57,21 +60,26 @@ export function degrade(angle: number, arrets: string[]): string {
 }
 
 const C = CHARTE_CONTINU;
+/**
+ * Fonds du carrousel continu : AUCUN dégradé, un aplat de PALETTE par clé (mêmes clés qu'avant, valeurs utilisables
+ * telles quelles en `background`). Le dégradé de `barre` devient un aplat transparent.
+ * Variante `w` des tuiles : noir (l'icône `orange` y est lisible, 5,90 ; sur blanc elle ne ferait que 2,96).
+ */
 export const DEGRADES_CONTINU = {
   tuile: {
-    o: degrade(145, [C.orangeLumiere, `${C.orange} 58%`, C.orangeBrule]),
-    k: degrade(145, [C.brunClair, `${C.brunNuit} 62%`, C.nuit]),
-    w: degrade(145, ["#FFFFFF", "#F1E6D6"]),
-    p: degrade(145, [C.rosePeche, C.peau]),
-    g: degrade(145, [alpha("#FFFFFF", 0.26), alpha("#FFFFFF", 0.06)]),
+    o: C.orangeProfond,
+    k: C.nuit,
+    w: C.encre,
+    p: C.peche,
+    g: alpha(C.creme, 0.12),
   },
   carte: {
-    o: degrade(150, [C.orangeClair, `${C.orange} 60%`, C.orangeProfond]),
-    k: degrade(160, ["#2B2118", "#171009"]),
-    pl: degrade(160, ["#FBE9DA", "#F4D2B6"]),
+    o: C.orange,
+    k: C.nuit,
+    pl: C.peche,
   },
-  bouton: degrade(90, [C.orangeClair, C.orange]),
-  barre: degrade(180, [alpha(C.orange, 0.34), alpha(C.orange, 0)]),
+  bouton: C.orange,
+  barre: "transparent",
 } as const;
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
