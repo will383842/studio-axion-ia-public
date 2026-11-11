@@ -9,11 +9,15 @@
  *   - téléphone : x = largeur, y = grand côté (haut de l'écran), z = normale de l'écran ;
  *   - logo : y = vers le haut (normale de la paume), z = face tournée vers la caméra.
  */
+import { PALETTE, PILE_CSS } from "../../../../src/briques/charte/axion-2026";
 import type { Trois } from "./trois";
 
-const ORANGE = "#C65A2E";
-const ORANGE_VIF = "#E07040";
-const CREME = "#F6EEE0";
+const ORANGE = PALETTE.terracotta;
+const ORANGE_VIF = PALETTE.orange;
+const CREME = PALETTE.ivoire;
+const NOIR = PALETTE.noir;
+/** Halos d'écran : l'orange (#D97757, sur noir seulement) en rgba, l'écran étant noir. */
+const halo_orange = (alpha: number) => `rgba(217,119,87,${alpha})`;
 
 /** Proportions d'un smartphone récent (hauteur = 1). */
 export const TELEPHONE = { largeur: 71.5 / 147.6, epaisseur: 8.25 / 147.6, rayon: 0.074, bordEcran: 0.0115 } as const;
@@ -81,12 +85,8 @@ export function dessinerEcran(): HTMLCanvasElement {
   c.width = W;
   c.height = H;
   const g = c.getContext("2d")!;
-  // Fond d'écran : dégradé chaud profond, deux halos doux.
-  const fond = g.createLinearGradient(0, 0, W * 0.3, H);
-  fond.addColorStop(0, "#3A2318");
-  fond.addColorStop(0.45, "#7A3A1E");
-  fond.addColorStop(1, "#1B120E");
-  g.fillStyle = fond;
+  // Fond d'écran : aplat noir, deux halos doux.
+  g.fillStyle = NOIR;
   g.fillRect(0, 0, W, H);
   const halo = (x: number, y: number, r: number, couleur: string) => {
     const h = g.createRadialGradient(x, y, 0, x, y, r);
@@ -95,10 +95,10 @@ export function dessinerEcran(): HTMLCanvasElement {
     g.fillStyle = h;
     g.fillRect(0, 0, W, H);
   };
-  halo(W * 0.85, H * 0.32, 900, "rgba(240,140,80,0.55)");
-  halo(W * 0.1, H * 0.8, 800, "rgba(198,90,46,0.35)");
-  const police = (taille: number, graisse = 600) => `${graisse} ${taille}px Inter, "Helvetica Neue", Arial, sans-serif`;
-  g.fillStyle = "#FFFFFF";
+  halo(W * 0.85, H * 0.32, 900, halo_orange(0.55));
+  halo(W * 0.1, H * 0.8, 800, halo_orange(0.35));
+  const police = (taille: number, graisse = 600) => `${graisse} ${taille}px ${PILE_CSS}`;
+  g.fillStyle = "#FAF9F5";
   g.textBaseline = "alphabetic";
   // Barre d'état.
   g.font = police(50, 600);
@@ -122,10 +122,10 @@ export function dessinerEcran(): HTMLCanvasElement {
   g.beginPath();
   g.arc(W - 250, 116, 36, Math.PI * 1.25, Math.PI * 1.75);
   g.lineWidth = 9;
-  g.strokeStyle = "#FFFFFF";
+  g.strokeStyle = "#FAF9F5";
   g.stroke();
   // Îlot de la caméra frontale.
-  g.fillStyle = "#000000";
+  g.fillStyle = "#141413";
   g.beginPath();
   g.roundRect(W / 2 - 190, 34, 380, 108, 54);
   g.fill();
@@ -134,7 +134,7 @@ export function dessinerEcran(): HTMLCanvasElement {
   g.fillStyle = "rgba(255,255,255,0.92)";
   g.font = police(64, 600);
   g.fillText("jeudi 9 octobre", W / 2, 360);
-  g.fillStyle = "#FFFFFF";
+  g.fillStyle = "#FAF9F5";
   g.font = police(300, 700);
   g.fillText("9:41", W / 2, 640);
   // Widget Axion (carte translucide).
@@ -163,7 +163,7 @@ export function dessinerEcran(): HTMLCanvasElement {
   g.closePath();
   g.fill("evenodd");
   g.textAlign = "left";
-  g.fillStyle = "#FFFFFF";
+  g.fillStyle = "#FAF9F5";
   g.font = police(62, 700);
   g.fillText("Axion", 330, 880);
   g.fillStyle = "rgba(255,255,255,0.75)";
@@ -184,9 +184,9 @@ export function dessinerEcran(): HTMLCanvasElement {
   const noms = ["Messages", "Photos", "Caméra", "Agenda", "Notes", "Météo", "Musique", "Réglages"];
   const couleurs: [string, string][] = [
     ["#6EE07A", "#2DB84A"],
-    ["#FFFFFF", "#ECECEC"],
+    ["#FAF9F5", "#ECECEC"],
     ["#B9BDC4", "#7E838C"],
-    ["#FFFFFF", "#F2F2F2"],
+    ["#FAF9F5", "#F2F2F2"],
     ["#FFE27A", "#F5C52B"],
     ["#5BB8FF", "#1D74E0"],
     ["#FF6A7F", "#E8344F"],
@@ -198,13 +198,13 @@ export function dessinerEcran(): HTMLCanvasElement {
     const x = 96 + (i % 4) * (t + ecart);
     const y = 1320 + Math.floor(i / 4) * 330;
     icone(g, x, y, t, couleurs[i][0], couleurs[i][1], (cx, cy, s) => {
-      g.fillStyle = i === 1 || i === 3 ? "#E07040" : "rgba(255,255,255,0.95)";
+      g.fillStyle = i === 1 || i === 3 ? ORANGE : "rgba(255,255,255,0.95)";
       if (i === 3) {
         g.fillStyle = "#E8344F";
         g.font = police(s * 0.16, 600);
         g.textAlign = "center";
         g.fillText("JEU.", cx, cy - s * 0.17);
-        g.fillStyle = "#1A1A1A";
+        g.fillStyle = "#141413";
         g.font = police(s * 0.42, 400);
         g.fillText("9", cx, cy + s * 0.25);
         return;
@@ -240,14 +240,14 @@ export function dessinerEcran(): HTMLCanvasElement {
         g.beginPath();
         g.arc(cx - s * 0.08, cy - s * 0.08, s * 0.15, 0, Math.PI * 2);
         g.fill();
-        g.fillStyle = "#FFFFFF";
+        g.fillStyle = "#FAF9F5";
         g.beginPath();
         g.ellipse(cx + s * 0.05, cy + s * 0.1, s * 0.24, s * 0.12, 0, 0, Math.PI * 2);
         g.fill();
         return;
       }
       if (i === 4) {
-        g.fillStyle = "#FFFDF4";
+        g.fillStyle = "#FAF9F5";
         g.fillRect(cx - s * 0.5, cy - s * 0.18, s, s * 0.68);
         g.fillStyle = "rgba(0,0,0,0.12)";
         for (let k = 0; k < 4; k++) g.fillRect(cx - s * 0.36, cy - s * 0.04 + k * s * 0.12, s * 0.72, s * 0.02);
@@ -349,7 +349,7 @@ export function construireTelephone(T: Trois, ecran: HTMLCanvasElement, anisotro
     color: new T.Color("#050505"),
     roughness: 0.18,
     metalness: 0,
-    emissive: new T.Color("#FFFFFF"),
+    emissive: new T.Color("#FAF9F5"),
     emissiveMap: texture,
     emissiveIntensity: 0.92,
     clearcoat: 1,
@@ -394,7 +394,7 @@ export function construireTelephone(T: Trois, ecran: HTMLCanvasElement, anisotro
     lentille.position.set(bx + ox, by + oy, -e / 2 - 0.0225);
     groupe.add(bague, lentille);
   }
-  const flash = new T.Mesh(new T.CircleGeometry(0.014, 24), new T.MeshPhysicalMaterial({ color: new T.Color("#E8DCC0"), roughness: 0.3 }));
+  const flash = new T.Mesh(new T.CircleGeometry(0.014, 24), new T.MeshPhysicalMaterial({ color: new T.Color("#E8E6DC"), roughness: 0.3 }));
   flash.rotation.y = Math.PI;
   flash.position.set(bx + 0.05, by + 0.07, -e / 2 - 0.0105);
   groupe.add(flash);
@@ -445,7 +445,7 @@ export function construireLogo(T: Trois) {
   a.center();
   a.computeVertexNormals();
   // Aluminium anodisé orange : métal teinté, satiné sous un vernis brillant (reflets nets de la pièce par-dessus).
-  const metalOrange = new T.MeshPhysicalMaterial({ color: new T.Color("#EE7A45"), metalness: 0.55, roughness: 0.36, clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.25, sheenColor: new T.Color(ORANGE_VIF) });
+  const metalOrange = new T.MeshPhysicalMaterial({ color: new T.Color(ORANGE_VIF), metalness: 0.55, roughness: 0.36, clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.25, sheenColor: new T.Color(ORANGE_VIF) });
   const lettre = new T.Mesh(a, metalOrange);
   const hauteurA = 0.62 * k + 0.044;
   const socleH = 0.1;
@@ -454,7 +454,7 @@ export function construireLogo(T: Trois) {
   const point = new T.Mesh(new T.SphereGeometry(0.06, 48, 24), new T.MeshPhysicalMaterial({ color: new T.Color(CREME), metalness: 0.05, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.04 }));
   point.position.set(0.37, -0.5 + socleH + 0.06, 0.16);
   // Socle : pierre noire polie (diélectrique : reflets discrets), chanfrein en métal brossé.
-  const socle = new T.Mesh(new T.CylinderGeometry(0.46, 0.48, socleH, 96, 1), new T.MeshPhysicalMaterial({ color: new T.Color("#141416"), metalness: 0, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08 }));
+  const socle = new T.Mesh(new T.CylinderGeometry(0.46, 0.48, socleH, 96, 1), new T.MeshPhysicalMaterial({ color: new T.Color("#141413"), metalness: 0, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08 }));
   socle.position.y = -0.5 + socleH / 2;
   const chanfrein = new T.Mesh(new T.TorusGeometry(0.46, 0.008, 12, 96), metalBrosse(T, "#B8BABE", 0.18));
   chanfrein.rotation.x = Math.PI / 2;
