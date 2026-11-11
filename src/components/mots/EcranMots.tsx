@@ -161,9 +161,14 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
 
       <Carte data-carte="plafonds">
         <h3 className="text-base text-texte">Plafonds</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-2" data-etat-parcours>
+          <Pastille ton={vue.parcoursAllume ? "sauge" : "neutre"}>Parcours des messages privés : {vue.parcoursAllume ? "allumé" : "éteint"}</Pastille>
+          <Pastille ton={vue.guideValide ? "sauge" : "ambre"}>{vue.guideValide ? "Textes validés" : "Textes non validés"}</Pastille>
+          <Pastille ton={vue.oppositionsEnDoute > 0 ? "ambre" : "neutre"}>{vue.oppositionsEnDoute > 0 ? `${vue.oppositionsEnDoute} « stop » en doute` : "Aucun « stop » en doute"}</Pastille>
+        </div>
         <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-texte-doux">
-            Par heure et par compte (600 au maximum)
+            Par heure et par compte (600 au maximum) : réglage lu par le parcours
             <input inputMode="numeric" className="min-h-11 rounded-xl border border-trait bg-surface-2 px-3 text-texte" value={heure} onChange={(e) => setHeure(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1 text-sm text-texte-doux">

@@ -19,6 +19,7 @@ import { ESPACE_CONTACT_ZERNIO, enregistrerOppositionSousVerrou, marquerTransmis
 import { ErreurEmpreinteIndisponible } from "@/domaine/guide-reseau/empreinte-personne";
 import { comptesParcours, empreinteGuideParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { parcoursMotActif } from "./parcours-mot";
+import { PARAM_PLAFONDS_CONVERSATION_NOM, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { envoiZernioAutorise } from "./zernio";
 
 export const VARIABLE_INTERRUPTEUR_MOTS = "MOTS_ENABLED";
@@ -121,10 +122,16 @@ export async function reglerPlafonds(p: { heureCompte?: number; jourMot?: number
   return sousVerrou(async () => {
     const g = await lireGardes();
     const borne = (v: number, max: number) => Math.max(0, Math.min(max, Math.floor(Number.isFinite(v) ? v : 0)));
-    if (p.heureCompte !== undefined) g.plafonds.heureCompte = borne(p.heureCompte, PLAFOND_HEURE_COMPTE_MAX);
+    if (p.heureCompte !== undefined) {
+      // Le parcours de conversation lit `parcours.conversations.plafonds` : c'est CE réglage que la carte écrit (0 = invalide côté parcours, il retombe sur son défaut).
+      g.plafonds.heureCompte = borne(p.heureCompte, PLAFOND_HEURE_COMPTE_MAX);
+      const ancien = await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined);
+      const base = typeof ancien === "object" && ancien !== null ? (ancien as Record<string, unknown>) : {};
+      await ecrireParametre(PARAM_PLAFONDS_CONVERSATION_NOM, { ...base, heureCompte: g.plafonds.heureCompte });
+    }
     if (p.jourMot !== undefined) g.plafonds.jourMot = borne(p.jourMot, 1_000_000);
     await ecrireGardes(g);
-    return g.plafonds;
+    return { ...g.plafonds, heureCompte: plafondHeureCompte(await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined)) };
   });
 }
 
@@ -542,21 +549,29 @@ export interface VueMots {
   guideValide: boolean;
   /** Une validation existe mais elle ne correspond plus aux textes envoyés (titre ou dictionnaire changé) : à revalider. */
   guidePerime: boolean;
+  /** Interrupteur du parcours des messages privés (lecture seule) : un booléen. */
+  parcoursAllume: boolean;
+  /** « Stop » reçus mais pas encore transmis (donc en doute) : un NOMBRE, jamais une personne ni une empreinte. */
+  oppositionsEnDoute: number;
 }
 export async function lireVueMots(env: Env = process.env): Promise<VueMots> {
   const g = await lireGardes();
   const enregistree = await lireValidationGuideParcours();
   const actuelle = empreinteGuideParcours(titreGuideParcours(env));
+  const oppositions = await lireParametre<{ transmise?: boolean }[]>(PARAM_OPPOSITIONS_MOTS, []);
   const guideValide = !!enregistree && actuelle.ok && actuelle.empreinte === enregistree.empreinte;
   return {
     interrupteurAllume: motsActif(env),
     toutArrete: !(await envoiZernioAutorise()),
     disjoncteur: g.disjoncteur,
-    plafonds: g.plafonds,
+    // Ce que le parcours applique réellement (défaut 30, borné à 600), pas l'ancien réglage des gardes.
+    plafonds: { ...g.plafonds, heureCompte: plafondHeureCompte(await lireParametre<unknown>(PARAM_PLAFONDS_CONVERSATION_NOM, undefined)) },
     lignes: Object.values(await lireRegistre()).sort((a, b) => cle(a.mot, a.compte).localeCompare(cle(b.mot, b.compte))),
-    oppositions: (await lireParametre<unknown[]>(PARAM_OPPOSITIONS_MOTS, [])).length,
+    oppositions: oppositions.length,
     guideValide,
     guidePerime: !!enregistree && !guideValide,
+    parcoursAllume: /^(1|true|oui)$/i.test(env.PARCOURS_CONVERSATION_ENABLED?.trim() ?? ""), // même règle que parcoursConversationActif (figée par test)
+    oppositionsEnDoute: oppositions.filter((o) => o?.transmise === false).length,
   };
 }
 
