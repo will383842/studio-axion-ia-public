@@ -5,7 +5,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 export const VARIABLE_SECRET_EMPREINTE = "STUDIO_EMPREINTE_SECRET";
 /** Jusqu'à 3 anciens secrets, séparés par des virgules (lecture seule : sert à reconnaître, jamais à écrire). */
 export const VARIABLE_SECRETS_ANCIENS = "STUDIO_EMPREINTE_SECRET_ANCIEN";
-const AUTRES_SECRETS = ["SITE_GUIDES_RESEAU_SECRET", "SITE_VIDEOS_SECRET", "ZERNIO_WEBHOOK_SECRET"] as const;
+const AUTRES_SECRETS = ["SITE_GUIDES_RESEAU_SECRET", "SITE_VIDEOS_SECRET", "ZERNIO_WEBHOOK_SECRET", "GUIDES_RESEAU_LIEN_SECRET"] as const;
 const LONGUEUR_MINI = 32;
 const MAX_ANCIENS = 3;
 const LONGUEUR_ID_MAX = 256; // au-delà : condensé SHA-256

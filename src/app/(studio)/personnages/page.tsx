@@ -33,14 +33,14 @@ export default async function PagePersonnages({ searchParams }: { searchParams: 
       ) : (
         <>
           <Apparition>
-            <Carte lueur sansMarge className="mb-4 grid grid-cols-3 divide-x divide-trait">
+            <Carte sansMarge className="mb-4 grid grid-cols-3 divide-x divide-trait">
               {[
                 { valeur: `${prets}/${personnages.length}`, libelle: "prêts à tourner", icone: "valide" as const },
                 { valeur: visages, libelle: visages > 1 ? "visages prêts" : "visage prêt", icone: "visage" as const },
                 { valeur: voix, libelle: voix > 1 ? "voix prêtes" : "voix prête", icone: "micro" as const },
               ].map((c) => (
                 <div key={c.icone} className="flex flex-col items-center gap-1 px-2 py-4 text-center">
-                  <Icone nom={c.icone} size={18} className="text-orange-vif" />
+                  <Icone nom={c.icone} size={18} className="text-texte-faible" />
                   <span className="font-titre text-2xl tabular-nums text-texte sm:text-3xl">{c.valeur}</span>
                   <span className="text-xs text-texte-doux">{c.libelle}</span>
                 </div>

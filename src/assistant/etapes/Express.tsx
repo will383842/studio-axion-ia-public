@@ -25,6 +25,7 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
+import { Carte } from "@/components/ui/Carte";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
@@ -399,7 +400,7 @@ export function EtapeExpress(props: ProprietesEtape) {
       </div>
 
       {debut && (
-        <section aria-label="Pour commencer" className="rounded-carte border border-ambre/40 bg-ambre-doux p-4">
+        <Carte as="section" aria-label="Pour commencer" className="border-ambre/40 bg-ambre-doux">
           <p className="mb-3 text-sm font-semibold text-texte">Pour votre première vidéo</p>
           <ul className="grid grid-cols-3 gap-2">
             {debut.map((c) => (
@@ -410,27 +411,27 @@ export function EtapeExpress(props: ProprietesEtape) {
               </li>
             ))}
           </ul>
-          <Link href="/personnages" className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-orange-vif">
+          <Link href="/personnages" className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-texte-doux">
             Préparer mon double <Icone nom="chevron-droite" size={15} />
           </Link>
-        </section>
+        </Carte>
       )}
 
       {!aTexte && mode === "rapide" && scriptFacultatif(formatId) && !veutTexte && !idee && (
-        <section aria-label="Texte à lire" className="rounded-carte border border-trait bg-surface-1 p-4">
+        <Carte as="section" aria-label="Texte à lire">
           <p className="mb-3 text-sm text-texte-doux">Pas besoin de texte : envoyez votre vidéo déjà filmée et le studio la monte. Si vous voulez un texte à lire, il s&apos;écrit seulement sur votre demande.</p>
           <Bouton variante="secondaire" icone="ecrire" pleineLargeur onClick={() => setVeutTexte(true)}>
             {LIBELLE_VEUT_TEXTE}
           </Bouton>
-        </section>
+        </Carte>
       )}
 
       {!aTexte && mode === "rapide" && (!scriptFacultatif(formatId) || veutTexte || !!idee) && (
-        <motion.section initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-carte border border-orange/40 bg-surface-1 p-4">
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><Carte as="section">
           {idee && (
             <>
-              <div className="mb-3 flex items-start gap-3 rounded-xl bg-orange-doux p-3">
-                <Icone nom="idee" size={18} className="mt-0.5 shrink-0 text-orange-vif" />
+              <div className="mb-3 flex items-start gap-3 rounded-xl bg-surface-2 p-3">
+                <Icone nom="idee" size={18} className="mt-0.5 shrink-0 text-texte-doux" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs font-semibold text-texte-faible">Votre idée</span>
                   <span className="line-clamp-3 text-[15px] font-semibold text-texte">{idee}</span>
@@ -452,7 +453,7 @@ export function EtapeExpress(props: ProprietesEtape) {
               </Bouton>
             )}
           </div>
-        </motion.section>
+        </Carte></motion.div>
       )}
 
       <ul className="space-y-2">
@@ -636,10 +637,10 @@ function CarteBloc({ index, icone, titre, ligne, ton, alerte, visuel, onOuvrir }
       aria-label={`${titre} : ${ligne}`}
       className={cn(
         "flex min-h-[72px] w-full items-center gap-3 rounded-carte border p-3 text-left transition-colors",
-        ton === "orange" ? "border-orange/60 bg-orange-doux" : "border-trait bg-surface-1 hover:border-trait-fort",
+        ton === "orange" ? "border-texte bg-surface-2" : "border-trait bg-surface-1 hover:border-trait-fort",
       )}
     >
-      <span className={cn("relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl", ton === "orange" ? "bg-orange text-sur-orange" : "bg-surface-2 text-orange-vif")}>
+      <span className={cn("relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl", ton === "orange" ? "bg-texte text-fond" : "bg-surface-2 text-texte-faible")}>
         {visuel ?? <Icone nom={icone} size={22} />}
       </span>
       <span className="min-w-0 flex-1">

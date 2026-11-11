@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { exigerSession } from "@/services/auth";
 import { lireVeille } from "@/services/veille";
@@ -18,7 +19,7 @@ export default async function PageVeille({ searchParams }: { searchParams: Promi
   const [{ nouveaute }, vue] = await Promise.all([searchParams, lireVeille()]);
   const noms = Object.fromEntries(vue.outils.map((o) => [o.id, o.nom]));
   return (
-    <div className="mx-auto max-w-3xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage titre="Veille" sousTitre="Les nouveautés de vos outils. Rien ne change sans vous." />
       <EcranVeille
         outils={vue.outils.map((o) => ({
@@ -37,6 +38,6 @@ export default async function PageVeille({ searchParams }: { searchParams: Promi
         derniereLecture={vue.derniereLecture}
         ouverteId={nouveaute ?? null}
       />
-    </div>
+    </ConteneurPage>
   );
 }

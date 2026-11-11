@@ -1,12 +1,12 @@
 /**
  * Filtre RÉCURSIF des mots interdits pour Zernio (ADR-0004, D7).
  *
- * Réutilise `motsInterditsEnvoi` (même règle que Buffer). Parcourt TOUTES les chaînes d'un corps, quelle que soit leur
+ * Réutilise `motsInterditsEnvoiZernio` (règle de Buffer + ville interdite et promesse de gain). Parcourt TOUTES les chaînes d'un corps, quelle que soit leur
  * profondeur (texte, customContent, firstComment, documentTitle de platformSpecificData, title, altText,
  * description, valeurs de metadata…), y compris les NOMS de clés, puis contrôle la sérialisation JSON entière.
  * S'applique aux POST, aux PUT, au GET avant promotion et à l'import ; le refus a lieu avant le réseau.
  */
-import { motsInterditsEnvoi } from "./mots-interdits-envoi";
+import { motsInterditsEnvoiZernio } from "./mots-interdits-envoi";
 import { ErreurZernio } from "./zernio-erreurs";
 
 /** Une chaîne trouvée dans le corps, avec son chemin lisible (`platforms[0].customContent`, `metadata.<clé>`…). */
@@ -60,7 +60,7 @@ export function motsInterditsDuCorps(corps: unknown): MotInterditTrouve[] {
       trouves.push({ chemin, mots: ["(corps trop profond)"] });
       continue;
     }
-    const mots = motsInterditsEnvoi(valeur);
+    const mots = motsInterditsEnvoiZernio(valeur);
     if (mots.length > 0) trouves.push({ chemin, mots });
   }
   // Contrôle final : la sérialisation entière (jetons concaténés, échappements, clés).
@@ -70,7 +70,7 @@ export function motsInterditsDuCorps(corps: unknown): MotInterditTrouve[] {
   } catch {
     return [...trouves, { chemin: CHEMIN_SERIALISATION, mots: ["(corps non sérialisable)"] }];
   }
-  const motsSerialisation = new Set([...motsInterditsEnvoi(serialisation), ...motsInterditsEnvoi(decoderEchappements(serialisation))]);
+  const motsSerialisation = new Set([...motsInterditsEnvoiZernio(serialisation), ...motsInterditsEnvoiZernio(decoderEchappements(serialisation))]);
   if (motsSerialisation.size > 0) trouves.push({ chemin: CHEMIN_SERIALISATION, mots: [...motsSerialisation] });
   return trouves;
 }

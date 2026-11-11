@@ -3,7 +3,7 @@
  *
  * Source de la matrice : ADR parcours « mot → e-mail → guide », décision P2 (docs/zernio/parcours-viral/01-ADR-…) :
  *   - Facebook, Instagram : réponse publique + message privé (automatique) ;
- *   - LinkedIn page, TikTok : réponse publique seule ;
+ *   - LinkedIn page, TikTok : réponse publique À LA MAIN uniquement (décision du dirigeant, RC-43 : jamais automatique) ;
  *   - LinkedIn profil : manuel (aucune automatisation).
  *
  * ⚠ À CONFIRMER : l'extrait OpenAPI du dépôt (docs/zernio/openapi-extrait-1.418.1.json, 9 chemins) ne décrit AUCUN chemin
@@ -33,8 +33,8 @@ const base = { source: "ADR P2", confirmeChezZernio: false } as const;
 export const CAPACITES: Readonly<Record<Reseau, Capacite>> = {
   facebook: { reponsePublique: "auto", messagePrive: "auto", automatisable: true, ...base },
   instagram: { reponsePublique: "auto", messagePrive: "auto", automatisable: true, ...base },
-  linkedin_page: { reponsePublique: "auto", messagePrive: "non", automatisable: true, ...base },
-  tiktok: { reponsePublique: "auto", messagePrive: "non", automatisable: true, ...base },
+  linkedin_page: { reponsePublique: "manuel", messagePrive: "non", automatisable: false, ...base },
+  tiktok: { reponsePublique: "manuel", messagePrive: "non", automatisable: false, ...base },
   linkedin_profil: { reponsePublique: "manuel", messagePrive: "non", automatisable: false, ...base },
 };
 
@@ -48,9 +48,8 @@ export type ResultatGrapheReseau = ResultatGraphe | { ok: false; code: CodeRefus
 /**
  * Graphe adapté à la capacité du réseau. Les textes sont validés et contrôlés par `construireGrapheMot` (PV-3), puis :
  *  - réseau à message privé (Facebook, Instagram) : graphe complet de PV-3, déclencheur limité à ce réseau ;
- *  - réponse publique seule (LinkedIn page, TikTok) : réponse publique puis fin SANS texte, jamais d'étape message privé,
- *    d'attente ni de relance ;
- *  - LinkedIn profil : refus (`manuel_seulement`), voir le kit à copier.
+ *  - LinkedIn page, TikTok, LinkedIn profil : refus (`manuel_seulement`), réponse publique à la main avec le kit à copier
+ *    (RC-43 : jamais de réponse publique automatique sur ces réseaux).
  */
 export function construireGrapheReseau(textes: TextesMot, reseau: unknown): ResultatGrapheReseau {
   if (!estReseau(reseau)) return { ok: false, code: "reseau_inconnu", refus: [] };

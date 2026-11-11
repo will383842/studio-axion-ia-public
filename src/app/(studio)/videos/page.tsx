@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bouton } from "@/components/ui/Bouton";
+import { PucesActives } from "@/components/ui/PanneauFiltres";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
 import { RefaireToutesLesVignettes } from "@/components/videos/RefaireToutesLesVignettes";
 import { GalerieVideos } from "@/components/videos/GalerieVideos";
 import { OngletsMesVideos } from "@/components/videos/OngletsMesVideos";
-import { compterParReseau, filtrerCartes, lireFiltres } from "@/domaine/filtres-mes-videos";
+import { compterParReseau, filtrerCartes, lienFiltres, lireFiltres } from "@/domaine/filtres-mes-videos";
 import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
-import { filtrerParCiblage, lireFiltreCiblage } from "@/domaine/ciblage/listes";
-import { FiltresMesVideos } from "@/components/videos/FiltresMesVideos";
+import { filtrerParCiblage, lienCiblage, lireFiltreCiblage } from "@/domaine/ciblage/listes";
+import { TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
+import { FiltresMesVideos, PLURIEL } from "@/components/videos/FiltresMesVideos";
 import { compteursMesVideos, videosAutres, videosDeToutes } from "@/domaine/mes-videos";
+import { obtenirReseau } from "@/reseaux";
 import { listerFormats } from "@/formats";
 import { listerCorbeille } from "@/services/corbeille";
 import { listerSeries, listerVideos } from "@/services/videos";
@@ -57,22 +60,52 @@ export default async function PageVideos({ searchParams }: { searchParams: Promi
     </Bouton>
   );
 
+  // Filtres d'adresse (Réseau, Étape, Type) : un seul bouton « Filtres (n) » dans la barre de la galerie, des puces retirables.
+  const resteAdresse = new URLSearchParams();
+  for (const [cle, valeur] of Object.entries(sp)) if (valeur && !["reseau", "etape", "typeAuto"].includes(cle)) resteAdresse.set(cle, valeur);
+  const effacerHref = resteAdresse.size ? `/videos?${resteAdresse.toString()}` : "/videos";
+  const puces = [
+    ...(filtres.reseau ? [{ libelle: obtenirReseau(filtres.reseau).nom, href: lienFiltres("/videos", sp, { reseau: undefined }) }] : []),
+    ...(etape ? [{ libelle: PLURIEL[etape], href: lienFiltres("/videos", sp, { etape: undefined }) }] : []),
+    ...(filtreCiblage.type
+      ? [{ libelle: filtreCiblage.type === "a-classer" ? "À classer" : (TYPES_AUTOMATISATION.find((t) => t.id === filtreCiblage.type)?.libelle ?? "Type"), href: lienCiblage("/videos", sp, { typeAuto: undefined }) }]
+      : []),
+  ];
+  const filtresAdresse = {
+    contenu: (
+      <>
+        <FiltresMesVideos base="/videos" params={sp} filtres={filtres} reseaux={reseaux} disposition="panneau" />
+        <FiltresCiblage base="/videos" params={sp} filtre={{ anciens: false, type: filtreCiblage.type }} nbAnciens={0} disposition="panneau" />
+      </>
+    ),
+    puces: <PucesActives puces={puces} effacerHref={effacerHref} sansEffacer />,
+    nombre: puces.length,
+    effacerHref,
+  };
+
   return (
     <div>
-      <EnTetePage titre="Mes vidéos" actions={<div className="hidden lg:block">{nouvelle}</div>} />
-      {vue !== "corbeille" && vue !== "archivees" && (
-        <div className="mb-4 flex flex-wrap items-start justify-end gap-2">
-          <RefaireToutesLesVignettes />
-          <NettoyerNonTerminees />
-        </div>
-      )}
+      <EnTetePage
+        titre="Mes vidéos"
+        sousTitre="Toutes vos vidéos, rangées par format."
+        actions={
+          <>
+            {vue !== "corbeille" && vue !== "archivees" && (
+              <>
+                <RefaireToutesLesVignettes />
+                <NettoyerNonTerminees />
+              </>
+            )}
+            <div className="hidden lg:block">{nouvelle}</div>
+          </>
+        }
+      />
       <OngletsMesVideos actif={vue} compteParFormat={compteurs.parFormat} nbToutes={compteurs.toutes} nbBrouillons={compteurs.brouillons} nbArchivees={vue === "archivees" ? archivees.length : compteurs.archivees} nbCorbeille={compteurs.corbeille} nbAutres={compteurs.autres} className="mb-5" />
-      <FiltresMesVideos base="/videos" params={sp} filtres={filtres} reseaux={reseaux} className="mb-5" />
-      <FiltresCiblage base="/videos" params={sp} filtre={{ anciens: false, type: filtreCiblage.type }} nbAnciens={0} className="mb-5" />
       <GalerieVideos
         key={`${vue}-${sp.format ?? ""}-${etape ?? ""}-${filtres.reseau ?? ""}-${filtreCiblage.type ?? ""}`}
         videos={affichees}
         filtresInitiaux={etape ? { etape } : undefined}
+        filtresAdresse={filtresAdresse}
         series={series.map((s) => ({ id: s.id, nom: s.nom }))}
         archivees={vue === "archivees"}
         corbeille={vue === "corbeille"}

@@ -323,7 +323,8 @@ describe("e2e-4 · synchronisation : un post publié chez Zernio passe à « Pub
     await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
     const avant = appelsZernio.length;
     expect((await synchroniserEtatsZernio({ force: true, instant: Date.now() })).lues).toBe(0);
-    expect(appelsZernio.length).toBe(avant);
+    // Seule la lecture des comptes (alertes jetons, STU-JETONS) est permise : aucune lecture de post.
+    expect(appelsZernio.slice(avant).filter((a) => !/\/v1\/accounts$/.test(String((a as { url?: string }).url ?? a)))).toHaveLength(0);
   });
 
   it("sans clé Zernio : la synchro ne fait rien et ne plante pas", async () => {
