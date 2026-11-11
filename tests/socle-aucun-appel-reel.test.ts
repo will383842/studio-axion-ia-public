@@ -34,3 +34,12 @@ describe("socle « aucun appel réel » (L0-02)", () => {
     expect(typeof crochets.useState).toBe("function");
   });
 });
+
+it("la boucle locale (serveur lancé par le test) reste permise", async () => {
+  const { createServer } = await import("node:http");
+  const s = createServer((_q, r) => r.end("local"));
+  await new Promise<void>((ok) => s.listen(0, "127.0.0.1", ok));
+  const port = (s.address() as { port: number }).port;
+  expect(await (await fetch(`http://127.0.0.1:${port}/`)).text()).toBe("local");
+  s.close();
+});
