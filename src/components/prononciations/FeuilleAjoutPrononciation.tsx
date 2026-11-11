@@ -5,7 +5,6 @@ import { Bouton, Champ, FeuilleBas, Icone, notifier, PastilleEssai, SelecteurPas
 import { variantesMot } from "@/domaine/prononciations";
 import type { Prononciation, SourcePrononciation } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import { ajouterPrononciationAction, ecouterPrononciationAction, modifierPrononciationAction } from "./actions";
 import { useEcoute } from "./useEcoute";
 
@@ -124,8 +123,7 @@ export function FeuilleAjoutPrononciation({ ouverte, onOuverteChange, initial, e
               </>
             ) : (
               <>
-                <Icone nom="euro" size={12} />
-                {formaterMontant(resultat.cout)} · {resultat.voix}
+                {resultat.voix}
               </>
             )
           ) : (

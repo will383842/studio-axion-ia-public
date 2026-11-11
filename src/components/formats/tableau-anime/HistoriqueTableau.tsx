@@ -12,7 +12,6 @@ import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
 import { notifier } from "@/components/ui/Toast";
-import { formaterMontant } from "@/lib/montants";
 import type { VueHistorique } from "@/services/tableau-tracabilite";
 
 const jourLong = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -63,7 +62,6 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-titre text-lg text-texte">Historique</h2>
-          <p className="text-sm text-texte-doux">Coût total : {formaterMontant({ centimes: vue.coutTotalCentimes, devise: "EUR" })}</p>
         </div>
         <Bouton variante="secondaire" icone="telecharger" chargement={enCours} onClick={telecharger}>
           Télécharger l&apos;historique
