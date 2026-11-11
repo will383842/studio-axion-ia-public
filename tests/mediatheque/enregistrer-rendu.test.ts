@@ -13,11 +13,14 @@ function depotFaux(): DepotFichiers & { tout: Map<string, Fichier>; ecritures: n
   };
   return d;
 }
+const EMP = "e".repeat(64);
+const BASE = `studio/dev/visuels/${EMP.slice(0, 32)}`;
+// Clés au format réellement écrit par le rendu (rendu.ts) : visuels/<empreinte 32>/…, pages en .jpg.
 const rendu = (n: number): RenduVisuel => ({
-  empreinte: "e".repeat(64),
-  pdfCle: "studio/dev/visuel/vis_a/carrousel.pdf",
-  vignetteCle: "studio/dev/visuel/vis_a/page-1@1x.png",
-  pages: Array.from({ length: n }, (_, i) => ({ index: i, x1Cle: `studio/dev/visuel/vis_a/page-${i + 1}@1x.png`, x2Cle: `studio/dev/visuel/vis_a/page-${i + 1}@2x.png` })),
+  empreinte: EMP,
+  pdfCle: `${BASE}/carrousel.pdf`,
+  vignetteCle: `${BASE}/page-1-x1.jpg`,
+  pages: Array.from({ length: n }, (_, i) => ({ index: i, x1Cle: `${BASE}/page-${i + 1}-x1.jpg`, x2Cle: `${BASE}/page-${i + 1}-x2.jpg` })),
   renduLe: "2026-11-11T10:00:00.000Z",
 });
 const MAINTENANT = () => "2026-11-11T10:05:00.000Z";
@@ -29,12 +32,13 @@ describe("enregistrerRendu", () => {
     expect(r.pages).toHaveLength(6);
     expect(d.tout.size).toBe(7);
     expect(r.pdf.mime).toBe("application/pdf");
-    expect(r.pages.every((f) => f.mime === "image/png")).toBe(true);
+    expect(r.pages.every((f) => f.mime === "image/jpeg")).toBe(true);
+    expect(r.pages.map((f) => f.nom)).toEqual(Array.from({ length: 6 }, (_, i) => `page-${i + 1}-x1.jpg`));
     for (const f of d.tout.values()) {
       expect(f.statut).toBe("pret");
       expect(f.origine).toBe("fabrication");
-      expect(f.cleStockage.split("/")[2]).toBe("visuel");
-      expect(f.cleStockage.split("/")[3]).toBe("vis_a");
+      expect(f.cleStockage.split("/")[2]).toBe("visuels");
+      expect(f.cleStockage.split("/")[3]).toBe(EMP.slice(0, 32));
     }
   });
   it("un rejeu ne crée aucun doublon et n'écrit rien de plus", async () => {
@@ -59,5 +63,14 @@ describe("enregistrerRendu", () => {
     const mauvais = { ...rendu(2), pdfCle: "../sortie.pdf" };
     await expect(enregistrerRendu({ visuelId: "vis_a", rendu: mauvais, depot: d, maintenant: MAINTENANT })).rejects.toThrow();
     expect(d.tout.size).toBe(0);
+  });
+  it("refuse une clé d'un autre visuel ou dont le segment n'est pas au bon rang, sans rien écrire", async () => {
+    for (const cle of [`studio/dev/autre/visuels/${EMP.slice(0, 32)}/x.jpg`, `studio/dev/visuels/${"f".repeat(32)}/page-1-x1.jpg`, `studio/dev/visuel/vis_a/page-1-x1.jpg`]) {
+      const d = depotFaux();
+      const r = rendu(2);
+      r.pages[1] = { ...r.pages[1], x1Cle: cle };
+      await expect(enregistrerRendu({ visuelId: "vis_a", rendu: r, depot: d, maintenant: MAINTENANT })).rejects.toThrow(/hors du visuel/);
+      expect(d.tout.size).toBe(0);
+    }
   });
 });

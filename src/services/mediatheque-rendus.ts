@@ -2,7 +2,7 @@
 import type { Fichier } from "@/domaine/types";
 import type { RenduVisuel } from "@/domaine/visuels/visuel";
 import { cleMediaRendu, idFichierDeCle, typeMimeDeCle } from "@/domaine/mediatheque/cle-media";
-import { TYPE_ENTITE_VISUEL } from "@/domaine/mediatheque/types-entite";
+import { SEGMENT_CLE_VISUELS } from "@/domaine/mediatheque/types-entite";
 
 /** Le morceau du dépôt de Fichier dont ce service a besoin (injecté : aucun service réel ici). */
 export interface DepotFichiers {
@@ -31,13 +31,19 @@ async function inscrire(depot: DepotFichiers, cle: string, nom: string, maintena
 
 /** Inscrit le PDF et chaque page du rendu. Rejouable : un Fichier déjà inscrit n'est ni réécrit ni dupliqué. */
 export async function enregistrerRendu(d: DemandeEnregistrement): Promise<FichiersDuRendu> {
-  const attendu = `/${TYPE_ENTITE_VISUEL}/${d.visuelId}/`;
+  // Préfixe réel écrit par le rendu : studio/<env>/visuels/<empreinte 32>/ (l'environnement est un seul segment).
+  const empreinte = d.rendu.empreinte.slice(0, 32);
+  const dansLeVisuel = (cle: string) => {
+    const s = cle.split("/");
+    return s.length >= 5 && s[0] === "studio" && s[1] !== "" && s[2] === SEGMENT_CLE_VISUELS && s[3] === empreinte;
+  };
+  const nomDeCle = (cle: string) => cle.split("/").pop() as string;
   const entrees = [
     { cle: cleMediaRendu(d.rendu.pdfCle), nom: "carrousel.pdf" },
-    ...d.rendu.pages.map((p) => ({ cle: cleMediaRendu(p.x1Cle), nom: `page-${p.index + 1}.png` })),
+    ...d.rendu.pages.map((p) => ({ cle: cleMediaRendu(p.x1Cle), nom: nomDeCle(p.x1Cle) })),
   ];
   // Tout est vérifié avant la première écriture : une clé invalide n'écrit rien.
-  for (const e of entrees) if (!e.cle.includes(attendu)) throw new Error("Clé de média hors du visuel.");
+  for (const e of entrees) if (!dansLeVisuel(e.cle)) throw new Error("Clé de média hors du visuel.");
   const maintenant = d.maintenant();
   const [pdf, ...pages] = await Promise.all(entrees.map((e) => inscrire(d.depot, e.cle, e.nom, maintenant)));
   return { pages, pdf };
