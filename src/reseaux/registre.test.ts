@@ -52,3 +52,9 @@ describe("registre des réseaux", () => {
     expect(zoneProtegeeCombinee("1:1", ["tiktok"])).toBeNull();
   });
 });
+
+describe("Facebook : durée maximale (11/11/2026)", () => {
+  it("180 s, comme la règle d'écriture « aucune limite » pour les Reels", () => {
+    expect(obtenirReseau("facebook").dureeMaxSec).toBe(180);
+  });
+});

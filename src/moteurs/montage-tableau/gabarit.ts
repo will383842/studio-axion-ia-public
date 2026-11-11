@@ -43,8 +43,8 @@ export const CONSEIL_GABARIT = { detailMots: 10, comparaisonMots: 8 } as const;
 
 /** Pages au plus d'une fiche « reference/2 » (la consigne en demande 8 au plus ; 2 restent pour la réparation). */
 export const PAGE_MAX_GABARIT = 10;
-/** Pages au plus d'une fiche « reference/3 » (la consigne en demande 12 au plus ; 2 restent pour la réparation). */
-export const PAGE_MAX_GABARIT_3 = 14;
+/** Pages au plus d'une fiche « reference/3 » (la consigne en demande 26 au plus ; 2 restent pour la réparation). */
+export const PAGE_MAX_GABARIT_3 = 26;
 
 /**
  * Bornes communes d'une fiche du format : celles de la fiche commune ; pour la page écrite au crayon (« reference/1 »
@@ -55,7 +55,7 @@ export const PAGE_MAX_GABARIT_3 = 14;
  */
 export function bornesFicheTableau(fiche: Pick<FicheTableau, "habillage">): BornesFiche {
   // « reference/3 » : une partie par page, 3 blocs au plus par page (une page de plus plutôt qu'une page chargée).
-  if (estGabarit3(fiche)) return { ...BORNES_FICHE, pageMax: PAGE_MAX_GABARIT_3, scenesMax: 18 };
+  if (estGabarit3(fiche)) return { ...BORNES_FICHE, pageMax: PAGE_MAX_GABARIT_3, scenesMax: 30 };
   if (estGabaritClair(fiche)) return { ...BORNES_FICHE, pageMax: PAGE_MAX_GABARIT, scenesMax: 14 };
   return estPageEcriteCrayon(fiche) ? { ...BORNES_FICHE, pageMax: 8, scenesMax: 14 } : BORNES_FICHE;
 }

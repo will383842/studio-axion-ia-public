@@ -36,6 +36,8 @@ export interface Manquement {
   message: string;
   /** À trancher par Will (formule absolue, phrase-choc de l'image à reformuler). */
   pourWill?: boolean;
+  /** Mot interdit en toutes lettres (liste de Will / de la marque) : seul cas de Q08 qui bloque un script collé. */
+  interdit?: boolean;
   /** Version proposée (prudente, ou sans le mot interdit). */
   proposition?: string;
 }
@@ -79,6 +81,8 @@ export const TOLERANCE_DUREE_IV = 0.1;
 
 /** Interdits permanents de Will (Q08), en plus de `MOTS_INTERDITS_FORMAT` du cas concret. */
 export const INTERDITS_PERMANENTS: readonly string[] = [...MOTS_INTERDITS_FORMAT, "certifié", "certifiée", "certifiés", "Certifexemple"];
+/** Interdits permanents qui restent une alerte (jamais un refus) pour un script collé. */
+const MOTS_SEULEMENT_ALERTE: readonly string[] = ["machine", "machines"];
 /** Faux client : un client présenté comme réel (« un client a… », « notre client »). */
 const FAUX_CLIENT = /(?:^|[^a-z])(?:un|une|notre|nos|mon|ma|mes|ce|cette) (?:de nos )?client(?:e)?s? (?:a|ont|nous a|m a|nous ont|est|sont)(?=$|[^a-z])|(?:^|[^a-z])(?:notre|nos) client(?:e)?s?(?=$|[^a-z])/;
 /** Phrases d'appel refusées dans le corps (la fin vient de la banque). */
@@ -443,7 +447,7 @@ export function regleInterdits(fiche: FicheImage, ctx: ContexteRegles, dejaSigna
     .filter((w, i, a) => a.indexOf(w) === i);
   const controler = (t: string, ou: string, corps: boolean, ecranId?: string) => {
     const avec = (message: string, extra: Partial<Manquement> = {}): Manquement => ({ regle: "Q08", priorite: 1, message, ...(ecranId ? { ecranId } : {}), ...extra });
-    for (const i of interdits) if (contientExpression(t, i)) res.push(avec(`${ou} : « ${i} » est interdit.`, { proposition: reformulerInterdits(t) }));
+    for (const i of interdits) if (contientExpression(t, i)) res.push(avec(`${ou} : « ${i} » est interdit.`, { proposition: reformulerInterdits(t), ...(MOTS_SEULEMENT_ALERTE.includes(i) ? {} : { interdit: true }) }));
     if (FAUX_CLIENT.test(texteCompare(t).replace(/'/g, " "))) res.push(avec(`${ou} : un client est présenté comme réel ; dites « situation type » ou « par exemple ».`));
     for (const nom of noms) {
       for (const p of phrasesDe(t)) if (contientNomPropre(p, nom) && !contientExpression(p, "exemple")) res.push(avec(`${ou} : « ${nom} » est un nom d'exemple ; dites « par exemple ».`));

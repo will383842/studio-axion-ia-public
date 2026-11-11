@@ -111,7 +111,7 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
   // Commande d'avant R5 (réglage jamais écrit) : elle garde l'ancien comportement « en cas de doute » ; seules les commandes qui
   // portent « automatique » (nouvelles vidéos) suivent le nouveau défaut.
   const brut = (commande.reglages ?? {}) as Record<string, unknown>;
-  const reglages = schemaReglagesImageVideo.parse("validationCarte" in brut ? brut : { ...brut, validationCarte: "si-doute" });
+  const reglages = schemaReglagesImageVideo.parse("validationCarte" in brut ? brut : { ...brut, validationCarte: e.scriptColle ? "automatique" : "si-doute" });
   return {
     videoId: commande.videoId,
     versionId,

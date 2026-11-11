@@ -659,7 +659,9 @@ export function reglePreuveValidee(fiche: FicheTableau, contexte: ContexteTablea
       else if (s.role === "preuve") bonne = true;
     }
   }
-  if (!bonne && !res.length) {
+  // Texte dit de Will, ou aucune preuve proposée/disponible : pas de scène « preuve » imposée (le texte est pris à l'identique, on n'invente pas de preuve).
+  const aucuneDisponible = !contexte.preuves.some((p) => utilisable(p, contexte.aujourdhui)) && !contexte.matieres.some((m) => m.type === "demonstration" && utilisable(m, contexte.aujourdhui));
+  if (!bonne && !res.length && !contexte.texteDeWill && !aucuneDisponible) {
     res.push({ detail: "aucune scène « preuve » ne montre une preuve validée et non périmée ; une vidéo montre sa preuve à l'écran." });
   }
   return res;
@@ -686,7 +688,8 @@ export function regleDouleurEnTete(fiche: FicheTableau, contexte: ContexteTablea
     });
   }
   const ecrits = clesPresentes(s.elements.flatMap(textesEcrits).join(" "), cles);
-  if (ecrits.length < MOTS_CLES_DOULEUR_MIN) {
+  // Texte dit de Will : la douleur saisie peut ne pas apparaître dans ses mots ; on ne refuse pas pour cela.
+  if (!contexte.texteDeWill && ecrits.length < MOTS_CLES_DOULEUR_MIN) {
     res.push({ sceneId: s.id, detail: `aucun mot de la douleur n'est écrit dans la première scène : écrivez dans une de ses lignes un des mots ${cherches}.` });
   }
   return res;
@@ -1046,7 +1049,9 @@ export function regleGesteFortDouleur(fiche: FicheTableau, contexte: ContexteTab
           (e.type === "ligne" && !!e.marque && MARQUES_FORTES.includes(e.marque) && lignesDouleur.get(e.id))),
     ),
   );
-  if (!fort) {
+  // Texte dit de Will : si aucune ligne de la première scène n'écrit un mot de la douleur, il n'y a rien à souligner : pas de refus.
+  const douleurEcrite = premiere.scene.elements.some((e) => e.type === "ligne" && lignesDouleur.get(e.id));
+  if (!fort && !(contexte.texteDeWill && !douleurEcrite)) {
     res.push({
       sceneId: premiere.scene.id,
       detail: `aucun geste fort (entourer, barrer) sur un mot de la douleur dans les ${DEBUT_DOULEUR_MS / 1000} premières secondes : entourez ou barrez, au début de la première scène, une ligne qui écrit un des mots ${cherches}.`,
@@ -1145,7 +1150,7 @@ export const REGLES_TABLEAU: readonly RegleTableau[] = [
   { numero: 11, nom: "dessins de la banque, droits valides", verifier: regleDessinsAutorises },
   { numero: 12, nom: "aucune phrase d'appel", verifier: (f, c) => regleSansAppel(f, c) },
   { numero: 13, nom: "contrôles du script sur les textes écrits et dits", verifier: regleControlesScript },
-  { numero: 14, nom: "durée de 90 secondes au plus", verifier: regleDureeMaximale },
+  { numero: 14, nom: "durée de 180 secondes au plus", verifier: regleDureeMaximale },
   { numero: 15, nom: "série sans numéro", verifier: (f, c) => regleSansNumeroEpisode(f, c) },
   { numero: 16, nom: "du rythme : un événement visuel toutes les 4 secondes", verifier: regleRythme },
   { numero: 17, nom: "geste fort sur la douleur dès le début", verifier: regleGesteFortDouleur },

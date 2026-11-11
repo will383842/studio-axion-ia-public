@@ -13,7 +13,7 @@ import { fichesBanc } from "./fiches-banc";
  * chiffres dits « trois » et « dix » retirés, phrase tronquée) et ne montre pas sa preuve : la fiche est refusée à sa
  * relecture, comme elle doit l'être. Sa version corrigée passe.
  */
-const DEBIT_165 = /règle « (durée de 90 secondes au plus|du rythme : un événement visuel toutes les 4 secondes) »/;
+const DEBIT_165 = /règle « (durée de 180 secondes au plus|du rythme : un événement visuel toutes les 4 secondes) »/;
 export const REFUS_ADMIS: Readonly<Record<string, RegExp>> = {
   "fiche-temoin-v-667edcd8e3a8-reference-3": /preuve validée à l'écran|a retiré « (trois|dix) »/,
   "trois-styles · témoin v-667edcd8e3a8": /preuve validée à l'écran|a retiré « (trois|dix) »/,

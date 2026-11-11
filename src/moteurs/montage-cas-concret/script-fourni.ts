@@ -34,7 +34,7 @@ import type { ContexteCasConcret } from "./regles";
 
 export const TEXTE_FOURNI_MAX = 4000;
 export const LIGNE_FOURNIE_MAX = 400;
-export const LIGNES_FOURNIES_MAX = 26;
+export const LIGNES_FOURNIES_MAX = 40;
 /** Mots dits au plus sans événement à l'écran (comme le gabarit). */
 export const PAS_EVENEMENT = 6;
 
@@ -107,7 +107,7 @@ export type LectureFournie = { ok: true; lignes: LigneFournie[] } | { ok: false;
  * Le texte de Will, en lignes typées. `cas` (facultatif) sert à reconnaître la partie humaine d'une ligne sans étiquette.
  * Aucune ligne n'est jamais réécrite : seules les puces de tête et l'étiquette sont retirées.
  */
-export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHumain">): LectureFournie {
+export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHumain"> & Partial<Pick<CasConcret, "etapes">>): LectureFournie {
   if (typeof texte !== "string") return { ok: false, refus: [{ message: "Le script doit être un texte." }] };
   if (texte.length > TEXTE_FOURNI_MAX) return { ok: false, refus: [{ message: `Le script est trop long : ${TEXTE_FOURNI_MAX} caractères au plus (il en compte ${texte.length}).` }] };
   const brutes = texte
@@ -194,6 +194,11 @@ export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHum
   for (const [i, l] of lignes.entries()) {
     const forme = formes[i]!;
     let etapeCas = l.etapeCas;
+    if (forme === "etape" && !l.explicite && cas?.etapes && derniere > 0 && derniere + 1 > cas.etapes.length) {
+      // 11/11/2026 : une ligne sans étiquette au-delà des étapes du cas complète la dernière étape (détail), sans refus.
+      sortie.push({ rang: l.rang, forme: "detail", texte: l.texte, explicite: false, etapeCas: derniere });
+      continue;
+    }
     if (forme === "etape") {
       etapeCas = etapeCas ?? derniere + 1;
       derniere = etapeCas;
@@ -264,10 +269,9 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
         const n = nombreLus(l.texte);
         // 08/11/2026 : une accroche longue n'est qu'une remarque. Limite TECHNIQUE seulement : l'écran d'accroche porte 3 lignes de
         // 3 mots au plus (9 mots) ; un mot seul ne se met pas en page.
-        if (n > 9) return non(l, `l'accroche compte ${n} mots ; l'écran d'accroche en tient 9 au plus. Gardez l'idée, coupez le reste.`);
         if (n < 2) return non(l, `l'accroche compte ${n} mot${n > 1 ? "s" : ""} ; il en faut au moins 2. Dites le sujet de la vidéo, par exemple « ${cas.recit?.sujet ?? cas.promesse} ».`);
-        if (n > 8) remarquesFiche.push(`Ligne ${l.rang} : l'accroche compte ${n} mots ; l'habitude est de 8 au plus.`);
-        const mots = sansPointsDeSigle(sansPointFinal(l.texte)).split(/\s+/);
+        if (n > 8) remarquesFiche.push(`Ligne ${l.rang} : l'accroche compte ${n} mots ; l'habitude est de 8 au plus${n > 9 ? " (l'écran n'en affiche que 9, la voix dit tout)" : ""}.`);
+        const mots = sansPointsDeSigle(sansPointFinal(l.texte)).split(/\s+/).slice(0, 9);
         const nl = mots.length <= 6 ? 2 : 3;
         const tailles = Array.from({ length: nl }, (_, k) => Math.floor(mots.length / nl) + (k < mots.length % nl ? 1 : 0));
         const lignes: string[] = [];
@@ -410,7 +414,7 @@ function messageFourni(p: { regle: string; message: string }, cas: CasConcret): 
       geste = " Ce nombre ne vient d'aucun fait du cas : retirez-le.";
       break;
     case "aucun appel dans le corps":
-      geste = " La fin (lien, mot à commenter, diagnostic) est ajoutée toute seule selon le réseau : retirez-la.";
+      geste = " La fin (lien, mot à commenter, diagnostic) est ajoutée toute seule selon le réseau : vous pouvez la retirer.";
       break;
     case "rythme":
       geste = " Phrase trop longue sans changement à l'écran : coupez-la en deux lignes.";
@@ -438,7 +442,10 @@ export function controlerTexteFourni(texte: unknown, cas: CasConcret, options: {
   const remarques: string[] = [...(f.remarques ?? [])];
   const avertissements: string[] = [];
   if (f.lignes.length < 12 || f.lignes.length > 26) remarques.push(`Le script compte ${f.lignes.length} lignes ; l'habitude est de 12 à 26 (une ligne = un écran).`);
-  if (nbEtapes < 3 || nbEtapes > 7) remarques.push(`Le script compte ${nbEtapes} ligne${nbEtapes > 1 ? "s" : ""} d'étape ; l'habitude est de 3 à 7 ([étape]).`);
+  // La composition de la vidéo exige de 3 à 7 étapes (schéma de la fiche) : ce n'est pas une habitude, on le dit en clair.
+  if (nbEtapes < 3 || nbEtapes > 7) {
+    return { ok: false, refus: [{ message: nbEtapes < 3 ? `Il faut au moins 3 lignes d'étape (marquées [étape]) ; le script en compte ${nbEtapes}. Ajoutez des lignes qui montrent chacune une étape du fonctionnement.` : `Il faut 7 lignes d'étape au plus (marquées [étape]) ; le script en compte ${nbEtapes}. Passez les lignes en trop en [détail].` }] };
+  }
   const c = completerFiche(f.brute, { ...fixe, cas });
   const lignes = f.lignes;
   const refus: RefusFourni[] = [];

@@ -26,6 +26,9 @@ export const LIGNES_BLOC_MAX = 3;
 /** Contraste minimal du texte (on le garde à 4,5 pour 1, même si 44 px et plus sont du « grand texte »). */
 export const CONTRASTE_TEXTE_REFERENCE = 4.5;
 
+/** Tolérance sur la durée du fichier final (débit non mesuré, voir `duree-tableau.ts`). */
+export const TOLERANCE_DUREE_REFERENCE = 1.05;
+
 /** Une faute, et la scène où elle se voit. */
 export interface FauteReference {
   sceneId: string;
@@ -39,7 +42,9 @@ export function seuilsImageReference(mise: MiseEnPageTableau, injectes?: Partial
   const accroche = mise.styleReference?.style === "reference/3" ? { accrocheMotsMax: ACCROCHE_MOTS_MAX_3 } : {};
   // « reference/3 » : la bande basse de la zone sûre est réservée aux sous-titres communs (charte Axion, 15/10/2026).
   const bande = mise.styleReference?.style === "reference/3" ? mise.bandeSousTitres.px.hauteur / mise.hauteurPx : 0;
-  return { ...SEUILS_CONTROLE_IMAGE, ...injectes, ...accroche, tailleTexteMin: (TAILLES_REFERENCE.texteMin * k) / mise.hauteurPx - 1e-6, contrasteTexteMin: CONTRASTE_TEXTE_REFERENCE, bandeSousTitres: bande };
+  // Le débit de 16,9 caractères/s est une cible non mesurée : 5 % de tolérance sur la durée mesurée du fichier final.
+  const dureeMax = (injectes?.dureeMaxSec ?? SEUILS_CONTROLE_IMAGE.dureeMaxSec) * TOLERANCE_DUREE_REFERENCE;
+  return { ...SEUILS_CONTROLE_IMAGE, ...injectes, ...accroche, tailleTexteMin: (TAILLES_REFERENCE.texteMin * k) / mise.hauteurPx - 1e-6, contrasteTexteMin: CONTRASTE_TEXTE_REFERENCE, bandeSousTitres: bande, dureeMaxSec: dureeMax };
 }
 
 const touche = (a: RectPx, b: RectPx) => Math.min(a.x + a.largeur, b.x + b.largeur) > Math.max(a.x, b.x) && Math.min(a.y + a.hauteur, b.y + b.hauteur) > Math.max(a.y, b.y);

@@ -351,12 +351,12 @@ describe("essai par l'écran du 12/10 : petits défauts et arrêt à la relectur
     expect(await decouperScriptTableau(donnees, { accord: ecran.coutDecoupageCentimes, relu: repereTexte(donnees.texte) }, { aujourdhui: AUJOURDHUI_EXEMPLES })).toMatchObject({ statut: "en-cours" });
   });
 
-  it("essai réel n° 3 : un texte au-delà de LA borne de longueur (90 s, 1 520 caractères dits) est refusé avant le prix", async () => {
+  it("essai réel n° 3 : un texte au-delà de LA borne de longueur (180 s, 3 041 caractères dits) est refusé avant le prix", async () => {
     const { CARACTERES_DITS_MAX_TABLEAU } = await import("@/domaine/duree-tableau");
     let texte = donnees.texte;
     while (texte.length <= CARACTERES_DITS_MAX_TABLEAU) texte = `${texte} ${donnees.texte}`;
     const r = await decouperScriptTableau({ ...donnees, texte }, { accord: 999_999 }, { aujourdhui: AUJOURDHUI_EXEMPLES });
-    expect(r).toMatchObject({ statut: "refusee", phrase: expect.stringMatching(/1520 au plus \(90 s de voix\)/) });
+    expect(r).toMatchObject({ statut: "refusee", phrase: expect.stringMatching(/3041 au plus \(180 s de voix\)/) });
   });
 
   it("essai réel n° 3 : à la main, on ajoute une ligne écrite à une scène et on coupe une scène en deux à une phrase", async () => {

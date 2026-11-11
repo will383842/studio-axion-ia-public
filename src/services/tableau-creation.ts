@@ -388,7 +388,7 @@ export interface EcranCreationTableau {
   recents: BrouillonRecentTableau[];
 }
 
-/** Choix les plus longs que l'écran permet (script de `CARACTERES_DITS_MAX_TABLEAU` caractères dits, 90 s de voix ; phrases de 160) : base du prix annoncé. */
+/** Choix les plus longs que l'écran permet (script de `CARACTERES_DITS_MAX_TABLEAU` caractères dits, 180 s de voix ; phrases de 160) : base du prix annoncé. */
 const TEXTE_DECOUPAGE_MAX = "mot ".repeat(Math.ceil(CARACTERES_DITS_MAX_TABLEAU / 4));
 
 /**
