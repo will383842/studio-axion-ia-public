@@ -35,7 +35,7 @@ import { MENTION_IA_PAR_DEFAUT } from "@/domaine/derivations";
 import type { BlocScript, Distribution, Id, MentionIA, Video } from "@/domaine/types";
 import { dureeParDefaut, reglagesParDefaut, trouverFormat } from "@/formats";
 import { nouvelId } from "@/lib/ids";
-import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { ENTREE_TABLEAU, fichiersDuTravail, lireEntreesTableau, voixPayeeDuTravail, type VoixPayee } from "@/moteurs/montage-tableau";
 import { ancreParlee, couperScene } from "@/moteurs/montage-tableau/rythme";
 import { coutPireDecoupageUsd, decouperEnScenes, ETAPE_DECOUPAGE, PARTIES_MAX, partiesDuDecoupage, remettreEnForme, type EntreeDecoupage, type OutilsDecoupage, type PreuveProposee, type ReponseAppelDecoupage, type ResultatDecoupage } from "@/moteurs/montage-tableau/decoupage";
@@ -759,7 +759,7 @@ async function prixDecoupage(donnees: DonneesScriptTableau, aujourdhui: string):
   const pireUsd = coutPireDecoupageUsd(entree);
   // Le prix annoncé sur le bouton (script le plus long permis) ; plus haut seulement pour un script plus long encore.
   const montant = Math.max(centimesEurDe(pireUsd, taux), await annonceDecoupageCentimes(aujourdhui, taux));
-  return { pireUsd, montant, phrase: `Le découpage coûte au plus ${formaterMontant({ centimes: montant, devise: "EUR" })}. Confirmez ce prix pour lancer.` };
+  return { pireUsd, montant, phrase: `Le découpage est payant. Confirmez pour lancer.` };
 }
 
 /** Refus de « Découper en scènes » sans le repère « texte relu » du texte envoyé. Rien n'est payé. */
@@ -1241,7 +1241,7 @@ export async function relancerTableau(travailId: Id, accordBrut: AccordPrix | un
     const fiche = (e.version ? b?.versions[e.version - 1]?.fiche : undefined) ?? b?.versions.at(-1)?.fiche;
     const montant = fiche ? coutVoixDe(fiche, await lecturesVoixMaxDuReglage()) : 0;
     if (montant > 0 && (typeof accord !== "number" || accord < montant)) {
-      return { statut: "accord-requis", centimes: montant, phrase: `La voix n'a pas été lue en entier : environ ${formaterMontant({ centimes: montant, devise: "EUR" })} au plus. Confirmez ce prix pour relancer.` };
+      return { statut: "accord-requis", centimes: montant, phrase: `La voix n'a pas été lue en entier : la relire est payant. Confirmez pour relancer.` };
     }
   }
   try {
@@ -1353,8 +1353,7 @@ export async function fabriquerVideoTableau(videoId: Id, accordBrut: AccordPrix 
   const montant = dejaPayee?.etat === "reutilisee" ? 0 : estimerFabrication(r.fiche, TARIF_VOIX_CENTIMES_PAR_CARACTERE, [], { lecturesVoixMax: await lecturesVoixMaxDuReglage() }).centimes;
   const accord = accordPropre(accordBrut);
   if (montant > 0 && (typeof accord !== "number" || accord < montant)) {
-    const prix = formaterMontant({ centimes: montant, devise: "EUR" });
-    return { statut: "accord-requis", centimes: montant, phrase: dejaPayee?.etat === "relue" ? `Le texte dit a changé : la voix sera relue, environ ${prix}. Confirmez ce prix pour lancer.` : `La voix coûte environ ${prix}. Confirmez ce prix pour lancer.` };
+    return { statut: "accord-requis", centimes: montant, phrase: dejaPayee?.etat === "relue" ? `Le texte dit a changé : la voix sera relue, ce qui est payant. Confirmez pour lancer.` : `La voix est payante. Confirmez pour lancer.` };
   }
 
   if (await supprimeePendantLAppel(video.id)) return { statut: "refusee", phrase: "Ce brouillon n'existe plus." };
@@ -1576,7 +1575,7 @@ async function prixEcriture(methodeTache?: MethodeTableau): Promise<{ pireUsd: n
   const methode = methodeTache ?? (await methodeEcritureTableau());
   const pireUsd = await pireCasEcritureUsd(methode);
   const montant = coutEcritureCentimes(taux, pireUsd);
-  return { pireUsd, montant, methode, phrase: `L'écriture coûte au plus ${formaterMontant({ centimes: montant, devise: "EUR" })}. Confirmez ce prix pour lancer.` };
+  return { pireUsd, montant, methode, phrase: `L'écriture est payante. Confirmez pour lancer.` };
 }
 
 /**

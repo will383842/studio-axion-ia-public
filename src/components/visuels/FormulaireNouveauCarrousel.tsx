@@ -188,7 +188,7 @@ export function FormulaireNouveauCarrousel({
           placeholder="Par exemple : cinq erreurs à éviter au lancement"
           className="min-h-12 rounded-champ border border-trait bg-surface-1 px-3.5 text-[15px] text-texte placeholder:text-texte-faible focus:border-orange"
         />
-        <p className="text-xs text-texte-faible">Le texte est un exemple de simulation (0 $), écrit sur un modèle du studio : votre sujet sert de titre quand il s&apos;y prête.</p>
+        <p className="text-xs text-texte-faible">Le texte est un exemple d&apos;essai, écrit sur un modèle du studio : votre sujet sert de titre quand il s&apos;y prête.</p>
         <Bouton type="submit" icone="etincelles" disabled={grise} aria-describedby={pourquoiGrise} className="self-start">
           Créer le carrousel
         </Bouton>
