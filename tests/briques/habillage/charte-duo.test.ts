@@ -33,6 +33,7 @@ describe("charte-duo/1", () => {
       vert: "#5E7050",
       blanc: "#FAF9F5",
       carte: "#FFFFFF",
+      sable: "#E8E6DC",
     });
     expect(TAILLES_DUO).toEqual({ geant: 0.375, affiche: 0.12, titre: 0.099, ligne: 0.022, etiquette: 0.0146, marque: 0.0188 });
     expect(TAILLE_PLANCHER_DUO).toBe(0.03);

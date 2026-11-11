@@ -109,7 +109,7 @@ export function Alerte({ source, moment, message, t0, frappe, t, declencheurs, t
             <Icone nom={icone} taille={64} couleur={COULEURS_DUO.blanc} epaisseur={2.8} />
           </div>
           <div style={{ position: "relative" }}>
-            <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLES_DUO.etiquette * 1920, letterSpacing: "0.2em", textTransform: "uppercase", color: COULEURS_DUO.gris, marginBottom: 10 }}>{a.etiquette}</div>
+            <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLES_DUO.etiquette * 1920, letterSpacing: "0.2em", textTransform: "uppercase", color: COULEURS_DUO.encre, marginBottom: 10 }}>{a.etiquette}</div>
             <div style={{ opacity: a.opaciteMessage }}>
               <Lignes texte={a.message} couleur={COULEURS_DUO.encre} police="inter-gras" />
             </div>
