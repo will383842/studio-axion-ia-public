@@ -7,6 +7,7 @@ import type { Publication } from "@/domaine/types";
 import { sourceDe } from "@/domaine/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import type { CreneauPlan } from "@/services/plan-editorial";
+import { decaler } from "@/services/plan-editorial";
 import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 
 function faux<T extends { id: string }>(): Depot<T> {
@@ -86,5 +87,26 @@ describe("passerelle visuel -> publication", () => {
     expect((await d.publications.lister()).length).toBe(2);
     expect(reprise.map((p) => p.id)).toContain(premiere.id);
     expect((await d.visuels.obtenir("vis_1"))?.statut).toBe("programme");
+  });
+  it("un décalage puis un rejeu ne crée pas de 2e Publication : la date de l'existante est mise à jour", async () => {
+    const d = await monter();
+    await programmerVisuel(d, "c1", T0);
+    await decaler(d, "c1", { cle: "k1", nouveauJour: "2026-11-27", raison: "test" }, T0);
+    const rejeu = await programmerVisuel(d, "c1", T0);
+    const toutes = await d.publications.lister();
+    expect(toutes).toHaveLength(2);
+    expect(rejeu).toHaveLength(2);
+    for (const p of toutes) expect(p.date.startsWith("2026-11-27")).toBe(true);
+  });
+
+  it("un rejeu après décalage d'un créneau confié (à renvoyer) est refusé, sans écriture", async () => {
+    const d = await monter();
+    await d.creneaux.modifier("c1", { repereUsine: "repere-fictif" } as Partial<CreneauPlan>);
+    await programmerVisuel(d, "c1", T0);
+    await decaler(d, "c1", { cle: "k1", nouveauJour: "2026-11-27", raison: "test" }, T0);
+    await expect(programmerVisuel(d, "c1", T0)).rejects.toThrow(/renvoy/i);
+    const toutes = await d.publications.lister();
+    expect(toutes).toHaveLength(2);
+    for (const p of toutes) expect(p.date.startsWith("2026-11-25")).toBe(true);
   });
 });
