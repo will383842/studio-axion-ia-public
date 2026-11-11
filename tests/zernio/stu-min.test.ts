@@ -34,7 +34,7 @@ async function evenement(o: { type?: "zernio.commentaire" | "zernio.message"; ag
   return `evf-${idEvenement}`;
 }
 const lire = async (id: string) => (await depots().evenementsFournisseurs.obtenir(id)) as any;
-const reduire = (env = ENV_RED, ms = T0) => C.reduireIdentifiants({ env, maintenantMs: ms });
+const reduire = (env: Record<string, string | undefined> = ENV_RED, ms = T0) => C.reduireIdentifiants({ env, maintenantMs: ms });
 const conversations = () => Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
 const nbLignes = async () => (await depots().evenementsFournisseurs.lister(() => true)).length;
 
