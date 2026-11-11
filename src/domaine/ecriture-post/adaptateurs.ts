@@ -21,7 +21,7 @@ export function contenuDepuisVideoImportee(d: { titre: string; description: stri
     origine: "video-importee",
     titre: d.titre,
     texteValide: d.description,
-    ...(d.dureeSec ? { dureeSec: d.dureeSec } : {}),
+    ...(d.dureeSec !== undefined ? { dureeSec: d.dureeSec } : {}),
     ...(d.reseaux ? { reseaux: d.reseaux } : {}),
   });
 }
