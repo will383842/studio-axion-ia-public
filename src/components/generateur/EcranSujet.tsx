@@ -19,7 +19,12 @@ import { ideesParLigne } from "@/domaine/serie-idees";
 import { cn } from "@/lib/cn";
 import { FeuilleSerie } from "./FeuilleSerie";
 import { PanneauSujetCentralDejaTraite } from "./PanneauSujetCentralDejaTraite";
-import { boutonPrincipalActif, confirmationRefaire, ideeDeLaSuggestion, peutLancer, refusDeLaReponse, refusEncoreValable, type RefusAffiche } from "./sujet-deja-traite";
+import { ChoixCible } from "@/components/ciblage/ChoixCible";
+import { ChoixTypeAutomatisation } from "@/components/ciblage/ChoixTypeAutomatisation";
+import { typeAutomatisationValide } from "@/domaine/ciblage/saisie";
+import type { NiveauCible, TypeAutomatisation } from "@/domaine/ciblage/types";
+import { boutonSujetActif, ciblageSaisi } from "./cible-sujet";
+import { confirmationRefaire, ideeDeLaSuggestion, peutLancer, refusDeLaReponse, refusEncoreValable, type RefusAffiche } from "./sujet-deja-traite";
 import { ReglagesSujet, useReglagesSujet, type FormatEcrivable } from "./ReglagesSujet";
 import { useRetenirDepart } from "./useRetenirDepart";
 import { formateurDate } from "@/lib/intl";
@@ -67,7 +72,10 @@ export function EcranSujet({
   const [phrase, setPhrase] = useState("");
   const [envoye, setEnvoye] = useState(false);
   useRetenirDepart(!envoye && (idee.trim() !== ideeInitiale.trim() || !!phrase.trim()));
-  const [cible, setCible] = useState("");
+  const [niveauCible, setNiveauCible] = useState<NiveauCible | undefined>();
+  const [valeurCible, setValeurCible] = useState("");
+  const [typeAuto, setTypeAuto] = useState<TypeAutomatisation | undefined>();
+  const ciblage = ciblageSaisi(niveauCible, valeurCible);
   const [motCle, setMotCle] = useState("");
   // Équipe 7 : série du sujet (épisode attribué à la création).
   const [serieId, setSerieId] = useState<string | undefined>();
@@ -104,7 +112,7 @@ export function EcranSujet({
   const sensible = plusieurs ? undefined : detecterSujetSensible(idee);
   const reglages = useReglagesSujet(formats, sensible);
   const { formatId, reseaux, adresse, qui, but, modes } = reglages;
-  const pret = (plusieurs ? lignes.length > 0 : idee.trim().length > 0) && reglages.pret;
+  const pret = (plusieurs ? lignes.length > 0 : idee.trim().length > 0) && reglages.pret && !!ciblage;
   const refus = refusEncoreValable(refusBrut, idee, formatId);
 
   // Avertissement discret pendant la saisie (un seul sujet) : il ne bloque jamais, le serveur reste le seul juge.
@@ -137,7 +145,8 @@ export function EcranSujet({
         adresse,
         mode: qui,
         motCle: motCle || undefined,
-        cible: cible || undefined,
+        ...(ciblage ? { ciblage } : {}),
+        ...(typeAuto ? { typeAutomatisation: typeAuto } : {}),
         ideeId,
         sujetSensible: sensible,
         serieId,
@@ -261,6 +270,28 @@ export function EcranSujet({
 
       <ChoixSerie series={series} valeur={serieId} onChange={setSerieId} />
 
+      <Carte className="space-y-4 p-4">
+        <p className="text-sm font-semibold text-texte-doux">À qui ? {plusieurs && <span className="font-medium text-texte-faible">(une cible pour tout le lot)</span>}</p>
+        <ChoixCible
+          nom="cible-sujet"
+          niveau={niveauCible}
+          valeur={valeurCible}
+          onChange={(niveau, valeur) => {
+            setNiveauCible(niveau);
+            setValeurCible(valeur);
+          }}
+        />
+        {!ciblage && (
+          <p role="status" className="text-sm text-texte-faible">
+            Choisissez à qui parle la vidéo.
+          </p>
+        )}
+        {/* Les boutons radio du type ne rapportent rien d'eux-mêmes : le changement remonte jusqu'ici. */}
+        <div onChange={(ev) => setTypeAuto(typeAutomatisationValide((ev.target as HTMLInputElement).value))}>
+          <ChoixTypeAutomatisation valeur={typeAuto} />
+        </div>
+      </Carte>
+
       {!plusieurs && (
         <details className="group rounded-carte border border-trait bg-surface-1 px-4">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm font-semibold text-texte-doux">
@@ -268,7 +299,6 @@ export function EcranSujet({
             <Icone nom="chevron-bas" size={16} className="transition-transform group-open:rotate-180" />
           </summary>
           <div className="space-y-4 pb-4">
-            <Champ libelle="À qui ?" placeholder="Dirigeants de PME" value={cible} onChange={(e) => setCible(e.target.value)} />
             <Champ libelle="Mot cherché" placeholder="factures ChatGPT" value={motCle} onChange={(e) => setMotCle(e.target.value)} aide="Une hypothèse, jamais une certitude." />
           </div>
         </details>
@@ -299,7 +329,7 @@ export function EcranSujet({
             {lignes.length > 1 ? `Écrire ces ${lignes.length} idées` : "Écrire"}
           </Bouton>
         ) : (
-          <Bouton icone="ecrire" taille="lg" disabled={!boutonPrincipalActif(pret, refus)} chargement={envoi} onClick={() => ecrire()}>
+          <Bouton icone="ecrire" taille="lg" disabled={!boutonSujetActif(pret, refus, ciblage)} chargement={envoi} onClick={() => ecrire()}>
             Écrire · au plus {prix}
           </Bouton>
         )}
@@ -310,7 +340,7 @@ export function EcranSujet({
           Rien n&apos;est payé tant que Claude n&apos;est pas branché.
         </p>
       )}
-      <FeuilleSerie ouverte={serieOuverte} onOuverteChange={setSerieOuverte} idees={lignes.map((texte) => ({ texte }))} reglages={reglages} serieId={serieId} onLancee={() => setEnvoye(true)} />
+      <FeuilleSerie ouverte={serieOuverte} onOuverteChange={setSerieOuverte} idees={lignes.map((texte) => ({ texte }))} reglages={reglages} serieId={serieId} ciblage={ciblage} typeAutomatisation={typeAuto} onLancee={() => setEnvoye(true)} />
     </div>
   );
 }

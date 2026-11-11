@@ -41,7 +41,7 @@ const MDP = "chaine-centrale-sujets-traites";
 const IDEE = "Le diagnostic fuite";
 const RESEAUX: ReseauDeclinaison[] = ["tiktok"];
 type Brief = Parameters<typeof gen.creerSujet>[0];
-const brief = (idee = IDEE, formatId = "avocat", extra: Partial<Brief> = {}): Brief => ({ idee, reseaux: RESEAUX, formatId, ...extra });
+const brief = (idee = IDEE, formatId = "avocat", extra: Partial<Brief> = {}): Brief => ({ idee, reseaux: RESEAUX, formatId, ciblage: { niveau: "metier", libelle: "Avocat", origine: "saisie" }, ...extra });
 
 const nombres = async () => ({
   sujets: await depots().scriptsMaitres.compter(),
@@ -242,7 +242,7 @@ describe("deux demandes simultanées sur la même idée", () => {
     for (const m of SUJETS_BANC.flatMap((x) => x.matieres)) await depots().matieres.enregistrer(m);
     for (const p of SUJETS_BANC.flatMap((x) => x.preuves)) await depots().preuves.enregistrer(p);
     const sujet = SUJETS_BANC[0]!;
-    const demande = () => actions.creerSujetAction({ idee: sujet.idee, reseaux: sujet.reseaux, formatId: "avocat", pilier: sujet.pilier.id, mode: "teleprompteur" });
+    const demande = () => actions.creerSujetAction({ idee: sujet.idee, reseaux: sujet.reseaux, formatId: "avocat", pilier: sujet.pilier.id, mode: "teleprompteur", ciblage: { niveau: "metier", libelle: "Avocat", origine: "saisie" } });
     const [a, b] = await Promise.all([demande(), demande()]);
     const refuses = [a, b].filter((r) => r.ok && "statut" in r.donnees);
     const partis = [a, b].filter((r) => r.ok && "id" in r.donnees);
