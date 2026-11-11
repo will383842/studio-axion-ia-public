@@ -13,7 +13,6 @@ import React, { useId } from "react";
  *  - Grain, reflet, micro-ombre, relief « héros », tampon EXEMPLE.
  */
 import type { CSSProperties } from "react";
-import { avecOpacite, PALETTE } from "../../../../src/briques/charte/axion-2026";
 import { COULEURS, POLICES, largeurTexte } from "../charte";
 import { MELANGES } from "./premium-1";
 
