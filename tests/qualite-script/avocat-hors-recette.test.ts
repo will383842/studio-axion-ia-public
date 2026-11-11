@@ -42,7 +42,7 @@ const AVANT_499 = {
 };
 /** SHA-256 des consignes d'AUJOURD'HUI (version publique, après #499), pour tous les autres formats. */
 const AUJOURDHUI = {
-  angle: "062c559abff283530e70f63a1d0e57c78b311528cffa9d9d59a46d08d78363a5",
+  angle: "54465729ea8d10a3817c54122a7d66f13a0efbf7f6b2cb9ba54f32fe8aeb41c3",
   script: "aea925325af19fa8a404956dada881b8e9f4b5b1f72acc068103389e8e9e7b53",
   relecture: "f3c7b1da2112b0667fa83ac4b74d52a60dbb4fd1e2ccdb8ee84744d45722a5bc",
 };
