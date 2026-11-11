@@ -35,7 +35,7 @@ function bruit(w: number, h: number, cellules: number, graine: number, octaves =
   const c = toile(w, h);
   const g = c.getContext("2d")!;
   const r = alea(graine);
-  g.fillStyle = "#808080";
+  g.fillStyle = "#808080"; // gris technique de la texture de bruit (soft-light/screen), jamais affiché tel quel : reste au cliquet
   g.fillRect(0, 0, w, h);
   let poids = 0.5;
   for (let o = 0; o < octaves; o++) {
@@ -141,6 +141,7 @@ function alu(g: Ctx, W: number, x: number, y: number, w: number, h: number, sens
 
 function bois(g: Ctx, W: number, x: number, y: number, w: number, h: number, sens: "h" | "v") {
   const gr = sens === "h" ? g.createLinearGradient(0, y, 0, y + h) : g.createLinearGradient(x, 0, x + w, 0);
+  // Matière « bois » : teintes d'origine gardées tant que D1 est ouverte (cadre distinct de l'ardoise #141413).
   gr.addColorStop(0, "#2A1A10");
   gr.addColorStop(0.3, "#5A3A24");
   gr.addColorStop(0.55, "#6B4A30");
@@ -210,11 +211,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
   const bas = geo.basSupport;
   const res: Support = { fond };
   if (style === "tableau-blanc") {
-    const gr = g.createLinearGradient(0, 0, W, H);
-    gr.addColorStop(0, "#F8F7F4");
-    gr.addColorStop(0.55, "#F2F0EC");
-    gr.addColorStop(1, "#E9E6E1");
-    g.fillStyle = gr;
+    g.fillStyle = "#FAF9F5";
     g.fillRect(0, 0, W, H);
     // Traces d'usage : de grands coups de chiffon très flous, sans aucune lettre.
     const r = alea(31);
@@ -222,7 +219,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.filter = `blur(${16 * k}px)`;
     for (let i = 0; i < 9; i++) {
       g.globalAlpha = 0.02 + r() * 0.015;
-      g.strokeStyle = "#5A4C42";
+      g.strokeStyle = "#141413";
       g.lineWidth = (90 + r() * 80) * k;
       g.lineCap = "round";
       g.beginPath();
@@ -247,10 +244,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.fillRect(26 * k, yb, W - 52 * k, bas - yb);
     // Le mur sous le tableau.
     const y0 = bas + 34 * k;
-    const m = g.createLinearGradient(0, y0, 0, H);
-    m.addColorStop(0, "#C9C0B4");
-    m.addColorStop(1, "#B7AC9F");
-    g.fillStyle = m;
+    g.fillStyle = "#E8E6DC"; // aplat : un seul gris de la palette (le degrade vers #B0AEA5, reserve au noir, est retire)
     g.fillRect(0, y0, W, H - y0);
     if (H - y0 > 4) {
       const nm = bruit(W, H - y0, 120 * k, 61, 3);
@@ -338,12 +332,12 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     const rr = alea(41);
     for (let i = 0; i < 2400 * (W * H) / (1080 * 1920); i++) {
       sg.globalAlpha = 0.05 + rr() * 0.12;
-      sg.fillStyle = "#fff";
+      sg.fillStyle = "#FAF9F5";
       sg.fillRect(rr() * W, rr() * H, (30 + rr() * 120) * k, (1 + rr() * 1.5) * k);
     }
     res.stries = st;
   } else if (style === "ardoise") {
-    g.fillStyle = "#110A05";
+    g.fillStyle = "#141413";
     g.fillRect(0, 0, W, H);
     const n = bruit(W, H, 220 * k, 9, 4);
     g.globalCompositeOperation = "screen";
@@ -360,7 +354,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.filter = `blur(${16 * k}px)`;
     for (let i = 0; i < 11; i++) {
       g.globalAlpha = 0.03 + r() * 0.025;
-      g.strokeStyle = "#E9DCC8";
+      g.strokeStyle = "#E8E6DC";
       g.lineWidth = (110 + r() * 70) * k;
       g.lineCap = "round";
       g.beginPath();
@@ -378,18 +372,16 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.fillRect(0, 0, W, H);
     // Rebord à craies et poussière au pied, puis le mur sombre.
     const y = bas;
-    const m = g.createLinearGradient(0, y, 0, H);
-    m.addColorStop(0, "#1C130C");
-    m.addColorStop(1, "#0A0603");
-    g.fillStyle = m;
+    g.fillStyle = "#141413";
     g.fillRect(0, y, W, H - y);
     g.save();
     g.filter = `blur(${14 * k}px)`;
     g.globalAlpha = 0.07;
-    g.fillStyle = "#E9DCC8";
+    g.fillStyle = "#E8E6DC";
     g.fillRect(70 * k, y - 96 * k, W - 140 * k, 56 * k);
     g.restore();
     const d = g.createLinearGradient(0, y, 0, y + 24 * k);
+    // Rebord en bois : teintes d'origine gardées tant que D1 est ouverte (distinct du mur ardoise #141413).
     d.addColorStop(0, "#3A2414");
     d.addColorStop(0.5, "#7A5436");
     d.addColorStop(1, "#8E6644");
@@ -403,7 +395,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.fill();
     bois(g, W, 0, y + 24 * k, W, 34 * k, "h");
     const rr = alea(71);
-    g.fillStyle = "#E9DCC8";
+    g.fillStyle = "#E8E6DC";
     for (let i = 0; i < 260; i++) {
       g.globalAlpha = 0.12 + rr() * 0.3;
       g.fillRect(40 * k + rr() * (W - 80 * k), y + (4 + rr() * 18) * k, (1 + rr() * 2.2) * k, (1 + rr() * 1.5) * k);
@@ -417,9 +409,9 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
       cylindre(g, x, y + 10 * k, L, 17 * k, c, 0.3);
       g.restore();
     };
-    baton(300 * k, 132 * k, "#E9DCC8");
-    baton(610 * k, 92 * k, "#D97A52");
-    baton(780 * k, 34 * k, "#E9DCC8");
+    baton(300 * k, 132 * k, "#E8E6DC");
+    baton(610 * k, 92 * k, "#D97757");
+    baton(780 * k, 34 * k, "#E8E6DC");
     bois(g, W, 0, 0, W, 30 * k, "h");
     bois(g, W, 0, 0, 24 * k, bas, "v");
     bois(g, W, W - 24 * k, 0, 24 * k, bas, "v");
@@ -432,7 +424,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     const P = plume(CHARTES_TABLEAU.ardoise, 4242);
     const c = toile(W, H);
     const cg = c.getContext("2d")!;
-    cg.strokeStyle = "#BFA88B";
+    cg.strokeStyle = "#B0AEA5";
     cg.lineCap = "round";
     cg.lineJoin = "round";
     const R = geo.contenu;
@@ -452,7 +444,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
       cg.moveTo(x + sx * 12 * k, yy + sy * 46 * k);
       cg.quadraticCurveTo(x + sx * 30 * k, yy + sy * 30 * k, x + sx * 46 * k, yy + sy * 12 * k);
       cg.stroke();
-      cg.fillStyle = "#D97A52";
+      cg.fillStyle = "#D97757";
       cg.globalAlpha = 0.9;
       cg.beginPath();
       cg.moveTo(x + sx * 24 * k, yy + sy * 14 * k);
@@ -473,7 +465,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.drawImage(c, 0, 0);
   } else {
     // Mur enduit sable, chevalet, papier épais.
-    g.fillStyle = "#B49C7E";
+    g.fillStyle = "#E8E6DC";
     g.fillRect(0, 0, W, H);
     const n = bruit(W, H, 90 * k, 21, 4);
     g.globalCompositeOperation = "soft-light";
@@ -508,10 +500,8 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     g.fillStyle = S.fond;
     g.fillRect(40 * k, 70 * k, W - 80 * k, bas - 70 * k);
     g.restore();
-    g.fillStyle = "#E8DFCF";
+    g.fillStyle = "#E8E6DC";
     g.fillRect(44 * k, 70 * k, W - 88 * k, 22 * k);
-    g.fillStyle = "#DED3C1";
-    g.fillRect(48 * k, 70 * k, W - 96 * k, 12 * k);
     g.fillStyle = S.fond;
     g.fillRect(40 * k, 84 * k, W - 80 * k, bas - 84 * k);
     const pap = bruit(W, H, 60 * k, 23, 4);
@@ -529,7 +519,7 @@ function fabriquer(style: StyleTableau, W: number, H: number, k: number, geo: Mi
     }), 0, 0);
     const fibres = alea(27);
     g.globalAlpha = 0.07;
-    g.strokeStyle = "#7A6248";
+    g.strokeStyle = "#141413";
     g.lineWidth = 1;
     for (let i = 0; i < 900; i++) {
       const x = 40 * k + fibres() * (W - 80 * k);

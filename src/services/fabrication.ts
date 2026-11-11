@@ -839,6 +839,9 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   // Lot R7d : un montage réel ne part jamais avec le double d'essai (refus clair, avant toute réservation).
   const refus = moteur.refusAuLancement?.(commande);
   if (refus) throw new ErreurStudio(refus.code, refus.message);
+  // Vérification GRATUITE du double / look de décor / voix HeyGen, avant toute estimation et réservation.
+  const aVerifier = moteur.heygenAVerifier?.(commande);
+  if (aVerifier) await (await import("./verification-heygen")).verifierHeygenAvantPaiement(aVerifier);
   // Lot R2 : les textes des réseaux (Claude, à la fin) sont comptés dans le total engagé, sans jamais bloquer le lancement.
   const { textesReseaux: _textes, ...estimation } = await avecTextesDesReseaux(videoId, await moteur.estimer(commande), commande);
   void _textes;
