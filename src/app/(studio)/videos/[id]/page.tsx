@@ -2,13 +2,14 @@ import { correctionEnAttente } from "@/services/recalque";
 import { etapeARelire } from "@/components/formats/cas-concret/fiche-video/a-relire";
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AvantDePublier } from "@/components/publication/AvantDePublier";
 import { BarreActionsVideo } from "@/components/publication/BarreActionsVideo";
 import { FournisseurVideo, type DonneesVideo } from "@/components/publication/ContexteVideo";
 import { KitPublication } from "@/components/publication/KitPublication";
 import { Carte } from "@/components/ui/Carte";
+import { EnTeteSection, LienRetour } from "@/components/ui/EnTetePage";
+import { Section } from "@/components/ui/Section";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { Icone } from "@/components/ui/Icone";
 import { Onglets, type Onglet } from "@/components/ui/Onglets";
@@ -232,7 +233,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                 />
                 {d.miniatures.length > 0 && (
                   <section>
-                    <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Miniature</h2>
+                    <EnTeteSection titre="Miniature" />
                     <OngletMiniature videoId={v.id} dureeLibelle={dureeLibelle} couverture={v.couvertureVignette} miniatures={d.miniatures.map((m) => ({ id: m.id, url: m.url, titre: m.titre, choisie: m.choisie, incrustee: !!m.incrustee }))} />
                   </section>
                 )}
@@ -255,7 +256,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
         <div className="space-y-6">
           <OngletScript script={d.script} formatId={v.formatId} />
           <section>
-            <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Qui parle</h2>
+            <EnTeteSection titre="Qui parle" />
             <OngletDistribution distribution={d.distribution} />
           </section>
         </div>
@@ -269,11 +270,11 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
       contenu: (
         <OngletDetails couts={chiffresCout}>
           <section>
-            <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Réglages</h2>
+            <EnTeteSection titre="Réglages" />
             <OngletReglages commande={d.versionCourante?.commande ?? null} mentionIA={v.mentionIA} dureeLibelle={dureeLibelle} ratios={v.ratios} />
           </section>
           <section>
-            <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Historique</h2>
+            <EnTeteSection titre="Historique" />
             <OngletHistorique versions={d.versions} publications={d.publications} versionCouranteId={d.versionCourante?.id} />
           </section>
         </OngletDetails>
@@ -315,10 +316,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
       <GabaritFicheVideo
           deuxColonnes
           retour={
-            <Link href="/videos" className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-texte-doux hover:text-texte">
-              <Icone nom="fleche-gauche" size={16} />
-              Mes vidéos
-            </Link>
+            <LienRetour href="/videos" libelle="Mes vidéos" className="mb-0" />
           }
           bandeau={<BandeauGenerateur formatId={d.carte.format.id} className="mb-0" />}
           entete={
@@ -330,10 +328,10 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
           lecteur={lecteur}
           essai={
             versionDEssai && (
-              <div className="flex items-center gap-3 rounded-2xl border border-trait bg-surface-1 px-4 py-2 text-sm text-texte-doux">
+              <Carte className="flex items-center gap-3 !p-3 text-sm text-texte-doux sm:!p-3">
                 <PastilleEssai className="shrink-0" />
                 <p className="min-w-0 flex-1 truncate" title="Vidéo d'essai : une vidéo de démonstration remplace la vôtre. Rien n'a été payé et elle ne part pas sur vos réseaux.">Vidéo d&apos;essai : une vidéo de démonstration remplace la vôtre. Rien n&apos;a été payé et elle ne part pas sur vos réseaux.</p>
-              </div>
+              </Carte>
             )
           }
           chiffres={<ChiffresVideo chiffres={chiffres} />}
@@ -366,7 +364,8 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
           }
           specifique={
             aSpecifique && (
-            <div className="space-y-4 empty:hidden">
+            <Section id="pour-cette-video" titre="Pour cette vidéo" className="[&:has(.pour-video:empty)]:hidden">
+            <div className="pour-video divide-y divide-trait [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
               {d.noteQualite && <CarteQualite note={d.noteQualite} />}
               {ajoutees && <AlerteAjouteesDepuis videoId={v.id} ajoutees={prononciationsAjoutees} plans={plansPhrases} />}
               {etatVide && <EtatVide compact icone={STATUTS_VIDEO[v.statut].icone} titre={STATUTS_VIDEO[v.statut].libelle} phrase="Le kit de publication arrive avec la vidéo." action={statutAnnulable(v.statut) && !v.versionChoisieId ? <BoutonAnnuler videoId={v.id} apres="/videos" /> : undefined} />}
@@ -385,6 +384,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
               {prete && <BlocSurLeSite videoId={v.id} />}
               <SujetReplie titre={titreAffiche(v.titre)} sujet={v.sujet} />
             </div>
+            </Section>
             )
           }
           onglets={<Onglets libelle="Sections de la vidéo" className="mt-6" onglets={onglets} />}

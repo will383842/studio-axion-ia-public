@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { listerCasRetires } from "@/components/formats/cas-concret/stock/cas-retires";
 import { ListeCasRetires } from "@/components/formats/cas-concret/stock/ListeCasRetires";
@@ -20,9 +21,9 @@ export default async function PageCasRetires() {
   const [retraits, catalogueEtendu, stockMetiers] = await Promise.all([lireRetraits(), reglageAllume(REGLAGES_CAS_CONCRET.catalogueEtendu), reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers)]);
   const cas = listerCasRetires(retraits, { catalogueEtendu, stockMetiers }, Object.values(await lireEntreesCasAjoutes()));
   return (
-    <div className="mx-auto max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage titre="Cas retirés" sousTitre="Ces cas ne sont plus proposés. Remettez-en un pour le revoir dans la liste." retour={{ href: "/cas-concret", libelle: "Cas concret" }} />
       <ListeCasRetires cas={cas} />
-    </div>
+    </ConteneurPage>
   );
 }

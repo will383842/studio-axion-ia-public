@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { BarreValidation, type ActionsCarrousel } from "@/components/visuels/BarreValidation";
@@ -39,7 +40,7 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
   }
   const erreur = phraseDuCode(sp.erreur);
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre={fiche.titre} sousTitre={`${fiche.libelleStatut} · ${libellePages(fiche)}`} actions={fiche.verdict && fiche.statut !== "echec_rendu" ? <Voyant niveau={fiche.verdict} avecPorte /> : undefined} />
       {!fiche.generateurAllume && <BandeauGenerateurEteint />}
       {erreur && (
@@ -65,6 +66,6 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
         </section>
       )}
       <BarreValidation id={fiche.id} actionsPermises={fiche.actionsPermises} actions={ACTIONS} pdfUrl={fiche.pdfUrl} pdfTelechargement={fiche.pdfTelechargement} />
-    </div>
+    </ConteneurPage>
   );
 }

@@ -72,6 +72,7 @@ export function GalerieVideos({
   ratioForce = "9:16",
   vide,
   filtresInitiaux,
+  filtresAdresse,
 }: {
   videos: VueVideoCarte[];
   series?: { id: string; nom: string }[];
@@ -85,6 +86,11 @@ export function GalerieVideos({
   vide?: ReactNode;
   /** Filtres posés à l'ouverture (ex. étape « À relire » depuis l'accueil). */
   filtresInitiaux?: { etape?: EtapeEditoriale };
+  /**
+   * Filtres d'adresse (Réseau, Étape, Type) venus du serveur : `contenu` va en tête de la feuille « Filtres », `puces` (filtres actifs retirables
+   * et « Tout effacer ») s'affichent sur la ligne des puces, `nombre` s'ajoute au compteur. L'étape d'adresse remplace le groupe « Publication ».
+   */
+  filtresAdresse?: { contenu: ReactNode; puces: ReactNode; nombre: number; effacerHref: string };
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -128,10 +134,13 @@ export function GalerieVideos({
     });
   }, [videos, q, filtres, tri]);
 
-  const nbFiltres = Object.values(filtres).filter(Boolean).length;
-  const aDesFiltres = presents.statuts.length > 1 || presents.etapes.length > 0 || presents.ratios.length > 1 || presents.series.length > 0;
+  // Avec les filtres d'adresse, l'étape se choisit là (pas deux fois) : elle ne compte ni ne s'affiche côté client.
+  const nbClient = Object.entries(filtres).filter(([cle, v]) => v && !(filtresAdresse && cle === "etape")).length;
+  const nbFiltres = nbClient + (filtresAdresse?.nombre ?? 0);
+  const aDesFiltres = !!filtresAdresse || presents.statuts.length > 1 || presents.etapes.length > 0 || presents.ratios.length > 1 || presents.series.length > 0;
 
-  if (!videos.length && vide) return <>{vide}</>;
+  // Liste vide : si des filtres d'adresse sont posés, on garde leurs puces pour pouvoir les retirer.
+  if (!videos.length && vide) return filtresAdresse?.nombre ? <div><div className="mb-4">{filtresAdresse.puces}</div>{vide}</div> : <>{vide}</>;
 
   function basculer(id: string) {
     setChoisis((s) => {
@@ -140,6 +149,12 @@ export function GalerieVideos({
       else n.add(id);
       return n;
     });
+  }
+
+  /** Retire tous les filtres : ceux de l'adresse (lien « Tout effacer »), puis ceux de la page. */
+  function toutEffacer() {
+    setFiltres({});
+    if (filtresAdresse?.nombre) router.push(filtresAdresse.effacerHref);
   }
 
   function quitterSelection() {
@@ -256,13 +271,14 @@ export function GalerieVideos({
             onClick={() => setFeuille(true)}
             aria-label={nbFiltres ? `Filtres, ${nbFiltres} actifs` : "Filtres"}
             className={cn(
-              "relative grid size-11 shrink-0 place-items-center rounded-full border transition-colors",
-              nbFiltres ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte-doux hover:text-texte",
+              "relative inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors",
+              nbFiltres ? "border-texte bg-texte text-fond" : "border-trait bg-surface-1 text-texte-doux hover:text-texte",
             )}
           >
             <Icone nom="filtre" size={18} />
+            <span>Filtres</span>
             {nbFiltres > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-orange text-[10px] font-bold text-sur-orange ring-2 ring-fond">{nbFiltres}</span>
+              <span className="grid min-w-5 place-items-center rounded-full bg-fond/20 px-1 text-[11px] tabular-nums">{nbFiltres}</span>
             )}
           </button>
         )}
@@ -293,11 +309,17 @@ export function GalerieVideos({
 
       {/* Filtres actifs : pastilles retirables */}
       {nbFiltres > 0 && (
-        <div className="sans-barre -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="mb-4 flex flex-wrap items-center gap-1.5">
+          {filtresAdresse?.puces}
           {filtres.statut && <PuceFiltre libelle={STATUTS.find((s) => s.valeur === filtres.statut)!.libelle} onRetirer={() => setFiltres((f) => ({ ...f, statut: undefined }))} />}
-          {filtres.etape && <PuceFiltre libelle={ETAPES_EDITORIALES[filtres.etape].libelle} onRetirer={() => setFiltres((f) => ({ ...f, etape: undefined }))} />}
+          {filtres.etape && !filtresAdresse && <PuceFiltre libelle={ETAPES_EDITORIALES[filtres.etape].libelle} onRetirer={() => setFiltres((f) => ({ ...f, etape: undefined }))} />}
           {filtres.ratio && <PuceFiltre libelle={filtres.ratio} onRetirer={() => setFiltres((f) => ({ ...f, ratio: undefined }))} />}
           {filtres.serie && <PuceFiltre libelle={series.find((s) => s.id === filtres.serie)?.nom ?? "Série"} onRetirer={() => setFiltres((f) => ({ ...f, serie: undefined }))} />}
+          {nbClient > 0 && !filtresAdresse?.nombre && (
+            <button type="button" onClick={toutEffacer} className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-texte-doux hover:text-texte sm:min-h-9">
+              Tout effacer
+            </button>
+          )}
         </div>
       )}
 
@@ -334,7 +356,7 @@ export function GalerieVideos({
               icone="fermer"
               onClick={() => {
                 setQ("");
-                setFiltres({});
+                toutEffacer();
               }}
             >
               Retirer les filtres
@@ -389,7 +411,7 @@ export function GalerieVideos({
         titre="Filtres"
         pied={
           <div className="flex gap-2">
-            <Bouton variante="fantome" onClick={() => setFiltres({})} disabled={!nbFiltres}>
+            <Bouton variante="fantome" onClick={toutEffacer} disabled={!nbFiltres}>
               Effacer
             </Bouton>
             <Bouton pleineLargeur taille="lg" onClick={() => setFeuille(false)}>
@@ -399,6 +421,7 @@ export function GalerieVideos({
         }
       >
         <div className="space-y-6 pt-2">
+          {filtresAdresse?.contenu}
           {presents.statuts.length > 1 && (
             <SelecteurPastilles<Statut>
               libelle="État"
@@ -407,7 +430,7 @@ export function GalerieVideos({
               options={presents.statuts.map((s) => ({ valeur: s.valeur, libelle: s.libelle, icone: s.icone }))}
             />
           )}
-          {presents.etapes.length > 0 && (
+          {presents.etapes.length > 0 && !filtresAdresse && (
             <SelecteurPastilles<EtapeEditoriale>
               libelle="Publication"
               valeur={filtres.etape}
@@ -443,7 +466,7 @@ function PuceFiltre({ libelle, onRetirer }: { libelle: string; onRetirer: () => 
       type="button"
       onClick={onRetirer}
       aria-label={`Retirer le filtre ${libelle}`}
-      className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-orange/40 bg-orange-doux pl-3.5 pr-2.5 text-sm font-semibold text-orange-vif"
+      className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-texte bg-texte pl-3.5 pr-2.5 text-sm font-semibold text-fond sm:min-h-9"
     >
       {libelle}
       <Icone nom="fermer" size={14} />

@@ -55,7 +55,7 @@ export function VueCeTelephone({ etat, onActiver, enCours = false }: { etat: Eta
             "Ouvrez le studio depuis sa nouvelle icône, puis revenez ici.",
           ].map((t, i) => (
             <li key={t} className="flex gap-3">
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-orange text-xs font-bold text-sur-orange">{i + 1}</span>
+              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-texte text-xs font-bold text-fond">{i + 1}</span>
               <span className="pt-0.5">{t}</span>
             </li>
           ))}

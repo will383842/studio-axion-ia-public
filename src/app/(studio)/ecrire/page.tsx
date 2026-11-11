@@ -19,7 +19,9 @@ import { fileAValider, lireFicheStyle, listerReglesDatees, listerTextesWill, lis
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { EnTetePage } from "@/components/ui/EnTetePage";
-import { Icone } from "@/components/ui/Icone";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
+import { PanneauFiltres } from "@/components/ui/PanneauFiltres";
+import { Section } from "@/components/ui/Section";
 import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
 import { compterAnciens, estDoublonPossible, filtrerParCiblage, filtrerSujetsParType, lireFiltreCiblage } from "@/domaine/ciblage/listes";
 import { EtatVide } from "@/components/ui/EtatVide";
@@ -87,21 +89,19 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
   const ciblageActif = !!filtreCiblage.type || filtreCiblage.anciens;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage
         titre="Écrire"
-        className="mb-3 flex-row items-end justify-between"
+        sousTitre="Vos sujets, idées et matières, avant le tournage."
         actions={
-          actif === "scripts" ? (
-            <div className="flex items-center gap-2">
-              <Link href="/ecrire/tournage" aria-label="Tournage" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-                <Icone nom="camera" size={18} />
-              </Link>
-              <Suspense>
-                <BoutonPlusDeFiltres />
-              </Suspense>
-            </div>
-          ) : undefined
+          <>
+            <Bouton asChild variante="secondaire" icone="camera">
+              <Link href="/ecrire/tournage">Tournage</Link>
+            </Bouton>
+            <Bouton asChild icone="plus" className="max-lg:hidden">
+              <Link href="/ecrire/atelier">Nouveau sujet</Link>
+            </Bouton>
+          </>
         }
       />
       <Onglets
@@ -116,16 +116,25 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             contenu: (
               <Suspense>
                 <BandeauSeries series={series} active={sp.serie} />
-                {(sansSujetTous.length > 0 || vues.length > 0) && <FiltresCiblage base="/ecrire" params={sp} filtre={filtreCiblage} nbAnciens={compterAnciens(sansSujetTous)} className="mb-4" />}
-                <ListeSujets
-                  sujets={sujets}
-                  formats={formats}
-                  nombres={nombres}
-                  codes={codesParFormat()}
-                  piliers={valeurs.piliers}
-                  series={valeurs.series}
-                  sansSujet={sansSujet}
-                />
+                <div className="mb-6 flex flex-wrap items-start gap-2">
+                  {(sansSujetTous.length > 0 || vues.length > 0) && (
+                    <PanneauFiltres nombre={(filtreCiblage.type ? 1 : 0) + (filtreCiblage.anciens ? 1 : 0)} className="min-w-0 flex-1 basis-full sm:basis-auto">
+                      <FiltresCiblage disposition="panneau" base="/ecrire" params={sp} filtre={filtreCiblage} nbAnciens={compterAnciens(sansSujetTous)} />
+                    </PanneauFiltres>
+                  )}
+                  <BoutonPlusDeFiltres />
+                </div>
+                <Section id="sujets" titre="Vos sujets" sansCarte>
+                  <ListeSujets
+                    sujets={sujets}
+                    formats={formats}
+                    nombres={nombres}
+                    codes={codesParFormat()}
+                    piliers={valeurs.piliers}
+                    series={valeurs.series}
+                    sansSujet={sansSujet}
+                  />
+                </Section>
                 {sansSujet.length === 0 && sansSujetTous.length > 0 && ciblageActif && <EtatVide compact icone="document" titre="Aucun script ici" phrase="Changez de type ou affichez les anciens." />}
               </Suspense>
             ),
@@ -150,11 +159,11 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
           },
         ]}
       />
-      <BarreActionCollee>
+      <BarreActionCollee className="lg:hidden">
         <Bouton asChild taille="lg" icone="plus">
           <Link href="/ecrire/atelier">Nouveau sujet</Link>
         </Bouton>
       </BarreActionCollee>
-    </div>
+    </ConteneurPage>
   );
 }

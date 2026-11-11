@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { lancerVideosEnAttenteAction } from "@/app/(studio)/nouvelle/[format]/actions-credits";
 import { etiquetteSolde, JaugeCredit } from "@/components/reglages/Credits";
-import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { notifier } from "@/components/ui/Toast";
 import { texteRestant } from "@/domaine/credits";
@@ -34,7 +33,7 @@ export function CarteCredits({ cartes, brouillonsPrets }: { cartes: CarteCredit[
   if (!cartes.length) return null;
   return (
     <Link href="/reglages#credits" className="block">
-      <Carte interactive>
+      <div>
         <p className="mb-3 text-sm font-semibold text-texte-doux">Crédits</p>
         <ul className="space-y-3">
           {cartes.map((c) => (
@@ -53,7 +52,7 @@ export function CarteCredits({ cartes, brouillonsPrets }: { cartes: CarteCredit[
             </li>
           ))}
         </ul>
-      </Carte>
+      </div>
     </Link>
   );
 }

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { EnTeteSection } from "@/components/ui/EnTetePage";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 
@@ -28,9 +27,7 @@ export function TuilesEcrire({ c }: { c: CompteursEcrire }) {
     { libelle: "Mesures à saisir", nombre: c.mesuresASaisir ?? 0, icone: "resultats", href: "/mesures", ton: "ambre" },
   ];
   return (
-    <section>
-      <EnTeteSection titre="Écrire" lien={{ href: "/ecrire" }} />
-      <div className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-6 sm:overflow-visible sm:px-0">
+    <div className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-6 sm:overflow-visible sm:px-0">
         {tuiles.map((t) => (
           <Link
             key={t.libelle}
@@ -40,12 +37,11 @@ export function TuilesEcrire({ c }: { c: CompteursEcrire }) {
               t.nombre && t.ton === "ambre" ? "border-ambre/40" : t.nombre ? "border-trait" : "border-trait/60",
             )}
           >
-            <Icone nom={t.icone} size={18} className={cn(t.nombre ? (t.ton === "ambre" ? "text-ambre" : "text-orange-vif") : "text-texte-faible")} />
+            <Icone nom={t.icone} size={18} className={cn("text-texte-faible")} />
             <span className={cn("font-titre text-4xl tabular-nums leading-none", t.nombre ? "text-texte" : "text-texte-faible")}>{t.nombre}</span>
             <span className="text-xs font-semibold leading-tight text-texte-doux">{t.libelle}</span>
           </Link>
         ))}
-      </div>
-    </section>
+    </div>
   );
 }

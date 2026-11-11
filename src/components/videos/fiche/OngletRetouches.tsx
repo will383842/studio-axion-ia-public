@@ -1,5 +1,6 @@
 "use client";
 
+import { EnTeteSection } from "@/components/ui/EnTetePage";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -153,7 +154,7 @@ export function OngletRetouches({
 
       {retouches.length > 0 && (
         <section>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Déjà demandées</p>
+          <EnTeteSection titre="Déjà demandées" />
           <ul className="space-y-2">
             {[...retouches].reverse().map((r) => (
               <li key={r.id} className="flex min-h-14 items-center gap-3 rounded-2xl border border-trait bg-surface-1 px-3 py-2">
