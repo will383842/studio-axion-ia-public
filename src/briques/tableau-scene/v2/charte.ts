@@ -1,13 +1,13 @@
 /**
- * CHARTE DU STYLE « blocs/2 » DU TABLEAU ANIMÉ (11/10/2026) : celle de la vidéo modèle « Formation », validée par Will
+ * CHARTE DU STYLE « blocs/2 » DU TABLEAU ANIMÉ (11/10/2026) : celle de la vidéo modèle « Formation », validée par Williams
  * (branche `tableau/maquettes-design-v2`, `maquettes/tableau-design-v2/video/formation/`). PUR, sans React ni alias
  * « @/ » : lu tel quel par `studio-rendu`. Le style d'avant (`charte-video/1`) n'est pas touché.
  *
  *  - Trois fonds qui alternent : encre, ivoire, orange (le sable ne sert qu'aux formes et aux libellés sur l'encre).
  *  - Titres en Montserrat ExtraBold, très gros, ajustés à la largeur ; texte en Inter Bold.
  *  - Mots forts dans des blocs (orange sur l'encre et l'ivoire, encre sur l'orange), texte ivoire.
- *  - Sur l'orange (fond d'écran ou bloc), le texte est IVOIRE FRANC (`ivoireFranc`, plus clair que l'ivoire du fond :
- *    5,3:1) ou ENCRE, jamais un ton clair proche de l'orange (relecture du 12/10/2026 : l'ivoire du fond, 4,2:1, se
+ *  - Sur l'orange (fond d'écran ou bloc), le texte est IVOIRE FRANC (`ivoireFranc`, blanc, plus clair que l'ivoire du fond :
+ *    5,81:1) ou ENCRE, jamais un ton clair proche de l'orange (relecture du 12/10/2026 : l'ivoire du fond, 4,2:1, se
  *    lisait mal sur l'orange en grand titre).
  *  - L'orange n'est JAMAIS une couleur de texte (la vidéo modèle l'écrivait sur l'ivoire à l'étape 3 : corrigé, le mot
  *    est écrit à l'encre et souligné d'orange).
@@ -17,15 +17,18 @@
  * Tailles en px pour une image de référence de 1080 de large (`k` = petit côté ÷ 1080).
  */
 
+import { PALETTE } from "../../charte/axion-2026";
+
 export const STYLE_BLOCS_2 = "blocs/2";
 
 export const COULEURS_V2 = Object.freeze({
-  encre: "#110A05",
-  ivoire: "#E9DCC8",
-  orange: "#B44F29",
-  sable: "#BFA88B",
-  /** Texte clair posé sur l'orange (fond ou bloc) : 5,3:1 sur l'orange. */
-  ivoireFranc: "#FFF6E9",
+  encre: PALETTE.noir,
+  ivoire: PALETTE.ivoire,
+  /** Le « orange » de ce style est la terracotta de la charte (jamais en texte sur l'encre). */
+  orange: PALETTE.terracotta,
+  sable: PALETTE.gris,
+  /** Texte clair posé sur l'orange (fond ou bloc) : blanc, 5,81:1 sur la terracotta. */
+  ivoireFranc: PALETTE.blanc,
 } as const);
 
 export type FondV2 = "encre" | "ivoire" | "orange";

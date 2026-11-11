@@ -190,7 +190,7 @@ describe("D2 : items d'une ligne quand il y a la place ; case vide tracée, puis
     });
 });
 
-describe("I5 : le bouton d'appel est plein, terracotta #B44F29, dans les trois styles ; marge intérieure ≥ 40 px ; contraste ≥ 4,5:1", () => {
+describe("I5 : le bouton d'appel est plein, terracotta #B23F16, dans les trois styles ; marge intérieure ≥ 40 px ; contraste ≥ 4,5:1", () => {
   for (const style of STYLES_TABLEAU)
     for (const [nom, fiche] of FICHES)
       for (const format of ["vertical", "portrait", "carre", "horizontal"] as const)
@@ -199,9 +199,9 @@ describe("I5 : le bouton d'appel est plein, terracotta #B44F29, dans les trois s
           const k = m.styleReference!.k;
           const b = m.pages.at(-1)!.elements.find((e) => e.lignes.some((l) => /r[ée]servez/i.test(l.texte)))!;
           const plaque = b.tableau?.objets?.find((o) => o.sorte === "plaque" || o.sorte === "carte");
-          expect(plaque?.c).toBe("#B44F29");
+          expect(plaque?.c).toBe("#B23F16");
           for (const [i, l] of b.lignes.entries()) {
-            expect(contrasteTableau(b.tableau!.lignes[i].couleur, "#B44F29")).toBeGreaterThanOrEqual(4.5);
+            expect(contrasteTableau(b.tableau!.lignes[i].couleur, "#B23F16")).toBeGreaterThanOrEqual(4.5);
             expect(l.px.x - plaque!.x).toBeGreaterThanOrEqual(40 * k - 1);
             expect(plaque!.x + plaque!.l - (l.px.x + l.px.largeur)).toBeGreaterThanOrEqual(40 * k - 1);
           }
