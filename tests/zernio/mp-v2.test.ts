@@ -138,7 +138,8 @@ describe("service d'aiguillage v2", () => {
 describe("« stop » / « arrêtez » écrit par la personne", () => {
   it("reconnu (mot seul), sans texte sortant", () => {
     for (const t of ["stop", "STOP.", "Arrêtez", "arretez !", "arrêt"]) expect(G.estMotOpposition(t), t).toBe(true);
-    for (const t of ["arrêtez tout svp", "guide", ""]) expect(G.estMotOpposition(t), t).toBe(false);
+    for (const t of ["arrêtez tout svp"]) expect(G.estMotOpposition(t), t).toBe(true); // phrase : reconnue (STU-STOP)
+    for (const t of ["guide", "", "stop ne pas"]) expect(G.estMotOpposition(t), t).toBe(false);
     const w = G.construireGrapheStop();
     expect(w.etapes.map((x) => x.type)).toEqual(["mettre_a_l_ecart", "alerter_operateur"]);
     expect(JSON.stringify(w)).not.toMatch(/"texte"/);
