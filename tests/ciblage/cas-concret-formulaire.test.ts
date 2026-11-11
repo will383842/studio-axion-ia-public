@@ -10,6 +10,15 @@ describe("formulaire cas concret · cible", () => {
     expect(choixCibleVersPhrase("Un plombier pressé.", "plombier", "électricien")).toBe("Un plombier pressé.");
     expect(choixCibleVersPhrase("", "", "")).toBe("");
   });
+  it("au changement de niveau (valeur vide), la phrase préremplie suit et le choix suivant la remplace", () => {
+    let phrase = "", prec = "";
+    const choisir = (v: string) => { phrase = choixCibleVersPhrase(phrase, prec, v); prec = v; };
+    choisir("plombier");
+    choisir("");
+    choisir("PME");
+    expect(phrase).toBe("PME");
+    expect(choixCibleVersPhrase("Un plombier pressé.", "plombier", "")).toBe("Un plombier pressé.");
+  });
   it("le formulaire pose le choix de cible juste avant « Pour qui »", () => {
     const src = readFileSync("src/components/formats/cas-concret/ajouter/FormulaireCas.tsx", "utf8");
     expect(src).toContain('from "@/components/ciblage/ChoixCible"');

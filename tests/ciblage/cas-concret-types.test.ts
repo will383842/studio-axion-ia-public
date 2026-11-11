@@ -13,10 +13,11 @@ describe("types-catalogue", () => {
     for (const c of CATALOGUE_TS) expect(TYPES.has(TYPE_PAR_CAS[c.id] ?? ""), c.id).toBe(true);
     expect(Object.keys(TYPE_PAR_CAS).sort()).toEqual(CATALOGUE_TS.map((c) => c.id).sort());
   });
-  it("typeAutomatisationDuCas lit la table, sinon le champ du cas, sinon déduit du texte", () => {
+  it("typeAutomatisationDuCas lit le champ du cas, sinon la table, sinon déduit du texte", () => {
     const base = CATALOGUE_TS[0];
     expect(typeAutomatisationDuCas(base)).toBe(TYPE_PAR_CAS[base.id]);
     expect(typeAutomatisationDuCas({ ...base, id: "x-inconnu", typeAutomatisation: "devis-factures" })).toBe("devis-factures");
+    expect(typeAutomatisationDuCas({ ...base, typeAutomatisation: "devis-factures" })).toBe("devis-factures");
     for (const c of CATALOGUE) {
       const t = typeAutomatisationDuCas(c);
       expect(t === null || TYPES.has(t), c.id).toBe(true);
