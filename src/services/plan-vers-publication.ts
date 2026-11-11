@@ -7,6 +7,7 @@
 import "server-only";
 import type { Depot } from "@/domaine/depots";
 import type { Publication } from "@/domaine/types";
+import type { ReseauDeclinaison } from "@/domaine/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import { transitionPermise } from "@/domaine/visuels/statuts";
 import { changerStatut, identifiantsProgrammation, peutProgrammer, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
@@ -36,16 +37,31 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
   }
 
   const lignes = identifiantsProgrammation(c);
-  const publications: Publication[] = [];
+  // Une Publication existe déjà pour ce visuel et ce réseau si elle porte l'id courant ou celui d'une version
+  // antérieure (le créneau a été décalé depuis) : on la réutilise, on ne recrée jamais.
+  const plan: { reseau: ReseauDeclinaison; id: string; existante: Publication | null }[] = [];
   for (const { reseau, cle } of lignes) {
-    // Identifiant stable : même créneau, même réseau, même version de décalage = même ligne.
     const id = `pub_${cle}`;
-    const existante = await d.publications.obtenir(id);
-    if (existante) { publications.push(existante); continue; }
-    publications.push(await d.publications.enregistrer({
-      id, visuelId: v.id, reseau, statut: "programmee", via: "manuel",
-      date: c.heuresParReseau[reseau]!, texte: v.titre, creeLe: maintenant, modifieLe: maintenant,
-    }));
+    const existante = (await d.publications.obtenir(id))
+      ?? (await d.publications.trouver((p) => p.visuelId === v.id && p.reseau === reseau && p.statut === "programmee"));
+    plan.push({ reseau, id, existante });
+  }
+  // Un rejeu n'est accepté que s'il ne change rien ; sinon la porte s'applique (créneau confié à renvoyer = refus).
+  if (deja && plan.some((l) => !l.existante || l.existante.date !== c.heuresParReseau[l.reseau])) {
+    if (c.aRenvoyer) throw new Error("À renvoyer à l'usine après un décalage : le rejeu est refusé.");
+    if (plan.some((l) => !l.existante)) { const porte = peutProgrammer(c); if (!porte.ok) throw new Error(porte.raison); }
+  }
+  const publications: Publication[] = [];
+  for (const { reseau, id, existante } of plan) {
+    const date = c.heuresParReseau[reseau]!;
+    if (!existante) {
+      publications.push(await d.publications.enregistrer({
+        id, visuelId: v.id, reseau, statut: "programmee", via: "manuel",
+        date, texte: v.titre, creeLe: maintenant, modifieLe: maintenant,
+      }));
+    } else if (existante.date !== date) {
+      publications.push(await d.publications.modifier(existante.id, { date, modifieLe: maintenant } as Partial<Publication>));
+    } else publications.push(existante);
   }
 
   if (v.statut === "valide") {
