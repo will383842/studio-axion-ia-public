@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import { validerFicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
+import { trouverAppel } from "../../../src/moteurs/montage-tableau/variantes-fin";
 import { regleGabarit } from "../../../src/moteurs/montage-tableau/gabarit";
 import { contexteTemoin3, ficheTemoin3 } from "./fiches";
 
@@ -40,5 +41,16 @@ describe("page d'appel facultative (texte de Williams)", () => {
     apres.id = "s-apres";
     f.scenes.push(apres);
     expect(textes(regleGabarit(f, { texteDeWill: true })).join("\n")).toMatch(/s'écrit sur la page d'appel/);
+  });
+  it("texte de Williams qui DIT un appel (sans scène appel) : règle 18 toujours refusée ; sans appel dit : passe", () => {
+    const f = sansAppelFiche();
+    const derniere = f.scenes[f.scenes.length - 1];
+    const avant = derniere.texteDit;
+    derniere.texteDit = `${avant} Abonnez-vous pour recevoir la suite.`;
+    expect(trouverAppel(f)).not.toBeNull();
+    expect(textes(regleGabarit(f, { texteDeWill: true })).join(" | ")).toMatch(/dernière page est la page d'APPEL/);
+    derniere.texteDit = avant;
+    expect(trouverAppel(f)).toBeNull();
+    expect(textes(regleGabarit(f, { texteDeWill: true })).join(" | ")).not.toMatch(/APPEL|page d'appel/);
   });
 });

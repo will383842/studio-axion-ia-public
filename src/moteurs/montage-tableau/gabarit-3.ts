@@ -19,6 +19,7 @@ import { chiffresRetires, decomptesRetires, nombresDits } from "./fidelite-texte
 import { STYLES_TABLEAU, estStyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 import type { ElementLigne, FicheTableau, GabaritScene } from "./fiche";
 import { BORNES_GABARIT, NOMS_BLOCS, NOMS_ROLES, ROLES_PAGE_3, STYLE_GABARIT_3, estPageSuite, lignesDe, numerosDits, pagesDe, partDite, rolePage, type BlocGabarit, type PageGabarit, type RolePage } from "./gabarit";
+import { appelDansLeTexte } from "./appel-dit";
 
 interface Manquement {
   sceneId?: string;
@@ -126,7 +127,7 @@ export function regleGabarit3(fiche: FicheTableau, contexte?: { texteDeWill?: bo
   if (fiche.styleTableau !== undefined && !estStyleTableau(fiche.styleTableau)) res.push({ detail: `le style du tableau « ${fiche.styleTableau} » n'existe pas ; styles : ${liste(STYLES_TABLEAU)} (ou aucun : celui de la série).` });
   const pages = pagesDe(fiche);
   const derniere = fiche.scenes[fiche.scenes.length - 1];
-  const pageAppelFacultative = contexte?.texteDeWill === true && !fiche.scenes.some((s) => s.gabarit?.role === "appel");
+  const pageAppelFacultative = contexte?.texteDeWill === true && !fiche.scenes.some((s) => s.gabarit?.role === "appel") && !appelDansLeTexte(fiche);
   let etapeAttendue = 1;
   let rangPrecedent = -1;
   pages.forEach((p: PageGabarit, i) => {

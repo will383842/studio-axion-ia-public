@@ -1212,10 +1212,14 @@ export function creerMoteurMontageAvocat(deps: DependancesMoteurAvocat = {}): Mo
     heygenAVerifier(c: CommandeFabrication): AVerifierHeygen | null {
       if (!doubleReel(c)) return null;
       const recette = recetteDe(c);
-      const angles = anglesDuDouble(c, recette).filter((a) => a.visage?.fournisseur === "heygen" && !!a.visage.idExterne);
-      if (!angles.length || (angles.length === 1 && principalDejaRendu(c, recette))) return null;
+      const rendu = principalDejaRendu(c, recette);
+      // Principal déjà rendu : seul le second angle part encore, on ne vérifie que celui-là.
+      const heygens = anglesDuDouble(c, recette).filter((a) => a.visage?.fournisseur === "heygen" && !!a.visage.idExterne && !(rendu && a.principal));
+      // Un visage « genere » est un look de décor : absent de la liste des doubles (digital_twin), jamais vérifié comme double.
+      const angles = heygens.filter((a) => a.visage!.origine === "filme");
       const dl = decorDuLook(c, recette);
-      const looksDecor = dl?.valide ? angles.map((a) => dl.lookPour(a.angle)).filter((x): x is string => !!x) : [];
+      const looksDecor = dl?.valide ? heygens.map((a) => dl.lookPour(a.angle)).filter((x): x is string => !!x) : [];
+      if (!angles.length && !looksDecor.length) return null;
       const d0 = c.distribution[0];
       const voix = d0?.fournisseurVoix === "heygen" && d0.idVoixFournisseur && !c.audioMaitre ? d0.idVoixFournisseur : undefined;
       return {

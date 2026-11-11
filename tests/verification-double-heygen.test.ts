@@ -15,11 +15,12 @@ const F = JSON.parse(readFileSync("tests/fixtures/r7-heygen-doubles.json", "utf8
 const data = (k: string) => F[k].data;
 
 /** HeyGen doublé : chaque requête est notée ; `panne` : 503 pour tout api.heygen.com. */
-const heygen = vi.hoisted(() => ({ requetes: [] as { methode: string; url: string }[], looks: [] as unknown[], voix: [] as unknown[], panne: false as boolean }));
+const heygen = vi.hoisted(() => ({ requetes: [] as { methode: string; url: string }[], looks: [] as unknown[], voix: [] as unknown[], panne: false as boolean, bloque: false as boolean }));
 const reseau = async (url: string, init?: RequestInit) => {
   const u = new URL(String(url));
   const methode = init?.method ?? "GET";
   heygen.requetes.push({ methode, url: `${u.hostname}${u.pathname}${u.search}` });
+  if (heygen.bloque) return new Promise<Response>(() => undefined);
   if (heygen.panne && u.hostname === "api.heygen.com") return new Response("{}", { status: 503 });
   const json = (x: unknown) => new Response(JSON.stringify(x), { status: 200 });
   if (u.hostname === "api.heygen.com" && u.pathname === "/v3/voices") return json({ data: heygen.voix, has_more: false });
@@ -55,6 +56,7 @@ beforeEach(async () => {
   heygen.looks = [data("lookTermine"), { ...data("lookAccordAttendu"), id: "look_en_attente", name: "Face, en attente" }];
   heygen.voix = [];
   heygen.panne = false;
+  heygen.bloque = false;
   oublierCacheVerificationHeygen();
   delete process.env.STUDIO_RENDU_URL;
   await auth.seConnecter(MDP, false);
@@ -165,7 +167,7 @@ describe("heygenAVerifier du moteur avocat (pur)", () => {
   async function commande(audioMaitre?: unknown) {
     const c = { ...(await fabrication.construireCommande("v-03")), ratios: ["9:16" as const] };
     const d = c.distribution[0];
-    const reel = (id: string) => ({ visageId: `vis-${id}`, idExterne: id, fournisseur: "heygen", statut: "pret" as const });
+    const reel = (id: string) => ({ visageId: `vis-${id}`, idExterne: id, fournisseur: "heygen", origine: "filme", statut: "pret" as const });
     return { ...c, ...(audioMaitre ? { audioMaitre } : {}), distribution: [{ ...d, source: "double", modeAngles: "deux-angles", fournisseurVoix: "heygen", idVoixFournisseur: "voix_x", visagesResolus: { "trois-quarts": reel("look_tq"), face: reel("look_face") } }] } as unknown as CommandeFabrication;
   }
   it("null si rendu éteint ou simulé ; rempli si réel ; voix absente avec audio maître", async () => {
@@ -179,5 +181,36 @@ describe("heygenAVerifier du moteur avocat (pur)", () => {
     expect(v.looksDecor).toEqual([]);
     const avecAudio = reel.heygenAVerifier!(await commande({ empreinte: "e", fichierCle: "k", dureeSec: 30 }))!;
     expect(avecAudio.voix).toBeUndefined();
+  });
+  it("un visage « genere » (look de décor) n'est pas vérifié contre la liste des doubles", async () => {
+    const c = await commande();
+    const d = c.distribution[0] as unknown as { visagesResolus: Record<string, Record<string, unknown>> };
+    const genere = { ...c, distribution: [{ ...d, visagesResolus: { ...d.visagesResolus, face: { ...d.visagesResolus.face, origine: "genere" } } }] } as unknown as CommandeFabrication;
+    const reel = creerMoteurMontageAvocat({ rendu, stockage, environnement: env, renduDoubleAutorise: true });
+    expect(reel.heygenAVerifier!(genere)!.doubles.map((x) => x.idExterne)).toEqual(["look_tq"]);
+  });
+
+  it("principal déjà rendu : seul le second angle est vérifié", async () => {
+    const c = await commande({ empreinte: "e", fichierCle: "k", dureeSec: 30 });
+    const rendu1 = { ...c, doubleDejaRendu: { empreinteAudio: "e", audioCle: "k", fond: "sans-fond", lookIds: { "trois-quarts": "look_tq" }, pieces: [{ angle: "trois-quarts", tranche: false, debutSec: 0, finSec: 30, videoCle: "v" }] } } as unknown as CommandeFabrication;
+    const reel = creerMoteurMontageAvocat({ rendu, stockage, environnement: env, renduDoubleAutorise: true });
+    expect(reel.heygenAVerifier!(rendu1)!.doubles.map((x) => x.idExterne)).toEqual(["look_face"]);
+  });
+});
+
+describe("délai de la vérification", () => {
+  it("fetch qui ne répond jamais : résout au bout de 15 s et journalise", async () => {
+    vi.useFakeTimers();
+    try {
+      const moi = await installer("look_essai_tq_001");
+      heygen.bloque = true;
+      const mod = await import("@/services/verification-heygen");
+      const p = mod.verifierHeygenAvantPaiement({ ...aVerifier(moi.id, "look_essai_tq_001"), voix: "voix_x" });
+      await vi.advanceTimersByTimeAsync(mod.DELAI_VERIFICATION_HEYGEN_MS + 100);
+      await expect(p).resolves.toBeUndefined();
+      expect((await journal()).some((m) => m.includes("délai dépassé"))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

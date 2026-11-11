@@ -52,7 +52,7 @@ async function lire<T>(cle: Cle, lecteur: () => Promise<T[]>, plafond: number): 
 const MESSAGE_DOUBLE_ABSENT = "Votre double HeyGen n'existe plus. Dans Personnages, « Choisir mon double HeyGen », reliez-le de nouveau. Rien n'a été dépensé.";
 const MESSAGE_DECOR_ABSENT = "Le look HeyGen de votre décor n'existe plus. Dans Bibliothèque, Décors, reliez-en un autre. Rien n'a été dépensé.";
 
-export async function verifierHeygenAvantPaiement(a: AVerifierHeygen): Promise<void> {
+async function verifierHeygenSansDelai(a: AVerifierHeygen): Promise<void> {
   if (!a.doubles.length && !a.looksDecor.length && !a.voix) return;
   const { f, branche } = fournisseurHeygen();
   if (!branche) return;
@@ -119,11 +119,30 @@ async function signalerDoublesAbsents(a: AVerifierHeygen, presents: { idExterne:
 }
 
 /** Un autre visage HeyGen prêt du même angle, dont la ressource active est présente dans le compte. */
-async function remplacantPret(visages: { id: Id; nom: string; angle: AngleVisage; fournisseur?: string; statut: string }[], angle: AngleVisage, presents: Set<string>, sauf: Id): Promise<{ id: Id; nom: string } | null> {
+async function remplacantPret(visages: { id: Id; nom: string; angle: AngleVisage; fournisseur?: string; origine?: string; statut: string }[], angle: AngleVisage, presents: Set<string>, sauf: Id): Promise<{ id: Id; nom: string } | null> {
   for (const v of visages) {
-    if (v.id === sauf || v.fournisseur !== "heygen" || v.statut !== "pret" || v.angle !== angle) continue;
+    if (v.id === sauf || v.fournisseur !== "heygen" || v.origine !== "filme" || v.statut !== "pret" || v.angle !== angle) continue;
     const r = await ressourceActive(v.id);
     if (r?.fournisseur === "heygen" && presents.has(r.idExterne)) return { id: v.id, nom: v.nom };
   }
   return null;
+}
+
+/** Délai de toute la vérification : au-delà, « non concluant » (le lancement reste autorisé). */
+export const DELAI_VERIFICATION_HEYGEN_MS = 15_000;
+
+export async function verifierHeygenAvantPaiement(a: AVerifierHeygen): Promise<void> {
+  let minuterie: ReturnType<typeof setTimeout> | undefined;
+  const delai = new Promise<"delai">((resolve) => {
+    minuterie = setTimeout(() => resolve("delai"), DELAI_VERIFICATION_HEYGEN_MS);
+  });
+  const travail = verifierHeygenSansDelai(a);
+  // Si le délai gagne, la vérification continue en arrière-plan : ses erreurs tardives sont ignorées.
+  travail.catch(() => undefined);
+  try {
+    const r = await Promise.race([travail.then(() => "fini" as const), delai]);
+    if (r === "delai") await journaliser("fabrication", "Vérification HeyGen non concluante (délai dépassé). La vidéo part quand même.");
+  } finally {
+    clearTimeout(minuterie);
+  }
 }
