@@ -1,5 +1,5 @@
 /** Statuts d'un visuel (carrousel) et transitions permises. Module pur : aucune dépendance. */
-export const STATUTS_VISUEL = ["brouillon", "ecrit", "bloque", "rendu_en_cours", "echec_rendu", "a_valider", "valide", "refuse", "programme", "publie"] as const;
+export const STATUTS_VISUEL = ["brouillon", "ecrit", "bloque", "rendu_en_cours", "echec_rendu", "a_valider", "valide", "refuse", "programme", "publie", "echec_envoi"] as const;
 export type StatutVisuel = (typeof STATUTS_VISUEL)[number];
 
 export const TRANSITIONS: Record<StatutVisuel, readonly StatutVisuel[]> = {
@@ -10,9 +10,10 @@ export const TRANSITIONS: Record<StatutVisuel, readonly StatutVisuel[]> = {
   echec_rendu: ["rendu_en_cours", "brouillon"],
   a_valider: ["valide", "refuse"],
   refuse: ["brouillon"],
-  valide: [],
-  programme: [],
+  valide: ["programme"],
+  programme: ["valide", "publie", "echec_envoi"],
   publie: [],
+  echec_envoi: [],
 };
 
 export function transitionPermise(de: StatutVisuel, vers: StatutVisuel): boolean {
@@ -35,6 +36,7 @@ export const LIBELLES_STATUT: Record<StatutVisuel, string> = {
   refuse: "Refusé",
   programme: "Programmé",
   publie: "Publié",
+  echec_envoi: "L'envoi a échoué",
 };
 
 /**
