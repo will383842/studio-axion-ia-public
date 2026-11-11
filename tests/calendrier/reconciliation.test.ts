@@ -39,4 +39,24 @@ describe("reconcilier", () => {
     expect(r.creneau).toBeUndefined();
     expect(r.publication).toEqual({ statut: "publiee" });
   });
+  it("publication déjà publiée + échec tardif : jamais rétrogradée", () => {
+    const r = reconcilier({ diffuseur: "echec", raison: "x" }, { creneau: { id: "c1", statut: "publie" }, publication: { id: "p1", statut: "publiee" }, visuel: { id: "v1", statut: "publie" } });
+    expect(r.publication).toBeUndefined();
+    expect(r.aReprendre).toBeUndefined();
+  });
+  it("publication en brouillon : jamais écrite par le diffuseur", () => {
+    const r = reconcilier({ diffuseur: "echec", raison: "x" }, { creneau: { id: "c1", statut: "valide" }, publication: { id: "p1", statut: "brouillon" } });
+    expect(r.publication).toBeUndefined();
+    expect(r.aReprendre).toBeUndefined();
+  });
+  it("créneau valide (transition refusée) + publication programmée + échec : trace à reprendre", () => {
+    const r = reconcilier({ diffuseur: "echec", raison: "Jeton expiré" }, { creneau: { id: "c1", statut: "valide" }, publication });
+    expect(r.creneau).toBeUndefined();
+    expect(r.publication).toEqual({ statut: "echec", erreur: "Jeton expiré" });
+    expect(r.aReprendre).toEqual({ raison: "Jeton expiré" });
+  });
+  it("publication en échec qui finit par passer : publiée", () => {
+    const r = reconcilier({ diffuseur: "publie" }, { creneau: { id: "c1", statut: "echec" }, publication: { id: "p1", statut: "echec" } });
+    expect(r.publication).toEqual({ statut: "publiee" });
+  });
 });

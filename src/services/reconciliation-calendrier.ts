@@ -24,6 +24,14 @@ export interface ResultatReconciliation {
   aReprendre?: { raison: string };
 }
 
+/** Transitions de la Publication que le diffuseur peut provoquer ; « publiee » est final, « brouillon » n'est jamais écrit. */
+const PUBLICATION_PERMISE: Record<StatutPublication, readonly StatutPublication[]> = {
+  brouillon: [],
+  programmee: ["publiee", "echec"],
+  echec: ["publiee"],
+  publiee: [],
+};
+
 const RAISON_INCONNUE = "Raison inconnue (le diffuseur n'en a donné aucune).";
 
 export function reconcilier(statut: StatutDiffuseur, e: EntreeReconciliation): ResultatReconciliation {
@@ -34,11 +42,11 @@ export function reconcilier(statut: StatutDiffuseur, e: EntreeReconciliation): R
   if (e.creneau.statut !== vers && creneauPermis(e.creneau.statut, vers)) r.creneau = { statut: vers };
   const vp: StatutPublication = ok ? "publiee" : "echec";
   const raison = statut.raison?.trim() || RAISON_INCONNUE;
-  if (e.publication.statut !== vp) r.publication = ok ? { statut: vp } : { statut: vp, erreur: raison };
+  if (e.publication.statut !== vp && PUBLICATION_PERMISE[e.publication.statut].includes(vp)) r.publication = ok ? { statut: vp } : { statut: vp, erreur: raison };
   if (e.visuel) {
     const vv: StatutVisuel = ok ? "publie" : "echec_envoi";
     if (e.visuel.statut !== vv && visuelPermis(e.visuel.statut, vv)) r.visuel = { statut: vv };
   }
-  if (!ok && r.creneau) r.aReprendre = { raison };
+  if (!ok && (r.creneau || r.publication)) r.aReprendre = { raison };
   return r;
 }

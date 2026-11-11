@@ -23,6 +23,7 @@ export interface AlerteCalendrier {
 
 export function evaluerSante(creneaux: readonly CreneauSante[], maintenant: string, dejaAlertes: ReadonlySet<string> = new Set()): AlerteCalendrier[] {
   const now = Date.parse(maintenant);
+  if (Number.isNaN(now)) throw new Error("Instant « maintenant » invalide : une date ISO est attendue.");
   const alertes: AlerteCalendrier[] = [];
   for (const c of creneaux) {
     if (c.statut !== "programme" && c.statut !== "valide") continue;
