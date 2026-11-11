@@ -13,10 +13,10 @@ const carrousel = CarrouselSpec.parse({
   alt: "Cinq gestes pour relancer un devis",
   pages: [
     { type: "T01", titre: "Relancer un devis sans insister", sousTitre: "Trois étapes simples" },
-    { type: "T27", titre: "Avant d'écrire", lignes: [{ texte: "Relisez le devis envoyé" }, { texte: "Notez la date d'envoi" }] },
+    { type: "T27", titre: "Avant d'écrire", lignes: [{ texte: "Relisez le devis envoyé" }, { texte: "Notez la date d'envoi" }, { texte: "Choisissez le canal" }, { texte: "Préparez une phrase" }] },
     { type: "T10", message: "Un message court vaut mieux qu'un long" },
     { type: "T22", titre: "Idée reçue", mythe: "Relancer dérange le client", realite: "Une relance polie rassure souvent" },
-    { type: "T28", titre: "Le parcours", noeuds: [{ texte: "Devis envoyé" }, { texte: "Relance par SMS" }] },
+    { type: "T28", titre: "Le parcours", noeuds: [{ texte: "Devis envoyé" }, { texte: "Relance par SMS" }, { texte: "Réponse du client" }] },
     { type: "T29", relance: "À vous de relancer", rappels: [{ texte: "Un SMS le lendemain" }, { texte: "Une seule phrase" }] },
   ],
 });
