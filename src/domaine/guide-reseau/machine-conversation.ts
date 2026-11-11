@@ -59,9 +59,16 @@ export interface Conversation {
   adresseRefuseeEnvoyee?: boolean;
   /** Le site a refusé l'adresse (422) mais le message « adresse refusée » attend le plafond : le réessai ne rappelle pas le site. */
   adresseRefuseeEnAttente?: boolean;
+  /** Référence opaque de conversation du lien signé (« c1_… »), écrite UNE fois au premier M1 v3 ; jamais réécrite, jamais le jeton. */
+  refLienConv?: string | null;
   /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
   douteOpposition?: boolean;
 }
+
+/** Version du 1er message privé quand il porte le lien signé de la page guide (interrupteur PARCOURS_LIEN_GUIDE). */
+export const VERSION_M1_LIEN = "mp-m1-v3";
+/** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
+export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee";
 
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";
 
