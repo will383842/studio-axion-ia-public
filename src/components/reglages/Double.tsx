@@ -52,7 +52,7 @@ export function ReglageDouble({ initial }: { initial: { allume: boolean; fond: F
 
   return (
     <div id="double" className="scroll-mt-24 space-y-3 border-t border-trait pt-4">
-      <p className="text-xs font-bold uppercase tracking-wider text-texte-faible">Double</p>
+      <h3 className="text-[15px] font-semibold text-texte">Double</h3>
       <Interrupteur
         icone="visage"
         libelle={TEXTES_DOUBLE.titre}

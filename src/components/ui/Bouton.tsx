@@ -9,7 +9,7 @@ export type TailleBouton = "md" | "lg" | "xl";
 
 const VARIANTES: Record<VarianteBouton, string> = {
   principal: "bg-orange text-sur-orange shadow-orange hover:bg-orange-vif active:brightness-95",
-  secondaire: "bg-surface-2 text-texte hover:bg-surface-3 border border-trait",
+  secondaire: "bg-surface-1 text-texte hover:bg-surface-2 border border-trait-fort",
   fantome: "bg-transparent text-texte-doux hover:bg-surface-2 hover:text-texte",
   contour: "bg-transparent text-texte border border-trait-fort hover:border-orange hover:text-orange-vif",
   danger: "bg-brique-doux text-brique border border-brique/30 hover:bg-brique hover:text-sur-orange",
@@ -93,7 +93,7 @@ export const BoutonIcone = forwardRef<HTMLButtonElement, ProprietesBoutonIcone>(
         "relative inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-45",
         taille === "md" ? "size-11" : "size-12",
         variante === "fantome" && "text-texte-doux hover:bg-surface-2 hover:text-texte",
-        variante === "secondaire" && "border border-trait bg-surface-2 text-texte hover:bg-surface-3",
+        variante === "secondaire" && "border border-trait-fort bg-surface-1 text-texte hover:bg-surface-2",
         variante === "principal" && "bg-orange text-sur-orange shadow-orange hover:bg-orange-vif",
         className,
       )}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RelireVersions } from "@/components/generateur/RelireVersions";
 import { Carte } from "@/components/ui/Carte";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import type { Ratio } from "@/domaine/types";
 import { ErreurStudio } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
@@ -32,15 +33,15 @@ export default async function PageRelireSujet({ params, searchParams }: { params
   } catch (e) {
     if (!(e instanceof ErreurStudio)) throw e;
     return (
-      <div className="mx-auto max-w-2xl">
+      <ConteneurPage largeur="lecture">
         <EnTetePage retour={retour} titre="Relire le script" />
         <Carte role="status">
           <p className="text-[15px] text-texte">{e.message}</p>
-          <Link href={retour.href} className="mt-3 inline-flex min-h-11 items-center font-semibold text-orange-vif">
+          <Link href={retour.href} className="mt-3 inline-flex min-h-11 items-center font-semibold text-texte underline">
             Revenir au sujet
           </Link>
         </Carte>
-      </div>
+      </ConteneurPage>
     );
   }
 
@@ -54,7 +55,7 @@ export default async function PageRelireSujet({ params, searchParams }: { params
   const n = lot.codes.length;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage
         retour={retour}
         surTitre={lot.codes.join(" · ")}
@@ -63,6 +64,6 @@ export default async function PageRelireSujet({ params, searchParams }: { params
         className="mb-4 [&_h1]:break-words"
       />
       <RelireVersions sujetId={id} varianteId={varianteId} lignes={lot.lignes} debit={lot.debit} formatId={lot.formatId} but={but} prixCentimes={Number.isFinite(prixCentimes) ? Math.max(0, prixCentimes) : 0} ratiosOption={ratiosOption} />
-    </div>
+    </ConteneurPage>
   );
 }

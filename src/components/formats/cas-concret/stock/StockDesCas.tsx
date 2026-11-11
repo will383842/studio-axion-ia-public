@@ -131,9 +131,9 @@ function TableauDeBord({ lignes, filtres, page }: { lignes: readonly LigneStock[
       )}
       {pages > 1 && (
         <nav className="mt-4 flex items-center justify-between gap-3" aria-label="Pages du stock">
-          {courante > 1 ? <a className="inline-flex min-h-11 items-center text-[15px] text-orange-vif" href={lien(courante - 1)}>Page précédente</a> : <span />}
+          {courante > 1 ? <a className="inline-flex min-h-11 items-center text-[15px] text-texte-doux" href={lien(courante - 1)}>Page précédente</a> : <span />}
           <span className="text-[13px] text-texte-doux">Page {courante} sur {pages}</span>
-          {courante < pages ? <a className="inline-flex min-h-11 items-center text-[15px] text-orange-vif" href={lien(courante + 1)}>Page suivante</a> : <span />}
+          {courante < pages ? <a className="inline-flex min-h-11 items-center text-[15px] text-texte-doux" href={lien(courante + 1)}>Page suivante</a> : <span />}
         </nav>
       )}
     </>
@@ -151,7 +151,7 @@ export function StockDesCas({ lignes, idees, tableau, ouvert: ouvertParLien }: {
     <>
     {nbTraites > 0 && (
       <p className="mt-6">
-        <a className="inline-flex min-h-11 items-center rounded-sm text-[15px] font-semibold text-orange-vif underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href="/cas-concret/deja-faits">{nbTraites > 1 ? `${nbTraites} cas déjà faits` : "1 cas déjà fait"}</a>
+        <a className="inline-flex min-h-11 items-center rounded-sm text-[15px] font-semibold text-texte underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif" href="/cas-concret/deja-faits">{nbTraites > 1 ? `${nbTraites} cas déjà faits` : "1 cas déjà fait"}</a>
       </p>
     )}
     <details id={tableau ? "stock" : undefined} open={ouvert || undefined} className="group mt-6 rounded-carte border border-trait bg-surface-1 p-4">
@@ -168,7 +168,7 @@ export function StockDesCas({ lignes, idees, tableau, ouvert: ouvertParLien }: {
       )}
       {nbTraites > 0 && (
         <p className="mt-6 text-[13px] text-texte-doux">
-          Les cas déjà faits sont sur la <a className="inline-flex min-h-11 items-center text-orange-vif underline" href="/cas-concret/deja-faits">page Cas déjà faits</a>.
+          Les cas déjà faits sont sur la <a className="inline-flex min-h-11 items-center text-texte underline" href="/cas-concret/deja-faits">page Cas déjà faits</a>.
         </p>
       )}
       <IdeesAVenir idees={idees} />

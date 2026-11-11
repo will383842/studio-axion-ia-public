@@ -22,8 +22,19 @@ export interface ServicesMots {
   mettreEnPauseLocal(mot: string, compte: string): Promise<Resultat>;
   /** Valide les textes du mot GUIDE : le serveur construit lui-même la saisie, le client n'envoie rien. */
   validerGuide?(): Promise<{ ok: boolean; raison: string }>;
+  /** Valide le message « adresse refusée » (texte du dictionnaire, côté serveur) : le client n'envoie rien. */
+  validerAdresseRefusee?(): Promise<{ ok: boolean; raison: string }>;
   refermerDisjoncteur(): Promise<{ ok: boolean }>;
   reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<unknown>;
+}
+
+/** Ne garde que les champs réellement modifiés ; un champ vidé ou non numérique devient NaN (refusé côté service, jamais 0 ni défaut). */
+export function champsModifies(actuel: { heureCompte: number; jourMot: number }, heure: string, jour: string): { heureCompte?: number; jourMot?: number } {
+  const n = (t: string) => (t.trim() === "" ? Number.NaN : Number(t));
+  const r: { heureCompte?: number; jourMot?: number } = {};
+  if (heure.trim() !== String(actuel.heureCompte)) r.heureCompte = n(heure);
+  if (jour.trim() !== String(actuel.jourMot)) r.jourMot = n(jour);
+  return r;
 }
 
 /**
@@ -60,6 +71,14 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
     onChange?.();
   };
 
+  const validerAdresseRefusee = async () => {
+    if (!services.validerAdresseRefusee || !window.confirm("Valider le message « adresse refusée » (texte officiel du serveur) ? Rien n’est envoyé.")) return;
+    const r = await services.validerAdresseRefusee();
+    if (r.ok) notifier.succes("Message « adresse refusée » validé.");
+    else notifier.erreur(phraseRefus(r.raison));
+    onChange?.();
+  };
+
   return (
     <div className="flex flex-col gap-4" data-ecran="mots">
       <Carte className="flex flex-wrap items-center gap-3">
@@ -90,6 +109,18 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
           <Bouton className="mt-3" taille="lg" chargement={enCours} onClick={() => demarrer(async () => { const r = await services.refermerDisjoncteur(); if (!r.ok) notifier.erreur("Non refermé."); onChange?.(); })}>
             Refermer le disjoncteur
           </Bouton>
+        </Carte>
+      )}
+
+      {services.validerAdresseRefusee && (
+        <Carte data-carte="adresse-refusee">
+          <h3 className="text-base text-texte">Message « adresse refusée »</h3>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <Pastille ton={vue.adresseRefuseeValide ? "sauge" : "neutre"}>{vue.adresseRefuseeValide ? "Texte validé" : "Texte non validé"}</Pastille>
+            <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(validerAdresseRefusee)}>
+              Valider le message « adresse refusée »
+            </Bouton>
+          </div>
         </Carte>
       )}
 
@@ -161,9 +192,14 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
 
       <Carte data-carte="plafonds">
         <h3 className="text-base text-texte">Plafonds</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-2" data-etat-parcours>
+          <Pastille ton={vue.parcoursAllume ? "sauge" : "neutre"}>Parcours des messages privés : {vue.parcoursAllume ? "allumé" : "éteint"}</Pastille>
+          <Pastille ton={vue.guideValide ? "sauge" : "ambre"}>{vue.guideValide ? "Textes validés" : "Textes non validés"}</Pastille>
+          <Pastille ton={vue.oppositionsNonTransmises > 0 ? "ambre" : "neutre"}>{vue.oppositionsNonTransmises > 0 ? `${vue.oppositionsNonTransmises} « stop » pas encore transmis` : "Aucun « stop » pas encore transmis"}</Pastille>
+        </div>
         <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-texte-doux">
-            Par heure et par compte (600 au maximum)
+            Par heure et par compte (600 au maximum) : réglage lu par le parcours
             <input inputMode="numeric" className="min-h-11 rounded-xl border border-trait bg-surface-2 px-3 text-texte" value={heure} onChange={(e) => setHeure(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1 text-sm text-texte-doux">
@@ -171,7 +207,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
             <input inputMode="numeric" className="min-h-11 rounded-xl border border-trait bg-surface-2 px-3 text-texte" value={jour} onChange={(e) => setJour(e.target.value)} />
           </label>
         </div>
-        <Bouton className="mt-3" variante="secondaire" chargement={enCours} onClick={() => demarrer(async () => { await services.reglerPlafonds({ heureCompte: Number(heure), jourMot: Number(jour) }); notifier.succes("Plafonds enregistrés."); onChange?.(); })}>
+        <Bouton className="mt-3" variante="secondaire" chargement={enCours} onClick={() => demarrer(async () => { const ch = champsModifies(vue.plafonds, heure, jour); if (Object.keys(ch).length === 0) { notifier.succes("Rien à changer."); return; } try { await services.reglerPlafonds(ch); notifier.succes("Plafonds enregistrés."); } catch (e) { notifier.erreur(e instanceof Error ? e.message : "Plafond refusé."); } onChange?.(); })}>
           Enregistrer
         </Bouton>
       </Carte>
