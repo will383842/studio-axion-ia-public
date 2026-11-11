@@ -34,7 +34,7 @@ const nombre = (v: number) => Math.round(v).toLocaleString("fr-FR").replace(/[â€
 
 export function BadgeCompteur({ palette, titre, pictos, valeur, inversion, debutCompteur = 6, sortie = 60, muet }: BadgeCompteurProps) {
   const i = useCurrentFrame();
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_1, ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   const g = facteurSortie(i, sortie);
   if (i >= sortie + 3) return null;
   // compteur
@@ -44,7 +44,7 @@ export function BadgeCompteur({ palette, titre, pictos, valeur, inversion, debut
   if (inversion) v = i >= inversion.a ? lerp(valeur, inversion.valeur, courbe(i, inversion.a, 12, Easing.out(Easing.cubic))) : v;
   const claque = 1 + 0.12 * (1 - Math.min(1, ressort("CLAQUE", i - (debutCompteur + 12)))) * (i >= debutCompteur + 12 ? 1 : 0) + (inversion ? 0.12 * (1 - Math.min(1, ressort("CLAQUE", i - (inversion.a + 12)))) * (i >= inversion.a + 12 ? 1 : 0) : 0);
   const fondCompteur = melange(ACCENT_2, COULEURS.ENCRE, inv);
-  const texteCompteur = melange(COULEURS.ENCRE, ACCENT_1, inv);
+  const texteCompteur = melange(COULEURS.ENCRE, ACCENT_SOMBRE, inv);
   const corpsTitre = 40;
   const tuile = 92;
   const largeur = 0.8 * W;

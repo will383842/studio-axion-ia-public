@@ -61,7 +61,7 @@ export function PanneauFin({ frame, debut, palette, nom = "Williams Jullin", mot
       })}
       {vu(2 + icones.length) ? (
         <Pose x={W / 2} y={0.71 * H} echelle={pop(2 + icones.length) * tick(k0, 10, 0, 0.06, 15)} rotation={-1.5}>
-          <div style={{ width: 0.8 * W, boxSizing: "border-box", padding: "34px 30px", borderRadius: 10, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, boxShadow: `8px 9px 0 0 ${COULEURS.ENCRE}`, fontFamily: MONTSERRAT, fontWeight: 900, color: COULEURS.ENCRE, whiteSpace: "nowrap", letterSpacing: "0.01em", lineHeight: 1.1, textAlign: "center" }}>
+          <div style={{ width: 0.8 * W, boxSizing: "border-box", padding: "34px 30px", borderRadius: 10, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, boxShadow: `8px 9px 0 0 ${COULEURS.ENCRE}`, fontFamily: MONTSERRAT, fontWeight: 900, color: COULEURS.BLANC, whiteSpace: "nowrap", letterSpacing: "0.01em", lineHeight: 1.1, textAlign: "center" }}>
             <div style={{ fontSize: 60 }}>COMMENTEZ</div>
             <div style={{ fontSize: 88 }}>« {motCle} »</div>
           </div>
