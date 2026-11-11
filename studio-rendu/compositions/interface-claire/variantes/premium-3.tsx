@@ -29,6 +29,8 @@ export const N3 = Object.freeze({
   orange: COULEURS.orange,
   orangeChaud: MELANGES.orangeChaud,
   orangeProfond: MELANGES.orangeProfond,
+  /** Sur fonds encre seulement. */
+  orangeSurNoir: MELANGES.orangeSurNoir,
   encreDouce: MELANGES.encreDouce,
   encre: COULEURS.encre,
 } as const);

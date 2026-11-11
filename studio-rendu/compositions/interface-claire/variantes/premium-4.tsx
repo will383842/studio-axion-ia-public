@@ -30,6 +30,8 @@ export const N4 = Object.freeze({
   orange: COULEURS.orange,
   orangeChaud: MELANGES.orangeChaud,
   orangeProfond: MELANGES.orangeProfond,
+  /** Sur fonds encre seulement. */
+  orangeSurNoir: MELANGES.orangeSurNoir,
   encreDouce: MELANGES.encreDouce,
   encre: COULEURS.encre,
 } as const);
@@ -173,7 +175,7 @@ export function sortieAnticipee(t: number, a: number): number {
 /**
  * ÉCLAT d'arrivée (N2) : une surface pleine (orange, ou encre-douce pour un élément « avant / subi ») pendant 0,16 s
  * (4 images à 25 i/s), sans fondu, derrière l'élément qui arrive. C'est l'exception « flash ≤ 0,16 s » du standard : elle
- * garantit que l'arrivée change ≥ 5 % de l'image (écart > 40 niveaux de gris : orange 105, encre-douce 59, ivoire 222).
+ * garantit que l'arrivée change ≥ 5 % de l'image (écart > 40 niveaux de gris : orange ~93, encre-douce ~20, ivoire ~249).
  */
 export const ECLAT = 0.16;
 export const enEclat = (t: number, a: number, duree = ECLAT) => t >= a && t < a + duree;

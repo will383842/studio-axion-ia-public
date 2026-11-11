@@ -22,17 +22,23 @@ export function melange(a: string, b: string, t: number): string {
 }
 
 /**
- * Les 8 mélanges calculés sur la palette 2026, définis une seule fois (importés par premium-2 à 5).
- * Fonds clairs : ivoire, gris, terracotta, texte secondaire. Le niveau de sombre `encreDouce` est le noir lui-même (relief par filet, jamais par un second neutre) ; l'orange de la palette n'y est pas employé (noir seulement).
+ * Les mélanges et rôles calculés sur la palette 2026, définis une seule fois (importés par premium-2 à 5).
+ * Fonds clairs : ivoire, gris, terracotta, texte secondaire. Le niveau de sombre `encreDouce` est le noir lui-même (relief par filet, jamais par un second neutre) ; l'orange de la palette n'existe que sous le rôle `orangeSurNoir`, employé sur les fonds encre.
  */
 export const MELANGES = Object.freeze({
   ivoireCreux: melange(PALETTE.ivoire, PALETTE.gris, 0.5),
-  sableClair: melange(PALETTE.gris, PALETTE.texteSecondaire, 0.15),
-  sableProfond: melange(PALETTE.gris, PALETTE.texteSecondaire, 0.6),
+  /** Ordre de luminance : ivoire > ivoireCreux > sableClair > sable > filet > sableProfond. */
+  sableClair: melange(PALETTE.ivoire, PALETTE.gris, 0.75),
+  /** Texte secondaire (6,26 sur ivoire) : jamais un mélange clair. */
+  sableProfond: PALETTE.texteSecondaire,
   filet: melange(PALETTE.gris, PALETTE.texteSecondaire, 0.3),
   orangeVoile: melange(PALETTE.ivoire, PALETTE.terracotta, 0.15),
-  orangeChaud: melange(PALETTE.terracotta, PALETTE.ivoire, 0.12),
-  orangeProfond: melange(PALETTE.terracotta, PALETTE.noir, 0.25),
+  /** Ivoire dessus ≥ 4,5 (4,79 ; à 0,12 on tombait à 4,47). */
+  orangeChaud: melange(PALETTE.terracotta, PALETTE.ivoire, 0.08),
+  /** D5 ouverte : pas de mélange proche du survol ; terracotta tant que D5 n'est pas tranchée. */
+  orangeProfond: PALETTE.terracotta,
+  /** Orange de la palette (5,90 sur noir) : sur fonds encre SEULEMENT (jamais sur ivoire, 2,96). */
+  orangeSurNoir: PALETTE.orange,
   encreDouce: PALETTE.noir,
 } as const);
 
@@ -48,6 +54,8 @@ export const NUANCES = Object.freeze({
   orange: COULEURS.orange,
   orangeChaud: MELANGES.orangeChaud,
   orangeProfond: MELANGES.orangeProfond,
+  /** Sur fonds encre seulement (badges, bandeaux noirs). */
+  orangeSurNoir: MELANGES.orangeSurNoir,
   encreDouce: MELANGES.encreDouce,
   encre: COULEURS.encre,
 } as const);
