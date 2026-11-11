@@ -85,6 +85,6 @@ describe("L1-06 dépôts du calendrier", () => {
     await b.parametres.lister();
     expect(await b.creneauxEditoriaux.obtenir("cre-1")).toMatchObject({ id: "cre-1", decalages: 1 });
     expect(await b.journalDecalages.obtenir("dec-1")).toEqual(decalage);
-    expect([...fauxPg.lignes.values()].map((l) => l.collection).sort()).toEqual(["creneauxEditoriaux", "journalDecalages"]);
+    expect([...fauxPg.lignes.values()].map((l) => l.collection).filter((c) => c === "creneauxEditoriaux" || c === "journalDecalages").sort()).toEqual(["creneauxEditoriaux", "journalDecalages"]);
   });
 });

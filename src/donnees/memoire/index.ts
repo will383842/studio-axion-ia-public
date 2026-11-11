@@ -125,6 +125,8 @@ function creerDepots(): Depots {
     correctionsWill: new DepotMemoire([]),
     visuels: new DepotMemoire([]),
     envoisPlanifies: new DepotMemoire([]),
+    creneauxEditoriaux: new DepotMemoire([]),
+    journalDecalages: new DepotMemoire([]),
   };
 }
 
