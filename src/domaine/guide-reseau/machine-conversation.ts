@@ -27,7 +27,7 @@ export { ETATS_EN_COURS, type EtatParcours };
 /** Etats où un message privé de la personne est pris en compte. */
 export const ETATS_MESSAGE_ACCEPTES: readonly EtatParcours[] = ["attente_email", "m1_a_verifier", "m1_en_vol", "m2_envoye"];
 
-/** État conservé par personne. JAMAIS : pseudo, texte, adresse, identifiant brut (les alias sont des empreintes). */
+/** État conservé par personne. JAMAIS : pseudo, texte, adresse, identifiant brut de personne ou de conversation (les alias sont des empreintes). `idCommentaire`, `idCompte` et `idPostPlateforme` restent bruts (commentaire, compte et publication de NOTRE côté). */
 export interface Conversation {
   etat: EtatParcours;
   reseau: "instagram" | "facebook";
@@ -222,6 +222,7 @@ const dateLue = (d: string | null | undefined): number | null => {
 /**
  * Expiration après 7 jours, sans message envoyé. Date de référence, avec repli quand la date est illisible :
  *  - `m2_envoye` : m2Le → m1Le → creeLe ; `attente_email` et `m1_a_verifier` : m1Le → creeLe ;
+ *  - `nouveau` et `pub_ok` : creeLe ; `guide_demande` : m1Le → creeLe ;
  *  - `m1_en_vol` : creeLe, seulement s'il n'est PAS en vol dans ce processus (`enVol`, indicateur : la fonction reste pure) ;
  *  - toutes les dates illisibles : expiré (jamais un état éternel).
  */
@@ -231,6 +232,10 @@ export function doitExpirer(c: Conversation, maintenantMs: number, enVol = false
     case "m2_envoye": candidates = [c.m2Le, c.m1Le, c.creeLe]; break;
     case "attente_email": case "m1_a_verifier": candidates = [c.m1Le, c.creeLe]; break;
     case "m1_en_vol": if (enVol) return false; candidates = [c.creeLe]; break;
+    // STU-MENAGE : sans cela ces états « en cours » ne finissaient JAMAIS si leur événement était perdu ou clos autrement.
+    // `nouveau` / `pub_ok` : la réponse privée de Meta n'est plus possible après 7 jours. `guide_demande` : le guide est parti par e-mail, seul le reçu manquait.
+    case "nouveau": case "pub_ok": candidates = [c.creeLe]; break;
+    case "guide_demande": candidates = [c.m1Le, c.creeLe]; break;
     default: return false;
   }
   for (const d of candidates) {
