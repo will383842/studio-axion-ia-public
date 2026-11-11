@@ -2,9 +2,8 @@
 
 /** Écriture en série (B7) : plan (prix maximum, combien partiront), lancement, suivi. Chacune commence par exigerSession(). */
 import { revalidatePath } from "next/cache";
-import { CIBLE_ABSENTE, ciblageSaisieValide, MESSAGE_CIBLE_ABSENTE } from "@/domaine/ciblage/saisie";
 import { exigerSession } from "@/services/auth";
-import { ErreurStudio, essayer, type Resultat } from "@/services/_commun";
+import { essayer, type Resultat } from "@/services/_commun";
 import { lancerSerie, planSerie, suiviSerie, type PlanSerie, type ReglagesSerie, type SuiviSerie } from "@/services/serie-ecriture";
 
 export async function planSerieAction(demandees: number): Promise<Resultat<PlanSerie>> {
@@ -15,7 +14,7 @@ export async function planSerieAction(demandees: number): Promise<Resultat<PlanS
 export async function lancerSerieAction(idees: { texte: string; ideeId?: string }[], reglages: ReglagesSerie, cle: string, totalConfirme?: number, partirontConfirme?: number): Promise<Resultat<{ partis: number; restes: number; essai: boolean }>> {
   await exigerSession();
   return essayer(async () => {
-    if (!ciblageSaisieValide(reglages?.ciblage)) throw new ErreurStudio(CIBLE_ABSENTE, MESSAGE_CIBLE_ABSENTE);
+    // Cible du lot : exigée par l'écran Sujet ; la page Idées n'en a pas, donc ici son absence est une remarque (jamais un refus).
     const { serie, plan } = await lancerSerie(idees, reglages, cle, typeof totalConfirme === "number" && Number.isFinite(totalConfirme) ? totalConfirme : undefined, typeof partirontConfirme === "number" && Number.isInteger(partirontConfirme) ? partirontConfirme : undefined);
     revalidatePath("/ecrire");
     revalidatePath("/");
