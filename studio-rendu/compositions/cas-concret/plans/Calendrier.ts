@@ -57,7 +57,7 @@ function planCalendrierV4(p: ProprietesObjet, image?: number) {
   return {
     boite: { x: 0, y: 0, largeur: w, hauteur: h },
     rayon: Math.min(w, h) * 0.08,
-    fiche: COULEURS_DUO.blanc,
+    fiche: COULEURS_DUO.carte,
     ombre: c.ombre,
     bandeau: { boite: bandeau, couleur: COULEURS_DUO.orange, texte: mois, texteCouleur: COULEURS_DUO.blanc },
     police: { famille: famille("inter-gras"), graisse: graisse("inter-gras") },

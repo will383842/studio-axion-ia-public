@@ -83,7 +83,7 @@ export function EmailStructure({ champs, debut, t, fond, tampon, titre = "Nouvea
             key={i}
             style={{ position: "absolute", left: 48, right: 48, top: c.y, height: c.hauteur, opacity: c.entree, display: "flex", flexDirection: m.enLigne ? "row" : "column", justifyContent: "center", alignItems: m.enLigne ? "center" : undefined, gap: m.enLigne ? ECART_NOM_EMAIL : undefined }}
           >
-            <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: c.tailleNom, lineHeight: 1.1, color: c.remplissage > 0 ? COULEURS_DUO.orange : COULEURS_DUO.gris, marginBottom: m.enLigne ? 0 : 16, width: m.largeurNom ?? undefined, flexShrink: 0 }}>{c.nom}</div>
+            <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: c.tailleNom, lineHeight: 1.1, color: c.remplissage > 0 ? COULEURS_DUO.orange : COULEURS_DUO.encre, marginBottom: m.enLigne ? 0 : 16, width: m.largeurNom ?? undefined, flexShrink: 0 }}>{c.nom}</div>
             <div style={{ flex: m.enLigne ? 1 : undefined }}>
               {c.valeur && c.frappe ? (
                 <div style={{ fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: c.valeur.taille, lineHeight: 1.1, color: COULEURS_DUO.encre }}>{c.frappe.texte}</div>

@@ -1,6 +1,6 @@
 /**
  * L3c · fond fort, particules, lueur et barres proportionnelles : variations déterministes selon le tirage ; sans jeu
- * (ou tirage v4) : plans, fond et déclinaison IDENTIQUES à la v4 (empreintes épinglées depuis origin/master) ; jamais
+ * (ou tirage v4) : plans, fond et déclinaison IDENTIQUES à la v4 (empreintes épinglées depuis origin/master, re-épinglées au lot L0 (PR 280) : seules les valeurs de COULEURS_DUO changent ; preuve : rejeu à palette master, 0 écart sur 144) ; jamais
  * de chiffre inventé (les textes des barres restent ceux de la fiche, seule leur longueur suit les nombres écrits).
  */
 import { createHash } from "node:crypto";

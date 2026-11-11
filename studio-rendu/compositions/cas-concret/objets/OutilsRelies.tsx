@@ -15,7 +15,7 @@ export function OutilsRelies(p: ProprietesObjet & AvecAnim) {
         {point.visible ? <circle cx={point.x} cy={point.y} r={point.diametre / 2} fill={point.couleur} stroke={point.halo} strokeWidth={point.diametre * 0.25} /> : null}
       </svg>
       {c.pastilles.map((q) => (
-        <div key={q.index} style={{ position: "absolute", left: q.boite.x, top: q.boite.y, width: q.boite.largeur, height: q.boite.hauteur, borderRadius: c.rayonPastille, background: COULEURS_DUO.blanc, boxShadow: `0 ${q.boite.hauteur * 0.25}px ${q.boite.hauteur * 0.5}px ${c.ombre}`, ...styleMouvement(mvt(q), { opacity: q.opacite, transform: `scale(${q.echelle})` }) }}>
+        <div key={q.index} style={{ position: "absolute", left: q.boite.x, top: q.boite.y, width: q.boite.largeur, height: q.boite.hauteur, borderRadius: c.rayonPastille, background: COULEURS_DUO.carte, boxShadow: `0 ${q.boite.hauteur * 0.25}px ${q.boite.hauteur * 0.5}px ${c.ombre}`, ...styleMouvement(mvt(q), { opacity: q.opacite, transform: `scale(${q.echelle})` }) }}>
           <div style={{ position: "absolute", left: q.rond.x - q.boite.x, top: q.rond.y - q.boite.y, width: q.rond.diametre, height: q.rond.diametre, borderRadius: "50%", background: q.rond.couleur }} />
           {q.texte ? <div style={{ position: "absolute", left: q.texte.boite.x - q.boite.x, top: 0, width: q.texte.boite.largeur, height: q.boite.hauteur, display: "flex", alignItems: "center", whiteSpace: "nowrap", fontSize: q.texte.taille }}>{q.texte.texte}</div> : null}
         </div>
