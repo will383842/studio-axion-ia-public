@@ -100,7 +100,7 @@ export function PileNotifications(p: PileNotificationsProps) {
       <div style={{ position: "absolute", left: "15%", right: "15%", top: -0.05 * W, height: 0.3 * W, borderRadius: "50%", background: `radial-gradient(closest-side, ${ivoireA(0.7)}, ${ivoireA(0)})` }} />
       {/* Île (pilule encre) qui respire (N3). */}
       <div style={{ position: "absolute", left: "50%", top: yIle, width: 0.17 * W * (1 + 0.04 * Math.sin(t * 4.2)), height: hIle, transform: "translateX(-50%)", borderRadius: 999, background: N.encre, boxShadow: `inset 0 1px 0 ${ivoireA(0.12)}` }}>
-        <div style={{ position: "absolute", right: hIle * 0.32, top: hIle * 0.3, width: hIle * 0.4, height: hIle * 0.4, borderRadius: "50%", background: N.encreDouce }} />
+        <div style={{ position: "absolute", right: hIle * 0.32, top: hIle * 0.3, width: hIle * 0.4, height: hIle * 0.4, borderRadius: "50%", background: N.encreDouce, boxShadow: `0 0 0 1px ${ivoireA(0.12)}` }} />
       </div>
       <TamponExemple t={t} a={p.debut + 0.18} W={W} style={{ left: g.marge, top: yIle + Math.round(0.006 * W) }} />
 

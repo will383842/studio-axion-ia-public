@@ -106,7 +106,7 @@ describe("B2 · un stop posté en RÉPONSE à un commentaire", () => {
       await envoyer(o);
       const l = await deposes();
       expect(l).toHaveLength(1);
-      expect(l[0].charge).toMatchObject({ motSeul: "STOP.", estReponse: true }); // mot normalisé (liste fermée), jamais le texte tel qu.écrit
+      expect(l[0].charge).toMatchObject({ motSeul: "STOP", estReponse: true }); // mot normalisé (liste fermée), jamais le texte tel qu.écrit
       expect(JSON.stringify(l)).not.toContain("Stop.");
       reinitialiserDepots();
       const g = fixture();

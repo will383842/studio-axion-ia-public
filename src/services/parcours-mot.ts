@@ -137,7 +137,7 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: evt.type, charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, ...cles, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null } };
   } else if (enveloppe.event === TYPE_EVENEMENT_COMMENTAIRE && evenementsMotsActifs(env)) {
     const c = lireEvenementCommentaire(enveloppe);
-    // Rien à déposer : pas de mot seul, une réponse (sauf un mot d'opposition, liste fermée, jamais le texte brut), ou notre propre réponse publique. Aucun traitement métier ici.
+    // Rien à déposer : pas de mot seul, une réponse (sauf une opposition, mot ou phrase de listes fermées, jamais le texte brut), ou notre propre réponse publique. Aucun traitement métier ici.
     if (!c || c.proprio || c.motSeul === null || (c.estReponse && !estMotOpposition(c.motSeul)) || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.commentaire", charge: { ...c, etat: "a_faire" } };
     cleSecondaire = (e) => e.type === "zernio.commentaire" && e.charge.idCompte === c.idCompte && e.charge.idCommentaire === c.idCommentaire;
@@ -211,7 +211,7 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
     if (now < disjoncteurOuvertJusqua) return { ...rapport, disjoncteurOuvert: true };
     appelsRecents = appelsRecents.filter((t) => t > now - 3_600_000);
     // Seul `workflow.run.completed` est traité ici : commentaires et messages restent « a_faire », intacts, hors lot, débit et disjoncteur.
-    // Un « stop » / « arrêtez » écrit par la personne n'est JAMAIS une demande de guide : il reste pour la prise en compte de l'opposition.
+    // Un « stop » / « arrêtez » (mot ou courte phrase, ex. « stop, merci ») écrit par la personne n'est JAMAIS une demande de guide : il reste pour la prise en compte de l'opposition.
     const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && e.type === TYPE_RUN_TERMINE && !e.traite && !estMotOpposition(typeof e.charge.motDeclencheur === "string" ? e.charge.motDeclencheur : null) && !estMotOpposition(typeof e.charge.motSeul === "string" ? e.charge.motSeul : null) && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
     // Plafond de LOT : les plus anciens d'abord, le reste attend le passage suivant (rien n'est perdu).
     dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));

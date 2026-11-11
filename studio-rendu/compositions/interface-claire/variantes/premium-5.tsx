@@ -13,33 +13,37 @@ import React from "react";
  */
 import type { CSSProperties, ReactNode } from "react";
 import { Easing, interpolate } from "remotion";
-import { GEOMETRIE, POLICES } from "../charte";
+import { avecOpacite, PALETTE } from "../../../../src/briques/charte/axion-2026";
+import { COULEURS, GEOMETRIE, POLICES } from "../charte";
 import { animationCarte } from "../cadrage";
 import { descente, pousseeSousCarte, PRISE_MAQUETTE, ScenePrise } from "./commun";
+import { MELANGES } from "./premium-1";
 
 /* ------------------------------------------------------------------ Couleurs : 12 jetons ------------------------------------------------------------------ */
 
 export const N = Object.freeze({
-  ivoire: "#E9DCC8",
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
+  ivoire: COULEURS.ivoire,
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
   /** « En attente » / désactivé, et rien d'autre. */
-  sable: "#BFA88B",
-  sableProfond: "#94806A",
-  filet: "#CBBFAD",
-  orangeVoile: "#DEC0A8",
+  sable: COULEURS.sable,
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
   /** « Actif / fort », et rien d'autre. */
-  orange: "#B44F29",
-  orangeChaud: "#BC6441",
-  orangeProfond: "#934122",
-  encreDouce: "#45392D",
-  encre: "#110A05",
+  orange: COULEURS.orange,
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  /** Sur fonds encre seulement. */
+  orangeSurNoir: MELANGES.orangeSurNoir,
+  encreDouce: MELANGES.encreDouce,
+  encre: COULEURS.encre,
 } as const);
 
-/** Encre (#110A05) à une opacité donnée (ombres, micro-ombres). */
-export const encreA = (a: number) => `rgba(17, 10, 5, ${a})`;
-/** Ivoire (#E9DCC8) à une opacité donnée (reflets, verre). */
-export const ivoireA = (a: number) => `rgba(233, 220, 200, ${a})`;
+/** Encre à une opacité donnée (ombres, micro-ombres). */
+export const encreA = (a: number) => avecOpacite(PALETTE.noir, a);
+/** Ivoire à une opacité donnée (reflets, verre). */
+export const ivoireA = (a: number) => avecOpacite(PALETTE.ivoire, a);
 
 /** Dégradés verticaux entre deux jetons voisins seulement. */
 export const DEGRADE = Object.freeze({

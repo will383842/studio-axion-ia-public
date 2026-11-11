@@ -130,7 +130,7 @@ export function EcranSignature({ f, l, h, palette, iTrace, iTouche, bouton, text
         <div key={i} style={{ position: "absolute", left: 40, top: 190 + i * 40, width: l * (i === 2 ? 0.45 : 0.78) - 40, height: 16, borderRadius: 8, background: GRIS, opacity: 0.5 }} />
       ))}
       <div style={{ position: "absolute", left: 36, top: 320, width: l - 72, height: 300, borderRadius: 16, border: `${TRAIT.MOYEN}px dashed ${ENCRE}`, boxSizing: "border-box", background: BLANC }}>
-        <div style={{ position: "absolute", left: 26, top: 14, ...txt(32, GRIS) }}>{textes[1]}</div>
+        <div style={{ position: "absolute", left: 26, top: 14, ...txt(32, COULEURS.TEXTE_SECONDAIRE) }}>{textes[1]}</div>
         <div style={{ position: "absolute", left: 28, top: 80 }}>
           <Signature f={f} debut={iTrace} n={12} largeur={l - 72 - 60} />
         </div>
@@ -161,7 +161,7 @@ export function EcranSignature({ f, l, h, palette, iTrace, iTouche, bouton, text
           alignItems: "center",
           justifyContent: "center",
           gap: 16,
-          ...txt(44),
+          ...txt(44, touche ? BLANC : ENCRE),
           transform: `scale(${touche ? 1 - 0.06 * Math.sin(Math.PI * borne((f - iTouche) / 6)) : 1})`,
         }}
       >
@@ -192,9 +192,9 @@ export function EmailEnvoi({ f, l, h, palette, iEnvoi }: { f: number; l: number;
       <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: 96, background: ENCRE, display: "flex", alignItems: "center", padding: "0 34px", boxSizing: "border-box" }}>
         <div style={txt(44, BLANC)}>NOUVEAU MESSAGE</div>
       </div>
-      <div style={{ position: "absolute", left: 40, top: 130, ...txt(34, GRIS) }}>À</div>
+      <div style={{ position: "absolute", left: 40, top: 130, ...txt(34, COULEURS.TEXTE_SECONDAIRE) }}>À</div>
       <div style={{ position: "absolute", left: 120, top: 142, width: l * 0.5, height: 16, borderRadius: 8, background: GRIS, opacity: 0.5 }} />
-      <div style={{ position: "absolute", left: 40, top: 200, ...txt(34, GRIS) }}>OBJET</div>
+      <div style={{ position: "absolute", left: 40, top: 200, ...txt(34, COULEURS.TEXTE_SECONDAIRE) }}>OBJET</div>
       <div style={{ position: "absolute", left: 200, top: 190, ...txt(48) }}>VOTRE DEVIS</div>
       <div style={{ position: "absolute", left: 40, right: 40, top: 270, height: 4, background: ENCRE, opacity: 0.2 }} />
       {[0, 1, 2, 3].map((i) => (
@@ -207,7 +207,7 @@ export function EmailEnvoi({ f, l, h, palette, iEnvoi }: { f: number; l: number;
         DEVIS.PDF
       </div>
       {!parti || k < 5 ? (
-        <div style={{ position: "absolute", left: 40, top: h - bh - 56, width: bl, height: bh, borderRadius: 24, background: parti ? BLANC : ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, boxShadow: `5px 6px 0 0 ${ENCRE}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", ...txt(44), transform: `scale(${presse})`, transformOrigin: "0% 50%" }}>ENVOYER</div>
+        <div style={{ position: "absolute", left: 40, top: h - bh - 56, width: bl, height: bh, borderRadius: 24, background: parti ? BLANC : ACCENT_1, border: `${TRAIT.MOYEN}px solid ${ENCRE}`, boxShadow: `5px 6px 0 0 ${ENCRE}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", ...txt(44, parti ? ENCRE : BLANC), transform: `scale(${presse})`, transformOrigin: "0% 50%" }}>ENVOYER</div>
       ) : null}
       {parti && k >= 6 ? <Coche f={k} debut={6} d={92} fond={ACCENT_1} style={{ position: "absolute", left: 40, top: h - bh - 56 }} /> : null}
       {parti && k >= 6 ? <div style={{ position: "absolute", left: 160, top: h - bh - 56 + 28, ...txt(48) }}>ENVOYÉ</div> : null}

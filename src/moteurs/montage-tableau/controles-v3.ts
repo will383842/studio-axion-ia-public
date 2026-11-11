@@ -245,7 +245,7 @@ export type FauteAnimation = FauteReference;
  * Contrôles de l'animation d'une vidéo « reference/3 » (toutes ses scènes, dans l'ordre) : accroche pleine à 0 s, blocs
  * écrits à l'heure, aucune page vide, titre jamais seul, appel lisible, appel à l'heure et animé. Rend chaque contrôle avec ses fautes (vide : réussi).
  */
-export function controlerAnimation3(props: readonly ProprietesTableauScene[]): { libelle: string; fautes: FauteAnimation[] }[] {
+export function controlerAnimation3(props: readonly ProprietesTableauScene[], options: { pageAppelFacultative?: boolean } = {}): { libelle: string; fautes: FauteAnimation[] }[] {
   const ref = props.filter((p) => p.styleReference?.style === "reference/3");
   if (!ref.length) return [];
   const premiere = ref[0];
@@ -312,8 +312,8 @@ export function controlerAnimation3(props: readonly ProprietesTableauScene[]): {
   const appel: FauteAnimation[] = [];
   const derniere = ref[ref.length - 1];
   const pageAppel = ref.find((p) => p.page.elements.some((e) => e.gabarit?.sorte === "appel-plein"));
-  if (!pageAppel) appel.push({ sceneId: derniere.scene.id, message: "aucune page d'appel plein cadre" });
-  else {
+  if (!pageAppel && !options.pageAppelFacultative) appel.push({ sceneId: derniere.scene.id, message: "aucune page d'appel plein cadre" });
+  else if (pageAppel) {
     const entiere = (pageAppel.styleReference!.debutPageMs ?? pageAppel.scene.debutMs) + 300;
     const marge = derniere.scene.finMs - entiere;
     if (marge < APPEL_LISIBLE_MIN_MS) appel.push({ sceneId: pageAppel.scene.id, message: `la page d'appel n'est entière que ${(marge / 1000).toFixed(1).replace(".", ",")} s avant la fin (au moins ${APPEL_LISIBLE_MIN_MS / 1000} s)` });
@@ -341,6 +341,6 @@ export function controlerAnimation3(props: readonly ProprietesTableauScene[]): {
 }
 
 /** Problèmes d'animation en phrases (fabrication : un échec bloquant avant le rendu des scènes). */
-export function problemesAnimation3(props: readonly ProprietesTableauScene[]): string[] {
-  return controlerAnimation3(props).flatMap((c) => c.fautes.map((f) => `Scène ${f.sceneId} · ${c.libelle} : ${f.message}.`));
+export function problemesAnimation3(props: readonly ProprietesTableauScene[], options: { pageAppelFacultative?: boolean } = {}): string[] {
+  return controlerAnimation3(props, options).flatMap((c) => c.fautes.map((f) => `Scène ${f.sceneId} · ${c.libelle} : ${f.message}.`));
 }

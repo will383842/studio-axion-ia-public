@@ -55,6 +55,8 @@ export interface Conversation {
   idMessageAdresse?: string | null;
   /** Version du corps de la demande de guide (1 ou 3), figée au PREMIER essai : le site refuse (409) un corps différent pour une même clé. */
   versionCorpsGuide?: 1 | 3 | null;
+  /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
+  douteOpposition?: boolean;
 }
 
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";
@@ -64,7 +66,7 @@ export type EvenementMachine =
   | { t: "public"; res: ResultatEcritureInbox }
   | { t: "m1"; res: ResultatEcritureInbox; maintenantMs: number }
   | { t: "message"; idExpediteur: string | null; idCompte: string; idMessage: string; /** Message sortant / de notre compte (direction, isOwnAccount) : écho. */ sortant?: boolean }
-  | { t: "texte"; estOpposition: boolean; adresse: string | null }
+  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null }
   | { t: "site"; conduite: Conduite; enCoursAvant: number }
   | { t: "orphelin"; essais: number }
   | { t: "texte_absent"; essais: number }
@@ -72,7 +74,7 @@ export type EvenementMachine =
   | { t: "texte_introuvable"; essais: number };
 
 export type Action =
-  | "ecarter" | "opposer" | "demarrer" | "reprendre" | "silence"
+  | "ecarter" | "opposer" | "doute" | "demarrer" | "reprendre" | "silence"
   | "prive" | "reessayer" | "terminer" | "bloquer"
   | "lire" | "lire_opposition" | "reprendre_recu" | "orphelin_reessai" | "orphelin_lire" | "texte_reessai" | "texte_ignore" | "texte_panne_reessai" | "introuvable_reessai" | "introuvable_clore"
   | "m2" | "demander_guide" | "guide_ok" | "site_reessai" | "site_refuse";
@@ -153,7 +155,9 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       return ev.essais < ATTENTES_INTROUVABLE_MS.length ? { action: "introuvable_reessai", apresMs: ATTENTES_INTROUVABLE_MS[Math.max(ev.essais, 0)] } : { action: "introuvable_clore" };
     case "texte": {
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
-      if (ev.adresse === null) return etat && !etat.m2Envoye ? { action: "m2" } : { action: "silence", raison: "silence" };
+      if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
+      // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
+      if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition ? { action: "m2" } : { action: "silence", raison: "silence" };
       return { action: "demander_guide" };
     }
     case "site": {

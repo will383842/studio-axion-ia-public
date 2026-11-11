@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { lienCiblage, type FiltreCiblage } from "@/domaine/ciblage/listes";
 import { TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
+import { GroupeFiltres, PuceLien } from "@/components/ui/PanneauFiltres";
 import { cn } from "@/lib/cn";
 
 type Parametres = Record<string, string | string[] | undefined>;
@@ -23,8 +24,50 @@ function Puce({ href, actif, children }: { href: string; actif: boolean; childre
 /**
  * Filtre par type d'automatisation et bascule des anciens scripts (liens d'adresse, aucun état caché). Composant serveur.
  * La bascule n'apparaît que s'il y a des anciens à montrer.
+ * `disposition` : "rangee" (défaut, inchangé) ou "panneau" (GroupeFiltres + PuceLien, à placer dans un PanneauFiltres).
  */
-export function FiltresCiblage({ base, params, filtre, nbAnciens, className }: { base: string; params: Parametres; filtre: FiltreCiblage; nbAnciens: number; className?: string }) {
+export function FiltresCiblage({
+  base,
+  params,
+  filtre,
+  nbAnciens,
+  className,
+  disposition = "rangee",
+}: {
+  base: string;
+  params: Parametres;
+  filtre: FiltreCiblage;
+  nbAnciens: number;
+  className?: string;
+  disposition?: "rangee" | "panneau";
+}) {
+  if (disposition === "panneau") {
+    return (
+      <>
+        <GroupeFiltres titre="Type d'automatisation" className={className}>
+          <PuceLien href={lienCiblage(base, params, { typeAuto: undefined })} actif={!filtre.type}>
+            Tous
+          </PuceLien>
+          {TYPES_AUTOMATISATION.map((t) => (
+            <PuceLien key={t.id} href={lienCiblage(base, params, { typeAuto: t.id })} actif={filtre.type === t.id}>
+              {t.libelle}
+            </PuceLien>
+          ))}
+          <PuceLien href={lienCiblage(base, params, { typeAuto: "a-classer" })} actif={filtre.type === "a-classer"}>
+            À classer
+          </PuceLien>
+        </GroupeFiltres>
+        {(nbAnciens > 0 || filtre.anciens) && (
+          <GroupeFiltres titre="Anciens scripts">
+            <PuceLien href={lienCiblage(base, params, { anciens: filtre.anciens ? undefined : "1" })} actif={!!filtre.anciens}>
+              {filtre.anciens ? "Masquer les anciens" : "Afficher les anciens"}
+              <span className="text-[11px] tabular-nums opacity-70">{nbAnciens}</span>
+            </PuceLien>
+          </GroupeFiltres>
+        )}
+      </>
+    );
+  }
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center gap-2">

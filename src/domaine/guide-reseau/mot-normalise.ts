@@ -3,7 +3,7 @@ import { MOTS_OPPOSITION } from "./opposition";
 
 export const RE_MOT_NORMALISE = /^[A-Z0-9]{2,20}$/;
 
-/** Mot normalisé (NFKC, ponctuation/émojis de bord retirés, sans accents, majuscules), ou null si le format n'est pas respecté ou si c'est une opposition. */
+/** Mot normalisé (NFKC, ponctuation/émojis de bord retirés, sans accents, majuscules), ou null si le format n'est pas respecté ou si c'est un mot d'opposition (liste fermée de opposition.ts : STOP, ARRETEZ, DESINSCRIRE…). */
 export function normaliserMot(texte: unknown): string | null {
   if (typeof texte !== "string") return null;
   const t = texte.normalize("NFKC").trim().replace(/^[^\p{L}\p{N}]+/u, "").replace(/[^\p{L}\p{N}]+$/u, "");
