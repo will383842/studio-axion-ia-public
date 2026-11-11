@@ -3,6 +3,7 @@
  * des fichiers déjà résolues (les écrans ne manipulent jamais de fichierId).
  * Les écrans importent ces types avec `import type { … } from "@/services/vues"`.
  */
+import type { TypeAutomatisation } from "@/domaine/ciblage/types";
 import type {
   ElementBibliotheque,
   EtapeEditoriale,
@@ -76,6 +77,10 @@ export interface VueVideoCarte {
   reseaux?: IdReseau[];
   /** Lot M : faux = réseaux prévus par défaut (rien ne dit pour quel réseau la vidéo est faite). */
   reseauxPrecis?: boolean;
+  /** Ciblage (lot H) : type d'automatisation de la vidéo ; absent = « À classer ». */
+  typeAutomatisation?: TypeAutomatisation;
+  /** Ciblage (lot H) : son script a un texte proche d'un autre (signalé, jamais supprimé). */
+  doublonPossible?: boolean;
 }
 
 export interface VuePlan extends Plan {
