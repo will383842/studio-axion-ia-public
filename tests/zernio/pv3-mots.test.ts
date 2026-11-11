@@ -187,6 +187,11 @@ describe("pv3 · pose / pause / réactivation", () => {
   });
 });
 
+/** Le seuil d'ouverture du disjoncteur (gardes) est distinct du réglage lu par le parcours : on le pose directement. */
+async function fixerSeuilDisjoncteur(heureCompte: number): Promise<void> {
+  await ecrireParametre(S.PARAM_GARDES_MOTS, { ...(await S.lireGardes()), plafonds: { heureCompte, jourMot: 100000 } });
+}
+
 describe("pv3 · plafonds", () => {
   it("le plafond horaire ne dépasse jamais 600, même réglé plus haut", async () => {
     expect(S.PLAFOND_HEURE_COMPTE_MAX).toBe(600);
@@ -209,7 +214,7 @@ describe("pv3 · plafonds", () => {
     brancher();
     await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op });
-    await S.reglerPlafonds({ heureCompte: 10, jourMot: 100000 });
+    await fixerSeuilDisjoncteur(10);
     const r = await S.noterEnvois({ mot: "GUIDE", compte: "c1", nombre: 10, env: ALLUME, maintenantMs: T0 });
     expect(r).toMatchObject({ disjoncteurOuvert: true, pausesAutomatiques: 1 });
     expect((await S.lireVueMots(ALLUME)).lignes[0].etat).toBe("pause_auto");
@@ -233,7 +238,7 @@ describe("pv3 · disjoncteur", () => {
     });
     await S.poserMot({ compte: "c1", saisie: await prete(), ...op });
     await S.reactiverMot({ mot: "GUIDE", compte: "c1", ...op });
-    await S.reglerPlafonds({ heureCompte: 10, jourMot: 100000 });
+    await fixerSeuilDisjoncteur(10);
     const saisie = await prete();
     armeA = false;
 
