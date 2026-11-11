@@ -18,6 +18,7 @@ const veille = await import("@/services/veille");
 const { canauxPour } = await import("@/services/notifications");
 const { etape15Veille } = await import("@/services/migrations/etape-15-veille");
 const { TUILES_PLUS, NAV_LATERALE } = await import("@/components/coquille/navigation");
+const { pagesTrouvees } = await import("@/components/coquille/pages-recherche");
 const { fournisseurScriptSimulation } = await import("@/fournisseurs/simulation/script");
 
 const MDP_TEST = "essai-lot-b2-veille";
@@ -250,8 +251,10 @@ describe("migration 15 et menu", () => {
     expect(await d.veilleOutils.compter()).toBe(11);
   });
 
-  it("tuile « Veille des outils » dans le menu Plus et la barre latérale", () => {
-    expect(TUILES_PLUS.some((t) => t.href === "/veille" && t.libelle === "Veille des outils")).toBe(true);
-    expect(NAV_LATERALE.some((t) => t.href === "/veille")).toBe(true);
+  it("la Veille sort du menu : trouvée par la recherche, et /veille garde Réglages allumé", () => {
+    expect(TUILES_PLUS.some((t) => t.href === "/veille")).toBe(false);
+    expect(NAV_LATERALE.some((t) => t.href === "/veille")).toBe(false);
+    expect(NAV_LATERALE.find((t) => t.href === "/reglages")?.actifSur).toContain("/veille");
+    expect(pagesTrouvees("veille").some((p) => p.href === "/veille" && p.libelle === "Veille des outils")).toBe(true);
   });
 });

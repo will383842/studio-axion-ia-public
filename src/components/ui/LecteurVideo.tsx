@@ -76,7 +76,7 @@ export function LecteurVideo({
   return (
     <div
       className={cn(
-        "relative isolate mx-auto overflow-hidden rounded-carte border border-trait bg-fond shadow-carte",
+        "relative isolate mx-auto overflow-hidden rounded-carte border border-trait bg-[#000] shadow-carte",
         ASPECT[ratio],
         // La largeur plafonne la hauteur (jamais l'inverse) : fixer la hauteur puis plafonner la largeur déformait la boîte dans une
         // colonne étroite et `object-cover` rognait les côtés de la vidéo.
@@ -121,7 +121,7 @@ export function LecteurVideo({
               if (!(e instanceof DOMException && e.name === "AbortError")) setIllisible(true);
             });
           }}
-          className="group absolute inset-0 grid place-items-center bg-linear-to-t from-fond/50 to-transparent"
+          className="group absolute inset-0 grid place-items-center bg-linear-to-t from-[#000]/50 to-transparent"
           aria-label={`Lire « ${titre} »`}
         >
           <span className="grid size-16 place-items-center rounded-full bg-orange text-sur-orange shadow-orange transition-transform duration-200 group-hover:scale-110">

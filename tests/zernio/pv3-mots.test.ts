@@ -361,13 +361,14 @@ describe("pv3 · Tout arrêter", () => {
 describe("pv3 · STOP par compte", () => {
   it("le graphe STOP n'a aucun texte sortant et ne parle pas d'effacement", () => {
     const w = G.construireGrapheStop();
-    expect(w.declencheur).toMatchObject({ type: "message_prive_mot_seul", mots: ["STOP", "ARRET", "ARRETEZ"] });
+    expect(w.declencheur).toMatchObject({ type: "message_prive_mot_seul", mots: [...G.MOTS_OPPOSITION] });
     expect(w.etapes.map((e) => e.type)).toEqual(["mettre_a_l_ecart", "alerter_operateur"]);
     expect(JSON.stringify(w)).not.toMatch(/texte|effacement/);
   });
   it("STOP et ARRÊT reconnus (mot seul) ; autre chose, non", () => {
     for (const t of ["STOP", "stop", "Arrêt", "ARRÊT.", " arret "]) expect(G.estMotOpposition(t)).toBe(true);
-    for (const t of ["stop ça", "demande_effacement", "oui", "", null]) expect(G.estMotOpposition(t as string)).toBe(false);
+    for (const t of ["stop ça"]) expect(G.estMotOpposition(t)).toBe(true); // phrase : reconnue (STU-STOP)
+    for (const t of ["GUIDE stop", "stop guide", "demande_effacement", "oui", "", null]) expect(G.estMotOpposition(t as string)).toBe(false);
   });
   async function deposer(mot: string, id: string) {
     await depots().evenementsFournisseurs.enregistrer({

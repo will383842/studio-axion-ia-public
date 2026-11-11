@@ -11,6 +11,7 @@ import { versSuiviFabrication } from "@/components/creation/vues-travail";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { Squelette } from "@/components/ui/Squelette";
@@ -169,7 +170,7 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
  */
 export function SansSuivi({ videoId }: { videoId?: string }) {
   return (
-    <div className="rounded-carte border border-trait bg-surface-1 p-4 text-center">
+    <Carte className="text-center">
       <p className="text-[15px] text-texte">Le suivi de cette fabrication n&apos;est plus affiché ici.</p>
       <p className="mt-1 text-sm text-texte-doux">Votre vidéo vous attend dans Mes vidéos, prête ou en cours.</p>
       {videoId && (
@@ -177,6 +178,6 @@ export function SansSuivi({ videoId }: { videoId?: string }) {
           <Link href={`/videos/${videoId}`}>Voir ma vidéo</Link>
         </Bouton>
       )}
-    </div>
+    </Carte>
   );
 }

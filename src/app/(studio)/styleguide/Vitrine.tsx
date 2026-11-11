@@ -16,6 +16,8 @@ import {
   CartePersonnage,
   CaseACocher,
   Champ,
+  ConteneurPage,
+  GroupeFiltres,
   Curseur,
   Dialogue,
   EnTeteSection,
@@ -33,11 +35,16 @@ import {
   Menu,
   notifier,
   Onglets,
+  OngletsLiens,
+  PanneauFiltres,
   Pastille,
   PastilleEssai,
   PastilleEtat,
   Portrait,
   ProgressionEtapes,
+  PuceLien,
+  PucesActives,
+  Section,
   SelecteurPastilles,
   Squelette,
   Tuile,
@@ -158,6 +165,7 @@ export function Vitrine({ elements }: { elements: VueElement[] }) {
           </Pastille>
           <Pastille ton="ambre">Ambre</Pastille>
           <Pastille ton="brique">Brique</Pastille>
+          <Pastille ton="encre">Encre</Pastille>
           <PastilleEssai />
           <PastilleEtat type="video" statut="en_fabrication" />
           <PastilleEtat type="video" statut="echec" />
@@ -168,6 +176,31 @@ export function Vitrine({ elements }: { elements: VueElement[] }) {
           <LogoReseau reseau="tiktok" />
           <LogoReseau reseau="youtube" />
         </div>
+      </Bloc>
+
+      <Bloc titre="Système de page">
+        <ConteneurPage largeur="lecture" className="space-y-4">
+          <Section id="exemple-section" titre="Section" sousTitre="Titre, une phrase, une action discrète, contenu en carte." icone="reglages" action={<span className="text-sm font-semibold text-texte-doux">Tout voir</span>}>
+            <p className="text-[15px] text-texte-doux">Contenu de la section.</p>
+          </Section>
+        </ConteneurPage>
+        <OngletsLiens
+          libelle="Exemple d'onglets"
+          onglets={[
+            { href: "#a", libelle: "Tout", compteur: 12, actif: true },
+            { href: "#b", libelle: "Brouillons", compteur: 3, actif: false },
+          ]}
+          plus={[{ href: "#c", libelle: "Archivées", actif: false }]}
+        />
+        <PanneauFiltres nombre={1}>
+          <GroupeFiltres titre="Réseau">
+            <PuceLien href="#r1" actif>
+              Instagram
+            </PuceLien>
+            <PuceLien href="#r2">TikTok</PuceLien>
+          </GroupeFiltres>
+        </PanneauFiltres>
+        <PucesActives puces={[{ libelle: "Instagram", href: "#r0" }]} effacerHref="#tout" />
       </Bloc>
 
       <Bloc titre="Sélecteurs">
