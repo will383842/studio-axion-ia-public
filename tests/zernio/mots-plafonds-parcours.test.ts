@@ -77,3 +77,14 @@ describe("écran", () => {
     expect(carte).toMatch(/Aucun « stop » en doute/);
   });
 });
+
+describe("pas de dérive avec le parcours", () => {
+  it("même nom de paramètre et même règle d'allumage que le parcours", async () => {
+    const { PARAM_PLAFONDS_CONVERSATION_NOM } = await import("@/domaine/guide-reseau/plafonds-conversation");
+    expect(PARAM_PLAFONDS_CONVERSATION_NOM).toBe(P.PARAM_PLAFONDS_CONVERSATION);
+    for (const v of [undefined, "", "0", "1", "true", "oui", "non", " 1 "]) {
+      const env = { ...ENV, PARCOURS_CONVERSATION_ENABLED: v };
+      expect((await S.lireVueMots(env)).parcoursAllume).toBe(P.parcoursConversationActif(env));
+    }
+  });
+});

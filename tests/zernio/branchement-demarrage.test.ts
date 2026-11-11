@@ -250,7 +250,7 @@ describe("passageParcoursZernio", () => {
 /* Boutons « Activer » / « Mettre en pause » de l'écran /mots (lignes locales)                                        */
 /* ---------------------------------------------------------------------------------------------------------------- */
 describe("écran /mots : boutons du mot GUIDE local", () => {
-  const vide = { interrupteurAllume: true, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 1000 }, lignes: [] as LigneMot[], oppositions: 0 };
+  const vide = { interrupteurAllume: true, toutArrete: false, disjoncteur: { ouvert: false, raison: null, ouvertLe: null }, plafonds: { heureCompte: 600, jourMot: 1000 }, lignes: [] as LigneMot[], oppositions: 0, parcoursAllume: false, oppositionsEnDoute: 0 };
   const local = (etat: LigneMot["etat"]): LigneMot => ({ mot: "GUIDE", compte: "c1", etat, idWorkflow: null, raison: "local", modifieLe: "" });
   const services = { mettreEnPause: vi.fn(), reactiver: vi.fn(), refermerDisjoncteur: vi.fn(), reglerPlafonds: vi.fn(), activerLocal: vi.fn(), mettreEnPauseLocal: vi.fn() };
 
