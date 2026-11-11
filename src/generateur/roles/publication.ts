@@ -11,6 +11,7 @@
  */
 import { z } from "zod";
 import type { Adresse, IdReseau, RegleDatee, TexteReseau } from "@/domaine/types";
+import type { ContenuSourceType } from "@/domaine/ecriture-post/contenu-source";
 import { memeValeur, nombresAffirmes } from "@/domaine/nombres-fr";
 import { avecTermeDuCompte, composerLegende, contientTermeDuCompte, corpsTexteSimule, finDuTexte, motsDiesePour, placeDuCorps, termesDuCompte } from "@/domaine/textes-publication";
 import { TOURNURES_CALIBREES, DRAPEAUX_TOURNURES } from "@/donnees/generateur/tournures-calibrees";
@@ -325,6 +326,11 @@ export function donneesPublication(d: { reseau: IdReseau; titre: string; texteVa
     regles: reglesPour(d.reseau, d.regles),
     mention: d.mention || undefined,
   };
+}
+
+/** Données d'un appel depuis un ContenuSource (L3-01) : son texte validé devient la seule source des faits. */
+export function donneesPublicationDepuisSource(c: ContenuSourceType, o: { reseau: IdReseau; adresse?: Adresse; formatId?: string; mention: string; credits: string[]; regles: Pick<RegleDatee, "id" | "texte" | "niveau" | "verifieeLe" | "archiveLe">[]; famille?: readonly string[] | null }): DonneesPublication {
+  return donneesPublication({ ...o, titre: c.titre, texteValide: c.texteValide, dureeSec: c.dureeSec });
 }
 
 /** Partie variable de la requête (tout ce qui change d'un appel à l'autre) ; aucun bloc en cache. */
