@@ -117,7 +117,7 @@ export function MaquetteNavigateur({ plans, audioUrl, dureeSec, sousTitres = [],
             ))}
           </p>
         ) : null}
-        <span className="absolute left-2 top-2 rounded-full bg-voile px-2.5 py-1 text-xs font-semibold text-texte">
+        <span className="absolute left-2 top-2 rounded-full bg-voile px-2.5 py-1 text-xs font-semibold text-sur-orange">
           {plan?.sourceImage === "illustration" ? "Image" : plan?.cadrage?.valeur === "poitrine" ? "Vous, de près" : "Vous"}
         </span>
       </div>

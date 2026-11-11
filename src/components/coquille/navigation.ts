@@ -34,46 +34,41 @@ export const ENTREE_SUR_LE_SITE: EntreeNavigation = { href: "/sur-le-site", libe
 export const SECTIONS_NAV: readonly SectionNavigation[] = [
   {
     titre: null,
-    entrees: [
-      { href: "/", libelle: "Accueil", icone: "accueil" },
-      { href: "/nouvelle", libelle: "Nouvelle vidéo", icone: "plus" },
-    ],
+    entrees: [{ href: "/", libelle: "Accueil", icone: "accueil" }],
   },
   {
-    titre: "Contenus",
+    titre: "Mes contenus",
     entrees: [
-      { href: "/videos", libelle: "Mes vidéos", icone: "film", actifSur: ["/videos", "/formats"] },
+      { href: "/videos", libelle: "Mes vidéos", icone: "film", actifSur: ["/videos", "/formats", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee"] },
       // 18/10 : carrousels, infographies et vidéos sont trois familles distinctes (jamais sous « Mes vidéos »).
       { href: "/carrousels", libelle: "Carrousels", icone: "images" },
       { href: "/ecrire", libelle: "Écrire", icone: "ecrire", actifSur: ["/ecrire", "/scripts", "/idees"] },
     ],
   },
   {
-    titre: "Publier et mesurer",
+    titre: "Publier",
     entrees: [
       { href: "/calendrier", libelle: "Calendrier", icone: "calendrier" },
       // Écran /mots : réponses automatiques aux commentaires qui contiennent un mot-clé (mot GUIDE), validation des textes, pause.
       { href: "/mots", libelle: "Réponses automatiques", icone: "citation" },
-      { href: "/mesures", libelle: "Mesures", icone: "resultats" },
+      { href: "/mesures", libelle: "Résultats", icone: "resultats", actifSur: ["/mesures"] },
     ],
   },
   {
-    titre: "Ressources",
+    titre: "Mes ressources",
     entrees: [
       { href: "/personnages", libelle: "Personnages", icone: "personnages" },
       { href: "/bibliotheque", libelle: "Bibliothèque", icone: "bibliotheque" },
       { href: "/modeles", libelle: "Mes modèles", icone: "modele" },
-      { href: "/outils-motion", libelle: "Outils motion design", icone: "baguette" },
     ],
   },
 ];
 
-/** Pied du menu (toujours visible, sous la liste qui défile) : écrans rares. */
-export const NAV_PIED: readonly EntreeNavigation[] = [
-  // Veille des outils (lot B2) : nouvelles versions de HeyGen, Remotion… (aussi dans Réglages > Outils).
-  { href: "/veille", libelle: "Veille des outils", icone: "tendance" },
-  { href: "/reglages", libelle: "Réglages", icone: "reglages" },
-];
+/** Action de création : bouton plein sous le logo (hors liste du menu). */
+export const ACTION_CREER: EntreeNavigation = { href: "/nouvelle", libelle: "Nouvelle vidéo", icone: "plus" };
+
+/** Pied du menu (toujours visible, sous la liste qui défile). La veille des outils passe par la recherche et Réglages. */
+export const NAV_PIED: readonly EntreeNavigation[] = [{ href: "/reglages", libelle: "Réglages", icone: "reglages", actifSur: ["/veille"] }];
 
 /** Sections réellement affichées : « Vidéos validées » puis « Sur le site » juste après Calendrier, quand ils sont allumés. */
 export function sectionsLaterales(avecSurLeSite = false, avecAPublier = false): SectionNavigation[] {
@@ -84,12 +79,12 @@ export function sectionsLaterales(avecSurLeSite = false, avecAPublier = false): 
 }
 
 /** Barre latérale à plat (sections + pied), sans les entrées conditionnelles. */
-export const NAV_LATERALE: EntreeNavigation[] = [...SECTIONS_NAV.flatMap((s) => s.entrees), ...NAV_PIED];
+export const NAV_LATERALE: EntreeNavigation[] = [SECTIONS_NAV[0].entrees[0], ACTION_CREER, ...SECTIONS_NAV.slice(1).flatMap((s) => s.entrees), ...NAV_PIED];
 
 /** Onglets du bas (mobile) : Accueil · Vidéos · ➕ · Écrire · Plus. */
 export const ONGLETS_BAS: (EntreeNavigation & { central?: boolean })[] = [
   { href: "/", libelle: "Accueil", icone: "accueil" },
-  { href: "/videos", libelle: "Vidéos", icone: "film", actifSur: ["/videos", "/formats"] },
+  { href: "/videos", libelle: "Vidéos", icone: "film", actifSur: ["/videos", "/formats", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee"] },
   { href: "/nouvelle", libelle: "Nouvelle vidéo", icone: "plus", central: true },
   { href: "/ecrire", libelle: "Écrire", icone: "ecrire", actifSur: ["/ecrire", "/scripts", "/idees"] },
 ];
@@ -101,7 +96,7 @@ export function sectionsPlusMobile(avecSurLeSite = false, avecAPublier = false):
   const sections = sectionsLaterales(avecSurLeSite, avecAPublier)
     .map((s) => ({ titre: s.titre, entrees: s.entrees.filter((e) => !DANS_LES_ONGLETS.has(e.href)) }))
     .filter((s) => s.entrees.length > 0);
-  return [...sections, { titre: "Studio", entrees: [...NAV_PIED] }];
+  return [...sections, { titre: "Compte", entrees: [...NAV_PIED] }];
 }
 
 /** Feuille « Plus » (mobile) à plat, sans les entrées conditionnelles. */
@@ -114,7 +109,8 @@ export const TUILES_PLUS: EntreeNavigation[] = sectionsPlusMobile().flatMap((s) 
 export function navigationLaterale(formats: readonly Pick<FormatNavigation, "id" | "statut">[], avecSurLeSite = false, avecAPublier = false): EntreeNavigation[] {
   void formats; // 18/10 : plus de raccourci de création ; tout passe par Nouvelle vidéo
   if (!avecSurLeSite && !avecAPublier) return NAV_LATERALE;
-  return [...sectionsLaterales(avecSurLeSite, avecAPublier).flatMap((s) => s.entrees), ...NAV_PIED];
+  const [tete, ...reste] = sectionsLaterales(avecSurLeSite, avecAPublier);
+  return [...tete.entrees, ACTION_CREER, ...reste.flatMap((s) => s.entrees), ...NAV_PIED];
 }
 
 /** Tuiles de la feuille « Plus » (mobile) à plat, avec les entrées conditionnelles quand elles sont allumées. */
