@@ -22,3 +22,8 @@ Règle : **jamais Haiku**. Opus pour le difficile, Sonnet pour tout le reste.
 |---|---|
 | Conception, débogage difficile, chaîne vidéo, argent | Opus |
 | Tout le reste : corrections ciblées, réconciliation de branches, rapports, vérifications, surveillance, relevés | Sonnet |
+
+## Avenant du 11/11/2026 — contrôle des lots (fiche L0-03)
+- Avant toute vague, la routine passe le lot dans `scripts/controle-lots.ts` (fonctions pures, tests : `tests/scripts/controle-lots.test.ts`). Un seul refus = aucune fiche du lot ne part.
+- Règles : fichiers exacts (jamais un dossier ni un motif) ; deux fiches sur le même fichier ne partent jamais ensemble ; `parallele_avec` lu dans les deux sens ; fermeture des versions (une fiche V1 ne dépend jamais d'une V2) ; comparaison aux PR ouvertes ; jauge à 400 M de jetons et 400 sessions, au-dessus : aucune vague lancée.
+- Exécution en cloud (routines, Actions d'un dépôt public), jamais sur le PC du fondateur.
