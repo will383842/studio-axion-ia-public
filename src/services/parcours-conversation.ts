@@ -20,7 +20,7 @@ import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
-import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
+import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, reductible, activiteRetenue, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
@@ -269,6 +269,20 @@ async function reserverEnvoi(idCompte: string, now: number): Promise<"ok" | "pla
     });
   } catch {
     return "illisible";
+  }
+}
+/** Rend une place réservée par `reserverEnvoi` quand finalement aucun envoi n'est parti (même heure seulement). Une panne est sans gravité : la place reste prise. */
+async function rendrePlaceEnvoi(idCompte: string, now: number): Promise<void> {
+  try {
+    await sousVerrou(async () => {
+      const tous = await lireParametre<unknown>(PARAM_COMPTEURS_CONVERSATION, {});
+      if (typeof tous !== "object" || tous === null || Array.isArray(tous)) return;
+      const c = (tous as Record<string, unknown>)[idCompte] as { heure?: unknown; envois?: unknown } | undefined;
+      if (!c || c.heure !== debutHeure(now) || typeof c.envois !== "number" || c.envois < 1) return;
+      await ecrireParametre(PARAM_COMPTEURS_CONVERSATION, { ...(tous as Record<string, unknown>), [idCompte]: { ...c, envois: c.envois - 1 } });
+    });
+  } catch {
+    /* la place reste prise : plus prudent */
   }
 }
 /** Vrai = l'envoi peut partir. Sinon l'événement est reporté (aucun essai consommé, aucun changement d'état de la conversation). */
@@ -1237,6 +1251,8 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
   return rapport;
 }
 
+/** Gardes qui valent pour tout le Studio : elles arrêtent la boucle des mercis. Les autres (compte, mot, réseau) sont propres à une conversation. */
+const GARDES_GLOBALES = new Set(["tout_arrete", "disjoncteur_ferme", "validation_perimee", "lecture_impossible", "cles_absentes"]);
 /** Une confirmation, dans l'ordre. `garde` : un blocage a mis fin au passage (rien n'est écrit pour cette ref). */
 async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k: ClesOk, now: number): Promise<"envoye" | "fait" | "garde"> {
   // b. Déjà au registre : aucun envoi, accusé seulement s'il manque. JAMAIS DEUX FOIS LA MÊME REF.
@@ -1265,7 +1281,10 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
-    return "garde";
+    // Garde GLOBALE : fin du passage, ni envoi ni accusé (le site re-proposera). Garde propre à CETTE conversation :
+    // on la clôt sans envoi (accusé), sinon la même ref resterait en tête et bloquerait tous les autres mercis.
+    if (GARDES_GLOBALES.has(bloque)) return "garde";
+    return (await terminer("non_envoye", `garde_${bloque}`, cle), "fait");
   }
   // f. Texte validé, fenêtre, identifiant de conversation retrouvé via le dernier message de la personne.
   const texte = await texteMerciPret(d);
@@ -1294,6 +1313,7 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
     return true;
   });
   if (!pris) {
+    await rendrePlaceEnvoi(conv.etat.idCompte, now);
     await terminer("non_envoye", "deja_remercie", cle);
     return "fait";
   }
@@ -1301,6 +1321,7 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   try {
     // j. RELIRE L'OPPOSITION une dernière fois, juste avant le réseau.
     if (await opposeeAvantEnvoi(cle, env)) {
+      await rendrePlaceEnvoi(conv.etat.idCompte, now);
       await mettreEnFileOpposition(cle, conv.etat, k.courante, now);
       await finirMerci(ref, cle, "non_envoye", "oppose", null);
       await accuserMerci(env, ref, now);

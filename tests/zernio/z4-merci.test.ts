@@ -238,6 +238,8 @@ describe("4 · l'opposition est relue, et à nouveau juste avant le réseau", ()
     expect(merciEnvoyes()).toHaveLength(0);
     expect((await lireJournal())[ref(1)]).toMatchObject({ etat: "non_envoye", issue: "oppose" });
     expect(await etatDe()).toMatchObject({ merciEtat: "non_envoye" });
+    // Aucun envoi n'est parti : la place du plafond horaire est rendue.
+    expect((await Com.lireParametre<Record<string, any>>("parcours.conversations.compteurs", {}))[COMPTE]?.envois ?? 0).toBe(0);
   });
   it("(c) opposition au REGISTRE seulement (état pas encore « oppose ») : 0 envoi", async () => {
     await Opp.enregistrerOpposition(A, "zernio-conversation", { env: ENV });
@@ -324,6 +326,24 @@ describe("8 · garde bloquée (« Tout arrêter »)", () => {
     await Com.ecrireParametre(Z.PARAM_ARRET_ZERNIO, true);
     await passer(T0 + 11 * 60_000);
     expect(merciEnvoyes()).toHaveLength(1);
+  });
+});
+
+describe("8 bis · garde propre à UNE conversation : elle ne bloque pas les autres mercis", () => {
+  it("compte hors liste pour A, normal pour B : A est clos sans envoi (accusé), B reçoit son merci au même passage", async () => {
+    await poserPersonne({ auteur: A, refs: [ref(1)], idConversation: ID_CONV_ZERNIO });
+    const conv = await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
+    conv[cleConversation(A)].idCompte = "compte-fictif-hors-liste";
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, conv);
+    await poserPersonne({ auteur: B, refs: [ref(2)], idConversation: ID_CONV_ZERNIO_B });
+    confirmer(ref(1), ref(2));
+    await passer(T0);
+    const j = await lireJournal();
+    expect(j[ref(1)]).toMatchObject({ etat: "non_envoye", accuse: true });
+    expect(String(j[ref(1)].issue)).toMatch(/^garde_/);
+    expect(j[ref(2)].issue).toBe("envoye");
+    expect(merciEnvoyes()).toHaveLength(1);
+    expect(site.issues().map((x) => x.ref).sort()).toEqual([ref(1), ref(2)].sort());
   });
 });
 
