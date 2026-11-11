@@ -27,6 +27,7 @@ import {
   sansPointsDeSigle,
   texteNormalise,
   validerFicheEcrans,
+  validerFicheEcransTolerant,
   verifierRegles,
 } from "@/moteurs/montage-cas-concret/regles";
 import { avec, contexteVideo1, details, ecran, ficheVideo1 } from "../outils";
@@ -242,6 +243,23 @@ describe("R18 · aucune phrase d'appel dans le corps", () => {
       ecran(x, 9, "etape").ligne = "Faites votre diagnostic gratuit.";
     });
     expect(regleSansAppel(f).map((m) => m.ecranId)).toEqual(["e07", "e10", "e18"]);
+  });
+});
+
+describe("R18 · assouplissement réservé au script FOURNI par Williams", () => {
+  const fiche = () =>
+    avec(ficheVideo1(), (x) => {
+      ecran(x, 9, "etape").ligne = "Commentez IA pour recevoir le guide.";
+    });
+  it("script validé NON fourni (texte de Claude) : un appel dans le corps reste refusé", () => {
+    const r = validerFicheEcransTolerant(fiche(), ctx, false);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.problemes.some((p) => p.regle === "aucun appel dans le corps")).toBe(true);
+  });
+  it("script fourni par Williams : le même appel n'est qu'un avertissement", () => {
+    const r = validerFicheEcransTolerant(fiche(), ctx, true);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.avertissements.some((p) => p.regle === "aucun appel dans le corps")).toBe(true);
   });
 });
 
