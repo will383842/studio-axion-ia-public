@@ -41,7 +41,8 @@ describe("évaluations", () => {
     expect(evaluerPublicationVisuel(bonne({ texte: "x".repeat(obtenirReseau("tiktok").legende.longueurMax + 1) }), d).join(" ")).toContain("PV-01");
   });
   it("mots-dièse hors bornes : refusé", () => {
-    expect(evaluerPublicationVisuel(bonne({ motsDiese: [] }), donnees("linkedin")).join(" ")).toContain("PV-02");
+    expect(evaluerPublicationVisuel(bonne({ motsDiese: Array.from({ length: 31 }, (_, i) => `#Mot${i}`) }), donnees("instagram")).join(" ")).toContain("PV-02");
+    expect(evaluerPublicationVisuel(bonne({ motsDiese: ["#fyp"] }), donnees("instagram")).join(" ")).toContain("PV-02");
   });
   it("chiffre absent des pages : refusé ; chiffre des pages : accepté", () => {
     const d = donnees("instagram");
