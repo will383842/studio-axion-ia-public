@@ -5,6 +5,7 @@
  *
  * ⚠️ Seuls les SERVICES (src/services) importent les dépôts. Les écrans, jamais.
  */
+import type { EnvoiPlanifie } from "./envoi-planifie";
 import type { EvenementTrace } from "./tracabilite-tableau";
 import type { Visuel } from "./visuels/visuel";
 import type {
@@ -155,4 +156,6 @@ export interface Depots {
   correctionsWill: Depot<CorrectionWill>;
   /** Carrousels (V3) : les visuels. */
   visuels: Depot<Visuel>;
+  /** Calendrier d'envoi (D7-01) : un envoi planifié par vidéo, réseau et version de créneau. */
+  envoisPlanifies: Depot<EnvoiPlanifie>;
 }
