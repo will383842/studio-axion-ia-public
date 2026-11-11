@@ -48,6 +48,7 @@ const DEPUIS_VISUEL: Readonly<Record<StatutVisuel, StatutCommun>> = {
   refuse: "brouillon",
   programme: "programme",
   publie: "publie",
+  echec_envoi: "echec",
 };
 
 const DEPUIS_VIDEO: Readonly<Record<StatutVideo, StatutCommun>> = {
