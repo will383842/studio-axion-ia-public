@@ -73,7 +73,7 @@ export interface CharteTableau {
   /** Mise en page : alignée à gauche (A, C) ou centrée, symétrique (B). */
   centre: boolean;
   /** Carte, post-it, bouton : leur fond (le texte y garde 4,5:1). Le bouton d'appel est plein, terracotta #B23F16, dans
-   * les trois styles (critique #291, I5), son texte ivoire clair #FAF9F5 (4,8:1). */
+   * les trois styles (critique #291, I5), son texte blanc #FFFFFF (5,81:1). */
   fondPostit: string;
   fondCarte: string;
   fondBouton: string;
@@ -137,18 +137,18 @@ export const CHARTES_TABLEAU: Readonly<Record<StyleTableau, CharteTableau>> = Ob
     clair: P.gris,
     moyen: P.texteSecondaire,
     ombre: P.noir,
-    surligneur: P.gris,
+    surligneur: P.terracotta,
     titre: "caveat",
     corps: "caveat",
     chiffres: "caveat",
     capitales: false,
     centre: false,
     fondPostit: P.gris,
-    fondCarte: P.gris,
+    fondCarte: P.blanc,
     fondBouton: P.terracotta,
     encreBouton: P.blanc,
-    /** Rubans derrière les chapitres (texte noir dessus : tous clairs) : le chapitre actif en gris, le passé en blanc, l'à venir sans ruban (ivoire du fond). */
-    rubans: { actif: P.gris, passe: P.blanc, avenir: P.ivoire },
+    /** Rubans derrière les chapitres (texte noir dessus : tous clairs) : le passé en gris, le chapitre actif en blanc, l'à venir en ivoire (même ton que le fond : le ruban existe mais ne se voit pas). ESCALADE : avec ivoire, gris et blanc seuls, l'actif ne dépasse pas 1,05:1 sur le fond ; le repérer exigerait un autre ton ou un repère hors de ce lot. */
+    rubans: { actif: P.blanc, passe: P.gris, avenir: P.ivoire },
   },
 });
 

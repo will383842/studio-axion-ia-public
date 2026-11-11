@@ -216,7 +216,7 @@ describe("D1 (revu le 17/10, design central) : les sous-titres se lisent sur cha
       const f = ficheMaquettes(style);
       const cmd = commandeTableau({ videoId: "v", fiche: f, texteScript: "Un essai.", dureeSec: 3, centreSousTitresPct: 80, scenes: [] });
       const d = donneesCalque({ segments: [], base: "karaoke", ratio: "9:16", style: cmd.styles.sousTitres?.valeur });
-      // Le design central (retour de Will sur #330) : plus de pastille ; ce qui est derrière le texte est le décor posé
+      // Le design central (retour de Williams sur #330) : plus de pastille ; ce qui est derrière le texte est le décor posé
       // dans la commande (la bande sombre de fond sur les fonds clairs, le support sur l'ardoise).
       expect(d.pastille).toBeUndefined();
       const derriere = cmd.styles.decor!.valeur!.teinte!;

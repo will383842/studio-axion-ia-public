@@ -26,6 +26,8 @@ export const COULEURS_V2 = Object.freeze({
   ivoire: PALETTE.ivoire,
   /** Le « orange » de ce style est la terracotta de la charte (jamais en texte sur l'encre). */
   orange: PALETTE.terracotta,
+  /** Le rôle de l'orange SUR L'ENCRE (noir) : #D97757, 5,90:1. La terracotta sur l'encre (3,17:1) est interdite. */
+  orangeSurEncre: PALETTE.orange,
   sable: PALETTE.gris,
   /** Texte clair posé sur l'orange (fond ou bloc) : blanc, 5,81:1 sur la terracotta. */
   ivoireFranc: PALETTE.blanc,
@@ -36,18 +38,18 @@ export const FONDS_V2: readonly FondV2[] = Object.freeze(["encre", "ivoire", "or
 
 /** Couleur du texte courant posé directement sur un fond. */
 export const TEXTE_SUR: Readonly<Record<FondV2, string>> = Object.freeze({ encre: COULEURS_V2.ivoire, ivoire: COULEURS_V2.encre, orange: COULEURS_V2.ivoireFranc });
-/** Texte secondaire (niveau « texte ») sur un fond : sur l'orange, l'encre (le titre reste ivoire). */
-export const TEXTE_SECOND_SUR: Readonly<Record<FondV2, string>> = Object.freeze({ encre: COULEURS_V2.ivoire, ivoire: COULEURS_V2.encre, orange: COULEURS_V2.encre });
+/** Texte secondaire (niveau « texte ») sur un fond : sur l'orange, le blanc franc (5,81:1 ; l'encre ne donnait que 3,17:1). */
+export const TEXTE_SECOND_SUR: Readonly<Record<FondV2, string>> = Object.freeze({ encre: COULEURS_V2.ivoire, ivoire: COULEURS_V2.encre, orange: COULEURS_V2.ivoireFranc });
 /** Fond d'un bloc de mot fort, et la couleur de son texte. */
 export const BLOC_SUR: Readonly<Record<FondV2, { fond: string; texte: string }>> = Object.freeze({
-  encre: { fond: COULEURS_V2.orange, texte: COULEURS_V2.ivoireFranc },
+  encre: { fond: COULEURS_V2.orangeSurEncre, texte: COULEURS_V2.encre },
   ivoire: { fond: COULEURS_V2.orange, texte: COULEURS_V2.ivoireFranc },
   orange: { fond: COULEURS_V2.encre, texte: COULEURS_V2.ivoire },
 });
 /** Seules couleurs de texte permises sur l'orange (fond d'écran ou bloc). */
 export const TEXTES_SUR_ORANGE: readonly string[] = Object.freeze([COULEURS_V2.ivoireFranc, COULEURS_V2.encre]);
 /** Couleur des traits du crayon (soulignements, croix, coches) sur un fond. */
-export const TRAIT_SUR: Readonly<Record<FondV2, string>> = Object.freeze({ encre: COULEURS_V2.orange, ivoire: COULEURS_V2.orange, orange: COULEURS_V2.encre });
+export const TRAIT_SUR: Readonly<Record<FondV2, string>> = Object.freeze({ encre: COULEURS_V2.orangeSurEncre, ivoire: COULEURS_V2.orange, orange: COULEURS_V2.encre });
 /** Contours des formes (cases, cartes en pointillés) sur un fond. */
 export const CONTOUR_SUR: Readonly<Record<FondV2, string>> = Object.freeze({ encre: COULEURS_V2.sable, ivoire: COULEURS_V2.encre, orange: COULEURS_V2.encre });
 

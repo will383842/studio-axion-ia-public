@@ -535,7 +535,7 @@ function corpsVise(d: DescriptionEcran, b: RectV2, k: number): number {
   }
 }
 
-const ombreCarte = (f: FondV2) => (f === "encre" ? COULEURS_V2.orange : COULEURS_V2.encre);
+const ombreCarte = (f: FondV2) => (f === "encre" ? COULEURS_V2.orangeSurEncre : COULEURS_V2.encre);
 
 /** Carte ivoire à bord encre et ombre pleine ; `deborde` : elle continue jusqu'en bas de l'image (forme seule). */
 function carte(p: Pose, id: string, b: RectV2, deborde: boolean, source: string, entree: FormeV2["entree"] = "monte"): RectV2 {
@@ -1426,9 +1426,9 @@ function entete(p: Pose, etapes: readonly EtapeBarre[]): void {
     const clair = fondBarre === "encre";
     const plein = clair ? COULEURS_V2.ivoire : COULEURS_V2.encre;
     const remp = etat === "avenir" ? null : etat === "cours" ? (clair ? COULEURS_V2.orange : COULEURS_V2.encre) : plein;
-    const contour = etat === "cours" ? COULEURS_V2.orange : etat === "avenir" ? (clair ? COULEURS_V2.sable : COULEURS_V2.encre) : plein;
+    const contour = etat === "cours" ? (clair ? COULEURS_V2.orangeSurEncre : COULEURS_V2.orange) : etat === "avenir" ? (clair ? COULEURS_V2.sable : COULEURS_V2.encre) : plein;
     p.forme({ id: `barre#${i}`, sorte: "case", x, y: b.y, largeur: sw, hauteur: b.hauteur, rayon: 14 * k, remplissage: remp === COULEURS_V2.orange ? COULEURS_V2.ivoire : remp, contour, epaisseur: 4 * k, pointille: etat === "avenir", source: d.id, entree: "aucune" });
-    if (etat === "cours") p.forme({ id: "barre#jauge", sorte: "jauge", x: x + 4 * k, y: b.y + b.hauteur - 10 * k, largeur: sw - 8 * k, hauteur: 6 * k, rayon: 3 * k, remplissage: COULEURS_V2.orange, source: d.id, entree: "aucune" });
+    if (etat === "cours") p.forme({ id: "barre#jauge", sorte: "jauge", x: x + 4 * k, y: b.y + b.hauteur - 10 * k, largeur: sw - 8 * k, hauteur: 6 * k, rayon: 3 * k, remplissage: clair ? COULEURS_V2.orangeSurEncre : COULEURS_V2.orange, source: d.id, entree: "aucune" });
     const fondTexte = etat === "avenir" ? fondHex(fondBarre) : remp === COULEURS_V2.orange ? COULEURS_V2.ivoire : remp!;
     const coul = etat === "avenir" ? (clair ? COULEURS_V2.sable : COULEURS_V2.encre) : fondTexte === COULEURS_V2.encre ? COULEURS_V2.ivoire : COULEURS_V2.encre;
     const libelle = tient || i === iCours ? libelleDe(et) : String(et.n);
