@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   CONTRASTE_AFFICHE_MIN,
@@ -145,7 +146,7 @@ describe("charte-duo/1", () => {
   });
 
   it("garde-fou : aucune composition (cas-concret, image-video) ne met le gris d'affiche en couleur de texte", () => {
-    const racine = new URL("../../../studio-rendu/compositions/", import.meta.url).pathname;
+    const racine = fileURLToPath(new URL("../../../studio-rendu/compositions/", import.meta.url));
     const fautes: string[] = [];
     for (const dossier of ["cas-concret", "image-video"]) {
       for (const f of readdirSync(`${racine}${dossier}`, { recursive: true, encoding: "utf8" })) {
