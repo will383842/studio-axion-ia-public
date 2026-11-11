@@ -51,6 +51,13 @@ describe("L3-01 · carrousel → ContenuSource", () => {
     expect(verifierFaits("Une relance", ["Une relance polie"])).toEqual(["Une relance polie"]);
   });
 
+  it("un fait chiffré n'est pas accepté comme morceau d'un autre nombre (80 vs 180, 3 vs 13)", () => {
+    expect(verifierFaits("Plus de 180 artisans formés", ["80 artisans"])).toEqual(["80 artisans"]);
+    expect(verifierFaits("Un parcours en 13 étapes", ["3 étapes"])).toEqual(["3 étapes"]);
+    expect(verifierFaits("Plus de 180 artisans formés", ["180 artisans"])).toEqual([]);
+    expect(verifierFaits("Plus de 80 artisans, formés.", ["80 artisans"])).toEqual([]);
+  });
+
   it("texteDesPages ne garde que les textes lus (ni type, ni icône)", () => {
     const t = texteDesPages(carrousel);
     expect(t.split("\n")).toContain("Relancer dérange le client");
@@ -68,6 +75,10 @@ describe("L3-01 · adaptateur « video-importee »", () => {
     const d = donneesPublicationDepuisSource(c, { reseau: "linkedin", mention: "", credits: [], regles: [] });
     expect(d.dureeSec).toBe(300);
     expect(d.texteValide).toBe(c.texteValide);
+  });
+
+  it("une durée de 0 est refusée par le schéma au lieu d'être retirée", () => {
+    expect(() => contenuDepuisVideoImportee({ titre: "Visite", description: "Une visite.", dureeSec: 0 })).toThrow();
   });
 
   it("une description vide est refusée", () => {

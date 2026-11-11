@@ -45,11 +45,13 @@ export function texteDesPages(spec: CarrouselSpecType): string {
   return lignes.map((l) => l.trim()).filter(Boolean).join("\n");
 }
 
-/** Faits (phrases, chiffres) qu'on ne retrouve pas dans le texte : la liste vide veut dire « tout est présent ». */
+/** Faits (phrases, chiffres) qu'on ne retrouve pas dans le texte, bornes de mot comprises (« 80 » n'est pas dans « 180 ») : la liste vide veut dire « tout est présent ». */
 export function verifierFaits(texte: string, faits: readonly string[]): string[] {
   const base = normaliser(texte);
   return faits.filter((f) => {
     const n = normaliser(f);
-    return n.length > 0 && !base.includes(n);
+    if (n.length === 0) return false;
+    const echappe = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return !new RegExp(`(^|[^\\p{L}\\p{N}])${echappe}([^\\p{L}\\p{N}]|$)`, "u").test(base);
   });
 }
