@@ -173,6 +173,20 @@ export function estPasse(jour: string, maintenant: Date | string): boolean {
   return aujourdhui === null || !jourExiste(jour) || jour < aujourdhui;
 }
 
+/**
+ * Vrai si l'une des heures prévues du créneau (instants ISO) est STRICTEMENT avant l'instant présent. À l'heure pile : pas
+ * encore passée. Une heure illisible compte pour passée (on verrouille). Sans heure prévue, seul le jour décide (`estPasse`).
+ */
+export function heurePassee(heuresParReseau: Readonly<Record<string, string | undefined>> | undefined, maintenant: Date | string): boolean {
+  const instant = typeof maintenant === "string" ? Date.parse(maintenant) : maintenant.getTime();
+  const heures = Object.values(heuresParReseau ?? {}).filter((h): h is string => typeof h === "string");
+  if (!heures.length) return false;
+  return heures.some((h) => {
+    const t = Date.parse(h);
+    return Number.isNaN(t) || Number.isNaN(instant) ? true : t < instant;
+  });
+}
+
 /** État interne d'un créneau, à l'heure de Paris. `null` : statut inconnu (jamais pris pour un brouillon). */
 export function etatInterne(c: Pick<CreneauEditorial, "statut" | "jourVise" | "refuseLe">, maintenant: Date | string): EtatInterne | null {
   if (!Object.hasOwn(TRANSITIONS, c.statut)) return null;

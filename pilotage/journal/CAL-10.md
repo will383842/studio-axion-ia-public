@@ -31,3 +31,11 @@
 - Remarques : gestes secondaires jamais rendus et libellé « Valider et programmer » : reportés (PILOTAGE, au fondateur). validerEntree (L7-11, hors liste) non touchée.
 - Tests : tests/calendrier + calendrier-*.test + rc-36 : 19 fichiers, 393 passés, 0 échoué. master fusionné sans conflit.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (u1, 12/11/2026) — CORRECTIF du 12/11, 17 h
+- (1) Le jour même, une heure passée ne peut ni être acceptée ni validée : accepterEntree compare heuresParReseau à l'instant présent (heurePassee, statuts.ts ; strictement avant = passée, heure pile = ouverte, heure illisible = passée, une heure passée sur un réseau suffit) ; même phrase, aucune écriture. Corrigé, tests/calendrier/cal-10-statuts.test.ts (blocs « le jour même, heure passée » et « limite exacte »), rouges d'abord.
+- Ligne du tableau JOUR_MEME inversée (Accepter l'idée → propose ; Valider et programmer → a_valider). Corrigé.
+- (2) rc-37-vues-filtres.test.tsx:139 : remis au vert SANS toucher ce test. La pastille exporte LIBELLES_ETAT comme vue des six états affichés, tirée de la table unique de statuts.ts (mêmes objets) ; la table complète reste dans statuts.ts. Ma ligne 145 du test cal-10 vérifie désormais cette dérivation (clés = ETATS_CALENDRIER, mêmes objets) au lieu de l'identité.
+- Remarques non traitées (hors fichiers autorisés ou PILOTAGE) : validerEntree (ajouter.ts) sans verrou du passé ; « Déplacer au… » absent de FicheEntree ; écriture partielle a_valider avant validerProposition ; ces points restent PILOTAGE.
+- master fusionné. Tests (calendrier, calendrier-*, rc-3*, visuels, plan-editorial) : 2143 passés, 0 échoué ; rc-37 : vert. tsc : 147 erreurs, comme master (0 nouvelle). Aucune couleur ajoutée.
+contrôle anti-fuite : vide
