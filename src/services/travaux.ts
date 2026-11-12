@@ -918,7 +918,11 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   // GV-EC-01b : la reprise d'une ATTENTE DE VALIDATION ne repasse par aucun contrôle de budget ni de quota (commande de
   // Williams comme commande de l'usine) : la réservation a été gardée, il n'y a rien à revérifier. Un vrai échec garde
   // son contrôle d'avant.
-  const relance = enAttenteDeValidation(avant)
+  // GV-EC-01h : seule une réservation restée ACTIVE sans interruption est reprise sans contrôle. Si toutes ont été rendues
+  // entre-temps (vidéo à la corbeille puis restaurée), c'est un nouvel engagement : il passe par le contrôle selon l'origine
+  // (Studio : jamais refusé pour un montant ; usine : refusé en cas de dépassement). Un refus laisse l'attente intacte.
+  const reservationActive = enAttenteDeValidation(avant) && (await depots().reservations.compter((r) => r.travailId === id && r.statut === "active")) > 0;
+  const relance = reservationActive
     ? await lancer(() => reactiverReservations(id))
     : await reactiverSelonOrigine(versionAvant?.commande.origine, id, restant, options.confirme, "Cette relance", { doubleDejaConfirme: true }, lancer);
   return versVue(relance);
