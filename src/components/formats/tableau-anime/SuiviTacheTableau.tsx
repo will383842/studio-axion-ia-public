@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { reprendreTacheTableauAction, suiviTacheTableauAction } from "@/app/(studio)/tableau/nouvelle/actions";
 import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
+import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { Bouton } from "@/components/ui/Bouton";
 import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
@@ -86,15 +87,17 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
   if (enMarche(vue)) {
     return (
       <section aria-label="Travail en cours" aria-live="polite" className="space-y-3 rounded-2xl border border-trait bg-surface-1 px-4 py-3">
+        {/* Titre et phrase communs (PHRASES_SUIVI) ; la phrase vivante ci-dessous dit l'étape, elle n'est pas un second titre. */}
+        <EnTeteSuivi etat="en-cours" sansTemps />
         <p className="flex items-center gap-2 text-[15px] font-semibold text-texte">
-          <span aria-hidden className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-orange-vif border-t-transparent" />
+          <span aria-hidden className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           {vue.phrase}
         </p>
         {/* La phrase est dite juste au-dessus : le suivi ne la répète pas. */}
         <SuiviFabrication vue={{ ...versSuiviTacheTableau(vue), message: undefined }} compacte />
         <p className="text-sm text-texte-doux">
           {vue.appels > 0 ? `${vue.appels} appel${vue.appels > 1 ? "s" : ""} fait${vue.appels > 1 ? "s" : ""}, gardé${vue.appels > 1 ? "s" : ""}. ` : ""}
-          Vous pouvez fermer cette page : le travail continue, vous le retrouverez dans « Tableau animé ».
+          Vous pouvez fermer cette page : le travail continue, vous le retrouverez dans « Mes vidéos ».
         </p>
         {injoignable && <p className="text-sm text-texte-doux">Le studio ne répond pas pour l&apos;instant : je réessaie…</p>}
       </section>
@@ -106,7 +109,9 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
   if (vue.statut === "erreur" || vue.statut === "interrompue" || decoupageRefuse) {
     return (
       <section aria-label={decoupageRefuse ? "Découpage refusé" : vue.statut === "erreur" ? "Travail arrêté" : "Travail interrompu"} role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-        <SuiviFabrication vue={versSuiviTacheTableau(vue)} compacte />
+        {/* Un arrêt venu du studio (erreur, refus, redémarrage) est une panne, pas un arrêt voulu : titre commun « coincée », la raison en clair. */}
+        <EnTeteSuivi etat="coincee" message={vue.phrase} />
+        <SuiviFabrication vue={{ ...versSuiviTacheTableau(vue), message: undefined }} compacte />
         {vue.motifs.length > 0 && (
           <ul className="list-disc space-y-1 pl-5 text-sm text-texte-doux">
             {vue.motifs.slice(0, decoupageRefuse ? 12 : 6).map((m, i) => (

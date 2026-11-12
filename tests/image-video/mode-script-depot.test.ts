@@ -130,9 +130,10 @@ describe("Image → vidéo · script complet · l'écran de dépôt", () => {
     expect(html).toContain("Mon script");
   });
 
-  it("l'écran du script : bouton « Fabriquer la vidéo » sans prix, compteur de mots, bouton inactif tant que le script est vide", () => {
+  it("l'écran du script : bouton « Fabriquer » sans prix, compteur de mots, bouton inactif tant que le script est vide", () => {
     const html = renderToStaticMarkup(createElement(DepotScript, { script: "", onScript: () => undefined, reseaux: [...RESEAUX_IV], montant: 250, onRefus: () => undefined }));
-    expect(html).toContain("Fabriquer la vidéo");
+    // Libellé unique « Fabriquer » : maquette M3 et décision du fondateur du 12/11.
+    expect(html).toContain("Fabriquer");
     expect(html).not.toMatch(/€|au plus \d|prix/i);
     expect(html).toContain("0 mot sur 450 au plus");
     expect(html).toContain("disabled");

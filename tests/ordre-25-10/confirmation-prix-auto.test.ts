@@ -56,7 +56,7 @@ describe("BoutonFabriquer : au plus une relance automatique", () => {
   it("le rendu initial du bouton affiche le montant à titre d'information", async () => {
     const { BoutonFabriquer } = await import("@/components/formats/commun/BoutonFabriquer");
     const html = renderToStaticMarkup(createElement(BoutonFabriquer, { montantCentimes: 300, onFabriquer: async () => undefined }));
-    expect(texte(html)).toContain("Fabriquer la vidéo");
+    expect(texte(html)).toContain("Fabriquer");
   });
 
   it("pas de montant demandé : un seul envoi", async () => {
