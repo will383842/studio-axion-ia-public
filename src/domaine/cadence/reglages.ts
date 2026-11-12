@@ -60,8 +60,17 @@ export const REGLAGES_CADENCE_DEFAUT: ReglagesCadence = {
 
 const HEURE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const objet = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
-const entier = (v: unknown, defaut: number, max: number): number =>
-  typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(0, Math.round(v))) : defaut;
+const entier = (v: unknown, defaut: number, max: number, min = 0): number =>
+  typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : defaut;
+
+/** Heure saisie à la main (« 8h », « 8h30 », « 8:00 », « 08:00 ») → « HH:MM », ou null si illisible. */
+export function lireHeure(saisie: unknown): string | null {
+  if (typeof saisie !== "string") return null;
+  const m = /^(\d{1,2})\s*(?:h|:)\s*(\d{2})?$/i.exec(saisie.trim());
+  if (!m) return null;
+  const h = `${m[1].padStart(2, "0")}:${m[2] ?? "00"}`;
+  return HEURE.test(h) ? h : null;
+}
 
 /** Réglages sûrs à partir de n'importe quelle valeur lue : l'invalide retombe sur la valeur de départ. */
 export function normaliserReglagesCadence(brut: unknown): ReglagesCadence {
@@ -72,9 +81,9 @@ export function normaliserReglagesCadence(brut: unknown): ReglagesCadence {
     const d = REGLAGES_CADENCE_DEFAUT.reseaux[id];
     const x = objet(r[id]);
     const heures = Array.isArray(x.heures)
-      ? [...new Set(x.heures.filter((h): h is string => typeof h === "string" && HEURE.test(h)))].sort()
+      ? [...new Set(x.heures.map(lireHeure).filter((h): h is string => h !== null))].sort()
       : d.heures;
-    reseaux[id] = { heures, quotaParJour: entier(x.quotaParJour, d.quotaParJour, 20), ecartMinMinutes: entier(x.ecartMinMinutes, d.ecartMinMinutes, 1440) };
+    reseaux[id] = { heures, quotaParJour: entier(x.quotaParJour, d.quotaParJour, 20, 1), ecartMinMinutes: entier(x.ecartMinMinutes, d.ecartMinMinutes, 1440) };
   }
   const objectifs = {} as Record<TypeContenuCadence, ObjectifCadence>;
   for (const t of Object.keys(REGLAGES_CADENCE_DEFAUT.objectifs) as TypeContenuCadence[]) {
@@ -86,12 +95,30 @@ export function normaliserReglagesCadence(brut: unknown): ReglagesCadence {
 }
 
 const minutes = (h: string): number => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
-const jourDe = (iso: string): string => iso.slice(0, 10);
-const heureDe = (iso: string): string => iso.slice(11, 16);
+const AVEC_DECALAGE = /(Z|[+-]\d{2}:?\d{2})$/i;
+const FORMAT_PARIS = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+/** « AAAA-MM-JJTHH:MM » en heure de Paris : un instant avec décalage (Z, +01:00) est converti, un local reste tel quel. */
+function enHeureDeParis(iso: string): string {
+  if (!AVEC_DECALAGE.test(iso)) return iso;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return iso;
+  const p = Object.fromEntries(FORMAT_PARIS.formatToParts(t).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+const jourDe = (iso: string): string => enHeureDeParis(iso).slice(0, 10);
+const heureDe = (iso: string): string => enHeureDeParis(iso).slice(11, 16);
 
 /**
  * Avertissements pour un créneau « AAAA-MM-JJTHH:MM » d'un réseau, face aux créneaux déjà pris par ce réseau.
- * Jamais bloquant : la liste vide veut dire « rien à signaler ».
+ * Les avertissements se cumulent (quota, écart, heure). Jamais bloquant : la liste vide veut dire « rien à signaler ».
  */
 export function avertissementsCreneau(reglages: ReglagesCadence, reseau: IdReseau, creneau: string, existants: readonly string[]): string[] {
   const c = reglages.reseaux[reseau];
@@ -104,7 +131,7 @@ export function avertissementsCreneau(reglages: ReglagesCadence, reseau: IdResea
   if (c.ecartMinMinutes > 0 && memeJour.some((e) => Math.abs(minutes(heureDe(e)) - minutes(heureDe(creneau))) < c.ecartMinMinutes)) {
     out.push(`${nom} : moins de ${c.ecartMinMinutes} minutes d'écart avec un autre créneau.`);
   }
-  if (c.heures.length > 0 && !c.heures.includes(heureDe(creneau)) && out.length === 0) {
+  if (c.heures.length > 0 && !c.heures.includes(heureDe(creneau))) {
     out.push(`${nom} : ${heureDe(creneau)} n'est pas une des heures proposées (${c.heures.join(", ")}).`);
   }
   return out;

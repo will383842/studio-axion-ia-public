@@ -10,12 +10,18 @@ export const metadata: Metadata = { title: "Réglages de cadence" };
 export const dynamic = "force-dynamic";
 
 /** Cadence de publication : heures, quota et écart par réseau. Ce sont des avertissements, jamais des blocages. */
-export default async function PageReglagesCadence() {
+export default async function PageReglagesCadence({ searchParams }: { searchParams: Promise<{ erreur?: string }> }) {
   await exigerSession();
+  const { erreur } = await searchParams;
   const r = await lireReglagesCadence();
   return (
     <div className="mx-auto w-full max-w-xl">
       <EnTetePage retour={{ href: "/reglages", libelle: "Réglages" }} titre="Cadence de publication" sousTitre="Le calendrier vous prévient, il ne bloque jamais." />
+      {erreur ? (
+        <p role="alert" className="mb-3 rounded-xl border border-trait p-3 text-sm font-semibold">
+          {erreur}
+        </p>
+      ) : null}
       <form action={enregistrerCadenceFormulaire} className="flex flex-col gap-3">
         {RESEAUX_CADENCE.map((id) => (
           <fieldset key={id} className="flex flex-col gap-2 rounded-2xl border border-trait p-4">
