@@ -81,6 +81,14 @@ export interface Conversation {
   merciMotif?: string | null;
   /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
   douteOpposition?: boolean;
+  /** Mot qui a déclenché le parcours. Absent = enregistrement ANCIEN = GUIDE. */
+  mot?: string;
+  /** « premier » = premier envoi vers la cible ; « renvoi » = nouvel envoi (message déjà envoyé / rappel). Absent = ancien = premier. */
+  nature?: "premier" | "renvoi";
+  /** Groupe de formulations du message de ce parcours. */
+  groupeM1?: "m1-lien" | "deja-envoye" | "lien-rappel";
+  /** Titre lisible de la cible (jamais de donnée personnelle). */
+  titreCible?: string;
 }
 
 /** Délai avant réduction des identifiants bruts d'un événement clos (D1 : 30 jours, assez pour les réessais et les vérifications à la main dans l'Inbox Zernio). */
@@ -122,8 +130,11 @@ export function issueMerci(o: { refAuRegistre: boolean; conversation: Pick<Conve
 /** Groupe de formulations du 1er message privé quand il porte le lien signé de la page guide (interrupteur PARCOURS_LIEN_GUIDE). */
 export const GROUPE_M1_LIEN = "m1-lien" satisfies GroupeMp;
 /** Vrai si la version du 1er message est un message avec lien (formulations actuelles ou ancienne mp-m1-v3, retirée mais encore présente dans des conversations en cours). */
-function m1AvecLien(v: string | null | undefined): boolean {
-  return v === "mp-m1-v3" || (v != null && (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v));
+export function m1AvecLien(v: string | null | undefined): boolean {
+  if (v == null) return false;
+  // Messages de renvoi avec lien : eux non plus ne déclenchent pas M2.
+  // « lien-rappel » : appartenance au groupe du dictionnaire ; « déjà envoyé » : pas encore de groupe, on garde le préfixe.
+  return v === "mp-m1-v3" || (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v) || (GROUPES_MP["lien-rappel"] as readonly string[]).includes(v) || v.startsWith("mp-deja-envoye-v1-");
 }
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
 export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee" | "version_inconnue_du_site";
@@ -177,6 +188,7 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       // Reprise du MÊME commentaire (réessai public ou privé), jamais un second parcours.
       if (etat.idCommentaire === ev.idCommentaire && (etat.etat === "nouveau" || etat.etat === "pub_ok")) return { action: "reprendre" };
       // Un parcours par personne ; seule exception : un refus d'envoi (m1_refuse) vieux de plus de 24 h (depuis la date du refus).
+      // (Mode éteint seulement ; mode allumé : deciderCommentaire.)
       if (etat.etat === "m1_refuse" && ev.maintenantMs - Date.parse(etat.refuseLe ?? etat.creeLe) > DELAI_PERIME_MS) return { action: "demarrer" };
       return { action: "silence", raison: "silence" };
     }
@@ -301,4 +313,149 @@ export function dansFenetreEnvoi(c: Pick<Conversation, "derniereActiviteLe">, ma
  */
 export function voiesOpposition(c: Pick<Conversation, "occurredAt" | "refLienConv">): { adresse: boolean; page: boolean } {
   return { adresse: typeof c.occurredAt === "string", page: typeof c.refLienConv === "string" && c.refLienConv !== "" };
+}
+
+// ───────── Mode « un envoi par (personne, cible) » : fonctions PURES, rien ne les appelle encore ─────────
+
+export interface EntreeParcours {
+  cle: string;
+  etat: Conversation;
+}
+export interface OptionsCommentaire {
+  plafondPersonneJour: number;
+}
+export type DecisionCommentaire =
+  | { action: "silence"; raison: "oppose" | "deja_traite" }
+  | { action: "reprendre" }
+  | { action: "perime" }
+  | { action: "demarrer" }
+  | {
+      action: "public_seul";
+      raison:
+        | "en_cours"
+        | "plafond_personne"
+        | "deja_envoye"
+        | "doute_opposition";
+    }
+  | { action: "renvoyer"; groupe: "deja-envoye" | "lien-rappel" };
+
+const LIVRE_APRES_MS = 24 * 3600_000;
+const NON_LIVRE_APRES_MS = 48 * 3600_000;
+
+/** Point d'accroche : la cible a-t-elle reçu son guide ? (états `guide_demande` et `termine`.) */
+export function cibleLivree(r: Pick<Conversation, "etat">): boolean {
+  return r.etat === "guide_demande" || r.etat === "termine";
+}
+
+/**
+ * Date d'envoi du premier message : `m1Le`, sinon `creeLe` (un parcours `m1_a_verifier` qui reçoit une adresse passe à
+ * `guide_demande`, `termine`, `site_refuse`, `expire` sans `m1Le`). `m1_refuse` : le message n'est pas parti, donc `null`.
+ * Les états en cours (nouveau, pub_ok, m1_en_vol) sont déjà écartés par R3 ; l'opposition par R0.
+ */
+function dateEnvoi(c: Conversation): number | null {
+  return c.etat === "m1_refuse" ? null : (dateLue(c.m1Le) ?? dateLue(c.creeLe));
+}
+
+/**
+ * L'appelant doit tenir un verrou par racine : deux commentaires traités en même temps verraient tous deux D vide.
+ * Décision pour un commentaire en mode allumé. T = tout le dossier de la personne, D = sa partie pour la cible du commentaire.
+ * Ordre : R0 opposition › R1 même commentaire › doute d'opposition (public seul, jamais d'envoi privé) › R2 cible vide › R3 en cours › R4 refus récent › R5 livrée / non livrée ›
+ * R7 renvoi périmé › R6 plafond par personne (avant tout démarrer / renvoyer).
+ */
+export function deciderCommentaire(
+  T: readonly EntreeParcours[],
+  D: readonly EntreeParcours[],
+  ev: { idCommentaire: string; ageMs: number; maintenantMs: number },
+  o: OptionsCommentaire,
+): DecisionCommentaire {
+  if (T.some((x) => x.etat.etat === "oppose"))
+    return { action: "silence", raison: "oppose" };
+  const meme = T.find((x) => x.etat.idCommentaire === ev.idCommentaire);
+  if (meme)
+    return meme.etat.etat === "nouveau" || meme.etat.etat === "pub_ok"
+      ? { action: "reprendre" }
+      : { action: "silence", raison: "deja_traite" };
+  // Un doute sur une demande d'arrêt, sur n'importe quelle cible de la personne : jamais de message privé.
+  if (T.some((x) => x.etat.douteOpposition === true))
+    return { action: "public_seul", raison: "doute_opposition" };
+
+  const ouvrir = (): DecisionCommentaire => {
+    if (ev.ageMs > DELAI_PERIME_MS) return { action: "perime" };
+    return plafondAtteint()
+      ? { action: "public_seul", raison: "plafond_personne" }
+      : { action: "demarrer" };
+  };
+  const plafondAtteint = (): boolean =>
+    // Plafond illisible : atteint, par prudence. `Infinity` compte volontairement comme atteint (pas de valeur « illimité »).
+    !Number.isFinite(o.plafondPersonneJour) ||
+    T.filter((x) => {
+      const t = dateEnvoi(x.etat);
+      return t !== null && ev.maintenantMs - t < DELAI_PERIME_MS;
+    }).length >= o.plafondPersonneJour;
+
+  if (D.length === 0) return ouvrir();
+  if (
+    D.some(
+      (x) =>
+        x.etat.etat === "nouveau" ||
+        x.etat.etat === "pub_ok" ||
+        x.etat.etat === "m1_en_vol",
+    )
+  )
+    return { action: "public_seul", raison: "en_cours" };
+
+  const dates = D.map((x) => dateEnvoi(x.etat)).filter(
+    (t): t is number => t !== null,
+  );
+  if (dates.length === 0) {
+    const dernier = [...D].sort(
+      (a, b) => (dateLue(a.etat.creeLe) ?? 0) - (dateLue(b.etat.creeLe) ?? 0),
+    )[D.length - 1];
+    const refus =
+      dernier.etat.etat === "m1_refuse"
+        ? dateLue(dernier.etat.refuseLe ?? dernier.etat.creeLe)
+        : null;
+    if (refus !== null && ev.maintenantMs - refus < DELAI_PERIME_MS)
+      return { action: "public_seul", raison: "deja_envoye" };
+    return ouvrir();
+  }
+  const age = ev.maintenantMs - Math.max(...dates);
+  const livree = D.some((x) => cibleLivree(x.etat));
+  if (age < (livree ? LIVRE_APRES_MS : NON_LIVRE_APRES_MS))
+    return { action: "public_seul", raison: "deja_envoye" };
+  if (ev.ageMs > DELAI_PERIME_MS) return { action: "perime" };
+  if (plafondAtteint())
+    return { action: "public_seul", raison: "plafond_personne" };
+  return { action: "renvoyer", groupe: livree ? "deja-envoye" : "lien-rappel" };
+}
+
+/**
+ * Parcours à qui rattacher un message privé. Ordre : le `guide_demande` dont `idMessageGuide` est ce message › le plus récent
+ * (`m1Le ?? creeLe`) du même compte dans un état de ETATS_MESSAGE_ACCEPTES › le plus récent du même compte › le plus récent tout court.
+ * `tous` = les parcours du même compte. `principal` est `null` si `tous` est vide (aucun repli sur un autre compte).
+ */
+export function choisirParcoursPourMessage(
+  dossier: readonly EntreeParcours[],
+  idMessage: string,
+  idCompte: string,
+): { principal: EntreeParcours | null; tous: EntreeParcours[] } {
+  const tous = dossier.filter((x) => x.etat.idCompte === idCompte);
+  const recent = (l: readonly EntreeParcours[]): EntreeParcours | null =>
+    l.reduce<EntreeParcours | null>(
+      (m, x) =>
+        m === null ||
+        (dateLue(x.etat.m1Le ?? x.etat.creeLe) ?? 0) >
+          (dateLue(m.etat.m1Le ?? m.etat.creeLe) ?? 0)
+          ? x
+          : m,
+      null,
+    );
+  const principal =
+    tous.find(
+      (x) =>
+        x.etat.etat === "guide_demande" && x.etat.idMessageGuide === idMessage,
+    ) ??
+    recent(tous.filter((x) => ETATS_MESSAGE_ACCEPTES.includes(x.etat.etat))) ??
+    recent(tous); // dossier sans parcours de ce compte : null, jamais un parcours d'un autre compte
+  return { principal, tous };
 }
