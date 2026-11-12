@@ -100,4 +100,13 @@ describe("workflow tests-nouveau", () => {
     });
     expect(sortie.trim()).toBe("tests/socle.test.ts");
   });
+  it("importer le module avec --selection en argv ne lit pas l'entrée standard", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const code = 'process.argv[2]="--selection"; await import("./scripts/comparer-echecs.mjs");';
+    const sortie = execFileSync("node", ["--input-type=module", "-e", code], {
+      input: "tests/socle.test.ts\n",
+      encoding: "utf8",
+    });
+    expect(sortie.trim()).toBe("");
+  });
 });
