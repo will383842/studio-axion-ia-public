@@ -30,3 +30,9 @@
 - Constat 4 (Depot.supprimer, champs du message) : reporté au fondateur.
 - Tests : suppression-video* + stock-messages + calendrier + plan-editorial + envois-planifies : 22 fichiers, 186 passés, 0 échoué (testTimeout 60 s).
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (avis opus-v1-c2)
+- Compilation (clé `journalDecalages` en double, TS1117) : corrigé, une seule clé dans `TRAITEMENT_SUPPRESSION`. Preuve : `tsc --noEmit` donnait TS1117 en :104 avant, plus aucune erreur dans ce fichier après (le typage n'est pas visible de vitest).
+- Deux tests de calendrier hors liste : bloqué, CORRECTIF requis. Chemins exacts : tests/calendrier/depot-creneaux.test.ts et tests/calendrier/suppression-creneaux.test.ts. Les retirer de la branche ferait retomber le test de L1-06 sur master (« garde-publiees »), donc ils restent modifiés en attendant un CORRECTIF qui les nomme et confirme que le détachement remplace l'effacement.
+- master (origin/master) refusionné ; tests : stock-messages + suppression-video* + calendrier + plan-editorial : 24 fichiers, 211 passés, 0 échoué.
+- contrôle anti-fuite : vide
