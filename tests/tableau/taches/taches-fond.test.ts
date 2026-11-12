@@ -522,7 +522,8 @@ describe("brouillon payé sans résultat gardé (comme v-ab6eb972eb39 en product
     expect(ecran.brouillon!.demandeConnue).toEqual({ serie: "automatisations", sujet: DEMANDE.sujet, reseau: "courts", fin: { type: "diagnostic" } });
     const html = renderToStaticMarkup(createElement(NouvelleVideoTableau, { ecran }));
     expect(html).toContain("Écriture interrompue");
-    expect(html).toMatch(/3 appels à Claude \(0,42\s€\)/);
+    expect(html).toMatch(/3 appels à Claude n(?:'|&#x27;)ont pas laissé/);
+    expect(html).not.toMatch(/€/);
     expect(html).toContain("Reprendre l&#x27;écriture");
     expect(html).toContain("environ 3 minutes");
     expect(ecran.recents).toEqual([expect.objectContaining({ videoId, etat: "Écriture interrompue" })]);

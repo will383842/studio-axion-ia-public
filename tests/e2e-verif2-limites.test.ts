@@ -235,7 +235,7 @@ describe("2 · Crédits HeyGen à 0", () => {
     const avant = await actifs("v-03");
     const e = await fabrication.lancerFabrication("v-03", { confirme: true }).catch((x: Error & { code?: string }) => x);
     expect(e).toMatchObject({ code: "CREDIT_INSUFFISANT" });
-    expect((e as Error).message).toMatch(/^Crédit HeyGen insuffisant : il reste 0,00\s?\$/);
+    expect((e as Error).message).toMatch(/^Crédit HeyGen insuffisant pour /);
     lisibleEnFrancais((e as Error).message);
     // Seule la LECTURE (gratuite) du solde est partie ; aucun POST payant.
     expect(hg.appels.every((a) => a.methode === "GET" && a.url.endsWith("/v3/users/me"))).toBe(true);

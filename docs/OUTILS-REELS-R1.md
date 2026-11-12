@@ -135,11 +135,11 @@ Test `tests/g7b-import.test.ts` (« réponse 429 / 503 / 404 : le message affich
 
 > 03/10/2026 · branche `outils/r1b` depuis `outils/integration` (`a59a726`).
 
-**Besoin de Will.** Dans Buffer : 2 LinkedIn (profil « Williams Jullin », page « Axion-IA.com ») et 2 Facebook. « Ça dépend, ça peut être l'un ou l'autre. » Le studio imposait UN compte par réseau, choisi dans Réglages. Désormais le compte se choisit **à chaque envoi**.
+**Besoin de Will.** Dans Buffer : 2 LinkedIn (profil « Williams », page « Axion-IA.com ») et 2 Facebook. « Ça dépend, ça peut être l'un ou l'autre. » Le studio imposait UN compte par réseau, choisi dans Réglages. Désormais le compte se choisit **à chaque envoi**.
 
 ### Ce qui change pour Will
 
-1. **Feuille « Envoyer vers Buffer »** : un réseau à plusieurs comptes montre **une case par compte** (« LinkedIn · Williams Jullin », « LinkedIn · Axion-IA.com » ; si deux comptes portent le même nom, « (Profil) » / « (Page) » les distingue). Il coche l'un, l'autre ou les deux. Un réseau à un seul compte reste une seule case. Une vidéo écrite pour LinkedIn montre les deux comptes LinkedIn seulement.
+1. **Feuille « Envoyer vers Buffer »** : un réseau à plusieurs comptes montre **une case par compte** (« LinkedIn · Williams », « LinkedIn · Axion-IA.com » ; si deux comptes portent le même nom, « (Profil) » / « (Page) » les distingue). Il coche l'un, l'autre ou les deux. Un réseau à un seul compte reste une seule case. Une vidéo écrite pour LinkedIn montre les deux comptes LinkedIn seulement.
 2. **Par défaut** : le dernier choix pour ce réseau (mémorisé à chaque envoi). Sans dernier choix, **aucun compte n'est coché** et une phrase le dit (« Plusieurs comptes LinkedIn : cochez le ou les comptes où envoyer. »). Jamais d'envoi vers un compte que Will n'a pas vu.
 3. **Un seul texte par réseau** : le texte LinkedIn du kit part sur les deux comptes LinkedIn.
 4. **« Programmer les N »** : utilise le compte mémorisé de chaque réseau. Sans mémoire pour un réseau à plusieurs comptes, ce réseau est **mis de côté** : « Plusieurs comptes LinkedIn dans Buffer : choisissez le compte LinkedIn une première fois, en envoyant une vidéo. » Les autres réseaux partent.
