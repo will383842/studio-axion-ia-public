@@ -872,7 +872,7 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   // L3-01 : contrôle du budget du mois (origine de la commande) et des crédits sur le coût RESTANT, réactivation de la
   // réservation et de l'engagement, puis le travail repart, d'un seul tenant sous le verrou des crédits. Le prix du
   // double a été confirmé au lancement : seul le seuil habituel redemande une confirmation.
-  const lancer = (reactiver: () => Promise<void>) =>
+  const lancer = (reactiver: () => Promise<void>, exigerReservationActive = false) =>
     sousVerrou(async () => {
       const d = depots();
       const t = await d.travaux.obtenir(id);
@@ -904,6 +904,9 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
         const { RETOUCHE_PAS_DISPONIBLE } = await import("./fabrication");
         throw new ErreurStudio("RETOUCHE_INDISPONIBLE", RETOUCHE_PAS_DISPONIBLE);
       }
+      // GV-EC-01i : voie (b) — la réservation active lue avant le verrou est relue ici ; si elle a été rendue entre-temps
+      // (corbeille puis restauration), rien n'est réactivé sans contrôle de budget.
+      if (exigerReservationActive && (await d.reservations.compter((x) => x.travailId === id && x.statut === "active")) === 0) throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a changé. Rouvrez la page puis réessayez.");
       await consignerEchec(t, version?.commande ?? { formatId: "" });
       const r: Travail = { ...(await moteur.reessayer(t)), reprise: undefined };
       await reactiver();
@@ -923,7 +926,7 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   // (Studio : jamais refusé pour un montant ; usine : refusé en cas de dépassement). Un refus laisse l'attente intacte.
   const reservationActive = enAttenteDeValidation(avant) && (await depots().reservations.compter((r) => r.travailId === id && r.statut === "active")) > 0;
   const relance = reservationActive
-    ? await lancer(() => reactiverReservations(id))
+    ? await lancer(() => reactiverReservations(id), true)
     : await reactiverSelonOrigine(versionAvant?.commande.origine, id, restant, options.confirme, "Cette relance", { doubleDejaConfirme: true }, lancer);
   return versVue(relance);
 }
