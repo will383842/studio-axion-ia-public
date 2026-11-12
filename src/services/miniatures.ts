@@ -18,6 +18,7 @@ import type { CouvertureMiniature, PropositionMiniature, SourceMiniature } from 
 import { nouvelId } from "@/lib/ids";
 import { proposerCouverture } from "@/domaine/couverture-vignette";
 import { estImageVideo, GABARIT_IMAGE_VIDEO, GABARIT_IMAGE_VIDEO_RATIO, GABARITS_MINIATURE, INSTANT_PREMIERE_IMAGE_SEC, interditsVignette, rangDeVideo, REGLAGE_TITRE_COUVERTURE } from "@/domaine/vignettes";
+import { controlerPremiereSecondeVideo } from "./premiere-seconde";
 import { depots, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre } from "./_commun";
 
 
@@ -168,6 +169,8 @@ async function vignetteReelle(video: Video): Promise<Id | null> {
 /** Crée les miniatures d'une vidéo terminée si elle n'en a aucune. Hors verrou. */
 export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, ratio: Ratio): Promise<void> {
   const d = depots();
+  // GV-VG-03 : alerte « Première seconde », jamais un échec ; avant le retour anticipé (les miniatures peuvent exister).
+  await controlerPremiereSecondeVideo(videoId).catch(() => undefined);
   if (await d.miniatures.compter((m) => m.videoId === videoId)) return;
   const video = await d.videos.obtenir(videoId);
   if (!video) return;
