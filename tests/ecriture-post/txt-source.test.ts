@@ -43,7 +43,7 @@ async function poser(e: { scriptRelie?: string | null; tableau?: string; facecam
 const kitInstagram = async () => (await pub.obtenirKit(VIDEO))!;
 
 let redacteur: ReturnType<typeof vi.spyOn>;
-const demandes = () => redacteur.mock.calls.map((c: unknown[]) => c[0] as { texteScript: string; titre: string });
+const demandes = () => redacteur.mock.calls.map((c: unknown[]) => c[0] as { texteScript: string; titre: string; sujet?: string });
 beforeAll(async () => {
   await preparerMotDePasse(MDP);
 });
@@ -89,36 +89,52 @@ describe("TXT-SOURCE · le texte demandé au rédacteur", () => {
   it("(1) sans script relié : le brouillon du tableau", async () => {
     await poser({ scriptRelie: null, tableau: SCRIPT_TABLEAU });
     const kit = await kitInstagram();
+    expect(demandes().length).toBeGreaterThan(0);
     for (const d of demandes()) expect(d.texteScript).toBe(SCRIPT_TABLEAU);
     expect(kit.texteDepuis).toBeUndefined();
   });
   it("(1) sans script relié : le script validé de la face caméra animée", async () => {
     await poser({ scriptRelie: null, facecam: SCRIPT_FACECAM });
     await kitInstagram();
+    expect(demandes().length).toBeGreaterThan(0);
     for (const d of demandes()) expect(d.texteScript).toBe(SCRIPT_FACECAM);
   });
   it("(1) le script relié passe avant celui du générateur", async () => {
     await poser({ scriptRelie: SCRIPT_RELIE, tableau: SCRIPT_TABLEAU, facecam: SCRIPT_FACECAM });
     await kitInstagram();
+    expect(demandes().length).toBeGreaterThan(0);
     for (const d of demandes()) expect(d.texteScript).toBe(SCRIPT_RELIE);
   });
   it("(2) sans aucun script : le titre sert de source et la vue le dit", async () => {
     await poser({ scriptRelie: null });
     const kit = await kitInstagram();
+    expect(demandes().length).toBeGreaterThan(0);
     for (const d of demandes()) expect(d.texteScript).toBe(TITRE);
+    for (const d of demandes()) expect(d.titre).toBe(TITRE);
     expect(kit.texteDepuis).toBe("titre");
   });
   it("(2) un script relié vide (brouillon provisoire) : retombe sur le titre et le dit", async () => {
     await poser({ scriptRelie: "   " });
     expect((await kitInstagram()).texteDepuis).toBe("titre");
   });
-  it("(3) avec un script fictif, aucun mot du titre absent du script n'entre dans le texte demandé", async () => {
+  it("(3) avec un script fictif, aucun mot du titre absent du script n'entre dans TOUTE la demande (champ titre compris)", async () => {
     await poser({ scriptRelie: SCRIPT_RELIE });
     await kitInstagram();
     const motsScript = new Set(SCRIPT_RELIE.toLowerCase().split(/\W+/));
     const absents = TITRE.toLowerCase().split(/\W+/).filter((m) => m && !motsScript.has(m));
     expect(absents.length).toBeGreaterThan(0);
-    for (const d of demandes()) for (const m of absents) expect(d.texteScript.toLowerCase()).not.toContain(m);
+    expect(demandes().length).toBeGreaterThan(0);
+    for (const d of demandes()) {
+      expect(d.titre).toBe("");
+      const { sujet: _sujet, ...demande } = d;
+      for (const m of absents) expect(JSON.stringify(Object.values(demande)).toLowerCase()).not.toContain(m);
+    }
+  });
+  it("(3) la consigne écrite pour le modèle ne porte pas le titre quand un script existe, et le porte sinon", async () => {
+    const { donneesPublication, entreePublication } = await import("@/generateur/roles/publication");
+    const base = { reseau: "instagram" as const, mention: "", credits: [], regles: [] };
+    expect(entreePublication(donneesPublication({ ...base, titre: "", texteValide: SCRIPT_RELIE })).variable).not.toContain("Titre :");
+    expect(entreePublication(donneesPublication({ ...base, titre: TITRE, texteValide: TITRE })).variable).toContain(`Titre : ${TITRE}`);
   });
   it("(4) une retouche à la main n'est jamais écrasée, même quand un script apparaît ensuite", async () => {
     await poser({ scriptRelie: null });
