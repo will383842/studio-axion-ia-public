@@ -191,8 +191,10 @@ export function styleParDefautRetenu(
   choisi: string | undefined,
   elements: { id: string; type: string; formatsParDefaut: string[]; archiveLe?: string }[],
 ): string | undefined {
-  if (choisi) return choisi;
-  const etoile = elements.find((e) => e.type === TYPE_ELEMENT_DU_STYLE[type] && !e.archiveLe && e.formatsParDefaut.includes(format.id));
+  if (choisi !== undefined) return choisi;
+  const etoiles = elements.filter((e) => e.type === TYPE_ELEMENT_DU_STYLE[type] && !e.archiveLe && e.formatsParDefaut.includes(format.id));
+  // Plusieurs étoiles pour le même format : celle qui est déjà le défaut du code, sinon la première.
+  const etoile = etoiles.find((e) => e.id === format.stylesParDefaut[type]) ?? etoiles[0];
   return etoile?.id ?? format.stylesParDefaut[type];
 }
 

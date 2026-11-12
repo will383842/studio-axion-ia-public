@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { musiqueRetenue, obtenirFormat, styleParDefautRetenu, type TypeStyleParDefaut } from "@/formats";
+import { DECOR_DEFAUT_AVOCAT, decorParDefaut } from "@/domaine/decors";
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
 
 const format = obtenirFormat("facecam");
@@ -43,6 +44,30 @@ describe("styleParDefautRetenu : l'étoile de la Bibliothèque pour les six type
       });
     });
   }
+
+  it("deux étoiles pour le même format : celle qui est le défaut du code, sinon la première", () => {
+    const defaut = format.stylesParDefaut.lut as string;
+    const deux = [element("lut-autre", "lut", ["facecam"]), element(defaut, "lut", ["facecam"])];
+    expect(styleParDefautRetenu(format, "lut", undefined, deux)).toBe(defaut);
+    const sansDefaut = [element("lut-a", "lut", ["facecam"]), element("lut-b", "lut", ["facecam"])];
+    expect(styleParDefautRetenu(format, "lut", undefined, sansDefaut)).toBe("lut-a");
+  });
+
+  it("un identifiant vide choisi par la vidéo reste le choix de la vidéo (comme l'ancien ??)", () => {
+    expect(styleParDefautRetenu(format, "lut", "", [element("lut-etoile", "lut", ["facecam"])])).toBe("");
+  });
+
+  it("décor de l'avocat : N1 Halo orange prime sur l'étoile « Noir chaud » (règle decorParDefaut conservée)", () => {
+    const avocat = obtenirFormat("avocat");
+    const elements = [element("fond-noir-chaud", "decor", ["avocat"]), element(DECOR_DEFAUT_AVOCAT, "decor", [])];
+    const retenu = decorParDefaut(avocat.id, elements, styleParDefautRetenu(avocat, "decor", undefined, elements));
+    expect(retenu).toBe(DECOR_DEFAUT_AVOCAT);
+  });
+
+  it("décor d'un autre format : l'étoile est lue", () => {
+    const elements = [element("decor-etoile", "decor", ["facecam"])];
+    expect(decorParDefaut(format.id, elements, styleParDefautRetenu(format, "decor", undefined, elements))).toBe("decor-etoile");
+  });
 
   it("LUT_AUCUNE choisie par la vidéo reste prioritaire sur l'étoile", () => {
     expect(styleParDefautRetenu(format, "lut", LUT_AUCUNE, [element("lut-etoile", "lut", ["facecam"])])).toBe(LUT_AUCUNE);
