@@ -63,7 +63,7 @@ describe("textes v2 : registre versionné", () => {
   });
   it("le dictionnaire de textes est une copie à empreinte figée", () => {
     const brut = readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url));
-    expect(createHash("sha256").update(brut).digest("hex")).toBe("4fe58fd79d150c5f99d04b2f7a98e5129db2016b4c4426bfc5630f0bf703d25a");
+    expect(createHash("sha256").update(brut).digest("hex")).toBe("75778d612ef21a5340a89d6b290923a1adebc803c5810cf603162e7abe5f805c");
     const d = JSON.parse(brut.toString("utf8")) as { textes: Record<string, { texte: string }> };
     for (const id of IDS) expect(d.textes[id].texte).toBe(TEXTES_MP[id].texte);
     expect(JSON.stringify(d)).not.toMatch(/\bstop\b/i);
@@ -84,7 +84,7 @@ describe("contrôle de sortie v2", () => {
     for (const s of T.SECTIONS) {
       expect(C.controlerTexteSortant(s, `${MENTION} Votre adresse ?`).map((r) => r.code), s).toContain("mention_automatique");
       expect(C.controlerTexteSortant(s, "message  AUTOMATIQUE, votre adresse ?").map((r) => r.code), s).toContain("mention_automatique");
-      for (const sig of ["Merci pour votre message. L'équipe Axion IA", "Merci pour votre message. Cordialement", "Merci pour votre message. Axion IA."]) expect(C.controlerTexteSortant(s, sig).map((r) => r.code), `${s} ${sig}`).toContain("signature");
+      for (const sig of ["Merci pour votre message. L'équipe Axion IA", "Merci pour votre message. Cordialement", "Merci pour votre message. Cordialement Axion IA", "Merci pour votre message. Message automatique envoyé par Axion IA"]) expect(C.controlerTexteSortant(s, sig).map((r) => r.code), `${s} ${sig}`).toContain("signature");
     }
     expect(C.controlerTexteSortant("message_prive", "Bonjour, votre adresse ?")).toEqual([]);
   });
