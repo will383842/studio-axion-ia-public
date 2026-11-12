@@ -10,7 +10,7 @@ import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { Pastille } from "@/components/ui/Pastille";
-import { lutsConseilleesPour, sousTitresSurDecor } from "@/domaine/decors";
+import { decorParDefaut, lutsConseilleesPour, sousTitresSurDecor } from "@/domaine/decors";
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
 import { LIBELLES_BRIQUES } from "@/domaine/libelles";
 import type { BriqueFacultative, NiveauIntensite, ReglageBruitages, StylesChoisis, TypeElement } from "@/domaine/types";
@@ -79,7 +79,7 @@ function Bloc({ icone, titre, children, className }: { icone: NomIcone; titre: s
 export function EtapeReglages({ formatId, brouillon, modifier, contexte, compacte }: ProprietesEtape) {
   const format = obtenirFormat(formatId);
   const def = format.stylesParDefaut;
-  const decorId = styleParDefautRetenu(format, "decor", brouillon.styles.decorId, contexte.elements);
+  const decorId = brouillon.styles.decorId ?? decorParDefaut(format.id, contexte.elements, styleParDefautRetenu(format, "decor", undefined, contexte.elements));
   const decor = contexte.elements.find((e) => e.id === decorId);
   const valeurDecor = decor?.valeur.type === "decor" ? decor.valeur : null;
   const conseillees = new Set(lutsConseilleesPour(valeurDecor, contexte.elements).map((l) => l.id));
