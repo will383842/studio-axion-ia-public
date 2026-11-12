@@ -442,7 +442,7 @@ describe("entrée passée (Manquée) : « Accepter l'idée » et « Valider et p
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.message).toBe(PHRASE);
     expect((await d.creneauxEditoriaux.obtenir("c1"))?.statut).toBe(depart);
-    expect((await d.creneauxEditoriaux.obtenir("c1"))?.validePar).toBeUndefined();
+    expect((await d.creneauxEditoriaux.obtenir("c1"))?.valideePar).toBeUndefined();
   });
   it("le jour même, limite exacte : une seconde avant l'heure passe, à l'heure pile passe, une seconde après est refusée ; deux réseaux : une heure passée suffit", async () => {
     const d = reinitialiserDepots();

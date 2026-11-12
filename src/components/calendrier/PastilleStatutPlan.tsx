@@ -1,7 +1,7 @@
 import { Pastille } from "@/components/ui/Pastille";
 import {
   ETATS_CALENDRIER,
-  LIBELLES_ETAT,
+  LIBELLES_ETAT as TOUS_LES_LIBELLES,
   LIBELLE_ETAT_INCONNU,
   STATUTS_VERS_ETAT,
   etatDepuisStatut,
@@ -17,8 +17,16 @@ import {
  * La table « statut interne → libellé » est UNIQUE et vit dans le domaine (statuts.ts) : cette pastille la lit et n'en
  * garde aucune. Les noms ci-dessous sont repris tels quels pour les écrans qui les importaient d'ici.
  */
-export { ETATS_CALENDRIER, LIBELLES_ETAT, LIBELLE_ETAT_INCONNU, STATUTS_VERS_ETAT, etatDepuisStatut, libelleEtat, statutConnu };
+export { ETATS_CALENDRIER, LIBELLE_ETAT_INCONNU, STATUTS_VERS_ETAT, etatDepuisStatut, libelleEtat, statutConnu };
 export type { EtatCalendrier, LibelleEtat, TableLibelles, TableStatuts };
+
+/**
+ * Vue des six états affichés (maquette), pour le filtre : elle est tirée de la table unique (mêmes objets, aucune valeur
+ * recopiée). La table complète (Refusée, Manquée, Archivée…) reste `LIBELLES_ETAT` de statuts.ts.
+ */
+export const LIBELLES_ETAT: Readonly<Record<EtatCalendrier, LibelleEtat>> = Object.fromEntries(
+  ETATS_CALENDRIER.map((e) => [e, TOUS_LES_LIBELLES[e]]),
+) as Record<EtatCalendrier, LibelleEtat>;
 
 /**
  * État affiché. Les six états de la maquette sont fermés, mais la table nomme aussi « Refusée », « Manquée »,
