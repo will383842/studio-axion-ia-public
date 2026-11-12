@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import type { Reseau } from "@/briques/visuels/reseaux";
 import type { MotifRefus } from "@/domaine/visuels/visuel";
-import { verifierLegende } from "@/components/visuels-texte/compteur";
+import { normaliserLegende, verifierLegende } from "@/components/visuels-texte/compteur";
 import { texteDesPages } from "@/domaine/ecriture-post/contenu-source";
 import { texteDeterministeVisuel } from "@/generateur/roles/publication-visuel";
 import { journaliser } from "@/services/_commun";
@@ -100,6 +100,14 @@ type ReseauLegende = (typeof RESEAUX_LEGENDE)[number];
 const cleLegende = (id: string, reseau: ReseauLegende) => `visuels.legende.${id}.${reseau}`;
 const clePrecedente = (id: string, reseau: ReseauLegende) => `visuels.legende-precedente.${id}.${reseau}`;
 
+/** Historique « rien n'est supprimé » : chaque ancien texte est AJOUTÉ à la liste (l'ancienne valeur unique est reprise comme premier élément). */
+async function archiverAncien(deps: DependancesCarrousels, id: string, reseau: ReseauLegende, ancien: unknown): Promise<void> {
+  const cle = clePrecedente(id, reseau);
+  const avant = await deps.lireParametre<unknown>(cle, null);
+  const liste = Array.isArray(avant) ? avant : avant ? [avant] : [];
+  await deps.ecrireParametre(cle, [...liste, ancien]);
+}
+
 function lireReseauLegende(donnees: FormData): ReseauLegende | null {
   const r = donnees.get("reseau");
   return RESEAUX_LEGENDE.find((x) => x === r) ?? null;
@@ -116,7 +124,7 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
   if (!id) redirect("/carrousels");
   if (!reseau) redirect(`/carrousels/${encodeURIComponent(id)}`);
   const brut = donnees.get("texte");
-  const texte = typeof brut === "string" ? brut.trim() : "";
+  const texte = typeof brut === "string" ? normaliserLegende(brut).trim() : "";
   const verdict = verifierLegende(texte, reseau);
   if (!verdict.ok) redirect(`/carrousels/${encodeURIComponent(id)}?legende=${verdict.code}&reseau=${reseau}`);
   let erreur: string | undefined;
@@ -125,7 +133,9 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
     await lireVisuel(id, deps);
     await deps.verrou(async () => {
       const ancien = await deps.lireParametre<unknown>(cleLegende(id, reseau), null);
-      if (ancien) await deps.ecrireParametre(clePrecedente(id, reseau), ancien);
+      // Rejeu du même texte : rien à écrire, rien à archiver.
+      if ((ancien as { texte?: string } | null)?.texte === texte) return;
+      if (ancien) await archiverAncien(deps, id, reseau, ancien);
       await deps.ecrireParametre(cleLegende(id, reseau), { texte, le: deps.maintenant() });
     });
     await journaliser("legende", `Texte relu et enregistré pour ${reseau}.`, { type: "visuel", id });
@@ -156,7 +166,7 @@ export async function reecrireLegendeAction(donnees: FormData): Promise<void> {
     if (!verdict.ok) throw new ErreurVisuel("TRANSITION_REFUSEE", verdict.phrase);
     await deps.verrou(async () => {
       const ancien = await deps.lireParametre<unknown>(cleLegende(id, reseau), null);
-      if (ancien) await deps.ecrireParametre(clePrecedente(id, reseau), ancien);
+      if (ancien) await archiverAncien(deps, id, reseau, ancien);
       await deps.ecrireParametre(cleLegende(id, reseau), { texte: propose.texte.trim(), le: deps.maintenant(), simulation: true });
     });
     await journaliser("legende", `Réécriture en simulation du texte pour ${reseau} : texte automatique, aucun appel externe.`, { type: "visuel", id });

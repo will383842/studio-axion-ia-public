@@ -76,6 +76,19 @@ describe("compteur", () => {
     expect(verifierLegende("Un texte correct", "instagram")).toEqual({ ok: true });
   });
 
+  it("saut de ligne CRLF = 1 caractère, emoji avec teinte = 2 points de code, singulier à 1 caractère", async () => {
+    const { compterLegende, verifierLegende, normaliserLegende } = await import("@/components/visuels-texte/compteur");
+    expect(compterLegende("a\r\nb", "linkedin").caracteres).toBe(3);
+    expect(normaliserLegende("a\r\nb\rc")).toBe("a\nb\nc");
+    expect(compterLegende("\u{1F44D}\u{1F3FD}", "linkedin").caracteres).toBe(2);
+    const max = obtenirReseau("linkedin").legende.longueurMax;
+    expect(verifierLegende("a\r\n".repeat(max / 3 - 1) + "a", "linkedin")).toEqual({ ok: true });
+    const un = verifierLegende("x".repeat(max + 1), "linkedin");
+    expect(un.ok === false && un.phrase).toContain("1 caractère à retirer");
+    const deux = verifierLegende("x".repeat(max + 2), "linkedin");
+    expect(deux.ok === false && deux.phrase).toContain("2 caractères à retirer");
+  });
+
   it("la phrase du compteur ne contient aucun montant", async () => {
     const { compterLegende, phraseCompteur } = await import("@/components/visuels-texte/compteur");
     expect(phraseCompteur(compterLegende("Bonjour", "linkedin"))).toMatch(/7 sur 3[\s  ]?000 caractères/);
@@ -128,6 +141,48 @@ describe("actions de la fiche", () => {
     expect(params.get(`visuels.legende.${ID}.facebook`)).toMatchObject({ texte: "Mon texte relu" });
   });
 
+  it("texte vide : erreur VIDE et rien n'est enregistré ni journalisé", async () => {
+    const a = await import("@/app/(studio)/carrousels/[id]/actions");
+    const adresse = await adresseDe(a.enregistrerLegendeAction(formulaire({ id: ID, reseau: "linkedin", texte: "   " })));
+    expect(adresse).toContain("legende=VIDE");
+    expect(params.size).toBe(0);
+    expect(journal).toHaveLength(0);
+  });
+
+  it("longueur exactement égale au maximum : acceptée ; CRLF enregistré en saut de ligne simple", async () => {
+    const a = await import("@/app/(studio)/carrousels/[id]/actions");
+    const max = obtenirReseau("linkedin").legende.longueurMax;
+    const adresse = await adresseDe(a.enregistrerLegendeAction(formulaire({ id: ID, reseau: "linkedin", texte: "x".repeat(max) })));
+    expect(adresse).not.toContain("legende=");
+    expect((params.get(`visuels.legende.${ID}.linkedin`) as { texte: string }).texte).toHaveLength(max);
+    await adresseDe(a.enregistrerLegendeAction(formulaire({ id: ID, reseau: "facebook", texte: "a\r\nb" })));
+    expect(params.get(`visuels.legende.${ID}.facebook`)).toMatchObject({ texte: "a\nb" });
+  });
+
+  it("visuel inexistant : erreur, rien n'est enregistré", async () => {
+    const a = await import("@/app/(studio)/carrousels/[id]/actions");
+    const adresse = await adresseDe(a.enregistrerLegendeAction(formulaire({ id: "vis_absent", reseau: "linkedin", texte: "Bonjour" })));
+    expect(adresse).toContain("erreur=");
+    expect(params.size).toBe(0);
+  });
+
+  it("rejeu (double Enregistrer du même texte) : le texte reste le même et l'ancien texte ne se perd pas", async () => {
+    const a = await import("@/app/(studio)/carrousels/[id]/actions");
+    for (let i = 0; i < 2; i++) await adresseDe(a.enregistrerLegendeAction(formulaire({ id: ID, reseau: "linkedin", texte: "Texte A" })));
+    expect(params.get(`visuels.legende.${ID}.linkedin`)).toMatchObject({ texte: "Texte A" });
+    expect(params.get(`visuels.legende-precedente.${ID}.linkedin`)).toBeUndefined();
+  });
+
+  it("trois écritures successives (A, B, puis Réécrire) : A et B restent lisibles dans l'historique", async () => {
+    const a = await import("@/app/(studio)/carrousels/[id]/actions");
+    await adresseDe(a.enregistrerLegendeAction(formulaire({ id: ID, reseau: "linkedin", texte: "Texte A" })));
+    await adresseDe(a.enregistrerLegendeAction(formulaire({ id: ID, reseau: "linkedin", texte: "Texte B" })));
+    await adresseDe(a.reecrireLegendeAction(formulaire({ id: ID, reseau: "linkedin" })));
+    const histo = params.get(`visuels.legende-precedente.${ID}.linkedin`) as { texte: string }[];
+    expect(histo.map((h) => h.texte)).toEqual(["Texte A", "Texte B"]);
+    expect((params.get(`visuels.legende.${ID}.linkedin`) as { texte: string }).texte).toContain("Trois gestes");
+  });
+
   it("réseau inconnu ou identifiant mal formé : rien n'est enregistré", async () => {
     const a = await import("@/app/(studio)/carrousels/[id]/actions");
     await adresseDe(a.enregistrerLegendeAction(formulaire({ id: ID, reseau: "tiktok", texte: "Bonjour" })));
@@ -143,7 +198,7 @@ describe("actions de la fiche", () => {
     const nouveau = params.get(`visuels.legende.${ID}.linkedin`) as { texte: string };
     expect(nouveau.texte).toContain("Trois gestes pour mieux ranger ses factures");
     expect(nouveau.texte.length).toBeLessThanOrEqual(obtenirReseau("linkedin").legende.longueurMax);
-    expect(params.get(`visuels.legende-precedente.${ID}.linkedin`)).toMatchObject({ texte: "Ancien texte" });
+    expect(params.get(`visuels.legende-precedente.${ID}.linkedin`)).toMatchObject([{ texte: "Ancien texte" }]);
     expect(journal).toHaveLength(1);
     expect(journal[0]).toMatchObject({ entite: { type: "visuel", id: ID } });
     expect(journal[0].message).toMatch(/simulation/i);
