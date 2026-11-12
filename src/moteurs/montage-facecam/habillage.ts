@@ -22,12 +22,12 @@ import { TAILLE_SOUS_TITRES_REFERENCE_PX } from "@/briques/composition";
 import { dispositionQuiTient, GROUPEMENT_FACECAM, type MemoireCartesAuto, ligneSousTitresEcranPartage, positionSousTitresFacecam, SOUS_TITRES_FACECAM, sourceYMoitieBasse, textesAffichesDesCartes, type PhraseHorodatee } from "@/briques/habillage-facecam";
 import { calerCarteTous, miseEnPage, preparerCarteTous, type CarteMotionTous, type CodeSurMesure, type ParametresRenduCarte, type StyleMotion } from "@/briques/motion";
 import { grouperMots, recalerSurCoupes } from "@/briques/sous-titres/groupement";
-import { marquerMotsImportants } from "@/briques/sous-titres/mots-importants";
+import { marquerMotsImportants, type SourceMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { recollerElisionsHorodatees } from "@/briques/sous-titres/recollage";
 import { cartesAutoDeLaVideo, texteCarteMotion, type AjustementCarteAutoMonte, type CarteAutoVue } from "./cartes-video";
 import { geometrieCote, geometrieVignette, type CoteWill, type ModeMiseEnPage } from "@/briques/habillage-facecam/mise-en-page";
 import type { CarteAutoFacecam } from "@/domaine/facecam";
-import type { MotHorodate, SegmentSousTitres } from "@/domaine/types";
+import type { CommandeFabrication, MotHorodate, SegmentSousTitres } from "@/domaine/types";
 import type { PlanProduit } from "@/moteurs/types";
 
 /** Ce que le format face caméra dit à la brique « composition » (piste opaque, pré-cadrée, aucun décor ajouté). */
@@ -104,6 +104,8 @@ export interface RenduCarte {
 }
 
 export interface HabillageFacecam {
+  /** GV-ST-10 : d'où viennent les mots colorés des sous-titres (script désigné, ou mots forts de la transcription). */
+  sourceMotsImportants: SourceMotsImportants;
   /** Cartes à rendre AVANT la composition finale (une demande `composition` sans mode chacune). */
   cartes: RenduCarte[];
   /** Vérif V1 : cartes automatiques posées (rangées dans la version : le monteur du chat les voit et peut les retirer). */
@@ -203,6 +205,25 @@ export function cartesAvecAutomatiques(monteur: CartePosee[] | undefined, mots: 
   return cartesPosees({ cartes: monteur, mots, dureeSec, occupes }).posees;
 }
 
+/** GV-ST-10 : mots mis en valeur dans le script (`emphase` des segments) ; à défaut, ceux des plans ; sans doublon. */
+export function emphaseDuScript(c: Pick<CommandeFabrication, "script" | "plans">): string[] {
+  const dedoublonner = (l: string[]) => [...new Set(l.map((m) => m.trim()).filter(Boolean))];
+  const duScript = dedoublonner((c.script?.blocs ?? []).flatMap((b) => b.segments.flatMap((s) => s.emphase ?? [])));
+  return duScript.length ? duScript : dedoublonner((c.plans ?? []).flatMap((p) => p.motsEnValeur ?? []));
+}
+
+/**
+ * GV-ST-10 : marque les mots importants avec l'emphase du script ; si elle n'en marque AUCUN (mots jamais dits),
+ * repli sur les mots forts de la transcription. La source rendue dit ce qui a vraiment servi.
+ */
+export function marquerMotsDuScript<S extends { mots: { mot: string; enValeur?: boolean }[] }>(segments: readonly S[], emphase?: readonly string[]): { segments: S[]; source: SourceMotsImportants } {
+  const r = marquerMotsImportants(segments, { emphaseScript: emphase });
+  const marques = (l: readonly S[]) => l.reduce((n, s) => n + s.mots.filter((m) => m.enValeur).length, 0);
+  if (r.source === "script" && marques(r.segments) <= marques(segments)) return marquerMotsImportants(segments, {});
+  return r;
+}
+
+
 /** Tout l'habillage d'une vidéo face caméra en 9:16. */
 export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
   const ratio = "9:16" as const;
@@ -242,7 +263,7 @@ export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
   // 2. Sous-titres : 1 à 4 mots coupés par le sens, calés sur les raccords à moins de 0,2 s.
   const groupes = grouperMots(recollerElisionsHorodatees(e.mots), GROUPEMENT_FACECAM);
   // Mots importants : une règle unique avec repli (emphase du script, sinon mots forts de la transcription), dans le style choisi.
-  const { segments } = marquerMotsImportants(e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes, { emphaseScript: e.emphase });
+  const { segments, source: sourceMotsImportants } = marquerMotsDuScript(e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes, e.emphase);
   // Un titre affiché (appel à l'action, carte plein écran) n'est pas répété en sous-titre pendant la carte.
   const textesAffiches = textesAffichesDesCartes(affichees);
   // 3. Entrée de la composition : piste pré-cadrée 10 bits, cartes, ligne des sous-titres, Look sur les B-roll.
@@ -264,5 +285,5 @@ export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
     ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle } } : {}),
     ...(textesAffiches.length ? { textesAffiches } : {}),
   };
-  return { cartes, entree, segments, cartesAuto, cartesAutoVues };
+  return { cartes, entree, segments, cartesAuto, cartesAutoVues, sourceMotsImportants };
 }
