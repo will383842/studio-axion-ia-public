@@ -17,6 +17,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Carte } from "@/components/ui/Carte";
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { Icone } from "@/components/ui/Icone";
 import { BarreProgression } from "@/components/ui/ProgressionEtapes";
 import { ZoneDepot } from "@/components/ui/ZoneDepot";
@@ -239,7 +240,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
             {tropCourte(p) && <p className="text-sm font-semibold text-brique">Cette vidéo est trop courte (moins de 5 secondes) : retirez-la.</p>}
             {p.refusSujet && (
               <section aria-label="Vidéo déjà traitée" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-                <p className="font-semibold">{p.erreur}</p>
+                <p className="font-semibold">{messageSansMontant(p.erreur ?? "")}</p>
                 <ul className="space-y-1 text-sm">
                   {p.refusSujet.precedents.slice(0, 5).map((pr) => (
                     <li key={pr.videoId ?? pr.sujetId ?? pr.lien}>
@@ -262,7 +263,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
             )}
             {p.erreur && !p.refusSujet && (
               <div role="alert" className="space-y-2 rounded-2xl bg-brique-doux px-4 py-3">
-                <p className="text-[15px] font-semibold text-brique">{p.erreur}</p>
+                <p className="text-[15px] font-semibold text-brique">{messageSansMontant(p.erreur ?? "")}</p>
                 {p.etape === "arretee" && p.reprenable && (
                   <Bouton variante="secondaire" icone="reessayer" onClick={() => modifier(p.id, { etape: "a-envoyer", erreur: undefined })}>
                     Reprendre l&apos;envoi
@@ -310,7 +311,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
       )}
       {refus && (
         <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">
-          {refus}
+          {messageSansMontant(refus)}
         </p>
       )}
       <EstimationCout prises={aEstimer} />
