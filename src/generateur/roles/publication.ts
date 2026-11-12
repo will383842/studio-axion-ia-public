@@ -339,7 +339,7 @@ export function entreePublication(d: DonneesPublication): EntreeRole {
   const md = motsDiesePermis(d.reseau);
   const variable = [
     "<video>",
-    `Titre : ${neutre(d.titre)}`,
+    d.titre.trim() ? `Titre : ${neutre(d.titre)}` : "",
     d.formatId ? `Format : ${d.formatId}` : "",
     d.dureeSec ? `Durée : ${d.dureeSec} s` : "",
     `Adresse : ${d.adresse}`,
@@ -386,12 +386,12 @@ function lireEntree(variable: string): { reseau: IdReseau; titre: string; texteV
 /** Sortie simulée (aucune clé, aucun appel) : le texte d'essai d'aujourd'hui, sans la fin ajoutée par le code. */
 export function simulerPublication(entree: EntreeRole): SortiePublication {
   const e = lireEntree(entree.variable);
-  const corps = corpsTexteSimule({ reseau: e.reseau, titre: e.titre, texteScript: e.texteValide || e.titre, dureeSec: e.dureeSec, adresse: e.adresse });
+  const corps = corpsTexteSimule({ reseau: e.reseau, titre: e.titre || e.texteValide, texteScript: e.texteValide || e.titre, dureeSec: e.dureeSec, adresse: e.adresse });
   return {
     premiereLigne: corps.split("\n")[0],
     texte: corps,
     motsDiese: motsDiesePour(e.formatId, e.reseau, obtenirReseau(e.reseau).legende.motsDieseConseilles),
-    ...(titresDemandes(e.reseau) ? { titres: [e.titre.slice(0, TITRE_CARACTERES_MAX)] } : {}),
+    ...(titresDemandes(e.reseau) ? { titres: [(e.titre || e.texteValide).slice(0, TITRE_CARACTERES_MAX)] } : {}),
     justifications: [],
   };
 }

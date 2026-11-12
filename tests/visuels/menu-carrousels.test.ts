@@ -1,6 +1,8 @@
 /**
  * Menu (18/10) : carrousels, infographies et vidéos sont trois familles distinctes. « Carrousels » est une entrée de premier
  * niveau, après « Mes vidéos » (et ses sous-entrées, qui sont les formats), avant « Calendrier ».
+ * 12/11 (refonte R2, décision de Williams) : « Carrousels » devient la 2e sous-rubrique de « Mes contenus », juste après « Vidéos » ;
+ * « Tous mes contenus » quitte la barre.
  */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -15,18 +17,18 @@ describe("menu : entrée Carrousels", () => {
   const menu = navigationLaterale([], true);
   const libelles = menu.map((e) => e.libelle);
 
-  it("existe en premier niveau, vers /carrousels", () => {
+  it("existe dans « Mes contenus », vers /carrousels", () => {
     const e = menu.find((x) => x.libelle === "Carrousels");
     expect(e?.href).toBe("/carrousels");
   });
 
-  it("est placée juste après « Mes vidéos » (section « Contenus », 08/11)", () => {
+  it("est placée juste après « Vidéos » (sous-rubrique de « Mes contenus », 12/11)", () => {
     const i = libelles.indexOf("Carrousels");
-    expect(libelles[i - 1]).toBe("Mes vidéos");
+    expect(libelles[i - 1]).toBe("Vidéos");
   });
 
-  it("n'est pas rangée sous « Mes vidéos » : « Mes vidéos » ne s'allume pas sur /carrousels et inversement", () => {
-    const videos = NAV_LATERALE.find((e) => e.libelle === "Mes vidéos")!;
+  it("n'est pas rangée sous « Vidéos » : « Vidéos » ne s'allume pas sur /carrousels et inversement", () => {
+    const videos = NAV_LATERALE.find((e) => e.libelle === "Vidéos")!;
     const carrousels = NAV_LATERALE.find((e) => e.libelle === "Carrousels")!;
     expect(videos.actifSur ?? []).not.toContain("/carrousels");
     expect(estActif("/carrousels", videos)).toBe(false);
@@ -37,13 +39,10 @@ describe("menu : entrée Carrousels", () => {
     expect(estActif("/videos", carrousels)).toBe(false);
   });
 
-  it("« Tous mes contenus » mène à /contenus, juste après « Carrousels », sans toucher aux autres entrées", () => {
-    const i = libelles.indexOf("Tous mes contenus");
-    expect(i).toBe(libelles.indexOf("Carrousels") + 1);
-    const e = menu[i];
-    expect(e.href).toBe("/contenus");
-    expect(estActif("/contenus", e)).toBe(true);
-    expect(estActif("/carrousels", e)).toBe(false);
+  it("« Tous mes contenus » (/contenus) n'est plus dans la barre mais reste joignable par la recherche ; les autres entrées sont intactes", async () => {
+    expect(libelles).not.toContain("Tous mes contenus");
+    const { pagesTrouvees } = await import("../../src/components/coquille/pages-recherche");
+    expect(pagesTrouvees("tous mes contenus").map((p) => p.href)).toContain("/contenus");
     expect(libelles.filter((l) => l === "Réponses automatiques")).toHaveLength(1);
   });
 

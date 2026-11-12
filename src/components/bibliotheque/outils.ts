@@ -67,8 +67,16 @@ export const FICHIER_PAR_TYPE: Partial<Record<TypeElement, { accepte: string; li
   police: { accepte: ".ttf,.otf,.woff,.woff2", libelle: "Déposer la police (facultatif)" },
 };
 
-/** Lit la valeur d'un jeton de couleur (pour proposer une teinte de départ sans couleur écrite en dur). */
+/**
+ * Jetons d'interface -> jetons de CHARTE FIGÉS (--charte-*). Ces lectures fabriquent du CONTENU (couleur d'un nouvel
+ * élément de marque, aperçu des sous-titres) : elles ne doivent pas bouger quand l'interface change de couleurs.
+ */
+const JETON_CHARTE: Record<string, string> = { orange: "charte-orange", "orange-vif": "charte-orange-vif", fond: "charte-ivoire", texte: "charte-noir" };
+
+/** Lit la valeur d'un jeton de couleur de CHARTE (pour proposer une teinte de départ sans couleur écrite en dur). */
 export function lireJeton(nom: string): string {
   if (typeof window === "undefined") return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(`--${nom}`).trim();
+  const style = getComputedStyle(document.documentElement);
+  const charte = JETON_CHARTE[nom];
+  return (charte ? style.getPropertyValue(`--${charte}`).trim() : "") || style.getPropertyValue(`--${nom}`).trim();
 }
