@@ -238,7 +238,7 @@ export const ouverturesRecentes = (historique: readonly HistoriqueVideo[] | unde
 function versionSimple(entree: EntreeRealisateur, essais: number, phrase?: string, erreursClaude?: string[]): ResultatRealisateur {
   const elementsV4 = planMinimalV4({ mots: entree.mots, horizon: debutFin(entree), graine: entree.videoId ? graineVideo(entree.videoId) : graineDe(entree.prise.src, entree.mots), eviterOuvertures: ouverturesRecentes(entree.historique) });
   const plan = assemblerPlan(entree, { cartes: [], fenetres: [], calques: [], zooms: [], elementsV4 });
-  const v = verifierPlan(plan, entree.mots, { historique: entree.historique });
+  const v = verifierPlan(plan, entree.mots, { historique: entree.historique, repetitionEnAvertissement: true });
   const erreurs = erreursClaude ?? (v.erreurs.length ? v.erreurs : undefined);
   // Un plan sans plaquette (vidéo muette ou trop courte) n'est jamais rendu.
   const rendable = v.rendable && elementsV4.length > 0;
@@ -265,7 +265,8 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
   let erreurs: string[] = [];
   let planRefuse: unknown;
   let essais = 0;
-  while (essais < (repli ? repli.essaisMax : ESSAIS_MAX_REALISATEUR)) {
+  const essaisMax = repli ? repli.essaisMax : ESSAIS_MAX_REALISATEUR;
+  while (essais < essaisMax) {
     essais++;
     planRefuse = undefined;
     let r: ReponseRealisateur;
@@ -296,8 +297,12 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
         elementsV4: s.elementsV4 ?? [],
         motsForts: (s.motsForts ?? []).map(nettoyer).filter(Boolean),
       });
-      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}) });
-      if (!v.erreurs.length) return { plan, version: "complete", essais, avertissements: v.avertissements, mesures: v.mesures, rendable: v.rendable };
+      // Anti-répétition (D17) : bloquante aux essais 1 à N-1 ; au DERNIER essai elle devient un avertissement et le meilleur plan passe (jamais d'échec pour cette raison).
+      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}), ...(essais >= essaisMax ? { repetitionEnAvertissement: true } : {}) });
+      if (!v.erreurs.length) {
+        const repetee = v.avertissements.some((a) => a.startsWith("D17"));
+        return { plan, version: "complete", essais, avertissements: v.avertissements, mesures: v.mesures, rendable: v.rendable, ...(repetee ? { phrase: "Mise en scène gardée : elle ressemble aux vidéos récentes (ouverture ou plaquettes déjà vues) malgré les essais." } : {}) };
+      }
       // Dès le 2ᵉ essai (une vidéo ordinaire ne paie pas 3 appels) : si les seules erreurs sont D14 (plafond d'une plaquette) ou D2a (emplacements), le plan d'Opus
       // est GARDÉ, avec un avertissement et une phrase pour Will, plutôt que remplacé par le repli simple (ces règles ne bloquent pas le rendu).
       if (essais >= Math.min(2, repli ? repli.essaisMax : ESSAIS_MAX_REALISATEUR) && v.rendable && v.erreurs.every((e) => /^(?:D14|D2a) — /.test(e))) {
