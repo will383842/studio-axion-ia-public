@@ -48,7 +48,7 @@ import { assemblerVersionCourteIV, assemblerVersionsIV, planMixageIV, type Deman
 import type { BruitageValideIV } from "./bruitages";
 import { carteSansRetires, type VersionAControlerIV } from "./controles";
 import { choisirParcoursIV, type ChoixParcoursIV, type SqueletteRecent } from "./parcours-varies";
-import { CODES_REGLES_JAMAIS_FAUX, ecrireScriptIV, type OutilsEcritureIV } from "./ecriture";
+import { CODES_REGLES_FORME_ACCEPTABLES, ecrireScriptIV, type OutilsEcritureIV } from "./ecriture";
 import type { DemandeReservationControleIV } from "./ecoute";
 import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
@@ -793,9 +793,11 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   const verdict = verifierScript(fiche, { carte, choixFormules, ajoutsWill, interdits: etat.demande.interdits ?? [], ...recitDe(etat) });
   // Script collé : seuls les points qui le bloquent comptent (chiffre hors schéma, interdit, phrase affirmative non tranchée).
   const manquements = etat.demande.scriptColle ? manquementsDuScriptColle(verdict) : verdict.manquements;
-  const pointsAcceptes = manquements.length && d.formeAcceptee === true ? manquements : [];
+  // Le drapeau ne vaut que pour le script TEL QU'IL A ÉTÉ MONTRÉ (aTrancher vient de la proposition) : texte identique, aucune formule reformulée.
+  const tel = (!d.fiche || JSON.stringify(d.fiche) === JSON.stringify(p.fiche)) && Object.values(choixFormules).every((c) => c === "garder");
+  const pointsAcceptes = manquements.length && d.formeAcceptee === true && tel ? manquements : [];
   if (pointsAcceptes.length) {
-    const bloquants = pointsAcceptes.filter((m) => CODES_REGLES_JAMAIS_FAUX.includes(m.regle));
+    const bloquants = pointsAcceptes.filter((m) => !CODES_REGLES_FORME_ACCEPTABLES.includes(m.regle));
     if (bloquants.length) throw new ErreurDecisionIV(`Ce point ne peut pas être accepté tel quel : ${bloquants.map((m) => m.message).join(" ")}`, bloquants.map((m) => m.message));
   } else if (manquements.length) throw new ErreurDecisionIV(`Le script ne passe pas encore les contrôles (${manquements.length} point(s)).`, manquements.map((m) => m.message));
   const question = etat.demande.appelCommentaire === "question-puis-fin" ? fiche.questionCommentaire.texteDit : undefined;
