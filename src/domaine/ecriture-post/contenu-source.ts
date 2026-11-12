@@ -45,13 +45,18 @@ export function texteDesPages(spec: CarrouselSpecType): string {
   return lignes.map((l) => l.trim()).filter(Boolean).join("\n");
 }
 
-/** Faits (phrases, chiffres) qu'on ne retrouve pas dans le texte, bornes de mot comprises (« 80 » n'est pas dans « 180 ») : la liste vide veut dire « tout est présent ». */
+/** Recolle les milliers écrits avec une espace (« 1 200 » devient « 1200 ») pour qu'un nombre reste un seul mot. */
+function recollerMilliers(t: string): string {
+  return t.replace(/(\d) (?=\d{3}(?!\d))/g, "$1");
+}
+
+/** Faits (phrases, chiffres) qu'on ne retrouve pas dans le texte, bornes de mot comprises (« 80 » n'est ni dans « 180 », ni dans « 1 200 », ni dans « 80,5 ») : la liste vide veut dire « tout est présent ». */
 export function verifierFaits(texte: string, faits: readonly string[]): string[] {
-  const base = normaliser(texte);
+  const base = recollerMilliers(normaliser(texte));
   return faits.filter((f) => {
-    const n = normaliser(f);
+    const n = recollerMilliers(normaliser(f)).replace(/[\s.,;:!?…]+$/u, "");
     if (n.length === 0) return false;
     const echappe = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return !new RegExp(`(^|[^\\p{L}\\p{N}])${echappe}([^\\p{L}\\p{N}]|$)`, "u").test(base);
+    return !new RegExp(`(?<![\\p{L}\\p{N}])(?<!\\d[,.])${echappe}(?![\\p{L}\\p{N}])(?![,.]\\d)`, "u").test(base);
   });
 }
