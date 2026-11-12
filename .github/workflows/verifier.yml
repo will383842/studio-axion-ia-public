@@ -135,4 +135,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      # Le contrôle de types complet est fait par le job différentiel ; le build ne type-vérifie que src/
+      # (cause de l'ancien rouge : erreurs TS2307 « remotion » et autres dans docs/, studio-rendu/ et tests/, aussi sur master).
+      - run: node outils/gardes/zone-interdite.mjs --tsconfig-build tsconfig.json
       - run: pnpm exec next build

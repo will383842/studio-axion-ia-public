@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import {
-  classer, controler, motifVersRegex, extraireAutorises, annonceLibre, INTERDITS, PARTAGES,
+  classer, controler, motifVersRegex, extraireAutorises, annonceLibre, INTERDITS, PARTAGES, tsconfigDeBuild,
 } from "../../outils/gardes/zone-interdite.mjs";
 
 type Defaut = { regle: string; fichier?: string };
@@ -394,5 +394,59 @@ describe("relecture v1-s2 : fichiers autorisés, annonces et accords lisibles da
     expect(job).toContain("--corps");
     expect(job).toContain("worktree add");
     expect(job).not.toContain("--annonces usine");
+  });
+});
+
+describe("correction après relecture opus-v1-y1", () => {
+  const script = path.resolve(__dirname, "../../outils/gardes/zone-interdite.mjs");
+  const git = (cwd: string, ...a: string[]) => execFileSync("git", ["-c", "user.email=a@exemple.fr", "-c", "user.name=t", ...a], { cwd, stdio: "pipe" });
+  const lancer = (cwd: string, args: string[]) => {
+    try { return { code: 0, out: execFileSync("node", [script, ...args], { cwd, stdio: "pipe" }).toString() }; }
+    catch (e) { const x = e as { status: number; stdout: Buffer; stderr: Buffer }; return { code: x.status, out: x.stdout.toString() + x.stderr.toString() }; }
+  };
+  function monde(branche: string, base: Record<string, string>, pr: Record<string, string>) {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), "monde-"));
+    const ecrire = (m: Record<string, string>) => { for (const [n, c] of Object.entries(m)) { fs.mkdirSync(path.dirname(path.join(d, n)), { recursive: true }); fs.writeFileSync(path.join(d, n), c); } };
+    git(d, "init", "-q", "-b", "master");
+    ecrire({ "base.txt": "x", ...base });
+    git(d, "add", "."); git(d, "commit", "-qm", "base");
+    git(d, "checkout", "-qb", branche);
+    ecrire(pr);
+    git(d, "add", "."); git(d, "commit", "-qm", "pr");
+    return d;
+  }
+  const opts = (d: string) => ["--base", "master", "--listes", path.join(d, "pilotage/autorises"), "--annonces", path.join(d, "pilotage/annonces")];
+
+  it("branche usine/<ID>-propre : le suffixe -propre est retiré, la liste de <ID> est trouvée", () => {
+    const d = monde("usine/X-1-propre", { "pilotage/autorises/X-1.json": JSON.stringify(["src/a.ts"]) }, { "src/a.ts": "1", "pilotage/journal/X-1.md": "j" });
+    const r = lancer(d, [...opts(d), "--branche", "usine/X-1-propre"]);
+    expect(r.out).not.toContain("liste-introuvable");
+    expect(r.code).toBe(0);
+  });
+  it("branche usine/<ID>-propre : un fichier hors liste reste rouge", () => {
+    const d = monde("usine/X-1-propre", { "pilotage/autorises/X-1.json": JSON.stringify(["src/a.ts"]) }, { "src/a.ts": "1", "src/b.ts": "1" });
+    const r = lancer(d, [...opts(d), "--branche", "usine/X-1-propre"]);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("src/b.ts");
+  });
+  it("build : le contrôle de types du « next build » ne regarde que src (docs, studio-rendu et tests exclus)", () => {
+    const t = tsconfigDeBuild({
+      compilerOptions: { strict: true },
+      include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+      exclude: ["node_modules", "studio-rendu"],
+    });
+    expect(t.compilerOptions).toEqual({ strict: true });
+    expect(t.include).toContain("src/**/*.ts");
+    expect(t.include).toContain("src/**/*.tsx");
+    expect(t.include).not.toContain("**/*.ts");
+    expect(t.include.some((i: string) => /^(docs|studio-rendu|tests)/.test(i))).toBe(false);
+  });
+  it("build : --tsconfig-build réécrit le fichier donné et n'accepte pas un fichier absent", () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), "ts-"));
+    const f = path.join(d, "tsconfig.json");
+    fs.writeFileSync(f, JSON.stringify({ include: ["**/*.ts"], exclude: [] }));
+    expect(lancer(d, ["--tsconfig-build", f]).code).toBe(0);
+    expect(JSON.parse(fs.readFileSync(f, "utf8")).include).not.toContain("**/*.ts");
+    expect(lancer(d, ["--tsconfig-build", path.join(d, "absent.json")]).code).toBe(2);
   });
 });

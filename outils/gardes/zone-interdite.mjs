@@ -175,7 +175,8 @@ function lireAnnonces(dossier) {
 export function main(argv = process.argv.slice(2)) {
   const branche = option(argv, "--branche") ?? process.env.GITHUB_HEAD_REF ?? "";
   const ids = new Set();
-  const deBranche = /^usine\/(.+)$/.exec(branche)?.[1];
+  // Une branche « propre » (refaite sans historique fautif) porte le suffixe -propre : la fiche est celle d'avant.
+  const deBranche = /^usine\/(.+?)(?:-propre)?$/.exec(branche)?.[1];
   if (deBranche) ids.add(deBranche);
   const corps = option(argv, "--corps");
   if (corps && fs.existsSync(corps)) for (const i of fichesDuCorps(fs.readFileSync(corps, "utf8"))) ids.add(i);
@@ -256,6 +257,26 @@ export function mainDifferentiel(argv = process.argv.slice(2)) {
 }
 
 
+// --- tsconfig du job « next build » ----------------------------------------------------------------------------------
+// Le contrôle de types complet (docs/, studio-rendu/, tests/) est déjà couvert par le différentiel tsc : le build ne
+// type-vérifie que l'application (src/), sinon des erreurs héritées (module absent, tests) le rendent rouge sur master.
+export function tsconfigDeBuild(t) {
+  return {
+    ...t,
+    include: ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+    exclude: ["node_modules"],
+  };
+}
+
+export function mainTsconfigBuild(argv = process.argv.slice(2)) {
+  const f = option(argv, "--tsconfig-build");
+  if (!f || !fs.existsSync(f)) { console.error("zone-interdite --tsconfig-build : fichier tsconfig absent"); return 2; }
+  fs.writeFileSync(f, JSON.stringify(tsconfigDeBuild(JSON.parse(fs.readFileSync(f, "utf8"))), null, 2) + "\n");
+  console.log(`${f} : contrôle de types du build limité à src/`);
+  return 0;
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  process.exitCode = process.argv.includes("--differentiel") ? mainDifferentiel() : main();
+  process.exitCode = process.argv.includes("--differentiel") ? mainDifferentiel()
+    : process.argv.includes("--tsconfig-build") ? mainTsconfigBuild() : main();
 }
