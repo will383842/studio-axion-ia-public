@@ -12,7 +12,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
 import { ActionsSuivi } from "@/components/fabrication/ActionsSuivi";
-import { EncartCout } from "@/components/fabrication/EncartCout";
 import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { PrevenirTelephone } from "@/components/fabrication/PrevenirTelephone";
 import { Bouton } from "@/components/ui/Bouton";
@@ -21,7 +20,7 @@ import { notifier } from "@/components/ui/Toast";
 import { BoutonArreter } from "@/components/videos/BoutonArreter";
 import type { Montant } from "@/domaine/types";
 import { refaireCettePartie } from "./reprise";
-import { euros, type VueFabrication } from "./vue";
+import type { VueFabrication } from "./vue";
 import { etatSuiviIV, versSuiviFabricationIV } from "./vues-gabarit";
 
 /** Relecture de l'avancement (ms). */
@@ -81,7 +80,6 @@ export function Fabrication({
     }
   }
 
-  const jauge = vue.plafondCentimes > 0 ? Math.min(100, Math.round((vue.engageCentimes / vue.plafondCentimes) * 100)) : 0;
   const etat = etatSuiviIV({ enCours, arretee, vue });
   // Le refus du moteur dit sa phrase dans le titre ; l'arrêt de Will, ce qui est payé. Le détail du refus reste sous les étapes.
   const message = vue.refus && !enCours && !arretee ? vue.refus.phrase : arretee && !enCours ? "Fabrication arrêtée : seules les étapes déjà faites ont été payées." : undefined;
@@ -107,22 +105,6 @@ export function Fabrication({
 
       {vue.attente && <p className="text-sm text-texte-doux">Le rendu tourne sur nos serveurs : la suite reprend seule.</p>}
 
-      {vue.plafondCentimes > 0 && (
-        <Carte className="space-y-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="text-sm text-texte-doux">Dépense</p>
-            <p className="text-sm text-texte-doux">plafond {euros(vue.plafondCentimes)}</p>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-surface-3" aria-hidden>
-            <div className="h-full rounded-full bg-orange" style={{ width: `${jauge}%` }} />
-          </div>
-          <EncartCout nature="auPlus" montant={{ centimes: vue.engageCentimes, devise: "EUR" }} />
-          <p className="flex items-baseline justify-between rounded-carte border border-trait bg-surface-2 px-4 py-3 text-sm">
-            <span className="text-texte-doux">Voix déjà payée</span>
-            <span className="font-titre text-lg tabular-nums text-texte">{euros(vue.payeCentimes)}</span>
-          </p>
-        </Carte>
-      )}
 
       {vue.refus && (vue.refus.details.length > 0 || arretee) && (
         <Carte className="border-brique">

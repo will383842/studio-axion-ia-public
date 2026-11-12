@@ -60,8 +60,8 @@ describe("BoutonArreter · phrase après l'arrêt", () => {
   it("format sans prix (pas de dépense donnée) : aucun montant, même si le moteur en a compté", () => {
     expect(phraseArret(undefined, 1234)).toBeUndefined();
   });
-  it("format avec prix : le montant payé, ou « Rien n'a été payé. »", () => {
+  it("format avec prix : plus de montant, ou « Rien n'a été payé. »", () => {
     expect(phraseArret({ centimes: 0, devise: "EUR" }, 0)).toBe("Rien n'a été payé.");
-    expect(phraseArret({ centimes: 0, devise: "EUR" }, 150)?.replace(/\s/g, " ")).toBe("1,50 € payés pour les étapes faites.");
+    expect(phraseArret({ centimes: 0, devise: "EUR" }, 150)?.replace(/\s/g, " ")).toBe("Les étapes déjà faites sont gardées.");
   });
 });

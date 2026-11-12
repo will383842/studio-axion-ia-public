@@ -9,8 +9,9 @@ describe("statuts d'un visuel", () => {
     }
   });
 
-  it("refuse valide -> programme et accepte brouillon -> ecrit", () => {
-    expect(transitionPermise("valide", "programme")).toBe(false);
+  it("accepte valide -> programme (et refuse programme -> brouillon) et accepte brouillon -> ecrit", () => {
+    expect(transitionPermise("valide", "programme")).toBe(true);
+    expect(transitionPermise("programme", "brouillon")).toBe(false);
     expect(transitionPermise("brouillon", "ecrit")).toBe(true);
     expect(transitionPermise("a_valider", "valide")).toBe(true);
   });
