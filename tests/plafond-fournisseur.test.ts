@@ -275,7 +275,7 @@ describe("L2-13 · controlerBudgetDuMois n'est plus un refus de montant", () => 
     await expect(budget.controlerBudgetDuMois(100, { origine: "studio" })).resolves.toBeUndefined();
   });
 
-  it("le refus de l'usine reste entier au-delà du quota et du plafond technique, même budget d'argent ignoré", async () => {
+  it("le refus de l'usine reste entier au-delà du quota, même budget d'argent ignoré", async () => {
     await ecrireParametre(pf.CLE_QUOTAS_USINE, [{ periode: "jour", reseau: "fal", type: "image", limite: 1 }]);
     const f = fabrication();
     await pf.avecOrigineFournisseur("usine", async () => {
