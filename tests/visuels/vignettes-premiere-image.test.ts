@@ -6,12 +6,12 @@ const bonne = (t: number): MesureImage => ({ instantSec: t, flou: 2, luminosite:
 const noire = (t: number): MesureImage => ({ instantSec: t, flou: 2, luminosite: 5, contraste: 3 });
 
 describe("instantsDebut", () => {
-  it("commence à 0,05 s puis pas de 0,1 s jusqu'à 2 s", () => {
+  it("commence à 0,05 s puis pas de 0,25 s jusqu'à 3 s", () => {
     const { premiers } = instantsDebut(30);
     expect(premiers[0]).toBe(0.05);
-    expect(premiers[1]).toBe(0.1);
-    expect(premiers[2]).toBe(0.2);
-    expect(premiers.at(-1)).toBe(2);
+    expect(premiers[1]).toBe(0.25);
+    expect(premiers[2]).toBe(0.5);
+    expect(premiers.at(-1)).toBe(3);
   });
   it("le secours couvre jusqu'à 6 s, après les 2 premières", () => {
     const { premiers, secours } = instantsDebut(30);
@@ -25,7 +25,7 @@ describe("instantsDebut", () => {
 });
 
 describe("choisirImageDebut", () => {
-  it("la première image bonne des 2 premières secondes (pas la plus nette d'après)", () => {
+  it("à égalité de note, la plus tôt des images bonnes de l'accroche (pas la plus nette d'après)", () => {
     expect(choisirImageDebut([noire(0.05), noire(0.1), bonne(0.2), bonne(0.3)])?.instantSec).toBe(0.2);
   });
   it("toutes rejetées : la meilleure des 6 premières secondes (ni noire ni vide)", () => {

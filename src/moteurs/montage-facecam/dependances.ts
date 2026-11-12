@@ -13,6 +13,7 @@ import { resoudreFournisseur } from "@/fournisseurs";
 import { fournisseurFacecam } from "@/fournisseurs/facecam";
 import { obtenirServiceRendu, renduSimule } from "@/fournisseurs/rendu/client";
 import type { OutilsMontage } from "@/briques/composition/montage";
+import type { MemoireCartesAuto } from "@/briques/habillage-facecam";
 import type { DependancesChaine } from "./chaine";
 import { GLOSSAIRE_FACECAM } from "./glossaire";
 import { RECETTE_COMPOSITION_FACECAM } from "./habillage";
@@ -41,6 +42,8 @@ export interface ServicesFacecam {
   relecture?: (c: CommandeFabrication, travailId: string) => DependancesChaine["relire"];
   /** Lot K : effets réalistes par IA (`passeEffetsRealistesFacecam`) : jamais sans confirmation valide de la version. */
   effetsRealistes?: (c: CommandeFabrication, travailId: string) => DependancesChaine["effetsRealistes"];
+  /** GV-MD-05b : historique des cartes des 5 dernières vidéos (lecture de la base seulement), lu une fois au premier habillage. */
+  memoireCartes?: (c: CommandeFabrication) => Promise<MemoireCartesAuto>;
 }
 
 /** Ce que la relecture Claude reçoit à la fin de la chaîne (Lot I : une image au milieu de chaque effet). */
@@ -136,6 +139,7 @@ export function dependancesChaineParDefaut(c: Pick<CommandeFabrication, "entrees
     ...(habillage ? { habillage } : {}),
     ...(multicamera ? { multicamera } : {}),
     ...(planScenes ? { planScenes } : {}),
+    ...(habillage && services.memoireCartes ? { memoireCartes: () => services.memoireCartes!(commande) } : {}),
     ...(services.lireImageRvb ? { lireImageRvb: services.lireImageRvb } : {}), // Lot I
   };
 }
