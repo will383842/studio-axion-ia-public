@@ -138,6 +138,7 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
           ))}
         </ul>
         <Bouton
+          variante="secondaire"
           pleineLargeur
           icone="film"
           essai={!!plan.essai}
