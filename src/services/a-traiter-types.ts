@@ -5,9 +5,20 @@
 export const VARIABLE_INTERRUPTEUR_A_TRAITER = "A_TRAITER_ENABLED";
 export const EXTRAIT_MAX = 140;
 
-export const RESEAUX_A_TRAITER = ["linkedin", "tiktok", "youtube", "facebook", "instagram"] as const;
+export const RESEAUX_A_TRAITER = [
+  "linkedin",
+  "tiktok",
+  "youtube",
+  "facebook",
+  "instagram",
+] as const;
 export type ReseauATraiter = (typeof RESEAUX_A_TRAITER)[number];
-export const MOTIFS = ["echec_envoi", "mot_dans_phrase", "mot_inconnu", "mot_manuel"] as const;
+export const MOTIFS = [
+  "echec_envoi",
+  "mot_dans_phrase",
+  "mot_inconnu",
+  "mot_manuel",
+] as const;
 export type Motif = (typeof MOTIFS)[number];
 export type StatutATraiter = "a_traiter" | "fait" | "ignore";
 
@@ -31,6 +42,8 @@ export interface CarteATraiter {
   opposee?: boolean;
   /** Empreintes opaques de la personne (une par espace, jamais l'identifiant brut), pour revérifier l'opposition à la lecture. */
   empreintes?: string[];
+  /** Identifiant (kid) de la clé courante à la création : si elle change, la carte est traitée comme opposée (fermé). */
+  kid?: string;
 }
 
 export interface EntreeATraiter {
@@ -57,7 +70,17 @@ export interface VueATraiter {
   compteur: number | null;
 }
 
-export type ResultatChangement = { issue: "execute" | "simule" | "refuse"; raison: string };
-const INVERSES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
+export type ResultatChangement = {
+  issue: "execute" | "simule" | "refuse";
+  raison: string;
+};
+const INVERSES: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+};
 /** Pour l'affichage seulement : React échappe lui-même, on rend donc le texte lisible. */
-export const extraitLisible = (extrait: string): string => extrait.replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => INVERSES[m]);
+export const extraitLisible = (extrait: string): string =>
+  extrait.replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => INVERSES[m]);
