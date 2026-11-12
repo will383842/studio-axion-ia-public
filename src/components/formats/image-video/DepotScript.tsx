@@ -46,7 +46,7 @@ export function DepotScript({ script, onScript, reseaux, montant, blocage, onRef
       {children}
       {blocage && <p className="text-[15px] text-texte-doux">{blocage}</p>}
       <BarreActionCollee>
-        <BoutonFabriquer montantCentimes={montant} libelle="Fabriquer la vidéo" desactive={!pret} onFabriquer={fabriquer} />
+        <BoutonFabriquer montantCentimes={montant} desactive={!pret} onFabriquer={fabriquer} />
       </BarreActionCollee>
     </>
   );
