@@ -120,6 +120,25 @@ describe("vignettes · service", () => {
     expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toMatchObject({ texte: "Vos devis sans réponse", fixee: true });
   });
 
+  it("GV-FIN-02 · titre déjà sur la fiche : une panne de lecture du réglage ne fait pas échouer la couverture (pas de titreCentre)", { timeout: 60_000 }, async () => {
+    const v = await vraieVideo();
+    await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
+    const d = depots();
+    const obtenir = d.parametres.obtenir.bind(d.parametres);
+    const espion = vi.spyOn(d.parametres, "obtenir").mockImplementation(async (id: string) => {
+      if (id === "couverture.titreParDefaut") throw new Error("panne de lecture des paramètres");
+      return obtenir(id);
+    });
+    try {
+      await fabriquer(v);
+    } finally {
+      espion.mockRestore();
+    }
+    expect(recues).toHaveLength(1);
+    expect(recues[0].parametres).toMatchObject({ couverture: "Vos devis sans réponse", motCle: "devis" });
+    expect(recues[0].parametres).not.toHaveProperty("titreCentre");
+  });
+
   it("à la création, AUCUN titre n'est proposé ni écrit, même avec un script (champs vides par défaut)", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await depots().scripts.enregistrer({ id: "scr-vign", formatId: v.formatId, blocs: [{ id: "b1", blocRecette: "accroche", segments: [{ id: "s1", texte: "Votre amende de 135 € n'est pas définitive, contestez-la dans les 45 jours." }] }] } as never);

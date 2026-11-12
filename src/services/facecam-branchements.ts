@@ -183,8 +183,8 @@ brancherServicesFacecam({
 /**
  * Mémoire des cartes animées déjà servies par le face caméra : les modèles posés dans les 5 dernières vidéos terminées
  * (hors la vidéo en cours), la plus récente d'abord, un seul travail par vidéo (le plus récent) ; et le modèle qui a
- * ouvert la dernière. Même méthode que l'historique du réalisateur v4. Une lecture qui échoue ne bloque jamais : liste
- * vide, donc le choix d'avant. Le résultat doit être GARDÉ dans l'état du travail : une étape rejouée refait le même choix.
+ * ouvert la dernière. Même méthode que l'historique du réalisateur v4. Une lecture qui échoue remonte (GV-FIN-01) : la
+ * chaîne la rattrape, ce n'est pas cette fonction qui l'avale. Le résultat doit être GARDÉ dans l'état du travail : une étape rejouée refait le même choix.
  */
 export async function memoireCartesFacecam(videoIdEnCours?: string): Promise<{ dejaServis: string[]; ouverturePrecedente?: string }> {
   try {

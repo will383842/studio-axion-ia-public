@@ -214,11 +214,15 @@ jobs:
           const lances = compterLances(tete);
           let echecsBase = null;
           if (existsSync(chemBase)) {
-            try { echecsBase = extraireEchecs(JSON.parse(readFileSync(chemBase, "utf8"))); } catch { echecsBase = null; }
+            try {
+              const rapportBase = JSON.parse(readFileSync(chemBase, "utf8"));
+              // Aucun test lancé sur la base (vitest a planté en écrivant un rapport vide) : base illisible, pas « zéro échec ».
+              echecsBase = compterLances(rapportBase) === 0 ? null : extraireEchecs(rapportBase);
+            } catch { echecsBase = null; }
           }
           const l = ["", "### Tests de la zone : différence avec la base", ""];
           if (echecsBase === null) {
-            l.push("Rapport de la base illisible ou absent : comparaison impossible.");
+            l.push("Rapport de la base illisible, vide (aucun test lancé) ou absent : comparaison impossible.");
             appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join("\n") + "\n");
             process.exit(2);
           }
