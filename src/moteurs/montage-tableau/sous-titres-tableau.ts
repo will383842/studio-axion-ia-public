@@ -202,7 +202,7 @@ export function sousTitresTableau(o: { fiche: Pick<FicheTableau, "habillage" | "
   const accents = { impact: contraste(c.texte, teinte) >= CONTRASTE_MIN_SOUS_TITRES, bandeau: contraste(c.contour, c.texte) >= CONTRASTE_MIN_SOUS_TITRES };
   return {
     style: { id: source.id, nom: source.nom, valeur },
-    base: baseDe(gabaritStyle),
+    base: baseDe(source.valeur),
     gabarit: gabaritStyle,
     decor,
     contraste: mesure,
