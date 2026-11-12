@@ -30,14 +30,43 @@ export interface CleFiche {
   reseau: IdReseau;
 }
 
-const CLE = /^(publication|creneau):([A-Za-z0-9._-]{1,120})\|([a-z-]{1,30})$/;
+const LONGUEUR_MAX_ID = 200;
+const ID = /^[A-Za-z0-9._:-]+$/;
 
-/** Lit la clé d'une carte du calendrier ; `null` si elle est vide, illisible ou d'un réseau inconnu. */
+/**
+ * Lit la clé d'une carte du calendrier ; `null` si elle est vide, illisible ou d'un réseau inconnu.
+ * La clé se coupe au DERNIER « | » (le réseau), puis au premier « : » (l'origine) : l'identifiant peut donc contenir
+ * « : » (celui d'une Publication de carrousel programmé : `pub_envoi:<visuel>:<réseau>:v<n>`), jamais « | ».
+ */
 export function lireCleFiche(cle: unknown): CleFiche | null {
   if (typeof cle !== "string") return null;
-  const m = CLE.exec(cle);
-  if (!m || !reseauConnu(m[3])) return null;
-  return { cle, origine: m[1] as OrigineFiche, id: m[2], reseau: m[3] };
+  const barre = cle.lastIndexOf("|");
+  const deuxPoints = cle.indexOf(":");
+  if (barre < 0 || deuxPoints < 0 || deuxPoints > barre) return null;
+  const origine = cle.slice(0, deuxPoints);
+  const id = cle.slice(deuxPoints + 1, barre);
+  const reseau = cle.slice(barre + 1);
+  if (origine !== "publication" && origine !== "creneau") return null;
+  if (!id || id.length > LONGUEUR_MAX_ID || !ID.test(id)) return null;
+  if (!reseauConnu(reseau)) return null;
+  return { cle, origine, id, reseau };
+}
+
+/** La clé d'une carte, encodée pour une adresse (« : » et « | » ne s'y écrivent pas tels quels). */
+export function adresseFiche(cle: string): string {
+  return encodeURIComponent(cle);
+}
+
+/** Relit une clé reçue dans une adresse : décodée, puis lue comme n'importe quelle clé ; `null` si illisible. */
+export function cleDepuisAdresse(valeur: unknown): CleFiche | null {
+  if (typeof valeur !== "string") return null;
+  let decodee: string;
+  try {
+    decodee = decodeURIComponent(valeur);
+  } catch {
+    return null;
+  }
+  return lireCleFiche(decodee);
 }
 
 /* ------------------------------------------------------------------ */
@@ -209,7 +238,12 @@ export interface ProprietesFicheEntree {
   visuel?: ReactNode;
   /** Emplacement sous la date (son origine, le geste pour la déplacer). */
   sousDate?: ReactNode;
-  /** Emplacement des autres actions (valider, dupliquer, retirer, voir sur le réseau). Gardé même verrouillée. */
+  /**
+   * Emplacement des autres actions (valider, dupliquer, retirer, voir sur le réseau). Gardé même verrouillée.
+   * Quand la fiche se modifie, `children` est rendu DANS le `<form>` : jamais de `<form>` à soi (HTML invalide,
+   * le navigateur le jette), et des boutons en `type="button"` ou en `formAction` (un `<button>` sans type
+   * enregistrerait le texte au lieu de faire son geste).
+   */
   children?: ReactNode;
   className?: string;
 }
@@ -286,7 +320,7 @@ export function FicheEntree({
           </label>
           <textarea id={idCommentaire} name="premierCommentaire" rows={2} maxLength={LONGUEUR_MAX_PREMIER_COMMENTAIRE} defaultValue={entree.premierCommentaire ?? ""} readOnly={!modifiable} aria-describedby={`${idCommentaire}-aide`} className={CHAMP} />
           <p id={`${idCommentaire}-aide`} className="mt-1.5 text-xs text-texte-faible">
-            {modePremierCommentaire(entree.reseau).transmettre ? "Il part avec la publication." : `À poser à la main sur ${nom}, juste après la publication.`}
+            {modePremierCommentaire(entree.reseau).transmettre ? "Enregistré dans le calendrier." : `À poser à la main sur ${nom}, juste après la publication.`}
           </p>
         </div>
       )}
