@@ -1,13 +1,18 @@
 /**
  * RC-33 : planificateur du stock de messages (PUR : aucune écriture, aucun réseau, aucune horloge).
  * Priorité : 1) entrées du stock avec échéance, 2) entrées du stock par priorité, 3) sujets proposés par l'usine.
- * Quotas par jour et par réseau et espacement respectés. Une entrée du stock n'est jamais supprimée ni remplacée par
+ * Quotas par jour et par réseau, écart en heures, jour sans publication (week-end LinkedIn) : chaque candidat est
+ * vérifié par le noyau de cadence (L3-16 : verifierEspacement) avec les réglages par réseau de L7-10 ; ce service ne
+ * porte aucune règle d'espacement à lui. Les entrées du stock déjà « planifié » ne comptent que si l'appelant les
+ * recopie dans `existants` (le stock ne porte pas leur jour). Une entrée du stock n'est jamais supprimée ni remplacée par
  * un sujet de l'usine : au pire elle est décalée (échéance dépassée, signalée) ou reste en stock (aucun créneau, signalée).
  * Une date choisie par le fondateur n'est jamais déplacée. Les dates sont des jours AAAA-MM-JJ (heure de Paris).
  * Une entrée = un créneau : ses réseaux sont les réseaux acceptés ; sans réseau, tous sont acceptés.
  */
 import { jourValide, RANG_PRIORITE, estActif, reseauxDe, type MessageStock } from "@/domaine/stock-messages";
 import type { IdReseau } from "@/domaine/types";
+import { REGLES_PAR_DEFAUT, verifierEspacement, type Constat, type PostPlanifie, type ReglesEspacement } from "@/domaine/cadence/verifier";
+import { lireHeure, normaliserReglagesCadence, REGLAGES_CADENCE_DEFAUT, type ReglagesCadence } from "@/domaine/cadence/reglages";
 
 export type EntreeStock = MessageStock & {
   /** Jour choisi par le fondateur (AAAA-MM-JJ) : jamais déplacé. */
@@ -30,6 +35,8 @@ export interface CreneauLibre {
 export interface PostOccupe {
   reseau: IdReseau;
   jour: string;
+  /** HH:MM (Paris) ; absent ou illisible = 09:00. */
+  heure?: string;
 }
 
 export interface EntreePlanificateur {
@@ -37,11 +44,8 @@ export interface EntreePlanificateur {
   sujets: readonly SujetUsine[];
   creneaux: readonly CreneauLibre[];
   existants?: readonly PostOccupe[];
-  /** Posts par jour et par réseau (entier ≥ 0 ; invalide = 1). */
-  quotaParJour?: number;
-  quotaParReseau?: Partial<Record<IdReseau, number>>;
-  /** Écart minimal en jours entre deux jours de publication d'un même réseau (invalide = 0). */
-  ecartMinJours?: number;
+  /** Réglages de cadence L7-10 (quota par jour et écart en minutes, par réseau) ; absent ou illisible = valeurs de départ. */
+  reglages?: ReglagesCadence;
 }
 
 export interface Affectation {
@@ -55,7 +59,13 @@ export interface Affectation {
   epingle: boolean;
 }
 
-export type CodeAlerte = "echeance-impossible" | "quota-depasse" | "date-illisible";
+export type CodeAlerte =
+  | "echeance-impossible"
+  | "quota-depasse"
+  | "ecart-non-respecte"
+  | "weekend-interdit"
+  | "date-illisible"
+  | "date-sans-reseau";
 export interface Alerte {
   id: string;
   code: CodeAlerte;
@@ -68,15 +78,6 @@ export interface PlanStock {
   /** Entrées du stock restées en stock faute de créneau : jamais supprimées. */
   nonPlaces: { id: string; raison: "aucun-creneau" }[];
   sujetsSansCreneau: string[];
-}
-
-function entierOu(v: unknown, defaut: number): number {
-  return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : defaut;
-}
-
-function numeroJour(j: string): number {
-  const [a, m, d] = j.split("-").map(Number);
-  return Date.UTC(a, m - 1, d) / 86_400_000;
 }
 
 function rangPriorite(m: MessageStock): number {
@@ -99,10 +100,17 @@ function ordreStock(a: EntreeStock, b: EntreeStock): number {
   );
 }
 
+const HEURE_DEFAUT = "09:00";
+const CANDIDAT = "__candidat__";
+const heureLisible = (h: unknown): string => lireHeure(h) ?? HEURE_DEFAUT;
+
 export function planifierStock(entree: EntreePlanificateur): PlanStock {
-  const quotaDefaut = entierOu(entree.quotaParJour, 1);
-  const quotaDe = (r: IdReseau) => entierOu(entree.quotaParReseau?.[r], quotaDefaut);
-  const ecart = entierOu(entree.ecartMinJours, 0);
+  const reglages = normaliserReglagesCadence(entree.reglages ?? REGLAGES_CADENCE_DEFAUT);
+  const reglesDe = (r: IdReseau): ReglesEspacement => ({
+    ...REGLES_PAR_DEFAUT,
+    ecartMinH: reglages.reseaux[r].ecartMinMinutes / 60,
+    quotaParJour: reglages.reseaux[r].quotaParJour,
+  });
 
   // Créneaux lisibles, sans doublon d'identifiant, du plus proche au plus lointain.
   const vus = new Set<string>();
@@ -112,30 +120,29 @@ export function planifierStock(entree: EntreePlanificateur): PlanStock {
     .sort((a, b) => comparer(a.jour, b.jour) || comparer(a.heure ?? "", b.heure ?? "") || comparer(a.id, b.id));
   const pris = new Set<string>();
 
-  // Posts déjà retenus par réseau (existants lisibles + affectations du plan).
-  const jours = new Map<IdReseau, Map<string, number>>();
-  const compter = (r: IdReseau, j: string) => {
-    const m = jours.get(r) ?? new Map<string, number>();
-    m.set(j, (m.get(j) ?? 0) + 1);
-    jours.set(r, m);
-  };
-  for (const e of entree.existants ?? []) if (jourValide(e.jour)) compter(e.reseau, e.jour);
+  // Posts déjà retenus (existants lisibles + affectations du plan), au format du noyau de cadence.
+  // Chaque post a son propre pilier : la règle pilier+cible ne s'applique pas à des textes distincts du stock.
+  const posts: PostPlanifie[] = [];
+  const retenir = (id: string, r: IdReseau, jour: string, heure?: string) =>
+    posts.push({ id, reseau: r, jour, heure: heureLisible(heure), pilier: `post:${id}`, cible: "" });
+  (entree.existants ?? []).forEach((e, i) => {
+    if (jourValide(e.jour)) retenir(`existant:${i}`, e.reseau, e.jour, e.heure);
+  });
 
-  const libre = (r: IdReseau, j: string): boolean => {
-    const m = jours.get(r);
-    if (!m) return true;
-    if ((m.get(j) ?? 0) >= quotaDe(r)) return false;
-    if (ecart > 0) for (const autre of m.keys()) if (autre !== j && Math.abs(numeroJour(autre) - numeroJour(j)) < ecart) return false;
-    return true;
+  /** Constats du noyau (violations et avertissements) qui touchent un post candidat posé à ce créneau. */
+  const constatsDe = (r: IdReseau, jour: string, heure?: string): Constat[] => {
+    const candidat: PostPlanifie = { id: CANDIDAT, reseau: r, jour, heure: heureLisible(heure), pilier: CANDIDAT, cible: "" };
+    return verifierEspacement([...posts.filter((p) => p.reseau === r), candidat], reglesDe(r)).filter((c) => c.posts.includes(CANDIDAT));
   };
+  const libre = (r: IdReseau, jour: string, heure?: string): boolean => constatsDe(r, jour, heure).length === 0;
 
   const plan: PlanStock = { affectations: [], alertes: [], nonPlaces: [], sujetsSansCreneau: [] };
   const accepte = (reseaux: readonly IdReseau[], r: IdReseau) => reseaux.length === 0 || reseaux.includes(r);
   const premier = (reseaux: readonly IdReseau[], jusquau?: string) =>
-    creneaux.find((c) => !pris.has(c.id) && accepte(reseaux, c.reseau) && libre(c.reseau, c.jour) && (!jusquau || c.jour <= jusquau));
+    creneaux.find((c) => !pris.has(c.id) && accepte(reseaux, c.reseau) && libre(c.reseau, c.jour, c.heure) && (!jusquau || c.jour <= jusquau));
   const poser = (origine: Affectation["origine"], id: string, c: CreneauLibre, epingle: boolean): Affectation => {
     pris.add(c.id);
-    compter(c.reseau, c.jour);
+    retenir(`${origine}:${id}`, c.reseau, c.jour, c.heure);
     const a: Affectation = { id, origine, reseau: c.reseau, jour: c.jour, heure: c.heure, creneauId: c.id, epingle };
     plan.affectations.push(a);
     return a;
@@ -160,19 +167,23 @@ export function planifierStock(entree: EntreePlanificateur): PlanStock {
     const c = creneaux.find((x) => !pris.has(x.id) && x.jour === jour && accepte(reseaux, x.reseau));
     const reseau = c?.reseau ?? reseaux[0];
     if (!reseau) {
-      // Sans réseau ni créneau ce jour-là, rien à poser : le message reste en stock, signalé.
+      // Sans réseau ni créneau ce jour-là, rien à poser : le message reste en stock, avec une alerte dédiée.
+      plan.alertes.push({ id: m.id, code: "date-sans-reseau", message: `La date choisie (${jour}) n'a pas de réseau : choisissez un réseau pour la placer.` });
       plan.nonPlaces.push({ id: m.id, raison: "aucun-creneau" });
       continue;
     }
-    const depasse = !libre(reseau, jour);
+    const constats = constatsDe(reseau, jour, c?.heure);
     let a: Affectation;
     if (c) a = poser("stock", m.id, c, true);
     else {
-      compter(reseau, jour);
+      retenir(`stock:${m.id}`, reseau, jour);
       a = { id: m.id, origine: "stock", reseau, jour, epingle: true };
       plan.affectations.push(a);
     }
-    if (depasse) plan.alertes.push({ id: m.id, code: "quota-depasse", message: `La date choisie dépasse le quota du ${a.jour} : elle est conservée.` });
+    const alerte = (code: CodeAlerte, message: string) => plan.alertes.push({ id: m.id, code, message });
+    if (constats.some((x) => x.code === "quota")) alerte("quota-depasse", `La date choisie dépasse le quota du ${jour} : elle est conservée.`);
+    if (constats.some((x) => x.code === "ecart")) alerte("ecart-non-respecte", `La date choisie (${jour}) ne respecte pas l'écart minimal entre deux publications : elle est conservée.`);
+    if (constats.some((x) => x.code === "weekend")) alerte("weekend-interdit", `Pas de publication le week-end sur ce réseau (${jour}) : la date choisie est conservée.`);
   }
 
   // 1-2) Stock libre : échéance, puis priorité.
