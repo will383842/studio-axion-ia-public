@@ -114,12 +114,15 @@ describe("RC-37 : grille de la semaine avec 40 publications", () => {
   it("les jours chargés affichent « + N » nommé, et chaque filtre réduit les cartes montrées", () => {
     const E = quarante();
     const html = rendre(<GrilleSemaine semaineDu={AUJOURDHUI} aujourdhui={AUJOURDHUI} entrees={E} reseaux={RESEAUX} maxParCase={1} onVoirPlus={() => {}} />);
-    expect(html).toContain("+ 1 autre");
-    const avant = compter(html, "data-carte=");
+    expect(html).toContain('data-plus="linkedin|2026-11-10"');
+    expect(html).toContain("+ 2 autres");
+    const tout = rendre(<GrilleSemaine semaineDu={AUJOURDHUI} aujourdhui={AUJOURDHUI} entrees={E} reseaux={RESEAUX} />);
+    expect(compter(tout, "data-carte=")).toBe(40);
+    expect(compter(html, "data-carte=")).toBeLessThan(40);
     const filtre = filtrerEntrees(E, { ...AUCUN, types: ["video"] });
     const apres = rendre(<GrilleSemaine semaineDu={AUJOURDHUI} aujourdhui={AUJOURDHUI} entrees={filtre} reseaux={RESEAUX} filtresActifs />);
     expect(compter(apres, "data-carte=")).toBe(filtre.length);
-    expect(compter(apres, "data-carte=")).toBeLessThan(avant + 40);
+    expect(compter(apres, "data-carte=")).toBeLessThan(40);
     expect(rendre(<GrilleSemaine semaineDu={AUJOURDHUI} aujourdhui={AUJOURDHUI} entrees={[]} reseaux={RESEAUX} filtresActifs />)).toContain("Aucune publication avec ces filtres.");
   });
 });
