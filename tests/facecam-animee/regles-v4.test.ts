@@ -204,7 +204,7 @@ import type { PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
 
 describe("mots interdits à l'écran (décision de Will du 17/10)", () => {
   it("la liste : Certifexemple (toutes casses, avec ou sans accent, apostrophe ou ponctuation), certifié / certifiée / certification, Villeexemple, gain garanti", () => {
-    for (const t of ["Certifexemple", "CERTIFEXEMPLE", "certifexemple", "à Certifexemple", "grâce à Certifexemple,", "l'Certifexemple", "Certifexemple.", "QUALIÔPI".replace("Ô", "O")]) expect(motsInterditsDans(t), t).toContain("Certifexemple");
+    for (const t of ["Certifexemple", "CERTIFEXEMPLE", "certifexemple", "à Certifexemple", "grâce à Certifexemple,", "l'Certifexemple", "Certifexemple.", "CERTIFÉXEMPLE"]) expect(motsInterditsDans(t), t).toContain("Certifexemple");
     for (const t of ["certifié", "Certifiée", "CERTIFICATION", "certifiés", "certifications", "organisme certifié"]) expect(motsInterditsDans(t), t).toContain("certifié / certification");
     expect(motsInterditsDans("à Villeexemple")).toContain("Villeexemple");
     expect(motsInterditsDans("Aucun gain garanti")).toContain("gain garanti");
