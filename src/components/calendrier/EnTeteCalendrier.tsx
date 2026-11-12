@@ -34,6 +34,9 @@ export function EnTeteCalendrier({ vue, periode, liens, reseauxActifs, lienResea
           <summary className={`${BOUTON} cursor-pointer`}>Filtrer</summary>
           <div className="absolute z-30 mt-1 w-[240px] max-w-[90vw] rounded-xl border border-trait-fort bg-surface-2 p-3 text-sm text-texte shadow-carte">
             <p className="mb-2 text-texte-doux">Allumez ou éteignez un réseau avec les pastilles ci-dessous.</p>
+            <Link href="/ecrire/voix" className="mb-2 flex min-h-11 items-center font-bold underline underline-offset-4">
+              {LIBELLES_CALENDRIER.mesTextes}
+            </Link>
             {tousAllumes ? <span className="text-texte-faible">Tous les réseaux sont affichés.</span> : <Link href={lienTout} className="font-bold underline underline-offset-4">Afficher tous les réseaux</Link>}
           </div>
         </details>

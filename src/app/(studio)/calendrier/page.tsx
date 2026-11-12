@@ -117,7 +117,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   // « À faire » : à corriger, à valider, brouillons ; les essais n'y sont pas.
   const aFaire = semaine.filter((p) => p.via !== "simulation").map((p) => {
     const e = entreeDepuisPublication(p);
-    return { cle: e.cle, etat: e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? null };
+    return { cle: e.cle, etat: e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
   });
   const libelleSemaine = decalage === 0 ? "Cette semaine" : decalage === 1 ? "Semaine prochaine" : decalage === -1 ? "Semaine dernière" : `${moisAnnee.format(jours[0])} – ${moisAnnee.format(jours[6])}`;
 
