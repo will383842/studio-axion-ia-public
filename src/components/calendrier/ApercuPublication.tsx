@@ -60,7 +60,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const visuel = (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
       {a.media.genre === "video" && a.media.url ? (
-        <video controls preload="metadata" poster={a.media.poster ?? undefined} src={a.media.url} className="max-h-[60vh] w-full bg-black">
+        <video controls preload="metadata" poster={a.media.poster ?? undefined} src={a.media.url} className="max-h-[60vh] w-full bg-voile">
           <track kind="captions" />
         </video>
       ) : a.media.genre === "image" && a.media.url ? (
@@ -69,7 +69,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       ) : (
         <span>Visuel à venir</span>
       )}
-      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-black/55 p-3 text-left text-sm font-semibold text-white">{a.texte}</p>}
+      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-sur-orange">{a.texte}</p>}
     </div>
   );
   const texte = (

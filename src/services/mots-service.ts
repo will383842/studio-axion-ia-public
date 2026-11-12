@@ -26,6 +26,8 @@ import { envoiZernioAutorise } from "./zernio";
 
 export const VARIABLE_INTERRUPTEUR_MOTS = "MOTS_ENABLED";
 export const PARAM_REGISTRE_MOTS = "mots.registre";
+/** Nom sous lequel le workflow STOP d'un compte est enregistré dans le registre (ce n'est pas un mot déclencheur public). */
+export const MOT_STOP = "STOP";
 export const PARAM_GARDES_MOTS = "mots.gardes";
 export const PARAM_VALIDATIONS_MOTS = "mots.validations";
 /** Validation du GUIDE du parcours : clé SÉPARÉE de `mots.validations` (qui reste réservée aux autres mots). */
@@ -532,7 +534,7 @@ export async function poserStopCompte(d: Demande & { compte: string }): Promise<
     const r = await executer(requete);
     const id = r.ok ? idWorkflowDe(r.corps) : null;
     if (!id) return refus("zernio_refuse", requete);
-    await enregistrerLigne({ mot: "STOP", compte: d.compte, etat: "actif", idWorkflow: id, raison: null, modifieLe: maintenant() });
+    await enregistrerLigne({ mot: MOT_STOP, compte: d.compte, etat: "actif", idWorkflow: id, raison: null, modifieLe: maintenant() });
     return { issue: "execute", raison: "pose_stop", requete, idWorkflow: id };
   });
 }
