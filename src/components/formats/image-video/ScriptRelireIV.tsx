@@ -47,6 +47,7 @@ export function ScriptRelireIV({
   const [autreAccroche, setAutreAccroche] = useState(false);
   const [choix, setChoix] = useState<Record<string, "garder" | "reformuler">>({});
   const [changes, setChanges] = useState<Partial<RecetteVarieteIV>>({});
+  const [formeAcceptee, setFormeAcceptee] = useState(false);
   const montant = Math.max(prix.auPlusCentimes, prix.habituelCentimes);
   // La fiche relue part de l'accroche choisie : changer d'accroche repart du texte proposé (l'écran se recrée).
   const base = useMemo(() => (autreAccroche ? (scriptValideParWill(fiche, [], { ecrans: {}, formules: {}, autreAccroche: true }).fiche ?? fiche) : fiche), [fiche, autreAccroche]);
@@ -73,14 +74,14 @@ export function ScriptRelireIV({
       // Le script de Williams fait foi : une phrase non tranchée est gardée telle quelle (simple remarque).
       const decision = decisionDe(s);
       const choixFormules = { ...Object.fromEntries(formules.map((f) => [f.cle, "garder" as const])), ...decision.choixFormules };
-      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}) }, montant);
+      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}), ...(formeAcceptee && aTrancher.length > 0 ? { formeAcceptee: true } : {}) }, montant);
       if (!r.ok) return { ok: false, message: r.message };
       const fin = await jusquALaReprise(videoId, r.donnees);
       if (fin) return { ok: false, message: fin };
       notifier.succes("Script validé : la vidéo se fabrique");
       return { ok: true };
     },
-    [videoId, decisionDe, variete, changes, formules, montant],
+    [videoId, decisionDe, variete, changes, formules, montant, formeAcceptee, aTrancher.length],
   );
 
   return (
@@ -140,6 +141,13 @@ export function ScriptRelireIV({
             <li key={t}>{t}</li>
           ))}
         </ul>
+      )}
+
+      {aTrancher.length > 0 && (
+        <label className="flex items-start gap-2 text-sm text-texte">
+          <input type="checkbox" className="mt-1 size-4" checked={formeAcceptee} onChange={(ev) => setFormeAcceptee(ev.target.checked)} />
+          <span>Je valide ce script tel quel malgré ces points de forme. Un chiffre ou un nom inventé, un mot interdit ou une durée trop longue restent bloquants.</span>
+        </label>
       )}
     </section>
   );
