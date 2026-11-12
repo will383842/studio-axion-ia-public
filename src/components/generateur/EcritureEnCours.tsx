@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { choisirAccrochesAction, choisirAngleAction, reprendreEcritureArreteeAction, reprendreEcrituresAction } from "@/app/(studio)/ecrire/sujets/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { Icone } from "@/components/ui/Icone";
 import { BarreProgression } from "@/components/ui/ProgressionEtapes";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
@@ -75,11 +75,11 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
             onClick={() =>
               demarrer(async () => {
                 const r = await choisirAngleAction(id, i);
-                if (!r.ok) notifier.erreur(r.message);
+                if (!r.ok) notifier.erreur(messageSansMontant(r.message));
                 router.refresh();
               })
             }
-            className="block w-full rounded-carte border border-trait bg-surface-1 p-4 text-left hover:border-orange"
+            className="block w-full rounded-carte border border-trait bg-surface-1 p-4 text-left hover:border-accent"
           >
             <span className="block text-[17px] font-semibold leading-snug text-texte">{a.titre}</span>
             <span className="mt-1 block text-sm text-texte-doux">{a.probleme}</span>
@@ -102,9 +102,9 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
                   type="button"
                   aria-pressed={pris}
                   onClick={() => setChoisies((x) => (pris ? x.filter((y) => y !== a.id) : x.length < 3 ? [...x, a.id] : x))}
-                  className={cn("flex w-full items-start gap-3 rounded-carte border p-4 text-left", pris ? "border-orange bg-orange-doux" : "border-trait bg-surface-1")}
+                  className={cn("flex w-full items-start gap-3 rounded-carte border p-4 text-left", pris ? "border-accent bg-accent-doux" : "border-trait bg-surface-1")}
                 >
-                  <span className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-xs font-bold", pris ? "border-orange bg-orange text-sur-orange" : "border-trait-fort text-texte-faible")}>{pris ? choisies.indexOf(a.id) + 1 : ""}</span>
+                  <span className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-xs font-bold", pris ? "border-accent bg-accent text-sur-accent" : "border-trait-fort text-texte-faible")}>{pris ? choisies.indexOf(a.id) + 1 : ""}</span>
                   <span className="text-[15px] font-semibold leading-snug text-texte">{a.dit}</span>
                 </button>
               </li>
@@ -120,7 +120,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
           onClick={() =>
             demarrer(async () => {
               const r = await choisirAccrochesAction(id, choisies);
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
               router.refresh();
             })
           }
@@ -133,20 +133,20 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
 
   return (
     <Carte lueur className="text-center">
-      <span className={cn("mx-auto mb-4 grid size-14 place-items-center rounded-2xl", attend ? "bg-orange-doux text-orange-vif" : "bg-ambre-doux text-ambre")}>
+      <span className={cn("mx-auto mb-4 grid size-14 place-items-center rounded-2xl", attend ? "bg-accent-doux text-accent" : "bg-ambre-doux text-ambre")}>
         <Icone nom={attend ? "ecrire" : "sablier"} size={26} className={cn(attend && "animate-pulse")} />
       </span>
       <h2 className="text-2xl text-texte">{attend ? etat.libelle : etat.statut === "echec" ? "Écriture arrêtée" : "En attente"}</h2>
-      {etat.message && <p className="mt-2 text-[15px] text-texte-doux">{etat.message}</p>}
-      {(etat.statut === "en-attente-credit" || etat.statut === "plafond-atteint") && etat.reprise && !etat.reprise.possible && (
+      {etat.message && <p className="mt-2 text-[15px] text-texte-doux">{messageSansMontant(etat.message)}</p>}
+      {(etat.statut === "en-attente-credit" || etat.statut?.endsWith("-atteint")) && etat.reprise && !etat.reprise.possible && (
         <>
-          <p className="mt-2 text-sm text-texte-faible">{etat.reprise.raison}</p>
+          <p className="mt-2 text-sm text-texte-faible">{messageSansMontant(etat.reprise.raison)}</p>
           <Bouton className="mt-4" pleineLargeur icone="repeter" disabled>
             Reprendre : pas possible pour l&apos;instant
           </Bouton>
         </>
       )}
-      {(etat.statut === "en-attente-credit" || etat.statut === "plafond-atteint") && etat.reprise?.possible && (
+      {(etat.statut === "en-attente-credit" || etat.statut?.endsWith("-atteint")) && etat.reprise?.possible && (
         <Bouton
           className="mt-4"
           pleineLargeur
@@ -158,20 +158,20 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
               // Le prix montré part comme accord ; plus haut au moment de reprendre, la feuille « Confirmer ce prix » le redemande.
               const r = await avecConfirmationPrix(await reprendreEcrituresAction(id, prix), (accord) => reprendreEcrituresAction(id, accord));
               if (!r.ok) {
-                if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(r.message);
+                if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(messageSansMontant(r.message));
               } else if (!r.donnees) notifier.erreur(etat.aucunCompte ? MESSAGE_AUCUN_COMPTE_CLAUDE : etat.abonnements ? "Toujours bloquée : attendez le renouvellement des comptes Claude ou relevez la limite du mois." : "Toujours bloquée : rechargez Claude ou relevez la limite du mois.");
               else notifier.succes("L'écriture reprend");
               router.refresh();
             })
           }
         >
-          {etat.reprise.centimes > 0 ? `Reprendre (≈ ${etat.reprise.prix})` : "Reprendre"}
+          Reprendre
         </Bouton>
       )}
       {etat.statut === "echec" && (
         <>
           <p className="mt-2 text-sm text-texte-faible">Ce qui est déjà écrit est gardé ; les autres sujets continuent.</p>
-          {etat.bloque && <p className="mt-2 text-sm text-texte-faible">{etat.bloque}</p>}
+          {etat.bloque && <p className="mt-2 text-sm text-texte-faible">{messageSansMontant(etat.bloque)}</p>}
           <Bouton
             disabled={!!etat.bloque}
             className="mt-4"
@@ -183,22 +183,18 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
                 // Relecture finale G1 : le supplément possible passe par la feuille « Confirmer ce prix ».
                 const r = await avecConfirmationPrix(await reprendreEcritureArreteeAction(id), (accord) => reprendreEcritureArreteeAction(id, accord));
                 if (!r.ok) {
-                  if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(r.message);
+                  if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(messageSansMontant(r.message));
                 } else notifier.succes("L'écriture reprend");
                 router.refresh();
               })
             }
           >
-            {etat.supplement ? `Reprendre l'écriture (jusqu'à ${etat.supplement} de plus)` : "Reprendre l'écriture"}
+            Reprendre l'écriture
           </Bouton>
         </>
       )}
       <BarreProgression className="mt-5" valeur={Math.round((fait / etapes.length) * 100)} libelle="Avancement de l'écriture" />
       <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs font-bold">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-texte-doux">
-          <Icone nom="euro" size={12} />
-          {etat.utiliseEur} utilisés
-        </span>
         {etat.medianeMin !== null && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-texte-doux">
             <Icone nom="horloge" size={12} />

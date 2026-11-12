@@ -14,22 +14,22 @@
  *   - brique 3 : l'arrêt pour que Will relise le script n'est pas un échec : l'étape s'affiche « À relire », sans
  *     « Réessayer » (la validation, juste en dessous, relance la fabrication).
  */
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { EtatSuivi } from "@/components/creation/SuiviFabrication";
 import { ActionsSuivi } from "@/components/fabrication/ActionsSuivi";
 import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { Bouton } from "@/components/ui/Bouton";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { ProgressionEtapes } from "@/components/ui/ProgressionEtapes";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
 import { BoutonArreter } from "@/components/videos/BoutonArreter";
-import { ACTIONS_FABRICATION, LIBELLES_ARGENT } from "@/domaine/libelles";
+import { ACTIONS_FABRICATION } from "@/domaine/libelles";
 import { useTravaux } from "@/hooks/useTravaux";
-import { formaterMontant } from "@/lib/montants";
 import type { VueTravail } from "@/services/vues";
-import { etapeARelire } from "./a-relire";
+import { etapeARelire, vientDePasserARelire } from "./a-relire";
 import { ADRESSE_RELANCE, PHRASES_ECRAN_RELANCE, lireIssue, phraseRelancee } from "./relance";
 
 /** Au-delà, la relance est tenue pour sans réponse (phrase, jamais un bouton qui tourne sans fin). */
@@ -57,6 +57,13 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
 
   const echec = t.etapes.find((e) => e.statut === "echec");
   const aRelire = etapeARelire(t);
+  // Dès que le script attend la relecture, la page serveur est relue UNE fois : c'est elle qui affiche « Valider ce script ».
+  const etaitARelire = useRef(aRelire !== null);
+  useEffect(() => {
+    const maintenant = aRelire !== null;
+    if (vientDePasserARelire(etaitARelire.current, maintenant)) router.refresh();
+    etaitARelire.current = maintenant;
+  }, [aRelire, router]);
   const reessayable = t.statut === "echec" && (echec?.erreur ?? t.erreur)?.reessayable !== false;
   const actif = t.statut === "en_cours" || t.statut === "en_file";
   // Après une relance acceptée : « envoyée » tant que l'état relu n'a pas changé ou que l'étape tourne ; de nouveau
@@ -64,7 +71,7 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
   const phraseRelance = !relance || t.statut === "termine" ? null : t.statut === "echec" && t.tentatives > relance.tentatives ? PHRASES_ECRAN_RELANCE.denouveau : phraseRelancee(relance.etape);
   const affichee = phrase ?? (phraseRelance ? { texte: phraseRelance, ton: "info" as const } : null);
 
-  async function envoyer(accord?: number | true): Promise<void> {
+  async function envoyer(accord?: number | true, dejaRelance = false): Promise<void> {
     const controle = new AbortController();
     const minuterie = setTimeout(() => controle.abort(), DELAI_RELANCE_MS);
     let issue;
@@ -85,9 +92,11 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
     if (issue.statut === "accord-requis") {
       const confirme = await confirmerPrix({ message: issue.phrase, montant: issue.centimes });
       if (confirme === null) return setPhrase({ texte: PHRASES_ECRAN_RELANCE.annulee, ton: "info" });
-      return envoyer(confirme);
+      // UNE seule relance automatique, jamais de boucle.
+      if (dejaRelance) return setPhrase({ texte: "Cela a changé, réessayez.", ton: "refus" });
+      return envoyer(confirme, true);
     }
-    if (issue.statut === "refusee") return setPhrase({ texte: issue.phrase, ton: "refus" });
+    if (issue.statut === "refusee") return setPhrase({ texte: messageSansMontant(issue.phrase), ton: "refus" });
     setRelance({ tentatives: t.tentatives, etape: echec?.nom });
     minuteries.current.forEach(clearTimeout);
     minuteries.current = RELECTURES_MS.map((ms) => setTimeout(() => void actualiser(), ms));
@@ -138,14 +147,16 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
         compacte={compacte}
         {...(aRelire ? { aRelire } : {})}
       />
-      {t.depense.centimes > 0 && (
-        <p className="flex justify-end text-xs tabular-nums text-texte-faible">
-          {LIBELLES_ARGENT.dejaPaye} : {formaterMontant(t.depense)}
-        </p>
-      )}
       <ActionsSuivi
         etat={etat}
         arreter={actif ? <BoutonArreter travailId={t.id} videoId={t.cibleId} depense={t.depense} compact={compacte} /> : undefined}
+        propres={
+          etat === "a-relire" ? (
+            <Bouton variante="contour-orange" asChild>
+              <Link href="#valider-script">Relire et valider le script</Link>
+            </Bouton>
+          ) : undefined
+        }
         reprendre={
           etat === "coincee" && reessayable ? (
             <Bouton variante="secondaire" icone="reessayer" onClick={() => void reessayer()} chargement={enAttente} className="shrink-0">

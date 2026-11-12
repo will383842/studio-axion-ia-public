@@ -102,7 +102,7 @@ function FeuilleAjoutRushs({ ouverte, onOuverteChange }: { ouverte: boolean; onO
         <ZoneDepot libelle="Choisir des vidéos" detail="Filmées par vous" accepte="video/*" icone="camera" onFichiers={(f) => void ajouter(f)} />
         {fichiers.map((x, i) => (
           <div key={`${x.f.name}-${i}`} className="flex min-h-12 items-center gap-3 rounded-champ bg-surface-2 px-3">
-            <Icone nom="film" size={18} className="text-orange-vif" />
+            <Icone nom="film" size={18} className="text-texte-faible" />
             <span className="min-w-0 flex-1 truncate text-sm text-texte">{x.f.name}</span>
             <span className="text-xs tabular-nums text-texte-faible">
               {Math.round(x.sec)} s · {tailleLisible(x.f.size)}

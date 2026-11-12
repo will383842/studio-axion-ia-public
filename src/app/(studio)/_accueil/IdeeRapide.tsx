@@ -8,7 +8,7 @@ import { notifier } from "@/components/ui/Toast";
 import { ajouterIdeeAction } from "../actions";
 
 /** Champ « Une idée ? » de l'accueil : ajout en une ligne, puis un lien vers le carnet. */
-export function IdeeRapide() {
+export function IdeeRapide({ autoFocus = false, onEnregistre }: { autoFocus?: boolean; /** Appelée après l'enregistrement réussi (la fenêtre « Noter une idée » s'en sert pour se fermer). */ onEnregistre?: () => void } = {}) {
   const id = useId();
   const [texte, setTexte] = useState("");
   const [notee, setNotee] = useState(false);
@@ -24,13 +24,14 @@ export function IdeeRapide() {
             if (r.ok) {
               setTexte("");
               setNotee(true);
-              notifier.succes("Idée notée");
+              notifier.succes(onEnregistre ? "Idée rangée dans Écrire" : "Idée notée");
+              onEnregistre?.();
             } else notifier.erreur(r.message);
           });
         }}
         className="flex min-h-14 items-center gap-2 rounded-full border border-trait bg-surface-1 pl-5 pr-1.5 transition-colors focus-within:border-orange"
       >
-        <Icone nom="idee" size={20} className="shrink-0 text-ambre" />
+        <Icone nom="idee" size={20} className="shrink-0 text-texte-faible" />
         <label htmlFor={id} className="sr-only">
           Une idée ?
         </label>
@@ -41,6 +42,7 @@ export function IdeeRapide() {
             setTexte(e.target.value);
             setNotee(false);
           }}
+          autoFocus={autoFocus}
           placeholder="Une idée ?"
           maxLength={200}
           enterKeyHint="send"
@@ -50,7 +52,7 @@ export function IdeeRapide() {
           type="submit"
           disabled={!texte.trim() || enCours}
           aria-label="Noter l'idée"
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-texte transition-colors hover:bg-orange hover:text-sur-orange disabled:opacity-40"
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-texte transition-colors hover:bg-texte hover:text-fond disabled:opacity-40"
         >
           <Icone nom={enCours ? "chargement" : "fleche-droite"} size={18} className={enCours ? "animate-spin" : ""} />
         </button>

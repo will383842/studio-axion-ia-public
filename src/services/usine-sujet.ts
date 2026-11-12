@@ -10,15 +10,21 @@ import type { IdeeUsine, TypeContenuUsine } from "@/domaine/usine";
 import type { Matiere, ReseauDeclinaison } from "@/domaine/types";
 import { RESEAUX_DECLINAISON } from "@/reseaux/codes";
 
-/** Le format conseillé par l'usine s'il correspond à un format actif, sinon le premier format actif. */
+/** Code du refus : le format de l'idée n'est pas disponible (contrat d'échange : 422, format non disponible). */
+export const format_non_disponible = "FORMAT_NON_DISPONIBLE";
+
+/** Anciens noms de format (clés normalisées) que l'usine peut encore envoyer : le format a été renommé dans le Studio (maquette M3, décision du fondateur du 12/11). */
+const ANCIENS_NOMS: Record<string, string> = { "tableau anime": "tableau-anime" };
+
+/** Le format de l'idée s'il correspond à un format actif (accents et casse ignorés). Absent, inconnu ou éteint : refus, jamais de repli sur un autre format. */
 export function formatPourIdeeUsine(format: string | undefined): string {
   const actifs = listerFormatsActifs();
   const n = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
   const cherche = format ? n(format) : "";
-  const trouve = cherche ? actifs.find((f) => [f.id, f.nom, f.nomCourt].some((x) => x && n(x) === cherche)) : undefined;
-  const id = (trouve ?? actifs[0])?.id;
-  if (!id) throw new ErreurStudio("SANS_FORMAT", "Aucun format n'est disponible pour écrire ce sujet.");
-  return id;
+  const ancien = ANCIENS_NOMS[cherche];
+  const trouve = cherche ? actifs.find((f) => f.id === ancien || [f.id, f.nom, f.nomCourt].some((x) => x && n(x) === cherche)) : undefined;
+  if (!trouve) throw new ErreurStudio(format_non_disponible, "Le format de cette idée n'est pas disponible : aucun sujet n'a été écrit.");
+  return trouve.id;
 }
 
 export async function ecrireSujetDeLUsine(
@@ -29,7 +35,23 @@ export async function ecrireSujetDeLUsine(
   const choisis = reseaux.length ? reseaux : ([...RESEAUX_DECLINAISON] as ReseauDeclinaison[]);
   const origine = { signature: idee.signature, parts: idee.parts, typeContenu: options.typeContenu };
   const cible = [idee.metier, idee.taille].filter(Boolean).join(", ");
-  const formatId = formatPourIdeeUsine(idee.format);
+  let formatId: string;
+  try {
+    try {
+      formatId = formatPourIdeeUsine(idee.format);
+    } catch (premier) {
+      // Libellé inconnu : repli sur le code envoyé par l'usine (parts.format), jamais sur un autre format.
+      const code = idee.parts?.format;
+      if (!code) throw premier;
+      formatId = formatPourIdeeUsine(code);
+    }
+  } catch (e) {
+    // Refus visible : journalisé avec la signature de l'idée, avant tout sujet, matière ou rappel à l'usine.
+    if (e instanceof ErreurStudio && e.code === format_non_disponible) {
+      await journaliser("usine", `Idée refusée, ${format_non_disponible} : format « ${idee.format ?? "absent"} » (signature ${idee.signature})`);
+    }
+    throw e;
+  }
   const ideeDuSujet = `${idee.douleur} ${idee.casUsage}`.trim();
 
   // Lot L5 : pas d'écran pour choisir ici. Un sujet déjà traité est refusé AVANT d'écrire la moindre matière (erreur claire,

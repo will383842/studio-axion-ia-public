@@ -100,6 +100,15 @@ export interface Rangee {
 }
 
 const INTERLIGNE = 0.36;
+/** Air ajouté entre deux rangées en plus de l'interligne (× taille) : au plus 0,1 ⇒ trou visible ≤ 0,46 × taille (D4, compositions-iv/11). */
+export const ECART_MAX_RANGEES = 0.1;
+/** Un morceau de plusieurs mots n'est coupé que s'il faudrait le réduire sous cette part de sa taille pour qu'il tienne sur une ligne (D5). */
+const PART_MIN_UNE_LIGNE = 0.75;
+
+/** Ponctuation isolée (« ? », « ! », « : », « ; », « % », « … », guillemet ou parenthèse fermants), même précédée d'une espace insécable : elle se rattache toujours au mot qui précède. */
+export function estPonctuationIsolee(mot: string): boolean {
+  return /^[\s\u00a0\u202f]*(?:[?!:;%…»)\]”’]+|\.{2,})[\s\u00a0\u202f]*$/u.test(mot);
+}
 
 /**
  * TYP-C : coupe les lignes en rangées (mots entiers, largeur ≤ `largeur`) et choisit la plus grande taille qui fait
@@ -116,12 +125,15 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
       const morceaux: number[][] = [];
       l.mots.forEach((m, i) => {
         const dernier = morceaux.at(-1);
-        const orangePrec = i > 0 && !!l.mots[i - 1].orange;
-        if (!dernier || orangePrec !== !!m.orange) morceaux.push([i]);
+        // Un morceau fait de ponctuation seule (tête de ligne) prend le mot suivant : il n'ouvre pas de rangée à lui seul.
+        const seulePonctuation = !!dernier && dernier.every((k) => estPonctuationIsolee(l.mots[k].mot));
+        const orangeMorceau = !!dernier && !!l.mots[dernier.find((k) => !estPonctuationIsolee(l.mots[k].mot)) ?? dernier[0]].orange;
+        // Une ponctuation isolée reste avec le mot qui précède, orange ou non : jamais un morceau (donc une rangée) à elle seule.
+        if (!dernier || (!seulePonctuation && orangeMorceau !== !!m.orange && !estPonctuationIsolee(m.mot))) morceaux.push([i]);
         else dernier.push(i);
       });
       for (const morceau of morceaux) {
-        const focal = !!l.mots[morceau[0]].orange && morceaux.length > 1;
+        const focal = !!l.mots[morceau.find((k) => !estPonctuationIsolee(l.mots[k].mot)) ?? morceau[0]].orange && morceaux.length > 1;
         const t = focal ? Math.min(taille * 1.6, tailleMax * 1.6) : taille;
         // Coupe gloutonne, puis équilibrée : même nombre de rangées, mais la plus étroite possible (pas de mot veuf).
         const couperA = (l0: number): number[][] => {
@@ -129,7 +141,7 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
           let courante: number[] = [];
           for (const i of morceau) {
             const essai = [...courante, i];
-            if (courante.length && larg(essai.map((k) => l.mots[k].mot), t) > l0) {
+            if (courante.length && !estPonctuationIsolee(l.mots[i].mot) && larg(essai.map((k) => l.mots[k].mot), t) > l0) {
               rs.push(courante);
               courante = [i];
             } else courante = essai;
@@ -137,7 +149,9 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
           if (courante.length) rs.push(courante);
           return rs;
         };
-        let coupe = couperA(largeur);
+        // D5 : « Au matin » (~960 px à 280) tient sur une ligne à 268 : on garde l'expression entière (la réduction plus bas ajuste la taille).
+        const tailleUneLigne = largeur / Math.max(1e-6, larg(morceau.map((k) => l.mots[k].mot), 1));
+        let coupe = morceau.length > 1 && tailleUneLigne >= PART_MIN_UNE_LIGNE * t ? [morceau] : couperA(largeur);
         for (let l0 = largeur - 20; coupe.length > 1 && l0 > largeur * 0.4; l0 -= 20) {
           const essai = couperA(l0);
           if (essai.length > coupe.length) break;
@@ -153,16 +167,16 @@ export function rangeesTexte(lignes: readonly LigneEcrite[], haut: number, bas: 
       return { ...r, taille, largeur: largeurAnton(textes.join(" ").toUpperCase(), taille) };
     });
   };
-  const total = (rs: Omit<Rangee, "y">[]) => rs.reduce((s, r) => s + r.taille * (1 + INTERLIGNE), 0) - (rs.at(-1)?.taille ?? 0) * INTERLIGNE;
+  const total = (rs: Omit<Rangee, "y">[]) => rs.reduce((s, r) => s + r.taille * (1 + INTERLIGNE), 0) - (rs.at(-1)?.taille ?? 0) * INTERLIGNE + 18; // + le filet sous la dernière rangée (lignes.tsx : taille + 12, 6 px de haut)
   let taille = tailleMax;
   let rs = couper(taille);
   while (taille > 70 && total(rs) > hauteur) {
     taille -= 6;
     rs = couper(taille);
   }
-  // Répartition : l'air restant est partagé entre les rangées (au plus une demi-taille de plus par écart).
+  // Répartition : l'air restant est partagé entre les rangées (au plus ECART_MAX_RANGEES × taille de plus par écart).
   const reste = Math.max(0, hauteur - total(rs));
-  const ecart = rs.length > 1 ? Math.min(reste / (rs.length - 1), taille * 0.6) : 0;
+  const ecart = rs.length > 1 ? Math.min(reste / (rs.length - 1), taille * ECART_MAX_RANGEES) : 0;
   let y = haut + Math.max(0, (hauteur - total(rs) - ecart * Math.max(0, rs.length - 1)) / 2);
   return rs.map((r) => {
     const posee = { ...r, y };

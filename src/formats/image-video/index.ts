@@ -25,15 +25,16 @@ export const RESEAUX_IMAGE_VIDEO = ["youtube-shorts", "linkedin", "instagram", "
 /**
  * Réglages du format :
  * - `decoupage` : une seule valeur (« chapitres ») ; le mode « deux vidéos » n'existe pas dans cette version (B1) ;
- * - `appelCommentaire` : question propre à l'image puis la fin du réseau (défaut), ou la fin seule (B3) ;
- * - `validationCarte` : « toujours », ou « si-doute » (la carte ne s'affiche qu'en cas de doute). OBLIGATOIRE pour les
- *   10 premières vidéos, quel que soit ce réglage (B6) ;
+ * - `appelCommentaire` : la fin seule (défaut depuis le 26/10/2026 : une seule demande par fin), ou la question propre à l'image puis la fin du réseau ;
+ * - `validationCarte` : « automatique » (défaut : le code répare et adapte la carte, la carte et le script sont validés par
+ *   le réglage, rien n'attend Will), « si-doute » (la carte ne s'affiche qu'en cas de doute, obligatoire pour les 10
+ *   premières) ou « toujours » ;
  * - `bruitages` : « discrets », forcé (aucune autre valeur, jamais de musique).
  */
 export const schemaReglagesImageVideo = z.object({
   decoupage: z.literal("chapitres").default("chapitres"),
-  appelCommentaire: z.enum(["question-puis-fin", "fin-seule"]).default("question-puis-fin"),
-  validationCarte: z.enum(["toujours", "si-doute"]).default("si-doute"),
+  appelCommentaire: z.enum(["question-puis-fin", "fin-seule"]).default("fin-seule"),
+  validationCarte: z.enum(["automatique", "toujours", "si-doute"]).default("automatique"),
   bruitages: z.literal("discrets").default("discrets"),
 });
 export type ReglagesImageVideo = z.infer<typeof schemaReglagesImageVideo>;
@@ -43,8 +44,8 @@ export const formatImageVideo: DefinitionFormat = {
   version: 1,
   nom: "Image → vidéo",
   nomCourt: "Image → vidéo",
-  accroche: "Votre image prend vie.",
-  description: "Déposez une infographie : le studio la comprend, écrit le script, puis l'anime bloc par bloc sur votre voix, une version par réseau.",
+  accroche: "Votre idée prend vie.",
+  description: "Décrivez votre idée ou collez votre script : le studio écrit le script, puis l'anime bloc par bloc sur votre voix, une version par réseau.",
   icone: "images",
   statut: "masque",
   /** Vidéos sur le site (lot S1) : conseil du plan, la décision est le réglage `siteGenerateurs.image-video`. */
@@ -82,10 +83,11 @@ export const formatImageVideo: DefinitionFormat = {
         libelle: "Vérifier ce que j'ai compris",
         type: "choix",
         options: [
+          { valeur: "automatique", libelle: "Automatique (le studio répare et adapte seul)" },
           { valeur: "si-doute", libelle: "En cas de doute" },
           { valeur: "toujours", libelle: "Toujours" },
         ],
-        aide: "Toujours pour les 10 premières vidéos.",
+        aide: "Automatique : l'image est réparée et adaptée sans validation, et ce qui a été adapté est dit sur l'écran de résultat.",
       },
     ],
   },

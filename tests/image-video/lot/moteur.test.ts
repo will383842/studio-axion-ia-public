@@ -29,7 +29,8 @@ function commande(carte: CarteImage, lot: unknown = LOT): CommandeFabrication {
     styles: {},
     briques: {},
     entrees: { imageVideo: { imageCle: carte.image.cle, empreinte: carte.image.empreinte, plafondCentimes: 1500, codeSuivi: "essai", accordEssaiReel: true, ...(lot === null ? {} : { lot }) } },
-    reglages: {},
+    // Ces tests décrivent les portes du lot « en cas de doute » (le défaut est « automatique », voir ../mode-automatique.test.ts).
+    reglages: { validationCarte: "si-doute" },
     plans: [],
     prononciations: [],
     mentionIA: { incrustee: false, position: "haut-droite", dureeSec: 0, texte: "", dansLegende: false },

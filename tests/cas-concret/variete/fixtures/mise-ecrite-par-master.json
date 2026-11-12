@@ -1,0 +1,164 @@
+{
+ "version": "variete/1",
+ "tirage": {
+  "version": "variete/1",
+  "graine": 2975410862,
+  "sel": 0,
+  "ouverture": "chiffre-choc",
+  "structure": "probleme-solution",
+  "jeuAnimation": "rideau",
+  "sortie": "aucune-v4",
+  "motParMot": "v4",
+  "miseEnPage": {
+   "accroche": "gauche",
+   "titre": "v4-centree",
+   "question": "gauche",
+   "chiffre": "gauche",
+   "resultat": "gauche",
+   "etape": "gauche",
+   "objet": "v4-centree",
+   "liste-avant": "gauche",
+   "preuve": "v4-centree"
+  },
+  "transitions": [
+   {
+    "moment": "bascule",
+    "type": "raccord-objet"
+   },
+   {
+    "moment": "premiere-etape",
+    "type": "raccord-objet"
+   },
+   {
+    "moment": "resultat",
+    "type": "eclair"
+   }
+  ],
+  "camera": {
+   "style": "douce",
+   "part": 0.44
+  },
+  "fondFort": 0,
+  "particules": {
+   "groupe": 4,
+   "densite": "dense"
+  },
+  "sousTitres": {
+   "inclinaison": "v4",
+   "intensite": "v4",
+   "accent": "surlignage",
+   "hauteur": "v4"
+  },
+  "bruitages": {
+   "depart": 5
+  },
+  "fin": {
+   "phrase": 0,
+   "composition": 1,
+   "animation": 1
+  },
+  "relache": 0,
+  "misesEnPage": "acc-duel-tailles,ava-cartes-tombent,tit-mot-objet,eta-entrer-dedans,eta-schema-feutre+dedans,obj-etiquette-pend,chi-aplat-orange,pre-compter-objets,res-mois-rempli+objet,que-geante"
+ },
+ "ecrans": {
+  "e01": {
+   "miseEnPage": "acc-duel-tailles",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "derive-laterale",
+   "groupeParticules": 4,
+   "densiteParticules": "dense"
+  },
+  "e02": {
+   "miseEnPage": "ava-cartes-tombent",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "aucun",
+   "groupeParticules": 4,
+   "densiteParticules": "dense"
+  },
+  "e03": {
+   "miseEnPage": "tit-mot-objet",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "aucun",
+   "transition": "raccord-objet",
+   "groupeParticules": 4,
+   "densiteParticules": "dense"
+  },
+  "e04": {
+   "miseEnPage": "eta-entrer-dedans",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "aucun",
+   "transition": "raccord-objet",
+   "groupeParticules": 4,
+   "densiteParticules": "dense",
+   "animObjet": 1
+  },
+  "e05": {
+   "miseEnPage": "eta-schema-feutre",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "aucun",
+   "groupeParticules": 4,
+   "densiteParticules": "dense",
+   "animObjet": 2,
+   "raccordEntree": "dedans-ivoire"
+  },
+  "e06": {
+   "miseEnPage": "obj-etiquette-pend",
+   "entree": "zoom-avant",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "aucun",
+   "groupeParticules": 4,
+   "densiteParticules": "dense"
+  },
+  "e07": {
+   "miseEnPage": "chi-aplat-orange",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "zoom-lent",
+   "groupeParticules": 4,
+   "densiteParticules": "dense"
+  },
+  "e08": {
+   "miseEnPage": "pre-compter-objets",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "zoom-lent",
+   "groupeParticules": 4,
+   "densiteParticules": "dense",
+   "raccordSortie": "objet"
+  },
+  "e09": {
+   "miseEnPage": "res-mois-rempli",
+   "entree": "rideau",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "aucun",
+   "transition": "eclair",
+   "groupeParticules": 4,
+   "densiteParticules": "dense",
+   "barres": "proportionnelles",
+   "raccordEntree": "objet"
+  },
+  "e10": {
+   "miseEnPage": "que-geante",
+   "entree": "glissement",
+   "sortie": "aucune-v4",
+   "motParMot": "v4",
+   "camera": "derive-laterale",
+   "groupeParticules": 4,
+   "densiteParticules": "dense"
+  }
+ }
+}

@@ -39,21 +39,26 @@
  * technique). Un raccord de voix fini est gardé même si celui d'une autre fin rate dans le même tour. « Réessayer »
  * passe le journal par `relancerRendusCasConcret` : seuls les rendus restés en cours ou ratés repartent.
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
+import { joindrePhrasesPourVoix } from "@/domaine/voix-phrases";
 import { FIN_PROPRE_COMMUNE } from "@/briques/composition/fin-propre";
 import { creerSuivi, empreinteStable, plansDesScenes, commandeMinimale, type EtapeComptee, type Journal, type ScenePosee } from "@/briques/chaine-scenes";
 import { avancerCompositions, montageFini, type BaseComposition, type EtatComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
 import { GEOMETRIE_INCRUSTATIONS_PAR_DEFAUT, type RecetteComposition } from "@/briques/composition/recette";
 import { REDUCTION_LARGE_PAR_DEFAUT } from "@/briques/composition/scene";
+import type { AppelClaude } from "@/briques/plan-scenes/generateur";
+import type { PlanValide } from "@/briques/plan-scenes/schema";
+import { cleTranche, planScenesCasConcret, type GroupePourPlan, type MemoPlanScenes } from "./plan-scenes";
 import { centreSousTitresPleineImagePct, proprietesPleineImage, zonePleineImage } from "./zone-objets";
 import { controlerProprietes, zonesEcran, type CaptureEcran, type EcranCale, type ProprietesEcran } from "@/briques/ecrans-motion";
 import { COULEURS_DUO, VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo";
 import type { BruitagePlace } from "@/briques/intensite/types";
 import { avancerCartesMotion, cartesMotionFinies, ErreurSceneRatee, etatInitialCartesMotion, type EtatCartesMotion } from "@/briques/motion/rendu-cartes";
 import type { CarteFormat } from "@/briques/motion/pourFormat";
-import { fabriquerSousTitres } from "@/briques/sous-titres";
+import { baseRetenue, fabriquerSousTitres, positionsVerticales } from "@/briques/sous-titres";
 import { STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
 import { substituerPrononciations } from "@/domaine/prononciations";
-import type { MediaCommande, SegmentSousTitres, ValeurDecor, ValeurStyleSousTitres } from "@/domaine/types";
+import type { BaseSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurStyleSousTitres } from "@/domaine/types";
 import { BANDE_SOUS_TITRES_CAS_CONCRET, FIN_APRES_DERNIER_MOT_SEC, TEMPO_VOIX, type ReseauCas } from "@/formats/cas-concret";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { surTitreDuCas } from "@/formats/cas-concret/recette";
@@ -68,16 +73,16 @@ import { REGLES_RECALAGE_CAS_CONCRET, controlerFinDeVoix, lireWav, recalerCoupes
 import { controlerVideoCasConcret, type MesuresFin, type RapportControleCasConcret } from "./controles";
 import { defautsVisuels, type DefautVisuel } from "./defauts-visuels";
 import { ecrireFiche, PREFIXE_APPEL_ECRITURE, reformulerPhrase, type ResultatEcriture } from "./ecriture";
-import { ficheDuScriptValide, PHRASE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_VALIDE_REFUSE, problemesScriptValide, type ScriptValide } from "./script-valide";
+import { ecartsScriptValide, ficheDuScriptValide, PHRASE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_VALIDE_REFUSE, problemesScriptValide, type ScriptValide } from "./script-valide";
 import { departDePage, ecransCales, LIBELLES_ETAPES_CAS_CONCRET, motsOrange, regrouperFins, reporterTexteDit, type CaptureVraiEcran, type EntreesCasConcret } from "./etapes";
-import { FORMAT_CAS_CONCRET, texteDuCorps, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
+import { FORMAT_CAS_CONCRET, texteDuCorps, texteDuCorpsPourVoix, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
 import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
 import { textesDePublication, type TextePublication } from "./publication";
-import { validerFicheEcrans } from "./regles";
+import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
-import { centreSousTitresHautPct, surlignageCasConcret, variationSousTitresCasConcret } from "./sous-titres-variete";
+import { centreSousTitresCasConcret, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
 import { avancerVoixCasConcret, empreintePriseVoix, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
@@ -136,6 +141,8 @@ export interface JournalCasConcret extends Journal<EtapeCasConcret> {
   /** Assemblages corps + fin déjà finis, par fin. */
   assemblages?: { empreinte: string; faits: Record<string, ResultatAssemblage> };
   ecrans?: { empreinte: string; etat: EtatCartesMotion; rendues: string[] };
+  /** Lot R2 : plan de scènes par groupe d'écrans (corps, fins), gardé pour ne pas rappeler l'IA à la reprise. Absent : option éteinte. */
+  planScenes?: MemoPlanScenes;
   /** État de la composition de chaque fin. */
   montage?: Record<string, { empreinte: string; etat: EtatComposition }>;
   /** Essai seulement : échecs déjà joués par étape (`panneDEssai`). */
@@ -148,6 +155,12 @@ export interface JournalCasConcret extends Journal<EtapeCasConcret> {
   memoireCommune?: string;
   /** L2 : la mise de la vidéo, tirée une seule fois ; `notee` : sa ligne est déjà dans l'historique. */
   mise?: { mise: Mise; notee: boolean };
+  /**
+   * GV-ST-02 : le tirage de cette vidéo a été tiré NEUF après la suppression de la variante par vidéo (sous-titres sans
+   * variante). Absent : tirage d'une fiche, hérité d'une version, ou d'un journal d'avant ce changement : le tirage
+   * enregistré est respecté tel quel (clé et sous-titres inchangés).
+   */
+  tirageNeuf?: true;
   /**
    * D2 : le tirage de la vidéo, fait AVANT l'écriture (la structure tirée dicte l'ordre des écrans) et gardé : une reprise
    * ne le retire jamais ; `notee` : sa ligne est déjà dans l'historique. Absent : écriture d'avant ce lot, ou sans variété.
@@ -181,6 +194,15 @@ export interface OptionsFabricationCasConcret {
   lireScriptsAnterieurs?: () => Promise<readonly string[]>;
   /** Personnage qui prête sa voix (inscrit dans la distribution de la commande). */
   personnageId?: string;
+  /** Lot R2 : plan de scènes (motion sur mesure) pour les écrans d'interface, de chiffres et d'accents. Absent (par défaut) : écrans inchangés. `appeler` absent : pièces du stock seulement. */
+  planScenes?: { appeler?: AppelClaude };
+  /**
+   * GV-ST-02 : style de sous-titres choisi (`commande.styles.sousTitres`, choix de la vidéo ou étoile du format). Il fait
+   * loi ; absent (ou `null`) : « Charte duo » comme la v4.
+   */
+  styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null;
+  /** GV-ST-02 : base des sous-titres de la commande (`commande.sousTitres?.base`), lue seulement si un style est choisi. */
+  baseSousTitres?: BaseSousTitres;
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
   prononciations?: readonly { mot: string; prononciation: string }[];
   horloge?: () => number;
@@ -242,6 +264,12 @@ export interface CompteRenduCasConcret {
   sousTitres?: SegmentSousTitres[];
   /** V4-3 : défauts visibles « brouillon » mesurés sur la mise en page (texte sur texte, objet vide…), en indicatif. */
   defautsVisuels: DefautVisuel[];
+  /** 08/11/2026 : voix gardée malgré un défaut (phrase mal lue, fin coupée) : à écouter, la vidéo est faite quand même. */
+  reservesVoix: string[];
+  /** 08/11/2026 : remarques sur le script de Will (durée, accroche, tutoiement…) ; la vidéo est faite quand même. */
+  remarquesScript: string[];
+  /** Parmi elles, celles à montrer très visiblement (mot interdit, mot légal, faux témoignage, chiffre douteux). */
+  avertissementsScript: string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -257,7 +285,7 @@ export const empreinte = (...parts: unknown[]) => empreinteStable(VERSION_FABRIC
  */
 export const STYLE_SOUS_TITRES_DUO: ValeurStyleSousTitres = Object.freeze({
   ...STYLE_SOUS_TITRES_MINIMAL,
-  police: "Inter Bold",
+  police: "Manrope Bold",
   couleurAccent: "orange",
   jetonEmphase: "orange-vif",
   contourPx: 7,
@@ -273,8 +301,8 @@ export function zonesOccupeesSousTitres(dureeSec: number): { debutSec: number; f
   return [{ debutSec: 0, finSec: dureeSec, zone: "haut" }];
 }
 
-/** Texte des sous-titres sur un écran ivoire : la couleur de la v4 (`.I { color: #15100c }`). */
-export const ENCRE_SOUS_TITRES_IVOIRE = "#15100c";
+/** Texte des sous-titres sur un écran ivoire : le noir de la charte Axion 2026. */
+export const ENCRE_SOUS_TITRES_IVOIRE: string = PALETTE.noir;
 
 /** V4-2 : largeur des sous-titres, en % de l'image : 960 px, comme la v4 (`#st` sur 60–1 020 px). */
 export const LARGEUR_SOUS_TITRES_PCT = +((960 / 1080) * 100).toFixed(2);
@@ -325,7 +353,7 @@ export const LECTURES_VOIX_MAX_INDICATIF = 3;
  * `lecturesVoixMax` lectures payées par texte (prise) et par tentative, sinon arrêt anti-boucle. PUR.
  */
 export function verifierPartVoix(
-  budget: { plafondVoix?: { centimes: number; prixLecture: (texte: string) => number }; indicatif?: { lecturesVoixMax: number; facteurSecurite?: number } },
+  budget: { plafondVoix?: { centimes: number; prixLecture: (texte: string) => number }; indicatif?: { lecturesVoixMax: number; facteurSecurite?: number; signaler?: (message: string) => Promise<void> } },
   payees: readonly PrisePayee[],
   l: { prise: string; texte: string },
 ): void {
@@ -334,18 +362,18 @@ export function verifierPartVoix(
     if (deja >= budget.indicatif.lecturesVoixMax) {
       throw new ErreurFabricationCasConcret("voix", [`Cette voix a déjà été lue ${deja} fois pour ce texte : rien de plus n'est payé. Changez le texte pour le relire.`]);
     }
-    // DEUXIÈME borne, gardée : arrêt de sécurité à `facteurSecurite` × la part voix du prix confirmé (compteur ET 5 ×).
-    const p = budget.plafondVoix;
-    const facteur = budget.indicatif.facteurSecurite;
-    if (p && facteur) {
-      const paye = payees.reduce((n, x) => n + x.coutCentimes, 0);
-      if (paye + p.prixLecture(l.texte) > p.centimes * facteur) throw new ErreurFabricationCasConcret("voix", [`Arrêt de sécurité : cette voix dépasserait ${facteur} fois le prix confirmé (${formaterMontant(centimes(p.centimes))}, ${formaterMontant(centimes(paye))} déjà payés) : rien de plus n'est payé.`]);
+    // Au-delà du prix confirmé : le prix ne bloque jamais, on SIGNALE (journal + au plus une cloche par vidéo et par jour) sans arrêter.
+    const plafondIndicatif = budget.plafondVoix;
+    if (plafondIndicatif && budget.indicatif.signaler) {
+      const dejaPaye = payees.reduce((n, x) => n + x.coutCentimes, 0);
+      if (dejaPaye + plafondIndicatif.prixLecture(l.texte) > plafondIndicatif.centimes) {
+        void budget.indicatif.signaler(`Une lecture de plus dépasse le prix confirmé de la voix (au plus ${formaterMontant(centimes(plafondIndicatif.centimes))}, ${formaterMontant(centimes(dejaPaye))} déjà payés) : la vidéo continue.`).catch(() => undefined);
+      }
     }
     return;
   }
-  const plafond = budget.plafondVoix;
-  const deja = payees.reduce((n, x) => n + x.coutCentimes, 0);
-  if (plafond && deja + plafond.prixLecture(l.texte) > plafond.centimes) throw new ErreurFabricationCasConcret("voix", [phrasePlafondVoix(plafond.centimes, deja)]);
+  // 08/11/2026 : aucun prix ne bloque. Sans mode indicatif, la part « voix » du prix n'arrête plus la lecture (les bornes de lectures
+  // de voix.ts — `LECTURES_CORPS_MAX`, `LECTURES_FIN_MAX` — restent le garde-fou anti-boucle).
 }
 
 /* ------------------------------------------------------------------ */
@@ -580,7 +608,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
 
   // 2. Relecture : un refus arrête avant toute voix.
   const script = !entrees.ficheCle && o.scriptValide ? o.scriptValide : null;
-  const { fiche } = await etape("fiche", empreinte("fiche", brute, cas, reseaux, controleRegles, script ? "script-valide" : "ecrite", !!ctx.exigerScriptValide), async () => {
+  const { fiche, remarquesScript, avertissementsScript } = await etape("fiche", empreinte("fiche", brute, cas, reseaux, controleRegles, script ? "script-valide" : "ecrite", !!ctx.exigerScriptValide), async () => {
     if (!reseaux.length) throw new ErreurFabricationCasConcret("fiche", ["Aucun réseau choisi : cochez au moins un réseau."]);
     if (!plan.fins.length) throw new ErreurFabricationCasConcret("fiche", plan.sansFin.length ? plan.sansFin.map((s) => s.raison) : ["Aucune fin possible pour ces réseaux."]);
     // V4-3 : un script validé refusé arrête la fabrication avec une phrase claire, suivie des refus exacts.
@@ -592,7 +620,15 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const forme = validerSchemaFiche(brute);
     if (!forme.ok) throw refus(forme.problemes.map((p) => p.message));
     if (forme.fiche.casId !== cas.id) throw refus([`La fiche est écrite pour un autre cas (« ${forme.fiche.casId} »).`]);
-    const v = validerFicheEcrans(brute, { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles });
+    // 08/11/2026 : le script de Will (validé, fourni ou modifié) fait foi : durée, accroche, tutoiement, mots à éviter… sont des
+    // REMARQUES gardées sur la vidéo, jamais un refus. Un texte écrit par Claude garde les règles d'avant.
+    const ctxRegles = { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles };
+    if (script) {
+      const t = validerFicheEcransTolerant(brute, ctxRegles, script.fourni === true);
+      if (!t.ok) throw refus(t.problemes.map((p) => p.message));
+      return { fiche: t.fiche, remarquesScript: [...ecartsScriptValide(script, cas), ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
+    }
+    const v = validerFicheEcrans(brute, ctxRegles);
     if (!v.ok) throw refus(v.problemes.map((p) => p.message));
     // V4-3 : un script écrit (ni validé, ni fourni) attend la validation de Will : aucune voix avant.
     if (ctx.exigerScriptValide && !script && !entrees.ficheCle) throw new ErreurFabricationCasConcret("fiche", [PHRASE_SCRIPT_A_VALIDER]);
@@ -649,8 +685,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
 
   // 4. Voix : corps, une prise par fin, puis l'assemblage de chaque fin.
   const lire = (t: string) => (prononciations.length ? substituerPrononciations(t, [...prononciations]) : t);
-  const texteCorps = lire(texteDuCorps(captures.fiche));
-  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(f.ecrans.map((e) => e.texteDit.trim()).join(" ")) }));
+  const texteCorps = lire(texteDuCorpsPourVoix(captures.fiche));
+  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(joindrePhrasesPourVoix(f.ecrans.map((e) => e.texteDit))) }));
   const tarif = outils.budget.tarifCentimesParCaractere;
   const estimation = estimerVoixCasConcret([texteCorps, ...textesFins.map((f) => f.texte)], tarif);
   const v = outils.voix;
@@ -664,6 +700,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     ...(script ? { texteFige: true } : {}),
     // Deux refus identiques sur la même phrase : arrêt expliqué, jamais une lecture payée de plus qui échouerait pareil.
     arretSiRefusIdentique: true,
+    garderLaLectureSiRefus: true,
     reformuler: (phrase, faits) => reformulerPhrase(phrase, faits, ecritureVoix, { videoId: o.videoId, appelId: `${o.videoId}-${o.versionId}-l${e.corps.lectures}` }),
     avantLecture: (l) => {
       // 17/10 : une lecture qui ferait dépasser la part « voix » du prix confirmé n'est pas faite (« au plus » reste vrai).
@@ -777,7 +814,9 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     );
     // Les mots recalés par la recette : resserrés, raccordés, divisés par `atempo` (le tempo final du calage).
     const fins = sons.map(({ id, plan: p }) => ({ id, cle: assembles[id].cle, dureeSec: assembles[id].dureeSec, mots: p.mots }));
-    // V4-1 : contrôle BLOQUANT, la dernière phrase est dite jusqu'au bout (son final mesuré, pas l'heure du fournisseur).
+    // V4-1 : la dernière phrase est dite jusqu'au bout (son final mesuré, pas l'heure du fournisseur). 08/11/2026 : un défaut
+    // n'arrête plus la vidéo, il est signalé à vérifier.
+    const reservesFin: string[] = [];
     for (const f of fins) {
       const son = await sonDe(v, f.cle);
       const dernier = f.mots.at(-1);
@@ -785,10 +824,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       const verdict = controlerFinDeVoix(son, dernier.finSec);
       if (!verdict.ok) {
         const fin = plan.fins.find((x) => x.id === f.id);
-        throw new ErreurFabricationCasConcret("voix", [`Voix${fin && plan.fins.length > 1 ? ` de la fin pour ${nomsReseaux(fin.reseaux)}` : ""} · ${verdict.raison} Relancez la voix.`]);
+        reservesFin.push(`Voix${fin && plan.fins.length > 1 ? ` de la fin pour ${nomsReseaux(fin.reseaux)}` : ""} · ${verdict.raison}`);
       }
     }
-    return { texteCorps: finie.corps.texte, reformule: finie.reformulations.length > 0, payees: finie.payees, rapport: rapportVoix(finie), fins };
+    return { texteCorps: finie.corps.texte, reformule: finie.reformulations.length > 0, payees: finie.payees, rapport: rapportVoix(finie), fins, reservesFin };
   });
   const coutCentimes = voix.payees.slice(payeesAvant).reduce((s, p) => s + p.coutCentimes, 0);
 
@@ -802,6 +841,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       if (!r.ok) throw new ErreurFabricationCasConcret("calage", r.problemes.map((p) => (plan.fins.length > 1 ? `Fin pour ${nomsReseaux(f.reseaux)} · ${p}` : p)));
       return { r, f };
     });
+    // 08/11/2026 : les mots lus autrement que le texte écrit ne jettent plus la vidéo : ils partent en réserves « À vérifier ».
+    const ecarts = [...new Set(parFin.flatMap(({ r, f }) => r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`)))];
     const commun = Math.min(...parFin.map(({ r }) => r.fin!.ecrans[0].debutMs!));
     const premier = parFin[0].r;
     const dernier = premier.fiche.ecrans.length - 1;
@@ -809,6 +850,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const idsCorps = new Set(corps.map((e) => e.id));
     const borne = (ev: EvenementCale) => (ev.ecranId === corps[dernier].id ? { ...ev, debutMs: Math.min(ev.debutMs, commun - IMAGE_MS) } : ev);
     return {
+      ecarts,
       fiche: { ...premier.fiche, ecrans: corps },
       evenements: premier.evenements.filter((ev) => idsCorps.has(ev.ecranId)).map(borne),
       fins: parFin.map(({ r, f }) => ({
@@ -858,6 +900,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
         // combinaison unique, écarts minimum) : le tirage lui-même exclut ces structures.
         const exclues = !imposee && o.structureEcartee ? STRUCTURES.filter((s) => structureEffective(cas.offre, s) === o.structureEcartee) : [];
         const heritable = heritee && !exclues.includes(heritee.tirage.structure) ? heritee : null;
+        if (!heritable) journal.tirageNeuf = true;
         tirage = heritable?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(imposee ? { structureImposee: imposee } : {}), ...(exclues.length ? { structuresExclues: exclues } : {}) });
         // Une structure imposée (script validé, écriture déjà commencée) l'emporte aussi sur celle d'un tirage hérité.
         if (imposee && tirage.structure !== imposee) tirage = { ...tirage, structure: imposee };
@@ -906,9 +949,12 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     if (!gardee && variete) {
       const heritee = variete.miseHeritee ? lireMise(await sansPanne(() => variete.miseHeritee!(o.videoId), null)) : null;
       const historique = lireHistorique(await sansPanne(() => variete.lireHistorique(), []));
+      if (!journal.tirage && !heritee) journal.tirageNeuf = true;
       const tirage = journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique });
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
+      // GV-ST-02b : le choix « sans variante » est rangé dans la mise, que les versions suivantes héritent.
+      if (journal.tirageNeuf || heritee?.sousTitresSansVariante) gardee = { ...gardee, sousTitresSansVariante: true };
     }
     if (!gardee) return undefined;
     if (variete && !journal.mise?.notee) {
@@ -942,11 +988,27 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const dernierLien = cales.map((e) => e.type).lastIndexOf("lien");
     return { id: f.fin.id, cales: Object.keys(jeuFin).length && dernierLien >= 0 ? cales.map((e, i) => (i === dernierLien ? { ...e, jeu: { ...e.jeu, ...jeuFin } } : e)) : cales };
   });
+  // Lot R2 · plan de scènes (option, ÉTEINTE par défaut) : sans `o.planScenes`, rien ici ne s'exécute et les propriétés
+  // des écrans (donc leurs empreintes de rendu) sont celles d'avant.
+  let tranchesPlan: Record<string, PlanValide> = {};
+  if (o.planScenes) {
+    const dit = (ecrans: readonly { id: string; texteDit: string }[]) => new Map(ecrans.map((e) => [e.id, e.texteDit]));
+    const groupe = (id: string, cales: readonly EcranCale[], textes: Map<string, string>): GroupePourPlan => ({ id, ecrans: cales.map((e) => ({ id: e.id, texteDit: textes.get(e.id) ?? "", debutMs: e.debutMs, finMs: e.finMs })) });
+    const r = await planScenesCasConcret({
+      groupes: [groupe("corps", corpsCales, dit(calage.fiche.ecrans)), ...finsCales.map((f) => groupe(f.id, f.cales, dit(calage.fins.find((x) => x.fin.id === f.id)?.fin.ecrans ?? [])))],
+      appeler: o.planScenes.appeler,
+      memo: journal.planScenes,
+    });
+    journal.planScenes = r.memo;
+    await ecrire();
+    tranchesPlan = r.tranches;
+  }
+  const avecPlan = (groupe: string, ps: ProprietesEcran[]): ProprietesEcran[] => ps.map((p) => (tranchesPlan[cleTranche(groupe, p.id)] ? { ...p, planScenes: tranchesPlan[cleTranche(groupe, p.id)] } : p));
   const proprietes = (src: (cle: string) => string) => {
     const caps: Record<string, CaptureEcran> = Object.fromEntries(Object.values(captures.captures).map((c) => [c.cle, { ...c, src: src(c.cle) }]));
     return {
-      corps: proprietesPleineImage({ ecrans: corpsCales, captures: caps }),
-      fins: Object.fromEntries(finsCales.map((f) => [f.id, proprietesPleineImage({ ecrans: f.cales, captures: caps })])) as Record<string, ProprietesEcran[]>,
+      corps: avecPlan("corps", proprietesPleineImage({ ecrans: corpsCales, captures: caps })),
+      fins: Object.fromEntries(finsCales.map((f) => [f.id, avecPlan(f.id, proprietesPleineImage({ ecrans: f.cales, captures: caps }))])) as Record<string, ProprietesEcran[]>,
     };
   };
   const brouillon = proprietes(() => "");
@@ -1003,11 +1065,26 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const ecransRepris = suivi.etapes.some((e) => e.etape === "ecrans" && e.statut === "reprise");
 
   // 7. Finitions : une composition complète par fin.
-  // L3b : hauteur et accent des sous-titres tirés (`mise.tirage.sousTitres`) ; « v4 » ou aucune mise : la v4 exacte.
-  const centre = mise?.tirage.sousTitres.hauteur === "haute" ? centreSousTitresHautPct() : centreSousTitresPleineImagePct();
-  const style = { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres) } };
-  // L3b : la variation des sous-titres entre dans l'empreinte du montage (rien en v4 : empreinte inchangée).
-  const variationDuMontage = [variationSousTitresCasConcret(mise?.tirage.sousTitres), surlignageCasConcret(mise?.tirage.sousTitres)].filter((x) => Object.keys(x).length);
+  // GV-ST-02 : le style choisi (Bibliothèque ou étoile) fait loi ; sans choix, « Charte duo » v4. Plus de variante tirée par vidéo.
+  const choisi = o.styleSousTitres?.valeur?.type === "style-sous-titres" ? { ...o.styleSousTitres, valeur: o.styleSousTitres.valeur } : null;
+  // Variante par vidéo : coupée pour un tirage NEUF ; le tirage déjà enregistré (fiche, version existante, journal d'avant) est respecté.
+  const variante = VARIANTE_PAR_VIDEO || !(journal.tirageNeuf || mise?.sousTitresSansVariante);
+  // Position du style choisi respectée : `positionPct`, sinon « haut » / « bas » (zone libre des réseaux), sinon le centre plein image.
+  const positionDuStyle = (v: ValeurStyleSousTitres): number => {
+    if (v.positionPct !== undefined) return v.positionPct;
+    if (v.position === "centre") return centreSousTitresPleineImagePct();
+    const zones = positionsVerticales(RATIO, [...new Set(calage.fins.flatMap((cf) => cf.fin.reseaux))]);
+    return v.position === "haut" ? zones.hautPct : zones.basPct;
+  };
+  const centre = choisi ? positionDuStyle(choisi.valeur) : centreSousTitresCasConcret(mise?.tirage.sousTitres, variante);
+  const style = choisi
+    ? { id: choisi.id, nom: choisi.nom, valeur: { ...choisi.valeur, positionPct: centre, largeurMaxPct: choisi.valeur.largeurMaxPct ?? LARGEUR_SOUS_TITRES_PCT } }
+    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres, variante) } };
+  const baseSousTitres = choisi ? baseRetenue(o.baseSousTitres, choisi.valeur) : "minimal";
+  // Le style choisi (identifiant, valeur, base) entre dans l'empreinte du montage ; sans choix rien n'est ajouté (empreinte v4 inchangée).
+  const variationDuMontage = choisi
+    ? [{ styleSousTitres: choisi.id, valeur: style.valeur, base: baseSousTitres }]
+    : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante)].filter((x) => Object.keys(x).length);
   const emphase = [...new Set(calage.fiche.ecrans.flatMap(motsOrange))];
   const bruitagesDe = new Map<string, BruitagePlace[]>();
   const preparees = calage.fins.map((cf) => {
@@ -1024,7 +1101,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage);
     return { f, son, scenes, dureeSec, bruitages, texteScript, cle, clairs };
   });
-  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteScript, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: "minimal", occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...variationSousTitresCasConcret(mise?.tirage.sousTitres) });
+  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteScript, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...(choisi ? {} : variationSousTitresCasConcret(mise?.tirage.sousTitres, variante)) });
   const montage = await etape("montage", empreinte("montage", preparees.map((x) => x.cle)), async () => {
     const faites: { id: string; sortieCle: string; masterCle?: string; vignetteCle: string; mesures: Record<string, number> }[] = [];
     for (const x of preparees) {
@@ -1149,5 +1226,12 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       ...defautsVisuels(brouillon.corps, Object.fromEntries(calage.fiche.ecrans.map((e) => [e.id, e.texteDit]))),
       ...calage.fins.flatMap((f) => defautsVisuels(brouillon.fins[f.fin.id] ?? [], Object.fromEntries(f.fin.ecrans.map((e) => [e.id, e.texteDit])))),
     ].filter((d, i, tous) => tous.findIndex((x) => x.ecranId === d.ecranId && x.detail === d.detail) === i),
+    reservesVoix: [
+      ...(voix.rapport.corpsGardeMalgreRejet ? [`Voix · la phrase « ${voix.rapport.corpsGardeMalgreRejet.phrase} » est peut-être mal lue (${voix.rapport.corpsGardeMalgreRejet.detail}) : écoutez-la.`] : []),
+      ...(voix.reservesFin ?? []),
+      ...(calage.ecarts ?? []),
+    ],
+    remarquesScript: remarquesScript ?? [],
+    avertissementsScript: avertissementsScript ?? [],
   };
 }

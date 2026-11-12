@@ -14,6 +14,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: (
 
 const vue = await import("@/components/formats/image-video/vue");
 const { Depot } = await import("@/components/formats/image-video/Depot");
+const { ENTREE_PAR_DEFAUT, ENTREES_VISIBLES } = await import("@/components/formats/image-video/entrees");
 const { DepotLot } = await import("@/components/formats/image-video/DepotLot");
 
 const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/\s+/g, " ");
@@ -23,11 +24,14 @@ const rendre = (items: ReturnType<typeof item>[], plus: Record<string, unknown> 
   renderToStaticMarkup(createElement(DepotLot, { items, montantParVideoCentimes: 360, reseaux: ["linkedin"], offre: "image", onReseaux: () => undefined, onOffre: () => undefined, onRetirer: () => undefined, onFabriquer: async () => undefined, ...plus } as never));
 
 describe("1 image : l'écran actuel", () => {
-  it("la zone accepte plusieurs images mais l'écran vide garde son texte et son bouton à une vidéo", () => {
+  it("plus d'entrée par image : seules 2 entrées, « texte » par défaut, aucune zone de dépôt d'image", () => {
     const html = texte(renderToStaticMarkup(createElement(Depot, { montants: MONTANTS })));
-    expect(html).toContain("Déposez une ou plusieurs images");
-    expect(html).toContain("800 px de côté au moins");
-    expect(html).toMatch(/Fabriquer la vidéo \(au plus 3,00\s?€\)/);
+    expect(ENTREES_VISIBLES.map((e) => e.valeur)).toEqual(["texte", "script"]);
+    expect(ENTREE_PAR_DEFAUT).toBe("texte");
+    expect(html).toContain("Titre ou idée");
+    expect(html).toContain("Mon script");
+    expect(html).not.toContain("Déposer une image");
+    expect(html).not.toContain("Déposez une ou plusieurs images");
     expect(html).not.toContain("Fabriquer les");
   });
 });
@@ -43,7 +47,7 @@ describe("3 images : la grille et le total", () => {
   });
   it("le bouton dit le nombre de vidéos et le prix total « au plus » ; une phrase dit qu'aucun arrêt n'a lieu", () => {
     expect(t).toMatch(/Fabriquer les 3 vidéos · au plus 10,80\s?€/);
-    expect(t).toContain("Au plus ce prix pour les 3 vidéos. Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.");
+    expect(t).toContain("Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.");
     const bouton = /<button[^>]*>(?:(?!<\/button>)[\s\S])*Fabriquer les 3 vidéos/.exec(html)?.[0] ?? "";
     expect(bouton).not.toBe("");
     expect(bouton).not.toContain(`disabled=""`);

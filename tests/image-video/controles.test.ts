@@ -16,8 +16,9 @@ import { empreinteSon, type PisteVoixSeuleIV } from "@/moteurs/montage-image-vid
 import type { BruitageValideIV } from "@/moteurs/montage-image-video/bruitages";
 import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { ficheSansChapitres } from "@/moteurs/montage-image-video/recettes";
-import { bloque, CODES_CONTROLE_IV, scriptDeLaVersion, type VersionAControlerIV } from "@/moteurs/montage-image-video/controles";
-import { comparerAuScript, ecouterVersionIV, PHRASES_PARASITES_WHISPER, transcriptionUtile, type DemandeReservationControleIV, type DemandeTranscriptionIV } from "@/moteurs/montage-image-video/ecoute";
+import { chiffresDuTexte } from "@/moteurs/montage-image-video/regles";
+import { bloque, CODES_CONTROLE_IV, CONTROLES_INDICATIFS, scriptDeLaVersion, type VersionAControlerIV } from "@/moteurs/montage-image-video/controles";
+import { comparerAuScript, ecouterVersionIV, PHRASES_PARASITES_WHISPER, SEUILS_ECOUTE_IV, transcriptionUtile, type DemandeReservationControleIV, type DemandeTranscriptionIV } from "@/moteurs/montage-image-video/ecoute";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { liensSuivisIV, planDesFinsIV, type FinIV, type PlanDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
@@ -90,7 +91,9 @@ interface Montage {
 
 function versionDe(carte: CarteImage, fiche: FicheImage, fin: FinIV, sons: Map<string, Uint8Array>, o: { courte?: boolean; retires?: string[]; noeudsRetires?: string[] } = {}): VersionAControlerIV {
   const segment = fin.muet ? null : fin;
-  const voix = pisteSimulee(fiche, segment, { departSec: 0.1 });
+  // Départ décalé d'un centième par version déjà posée : depuis le 26/10/2026 plusieurs fins ont le même nombre de mots, donc
+  // le même son simulé, et l'écoute (mise en cache par empreinte) confondrait leurs transcriptions ; les vraies voix diffèrent.
+  const voix = pisteSimulee(fiche, segment, { departSec: 0.1 + 0.01 * sons.size });
   const id = `${fin.id}${o.courte ? "-courte" : ""}`;
   const cle = `voix/${id}.wav`;
   const octets = sonDesMots(voix.mots, voix.dureeSec);
@@ -275,7 +278,7 @@ describe("porte unique : une vidéo conforme passe, sur toutes ses versions", ()
     expect(m.entree.versions.length).toBeGreaterThan(1);
     const [a, b] = m.entree.versions;
     // 1er passage : A relue conforme, B refusée (le 2ᵉ appel est celui de B).
-    const p1 = outils(m, { relecture: (r, k) => (k === 1 ? { ...r, images: r.images.map((x, i) => (i === 0 ? { ...x, toutMontre: false, manque: "20 %" } : x)) } : r) });
+    const p1 = outils(m, { relecture: (r, k) => (k === 1 ? { ...r, images: r.images.map((x, i) => (i === 0 ? { ...x, faux: "20 % au lieu de 30 %" } : x)) } : r) });
     const premier = await porteUniqueIV(m.entree, p1.o);
     expect(premier.ok).toBe(false);
     expect(premier.versions.find((x) => x.version === a.version)!.lignes.find((l) => l.code === "Q26")!.etat).toBe("reussi");
@@ -304,7 +307,9 @@ describe("porte unique : une vidéo conforme passe, sur toutes ses versions", ()
     // 1er passage : le 1er appel répond illisible (relance), le 3ᵉ tombe en panne (relecture interrompue).
     const p1 = outils(m, { idAppel, relecture: (r, k) => (k === 0 ? { illisible: true } : r), panne: (k) => k === 2 });
     const premier = await porteUniqueIV(m.entree, p1.o);
-    expect(premier.ok).toBe(false);
+    // Relecture interrompue : remarque « images finales non relues », la vidéo continue.
+    expect(premier.ok).toBe(true);
+    expect(premier.mentions.join()).toMatch(/images finales non relues/);
     const ids1 = p1.j.reservations.filter((r) => r.fournisseur === "claude").map((r) => r.appelId);
     expect(ids1.length).toBe(p1.j.appels.length);
     expect(ids1.length).toBe(m.entree.versions.length + 1);
@@ -330,7 +335,7 @@ describe("porte unique : une vidéo conforme passe, sur toutes ses versions", ()
 });
 
 describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
-  it("une transcription à laquelle manque la dernière phrase est refusée", async () => {
+  it("une transcription à laquelle manque la dernière phrase : remarques (Q19, Q06), la vidéo sort, relecture lancée", async () => {
     const m = monter("A");
     const { o } = outils(m, {
       transcrire: (_d, mots) => {
@@ -341,12 +346,17 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
       },
     });
     const v = await porteUniqueIV(m.entree, o);
-    expect(v.ok).toBe(false);
-    const q19 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q19" && bloque(l));
+    // 25/10/2026 : Q19 n'est qu'une remarque. Depuis le 26/10, chaque version (LinkedIn comprise) dit sa fin : la phrase retirée est
+    // celle de la fin, la phrase-choc reste entendue (Q06 réussie).
+    expect(v.ok).toBe(true);
+    const q19 = v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q19" && l.etat === "echoue");
     expect(q19.length).toBeGreaterThan(0);
+    expect(q19.every((l) => !l.bloquant)).toBe(true);
     expect(q19[0].phrase).toMatch(/dernière phrase/);
-    // La relecture payante n'est pas lancée : la vidéo est déjà refusée.
-    expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q26").every((l) => l.etat === "non-fait")).toBe(true);
+    expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q06" && bloque(l))).toEqual([]);
+    expect(v.mentions.join()).toMatch(/dernière phrase/);
+    // La vidéo n'est pas refusée : la relecture payante a lieu.
+    expect(v.versions.flatMap((x) => x.lignes).filter((l) => l.code === "Q26").every((l) => l.etat !== "non-fait")).toBe(true);
   });
 
   it("« Sous-titres réalisés par… » après la voix n'est PAS refusé (filtré et hors bornes)", async () => {
@@ -407,7 +417,7 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
     expect(v.versions[2].lignes.find((l) => l.code === "Q18")!.etat).toBe("non-fait");
   });
 
-  it("un chiffre non entendu est refusé (valeur ET unité)", async () => {
+  it("un chiffre non entendu (valeur ET unité) est une remarque : erreur de transcription, la vidéo continue", async () => {
     const m = monter("C");
     const ver = m.entree.versions[0];
     const script = scriptDeLaVersion(ver);
@@ -421,9 +431,13 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
     });
     expect(script.length).toBeGreaterThan(0);
     const v = await porteUniqueIV(m.entree, o);
-    expect(v.ok).toBe(false);
     const lignes = v.versions[0].lignes.filter(bloque).map((l) => l.code);
-    expect(lignes).toContain("Q18");
+    expect(lignes).not.toContain("CHIFFRES");
+    expect(lignes).not.toContain("Q18");
+    const ch = v.versions[0].lignes.find((l) => l.code === "CHIFFRES")!;
+    expect(ch.etat).toBe("echoue");
+    expect(ch.bloquant).toBe(false);
+    expect(ch.phrase).toMatch(/n'est pas entendu/);
     expect(v.versions[0].lignes.find((l) => l.code === "Q18")!.phrase).toMatch(/chiffre/);
   });
 
@@ -443,6 +457,35 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
     expect(autre.chiffresInventes.length).toBe(1);
   });
 
+  it("un chiffre entendu hors script : Q05 échoue sans bloquer, la vidéo sort", async () => {
+    const m = monter("C");
+    const ver = m.entree.versions[0];
+    const { o } = outils(m, {
+      transcrire: (d, mots) => (d.cle === ver.piste.cle ? [...mots, { mot: "37", debutSec: mots[mots.length - 1].finSec, finSec: mots[mots.length - 1].finSec + 0.2 }] : mots),
+    });
+    const v = await porteUniqueIV(m.entree, o);
+    const q05 = v.versions[0].lignes.find((l) => l.code === "Q05")!;
+    expect(q05.etat).toBe("echoue");
+    expect(q05.bloquant).toBe(false);
+    expect(q05.phrase).toMatch(/la voix dit « 37 »/);
+    expect(v.ok).toBe(true);
+    expect(v.versions[0].lignes.find((l) => l.code === "Q26")!.etat).not.toBe("non-fait");
+  });
+
+  it("un chiffre écrit dans le script et absent de l'image reste bloquant (Q05 côté script)", async () => {
+    const m = monter("C");
+    const fiche = structuredClone(m.entree.fiche);
+    fiche.ecrans[1] = { ...fiche.ecrans[1], texteDit: `${fiche.ecrans[1].texteDit} Cela fait 4812 clients.` };
+    const sons = new Map<string, Uint8Array>();
+    const versions = m.plan.fins.map((f) => versionDe(m.entree.carte, fiche, f, sons));
+    const m2: Montage = { ...m, sons, entree: { ...m.entree, fiche, versions } };
+    const v = await porteUniqueIV(m2.entree, outils(m2).o);
+    const q05 = v.versions[0].lignes.find((l) => l.code === "Q05")!;
+    expect(q05.etat).toBe("echoue");
+    expect(bloque(q05)).toBe(true);
+    expect(v.ok).toBe(false);
+  });
+
   it("refus de réservation : aucune transcription, contrôle « non vérifié » et bloquant", async () => {
     const m = monter("A");
     const { o, j } = outils(m, { reserver: (d) => (d.fournisseur === "transcription" ? { ok: false, message: "plafond atteint" } : { ok: true }) });
@@ -455,15 +498,127 @@ describe("écoute (Q18) et fin (Q19) sur la piste voix seule", () => {
   });
 });
 
+describe("écoute (Q18) : indicative entre le plancher et le seuil, bloquante en dessous du plancher", () => {
+  /** Retire `part` des mots de la transcription (hors chiffres), répartis, sans toucher au dernier mot. */
+  const retirer = (part: number) => (_d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => {
+    const candidats = mots.map((x, i) => i).filter((i) => i < mots.length - 1 && /^[a-zàâçéèêëîïôûù]{1,5}$/i.test(mots[i].mot) && chiffresDuTexte(mots[i].mot).length === 0 && !/^(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|trente|cent|mille|zéro)$/i.test(mots[i].mot));
+    const nb = Math.round(mots.length * part);
+    const pas = candidats.length / nb;
+    const retires = new Set(Array.from({ length: nb }, (_x, k) => candidats[Math.floor(k * pas)]));
+    return mots.filter((_x, i) => !retires.has(i));
+  };
+  const q18De = async (part: number) => {
+    const m = monter("A");
+    const v = await porteUniqueIV(m.entree, outils(m, { transcrire: retirer(part) }).o);
+    return v.versions[0].lignes.find((l) => l.code === "Q18")!;
+  };
+  it("garde-fou : plancher 90 %, seuil de remarque 97 %", () => {
+    expect(SEUILS_ECOUTE_IV.retrouvesPlancher).toBe(0.9);
+    expect(SEUILS_ECOUTE_IV.retrouvesMin).toBe(0.97);
+  });
+  it("environ 95,8 % des mots entendus : remarque orange sur la ligne Q18 (non bloquante), pas un refus", async () => {
+    const q18 = await q18De(0.042);
+    const pct = Number(/(\d+[.,]\d) %/.exec(q18.phrase)![1].replace(",", "."));
+    expect(pct).toBeGreaterThan(90);
+    expect(pct).toBeLessThan(97);
+    expect(q18.etat).toBe("echoue");
+    expect(q18.bloquant).toBe(false);
+    expect(bloque(q18)).toBe(false);
+    expect(q18.phrase).toMatch(/des mots du script entendus dans l'ordre/);
+  });
+  it("environ 80 % des mots entendus (sous le plancher) : remarque orange, plus un refus (règle du 25/10/2026)", async () => {
+    const q18 = await q18De(0.2);
+    expect(Number(/(\d+[.,]\d) %/.exec(q18.phrase)![1].replace(",", "."))).toBeLessThan(90);
+    expect(q18.etat).toBe("echoue");
+    expect(q18.bloquant).toBe(false);
+    expect(bloque(q18)).toBe(false);
+    expect(q18.phrase).toMatch(/90 % au moins/);
+  });
+
+  // Voix absente ou quasi absente (moins de 50 % des mots entendus) : blocage voulu, la vidéo est refusée.
+  /** Ne garde que `part` des mots (les chiffres et le dernier mot restent), pour une voix quasi absente. */
+  const garder = (part: number) => (_d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => {
+    const libres = mots.map((_x, i) => i).filter((i) => i < mots.length - 1 && chiffresDuTexte(mots[i].mot).length === 0);
+    const retires = new Set(libres.filter((_i, k) => k >= Math.round(libres.length * part)));
+    return mots.filter((_x, i) => !retires.has(i));
+  };
+  const porteAvec = async (transcrire: (d: unknown, mots: { mot: string; debutSec: number; finSec: number }[]) => { mot: string; debutSec: number; finSec: number }[]) => {
+    const m = monter("A");
+    return porteUniqueIV(m.entree, outils(m, { transcrire: transcrire as never }).o);
+  };
+  it("transcription vide : Q18 bloque, la vidéo est refusée", async () => {
+    const v = await porteAvec(() => []);
+    const q18 = v.versions[0].lignes.find((l) => l.code === "Q18")!;
+    expect(q18.etat).toBe("echoue");
+    expect(bloque(q18)).toBe(true);
+    expect(v.ok).toBe(false);
+  });
+  it("30 % des mots entendus : Q18 bloque, la vidéo est refusée", async () => {
+    const v = await porteAvec(garder(0.3));
+    const q18 = v.versions[0].lignes.find((l) => l.code === "Q18")!;
+    expect(bloque(q18)).toBe(true);
+    expect(v.ok).toBe(false);
+  });
+  it("80 % des mots entendus : la vidéo sort prête avec une remarque sur Q18", async () => {
+    const v = await porteAvec(retirer(0.2));
+    const q18 = v.versions[0].lignes.find((l) => l.code === "Q18")!;
+    expect(q18.etat).toBe("echoue");
+    expect(bloque(q18)).toBe(false);
+    expect(v.ok).toBe(true);
+  });
+});
+
 describe("relecture des images finales (Q26) par l'extraction existante", () => {
-  it("une relecture « manque : 20 % » est refusée", async () => {
+  // 25/10/2026 (règle de Will : jamais d'arrêt pour un défaut de détail) : un « manque » isolé n'est plus un refus mais une remarque orange.
+  it("une relecture « manque : 20 % » (une image sur plusieurs) est une remarque orange, pas un refus", async () => {
     const m = monter("C");
     const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, toutMontre: false, manque: "20 %" } : x)) }) });
     const v = await porteUniqueIV(m.entree, o);
-    expect(v.ok).toBe(false);
+    expect(v.ok).toBe(true);
     const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(false);
     expect(q26.etat).toBe("echoue");
     expect(q26.phrase).toMatch(/il manque : 20 %/);
+    expect(v.mentions.join()).toMatch(/il manque : 20 %/);
+  });
+
+  it("une relecture « faux : 30 % au lieu de 20 % » est refusée", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, faux: "30 % au lieu de 20 %" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(false);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(true);
+    expect(q26.etat).toBe("echoue");
+    expect(q26.phrase).toMatch(/faux : 30 % au lieu de 20 %/);
+  });
+
+  it("une relecture « illisible : texte coupé par le bord » est une remarque : la vidéo continue", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, illisible: "texte coupé par le bord" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(true);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(false);
+    expect(q26.phrase).toMatch(/illisible : texte coupé par le bord/);
+  });
+
+  it("une seule image « entièrement noire » (transition) : remarque, la vidéo continue", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, illisible: "image entièrement noire" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(false);
+  });
+
+  it("une relecture « illisible : image entièrement noire » sur toutes les images est refusée", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x) => ({ ...x, illisible: "image entièrement noire" })) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(false);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(true);
+    expect(q26.phrase).toMatch(/illisible : image entièrement noire/);
   });
 
   it("« hors charte » et suggestions restent indicatifs", async () => {
@@ -474,17 +629,38 @@ describe("relecture des images finales (Q26) par l'extraction existante", () => 
     expect(v.mentions.join()).toMatch(/hors charte/);
   });
 
-  it("extraction ratée ou incomplète = refus (jamais « livrée sans relecture »)", async () => {
+  it("extraction ratée ou incomplète = remarque « images finales non relues » (refus seulement si le rendu est suspect)", async () => {
     const m = monter("A");
-    const { o } = outils(m, { extraction: (d) => d.parametres.instants.slice(1).map((i) => ({ nom: i.nom, cle: d.parametres.cles[i.nom] })) });
+    const { o } = outils(m, { extraction: () => [] });
     const v = await porteUniqueIV(m.entree, o);
-    expect(v.ok).toBe(false);
-    expect(v.versions[0].lignes.find((l) => l.code === "Q26")!.phrase).toMatch(/jamais livrée sans relecture/);
+    expect(v.ok).toBe(true);
+    expect(v.versions[0].lignes.find((l) => l.code === "Q26")!.bloquant).toBe(false);
+    expect(v.mentions.join()).toMatch(/images finales non relues/);
+    // Aucune image lue ET rendu suspect (mesure hors seuil sur le fichier final) : la vidéo n'est pas livrée.
+    const ms = monter("A");
+    ms.entree.versions[0].fichier.mesures = { ...ms.entree.versions[0].fichier.mesures, noirMaxSec: 0.8 };
+    const vs = await porteUniqueIV(ms.entree, outils(ms, { extraction: () => [] }).o);
+    expect(vs.ok).toBe(false);
+    expect(vs.versions[0].lignes.find((l) => l.code === "Q26")!.phrase).toMatch(/rendu est suspect/);
+    // Un volume, une crête ou une image figée sous son plancher (5 s) n'est PAS un rendu suspect : la vidéo continue avec la remarque.
+    for (const mesure of [{ lufs: -17 }, { creteVraieDbtp: 0.5 }, { figeMaxSec: 3 }]) {
+      const mv = monter("A");
+      mv.entree.versions[0].fichier.mesures = { ...mv.entree.versions[0].fichier.mesures, ...mesure };
+      const vv = await porteUniqueIV(mv.entree, outils(mv, { extraction: () => [] }).o);
+      expect(vv.ok, JSON.stringify(mesure)).toBe(true);
+      expect(vv.mentions.join()).toMatch(/images finales non relues/);
+    }
+    // 25/10/2026 : UNE image de contrôle manquante n'est plus un refus mais une remarque (la vidéo continue).
+    const m1 = monter("A");
+    const { o: o1 } = outils(m1, { extraction: (d) => d.parametres.instants.slice(1).map((i) => ({ nom: i.nom, cle: d.parametres.cles[i.nom] })) });
+    const v1 = await porteUniqueIV(m1.entree, o1);
+    expect(v1.versions[0].lignes.find((l) => l.code === "Q26")!.bloquant).toBe(false);
+    expect(v1.mentions.join()).toMatch(/n'a pas été extraite \(détail, la vidéo continue\)/);
     const m2 = monter("A");
     const { o: o2 } = outils(m2);
     const v2 = await porteUniqueIV(m2.entree, { ...o2, extraireImages: async () => { throw new Error("serveur de rendu indisponible"); } });
-    expect(v2.ok).toBe(false);
-    expect(v2.versions[0].lignes.find((l) => l.code === "Q26")!.phrase).toMatch(/n'ont pas pu être extraites/);
+    expect(v2.ok).toBe(true);
+    expect(v2.versions[0].lignes.find((l) => l.code === "Q26")!.phrase).toMatch(/images finales non relues.*extraites/);
   });
 
   it("demande identique à l'opération existante `controle` / `etape: \"images\"` (largeur 540) ; 24 images au plus", () => {
@@ -504,13 +680,15 @@ describe("relecture des images finales (Q26) par l'extraction existante", () => 
     expect(roleRelectureFinale.consigne).not.toMatch(/final\//);
   });
 
-  it("refus de réservation Claude : aucun appel, relecture « non vérifiée »", async () => {
+  it("refus de réservation Claude : aucun appel, remarque « images finales non relues », la vidéo continue", async () => {
     const m = monter("A");
     const { o, j } = outils(m, { reserver: (d) => (d.fournisseur === "claude" ? { ok: false, message: "plafond atteint" } : { ok: true }) });
     const v = await porteUniqueIV(m.entree, o);
     expect(j.appels).toEqual([]);
-    expect(v.ok).toBe(false);
-    expect(v.versions[0].lignes.find((l) => l.code === "Q26")!.etat).toBe("non-fait");
+    expect(v.ok).toBe(true);
+    const q26 = v.versions[0].lignes.find((l) => l.code === "Q26")!;
+    expect(q26.bloquant).toBe(false);
+    expect(q26.phrase).toMatch(/images finales non relues.*dépense/);
   });
 });
 
@@ -539,32 +717,110 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(v.versions.some((x) => x.courte)).toBe(true);
     expect(j.extractions.some((d) => d.source === courte.fichier.cle)).toBe(true);
 
+    // Cadence fausse : une remarque (la vidéo continue) ; mesure absente (rendu impossible à juger) : refus.
     courte.fichier.mesures = { ...courte.fichier.mesures, fps: 30 };
+    const v1 = await porteUniqueIV(m.entree, outils(m).o);
+    expect(v1.ok).toBe(true);
+    expect(v1.mentions.join()).toMatch(/YouTube Shorts.*30 images par seconde/);
+    const { fps: _fps, ...sansFps } = courte.fichier.mesures!;
+    courte.fichier.mesures = sansFps;
     const v2 = await porteUniqueIV(m.entree, outils(m).o);
     expect(v2.ok).toBe(false);
-    expect(v2.phrases.join()).toMatch(/YouTube Shorts \(version courte\).*30 images par seconde/);
+    expect(v2.phrases.join()).toMatch(/YouTube Shorts \(version courte\).*la cadence/);
   });
 
-  it("une version courte qui retire un chapitre essentiel est refusée (Q11 bis)", async () => {
+  it("une version courte qui retire un chapitre essentiel : remarque Q11 bis, la vidéo sort", async () => {
     const m = monter("faux-16-noeuds");
     const courte = avecVersionCourte(m);
     courte.retires = [m.entree.fiche.chapitres.find((c) => c.essentiel)!.titre];
     const v = await porteUniqueIV(m.entree, outils(m).o);
-    expect(v.ok).toBe(false);
-    expect(v.versions.find((x) => x.courte)!.lignes.find((l) => l.code === "Q11bis")!.phrase).toMatch(/essentiel/);
+    const q11bis = v.versions.find((x) => x.courte)!.lignes.find((l) => l.code === "Q11bis")!;
+    expect(q11bis.phrase).toMatch(/essentiel/);
+    expect(q11bis.etat).toBe("echoue");
+    expect(bloque(q11bis)).toBe(false);
+    expect(v.mentions.join()).toMatch(/essentiel/);
   });
 
   it("le verdict lit toutes les versions : un défaut sur la seule version Facebook refuse la vidéo", async () => {
     const m = monter("A");
     const fb = m.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
-    fb.fichier.mesures = { ...fb.fichier.mesures, lufs: -20 };
+    // Hauteur non mesurée (rendu impossible à juger) : refus. Une hauteur fausse, elle, n'est qu'une remarque (25/10/2026).
+    const mesures = fb.fichier.mesures!;
+    fb.fichier.mesures = { ...mesures, hauteur: 1000 };
+    const faux = await porteUniqueIV(m.entree, outils(m).o);
+    expect(faux.ok).toBe(true);
+    expect(faux.mentions.join()).toMatch(/Facebook.*hauteur de 1000 px/);
+    const { hauteur: _h, ...sansHauteur } = mesures;
+    fb.fichier.mesures = sansHauteur;
     const { o } = outils(m);
     const v = await porteUniqueIV(m.entree, o);
     expect(v.ok).toBe(false);
     expect(v.versions.find((x) => x.version === fb.version)!.ok).toBe(false);
     expect(v.versions.filter((x) => x.version !== fb.version).every((x) => x.ok || x.lignes.filter(bloque).every((l) => l.etat === "non-fait"))).toBe(true);
-    expect(v.phrases.join()).toMatch(/Facebook.*volume/);
+    expect(v.phrases.join()).toMatch(/Facebook.*hauteur/);
   });
+
+  it("un volume hors de −14 LUFS ± 1 n'est qu'une remarque orange : la vidéo reste prête", async () => {
+    const m = monter("A");
+    const fb = m.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    fb.fichier.mesures = { ...fb.fichier.mesures, lufs: -20 };
+    const v = await porteUniqueIV(m.entree, outils(m).o);
+    const q24 = v.versions.find((x) => x.version === fb.version)!.lignes.find((l) => l.code === "Q24")!;
+    expect(q24.etat).toBe("echoue");
+    expect(bloque(q24)).toBe(false);
+    expect(v.mentions.join()).toMatch(/volume/);
+  });
+
+  it("Q24 · planchers bloquants : noir de 10 s ou volume à −40 LUFS refusés, noir de 1 s seulement une remarque", async () => {
+    const q24De = async (mesures: Record<string, number>) => {
+      const m = monter("A");
+      m.entree.versions[0].fichier.mesures = { ...m.entree.versions[0].fichier.mesures, ...mesures };
+      return (await porteUniqueIV(m.entree, outils(m).o)).versions[0].lignes.find((l) => l.code === "Q24")!;
+    };
+    const noir = await q24De({ noirMaxSec: 10 });
+    expect(noir.etat).not.toBe("reussi");
+    expect(bloque(noir)).toBe(true);
+    const muet = await q24De({ lufs: -40 });
+    expect(muet.etat).not.toBe("reussi");
+    expect(bloque(muet)).toBe(true);
+    const court = await q24De({ noirMaxSec: 1 });
+    expect(court.etat).toBe("echoue");
+    expect(bloque(court)).toBe(false);
+  }, 60_000);
+
+  it("Q11 · corps trop long : remarque ; plafond du réseau dépassé : remarque aussi", async () => {
+    const m = monter("A");
+    const p = m.entree.versions[0].piste;
+    p.mots = p.mots.map((x, i) => (i === p.motsCorps - 1 ? { ...x, finSec: 500 } : x));
+    const q11 = (await porteUniqueIV(m.entree, outils(m).o)).versions[0].lignes.find((l) => l.code === "Q11")!;
+    expect(q11.etat).toBe("echoue");
+    expect(q11.phrase).toMatch(/la voix dépasse/);
+    expect(bloque(q11)).toBe(false);
+    const m2 = monter("A");
+    const fb = m2.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    fb.ligne = { ...fb.ligne, dureeSec: 400 };
+    const q11b = (await porteUniqueIV(m2.entree, outils(m2).o)).versions.find((x) => x.version === fb.version)!.lignes.find((l) => l.code === "Q11")!;
+    expect(q11b.etat).toBe("echoue");
+    expect(bloque(q11b)).toBe(false);
+  }, 60_000);
+
+  it("réseau sans fin (plan.sansFin) et version sans fin : remarques, la vidéo sort", async () => {
+    const m = monter("A");
+    const fb = m.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    const v = await porteUniqueIV({ ...m.entree, plan: { ...m.entree.plan, sansFin: [{ reseaux: ["facebook"], raison: "aucune fin pour Facebook : le gabarit manque." }] } }, outils(m).o);
+    expect(v.ok).toBe(true);
+    expect(v.generaux).toEqual([]);
+    expect(v.mentions.join()).toMatch(/Facebook : aucune fin pour Facebook/);
+    const m2 = monter("A");
+    const fb2 = m2.entree.versions.find((x) => x.reseaux.includes("facebook"))!;
+    (fb2 as { fin: unknown }).fin = null;
+    const v2 = await porteUniqueIV(m2.entree, outils(m2).o);
+    const q08bis = v2.versions.find((x) => x.version === fb2.version)!.lignes.find((l) => l.code === "Q08bis")!;
+    expect(q08bis.etat).toBe("echoue");
+    expect(q08bis.phrase).toMatch(/aucune fin pour/);
+    expect(bloque(q08bis)).toBe(false);
+    expect(fb.version).toBe(fb2.version);
+  }, 60_000);
 
   it("une mesure absente du fichier final échoue (non vérifiée), jamais réussie", async () => {
     const m = monter("A");
@@ -604,20 +860,24 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     // Écran tenu 1,6 s pendant une phrase (la voix ne se tait jamais plus de 0,3 s) : accepté.
     expect((await q24De({ figeMaxSec: 1.6, figeHorsVoixMaxSec: 0.3 })).etat).toBe("reussi");
     expect((await q24De({ figeMaxSec: 2.5, figeHorsVoixMaxSec: 0.5 })).etat).toBe("reussi");
-    // Plus de 2,5 s, même sous la voix : refusé.
+    // Plus de 2,5 s, même sous la voix : remarque (sous le plancher de 5 s), la vidéo reste utilisable.
     const long = await q24De({ figeMaxSec: 2.6, figeHorsVoixMaxSec: 0.2 });
     expect(long.etat).not.toBe("reussi");
+    expect(bloque(long)).toBe(false);
     expect(long.phrase).toMatch(/image figée de 2,6 s \(2,5 s au plus/);
-    // Figé 0,8 s dans un silence (ou à la fin) : refusé.
+    // Figé 0,8 s dans un silence (ou à la fin) : remarque.
     const silence = await q24De({ figeMaxSec: 0.8, figeHorsVoixMaxSec: 0.8 });
     expect(silence.etat).not.toBe("reussi");
+    expect(bloque(silence)).toBe(false);
+    // Figé plus de 5 s : planchers franchis, refusé.
+    expect(bloque(await q24De({ figeMaxSec: 6, figeHorsVoixMaxSec: 0.2 }))).toBe(true);
     expect(silence.phrase).toMatch(/sans voix \(0,5 s au plus hors voix\)/);
     // Mesure « hors voix » absente : la limite d'avant (0,5 s) tient partout.
     expect((await q24De({ figeMaxSec: 1.6 })).etat).not.toBe("reussi");
     expect((await q24De({ figeMaxSec: 0.4 })).etat).toBe("reussi");
   }, 60_000);
 
-  it("mise en page MESURÉE par le moteur à chaque instant clé (module partagé avec le rendu) : C conforme, écran vide refusé", async () => {
+  it("mise en page MESURÉE par le moteur à chaque instant clé (module partagé avec le rendu) : C conforme, écran vide en remarque (la vidéo continue)", async () => {
     const c = monter("C");
     const vc = await porteUniqueIV(c.entree, outils(c).o);
     expect(vc.versions.map((x) => x.reseaux).flat().sort()).toEqual([...RESEAUX_IV].sort());
@@ -626,7 +886,7 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
       // Image C (essai prévu) : TOUTES les lignes L13 réussies sur les 5 réseaux, Q21 comprise (mesurée, plus « non vérifiée »).
       expect(x.lignes.filter((l) => l.etat !== "reussi").map((l) => `${l.code} ${l.phrase}`)).toEqual([]);
     }
-    // Un bloc « bénéfices » sans carte (écran vide) à un instant clé — le défaut réel relevé sur l'image B — est refusé.
+    // Un bloc « bénéfices » sans carte (écran vide) à un instant clé — le défaut réel relevé sur l'image B — est une remarque (25/10/2026).
     const sabote = monter("C");
     const ver = sabote.entree.versions[0];
     const instants = instantsClesIV(ver.ligne, sabote.entree.carte).map((i) => i.instantSec);
@@ -634,41 +894,79 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     if (cible.sorte === "moments") cible.moments = cible.moments.map((m) => ({ debut: m.debut, fin: m.fin, fond: m.fond, sorte: "benefices", benefices: [], heures: [], microObjets: [], heuresLignes: [] }));
     const { o, j } = outils(sabote);
     const va = await porteUniqueIV(sabote.entree, o);
-    expect(va.ok).toBe(false);
+    expect(va.ok).toBe(true);
     const q21 = va.versions[0].lignes.find((l) => l.code === "Q21")!;
     expect(q21.etat).toBe("echoue");
+    expect(q21.bloquant).toBe(false);
     expect(q21.phrase).toMatch(/Remplissage vertical de 0 %/);
-    expect(j.reservations).toEqual([]);
+    expect(va.mentions.join()).toMatch(/Remplissage vertical de 0 %/);
+    expect(j.reservations.length).toBeGreaterThan(0);
   });
 
-  it("une ligne de temps rendue qui n'est pas celle contrôlée est refusée", async () => {
+  it("une ligne de temps rendue qui n'est pas celle contrôlée est une remarque (SCENE), la vidéo continue", async () => {
     const m = monter("A");
     const ver = m.entree.versions[0];
     ver.ligne = { ...ver.ligne, plans: ver.ligne.plans.slice(1) };
     const { o } = outils(m);
     const v = await porteUniqueIV(m.entree, o);
-    expect(v.ok).toBe(false);
-    expect(v.versions[0].lignes.find((l) => l.code === "SCENE")!.phrase).toMatch(/n'est pas celle/);
+    expect(v.ok).toBe(true);
+    const scene = v.versions[0].lignes.find((l) => l.code === "SCENE")!;
+    expect(scene.bloquant).toBe(false);
+    expect(scene.phrase).toMatch(/n'est pas celle/);
   });
 
-  it("un réseau demandé sans version est refusé ; LinkedIn reste muet (rien dit après la phrase-choc)", async () => {
+  it("un réseau demandé sans version est refusé ; LinkedIn dit la fin comme les autres (26/10/2026)", async () => {
     const m = monter("A");
     const li = m.entree.versions.find((x) => x.reseaux.includes("linkedin"))!;
-    expect(li.fin).toBeNull();
-    expect(li.piste.mots.length).toBe(li.piste.motsCorps);
+    expect(li.fin).not.toBeNull();
+    expect(li.fin!.muet).toBe(false);
+    expect(li.piste.mots.length).toBeGreaterThan(li.piste.motsCorps);
     const { o } = outils(m);
     const v = await porteUniqueIV({ ...m.entree, versions: m.entree.versions.filter((x) => x !== li) }, o);
     expect(v.ok).toBe(false);
     expect(v.generaux.join()).toMatch(/LinkedIn : aucune version/);
+  });
 
-    // Une version LinkedIn qui dit la fin d'un autre réseau est refusée (Q08 bis).
-    const m2 = monter("A");
-    const fin = m2.plan.fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
-    const fausse = versionDe(m2.entree.carte, m2.entree.fiche, { ...fin, id: "fin-linkedin", reseaux: ["linkedin"] }, m2.sons);
-    const { o: o2 } = outils(m2);
-    const v2 = await porteUniqueIV({ ...m2.entree, versions: m2.entree.versions.map((x) => (x.reseaux.includes("linkedin") ? fausse : x)) }, o2);
-    expect(v2.ok).toBe(false);
-    expect(v2.versions.find((x) => x.reseaux.includes("linkedin"))!.lignes.filter(bloque).map((l) => l.code)).toContain("Q08bis");
+  it("une version LinkedIn sans fin ni voix après la phrase-choc (vidéo faite avant le 26/10) reste acceptée par Q08 bis ; si elle sert aussi un autre réseau, elle est refusée", async () => {
+    const m = monter("A", ["linkedin"]);
+    const ancienne = (reseaux: ReseauIV[]) => versionDe(m.entree.carte, m.entree.fiche, { id: "fin-linkedin", reseaux, muet: true, appels: [] }, m.sons);
+    const q08 = async (version: ReturnType<typeof versionDe>) => {
+      const { o } = outils({ ...m, entree: { ...m.entree, versions: [version] } });
+      const r = await porteUniqueIV({ ...m.entree, versions: [version] }, o);
+      return r.versions[0].lignes.filter((l) => l.code === "Q08bis");
+    };
+    expect((await q08(ancienne(["linkedin"]))).filter(bloque)).toEqual([]);
+    const partagee = ancienne(["linkedin", "facebook"]);
+    const refus = (await q08(partagee)).filter(bloque);
+    expect(refus.map((l) => l.code)).toContain("Q08bis");
+  });
+
+  it("une version Facebook sans fin n'est plus refusée : remarque (Q08 bis), la vidéo sort", async () => {
+    const m = monter("A", ["facebook"]);
+    const sansFin = versionDe(m.entree.carte, m.entree.fiche, { id: "fin-facebook", reseaux: ["facebook"], muet: true, appels: [] }, m.sons);
+    const { o } = outils({ ...m, entree: { ...m.entree, versions: [sansFin] } });
+    const r = await porteUniqueIV({ ...m.entree, versions: [sansFin] }, o);
+    const q08bis = r.versions[0].lignes.find((l) => l.code === "Q08bis")!;
+    expect(q08bis.etat).toBe("echoue");
+    expect(bloque(q08bis)).toBe(false);
+    expect(q08bis.phrase).toMatch(/aucune fin pour facebook/);
+  });
+
+  it("réglage question-puis-fin : une fin sans question est signalée (remarque, jamais un blocage) ; en fin-seule, rien", async () => {
+    const m = monter("A", ["facebook"]);
+    const v = m.entree.versions[0];
+    expect(v.fin && !v.fin.muet && !v.fin.question).toBe(true);
+    const q08bis = async (appelCommentaire?: "question-puis-fin" | "fin-seule") => {
+      const { o } = outils(m);
+      const r = await porteUniqueIV({ ...m.entree, ...(appelCommentaire ? { appelCommentaire } : {}) }, o);
+      return r.versions[0].lignes.find((l) => l.code === "Q08bis")!;
+    };
+    const avec = await q08bis("question-puis-fin");
+    expect(avec.etat).toBe("echoue");
+    expect(avec.phrase).toMatch(/question de commentaire manque/);
+    expect(bloque(avec)).toBe(false);
+    expect((await q08bis("fin-seule")).etat).not.toBe("echoue");
+    expect((await q08bis()).etat).not.toBe("echoue");
   });
 
   it("aucune version : refus clair", async () => {
@@ -685,4 +983,22 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(v.ok).toBe(false);
     expect(v.versions[0].lignes.find((l) => l.code === "Q08")!.phrase).toMatch(/machine/);
   });
+});
+
+describe("défauts de détail (Q12 à Q15, Q19 à Q23, Q25, Q27, SCENE) : remarque orange, jamais un refus après le rendu payé", () => {
+  const ligne = (code: string, etat: "reussi" | "echoue" | "non-fait") => ({ code, etat, bloquant: !CONTROLES_INDICATIFS.has(code as never) });
+  const INDICATIVES = ["Q12", "Q13", "Q14", "Q15", "Q19", "Q20", "Q21", "Q22", "Q23", "Q25", "Q27", "SCENE", "FOND", "ORANGE", "FIN"];
+  it.each(INDICATIVES)("%s échoué ou non fait ne bloque pas", (c) => {
+    expect(bloque(ligne(c, "echoue"))).toBe(false);
+    expect(bloque(ligne(c, "non-fait"))).toBe(false);
+  });
+  it.each(["CHIFFRES", "Q16", "Q17", "Q24", "Q26"])("%s reste bloquant", (c) => {
+    expect(bloque(ligne(c, "echoue"))).toBe(true);
+  });
+  it("une version avec des défauts de détail est ok ; avec un chiffre faux (CHIFFRES) elle est refusée", () => {
+    const verdict = (lignes: ReturnType<typeof ligne>[]) => !lignes.some(bloque);
+    expect(verdict([ligne("Q12", "echoue"), ligne("Q13", "echoue"), ligne("Q21", "echoue")])).toBe(true);
+    expect(verdict([ligne("Q12", "reussi"), ligne("CHIFFRES", "echoue")])).toBe(false);
+  });
+  // Limite : ces tests vérifient la règle (`CONTROLES_INDICATIFS` + `bloque`) ; les cas de bout en bout sont dans les tests de la porte ci-dessus.
 });

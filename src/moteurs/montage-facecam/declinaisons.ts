@@ -25,7 +25,7 @@ import { lireEntreesFacecam } from "@/domaine/facecam";
 import type { EntreeComposition } from "@/briques/composition";
 import { avancerCompositions, type BaseComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
-import { dispositionQuiTient, GROUPEMENT_FACECAM, SOUS_TITRES_FACECAM, textesAffichesDesCartes } from "@/briques/habillage-facecam";
+import { dispositionQuiTient, GROUPEMENT_FACECAM, type MemoireCartesAuto, SOUS_TITRES_FACECAM, textesAffichesDesCartes } from "@/briques/habillage-facecam";
 import { calerCarteTous, miseEnPage, preparerCarteTous } from "@/briques/motion";
 import { grouperMots, recalerSurCoupes } from "@/briques/sous-titres/groupement";
 import { recollerElisionsHorodatees } from "@/briques/sous-titres/recollage";
@@ -65,7 +65,7 @@ import { alertesControles, bandeDesPlans, cleResultat, dimensionsSource, ESSAIS_
 import { cartePosee, demandeRenduCarte, type CarteMonteur } from "./raccords";
 import type { CodeCarte } from "./monteur/operations";
 import type { AjustementCarteAutoMonte } from "./cartes-video";
-import { cartesPosees, habillageFacecam, planUnique, type CartePosee, type EntreeHabillageFacecam, type HabillageFacecam, type RenduCarte } from "./habillage";
+import { cartesPosees, intensiteLutCommande, habillageFacecam, marquerMotsDuScript, planUnique, type CartePosee, type EntreeHabillageFacecam, type HabillageFacecam, type RenduCarte } from "./habillage";
 
 
 /** Ce que la chaîne garde pour les déclinaisons (petit : clés, plans, identifiants ; jamais d'image). */
@@ -233,7 +233,7 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
         bande,
         image: entrees.image,
         ...(fini(t.visages) && visages?.pointsCle ? { points: await lire(visages.pointsCle), ...(visages.pisteVisageCle ? { piste: await lire(visages.pisteVisageCle) } : {}) } : {}),
-        ...(lut ? { lut: { adresse: await lire(lut.cle), intensite: c.styles.lut?.intensite ?? 60 } } : {}),
+        ...(lut ? { lut: { adresse: await lire(lut.cle), intensite: intensiteLutCommande(c.styles.lut) } } : {}),
         ...(look?.peauLab ? { lookWill: look } : {}),
         cles: { image: cle("image-10bits-formats.mp4") },
       },
@@ -299,6 +299,10 @@ export interface RepriseHabillage {
   cartesAuto?: AjustementCarteAutoMonte[];
   /** Vérif V1 : cartes automatiques retirées depuis le chat : elles ne reviennent pas dans le format ajouté. */
   cartesAutoRetirees?: string[];
+  /** GV-MD-05b : historique des cartes figé au premier habillage : mêmes cartes de comblement dans le format ajouté. */
+  memoireCartes?: MemoireCartesAuto;
+  /** GV-ST-10 : mots désignés dans le script : mêmes mots colorés dans le format ajouté. */
+  emphase?: string[];
 }
 
 /** Contrôle machine d'un format sur ses plans seuls (visage et ligne des sous-titres par défaut). */
@@ -359,7 +363,7 @@ export function completerAvecDeclinaisons(resultat: ResultatFabrication, etat: E
     faits: d ? d.ratios.filter((r) => d.cadrages[r]?.statut === "termine") : [],
     ...(d?.passeLarge?.statut === "termine" ? { passeLarge: d.passeLarge } : {}),
     ...(etat.habillage && !etat.habillage.abandonne && etat.habillage.base.mots
-      ? { habillage: { dureeSec: etat.habillage.base.dureeSec, mots: etat.habillage.base.mots, coupesSec: raccordsDesGardes(etat.coupes?.gardes ?? []), ...(etat.monteur?.cartes.length ? { cartesMonteur: etat.monteur.cartes } : {}), ...(etat.habillage.cartesAutoFiche?.ajustements.length ? { cartesAuto: etat.habillage.cartesAutoFiche.ajustements } : {}), ...(etat.habillage.cartesAutoFiche?.retirees?.length ? { cartesAutoRetirees: etat.habillage.cartesAutoFiche.retirees } : {}) } }
+      ? { habillage: { dureeSec: etat.habillage.base.dureeSec, mots: etat.habillage.base.mots, coupesSec: raccordsDesGardes(etat.coupes?.gardes ?? []), ...(etat.monteur?.cartes.length ? { cartesMonteur: etat.monteur.cartes } : {}), ...(etat.habillage.cartesAutoFiche?.ajustements.length ? { cartesAuto: etat.habillage.cartesAutoFiche.ajustements } : {}), ...(etat.habillage.cartesAutoFiche?.retirees?.length ? { cartesAutoRetirees: etat.habillage.cartesAutoFiche.retirees } : {}), ...(etat.memoireCartes ? { memoireCartes: etat.memoireCartes } : {}), ...(etat.habillage.motsImportants?.emphase?.length ? { emphase: etat.habillage.motsImportants.emphase } : {}) } }
       : {}),
   };
   const projetMontage = { ...resultat.projetMontage, repriseFormats: reprise };
@@ -519,7 +523,7 @@ export async function avancerReexportFacecam(travail: Travail, commande: Command
         const lut = commande.styles.lut && commande.styles.lut.id !== "aucune" ? commande.medias?.[commande.styles.lut.id] : undefined;
         await preparerHabillagesFormats(
           etat,
-          { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
+          { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), ...(h.memoireCartes ? { memoireCartes: h.memoireCartes } : {}), ...(h.emphase?.length ? { emphase: h.emphase } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(commande.styles.lut) / 100 } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
           deps.habillage,
         );
       }
@@ -649,7 +653,8 @@ export function habillageFacecamRatio(e: EntreeHabillageFacecam & { plansFormat?
     else if ("sourceY" in placement) ecransPartages.push({ debutSec: c.debutSec, finSec: fin, carteCle: cle, sourceY: placement.sourceY, ligne });
   }
   const groupes = grouperMots(recollerElisionsHorodatees(e.mots), GROUPEMENT_FACECAM);
-  const segments = e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes;
+  // Mots importants : une règle unique avec repli (emphase du script, sinon mots forts de la transcription), dans le style choisi.
+  const { segments, source: sourceMotsImportants } = marquerMotsDuScript(e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes, e.emphase);
   const echelle = echelleTexteFormat(ratio);
   // Finitions du 10/10 : un titre affiché n'est pas répété en sous-titre (comme en 9:16).
   const textesAffiches = textesAffichesDesCartes(posees.map((c) => ({ ...c, disposition: renduCarteFormat(ratio, c.disposition).posee === "plein-ecran" ? ("plein-ecran" as const) : ("moitie-haute" as const) })));
@@ -667,7 +672,7 @@ export function habillageFacecamRatio(e: EntreeHabillageFacecam & { plansFormat?
     positionSousTitresPct: position,
     ...(ecransPartages.length ? { ecransPartages } : {}),
     ...(cartesPleinEcran.length ? { cartesPleinEcran } : {}),
-    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle } } : {}),
+    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle, ...(e.lookLutIntensite !== undefined ? { intensite: e.lookLutIntensite } : {}) } } : {}),
     ...(echelle !== undefined ? { echelleSousTitres: echelle } : {}),
     ...(textesAffiches.length ? { textesAffiches } : {}),
   };
@@ -680,7 +685,7 @@ export function habillageFacecamRatio(e: EntreeHabillageFacecam & { plansFormat?
         cartesPleinEcran,
       })
     : undefined;
-  return { cartes, entree, segments, cartesAuto, cartesAutoVues, ratio, ...(controle ? { controle } : {}) };
+  return { cartes, entree, segments, cartesAuto, cartesAutoVues, sourceMotsImportants, ratio, ...(controle ? { controle } : {}) };
 }
 
 /* ------------------------------------------------------------------ */

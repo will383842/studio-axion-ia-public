@@ -82,7 +82,7 @@ export function AvisEtoiles(props: PropsAvisEtoiles) {
       <Anim i={i} i0={0} iSortie={iSortie} incl={-2} x={xC} y={yC} w={wC} h={hC} z={4} id="carte-avis">
         <div style={{ position: "relative", width: wC, height: hC, boxSizing: "border-box", background: COULEURS.IVOIRE_CLAIR, border: `${TRAIT.FORT}px solid ${E}`, borderRadius: RAYON.CARTE, boxShadow: ombre("M"), overflow: "hidden" }}>
           <div style={{ position: "absolute", left: 0, top: 0, right: 0, height: hE, boxSizing: "border-box", background: ACCENT_1, borderBottom: `${TRAIT.MOYEN}px solid ${E}`, display: "flex", alignItems: "center", padding: "0 30px",
-            fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 38, letterSpacing: "0.04em", color: E }}>{entete}</div>
+            fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 38, letterSpacing: "0.04em", color: COULEURS.BLANC }}>{entete}</div>
           <div style={{ position: "absolute", left: 0, right: 0, top: hE, bottom: 28, display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>{etoiles}</div>
         </div>
       </Anim>

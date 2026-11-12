@@ -22,11 +22,12 @@ function demarrer(plafondCentimes: number, indicatif?: { facteurSecurite: number
 }
 
 describe("caisse Image → vidéo en mode indicatif", () => {
-  it("bloquant (pas d'outil indicatif) : plafond trop bas → arrêt net, comme avant", async () => {
+  it("sans outil indicatif : plafond trop bas → simple avertissement au journal, la lecture part (le crédit réel suffit)", async () => {
     const x = demarrer(10);
     const apres = await avancerJusquAArretIV(x.e, x.o);
-    expect(apres.refus).toMatchObject({ code: "IV_PLAFOND", etape: "lecture" });
-    expect(x.m.appelsClaude).toEqual([]);
+    expect(apres.refus).toBeUndefined();
+    expect(x.m.appelsClaude.length).toBeGreaterThan(0);
+    expect(apres.journal.some((l) => l.startsWith("Avertissement"))).toBe(true);
   });
 
   it("indicatif : au-dessus du plafond mais sous 5 ×, la lecture part et Will est prévenu", async () => {
@@ -38,12 +39,19 @@ describe("caisse Image → vidéo en mode indicatif", () => {
     expect(engageCentimes(apres)).toBeGreaterThan(10);
   });
 
-  it("indicatif : au-delà de 5 × le plafond, arrêt de sécurité, aucun appel de plus", async () => {
+  it("indicatif : même au-delà de 5 × le plafond, plus d'arrêt de sécurité (ordre du 25/10) : Will est prévenu, la lecture part", async () => {
     const x = demarrer(1, { facteurSecurite: 5 });
     const apres = await avancerJusquAArretIV(x.e, x.o);
-    expect(apres.refus).toMatchObject({ code: "IV_PLAFOND" });
-    expect(apres.refus?.message).toMatch(/Arrêt de sécurité/);
-    expect(x.m.appelsClaude).toEqual([]);
+    expect(apres.refus).toBeUndefined();
+    expect(x.signaux.length).toBeGreaterThan(0);
+    expect(x.m.appelsClaude.length).toBeGreaterThan(0);
+  });
+
+  it("sans outil indicatif : plafond 1 c, jamais d'arrêt IV_PLAFOND", async () => {
+    const x = demarrer(1);
+    const apres = await avancerJusquAArretIV(x.e, x.o);
+    expect(apres.refus).toBeUndefined();
+    expect(x.m.appelsClaude.length).toBeGreaterThan(0);
   });
 
   it("une relance après l'arrêt de sécurité ne repaie jamais l'étape déjà payée", async () => {
@@ -71,8 +79,11 @@ describe("miseDeCoteScriptIV en mode indicatif", () => {
   it("bloquant : la voix qui dépasse le prix accordé met le script de côté", () => {
     expect(miseDeCoteScriptIV(prop(100, 100, 150))).not.toBeNull();
   });
-  it("indicatif : jusqu'à 5 × le prix accordé, le script passe ; au-delà, mis de côté", () => {
+  it("facteur de sécurité seul (sans prixIndicatif) : jusqu'à 5 × le prix accordé, le script passe ; au-delà, mis de côté", () => {
     expect(miseDeCoteScriptIV(prop(100, 100, 150), 5)).toBeNull();
     expect(miseDeCoteScriptIV(prop(400, 400, 150), 5)).not.toBeNull();
+  });
+  it("indicatif (prixIndicatif) : jamais mis de côté pour le prix", () => {
+    expect(miseDeCoteScriptIV(prop(400, 400, 150), 5, { prixIndicatif: true })).toBeNull();
   });
 });

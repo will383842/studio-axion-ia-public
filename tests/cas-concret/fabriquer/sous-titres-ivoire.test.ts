@@ -1,6 +1,6 @@
 /**
  * Essai réel du 14/10 (v-e99a49ee86cb) : sous-titres clairs à ombre sur les écrans ivoire, presque illisibles. La v4
- * les écrit en #15100c sur l'ivoire, sans ombre. Mesuré sur la demande RÉELLEMENT envoyée à la composition `complet`.
+ * les écrit en #141413 sur l'ivoire, sans ombre. Mesuré sur la demande RÉELLEMENT envoyée à la composition `complet`.
  */
 import { describe, expect, it } from "vitest";
 import { cssElement, sceneAuTemps, type DonneesCalque } from "@/briques/sous-titres/scene";
@@ -8,7 +8,7 @@ import { ENCRE_SOUS_TITRES_IVOIRE, fabriquerCasConcret } from "@/moteurs/montage
 import { doubles } from "./doubles";
 
 describe("sous-titres du cas concret sur les écrans ivoire", () => {
-  it("pendant un écran ivoire : texte #15100c, ni ombre ni contour ; ailleurs : inchangé", async () => {
+  it("pendant un écran ivoire : texte noir de la charte (#141413), ni ombre ni contour ; ailleurs : inchangé", async () => {
     const d = doubles();
     await fabriquerCasConcret(d.options);
     const st = (d.compositionsSoumises()[0].parametres as { texte: { sousTitres: DonneesCalque } }).texte.sousTitres;
@@ -34,7 +34,7 @@ describe("sous-titres du cas concret sur les écrans ivoire", () => {
       } else {
         ailleurs++;
         expect(el.clair).toBeUndefined();
-        expect(el.mots.some((m) => m.couleur === ENCRE_SOUS_TITRES_IVOIRE)).toBe(false);
+        if (!el.fond) expect(el.mots.some((m) => m.couleur === ENCRE_SOUS_TITRES_IVOIRE)).toBe(false);
       }
     }
     expect(dansIvoire).toBeGreaterThan(0);

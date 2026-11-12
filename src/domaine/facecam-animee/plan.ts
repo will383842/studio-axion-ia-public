@@ -333,6 +333,8 @@ export const schemaElementV4 = z.object({
   depuisSec: z.number().min(0).optional(),
   sens: z.enum(["gauche", "droite"]).optional(),
   verdict: z.object({ gagnant: z.enum(["A", "B"]), a: instant }).optional(),
+  /** GV-MD-03 (FACULTATIF) : indice du mot de la transcription qui déclenche l'animation (calage au mot). Absent : calage sur le mot le plus proche. */
+  motIndex: z.number().int().min(0).optional(),
   /** Mots EXACTS de la transcription que l'élément montre (littéralité). */
   illustre: illustre.optional(),
 });
@@ -371,6 +373,8 @@ export const schemaPlanFacecamAnimee = z.object({
   elementsV3: z.array(schemaElementV3).optional(),
   /** Éléments « v4 » (17/10, FACULTATIF) : les 26 plaquettes de `catalogue-v4.ts`. Ils remplacent les éléments v3 (écartés). */
   elementsV4: z.array(schemaElementV4).optional(),
+  /** Lot R2 (FACULTATIF, réglage éteint par défaut) : plan de scènes validé posé par-dessus la mise en scène. Voir `briques/plan-scenes`. */
+  planScenes: z.unknown().optional(),
   fin: z.object({ debut: instant, marque: z.string(), adresse: z.string(), motCle: z.string(), tuiles: z.array(z.string()).max(5), appel: z.string().max(32).optional() }),
   /** Bruitages : [instant, son, volume]. Dérivés des événements (lot E) ; le réalisateur n'en écrit pas. */
   sons: z.array(z.tuple([instant, z.string(), z.number().min(0).max(1)])),

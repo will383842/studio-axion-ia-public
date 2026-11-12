@@ -70,7 +70,7 @@ export function OngletVisages({ fiche, verrouille, onOuvrirAccord }: { fiche: Vu
       {verrouille && <BlocageAccord nom={fiche.personnage.nom} onOuvrirAccord={onOuvrirAccord} />}
 
       {visages.length > 0 && (
-        <div className="flex items-center gap-4 rounded-carte border border-trait bg-surface-1 p-4">
+        <div className="flex items-center gap-4 rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
           {moyenne !== null ? <AnneauQualite note={moyenne} taille={64} /> : <span className="grid size-16 place-items-center rounded-full bg-surface-2 text-texte-faible"><Icone nom="sablier" size={22} /></span>}
           <div className="min-w-0 flex-1">
             <p className="font-titre text-2xl tabular-nums text-texte">
@@ -153,7 +153,7 @@ function CarteVisage({ visage: v, habituel, onOuvrir }: { visage: VueVisage; hab
       onClick={onOuvrir}
       className="group relative block w-full overflow-hidden rounded-carte border border-trait bg-surface-1 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-trait-fort"
     >
-      <div className="relative aspect-[4/5] bg-surface-2">
+      <div className="theme-sombre relative aspect-[4/5] bg-surface-2">
         {v.vignette ? (
           <Image src={v.vignette} alt="" fill sizes="(max-width: 640px) 50vw, 260px" className={cn("object-cover transition-transform duration-500 group-hover:scale-[1.04]", v.statut !== "pret" && "opacity-50 grayscale")} />
         ) : (
@@ -166,7 +166,7 @@ function CarteVisage({ visage: v, habituel, onOuvrir }: { visage: VueVisage; hab
           <PastilleEtat type="preparation" statut={v.statut} />
         </span>
         {habituel && (
-          <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-orange text-sur-orange shadow-orange" title="Visage par défaut">
+          <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-texte text-fond" title="Visage par défaut">
             <Icone nom="etoile" size={14} />
           </span>
         )}
@@ -234,7 +234,7 @@ function FeuilleAjoutVisage({ personnageId, ouverte, onOuverteChange }: { person
         <AnimatePresence initial={false}>
           {fichiers.map((f, i) => (
             <motion.div key={`${f.name}-${i}`} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="-mt-3 flex min-h-12 items-center gap-3 rounded-champ bg-surface-2 px-3">
-              <Icone nom="film" size={18} className="text-orange-vif" />
+              <Icone nom="film" size={18} className="text-texte-faible" />
               <span className="min-w-0 flex-1 truncate text-sm text-texte">{f.name}</span>
               <span className="text-xs text-texte-faible">{tailleLisible(f.size)}</span>
               <button type="button" aria-label={`Retirer ${f.name}`} onClick={() => setFichiers((x) => x.filter((_, j) => j !== i))} className="-mr-2 grid size-11 place-items-center rounded-full text-texte-faible hover:text-texte">
@@ -256,7 +256,7 @@ function Suggestions({ valeurs, onChoisir, actif }: { valeurs: string[]; onChois
           key={v}
           type="button"
           onClick={() => onChoisir(v)}
-          className={cn("min-h-11 shrink-0 rounded-full border px-3 text-sm font-semibold transition-colors", actif === v ? "border-orange bg-orange-doux text-orange-vif" : "border-trait text-texte-doux hover:text-texte")}
+          className={cn("min-h-11 shrink-0 rounded-full border px-3 text-sm font-semibold transition-colors", actif === v ? "border-texte bg-texte text-fond" : "border-trait text-texte-doux hover:text-texte")}
         >
           {v}
         </button>
@@ -384,7 +384,7 @@ function FeuilleDetailVisage({ personnageId, visage, habituel, verrouille, onFer
 
           {pret &&
             (estHabituel ? (
-              <p className="flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-orange-vif">
+              <p className="flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-texte">
                 <Icone nom="etoile" size={16} />
                 Visage par défaut
               </p>
@@ -407,7 +407,7 @@ function FeuilleDetailVisage({ personnageId, visage, habituel, verrouille, onFer
                 <ul className="mt-4 grid gap-2">
                   {v.qualite.conseils.map((c) => (
                     <li key={c} className="flex items-start gap-2.5 text-sm text-texte-doux">
-                      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-orange-doux text-orange-vif">
+                      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent-doux text-accent">
                         <Icone nom="idee" size={13} />
                       </span>
                       {c}
@@ -461,7 +461,7 @@ function VisageParFormat({ personnageId, visages, parFormat, habituel }: { perso
   }
 
   return (
-    <section aria-labelledby="visage-par-format" className="rounded-carte border border-trait bg-surface-1 p-4">
+    <section aria-labelledby="visage-par-format" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
       <h3 id="visage-par-format" className="mb-1 text-sm font-semibold text-texte-doux">
         Par format
       </h3>
@@ -495,9 +495,9 @@ function VisageParFormat({ personnageId, visages, parFormat, habituel }: { perso
                     role="radio"
                     aria-checked={actif}
                     onClick={() => choisir(format.id, o.id)}
-                    className={cn("group relative block w-full overflow-hidden rounded-carte border text-left transition-[border-color,box-shadow]", actif ? "border-orange shadow-orange" : "border-trait hover:border-trait-fort")}
+                    className={cn("group relative block w-full overflow-hidden rounded-carte border text-left transition-[border-color,box-shadow]", actif ? "border-texte" : "border-trait hover:border-trait-fort")}
                   >
-                    <span className="relative block aspect-[4/5] bg-surface-2">
+                    <span className="theme-sombre relative block aspect-[4/5] bg-surface-2">
                       {o.visage.vignette ? (
                         <Image src={o.visage.vignette} alt="" fill sizes="(max-width: 640px) 50vw, 200px" className={cn("object-cover transition-transform duration-500 group-hover:scale-[1.04]", o.id === null && "opacity-60")} />
                       ) : (
@@ -507,7 +507,7 @@ function VisageParFormat({ personnageId, visages, parFormat, habituel }: { perso
                       )}
                       <span className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-fond/90 to-transparent" />
                       {actif && (
-                        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-orange text-sur-orange">
+                        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-texte text-fond">
                           <Icone nom="coche" size={15} />
                         </span>
                       )}
@@ -531,7 +531,7 @@ function VisageParFormat({ personnageId, visages, parFormat, habituel }: { perso
 function Vignette({ visage }: { visage: VueVisage }) {
   return (
     <span className="relative size-10 shrink-0 overflow-hidden rounded-xl bg-surface-2">
-      {visage.vignette ? <Image src={visage.vignette} alt="" fill sizes="40px" className="object-cover" /> : <Icone nom="visage" size={18} className="absolute inset-0 m-auto text-orange-vif" />}
+      {visage.vignette ? <Image src={visage.vignette} alt="" fill sizes="40px" className="object-cover" /> : <Icone nom="visage" size={18} className="absolute inset-0 m-auto text-texte-faible" />}
     </span>
   );
 }

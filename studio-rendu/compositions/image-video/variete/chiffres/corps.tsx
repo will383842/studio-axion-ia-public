@@ -6,7 +6,7 @@ import React from "react";
  * `calque.tsx` (bandeau d'un bloc à plusieurs moments).
  */
 import { AbsoluteFill } from "remotion";
-import { Fond } from "../../../cas-concret/socle/Fond";
+import { FondIV } from "../fond/FondVarie";
 import { Entete } from "../../Entete";
 import { Anneau, AppointAnneau, geometrieAnneau } from "./anneau";
 import type { DonneesEcranChiffresRendu } from "./donnees";
@@ -43,7 +43,7 @@ export function CorpsChiffres({ d, t, hauteur, marque }: { d: DonneesEcranChiffr
   const avecEtiquette = !!d.etiquette && d.code !== "CHI-D";
   return (
     <AbsoluteFill style={{ width: 1080, height: hauteur, overflow: "hidden" }}>
-      <Fond fond={d.fond} largeur={1080} hauteur={hauteur} />
+      <FondIV fond={d.fond} largeur={1080} hauteur={hauteur} />
       {avecEtiquette ? <Etiquette t={d.etiquette!} fond={d.fond} y={cadre.etiquetteY} /> : null}
       <AbsoluteFill style={{ transform: `scale(${echelle})`, transformOrigin: `540px ${cadre.haut}px` }}>
         {d.code === "CHI-B" ? <Anneau d={d} t={t} t0={t0} cadre={cadre} discret={discret} echelle={echelle} /> : null}

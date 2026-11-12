@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ProprietesEcran } from "@/briques/ecrans-motion";
-import { ErreurFabricationCasConcret, fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
+import { fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
 import { doubles, type Doubles } from "../fabriquer/doubles";
 
 const CLE_ANNONCE = "visuels-cas-concret/recrutement-apporteurs/annonce.png";
@@ -41,15 +41,6 @@ function voixEntiere(): Uint8Array {
   return wav(x, f);
 }
 
-async function echec(d: Doubles): Promise<ErreurFabricationCasConcret> {
-  const err = await fabriquerCasConcret(d.options).then(
-    () => null,
-    (e: unknown) => e,
-  );
-  expect(err).toBeInstanceOf(ErreurFabricationCasConcret);
-  return err as ErreurFabricationCasConcret;
-}
-
 /** Propriétés de l'écran « étape 1 » rendues (corps). */
 const etape1 = (d: Doubles) =>
   d
@@ -77,15 +68,13 @@ describe("V4-1 · image de l'annonce dans la chaîne", () => {
 });
 
 describe("V4-1 · contrôle bloquant de la fin de la voix dans la chaîne", () => {
-  it("la voix de la v4 (coupée net dans « machine ») arrête la fabrication à l'étape voix", async () => {
+  it("LOT A : la voix de la v4 (coupée net dans « machine ») n'arrête plus la fabrication : la vidéo est faite, la fin coupée est à vérifier", async () => {
     const d = doubles();
     const coupee = new Uint8Array(readFileSync(join(__dirname, "sons/v4-fin-coupee.wav")));
     d.options.outils.voix.lireSon = async (cle) => (estAssemblee(cle) ? coupee : null);
-    const err = await echec(d);
-    expect(err.etape).toBe("voix");
-    expect(err.raisons.join(" ")).toMatch(/coupée net.*pas dite jusqu'au bout.*Relancez la voix/);
-    // Rien n'est rendu après une voix refusée.
-    expect(d.ecransSoumis()).toHaveLength(0);
+    const r = await fabriquerCasConcret(d.options);
+    expect(r.reservesVoix.join(" ")).toMatch(/coupée net.*pas dite jusqu'au bout/);
+    expect(d.ecransSoumis().length).toBeGreaterThan(0);
   });
 
   it("le son brut (MP3 de la voix) est copié en WAV pour être mesuré : les coupes vont dans ses blancs (essai réel du 14/10)", async () => {

@@ -3,7 +3,7 @@
  *
  * La table et la règle en 4 cas vivent dans `domaine/image-video/plafonds.ts` (L1) ; ici on les applique aux durées
  * MESURÉES de chaque version : livrée / livrée avec mention / version courte / réseau non livré.
- * Durée totale d'un réseau = corps + question + fin (LinkedIn : ni question ni fin, la vidéo s'arrête sur la phrase-choc).
+ * Durée totale d'un réseau = corps + question + fin, LinkedIn comme les autres (depuis le 26/10/2026 il dit et affiche la fin).
  */
 import { PLAFONDS_IV, RESEAUX_IV, verdictPlafond, depasseLimiteDure, type ReseauIV, type VerdictPlafond } from "@/domaine/image-video/plafonds";
 
@@ -11,14 +11,13 @@ export type VersionLivree = "longue" | "courte" | "aucune";
 
 export interface DureesSegments {
   corpsSec: number;
-  /** 0 sur LinkedIn. */
+  /** 0 sans question de commentaire (réglage `fin-seule`, défaut). */
   questionSec: number;
-  /** 0 sur LinkedIn. */
+  /** Fin dite et affichée (accroche, appel, lien), au plus 29 mots, soit 8 à 9 s à 3,3 mots/s ; 0 pour une vidéo LinkedIn d'avant le 26/10 (muette). */
   finSec: number;
 }
 
-export function dureeTotaleIV(reseau: ReseauIV, d: DureesSegments): number {
-  if (reseau === "linkedin") return d.corpsSec;
+export function dureeTotaleIV(_reseau: ReseauIV, d: DureesSegments): number {
   return d.corpsSec + d.questionSec + d.finSec;
 }
 
@@ -40,8 +39,14 @@ export interface VerdictReseauIV {
  * `null` = aucun chapitre détachable ; un nombre = durée mesurée de la version courte, jugée à son tour.
  * Jamais de livraison d'une version longue au-delà d'une limite dure (Facebook 90 s).
  */
-export function verdictReseau(reseau: ReseauIV, dureeSec: number, versionCourteSec?: number | null): VerdictReseauIV {
+export function verdictReseau(reseau: ReseauIV, dureeSec: number, versionCourteSec?: number | null, scriptColle = false): VerdictReseauIV {
   const v = verdictPlafond(reseau, dureeSec, versionCourteSec);
+  // Script collé : le texte de Will fait foi. Faute de version courte, la version LONGUE part avec une mention ; seule la
+  // limite dure du réseau (Facebook 90 s) reste « non livrée ».
+  if (scriptColle && v.verdict === "non-livree" && !depasseLimiteDure(reseau, dureeSec)) {
+    const nom = PLAFONDS_IV[reseau].nom;
+    return { reseau, nom, verdict: "mention", version: "longue", dureeSec, phrase: `${Math.round(dureeSec)} s : plus longue que le conseil pour ${nom}, livrée telle quelle (c'est votre script).`, bloquant: false };
+  }
   const nom = PLAFONDS_IV[reseau].nom;
   const courteJugee = versionCourteSec !== undefined && versionCourteSec !== null && v.dureeSec === versionCourteSec && versionCourteSec !== dureeSec;
   const version: VersionLivree = v.verdict === "non-livree" ? "aucune" : courteJugee || v.verdict === "version-courte" ? "courte" : "longue";

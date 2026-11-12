@@ -12,7 +12,7 @@
  *   classées ; seules les versions non publiées changent d'état ; déprogrammer reste un geste de Will, un par publication.
  */
 import "server-only";
-import type { DateIso, Id, Matiere, Preuve, TypeMatiere } from "@/domaine/types";
+import { type DateIso, type Id, type Matiere, type Preuve, type TypeMatiere, videoIdDe } from "@/domaine/types";
 import { proposerPilier, utilisationsMatiere, type Utilisations } from "@/domaine/derivations-generateur";
 import {
   accordRequis,
@@ -352,7 +352,7 @@ export async function noterDeprogrammee(publicationId: Id): Promise<void> {
   if (!p) throw new ErreurStudio("INTROUVABLE", "Cette publication n'existe plus.");
   if (p.statut !== "programmee") return;
   await d.publications.modifier(p.id, { statut: "brouillon", erreur: "Déprogrammée par Will (matière retirée)" });
-  await journaliser("publication", "Publication déprogrammée (matière retirée)", { type: "video", id: p.videoId });
+  await journaliser("publication", "Publication déprogrammée (matière retirée)", (() => { const id = videoIdDe(p); return id ? { type: "video", id } : undefined; })());
   if (p.varianteId) {
     const v = await d.variantes.obtenir(p.varianteId);
     if (v) await synchroniserSujet(v.scriptMaitreId);

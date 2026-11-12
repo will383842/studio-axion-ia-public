@@ -6,7 +6,7 @@
  *  - la chaîne est FIGÉE au lancement : un réglage changé en route ne la change pas ;
  *  - téléprompteur et trame remplis ; marqueurs posés (plus de faux rouges C6 / C31) ;
  *  - reprise après une attente sans refaire l'appel déjà payé ; supplément sans réécrire l'angle ;
- *  - pire cas de la chaîne figée : courte réservée sous 1,50 $, grande refusée avant le 1er appel ;
+ *  - pire cas de la chaîne figée : courte réservée sous 1,50 $, grande au-dessus du plafond seulement signalée (lot H) ;
  *  - sortie inutilisable : échec technique, pas un manque de matière ;
  *  - dette #242 : le socle masque la liste GLOBALE des noms (chemin réel `donneesDe` → blocs en cache).
  */
@@ -396,8 +396,9 @@ describe("pire cas de la chaîne figée, plafond par défaut (1,50 $)", () => {
   }, 60_000);
 
   // Relecture finale A09 : sur la courte, le plafond d'un supplément est le réglage du sujet (1,50 $ par défaut, voir
-  // `supplements-plafond.test.ts`) ; abaissé sous le pire cas, le refus nomme ce réglage.
-  it("supplément « + Je lis » sur 3 réseaux, facturé au pire, réglage abaissé à 0,70 $ : refusé AVEC le réglage à relever ; relevé, il va au bout", async () => {
+  // `supplements-plafond.test.ts`). Lot H (décision de Williams, 08/11) : abaissé sous le pire cas, il ne bloque plus ;
+  // le dépassement est seulement signalé au journal, le supplément va au bout sans confirmation de prix.
+  it("supplément « + Je lis » sur 3 réseaux, facturé au pire, réglage abaissé à 0,70 $ : pas de refus, dépassement signalé au journal, il va au bout", async () => {
     await courte();
     const claude = await brancher([...Object.values(ROLES_CHAINE_COURTE), ...Object.values(ROLES_CHAINE_COURTE_HORS_RECETTE), ROLES_ECRITURE.declinaison] as DefinitionRole[]);
     const r = await lancer();
@@ -408,34 +409,32 @@ describe("pire cas de la chaîne figée, plafond par défaut (1,50 $)", () => {
     if (!s.ok) throw new Error("supplément");
     const avant = claude.appels.length;
     await bg.tourBoucleGeneration();
-    expect((await depots().generations.obtenir(s.generationId))?.statut).toBe("plafond-atteint");
-    expect(claude.appels.length).toBe(avant);
-    const refus = (await gc.lireReserveChaine(s.generationId))!;
-    expect(refus).toMatchObject({ accepte: false, plafondUsd: 0.7, reglage: gc.PARAM_PLAFOND_SUJET });
-    // Plus d'impasse : le bouton dit quel réglage relever, et une fois relevé la reprise part au prix confirmé.
-    const e = await bg.etatEcriture(r.scriptMaitreId);
-    expect(e?.reprise).toMatchObject({ possible: false });
-    expect(e?.reprise?.raison).toContain(gc.PARAM_PLAFOND_SUJET);
-    await ecrireParametre(gc.PARAM_PLAFOND_SUJET, Math.ceil(refus.pireCasUsd * 100) / 100);
-    expect((await bg.etatEcriture(r.scriptMaitreId))?.reprise).toMatchObject({ possible: true });
-    const err = await bg.reprendreEcriture(r.scriptMaitreId).catch((x) => x);
-    expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await bg.reprendreEcriture(r.scriptMaitreId, err.montant)).toBe(1);
-    await bg.tourBoucleGeneration();
     const g = (await depots().generations.obtenir(s.generationId))!;
     expect(g.statut).toBe("terminee");
+    const reserve = (await gc.lireReserveChaine(s.generationId))!;
+    // Le pire cas dépasse le réglage : la réserve est notée acceptée (budget indicatif), avec le réglage concerné.
+    expect(reserve).toMatchObject({ accepte: true, plafondUsd: 0.7, reglage: gc.PARAM_PLAFOND_SUJET });
+    expect(reserve.pireCasUsd).toBeGreaterThan(0.7);
+    const evenements = await depots().evenements.lister((e) => e.entiteId === r.scriptMaitreId);
+    expect(evenements.some((e) => /au-dessus du plafond du sujet .*l'écriture continue \(budget indicatif\)/.test(e.message))).toBe(true);
+    // Aucune impasse ni reprise à confirmer : rien n'attend Will.
+    expect(await gc.phraseReserveRefusee(s.generationId)).toBeNull();
     expect(claude.appels.slice(avant)).toEqual(["court-script", "court-relecture", "declinaison", "declinaison"]);
-    expect(gc.depenseGenerationUsd(g)).toBeLessThanOrEqual(refus.pireCasUsd);
+    expect(gc.depenseGenerationUsd(g)).toBeLessThanOrEqual(reserve.pireCasUsd);
   }, 60_000);
 
-  it("grande (réglage « complete ») : pire cas au-dessus du plafond, refusée AVANT le 1er appel", async () => {
+  it("grande (réglage « complete ») : pire cas au-dessus du plafond, elle part quand même (budget indicatif), dépassement signalé", async () => {
     gc.forcerChainePourEssai("grande");
     const claude = await brancher(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
     const r = await lancer();
     await bg.tourBoucleGeneration();
-    expect((await depots().generations.obtenir(r.generationId))?.statut).toBe("plafond-atteint");
-    expect(await gc.lireReserveChaine(r.generationId)).toMatchObject({ accepte: false, chaine: "grande", reglage: "generateur.plafondGrandeChaineUsd" });
-    expect(claude.appels).toHaveLength(0);
+    expect((await depots().generations.obtenir(r.generationId))?.statut).toBe("terminee");
+    const reserve = (await gc.lireReserveChaine(r.generationId))!;
+    expect(reserve).toMatchObject({ accepte: true, chaine: "grande", reglage: "generateur.plafondGrandeChaineUsd" });
+    expect(reserve.pireCasUsd).toBeGreaterThan(reserve.plafondUsd);
+    const evenements = await depots().evenements.lister((e) => e.entiteId === r.scriptMaitreId);
+    expect(evenements.some((e) => /budget indicatif/.test(e.message))).toBe(true);
+    expect(claude.appels.length).toBeGreaterThan(0);
   });
 });
 

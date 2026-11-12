@@ -8,7 +8,6 @@ import type { AngleVisage, BlocScript, Distribution, ElementBibliotheque, Montan
 import { voixPourFormat } from "@/domaine/voix-format";
 import { repartitionDepuisReglages } from "@/formats/communs";
 import type { PastilleDistribution } from "@/fournisseurs";
-import { formaterMontant } from "@/lib/montants";
 
 /* ------------------------------------------------------------------ */
 /* Blocs et mode pas à pas                                             */
@@ -261,19 +260,19 @@ export function libelleManques(manques: BlocManquant[]): string {
 
 /**
  * TEST-UI-REEL U6 (CORRECTEUR UI2) : texte du bouton « Fabriquer ». Une vidéo d'essai (rien n'est payé) dit « Essai
- * gratuit », jamais un montant en euros qui ferait croire à un paiement ; le vrai prix se lit en petit (`prixEnVrai`).
+ * gratuit », jamais un montant qui ferait croire à un paiement ; aucun prix n'est affiché (`prixEnVrai` rend toujours `null`).
  */
 export function libelleBoutonFabriquer(p: { montant?: Montant | null; dureeFabricationSec?: number; essaiGratuit: boolean }): string {
   if (!p.montant || p.dureeFabricationSec === undefined) return "Fabriquer";
   const duree = libelleDureeCourte(p.dureeFabricationSec);
   if (p.essaiGratuit) return `Fabriquer · Essai gratuit · prête en ~${duree}`;
-  return `Fabriquer · ≈ ${formaterMontant(p.montant, { court: true })} · prête en ~${duree}`;
+  return `Fabriquer · prête en ~${duree}`;
 }
 
-/** Petite ligne sous le bouton d'un essai : « En vrai : ≈ 1,03 € » (rien n'est payé maintenant). */
+/** Ancienne ligne de prix sous le bouton d'un essai : règle du fondateur, plus rien à l'écran. */
 export function prixEnVrai(montant: Montant | null | undefined): string | null {
-  if (!montant || montant.centimes <= 0) return null;
-  return `En vrai : ≈ ${formaterMontant(montant, { court: true })}`;
+  void montant; // Règle de Williams : aucun montant à l'écran.
+  return null;
 }
 
 /** Même écriture que `libelleDuree` des formats (« 24 s », « 2 min 05 »), sans dépendre du registre des formats. */
@@ -335,9 +334,9 @@ export function voixInitiale(voix: Voix[], personnage: Pick<Personnage, "voixPar
 /* Saisie libre « Décrivez »                                           */
 /* ------------------------------------------------------------------ */
 
-/** Texte d'une pastille : « Bureau ✓ », « Costume bleu · à créer (≈ 0,25 €) », « Debout · pas encore filmé → Assis ». */
+/** Texte d'une pastille : « Bureau ✓ », « Costume bleu · à créer », « Debout · pas encore filmé → Assis ». */
 export function libellePastille(p: PastilleDistribution): string {
   if (p.etat === "trouve") return `${p.libelle} ✓`;
-  if (p.etat === "a-creer") return `${p.libelle} · à créer (≈ ${formaterMontant(p.coutEstime, { court: true })})`;
+  if (p.etat === "a-creer") return `${p.libelle} · à créer`;
   return `${p.libelle} · pas encore filmé → ${p.repli === "assis" ? "Assis" : "Debout"}`;
 }

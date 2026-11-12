@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { disposerToile, type ProprietesSceneIV } from "@/briques/schema-motion";
+import { planEnsemble } from "@/briques/schema-motion/plan-objets";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { motsDits, type FicheImage } from "@/domaine/image-video/fiche";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
@@ -17,7 +18,7 @@ import { calerFiche, ErreurCalageIV, heuresSimulees, pisteSimulee } from "@/mote
 import { compteRythme, controlerCamera, controlerChiffresMontres, controlerRythme, instantsVisibles } from "@/moteurs/montage-image-video/controles-scene";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { planDesFinsIV, type FinIV } from "@/moteurs/montage-image-video/fins";
-import { CADRAGE_TOILE_IV, cadrageToile, mettreEnSceneIV, REGLES_SCENE_IV, type BlocRenduIV, type EntreeMiseEnSceneIV, type EvenementTempsIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
+import { CADRAGE_TOILE_IV, cadrageToile, mettreEnSceneIV, schemaDeLaCarte, REGLES_SCENE_IV, type BlocRenduIV, type EntreeMiseEnSceneIV, type EvenementTempsIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { bandeSousTitres, controlerSousTitresIV, LIMITES_BAS_SOUS_TITRES_IV } from "@/moteurs/montage-image-video/sous-titres";
 import { REGLES_SCENE_IV as REGLES_SOURCE } from "@/moteurs/montage-image-video/regles-scene";
 import { BANDE_SOUS_TITRES_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
@@ -38,7 +39,8 @@ const NOMS = Object.keys(IMAGES) as Image[];
 function finsDe(nom: Image): FinIV[] {
   const carte = carteDe(nom);
   const fiche = FICHES_SIMULEES[IMAGES[nom]];
-  return planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
+  // 26/10/2026 : la question est posée explicitement (le défaut est « fin seule ») ; LinkedIn dit la fin comme les autres.
+  return planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, numeroVersion: 1, appelCommentaire: "question-puis-fin", questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
 }
 
 function entreeDe(nom: Image, reseau: ReseauIV = "youtube-shorts", fiche: FicheImage = FICHES_SIMULEES[IMAGES[nom]]): EntreeMiseEnSceneIV {
@@ -372,6 +374,26 @@ describe("scène « Ensemble », bénéfices, repère", () => {
     expect(toiles(l).some((b) => b.proprietes.ensembles?.some((x) => x.chiffresCles?.join() === "80 %,20 %"))).toBe(true);
   });
 
+  it("D3 · une vue d'ensemble ne déclare comme montrés (textes du plan, chiffres-clés du bloc) que les chiffres que planEnsemble pose réellement", () => {
+    let vues = 0;
+    for (const nom of NOMS) {
+      const l = ligneDe(nom);
+      const carte = carteDe(nom);
+      const declares = [
+        ...l.plans.filter((p) => p.sorte === "ensemble").map((p) => p.textes),
+        ...toiles(l).flatMap((b) => b.proprietes.ensembles ?? []).map((x) => x.chiffresCles ?? []),
+        ...l.blocs.flatMap((b) => (b.sorte === "moments" ? b.moments : [])).flatMap((m) => (m.sorte === "ensemble" ? [m.options.chiffresCles ?? []] : [])),
+      ];
+      for (const textes of declares) {
+        if (!textes.length) continue;
+        const poses = planEnsemble(schemaDeLaCarte(carte), { chiffresCles: textes }).chiffres.map((c) => c.texte);
+        expect(poses.sort(), nom).toEqual([...textes].sort());
+        vues++;
+      }
+    }
+    expect(vues).toBeGreaterThan(0);
+  });
+
   it("très complexe : une vue d'ensemble (1,5 s au plus) ouvre chacun des 3 chapitres ; repère « 1/3 » → « 3/3 »", () => {
     const l = ligneDe("faux-16-noeuds");
     expect(l.repere).toMatchObject({ total: 3 });
@@ -484,9 +506,9 @@ describe("fonds, mot orange, sous-titres, bruitages", () => {
   });
 });
 
-describe("segment de fin : question de commentaire, rien sur LinkedIn", () => {
-  it("IG, FB, YS : la question propre à l'image ouvre le segment de fin, puis la fin de la banque", () => {
-    for (const r of ["instagram", "facebook", "youtube-shorts"] as const) {
+describe("segment de fin : question de commentaire, LinkedIn compris (muet seulement dans un plan d'avant le 26/10)", () => {
+  it("IG, FB, YS, LinkedIn : la question propre à l'image ouvre le segment de fin, puis la fin de la banque", () => {
+    for (const r of ["instagram", "facebook", "youtube-shorts", "linkedin"] as const) {
       const l = ligneDe("C", r);
       const fin = l.plans.filter((p) => p.partie === "fin");
       expect(fin[0].scene, r).toBe("question");
@@ -497,9 +519,11 @@ describe("segment de fin : question de commentaire, rien sur LinkedIn", () => {
     }
   });
 
-  it("LinkedIn : ni question ni fin, la vidéo s'arrête sur la phrase-choc et la marque", () => {
+  it("plan d'une vidéo faite avant (LinkedIn muet) : ni question ni fin, la vidéo s'arrête sur la phrase-choc et la marque", () => {
     for (const nom of NOMS) {
-      const l = ligneDe(nom, "linkedin");
+      const fiche = FICHES_SIMULEES[IMAGES[nom]];
+      const muette = { id: "fin-linkedin", reseaux: ["linkedin" as const], muet: true, appels: [] };
+      const l = mettreEnSceneIV({ carte: carteDe(nom), fiche, voix: pisteSimulee(fiche, null), fin: muette, reseaux: muette.reseaux, bruitagesValides: VALIDES }).ligne;
       expect(l.segmentFin.muet).toBe(true);
       expect(l.plans.some((p) => p.partie === "fin")).toBe(false);
       expect(JSON.stringify(l.plans)).not.toContain(FICHES_SIMULEES[IMAGES[nom]].questionCommentaire.texteEcran);

@@ -33,6 +33,16 @@ const FINS_INTERDITES = new Set([
 /** Mots outils : jamais choisis comme mot mis en valeur. */
 const MOTS_OUTILS = new Set([...FINS_INTERDITES, "comment", "pourquoi", "quand", "faut", "faire", "fait", "faites", "peut", "peuvent", "être", "avoir", "votre", "cela", "ça", "c", "voici", "voilà"]);
 
+/** Mot outil (article, préposition, pronom, interrogatif…) : jamais le début ni la fin d'un titre de couverture. */
+export function estMotOutil(m: string): boolean {
+  return MOTS_OUTILS.has(motNormalise(m)) || MOTS_OUTILS.has(normaliser(m));
+}
+
+/** Mot qui ne peut pas terminer un titre de couverture. */
+export function estFinInterdite(m: string): boolean {
+  return !finAcceptable(m);
+}
+
 const normaliser = (m: string) =>
   m
     .toLowerCase()

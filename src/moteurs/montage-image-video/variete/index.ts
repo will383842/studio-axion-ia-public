@@ -6,7 +6,7 @@
  * sous-titres sont lus au rendu). Règle : un bloc déjà `sorte: "variete"` n'est plus transformé par un axe suivant,
  * sauf par transitions et matière, qui n'ajoutent que des propriétés.
  */
-import type { FormatIV, RecetteVarieteIV, AxeVariete, CodeVariante } from "@/briques/schema-motion/variete";
+import { REFERENCES, type FormatIV, type RecetteVarieteIV, type AxeVariete, type CodeVariante } from "@/briques/schema-motion/variete";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import type { FicheImage } from "@/domaine/image-video/fiche";
 import type { ReseauIV } from "@/domaine/image-video/plafonds";
@@ -50,8 +50,27 @@ export interface AxeVarieteIV {
   appliquer(etape: EtapeVarieteIV): EtapeVarieteIV;
 }
 
+/**
+ * Variantes possibles d'un axe, référence comprise : quand la référence (le rendu d'aujourd'hui) est tirable pour cet axe, elle
+ * reste un choix honnête dès que l'image permet une autre variante (sinon une carte qui n'en permet qu'une ou deux rendait toutes
+ * les vidéos pareilles, issue 124). Jamais seule : sans variante, le tirage prend la référence d'office. Une seule source pour le
+ * tirage, la liste proposée à Will et les tests.
+ */
+const AXES_A_REFERENCE: readonly AxeVariete[] = ["recit", "chiffres", "camera", "transitions"];
+const avecReference = (a: AxeVarieteIV): AxeVarieteIV => {
+  const ref = REFERENCES[a.axe];
+  if (!ref || !AXES_A_REFERENCE.includes(a.axe)) return a;
+  return {
+    ...a,
+    possibles(carte, format) {
+      const codes = a.possibles(carte, format);
+      return codes.length && !codes.includes(ref as CodeVariante) ? [...codes, ref as CodeVariante] : codes;
+    },
+  };
+};
+
 /** Les axes appliqués aux blocs, dans l'ordre fixe. */
-export const AXES_APPLIQUES_IV: readonly AxeVarieteIV[] = [AXE_RECIT, AXE_OUVERTURE, AXE_TYPO, AXE_CHIFFRES, AXE_CAMERA, AXE_APPARITION, AXE_FIN, AXE_TRANSITIONS, AXE_MATIERE];
+export const AXES_APPLIQUES_IV: readonly AxeVarieteIV[] = [AXE_RECIT, AXE_OUVERTURE, AXE_TYPO, AXE_CHIFFRES, AXE_CAMERA, AXE_APPARITION, AXE_FIN, AXE_TRANSITIONS, AXE_MATIERE].map(avecReference);
 
 /** Applique la recette : chaque bloc reçoit `variete` (recette, format), puis chaque axe passe dans l'ordre fixe. */
 export function appliquerVarieteIV(etape: EtapeVarieteIV): EtapeVarieteIV {

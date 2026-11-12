@@ -106,7 +106,7 @@ async function saisirLeMot(page: Page, mot: string) {
 /** Dans la feuille ouverte : le mot, « Fabriquer la vidéo », le prix confirmé ; arrive sur la fiche de la vidéo. */
 async function fabriquer(page: Page, mot: string) {
   await saisirLeMot(page, mot);
-  await page.getByRole("button", { name: /Fabriquer la vidéo/ }).click();
+  await page.getByRole("button", { name: "Fabriquer", exact: true }).click();
   await page.getByRole("button", { name: /^Confirmer / }).click();
   await page.waitForURL(/\/videos\/[^/]+$/, { timeout: 60_000 });
 }
@@ -151,7 +151,7 @@ test("E1-01 · Intégration, une automatisation : de la case à la vidéo prête
   await seConnecter(page);
   const erreurs = surveiller(page);
   await page.goto("/cas-concret");
-  await expect(page.getByRole("heading", { name: "Cas concret MD", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cas concret", level: 1 })).toBeVisible();
   // X5 : une seule offre « Intégration » ; la nature reste en clair sur la carte ; aucun cas validé ne porte « Coaching ».
   await expect(page.getByRole("radiogroup", { name: "Les offres" }).getByRole("radio")).toHaveText(["Tous", "Formation", "Audit", "Intégration"]);
   await expect(carteDe(page, CAS.recrutement)).toContainText("Intégration");
@@ -269,19 +269,19 @@ test("E1-09 · Format caché : ni le menu, ni « Nouvelle vidéo » ne le montre
   const erreurs = surveiller(page);
   const menu = async () => (await page.locator("aside, nav").evaluateAll((els) => els.map((e) => e.textContent ?? "").join(" "))).trim();
   await page.goto("/");
-  expect(await menu()).not.toContain("Cas concret MD");
+  expect(await menu()).not.toContain("Cas concret");
   await page.goto("/nouvelle");
   await expect(page.getByRole("heading", { name: "Nouvelle vidéo", level: 1 })).toBeVisible();
-  await expect(page.locator("main")).not.toContainText("Cas concret MD");
-  expect(await menu()).not.toContain("Cas concret MD");
+  await expect(page.locator("main")).not.toContainText("Cas concret");
+  expect(await menu()).not.toContain("Cas concret");
   // « Formats » : /formats renvoie vers « Mes vidéos », dont les formats sont les onglets de rangement.
   await page.goto("/formats");
   await expect(page.getByRole("navigation", { name: "Rangement de mes vidéos" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Rangement de mes vidéos" })).not.toContainText("Cas concret");
-  expect(await menu()).not.toContain("Cas concret MD");
+  expect(await menu()).not.toContain("Cas concret");
   const reponse = await page.goto("/cas-concret");
   expect(reponse?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: "Cas concret MD", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cas concret", level: 1 })).toBeVisible();
   expect(erreurs).toEqual([]);
 });
 

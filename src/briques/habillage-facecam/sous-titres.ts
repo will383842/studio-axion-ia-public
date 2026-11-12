@@ -1,16 +1,17 @@
 /**
  * SOUS-TITRES FACE CAMÉRA (plan v4 L6, B.22). Styles déjà décidés : Karaoké en base, Minimal, Impact et Bandeau en
- * accents ; mot-clé orange en 3 tailles ; crème #F6EEE0. Groupes de 1 à 4 mots coupés par le sens, calés sur une
+ * accents ; mot-clé orange en 3 tailles ; ivoire #FAF9F5. Groupes de 1 à 4 mots coupés par le sens, calés sur une
  * coupe à moins de 0,2 s, horodatages pris dans l'aligneur. Position : 55-72 % de la hauteur, sous la bouche ; dans
  * l'écran partagé, dans la moitié basse sous la bouche (finitions du 10/10 : à la jonction, la ligne masquait la carte).
  */
+import { PALETTE } from "../charte/axion-2026";
 import type { OptionsGroupement } from "../sous-titres/groupement";
 import { sourceYMoitieBasse } from "./cadrage";
 
 export const SOUS_TITRES_FACECAM = {
   base: "karaoke" as const,
   accents: ["minimal", "impact", "bandeau"] as const,
-  couleurTexte: "#F6EEE0",
+  couleurTexte: PALETTE.ivoire,
   /** Centre de la ligne : 55 à 72 % de la hauteur. */
   positionPct: [55, 72] as const,
   /** Centre par défaut quand la position de la bouche est inconnue. */

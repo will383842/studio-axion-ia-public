@@ -1,7 +1,8 @@
 /**
  * L7 · socle des animations d'objets : le numéro tiré (`animObjet`, hasard à part, jamais sur la v4), son passage à
  * l'objet (`anim` du contexte), et la v4 EXACTE des 15 objets sans numéro (ou n° 0) : empreintes calculées sur
- * origin/master (f49a855) avant toute modification.
+ * origin/master (f49a855) avant toute modification, re-épinglées au lot L0 (PR 280) : seules les valeurs de COULEURS_DUO
+ * changent ; preuve : rejeu à palette master, 0 écart sur 330.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

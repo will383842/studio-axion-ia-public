@@ -1,0 +1,99 @@
+/**
+ * Ordre du 25/10/2026 · le prix ne bloque jamais une génération Image → vidéo en mode indicatif.
+ * Cause : le contrôle comparait dépense + prix MAXIMAL théorique de la voix au plafond ; la voix réelle (0,9 €) était refusée
+ * pour un maximum théorique de 8,90 €. Moteur pur, doubles du monde, rien n'est payé.
+ * Témoin : en mode bloquant (pas d'outil `indicatif`), l'ancien arrêt reste.
+ */
+import { describe, expect, it } from "vitest";
+import { avancerJusquAArretIV, controleAutomatiqueScriptIV, etatInitialIV, miseDeCoteScriptIV } from "@/moteurs/montage-image-video/fabrication";
+import type { OutilsFabricationIV } from "@/moteurs/montage-image-video";
+import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
+
+const LOT = { id: "lot-iv-0123456789ab", rang: 1 };
+const prop = (engage: number, auPlus: number, plafond: number) =>
+  ({ formules: [], aTrancher: [], prix: { engageCentimes: engage, auPlusCentimes: auPlus, habituelCentimes: 90, plafondCentimes: plafond } }) as unknown as Parameters<typeof miseDeCoteScriptIV>[0];
+
+function outilsIndicatifs(carte: ReturnType<typeof carteFixe>, m: ReturnType<typeof monde>, signaux: string[]): OutilsFabricationIV {
+  const base = outilsSimules(carte, m, { cartesValidees: 0 });
+  return { ...base, budget: { ...base.budget, indicatif: { facteurSecurite: 5, signaler: async (message: string) => void signaux.push(message) } } };
+}
+
+describe("miseDeCoteScriptIV : le prix ne met jamais le script de côté en indicatif", () => {
+  it("voix réelle 0,9 € mais maximum théorique 8,90 € au-dessus du plafond : indicatif → null", () => {
+    expect(miseDeCoteScriptIV(prop(100, 890, 100), 5, { prixIndicatif: true })).toBeNull();
+    expect(miseDeCoteScriptIV(prop(5000, 890, 100), 5, { prixIndicatif: true })).toBeNull(); // même au-delà de 5 ×
+    expect(miseDeCoteScriptIV(prop(100, 890, 100), undefined, { prixIndicatif: true })).toBeNull();
+  });
+  it("cas réel : plafond 8,90 €, somme 3,20 + 6,50 au-dessus : null en indicatif, non-null en bloquant", () => {
+    expect(miseDeCoteScriptIV(prop(320, 650, 890), undefined, { prixIndicatif: true })).toBeNull();
+    expect(miseDeCoteScriptIV(prop(320, 650, 890))).not.toBeNull();
+  });
+  it("témoin bloquant : l'ancien arrêt reste", () => {
+    expect(miseDeCoteScriptIV(prop(100, 890, 100))?.motif).toContain("La voix dépasserait le prix accordé");
+    expect(miseDeCoteScriptIV(prop(100, 890, 100), undefined, { prixIndicatif: false })).not.toBeNull();
+  });
+  it("indicatif : un prix non calculé (0) met toujours de côté, ce n'est pas un dépassement", () => {
+    expect(miseDeCoteScriptIV(prop(0, 0, 100), 5, { prixIndicatif: true })?.motif).toBe("Le prix de la voix n'a pas pu être calculé.");
+  });
+});
+
+describe("machine : la voix part malgré un plafond bas en indicatif", () => {
+  it("lot, indicatif, plafond 100 c, au-delà de 5 × : script jamais mis de côté, la voix est lue", async () => {
+    const carte = carteFixe("E");
+    const m = monde();
+    const signaux: string[] = [];
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 100 })), outilsIndicatifs(carte, m, signaux), { pasMax: 4 });
+    expect(e.miseDeCote).toBeUndefined();
+    expect(e.etape).not.toBe("script-a-valider");
+    expect(e.refus).toBeUndefined();
+    expect(m.lus.length).toBeGreaterThan(0);
+    expect(signaux.length).toBeGreaterThan(0);
+  });
+  it("vidéo seule en mode automatique, indicatif : même chose", async () => {
+    const carte = carteFixe("E");
+    const m = monde();
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { validationCarte: "automatique", plafondCentimes: 100 })), outilsIndicatifs(carte, m, []), { pasMax: 4 });
+    expect(e.miseDeCote).toBeUndefined();
+    expect(e.etape).not.toBe("script-a-valider");
+    expect(m.lus.length).toBeGreaterThan(0);
+  });
+  it("même plafond très bas (1 c), jamais d'arrêt de sécurité en indicatif", async () => {
+    const carte = carteFixe("E");
+    const m = monde();
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 1 })), outilsIndicatifs(carte, m, []), { pasMax: 4 });
+    expect(e.refus).toBeUndefined();
+    expect(m.appelsClaude.length).toBeGreaterThan(0);
+  });
+  it("témoin bloquant : plafond 100 c, le script est mis de côté, aucune voix", async () => {
+    const carte = carteFixe("E");
+    const m = monde();
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 100 })), outilsSimules(carte, m, { cartesValidees: 0 }));
+    expect(e.miseDeCote?.porte).toBe("script");
+    expect(m.lus).toHaveLength(0);
+  });
+  it("sans outil indicatif : plafond 1 c, plus d'arrêt IV_PLAFOND (le crédit réel décide)", async () => {
+    const carte = carteFixe("E");
+    const m = monde();
+    const e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { lot: LOT, plafondCentimes: 1 })), outilsSimules(carte, m, { cartesValidees: 0 }));
+    expect(e.refus).toBeUndefined();
+  });
+});
+
+describe("controleAutomatiqueScriptIV suit l'option prixIndicatif (appel réel)", () => {
+  // Script trop cher sans mise de côté préalable : l'état n'a pas de carte, donc la validation qui suit le contrôle du prix
+  // échoue d'une autre façon ; seul compte ici le MOTIF : le prix l'a-t-il mis de côté, oui ou non ?
+  const etatTropCher = (engage: number, auPlus: number, plafond: number) => {
+    const etat = etatInitialIV(demandeEssai(carteFixe("E"), { lot: LOT, plafondCentimes: plafond }));
+    etat.etape = "script-a-valider";
+    etat.propositionScript = prop(engage, auPlus, plafond) as unknown as NonNullable<typeof etat.propositionScript>;
+    return etat;
+  };
+  it("indicatif : un script trop cher n'est pas mis de côté pour son prix", () => {
+    const e = controleAutomatiqueScriptIV(etatTropCher(100, 890, 100), undefined, { prixIndicatif: true });
+    expect(e.miseDeCote?.motif ?? "").not.toContain("La voix dépasserait");
+  });
+  it("bloquant : le même script est mis de côté pour son prix", () => {
+    const e = controleAutomatiqueScriptIV(etatTropCher(100, 890, 100), undefined);
+    expect(e.miseDeCote?.motif).toContain("La voix dépasserait");
+  });
+});

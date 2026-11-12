@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import { MESSAGE_AUCUN_COMPTE_CLAUDE } from "@/domaine/credits";
 import type { EtapeTravail, Montant, StatutEtape } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import { Bouton } from "./Bouton";
 import { Icone, type NomIcone } from "./Icone";
 
@@ -114,13 +113,12 @@ export function ProgressionEtapes({
         </span>
         <span className="flex min-w-0 flex-col items-end gap-0.5 text-right">
           {temps && <span className="text-sm tabular-nums text-texte-doux">{temps}</span>}
-          {suivi?.depense && suivi.depense.centimes > 0 && <span className="text-xs tabular-nums text-texte-faible">{formaterMontant(suivi.depense)} dépensés</span>}
         </span>
       </div>
       <BarreProgression valeur={progression} ton={echec ? "brique" : progression >= 100 ? "sauge" : "orange"} />
       {suivi?.attenteCredit && !echec && (
         <p role="status" className="mt-3 flex items-start gap-2 rounded-xl border border-brique/30 bg-brique-doux px-3 py-2 text-sm text-texte">
-          <Icone nom="euro" size={16} className="mt-0.5 shrink-0 text-brique" />
+          <Icone nom="horloge" size={16} className="mt-0.5 shrink-0 text-brique" />
           <span>
             {/* Claude en mode abonnements : un abonnement se renouvelle, il ne se recharge pas. */}
             {suivi.attenteCredit === "Claude" && suivi.aucunCompteClaude ? MESSAGE_AUCUN_COMPTE_CLAUDE : suivi.attenteCredit === "Claude" && suivi.abonnementsClaude ? "En attente de crédit Claude : la fabrication reprendra au renouvellement du compte." : `En attente de crédit ${suivi.attenteCredit}. Rechargez : la fabrication reprendra toute seule.`}{" "}

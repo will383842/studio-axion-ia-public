@@ -259,52 +259,39 @@ describe("M4 · enchaînement des prises", () => {
     expect(rapportVoix(fin)).toMatchObject({ lecturesCorps: 2, reformulations: [{ avant: "Et vraiment tout part tout seul.", apres: "Et tout part tout seul.", rejet: "mots" }] });
   });
 
-  it(`${LECTURES_CORPS_MAX} lectures qui hésitent → le MÊME texte relu en lecture neuve, puis arrêt qui nomme la phrase`, async () => {
+  it(`${LECTURES_CORPS_MAX} lectures qui hésitent → le MÊME texte relu en lecture neuve, puis la dernière lecture est GARDÉE et la phrase signalée`, async () => {
     const j: Journal = { appels: [], lus: [] };
     const motsPour = (t: string) => motsDuTexte(t, { 3: 600 });
     const reformuler: OutilsAvancerVoix["reformuler"] = async (phrase) => {
       j.appels.push("reformuler");
       return { ok: true, phrase };
     };
-    const fin = await jusquAuBout(doubles(j, { motsPour, niveaux: -30, reformuler }), etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
-    expect(j.lus).toEqual([CORPS, CORPS, CORPS]);
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    expect(j.lus.slice(0, 3)).toEqual([CORPS, CORPS, CORPS]);
     // Une hésitation vient de la lecture, pas du texte : aucune reformulation.
     expect(j.appels.filter((a) => a === "reformuler")).toHaveLength(0);
-    expect(j.nouvelles).toEqual([false, true, true]);
-    expect(fin.issue).toMatchObject({ statut: "arret", phrase: "On recrute en quinze minutes." });
-    if (fin.issue?.statut !== "arret") throw new Error("pas d'arrêt");
-    expect(fin.issue.message).toContain("« On recrute en quinze minutes. »");
-    // 17/10 : le message ne promet plus une « lecture neuve » à la prochaine tentative, il dit ce qui s'est passé et où corriger.
-    expect(fin.issue.message).not.toContain("Réessayez");
-    expect(fin.issue.message).toContain(`${LECTURES_CORPS_MAX} fois`);
-    expect(fin.issue.message).toContain("« Relire le script »");
-    // Aucune fin n'est lue après l'arrêt ; les prises payées restent dans l'état.
-    expect(fin.payees).toHaveLength(3);
-    // Un état arrêté ne bouge plus.
-    expect(await avancerVoixCasConcret(fin, doubles(j))).toEqual(fin);
+    expect(j.nouvelles!.slice(0, 3)).toEqual([false, true, true]);
+    // 08/11/2026 : plus d'arrêt ; la voix se termine, la phrase est dans le rapport (« à vérifier »).
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(rapportVoix(fin).corpsGardeMalgreRejet).toMatchObject({ rejet: "son", phrase: "On recrute en quinze minutes." });
+    // Les fins sont lues ensuite, rien n'est perdu.
+    expect(fin.fins.every((f) => f.prise)).toBe(true);
   });
 
-
-  it("17/10 · script validé (texte figé) qui hésite (« euh ») : relu tel quel, puis arrêt qui renvoie vers « Relire le script » et la règle R03", async () => {
+  it("17/10 · script validé (texte figé) qui hésite (« euh ») : relu tel quel, puis la lecture est gardée et la phrase signalée (jamais réécrite)", async () => {
     const j: Journal = { appels: [], lus: [] };
     const motsPour = (t: string) => motsDuTexte(t, { 3: 600 });
     const reformuler: OutilsAvancerVoix["reformuler"] = async (phrase) => {
       j.appels.push("reformuler");
       return { ok: true, phrase };
     };
-    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), texteFige: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
-    expect(j.lus).toEqual([CORPS, CORPS, CORPS]);
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), texteFige: true, garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    expect(j.lus.slice(0, 3)).toEqual([CORPS, CORPS, CORPS]);
     expect(j.appels.filter((a) => a === "reformuler")).toHaveLength(0);
-    if (fin.issue?.statut !== "arret") throw new Error("pas d'arrêt");
-    const mot = /« ([^»]+) »/.exec(fin.corps.prise?.controle && "detail" in fin.corps.prise.controle ? fin.corps.prise.controle.detail : "")?.[1];
-    expect(mot).toBeTruthy();
-    const conseil = "Reformulez la phrase dans « Relire le script » en gardant le mot exact de la promesse du cas (règle R03 : l'accroche doit contenir les mots exacts de la promesse) — par exemple en changeant ce qui entoure le mot — puis lancez la vidéo.";
-    // 18/10 : « son » dit « hésite » et garde la mesure du contrôle (dB).
+    expect(fin.issue).toEqual({ statut: "faite" });
     expect(fin.corps.prise?.controle).toMatchObject({ rejet: "son" });
-    expect(fin.issue.message).toBe(`La voix hésite sur « ${mot} » (-30 dB). ${conseil}`);
-    expect(fin.issue.conseil).toBe(conseil);
-    expect(fin.issue.phrase).toBe("On recrute en quinze minutes.");
-    expect(fin.issue.message).not.toContain("Réessayez");
+    expect(rapportVoix(fin).corpsGardeMalgreRejet).toMatchObject({ rejet: "son", phrase: "On recrute en quinze minutes." });
+    expect(rapportVoix(fin).corpsGardeMalgreRejet!.detail).toContain("-30 dB");
   });
 
   it("18/10 · un blanc long (« traine ») n'est pas une hésitation : « marque un long blanc après », avec la mesure en ms", () => {
@@ -322,25 +309,23 @@ describe("M4 · enchaînement des prises", () => {
     expect(arretPhraseFigee(c, false)).toBeUndefined();
   });
 
-  it("17/10 · un script NON figé n'a pas ce conseil (seul le texte validé est figé)", async () => {
+  it("17/10 · un script NON figé hésite aussi : lecture gardée, phrase signalée", async () => {
     const j: Journal = { appels: [], lus: [] };
     const motsPour = (t: string) => motsDuTexte(t, { 3: 600 });
     const reformuler: OutilsAvancerVoix["reformuler"] = async (phrase) => ({ ok: true, phrase });
-    const fin = await jusquAuBout(doubles(j, { motsPour, niveaux: -30, reformuler }), etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
-    if (fin.issue?.statut !== "arret") throw new Error("pas d'arrêt");
-    expect(fin.issue.conseil).toBeUndefined();
-    expect(fin.issue.message).not.toContain("R03");
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, niveaux: -30, reformuler }), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(rapportVoix(fin).corpsGardeMalgreRejet?.phrase).toBe("On recrute en quinze minutes.");
   });
 
-  it("`reformuler` qui rend ok: false (mot mal dit) → arrêt avec sa raison", async () => {
+  it("`reformuler` qui rend ok: false (mot mal dit) → la lecture est gardée, la phrase signalée (08/11/2026, pas d'arrêt)", async () => {
     const j: Journal = { appels: [], lus: [] };
     const motsPour = (t: string) => motsDuTexte(t.replace("tout part", "tout tout part"));
-    const reformuler: OutilsAvancerVoix["reformuler"] = async () => ({ ok: false, raison: "Le budget du mois est atteint." });
-    const fin = await jusquAuBout(doubles(j, { motsPour, reformuler }), etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
-    expect(j.lus).toHaveLength(1);
-    expect(fin.issue).toMatchObject({ statut: "arret", phrase: "Et vraiment tout part tout seul." });
-    if (fin.issue?.statut !== "arret") throw new Error("pas d'arrêt");
-    expect(fin.issue.message).toContain("Le budget du mois est atteint.");
+    const reformuler: OutilsAvancerVoix["reformuler"] = async () => ({ ok: false, raison: "Le service d'écriture est injoignable." });
+    const fin = await jusquAuBout({ ...doubles(j, { motsPour, reformuler }), garderLaLectureSiRefus: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: FINS }));
+    expect(j.lus[0]).toBe(CORPS);
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(rapportVoix(fin).corpsGardeMalgreRejet).toMatchObject({ rejet: "mots", phrase: "Et vraiment tout part tout seul." });
   });
 
 
@@ -400,8 +385,13 @@ describe("« Réessayer » après un arrêt de la voix (essai réel du 14/10)", 
     const j: Journal = { appels: [], lus: [] };
     // Arrêt gardé : trois lectures refusées (texte figé).
     const motsPour = (t: string) => motsDuTexte(t.replace("tout part", "tout tout part"));
-    const arrete = await jusquAuBout({ ...doubles(j, { motsPour }), texteFige: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: [FINS[0]] }));
+    const termine = await jusquAuBout({ ...doubles(j, { motsPour }), texteFige: true }, etatInitialVoixCasConcret({ corps: CORPS, fins: [FINS[0]] }));
+    // Un état ARRÊTÉ d'avant le 08/11/2026 (stocké au journal) doit encore se rouvrir : on le reconstitue.
+    const { retenu: _r, ...corpsSansRetenu } = termine.corps;
+    void _r;
+    const arrete: EtatVoixCasConcret = { ...termine, fins: [{ id: FINS[0].id, texte: FINS[0].texte }], payees: termine.payees.slice(0, 3), corps: corpsSansRetenu, issue: { statut: "arret", message: "ancien arrêt", phrase: "Et vraiment tout part tout seul." } };
     expect(arrete.issue?.statut).toBe("arret");
+    j.lus.splice(3);
     expect(j.lus).toEqual([CORPS, CORPS, CORPS]);
     // La règle a changé (ici : la prise gardée est jugée bonne) ; la reprise ne relit PAS la voix.
     const prise = arrete.corps.prise!;

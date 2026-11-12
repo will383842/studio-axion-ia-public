@@ -19,7 +19,8 @@ import { mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV, type Resul
 import { AXE_OUVERTURE, DUREE_MAX_OUVERTURE_SEC, type DonneesOuvertureIV } from "@/moteurs/montage-image-video/variete/axes/ouverture";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import { COMPOSITIONS_RENDU_IV, parametresDuBloc } from "@/services/image-video-rendu";
-import type { DonneesOuverture } from "../../../studio-rendu/compositions/image-video/variete/ouverture/donnees";
+import { libelleRecul, xCarteRecul, type DonneesOuverture } from "../../../studio-rendu/compositions/image-video/variete/ouverture/donnees";
+import { largeurAnton } from "@/briques/schema-motion/chasse-anton";
 import { invariantsVarieteIV } from "./invariants";
 
 const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
@@ -215,5 +216,75 @@ describe("ouverture · contrat moteur ↔ composition", () => {
   it("les données du moteur s'assignent au type lu par la composition", () => {
     const d: DonneesOuverture = donnees(premier(avec("C", "OUV-B")))!;
     expect(d.code).toBe("OUV-B");
+  });
+});
+
+describe("ouverture · OUV-E recul : le libellé de la carte centrale ne passe plus sous la pastille", () => {
+  const largeur = (l: string, taille: number) => largeurAnton(l, 1) * taille;
+
+  it("« Kine prévenu de la réponse » : chaque ligne tient dans la carte (lc − 90), taille 58 px au moins", () => {
+    const r = libelleRecul("Kine prévenu de la réponse");
+    expect(r.lignes.join(" ")).toBe("Kine prévenu de la réponse");
+    expect(r.lignes.length).toBeGreaterThan(1);
+    expect(r.taille).toBeGreaterThanOrEqual(58);
+    for (const l of r.lignes) expect(largeur(l, r.taille)).toBeLessThanOrEqual(r.lc - 90);
+  });
+
+  it("« Alerte Telegram » : une ligne, taille de l'ancienne formule, lc 530 (le 9:16 court est inchangé)", () => {
+    const r = libelleRecul("Alerte Telegram");
+    const ancienne = Math.max(58, Math.min(64, Math.floor(440 / Math.max(0.01, largeurAnton("Alerte Telegram", 1)))));
+    expect(r).toEqual({ lignes: ["Alerte Telegram"], taille: ancienne, lc: 530 });
+  });
+
+  it("jamais de blocage : un libellé démesuré rend des lignes et une remarque", () => {
+    const long = "Réponse envoyée automatiquement au patient concerné par le cabinet";
+    const r = libelleRecul(long);
+    expect(r.lignes.join(" ")).toBe(long);
+    expect(r.lc).toBeLessThanOrEqual(900);
+  });
+
+  it("balisage figé du libellé court : la div d'une ligne est celle d'avant, la colonne n'existe que pour 2 lignes", () => {
+    const src = readFileSync(join(__dirname, "../../../studio-rendu/compositions/image-video/variete/ouverture/ouv-e.tsx"), "utf8");
+    const une = '<div style={{ position: "absolute", left: 50, top: 0, width: lc - 70, height: 140, display: "flex", alignItems: "center", justifyContent: "center", ...ANTON, textTransform: "none", fontSize: tailleQuiTient(libelle, 64, lc - 90, 58), color: C.encre, whiteSpace: "nowrap" }}>{libelle}</div>';
+    expect(src).toContain(`{r.lignes.length === 1 ? (\n          ${une}\n        ) : (`);
+    expect(src).toContain('flexDirection: "column"');
+    expect(src).toContain("lineHeight: 1");
+    expect(src).toContain("const lc = r.lc;");
+  });
+});
+
+describe("ouverture · OUV-E recul : le cadre pointillé et les coins restent dans l'écran (nœud en colonne de gauche)", () => {
+  const ancienne = (cx: number, lc: number) => Math.max(60, Math.min(1020 - lc, cx - lc / 2));
+
+  it("nœud à cx 180 : avant, le cadre sortait à gauche ; maintenant cadre et coins sont dans [0, 1080]", () => {
+    for (const lc of [530, 700, 900]) {
+      expect(ancienne(180, 530) - 102).toBeLessThan(0);
+      const xc = xCarteRecul(180, lc);
+      expect(xc - 102, `cadre gauche lc ${lc}`).toBeGreaterThanOrEqual(0);
+      expect(xc - 70 - 5, `coin gauche lc ${lc}`).toBeGreaterThanOrEqual(0);
+      expect(xc + lc + 46, `cadre droit lc ${lc} (bordure 4 px)`).toBeLessThanOrEqual(1080);
+      expect(xc + lc + 28 + 5, `coin droit lc ${lc}`).toBeLessThanOrEqual(1080);
+    }
+  });
+
+  it("cas (540, 900) : cadre droit (bordure 4 px) et coins restent dans [0, 1080]", () => {
+    const xc = xCarteRecul(540, 900);
+    expect(xc - 102, "cadre gauche").toBeGreaterThanOrEqual(0);
+    expect(xc + 900 + 46, "cadre droit").toBeLessThanOrEqual(1080);
+  });
+
+  it("la ligne du schéma (cx 180) tombe toujours sous la carte décalée ; le centre et la droite sont inchangés", () => {
+    const xc = xCarteRecul(180, 530);
+    expect(xc).toBeLessThanOrEqual(180);
+    expect(xc + 530).toBeGreaterThanOrEqual(180);
+    for (const cx of [540, 900]) for (const lc of [530, 700]) expect(xCarteRecul(cx, lc)).toBe(ancienne(cx, lc));
+  });
+
+  it("la lecture du libellé sur 2 lignes ne change pas (libelleRecul intact) et ouv-e.tsx utilise le placement", () => {
+    const r = libelleRecul("Kine prévenu de la réponse");
+    expect(r.lignes).toHaveLength(2);
+    expect(r.lc).toBe(530);
+    const src = readFileSync(join(__dirname, "../../../studio-rendu/compositions/image-video/variete/ouverture/ouv-e.tsx"), "utf8");
+    expect(src).toContain("const xc = xCarteRecul(cible.cx, lc);");
   });
 });

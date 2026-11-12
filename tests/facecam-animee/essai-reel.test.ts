@@ -7,7 +7,7 @@
  *  4. petits points : extension en majuscules, prise horizontale recadrée en vertical sur le visage (vrai FFmpeg), phrase à l'écran.
  * AUCUN appel réseau.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -46,6 +46,12 @@ const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " 
 /* 1. Visible dans l'interface connectée                                */
 /* ------------------------------------------------------------------ */
 
+// Convention du dépôt (voir tests/a2-traitement-image.test.ts) : le test « vrai FFmpeg » se saute si FFmpeg, ffprobe ou libx264 manquent.
+const ffmpegPresent =
+  spawnSync("ffmpeg", ["-version"]).status === 0 &&
+  spawnSync("ffprobe", ["-version"]).status === 0 &&
+  /libx264/.test(spawnSync("ffmpeg", ["-hide_banner", "-encoders"], { encoding: "utf8" }).stdout ?? "");
+
 describe("Essai réel · 1. visible pour Will (grille et menu), pastille « Essai », jamais grisé", () => {
   const fa = obtenirFormat("facecam-animee");
 
@@ -70,19 +76,17 @@ describe("Essai réel · 1. visible pour Will (grille et menu), pastille « Essa
     expect(readFileSync(join(RACINE, "src/app/(studio)/layout.tsx"), "utf8")).toContain("essai: true");
   });
 
-  it("menu latéral : lien sous « Mes vidéos » avec son compteur et la pastille « Essai », pas grisé ; les « bientôt » restent grisés", () => {
+  it("menu latéral : plus de ligne de format (la barre ne liste que « Mes vidéos ») ; les « bientôt » n'apparaissent pas non plus", () => {
     const formats = [
       { id: "facecam-animee", nom: fa.nom, icone: fa.icone, statut: "actif" as const, nbVideos: 3, essai: true },
       { id: "bidon", nom: "Format pas fait", icone: fa.icone, statut: "bientot" as const, nbVideos: 0 },
     ];
     const html = renderToStaticMarkup(createElement(BarreLaterale, { formats, actionDeconnexion: async () => undefined }));
-    const lien = /<a[^>]*href="\/formats\/facecam-animee"[^>]*>([\s\S]*?)<\/a>/.exec(html);
-    expect(lien).not.toBeNull();
-    expect(texte(lien![1])).toContain("Essai");
-    expect(texte(lien![1])).toContain("3");
-    expect(lien![0]).not.toContain("aria-disabled");
-    // Le format pas fait reste grisé, non cliquable (PR #338).
-    expect(html).toMatch(/aria-disabled="true"[^>]*>[\s\S]*?Format pas fait[\s\S]*?Bientôt/);
+    expect(html).not.toContain("/formats/facecam-animee");
+    expect(html).not.toContain("aria-disabled");
+    // 08/11 (Williams, remplace la PR #338) : le format pas fait n'apparaît plus du tout, même grisé.
+    expect(html).not.toContain("Format pas fait");
+    expect(html).not.toContain("Bientôt");
   });
 
   it("grille « Nouvelle vidéo » : carte cliquable avec la pastille « Essai » ; /nouvelle/facecam-animee mène à l'écran de dépôt", () => {
@@ -316,7 +320,12 @@ describe("Essai réel · 2. l'envoi par morceaux reprend tout seul (tous les for
 
   it("formats concernés : tous les écrans d'envoi passent par `envoyerFichier` (ZoneDepot, facecam, image → vidéo, tournage…)", () => {
     const src = (f: string) => readFileSync(join(RACINE, f), "utf8");
-    for (const f of ["src/components/ui/ZoneDepot.tsx", "src/components/formats/facecam-animee/DepotPrise.tsx", "src/components/formats/image-video/Depot.tsx", "src/components/facecam/EnvoiIphone.tsx", "src/components/tournage/Enregistreur.tsx"]) expect(src(f)).toMatch(/envoyerFichier\(/);
+    for (const f of ["src/components/ui/ZoneDepot.tsx", "src/components/formats/facecam-animee/DepotPrise.tsx", "src/components/formats/cas-concret/ecran-fourni/EcranFourni.tsx", "src/components/facecam/EnvoiIphone.tsx", "src/components/tournage/Enregistreur.tsx"]) expect(src(f)).toMatch(/envoyerFichier\(/);
+    // Image → vidéo : l'écran de départ ne reçoit plus d'image (titre, idée ou script collé, lot F) ; il n'envoie donc plus de fichier.
+    const departIV = src("src/components/formats/image-video/Depot.tsx");
+    expect(departIV).not.toMatch(/envoyerFichier\(/);
+    expect(departIV).toContain("DepotScript");
+    expect(departIV).toContain("DepotTexte");
     // ZoneDepot : glisser-déposer accepté (entrée et survol), phrase d'attente, bouton « Reprendre l'envoi ».
     const zone = src("src/components/ui/ZoneDepot.tsx");
     expect(zone).toContain("onDragEnter");
@@ -525,7 +534,7 @@ describe("Essai réel · 4. prise horizontale (IMG_7747, 3840 × 2160) recadrée
     expect(() => lireParametresFacecamV4({ plan, gardes, recadrage: { ...r, largeur: 4000 } })).toThrow(/Recadrage/);
   });
 
-  it("vrai FFmpeg : une prise horizontale 16:9 (réduite) devient une vidéo verticale 1080 × 1920, colonne du visage gardée", () => {
+  it.skipIf(!ffmpegPresent)("vrai FFmpeg : une prise horizontale 16:9 (réduite) devient une vidéo verticale 1080 × 1920, colonne du visage gardée", () => {
     const dossier = mkdtempSync(join(tmpdir(), "fa-recadrage-"));
     try {
       const brute = join(dossier, "brute.mp4");
@@ -538,9 +547,17 @@ describe("Essai réel · 4. prise horizontale (IMG_7747, 3840 × 2160) recadrée
       execFileSync("ffmpeg", ["-v", "error", "-y", "-i", brute, "-filter_complex_script", script, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", montee]);
       const sonde = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "json", montee], { encoding: "utf8" })) as { streams: { width: number; height: number }[] };
       expect(sonde.streams[0]).toEqual({ width: 1080, height: 1920 });
-      // Le « visage » blanc est au centre de la colonne : pixel du milieu de l'image (à la hauteur du visage) blanc.
-      const pixel = execFileSync("ffmpeg", ["-v", "error", "-i", montee, "-frames:v", "1", "-vf", "crop=2:2:539:799", "-f", "rawvideo", "-pix_fmt", "gray", "-"]);
-      expect(pixel[0]).toBeGreaterThan(200);
+      // Moyenne (gris) d'une zone 16 × 16 de l'image finale.
+      const moyenne = (zone: string): number => {
+        const brut = execFileSync("ffmpeg", ["-v", "error", "-i", montee, "-frames:v", "1", "-vf", `crop=${zone}`, "-f", "rawvideo", "-pix_fmt", "gray", "-"]);
+        return brut.reduce((somme, v) => somme + v, 0) / brut.length;
+      };
+      // Le « visage » blanc est dans la colonne gardée : une zone 16 × 16 centrée sur lui est blanche.
+      expect(moyenne("16:16:532:792")).toBeGreaterThan(200);
+      // À côté du visage : fond gris. L'image n'est donc pas blanche partout ; c'est la zone blanche du centre qui prouve la bonne colonne.
+      const horsColonne = moyenne("16:16:92:792");
+      expect(horsColonne).toBeGreaterThan(90);
+      expect(horsColonne).toBeLessThan(170);
     } finally {
       rmSync(dossier, { recursive: true, force: true });
     }

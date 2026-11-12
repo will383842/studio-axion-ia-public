@@ -11,8 +11,8 @@ import { noterPublicationAction, telechargerHistoriqueAction } from "@/app/(stud
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { notifier } from "@/components/ui/Toast";
-import { formaterMontant } from "@/lib/montants";
 import type { VueHistorique } from "@/services/tableau-tracabilite";
 
 const jourLong = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -33,7 +33,7 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
     demarrer(async () => {
       const r = await telechargerHistoriqueAction(videoId, "csv");
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
       const url = URL.createObjectURL(new Blob([r.donnees.contenu], { type: r.donnees.type }));
@@ -49,7 +49,7 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
     demarrer(async () => {
       const r = await noterPublicationAction(videoId, reseau, date, lien);
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
       notifier.succes("Publication notée");
@@ -63,7 +63,6 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-titre text-lg text-texte">Historique</h2>
-          <p className="text-sm text-texte-doux">Coût total : {formaterMontant({ centimes: vue.coutTotalCentimes, devise: "EUR" })}</p>
         </div>
         <Bouton variante="secondaire" icone="telecharger" chargement={enCours} onClick={telecharger}>
           Télécharger l&apos;historique
@@ -77,7 +76,7 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
           {vue.lignes.map((l) => (
             <li key={l.id} className="min-w-0 border-l-2 border-trait pl-3">
               <p className="text-[15px] text-texte">
-                {l.phrase}
+                {messageSansMontant(l.phrase)}
                 {l.lien && (
                   <>
                     {" · "}

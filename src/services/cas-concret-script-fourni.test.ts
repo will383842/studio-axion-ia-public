@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
 import { dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
-import { bornesDesFins, limiteCaracteresDuCorps, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
+import { bornesDesFins, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
 
 const etat = vi.hoisted(() => ({ session: true, journal: [] as string[], parametres: {} as Record<string, unknown> }));
 vi.mock("./_commun", () => ({
@@ -28,7 +28,7 @@ vi.mock("./auth", () => ({
 }));
 vi.mock("./cas-concret-stock-acces", () => ({ trouverCasAutorise: async (id: string) => CATALOGUE.find((c) => c.id === id) }));
 
-import { controlerScriptFourni, departMonScript, enregistrerScriptFourni, PHRASE_CAS_A_SCRIPT_CATALOGUE, phraseScriptTropLong, revenirAuScriptDeLIA } from "./cas-concret-script-fourni";
+import { controlerScriptFourni, departMonScript, enregistrerScriptFourni, revenirAuScriptDeLIA } from "./cas-concret-script-fourni";
 import { CLE_HISTORIQUE_SCRIPTS, CLE_SCRIPTS_VALIDES, scriptValideDuStudio } from "./cas-concret-scripts";
 
 const CAS = CATALOGUE.find((c) => c.id === "rappels-rendez-vous")!;
@@ -97,22 +97,34 @@ describe("script fourni (service)", () => {
     expect(await enregistrerScriptFourni(CAS.id, espaces)).toMatchObject({ modifie: false, numero: 3 });
   });
 
-  it("ARGENT : un cas à script du catalogue est refusé ; un script plus long que le corps du prix est refusé avec la limite", async () => {
+  it("LOT A (08/11/2026) : aucun prix. Un cas à script du catalogue accepte « Mon script » ; un script plus long passe, sans remarque d'argent", async () => {
     const catalogue = CATALOGUE.find((c) => c.id === "recrutement-apporteurs")!;
     const rc = await controlerScriptFourni(catalogue.id, "[accroche] x");
-    expect(rc.ok).toBe(false);
-    expect(rc.refus[0].message).toBe(PHRASE_CAS_A_SCRIPT_CATALOGUE);
-    await expect(enregistrerScriptFourni(catalogue.id, "[accroche] x")).rejects.toMatchObject({ code: "SCRIPT_FOURNI_REFUSE", message: PHRASE_CAS_A_SCRIPT_CATALOGUE });
-    // Plus long que le corps du gabarit qui sert au prix.
+    expect(rc.refus.map((r) => r.message).join(" ")).not.toMatch(/prix|catalogue|€/i);
     const lignes = texteConforme.split("\n");
     lignes[lignes.length - 1] = lignes[lignes.length - 1].replace("toute seule ?", "toute seule dans votre entreprise de service ?");
-    const limite = limiteCaracteresDuCorps(CAS);
     const r = await controlerScriptFourni(CAS.id, lignes.join("\n"));
-    expect(r.ok).toBe(false);
-    expect(r.refus).toEqual([{ message: phraseScriptTropLong(limite) }]);
-    expect(phraseScriptTropLong(limite)).toBe(`Votre script est plus long que celui qui a servi au prix : raccourcissez-le (${limite} caractères au plus pour le texte dit).`);
-    await expect(enregistrerScriptFourni(CAS.id, lignes.join("\n"))).rejects.toMatchObject({ code: "SCRIPT_FOURNI_REFUSE" });
-    expect(etat.parametres[CLE_SCRIPTS_VALIDES]).toBeUndefined();
+    expect(r.ok).toBe(true);
+    expect([...r.refus.map((x) => x.message), ...r.remarques, ...r.avertissements].join(" ")).not.toMatch(/prix|€/i);
+    await expect(enregistrerScriptFourni(CAS.id, lignes.join("\n"))).resolves.toMatchObject({ modifie: true });
+  });
+
+  it("LOT A : un script trop court ou trop long passe avec des REMARQUES (jamais un refus)", async () => {
+    const court = await controlerScriptFourni(CAS.id, texteConforme.split("\n").filter((l) => !l.startsWith("[détail]")).join("\n"));
+    // Moins de 12 lignes : remarque visible. Le script ne se fabrique pas s'il est techniquement illisible, mais jamais pour sa taille.
+    expect(court.refus.map((r) => r.message).join(" ")).not.toMatch(/Il faut de 12 à 26 lignes|Il faut de 3 à 7 étapes/);
+    expect(court.ok).toBe(true);
+    expect(court.remarques.join(" ")).toMatch(/Durée/);
+    const tutoie = await controlerScriptFourni(CAS.id, texteConforme.replace("vous", "tu"));
+    expect(tutoie.refus.map((r) => r.message).join(" ")).not.toMatch(/Dites « vous »/);
+  });
+
+  it("LOT A : le mot « machine » est un AVERTISSEMENT très visible, pas un refus", async () => {
+    const lignes = texteConforme.split("\n");
+    lignes[2] = `${lignes[2]} Cette machine répond.`;
+    const r = await controlerScriptFourni(CAS.id, lignes.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.join(" ")).toMatch(/machine/);
   });
 
   it("un cas retiré est refusé (action appelée directement) : CAS_RETIRE, rien n'est écrit", async () => {
@@ -173,5 +185,76 @@ describe("script fourni (service)", () => {
     await enregistrerScriptFourni(CAS.id, texteConforme);
     const d1 = await departMonScript(CAS.id);
     expect(d1).toMatchObject({ origine: "fourni", texte: texteConforme, perime: false, courantFourni: true });
+  });
+});
+
+describe("script fourni : le script de Will fait foi (11/11/2026)", () => {
+  const TRANSPORTEUR = CATALOGUE.find((c) => c.id === "transporteur-demandes-de-cotation")!;
+  const phrase = (k: number) => `Voici la phrase numéro ${k} que je dis simplement à voix haute pour expliquer le travail fait chaque jour dans mon entreprise.`;
+  const long = (n: number) => [`${TRANSPORTEUR.recit?.sujet ?? TRANSPORTEUR.promesse}`, ...Array.from({ length: n - 2 }, (_, k) => phrase(k + 1)), "Et chez vous, qu'est-ce qui vous prend le plus de temps ?"].join("\n");
+
+  it("25 lignes sans étiquette sur un cas de 5 étapes : acceptées, les lignes en trop deviennent des détails de la dernière étape", async () => {
+    const r = await controlerScriptFourni(TRANSPORTEUR.id, long(25));
+    expect(r.refus.map((x) => x.message).join(" ")).not.toMatch(/le cas n'a que|marquez/i);
+    expect(r.refus.map((x) => x.message).join(" ")).not.toMatch(/lignes ; \d+ au plus/);
+    expect(r.apercu.some((a) => a.forme === "detail")).toBe(true);
+  });
+
+  it("40 lignes passent le plafond de lignes, 41 non ; 4000 caractères restent le plafond du texte", async () => {
+    const ok = await controlerScriptFourni(TRANSPORTEUR.id, "[accroche] Un deux trois\n".concat(Array.from({ length: 39 }, () => "ligne").join("\n")));
+    expect(ok.refus.map((x) => x.message).join(" ")).not.toMatch(/au plus \(une ligne/);
+    const trop = await controlerScriptFourni(TRANSPORTEUR.id, Array.from({ length: 41 }, () => "ligne").join("\n"));
+    expect(trop.refus.map((x) => x.message).join(" ")).toMatch(/41 lignes ; 40 au plus/);
+  });
+
+  it("une accroche de plus de 9 mots n'est plus refusée : tout est dit, 9 mots affichés", async () => {
+    const lignes = texteConforme.split("\n");
+    lignes[0] = "[accroche] Pourquoi vos rappels de rendez-vous partent tout seuls chaque matin";
+    const r = await controlerScriptFourni(CAS.id, lignes.join("\n"));
+    expect(r.refus.map((x) => x.message).join(" ")).not.toMatch(/en tient 9 au plus/);
+    expect(r.refus).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
+
+  it("moins de 3 lignes d'étape : message clair « au moins 3 lignes d'étape »", async () => {
+    const r = await controlerScriptFourni(CAS.id, texteConforme.split("\n").filter((l) => !/^\[(étape|detail|détail)/.test(l)).join("\n"));
+    expect(r.ok).toBe(false);
+    expect(r.refus.map((x) => x.message).join(" ")).toMatch(/au moins 3 lignes d'étape/);
+  });
+
+  it("le script fourni ne passe pas par l'écran « Relire »", async () => {
+    await enregistrerScriptFourni(CAS.id, texteConforme, { maintenant: Date.UTC(2026, 9, 24) });
+    const { refusScriptRelu } = await import("./cas-concret-scripts");
+    await expect(refusScriptRelu(CAS, undefined)).resolves.toBeNull();
+  });
+});
+
+describe("script fourni : plafonds et avertissements (11/11/2026)", () => {
+  it("645 mots sur 30 lignes passent la lecture du texte (4000 caractères, 40 lignes)", async () => {
+    const { lireTexteFourni } = await import("@/moteurs/montage-cas-concret/script-fourni");
+    const ligne = "mot ".repeat(21).trim();
+    const texte = Array.from({ length: 30 }, () => ligne).join("\n").concat(" mot".repeat(15));
+    expect(texte.split(/\s+/).length).toBe(645);
+    expect(texte.length).toBeLessThanOrEqual(4000);
+    expect(lireTexteFourni(texte).ok).toBe(true);
+  });
+
+  it("un appel « commentez » dans le corps est un AVERTISSEMENT, pas un refus", async () => {
+    const lignes = texteConforme.split("\n");
+    lignes[2] = `${lignes[2]} Commentez le mot guide en bas.`;
+    const r = await controlerScriptFourni(CAS.id, lignes.join("\n"));
+    expect(r.refus.map((x) => x.message).join(" ")).not.toMatch(/commentez|aucun appel/i);
+    expect(r.avertissements.join(" ")).toMatch(/mots? à commenter|commentez|appel/i);
+  });
+});
+
+describe("script fourni : accroche longue (11/11/2026)", () => {
+  it("une accroche d'environ 15 mots est acceptée ; la liste « avant » tardive n'est qu'une remarque", async () => {
+    const lignes = texteConforme.split("\n");
+    lignes[0] = "[accroche] Pourquoi vos rappels de rendez-vous sont envoyés tout seuls chaque matin sans que personne y pense jamais";
+    const r = await controlerScriptFourni(CAS.id, lignes.join("\n"));
+    expect(r.refus).toEqual([]);
+    expect(r.ok).toBe(true);
+    expect(r.remarques.join(" ")).toMatch(/liste « avant » commence/);
   });
 });

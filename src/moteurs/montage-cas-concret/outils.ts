@@ -268,7 +268,7 @@ export interface OutilsFabricationCasConcret<J = unknown> {
      */
     plafondVoix?: { centimes: number; prixLecture: (texte: string) => number };
     /** Mode indicatif (posé par les services) : le montant ne refuse plus, au plus `lecturesVoixMax` lectures par texte. */
-    indicatif?: { lecturesVoixMax: number; facteurSecurite?: number };
+    indicatif?: { lecturesVoixMax: number; facteurSecurite?: number; signaler?: (message: string) => Promise<void> };
   };
   contexte: ContexteFabricationCasConcret;
   /** L2 · variété (absent : aucun tirage, la fiche reste telle quelle, rendu v4). */

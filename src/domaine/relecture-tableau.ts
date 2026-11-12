@@ -251,7 +251,7 @@ export function lireLignesRelues(brut: unknown): LigneScript[] {
       const t = e && typeof e === "object" ? (e as { texte?: unknown }).texte : undefined;
       return typeof t === "string" ? [{ texte: t.slice(0, 300), modifiable: true }] : [];
     });
-    return [{ id: o.id.slice(0, 60), dit: o.dit.slice(0, 2000), ...(ecrits.length ? { ecrits } : {}), ...(deWill ? { deWill: true as const } : {}) }];
+    return [{ id: o.id.slice(0, 60), dit: o.dit.slice(0, 3200), ...(ecrits.length ? { ecrits } : {}), ...(deWill ? { deWill: true as const } : {}) }];
   });
 }
 

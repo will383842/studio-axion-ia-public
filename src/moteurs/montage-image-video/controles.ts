@@ -4,7 +4,7 @@
  *
  * Une LIGNE par contrôle et par version, avec une phrase simple pour Will. Règle d'or : aucun contrôle ne se saute en
  * silence. Une donnée absente rend la ligne « non faite », et une ligne bloquante non faite BLOQUE comme un échec.
- * Seuls Q02 (cohérence arithmétique, dite telle qu'écrite) et Q28 (débit, sert à recalibrer) sont indicatifs.
+ * Seuls Q02 (cohérence arithmétique, dite telle qu'écrite), Q28 (débit, sert à recalibrer) et la part « voix » de Q05 (chiffre entendu hors script : remarque) sont indicatifs.
  *
  * Ce qui est relu ici, sans rien recalculer en confiance :
  *  - carte (Q01-Q03) et script (Q04-Q10, Q05 bis, Q08 bis, chapitres) par `verifierScript` (L6), sur la fiche de la
@@ -15,6 +15,8 @@
  *    textes de publication (Q27), plafonds du réseau (Q11, verdict fourni par la porte).
  */
 import { createHash } from "node:crypto";
+import { cibleNommee, debutParle } from "@/domaine/ciblage/controles";
+import type { Ciblage } from "@/domaine/ciblage/types";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { complexiteDe, DEBIT_MOTS_PAR_SEC } from "@/domaine/image-video/complexite";
 import { PARTIES, motsDits, texteDuCorps, type FicheImage } from "@/domaine/image-video/fiche";
@@ -23,14 +25,16 @@ import type { MesuresExport } from "@/briques/controle-image";
 import { jetonsDits, occurrences } from "@/briques/coupes/texte";
 import type { PisteVoixSeuleIV } from "./assemblage";
 import { CRETE_IV_DBTP, LOUDNESS_IV_LUFS } from "./assemblage";
+import { DEFAUTS_DE_DETAIL_IV, LIGNES_ZERO_BLOCAGE_IV } from "./adaptation-scene";
 import { clesDeLaCarte, controlerToutMontre, type LigneControleSceneIV } from "./controles-scene";
 import { miseEnPageAuxInstantsIV } from "./emprise-ligne";
-import { formeDite, formesComparables, type ConstatControle, type EcouteVersionIV } from "./ecoute";
+import { formeDite, formesComparables, SEUILS_ECOUTE_IV, type ConstatControle, type EcouteVersionIV } from "./ecoute";
 import { FIGE_IV } from "./commandes-ffmpeg";
-import type { FinIV } from "./fins";
+import type { AppelCommentaire, FinIV } from "./fins";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV, type ResultatMiseEnSceneIV } from "./mise-en-scene";
 import { interditsDans, type PublicationIV } from "./publication";
 import { instantsClesIV } from "./relecture-finale";
+import { manquementsDuScriptColle } from "./script-colle";
 import { INTERDITS_PERMANENTS, empreinteDeCarte, phraseChocAttendue, verifierScript, type ContexteRegles, type Manquement } from "./regles";
 import type { VerdictReseauIV } from "./reseaux";
 import type { EtatVoixIV } from "./voix";
@@ -39,12 +43,17 @@ import type { EtatVoixIV } from "./voix";
 export const CODES_CONTROLE_IV = [
   "Q01", "Q02", "Q03", "Q04", "Q05", "Q05bis", "Q06", "Q07", "Q08", "Q08bis", "Q09", "Q10", "Q11", "Q11bis",
   "Q12", "Q13", "CHIFFRES", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25",
-  "Q26", "Q27", "Q28", "FOND", "ORANGE", "FIN", "SCENE",
+  "Q26", "Q27", "Q28", "FOND", "ORANGE", "FIN", "SCENE", "C100",
 ] as const;
 export type CodeControleIV = (typeof CODES_CONTROLE_IV)[number];
 
-/** Contrôles indicatifs (jamais bloquants). */
-export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set(["Q02", "Q28"]);
+// Règle du 25/10/2026 (« vidéo prête du premier coup ») : les lignes de `LIGNES_ZERO_BLOCAGE_IV` disent un défaut en REMARQUE, jamais en blocage.
+
+/**
+ * Contrôles indicatifs (jamais bloquants : remarque orange à la porte). Q13 et Q14 (chiffre non montré, rythme) sont des défauts de DÉTAIL :
+ * après le rendu payé, ils ne doivent jamais arrêter la vidéo (filet « zéro blocage », `adaptation-scene.ts`). Q12, Q15, Q19 à Q23, Q25, Q27 et SCENE le sont aussi (règle du 25/10/2026). Restent bloquants : CHIFFRES (chiffre faux), la voix (Q16, Q17), le rendu impossible (mesure absente de Q24) et l'image noire ou illisible. Q26 ne bloque que pour un chiffre faux ou une image entière illisible (`jugerRelecture`) ; relecture impossible = remarque « images finales non relues ». Q11 (plafond de durée), Q05 côté voix (chiffre entendu hors script : transcription probablement fautive ; côté script il reste bloquant), Q11bis, Q18 (sous ses planchers), l'accroche de Q07 après 3 s, la phrase-choc ou la question pas entendue en entier (Q06, Q08bis) et l'absence de fin sont des remarques ; Q24 ne bloque qu'au-delà de ses planchers (image noire ou figée très longue, volume très éloigné) ou si une mesure manque ; le cadre et la cadence de Q24 sont des remarques.
+ */
+export const CONTROLES_INDICATIFS: ReadonlySet<CodeControleIV> = new Set<CodeControleIV>(["Q02", "Q28", "C100", ...DEFAUTS_DE_DETAIL_IV, ...LIGNES_ZERO_BLOCAGE_IV]);
 
 /** Libellé de chaque contrôle, en tête de la phrase pour Will. */
 export const LIBELLES_CONTROLE_IV: Readonly<Record<CodeControleIV, string>> = Object.freeze({
@@ -84,6 +93,7 @@ export const LIBELLES_CONTROLE_IV: Readonly<Record<CodeControleIV, string>> = Ob
   ORANGE: "Mot orange",
   FIN: "Fin du réseau",
   SCENE: "Ligne de temps rendue",
+  C100: "Cible nommée dès le début",
 });
 
 export type EtatLigneIV = "reussi" | "echoue" | "non-fait";
@@ -134,7 +144,7 @@ export const MESURES_IV = Object.freeze({ lufs: LOUDNESS_IV_LUFS, toleranceLufs:
 
 export interface MesuresDeLaPorteIV {
   ecoute?: EcouteVersionIV;
-  relecture?: { q26: ConstatControle; indications: string[] };
+  relecture?: { q26: ConstatControle; indications: string[]; remarques?: string[] };
   /** Verdict des plafonds pour les réseaux de cette version (Q11), calculé par la porte sur toutes les versions. */
   plafonds: VerdictReseauIV[];
 }
@@ -147,6 +157,12 @@ export interface ContexteControlesIV {
   voix: Pick<EtatVoixIV, "issue">;
   publication: PublicationIV;
   liens: Readonly<Record<string, string>>;
+  /** Réglage de la question de commentaire (défaut `fin-seule`) : en `question-puis-fin`, une fin sans question est signalée (remarque). */
+  appelCommentaire?: AppelCommentaire;
+  /** Script collé par Will : les points d'ossature d'un script écrit par l'IA ne le bloquent pas (`script-colle.ts`). */
+  scriptColle?: boolean;
+  /** Cible déclarée (facultative) : absente des 5 premières secondes = remarque C100, jamais un blocage. */
+  ciblage?: Ciblage;
 }
 
 /* ------------------------------------------------------------------ */
@@ -155,8 +171,8 @@ export interface ContexteControlesIV {
 
 const sec = (s: number) => `${s.toFixed(1).replace(".", ",")} s`;
 
-function ligneIV(code: CodeControleIV, v: Pick<VersionAControlerIV, "version" | "reseaux">, details: readonly string[], o: { nonFait?: boolean; phraseOk?: string } = {}): LigneControleIV {
-  const bloquant = !CONTROLES_INDICATIFS.has(code);
+function ligneIV(code: CodeControleIV, v: Pick<VersionAControlerIV, "version" | "reseaux">, details: readonly string[], o: { nonFait?: boolean; phraseOk?: string; indicatif?: boolean } = {}): LigneControleIV {
+  const bloquant = !CONTROLES_INDICATIFS.has(code) && !o.indicatif;
   const etat: EtatLigneIV = o.nonFait ? "non-fait" : details.length ? "echoue" : "reussi";
   const libelle = LIBELLES_CONTROLE_IV[code];
   const suite = details.length > 1 ? ` (et ${details.length - 1} autre${details.length > 2 ? "s" : ""})` : "";
@@ -165,12 +181,26 @@ function ligneIV(code: CodeControleIV, v: Pick<VersionAControlerIV, "version" | 
   return { code, version: v.version, reseaux: [...v.reseaux], etat, bloquant, phrase, details: [...details] };
 }
 
-const deConstat = (code: CodeControleIV, v: VersionAControlerIV, c: ConstatControle | undefined, absent: string, phraseOk?: string) =>
-  c ? ligneIV(code, v, c.details.length || c.ok ? c.details : [absent], { ...(c.nonFait ? { nonFait: true } : {}), ...(phraseOk ? { phraseOk } : {}) }) : ligneIV(code, v, [absent], { nonFait: true });
+/** Constat « souple » : remarques non bloquantes (écoute bonne dans l'ensemble) ; `souple` vrai quand elles sont seules. */
+type ConstatSouple = ConstatControle & { souple?: boolean };
+function avecRemarques(c: ConstatControle | undefined, remarques: readonly string[] | undefined): ConstatSouple | undefined {
+  if (!c || !remarques?.length) return c;
+  if (!c.ok) return { ...c, details: [...c.details, ...remarques] };
+  return { ok: false, details: [...remarques], souple: true };
+}
+
+const deConstat = (code: CodeControleIV, v: VersionAControlerIV, c: ConstatSouple | undefined, absent: string, phraseOk?: string, indicatif = false) =>
+  c ? ligneIV(code, v, c.details.length || c.ok ? c.details : [absent], { ...(c.nonFait ? { nonFait: true } : {}), ...(phraseOk ? { phraseOk } : {}), ...(c.souple || indicatif ? { indicatif: true } : {}) }) : ligneIV(code, v, [absent], { nonFait: true });
 
 /** Empreinte stable d'une ligne de temps (sa forme JSON). */
 export function empreinteLigne(l: LigneDeTempsIV): string {
   return createHash("sha256").update(JSON.stringify(l)).digest("hex").slice(0, 32);
+}
+
+/** C100 : la cible déclarée doit être nommée dans les 5 premières secondes. Sans cible déclarée : rien à dire. */
+export function remarqueCibleIV(script: string, ciblage: Ciblage | undefined): string[] {
+  if (!ciblage || cibleNommee(debutParle(script), ciblage)) return [];
+  return [`la cible déclarée (« ${ciblage.libelle} ») n'est pas nommée dans les 5 premières secondes.`];
 }
 
 /** Texte que dit la version : corps, puis question et fin (rien après la phrase-choc sur LinkedIn). */
@@ -236,7 +266,7 @@ function parRegle(manquements: readonly Manquement[]): Map<CodeControleIV, strin
 export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControlesIV, m: MesuresDeLaPorteIV): LigneControleIV[] {
   const { carte } = ctx;
   const lignes: LigneControleIV[] = [];
-  const L = (code: CodeControleIV, details: readonly string[], o: { nonFait?: boolean; phraseOk?: string } = {}) => lignes.push(ligneIV(code, v, details, o));
+  const L = (code: CodeControleIV, details: readonly string[], o: { nonFait?: boolean; phraseOk?: string; indicatif?: boolean } = {}) => lignes.push(ligneIV(code, v, details, o));
 
   // Q01-Q03 · la carte.
   L("Q01", carte.validation || carte.lecture.ecarts.length === 0 ? [] : [`${carte.lecture.ecarts.length} écart(s) entre les deux lectures de l'image ne sont pas tranchés.`]);
@@ -248,29 +278,37 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
 
   // Q04-Q10 · le script de la version (fiche courte et nœuds retirés pour une version courte).
   const verdict = verifierScript(v.fiche, { ...(ctx.regles ?? {}), carte, ...(v.courte ? { noeudsRetires: v.noeudsRetires ?? [] } : {}) });
-  const regles = parRegle(verdict.manquements);
+  const regles = parRegle(ctx.scriptColle ? manquementsDuScriptColle(verdict) : verdict.manquements);
   const ecoute = m.ecoute;
   const entendu = ecoute?.texteEntendu ?? "";
   const sansEcoute = !ecoute || !ecoute.q18.ok && !!ecoute.q18.nonFait;
+  // Transcription en panne (relancée en vain) alors que la voix existe (piste lue, mots horodatés, du son) : l'écoute non faite est une remarque.
+  const remarqueEcoute = !!ecoute?.panneTranscription;
 
   L("Q04", regles.get("Q04") ?? []);
-  L("Q05", [...(regles.get("Q05") ?? []), ...(ecoute?.comparaison?.chiffresInventes ?? []).map((c) => `la voix dit « ${c} », absent du script et de l'image.`)]);
+  // Q05 · rien d'inventé. Côté script (chiffre écrit absent de l'image) : bloquant. Côté voix : le script est lu tel quel, un chiffre entendu hors script
+  // (« 8 séances » transcrit « 8 sec ») est une erreur de transcription probable : remarque.
+  const q05 = regles.get("Q05") ?? [];
+  const q05Souple = (ecoute?.comparaison?.chiffresInventes ?? []).map((c) => `la voix dit « ${c} », absent du script (probablement la transcription : le script est lu tel quel).`);
+  L("Q05", [...q05, ...q05Souple], { indicatif: q05.length === 0 && q05Souple.length > 0 });
   L("Q05bis", regles.get("Q05bis") ?? []);
 
   // Q06 · phrase-choc mot pour mot, et entendue.
   const q06 = [...(regles.get("Q06") ?? [])];
   const choc = phraseChocAttendue(carte, ctx.regles?.choixFormules);
-  if (ecoute && !sansEcoute && !entendue(choc, entendu)) q06.push(`la phrase-choc (« ${choc} ») n'est pas entendue en entier.`);
-  if (sansEcoute && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true });
-  else L("Q06", q06);
+  // Phrase-choc pas entendue en entier = erreur de transcription probable (la voix, elle, existe) : remarque.
+  const q06Souple = ecoute && !sansEcoute && !entendue(choc, entendu) ? [`la phrase-choc (« ${choc} ») n'est pas entendue en entier.`] : [];
+  if (sansEcoute && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true, ...(remarqueEcoute ? { indicatif: true } : {}) });
+  else L("Q06", [...q06, ...q06Souple], { indicatif: q06.length === 0 && q06Souple.length > 0 });
 
   // Q07 · ossature, et accroche finie avant 3 s sur la voix.
   const q07 = [...(regles.get("Q07") ?? [])];
+  const q07Souple: string[] = [];
   const accroche = v.fiche.ecrans.filter((e) => e.partie === PARTIES[0]).reduce((n, e) => n + motsDits(e.texteDit).length, 0);
   const finAccroche = v.piste.mots[accroche - 1]?.finSec;
   if (!accroche || finAccroche === undefined) q07.push("l'accroche n'a pas de mots sur la voix.");
-  else if (finAccroche > 3 + 1e-6) q07.push(`l'accroche finit à ${sec(finAccroche)} (avant 3 s).`);
-  L("Q07", q07);
+  else if (finAccroche > 3 + 1e-6) q07Souple.push(`l'accroche finit à ${sec(finAccroche)} (avant 3 s).`);
+  L("Q07", [...q07, ...q07Souple], { indicatif: q07.length === 0 && q07Souple.length > 0 });
 
   // Q08 · interdits : script, question, écrans (L6), voix entendue, post et premier commentaire.
   const interdits = [...INTERDITS_PERMANENTS, ...(ctx.regles?.interdits ?? [])];
@@ -281,17 +319,22 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   ];
   L("Q08", q08);
 
-  // Q08 bis · question présente hors LinkedIn (et entendue), absente de LinkedIn ; aucune fin dite sur LinkedIn.
+  // Q08 bis · la fin du réseau est présente, LinkedIn compris (il la dit comme les autres depuis le 26/10/2026) ; la
+  // question de commentaire, quand la fin en porte une (réglage `question-puis-fin`), est entendue en entier. Seule une
+  // version LinkedIn d'AVANT le 26/10 (fin absente : plan muet) reste jugée muette : rien dit après la phrase-choc.
   const q08bis = [...(regles.get("Q08bis") ?? [])];
-  const linkedin = v.reseaux.includes("linkedin");
-  if (linkedin) {
-    if (v.fin && !v.fin.muet) q08bis.push("la version LinkedIn porte un segment de fin : rien ne doit être dit ni affiché après la phrase-choc.");
+  /** Fin ou question absente, question mal entendue (transcription) : remarque ; les règles du texte et de l'ancienne version muette de LinkedIn restent bloquantes. */
+  const q08bisSouple: string[] = [];
+  const finDite = !!v.fin && !v.fin.muet;
+  const reglage = ctx.appelCommentaire ?? "fin-seule";
+  const pisteMuette = v.piste.mots.length === v.piste.motsCorps && v.piste.raccordSec === undefined;
+  if (!finDite && v.reseaux.includes("linkedin") && (v.fin?.muet || pisteMuette)) {
     if (v.piste.mots.length !== v.piste.motsCorps || v.piste.raccordSec !== undefined) q08bis.push("la voix LinkedIn dit quelque chose après la phrase-choc.");
     if (v.reseaux.some((r) => r !== "linkedin")) q08bis.push(`la version muette de LinkedIn sert aussi ${v.reseaux.filter((r) => r !== "linkedin").join(", ")}.`);
-  } else if (!v.fin || v.fin.muet) q08bis.push(`aucune fin pour ${v.reseaux.join(", ")} : la question de commentaire et la fin du réseau manquent.`);
-  else if (!v.fin.question) q08bis.push(`la question de commentaire manque pour ${v.reseaux.join(", ")}.`);
-  else if (ecoute && !sansEcoute && !entendue(v.fin.question.dit, entendu)) q08bis.push(`la question (« ${v.fin.question.dit} ») n'est pas entendue en entier.`);
-  L("Q08bis", q08bis);
+  } else if (!v.fin || !finDite) q08bisSouple.push(`aucune fin pour ${v.reseaux.join(", ")} : la fin du réseau manque.`);
+  else if (reglage === "question-puis-fin" && !v.fin.question) q08bisSouple.push(`la question de commentaire manque pour ${v.reseaux.join(", ")}.`);
+  else if (v.fin.question && ecoute && !sansEcoute && !entendue(v.fin.question.dit, entendu)) q08bisSouple.push(`la question (« ${v.fin.question.dit} ») n'est pas entendue en entier.`);
+  L("Q08bis", [...q08bis, ...q08bisSouple], { indicatif: q08bis.length === 0 && q08bisSouple.length > 0 });
 
   L("Q09", regles.get("Q09") ?? []);
   // Q10 : la fourchette de durée du script vaut pour le script validé ; une version courte est jugée par Q11 et Q11 bis.
@@ -299,19 +342,21 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
 
   // Q11 · durée mesurée : corps dans la fourchette de la classe (version longue) ; plafond de chaque réseau.
   const q11: string[] = [];
+  const q11Souple: string[] = [];
   if (!v.courte) {
     const [bas, haut] = complexiteDe(carte).fourchetteSec;
     const corps = v.piste.mots[v.piste.motsCorps - 1]?.finSec;
     if (corps === undefined) q11.push("la durée du corps n'a pas pu être mesurée.");
-    else if (corps > haut * 1.1 + 1e-6) q11.push(`la voix dépasse de ${sec(corps - haut)} : raccourcissez l'explication (corps de ${sec(corps)} pour ${haut} s au plus).`);
-    else if (corps < bas * 0.9 - 1e-6) q11.push(`le corps ne dure que ${sec(corps)} (${bas} s au moins).`);
+    else if (corps > haut * 1.1 + 1e-6) q11Souple.push(`la voix dépasse de ${sec(corps - haut)} : raccourcissez l'explication (corps de ${sec(corps)} pour ${haut} s au plus).`);
+    else if (corps < bas * 0.9 - 1e-6) q11Souple.push(`le corps ne dure que ${sec(corps)} (${bas} s au moins).`);
   }
   for (const r of v.reseaux) {
     const p = m.plafonds.find((x) => x.reseau === r);
     if (!p) q11.push(`le plafond de ${r} n'a pas été jugé.`);
-    else if (p.bloquant) q11.push(p.phrase ?? `${p.nom} non livré.`);
+    else if (p.bloquant) q11Souple.push(p.phrase ?? `${p.nom} non livré.`);
   }
-  L("Q11", q11);
+  // Durée du corps hors fourchette ou plafond du réseau dépassé : remarque (la fabrication a son propre garde-fou de durée) ; seule une durée non mesurée ou un plafond non jugé bloque.
+  L("Q11", [...q11, ...q11Souple], { indicatif: q11.length === 0 && q11Souple.length > 0 });
 
   // Q11 bis · version courte : chapitres retirés tous non essentiels, script détachable (chapitres de L6).
   const q11bis = [...(regles.get("Q11bis") ?? [])];
@@ -324,11 +369,13 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
       else if (c.essentiel) q11bis.push(`le chapitre « ${t} » est essentiel : il ne peut pas être retiré.`);
     }
   }
-  L("Q11bis", q11bis);
+  L("Q11bis", q11bis, { indicatif: true });
 
   // Mise en scène relue : Q12-Q15, Q19 (ligne de temps), Q20-Q23, Q25, fonds, mot orange, fin du réseau.
   const scene = relireMiseEnScene(v);
   L("SCENE", scene.ecarts);
+  // C100 · la cible (si déclarée) est nommée dès le début : remarque, jamais bloquant.
+  L("C100", remarqueCibleIV(scriptDeLaVersion(v), ctx.ciblage), { phraseOk: ctx.ciblage ? "cible nommée dès le début" : "aucune cible déclarée" });
   const lignesScene = scene.resultat?.rapport.lignes ?? [];
   const sceneDe = (code: LigneControleSceneIV["code"]) => lignesScene.filter((l) => l.code === code && l.bloquant).flatMap((l) => l.details);
   const sceneCode = (code: CodeControleIV & LigneControleSceneIV["code"]) => (scene.resultat ? L(code, sceneDe(code)) : L(code, ["la mise en scène n'a pas pu être relue."], { nonFait: true }));
@@ -338,7 +385,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   else sceneCode("Q12");
   sceneCode("Q13");
 
-  // Chaque chiffre de la carte à dire (hors chapitres retirés) : DIT (entendu, valeur + unité) ET MONTRÉ.
+  // Chaque chiffre de la carte à dire (hors chapitres retirés) : DIT (entendu, valeur + unité) ET MONTRÉ. Un chiffre non entendu (erreur de transcription, comme Q06 et Q18) ou jamais affiché (comme Q13) est une REMARQUE ; seul un chiffre FAUX (valeur différente entre l'image et la vidéo, relecture Q26) bloque.
   const cles = clesDeLaCarte(carte);
   const montres = new Set(v.ligne.evenements.filter((e) => e.visible).flatMap((e) => e.chiffres));
   const chiffres: string[] = [];
@@ -348,8 +395,12 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
     if (!sansEcoute && !ecoute!.chiffresEntendus.includes(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est pas entendu (valeur et unité).`);
     if (!montres.has(cle)) chiffres.push(`le chiffre « ${c.brut} » n'est jamais affiché.`);
   }
-  if (sansEcoute) L("CHIFFRES", chiffres.length ? chiffres : ["l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés."], chiffres.length ? {} : { nonFait: true });
-  else L("CHIFFRES", chiffres);
+  // « Les chiffres dits ne sont pas confirmés » : une remarque seulement si la carte n'a AUCUN chiffre à dire ; sinon un chiffre dit pourrait être faux, la ligne bloque.
+  const aDesChiffresADire = (v.courte ? carteSansRetires(carte, v.noeudsRetires ?? []) : carte).chiffres.some((c) => c.aDire);
+  const chiffresNonConfirmes = "l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés.";
+  if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [chiffresNonConfirmes, ...chiffres], ctx.scriptColle ? { nonFait: true, indicatif: true } : { nonFait: true });
+  else if (sansEcoute) L("CHIFFRES", [chiffresNonConfirmes], { nonFait: true, indicatif: true });
+  else L("CHIFFRES", chiffres, { indicatif: true });
 
   sceneCode("Q14");
   sceneCode("Q15");
@@ -360,7 +411,12 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
 
   // Q17-Q19 · écoute (piste voix seule) ; Q19 reprend aussi la ligne de temps.
   lignes.push(deConstat("Q17", v, ecoute?.q17, "la piste voix seule n'a pas été lue."));
-  lignes.push(deConstat("Q18", v, ecoute?.q18, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined));
+  // Q18 sous ses planchers : remarque (une transcription approximative n'est pas une voix absente) ; écoute non faite = non fait.
+  // Voix absente (transcription vide, ou moins de 50 % des mots entendus) : blocage voulu.
+  const q18 = avecRemarques(ecoute?.q18, ecoute?.q18Remarques);
+  const voixAbsente = !ecoute?.comparaison || ecoute.comparaison.part < SEUILS_ECOUTE_IV.retrouvesAbsente - 1e-9;
+  const q18Panne = remarqueEcoute && q18 ? { ...q18, details: q18.details.map((d, i) => (i === 0 ? `${d} Les mots interdits dits (Q08), les chiffres dits (Q05) et la question entendue (Q08bis) n'ont été vérifiés que sur le script, pas sur la voix.` : d)) } : q18;
+  lignes.push(deConstat("Q18", v, q18Panne && !q18Panne.ok && !q18Panne.nonFait && !voixAbsente ? { ...q18Panne, souple: true } : q18Panne, "l'écoute n'a pas été faite.", ecoute?.comparaison ? `${Math.round(ecoute.comparaison.part * 1000) / 10} % des mots entendus dans l'ordre, chiffres tous entendus` : undefined, remarqueEcoute));
   const q19 = ecoute?.q19;
   const q19Ligne = sceneDe("Q19");
   lignes.push(deConstat("Q19", v, q19 ? { ...q19, ok: q19.ok && q19Ligne.length === 0, details: [...q19.details, ...q19Ligne] } : undefined, "la fin n'a pas été mesurée sur la voix seule."));
@@ -380,35 +436,45 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const me = v.fichier.mesures;
   const lire = (k: string) => (me && typeof me[k] === "number" && Number.isFinite(me[k]) ? (me[k] as number) : null);
   const q24: string[] = [];
+  /** Mesures de DÉTAIL (volume, crête, image noire ou figée) : remarque orange. Le cadre et la cadence sont des remarques aussi ; une mesure absente reste bloquante. */
+  const q24Souple: string[] = [];
   const absentes: string[] = [];
   const M = MESURES_IV;
-  const verifier = (k: string, nom: string, ok: (x: number) => boolean, ko: (x: number) => string) => {
+  /** `detail` : remarque orange ; `plancher` (si donné) : au-delà, la vidéo est inutilisable et la mesure BLOQUE quand même. */
+  const verifier = (k: string, nom: string, ok: (x: number) => boolean, ko: (x: number) => string, detail = false, plancher?: (x: number) => boolean) => {
     const x = lire(k);
     if (x === null) absentes.push(nom);
-    else if (!ok(x)) q24.push(ko(x));
+    else if (!ok(x)) (detail && !(plancher && plancher(x)) ? q24Souple : q24).push(ko(x));
   };
-  verifier("lufs", "le volume", (x) => Math.abs(x - M.lufs) <= M.toleranceLufs + 1e-9, (x) => `volume à ${x} LUFS (−14 à 1 près).`);
-  verifier("creteVraieDbtp", "la crête", (x) => x <= M.creteMaxDbtp + 1e-9, (x) => `crête à ${x} dBTP (−1 au plus).`);
-  verifier("noirMaxSec", "les images noires", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image noire de ${sec(x)} (0,5 s au plus).`);
+  // Planchers bloquants (vidéo inutilisable) : en deçà de ces valeurs, une mesure hors seuil reste une remarque.
+  const NOIR_PLANCHER_SEC = 2; // image noire de plus de 2 s
+  const FIGE_PLANCHER_SEC = 5; // image figée de plus de 5 s
+  const LUFS_PLANCHER_ECART = 6; // volume à plus de 6 LUFS de la cible (−14)
+  const horsPlancherLufs = (x: number) => Math.abs(x - M.lufs) > LUFS_PLANCHER_ECART;
+  const noirTropLong = (x: number) => x > NOIR_PLANCHER_SEC;
+  const figeTropLong = (x: number) => x > FIGE_PLANCHER_SEC;
+  verifier("lufs", "le volume", (x) => Math.abs(x - M.lufs) <= M.toleranceLufs + 1e-9, (x) => `volume à ${x} LUFS (−14 à 1 près).`, true, horsPlancherLufs);
+  verifier("creteVraieDbtp", "la crête", (x) => x <= M.creteMaxDbtp + 1e-9, (x) => `crête à ${x} dBTP (−1 au plus).`, true);
+  verifier("noirMaxSec", "les images noires", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image noire de ${sec(x)} (0,5 s au plus).`, true, noirTropLong);
   // Image figée (décision de Will du 17/10) : jusqu'à 2,5 s tant que la voix parle (écran tenu le temps d'une phrase),
   // 0,5 s hors voix (silence, fin). Sans la mesure « hors voix », le fichier est jugé comme avant (0,5 s partout).
   const horsVoix = lire("figeHorsVoixMaxSec");
-  if (horsVoix === null) verifier("figeMaxSec", "les images figées", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (0,5 s au plus).`);
+  if (horsVoix === null) verifier("figeMaxSec", "les images figées", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (0,5 s au plus).`, true, figeTropLong);
   else {
-    verifier("figeMaxSec", "les images figées", (x) => x <= M.figeSousVoixMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (2,5 s au plus, même pendant que la voix parle).`);
-    verifier("figeHorsVoixMaxSec", "les images figées hors voix", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} sans voix (0,5 s au plus hors voix).`);
+    verifier("figeMaxSec", "les images figées", (x) => x <= M.figeSousVoixMaxSec + 1e-9, (x) => `image figée de ${sec(x)} (2,5 s au plus, même pendant que la voix parle).`, true, figeTropLong);
+    verifier("figeHorsVoixMaxSec", "les images figées hors voix", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image figée de ${sec(x)} sans voix (0,5 s au plus hors voix).`, true, figeTropLong);
   }
   // Cadre attendu : celui de la ligne de la version (1080 × 1920 en 9:16, 1080 × 1350 en 4:5).
   const largeur = v.ligne.largeur ?? M.largeur;
   const hauteur = v.ligne.hauteur ?? M.hauteur;
-  verifier("largeur", "la largeur", (x) => x === largeur, (x) => `largeur de ${x} px (${largeur}).`);
-  verifier("hauteur", "la hauteur", (x) => x === hauteur, (x) => `hauteur de ${x} px (${hauteur}).`);
-  verifier("fps", "la cadence", (x) => Math.abs(x - M.fps) < 1e-6, (x) => `${x} images par seconde (25).`);
-  if (absentes.length) L("Q24", [...q24, `non mesuré${absentes.length > 1 ? "s" : ""} sur le fichier final : ${absentes.join(", ")}.`], q24.length ? {} : { nonFait: true });
-  else L("Q24", q24);
+  verifier("largeur", "la largeur", (x) => x === largeur, (x) => `largeur de ${x} px (${largeur}).`, true);
+  verifier("hauteur", "la hauteur", (x) => x === hauteur, (x) => `hauteur de ${x} px (${hauteur}).`, true);
+  verifier("fps", "la cadence", (x) => Math.abs(x - M.fps) < 1e-6, (x) => `${x} images par seconde (25).`, true);
+  if (absentes.length) L("Q24", [...q24, ...q24Souple, `non mesuré${absentes.length > 1 ? "s" : ""} sur le fichier final : ${absentes.join(", ")}.`], q24.length || q24Souple.length ? {} : { nonFait: true });
+  else L("Q24", [...q24, ...q24Souple], { indicatif: q24.length === 0 && q24Souple.length > 0 });
 
   sceneCode("Q25");
-  lignes.push(deConstat("Q26", v, m.relecture?.q26, "les images finales n'ont pas été relues."));
+  lignes.push(deConstat("Q26", v, avecRemarques(m.relecture?.q26, m.relecture?.remarques), "les images finales n'ont pas été relues."));
 
   // Q27 · textes de publication des réseaux de la version : présents, lien suivi là où la fin le promet, interdits.
   const q27: string[] = [];

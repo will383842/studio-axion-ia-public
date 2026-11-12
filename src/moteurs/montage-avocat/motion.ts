@@ -26,6 +26,12 @@ export interface OptionMotionAvocat {
   demandes?: string[];
   /** « Mes habitudes » (style). */
   habitude?: string[];
+  /**
+   * Mémoire des cartes déjà servies (modèles des dernières vidéos avocat, le plus récent d'abord) et modèle qui a ouvert
+   * la vidéo précédente. Figée dans la commande au lancement : une étape rejouée refait le même choix.
+   */
+  dejaServis?: string[];
+  ouverturePrecedente?: string;
 }
 
 /** Lecture tolérante : au moindre doute, l'option reste coupée. */
@@ -33,9 +39,18 @@ export function optionMotionAvocat(c: Pick<CommandeFabrication, "entrees">): Opt
   const brut = c.entrees?.[ENTREE_MOTION_AVOCAT];
   if (brut === true) return { actif: true };
   if (!brut || typeof brut !== "object" || (brut as { actif?: unknown }).actif !== true) return null;
-  const o = brut as { demandes?: unknown; habitude?: unknown };
+  const o = brut as { demandes?: unknown; habitude?: unknown; dejaServis?: unknown; ouverturePrecedente?: unknown };
   const textes = (x: unknown) => (Array.isArray(x) ? x.filter((t): t is string => typeof t === "string" && t.length <= 500).slice(0, 20) : undefined);
-  return { actif: true, ...(textes(o.demandes)?.length ? { demandes: textes(o.demandes) } : {}), ...(textes(o.habitude)?.length ? { habitude: textes(o.habitude) } : {}) };
+  // Mémoire : lecture tolérante, au moindre doute elle est ignorée (comportement d'avant).
+  const modeles = (x: unknown) => (Array.isArray(x) ? x.filter((t): t is string => typeof t === "string" && t.length > 0 && t.length <= 60).slice(0, 40) : undefined);
+  const ouverture = typeof o.ouverturePrecedente === "string" && o.ouverturePrecedente.length > 0 && o.ouverturePrecedente.length <= 60 ? o.ouverturePrecedente : undefined;
+  return {
+    actif: true,
+    ...(textes(o.demandes)?.length ? { demandes: textes(o.demandes) } : {}),
+    ...(textes(o.habitude)?.length ? { habitude: textes(o.habitude) } : {}),
+    ...(modeles(o.dejaServis)?.length ? { dejaServis: modeles(o.dejaServis) } : {}),
+    ...(ouverture ? { ouverturePrecedente: ouverture } : {}),
+  };
 }
 
 /** Le strict nécessaire d'un segment du texte (annotations de la recette avocat). */
@@ -88,6 +103,8 @@ export function poserMotionAvocat(c: Pick<CommandeFabrication, "ratios" | "inten
       intensite: c.intensite?.niveau ?? null,
       demandes: option.demandes,
       habitude: option.habitude,
+      dejaServis: option.dejaServis,
+      ouverturePrecedente: option.ouverturePrecedente,
       mots: mots.map((m) => ({ mot: m.mot, debutSec: m.debutSec, finSec: m.finSec })),
       maxCartes,
       dureeVideoSec: dureeSec,

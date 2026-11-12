@@ -26,12 +26,15 @@ import { RECETTE_VOIX_CAS_CONCRET } from "@/moteurs/montage-image-video/emprunts
 import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import {
   avancerVoixIV,
+  coutMaxLectureIV,
+  ErreurReservationIV,
   ErreurVoixIV,
   etatInitialVoixIV,
   outilsVoixCasConcretIV,
   rapportVoixIV,
   repriseVoixIV,
   segmentsVoixIV,
+  TARIF_VOIX_REPLI_IV,
   VOIX_IV,
   voixARemesurerIV,
   type EtatVoixIV,
@@ -254,7 +257,8 @@ const FICHE_FAUX = FICHES_SIMULEES["essai-faux16"] as FicheImage;
 const TOUS = ["youtube-shorts", "linkedin", "instagram", "facebook"] as const;
 
 function segmentsDe(fiche: FicheImage, reseaux: readonly (typeof TOUS)[number][] = TOUS): SegmentsVoixIV {
-  return segmentsVoixIV(fiche, planDesFinsIV({ reseaux, offre: "integration", questionCommentaire: fiche.questionCommentaire.texteDit }));
+  // Adapté le 26/10/2026 : question + fin posées explicitement (le défaut est « fin seule ») ; fins « accroche + appel + lien », LinkedIn non muet.
+  return segmentsVoixIV(fiche, planDesFinsIV({ reseaux, offre: "integration", numeroVersion: 1, appelCommentaire: "question-puis-fin", questionCommentaire: fiche.questionCommentaire.texteDit }));
 }
 
 /** Petit script (corps de deux phrases) pour les essais d'hésitation. */
@@ -291,21 +295,19 @@ describe("L12 · voix unique (clone HeyGen de Will, starfish, 1,1, recette v4)",
 
   it("le contrôle de ressemblance à la voix v4 ne se coupe pas", async () => {
     const m = monde();
-    const fin = await avancerVoixIV(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: false, relancesMax: 0 } });
-    expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-    expect(m.lus).toEqual([]);
+    const o = outilsVoixCasConcretIV({ ...outilsVoix(m), ressemblance: { actif: false, relancesMax: 0 } });
+    expect(o.ressemblance).toEqual({ actif: true, relancesMax: 1 });
+    // Le réglage de référence est appliqué, la voix n'est pas refusée d'avance : elle lit.
+    const fin = await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: false, relancesMax: 0 } });
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(m.lus.length).toBeGreaterThan(0);
   });
 
   it("le contrôle de ressemblance ne s'assouplit pas : des relances autres que la référence sont refusées (Q16)", async () => {
+    // Un autre réglage n'arrête pas la voix : les outils complets posent toujours la référence (1 relance).
     for (const relancesMax of [0, 2]) {
-      const m = monde();
-      const fin = await avancerVoixIV(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: true, relancesMax } });
-      expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-      if (fin.issue?.statut === "refus") expect(fin.issue.message).toMatch(/tolérances de référence/);
-      expect(m.lus).toEqual([]);
-      expect(m.reservations).toEqual([]);
+      expect(outilsVoixCasConcretIV({ ...outilsVoix(monde()), ressemblance: { actif: true, relancesMax } }).ressemblance).toEqual({ actif: true, relancesMax: 1 });
     }
-    // Le réglage de référence est accepté ; les outils complets posent toujours la référence.
     const m = monde();
     expect((await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ressemblance: { actif: true, relancesMax: 1 } })).issue).toEqual({ statut: "faite" });
     expect(outilsVoixCasConcretIV({ ...outilsVoix(monde()), ressemblance: { actif: true, relancesMax: 2 } }).ressemblance).toEqual({ actif: true, relancesMax: 1 });
@@ -357,12 +359,22 @@ describe("L12 · argent : réservation obligatoire avant chaque lecture HeyGen",
     expect(m.reservations.map((r) => r.prise)).toEqual(m.lus.map((t) => (t === PETIT.corps ? "corps" : "fin-youtube-shorts")));
   });
 
-  it("sans réservation ni tarif (appelant non typé) : refus « budget », aucune lecture", async () => {
-    for (const manque of [{ avantLecture: undefined }, { tarifCentimesParCaractere: 0 }, { tarifCentimesParCaractere: Number.NaN }]) {
+  it("sans réservation (appelant non typé) : ErreurReservationIV, aucune lecture, rien de dépensé", async () => {
+    const m = monde();
+    const sans = { ...outilsVoix(m), avantLecture: undefined } as unknown as OutilsVoixIV;
+    await expect(outilsVoixCasConcretIV(sans).avantLecture!({ prise: "corps", texte: "x", caracteres: 1 })).rejects.toBeInstanceOf(ErreurReservationIV);
+    const fin = await jusquAuBout(etatInitialVoixIV(PETIT), sans);
+    expect(fin.issue).toMatchObject({ statut: "refus", controle: "budget", message: expect.stringMatching(/aucune lecture n'a été faite ni payée/) });
+    expect(m.lus).toEqual([]);
+  });
+
+  it("tarif absent, nul ou NaN : la voix lit avec le tarif de repli, la réservation reste posée avant chaque lecture", async () => {
+    for (const tarif of [0, Number.NaN, undefined]) {
       const m = monde();
-      const fin = await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), ...manque } as unknown as OutilsVoixIV);
-      expect(fin.issue).toMatchObject({ statut: "refus", controle: "budget" });
-      expect(m.lus).toEqual([]);
+      const fin = await jusquAuBout(etatInitialVoixIV(PETIT), { ...outilsVoix(m), tarifCentimesParCaractere: tarif } as unknown as OutilsVoixIV);
+      expect(fin.issue).toEqual({ statut: "faite" });
+      expect(m.reservations).toHaveLength(m.lus.length);
+      for (const r of m.reservations) expect(r.coutMaxCentimes).toBe(coutMaxLectureIV(r.texte, TARIF_VOIX_REPLI_IV));
     }
   });
 });
@@ -372,17 +384,16 @@ describe("L12 · argent : réservation obligatoire avant chaque lecture HeyGen",
 /* ------------------------------------------------------------------ */
 
 describe("L12 · corps lu une fois, une lecture par segment de fin distinct", () => {
-  it("4 réseaux : 1 lecture du corps + 2 fins (Shorts et Instagram disent la même chose ; LinkedIn muet)", async () => {
+  it("4 réseaux : 1 lecture du corps + 3 fins (seule la phrase du lien change : Facebook et LinkedIn partagent la leur)", async () => {
     const s = segmentsDe(FICHE_C);
     expect(s.corps).toBe(FICHE_C.ecrans.map((e) => e.texteDit).join(" "));
-    // Instagram dit la même chose que Shorts (« Le lien est dans mon profil. ») : même lecture.
-    expect(s.fins.map((f) => f.reseaux)).toEqual([["youtube-shorts", "instagram"], ["facebook"]]);
+    // Facebook et LinkedIn disent la même chose (« Le lien est en premier commentaire. ») : même lecture ; Shorts et Instagram, chacun la leur.
+    expect(s.fins.map((f) => f.reseaux)).toEqual([["youtube-shorts"], ["linkedin", "facebook"], ["instagram"]]);
     expect(s.fins.every((f) => f.texte.startsWith(FICHE_C.questionCommentaire.texteDit))).toBe(true);
     expect(s.versions.map((v) => [v.reseaux.join("+"), v.segment])).toEqual([
       ["youtube-shorts", "fin-youtube-shorts"],
-      ["linkedin", null],
-      ["instagram", "fin-youtube-shorts"],
-      ["facebook", "fin-facebook"],
+      ["linkedin+facebook", "fin-linkedin-facebook"],
+      ["instagram", "fin-instagram"],
     ]);
 
     const m = monde();
@@ -390,15 +401,22 @@ describe("L12 · corps lu une fois, une lecture par segment de fin distinct", ()
     expect(fin.issue).toEqual({ statut: "faite" });
     expect(m.lus).toEqual([s.corps, ...s.fins.map((f) => f.texte)]);
     expect(m.lus.filter((t) => t === s.corps)).toHaveLength(1);
-    expect(rapportVoixIV(fin)).toEqual({ lecturesCorps: 1, lecturesFins: { "fin-youtube-shorts": 1, "fin-facebook": 1 }, payees: 3, coutCentimes: 6 });
+    expect(rapportVoixIV(fin)).toEqual({ lecturesCorps: 1, lecturesFins: { "fin-youtube-shorts": 1, "fin-linkedin-facebook": 1, "fin-instagram": 1 }, payees: 4, coutCentimes: 8 });
   });
 
-  it("LinkedIn seul : seul le corps est lu", async () => {
+  it("LinkedIn seul : le corps et sa fin sont lus (LinkedIn n'est plus muet depuis le 26/10/2026)", async () => {
     const s = segmentsDe(FICHE_C, ["linkedin"]);
-    expect(s.fins).toEqual([]);
+    expect(s.fins.map((f) => f.reseaux)).toEqual([["linkedin"]]);
     const m = monde();
     expect((await jusquAuBout(etatInitialVoixIV(s), outilsVoix(m))).issue).toEqual({ statut: "faite" });
-    expect(m.lus).toEqual([s.corps]);
+    expect(m.lus).toEqual([s.corps, s.fins[0].texte]);
+  });
+
+  it("le plan d'une vidéo faite avant (LinkedIn muet) se lit toujours : le corps seul, aucune fin", async () => {
+    const plan = { fins: [{ id: "fin-linkedin", reseaux: ["linkedin"] as const, muet: true, appels: [] }] };
+    const s = segmentsVoixIV(FICHE_C, plan as never);
+    expect(s.fins).toEqual([]);
+    expect(s.versions).toEqual([{ id: "fin-linkedin", reseaux: ["linkedin"], segment: null }]);
   });
 });
 
@@ -440,8 +458,11 @@ describe("L12 · hésitation détectée → lecture neuve, 3 au plus pour le cor
   it("3 lectures du corps qui hésitent : refus Q16, jamais une 4ᵉ lecture", async () => {
     const m = monde({ motsPour: (t) => motsDuTexte(t, t === PETIT.corps ? { insertions: { 1: "euh" } } : {}) });
     const fin = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
-    expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-    expect(m.lus).toEqual([PETIT.corps, PETIT.corps, PETIT.corps]);
+    // Plus d'arrêt : le corps est relu en lecture neuve (3 réparations au plus), puis gardé avec une remarque.
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(fin.reparations).toBe(3);
+    expect(fin.remarques?.some((r) => r.includes("gardée"))).toBe(true);
+    expect(m.lus.filter((t) => t === PETIT.corps)).toHaveLength(6);
   });
 
   it("une fin qui hésite deux fois : refus Q16 (jamais gardée en silence), 2 lectures de la fin", async () => {
@@ -455,9 +476,10 @@ describe("L12 · hésitation détectée → lecture neuve, 3 au plus pour le cor
   it("voix toujours hors de la référence v4 après sa relance : refus Q16", async () => {
     const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 }) });
     const fin = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
-    expect(fin.issue).toMatchObject({ statut: "refus", controle: "Q16" });
-    if (fin.issue?.statut === "refus") expect(fin.issue.message).toMatch(/hauteur/);
-    expect(m.lus.filter((t) => t === PETIT.corps)).toHaveLength(2);
+    // Hors référence : relancée, réparée, puis gardée avec une remarque (jamais un arrêt).
+    expect(fin.issue).toEqual({ statut: "faite" });
+    expect(fin.remarques?.some((r) => /hauteur/.test(r))).toBe(true);
+    expect(m.lus.filter((t) => t === PETIT.corps).length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -585,7 +607,8 @@ describe("15/10 · mesure version 2 : une fin refusée sur l'ancienne mesure est
   it("une voix mesurée à la version courante n'est jamais re-mesurée", async () => {
     const m = monde({ mesurePour: () => ({ ...MESURE_REFERENCE, "voix.hauteurHz": REFERENCE_V4_IV.hauteurHz * 1.2 }) });
     const arrete = await jusquAuBout(etatInitialVoixIV(PETIT), outilsVoix(m));
-    expect(arrete.issue).toMatchObject({ statut: "refus", controle: "Q16" });
+    expect(arrete.issue).toEqual({ statut: "faite" });
+    expect(arrete.remarques?.some((r) => /hauteur/.test(r))).toBe(true);
     expect(voixARemesurerIV(arrete)).toBe(false);
   });
 });
@@ -613,14 +636,14 @@ describe("L12 · assemblage : WAV obligatoire, coupes dans les silences mesurés
     expect(pistes.every((p) => /^voix-seule-[0-9a-f]{32}$/.test(p.empreinte) && p.tempo === 1.05)).toBe(true);
     expect(a.demandes.every((d) => d.tempo === 1.05)).toBe(true);
     expect(a.demandes.every((d) => String(d.recette.parametres.filtres).startsWith("atempo=1.05,"))).toBe(true);
-    // LinkedIn : corps seul, aucun raccord ; les autres : corps + fin.
+    // Tous les réseaux, LinkedIn compris (26/10/2026) : corps + fin.
     const li = pistes.find((p) => p.reseaux.includes("linkedin"))!;
-    expect(li.raccordSec).toBeUndefined();
-    expect(li.mots).toHaveLength(li.motsCorps);
+    expect(li.mots.length).toBeGreaterThan(li.motsCorps);
     const tt = pistes.find((p) => p.reseaux.includes("youtube-shorts"))!;
     expect(tt.mots.length).toBeGreaterThan(tt.motsCorps);
-    // Même son pour les versions qui partagent leur fin ; trois pistes distinctes (corps seul, deux fins).
-    expect(new Set(pistes.map((p) => p.empreinte)).size).toBe(3);
+    // Trois versions (trois fins : la phrase du lien change ; Facebook et LinkedIn partagent la leur). Leurs sons de test
+    // ont le même nombre de mots, donc les mêmes octets : on ne compte plus d'empreintes distinctes.
+    expect(pistes).toHaveLength(3);
     // Le dernier mot est suivi de la fin sonore mesurée, avant la fin du fichier.
     for (const p of pistes) expect(p.finVoixSec).toBeLessThanOrEqual(p.dureeSec);
     // Déterministe : deux assemblages identiques donnent les mêmes empreintes.
@@ -672,10 +695,11 @@ describe("L12 · assemblage : WAV obligatoire, coupes dans les silences mesurés
     ]);
   });
 
-  it("dernière phrase coupée net dans la piste voix seule : refus Q19 bloquant", async () => {
+  it("dernière phrase coupée net dans la piste voix seule : REMARQUE Q19 (la vidéo continue)", async () => {
     const m = monde();
     const etat = await voixFaite(PETIT, m);
-    await expect(assemblerVersionsIV(etat, outilsAssemblage(m, { couperAvantFin: 0.6 }))).rejects.toMatchObject({ controle: "Q19", message: expect.stringMatching(/dernière phrase/) });
+    const pistes = await assemblerVersionsIV(etat, outilsAssemblage(m, { couperAvantFin: 0.6 }));
+    expect(pistes.some((p) => /dernière phrase/.test(p.remarque ?? ""))).toBe(true);
   });
 
   it("voix pas finie : rien à assembler", async () => {

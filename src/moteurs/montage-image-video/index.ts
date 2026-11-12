@@ -48,7 +48,7 @@ export const ID_MOTEUR_IV = ID_MOTEUR_IMAGE_VIDEO;
 export const CODE_CARTE_A_VALIDER = "IV_CARTE_A_VALIDER";
 export const CODE_SCRIPT_A_VALIDER = "IV_SCRIPT_A_VALIDER";
 export const PHRASE_CARTE_A_VALIDER = "Vérifiez ce que j'ai compris de votre image, corrigez si besoin, puis validez la carte.";
-export const PHRASE_SCRIPT_A_VALIDER = "Relisez le script et son prix, tranchez les phrases trop affirmatives, puis validez : la voix n'est payée qu'après.";
+export const PHRASE_SCRIPT_A_VALIDER = "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite.";
 export const PHRASE_FORMAT_MASQUE = "Le format « Image → vidéo » n'est pas encore ouvert : un essai réel demande l'accord de Will.";
 
 /* ------------------------------------------------------------------ */
@@ -59,6 +59,10 @@ export const PHRASE_FORMAT_MASQUE = "Le format « Image → vidéo » n'est pas 
 export interface EntreesImageVideo {
   imageCle: string;
   empreinte?: string;
+  /** MODE TEXTE (R6b) : description libre de Will à la place d'une image (`imageCle` vaut alors `texte:<empreinte>`). */
+  texte?: string;
+  /** MODE « SCRIPT COMPLET » : `texte` est le script de Will, dit tel quel (aucune écriture par l'IA). */
+  scriptColle?: boolean;
   reseaux: ReseauIV[];
   offre?: Offre;
   typeImpose?: TypeImage;
@@ -82,6 +86,8 @@ export function lireEntreesImageVideo(entrees: Record<string, unknown> | undefin
   return {
     imageCle: typeof e.imageCle === "string" ? e.imageCle : "",
     ...(typeof e.empreinte === "string" ? { empreinte: e.empreinte } : {}),
+    ...(typeof e.texte === "string" ? { texte: e.texte } : {}),
+    ...(e.scriptColle === true && typeof e.texte === "string" ? { scriptColle: true } : {}),
     reseaux,
     ...(typeof e.offre === "string" ? { offre: e.offre as Offre } : {}),
     ...(typeof e.typeImpose === "string" ? { typeImpose: e.typeImpose as TypeImage } : {}),
@@ -102,11 +108,18 @@ function lotDe(v: unknown): { lot?: NonNullable<EntreesImageVideo["lot"]> } {
 /** La demande de la machine pour une commande (réglages du format lus et bornés par son schéma). */
 export function demandeDeLaCommande(commande: CommandeFabrication, versionId: string, numeroVersion?: number): DemandeFabricationIV {
   const e = lireEntreesImageVideo(commande.entrees);
-  const reglages = schemaReglagesImageVideo.parse(commande.reglages ?? {});
+  // Commande d'avant R5 (réglage jamais écrit) : elle garde l'ancien comportement « en cas de doute » ; seules les commandes qui
+  // portent « validationCarte » suivent leur réglage. Un script collé sans réglage écrit passe en « automatique » (sinon « si-doute »).
+  const brut = (commande.reglages ?? {}) as Record<string, unknown>;
+  const reglages = schemaReglagesImageVideo.parse("validationCarte" in brut ? brut : { ...brut, validationCarte: e.scriptColle ? "automatique" : "si-doute" });
   return {
     videoId: commande.videoId,
     versionId,
     image: { cle: e.imageCle, ...(e.empreinte ? { empreinte: e.empreinte } : {}) },
+    ...(e.texte !== undefined ? { texte: e.texte } : {}),
+    ...(e.scriptColle ? { scriptColle: true } : {}),
+    // Titre ou idée : le script généré attend Williams (relecture, modification, « Valider et fabriquer »).
+    ...(e.texte !== undefined && !e.scriptColle ? { scriptAValider: true } : {}),
     reseaux: e.reseaux,
     ...(e.offre ? { offre: e.offre } : {}),
     ...(e.typeImpose ? { typeImpose: e.typeImpose } : {}),
@@ -117,6 +130,8 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
     ...(numeroVersion !== undefined ? { numeroVersion } : {}),
     codeSuivi: e.codeSuivi ?? `iv-${commande.videoId}`,
     ...(e.lot ? { lot: { id: e.lot.id, rang: e.lot.rang } } : {}),
+    // GV-ST-03b : le style de sous-titres choisi (Bibliothèque) voyage jusqu'au rendu ; absent : charte duo, comme avant.
+    ...(commande.styles?.sousTitres?.valeur ? { styleSousTitres: { id: commande.styles.sousTitres.id, nom: commande.styles.sousTitres.nom, valeur: commande.styles.sousTitres.valeur } } : {}),
   };
 }
 
@@ -333,12 +348,14 @@ export function resultatDe(etat: EtatFabricationIV, maintenant: number): Resulta
   // Première livraison : de préférence un fichier 9:16 (Reel, Instagram…) ; LinkedIn seul (4:5) est déclaré en 4:5.
   const livrees = (etat.livraison ?? []).filter((l) => l.fichierCle);
   const premiere = livrees.find((l) => l.format !== "4:5") ?? livrees[0];
+  const rendu = Object.values(etat.rendus ?? {}).find((r) => r.cle === premiere?.fichierCle);
   const quatreCinq = premiere?.format === "4:5";
   const sorties = premiere
     ? [{ ratio: (quatreCinq ? "4:5" : "9:16") as "4:5" | "9:16", fichierCle: premiere.fichierCle!, vignetteCle: premiere.fichierCle!, resolution: quatreCinq ? "1080x1350" : "1080x1920", dureeSec: premiere.dureeSec ?? 0, taille: 0, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 } }]
     : [];
   return {
     sorties,
+    ...(rendu?.sousTitres?.length ? { sousTitres: rendu.sousTitres } : {}),
     noteQualite: { globale: note, alertes },
     lignesReelles: [...lignesPayeesDe(etat), ligne("Montage image → vidéo", "studio", "forfait", 1, 0, "reel")],
     projetMontage: {

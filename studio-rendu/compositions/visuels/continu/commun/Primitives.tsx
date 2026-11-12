@@ -6,8 +6,8 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { alpha, CHARTE_CONTINU as C, DEGRADES_CONTINU as D } from "../../../../../src/briques/visuels/charte-carrousel";
 import { ATTRIBUT_DESSIN } from "../../commun/zones";
-import { FAMILLE_BRICOLAGE, FAMILLE_INSTRUMENT, TAILLES_CONTINU } from "../constantes-continu";
-import { FAMILLE_INTER } from "../polices-continu";
+import { TAILLES_CONTINU } from "../constantes-continu";
+import { FAMILLE_MANROPE } from "../../police-manrope";
 import { ICONES_CONTINU, type NomIconeContinu } from "./icones-continu";
 
 /** Ombre portée chaude de la maquette (brun 70, 30, 8) : rouille assombrie d'encre. */
@@ -15,13 +15,14 @@ export function ombre(a: number): string {
   return alpha(`color-mix(in srgb, ${C.rouille} 50%, ${C.encre})`, a);
 }
 
-export const POLICE_TITRE = `"${FAMILLE_BRICOLAGE}", sans-serif`;
-export const POLICE_SERIF = `"${FAMILLE_INSTRUMENT}", serif`;
-export const POLICE_TEXTE = `"${FAMILLE_INTER}", sans-serif`;
+/** Une seule police (Manrope) : titres, accents (anciennement en serif) et texte courant partagent la même famille. */
+export const POLICE_TITRE = `"${FAMILLE_MANROPE}", "Manrope", sans-serif`;
+export const POLICE_SERIF = POLICE_TITRE;
+export const POLICE_TEXTE = POLICE_TITRE;
 
-/** Police d'un texte, en propriétés séparées (graisse, corps en px, interligne, famille, italique). */
-export function police(poids: number, taille: number, interligne: number, famille: string, italique = false): CSSProperties {
-  return { fontWeight: poids, fontSize: taille, lineHeight: interligne, fontFamily: famille, fontStyle: italique ? "italic" : "normal" };
+/** Police d'un texte, en propriétés séparées (graisse, corps en px, interligne, famille). Manrope n'a pas d'italique : `italique` est accepté pour les appels existants mais jamais appliqué (aucun italique synthétisé). */
+export function police(poids: number, taille: number, interligne: number, famille: string, _italique = false): CSSProperties {
+  return { fontWeight: poids, fontSize: taille, lineHeight: interligne, fontFamily: famille, fontStyle: "normal" };
 }
 
 /** `ic(n, s, c, w)` : icône duotone, traits à `epaisseur`, forme pleine teintée à 24 %. */
@@ -36,7 +37,7 @@ export function Icone({ nom, taille, couleur = "currentColor", epaisseur = 1.8 }
 }
 
 export type VarianteTuile = keyof typeof D.tuile;
-const ENCRE_TUILE: Record<VarianteTuile, string> = { o: C.ecume, k: C.orangeLumiere, w: C.orange, p: C.orangeBrule, g: C.creme };
+const ENCRE_TUILE: Record<VarianteTuile, string> = { o: C.creme, k: C.accentSombre, w: C.accentClair, p: C.accentClair, g: C.creme };
 
 /** `tile(n, sz, v)` : tuile en relief (rayon 30 %, biseau bas, ombre portée), icône à 54 %. */
 export function Tuile({ icone, taille, variante = "o", style }: { icone: NomIconeContinu; taille: number; variante?: VarianteTuile; style?: CSSProperties }) {
@@ -61,7 +62,7 @@ export function Sphere({ rayon, sombre = false }: { rayon: number; sombre?: bool
   const d = rayon * 2;
   const arrets = sombre
     ? [[0, C.brunPierre], [0.5, C.encreDouce], [1, C.nuit]]
-    : [[0, C.abricot], [0.38, C.orangeClair], [0.78, C.cuivre], [1, C.rouille]];
+    : [[0, C.abricot], [0.38, C.accentClair], [0.78, C.cuivre], [1, C.rouille]];
   return (
     <svg width={d} height={d} viewBox={`0 0 ${d} ${d}`} style={{ display: "block", overflow: "visible" }} aria-hidden>
       <defs>
@@ -83,7 +84,7 @@ export function Sphere({ rayon, sombre = false }: { rayon: number; sombre?: bool
 }
 
 /** `spk(x, y, s, c)` : étincelle à quatre branches (sans position : le parent la place). */
-export function Etincelle({ taille, couleur = C.orange }: { taille: number; couleur?: string }) {
+export function Etincelle({ taille, couleur = C.accentClair }: { taille: number; couleur?: string }) {
   return (
     <svg width={taille} height={taille} viewBox="0 0 24 24" aria-hidden style={{ display: "block" }}>
       <path d="M12 0c.6 6.5 5.5 11.4 12 12-6.5.6-11.4 5.5-12 12-.6-6.5-5.5-11.4-12-12 6.5-.6 11.4-5.5 12-12z" fill={couleur} />
@@ -101,9 +102,9 @@ export type VarianteCarte = "" | "k" | "o" | "pl" | "c" | "glass";
 function styleCarte(v: VarianteCarte): CSSProperties {
   switch (v) {
     case "k":
-      return { background: D.carte.k, color: C.creme, boxShadow: `inset 0 2px 0 ${alpha(C.blancCarte, 0.12)}, 0 44px 60px -34px ${alpha(C.nuit, 0.7)}` };
+      return { background: D.carte.k, color: C.creme, boxShadow: `inset 0 0 0 1.5px ${alpha(C.creme, 0.12)}, inset 0 2px 0 ${alpha(C.blancCarte, 0.12)}, 0 44px 60px -34px ${alpha(C.nuit, 0.7)}` };
     case "o":
-      return { background: D.carte.o, color: C.encre, boxShadow: `inset 0 2px 0 ${alpha(C.blancCarte, 0.4)}, 0 44px 60px -34px ${ombre(0.6)}` };
+      return { background: D.carte.o, color: C.creme, boxShadow: `inset 0 2px 0 ${alpha(C.blancCarte, 0.4)}, 0 44px 60px -34px ${ombre(0.6)}` };
     case "pl":
       return { background: D.carte.pl, boxShadow: `0 0 0 1.5px ${alpha(C.encre, 0.06)}, 0 44px 60px -34px ${ombre(0.42)}` };
     case "c":
@@ -135,7 +136,7 @@ export function Bulle({ cote, children }: { cote: "l" | "r" | "ro"; children: Re
   const variantes: Record<typeof cote, CSSProperties> = {
     l: { background: C.blancCarte, borderBottomLeftRadius: 10, boxShadow: `0 0 0 1.5px ${alpha(C.encre, 0.06)}, 0 20px 30px -20px ${ombre(0.4)}` },
     r: { background: C.encre, color: C.creme, borderBottomRightRadius: 10, alignSelf: "flex-end" },
-    ro: { background: D.bouton, color: C.encre, borderBottomRightRadius: 10, alignSelf: "flex-end" },
+    ro: { background: D.bouton, color: C.creme, borderBottomRightRadius: 10, alignSelf: "flex-end" },
   };
   return <div style={{ ...base, ...variantes[cote] }}>{children}</div>;
 }
@@ -154,7 +155,7 @@ export function Etiquette({ children }: { children: ReactNode }) {
   return <span style={{ display: "inline-flex", alignSelf: "flex-start", ...police(700, TAILLES_CONTINU.tagx, 1, POLICE_TEXTE), letterSpacing: "0.07em", textTransform: "uppercase", padding: "12px 18px", borderRadius: 12, background: C.peche, color: C.encre }}>{children}</span>;
 }
 
-/** `.t` : grand titre Bricolage 800 ; `accent` en Instrument Serif italique orange (grands titres seulement, ≥ 64 px). */
+/** `.t` : grand titre Manrope 800 ; `accent` en Manrope orange, même famille (grands titres seulement, ≥ 64 px). */
 export function Titre({ taille, texte, accent, sombre = false, style }: { taille: number; texte: string; accent?: string; sombre?: boolean; style?: CSSProperties }) {
   return (
     <h1 style={{ ...police(800, taille, 0.94, POLICE_TITRE), letterSpacing: "-0.045em", wordSpacing: "0.08em", margin: 0, textWrap: "balance", color: sombre ? C.creme : C.encre, ...style }}>
@@ -162,14 +163,14 @@ export function Titre({ taille, texte, accent, sombre = false, style }: { taille
       {accent ? (
         <>
           {" "}
-          <em style={{ ...police(400, Math.round(taille * 1.1), 0.9, POLICE_SERIF, true), letterSpacing: "-0.015em", color: C.orange, wordSpacing: 0 }}>{accent}</em>
+          <em style={{ ...police(400, Math.round(taille * 1.1), 0.9, POLICE_SERIF, true), letterSpacing: "-0.015em", color: sombre ? C.accentSombre : C.accentClair, wordSpacing: 0 }}>{accent}</em>
         </>
       ) : null}
     </h1>
   );
 }
 
-/** `.p` : texte courant Inter 500, 38 px. */
+/** `.p` : texte courant Manrope 500, 38 px. */
 export function Texte({ children, sombre = false, taille = TAILLES_CONTINU.p, style }: { children: ReactNode; sombre?: boolean; taille?: number; style?: CSSProperties }) {
   return <p style={{ ...police(500, taille, 1.32, POLICE_TEXTE), color: sombre ? C.sableSombre : C.grisTexte, margin: 0, ...style }}>{children}</p>;
 }

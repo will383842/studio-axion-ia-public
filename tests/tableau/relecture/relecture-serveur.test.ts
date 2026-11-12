@@ -176,7 +176,7 @@ describe("« Découper en scènes » exige le repère du texte relu (comme « Fa
   });
 
   it("l'action transmet le repère", async () => {
-    expect(await actions.decouperScriptTableauAction(donnees, undefined, undefined, repereTexte(donnees.texte))).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
+    expect(await actions.decouperScriptTableauAction(donnees, undefined, undefined, repereTexte(donnees.texte))).toMatchObject({ ok: true, donnees: { statut: "en-cours" } });
     expect(await actions.decouperScriptTableauAction(donnees)).toMatchObject({ ok: true, donnees: { statut: "refusee", phrase: creation.RAISON_TEXTE_NON_RELU } });
   });
 
@@ -246,7 +246,8 @@ describe("relecture de la fiche, puis « Fabriquer » avec le repère « script 
   it("l'action transmet le repère", async () => {
     const videoId = await brouillonPret();
     const r = await actions.fabriquerVideoTableauAction(videoId, undefined, repereFiche(await ficheDe(videoId)));
-    expect(r).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
+    // Le repère est transmis et le prix est accepté sans confirmation : la fabrication va jusqu'au stockage (non relié dans ce test), sans « accord-requis ».
+    expect(r).toMatchObject({ ok: false, code: "STOCKAGE_NON_RELIE" });
     expect(await actions.fabriquerVideoTableauAction(videoId, undefined)).toMatchObject({ ok: true, donnees: { statut: "refusee" } });
   });
 });
@@ -265,7 +266,8 @@ describe("l'écran : le même « Relire le script » avant le découpage et avan
     const vu = texte(html);
     expect(html).toContain('aria-label="Relire le script"');
     expect(html.match(/aria-label="Modifier la phrase \d+"/g)?.length).toBe(lignesDuTexteTableau(donnees.texte).length);
-    expect(vu).toMatch(/Découper en scènes \(≈ [\d,]+ € au plus\)/);
+    expect(vu).toContain("Découper en scènes");
+    expect(vu).not.toMatch(/€/);
     expect(vu).toContain("Tout réécrire");
     expect(vu).toContain("Texte libre");
     expect(vu).not.toContain("Lancer la vidéo");
@@ -280,7 +282,9 @@ describe("l'écran : le même « Relire le script » avant le découpage et avan
     expect(html.match(/aria-label="Relire le script"/g)).toHaveLength(1);
     expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(f.scenes.length);
     expect(vu).toContain(`Page ${f.scenes[0].page}`);
-    expect(vu).toMatch(/Fabriquer la vidéo \(≈ [\d,]+ €\)/);
+    // Libellé unique « Fabriquer » : maquette M3 et décision du fondateur du 12/11.
+    expect(html).toMatch(/>\s*Fabriquer\s*</);
+    expect(vu).not.toMatch(/€/);
     expect(vu).toContain("Autres corrections");
     expect(vu).not.toContain("Découper en scènes");
   });

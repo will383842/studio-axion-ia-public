@@ -7,6 +7,7 @@ import { useState } from "react";
 import { creerModeleAction, renommerModeleAction, archiverModeleAction, restaurerModeleAction } from "@/app/(studio)/modeles/actions";
 import { ElementsRanges } from "@/components/bibliotheque/ElementsRanges";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
+import { Carte } from "@/components/ui/Carte";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
@@ -86,9 +87,9 @@ export function ListeModeles({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96 }}
                   transition={{ delay: Math.min(i, 6) * 0.04 }}
-                  className="group relative isolate flex gap-4 overflow-hidden rounded-carte border border-trait bg-surface-1 p-3 transition-colors hover:border-trait-fort"
+                  className="group"
                 >
-                  <span aria-hidden className="absolute -left-10 -top-10 -z-10 size-32 rounded-full bg-orange/10 blur-2xl" />
+                  <Carte sansMarge className="flex h-full gap-4 p-3 transition-colors hover:border-trait-fort">
                   <span className="relative aspect-[9/16] w-24 shrink-0 overflow-hidden rounded-xl bg-surface-2">
                     {m.vignette ? <Image src={m.vignette} alt="" fill sizes="96px" className="object-cover" /> : <Icone nom="modele" size={22} className="absolute inset-0 m-auto text-texte-faible" />}
                     <span className="absolute bottom-1.5 left-1.5 rounded-md bg-fond/80 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-texte">{libelleDuree(m.dureeSec)}</span>
@@ -96,7 +97,7 @@ export function ListeModeles({
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start gap-1">
                       <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-orange-vif">
+                        <p className="flex items-center gap-1.5 text-xs font-semibold text-texte-faible">
                           <Icone nom={m.format.icone} size={12} />
                           <span className="truncate">{nomCourtFormat(m.format)}</span>
                         </p>
@@ -127,11 +128,12 @@ export function ListeModeles({
                     <div className="mt-auto flex items-center gap-2 pt-3">
                       {p && <Portrait nom={p.nom} photo={p.photo} taille="sm" />}
                       <span className="min-w-0 flex-1 truncate text-xs text-texte-faible">{m.utilisations ? `${m.utilisations} vidéo${m.utilisations > 1 ? "s" : ""}` : "Jamais utilisé"}</span>
-                      <Bouton asChild variante="secondaire" iconeDroite="fleche-droite" className="group-hover:border-orange/50">
+                      <Bouton asChild variante="secondaire" iconeDroite="fleche-droite" className="group-hover:border-texte/40">
                         <Link href={`/nouvelle/${m.formatId}?modele=${m.id}`}>Utiliser</Link>
                       </Bouton>
                     </div>
                   </div>
+                  </Carte>
                 </motion.li>
               );
             })}
@@ -185,7 +187,7 @@ export function ListeModeles({
                   }}
                   className="group block w-full text-left"
                 >
-                  <span className="relative block aspect-[9/16] overflow-hidden rounded-xl border border-trait bg-surface-2 transition-colors group-hover:border-orange">
+                  <span className="relative block aspect-[9/16] overflow-hidden rounded-xl border border-trait bg-surface-2 transition-colors group-hover:border-texte">
                     {v.vignette && <Image src={v.vignette} alt="" fill sizes="120px" className="object-cover" />}
                     {v.noteQualite !== undefined && (
                       <span className={cn("absolute right-1 top-1 rounded-md bg-fond/80 px-1.5 text-[10px] font-bold tabular-nums", v.noteQualite >= 80 ? "text-sauge" : "text-ambre")}>{v.noteQualite}</span>

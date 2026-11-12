@@ -17,7 +17,7 @@ import { imagesEcran, type ProprietesEcran } from "../../../src/briques/ecrans-m
 import { exempleEcran } from "../cas-concret/exemples";
 import { Ecran } from "../cas-concret/Ecran";
 import { chargerPoliceAnton, chargerPoliceTitre } from "../commune/polices";
-import { Fond } from "../cas-concret/socle/Fond";
+import { FondIV } from "./variete/fond/FondVarie";
 import { Camera } from "./Camera";
 import { sceneGalerieC } from "./donnees-galerie";
 import { SCENES_GALERIE_OBJETS } from "./donnees-galerie-objets";
@@ -32,17 +32,20 @@ import { galerieA, galerieB, galerieObjets, type MomentGalerie, type ProprietesG
 import { Dossiers } from "./Dossiers";
 import { EmailStructure } from "./EmailStructure";
 import { Ensemble } from "./Ensemble";
-import { Entete } from "./Entete";
+import { EnteteVarie } from "./variete/entete/EnteteVarie";
 import { PhraseChoc } from "./PhraseChoc";
+import { Affiche } from "./Affiche";
 import { QueueFin } from "./QueueFin";
+import type { AvecAfficheIV } from "./variete/ouverture/donnees";
 import { decalageReferenceIV } from "./mise-en-page";
-import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, masqueToile, opaciteRail, placeRail } from "./plan";
+import { calculerScene, enteteA, ensembleA, fondSceneA, masqueSchemaMuet, fondusDeScene, masqueToile, noeudCourant, opaciteRail, placeRail } from "./plan";
 import { objetsA, planEnsemble, secousseAlerte, type ObjetSceneIV, type ProprietesSceneObjetsIV } from "./plan-objets";
 import { Recherche } from "./Recherche";
 import { RepereChapitre } from "./RepereChapitre";
 import { Sources } from "./Sources";
 import { TemoinSousTitres } from "./TemoinSousTitres";
-import { RailSuite, SchemaMuet, Toile } from "./Toile";
+import { SchemaMuet, Toile } from "./Toile";
+import { RailVarie } from "./variete/rail/RailVarie";
 import { COMPOSITION_VARIETE_IV, metaVarieteIV, proprietesVarieteDefaut, SceneVarieteIV } from "./variete/CompositionVariete";
 import { recadrage } from "./variete/camera/calque";
 import { donneesToile } from "./variete/camera/donnees";
@@ -68,7 +71,7 @@ export const COMPOSITIONS_IMAGE_VIDEO = Object.freeze({
 });
 
 /** Propriétés du dernier écran v4 d'une version : celles de `CasConcretEcran`, et la queue du bloc. */
-export type ProprietesEcranFinIV = ProprietesEcran & AvecQueueIV;
+export type ProprietesEcranFinIV = ProprietesEcran & AvecQueueIV & AvecAfficheIV;
 
 /**
  * `ImageVideoEcranFin` : le DERNIER écran v4 d'une version qui a une queue animée. L'écran est celui du cas concret
@@ -81,6 +84,7 @@ export function EcranFinIV(p: ProprietesEcranFinIV) {
     <AbsoluteFill>
       <Ecran {...p} />
       <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
     </AbsoluteFill>
   );
 }
@@ -107,7 +111,7 @@ function cartesEnAttenteCamC(scene: ReturnType<typeof calculerScene>, ensembles:
   return !!courant && scene.toile.fleches.some((f) => f.de === courant && (scene.premierMot.get(f.vers) ?? Infinity) - 0.15 > t && scene.parId.has(f.vers));
 }
 
-export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueueIV) {
+export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueueIV & AvecAfficheIV) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   const t = useCurrentFrame() / p.fps;
@@ -118,7 +122,8 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
   const ensemble = ensembleA(p, scene, t);
   // Calcul léger, refait à chaque image comme `ensembleA` : le schéma lisible dans la zone utile (sous l'en-tête).
   const vue = ensemble ? planEnsemble(p.schema, { allumes: ensemble.options.allumes, chiffresCles: ensemble.options.chiffresCles }) : null;
-  const fonduToile = ensemble ? 1 - ensemble.fondu : 1;
+  const fondus = ensemble ? fondusDeScene(p.hauteur, ensemble.fondu) : null;
+  const fonduToile = fondus ? fondus.toile : 1;
   // Sous l'en-tête, la toile s'efface en douceur : un nœud vu reste deviné, jamais mêlé au titre ; en bas, avant les sous-titres.
   const masque = masqueToile(p.hauteur, !!entete);
   // Lot G : le reste du schéma en cartes muettes (sans texte), visible dès le bas de l'en-tête ; au-dessus de la toile,
@@ -128,48 +133,59 @@ export function SceneImageVideo(p: ProprietesSceneIV & AvecVarieteIV & AvecQueue
   const muetDessus = masqueSchemaMuet(p.hauteur, !!entete, "dessus");
   const placeDuRail = placeRail(p.hauteur);
   const camC = donneesToile(p.variete?.donnees?.camera);
+  // Une fois par image : le nœud dont on parle, pour le filet « jamais un bloc coupé » (toile et schéma muet).
+  const courant = noeudCourant(scene, t);
+  const imagesVues = camC ? camC.trajectoire : scene.trajectoire.images;
   const rail = camC?.code === "CAM-C" && cartesEnAttenteCamC(scene, camC.ensembles ?? [], t) ? 0 : opaciteRail(scene, p.hauteur, t, fonduToile);
   // Le calque caméra (CAM-B, CAM-C) recadre toute la scène ; le rail, fixe à l'écran, en reçoit l'inverse.
   const r = camC ? recadrage(cameraA(scene.trajectoire, t), cameraA({ images: camC.trajectoire }, t)) : { s: 1, tx: 0, ty: 0 };
   const echelle = p.largeur / 1080;
   const fixe = r.s === 1 && r.tx === 0 && r.ty === 0 ? "" : `translate(${(-r.tx * echelle) / r.s}px, ${(-r.ty * echelle) / r.s}px) scale(${1 / r.s}) `;
+  // Place de master : après l'en-tête, dans la scène. Filmée par CAM-B ou CAM-C, la queue et l'affiche passent dans
+  // `horsCamera` : le calque caméra les pose après la scène recadrée, jamais recadrées, et toujours sous la matière et les transitions.
+  const finDeScene = (
+    <>
+      <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+      <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
+    </>
+  );
   return (
     <ContexteVariete variete={p.variete} scene={scene} ensembles={p.ensembles}>
-      <HabillageVariete>
+      <HabillageVariete horsCamera={camC ? finDeScene : undefined}>
         <AbsoluteFill>
-          <Fond fond={fondVu} largeur={p.largeur} hauteur={p.hauteur} />
+          <FondIV fond={fondVu} largeur={p.largeur} hauteur={p.hauteur} />
           {fonduToile > 0 ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: muetFuturs, WebkitMaskImage: muetFuturs }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
-                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="futurs" />
+                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="futurs" trajectoireVue={imagesVues} courant={courant} />
               </Camera>
             </AbsoluteFill>
           ) : null}
           {fonduToile > 0 && muetDessus ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: muetDessus, WebkitMaskImage: muetDessus }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
-                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="dits" />
+                <SchemaMuet scene={scene} schema={p.schema} t={t} fond={fondVu} mode="dits" trajectoireVue={imagesVues} courant={courant} />
               </Camera>
             </AbsoluteFill>
           ) : null}
           {fonduToile > 0 ? (
             <AbsoluteFill style={{ opacity: fonduToile, maskImage: masque, WebkitMaskImage: masque }}>
               <Camera trajectoire={scene.trajectoire} t={t} largeur={p.largeur}>
-                <Toile scene={scene} schema={p.schema} t={t} />
+                <Toile scene={scene} schema={p.schema} t={t} dejaVus={(p as { dejaVus?: string[] }).dejaVus} trajectoireVue={imagesVues} courant={courant} />
               </Camera>
             </AbsoluteFill>
           ) : null}
           <AbsoluteFill style={{ transform: `${fixe}scale(${echelle})`, transformOrigin: "0 0" }}>
-            <RailSuite scene={scene} schema={p.schema} t={t} fond={fondVu} place={placeDuRail} opacite={rail} />
+            <RailVarie scene={scene} schema={p.schema} t={t} fond={fondVu} place={placeDuRail} opacite={rail} />
           </AbsoluteFill>
-          {ensemble && vue ? (
+          {ensemble && vue && fondus && fondus.ensemble > 0 ? (
             <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
-              <Ensemble plan={vue} schema={p.schema} ecoule={ensemble.ecoule} fondu={ensemble.fondu} />
+              <Ensemble plan={vue} schema={p.schema} ecoule={ensemble.ecoule} fondu={fondus.ensemble} />
             </AbsoluteFill>
           ) : null}
           {/* CAM-B, CAM-C : le calque caméra repose la marque et l'en-tête, fixes, au-dessus de la scène recadrée (jamais deux titres). */}
-          {camC ? null : <Entete entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={fondVu} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />}
-          <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          {camC ? null : <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={fondVu} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />}
+          {camC ? null : finDeScene}
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>
@@ -220,11 +236,11 @@ export function SceneObjetsImageVideo(p: ProprietesSceneObjetsIV) {
 }
 
 /** Scène d'objets de production : la même, sans témoin des sous-titres. */
-export function SceneObjetsProductionIV(p: ProprietesSceneObjetsIV & AvecQueueIV) {
+export function SceneObjetsProductionIV(p: ProprietesSceneObjetsIV & AvecQueueIV & AvecAfficheIV) {
   return <CorpsSceneObjets p={p} temoin={false} />;
 }
 
-function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVarieteIV & AvecQueueIV; temoin: boolean }) {
+function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVarieteIV & AvecQueueIV & AvecAfficheIV; temoin: boolean }) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   const t = useCurrentFrame() / p.fps;
@@ -233,7 +249,7 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
     <ContexteVariete variete={p.variete}>
       <HabillageVariete>
         <AbsoluteFill>
-          <Fond fond={p.fond} largeur={p.largeur} hauteur={p.hauteur} />
+          <FondIV fond={p.fond} largeur={p.largeur} hauteur={p.hauteur} />
           <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0" }}>
             {objetsA(p, t).map(({ objet, opacite }, i) => (
               <AbsoluteFill key={`${objet.sorte}-${i}`} style={{ opacity: opacite }}>
@@ -241,9 +257,10 @@ function CorpsSceneObjets({ p, temoin }: { p: ProprietesSceneObjetsIV & AvecVari
               </AbsoluteFill>
             ))}
           </AbsoluteFill>
-          <Entete entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
+          <EnteteVarie entete={entete?.entete ?? null} ecoule={entete?.ecoule ?? 0} sortie={entete?.sortie ?? 0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           {temoin ? <TemoinEntete p={p} t={t} /> : null}
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>
@@ -259,7 +276,7 @@ export const metaGalerieIV = ({ props }: { props: ProprietesGalerieIV }) => ({
 });
 
 /** Le composant L9a d'un moment, à l'instant `t` (pixels de l'écran de référence). */
-function ObjetDuMoment({ m, t }: { m: MomentGalerie; t: number }) {
+function ObjetDuMoment({ m, t, hauteur }: { m: MomentGalerie; t: number; hauteur: number }) {
   switch (m.sorte) {
     case "paperboard":
       return <Paperboard etapes={m.etapes} t={t} debut={m.debut + 0.2} fond={m.fond} />;
@@ -280,7 +297,7 @@ function ObjetDuMoment({ m, t }: { m: MomentGalerie; t: number }) {
     case "sources":
       return <Sources sources={m.sources} cible={m.cible} t={t} fond={m.fond} />;
     case "phrase-choc":
-      return <PhraseChoc phrase={m.phrase} debut={m.debut + 0.3} heures={m.heures} t={t} />;
+      return <PhraseChoc phrase={m.phrase} debut={m.debut + 0.3} heures={m.heures} t={t} hauteur={hauteur} />;
     case "ensemble":
       return <EnsembleDuMoment m={m} t={t} />;
   }
@@ -297,11 +314,11 @@ export function GalerieImageVideo(p: ProprietesGalerieIV) {
 }
 
 /** Moments de production : la galerie sans témoin des sous-titres. */
-export function MomentsProductionIV(p: ProprietesGalerieIV & AvecQueueIV) {
+export function MomentsProductionIV(p: ProprietesGalerieIV & AvecQueueIV & AvecAfficheIV) {
   return <CorpsMoments p={p} temoin={false} />;
 }
 
-function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & AvecQueueIV; temoin: boolean }) {
+function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & AvecQueueIV & AvecAfficheIV; temoin: boolean }) {
   chargerPoliceAnton();
   chargerPoliceTitre();
   const t = useCurrentFrame() / p.fps;
@@ -313,15 +330,16 @@ function CorpsMoments({ p, temoin }: { p: ProprietesGalerieIV & AvecVarieteIV & 
     <ContexteVariete variete={p.variete}>
       <HabillageVariete>
         <AbsoluteFill>
-          <Fond fond={m.fond} largeur={p.largeur} hauteur={p.hauteur} />
+          <FondIV fond={m.fond} largeur={p.largeur} hauteur={p.hauteur} />
           {/* Seul le contenu tremble à l'arrivée d'une alerte : le fond reste, aucun bord découvert. */}
           <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} translate(${secousse.x * echelle}px, ${secousse.y * echelle}px) scale(${echelle})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
-            <ObjetDuMoment m={m} t={t} />
+            <ObjetDuMoment m={m} t={t} hauteur={p.hauteur} />
             {p.repere ? <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={m.fond} /> : null}
             {temoin && (m.sousTitre ?? m.entete?.titre) ? <TemoinSousTitres texte={(m.sousTitre ?? m.entete?.titre)!} fond={m.fond} /> : null}
           </AbsoluteFill>
-          <Entete entete={entete} ecoule={t - m.debut} sortie={entete ? Math.max(0, Math.min(1, (t - (m.fin - 0.15)) / 0.15)) : 0} fond={m.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
+          <EnteteVarie entete={entete} ecoule={t - m.debut} sortie={entete ? Math.max(0, Math.min(1, (t - (m.fin - 0.15)) / 0.15)) : 0} fond={m.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
           <QueueFin queue={p.queue} t={t} largeur={p.largeur} hauteur={p.hauteur} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>

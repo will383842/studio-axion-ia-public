@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { controlerRelectureAction, enregistrerRelectureAction, fabriquerApresRelectureAction } from "@/app/(studio)/ecrire/sujets/actions";
 import { RelireScript } from "@/components/script/RelireScript";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { notifier } from "@/components/ui/Toast";
 import { avecSecondOuiVoyant } from "@/domaine/voyant-rouge";
 import { evaluerQualite } from "@/domaine/qualite-script";
@@ -52,7 +52,7 @@ export function RelireVersions({ sujetId, varianteId, lignes, debit, formatId, b
   const controler = useCallback(
     async (s: ScriptRelu): Promise<PastilleControle[]> => {
       const r = await controlerRelectureAction(sujetId, varianteId ?? null, s.lignes);
-      if (!r.ok) throw new Error(r.message);
+      if (!r.ok) throw new Error(messageSansMontant(r.message));
       return r.donnees;
     },
     [sujetId, varianteId],
@@ -64,7 +64,7 @@ export function RelireVersions({ sujetId, varianteId, lignes, debit, formatId, b
         if (!varianteId) return { ok: false, message: "Choisissez une version." };
         if (!s.modifications.length) return { ok: true };
         const r = await enregistrerRelectureAction(sujetId, varianteId, s.lignes);
-        if (!r.ok) return { ok: false, message: r.message, code: r.code };
+        if (!r.ok) return { ok: false, message: messageSansMontant(r.message), code: r.code };
         notifier.succes("Modifications gardées, version à valider", r.donnees.phrase);
         return { ok: true };
       }
@@ -74,7 +74,7 @@ export function RelireVersions({ sujetId, varianteId, lignes, debit, formatId, b
         async (question) => (await confirmerPrix({ message: question })) !== null,
         ouiVoyant.current,
       );
-      if (!r.ok) return { ok: false, message: r.code === "CONFIRMATION_REQUISE" || /Rien n'a été (créé ni )?payé/.test(r.message) ? r.message : `${r.message} Rien n'a été créé ni payé.`, code: r.code, montant: r.montant };
+      if (!r.ok) return { ok: false, message: r.code === "CONFIRMATION_REQUISE" || /Rien n'a été (créé ni )?payé/.test(r.message) ? messageSansMontant(r.message) : `${messageSansMontant(r.message)} Rien n'a été créé ni payé.`, code: r.code, montant: r.montant };
       if (r.donnees.phrase) notifier.info("Milieu modifié", r.donnees.phrase);
       if (r.donnees.enAttente) notifier.info("La vidéo attend", r.donnees.enAttente);
       else if (!varianteId) notifier.succes(r.donnees.n && r.donnees.n > 1 ? `La première part, les ${r.donnees.n - 1} autres suivront` : "La vidéo part");
@@ -93,7 +93,7 @@ export function RelireVersions({ sujetId, varianteId, lignes, debit, formatId, b
       debit={debit}
       texteLibre
       observation={observation}
-      action={but === "modifier" ? { libelle: "Enregistrer · 0 €", icone: "coche" } : undefined}
+      action={but === "modifier" ? { libelle: "Enregistrer", icone: "coche" } : undefined}
       apresLancement={() => {
         router.push(suite.current);
         router.refresh();

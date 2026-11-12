@@ -2,6 +2,7 @@
  * CAS CONCRET : le contrat d'un cas (plan § 8). PUR, sans accès au serveur. Un cas = un fichier de données du catalogue :
  * promesse, tâches « avant », étapes et leurs visuels, faits dicibles avec leur source. Aucun nombre ne se dit sans fait.
  */
+import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
 import { z } from "zod";
 import { jsonCanonique } from "../../briques/fiche-scenes/empreinte";
 
@@ -107,6 +108,8 @@ const recit = z
   })
   .strict();
 
+const TYPES_IDS = TYPES_AUTOMATISATION.map((t) => t.id) as [(typeof TYPES_AUTOMATISATION)[number]["id"], ...(typeof TYPES_AUTOMATISATION)[number]["id"][]];
+
 export const schemaCas = z
   .object({
     id: z.string().regex(/^[a-z][a-z0-9-]{1,47}$/, "identifiant de cas mal formé"),
@@ -124,6 +127,9 @@ export const schemaCas = z
     /** Récit du cas (voir `recit`) : absent des cas du catalogue d'origine, leur empreinte ne change pas. */
     recit: recit.optional(),
     cible: texte(160),
+    /** Ciblage structuré (facultatif) : la phrase `cible` reste celle de la fiche. Absent des fiches existantes, leur empreinte ne change pas. */
+    ciblage: z.object({ niveau: z.enum(["metier", "secteur", "taille"]), libelle: z.string().trim().min(1).max(LONGUEUR_MAX_LIBELLE).regex(/^[^\r\n]+$/), origine: z.enum(["saisie", "deduite"]) }).strict().optional(),
+    typeAutomatisation: z.enum(TYPES_IDS).optional(),
     avant: z.object({ taches: z.array(texte(80)).min(2).max(6), total: texte(40).optional() }).strict(),
     etapes: z.array(etape).min(3, "au moins 3 étapes").max(7, "pas plus de 7 étapes"),
     resteHumain: texte(200),

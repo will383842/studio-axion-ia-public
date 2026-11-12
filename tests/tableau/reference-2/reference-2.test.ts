@@ -60,12 +60,6 @@ describe("les cinq fiches au gabarit clair : acceptées dans les cinq sorties", 
   for (const [nom, f] of toutes)
     it(`${nom} : valide, et la relecture d'avant la fabrication dit « Tout est bon »`, async () => {
       const v = validerFicheTableau(f, contexteDe(f));
-      // Lot B2b : la fiche réelle « habitude-equipe » (1 670 caractères dits, enregistrée le 12/10) dépasse la limite de 90 s au
-      // débit de la voix à 165 mots/min (1 520 caractères) : elle est désormais REFUSÉE, et seulement pour sa durée.
-      if (nom === "habitude-equipe") {
-        expect(v.ok ? [] : v.problemes.map((p) => p.message.replace(/^.*?règle « ([^»]*) ».*$/, "$1"))).toEqual(["durée de 90 secondes au plus"]);
-        return;
-      }
       expect(v.ok ? [] : v.problemes.map((p) => p.message)).toEqual([]);
       const choisirFin = choisirFinTableau({}, { sorties: SORTIES, mot: motDe(f) });
       const r = await relireFicheTableau({ fiche: f, contexte: contexteDe(f), dejaVu: coche, sorties: SORTIES, choisirFin });

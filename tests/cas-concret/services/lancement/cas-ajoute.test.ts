@@ -165,8 +165,9 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
   it("déjà traité (vidéo finie) : refus net, comme pour un cas du catalogue", async () => {
     const { casId } = await ajoutValide();
     const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : aucune confirmation de prix, la fabrication part directement.
+    expect(a.statut).toBe("lancee");
+    if (a.statut !== "lancee") return;
     await depots().videos.modifier(a.videoId, { statut: "prete" });
     expect((await service.estimerCas(casId, RESEAUX, false)).refus).toBe(PHRASE_CAS_TRAITE);
   }, 30_000);
@@ -175,14 +176,17 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
     const { casId } = await ajoutValide();
     const feuille = (await service.estimerCas(casId, RESEAUX, false)).centimes;
     const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : aucune confirmation de prix, la fabrication part directement.
+    expect(a.statut).toBe("lancee");
+    if (a.statut !== "lancee") return;
     const commande = await construireCommande(a.videoId);
     const e = commande.entrees.casConcret as { casFige?: { id: string }; casId: string };
     expect(e.casId).toBe(casId);
     expect(e.casFige?.id).toBe(casId);
-    expect((await moteurDeCommande(commande).estimer(commande)).total.centimes).toBe(a.centimes);
-    expect(feuille).toBe(a.centimes);
+    // Le montant transmis au lancement est celui du moteur sur la commande, et celui de la feuille.
+    const montant = (lancer.mock.calls as unknown as [string, number][])[0][1];
+    expect((await moteurDeCommande(commande).estimer(commande)).total.centimes).toBe(montant);
+    expect(feuille).toBe(montant);
     expect(moteurDeCommande(commande).refusAuLancement?.(commande)).toBeNull();
   }, 30_000);
 
@@ -190,8 +194,9 @@ describe("ajouter un cas · contrôles avant le prix (jamais contournés)", () =
     const id = "rappels-rendez-vous";
     await service.confirmerCas(id);
     const a = await service.preparerEtLancer(demande(id, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : aucune confirmation de prix, la fabrication part directement.
+    expect(a.statut).toBe("lancee");
+    if (a.statut !== "lancee") return;
     const commande = await construireCommande(a.videoId);
     expect((commande.entrees.casConcret as Record<string, unknown>).casFige).toBeUndefined();
   }, 30_000);
@@ -220,22 +225,15 @@ describe("ajouter un cas · corrections de relecture", () => {
     await expect(ajoutes.ajouterCas(autre)).resolves.toMatchObject({ casId: expect.stringMatching(/^ajout-/) });
   }, 60_000);
 
-  it("script conforme mais plus long que celui qui a servi au prix : refusé AVANT toute écriture (contrôle et ajout)", async () => {
-    // Conforme aux règles, mais UN mot de plus que le texte qui a servi au prix : la voix coûterait plus que le prix annoncé.
+  it("LOT A (08/11/2026) : un script plus long que le texte du gabarit n'est plus refusé (aucun prix) : le cas s'ajoute avec son script", async () => {
     const lignes = texteDuCas().split("\n");
     const i1 = lignes.findIndex((l) => /^\[étape 1\]/.test(l));
     lignes[i1] = lignes[i1].replace(/\.?$/, " bien.");
     const long = lignes.join("\n");
     const apercu = await ajoutes.controlerCasAjoute(FORMULAIRE_MINIMAL, long);
-    expect(apercu.ok).toBe(false);
-    expect(apercu.raisons.join("|")).toMatch(/Mon script : .*plus long/);
-    await expect(ajoutValide(FORMULAIRE_MINIMAL, { script: long })).rejects.toMatchObject({ code: "SCRIPT_FOURNI_REFUSE", message: expect.stringMatching(/plus long/) });
-    expect(await lecture.lireCasAjoutes()).toEqual([]);
-    expect((await depots().parametres.obtenir(lecture.CLE_CAS_AJOUTES))?.valeur ?? {}).toEqual({});
-    expect((await depots().parametres.obtenir("casConcret.validations"))?.valeur ?? {}).toEqual({});
-    // Sans ce script, le cas s'ajoute normalement, sans script.
-    const r = await ajoutValide();
-    expect(r.scriptEnregistre).toBe(false);
+    expect(apercu.raisons.join("|")).not.toMatch(/plus long|prix/);
+    const r = await ajoutValide(FORMULAIRE_MINIMAL, { script: long });
+    expect(r.scriptEnregistre).toBe(true);
   }, 60_000);
 
   it("l'enregistrement du script échoue après l'écriture du cas : le cas reste, la raison est rendue, l'action n'échoue pas", async () => {
@@ -264,13 +262,11 @@ describe("ajouter un cas · corrections de relecture", () => {
     expect(lancer).not.toHaveBeenCalled();
   }, 60_000);
 
-  it("cas ajouté retiré du réglage entre « accord requis » et l'accord : « Ce cas n'existe plus », rien n'est lancé", async () => {
+  it("cas ajouté retiré du réglage avant le lancement : « Ce cas n'existe plus », rien n'est lancé", async () => {
     const { casId } = await ajoutValide();
-    const a = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
-    expect(a.statut).toBe("accord-requis");
-    if (a.statut !== "accord-requis") return;
+    // 08/11/2026 : plus d'étape « accord requis » ; le cas retiré du réglage avant le lancement est refusé, rien ne part.
     await ecrireParametre(lecture.CLE_CAS_AJOUTES, {});
-    const r = await service.preparerEtLancer(demande(casId, { accordCentimes: a.centimes }), { lancer });
+    const r = await service.preparerEtLancer(demande(casId, { accordCentimes: undefined }), { lancer });
     expect(r).toEqual({ statut: "refusee", phrase: "Ce cas n'existe plus." });
     expect(lancer).not.toHaveBeenCalled();
   }, 60_000);

@@ -28,12 +28,12 @@ describe("SuiviTravail · socle des suivis", () => {
     expect(SOURCE).toMatch(/passerDevant/);
   });
 
-  it("en file : titre commun, Passer devant avant Arrêter, « Déjà payé : » et plus jamais « dépensés »", () => {
+  it("en file : titre commun, Passer devant avant Arrêter, aucun montant ni « dépensés »", () => {
     const t = rendre("en_file", { rang: 2 });
     expect(t).toContain("Votre vidéo se fabrique");
     expect(t.indexOf("Passer devant")).toBeGreaterThan(-1);
     expect(t.indexOf("Passer devant")).toBeLessThan(t.indexOf("Arrêter"));
-    expect(t).toMatch(/Déjà payé : 12,34/);
+    expect(t).not.toMatch(/Déjà payé|\d\s*€/);
     expect(t).not.toMatch(/dépensé/);
   });
 
@@ -46,7 +46,7 @@ describe("SuiviTravail · socle des suivis", () => {
   it("feuille « Arrêter » : pas de phrase d'argent sans prix, et « Déjà payé » comme libellé commun", () => {
     const arreter = readFileSync(join(process.cwd(), "src/components/videos/BoutonArreter.tsx"), "utf8");
     expect(arreter).not.toContain("Déjà dépensé");
-    expect(arreter).toMatch(/LIBELLES_ARGENT\.dejaPaye/);
+    expect(arreter).not.toMatch(/LIBELLES_ARGENT|€/);
     expect(SOURCE).toMatch(/description=\{sansPrix \? "Ce qui est déjà fait est gardé\." : undefined\}/);
   });
 
@@ -72,5 +72,13 @@ describe("SuiviTravail · socle des suivis", () => {
 
   it("terminé : pas de titre en plus (la fiche dit déjà que la vidéo est prête)", () => {
     expect(rendre("termine", { progression: 100 })).not.toContain("Votre vidéo se fabrique");
+  });
+});
+
+describe("SuiviFabrication · pas de titre propre (refonte R6)", () => {
+  it("ne rend aucun titre h2 : le titre vient de EnTeteSuivi, source unique PHRASES_SUIVI", () => {
+    const source = readFileSync(join(process.cwd(), "src/components/creation/SuiviFabrication.tsx"), "utf8");
+    expect(source).not.toMatch(/<h2\b/);
+    expect(source).not.toMatch(/enteteSuivi/);
   });
 });

@@ -5,15 +5,17 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import { Champ } from "@/components/ui/Champ";
 import { Curseur } from "@/components/ui/Curseur";
+import { Carte } from "@/components/ui/Carte";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { Pastille } from "@/components/ui/Pastille";
-import { lutsConseilleesPour, sousTitresSurDecor } from "@/domaine/decors";
+import { decorParDefaut, lutsConseilleesPour, sousTitresSurDecor } from "@/domaine/decors";
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
 import { LIBELLES_BRIQUES } from "@/domaine/libelles";
 import type { BriqueFacultative, NiveauIntensite, ReglageBruitages, StylesChoisis, TypeElement } from "@/domaine/types";
-import { briquesCoupables, briquesEffectives, musiqueInterdite, musiqueRetenue, obtenirFormat } from "@/formats";
+import { renduCouleurDe } from "@/briques/charte/rendu-couleur";
+import { briquesCoupables, briquesEffectives, musiqueInterdite, musiqueRetenue, obtenirFormat, styleParDefautRetenu } from "@/formats";
 import type { ChampReglage } from "@/formats/types";
 import { cn } from "@/lib/cn";
 import type { ProprietesEtape } from "./types";
@@ -59,13 +61,13 @@ const BRUITAGES: { valeur: ReglageBruitages; libelle: string }[] = [
 
 function Bloc({ icone, titre, children, className }: { icone: NomIcone; titre: string; children: ReactNode; className?: string }) {
   return (
-    <motion.section layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }} className={cn("rounded-carte border border-trait bg-surface-1 p-4", className)}>
+    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}><Carte as="section" className={className}>
       <h2 className="mb-3 flex items-center gap-2 font-texte text-sm font-semibold text-texte-doux">
-        <Icone nom={icone} size={16} className="text-orange-vif" />
+        <Icone nom={icone} size={16} className="text-texte-doux" />
         {titre}
       </h2>
       {children}
-    </motion.section>
+    </Carte></motion.div>
   );
 }
 
@@ -77,8 +79,7 @@ function Bloc({ icone, titre, children, className }: { icone: NomIcone; titre: s
  */
 export function EtapeReglages({ formatId, brouillon, modifier, contexte, compacte }: ProprietesEtape) {
   const format = obtenirFormat(formatId);
-  const def = format.stylesParDefaut;
-  const decorId = brouillon.styles.decorId ?? def.decor;
+  const decorId = brouillon.styles.decorId ?? decorParDefaut(format.id, contexte.elements, styleParDefautRetenu(format, "decor", undefined, contexte.elements));
   const decor = contexte.elements.find((e) => e.id === decorId);
   const valeurDecor = decor?.valeur.type === "decor" ? decor.valeur : null;
   const conseillees = new Set(lutsConseilleesPour(valeurDecor, contexte.elements).map((l) => l.id));
@@ -89,7 +90,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
   const elements = (type: TypeElement) => contexte.elements.filter((e) => e.type === type);
   const s = brouillon.styles;
   // UNE règle de musique, la même que la commande (bug corrigé : l'écran montrait une musique jamais utilisée).
-  const musiqueAffichee = musiqueRetenue(format, s.musiqueId, contexte.elements);
+  const musiqueAffichee = musiqueRetenue(format, s.musiqueId);
   const style = (patch: Partial<StylesChoisis>) => modifier({ styles: { ...brouillon.styles, ...patch } });
   const basculer = (b: BriqueFacultative, allumee: boolean) => {
     const coupees = allumee ? brouillon.briquesCoupees.filter((x) => x !== b) : [...brouillon.briquesCoupees, b];
@@ -101,7 +102,8 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
   };
 
   const luts = elements("lut");
-  const lutChoisie = s.lutId ?? def.lut;
+  const rendu = renduCouleurDe(format.id);
+  const lutChoisie = styleParDefautRetenu({ ...format, stylesParDefaut: { ...format.stylesParDefaut, lut: rendu.lut ?? undefined } }, "lut", s.lutId, contexte.elements);
 
   return (
     <div className="space-y-3">
@@ -125,14 +127,14 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
       <AnimatePresence initial={false}>
         {actives.etalonnage && luts.length > 0 && (
           <Bloc key="lut" icone="contraste" titre="Couleurs">
-            <div role="radiogroup" aria-label="LUT" className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-              {/* « Sans LUT » toujours possible (lot M4) : aucune couleur ajoutée, même pas celle du visage. */}
+            <div role="radiogroup" aria-label="Rendu des couleurs" className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              {/* « Sans rendu des couleurs » toujours possible (lot M4) : aucune couleur ajoutée, même pas celle du visage. */}
               <button
                 type="button"
                 role="radio"
                 aria-checked={lutChoisie === LUT_AUCUNE}
                 onClick={() => style({ lutId: LUT_AUCUNE })}
-                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", lutChoisie === LUT_AUCUNE ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort")}
+                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", lutChoisie === LUT_AUCUNE ? "border-texte ring-2 ring-texte/30" : "border-trait hover:border-trait-fort")}
               >
                 <span className="relative grid aspect-video place-items-center bg-surface-2">
                   <Icone nom="nuancier" size={20} className="text-texte-faible" />
@@ -148,19 +150,19 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                     role="radio"
                     aria-checked={actif}
                     onClick={() => style({ lutId: l.id })}
-                    className={cn("w-32 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort")}
+                    className={cn("w-32 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-texte ring-2 ring-texte/30" : "border-trait hover:border-trait-fort")}
                   >
                     <span className="relative block aspect-video bg-surface-2">
                       {l.vignette ? <Image src={l.vignette} alt="" fill sizes="128px" className="object-cover" /> : <Icone nom="nuancier" size={20} className="absolute inset-0 m-auto text-texte-faible" />}
                       {conseillees.has(l.id) && !actif && (
                         <span className="absolute left-1.5 top-1.5">
-                          <Pastille ton="orange" icone="etoile">
+                          <Pastille ton="neutre" icone="etoile">
                             Conseillé
                           </Pastille>
                         </span>
                       )}
                       {actif && (
-                        <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-orange text-sur-orange">
+                        <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-texte text-fond">
                           <Icone nom="coche" size={13} strokeWidth={3} />
                         </span>
                       )}
@@ -170,7 +172,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                 );
               })}
             </div>
-            {lutChoisie !== LUT_AUCUNE && <Curseur libelle="Intensité" unite=" %" valeur={s.intensiteLut ?? def.intensiteLut ?? 70} onChange={(v) => style({ intensiteLut: v })} className="mt-3" />}
+            {lutChoisie !== LUT_AUCUNE && <Curseur libelle="Intensité" unite=" %" valeur={s.intensiteLut ?? rendu.intensite} onChange={(v) => style({ intensiteLut: v })} className="mt-3" />}
           </Bloc>
         )}
 
@@ -181,7 +183,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
               libelleMasque
               defilement
               options={elements("style-sous-titres").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-              valeur={s.sousTitresId ?? def.sousTitres}
+              valeur={styleParDefautRetenu(format, "sousTitres", s.sousTitresId, contexte.elements)}
               onChange={(v) => style({ sousTitresId: v })}
             />
             {regleSousTitres.mode !== "normal" && (
@@ -212,7 +214,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                   libelle="Son"
                   defilement
                   options={elements("profil-son").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-                  valeur={s.profilSonId ?? def.profilSon}
+                  valeur={styleParDefautRetenu(format, "profilSon", s.profilSonId, contexte.elements)}
                   onChange={(v) => style({ profilSonId: v })}
                 />
               )}
@@ -247,7 +249,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
               libelle="Style de montage"
               libelleMasque
               options={elements("style-montage").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-              valeur={s.styleMontageId ?? def.styleMontage}
+              valeur={styleParDefautRetenu(format, "styleMontage", s.styleMontageId, contexte.elements)}
               onChange={(v) => style({ styleMontageId: v })}
             />
           </Bloc>
@@ -259,7 +261,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
               libelle="Habillage"
               libelleMasque
               options={elements("habillage").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-              valeur={s.habillageId ?? def.habillage}
+              valeur={styleParDefautRetenu(format, "habillage", s.habillageId, contexte.elements)}
               onChange={(v) => style({ habillageId: v })}
             />
           </Bloc>

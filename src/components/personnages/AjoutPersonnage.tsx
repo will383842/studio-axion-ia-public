@@ -69,10 +69,10 @@ export function AjoutPersonnage({ moiExiste, ouvertAuDepart = false }: { moiExis
                 onClick={() => setNature(n.valeur)}
                 className={cn(
                   "relative flex min-h-16 items-center gap-3 rounded-carte border p-3 text-left transition-colors duration-200 disabled:opacity-40",
-                  actif ? "border-orange bg-orange-doux" : "border-trait bg-surface-2 hover:border-trait-fort",
+                  actif ? "border-texte bg-surface-1" : "border-trait bg-surface-2 hover:border-trait-fort",
                 )}
               >
-                <span className={cn("grid size-11 shrink-0 place-items-center rounded-2xl transition-colors", actif ? "bg-orange text-sur-orange" : "bg-surface-3 text-texte-doux")}>
+                <span className={cn("grid size-11 shrink-0 place-items-center rounded-2xl transition-colors", actif ? "bg-texte text-fond" : "bg-surface-3 text-texte-doux")}>
                   <Icone nom={n.icone} size={20} />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
@@ -80,7 +80,7 @@ export function AjoutPersonnage({ moiExiste, ouvertAuDepart = false }: { moiExis
                   <span className="text-sm text-texte-faible">{desactive ? "Vous êtes déjà là" : n.detail}</span>
                 </span>
                 {actif && (
-                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="grid size-6 place-items-center rounded-full bg-orange text-sur-orange">
+                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="grid size-6 place-items-center rounded-full bg-texte text-fond">
                     <Icone nom="coche" size={14} strokeWidth={3} />
                   </motion.span>
                 )}

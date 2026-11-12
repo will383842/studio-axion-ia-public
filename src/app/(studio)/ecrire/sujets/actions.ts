@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { ordreValide } from "@/domaine/classement-generateur";
 import type { Adresse, ModeDiction, ReseauDeclinaison, TypeMatiere, VarianteReseau } from "@/domaine/types";
+import { CIBLE_ABSENTE, ciblageSaisieValide, MESSAGE_CIBLE_ABSENTE, typeAutomatisationValide } from "@/domaine/ciblage/saisie";
 import { exigerSession } from "@/services/auth";
 import { ecrireParametre, ErreurStudio, essayer, type Resultat } from "@/services/_commun";
 import { proposerTypeMatiere } from "@/domaine/derivations-generateur";
@@ -40,13 +41,18 @@ export async function creerSujetAction(brief: BriefSujet): Promise<Resultat<{ id
   return essayer(async () => {
     // Lot L5 : la confirmation « Refaire quand même » est une donnée non sûre (choix connu + jeton, sinon rien).
     // `estDemo` ne vient jamais du navigateur : il ferait sauter tout le contrôle.
+    // La cible est OBLIGATOIRE ici (comme à l'écran) : refus avant toute création et toute dépense.
+    const ciblage = ciblageSaisieValide(brief.ciblage);
+    if (!ciblage) throw new ErreurStudio(CIBLE_ABSENTE, MESSAGE_CIBLE_ABSENTE);
+    const typeAutomatisation = typeAutomatisationValide(brief.typeAutomatisation);
     const { confirmationSujet, ...reste } = brief;
     delete reste.estDemo;
     // `origineUsine` non plus : l'écran ne l'envoie jamais (l'Usine passe par `ecrireSujetDeLUsine`, côté serveur) et une clé forgée fausserait la comparaison.
     delete reste.origineUsine;
+    delete reste.typeAutomatisation;
     const confirmation = confirmationPropre(confirmationSujet);
     try {
-      const r = await lancerGeneration({ ...reste, ...(confirmation ? { confirmationSujet: confirmation } : {}) });
+      const r = await lancerGeneration({ ...reste, ciblage, ...(typeAutomatisation ? { typeAutomatisation } : {}), ...(confirmation ? { confirmationSujet: confirmation } : {}) });
       rafraichir(r.scriptMaitreId);
       return { id: r.scriptMaitreId, ecrit: r.ok };
     } catch (e) {
@@ -221,8 +227,8 @@ export async function regenererVarianteAction(id: string, varianteId: string, de
 }
 
 /**
- * « Reprendre (≈ X €) » : relance, par un geste de Will, l'écriture de CE sujet bloquée (crédit, limite du mois, plafond).
- * `accord` : le prix (centimes d'euro) montré sur le bouton ; le serveur le refuse s'il est plus bas que le prix du jour.
+ * « Reprendre » : relance, par un geste du fondateur, l'écriture de CE sujet bloquée (crédit, limite du mois, plafond).
+ * `accord` : l'accord (en centimes) donné à la confirmation ; le serveur le refuse s'il est plus bas que le prix du jour.
  */
 export async function reprendreEcrituresAction(id: string, accord?: number | true): Promise<Resultat<number>> {
   await exigerSession();
@@ -250,11 +256,10 @@ export async function reprendreEcritureArreteeAction(id: string, accord?: number
 export async function planFabricationNAction(id: string, ratiosOption: Ratio[]): Promise<Resultat<{ versions: { varianteId: string; prix: string }[]; total: string; totalCentimes: number; sansDeclinaison: string; avatarParle?: string } | null>> {
   await exigerSession();
   return essayer(async () => {
-    const { formaterMontant } = await import("@/lib/montants");
-    const { phraseAvatarParle } = await import("@/domaine/double-reel");
     const p = await planFabricationSujet(id, { ratiosOption });
     if (!p) return null;
-    return { versions: p.versions.map((x) => ({ varianteId: x.varianteId, prix: formaterMontant(x.cout) })), total: formaterMontant(p.total), totalCentimes: p.total.centimes, sansDeclinaison: formaterMontant(p.sansDeclinaison), avatarParle: p.avatarParle ? phraseAvatarParle(p.avatarParle, p.versions.filter((x) => !x.videoId).length) : undefined };
+    // Règle du fondateur : aucun montant à l'écran. Les textes de prix restent vides ; les centimes servent seulement au contrôle du serveur.
+    return { versions: p.versions.map((x) => ({ varianteId: x.varianteId, prix: "" })), total: "", totalCentimes: p.total.centimes, sansDeclinaison: "", avatarParle: p.avatarParle ? (p.versions.filter((x) => !x.videoId).length > 1 ? "Votre avatar parle dans ces vidéos." : "Votre avatar parle dans cette vidéo.") : undefined };
   });
 }
 
@@ -279,7 +284,7 @@ export async function fabriquerEnEntierAction(id: string, videoId: string, confi
   });
 }
 
-/** G6b « Monter ma prise » (0 €). */
+/** G6b « Monter ma prise » (rien de payé). */
 export async function monterJeLisAction(id: string, varianteId: string, confirme?: AccordPrix): Promise<Resultat<{ videoId: string }>> {
   await exigerSession();
   return essayer(async () => {
@@ -309,7 +314,7 @@ export async function controlerRelectureAction(id: string, varianteId: string | 
   });
 }
 
-/** Relire et modifier (0 €) : les modifications sont enregistrées en lot ; la version redevient « à relire ». */
+/** Relire et modifier (rien de payé) : les modifications sont enregistrées en lot ; la version redevient « à relire ». */
 export async function enregistrerRelectureAction(id: string, varianteId: string, lignes: LigneScript[]): Promise<Resultat<{ modifiees: number; phrase?: string }>> {
   await exigerSession();
   return essayer(async () => {

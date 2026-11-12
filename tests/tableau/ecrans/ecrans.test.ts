@@ -188,9 +188,10 @@ describe("coût de la voix, annoncé avant le lancement", () => {
     expect(coutVoixCentimes(ficheErreurCorrigee, Number.NaN)).toBe(0);
   });
 
-  it("le montant et « Lancer » ; en essai, rien n'est payé", () => {
+  it("aucun montant, et « Lancer » ; en essai, rien n'est payé", () => {
     const t = texte(renderToStaticMarkup(createElement(CoutVoixTableau, { centimes: 42, onLancer: () => undefined })));
-    expect(t).toMatch(/La voix : environ 0,42\s€/);
+    expect(t).toContain("La voix sera lue");
+    expect(t).not.toMatch(/€|environ/);
     expect(t).toContain("Rien n'est payé avant votre accord.");
     expect(t).toContain("Lancer");
     expect(texte(renderToStaticMarkup(createElement(CoutVoixTableau, { centimes: 42, essai: true })))).toContain("En essai, rien n'est payé.");

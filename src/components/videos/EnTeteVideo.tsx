@@ -1,6 +1,7 @@
 "use client";
 
 import { insecable } from "@/lib/textes";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -12,19 +13,25 @@ import {
   mettreALaCorbeilleAction,
   viderCorbeilleAction,
 } from "@/app/(studio)/videos/actions";
-import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
+import { useVideo, useVideoFacultatif } from "@/components/publication/ContexteVideo";
+import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Menu } from "@/components/ui/Menu";
 import { Pastille } from "@/components/ui/Pastille";
 import { PastilleEtat } from "@/components/ui/PastilleEtat";
+import { PastilleFamille, PastilleStatut } from "@/components/ui/PastilleStatut";
+import { STATUTS_USINE } from "@/components/ui/statuts-usine";
 import { notifier } from "@/components/ui/Toast";
 import { messageCorbeille, noteRestauration } from "@/domaine/corbeille";
 import { ETAPES_EDITORIALES, LIBELLES_RETRAIT } from "@/domaine/libelles";
-import type { EtapeEditoriale, StatutVideo } from "@/domaine/types";
+import type { EtapeEditoriale, IdReseau, StatutVideo } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { nomCourtFormat } from "@/formats";
+import { BoutonValider } from "./BoutonValider";
+import { statutUsineDeEtape, statutUsineDeVideo } from "./statut-usine-video";
+import { PastillesReseaux } from "./PastillesReseaux";
 import { useConfirmationArchivage } from "./ConfirmationArchivage";
 import { useConfirmationSuppression } from "./ConfirmationSuppression";
 
@@ -43,6 +50,9 @@ export function EnTeteVideo({
   estDemo,
   aRelire,
   corbeilleLe,
+  reseaux = [],
+  reseauxPrecis = false,
+  actions,
 }: {
   videoId: string;
   titre: string;
@@ -54,6 +64,11 @@ export function EnTeteVideo({
   aRelire?: boolean;
   /** Vidéo à la corbeille : seule « Supprimer définitivement » reste (et « Restaurer »). */
   corbeilleLe?: string;
+  /** Lot F : réseaux de la vidéo (pastilles) ; `reseauxPrecis` faux = réseaux prévus par défaut (pastilles atténuées). */
+  reseaux?: readonly IdReseau[];
+  reseauxPrecis?: boolean;
+  /** Lot F : actions posées à côté de « Valider », sous le titre (Télécharger, Lien privé). */
+  actions?: ReactNode;
 }) {
   const router = useRouter();
   const [feuille, setFeuille] = useState<Feuille>(null);
@@ -63,6 +78,8 @@ export function EnTeteVideo({
   const prete = statut === "prete";
   const confirmation = useConfirmationArchivage();
   const suppression = useConfirmationSuppression();
+  // La barre du bas ne porte le bouton orange (Publier) que si la vidéo est publiable : sinon « Valider » reste le seul.
+  const publiable = useVideoFacultatif()?.publiable ?? false;
 
   function executer(action: () => Promise<{ ok: boolean; message?: string }>, succes: string, apres?: () => void) {
     demarrer(async () => {
@@ -95,26 +112,28 @@ export function EnTeteVideo({
   return (
     <div className="mb-4">
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <PastilleFamille famille="video" />
         {prete && etapeEditoriale ? (
           <button
             type="button"
             onClick={() => setFeuille("etape")}
             className="inline-flex min-h-11 items-center rounded-full focus-visible:outline-2"
-            aria-label={`${ETAPES_EDITORIALES[etapeEditoriale].libelle}, changer l'étape`}
+            aria-label={`${STATUTS_USINE[statutUsineDeEtape(etapeEditoriale)].libelle}, changer l'étape`}
           >
-            <PastilleEtat type="editorial" statut={etapeEditoriale} />
+            <PastilleStatut statut={statutUsineDeEtape(etapeEditoriale)} />
           </button>
         ) : aRelire ? (
-          <PastilleEtat type="editorial" statut="a_relire" />
+          <PastilleStatut statut={statutUsineDeEtape("a_relire")} />
         ) : (
-          <PastilleEtat type="video" statut={statut} />
+          <PastilleVideo statut={statut} />
         )}
         {estDemo && <Pastille>Exemple</Pastille>}
+        <PastillesReseaux reseaux={reseaux} precis={reseauxPrecis} />
       </div>
       <div className="flex items-start gap-2">
-        <h1 className="min-w-0 flex-1 text-[26px] leading-tight text-texte sm:text-4xl">{insecable(titre)}</h1>
+        <h1 title={titre} className="line-clamp-2 min-w-0 flex-1 text-2xl leading-tight text-texte sm:text-3xl">{insecable(titre)}</h1>
         <Menu
-          declencheur={<BoutonIcone icone="menu" libelle="Plus d'actions" variante="secondaire" />}
+          declencheur={<Bouton variante="secondaire" taille="md" icone="menu">Plus</Bouton>}
           elements={[
             { libelle: "Renommer", icone: "ecrire", onSelect: () => setFeuille("renommer") },
             ...(prete
@@ -157,6 +176,13 @@ export function EnTeteVideo({
           ]}
         />
       </div>
+
+      {(prete || actions) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <BoutonValider videoId={videoId} prete={prete} etape={etapeEditoriale} variante={actions && publiable ? "secondaire" : "principal"} sansPastilleEtape />
+          {actions}
+        </div>
+      )}
 
       {confirmation.feuille}
       {suppression.feuille}
@@ -219,10 +245,10 @@ export function EnTeteVideo({
                   onClick={() => (actif ? setFeuille(null) : executer(() => changerEtapeEditorialeAction(videoId, e), s.libelle))}
                   className={cn(
                     "flex min-h-20 w-full flex-col items-start justify-between gap-2 rounded-2xl border p-3 text-left transition-colors",
-                    actif ? "border-orange bg-orange-doux" : "border-trait bg-surface-2 hover:border-trait-fort",
+                    actif ? "border-accent bg-accent-doux" : "border-trait bg-surface-2 hover:border-trait-fort",
                   )}
                 >
-                  <Icone nom={s.icone} size={20} className={actif ? "text-orange-vif" : "text-texte-doux"} />
+                  <Icone nom={s.icone} size={20} className={actif ? "text-accent" : "text-texte-doux"} />
                   <span className="text-sm font-semibold text-texte">{s.libelle}</span>
                 </button>
               </li>
@@ -231,5 +257,26 @@ export function EnTeteVideo({
         </ul>
       </FeuilleBas>
     </div>
+  );
+}
+
+/** Statut technique : l'un des 9 de l'usine, ou la pastille d'origine pour « archivée ». */
+function PastilleVideo({ statut }: { statut: StatutVideo }) {
+  const usine = statutUsineDeVideo(statut);
+  return usine ? <PastilleStatut statut={usine} /> : <PastilleEtat type="video" statut={statut} />;
+}
+
+/** Télécharger et Lien privé, sous le titre : ouvrent les feuilles que porte `BarreActionsVideo` (même fiche). */
+export function ActionsRapidesVideo() {
+  const { ouvrir } = useVideo();
+  return (
+    <>
+      <Bouton variante="secondaire" taille="md" icone="telecharger" onClick={() => ouvrir("telecharger")}>
+        Télécharger
+      </Bouton>
+      <Bouton variante="secondaire" taille="md" icone="lien" onClick={() => ouvrir("partager")}>
+        Lien privé
+      </Bouton>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BadgeDoublon } from "@/components/ciblage/BadgeDoublon";
 import { Icone } from "@/components/ui/Icone";
 import { insecable } from "@/lib/textes";
 import { PastilleEtat } from "@/components/ui/PastilleEtat";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/cn";
 import type { VueVideoCarte } from "@/services/vues";
 import { adresseFicheVideo, nomCourtFormat } from "@/formats";
 import { IlYA } from "@/components/ui/IlYA";
+import { PastillesReseaux } from "@/components/videos/PastillesReseaux";
 
 /**
  * Carte d'une vidéo (Accueil, Mes vidéos, onglets de format, Calendrier).
@@ -37,7 +39,7 @@ export function CarteVideo({
         src={v.vignette}
         titre={v.titre}
         ratio={ratioForce ?? v.ratioPrincipal}
-        ratioImage={v.ratioPrincipal}
+        ratioImage={v.ratioVignette ?? v.ratioPrincipal}
         dureeSec={v.statut === "prete" ? v.dureeSec : undefined}
         dureeEnviron={v.dureeEstimee}
         progression={enCours ? v.travail!.progression : enEchec ? (v.travail?.progression ?? 0) : undefined}
@@ -53,7 +55,7 @@ export function CarteVideo({
         }
       />
       <div className="mt-2 px-0.5">
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-texte group-hover:text-orange-vif">{insecable(v.titre)}</p>
+        <p className="line-clamp-2 text-sm font-semibold leading-snug text-texte group-hover:text-accent">{insecable(v.titre)}</p>
         <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-texte-faible">
           {afficherFormat && (
             <>
@@ -64,6 +66,8 @@ export function CarteVideo({
           )}
           <span className="shrink-0"><IlYA iso={v.modifieLe} /></span>
         </p>
+        {v.doublonPossible && <BadgeDoublon className="mt-1.5" />}
+        {v.reseaux && v.reseaux.length > 0 && <PastillesReseaux reseaux={v.reseaux} precis={v.reseauxPrecis ?? false} className="mt-1.5" />}
       </div>
     </Link>
   );
