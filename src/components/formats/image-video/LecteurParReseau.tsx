@@ -108,7 +108,7 @@ export function LecteurParReseau({ videoId, videos, prete, etape }: { videoId: s
               onKeyDown={(e) => touche(e, i)}
               className={cn(
                 "inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-sm font-semibold transition-colors",
-                active ? "border-orange bg-orange-doux text-texte" : "border-trait bg-surface-1 text-texte-doux hover:text-texte",
+                active ? "border-accent bg-accent-doux text-texte" : "border-trait bg-surface-1 text-texte-doux hover:text-texte",
               )}
             >
               <LogoReseau reseau={p.v.reseau} taille="sm" />
