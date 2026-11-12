@@ -15,6 +15,7 @@ import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { RequeteSignee } from "@/fournisseurs/site/types";
 import {
   ADRESSE,
+  alertes,
   AUTEUR,
   banc,
   C,
@@ -47,12 +48,43 @@ const etat = vi.hoisted(() => ({
   catalogue: null as unknown,
   appelsCatalogue: 0,
   versionsSite: new Set<string>(),
+  // Couture de test : `true` simule « une validation par mot existe » (lot suivant) ; la production, elle, n'en a pas (valeur réelle = GUIDE seul).
+  parMot: true,
+  // Doute simulé : à partir du n-ième contrôle « doute bloquant », la vérification « stop partout » répond « doute ». `null` = jamais.
+  douteAuControle: null as number | null,
+  controlesDoute: 0,
 }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/services/parcours-mots-multiples", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   motsMultiplesActifs: async () => (etat.lectures++, etat.allume),
 }));
+vi.mock("@/services/parcours-dossier", async (orig) => {
+  const reel = await orig<Record<string, any>>();
+  return {
+    ...reel,
+    textesValidesPourLeMot: (mot: string, cible: string) =>
+      etat.parMot ? true : reel.textesValidesPourLeMot(mot, cible),
+  };
+});
+vi.mock("@/services/oppositions-mots", async (orig) => {
+  const reel = await orig<Record<string, any>>();
+  return {
+    ...reel,
+    personneOpposeePartout: async (
+      p: unknown,
+      o?: { douteBloque?: boolean },
+    ) => {
+      if (
+        o?.douteBloque &&
+        etat.douteAuControle !== null &&
+        ++etat.controlesDoute >= etat.douteAuControle
+      )
+        return { opposee: true, source: "doute" };
+      return reel.personneOpposeePartout(p, o);
+    },
+  };
+});
 vi.mock("@/services/cibles-site", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   lireCiblesSite: async () => (etat.appelsCatalogue++, etat.catalogue),
@@ -178,6 +210,9 @@ beforeEach(async () => {
   etat.lectures = 0;
   etat.appelsCatalogue = 0;
   etat.catalogue = null;
+  etat.parMot = true;
+  etat.douteAuControle = null;
+  etat.controlesDoute = 0;
   etat.versionsSite = new Set([
     "mp-m1-v3",
     "mp-m1-v4-1",
@@ -647,16 +682,6 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
     expect(banc.port.total()).toBe(0);
   });
 
-  it("autre cible que `guide-ia` : `validation_perimee`, fermé, rien ne part", async () => {
-    await activer("ALPHA");
-    etat.catalogue = catalogue([["ALPHA", "gde-alpha01"]], ["gde-alpha01"]);
-    const evt = await commenter("ALPHA");
-    await passer(T0);
-    expect(banc.port.total()).toBe(0);
-    expect(await decrire(evt)).toBe("a_reessayer/garde_validation_perimee");
-    expect(cleDuDossier(await toutesLesConversations())).toHaveLength(0);
-  });
-
   it("mot dont la ligne `mot|compte` n'est pas active : écarté (raison « mot »)", async () => {
     const evt = await commenter("ALPHA");
     await passer(T0);
@@ -709,6 +734,135 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
         await Com.lireParametre("parcours.oppositions.file", {}),
       ).sort(),
     ).toEqual([a, b].sort());
+  });
+});
+
+describe("LIA-C · correctifs de l'audit (réglage allumé)", () => {
+  const alertesCloche = async (re: RegExp) =>
+    await depots().notifications.lister((n: any) => re.test(n.message));
+
+  describe("règle de validation : seul le mot GUIDE lié à `guide-ia` a des textes validés", () => {
+    beforeEach(() => {
+      etat.parMot = false; // la vraie règle
+    });
+
+    it("25 commentaires d'un mot non validé + 1 GUIDE : le GUIDE est traité au même passage, les 25 sont clos `ecarte`, UNE seule alerte, sans push", async () => {
+      await activer("ALPHA");
+      etat.catalogue = catalogue([["ALPHA", "guide-ia"]]);
+      const evts: string[] = [];
+      for (let i = 0; i < 25; i++)
+        evts.push(
+          await commenter("ALPHA", {
+            id: `com-v-${i}`,
+            auteur: `auteur-v-${i}`,
+            a: T0 + i * 10,
+          }),
+        );
+      const guide = await commenter("GUIDE", {
+        id: "com-v-guide",
+        a: T0 + 900,
+      });
+      await passer(T0);
+      for (const e of evts)
+        expect(await decrire(e)).toBe("ecarte/validation_absente");
+      expect((await evenement(depots, guide)).charge.etat).not.toBe("a_faire");
+      expect(compter()).toMatchObject({ pub: 1, prive: 1 });
+      const cloches = await alertesCloche(/n'a pas de textes validés/);
+      expect(cloches).toHaveLength(1);
+      expect(cloches[0].message).toBe(
+        "Le mot ALPHA n'a pas de textes validés : aucun message ne part pour ce mot.",
+      );
+      expect(await alertes()).toBe(1);
+    });
+
+    it("mot CHATGPT actif, lié à `guide-ia` : événement clos `ecarte`, zéro appel du port", async () => {
+      await activer("CHATGPT");
+      etat.catalogue = catalogue([["CHATGPT", "guide-ia"]]);
+      const evt = await commenter("CHATGPT");
+      await passer(T0);
+      expect(await decrire(evt)).toBe("ecarte/validation_absente");
+      expect(banc.port.total()).toBe(0);
+      expect(cleDuDossier(await toutesLesConversations())).toHaveLength(0);
+    });
+
+    it("GUIDE lié à une autre cible : clos `ecarte`, rien ne part", async () => {
+      etat.catalogue = catalogue([["GUIDE", "gde-alpha01"]], ["gde-alpha01"]);
+      const evt = await commenter("GUIDE");
+      await passer(T0);
+      expect(await decrire(evt)).toBe("ecarte/validation_absente");
+      expect(banc.port.total()).toBe(0);
+    });
+  });
+
+  it("cible d'essai (`test: true`) : traitée comme inconnue, `cible_inconnue`, événement clos, rien ne part", async () => {
+    await activer("ALPHA");
+    const cat = catalogue([["ALPHA", "gde-essai01"]], ["gde-essai01"]);
+    cat.catalogue[1] = { ...cat.catalogue[1], test: true };
+    etat.catalogue = cat;
+    const evt = await commenter("ALPHA");
+    await passer(T0);
+    expect(await decrire(evt)).toBe("ecarte/cible_inconnue");
+    expect(banc.port.total()).toBe(0);
+  });
+
+  describe("guides connus du site (3e paramètre de `runValide`)", () => {
+    const adresseEnvoyee = async () => {
+      await activer("ALPHA");
+      await semer("g1", "attente_email", {
+        guide: "gde-aaaaaa",
+        mot: "ALPHA",
+        versionTexteM1: "mp-m1-v2",
+      });
+      await deposerMessage(depots, {
+        idMessage: "msg-guide",
+        idExpediteur: AUTEUR,
+        idConversation: "conv-fictive-700",
+      });
+      lireTexteDe(`voici mon adresse ${ADRESSE}`);
+      await passer(T0);
+      return banc.site.vus.map((r: RequeteSignee) => JSON.parse(r.corps));
+    };
+
+    it("cible `guide` active du catalogue : le site reçoit la demande", async () => {
+      etat.catalogue = catalogue([["ALPHA", "gde-aaaaaa"]], ["gde-aaaaaa"]);
+      expect(await adresseEnvoyee()).toMatchObject([
+        { mot: "ALPHA", guide: "gde-aaaaaa" },
+      ]);
+    });
+
+    it("cible d'essai ou inactive : refus local `run_invalide`, le site n'est pas appelé", async () => {
+      const cat = catalogue([["ALPHA", "gde-aaaaaa"]], ["gde-aaaaaa"]);
+      cat.catalogue[1] = { ...cat.catalogue[1], test: true };
+      etat.catalogue = cat;
+      expect(await adresseEnvoyee()).toHaveLength(0);
+      expect(Object.values(await toutesLesConversations())[0]).toMatchObject({
+        etat: "site_refuse",
+        dernierCode: "run_invalide",
+      });
+    });
+
+    it("catalogue illisible : liste par défaut (`guide-ia` seul), une autre cible est refusée localement", async () => {
+      etat.catalogue = null;
+      expect(await adresseEnvoyee()).toHaveLength(0);
+    });
+  });
+
+  describe("règle du doute juste avant chaque envoi", () => {
+    it("doute posé entre l'étape 5 et la réponse publique : zéro appel du port", async () => {
+      etat.douteAuControle = 2; // 1er contrôle = étape 5 (propre) ; 2e = juste avant la réponse publique
+      const evt = await commenter("GUIDE");
+      await passer(T0);
+      expect(banc.port.total()).toBe(0);
+      expect(await decrire(evt)).toBe("silence/opposee");
+    });
+
+    it("doute posé juste avant le premier message privé : la réponse publique est partie, AUCUN message privé", async () => {
+      etat.douteAuControle = 3;
+      const evt = await commenter("GUIDE");
+      await passer(T0);
+      expect(compter()).toMatchObject({ pub: 1, prive: 0 });
+      expect(await decrire(evt)).toBe("silence/opposee");
+    });
   });
 });
 

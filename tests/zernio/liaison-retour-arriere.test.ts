@@ -5,13 +5,20 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
+import type { RequeteSignee } from "@/fournisseurs/site/types";
 import {
   AUTEUR,
   banc,
   C,
   Com,
   depots,
+  graineConv,
   lireTexteDe,
+  pm,
+  TITRE,
+  COMPTE,
   nettoyer,
   passer,
   preparer,
@@ -127,5 +134,93 @@ describe("LIA-C · retour arrière (allumé puis éteint)", () => {
     await passer(T0);
     expect(comptes()).toEqual({ pub: 1, prive: 1 });
     expect(Object.keys(await conv())).toEqual([cleConversation(AUTEUR)]);
+  });
+  it("BLOQUANT : ancien `m1_refuse` (sans `|`) de plus de 24 h + dossier composite, réglage éteint, nouveau GUIDE = silence, zéro appel du port", async () => {
+    const ancien = cleConversation(AUTEUR);
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, {
+      [ancien]: graineConv("m1_refuse", {
+        creeLe: new Date(T0 - 30 * 3600_000).toISOString(),
+        refuseLe: new Date(T0 - 25 * 3600_000).toISOString(),
+        idCommentaire: "com-ra-ancien",
+      }),
+    });
+    await commenter("com-ra-b1"); // allumé : un dossier `racine|…` est créé et le premier message privé part
+    await passer(T0);
+    expect(comptes()).toEqual({ pub: 1, prive: 1 });
+    expect(Object.keys(await conv()).some((k) => k.includes("|"))).toBe(true);
+    etat.allume = false;
+    const evt = await commenter("com-ra-b2", T0 + 60_000);
+    await passer(T0 + 60_000);
+    expect(comptes()).toEqual({ pub: 1, prive: 1 });
+    expect(banc.port.total()).toBe(2);
+    expect((await evenement(depots, evt)).charge).toMatchObject({
+      etat: "silence",
+      dernierCode: "silence",
+    });
+  });
+
+  it("MINEUR : éteint, un parcours `racine|…` ne reçoit AUCUN merci (non envoyé, accusé rendu au site)", async () => {
+    const ref = createHash("sha256").update("jeton-fictif-ra").digest("hex");
+    await commenter("com-ra-m1");
+    await passer(T0);
+    const [cle] = Object.keys(await conv());
+    expect(cle).toContain("|");
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, {
+      [cle]: {
+        ...(await conv())[cle],
+        empreintesLien: [ref],
+        refLienConv: "c1_AbCdEf0123456789_-xyZQ",
+        versionTexteM1: "mp-m1-v4-1",
+      },
+    });
+    await deposerMessage(depots, {
+      idMessage: "msg-ra-merci",
+      idExpediteur: AUTEUR,
+      idConversation: "conv-fictive-700",
+    });
+    lireTexteDe("Merci beaucoup");
+    await passer(T0);
+    const b = TEXTES_MP["mp-merci-v1"];
+    await Com.ecrireParametre("parcours.validation.merci", {
+      empreinte: createHash("sha256")
+        .update(`${b.version}\n${b.texte}`)
+        .digest("hex"),
+    });
+    const vus: RequeteSignee[] = [];
+    pm.injecterTransportSite(async (r: RequeteSignee) => {
+      vus.push(r);
+      return r.chemin === C.CHEMIN_CONFIRMATIONS
+        ? {
+            statut: 200,
+            corps: {
+              ok: true,
+              schemaVersion: 1,
+              confirmations: [{ ref, valideLe: new Date(T0).toISOString() }],
+            },
+          }
+        : { statut: 200, corps: { ok: true } };
+    });
+    etat.allume = false;
+    const envoyesAvant = banc.port.envoyes.length;
+    const rapport = await C.traiterMercis({
+      port: banc.port.port,
+      comptesPermis: [COMPTE],
+      titreGuide: TITRE,
+      env: { ...ENV, PARCOURS_MERCI_ENABLED: "1" },
+      maintenantMs: T0 + 60_000,
+    });
+    expect(rapport.envoyes).toBe(0);
+    expect(banc.port.envoyes.length).toBe(envoyesAvant);
+    const j = await Com.lireParametre<Record<string, any>>(
+      C.PARAM_MERCI_JOURNAL,
+      {},
+    );
+    expect(j[ref]).toMatchObject({
+      etat: "non_envoye",
+      issue: "dossier_eteint",
+    });
+    expect(
+      vus.filter((r) => r.chemin !== C.CHEMIN_CONFIRMATIONS).length,
+    ).toBeGreaterThan(0); // l'accusé est rendu
   });
 });
