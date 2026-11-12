@@ -953,6 +953,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       const tirage = journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique });
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
+      // GV-ST-02b : le choix « sans variante » est rangé dans la mise, que les versions suivantes héritent.
+      if (journal.tirageNeuf) gardee = { ...gardee, sousTitresSansVariante: true };
     }
     if (!gardee) return undefined;
     if (variete && !journal.mise?.notee) {
@@ -1066,7 +1068,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   // GV-ST-02 : le style choisi (Bibliothèque ou étoile) fait loi ; sans choix, « Charte duo » v4. Plus de variante tirée par vidéo.
   const choisi = o.styleSousTitres?.valeur?.type === "style-sous-titres" ? { ...o.styleSousTitres, valeur: o.styleSousTitres.valeur } : null;
   // Variante par vidéo : coupée pour un tirage NEUF ; le tirage déjà enregistré (fiche, version existante, journal d'avant) est respecté.
-  const variante = VARIANTE_PAR_VIDEO || !journal.tirageNeuf;
+  const variante = VARIANTE_PAR_VIDEO || !(journal.tirageNeuf || mise?.sousTitresSansVariante);
   // Position du style choisi respectée : `positionPct`, sinon « haut » / « bas » (zone libre des réseaux), sinon le centre plein image.
   const positionDuStyle = (v: ValeurStyleSousTitres): number => {
     if (v.positionPct !== undefined) return v.positionPct;
