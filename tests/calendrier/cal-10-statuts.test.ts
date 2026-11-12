@@ -19,6 +19,8 @@ import { reinitialiserDepots } from "@/donnees/memoire";
 import * as statuts from "@/domaine/plan-editorial/statuts";
 import * as pastille from "@/components/calendrier/PastilleStatutPlan";
 import { FicheEntree, type EntreeFiche } from "@/components/calendrier/FicheEntree";
+import { enregistrerFicheEntreeAction } from "@/app/(studio)/calendrier/actions";
+import { validerEntree } from "@/app/(studio)/calendrier/actions/ajouter";
 import { refuserEntree, renvoyerEntreeCorrigee } from "@/app/(studio)/calendrier/actions/statuts";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 
@@ -219,6 +221,7 @@ describe("tiroir : la fiche branche les boutons selon l'état", () => {
     ["a_valider", "Valider et programmer"],
     ["a_corriger", "Corriger et renvoyer"],
     ["programme", "Modifier le texte"],
+    ["idee", "Accepter l'idée"],
   ])("%s : « %s » est un geste distinct (type bouton, rappel de l'hôte), jamais l'enregistrement du texte", (etat, libelle) => {
     const surPrincipal = vi.fn();
     const principal = boutons(arbre(entree({ etat }), { surPrincipal })).filter((b) => enfantsTexte(b).includes(libelle));
@@ -229,13 +232,14 @@ describe("tiroir : la fiche branche les boutons selon l'état", () => {
     expect(surPrincipal).toHaveBeenCalledTimes(1);
     expect(rendre(entree({ etat }), { surPrincipal })).not.toMatch(new RegExp(`type="submit"[^>]*>[^<]*${libelle}`));
   });
-  it.each(["a_valider", "a_corriger"])("%s : le texte reste enregistrable par un bouton à part", (etat) => {
+  it.each(["a_valider", "a_corriger", "idee"])("%s : le texte reste enregistrable par un bouton à part", (etat) => {
     expect(rendre(entree({ etat }), { surPrincipal: () => {} })).toMatch(/type="submit"[^>]*>.*Enregistrer le texte/);
   });
   it.each([
     ["a_valider", "Valider et programmer"],
     ["a_corriger", "Corriger et renvoyer"],
     ["programme", "Modifier le texte"],
+    ["idee", "Accepter l'idée"],
   ])("%s sans rappel de l'hôte : pas de bouton mort « %s »", (etat, libelle) => {
     const h = rendre(entree({ etat }));
     expect(h).not.toContain(libelle);
@@ -311,5 +315,88 @@ describe("actions : refuser et renvoyer, verrou côté serveur", () => {
     await d.creneauxEditoriaux.enregistrer(creneau());
     await refuserEntree("c1");
     expect(espion).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Tableau de tous les boutons de la fiche : pour chaque statut de départ, chaque bouton rendu, son effet réel (actions
+ * du dépôt en mémoire) et le statut d'arrivée attendu. Un bouton qui n'est pas dans le tableau, ou qui arrive ailleurs,
+ * fait échouer le test. Aucun statut ne promet d'envoi, rien n'ouvre l'envoi : on n'arrive jamais à programmé ni publié
+ * depuis un statut d'avant.
+ */
+describe("tableau : statut de départ, bouton, statut d'arrivée", () => {
+  type Noeud = { type?: unknown; props?: Record<string, unknown> };
+  const parcourir = (n: unknown, sortie: Noeud[] = []): Noeud[] => {
+    if (Array.isArray(n)) n.forEach((x) => parcourir(x, sortie));
+    else if (n && typeof n === "object") {
+      const e = n as Noeud;
+      if (e.props && (e.props.type === "button" || e.props.type === "submit")) sortie.push(e);
+      if (e.props) parcourir(e.props.children, sortie);
+    }
+    return sortie;
+  };
+  const texteDe = (n: Noeud) => JSON.stringify(n.props?.children).replace(/[^\p{L}' ]/gu, "");
+  const rendu = (fiche: unknown) => fiche as Noeud;
+
+  const FUTUR = "2026-11-21";
+  const PASSE = "2026-11-19";
+  // [statut enregistré, jour, bouton (type), statut enregistré d'arrivée]
+  const TABLEAU: ReadonlyArray<readonly [string, string, ReadonlyArray<readonly [string, "button" | "submit", string]>]> = [
+    ["propose", FUTUR, [["Accepter l'idée", "button", "valide"], ["Enregistrer le texte", "submit", "propose"]]],
+    ["a_valider", FUTUR, [["Valider et programmer", "button", "valide"], ["Enregistrer le texte", "submit", "a_valider"]]],
+    ["valide", FUTUR, [["Compléter le texte", "submit", "a_valider"]]],
+    ["programme", FUTUR, [["Modifier le texte", "button", "programme"]]],
+    ["echec", FUTUR, [["Corriger et renvoyer", "button", "valide"], ["Enregistrer le texte", "submit", "echec"]]],
+    ["publie", FUTUR, []],
+    ["archive", FUTUR, []],
+    ["propose", PASSE, []],
+    ["a_valider", PASSE, []],
+    ["valide", PASSE, []],
+    ["programme", PASSE, []],
+    ["echec", PASSE, []],
+    ["publie", PASSE, []],
+    ["archive", PASSE, []],
+  ];
+  const lignes = TABLEAU.flatMap(([depart, jour, bs]) => (bs.length ? bs.map(([b, t, arrivee]) => [depart, jour, b, t, arrivee] as const) : [[depart, jour, null, null, depart] as const]));
+
+  beforeEach(() => {
+    reinitialiserDepots();
+    session.refuser = false;
+    vi.useFakeTimers({ now: AUJ });
+  });
+
+  it.each(lignes)("%s (%s) : bouton %s (%s) → %s", async (depart, jour, bouton, type, arrivee) => {
+    const d = reinitialiserDepots();
+    await d.creneauxEditoriaux.enregistrer(creneau({ statut: depart as CreneauEditorial["statut"], jourVise: jour, heuresParReseau: { linkedin: `${jour}T08:00:00.000Z` } }));
+    const c = (await d.creneauxEditoriaux.obtenir("c1"))!;
+    const interne = etatInterne(c, AUJ);
+    const etat = (statuts.STATUTS_VERS_ETAT as Record<string, string | null>)[depart] ?? interne;
+    const geste = vi.fn(async () => {
+      // Hôte : chaque geste du bouton principal est relié à l'action réelle de son état.
+      if (etat === "idee" || etat === "a_valider") await validerEntree("c1");
+      else if (etat === "a_corriger") await renvoyerEntreeCorrigee("c1");
+      // Programmé : « Modifier le texte » attend le diffuseur (non touché) : aucun changement de statut ici.
+    });
+    const action = async () => void (await enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Texte fictif modifié" }));
+    const entree = { cle: "creneau:c1|linkedin", reseau: "linkedin", type: "video", jour, heure: "10:00", etat: String(etat), texte: "Texte fictif", confiee: depart === "programme" } as EntreeFiche;
+    const fiche = (FicheEntree as unknown as (p: Record<string, unknown>) => unknown)({ entree, aujourdhui: "2026-11-20", action, selonStatut: true, surPrincipal: geste });
+    const presents = parcourir(fiche).map((b) => [texteDe(b), b.props?.type as string] as const);
+
+    // Les boutons rendus sont exactement ceux du tableau pour ce départ.
+    const attendus = TABLEAU.find(([s, j]) => s === depart && j === jour)![2].map(([b, t]) => [b.replace(/[^\p{L}' ]/gu, ""), t] as const);
+    expect(presents.filter(([, t]) => t === "button" || t === "submit")).toEqual(expect.arrayContaining(attendus));
+    expect(presents).toHaveLength(attendus.length);
+    if (bouton === null) {
+      expect((await d.creneauxEditoriaux.obtenir("c1"))?.statut).toBe(depart);
+      return;
+    }
+
+    const noeud = parcourir(fiche).find((b) => texteDe(b) === bouton.replace(/[^\p{L}' ]/gu, ""))!;
+    expect(noeud.props?.type).toBe(type);
+    if (type === "button") await (noeud.props?.onClick as () => Promise<void>)();
+    else await action();
+    expect((await d.creneauxEditoriaux.obtenir("c1"))?.statut).toBe(arrivee);
+    // Aucun statut d'avant ne mène à l'envoi.
+    if (!["programme", "publie"].includes(depart)) expect(["programme", "publie"]).not.toContain(arrivee);
   });
 });
