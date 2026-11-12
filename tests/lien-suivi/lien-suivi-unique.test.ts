@@ -8,7 +8,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import { construireLienSuivi, ErreurLienSuivi, type EntreeLienSuivi } from "@/domaine/mesures";
-import fixtures from "./0002-lien-suivi-unique.fixtures.json";
+import fixtures from "./0002-lien-suivi-unique.v2.fixtures.json";
 
 type Entree = { type_lien: string; reseau: string; code: string; activite: string; page: string };
 const versConstructeur = (e: Entree): EntreeLienSuivi => ({ typeLien: e.type_lien, reseau: e.reseau, code: e.code, activite: e.activite, page: e.page });
