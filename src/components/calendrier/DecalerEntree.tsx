@@ -14,10 +14,10 @@ import type { CreneauPlan } from "@/services/plan-editorial";
 const RESEAUX: readonly Reseau[] = ["instagram", "facebook", "linkedin", "tiktok"];
 
 /** Entrée du plan → ligne affichable par AReprogrammer (le composant migration n'est ni modifié ni dupliqué). */
-function enPost(c: CreneauPlan): PostMigration[] {
+export function enPost(c: CreneauPlan): PostMigration[] {
   return RESEAUX.flatMap((reseau) => {
     const h = c.heuresParReseau[reseau];
-    return h ? [{ id: c.id, reseau, titre: c.videoId ?? c.visuelId ?? c.id, datePrevue: h, etat: "restant" as const }] : [];
+    return h ? [{ id: `${c.id}:${reseau}`, reseau, titre: c.videoId ?? c.visuelId ?? c.id, datePrevue: h, etat: "restant" as const }] : [];
   });
 }
 

@@ -8,7 +8,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({ id: "s1" })) }));
 import { reinitialiserDepots } from "@/donnees/memoire";
 import { decalerEntree } from "@/app/(studio)/calendrier/actions";
-import { DecalerEntree } from "@/components/calendrier/DecalerEntree";
+import { AReprogrammer } from "@/components/migration/AReprogrammer";
+import { DecalerEntree, enPost } from "@/components/calendrier/DecalerEntree";
 import type { CreneauPlan } from "@/services/plan-editorial";
 
 let d: ReturnType<typeof reinitialiserDepots>;
@@ -97,5 +98,14 @@ describe("décaler une entrée du calendrier", () => {
     const html = renderToStaticMarkup(createElement(DecalerEntree, { id: "c1", jourActuel: "2026-12-03" }));
     expect(html).toContain("Décaler");
     expect(html).toContain('type="date"');
+  });
+  it("renvoi d'une entrée sur 2 réseaux : identifiants distincts, aucune clé React en double", () => {
+    const posts = enPost(creneau({ id: "c9", heuresParReseau: { linkedin: "2026-12-03T08:00:00.000Z", instagram: "2026-12-03T09:00:00.000Z" } }));
+    expect(posts).toHaveLength(2);
+    expect(new Set(posts.map((p) => p.id)).size).toBe(2);
+    const erreur = vi.spyOn(console, "error").mockImplementation(() => {});
+    renderToStaticMarkup(createElement(AReprogrammer, { posts }));
+    expect(erreur.mock.calls.filter((a) => String(a[0]).includes("same key"))).toHaveLength(0);
+    erreur.mockRestore();
   });
 });
