@@ -16,7 +16,6 @@ import type { RetouchePasseport } from "@/services/site-videos";
 import type { ControleSite } from "@/domaine/site-videos/controles";
 import type { VueFeuilleSurLeSite } from "@/domaine/site-videos/types";
 import { TITRE_WEB_MAX } from "@/domaine/site-videos/passeport";
-import { formaterMontant } from "@/lib/montants";
 
 export const TEXTES_FEUILLE_SITE = {
   titre: "Relire avant le site",
@@ -164,7 +163,7 @@ export function ContenuFeuille({ feuille: initiale }: { feuille: VueFeuilleSurLe
           </Bouton>
           {feuille.prixClaude && (
             <Bouton variante="contour" icone="etincelles" disabled={enCours || modifiee} onClick={reecrire}>
-              {`Réécrire avec Claude (≈ ${formaterMontant(feuille.prixClaude)})`}
+              Réécrire avec Claude
             </Bouton>
           )}
         </div>
