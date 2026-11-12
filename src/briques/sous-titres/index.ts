@@ -85,7 +85,7 @@ export type StyleSousTitresVarie = ValeurStyleSousTitres & { surlignage?: Surlig
 
 /** Base retenue : celle de la vidéo, sinon celle du style de la Bibliothèque, sinon Karaoké. */
 export function baseRetenue(base: BaseSousTitres | undefined, style: ValeurStyleSousTitres | null | undefined): BaseSousTitres {
-  return base ?? baseDe(gabaritDe(style));
+  return base ?? baseDe(style);
 }
 
 /** Options de groupement du style de base : gabarit, puis réglages de l'élément de la Bibliothèque. */
