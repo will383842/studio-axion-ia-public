@@ -350,25 +350,39 @@ export async function personneOpposeePartout(
     return l as string[];
   };
   const touchees = new Set<string>();
-  for (const k of Object.keys(conv))
-    if (
-      candidats.has(k) ||
-      candidats.has(racineDe(k)) ||
-      propres(k).some((x) => candidats.has(x))
-    )
-      touchees.add(k);
-  for (const [a, cible] of Object.entries(alias)) {
-    // Entrée mal formée : erreur FERMÉE, qu'elle concerne cette personne ou non (jamais ignorée en silence).
+  // Entrée mal formée de la table : erreur FERMÉE, qu'elle concerne cette personne ou non (jamais ignorée en silence).
+  for (const cible of Object.values(alias))
     if (typeof cible !== "string")
       throw new ErreurOppositionIllisible("conversations");
+  // Racines de dossier atteintes par une clé touchée (fermeture : une racine touchée touche tous ses voisins `racine|…`).
+  const racines = new Set<string>();
+  const toucher = (k: string): boolean => {
+    if (touchees.has(k)) return false;
+    touchees.add(k);
+    if (k.includes("|")) racines.add(racineDe(k));
+    return true;
+  };
+  const passer = (): boolean => {
+    let grandi = false;
+    for (const k of Object.keys(conv))
+      if (
+        candidats.has(k) ||
+        candidats.has(racineDe(k)) ||
+        racines.has(racineDe(k)) ||
+        propres(k).some((x) => candidats.has(x))
+      )
+        grandi = toucher(k) || grandi;
+    return grandi;
+  };
+  passer();
+  for (const [a, cible] of Object.entries(alias)) {
     if (!candidats.has(a)) continue;
     // Alias vers une conversation absente : ignoré, mais la cible reste un candidat (une opposition inscrite sous elle compte).
-    candidats.add(cible);
-    if (Object.hasOwn(conv, cible)) touchees.add(cible);
-    // Cible = racine d'un dossier : toutes les clés `racine|…` sont touchées (même sans enregistrement propre).
-    for (const k of Object.keys(conv))
-      if (racineDe(k) === cible) touchees.add(k);
+    candidats.add(cible as string);
   }
+  // Point fixe borné : chaque tour ajoute au moins une clé touchée, sinon on s'arrête.
+  for (let tour = 0; tour <= Object.keys(conv).length + 1; tour++)
+    if (!passer()) break;
   let etat = false;
   let doute = false;
   for (const k of touchees) {

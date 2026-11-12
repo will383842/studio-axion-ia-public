@@ -89,6 +89,123 @@ describe("personneOpposeePartout : clés composites", () => {
   });
 });
 
+describe("personneOpposeePartout : fermeture par la racine", () => {
+  it("6) vérifiée par l'alias propre Z de R|a, R|b opposé : opposée (état)", async () => {
+    const R = racineDe("ct_r");
+    const Z = racineDe("ct_z");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine", { alias: [Z] }),
+      [`${R}|b`]: conv("oppose"),
+    });
+    expect(await verifier("ct_z")).toEqual({ opposee: true, source: "etat" });
+  });
+
+  it("6 bis) vérifiée par l'alias propre Z de R|a, R|b en doute (bloquant) : opposée (doute)", async () => {
+    const R = racineDe("ct_r");
+    const Z = racineDe("ct_z");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine", { alias: [Z] }),
+      [`${R}|b`]: conv("termine", { douteOpposition: true }),
+    });
+    const v = await Opp.personneOpposeePartout(
+      { idsBruts: ["ct_z"] },
+      { env: ENV, douteBloque: true },
+    );
+    expect(v).toEqual({ opposee: true, source: "doute" });
+  });
+
+  it("7) vérifiée par la table Z -> R|a, R|b opposé : opposée (état)", async () => {
+    const R = racineDe("ct_r");
+    const Z = racineDe("ct_z");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine"),
+      [`${R}|b`]: conv("oppose"),
+    });
+    await Com.ecrireParametre(ALIAS, { [Z]: `${R}|a` });
+    expect(await verifier("ct_z")).toEqual({ opposee: true, source: "etat" });
+  });
+
+  it("8) identifiée par l'alias Z de R|a, opposition au registre sous R : opposée (registre)", async () => {
+    const R = racineDe("ct_r");
+    const Z = racineDe("ct_z");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine", { alias: [Z] }),
+    });
+    await Com.ecrireParametre(Opp.PARAM_OPPOSITIONS_MOTS, [ligne(R)]);
+    expect(await verifier("ct_z")).toEqual({
+      opposee: true,
+      source: "registre",
+    });
+  });
+});
+
+const adresse = () => ({
+  occurredAt: new Date(T0 - H).toISOString(),
+  idMessageAdresse: "msg-adr-r",
+});
+const enFile = async () =>
+  Object.keys(
+    await Com.lireParametre<Record<string, unknown>>(
+      OT.PARAM_OPPOSITIONS_FILE,
+      {},
+    ),
+  );
+
+describe("rattraperOppositions : alias et racine", () => {
+  it("9) alias propre X de R|a, registre sous X : R|a est mis en file", async () => {
+    const R = racineDe("ct_r");
+    const X = racineDe("ct_x");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine", { ...adresse(), alias: [X] }),
+    });
+    await Com.ecrireParametre(Opp.PARAM_OPPOSITIONS_MOTS, [ligne(X)]);
+    expect(await OT.rattraperOppositions({ env: ENV, maintenantMs: T0 })).toBe(
+      1,
+    );
+    expect(await enFile()).toEqual([`${R}|a`]);
+  });
+
+  it("9 bis) alias propre X du voisin R|b, registre sous X : R|a est mis en file", async () => {
+    const R = racineDe("ct_r");
+    const X = racineDe("ct_x");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine", adresse()),
+      [`${R}|b`]: conv("termine", { alias: [X] }),
+    });
+    await Com.ecrireParametre(Opp.PARAM_OPPOSITIONS_MOTS, [ligne(X)]);
+    expect(await OT.rattraperOppositions({ env: ENV, maintenantMs: T0 })).toBe(
+      1,
+    );
+    expect(await enFile()).toEqual([`${R}|a`]);
+  });
+
+  it("10) entrée de table X -> R|a, registre sous X : R|a est mis en file", async () => {
+    const R = racineDe("ct_r");
+    const X = racineDe("ct_x");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine", adresse()),
+    });
+    await Com.ecrireParametre(ALIAS, { [X]: `${R}|a` });
+    await Com.ecrireParametre(Opp.PARAM_OPPOSITIONS_MOTS, [ligne(X)]);
+    expect(await OT.rattraperOppositions({ env: ENV, maintenantMs: T0 })).toBe(
+      1,
+    );
+    expect(await enFile()).toEqual([`${R}|a`]);
+  });
+
+  it("11) R|a transmise, registre sous la racine R : la requête utilise la racine, pas la clé", async () => {
+    const R = racineDe("ct_r");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|a`]: conv("termine", adresse()),
+    });
+    await Com.ecrireParametre(Opp.PARAM_OPPOSITIONS_MOTS, [ligne(R)]);
+    expect(await OT.rattraperOppositions({ env: ENV, maintenantMs: T0 })).toBe(
+      1,
+    );
+    expect(await enFile()).toEqual([`${R}|a`]);
+  });
+});
+
 describe("rattraperOppositions : dossier voisin", () => {
   it("4) R|a (adresse transmise) non opposé, R|b opposé : R|a est mis en file", async () => {
     const R = racineDe("ct_r");
