@@ -353,13 +353,6 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   const calque = (ouverture?: DonneesCalque["ouverture"]): DonneesCalque | undefined =>
     avecSousTitres ? { ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}) } : undefined;
   let sousTitres = calque();
-  // Contrôle central des sous-titres : des remarques seulement (jamais bloquant), sans effet sur les paramètres de rendu.
-  if (sousTitres) {
-    const occupe = encadreActif && instantsEncadre ? [{ debutSec: instantsEncadre.de, finSec: instantsEncadre.a, zone: "haut" as const }] : [];
-    for (const a of controlerSousTitres(sousTitres, { texte: c.script.texteComplet, occupe })) {
-      if (!alertes.some((x) => x.code === a.code && x.message === a.message)) alertes.push(a);
-    }
-  }
 
   // Encadré d'ouverture SOUS les sous-titres réellement dessinés (≥ 80 px), au-dessus de la zone protégée du bas
   // (B.2). Pendant ses 3 s, la ligne garde sa place (pas de descente sur la poitrine) ; si la place manque encore
@@ -384,6 +377,15 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   // E2E-1 n° 12 : l'objet incrusté (logo d'appel) se pose sous les sous-titres RÉELLEMENT dessinés, avec un écart
   // visible constant, et garde la même taille d'un réseau à l'autre.
   const calqueFinal = sousTitres;
+  // Contrôle central des sous-titres : des remarques seulement (jamais bloquant), sans effet sur les paramètres de rendu.
+  if (calqueFinal) {
+  try {
+    const occupe = encadreActif && instantsEncadre ? [{ debutSec: instantsEncadre.de, finSec: instantsEncadre.a, zone: "haut" as const }] : [];
+    for (const a of controlerSousTitres(calqueFinal, { texte: c.script.texteComplet, occupe })) {
+      if (!alertes.some((x) => x.code === a.code && x.message === a.message)) alertes.push(a);
+    }
+  } catch { /* contrôle informatif : ne bloque jamais la composition */ }
+  }
   const incrustations = recalerObjets(inc.incrustations, ratio, reseauxCalques, { geometrie: recette.incrustations, basSousTitres: calqueFinal ? (de, a) => basSousTitres(calqueFinal, de, a, fps) : undefined });
   const texte: ProprietesTexteComposition = { ratio, largeur, hauteur, fps, images, encadre, incrustations, sousTitres };
   // G6 : la commande annonce l'union des zones des réseaux cochés ; la géométrie calculée doit la respecter.
