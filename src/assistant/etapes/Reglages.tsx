@@ -14,6 +14,7 @@ import { decorParDefaut, lutsConseilleesPour, sousTitresSurDecor } from "@/domai
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
 import { LIBELLES_BRIQUES } from "@/domaine/libelles";
 import type { BriqueFacultative, NiveauIntensite, ReglageBruitages, StylesChoisis, TypeElement } from "@/domaine/types";
+import { renduCouleurDe } from "@/briques/charte/rendu-couleur";
 import { briquesCoupables, briquesEffectives, musiqueInterdite, musiqueRetenue, obtenirFormat, styleParDefautRetenu } from "@/formats";
 import type { ChampReglage } from "@/formats/types";
 import { cn } from "@/lib/cn";
@@ -78,7 +79,6 @@ function Bloc({ icone, titre, children, className }: { icone: NomIcone; titre: s
  */
 export function EtapeReglages({ formatId, brouillon, modifier, contexte, compacte }: ProprietesEtape) {
   const format = obtenirFormat(formatId);
-  const def = format.stylesParDefaut;
   const decorId = brouillon.styles.decorId ?? decorParDefaut(format.id, contexte.elements, styleParDefautRetenu(format, "decor", undefined, contexte.elements));
   const decor = contexte.elements.find((e) => e.id === decorId);
   const valeurDecor = decor?.valeur.type === "decor" ? decor.valeur : null;
@@ -102,7 +102,8 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
   };
 
   const luts = elements("lut");
-  const lutChoisie = styleParDefautRetenu(format, "lut", s.lutId, contexte.elements);
+  const rendu = renduCouleurDe(format.id);
+  const lutChoisie = styleParDefautRetenu({ ...format, stylesParDefaut: { ...format.stylesParDefaut, lut: rendu.lut ?? undefined } }, "lut", s.lutId, contexte.elements);
 
   return (
     <div className="space-y-3">
@@ -171,7 +172,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                 );
               })}
             </div>
-            {lutChoisie !== LUT_AUCUNE && <Curseur libelle="Intensité" unite=" %" valeur={s.intensiteLut ?? def.intensiteLut ?? 70} onChange={(v) => style({ intensiteLut: v })} className="mt-3" />}
+            {lutChoisie !== LUT_AUCUNE && <Curseur libelle="Intensité" unite=" %" valeur={s.intensiteLut ?? rendu.intensite} onChange={(v) => style({ intensiteLut: v })} className="mt-3" />}
           </Bloc>
         )}
 
