@@ -14,12 +14,16 @@ export interface ContenuBibliotheque {
   reseaux: readonly IdReseau[];
   modifieLe: string;
   vignetteUrl?: string;
+  /** Identifiant du format de la vidéo (registre) ; absent pour une image ou un carrousel. */
+  format?: string;
 }
 
 export interface FiltresContenus {
   type?: TypeContenu;
   reseau?: CleClassement;
   statut?: StatutCommun;
+  /** Format de la vidéo (identifiant du registre). */
+  format?: string;
 }
 
 export const PAR_PAGE_DEFAUT = 24;
@@ -29,7 +33,7 @@ export function filtrerContenus(contenus: readonly ContenuBibliotheque[], filtre
     ? new Set(classerContenus(contenus).entrees.filter((e) => e.reseau === filtres.reseau).map((e) => e.id))
     : null;
   return contenus.filter(
-    (c) => (!filtres.type || c.type === filtres.type) && (!filtres.statut || c.statut === filtres.statut) && (!idsDuReseau || idsDuReseau.has(c.id)),
+    (c) => (!filtres.type || c.type === filtres.type) && (!filtres.statut || c.statut === filtres.statut) && (!filtres.format || c.format === filtres.format) && (!idsDuReseau || idsDuReseau.has(c.id)),
   );
 }
 

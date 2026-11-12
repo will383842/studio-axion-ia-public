@@ -260,7 +260,7 @@ export function libelleManques(manques: BlocManquant[]): string {
 
 /**
  * TEST-UI-REEL U6 (CORRECTEUR UI2) : texte du bouton « Fabriquer ». Une vidéo d'essai (rien n'est payé) dit « Essai
- * gratuit », jamais un montant en euros qui ferait croire à un paiement ; le vrai prix se lit en petit (`prixEnVrai`).
+ * gratuit », jamais un montant qui ferait croire à un paiement ; aucun prix n'est affiché (`prixEnVrai` rend toujours `null`).
  */
 export function libelleBoutonFabriquer(p: { montant?: Montant | null; dureeFabricationSec?: number; essaiGratuit: boolean }): string {
   if (!p.montant || p.dureeFabricationSec === undefined) return "Fabriquer";
@@ -269,7 +269,7 @@ export function libelleBoutonFabriquer(p: { montant?: Montant | null; dureeFabri
   return `Fabriquer · prête en ~${duree}`;
 }
 
-/** Petite ligne sous le bouton d'un essai : « En vrai : ≈ 1,03 € » (rien n'est payé maintenant). */
+/** Ancienne ligne de prix sous le bouton d'un essai : règle du fondateur, plus rien à l'écran. */
 export function prixEnVrai(montant: Montant | null | undefined): string | null {
   void montant; // Règle de Williams : aucun montant à l'écran.
   return null;
@@ -334,7 +334,7 @@ export function voixInitiale(voix: Voix[], personnage: Pick<Personnage, "voixPar
 /* Saisie libre « Décrivez »                                           */
 /* ------------------------------------------------------------------ */
 
-/** Texte d'une pastille : « Bureau ✓ », « Costume bleu · à créer (≈ 0,25 €) », « Debout · pas encore filmé → Assis ». */
+/** Texte d'une pastille : « Bureau ✓ », « Costume bleu · à créer », « Debout · pas encore filmé → Assis ». */
 export function libellePastille(p: PastilleDistribution): string {
   if (p.etat === "trouve") return `${p.libelle} ✓`;
   if (p.etat === "a-creer") return `${p.libelle} · à créer`;
