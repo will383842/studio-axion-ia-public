@@ -41,7 +41,7 @@ import { BoutonVideoHeygen } from "./VideoHeygen";
 import { BoutonMonterPrise, BoutonSecondeOuverture, CarteFabriquerLesN, EtatFabricationVersion, type EtatFabricationAffiche, type PlanFabricationAffiche } from "./FabricationReseaux";
 import { MiniGrille } from "./MiniGrille";
 import { MatieresSansAccord, SaisieMatiereSujet, type MatiereSansAccord } from "./SaisieMatiereSujet";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { formateurDate } from "@/lib/intl";
 
 export interface VersionAffichee {
@@ -201,7 +201,7 @@ export function FicheSujet(p: {
     demarrer(async () => {
       const r = await f();
       if (!r.ok) {
-        notifier.erreur(r.message ?? "Impossible pour l'instant.");
+        notifier.erreur(messageSansMontant(r.message ?? "Impossible pour l'instant."));
         return;
       }
       if (succes) notifier.succes(succes);
@@ -213,10 +213,10 @@ export function FicheSujet(p: {
     demarrer(async () => {
       const r = await ajouterDeclinaisonAction(p.id, { reseaux: p.reseauxSujet, ...options });
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
-      if (!r.donnees.ecrit) notifier.erreur(r.donnees.message ?? "Il manque une matière.");
+      if (!r.donnees.ecrit) notifier.erreur(messageSansMontant(r.donnees.message ?? "Il manque une matière."));
       // L'écriture se fait ensuite dans la boucle : rien n'est « écrit » à ce moment (vérification E2E n° 1, problème n° 1).
       else if (contexte.ecritureSimulee) notifier.essai(`${libelle} : écriture lancée, rien n'est payé`);
       else notifier.succes(`${libelle} : écriture lancée`);
@@ -725,8 +725,8 @@ function BoutonFabriquer({ sujetId, varianteId, formatId, prix: fab }: { sujetId
         <p className="mb-4 text-[15px] text-texte-doux">
           {resume?.essai ? "Une vidéo d'essai : rien n'est payé, et ce n'est pas encore votre vraie vidéo." : "La vidéo complète, avec votre double et votre voix."}
         </p>
-        {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{resume.messageEssai}</p>}
-        {fab?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{fab.avatarParle}</p>}
+        {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{messageSansMontant(resume.messageEssai)}</p>}
+        {fab?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{messageSansMontant(fab.avatarParle)}</p>}
         <Bouton asChild taille="lg" pleineLargeur icone="ecrire">
           <Link href={`/ecrire/sujets/${sujetId}/relire?version=${varianteId}${fab ? `&prix=${fab.centimes}` : ""}`}>Relire le script</Link>
         </Bouton>
@@ -813,7 +813,7 @@ function FeuilleOrdre({
           onClick={() =>
             demarrer(async () => {
               const r = await enregistrerOrdrePublicationAction(ordre);
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
               else {
                 notifier.succes("Ordre gardé pour les prochains sujets");
                 onOuverteChange(false);
@@ -885,7 +885,7 @@ function CartePanneAjout({ id, message }: { id: string; message: string; supplem
         <Icone nom="attention" size={14} />
         L&apos;ajout s&apos;est arrêté
       </p>
-      <p className="text-[15px] text-texte">{message}</p>
+      <p className="text-[15px] text-texte">{messageSansMontant(message)}</p>
       <p className="mt-1 text-sm text-texte-faible">Ce qui est déjà écrit est gardé ; les autres sujets continuent.</p>
       <Bouton
         className="mt-3"
@@ -897,7 +897,7 @@ function CartePanneAjout({ id, message }: { id: string; message: string; supplem
             // Relecture finale G1 : le supplément possible passe par la feuille « Confirmer ce prix ».
             const r = await avecConfirmationPrix(await reprendreEcritureArreteeAction(id), (accord) => reprendreEcritureArreteeAction(id, accord));
             if (!r.ok) {
-              if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(r.message);
+              if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(messageSansMontant(r.message));
             } else notifier.succes("L'écriture reprend");
             router.refresh();
           })
@@ -947,7 +947,7 @@ function CarteManque({ id, idee, manque, sansAccord }: { id: string; idee: strin
             const r = await garderEnIdeeAction(idee, id);
             if (!r.ok) {
               setGarde(false);
-              notifier.erreur(r.message);
+              notifier.erreur(messageSansMontant(r.message));
               return;
             }
             notifier.succes("Gardé dans vos idées");
@@ -1029,7 +1029,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
     setVerifs((x) => x?.map((y) => (y.videoId === v.videoId ? { ...y, manquantes: y.manquantes.filter((m) => m.cle !== cle) } : y)) ?? null);
     void cocherVerificationAction(sujetId, v.videoId, cle, true).then((r) => {
       if (r.ok) return;
-      notifier.erreur(r.message);
+      notifier.erreur(messageSansMontant(r.message));
       setVerifs((x) => x?.map((y) => (y.videoId === v.videoId ? v : y)) ?? null);
     });
   }
@@ -1037,7 +1037,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
     demarrer(async () => {
       const r = await programmerSujetAction(sujetId);
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
       const { programmees, ignorees, simulation } = r.donnees;
@@ -1046,7 +1046,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
         else if (r.donnees.modeBuffer === "brouillon") notifier.succes(`${programmees.length} brouillon${programmees.length > 1 ? "s" : ""} dans Buffer`, "Relisez et programmez dans Buffer.");
         else notifier.succes(`${programmees.length} version${programmees.length > 1 ? "s" : ""} programmée${programmees.length > 1 ? "s" : ""}`);
       }
-      if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${ignorees[0].message}`);
+      if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${messageSansMontant(ignorees[0].message)}`);
       onOuverteChange(false);
       router.refresh();
     });

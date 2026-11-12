@@ -17,6 +17,7 @@ import "server-only";
 import { comptesParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { creerNotification } from "./notifications";
 import { journaliser, lireParametre } from "./_commun";
+import { motsMultiplesActifs } from "./parcours-mots-multiples";
 
 export const VARIABLE_INTERRUPTEUR = "PARCOURS_CONVERSATION_ENABLED";
 export const VARIABLE_COMPTES = "PARCOURS_CONVERSATION_COMPTES";
@@ -168,7 +169,7 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   const { clientZernio } = await import("./zernio");
   let port;
   try {
-    port = creerPortInboxZernio({ client: clientZernio(), comptesPermis: sansEnvoi ? [] : comptesPermis, comptesLecture, domainesPermis: DOMAINES_PERMIS_PAR_DEFAUT, titresGuidesPermis: titre ? [titre] : [] });
+    port = creerPortInboxZernio({ client: clientZernio(), comptesPermis: sansEnvoi ? [] : comptesPermis, comptesLecture, domainesPermis: DOMAINES_PERMIS_PAR_DEFAUT, titresGuidesPermis: await titresGuides(titre) });
   } catch {
     await alerter("client_zernio", "Zernio n'est pas relié (clé absente ou refusée) : les messages privés ne sont pas traités.", now);
     await arretEtAncienChemin(env);
@@ -185,4 +186,19 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   await etape("rattrapage des oppositions", () => rattraperOppositions({ env, maintenantMs: now }));
   // (8) Ancien chemin des « stop ».
   await ancienChemin(env);
+}
+
+/** Titres de guides permis pour le port. Réglage éteint ou catalogue illisible : `[titre]` comme avant. Allumé : titre du serveur + cibles `guide` actives. */
+async function titresGuides(titre: string): Promise<string[]> {
+  const base = titre ? [titre] : [];
+  try {
+    if (!(await motsMultiplesActifs())) return base;
+    const { lireCiblesSite } = await import("./cibles-site");
+    const site = await lireCiblesSite();
+    if (!site) return base;
+    const titres = site.catalogue.filter((e) => e.type === "guide" && e.actif).map((e) => e.titre.trim()).filter((t) => t.length > 0);
+    return [...new Set([...base, ...titres])];
+  } catch {
+    return base;
+  }
 }
