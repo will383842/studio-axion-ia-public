@@ -1,0 +1,153 @@
+# VÉRIFIER [L0-17] : contrôle bloquant d'une PR vers master. Dépôt public (gratuit), aucun secret, aucun appel réel.
+#  (1) garde de zone et de fichiers autorisés (outils/gardes/zone-interdite.mjs) ;
+#  (2) eslint et tsc DIFFÉRENTIELS : seules les erreurs absentes de la base de la PR (et de scripts/echecs-connus.json,
+#      clés facultatives « tsc » et « eslint ») sont rouges ;
+#  (3) vitest sur les fichiers de test touchés par la PR (un run à 0 test est rouge si la PR touche du code) ;
+#  (4) next build.
+# Sur un push vers master, la base du différentiel est le commit précédent (github.event.before) : master reste vert tant
+# qu'un commit n'ajoute pas d'erreur. Les fichiers autorisés (pilotage/autorises/<ID>.json), les annonces (pilotage/annonces/)
+# et les accords sont lus sur la BASE de la PR, jamais sur sa tête : une PR ne s'autorise pas elle-même.
+name: verifier
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verifier-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zone:
+    name: garde de zone et de fichiers autorisés
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Garde de zone
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          BRANCHE: ${{ github.head_ref }}
+          CORPS: ${{ github.event.pull_request.body }}
+        run: |
+          git worktree add "$RUNNER_TEMP/base" "$BASE"
+          printf '%s\n' "$CORPS" > "$RUNNER_TEMP/corps.txt"
+          # La garde est lancée depuis la BASE dès qu'elle y existe (une PR ne modifie pas la garde qui la juge) ;
+          # tant qu'elle n'est pas sur la branche principale, la version de la PR sert (limite connue, voir le journal).
+          GARDE=outils/gardes/zone-interdite.mjs
+          if [ -f "$RUNNER_TEMP/base/$GARDE" ]; then GARDE="$RUNNER_TEMP/base/$GARDE"; fi
+          node "$GARDE" --base "$BASE" --branche "$BRANCHE" \
+            --listes "$RUNNER_TEMP/base/pilotage/autorises" \
+            --annonces "$RUNNER_TEMP/base/pilotage/annonces" \
+            --corps "$RUNNER_TEMP/corps.txt"
+
+  differentiel:
+    name: eslint et tsc différentiels
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Erreurs de la PR (tsc et eslint)
+        run: |
+          mkdir -p "$RUNNER_TEMP/v"
+          pnpm exec tsc --noEmit > "$RUNNER_TEMP/v/tsc-tete.txt" || true
+          pnpm exec eslint . -f json -o "$RUNNER_TEMP/v/eslint-tete.json" || true
+      - name: Erreurs de la base (base de la PR, ou commit précédent sur un push)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then BASE=$(git rev-parse HEAD^); fi
+          git worktree add "$RUNNER_TEMP/base" "$BASE"
+          ln -s "$PWD/node_modules" "$RUNNER_TEMP/base/node_modules"
+          cd "$RUNNER_TEMP/base"
+          pnpm exec tsc --noEmit > "$RUNNER_TEMP/v/tsc-base.txt" || true
+          pnpm exec eslint . -f json -o "$RUNNER_TEMP/v/eslint-base.json" || true
+      - name: Comparer
+        run: node outils/gardes/zone-interdite.mjs --differentiel --dossier "$RUNNER_TEMP/v" --racine-tete "$PWD" --racine-base "$RUNNER_TEMP/base" --connus scripts/echecs-connus.json
+
+  tests:
+    name: tests des fichiers touchés
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Fichiers de test touchés
+        id: liste
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENEMENT" = "pull_request" ]; then
+            git diff --name-only --diff-filter=AM "$BASE"...HEAD -- ':(glob)tests/**/*.test.ts' ':(glob)tests/**/*.test.tsx' ':(glob)src/**/*.test.ts' ':(glob)src/**/*.test.tsx' > fichiers-test.txt
+          else
+            # push sur master : socle de fumée (le fichier de garde), pas la suite complète
+            echo tests/outils/zone-interdite.test.ts > fichiers-test.txt
+          fi
+          cat fichiers-test.txt
+          echo "nombre=$(wc -l < fichiers-test.txt)" >> "$GITHUB_OUTPUT"
+      - name: Lancer ces tests
+        if: steps.liste.outputs.nombre != '0'
+        run: |
+          pnpm exec vitest run --testTimeout=60000 --reporter=json --outputFile=rapport-vitest.json $(cat fichiers-test.txt) || true
+          node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
+      - name: Aucun fichier de test touché
+        if: steps.liste.outputs.nombre == '0'
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENEMENT" = "pull_request" ]; then
+            CODE=$(git diff --name-only --diff-filter=AMDR "$BASE"...HEAD -- ':(glob)src/**' ':(glob)outils/**' ':(glob)scripts/**' | wc -l)
+          else
+            CODE=1
+          fi
+          if [ "$CODE" = "0" ]; then
+            echo "0 test touché et aucun fichier sous src/, outils/ ou scripts/ modifié : vert"
+          else
+            echo "0 tests lancés : rouge (une PR qui touche du code sans test touché ne passe pas « vérifier »)"
+            exit 1
+          fi
+
+  build:
+    name: next build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # Le contrôle de types complet est fait par le job différentiel ; le build ne type-vérifie que src/
+      # (cause de l'ancien rouge : erreurs TS2307 « remotion » et autres dans docs/, studio-rendu/ et tests/, aussi sur master).
+      - run: node outils/gardes/zone-interdite.mjs --tsconfig-build tsconfig.json
+      - run: pnpm exec next build
