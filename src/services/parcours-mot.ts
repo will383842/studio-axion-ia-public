@@ -42,7 +42,7 @@ import { creerTransportHttp } from "@/fournisseurs/site/http";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import type { TransportSite } from "@/fournisseurs/site/types";
 import { nouvelId } from "@/lib/ids";
-import { ESPACE_CONTACT_ZERNIO, personneOpposee } from "./oppositions-mots";
+import { ErreurOppositionIllisible, personneOpposeePartout } from "./oppositions-mots";
 import { cleIdempotenceOpaque, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { depots, horodatage, journaliser, maintenant, sousVerrou } from "./_commun";
 
@@ -250,10 +250,18 @@ export async function traiterOutboxZernio(o: { env?: Record<string, string | und
 
 async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { transport: TransportSite; secret: string }, now: number, v3: { prefixesComptes: readonly string[] } | null = null): Promise<{ issue: "envoye" | "definitif" | "reessai" | "ecarte"; code: string }> {
   // Personne déjà opposée : aucune lecture du run, aucun appel au site, donc aucun guide. L'événement est conservé (rien n'est supprimé).
+  // Vérification UNIQUE « stop partout » : opposée sur N'IMPORTE QUEL réseau => rien ne part. Impossible à vérifier (y compris sans identifiant) => rien ne part, réessai (fermé).
   let opposee: boolean;
   try {
-    opposee = await personneOpposee(typeof ev.charge.idContact === "string" ? ev.charge.idContact : null, ESPACE_CONTACT_ZERNIO);
-  } catch {
+    opposee = (await personneOpposeePartout({ idsBruts: [typeof ev.charge.idContact === "string" ? ev.charge.idContact : null] }, { douteBloque: true })).opposee;
+  } catch (e) {
+    // Aucun identifiant : la vérification est IMPOSSIBLE, et le restera à chaque essai. Mis de côté POUR DE BON (rien supprimé, aucun envoi),
+    // sans quoi l'événement serait rejoué sans fin et affamerait le plafond horaire.
+    if (e instanceof ErreurOppositionIllisible && e.code === "personne_inconnue") {
+      await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat: "ecarte", dernierCode: "personne_inconnue", prochainEssaiLe: null } });
+      await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : écarté : aucun identifiant de contact, vérification impossible, aucun envoi.`);
+      return { issue: "ecarte", code: "personne_inconnue" };
+    }
     // Registre illisible (panne de base) : nouvel essai plus tard, JAMAIS une mise à l'écart. Événement non traité, échelle des pannes non consommée.
     await depots().evenementsFournisseurs.modifier(ev.id, { traite: false, charge: { ...ev.charge, etat: "a_reessayer", dernierCode: "registre_illisible", prochainEssaiLe: now + ATTENTE_REGISTRE_ILLISIBLE_MS } });
     await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : registre des oppositions illisible, nouvel essai plus tard.`);
@@ -261,7 +269,7 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
   }
   if (opposee) {
     await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat: "ecarte", dernierCode: "opposee", prochainEssaiLe: null } });
-    await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : ecarte (personne opposée), aucun envoi.`);
+    await journaliser("parcours_mot", `Événement Zernio ${ev.idEvenement} : ignoré : opposition (personne opposée), aucun envoi.`);
     return { issue: "ecarte", code: "opposee" };
   }
   const idRun = String(ev.charge.idRun);
