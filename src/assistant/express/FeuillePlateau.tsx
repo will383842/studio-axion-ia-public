@@ -23,7 +23,6 @@ import { anglePrincipalDe, postureDe, tenueDe } from "@/domaine/distribution";
 import type { PostureVisage, ValeurDecor } from "@/domaine/types";
 import { obtenirFormat } from "@/formats";
 import type { PastilleDistribution } from "@/fournisseurs";
-import { formaterMontant } from "@/lib/montants";
 import { cn } from "@/lib/cn";
 import type { VueElement } from "@/services/vues";
 import { AjoutezVousDabord, EtapeDistribution } from "../etapes/Distribution";
@@ -167,7 +166,7 @@ function Decrivez({ brouillon, modifier, contexte }: ProprietesEtape) {
     if (!e.ok) return notifier.erreur(e.message);
     if (e.donnees.bloque) return notifier.info("Décor HeyGen", e.donnees.bloque);
     const n = e.donnees.angles.length;
-    const accord = await confirmerPrix({ message: `Votre avatar dans « ${e.donnees.nom} » (${n} angle${n > 1 ? "s" : ""}).${e.donnees.prixAConfirmer ? ` ${e.donnees.prixAConfirmer}` : ""}${e.donnees.essai ? " Essai : rien n'est payé." : ""}`, montant: e.donnees.cout.centimes });
+    const accord = await confirmerPrix({ message: `Votre avatar dans « ${e.donnees.nom} » (${n} angle${n > 1 ? "s" : ""}).${e.donnees.essai ? " Essai : rien n'est payé." : ""}`, montant: e.donnees.cout.centimes });
     if (accord === null) return;
     setOccupe(true);
     const r = await creerDecorDecritAction(phrase, deuxAngles, accord);
@@ -181,7 +180,7 @@ function Decrivez({ brouillon, modifier, contexte }: ProprietesEtape) {
     if (p.etat === "a-creer") {
       // Correcteur réel 2 (F2) : un décor ou une tenue à créer se fait avec HeyGen, prix confirmé d'abord.
       if (p.genre === "decor" || p.genre === "tenue") return void creerAvecHeygen();
-      notifier.info(`${p.libelle} : à créer`, `≈ ${formaterMontant(p.coutEstime, { court: true })}, environ ${Math.max(1, Math.round(p.dureeEstimeeSec / 60))} min.`);
+      notifier.info(`${p.libelle} : à créer`, `Environ ${Math.max(1, Math.round(p.dureeEstimeeSec / 60))} min.`);
       return;
     }
     if (p.genre === "decor") return modifier({ styles: { ...brouillon.styles, decorId: p.id } });
