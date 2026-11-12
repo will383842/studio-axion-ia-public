@@ -20,3 +20,13 @@
 - stockMessages, journalDecalages : « sans-lien » confirmé juste par l'avis. Remarques (Depot.supprimer, champs du message) : reportées au fondateur.
 - Tests : suppression-video* + stock-messages + calendrier + plan-editorial : 10 fichiers, 84 passés, 0 échoué. tsc : aucune erreur dans les fichiers touchés.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (avis opus-v1-w2)
+- Constat 1 (fichiers hors liste sans CORRECTIF) : levé par le CORRECTIF du 12/11 de la fiche, qui autorise src/services/suppression-video.ts et tests/suppression-video-orphelins.test.ts.
+- Constat 2 (un créneau « publie » perdait sa vidéo) : corrigé ; seuls les créneaux ni publiés ni archivés sont détachés ; « publie » et « archive » gardent videoId et figurent dans GARDES_APRES_SUPPRESSION. Un cas de test par statut (propose, a_valider, valide, programme, echec détachés ; publie, archive gardés), rouge avant, vert après.
+- ATTENTION, conflit avec master : la fusion de master (L1-06, PR 323) fait EFFACER les créneaux non publiés de la vidéo (« garde-publiees »). Le CORRECTIF de STK-01 demande de les DÉTACHER : suivi ici, « garde-publiees » retiré pour creneauxEditoriaux. Deux tests de L1-06 mis à jour en conséquence (hors liste, ajoutés ici) : tests/calendrier/suppression-creneaux.test.ts et tests/calendrier/depot-creneaux.test.ts. Le pilotage doit confirmer que le détachement remplace l'effacement décidé par L1-06.
+- Fusion de master : conflit dans src/domaine/depots.ts résolu (journalDecalages en DepotAjoutSeul de master, plus stockMessages).
+- Constat 3 (remarque : créneau « valide »/« programme » détaché reste dans ce statut sans vidéo, ses envois non partis sont effacés) : reporté, à trancher par le pilotage.
+- Constat 4 (Depot.supprimer, champs du message) : reporté au fondateur.
+- Tests : suppression-video* + stock-messages + calendrier + plan-editorial + envois-planifies : 22 fichiers, 186 passés, 0 échoué (testTimeout 60 s).
+- contrôle anti-fuite : vide
