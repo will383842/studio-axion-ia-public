@@ -15,12 +15,18 @@
  *  - aucun bandeau sur un écran ivoire (bandeau ivoire sur ivoire : il ne se verrait pas).
  * Q22 (`controlerVariationsIV`) refait la même mesure groupe par groupe, à chaque instant d'entrée.
  */
-import { donneesCalque, elementDe, largeurElement, melanger, type DonneesCalque, type ElementDessine, type SurlignageSousTitres, type VariationSousTitres } from "@/briques/sous-titres";
-import { BANDE_SOUS_TITRES_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
-import type { IntensiteSousTitres, SegmentSousTitres } from "@/domaine/types";
+import { baseRetenue, donneesCalque, elementDe, largeurElement, melanger, type DonneesCalque, type ElementDessine, type SurlignageSousTitres, type VariationSousTitres } from "@/briques/sous-titres";
+import { BANDE_SOUS_TITRES_IV, formatDeHauteurIV, type FormatEcranIV, MISE_EN_PAGE_IV, ZONE_UTILE_IV } from "@/briques/schema-motion/types";
+import type { IntensiteSousTitres, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
 import { ENCRE_SOUS_TITRES_IVOIRE, LARGEUR_SOUS_TITRES_PCT, STYLE_SOUS_TITRES_DUO } from "./emprunts";
 import { REGLAGES_SOUS_TITRES_CAS_CONCRET, SURLIGNAGE_CAS_CONCRET } from "@/moteurs/montage-cas-concret/sous-titres-variete";
 import { chiffresDitsDe, type LigneDeTempsIV } from "./mise-en-scene";
+
+/**
+ * GV-ST-03 : le tirage de sous-titres par version (SOU-B/C/D/E) est ÉTEINT. Le style choisi dans la Bibliothèque fait loi ;
+ * sans choix, toutes les versions d'une vidéo ont les mêmes sous-titres (charte duo). Vrai : ancien tirage.
+ */
+export const VARIANTE_PAR_VERSION = false;
 
 /** Intensité du mélange : celle par défaut du studio et des autres formats (SOU-B, la référence). */
 export const INTENSITE_SOUS_TITRES_IV: IntensiteSousTitres = "equilibre";
@@ -30,7 +36,7 @@ export const INTENSITE_SOUS_TITRES_IV: IntensiteSousTitres = "equilibre";
  * (retirée, jamais tirée) ou sans recette → l'intensité par défaut, inchangée.
  */
 export function intensiteSousTitresIV(ligne: Pick<LigneDeTempsIV, "variete">): IntensiteSousTitres {
-  return ligne.variete?.recette.sousTitres === "SOU-C" ? "tres-dynamique" : INTENSITE_SOUS_TITRES_IV;
+  return VARIANTE_PAR_VERSION && ligne.variete?.recette.sousTitres === "SOU-C" ? "tres-dynamique" : INTENSITE_SOUS_TITRES_IV;
 }
 
 type CodeSousTitres = NonNullable<LigneDeTempsIV["variete"]>["recette"]["sousTitres"];
@@ -41,6 +47,7 @@ type CodeSousTitres = NonNullable<LigneDeTempsIV["variete"]>["recette"]["sousTit
  * rendu, sinon la version retombe sur SOU-B. Sans recette : `undefined`.
  */
 export function codeSousTitresIV(ligne: LigneSousTitres): CodeSousTitres | undefined {
+  if (!VARIANTE_PAR_VERSION) return undefined;
   const code = ligne.variete?.recette.sousTitres;
   if ((code === "SOU-D" || code === "SOU-E") && formatDeHauteurIV(ligne.hauteur) === "4:5" && controlerVariationsIV(melangeIV(ligne, code), ligne, code === "SOU-D" ? SURLIGNAGE_CAS_CONCRET : undefined).length) return "SOU-B";
   return code;
@@ -59,6 +66,36 @@ const CENTRE_PCT = +(((BANDE_SOUS_TITRES_IV.haut + BANDE_SOUS_TITRES_IV.bas) / 2
 
 /** Style de la charte duo posé dans la bande : celui que reçoit la composition (`commandeDuMontageIV`). */
 export const STYLE_SOUS_TITRES_IV = Object.freeze({ ...STYLE_SOUS_TITRES_DUO, positionPct: CENTRE_PCT, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT });
+
+/** Style de sous-titres choisi par Williams (Bibliothèque), tel que la commande le porte. */
+export interface StyleChoisiIV {
+  id: string;
+  nom: string;
+  valeur?: ValeurStyleSousTitres;
+}
+
+/** Centre de la bande d'un format, en % de la hauteur. */
+const centreBandePct = (format: FormatEcranIV) => (format === "9:16" ? CENTRE_PCT : +(((MISE_EN_PAGE_IV[format].bandeSousTitres.haut + MISE_EN_PAGE_IV[format].bandeSousTitres.bas) / 2) * 100).toFixed(2));
+
+/**
+ * Style retenu pour les sous-titres (PUR) : le style CHOISI s'il porte sa valeur, sinon la charte duo (inchangée, centrée
+ * dans la bande du format). Le style choisi garde sa position ; seulement si elle sort de la bande réservée du format, elle
+ * est ramenée dans la bande (`deplace` vrai : remarque à journaliser). Sans `positionPct`, la position est celle de la bande.
+ */
+export function styleRetenuIV(choisi: StyleChoisiIV | null | undefined, format: FormatEcranIV): { valeur: ValeurStyleSousTitres; deplace: boolean; choisi: boolean } {
+  const centre = centreBandePct(format);
+  if (!choisi?.valeur) return { valeur: (format === "9:16" ? STYLE_SOUS_TITRES_IV : { ...STYLE_SOUS_TITRES_IV, positionPct: centre }) as ValeurStyleSousTitres, deplace: false, choisi: false };
+  const b = format === "9:16" ? BANDE_SOUS_TITRES_IV : MISE_EN_PAGE_IV[format].bandeSousTitres;
+  const haut = b.haut * 100;
+  const bas = b.bas * 100;
+  const pos = choisi.valeur.positionPct;
+  if (pos === undefined) return { valeur: { ...choisi.valeur, positionPct: centre }, deplace: false, choisi: true };
+  if (pos >= haut && pos <= bas) return { valeur: choisi.valeur, deplace: false, choisi: true };
+  return { valeur: { ...choisi.valeur, positionPct: +Math.min(bas, Math.max(haut, pos)).toFixed(2) }, deplace: true, choisi: true };
+}
+
+/** Remarque du journal quand la position du style choisi a été ramenée dans la bande. */
+export const REMARQUE_SOUS_TITRES_DEPLACES_IV = "sous-titres déplacés pour ne pas couvrir l'image";
 
 type LigneSousTitres = Pick<LigneDeTempsIV, "sousTitres" | "plans" | "dureeSec" | "hauteur" | "chiffresDits" | "variete"> & Partial<Pick<LigneDeTempsIV, "blocs">>;
 
@@ -116,13 +153,13 @@ export function passagesIvoireIV(ligne: Pick<LigneDeTempsIV, "plans"> & Partial<
 }
 
 /** Calque de mesure : celui que la composition dessine (charte duo, bande du format, 9:16, écrans ivoire). */
-function calqueIV(segments: SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>, surlignage?: SurlignageSousTitres): DonneesCalque {
-  // 4:5 (lot F45) : le calque du ratio 4:5, centré dans la bande du 4:5 ; le 9:16 est inchangé.
+function calqueIV(segments: SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>, surlignage?: SurlignageSousTitres, choisi?: StyleChoisiIV | null): DonneesCalque {
+  // 4:5 (lot F45) : le calque du ratio 4:5, centré dans la bande du 4:5 ; le 9:16 est inchangé. GV-ST-03 : style choisi = sa base et sa police.
   const format = formatDeHauteurIV(ligne.hauteur);
-  const b = MISE_EN_PAGE_IV[format].bandeSousTitres;
-  const base = format === "4:5" ? { ...STYLE_SOUS_TITRES_IV, positionPct: +(((b.haut + b.bas) / 2) * 100).toFixed(2) } : STYLE_SOUS_TITRES_IV;
+  const retenu = styleRetenuIV(choisi, format);
+  const base = retenu.valeur;
   const style = surlignage ? { ...base, surlignage } : base; // SOU-D : on mesure avec la marge du surlignage
-  const d = donneesCalque({ segments, base: "minimal", ratio: format, style });
+  const d = donneesCalque({ segments, base: retenu.choisi ? baseRetenue(undefined, style) : "minimal", ratio: format, style });
   const clairs = passagesIvoireIV(ligne);
   return clairs.length ? { ...d, passagesClairs: clairs } : d;
 }
@@ -168,11 +205,11 @@ function essais(s: SegmentSousTitres): SegmentSousTitres[] {
  * Sous-titres variés d'une version (PUR) : le mélange de la brique, adapté à la bande du format (voir l'en-tête). Le
  * même résultat est envoyé à la composition et contrôlé par Q22.
  */
-export function sousTitresVariesIV(ligne: LigneSousTitres): SegmentSousTitres[] {
-  return melangeIV(ligne, codeSousTitresIV(ligne));
+export function sousTitresVariesIV(ligne: LigneSousTitres, choisi?: StyleChoisiIV | null): SegmentSousTitres[] {
+  return melangeIV(ligne, codeSousTitresIV(ligne), choisi);
 }
 
-function melangeIV(ligne: LigneSousTitres, code: CodeSousTitres | undefined): SegmentSousTitres[] {
+function melangeIV(ligne: LigneSousTitres, code: CodeSousTitres | undefined, choisi?: StyleChoisiIV | null): SegmentSousTitres[] {
   const base = segmentsDeBaseIV(ligne);
   const mots = base.flatMap((s) => s.mots);
   // Chiffres de la carte DITS en lettres (« quatre-vingts pour cent », « trois heures ») : la brique ne reconnaît que les
@@ -207,7 +244,7 @@ function melangeIV(ligne: LigneSousTitres, code: CodeSousTitres | undefined): Se
     for (let i = 0; i < sortie.length && rate < 0; i++) {
       if (!estAccent(sortie[i])) continue;
       // Bandeau ivoire sur un écran ivoire : il ne se verrait pas.
-      const essai = sortie[i].style === "bandeau" && ivoires.some((p) => pendant(sortie[i], p)) ? undefined : essais(sortie[i]).find((x) => defautsGroupe(calqueIV(sortie.map((y, k) => (k === i ? x : y)), ligne), x, ligne.hauteur).length === 0);
+      const essai = sortie[i].style === "bandeau" && ivoires.some((p) => pendant(sortie[i], p)) ? undefined : essais(sortie[i]).find((x) => defautsGroupe(calqueIV(sortie.map((y, k) => (k === i ? x : y)), ligne, undefined, choisi), x, ligne.hauteur).length === 0);
       if (essai) sortie[i] = { ...essai, verrouille: false };
       else rate = i;
     }
@@ -225,8 +262,8 @@ const NOMS = { impact: "Impact", bandeau: "Bandeau", base: "base" } as const;
  * accents collés ; aucun accent pendant la question à commenter. Une phrase par défaut, sans identifiant (vide =
  * conforme).
  */
-export function controlerVariationsIV(segments: readonly SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>, surlignage?: SurlignageSousTitres): string[] {
-  const d = calqueIV([...segments], ligne, surlignage);
+export function controlerVariationsIV(segments: readonly SegmentSousTitres[], ligne: Pick<LigneDeTempsIV, "plans" | "hauteur"> & Partial<Pick<LigneDeTempsIV, "blocs">>, surlignage?: SurlignageSousTitres, choisi?: StyleChoisiIV | null): string[] {
+  const d = calqueIV([...segments], ligne, surlignage, choisi);
   const defauts: string[] = [];
   const texte = (s: SegmentSousTitres) => `« ${s.mots.map((m) => m.mot).join(" ")} »`;
   segments.forEach((s, i) => {
