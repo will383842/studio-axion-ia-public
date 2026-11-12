@@ -23,9 +23,12 @@ function valide(c: unknown): c is CombinaisonUsine {
   if (!c || typeof c !== "object") return false;
   const { signature, parts, textes } = c as Record<string, unknown>;
   if (typeof signature !== "string" || !signature.trim()) return false;
-  if (!parts || typeof parts !== "object") return false;
-  if (!textes || typeof textes !== "object") return false;
-  return Object.values(textes as Record<string, unknown>).some((t) => typeof t === "string" && t.trim() !== "");
+  if (!parts || typeof parts !== "object" || Array.isArray(parts)) return false;
+  if (!Object.values(parts as Record<string, unknown>).every((v) => v === null || typeof v === "string")) return false;
+  if (!textes || typeof textes !== "object" || Array.isArray(textes)) return false;
+  const valeurs = Object.values(textes as Record<string, unknown>);
+  if (!valeurs.every((t) => typeof t === "string")) return false;
+  return valeurs.some((t) => (t as string).trim() !== "");
 }
 
 export function sourceIdeesReelle(options: OptionsSourceReelle): SourceIdees {
@@ -35,10 +38,11 @@ export function sourceIdeesReelle(options: OptionsSourceReelle): SourceIdees {
     nom: "Usine (porte)",
     simulee: false,
     async tirer(n: number) {
-      if (!(n > 0)) return [];
+      const nb = Math.floor(n);
+      if (!(nb > 0)) return [];
       let brut: unknown;
       try {
-        brut = await porte(n);
+        brut = await porte(nb);
       } catch {
         return [];
       }
@@ -46,9 +50,9 @@ export function sourceIdeesReelle(options: OptionsSourceReelle): SourceIdees {
       const vues = new Set<string>();
       const sortie: CombinaisonUsine[] = [];
       for (const c of brut) {
-        if (sortie.length >= n) break;
-        if (!valide(c) || vues.has(c.signature)) continue;
-        vues.add(c.signature);
+        if (sortie.length >= nb) break;
+        if (!valide(c) || vues.has(c.signature.trim())) continue;
+        vues.add(c.signature.trim());
         sortie.push(c);
       }
       return sortie;
