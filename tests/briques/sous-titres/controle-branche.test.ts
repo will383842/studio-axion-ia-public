@@ -2,7 +2,7 @@
  * GV-ST-04 : le contrôle central des sous-titres est branché sur la composition. Il ne produit que des remarques
  * (jamais bloquantes) et ne change aucun paramètre de rendu (donc aucune clé de cache).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { controlerSousTitres, DEBIT_VOIX_ESTIME_MOTS_PAR_SEC } from "@/briques/sous-titres";
 import { parametresComposition } from "@/briques/composition";
 import { decorsCatalogue } from "@/donnees/decors-catalogue";
@@ -11,6 +11,12 @@ import type { CommandeFabrication, SegmentSousTitres } from "@/domaine/types";
 import { formatAvocat, RECETTE_MONTAGE_AVOCAT } from "@/formats/avocat";
 import { RECETTE_COMPOSITION_AVOCAT } from "@/moteurs/montage-avocat/recette-composition";
 import type { PlanProduit } from "@/moteurs/types";
+
+const forcer = vi.hoisted(() => ({ erreur: false }));
+vi.mock("@/briques/sous-titres", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("@/briques/sous-titres")>();
+  return { ...orig, controlerSousTitres: (...a: Parameters<typeof orig.controlerSousTitres>) => { if (forcer.erreur) throw new Error("panne simulée"); return orig.controlerSousTitres(...a); } };
+});
 
 const MAINTENANT = "2026-10-02T08:00:00.000Z";
 
@@ -115,5 +121,17 @@ describe("contrôle des sous-titres branché sur la composition", () => {
     const p = parametresComposition(commande(texte), entree(segments), RECETTE_COMPOSITION_AVOCAT);
     expect(p.texte.sousTitres).toBeDefined();
     expect(controlerSousTitres(p.texte.sousTitres!, { texte }).map((x) => x.code)).toContain("vitesse-lecture");
+  });
+
+  it("une erreur levée par le contrôle ne fait jamais échouer la composition", () => {
+    const { texte, segments } = phrase(12, 2);
+    forcer.erreur = true;
+    try {
+      const p = parametresComposition(commande(texte), entree(segments), RECETTE_COMPOSITION_AVOCAT);
+      expect(p.texte.sousTitres).toBeDefined();
+      expect(p.alertes.some((x) => x.code === "vitesse-lecture")).toBe(false);
+    } finally {
+      forcer.erreur = false;
+    }
   });
 });
