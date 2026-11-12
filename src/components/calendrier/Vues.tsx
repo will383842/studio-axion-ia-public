@@ -1,3 +1,5 @@
+"use client";
+
 import { useSyncExternalStore } from "react";
 import { Icone } from "@/components/ui/Icone";
 import { regrouper, replier, type RegroupementPar } from "@/domaine/calendrier/regroupement";
@@ -125,7 +127,7 @@ export function SelecteurDensiteSemaine({ onChange, className }: { onChange?: (d
             choisir(d);
             onChange?.(d);
           }}
-          className={cn("min-h-[38px] rounded-[9px] border px-3 text-sm font-bold", d === densite ? "border-orange bg-orange-doux text-texte" : "border-trait-fort bg-surface-1 text-texte-doux hover:border-orange")}
+          className={cn("min-h-[44px] rounded-[9px] border px-3 text-sm font-bold", d === densite ? "border-orange bg-orange-doux text-texte" : "border-trait-fort bg-surface-1 text-texte-doux hover:border-orange")}
         >
           {DENSITES_SEMAINE[d].libelle}
         </button>

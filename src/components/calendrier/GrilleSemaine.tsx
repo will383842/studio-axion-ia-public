@@ -159,7 +159,7 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
       // Sans lien ni geste : la case se déplie sur place et montre toutes ses publications (elles restent dans la page).
       return (
         <details data-plus={`${reseau}|${jour}`} className="flex flex-col gap-1">
-          <summary aria-label={libelle} className={cn(classes, "cursor-pointer list-none")}>
+          <summary aria-label={libelle} className={cn(classes, "flex min-h-[44px] cursor-pointer list-none items-center justify-center")}>
             {contenu}
           </summary>
           <div className="mt-1 flex flex-col gap-1">{cachees.map((e) => carteDe(e))}</div>
