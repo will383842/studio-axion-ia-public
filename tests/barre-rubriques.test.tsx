@@ -20,8 +20,10 @@ function rendre(c: string, options: { surLeSite?: boolean; aPublier?: boolean } 
   chemin = c;
   return renderToStaticMarkup(createElement(BarreLaterale, { formats: [], actionDeconnexion: async () => undefined, ...options }));
 }
-/** L'en-tête d'une rubrique pliable : le lien qui porte aria-expanded, repéré par son libellé. */
-const entete = (html: string, libelle: string) => html.match(new RegExp(`<a[^>]*aria-expanded="(?:true|false)"[^>]*>(?:(?!</a>)[\\s\\S])*${libelle}`))?.[0] ?? "";
+/** Le bouton du chevron d'une rubrique pliable (aria-expanded + aria-label « Ouvrir/Fermer X »). */
+const entete = (html: string, libelle: string) => html.match(new RegExp(`<button[^>]*aria-expanded="(?:true|false)"[^>]*aria-label="(?:Ouvrir|Fermer) ${libelle}"[^>]*>`))?.[0] ?? "";
+/** Le lien (icône + libellé) de la rubrique : sa balise ouvrante et son contenu jusqu'au libellé. */
+const lien = (html: string, libelle: string) => html.match(new RegExp(`<a[^>]*>(?:(?!</a>)[\\s\\S])*${libelle}`))?.[0] ?? "";
 const nbCourant = (html: string) => html.match(/aria-current="page"/g)?.length ?? 0;
 
 describe("structure des sept rubriques", () => {
@@ -95,12 +97,12 @@ describe("lien direct quand il ne reste qu'une sous-rubrique", () => {
     expect(nav.estPliable(avecA)).toBe(true);
     expect(nav.cibleRubrique(avecA).href).toBe("/a-publier");
     expect(nav.cibleRubrique(nav.rubriquesLaterales(true, false).find((r) => r.id === "publier")!).href).toBe("/sur-le-site");
-    expect(entete(rendre("/mesures", { aPublier: true }), "Publier")).toContain('href="/a-publier"');
+    expect(lien(rendre("/mesures", { aPublier: true }), "Publier")).toContain('href="/a-publier"');
   });
   it("le clic sur Mes contenus mène à Vidéos, sur Ressources à Personnages", () => {
     const html = rendre("/mesures");
-    expect(entete(html, "Mes contenus")).toContain('href="/videos"');
-    expect(entete(html, "Ressources")).toContain('href="/personnages"');
+    expect(lien(html, "Mes contenus")).toContain('href="/videos"');
+    expect(lien(html, "Ressources")).toContain('href="/personnages"');
   });
 });
 
@@ -113,10 +115,36 @@ describe("pages hors barre mais trouvables", () => {
     expect(hrefs("tous mes contenus")).toContain("/contenus");
     expect(hrefs("modeles")).toContain("/modeles");
   });
-  it("les écrans de création sont trouvables", () => {
-    expect(hrefs("cas concret")).toContain("/cas-concret");
-    expect(hrefs("tableau")).toContain("/tableau/nouvelle");
-    expect(hrefs("image")).toContain("/image-video");
-    expect(hrefs("face camera")).toContain("/face-camera-animee");
+  it("les écrans de création ne sont plus dans la recherche (ils passent par Nouvelle vidéo et la feuille Créer)", () => {
+    for (const [q, h] of [["cas concret", "/cas-concret"], ["tableau", "/tableau/nouvelle"], ["image", "/image-video"], ["face camera", "/face-camera-animee"]]) expect(hrefs(q), q).not.toContain(h);
+  });
+});
+
+describe("en-tête de rubrique : le lien navigue, le bouton plie", () => {
+  it("le bouton du chevron (44 px) porte aria-expanded, aria-controls et un nom « Ouvrir/Fermer … » ; le lien n'a pas aria-expanded", () => {
+    const html = rendre("/carrousels");
+    const b = entete(html, "Mes contenus");
+    expect(b).toContain('aria-label="Fermer Mes contenus"');
+    expect(b).toContain("size-11");
+    expect(entete(rendre("/mesures"), "Ressources")).toContain('aria-label="Ouvrir Ressources"');
+    expect(html).not.toMatch(/<a[^>]*aria-expanded/);
+    const id = b.match(/aria-controls="([^"]+)"/)?.[1];
+    expect(html).toContain(`id="${id}"`);
+  });
+  it("le clic du lien ignore les touches (nouvel onglet) : le code le prévoit", async () => {
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync("src/components/coquille/BarreLaterale.tsx", "utf8")).toContain("ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0");
+  });
+});
+
+describe("feuille « Créer » : formatsCreer", () => {
+  const f = (id: string, statut: "actif" | "bientot" | "masque", extra: Partial<import("@/components/coquille/navigation").FormatNavigation> = {}) => ({ id, nom: `Format ${id}`, icone: "film" as const, statut, nbVideos: 0, ...extra });
+  it("garde les formats actifs ; écarte « bientôt », masqués et essais", () => {
+    const liste = nav.formatsCreer([f("a", "actif"), f("b", "bientot"), f("c", "masque"), f("d", "actif", { essai: true })]);
+    expect(liste.map((x) => x.id)).toEqual(["a"]);
+  });
+  it("adresse de création du registre, sinon repli /nouvelle/<id>", () => {
+    const liste = nav.formatsCreer([f("a", "actif"), f("cas", "actif", { adresseCreation: "/cas-concret" })]);
+    expect(liste.map((x) => x.href)).toEqual(["/nouvelle/a", "/cas-concret"]);
   });
 });

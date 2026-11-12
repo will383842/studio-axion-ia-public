@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { Logo } from "./Logo";
@@ -26,6 +26,16 @@ function lireRubriques(): string {
     return localStorage.getItem(CLE_RUBRIQUES) ?? "{}";
   } catch {
     return "{}";
+  }
+}
+
+/** Lit l'état gardé ; toute valeur qui n'est pas un objet simple (tableau, nombre, texte illisible…) compte pour {}. */
+function analyserRubriques(brut: string): Record<string, boolean> {
+  try {
+    const v: unknown = JSON.parse(brut);
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, boolean>) : {};
+  } catch {
+    return {};
   }
 }
 
@@ -90,29 +100,40 @@ function LigneSousRubrique({ e, courant, apresClic }: { e: EntreeNavigation; cou
   );
 }
 
-/** Rubrique pliable, barre dépliée : un clic l'ouvre ET mène à sa première sous-rubrique ; un clic sur une rubrique ouverte la ferme. */
+/**
+ * Rubrique pliable, barre dépliée. Le lien (icône + libellé) mène toujours à la première sous-rubrique et ouvre la rubrique ;
+ * seul le bouton du chevron (zone de 44 × 44 px) plie et déplie.
+ */
 function RubriquePliable({ r, courant, ouverte, bascule }: { r: RubriqueNavigation; courant: string | null; ouverte: boolean; bascule: (ouvrir: boolean) => void }) {
   const idListe = `${useId()}-sous`;
   const dedans = !ouverte && r.enfants!.some((e) => e.href === courant);
   return (
     <>
-      <Link
-        href={cibleRubrique(r).href}
-        aria-expanded={ouverte}
-        aria-controls={idListe}
-        onClick={(ev) => {
-          if (ouverte) {
-            ev.preventDefault();
-            bascule(false);
-          } else bascule(true);
-        }}
-        className={cn(CLASSE_LIGNE, "text-sm leading-5", classeEtat(dedans))}
-      >
+      <div className={cn("relative flex items-center rounded-lg transition-colors", classeEtat(dedans))}>
         {dedans && <Repere />}
-        <Icone nom={r.icone} size={18} className="shrink-0" />
-        <span className="truncate">{r.libelle}</span>
-        <Icone nom="chevron-droite" size={14} className={cn("ml-auto shrink-0 transition-transform", ouverte && "rotate-90")} />
-      </Link>
+        <Link
+          href={cibleRubrique(r).href}
+          onClick={(ev) => {
+            // Clic avec une touche (nouvel onglet, etc.) : le navigateur fait son travail, on ne touche à rien.
+            if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0) return;
+            if (!ouverte) bascule(true);
+          }}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium leading-5"
+        >
+          <Icone nom={r.icone} size={18} className="shrink-0" />
+          <span className="truncate">{r.libelle}</span>
+        </Link>
+        <button
+          type="button"
+          aria-expanded={ouverte}
+          aria-controls={idListe}
+          aria-label={`${ouverte ? "Fermer" : "Ouvrir"} ${r.libelle}`}
+          onClick={() => bascule(!ouverte)}
+          className="-my-2 grid size-11 shrink-0 place-items-center rounded-lg hover:bg-surface-2"
+        >
+          <Icone nom="chevron-droite" size={14} className={cn("transition-transform", ouverte && "rotate-90")} />
+        </button>
+      </div>
       <ul id={idListe} hidden={!ouverte} className="mt-0.5 space-y-0.5">
         {r.enfants!.map((e) => (
           <li key={e.href}>
@@ -125,23 +146,38 @@ function RubriquePliable({ r, courant, ouverte, bascule }: { r: RubriqueNavigati
 }
 
 /** Rubrique pliable, barre repliée : un clic ouvre un petit menu flottant à droite de la barre (Échap ou clic à côté le ferme). */
-function RubriqueFlottante({ r, courant, ouverte, ouvrir, fermer }: { r: RubriqueNavigation; courant: string | null; ouverte: boolean; ouvrir: (haut: number) => void; fermer: () => void }) {
+function RubriqueFlottante({ r, courant, ouverte, ouvrir, fermer }: { r: RubriqueNavigation; courant: string | null; ouverte: boolean; ouvrir: () => void; fermer: () => void }) {
   const idListe = `${useId()}-flottant`;
   const [haut, setHaut] = useState(8);
+  const bouton = useRef<HTMLButtonElement>(null);
   const dedans = r.enfants!.some((e) => e.href === courant);
+  const page = r.enfants!.find((e) => e.href === courant);
   return (
-    <>
+    <div
+      onKeyDown={(ev) => {
+        // Échap referme le petit menu et rend le focus au bouton de la rubrique.
+        if (ev.key === "Escape" && ouverte) {
+          ev.stopPropagation();
+          fermer();
+          bouton.current?.focus();
+        }
+      }}
+      onBlur={(ev) => {
+        // Le focus quitte la rubrique (bouton + petit menu) : on referme.
+        if (ouverte && !ev.currentTarget.contains(ev.relatedTarget as Node | null)) fermer();
+      }}
+    >
       <button
+        ref={bouton}
         type="button"
-        aria-label={r.libelle}
+        data-bouton-flottant
+        aria-label={page ? `${r.libelle} (page en cours : ${page.libelle})` : r.libelle}
         aria-expanded={ouverte}
-        aria-haspopup="true"
         aria-controls={idListe}
         onClick={(ev) => {
           if (ouverte) return fermer();
-          const h = Math.max(8, Math.min(ev.currentTarget.getBoundingClientRect().top, window.innerHeight - 230));
-          setHaut(h);
-          ouvrir(h);
+          setHaut(Math.max(8, Math.min(ev.currentTarget.getBoundingClientRect().top, window.innerHeight - 230)));
+          ouvrir();
         }}
         className={cn(CLASSE_LIGNE, "w-full flex-col justify-center gap-0.5 px-0 text-sm leading-5", classeEtat(dedans || ouverte))}
       >
@@ -163,7 +199,7 @@ function RubriqueFlottante({ r, courant, ouverte, ouvrir, fermer }: { r: Rubriqu
           ))}
         </ul>
       )}
-    </>
+    </div>
   );
 }
 
@@ -174,18 +210,12 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
   const idNav = `${idBase}-menu`;
   const repliee = useSyncExternalStore(abonner, lireRepliee, () => false);
   const brut = useSyncExternalStore(abonner, lireRubriques, () => "{}");
-  const gardees = useMemo<Record<string, boolean>>(() => {
-    try {
-      const v: unknown = JSON.parse(brut);
-      return v && typeof v === "object" ? (v as Record<string, boolean>) : {};
-    } catch {
-      return {};
-    }
-  }, [brut]);
-  const [flotteBrute, setFlotteBrute] = useState<{ id: string; chemin: string } | null>(null);
-  // Le petit menu flottant ne vaut que pour la page et l'état de la barre où il s'est ouvert.
-  const flotte = repliee && flotteBrute?.chemin === chemin ? flotteBrute.id : null;
-  const setFlotte = (id: string | null) => setFlotteBrute(id ? { id, chemin } : null);
+  const gardees = useMemo(() => analyserRubriques(brut), [brut]);
+  const [flotteBrute, setFlotteBrute] = useState<{ id: string; chemin: string; repliee: boolean } | null>(null);
+  // Le petit menu flottant se vide quand la page ou l'état de la barre change : il ne vaut que pour le couple (page, repli) où il s'est ouvert.
+  // (Calculé plutôt que remis à zéro dans un effet, que la règle react-hooks/set-state-in-effect interdit.)
+  const flotte = repliee && flotteBrute?.chemin === chemin && flotteBrute.repliee === repliee ? flotteBrute.id : null;
+  const setFlotte = (id: string | null) => setFlotteBrute(id ? { id, chemin, repliee } : null);
 
   const courant = hrefCourant(chemin, surLeSite, aPublier);
   const rubriqueDeLaPageId = rubriqueDeLaPage(chemin, surLeSite, aPublier);
@@ -197,29 +227,19 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
   // Une rubrique s'ouvre toute seule quand on arrive sur l'une de ses pages (et c'est gardé).
   useEffect(() => {
     if (rubriqueDeLaPageId) {
-      let actuel: Record<string, boolean> = {};
-      try {
-        actuel = JSON.parse(lireRubriques());
-      } catch {
-        /* état illisible : on repart de zéro */
-      }
+      const actuel = analyserRubriques(lireRubriques());
       if (actuel[rubriqueDeLaPageId] !== true) ecrireRubriques({ ...actuel, [rubriqueDeLaPageId]: true });
     }
   }, [rubriqueDeLaPageId, chemin]);
 
-  // Petit menu flottant : se ferme avec Échap, au clic à côté, et quand la page change.
+  // Clic à côté : ferme le petit menu.
   useEffect(() => {
     if (!flotte) return;
-    const surTouche = (ev: KeyboardEvent) => ev.key === "Escape" && setFlotteBrute(null);
     const surClic = (ev: MouseEvent) => {
-      if (!(ev.target instanceof Element) || !ev.target.closest("[aria-haspopup='true'], [data-flottant]")) setFlotteBrute(null);
+      if (!(ev.target instanceof Element) || !ev.target.closest("[data-bouton-flottant], [data-flottant]")) setFlotteBrute(null);
     };
-    document.addEventListener("keydown", surTouche);
     document.addEventListener("mousedown", surClic);
-    return () => {
-      document.removeEventListener("keydown", surTouche);
-      document.removeEventListener("mousedown", surClic);
-    };
+    return () => document.removeEventListener("mousedown", surClic);
   }, [flotte]);
 
   function basculer() {
@@ -232,7 +252,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
   }
 
   const rubriques = rubriquesLaterales(surLeSite, aPublier);
-  const creerActif = chemin === ACTION_CREER.href || chemin.startsWith(ACTION_CREER.href + "/");
+  const creerActif = courant === ACTION_CREER.href;
   const libelleRepli = repliee ? "Déplier le menu" : "Replier le menu";
 
   return (

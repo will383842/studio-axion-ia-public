@@ -33,11 +33,6 @@ const SYNONYMES: Record<string, string[]> = {
 };
 
 const HORS_MENU: PageRecherchable[] = [
-  // Écrans de création des formats (ils n'ont pas de ligne dans la barre).
-  { href: "/cas-concret", libelle: "Cas concret", icone: "balance", synonymes: ["situation", "exemple"] },
-  { href: "/tableau/nouvelle", libelle: "Vidéo tableau", icone: "ecran-partage", synonymes: ["tableau", "comparatif"] },
-  { href: "/image-video", libelle: "Image → vidéo", icone: "image", synonymes: ["image", "photo", "animer"] },
-  { href: "/face-camera-animee", libelle: "Vidéo face caméra animée", icone: "visage", synonymes: ["facecam", "face camera", "personnage anime"] },
   { href: "/veille", libelle: "Veille des outils", icone: "tendance", synonymes: ["veille", "nouveautes", "mises a jour"] },
   { href: "/outils-motion", libelle: "Outils motion design", icone: "baguette", synonymes: ["motion", "animations"] },
   { href: "/mesures/ce-qui-marche", libelle: "Ce qui marche", icone: "resultats", synonymes: ["succes", "meilleures", "performances"] },
