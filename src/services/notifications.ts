@@ -10,7 +10,7 @@
  * Lire les notifications n'avance plus aucune fabrication : c'est la boucle de fond qui s'en charge.
  */
 import "server-only";
-import { EMAIL_PAS_PRET, TELEPHONE_PAS_PRET } from "@/domaine/notifications-textes";
+import { EMAIL_PAS_PRET, TELEPHONE_PAS_PRET, TEXTE_ALERTE_HEURE_H } from "@/domaine/notifications-textes";
 import type { EnvoiNotification, Id, Notification } from "@/domaine/types";
 import { etatConnexion, resoudreFournisseur, type EtatConnexion } from "@/fournisseurs";
 import { envoyerEmail, type ConfigEmail } from "@/fournisseurs/notification/email";
@@ -88,6 +88,11 @@ export async function creerNotification(n: Omit<Notification, "id" | "creeLe" | 
   return depots().notifications.enregistrer({ id: nouvelId("not"), lue: false, ...horodatage(), ...n, ...(envoi ? { envoi } : {}) });
 }
 
+/** L0-09 · alerte « heure H » : cloche + e-mail forcé, JAMAIS de push (voir `diffuser`). Aucun appel réseau. */
+export async function alerterHeureH(a: { titre: string; message: string }): Promise<Notification> {
+  return creerNotification({ type: "publication", titre: a.titre, message: a.message, lien: "/calendrier" }, { email: true });
+}
+
 /** Canaux d'envoi d'une notification selon les préférences de Will (PUR). La cloche reçoit toujours tout. */
 export function canauxPour(n: Pick<Notification, "type" | "estDemo">, p: PreferencesNotifications, disponibles: { push: boolean }): { push: boolean; email: boolean; emailSiPushEchoue: boolean } {
   const aucun = { push: false, email: false, emailSiPushEchoue: false };
@@ -163,7 +168,7 @@ async function diffuser(dependances: DependancesNotifications): Promise<{ push: 
   for (const n of dues) {
     const envoi = n.envoi!;
     const actifs = (await lireParametre<AbonnementPush[]>("push.abonnements", [])).filter((a) => !a.expireLe);
-    const canaux = envoi.emailForce ? { push: !!push && actifs.length > 0, email: true, emailSiPushEchoue: false } : canauxPour(n, preferences, { push: !!push && actifs.length > 0 });
+    const canaux = envoi.emailForce ? { push: !!push && actifs.length > 0 && n.titre !== TEXTE_ALERTE_HEURE_H.titre, email: true, emailSiPushEchoue: false } : canauxPour(n, preferences, { push: !!push && actifs.length > 0 });
     if (!canaux.push && !canaux.email && !canaux.emailSiPushEchoue) {
       await ecrireEnvoi(n.id, { ...envoi, statut: "ignoree" });
       continue;

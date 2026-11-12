@@ -323,6 +323,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   await lancerAnnexe("lots d'images", async () => (await import("./image-video-lot")).avancerLotsIV(), DELAI_ANNEXE_MS);
   // Audit D, B10 : la file des notifications est en base ; un envoi raté est réessayé aux tours suivants.
   await lancerAnnexe("notifications", () => diffuserNotifications(), DELAI_ANNEXE_MS);
+  void lancerAnnexe("surveillance heure H", async () => (await import("./surveillance-heure-h")).surveillerHeureH(), 0);
 }
 
 /** Un tour de boucle (sauté si un autre est en cours). */
