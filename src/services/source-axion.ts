@@ -38,7 +38,7 @@ const PARAM_REGLAGES = "site.reglages";
 const PARAM_DERNIERE = "site.derniereLecture";
 const PARAM_BILAN = "site.dernierBilan";
 const PARAM_DEPART = "site.depart";
-const LIEN_MATIERES = "/ecrire/matieres";
+const LIEN_MATIERES = "/ecrire?onglet=matieres";
 
 export interface ReglagesSite {
   /** Lecture quotidienne du site (allumée par défaut : lecture publique, gratuite). */

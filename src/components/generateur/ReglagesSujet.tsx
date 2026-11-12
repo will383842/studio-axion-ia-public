@@ -147,7 +147,7 @@ function TuileReglage({ etiquette, icone, onClick, large, accent, children }: { 
     >
       <span className="text-[11px] font-bold uppercase tracking-wider text-texte-faible">{etiquette}</span>
       <span className="flex items-center gap-2 text-[15px] font-semibold text-texte">
-        {icone && <Icone nom={icone} size={18} className="text-orange-vif" />}
+        {icone && <Icone nom={icone} size={18} className="text-accent" />}
         {children}
       </span>
     </button>

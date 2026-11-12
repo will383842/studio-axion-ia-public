@@ -21,7 +21,7 @@ import type { EtatSuivi } from "@/components/creation/SuiviFabrication";
 import { ActionsSuivi } from "@/components/fabrication/ActionsSuivi";
 import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { Bouton } from "@/components/ui/Bouton";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { ProgressionEtapes } from "@/components/ui/ProgressionEtapes";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
@@ -96,7 +96,7 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
       if (dejaRelance) return setPhrase({ texte: "Cela a changé, réessayez.", ton: "refus" });
       return envoyer(confirme, true);
     }
-    if (issue.statut === "refusee") return setPhrase({ texte: issue.phrase, ton: "refus" });
+    if (issue.statut === "refusee") return setPhrase({ texte: messageSansMontant(issue.phrase), ton: "refus" });
     setRelance({ tentatives: t.tentatives, etape: echec?.nom });
     minuteries.current.forEach(clearTimeout);
     minuteries.current = RELECTURES_MS.map((ms) => setTimeout(() => void actualiser(), ms));

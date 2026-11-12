@@ -42,6 +42,16 @@ export function confirmerPrix(r: { message: string; montant?: number }): Promise
   });
 }
 
+// Symboles écrits en code (u20ac = euro, x24 = dollar) : le fichier lui-même ne porte aucun symbole d'argent.
+const SYM = "[\\u20ac\\x24]";
+const UNITE = "(?:\\u20ac|\\x24|euros?|dollars?|EUR|USD|cents?)";
+const MONTANT_DANS_TEXTE = new RegExp(`(?:(?:environ|au plus|jusqu['\u2019]\u00e0|pr\u00e8s de|autour de)\\s+)?(?:${SYM}\\s*\\d[\\d.,]*|\\d[\\d\\s\\u00a0\\u202f.,]*\\s*${UNITE}(?![\\p{L}]))`, "giu");
+
+/** Règle du fondateur : aucun montant à l'écran. Un prix glissé dans un message du serveur est remplacé par « ce coût ». */
+export function messageSansMontant(message: string): string {
+  return message.replace(MONTANT_DANS_TEXTE, "ce coût").replace(new RegExp(`${SYM}|\\b(?:euros?|dollars?)\\b`, "gi"), "").replace(/\(\s*(?:≈|~)?\s*ce coût\s*\)/g, "").replace(/\s{2,}/g, " ").trim();
+}
+
 export function HoteConfirmationPrix() {
   const d = useSyncExternalStore(
     abonner,
@@ -70,7 +80,7 @@ export function HoteConfirmationPrix() {
       }
     >
       <div className="flex flex-col items-center gap-3 py-2 text-center">
-        {d?.message && <p className="max-w-sm text-sm text-texte-doux">{d.message}</p>}
+        {d?.message && <p className="max-w-sm text-sm text-texte-doux">{messageSansMontant(d.message)}</p>}
       </div>
     </FeuilleBas>
   );

@@ -30,12 +30,12 @@ function surveiller(page: Page) {
   return erreurs;
 }
 
-test("Bibliothèque › Mes animations : s'ouvre en chargement direct (pas de 404) et depuis la Bibliothèque", async ({ page }) => {
+test("Bibliothèque › Animations : s'ouvre en chargement direct (pas de 404) et depuis la Bibliothèque", async ({ page }) => {
   await seConnecter(page);
   const erreurs = surveiller(page);
   const r = await page.goto("/bibliotheque/animations");
   expect(r?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: "Mes animations", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Animations", exact: true, level: 1 })).toBeVisible();
   // La Bibliothèque précharge le lien : aucune requête en échec.
   await page.goto("/bibliotheque");
   await page.waitForLoadState("networkidle");
