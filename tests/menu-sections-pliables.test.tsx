@@ -23,9 +23,9 @@ const sourceBarre = lire("src/components/coquille/BarreLaterale.tsx");
 
 describe("rubriques pliables", () => {
   it("deux rubriques pliables ici (Mes contenus, Ressources) avec aria-expanded ; « Publier » n'a qu'une sous-rubrique visible : lien direct vers /mots, sans pli ; plus de titres h2 de groupe", () => {
-    for (const t of ["Mes contenus", "Ressources"]) expect(html).toMatch(new RegExp(`<a[^>]*aria-expanded="(true|false)"[^>]*>(?:(?!</a>)[\\s\\S])*${t}`));
+    for (const t of ["Mes contenus", "Ressources"]) expect(html).toMatch(new RegExp(`<button[^>]*aria-expanded="(true|false)"[^>]*aria-label="(?:Ouvrir|Fermer) ${t}"`));
     expect(html).toMatch(/<a[^>]*href="\/mots"[^>]*>(?:(?!<\/a>)[\s\S])*Publier/);
-    expect(html).not.toMatch(/<a[^>]*aria-expanded[^>]*href="\/mots"/);
+    expect(html).not.toMatch(/<button[^>]*aria-expanded[^>]*href="\/mots"/);
     expect(html.match(/<h2/g)).toHaveLength(1); // seul « Compte » (pied), réservé aux lecteurs d'écran
     expect(html).not.toContain("aria-disabled");
   });
@@ -79,7 +79,7 @@ describe("barre latérale compacte (bureau)", () => {
     expect(html).toMatch(/<button[^>]*font-medium[^>]*>(?:<svg|<span)[\s\S]*?Me déconnecter/);
   });
   it("en-têtes de rubrique pliable : 14 px, graisse 500, comme les autres entrées (jamais en gras)", () => {
-    const entete = html.match(/<a[^>]*aria-expanded[^>]*>/)?.[0] ?? "";
+    const entete = html.match(/<a[^>]*href="\/videos"[^>]*>/)?.[0] ?? ""; // le lien de l'en-tête « Mes contenus » (le bouton du chevron plie)
     expect(entete).toContain("text-sm");
     expect(entete).toContain("font-medium");
     expect(entete).not.toContain("font-semibold");

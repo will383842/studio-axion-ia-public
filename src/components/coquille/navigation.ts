@@ -200,3 +200,8 @@ export function formatActif(chemin: string, f: Pick<FormatNavigation, "id" | "ad
   const adresse = f.adresseCreation;
   return !!adresse && (chemin === adresse || chemin.startsWith(adresse + "/"));
 }
+
+/** Formats proposés par la feuille « Créer » du téléphone : les formats actifs, hors essais réservés ; adresse de repli `/nouvelle/<id>`. */
+export function formatsCreer(formats: readonly FormatNavigation[]): { id: string; nom: string; icone: NomIcone; href: string }[] {
+  return formats.filter((f) => f.statut === "actif" && !f.essai).map((f) => ({ id: f.id, nom: f.nom, icone: f.icone, href: f.adresseCreation ?? `/nouvelle/${f.id}` }));
+}
