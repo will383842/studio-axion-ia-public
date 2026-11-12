@@ -1,5 +1,5 @@
 {
-  "texte": "Williams Jullin, d'Axion-IA, vous explique tout cela simplement.",
+  "texte": "Williams ici, d'Axion-IA, vous explique tout cela simplement.",
   "mots": [
     {
       "mot": "Williams",
@@ -7,7 +7,7 @@
       "finSec": 0.66
     },
     {
-      "mot": "Jullin,",
+      "mot": "ici,",
       "debutSec": 0.7,
       "finSec": 1
     },
