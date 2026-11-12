@@ -48,6 +48,7 @@
   --barre-accent: #0f3a5c;
   --barre-encre: #ffffff;
   --barre-ok: #17602a;
+  --barre-bouton-fond: #ffffff; /* fond du bouton « Nouvelle vidéo » en contour (la barre redéfinit --surface-1) */
   /* Familles de contenu (toujours avec le nom écrit à côté) */
   --fam-video: #5b3cb0;
   --fam-video-doux: #ece7fa;
@@ -138,6 +139,7 @@
   --barre-accent: #8ecdf7;
   --barre-encre: #0a2236;
   --barre-ok: #7fd08a;
+  --barre-bouton-fond: #1d2833;
   --fam-video: #c3b2f5;
   --fam-video-doux: #2a2347;
   --fam-carrousel: #cdd88a;
@@ -237,6 +239,7 @@
   --color-barre-accent: var(--barre-accent);
   --color-barre-encre: var(--barre-encre);
   --color-barre-ok: var(--barre-ok);
+  --color-barre-bouton-fond: var(--barre-bouton-fond);
   --color-fam-video: var(--fam-video);
   --color-fam-video-doux: var(--fam-video-doux);
   --color-fam-carrousel: var(--fam-carrousel);

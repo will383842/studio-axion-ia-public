@@ -8,10 +8,12 @@ import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
 import { Tuile } from "@/components/ui/Tuile";
 import { cn } from "@/lib/cn";
+import { useEcranAUnBoutonPrincipal, varianteNouvelleVideo } from "@/lib/ecran-principal";
 import { estActif, ONGLETS_BAS, sectionsPlusMobile, tuilesPlusMobile, formatsCreer, type FormatNavigation } from "./navigation";
 
 /** Onglets du bas (mobile < 1024 px) : Accueil · Vidéos · ➕ · Écrire · Plus. */
 export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false, aPublier = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
+  const ecranAPrincipal = useEcranAUnBoutonPrincipal();
   const chemin = usePathname();
   const [plus, setPlus] = useState(false);
   const [creer, setCreer] = useState(false);
@@ -38,7 +40,10 @@ export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false,
                     aria-label="Créer"
                     aria-haspopup="dialog"
                     aria-expanded={creer}
-                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-barre-fond transition-transform active:scale-95"
+                    className={cn(
+                      "-mt-6 grid size-[60px] place-items-center rounded-full ring-4 ring-barre-fond transition-transform active:scale-95",
+                      varianteNouvelleVideo(ecranAPrincipal) === "plein" ? "bg-orange text-sur-orange shadow-orange" : "border-2 border-orange bg-barre-bouton-fond text-orange-vif hover:border-orange-vif",
+                    )}
                   >
                     <Icone nom="plus" size={28} strokeWidth={2.4} />
                   </button>
