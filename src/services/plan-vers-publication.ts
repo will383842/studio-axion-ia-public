@@ -51,6 +51,11 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
     if (c.aRenvoyer) throw new Error("À renvoyer à l'usine après un décalage : le rejeu est refusé.");
     if (plan.some((l) => !l.existante)) { const porte = peutProgrammer(c); if (!porte.ok) throw new Error(porte.raison); }
   }
+  // Hors rejeu (!deja), une Publication existante à une autre date appartient à un autre créneau (même visuel) :
+  // on ne la déplace pas. Une reprise après coupure garde les mêmes dates et passe.
+  if (!deja && plan.some((l) => l.existante && l.existante.date !== c.heuresParReseau[l.reseau])) {
+    throw new Error("Visuel déjà programmé sur un autre créneau : refus, aucune Publication déplacée.");
+  }
   const publications: Publication[] = [];
   for (const { reseau, id, existante } of plan) {
     const date = c.heuresParReseau[reseau]!;
