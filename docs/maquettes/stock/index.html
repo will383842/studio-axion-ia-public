@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stock</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Maquette sur fond clair, mêmes couleurs que la maquette du calendrier. Une couleur = un réseau. L'orange = la seule action principale. */
+:root{--fond:#f4efe7;--s1:#fbf8f3;--s2:#ffffff;--s3:#ece5d9;--trait:#e2d9cb;--trait2:#cbbfae;--texte:#1d1915;--doux:#5a5148;--faible:#6f655b;--orange:#b4512a;--sur:#fff6ec;--vert:#2f6b3a;--vertf:#e3f0e2;--ambre:#8a5a00;--ambref:#fbecc8;--rouge:#b0361f;--rougef:#f9e0da;--gris:#5a5148;--grisf:#ece5d9;--aujf:#fff3e6;
+--LI:#0a66c2;--IG:#d6336c;--FB:#3b5bdb;--TT:#0b8f8a;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font:14px/1.45 Manrope,system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.t{font-family:"Archivo Black","Arial Black",sans-serif;font-weight:400}
+.maq{background:var(--ambref);color:var(--ambre);font-size:12px;font-weight:700;padding:5px 16px;text-align:center}
+.app{display:grid;grid-template-columns:196px minmax(0,1fr);min-height:calc(100vh - 28px)}
+.menu{background:var(--s1);border-right:1px solid var(--trait);padding:14px 10px}
+.menu b.logo{display:block;padding:4px 8px 12px;font-size:16px}
+.menu .sec{margin:12px 8px 2px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faible)}
+.menu span{display:block;padding:6px 8px;border-radius:8px;color:var(--doux)}
+.menu span.cur{background:var(--s3);color:var(--texte);font-weight:800}
+main{min-width:0;padding:16px 20px 30px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.haut{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+h1{margin:0 8px 0 0;font-size:22px}
+h2{font-size:15px;margin:0 0 4px}
+.btn{border:1px solid var(--trait2);background:var(--s2);border-radius:10px;padding:7px 12px;font-weight:700;min-height:38px}
+.btn:hover{background:var(--s3)}
+.btn.pri{background:var(--orange);border-color:var(--orange);color:var(--sur)}
+.btn.pri:hover{filter:brightness(1.08);background:var(--orange)}
+.pousse{margin-left:auto}
+.petit{color:var(--faible);font-size:12px}
+.res{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+.pas{border:1.5px solid var(--c);background:var(--s2);border-radius:999px;padding:4px 11px 4px 5px;font-weight:700;display:inline-flex;gap:6px;align-items:center;min-height:34px}
+.pas[aria-pressed="false"]{opacity:.45;border-style:dashed}
+.lg{width:22px;height:22px;border-radius:6px;background:var(--c);color:#fff;display:inline-grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+.LI{--c:var(--LI)}.IG{--c:var(--IG)}.FB{--c:var(--FB)}.TT{--c:var(--TT)}
+.bloc{background:var(--s1);border:1px solid var(--trait);border-radius:12px;padding:12px;margin-bottom:12px}
+.bloc p{margin:0 0 8px;color:var(--faible);font-size:12px}
+.liste{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.carte{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid color-mix(in srgb,var(--c) 30%,#fff);border-left:5px solid var(--c);background:color-mix(in srgb,var(--c) 8%,#fff);border-radius:9px;padding:8px 10px;box-shadow:0 1px 2px rgb(60 40 20/.08)}
+.ico{width:44px;height:44px;border-radius:10px;background:var(--s3);border:1px solid var(--trait);display:grid;place-items:center;font-size:20px;color:var(--doux)}
+.vig{display:flex;gap:10px;align-items:center}
+.l1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.l1 .lg{width:18px;height:18px;font-size:9px;border-radius:5px}
+.hh{font-weight:800}
+.ty{font-size:12px;color:var(--doux);font-weight:700}
+.titre1{font-size:13px;color:var(--doux);margin-top:2px}
+.et{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px}
+.e-brouillon{background:var(--grisf);color:var(--gris)}.e-valider{background:var(--ambref);color:var(--ambre)}.e-programme{background:var(--vertf);color:var(--vert)}.e-publie{background:#fff;color:var(--gris);border:1px solid var(--trait2)}.e-corriger{background:var(--rougef);color:var(--rouge)}
+.dit{border-radius:10px;padding:8px 10px;font-weight:700;margin:8px 0}
+.dit.info{background:var(--ambref);color:var(--ambre)}.dit.ok{background:var(--vertf);color:var(--vert)}
+.vide{background:var(--s1);border:1px dashed var(--trait2);border-radius:12px;padding:22px;text-align:center;color:var(--doux);margin-top:8px}
+.seg{display:inline-flex;border:1px solid var(--trait2);border-radius:10px;overflow:hidden;background:var(--s2);flex-wrap:wrap}
+.seg button{border:0;background:none;padding:7px 12px;font-weight:700;min-height:36px;color:var(--doux)}
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--texte);color:#fff}
+.grille3{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tuile{background:var(--s2);border:1px solid var(--trait);border-radius:11px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.tuile .visuel{height:84px;border-radius:8px;background:var(--s3);display:grid;place-items:center;color:var(--doux);font-size:22px}
+label{display:block;font-weight:700;margin:10px 0 4px}
+textarea,input[type=text],select{width:100%;border:1px solid var(--trait2);border-radius:9px;padding:8px;background:#fff}
+.choix{display:flex;gap:6px;flex-wrap:wrap}
+.choix label{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--trait2);border-radius:9px;padding:6px 10px;margin:0;font-weight:600;min-height:38px;background:var(--s2)}
+.deux{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.apercu{background:var(--s2);border:1px solid var(--trait);border-radius:12px;padding:14px;min-height:260px}
+.jauge{height:12px;border-radius:999px;background:var(--s3);overflow:hidden;margin:6px 0 2px}
+.jauge i{display:block;height:100%;background:var(--vert)}
+.jauge.bas i{background:var(--ambre)}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--texte);color:#fff;border-radius:12px;padding:10px 14px;z-index:70;display:none;max-width:92vw}
+.toast.on{display:block}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}.menu{display:none}.deux{grid-template-columns:minmax(0,1fr)}.carte{grid-template-columns:auto minmax(0,1fr)}.carte .btn{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="maq">Maquette fictive : rien n'est branché, rien ne part. Vous pouvez cliquer, tout s'efface au rechargement.</div>
+<div class="app">
+<nav class="menu" aria-label="Menu du Studio (non branché)"><b class="logo t">Studio</b><span>Accueil</span><div class="sec">Contenus</div><span>Mes vidéos</span><span>Carrousels</span><span>Infographie</span><span>Écrire</span><span class="cur">Stock</span><div class="sec">Publier</div><span>Calendrier</span><span>À publier</span><span>À traiter</span><span>Mesures</span><div class="sec">Studio</div><span>Ma réserve</span><span>Réglages</span></nav>
+<main>
+<div class="haut"><h1 class="t">Stock</h1><button class="btn pri pousse" id="imp">+ Importer un fichier</button></div>
+<p class="petit">Votre stock : tout ce qui est prêt et n'a pas encore de date. Glissez-le ensuite sur un jour du calendrier.</p>
+<div class="bloc"><div class="seg" role="tablist" aria-label="Types de contenu"><button role="tab" id="o-textes" aria-selected="true" aria-controls="p-textes" data-o="textes">Textes</button><button role="tab" id="o-images" aria-selected="false" aria-controls="p-images" data-o="images">Images</button><button role="tab" id="o-videos" aria-selected="false" aria-controls="p-videos" data-o="videos">Vidéos</button><button role="tab" id="o-carrousels" aria-selected="false" aria-controls="p-carrousels" data-o="carrousels">Carrousels</button><button role="tab" id="o-infographies" aria-selected="false" aria-controls="p-infographies" data-o="infographies">Infographies</button></div>
+<div style="margin-top:12px"><div role="tabpanel" id="p-textes" aria-labelledby="o-textes"><div class="grille3"><div class="tuile"><div class="visuel" aria-hidden="true">T</div><b>Deux entreprises, même métier</b><span class="petit">Texte prêt, inutilisé</span></div><div class="tuile"><div class="visuel" aria-hidden="true">T</div><b>Les sept fuites de temps</b><span class="petit">Texte prêt</span></div><div class="tuile"><div class="visuel" aria-hidden="true">T</div><b>Ce que nous refusons de faire</b><span class="petit">Texte prêt</span></div><div class="tuile"><div class="visuel" aria-hidden="true">T</div><b>Cinq questions avant un outil</b><span class="petit">Texte prêt</span></div></div></div><div role="tabpanel" id="p-images" aria-labelledby="o-images" hidden><div class="grille3"><div class="tuile"><div class="visuel" aria-hidden="true">▣</div><b>Bureau lumineux</b><span class="petit">Image, inutilisé</span></div><div class="tuile"><div class="visuel" aria-hidden="true">▣</div><b>Équipe en réunion</b><span class="petit">Image</span></div><div class="tuile"><div class="visuel" aria-hidden="true">▣</div><b>Carnet et stylo</b><span class="petit">Image</span></div></div></div><div role="tabpanel" id="p-videos" aria-labelledby="o-videos" hidden><div class="grille3"><div class="tuile"><div class="visuel" aria-hidden="true">▶</div><b>Présentation, 45 s</b><span class="petit">Vidéo, inutilisé</span></div><div class="tuile"><div class="visuel" aria-hidden="true">▶</div><b>Conseil du lundi, 30 s</b><span class="petit">Vidéo</span></div></div></div><div role="tabpanel" id="p-carrousels" aria-labelledby="o-carrousels" hidden><div class="grille3"><div class="tuile"><div class="visuel" aria-hidden="true">▤</div><b>Sept fuites, 8 pages</b><span class="petit">Carrousel, inutilisé</span></div><div class="tuile"><div class="visuel" aria-hidden="true">▤</div><b>Cinq questions, 6 pages</b><span class="petit">Carrousel</span></div></div></div><div role="tabpanel" id="p-infographies" aria-labelledby="o-infographies" hidden><div class="grille3"><div class="vide">Rien en stock pour le moment. Importez un fichier ou créez une infographie.</div></div></div></div></div>
+<div class="dit info">Rien n'est jamais effacé : ce que vous retirez du stock est rangé dans les archives.</div>
+</main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
+function dire(m){const t=q('#toast');t.textContent=m;t.classList.add('on');clearTimeout(dire.h);dire.h=setTimeout(()=>t.classList.remove('on'),2600);}
+qa('[role=tab]').forEach(t=>t.onclick=()=>{qa('[role=tab]').forEach(x=>{const s=x===t;x.setAttribute('aria-selected',String(s));q('#p-'+x.dataset.o).hidden=!s;});});
+q('#imp').onclick=()=>dire('Maquette : aucun fichier n\'est lu.');
+</script>
+</body>
+</html>

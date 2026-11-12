@@ -45,7 +45,7 @@ describe.each(ECRANS)("maquette %s", (ecran) => {
 
   it("vouvoie : aucun tutoiement dans les textes", () => {
     const t = texteVisible(lire(ecran));
-    expect(t).not.toMatch(/\b(?:tu|toi|ton|ta|tes|t')\b/i);
+    expect(t).not.toMatch(/(?<![\p{L}\p{N}])(?:tu|toi|ton|ta|tes|t')(?![\p{L}\p{N}])/iu);
     expect(t).not.toMatch(/\b(?:clique|choisis|ajoute|glisse|importe|écris|crée|regarde)\b/i);
     expect(t).toMatch(/\bvous\b|\bvotre\b|\bvos\b/i);
   });
