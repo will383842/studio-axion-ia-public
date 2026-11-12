@@ -144,6 +144,22 @@ describe("plus aucune citation de la vidéo", () => {
   });
 });
 
+describe("créneaux éditoriaux", () => {
+  it("un créneau qui cite la vidéo reste, mais oublie la vidéo (détaché) ; le créneau d'une autre vidéo est intact", async () => {
+    const d = depots();
+    const base = { jourVise: "2026-11-25", compteCible: "compte-fictif-1", statut: "propose" as const, decalages: 0, heuresParReseau: {}, ...H };
+    await d.creneauxEditoriaux.enregistrer({ id: "cr-1", videoId: ID, ...base });
+    await d.creneauxEditoriaux.enregistrer({ id: "cr-2", videoId: AUTRE, ...base });
+    expect(suppression.TRAITEMENT_SUPPRESSION.creneauxEditoriaux).toBe("detache");
+    await videos.supprimerVideoDefinitivement(ID);
+    expect(await citations(ID)).toEqual([]);
+    const c1 = await d.creneauxEditoriaux.obtenir("cr-1");
+    expect(c1).not.toBeNull();
+    expect(c1!.videoId).toBeUndefined();
+    expect((await d.creneauxEditoriaux.obtenir("cr-2"))!.videoId).toBe(AUTRE);
+  });
+});
+
 describe("objets du stockage", () => {
   it("quatre dossiers + fiches de scènes + fichier et objets cités effacés ; leurres, voisin et objet partagé gardés", async () => {
     await semer();

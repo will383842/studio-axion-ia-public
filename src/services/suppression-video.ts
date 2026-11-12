@@ -79,7 +79,7 @@ export const TRAITEMENT_SUPPRESSION: Record<keyof Depots, Traitement> = {
   relevesSoldes: "sans-lien",
   scriptsMaitres: "sans-lien",
   stockMessages: "sans-lien",
-  creneauxEditoriaux: "sans-lien",
+  creneauxEditoriaux: "detache",
   journalDecalages: "sans-lien",
   variantes: "detache",
   preuves: "sans-lien",
@@ -340,6 +340,10 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   // 3. Références retirées, l'objet reste : idée, prises de tournage, version par réseau (son texte est gardé).
   for (const i of await d.idees.lister((x) => x.videoId === id)) {
     reecrire("idees", { ...i, videoId: undefined, modifieLe: maintenant() } as unknown as Doc);
+  }
+  // Créneau du plan éditorial : il reste (rien n'est supprimé), il oublie seulement la vidéo.
+  for (const c of await d.creneauxEditoriaux.lister((x) => x.videoId === id)) {
+    reecrire("creneauxEditoriaux", { ...c, videoId: undefined } as unknown as Doc);
   }
   for (const s of await d.sessionsTournage.lister((x) => x.prises.some((p) => p.videoId === id))) {
     reecrire("sessionsTournage", { ...s, prises: s.prises.map(({ videoId, ...p }) => (videoId === id ? p : { ...p, videoId })), modifieLe: maintenant() } as unknown as Doc);
