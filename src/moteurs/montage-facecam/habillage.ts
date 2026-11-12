@@ -43,7 +43,7 @@ export const RECETTE_COMPOSITION_FACECAM: RecetteComposition = {
   incrustations: { hautPct: 50, montantTaillePx: 96, objetLargeurPct: 33, dureeMinSec: 0.4 },
   // Le Look est déjà dans la piste (passe image du lot B) : grain très léger (tramage), aucune vignette ajoutée.
   realisme: { grainPct: 2, grainTaillePx: 1.5, vignettePct: 0 },
-  lutIntensiteParDefaut: 100,
+  lutIntensiteParDefaut: 100, // jamais lu pour la face caméra : la commande donne toujours l'intensité
 };
 
 /** Une carte posée par le monteur (lot D) ou choisie d'office. */
@@ -89,6 +89,8 @@ export interface EntreeHabillageFacecam {
   versionSimple?: boolean;
   /** LUT du Look Will (pour les B-roll). */
   lookLutCle?: string;
+  /** Intensité (0 à 1) de la LUT du Look sur les plans d'illustration : celle de la commande, comme sur la prise. */
+  lookLutIntensite?: number;
   /** Préfixe des clés R2 des cartes rendues (ex. `studio/prod/videos/<id>/<version>/cartes`). */
   prefixeCartes: string;
 }
@@ -282,8 +284,14 @@ export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
     ...(ecransPartages.length ? { ecransPartages } : {}),
     ...(cartesPleinEcran.length ? { cartesPleinEcran } : {}),
     ...(misesEnPage.length ? { misesEnPage } : {}),
-    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle } } : {}),
+    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle, ...(e.lookLutIntensite !== undefined ? { intensite: e.lookLutIntensite } : {}) } } : {}),
     ...(textesAffiches.length ? { textesAffiches } : {}),
   };
   return { cartes, entree, segments, cartesAuto, cartesAutoVues, sourceMotsImportants };
+}
+
+/** Intensité de la LUT de la commande (0 à 100) : erreur lisible si elle manque (elle est toujours remplie à la fabrication). */
+export function intensiteLutCommande(lut: { intensite?: number } | null | undefined): number {
+  if (lut?.intensite === undefined) throw new Error("Intensité de la LUT absente de la commande face caméra.");
+  return lut.intensite;
 }

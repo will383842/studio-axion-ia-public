@@ -323,7 +323,8 @@ describe("Format masqué", () => {
     expect(formatTableauAnime.statut).toBe("actif");
     const html = renderToStaticMarkup(await PageNouvelleTableau({}));
     expect(html).not.toContain("Pas encore ouvert");
-    expect(html).toContain("Tableau animé");
+    // Décision de Williams du 12/11 (refonte R6, maquette M3) : le nom affiché du format est « L'erreur corrigée ».
+    expect(html).toContain("erreur corrigée");
     expect(adresseCreationFormat({ id: "tableau-anime" })).toBe("/tableau/nouvelle");
     expect(listerFormatsNavigation().map((f) => f.id)).toContain("tableau-anime");
   });
@@ -400,11 +401,12 @@ describe("essai par l'écran du 12/10 : petits défauts et arrêt à la relectur
     expect(vide.scenes.find((x) => x.id === s.id)!.elements.some((e) => e.type === "ligne" && e.importants)).toBe(false);
   });
 
-  it("l'écran montre la case juste au-dessus de « Fabriquer la vidéo », le bouton inactif et la raison tant qu'elle n'est pas cochée", async () => {
+  it("l'écran montre la case juste au-dessus du bouton « Fabriquer », le bouton inactif et la raison tant qu'elle n'est pas cochée", async () => {
     const videoId = await brouillon();
     const html = renderToStaticMarkup(await PageNouvelleTableau({ searchParams: Promise.resolve({ brouillon: videoId }) }));
     const iCase = html.indexOf("Ce conseil n&#x27;est pas en première page d&#x27;une recherche");
-    const iBouton = html.indexOf("Fabriquer la vidéo");
+    // Le texte du BOUTON « Fabriquer » (libellé unique : maquette M3 et décision du fondateur du 12/11), pas l'aria-label de la section.
+    const iBouton = html.search(/>\s*Fabriquer\s*</);
     expect(iCase).toBeGreaterThan(0);
     expect(iBouton).toBeGreaterThan(iCase);
     expect(html).toContain("Cherchez le sujet sur Google : si le même conseil apparaît en première page, la vidéo n&#x27;apporte rien.");
@@ -415,7 +417,7 @@ describe("essai par l'écran du 12/10 : petits défauts et arrêt à la relectur
     expect(inactif(html, iBouton)).toBe(true);
     await cocherDejaVuTableau(videoId, true, { aujourdhui: AUJOURDHUI_EXEMPLES });
     const coche = renderToStaticMarkup(await PageNouvelleTableau({ searchParams: Promise.resolve({ brouillon: videoId }) }));
-    const i2 = coche.indexOf("Fabriquer la vidéo");
+    const i2 = coche.search(/>\s*Fabriquer\s*</);
     expect(inactif(coche, i2)).toBe(false);
   });
 

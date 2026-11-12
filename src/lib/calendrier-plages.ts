@@ -51,3 +51,8 @@ export function plageMois(jour: string): PlageMois {
   const semaines = Array.from({ length: 6 }, (_, i) => jours.slice(i * 7, i * 7 + 7));
   return { mois, jours, semaines, debutIso: instantParis(jours[0], "00:00"), finIso: finDeJour(jours[41]) };
 }
+
+/** Adresse de la vue Jour d'un jour (un clic sur un jour du mois ouvre ce jour, pas sa semaine). `suite` : filtres déjà écrits (« &reseaux=… »). */
+export function adresseVueJour(jour: string, suite = ""): string {
+  return `/calendrier?vue=jour&date=${jour}${suite}`;
+}
