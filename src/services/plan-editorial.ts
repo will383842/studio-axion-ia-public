@@ -57,29 +57,34 @@ export async function decaler(d: DepotsPlan, id: string, demande: DemandeDecalag
   const c = await lire(d, id);
   const idLigne = `decalage:${id}:${demande.cle}`;
   const ligne = await d.journal.obtenir(idLigne);
-  // Rejeu : on ne réapplique que si la ligne de cette clé est la DERNIÈRE du créneau et que le créneau est encore à son ancien jour
-  // (écriture du créneau tombée en panne) ; sinon (déjà appliqué, ou décalé depuis) on rend le créneau tel quel.
+  // Rejeu d'une clé déjà journalisée : indépendant de l'ordre de lecture du journal. On ne réapplique que s'il reste exactement UNE ligne non
+  // appliquée pour ce créneau (nombre de lignes = décalages + 1) ET que le créneau est encore à l'ancien jour de cette ligne (écriture du
+  // créneau tombée en panne) ; sinon (déjà appliqué, ou décalé depuis) on rend le créneau tel quel. La ligne du journal fait foi (jour, raison).
+  const lignes = await d.journal.lister((l) => l.creneauId === id);
   if (ligne) {
-    const lignes = await d.journal.lister((l) => l.creneauId === id);
-    const derniere = lignes.length > 0 && lignes[lignes.length - 1].id === idLigne;
-    if (!derniere || c.jourVise !== ligne.ancienJour) return c;
+    if (c.jourVise !== ligne.ancienJour || lignes.length !== c.decalages + 1) return c;
+  } else if (lignes.length > c.decalages) {
+    // Une ligne d'un décalage précédent n'a pas été appliquée au créneau : rejouer d'abord sa clé (sinon « un décalage = une ligne » est faux).
+    throw new Error(`Décalage refusé : un décalage précédent du créneau ${id} n'a pas été appliqué ; rejouer d'abord sa clé.`);
   }
   if (c.statut === "publie") throw new Error(`Décalage refusé : le créneau ${id} est publié.`);
   if (c.statut === "archive") throw new Error(`Décalage refusé : le créneau ${id} est archivé.`);
   if (c.statut === "programme" || c.statut === "echec") {
     throw new Error(`Décalage refusé : le créneau ${id} est « ${c.statut} », un envoi existe déjà ; le repasser d'abord à « valide » après retrait de l'envoi.`);
   }
-  if (!JOUR.test(demande.nouveauJour) || Number.isNaN(Date.parse(demande.nouveauJour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
+  // En réapplication, la ligne du journal fait foi : une même clé n'a jamais deux effets différents.
+  const nouveauJour = ligne ? ligne.nouveauJour : demande.nouveauJour;
+  if (!JOUR.test(nouveauJour) || Number.isNaN(Date.parse(nouveauJour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
   const heures: CreneauEditorial["heuresParReseau"] = {};
   for (const [reseau, h] of Object.entries(c.heuresParReseau)) {
-    if (h) heures[reseau as keyof typeof heures] = instantParis(demande.nouveauJour, heureAffichageParis(h));
+    if (h) heures[reseau as keyof typeof heures] = instantParis(nouveauJour, heureAffichageParis(h));
   }
   const modifie: CreneauPlan = {
-    ...c, jourVise: demande.nouveauJour, heuresParReseau: heures, decalages: c.decalages + 1,
+    ...c, jourVise: nouveauJour, heuresParReseau: heures, decalages: c.decalages + 1,
     ...(estConfie(c) ? { aRenvoyer: true } : {}),
   };
   // Journal (ajout seul) puis créneau ; un rejeu avec la même clé réapplique le créneau si besoin, sans second journal.
-  if (!ligne) await d.journal.enregistrer({ id: idLigne, creneauId: id, ancienJour: c.jourVise, nouveauJour: demande.nouveauJour, raison: demande.raison, creeLe: maintenant });
+  if (!ligne) await d.journal.enregistrer({ id: idLigne, creneauId: id, ancienJour: c.jourVise, nouveauJour, raison: demande.raison, creeLe: maintenant });
   return d.creneaux.enregistrer(modifie);
 }
 

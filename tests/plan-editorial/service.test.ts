@@ -119,6 +119,52 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
     expect((await d.creneaux.obtenir("c1"))?.jourVise).toBe("2026-11-28");
     expect(await d.journal.lister()).toHaveLength(2);
   });
+  it("correction relecture v1-w1 : un rejeu après panne avec un autre jour applique le jour de la ligne du journal", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    const vrai = d.creneaux.enregistrer.bind(d.creneaux);
+    let panne = true;
+    d.creneaux.enregistrer = async (e) => { if (panne) throw new Error("panne"); return vrai(e); };
+    await expect(decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0)).rejects.toThrow(/panne/);
+    panne = false;
+    const c = await decaler(d, "c1", { nouveauJour: "2026-11-29", raison: "autre", cle: "k1" }, T0);
+    expect(c.jourVise).toBe("2026-11-27");
+    expect(c.heuresParReseau.linkedin).toBe("2026-11-27T08:30:00.000Z");
+    const lignes = await d.journal.lister();
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0]).toMatchObject({ ancienJour: "2026-11-25", nouveauJour: "2026-11-27", raison: "r" });
+  });
+  it("correction relecture v1-w1 : le rejeu ne dépend pas de l'ordre de lecture du journal (k1 → 27, k2 → 25, journal inversé, rejeu de k1)", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0);
+    await decaler(d, "c1", { nouveauJour: "2026-11-25", raison: "r", cle: "k2" }, T0);
+    const listerVrai = d.journal.lister.bind(d.journal);
+    d.journal.lister = async (f) => (await listerVrai(f)).reverse();
+    const rejeu = await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0);
+    expect(rejeu.jourVise).toBe("2026-11-25");
+    expect(rejeu.decalages).toBe(2);
+    expect((await d.creneaux.obtenir("c1"))?.jourVise).toBe("2026-11-25");
+    expect(await d.journal.lister()).toHaveLength(2);
+  });
+  it("correction relecture v1-w1 : une nouvelle clé est refusée tant qu'une ligne du créneau n'a pas été appliquée", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    const vrai = d.creneaux.enregistrer.bind(d.creneaux);
+    let panne = true;
+    d.creneaux.enregistrer = async (e) => { if (panne) throw new Error("panne"); return vrai(e); };
+    await expect(decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0)).rejects.toThrow(/panne/);
+    panne = false;
+    await expect(decaler(d, "c1", { nouveauJour: "2026-11-28", raison: "r", cle: "k2" }, T0)).rejects.toThrow(/k1|non appliqué|pas été appliqué/i);
+    expect(await d.journal.lister()).toHaveLength(1);
+    expect((await d.creneaux.obtenir("c1"))?.jourVise).toBe("2026-11-25");
+    // le rejeu de k1 termine le décalage, puis k2 passe
+    await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0);
+    const c = await decaler(d, "c1", { nouveauJour: "2026-11-28", raison: "r", cle: "k2" }, T0);
+    expect(c.jourVise).toBe("2026-11-28");
+    expect(c.decalages).toBe(2);
+    expect(await d.journal.lister()).toHaveLength(2);
+  });
   it("refuse un jour invalide et un créneau inconnu", async () => {
     const d = depots();
     await creerCreneau(d, base("c1"), T0);

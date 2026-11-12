@@ -31,7 +31,7 @@ function fermeture(departs: string[]): string[] {
     const f = pile.pop() as string;
     if (vus.has(f)) continue;
     vus.add(f);
-    for (const spec of imports(readFileSync(join(racine, f), "utf8"))) {
+    for (const spec of importsExecutables(readFileSync(join(racine, f), "utf8"))) {
       const r = resoudre(f, spec);
       if (r) pile.push(r);
     }
@@ -46,6 +46,10 @@ export function imports(code: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(code))) res.push(m[1]);
   return res;
+}
+/** Imports qui existent à l'exécution : les `import type` / `export type … from` sont effacés à la compilation et ne tirent aucun module. */
+export function importsExecutables(code: string): string[] {
+  return imports(code.replace(/(?:import|export)\s+type\s+[^;]*?from\s+["'][^"']+["']/g, ""));
 }
 const estFournisseur = (s: string) => /(^|\/)fournisseurs(\/|$)/.test(s);
 
@@ -67,6 +71,10 @@ describe("contrat d'isolation du plan", () => {
       const fautifs = imports(readFileSync(join(racine, f), "utf8")).filter(estFournisseur);
       expect(fautifs, f).toEqual([]);
     }
+  });
+  it("la fermeture ignore les imports de types seuls (effacés à la compilation), jamais les imports réels", () => {
+    expect(importsExecutables('import type { A } from "./a";\nexport type { B } from "./b";\nimport { C } from "./c";')).toEqual(["./c"]);
+    expect(importsExecutables('import type { A } from "@/fournisseurs/x";\nimport { Y } from "@/fournisseurs/y";')).toEqual(["@/fournisseurs/y"]);
   });
   it("le détecteur reconnaît les formes d'import fautives", () => {
     for (const code of [
