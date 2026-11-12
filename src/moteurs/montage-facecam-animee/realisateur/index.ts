@@ -326,6 +326,8 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
       erreurs = v.erreurs;
       planRefuse = s;
     }
+    // Un plan est déjà mis de côté (D17 au 1er essai) et ce nouvel essai n'est pas acceptable : on le rend tout de suite, pas de 3ᵉ appel.
+    if (essais >= 2 && gardeRepetition) return planRepetitionGarde(essais)!;
     message = messageAvecErreurs(base, erreurs, planRefuse);
   }
   return planRepetitionGarde(essais) ?? versionSimple(entree, essais, PHRASE_REALISATEUR_REFUSE, erreurs);
