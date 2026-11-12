@@ -1,6 +1,7 @@
 /** MG-1 : client signé vers le catalogue du site (lecture, copie, écriture). Faux site, valeurs fictives. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CODE_GUIDE_DEPART,
   cibleDuMot,
   PHRASES_REFUS_SITE,
 } from "@/domaine/guide-reseau/cibles-contrat";
@@ -35,8 +36,23 @@ const tout = async () =>
     await depots().notifications.lister(() => true),
   ]);
 
+const journalSite = async () =>
+  (await depots().evenements.lister((e) => e.type === "cibles_site")).length;
+const transportMuet = () => {
+  // Le faux site enregistre la demande, mais la réponse n'arrive jamais.
+  pm.injecterTransportSite((r) => {
+    void site.transport(r);
+    return new Promise(() => {});
+  });
+};
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
   reinitialiserDepots();
+  S.reinitialiserEtatCiblesSite();
   site = siteCiblesFactice();
   pm.injecterTransportSite(site.transport);
 });
@@ -215,6 +231,7 @@ describe("écriture", () => {
     expect(r).toEqual({
       ok: false,
       phrase: PHRASES_REFUS_SITE.adresse_hote_non_autorise,
+      code: expect.stringMatching(/^adr-[0-9a-f]{12}$/),
     });
   });
 
@@ -226,7 +243,11 @@ describe("écriture", () => {
       titre: "ab",
       url: "https://exemple.test/x",
     });
-    expect(r).toEqual({ ok: false, phrase: PHRASES_REFUS_SITE.titre_invalide });
+    expect(r).toEqual({
+      ok: false,
+      phrase: PHRASES_REFUS_SITE.titre_invalide,
+      code: expect.stringMatching(/^adr-/),
+    });
   });
 
   it("lierMot : mot envoyé en minuscules ; cible inactive ou inconnue => phrases", async () => {
@@ -370,5 +391,145 @@ describe("secret", () => {
     const t = await tout();
     expect(t).not.toContain(SECRET_FICTIF);
     expect(t).not.toMatch(/v1=[0-9a-f]{64}/);
+  });
+});
+
+describe("délai de 3 s", () => {
+  it("lecture sans réponse : la copie sert (depuisCopie), sans copie null", async () => {
+    await lire();
+    vi.useFakeTimers();
+    transportMuet();
+    const p = lire(T0 + 11 * MIN);
+    await vi.advanceTimersByTimeAsync(3000);
+    const r = await p;
+    expect(r?.luLe).toBe(T0);
+    expect(r?.depuisCopie).toBe(true);
+    reinitialiserDepots();
+    S.reinitialiserEtatCiblesSite();
+    const q = lire();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(await q).toBeNull();
+  });
+
+  it("écriture sans réponse : rejet à 3 s, code rendu, phrase « peut-être enregistrée », rejeu sans doublon", async () => {
+    vi.useFakeTimers();
+    transportMuet();
+    const p = S.creerElementCatalogue({
+      env,
+      maintenantMs: T0,
+      type: "adresse",
+      titre: "Page fictive E",
+      url: "https://exemple.test/page-e",
+    });
+    await vi.advanceTimersByTimeAsync(3000);
+    const r = await p;
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.phrase).toBe(
+      "Le site n'a pas répondu à temps : la demande a peut-être été enregistrée. Réessayez, elle ne sera pas créée deux fois.",
+    );
+    expect(r.code).toMatch(/^adr-[0-9a-f]{12}$/);
+    vi.useRealTimers();
+    pm.injecterTransportSite(site.transport);
+    const r2 = await S.creerElementCatalogue({
+      env,
+      maintenantMs: T0,
+      type: "adresse",
+      titre: "Page fictive E",
+      url: "https://exemple.test/page-e",
+      code: r.code,
+    });
+    expect(r2.ok).toBe(true);
+    expect(site.cibles.filter((c) => c.code === r.code)).toHaveLength(1);
+  });
+
+  it("« rien n'a été enregistré » seulement quand aucun appel n'est parti", async () => {
+    const r = await S.creerElementCatalogue({
+      env: {},
+      maintenantMs: T0,
+      type: "adresse",
+      titre: "Page fictive E",
+      url: "https://exemple.test/page-e",
+    });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.phrase).toContain("rien n'a été enregistré");
+    expect(!r.ok && r.code).toMatch(/^adr-/);
+    site.etat.panne = true;
+    const q = await S.creerElementCatalogue({
+      env,
+      maintenantMs: T0,
+      type: "adresse",
+      titre: "Page fictive E",
+      url: "https://exemple.test/page-e",
+    });
+    expect(!q.ok && q.phrase).not.toContain("rien n'a été enregistré");
+    expect(!q.ok && q.code).toMatch(/^adr-/);
+  });
+});
+
+describe("délier, code de départ, reprise après échec", () => {
+  it("délier après désactivation de la cible : on envoie la cible actuelle de la ligne, actif=false", async () => {
+    site.cibles.find((c) => c.code === "gde-essai01")!.actif = false;
+    await S.delierMot({
+      env,
+      maintenantMs: T0,
+      mot: "TOUS1",
+      reseau: "tous",
+      codeCible: "gde-essai01",
+    });
+    expect(JSON.parse(site.appels.at(-1)!.corps)).toEqual({
+      mot: "tous1",
+      reseau: "tous",
+      codeCible: "gde-essai01",
+      actif: false,
+    });
+  });
+
+  it("code de départ guide-ia accepté pour un guide, pas pour une adresse", async () => {
+    const g = await S.creerElementCatalogue({
+      env,
+      maintenantMs: T0,
+      type: "guide",
+      titre: "Guide de départ",
+      code: CODE_GUIDE_DEPART,
+    });
+    expect(g).toEqual({ ok: true, code: "guide-ia" });
+    expect(JSON.parse(site.appels.at(-1)!.corps).code).toBe("guide-ia");
+    const a = await S.creerElementCatalogue({
+      env,
+      maintenantMs: T0,
+      type: "adresse",
+      titre: "Page fictive",
+      url: "https://exemple.test/x",
+      code: CODE_GUIDE_DEPART,
+    });
+    expect(a.ok).toBe(false);
+  });
+
+  it("échec du site : pas de nouvel appel avant 1 minute, un seul message par série", async () => {
+    await lire();
+    site.etat.panne = true;
+    site.appels.length = 0;
+    const t = T0 + 11 * MIN;
+    expect((await lire(t))?.depuisCopie).toBe(true);
+    const apres = site.appels.length;
+    expect(apres).toBeGreaterThan(0);
+    expect(await journalSite()).toBe(1);
+    expect((await lire(t + 30_000))?.depuisCopie).toBe(true);
+    expect(site.appels).toHaveLength(apres);
+    await lire(t + 61_000);
+    expect(site.appels.length).toBeGreaterThan(apres);
+    expect(await journalSite()).toBe(1);
+    site.etat.panne = false;
+    const ok = await lire(t + 3 * MIN);
+    expect(ok?.depuisCopie).toBe(false);
+    site.etat.panne = true;
+    await lire(t + 20 * MIN);
+    expect(await journalSite()).toBe(2);
+  });
+
+  it("copie récente : depuisCopie faux", async () => {
+    await lire();
+    expect((await lire(T0 + MIN))?.depuisCopie).toBe(false);
   });
 });
