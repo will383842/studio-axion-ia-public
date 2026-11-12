@@ -197,9 +197,12 @@ export function donneesCalque(entree: {
   };
 }
 
+/** Vitesse de lecture de référence des contrôles (4,4 mots/s) : débit de la voix quand la durée d'une phrase manque. */
+export const VITESSE_LECTURE_MAX_MOTS_PAR_SEC = 4.4;
+
 /**
  * Contrôles des sous-titres (B.5) : débordement de la zone libre (mesure réelle de chaque groupe à sa taille de
- * rendu), phrase trop dense pour être lue (> 5,5 mots/s), chevauchement avec l'encadré de titre. Jamais bloquant.
+ * rendu), phrase trop dense pour être lue (> 4,4 mots/s), chevauchement avec l'encadré de titre. Jamais bloquant.
  */
 export function controlerSousTitres(donnees: DonneesCalque, options: { texte?: string; occupe?: ContexteMelange["occupe"] } = {}): AlerteQualite[] {
   const alertes: AlerteQualite[] = [];
@@ -210,7 +213,7 @@ export function controlerSousTitres(donnees: DonneesCalque, options: { texte?: s
   if (debordants.length) alertes.push({ code: "debordement-sous-titres", gravite: "attention", message: `${debordants.length} groupe(s) dépasse(nt) la zone libre.` });
   if (options.texte) {
     const mots = donnees.segments.flatMap((s) => s.mots);
-    const denses = phrasesTropDenses(options.texte, 4.4, dureesDesPhrases(mots));
+    const denses = phrasesTropDenses(options.texte, VITESSE_LECTURE_MAX_MOTS_PAR_SEC, dureesDesPhrases(mots));
     if (denses.length) alertes.push({ code: "vitesse-lecture", gravite: "info", message: `${denses.length} phrase(s) trop dense(s) pour être lue(s).` });
   }
   const chevauche = donnees.segments.filter((s) => (options.occupe ?? []).some((o) => o.debutSec < s.finSec && o.finSec > s.debutSec && ((o.zone === "haut" && s.position === "haut") || (o.zone === "bas" && s.position === "bas"))));
