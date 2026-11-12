@@ -15,20 +15,44 @@ import { exigerSession } from "@/services/auth";
 export const metadata: Metadata = { title: "Nouvelle vidéo" };
 export const dynamic = "force-dynamic";
 
-/** NOUVELLE VIDÉO (B.8 #3 + AV2.1) — « Recommencer comme… » (mes modèles) puis la grille des formats, générée du registre. */
+/**
+ * NOUVELLE VIDÉO (refonte R4, maquette M1) : d'abord « Choisir un format », puis « Repartir d'un modèle » (mes modèles intégrés).
+ * 12/11 (Williams) : « L'erreur corrigée » est seule, sans carte « Tableau animé » à quatre recettes.
+ */
+const AFFICHAGE_FORMAT: Record<string, { nomAffiche: string; accrocheAffichee: string }> = {
+  "tableau-anime": { nomAffiche: "L'erreur corrigée", accrocheAffichee: "Une erreur courante, puis la bonne façon de faire, dessinées sur un tableau" },
+};
+
 export default async function PageNouvelle() {
   await exigerSession();
   const [formats, modeles] = await Promise.all([listerFormatsAvecCompteurs(), listerModeles()]);
-  const actifs = formats.filter((f): f is typeof f & { statut: "actif" } => f.statut === "actif");
   // 08/11 (Williams, remplace la décision du 17/10) : un format sans générateur n'apparaît plus, même grisé — « ça évite
   // d'avoir du bruit pour rien ». Il réapparaît seul quand son statut passe à « actif ».
+  const actifs = formats.filter((f): f is typeof f & { statut: "actif" } => f.statut === "actif").map((f) => ({ ...f, ...AFFICHAGE_FORMAT[f.id] }));
   return (
     <div>
       <EnTetePage titre="Nouvelle vidéo" sousTitre="Choisissez un format, ou repartez d'un modèle." />
 
+      {actifs.length ? (
+        <section className="mb-10">
+          <EnTeteSection titre="Choisir un format" />
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {actifs.map((f, i) => (
+              <li key={f.id}>
+                <Apparition index={i}>
+                  <CarteFormat format={f} href={f.adresseCreation} />
+                </Apparition>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <EtatVide icone="clap" titre="Aucun format prêt" phrase="Les formats arrivent bientôt." />
+      )}
+
       {modeles.length > 0 && (
-        <section className="mb-8">
-          <EnTeteSection titre="Recommencer comme…" lien={{ href: "/modeles", libelle: "Mes modèles" }} />
+        <section>
+          <EnTeteSection titre="Repartir d'un modèle" sousTitre="Un modèle garde les réglages d'une vidéo réussie. Vous n'avez plus qu'à donner l'idée." lien={{ href: "/modeles", libelle: "Mes modèles" }} />
           <Carrousel libelle="Mes modèles" largeurElement="w-[78%] sm:w-80">
             {modeles.map((m, i) => (
               <Apparition key={m.id} index={i}>
@@ -60,23 +84,6 @@ export default async function PageNouvelle() {
             ))}
           </Carrousel>
         </section>
-      )}
-
-      {actifs.length ? (
-        <section>
-          {modeles.length > 0 && <EnTeteSection titre="Ou un format" />}
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {actifs.map((f, i) => (
-              <li key={f.id}>
-                <Apparition index={i + 1}>
-                  <CarteFormat format={f} href={f.adresseCreation} />
-                </Apparition>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : (
-        <EtatVide icone="clap" titre="Aucun format prêt" phrase="Les formats arrivent bientôt." />
       )}
     </div>
   );
