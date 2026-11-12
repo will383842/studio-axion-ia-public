@@ -22,8 +22,8 @@ export interface ServicesMots {
   mettreEnPauseLocal(mot: string, compte: string): Promise<Resultat>;
   /** Valide les textes du mot GUIDE : le serveur construit lui-même la saisie, le client n'envoie rien. */
   validerGuide?(): Promise<{ ok: boolean; raison: string }>;
-  /** Valide le message « adresse refusée » (texte du dictionnaire, côté serveur) : le client n'envoie rien. */
-  validerAdresseRefusee?(): Promise<{ ok: boolean; raison: string }>;
+  /** Valide UNE formulation d'un message privé : le client n'envoie qu'un nom de version, le serveur la contrôle contre le dictionnaire. */
+  validerFormulation?(version: string): Promise<{ ok: boolean; raison: string }>;
   refermerDisjoncteur(): Promise<{ ok: boolean }>;
   reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<unknown>;
 }
@@ -36,6 +36,20 @@ export function champsModifies(actuel: { heureCompte: number; jourMot: number },
   if (jour.trim() !== String(actuel.jourMot)) r.jourMot = n(jour);
   return r;
 }
+const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
+  ["m1-lien", "Premier message avec le lien"],
+  ["adresse-refusee", "Adresse refusée"],
+  ["m1-adresse", "Premier message sans lien (on demande l'adresse e-mail)"],
+  ["recu", "Accusé de réception"],
+  ["adresse-non-reconnue", "Adresse non reconnue (on la redemande)"],
+  ["lien-rappel", "Rappel avec le lien"],
+  ["ig-suivre", "Instagram, réponse privée unique"],
+  ["ig-pas-encore", "Instagram, la personne ne suit pas encore"],
+  ["deja-envoye", "Déjà envoyé"],
+  ["pub-commentaire", "Réponse publique au commentaire"],
+];
+/** Groupes proposés (série 6) : à relire et valider, mais aucun envoi n'est encore branché dessus. */
+const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["ig-suivre", "ig-pas-encore", "deja-envoye", "pub-commentaire", "lien-rappel"]);
 
 /**
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
@@ -71,10 +85,10 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
     onChange?.();
   };
 
-  const validerAdresseRefusee = async () => {
-    if (!services.validerAdresseRefusee || !window.confirm("Valider le message « adresse refusée » (texte officiel du serveur) ? Rien n’est envoyé.")) return;
-    const r = await services.validerAdresseRefusee();
-    if (r.ok) notifier.succes("Message « adresse refusée » validé.");
+  const validerFormulation = async (version: string) => {
+    if (!services.validerFormulation || !window.confirm("Valider cette formulation ? Rien n’est envoyé.")) return;
+    const r = await services.validerFormulation(version);
+    if (r.ok) notifier.succes("Formulation validée.");
     else notifier.erreur(phraseRefus(r.raison));
     onChange?.();
   };
@@ -112,15 +126,29 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
         </Carte>
       )}
 
-      {services.validerAdresseRefusee && (
-        <Carte data-carte="adresse-refusee">
-          <h3 className="text-base text-texte">Message « adresse refusée »</h3>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <Pastille ton={vue.adresseRefuseeValide ? "sauge" : "neutre"}>{vue.adresseRefuseeValide ? "Texte validé" : "Texte non validé"}</Pastille>
-            <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(validerAdresseRefusee)}>
-              Valider le message « adresse refusée »
-            </Bouton>
-          </div>
+      {services.validerFormulation && (
+        <Carte data-carte="formulations">
+          <h3 className="text-base text-texte">Messages privés : formulations</h3>
+          <p className="mt-1 text-sm text-texte-doux">Chaque formulation se valide une à une. Une personne reçoit toujours la même ; une formulation non validée ne part jamais.</p>
+          {GROUPES_ECRAN.map(([groupe, titre]) => (
+            <div key={groupe} className="mt-3" data-groupe={groupe}>
+              <h4 className="text-sm font-semibold text-texte">{titre}</h4>
+              {GROUPES_PAS_ENCORE_BRANCHES.has(groupe) && <p className="mt-1 text-sm text-texte-doux">Ce groupe n’est pas encore branché : ces formulations sont des propositions, rien n’est envoyé avec.</p>}
+              <ul className="mt-2 flex flex-col gap-3">
+                {(vue.formulations ?? []).filter((f) => f.groupe === groupe).map((f) => (
+                  <li key={f.version} className="flex flex-col gap-2" data-formulation={f.version}>
+                    <p className="text-sm text-texte">{f.texte}</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Pastille ton={f.valide ? "sauge" : "neutre"}>{f.valide ? "Validée" : "Non validée"}</Pastille>
+                      <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(() => validerFormulation(f.version))}>
+                        Valider cette formulation
+                      </Bouton>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </Carte>
       )}
 

@@ -1,0 +1,16 @@
+{
+  "valides": [
+    { "nom": "code de version", "corps": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "parts": { "metier": "compta.cabinet-fictif", "taille": "TPE", "service": "formation", "douleur": "d-retards", "cas_usage": "cas-fictif-01", "actualite": null, "format": "video-court", "structure": "scène vécue" }, "type_contenu": "video", "reference_studio": "0042-AV-TT" } }
+  ],
+  "invalides": [
+    { "nom": "parts absentes", "corps": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "type_contenu": "video", "reference_studio": "0042-AV-TT" } },
+    { "nom": "reference vide", "corps": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "parts": { "metier": null, "taille": null, "service": null, "douleur": null, "cas_usage": null, "actualite": null, "format": null, "structure": null }, "type_contenu": "video", "reference_studio": "" } },
+    { "nom": "reference avec espace", "corps": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "parts": { "metier": null, "taille": null, "service": null, "douleur": null, "cas_usage": null, "actualite": null, "format": null, "structure": null }, "type_contenu": "video", "reference_studio": "a b" } },
+    { "nom": "champ en trop", "corps": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "parts": { "metier": null, "taille": null, "service": null, "douleur": null, "cas_usage": null, "actualite": null, "format": null, "structure": null }, "type_contenu": "video", "reference_studio": "0042-AV-TT", "publiee": true } }
+  ],
+  "rejeu": {
+    "requete": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "parts": { "metier": "compta.cabinet-fictif", "taille": "TPE", "service": "formation", "douleur": "d-retards", "cas_usage": "cas-fictif-01", "actualite": null, "format": "video-court", "structure": "scène vécue" }, "type_contenu": "video", "reference_studio": "0042-AV-TT" },
+    "premiere": { "statut": 200, "corps": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "deja": false } },
+    "seconde": { "statut": 200, "corps": { "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue", "deja": true } }
+  }
+}
