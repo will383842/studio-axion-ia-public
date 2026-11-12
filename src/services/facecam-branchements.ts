@@ -179,3 +179,33 @@ brancherServicesFacecam({
     if (r && !r.ok && r.defauts.length) console.warn(`[facecam] relecture de ${c.videoId} : ${r.defauts.map((d) => d.defaut).join(", ")}`);
   },
 });
+
+/**
+ * Mémoire des cartes animées déjà servies par le face caméra : les modèles posés dans les 5 dernières vidéos terminées
+ * (hors la vidéo en cours), la plus récente d'abord, un seul travail par vidéo (le plus récent) ; et le modèle qui a
+ * ouvert la dernière. Même méthode que l'historique du réalisateur v4. Une lecture qui échoue ne bloque jamais : liste
+ * vide, donc le choix d'avant. Le résultat doit être GARDÉ dans l'état du travail : une étape rejouée refait le même choix.
+ */
+export async function memoireCartesFacecam(videoIdEnCours?: string): Promise<{ dejaServis: string[]; ouverturePrecedente?: string }> {
+  try {
+    const { ID_MOTEUR_FACECAM } = await import("@/moteurs/montage-facecam");
+    const versions = await depots().versions.lister((v) => v.statut === "prete" && v.commande?.moteurId === ID_MOTEUR_FACECAM && v.videoId !== videoIdEnCours);
+    const vus = new Set<string>();
+    const videos = [...versions]
+      .sort((a, b) => (b.creeLe ?? "").localeCompare(a.creeLe ?? ""))
+      .filter((v) => (vus.has(v.videoId) ? false : (vus.add(v.videoId), true)))
+      .slice(0, 5)
+      .map((v) => {
+        const vues = (v.projetMontage as { cartesAuto?: { modele?: unknown; etat?: unknown; debutSec?: unknown }[] } | undefined)?.cartesAuto;
+        return (Array.isArray(vues) ? vues : [])
+          .filter((x) => x.etat === "posee" && typeof x.modele === "string" && typeof x.debutSec === "number")
+          .sort((a, b) => (a.debutSec as number) - (b.debutSec as number))
+          .map((x) => x.modele as string);
+      });
+    const ouverture = videos.find((m) => m.length)?.[0];
+    return { dejaServis: videos.flat(), ...(ouverture ? { ouverturePrecedente: ouverture } : {}) };
+  } catch (e) {
+    console.warn("[studio] mémoire des cartes face caméra illisible :", e instanceof Error ? e.message : e);
+    return { dejaServis: [] };
+  }
+}
