@@ -40,7 +40,7 @@ export function EnTeteCalendrier({ vue, periode, liens, reseauxActifs, lienResea
             {tousAllumes ? <span className="text-texte-faible">Tous les réseaux sont affichés.</span> : <Link href={lienTout} className="font-bold underline underline-offset-4">Afficher tous les réseaux</Link>}
           </div>
         </details>
-        <Link href={lienAjouter} className="inline-flex min-h-[38px] items-center justify-center rounded-[10px] bg-orange px-3 text-sm font-bold text-sur-orange">
+        <Link href={lienAjouter} className="inline-flex min-h-[38px] items-center justify-center rounded-[10px] bg-accent px-3 text-sm font-bold text-sur-accent">
           + Ajouter
         </Link>
       </BarreVue>
