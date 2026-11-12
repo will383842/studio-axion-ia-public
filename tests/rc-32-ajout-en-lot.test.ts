@@ -26,10 +26,20 @@ describe("RC-32 découpage", () => {
   it("un tiret dans une phrase ne sépare pas ; un seul retour à la ligne ne sépare pas", () => {
     expect(decouperEnBlocs("Un - deux\nsuite")).toEqual(["Un - deux\nsuite"]);
   });
-  it("signature identique pour un même texte aux espaces près, différente sinon", () => {
-    expect(signatureBloc("Bonjour  le monde ")).toBe(signatureBloc("Bonjour le monde"));
+  it("signature identique aux espaces de fin de ligne et aux fins de ligne Windows près, différente sinon", () => {
+    expect(signatureBloc("Bonjour le monde  \r\nSuite ")).toBe(signatureBloc("Bonjour le monde\nSuite"));
     expect(signatureBloc("Bonjour")).not.toBe(signatureBloc("bonjour"));
-    expect(signatureBloc("Bonjour")).not.toContain("Bonjour");
+  });
+  it("même texte, sauts de ligne différents : pas un doublon", () => {
+    expect(signatureBloc("Ligne un\nLigne deux")).not.toBe(signatureBloc("Ligne un Ligne deux"));
+    const r = preparerAjoutEnLot({ texte: "Ligne un Ligne deux", existantes: [existante("e1", "Ligne un\nLigne deux")], idDe, ...base });
+    expect(r.doublons).toEqual([]);
+    expect(r.aCreer).toHaveLength(1);
+  });
+  it("même texte à la mise en forme de fin de ligne près : doublon signalé", () => {
+    const r = preparerAjoutEnLot({ texte: "Ligne un  \r\nLigne deux", existantes: [existante("e1", "Ligne un\nLigne deux")], idDe, ...base });
+    expect(r.doublons).toHaveLength(1);
+    expect(r.aCreer).toEqual([]);
   });
 });
 
