@@ -59,6 +59,7 @@ import { preparerReglagesMoteur } from "./cas-concret-reglages";
 import { avecSerieALEcran } from "./series";
 import { complementsGenerateur, type TexteRelu } from "./fabrication-reseaux";
 import { ligneSimulee, resumeBudget } from "./couts";
+import { familleDe } from "@/domaine/journal-echecs";
 import { depenserSelonOrigine, libererReservation, verifierEtReserverSelonOrigine } from "./credits";
 import { accordAutomatique, budgetIndicatif, budgetIndicatifPour } from "./mode-budget";
 import { reglageIntensite } from "@/briques/intensite/reglage";
@@ -872,12 +873,20 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   // L3-01 : l'origine est FIGÉE dans la commande (retouches, formats et relances la relisent) ; « usine » → `reserverPourUsine`.
   if (options.origine) commande.origine = options.origine;
   await verifierEtReserverSelonOrigine(commande.origine, estimation, accordDuFormat(commande.formatId, options.confirme), "Cette vidéo", { videoId, travailId });
+  let lance: { travailId: Id; versionId: Id };
   try {
-    return await creerFabrication(video, commande, moteur, estimation, travailId);
+    lance = await creerFabrication(video, commande, moteur, estimation, travailId);
   } catch (e) {
     await libererReservation(travailId, "liberee");
     throw e;
   }
+  // GV-EC-01e : le nouveau travail est parti ; un ancien travail de cette vidéo qui attendait la validation (réservation
+  // gardée par GV-EC-01b) ne repartira plus tel quel : sa réservation est rendue (une fois ; idempotent). Après le lancement
+  // et non avant : si le lancement échoue, l'ancien garde la sienne. L'ancien travail reste « echec » (aucun statut nouveau).
+  for (const ancien of await d.travaux.lister((t) => t.cibleId === videoId && t.id !== travailId && t.statut === "echec" && !!t.erreur && familleDe(t.erreur.code) === "attente-validation")) {
+    await libererReservation(ancien.id, "liberee");
+  }
+  return lance;
 }
 
 /** L0a : format dont le moteur rend lui-même les sous-titres du texte dit (aucun sous-titre « de lancement »). */
