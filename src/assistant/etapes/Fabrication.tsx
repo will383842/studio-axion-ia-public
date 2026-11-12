@@ -82,7 +82,13 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
             </AnimatePresence>
           </div>
           <div className="text-center">
-            <EnTeteSuivi etat={termine ? "prete" : echec ? "coincee" : arretee ? "arretee" : "en-cours"} sansTemps />
+            {/* « Vous pouvez fermer » n'est promis que si la boucle de fabrication tourne ; sinon, on demande seulement de patienter. */}
+            <EnTeteSuivi
+              etat={termine ? "prete" : echec ? "coincee" : arretee ? "arretee" : "en-cours"}
+              sansTemps
+              titre={arretee && !termine && !echec ? "Fabrication arrêtée" : undefined}
+              phrase={!termine && !echec && !arretee && !t?.boucleActive ? "Quelques minutes de patience." : undefined}
+            />
           </div>
           {actif && t?.boucleActive && telephone.etat === "a-activer" && (
             <Bouton
