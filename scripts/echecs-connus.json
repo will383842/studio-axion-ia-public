@@ -16,6 +16,11 @@
       "fichier": "tests/e2e-verif1-g-liens.test.ts",
       "nom": "agent g — liens internes /ecrire?onglet= et /videos?vue= : la page lit cette valeur",
       "note": "déjà rouge sur master le 13/11 (adresses /ecrire/stock, ancres de réglages, ?vue=) ; à corriger par R7 et R9 de la refonte"
+    },
+    {
+      "fichier": "tests/facecam-animee/essai-reel.test.ts",
+      "nom": "Essai réel · 4. prise horizontale (IMG_7747, 3840 × 2160) recadrée en vertical sur le visage vrai FFmpeg : une prise horizontale 16:9 (réduite) devient une vidéo verticale 1080 × 1920, colonne du visage gardée",
+      "note": "déjà rouge sur master le 12/11 sur les machines de GitHub, vert dans le cloud (version de FFmpeg de la machine) ; à corriger par la session vidéo (pixel testé ou FFmpeg épinglé)"
     }
   ]
 }
