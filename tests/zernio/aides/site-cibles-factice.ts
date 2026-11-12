@@ -95,7 +95,9 @@ export function siteCiblesFactice() {
     if (etat.statutForce !== null)
       return rep(
         etat.statutForce,
-        etat.corpsForce ?? { ok: false, erreur: "introuvable" },
+        etat.corpsForce !== undefined
+          ? etat.corpsForce
+          : { ok: false, erreur: "introuvable" },
       );
     const h = r.entetes;
     const ok = signatureValide(etat.secret, {
@@ -128,6 +130,26 @@ export function siteCiblesFactice() {
           return refus(422, "adresse_https_obligatoire");
         if (new URL(u).hostname !== HOTE_FICTIF)
           return refus(422, "adresse_hote_non_autorise");
+      }
+      // Règles du vrai site : préfixe du code selon le type (`guide-ia` = guide de départ), PDF obligatoire pour un guide, jamais d'url sur un guide ni de PDF sur une adresse.
+      const prefixeOk =
+        type === "guide"
+          ? /^gde-[0-9a-z]{4,}$/.test(code) || code === "guide-ia"
+          : /^adr-[0-9a-z]{4,}$/.test(code);
+      if (!prefixeOk) return refus(422, "code_invalide");
+      if (type === "guide") {
+        if (json.url !== undefined && json.url !== null)
+          return refus(422, "guide_sans_adresse");
+        const pdf = json.cheminPdf;
+        if (
+          typeof pdf !== "string" ||
+          !/^[A-Za-z0-9_\-/]+\.pdf$/.test(pdf) ||
+          pdf.startsWith("/") ||
+          pdf.includes("..")
+        )
+          return refus(422, "chemin_pdf_invalide");
+      } else if (json.cheminPdf !== undefined && json.cheminPdf !== null) {
+        return refus(422, "adresse_sans_pdf");
       }
       const i = cibles.findIndex((c) => c.code === code);
       const nouvelle: CibleSite = {
